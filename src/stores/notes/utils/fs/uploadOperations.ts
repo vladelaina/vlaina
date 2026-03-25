@@ -8,7 +8,7 @@ export async function uploadNoteAssetImpl(
     const storage = getStorageAdapter();
     const vaultPath = notesPath || await getNotesBasePath();
 
-    const assetsDir = await joinPath(vaultPath, '.nekotick', 'assets', 'covers');
+    const assetsDir = await joinPath(vaultPath, '.vlaina', 'assets', 'covers');
     if (!await storage.exists(assetsDir)) {
         await storage.mkdir(assetsDir, true);
     }

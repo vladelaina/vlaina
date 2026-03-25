@@ -28,7 +28,7 @@ export const useWeatherStore = create<WeatherState>()(
       },
     }),
     {
-      name: 'nekotick-weather-city',
+      name: 'vlaina-weather-city',
       partialize: (state) => ({ city: state.city }),
     }
   )

@@ -6,10 +6,6 @@
 use std::process::Command;
 
 pub fn open_auth_url(url: &str) -> Result<(), String> {
-    if open::that(url).is_ok() {
-        return Ok(());
-    }
-
     #[cfg(target_os = "windows")]
     {
         let status = Command::new("cmd")

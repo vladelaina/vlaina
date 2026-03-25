@@ -5,8 +5,8 @@
 .milkdown {
   min-height: 100%;
   outline: none;
-  --neko-editor-caret-color: var(--neko-text-primary, #2C2C2B);
-  --neko-editor-caret-width: 1px;
+  --vlaina-editor-caret-color: var(--vlaina-text-primary, #2C2C2B);
+  --vlaina-editor-caret-width: 1px;
 }
 
 /* Reset potential focus outlines during interactions */
@@ -22,7 +22,7 @@
 
 /* Editor container - clickable area */
 .milkdown-editor {
-  background-color: var(--neko-bg-primary);
+  background-color: var(--vlaina-bg-primary);
   scroll-behavior: smooth;
   min-height: calc(100vh - 200px);
   cursor: text;
@@ -40,13 +40,13 @@
   pointer-events: none !important;
 }
 
-body.neko-overlay-scrollbar-dragging,
-body.neko-overlay-scrollbar-dragging * {
+body.vlaina-overlay-scrollbar-dragging,
+body.vlaina-overlay-scrollbar-dragging * {
   cursor: default !important;
 }
 
-body.neko-block-dragging-cursor,
-body.neko-block-dragging-cursor * {
+body.vlaina-block-dragging-cursor,
+body.vlaina-block-dragging-cursor * {
   cursor: crosshair !important;
 }
 
@@ -62,75 +62,75 @@ body.neko-block-dragging-cursor * {
 }
 
 .milkdown .ProseMirror {
-  caret-color: var(--neko-editor-caret-color);
+  caret-color: var(--vlaina-editor-caret-color);
   line-height: calc(1em + 8px);
 }
 
 /* Selection */
 .milkdown .ProseMirror::selection {
-  background-color: var(--neko-selection-bg, #2781db) !important;
+  background-color: var(--vlaina-selection-bg, #2781db) !important;
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
 
 .milkdown .ProseMirror::-moz-selection {
-  background-color: var(--neko-selection-bg, #2781db) !important;
+  background-color: var(--vlaina-selection-bg, #2781db) !important;
   color: #ffffff !important;
 }
 
 html[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hideselection *::selection,
 body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hideselection *::selection {
-  background-color: var(--neko-selection-bg, #2781db) !important;
+  background-color: var(--vlaina-selection-bg, #2781db) !important;
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
 
 html[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hideselection *::-moz-selection,
 body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hideselection *::-moz-selection {
-  background-color: var(--neko-selection-bg, #2781db) !important;
+  background-color: var(--vlaina-selection-bg, #2781db) !important;
   color: #ffffff !important;
 }
 
-.milkdown .ProseMirror .neko-link-selection-visible {
-  background-color: var(--neko-selection-bg, #2781db);
+.milkdown .ProseMirror .vlaina-link-selection-visible {
+  background-color: var(--vlaina-selection-bg, #2781db);
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
   box-shadow:
-    0 2px 0 var(--neko-selection-bg, #2781db),
-    0 -2px 0 var(--neko-selection-bg, #2781db);
+    0 2px 0 var(--vlaina-selection-bg, #2781db),
+    0 -2px 0 var(--vlaina-selection-bg, #2781db);
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
 
 /* Notion-like drag block selection highlight */
-.milkdown .ProseMirror .neko-block-selected {
-  --neko-block-selection-color: var(--neko-hover-filled);
-  --neko-block-selection-bleed-y: 4px;
-  --neko-block-selection-bleed-x-start: 0;
-  background-color: var(--neko-block-selection-color);
+.milkdown .ProseMirror .vlaina-block-selected {
+  --vlaina-block-selection-color: var(--vlaina-hover-filled);
+  --vlaina-block-selection-bleed-y: 4px;
+  --vlaina-block-selection-bleed-x-start: 0;
+  background-color: var(--vlaina-block-selection-color);
   box-shadow:
-    inset 0 0 0 1px var(--neko-block-selection-color),
-    0 var(--neko-block-selection-bleed-y) 0 0 var(--neko-block-selection-color),
-    0 calc(-1 * var(--neko-block-selection-bleed-y)) 0 0 var(--neko-block-selection-color),
-    calc(-1 * var(--neko-block-selection-bleed-x-start)) 0 0 0 var(--neko-block-selection-color);
+    inset 0 0 0 1px var(--vlaina-block-selection-color),
+    0 var(--vlaina-block-selection-bleed-y) 0 0 var(--vlaina-block-selection-color),
+    0 calc(-1 * var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-color),
+    calc(-1 * var(--vlaina-block-selection-bleed-x-start)) 0 0 0 var(--vlaina-block-selection-color);
   border-radius: 0;
 }
 
 /* List selection compatibility:
    decoration class may be on LI itself or on a child block (e.g. LI > P). */
-.milkdown .ProseMirror li.neko-block-selected,
-.milkdown .ProseMirror li .neko-block-selected {
-  --neko-block-selection-bleed-x-start: 24px;
-  --neko-block-selection-bleed-y: 0px;
+.milkdown .ProseMirror li.vlaina-block-selected,
+.milkdown .ProseMirror li .vlaina-block-selected {
+  --vlaina-block-selection-bleed-x-start: 24px;
+  --vlaina-block-selection-bleed-y: 0px;
 }
 
 /* Hide text caret while drag block selection is active */
-.milkdown .ProseMirror.neko-block-selection-active {
+.milkdown .ProseMirror.vlaina-block-selection-active {
   caret-color: transparent !important;
 }
 
 /* Block controls (selected block drag handle) */
-.neko-block-controls {
+.vlaina-block-controls {
   position: fixed;
   z-index: 60;
   display: flex;
@@ -142,16 +142,16 @@ body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hide
   transition: opacity 120ms ease;
 }
 
-.neko-block-controls.visible {
+.vlaina-block-controls.visible {
   opacity: 1;
 }
 
-.neko-block-controls .neko-block-control-btn {
+.vlaina-block-controls .vlaina-block-control-btn {
   width: 24px;
   height: 24px;
   border: 0;
   background: transparent;
-  color: var(--neko-text-tertiary);
+  color: var(--vlaina-text-tertiary);
   border-radius: 0;
   display: inline-flex;
   align-items: center;
@@ -161,33 +161,33 @@ body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hide
   transition: color 120ms ease, opacity 120ms ease;
 }
 
-.neko-block-controls .neko-block-control-btn:hover {
-  color: var(--neko-text-primary);
+.vlaina-block-controls .vlaina-block-control-btn:hover {
+  color: var(--vlaina-text-primary);
   background: transparent;
 }
 
-.neko-block-controls .neko-block-control-btn:active {
+.vlaina-block-controls .vlaina-block-control-btn:active {
   background: transparent;
   opacity: 0.75;
 }
 
-.neko-block-controls .neko-block-control-handle {
+.vlaina-block-controls .vlaina-block-control-handle {
   cursor: grab;
 }
 
-.neko-block-controls.dragging .neko-block-control-handle,
-.neko-block-controls .neko-block-control-handle:active {
+.vlaina-block-controls.dragging .vlaina-block-control-handle,
+.vlaina-block-controls .vlaina-block-control-handle:active {
   cursor: grabbing;
 }
 
-.neko-block-controls.dragging {
+.vlaina-block-controls.dragging {
   opacity: 1;
 }
 
-.neko-block-drop-indicator {
+.vlaina-block-drop-indicator {
   position: fixed;
   height: 2px;
-  background: var(--neko-accent);
+  background: var(--vlaina-accent);
   border-radius: 1px;
   pointer-events: none;
   z-index: 59;
@@ -195,16 +195,16 @@ body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hide
   transition: opacity 80ms linear;
 }
 
-.neko-block-drop-indicator.visible {
+.vlaina-block-drop-indicator.visible {
   opacity: 1;
 }
 
-.milkdown .ProseMirror .neko-block-drag-source {
+.milkdown .ProseMirror .vlaina-block-drag-source {
   opacity: 0.38;
   transition: opacity 120ms ease;
 }
 
-.neko-block-drag-preview {
+.vlaina-block-drag-preview {
   position: fixed;
   left: -10000px;
   top: -10000px;
@@ -214,8 +214,8 @@ body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hide
   will-change: transform;
   transform: translateZ(0);
   opacity: 1;
-  background: var(--neko-bg-primary);
-  border: 1px solid var(--neko-border);
+  background: var(--vlaina-bg-primary);
+  border: 1px solid var(--vlaina-border);
   border-radius: 4px;
   box-shadow:
     0 18px 40px -18px rgb(15 23 42 / 0.35),
@@ -223,13 +223,13 @@ body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hide
   overflow: hidden;
 }
 
-.neko-block-drag-preview-layer {
+.vlaina-block-drag-preview-layer {
   position: relative;
   z-index: 2;
   background: inherit;
 }
 
-.neko-block-drag-preview-layer > * {
+.vlaina-block-drag-preview-layer > * {
   pointer-events: none !important;
 }
 
@@ -302,7 +302,7 @@ body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hide
   position: absolute;
   inset: 0;
   z-index: 2;
-  background: var(--neko-accent-light);
+  background: var(--vlaina-accent-light);
   pointer-events: none;
 }
 

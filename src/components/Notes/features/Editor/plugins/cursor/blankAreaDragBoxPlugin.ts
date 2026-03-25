@@ -32,7 +32,7 @@ export const blankAreaDragBoxPluginKey = new PluginKey('blankAreaDragBox');
 const DRAG_THRESHOLD = 4;
 const DRAG_BOX_COLOR = 'rgba(39, 131, 222, 0.18)';
 const DRAG_SESSION_CURSOR = 'crosshair';
-const BLOCK_SELECTION_ACTIVE_CLASS = 'neko-block-selection-active';
+const BLOCK_SELECTION_ACTIVE_CLASS = 'vlaina-block-selection-active';
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR = '[data-notes-sidebar-scroll-root="true"]';
 const COVER_REGION_SELECTOR = '[data-note-cover-region="true"]';
@@ -147,7 +147,7 @@ function createSelectionDecorations(doc: EditorState['doc'], blocks: readonly Bl
     return { from, to };
   }));
   const decorations = displayRanges.map((range) => Decoration.node(range.from, range.to, {
-    class: 'neko-block-selected',
+    class: 'vlaina-block-selected',
   }));
   return DecorationSet.create(doc, decorations);
 }

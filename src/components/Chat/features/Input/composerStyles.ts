@@ -19,7 +19,7 @@ export const chatComposerInputBlockClass = [
 export const chatComposerTextareaClass = [
   "w-full resize-none bg-transparent",
   "select-none focus:select-text",
-  "text-[15px] leading-6 text-[var(--neko-text-primary)]",
+  "text-[15px] leading-6 text-[var(--vlaina-text-primary)]",
   "placeholder:text-gray-400 dark:placeholder:text-gray-500 placeholder:select-none",
   "focus:outline-none",
   "max-h-[320px] min-h-[24px]"
@@ -38,7 +38,7 @@ export const chatComposerPrimaryButtonClass = [
 export const chatComposerSecondaryButtonClass = [
   "h-9 px-4 rounded-full",
   "bg-gray-100 dark:bg-zinc-800",
-  "text-[var(--neko-text-primary)]",
+  "text-[var(--vlaina-text-primary)]",
   "hover:bg-gray-200 dark:hover:bg-zinc-700",
   "transition-colors"
 ].join(" ");

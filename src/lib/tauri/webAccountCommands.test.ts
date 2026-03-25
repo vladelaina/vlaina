@@ -8,7 +8,7 @@ function mockLocation(url: string) {
 describe('webAccountCommands', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    mockLocation('https://app.nekotick.com/');
+    mockLocation('https://app.vlaina.com/');
     localStorage.clear();
     sessionStorage.clear();
   });
@@ -21,7 +21,7 @@ describe('webAccountCommands', () => {
 
   it('treats cached metadata as disconnected until the cookie session is probed', () => {
     sessionStorage.setItem(
-      'nekotick_account_session',
+      'vlaina_account_session',
       JSON.stringify({
         provider: 'google',
         username: 'octocat',
@@ -40,7 +40,7 @@ describe('webAccountCommands', () => {
 
   it('probes the cookie session before reporting a connected status', async () => {
     sessionStorage.setItem(
-      'nekotick_account_session',
+      'vlaina_account_session',
       JSON.stringify({
         provider: 'google',
         username: 'octocat',
@@ -67,7 +67,7 @@ describe('webAccountCommands', () => {
 
     expect(status.connected).toBe(true);
     expect(status.provider).toBe('google');
-    expect(fetchMock).toHaveBeenCalledWith('https://api.nekotick.com/auth/session', {
+    expect(fetchMock).toHaveBeenCalledWith('https://api.vlaina.com/auth/session', {
       method: 'GET',
       cache: 'no-store',
       credentials: 'include',
@@ -79,11 +79,11 @@ describe('webAccountCommands', () => {
 
   it('clears metadata when the cookie session is unauthorized', async () => {
     sessionStorage.setItem(
-      'nekotick_account_session',
+      'vlaina_account_session',
       JSON.stringify({ provider: 'github', username: 'octocat', avatarUrl: 'https://example.com/avatar.png' })
     );
     localStorage.setItem(
-      'nekotick_account_identity',
+      'vlaina_account_identity',
       JSON.stringify({ isConnected: true, username: 'octocat', avatarUrl: 'https://example.com/avatar.png' })
     );
 
@@ -93,14 +93,14 @@ describe('webAccountCommands', () => {
     const status = await webAccountCommands.probeStatus();
 
     expect(status.connected).toBe(false);
-    expect(sessionStorage.getItem('nekotick_account_session')).toBeNull();
-    expect(localStorage.getItem('nekotick_account_identity')).toBeNull();
+    expect(sessionStorage.getItem('vlaina_account_session')).toBeNull();
+    expect(localStorage.getItem('vlaina_account_identity')).toBeNull();
   });
 
   it('skips probing the hosted session API on local development origins', async () => {
     mockLocation('http://127.0.0.1:3000/');
     sessionStorage.setItem(
-      'nekotick_account_session',
+      'vlaina_account_session',
       JSON.stringify({
         provider: 'github',
         username: 'octocat',
@@ -127,7 +127,7 @@ describe('webAccountCommands', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(webAccountCommands.startAuth('google')).rejects.toThrow(
-      'Web sign-in is unavailable on local development origins. Use app.nekotick.com or the desktop app.'
+      'Web sign-in is unavailable on local development origins. Use app.vlaina.com or the desktop app.'
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -139,14 +139,14 @@ describe('webAccountCommands', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(webAccountCommands.requestEmailCode('octocat@example.com')).rejects.toThrow(
-      'Web sign-in is unavailable on local development origins. Use app.nekotick.com or the desktop app.'
+      'Web sign-in is unavailable on local development origins. Use app.vlaina.com or the desktop app.'
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('revokes the cookie session before clearing client metadata', async () => {
     sessionStorage.setItem(
-      'nekotick_account_session',
+      'vlaina_account_session',
       JSON.stringify({ provider: 'github', username: 'octocat', avatarUrl: 'https://example.com/avatar.png' })
     );
 
@@ -155,17 +155,17 @@ describe('webAccountCommands', () => {
 
     await webAccountCommands.disconnect();
 
-    expect(fetchMock).toHaveBeenCalledWith('https://api.nekotick.com/auth/session/revoke', {
+    expect(fetchMock).toHaveBeenCalledWith('https://api.vlaina.com/auth/session/revoke', {
       method: 'POST',
       cache: 'no-store',
       credentials: 'include',
     });
-    expect(sessionStorage.getItem('nekotick_account_session')).toBeNull();
+    expect(sessionStorage.getItem('vlaina_account_session')).toBeNull();
   });
 
   it('preserves metadata when revoke fails so logout can be retried', async () => {
     sessionStorage.setItem(
-      'nekotick_account_session',
+      'vlaina_account_session',
       JSON.stringify({ provider: 'github', username: 'octocat', avatarUrl: 'https://example.com/avatar.png' })
     );
 
@@ -173,6 +173,6 @@ describe('webAccountCommands', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(webAccountCommands.disconnect()).rejects.toThrow('Failed to revoke session: HTTP 500');
-    expect(sessionStorage.getItem('nekotick_account_session')).not.toBeNull();
+    expect(sessionStorage.getItem('vlaina_account_session')).not.toBeNull();
   });
 });

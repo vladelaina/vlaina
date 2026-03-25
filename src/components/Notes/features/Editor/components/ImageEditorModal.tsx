@@ -61,8 +61,8 @@ export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEdi
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden bg-[var(--neko-bg-primary)] border-[var(--neko-border)]">
-                <DialogHeader className="p-4 border-b border-[var(--neko-border)]">
+            <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden bg-[var(--vlaina-bg-primary)] border-[var(--vlaina-border)]">
+                <DialogHeader className="p-4 border-b border-[var(--vlaina-border)]">
                     <DialogTitle className="text-sm font-medium">Edit Image</DialogTitle>
                 </DialogHeader>
 
@@ -87,7 +87,7 @@ export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEdi
 
                     <div className="p-4 space-y-4">
                         <div className="flex items-center gap-4">
-                            <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--neko-text-tertiary)] w-10">Zoom</span>
+                            <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--vlaina-text-tertiary)] w-10">Zoom</span>
                             <PremiumSlider
                                 min={1}
                                 max={5}
@@ -99,12 +99,12 @@ export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEdi
                     </div>
                 </div>
 
-                <DialogFooter className="p-4 border-t border-[var(--neko-border)] flex justify-between sm:justify-between items-center bg-[var(--neko-bg-secondary)]/30">
+                <DialogFooter className="p-4 border-t border-[var(--vlaina-border)] flex justify-between sm:justify-between items-center bg-[var(--vlaina-bg-secondary)]/30">
                     <Button
                         variant="ghost"
                         size="sm"
                         onClick={onClose}
-                        className="text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)]"
+                        className="text-[var(--vlaina-text-secondary)] hover:text-[var(--vlaina-text-primary)]"
                     >
                         Cancel
                     </Button>
@@ -113,7 +113,7 @@ export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEdi
                         onClick={handleSave}
                         disabled={isSaving}
                         className={cn(
-                            "bg-[var(--neko-accent)] hover:bg-[var(--neko-accent-hover)] text-white px-6 rounded-lg font-medium shadow-sm transition-all active:scale-95",
+                            "bg-[var(--vlaina-accent)] hover:bg-[var(--vlaina-accent-hover)] text-white px-6 rounded-lg font-medium shadow-sm transition-all active:scale-95",
                             isSaving && "opacity-70 cursor-not-allowed"
                         )}
                     >

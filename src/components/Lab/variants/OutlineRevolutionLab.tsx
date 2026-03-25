@@ -398,7 +398,7 @@ export function OutlineRevolutionLab() {
             </LabCard>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-                <SimpleBlock title="16. Neko Paw Swipe" bg="bg-blue-500/5 text-blue-500" />
+                <SimpleBlock title="16. Vlaina Paw Swipe" bg="bg-blue-500/5 text-blue-500" />
                 <SimpleBlock title="17. Gravity Well" bg="bg-zinc-100 dark:bg-zinc-800" />
                 <SimpleBlock title="18. Ambient Glow" bg="bg-gradient-to-br from-blue-500/20 to-purple-500/20" />
                 <SimpleBlock title="19. The Ghost Gutter" bg="bg-zinc-50 dark:bg-zinc-900" />

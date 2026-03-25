@@ -84,7 +84,7 @@ export function PremiumSlider({
             <div
                 className="absolute w-full h-[3px] rounded-full pointer-events-none"
                 style={{
-                    background: `linear-gradient(to right, #1e96eb var(--slider-percentage), var(--neko-bg-tertiary, #e4e4e7) var(--slider-percentage))`,
+                    background: `linear-gradient(to right, #1e96eb var(--slider-percentage), var(--vlaina-bg-tertiary, #e4e4e7) var(--slider-percentage))`,
                 }}
             />
 
@@ -118,7 +118,7 @@ export function PremiumSlider({
             >
                 <div
                     className={cn(
-                        'w-6 h-[18px] bg-[var(--neko-bg-primary)] rounded-full shadow-md border border-[var(--neko-border)]',
+                        'w-6 h-[18px] bg-[var(--vlaina-bg-primary)] rounded-full shadow-md border border-[var(--vlaina-border)]',
                         'group-active:scale-[0.9] transition-transform duration-100'
                     )}
                 />

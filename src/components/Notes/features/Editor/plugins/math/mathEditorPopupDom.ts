@@ -33,13 +33,13 @@ export function createMathEditorElements(): MathEditorElements {
 
   const cancelButton = document.createElement('button');
   cancelButton.type = 'button';
-  cancelButton.className = 'ai-review-action tertiary ai-review-icon-action neko-icon-shadow-button math-editor-icon-action';
+  cancelButton.className = 'ai-review-action tertiary ai-review-icon-action vlaina-icon-shadow-button math-editor-icon-action';
   cancelButton.setAttribute('aria-label', 'Cancel');
   cancelButton.innerHTML = EDITOR_ICONS.reviewClose;
 
   const saveButton = document.createElement('button');
   saveButton.type = 'button';
-  saveButton.className = 'ai-review-action primary ai-review-icon-action neko-icon-shadow-button math-editor-icon-action';
+  saveButton.className = 'ai-review-action primary ai-review-icon-action vlaina-icon-shadow-button math-editor-icon-action';
   saveButton.setAttribute('aria-label', 'Apply');
   saveButton.innerHTML = EDITOR_ICONS.reviewApply;
 

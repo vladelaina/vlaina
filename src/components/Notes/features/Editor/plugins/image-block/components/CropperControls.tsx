@@ -39,7 +39,7 @@ export const CropperControls = ({
                 onPointerDown={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
             >
-                <span className="text-[10px] font-bold text-[var(--neko-text-tertiary)] mr-2 uppercase tracking-wide">Zoom</span>
+                <span className="text-[10px] font-bold text-[var(--vlaina-text-tertiary)] mr-2 uppercase tracking-wide">Zoom</span>
                 <PremiumSlider
                     min={minZoom}
                     max={maxZoom}
@@ -62,7 +62,7 @@ export const CropperControls = ({
                 <button
                     onClick={onSave}
                     disabled={isSaving}
-                    className="p-1 rounded-lg bg-[var(--neko-accent)] hover:bg-[var(--neko-accent-hover)] text-white shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                    className="p-1 rounded-lg bg-[var(--vlaina-accent)] hover:bg-[var(--vlaina-accent-hover)] text-white shadow-sm transition-all active:scale-95 disabled:opacity-50"
                     title="Save"
                     aria-label="Save crop"
                 >

@@ -64,7 +64,7 @@ export function NotesSidebarRow({
           isActive
             ? 'bg-[var(--notes-sidebar-row-active)] text-[var(--notes-sidebar-text)]'
             : 'text-[var(--notes-sidebar-text-muted)] hover:bg-[var(--notes-sidebar-row-hover)]',
-          isDragOver && 'bg-[var(--notes-sidebar-row-drag)] ring-1 ring-[var(--neko-accent)]'
+          isDragOver && 'bg-[var(--notes-sidebar-row-drag)] ring-1 ring-[var(--vlaina-accent)]'
         )}
       >
         {leading ? (

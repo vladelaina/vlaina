@@ -135,7 +135,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               aria-modal="true"
               tabIndex={-1}
             >
-              <div className="w-[260px] flex-shrink-0 bg-[var(--neko-sidebar-bg)] flex flex-col">
+              <div className="w-[260px] flex-shrink-0 bg-[var(--vlaina-sidebar-bg)] flex flex-col">
                 <div className="flex-1 overflow-y-auto px-3 pt-6 pb-4 space-y-7">
                   {sidebarGroups.map((group) => (
                     <div key={group.title}>
@@ -190,7 +190,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto w-full neko-scrollbar">
+                <div className="flex-1 overflow-y-auto w-full vlaina-scrollbar">
                   <div className={cn(
                     "w-full mx-auto",
                     activeTab === 'ai' 

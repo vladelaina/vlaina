@@ -3,8 +3,10 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
+import { assertNotWsl } from './ensure-not-wsl.mjs';
 
 const require = createRequire(import.meta.url);
+assertNotWsl('dev:dynamic');
 
 // Start checking from default port
 const DEFAULT_PORT = 3000;
@@ -39,7 +41,7 @@ async function findAvailablePort(startPort) {
 async function startDev() {
   try {
     const port = await findAvailablePort(DEFAULT_PORT);
-    console.log(`\x1b[32m[NekoTick] Found available port: ${port}\x1b[0m`);
+    console.log(`\x1b[32m[Vlaina] Found available port: ${port}\x1b[0m`);
 
     // Set environment variable for Vite
     process.env.VITE_PORT = port.toString();
@@ -72,7 +74,7 @@ async function startDev() {
       process.exit(1);
     }
 
-    console.log(`\x1b[36m[NekoTick] Starting Tauri with devUrl: ${devUrl}\x1b[0m`);
+    console.log(`\x1b[36m[Vlaina] Starting Tauri with devUrl: ${devUrl}\x1b[0m`);
 
     // Execute via node directly
     const child = spawn(process.execPath, [tauriScript, 'dev', '--config', configJson], {

@@ -33,7 +33,7 @@ function getSessionQueue(sessionId: string): PersistenceQueue<string> {
 async function writeSessionJsonRaw(sessionId: string, payload: string) {
   const storage = getStorageAdapter();
   const base = await getStorageBasePath();
-  const chatRoot = await joinPath(base, '.nekotick', 'chat');
+  const chatRoot = await joinPath(base, '.vlaina', 'chat');
   const dir = await joinPath(chatRoot, 'sessions');
 
   if (!(await storage.exists(chatRoot))) {
@@ -97,7 +97,7 @@ export async function deleteSessionJson(sessionId: string): Promise<void> {
 
   const storage = getStorageAdapter();
   const base = await getStorageBasePath();
-  const path = await joinPath(base, '.nekotick', 'chat', 'sessions', `${sessionId}.json`);
+  const path = await joinPath(base, '.vlaina', 'chat', 'sessions', `${sessionId}.json`);
   if (await storage.exists(path)) {
     await storage.deleteFile(path);
   }
@@ -106,7 +106,7 @@ export async function deleteSessionJson(sessionId: string): Promise<void> {
 export async function loadSessionJson(sessionId: string): Promise<ChatMessage[] | null> {
   const storage = getStorageAdapter();
   const base = await getStorageBasePath();
-  const path = await joinPath(base, '.nekotick', 'chat', 'sessions', `${sessionId}.json`);
+  const path = await joinPath(base, '.vlaina', 'chat', 'sessions', `${sessionId}.json`);
   
   if (await storage.exists(path)) {
       try {

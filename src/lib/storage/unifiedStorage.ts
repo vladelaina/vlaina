@@ -98,10 +98,10 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
   try {
     const storage = getStorageAdapter();
     const base = await getBasePath();
-    const dotNeko = await joinPath(base, '.nekotick');
-    const chatDir = await joinPath(dotNeko, 'chat');
-    const mainPath = await joinPath(dotNeko, MAIN_DATA_FILE);
-    const mainBackupPath = await joinPath(dotNeko, MAIN_DATA_BACKUP_FILE);
+    const dotVlaina = await joinPath(base, '.vlaina');
+    const chatDir = await joinPath(dotVlaina, 'chat');
+    const mainPath = await joinPath(dotVlaina, MAIN_DATA_FILE);
+    const mainBackupPath = await joinPath(dotVlaina, MAIN_DATA_BACKUP_FILE);
     const sessionsPath = await joinPath(chatDir, 'sessions.json');
     const channelsDir = await joinPath(chatDir, 'channels');
 
@@ -225,12 +225,12 @@ async function performSplitSave(data: UnifiedData) {
     const storage = getStorageAdapter();
     const base = await getBasePath();
     
-    const dotNeko = await joinPath(base, '.nekotick');
-    const chatDir = await joinPath(dotNeko, 'chat');
+    const dotVlaina = await joinPath(base, '.vlaina');
+    const chatDir = await joinPath(dotVlaina, 'chat');
     const channelsDir = await joinPath(chatDir, 'channels');
     
-    const mainPath = await joinPath(dotNeko, MAIN_DATA_FILE);
-    const mainBackupPath = await joinPath(dotNeko, MAIN_DATA_BACKUP_FILE);
+    const mainPath = await joinPath(dotVlaina, MAIN_DATA_FILE);
+    const mainBackupPath = await joinPath(dotVlaina, MAIN_DATA_BACKUP_FILE);
     const sessionsPath = await joinPath(chatDir, 'sessions.json');
 
     if (!(await storage.exists(channelsDir))) {

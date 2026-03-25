@@ -1,5 +1,5 @@
 [package]
-name = "nekotick"
+name = "vlaina"
 version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
@@ -11,7 +11,7 @@ edition = "2021"
 # The `_lib` suffix may seem redundant but it is necessary
 # to make the lib name unique and wouldn't conflict with the bin name.
 # This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
-name = "nekotick_lib"
+name = "vlaina_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -19,7 +19,6 @@ tauri-build = { version = "2.5", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
-tauri-plugin-opener = "2.5"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri-plugin-fs = "2"
@@ -33,7 +32,6 @@ tokio = { version = "1", features = ["full", "net"] }
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "1"
 keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "linux-native-sync-persistent"] }
-open = "5"
 futures-util = "0.3"
 
 trash = "5"

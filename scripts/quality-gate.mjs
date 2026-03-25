@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { checkBuildBudget } from './check-build-budget.mjs';
+import { assertNotWsl } from './ensure-not-wsl.mjs';
 
 function runPnpm(args) {
   if (process.platform === 'win32') {
@@ -24,6 +25,7 @@ function runStep(label, args) {
 }
 
 function main() {
+  assertNotWsl('quality:gate');
   runStep('Typecheck', ['exec', 'tsc', '--noEmit', '--pretty', 'false']);
   runStep('Tests', ['exec', 'vitest', 'run']);
   const buildLog = runStep('Build', ['build']);

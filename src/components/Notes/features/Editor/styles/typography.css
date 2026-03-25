@@ -11,7 +11,7 @@
   line-height: calc(1em + 8px);
   margin-top: 18px;
   margin-bottom: 10px;
-  color: var(--neko-text-primary);
+  color: var(--vlaina-text-primary);
 }
 
 .milkdown h1:first-child {
@@ -26,7 +26,7 @@
   line-height: calc(1em + 10px);
   margin-top: 14px;
   margin-bottom: 10px;
-  color: var(--neko-text-primary);
+  color: var(--vlaina-text-primary);
 }
 
 /* H3: 24px */
@@ -37,7 +37,7 @@
   line-height: calc(1em + 8px);
   margin-top: 12px;
   margin-bottom: 10px;
-  color: var(--neko-text-primary);
+  color: var(--vlaina-text-primary);
 }
 
 /* H4: 22px */
@@ -48,7 +48,7 @@
   line-height: calc(1em + 8px);
   margin-top: 12px;
   margin-bottom: 10px;
-  color: var(--neko-text-primary);
+  color: var(--vlaina-text-primary);
 }
 
 /* H5: 20px */
@@ -59,7 +59,7 @@
   line-height: calc(1em + 8px);
   margin-top: 12px;
   margin-bottom: 10px;
-  color: var(--neko-text-primary);
+  color: var(--vlaina-text-primary);
 }
 
 /* H6: 18px */
@@ -70,7 +70,7 @@
   line-height: calc(1em + 8px);
   margin-top: 12px;
   margin-bottom: 10px;
-  color: var(--neko-text-primary);
+  color: var(--vlaina-text-primary);
 }
 
 /* Paragraph: 15px */
@@ -79,7 +79,7 @@
   line-height: calc(1em + 8px);
   margin-top: 8px;
   margin-bottom: 0;
-  color: var(--neko-text-primary);
+  color: var(--vlaina-text-primary);
 }
 
 .milkdown p:first-child {
@@ -105,7 +105,7 @@
 /* Placeholder styles */
 .milkdown .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
-  color: var(--neko-text-disabled);
+  color: var(--vlaina-text-disabled);
   pointer-events: none;
   position: absolute;
   left: 0;
@@ -124,7 +124,7 @@
 .milkdown .ProseMirror h5.is-editor-empty::before,
 .milkdown .ProseMirror h6.is-editor-empty::before {
   content: attr(data-placeholder);
-  color: var(--neko-text-disabled);
+  color: var(--vlaina-text-disabled);
   pointer-events: none;
   position: absolute;
   left: 0;
@@ -166,14 +166,14 @@
   opacity: 0;
   transition: opacity 0.15s, background-color 0.15s;
   border-radius: 4px;
-  color: var(--neko-text-tertiary);
+  color: var(--vlaina-text-tertiary);
   user-select: none;
   pointer-events: auto;
   z-index: 2;
 }
 
 .heading-toggle-btn:hover {
-  color: var(--neko-text-secondary);
+  color: var(--vlaina-text-secondary);
 }
 
 /* Show toggle button on heading hover */

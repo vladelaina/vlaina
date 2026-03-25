@@ -152,7 +152,7 @@ export const LinkEditor = ({
                         opacity: isFocused ? 0.6 : 0.2,
                         height: isFocused ? '1.5px' : '1px'
                     }}
-                    className="absolute bottom-0 left-2 right-2 bg-[var(--neko-accent)] origin-left"
+                    className="absolute bottom-0 left-2 right-2 bg-[var(--vlaina-accent)] origin-left"
                 />
             </div>
 
@@ -164,7 +164,7 @@ export const LinkEditor = ({
                         exit={{ opacity: 0, x: 4, scale: 0.8 }}
                         whileTap={{ scale: 0.9 }}
                         onClick={() => onSave(true)}
-                        className="flex items-center justify-center size-7 text-[var(--neko-accent)] hover:bg-[var(--neko-accent)]/10 rounded-lg transition-colors shrink-0"
+                        className="flex items-center justify-center size-7 text-[var(--vlaina-accent)] hover:bg-[var(--vlaina-accent)]/10 rounded-lg transition-colors shrink-0"
                     >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="20 6 9 17 4 12"></polyline>

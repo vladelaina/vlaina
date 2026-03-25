@@ -106,7 +106,7 @@ export function CoverPicker({
       <PopoverAnchor className="absolute bottom-4 right-4 w-1 h-1 pointer-events-none" />
 
       <PopoverContent
-        className="w-[340px] p-0 flex flex-col overflow-hidden bg-[var(--neko-bg-primary)] border-[var(--neko-border)] shadow-xl z-50 pointer-events-auto select-none"
+        className="w-[340px] p-0 flex flex-col overflow-hidden bg-[var(--vlaina-bg-primary)] border-[var(--vlaina-border)] shadow-xl z-50 pointer-events-auto select-none"
         align="end"
         side="bottom"
         sideOffset={8}
@@ -114,15 +114,15 @@ export function CoverPicker({
         onMouseDown={(e) => e.stopPropagation()}
       >
 
-        <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--neko-border)] bg-[var(--neko-bg-primary)]">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--vlaina-border)] bg-[var(--vlaina-bg-primary)]">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setActiveTab('library')}
               className={cn(
                 "text-xs font-medium px-2 py-1 rounded transition-colors",
                 activeTab === 'library'
-                  ? "bg-[var(--neko-accent)]/10 text-[var(--neko-accent)]"
-                  : "text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)]"
+                  ? "bg-[var(--vlaina-accent)]/10 text-[var(--vlaina-accent)]"
+                  : "text-[var(--vlaina-text-secondary)] hover:text-[var(--vlaina-text-primary)]"
               )}
             >
  <Icon size="md" name="file.image" className="inline mr-1" />
@@ -133,8 +133,8 @@ export function CoverPicker({
               className={cn(
                 "text-xs font-medium px-2 py-1 rounded transition-colors",
                 activeTab === 'upload'
-                  ? "bg-[var(--neko-accent)]/10 text-[var(--neko-accent)]"
-                  : "text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)]"
+                  ? "bg-[var(--vlaina-accent)]/10 text-[var(--vlaina-accent)]"
+                  : "text-[var(--vlaina-text-secondary)] hover:text-[var(--vlaina-text-primary)]"
               )}
             >
  <Icon size="md" name="common.upload" className="inline mr-1" />
@@ -147,7 +147,7 @@ export function CoverPicker({
                 onRemove();
                 onClose();
               }}
-              className="text-xs text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)] transition-colors"
+              className="text-xs text-[var(--vlaina-text-tertiary)] hover:text-[var(--vlaina-text-primary)] transition-colors"
             >
               Remove
             </button>
@@ -170,11 +170,11 @@ export function CoverPicker({
           ) : (
             <div className="p-3">
               <UploadZone onUploadComplete={handleUploadComplete} compact />
-              <p className="mt-2 text-xs text-center text-[var(--neko-text-tertiary)]">
+              <p className="mt-2 text-xs text-center text-[var(--vlaina-text-tertiary)]">
                 {isMac ? '⌘' : 'Ctrl'}+V to paste
               </p>
               {isUploading && (
-                <p className="mt-1 text-xs text-center text-[var(--neko-accent)]">
+                <p className="mt-1 text-xs text-center text-[var(--vlaina-accent)]">
                   Uploading...
                 </p>
               )}

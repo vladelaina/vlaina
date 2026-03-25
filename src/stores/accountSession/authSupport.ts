@@ -6,8 +6,8 @@ import { downloadAndSaveAvatar, getLocalAvatarUrl } from '@/lib/assets/avatarMan
 type Set = StoreApi<AccountSessionState & AccountSessionActions>['setState'];
 type Get = StoreApi<AccountSessionState & AccountSessionActions>['getState'];
 
-export const AUTH_STATE_STORAGE_KEY = 'nekotick_auth_state';
-export const AUTH_PROVIDER_STORAGE_KEY = 'nekotick_auth_provider';
+export const AUTH_STATE_STORAGE_KEY = 'vlaina_auth_state';
+export const AUTH_PROVIDER_STORAGE_KEY = 'vlaina_auth_provider';
 
 export function normalizeAuthError(raw: string): string {
   const message = raw.trim();

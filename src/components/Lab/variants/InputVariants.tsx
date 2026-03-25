@@ -23,7 +23,7 @@ function MockInput({ className, containerClassName }: any) {
                             onChange={(e) => setMsg(e.target.value)}
                             placeholder={loading ? "Type to interrupt..." : "Message..."}
                             rows={1}
-                            className="w-full resize-none bg-transparent text-[15px] leading-6 text-[var(--neko-text-primary)] placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none min-h-[24px]"
+                            className="w-full resize-none bg-transparent text-[15px] leading-6 text-[var(--vlaina-text-primary)] placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none min-h-[24px]"
                         />
                     </div>
                     <div className="flex items-center justify-between px-2 pb-2 pl-3">

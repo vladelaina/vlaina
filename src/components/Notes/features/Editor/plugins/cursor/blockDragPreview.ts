@@ -2,9 +2,9 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockRange } from './blockSelectionUtils';
 import { resolveBlockElementAtPos } from './topLevelBlockDom';
 
-const SOURCE_CLASS = 'neko-block-drag-source';
-const PREVIEW_CLASS = 'neko-block-drag-preview';
-const PREVIEW_LAYER_CLASS = 'neko-block-drag-preview-layer';
+const SOURCE_CLASS = 'vlaina-block-drag-source';
+const PREVIEW_CLASS = 'vlaina-block-drag-preview';
+const PREVIEW_LAYER_CLASS = 'vlaina-block-drag-preview-layer';
 const MIN_PREVIEW_WIDTH = 80;
 
 interface BlockDragPreviewOptions {

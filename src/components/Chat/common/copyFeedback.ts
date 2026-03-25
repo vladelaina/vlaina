@@ -1,4 +1,4 @@
-export const CHAT_MESSAGE_COPIED_EVENT = 'neko-chat-message-copied';
+export const CHAT_MESSAGE_COPIED_EVENT = 'vlaina-chat-message-copied';
 
 interface ChatMessageCopiedDetail {
   messageId: string;

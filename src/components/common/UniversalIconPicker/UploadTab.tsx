@@ -177,7 +177,7 @@ export function UploadTab({
                     <div className="flex flex-col gap-6">
                         {!isGif && (
                             <div className="flex items-center gap-4">
-                                <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--neko-text-tertiary)] w-10">Zoom</span>
+                                <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--vlaina-text-tertiary)] w-10">Zoom</span>
                                 <PremiumSlider
                                     min={1}
                                     max={3}
@@ -192,7 +192,7 @@ export function UploadTab({
                             <button
                                 type="button"
                                 onClick={() => setImageSrc(null)}
-                                className="text-sm font-medium text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)] transition-colors"
+                                className="text-sm font-medium text-[var(--vlaina-text-secondary)] hover:text-[var(--vlaina-text-primary)] transition-colors"
                             >
                                 Back
                             </button>
@@ -240,23 +240,23 @@ export function UploadTab({
                                 isDragActive ? "border-[#1e96eb] bg-[#1e96eb]/5 scale-[0.99]" : "border-zinc-200 dark:border-zinc-800"
                             )}
                         >
-                            <div className="p-1.5 bg-[var(--neko-bg-tertiary)] rounded-md transition-colors group-hover:bg-[#1e96eb]/10 group-hover:text-[#1e96eb] text-[var(--neko-text-tertiary)]">
+                            <div className="p-1.5 bg-[var(--vlaina-bg-tertiary)] rounded-md transition-colors group-hover:bg-[#1e96eb]/10 group-hover:text-[#1e96eb] text-[var(--vlaina-text-tertiary)]">
                                 <Icon size="md" name="common.upload" />
                             </div>
 
                             <div className="flex flex-col items-start gap-0.5">
-                                <span className="text-[11px] font-medium text-[var(--neko-text-primary)] group-hover:text-[#1e96eb] transition-colors leading-none mt-0.5">
+                                <span className="text-[11px] font-medium text-[var(--vlaina-text-primary)] group-hover:text-[#1e96eb] transition-colors leading-none mt-0.5">
                                     Upload from device
                                 </span>
-                                <span className="text-[9px] text-[var(--neko-text-tertiary)] leading-none">
-                                    Supports <span className="font-medium text-[var(--neko-text-secondary)]">PNG</span>, <span className="font-medium text-[#1e96eb]">GIF</span> & <span className="font-medium text-[#1e96eb]">WebP</span>
+                                <span className="text-[9px] text-[var(--vlaina-text-tertiary)] leading-none">
+                                    Supports <span className="font-medium text-[var(--vlaina-text-secondary)]">PNG</span>, <span className="font-medium text-[#1e96eb]">GIF</span> & <span className="font-medium text-[#1e96eb]">WebP</span>
                                 </span>
                             </div>
                         </div>
                     </div>
 
                     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-900 px-3">
-                        <div className="flex-1 overflow-y-auto neko-scrollbar pr-1 grid grid-cols-7 gap-2 content-start pb-2">
+                        <div className="flex-1 overflow-y-auto vlaina-scrollbar pr-1 grid grid-cols-7 gap-2 content-start pb-2">
                             {customIcons.map((emoji) => (
                                 <DeletableItem
                                     key={emoji.id}

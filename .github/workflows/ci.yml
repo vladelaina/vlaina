@@ -78,13 +78,13 @@ jobs:
           $ts = "${{ steps.date.outputs.timestamp }}"
           # Rename MSI
           $msi = Get-ChildItem "src-tauri/target/release/bundle/msi/*.msi" | Select-Object -First 1
-          if ($msi) { Rename-Item $msi.FullName "Nekotick-$ts.msi" }
+          if ($msi) { Rename-Item $msi.FullName "Vlaina-$ts.msi" }
           # Rename Setup EXE
           $exe = Get-ChildItem "src-tauri/target/release/bundle/nsis/*.exe" | Select-Object -First 1
-          if ($exe) { Rename-Item $exe.FullName "Nekotick-$ts-Setup.exe" }
+          if ($exe) { Rename-Item $exe.FullName "Vlaina-$ts-Setup.exe" }
           # Rename Portable
-          if (Test-Path "src-tauri/target/release/NekoTick.exe") {
-            Rename-Item "src-tauri/target/release/NekoTick.exe" "Nekotick-$ts-Portable.exe"
+          if (Test-Path "src-tauri/target/release/Vlaina.exe") {
+            Rename-Item "src-tauri/target/release/Vlaina.exe" "Vlaina-$ts-Portable.exe"
           }
 
       - name: Rename artifacts (macOS)
@@ -93,7 +93,7 @@ jobs:
         run: |
           ts="${{ steps.date.outputs.timestamp }}"
           cd src-tauri/target/release/bundle/dmg
-          for f in *.dmg; do mv "$f" "Nekotick-$ts.dmg"; done
+          for f in *.dmg; do mv "$f" "Vlaina-$ts.dmg"; done
 
       - name: Rename artifacts (Linux)
         if: matrix.platform == 'ubuntu-22.04'
@@ -101,15 +101,15 @@ jobs:
         run: |
           ts="${{ steps.date.outputs.timestamp }}"
           cd src-tauri/target/release/bundle/deb
-          for f in *.deb; do mv "$f" "Nekotick-$ts.deb"; done
+          for f in *.deb; do mv "$f" "Vlaina-$ts.deb"; done
           cd ../appimage
-          for f in *.AppImage; do mv "$f" "Nekotick-$ts.AppImage"; done
+          for f in *.AppImage; do mv "$f" "Vlaina-$ts.AppImage"; done
 
       - name: Upload Windows artifact
         if: matrix.platform == 'windows-latest'
         uses: actions/upload-artifact@v6
         with:
-          name: NekoTick-Windows-${{ steps.date.outputs.timestamp }}
+          name: Vlaina-Windows-${{ steps.date.outputs.timestamp }}
           path: |
             src-tauri/target/release/bundle/msi/*.msi
             src-tauri/target/release/bundle/nsis/*.exe
@@ -118,14 +118,14 @@ jobs:
         if: matrix.platform == 'windows-latest'
         uses: actions/upload-artifact@v6
         with:
-          name: NekoTick-Windows-Portable-${{ steps.date.outputs.timestamp }}
-          path: src-tauri/target/release/Nekotick-*-Portable.exe
+          name: Vlaina-Windows-Portable-${{ steps.date.outputs.timestamp }}
+          path: src-tauri/target/release/Vlaina-*-Portable.exe
 
       - name: Upload macOS artifact
         if: matrix.platform == 'macos-latest'
         uses: actions/upload-artifact@v6
         with:
-          name: NekoTick-macOS-${{ steps.date.outputs.timestamp }}
+          name: Vlaina-macOS-${{ steps.date.outputs.timestamp }}
           path: |
             src-tauri/target/release/bundle/dmg/*.dmg
             src-tauri/target/release/bundle/macos/*.app
@@ -134,7 +134,7 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04'
         uses: actions/upload-artifact@v6
         with:
-          name: NekoTick-Linux-${{ steps.date.outputs.timestamp }}
+          name: Vlaina-Linux-${{ steps.date.outputs.timestamp }}
           path: |
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/appimage/*.AppImage

@@ -312,7 +312,7 @@ const NewSchemes: Record<string, React.FC<NavSchemeProps>> = {
           </motion.div>
        </div>
        <div className="flex flex-col">
-          <span className="text-xs font-black uppercase tracking-widest text-black">NekoTick NT</span>
+          <span className="text-xs font-black uppercase tracking-widest text-black">Vlaina NT</span>
           <span className="text-[8px] font-bold text-zinc-300 uppercase italic">Environment::{mode}</span>
        </div>
     </div>
@@ -339,7 +339,7 @@ const NewSchemes: Record<string, React.FC<NavSchemeProps>> = {
 
   "317. The Breadcrumb Status (Glow Dot)": ({ mode, setMode }) => (
     <div className="absolute top-6 left-8 z-50 flex items-center gap-3">
-       <span className="text-xs font-bold text-zinc-300 uppercase tracking-tighter italic">Neko_Core</span>
+       <span className="text-xs font-bold text-zinc-300 uppercase tracking-tighter italic">Vlaina_Core</span>
        <div className="w-[1px] h-3 bg-zinc-100" />
        <button onClick={() => setMode(mode === 'notes' ? 'chat' : 'notes')} className="group flex items-center gap-2">
           <div className={cn("w-1.5 h-1.5 rounded-full", mode === 'notes' ? "bg-black shadow-[0_0_10px_black]" : "bg-purple-600 shadow-[0_0_10px_purple] animate-pulse")} />
@@ -633,7 +633,7 @@ export function CoreNavigationLab() {
              </div>
              <div className="flex flex-col items-end gap-1">
                 <span className="text-sm font-black text-zinc-900 dark:text-white tracking-tighter uppercase italic">{selectedScheme}</span>
-                <span className="text-[10px] font-bold text-zinc-300 uppercase">NekoTick Navigation Authority MILESTONE_330</span>
+                <span className="text-[10px] font-bold text-zinc-300 uppercase">Vlaina Navigation Authority MILESTONE_330</span>
              </div>
           </div>
         </div>

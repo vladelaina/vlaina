@@ -68,7 +68,7 @@ describe("AIMessage", () => {
       />,
     );
 
-    expect(document.querySelectorAll(".nekotick-dot").length).toBe(3);
+    expect(document.querySelectorAll(".vlaina-dot").length).toBe(3);
   });
 
   it("does not show inline loading dots when content is empty", () => {
@@ -83,7 +83,7 @@ describe("AIMessage", () => {
       />,
     );
 
-    expect(document.querySelectorAll(".nekotick-dot").length).toBe(0);
+    expect(document.querySelectorAll(".vlaina-dot").length).toBe(0);
     expect(screen.getByTestId("toolbar")).toBeInTheDocument();
   });
 

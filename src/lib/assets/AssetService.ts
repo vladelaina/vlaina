@@ -129,7 +129,7 @@ export class AssetService {
     const { vaultPath, currentNotePath, category } = context;
     
     if (category === 'icons') {
-      const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
+      const assetsBaseDir = await joinPath(vaultPath, '.vlaina', 'assets');
       return {
         targetDir: await joinPath(assetsBaseDir, 'icons'),
         storedPathPrefix: 'icons/'
@@ -137,7 +137,7 @@ export class AssetService {
     }
     
     if (category === 'covers') {
-       const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
+       const assetsBaseDir = await joinPath(vaultPath, '.vlaina', 'assets');
        return {
          targetDir: await joinPath(assetsBaseDir, 'covers'),
          storedPathPrefix: ''

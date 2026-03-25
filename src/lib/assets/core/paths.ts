@@ -5,7 +5,7 @@ export async function resolveSystemAssetPath(
   filename: string, 
   category: 'covers' | 'icons'
 ): Promise<string> {
-  const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
+  const assetsBaseDir = await joinPath(vaultPath, '.vlaina', 'assets');
   
   if (category === 'icons') {
     const name = filename.replace(/^icons[\\/]/, '');

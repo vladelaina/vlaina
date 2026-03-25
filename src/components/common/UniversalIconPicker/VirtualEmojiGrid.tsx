@@ -21,7 +21,7 @@ const EmojiRow = memo(
           <button
             key={i}
             data-emoji={emoji}
-            className="w-full aspect-square flex items-center justify-center rounded-md text-xl hover:bg-[var(--neko-bg-hover)]"
+            className="w-full aspect-square flex items-center justify-center rounded-md text-xl hover:bg-[var(--vlaina-bg-hover)]"
           >
             {emoji}
           </button>
@@ -192,7 +192,7 @@ export function VirtualEmojiGrid({
               }}
             >
               {row.type === 'title' ? (
-                <div className="px-2 pt-2 pb-1 text-xs text-[var(--neko-text-tertiary)] font-medium">
+                <div className="px-2 pt-2 pb-1 text-xs text-[var(--vlaina-text-tertiary)] font-medium">
                   {row.content as string}
                 </div>
               ) : (
@@ -299,7 +299,7 @@ export function VirtualSearchResults({
   if (results.length === 0) {
     return (
       <div className="h-[280px] flex items-center justify-center">
-        <div className="text-[var(--neko-text-tertiary)] text-sm">No emoji found</div>
+        <div className="text-[var(--vlaina-text-tertiary)] text-sm">No emoji found</div>
       </div>
     );
   }
@@ -332,7 +332,7 @@ export function VirtualSearchResults({
               }}
             >
               {row.type === 'title' ? (
-                <div className="px-2 pt-2 pb-1 text-xs text-[var(--neko-text-tertiary)] font-medium">
+                <div className="px-2 pt-2 pb-1 text-xs text-[var(--vlaina-text-tertiary)] font-medium">
                   {row.content as string}
                 </div>
               ) : (

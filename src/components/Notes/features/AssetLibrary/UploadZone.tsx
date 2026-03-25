@@ -105,9 +105,9 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
       case 'uploading':
         return (
           <div className="relative">
-            <Icon name="common.upload" className={cn(iconSize, "text-[var(--neko-accent)]")} />
+            <Icon name="common.upload" className={cn(iconSize, "text-[var(--vlaina-accent)]")} />
             {uploadProgress !== null && !compact && (
-              <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-[var(--neko-text-secondary)]">
+              <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-[var(--vlaina-text-secondary)]">
                 {uploadProgress}%
               </div>
             )}
@@ -120,7 +120,7 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
       case 'error':
         return <Icon name="common.error" className={cn(iconSize, "text-red-500")} />;
       default:
-        return <Icon name="common.upload" className={cn(iconSize, "text-[var(--neko-text-tertiary)]")} />;
+        return <Icon name="common.upload" className={cn(iconSize, "text-[var(--vlaina-text-tertiary)]")} />;
     }
   };
 
@@ -140,12 +140,12 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
         "flex flex-col items-center justify-center rounded-lg cursor-pointer",
         "border-2 border-dashed transition-all duration-200",
         compact ? "p-4" : "p-8",
-        status === 'dragging' && "border-[var(--neko-accent)] bg-[var(--neko-accent)]/5",
-        status === 'uploading' && "border-[var(--neko-accent)] bg-[var(--neko-accent)]/5",
+        status === 'dragging' && "border-[var(--vlaina-accent)] bg-[var(--vlaina-accent)]/5",
+        status === 'uploading' && "border-[var(--vlaina-accent)] bg-[var(--vlaina-accent)]/5",
         status === 'success' && "border-green-500 bg-green-500/5",
         status === 'duplicate' && "border-blue-500 bg-blue-500/5",
         status === 'error' && "border-red-500 bg-red-500/5",
-        status === 'idle' && "border-[var(--neko-border)] hover:border-[var(--neko-accent)] hover:bg-[var(--neko-hover)]"
+        status === 'idle' && "border-[var(--vlaina-border)] hover:border-[var(--vlaina-accent)] hover:bg-[var(--vlaina-hover)]"
       )}
     >
       {getStatusIcon()}
@@ -153,13 +153,13 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
       <p className={cn(
         "text-center",
         compact ? "mt-2 text-xs" : "mt-4 text-sm",
-        status === 'error' ? "text-red-500" : "text-[var(--neko-text-secondary)]"
+        status === 'error' ? "text-red-500" : "text-[var(--vlaina-text-secondary)]"
       )}>
         {getStatusText()}
       </p>
 
       {status === 'idle' && !compact && (
-        <p className="mt-1 text-xs text-[var(--neko-text-tertiary)]">
+        <p className="mt-1 text-xs text-[var(--vlaina-text-tertiary)]">
           Supports JPG, PNG, GIF, WebP (max 50MB)
         </p>
       )}

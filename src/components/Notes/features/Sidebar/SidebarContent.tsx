@@ -131,8 +131,8 @@ export function SidebarContent({
 
       {isSearchOpen ? (
         <div className="px-2 pt-2">
-          <div className="flex items-center gap-2 rounded-xl border border-[var(--neko-border)] bg-white px-3 py-1 shadow-none">
-            <Icon name="common.search" size="md" className="text-[var(--neko-text-tertiary)]" />
+          <div className="flex items-center gap-2 rounded-xl border border-[var(--vlaina-border)] bg-white px-3 py-1 shadow-none">
+            <Icon name="common.search" size="md" className="text-[var(--vlaina-text-tertiary)]" />
             <input
               ref={inputRef}
               autoFocus
@@ -151,13 +151,13 @@ export function SidebarContent({
                 }
               }}
               placeholder="Search notes..."
-              className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--neko-text-primary)] outline-none placeholder:text-[var(--neko-text-tertiary)]"
+              className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--vlaina-text-primary)] outline-none placeholder:text-[var(--vlaina-text-tertiary)]"
             />
               <button
                 type="button"
                 onClick={() => hideSearch()}
                 aria-label="Close sidebar search"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--neko-text-tertiary)] transition-colors hover:bg-[var(--neko-hover)] hover:text-[var(--neko-text-primary)]"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--vlaina-text-tertiary)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-text-primary)]"
               >
               <Icon name="common.close" size="md" />
             </button>
@@ -167,7 +167,7 @@ export function SidebarContent({
 
       <NotesSidebarScrollArea
         ref={scrollRootRef}
-        className={cn(isPeeking ? 'neko-scrollbar-rounded pt-4 pb-4' : 'pt-2')}
+        className={cn(isPeeking ? 'vlaina-scrollbar-rounded pt-4 pb-4' : 'pt-2')}
         data-notes-sidebar-scroll-root="true"
         onScroll={(event) => {
           const currentTarget = event.currentTarget;

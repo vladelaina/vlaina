@@ -36,7 +36,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
     const storage = getStorageAdapter();
 
     try {
-      const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
+      const assetsBaseDir = await joinPath(vaultPath, '.vlaina', 'assets');
 
       const coversDir = await joinPath(assetsBaseDir, 'covers');
       const iconsDir = await joinPath(assetsBaseDir, 'icons');
@@ -158,7 +158,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
 
     try {
       const vaultPath = notesPath || await getNotesBasePath();
-      const assetsBaseDir = await joinPath(vaultPath, '.nekotick', 'assets');
+      const assetsBaseDir = await joinPath(vaultPath, '.vlaina', 'assets');
 
       let relativePath = filename;
       let targetDir = 'covers';
@@ -188,8 +188,8 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
       const { notesPath } = get();
       const vaultPath = notesPath || await getNotesBasePath();
 
-      const coversDir = await joinPath(vaultPath, '.nekotick', 'assets', 'covers');
-      const iconsDir = await joinPath(vaultPath, '.nekotick', 'assets', 'icons');
+      const coversDir = await joinPath(vaultPath, '.vlaina', 'assets', 'covers');
+      const iconsDir = await joinPath(vaultPath, '.vlaina', 'assets', 'icons');
 
       await cleanupTempFiles(coversDir);
       await cleanupTempFiles(iconsDir);

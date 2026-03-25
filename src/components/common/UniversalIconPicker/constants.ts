@@ -3,10 +3,10 @@ import { COLOR_HEX, type ItemColor } from '@/lib/colors/index';
 
 export type TabType = 'emoji' | 'upload';
 
-export const RECENT_ICONS_KEY = 'nekotick-recent-icons';
-export const SKIN_TONE_KEY = 'nekotick-emoji-skin-tone';
-export const ICON_COLOR_KEY = 'nekotick-icon-color-v2';
-export const ACTIVE_TAB_KEY = 'nekotick-icon-picker-tab';
+export const RECENT_ICONS_KEY = 'vlaina-recent-icons';
+export const SKIN_TONE_KEY = 'vlaina-emoji-skin-tone';
+export const ICON_COLOR_KEY = 'vlaina-icon-color-v2';
+export const ACTIVE_TAB_KEY = 'vlaina-icon-picker-tab';
 export const MAX_RECENT_EMOJIS = 18;
 export const EMOJI_PER_ROW = 9;
 export const EMOJI_SIZE = 32;
@@ -17,7 +17,7 @@ export const SCROLLBAR_CLASSNAME = `
   [&::-webkit-scrollbar-track]:bg-transparent
   [&::-webkit-scrollbar-thumb]:bg-[#efefef]
   [&::-webkit-scrollbar-thumb]:rounded-full
-  [&::-webkit-scrollbar-thumb]:hover:bg-[var(--neko-text-tertiary)]
+  [&::-webkit-scrollbar-thumb]:hover:bg-[var(--vlaina-text-tertiary)]
 `;
 
 export const SKIN_TONES = [

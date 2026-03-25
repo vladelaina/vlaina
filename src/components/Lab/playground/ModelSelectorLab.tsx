@@ -34,7 +34,7 @@ const GROUPS: ChannelGroup[] = [
     ],
   },
   {
-    name: 'NekoTick',
+    name: 'Vlaina',
     tag: 'Official',
     options: [
       { name: 'gpt-4o' },

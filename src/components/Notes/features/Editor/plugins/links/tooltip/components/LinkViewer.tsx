@@ -1,5 +1,6 @@
 import { Icon } from '@/components/ui/icons';
 import { IconButton } from '@/components/ui/icon-button';
+import { openExternalHref } from '@/lib/navigation/externalLinks';
 import {
     Tooltip,
     TooltipContent,
@@ -30,13 +31,7 @@ export const LinkViewer = ({
 }: LinkViewerProps) => {
 
     const handleOpen = async () => {
-        try {
-            const { openUrl } = await import('@tauri-apps/plugin-opener');
-            await openUrl(href);
-        } catch (err) {
-            console.warn('[LinkTooltip] Failed to open URL:', err);
-            window.open(href, '_blank', 'noopener,noreferrer');
-        }
+        await openExternalHref(href);
     };
 
     return (

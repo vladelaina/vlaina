@@ -3,7 +3,7 @@ import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 
-export const imageUploadPluginKey = new PluginKey('neko-image-upload');
+export const imageUploadPluginKey = new PluginKey('vlaina-image-upload');
 
 export const imageUploadPlugin = $prose(() => {
     return new Plugin({

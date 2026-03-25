@@ -32,7 +32,7 @@ pub async fn bind_loopback_server() -> Result<LoopbackServer, String> {
 
 fn html_response(status: &str, title: &str, message: &str) -> String {
     let body = format!(
-        "<!doctype html><html><head><meta charset=\"utf-8\"><title>{}</title></head><body><h1>{}</h1><p>{}</p><p>You can return to NekoTick now.</p></body></html>",
+        "<!doctype html><html><head><meta charset=\"utf-8\"><title>{}</title></head><body><h1>{}</h1><p>{}</p><p>You can return to Vlaina now.</p></body></html>",
         title, title, message
     );
     format!(
@@ -156,7 +156,7 @@ impl LoopbackServer {
                 html_response(
                     "200 OK",
                     "Authorization Successful",
-                    "You can close this window and return to NekoTick.",
+                    "You can close this window and return to Vlaina.",
                 )
             };
             write_http_response(&mut stream, response).await;

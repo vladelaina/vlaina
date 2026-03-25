@@ -39,8 +39,8 @@ export function NotesSidebarPanel({
       setNotesSidebarSearchOpen(true);
     };
 
-    window.addEventListener('neko-open-search', handleOpenSearch);
-    return () => window.removeEventListener('neko-open-search', handleOpenSearch);
+    window.addEventListener('vlaina-open-search', handleOpenSearch);
+    return () => window.removeEventListener('vlaina-open-search', handleOpenSearch);
   }, [setNotesSidebarSearchOpen, setSearchQuery, setSidebarView]);
 
   useEffect(() => {

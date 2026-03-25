@@ -42,7 +42,7 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
           "transition-all duration-700 ease-in-out"
         )}
       >
-        <DialogTitle className="sr-only">Sign in to NekoTick</DialogTitle>
+        <DialogTitle className="sr-only">Sign in to Vlaina</DialogTitle>
         <DialogDescription className="sr-only">
           Choose Google sign-in or use an email verification code to access your account.
         </DialogDescription>
@@ -58,7 +58,7 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
 
           <div className="mb-7 flex flex-col items-center gap-1.5 text-center sm:mb-10 sm:gap-2 md:mb-14">
              <h2 className="text-[24px] leading-none font-black tracking-tight text-zinc-950 sm:text-[26px] md:text-[28px] dark:text-white">Sign In</h2>
-             <p className="text-[13px] font-medium text-zinc-400 sm:text-[14px]">Continue to NekoTick</p>
+             <p className="text-[13px] font-medium text-zinc-400 sm:text-[14px]">Continue to Vlaina</p>
           </div>
 
           <div className="w-full">

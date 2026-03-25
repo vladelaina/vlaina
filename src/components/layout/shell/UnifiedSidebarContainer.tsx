@@ -34,13 +34,13 @@ export function UnifiedSidebarContainer({
     <>
       <aside
         className={cn(
-          'flex-shrink-0 flex flex-col overflow-hidden select-none relative z-20 neko-scrollbar',
+          'flex-shrink-0 flex flex-col overflow-hidden select-none relative z-20 vlaina-scrollbar',
           isDragging && 'will-change-[width]',
           !isDragging && 'transition-[width] duration-200 ease-out',
         )}
         style={{
           backgroundColor,
-          width: collapsed ? 0 : 'var(--neko-shell-sidebar-width)',
+          width: collapsed ? 0 : 'var(--vlaina-shell-sidebar-width)',
         }}
       >
         {children}
@@ -56,7 +56,7 @@ export function UnifiedSidebarContainer({
             onMouseDown={handleDragStart}
             isDragging={isDragging}
             positionStyle={{
-              left: `calc(var(--neko-shell-sidebar-width) - ${RESIZE_HANDLE_HALF_WIDTH}px)`,
+              left: `calc(var(--vlaina-shell-sidebar-width) - ${RESIZE_HANDLE_HALF_WIDTH}px)`,
               pointerEvents: 'auto',
             }}
           />

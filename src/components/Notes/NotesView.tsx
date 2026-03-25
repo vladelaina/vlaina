@@ -1,5 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { windowCommands } from '@/lib/tauri/invoke';
+import { openDialog, messageDialog } from '@/lib/storage/dialog';
+import { getSingleOpenSelection, isSupportedMarkdownSelection, resolveOpenNoteTarget } from './features/OpenTarget/openTargetSelection';
+import { NotesOpenTargetDialog } from './features/OpenTarget/NotesOpenTargetDialog';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useUIStore } from '@/stores/uiSlice';
@@ -28,15 +31,18 @@ export function NotesView() {
   const loadStarred = useNotesStore(s => s.loadStarred);
   const loadMetadata = useNotesStore(s => s.loadMetadata);
   const loadAssets = useNotesStore(s => s.loadAssets);
+  const saveNote = useNotesStore(s => s.saveNote);
   const cleanupAssetTempFiles = useNotesStore(s => s.cleanupAssetTempFiles);
   const clearAssetUrlCache = useNotesStore(s => s.clearAssetUrlCache);
   const revealFolder = useNotesStore(s => s.revealFolder);
+  const isDirty = useNotesStore(s => s.isDirty);
   const pendingStarredNavigation = useNotesStore(s => s.pendingStarredNavigation);
   const setPendingStarredNavigation = useNotesStore(s => s.setPendingStarredNavigation);
   const notesPath = useNotesStore(s => s.notesPath);
   const rootFolder = useNotesStore(s => s.rootFolder);
+  const openNoteByAbsolutePath = useNotesStore(s => s.openNoteByAbsolutePath);
 
-  const { currentVault } = useVaultStore();
+  const { currentVault, openVault } = useVaultStore();
   const sidebarWidth = useUIStore((s) => s.sidebarWidth);
   const chatPanelCollapsed = useUIStore((s) => s.notesChatPanelCollapsed);
   const setChatPanelCollapsed = useUIStore((s) => s.setNotesChatPanelCollapsed);
@@ -44,6 +50,13 @@ export function NotesView() {
   const setLayoutPanelDragging = useUIStore((s) => s.setLayoutPanelDragging);
 
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [isOpenTargetDialogOpen, setIsOpenTargetDialogOpen] = useState(false);
+  const [isOpenTargetBusy, setIsOpenTargetBusy] = useState(false);
+  const [pendingShortcutNoteTarget, setPendingShortcutNoteTarget] = useState<{
+    vaultPath: string;
+    notePath: string;
+    absolutePath: string;
+  } | null>(null);
   const chatComposerFocusFrameRef = useRef<number | null>(null);
   const toggleShortcutsDialog = useCallback(() => setIsShortcutsOpen((prev) => !prev), []);
   const handleChatPanelDragStateChange = useCallback((dragging: boolean) => {
@@ -157,6 +170,150 @@ export function NotesView() {
     setPendingStarredNavigation,
   ]);
 
+  const openShortcutNoteTarget = useCallback(async (target: { notePath: string; absolutePath: string }) => {
+    await openNote(target.notePath);
+    if (useNotesStore.getState().currentNote?.path === target.notePath) {
+      return true;
+    }
+
+    await openNoteByAbsolutePath(target.absolutePath);
+    return useNotesStore.getState().currentNote?.path === target.absolutePath;
+  }, [openNote, openNoteByAbsolutePath]);
+
+  useEffect(() => {
+    if (!pendingShortcutNoteTarget || !currentVault) return;
+    if (currentVault.path !== pendingShortcutNoteTarget.vaultPath) return;
+    if (notesPath !== pendingShortcutNoteTarget.vaultPath || !rootFolder) return;
+
+    let cancelled = false;
+
+    const openPendingShortcutNote = async () => {
+      let opened = false;
+
+      try {
+        opened = await openShortcutNoteTarget(pendingShortcutNoteTarget);
+      } finally {
+        if (!cancelled) {
+          setPendingShortcutNoteTarget(null);
+        }
+      }
+
+      if (!cancelled && !opened) {
+        await messageDialog('Failed to open the selected Markdown file.', {
+          title: 'Open Failed',
+          kind: 'error',
+        });
+      }
+    };
+
+    void openPendingShortcutNote();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentVault, notesPath, openShortcutNoteTarget, pendingShortcutNoteTarget, rootFolder]);
+
+  const saveCurrentNoteIfNeeded = useCallback(async () => {
+    if (!isDirty) return true;
+    await saveNote();
+    return !useNotesStore.getState().isDirty;
+  }, [isDirty, saveNote]);
+
+  const handleOpenSelectedFolder = useCallback(async () => {
+    setIsOpenTargetDialogOpen(false);
+    const selected = getSingleOpenSelection(await openDialog({
+      directory: true,
+      title: 'Open Folder',
+      defaultPath: currentVault?.path,
+    }));
+    if (!selected) return;
+
+    setIsOpenTargetBusy(true);
+    try {
+      const canContinue = await saveCurrentNoteIfNeeded();
+      if (!canContinue) return;
+      await openVault(selected);
+    } finally {
+      setIsOpenTargetBusy(false);
+    }
+  }, [currentVault?.path, openVault, saveCurrentNoteIfNeeded]);
+
+  const handleOpenSelectedFile = useCallback(async () => {
+    setIsOpenTargetDialogOpen(false);
+    const selected = getSingleOpenSelection(await openDialog({
+      title: 'Open Markdown File',
+      defaultPath: currentVault?.path,
+      filters: [{ name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd'] }],
+    }));
+    if (!selected) return;
+
+    if (!isSupportedMarkdownSelection(selected)) {
+      await messageDialog('Please select a Markdown file.', {
+        title: 'Unsupported File',
+        kind: 'warning',
+      });
+      return;
+    }
+
+    setIsOpenTargetBusy(true);
+    try {
+      const canContinue = await saveCurrentNoteIfNeeded();
+      if (!canContinue) return;
+
+      const target = await resolveOpenNoteTarget(selected);
+
+      if (currentVault?.path === target.vaultPath && notesPath === target.vaultPath && rootFolder) {
+        const opened = await openShortcutNoteTarget({
+          notePath: target.notePath,
+          absolutePath: selected,
+        });
+        if (!opened) {
+          await messageDialog('Failed to open the selected Markdown file.', {
+            title: 'Open Failed',
+            kind: 'error',
+          });
+        }
+        return;
+      }
+
+      setPendingShortcutNoteTarget({
+        vaultPath: target.vaultPath,
+        notePath: target.notePath,
+        absolutePath: selected,
+      });
+
+      if (currentVault?.path === target.vaultPath) {
+        return;
+      }
+
+      const openedVault = await openVault(target.vaultPath);
+      if (!openedVault) {
+        setPendingShortcutNoteTarget(null);
+        await messageDialog('Failed to open the selected vault.', {
+          title: 'Open Failed',
+          kind: 'error',
+        });
+      }
+    } catch (error) {
+      setPendingShortcutNoteTarget(null);
+      await messageDialog(
+        error instanceof Error ? error.message : 'Failed to open the selected Markdown file.',
+        {
+          title: 'Open Failed',
+          kind: 'error',
+        }
+      );
+    } finally {
+      setIsOpenTargetBusy(false);
+    }
+  }, [currentVault?.path, notesPath, openShortcutNoteTarget, openVault, rootFolder, saveCurrentNoteIfNeeded]);
+
+  useEffect(() => {
+    const handleOpenVaultOrNote = () => setIsOpenTargetDialogOpen(true);
+    window.addEventListener('vlaina-open-vault-or-note', handleOpenVaultOrNote);
+    return () => window.removeEventListener('vlaina-open-vault-or-note', handleOpenVaultOrNote);
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (matchesShortcutBinding(e, 'toggleEmbeddedChat')) {
@@ -214,6 +371,14 @@ export function NotesView() {
 
   return (
     <>
+      <NotesOpenTargetDialog
+        open={isOpenTargetDialogOpen}
+        onOpenChange={setIsOpenTargetDialogOpen}
+        onOpenFolder={handleOpenSelectedFolder}
+        onOpenFile={handleOpenSelectedFile}
+        isBusy={isOpenTargetBusy}
+      />
+
       <div data-notes-view-mode="true" className="h-full w-full relative flex min-w-0">
         <div className="flex-1 min-w-0">
           {currentNotePath ? (
@@ -230,9 +395,9 @@ export function NotesView() {
             defaultWidth={420}
             minWidth={320}
             maxWidth={760}
-            storageKey="nekotick_notes_chat_panel_width"
+            storageKey="vlaina_notes_chat_panel_width"
             onDragStateChange={handleChatPanelDragStateChange}
-            className="h-full border-l border-[#eff3f4] bg-[var(--neko-bg-primary)]"
+            className="h-full border-l border-[#eff3f4] bg-[var(--vlaina-bg-primary)]"
           >
             <div data-notes-chat-panel="true" className="h-full min-h-0 relative">
               <Suspense fallback={null}>

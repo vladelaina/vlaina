@@ -9,10 +9,10 @@ export async function getPaths() {
   const base = await getBasePath();
   return {
     base,
-    metadata: await joinPath(base, '.nekotick'),
-    store: await joinPath(base, '.nekotick', 'store'),
-    dataJson: await joinPath(base, '.nekotick', 'store', 'data.json'),
-    markdown: await joinPath(base, 'nekotick.md'),
+    metadata: await joinPath(base, '.vlaina'),
+    store: await joinPath(base, '.vlaina', 'store'),
+    dataJson: await joinPath(base, '.vlaina', 'store', 'data.json'),
+    markdown: await joinPath(base, 'vlaina.md'),
   };
 }
 
@@ -20,7 +20,7 @@ export async function ensureDirectories(): Promise<void> {
   try {
     const storage = getStorageAdapter();
     const base = await getBasePath();
-    const storeDir = await joinPath(base, '.nekotick', 'store');
+    const storeDir = await joinPath(base, '.vlaina', 'store');
     
     if (!(await storage.exists(storeDir))) {
       await storage.mkdir(storeDir, true);

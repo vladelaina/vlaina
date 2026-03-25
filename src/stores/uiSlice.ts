@@ -3,12 +3,12 @@ import {
   STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED,
 } from '@/lib/config';
 import { getDefaultSidebarWidth } from '@/lib/layout/sidebarWidth';
-const STORAGE_KEY_SIDEBAR_WIDTH = 'nekotick_sidebar_width';
-const STORAGE_KEY_IMAGE_STORAGE_MODE = 'nekotick_image_storage_mode';
-const STORAGE_KEY_IMAGE_SUBFOLDER_NAME = 'nekotick_image_subfolder_name';
-const STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME = 'nekotick_image_vault_subfolder_name';
-const STORAGE_KEY_IMAGE_FILENAME_FORMAT = 'nekotick_image_filename_format';
-const STORAGE_KEY_TAG_FILTER = 'nekotick_tag_filter';
+const STORAGE_KEY_SIDEBAR_WIDTH = 'vlaina_sidebar_width';
+const STORAGE_KEY_IMAGE_STORAGE_MODE = 'vlaina_image_storage_mode';
+const STORAGE_KEY_IMAGE_SUBFOLDER_NAME = 'vlaina_image_subfolder_name';
+const STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME = 'vlaina_image_vault_subfolder_name';
+const STORAGE_KEY_IMAGE_FILENAME_FORMAT = 'vlaina_image_filename_format';
+const STORAGE_KEY_TAG_FILTER = 'vlaina_tag_filter';
 
 export type AppViewMode = 'notes' | 'chat' | 'lab';
 export type NotesSidebarView = 'workspace' | 'outline';
@@ -22,7 +22,7 @@ interface PendingNotesChatComposerInsert {
   text: string;
 }
 
-const STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED = 'nekotick_notes_chat_panel_collapsed';
+const STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED = 'vlaina_notes_chat_panel_collapsed';
 
 interface UIStore {
   appViewMode: AppViewMode;

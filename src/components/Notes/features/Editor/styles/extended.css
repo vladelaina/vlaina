@@ -46,7 +46,7 @@
 
 /* Autolink - 自动识别的链接（与普通链接样式一致） */
 .milkdown .autolink {
-  color: var(--neko-accent);
+  color: var(--vlaina-accent);
   text-decoration: underline;
   text-underline-offset: 4px;
   cursor: pointer;
@@ -64,7 +64,7 @@
 }
 
 .milkdown .footnote-ref a {
-  color: var(--neko-accent);
+  color: var(--vlaina-accent);
   text-decoration: none;
   padding: 0 0.125rem;
 }
@@ -78,14 +78,14 @@
   gap: 0.5rem;
   padding: 0.75rem;
   margin: 0.5rem 0;
-  background-color: var(--neko-bg-secondary);
+  background-color: var(--vlaina-bg-secondary);
   border-radius: 0.375rem;
-  border-left: 3px solid var(--neko-accent);
+  border-left: 3px solid var(--vlaina-accent);
   font-size: 0.875rem;
 }
 
 .milkdown .footnote-def-label {
-  color: var(--neko-accent);
+  color: var(--vlaina-accent);
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -115,7 +115,7 @@
 .milkdown .toc-title {
   font-weight: 600;
   margin-bottom: 0.5rem;
-  color: var(--neko-text-secondary);
+  color: var(--vlaina-text-secondary);
   font-size: 0.875rem;
   line-height: 1.5;
 }
@@ -141,14 +141,14 @@
 }
 
 .milkdown .toc-link {
-  color: var(--neko-accent);
+  color: var(--vlaina-accent);
   text-decoration: none;
   text-underline-offset: 3px;
   transition: color 0.15s, text-decoration-color 0.15s;
 }
 
 .milkdown .toc-link:hover {
-  color: var(--neko-accent);
+  color: var(--vlaina-accent);
   text-decoration: underline;
 }
 
@@ -168,7 +168,7 @@
 }
 
 .milkdown .toc-empty {
-  color: var(--neko-text-tertiary);
+  color: var(--vlaina-text-tertiary);
   font-style: italic;
 }
 
@@ -178,15 +178,15 @@
   justify-content: center;
   padding: 1.5rem;
   margin: 1rem 0;
-  background-color: var(--neko-bg-secondary);
-  border: 1px solid var(--neko-border);
+  background-color: var(--vlaina-bg-secondary);
+  border: 1px solid var(--vlaina-border);
   border-radius: 0.5rem;
   overflow-x: auto;
 }
 
 .milkdown .mermaid-placeholder,
 .milkdown .mermaid-empty {
-  color: var(--neko-text-tertiary);
+  color: var(--vlaina-text-tertiary);
   font-style: italic;
 }
 
@@ -283,7 +283,7 @@
 .milkdown .math-block {
   padding: 1rem;
   text-align: center;
-  background-color: var(--neko-bg-secondary);
+  background-color: var(--vlaina-bg-secondary);
   border-radius: 0.5rem;
   overflow-x: auto;
   margin: 1rem 0;
@@ -296,7 +296,7 @@
   position: relative !important;
 }
 
-.milkdown .neko-collapse-btn {
+.milkdown .vlaina-collapse-btn {
   position: absolute;
   left: var(--collapse-pos-list);
   /* Use unified variable */
@@ -315,23 +315,23 @@
   opacity: 0;
   transition: opacity 0.15s, background-color 0.15s, transform 0.15s;
   border-radius: 4px;
-  color: var(--neko-text-tertiary);
+  color: var(--vlaina-text-tertiary);
   user-select: none;
 }
 
 /* Show button more prominently on hover */
-.milkdown .neko-collapse-btn:hover {
+.milkdown .vlaina-collapse-btn:hover {
   opacity: 1;
-  color: var(--neko-text-secondary);
+  color: var(--vlaina-text-secondary);
 }
 
 /* Heading hover alignment */
-.milkdown h1:hover .neko-collapse-btn,
-.milkdown h2:hover .neko-collapse-btn,
-.milkdown h3:hover .neko-collapse-btn,
-.milkdown h4:hover .neko-collapse-btn,
-.milkdown h5:hover .neko-collapse-btn,
-.milkdown h6:hover .neko-collapse-btn {
+.milkdown h1:hover .vlaina-collapse-btn,
+.milkdown h2:hover .vlaina-collapse-btn,
+.milkdown h3:hover .vlaina-collapse-btn,
+.milkdown h4:hover .vlaina-collapse-btn,
+.milkdown h5:hover .vlaina-collapse-btn,
+.milkdown h6:hover .vlaina-collapse-btn {
   opacity: 1;
 }
 
@@ -339,40 +339,40 @@
    1. Use > to only target the direct button of this LI (fixes hovering parent showing children)
    2. Use :not(:has(...)) to avoid showing parent button when hovering its nested list child
 */
-.milkdown li:hover>.neko-collapse-btn {
+.milkdown li:hover>.vlaina-collapse-btn {
   opacity: 1;
 }
 
 /* Refinement: If hovering nested list, hide parent button (requires :has support) */
-.milkdown li:has(> ul:hover)>.neko-collapse-btn,
-.milkdown li:has(> ol:hover)>.neko-collapse-btn {
+.milkdown li:has(> ul:hover)>.vlaina-collapse-btn,
+.milkdown li:has(> ol:hover)>.vlaina-collapse-btn {
   opacity: 0;
 }
 
 /* Ensure button stays visible if we are hovering the button itself (overrides above) */
-.milkdown li>.neko-collapse-btn:hover {
+.milkdown li>.vlaina-collapse-btn:hover {
   opacity: 1;
 }
 
 /* Rotate triangle when collapsed */
-.milkdown .neko-collapse-btn[data-collapsed="true"] {
+.milkdown .vlaina-collapse-btn[data-collapsed="true"] {
   opacity: 1 !important;
 }
 
-.milkdown .neko-collapse-btn[data-collapsed="true"] svg {
+.milkdown .vlaina-collapse-btn[data-collapsed="true"] svg {
   transform: rotate(-90deg);
 }
 
-.milkdown .neko-collapse-btn svg {
+.milkdown .vlaina-collapse-btn svg {
   transition: transform 0.15s ease;
 }
 
 /* Hide button when no content to collapse */
-.milkdown .neko-collapse-btn[data-has-content="false"] {
+.milkdown .vlaina-collapse-btn[data-has-content="false"] {
   display: none;
 }
 
 /* Collapsed content - hide */
-.milkdown .neko-collapsed-content {
+.milkdown .vlaina-collapsed-content {
   display: none !important;
 }

@@ -19,8 +19,8 @@ const FALLBACK_STYLES: Record<string, Record<string, string>> = {
   code: {
     fontFamily: 'inherit',
     fontSize: '13px',
-    backgroundColor: 'var(--neko-bg-secondary)',
-    border: '1px solid var(--neko-border)',
+    backgroundColor: 'var(--vlaina-bg-secondary)',
+    border: '1px solid var(--vlaina-border)',
     borderRadius: '5px',
     padding: '3px 5px',
   },
@@ -75,7 +75,7 @@ const BLOCK_FALLBACK_STYLES: Partial<Record<BlockType, Record<string, string>>> 
     letterSpacing: '-0.015em',
   },
   blockquote: {
-    color: 'var(--neko-text-secondary)',
+    color: 'var(--vlaina-text-secondary)',
     lineHeight: '26px',
     paddingLeft: '17px',
   },
@@ -83,7 +83,7 @@ const BLOCK_FALLBACK_STYLES: Partial<Record<BlockType, Record<string, string>>> 
     fontFamily: 'var(--font-geist-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace)',
     fontSize: '0.875rem',
     lineHeight: '1.7',
-    backgroundColor: 'var(--neko-bg-secondary)',
+    backgroundColor: 'var(--vlaina-bg-secondary)',
     borderRadius: '0.5rem',
     padding: '0.875rem 1rem',
   },

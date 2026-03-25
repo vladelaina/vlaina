@@ -45,7 +45,7 @@ export function AppShell({
   const setWindowResizeActive = useUIStore((state) => state.setWindowResizeActive);
 
   const applySidebarWidth = useCallback((width: number) => {
-    shellRef.current?.style.setProperty('--neko-shell-sidebar-width', `${width}px`);
+    shellRef.current?.style.setProperty('--vlaina-shell-sidebar-width', `${width}px`);
   }, []);
 
   const handleSidebarDragStateChange = useCallback((dragging: boolean) => {
@@ -93,7 +93,7 @@ export function AppShell({
       ref={shellRef}
       className={cn(
         "h-full flex overflow-hidden flex-col",
-        "bg-[var(--neko-bg-primary)]",
+        "bg-[var(--vlaina-bg-primary)]",
         (isDragging || isSidebarDragging) && "select-none cursor-col-resize"
       )}
     >
@@ -123,7 +123,7 @@ export function AppShell({
         )}
         
         <main
-          className="flex-1 flex flex-col min-w-0 bg-white dark:bg-zinc-800 relative neko-scrollbar"
+          className="flex-1 flex flex-col min-w-0 bg-white dark:bg-zinc-800 relative vlaina-scrollbar"
         >
           {children}
           {mainOverlay}

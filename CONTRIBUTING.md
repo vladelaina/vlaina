@@ -1,4 +1,4 @@
-# Contributing to NekoTick
+# Contributing to Vlaina
 
 ## Comments
 - English only

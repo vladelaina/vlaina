@@ -33,10 +33,10 @@ export function CollapsibleSection({
                     className="group flex items-center justify-between px-2 py-1 rounded-[4px] cursor-pointer"
                 >
                     <div className="flex items-center gap-1.5">
-                        <span className="text-[11px] font-semibold text-[var(--neko-text-secondary)] group-hover:text-[var(--neko-text-primary)] tracking-wider transition-colors">
+                        <span className="text-[11px] font-semibold text-[var(--vlaina-text-secondary)] group-hover:text-[var(--vlaina-text-primary)] tracking-wider transition-colors">
                             {title}
                         </span>
-                        <ToggleIcon expanded={expanded} size="md" className="text-[var(--neko-text-tertiary)] group-hover:text-[var(--neko-text-secondary)] transition-colors" />
+                        <ToggleIcon expanded={expanded} size="md" className="text-[var(--vlaina-text-tertiary)] group-hover:text-[var(--vlaina-text-secondary)] transition-colors" />
                     </div>
                     {actions && (
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

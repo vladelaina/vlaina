@@ -81,14 +81,14 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
                     onFocus={stopPropagation}
                     onDragStart={preventDrag}
                     draggable={false}
-                    className="bg-transparent text-[var(--neko-text-primary)] text-xs font-medium px-2 h-6 outline-none min-w-[120px] w-auto select-text cursor-text"
+                    className="bg-transparent text-[var(--vlaina-text-primary)] text-xs font-medium px-2 h-6 outline-none min-w-[120px] w-auto select-text cursor-text"
                     placeholder="Caption..."
                 />
             ) : (
                 <div
                     className={cn(
-                        "text-xs font-medium px-2 h-6 cursor-pointer hover:text-[var(--neko-text-primary)] transition-colors flex items-center gap-1.5 select-none",
-                        !originalAlt ? "text-[var(--neko-text-tertiary)] italic" : "text-[var(--neko-text-secondary)]"
+                        "text-xs font-medium px-2 h-6 cursor-pointer hover:text-[var(--vlaina-text-primary)] transition-colors flex items-center gap-1.5 select-none",
+                        !originalAlt ? "text-[var(--vlaina-text-tertiary)] italic" : "text-[var(--vlaina-text-secondary)]"
                     )}
                     onClick={(e) => {
                         e.preventDefault();

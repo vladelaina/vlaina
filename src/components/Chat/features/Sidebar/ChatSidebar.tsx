@@ -102,10 +102,10 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
         }
     };
 
-    window.addEventListener('neko-delete-chat', handleDeleteChat);
+    window.addEventListener('vlaina-delete-chat', handleDeleteChat);
 
     return () => {
-        window.removeEventListener('neko-delete-chat', handleDeleteChat);
+        window.removeEventListener('vlaina-delete-chat', handleDeleteChat);
     };
   }, []);
 
@@ -120,8 +120,8 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
       });
     };
 
-    window.addEventListener('neko-open-search', handleOpenSearch);
-    return () => window.removeEventListener('neko-open-search', handleOpenSearch);
+    window.addEventListener('vlaina-open-search', handleOpenSearch);
+    return () => window.removeEventListener('vlaina-open-search', handleOpenSearch);
   }, []);
 
   const sortedSessions = useMemo(() => {
@@ -202,8 +202,8 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
       <ChatSidebarSurface ref={sidebarRootRef} isPeeking={isPeeking}>
         {isSearchOpen ? (
           <div className="px-1 pt-1 pb-1">
-            <div className="flex items-center gap-2 rounded-xl border border-[var(--neko-border)] bg-white px-3 py-1 shadow-none">
-              <Icon name="common.search" size="md" className="text-[var(--neko-text-tertiary)]" />
+            <div className="flex items-center gap-2 rounded-xl border border-[var(--vlaina-border)] bg-white px-3 py-1 shadow-none">
+              <Icon name="common.search" size="md" className="text-[var(--vlaina-text-tertiary)]" />
               <input
                 ref={searchInputRef}
                 autoFocus
@@ -223,13 +223,13 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                   }
                 }}
                 placeholder="Search chats..."
-                className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--neko-text-primary)] outline-none placeholder:text-[var(--neko-text-tertiary)]"
+                className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--vlaina-text-primary)] outline-none placeholder:text-[var(--vlaina-text-tertiary)]"
               />
               <button
                 type="button"
                 onClick={() => hideSearch()}
                 aria-label="Close chat search"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--neko-text-tertiary)] transition-colors hover:bg-[var(--neko-hover)] hover:text-[var(--neko-text-primary)]"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--vlaina-text-tertiary)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-text-primary)]"
               >
                 <Icon name="common.close" size="md" />
               </button>

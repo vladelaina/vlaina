@@ -1,7 +1,7 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { loadImageAsBase64 } from './io/reader';
 
-const SYSTEM_DIR_NAME = '.nekotick';
+const SYSTEM_DIR_NAME = '.vlaina';
 const SYSTEM_SUBDIR = 'system';
 const AVATAR_FETCH_TIMEOUT_MS = 8000;
 const AVATAR_RETRY_COOLDOWN_MS = 5 * 60 * 1000;

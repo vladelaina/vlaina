@@ -24,7 +24,7 @@ export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
           />
         </div>
       </div>
-      <span className="shrink-0 text-[11px] text-[var(--neko-text-tertiary)]">{`${remainingPercent.toFixed(0)}%`}</span>
+      <span className="shrink-0 text-[11px] text-[var(--vlaina-text-tertiary)]">{`${remainingPercent.toFixed(0)}%`}</span>
     </div>
   );
 }

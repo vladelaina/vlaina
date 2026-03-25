@@ -25,7 +25,7 @@ export const createCustomEmojiSlice: StateCreator<NotesStore, [], [], CustomEmoj
 
         const storage = getStorageAdapter();
         try {
-            const iconsDir = await joinPath(notesPath, '.nekotick', 'assets', 'icons');
+            const iconsDir = await joinPath(notesPath, '.vlaina', 'assets', 'icons');
 
             if (!await storage.exists(iconsDir)) {
                 set({ workspaceEmojis: [] });
@@ -69,7 +69,7 @@ export const createCustomEmojiSlice: StateCreator<NotesStore, [], [], CustomEmoj
 
         const storage = getStorageAdapter();
         try {
-            const filePath = await joinPath(notesPath, '.nekotick', 'assets', 'icons', id);
+            const filePath = await joinPath(notesPath, '.vlaina', 'assets', 'icons', id);
             if (await storage.exists(filePath)) {
                 await storage.deleteFile(filePath);
             }

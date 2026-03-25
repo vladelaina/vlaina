@@ -72,7 +72,7 @@ export const FileItem = memo(function FileItem({
                 if (event.key === 'Enter') void handleRenameSubmit();
                 if (event.key === 'Escape') setIsRenaming(false);
               }}
-              className="w-full min-w-0 rounded border border-[var(--neko-accent)] bg-transparent px-1.5 py-0.5 text-sm leading-5 text-gray-900 outline-none dark:text-gray-100"
+              className="w-full min-w-0 rounded border border-[var(--vlaina-accent)] bg-transparent px-1.5 py-0.5 text-sm leading-5 text-gray-900 outline-none dark:text-gray-100"
               onClick={(event) => event.stopPropagation()}
             />
           ) : (

@@ -36,11 +36,11 @@ export function renderAiReviewMarkup(state: FloatingToolbarState): string | null
               <div class="ai-review-footer">
                 <div class="ai-review-controls-left">
                   <div class="ai-review-model-selector-slot"></div>
-                  ${showRetryAction ? `<button class="ai-review-action tertiary ai-review-icon-action neko-icon-shadow-button" type="button" data-review-action="retry" aria-label="Retry">${EDITOR_ICONS.reviewRetry}</button>` : ''}
+                  ${showRetryAction ? `<button class="ai-review-action tertiary ai-review-icon-action vlaina-icon-shadow-button" type="button" data-review-action="retry" aria-label="Retry">${EDITOR_ICONS.reviewRetry}</button>` : ''}
                 </div>
                 <div class="ai-review-controls-right">
-                  <button class="ai-review-action tertiary ai-review-icon-action neko-icon-shadow-button" type="button" data-review-action="cancel" aria-label="Cancel">${EDITOR_ICONS.reviewClose}</button>
-                  <button class="ai-review-action primary ai-review-icon-action neko-icon-shadow-button" type="button" data-review-action="accept" aria-label="Apply" ${review.isLoading || !review.suggestedText ? 'disabled' : ''}>${EDITOR_ICONS.reviewApply}</button>
+                  <button class="ai-review-action tertiary ai-review-icon-action vlaina-icon-shadow-button" type="button" data-review-action="cancel" aria-label="Cancel">${EDITOR_ICONS.reviewClose}</button>
+                  <button class="ai-review-action primary ai-review-icon-action vlaina-icon-shadow-button" type="button" data-review-action="accept" aria-label="Apply" ${review.isLoading || !review.suggestedText ? 'disabled' : ''}>${EDITOR_ICONS.reviewApply}</button>
                 </div>
               </div>
             </div>

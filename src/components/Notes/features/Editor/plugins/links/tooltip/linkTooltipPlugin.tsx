@@ -1,6 +1,7 @@
 import { Plugin, PluginKey, EditorState, TextSelection } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet, EditorView } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
+import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { createRoot, Root } from 'react-dom/client';
 import LinkTooltip from './LinkTooltip';
 import { findLinkRange } from '../utils/helpers';
@@ -124,14 +125,7 @@ class LinkTooltipView {
 
             const href = link.getAttribute('href') || link.getAttribute('data-href');
             if (href) {
-                try {
-                    const { openUrl } = await import('@tauri-apps/plugin-opener');
-                    await openUrl(href);
-                } catch (err) {
-                    // Fallback to window.open if Tauri API fails
-                    console.warn('[LinkClick] Tauri openUrl failed, using fallback:', err);
-                    window.open(href, '_blank', 'noopener,noreferrer');
-                }
+                await openExternalHref(href);
             }
         } else {
             this.isKeyboardInteraction = false;
@@ -703,7 +697,7 @@ export const linkTooltipPlugin = $prose(() => {
                     Decoration.inline(
                         pluginState.visibleSelectionFrom,
                         pluginState.visibleSelectionTo,
-                        { class: 'neko-link-selection-visible' }
+                        { class: 'vlaina-link-selection-visible' }
                     ),
                 ]);
             },

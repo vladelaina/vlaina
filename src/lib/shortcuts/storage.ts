@@ -1,7 +1,7 @@
 import type { ShortcutConfig } from './types';
 import { DEFAULT_SHORTCUTS } from './config';
 
-const STORAGE_KEY = 'nekotick-shortcuts';
+const STORAGE_KEY = 'vlaina-shortcuts';
 
 export function getShortcuts(): ShortcutConfig[] {
   try {

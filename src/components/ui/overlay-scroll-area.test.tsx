@@ -41,7 +41,7 @@ describe('OverlayScrollArea', () => {
   it('toggles the configured body class while dragging the thumb', () => {
     render(
       <div style={{ height: 120 }}>
-        <OverlayScrollArea draggingBodyClassName="neko-overlay-scrollbar-dragging">
+        <OverlayScrollArea draggingBodyClassName="vlaina-overlay-scrollbar-dragging">
           <div style={{ height: 480 }}>content</div>
         </OverlayScrollArea>
       </div>
@@ -60,10 +60,10 @@ describe('OverlayScrollArea', () => {
     });
 
     fireEvent.pointerDown(thumb!, { button: 0, clientY: 10, pointerId: 1 });
-    expect(document.body.classList.contains('neko-overlay-scrollbar-dragging')).toBe(true);
+    expect(document.body.classList.contains('vlaina-overlay-scrollbar-dragging')).toBe(true);
 
     fireEvent.pointerUp(window, { pointerId: 1 });
-    expect(document.body.classList.contains('neko-overlay-scrollbar-dragging')).toBe(false);
+    expect(document.body.classList.contains('vlaina-overlay-scrollbar-dragging')).toBe(false);
   });
 
   it('supports a compact scrollbar variant without changing the default sizing', () => {

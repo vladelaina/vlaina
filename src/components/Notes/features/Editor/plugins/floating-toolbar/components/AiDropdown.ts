@@ -18,7 +18,7 @@ export function createAiDropdownController(): AiDropdownController {
       const overflowThreshold = 4;
       const isScrollable = element.scrollHeight - element.clientHeight > overflowThreshold;
       element.dataset.scrollable = isScrollable ? 'true' : 'false';
-      element.classList.toggle('neko-scrollbar', isScrollable);
+      element.classList.toggle('vlaina-scrollbar', isScrollable);
     });
   };
 

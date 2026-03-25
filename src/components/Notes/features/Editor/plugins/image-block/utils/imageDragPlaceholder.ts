@@ -66,7 +66,7 @@ export function createPlaceholderDecoration(
         height: ${height}px;
         width: ${width}px;
         margin: ${getPlaceholderMargin(alignment)};
-        border: 3px dashed var(--neko-accent, #3b82f6);
+        border: 3px dashed var(--vlaina-accent, #3b82f6);
         border-radius: ${PLACEHOLDER_BORDER_RADIUS}px;
         background: rgba(59, 130, 246, 0.1);
     `;

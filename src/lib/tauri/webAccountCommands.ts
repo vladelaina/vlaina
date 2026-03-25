@@ -8,7 +8,7 @@ import {
 } from './webAccountSession';
 import { handleWebAccountAuthCallback } from './webAccountCallback';
 
-const API_BASE = 'https://api.nekotick.com';
+const API_BASE = 'https://api.vlaina.com';
 const WEB_RESULT_POLL_ATTEMPTS = 10;
 const WEB_RESULT_POLL_DELAY_MS = 300;
 
@@ -78,11 +78,11 @@ function isSupportedWebAccountOrigin(): boolean {
     return true;
   }
 
-  return hostname === 'nekotick.com' || hostname.endsWith('.nekotick.com');
+  return hostname === 'vlaina.com' || hostname.endsWith('.vlaina.com');
 }
 
 function getUnsupportedWebAccountOriginMessage(): string {
-  return 'Web sign-in is unavailable on local development origins. Use app.nekotick.com or the desktop app.';
+  return 'Web sign-in is unavailable on local development origins. Use app.vlaina.com or the desktop app.';
 }
 
 function assertSupportedWebAccountOrigin(): void {

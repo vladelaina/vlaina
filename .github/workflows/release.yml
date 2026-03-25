@@ -68,7 +68,7 @@ jobs:
           DESKTOP_CLIENT_SECRET: ${{ secrets.DESKTOP_CLIENT_SECRET }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'Nekotick ${{ github.ref_name }}'
+          releaseName: 'Vlaina ${{ github.ref_name }}'
           releaseBody: |
             ## Downloads
             - **Windows**: `.exe` or `.msi`

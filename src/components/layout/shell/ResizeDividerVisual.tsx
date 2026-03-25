@@ -12,7 +12,7 @@ interface ResizeDividerVisualProps {
 export function ResizeDividerVisual({ isVisible, className }: ResizeDividerVisualProps) {
   return (
     <div
-      className={cn('h-full bg-[var(--neko-border)] opacity-0', isVisible && 'opacity-0', className)}
+      className={cn('h-full bg-[var(--vlaina-border)] opacity-0', isVisible && 'opacity-0', className)}
       style={{ width: RESIZE_LINE_WIDTH }}
     />
   );

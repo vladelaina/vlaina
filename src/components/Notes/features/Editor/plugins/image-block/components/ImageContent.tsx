@@ -38,7 +38,7 @@ export const ImageContent = ({
     if ((isLoading || !resolvedSrc) && !isReady) {
         return (
             <div className="w-full h-full min-h-[100px] flex flex-col items-center justify-center bg-gray-50 dark:bg-zinc-900 rounded-md">
-                <div className="size-6 border-2 border-gray-300 dark:border-zinc-600 border-t-[var(--neko-accent)] rounded-full animate-spin" />
+                <div className="size-6 border-2 border-gray-300 dark:border-zinc-600 border-t-[var(--vlaina-accent)] rounded-full animate-spin" />
             </div>
         );
     }

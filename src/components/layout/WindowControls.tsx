@@ -32,7 +32,7 @@ export function WindowControls({ className, minimal }: WindowControlsProps) {
         onClick={() => getWindow().close()}
         className="h-full w-12 flex items-center justify-center hover:bg-red-500 transition-colors group"
       >
-        <Icon size="md" name="window.close" className="text-[var(--neko-text-tertiary)] group-hover:text-white" />
+        <Icon size="md" name="window.close" className="text-[var(--vlaina-text-tertiary)] group-hover:text-white" />
       </button>
     </div>
   );

@@ -29,7 +29,7 @@ export interface AccountSessionActions {
 
 export type AccountSessionStore = AccountSessionState & AccountSessionActions;
 
-export const ACCOUNT_USER_PERSIST_KEY = 'nekotick_account_identity';
+export const ACCOUNT_USER_PERSIST_KEY = 'vlaina_account_identity';
 
 export const initialAccountSessionState: AccountSessionState = {
   isConnected: false,

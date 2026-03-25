@@ -6,7 +6,7 @@ export function useGlobalSearch(onSearch: () => void) {
       onSearch();
     };
 
-    window.addEventListener('neko-open-search', handleOpenSearch);
-    return () => window.removeEventListener('neko-open-search', handleOpenSearch);
+    window.addEventListener('vlaina-open-search', handleOpenSearch);
+    return () => window.removeEventListener('vlaina-open-search', handleOpenSearch);
   }, [onSearch]);
 }

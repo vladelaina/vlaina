@@ -124,7 +124,7 @@ describe('useCoverSelectionFlow', () => {
     const onUpdate = vi.fn();
     const setShowPicker = vi.fn();
 
-    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.nekotick/assets/covers/a.png');
+    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.vlaina/assets/covers/a.png');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:cover-a');
 
     const { result } = renderHook(() =>

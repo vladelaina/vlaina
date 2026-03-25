@@ -1,7 +1,7 @@
 import { AI_PROMPT_GROUPS } from '../../ai/promptCatalog';
 import type { AiMenuGroup } from './types';
 
-const STORAGE_KEY = 'nekotick_editor_ai_menu_usage';
+const STORAGE_KEY = 'vlaina_editor_ai_menu_usage';
 const SORTED_GROUP_IDS = new Set(['actions', 'tone']);
 
 type UsageCounts = Record<string, number>;

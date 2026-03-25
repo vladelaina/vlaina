@@ -113,7 +113,7 @@ describe('startBlockDragSession', () => {
       right: 40,
       bottom: 54,
     });
-    expect(document.body.classList.contains('neko-block-dragging-cursor')).toBe(true);
+    expect(document.body.classList.contains('vlaina-block-dragging-cursor')).toBe(true);
     expect(document.body.style.cursor).toBe('crosshair');
     expect(view.dom.style.cursor).toBe('crosshair');
     expect(document.body.style.userSelect).toBe('none');
@@ -122,7 +122,7 @@ describe('startBlockDragSession', () => {
 
     expect(onPlainClick).not.toHaveBeenCalled();
     expect(onTeardown).toHaveBeenCalledTimes(1);
-    expect(document.body.classList.contains('neko-block-dragging-cursor')).toBe(false);
+    expect(document.body.classList.contains('vlaina-block-dragging-cursor')).toBe(false);
     expect(document.body.style.userSelect).toBe('');
   });
 

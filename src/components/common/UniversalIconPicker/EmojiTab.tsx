@@ -148,7 +148,7 @@ export function EmojiTab({
     <div>
       <div className="px-3 pt-3 pb-2 flex items-center gap-2">
         <div className="flex-1 relative">
-          <Icon size="md" name="common.search" className="absolute left-2.5 top-1/2 -translate-y-1/2  text-[var(--neko-text-tertiary)]" />
+          <Icon size="md" name="common.search" className="absolute left-2.5 top-1/2 -translate-y-1/2  text-[var(--vlaina-text-tertiary)]" />
           <input
             ref={searchInputRef}
             type="text"
@@ -166,7 +166,7 @@ export function EmojiTab({
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-primary)] transition-colors"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--vlaina-text-tertiary)] hover:text-[var(--vlaina-text-primary)] transition-colors"
             >
               <Icon size="md" name="common.close" />
             </button>
@@ -185,7 +185,7 @@ export function EmojiTab({
               ref={skinTonePickerRef}
               className={cn(
                 "absolute right-0 top-full mt-1 p-2 rounded-lg shadow-lg z-10",
-                "bg-white dark:bg-zinc-800 border border-[var(--neko-border)]",
+                "bg-white dark:bg-zinc-800 border border-[var(--vlaina-border)]",
                 "flex gap-1"
               )}
             >
@@ -223,7 +223,7 @@ export function EmojiTab({
       )}
 
       {!searchQuery && (
-        <div className="flex items-center justify-around px-2 py-1.5 border-t border-[var(--neko-border)] bg-zinc-50 dark:bg-zinc-800/50">
+        <div className="flex items-center justify-around px-2 py-1.5 border-t border-[var(--vlaina-border)] bg-zinc-50 dark:bg-zinc-800/50">
           {EMOJI_CATEGORIES.map((category) => (
             <button
               key={category.id}

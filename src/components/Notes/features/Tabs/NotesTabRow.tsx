@@ -49,7 +49,7 @@ function TabContent({ tab, isActive, icon, displayName }: TabContentProps) {
       </span>
 
       {tab.isDirty && (
-        <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[var(--neko-accent)] pointer-events-none" />
+        <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[var(--vlaina-accent)] pointer-events-none" />
       )}
     </>
   );

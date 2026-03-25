@@ -41,7 +41,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
     setIsOpen(false);
   }, [onOpenSettings]);
 
-  const displayName = username || primaryEmail || 'NekoTick';
+  const displayName = username || primaryEmail || 'Vlaina';
   const userAvatar = useUserAvatar();
   const displayAvatar = userAvatar || '/logo.png';
 
@@ -62,8 +62,8 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
         <Popover.Trigger asChild>
           <button
             className={cn(
-              'group relative flex h-8 cursor-pointer items-center overflow-visible rounded-md px-1.5 py-1 text-[var(--neko-text-primary)] outline-none transition-colors select-none hover:bg-[var(--neko-hover)]',
-              isOpen && 'bg-[var(--neko-hover)]'
+              'group relative flex h-8 cursor-pointer items-center overflow-visible rounded-md px-1.5 py-1 text-[var(--vlaina-text-primary)] outline-none transition-colors select-none hover:bg-[var(--vlaina-hover)]',
+              isOpen && 'bg-[var(--vlaina-hover)]'
             )}
           >
             <span className="relative flex h-5 w-5 shrink-0">
@@ -71,7 +71,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
               <span className="pointer-events-none absolute -right-[4px] -bottom-[1px] flex h-3 w-3 items-center justify-center transition-transform duration-200 group-hover:scale-105">
                 <Icon
                   name="nav.chevronDown"
-                  className="h-2 w-2 text-[var(--neko-text-tertiary)] opacity-80 transition-opacity duration-200 group-hover:opacity-100"
+                  className="h-2 w-2 text-[var(--vlaina-text-tertiary)] opacity-80 transition-opacity duration-200 group-hover:opacity-100"
                 />
               </span>
             </span>
@@ -81,7 +81,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
         <Popover.Portal>
           <Popover.Content
             className={cn(
-              'z-50 w-[260px] rounded-xl border border-[var(--neko-border)] bg-[var(--neko-bg-primary)] p-1.5 shadow-xl select-none animate-in fade-in-0 zoom-in-95 duration-200 data-[side=bottom]:slide-in-from-top-2 dark:bg-zinc-900'
+              'z-50 w-[260px] rounded-xl border border-[var(--vlaina-border)] bg-[var(--vlaina-bg-primary)] p-1.5 shadow-xl select-none animate-in fade-in-0 zoom-in-95 duration-200 data-[side=bottom]:slide-in-from-top-2 dark:bg-zinc-900'
             )}
             sideOffset={8}
             align="start"
@@ -93,7 +93,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
                 <UserIdentityCard onLogout={handleLogout} onSwitchAccount={handleSwitchAccount} />
               )}
 
-              {isConnected && <div className="mx-3 my-1 h-[1px] bg-[var(--neko-border)] opacity-50" />}
+              {isConnected && <div className="mx-3 my-1 h-[1px] bg-[var(--vlaina-border)] opacity-50" />}
 
               <AppMenu onOpenSettings={handleOpenSettings} onCloseMenu={() => setIsOpen(false)} />
             </div>
@@ -109,7 +109,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
           void handleConfirmLogout();
         }}
         title="Log out?"
-        description="You will be signed out of your current NekoTick account on this device."
+        description="You will be signed out of your current Vlaina account on this device."
         confirmText="Log out"
         cancelText="Stay signed in"
         variant="danger"

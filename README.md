@@ -6,25 +6,25 @@
 
 
 <p align="center">
-    <img src="https://count.getloli.com/@nekotick?name=nekotick&theme=booru-qualityhentais&padding=7&offset=0&align=top&scale=1&pixelated=1&darkmode=auto" width="400">
+    <img src="https://count.getloli.com/@vlaina?name=vlaina&theme=booru-qualityhentais&padding=7&offset=0&align=top&scale=1&pixelated=1&darkmode=auto" width="400">
   </p>
 
   
-# NekoTick
+# Vlaina
 
 ## ⚖️ License & Copyright
 
 This project is open-source under the **GNU AGPLv3 License**. You are free to study, modify, and distribute the code under the same license terms.
 
 **Brand Guidelines:**  
-Please note that the **NekoTick name, Logo, and visual assets** are proprietary trademarks and are **not** included in the open-source license.
+Please note that the **Vlaina name, Logo, and visual assets** are proprietary trademarks and are **not** included in the open-source license.
 
 If you wish to fork and redistribute this project, you must remove our branding assets.  
 👉 Please read our **[Trademark & Forking Policy](TRADEMARK.md)** for detailed guidelines.
 
 ## ❤️ Open Source Credits
 
-NekoTick is built on the shoulders of giants. We gratefully acknowledge the following open-source projects:
+Vlaina is built on the shoulders of giants. We gratefully acknowledge the following open-source projects:
 
 *   **[React](https://react.dev/)** - UI Library
 *   **[Tauri](https://tauri.app/)** - App Framework
@@ -38,7 +38,7 @@ NekoTick is built on the shoulders of giants. We gratefully acknowledge the foll
 
 ## Local-First
 
-NekoTick is a local-first editor.
+Vlaina is a local-first editor.
 
 - Your notes and workspace data live on your own device.
 - Account sign-in is provider-agnostic and currently supports Google, 6-digit email codes, and GitHub.
@@ -47,8 +47,12 @@ NekoTick is a local-first editor.
 ## 🛠️ Development
 
 ### Getting Started
-1. Install dependencies: `pnpm install`
-2. Start development server: `pnpm tauri dev`
+1. Install dependencies from Windows PowerShell or `cmd`: `pnpm install`
+2. Start the desktop app from Windows PowerShell or `cmd`: `pnpm tauri dev`
+
+WSL is for editing only in this repository. Do not run `pnpm install`, `pnpm dev`, `pnpm build`, `pnpm test`, or `pnpm tauri ...` inside WSL against this shared working tree.
+
+If you previously mixed WSL and Windows installs, delete `node_modules`, `node_modules/.vite`, and `.vite-temp`, then reinstall from Windows.
 
 ### Quality Gate (Pre-release)
 
@@ -76,5 +80,6 @@ pnpm dev:dynamic
 ```
 
 
-This command automatically detects available ports to prevent conflicts and synchronizes configurations between Vite and Tauri. This is a recommended practice for maintaining a smooth development workflow across different environments and OS (Windows/macOS/Linux).
+This command automatically detects available ports to prevent conflicts and synchronizes configurations between Vite and Tauri for Windows-hosted multi-instance development.
+Run it from Windows only for this repository. WSL is intentionally blocked for local Node/Tauri commands.
 

@@ -15,8 +15,8 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
   const { username, primaryEmail, isConnected, membershipTier, membershipName } = useAccountSessionStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const displayName = username || primaryEmail || 'NekoTick';
-  const displayIdentity = primaryEmail || username || 'NekoTick';
+  const displayName = username || primaryEmail || 'Vlaina';
+  const displayIdentity = primaryEmail || username || 'Vlaina';
   const userAvatar = useUserAvatar();
   const displayAvatar = userAvatar || '/logo.png';
   const membershipPillClassName = isConnected
@@ -42,11 +42,11 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
         <span
           role="button"
           tabIndex={0}
-          onClick={() => void openExternalHref('https://nekotick.com')}
+          onClick={() => void openExternalHref('https://vlaina.com')}
           onKeyDown={(event) => {
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault();
-              void openExternalHref('https://nekotick.com');
+              void openExternalHref('https://vlaina.com');
             }
           }}
           className={cn(
@@ -60,7 +60,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
       <div className="flex min-w-0 flex-1 flex-col gap-1 pt-0.5">
         <div className="flex items-center justify-between">
           <span
-            className="min-w-0 flex-1 truncate pr-2 text-[11px] font-bold leading-none text-[var(--neko-text-primary)]"
+            className="min-w-0 flex-1 truncate pr-2 text-[11px] font-bold leading-none text-[var(--vlaina-text-primary)]"
             title={displayIdentity}
           >
             {displayIdentity}
@@ -73,11 +73,11 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
                 setIsMenuOpen(!isMenuOpen);
               }}
               className={cn(
-                '-mr-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[var(--neko-active)]',
-                isMenuOpen && 'bg-[var(--neko-active)] text-[var(--neko-text-primary)]'
+                '-mr-1 flex h-5 w-5 cursor-pointer items-center justify-center rounded-md transition-colors hover:bg-[var(--vlaina-active)]',
+                isMenuOpen && 'bg-[var(--vlaina-active)] text-[var(--vlaina-text-primary)]'
               )}
             >
-              <Icon size="md" name="common.more" className="text-[var(--neko-text-secondary)]" />
+              <Icon size="md" name="common.more" className="text-[var(--vlaina-text-secondary)]" />
             </button>
           </div>
         </div>
@@ -87,7 +87,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
         {isMenuOpen && (
           <>
             <div className="fixed inset-0 z-[60]" onClick={() => setIsMenuOpen(false)} />
-            <div className="absolute left-[calc(100%-10px)] top-8 z-[70] w-40 rounded-lg border border-[var(--neko-border)] bg-[var(--neko-bg-primary)] p-1 shadow-xl animate-in fade-in-0 zoom-in-95 slide-in-from-top-1">
+            <div className="absolute left-[calc(100%-10px)] top-8 z-[70] w-40 rounded-lg border border-[var(--vlaina-border)] bg-[var(--vlaina-bg-primary)] p-1 shadow-xl animate-in fade-in-0 zoom-in-95 slide-in-from-top-1">
               <button
                 onClick={() => {
                   setIsMenuOpen(false);

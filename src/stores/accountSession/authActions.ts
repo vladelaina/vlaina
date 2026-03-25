@@ -75,7 +75,7 @@ export function createSignIn(
       }
     }, 60000);
 
-    (window as Window & { __nekotick_auth_timeout?: number | ReturnType<typeof setTimeout> | null }).__nekotick_auth_timeout =
+    (window as Window & { __vlaina_auth_timeout?: number | ReturnType<typeof setTimeout> | null }).__vlaina_auth_timeout =
       timeoutId;
 
     if (hasBackendCommands()) {
@@ -233,10 +233,10 @@ export function createHandleAuthCallback(set: Set, get: Get): () => Promise<bool
 
 export function createSignOut(set: Set, _get: Get): () => Promise<void> {
   return async () => {
-    const win = window as Window & { __nekotick_auth_timeout?: number | ReturnType<typeof setTimeout> | null };
-    if (win.__nekotick_auth_timeout) {
-      clearTimeout(win.__nekotick_auth_timeout);
-      win.__nekotick_auth_timeout = null;
+    const win = window as Window & { __vlaina_auth_timeout?: number | ReturnType<typeof setTimeout> | null };
+    if (win.__vlaina_auth_timeout) {
+      clearTimeout(win.__vlaina_auth_timeout);
+      win.__vlaina_auth_timeout = null;
     }
     clearAuthIntent();
 

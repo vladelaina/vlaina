@@ -3,7 +3,7 @@ use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
 use tokio::time::{sleep, Duration, Instant};
 
-const DEFAULT_API_BASE_URL: &str = "https://api.nekotick.com";
+const DEFAULT_API_BASE_URL: &str = "https://api.vlaina.com";
 const DEFAULT_AUTH_RESULT_RETRY_MS: u64 = 200;
 const MAX_AUTH_RESULT_RETRY_MS: u64 = 1000;
 const DEFAULT_AUTH_TIMEOUT_SECONDS: u64 = 300;
@@ -61,7 +61,7 @@ struct EmailCodeVerifyBody<'a> {
 }
 
 pub fn read_api_base_url() -> String {
-    std::env::var("NEKOTICK_API_BASE_URL")
+    std::env::var("VLAINA_API_BASE_URL")
         .ok()
         .map(|value| value.trim().trim_end_matches('/').to_string())
         .filter(|value| !value.is_empty())

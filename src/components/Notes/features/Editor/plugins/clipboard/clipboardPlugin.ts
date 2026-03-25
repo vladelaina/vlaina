@@ -20,7 +20,7 @@ import {
 } from './fencedCodePaste';
 import { findTailCursorPosInRange, isMarkdownStructuralResult } from './pasteCursorUtils';
 
-export const clipboardPluginKey = new PluginKey('neko-clipboard');
+export const clipboardPluginKey = new PluginKey('vlaina-clipboard');
 
 export function createStandaloneTocPasteNode(schema: {
     nodes: {

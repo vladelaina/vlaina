@@ -1,5 +1,5 @@
 /*
-* Custom NekoTick Theme for Milkdown
+* Custom Vlaina Theme for Milkdown
 * Replicates the visual style of modern block-based editors (1:1 visual match)
 */
 
@@ -18,45 +18,45 @@ export const themeClasses = {
 
     // Typography - Using Golden Spacing (26px) for Vertical Rhythm
     heading: {
-        h1: 'scroll-m-20 text-[42px] leading-[1.2] font-extrabold tracking-tight mb-[26px] mt-[42px] first:mt-0 text-[var(--neko-text-primary)]',
-        h2: 'scroll-m-20 pb-2 text-[33px] leading-[1.3] font-semibold tracking-tight transition-colors first:mt-0 mb-[26px] mt-[33px] text-[var(--neko-text-primary)]',
-        h3: 'scroll-m-20 text-[26px] leading-[1.4] font-semibold tracking-tight mb-[16px] mt-[26px] text-[var(--neko-text-primary)]',
-        h4: 'scroll-m-20 text-[20px] leading-[1.4] font-semibold tracking-tight mb-[10px] mt-[20px] text-[var(--neko-text-primary)]',
-        h5: 'scroll-m-20 text-[16px] leading-[1.5] font-semibold tracking-tight mb-[10px] mt-[16px] text-[var(--neko-text-primary)]',
-        h6: 'scroll-m-20 text-[13px] leading-[1.5] font-semibold tracking-tight mb-[10px] mt-[16px] text-[var(--neko-text-primary)]',
+        h1: 'scroll-m-20 text-[42px] leading-[1.2] font-extrabold tracking-tight mb-[26px] mt-[42px] first:mt-0 text-[var(--vlaina-text-primary)]',
+        h2: 'scroll-m-20 pb-2 text-[33px] leading-[1.3] font-semibold tracking-tight transition-colors first:mt-0 mb-[26px] mt-[33px] text-[var(--vlaina-text-primary)]',
+        h3: 'scroll-m-20 text-[26px] leading-[1.4] font-semibold tracking-tight mb-[16px] mt-[26px] text-[var(--vlaina-text-primary)]',
+        h4: 'scroll-m-20 text-[20px] leading-[1.4] font-semibold tracking-tight mb-[10px] mt-[20px] text-[var(--vlaina-text-primary)]',
+        h5: 'scroll-m-20 text-[16px] leading-[1.5] font-semibold tracking-tight mb-[10px] mt-[16px] text-[var(--vlaina-text-primary)]',
+        h6: 'scroll-m-20 text-[13px] leading-[1.5] font-semibold tracking-tight mb-[10px] mt-[16px] text-[var(--vlaina-text-primary)]',
     },
 
-    paragraph: 'leading-[26px] [&:not(:first-child)]:mt-[26px] text-[var(--neko-text-primary)] text-[16px]',
+    paragraph: 'leading-[26px] [&:not(:first-child)]:mt-[26px] text-[var(--vlaina-text-primary)] text-[16px]',
 
     // Text Formatting
-    strong: 'font-semibold text-[var(--neko-text-primary)]',
+    strong: 'font-semibold text-[var(--vlaina-text-primary)]',
     em: 'italic',
-    code: 'inline-block align-baseline rounded bg-neutral-100 px-1 py-0.5 font-mono text-sm font-medium text-neutral-800 caret-[var(--neko-accent)] dark:bg-neutral-800 dark:text-neutral-100', 
+    code: 'inline-block align-baseline rounded bg-neutral-100 px-1 py-0.5 font-mono text-sm font-medium text-neutral-800 caret-[var(--vlaina-accent)] dark:bg-neutral-800 dark:text-neutral-100', 
     link: 'font-medium text-[#1e96eb] underline underline-offset-4 cursor-pointer hover:text-[#0c7fd9] transition-colors',
 
     // Block Elements
-    blockquote: 'mt-[26px] pl-[26px] text-[var(--neko-text-secondary)]',
+    blockquote: 'mt-[26px] pl-[26px] text-[var(--vlaina-text-secondary)]',
 
     lists: {
-        ul: 'my-[26px] ml-[26px] list-disc [&>li]:mt-2 marker:text-[var(--neko-text-secondary)]',
-        ol: 'my-[26px] ml-[26px] list-decimal [&>li]:mt-2 marker:text-[var(--neko-text-secondary)]',
+        ul: 'my-[26px] ml-[26px] list-disc [&>li]:mt-2 marker:text-[var(--vlaina-text-secondary)]',
+        ol: 'my-[26px] ml-[26px] list-decimal [&>li]:mt-2 marker:text-[var(--vlaina-text-secondary)]',
         li: 'pl-2',
         task: 'my-[26px] ml-0 list-none [&>li]:mt-2',
     },
 
     // Images & Media
-    image: 'rounded-md border border-[var(--neko-border)] bg-[var(--neko-bg-tertiary)]',
+    image: 'rounded-md border border-[var(--vlaina-border)] bg-[var(--vlaina-bg-tertiary)]',
 
     // Table
     table: 'w-max max-w-full caption-bottom text-sm my-0 overflow-y-auto',
-    thead: '[&_tr]:border-b border-[var(--neko-border)]',
+    thead: '[&_tr]:border-b border-[var(--vlaina-border)]',
     tbody: '[&_tr:last-child]:border-0',
-    tr: 'border-b border-[var(--neko-border)] transition-colors hover:bg-[var(--neko-bg-hover)] data-[state=selected]:bg-[var(--neko-bg-tertiary)]',
-    th: 'h-[42px] px-4 text-left align-middle font-medium text-[var(--neko-text-secondary)] bg-[var(--neko-bg-tertiary)]', // Matches H1/Grid
+    tr: 'border-b border-[var(--vlaina-border)] transition-colors hover:bg-[var(--vlaina-bg-hover)] data-[state=selected]:bg-[var(--vlaina-bg-tertiary)]',
+    th: 'h-[42px] px-4 text-left align-middle font-medium text-[var(--vlaina-text-secondary)] bg-[var(--vlaina-bg-tertiary)]', // Matches H1/Grid
     td: 'p-4 align-middle [&:has([role=checkbox])]:pr-0',
 
     // Code Block
-    fence: 'relative rounded-lg bg-[var(--neko-bg-secondary)] border border-[var(--neko-border)] my-[26px] font-mono text-[13px]',
+    fence: 'relative rounded-lg bg-[var(--vlaina-bg-secondary)] border border-[var(--vlaina-border)] my-[26px] font-mono text-[13px]',
 
     // Divider
     hr: 'my-0 border-0 h-0',

@@ -18,12 +18,12 @@ export function TreeItemDeleteDialog({
 }: TreeItemDeleteDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[320px] border-[var(--neko-border)] bg-[var(--neko-bg-primary)]">
+      <DialogContent className="max-w-[320px] border-[var(--vlaina-border)] bg-[var(--vlaina-bg-primary)]">
         <DialogHeader>
-          <DialogTitle className="text-[var(--neko-text-primary)]">
+          <DialogTitle className="text-[var(--vlaina-text-primary)]">
             Delete {itemType}
           </DialogTitle>
-          <DialogDescription className="text-[var(--neko-text-secondary)]">
+          <DialogDescription className="text-[var(--vlaina-text-secondary)]">
             Are you sure you want to delete "{itemLabel}"? This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
@@ -31,7 +31,7 @@ export function TreeItemDeleteDialog({
           <button
             onClick={() => onOpenChange(false)}
             className={cn(
-              'rounded-md bg-[var(--neko-bg-secondary)] px-4 py-2 text-sm hover:bg-[var(--neko-hover)]'
+              'rounded-md bg-[var(--vlaina-bg-secondary)] px-4 py-2 text-sm hover:bg-[var(--vlaina-hover)]'
             )}
           >
             Cancel

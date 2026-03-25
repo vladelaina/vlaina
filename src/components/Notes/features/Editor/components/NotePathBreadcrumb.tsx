@@ -99,12 +99,12 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
           type="button"
           onClick={handleRootClick}
           className={cn(
-            'rounded px-1 py-0 text-[var(--neko-text-tertiary)] transition-colors hover:bg-[var(--neko-hover-filled)] hover:text-[var(--neko-text-primary)]'
+            'rounded px-1 py-0 text-[var(--vlaina-text-tertiary)] transition-colors hover:bg-[var(--vlaina-hover-filled)] hover:text-[var(--vlaina-text-primary)]'
           )}
         >
           {vaultName}
         </button>
-        <span className="text-[var(--neko-text-disabled)]">/</span>
+        <span className="text-[var(--vlaina-text-disabled)]">/</span>
 
         {folderSegments.map((segment, index) => (
           <div key={segment.fullPath} className="inline-flex items-center gap-1.5">
@@ -112,20 +112,20 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
               type="button"
               onClick={() => handleFolderClick(segment.fullPath)}
               className={cn(
-                'rounded px-1 py-0 text-[var(--neko-text-tertiary)] transition-colors hover:bg-[var(--neko-hover-filled)] hover:text-[var(--neko-text-primary)]'
+                'rounded px-1 py-0 text-[var(--vlaina-text-tertiary)] transition-colors hover:bg-[var(--vlaina-hover-filled)] hover:text-[var(--vlaina-text-primary)]'
               )}
             >
               {segment.label}
             </button>
-            <span className="text-[var(--neko-text-disabled)]">/</span>
+            <span className="text-[var(--vlaina-text-disabled)]">/</span>
             {index === folderSegments.length - 1 && (
-              <span className="max-w-[360px] truncate text-[var(--neko-text-secondary)]">{noteLabel}</span>
+              <span className="max-w-[360px] truncate text-[var(--vlaina-text-secondary)]">{noteLabel}</span>
             )}
           </div>
         ))}
 
         {folderSegments.length === 0 && (
-          <span className="max-w-[360px] truncate text-[var(--neko-text-secondary)]">{noteLabel}</span>
+          <span className="max-w-[360px] truncate text-[var(--vlaina-text-secondary)]">{noteLabel}</span>
         )}
       </div>
     </div>

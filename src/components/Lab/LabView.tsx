@@ -12,7 +12,7 @@ export function LabView() {
   const ActiveComponent = activeModule?.component ?? null;
 
   return (
-    <div className="h-full flex flex-col bg-[var(--neko-bg-primary)] overflow-hidden">
+    <div className="h-full flex flex-col bg-[var(--vlaina-bg-primary)] overflow-hidden">
       <div className="flex items-center gap-4 px-6 py-3 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-zinc-900 flex-none h-14">
         <button 
             onClick={() => setAppViewMode('notes')} 
@@ -43,7 +43,7 @@ export function LabView() {
       </div>
 
       <div className="flex-1 overflow-hidden relative bg-gray-50 dark:bg-[#090909]">
-        <div className="absolute inset-0 overflow-y-auto neko-scrollbar p-8">
+        <div className="absolute inset-0 overflow-y-auto vlaina-scrollbar p-8">
             {ActiveComponent ? (
               <ActiveComponent />
             ) : (

@@ -14,29 +14,29 @@
   --font-mono: 'JetBrains Mono', var(--font-sans);
   --font-number: 'Roboto Mono', 'JetBrains Mono', var(--font-fallback);
 
-  --neko-font-family: var(--font-sans);
-  --neko-font-serif-family: var(--font-serif);
-  --neko-font-mono-family: var(--font-mono);
-  --neko-font-number-family: var(--font-number);
-  --neko-font-code-family: var(--font-mono);
+  --vlaina-font-family: var(--font-sans);
+  --vlaina-font-serif-family: var(--font-serif);
+  --vlaina-font-mono-family: var(--font-mono);
+  --vlaina-font-number-family: var(--font-number);
+  --vlaina-font-code-family: var(--font-mono);
 
-  --neko-font-title: 36px;
-  --neko-font-h1: 28px;
-  --neko-font-h2: 26px;
-  --neko-font-h3: 24px;
-  --neko-font-h4: 22px;
-  --neko-font-h5: 20px;
-  --neko-font-h6: 18px;
-  --neko-font-base: 15px;
-  --neko-font-sm: 14px;
-  --neko-font-xs: 12px;
-  --neko-line-height: calc(1em + 8px);
+  --vlaina-font-title: 36px;
+  --vlaina-font-h1: 28px;
+  --vlaina-font-h2: 26px;
+  --vlaina-font-h3: 24px;
+  --vlaina-font-h4: 22px;
+  --vlaina-font-h5: 20px;
+  --vlaina-font-h6: 18px;
+  --vlaina-font-base: 15px;
+  --vlaina-font-sm: 14px;
+  --vlaina-font-xs: 12px;
+  --vlaina-line-height: calc(1em + 8px);
 }
 
 body {
   font-family: var(--font-sans);
-  font-size: var(--neko-font-base);
-  line-height: var(--neko-line-height);
+  font-size: var(--vlaina-font-base);
+  line-height: var(--vlaina-line-height);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -157,52 +157,52 @@ html, body, #root {
 .scrollbar-hidden { -ms-overflow-style: none; scrollbar-width: none; }
 .scrollbar-hidden::-webkit-scrollbar { display: none; }
 
-.neko-icon-shadow-button {
+.vlaina-icon-shadow-button {
   border: none;
   background: transparent;
   box-shadow: none;
 }
 
-.neko-icon-shadow-button:hover {
+.vlaina-icon-shadow-button:hover {
   background: transparent;
   box-shadow: 0 6px 18px -10px rgb(0 0 0 / 0.35);
 }
 
-.dark .neko-icon-shadow-button:hover {
+.dark .vlaina-icon-shadow-button:hover {
   background: transparent;
   box-shadow: 0 8px 20px -12px rgb(0 0 0 / 0.55);
 }
 
 /* ============================================
-   NekoTick Notes Theme Variables
+   Vlaina Notes Theme Variables
    ============================================ */
 
 :root {
-  --neko-bg-primary: #ffffff;
-  --neko-bg-secondary: #fbfbfc;
-  --neko-bg-tertiary: #f4f5f7;
-  --neko-bg-hover: rgba(0, 0, 0, 0.04);
-  --neko-bg-active: rgba(0, 0, 0, 0.08);
-  --neko-text-primary: #2c2c2b;
-  --neko-text-secondary: #8e8b86;
-  --neko-text-tertiary: #b9b9bc;
-  --neko-text-disabled: #c9c9ca;
-  --neko-border: #e3e2e4;
-  --neko-divider: #e3e2e4;
-  --neko-accent: #1e96eb;
-  --neko-accent-hover: #0c7fd9;
-  --neko-accent-light: rgba(30, 150, 235, 0.1);
-  --neko-icon-primary: #8e8e8e;
-  --neko-icon-secondary: #b9b9bc;
-  --neko-icon-active: #1e96eb;
-  --neko-selection-bg: #2781db;
-  --neko-hover: rgba(0, 0, 0, 0.04);
-  --neko-hover-filled: #f4f5f7;
-  --neko-sidebar-width: 270px;
-  --neko-sidebar-bg: #ffffff;
-  --neko-header-height: 52px;
-  --neko-font-base: 16px;
-  --neko-line-height: 1.6;
+  --vlaina-bg-primary: #ffffff;
+  --vlaina-bg-secondary: #fbfbfc;
+  --vlaina-bg-tertiary: #f4f5f7;
+  --vlaina-bg-hover: rgba(0, 0, 0, 0.04);
+  --vlaina-bg-active: rgba(0, 0, 0, 0.08);
+  --vlaina-text-primary: #2c2c2b;
+  --vlaina-text-secondary: #8e8b86;
+  --vlaina-text-tertiary: #b9b9bc;
+  --vlaina-text-disabled: #c9c9ca;
+  --vlaina-border: #e3e2e4;
+  --vlaina-divider: #e3e2e4;
+  --vlaina-accent: #1e96eb;
+  --vlaina-accent-hover: #0c7fd9;
+  --vlaina-accent-light: rgba(30, 150, 235, 0.1);
+  --vlaina-icon-primary: #8e8e8e;
+  --vlaina-icon-secondary: #b9b9bc;
+  --vlaina-icon-active: #1e96eb;
+  --vlaina-selection-bg: #2781db;
+  --vlaina-hover: rgba(0, 0, 0, 0.04);
+  --vlaina-hover-filled: #f4f5f7;
+  --vlaina-sidebar-width: 270px;
+  --vlaina-sidebar-bg: #ffffff;
+  --vlaina-header-height: 52px;
+  --vlaina-font-base: 16px;
+  --vlaina-line-height: 1.6;
   --chat-sidebar-surface: #ffffff;
   --chat-sidebar-row-hover: #f7f7f8;
   --chat-sidebar-row-active: #f1f1f2;
@@ -242,27 +242,27 @@ html, body, #root {
 }
 
 .dark {
-  --neko-bg-primary: #101010;
-  --neko-bg-secondary: #161616;
-  --neko-bg-tertiary: #2c2c2c;
-  --neko-bg-hover: rgba(255, 255, 255, 0.06);
-  --neko-bg-active: rgba(255, 255, 255, 0.1);
-  --neko-text-primary: #eeeeee;
-  --neko-text-secondary: #a0a0a0;
-  --neko-text-tertiary: #5d5d5f;
-  --neko-text-disabled: #424242;
-  --neko-border: #333333;
-  --neko-divider: #333333;
-  --neko-accent: #1e96eb;
-  --neko-accent-hover: #5eabf7;
-  --neko-accent-light: rgba(30, 150, 235, 0.15);
-  --neko-icon-primary: #a0a0a0;
-  --neko-icon-secondary: #6b6b6b;
-  --neko-icon-active: #1e96eb;
-  --neko-selection-bg: #2781db;
-  --neko-hover: rgba(255, 255, 255, 0.06);
-  --neko-hover-filled: #2c2c2c;
-  --neko-sidebar-bg: #161616;
+  --vlaina-bg-primary: #101010;
+  --vlaina-bg-secondary: #161616;
+  --vlaina-bg-tertiary: #2c2c2c;
+  --vlaina-bg-hover: rgba(255, 255, 255, 0.06);
+  --vlaina-bg-active: rgba(255, 255, 255, 0.1);
+  --vlaina-text-primary: #eeeeee;
+  --vlaina-text-secondary: #a0a0a0;
+  --vlaina-text-tertiary: #5d5d5f;
+  --vlaina-text-disabled: #424242;
+  --vlaina-border: #333333;
+  --vlaina-divider: #333333;
+  --vlaina-accent: #1e96eb;
+  --vlaina-accent-hover: #5eabf7;
+  --vlaina-accent-light: rgba(30, 150, 235, 0.15);
+  --vlaina-icon-primary: #a0a0a0;
+  --vlaina-icon-secondary: #6b6b6b;
+  --vlaina-icon-active: #1e96eb;
+  --vlaina-selection-bg: #2781db;
+  --vlaina-hover: rgba(255, 255, 255, 0.06);
+  --vlaina-hover-filled: #2c2c2c;
+  --vlaina-sidebar-bg: #161616;
   --chat-sidebar-surface: #171717;
   --chat-sidebar-row-hover: #1e1e1e;
   --chat-sidebar-row-active: #232323;
@@ -342,26 +342,26 @@ html, body, #root {
 }
 
 /* ============================================
-   Custom Scrollbar (Global & Neko-Scrollbar)
+   Custom Scrollbar (Global & Vlaina-Scrollbar)
    ============================================ */
 
-::-webkit-scrollbar, .neko-scrollbar::-webkit-scrollbar {
+::-webkit-scrollbar, .vlaina-scrollbar::-webkit-scrollbar {
   width: 10px;
   height: 10px;
   cursor: default;
 }
 
-::-webkit-scrollbar-track, .neko-scrollbar::-webkit-scrollbar-track {
+::-webkit-scrollbar-track, .vlaina-scrollbar::-webkit-scrollbar-track {
   background: transparent;
   cursor: default;
 }
 
-::-webkit-scrollbar-button, .neko-scrollbar::-webkit-scrollbar-button,
-::-webkit-scrollbar-button:single-button, .neko-scrollbar::-webkit-scrollbar-button:single-button,
-::-webkit-scrollbar-button:vertical:decrement, .neko-scrollbar::-webkit-scrollbar-button:vertical:decrement,
-::-webkit-scrollbar-button:vertical:increment, .neko-scrollbar::-webkit-scrollbar-button:vertical:increment,
-::-webkit-scrollbar-button:horizontal:decrement, .neko-scrollbar::-webkit-scrollbar-button:horizontal:decrement,
-::-webkit-scrollbar-button:horizontal:increment, .neko-scrollbar::-webkit-scrollbar-button:horizontal:increment {
+::-webkit-scrollbar-button, .vlaina-scrollbar::-webkit-scrollbar-button,
+::-webkit-scrollbar-button:single-button, .vlaina-scrollbar::-webkit-scrollbar-button:single-button,
+::-webkit-scrollbar-button:vertical:decrement, .vlaina-scrollbar::-webkit-scrollbar-button:vertical:decrement,
+::-webkit-scrollbar-button:vertical:increment, .vlaina-scrollbar::-webkit-scrollbar-button:vertical:increment,
+::-webkit-scrollbar-button:horizontal:decrement, .vlaina-scrollbar::-webkit-scrollbar-button:horizontal:decrement,
+::-webkit-scrollbar-button:horizontal:increment, .vlaina-scrollbar::-webkit-scrollbar-button:horizontal:increment {
   -webkit-appearance: none;
   display: none;
   width: 0;
@@ -370,7 +370,7 @@ html, body, #root {
   cursor: default;
 }
 
-::-webkit-scrollbar-thumb, .neko-scrollbar::-webkit-scrollbar-thumb {
+::-webkit-scrollbar-thumb, .vlaina-scrollbar::-webkit-scrollbar-thumb {
   background-color: #efefef;
   border-radius: 10px;
   border: 3.5px solid transparent; 
@@ -378,30 +378,30 @@ html, body, #root {
   cursor: default;
 }
 
-.dark ::-webkit-scrollbar-thumb, .dark .neko-scrollbar::-webkit-scrollbar-thumb {
+.dark ::-webkit-scrollbar-thumb, .dark .vlaina-scrollbar::-webkit-scrollbar-thumb {
   background-color: rgba(150, 150, 150, 0.15);
 }
 
-::-webkit-scrollbar-thumb:hover, .neko-scrollbar::-webkit-scrollbar-thumb:hover {
+::-webkit-scrollbar-thumb:hover, .vlaina-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: rgba(120, 120, 120, 0.5);
   border: 1px solid transparent; 
 }
 
-.dark ::-webkit-scrollbar-thumb:hover, .dark .neko-scrollbar::-webkit-scrollbar-thumb:hover {
+.dark ::-webkit-scrollbar-thumb:hover, .dark .vlaina-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: rgba(150, 150, 150, 0.4);
 }
 
 ::selection {
-  background-color: var(--neko-selection-bg, #2781db);
+  background-color: var(--vlaina-selection-bg, #2781db);
   color: #ffffff;
 }
 
 ::-moz-selection {
-  background-color: var(--neko-selection-bg, #2781db);
+  background-color: var(--vlaina-selection-bg, #2781db);
   color: #ffffff;
 }
 
-::-webkit-scrollbar-corner, .neko-scrollbar::-webkit-scrollbar-corner {
+::-webkit-scrollbar-corner, .vlaina-scrollbar::-webkit-scrollbar-corner {
   background: transparent;
 }
 
@@ -413,14 +413,14 @@ html, body, #root {
   background: transparent;
   border: none;
   border-radius: 0.25rem;
-  color: var(--neko-text-tertiary);
+  color: var(--vlaina-text-tertiary);
   cursor: pointer;
   transition: color 0.15s ease;
 }
 
-.icon-btn:hover { color: var(--neko-text-primary); }
-.icon-btn.active, .icon-btn[data-active="true"] { color: var(--neko-text-primary); }
-.icon-btn:disabled { color: var(--neko-text-disabled); cursor: not-allowed; }
+.icon-btn:hover { color: var(--vlaina-text-primary); }
+.icon-btn.active, .icon-btn[data-active="true"] { color: var(--vlaina-text-primary); }
+.icon-btn:disabled { color: var(--vlaina-text-disabled); cursor: not-allowed; }
 
 [data-chat-view-mode] button:not(:disabled),
 [data-chat-view-mode] [role="button"]:not([aria-disabled="true"]) {

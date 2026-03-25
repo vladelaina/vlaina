@@ -12,7 +12,7 @@ import {
 
 const sampleLinkText = 'launch brief';
 const sampleTextValue = 'Launch brief';
-const sampleUrlValue = 'https://neko.app/launch';
+const sampleUrlValue = 'https://app.vlaina.com/launch';
 
 function getShellClasses(shell: LinkEditorShell) {
   switch (shell) {

@@ -23,7 +23,7 @@ function buildTimestampStem(): string {
   const hh = String(now.getHours()).padStart(2, "0");
   const mi = String(now.getMinutes()).padStart(2, "0");
   const ss = String(now.getSeconds()).padStart(2, "0");
-  return `nekotick-${yyyy}${mm}${dd}-${hh}${mi}${ss}`;
+  return `vlaina-${yyyy}${mm}${dd}-${hh}${mi}${ss}`;
 }
 
 function extensionFromSource(src: string): string | null {

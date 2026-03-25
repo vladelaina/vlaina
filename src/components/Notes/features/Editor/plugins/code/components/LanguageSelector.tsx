@@ -133,7 +133,7 @@ export const LanguageSelector = ({
                     </div>
                 </div>
 
-                <div ref={scrollRef} className="max-h-[240px] overflow-y-auto p-1 neko-scrollbar">
+                <div ref={scrollRef} className="max-h-[240px] overflow-y-auto p-1 vlaina-scrollbar">
                     {filteredLanguages.length > 0 ? (
                         filteredLanguages.map((lang, index) => {
                             return (

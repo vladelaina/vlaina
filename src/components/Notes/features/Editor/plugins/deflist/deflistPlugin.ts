@@ -116,11 +116,11 @@ export const deflistVisualPlugin = $prose(() => {
 
                             if (isTermValid) {
                                 // Mark current node as DD
-                                const classes = ['neko-dl-desc'];
+                                const classes = ['vlaina-dl-desc'];
 
                                 // If the immediate previous node was empty, we need to pull up more
                                 if (lastNode && lastNode.textContent.trim().length === 0) {
-                                    classes.push('neko-dl-gap-fix');
+                                    classes.push('vlaina-dl-gap-fix');
                                 }
 
                                 decorations.push(
@@ -132,7 +132,7 @@ export const deflistVisualPlugin = $prose(() => {
                                 // Mark previous node as DT
                                 decorations.push(
                                     Decoration.node(lastNonEmptyPos, lastNonEmptyPos + lastNonEmptyNode!.nodeSize, {
-                                        class: 'neko-dl-term',
+                                        class: 'vlaina-dl-term',
                                     })
                                 );
                             }

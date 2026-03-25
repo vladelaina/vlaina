@@ -32,7 +32,7 @@
   padding: 40px;
   animation: vaultWelcomeFadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
-  background: var(--neko-bg-primary);
+  background: var(--vlaina-bg-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -68,7 +68,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--neko-text-tertiary);
+  color: var(--vlaina-text-tertiary);
   margin: 0 0 16px 16px;
   opacity: 0.5;
 }
@@ -120,18 +120,18 @@
 }
 
 .vault-item:hover {
-  background: var(--neko-bg-secondary);
+  background: var(--vlaina-bg-secondary);
 }
 
 .vault-item:active {
   transform: scale(0.98);
-  background: var(--neko-bg-tertiary);
+  background: var(--vlaina-bg-tertiary);
 }
 
 .vault-item__name {
   font-size: 14px;
   font-weight: 500;
-  color: var(--neko-text-primary);
+  color: var(--vlaina-text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -141,7 +141,7 @@
 
 .vault-item__path {
   font-size: 12px;
-  color: var(--neko-text-tertiary);
+  color: var(--vlaina-text-tertiary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -156,7 +156,7 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  color: var(--neko-text-tertiary);
+  color: var(--vlaina-text-tertiary);
   transition: all 0.2s ease;
   flex-shrink: 0;
   opacity: 0;
@@ -197,8 +197,8 @@
 }
 
 .vault-action-btn--primary {
-  background: var(--neko-text-primary);
-  color: var(--neko-bg-primary);
+  background: var(--vlaina-text-primary);
+  color: var(--vlaina-bg-primary);
   box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.3);
 }
 
@@ -216,7 +216,7 @@
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  color: var(--neko-text-primary);
+  color: var(--vlaina-text-primary);
   border: 1px solid rgba(128, 128, 128, 0.08);
 }
 
@@ -243,7 +243,7 @@
 
 .vault-welcome__divider span {
   font-size: 11px;
-  color: var(--neko-text-tertiary);
+  color: var(--vlaina-text-tertiary);
   padding: 0 16px;
   font-weight: 600;
   opacity: 0.6;
@@ -337,14 +337,14 @@
 }
 
 .vault-cloud__provider--github {
-  color: var(--neko-text-primary);
+  color: var(--vlaina-text-primary);
   opacity: 1;
 }
 
 .vault-modal {
   width: 90%;
   max-width: 460px;
-  background: var(--neko-bg-primary);
+  background: var(--vlaina-bg-primary);
   border: 1px solid rgba(0, 0, 0, 0.04);
   box-shadow:
     0 24px 48px -12px rgba(0, 0, 0, 0.15),
@@ -373,7 +373,7 @@
   font-weight: 700;
   text-align: center;
   margin: 0 0 36px 0;
-  color: var(--neko-text-primary);
+  color: var(--vlaina-text-primary);
   letter-spacing: -0.015em;
   font-family: var(--font-sans);
 }
@@ -386,7 +386,7 @@
   display: block;
   font-size: 13px;
   font-weight: 600;
-  color: var(--neko-text-secondary);
+  color: var(--vlaina-text-secondary);
   margin-bottom: 10px;
   margin-left: 4px;
   letter-spacing: 0.01em;
@@ -398,21 +398,21 @@
   border-radius: 14px;
   border: 1px solid rgba(128, 128, 128, 0.1);
   background: rgba(128, 128, 128, 0.03);
-  color: var(--neko-text-primary);
+  color: var(--vlaina-text-primary);
   font-size: 16px;
   outline: none;
   transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .vault-modal__input:focus {
-  background: var(--neko-bg-primary);
+  background: var(--vlaina-bg-primary);
   border-color: #1e96eb;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   transform: translateY(-1px);
 }
 
 .vault-modal__input::placeholder {
-  color: var(--neko-text-tertiary);
+  color: var(--vlaina-text-tertiary);
   opacity: 0.6;
   font-weight: 400;
 }
@@ -429,8 +429,8 @@
 
 .vault-modal__browse-btn {
   padding: 0 18px;
-  background: var(--neko-bg-secondary);
-  color: var(--neko-text-primary);
+  background: var(--vlaina-bg-secondary);
+  color: var(--vlaina-text-primary);
   font-size: 14px;
   font-weight: 600;
   border-radius: 14px;
@@ -477,13 +477,13 @@
 
 .vault-modal__btn--cancel {
   background: transparent;
-  color: var(--neko-text-secondary);
+  color: var(--vlaina-text-secondary);
   font-weight: 500;
 }
 
 .vault-modal__btn--cancel:hover {
-  background: var(--neko-bg-secondary);
-  color: var(--neko-text-primary);
+  background: var(--vlaina-bg-secondary);
+  color: var(--vlaina-text-primary);
 }
 
 .vault-modal__btn--create {

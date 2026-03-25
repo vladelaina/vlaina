@@ -68,7 +68,7 @@ export function DeletableItem({
                         className={cn(
                             "absolute -top-1 -right-1 z-20 p-1.5 transition-all duration-200",
                             "flex items-center justify-center",
-                            "text-[var(--neko-text-tertiary)] hover:text-red-500",
+                            "text-[var(--vlaina-text-tertiary)] hover:text-red-500",
                             "opacity-0 group-hover/item:opacity-100",
                             "scale-90 hover:scale-100"
                         )}

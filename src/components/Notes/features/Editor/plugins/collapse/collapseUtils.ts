@@ -1,8 +1,8 @@
 import { createCollapseTriangleSvgMarkup } from '../../../common/collapseTriangle';
 
-export const COLLAPSED_CONTENT_CLASS = 'neko-collapsed-content';
+export const COLLAPSED_CONTENT_CLASS = 'vlaina-collapsed-content';
 
-export const COLLAPSE_TOGGLE_EVENT = 'neko-collapse-toggle';
+export const COLLAPSE_TOGGLE_EVENT = 'vlaina-collapse-toggle';
 
 class CollapsedStateManager {
     private states: Map<string, Set<number>> = new Map();
@@ -49,7 +49,7 @@ export function createCollapseToggleButton(
 ): HTMLElement {
 
     const button = document.createElement('span');
-    button.className = 'neko-collapse-btn';
+    button.className = 'vlaina-collapse-btn';
     button.setAttribute('data-collapse-type', type);
     button.setAttribute('data-collapsed', String(isCollapsed));
     button.setAttribute('data-has-content', String(hasContent));

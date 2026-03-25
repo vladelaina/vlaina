@@ -32,13 +32,13 @@ function normalizeWheelDelta(delta: number, deltaMode: number, pageSize: number)
 
 function createControls(doc: Document): { controls: HTMLDivElement; handleButton: HTMLButtonElement } {
   const controls = doc.createElement('div');
-  controls.className = 'neko-block-controls';
+  controls.className = 'vlaina-block-controls';
   controls.setAttribute('data-no-block-controls', 'true');
   controls.setAttribute('data-no-editor-drag-box', 'true');
 
   const handleButton = doc.createElement('button');
   handleButton.type = 'button';
-  handleButton.className = 'neko-block-control-btn neko-block-control-handle';
+  handleButton.className = 'vlaina-block-control-btn vlaina-block-control-handle';
   handleButton.setAttribute('aria-label', 'Drag block');
   handleButton.setAttribute('data-no-block-controls', 'true');
   handleButton.setAttribute('data-no-editor-drag-box', 'true');
@@ -56,7 +56,7 @@ function createControls(doc: Document): { controls: HTMLDivElement; handleButton
 
 function createDropIndicator(doc: Document): HTMLDivElement {
   const dropIndicator = doc.createElement('div');
-  dropIndicator.className = 'neko-block-drop-indicator';
+  dropIndicator.className = 'vlaina-block-drop-indicator';
   dropIndicator.setAttribute('aria-hidden', 'true');
   doc.body.appendChild(dropIndicator);
   return dropIndicator;

@@ -24,7 +24,7 @@ describe('getUserFacingAIError', () => {
   });
 
   it('maps managed auth failures to the auth message', () => {
-    const result = getUserFacingAIError(new Error('NekoTick sign-in required'));
+    const result = getUserFacingAIError(new Error('Vlaina sign-in required'));
 
     expect(result).toEqual({
       type: AIErrorType.AUTH_ERROR,

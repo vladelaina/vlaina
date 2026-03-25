@@ -55,7 +55,7 @@ describe('useCoverSource', () => {
   });
 
   it('resolves local covers through system path + blob loader', async () => {
-    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.nekotick/assets/covers/a.png');
+    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.vlaina/assets/covers/a.png');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:cover-a');
 
     const { result } = renderHook(() =>
@@ -67,7 +67,7 @@ describe('useCoverSource', () => {
     });
 
     expect(hoisted.resolveSystemAssetPath).toHaveBeenCalledWith('/vault-a', 'covers/a.png', 'covers');
-    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/vault/.nekotick/assets/covers/a.png');
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/vault/.vlaina/assets/covers/a.png');
     expect(result.current.isError).toBe(false);
   });
 
@@ -111,7 +111,7 @@ describe('useCoverSource', () => {
   });
 
   it('keeps previous source while switching to a new cover', async () => {
-    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.nekotick/assets/covers/a.png');
+    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.vlaina/assets/covers/a.png');
     hoisted.loadImageAsBlob
       .mockResolvedValueOnce('blob:cover-a')
       .mockImplementationOnce(() => new Promise<string>(() => {}));
@@ -134,7 +134,7 @@ describe('useCoverSource', () => {
   });
 
   it('clears committing state when preview starts', async () => {
-    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.nekotick/assets/covers/a.png');
+    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.vlaina/assets/covers/a.png');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:cover-a');
 
     const { result } = renderHook(() =>
@@ -159,9 +159,9 @@ describe('useCoverSource', () => {
 
   it('clears committing state after new cover resolves', async () => {
     hoisted.resolveSystemAssetPath.mockImplementation(async (_vaultPath: string, assetPath: string) => {
-      if (assetPath === 'covers/a.png') return '/vault/.nekotick/assets/covers/a.png';
-      if (assetPath === 'covers/b.png') return '/vault/.nekotick/assets/covers/b.png';
-      return '/vault/.nekotick/assets/covers/unknown.png';
+      if (assetPath === 'covers/a.png') return '/vault/.vlaina/assets/covers/a.png';
+      if (assetPath === 'covers/b.png') return '/vault/.vlaina/assets/covers/b.png';
+      return '/vault/.vlaina/assets/covers/unknown.png';
     });
     hoisted.loadImageAsBlob.mockImplementation(async (fullPath: string) => {
       if (fullPath.includes('/a.png')) return 'blob:cover-a';
@@ -193,8 +193,8 @@ describe('useCoverSource', () => {
 
   it('resolves each switched url only once', async () => {
     hoisted.resolveSystemAssetPath.mockImplementation(async (_vaultPath: string, assetPath: string) => {
-      if (assetPath === 'covers/a.png') return '/vault/.nekotick/assets/covers/a.png';
-      return '/vault/.nekotick/assets/covers/b.png';
+      if (assetPath === 'covers/a.png') return '/vault/.vlaina/assets/covers/a.png';
+      return '/vault/.vlaina/assets/covers/b.png';
     });
     hoisted.loadImageAsBlob.mockImplementation(async (fullPath: string) => {
       if (fullPath.includes('/a.png')) return 'blob:cover-a';

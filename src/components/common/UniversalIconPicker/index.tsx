@@ -188,7 +188,7 @@ export function UniversalIconPicker({
       {onSizeChange && currentSize !== undefined && (
         <div
           className="flex items-center px-4 py-1"
-          style={{ '--track-color': 'var(--neko-bg-tertiary)' } as React.CSSProperties}
+          style={{ '--track-color': 'var(--vlaina-bg-tertiary)' } as React.CSSProperties}
         >
           <PremiumSlider
             min={minSize}
@@ -203,10 +203,10 @@ export function UniversalIconPicker({
       )}
 
       <div className={cn(
-        "flex flex-col bg-[var(--neko-bg-primary)] overflow-hidden",
-        !embedded && "rounded-xl border border-[var(--neko-border)] shadow-xl"
+        "flex flex-col bg-[var(--vlaina-bg-primary)] overflow-hidden",
+        !embedded && "rounded-xl border border-[var(--vlaina-border)] shadow-xl"
       )}>
-        <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-[var(--neko-border)] overflow-x-auto no-scrollbar">
+        <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-[var(--vlaina-border)] overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-4">
             <button
               type="button"
@@ -218,8 +218,8 @@ export function UniversalIconPicker({
               className={cn(
                 "text-sm font-medium pb-1 border-b-2 transition-all active:scale-95 whitespace-nowrap",
                 activeTab === 'emoji'
-                  ? "text-[var(--neko-text-primary)] border-[#1e96eb]"
-                  : "text-[var(--neko-text-tertiary)] border-transparent hover:text-[var(--neko-text-primary)]"
+                  ? "text-[var(--vlaina-text-primary)] border-[#1e96eb]"
+                  : "text-[var(--vlaina-text-tertiary)] border-transparent hover:text-[var(--vlaina-text-primary)]"
               )}
             >
               Emoji
@@ -234,8 +234,8 @@ export function UniversalIconPicker({
               className={cn(
                 "text-sm font-medium pb-1 border-b-2 transition-all active:scale-95 whitespace-nowrap",
                 activeTab === 'upload'
-                  ? "text-[var(--neko-text-primary)] border-[#1e96eb]"
-                  : "text-[var(--neko-text-tertiary)] border-transparent hover:text-[var(--neko-text-primary)]"
+                  ? "text-[var(--vlaina-text-primary)] border-[#1e96eb]"
+                  : "text-[var(--vlaina-text-tertiary)] border-transparent hover:text-[var(--vlaina-text-primary)]"
               )}
             >
               Upload
@@ -260,7 +260,7 @@ export function UniversalIconPicker({
                 e.stopPropagation();
                 handleRemove();
               }}
-              className="text-xs font-medium transition-all active:scale-95 text-[var(--neko-text-tertiary)] hover:text-red-500"
+              className="text-xs font-medium transition-all active:scale-95 text-[var(--vlaina-text-tertiary)] hover:text-red-500"
             >
               Remove
             </button>

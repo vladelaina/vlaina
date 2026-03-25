@@ -3,7 +3,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getStorageAdapter, joinPath, isTauri } from '@/lib/storage/adapter';
 import { setCurrentVaultPath } from './useNotesStore';
 
-const NEKOTICK_CONFIG_FOLDER = '.nekotick';
+const VLAINA_CONFIG_FOLDER = '.vlaina';
 const STORE_FOLDER = 'store';
 
 const DEFAULT_VAULT_CONFIG = {
@@ -17,7 +17,7 @@ const DEFAULT_WORKSPACE_STATE = {
 
 async function initVaultConfig(vaultPath: string): Promise<void> {
   const storage = getStorageAdapter();
-  const storePath = await joinPath(vaultPath, NEKOTICK_CONFIG_FOLDER, STORE_FOLDER);
+  const storePath = await joinPath(vaultPath, VLAINA_CONFIG_FOLDER, STORE_FOLDER);
 
   if (await storage.exists(storePath)) return;
 
@@ -56,8 +56,8 @@ interface VaultActions {
 
 type VaultStore = VaultState & VaultActions;
 
-const VAULTS_STORAGE_KEY = 'nekotick-vaults';
-const CURRENT_VAULT_KEY = 'nekotick-current-vault';
+const VAULTS_STORAGE_KEY = 'vlaina-vaults';
+const CURRENT_VAULT_KEY = 'vlaina-current-vault';
 const MAX_RECENT_VAULTS = 5;
 
 function generateId(): string {
@@ -100,7 +100,7 @@ let pendingQueries: Map<string, (label: string | null) => void> = new Map();
 function setupBroadcastChannel() {
   if (vaultChannel) return;
 
-  vaultChannel = new BroadcastChannel('nekotick-vault');
+  vaultChannel = new BroadcastChannel('vlaina-vault');
 
   vaultChannel.onmessage = (event) => {
     const { type, requestId, vaultPath, responseLabel } = event.data;

@@ -54,7 +54,7 @@ describe('managedService', () => {
     const models = await fetchManagedModels();
 
     expect(models).toHaveLength(1);
-    expect(fetchMock).toHaveBeenCalledWith('https://api.nekotick.com/v1/models', {
+    expect(fetchMock).toHaveBeenCalledWith('https://api.vlaina.com/v1/models', {
       method: 'GET',
       cache: 'no-store',
       credentials: 'include',
@@ -85,7 +85,7 @@ describe('managedService', () => {
     expect(isManagedServiceRecoverableError(new Error(MANAGED_AUTH_REQUIRED_ERROR))).toBe(true);
     expect(
       isManagedServiceRecoverableError(
-        new Error('Managed API request failed: error sending request for url (https://api.nekotick.com/v1/models)')
+        new Error('Managed API request failed: error sending request for url (https://api.vlaina.com/v1/models)')
       )
     ).toBe(true);
     expect(isManagedServiceRecoverableError(new Error('Failed to fetch'))).toBe(true);
@@ -141,7 +141,7 @@ describe('managedService', () => {
 
     expect(content).toBe('<think>思考中</think>你好');
     expect(chunks[chunks.length - 1]).toBe('<think>思考中</think>你好');
-    expect(fetchMock).toHaveBeenCalledWith('https://api.nekotick.com/v1/chat/completions', {
+    expect(fetchMock).toHaveBeenCalledWith('https://api.vlaina.com/v1/chat/completions', {
       method: 'POST',
       cache: 'no-store',
       credentials: 'include',

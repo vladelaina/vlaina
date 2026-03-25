@@ -1,10 +1,10 @@
 import type { AccountProvider, MembershipTier } from '@/stores/accountSession/state';
 import { normalizeAccountProvider } from '@/lib/account/provider';
 
-const WEB_ACCOUNT_CREDS_KEY = 'nekotick_account_session';
-const ACCOUNT_USER_PERSIST_KEY = 'nekotick_account_identity';
+const WEB_ACCOUNT_CREDS_KEY = 'vlaina_account_session';
+const ACCOUNT_USER_PERSIST_KEY = 'vlaina_account_identity';
 
-export const ACCOUNT_AUTH_INVALIDATED_EVENT = 'nekotick:account-auth-invalidated';
+export const ACCOUNT_AUTH_INVALIDATED_EVENT = 'vlaina:account-auth-invalidated';
 
 export interface WebAccountCredentials {
   provider: AccountProvider;

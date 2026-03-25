@@ -29,9 +29,9 @@ export function ManagedProviderPanel({
         <div className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Managed by NekoTick Worker</h3>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Managed by Vlaina Worker</h3>
               <p className="text-xs text-gray-500">
-                Official hosted service. Your NekoTick account proves identity, while NekoTick controls model access and budget on the server.
+                Official hosted service. Your Vlaina account proves identity, while Vlaina controls model access and budget on the server.
               </p>
               <p className="text-xs text-gray-500">Base URL: {MANAGED_API_BASE}</p>
             </div>
@@ -79,7 +79,7 @@ export function ManagedProviderPanel({
             <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-white/[0.02] p-4 md:col-span-2">
               <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Account</div>
               <div className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">
-                {isConnected ? 'Signed in to NekoTick' : 'Sign in required'}
+                {isConnected ? 'Signed in to Vlaina' : 'Sign in required'}
               </div>
               <p className="mt-1 text-xs text-gray-500">
                 Budget progress is shown in the account card under your avatar.

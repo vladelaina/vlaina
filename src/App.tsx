@@ -234,7 +234,7 @@ function AppContent() {
         titleBarRight={rightSlot}
         mainOverlay={mainOverlay}
 
-        backgroundColor="var(--neko-sidebar-bg)"
+        backgroundColor="var(--vlaina-sidebar-bg)"
       >
         {mainContent}
       </AppShell>

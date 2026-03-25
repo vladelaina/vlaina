@@ -1,7 +1,7 @@
 {
-  "name": "@nekotick/vendor-milkdown",
+  "name": "@vlaina/vendor-milkdown",
   "private": true,
-  "description": "Vendored Milkdown workspace maintained inside NekoTick.",
+  "description": "Vendored Milkdown workspace maintained inside Vlaina.",
   "packageManager": "pnpm@10.24.0",
   "engines": {
     "node": ">=22"

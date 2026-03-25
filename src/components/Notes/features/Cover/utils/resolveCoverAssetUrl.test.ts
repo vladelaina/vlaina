@@ -51,7 +51,7 @@ describe('resolveCoverAssetUrl', () => {
   });
 
   it('resolves local cover path with covers category by default', async () => {
-    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.nekotick/assets/covers/a.webp');
+    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.vlaina/assets/covers/a.webp');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:a');
 
     const url = await resolveCoverAssetUrl({
@@ -64,7 +64,7 @@ describe('resolveCoverAssetUrl', () => {
   });
 
   it('resolves local path with auto icons category', async () => {
-    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.nekotick/assets/icons/star.webp');
+    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.vlaina/assets/icons/star.webp');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:icon');
 
     const url = await resolveCoverAssetUrl({

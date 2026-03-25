@@ -2,7 +2,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { createDragSelectionRect, type RectBounds } from './blockSelectionUtils';
 
 export type BlockDragStartZone = 'outside-editor' | 'below-last-block';
-const DRAGGING_CURSOR_CLASS = 'neko-block-dragging-cursor';
+const DRAGGING_CURSOR_CLASS = 'vlaina-block-dragging-cursor';
 
 interface StartBlockDragSessionOptions {
   view: EditorView;

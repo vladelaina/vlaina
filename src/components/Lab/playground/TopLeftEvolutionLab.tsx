@@ -78,7 +78,7 @@ const VARS: Record<string, React.FC> = {
   "Spatial Split": () => (
     <div className="w-64 h-full flex flex-col p-4">
       <div className="flex flex-col gap-4 mb-8">
-        <div className="flex items-center gap-2"><div className="w-8 h-8 bg-black rounded-lg"/><span className="font-bold text-sm">NekoTick</span></div>
+        <div className="flex items-center gap-2"><div className="w-8 h-8 bg-black rounded-lg"/><span className="font-bold text-sm">Vlaina</span></div>
         <div className="flex gap-2">
           <button className="flex-1 h-10 bg-white border border-zinc-200 rounded-xl flex items-center justify-center gap-2 text-xs font-bold shadow-sm"><Search size={14}/> Search</button>
           <button className="w-10 h-10 bg-purple-600 text-white rounded-xl flex items-center justify-center shadow-lg"><Plus size={18}/></button>
@@ -100,7 +100,7 @@ const VARS: Record<string, React.FC> = {
     return (
       <div className="w-64 flex flex-col p-4" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
         <div className="h-12 flex items-center justify-between mb-4 px-2 group">
-          <span className="font-black text-sm tracking-tighter uppercase">Neko_Core</span>
+          <span className="font-black text-sm tracking-tighter uppercase">Vlaina_Core</span>
           <AnimatePresence>
             {hover && (
               <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="flex gap-2">
@@ -138,7 +138,7 @@ const VARS: Record<string, React.FC> = {
   "Dynamic Mini-Island": () => (
     <div className="w-64 flex flex-col p-4 items-center">
       <div className="w-full bg-zinc-900 text-white rounded-2xl p-1 shadow-xl mb-8 flex items-center">
-        <div className="flex-1 px-4 text-[11px] font-bold opacity-50">NekoTick</div>
+        <div className="flex-1 px-4 text-[11px] font-bold opacity-50">Vlaina</div>
         <div className="flex gap-0.5">
           <button className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded-xl transition-colors"><Search size={14}/></button>
           <button className="w-8 h-8 flex items-center justify-center bg-white text-black rounded-xl shadow-lg"><Plus size={14}/></button>

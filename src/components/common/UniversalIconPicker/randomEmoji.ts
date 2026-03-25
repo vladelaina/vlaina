@@ -1,4 +1,4 @@
-const SKIN_TONE_KEY = 'nekotick-emoji-skin-tone';
+const SKIN_TONE_KEY = 'vlaina-emoji-skin-tone';
 
 const FALLBACK_RANDOM_EMOJIS = ['📝', '✨', '📌', '🎯', '📚', '🌟', '🏇'];
 

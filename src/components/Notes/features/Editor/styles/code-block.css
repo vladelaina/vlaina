@@ -1,10 +1,10 @@
 .milkdown .code-block-container {
-  --neko-code-block-background: #f5f5f5;
-  background: var(--neko-code-block-background);
+  --vlaina-code-block-background: #f5f5f5;
+  background: var(--vlaina-code-block-background);
 }
 
 .dark .milkdown .code-block-container {
-  --neko-code-block-background: #262626;
+  --vlaina-code-block-background: #262626;
 }
 
 .milkdown .code-block-container[data-collapsed="true"] .code-block-editable {
@@ -13,7 +13,7 @@
 }
 
 .milkdown .code-block-container .cm-editor {
-  background: var(--neko-code-block-background) !important;
+  background: var(--vlaina-code-block-background) !important;
 }
 
 .milkdown .code-block-container .cm-gutters,
@@ -21,7 +21,7 @@
 .milkdown .code-block-container .cm-gutterElement,
 .milkdown .code-block-container .cm-lineNumbers,
 .milkdown .code-block-container .cm-gutter-filler {
-  background: var(--neko-code-block-background) !important;
+  background: var(--vlaina-code-block-background) !important;
   border: none !important;
 }
 
@@ -38,14 +38,14 @@
 .milkdown .code-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
 .milkdown .code-block-container .cm-editor.cm-focused .cm-content ::selection,
 .milkdown .code-block-container .cm-editor.cm-focused .cm-line ::selection {
-  background: var(--neko-selection-bg, #2781db) !important;
+  background: var(--vlaina-selection-bg, #2781db) !important;
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
 
 .milkdown .code-block-container .cm-editor.cm-focused .cm-content ::-moz-selection,
 .milkdown .code-block-container .cm-editor.cm-focused .cm-line ::-moz-selection {
-  background: var(--neko-selection-bg, #2781db) !important;
+  background: var(--vlaina-selection-bg, #2781db) !important;
   color: #ffffff !important;
 }
 

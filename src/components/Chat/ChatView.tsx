@@ -249,7 +249,7 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
   return (
     <div
       data-chat-view-mode={mode}
-      className="h-full w-full flex flex-col bg-[var(--neko-bg-primary)] relative overflow-hidden"
+      className="h-full w-full flex flex-col bg-[var(--vlaina-bg-primary)] relative overflow-hidden"
       onMouseDownCapture={handleChatAreaMouseDownCapture}
     >
       {showInChatArea && (

@@ -72,7 +72,7 @@ export const FolderItem = memo(function FolderItem({
                 if (event.key === 'Enter') void handleRenameSubmit();
                 if (event.key === 'Escape') setIsRenaming(false);
               }}
-              className="w-full min-w-0 rounded border border-[var(--neko-accent)] bg-transparent px-1.5 py-0.5 text-sm leading-5 text-[var(--notes-sidebar-text)] outline-none"
+              className="w-full min-w-0 rounded border border-[var(--vlaina-accent)] bg-transparent px-1.5 py-0.5 text-sm leading-5 text-[var(--notes-sidebar-text)] outline-none"
               onClick={(event) => event.stopPropagation()}
             />
           ) : (

@@ -30,7 +30,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       setNotesSidebarView(notesSidebarView === 'workspace' ? 'outline' : 'workspace');
     },
     globalSearch: () => {
-      window.dispatchEvent(new Event('neko-open-search'));
+      window.dispatchEvent(new Event('vlaina-open-search'));
     },
     'open-settings': () => {
       window.dispatchEvent(new Event('open-settings'));
@@ -43,6 +43,9 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
         ? currentNote.path.substring(0, currentNote.path.lastIndexOf('/')) || undefined
         : undefined;
       createNote(folderPath);
+    },
+    openVaultOrNote: () => {
+      window.dispatchEvent(new Event('vlaina-open-vault-or-note'));
     },
     toggleDrawer,
   }), [toggleAppViewMode, toggleSidebar, setNotesSidebarView, notesSidebarView, createNote, currentNote?.path, toggleDrawer]);

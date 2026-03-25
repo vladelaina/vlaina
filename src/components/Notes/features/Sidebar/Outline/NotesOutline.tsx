@@ -54,10 +54,10 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
           <div
             className={cn(
               'group flex items-center rounded-md transition-colors',
-              'hover:bg-[var(--neko-hover-filled)]',
+              'hover:bg-[var(--vlaina-hover-filled)]',
               isActive
-                ? 'bg-[var(--neko-hover-filled)] text-[var(--neko-text-primary)]'
-                : 'text-[var(--neko-text-secondary)]',
+                ? 'bg-[var(--vlaina-hover-filled)] text-[var(--vlaina-text-primary)]'
+                : 'text-[var(--vlaina-text-secondary)]',
             )}
             style={{ paddingLeft: `${8 + (node.level - 1) * 12}px`, paddingRight: '8px' }}
           >
@@ -75,7 +75,7 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
                   event.stopPropagation();
                   toggleOutlineNode(node.id);
                 }}
-                className="mr-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm text-[var(--neko-text-tertiary)] hover:text-[var(--neko-text-secondary)]"
+                className="mr-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm text-[var(--vlaina-text-tertiary)] hover:text-[var(--vlaina-text-secondary)]"
               >
               <CollapseTriangleAffordance
                 collapsed={isCollapsed}
@@ -105,7 +105,7 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
       <NotesSidebarTopActions />
       <NotesSidebarScrollArea
         ref={scrollRootRef}
-        className={cn(isPeeking ? 'neko-scrollbar-rounded pt-4 pb-4' : 'pt-2')}
+        className={cn(isPeeking ? 'vlaina-scrollbar-rounded pt-4 pb-4' : 'pt-2')}
         data-notes-sidebar-scroll-root="true"
       >
         {headings.length > 0 ? (

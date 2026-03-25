@@ -1,4 +1,6 @@
 import type { MouseEventHandler } from "react";
+import { isTauri } from "@/lib/storage/adapter";
+import { safeInvoke } from "@/lib/tauri/invoke";
 
 const EXTERNAL_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 const ALLOWED_LINK_PREFIX_REGEX = /^(https?:\/\/|mailto:)/i;
@@ -23,12 +25,14 @@ export async function openExternalHref(href: string | null | undefined): Promise
   const normalized = normalizeExternalHref(href);
   if (!normalized) return;
 
-  try {
-    const { openUrl } = await import("@tauri-apps/plugin-opener");
-    await openUrl(normalized);
-  } catch {
-    window.open(normalized, "_blank", "noopener,noreferrer");
+  if (isTauri()) {
+    try {
+      await safeInvoke("open_external_url", { url: normalized }, { throwOnWeb: true });
+      return;
+    } catch {}
   }
+
+  window.open(normalized, "_blank", "noopener,noreferrer");
 }
 
 function handleExternalLinkActivation(

@@ -33,14 +33,14 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
       }}
       className={cn(
         "group relative flex items-center gap-1.5 px-3 h-full cursor-pointer min-w-0 max-w-[180px]",
-        "border-r border-[var(--neko-border)] transition-colors",
+        "border-r border-[var(--vlaina-border)] transition-colors",
         isActive
-          ? "bg-[var(--neko-bg-primary)]"
-          : "bg-transparent hover:bg-[var(--neko-hover)]"
+          ? "bg-[var(--vlaina-bg-primary)]"
+          : "bg-transparent hover:bg-[var(--vlaina-hover)]"
       )}
     >
       {isActive && (
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--neko-accent)]" />
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[var(--vlaina-accent)]" />
       )}
 
       {icon ? (
@@ -53,7 +53,7 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
           className={cn(
             "w-[18px] h-[18px] flex-shrink-0",
             isActive
-              ? "text-[var(--neko-accent)]"
+              ? "text-[var(--vlaina-accent)]"
               : "text-amber-500"
           )}
         />
@@ -62,14 +62,14 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
       <span className={cn(
         "text-[12px] truncate",
         isActive
-          ? "text-[var(--neko-text-primary)]"
-          : "text-[var(--neko-text-secondary)]"
+          ? "text-[var(--vlaina-text-primary)]"
+          : "text-[var(--vlaina-text-secondary)]"
       )}>
         {displayName || tab.name}
       </span>
 
       {tab.isDirty && (
-        <span className="w-1.5 h-1.5 rounded-full bg-[var(--neko-accent)] flex-shrink-0" />
+        <span className="w-1.5 h-1.5 rounded-full bg-[var(--vlaina-accent)] flex-shrink-0" />
       )}
 
       <button
@@ -79,7 +79,7 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
         }}
         className={cn(
           "p-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity ml-auto",
-          "hover:bg-[var(--neko-hover-filled)] text-[var(--neko-icon-secondary)]"
+          "hover:bg-[var(--vlaina-hover-filled)] text-[var(--vlaina-icon-secondary)]"
         )}
       >
  <Icon size="md" name="common.close" />
@@ -108,8 +108,8 @@ export function NoteTabs({
   return (
     <div
       className={cn(
-        "flex items-center h-[36px] overflow-x-auto neko-scrollbar",
-        "bg-[var(--neko-bg-secondary)] border-b border-[var(--neko-border)]"
+        "flex items-center h-[36px] overflow-x-auto vlaina-scrollbar",
+        "bg-[var(--vlaina-bg-secondary)] border-b border-[var(--vlaina-border)]"
       )}
     >
       {tabs.map((tab) => (

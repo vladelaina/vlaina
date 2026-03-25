@@ -85,8 +85,8 @@ export const AssetThumbnail = memo(function AssetThumbnail({
       data-filename={filename}
       className={cn(
         "relative aspect-square rounded-lg overflow-hidden cursor-pointer",
-        "bg-[var(--neko-bg-tertiary)] border border-transparent",
-        "hover:border-[var(--neko-accent)] transition-all duration-200",
+        "bg-[var(--vlaina-bg-tertiary)] border border-transparent",
+        "hover:border-[var(--vlaina-accent)] transition-all duration-200",
         "group"
       )}
       onClick={onSelect}
@@ -105,13 +105,13 @@ export const AssetThumbnail = memo(function AssetThumbnail({
           />
           {!isLoaded && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <Icon name="common.refresh" className="w-5 h-5 animate-spin text-[var(--neko-text-tertiary)]" />
+              <Icon name="common.refresh" className="w-5 h-5 animate-spin text-[var(--vlaina-text-tertiary)]" />
             </div>
           )}
         </>
       ) : (
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-8 h-8 rounded bg-[var(--neko-bg-secondary)]" />
+          <div className="w-8 h-8 rounded bg-[var(--vlaina-bg-secondary)]" />
         </div>
       )}
 

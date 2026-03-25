@@ -72,6 +72,16 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
     section: 'Notes',
   },
   {
+    id: 'openVaultOrNote',
+    action: 'Open folder or Markdown file',
+    description: 'Open folder or Markdown file',
+    keys: ['Ctrl', 'O'],
+    scope: 'notes',
+    isSystem: true,
+    modules: ['notes'],
+    section: 'Notes',
+  },
+  {
     id: 'toggleNotesSidebarView',
     action: 'Toggle files / outline',
     description: 'Toggle notes sidebar view',

@@ -1,6 +1,6 @@
 import type { StorageAdapter, FileInfo, WriteOptions, ListOptions } from './types';
 
-const DB_NAME = 'nekotick-storage';
+const DB_NAME = 'vlaina-storage';
 const DB_VERSION = 1;
 const STORE_FILES = 'files';
 const STORE_DIRS = 'directories';
@@ -486,7 +486,7 @@ export class WebAdapter implements StorageAdapter {
   }
 
   async getBasePath(): Promise<string> {
-    return '/nekotick';
+    return '/vlaina';
   }
 
   private normalizePath(path: string): string {

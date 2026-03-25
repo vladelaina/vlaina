@@ -33,14 +33,14 @@
 .milkdown .frontmatter-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
 .milkdown .frontmatter-block-container .cm-editor.cm-focused .cm-content ::selection,
 .milkdown .frontmatter-block-container .cm-editor.cm-focused .cm-line ::selection {
-  background: var(--neko-selection-bg, #2781db) !important;
+  background: var(--vlaina-selection-bg, #2781db) !important;
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
 
 .milkdown .frontmatter-block-container .cm-editor.cm-focused .cm-content ::-moz-selection,
 .milkdown .frontmatter-block-container .cm-editor.cm-focused .cm-line ::-moz-selection {
-  background: var(--neko-selection-bg, #2781db) !important;
+  background: var(--vlaina-selection-bg, #2781db) !important;
   color: #ffffff !important;
 }
 
@@ -49,7 +49,7 @@
 }
 
 .milkdown .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
-  background: var(--neko-selection-bg, #2781db) !important;
+  background: var(--vlaina-selection-bg, #2781db) !important;
 }
 
 .milkdown .frontmatter-block-container .cm-editor:not(.cm-focused) .cm-content ::selection,
@@ -63,14 +63,14 @@
 
 .milkdown .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) .cm-content ::selection,
 .milkdown .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) .cm-line ::selection {
-  background: var(--neko-selection-bg, #2781db) !important;
+  background: var(--vlaina-selection-bg, #2781db) !important;
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
 
 .milkdown .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) .cm-content ::-moz-selection,
 .milkdown .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) .cm-line ::-moz-selection {
-  background: var(--neko-selection-bg, #2781db) !important;
+  background: var(--vlaina-selection-bg, #2781db) !important;
   color: #ffffff !important;
 }
 

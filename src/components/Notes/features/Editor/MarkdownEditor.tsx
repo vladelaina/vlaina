@@ -329,7 +329,7 @@ export function MarkdownEditor({
 
   return (
     <div
-      className="h-full flex flex-col bg-[var(--neko-bg-primary)] relative"
+      className="h-full flex flex-col bg-[var(--vlaina-bg-primary)] relative"
       data-note-toolbar-root="true"
       onClick={handleEditorClick}
     >
@@ -388,7 +388,7 @@ export function MarkdownEditor({
         ref={scrollRootRef}
         className="flex-1 relative"
         viewportClassName="flex flex-col items-center relative"
-        draggingBodyClassName="neko-overlay-scrollbar-dragging"
+        draggingBodyClassName="vlaina-overlay-scrollbar-dragging"
         scrollbarVariant="compact"
         data-note-scroll-root="true"
       >

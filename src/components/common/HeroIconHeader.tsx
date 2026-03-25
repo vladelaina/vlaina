@@ -228,7 +228,7 @@ export function HeroIconHeader({
                             setShowIconPicker(true);
                           })();
                       }}
-                      className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--neko-text-secondary)] hover:text-[var(--neko-text-primary)] transition-colors")}
+                      className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--vlaina-text-secondary)] hover:text-[var(--vlaina-text-primary)] transition-colors")}
                   >
                       <Icon size="md" name="misc.activity" />
                       {!compact && <span>Add icon</span>}
@@ -272,7 +272,7 @@ export function HeroIconHeader({
         {compact && (
           <div className="flex-1 min-w-0">
              {renderTitle ? renderTitle() : (
-                <div className="text-base font-bold text-[var(--neko-text-primary)] break-words">
+                <div className="text-base font-bold text-[var(--vlaina-text-primary)] break-words">
                     {title}
                 </div>
              )}
@@ -289,7 +289,7 @@ export function HeroIconHeader({
               </div>
           )}
           {title !== undefined && !renderTitle && (
-              <div className="mb-4 pointer-events-auto text-4xl font-bold text-[var(--neko-text-primary)] break-words outline-none placeholder:text-[var(--neko-text-tertiary)]">
+              <div className="mb-4 pointer-events-auto text-4xl font-bold text-[var(--vlaina-text-primary)] break-words outline-none placeholder:text-[var(--vlaina-text-tertiary)]">
                   {title}
               </div>
           )}

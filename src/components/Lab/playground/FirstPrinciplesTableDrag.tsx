@@ -17,7 +17,7 @@ const COLUMNS = [
 const ROWS = [
   { id: '1', task: 'Redesign Interaction', status: 'In Progress', owner: 'Gemini' },
   { id: '2', task: 'First Principles Lab', status: 'Drafting', owner: 'User' },
-  { id: '3', task: 'Aesthetic Audit', status: 'Todo', owner: 'Neko' },
+  { id: '3', task: 'Aesthetic Audit', status: 'Todo', owner: 'Vlaina' },
 ];
 
 // --- Sub-components for Physics Effects ---

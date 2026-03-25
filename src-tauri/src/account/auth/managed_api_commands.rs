@@ -37,7 +37,7 @@ fn require_managed_session_token(app: &tauri::AppHandle) -> Result<String, Strin
     get_stored_app_session_token(app)
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
-        .ok_or_else(|| "NekoTick sign-in required".to_string())
+        .ok_or_else(|| "Vlaina sign-in required".to_string())
 }
 
 async fn request_managed_json(

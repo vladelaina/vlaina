@@ -1,3 +1,4 @@
+use reqwest::Url;
 use tauri::window::Color;
 use tauri::{AppHandle, LogicalPosition, Manager, WebviewUrl, WebviewWindowBuilder};
 
@@ -231,7 +232,7 @@ async fn create_new_window(app: AppHandle) -> Result<(), String> {
 
     // Create window hidden first, with position if available
     let mut builder = WebviewWindowBuilder::new(&app, &window_label, url)
-        .title("Nekotick")
+        .title("Vlaina")
         .inner_size(980.0, 640.0)
         .min_inner_size(720.0, 540.0)
         .decorations(false)
@@ -284,11 +285,20 @@ async fn move_to_trash(path: String) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+async fn open_external_url(url: String) -> Result<(), String> {
+    let trimmed = url.trim();
+    let parsed = Url::parse(trimmed).map_err(|e| format!("Invalid external URL: {}", e))?;
+    match parsed.scheme() {
+        "http" | "https" | "mailto" => account::auth::browser::open_auth_url(parsed.as_str()),
+        _ => Err("Unsupported external URL scheme".to_string()),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             create_drag_window,
@@ -299,6 +309,7 @@ pub fn run() {
             set_window_resizable,
             focus_window,
             move_to_trash,
+            open_external_url,
             account::ai_secret_commands::get_ai_provider_secrets,
             account::ai_secret_commands::set_ai_provider_secret,
             account::ai_secret_commands::delete_ai_provider_secret,

@@ -64,7 +64,7 @@ export default defineConfig(async () => ({
     },
   },
 
-  // Base path - always '/' for custom domain (app.nekotick.com)
+  // Base path - always '/' for custom domain (app.vlaina.com)
   base: '/',
 
   // Build options
