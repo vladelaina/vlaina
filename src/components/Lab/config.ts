@@ -10,6 +10,7 @@ import { SidebarResizeLab } from './playground/SidebarResizeLab';
 import { FirstPrinciplesTableDrag } from './playground/FirstPrinciplesTableDrag';
 import { FirstPrinciplesLinkEditor } from './playground/FirstPrinciplesLinkEditor';
 import { NotesSidebarModeLab } from './playground/NotesSidebarModeLab';
+import { MembershipBadgeLab } from './playground/MembershipBadgeLab';
 
 export const LAB_MODULES = [
   {
@@ -95,6 +96,13 @@ export const LAB_MODULES = [
     icon: 'misc.animation',
     component: ChatSidebarLoadingLab,
     description: 'Ten interaction directions for replacing the yellow in-progress dot in the chat sidebar.'
+  },
+  {
+    id: 'membership-crowns',
+    label: 'Membership Crowns',
+    icon: 'misc.crown',
+    component: MembershipBadgeLab,
+    description: 'Five crown-led color systems for the avatar-side membership pill in desktop.'
   }
 ] as const;
 
