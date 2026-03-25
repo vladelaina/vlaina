@@ -316,13 +316,26 @@
 
 /* Inline Code */
 .milkdown code:not(pre code) {
-  font-size: 13px;
-  padding: 3px 5px;
-  margin: 0 3px;
-  background-color: var(--neko-bg-secondary);
-  border: 1px solid var(--neko-border);
-  border-radius: 5px;
-  font-family: inherit;
+  display: inline-block;
+  vertical-align: baseline;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  padding: 0.125rem 0.25rem;
+  margin: 0;
+  background-color: rgb(245 245 245);
+  color: rgb(38 38 38);
+  caret-color: var(--neko-accent);
+  border: none;
+  border-radius: 0.25rem;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.dark .milkdown code:not(pre code) {
+  background-color: rgb(38 38 38);
+  color: rgb(245 245 245);
 }
 
 /* Images */

@@ -31,7 +31,7 @@ export const themeClasses = {
     // Text Formatting
     strong: 'font-semibold text-[var(--neko-text-primary)]',
     em: 'italic',
-    code: 'relative rounded bg-[var(--neko-bg-tertiary)] px-[5px] py-[2.5px] font-mono text-[13px] font-medium text-[var(--neko-text-primary)] border border-[var(--neko-border)]', // 5px ~ 16/3.14
+    code: 'inline-block align-baseline rounded bg-neutral-100 px-1 py-0.5 font-mono text-sm font-medium text-neutral-800 caret-[var(--neko-accent)] dark:bg-neutral-800 dark:text-neutral-100', 
     link: 'font-medium text-[#1e96eb] underline underline-offset-4 cursor-pointer hover:text-[#0c7fd9] transition-colors',
 
     // Block Elements
