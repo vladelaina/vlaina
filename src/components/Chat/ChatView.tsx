@@ -12,6 +12,7 @@ import { copyMessageContentToClipboard } from '@/components/Chat/common/messageC
 import { extractMessageImageSources } from '@/components/Chat/common/messageClipboard';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { useUIStore } from '@/stores/uiSlice';
+import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
 
 import { ChatInput } from '@/components/Chat/features/Input/ChatInput';
 import { MessageList } from '@/components/Chat/features/Messages/MessageList';
@@ -126,6 +127,9 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
       messages,
       isStreaming: isSessionActive,
       chatId: currentSessionId
+  });
+  useHeldPageScroll(containerRef, {
+    ignoreEditableTargets: true,
   });
 
   const firstEnabledModel = useMemo(() => {

@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useNotesOutline } from './useNotesOutline';
 import { CollapseTriangleAffordance } from '../../common/collapseTrianglePrimitive';
 import { NotesSidebarScrollArea } from '../NotesSidebarPrimitives';
 import { NotesSidebarTopActions } from '../NotesSidebarTopActions';
+import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
 import {
   buildOutlineTree,
   cleanupCollapsedHeadingIds,
@@ -20,6 +21,13 @@ interface NotesOutlineProps {
 export function NotesOutline({ enabled, className, isPeeking = false }: NotesOutlineProps) {
   const { headings, activeId, jumpToHeading } = useNotesOutline(enabled);
   const [collapsedHeadingIds, setCollapsedHeadingIds] = useState<Set<string>>(() => new Set());
+  const sidebarRootRef = useRef<HTMLDivElement | null>(null);
+  const scrollRootRef = useRef<HTMLDivElement | null>(null);
+
+  useHeldPageScroll(scrollRootRef, {
+    scopeRef: sidebarRootRef,
+    ignoreEditableTargets: true,
+  });
 
   const headingTree = useMemo(() => buildOutlineTree(headings), [headings]);
 
@@ -93,9 +101,10 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
   }, [activeId, collapsedHeadingIds, jumpToHeading, toggleOutlineNode]);
 
   return (
-    <div className={cn('flex h-full flex-col', className)}>
+    <div ref={sidebarRootRef} className={cn('flex h-full flex-col', className)}>
       <NotesSidebarTopActions />
       <NotesSidebarScrollArea
+        ref={scrollRootRef}
         className={cn(isPeeking ? 'neko-scrollbar-rounded pt-4 pb-4' : 'pt-2')}
         data-notes-sidebar-scroll-root="true"
       >

@@ -15,6 +15,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { Icon } from '@/components/ui/icons';
 import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
+import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
 
 interface ChatSidebarProps {
   isPeeking?: boolean;
@@ -52,8 +53,16 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const renameInputRef = useRef<HTMLInputElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const sidebarRootRef = useRef<HTMLDivElement | null>(null);
+  const scrollRootRef = useRef<HTMLDivElement | null>(null);
   const overscrollDistanceRef = useRef(0);
   const preventNextMenuAutoFocusRef = useRef(false);
+
+  useHeldPageScroll(scrollRootRef, {
+    scopeRef: sidebarRootRef,
+    ignoreEditableTargets: true,
+  });
+
   const visibleSessions = useMemo(
     () => sessions.filter((session) => !isTemporarySession(session)),
     [sessions]
@@ -190,7 +199,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
 
   return (
     <>
-      <ChatSidebarSurface isPeeking={isPeeking}>
+      <ChatSidebarSurface ref={sidebarRootRef} isPeeking={isPeeking}>
         {isSearchOpen ? (
           <div className="px-1 pt-1 pb-1">
             <div className="flex items-center gap-2 rounded-xl border border-[var(--neko-border)] bg-white px-3 py-1 shadow-none">
@@ -254,6 +263,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
         )}
 
         <ChatSidebarScrollArea
+          ref={scrollRootRef}
           onScroll={(event) => {
             if (event.currentTarget.scrollTop > 0) {
               overscrollDistanceRef.current = 0;
