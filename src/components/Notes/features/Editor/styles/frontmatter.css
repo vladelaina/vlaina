@@ -1,0 +1,92 @@
+.milkdown .frontmatter-block-container {
+  position: relative;
+  border: 1px dashed color-mix(in srgb, var(--crepe-color-outline, #8a8f98), transparent 45%);
+  border-radius: 0;
+  background: transparent;
+}
+
+.milkdown .frontmatter-block-container .cm-editor,
+.milkdown .frontmatter-block-container .cm-scroller,
+.milkdown .frontmatter-block-container .cm-gutters,
+.milkdown .frontmatter-block-container .cm-gutter,
+.milkdown .frontmatter-block-container .cm-gutterElement,
+.milkdown .frontmatter-block-container .cm-lineNumbers,
+.milkdown .frontmatter-block-container .cm-gutter-filler {
+  background: transparent !important;
+}
+
+.milkdown .frontmatter-block-container .cm-content {
+  position: relative;
+  min-height: 2.125rem;
+  padding: 0.625rem 0.875rem !important;
+}
+
+.milkdown .frontmatter-block-container .cm-scroller {
+  cursor: text;
+}
+
+.milkdown .frontmatter-block-container .cm-content,
+.milkdown .frontmatter-block-container .cm-line {
+  cursor: text;
+}
+
+.milkdown .frontmatter-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
+.milkdown .frontmatter-block-container .cm-editor.cm-focused .cm-content ::selection,
+.milkdown .frontmatter-block-container .cm-editor.cm-focused .cm-line ::selection {
+  background: var(--neko-selection-bg, #2781db) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.milkdown .frontmatter-block-container .cm-editor.cm-focused .cm-content ::-moz-selection,
+.milkdown .frontmatter-block-container .cm-editor.cm-focused .cm-line ::-moz-selection {
+  background: var(--neko-selection-bg, #2781db) !important;
+  color: #ffffff !important;
+}
+
+.milkdown .frontmatter-block-container .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+  background: transparent !important;
+}
+
+.milkdown .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+  background: var(--neko-selection-bg, #2781db) !important;
+}
+
+.milkdown .frontmatter-block-container .cm-editor:not(.cm-focused) .cm-content ::selection,
+.milkdown .frontmatter-block-container .cm-editor:not(.cm-focused) .cm-line ::selection,
+.milkdown .frontmatter-block-container .cm-editor:not(.cm-focused) .cm-content ::-moz-selection,
+.milkdown .frontmatter-block-container .cm-editor:not(.cm-focused) .cm-line ::-moz-selection {
+  background: transparent !important;
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.milkdown .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) .cm-content ::selection,
+.milkdown .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) .cm-line ::selection {
+  background: var(--neko-selection-bg, #2781db) !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.milkdown .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) .cm-content ::-moz-selection,
+.milkdown .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) .cm-line ::-moz-selection {
+  background: var(--neko-selection-bg, #2781db) !important;
+  color: #ffffff !important;
+}
+
+.milkdown .frontmatter-block-container .cm-focused {
+  outline: none;
+}
+
+.milkdown .frontmatter-block-container[data-empty='true'] .cm-content::before {
+  content: 'input YAML Front Matter.';
+  position: absolute;
+  inset: 0.625rem 0.875rem auto 0.875rem;
+  color: color-mix(in srgb, var(--crepe-color-outline, #8a8f98), transparent 18%);
+  pointer-events: none;
+  white-space: pre-wrap;
+}
+
+.milkdown .frontmatter-block-container.ProseMirror-selectednode {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--crepe-color-primary, #3b82f6), transparent 62%);
+}

@@ -1,0 +1,1 @@
+export { selectAllPlugin } from './selectAllPlugin';
