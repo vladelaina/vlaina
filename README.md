@@ -74,8 +74,7 @@ If you are working on multiple features simultaneously using `git worktree` or o
 ```bash
 pnpm dev:dynamic
 ```
+## ✨Acknowledgements
 
-
-This command automatically detects available ports to prevent conflicts and synchronizes configurations between Vite and Tauri for Windows-hosted multi-instance development.
-Run it from Windows only for this repository. WSL is intentionally blocked for local Node/Tauri commands.
+With special appreciation to **湾中WanZhong** for the beautiful icon design.
 
