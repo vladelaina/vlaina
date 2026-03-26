@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "staging-vlaina-com",
+  "name": "app-vlaina-com",
   "compatibility_date": "2026-03-26",
   "workers_dev": false,
   "assets": {
@@ -9,7 +9,7 @@
   },
   "routes": [
     {
-      "pattern": "staging.vlaina.com",
+      "pattern": "app.vlaina.com",
       "custom_domain": true
     }
   ]
