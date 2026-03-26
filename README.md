@@ -1,10 +1,6 @@
-
-
-<img width="2048" height="1152" alt="Gemini_Generated_Image_5y7o385y7o385y7o" src="https://github.com/user-attachments/assets/ec93951f-ace4-4af8-a5a2-e84225dfaf8c" />
-
-
-
-
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/f9ae861a-3d8e-4676-afb1-ce63ebf8a446" style="width:50%;">
+  </p>
 <p align="center">
     <img src="https://count.getloli.com/@vlaina?name=vlaina&theme=booru-qualityhentais&padding=7&offset=0&align=top&scale=1&pixelated=1&darkmode=auto" width="400">
   </p>
