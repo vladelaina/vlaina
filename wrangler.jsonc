@@ -3,14 +3,26 @@
   "name": "vlaina",
   "compatibility_date": "2026-03-26",
   "workers_dev": false,
-  "routes": [
-    {
-      "pattern": "app.vlaina.com",
-      "custom_domain": true
-    }
-  ],
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application"
+  },
+  "env": {
+    "staging": {
+      "routes": [
+        {
+          "pattern": "staging.vlaina.com",
+          "custom_domain": true
+        }
+      ]
+    },
+    "production": {
+      "routes": [
+        {
+          "pattern": "app.vlaina.com",
+          "custom_domain": true
+        }
+      ]
+    }
   }
 }
