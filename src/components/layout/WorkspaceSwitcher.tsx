@@ -41,7 +41,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
     setIsOpen(false);
   }, [onOpenSettings]);
 
-  const displayName = username || primaryEmail || 'Vlaina';
+  const displayName = username || primaryEmail || 'vlaina';
   const userAvatar = useUserAvatar();
   const displayAvatar = userAvatar || '/logo.png';
 
@@ -109,7 +109,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
           void handleConfirmLogout();
         }}
         title="Log out?"
-        description="You will be signed out of your current Vlaina account on this device."
+        description="You will be signed out of your current vlaina account on this device."
         confirmText="Log out"
         cancelText="Stay signed in"
         variant="danger"

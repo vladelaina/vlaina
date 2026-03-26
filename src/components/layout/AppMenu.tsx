@@ -34,7 +34,7 @@ export const AppMenu: React.FC<AppMenuProps> = ({ onOpenSettings, onCloseMenu })
                     onClick={() => void openExternalHref("https://vlaina.com")}
                     className="cursor-pointer text-[11px] font-medium text-[var(--vlaina-text-tertiary)] transition-colors hover:text-[var(--vlaina-text-secondary)]"
                 >
-                    Powered by <span className="text-[var(--vlaina-text-secondary)]">Vlaina</span>
+                    Powered by <span className="text-[var(--vlaina-text-secondary)]">vlaina</span>
                 </button>
                 <button
                     onClick={(e) => {

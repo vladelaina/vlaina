@@ -61,7 +61,7 @@ struct EmailCodeVerifyBody<'a> {
 }
 
 pub fn read_api_base_url() -> String {
-    std::env::var("VLAINA_API_BASE_URL")
+    std::env::var("APP_API_BASE_URL")
         .ok()
         .map(|value| value.trim().trim_end_matches('/').to_string())
         .filter(|value| !value.is_empty())

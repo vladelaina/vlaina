@@ -54,6 +54,12 @@ Magic phrase: `Refactor This`
 - Do not create summary markdown files just to explain your work unless the user explicitly asks for a documentation file or the file is part of the product structure.
 - Remove temporary debug code and diagnostic artifacts after the issue is resolved unless the user asks to keep them.
 
+## Branding Rules
+
+- The product name must always be written as `vlaina` in all-lowercase.
+- Do not introduce capitalized or mixed-case brand variants in UI copy, docs, comments, metadata, config, or tests.
+- If an uppercase naming style would force the brand to appear capitalized in an identifier or environment variable, prefer a brand-neutral name such as `APP_*` instead.
+
 ## Commit Message Rules
 
 - Use the format `<emoji><type>(<optional-scope>): <summary>`.

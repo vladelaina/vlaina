@@ -3,7 +3,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getStorageAdapter, joinPath, isTauri } from '@/lib/storage/adapter';
 import { setCurrentVaultPath } from './useNotesStore';
 
-const VLAINA_CONFIG_FOLDER = '.vlaina';
+const APP_CONFIG_FOLDER = '.vlaina';
 const STORE_FOLDER = 'store';
 
 const DEFAULT_VAULT_CONFIG = {
@@ -17,7 +17,7 @@ const DEFAULT_WORKSPACE_STATE = {
 
 async function initVaultConfig(vaultPath: string): Promise<void> {
   const storage = getStorageAdapter();
-  const storePath = await joinPath(vaultPath, VLAINA_CONFIG_FOLDER, STORE_FOLDER);
+  const storePath = await joinPath(vaultPath, APP_CONFIG_FOLDER, STORE_FOLDER);
 
   if (await storage.exists(storePath)) return;
 

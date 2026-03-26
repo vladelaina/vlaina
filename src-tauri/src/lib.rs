@@ -232,7 +232,7 @@ async fn create_new_window(app: AppHandle) -> Result<(), String> {
 
     // Create window hidden first, with position if available
     let mut builder = WebviewWindowBuilder::new(&app, &window_label, url)
-        .title("Vlaina")
+        .title("vlaina")
         .inner_size(980.0, 640.0)
         .min_inner_size(720.0, 540.0)
         .decorations(false)

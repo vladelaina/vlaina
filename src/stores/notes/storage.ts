@@ -2,7 +2,7 @@ import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import {
   RECENT_NOTES_KEY,
   MAX_RECENT_NOTES,
-  VLAINA_CONFIG_FOLDER,
+  APP_CONFIG_FOLDER,
   STORE_FOLDER,
   METADATA_FILE,
   WORKSPACE_FILE,
@@ -47,7 +47,7 @@ const CURRENT_METADATA_VERSION = 1;
 export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile> {
   try {
     const storage = getStorageAdapter();
-    const storePath = await joinPath(vaultPath, VLAINA_CONFIG_FOLDER, STORE_FOLDER);
+    const storePath = await joinPath(vaultPath, APP_CONFIG_FOLDER, STORE_FOLDER);
     const metadataPath = await joinPath(storePath, METADATA_FILE);
 
     if (await storage.exists(metadataPath)) {
@@ -66,7 +66,7 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
 export async function saveNoteMetadata(vaultPath: string, metadata: MetadataFile): Promise<void> {
   try {
     const storage = getStorageAdapter();
-    const storePath = await joinPath(vaultPath, VLAINA_CONFIG_FOLDER, STORE_FOLDER);
+    const storePath = await joinPath(vaultPath, APP_CONFIG_FOLDER, STORE_FOLDER);
 
     if (!(await storage.exists(storePath))) {
       await storage.mkdir(storePath, true);
@@ -144,7 +144,7 @@ export interface WorkspaceState {
 export async function loadWorkspaceState(vaultPath: string): Promise<WorkspaceState | null> {
   try {
     const storage = getStorageAdapter();
-    const wsPath = await joinPath(vaultPath, VLAINA_CONFIG_FOLDER, STORE_FOLDER, WORKSPACE_FILE);
+    const wsPath = await joinPath(vaultPath, APP_CONFIG_FOLDER, STORE_FOLDER, WORKSPACE_FILE);
 
     if (!(await storage.exists(wsPath))) {
       return null;
@@ -161,7 +161,7 @@ export async function loadWorkspaceState(vaultPath: string): Promise<WorkspaceSt
 export async function saveWorkspaceState(vaultPath: string, state: WorkspaceState): Promise<void> {
   try {
     const storage = getStorageAdapter();
-    const storePath = await joinPath(vaultPath, VLAINA_CONFIG_FOLDER, STORE_FOLDER);
+    const storePath = await joinPath(vaultPath, APP_CONFIG_FOLDER, STORE_FOLDER);
 
     if (!(await storage.exists(storePath))) {
       await storage.mkdir(storePath, true);

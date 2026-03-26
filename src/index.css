@@ -174,7 +174,7 @@ html, body, #root {
 }
 
 /* ============================================
-   Vlaina Notes Theme Variables
+   vlaina Notes Theme Variables
    ============================================ */
 
 :root {
@@ -342,7 +342,7 @@ html, body, #root {
 }
 
 /* ============================================
-   Custom Scrollbar (Global & Vlaina-Scrollbar)
+   Custom Scrollbar (Global & vlaina-Scrollbar)
    ============================================ */
 
 ::-webkit-scrollbar, .vlaina-scrollbar::-webkit-scrollbar {

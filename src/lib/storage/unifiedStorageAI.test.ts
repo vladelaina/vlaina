@@ -7,7 +7,7 @@ import { normalizeLoadedAIModels } from './unifiedStorageAI';
 const providers: Provider[] = [
   {
     id: 'vlaina-managed',
-    name: 'Vlaina AI',
+    name: 'vlaina AI',
     type: 'newapi',
     apiHost: 'https://api.vlaina.com/v1',
     apiKey: '',

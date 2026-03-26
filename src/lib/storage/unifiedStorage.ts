@@ -98,10 +98,10 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
   try {
     const storage = getStorageAdapter();
     const base = await getBasePath();
-    const dotVlaina = await joinPath(base, '.vlaina');
-    const chatDir = await joinPath(dotVlaina, 'chat');
-    const mainPath = await joinPath(dotVlaina, MAIN_DATA_FILE);
-    const mainBackupPath = await joinPath(dotVlaina, MAIN_DATA_BACKUP_FILE);
+    const configDir = await joinPath(base, '.vlaina');
+    const chatDir = await joinPath(configDir, 'chat');
+    const mainPath = await joinPath(configDir, MAIN_DATA_FILE);
+    const mainBackupPath = await joinPath(configDir, MAIN_DATA_BACKUP_FILE);
     const sessionsPath = await joinPath(chatDir, 'sessions.json');
     const channelsDir = await joinPath(chatDir, 'channels');
 
@@ -225,12 +225,12 @@ async function performSplitSave(data: UnifiedData) {
     const storage = getStorageAdapter();
     const base = await getBasePath();
     
-    const dotVlaina = await joinPath(base, '.vlaina');
-    const chatDir = await joinPath(dotVlaina, 'chat');
+    const configDir = await joinPath(base, '.vlaina');
+    const chatDir = await joinPath(configDir, 'chat');
     const channelsDir = await joinPath(chatDir, 'channels');
     
-    const mainPath = await joinPath(dotVlaina, MAIN_DATA_FILE);
-    const mainBackupPath = await joinPath(dotVlaina, MAIN_DATA_BACKUP_FILE);
+    const mainPath = await joinPath(configDir, MAIN_DATA_FILE);
+    const mainBackupPath = await joinPath(configDir, MAIN_DATA_BACKUP_FILE);
     const sessionsPath = await joinPath(chatDir, 'sessions.json');
 
     if (!(await storage.exists(channelsDir))) {

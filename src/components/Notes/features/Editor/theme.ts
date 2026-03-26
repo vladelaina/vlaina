@@ -1,5 +1,5 @@
 /*
-* Custom Vlaina Theme for Milkdown
+* Custom vlaina Theme for Milkdown
 * Replicates the visual style of modern block-based editors (1:1 visual match)
 */
 

@@ -55,7 +55,7 @@ export function AccountSignInOptions({
         ) : null}
 
         <p className="px-8 text-[11px] text-center leading-relaxed text-zinc-400 dark:text-zinc-500 font-medium opacity-80">
-          By continuing, you agree to Vlaina&apos;s <span className="underline cursor-pointer opacity-80 hover:opacity-100 transition-opacity">Privacy Policy</span>.
+          By continuing, you agree to vlaina&apos;s <span className="underline cursor-pointer opacity-80 hover:opacity-100 transition-opacity">Privacy Policy</span>.
         </p>
       </div>
     </div>

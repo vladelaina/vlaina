@@ -9,7 +9,7 @@ use crate::account::{
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 
-pub const VLAINA_FOLDER: &str = ".vlaina";
+pub const APP_CONFIG_FOLDER: &str = ".vlaina";
 pub const STORE_FOLDER: &str = "store";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,7 +29,7 @@ pub fn get_data_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String
 
 fn store_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
     let mut path = get_data_dir(app)?;
-    path.push(VLAINA_FOLDER);
+    path.push(APP_CONFIG_FOLDER);
     path.push(STORE_FOLDER);
     Ok(path)
 }

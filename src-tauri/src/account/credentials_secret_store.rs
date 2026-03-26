@@ -6,7 +6,7 @@ pub(crate) struct AccountSecretBundle {
     pub app_session_token: String,
 }
 
-pub(crate) const SECRET_SERVICE_NAME: &str = "Vlaina";
+pub(crate) const SECRET_SERVICE_NAME: &str = "vlaina";
 pub(crate) const SESSION_TOKEN_ACCOUNT: &str = "managed-session-token";
 
 fn secret_store_lock() -> &'static Mutex<()> {

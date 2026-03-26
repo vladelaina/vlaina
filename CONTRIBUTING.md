@@ -1,4 +1,4 @@
-# Contributing to Vlaina
+# Contributing to vlaina
 
 ## Comments
 - English only

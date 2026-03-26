@@ -31,7 +31,7 @@ function PreviewPanel({ variant }: { variant: SidebarLoginEntryVariant }) {
         </button>
         
         <p className={cn("text-[11px] text-center leading-relaxed px-4 opacity-60 font-medium", variant.legalNote)}>
-          By continuing, you acknowledge that you have read and agree to Vlaina's <span className="underline cursor-pointer opacity-80 hover:opacity-100 transition-opacity">Terms of Service</span> and <span className="underline cursor-pointer opacity-80 hover:opacity-100 transition-opacity">Privacy Policy</span>.
+          By continuing, you acknowledge that you have read and agree to vlaina's <span className="underline cursor-pointer opacity-80 hover:opacity-100 transition-opacity">Terms of Service</span> and <span className="underline cursor-pointer opacity-80 hover:opacity-100 transition-opacity">Privacy Policy</span>.
         </p>
       </div>
     </div>

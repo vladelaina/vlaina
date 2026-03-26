@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 
 // --- Simulation Components ---
 
-const VlainaRealLayout = ({ id, label, placement }: { id: number, label: string, placement: string }) => {
+const WorkspaceRealLayout = ({ id, label, placement }: { id: number, label: string, placement: string }) => {
     const [view, setView] = useState<'files' | 'outline'>('files');
     const toggle = () => setView(v => v === 'files' ? 'outline' : 'files');
 
@@ -175,7 +175,7 @@ export function StickyOutlineLab() {
             </header>
 
             {cases.map((c, i) => (
-                <VlainaRealLayout key={i} id={i + 1} label={c.label} placement={c.placement} />
+                <WorkspaceRealLayout key={i} id={i + 1} label={c.label} placement={c.placement} />
             ))}
 
             <footer className="py-60 text-center border-t border-dashed border-zinc-200 dark:border-white/5 opacity-30">

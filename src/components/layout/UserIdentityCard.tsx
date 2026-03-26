@@ -15,8 +15,8 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
   const { username, primaryEmail, isConnected, membershipTier, membershipName } = useAccountSessionStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const displayName = username || primaryEmail || 'Vlaina';
-  const displayIdentity = primaryEmail || username || 'Vlaina';
+  const displayName = username || primaryEmail || 'vlaina';
+  const displayIdentity = primaryEmail || username || 'vlaina';
   const userAvatar = useUserAvatar();
   const displayAvatar = userAvatar || '/logo.png';
   const membershipPillClassName = isConnected

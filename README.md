@@ -10,21 +10,21 @@
   </p>
 
   
-# Vlaina
+# vlaina
 
 ## ⚖️ License & Copyright
 
 This project is open-source under the **GNU AGPLv3 License**. You are free to study, modify, and distribute the code under the same license terms.
 
 **Brand Guidelines:**  
-Please note that the **Vlaina name, Logo, and visual assets** are proprietary trademarks and are **not** included in the open-source license.
+Please note that the **vlaina name, Logo, and visual assets** are proprietary trademarks and are **not** included in the open-source license.
 
 If you wish to fork and redistribute this project, you must remove our branding assets.  
 👉 Please read our **[Trademark & Forking Policy](TRADEMARK.md)** for detailed guidelines.
 
 ## ❤️ Open Source Credits
 
-Vlaina is built on the shoulders of giants. We gratefully acknowledge the following open-source projects:
+vlaina is built on the shoulders of giants. We gratefully acknowledge the following open-source projects:
 
 *   **[React](https://react.dev/)** - UI Library
 *   **[Tauri](https://tauri.app/)** - App Framework
@@ -38,7 +38,7 @@ Vlaina is built on the shoulders of giants. We gratefully acknowledge the follow
 
 ## Local-First
 
-Vlaina is a local-first editor.
+vlaina is a local-first editor.
 
 - Your notes and workspace data live on your own device.
 - Account sign-in is provider-agnostic and currently supports Google, 6-digit email codes, and GitHub.

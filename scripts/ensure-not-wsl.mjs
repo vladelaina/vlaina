@@ -24,8 +24,8 @@ export function isWslRuntime() {
 export function assertNotWsl(commandLabel = 'This command') {
   if (!isWslRuntime()) return;
 
-  console.error(`[Vlaina] ${commandLabel} is disabled in WSL.`);
-  console.error('[Vlaina] Keep editing files in WSL if you want, but run install/dev/build/test commands from Windows PowerShell or cmd.');
+  console.error(`[vlaina] ${commandLabel} is disabled in WSL.`);
+  console.error('[vlaina] Keep editing files in WSL if you want, but run install/dev/build/test commands from Windows PowerShell or cmd.');
   process.exit(1);
 }
 
