@@ -3,3 +3,11 @@ packages:
   - 'vendor/milkdown/packages/*'
   - 'vendor/milkdown/packages/plugins/*'
   - 'vendor/milkdown/packages/integrations/react'
+supportedArchitectures:
+  os:
+    - current
+    - linux
+    - win32
+  cpu:
+    - current
+    - x64

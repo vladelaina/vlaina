@@ -21,10 +21,16 @@ function spaFallbackPlugin(): Plugin {
       const distPath = path.resolve(__dirname, 'dist');
       const indexPath = path.join(distPath, 'index.html');
       const notFoundPath = path.join(distPath, '404.html');
+      const redirectsPath = path.join(distPath, '_redirects');
 
       if (fs.existsSync(indexPath)) {
         fs.copyFileSync(indexPath, notFoundPath);
         console.log('Created 404.html for SPA support');
+      }
+
+      if (fs.existsSync(redirectsPath)) {
+        fs.unlinkSync(redirectsPath);
+        console.log('Removed legacy _redirects for Workers Assets');
       }
     },
   };
