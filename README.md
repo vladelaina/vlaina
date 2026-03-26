@@ -1,9 +1,13 @@
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/f9ae861a-3d8e-4676-afb1-ce63ebf8a446" style="width:50%;">
+  <img src="https://github.com/user-attachments/assets/fddfaa4c-b085-40e7-98aa-bffbc0d1fe75" style="width:50%;">
   </p>
+
+
+  
 <p align="center">
     <img src="https://count.getloli.com/@vlaina?name=vlaina&theme=booru-qualityhentais&padding=7&offset=0&align=top&scale=1&pixelated=1&darkmode=auto" width="400">
   </p>
+
 
   
 # vlaina
