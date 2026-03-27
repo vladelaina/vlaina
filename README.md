@@ -81,3 +81,13 @@ pnpm dev:dynamic
 
 With special appreciation to **湾中WanZhong** for the beautiful icon design.
 
+
+<div align="center">
+
+Copyright © 2026 - **vlaina**\
+By vladelaina\
+Made with ❤️ & ⌨️
+
+</div>
+
+
