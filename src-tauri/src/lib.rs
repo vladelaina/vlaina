@@ -20,10 +20,7 @@ fn escape_html(input: &str) -> String {
     out
 }
 
-// Create drag overlay window
-#[tauri::command]
-async fn create_drag_window(
-    app: AppHandle,
+struct DragWindowRequest {
     content: String,
     x: f64,
     y: f64,
@@ -32,8 +29,20 @@ async fn create_drag_window(
     is_done: bool,
     is_dark: bool,
     color: Option<String>,
-) -> Result<(), String> {
-    // Close existing drag window if any
+}
+
+async fn create_drag_window_impl(app: AppHandle, request: DragWindowRequest) -> Result<(), String> {
+    let DragWindowRequest {
+        content,
+        x,
+        y,
+        width,
+        height,
+        is_done,
+        is_dark,
+        color,
+    } = request;
+
     if let Some(existing) = app.get_webview_window("drag-overlay") {
         let _ = existing.destroy();
     }
@@ -151,7 +160,7 @@ body{{font-family:system-ui,-apple-system,sans-serif;display:flex}}
     // Inject HTML content safely (JSON string escaping avoids JS template injection).
     let html_json = serde_json::to_string(&html).map_err(|e| e.to_string())?;
     window
-        .eval(&format!(
+        .eval(format!(
             r#"document.open(); document.write({}); document.close();"#,
             html_json
         ))
@@ -161,6 +170,35 @@ body{{font-family:system-ui,-apple-system,sans-serif;display:flex}}
     window.show().map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+#[tauri::command]
+async fn create_drag_window(
+    app: AppHandle,
+    content: String,
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    is_done: bool,
+    is_dark: bool,
+    color: Option<String>,
+) -> Result<(), String> {
+    create_drag_window_impl(
+        app,
+        DragWindowRequest {
+            content,
+            x,
+            y,
+            width,
+            height,
+            is_done,
+            is_dark,
+            color,
+        },
+    )
+    .await
 }
 
 // Update drag window position

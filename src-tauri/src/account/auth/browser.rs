@@ -24,11 +24,11 @@ pub fn open_auth_url(url: &str) -> Result<(), String> {
             return Ok(());
         }
 
-        return Err(format!(
+        Err(format!(
             "Failed to open browser (rundll32 exit code {:?}, explorer exit code {:?})",
             status.code(),
             explorer_status.code()
-        ));
+        ))
     }
 
     #[cfg(target_os = "macos")]
@@ -40,10 +40,10 @@ pub fn open_auth_url(url: &str) -> Result<(), String> {
         if status.success() {
             return Ok(());
         }
-        return Err(format!(
+        Err(format!(
             "Failed to open browser (open exit code {:?})",
             status.code()
-        ));
+        ))
     }
 
     #[cfg(all(unix, not(target_os = "macos")))]

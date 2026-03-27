@@ -102,7 +102,17 @@ describe('block type conversion matrix', () => {
     ['paragraph', 'paragraph', { name: 'paragraph' }, undefined],
     ['heading1', 'heading1', { name: 'heading' }, { level: 1 }],
     ['heading6', 'heading6', { name: 'heading' }, { level: 6 }],
-    ['codeBlock', 'codeBlock', { name: 'code_block' }, undefined],
+    [
+      'codeBlock',
+      'codeBlock',
+      { name: 'code_block' },
+      expect.objectContaining({
+        language: null,
+        lineNumbers: expect.any(Boolean),
+        wrap: false,
+        collapsed: false,
+      }),
+    ],
   ] as const)('converts plain paragraph to %s', (_label, targetType, nodeType, attrs) => {
     const state: any = {
       selection: {
