@@ -9,6 +9,7 @@ env:
   CI: true
   NODE_VERSION: "24"
   PNPM_VERSION: "10.11.1"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   release:
