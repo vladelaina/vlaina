@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { cn, iconButtonStyles } from '@/lib/utils';
@@ -16,6 +16,10 @@ import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { Icon } from '@/components/ui/icons';
 import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
+import { SidebarSearchField } from '@/components/layout/sidebar/SidebarPrimitives';
+import { ChatSidebarTopActions } from './ChatSidebarTopActions';
+import { useGlobalSearch } from '@/hooks/useGlobalSearch';
+import { useSidebarSearchControls } from '@/components/layout/sidebar/useSidebarSearchControls';
 
 interface ChatSidebarProps {
   isPeeking?: boolean;
@@ -33,6 +37,7 @@ function ChatSidebarLoadingTitle({ title }: { title: string }) {
 }
 
 export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
+  const appViewMode = useUIStore((s) => s.appViewMode);
   const setAppViewMode = useUIStore((s) => s.setAppViewMode);
   const {
       sessions,
@@ -52,11 +57,37 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const renameInputRef = useRef<HTMLInputElement | null>(null);
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
-  const scrollRootRef = useRef<HTMLDivElement | null>(null);
-  const overscrollDistanceRef = useRef(0);
   const preventNextMenuAutoFocusRef = useRef(false);
+
+  const openSearch = useCallback(() => {
+    setIsSearchOpen(true);
+  }, []);
+  const closeSearch = useCallback(() => {
+    setIsSearchOpen(false);
+    setSearchQuery('');
+  }, []);
+  const toggleSearch = useCallback(() => {
+    setIsSearchOpen((previous) => {
+      const next = !previous;
+      if (!next) {
+        setSearchQuery('');
+      }
+      return next;
+    });
+  }, []);
+  const {
+    inputRef: searchInputRef,
+    scrollRootRef,
+    hideSearch,
+    handleScroll,
+    handleWheelCapture,
+  } = useSidebarSearchControls({
+    isOpen: isSearchOpen,
+    query: searchQuery,
+    onOpen: openSearch,
+    onClose: closeSearch,
+  });
 
   useHeldPageScroll(scrollRootRef, {
     scopeRef: sidebarRootRef,
@@ -82,18 +113,6 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
     });
   }, [renamingSessionId]);
 
-  useLayoutEffect(() => {
-    if (!isSearchOpen) {
-      return;
-    }
-
-    const frameId = window.requestAnimationFrame(() => {
-      searchInputRef.current?.focus({ preventScroll: true });
-    });
-
-    return () => window.cancelAnimationFrame(frameId);
-  }, [isSearchOpen]);
-
   useEffect(() => {
     const handleDeleteChat = (e: Event) => {
         const customEvent = e as CustomEvent;
@@ -109,20 +128,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
     };
   }, []);
 
-  useEffect(() => {
-    const handleOpenSearch = () => {
-      setIsSearchOpen((previous) => {
-        const next = !previous;
-        if (!next) {
-          setSearchQuery('');
-        }
-        return next;
-      });
-    };
-
-    window.addEventListener('vlaina-open-search', handleOpenSearch);
-    return () => window.removeEventListener('vlaina-open-search', handleOpenSearch);
-  }, []);
+  useGlobalSearch(toggleSearch, appViewMode === 'chat');
 
   const sortedSessions = useMemo(() => {
     return [...visibleSessions].sort((a, b) => {
@@ -176,12 +182,6 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
       switchSession(sessionId);
   };
 
-  const hideSearch = () => {
-    overscrollDistanceRef.current = 0;
-    setIsSearchOpen(false);
-    setSearchQuery('');
-  };
-
   const handleOpenNewChat = () => {
     openNewChat();
     requestAnimationFrame(() => {
@@ -201,104 +201,40 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
     <>
       <ChatSidebarSurface ref={sidebarRootRef} isPeeking={isPeeking}>
         {isSearchOpen ? (
-          <div className="px-1 pt-1 pb-1">
-            <div className="flex items-center gap-2 rounded-xl border border-[var(--vlaina-border)] bg-white px-3 py-1 shadow-none">
-              <Icon name="common.search" size="md" className="text-[var(--vlaina-text-tertiary)]" />
-              <input
-                ref={searchInputRef}
-                autoFocus
-                type="text"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Escape') {
-                    event.preventDefault();
-                    hideSearch();
-                    return;
-                  }
-                  if (event.key === 'Enter' && filteredSessions[0]) {
-                    event.preventDefault();
-                    handleSwitch(filteredSessions[0].id, isSessionUnread(filteredSessions[0].id));
-                    hideSearch();
-                  }
-                }}
-                placeholder="Search chats..."
-                className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--vlaina-text-primary)] outline-none placeholder:text-[var(--vlaina-text-tertiary)]"
-              />
-              <button
-                type="button"
-                onClick={() => hideSearch()}
-                aria-label="Close chat search"
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--vlaina-text-tertiary)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-text-primary)]"
-              >
-                <Icon name="common.close" size="md" />
-              </button>
-            </div>
-          </div>
+          <SidebarSearchField
+            ref={searchInputRef}
+            autoFocus
+            type="text"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                hideSearch();
+                return;
+              }
+              if (event.key === 'Enter' && filteredSessions[0]) {
+                event.preventDefault();
+                handleSwitch(filteredSessions[0].id, isSessionUnread(filteredSessions[0].id));
+                hideSearch();
+              }
+            }}
+            placeholder="Search chats..."
+            onClose={hideSearch}
+            closeLabel="Close chat search"
+            className="px-1 pt-1 pb-1"
+          />
         ) : (
-          <div className="px-1 pt-1 pb-1">
-            <div className="flex flex-col gap-0.5">
-              <button
-                type="button"
-                onClick={handleOpenNewChat}
-                className={cn(
-                  'flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-xl bg-transparent px-3 py-2 text-sm font-medium text-[var(--chat-sidebar-text-muted)] shadow-none transition-colors hover:bg-[var(--chat-sidebar-row-hover)] hover:shadow-none'
-                )}
-              >
-                <Icon name="common.compose" size="md" className="text-[var(--chat-sidebar-text-muted)]" />
-                <span className="truncate">New Chat</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setAppViewMode('notes')}
-                className={cn(
-                  'flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-xl bg-transparent px-3 py-2 text-sm font-medium text-[var(--chat-sidebar-text-muted)] shadow-none transition-colors hover:bg-[var(--chat-sidebar-row-hover)] hover:shadow-none'
-                )}
-              >
-                <Icon name="file.text" size="md" className="text-[var(--chat-sidebar-text-muted)]" />
-                <span className="truncate">Notes</span>
-              </button>
-            </div>
-          </div>
+          <ChatSidebarTopActions
+            onOpenNewChat={handleOpenNewChat}
+            onOpenNotes={() => setAppViewMode('notes')}
+          />
         )}
 
         <ChatSidebarScrollArea
           ref={scrollRootRef}
-          onScroll={(event) => {
-            if (event.currentTarget.scrollTop > 0) {
-              overscrollDistanceRef.current = 0;
-            }
-          }}
-          onWheelCapture={(event) => {
-            const currentTarget = event.currentTarget;
-            if (isSearchOpen) {
-              if (currentTarget.scrollTop === 0 && event.deltaY < 0) {
-                event.preventDefault();
-                return;
-              }
-              if (currentTarget.scrollTop === 0 && event.deltaY > 0 && !searchQuery.trim()) {
-                hideSearch();
-              }
-              return;
-            }
-
-            if (currentTarget.scrollTop > 0) {
-              overscrollDistanceRef.current = 0;
-              return;
-            }
-            if (event.deltaY >= 0) {
-              overscrollDistanceRef.current = 0;
-              return;
-            }
-
-            overscrollDistanceRef.current += Math.abs(event.deltaY);
-            if (overscrollDistanceRef.current < 56) {
-              return;
-            }
-
-            event.preventDefault();
-            setIsSearchOpen(true);
-          }}
+          onScroll={handleScroll}
+          onWheelCapture={handleWheelCapture}
         >
           {!isSearchOpen && !hasSessions ? null : (
             <ChatSidebarList>

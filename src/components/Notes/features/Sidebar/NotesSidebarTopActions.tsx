@@ -1,11 +1,12 @@
 import { SidebarChatButton } from './SidebarChatButton';
 import { NotesSidebarViewToggle } from './NotesSidebarViewToggle';
+import { SidebarActionGroup } from '@/components/layout/sidebar/SidebarPrimitives';
 
 export function NotesSidebarTopActions() {
   return (
-    <div className="px-1 pt-1 pb-1 space-y-1">
+    <SidebarActionGroup>
       <NotesSidebarViewToggle />
       <SidebarChatButton />
-    </div>
+    </SidebarActionGroup>
   );
 }

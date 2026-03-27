@@ -1,7 +1,11 @@
 import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
-import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area';
 import { cn } from '@/lib/utils';
 import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
+import {
+  SidebarList,
+  SidebarScrollArea,
+  SidebarSurface,
+} from '@/components/layout/sidebar/SidebarPrimitives';
 
 interface NotesSidebarSurfaceProps extends HTMLAttributes<HTMLDivElement> {
   isPeeking?: boolean;
@@ -22,12 +26,12 @@ export function NotesSidebarSurface({
   ...props
 }: NotesSidebarSurfaceProps) {
   return (
-    <div
+    <SidebarSurface
       className={cn(
         'flex h-full flex-col bg-[var(--notes-sidebar-surface)] text-[var(--notes-sidebar-text)]',
-        isPeeking && 'opacity-95',
         className
       )}
+      isPeeking={isPeeking}
       {...props}
     />
   );
@@ -39,10 +43,10 @@ export const NotesSidebarScrollArea = forwardRef<HTMLDivElement, HTMLAttributes<
   ...props
 }, ref) {
   return (
-    <OverlayScrollArea
+    <SidebarScrollArea
       ref={ref}
-      viewportClassName={cn('px-2 py-2', className)}
       onMouseEnter={onMouseEnter}
+      viewportClassName={className}
       {...props}
     />
   );
@@ -52,7 +56,7 @@ export function NotesSidebarList({
   className,
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('flex flex-col gap-0.5', className)} {...props} />;
+  return <SidebarList className={className} {...props} />;
 }
 
 export function NotesSidebarSection({
