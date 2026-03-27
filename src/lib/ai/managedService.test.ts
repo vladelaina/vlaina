@@ -85,6 +85,11 @@ describe('managedService', () => {
     expect(isManagedServiceRecoverableError(new Error(MANAGED_AUTH_REQUIRED_ERROR))).toBe(true);
     expect(
       isManagedServiceRecoverableError(
+        'Managed API request failed: error sending request for url (https://api.vlaina.com/v1/models)'
+      )
+    ).toBe(true);
+    expect(
+      isManagedServiceRecoverableError(
         new Error('Managed API request failed: error sending request for url (https://api.vlaina.com/v1/models)')
       )
     ).toBe(true);

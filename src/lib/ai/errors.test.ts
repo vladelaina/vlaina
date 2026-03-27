@@ -39,7 +39,7 @@ describe('getUserFacingAIError', () => {
     expect(result).toEqual({
       type: AIErrorType.RATE_LIMIT,
       code: '429',
-      message: 'Too many requests. Please try again later.',
+      message: 'Too many requests',
     });
   });
 
@@ -49,7 +49,37 @@ describe('getUserFacingAIError', () => {
     expect(result).toEqual({
       type: AIErrorType.SERVER_ERROR,
       code: '',
+      message: 'No available channel for model test',
+    });
+  });
+
+  it('preserves detailed invalid request messages', () => {
+    const result = getUserFacingAIError(new Error('Managed chat currently supports text-only messages'));
+
+    expect(result).toEqual({
+      type: AIErrorType.INVALID_REQUEST,
+      code: '',
+      message: 'Managed chat currently supports text-only messages',
+    });
+  });
+
+  it('keeps low-signal server messages normalized to the fallback copy', () => {
+    const result = getUserFacingAIError(new Error('Internal server error'));
+
+    expect(result).toEqual({
+      type: AIErrorType.SERVER_ERROR,
+      code: '',
       message: 'The model service is temporarily unavailable. Please try again later or switch to another model.',
+    });
+  });
+
+  it('maps desktop transport failures to the network error message', () => {
+    const result = getUserFacingAIError('Managed API request failed: error sending request for url (https://api.vlaina.com/v1/models)');
+
+    expect(result).toEqual({
+      type: AIErrorType.NETWORK_ERROR,
+      code: '',
+      message: 'Network connection error. Please check your connection and try again.',
     });
   });
 });

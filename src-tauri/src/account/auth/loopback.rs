@@ -14,6 +14,7 @@ pub struct LoopbackServer {
 
 pub struct LoopbackCallback {
     pub state: String,
+    pub result_token: String,
     pub error: Option<String>,
 }
 
@@ -64,6 +65,7 @@ fn parse_loopback_callback(target: &str) -> Result<LoopbackCallback, String> {
     }
 
     let mut state: Option<String> = None;
+    let mut result_token: Option<String> = None;
     let mut error: Option<String> = None;
     for (key, value) in url.query_pairs() {
         match key.as_ref() {
@@ -71,6 +73,12 @@ fn parse_loopback_callback(target: &str) -> Result<LoopbackCallback, String> {
                 let trimmed = value.trim();
                 if !trimmed.is_empty() {
                     state = Some(trimmed.to_string());
+                }
+            }
+            "result_token" => {
+                let trimmed = value.trim();
+                if !trimmed.is_empty() {
+                    result_token = Some(trimmed.to_string());
                 }
             }
             "error" => {
@@ -84,7 +92,13 @@ fn parse_loopback_callback(target: &str) -> Result<LoopbackCallback, String> {
     }
 
     let state = state.ok_or_else(|| "OAuth callback is missing state".to_string())?;
-    Ok(LoopbackCallback { state, error })
+    let result_token =
+        result_token.ok_or_else(|| "OAuth callback is missing result token".to_string())?;
+    Ok(LoopbackCallback {
+        state,
+        result_token,
+        error,
+    })
 }
 
 impl LoopbackServer {
@@ -187,21 +201,26 @@ mod tests {
 
     #[test]
     fn parses_successful_callback() {
-        let callback = parse_loopback_callback("/oauth/callback?state=dsk_123").unwrap();
+        let callback =
+            parse_loopback_callback("/oauth/callback?state=dsk_123&result_token=dtr_123").unwrap();
         assert_eq!(callback.state, "dsk_123");
+        assert_eq!(callback.result_token, "dtr_123");
         assert!(callback.error.is_none());
     }
 
     #[test]
     fn parses_error_callback() {
-        let callback =
-            parse_loopback_callback("/oauth/callback?state=dsk_123&error=denied").unwrap();
+        let callback = parse_loopback_callback(
+            "/oauth/callback?state=dsk_123&result_token=dtr_123&error=denied",
+        )
+        .unwrap();
         assert_eq!(callback.state, "dsk_123");
+        assert_eq!(callback.result_token, "dtr_123");
         assert_eq!(callback.error.as_deref(), Some("denied"));
     }
 
     #[test]
     fn rejects_unexpected_path() {
-        assert!(parse_loopback_callback("/wrong?state=dsk_123").is_err());
+        assert!(parse_loopback_callback("/wrong?state=dsk_123&result_token=dtr_123").is_err());
     }
 }

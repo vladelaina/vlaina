@@ -146,6 +146,7 @@ pub async fn account_auth(
         provider,
         &callback.state,
         &verifier,
+        &callback.result_token,
         auth_start.expires_in_seconds,
     )
     .await

@@ -27,25 +27,42 @@ interface ManagedBudgetPayload {
   status?: unknown;
 }
 
+export function getManagedServiceErrorMessage(error: unknown): string {
+  if (typeof error === 'string') {
+    return error.trim();
+  }
+
+  if (error instanceof Error) {
+    return error.message.trim();
+  }
+
+  if (error && typeof error === 'object' && typeof (error as { message?: unknown }).message === 'string') {
+    return (error as { message: string }).message.trim();
+  }
+
+  return String(error ?? '').trim();
+}
+
 export function isManagedProviderId(providerId: string | null | undefined): boolean {
   return providerId === MANAGED_PROVIDER_ID;
 }
 
 export function isManagedServiceRecoverableError(error: unknown): boolean {
-  if (!(error instanceof Error)) return false;
+  const message = getManagedServiceErrorMessage(error);
+  if (!message) return false;
 
-  if (error.message === MANAGED_AUTH_REQUIRED_ERROR) {
+  if (message === MANAGED_AUTH_REQUIRED_ERROR) {
     return true;
   }
 
-  const message = error.message.toLowerCase();
+  const normalized = message.toLowerCase();
   return (
-    message.includes('failed to fetch') ||
-    message.includes('networkerror') ||
-    message.includes('load failed') ||
-    message.includes('error sending request') ||
-    message.includes('timed out') ||
-    message.includes('aborterror')
+    normalized.includes('failed to fetch') ||
+    normalized.includes('networkerror') ||
+    normalized.includes('load failed') ||
+    normalized.includes('error sending request') ||
+    normalized.includes('timed out') ||
+    normalized.includes('aborterror')
   );
 }
 

@@ -75,6 +75,34 @@ function includesAny(text: string, keywords: string[]): boolean {
   return keywords.some((keyword) => text.includes(keyword))
 }
 
+function normalizeUserFacingMessage(message: string): string {
+  return message.replace(/\s+/g, ' ').trim()
+}
+
+function isLowSignalServerMessage(message: string): boolean {
+  const normalized = normalizeUserFacingMessage(message).toLowerCase()
+  if (!normalized) {
+    return true
+  }
+
+  return includesAny(normalized, [
+    'server error',
+    'internal server error',
+    'service unavailable',
+    'temporarily unavailable',
+    'bad gateway',
+    'gateway timeout',
+    'upstream returned error',
+    'upstream request failed',
+    'managed api request failed',
+    'unknown error',
+    'http 500',
+    'http 502',
+    'http 503',
+    'http 504',
+  ])
+}
+
 function inferErrorTypeByMessage(message: string): AIErrorType {
   const normalized = message.trim().toLowerCase()
   if (!normalized) {
@@ -99,6 +127,8 @@ function inferErrorTypeByMessage(message: string): AIErrorType {
       'failed to fetch',
       'fetch failed',
       'load failed',
+      'error sending request',
+      'sending request for url',
       'networkerror',
       'network error',
       'network request failed',
@@ -149,6 +179,8 @@ function inferErrorTypeByMessage(message: string): AIErrorType {
       'bad request',
       'invalid input',
       'malformed',
+      'text-only',
+      'text only',
       'unsupported',
     ])
   ) {
@@ -190,6 +222,27 @@ function getUserFacingMessage(type: AIErrorType): string {
     case AIErrorType.UNKNOWN:
     default:
       return MODEL_SERVICE_ERROR_MESSAGE
+  }
+}
+
+function shouldPreserveOriginalMessage(type: AIErrorType, message: string): boolean {
+  const normalized = normalizeUserFacingMessage(message)
+  if (!normalized) {
+    return false
+  }
+
+  switch (type) {
+    case AIErrorType.NETWORK_ERROR:
+    case AIErrorType.TIMEOUT:
+    case AIErrorType.AUTH_ERROR:
+      return false
+    case AIErrorType.RATE_LIMIT:
+    case AIErrorType.INVALID_REQUEST:
+      return true
+    case AIErrorType.SERVER_ERROR:
+    case AIErrorType.UNKNOWN:
+    default:
+      return !isLowSignalServerMessage(normalized)
   }
 }
 
@@ -276,7 +329,7 @@ export function parseHTTPError(status: number, body?: any): AIError {
 export function getUserFacingAIError(error: unknown): UserFacingAIError {
   const parsed = parseAPIError(error)
   const code = extractErrorCode(error) || (parsed.statusCode ? String(parsed.statusCode) : '')
-  const message = extractErrorMessage(error)
+  const message = normalizeUserFacingMessage(extractErrorMessage(error))
   const statusType = inferErrorTypeByStatus(code)
   const messageType = inferErrorTypeByMessage(message)
 
@@ -292,6 +345,8 @@ export function getUserFacingAIError(error: unknown): UserFacingAIError {
   return {
     type: normalizedType,
     code,
-    message: getUserFacingMessage(normalizedType),
+    message: shouldPreserveOriginalMessage(normalizedType, message)
+      ? message
+      : getUserFacingMessage(normalizedType),
   }
 }

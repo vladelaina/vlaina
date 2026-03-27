@@ -1,5 +1,9 @@
 import { create } from 'zustand'
-import { fetchManagedBudget, type ManagedBudgetStatus } from '@/lib/ai/managedService'
+import {
+  fetchManagedBudget,
+  getManagedServiceErrorMessage,
+  type ManagedBudgetStatus,
+} from '@/lib/ai/managedService'
 
 interface ManagedAIState {
   budget: ManagedBudgetStatus | null
@@ -30,7 +34,7 @@ export const useManagedAIStore = create<ManagedAIState>((set) => ({
       set({
         budget: null,
         isRefreshingBudget: false,
-        budgetError: error instanceof Error ? error.message : 'Failed to refresh budget',
+        budgetError: getManagedServiceErrorMessage(error) || 'Failed to refresh budget',
         lastBudgetSyncAt: null,
       })
     }

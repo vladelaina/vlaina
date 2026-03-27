@@ -44,6 +44,7 @@ struct DesktopAuthStartBody<'a> {
 struct DesktopAuthResultBody<'a> {
     state: &'a str,
     verifier: &'a str,
+    result_token: &'a str,
 }
 
 #[derive(Debug, Serialize)]
@@ -162,11 +163,16 @@ pub async fn request_worker_auth_result(
     provider: &str,
     state: &str,
     verifier: &str,
+    result_token: &str,
 ) -> Result<WorkerAuthResultResponse, String> {
     let client = reqwest::Client::new();
     let response = client
         .post(desktop_auth_result_url(provider))
-        .json(&DesktopAuthResultBody { state, verifier })
+        .json(&DesktopAuthResultBody {
+            state,
+            verifier,
+            result_token,
+        })
         .send()
         .await
         .map_err(|e| format!("Failed to complete sign-in via API: {}", e))?;
@@ -191,6 +197,7 @@ pub async fn wait_for_worker_auth_completion(
     provider: &str,
     state: &str,
     verifier: &str,
+    result_token: &str,
     expires_in_seconds: Option<u64>,
 ) -> Result<WorkerAuthResultResponse, String> {
     let timeout_seconds = expires_in_seconds
@@ -199,7 +206,7 @@ pub async fn wait_for_worker_auth_completion(
     let deadline = Instant::now() + Duration::from_secs(timeout_seconds);
 
     loop {
-        let payload = request_worker_auth_result(provider, state, verifier).await?;
+        let payload = request_worker_auth_result(provider, state, verifier, result_token).await?;
         if payload.success || !payload.pending.unwrap_or(false) {
             return Ok(payload);
         }
