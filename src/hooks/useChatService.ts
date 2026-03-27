@@ -5,6 +5,7 @@ import type { Attachment } from '@/lib/storage/attachmentStorage';
 import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { buildRequestHistory } from '@/lib/ai/requestContext';
+import { isManagedProviderId } from '@/lib/ai/managedService';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useAutoTitle } from './useAutoTitle';
 import { requestManager } from '@/lib/ai/requestManager';
@@ -88,6 +89,10 @@ export function useChatService() {
       }
       if (provider.enabled === false) {
         setError('This channel is turned off.');
+        return;
+      }
+      if (isManagedProviderId(provider.id) && attachments.length > 0) {
+        setError('vlaina managed chat currently supports text-only messages.');
         return;
       }
 

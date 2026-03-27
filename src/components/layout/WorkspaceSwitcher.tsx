@@ -43,7 +43,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
 
   const displayName = username || primaryEmail || 'vlaina';
   const userAvatar = useUserAvatar();
-  const displayAvatar = userAvatar || '/logo.png';
+  const displayAvatar = userAvatar || '/logo.png?v=20260327';
 
   const handleOpenLoginDialog = useCallback(() => {
     setIsOpen(false);

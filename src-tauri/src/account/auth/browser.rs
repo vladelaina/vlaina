@@ -8,16 +8,26 @@ use std::process::Command;
 pub fn open_auth_url(url: &str) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        let status = Command::new("cmd")
-            .args(["/C", "start", "", url])
+        let status = Command::new("rundll32")
+            .args(["url.dll,FileProtocolHandler", url])
             .status()
             .map_err(|e| format!("Failed to open browser: {}", e))?;
         if status.success() {
             return Ok(());
         }
+
+        let explorer_status = Command::new("explorer")
+            .arg(url)
+            .status()
+            .map_err(|e| format!("Failed to open browser: {}", e))?;
+        if explorer_status.success() {
+            return Ok(());
+        }
+
         return Err(format!(
-            "Failed to open browser (cmd start exit code {:?})",
-            status.code()
+            "Failed to open browser (rundll32 exit code {:?}, explorer exit code {:?})",
+            status.code(),
+            explorer_status.code()
         ));
     }
 

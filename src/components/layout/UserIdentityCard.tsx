@@ -18,7 +18,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
   const displayName = username || primaryEmail || 'vlaina';
   const displayIdentity = primaryEmail || username || 'vlaina';
   const userAvatar = useUserAvatar();
-  const displayAvatar = userAvatar || '/logo.png';
+  const displayAvatar = userAvatar || '/logo.png?v=20260327';
   const membershipPillClassName = isConnected
     ? membershipTier === 'plus'
       ? 'border-sky-200 bg-sky-50 text-sky-700'
