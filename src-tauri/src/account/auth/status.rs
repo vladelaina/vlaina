@@ -1,5 +1,8 @@
 use crate::account::{
-    credentials::{delete_account_credentials, load_account_credentials, save_account_credentials, AccountCredentials},
+    credentials::{
+        delete_account_credentials, load_account_credentials, save_account_credentials,
+        AccountCredentials,
+    },
     types::AccountSessionStatus,
 };
 use reqwest::header::ACCEPT;

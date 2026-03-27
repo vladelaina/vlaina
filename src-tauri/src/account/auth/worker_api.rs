@@ -244,9 +244,13 @@ pub async fn request_email_auth_code(email: &str) -> Result<(), String> {
         avatar_url: None,
         error: None,
     });
-    Err(payload
-        .error
-        .unwrap_or_else(|| format!("Email sign-in request failed with status {}: {}", status.as_u16(), body)))
+    Err(payload.error.unwrap_or_else(|| {
+        format!(
+            "Email sign-in request failed with status {}: {}",
+            status.as_u16(),
+            body
+        )
+    }))
 }
 
 pub async fn verify_email_auth_code(
@@ -271,13 +275,16 @@ pub async fn verify_email_auth_code(
         .await
         .map_err(|e| format!("Failed to read email verify response: {}", e))?;
 
-    let payload: WorkerAuthResultResponse = serde_json::from_str(&body)
-        .map_err(|e| format!("Invalid email verify response: {}", e))?;
+    let payload: WorkerAuthResultResponse =
+        serde_json::from_str(&body).map_err(|e| format!("Invalid email verify response: {}", e))?;
 
     if !status.is_success() && !payload.success {
-        return Err(payload
-            .error
-            .unwrap_or_else(|| format!("Email sign-in verify failed with status {}", status.as_u16())));
+        return Err(payload.error.unwrap_or_else(|| {
+            format!(
+                "Email sign-in verify failed with status {}",
+                status.as_u16()
+            )
+        }));
     }
 
     Ok(payload)

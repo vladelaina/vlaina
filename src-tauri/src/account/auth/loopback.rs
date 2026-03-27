@@ -60,7 +60,7 @@ fn parse_loopback_callback(target: &str) -> Result<LoopbackCallback, String> {
     let url = Url::parse(&format!("http://127.0.0.1{}", target))
         .map_err(|e| format!("Invalid OAuth callback URL: {}", e))?;
     if url.path() != LOOPBACK_CALLBACK_PATH {
-      return Err("Unexpected OAuth callback path".to_string());
+        return Err("Unexpected OAuth callback path".to_string());
     }
 
     let mut state: Option<String> = None;
@@ -88,7 +88,11 @@ fn parse_loopback_callback(target: &str) -> Result<LoopbackCallback, String> {
 }
 
 impl LoopbackServer {
-    pub async fn wait_for_callback(self, expected_state: &str, timeout_seconds: u64) -> Result<LoopbackCallback, String> {
+    pub async fn wait_for_callback(
+        self,
+        expected_state: &str,
+        timeout_seconds: u64,
+    ) -> Result<LoopbackCallback, String> {
         let deadline = Instant::now() + Duration::from_secs(timeout_seconds.max(30));
         let listener = self.listener;
 
@@ -114,7 +118,11 @@ impl LoopbackServer {
             let Some((method, target)) = parse_request_target(&request) else {
                 write_http_response(
                     &mut stream,
-                    html_response("400 Bad Request", "Authorization Failed", "Invalid callback request."),
+                    html_response(
+                        "400 Bad Request",
+                        "Authorization Failed",
+                        "Invalid callback request.",
+                    ),
                 )
                 .await;
                 continue;
@@ -123,7 +131,11 @@ impl LoopbackServer {
             if method != "GET" {
                 write_http_response(
                     &mut stream,
-                    html_response("405 Method Not Allowed", "Authorization Failed", "Unsupported callback method."),
+                    html_response(
+                        "405 Method Not Allowed",
+                        "Authorization Failed",
+                        "Unsupported callback method.",
+                    ),
                 )
                 .await;
                 continue;
@@ -144,7 +156,11 @@ impl LoopbackServer {
             if callback.state != expected_state {
                 write_http_response(
                     &mut stream,
-                    html_response("400 Bad Request", "Authorization Failed", "OAuth state mismatch."),
+                    html_response(
+                        "400 Bad Request",
+                        "Authorization Failed",
+                        "OAuth state mismatch.",
+                    ),
                 )
                 .await;
                 continue;
@@ -178,7 +194,8 @@ mod tests {
 
     #[test]
     fn parses_error_callback() {
-        let callback = parse_loopback_callback("/oauth/callback?state=dsk_123&error=denied").unwrap();
+        let callback =
+            parse_loopback_callback("/oauth/callback?state=dsk_123&error=denied").unwrap();
         assert_eq!(callback.state, "dsk_123");
         assert_eq!(callback.error.as_deref(), Some("denied"));
     }

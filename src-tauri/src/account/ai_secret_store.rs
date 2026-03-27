@@ -14,8 +14,8 @@ fn normalize_provider_id(provider_id: &str) -> Option<String> {
 }
 
 fn provider_api_key_account(provider_id: &str) -> Result<String, String> {
-    let normalized = normalize_provider_id(provider_id)
-        .ok_or_else(|| "Provider id is required".to_string())?;
+    let normalized =
+        normalize_provider_id(provider_id).ok_or_else(|| "Provider id is required".to_string())?;
     Ok(format!("ai-provider:{}:api-key", normalized))
 }
 

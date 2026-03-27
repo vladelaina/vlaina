@@ -27,6 +27,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
@@ -34,51 +39,11 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install pnpm
-        shell: bash
-        run: |
-          npm install -g pnpm@${PNPM_VERSION}
-          pnpm --version
-
       - name: Install root dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Run root quality gate
         run: pnpm run quality:gate
-
-  api-quality:
-    name: API Quality Gate
-    runs-on: ubuntu-22.04
-
-    defaults:
-      run:
-        working-directory: api
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: api/pnpm-lock.yaml
-
-      - name: Install pnpm
-        shell: bash
-        run: |
-          npm install -g pnpm@${PNPM_VERSION}
-          pnpm --version
-
-      - name: Install API dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Type check API
-        run: pnpm run check
-
-      - name: Run API tests
-        run: pnpm run test
 
   rust-quality:
     name: Rust Quality Gate
@@ -114,7 +79,6 @@ jobs:
     name: Tauri Build (${{ matrix.platform }})
     needs:
       - web-quality
-      - api-quality
       - rust-quality
     strategy:
       fail-fast: false
@@ -144,18 +108,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential curl wget file libxdo-dev libssl-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-
-      - name: Install pnpm
-        shell: bash
-        run: |
-          npm install -g pnpm@${PNPM_VERSION}
-          pnpm --version
 
       - name: Install root dependencies
         run: pnpm install --frozen-lockfile

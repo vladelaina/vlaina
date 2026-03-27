@@ -1,5 +1,3 @@
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
-use rand::RngCore;
 use crate::account::{
     credentials::{
         delete_account_credentials, get_stored_app_session_token, save_account_credentials,
@@ -7,6 +5,8 @@ use crate::account::{
     },
     types::{AccountAuthResult, AccountSessionStatus},
 };
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+use rand::RngCore;
 
 use super::{
     browser::open_auth_url,
@@ -108,7 +108,11 @@ pub async fn account_auth(
 ) -> Result<AccountAuthResult, String> {
     let provider = match normalize_oauth_provider(&provider) {
         Some(value) => value,
-        None => return Ok(error_result("Unsupported desktop sign-in provider".to_string())),
+        None => {
+            return Ok(error_result(
+                "Unsupported desktop sign-in provider".to_string(),
+            ))
+        }
     };
 
     let verifier = generate_desktop_verifier();
@@ -117,10 +121,11 @@ pub async fn account_auth(
         Err(error) => return Ok(error_result(error)),
     };
 
-    let auth_start = match request_worker_auth_start(provider, &loopback.callback_url, &verifier).await {
-        Ok(value) => value,
-        Err(error) => return Ok(error_result(error)),
-    };
+    let auth_start =
+        match request_worker_auth_start(provider, &loopback.callback_url, &verifier).await {
+            Ok(value) => value,
+            Err(error) => return Ok(error_result(error)),
+        };
 
     if let Err(error) = open_auth_url(&auth_start.auth_url) {
         return Ok(error_result(error));
@@ -168,7 +173,11 @@ pub async fn account_auth(
 
     let username = match result.username {
         Some(value) if !value.trim().is_empty() => value.trim().to_string(),
-        _ => return Ok(error_result("Account sign-in result missing username".to_string())),
+        _ => {
+            return Ok(error_result(
+                "Account sign-in result missing username".to_string(),
+            ))
+        }
     };
 
     match persist_account_result(
