@@ -1,11 +1,14 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useUIStore } from '@/stores/uiSlice';
 import { SidebarContent } from './SidebarContent';
 import { NotesOutline } from './Outline';
 import { NotesSidebarSurface } from './NotesSidebarPrimitives';
+import { useGlobalSearch } from '@/hooks/useGlobalSearch';
+import { useNotesSidebarSearchState } from './notesSidebarSearch';
+import type { FolderNode } from '@/stores/useNotesStore';
 
 interface NotesSidebarPanelProps {
-  rootFolder: any;
+  rootFolder: FolderNode | null;
   isLoading: boolean;
   currentNotePath?: string | null;
   createNote: () => void;
@@ -21,32 +24,26 @@ export function NotesSidebarPanel({
   createFolder,
   isPeeking = false,
 }: NotesSidebarPanelProps) {
+  const appViewMode = useUIStore((s) => s.appViewMode);
   const sidebarView = useUIStore((s) => s.notesSidebarView);
   const setSidebarView = useUIStore((s) => s.setNotesSidebarView);
-  const setSearchQuery = useUIStore((s) => s.setSearchQuery);
-  const setNotesSidebarSearchOpen = useUIStore((s) => s.setNotesSidebarSearchOpen);
+  const { isSearchOpen, openSearch, closeSearch } = useNotesSidebarSearchState();
+
+  const toggleSearch = useCallback(() => {
+    if (isSearchOpen) {
+      closeSearch();
+      return;
+    }
+
+    setSidebarView('workspace');
+    openSearch();
+  }, [closeSearch, isSearchOpen, openSearch, setSidebarView]);
+
+  useGlobalSearch(toggleSearch, appViewMode === 'notes');
 
   useEffect(() => {
-    const handleOpenSearch = () => {
-      const { notesSidebarSearchOpen } = useUIStore.getState();
-      if (notesSidebarSearchOpen) {
-        setNotesSidebarSearchOpen(false);
-        setSearchQuery('');
-        return;
-      }
-
-      setSidebarView('workspace');
-      setNotesSidebarSearchOpen(true);
-    };
-
-    window.addEventListener('vlaina-open-search', handleOpenSearch);
-    return () => window.removeEventListener('vlaina-open-search', handleOpenSearch);
-  }, [setNotesSidebarSearchOpen, setSearchQuery, setSidebarView]);
-
-  useEffect(() => {
-    setNotesSidebarSearchOpen(false);
-    setSearchQuery('');
-  }, [setNotesSidebarSearchOpen, setSearchQuery, sidebarView]);
+    closeSearch();
+  }, [closeSearch, sidebarView]);
 
   return (
     <NotesSidebarSurface isPeeking={isPeeking} className="min-h-0">

@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from 'react';
+import { SidebarRow } from '@/components/layout/sidebar/SidebarRow';
 import { cn } from '@/lib/utils';
 
 export interface NotesSidebarRowDragHandlers {
@@ -41,13 +42,28 @@ export function NotesSidebarRow({
   children,
   ...props
 }: NotesSidebarRowProps) {
-  const paddingLeft = depth * 16;
-  const hasActions = Boolean(actions);
-  const showTrailing = Boolean(trailing) && (!hasActions || !showActionsByDefault);
-
   return (
-    <div
-      className={cn('group/notes-sidebar-row flex items-center py-[1px]', className)}
+    <SidebarRow
+      indentWidth={depth * 16}
+      leading={leading}
+      leadingClassName={leadingClassName}
+      main={main}
+      trailing={trailing}
+      actions={actions}
+      isActive={isActive}
+      isDragOver={isDragOver}
+      showActionsByDefault={showActionsByDefault}
+      className={className}
+      contentClassName={contentClassName}
+      actionFadeClassName={cn(
+        'from-[var(--notes-sidebar-fade)]',
+        isActive && 'from-[var(--notes-sidebar-row-active)]',
+        !isActive && 'group-hover/sidebar-row:from-[var(--notes-sidebar-row-hover)]',
+        actionFadeClassName,
+      )}
+      activeClassName="bg-[var(--notes-sidebar-row-active)] text-[var(--notes-sidebar-text)]"
+      inactiveClassName="text-[var(--notes-sidebar-text-muted)] hover:bg-[var(--notes-sidebar-row-hover)]"
+      dragOverClassName="bg-[var(--notes-sidebar-row-drag)] ring-1 ring-[var(--vlaina-accent)]"
       draggable={dragHandlers?.draggable}
       onDragStart={dragHandlers?.onDragStart}
       onDragOver={dragHandlers?.onDragOver}
@@ -55,62 +71,7 @@ export function NotesSidebarRow({
       onDrop={dragHandlers?.onDrop}
       {...props}
     >
-      <div style={{ width: paddingLeft }} className="shrink-0" />
-
-      <div
-        className={cn(
-          'relative mx-1 flex min-h-9 flex-1 items-center gap-2 rounded-xl px-3 py-2 text-sm transition-all duration-150 ease-out',
-          props.onClick && 'cursor-pointer',
-          isActive
-            ? 'bg-[var(--notes-sidebar-row-active)] text-[var(--notes-sidebar-text)]'
-            : 'text-[var(--notes-sidebar-text-muted)] hover:bg-[var(--notes-sidebar-row-hover)]',
-          isDragOver && 'bg-[var(--notes-sidebar-row-drag)] ring-1 ring-[var(--vlaina-accent)]'
-        )}
-      >
-        {leading ? (
-          <span className={cn('flex size-[20px] shrink-0 items-center justify-center', leadingClassName)}>
-            {leading}
-          </span>
-        ) : null}
-
-        <div className={cn('relative z-10 min-w-0 flex-1', hasActions && 'pr-8', contentClassName)}>
-          {main}
-        </div>
-
-        {showTrailing ? (
-          <div
-            className={cn(
-              'pointer-events-none absolute right-3 top-1/2 z-10 -translate-y-1/2 transition-opacity duration-150',
-              hasActions && 'group-hover/notes-sidebar-row:opacity-0'
-            )}
-          >
-            {trailing}
-          </div>
-        ) : null}
-
-        {hasActions ? (
-          <div
-            className={cn(
-              'absolute right-1 top-1/2 z-20 flex -translate-y-1/2 items-center transition-opacity duration-150',
-              showActionsByDefault
-                ? 'pointer-events-auto opacity-100'
-                : 'pointer-events-none opacity-0 group-hover/notes-sidebar-row:pointer-events-auto group-hover/notes-sidebar-row:opacity-100'
-            )}
-          >
-            <div
-              className={cn(
-                'pointer-events-none absolute right-full top-0 h-full w-8 bg-gradient-to-l from-[var(--notes-sidebar-fade)] to-transparent',
-                isActive && 'from-[var(--notes-sidebar-row-active)]',
-                !isActive && 'group-hover/notes-sidebar-row:from-[var(--notes-sidebar-row-hover)]',
-                actionFadeClassName
-              )}
-            />
-            {actions}
-          </div>
-        ) : null}
-
-        {children}
-      </div>
-    </div>
+      {children}
+    </SidebarRow>
   );
 }

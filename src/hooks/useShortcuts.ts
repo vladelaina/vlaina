@@ -5,6 +5,7 @@ import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore as useAppUIStore } from '@/stores/uiSlice';
 import { getShortcuts, getKeysFromEvent, matchShortcut, ShortcutScope, ShortcutHandler } from '@/lib/shortcuts';
 import { shouldBlockBrowserReservedShortcut } from '@/lib/shortcuts/browserGuards';
+import { dispatchSidebarOpenSearchEvent } from '@/components/layout/sidebar/sidebarEvents';
 
 interface UseShortcutsOptions {
   scope?: ShortcutScope;
@@ -30,7 +31,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       setNotesSidebarView(notesSidebarView === 'workspace' ? 'outline' : 'workspace');
     },
     globalSearch: () => {
-      window.dispatchEvent(new Event('vlaina-open-search'));
+      dispatchSidebarOpenSearchEvent();
     },
     'open-settings': () => {
       window.dispatchEvent(new Event('open-settings'));
