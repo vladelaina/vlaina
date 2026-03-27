@@ -19,6 +19,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  dependency-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Audit production dependencies
+        run: pnpm audit --prod --audit-level=high
+
   web-quality:
     name: Web Quality Gate
     runs-on: ubuntu-22.04
@@ -61,7 +87,7 @@ jobs:
       - name: Install dependencies (Ubuntu only)
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential curl wget file libxdo-dev libssl-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y build-essential curl wget file libxdo-dev libssl-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm
 
       - name: Check Rust formatting
         working-directory: src-tauri
@@ -76,19 +102,29 @@ jobs:
         run: cargo test
 
   build:
-    name: Tauri Build (${{ matrix.platform }})
+    name: Desktop Build (${{ matrix.name }})
     needs:
+      - dependency-audit
       - web-quality
       - rust-quality
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: windows-latest
-          - platform: macos-latest
-          - platform: ubuntu-22.04
+          - name: windows-x64
+            runner: windows-latest
+            tauri_args: ""
+            bundle_path: src-tauri/target/release/bundle
+          - name: macos-universal
+            runner: macos-latest
+            tauri_args: "--target universal-apple-darwin"
+            bundle_path: src-tauri/target/universal-apple-darwin/release/bundle
+          - name: linux-x64
+            runner: ubuntu-22.04
+            tauri_args: ""
+            bundle_path: src-tauri/target/release/bundle
 
-    runs-on: ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Checkout repository
@@ -99,14 +135,21 @@ jobs:
         shell: bash
         run: echo "timestamp=$(date +'%Y-%m-%d_%H-%M')" >> $GITHUB_OUTPUT
 
+      - name: Install Rust stable for macOS universal
+        if: matrix.name == 'macos-universal'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
       - name: Install Rust stable
+        if: matrix.name != 'macos-universal'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install dependencies (Ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.name == 'linux-x64'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential curl wget file libxdo-dev libssl-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y build-essential curl wget file libxdo-dev libssl-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -127,70 +170,20 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OAUTH_CLIENT_ID: ${{ secrets.OAUTH_CLIENT_ID }}
-          OAUTH_CLIENT_SECRET: ${{ secrets.OAUTH_CLIENT_SECRET }}
+        with:
+          args: ${{ matrix.tauri_args }}
 
-      - name: Rename artifacts (Windows)
-        if: matrix.platform == 'windows-latest'
-        shell: pwsh
-        run: |
-          $ts = "${{ steps.date.outputs.timestamp }}"
-          $msi = Get-ChildItem "src-tauri/target/release/bundle/msi/*.msi" | Select-Object -First 1
-          if ($msi) { Rename-Item $msi.FullName "Vlaina-$ts.msi" }
-          $exe = Get-ChildItem "src-tauri/target/release/bundle/nsis/*.exe" | Select-Object -First 1
-          if ($exe) { Rename-Item $exe.FullName "Vlaina-$ts-Setup.exe" }
-          if (Test-Path "src-tauri/target/release/Vlaina.exe") {
-            Rename-Item "src-tauri/target/release/Vlaina.exe" "Vlaina-$ts-Portable.exe"
-          }
-
-      - name: Rename artifacts (macOS)
-        if: matrix.platform == 'macos-latest'
-        shell: bash
-        run: |
-          ts="${{ steps.date.outputs.timestamp }}"
-          cd src-tauri/target/release/bundle/dmg
-          for f in *.dmg; do mv "$f" "Vlaina-$ts.dmg"; done
-
-      - name: Rename artifacts (Linux)
-        if: matrix.platform == 'ubuntu-22.04'
-        shell: bash
-        run: |
-          ts="${{ steps.date.outputs.timestamp }}"
-          cd src-tauri/target/release/bundle/deb
-          for f in *.deb; do mv "$f" "Vlaina-$ts.deb"; done
-          cd ../appimage
-          for f in *.AppImage; do mv "$f" "Vlaina-$ts.AppImage"; done
-
-      - name: Upload Windows artifact
-        if: matrix.platform == 'windows-latest'
+      - name: Upload bundled artifacts
         uses: actions/upload-artifact@v6
         with:
-          name: Vlaina-Windows-${{ steps.date.outputs.timestamp }}
-          path: |
-            src-tauri/target/release/bundle/msi/*.msi
-            src-tauri/target/release/bundle/nsis/*.exe
+          name: vlaina-${{ matrix.name }}-${{ steps.date.outputs.timestamp }}
+          path: ${{ matrix.bundle_path }}/**/*
+          if-no-files-found: error
 
-      - name: Upload Windows portable
-        if: matrix.platform == 'windows-latest'
+      - name: Upload Windows portable executable
+        if: matrix.name == 'windows-x64'
         uses: actions/upload-artifact@v6
         with:
-          name: Vlaina-Windows-Portable-${{ steps.date.outputs.timestamp }}
-          path: src-tauri/target/release/Vlaina-*-Portable.exe
-
-      - name: Upload macOS artifact
-        if: matrix.platform == 'macos-latest'
-        uses: actions/upload-artifact@v6
-        with:
-          name: Vlaina-macOS-${{ steps.date.outputs.timestamp }}
-          path: |
-            src-tauri/target/release/bundle/dmg/*.dmg
-            src-tauri/target/release/bundle/macos/*.app
-
-      - name: Upload Linux artifact
-        if: matrix.platform == 'ubuntu-22.04'
-        uses: actions/upload-artifact@v6
-        with:
-          name: Vlaina-Linux-${{ steps.date.outputs.timestamp }}
-          path: |
-            src-tauri/target/release/bundle/deb/*.deb
-            src-tauri/target/release/bundle/appimage/*.AppImage
+          name: vlaina-windows-x64-portable-${{ steps.date.outputs.timestamp }}
+          path: src-tauri/target/release/*.exe
+          if-no-files-found: error

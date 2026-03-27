@@ -7,73 +7,95 @@ on:
 
 env:
   CI: true
+  NODE_VERSION: "24"
+  PNPM_VERSION: "10.11.1"
 
 jobs:
   release:
+    name: Release (${{ matrix.name }})
     permissions:
       contents: write
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: windows-latest
-            args: ''
-          - platform: macos-latest
-            args: '--target universal-apple-darwin'
-          - platform: ubuntu-22.04
-            args: ''
+          - name: windows-x64
+            runner: windows-latest
+            tauri_args: ""
+            bundle_path: src-tauri/target/release/bundle
+          - name: macos-universal
+            runner: macos-latest
+            tauri_args: "--target universal-apple-darwin"
+            bundle_path: src-tauri/target/universal-apple-darwin/release/bundle
+          - name: linux-x64
+            runner: ubuntu-22.04
+            tauri_args: ""
+            bundle_path: src-tauri/target/release/bundle
 
-    runs-on: ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Install Rust stable
+      - name: Install Rust stable for macOS universal
+        if: matrix.name == 'macos-universal'
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
-        if: matrix.platform == 'macos-latest'
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
-        if: matrix.platform != 'macos-latest'
+        if: matrix.name != 'macos-universal'
 
       - name: Install dependencies (Ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.name == 'linux-x64'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential curl wget file libxdo-dev libssl-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y build-essential curl wget file libxdo-dev libssl-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf rpm
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 24
-          package-manager-cache: false
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install pnpm
-        shell: bash
-        run: |
-          npm install -g pnpm@9
-          pnpm --version
-
-      - name: Install frontend dependencies
+      - name: Install root dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Build and release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DESKTOP_CLIENT_ID: ${{ secrets.DESKTOP_CLIENT_ID }}
-          DESKTOP_CLIENT_SECRET: ${{ secrets.DESKTOP_CLIENT_SECRET }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'Vlaina ${{ github.ref_name }}'
+          releaseName: 'vlaina ${{ github.ref_name }}'
           releaseBody: |
             ## Downloads
-            - **Windows**: `.exe` or `.msi`
-            - **macOS**: `.dmg` (Universal Binary)
-            - **Linux**: `.AppImage` or `.deb`
+            - **Windows x64**: NSIS installer, MSI installer, portable executable
+            - **macOS universal**: DMG bundle
+            - **Linux x64**: AppImage, DEB, RPM
           releaseDraft: true
           prerelease: false
-          args: ${{ matrix.args }}
+          args: ${{ matrix.tauri_args }}
+
+      - name: Upload bundled artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: vlaina-release-${{ matrix.name }}-${{ github.ref_name }}
+          path: ${{ matrix.bundle_path }}/**/*
+          if-no-files-found: error
+
+      - name: Upload Windows portable executable
+        if: matrix.name == 'windows-x64'
+        uses: actions/upload-artifact@v6
+        with:
+          name: vlaina-release-windows-x64-portable-${{ github.ref_name }}
+          path: src-tauri/target/release/*.exe
+          if-no-files-found: error
