@@ -3,18 +3,119 @@ name: CI
 on:
   push:
     branches:
-      - main
-      - master
+      - "**"
   pull_request:
-    branches:
-      - main
-      - master
 
 env:
   CI: true
+  NODE_VERSION: "24"
+  PNPM_VERSION: "10.11.1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  web-quality:
+    name: Web Quality Gate
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install pnpm
+        shell: bash
+        run: |
+          npm install -g pnpm@${PNPM_VERSION}
+          pnpm --version
+
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run root quality gate
+        run: pnpm run quality:gate
+
+  api-quality:
+    name: API Quality Gate
+    runs-on: ubuntu-22.04
+
+    defaults:
+      run:
+        working-directory: api
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: api/pnpm-lock.yaml
+
+      - name: Install pnpm
+        shell: bash
+        run: |
+          npm install -g pnpm@${PNPM_VERSION}
+          pnpm --version
+
+      - name: Install API dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check API
+        run: pnpm run check
+
+      - name: Run API tests
+        run: pnpm run test
+
+  rust-quality:
+    name: Rust Quality Gate
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Install dependencies (Ubuntu only)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential curl wget file libxdo-dev libssl-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+
+      - name: Check Rust formatting
+        working-directory: src-tauri
+        run: cargo fmt --all -- --check
+
+      - name: Run Rust clippy
+        working-directory: src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Run Rust tests
+        working-directory: src-tauri
+        run: cargo test
+
   build:
+    name: Tauri Build (${{ matrix.platform }})
+    needs:
+      - web-quality
+      - api-quality
+      - rust-quality
     strategy:
       fail-fast: false
       matrix:
@@ -46,23 +147,18 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 24
-          package-manager-cache: false
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install pnpm
         shell: bash
         run: |
-          npm install -g pnpm@9
+          npm install -g pnpm@${PNPM_VERSION}
           pnpm --version
 
-      - name: Install frontend dependencies
+      - name: Install root dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Type check
-        run: pnpm exec tsc --noEmit
-
-      - name: Build frontend
-        run: pnpm build
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
@@ -76,13 +172,10 @@ jobs:
         shell: pwsh
         run: |
           $ts = "${{ steps.date.outputs.timestamp }}"
-          # Rename MSI
           $msi = Get-ChildItem "src-tauri/target/release/bundle/msi/*.msi" | Select-Object -First 1
           if ($msi) { Rename-Item $msi.FullName "Vlaina-$ts.msi" }
-          # Rename Setup EXE
           $exe = Get-ChildItem "src-tauri/target/release/bundle/nsis/*.exe" | Select-Object -First 1
           if ($exe) { Rename-Item $exe.FullName "Vlaina-$ts-Setup.exe" }
-          # Rename Portable
           if (Test-Path "src-tauri/target/release/Vlaina.exe") {
             Rename-Item "src-tauri/target/release/Vlaina.exe" "Vlaina-$ts-Portable.exe"
           }
@@ -138,27 +231,3 @@ jobs:
           path: |
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/appimage/*.AppImage
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          package-manager-cache: false
-
-      - name: Install pnpm
-        shell: bash
-        run: |
-          npm install -g pnpm@9
-          pnpm --version
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Type check
-        run: pnpm exec tsc --noEmit
