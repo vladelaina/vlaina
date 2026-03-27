@@ -7,6 +7,7 @@ import { TreeItemDeleteDialog } from './components/TreeItemDeleteDialog';
 import { useFolderItemState } from './hooks/useFolderItemState';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
+import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 
 interface FolderItemProps {
   node: FolderNode;
@@ -43,9 +44,9 @@ export const FolderItem = memo(function FolderItem({
   } = useFolderItemState(node);
 
   const leading = node.expanded ? (
-    <Icon name="file.folderOpen" size="sidebar" className="text-[var(--notes-sidebar-folder-icon)]" />
+    <Icon name="file.folderOpen" size={NOTES_SIDEBAR_ICON_SIZE} className="text-[var(--notes-sidebar-folder-icon)]" />
   ) : (
-    <Icon name="file.folder" size="sidebar" className="text-[var(--notes-sidebar-folder-icon)]" />
+    <Icon name="file.folder" size={NOTES_SIDEBAR_ICON_SIZE} className="text-[var(--notes-sidebar-folder-icon)]" />
   );
 
   return (

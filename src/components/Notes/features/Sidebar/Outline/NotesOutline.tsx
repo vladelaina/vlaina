@@ -5,6 +5,7 @@ import { CollapseTriangleAffordance } from '../../common/collapseTrianglePrimiti
 import { NotesSidebarScrollArea } from '../NotesSidebarPrimitives';
 import { NotesSidebarTopActions } from '../NotesSidebarTopActions';
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
+import { NOTES_SIDEBAR_ROW_HEIGHT } from '../sidebarLayout';
 import {
   buildOutlineTree,
   cleanupCollapsedHeadingIds,
@@ -59,7 +60,11 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
                 ? 'bg-[var(--vlaina-hover-filled)] text-[var(--vlaina-text-primary)]'
                 : 'text-[var(--vlaina-text-secondary)]',
             )}
-            style={{ paddingLeft: `${8 + (node.level - 1) * 12}px`, paddingRight: '8px' }}
+            style={{
+              minHeight: NOTES_SIDEBAR_ROW_HEIGHT,
+              paddingLeft: `${8 + (node.level - 1) * 12}px`,
+              paddingRight: '8px',
+            }}
           >
             {hasChildren ? (
               <button
@@ -89,7 +94,8 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
             <button
               type="button"
               onClick={() => jumpToHeading(node.id)}
-              className="min-w-0 flex-1 py-1.5 text-left text-[13px] leading-5 whitespace-normal break-words"
+              className="flex min-w-0 flex-1 items-center py-0 text-left text-[13px] leading-5 whitespace-normal break-words"
+              style={{ minHeight: NOTES_SIDEBAR_ROW_HEIGHT }}
             >
               {node.text}
             </button>

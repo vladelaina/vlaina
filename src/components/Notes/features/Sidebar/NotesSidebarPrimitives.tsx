@@ -18,6 +18,9 @@ interface NotesSidebarSectionProps extends HTMLAttributes<HTMLDivElement> {
   actions?: ReactNode;
   contentClassName?: string;
   animated?: boolean;
+  nested?: boolean;
+  flushHeader?: boolean;
+  headerClassName?: string;
 }
 
 export function NotesSidebarSurface({
@@ -68,13 +71,18 @@ export function NotesSidebarSection({
   className,
   contentClassName,
   animated = true,
+  nested = false,
+  flushHeader = false,
+  headerClassName,
   ...props
 }: NotesSidebarSectionProps) {
   const isInteractive = typeof onToggle === 'function';
 
   return (
-    <div className={cn('mb-2', className)} {...props}>
-      <div className="px-1 pb-1">
+    <div className={cn(nested ? 'mb-1' : 'mb-2', className)} {...props}>
+      <div className={cn(
+        nested ? 'px-0 pb-0.5' : 'px-1 pb-1'
+      )}>
         <div
           onClick={(event) => {
             if (!isInteractive) return;
@@ -83,13 +91,22 @@ export function NotesSidebarSection({
             onToggle();
           }}
           className={cn(
-            'group flex min-h-8 items-center justify-between rounded-lg px-2',
+            'group flex items-center justify-between',
+            nested
+              ? 'min-h-7 rounded-md px-2'
+              : flushHeader
+                ? 'min-h-8 rounded-lg px-0'
+                : 'min-h-8 rounded-lg px-2',
+            headerClassName,
             isInteractive && 'cursor-pointer'
           )}
         >
           <div className="min-w-0 flex-1">
-            <div className="inline-flex max-w-full items-center align-middle">
-              <span className="min-w-0 truncate text-[11px] font-semibold tracking-[0.08em] text-[var(--notes-sidebar-section-label)] transition-colors group-hover:text-[var(--notes-sidebar-section-label-hover)]">
+            <div className="inline-flex max-w-full items-center gap-1 align-middle">
+              <span className={cn(
+                'min-w-0 truncate font-semibold text-[var(--notes-sidebar-section-label)] transition-colors group-hover:text-[var(--notes-sidebar-section-label-hover)]',
+                nested ? 'text-[10px] tracking-[0.1em]' : 'text-[11px] tracking-[0.08em]'
+              )}>
                 {title}
               </span>
               {isInteractive ? (
@@ -97,20 +114,18 @@ export function NotesSidebarSection({
                   collapsed={!expanded}
                   visibility="hover-unless-collapsed"
                   size={12}
-                  className="ml-1 h-[18px] w-[18px] text-[var(--notes-sidebar-icon)] group-hover:text-[var(--notes-sidebar-icon-hover)] group-focus-within:text-[var(--notes-sidebar-icon-hover)]"
+                  className="h-[18px] w-[18px] shrink-0 text-[var(--notes-sidebar-icon)] group-hover:text-[var(--notes-sidebar-icon-hover)] group-focus-within:text-[var(--notes-sidebar-icon-hover)]"
                 />
               ) : null}
             </div>
           </div>
-          {actions ? (
-            <div className="ml-2 flex shrink-0 items-center gap-1">
-              {actions ? (
-                <div className="flex items-center gap-1 opacity-0 pointer-events-none transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto">
-                  {actions}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
+          <div className="ml-2 flex shrink-0 items-center gap-1">
+            {actions ? (
+              <div className="flex items-center gap-1 opacity-0 pointer-events-none transition-opacity group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto">
+                {actions}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -122,7 +137,7 @@ export function NotesSidebarSection({
         )}
       >
         <div className="overflow-hidden">
-          <div className={cn('px-1', contentClassName)}>{children}</div>
+          <div className={cn(nested ? 'px-0' : 'px-1', contentClassName)}>{children}</div>
         </div>
       </div>
     </div>

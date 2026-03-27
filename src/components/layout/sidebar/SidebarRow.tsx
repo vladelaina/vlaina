@@ -39,16 +39,14 @@ export function SidebarRow({
 }: SidebarRowProps) {
   const hasActions = Boolean(actions);
   const showTrailing = Boolean(trailing) && (!hasActions || !showActionsByDefault);
+  const rowStyle = indentWidth > 0 ? { paddingLeft: `calc(0.75rem + ${indentWidth}px)` } : undefined;
 
   return (
     <div className={cn('group/sidebar-row flex items-center py-[1px]', className)} {...props}>
-      {indentWidth > 0 ? (
-        <div style={{ width: indentWidth }} className="shrink-0" />
-      ) : null}
-
       <div
+        style={rowStyle}
         className={cn(
-          'relative mx-1 flex min-h-9 flex-1 items-center gap-2 rounded-xl px-3 py-2 text-sm transition-all duration-150 ease-out',
+          'relative flex h-[30px] flex-1 items-center gap-2 rounded-md px-3 py-1 text-sm transition-all duration-150 ease-out',
           props.onClick && 'cursor-pointer',
           isActive ? activeClassName : inactiveClassName,
           isDragOver && dragOverClassName,

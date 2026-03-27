@@ -1,6 +1,4 @@
 import { useMemo, useRef } from 'react';
-import { StarredSection } from '../Starred';
-import { WorkspaceSection } from '../FileTree';
 import { cn } from '@/lib/utils';
 import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
 import { NotesSidebarScrollArea } from './NotesSidebarPrimitives';
@@ -10,6 +8,9 @@ import { Icon } from '@/components/ui/icons';
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
 import { SidebarSearchField } from '@/components/layout/sidebar/SidebarPrimitives';
 import { useSidebarSearchControls } from '@/components/layout/sidebar/useSidebarSearchControls';
+import { StarredSection } from '../Starred';
+import { RootFolderRow } from './RootFolderRow';
+import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
 import {
   buildNotesSidebarSearchResults,
   useNotesSidebarSearchState,
@@ -111,7 +112,7 @@ export function SidebarContent({
               {searchResults.map((result) => (
                 <NotesSidebarRow
                   key={result.path}
-                  leading={<Icon name="file.text" size="sidebar" className="text-[var(--notes-sidebar-file-icon)]" />}
+                  leading={<Icon name="file.text" size={NOTES_SIDEBAR_ICON_SIZE} className="text-[var(--notes-sidebar-file-icon)]" />}
                   isActive={result.path === currentNotePath}
                   onClick={() => handleOpenResult(result.path)}
                   main={(
@@ -131,16 +132,16 @@ export function SidebarContent({
             </div>
           ) : null
         ) : (
-          <>
-            <StarredSection />
-            <WorkspaceSection
+          <div className="space-y-1">
+            <StarredSection showTitle={false} />
+            <RootFolderRow
               rootFolder={rootFolder}
               isLoading={isLoading}
-              currentNotePath={currentNotePath ?? undefined}
+              currentNotePath={currentNotePath}
               onCreateNote={createNote}
               onCreateFolder={() => createFolder('')}
             />
-          </>
+          </div>
         )}
       </NotesSidebarScrollArea>
     </div>
