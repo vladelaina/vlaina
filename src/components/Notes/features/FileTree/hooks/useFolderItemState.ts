@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type React from 'react';
 import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
 import type { NotesSidebarRowDragHandlers } from '../../Sidebar/NotesSidebarRow';
+import { getSidebarMenuPositionFromTriggerRect } from '../../common/sidebarMenuPosition';
 
 export function useFolderItemState(node: FolderNode) {
   const toggleFolder = useNotesStore((state) => state.toggleFolder);
@@ -49,7 +50,7 @@ export function useFolderItemState(node: FolderNode) {
   }, []);
 
   const handleMenuTrigger = useCallback((_event: React.MouseEvent, rect: DOMRect) => {
-    setMenuPosition({ top: rect.top, left: rect.right + 4 });
+    setMenuPosition(getSidebarMenuPositionFromTriggerRect(rect));
     setShowMenu((prev) => !prev);
   }, []);
 

@@ -12,8 +12,16 @@ import { FirstPrinciplesTableDrag } from './playground/FirstPrinciplesTableDrag'
 import { FirstPrinciplesLinkEditor } from './playground/FirstPrinciplesLinkEditor';
 import { NotesSidebarModeLab } from './playground/NotesSidebarModeLab';
 import { MembershipBadgeLab } from './playground/MembershipBadgeLab';
+import { VlainaInsightSidebarLab } from './playground/VlainaInsightSidebarLab';
 
 export const LAB_MODULES = [
+  {
+    id: 'vlaina-insight-sidebar-50',
+    label: 'vlaina: Insight 50',
+    icon: 'misc.lab',
+    component: VlainaInsightSidebarLab,
+    description: '50 architectural variations inspired by the vlaina Magic Scholar logo. Exploring Tome, Star, and Aura.'
+  },
   {
     id: 'outline-sticky-paradigm',
     label: 'The Entry Lab (Sticky)',

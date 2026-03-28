@@ -1,4 +1,5 @@
 import { moveDisplayName } from '../../displayNameUtils';
+import { remapMetadataEntries, saveNoteMetadata } from '../../storage';
 import { getVaultStarredPaths, remapStarredEntriesForVault, saveStarredRegistry } from '../../starred';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 
@@ -73,12 +74,24 @@ export async function processFolderRename(
         updatedCurrentNote = { ...updatedCurrentNote, path: newNotePath };
     }
 
+    const updatedMetadata = remapMetadataEntries(currentStore.noteMetadata ?? null, (relativePath) => {
+        if (relativePath === path || relativePath.startsWith(path + '/')) {
+            return relativePath.replace(path, newPath);
+        }
+        return relativePath;
+    });
+
+    if (updatedMetadata !== currentStore.noteMetadata && updatedMetadata) {
+        saveNoteMetadata(notesPath, updatedMetadata);
+    }
+
     return {
         newPath,
         updatedStarredEntries: starredResult.entries,
         updatedStarredFolders: starredPaths.folders,
         updatedStarredNotes: starredPaths.notes,
         updatedTabs,
-        updatedCurrentNote
+        updatedCurrentNote,
+        updatedMetadata,
     };
 }

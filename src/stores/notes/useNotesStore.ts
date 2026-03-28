@@ -7,7 +7,7 @@ import { createAssetSlice } from './slices/assetSlice';
 import { createCustomEmojiSlice } from './slices/customEmojiSlice';
 
 export * from './types';
-export { sortFileTree } from './fileTreeUtils';
+export { sortFileTree } from './fileTreeSorting';
 export { setCurrentVaultPath, getCurrentVaultPath } from './storage';
 
 export const useNotesStore = create<NotesStore>()((...a) => ({

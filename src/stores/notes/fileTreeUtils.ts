@@ -1,5 +1,6 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import type { FileTreeNode } from './types';
+import { sortFileTree } from './fileTreeSorting';
 
 export async function buildFileTree(basePath: string, relativePath: string = ''): Promise<FileTreeNode[]> {
   const storage = getStorageAdapter();
@@ -37,14 +38,6 @@ export async function buildFileTree(basePath: string, relativePath: string = '')
   }
 
   return sortFileTree(nodes);
-}
-
-export function sortFileTree(nodes: FileTreeNode[]): FileTreeNode[] {
-  return [...nodes].sort((a, b) => {
-    if (a.isFolder && !b.isFolder) return -1;
-    if (!a.isFolder && b.isFolder) return 1;
-    return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
-  });
 }
 
 export function updateFileNodePath(

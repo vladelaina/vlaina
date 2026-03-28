@@ -12,10 +12,12 @@ interface NotesSidebarContextMenuProps {
 
 interface NotesSidebarContextMenuItemProps {
   icon: ReactNode;
-  label: string;
+  label: ReactNode;
   onClick: () => void;
   danger?: boolean;
   disabled?: boolean;
+  trailing?: ReactNode;
+  className?: string;
 }
 
 export function NotesSidebarContextMenu({
@@ -57,6 +59,8 @@ export function NotesSidebarContextMenuItem({
   onClick,
   danger = false,
   disabled = false,
+  trailing,
+  className,
 }: NotesSidebarContextMenuItemProps) {
   return (
     <button
@@ -70,7 +74,8 @@ export function NotesSidebarContextMenuItem({
         danger
           ? 'text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20'
           : 'text-[var(--notes-sidebar-text)] hover:bg-[var(--notes-sidebar-row-hover)]',
-        disabled && 'cursor-not-allowed opacity-50 hover:bg-transparent dark:hover:bg-transparent'
+        disabled && 'cursor-not-allowed opacity-50 hover:bg-transparent dark:hover:bg-transparent',
+        className,
       )}
     >
       <span
@@ -81,7 +86,8 @@ export function NotesSidebarContextMenuItem({
       >
         {icon}
       </span>
-      <span>{label}</span>
+      <span className="min-w-0 flex-1 truncate text-left">{label}</span>
+      {trailing ? <span className="shrink-0 text-[var(--notes-sidebar-icon)]">{trailing}</span> : null}
     </button>
   );
 }

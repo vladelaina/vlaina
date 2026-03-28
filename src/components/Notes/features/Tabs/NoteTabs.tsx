@@ -1,8 +1,9 @@
 import { memo } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
-import { useDisplayName, useDisplayIcon } from '@/hooks/useTitleSync';
+import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { NoteIcon } from '../IconPicker/NoteIcon';
+import { useNoteLabelDescriptor } from '../common/noteDisambiguation';
 
 export interface NoteTab {
   path: string;
@@ -19,8 +20,8 @@ interface SingleTabProps {
 }
 
 const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClose, onTabMiddleClick }: SingleTabProps) {
-  const displayName = useDisplayName(tab.path);
   const icon = useDisplayIcon(tab.path);
+  const { title, disambiguation } = useNoteLabelDescriptor(tab.path, tab.name);
 
   return (
     <div
@@ -52,9 +53,7 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
           name="file.text"
           className={cn(
             "w-[18px] h-[18px] flex-shrink-0",
-            isActive
-              ? "text-[var(--vlaina-accent)]"
-              : "text-amber-500"
+            "text-[var(--notes-sidebar-file-icon)]"
           )}
         />
       )}
@@ -65,7 +64,10 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
           ? "text-[var(--vlaina-text-primary)]"
           : "text-[var(--vlaina-text-secondary)]"
       )}>
-        {displayName || tab.name}
+        {title}
+        {disambiguation ? (
+          <span className="text-[11px] text-current/65">{` · ${disambiguation}`}</span>
+        ) : null}
       </span>
 
       {tab.isDirty && (

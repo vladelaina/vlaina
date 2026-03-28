@@ -7,7 +7,7 @@ import {
   METADATA_FILE,
   WORKSPACE_FILE,
 } from './constants';
-import type { MetadataFile, NoteMetadataEntry } from './types';
+import type { FileTreeSortMode, MetadataFile, NoteMetadataEntry } from './types';
 
 export type { MetadataFile, NoteMetadataEntry };
 
@@ -111,6 +111,39 @@ export function setNoteEntry(
   };
 }
 
+export function remapMetadataEntries(
+  metadata: MetadataFile | null,
+  remapPath: (path: string) => string | null
+): MetadataFile | null {
+  if (!metadata) {
+    return metadata;
+  }
+
+  let changed = false;
+  const nextNotes: MetadataFile['notes'] = {};
+
+  for (const [path, entry] of Object.entries(metadata.notes)) {
+    const nextPath = remapPath(path);
+    if (nextPath == null) {
+      changed = true;
+      continue;
+    }
+    if (nextPath !== path) {
+      changed = true;
+    }
+    nextNotes[nextPath] = entry;
+  }
+
+  if (!changed) {
+    return metadata;
+  }
+
+  return {
+    ...metadata,
+    notes: nextNotes,
+  };
+}
+
 let currentVaultPath: string | null = null;
 
 export function setCurrentVaultPath(path: string | null): void {
@@ -139,6 +172,7 @@ export async function ensureNotesFolder(basePath: string): Promise<void> {
 export interface WorkspaceState {
   currentNotePath: string | null;
   expandedFolders: string[];
+  fileTreeSortMode?: FileTreeSortMode;
 }
 
 export async function loadWorkspaceState(vaultPath: string): Promise<WorkspaceState | null> {

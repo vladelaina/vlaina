@@ -1,6 +1,41 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
-import { ensureMarkdownFileName, stripMarkdownExtension } from '@/lib/notes/displayName';
+import { resolveUniqueName } from '@/lib/naming/uniqueName';
+import { ensureMarkdownFileName } from '@/lib/notes/displayName';
 import { sanitizeFileName } from '../../noteUtils';
+
+function normalizeDesiredFileName(name: string, isDirectory: boolean) {
+  if (name) {
+    const sanitized = sanitizeFileName(name);
+    return isDirectory ? sanitized : ensureMarkdownFileName(sanitized);
+  } else {
+    return isDirectory ? 'Untitled' : 'Untitled.md';
+  }
+}
+
+async function resolveUniqueTargetPath(
+  basePath: string,
+  folderPath: string | undefined,
+  fileName: string,
+  isDirectory: boolean,
+  ignoredRelativePath?: string
+) {
+  const storage = getStorageAdapter();
+  const resolvedFileName = await resolveUniqueName(
+    fileName,
+    async (candidateName) => {
+      const candidateRelativePath = folderPath ? `${folderPath}/${candidateName}` : candidateName;
+      if (candidateRelativePath === ignoredRelativePath) {
+        return false;
+      }
+      const candidateFullPath = await joinPath(basePath, candidateRelativePath);
+      return storage.exists(candidateFullPath);
+    },
+    { splitExtension: !isDirectory }
+  );
+  const relativePath = folderPath ? `${folderPath}/${resolvedFileName}` : resolvedFileName;
+  const fullPath = await joinPath(basePath, relativePath);
+  return { relativePath, fullPath, fileName: resolvedFileName };
+}
 
 export async function resolveUniquePath(
   basePath: string,
@@ -8,33 +43,29 @@ export async function resolveUniquePath(
   name: string,
   isDirectory: boolean
 ): Promise<{ relativePath: string; fullPath: string; fileName: string }> {
-  const storage = getStorageAdapter();
-  
-  let fileName = isDirectory ? name : ensureMarkdownFileName(name);
-  
-  if (name) {
-      const sanitized = sanitizeFileName(name);
-      fileName = isDirectory ? sanitized : ensureMarkdownFileName(sanitized);
-  } else {
-      fileName = isDirectory ? 'Untitled' : 'Untitled.md';
-  }
+  const fileName = normalizeDesiredFileName(name, isDirectory);
+  return resolveUniqueTargetPath(basePath, folderPath, fileName, isDirectory);
+}
 
-  let relativePath = folderPath ? `${folderPath}/${fileName}` : fileName;
-  let fullPath = await joinPath(basePath, relativePath);
+export async function resolveUniqueRenamedPath(
+  basePath: string,
+  currentPath: string,
+  nextName: string,
+  isDirectory: boolean
+) {
+  const folderPath = getParentPath(currentPath) || undefined;
+  const fileName = normalizeDesiredFileName(nextName, isDirectory);
+  return resolveUniqueTargetPath(basePath, folderPath, fileName, isDirectory, currentPath);
+}
 
-  let counter = 1;
-  const originalName = isDirectory ? fileName : stripMarkdownExtension(fileName);
-  const ext = isDirectory ? '' : '.md';
-
-  while (await storage.exists(fullPath)) {
-    const newName = `${originalName} ${counter}${ext}`;
-    relativePath = folderPath ? `${folderPath}/${newName}` : newName;
-    fullPath = await joinPath(basePath, relativePath);
-    fileName = newName;
-    counter++;
-  }
-
-  return { relativePath, fullPath, fileName };
+export async function resolveUniqueMovedPath(
+  basePath: string,
+  sourcePath: string,
+  targetFolderPath: string | undefined,
+  isDirectory: boolean
+) {
+  const sourceName = sourcePath.split('/').pop() || (isDirectory ? 'Untitled' : 'Untitled.md');
+  return resolveUniqueTargetPath(basePath, targetFolderPath, sourceName, isDirectory, sourcePath);
 }
 
 export function getParentPath(path: string): string {

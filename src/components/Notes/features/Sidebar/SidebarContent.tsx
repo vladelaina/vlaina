@@ -8,6 +8,7 @@ import { Icon } from '@/components/ui/icons';
 import { StarredSection } from '../Starred';
 import { RootFolderRow } from './RootFolderRow';
 import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
+import { NoteDisambiguatedTitle } from '../common/noteDisambiguation';
 import {
   SidebarSearchDrawer,
   useSidebarSearchDrawerState,
@@ -104,9 +105,13 @@ export function SidebarContent({
                   onClick={() => handleOpenResult(result.path)}
                   main={(
                     <div className="min-w-0">
-                      <div className={cn('truncate', result.path === currentNotePath && 'font-medium text-[var(--notes-sidebar-text)]')}>
-                        {result.name}
-                      </div>
+                      <NoteDisambiguatedTitle
+                        path={result.path}
+                        fallbackName={result.name}
+                        className={cn(result.path === currentNotePath && 'text-[var(--notes-sidebar-text)]')}
+                        titleClassName={cn(result.path === currentNotePath && 'font-medium')}
+                        hintClassName="text-[var(--notes-sidebar-text-soft)]"
+                      />
                       {result.preview ? (
                         <div className="truncate text-[11px] text-[var(--notes-sidebar-text-soft)]">
                           {result.preview}

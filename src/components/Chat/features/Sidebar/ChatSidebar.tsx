@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { cn, iconButtonStyles } from '@/lib/utils';
+import type { ChatSession } from '@/lib/ai/types';
 import { isTemporarySession } from '@/lib/ai/temporaryChat';
 import { ChatSidebarList, ChatSidebarRow, ChatSidebarScrollArea, ChatSidebarSurface } from './ChatSidebarPrimitives';
 import {
@@ -17,10 +18,12 @@ import { Icon } from '@/components/ui/icons';
 import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
 import { ChatSidebarTopActions } from './ChatSidebarTopActions';
 import { useGlobalSearch } from '@/hooks/useGlobalSearch';
+import { buildDuplicateLabelRegistry } from '@/lib/labels/disambiguation';
 import {
   SidebarSearchDrawer,
   useSidebarSearchDrawerState,
 } from '@/components/layout/sidebar/SidebarSearchDrawer';
+import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 
 interface ChatSidebarProps {
   isPeeking?: boolean;
@@ -34,6 +37,35 @@ function ChatSidebarLoadingTitle({ title }: { title: string }) {
         {title}
       </span>
     </span>
+  );
+}
+
+function formatChatDisambiguationDate(timestamp: number) {
+  return new Intl.DateTimeFormat(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }).format(new Date(timestamp));
+}
+
+function formatChatDisambiguationTime(timestamp: number) {
+  return new Intl.DateTimeFormat(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(timestamp));
+}
+
+function buildChatSessionDisambiguationRegistry(sessions: ChatSession[]) {
+  return buildDuplicateLabelRegistry(
+    sessions.map((session) => ({
+      id: session.id,
+      label: session.title || 'New Chat',
+      hintSegments: [
+        session.id.slice(-4).toUpperCase(),
+        formatChatDisambiguationDate(session.createdAt),
+        formatChatDisambiguationTime(session.createdAt),
+      ],
+    }))
   );
 }
 
@@ -57,7 +89,6 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
   const [renameDraft, setRenameDraft] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const renameInputRef = useRef<HTMLInputElement | null>(null);
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
   const preventNextMenuAutoFocusRef = useRef(false);
 
@@ -97,20 +128,6 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
   );
 
   useEffect(() => {
-    if (!renamingSessionId) {
-      return;
-    }
-    const input = renameInputRef.current;
-    if (!input) {
-      return;
-    }
-    requestAnimationFrame(() => {
-      input.focus();
-      input.select();
-    });
-  }, [renamingSessionId]);
-
-  useEffect(() => {
     const handleDeleteChat = (e: Event) => {
         const customEvent = e as CustomEvent;
         if (customEvent.detail?.id) {
@@ -147,6 +164,11 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
       (session.title || 'New Chat').toLowerCase().includes(trimmedQuery)
     );
   }, [searchQuery, sortedSessions]);
+
+  const sessionDisambiguationRegistry = useMemo(
+    () => buildChatSessionDisambiguationRegistry(visibleSessions),
+    [visibleSessions]
+  );
 
   const handleRename = (sessionId: string, currentTitle: string) => {
       setRenamingSessionId(sessionId);
@@ -235,6 +257,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                 const isUnread = isSessionUnread(session.id);
                 const isRenaming = renamingSessionId === session.id;
                 const displayTitle = session.title || 'New Chat';
+                const disambiguation = sessionDisambiguationRegistry.get(session.id) ?? null;
                 const showMenuByDefault = isActive && !session.isPinned;
                 const statusIndicator = isGenerating && !isActive ? (
                   null
@@ -260,23 +283,11 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                     }}
                     main={
                       isRenaming ? (
-                        <input
-                          ref={renameInputRef}
+                        <SidebarInlineRenameInput
                           value={renameDraft}
-                          onChange={(event) => setRenameDraft(event.target.value)}
-                          onClick={(event) => event.stopPropagation()}
-                          onMouseDown={(event) => event.stopPropagation()}
-                          onBlur={() => commitRename(session.id, displayTitle)}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter') {
-                              event.preventDefault();
-                              commitRename(session.id, displayTitle);
-                            }
-                            if (event.key === 'Escape') {
-                              event.preventDefault();
-                              cancelRename();
-                            }
-                          }}
+                          onValueChange={setRenameDraft}
+                          onSubmit={() => commitRename(session.id, displayTitle)}
+                          onCancel={cancelRename}
                           className={cn(
                             'w-full min-w-0 border-none bg-transparent p-0 text-sm leading-5 outline-none',
                             isGenerating || isUnread
@@ -286,7 +297,12 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                         />
                       ) : (
                         isGenerating && !isActive ? (
-                          <ChatSidebarLoadingTitle title={displayTitle} />
+                          <span className="block truncate">
+                            <ChatSidebarLoadingTitle title={displayTitle} />
+                            {disambiguation ? (
+                              <span className="text-[11px] text-[var(--chat-sidebar-text-muted)]/80">{` · ${disambiguation}`}</span>
+                            ) : null}
+                          </span>
                         ) : (
                           <span
                             className={cn(
@@ -297,6 +313,9 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                             )}
                           >
                             {displayTitle}
+                            {disambiguation ? (
+                              <span className="text-[11px] text-current/65">{` · ${disambiguation}`}</span>
+                            ) : null}
                           </span>
                         )
                       )

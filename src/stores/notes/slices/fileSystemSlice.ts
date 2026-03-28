@@ -4,7 +4,6 @@ import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { NotesStore } from '../types';
 import {
   buildFileTree,
-  sortFileTree,
   updateFolderExpanded,
   updateFolderNode,
   collectExpandedPaths,
@@ -12,6 +11,10 @@ import {
   restoreExpandedState,
   addNodeToTree,
 } from '../fileTreeUtils';
+import {
+  DEFAULT_FILE_TREE_SORT_MODE,
+  sortNestedFileTree,
+} from '../fileTreeSorting';
 import {
   getNotesBasePath,
   ensureNotesFolder,
@@ -23,6 +26,7 @@ import { getVaultStarredPaths } from '../starred';
 import { createNoteImpl } from '../utils/fs/crudOperations';
 import { processFolderRename } from '../utils/fs/batchOperations';
 import { deleteNoteImpl, deleteFolderImpl } from '../utils/fs/deleteOperations';
+import { resolveUniquePath, resolveUniqueRenamedPath } from '../utils/fs/pathOperations';
 import { renameNoteImpl, moveItemImpl } from '../utils/fs/renameOperations';
 import { uploadNoteAssetImpl } from '../utils/fs/uploadOperations';
 
@@ -31,6 +35,7 @@ export interface FileSystemSlice {
   notesPath: NotesStore['notesPath'];
   isNewlyCreated: NotesStore['isNewlyCreated'];
   newlyCreatedFolderPath: NotesStore['newlyCreatedFolderPath'];
+  fileTreeSortMode: NotesStore['fileTreeSortMode'];
 
   loadFileTree: (skipRestore?: boolean) => Promise<void>;
   toggleFolder: (path: string) => void;
@@ -49,6 +54,7 @@ export interface FileSystemSlice {
   deleteFolder: (path: string) => Promise<void>;
   moveItem: (sourcePath: string, targetFolderPath: string) => Promise<void>;
   uploadNoteAsset: (notePath: string, file: File) => Promise<string | null>;
+  setFileTreeSortMode: NotesStore['setFileTreeSortMode'];
 }
 
 export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemSlice> = (
@@ -59,6 +65,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   notesPath: '',
   isNewlyCreated: false,
   newlyCreatedFolderPath: null,
+  fileTreeSortMode: DEFAULT_FILE_TREE_SORT_MODE,
 
   loadFileTree: async (skipRestore = false) => {
     set({ isLoading: true, error: null });
@@ -67,9 +74,13 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       const basePath = await getNotesBasePath();
 
       await ensureNotesFolder(basePath);
-      const children = await buildFileTree(basePath);
       const metadata = await loadNoteMetadata(basePath);
       const workspace = await loadWorkspaceState(basePath);
+      const fileTreeSortMode = workspace?.fileTreeSortMode ?? DEFAULT_FILE_TREE_SORT_MODE;
+      const children = sortNestedFileTree(await buildFileTree(basePath), {
+        mode: fileTreeSortMode,
+        metadata,
+      });
       const starredPaths = getVaultStarredPaths(get().starredEntries, basePath);
 
       let restoredChildren = children;
@@ -92,6 +103,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         starredNotes: starredPaths.notes,
         starredFolders: starredPaths.folders,
         isLoading: false,
+        fileTreeSortMode,
       });
 
       if (!skipRestore && workspace?.currentNotePath) {
@@ -115,7 +127,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   },
 
   toggleFolder: (path: string) => {
-    const { rootFolder, notesPath } = get();
+    const { rootFolder, notesPath, fileTreeSortMode } = get();
     if (!rootFolder) return;
     const updatedChildren = updateFolderExpanded(rootFolder.children, path);
     set({ rootFolder: { ...rootFolder, children: updatedChildren } });
@@ -126,12 +138,13 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       saveWorkspaceState(notesPath, {
         currentNotePath: currentNote?.path || null,
         expandedFolders: Array.from(expandedPaths),
+        fileTreeSortMode,
       });
     }
   },
 
   revealFolder: (path: string) => {
-    const { rootFolder, notesPath, currentNote } = get();
+    const { rootFolder, notesPath, currentNote, fileTreeSortMode } = get();
     if (!rootFolder) return;
 
     const updatedChildren = expandFoldersForPath(rootFolder.children, path);
@@ -142,12 +155,22 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       saveWorkspaceState(notesPath, {
         currentNotePath: currentNote?.path || null,
         expandedFolders: Array.from(expandedPaths),
+        fileTreeSortMode,
       });
     }
   },
 
   createNote: async (folderPath?: string) => {
-    let { notesPath, openTabs, recentNotes, rootFolder, currentNote, isDirty, saveNote } = get();
+    let {
+      notesPath,
+      openTabs,
+      recentNotes,
+      rootFolder,
+      currentNote,
+      isDirty,
+      saveNote,
+      fileTreeSortMode,
+    } = get();
 
     if (isDirty) {
       await saveNote();
@@ -174,7 +197,13 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
 
       if (rootFolder) {
         set({
-          rootFolder: { ...rootFolder, children: newChildren },
+          rootFolder: {
+            ...rootFolder,
+            children: sortNestedFileTree(newChildren, {
+              mode: fileTreeSortMode,
+              metadata: updatedMetadata,
+            }),
+          },
           noteMetadata: updatedMetadata,
         });
       }
@@ -208,7 +237,16 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
     name: string,
     content: string
   ) => {
-    let { notesPath, rootFolder, recentNotes, openTabs, currentNote, isDirty, saveNote } = get();
+    let {
+      notesPath,
+      rootFolder,
+      recentNotes,
+      openTabs,
+      currentNote,
+      isDirty,
+      saveNote,
+      fileTreeSortMode,
+    } = get();
     const storage = getStorageAdapter();
 
     if (isDirty) {
@@ -243,7 +281,13 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
 
       if (rootFolder) {
         set({
-          rootFolder: { ...rootFolder, children: newChildren },
+          rootFolder: {
+            ...rootFolder,
+            children: sortNestedFileTree(newChildren, {
+              mode: fileTreeSortMode,
+              metadata: updatedMetadata,
+            }),
+          },
           noteMetadata: updatedMetadata,
         });
       }
@@ -271,7 +315,17 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   },
 
   deleteNote: async (path: string) => {
-    const { notesPath, rootFolder, currentNote, openTabs, starredNotes, starredFolders, starredEntries } = get();
+    const {
+      notesPath,
+      rootFolder,
+      currentNote,
+      openTabs,
+      starredNotes,
+      starredFolders,
+      starredEntries,
+      fileTreeSortMode,
+      noteMetadata,
+    } = get();
     try {
         const result = await deleteNoteImpl(
           notesPath,
@@ -288,7 +342,15 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         });
 
         if (rootFolder) {
-            set({ rootFolder: { ...rootFolder, children: result.newChildren } });
+            set({
+              rootFolder: {
+                ...rootFolder,
+                children: sortNestedFileTree(result.newChildren, {
+                  mode: fileTreeSortMode,
+                  metadata: noteMetadata,
+                }),
+              },
+            });
         }
 
         if (result.nextAction && result.nextAction.type === 'open') {
@@ -302,7 +364,17 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   },
 
   renameNote: async (path: string, newName: string) => {
-    const { notesPath, rootFolder, currentNote, openTabs, starredNotes, starredFolders, starredEntries, noteMetadata } = get();
+    const {
+      notesPath,
+      rootFolder,
+      currentNote,
+      openTabs,
+      starredNotes,
+      starredFolders,
+      starredEntries,
+      noteMetadata,
+      fileTreeSortMode,
+    } = get();
     try {
         const result = await renameNoteImpl(
             notesPath, path, newName, 
@@ -322,7 +394,15 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         });
 
         if (rootFolder) {
-            set({ rootFolder: { ...rootFolder, children: result.updatedChildren } });
+            set({
+              rootFolder: {
+                ...rootFolder,
+                children: sortNestedFileTree(result.updatedChildren, {
+                  mode: fileTreeSortMode,
+                  metadata: result.updatedMetadata,
+                }),
+              },
+            });
         }
     } catch (error) {
         set({ error: error instanceof Error ? error.message : 'Failed to rename note' });
@@ -330,14 +410,30 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   },
 
   renameFolder: async (path: string, newName: string) => {
-    const { notesPath, rootFolder, currentNote, openTabs, starredNotes, starredFolders, starredEntries } = get();
+    const {
+      notesPath,
+      rootFolder,
+      currentNote,
+      openTabs,
+      starredNotes,
+      starredFolders,
+      starredEntries,
+      fileTreeSortMode,
+      noteMetadata,
+    } = get();
     const storage = getStorageAdapter();
 
     try {
       const fullPath = await joinPath(notesPath, path);
-      const dirPath = path.includes('/') ? path.substring(0, path.lastIndexOf('/')) : '';
-      const newPath = dirPath ? `${dirPath}/${newName}` : newName;
-      const newFullPath = await joinPath(notesPath, newPath);
+      const {
+        relativePath: newPath,
+        fullPath: newFullPath,
+        fileName: resolvedFolderName,
+      } = await resolveUniqueRenamedPath(notesPath, path, newName, true);
+
+      if (newPath === path) {
+        return;
+      }
 
       await storage.rename(fullPath, newFullPath);
 
@@ -346,12 +442,13 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
           updatedStarredFolders,
           updatedStarredNotes,
           updatedTabs,
-          updatedCurrentNote
+          updatedCurrentNote,
+          updatedMetadata,
       } = await processFolderRename(
         notesPath,
         path,
-        newName,
-        { starredFolders, starredNotes, starredEntries, openTabs, currentNote },
+        resolvedFolderName,
+        { starredFolders, starredNotes, starredEntries, openTabs, currentNote, noteMetadata },
         set
       );
 
@@ -359,12 +456,19 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         starredEntries: updatedStarredEntries,
         starredFolders: updatedStarredFolders,
         starredNotes: updatedStarredNotes,
+        noteMetadata: updatedMetadata ?? noteMetadata,
       });
 
       if (rootFolder) {
-        const updatedChildren = updateFolderNode(rootFolder.children, path, newName, newPath);
+        const updatedChildren = updateFolderNode(rootFolder.children, path, resolvedFolderName, newPath);
         set({
-          rootFolder: { ...rootFolder, children: sortFileTree(updatedChildren) },
+          rootFolder: {
+            ...rootFolder,
+            children: sortNestedFileTree(updatedChildren, {
+              mode: fileTreeSortMode,
+              metadata: updatedMetadata ?? noteMetadata,
+            }),
+          },
           openTabs: updatedTabs,
           currentNote: updatedCurrentNote,
         });
@@ -375,23 +479,15 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   },
 
   createFolder: async (parentPath: string, name?: string) => {
-    const { notesPath } = get();
+    const { notesPath, fileTreeSortMode, noteMetadata } = get();
     const storage = getStorageAdapter();
 
     try {
-      let folderName = name || 'Untitled';
-      let folderPath = parentPath ? `${parentPath}/${folderName}` : folderName;
-      let fullPath = await joinPath(notesPath, folderPath);
-
-      if (!name) {
-        let counter = 1;
-        while (await storage.exists(fullPath)) {
-          folderName = `Untitled ${counter}`;
-          folderPath = parentPath ? `${parentPath}/${folderName}` : folderName;
-          fullPath = await joinPath(notesPath, folderPath);
-          counter++;
-        }
-      }
+      const {
+        relativePath: folderPath,
+        fullPath,
+        fileName: folderName,
+      } = await resolveUniquePath(notesPath, parentPath || undefined, name || 'Untitled', true);
 
       await storage.mkdir(fullPath, true);
 
@@ -409,7 +505,13 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         set({
           rootFolder: {
             ...currentRootFolder,
-            children: addNodeToTree(currentRootFolder.children, parentPath, newNode),
+            children: sortNestedFileTree(
+              addNodeToTree(currentRootFolder.children, parentPath, newNode),
+              {
+                mode: fileTreeSortMode,
+                metadata: noteMetadata,
+              }
+            ),
           },
           newlyCreatedFolderPath: !name ? folderPath : null,
         });
@@ -424,7 +526,17 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   clearNewlyCreatedFolder: () => set({ newlyCreatedFolderPath: null }),
 
   deleteFolder: async (path: string) => {
-    const { notesPath, rootFolder, currentNote, openTabs, starredNotes, starredFolders, starredEntries } = get();
+    const {
+      notesPath,
+      rootFolder,
+      currentNote,
+      openTabs,
+      starredNotes,
+      starredFolders,
+      starredEntries,
+      fileTreeSortMode,
+      noteMetadata,
+    } = get();
     try {
         const result = await deleteFolderImpl(
             notesPath, path,
@@ -449,7 +561,15 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         }
 
         if (rootFolder) {
-            set({ rootFolder: { ...rootFolder, children: result.newChildren } });
+            set({
+              rootFolder: {
+                ...rootFolder,
+                children: sortNestedFileTree(result.newChildren, {
+                  mode: fileTreeSortMode,
+                  metadata: noteMetadata,
+                }),
+              },
+            });
         }
     } catch (error) {
         set({ error: error instanceof Error ? error.message : 'Failed to delete folder' });
@@ -457,11 +577,21 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   },
 
   moveItem: async (sourcePath: string, targetFolderPath: string) => {
-    const { notesPath, rootFolder, currentNote, openTabs, starredNotes, starredFolders, starredEntries } = get();
+    const {
+      notesPath,
+      rootFolder,
+      currentNote,
+      openTabs,
+      starredNotes,
+      starredFolders,
+      starredEntries,
+      fileTreeSortMode,
+      noteMetadata,
+    } = get();
     try {
         const result = await moveItemImpl(
             notesPath, sourcePath, targetFolderPath,
-            { rootFolder, currentNote, openTabs, starredNotes, starredFolders, starredEntries },
+            { rootFolder, currentNote, openTabs, starredNotes, starredFolders, starredEntries, noteMetadata },
             set
         );
 
@@ -469,12 +599,21 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
             starredEntries: result.updatedStarredEntries,
             starredNotes: result.updatedStarredNotes,
             starredFolders: result.updatedStarredFolders,
+            noteMetadata: result.updatedMetadata ?? noteMetadata,
             openTabs: result.updatedTabs,
             currentNote: result.nextCurrentNote
         });
 
         if (rootFolder) {
-            set({ rootFolder: { ...rootFolder, children: result.newChildren } });
+            set({
+              rootFolder: {
+                ...rootFolder,
+                children: sortNestedFileTree(result.newChildren, {
+                  mode: fileTreeSortMode,
+                  metadata: result.updatedMetadata ?? noteMetadata,
+                }),
+              },
+            });
         }
     } catch (error) {
         set({ error: error instanceof Error ? error.message : 'Failed to move item' });
@@ -484,5 +623,32 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   uploadNoteAsset: async (_notePath: string, file: File): Promise<string | null> => {
     const { notesPath } = get();
     return uploadNoteAssetImpl(notesPath, file);
+  },
+
+  setFileTreeSortMode: async (mode) => {
+    const { rootFolder, noteMetadata, notesPath, currentNote, fileTreeSortMode } = get();
+    if (mode === fileTreeSortMode) {
+      return;
+    }
+
+    const nextChildren = rootFolder
+      ? sortNestedFileTree(rootFolder.children, {
+          mode,
+          metadata: noteMetadata,
+        })
+      : null;
+
+    set({
+      fileTreeSortMode: mode,
+      rootFolder: rootFolder && nextChildren ? { ...rootFolder, children: nextChildren } : rootFolder,
+    });
+
+    if (notesPath) {
+      saveWorkspaceState(notesPath, {
+        currentNotePath: currentNote?.path || null,
+        expandedFolders: nextChildren ? Array.from(collectExpandedPaths(nextChildren)) : [],
+        fileTreeSortMode: mode,
+      });
+    }
   },
 });

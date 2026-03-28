@@ -12,7 +12,7 @@ export function SidebarChatButton() {
       icon={<Icon name="common.shootingStar" size={NOTES_SIDEBAR_ICON_SIZE} />}
       label="Spark"
       className="text-[var(--chat-sidebar-text-muted)] hover:bg-[var(--notes-sidebar-row-hover)]"
-      iconClassName="text-[var(--chat-sidebar-text-muted)]"
+      iconClassName="text-[var(--notes-sidebar-spark-icon)]"
     />
   );
 }
