@@ -9,11 +9,13 @@ interface SidebarRowProps extends HTMLAttributes<HTMLDivElement> {
   trailing?: ReactNode;
   actions?: ReactNode;
   isActive?: boolean;
+  isHighlighted?: boolean;
   isDragOver?: boolean;
   showActionsByDefault?: boolean;
   contentClassName?: string;
   actionFadeClassName?: string;
   activeClassName: string;
+  highlightClassName?: string;
   inactiveClassName: string;
   dragOverClassName?: string;
 }
@@ -26,12 +28,14 @@ export function SidebarRow({
   trailing,
   actions,
   isActive = false,
+  isHighlighted = false,
   isDragOver = false,
   showActionsByDefault = false,
   className,
   contentClassName,
   actionFadeClassName,
   activeClassName,
+  highlightClassName,
   inactiveClassName,
   dragOverClassName,
   children,
@@ -48,7 +52,11 @@ export function SidebarRow({
         className={cn(
           'relative flex h-[30px] flex-1 items-center gap-2 rounded-md px-3 py-1 text-sm transition-all duration-150 ease-out',
           props.onClick && 'cursor-pointer',
-          isActive ? activeClassName : inactiveClassName,
+          isHighlighted
+            ? highlightClassName ?? inactiveClassName
+            : isActive
+              ? activeClassName
+              : inactiveClassName,
           isDragOver && dragOverClassName,
         )}
       >

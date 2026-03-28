@@ -59,9 +59,11 @@ export const FileItem = memo(function FileItem({
           )
         }
         isActive={isActive}
+        isHighlighted={showMenu}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
         dragHandlers={dragHandlers}
+        showActionsByDefault={showMenu}
         main={
           isRenaming ? (
             <input
@@ -95,7 +97,7 @@ export const FileItem = memo(function FileItem({
             className={cn(
               'rounded-md p-1 focus:outline-none',
               iconButtonStyles,
-              isActive
+              showMenu || isActive
                 ? 'text-[var(--notes-sidebar-icon-hover)] hover:text-[var(--notes-sidebar-text)]'
                 : 'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]'
             )}

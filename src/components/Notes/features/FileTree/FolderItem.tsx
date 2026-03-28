@@ -58,10 +58,12 @@ export const FolderItem = memo(function FolderItem({
             {leading}
           </span>
         }
+        isHighlighted={showMenu}
         isDragOver={isDragOver}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
         dragHandlers={dragHandlers}
+        showActionsByDefault={showMenu}
         main={
           isRenaming ? (
             <input
@@ -93,7 +95,9 @@ export const FolderItem = memo(function FolderItem({
             className={cn(
               'rounded-md p-1 focus:outline-none',
               iconButtonStyles,
-              'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]'
+              showMenu
+                ? 'text-[var(--notes-sidebar-icon-hover)] hover:text-[var(--notes-sidebar-text)]'
+                : 'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]'
             )}
           >
             <Icon name="common.more" size="md" />
