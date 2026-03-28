@@ -49,6 +49,7 @@ export const SidebarScrollArea = forwardRef<HTMLDivElement, SidebarScrollAreaPro
     return (
       <OverlayScrollArea
         ref={ref}
+        scrollbarVariant="compact"
         viewportClassName={cn('px-2 py-2', viewportClassName, className)}
         onMouseEnter={onMouseEnter}
         {...props}
@@ -81,7 +82,7 @@ export const SidebarActionButton = forwardRef<HTMLButtonElement, SidebarActionBu
         ref={ref}
         type={type}
         className={cn(
-          'flex min-h-9 w-full cursor-pointer items-center gap-2 rounded-xl bg-transparent px-3 py-2 text-sm font-medium shadow-none transition-colors hover:shadow-none',
+          'flex h-[30px] w-full cursor-pointer items-center gap-2 rounded-md bg-transparent px-3 py-1 text-sm font-medium shadow-none transition-colors hover:shadow-none',
           className,
         )}
         {...props}
@@ -117,19 +118,19 @@ export const SidebarSearchField = forwardRef<HTMLInputElement, SidebarSearchFiel
       <div className={cn('px-2 pt-2', className)}>
         <div
           className={cn(
-            'flex items-center gap-2 rounded-xl border border-[var(--vlaina-border)] bg-white px-3 py-1 shadow-none',
+            'flex h-[40px] items-center gap-2 rounded-md border border-transparent bg-[#f8f8f8] pl-3 pr-1 shadow-none',
             containerClassName,
           )}
         >
           <Icon
             name="common.search"
             size="md"
-            className="text-[var(--vlaina-text-tertiary)]"
+            className="text-[#999999]"
           />
           <input
             ref={ref}
             className={cn(
-              'min-w-0 flex-1 bg-transparent text-[13px] text-[var(--vlaina-text-primary)] outline-none placeholder:text-[var(--vlaina-text-tertiary)]',
+              'min-w-0 flex-1 bg-transparent text-[13px] text-[#999999] outline-none placeholder:text-[#999999]',
               inputClassName,
             )}
             {...props}
@@ -139,11 +140,11 @@ export const SidebarSearchField = forwardRef<HTMLInputElement, SidebarSearchFiel
             onClick={onClose}
             aria-label={closeLabel}
             className={cn(
-              'inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--vlaina-text-tertiary)] transition-colors hover:bg-[var(--vlaina-hover)] hover:text-[var(--vlaina-text-primary)]',
+              'inline-flex h-6 w-6 items-center justify-center rounded-md text-[#999999] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[#27262b]',
               closeButtonClassName,
             )}
           >
-            <Icon name="common.close" size="md" />
+            <Icon name="common.close" size="sm" />
           </button>
         </div>
       </div>

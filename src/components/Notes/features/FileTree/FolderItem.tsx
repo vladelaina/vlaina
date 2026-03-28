@@ -7,6 +7,7 @@ import { TreeItemDeleteDialog } from './components/TreeItemDeleteDialog';
 import { useFolderItemState } from './hooks/useFolderItemState';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
+import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 
 interface FolderItemProps {
   node: FolderNode;
@@ -43,9 +44,9 @@ export const FolderItem = memo(function FolderItem({
   } = useFolderItemState(node);
 
   const leading = node.expanded ? (
-    <Icon name="file.folderOpen" size="sidebar" className="text-[var(--notes-sidebar-folder-icon)]" />
+    <Icon name="file.folderOpen" size={NOTES_SIDEBAR_ICON_SIZE} className="text-[var(--notes-sidebar-folder-icon)]" />
   ) : (
-    <Icon name="file.folder" size="sidebar" className="text-[var(--notes-sidebar-folder-icon)]" />
+    <Icon name="file.folder" size={NOTES_SIDEBAR_ICON_SIZE} className="text-[var(--notes-sidebar-folder-icon)]" />
   );
 
   return (
@@ -57,10 +58,12 @@ export const FolderItem = memo(function FolderItem({
             {leading}
           </span>
         }
+        isHighlighted={showMenu}
         isDragOver={isDragOver}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
         dragHandlers={dragHandlers}
+        showActionsByDefault={showMenu}
         main={
           isRenaming ? (
             <input
@@ -92,7 +95,9 @@ export const FolderItem = memo(function FolderItem({
             className={cn(
               'rounded-md p-1 focus:outline-none',
               iconButtonStyles,
-              'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]'
+              showMenu
+                ? 'text-[var(--notes-sidebar-icon-hover)] hover:text-[var(--notes-sidebar-text)]'
+                : 'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]'
             )}
           >
             <Icon name="common.more" size="md" />

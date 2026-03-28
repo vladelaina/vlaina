@@ -10,6 +10,7 @@ import { normalizeStarredVaultPath } from '@/stores/notes/starred';
 import { NoteIcon } from '../IconPicker/NoteIcon';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 import { NotesSidebarSection } from '../Sidebar/NotesSidebarPrimitives';
+import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 
 function getVaultLabel(path: string, recentVaults: Array<{ path: string; name: string }>): string {
   const normalizedPath = normalizeStarredVaultPath(path);
@@ -54,18 +55,18 @@ function StarredEntryRow({
       leading={
         entry.kind === 'note' ? (
           liveIcon ? (
-            <NoteIcon icon={liveIcon} size="sidebar" />
+            <NoteIcon icon={liveIcon} size={NOTES_SIDEBAR_ICON_SIZE} />
           ) : (
             <Icon
               name="file.text"
-              size="sidebar"
+              size={NOTES_SIDEBAR_ICON_SIZE}
               className="text-[var(--notes-sidebar-file-icon)]"
             />
           )
         ) : (
           <Icon
             name="file.folder"
-            size="sidebar"
+            size={NOTES_SIDEBAR_ICON_SIZE}
             className="text-[var(--notes-sidebar-folder-icon)]"
           />
         )
@@ -103,7 +104,15 @@ function StarredEntryRow({
   );
 }
 
-export function StarredSection() {
+interface StarredSectionProps {
+  nested?: boolean;
+  showTitle?: boolean;
+}
+
+export function StarredSection({
+  nested = false,
+  showTitle = true,
+}: StarredSectionProps = {}) {
   const {
     starredEntries,
     starredLoaded,
@@ -128,60 +137,70 @@ export function StarredSection() {
 
   const currentVaultPath = currentVault?.path ? normalizeStarredVaultPath(currentVault.path) : '';
 
+  const entries = (
+    <div>
+      {starredEntries.map((entry) => {
+        const vaultLabel = getVaultLabel(entry.vaultPath, recentVaults);
+        const isCurrentVaultEntry =
+          normalizeStarredVaultPath(entry.vaultPath) === currentVaultPath;
+        const isActive =
+          entry.kind === 'note' &&
+          isCurrentVaultEntry &&
+          currentNote?.path === entry.relativePath;
+
+        return (
+          <StarredEntryRow
+            key={entry.id}
+            entry={entry}
+            isCurrentVaultEntry={isCurrentVaultEntry}
+            isActive={isActive}
+            onClick={(event) => {
+              const openInNewTab =
+                entry.kind === 'note' && (event.ctrlKey || event.metaKey);
+              void (async () => {
+                if (isCurrentVaultEntry) {
+                  if (entry.kind === 'folder') {
+                    revealFolder(entry.relativePath);
+                  } else {
+                    await openNote(entry.relativePath, openInNewTab);
+                  }
+                  return;
+                }
+
+                setPendingStarredNavigation({
+                  vaultPath: entry.vaultPath,
+                  kind: entry.kind,
+                  relativePath: entry.relativePath,
+                  openInNewTab,
+                });
+
+                const opened = await openVault(entry.vaultPath, vaultLabel);
+                if (!opened) {
+                  setPendingStarredNavigation(null);
+                }
+              })();
+            }}
+            onRemove={() => removeStarredEntry(entry.id)}
+          />
+        );
+      })}
+    </div>
+  );
+
+  if (!showTitle) {
+    return entries;
+  }
+
   return (
     <NotesSidebarSection
       title="Starred"
       expanded={expanded}
       onToggle={() => setExpanded((value) => !value)}
       animated={false}
+      nested={nested}
+      headerClassName={nested ? 'px-2' : undefined}
     >
-      <div>
-        {starredEntries.map((entry) => {
-          const vaultLabel = getVaultLabel(entry.vaultPath, recentVaults);
-          const isCurrentVaultEntry =
-            normalizeStarredVaultPath(entry.vaultPath) === currentVaultPath;
-          const isActive =
-            entry.kind === 'note' &&
-            isCurrentVaultEntry &&
-            currentNote?.path === entry.relativePath;
-
-          return (
-            <StarredEntryRow
-              key={entry.id}
-              entry={entry}
-              isCurrentVaultEntry={isCurrentVaultEntry}
-              isActive={isActive}
-              onClick={(event) => {
-                const openInNewTab =
-                  entry.kind === 'note' && (event.ctrlKey || event.metaKey);
-                void (async () => {
-                  if (isCurrentVaultEntry) {
-                    if (entry.kind === 'folder') {
-                      revealFolder(entry.relativePath);
-                    } else {
-                      await openNote(entry.relativePath, openInNewTab);
-                    }
-                    return;
-                  }
-
-                  setPendingStarredNavigation({
-                    vaultPath: entry.vaultPath,
-                    kind: entry.kind,
-                    relativePath: entry.relativePath,
-                    openInNewTab,
-                  });
-
-                  const opened = await openVault(entry.vaultPath, vaultLabel);
-                  if (!opened) {
-                    setPendingStarredNavigation(null);
-                  }
-                })();
-              }}
-              onRemove={() => removeStarredEntry(entry.id)}
-            />
-          );
-        })}
-      </div>
+      {entries}
     </NotesSidebarSection>
   );
 }

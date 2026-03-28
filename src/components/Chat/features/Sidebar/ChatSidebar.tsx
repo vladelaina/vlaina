@@ -15,11 +15,12 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { Icon } from '@/components/ui/icons';
 import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
-import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
-import { SidebarSearchField } from '@/components/layout/sidebar/SidebarPrimitives';
 import { ChatSidebarTopActions } from './ChatSidebarTopActions';
 import { useGlobalSearch } from '@/hooks/useGlobalSearch';
-import { useSidebarSearchControls } from '@/components/layout/sidebar/useSidebarSearchControls';
+import {
+  SidebarSearchDrawer,
+  useSidebarSearchDrawerState,
+} from '@/components/layout/sidebar/SidebarSearchDrawer';
 
 interface ChatSidebarProps {
   isPeeking?: boolean;
@@ -81,17 +82,13 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
     scrollRootRef,
     hideSearch,
     handleScroll,
-    handleWheelCapture,
-  } = useSidebarSearchControls({
+    shouldShowSearchResults,
+  } = useSidebarSearchDrawerState({
     isOpen: isSearchOpen,
     query: searchQuery,
     onOpen: openSearch,
     onClose: closeSearch,
-  });
-
-  useHeldPageScroll(scrollRootRef, {
     scopeRef: sidebarRootRef,
-    ignoreEditableTargets: true,
   });
 
   const visibleSessions = useMemo(
@@ -195,48 +192,46 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
   };
 
   const hasSessions = visibleSessions.length > 0;
-  const sessionsToRender = isSearchOpen ? filteredSessions : sortedSessions;
+  const sessionsToRender = shouldShowSearchResults ? filteredSessions : sortedSessions;
 
   return (
     <>
       <ChatSidebarSurface ref={sidebarRootRef} isPeeking={isPeeking}>
-        {isSearchOpen ? (
-          <SidebarSearchField
-            ref={searchInputRef}
-            autoFocus
-            type="text"
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') {
-                event.preventDefault();
-                hideSearch();
-                return;
-              }
-              if (event.key === 'Enter' && filteredSessions[0]) {
-                event.preventDefault();
-                handleSwitch(filteredSessions[0].id, isSessionUnread(filteredSessions[0].id));
-                hideSearch();
-              }
-            }}
-            placeholder="Search chats..."
-            onClose={hideSearch}
-            closeLabel="Close chat search"
-            className="px-1 pt-1 pb-1"
-          />
-        ) : (
-          <ChatSidebarTopActions
-            onOpenNewChat={handleOpenNewChat}
-            onOpenNotes={() => setAppViewMode('notes')}
-          />
-        )}
+        <SidebarSearchDrawer
+          isSearchOpen={isSearchOpen}
+          shouldShowTopActions={!shouldShowSearchResults}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          inputRef={searchInputRef}
+          hideSearch={hideSearch}
+          canSubmit={Boolean(filteredSessions[0])}
+          onSubmit={() => {
+            const session = filteredSessions[0];
+            if (!session) {
+              return;
+            }
+            handleSwitch(session.id, isSessionUnread(session.id));
+            hideSearch();
+          }}
+          placeholder="Search conversations..."
+          closeLabel="Close chat search"
+          topActions={(
+            <ChatSidebarTopActions
+              onOpenNewChat={handleOpenNewChat}
+              onOpenNotes={() => setAppViewMode('notes')}
+            />
+          )}
+        />
 
         <ChatSidebarScrollArea
           ref={scrollRootRef}
           onScroll={handleScroll}
-          onWheelCapture={handleWheelCapture}
         >
-          {!isSearchOpen && !hasSessions ? null : (
+          {shouldShowSearchResults && filteredSessions.length === 0 ? (
+            <div className="px-3 py-6 text-[13px] text-[var(--chat-sidebar-text-muted)]">
+              No matching chats
+            </div>
+          ) : !shouldShowSearchResults && !hasSessions ? null : (
             <ChatSidebarList>
               {sessionsToRender.map(session => {
                 const isActive = currentSessionId === session.id;
@@ -263,7 +258,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                         return;
                       }
                       handleSwitch(session.id, isUnread);
-                      if (isSearchOpen) {
+                      if (shouldShowSearchResults) {
                         hideSearch();
                       }
                     }}

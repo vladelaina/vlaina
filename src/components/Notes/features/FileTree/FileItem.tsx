@@ -8,6 +8,7 @@ import { useFileItemState } from './hooks/useFileItemState';
 import { NoteIcon } from '../IconPicker/NoteIcon';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
+import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 
 interface FileItemProps {
   node: NoteFile;
@@ -52,15 +53,17 @@ export const FileItem = memo(function FileItem({
         depth={depth}
         leading={
           noteIcon ? (
-            <NoteIcon icon={noteIcon} size="sidebar" />
+            <NoteIcon icon={noteIcon} size={NOTES_SIDEBAR_ICON_SIZE} />
           ) : (
-            <Icon name="file.text" size="sidebar" className="text-[var(--notes-sidebar-file-icon)]" />
+            <Icon name="file.text" size={NOTES_SIDEBAR_ICON_SIZE} className="text-[var(--notes-sidebar-file-icon)]" />
           )
         }
         isActive={isActive}
+        isHighlighted={showMenu}
         onClick={handleClick}
         onContextMenu={handleContextMenu}
         dragHandlers={dragHandlers}
+        showActionsByDefault={showMenu}
         main={
           isRenaming ? (
             <input
@@ -94,7 +97,7 @@ export const FileItem = memo(function FileItem({
             className={cn(
               'rounded-md p-1 focus:outline-none',
               iconButtonStyles,
-              isActive
+              showMenu || isActive
                 ? 'text-[var(--notes-sidebar-icon-hover)] hover:text-[var(--notes-sidebar-text)]'
                 : 'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]'
             )}
