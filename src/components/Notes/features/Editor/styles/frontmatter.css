@@ -15,10 +15,14 @@
   background: transparent !important;
 }
 
+.milkdown .frontmatter-block-container .frontmatter-block-editor {
+  padding: 0.625rem 0;
+}
+
 .milkdown .frontmatter-block-container .cm-content {
   position: relative;
-  min-height: 2.125rem;
-  padding: 0.625rem 0.875rem !important;
+  min-height: 1.75rem;
+  padding: 0 !important;
 }
 
 .milkdown .frontmatter-block-container .cm-scroller {
@@ -30,18 +34,12 @@
   cursor: text;
 }
 
-.milkdown .frontmatter-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
-.milkdown .frontmatter-block-container .cm-editor.cm-focused .cm-content ::selection,
-.milkdown .frontmatter-block-container .cm-editor.cm-focused .cm-line ::selection {
-  background: var(--vlaina-selection-bg, #2781db) !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
+.milkdown .frontmatter-block-container .cm-line {
+  padding: 0 0.875rem !important;
 }
 
-.milkdown .frontmatter-block-container .cm-editor.cm-focused .cm-content ::-moz-selection,
-.milkdown .frontmatter-block-container .cm-editor.cm-focused .cm-line ::-moz-selection {
+.milkdown .frontmatter-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
   background: var(--vlaina-selection-bg, #2781db) !important;
-  color: #ffffff !important;
 }
 
 .milkdown .frontmatter-block-container .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
@@ -52,26 +50,21 @@
   background: var(--vlaina-selection-bg, #2781db) !important;
 }
 
-.milkdown .frontmatter-block-container .cm-editor:not(.cm-focused) .cm-content ::selection,
-.milkdown .frontmatter-block-container .cm-editor:not(.cm-focused) .cm-line ::selection,
-.milkdown .frontmatter-block-container .cm-editor:not(.cm-focused) .cm-content ::-moz-selection,
-.milkdown .frontmatter-block-container .cm-editor:not(.cm-focused) .cm-line ::-moz-selection {
+.milkdown .frontmatter-block-container .cm-content::selection,
+.milkdown .frontmatter-block-container .cm-content *::selection,
+.milkdown .frontmatter-block-container .cm-line::selection,
+.milkdown .frontmatter-block-container .cm-line *::selection {
   background: transparent !important;
   color: inherit !important;
   -webkit-text-fill-color: currentColor !important;
 }
 
-.milkdown .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) .cm-content ::selection,
-.milkdown .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) .cm-line ::selection {
-  background: var(--vlaina-selection-bg, #2781db) !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-}
-
-.milkdown .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) .cm-content ::-moz-selection,
-.milkdown .frontmatter-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) .cm-line ::-moz-selection {
-  background: var(--vlaina-selection-bg, #2781db) !important;
-  color: #ffffff !important;
+.milkdown .frontmatter-block-container .cm-content::-moz-selection,
+.milkdown .frontmatter-block-container .cm-content *::-moz-selection,
+.milkdown .frontmatter-block-container .cm-line::-moz-selection,
+.milkdown .frontmatter-block-container .cm-line *::-moz-selection {
+  background: transparent !important;
+  color: inherit !important;
 }
 
 .milkdown .frontmatter-block-container .cm-focused {
@@ -81,7 +74,7 @@
 .milkdown .frontmatter-block-container[data-empty='true'] .cm-content::before {
   content: 'input YAML Front Matter.';
   position: absolute;
-  inset: 0.625rem 0.875rem auto 0.875rem;
+  inset: 0 0.875rem auto 0.875rem;
   color: color-mix(in srgb, var(--crepe-color-outline, #8a8f98), transparent 18%);
   pointer-events: none;
   white-space: pre-wrap;

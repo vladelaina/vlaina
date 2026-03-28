@@ -35,18 +35,37 @@
   cursor: text;
 }
 
-.milkdown .code-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
-.milkdown .code-block-container .cm-editor.cm-focused .cm-content ::selection,
-.milkdown .code-block-container .cm-editor.cm-focused .cm-line ::selection {
-  background: var(--vlaina-selection-bg, #2781db) !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
+.milkdown .code-block-container .code-block-editable {
+  padding: 0.25rem 0 1rem;
 }
 
-.milkdown .code-block-container .cm-editor.cm-focused .cm-content ::-moz-selection,
-.milkdown .code-block-container .cm-editor.cm-focused .cm-line ::-moz-selection {
+.milkdown .code-block-container .cm-content {
+  padding: 0 !important;
+}
+
+.milkdown .code-block-container .cm-line {
+  padding: 0 1rem !important;
+}
+
+.milkdown .code-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
   background: var(--vlaina-selection-bg, #2781db) !important;
-  color: #ffffff !important;
+}
+
+.milkdown .code-block-container .cm-content::selection,
+.milkdown .code-block-container .cm-content *::selection,
+.milkdown .code-block-container .cm-line::selection,
+.milkdown .code-block-container .cm-line *::selection {
+  background: transparent !important;
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.milkdown .code-block-container .cm-content::-moz-selection,
+.milkdown .code-block-container .cm-content *::-moz-selection,
+.milkdown .code-block-container .cm-line::-moz-selection,
+.milkdown .code-block-container .cm-line *::-moz-selection {
+  background: transparent !important;
+  color: inherit !important;
 }
 
 .milkdown .code-block-container .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {

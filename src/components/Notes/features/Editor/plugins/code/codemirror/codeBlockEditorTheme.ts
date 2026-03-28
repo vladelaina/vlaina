@@ -32,9 +32,12 @@ export function createCodeBlockEditorTheme() {
         fontFeatureSettings: 'inherit',
       },
       '.cm-content': {
-        padding: '0.25rem 1rem 1rem',
-        minHeight: '2.5rem',
+        padding: '0',
+        minHeight: '1.75rem',
         caretColor: 'var(--vlaina-editor-caret-color, var(--vlaina-text-primary, #2c2c2b)) !important',
+      },
+      '.cm-line': {
+        padding: '0 1rem',
       },
       '.cm-gutters': {
         backgroundColor: 'var(--vlaina-code-block-background, #f5f5f5)',
@@ -60,15 +63,6 @@ export function createCodeBlockEditorTheme() {
         borderLeftColor: 'var(--vlaina-editor-caret-color, var(--vlaina-text-primary, #2c2c2b)) !important',
         borderLeftStyle: 'solid',
         borderLeftWidth: 'var(--vlaina-editor-caret-width, 1px)',
-      },
-      '&.cm-focused .cm-content::selection, &.cm-focused .cm-content *::selection, &.cm-focused .cm-line::selection, &.cm-focused .cm-line *::selection': {
-        backgroundColor: 'var(--vlaina-selection-bg, #2781db)',
-        color: '#ffffff',
-        WebkitTextFillColor: '#ffffff',
-      },
-      '&.cm-focused .cm-content::-moz-selection, &.cm-focused .cm-content *::-moz-selection, &.cm-focused .cm-line::-moz-selection, &.cm-focused .cm-line *::-moz-selection': {
-        backgroundColor: 'var(--vlaina-selection-bg, #2781db)',
-        color: '#ffffff',
       },
     }),
   ];
