@@ -12,6 +12,8 @@ const AUTH_ERROR_MESSAGE = 'Your sign-in session has expired. Please sign in aga
 const RATE_LIMIT_ERROR_MESSAGE = 'Too many requests. Please try again later.'
 const INVALID_REQUEST_ERROR_MESSAGE = 'This request could not be processed. Please adjust your input or switch models and try again.'
 const MODEL_SERVICE_ERROR_MESSAGE = 'The model service is temporarily unavailable. Please try again later or switch to another model.'
+const UPSTREAM_FORBIDDEN_MESSAGE =
+  'The upstream AI provider rejected this request (HTTP 403). Check the channel API key, model access, account balance, or provider risk controls.'
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -31,7 +33,8 @@ function extractErrorMessage(error: unknown): string {
 
 function extractErrorCode(error: unknown): string {
   if (!isRecord(error)) {
-    return ''
+    const matched = extractErrorMessage(error).match(/\b(?:status|http)\s+(\d{3})\b/i)
+    return matched?.[1] || ''
   }
 
   const value = error.statusCode ?? error.status
@@ -42,7 +45,8 @@ function extractErrorCode(error: unknown): string {
     return value.trim()
   }
 
-  return ''
+  const matched = extractErrorMessage(error).match(/\b(?:status|http)\s+(\d{3})\b/i)
+  return matched?.[1] || ''
 }
 
 function inferErrorTypeByStatus(code: string): AIErrorType | null {
@@ -246,6 +250,23 @@ function shouldPreserveOriginalMessage(type: AIErrorType, message: string): bool
   }
 }
 
+function getSpecificUserFacingOverride(message: string): UserFacingAIError | null {
+  const normalized = normalizeUserFacingMessage(message).toLowerCase()
+
+  if (
+    normalized.includes('managed api failed with status 403') &&
+    (normalized.includes('bad_response_status_code') || normalized.includes('openai_error'))
+  ) {
+    return {
+      type: AIErrorType.SERVER_ERROR,
+      code: '403',
+      message: UPSTREAM_FORBIDDEN_MESSAGE,
+    }
+  }
+
+  return null
+}
+
 export function createAIError(
   type: AIErrorType,
   message: string,
@@ -328,8 +349,13 @@ export function parseHTTPError(status: number, body?: any): AIError {
 
 export function getUserFacingAIError(error: unknown): UserFacingAIError {
   const parsed = parseAPIError(error)
-  const code = extractErrorCode(error) || (parsed.statusCode ? String(parsed.statusCode) : '')
   const message = normalizeUserFacingMessage(extractErrorMessage(error))
+  const specificOverride = getSpecificUserFacingOverride(message)
+  if (specificOverride) {
+    return specificOverride
+  }
+
+  const code = extractErrorCode(error) || (parsed.statusCode ? String(parsed.statusCode) : '')
   const statusType = inferErrorTypeByStatus(code)
   const messageType = inferErrorTypeByMessage(message)
 

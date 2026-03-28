@@ -5,6 +5,7 @@ import { CollapseTriangleAffordance } from '../../common/collapseTrianglePrimiti
 import { NotesSidebarScrollArea } from '../NotesSidebarPrimitives';
 import { NotesSidebarTopActions } from '../NotesSidebarTopActions';
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
+import { NOTES_SIDEBAR_ROW_HEIGHT } from '../sidebarLayout';
 import {
   buildOutlineTree,
   cleanupCollapsedHeadingIds,
@@ -54,12 +55,16 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
           <div
             className={cn(
               'group flex items-center rounded-md transition-colors',
-              'hover:bg-[var(--vlaina-hover-filled)]',
+              'hover:bg-[var(--notes-sidebar-row-hover)]',
               isActive
-                ? 'bg-[var(--vlaina-hover-filled)] text-[var(--vlaina-text-primary)]'
-                : 'text-[var(--vlaina-text-secondary)]',
+                ? 'bg-[var(--notes-sidebar-row-active)] text-[var(--notes-sidebar-text)]'
+                : 'text-[var(--notes-sidebar-text-muted)]',
             )}
-            style={{ paddingLeft: `${8 + (node.level - 1) * 12}px`, paddingRight: '8px' }}
+            style={{
+              minHeight: NOTES_SIDEBAR_ROW_HEIGHT,
+              paddingLeft: `${8 + (node.level - 1) * 12}px`,
+              paddingRight: '8px',
+            }}
           >
             {hasChildren ? (
               <button
@@ -75,7 +80,7 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
                   event.stopPropagation();
                   toggleOutlineNode(node.id);
                 }}
-                className="mr-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm text-[var(--vlaina-text-tertiary)] hover:text-[var(--vlaina-text-secondary)]"
+                className="mr-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm text-[var(--notes-sidebar-text-muted)] hover:text-[var(--notes-sidebar-text)]"
               >
               <CollapseTriangleAffordance
                 collapsed={isCollapsed}
@@ -89,7 +94,8 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
             <button
               type="button"
               onClick={() => jumpToHeading(node.id)}
-              className="min-w-0 flex-1 py-1.5 text-left text-[13px] leading-5 whitespace-normal break-words"
+              className="flex min-w-0 flex-1 items-center py-0 text-left text-[13px] leading-5 whitespace-normal break-words"
+              style={{ minHeight: NOTES_SIDEBAR_ROW_HEIGHT }}
             >
               {node.text}
             </button>

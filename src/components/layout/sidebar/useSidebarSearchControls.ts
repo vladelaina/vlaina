@@ -1,9 +1,10 @@
 import {
   useCallback,
+  useEffect,
   useLayoutEffect,
   useRef,
   type UIEvent,
-  type WheelEvent,
+  type RefObject,
 } from 'react';
 
 const OVERSCROLL_OPEN_THRESHOLD = 56;
@@ -13,6 +14,7 @@ interface UseSidebarSearchControlsOptions {
   query: string;
   onOpen: () => void;
   onClose: () => void;
+  interactionScopeRef?: RefObject<HTMLElement | null>;
 }
 
 export function useSidebarSearchControls({
@@ -20,13 +22,27 @@ export function useSidebarSearchControls({
   query,
   onOpen,
   onClose,
+  interactionScopeRef,
 }: UseSidebarSearchControlsOptions) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const scrollRootRef = useRef<HTMLDivElement | null>(null);
   const overscrollDistanceRef = useRef(0);
+  const shouldResetScrollTopOnCloseRef = useRef(false);
 
   useLayoutEffect(() => {
     if (!isOpen) {
+      if (shouldResetScrollTopOnCloseRef.current) {
+        const scrollRoot = scrollRootRef.current;
+        if (scrollRoot) {
+          scrollRoot.scrollTop = 0;
+          window.requestAnimationFrame(() => {
+            if (scrollRootRef.current) {
+              scrollRootRef.current.scrollTop = 0;
+            }
+          });
+        }
+        shouldResetScrollTopOnCloseRef.current = false;
+      }
       return;
     }
 
@@ -48,43 +64,59 @@ export function useSidebarSearchControls({
     }
   }, []);
 
-  const handleWheelCapture = useCallback((event: WheelEvent<HTMLDivElement>) => {
-    const currentTarget = event.currentTarget;
+  useEffect(() => {
+    const interactionScope = interactionScopeRef?.current ?? scrollRootRef.current;
+    const scrollRoot = scrollRootRef.current;
+    if (!interactionScope || !scrollRoot) {
+      return;
+    }
 
-    if (isOpen) {
-      if (currentTarget.scrollTop === 0 && event.deltaY < 0) {
-        event.preventDefault();
+    const handleWheel = (event: WheelEvent) => {
+      if (isOpen) {
+        if (scrollRoot.scrollTop === 0 && event.deltaY < 0) {
+          event.preventDefault();
+          return;
+        }
+        if (scrollRoot.scrollTop === 0 && event.deltaY > 0 && !query.trim()) {
+          event.preventDefault();
+          shouldResetScrollTopOnCloseRef.current = true;
+          hideSearch();
+        }
         return;
       }
-      if (currentTarget.scrollTop === 0 && event.deltaY > 0 && !query.trim()) {
-        hideSearch();
+
+      if (scrollRoot.scrollTop > 0) {
+        overscrollDistanceRef.current = 0;
+        return;
       }
-      return;
-    }
+      if (event.deltaY >= 0) {
+        overscrollDistanceRef.current = 0;
+        return;
+      }
 
-    if (currentTarget.scrollTop > 0) {
-      overscrollDistanceRef.current = 0;
-      return;
-    }
-    if (event.deltaY >= 0) {
-      overscrollDistanceRef.current = 0;
-      return;
-    }
+      overscrollDistanceRef.current += Math.abs(event.deltaY);
+      if (overscrollDistanceRef.current < OVERSCROLL_OPEN_THRESHOLD) {
+        return;
+      }
 
-    overscrollDistanceRef.current += Math.abs(event.deltaY);
-    if (overscrollDistanceRef.current < OVERSCROLL_OPEN_THRESHOLD) {
-      return;
-    }
+      event.preventDefault();
+      onOpen();
+    };
 
-    event.preventDefault();
-    onOpen();
-  }, [hideSearch, isOpen, onOpen, query]);
+    interactionScope.addEventListener('wheel', handleWheel, {
+      capture: true,
+      passive: false,
+    });
+
+    return () => {
+      interactionScope.removeEventListener('wheel', handleWheel, true);
+    };
+  }, [hideSearch, interactionScopeRef, isOpen, onOpen, query]);
 
   return {
     inputRef,
     scrollRootRef,
     hideSearch,
     handleScroll,
-    handleWheelCapture,
   };
 }

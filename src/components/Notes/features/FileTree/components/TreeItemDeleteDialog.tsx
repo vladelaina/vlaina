@@ -1,12 +1,11 @@
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 
 interface TreeItemDeleteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   itemLabel: string;
   itemType: 'Note' | 'Folder';
-  onConfirm: () => Promise<void>;
+  onConfirm: () => void | Promise<void>;
 }
 
 export function TreeItemDeleteDialog({
@@ -17,36 +16,17 @@ export function TreeItemDeleteDialog({
   onConfirm,
 }: TreeItemDeleteDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[320px] border-[var(--vlaina-border)] bg-[var(--vlaina-bg-primary)]">
-        <DialogHeader>
-          <DialogTitle className="text-[var(--vlaina-text-primary)]">
-            Delete {itemType}
-          </DialogTitle>
-          <DialogDescription className="text-[var(--vlaina-text-secondary)]">
-            Are you sure you want to delete "{itemLabel}"? This action cannot be undone.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="gap-2 sm:gap-2">
-          <button
-            onClick={() => onOpenChange(false)}
-            className={cn(
-              'rounded-md bg-[var(--vlaina-bg-secondary)] px-4 py-2 text-sm hover:bg-[var(--vlaina-hover)]'
-            )}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={async () => {
-              await onConfirm();
-              onOpenChange(false);
-            }}
-            className="rounded-md bg-red-500 px-4 py-2 text-sm text-white hover:bg-red-600"
-          >
-            Delete
-          </button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ConfirmDialog
+      isOpen={open}
+      onClose={() => onOpenChange(false)}
+      onConfirm={() => {
+        void onConfirm();
+      }}
+      title={`Delete ${itemType}`}
+      description={`Are you sure you want to delete "${itemLabel}"? This action cannot be undone.`}
+      confirmText="Delete"
+      cancelText="Cancel"
+      variant="danger"
+    />
   );
 }

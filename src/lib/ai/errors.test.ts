@@ -82,4 +82,19 @@ describe('getUserFacingAIError', () => {
       message: 'Network connection error. Please check your connection and try again.',
     });
   });
+
+  it('maps managed upstream 403 proxy failures to an actionable provider message', () => {
+    const result = getUserFacingAIError(
+      new Error(
+        'Managed API failed with status 403: {"error":{"message":"openai_error","type":"bad_response_status_code","param":"","code":"bad_response_status_code"}}'
+      )
+    );
+
+    expect(result).toEqual({
+      type: AIErrorType.SERVER_ERROR,
+      code: '403',
+      message:
+        'The upstream AI provider rejected this request (HTTP 403). Check the channel API key, model access, account balance, or provider risk controls.',
+    });
+  });
 });

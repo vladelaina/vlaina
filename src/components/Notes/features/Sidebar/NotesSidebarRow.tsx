@@ -18,6 +18,7 @@ interface NotesSidebarRowProps extends HTMLAttributes<HTMLDivElement> {
   trailing?: ReactNode;
   actions?: ReactNode;
   isActive?: boolean;
+  isHighlighted?: boolean;
   isDragOver?: boolean;
   showActionsByDefault?: boolean;
   contentClassName?: string;
@@ -33,6 +34,7 @@ export function NotesSidebarRow({
   trailing,
   actions,
   isActive = false,
+  isHighlighted = false,
   isDragOver = false,
   showActionsByDefault = false,
   className,
@@ -51,17 +53,20 @@ export function NotesSidebarRow({
       trailing={trailing}
       actions={actions}
       isActive={isActive}
+      isHighlighted={isHighlighted}
       isDragOver={isDragOver}
       showActionsByDefault={showActionsByDefault}
       className={className}
       contentClassName={contentClassName}
       actionFadeClassName={cn(
         'from-[var(--notes-sidebar-fade)]',
-        isActive && 'from-[var(--notes-sidebar-row-active)]',
-        !isActive && 'group-hover/sidebar-row:from-[var(--notes-sidebar-row-hover)]',
+        isHighlighted && 'from-[var(--notes-sidebar-row-hover)]',
+        isActive && !isHighlighted && 'from-[var(--notes-sidebar-row-active)]',
+        !isActive && !isHighlighted && 'group-hover/sidebar-row:from-[var(--notes-sidebar-row-hover)]',
         actionFadeClassName,
       )}
       activeClassName="bg-[var(--notes-sidebar-row-active)] text-[var(--notes-sidebar-text)]"
+      highlightClassName="bg-[var(--notes-sidebar-row-hover)] text-[var(--notes-sidebar-text)]"
       inactiveClassName="text-[var(--notes-sidebar-text-muted)] hover:bg-[var(--notes-sidebar-row-hover)]"
       dragOverClassName="bg-[var(--notes-sidebar-row-drag)] ring-1 ring-[var(--vlaina-accent)]"
       draggable={dragHandlers?.draggable}
