@@ -1,3 +1,39 @@
+.milkdown [data-type='math-inline'],
+.milkdown [data-type='math-block'] {
+  --vlaina-math-hover-color: var(--vlaina-hover-filled);
+  --vlaina-math-hover-bleed-y: 4px;
+  --vlaina-math-hover-bleed-x-start: 0;
+  transition:
+    background-color 0.16s ease,
+    box-shadow 0.16s ease;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.milkdown [data-type='math-inline']:hover,
+.milkdown [data-type='math-inline']:focus-visible,
+.milkdown [data-type='math-block']:hover,
+.milkdown [data-type='math-block']:focus-visible {
+  background: var(--vlaina-math-hover-color);
+  box-shadow:
+    inset 0 0 0 1px var(--vlaina-math-hover-color),
+    0 var(--vlaina-math-hover-bleed-y) 0 0 var(--vlaina-math-hover-color),
+    0 calc(-1 * var(--vlaina-math-hover-bleed-y)) 0 0 var(--vlaina-math-hover-color),
+    calc(-1 * var(--vlaina-math-hover-bleed-x-start)) 0 0 0 var(--vlaina-math-hover-color);
+  border-radius: 0;
+}
+
+.milkdown [data-type='math-inline']:hover,
+.milkdown [data-type='math-inline']:hover *,
+.milkdown [data-type='math-inline']:focus-visible,
+.milkdown [data-type='math-inline']:focus-visible *,
+.milkdown [data-type='math-block']:hover,
+.milkdown [data-type='math-block']:hover *,
+.milkdown [data-type='math-block']:focus-visible,
+.milkdown [data-type='math-block']:focus-visible * {
+  cursor: pointer !important;
+}
+
 .math-editor-popup {
   z-index: 80;
 }
