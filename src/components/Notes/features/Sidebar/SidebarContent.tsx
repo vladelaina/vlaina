@@ -117,11 +117,7 @@ export function SidebarContent({
                 />
               ))}
             </div>
-          ) : (
-            <div className="px-3 py-6 text-[13px] text-[var(--notes-sidebar-text-soft)]">
-              No matching notes
-            </div>
-          )
+          ) : null
         ) : (
           <div className="space-y-1">
             <StarredSection showTitle={false} />

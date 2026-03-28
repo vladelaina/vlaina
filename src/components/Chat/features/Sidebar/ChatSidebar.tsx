@@ -227,11 +227,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
           ref={scrollRootRef}
           onScroll={handleScroll}
         >
-          {shouldShowSearchResults && filteredSessions.length === 0 ? (
-            <div className="px-3 py-6 text-[13px] text-[var(--chat-sidebar-text-muted)]">
-              No matching chats
-            </div>
-          ) : !shouldShowSearchResults && !hasSessions ? null : (
+          {shouldShowSearchResults && filteredSessions.length === 0 ? null : !shouldShowSearchResults && !hasSessions ? null : (
             <ChatSidebarList>
               {sessionsToRender.map(session => {
                 const isActive = currentSessionId === session.id;
