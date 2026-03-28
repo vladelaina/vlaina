@@ -11,6 +11,10 @@
   
 # vlaina
 
+
+<img width="1149" height="734" alt="image" src="https://github.com/user-attachments/assets/7becc02b-49c1-4275-86b4-8c36f0a6d83d" />
+
+
 ## ⚖️ License & Copyright
 
 This project is open-source under the **GNU AGPLv3 License**. You are free to study, modify, and distribute the code under the same license terms.
