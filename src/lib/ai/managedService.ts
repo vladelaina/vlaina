@@ -78,16 +78,8 @@ export function isManagedServiceRecoverableError(error: unknown): boolean {
 }
 
 function logManagedClientDiagnostic(event: string, details: ManagedClientDiagnostic): void {
-  const payload = {
-    event,
-    runtime: hasBackendCommands() ? 'desktop' : 'web',
-    ...details,
-  }
-  console.log('[managed-client]', payload)
-
-  if (event === 'budget_snapshot' || event.includes('error')) {
-    console.log('[managed-client:raw]', JSON.stringify(payload))
-  }
+  void event
+  void details
 }
 
 function getManagedRuntime(): ManagedRuntime {

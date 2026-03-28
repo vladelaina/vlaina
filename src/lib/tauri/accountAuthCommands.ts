@@ -54,15 +54,8 @@ function toManagedBridgeIso(value: number): string {
 }
 
 function logManagedBridgeDiagnostic(event: string, details: ManagedBridgeDiagnostic): void {
-  const payload = {
-    event,
-    ...details,
-  };
-  console.log('[managed-bridge]', payload);
-
-  if (event.includes('error')) {
-    console.log('[managed-bridge:raw]', JSON.stringify(payload));
-  }
+  void event;
+  void details;
 }
 
 export const accountCommands = {
