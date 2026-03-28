@@ -20,14 +20,14 @@ export function ChatSidebarTopActions({
         icon={<Icon name="common.compose" size="md" />}
         label="New Chat"
         className="text-[var(--chat-sidebar-text-muted)] hover:bg-[var(--chat-sidebar-row-hover)]"
-        iconClassName="text-[var(--chat-sidebar-text-muted)]"
+        iconClassName="text-[var(--notes-sidebar-file-icon)]"
       />
       <SidebarActionButton
         onClick={onOpenNotes}
         icon={<Icon name="file.text" size="md" />}
         label="Notes"
         className="text-[var(--chat-sidebar-text-muted)] hover:bg-[var(--chat-sidebar-row-hover)]"
-        iconClassName="text-[var(--chat-sidebar-text-muted)]"
+        iconClassName="text-[var(--notes-sidebar-file-icon)]"
       />
     </SidebarActionGroup>
   );

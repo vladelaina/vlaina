@@ -227,8 +227,10 @@ html, body, #root {
   --notes-sidebar-section-label-hover: #27262b;
   --notes-sidebar-icon: #999999;
   --notes-sidebar-icon-hover: #27262b;
-  --notes-sidebar-file-icon: #999999;
-  --notes-sidebar-folder-icon: #c4a574;
+  --notes-sidebar-outline-icon: #41a8e8;
+  --notes-sidebar-spark-icon: #41a8e8;
+  --notes-sidebar-file-icon: #41a8e8;
+  --notes-sidebar-folder-icon: #41a8e8;
   --notes-sidebar-status-info: #3b82f6;
   --notes-sidebar-status-success: #22c55e;
   --notes-sidebar-status-warning: #f59e0b;
@@ -287,8 +289,10 @@ html, body, #root {
   --notes-sidebar-section-label-hover: #d1d5db;
   --notes-sidebar-icon: #6b7280;
   --notes-sidebar-icon-hover: #d1d5db;
-  --notes-sidebar-file-icon: #818cf8;
-  --notes-sidebar-folder-icon: #d0a86e;
+  --notes-sidebar-outline-icon: #41a8e8;
+  --notes-sidebar-spark-icon: #41a8e8;
+  --notes-sidebar-file-icon: #41a8e8;
+  --notes-sidebar-folder-icon: #41a8e8;
   --notes-sidebar-status-info: #60a5fa;
   --notes-sidebar-status-success: #4ade80;
   --notes-sidebar-status-warning: #fbbf24;

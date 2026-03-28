@@ -19,7 +19,7 @@ export function NotesSidebarViewToggle() {
       }
       label={notesSidebarView === 'workspace' ? 'Outline' : 'Files'}
       className="text-[var(--notes-sidebar-text-muted)] hover:bg-[var(--notes-sidebar-row-hover)]"
-      iconClassName="text-[var(--notes-sidebar-text-muted)]"
+      iconClassName="text-[var(--notes-sidebar-outline-icon)]"
     />
   );
 }

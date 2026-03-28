@@ -18,6 +18,7 @@ export interface FolderNode {
 }
 
 export type FileTreeNode = NoteFile | FolderNode;
+export type FileTreeSortMode = 'name-asc' | 'name-desc' | 'updated-desc' | 'created-desc';
 
 export interface NoteMetadataEntry {
   icon?: string;
@@ -81,6 +82,7 @@ export interface NotesState {
   assetList: AssetEntry[];
   isLoadingAssets: boolean;
   uploadProgress: number | null;
+  fileTreeSortMode: FileTreeSortMode;
 }
 
 export interface NotesActions {
@@ -133,6 +135,7 @@ export interface NotesActions {
   cleanupAssetTempFiles: () => Promise<void>;
   getAssetList: (category?: 'covers' | 'icons') => AssetEntry[];
   clearAssetUrlCache: () => void;
+  setFileTreeSortMode: (mode: FileTreeSortMode) => Promise<void>;
 }
 
 export type NotesStore = NotesState & NotesActions & CustomEmojiSlice;

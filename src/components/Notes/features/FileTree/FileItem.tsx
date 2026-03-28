@@ -1,6 +1,7 @@
 import { memo, useRef } from 'react';
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { Icon } from '@/components/ui/icons';
+import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import type { NoteFile } from '@/stores/useNotesStore';
 import { FileItemMenu } from './components/FileItemMenu';
 import { TreeItemDeleteDialog } from './components/TreeItemDeleteDialog';
@@ -9,6 +10,7 @@ import { NoteIcon } from '../IconPicker/NoteIcon';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
+import { NoteDisambiguatedTitle } from '../common/noteDisambiguation';
 
 interface FileItemProps {
   node: NoteFile;
@@ -66,22 +68,26 @@ export const FileItem = memo(function FileItem({
         showActionsByDefault={showMenu}
         main={
           isRenaming ? (
-            <input
-              type="text"
+            <SidebarInlineRenameInput
               value={renameValue}
-              onChange={(event) => setRenameValue(event.target.value)}
-              onBlur={() => void handleRenameSubmit()}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') void handleRenameSubmit();
-                if (event.key === 'Escape') setIsRenaming(false);
-              }}
-              className="w-full min-w-0 rounded border border-[var(--vlaina-accent)] bg-transparent px-1.5 py-0.5 text-sm leading-5 text-gray-900 outline-none dark:text-gray-100"
-              onClick={(event) => event.stopPropagation()}
+              onValueChange={setRenameValue}
+              onSubmit={handleRenameSubmit}
+              onCancel={() => setIsRenaming(false)}
+              className={cn(
+                'w-full min-w-0 border-none bg-transparent p-0 text-sm leading-5 outline-none',
+                isActive || showMenu
+                  ? 'font-medium text-[var(--notes-sidebar-text)]'
+                  : 'text-[var(--notes-sidebar-text-muted)]'
+              )}
             />
           ) : (
-            <span className={cn('block truncate', isActive && 'font-medium text-[var(--notes-sidebar-text)]')}>
-              {displayName}
-            </span>
+            <NoteDisambiguatedTitle
+              path={node.path}
+              fallbackName={displayName}
+              className={cn(isActive && 'text-[var(--notes-sidebar-text)]')}
+              titleClassName={cn(isActive && 'font-medium')}
+              hintClassName="text-[var(--notes-sidebar-text-soft)]"
+            />
           )
         }
         actions={

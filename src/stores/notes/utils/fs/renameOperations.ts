@@ -1,10 +1,11 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
-import { ensureMarkdownFileName, getNoteTitleFromPath, normalizeNotePathKey } from '@/lib/notes/displayName';
+import { getNoteTitleFromPath, normalizeNotePathKey } from '@/lib/notes/displayName';
 import { sanitizeFileName } from '../../noteUtils';
 import { moveDisplayName, updateDisplayName } from '../../displayNameUtils';
-import { saveNoteMetadata } from '../../storage';
+import { remapMetadataEntries, saveNoteMetadata } from '../../storage';
 import { getVaultStarredPaths, remapStarredEntriesForVault, saveStarredRegistry } from '../../starred';
 import { updateFileNodePath, findNode, deepUpdateNodePath, addNodeToTree, removeNodeFromTree } from '../../fileTreeUtils';
+import { resolveUniqueMovedPath, resolveUniqueRenamedPath } from './pathOperations';
 
 export async function renameNoteImpl(
     notesPath: string,
@@ -15,15 +16,16 @@ export async function renameNoteImpl(
 ) {
     const storage = getStorageAdapter();
     const fullPath = await joinPath(notesPath, path);
-    const dirPath = path.includes('/') ? path.substring(0, path.lastIndexOf('/')) : '';
     const sanitizedName = sanitizeFileName(newName);
-    const newFileName = ensureMarkdownFileName(sanitizedName);
+    const {
+        relativePath: newPath,
+        fullPath: newFullPath,
+        fileName: newFileName,
+    } = await resolveUniqueRenamedPath(notesPath, path, sanitizedName, false);
     const nextDisplayName = getNoteTitleFromPath(newFileName);
-    const newPath = dirPath ? `${dirPath}/${newFileName}` : newFileName;
 
     if (newPath === path) return null;
 
-    const newFullPath = await joinPath(notesPath, newPath);
     await storage.rename(fullPath, newFullPath);
 
     moveDisplayName(set, path, newPath);
@@ -39,14 +41,13 @@ export async function renameNoteImpl(
         void saveStarredRegistry(starredResult.entries);
     }
 
-    let updatedMetadata = noteMetadata;
-    if (noteMetadata?.notes[path]) {
-        const entry = noteMetadata.notes[path];
-        const { [path]: _, ...restNotes } = noteMetadata.notes;
-        updatedMetadata = {
-            ...noteMetadata,
-            notes: { ...restNotes, [newPath]: entry },
-        };
+    const updatedMetadata = remapMetadataEntries(noteMetadata, (relativePath) => {
+        if (relativePath !== path) {
+            return relativePath;
+        }
+        return newPath;
+    });
+    if (updatedMetadata !== noteMetadata && updatedMetadata) {
         saveNoteMetadata(notesPath, updatedMetadata);
     }
 
@@ -85,11 +86,20 @@ export async function moveItemImpl(
     const storage = getStorageAdapter();
     const normalizedSourcePath = normalizeNotePathKey(sourcePath) ?? sourcePath;
     const normalizedTargetFolderPath = normalizeNotePathKey(targetFolderPath) ?? targetFolderPath;
-    const fileName = normalizedSourcePath.split('/').pop() || '';
     const sourcePathPrefix = `${normalizedSourcePath}/`;
-    const newPath = normalizedTargetFolderPath ? `${normalizedTargetFolderPath}/${fileName}` : fileName;
     const sourceFullPath = await joinPath(notesPath, normalizedSourcePath);
-    const targetFullPath = await joinPath(notesPath, newPath);
+    const nodeToMove = currentStore.rootFolder
+        ? findNode(currentStore.rootFolder.children, normalizedSourcePath)
+        : null;
+    const {
+        relativePath: newPath,
+        fullPath: targetFullPath,
+    } = await resolveUniqueMovedPath(
+        notesPath,
+        normalizedSourcePath,
+        normalizedTargetFolderPath || undefined,
+        Boolean(nodeToMove?.isFolder)
+    );
 
     await storage.rename(sourceFullPath, targetFullPath);
 
@@ -117,7 +127,7 @@ export async function moveItemImpl(
         return changed ? { displayNames: updatedDisplayNames } : {};
     });
 
-    const { starredEntries, openTabs, currentNote, rootFolder } = currentStore;
+    const { starredEntries, openTabs, currentNote, rootFolder, noteMetadata } = currentStore;
 
     const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath) => remapPath(relativePath));
     const starredPaths = getVaultStarredPaths(starredResult.entries, notesPath);
@@ -131,6 +141,11 @@ export async function moveItemImpl(
         return nextPath === tab.path ? tab : { ...tab, path: nextPath };
     });
 
+    const updatedMetadata = remapMetadataEntries(noteMetadata, (relativePath) => remapPath(relativePath));
+    if (updatedMetadata !== noteMetadata && updatedMetadata) {
+        saveNoteMetadata(notesPath, updatedMetadata);
+    }
+
     let nextCurrentNote = currentNote;
     if (currentNote?.path) {
         const nextPath = remapPath(currentNote.path);
@@ -141,7 +156,6 @@ export async function moveItemImpl(
 
     let newChildren = rootFolder ? rootFolder.children : [];
     if (rootFolder) {
-        const nodeToMove = findNode(rootFolder.children, normalizedSourcePath);
         if (nodeToMove) {
             const nodeWithNewPath = deepUpdateNodePath(nodeToMove, normalizedSourcePath, newPath);
             const updatedNode = nodeToMove.isFolder
@@ -156,6 +170,7 @@ export async function moveItemImpl(
         updatedStarredEntries: starredResult.entries,
         updatedStarredFolders: starredPaths.folders,
         updatedStarredNotes: starredPaths.notes,
+        updatedMetadata,
         updatedTabs,
         nextCurrentNote,
         newChildren

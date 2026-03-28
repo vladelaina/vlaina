@@ -100,9 +100,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       const { rootFolder } = get();
       if (notesPath && rootFolder) {
         const expandedPaths = collectExpandedPaths(rootFolder.children);
+        const { fileTreeSortMode } = get();
         saveWorkspaceState(notesPath, {
           currentNotePath: path,
           expandedFolders: Array.from(expandedPaths),
+          fileTreeSortMode,
         });
       }
     } catch (error) {

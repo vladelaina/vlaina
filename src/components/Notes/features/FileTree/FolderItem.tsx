@@ -1,5 +1,6 @@
 import { memo, useRef } from 'react';
 import { Icon } from '@/components/ui/icons';
+import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import type { FolderNode } from '@/stores/useNotesStore';
 import { FileItem } from './FileItem';
 import { FolderItemMenu } from './components/FolderItemMenu';
@@ -8,6 +9,7 @@ import { useFolderItemState } from './hooks/useFolderItemState';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
+import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
 
 interface FolderItemProps {
   node: FolderNode;
@@ -42,6 +44,7 @@ export const FolderItem = memo(function FolderItem({
     deleteFolder,
     toggleFolderStarred,
   } = useFolderItemState(node);
+  const hasChildren = node.children.length > 0;
 
   const leading = node.expanded ? (
     <Icon name="file.folderOpen" size={NOTES_SIDEBAR_ICON_SIZE} className="text-[var(--notes-sidebar-folder-icon)]" />
@@ -55,7 +58,23 @@ export const FolderItem = memo(function FolderItem({
         depth={depth}
         leading={
           <span className="relative flex size-[20px] items-center justify-center">
-            {leading}
+            <span
+              className={cn(
+                'transition-opacity duration-150',
+                hasChildren && 'group-hover/sidebar-row:opacity-0 group-focus-within/sidebar-row:opacity-0',
+              )}
+            >
+              {leading}
+            </span>
+            {hasChildren ? (
+              <CollapseTriangleAffordance
+                collapsed={!node.expanded}
+                visibility="always"
+                size={14}
+                className="absolute inset-0 opacity-0 transition-opacity duration-150 group-hover/sidebar-row:opacity-100 group-focus-within/sidebar-row:opacity-100"
+                iconClassName="text-[var(--notes-sidebar-file-icon)]"
+              />
+            ) : null}
           </span>
         }
         isHighlighted={showMenu}
@@ -66,17 +85,17 @@ export const FolderItem = memo(function FolderItem({
         showActionsByDefault={showMenu}
         main={
           isRenaming ? (
-            <input
-              type="text"
+            <SidebarInlineRenameInput
               value={renameValue}
-              onChange={(event) => setRenameValue(event.target.value)}
-              onBlur={() => void handleRenameSubmit()}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') void handleRenameSubmit();
-                if (event.key === 'Escape') setIsRenaming(false);
-              }}
-              className="w-full min-w-0 rounded border border-[var(--vlaina-accent)] bg-transparent px-1.5 py-0.5 text-sm leading-5 text-[var(--notes-sidebar-text)] outline-none"
-              onClick={(event) => event.stopPropagation()}
+              onValueChange={setRenameValue}
+              onSubmit={handleRenameSubmit}
+              onCancel={() => setIsRenaming(false)}
+              className={cn(
+                'w-full min-w-0 border-none bg-transparent p-0 text-sm leading-5 outline-none',
+                showMenu
+                  ? 'text-[var(--notes-sidebar-text)]'
+                  : 'text-[var(--notes-sidebar-text-muted)]'
+              )}
             />
           ) : (
             <span className="block truncate text-[var(--notes-sidebar-text)]">{node.name}</span>

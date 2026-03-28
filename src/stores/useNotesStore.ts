@@ -8,6 +8,7 @@ export {
 export type { 
   NoteFile, 
   FolderNode, 
+  FileTreeSortMode,
   FileTreeNode, 
   NotesState, 
   NotesActions, 
