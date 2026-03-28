@@ -213,7 +213,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
             handleSwitch(session.id, isSessionUnread(session.id));
             hideSearch();
           }}
-          placeholder="Search chats..."
+          placeholder="Search conversations..."
           closeLabel="Close chat search"
           topActions={(
             <ChatSidebarTopActions

@@ -55,10 +55,10 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
           <div
             className={cn(
               'group flex items-center rounded-md transition-colors',
-              'hover:bg-[var(--vlaina-hover-filled)]',
+              'hover:bg-[var(--notes-sidebar-row-hover)]',
               isActive
-                ? 'bg-[var(--vlaina-hover-filled)] text-[var(--vlaina-text-primary)]'
-                : 'text-[var(--vlaina-text-secondary)]',
+                ? 'bg-[var(--notes-sidebar-row-active)] text-[var(--notes-sidebar-text)]'
+                : 'text-[var(--notes-sidebar-text-muted)]',
             )}
             style={{
               minHeight: NOTES_SIDEBAR_ROW_HEIGHT,
@@ -80,7 +80,7 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
                   event.stopPropagation();
                   toggleOutlineNode(node.id);
                 }}
-                className="mr-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm text-[var(--vlaina-text-tertiary)] hover:text-[var(--vlaina-text-secondary)]"
+                className="mr-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm text-[var(--notes-sidebar-text-muted)] hover:text-[var(--notes-sidebar-text)]"
               >
               <CollapseTriangleAffordance
                 collapsed={isCollapsed}

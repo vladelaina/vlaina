@@ -4,6 +4,7 @@ import {
   useLayoutEffect,
   useRef,
   type UIEvent,
+  type RefObject,
 } from 'react';
 
 const OVERSCROLL_OPEN_THRESHOLD = 56;
@@ -13,6 +14,7 @@ interface UseSidebarSearchControlsOptions {
   query: string;
   onOpen: () => void;
   onClose: () => void;
+  interactionScopeRef?: RefObject<HTMLElement | null>;
 }
 
 export function useSidebarSearchControls({
@@ -20,6 +22,7 @@ export function useSidebarSearchControls({
   query,
   onOpen,
   onClose,
+  interactionScopeRef,
 }: UseSidebarSearchControlsOptions) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const scrollRootRef = useRef<HTMLDivElement | null>(null);
@@ -62,8 +65,9 @@ export function useSidebarSearchControls({
   }, []);
 
   useEffect(() => {
+    const interactionScope = interactionScopeRef?.current ?? scrollRootRef.current;
     const scrollRoot = scrollRootRef.current;
-    if (!scrollRoot) {
+    if (!interactionScope || !scrollRoot) {
       return;
     }
 
@@ -99,15 +103,15 @@ export function useSidebarSearchControls({
       onOpen();
     };
 
-    scrollRoot.addEventListener('wheel', handleWheel, {
+    interactionScope.addEventListener('wheel', handleWheel, {
       capture: true,
       passive: false,
     });
 
     return () => {
-      scrollRoot.removeEventListener('wheel', handleWheel, true);
+      interactionScope.removeEventListener('wheel', handleWheel, true);
     };
-  }, [hideSearch, isOpen, onOpen, query]);
+  }, [hideSearch, interactionScopeRef, isOpen, onOpen, query]);
 
   return {
     inputRef,

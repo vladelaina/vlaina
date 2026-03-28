@@ -47,6 +47,7 @@ export function useSidebarSearchDrawerState({
     query,
     onOpen,
     onClose,
+    interactionScopeRef: scopeRef,
   });
 
   useHeldPageScroll(scrollRootRef, {

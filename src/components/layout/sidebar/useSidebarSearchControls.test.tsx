@@ -1,5 +1,5 @@
 import { act, render, screen } from '@testing-library/react';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { useSidebarSearchControls } from './useSidebarSearchControls';
 
@@ -29,11 +29,13 @@ function SidebarSearchControlsHarness({
   onOpen: () => void;
   onClose: () => void;
 }) {
+  const interactionScopeRef = useRef<HTMLDivElement | null>(null);
   const { scrollRootRef } = useSidebarSearchControls({
     isOpen,
     query,
     onOpen,
     onClose,
+    interactionScopeRef,
   });
 
   useEffect(() => {
@@ -45,7 +47,11 @@ function SidebarSearchControlsHarness({
     setScrollableMetrics(element, { scrollTop: 0 });
   }, [scrollRootRef]);
 
-  return <div ref={scrollRootRef} data-testid="scroll-root" />;
+  return (
+    <div ref={interactionScopeRef} data-testid="interaction-scope">
+      <div ref={scrollRootRef} data-testid="scroll-root" />
+    </div>
+  );
 }
 
 describe('useSidebarSearchControls', () => {
@@ -62,7 +68,7 @@ describe('useSidebarSearchControls', () => {
       />,
     );
 
-    const scrollRoot = screen.getByTestId('scroll-root');
+    const interactionScope = screen.getByTestId('interaction-scope');
     const wheelEvent = new WheelEvent('wheel', {
       bubbles: true,
       cancelable: true,
@@ -70,7 +76,7 @@ describe('useSidebarSearchControls', () => {
     });
 
     act(() => {
-      scrollRoot.dispatchEvent(wheelEvent);
+      interactionScope.dispatchEvent(wheelEvent);
     });
 
     expect(wheelEvent.defaultPrevented).toBe(true);
@@ -91,7 +97,7 @@ describe('useSidebarSearchControls', () => {
       />,
     );
 
-    const scrollRoot = screen.getByTestId('scroll-root');
+    const interactionScope = screen.getByTestId('interaction-scope');
     const wheelEvent = new WheelEvent('wheel', {
       bubbles: true,
       cancelable: true,
@@ -99,7 +105,7 @@ describe('useSidebarSearchControls', () => {
     });
 
     act(() => {
-      scrollRoot.dispatchEvent(wheelEvent);
+      interactionScope.dispatchEvent(wheelEvent);
     });
 
     expect(wheelEvent.defaultPrevented).toBe(true);
