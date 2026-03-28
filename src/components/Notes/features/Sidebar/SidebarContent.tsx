@@ -5,12 +5,13 @@ import { NotesSidebarScrollArea } from './NotesSidebarPrimitives';
 import { NotesSidebarRow } from './NotesSidebarRow';
 import { NotesSidebarTopActions } from './NotesSidebarTopActions';
 import { Icon } from '@/components/ui/icons';
-import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
-import { SidebarSearchField } from '@/components/layout/sidebar/SidebarPrimitives';
-import { useSidebarSearchControls } from '@/components/layout/sidebar/useSidebarSearchControls';
 import { StarredSection } from '../Starred';
 import { RootFolderRow } from './RootFolderRow';
 import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
+import {
+  SidebarSearchDrawer,
+  useSidebarSearchDrawerState,
+} from '@/components/layout/sidebar/SidebarSearchDrawer';
 import {
   buildNotesSidebarSearchResults,
   useNotesSidebarSearchState,
@@ -45,24 +46,19 @@ export function SidebarContent({
     scrollRootRef,
     hideSearch,
     handleScroll,
-    handleWheelCapture,
-  } = useSidebarSearchControls({
+    shouldShowSearchResults,
+  } = useSidebarSearchDrawerState({
     isOpen: isSearchOpen,
     query: searchQuery,
     onOpen: openSearch,
     onClose: closeSearch,
-  });
-
-  useHeldPageScroll(scrollRootRef, {
     scopeRef: sidebarRootRef,
-    ignoreEditableTargets: true,
   });
 
   const searchResults = useMemo(
     () => buildNotesSidebarSearchResults(rootFolder, searchQuery, getDisplayName),
     [getDisplayName, rootFolder, searchQuery],
   );
-  const hasSearchQuery = searchQuery.trim().length > 0;
 
   const handleOpenResult = (path: string) => {
     void openNote(path);
@@ -71,43 +67,34 @@ export function SidebarContent({
 
   return (
     <div ref={sidebarRootRef} className={cn('flex h-full flex-col', className)}>
-      {!isSearchOpen ? (
-        <NotesSidebarTopActions />
-      ) : null}
-
-      {isSearchOpen ? (
-        <SidebarSearchField
-          ref={inputRef}
-          autoFocus
-          type="text"
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') {
-              event.preventDefault();
-              hideSearch();
-              return;
-            }
-            if (event.key === 'Enter' && searchResults[0]) {
-              event.preventDefault();
-              handleOpenResult(searchResults[0].path);
-            }
-          }}
-          placeholder="Search notes..."
-          onClose={hideSearch}
-          closeLabel="Close sidebar search"
-        />
-      ) : null}
+      <SidebarSearchDrawer
+        isSearchOpen={isSearchOpen}
+        shouldShowTopActions={!shouldShowSearchResults}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        inputRef={inputRef}
+        hideSearch={hideSearch}
+        canSubmit={Boolean(searchResults[0])}
+        onSubmit={() => {
+          const result = searchResults[0];
+          if (!result) {
+            return;
+          }
+          handleOpenResult(result.path);
+        }}
+        placeholder="Search notes..."
+        closeLabel="Close sidebar search"
+        topActions={<NotesSidebarTopActions />}
+      />
 
       <NotesSidebarScrollArea
         ref={scrollRootRef}
         className={cn(isPeeking ? 'vlaina-scrollbar-rounded pt-4 pb-4' : 'pt-2')}
         data-notes-sidebar-scroll-root="true"
         onScroll={handleScroll}
-        onWheelCapture={handleWheelCapture}
       >
-        {isSearchOpen ? (
-          hasSearchQuery && searchResults.length > 0 ? (
+        {shouldShowSearchResults ? (
+          searchResults.length > 0 ? (
             <div className="flex flex-col gap-0.5">
               {searchResults.map((result) => (
                 <NotesSidebarRow
@@ -130,7 +117,11 @@ export function SidebarContent({
                 />
               ))}
             </div>
-          ) : null
+          ) : (
+            <div className="px-3 py-6 text-[13px] text-[var(--notes-sidebar-text-soft)]">
+              No matching notes
+            </div>
+          )
         ) : (
           <div className="space-y-1">
             <StarredSection showTitle={false} />
