@@ -130,12 +130,15 @@ pub async fn managed_chat_completion_stream(
 ) -> Result<(), String> {
     let session_token = require_managed_session_token(&app)?;
     let client = reqwest::Client::new();
+    let chunk_event = managed_chat_stream_chunk_event(&request_id);
+    let done_event = managed_chat_stream_done_event(&request_id);
+    let error_event = managed_chat_stream_error_event(&request_id);
     let mut payload = body;
     if let Some(map) = payload.as_object_mut() {
         map.insert("stream".to_string(), Value::Bool(true));
     }
 
-    let response = client
+    let response = match client
         .post(managed_chat_completions_url())
         .bearer_auth(session_token)
         .header(reqwest::header::ACCEPT, "text/event-stream")
@@ -143,7 +146,14 @@ pub async fn managed_chat_completion_stream(
         .json(&payload)
         .send()
         .await
-        .map_err(|e| format!("Managed API request failed: {}", e))?;
+    {
+        Ok(value) => value,
+        Err(error) => {
+            let message = format!("Managed API request failed: {}", error);
+            let _ = app.emit(&error_event, message.clone());
+            return Err(message);
+        }
+    };
 
     persist_rotated_session_token_from_headers(&app, response.headers())?;
 
@@ -153,11 +163,13 @@ pub async fn managed_chat_completion_stream(
             .text()
             .await
             .map_err(|e| format!("Failed to read managed API response: {}", e))?;
-        return Err(format!(
+        let message = format!(
             "Managed API failed with status {}: {}",
             status.as_u16(),
             raw_body
-        ));
+        );
+        let _ = app.emit(&error_event, message.clone());
+        return Err(message);
     }
 
     let mut stream = response.bytes_stream();
@@ -165,9 +177,6 @@ pub async fn managed_chat_completion_stream(
     let mut full_content = String::new();
     let mut has_started_reasoning = false;
     let mut has_finished_reasoning = false;
-    let chunk_event = managed_chat_stream_chunk_event(&request_id);
-    let done_event = managed_chat_stream_done_event(&request_id);
-    let error_event = managed_chat_stream_error_event(&request_id);
 
     while let Some(next) = stream.next().await {
         let bytes = match next {
@@ -179,8 +188,14 @@ pub async fn managed_chat_completion_stream(
             }
         };
 
-        let text = std::str::from_utf8(&bytes)
-            .map_err(|e| format!("Managed API stream was not valid utf-8: {}", e))?;
+        let text = match std::str::from_utf8(&bytes) {
+            Ok(value) => value,
+            Err(error) => {
+                let message = format!("Managed API stream was not valid utf-8: {}", error);
+                let _ = app.emit(&error_event, message.clone());
+                return Err(message);
+            }
+        };
         buffer.push_str(text);
 
         while let Some(position) = buffer.find('\n') {

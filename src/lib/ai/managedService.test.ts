@@ -38,6 +38,7 @@ describe('managedService', () => {
     getManagedModelsMock.mockReset();
     managedChatCompletionStreamMock.mockReset();
     vi.restoreAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
   });
 
   it('uses credentialed web requests for managed models', async () => {
@@ -160,5 +161,25 @@ describe('managedService', () => {
         stream: true,
       }),
     });
+  });
+
+  it('passes the managed diagnostic request id into the desktop stream bridge', async () => {
+    hasBackendCommandsMock.mockReturnValue(true);
+    managedChatCompletionStreamMock.mockResolvedValue('ok');
+
+    const { requestManagedChatCompletionStream } = await import('./managedService');
+
+    await requestManagedChatCompletionStream(
+      {
+        model: 'gpt-5.4',
+        messages: [{ role: 'user', content: 'hello' }],
+        stream: true,
+      },
+      vi.fn()
+    );
+
+    expect(managedChatCompletionStreamMock).toHaveBeenCalledTimes(1);
+    expect(typeof managedChatCompletionStreamMock.mock.calls[0]?.[3]).toBe('string');
+    expect(managedChatCompletionStreamMock.mock.calls[0]?.[3]).toContain('managed-stream-');
   });
 });
