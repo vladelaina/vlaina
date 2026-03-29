@@ -14,6 +14,11 @@ const INVALID_REQUEST_ERROR_MESSAGE = 'This request could not be processed. Plea
 const MODEL_SERVICE_ERROR_MESSAGE = 'The model service is temporarily unavailable. Please try again later or switch to another model.'
 const UPSTREAM_FORBIDDEN_MESSAGE =
   'The upstream AI provider rejected this request (HTTP 403). Check the channel API key, model access, account balance, or provider risk controls.'
+const KNOWN_MANAGED_BUSINESS_ERRORS = [
+  'Points exhausted',
+  'No active points balance',
+  'Insufficient remaining points',
+]
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -59,7 +64,6 @@ function inferErrorTypeByStatus(code: string): AIErrorType | null {
     case 400:
       return AIErrorType.INVALID_REQUEST
     case 401:
-    case 403:
       return AIErrorType.AUTH_ERROR
     case 408:
       return AIErrorType.TIMEOUT
@@ -159,7 +163,12 @@ function inferErrorTypeByMessage(message: string): AIErrorType {
       'authentication',
       'authorization',
       'unauthenticated',
+      'missing session token',
+      'invalid session token',
+      'session verification failed',
       'session expired',
+      'managed api session expired',
+      'vlaina sign-in required',
       'token expired',
     ])
   ) {
@@ -250,8 +259,18 @@ function shouldPreserveOriginalMessage(type: AIErrorType, message: string): bool
   }
 }
 
-function getSpecificUserFacingOverride(message: string): UserFacingAIError | null {
+function getSpecificUserFacingOverride(message: string, code: string): UserFacingAIError | null {
   const normalized = normalizeUserFacingMessage(message).toLowerCase()
+
+  for (const knownMessage of KNOWN_MANAGED_BUSINESS_ERRORS) {
+    if (normalized.includes(knownMessage.toLowerCase())) {
+      return {
+        type: AIErrorType.SERVER_ERROR,
+        code,
+        message: knownMessage,
+      }
+    }
+  }
 
   if (
     normalized.includes('managed api failed with status 403') &&
@@ -306,13 +325,21 @@ export function parseHTTPError(status: number, body?: any): AIError {
 
   switch (status) {
     case 401:
-    case 403:
       return createAIError(
         AIErrorType.AUTH_ERROR,
         apiMessage || 'Invalid API key or unauthorized access.',
         undefined,
         status
       )
+    case 403: {
+      const inferredType = apiMessage ? inferErrorTypeByMessage(apiMessage) : AIErrorType.UNKNOWN
+      return createAIError(
+        inferredType === AIErrorType.AUTH_ERROR ? AIErrorType.AUTH_ERROR : AIErrorType.SERVER_ERROR,
+        apiMessage || 'Forbidden request.',
+        undefined,
+        status
+      )
+    }
     case 429:
       return createAIError(
         AIErrorType.RATE_LIMIT,
@@ -350,12 +377,12 @@ export function parseHTTPError(status: number, body?: any): AIError {
 export function getUserFacingAIError(error: unknown): UserFacingAIError {
   const parsed = parseAPIError(error)
   const message = normalizeUserFacingMessage(extractErrorMessage(error))
-  const specificOverride = getSpecificUserFacingOverride(message)
+  const code = extractErrorCode(error) || (parsed.statusCode ? String(parsed.statusCode) : '')
+  const specificOverride = getSpecificUserFacingOverride(message, code)
   if (specificOverride) {
     return specificOverride
   }
 
-  const code = extractErrorCode(error) || (parsed.statusCode ? String(parsed.statusCode) : '')
   const statusType = inferErrorTypeByStatus(code)
   const messageType = inferErrorTypeByMessage(message)
 

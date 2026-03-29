@@ -3,7 +3,13 @@ use futures_util::StreamExt;
 use serde_json::Value;
 use tauri::Emitter;
 
-use super::worker_api::{persist_rotated_session_token_from_headers, read_api_base_url};
+use super::{
+    session_state::{
+        invalidate_account_auth, is_managed_session_invalid, managed_api_error_message,
+        MANAGED_API_SESSION_EXPIRED_ERROR,
+    },
+    worker_api::{persist_rotated_session_token_from_headers, read_api_base_url},
+};
 
 fn managed_api_base_url() -> String {
     format!("{}/v1", read_api_base_url())
@@ -37,7 +43,10 @@ fn require_managed_session_token(app: &tauri::AppHandle) -> Result<String, Strin
     get_stored_app_session_token(app)
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
-        .ok_or_else(|| "vlaina sign-in required".to_string())
+        .ok_or_else(|| {
+            invalidate_account_auth(app);
+            "vlaina sign-in required".to_string()
+        })
 }
 
 async fn request_managed_json(
@@ -73,11 +82,11 @@ async fn request_managed_json(
         .map_err(|e| format!("Failed to read managed API response: {}", e))?;
 
     if !status.is_success() {
-        return Err(format!(
-            "Managed API failed with status {}: {}",
-            status.as_u16(),
-            raw_body
-        ));
+        if is_managed_session_invalid(status, &raw_body) {
+            invalidate_account_auth(app);
+            return Err(MANAGED_API_SESSION_EXPIRED_ERROR.to_string());
+        }
+        return Err(managed_api_error_message(status, &raw_body));
     }
 
     serde_json::from_str(&raw_body).map_err(|e| format!("Invalid managed API response: {}", e))
@@ -163,11 +172,12 @@ pub async fn managed_chat_completion_stream(
             .text()
             .await
             .map_err(|e| format!("Failed to read managed API response: {}", e))?;
-        let message = format!(
-            "Managed API failed with status {}: {}",
-            status.as_u16(),
-            raw_body
-        );
+        let message = if is_managed_session_invalid(status, &raw_body) {
+            invalidate_account_auth(&app);
+            MANAGED_API_SESSION_EXPIRED_ERROR.to_string()
+        } else {
+            managed_api_error_message(status, &raw_body)
+        };
         let _ = app.emit(&error_event, message.clone());
         return Err(message);
     }

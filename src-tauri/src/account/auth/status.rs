@@ -1,14 +1,14 @@
 use crate::account::{
-    credentials::{
-        delete_account_credentials, load_account_credentials, save_account_credentials,
-        AccountCredentials,
-    },
+    credentials::{load_account_credentials, save_account_credentials, AccountCredentials},
     types::AccountSessionStatus,
 };
 use reqwest::header::ACCEPT;
 use serde::Deserialize;
 
-use super::worker_api::{persist_rotated_session_token_from_headers, read_api_base_url};
+use super::{
+    session_state::invalidate_account_auth,
+    worker_api::{persist_rotated_session_token_from_headers, read_api_base_url},
+};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -69,7 +69,7 @@ pub async fn get_account_session_status_impl(
             if response.status() == reqwest::StatusCode::UNAUTHORIZED
                 || response.status() == reqwest::StatusCode::FORBIDDEN
             {
-                let _ = delete_account_credentials(app);
+                invalidate_account_auth(app);
                 return Ok(disconnected_status());
             }
 
@@ -93,7 +93,7 @@ pub async fn get_account_session_status_impl(
                 .map_err(|error| format!("Invalid account session response: {}", error))?;
 
             if !payload.success || !payload.connected {
-                let _ = delete_account_credentials(app);
+                invalidate_account_auth(app);
                 return Ok(disconnected_status());
             }
 

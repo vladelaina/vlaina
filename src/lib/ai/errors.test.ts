@@ -97,4 +97,39 @@ describe('getUserFacingAIError', () => {
         'The upstream AI provider rejected this request (HTTP 403). Check the channel API key, model access, account balance, or provider risk controls.',
     });
   });
+
+  it('maps managed session expiry failures to the auth message', () => {
+    const result = getUserFacingAIError(new Error('Managed API session expired'));
+
+    expect(result).toEqual({
+      type: AIErrorType.AUTH_ERROR,
+      code: '',
+      message: 'Your sign-in session has expired. Please sign in again and try again.',
+    });
+  });
+
+  it('preserves managed business 403 reasons instead of treating them as auth failures', () => {
+    const result = getUserFacingAIError(
+      new Error('Managed API failed with status 403: Points exhausted')
+    );
+
+    expect(result).toEqual({
+      type: AIErrorType.SERVER_ERROR,
+      code: '403',
+      message: 'Points exhausted',
+    });
+  });
+
+  it('preserves direct business 403 reasons instead of treating them as auth failures', () => {
+    const result = getUserFacingAIError({
+      statusCode: 403,
+      message: 'No active points balance',
+    });
+
+    expect(result).toEqual({
+      type: AIErrorType.SERVER_ERROR,
+      code: '403',
+      message: 'No active points balance',
+    });
+  });
 });

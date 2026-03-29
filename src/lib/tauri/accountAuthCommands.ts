@@ -1,4 +1,6 @@
 import type { AccountProvider, MembershipTier } from '@/stores/accountSession/state';
+import { isTauri } from '@/lib/storage/adapter';
+import { ACCOUNT_AUTH_INVALIDATED_EVENT } from './webAccountSession';
 import { safeInvoke } from './invoke';
 import { listen } from '@tauri-apps/api/event';
 
@@ -57,6 +59,23 @@ function logManagedBridgeDiagnostic(event: string, details: ManagedBridgeDiagnos
   void event;
   void details;
 }
+
+let accountAuthInvalidationBridgeRegistered = false;
+
+function registerAccountAuthInvalidationBridge(): void {
+  if (accountAuthInvalidationBridgeRegistered || !isTauri() || typeof window === 'undefined') {
+    return;
+  }
+
+  accountAuthInvalidationBridgeRegistered = true;
+  void listen(ACCOUNT_AUTH_INVALIDATED_EVENT, () => {
+    window.dispatchEvent(new Event(ACCOUNT_AUTH_INVALIDATED_EVENT));
+  }).catch(() => {
+    accountAuthInvalidationBridgeRegistered = false;
+  });
+}
+
+registerAccountAuthInvalidationBridge();
 
 export const accountCommands = {
   async getAccountSessionStatus() {
