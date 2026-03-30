@@ -1,54 +1,13 @@
-import { moveDisplayName } from '../../displayNameUtils';
 import { remapMetadataEntries, saveNoteMetadata } from '../../storage';
 import { getVaultStarredPaths, remapStarredEntriesForVault, saveStarredRegistry } from '../../starred';
-import { getNoteTitleFromPath } from '@/lib/notes/displayName';
-
-export function batchUpdateTabsOnRename(
-    openTabs: { path: string; name: string; isDirty: boolean }[],
-    oldPath: string,
-    newPath: string
-) {
-    return openTabs.map(tab => {
-        if (tab.path === oldPath) {
-            return { ...tab, path: newPath, name: getNoteTitleFromPath(newPath) };
-        }
-        return tab;
-    });
-}
-
-export function batchUpdateTabsOnFolderRename(
-    openTabs: { path: string; name: string; isDirty: boolean }[],
-    oldFolderPath: string,
-    newFolderPath: string,
-    set: any
-) {
-    return openTabs.map(tab => {
-        if (tab.path.startsWith(oldFolderPath + '/')) {
-            const newTabPath = tab.path.replace(oldFolderPath, newFolderPath);
-            moveDisplayName(set, tab.path, newTabPath);
-            return { ...tab, path: newTabPath };
-        }
-        return tab;
-    });
-}
-
-export function batchUpdateTabsOnMove(
-    openTabs: { path: string; name: string; isDirty: boolean }[],
-    sourcePath: string,
-    newPath: string
-) {
-    return openTabs.map(tab => 
-        tab.path === sourcePath ? { ...tab, path: newPath } : tab
-    );
-}
+import type { FileOperationContext, FolderRenameResult } from './operationTypes';
 
 export async function processFolderRename(
     notesPath: string,
     path: string,
     newName: string,
-    currentStore: any,
-    set: any
-) {
+    currentStore: FileOperationContext
+): Promise<FolderRenameResult> {
     const { starredEntries } = currentStore;
     
     const dirPath = path.includes('/') ? path.substring(0, path.lastIndexOf('/')) : '';
@@ -65,12 +24,16 @@ export async function processFolderRename(
         void saveStarredRegistry(starredResult.entries);
     }
 
-    const updatedTabs = batchUpdateTabsOnFolderRename(currentStore.openTabs, path, newPath, set);
+    const updatedTabs = currentStore.openTabs.map((tab) => {
+        if (tab.path.startsWith(`${path}/`)) {
+            return { ...tab, path: tab.path.replace(path, newPath) };
+        }
+        return tab;
+    });
 
     let updatedCurrentNote = currentStore.currentNote;
     if (updatedCurrentNote && updatedCurrentNote.path.startsWith(path + '/')) {
         const newNotePath = updatedCurrentNote.path.replace(path, newPath);
-        moveDisplayName(set, updatedCurrentNote.path, newNotePath);
         updatedCurrentNote = { ...updatedCurrentNote, path: newNotePath };
     }
 

@@ -2,6 +2,7 @@ import { resolveUniquePath } from './pathOperations';
 import { safeWriteTextFile, loadNoteMetadata, setNoteEntry, saveNoteMetadata, addToRecentNotes } from '../../storage';
 import { addNodeToTree } from '../../fileTreeUtils';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
+import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
 
 export async function createNoteImpl(
     notesPath: string,
@@ -20,6 +21,7 @@ export async function createNoteImpl(
     if (folderPath) {
     }
 
+    markExpectedExternalChange(fullPath);
     await safeWriteTextFile(fullPath, content);
 
     const now = Date.now();

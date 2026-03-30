@@ -244,40 +244,53 @@ function AppContent() {
 
 function App() {
   useEffect(() => {
-    let isFlushing = false;
+    let activeFlush: Promise<boolean> | null = null;
+    let allowNextWindowClose = false;
+    let unlistenCloseRequested: (() => void) | null = null;
 
-    const flushAllPendingWrites = () => {
-      if (isFlushing) return;
-      isFlushing = true;
-
-      const tasks: Array<{ name: string; task: Promise<unknown> }> = [
-        { name: 'unified storage', task: flushPendingSave() },
-        { name: 'chat session storage', task: flushPendingSessionJsonSaves() },
-      ];
-
-      const notesState = useNotesStore.getState();
-      if (notesState.isDirty) {
-        tasks.push({
-          name: 'notes storage',
-          task: notesState.saveNote().then(() => {
-            if (useNotesStore.getState().isDirty) {
-              throw new Error('Notes still dirty after save attempt');
-            }
-          }),
-        });
+    const runFlushAllPendingWrites = async (): Promise<boolean> => {
+      if (activeFlush) {
+        return activeFlush;
       }
 
-      void Promise.allSettled(tasks.map((entry) => entry.task))
-        .then((results) => {
-          results.forEach((result, index) => {
-            if (result.status === 'rejected') {
-              console.error(`[App] Failed to flush ${tasks[index].name}:`, result.reason);
-            }
+      activeFlush = (async () => {
+        const tasks: Array<{ name: string; task: Promise<unknown> }> = [
+          { name: 'unified storage', task: flushPendingSave() },
+          { name: 'chat session storage', task: flushPendingSessionJsonSaves() },
+        ];
+
+        const notesState = useNotesStore.getState();
+        if (notesState.isDirty) {
+          tasks.push({
+            name: 'notes storage',
+            task: notesState.saveNote().then(() => {
+              if (useNotesStore.getState().isDirty) {
+                throw new Error('Notes still dirty after save attempt');
+              }
+            }),
           });
-        })
-        .finally(() => {
-          isFlushing = false;
+        }
+
+        const results = await Promise.allSettled(tasks.map((entry) => entry.task));
+        let hasFailure = false;
+
+        results.forEach((result, index) => {
+          if (result.status === 'rejected') {
+            hasFailure = true;
+            console.error(`[App] Failed to flush ${tasks[index].name}:`, result.reason);
+          }
         });
+
+        return !hasFailure && !useNotesStore.getState().isDirty;
+      })().finally(() => {
+        activeFlush = null;
+      });
+
+      return activeFlush;
+    };
+
+    const flushAllPendingWrites = () => {
+      void runFlushAllPendingWrites();
     };
 
     const handleVisibilityChange = () => {
@@ -286,11 +299,37 @@ function App() {
       }
     };
 
+    if (isTauri()) {
+      void getCurrentWindow().onCloseRequested(async (event) => {
+        if (allowNextWindowClose) {
+          allowNextWindowClose = false;
+          return;
+        }
+
+        const notesState = useNotesStore.getState();
+        if (!notesState.isDirty) {
+          return;
+        }
+
+        event.preventDefault();
+        const flushed = await runFlushAllPendingWrites();
+        if (!flushed) {
+          return;
+        }
+
+        allowNextWindowClose = true;
+        await getCurrentWindow().close();
+      }).then((unlisten) => {
+        unlistenCloseRequested = unlisten;
+      });
+    }
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('pagehide', flushAllPendingWrites);
     window.addEventListener('beforeunload', flushAllPendingWrites);
 
     return () => {
+      unlistenCloseRequested?.();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pagehide', flushAllPendingWrites);
       window.removeEventListener('beforeunload', flushAllPendingWrites);

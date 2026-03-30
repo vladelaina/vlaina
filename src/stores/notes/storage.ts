@@ -29,6 +29,10 @@ function saveRecentNotes(paths: string[]): void {
   }
 }
 
+export function persistRecentNotes(paths: string[]): void {
+  saveRecentNotes(paths);
+}
+
 export function addToRecentNotes(path: string, current: string[]): string[] {
   const filtered = current.filter(p => p !== path);
   const updated = [path, ...filtered].slice(0, MAX_RECENT_NOTES);
@@ -63,17 +67,21 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
   }
 }
 
+export async function saveNoteMetadataOrThrow(vaultPath: string, metadata: MetadataFile): Promise<void> {
+  const storage = getStorageAdapter();
+  const storePath = await joinPath(vaultPath, APP_CONFIG_FOLDER, STORE_FOLDER);
+
+  if (!(await storage.exists(storePath))) {
+    await storage.mkdir(storePath, true);
+  }
+
+  const metadataPath = await joinPath(storePath, METADATA_FILE);
+  await safeWriteTextFile(metadataPath, JSON.stringify(metadata, null, 2));
+}
+
 export async function saveNoteMetadata(vaultPath: string, metadata: MetadataFile): Promise<void> {
   try {
-    const storage = getStorageAdapter();
-    const storePath = await joinPath(vaultPath, APP_CONFIG_FOLDER, STORE_FOLDER);
-
-    if (!(await storage.exists(storePath))) {
-      await storage.mkdir(storePath, true);
-    }
-
-    const metadataPath = await joinPath(storePath, METADATA_FILE);
-    await safeWriteTextFile(metadataPath, JSON.stringify(metadata, null, 2));
+    await saveNoteMetadataOrThrow(vaultPath, metadata);
   } catch (error) {
     console.error('[NotesStorage] Failed to save note metadata:', error);
   }
