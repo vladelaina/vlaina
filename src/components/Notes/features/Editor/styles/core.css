@@ -5,7 +5,7 @@
 .milkdown {
   min-height: 100%;
   outline: none;
-  --vlaina-editor-caret-color: var(--vlaina-text-primary, #2C2C2B);
+  --vlaina-editor-caret-color: var(--vlaina-caret-color, #41ace2);
   --vlaina-editor-caret-width: 1px;
 }
 

@@ -106,7 +106,6 @@ function ValueDisplay({
           w-full text-center ${fontSize} font-thin tracking-tighter
           bg-transparent outline-none border-none p-0 m-0 tabular-nums
           text-zinc-900 dark:text-zinc-50
-          caret-zinc-400
           [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
         `}
         onKeyDown={(e) => {

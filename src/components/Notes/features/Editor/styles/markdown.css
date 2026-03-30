@@ -324,7 +324,7 @@
   margin: 0;
   background-color: rgb(245 245 245);
   color: rgb(38 38 38);
-  caret-color: var(--vlaina-accent);
+  caret-color: var(--vlaina-caret-color);
   border: none;
   border-radius: 0.25rem;
   font-family: var(--font-mono);

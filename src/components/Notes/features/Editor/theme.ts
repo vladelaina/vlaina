@@ -31,7 +31,7 @@ export const themeClasses = {
     // Text Formatting
     strong: 'font-semibold text-[var(--vlaina-text-primary)]',
     em: 'italic',
-    code: 'inline-block align-baseline rounded bg-neutral-100 px-1 py-0.5 font-mono text-sm font-medium text-neutral-800 caret-[var(--vlaina-accent)] dark:bg-neutral-800 dark:text-neutral-100', 
+    code: 'inline-block align-baseline rounded bg-neutral-100 px-1 py-0.5 font-mono text-sm font-medium text-neutral-800 caret-[var(--vlaina-caret-color)] dark:bg-neutral-800 dark:text-neutral-100', 
     link: 'font-medium text-[#1e96eb] underline underline-offset-4 cursor-pointer hover:text-[#0c7fd9] transition-colors',
 
     // Block Elements
