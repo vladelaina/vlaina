@@ -11,7 +11,13 @@ import {
   goToNextTableCellCommand,
   goToPrevTableCellCommand,
 } from './command'
-import { tableHeaderSchema, tableSchema } from './schema'
+import {
+  tableCellSchema,
+  tableHeaderRowSchema,
+  tableHeaderSchema,
+  tableRowSchema,
+  tableSchema,
+} from './schema'
 import { createTable } from './utils'
 
 const normalizeTableShortcutNumber = (value: string) =>
@@ -21,17 +27,45 @@ const normalizeTableShortcutNumber = (value: string) =>
 
 const tablePipeCellPattern = /[|｜]/
 
-function getPipeShortcutColumnCount(text: string): number | null {
+function getPipeShortcutCells(text: string): string[] | null {
   const trimmed = text.trim()
   if (!trimmed.startsWith('|') && !trimmed.startsWith('｜')) return null
   if (!trimmed.endsWith('|') && !trimmed.endsWith('｜')) return null
 
   const cells = trimmed
     .split(tablePipeCellPattern)
+    .slice(1, -1)
     .map((cell) => cell.trim())
-    .filter((cell) => cell.length > 0)
 
-  return cells.length >= 2 ? cells.length : null
+  return cells.length >= 2 ? cells : null
+}
+
+function getPipeShortcutColumnCount(text: string): number | null {
+  const cells = getPipeShortcutCells(text)?.filter((cell) => cell.length > 0)
+
+  return cells && cells.length >= 2 ? cells.length : null
+}
+
+function createTableFromPipeCells(
+  ctx: Parameters<typeof createTable>[0],
+  state: Parameters<Command>[0],
+  cells: string[]
+) {
+  const paragraph = paragraphSchema.type(ctx)
+  const headerCells = cells.map((cell) =>
+    tableHeaderSchema.type(ctx).create(
+      null,
+      paragraph.create(null, cell.length > 0 ? state.schema.text(cell) : undefined)
+    )
+  )
+  const bodyCells = Array(cells.length)
+    .fill(0)
+    .map(() => tableCellSchema.type(ctx).createAndFill()!)
+
+  return tableSchema.type(ctx).create(null, [
+    tableHeaderRowSchema.type(ctx).create(null, headerCells),
+    tableRowSchema.type(ctx).create(null, bodyCells),
+  ])
 }
 
 function createTableFromPipeShortcut(ctx: Parameters<typeof createTable>[0]): Command {
@@ -45,8 +79,8 @@ function createTableFromPipeShortcut(ctx: Parameters<typeof createTable>[0]): Co
     if ($from.parentOffset !== $from.parent.content.size) return false
     if ($from.depth < 1) return false
 
-    const columnCount = getPipeShortcutColumnCount($from.parent.textContent)
-    if (!columnCount) return false
+    const cells = getPipeShortcutCells($from.parent.textContent)
+    if (!cells || cells.filter((cell) => cell.length > 0).length < 2) return false
 
     const parent = $from.node($from.depth - 1)
     if (
@@ -59,7 +93,7 @@ function createTableFromPipeShortcut(ctx: Parameters<typeof createTable>[0]): Co
       return false
     }
 
-    const tableNode = createTable(ctx, 2, columnCount)
+    const tableNode = createTableFromPipeCells(ctx, state, cells)
     const from = $from.before($from.depth)
     const to = $from.after($from.depth)
     const tr = state.tr.replaceRangeWith(from, to, tableNode)
