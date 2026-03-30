@@ -58,6 +58,17 @@ describe('headingCollapseUtils', () => {
         ]);
     });
 
+    it('returns no collapsed node ranges when a heading has no section content', () => {
+        const positioned: Array<PositionedNode<TopLevelNodeLike>> = [
+            { pos: 0, node: heading(1, 4), endPos: 4 },
+            { pos: 4, node: heading(1, 5), endPos: 9 },
+            { pos: 9, node: heading(2, 5), endPos: 14 },
+        ];
+
+        expect(getCollapsedNodePositions(positioned, 0)).toEqual([]);
+        expect(getCollapsedNodePositions(positioned, 2)).toEqual([]);
+    });
+
     it('collects collapsed ranges from collapsed heading set', () => {
         const positioned: Array<PositionedNode<TopLevelNodeLike>> = [
             { pos: 0, node: heading(1, 4), endPos: 4 },
@@ -66,6 +77,17 @@ describe('headingCollapseUtils', () => {
         ];
         const ranges = collectCollapsedRanges(positioned, new Set([0]));
         expect(ranges).toEqual([{ headingPos: 0, from: 4, to: 10 }]);
+    });
+
+    it('ignores collapsed headings that do not own any section content', () => {
+        const positioned: Array<PositionedNode<TopLevelNodeLike>> = [
+            { pos: 0, node: heading(1, 4), endPos: 4 },
+            { pos: 4, node: heading(1, 4), endPos: 8 },
+            { pos: 8, node: paragraph(6), endPos: 14 },
+        ];
+
+        const ranges = collectCollapsedRanges(positioned, new Set([0, 4]));
+        expect(ranges).toEqual([{ headingPos: 4, from: 8, to: 14 }]);
     });
 
     it('finds containing/intersecting range', () => {
