@@ -28,20 +28,16 @@ import { createNoteImpl } from '../utils/fs/crudOperations';
 import { processFolderRename } from '../utils/fs/batchOperations';
 import { deleteNoteImpl, deleteFolderImpl } from '../utils/fs/deleteOperations';
 import { isInvalidMoveTarget } from '../utils/fs/moveValidation';
+import { getStateForPathDeletion, getStateForPathRename } from '../utils/fs/pathStateEffects';
 import { resolveUniquePath, resolveUniqueRenamedPath } from '../utils/fs/pathOperations';
 import { renameNoteImpl, moveItemImpl } from '../utils/fs/renameOperations';
+import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { uploadNoteAssetImpl } from '../utils/fs/uploadOperations';
 import {
-  pruneCachedNoteContents,
-  remapCachedNoteContents,
   setCachedNoteContent,
 } from '../document/noteContentCache';
 import { markExpectedExternalChange } from '../document/externalChangeRegistry';
 import {
-  pruneDisplayNamesForExternalDeletion,
-  pruneRecentNotesForExternalDeletion,
-  remapDisplayNamesForExternalRename,
-  remapRecentNotesForExternalRename,
 } from '../document/externalPathSync';
 
 export interface FileSystemSlice {
@@ -356,8 +352,12 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
           { rootFolder, currentNote, openTabs, starredEntries, noteMetadata }
         );
 
-        const nextRecentNotes = pruneRecentNotesForExternalDeletion(recentNotes, path);
-        const nextDisplayNames = pruneDisplayNamesForExternalDeletion(displayNames, path);
+        const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = getStateForPathDeletion({
+          path,
+          recentNotes,
+          displayNames,
+          noteContentsCache,
+        });
         if (nextRecentNotes !== recentNotes) {
           persistRecentNotes(nextRecentNotes);
         }
@@ -370,26 +370,21 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
             recentNotes: nextRecentNotes,
             displayNames: nextDisplayNames,
             noteMetadata: result.updatedMetadata ?? noteMetadata,
-            noteContentsCache: pruneCachedNoteContents(
-              noteContentsCache,
-              (cachedPath) => cachedPath === path
-            ),
+            noteContentsCache: nextNoteContentsCache,
         });
 
         if (currentNote?.path === path) {
           set({ currentNote: null, isDirty: false });
         }
 
-        if (rootFolder) {
-            set({
-              rootFolder: {
-                ...rootFolder,
-                children: sortNestedFileTree(result.newChildren, {
-                  mode: fileTreeSortMode,
-                  metadata: result.updatedMetadata ?? noteMetadata,
-                }),
-              },
-            });
+        const nextRootFolder = buildSortedRootFolder(
+          rootFolder,
+          result.newChildren,
+          fileTreeSortMode,
+          result.updatedMetadata ?? noteMetadata
+        );
+        if (nextRootFolder) {
+          set({ rootFolder: nextRootFolder });
         }
 
         if (result.nextAction && result.nextAction.type === 'open') {
@@ -421,8 +416,13 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
 
         if (!result) return;
 
-        const nextRecentNotes = remapRecentNotesForExternalRename(recentNotes, path, result.newPath);
-        const nextDisplayNames = remapDisplayNamesForExternalRename(displayNames, path, result.newPath);
+        const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = getStateForPathRename({
+          oldPath: path,
+          newPath: result.newPath,
+          recentNotes,
+          displayNames,
+          noteContentsCache,
+        });
         if (nextRecentNotes !== recentNotes) {
           persistRecentNotes(nextRecentNotes);
         }
@@ -436,22 +436,17 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
             currentNote: result.nextCurrentNote,
             recentNotes: nextRecentNotes,
             displayNames: nextDisplayNames,
-            noteContentsCache: remapCachedNoteContents(
-              noteContentsCache,
-              (cachedPath) => (cachedPath === path ? result.newPath : cachedPath)
-            ),
+            noteContentsCache: nextNoteContentsCache,
         });
 
-        if (rootFolder) {
-            set({
-              rootFolder: {
-                ...rootFolder,
-                children: sortNestedFileTree(result.updatedChildren, {
-                  mode: fileTreeSortMode,
-                  metadata: result.updatedMetadata,
-                }),
-              },
-            });
+        const nextRootFolder = buildSortedRootFolder(
+          rootFolder,
+          result.updatedChildren,
+          fileTreeSortMode,
+          result.updatedMetadata
+        );
+        if (nextRootFolder) {
+          set({ rootFolder: nextRootFolder });
         }
     } catch (error) {
         set({ error: error instanceof Error ? error.message : 'Failed to rename note' });
@@ -503,8 +498,13 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         { rootFolder, currentNote, openTabs, starredEntries, noteMetadata }
       );
 
-      const nextRecentNotes = remapRecentNotesForExternalRename(recentNotes, path, newPath);
-      const nextDisplayNames = remapDisplayNamesForExternalRename(displayNames, path, newPath);
+      const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = getStateForPathRename({
+        oldPath: path,
+        newPath,
+        recentNotes,
+        displayNames,
+        noteContentsCache,
+      });
       if (nextRecentNotes !== recentNotes) {
         persistRecentNotes(nextRecentNotes);
       }
@@ -516,24 +516,19 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         noteMetadata: updatedMetadata ?? noteMetadata,
         recentNotes: nextRecentNotes,
         displayNames: nextDisplayNames,
-        noteContentsCache: remapCachedNoteContents(noteContentsCache, (cachedPath) => {
-          if (!isPathWithinFolder(cachedPath, path)) {
-            return cachedPath;
-          }
-          return cachedPath.replace(path, newPath);
-        }),
+        noteContentsCache: nextNoteContentsCache,
       });
 
       if (rootFolder) {
         const updatedChildren = updateFolderNode(rootFolder.children, path, resolvedFolderName, newPath);
+        const nextRootFolder = buildSortedRootFolder(
+          rootFolder,
+          updatedChildren,
+          fileTreeSortMode,
+          updatedMetadata ?? noteMetadata
+        );
         set({
-          rootFolder: {
-            ...rootFolder,
-            children: sortNestedFileTree(updatedChildren, {
-              mode: fileTreeSortMode,
-              metadata: updatedMetadata ?? noteMetadata,
-            }),
-          },
+          rootFolder: nextRootFolder,
           openTabs: updatedTabs,
           currentNote: updatedCurrentNote,
         });
@@ -610,8 +605,12 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
             { rootFolder, currentNote, openTabs, starredEntries, noteMetadata }
         );
 
-        const nextRecentNotes = pruneRecentNotesForExternalDeletion(recentNotes, path);
-        const nextDisplayNames = pruneDisplayNamesForExternalDeletion(displayNames, path);
+        const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = getStateForPathDeletion({
+          path,
+          recentNotes,
+          displayNames,
+          noteContentsCache,
+        });
         if (nextRecentNotes !== recentNotes) {
           persistRecentNotes(nextRecentNotes);
         }
@@ -624,26 +623,21 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
             recentNotes: nextRecentNotes,
             displayNames: nextDisplayNames,
             noteMetadata: result.updatedMetadata ?? noteMetadata,
-            noteContentsCache: pruneCachedNoteContents(
-              noteContentsCache,
-              (cachedPath) => isPathWithinFolder(cachedPath, path)
-            ),
+            noteContentsCache: nextNoteContentsCache,
         });
 
         if (currentNote && isPathWithinFolder(currentNote.path, path)) {
           set({ currentNote: null, isDirty: false });
         }
 
-        if (rootFolder) {
-            set({
-              rootFolder: {
-                ...rootFolder,
-                children: sortNestedFileTree(result.newChildren, {
-                  mode: fileTreeSortMode,
-                  metadata: result.updatedMetadata ?? noteMetadata,
-                }),
-              },
-            });
+        const nextRootFolder = buildSortedRootFolder(
+          rootFolder,
+          result.newChildren,
+          fileTreeSortMode,
+          result.updatedMetadata ?? noteMetadata
+        );
+        if (nextRootFolder) {
+          set({ rootFolder: nextRootFolder });
         }
 
         if (result.nextAction && result.nextAction.type === 'open') {
@@ -677,8 +671,13 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
             { rootFolder, currentNote, openTabs, starredEntries, noteMetadata }
         );
 
-        const nextRecentNotes = remapRecentNotesForExternalRename(recentNotes, result.sourcePath, result.newPath);
-        const nextDisplayNames = remapDisplayNamesForExternalRename(displayNames, result.sourcePath, result.newPath);
+        const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = getStateForPathRename({
+          oldPath: result.sourcePath,
+          newPath: result.newPath,
+          recentNotes,
+          displayNames,
+          noteContentsCache,
+        });
         if (nextRecentNotes !== recentNotes) {
           persistRecentNotes(nextRecentNotes);
         }
@@ -692,27 +691,17 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
             currentNote: result.nextCurrentNote,
             recentNotes: nextRecentNotes,
             displayNames: nextDisplayNames,
-            noteContentsCache: remapCachedNoteContents(noteContentsCache, (cachedPath) => {
-              if (cachedPath === result.sourcePath) {
-                return result.newPath;
-              }
-              if (cachedPath.startsWith(`${result.sourcePath}/`)) {
-                return `${result.newPath}${cachedPath.slice(result.sourcePath.length)}`;
-              }
-              return cachedPath;
-            }),
+            noteContentsCache: nextNoteContentsCache,
         });
 
-        if (rootFolder) {
-            set({
-              rootFolder: {
-                ...rootFolder,
-                children: sortNestedFileTree(result.newChildren, {
-                  mode: fileTreeSortMode,
-                  metadata: result.updatedMetadata ?? noteMetadata,
-                }),
-              },
-            });
+        const nextRootFolder = buildSortedRootFolder(
+          rootFolder,
+          result.newChildren,
+          fileTreeSortMode,
+          result.updatedMetadata ?? noteMetadata
+        );
+        if (nextRootFolder) {
+          set({ rootFolder: nextRootFolder });
         }
     } catch (error) {
         set({ error: error instanceof Error ? error.message : 'Failed to move item' });
