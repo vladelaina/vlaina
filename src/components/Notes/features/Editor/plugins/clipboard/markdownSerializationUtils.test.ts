@@ -19,6 +19,17 @@ describe('normalizeSerializedMarkdownBlock', () => {
     expect(normalizeSerializedMarkdownBlock('<br/>\n')).toBe('');
   });
 
+  it('removes placeholder br tags from empty list items', () => {
+    expect(normalizeSerializedMarkdownBlock('- [ ] <br />\n')).toBe('- [ ]');
+    expect(normalizeSerializedMarkdownBlock('  - [x] <br />\n')).toBe('  - [x]');
+  });
+
+  it('removes placeholder br tags from empty table cells', () => {
+    expect(
+      normalizeSerializedMarkdownBlock('| a | b |\n| --- | --- |\n| 1 | <br /> |\n')
+    ).toBe('| a | b |\n| --- | --- |\n| 1 |   |');
+  });
+
   it('keeps normal markdown content', () => {
     expect(normalizeSerializedMarkdownBlock('# Title\n')).toBe('# Title');
   });
@@ -27,6 +38,18 @@ describe('normalizeSerializedMarkdownBlock', () => {
 describe('normalizeSerializedMarkdownSelection', () => {
   it('converts standalone br tags to single newline', () => {
     expect(normalizeSerializedMarkdownSelection('<br />')).toBe('\n');
+  });
+
+  it('removes placeholder br tags from copied empty task items', () => {
+    expect(
+      normalizeSerializedMarkdownSelection('- [ ] todo\n  - [ ] 1\n    - [ ] <br />\n')
+    ).toBe('- [ ] todo\n  - [ ] 1\n    - [ ]');
+  });
+
+  it('removes placeholder br tags from copied empty table cells', () => {
+    expect(
+      normalizeSerializedMarkdownSelection('| a | b |\n| --- | --- |\n| <br /> | 2 |\n')
+    ).toBe('| a | b |\n| --- | --- |\n|   | 2 |');
   });
 
   it('keeps normal markdown content', () => {
@@ -41,5 +64,13 @@ describe('joinSerializedBlocks', () => {
 
   it('preserves empty gaps between non-empty blocks', () => {
     expect(joinSerializedBlocks(['A', '', 'B'])).toBe('A\n\nB');
+  });
+
+  it('uses blank lines between non-list markdown blocks', () => {
+    expect(joinSerializedBlocks(['# Title', 'Body'])).toBe('# Title\n\nBody');
+  });
+
+  it('keeps adjacent list items tightly joined', () => {
+    expect(joinSerializedBlocks(['- first', '- second'])).toBe('- first\n- second');
   });
 });
