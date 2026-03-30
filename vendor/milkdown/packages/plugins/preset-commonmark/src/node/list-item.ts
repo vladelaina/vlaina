@@ -3,12 +3,13 @@ import type { Ctx } from '@milkdown/ctx'
 import { commandsCtx } from '@milkdown/core'
 import { expectDomTypeError } from '@milkdown/exception'
 import { joinBackward } from '@milkdown/prose/commands'
+import { Fragment, Slice } from '@milkdown/prose/model'
+import { canSplit } from '@milkdown/prose/transform'
 import {
   liftListItem,
   sinkListItem,
-  splitListItem,
 } from '@milkdown/prose/schema-list'
-import { type Command, TextSelection } from '@milkdown/prose/state'
+import { type Command, Selection, TextSelection } from '@milkdown/prose/state'
 import { $command, $nodeAttr, $nodeSchema, $useKeymap } from '@milkdown/utils'
 
 import { withMeta } from '../__internal__'
@@ -156,7 +157,7 @@ withMeta(liftListItemCommand, {
 /// ```
 export const splitListItemCommand = $command(
   'SplitListItem',
-  (ctx) => () => splitListItem(listItemSchema.type(ctx))
+  (ctx) => () => splitListItemPreservingAttrs(ctx)
 )
 
 withMeta(splitListItemCommand, {
@@ -179,6 +180,96 @@ function liftFirstListItem(ctx: Ctx): Command {
     if (parentItem.type !== listItemSchema.type(ctx)) return false
 
     return joinBackward(state, dispatch, view)
+  }
+}
+
+function getNextListItemAttrs(attrs: Record<string, unknown>) {
+  if (!Object.prototype.hasOwnProperty.call(attrs, 'checked')) {
+    return attrs
+  }
+
+  return {
+    ...attrs,
+    checked: attrs.checked == null ? null : false,
+  }
+}
+
+function splitListItemPreservingAttrs(ctx: Ctx): Command {
+  return (state, dispatch) => {
+    const { $from, $to, node } = state.selection as typeof state.selection & {
+      node?: { isBlock?: boolean }
+    }
+
+    if ((node && node.isBlock) || $from.depth < 2 || !$from.sameParent($to)) return false
+
+    const itemType = listItemSchema.type(ctx)
+    const grandParent = $from.node(-1)
+    if (grandParent.type !== itemType) return false
+
+    const nextItemAttrs = getNextListItemAttrs(grandParent.attrs as Record<string, unknown>)
+
+    if (
+      $from.parent.content.size === 0 &&
+      $from.node(-1).childCount === $from.indexAfter(-1)
+    ) {
+      if (
+        $from.depth === 3 ||
+        $from.node(-3).type !== itemType ||
+        $from.index(-2) !== $from.node(-2).childCount - 1
+      ) {
+        return false
+      }
+
+      if (dispatch) {
+        let wrap = Fragment.empty
+        const depthBefore = $from.index(-1) ? 1 : $from.index(-2) ? 2 : 3
+
+        for (let d = $from.depth - depthBefore; d >= $from.depth - 3; d -= 1) {
+          wrap = Fragment.from($from.node(d).copy(wrap))
+        }
+
+        const depthAfter =
+          $from.indexAfter(-1) < $from.node(-2).childCount
+            ? 1
+            : $from.indexAfter(-2) < $from.node(-3).childCount
+              ? 2
+              : 3
+
+        wrap = wrap.append(
+          Fragment.from(itemType.createAndFill(nextItemAttrs as never))
+        )
+
+        const start = $from.before($from.depth - (depthBefore - 1))
+        const tr = state.tr.replace(
+          start,
+          $from.after(-depthAfter),
+          new Slice(wrap, 4 - depthBefore, 0)
+        )
+
+        let sel = -1
+        tr.doc.nodesBetween(start, tr.doc.content.size, (node, pos) => {
+          if (sel > -1) return false
+          if (node.isTextblock && node.content.size === 0) sel = pos + 1
+          return undefined
+        })
+
+        if (sel > -1) tr.setSelection(Selection.near(tr.doc.resolve(sel)))
+        dispatch(tr.scrollIntoView())
+      }
+
+      return true
+    }
+
+    const nextType =
+      $to.pos === $from.end() ? grandParent.contentMatchAt(0).defaultType : null
+    const tr = state.tr.delete($from.pos, $to.pos)
+    const types = nextType
+      ? [{ type: itemType, attrs: nextItemAttrs }, { type: nextType }]
+      : undefined
+
+    if (!canSplit(tr.doc, $from.pos, 2, types)) return false
+    if (dispatch) dispatch(tr.split($from.pos, 2, types).scrollIntoView())
+    return true
   }
 }
 
