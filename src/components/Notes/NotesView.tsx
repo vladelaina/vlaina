@@ -16,6 +16,7 @@ import {
   runOpenNewChatShortcut,
   runTemporaryChatWelcomeShortcut,
 } from '@/components/Chat/features/Temporary/temporaryChatCommands';
+import { useNotesExternalSync } from './hooks/useNotesExternalSync';
 
 const EmbeddedChatView = lazy(async () => {
   const mod = await import('@/components/Chat/ChatView');
@@ -90,6 +91,7 @@ export function NotesView() {
   }, [setChatPanelCollapsed]);
 
   useModuleShortcutsDialog({ onToggle: toggleShortcutsDialog });
+  useNotesExternalSync(currentVault?.path ?? null, notesPath);
 
   useEffect(() => {
     return () => {

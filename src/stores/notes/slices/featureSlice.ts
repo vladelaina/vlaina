@@ -13,6 +13,7 @@ import {
   removeStarredEntryById,
   toggleStarredEntry,
 } from '../starred';
+import { setCachedNoteContent } from '../document/noteContentCache';
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -71,11 +72,11 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
 
   scanAllNotes: async () => {
-    const { notesPath, rootFolder } = get();
+    const { notesPath, rootFolder, currentNote, noteContentsCache } = get();
     if (!rootFolder || !notesPath) return;
 
     const storage = getStorageAdapter();
-    const cache = new Map<string, string>();
+    let cache: NotesStore['noteContentsCache'] = new Map();
     const filePaths: { path: string; fullPath: string }[] = [];
 
     const collectPaths = async (nodes: FileTreeNode[]) => {
@@ -103,9 +104,19 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
       results.forEach((result) => {
         if (result.status === 'fulfilled') {
-          cache.set(result.value.path, result.value.content);
+          cache = setCachedNoteContent(cache, result.value.path, result.value.content, null);
         }
       });
+    }
+
+    if (currentNote) {
+      const currentEntry = noteContentsCache.get(currentNote.path);
+      cache = setCachedNoteContent(
+        cache,
+        currentNote.path,
+        currentNote.content,
+        currentEntry?.modifiedAt ?? null
+      );
     }
 
     set({ noteContentsCache: cache });
@@ -122,7 +133,8 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       new RegExp(`\\[\\[${escapedNoteName}\\|[^\\]]+\\]\\]`, 'gi'),
     ];
 
-    noteContentsCache.forEach((content, path) => {
+    noteContentsCache.forEach((entry, path) => {
+      const content = entry.content;
       if (path === notePath || !content.includes('[[')) return;
 
       for (const pattern of patterns) {
@@ -151,7 +163,8 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     const tagCounts = new Map<string, number>();
     const tagRegex = /(?:^|\s)#([a-zA-Z][a-zA-Z0-9_/-]*)/g;
 
-    noteContentsCache.forEach((content) => {
+    noteContentsCache.forEach((entry) => {
+      const content = entry.content;
       let match;
       while ((match = tagRegex.exec(content)) !== null) {
         const tag = match[1].toLowerCase();
