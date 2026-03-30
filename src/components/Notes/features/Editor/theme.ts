@@ -16,17 +16,16 @@ import type { TextAlignment } from './plugins/floating-toolbar/types';
 export const themeClasses = {
     root: 'prose mx-auto focus:outline-none min-h-[50vh] pb-32 pt-0',
 
-    // Typography - Using Golden Spacing (26px) for Vertical Rhythm
     heading: {
-        h1: 'scroll-m-20 text-[42px] leading-[1.2] font-extrabold tracking-tight mb-[26px] mt-[42px] first:mt-0 text-[var(--vlaina-text-primary)]',
-        h2: 'scroll-m-20 pb-2 text-[33px] leading-[1.3] font-semibold tracking-tight transition-colors first:mt-0 mb-[26px] mt-[33px] text-[var(--vlaina-text-primary)]',
-        h3: 'scroll-m-20 text-[26px] leading-[1.4] font-semibold tracking-tight mb-[16px] mt-[26px] text-[var(--vlaina-text-primary)]',
-        h4: 'scroll-m-20 text-[20px] leading-[1.4] font-semibold tracking-tight mb-[10px] mt-[20px] text-[var(--vlaina-text-primary)]',
-        h5: 'scroll-m-20 text-[16px] leading-[1.5] font-semibold tracking-tight mb-[10px] mt-[16px] text-[var(--vlaina-text-primary)]',
-        h6: 'scroll-m-20 text-[13px] leading-[1.5] font-semibold tracking-tight mb-[10px] mt-[16px] text-[var(--vlaina-text-primary)]',
+        h1: 'text-[var(--vlaina-text-primary)]',
+        h2: 'text-[var(--vlaina-text-primary)]',
+        h3: 'text-[var(--vlaina-text-primary)]',
+        h4: 'text-[var(--vlaina-text-primary)]',
+        h5: 'text-[var(--vlaina-text-primary)]',
+        h6: 'text-[var(--vlaina-text-primary)]',
     },
 
-    paragraph: 'leading-[26px] [&:not(:first-child)]:mt-[26px] text-[var(--vlaina-text-primary)] text-[16px]',
+    paragraph: 'text-[var(--vlaina-text-primary)]',
 
     // Text Formatting
     strong: 'font-semibold text-[var(--vlaina-text-primary)]',
