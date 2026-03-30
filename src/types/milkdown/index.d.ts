@@ -303,10 +303,13 @@ interface MilkdownCtx {
 
 interface MilkdownEditorInstance {
   ctx: MilkdownCtx;
+  create(): Promise<MilkdownEditorInstance>;
+  destroy(clearPlugins?: boolean): Promise<MilkdownEditorInstance>;
+  action<T>(action: (ctx: MilkdownCtx) => T): T;
   [key: string]: any;
 }
 
-interface MilkdownEditorBuilder {
+interface MilkdownEditorBuilder extends MilkdownEditorInstance {
   config(fn: (ctx: MilkdownCtx) => void): MilkdownEditorBuilder;
   use(plugin: any): MilkdownEditorBuilder;
 }
@@ -588,11 +591,17 @@ declare module '@milkdown/kit/prose/state' {
     static near($pos: MilkdownResolvedPos, bias?: number): Selection;
     static create(doc: MilkdownNode, anchor: number, head?: number): Selection;
     static atStart(doc: MilkdownNode): Selection;
+    static atEnd(doc: MilkdownNode): Selection;
     [key: string]: any;
   }
 
   export class TextSelection extends Selection {
     static create(doc: MilkdownNode, anchor: number, head?: number): TextSelection;
+  }
+
+  export class AllSelection extends Selection {
+    constructor(doc: MilkdownNode);
+    static create(doc: MilkdownNode): AllSelection;
   }
 
   export class NodeSelection extends Selection {
