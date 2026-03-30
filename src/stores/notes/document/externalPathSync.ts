@@ -118,6 +118,24 @@ export function remapRecentNotesForExternalRename(
   return changed ? Array.from(new Set(nextRecentNotes)) : recentNotes;
 }
 
+export function remapExpandedFoldersForExternalRename(
+  expandedFolders: string[],
+  oldPath: string,
+  newPath: string
+): string[] {
+  let changed = false;
+
+  const nextExpandedFolders = expandedFolders.map((path) => {
+    const nextPath = remapPathForExternalRename(path, oldPath, newPath);
+    if (nextPath !== path) {
+      changed = true;
+    }
+    return nextPath;
+  });
+
+  return changed ? Array.from(new Set(nextExpandedFolders)) : expandedFolders;
+}
+
 export function pruneRecentNotesForExternalDeletion(
   recentNotes: NotesStore['recentNotes'],
   deletedPath: string,
@@ -132,6 +150,17 @@ export function pruneRecentNotesForExternalDeletion(
   });
 
   return nextRecentNotes.length === recentNotes.length ? recentNotes : nextRecentNotes;
+}
+
+export function pruneExpandedFoldersForExternalDeletion(
+  expandedFolders: string[],
+  deletedPath: string
+): string[] {
+  const nextExpandedFolders = expandedFolders.filter(
+    (path) => !shouldRemoveForExternalDeletion(path, deletedPath)
+  );
+
+  return nextExpandedFolders.length === expandedFolders.length ? expandedFolders : nextExpandedFolders;
 }
 
 export function remapCurrentNoteForExternalRename(

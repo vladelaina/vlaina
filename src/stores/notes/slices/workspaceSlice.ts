@@ -6,7 +6,6 @@ import { updateDisplayName } from '../displayNameUtils';
 import {
   addToRecentNotes,
   persistRecentNotes,
-  saveWorkspaceState,
 } from '../storage';
 import { collectExpandedPaths } from '../fileTreeUtils';
 import {
@@ -26,15 +25,18 @@ import { loadNoteDocument, saveNoteDocument } from '../document/noteDocumentPers
 import { setNoteTabDirtyState } from '../document/noteTabState';
 import {
   pruneDisplayNamesForExternalDeletion,
+  pruneExpandedFoldersForExternalDeletion,
   pruneOpenTabsForExternalDeletion,
   pruneRecentNotesForExternalDeletion,
   remapCurrentNoteForExternalRename,
   remapDisplayNamesForExternalRename,
+  remapExpandedFoldersForExternalRename,
   remapOpenTabsForExternalRename,
   remapRecentNotesForExternalRename,
   shouldPreserveDeletedCurrentNote,
 } from '../document/externalPathSync';
 import { remapMetadataEntries, saveNoteMetadata } from '../storage';
+import { persistWorkspaceSnapshot } from '../workspacePersistence';
 
 export interface WorkspaceSlice {
   currentNote: NotesStore['currentNote'];
@@ -116,16 +118,12 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         noteContentsCache: nextCache,
       });
 
-      const { rootFolder } = get();
-      if (notesPath && rootFolder) {
-        const expandedPaths = collectExpandedPaths(rootFolder.children);
-        const { fileTreeSortMode } = get();
-        saveWorkspaceState(notesPath, {
-          currentNotePath: path,
-          expandedFolders: Array.from(expandedPaths),
-          fileTreeSortMode,
-        });
-      }
+      const { rootFolder, fileTreeSortMode } = get();
+      persistWorkspaceSnapshot(notesPath, {
+        rootFolder,
+        currentNotePath: path,
+        fileTreeSortMode,
+      });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to open note' });
     }
@@ -293,6 +291,8 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       starredEntries,
       notesPath,
       recentNotes,
+      rootFolder,
+      fileTreeSortMode,
     } = get();
 
     const nextCurrentNote = remapCurrentNoteForExternalRename(currentNote, oldPath, newPath);
@@ -352,6 +352,19 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       starredFolders: starredPaths.folders,
       error: null,
     });
+
+    persistWorkspaceSnapshot(notesPath, {
+      rootFolder,
+      currentNotePath: nextCurrentNote?.path ?? null,
+      fileTreeSortMode,
+      expandedFolders: rootFolder
+        ? remapExpandedFoldersForExternalRename(
+            Array.from(collectExpandedPaths(rootFolder.children)),
+            oldPath,
+            newPath
+          )
+        : [],
+    });
   },
 
   applyExternalPathDeletion: async (path: string) => {
@@ -365,6 +378,8 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       notesPath,
       isDirty,
       recentNotes,
+      rootFolder,
+      fileTreeSortMode,
     } = get();
 
     const preserveCurrentNote = shouldPreserveDeletedCurrentNote(currentNote, isDirty, path);
@@ -422,6 +437,23 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       error: null,
     });
 
+    const nextCurrentNotePath =
+      currentNote && !preserveCurrentNote && (currentNote.path === path || currentNote.path.startsWith(`${path}/`))
+        ? nextOpenTabs[nextOpenTabs.length - 1]?.path ?? null
+        : currentNote?.path ?? null;
+
+    persistWorkspaceSnapshot(notesPath, {
+      rootFolder,
+      currentNotePath: nextCurrentNotePath,
+      fileTreeSortMode,
+      expandedFolders: rootFolder
+        ? pruneExpandedFoldersForExternalDeletion(
+            Array.from(collectExpandedPaths(rootFolder.children)),
+            path
+          )
+        : [],
+    });
+
     if (currentNote && !preserveCurrentNote && (currentNote.path === path || currentNote.path.startsWith(`${path}/`))) {
       if (nextOpenTabs.length > 0) {
         const lastTab = nextOpenTabs[nextOpenTabs.length - 1];
@@ -453,7 +485,15 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     });
   },
 
-  closeNote: () => set({ currentNote: null, isDirty: false }),
+  closeNote: () => {
+    const { notesPath, rootFolder, fileTreeSortMode } = get();
+    set({ currentNote: null, isDirty: false });
+    persistWorkspaceSnapshot(notesPath, {
+      rootFolder,
+      currentNotePath: null,
+      fileTreeSortMode,
+    });
+  },
 
   closeTab: async (path: string) => {
     const {
@@ -461,6 +501,9 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       currentNote,
       isDirty,
       saveNote,
+      notesPath,
+      rootFolder,
+      fileTreeSortMode,
     } = get();
 
     const pathIsAbsolute = isAbsolutePath(path);
@@ -497,6 +540,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         });
       } else {
         set({ currentNote: null, isDirty: false });
+        persistWorkspaceSnapshot(notesPath, {
+          rootFolder,
+          currentNotePath: null,
+          fileTreeSortMode,
+        });
       }
     }
   },
