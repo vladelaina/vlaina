@@ -217,7 +217,7 @@ export function DetailModal({
                                 updateDraft('title', e.target.value);
                                 adjustHeight(e.target);
                               }}
-                              className="text-center text-3xl font-medium bg-transparent border-none outline-none p-0 text-zinc-900 dark:text-zinc-100 w-full resize-none overflow-hidden placeholder:text-zinc-200 dark:placeholder:text-zinc-700 caret-zinc-400"
+                              className="text-center text-3xl font-medium bg-transparent border-none outline-none p-0 text-zinc-900 dark:text-zinc-100 w-full resize-none overflow-hidden placeholder:text-zinc-200 dark:placeholder:text-zinc-700"
                               placeholder="Untitled"
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') {
