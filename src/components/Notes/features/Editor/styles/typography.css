@@ -9,6 +9,8 @@
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: calc(1em + 8px);
+  padding-top: 0;
+  padding-bottom: 0;
   margin-top: 18px;
   margin-bottom: 10px;
   color: var(--vlaina-text-primary);
@@ -24,6 +26,8 @@
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: calc(1em + 10px);
+  padding-top: 0;
+  padding-bottom: 0;
   margin-top: 14px;
   margin-bottom: 10px;
   color: var(--vlaina-text-primary);
@@ -35,6 +39,8 @@
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: calc(1em + 8px);
+  padding-top: 0;
+  padding-bottom: 0;
   margin-top: 12px;
   margin-bottom: 10px;
   color: var(--vlaina-text-primary);
@@ -46,6 +52,8 @@
   font-weight: 600;
   letter-spacing: -0.015em;
   line-height: calc(1em + 8px);
+  padding-top: 0;
+  padding-bottom: 0;
   margin-top: 12px;
   margin-bottom: 10px;
   color: var(--vlaina-text-primary);
@@ -57,6 +65,8 @@
   font-weight: 600;
   letter-spacing: -0.015em;
   line-height: calc(1em + 8px);
+  padding-top: 0;
+  padding-bottom: 0;
   margin-top: 12px;
   margin-bottom: 10px;
   color: var(--vlaina-text-primary);
@@ -68,6 +78,8 @@
   font-weight: 600;
   letter-spacing: -0.015em;
   line-height: calc(1em + 8px);
+  padding-top: 0;
+  padding-bottom: 0;
   margin-top: 12px;
   margin-bottom: 10px;
   color: var(--vlaina-text-primary);
@@ -77,6 +89,8 @@
 .milkdown p {
   font-size: 15px;
   line-height: calc(1em + 8px);
+  padding-top: 0;
+  padding-bottom: 0;
   margin-top: 8px;
   margin-bottom: 0;
   color: var(--vlaina-text-primary);
