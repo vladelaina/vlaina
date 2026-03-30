@@ -1,6 +1,64 @@
 import { $mark, $remark, $inputRule } from '@milkdown/kit/utils';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
 
+interface MdastNode {
+  type: string;
+  value?: string;
+  children?: MdastNode[];
+  color?: string;
+}
+
+function replaceInlineHtmlMark(tree: MdastNode, matcher: (value: string) => MdastNode | null) {
+  function visit(node: MdastNode): void {
+    if (!node.children?.length) return;
+
+    for (let index = 0; index < node.children.length; index += 1) {
+      const child = node.children[index];
+      if (child.type === 'html' && typeof child.value === 'string') {
+        const nextNode = matcher(child.value.trim());
+        if (nextNode) {
+          node.children.splice(index, 1, nextNode);
+          continue;
+        }
+      }
+
+      visit(child);
+    }
+  }
+
+  visit(tree);
+}
+
+function parseInlineColorHtml(value: string): MdastNode | null {
+  const textColorMatch = value.match(/^<span\s+style=["']color:\s*([^"';]+);?["']>([\s\S]*?)<\/span>$/i);
+  if (textColorMatch) {
+    return {
+      type: 'textColor',
+      color: textColorMatch[1].trim(),
+      children: [{ type: 'text', value: textColorMatch[2] }],
+    };
+  }
+
+  const bgColorMatch = value.match(/^<mark\s+style=["']background-color:\s*([^"';]+);?["']>([\s\S]*?)<\/mark>$/i);
+  if (bgColorMatch) {
+    return {
+      type: 'bgColor',
+      color: bgColorMatch[1].trim(),
+      children: [{ type: 'text', value: bgColorMatch[2] }],
+    };
+  }
+
+  return null;
+}
+
+function remarkInlineColorHtml() {
+  return (tree: MdastNode) => {
+    replaceInlineHtmlMark(tree, parseInlineColorHtml);
+  };
+}
+
+export const remarkInlineColorHtmlPlugin = $remark('remarkInlineColorHtml', () => remarkInlineColorHtml);
+
 export const textColorMark = $mark('textColor', () => ({
   attrs: {
     color: { default: null },
@@ -37,14 +95,19 @@ export const textColorMark = $mark('textColor', () => ({
     ];
   },
   parseMarkdown: {
-    match: () => false,
-    runner: () => {},
+    match: (node) => node.type === 'textColor',
+    runner: (state, node, markType) => {
+      state.openMark(markType, { color: node.color ?? null });
+      state.next(node.children);
+      state.closeMark(markType);
+    },
   },
   toMarkdown: {
     match: (mark) => mark.type.name === 'textColor',
     runner: (state, mark, node) => {
       const color = mark.attrs.color as string;
       state.addNode('html', undefined, `<span style="color: ${color}">${node.text || ''}</span>`);
+      return true;
     },
   },
 }));
@@ -94,14 +157,19 @@ export const bgColorMark = $mark('bgColor', () => ({
     ];
   },
   parseMarkdown: {
-    match: () => false,
-    runner: () => {},
+    match: (node) => node.type === 'bgColor',
+    runner: (state, node, markType) => {
+      state.openMark(markType, { color: node.color ?? null });
+      state.next(node.children);
+      state.closeMark(markType);
+    },
   },
   toMarkdown: {
     match: (mark) => mark.type.name === 'bgColor',
     runner: (state, mark, node) => {
       const color = mark.attrs.color as string;
       state.addNode('html', undefined, `<mark style="background-color: ${color}">${node.text || ''}</mark>`);
+      return true;
     },
   },
 }));
@@ -118,14 +186,17 @@ export const underlineMark = $mark('underline', () => ({
   toDOM: () => ['u', 0],
   parseMarkdown: {
     match: (node) => node.type === 'underline',
-    runner: (state, _node, markType) => {
+    runner: (state, node, markType) => {
       state.openMark(markType);
+      state.next(node.children);
+      state.closeMark(markType);
     },
   },
   toMarkdown: {
     match: (mark) => mark.type.name === 'underline',
     runner: (state, _mark, node) => {
       state.addNode('text', undefined, `++${node.text || ''}++`);
+      return true;
     },
   },
 }));
@@ -214,6 +285,7 @@ function remarkUnderline() {
 export const remarkUnderlinePlugin = $remark('remarkUnderline', () => remarkUnderline);
 
 export const colorMarksPlugin = [
+  remarkInlineColorHtmlPlugin,
   textColorMark,
   bgColorMark,
   remarkUnderlinePlugin,

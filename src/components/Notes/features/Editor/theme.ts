@@ -148,9 +148,7 @@ function applySchemaThemeOverrides(ctx: Ctx) {
             match: (node: any) => node.type.name === 'paragraph',
             runner: (state: any, node: any) => {
                 const align = normalizeTextAlignment(node.attrs.align);
-                state.openNode('paragraph');
-                state.next(node.content);
-                state.closeNode();
+                prev.toMarkdown.runner(state, node);
                 if (align !== 'left') {
                     state.addNode('html', undefined, getTextAlignmentComment(align));
                 }
@@ -195,9 +193,7 @@ function applySchemaThemeOverrides(ctx: Ctx) {
             match: (node: any) => node.type.name === 'heading',
             runner: (state: any, node: any) => {
                 const align = normalizeTextAlignment(node.attrs.align);
-                state.openNode('heading', { depth: node.attrs.level });
-                state.next(node.content);
-                state.closeNode();
+                prev.toMarkdown.runner(state, node);
                 if (align !== 'left') {
                     state.addNode('html', undefined, getTextAlignmentComment(align));
                 }
@@ -412,7 +408,7 @@ function applySchemaThemeOverrides(ctx: Ctx) {
                     const srcStr = escapeHtml(src || '');
                     const altStr = escapeHtml(alt || '');
 
-                    state.write(`<img src="${srcStr}" alt="${altStr}"${attrsStr} />`);
+                    state.addNode('html', undefined, `<img src="${srcStr}" alt="${altStr}"${attrsStr} />`);
                 }
             }
         };
