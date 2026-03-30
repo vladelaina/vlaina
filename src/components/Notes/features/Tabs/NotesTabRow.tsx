@@ -63,12 +63,22 @@ function TabContent({ tab, isActive, icon, title, disambiguation }: TabContentPr
 interface SortableTabProps {
   tab: { path: string; name: string; isDirty: boolean };
   isActive: boolean;
+  isStarred: boolean;
   onClose: (path: string) => void | Promise<void>;
   onClick: (path: string) => void;
+  onToggleStar: (path: string) => void;
   showSeparator?: boolean;
 }
 
-const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick, showSeparator }: SortableTabProps) {
+const SortableTab = memo(function SortableTab({
+  tab,
+  isActive,
+  isStarred,
+  onClose,
+  onClick,
+  onToggleStar,
+  showSeparator,
+}: SortableTabProps) {
   const icon = useDisplayIcon(tab.path);
   const { title, disambiguation } = useNoteLabelDescriptor(tab.path, tab.name);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ id: tab.path });
@@ -121,13 +131,30 @@ const SortableTab = memo(function SortableTab({ tab, isActive, onClose, onClick,
           <TabContent tab={tab} isActive={isActive} icon={icon} title={title} disambiguation={disambiguation} />
 
           <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleStar(tab.path);
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className={cn(
+              'rounded p-0.5 transition-all',
+              isStarred
+                ? 'opacity-100 text-amber-500'
+                : 'pointer-events-none opacity-0 text-zinc-300 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 hover:text-amber-500 dark:text-zinc-600 dark:hover:text-amber-400'
+            )}
+          >
+            <Icon size="sm" name="misc.star" className={cn(isStarred && 'fill-current')} />
+          </button>
+
+          <button
             onClick={(e) => {
               e.stopPropagation();
               onClose(tab.path);
             }}
             onPointerDown={(e) => e.stopPropagation()}
             className={cn(
-              'ml-auto rounded p-0.5 opacity-0 transition-all group-hover:opacity-100',
+              'ml-auto rounded p-0.5 opacity-0 transition-all pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100',
               'text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400'
             )}
           >
@@ -174,6 +201,8 @@ export function NotesTabRow() {
   const openNote = useNotesStore((s) => s.openNote);
   const createNote = useNotesStore((s) => s.createNote);
   const reorderTabs = useNotesStore((s) => s.reorderTabs);
+  const isStarred = useNotesStore((s) => s.isStarred);
+  const toggleStarred = useNotesStore((s) => s.toggleStarred);
 
   const [activeTabId, setActiveTabId] = React.useState<string | null>(null);
 
@@ -224,8 +253,10 @@ export function NotesTabRow() {
                 key={tab.path}
                 tab={tab}
                 isActive={currentNote?.path === tab.path}
+                isStarred={isStarred(tab.path)}
                 onClose={closeTab}
                 onClick={(path) => void openNote(path)}
+                onToggleStar={toggleStarred}
                 showSeparator={index > 0}
               />
             ))}
