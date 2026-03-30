@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { cn, iconButtonStyles } from '@/lib/utils';
-import type { ChatSession } from '@/lib/ai/types';
 import { isTemporarySession } from '@/lib/ai/temporaryChat';
 import { ChatSidebarList, ChatSidebarRow, ChatSidebarScrollArea, ChatSidebarSurface } from './ChatSidebarPrimitives';
 import {
@@ -18,7 +17,6 @@ import { Icon } from '@/components/ui/icons';
 import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
 import { ChatSidebarTopActions } from './ChatSidebarTopActions';
 import { useGlobalSearch } from '@/hooks/useGlobalSearch';
-import { buildDuplicateLabelRegistry } from '@/lib/labels/disambiguation';
 import {
   SidebarSearchDrawer,
   useSidebarSearchDrawerState,
@@ -37,35 +35,6 @@ function ChatSidebarLoadingTitle({ title }: { title: string }) {
         {title}
       </span>
     </span>
-  );
-}
-
-function formatChatDisambiguationDate(timestamp: number) {
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(new Date(timestamp));
-}
-
-function formatChatDisambiguationTime(timestamp: number) {
-  return new Intl.DateTimeFormat(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(timestamp));
-}
-
-function buildChatSessionDisambiguationRegistry(sessions: ChatSession[]) {
-  return buildDuplicateLabelRegistry(
-    sessions.map((session) => ({
-      id: session.id,
-      label: session.title || 'New Chat',
-      hintSegments: [
-        session.id.slice(-4).toUpperCase(),
-        formatChatDisambiguationDate(session.createdAt),
-        formatChatDisambiguationTime(session.createdAt),
-      ],
-    }))
   );
 }
 
@@ -165,11 +134,6 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
     );
   }, [searchQuery, sortedSessions]);
 
-  const sessionDisambiguationRegistry = useMemo(
-    () => buildChatSessionDisambiguationRegistry(visibleSessions),
-    [visibleSessions]
-  );
-
   const handleRename = (sessionId: string, currentTitle: string) => {
       setRenamingSessionId(sessionId);
       setRenameDraft(currentTitle || 'New Chat');
@@ -257,7 +221,6 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                 const isUnread = isSessionUnread(session.id);
                 const isRenaming = renamingSessionId === session.id;
                 const displayTitle = session.title || 'New Chat';
-                const disambiguation = sessionDisambiguationRegistry.get(session.id) ?? null;
                 const showMenuByDefault = isActive && !session.isPinned;
                 const statusIndicator = isGenerating && !isActive ? (
                   null
@@ -299,9 +262,6 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                         isGenerating && !isActive ? (
                           <span className="block truncate">
                             <ChatSidebarLoadingTitle title={displayTitle} />
-                            {disambiguation ? (
-                              <span className="text-[11px] text-[var(--chat-sidebar-text-muted)]/80">{` · ${disambiguation}`}</span>
-                            ) : null}
                           </span>
                         ) : (
                           <span
@@ -313,9 +273,6 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                             )}
                           >
                             {displayTitle}
-                            {disambiguation ? (
-                              <span className="text-[11px] text-current/65">{` · ${disambiguation}`}</span>
-                            ) : null}
                           </span>
                         )
                       )
