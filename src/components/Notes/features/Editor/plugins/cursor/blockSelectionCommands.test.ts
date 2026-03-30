@@ -37,7 +37,7 @@ describe('serializeSelectedBlocksToText', () => {
       { markdownSerializer: markdownSerializer as unknown as Serializer },
     );
 
-    expect(result).toBe('## 1-4\n## 5-8');
+    expect(result).toBe('## 1-4\n\n## 5-8');
     expect(markdownSerializer.mock.calls.map(([doc]) => (doc as { range: string }).range)).toEqual([
       '1-4',
       '5-8',
@@ -91,5 +91,24 @@ describe('serializeSelectedBlocksToText', () => {
     );
 
     expect(result).toBe('# Title\n\n- item');
+  });
+
+  it('serializes leading frontmatter block selections back to markdown fences', () => {
+    const state = createMockState();
+    const markdownSerializer = vi.fn((doc: any) => {
+      if (doc.range === '1-2') return '```yaml-frontmatter\ntitle: demo\n```';
+      return 'Body';
+    });
+
+    const result = serializeSelectedBlocksToText(
+      state,
+      [
+        { from: 1, to: 2 },
+        { from: 3, to: 4 },
+      ],
+      { markdownSerializer: markdownSerializer as unknown as Serializer },
+    );
+
+    expect(result).toBe('---\ntitle: demo\n---\n\nBody');
   });
 });

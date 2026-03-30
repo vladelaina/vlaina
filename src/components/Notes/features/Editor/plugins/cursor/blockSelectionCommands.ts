@@ -8,6 +8,7 @@ import {
 } from '../clipboard/markdownSerializationUtils';
 import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
 import { buildDeleteRangesForBlockSelection } from './listBlockUtils';
+import { serializeLeadingFrontmatterMarkdown } from '../frontmatter/frontmatterMarkdown';
 
 interface SerializeSelectedBlocksOptions {
   markdownSerializer?: Serializer | null;
@@ -26,7 +27,7 @@ export function serializeSelectedBlocksToText(
     try {
       const markdownPieces = normalized
         .map((block) => normalizeSerializedMarkdownBlock(markdownSerializer(state.doc.cut(block.from, block.to))));
-      return joinSerializedBlocks(markdownPieces);
+      return serializeLeadingFrontmatterMarkdown(joinSerializedBlocks(markdownPieces));
     } catch {
     }
   }
@@ -34,7 +35,7 @@ export function serializeSelectedBlocksToText(
   const pieces = normalized
     .map((block) => normalizeSerializedMarkdownBlock(serializeSliceToText(state.doc.slice(block.from, block.to))));
 
-  return joinSerializedBlocks(pieces);
+  return serializeLeadingFrontmatterMarkdown(joinSerializedBlocks(pieces));
 }
 
 export function setClipboardText(event: ClipboardEvent, text: string): void {

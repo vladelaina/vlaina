@@ -4,6 +4,7 @@ import type { Serializer } from '@milkdown/kit/transformer';
 
 import { normalizeSerializedMarkdownSelection } from './markdownSerializationUtils';
 import { serializeSliceToText } from './serializer';
+import { serializeLeadingFrontmatterMarkdown } from '../frontmatter/frontmatterMarkdown';
 
 type SelectionWithContent = EditorState['selection'] & {
   content?: () => Slice;
@@ -81,18 +82,22 @@ export function serializeSelectionToClipboardText(
 
   const singleListItemText = serializeSingleListItemWithoutMarker(slice);
   if (singleListItemText !== null) {
-    return singleListItemText;
+    return serializeLeadingFrontmatterMarkdown(singleListItemText);
   }
 
   if (markdownSerializer) {
     try {
       const doc = state.schema.topNodeType.createAndFill(undefined, slice.content);
       if (doc) {
-        return normalizeSerializedMarkdownSelection(markdownSerializer(doc));
+        return serializeLeadingFrontmatterMarkdown(
+          normalizeSerializedMarkdownSelection(markdownSerializer(doc))
+        );
       }
     } catch {
     }
   }
 
-  return normalizeSerializedMarkdownSelection(serializeSliceToText(slice));
+  return serializeLeadingFrontmatterMarkdown(
+    normalizeSerializedMarkdownSelection(serializeSliceToText(slice))
+  );
 }
