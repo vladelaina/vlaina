@@ -29,12 +29,18 @@ async function writeStarredRegistry(entries: StarredEntry[]): Promise<void> {
 async function isStarredEntryValid(entry: StarredEntry): Promise<boolean> {
   const storage = getStorageAdapter();
 
-  if (!(await storage.exists(entry.vaultPath))) {
+  const vaultInfo = await storage.stat(entry.vaultPath);
+  if (!vaultInfo?.isDirectory) {
     return false;
   }
 
   const fullPath = await joinPath(entry.vaultPath, entry.relativePath);
-  return storage.exists(fullPath);
+  const targetInfo = await storage.stat(fullPath);
+  if (!targetInfo) {
+    return false;
+  }
+
+  return entry.kind === 'folder' ? targetInfo.isDirectory : targetInfo.isFile;
 }
 
 async function pruneInvalidStarredEntries(entries: StarredEntry[]): Promise<{

@@ -317,7 +317,7 @@ function TagsField({
         className="
           w-full bg-transparent border-none outline-none text-left
           font-medium text-sm text-zinc-900 dark:text-zinc-100
-          caret-zinc-400 p-0
+          p-0
           placeholder:text-zinc-200 dark:placeholder:text-zinc-700
         "
         placeholder="tag1, tag2"

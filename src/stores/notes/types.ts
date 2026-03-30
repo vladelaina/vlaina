@@ -60,6 +60,11 @@ export interface CurrentNoteState {
   content: string;
 }
 
+export interface NoteContentCacheEntry {
+  content: string;
+  modifiedAt: number | null;
+}
+
 export interface NotesState {
   rootFolder: FolderNode | null;
   currentNote: CurrentNoteState | null;
@@ -69,7 +74,7 @@ export interface NotesState {
   error: string | null;
   recentNotes: string[];
   openTabs: { path: string; name: string; isDirty: boolean }[];
-  noteContentsCache: Map<string, string>;
+  noteContentsCache: Map<string, NoteContentCacheEntry>;
   starredEntries: StarredEntry[];
   starredNotes: string[];
   starredFolders: string[];
@@ -86,11 +91,15 @@ export interface NotesState {
 }
 
 export interface NotesActions {
-  loadFileTree: () => Promise<void>;
+  loadFileTree: (skipRestore?: boolean) => Promise<void>;
   toggleFolder: (path: string) => void;
   openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
   openNoteByAbsolutePath: (absolutePath: string, openInNewTab?: boolean) => Promise<void>;
   saveNote: () => Promise<void>;
+  syncCurrentNoteFromDisk: () => Promise<'ignored' | 'unchanged' | 'reloaded' | 'conflict' | 'deleted' | 'deleted-conflict'>;
+  invalidateNoteCache: (path: string) => void;
+  applyExternalPathRename: (oldPath: string, newPath: string) => Promise<void>;
+  applyExternalPathDeletion: (path: string) => Promise<void>;
   createNote: (folderPath?: string) => Promise<string>;
   createNoteWithContent: (folderPath: string | undefined, name: string, content: string) => Promise<string>;
   deleteNote: (path: string) => Promise<void>;

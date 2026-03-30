@@ -10,17 +10,20 @@ import { cn, iconButtonStyles } from '@/lib/utils';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
+import { SidebarStarBadge } from '../common/SidebarStarBadge';
 
 interface FolderItemProps {
   node: FolderNode;
   depth: number;
   currentNotePath?: string;
+  showStarBadge?: boolean;
 }
 
 export const FolderItem = memo(function FolderItem({
   node,
   depth,
   currentNotePath,
+  showStarBadge = false,
 }: FolderItemProps) {
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const {
@@ -56,6 +59,7 @@ export const FolderItem = memo(function FolderItem({
     <div className="relative" data-file-tree-path={node.path} data-file-tree-kind="folder">
       <NotesSidebarRow
         depth={depth}
+        actionFadeClassName={showStarBadge ? 'w-3 from-transparent' : undefined}
         leading={
           <span className="relative flex size-[20px] items-center justify-center">
             <span
@@ -98,7 +102,15 @@ export const FolderItem = memo(function FolderItem({
               )}
             />
           ) : (
-            <span className="block truncate text-[var(--notes-sidebar-text)]">{node.name}</span>
+            <div className={cn('relative min-w-0', showStarBadge && 'pr-5')}>
+              <span className="block truncate text-[var(--notes-sidebar-text)]">{node.name}</span>
+              {showStarBadge ? (
+                <SidebarStarBadge
+                  ariaLabel={isItemStarred ? 'Remove from Starred' : 'Add to Starred'}
+                  onClick={() => toggleFolderStarred(node.path)}
+                />
+              ) : null}
+            </div>
           )
         }
         actions={
@@ -156,6 +168,7 @@ export const FolderItem = memo(function FolderItem({
                 node={child}
                 depth={depth + 1}
                 currentNotePath={currentNotePath}
+                showStarBadge={false}
               />
             ) : (
               <FileItem
@@ -163,6 +176,7 @@ export const FolderItem = memo(function FolderItem({
                 node={child}
                 depth={depth + 1}
                 currentNotePath={currentNotePath}
+                showStarBadge={false}
               />
             )
           )}
@@ -188,6 +202,7 @@ function areFolderItemPropsEqual(prevProps: FolderItemProps, nextProps: FolderIt
     prevProps.node.expanded === nextProps.node.expanded &&
     prevProps.node.children === nextProps.node.children &&
     prevProps.depth === nextProps.depth &&
-    prevProps.currentNotePath === nextProps.currentNotePath
+    prevProps.currentNotePath === nextProps.currentNotePath &&
+    prevProps.showStarBadge === nextProps.showStarBadge
   );
 }

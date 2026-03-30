@@ -2,22 +2,41 @@ import { StateCreator } from 'zustand';
 import { getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { NotesStore } from '../types';
-import { updateDisplayName, removeDisplayName } from '../displayNameUtils';
+import { updateDisplayName } from '../displayNameUtils';
 import {
   addToRecentNotes,
-  saveWorkspaceState,
-  safeWriteTextFile,
-  loadNoteMetadata,
-  saveNoteMetadata,
-  setNoteEntry,
+  persistRecentNotes,
 } from '../storage';
-import { collectExpandedPaths, restoreExpandedState } from '../fileTreeUtils';
+import { collectExpandedPaths } from '../fileTreeUtils';
 import {
   getVaultStarredPaths,
   remapStarredEntriesForVault,
   saveStarredRegistry,
 } from '../starred';
 import { openStoredNotePath } from '../openNotePath';
+import {
+  getCachedNoteModifiedAt,
+  pruneCachedNoteContents,
+  remapCachedNoteContents,
+  removeCachedNoteContent,
+  setCachedNoteContent,
+} from '../document/noteContentCache';
+import { loadNoteDocument, saveNoteDocument } from '../document/noteDocumentPersistence';
+import { setNoteTabDirtyState } from '../document/noteTabState';
+import {
+  pruneDisplayNamesForExternalDeletion,
+  pruneExpandedFoldersForExternalDeletion,
+  pruneOpenTabsForExternalDeletion,
+  pruneRecentNotesForExternalDeletion,
+  remapCurrentNoteForExternalRename,
+  remapDisplayNamesForExternalRename,
+  remapExpandedFoldersForExternalRename,
+  remapOpenTabsForExternalRename,
+  remapRecentNotesForExternalRename,
+  shouldPreserveDeletedCurrentNote,
+} from '../document/externalPathSync';
+import { remapMetadataEntries, saveNoteMetadata } from '../storage';
+import { persistWorkspaceSnapshot } from '../workspacePersistence';
 
 export interface WorkspaceSlice {
   currentNote: NotesStore['currentNote'];
@@ -30,6 +49,10 @@ export interface WorkspaceSlice {
   openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
   openNoteByAbsolutePath: (absolutePath: string, openInNewTab?: boolean) => Promise<void>;
   saveNote: () => Promise<void>;
+  syncCurrentNoteFromDisk: NotesStore['syncCurrentNoteFromDisk'];
+  invalidateNoteCache: NotesStore['invalidateNoteCache'];
+  applyExternalPathRename: NotesStore['applyExternalPathRename'];
+  applyExternalPathDeletion: NotesStore['applyExternalPathDeletion'];
   updateContent: (content: string) => void;
   closeNote: () => void;
   closeTab: (path: string) => Promise<void>;
@@ -51,22 +74,19 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   displayNames: new Map(),
 
   openNote: async (path: string, openInNewTab: boolean = false) => {
-    const { notesPath, isDirty, saveNote, recentNotes, openTabs, currentNote, noteContentsCache } = get();
+    let { notesPath, isDirty, saveNote, recentNotes, openTabs, currentNote, noteContentsCache } = get();
     if (isDirty) {
       await saveNote();
       if (get().isDirty) return;
+      ({ notesPath, recentNotes, openTabs, currentNote, noteContentsCache } = get());
     }
 
     try {
-      const storage = getStorageAdapter();
-      let content = noteContentsCache.get(path);
-      if (content === undefined) {
-        const fullPath = await joinPath(notesPath, path);
-        content = await storage.readFile(fullPath);
-        const nextCache = new Map(get().noteContentsCache);
-        nextCache.set(path, content);
-        set({ noteContentsCache: nextCache });
-      }
+      const { content, nextCache } = await loadNoteDocument({
+        notesPath,
+        path,
+        cache: noteContentsCache,
+      });
       const fileName = getNoteTitleFromPath(path);
       const tabName = fileName;
       const updatedRecent = addToRecentNotes(path, recentNotes);
@@ -95,33 +115,34 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         recentNotes: updatedRecent,
         openTabs: updatedTabs,
         isNewlyCreated: false,
+        noteContentsCache: nextCache,
       });
 
-      const { rootFolder } = get();
-      if (notesPath && rootFolder) {
-        const expandedPaths = collectExpandedPaths(rootFolder.children);
-        const { fileTreeSortMode } = get();
-        saveWorkspaceState(notesPath, {
-          currentNotePath: path,
-          expandedFolders: Array.from(expandedPaths),
-          fileTreeSortMode,
-        });
-      }
+      const { rootFolder, fileTreeSortMode } = get();
+      persistWorkspaceSnapshot(notesPath, {
+        rootFolder,
+        currentNotePath: path,
+        fileTreeSortMode,
+      });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to open note' });
     }
   },
 
   openNoteByAbsolutePath: async (absolutePath: string, openInNewTab: boolean = false) => {
-    const { isDirty, saveNote, openTabs, currentNote } = get();
+    let { notesPath, isDirty, saveNote, openTabs, currentNote, noteContentsCache } = get();
     if (isDirty) {
       await saveNote();
       if (get().isDirty) return;
+      ({ notesPath, openTabs, currentNote, noteContentsCache } = get());
     }
 
     try {
-      const storage = getStorageAdapter();
-      const content = await storage.readFile(absolutePath);
+      const { content, nextCache } = await loadNoteDocument({
+        notesPath,
+        path: absolutePath,
+        cache: noteContentsCache,
+      });
       const fileName = getNoteTitleFromPath(absolutePath);
       const tabName = fileName;
       const existingTab = openTabs.find((t) => t.path === absolutePath);
@@ -148,6 +169,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         error: null,
         openTabs: updatedTabs,
         isNewlyCreated: false,
+        noteContentsCache: nextCache,
       });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to open note' });
@@ -155,38 +177,323 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   },
 
   saveNote: async () => {
-    const { currentNote, notesPath } = get();
+    const { currentNote, notesPath, noteContentsCache } = get();
     if (!currentNote) return;
 
     try {
-      const fullPath = isAbsolutePath(currentNote.path)
-        ? currentNote.path
-        : await joinPath(notesPath, currentNote.path);
-
-      await safeWriteTextFile(fullPath, currentNote.content);
-
-      const metadata = await loadNoteMetadata(notesPath);
-      const updatedMetadata = setNoteEntry(metadata, currentNote.path, {
-        updatedAt: Date.now(),
+      const { nextCache, updatedMetadata } = await saveNoteDocument({
+        notesPath,
+        currentNote,
+        cache: noteContentsCache,
       });
-      await saveNoteMetadata(notesPath, updatedMetadata);
 
       set({
         isDirty: false,
         noteMetadata: updatedMetadata,
+        noteContentsCache: nextCache,
+        openTabs: setNoteTabDirtyState(get().openTabs, currentNote.path, false),
+        error: null,
       });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to save note' });
     }
   },
 
-  updateContent: (content: string) => {
-    const { currentNote } = get();
-    if (!currentNote || currentNote.content === content) return;
-    set({ currentNote: { ...currentNote, content }, isDirty: true });
+  syncCurrentNoteFromDisk: async () => {
+    const { currentNote, notesPath, isDirty, noteContentsCache, openTabs } = get();
+    if (!currentNote) {
+      return 'ignored';
+    }
+
+    try {
+      const storage = getStorageAdapter();
+      const fullPath = isAbsolutePath(currentNote.path)
+        ? currentNote.path
+        : await joinPath(notesPath, currentNote.path);
+      const fileInfo = await storage.stat(fullPath);
+      const cachedModifiedAt = getCachedNoteModifiedAt(noteContentsCache, currentNote.path);
+
+      if (!fileInfo?.isFile) {
+        if (isDirty) {
+          set({ error: 'Current note was deleted outside vlaina while you still have unsaved changes.' });
+          return 'deleted-conflict';
+        }
+
+        const updatedTabs = openTabs.filter((tab) => tab.path !== currentNote.path);
+        set({
+          currentNote: null,
+          isDirty: false,
+          openTabs: updatedTabs,
+          noteContentsCache: removeCachedNoteContent(noteContentsCache, currentNote.path),
+          error: null,
+        });
+
+        if (updatedTabs.length > 0) {
+          const lastTab = updatedTabs[updatedTabs.length - 1];
+          if (lastTab) {
+            void openStoredNotePath(lastTab.path, {
+              openNote: get().openNote,
+              openNoteByAbsolutePath: get().openNoteByAbsolutePath,
+            });
+          }
+        }
+
+        return 'deleted';
+      }
+
+      const nextModifiedAt = fileInfo.modifiedAt ?? null;
+      if (nextModifiedAt === cachedModifiedAt) {
+        return 'unchanged';
+      }
+
+      if (isDirty) {
+        set({ error: 'Current note changed outside vlaina while you still have unsaved changes.' });
+        return 'conflict';
+      }
+
+      const nextContent = await storage.readFile(fullPath);
+      set({
+        currentNote: { path: currentNote.path, content: nextContent },
+        isDirty: false,
+        openTabs: setNoteTabDirtyState(openTabs, currentNote.path, false),
+        noteContentsCache: setCachedNoteContent(
+          noteContentsCache,
+          currentNote.path,
+          nextContent,
+          nextModifiedAt
+        ),
+        error: null,
+      });
+
+      return 'reloaded';
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to sync note from disk' });
+      return 'ignored';
+    }
   },
 
-  closeNote: () => set({ currentNote: null, isDirty: false }),
+  invalidateNoteCache: (path: string) => {
+    const { currentNote, noteContentsCache } = get();
+    if (currentNote?.path === path) {
+      return;
+    }
+
+    set({ noteContentsCache: removeCachedNoteContent(noteContentsCache, path) });
+  },
+
+  applyExternalPathRename: async (oldPath: string, newPath: string) => {
+    const {
+      currentNote,
+      openTabs,
+      displayNames,
+      noteContentsCache,
+      noteMetadata,
+      starredEntries,
+      notesPath,
+      recentNotes,
+      rootFolder,
+      fileTreeSortMode,
+    } = get();
+
+    const nextCurrentNote = remapCurrentNoteForExternalRename(currentNote, oldPath, newPath);
+    const nextOpenTabs = remapOpenTabsForExternalRename(openTabs, oldPath, newPath);
+    const nextDisplayNames = remapDisplayNamesForExternalRename(displayNames, oldPath, newPath);
+    const nextRecentNotes = remapRecentNotesForExternalRename(recentNotes, oldPath, newPath);
+    const nextCache = remapCachedNoteContents(noteContentsCache, (path) => {
+      if (path === oldPath) {
+        return newPath;
+      }
+      if (path.startsWith(`${oldPath}/`)) {
+        return `${newPath}${path.slice(oldPath.length)}`;
+      }
+      return path;
+    });
+
+    const nextMetadata = remapMetadataEntries(noteMetadata, (path) => {
+      if (path === oldPath) {
+        return newPath;
+      }
+      if (path.startsWith(`${oldPath}/`)) {
+        return `${newPath}${path.slice(oldPath.length)}`;
+      }
+      return path;
+    });
+
+    const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath) => {
+      if (relativePath === oldPath) {
+        return newPath;
+      }
+      if (relativePath.startsWith(`${oldPath}/`)) {
+        return `${newPath}${relativePath.slice(oldPath.length)}`;
+      }
+      return relativePath;
+    });
+
+    if (nextMetadata !== noteMetadata && nextMetadata) {
+      void saveNoteMetadata(notesPath, nextMetadata);
+    }
+    if (starredResult.changed) {
+      void saveStarredRegistry(starredResult.entries);
+    }
+    if (nextRecentNotes !== recentNotes) {
+      persistRecentNotes(nextRecentNotes);
+    }
+
+    const starredPaths = getVaultStarredPaths(starredResult.entries, notesPath);
+    set({
+      currentNote: nextCurrentNote,
+      openTabs: nextOpenTabs,
+      displayNames: nextDisplayNames,
+      recentNotes: nextRecentNotes,
+      noteContentsCache: nextCache,
+      noteMetadata: nextMetadata ?? noteMetadata,
+      starredEntries: starredResult.entries,
+      starredNotes: starredPaths.notes,
+      starredFolders: starredPaths.folders,
+      error: null,
+    });
+
+    persistWorkspaceSnapshot(notesPath, {
+      rootFolder,
+      currentNotePath: nextCurrentNote?.path ?? null,
+      fileTreeSortMode,
+      expandedFolders: rootFolder
+        ? remapExpandedFoldersForExternalRename(
+            Array.from(collectExpandedPaths(rootFolder.children)),
+            oldPath,
+            newPath
+          )
+        : [],
+    });
+  },
+
+  applyExternalPathDeletion: async (path: string) => {
+    const {
+      currentNote,
+      openTabs,
+      displayNames,
+      noteContentsCache,
+      noteMetadata,
+      starredEntries,
+      notesPath,
+      isDirty,
+      recentNotes,
+      rootFolder,
+      fileTreeSortMode,
+    } = get();
+
+    const preserveCurrentNote = shouldPreserveDeletedCurrentNote(currentNote, isDirty, path);
+    const preservedPath = preserveCurrentNote ? currentNote?.path ?? null : null;
+    const nextOpenTabs = pruneOpenTabsForExternalDeletion(openTabs, path, preservedPath);
+    const nextDisplayNames = pruneDisplayNamesForExternalDeletion(displayNames, path, preservedPath);
+    const nextRecentNotes = pruneRecentNotesForExternalDeletion(recentNotes, path, preservedPath);
+    const nextCache = pruneCachedNoteContents(noteContentsCache, (cachedPath) => {
+      if (preservedPath && cachedPath === preservedPath) {
+        return false;
+      }
+      return cachedPath === path || cachedPath.startsWith(`${path}/`);
+    });
+
+    const nextMetadata = remapMetadataEntries(noteMetadata, (relativePath) => {
+      if (preservedPath && relativePath === preservedPath) {
+        return relativePath;
+      }
+      if (relativePath === path || relativePath.startsWith(`${path}/`)) {
+        return null;
+      }
+      return relativePath;
+    });
+
+    const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath) => {
+      if (preservedPath && relativePath === preservedPath) {
+        return relativePath;
+      }
+      if (relativePath === path || relativePath.startsWith(`${path}/`)) {
+        return null;
+      }
+      return relativePath;
+    });
+
+    if (nextMetadata !== noteMetadata && nextMetadata) {
+      void saveNoteMetadata(notesPath, nextMetadata);
+    }
+    if (starredResult.changed) {
+      void saveStarredRegistry(starredResult.entries);
+    }
+    if (nextRecentNotes !== recentNotes) {
+      persistRecentNotes(nextRecentNotes);
+    }
+
+    const starredPaths = getVaultStarredPaths(starredResult.entries, notesPath);
+    set({
+      openTabs: nextOpenTabs,
+      displayNames: nextDisplayNames,
+      recentNotes: nextRecentNotes,
+      noteContentsCache: nextCache,
+      noteMetadata: nextMetadata ?? noteMetadata,
+      starredEntries: starredResult.entries,
+      starredNotes: starredPaths.notes,
+      starredFolders: starredPaths.folders,
+      error: null,
+    });
+
+    const nextCurrentNotePath =
+      currentNote && !preserveCurrentNote && (currentNote.path === path || currentNote.path.startsWith(`${path}/`))
+        ? nextOpenTabs[nextOpenTabs.length - 1]?.path ?? null
+        : currentNote?.path ?? null;
+
+    persistWorkspaceSnapshot(notesPath, {
+      rootFolder,
+      currentNotePath: nextCurrentNotePath,
+      fileTreeSortMode,
+      expandedFolders: rootFolder
+        ? pruneExpandedFoldersForExternalDeletion(
+            Array.from(collectExpandedPaths(rootFolder.children)),
+            path
+          )
+        : [],
+    });
+
+    if (currentNote && !preserveCurrentNote && (currentNote.path === path || currentNote.path.startsWith(`${path}/`))) {
+      if (nextOpenTabs.length > 0) {
+        const lastTab = nextOpenTabs[nextOpenTabs.length - 1];
+        if (lastTab) {
+          void openStoredNotePath(lastTab.path, {
+            openNote: get().openNote,
+            openNoteByAbsolutePath: get().openNoteByAbsolutePath,
+          });
+        }
+      } else {
+        set({ currentNote: null, isDirty: false });
+      }
+    }
+  },
+
+  updateContent: (content: string) => {
+    const { currentNote, noteContentsCache, openTabs } = get();
+    if (!currentNote || currentNote.content === content) return;
+    set({
+      currentNote: { ...currentNote, content },
+      isDirty: true,
+      openTabs: setNoteTabDirtyState(openTabs, currentNote.path, true),
+      noteContentsCache: setCachedNoteContent(
+        noteContentsCache,
+        currentNote.path,
+        content,
+        getCachedNoteModifiedAt(noteContentsCache, currentNote.path)
+      ),
+    });
+  },
+
+  closeNote: () => {
+    const { notesPath, rootFolder, fileTreeSortMode } = get();
+    set({ currentNote: null, isDirty: false });
+    persistWorkspaceSnapshot(notesPath, {
+      rootFolder,
+      currentNotePath: null,
+      fileTreeSortMode,
+    });
+  },
 
   closeTab: async (path: string) => {
     const {
@@ -195,10 +502,8 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       isDirty,
       saveNote,
       notesPath,
-      loadFileTree,
       rootFolder,
-      starredNotes,
-      starredEntries,
+      fileTreeSortMode,
     } = get();
 
     const pathIsAbsolute = isAbsolutePath(path);
@@ -214,46 +519,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         currentNote.content.trim().length === 0);
 
     if (isEmptyNote) {
-      try {
-        const storage = getStorageAdapter();
-        const expandedPaths = rootFolder ? collectExpandedPaths(rootFolder.children) : new Set<string>();
-        const fullPath = await joinPath(notesPath, path);
-        await storage.deleteFile(fullPath);
-        removeDisplayName(set, path);
+      await get().deleteNote(path);
+      return;
+    }
 
-        if (starredNotes.includes(path)) {
-          const { entries: updatedEntries } = remapStarredEntriesForVault(
-            starredEntries,
-            notesPath,
-            (relativePath, kind) => {
-              if (kind !== 'note') return relativePath;
-              return relativePath === path ? null : relativePath;
-            }
-          );
-          const starredPaths = getVaultStarredPaths(updatedEntries, notesPath);
-          set({
-            starredEntries: updatedEntries,
-            starredNotes: starredPaths.notes,
-            starredFolders: starredPaths.folders,
-          });
-          void saveStarredRegistry(updatedEntries);
-        }
-
-        await loadFileTree();
-
-        const currentRootFolder = get().rootFolder;
-        if (currentRootFolder) {
-          set({
-            rootFolder: {
-              ...currentRootFolder,
-              children: restoreExpandedState(currentRootFolder.children, expandedPaths),
-            },
-          });
-        }
-      } catch (error) {
-        console.error('[NotesWorkspace] Failed to cleanup empty note while closing tab:', error);
-      }
-    } else if (currentNote?.path === path && isDirty) {
+    if (currentNote?.path === path && isDirty) {
       await saveNote();
       if (get().isDirty) return;
     }
@@ -270,6 +540,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         });
       } else {
         set({ currentNote: null, isDirty: false });
+        persistWorkspaceSnapshot(notesPath, {
+          rootFolder,
+          currentNotePath: null,
+          fileTreeSortMode,
+        });
       }
     }
   },

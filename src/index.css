@@ -195,6 +195,7 @@ html, body, #root {
   --vlaina-icon-primary: #8e8e8e;
   --vlaina-icon-secondary: #b9b9bc;
   --vlaina-icon-active: #1e96eb;
+  --vlaina-caret-color: #41ace2;
   --vlaina-selection-bg: #2781db;
   --vlaina-hover: rgba(0, 0, 0, 0.04);
   --vlaina-hover-filled: #f4f5f7;
@@ -261,6 +262,7 @@ html, body, #root {
   --vlaina-icon-primary: #a0a0a0;
   --vlaina-icon-secondary: #6b6b6b;
   --vlaina-icon-active: #1e96eb;
+  --vlaina-caret-color: #41ace2;
   --vlaina-selection-bg: #2781db;
   --vlaina-hover: rgba(255, 255, 255, 0.06);
   --vlaina-hover-filled: #2c2c2c;
@@ -303,6 +305,12 @@ html, body, #root {
   --notes-sidebar-menu-shadow: 0 16px 40px -14px rgba(0, 0, 0, 0.45);
   --notes-sidebar-fade: #171717;
 
+}
+
+input,
+textarea,
+[contenteditable='true'] {
+  caret-color: var(--vlaina-caret-color);
 }
 
 @keyframes chat-sidebar-elastic-step {

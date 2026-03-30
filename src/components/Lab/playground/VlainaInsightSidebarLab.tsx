@@ -1,7 +1,5 @@
-import React from 'react';
-import { cn } from '@/lib/utils';
 import { 
-  FileText, Search, Plus, User, Settings, Bell, Archive, Layout, Star, Sparkles, BookOpen, Folder
+  FileText, Search, Plus, User, Settings, Bell, Layout, Star, Sparkles, BookOpen, Folder
 } from 'lucide-react';
 
 /**

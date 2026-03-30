@@ -11,17 +11,20 @@ import { cn, iconButtonStyles } from '@/lib/utils';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 import { NoteDisambiguatedTitle } from '../common/noteDisambiguation';
+import { SidebarStarBadge } from '../common/SidebarStarBadge';
 
 interface FileItemProps {
   node: NoteFile;
   depth: number;
   currentNotePath?: string;
+  showStarBadge?: boolean;
 }
 
 export const FileItem = memo(function FileItem({
   node,
   depth,
   currentNotePath,
+  showStarBadge = false,
 }: FileItemProps) {
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const {
@@ -53,6 +56,7 @@ export const FileItem = memo(function FileItem({
     <div className="relative" data-file-tree-path={node.path} data-file-tree-kind="file">
       <NotesSidebarRow
         depth={depth}
+        actionFadeClassName={showStarBadge ? 'w-3 from-transparent' : undefined}
         leading={
           noteIcon ? (
             <NoteIcon icon={noteIcon} size={NOTES_SIDEBAR_ICON_SIZE} />
@@ -81,13 +85,21 @@ export const FileItem = memo(function FileItem({
               )}
             />
           ) : (
-            <NoteDisambiguatedTitle
-              path={node.path}
-              fallbackName={displayName}
-              className={cn(isActive && 'text-[var(--notes-sidebar-text)]')}
-              titleClassName={cn(isActive && 'font-medium')}
-              hintClassName="text-[var(--notes-sidebar-text-soft)]"
-            />
+            <div className={cn('relative min-w-0', showStarBadge && 'pr-5')}>
+              <NoteDisambiguatedTitle
+                path={node.path}
+                fallbackName={displayName}
+                className={cn(isActive && 'text-[var(--notes-sidebar-text)]')}
+                titleClassName={cn(isActive && 'font-medium')}
+                hintClassName="text-[var(--notes-sidebar-text-soft)]"
+              />
+              {showStarBadge ? (
+                <SidebarStarBadge
+                  ariaLabel={isItemStarred ? 'Remove from Starred' : 'Add to Starred'}
+                  onClick={() => toggleStarred(node.path)}
+                />
+              ) : null}
+            </div>
           )
         }
         actions={
@@ -153,6 +165,7 @@ function areFileItemPropsEqual(prevProps: FileItemProps, nextProps: FileItemProp
     prevProps.node.name === nextProps.node.name &&
     prevProps.node.path === nextProps.node.path &&
     prevProps.depth === nextProps.depth &&
-    prevProps.currentNotePath === nextProps.currentNotePath
+    prevProps.currentNotePath === nextProps.currentNotePath &&
+    prevProps.showStarBadge === nextProps.showStarBadge
   );
 }

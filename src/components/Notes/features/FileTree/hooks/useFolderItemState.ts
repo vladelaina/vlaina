@@ -3,6 +3,7 @@ import type React from 'react';
 import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
 import type { NotesSidebarRowDragHandlers } from '../../Sidebar/NotesSidebarRow';
 import { getSidebarMenuPositionFromTriggerRect } from '../../common/sidebarMenuPosition';
+import { isInvalidMoveTarget } from '@/stores/notes/utils/fs/moveValidation';
 
 export function useFolderItemState(node: FolderNode) {
   const toggleFolder = useNotesStore((state) => state.toggleFolder);
@@ -86,7 +87,7 @@ export function useFolderItemState(node: FolderNode) {
       setIsDragOver(false);
 
       const sourcePath = event.dataTransfer.getData('text/plain');
-      if (!sourcePath || sourcePath === node.path || sourcePath.startsWith(`${node.path}/`)) {
+      if (!sourcePath || isInvalidMoveTarget(sourcePath, node.path)) {
         return;
       }
 

@@ -1,16 +1,24 @@
-import { useEffect, useState, type MouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
-import type { StarredEntry } from '@/stores/notes/types';
+import type { FileTreeNode, FolderNode, StarredEntry } from '@/stores/notes/types';
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { normalizeStarredVaultPath } from '@/stores/notes/starred';
 import { NoteIcon } from '../IconPicker/NoteIcon';
+import { FileItem } from '../FileTree/FileItem';
+import { FolderItem } from '../FileTree/FolderItem';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 import { NotesSidebarSection } from '../Sidebar/NotesSidebarPrimitives';
+import {
+  NotesSidebarContextMenu,
+  NotesSidebarContextMenuItem,
+} from '../Sidebar/NotesSidebarContextMenu';
 import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
+import { SidebarStarBadge } from '../common/SidebarStarBadge';
+import { getSidebarMenuPositionFromTriggerRect } from '../common/sidebarMenuPosition';
 
 function getVaultLabel(path: string, recentVaults: Array<{ path: string; name: string }>): string {
   const normalizedPath = normalizeStarredVaultPath(path);
@@ -28,79 +36,171 @@ function getFolderName(path: string): string {
   return parts[parts.length - 1] || path;
 }
 
-interface StarredEntryRowProps {
+function getEntryTitle(entry: StarredEntry): string {
+  return entry.kind === 'note'
+    ? getNoteTitleFromPath(entry.relativePath)
+    : getFolderName(entry.relativePath);
+}
+
+function isAncestorStarredPath(ancestorPath: string, descendantPath: string) {
+  return descendantPath.startsWith(`${ancestorPath}/`);
+}
+
+function sortStarredEntries(entries: StarredEntry[]) {
+  return [...entries]
+    .map((entry, index) => ({ entry, index }))
+    .sort((left, right) => {
+      if (left.entry.vaultPath === right.entry.vaultPath) {
+        if (isAncestorStarredPath(left.entry.relativePath, right.entry.relativePath)) {
+          return 1;
+        }
+        if (isAncestorStarredPath(right.entry.relativePath, left.entry.relativePath)) {
+          return -1;
+        }
+      }
+
+      return left.index - right.index;
+    })
+    .map(({ entry }) => entry);
+}
+
+function collectNodeLookup(nodes: FileTreeNode[], lookup: Map<string, FileTreeNode>) {
+  for (const node of nodes) {
+    lookup.set(node.path, node);
+    if (node.isFolder) {
+      collectNodeLookup(node.children, lookup);
+    }
+  }
+}
+
+function buildNodeLookup(rootFolder: FolderNode | null) {
+  const lookup = new Map<string, FileTreeNode>();
+  if (!rootFolder) {
+    return lookup;
+  }
+
+  collectNodeLookup(rootFolder.children, lookup);
+  return lookup;
+}
+
+interface ExternalStarredEntryRowProps {
   entry: StarredEntry;
   isCurrentVaultEntry: boolean;
   isActive: boolean;
-  onClick: (event: MouseEvent<HTMLDivElement>) => void;
+  onOpen: (openInNewTab?: boolean) => void;
   onRemove: () => void;
 }
 
-function StarredEntryRow({
+function ExternalStarredEntryRow({
   entry,
   isCurrentVaultEntry,
   isActive,
-  onClick,
+  onOpen,
   onRemove,
-}: StarredEntryRowProps) {
+}: ExternalStarredEntryRowProps) {
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const liveTitle = useDisplayName(isCurrentVaultEntry && entry.kind === 'note' ? entry.relativePath : undefined);
   const liveIcon = useDisplayIcon(isCurrentVaultEntry && entry.kind === 'note' ? entry.relativePath : undefined);
-  const title =
-    entry.kind === 'note'
-      ? liveTitle || getNoteTitleFromPath(entry.relativePath)
-      : getFolderName(entry.relativePath);
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const title = liveTitle || getEntryTitle(entry);
+
+  const handleContextMenu = (event: MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setMenuPosition({ top: event.clientY, left: event.clientX });
+    setShowMenu(true);
+  };
 
   return (
-    <NotesSidebarRow
-      leading={
-        entry.kind === 'note' ? (
-          liveIcon ? (
-            <NoteIcon icon={liveIcon} size={NOTES_SIDEBAR_ICON_SIZE} />
+    <>
+      <NotesSidebarRow
+        leading={
+          entry.kind === 'note' ? (
+            liveIcon ? (
+              <NoteIcon icon={liveIcon} size={NOTES_SIDEBAR_ICON_SIZE} />
+            ) : (
+              <Icon
+                name="file.text"
+                size={NOTES_SIDEBAR_ICON_SIZE}
+                className="text-[var(--notes-sidebar-file-icon)]"
+              />
+            )
           ) : (
             <Icon
-              name="file.text"
+              name="file.folder"
               size={NOTES_SIDEBAR_ICON_SIZE}
-              className="text-[var(--notes-sidebar-file-icon)]"
+              className="text-[var(--notes-sidebar-folder-icon)]"
             />
           )
-        ) : (
-          <Icon
-            name="file.folder"
-            size={NOTES_SIDEBAR_ICON_SIZE}
-            className="text-[var(--notes-sidebar-folder-icon)]"
+        }
+        isActive={isActive}
+        isHighlighted={showMenu}
+        showActionsByDefault={showMenu}
+        onClick={(event) => onOpen(entry.kind === 'note' && (event.ctrlKey || event.metaKey))}
+        onContextMenu={handleContextMenu}
+        main={
+          <div className="relative min-w-0 pr-5">
+            <span
+              className={cn(
+                'block truncate',
+                isActive && 'font-medium text-[var(--notes-sidebar-text)]'
+              )}
+            >
+              {title}
+            </span>
+            <SidebarStarBadge onClick={onRemove} />
+          </div>
+        }
+        actions={
+          <button
+            ref={menuButtonRef}
+            type="button"
+            aria-label={`Open ${title} menu`}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (!menuButtonRef.current) return;
+              setMenuPosition(getSidebarMenuPositionFromTriggerRect(menuButtonRef.current.getBoundingClientRect()));
+              setShowMenu((prev) => !prev);
+            }}
+            className={cn(
+              'rounded-md p-1 focus:outline-none',
+              iconButtonStyles,
+              showMenu || isActive
+                ? 'text-[var(--notes-sidebar-icon-hover)] hover:text-[var(--notes-sidebar-text)]'
+                : 'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]'
+            )}
+          >
+            <Icon name="common.more" size="md" />
+          </button>
+        }
+      />
+
+      <NotesSidebarContextMenu
+        isOpen={showMenu}
+        onClose={() => setShowMenu(false)}
+        position={menuPosition}
+      >
+        {entry.kind === 'note' ? (
+          <NotesSidebarContextMenuItem
+            icon={<Icon name="nav.external" size="md" />}
+            label="Open in new tab"
+            onClick={() => {
+              onOpen(true);
+              setShowMenu(false);
+            }}
           />
-        )
-      }
-      isActive={isActive}
-      onClick={onClick}
-      main={
-        <span
-          className={cn(
-            'block truncate',
-            isActive && 'font-medium text-[var(--notes-sidebar-text)]'
-          )}
-        >
-          {title}
-        </span>
-      }
-      actions={
-        <button
-          type="button"
-          aria-label={`Remove ${title} from starred`}
-          onClick={(event) => {
-            event.stopPropagation();
+        ) : null}
+        <NotesSidebarContextMenuItem
+          icon={<Icon name="misc.star" size="md" className="fill-amber-500 text-amber-500" />}
+          label="Remove from Starred"
+          onClick={() => {
             onRemove();
+            setShowMenu(false);
           }}
-          className={cn(
-            'rounded-md p-1 focus:outline-none',
-            iconButtonStyles,
-            'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]'
-          )}
-        >
-          <Icon name="misc.star" size="md" className="fill-amber-500 text-amber-500" />
-        </button>
-      }
-    />
+        />
+      </NotesSidebarContextMenu>
+    </>
   );
 }
 
@@ -117,7 +217,9 @@ export function StarredSection({
     starredEntries,
     starredLoaded,
     currentNote,
+    rootFolder,
     openNote,
+    toggleFolder,
     revealFolder,
     removeStarredEntry,
     setPendingStarredNavigation,
@@ -131,55 +233,84 @@ export function StarredSection({
     }
   }, [starredLoaded, starredEntries.length]);
 
+  const currentVaultPath = currentVault?.path ? normalizeStarredVaultPath(currentVault.path) : '';
+  const sortedStarredEntries = useMemo(() => sortStarredEntries(starredEntries), [starredEntries]);
+  const nodeLookup = useMemo(() => buildNodeLookup(rootFolder), [rootFolder]);
+
   if (!starredLoaded || starredEntries.length === 0) {
     return null;
   }
 
-  const currentVaultPath = currentVault?.path ? normalizeStarredVaultPath(currentVault.path) : '';
-
   const entries = (
     <div>
-      {starredEntries.map((entry) => {
-        const vaultLabel = getVaultLabel(entry.vaultPath, recentVaults);
+      {sortedStarredEntries.map((entry) => {
         const isCurrentVaultEntry =
           normalizeStarredVaultPath(entry.vaultPath) === currentVaultPath;
+        const treeNode = isCurrentVaultEntry
+          ? nodeLookup.get(entry.relativePath) ?? null
+          : null;
+        const vaultLabel = getVaultLabel(entry.vaultPath, recentVaults);
         const isActive =
           entry.kind === 'note' &&
           isCurrentVaultEntry &&
           currentNote?.path === entry.relativePath;
 
+        const handleOpen = (openInNewTab = false) => {
+          void (async () => {
+            if (isCurrentVaultEntry) {
+              if (entry.kind === 'folder') {
+                if (treeNode?.isFolder) {
+                  toggleFolder(treeNode.path);
+                } else {
+                  revealFolder(entry.relativePath);
+                }
+              } else {
+                await openNote(entry.relativePath, openInNewTab);
+              }
+              return;
+            }
+
+            setPendingStarredNavigation({
+              vaultPath: entry.vaultPath,
+              kind: entry.kind,
+              relativePath: entry.relativePath,
+              openInNewTab,
+            });
+
+            const opened = await openVault(entry.vaultPath, vaultLabel);
+            if (!opened) {
+              setPendingStarredNavigation(null);
+            }
+          })();
+        };
+
+        if (isCurrentVaultEntry && treeNode) {
+          return treeNode.isFolder ? (
+            <FolderItem
+              key={entry.id}
+              node={treeNode}
+              depth={0}
+              currentNotePath={currentNote?.path}
+              showStarBadge
+            />
+          ) : (
+            <FileItem
+              key={entry.id}
+              node={treeNode}
+              depth={0}
+              currentNotePath={currentNote?.path}
+              showStarBadge
+            />
+          );
+        }
+
         return (
-          <StarredEntryRow
+          <ExternalStarredEntryRow
             key={entry.id}
             entry={entry}
             isCurrentVaultEntry={isCurrentVaultEntry}
             isActive={isActive}
-            onClick={(event) => {
-              const openInNewTab =
-                entry.kind === 'note' && (event.ctrlKey || event.metaKey);
-              void (async () => {
-                if (isCurrentVaultEntry) {
-                  if (entry.kind === 'folder') {
-                    revealFolder(entry.relativePath);
-                  } else {
-                    await openNote(entry.relativePath, openInNewTab);
-                  }
-                  return;
-                }
-
-                setPendingStarredNavigation({
-                  vaultPath: entry.vaultPath,
-                  kind: entry.kind,
-                  relativePath: entry.relativePath,
-                  openInNewTab,
-                });
-
-                const opened = await openVault(entry.vaultPath, vaultLabel);
-                if (!opened) {
-                  setPendingStarredNavigation(null);
-                }
-              })();
-            }}
+            onOpen={handleOpen}
             onRemove={() => removeStarredEntry(entry.id)}
           />
         );
