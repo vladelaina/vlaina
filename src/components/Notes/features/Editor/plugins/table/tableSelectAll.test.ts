@@ -238,7 +238,15 @@ function createTextSelectionDoc() {
   };
 }
 
-function createView(selection: InstanceType<typeof TextSelection> | InstanceType<typeof NodeSelection> | InstanceType<typeof AllSelection>, doc: MockDoc) {
+function createView(
+  selection:
+    | InstanceType<typeof TextSelection>
+    | InstanceType<typeof NodeSelection>
+    | InstanceType<typeof AllSelection>
+    | InstanceType<typeof CellSelection>
+    | any,
+  doc: MockDoc,
+) {
   const dom = {
     querySelectorAll: vi.fn(() => []),
     classList: {

@@ -4,11 +4,11 @@ import {
   defaultValueCtx,
   editorViewCtx,
   remarkStringifyOptionsCtx,
+  serializerCtx,
 } from '@milkdown/core';
-import { Selection as ProseSelection } from '../../../../../../../vendor/milkdown/packages/prose/src/state';
-import { commonmark } from '../../../../../../../vendor/milkdown/packages/plugins/preset-commonmark/src/index';
-import { gfm } from '../../../../../../../vendor/milkdown/packages/plugins/preset-gfm/src/index';
-import { getMarkdown } from '../../../../../../../vendor/milkdown/packages/utils/src/index';
+import { Selection as ProseSelection } from '@milkdown/kit/prose/state';
+import { commonmark } from '@milkdown/kit/preset/commonmark';
+import { gfm } from '@milkdown/kit/preset/gfm';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { expect, it } from 'vitest';
 
@@ -47,6 +47,14 @@ function pressEnter(view: EditorView) {
   expect(handled).toBe(true);
 }
 
+function getMarkdown(editor: any): string {
+  return editor.action((ctx: any) => {
+    const view = ctx.get(editorViewCtx);
+    const serializer = ctx.get(serializerCtx);
+    return serializer(view.state.doc);
+  });
+}
+
 it('keeps task list semantics when splitting a non-empty task item', async () => {
   const editor = createEditorWithContent('- [ ] item');
 
@@ -56,7 +64,7 @@ it('keeps task list semantics when splitting a non-empty task item', async () =>
   moveCursorToDocumentEnd(view);
   pressEnter(view);
 
-  const markdown = editor.action(getMarkdown());
+  const markdown = getMarkdown(editor);
   expect(markdown).toContain('- [ ] item');
   expect(markdown).toContain('- [ ] <br />');
   expect(markdown).not.toContain('\n- <br />');
@@ -71,7 +79,7 @@ it('creates a new unchecked task item when splitting a checked task item', async
   moveCursorToDocumentEnd(view);
   pressEnter(view);
 
-  const markdown = editor.action(getMarkdown());
+  const markdown = getMarkdown(editor);
   expect(markdown).toContain('- [x] item');
   expect(markdown).toContain('- [ ] <br />');
   expect(markdown).not.toContain('- [x] <br />');
@@ -88,7 +96,7 @@ it('keeps task list semantics when exiting an empty nested task item', async () 
   pressEnter(view);
   pressEnter(view);
 
-  const markdown = editor.action(getMarkdown());
+  const markdown = getMarkdown(editor);
   expect(markdown).toContain('- [ ] 1');
   expect(markdown).toContain('  - [ ] 2');
   expect(markdown).toContain('    - [ ] 3');
@@ -106,7 +114,7 @@ it('keeps nested exits in task-list mode after splitting a checked task item', a
   pressEnter(view);
   pressEnter(view);
 
-  const markdown = editor.action(getMarkdown());
+  const markdown = getMarkdown(editor);
   expect(markdown).toContain('- [ ] 1');
   expect(markdown).toContain('  - [x] 2');
   expect(markdown).toContain('- [ ] <br />');

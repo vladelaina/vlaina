@@ -128,7 +128,7 @@ export const videoSchema = $node('video', () => ({
 }));
 
 export const insertVideoCommand = $command('insertVideo', () => (src: string = '') => {
-  return (state, dispatch) => {
+  return (state: any, dispatch?: ((tr: any) => void) | null) => {
     const { schema } = state;
     const videoType = schema.nodes.video;
     

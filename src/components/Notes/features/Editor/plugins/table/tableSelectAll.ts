@@ -185,7 +185,7 @@ function createWholeTableSelection(selection: {
   return new CellSelection(
     doc.resolve(table.start + lastCell),
     doc.resolve(table.start + firstCell)
-  );
+  ) as InstanceType<typeof CellSelection>;
 }
 
 function isWholeTableSelected(view: EditorView, table: TableContext): boolean {

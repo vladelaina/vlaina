@@ -190,7 +190,7 @@ export const tocSchema = $node('toc', () => ({
 }));
 
 export const insertTocCommand = $command('insertToc', () => () => {
-  return (state, dispatch) => {
+  return (state: any, dispatch?: ((tr: any) => void) | null) => {
     const { schema } = state;
     const tocType = schema.nodes.toc;
     

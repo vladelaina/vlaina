@@ -136,7 +136,7 @@ export const highlightInputRule = $inputRule(() => {
 });
 
 export const toggleHighlightCommand = $command('toggleHighlight', () => () => {
-  return (state, dispatch) => {
+  return (state: any, dispatch?: ((tr: any) => void) | null) => {
     const markType = state.schema.marks.highlight;
     if (!markType) return false;
     return toggleMark(markType)(state, dispatch);
@@ -186,7 +186,7 @@ export const superscriptInputRule = $inputRule(() => {
 });
 
 export const toggleSuperscriptCommand = $command('toggleSuperscript', () => () => {
-  return (state, dispatch) => {
+  return (state: any, dispatch?: ((tr: any) => void) | null) => {
     const markType = state.schema.marks.superscript;
     if (!markType) return false;
     return toggleMark(markType)(state, dispatch);
@@ -236,7 +236,7 @@ export const subscriptInputRule = $inputRule(() => {
 });
 
 export const toggleSubscriptCommand = $command('toggleSubscript', () => () => {
-  return (state, dispatch) => {
+  return (state: any, dispatch?: ((tr: any) => void) | null) => {
     const markType = state.schema.marks.subscript;
     if (!markType) return false;
     return toggleMark(markType)(state, dispatch);

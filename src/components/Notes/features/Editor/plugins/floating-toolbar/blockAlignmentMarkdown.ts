@@ -102,7 +102,7 @@ export const remarkBlockAlignmentPlugin: MilkdownPlugin = (ctx) => {
     ctx.done(blockAlignmentRemarkReady);
 
     return () => {
-      ctx.update(remarkPluginsCtx, (plugins) => plugins.filter((plugin) => plugin !== remarkPlugin));
+      ctx.update(remarkPluginsCtx, (plugins) => plugins.filter((plugin) => plugin !== (remarkPlugin as any)));
       ctx.update(schemaTimerCtx, (timers) => timers.filter((timer) => timer !== blockAlignmentRemarkReady));
       ctx.clearTimer(blockAlignmentRemarkReady);
     };

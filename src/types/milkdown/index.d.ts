@@ -5,6 +5,12 @@ type AnyFn = (...args: any[]) => any;
 
 interface MilkdownCtxToken<T = any> {
   readonly __milkdownType?: T;
+  create(container: any, value?: T): any;
+}
+
+interface MilkdownSliceType<T = any, N extends string = string> extends MilkdownCtxToken<T> {
+  readonly sliceName?: N;
+  create(container: any, value?: T): any;
 }
 
 interface MilkdownMarkType {
@@ -29,7 +35,7 @@ interface MilkdownNodeType {
     content?: MilkdownNode | readonly MilkdownNode[] | null,
     marks?: readonly MilkdownMark[] | null,
   ): MilkdownNode;
-  createAndFill?(
+  createAndFill(
     attrs?: AnyRecord | null,
     content?: MilkdownNode | readonly MilkdownNode[] | null,
     marks?: readonly MilkdownMark[] | null,
@@ -55,12 +61,20 @@ interface MilkdownResolvedPos {
   index(depth?: number): number;
   indexAfter(depth?: number): number;
   posAtIndex(index: number, depth?: number): number;
-  node(depth: number): MilkdownNode;
+  node(depth?: number): MilkdownNode;
+  blockRange(
+    other?: MilkdownResolvedPos,
+    pred?: (node: MilkdownNode) => boolean,
+  ): any;
   marks(): MilkdownMark[];
 }
 
 interface MilkdownFragmentLike {
   size: number;
+  childCount?: number;
+  firstChild?: MilkdownNode | null;
+  lastChild?: MilkdownNode | null;
+  append?(other: MilkdownFragmentLike): MilkdownFragmentLike;
   forEach(
     callback: (node: MilkdownNode, offset: number, index: number) => void,
   ): void;
@@ -159,6 +173,10 @@ interface MilkdownTransactionLike {
   removeStoredMark(mark: any): MilkdownTransactionLike;
   setStoredMarks(marks: readonly MilkdownMark[] | null): MilkdownTransactionLike;
   ensureMarks(marks: readonly MilkdownMark[]): MilkdownTransactionLike;
+  setBlockType(from: number, to: number, nodeType: any, attrs?: AnyRecord | null): MilkdownTransactionLike;
+  wrap(range: any, wrapping: readonly any[]): MilkdownTransactionLike;
+  deleteRange(from: number, to: number): MilkdownTransactionLike;
+  setTime(time: number): MilkdownTransactionLike;
   scrollIntoView(): MilkdownTransactionLike;
   [key: string]: any;
 }
@@ -169,6 +187,23 @@ interface MilkdownEditorStateLike {
   schema: MilkdownSchema;
   tr: MilkdownTransactionLike;
   storedMarks?: readonly MilkdownMark[] | null;
+  [key: string]: any;
+}
+
+interface MilkdownRemarkPlugin<T = Record<string, unknown>> {
+  plugin: AnyFn;
+  options: T;
+}
+
+type MilkdownRemarkPluginRaw<T = any> = AnyFn;
+type MilkdownCleanup = void | Promise<void> | (() => void | Promise<void>) | Promise<() => void | Promise<void>>;
+type MilkdownNodeSchema = MilkdownNodeSpec & { priority?: number };
+type MilkdownMarkSchema = MilkdownMarkSpec & { priority?: number };
+interface MilkdownAstNode {
+  type: string;
+  children?: MilkdownAstNode[];
+  value?: unknown;
+  data?: AnyRecord;
   [key: string]: any;
 }
 
@@ -231,13 +266,14 @@ interface MilkdownParseDOMRule {
 }
 
 interface MilkdownMarkdownState {
-  openNode(type: any, attrs?: AnyRecord): void;
-  closeNode(): void;
-  openMark(type: any, attrs?: AnyRecord): void;
-  closeMark(type?: any): void;
-  addNode(type: string | any, attrs?: AnyRecord, value?: any, meta?: AnyRecord): void;
-  addText(text: string): void;
-  next(node: any): void;
+  openNode(type: any, attrs?: AnyRecord): this;
+  closeNode(): this;
+  openMark(type: any, attrs?: AnyRecord): this;
+  closeMark(type?: any): this;
+  withMark(mark: any, type: string, value?: string, props?: AnyRecord): this;
+  addNode(type: string | any, attrs?: AnyRecord, value?: any, meta?: AnyRecord): this;
+  addText(text: string): this;
+  next(node: any): this;
   [key: string]: any;
 }
 
@@ -285,6 +321,19 @@ interface MilkdownNodeAttrSpec {
   default?: any;
   get?(dom: HTMLElement): any;
   set?(value: any): AnyRecord;
+  [key: string]: any;
+}
+
+interface MilkdownCapturedValue {
+  fullMatch: string;
+  start: number;
+  end?: number;
+  [key: string]: any;
+}
+
+interface MilkdownMarkRuleConfig {
+  getAttr?(match: RegExpMatchArray): AnyRecord;
+  updateCaptured?(captured: MilkdownCapturedValue): Partial<MilkdownCapturedValue>;
   [key: string]: any;
 }
 
@@ -342,13 +391,134 @@ interface MilkdownTimerType {
 }
 
 declare module '@milkdown/kit/core' {
+  export type Attrs = AnyRecord;
+  export type MarkType = import('@milkdown/kit/prose/model').MarkType;
+  export type NodeType = import('@milkdown/kit/prose/model').NodeType;
+  export type ResolvedPos = import('@milkdown/kit/prose/model').ResolvedPos;
+  export type Schema = import('@milkdown/kit/prose/model').Schema;
+  export type Cmd<T = undefined> = (payload?: T) => import('@milkdown/kit/prose/state').Command;
+  export type CmdKey<T = undefined> = import('@milkdown/ctx').SliceType<Cmd<T>>;
+  export type Cleanup = MilkdownCleanup;
+  export type Command = import('@milkdown/kit/prose/state').Command;
+  export type KeymapItem = {
+    key: string;
+    onRun: (ctx: MilkdownCtx) => Command;
+    priority?: number;
+  };
+  export type PasteRule = {
+    run: (
+      slice: import('@milkdown/kit/prose/model').Slice,
+      view: import('@milkdown/kit/prose/view').EditorView,
+      isPlainText: boolean,
+    ) => import('@milkdown/kit/prose/model').Slice;
+    priority?: number;
+  };
+  export type NodeSchema = MilkdownNodeSchema;
+  export type MarkSchema = MilkdownMarkSchema;
+  export type RemarkPlugin<T = Record<string, unknown>> = MilkdownRemarkPlugin<T>;
+  export type RemarkPluginRaw<T = any> = MilkdownRemarkPluginRaw<T>;
   export const rootCtx: MilkdownCtxToken<HTMLElement>;
   export const defaultValueCtx: MilkdownCtxToken<string>;
+  export const editorStateCtx: MilkdownCtxToken<import('@milkdown/kit/prose/state').EditorState>;
+  export const editorStateOptionsCtx: MilkdownCtxToken<(prev: AnyRecord) => AnyRecord>;
+  export const editorStateTimerCtx: MilkdownCtxToken<MilkdownTimerType[]>;
   export const editorViewCtx: MilkdownCtxToken<import('@milkdown/kit/prose/view').EditorView>;
+  export const editorViewOptionsCtx: MilkdownCtxToken<AnyRecord>;
+  export const editorViewTimerCtx: MilkdownCtxToken<MilkdownTimerType[]>;
+  export const inputRulesCtx: MilkdownCtxToken<import('@milkdown/kit/prose/inputrules').InputRule[]>;
+  export const prosePluginsCtx: MilkdownCtxToken<import('@milkdown/kit/prose/state').Plugin[]>;
+  export const remarkPluginsCtx: MilkdownCtxToken<RemarkPlugin[]>;
   export const remarkStringifyOptionsCtx: MilkdownCtxToken<Record<string, unknown>>;
+  export const keymapCtx: MilkdownCtxToken<any>;
+  export const keymapTimerCtx: MilkdownCtxToken<MilkdownTimerType[]>;
+  export const commandsTimerCtx: MilkdownCtxToken<MilkdownTimerType[]>;
+  export const pasteRulesCtx: MilkdownCtxToken<PasteRule[]>;
+  export const pasteRulesTimerCtx: MilkdownCtxToken<MilkdownTimerType[]>;
   export const parserCtx: MilkdownCtxToken<import('@milkdown/kit/transformer').Parser>;
   export const serializerCtx: MilkdownCtxToken<import('@milkdown/kit/transformer').Serializer>;
   export const commandsCtx: MilkdownCtxToken<MilkdownCommandManager>;
+  export const schemaCtx: MilkdownCtxToken<import('@milkdown/kit/prose/model').Schema>;
+  export const nodesCtx: MilkdownCtxToken<Array<[string, NodeSchema]>>;
+  export const marksCtx: MilkdownCtxToken<Array<[string, MarkSchema]>>;
+  export const nodeViewCtx: MilkdownCtxToken<Array<[string, import('@milkdown/kit/prose/view').NodeViewConstructor]>>;
+  export const markViewCtx: MilkdownCtxToken<Array<[string, import('@milkdown/kit/prose/view').MarkViewConstructor]>>;
+  export const InitReady: MilkdownTimerType;
+  export const SchemaReady: MilkdownTimerType;
+  export const CommandsReady: MilkdownTimerType;
+  export const KeymapReady: MilkdownTimerType;
+  export const PasteRulesReady: MilkdownTimerType;
+  export const EditorStateReady: MilkdownTimerType;
+  export const EditorViewReady: MilkdownTimerType;
+  export function createCmdKey<T = undefined>(key?: string): CmdKey<T>;
+  export function expectDomTypeError(value: unknown): Error;
+  export function wrappingInputRule(...args: any[]): any;
+  export function textblockTypeInputRule(...args: any[]): any;
+  export function liftEmptyBlock(...args: any[]): import('@milkdown/kit/prose/state').Command;
+  export function joinBackward(...args: any[]): import('@milkdown/kit/prose/state').Command;
+  export function canSplit(...args: any[]): boolean;
+  export function findTable(...args: any[]): any;
+  export function findParentNodeType(...args: any[]): any;
+  export function findSelectedNodeOfType(...args: any[]): any;
+  export function goToNextCell(...args: any[]): any;
+  export function isInTable(...args: any[]): boolean;
+  export function selectedRect(...args: any[]): any;
+  export function setCellAttr(...args: any[]): any;
+  export function moveTableRow(...args: any[]): any;
+  export function moveTableColumn(...args: any[]): any;
+  export function cloneTr<T = import('@milkdown/kit/prose/state').Transaction>(tr: T): T;
+  export function findParentNodeClosestToPos(
+    predicate: (node: import('@milkdown/kit/prose/model').Node) => boolean,
+  ): (pos: import('@milkdown/kit/prose/model').ResolvedPos) => any;
+  export function isTextOnlySlice(
+    slice: import('@milkdown/kit/prose/model').Slice,
+  ): import('@milkdown/kit/prose/model').Node | false;
+  export const DOMParser: {
+    fromSchema(schema: import('@milkdown/kit/prose/model').Schema): any;
+  };
+  export const DOMSerializer: {
+    fromSchema(schema: import('@milkdown/kit/prose/model').Schema): any;
+  };
+  export const AddMarkStep: any;
+  export const ReplaceStep: any;
+  export class CellSelection extends import('@milkdown/kit/prose/state').Selection {
+    $anchorCell: { pos: number };
+    $headCell: { pos: number };
+    constructor(anchorCell: { pos: number }, headCell?: { pos: number });
+    static colSelection(anchorCell: { pos: number }, headCell?: { pos: number }): CellSelection;
+    static rowSelection(anchorCell: { pos: number }, headCell?: { pos: number }): CellSelection;
+    isColSelection(): boolean;
+    isRowSelection(): boolean;
+  }
+  export type TableRect = AnyRecord;
+  export type MarkdownNode = MilkdownAstNode;
+  export function tableNodes(...args: any[]): any;
+  export function missingMarkInSchema(name: string): Error;
+  export function missingNodeInSchema(name: string): Error;
+  export function $ctx<T, N extends string>(
+    value: T,
+    name: N,
+  ): import('@milkdown/ctx').MilkdownPlugin & { key: import('@milkdown/ctx').SliceType<T, N> };
+  export function $nodeSchema<T extends string>(
+    id: T,
+    schema: (ctx: MilkdownCtx) => NodeSchema,
+  ): any;
+  export type $NodeSchema<T extends string = string> = any;
+  export function $markSchema<T extends string>(
+    id: T,
+    schema: (ctx: MilkdownCtx) => MarkSchema,
+  ): any;
+  export function $markAttr(
+    name: string,
+    value?: (mark: import('@milkdown/kit/prose/model').Mark) => Record<string, any>,
+  ): any;
+  export function $nodeAttr(
+    name: string,
+    value?: (node: import('@milkdown/kit/prose/model').Node) => Record<string, any>,
+  ): any;
+  export function $useKeymap(name: string, userKeymap: Record<string, any>): any;
+  export type $Remark<N extends string = string, T = any> = any;
+  export function $remark(name: string, remark: (ctx: MilkdownCtx) => MilkdownRemarkPluginRaw<any>): any;
+  export function $pasteRule(factory: (ctx: MilkdownCtx) => PasteRule): any;
 
   export const Editor: {
     make(): MilkdownEditorBuilder;
@@ -360,8 +530,141 @@ declare module '@milkdown/kit/ctx' {
 }
 
 declare module '@milkdown/core' {
-  export const remarkPluginsCtx: MilkdownCtxToken<any[]>;
+  export type Attrs = AnyRecord;
+  export type MarkType = import('@milkdown/prose/model').MarkType;
+  export type NodeType = import('@milkdown/prose/model').NodeType;
+  export type ResolvedPos = import('@milkdown/prose/model').ResolvedPos;
+  export type Schema = import('@milkdown/prose/model').Schema;
+  export type Cmd<T = undefined> = (payload?: T) => import('@milkdown/prose/state').Command;
+  export type CmdKey<T = undefined> = import('@milkdown/ctx').SliceType<Cmd<T>>;
+  export type Cleanup = MilkdownCleanup;
+  export type Command = import('@milkdown/prose/state').Command;
+  export type KeymapItem = {
+    key: string;
+    onRun: (ctx: MilkdownCtx) => Command;
+    priority?: number;
+  };
+  export type PasteRule = {
+    run: (
+      slice: import('@milkdown/prose/model').Slice,
+      view: import('@milkdown/prose/view').EditorView,
+      isPlainText: boolean,
+    ) => import('@milkdown/prose/model').Slice;
+    priority?: number;
+  };
+  export type NodeSchema = MilkdownNodeSchema;
+  export type MarkSchema = MilkdownMarkSchema;
+  export type RemarkPlugin<T = Record<string, unknown>> = MilkdownRemarkPlugin<T>;
+  export type RemarkPluginRaw<T = any> = MilkdownRemarkPluginRaw<T>;
+  export const defaultValueCtx: MilkdownCtxToken<string>;
+  export const editorStateCtx: MilkdownCtxToken<import('@milkdown/prose/state').EditorState>;
+  export const editorStateOptionsCtx: MilkdownCtxToken<(prev: AnyRecord) => AnyRecord>;
+  export const editorStateTimerCtx: MilkdownCtxToken<MilkdownTimerType[]>;
+  export const editorViewCtx: MilkdownCtxToken<import('@milkdown/prose/view').EditorView>;
+  export const editorViewOptionsCtx: MilkdownCtxToken<AnyRecord>;
+  export const editorViewTimerCtx: MilkdownCtxToken<MilkdownTimerType[]>;
+  export const inputRulesCtx: MilkdownCtxToken<import('@milkdown/prose/inputrules').InputRule[]>;
+  export const prosePluginsCtx: MilkdownCtxToken<import('@milkdown/prose/state').Plugin[]>;
+  export const remarkPluginsCtx: MilkdownCtxToken<RemarkPlugin[]>;
+  export const remarkStringifyOptionsCtx: MilkdownCtxToken<Record<string, unknown>>;
+  export const parserCtx: MilkdownCtxToken<import('@milkdown/transformer').Parser>;
+  export const serializerCtx: MilkdownCtxToken<import('@milkdown/transformer').Serializer>;
+  export const commandsCtx: MilkdownCtxToken<MilkdownCommandManager>;
+  export const keymapCtx: MilkdownCtxToken<any>;
+  export const keymapTimerCtx: MilkdownCtxToken<MilkdownTimerType[]>;
+  export const commandsTimerCtx: MilkdownCtxToken<MilkdownTimerType[]>;
+  export const pasteRulesCtx: MilkdownCtxToken<PasteRule[]>;
+  export const pasteRulesTimerCtx: MilkdownCtxToken<MilkdownTimerType[]>;
   export const schemaTimerCtx: MilkdownCtxToken<MilkdownTimerType[]>;
+  export const schemaCtx: MilkdownCtxToken<import('@milkdown/prose/model').Schema>;
+  export const nodesCtx: MilkdownCtxToken<Array<[string, NodeSchema]>>;
+  export const marksCtx: MilkdownCtxToken<Array<[string, MarkSchema]>>;
+  export const nodeViewCtx: MilkdownCtxToken<Array<[string, import('@milkdown/prose/view').NodeViewConstructor]>>;
+  export const markViewCtx: MilkdownCtxToken<Array<[string, import('@milkdown/prose/view').MarkViewConstructor]>>;
+  export const rootCtx: MilkdownCtxToken<any>;
+  export const rootDOMCtx: MilkdownCtxToken<HTMLElement>;
+  export const rootAttrsCtx: MilkdownCtxToken<Record<string, string>>;
+  export const remarkCtx: MilkdownCtxToken<any>;
+  export const InitReady: MilkdownTimerType;
+  export const SchemaReady: MilkdownTimerType;
+  export const CommandsReady: MilkdownTimerType;
+  export const KeymapReady: MilkdownTimerType;
+  export const PasteRulesReady: MilkdownTimerType;
+  export const EditorStateReady: MilkdownTimerType;
+  export const EditorViewReady: MilkdownTimerType;
+  export function createCmdKey<T = undefined>(key?: string): CmdKey<T>;
+  export function expectDomTypeError(value: unknown): Error;
+  export function wrappingInputRule(...args: any[]): any;
+  export function textblockTypeInputRule(...args: any[]): any;
+  export function liftEmptyBlock(...args: any[]): import('@milkdown/prose/state').Command;
+  export function joinBackward(...args: any[]): import('@milkdown/prose/state').Command;
+  export function canSplit(...args: any[]): boolean;
+  export function findTable(...args: any[]): any;
+  export function findParentNodeType(...args: any[]): any;
+  export function findSelectedNodeOfType(...args: any[]): any;
+  export function goToNextCell(...args: any[]): any;
+  export function isInTable(...args: any[]): boolean;
+  export function selectedRect(...args: any[]): any;
+  export function setCellAttr(...args: any[]): any;
+  export function moveTableRow(...args: any[]): any;
+  export function moveTableColumn(...args: any[]): any;
+  export function cloneTr<T = import('@milkdown/prose/state').Transaction>(tr: T): T;
+  export function findParentNodeClosestToPos(
+    predicate: (node: import('@milkdown/prose/model').Node) => boolean,
+  ): (pos: import('@milkdown/prose/model').ResolvedPos) => any;
+  export function isTextOnlySlice(
+    slice: import('@milkdown/prose/model').Slice,
+  ): import('@milkdown/prose/model').Node | false;
+  export const DOMParser: {
+    fromSchema(schema: import('@milkdown/prose/model').Schema): any;
+  };
+  export const DOMSerializer: {
+    fromSchema(schema: import('@milkdown/prose/model').Schema): any;
+  };
+  export const AddMarkStep: any;
+  export const ReplaceStep: any;
+  export class CellSelection extends import('@milkdown/prose/state').Selection {
+    $anchorCell: { pos: number };
+    $headCell: { pos: number };
+    constructor(anchorCell: { pos: number }, headCell?: { pos: number });
+    static colSelection(anchorCell: { pos: number }, headCell?: { pos: number }): CellSelection;
+    static rowSelection(anchorCell: { pos: number }, headCell?: { pos: number }): CellSelection;
+    isColSelection(): boolean;
+    isRowSelection(): boolean;
+  }
+  export type TableRect = AnyRecord;
+  export type MarkdownNode = MilkdownAstNode;
+  export function tableNodes(...args: any[]): any;
+  export function missingMarkInSchema(name: string): Error;
+  export function missingNodeInSchema(name: string): Error;
+  export function $ctx<T, N extends string>(
+    value: T,
+    name: N,
+  ): import('@milkdown/ctx').MilkdownPlugin & { key: import('@milkdown/ctx').SliceType<T, N> };
+  export function $nodeSchema<T extends string>(
+    id: T,
+    schema: (ctx: MilkdownCtx) => NodeSchema,
+  ): any;
+  export type $NodeSchema<T extends string = string> = any;
+  export function $markSchema<T extends string>(
+    id: T,
+    schema: (ctx: MilkdownCtx) => MarkSchema,
+  ): any;
+  export function $markAttr(
+    name: string,
+    value?: (mark: import('@milkdown/prose/model').Mark) => Record<string, any>,
+  ): any;
+  export function $nodeAttr(
+    name: string,
+    value?: (node: import('@milkdown/prose/model').Node) => Record<string, any>,
+  ): any;
+  export function $useKeymap(name: string, userKeymap: Record<string, any>): any;
+  export type $Remark<N extends string = string, T = any> = any;
+  export function $remark(name: string, remark: (ctx: MilkdownCtx) => MilkdownRemarkPluginRaw<any>): any;
+  export function $pasteRule(factory: (ctx: MilkdownCtx) => PasteRule): any;
+  export const Editor: {
+    make(): MilkdownEditorBuilder;
+  };
 }
 
 declare module '@milkdown/ctx' {
@@ -369,6 +672,11 @@ declare module '@milkdown/ctx' {
   export type Meta = globalThis.MilkdownMeta;
   export type MilkdownPlugin = globalThis.MilkdownPlugin;
   export type TimerType = MilkdownTimerType;
+  export type SliceType<T = any, N extends string = string> = MilkdownSliceType<T, N>;
+  export function createSlice<T, N extends string = string>(
+    value: T,
+    name: N,
+  ): SliceType<T, N>;
   export function createTimer(name: string, timeout?: number): MilkdownTimerType;
 }
 
@@ -441,6 +749,54 @@ declare module '@milkdown/kit/prose/commands' {
   export function wrapIn(nodeType: any, attrs?: AnyRecord): MilkdownCommand;
   export function lift(state: MilkdownEditorStateLike, dispatch?: ((tr: MilkdownTransactionLike) => void) | null): boolean;
   export function toggleMark(markType: any, attrs?: AnyRecord): MilkdownCommand;
+  export function liftEmptyBlock(...args: any[]): MilkdownCommand;
+  export function chainCommands(...commands: MilkdownCommand[]): MilkdownCommand;
+  export const baseKeymap: Record<string, MilkdownCommand>;
+  export function deleteSelection(
+    state: MilkdownEditorStateLike,
+    dispatch?: ((tr: MilkdownTransactionLike) => void) | null,
+    view?: import('@milkdown/kit/prose/view').EditorView,
+  ): boolean;
+  export function joinTextblockBackward(
+    state: MilkdownEditorStateLike,
+    dispatch?: ((tr: MilkdownTransactionLike) => void) | null,
+    view?: import('@milkdown/kit/prose/view').EditorView,
+  ): boolean;
+  export function selectNodeBackward(
+    state: MilkdownEditorStateLike,
+    dispatch?: ((tr: MilkdownTransactionLike) => void) | null,
+    view?: import('@milkdown/kit/prose/view').EditorView,
+  ): boolean;
+}
+
+declare module '@milkdown/prose/commands' {
+  export function exitCode(
+    state: MilkdownEditorStateLike,
+    dispatch?: ((tr: MilkdownTransactionLike) => void) | null,
+    view?: import('@milkdown/prose/view').EditorView,
+  ): boolean;
+  export function setBlockType(nodeType: any, attrs?: AnyRecord): MilkdownCommand;
+  export function wrapIn(nodeType: any, attrs?: AnyRecord): MilkdownCommand;
+  export function lift(state: MilkdownEditorStateLike, dispatch?: ((tr: MilkdownTransactionLike) => void) | null): boolean;
+  export function toggleMark(markType: any, attrs?: AnyRecord): MilkdownCommand;
+  export function liftEmptyBlock(...args: any[]): MilkdownCommand;
+  export function chainCommands(...commands: MilkdownCommand[]): MilkdownCommand;
+  export const baseKeymap: Record<string, MilkdownCommand>;
+  export function deleteSelection(
+    state: MilkdownEditorStateLike,
+    dispatch?: ((tr: MilkdownTransactionLike) => void) | null,
+    view?: import('@milkdown/prose/view').EditorView,
+  ): boolean;
+  export function joinTextblockBackward(
+    state: MilkdownEditorStateLike,
+    dispatch?: ((tr: MilkdownTransactionLike) => void) | null,
+    view?: import('@milkdown/prose/view').EditorView,
+  ): boolean;
+  export function selectNodeBackward(
+    state: MilkdownEditorStateLike,
+    dispatch?: ((tr: MilkdownTransactionLike) => void) | null,
+    view?: import('@milkdown/prose/view').EditorView,
+  ): boolean;
 }
 
 declare module '@milkdown/kit/prose/history' {
@@ -467,13 +823,69 @@ declare module '@milkdown/kit/prose/inputrules' {
       options?: AnyRecord,
     );
   }
+
+  export function wrappingInputRule(...args: any[]): InputRule;
+  export function textblockTypeInputRule(...args: any[]): InputRule;
+  export function undoInputRule(
+    state: MilkdownEditorStateLike,
+    dispatch?: ((tr: MilkdownTransactionLike) => void) | null,
+    view?: import('@milkdown/kit/prose/view').EditorView,
+  ): boolean;
 }
 
 declare module '@milkdown/kit/prose/keymap' {
   export function keymap(bindings: Record<string, MilkdownCommand>): any;
 }
 
+declare module '@milkdown/prose/inputrules' {
+  export class InputRule {
+    constructor(
+      match: RegExp,
+      handler: (
+        state: MilkdownEditorStateLike,
+        match: RegExpMatchArray,
+        start: number,
+        end: number,
+      ) => MilkdownTransactionLike | null | undefined,
+      options?: AnyRecord,
+    );
+  }
+
+  export function wrappingInputRule(...args: any[]): InputRule;
+  export function textblockTypeInputRule(...args: any[]): InputRule;
+  export function undoInputRule(
+    state: MilkdownEditorStateLike,
+    dispatch?: ((tr: MilkdownTransactionLike) => void) | null,
+    view?: import('@milkdown/prose/view').EditorView,
+  ): boolean;
+  export function customInputRules(options: { rules: InputRule[] }): import('@milkdown/prose/state').Plugin;
+}
+
+declare module '@milkdown/prose/keymap' {
+  export function keymap(bindings: Record<string, MilkdownCommand>): any;
+}
+
 declare module '@milkdown/kit/prose/model' {
+  export type Attrs = AnyRecord;
+  export type MarkType = MilkdownMarkType;
+  export type NodeType = MilkdownNodeType;
+  export type ResolvedPos = MilkdownResolvedPos;
+  export type Schema = MilkdownSchema;
+
+  export class Mark implements MilkdownMark {
+    type: MarkType;
+    attrs: AnyRecord;
+    static none: readonly Mark[];
+    [key: string]: any;
+  }
+
+  export class MarkType implements MilkdownMarkType {
+    name: string;
+    spec: AnyRecord;
+    create(attrs?: AnyRecord | null): Mark;
+    isInSet(marks: readonly Mark[] | null | undefined): Mark | undefined;
+  }
+
   export class Node implements MilkdownNode {
     type: MilkdownNodeType;
     attrs: AnyRecord;
@@ -522,7 +934,7 @@ declare module '@milkdown/kit/prose/model' {
       content?: Node | readonly Node[] | null,
       marks?: readonly MilkdownMark[] | null,
     ): Node;
-    createAndFill?(
+    createAndFill(
       attrs?: AnyRecord | null,
       content?: Node | readonly Node[] | null,
       marks?: readonly MilkdownMark[] | null,
@@ -533,6 +945,24 @@ declare module '@milkdown/kit/prose/model' {
       marks?: readonly MilkdownMark[] | null,
     ): Node;
     [key: string]: any;
+  }
+
+  export class Schema implements MilkdownSchema {
+    nodes: Record<string, NodeType>;
+    marks: Record<string, MarkType>;
+    constructor(spec: { nodes: Record<string, any>; marks?: Record<string, any> });
+    text(text: string, marks?: readonly Mark[] | null): Node;
+    [key: string]: any;
+  }
+
+  export class DOMParser {
+    static fromSchema(schema: Schema): DOMParser;
+    parse(dom: Node | globalThis.Node): Node;
+  }
+
+  export class DOMSerializer {
+    static fromSchema(schema: Schema): DOMSerializer;
+    serializeFragment(fragment: Fragment, options?: AnyRecord, target?: globalThis.Node): globalThis.DocumentFragment;
   }
 
   export class Fragment {
@@ -564,9 +994,20 @@ declare module '@milkdown/kit/prose/schema-list' {
 declare module '@milkdown/kit/prose/state' {
   export type EditorState = MilkdownEditorStateLike;
   export type Transaction = MilkdownTransactionLike;
+  export type Command = MilkdownCommand;
+
+  export class EditorState {
+    static create(options: AnyRecord): EditorState;
+    doc: MilkdownNode;
+    selection: Selection;
+    schema: MilkdownSchema;
+    tr: Transaction;
+    [key: string]: any;
+  }
 
   export class Plugin<T = any> {
     constructor(spec?: MilkdownPluginSpec<T>);
+    spec: MilkdownPluginSpec<T>;
     [key: string]: any;
   }
 
@@ -596,6 +1037,7 @@ declare module '@milkdown/kit/prose/state' {
   }
 
   export class TextSelection extends Selection {
+    constructor($anchor: any, $head?: any);
     static create(doc: MilkdownNode, anchor: number, head?: number): TextSelection;
   }
 
@@ -605,11 +1047,33 @@ declare module '@milkdown/kit/prose/state' {
   }
 
   export class NodeSelection extends Selection {
+    node: MilkdownNode;
     static create(doc: MilkdownNode, from: number): NodeSelection;
   }
 }
 
 declare module '@milkdown/kit/prose/tables' {
+  export class CellSelection extends import('@milkdown/kit/prose/state').Selection {
+    from: number;
+    to: number;
+    empty: boolean;
+    $from: import('@milkdown/kit/prose/model').ResolvedPos;
+    $to: import('@milkdown/kit/prose/model').ResolvedPos;
+    $anchorCell: { pos: number };
+    $headCell: { pos: number };
+    constructor(anchorCell: { pos: number }, headCell?: { pos: number });
+    static colSelection(
+      anchorCell: { pos: number },
+      headCell?: { pos: number },
+    ): CellSelection;
+    static rowSelection(
+      anchorCell: { pos: number },
+      headCell?: { pos: number },
+    ): CellSelection;
+    isColSelection(): boolean;
+    isRowSelection(): boolean;
+  }
+
   export const addColumnAfter: MilkdownCommand;
   export const addColumnBefore: MilkdownCommand;
   export const addRowAfter: MilkdownCommand;
@@ -621,6 +1085,7 @@ declare module '@milkdown/kit/prose/tables' {
     get(table: MilkdownNode): {
       width: number;
       height: number;
+      positionAt(row: number, col: number, table: MilkdownNode): number;
       cellsInRect(rect: {
         left: number;
         right: number;
@@ -670,6 +1135,20 @@ declare module '@milkdown/kit/prose/view' {
   export class NodeView {
     [key: string]: any;
   }
+
+  export type NodeViewConstructor = (
+    node: import('@milkdown/kit/prose/model').Node,
+    view: EditorView,
+    getPos: () => number | undefined,
+    decorations?: readonly any[],
+    innerDecorations?: any,
+  ) => NodeView;
+
+  export type MarkViewConstructor = (
+    mark: import('@milkdown/kit/prose/model').Mark,
+    view: EditorView,
+    inline: boolean,
+  ) => NodeView;
 }
 
 declare module '@milkdown/preset-gfm' {
@@ -690,6 +1169,46 @@ declare module '@milkdown/preset-gfm' {
 }
 
 declare module '@milkdown/prose/model' {
+  export type Attrs = AnyRecord;
+  export type MarkType = MilkdownMarkType;
+  export type NodeType = MilkdownNodeType;
+  export type ResolvedPos = MilkdownResolvedPos;
+  export type Schema = MilkdownSchema;
+
+  export class Mark implements MilkdownMark {
+    type: MarkType;
+    attrs: AnyRecord;
+    static none: readonly Mark[];
+  }
+
+  export class MarkType implements MilkdownMarkType {
+    name: string;
+    spec: AnyRecord;
+    create(attrs?: AnyRecord | null): Mark;
+    isInSet(marks: readonly Mark[] | null | undefined): Mark | undefined;
+  }
+
+  export class NodeType implements MilkdownNodeType {
+    name: string;
+    spec: AnyRecord;
+    schema: MilkdownSchema;
+    create(
+      attrs?: AnyRecord | null,
+      content?: Node | readonly Node[] | null,
+      marks?: readonly MilkdownMark[] | null,
+    ): Node;
+    createAndFill(
+      attrs?: AnyRecord | null,
+      content?: Node | readonly Node[] | null,
+      marks?: readonly MilkdownMark[] | null,
+    ): Node | null;
+    createChecked?(
+      attrs?: AnyRecord | null,
+      content?: Node | readonly Node[] | null,
+      marks?: readonly MilkdownMark[] | null,
+    ): Node;
+  }
+
   export class Node implements MilkdownNode {
     type: MilkdownNodeType;
     attrs: AnyRecord;
@@ -736,7 +1255,185 @@ declare module '@milkdown/prose/model' {
     textBetween(from: number, to: number, blockSeparator?: string | null, leafText?: string | null): string;
     rangeHasMark(from: number, to: number, markType: MilkdownMarkType): boolean;
     eq(other: Node): boolean;
+    static fromJSON(schema: Schema, json: AnyRecord): Node;
   }
+
+  export class Schema implements MilkdownSchema {
+    nodes: Record<string, NodeType>;
+    marks: Record<string, MarkType>;
+    constructor(spec: { nodes: Record<string, any>; marks?: Record<string, any> });
+    text(text: string, marks?: readonly Mark[] | null): Node;
+    [key: string]: any;
+  }
+
+  export class DOMParser {
+    static fromSchema(schema: Schema): DOMParser;
+    parse(dom: Node | globalThis.Node): Node;
+  }
+
+  export class DOMSerializer {
+    static fromSchema(schema: Schema): DOMSerializer;
+    serializeFragment(fragment: import('@milkdown/prose/model').Fragment, options?: AnyRecord, target?: globalThis.Node): globalThis.DocumentFragment;
+  }
+
+  export class Fragment {
+    size: number;
+    childCount: number;
+    firstChild: Node | null;
+    lastChild: Node | null;
+    static from(content: Node | readonly Node[] | Fragment | null): Fragment;
+    static fromArray(nodes: readonly Node[]): Fragment;
+    static empty: Fragment;
+    append(other: Fragment): Fragment;
+    forEach(callback: (node: Node, offset: number, index: number) => void): void;
+    [key: string]: any;
+  }
+
+  export class Slice {
+    content: Fragment;
+    openStart: number;
+    openEnd: number;
+    constructor(content: Fragment, openStart: number, openEnd: number);
+    [key: string]: any;
+  }
+}
+
+declare module '@milkdown/prose/state' {
+  export type EditorState = MilkdownEditorStateLike;
+  export type Transaction = MilkdownTransactionLike;
+  export type Command = MilkdownCommand;
+
+  export class EditorState {
+    static create(options: AnyRecord): EditorState;
+    doc: MilkdownNode;
+    selection: Selection;
+    schema: MilkdownSchema;
+    tr: Transaction;
+    [key: string]: any;
+  }
+
+  export class Selection implements MilkdownSelectionInstance {
+    from: number;
+    to: number;
+    empty: boolean;
+    $from: MilkdownResolvedPos;
+    $to: MilkdownResolvedPos;
+    eq(other: Selection): boolean;
+    static findFrom(
+      $pos: MilkdownResolvedPos,
+      dir: number,
+      textOnly?: boolean,
+    ): Selection | null;
+    static near($pos: MilkdownResolvedPos, bias?: number): Selection;
+    static create(doc: MilkdownNode, anchor: number, head?: number): Selection;
+    static atStart(doc: MilkdownNode): Selection;
+    static atEnd(doc: MilkdownNode): Selection;
+    [key: string]: any;
+  }
+
+  export class TextSelection extends Selection {
+    static create(doc: MilkdownNode, anchor: number, head?: number): TextSelection;
+  }
+
+  export class AllSelection extends Selection {
+    constructor(doc: MilkdownNode);
+    static create(doc: MilkdownNode): AllSelection;
+  }
+
+  export class NodeSelection extends Selection {
+    node: MilkdownNode;
+    static create(doc: MilkdownNode, from: number): NodeSelection;
+  }
+
+  export class Plugin<T = any> {
+    constructor(spec?: MilkdownPluginSpec<T>);
+    spec: MilkdownPluginSpec<T>;
+    [key: string]: any;
+  }
+
+  export class PluginKey<T = any> {
+    constructor(name?: string);
+    getState(state: EditorState): T | undefined;
+    [key: string]: any;
+  }
+}
+
+declare module '@milkdown/prose' {
+  export function findNodeInSelection(
+    state: import('@milkdown/prose/state').EditorState,
+    node: import('@milkdown/prose/model').NodeType,
+  ): {
+    hasNode: boolean;
+    pos: number;
+    target: import('@milkdown/prose/model').Node | null;
+  };
+
+  export function markRule(
+    regexp: RegExp,
+    markType: import('@milkdown/prose/model').MarkType,
+    config?: MilkdownMarkRuleConfig,
+  ): any;
+
+  export function cloneTr<T = import('@milkdown/prose/state').Transaction>(tr: T): T;
+  export function isTextOnlySlice(
+    slice: import('@milkdown/prose/model').Slice,
+  ): import('@milkdown/prose/model').Node | false;
+  export function findParentNodeClosestToPos(
+    predicate: (node: import('@milkdown/prose/model').Node) => boolean,
+  ): (pos: import('@milkdown/prose/model').ResolvedPos) => any;
+  export function customInputRules(options: {
+    rules: import('@milkdown/prose/inputrules').InputRule[];
+  }): import('@milkdown/prose/state').Plugin;
+}
+
+declare module '@milkdown/prose/transform' {
+  export function findWrapping(
+    range: any,
+    nodeType: import('@milkdown/prose/model').NodeType,
+    attrs?: import('@milkdown/prose/model').Attrs | null,
+    innerRange?: any,
+  ): any[] | null;
+}
+
+declare module '@milkdown/prose/tables' {
+  export class CellSelection extends import('@milkdown/prose/state').Selection {
+    from: number;
+    to: number;
+    empty: boolean;
+    $from: import('@milkdown/prose/model').ResolvedPos;
+    $to: import('@milkdown/prose/model').ResolvedPos;
+    $anchorCell: { pos: number };
+    $headCell: { pos: number };
+    constructor(anchorCell: { pos: number }, headCell?: { pos: number });
+    static colSelection(
+      anchorCell: { pos: number },
+      headCell?: { pos: number },
+    ): CellSelection;
+    static rowSelection(
+      anchorCell: { pos: number },
+      headCell?: { pos: number },
+    ): CellSelection;
+    isColSelection(): boolean;
+    isRowSelection(): boolean;
+  }
+
+  export const TableMap: {
+    get(table: MilkdownNode): {
+      width: number;
+      height: number;
+      positionAt(row: number, col: number, table: MilkdownNode): number;
+      cellsInRect(rect: {
+        left: number;
+        right: number;
+        top: number;
+        bottom: number;
+      }): number[];
+    };
+  };
+
+  export function columnResizing(options?: AnyRecord): any;
+  export function tableEditing(options?: AnyRecord): any;
+  export function findTable(...args: any[]): any;
 }
 
 declare module '@milkdown/prose/view' {
@@ -774,6 +1471,20 @@ declare module '@milkdown/prose/view' {
     innerDecorations?: any,
   ) => NodeView;
 
+  export type MarkViewConstructor = (
+    mark: import('@milkdown/prose/model').Mark,
+    view: EditorView,
+    inline: boolean,
+  ) => NodeView;
+
+  export interface DirectEditorProps {
+    state: import('@milkdown/prose/state').EditorState;
+    nodeViews?: Record<string, NodeViewConstructor>;
+    markViews?: Record<string, MarkViewConstructor>;
+    transformPasted?(slice: import('@milkdown/prose/model').Slice, view: EditorView, isPlainText: boolean): import('@milkdown/prose/model').Slice;
+    [key: string]: any;
+  }
+
   export type ViewMutationRecord =
     | MutationRecord
     | { type: 'selection'; target: globalThis.Node };
@@ -782,22 +1493,239 @@ declare module '@milkdown/prose/view' {
 declare module '@milkdown/kit/transformer' {
   export type Parser = ((markdown: string) => import('@milkdown/kit/prose/model').Node) & AnyRecord;
   export type Serializer = ((node: any) => string) & AnyRecord;
+  export type Node = MilkdownAstNode;
+  export type MarkdownNode = MilkdownAstNode;
+  export type Root = MilkdownAstNode;
+  export type RemarkPluginRaw<T = any> = MilkdownRemarkPluginRaw<T>;
+  export type RemarkPlugin<T = Record<string, unknown>> = MilkdownRemarkPlugin<T>;
+  export type NodeSchema = MilkdownNodeSchema;
+  export type MarkSchema = MilkdownMarkSchema;
+}
+
+declare module '@milkdown/transformer' {
+  export type Parser = ((markdown: string) => import('@milkdown/prose/model').Node) & AnyRecord;
+  export type Serializer = ((node: any) => string) & AnyRecord;
+  export type Node = MilkdownAstNode;
+  export type MarkdownNode = MilkdownAstNode;
+  export type Root = MilkdownAstNode;
+  export type RemarkPluginRaw<T = any> = MilkdownRemarkPluginRaw<T>;
+  export type RemarkPlugin<T = Record<string, unknown>> = MilkdownRemarkPlugin<T>;
+  export type NodeSchema = MilkdownNodeSchema;
+  export type MarkSchema = MilkdownMarkSchema;
+
+  export class SerializerState {
+    readonly schema: import('@milkdown/prose/model').Schema;
+    static create(
+      schema: import('@milkdown/prose/model').Schema,
+      remark: any,
+    ): Serializer;
+    constructor(schema: import('@milkdown/prose/model').Schema);
+    next(node: any): this;
+    openNode(type: string, value?: string, props?: AnyRecord): this;
+    closeNode(): this;
+    withMark(
+      mark: import('@milkdown/prose/model').Mark,
+      type: string,
+      value?: string,
+      props?: AnyRecord,
+    ): this;
+    [key: string]: any;
+  }
 }
 
 declare module '@milkdown/kit/utils' {
-  export function $prose(factory: (ctx: MilkdownCtx) => any): any;
-  export function $node(name: string, factory: (ctx: MilkdownCtx) => MilkdownNodeSpec): any;
-  export function $command(name: string, factory: (ctx: MilkdownCtx) => MilkdownCommandFactory): any;
-  export function $mark(name: string, factory: (ctx: MilkdownCtx) => MilkdownMarkSpec): any;
-  export function $inputRule(factory: (ctx: MilkdownCtx) => any): any;
-  export function $remark(name: string, factory: (ctx: MilkdownCtx) => AnyFn): any;
+  export type $Ctx<T = any, N extends string = string> = import('@milkdown/ctx').MilkdownPlugin & {
+    key: import('@milkdown/ctx').SliceType<T, N>;
+  };
+  export type $Node = import('@milkdown/ctx').MilkdownPlugin & {
+    id: string;
+    schema: import('@milkdown/transformer').NodeSchema;
+    type: (ctx: MilkdownCtx) => import('@milkdown/prose/model').NodeType;
+  };
+  export type $Mark = import('@milkdown/ctx').MilkdownPlugin & {
+    id: string;
+    schema: import('@milkdown/transformer').MarkSchema;
+    type: (ctx: MilkdownCtx) => import('@milkdown/prose/model').MarkType;
+  };
+  export type $Prose = import('@milkdown/ctx').MilkdownPlugin & {
+    plugin: () => any;
+    key: () => any;
+  };
+  export type $InputRule = import('@milkdown/ctx').MilkdownPlugin & {
+    inputRule: import('@milkdown/prose/inputrules').InputRule;
+  };
+  export type $PasteRule = import('@milkdown/ctx').MilkdownPlugin & {
+    pasteRule: import('@milkdown/core').PasteRule;
+  };
+  export type $Shortcut = import('@milkdown/ctx').MilkdownPlugin & {
+    keymap: Record<string, import('@milkdown/prose/state').Command | import('@milkdown/core').KeymapItem>;
+  };
+  export type $Remark<N extends string = string, T = any> = [
+    plugin: import('@milkdown/ctx').MilkdownPlugin,
+    options: $Ctx<T, N>,
+  ] & {
+    plugin: import('@milkdown/ctx').MilkdownPlugin;
+    options: $Ctx<T, N>;
+    key: import('@milkdown/ctx').SliceType<T, N>;
+  };
+  export function $ctx<T, N extends string>(value: T, name: N): $Ctx<T, N>;
+  export function $prose(factory: (ctx: MilkdownCtx) => any): $Prose;
+  export function $node(name: string, factory: (ctx: MilkdownCtx) => import('@milkdown/transformer').NodeSchema): $Node;
+  export type $Command<T = any> = import('@milkdown/ctx').MilkdownPlugin & {
+    run: (payload?: T) => boolean;
+    key: import('@milkdown/core').CmdKey<T>;
+  };
+  export function $command<T = any, K extends string = string>(
+    name: K,
+    factory: (ctx: MilkdownCtx) => import('@milkdown/core').Cmd<T>,
+  ): $Command<T>;
+  export function $mark(name: string, factory: (ctx: MilkdownCtx) => import('@milkdown/transformer').MarkSchema): $Mark;
+  export function $markAttr(
+    name: string,
+    value?: (mark: import('@milkdown/prose/model').Mark) => Record<string, any>,
+  ): $Ctx<(mark: import('@milkdown/prose/model').Mark) => Record<string, any>, `${string}Attr`>;
   export function $nodeAttr(
-    nodeName: string,
-    factory: (ctx: MilkdownCtx) => Record<string, MilkdownNodeAttrSpec>,
-  ): any;
+    name: string,
+    value?: (node: import('@milkdown/prose/model').Node) => Record<string, any>,
+  ): $Ctx<(node: import('@milkdown/prose/model').Node) => Record<string, any>, `${string}Attr`>;
+  export function $markSchema<T extends string>(
+    name: T,
+    factory: (ctx: MilkdownCtx) => import('@milkdown/transformer').MarkSchema,
+  ): [$Ctx<(ctx: MilkdownCtx) => import('@milkdown/transformer').MarkSchema, T>, $Mark] & {
+    mark: $Mark;
+    ctx: $Ctx<(ctx: MilkdownCtx) => import('@milkdown/transformer').MarkSchema, T>;
+    key: import('@milkdown/ctx').SliceType<(ctx: MilkdownCtx) => import('@milkdown/transformer').MarkSchema, T>;
+    type: (ctx: MilkdownCtx) => import('@milkdown/prose/model').MarkType;
+  };
+  export function $nodeSchema<T extends string>(
+    name: T,
+    factory: (ctx: MilkdownCtx) => import('@milkdown/transformer').NodeSchema,
+  ): [$Ctx<(ctx: MilkdownCtx) => import('@milkdown/transformer').NodeSchema, T>, $Node] & {
+    node: $Node;
+    ctx: $Ctx<(ctx: MilkdownCtx) => import('@milkdown/transformer').NodeSchema, T>;
+    key: import('@milkdown/ctx').SliceType<(ctx: MilkdownCtx) => import('@milkdown/transformer').NodeSchema, T>;
+    type: (ctx: MilkdownCtx) => import('@milkdown/prose/model').NodeType;
+  };
+  export function $inputRule(factory: (ctx: MilkdownCtx) => import('@milkdown/prose/inputrules').InputRule): $InputRule;
+  export function $pasteRule(factory: (ctx: MilkdownCtx) => import('@milkdown/core').PasteRule): $PasteRule;
+  export function $useKeymap(
+    name: string,
+    shortcuts: Record<
+      string,
+      {
+        shortcuts: string | readonly string[];
+        priority?: number;
+        command: (ctx: MilkdownCtx) => import('@milkdown/prose/state').Command;
+      }
+    >,
+  ): [$Ctx<any, `${string}Keymap`>, $Shortcut] & {
+    ctx: $Ctx<any, `${string}Keymap`>;
+    shortcuts: $Shortcut;
+    key: import('@milkdown/ctx').SliceType<any, `${string}Keymap`>;
+    keymap: Record<string, import('@milkdown/prose/state').Command | import('@milkdown/core').KeymapItem>;
+  };
+  export function $remark<N extends string = string, T = any>(
+    name: N,
+    factory: (ctx: MilkdownCtx) => MilkdownRemarkPluginRaw<T>,
+  ): $Remark<N, T>;
+  export function $view(node: any, factory: (ctx: MilkdownCtx) => any): any;
 }
 
 declare module '@milkdown/utils' {
+  export type $Ctx<T = any, N extends string = string> = import('@milkdown/ctx').MilkdownPlugin & {
+    key: import('@milkdown/ctx').SliceType<T, N>;
+  };
+  export type $Node = import('@milkdown/ctx').MilkdownPlugin & {
+    id: string;
+    schema: import('@milkdown/transformer').NodeSchema;
+    type: (ctx: MilkdownCtx) => import('@milkdown/prose/model').NodeType;
+  };
+  export type $Mark = import('@milkdown/ctx').MilkdownPlugin & {
+    id: string;
+    schema: import('@milkdown/transformer').MarkSchema;
+    type: (ctx: MilkdownCtx) => import('@milkdown/prose/model').MarkType;
+  };
+  export type $Prose = import('@milkdown/ctx').MilkdownPlugin & {
+    plugin: () => any;
+    key: () => any;
+  };
+  export type $InputRule = import('@milkdown/ctx').MilkdownPlugin & {
+    inputRule: import('@milkdown/prose/inputrules').InputRule;
+  };
+  export type $PasteRule = import('@milkdown/ctx').MilkdownPlugin & {
+    pasteRule: import('@milkdown/core').PasteRule;
+  };
+  export type $Shortcut = import('@milkdown/ctx').MilkdownPlugin & {
+    keymap: Record<string, import('@milkdown/prose/state').Command | import('@milkdown/core').KeymapItem>;
+  };
+  export type $Remark<N extends string = string, T = any> = [
+    plugin: import('@milkdown/ctx').MilkdownPlugin,
+    options: $Ctx<T, N>,
+  ] & {
+    plugin: import('@milkdown/ctx').MilkdownPlugin;
+    options: $Ctx<T, N>;
+    key: import('@milkdown/ctx').SliceType<T, N>;
+  };
+  export function $ctx<T, N extends string>(value: T, name: N): $Ctx<T, N>;
+  export function $prose(factory: (ctx: MilkdownCtx) => any): $Prose;
+  export function $node(name: string, factory: (ctx: MilkdownCtx) => import('@milkdown/transformer').NodeSchema): $Node;
+  export type $Command<T = any> = import('@milkdown/ctx').MilkdownPlugin & {
+    run: (payload?: T) => boolean;
+    key: import('@milkdown/core').CmdKey<T>;
+  };
+  export function $command<T = any, K extends string = string>(
+    name: K,
+    factory: (ctx: MilkdownCtx) => import('@milkdown/core').Cmd<T>,
+  ): $Command<T>;
+  export function $mark(name: string, factory: (ctx: MilkdownCtx) => import('@milkdown/transformer').MarkSchema): $Mark;
+  export function $markAttr(
+    name: string,
+    value?: (mark: import('@milkdown/prose/model').Mark) => Record<string, any>,
+  ): $Ctx<(mark: import('@milkdown/prose/model').Mark) => Record<string, any>, `${string}Attr`>;
+  export function $nodeAttr(
+    name: string,
+    value?: (node: import('@milkdown/prose/model').Node) => Record<string, any>,
+  ): $Ctx<(node: import('@milkdown/prose/model').Node) => Record<string, any>, `${string}Attr`>;
+  export function $markSchema<T extends string>(
+    name: T,
+    factory: (ctx: MilkdownCtx) => import('@milkdown/transformer').MarkSchema,
+  ): [$Ctx<(ctx: MilkdownCtx) => import('@milkdown/transformer').MarkSchema, T>, $Mark] & {
+    mark: $Mark;
+    ctx: $Ctx<(ctx: MilkdownCtx) => import('@milkdown/transformer').MarkSchema, T>;
+    key: import('@milkdown/ctx').SliceType<(ctx: MilkdownCtx) => import('@milkdown/transformer').MarkSchema, T>;
+    type: (ctx: MilkdownCtx) => import('@milkdown/prose/model').MarkType;
+  };
+  export function $nodeSchema<T extends string>(
+    name: T,
+    factory: (ctx: MilkdownCtx) => import('@milkdown/transformer').NodeSchema,
+  ): [$Ctx<(ctx: MilkdownCtx) => import('@milkdown/transformer').NodeSchema, T>, $Node] & {
+    node: $Node;
+    ctx: $Ctx<(ctx: MilkdownCtx) => import('@milkdown/transformer').NodeSchema, T>;
+    key: import('@milkdown/ctx').SliceType<(ctx: MilkdownCtx) => import('@milkdown/transformer').NodeSchema, T>;
+    type: (ctx: MilkdownCtx) => import('@milkdown/prose/model').NodeType;
+  };
+  export function $inputRule(factory: (ctx: MilkdownCtx) => import('@milkdown/prose/inputrules').InputRule): $InputRule;
+  export function $pasteRule(factory: (ctx: MilkdownCtx) => import('@milkdown/core').PasteRule): $PasteRule;
+  export function $useKeymap(
+    name: string,
+    shortcuts: Record<
+      string,
+      {
+        shortcuts: string | readonly string[];
+        priority?: number;
+        command: (ctx: MilkdownCtx) => import('@milkdown/prose/state').Command;
+      }
+    >,
+  ): [$Ctx<any, `${string}Keymap`>, $Shortcut] & {
+    ctx: $Ctx<any, `${string}Keymap`>;
+    shortcuts: $Shortcut;
+    key: import('@milkdown/ctx').SliceType<any, `${string}Keymap`>;
+    keymap: Record<string, import('@milkdown/prose/state').Command | import('@milkdown/core').KeymapItem>;
+  };
+  export function $remark<N extends string = string, T = any>(
+    name: N,
+    factory: (ctx: MilkdownCtx) => MilkdownRemarkPluginRaw<T>,
+  ): $Remark<N, T>;
   export function $view(node: any, factory: (ctx: MilkdownCtx) => any): any;
 }
 
