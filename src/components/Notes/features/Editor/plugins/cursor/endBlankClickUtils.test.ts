@@ -34,13 +34,13 @@ describe('resolveTailBlankClickAction', () => {
         };
 
         expect(resolveTailBlankClickAction(state)).toEqual({
-            insertParagraph: false,
+            mode: 'reuse-existing',
             targetPos: 49,
             bias: -1,
         });
     });
 
-    it('requests creating a new paragraph when tail is non-empty', () => {
+    it('requests creating a temporary paragraph when tail is non-empty', () => {
         const state = {
             doc: {
                 content: { size: 50 },
@@ -50,7 +50,7 @@ describe('resolveTailBlankClickAction', () => {
         };
 
         expect(resolveTailBlankClickAction(state)).toEqual({
-            insertParagraph: true,
+            mode: 'insert-temporary',
             targetPos: 51,
             bias: 1,
         });
@@ -68,4 +68,3 @@ describe('resolveTailBlankClickAction', () => {
         expect(resolveTailBlankClickAction(state)).toBeNull();
     });
 });
-

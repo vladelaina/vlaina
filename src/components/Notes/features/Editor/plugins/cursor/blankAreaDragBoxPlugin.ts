@@ -3,7 +3,8 @@ import { serializerCtx } from '@milkdown/kit/core';
 import { Plugin, PluginKey, Selection, type EditorState, type Transaction } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/kit/prose/view';
 import type { Serializer } from '@milkdown/kit/transformer';
-import { dispatchTailBlankClickAction, isClickBelowLastBlock } from './endBlankClickUtils';
+import { isClickBelowLastBlock } from './endBlankClickUtils';
+import { dispatchTailBlankClickAction } from './endBlankClickPlugin';
 import {
   createDragSelectionRect,
   getBlockRangesKey,
