@@ -1,8 +1,12 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readMathStyles() {
-  return readFileSync(new URL('./math-editor.css', import.meta.url), 'utf8');
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/styles/math-editor.css'),
+    'utf8'
+  );
 }
 
 describe('math hover styles', () => {

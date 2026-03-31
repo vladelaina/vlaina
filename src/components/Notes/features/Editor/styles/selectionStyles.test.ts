@@ -1,12 +1,22 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readStyleFile(name: string) {
-  return readFileSync(new URL(name, import.meta.url), 'utf8');
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/styles', name),
+    'utf8'
+  );
 }
 
 function readCodeBlockThemeSource() {
-  return readFileSync(new URL('../plugins/code/codemirror/codeBlockEditorTheme.ts', import.meta.url), 'utf8');
+  return readFileSync(
+    resolve(
+      process.cwd(),
+      'src/components/Notes/features/Editor/plugins/code/codemirror/codeBlockEditorTheme.ts'
+    ),
+    'utf8'
+  );
 }
 
 describe('editor embedded CodeMirror selection styles', () => {

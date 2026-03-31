@@ -4,6 +4,7 @@ import type { StarredEntry } from '../types';
 const adapter = {
   exists: vi.fn<(path: string) => Promise<boolean>>(),
   readFile: vi.fn<(path: string) => Promise<string>>(),
+  stat: vi.fn<(path: string) => Promise<{ isDirectory: boolean; isFile: boolean } | null>>(),
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
 };
 
@@ -64,6 +65,17 @@ describe('starred persistence', () => {
 
     adapter.exists.mockImplementation(async (path: string) => {
       return path === '/store/notes-starred.json' || path === 'C:/vault-a' || path === 'C:/vault-a/alive.md';
+    });
+    adapter.stat.mockImplementation(async (path: string) => {
+      if (path === 'C:/vault-a') {
+        return { isDirectory: true, isFile: false };
+      }
+
+      if (path === 'C:/vault-a/alive.md') {
+        return { isDirectory: false, isFile: true };
+      }
+
+      return null;
     });
     adapter.readFile.mockResolvedValue(
       JSON.stringify({

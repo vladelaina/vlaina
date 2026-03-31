@@ -1,16 +1,23 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readIndexStyles() {
-  return readFileSync(new URL('../../../../../index.css', import.meta.url), 'utf8');
+  return readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
 }
 
 function readEditorCoreStyles() {
-  return readFileSync(new URL('./core.css', import.meta.url), 'utf8');
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/styles/core.css'),
+    'utf8'
+  );
 }
 
 function readEditorThemeSource() {
-  return readFileSync(new URL('../theme.ts', import.meta.url), 'utf8');
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/theme.ts'),
+    'utf8'
+  );
 }
 
 describe('caret styles', () => {
