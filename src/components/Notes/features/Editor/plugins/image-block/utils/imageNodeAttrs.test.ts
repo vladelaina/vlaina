@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getImageAlignment, getImageWidth, mergeImageNodeAttrs } from './imageNodeAttrs';
-import { parseImageSource } from './cropUtils';
+import { parseImageSource } from './imageSourceFragment';
 
 describe('imageNodeAttrs', () => {
     it('reads alignment and width from src fragment first', () => {

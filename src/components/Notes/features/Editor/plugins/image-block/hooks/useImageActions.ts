@@ -1,12 +1,12 @@
 import { useCallback, useState } from 'react';
 import { useToastStore } from '@/stores/useToastStore';
-import { generateCropFragment } from '../utils/cropUtils';
+import { generateCropFragment } from '../utils/imageSourceFragment';
 import { ensureImageFileExists } from '../utils/fileUtils';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
 import { deleteImageNodeAtPos } from '../commands/imageNodeCommands';
 import type { CropArea, ImageNodeAttrs } from '../types';
-import type { CropParams } from '../utils/cropUtils';
+import type { CropParams } from '../utils/imageSourceFragment';
 
 interface UseImageActionsProps {
     node: Node;

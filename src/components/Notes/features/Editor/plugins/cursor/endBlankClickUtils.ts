@@ -1,8 +1,5 @@
-import { Selection } from '@milkdown/kit/prose/state';
-import type { EditorView } from '@milkdown/kit/prose/view';
-
 export interface TailBlankClickAction {
-    insertParagraph: boolean;
+    mode: 'reuse-existing' | 'insert-temporary';
     targetPos: number;
     bias: 1 | -1;
 }
@@ -30,7 +27,7 @@ export const resolveTailBlankClickAction = (state: {
 
     if (lastNode?.type?.name === 'paragraph' && lastNode.content?.size === 0) {
         return {
-            insertParagraph: false,
+            mode: 'reuse-existing',
             targetPos: Math.max(0, docEnd - 1),
             bias: -1,
         };
@@ -38,30 +35,11 @@ export const resolveTailBlankClickAction = (state: {
 
     if (paragraphType) {
         return {
-            insertParagraph: true,
+            mode: 'insert-temporary',
             targetPos: docEnd + 1,
             bias: 1,
         };
     }
 
     return null;
-};
-
-export const dispatchTailBlankClickAction = (view: EditorView): boolean => {
-    const { state } = view;
-    const action = resolveTailBlankClickAction(state);
-    if (!action) return false;
-
-    let tr = state.tr;
-    if (action.insertParagraph) {
-        const docEnd = state.doc.content.size;
-        const paragraphType = state.doc.type.schema.nodes.paragraph;
-        if (!paragraphType) return false;
-        tr = tr.insert(docEnd, paragraphType.create());
-    }
-
-    tr = tr.setSelection(Selection.near(tr.doc.resolve(action.targetPos), action.bias));
-    view.dispatch(tr.scrollIntoView());
-    view.focus();
-    return true;
 };

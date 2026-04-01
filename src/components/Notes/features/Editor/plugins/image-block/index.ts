@@ -5,10 +5,8 @@ import { EditorView } from '@milkdown/kit/prose/view';
 import { keymap } from '@milkdown/kit/prose/keymap';
 import { NodeSelection } from '@milkdown/kit/prose/state';
 import { ImageBlockNodeView } from './ImageBlockNodeView';
-import { useNotesStore } from '@/stores/notes/useNotesStore';
-import { moveImageToTrash, restoreImageFromTrash } from './utils/fileUtils';
 import { imageDragPlugin } from './imageDragPlugin';
-import { getImageAssetKey } from './utils/imageAssetKey';
+import { imageAssetLifecyclePlugin } from './imageAssetLifecyclePlugin';
 
 const imageNodeViewPluginKey = new PluginKey('imageNodeViewPlugin');
 
@@ -21,45 +19,6 @@ export const imageNodeViewPlugin = $prose(() => {
                     return new ImageBlockNodeView(node, view, getPos);
                 }
             }
-        },
-        appendTransaction: (transactions, oldState, newState) => {
-            const { notesPath, currentNote } = useNotesStore.getState();
-            if (!notesPath) return null;
-
-            const hasRelevantDocChange = transactions.some(
-                tr => tr.docChanged && !tr.getMeta('imageDragMove')
-            );
-            if (!hasRelevantDocChange) return null;
-
-            const oldAssets = new Set<string>();
-            const newAssets = new Set<string>();
-
-            oldState.doc.descendants((node) => {
-                if (node.type.name !== 'image') return;
-                const assetKey = getImageAssetKey(node.attrs.src);
-                if (assetKey) oldAssets.add(assetKey);
-            });
-
-            newState.doc.descendants((node) => {
-                if (node.type.name !== 'image') return;
-                const assetKey = getImageAssetKey(node.attrs.src);
-                if (assetKey) newAssets.add(assetKey);
-            });
-
-            const deletedAssets = new Set<string>(oldAssets);
-            newAssets.forEach(assetKey => deletedAssets.delete(assetKey));
-            const insertedAssets = new Set<string>(newAssets);
-            oldAssets.forEach(assetKey => insertedAssets.delete(assetKey));
-
-            deletedAssets.forEach(src => {
-                moveImageToTrash(src, notesPath, currentNote?.path);
-            });
-
-            insertedAssets.forEach(src => {
-                restoreImageFromTrash(src, notesPath, currentNote?.path);
-            });
-
-            return null;
         }
     });
 });
@@ -111,6 +70,6 @@ export const imageKeymapPlugin = $prose(() => {
     });
 });
 
-export const imageBlockPlugin = [imageNodeViewPlugin, imageKeymapPlugin, imageDragPlugin];
+export const imageBlockPlugin = [imageNodeViewPlugin, imageAssetLifecyclePlugin, imageKeymapPlugin, imageDragPlugin];
 
 export { setDragState, clearDragState, getDragState, calculateDropPosition } from './imageDragPlugin';

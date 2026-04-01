@@ -4,7 +4,10 @@ import { Selection } from '@milkdown/kit/prose/state';
 import { deleteRow } from '@milkdown/kit/prose/tables';
 import type { EditorView } from '@milkdown/kit/prose/view';
 
-import { createEmptyTableNode, getPipeShortcutColumnCount } from './pipeTableShortcut';
+import {
+  createTableNodeFromPipeCells,
+  getPipeShortcutCells,
+} from './pipeTableShortcut';
 import {
   findAdjacentTableParagraphDeleteRange,
   findLeadingTableDeleteRange,
@@ -50,6 +53,25 @@ function dispatchDeleteRangeWithTextSelection(
     Selection.findFrom(resolvedAnchor, reverseSearchDir, true);
 
   view.dispatch((nextSelection ? tr.setSelection(nextSelection) : tr).scrollIntoView());
+}
+
+function findFirstTableBodyCellSelection(
+  doc: EditorView['state']['doc'],
+  tableFrom: number,
+  tableNode: any,
+) {
+  let targetPos: number | null = null;
+
+  doc.descendants((node, pos) => {
+    if (targetPos !== null) return false;
+    if (pos < tableFrom) return true;
+    if (node.type.name !== 'table_cell') return true;
+
+    targetPos = pos + 2;
+    return false;
+  });
+
+  return targetPos === null ? null : TextSelection.create(doc, targetPos);
 }
 
 export const tableKeyboardPlugin = $prose(() => {
@@ -186,9 +208,9 @@ export const tableKeyboardPlugin = $prose(() => {
           $from.parent.type.name === 'paragraph' &&
           $from.parentOffset === $from.parent.content.size
         ) {
-          const columnCount = getPipeShortcutColumnCount($from.parent.textContent);
-          if (columnCount) {
-            const tableNode = createEmptyTableNode(state.schema, columnCount);
+          const cells = getPipeShortcutCells($from.parent.textContent);
+          if (cells && cells.filter((cell) => cell.length > 0).length >= 2) {
+            const tableNode = createTableNodeFromPipeCells(state.schema, cells);
             if (tableNode && $from.depth >= 1) {
               const parent = $from.node($from.depth - 1);
               if (
@@ -202,7 +224,7 @@ export const tableKeyboardPlugin = $prose(() => {
                 const from = $from.before($from.depth);
                 const to = $from.after($from.depth);
                 const tr = state.tr.replaceRangeWith(from, to, tableNode);
-                const nextSelection = Selection.findFrom(tr.doc.resolve(from + 1), 1, true);
+                const nextSelection = findFirstTableBodyCellSelection(tr.doc, from, tableNode);
                 view.dispatch(
                   (nextSelection ? tr.setSelection(nextSelection) : tr).scrollIntoView()
                 );

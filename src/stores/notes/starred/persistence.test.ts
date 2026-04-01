@@ -3,7 +3,6 @@ import type { StarredEntry } from '../types';
 
 const adapter = {
   exists: vi.fn<(path: string) => Promise<boolean>>(),
-  stat: vi.fn<(path: string) => Promise<{ isDirectory?: boolean; isFile?: boolean } | null>>(),
   readFile: vi.fn<(path: string) => Promise<string>>(),
   stat: vi.fn<(path: string) => Promise<{ isDirectory: boolean; isFile: boolean } | null>>(),
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
@@ -84,17 +83,6 @@ describe('starred persistence', () => {
         entries: [validEntry, invalidEntry],
       })
     );
-    adapter.stat.mockImplementation(async (path: string) => {
-      if (path === 'C:/vault-a') {
-        return { isDirectory: true };
-      }
-
-      if (path === 'C:/vault-a/alive.md') {
-        return { isFile: true };
-      }
-
-      return null;
-    });
     adapter.writeFile.mockResolvedValue();
 
     const persistence = await import('./persistence');

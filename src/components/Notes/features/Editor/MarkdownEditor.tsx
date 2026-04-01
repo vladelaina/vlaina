@@ -36,6 +36,7 @@ import { useEditorSave } from './hooks/useEditorSave';
 import { calculateTextStats } from './utils/textStats';
 import {
   clearCurrentMarkdownRuntime,
+  getCurrentEditorView,
   setCurrentEditorView,
   setCurrentMarkdownRuntime,
 } from './utils/editorViewRegistry';
@@ -43,6 +44,7 @@ import {
   normalizeLeadingFrontmatterMarkdown,
   serializeLeadingFrontmatterMarkdown,
 } from './plugins/frontmatter/frontmatterMarkdown';
+import { hasTemporaryTailParagraph } from './plugins/cursor/endBlankClickPlugin';
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
 import './styles/index.css';
 
@@ -94,6 +96,11 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
 
         ctx.get(listenerCtx)
           .markdownUpdated((_ctx, markdown) => {
+            const editorView = getCurrentEditorView();
+            if (editorView && hasTemporaryTailParagraph(editorView.state)) {
+              return;
+            }
+
             const isInitializing = Date.now() - initTime < INIT_PERIOD;
             if (
               isInitializing &&

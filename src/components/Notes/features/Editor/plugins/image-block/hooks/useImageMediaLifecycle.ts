@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
-import { parseImageSource } from '../utils/cropUtils';
+import { parseImageSource } from '../utils/imageSourceFragment';
 import type { LoadedMediaSize, ImageNodeAttrs } from '../types';
+import { resolveInitialImageWidth } from '../utils/imageInitialWidth';
 
 interface UseImageMediaLifecycleOptions {
     width: string;
@@ -44,17 +45,21 @@ export function useImageMediaLifecycle({
     updateNodeAttrs,
 }: UseImageMediaLifecycleOptions) {
     const onMediaLoaded = useCallback((media: LoadedMediaSize) => {
+        const containerWidth = containerRef.current?.parentElement?.offsetWidth ?? null;
+        const nextWidth = width === 'auto' && containerWidth
+            ? resolveInitialImageWidth(media.naturalWidth, containerWidth)
+            : null;
+
         if (media.naturalHeight > 0) {
             setNaturalRatio(media.naturalWidth / media.naturalHeight);
         }
 
         if (width === 'auto') {
-            const containerWidth = containerRef.current?.parentElement?.offsetWidth;
             if (containerWidth) {
-                const percent = Math.min(100, (media.naturalWidth / containerWidth) * 100);
-                const nextWidth = `${percent}%`;
-                setWidth(nextWidth);
-                updateNodeAttrs({ width: nextWidth });
+                if (nextWidth) {
+                    setWidth(nextWidth);
+                    updateNodeAttrs({ width: nextWidth });
+                }
             }
         }
 

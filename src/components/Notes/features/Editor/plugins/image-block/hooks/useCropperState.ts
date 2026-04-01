@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { CropParams, calculateRestoredCrop } from '../utils/cropUtils';
+import type { CropParams } from '../utils/imageSourceFragment';
+import { calculateRestoredCrop } from '../utils/cropGeometry';
 import type { CropperViewportState, LoadedMediaSize } from '../types';
-
-const ZOOM_COVER_MULTIPLIER = 1.001;
+import { resolveCoverZoom, resolveDisplayedMediaSizeAtZoom1 } from '../utils/cropperViewport';
 
 interface UseCropperStateProps {
     initialCropParams: CropParams | null;
@@ -26,6 +26,7 @@ export function useCropperState({
 
     const mediaSizeRef = useRef<{ naturalWidth: number; naturalHeight: number } | null>(null);
     const originalAspectRatioRef = useRef<number>(1);
+    const shouldAutoFitViewportRef = useRef(!overrideState && !initialCropParams);
 
     // Notify parent on change
     useEffect(() => {
@@ -36,29 +37,24 @@ export function useCropperState({
     useEffect(() => {
         if (mediaSizeRef.current && containerSize.width && containerSize.height) {
             const mediaSize = mediaSizeRef.current;
-
-            const fitRatio = Math.min(
-                containerSize.width / mediaSize.naturalWidth,
-                containerSize.height / mediaSize.naturalHeight
-            );
-
-            const displayedWidthAtZoom1 = mediaSize.naturalWidth * fitRatio;
-            const displayedHeightAtZoom1 = mediaSize.naturalHeight * fitRatio;
-
-            const widthScale = containerSize.width / displayedWidthAtZoom1;
-            const heightScale = containerSize.height / displayedHeightAtZoom1;
-
-            const coverZoom = Math.max(widthScale, heightScale) * ZOOM_COVER_MULTIPLIER;
+            const coverZoom = resolveCoverZoom(containerSize, {
+                width: mediaSize.naturalWidth,
+                height: mediaSize.naturalHeight,
+            });
+            if (coverZoom === null) return;
 
             setMinZoomLimit(coverZoom);
             
-            // Only auto-adjust zoom if we are NOT using an override state
-            // or if the current zoom is invalid (too small)
             if (!overrideState) {
-                setZoom(prev => Math.max(prev, coverZoom));
+                if (shouldAutoFitViewportRef.current) {
+                    setZoom(coverZoom);
+                    setCrop({ x: 0, y: 0 });
+                } else {
+                    setZoom(prev => Math.max(prev, coverZoom));
+                }
             }
         }
-    }, [containerSize.width, containerSize.height, overrideState]);
+    }, [containerSize.width, containerSize.height, overrideState, setCrop]);
 
     // Enforce min zoom
     useEffect(() => {
@@ -75,19 +71,15 @@ export function useCropperState({
         originalAspectRatioRef.current = mediaSize.naturalWidth / mediaSize.naturalHeight;
 
         if (!containerSize.width || !containerSize.height) return;
-
-        const fitRatio = Math.min(
-            containerSize.width / mediaSize.naturalWidth,
-            containerSize.height / mediaSize.naturalHeight
-        );
-
-        const displayedWidthAtZoom1 = mediaSize.naturalWidth * fitRatio;
-        const displayedHeightAtZoom1 = mediaSize.naturalHeight * fitRatio;
-
-        const widthScale = containerSize.width / displayedWidthAtZoom1;
-        const heightScale = containerSize.height / displayedHeightAtZoom1;
-
-        const coverZoom = Math.max(widthScale, heightScale) * ZOOM_COVER_MULTIPLIER;
+        const displayedMedia = resolveDisplayedMediaSizeAtZoom1(containerSize, {
+            width: mediaSize.naturalWidth,
+            height: mediaSize.naturalHeight,
+        });
+        const coverZoom = resolveCoverZoom(containerSize, {
+            width: mediaSize.naturalWidth,
+            height: mediaSize.naturalHeight,
+        });
+        if (!displayedMedia || coverZoom === null) return;
 
         setMinZoomLimit(coverZoom);
 
@@ -97,19 +89,22 @@ export function useCropperState({
             const safeZoom = Math.max(overrideState.zoom, coverZoom);
             setZoom(safeZoom * 1.01);
             setCrop(overrideState.crop);
+            shouldAutoFitViewportRef.current = false;
         } else if (initialCropParams) {
             const restoredZoom = 100 / initialCropParams.width;
             setZoom(restoredZoom);
 
             const restoredCrop = calculateRestoredCrop(
                 initialCropParams,
-                displayedWidthAtZoom1,
-                displayedHeightAtZoom1
+                displayedMedia.width,
+                displayedMedia.height
             );
             setCrop(restoredCrop);
+            shouldAutoFitViewportRef.current = false;
         } else {
             setZoom(coverZoom);
             setCrop({ x: 0, y: 0 });
+            shouldAutoFitViewportRef.current = true;
         }
     }, [containerSize, initialCropParams, externalOnMediaLoaded, overrideState]);
 

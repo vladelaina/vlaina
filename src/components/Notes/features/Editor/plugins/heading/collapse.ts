@@ -51,7 +51,9 @@ const buildDecorations = (
         const hasContent = collapsedRanges.length > 0;
         const isCollapsed = hasContent && collapsedHeadings.has(headingPos);
 
-        decorations.push(createToggleWidgetDecoration(headingPos, isCollapsed, hasContent));
+        if (hasContent) {
+            decorations.push(createToggleWidgetDecoration(headingPos, isCollapsed, hasContent));
+        }
 
         if (!isCollapsed) return;
         collapsedRanges.forEach((range) => {

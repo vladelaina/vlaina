@@ -10,6 +10,49 @@ function getImageNodeAtPos(view: EditorView, pos: number): ProseNode | null {
     return node;
 }
 
+function matchesImageNode(node: ProseNode | null, expectedAttrs: ImageNodeAttrs): node is ProseNode {
+    if (!node || node.type.name !== 'image') return false;
+
+    const attrs = node.attrs as ImageNodeAttrs;
+    if (typeof expectedAttrs.src === 'string' && attrs.src !== expectedAttrs.src) return false;
+    if (expectedAttrs.alt !== undefined && attrs.alt !== expectedAttrs.alt) return false;
+    if (expectedAttrs.title !== undefined && attrs.title !== expectedAttrs.title) return false;
+
+    return true;
+}
+
+function resolveInsertedImagePos(doc: ProseNode, insertionPos: number, expectedAttrs: ImageNodeAttrs): number | null {
+    const candidatePositions = [
+        insertionPos,
+        insertionPos + 1,
+        insertionPos - 1,
+        insertionPos + 2,
+        insertionPos - 2,
+    ];
+
+    for (const candidatePos of candidatePositions) {
+        if (candidatePos < 0 || candidatePos > doc.content.size) continue;
+        if (matchesImageNode(doc.nodeAt(candidatePos), expectedAttrs)) {
+            return candidatePos;
+        }
+    }
+
+    let resolvedPos: number | null = null;
+    const from = Math.max(0, insertionPos - 2);
+    const to = Math.min(doc.content.size, insertionPos + 3);
+
+    doc.nodesBetween(from, to, (node, pos) => {
+        if (matchesImageNode(node, expectedAttrs)) {
+            resolvedPos = pos;
+            return false;
+        }
+
+        return undefined;
+    });
+
+    return resolvedPos;
+}
+
 export function applyImageNodeAttrsAtPos(
     view: EditorView,
     pos: number,
@@ -69,11 +112,13 @@ export function moveImageNode(view: EditorView, options: MoveImageNodeOptions): 
         tr.delete(sourcePos, sourcePos + imageNodeSize);
         const adjustedTarget = tr.mapping.map(targetPos);
         tr.insert(adjustedTarget, slice.content);
-        tr.setNodeMarkup(adjustedTarget, undefined, updatedAttrs);
+        const insertedImagePos = resolveInsertedImagePos(tr.doc, adjustedTarget, imageNode.attrs as ImageNodeAttrs);
+        tr.setNodeMarkup(insertedImagePos ?? adjustedTarget, undefined, updatedAttrs);
     } else {
         const slice = state.doc.slice(sourcePos, sourcePos + imageNodeSize);
         tr.insert(targetPos, slice.content);
-        tr.setNodeMarkup(targetPos, undefined, updatedAttrs);
+        const insertedImagePos = resolveInsertedImagePos(tr.doc, targetPos, imageNode.attrs as ImageNodeAttrs);
+        tr.setNodeMarkup(insertedImagePos ?? targetPos, undefined, updatedAttrs);
         const adjustedSource = tr.mapping.map(sourcePos);
         tr.delete(adjustedSource, adjustedSource + imageNodeSize);
     }
