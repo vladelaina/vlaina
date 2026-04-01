@@ -1,5 +1,5 @@
 import type { Alignment } from '../types';
-import { buildImageSource, parseImageSource } from './cropUtils';
+import { buildImageSource, parseImageSource } from './imageSourceFragment';
 
 type NodeAttrs = Record<string, unknown>;
 

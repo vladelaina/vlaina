@@ -26,9 +26,11 @@ export function calculateAlignmentFromPosition(view: EditorView, clientX: number
     const editorRect = view.dom.getBoundingClientRect();
     const relativeX = clientX - editorRect.left;
     const ratio = relativeX / editorRect.width;
-    if (ratio < 0.33) return 'left';
-    if (ratio > 0.67) return 'right';
-    return 'center';
+    let alignment: Alignment = 'center';
+    if (ratio < 0.33) alignment = 'left';
+    else if (ratio > 0.67) alignment = 'right';
+
+    return alignment;
 }
 
 export function calculateDropPosition(view: EditorView, clientY: number, sourcePos: number): number | null {

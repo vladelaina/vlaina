@@ -1,4 +1,4 @@
-import { parseImageSource } from './cropUtils';
+import { parseImageSource } from './imageSourceFragment';
 
 function isRemoteOrVirtualAsset(path: string): boolean {
     return (

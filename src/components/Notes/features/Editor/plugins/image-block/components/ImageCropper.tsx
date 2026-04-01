@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import Cropper from 'react-easy-crop';
 import { cn } from '@/lib/utils';
-import { CropParams } from '../utils/cropUtils';
+import type { CropParams } from '../utils/imageSourceFragment';
 import { InvisibleResizeHandles } from './InvisibleResizeHandles';
 import { CropperControls } from './CropperControls';
 import { useCropperState } from '../hooks/useCropperState';

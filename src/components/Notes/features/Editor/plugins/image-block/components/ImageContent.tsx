@@ -1,6 +1,6 @@
 import { Icon } from '@/components/ui/icons';
 import { ImageCropper } from './ImageCropper';
-import { CropParams } from '../utils/cropUtils';
+import type { CropParams } from '../utils/imageSourceFragment';
 import type { CropArea, LoadedMediaSize, CropperViewportState, ResizeDirection } from '../types';
 
 interface ImageContentProps {

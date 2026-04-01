@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
 import {
     setDragState,
@@ -8,25 +8,15 @@ import type { Alignment } from '../types';
 import { moveImageNode } from '../commands/imageNodeCommands';
 import { getPlaceholderMargin } from '../utils/imageDragPlaceholder';
 import { calculateDropPosition, calculateAlignmentFromPosition } from '../utils/imageDropPosition';
-
-const LONG_PRESS_DELAY_MS = 300;
-
-type DragPhase = 'idle' | 'pressing' | 'dragging';
-
-interface DragSession {
-    phase: DragPhase;
-    sourcePos: number | null;
-    startX: number;
-    startY: number;
-    startTime: number;
-    initialLeft: number;
-    initialTop: number;
-    sourceWidth: number;
-    sourceHeight: number;
-    targetPos: number | null;
-    alignment: Alignment;
-    longPressTimeoutId?: ReturnType<typeof setTimeout>;
-}
+import {
+    beginDragSession,
+    createDragSession,
+    getFinalTargetPos,
+    LONG_PRESS_DELAY_MS,
+    shouldCommitDragSession,
+    type DragSession,
+} from './imageDragSession';
+import { useImageDragPreview } from './useImageDragPreview';
 
 interface UseImageDragOptions {
     view: EditorView;
@@ -43,8 +33,6 @@ interface UseImageDragReturn {
     dragSize: { width: number; height: number } | null;
     dragAlignment: Alignment;
     handlePointerDown: (e: React.PointerEvent) => void;
-    handlePointerUp: () => void;
-    handlePointerCancel: () => void;
 }
 
 export function useImageDrag({
@@ -55,21 +43,19 @@ export function useImageDrag({
     loadError,
     currentAlignment,
 }: UseImageDragOptions): UseImageDragReturn {
-    const [isDragging, setIsDragging] = useState(false);
-    const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
-    const [dragSize, setDragSize] = useState<{ width: number; height: number } | null>(null);
-    const [dragAlignment, setDragAlignment] = useState<Alignment>('center');
+    const {
+        isDragging,
+        dragPosition,
+        dragSize,
+        dragAlignment,
+        startPreview,
+        updatePreviewPosition,
+        setPreviewAlignment,
+        resetPreview,
+    } = useImageDragPreview();
 
     const dragSessionRef = useRef<DragSession | null>(null);
     const dragCleanupRef = useRef<(() => void) | null>(null);
-
-    const resetVisualState = useCallback(() => {
-        document.documentElement.classList.remove('dragging-image');
-        setIsDragging(false);
-        setDragPosition(null);
-        setDragSize(null);
-        setDragAlignment('center');
-    }, []);
 
     const clearLongPressTimeout = useCallback((session: DragSession) => {
         if (session.longPressTimeoutId) {
@@ -87,7 +73,9 @@ export function useImageDrag({
     const syncPluginDragState = useCallback((session: DragSession) => {
         if (session.sourcePos === null) return;
 
-        const finalTargetPos = session.targetPos !== null ? session.targetPos : session.sourcePos;
+        const finalTargetPos = getFinalTargetPos(session);
+        if (finalTargetPos === null) return;
+
         setDragState(view, {
             isDragging: session.phase === 'dragging',
             sourcePos: session.sourcePos,
@@ -100,43 +88,35 @@ export function useImageDrag({
     }, [view]);
 
     const beginDragging = useCallback((session: DragSession) => {
-        if (session.phase !== 'pressing') return;
+        if (!beginDragSession(session, currentAlignment)) return;
 
-        session.phase = 'dragging';
-        session.alignment = currentAlignment;
-
-        document.documentElement.classList.add('dragging-image');
-        setIsDragging(true);
-        setDragPosition({ x: session.initialLeft, y: session.initialTop });
-        setDragSize({ width: session.sourceWidth, height: session.sourceHeight });
-        setDragAlignment(currentAlignment);
-
-        if (session.sourcePos !== null) {
-            session.targetPos = session.sourcePos;
-            syncPluginDragState(session);
-        }
-    }, [currentAlignment, syncPluginDragState]);
+        startPreview(session, currentAlignment);
+        syncPluginDragState(session);
+    }, [currentAlignment, startPreview, syncPluginDragState]);
 
     const finishSession = useCallback((session: DragSession, shouldCommit: boolean) => {
         clearLongPressTimeout(session);
 
-        if (shouldCommit && session.phase === 'dragging' && session.sourcePos !== null) {
-            const finalTargetPos = session.targetPos !== null ? session.targetPos : session.sourcePos;
-            moveImageNode(view, {
-                sourcePos: session.sourcePos,
-                targetPos: finalTargetPos,
-                alignment: session.alignment,
-            });
+        if (shouldCommit && shouldCommitDragSession(session)) {
+            const { sourcePos } = session;
+            const finalTargetPos = getFinalTargetPos(session);
+            if (sourcePos !== null && finalTargetPos !== null) {
+                moveImageNode(view, {
+                    sourcePos,
+                    targetPos: finalTargetPos,
+                    alignment: session.alignment,
+                });
+            }
         }
 
         clearDragState(view);
-        resetVisualState();
+        resetPreview();
 
         if (dragSessionRef.current === session) {
             dragSessionRef.current = null;
         }
         dragCleanupRef.current = null;
-    }, [clearLongPressTimeout, resetVisualState, view]);
+    }, [clearLongPressTimeout, resetPreview, view]);
 
     const handlePointerDown = useCallback((e: React.PointerEvent) => {
         if (isActive || loadError) return;
@@ -153,23 +133,21 @@ export function useImageDrag({
 
         const sourcePos = getPos();
         if (sourcePos === undefined) return;
+
         const containerRect = containerRef.current?.getBoundingClientRect();
         const sourceWidth = containerRef.current?.offsetWidth || 200;
         const sourceHeight = containerRef.current?.offsetHeight || 100;
 
-        const session: DragSession = {
-            phase: 'pressing',
+        const session = createDragSession({
             sourcePos,
-            startX: e.clientX,
-            startY: e.clientY,
-            startTime: Date.now(),
+            clientX: e.clientX,
+            clientY: e.clientY,
             initialLeft: containerRect?.left || 0,
             initialTop: containerRect?.top || 0,
             sourceWidth,
             sourceHeight,
-            targetPos: sourcePos,
             alignment: currentAlignment,
-        };
+        });
 
         dragSessionRef.current = session;
 
@@ -199,13 +177,11 @@ export function useImageDrag({
                 return;
             }
 
-            const deltaX = moveEvent.clientX - active.startX;
-            const deltaY = moveEvent.clientY - active.startY;
-            setDragPosition({ x: active.initialLeft + deltaX, y: active.initialTop + deltaY });
+            updatePreviewPosition(active, moveEvent.clientX, moveEvent.clientY);
 
             const alignment = calculateAlignmentFromPosition(view, moveEvent.clientX);
             active.alignment = alignment;
-            setDragAlignment(alignment);
+            setPreviewAlignment(alignment);
             updatePlaceholderMargin(alignment);
 
             if (active.sourcePos !== null) {
@@ -253,14 +229,13 @@ export function useImageDrag({
         currentAlignment,
         clearLongPressTimeout,
         beginDragging,
+        updatePreviewPosition,
+        setPreviewAlignment,
         syncPluginDragState,
         updatePlaceholderMargin,
         view,
         finishSession,
     ]);
-
-    const handlePointerUp = useCallback(() => {}, []);
-    const handlePointerCancel = useCallback(() => {}, []);
 
     useEffect(() => {
         return () => {
@@ -281,7 +256,5 @@ export function useImageDrag({
         dragSize,
         dragAlignment,
         handlePointerDown,
-        handlePointerUp,
-        handlePointerCancel,
     };
 }

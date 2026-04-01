@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { Area } from 'react-easy-crop';
-import { CropParams } from '../utils/cropUtils';
+import type { CropParams } from '../utils/imageSourceFragment';
 import type { CropArea } from '../types';
 
 const AUTO_SAVE_DELAY_MS = 500;

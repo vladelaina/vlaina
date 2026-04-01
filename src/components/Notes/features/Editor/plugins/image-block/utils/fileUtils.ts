@@ -1,14 +1,9 @@
 import { invoke } from '@tauri-apps/api/core';
-import { joinPath, getStorageAdapter } from '@/lib/storage/adapter';
+import { getStorageAdapter } from '@/lib/storage/adapter';
+import { getImageSourceBase, isVirtualImageSource, resolveImageSourcePath } from './imageSourcePath';
 
 const pendingDeletions = new Map<string, ReturnType<typeof setTimeout>>();
 const UNDO_GRACE_PERIOD_MS = 10000;
-
-function isAbsolutePath(path: string): boolean {
-    if (!path) return false;
-    if (path.startsWith('/')) return true;
-    return /^[a-zA-Z]:[\\/]/.test(path);
-}
 
 export async function ensureImageFileExists(
     src: string,
@@ -17,7 +12,7 @@ export async function ensureImageFileExists(
     currentNotePath?: string
 ): Promise<void> {
     if (!src || !blobUrl || !blobUrl.startsWith('blob:')) return;
-    if (src.startsWith('http') || src.startsWith('data:')) return;
+    if (isVirtualImageSource(getImageSourceBase(src))) return;
 
     try {
         const fullPath = await resolveImagePath(src, notesPath, currentNotePath);
@@ -52,7 +47,7 @@ export async function moveImageToTrash(
     currentNotePath?: string
 ): Promise<boolean> {
     if (!src) return false;
-    if (src.startsWith('http') || src.startsWith('data:') || src.startsWith('blob:')) {
+    if (isVirtualImageSource(getImageSourceBase(src))) {
         return false;
     }
 
@@ -103,19 +98,9 @@ export async function restoreImageFromTrash(
 }
 
 async function resolveImagePath(src: string, notesPath: string, currentNotePath?: string): Promise<string> {
-    const baseSrc = src.split('#')[0];
-    if (isAbsolutePath(baseSrc)) {
-        return baseSrc;
-    }
-
-    if (baseSrc.startsWith('./') || baseSrc.startsWith('../')) {
-        if (currentNotePath) {
-            const normalizedPath = currentNotePath.replace(/\\/g, '/');
-            const pathParts = normalizedPath.split('/');
-            pathParts.pop();
-            const parentDir = pathParts.join('/');
-            return await joinPath(notesPath, parentDir, baseSrc);
-        }
-    }
-    return await joinPath(notesPath, baseSrc);
+    return (await resolveImageSourcePath({
+        rawSrc: src,
+        notesPath,
+        currentNotePath,
+    })) || '';
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getParentPath, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
+import { getImageSourceBase, isVirtualImageSource, resolveImageSourcePath } from '../utils/imageSourcePath';
 
 interface UseLocalImageResult {
     resolvedSrc: string;
@@ -33,9 +33,9 @@ export function useLocalImage(
             setError(null);
 
             try {
-                const baseSrc = rawSrc.split('#')[0];
+                const baseSrc = getImageSourceBase(rawSrc);
 
-                if (baseSrc.startsWith('http') || baseSrc.startsWith('data:') || baseSrc.startsWith('blob:') || baseSrc.startsWith('asset:')) {
+                if (isVirtualImageSource(baseSrc)) {
                     if (isMounted) {
                         setResolvedSrc(baseSrc);
                         setIsLoading(false);
@@ -43,34 +43,11 @@ export function useLocalImage(
                     return;
                 }
 
-                let fullPath = '';
-                
-                if (isAbsolutePath(baseSrc)) {
-                    fullPath = baseSrc;
-                } 
-                else if (baseSrc.startsWith('./') || baseSrc.startsWith('../')) {
-                    if (currentNotePath) {
-                        const absoluteNotePath = isAbsolutePath(currentNotePath) 
-                            ? currentNotePath 
-                            : await joinPath(notesPath, currentNotePath);
-                            
-                        const parentDir = getParentPath(absoluteNotePath) || notesPath;
-                        fullPath = await joinPath(parentDir, baseSrc);
-                    } else {
-                        fullPath = await joinPath(notesPath, baseSrc);
-                    }
-                } 
-                else {
-                    if (currentNotePath) {
-                         const absoluteNotePath = isAbsolutePath(currentNotePath) 
-                            ? currentNotePath 
-                            : await joinPath(notesPath, currentNotePath);
-                        const parentDir = getParentPath(absoluteNotePath) || notesPath;
-                        fullPath = await joinPath(parentDir, baseSrc);
-                    } else {
-                        fullPath = await joinPath(notesPath, baseSrc);
-                    }
-                }
+                const fullPath = await resolveImageSourcePath({
+                    rawSrc,
+                    notesPath,
+                    currentNotePath,
+                });
 
                 if (fullPath) {
                     const blobUrl = await loadImageAsBlob(fullPath);
@@ -86,7 +63,7 @@ export function useLocalImage(
                 if (isMounted) {
                     console.warn(`Failed to resolve image: ${rawSrc}`, err);
                     setError(err instanceof Error ? err : new Error('Unknown error loading image'));
-                    setResolvedSrc(rawSrc.split('#')[0]);
+                    setResolvedSrc(getImageSourceBase(rawSrc));
                 }
             } finally {
                 if (isMounted) {
