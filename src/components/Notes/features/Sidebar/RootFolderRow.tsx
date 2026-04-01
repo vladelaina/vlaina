@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
+import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import { type FileTreeSortMode, type FolderNode } from '@/stores/useNotesStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { NotesSidebarList } from './NotesSidebarPrimitives';
@@ -16,6 +17,11 @@ import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
 import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
 import { getSidebarMenuPositionFromTriggerRect } from '../common/sidebarMenuPosition';
 import {
+  clearHoveredSidebarRenamePath,
+  registerSidebarHoverRenameTarget,
+  setHoveredSidebarRenamePath,
+} from '../common/sidebarHoverRename';
+import {
   FILE_TREE_SORT_OPTIONS,
   getFileTreeSortLabel,
 } from '@/stores/notes/fileTreeSorting';
@@ -24,8 +30,8 @@ interface RootFolderRowProps {
   rootFolder: FolderNode | null;
   isLoading: boolean;
   currentNotePath?: string | null;
-  onCreateNote: () => void;
-  onCreateFolder: () => void;
+  onCreateNote: () => Promise<unknown>;
+  onCreateFolder: () => Promise<string | null>;
 }
 
 export function RootFolderRow({
@@ -35,15 +41,59 @@ export function RootFolderRow({
   onCreateNote,
   onCreateFolder,
 }: RootFolderRowProps) {
-  const { currentVault } = useVaultStore();
+  const currentVault = useVaultStore((state) => state.currentVault);
+  const renameCurrentVault = useVaultStore((state) => state.renameCurrentVault);
   const fileTreeSortMode = useNotesStore((state) => state.fileTreeSortMode);
   const setFileTreeSortMode = useNotesStore((state) => state.setFileTreeSortMode);
   const [expanded, setExpanded] = useState(true);
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [showSortOptions, setShowSortOptions] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const isRenamingRef = useRef(false);
   const sortMenuCloseTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (sortMenuCloseTimerRef.current !== null) {
+        window.clearTimeout(sortMenuCloseTimerRef.current);
+      }
+    };
+  }, []);
+
+  const title = currentVault?.name || rootFolder?.name || 'Notes';
+  const hasChildren = rootFolder ? rootFolder.children.length > 0 : false;
+
+  useEffect(() => {
+    isRenamingRef.current = isRenaming;
+  }, [isRenaming]);
+
+  useEffect(() => {
+    if (isRenaming) {
+      return;
+    }
+
+    setRenameValue(title);
+  }, [isRenaming, title]);
+
+  useEffect(() => {
+    if (!rootFolder) {
+      return;
+    }
+
+    return registerSidebarHoverRenameTarget(rootFolder.path, {
+      startRename: () => {
+        setIsRenaming(true);
+        setShowMenu(false);
+      },
+      cancelRename: () => {
+        setIsRenaming(false);
+      },
+      isRenaming: () => isRenamingRef.current,
+    });
+  }, [rootFolder?.path]);
 
   if (isLoading) {
     return (
@@ -60,13 +110,17 @@ export function RootFolderRow({
     return null;
   }
 
-  const title = currentVault?.name || rootFolder.name || 'Notes';
-  const hasChildren = rootFolder.children.length > 0;
-
   const handleMenuOpen = () => {
     const button = menuButtonRef.current;
     if (!button) return;
     setMenuPosition(getSidebarMenuPositionFromTriggerRect(button.getBoundingClientRect()));
+    setShowMenu(true);
+  };
+
+  const handleContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setMenuPosition({ top: event.clientY, left: event.clientX });
     setShowMenu(true);
   };
 
@@ -98,6 +152,13 @@ export function RootFolderRow({
   };
 
   const currentSortLabel = getFileTreeSortLabel(fileTreeSortMode);
+  const handleRenameSubmit = async () => {
+    const trimmedValue = renameValue.trim();
+    if (trimmedValue && trimmedValue !== title) {
+      await renameCurrentVault(trimmedValue);
+    }
+    setIsRenaming(false);
+  };
 
   const sortOptionIconNameByMode: Record<FileTreeSortMode, Parameters<typeof Icon>[0]['name']> = {
     'name-asc': 'nav.chevronUp',
@@ -109,6 +170,9 @@ export function RootFolderRow({
   return (
     <div className="py-1">
       <NotesSidebarRow
+        onMouseEnter={() => setHoveredSidebarRenamePath(rootFolder.path)}
+        onMouseLeave={() => clearHoveredSidebarRenamePath(rootFolder.path)}
+        onContextMenu={handleContextMenu}
         leading={
           <span className="relative flex size-[20px] items-center justify-center">
             <span
@@ -138,9 +202,19 @@ export function RootFolderRow({
         isHighlighted={showMenu}
         showActionsByDefault={showMenu}
         main={
-          <span className="block truncate text-[var(--notes-sidebar-text)]">
-            {title}
-          </span>
+          isRenaming ? (
+            <SidebarInlineRenameInput
+              value={renameValue}
+              onValueChange={setRenameValue}
+              onSubmit={handleRenameSubmit}
+              onCancel={() => setIsRenaming(false)}
+              className="w-full min-w-0 border-none bg-transparent p-0 text-sm leading-5 text-[var(--notes-sidebar-text)] outline-none"
+            />
+          ) : (
+            <span className="block truncate text-[var(--notes-sidebar-text)]">
+              {title}
+            </span>
+          )
         }
         actions={
           <button
@@ -172,18 +246,29 @@ export function RootFolderRow({
         <NotesSidebarContextMenuItem
           icon={<Icon name="file.add" size="md" />}
           label="New Note"
-          onClick={() => {
+          onClick={async () => {
             if (!expanded) setExpanded(true);
-            onCreateNote();
+            await onCreateNote();
             handleCloseMenu();
           }}
         />
         <NotesSidebarContextMenuItem
           icon={<Icon name="file.folder" size="md" />}
           label="New Folder"
-          onClick={() => {
+          onClick={async () => {
             if (!expanded) setExpanded(true);
-            onCreateFolder();
+            const createdPath = await onCreateFolder();
+            if (!createdPath) {
+              return;
+            }
+            handleCloseMenu();
+          }}
+        />
+        <NotesSidebarContextMenuItem
+          icon={<Icon name="common.rename" size="md" />}
+          label="Rename"
+          onClick={() => {
+            setIsRenaming(true);
             handleCloseMenu();
           }}
         />

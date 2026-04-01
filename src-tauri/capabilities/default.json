@@ -69,6 +69,14 @@
       ]
     },
     {
+      "identifier": "fs:allow-stat",
+      "allow": [
+        {
+          "path": "**"
+        }
+      ]
+    },
+    {
       "identifier": "fs:allow-create",
       "allow": [
         {
@@ -86,6 +94,14 @@
     },
     {
       "identifier": "fs:allow-read-dir",
+      "allow": [
+        {
+          "path": "**"
+        }
+      ]
+    },
+    {
+      "identifier": "fs:allow-watch",
       "allow": [
         {
           "path": "**"

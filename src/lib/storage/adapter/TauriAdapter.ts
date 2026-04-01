@@ -133,11 +133,13 @@ export class TauriAdapter implements StorageAdapter {
     try {
       const info = await fsStat(path);
       const name = await basename(path);
+      const isDirectory = info.isDirectory === true;
+      const isFile = info.isFile === true || (!isDirectory && info.isFile !== false);
       return {
         name,
         path,
-        isDirectory: info.isDirectory,
-        isFile: info.isFile,
+        isDirectory,
+        isFile,
         size: info.size,
         modifiedAt: info.mtime ? new Date(info.mtime).getTime() : undefined,
       };

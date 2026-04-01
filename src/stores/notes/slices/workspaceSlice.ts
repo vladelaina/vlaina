@@ -7,7 +7,13 @@ import {
   addToRecentNotes,
   persistRecentNotes,
 } from '../storage';
-import { collectExpandedPaths } from '../fileTreeUtils';
+import {
+  collectExpandedPaths,
+  findNode,
+  removeNodeFromTree,
+  updateFileNodePath,
+  updateFolderNode,
+} from '../fileTreeUtils';
 import {
   getVaultStarredPaths,
   remapStarredEntriesForVault,
@@ -36,6 +42,7 @@ import {
   shouldPreserveDeletedCurrentNote,
 } from '../document/externalPathSync';
 import { remapMetadataEntries, saveNoteMetadata } from '../storage';
+import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 
 export interface WorkspaceSlice {
@@ -210,10 +217,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       const fullPath = isAbsolutePath(currentNote.path)
         ? currentNote.path
         : await joinPath(notesPath, currentNote.path);
+      const exists = await storage.exists(fullPath);
       const fileInfo = await storage.stat(fullPath);
       const cachedModifiedAt = getCachedNoteModifiedAt(noteContentsCache, currentNote.path);
 
-      if (!fileInfo?.isFile) {
+      if (!exists || fileInfo?.isFile === false) {
         if (isDirty) {
           set({ error: 'Current note was deleted outside vlaina while you still have unsaved changes.' });
           return 'deleted-conflict';
@@ -241,7 +249,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         return 'deleted';
       }
 
-      const nextModifiedAt = fileInfo.modifiedAt ?? null;
+      const nextModifiedAt = fileInfo?.modifiedAt ?? cachedModifiedAt ?? null;
       if (nextModifiedAt === cachedModifiedAt) {
         return 'unchanged';
       }
@@ -339,6 +347,17 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       persistRecentNotes(nextRecentNotes);
     }
 
+    const renamedNode = rootFolder ? findNode(rootFolder.children, oldPath) : null;
+    const nextRootFolder = rootFolder
+      ? buildSortedRootFolder(
+          rootFolder,
+          renamedNode?.isFolder
+            ? updateFolderNode(rootFolder.children, oldPath, getNoteTitleFromPath(newPath), newPath)
+            : updateFileNodePath(rootFolder.children, oldPath, newPath, getNoteTitleFromPath(newPath)),
+          fileTreeSortMode,
+          nextMetadata ?? noteMetadata
+        )
+      : rootFolder;
     const starredPaths = getVaultStarredPaths(starredResult.entries, notesPath);
     set({
       currentNote: nextCurrentNote,
@@ -347,6 +366,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       recentNotes: nextRecentNotes,
       noteContentsCache: nextCache,
       noteMetadata: nextMetadata ?? noteMetadata,
+      rootFolder: nextRootFolder,
       starredEntries: starredResult.entries,
       starredNotes: starredPaths.notes,
       starredFolders: starredPaths.folders,
@@ -354,12 +374,12 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     });
 
     persistWorkspaceSnapshot(notesPath, {
-      rootFolder,
+      rootFolder: nextRootFolder,
       currentNotePath: nextCurrentNote?.path ?? null,
       fileTreeSortMode,
-      expandedFolders: rootFolder
+      expandedFolders: nextRootFolder
         ? remapExpandedFoldersForExternalRename(
-            Array.from(collectExpandedPaths(rootFolder.children)),
+            Array.from(collectExpandedPaths(nextRootFolder.children)),
             oldPath,
             newPath
           )
@@ -424,6 +444,14 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       persistRecentNotes(nextRecentNotes);
     }
 
+    const nextRootFolder = rootFolder
+      ? buildSortedRootFolder(
+          rootFolder,
+          removeNodeFromTree(rootFolder.children, path),
+          fileTreeSortMode,
+          nextMetadata ?? noteMetadata
+        )
+      : rootFolder;
     const starredPaths = getVaultStarredPaths(starredResult.entries, notesPath);
     set({
       openTabs: nextOpenTabs,
@@ -431,6 +459,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       recentNotes: nextRecentNotes,
       noteContentsCache: nextCache,
       noteMetadata: nextMetadata ?? noteMetadata,
+      rootFolder: nextRootFolder,
       starredEntries: starredResult.entries,
       starredNotes: starredPaths.notes,
       starredFolders: starredPaths.folders,
@@ -443,12 +472,12 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         : currentNote?.path ?? null;
 
     persistWorkspaceSnapshot(notesPath, {
-      rootFolder,
+      rootFolder: nextRootFolder,
       currentNotePath: nextCurrentNotePath,
       fileTreeSortMode,
-      expandedFolders: rootFolder
+      expandedFolders: nextRootFolder
         ? pruneExpandedFoldersForExternalDeletion(
-            Array.from(collectExpandedPaths(rootFolder.children)),
+            Array.from(collectExpandedPaths(nextRootFolder.children)),
             path
           )
         : [],

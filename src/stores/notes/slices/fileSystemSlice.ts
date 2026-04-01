@@ -70,6 +70,38 @@ function isPathWithinFolder(path: string, folderPath: string): boolean {
   return path === folderPath || path.startsWith(`${folderPath}/`);
 }
 
+function ensureRootFolderState(rootFolder: NotesStore['rootFolder']): NonNullable<NotesStore['rootFolder']> {
+  return (
+    rootFolder ?? {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      children: [],
+      expanded: true,
+    }
+  );
+}
+
+function replaceCurrentTabOrAppend(
+  openTabs: NotesStore['openTabs'],
+  currentNotePath: string | null | undefined,
+  nextTab: NotesStore['openTabs'][number],
+) {
+  if (!currentNotePath) {
+    return [...openTabs, nextTab];
+  }
+
+  const currentTabIndex = openTabs.findIndex((tab) => tab.path === currentNotePath);
+  if (currentTabIndex === -1) {
+    return [...openTabs, nextTab];
+  }
+
+  const nextTabs = [...openTabs];
+  nextTabs[currentTabIndex] = nextTab;
+  return nextTabs;
+}
+
 export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemSlice> = (
   set,
   get
@@ -180,52 +212,48 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       noteContentsCache,
     } = get();
 
-    if (isDirty) {
-      await saveNote();
-      if (get().isDirty) {
-        throw new Error('Failed to save current note before creating a new note');
-      }
-      ({ openTabs, recentNotes, rootFolder, currentNote, noteContentsCache } = get());
-    }
-    
-    if (!notesPath) {
-      notesPath = await getNotesBasePath();
-      await ensureNotesFolder(notesPath);
-      set({ notesPath });
-    }
-
     try {
+      if (isDirty) {
+        await saveNote();
+        if (get().isDirty) {
+          throw new Error('Failed to save current note before creating a new note');
+        }
+        ({ openTabs, recentNotes, rootFolder, currentNote, noteContentsCache } = get());
+      }
+
+      if (!notesPath) {
+        notesPath = await getNotesBasePath();
+        await ensureNotesFolder(notesPath);
+        set({ notesPath });
+      }
+
+      const currentRootFolder = ensureRootFolderState(rootFolder);
       const { 
           relativePath, 
           fileName, 
           updatedMetadata, 
           newChildren, 
           updatedRecent 
-      } = await createNoteImpl(notesPath, folderPath, undefined, '', { rootFolder, recentNotes });
+      } = await createNoteImpl(notesPath, folderPath, undefined, '', {
+        rootFolder: currentRootFolder,
+        recentNotes,
+      });
 
       const nextRootFolder = buildSortedRootFolder(
-        rootFolder,
+        currentRootFolder,
         newChildren,
         fileTreeSortMode,
         updatedMetadata
       );
 
-      if (nextRootFolder) {
-        set({
-          rootFolder: nextRootFolder,
-          noteMetadata: updatedMetadata,
-        });
-      }
+      set({
+        rootFolder: nextRootFolder,
+        noteMetadata: updatedMetadata,
+      });
 
       const tabName = getNoteTitleFromPath(fileName);
       const newTab = { path: relativePath, name: tabName, isDirty: false };
-      
-      let updatedTabs = openTabs;
-      if (currentNote?.path) {
-        updatedTabs = openTabs.map(t => t.path === currentNote.path ? newTab : t);
-      } else {
-        updatedTabs = [...openTabs, newTab];
-      }
+      const updatedTabs = replaceCurrentTabOrAppend(openTabs, currentNote?.path, newTab);
 
       set({
         currentNote: { path: relativePath, content: '' },
@@ -236,7 +264,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         noteContentsCache: setCachedNoteContent(noteContentsCache, relativePath, '', null),
       });
       persistWorkspaceSnapshot(notesPath, {
-        rootFolder: nextRootFolder ?? rootFolder,
+        rootFolder: nextRootFolder,
         currentNotePath: relativePath,
         fileTreeSortMode,
       });
@@ -265,21 +293,22 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
     } = get();
     const storage = getStorageAdapter();
 
-    if (isDirty) {
-      await saveNote();
-      if (get().isDirty) {
-        throw new Error('Failed to save current note before creating a new note');
-      }
-      ({ rootFolder, recentNotes, openTabs, currentNote, noteContentsCache } = get());
-    }
-
-    if (!notesPath) {
-      notesPath = await getNotesBasePath();
-      await ensureNotesFolder(notesPath);
-      set({ notesPath });
-    }
-
     try {
+      if (isDirty) {
+        await saveNote();
+        if (get().isDirty) {
+          throw new Error('Failed to save current note before creating a new note');
+        }
+        ({ rootFolder, recentNotes, openTabs, currentNote, noteContentsCache } = get());
+      }
+
+      if (!notesPath) {
+        notesPath = await getNotesBasePath();
+        await ensureNotesFolder(notesPath);
+        set({ notesPath });
+      }
+
+      const currentRootFolder = ensureRootFolderState(rootFolder);
       if (folderPath) {
         const folderFullPath = await joinPath(notesPath, folderPath);
         if (!await storage.exists(folderFullPath)) {
@@ -293,30 +322,29 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
           updatedMetadata, 
           newChildren, 
           updatedRecent 
-      } = await createNoteImpl(notesPath, folderPath, name, content, { rootFolder, recentNotes });
+      } = await createNoteImpl(notesPath, folderPath, name, content, {
+        rootFolder: currentRootFolder,
+        recentNotes,
+      });
 
       const nextRootFolder = buildSortedRootFolder(
-        rootFolder,
+        currentRootFolder,
         newChildren,
         fileTreeSortMode,
         updatedMetadata
       );
 
-      if (nextRootFolder) {
-        set({
-          rootFolder: nextRootFolder,
-          noteMetadata: updatedMetadata,
-        });
-      }
+      set({
+        rootFolder: nextRootFolder,
+        noteMetadata: updatedMetadata,
+      });
 
       const tabName = getNoteTitleFromPath(fileName);
-      let updatedTabs = openTabs;
-      
-      if (currentNote?.path) {
-        updatedTabs = openTabs.map(t => t.path === currentNote.path ? { path: relativePath, name: tabName, isDirty: false } : t);
-      } else {
-        updatedTabs = [...openTabs, { path: relativePath, name: tabName, isDirty: false }];
-      }
+      const updatedTabs = replaceCurrentTabOrAppend(openTabs, currentNote?.path, {
+        path: relativePath,
+        name: tabName,
+        isDirty: false,
+      });
 
       set({
         currentNote: { path: relativePath, content },
@@ -326,7 +354,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         noteContentsCache: setCachedNoteContent(noteContentsCache, relativePath, content, null),
       });
       persistWorkspaceSnapshot(notesPath, {
-        rootFolder: nextRootFolder ?? rootFolder,
+        rootFolder: nextRootFolder,
         currentNotePath: relativePath,
         fileTreeSortMode,
       });
@@ -562,10 +590,16 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   },
 
   createFolder: async (parentPath: string, name?: string) => {
-    const { notesPath, fileTreeSortMode, noteMetadata } = get();
+    let { notesPath, fileTreeSortMode, noteMetadata } = get();
     const storage = getStorageAdapter();
 
     try {
+      if (!notesPath) {
+        notesPath = await getNotesBasePath();
+        await ensureNotesFolder(notesPath);
+        set({ notesPath });
+      }
+
       const {
         relativePath: folderPath,
         fullPath,
@@ -584,24 +618,22 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         expanded: false
       };
 
-      const currentRootFolder = get().rootFolder;
-      if (currentRootFolder) {
-        const nextRootFolder = buildSortedRootFolder(
-          currentRootFolder,
-          addNodeToTree(currentRootFolder.children, parentPath, newNode),
-          fileTreeSortMode,
-          noteMetadata
-        );
-        set({
-          rootFolder: nextRootFolder,
-          newlyCreatedFolderPath: !name ? folderPath : null,
-        });
-        persistWorkspaceSnapshot(notesPath, {
-          rootFolder: nextRootFolder,
-          currentNotePath: get().currentNote?.path ?? null,
-          fileTreeSortMode,
-        });
-      }
+      const currentRootFolder = ensureRootFolderState(get().rootFolder);
+      const nextRootFolder = buildSortedRootFolder(
+        currentRootFolder,
+        addNodeToTree(currentRootFolder.children, parentPath, newNode),
+        fileTreeSortMode,
+        noteMetadata
+      );
+      set({
+        rootFolder: nextRootFolder,
+        newlyCreatedFolderPath: !name ? folderPath : null,
+      });
+      persistWorkspaceSnapshot(notesPath, {
+        rootFolder: nextRootFolder,
+        currentNotePath: get().currentNote?.path ?? null,
+        fileTreeSortMode,
+      });
       return folderPath;
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to create folder' });

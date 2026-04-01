@@ -11,10 +11,10 @@ interface FolderItemMenuProps {
   onClose: () => void;
   position: { top: number; left: number };
   isStarred: boolean;
-  onRename: () => void;
-  onNewNote: () => void;
-  onToggleStar: () => void;
-  onDelete: () => void;
+  onRename: () => void | Promise<unknown>;
+  onNewNote: () => void | Promise<unknown>;
+  onToggleStar: () => void | Promise<unknown>;
+  onDelete: () => void | Promise<unknown>;
 }
 
 export function FolderItemMenu({

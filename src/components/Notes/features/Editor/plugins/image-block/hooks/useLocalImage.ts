@@ -43,6 +43,14 @@ export function useLocalImage(
                     return;
                 }
 
+                if (!notesPath && !isAbsolutePath(baseSrc)) {
+                    if (isMounted) {
+                        setResolvedSrc(baseSrc);
+                        setIsLoading(false);
+                    }
+                    return;
+                }
+
                 let fullPath = '';
                 
                 if (isAbsolutePath(baseSrc)) {

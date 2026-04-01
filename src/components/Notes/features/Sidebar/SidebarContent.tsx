@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
 import { NotesSidebarScrollArea } from './NotesSidebarPrimitives';
@@ -13,6 +13,7 @@ import {
   SidebarSearchDrawer,
   useSidebarSearchDrawerState,
 } from '@/components/layout/sidebar/SidebarSearchDrawer';
+import { triggerHoveredSidebarRename } from '../common/sidebarHoverRename';
 import {
   buildNotesSidebarSearchResults,
   useNotesSidebarSearchState,
@@ -22,8 +23,8 @@ interface SidebarContentProps {
   rootFolder: FolderNode | null;
   isLoading: boolean;
   currentNotePath?: string | null;
-  createNote: () => void;
-  createFolder: (path: string) => void;
+  createNote: () => Promise<unknown>;
+  createFolder: (path: string) => Promise<string | null>;
   className?: string;
   isPeeking?: boolean;
 }
@@ -60,6 +61,58 @@ export function SidebarContent({
     () => buildNotesSidebarSearchResults(rootFolder, searchQuery, getDisplayName),
     [getDisplayName, rootFolder, searchQuery],
   );
+
+  useEffect(() => {
+    const isMac =
+      typeof window !== 'undefined' &&
+      /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+
+    const isEditableTarget = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) {
+        return false;
+      }
+
+      if (target.isContentEditable) {
+        return true;
+      }
+
+      const editable = target.closest('input, textarea, select, [contenteditable="true"]');
+      return editable instanceof HTMLElement;
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.isComposing) {
+        return;
+      }
+
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+        return;
+      }
+
+      const isF2 = event.key === 'F2';
+      const isMacEnter = isMac && event.key === 'Enter';
+
+      if (!isF2 && !isMacEnter) {
+        return;
+      }
+
+      if (isEditableTarget(event.target) && !isF2) {
+        return;
+      }
+
+      if (!triggerHoveredSidebarRename()) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, []);
 
   const handleOpenResult = (path: string) => {
     void openNote(path);
