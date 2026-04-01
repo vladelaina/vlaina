@@ -40,19 +40,28 @@ export function joinPath(...segments: string[]): string {
 }
 
 export function getParentPath(path: string): string | null {
-  const normalized = normalizePath(path, true);
-  const parts = normalized.split('/').filter(Boolean);
-  
-  if (parts.length <= 1) return null;
-  
-  parts.pop();
-  const parent = parts.join('/');
-  
+  const normalized = normalizePath(path, true).replace(/\/+$/, '');
+  if (!normalized || normalized === '/') {
+    return null;
+  }
+
+  const lastSlashIndex = normalized.lastIndexOf('/');
+  if (lastSlashIndex === -1) {
+    return null;
+  }
+
+  let parent = normalized.slice(0, lastSlashIndex);
+  if (!parent) {
+    parent = '/';
+  } else if (/^[a-zA-Z]:$/.test(parent)) {
+    parent = `${parent}/`;
+  }
+
   if (path.includes('\\')) {
     return parent.replace(/\//g, '\\');
   }
-  
-  return parent || '/';
+
+  return parent;
 }
 
 export function getBaseName(path: string): string {

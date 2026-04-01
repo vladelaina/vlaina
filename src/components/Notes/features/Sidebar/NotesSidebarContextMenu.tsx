@@ -13,7 +13,7 @@ interface NotesSidebarContextMenuProps {
 interface NotesSidebarContextMenuItemProps {
   icon: ReactNode;
   label: ReactNode;
-  onClick: () => void;
+  onClick: () => void | Promise<unknown>;
   danger?: boolean;
   disabled?: boolean;
   trailing?: ReactNode;
@@ -31,6 +31,7 @@ export function NotesSidebarContextMenu({
   return createPortal(
     <AnimatePresence>
       <div
+        key="overlay"
         className="fixed inset-0 z-[9998]"
         onClick={(event) => {
           event.stopPropagation();
@@ -38,6 +39,7 @@ export function NotesSidebarContextMenu({
         }}
       />
       <motion.div
+        key="menu"
         style={{ top: position.top, left: position.left, transformOrigin: 'top left' }}
         className="fixed z-[9999] min-w-[180px] rounded-2xl border border-[var(--notes-sidebar-menu-border)] bg-[var(--notes-sidebar-menu-bg)] p-1.5 shadow-[var(--notes-sidebar-menu-shadow)]"
         initial={{ opacity: 0, scale: 0.95, y: -8 }}
@@ -66,7 +68,13 @@ export function NotesSidebarContextMenuItem({
     <button
       onClick={(event) => {
         event.stopPropagation();
-        onClick();
+        try {
+          const result = onClick();
+          if (result && typeof (result as PromiseLike<unknown>).then === 'function') {
+            void (result as Promise<unknown>).catch(() => undefined);
+          }
+        } catch {
+        }
       }}
       disabled={disabled}
       className={cn(

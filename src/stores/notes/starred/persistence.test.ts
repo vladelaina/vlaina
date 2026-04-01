@@ -3,6 +3,7 @@ import type { StarredEntry } from '../types';
 
 const adapter = {
   exists: vi.fn<(path: string) => Promise<boolean>>(),
+  stat: vi.fn<(path: string) => Promise<{ isDirectory?: boolean; isFile?: boolean } | null>>(),
   readFile: vi.fn<(path: string) => Promise<string>>(),
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
 };
@@ -71,6 +72,17 @@ describe('starred persistence', () => {
         entries: [validEntry, invalidEntry],
       })
     );
+    adapter.stat.mockImplementation(async (path: string) => {
+      if (path === 'C:/vault-a') {
+        return { isDirectory: true };
+      }
+
+      if (path === 'C:/vault-a/alive.md') {
+        return { isFile: true };
+      }
+
+      return null;
+    });
     adapter.writeFile.mockResolvedValue();
 
     const persistence = await import('./persistence');
@@ -80,5 +92,31 @@ describe('starred persistence', () => {
     expect(adapter.writeFile).toHaveBeenCalledTimes(1);
     const [, content] = adapter.writeFile.mock.calls[0];
     expect(JSON.parse(content)).toMatchObject({ entries: [validEntry] });
+  });
+
+
+  it('keeps entries when the target still exists but stat metadata is unavailable', async () => {
+    const validEntry = createEntry('1', 'note', 'C:/vault-a', 'alive.md');
+
+    adapter.exists.mockImplementation(async (path: string) => {
+      return (
+        path === '/store/notes-starred.json' ||
+        path === 'C:/vault-a' ||
+        path === 'C:/vault-a/alive.md'
+      );
+    });
+    adapter.readFile.mockResolvedValue(
+      JSON.stringify({
+        version: 1,
+        entries: [validEntry],
+      })
+    );
+    adapter.stat.mockResolvedValue(null);
+
+    const persistence = await import('./persistence');
+    const result = await persistence.loadStarredRegistry();
+
+    expect(result.entries).toEqual([validEntry]);
+    expect(adapter.writeFile).not.toHaveBeenCalled();
   });
 });

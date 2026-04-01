@@ -1,9 +1,14 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { watchImmediate } from '@tauri-apps/plugin-fs';
 import { isAbsolutePath, isTauri } from '@/lib/storage/adapter';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { shouldIgnoreExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
+import {
+  isExternalSyncPaused,
+  registerExternalSyncWatcher,
+  subscribeExternalSyncPause,
+} from '@/stores/notes/document/externalSyncControl';
 import {
   flushExpiredPendingRenames,
   getNextPendingRenameDelay,
@@ -18,45 +23,25 @@ import {
   isRemoveWatchEvent,
   normalizeFsPath,
 } from './notesExternalSyncUtils';
+import {
+  getExternalWatchErrorMessage,
+  isExternalWatchUnavailableError,
+} from './externalWatchErrorUtils';
+import {
+  buildExternalTreeSnapshot,
+  detectExternalTreePathChanges,
+} from './notesExternalPollingUtils';
 
 const FILE_TREE_RELOAD_DEBOUNCE_MS = 220;
 const PENDING_RENAME_TTL_MS = 180;
-
-function getErrorMessage(error: unknown): string {
-  if (typeof error === 'string') {
-    return error;
-  }
-
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  if (error && typeof error === 'object') {
-    const candidate = error as { message?: unknown; toString?: () => string };
-    if (typeof candidate.message === 'string') {
-      return candidate.message;
-    }
-    if (typeof candidate.toString === 'function') {
-      const value = candidate.toString();
-      if (value && value !== '[object Object]') {
-        return value;
-      }
-    }
-  }
-
-  try {
-    return JSON.stringify(error);
-  } catch {
-    return String(error);
-  }
-}
-
-function isWatchPermissionError(error: unknown) {
-  const message = getErrorMessage(error).toLowerCase();
-  return message.includes('fs.watch not allowed') || message.includes('watch not allowed');
-}
+const NOTES_RECONCILE_POLL_MS = 1500;
 
 export function useNotesExternalSync(vaultPath: string | null, notesPath: string) {
+  const isPaused = useSyncExternalStore(
+    subscribeExternalSyncPause,
+    isExternalSyncPaused,
+    () => false
+  );
   const loadFileTree = useNotesStore((state) => state.loadFileTree);
   const invalidateNoteCache = useNotesStore((state) => state.invalidateNoteCache);
   const syncCurrentNoteFromDisk = useNotesStore((state) => state.syncCurrentNoteFromDisk);
@@ -67,14 +52,17 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
   const pendingRenameTimerRef = useRef<number | null>(null);
   const pendingRenamesRef = useRef<PendingRenameEntry[]>([]);
   const lastToastKeyRef = useRef<string | null>(null);
+  const reconcileInFlightRef = useRef(false);
 
   useEffect(() => {
-    if (!vaultPath || !notesPath || !isTauri()) {
+    if (!vaultPath || !notesPath || !isTauri() || isPaused) {
       return;
     }
 
     let disposed = false;
     let unwatch: (() => void) | null = null;
+    let releaseWatcher: (() => void) | null = null;
+    let reconcilePollTimer: number | null = null;
 
     const scheduleFileTreeReload = () => {
       if (reloadTimerRef.current !== null) {
@@ -111,6 +99,37 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
         'Current note was deleted outside vlaina.',
         'warning'
       );
+    };
+
+
+    const reconcileCurrentNote = async () => {
+      const currentNotePath = useNotesStore.getState().currentNote?.path ?? null;
+      if (!currentNotePath) {
+        return;
+      }
+
+      const result = await syncCurrentNoteFromDisk();
+      if (result === 'reloaded') {
+        notifyOnce(
+          `reloaded:${currentNotePath}`,
+          'Current note was updated outside vlaina and has been reloaded.',
+          'info'
+        );
+      } else if (result === 'conflict' || result === 'deleted-conflict') {
+        notifyOnce(
+          `conflict:${currentNotePath}`,
+          'Current note changed outside vlaina while you still have unsaved changes.',
+          'warning'
+        );
+      } else if (result === 'deleted') {
+        notifyOnce(
+          `deleted:${currentNotePath}`,
+          'Current note was deleted outside vlaina.',
+          'warning'
+        );
+      } else if (result === 'unchanged') {
+        lastToastKeyRef.current = null;
+      }
     };
 
     const applyExternalDeletion = async (path: string) => {
@@ -159,6 +178,114 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
       }
 
       scheduleFileTreeReload();
+    };
+
+    const handleRelevantPaths = async (relativePaths: string[], isRemoveEvent: boolean) => {
+      let shouldReloadTree = false;
+      let shouldSyncCurrentNote = false;
+      const currentNotePath = useNotesStore.getState().currentNote?.path ?? null;
+
+      for (const relativePath of relativePaths) {
+        shouldReloadTree = true;
+
+        if (isRemoveEvent) {
+          await applyExternalDeletion(relativePath);
+          continue;
+        }
+
+        if (!isMarkdownPath(relativePath)) {
+          continue;
+        }
+
+        if (currentNotePath && !isAbsolutePath(currentNotePath) && currentNotePath === relativePath) {
+          shouldSyncCurrentNote = true;
+          continue;
+        }
+
+        invalidateNoteCache(relativePath);
+      }
+
+      if (shouldSyncCurrentNote) {
+        await reconcileCurrentNote();
+      }
+
+      if (shouldReloadTree) {
+        scheduleFileTreeReload();
+      }
+    };
+
+    const reconcileExternalTree = async () => {
+      const previousNodes = useNotesStore.getState().rootFolder?.children ?? [];
+      const nextNodes = await buildExternalTreeSnapshot(notesPath);
+      const changes = detectExternalTreePathChanges(previousNodes, nextNodes);
+
+      if (!changes.hasChanges) {
+        return false;
+      }
+
+      for (const rename of changes.renames) {
+        await applyExternalPathRename(rename.oldPath, rename.newPath);
+      }
+
+      for (const deletedPath of changes.deletions) {
+        await applyExternalDeletion(deletedPath);
+      }
+
+      if (changes.hasAdditions) {
+        await loadFileTree(true);
+      }
+
+      return true;
+    };
+
+    const runPollingReconcile = async () => {
+      if (reconcileInFlightRef.current) {
+        return;
+      }
+
+      reconcileInFlightRef.current = true;
+      try {
+        await flushPendingRenameDeletions();
+        const hadTreeChanges = await reconcileExternalTree();
+        if (!hadTreeChanges) {
+          await reconcileCurrentNote();
+        }
+      } catch (error) {
+        console.error(
+          '[NotesExternalSync] Poll reconcile failed:',
+          getExternalWatchErrorMessage(error)
+        );
+      } finally {
+        reconcileInFlightRef.current = false;
+      }
+    };
+
+    const stopReconcilePolling = () => {
+      if (reconcilePollTimer !== null) {
+        window.clearInterval(reconcilePollTimer);
+        reconcilePollTimer = null;
+      }
+    };
+
+    const startReconcilePolling = () => {
+      if (reconcilePollTimer !== null) {
+        return;
+      }
+
+      reconcilePollTimer = window.setInterval(() => {
+        void runPollingReconcile();
+      }, NOTES_RECONCILE_POLL_MS);
+      void runPollingReconcile();
+    };
+
+    const reconcileOnFocus = () => {
+      void runPollingReconcile();
+    };
+
+    const reconcileOnVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void runPollingReconcile();
+      }
     };
 
     const run = async () => {
@@ -217,86 +344,38 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
             return;
           }
 
-          let shouldReloadTree = false;
-          let shouldSyncCurrentNote = false;
-          const isRemoveEvent = isRemoveWatchEvent(event);
-          const currentNotePath = useNotesStore.getState().currentNote?.path ?? null;
-
-          for (const relativePath of getRelevantRelativeWatchPaths(vaultPath, unexpectedPaths)) {
-            shouldReloadTree = true;
-
-            if (isRemoveEvent) {
-              await applyExternalDeletion(relativePath);
-
-              continue;
-            }
-
-            if (!isMarkdownPath(relativePath)) {
-              continue;
-            }
-
-            if (currentNotePath && !isAbsolutePath(currentNotePath) && currentNotePath === relativePath) {
-              shouldSyncCurrentNote = true;
-              continue;
-            }
-
-            invalidateNoteCache(relativePath);
-          }
-
-          if (shouldSyncCurrentNote) {
-            const result = await syncCurrentNoteFromDisk();
-            if (result === 'reloaded') {
-              notifyOnce(
-                `reloaded:${currentNotePath ?? ''}`,
-                'Current note was updated outside vlaina and has been reloaded.',
-                'info'
-              );
-            } else if (result === 'conflict' || result === 'deleted-conflict') {
-              notifyOnce(
-                `conflict:${currentNotePath ?? ''}`,
-                'Current note changed outside vlaina while you still have unsaved changes.',
-                'warning'
-              );
-            } else if (result === 'deleted') {
-              notifyOnce(
-                `deleted:${currentNotePath ?? ''}`,
-                'Current note was deleted outside vlaina.',
-                'warning'
-              );
-            } else if (result === 'unchanged') {
-              lastToastKeyRef.current = null;
-            }
-          }
-
-          if (shouldReloadTree) {
-            scheduleFileTreeReload();
-          }
+          await handleRelevantPaths(
+            getRelevantRelativeWatchPaths(vaultPath, unexpectedPaths),
+            isRemoveWatchEvent(event)
+          );
         }, { recursive: true });
+        releaseWatcher = registerExternalSyncWatcher();
       } catch (error) {
         if (disposed) {
           return;
         }
 
-        if (isWatchPermissionError(error)) {
-          notifyOnce(
-            'external-sync-disabled',
-            'External file sync is unavailable in this build.',
-            'warning'
-          );
+        if (isExternalWatchUnavailableError(error)) {
+          startReconcilePolling();
           return;
         }
 
         console.error(
           '[NotesExternalSync] Failed to start filesystem watch:',
-          getErrorMessage(error)
+          getExternalWatchErrorMessage(error)
         );
       }
     };
 
     void run();
+    window.addEventListener('focus', reconcileOnFocus);
+    document.addEventListener('visibilitychange', reconcileOnVisibilityChange);
 
     return () => {
       disposed = true;
+      window.removeEventListener('focus', reconcileOnFocus);
+      document.removeEventListener('visibilitychange', reconcileOnVisibilityChange);
+      stopReconcilePolling();
       if (reloadTimerRef.current !== null) {
         window.clearTimeout(reloadTimerRef.current);
         reloadTimerRef.current = null;
@@ -307,11 +386,13 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
       }
       pendingRenamesRef.current = [];
       unwatch?.();
+      releaseWatcher?.();
     };
   }, [
     applyExternalPathDeletion,
     applyExternalPathRename,
     invalidateNoteCache,
+    isPaused,
     loadFileTree,
     notesPath,
     syncCurrentNoteFromDisk,

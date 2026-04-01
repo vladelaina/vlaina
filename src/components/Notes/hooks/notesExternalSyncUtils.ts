@@ -72,8 +72,11 @@ export function isRemoveWatchEvent(event: Pick<WatchEvent, 'type'>): boolean {
   return typeof event.type !== 'string' && 'remove' in event.type;
 }
 
-export function getRelativeRenameWatchPaths(
-  vaultPath: string,
+export function isCreateWatchEvent(event: Pick<WatchEvent, 'type'>): boolean {
+  return typeof event.type !== 'string' && 'create' in event.type;
+}
+
+export function getAbsoluteRenameWatchPaths(
   event: Pick<WatchEvent, 'type' | 'paths'>
 ): { oldPath: string | null; newPath: string | null } | null {
   if (typeof event.type === 'string' || !('modify' in event.type) || event.type.modify.kind !== 'rename') {
@@ -81,31 +84,50 @@ export function getRelativeRenameWatchPaths(
   }
 
   const normalizedPaths = event.paths.map((path) => normalizeFsPath(path));
-  const firstPath = normalizedPaths[0]
-    ? toRelevantRelativePath(vaultPath, normalizedPaths[0])
-    : null;
-  const secondPath = normalizedPaths[1]
-    ? toRelevantRelativePath(vaultPath, normalizedPaths[1])
-    : null;
 
   let oldPath: string | null = null;
   let newPath: string | null = null;
 
   switch (event.type.modify.mode) {
     case 'from':
-      oldPath = firstPath;
+      oldPath = normalizedPaths[0] ?? null;
       break;
     case 'to':
-      newPath = firstPath;
+      newPath = normalizedPaths[0] ?? null;
       break;
     case 'both':
-    case 'any':
-    case 'other':
     default:
-      oldPath = firstPath;
-      newPath = secondPath;
+      oldPath = normalizedPaths[0] ?? null;
+      newPath = normalizedPaths[1] ?? null;
       break;
   }
+
+  if (!oldPath && !newPath) {
+    return null;
+  }
+
+  if (oldPath != null && newPath != null && oldPath === newPath) {
+    return null;
+  }
+
+  return { oldPath, newPath };
+}
+
+export function getRelativeRenameWatchPaths(
+  vaultPath: string,
+  event: Pick<WatchEvent, 'type' | 'paths'>
+): { oldPath: string | null; newPath: string | null } | null {
+  const absolutePaths = getAbsoluteRenameWatchPaths(event);
+  if (!absolutePaths) {
+    return null;
+  }
+
+  const oldPath = absolutePaths.oldPath
+    ? toRelevantRelativePath(vaultPath, absolutePaths.oldPath)
+    : null;
+  const newPath = absolutePaths.newPath
+    ? toRelevantRelativePath(vaultPath, absolutePaths.newPath)
+    : null;
 
   if (!oldPath && !newPath) {
     return null;

@@ -4,6 +4,7 @@ import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
 import type { NotesSidebarRowDragHandlers } from '../../Sidebar/NotesSidebarRow';
 import { getSidebarMenuPositionFromTriggerRect } from '../../common/sidebarMenuPosition';
 import { isInvalidMoveTarget } from '@/stores/notes/utils/fs/moveValidation';
+import { scrollSidebarItemIntoView } from '../../common/sidebarScrollIntoView';
 
 export function useFolderItemState(node: FolderNode) {
   const toggleFolder = useNotesStore((state) => state.toggleFolder);
@@ -30,6 +31,7 @@ export function useFolderItemState(node: FolderNode) {
 
   useEffect(() => {
     if (node.path !== newlyCreatedFolderPath) return;
+    scrollSidebarItemIntoView(node.path);
     setIsRenaming(true);
     setRenameValue(node.name);
     clearNewlyCreatedFolder();

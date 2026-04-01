@@ -1,4 +1,4 @@
-import { memo, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import type { FolderNode } from '@/stores/useNotesStore';
@@ -11,6 +11,11 @@ import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
 import { SidebarStarBadge } from '../common/SidebarStarBadge';
+import {
+  clearHoveredSidebarRenamePath,
+  registerSidebarHoverRenameTarget,
+  setHoveredSidebarRenamePath,
+} from '../common/sidebarHoverRename';
 
 interface FolderItemProps {
   node: FolderNode;
@@ -26,6 +31,7 @@ export const FolderItem = memo(function FolderItem({
   showStarBadge = false,
 }: FolderItemProps) {
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const isRenamingRef = useRef(false);
   const {
     showMenu,
     setShowMenu,
@@ -49,6 +55,23 @@ export const FolderItem = memo(function FolderItem({
   } = useFolderItemState(node);
   const hasChildren = node.children.length > 0;
 
+  useEffect(() => {
+    isRenamingRef.current = isRenaming;
+  }, [isRenaming]);
+
+  useEffect(() => {
+    return registerSidebarHoverRenameTarget(node.path, {
+      startRename: () => {
+        setIsRenaming(true);
+        setShowMenu(false);
+      },
+      cancelRename: () => {
+        setIsRenaming(false);
+      },
+      isRenaming: () => isRenamingRef.current,
+    });
+  }, [node.path, setIsRenaming, setShowMenu]);
+
   const leading = node.expanded ? (
     <Icon name="file.folderOpen" size={NOTES_SIDEBAR_ICON_SIZE} className="text-[var(--notes-sidebar-folder-icon)]" />
   ) : (
@@ -60,6 +83,8 @@ export const FolderItem = memo(function FolderItem({
       <NotesSidebarRow
         depth={depth}
         actionFadeClassName={showStarBadge ? 'w-3 from-transparent' : undefined}
+        onMouseEnter={() => setHoveredSidebarRenamePath(node.path)}
+        onMouseLeave={() => clearHoveredSidebarRenamePath(node.path)}
         leading={
           <span className="relative flex size-[20px] items-center justify-center">
             <span
@@ -145,8 +170,8 @@ export const FolderItem = memo(function FolderItem({
           setIsRenaming(true);
           setShowMenu(false);
         }}
-        onNewNote={() => {
-          void createNote(node.path);
+        onNewNote={async () => {
+          await createNote(node.path);
           setShowMenu(false);
         }}
         onToggleStar={() => {
