@@ -3,7 +3,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 import { useAIStore } from '@/stores/useAIStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
-import { hasUserMessage, buildTitleSourceFromMessages } from '@/lib/ai/temporaryChat';
+import { hasUserMessage } from '@/lib/ai/temporaryChat';
 import { useAutoTitle } from '@/hooks/useAutoTitle';
 
 interface TemporaryChatToggleProps {
@@ -46,13 +46,7 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
       const modelForTitle = (sessionModelId ? getModel(sessionModelId) : undefined) || selectedModel;
 
       if (modelForTitle) {
-        const titleSource = buildTitleSourceFromMessages(currentMessages);
-        void generateAutoTitle(
-          promotedSessionId,
-          titleSource,
-          modelForTitle.providerId,
-          modelForTitle.id
-        );
+        void generateAutoTitle(promotedSessionId, modelForTitle.providerId, modelForTitle.id);
       }
       return;
     }

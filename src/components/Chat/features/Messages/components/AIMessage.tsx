@@ -11,9 +11,12 @@ interface ChatImageGalleryItem {
   src: string;
 }
 
+type ChatImageGalleryGetter = () => ChatImageGalleryItem[];
+
 interface AIMessageProps {
   msg: ChatMessage;
-  imageGallery: ChatImageGalleryItem[];
+  imageGallery?: ChatImageGalleryItem[];
+  getImageGallery?: ChatImageGalleryGetter;
   isLoading: boolean;
   onCopy: (text: string) => Promise<void> | void;
   onRegenerate: () => void;
@@ -23,6 +26,7 @@ interface AIMessageProps {
 export function AIMessage({
   msg,
   imageGallery,
+  getImageGallery,
   isLoading,
   onCopy,
   onRegenerate,
@@ -71,6 +75,7 @@ export function AIMessage({
             <MarkdownRenderer 
                 content={contentWithoutError || ' '} 
                 imageGallery={imageGallery}
+                getImageGallery={getImageGallery}
                 imageIdBase={msg.id}
                 codeBlockIdBase={msg.id}
                 copiedCodeBlockId={copiedCodeBlockId}

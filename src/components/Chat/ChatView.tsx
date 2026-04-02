@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useChatService } from '@/hooks/useChatService';
@@ -109,6 +109,11 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
   }, [currentSessionId, allMessages, switchSession]);
 
   const { sendMessage, regenerate, editMessage, stop } = useChatService();
+  const regenerateRef = useRef(regenerate);
+  const editMessageRef = useRef(editMessage);
+  const switchMessageVersionRef = useRef(switchMessageVersion);
+  const currentSessionIdRef = useRef(currentSessionId);
+  const imageGalleryRef = useRef(imageGallery);
   
   const isSessionActive = currentSessionId ? isSessionLoading(currentSessionId) : false;
   const lastMessage = messages[messages.length - 1];
@@ -139,6 +144,26 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
     return models.find((model) => enabledProviderIds.has(model.providerId));
   }, [models, providers]);
   
+  useEffect(() => {
+    regenerateRef.current = regenerate;
+  }, [regenerate]);
+
+  useEffect(() => {
+    editMessageRef.current = editMessage;
+  }, [editMessage]);
+
+  useEffect(() => {
+    switchMessageVersionRef.current = switchMessageVersion;
+  }, [switchMessageVersion]);
+
+  useEffect(() => {
+    currentSessionIdRef.current = currentSessionId;
+  }, [currentSessionId]);
+
+  useEffect(() => {
+    imageGalleryRef.current = imageGallery;
+  }, [imageGallery]);
+
   useEffect(() => {
       if (!selectedModel && firstEnabledModel) {
           selectModel(firstEnabledModel.id);
@@ -232,6 +257,20 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
   }, !isEmbedded);
 
   const copyToClipboard = useCallback((text: string) => copyMessageContentToClipboard(text), []);
+  const getImageGallery = useCallback(() => imageGalleryRef.current, []);
+  const handleRegenerate = useCallback((messageId: string) => {
+    regenerateRef.current(messageId);
+  }, []);
+  const handleEdit = useCallback((messageId: string, newContent: string) => {
+    editMessageRef.current(messageId, newContent);
+  }, []);
+  const handleSwitchVersion = useCallback((messageId: string, versionIndex: number) => {
+    const sessionId = currentSessionIdRef.current;
+    if (!sessionId) {
+      return;
+    }
+    switchMessageVersionRef.current(sessionId, messageId, versionIndex);
+  }, []);
 
   const handleSend = useCallback((text: string, attachments: Attachment[], noteMentions: NoteMentionReference[]) => {
       handleNewUserMessage();
@@ -260,7 +299,7 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
 
       <MessageList 
           messages={messages}
-          imageGallery={imageGallery}
+          getImageGallery={getImageGallery}
           isSessionActive={isSessionActive}
           showLoading={showLoading}
           isLayoutCentered={isEmpty}
@@ -268,9 +307,9 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
           spacerHeight={spacerHeight}
           containerRef={containerRef}
           onCopy={copyToClipboard}
-          onRegenerate={regenerate}
-          onEdit={editMessage}
-          onSwitchVersion={(msgId, idx) => currentSessionId && switchMessageVersion(currentSessionId, msgId, idx)}
+          onRegenerate={handleRegenerate}
+          onEdit={handleEdit}
+          onSwitchVersion={handleSwitchVersion}
       />
 
       <div 

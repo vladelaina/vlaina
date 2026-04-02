@@ -14,6 +14,7 @@ function createMessage(overrides: Partial<ChatMessage>): ChatMessage {
 }
 
 describe("buildTitleSourceFromMessages", () => {
+
   it("returns Image Query when no user message exists", () => {
     const messages: ChatMessage[] = [
       createMessage({ role: "assistant", content: "hello" }),

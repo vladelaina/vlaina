@@ -10,9 +10,11 @@ interface ChatImageGalleryItem {
   src: string;
 }
 
+type ChatImageGalleryGetter = () => ChatImageGalleryItem[];
+
 interface MessageListProps {
   messages: ChatMessage[];
-  imageGallery: ChatImageGalleryItem[];
+  getImageGallery?: ChatImageGalleryGetter;
   isSessionActive: boolean;
   showLoading: boolean;
   isLayoutCentered?: boolean;
@@ -27,7 +29,7 @@ interface MessageListProps {
 
 export function MessageList({
   messages,
-  imageGallery,
+  getImageGallery,
   isSessionActive,
   showLoading,
   isLayoutCentered,
@@ -48,7 +50,7 @@ export function MessageList({
             <div key={msg.id} data-message-index={idx}>
               <MessageItem
                 msg={msg}
-                imageGallery={imageGallery}
+                getImageGallery={getImageGallery}
                 isLoading={isSessionActive && idx === messages.length - 1}
                 onCopy={onCopy}
                 onRegenerate={onRegenerate}

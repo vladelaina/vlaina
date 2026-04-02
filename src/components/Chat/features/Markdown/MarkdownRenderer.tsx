@@ -17,6 +17,7 @@ import { createMarkdownSanitizeSchema, normalizeRenderableImageSrc } from "./ima
 interface MarkdownRendererProps {
   content: string;
   imageGallery?: Array<{ id: string; src: string }>;
+  getImageGallery?: () => Array<{ id: string; src: string }>;
   imageIdBase?: string;
   codeBlockIdBase?: string;
   copiedCodeBlockId?: string | null;
@@ -103,11 +104,13 @@ function MarkdownImage({
   src,
   alt,
   imageGallery,
+  getImageGallery,
   currentImageId,
 }: {
   src: string;
   alt?: string;
   imageGallery?: Array<{ id: string; src: string }>;
+  getImageGallery?: () => Array<{ id: string; src: string }>;
   currentImageId?: string;
 }) {
   const [copied, setCopied] = useState(false);
@@ -127,6 +130,8 @@ function MarkdownImage({
       setCopied(false);
     }
   };
+
+  const gallery = getImageGallery ? getImageGallery() : imageGallery;
 
   return (
     <span className="not-prose my-3 block max-w-full" data-no-focus-input="true">
@@ -177,7 +182,7 @@ function MarkdownImage({
         open={isViewerOpen}
         src={src}
         alt={alt}
-        gallery={imageGallery}
+        gallery={gallery}
         currentImageId={currentImageId}
         onOpenChange={setIsViewerOpen}
       />
@@ -189,6 +194,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
   ({
     content,
     imageGallery,
+    getImageGallery,
     imageIdBase,
     codeBlockIdBase,
     copiedCodeBlockId,
@@ -323,6 +329,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
                           src={safeSrc}
                           alt={typeof alt === "string" ? alt : "image"}
                           imageGallery={imageGallery}
+                          getImageGallery={getImageGallery}
                           currentImageId={currentImageId}
                         />
                       );

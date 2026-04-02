@@ -12,7 +12,6 @@ export function normalizeLoadedAIModels(
   sessions: ChatSession[];
 } {
   const providerIds = new Set(providers.map((provider) => provider.id));
-  const idMapping = new Map<string, string>();
 
   const normalizedModels = models
     .filter((model) => providerIds.has(model.providerId))
@@ -24,7 +23,6 @@ export function normalizeLoadedAIModels(
           : model.id;
 
       const normalizedId = buildScopedModelId(model.providerId, apiModelId);
-      idMapping.set(model.id, normalizedId);
       return {
         ...model,
         id: normalizedId,
@@ -36,8 +34,7 @@ export function normalizeLoadedAIModels(
 
   const remapModelId = (modelId: string | null | undefined): string | null => {
     if (!modelId) return null;
-    const direct = idMapping.get(modelId) || modelId;
-    if (availableIds.has(direct)) return direct;
+    if (availableIds.has(modelId)) return modelId;
     return null;
   };
 

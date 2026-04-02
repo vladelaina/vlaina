@@ -7,7 +7,7 @@ export function isTemporarySessionId(sessionId: string | null | undefined): bool
 }
 
 export function isTemporarySession(session: ChatSession | null | undefined): boolean {
-  return !!session && (session.isTemporary === true || isTemporarySessionId(session.id));
+  return !!session && isTemporarySessionId(session.id);
 }
 
 export function createTemporarySession(modelId: string): ChatSession {
@@ -16,7 +16,6 @@ export function createTemporarySession(modelId: string): ChatSession {
     id: `${TEMP_SESSION_PREFIX}${now}-${Math.random().toString(36).substring(2, 11)}`,
     title: 'Temporary Chat',
     modelId,
-    isTemporary: true,
     createdAt: now,
     updatedAt: now
   };
@@ -69,6 +68,12 @@ export function hasUserMessage(messages: ChatMessage[]): boolean {
 
 const IMAGE_MARKDOWN_REGEX = /!\[.*?\]\(.*?\)/g;
 const TITLE_SOURCE_MAX_LENGTH = 1200;
+const AUTO_TITLE_PLACEHOLDERS = new Set(['New Chat']);
+
+export function needsAutoTitle(title: string | null | undefined): boolean {
+  const normalizedTitle = title?.trim() ?? '';
+  return !normalizedTitle || AUTO_TITLE_PLACEHOLDERS.has(normalizedTitle);
+}
 
 export function buildTitleSourceFromMessages(messages: ChatMessage[]): string {
   const userSnippets = messages

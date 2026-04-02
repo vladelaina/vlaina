@@ -71,11 +71,12 @@ describe("MessageItem", () => {
     const onSwitchVersion = vi.fn();
     const onCopy = vi.fn();
     const msg = createMessage("assistant", "a1");
+    const getImageGallery = vi.fn(() => [{ id: "img-1", src: "https://example.com/1.png" }]);
 
     render(
       <MessageItem
         msg={msg}
-        imageGallery={[{ id: "img-1", src: "https://example.com/1.png" }]}
+        getImageGallery={getImageGallery}
         isLoading
         onCopy={onCopy}
         onRegenerate={onRegenerate}
@@ -90,7 +91,7 @@ describe("MessageItem", () => {
     const props = aiMessageSpy.mock.calls[0][0];
     expect(props).toMatchObject({
       msg,
-      imageGallery: [{ id: "img-1", src: "https://example.com/1.png" }],
+      getImageGallery,
       isLoading: true,
       onCopy,
     });
@@ -102,4 +103,5 @@ describe("MessageItem", () => {
     expect(onSwitchVersion).toHaveBeenCalledWith("a1", 2);
     expect(userMessageSpy).not.toHaveBeenCalled();
   });
+
 });

@@ -60,4 +60,5 @@ describe('requestContext', () => {
     const sanitized = sanitizeHistory(history);
     expect(sanitized[0].content).toBe('[Image]\n\ndescribe it');
   });
+
 });

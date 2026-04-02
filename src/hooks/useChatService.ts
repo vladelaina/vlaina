@@ -10,6 +10,7 @@ import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useAutoTitle } from './useAutoTitle';
 import { requestManager } from '@/lib/ai/requestManager';
 import { getUserFacingAIError } from '@/lib/ai/errors';
+import { needsAutoTitle } from '@/lib/ai/temporaryChat';
 import {
   buildMentionedNotesContext,
   buildMessageImageSources,
@@ -18,6 +19,7 @@ import {
   normalizeNoteMentions,
   normalizeVisionAttachment,
   refreshManagedBudgetIfNeeded,
+  resolveAssistantContent,
 } from './chatService/helpers';
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
@@ -54,7 +56,6 @@ export function useChatService() {
     addVersion,
     getSelectedModel,
     providers,
-    temporaryChatEnabled,
     isTemporarySession,
     customSystemPrompt,
     includeTimeContext,
@@ -72,6 +73,16 @@ export function useChatService() {
     requestManager.abort(sessionId);
     setSessionLoading(sessionId, false);
   }, [setSessionLoading]);
+
+  const maybeGenerateAutoTitle = useCallback(
+    (sessionId: string, providerId: string, modelId: string) => {
+      if (isTemporarySession(sessionId)) return;
+      const session = useUnifiedStore.getState().data.ai?.sessions.find((item) => item.id === sessionId);
+      if (!session || !needsAutoTitle(session.title)) return;
+      void generateAutoTitle(sessionId, providerId, modelId);
+    },
+    [generateAutoTitle, isTemporarySession]
+  );
 
   const sendMessage = useCallback(
     async (text: string, attachments: Attachment[], noteMentions: NoteMentionReference[] = []) => {
@@ -101,10 +112,8 @@ export function useChatService() {
       const mentionText = normalizedMentions.map((mention) => `@${mention.title}`).join(' ');
 
       let activeSessionId = currentSessionId;
-      let isNewSession = false;
       if (!activeSessionId) {
         activeSessionId = createSession('');
-        isNewSession = true;
       }
 
       const targetSessionId = activeSessionId;
@@ -143,25 +152,10 @@ export function useChatService() {
 
       const isTemporaryTarget = isTemporarySession(targetSessionId);
 
-      let shouldGenerateTitle = isNewSession && !temporaryChatEnabled && !isTemporaryTarget;
-      if (!shouldGenerateTitle && targetSessionId && !temporaryChatEnabled && !isTemporaryTarget) {
-        const state = useUnifiedStore.getState();
-        const session = state.data.ai?.sessions.find((s) => s.id === targetSessionId);
-        if (session && (session.title === 'New Chat' || session.title === 'New Image Chat')) {
-          shouldGenerateTitle = true;
-        }
-      }
-
-      if (shouldGenerateTitle && targetSessionId) {
-        const titleSessionId = targetSessionId;
-        generateAutoTitle(titleSessionId, userMessageText || 'Image Query', provider.id, selectedModel.id).catch((e) =>
-          console.error(e)
-        );
-      }
-
       const streamScheduler = createChunkScheduler((nextContent) =>
         updateMessage(targetSessionId, assistantMessageId, nextContent)
       );
+      let lastStreamedContent = '';
 
       try {
         const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
@@ -199,17 +193,31 @@ export function useChatService() {
           }
         }
 
-        await openaiClient.sendMessage(
+        const returnedContent = await openaiClient.sendMessage(
           apiMessageContent,
           requestHistory,
           selectedModel,
           provider,
-          (chunk) => streamScheduler.push(chunk),
+          (chunk) => {
+            lastStreamedContent = chunk;
+            streamScheduler.push(chunk);
+          },
           controller.signal
         );
         streamScheduler.flushNow();
+        resolveAssistantContent(
+          returnedContent,
+          lastStreamedContent,
+          (content) => {
+            lastStreamedContent = content;
+            updateMessage(targetSessionId, assistantMessageId, content);
+          },
+        );
         completeMessage(targetSessionId, assistantMessageId);
         refreshManagedBudgetIfNeeded(provider.id);
+        if (!isTemporaryTarget) {
+          maybeGenerateAutoTitle(targetSessionId, provider.id, selectedModel.id);
+        }
 
         const current = useUnifiedStore.getState().data.ai?.currentSessionId;
         if (targetSessionId !== current && !isTemporarySession(targetSessionId)) {
@@ -239,14 +247,13 @@ export function useChatService() {
       completeMessage,
       selectedModel,
       providers,
-      temporaryChatEnabled,
       isTemporarySession,
       customSystemPrompt,
       includeTimeContext,
       setSessionLoading,
       setError,
       messages,
-      generateAutoTitle,
+      maybeGenerateAutoTitle,
       markSessionUnread,
     ]
   );
@@ -283,6 +290,7 @@ export function useChatService() {
       const streamScheduler = createChunkScheduler((nextContent) =>
         updateMessage(sessionId, assistantMessageId, nextContent)
       );
+      let lastStreamedContent = '';
 
       try {
         const state = useUnifiedStore.getState();
@@ -302,17 +310,29 @@ export function useChatService() {
           customSystemPrompt
         });
 
-        await openaiClient.sendMessage(
+        const returnedContent = await openaiClient.sendMessage(
           newContent,
           requestHistory,
           selectedModel,
           provider,
-          (chunk) => streamScheduler.push(chunk),
+          (chunk) => {
+            lastStreamedContent = chunk;
+            streamScheduler.push(chunk);
+          },
           controller.signal
         );
         streamScheduler.flushNow();
+        resolveAssistantContent(
+          returnedContent,
+          lastStreamedContent,
+          (content) => {
+            lastStreamedContent = content;
+            updateMessage(sessionId, assistantMessageId, content);
+          },
+        );
         completeMessage(sessionId, assistantMessageId);
         refreshManagedBudgetIfNeeded(provider.id);
+        maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
       } catch (error: any) {
         streamScheduler.flushNow();
         if (error.name === 'AbortError') {
@@ -340,6 +360,7 @@ export function useChatService() {
       completeMessage,
       setError,
       setSessionLoading,
+      maybeGenerateAutoTitle,
     ]
   );
 
@@ -366,10 +387,12 @@ export function useChatService() {
 
       const controller = requestManager.start(sessionId);
       setSessionLoading(sessionId, true);
+      setError(null);
 
       const streamScheduler = createChunkScheduler((nextContent) =>
         updateMessage(sessionId, msgId, nextContent)
       );
+      let lastStreamedContent = '';
 
       try {
         const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
@@ -381,17 +404,29 @@ export function useChatService() {
           customSystemPrompt
         });
 
-        await openaiClient.sendMessage(
+        const returnedContent = await openaiClient.sendMessage(
           promptMsg.content,
           requestHistory,
           selectedModel,
           provider,
-          (chunk) => streamScheduler.push(chunk),
+          (chunk) => {
+            lastStreamedContent = chunk;
+            streamScheduler.push(chunk);
+          },
           controller.signal
         );
         streamScheduler.flushNow();
+        resolveAssistantContent(
+          returnedContent,
+          lastStreamedContent,
+          (content) => {
+            lastStreamedContent = content;
+            updateMessage(sessionId, msgId, content);
+          },
+        );
         completeMessage(sessionId, msgId);
         refreshManagedBudgetIfNeeded(provider.id);
+        maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
       } catch (error: any) {
         streamScheduler.flushNow();
         if (error.name === 'AbortError') {
@@ -420,6 +455,7 @@ export function useChatService() {
       completeMessage,
       setError,
       currentSessionId,
+      maybeGenerateAutoTitle,
     ]
   );
 
