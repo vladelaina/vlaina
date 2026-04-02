@@ -80,4 +80,5 @@ describe('normalizeLoadedAIModels', () => {
 
     expect(normalized.selectedModelId).toBeNull();
   });
+
 });

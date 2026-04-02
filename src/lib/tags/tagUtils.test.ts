@@ -50,6 +50,7 @@ describe('tagUtils', () => {
     expect(deserializeTags(serialized)).toEqual(['Work', 'Learning']);
   });
 
+
   it('checks if a task has a specific tag and matches selected filter', () => {
     const task = createTask({ tags: ['Learning', 'Work'] });
     expect(hasTag(['Learning', 'Work'], 'learning')).toBe(true);

@@ -59,8 +59,6 @@ export function deserializeTags(serialized?: string | null): string[] | undefine
       return normalized.length > 0 ? normalized : undefined;
     }
   } catch {
-    const fallback = normalizeTags(serialized.split(','));
-    if (fallback.length > 0) return fallback;
   }
 
   return undefined;

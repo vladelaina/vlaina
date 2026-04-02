@@ -39,6 +39,8 @@ describe('managedService', () => {
     managedChatCompletionStreamMock.mockReset();
     vi.restoreAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    vi.spyOn(console, 'debug').mockImplementation(() => undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
   });
 
   it('uses credentialed web requests for managed models', async () => {

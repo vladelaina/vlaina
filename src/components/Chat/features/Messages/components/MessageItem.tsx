@@ -9,9 +9,12 @@ interface ChatImageGalleryItem {
   src: string;
 }
 
+type ChatImageGalleryGetter = () => ChatImageGalleryItem[];
+
 interface MessageItemProps {
   msg: ChatMessage;
-  imageGallery: ChatImageGalleryItem[];
+  imageGallery?: ChatImageGalleryItem[];
+  getImageGallery?: ChatImageGalleryGetter;
   isLoading: boolean;
   onCopy: (text: string) => Promise<void> | void;
   onRegenerate: (id: string) => void;
@@ -22,6 +25,7 @@ interface MessageItemProps {
 export const MessageItem = memo(function MessageItem({
   msg,
   imageGallery,
+  getImageGallery,
   isLoading,
   onCopy,
   onRegenerate,
@@ -55,6 +59,7 @@ export const MessageItem = memo(function MessageItem({
               <AIMessage 
                   msg={msg}
                   imageGallery={imageGallery}
+                  getImageGallery={getImageGallery}
                   isLoading={isLoading}
                   onCopy={onCopy}
                   onRegenerate={() => onRegenerate(msg.id)}

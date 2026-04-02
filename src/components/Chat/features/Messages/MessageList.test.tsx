@@ -45,7 +45,7 @@ describe("MessageList", () => {
     render(
       <MessageList
         messages={[]}
-        imageGallery={[]}
+        getImageGallery={() => []}
         isSessionActive={false}
         showLoading={false}
         spacerHeight={24}
@@ -73,7 +73,7 @@ describe("MessageList", () => {
     render(
       <MessageList
         messages={messages}
-        imageGallery={[]}
+        getImageGallery={() => []}
         isSessionActive
         showLoading={false}
         spacerHeight={0}
@@ -90,17 +90,17 @@ describe("MessageList", () => {
     expect(messageItemSpy.mock.calls[2][0]).toMatchObject({ msg: messages[2], isLoading: true });
   });
 
-  it("passes handlers and image gallery through to each message item", () => {
+  it("passes handlers and image gallery getter through to each message item", () => {
     const onCopy = vi.fn();
     const onRegenerate = vi.fn();
     const onEdit = vi.fn();
     const onSwitchVersion = vi.fn();
-    const imageGallery = [{ id: "img-1", src: "https://example.com/1.png" }];
+    const getImageGallery = vi.fn(() => [{ id: "img-1", src: "https://example.com/1.png" }]);
 
     render(
       <MessageList
         messages={[createMessage("a1", "assistant")]}
-        imageGallery={imageGallery}
+        getImageGallery={getImageGallery}
         isSessionActive={false}
         showLoading={false}
         spacerHeight={10}
@@ -113,7 +113,7 @@ describe("MessageList", () => {
     );
 
     expect(messageItemSpy.mock.calls[0][0]).toMatchObject({
-      imageGallery,
+      getImageGallery,
       onCopy,
       onRegenerate,
       onEdit,
@@ -125,7 +125,7 @@ describe("MessageList", () => {
     render(
       <MessageList
         messages={[createMessage("a1", "assistant")]}
-        imageGallery={[]}
+        getImageGallery={() => []}
         isSessionActive={false}
         showLoading
         spacerHeight={0}

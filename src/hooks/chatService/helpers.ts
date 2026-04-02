@@ -13,6 +13,24 @@ const MAX_NOTE_MENTION_COUNT = 3;
 const MAX_NOTE_MENTION_CHARS = 12000;
 const STREAM_CHUNK_FLUSH_MAX_DELAY_MS = 40;
 
+export function resolveAssistantContent(
+  returnedContent: string,
+  lastStreamedContent: string,
+  applyResolvedContent: (content: string) => void,
+) {
+  const finalContent = returnedContent || lastStreamedContent;
+
+  if (returnedContent && returnedContent !== lastStreamedContent) {
+    applyResolvedContent(returnedContent);
+  }
+
+  if (!finalContent.trim()) {
+    throw new Error('The model returned an empty response.');
+  }
+
+  return finalContent;
+}
+
 export function normalizeNoteMentions(noteMentions: NoteMentionReference[]): NoteMentionReference[] {
   return dedupeNoteMentions(noteMentions).slice(0, MAX_NOTE_MENTION_COUNT);
 }

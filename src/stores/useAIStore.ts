@@ -349,8 +349,8 @@ export const actions = {
     useUnifiedStore.getState().updateAIData({ customSystemPrompt: prompt });
   },
 
-  setIncludeTimeContext: (_enabled: boolean) => {
-    useUnifiedStore.getState().updateAIData({ includeTimeContext: true });
+  setIncludeTimeContext: (enabled: boolean) => {
+    useUnifiedStore.getState().updateAIData({ includeTimeContext: enabled });
   },
 
   refreshManagedProvider: async () => {
@@ -973,7 +973,7 @@ export const useAIStore = () => {
     selectedModelId: aiData?.selectedModelId || null,
     temporaryChatEnabled: !!aiData?.temporaryChatEnabled,
     customSystemPrompt: aiData?.customSystemPrompt || '',
-    includeTimeContext: true,
+    includeTimeContext: aiData?.includeTimeContext !== false,
     
     ...uiState,
     ...actions,

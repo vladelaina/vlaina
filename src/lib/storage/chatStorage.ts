@@ -3,18 +3,22 @@ import type { ChatMessage } from '@/lib/ai/types';
 import { createPersistenceQueue, type PersistenceQueue } from './persistenceEngine';
 import { getStorageBasePath } from './basePath';
 
-const sessionQueues = new Map<string, PersistenceQueue<string>>();
+const sessionQueues = new Map<string, PersistenceQueue<ChatMessage[]>>();
 const DEFAULT_DEBOUNCE_MS = 180;
 
-function getSessionQueue(sessionId: string): PersistenceQueue<string> {
+function serializeSessionMessages(messages: ChatMessage[]): string {
+  return JSON.stringify(messages);
+}
+
+function getSessionQueue(sessionId: string): PersistenceQueue<ChatMessage[]> {
   const existing = sessionQueues.get(sessionId);
   if (existing) return existing;
 
-  let queue: PersistenceQueue<string>;
-  queue = createPersistenceQueue<string>({
+  let queue: PersistenceQueue<ChatMessage[]>;
+  queue = createPersistenceQueue<ChatMessage[]>({
     debounceMs: DEFAULT_DEBOUNCE_MS,
-    write: async (payload) => {
-      await writeSessionJsonRaw(sessionId, payload);
+    write: async (messages) => {
+      await writeSessionJsonRaw(sessionId, serializeSessionMessages(messages));
     },
     onError: (error) => {
       console.error('[chatStorage] save session failed:', error);
@@ -48,8 +52,7 @@ async function writeSessionJsonRaw(sessionId: string, payload: string) {
 }
 
 export async function saveSessionJson(sessionId: string, messages: ChatMessage[]) {
-  const payload = JSON.stringify(messages, null, 2);
-  await getSessionQueue(sessionId).saveNow(payload);
+  await getSessionQueue(sessionId).saveNow(messages);
 }
 
 export function scheduleSessionJsonSave(
@@ -57,8 +60,7 @@ export function scheduleSessionJsonSave(
   messages: ChatMessage[],
   debounceMs = DEFAULT_DEBOUNCE_MS
 ) {
-  const payload = JSON.stringify(messages, null, 2);
-  getSessionQueue(sessionId).schedule(payload, { debounceMs });
+  getSessionQueue(sessionId).schedule(messages, { debounceMs });
 }
 
 export function cancelSessionJsonSave(sessionId: string) {

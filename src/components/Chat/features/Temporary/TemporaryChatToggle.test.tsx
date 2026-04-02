@@ -94,7 +94,6 @@ describe("TemporaryChatToggle", () => {
     expect(store.promoteTemporarySession).toHaveBeenCalledTimes(1);
     expect(mocks.generateAutoTitle).toHaveBeenCalledWith(
       "session-123",
-      "Draft an API design",
       "provider-1",
       "model-1",
     );
