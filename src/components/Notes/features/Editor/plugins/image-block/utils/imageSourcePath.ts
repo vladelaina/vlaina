@@ -1,10 +1,22 @@
 import { getParentPath, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 
+interface ImageSourcePathDeps {
+    getParentPath: (path: string) => string | null;
+    isAbsolutePath: (path: string) => boolean;
+    joinPath: (...segments: string[]) => Promise<string>;
+}
+
 interface ResolveImageSourcePathOptions {
     rawSrc: string;
     notesPath: string;
     currentNotePath?: string;
 }
+
+const defaultDeps: ImageSourcePathDeps = {
+    getParentPath,
+    isAbsolutePath,
+    joinPath,
+};
 
 export function getImageSourceBase(rawSrc: string): string {
     return rawSrc.split('#')[0] ?? '';
@@ -20,33 +32,50 @@ export function isVirtualImageSource(src: string): boolean {
     );
 }
 
-export async function resolveImageSourcePath({
-    rawSrc,
-    notesPath,
-    currentNotePath,
-}: ResolveImageSourcePathOptions): Promise<string> {
+async function resolveCurrentNoteDirectory(
+    notesPath: string,
+    currentNotePath: string | undefined,
+    deps: ImageSourcePathDeps,
+): Promise<string | null> {
+    if (!currentNotePath) return null;
+
+    const absoluteNotePath = deps.isAbsolutePath(currentNotePath)
+        ? currentNotePath
+        : notesPath
+            ? await deps.joinPath(notesPath, currentNotePath)
+            : currentNotePath;
+
+    return deps.getParentPath(absoluteNotePath);
+}
+
+export async function resolveImageSourcePath(
+    options: ResolveImageSourcePathOptions,
+    deps: ImageSourcePathDeps = defaultDeps,
+): Promise<string | null> {
+    const { rawSrc, notesPath, currentNotePath } = options;
     const baseSrc = getImageSourceBase(rawSrc);
+    if (!baseSrc) return null;
 
-    if (!baseSrc || isVirtualImageSource(baseSrc)) {
-        return '';
-    }
-
-    if (isAbsolutePath(baseSrc)) {
+    if (isVirtualImageSource(baseSrc)) {
         return baseSrc;
     }
 
-    if (!notesPath) {
-        return '';
+    if (deps.isAbsolutePath(baseSrc)) {
+        return baseSrc;
     }
 
-    if (!currentNotePath) {
-        return await joinPath(notesPath, baseSrc);
+    const currentNoteDir = await resolveCurrentNoteDirectory(notesPath, currentNotePath, deps);
+
+    if (baseSrc.startsWith('./') || baseSrc.startsWith('../')) {
+        if (currentNoteDir) {
+            return deps.joinPath(currentNoteDir, baseSrc);
+        }
+        return notesPath ? deps.joinPath(notesPath, baseSrc) : null;
     }
 
-    const absoluteNotePath = isAbsolutePath(currentNotePath)
-        ? currentNotePath
-        : await joinPath(notesPath, currentNotePath);
-    const parentDir = getParentPath(absoluteNotePath) || notesPath;
+    if (currentNoteDir) {
+        return deps.joinPath(currentNoteDir, baseSrc);
+    }
 
-    return await joinPath(parentDir, baseSrc);
+    return notesPath ? deps.joinPath(notesPath, baseSrc) : null;
 }
