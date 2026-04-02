@@ -44,6 +44,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Audit production dependencies
+        env:
+          npm_config_registry: https://registry.npmjs.org
         run: pnpm audit --prod --audit-level=high
 
   web-quality:
