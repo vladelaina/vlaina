@@ -58,7 +58,6 @@ function dispatchDeleteRangeWithTextSelection(
 function findFirstTableBodyCellSelection(
   doc: EditorView['state']['doc'],
   tableFrom: number,
-  tableNode: any,
 ) {
   let targetPos: number | null = null;
 
@@ -224,7 +223,7 @@ export const tableKeyboardPlugin = $prose(() => {
                 const from = $from.before($from.depth);
                 const to = $from.after($from.depth);
                 const tr = state.tr.replaceRangeWith(from, to, tableNode);
-                const nextSelection = findFirstTableBodyCellSelection(tr.doc, from, tableNode);
+                const nextSelection = findFirstTableBodyCellSelection(tr.doc, from);
                 view.dispatch(
                   (nextSelection ? tr.setSelection(nextSelection) : tr).scrollIntoView()
                 );

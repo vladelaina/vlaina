@@ -47,10 +47,6 @@ function pressEnter(view: EditorView): void {
   expect(handled).toBe(true);
 }
 
-function hasAncestorNode(view: EditorView, nodeName: string): boolean {
-  return getAncestorNodeNames(view).includes(nodeName);
-}
-
 function getAncestorNodeNames(view: EditorView): string[] {
   const { $from } = view.state.selection;
   const names: string[] = [];

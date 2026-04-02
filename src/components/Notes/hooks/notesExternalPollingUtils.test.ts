@@ -55,7 +55,7 @@ describe('notesExternalPollingUtils', () => {
 
   it('collapses nested deletions to the top-level removed folder', () => {
     const previous = [folder('docs', [folder('docs/guide', [file('docs/guide/intro.md')])])];
-    const next = [];
+    const next: FileTreeNode[] = [];
 
     expect(detectExternalTreePathChanges(previous, next)).toEqual({
       renames: [],
@@ -67,7 +67,7 @@ describe('notesExternalPollingUtils', () => {
 
   it('marks new files as additions that require a tree reload', () => {
     const previous = [folder('docs', [file('docs/alpha.md')])];
-    const next = [folder('docs', [file('docs/alpha.md'), file('docs/beta.md')])];
+    const next: FileTreeNode[] = [folder('docs', [file('docs/alpha.md'), file('docs/beta.md')])];
 
     expect(detectExternalTreePathChanges(previous, next)).toEqual({
       renames: [],
