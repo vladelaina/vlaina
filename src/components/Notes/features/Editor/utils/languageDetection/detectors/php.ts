@@ -3,6 +3,14 @@ import type { LanguageDetector } from '../types';
 export const detectPHP: LanguageDetector = (ctx) => {
   const { firstLine, sample, first100Lines, hasConst, hasLet, lines, code } = ctx;
 
+  if (firstLine.startsWith('<?php') || /^\s*<\?(php|=)/m.test(first100Lines)) {
+    return 'php';
+  }
+
+  if (/\bpub\s+fn\s+\w+\s*\([^)]*\)\s+i\d+\b/.test(first100Lines)) {
+    return null;
+  }
+
   if (/\btry\s+std\.(io|heap|mem)\./.test(first100Lines)) {
     return null;
   }
@@ -16,11 +24,6 @@ export const detectPHP: LanguageDetector = (ctx) => {
     if (/\bprint\s*\(['"]/.test(first100Lines) && !/\$\w+/.test(first100Lines)) {
       return null;
     }
-  }
-
-  // PHP opening tag
-  if (firstLine.startsWith('<?php') || sample.includes('<?php') || sample.includes('<?=')) {
-    return 'php';
   }
 
   if (/\b(server|location|listen|root|index|proxy_pass)\s+/.test(first100Lines)) {
@@ -37,6 +40,15 @@ export const detectPHP: LanguageDetector = (ctx) => {
 
   if (/<-/.test(first100Lines) && /\b(library|function|data\.frame|c\()\b/.test(first100Lines)) {
     return null;
+  }
+
+  if (/\bfunction\s+\w+\s*\([^)]*\$\w+/.test(first100Lines)) {
+    return 'php';
+  }
+
+  if (/^namespace\s+[A-Z]\w*(\\[A-Z]\w*)*;$/m.test(first100Lines) &&
+      /^\s*(class|interface|trait|enum)\s+[A-Z]\w*/m.test(code)) {
+    return 'php';
   }
 
   if (/\$[\w]+\s*=/.test(first100Lines)) {
@@ -82,11 +94,15 @@ export const detectPHP: LanguageDetector = (ctx) => {
       return 'php';
     }
     if (/^echo\s+["']/.test(trimmed)) {
-      // Check if it's shell (no semicolon) or PHP (with semicolon or <?php)
-      if (/;/.test(code) || /\$\w+/.test(code)) {
+      if (
+        /\b(for\s+\w+\s+in|do|done|while\s+\[|if\s+\[|then|fi)\b/.test(code)
+      ) {
+        return null;
+      }
+      if (/;/.test(code) || /\becho\s+\$\w+\s*;/.test(code)) {
         return 'php';
       }
-      return null; // Let shell detector handle it
+      return null;
     }
     if (/\b(print|echo)\s*\(/.test(code) && /;/.test(code)) {
       if (!/\b(console\.|document\.|window\.|import|export|const|let|var|def|class|module|require|puts|System\.out)\b/.test(code)) {

@@ -2,10 +2,14 @@ import type { LanguageDetector } from '../types';
 
 export const detectStylus: LanguageDetector = (ctx) => {
   const { code, first100Lines, lines } = ctx;
+  if (/;/.test(code) && /\b(plot|linspace|zeros|ones|eye|disp|size|meshgrid)\s*\(/.test(code)) {
+    return null;
+  }
+
 
   // Simple Stylus patterns - indented CSS without braces/semicolons
   if (lines.length <= 5 && !/[{}]/.test(code) && !/;/.test(code)) {
-    if (/^[\w-]+\s*$/m.test(code) && /^\s{2,}[\w-]+\s+/.test(code)) {
+    if (/^[.#]?[a-z][\w-]*\s*\n\s{2,}(color|background|margin|padding|border|width|height|display|position|font|font-size|font-weight|line-height)\s+.+$/m.test(code)) {
       return 'stylus';
     }
   }

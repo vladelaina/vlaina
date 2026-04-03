@@ -3,6 +3,10 @@ import type { LanguageDetector } from '../types';
 export const detectTOML: LanguageDetector = (ctx) => {
   const { code, first100Lines, firstLine, lines } = ctx;
 
+  if (/^[A-Za-z_][\w-]*\s*=\s*["'].*["']/m.test(first100Lines) && /\b(printf|echo|grep|sed|awk|find)\b/.test(code) && code.includes('$')) {
+    return null;
+  }
+
   // Simple single-line TOML patterns: [server] or host = "localhost"
   if (lines.length <= 3) {
     const trimmed = code.trim();
@@ -19,6 +23,9 @@ export const detectTOML: LanguageDetector = (ctx) => {
       if (!/\{|\}|;|function|class|def|import|package|:/.test(code)) {
         return 'toml';
       }
+    }
+    if (/^[\w-]+\s*=\s*(true|false)\s*$/i.test(trimmed)) {
+      return 'toml';
     }
     // TOML key-value with number: port = 8080
     if (/^[\w-]+\s*=\s*\d+\s*$/.test(trimmed)) {

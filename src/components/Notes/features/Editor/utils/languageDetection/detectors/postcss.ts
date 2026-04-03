@@ -18,6 +18,12 @@ export const detectPostCSS: LanguageDetector = (ctx) => {
     return 'postcss';
   }
 
+  if (/\btheme\s*\(/.test(code) &&
+      /\{/.test(code) &&
+      /\b(color|background|margin|padding|border|width|height|display|position|font-size|font-family)\s*:/.test(code)) {
+    return 'postcss';
+  }
+
   // PostCSS with modern CSS features - but these are also valid CSS
   // Only return postcss if there are PostCSS-specific features
   if (/@media\s*\([^)]*\)\s*\{/.test(code) && /grid-template-columns|repeat\(auto-fit/.test(code)) {

@@ -3,6 +3,10 @@ import type { LanguageDetector } from '../types';
 export const detectZig: LanguageDetector = (ctx) => {
   const { code, first100Lines, lines } = ctx;
 
+  if (/^<\?php/m.test(first100Lines) || (/\$\w+\s*=/.test(code) && /\b(echo|print)\b/.test(code))) {
+    return null;
+  }
+
   // Simple single-line Zig patterns
   if (lines.length <= 3) {
     const trimmed = code.trim();

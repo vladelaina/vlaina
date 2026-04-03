@@ -2,6 +2,18 @@ import type { LanguageDetector } from '../types';
 
 export const detectOCaml: LanguageDetector = (ctx) => {
   const { code, first100Lines, firstLine, lines } = ctx;
+  const hasLeadingPrintfN = /^\s*printfn\b/m.test(code) || /->\s*printfn\b/.test(code);
+
+  if (
+    hasLeadingPrintfN &&
+    !/\blet\s+rec\s+\w+/.test(code) &&
+    !/\bmatch\s+\w+\s+with\b/.test(code) &&
+    !/\btype\s+\w+\s*=/.test(code) &&
+    !/\bmodule\s+type\b/.test(code) &&
+    !/\bfunctor\b/.test(code)
+  ) {
+    return null;
+  }
 
   // Simple single-line OCaml patterns
   if (lines.length <= 3) {
@@ -13,8 +25,7 @@ export const detectOCaml: LanguageDetector = (ctx) => {
 
   // OCaml recursive function (must be before F# check)
   if (/^let\s+rec\s+\w+/.test(first100Lines)) {
-    // Exclude F# (F# uses printfn, OCaml uses printf or print_endline)
-    if (/\bprintfn\b/.test(code)) {
+    if (hasLeadingPrintfN) {
       return null;
     }
     return 'ocaml';
@@ -23,16 +34,14 @@ export const detectOCaml: LanguageDetector = (ctx) => {
   // OCaml function with if/then/else
   if (/\blet\s+rec\s+\w+\s+\w+\s*=/.test(code)) {
     if (/\bif\s+\w+\s*<=/.test(code) && /\bthen\b/.test(code) && /\belse\b/.test(code)) {
-      // Exclude F# (F# uses printfn)
-      if (/\bprintfn\b/.test(code)) {
+      if (hasLeadingPrintfN) {
         return null;
       }
       return 'ocaml';
     }
   }
 
-  // Exclude F# pattern matching with printfn
-  if (/\bmatch\s+\w+\s+with/.test(first100Lines) && /\bprintfn\b/.test(code)) {
+  if (/\bmatch\s+\w+\s+with/.test(first100Lines) && hasLeadingPrintfN) {
     return null;
   }
 
@@ -69,6 +78,10 @@ export const detectOCaml: LanguageDetector = (ctx) => {
     if (/\b(fun\s+\w+|class\s+\w+|object\s+\w+)\b/.test(first100Lines)) {
       return null;
     }
+  }
+
+  if (/^struct\s+[A-Z]\w*\s*$/m.test(first100Lines) && /::[A-Z]\w*/.test(code) && /^end\s*$/m.test(code)) {
+    return null;
   }
 
   if (/\bdef\s+\w+/.test(first100Lines) && /\bend\b/.test(code)) {
@@ -120,6 +133,10 @@ export const detectOCaml: LanguageDetector = (ctx) => {
     if (/\bfun\s+\w+\s*->\s*\w+\s*>\s*\d+/.test(code) && !/\b[A-Z]\w*\b/.test(code.match(/fun\s+\w+\s*->.*$/)?.[0] || '')) {
       return 'ocaml';
     }
+    return 'ocaml';
+  }
+
+  if (/\bList\.(map|fold_left|fold_right)\s*\(/.test(code) && /\bfun\s+\w+\s*->/.test(code)) {
     return 'ocaml';
   }
 

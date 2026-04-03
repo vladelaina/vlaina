@@ -3,6 +3,10 @@ import type { LanguageDetector } from '../types';
 export const detectGroovy: LanguageDetector = (ctx) => {
   const { code, first100Lines, firstLine, lines } = ctx;
 
+  if (/\b(import\s+\{|\bconst\b|\blet\b|\bvar\b|export\s+default)\b/.test(first100Lines)) {
+    return null;
+  }
+
   // Simple single-line Groovy patterns
   if (lines.length <= 3) {
     const trimmed = code.trim();

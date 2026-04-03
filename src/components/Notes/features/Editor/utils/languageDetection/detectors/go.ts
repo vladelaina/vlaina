@@ -35,6 +35,10 @@ export const detectGo: LanguageDetector = (ctx) => {
     return 'go';
   }
 
+  if (/\w+,\s*err\s*:=/.test(code) && /\bif\s+err\s*!=\s*nil\s*\{/.test(code)) {
+    return 'go';
+  }
+
   if (/\w+\s*:=\s*\[\]\w+\{\{/.test(code)) {
     return 'go';
   }

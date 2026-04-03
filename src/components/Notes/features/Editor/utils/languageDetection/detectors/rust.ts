@@ -12,6 +12,10 @@ export const detectRust: LanguageDetector = (ctx) => {
     return null;
   }
 
+  if (/\b(pub\s+fn|fn)\s+\w+\s*\([^)]*\)\s+[!A-Za-z_][\w!]*/.test(first100Lines) && !/->/.test(first100Lines)) {
+    return null;
+  }
+
   if (/@import\(["']/.test(first100Lines)) {
     return null;
   }
@@ -34,6 +38,14 @@ export const detectRust: LanguageDetector = (ctx) => {
   }
 
   if (/\bvec!\[/.test(code)) {
+    return 'rust';
+  }
+
+  if (
+    /\bfn\s+\w+\s*\(/.test(first100Lines) &&
+    /\b(Option|Result)</.test(first100Lines) &&
+    /\.(unwrap_or_default|unwrap_or_else|unwrap_or|expect|ok_or_else|ok_or)\s*\(/.test(code)
+  ) {
     return 'rust';
   }
 
@@ -111,7 +123,8 @@ export const detectRust: LanguageDetector = (ctx) => {
     (sample.includes('&str') || sample.includes('&mut') ? 2 : 0) +
     (/\b(Some\(|None\b|Ok\(|Err\(|Result<|Option<)\b/.test(first100Lines) ? 2 : 0) +
     (/\b(let\s+mut|pub\s+fn|impl\s+|use\s+\w+::)\b/.test(first100Lines) ? 2 : 0) +
-    (sample.includes('println!') || sample.includes('vec!') || sample.includes('macro_rules!') ? 2 : 0)
+    (sample.includes('println!') || sample.includes('vec!') || sample.includes('macro_rules!') ? 2 : 0) +
+    (/\.(unwrap_or_default|unwrap_or_else|unwrap_or|expect|ok_or_else|ok_or)\s*\(/.test(code) ? 1 : 0)
   );
 
   if (rustScore >= 4) {

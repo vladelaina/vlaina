@@ -3,6 +3,10 @@ import type { LanguageDetector } from '../types';
 export const detectJavaScript: LanguageDetector = (ctx) => {
   const { sample, first100Lines, firstLine, hasCurlyBraces, hasSemicolon, hasImport, hasConst, hasLet, hasFunction, code, lines } = ctx;
 
+  if (/^#{1,6}\s+/m.test(first100Lines) && /```\w*/.test(code)) {
+    return null;
+  }
+
   if (/^\\(name|alias|title|usage|arguments|value|description|details|docType)\{/m.test(first100Lines)) {
     return null;
   }
@@ -24,6 +28,24 @@ export const detectJavaScript: LanguageDetector = (ctx) => {
   }
 
   if (/\b(proc|iterator|template|macro)\s+\w+/.test(first100Lines)) {
+    return null;
+  }
+
+  if (/^task\s+['"]/.test(first100Lines) && /->/.test(code)) {
+    return null;
+  }
+
+  if (/\b(Get|Set|New|Remove|Add|Clear|Write|Read|Test|Start|Stop|Invoke|Import|Export)-[A-Z]\w+/.test(code)) {
+    return null;
+  }
+
+  if (/^\s*param\s*\(/m.test(code) && /\$[\w]+/.test(code)) {
+    return null;
+  }
+
+  if (/\bfunction\s+\w+\s*\([^)]*\$\w+/.test(first100Lines) ||
+      /^namespace\s+[A-Z]\w*(\\[A-Z]\w*)*;$/m.test(first100Lines) ||
+      /\breturn\s+\$\w+;/.test(code)) {
     return null;
   }
 
@@ -241,6 +263,8 @@ export const detectJavaScript: LanguageDetector = (ctx) => {
   }
 
   if ((/<[A-Z]\w+/.test(first100Lines) || /return\s*\(?\s*<[a-z]+/.test(first100Lines)) &&
+      !/\bfn\s+\w+\s*\([^)]*\)\s*->/.test(first100Lines) &&
+      !/\bOption<[A-Z]\w*>/.test(first100Lines) &&
       !/#import\s+</.test(first100Lines)) {
     if (/\bexport\s+default\s+function\s+\w+\s*\(\s*\)\s*\{/.test(first100Lines)) {
       return 'jsx';
@@ -263,6 +287,10 @@ export const detectJavaScript: LanguageDetector = (ctx) => {
     if (!/\b(final|FirebaseFirestore|Widget|BuildContext)\b/.test(first100Lines)) {
       return 'javascript';
     }
+  }
+
+  if (/\.\s*(map|filter|find|reduce|some|every)\s*\([\s\S]*=>/.test(first100Lines)) {
+    return 'javascript';
   }
 
   if (/\b(console\.(log|error|warn|info)|alert|document\.|window\.|require\(|module\.exports)\b/.test(first100Lines)) {

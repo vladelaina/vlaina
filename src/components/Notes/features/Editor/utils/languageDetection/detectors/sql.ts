@@ -1,7 +1,11 @@
 import type { LanguageDetector } from '../types';
 
 export const detectSQL: LanguageDetector = (ctx) => {
-  const { first100Lines } = ctx;
+  const { first100Lines, firstLine } = ctx;
+
+  if (/^\s*(def|class|from|import|const|let|var|function)\s+/.test(firstLine)) {
+    return null;
+  }
 
   if (/#include\s*[<"]/.test(first100Lines)) {
     if (!/\b(CREATE\s+INDEX|CREATE\s+UNIQUE\s+INDEX)\b/i.test(first100Lines)) {

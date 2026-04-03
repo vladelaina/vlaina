@@ -143,7 +143,12 @@ export const detectPython: LanguageDetector = (ctx) => {
 
   if (/\bdef\s+\w+\s*\(/.test(first100Lines)) {
 
-    if (/\bfor\s+\w+\s+in\s+/.test(code) || /\bif\s+.*:/.test(code) || /\bimport\s+\w+/.test(first100Lines)) {
+    if (
+      /\bfor\s+\w+\s+in\s+/.test(code) ||
+      /\bif\s+.*:/.test(code) ||
+      /\bimport\s+\w+/.test(first100Lines) ||
+      /^\s{4}return\b/m.test(code)
+    ) {
       return 'python';
     }
   }

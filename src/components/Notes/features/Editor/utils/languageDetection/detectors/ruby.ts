@@ -2,6 +2,7 @@ import type { LanguageDetector } from '../types';
 
 export const detectRuby: LanguageDetector = (ctx) => {
   const { sample, first100Lines, firstLine, hasCurlyBraces, code, lines } = ctx;
+  const hasRubyEnd = /\bend\b/.test(sample);
 
   // Simple single-line Ruby patterns
   if (lines.length <= 3) {
@@ -31,8 +32,11 @@ export const detectRuby: LanguageDetector = (ctx) => {
   }
 
   if (/^class\s+\w+/m.test(first100Lines)) {
-
-    if (/->|=>/.test(first100Lines) && !/\bdef\s+\w+/.test(first100Lines)) {
+    if (
+      /->|=>/.test(first100Lines) &&
+      !/\bdef\s+\w+/.test(first100Lines) &&
+      !/\b(scope|has_many|belongs_to|has_one|validates|before_save|after_create)\b/.test(code)
+    ) {
       return null;
     }
   }
@@ -175,7 +179,7 @@ export const detectRuby: LanguageDetector = (ctx) => {
   }
 
   if (/^module\s+\w+\s*$/m.test(first100Lines) || /^class\s+\w+\s*$/m.test(first100Lines)) {
-    if (sample.includes('end')) {
+    if (hasRubyEnd) {
       return 'ruby';
     }
   }
@@ -185,14 +189,14 @@ export const detectRuby: LanguageDetector = (ctx) => {
   }
 
   if (/\b(def\s+\w+|class\s+\w+\s*<|module\s+\w+|attr_accessor|attr_reader|attr_writer)\b/.test(first100Lines)) {
-    if (sample.includes('end') &&
+    if (hasRubyEnd &&
         (/\b(puts|print|gets|chomp|each|map|select|reject|nil\?|empty\?|require|include\s+\w+)\b/.test(first100Lines) ||
          /@\w+/.test(first100Lines))) {
       return 'ruby';
     }
   }
 
-  if (!hasCurlyBraces && /\b(def|elsif|unless)\b/.test(first100Lines) && sample.includes('end')) {
+  if (!hasCurlyBraces && /\b(def|elsif|unless)\b/.test(first100Lines) && hasRubyEnd) {
     return 'ruby';
   }
 

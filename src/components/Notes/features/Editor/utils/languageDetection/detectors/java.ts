@@ -30,6 +30,11 @@ export const detectJava: LanguageDetector = (ctx) => {
     return null;
   }
 
+  if (/^package\s+[\w.]+;$/m.test(first100Lines) &&
+      /\b(option\s+\w+\s*=|message\s+\w+\s*\{|service\s+\w+\s*\{|enum\s+\w+\s*\{)/.test(code)) {
+    return null;
+  }
+
   // Java annotations (must be before C# check)
   if (/^@(RestController|RequestMapping|GetMapping|PostMapping|PutMapping|DeleteMapping|Autowired|Component|Service|Repository|Controller)\b/m.test(code)) {
     return 'java';

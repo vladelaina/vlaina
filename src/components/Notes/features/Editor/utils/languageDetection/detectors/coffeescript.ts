@@ -3,6 +3,10 @@ import type { LanguageDetector } from '../types';
 export const detectCoffeeScript: LanguageDetector = (ctx) => {
   const { code, first100Lines } = ctx;
 
+  if (/^\s*fn\s+\w+\s*\([^)]*\)\s*->/.test(first100Lines) || /\bOption<[A-Z]\w*>/.test(first100Lines)) {
+    return null;
+  }
+
   if (/:=/.test(first100Lines) && /^\t/m.test(code)) {
     return null;
   }

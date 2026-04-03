@@ -45,7 +45,7 @@ export const detectShell: LanguageDetector = (ctx) => {
       }
     }
   }
-  
+
   // Shell function definition: function backup() {
   if (/^function\s+\w+\s*\(\s*\)\s*\{/m.test(code)) {
     // Make sure it's not PowerShell or other languages
@@ -56,6 +56,10 @@ export const detectShell: LanguageDetector = (ctx) => {
 
   // Simple single-line shell patterns
   if (lines.length <= 3) {
+    if (/^[A-Za-z_][\w-]*="[^"]*"/m.test(first100Lines) && /\bprintf\b/.test(code) && code.includes('$')) {
+      return 'bash';
+    }
+
     if (/^echo\s+/.test(code.trim())) {
       return 'bash';
     }

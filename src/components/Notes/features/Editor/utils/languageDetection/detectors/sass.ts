@@ -61,6 +61,14 @@ export const detectSass: LanguageDetector = (ctx) => {
     return null;
   }
 
+  if (/@(mixin|include|extend|use|forward)\b/.test(code)) {
+    return 'scss';
+  }
+
+  if (/\{[\s\S]*?&(--|__|\.[\w-]+)\w*[\s\S]*?\}/.test(code)) {
+    return 'scss';
+  }
+
   if (/\{[\s\S]*?\}/.test(code) && /;/.test(code)) {
 
     if (/\$[\w-]+:\s*[^;]+;/.test(code)) {

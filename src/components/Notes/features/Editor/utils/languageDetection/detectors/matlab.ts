@@ -3,6 +3,20 @@ import type { LanguageDetector } from '../types';
 export const detectMatlab: LanguageDetector = (ctx) => {
   const { code, first100Lines, firstLine, lines } = ctx;
 
+  if (!/^\s*#/.test(firstLine) && /;/.test(code) && /\b(plot|linspace|zeros|ones|eye|disp|size|meshgrid)\s*\(/.test(code)) {
+    return 'matlab';
+  }
+
+  if (/^\w+\(\d+,\s*:\)\s*=/.test(code) && /\bzeros\s*\(/.test(code)) {
+    return 'matlab';
+  }
+
+  if (/^\w+\s*=\s*\[[\d\s.;]+\];?$/m.test(first100Lines)) {
+    if (/\b(disp|size|plot|zeros|ones|eye|rand|randn)\s*\(/.test(code)) {
+      return 'matlab';
+    }
+  }
+
   // Simple single-line MATLAB patterns
   if (lines.length <= 3) {
     const trimmed = code.trim();

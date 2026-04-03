@@ -1,7 +1,21 @@
 import type { LanguageDetector } from '../types';
 
 export const detectJulia: LanguageDetector = (ctx) => {
-  const { code, first100Lines, lines } = ctx;
+  const { code, first100Lines, firstLine, lines } = ctx;
+
+  if (!/^\s*#/.test(firstLine) && /;/.test(code) && /\b(plot|linspace|zeros|ones|eye|disp|size|meshgrid)\s*\(/.test(code)) {
+    return null;
+  }
+
+  if (/^\w+\s*=\s*\[[\d\s.;]+\];?$/m.test(first100Lines)) {
+    if (/\b(disp|plot|size|zeros|ones|eye|linspace|meshgrid|arrayfun)\s*\(/.test(code)) {
+      return null;
+    }
+  }
+
+  if (/\blocal\s+\w+\s*=/.test(first100Lines) || /\b(ipairs|pairs|table\.)/.test(code)) {
+    return null;
+  }
 
   // Simple single-line Julia patterns
   if (lines.length <= 3) {
@@ -27,6 +41,12 @@ export const detectJulia: LanguageDetector = (ctx) => {
   if (/^module\s+[A-Z]\w*$/m.test(first100Lines) &&
       /\bdef\s+\w+/.test(first100Lines) &&
       /\bend\b/.test(code)) {
+    return null;
+  }
+
+  if (/^module\s+[A-Z]\w*$/m.test(first100Lines) &&
+      /^\s+class\s+[A-Z]\w*$/m.test(code) &&
+      /^\s*end\s*$/m.test(code)) {
     return null;
   }
 
@@ -64,6 +84,22 @@ export const detectJulia: LanguageDetector = (ctx) => {
   // Julia struct definition: struct Point{T<:Real}
   if (/^struct\s+[A-Z]\w*\{[^}]+\}/m.test(code)) {
     return 'julia';
+  }
+
+  if (/^struct\s+[A-Z]\w*\s*$/m.test(first100Lines) && /::[A-Z]\w*/.test(code) && /^end\s*$/m.test(code)) {
+    return 'julia';
+  }
+
+  if (/^function\s+\w+\s*\(/m.test(first100Lines) && /^end\s*$/m.test(code)) {
+    if (/\b(sum|length|zeros|ones|rand|randn|println)\s*\(/.test(code) && !/\blocal\b|\bthen\b|\belseif\b|\bdo\b/.test(code)) {
+      return 'julia';
+    }
+  }
+
+  if (/^function\s+\w+\s*\(/m.test(code) && /^end\s*$/m.test(code)) {
+    if (/\b(sum|length|zeros|ones|rand|randn|println)\s*\(/.test(code) && !/\blocal\b|\bthen\b|\belseif\b|\bdo\b/.test(code)) {
+      return 'julia';
+    }
   }
 
   if (/^[\w-]+\s*=\s*[^=]/m.test(code) && !/\bfunction\b|\bend\b/.test(first100Lines)) {
@@ -122,15 +158,12 @@ export const detectJulia: LanguageDetector = (ctx) => {
     }
   }
 
-  // Julia function definition (must be before Lua check)
   if (/^function\s+\w+\s*\(/m.test(first100Lines) && /\bend\b/.test(code)) {
-    // Check for Julia-specific patterns
     if (/^##/.test(first100Lines) ||
         /\b(zeros|ones|rand|randn|println|using|module)\b/.test(first100Lines) ||
         /\[[\d\s.]+\]/.test(first100Lines) ||
         /\bif\s+\w+\s*<=/.test(code) ||
-        /\breturn\s+\w+\([^)]*\)\s*\+/.test(code) ||
-        /\breturn\s+\w+/.test(code)) {
+        /\breturn\s+\w+\([^)]*\)\s*\+/.test(code)) {
       return 'julia';
     }
   }
@@ -150,10 +183,15 @@ export const detectJulia: LanguageDetector = (ctx) => {
     return 'julia';
   }
 
-  if (/\b(module|using|import)\s+[A-Z]\w*/.test(first100Lines)) {
-    if (/\bfunction\b|\bend\b/.test(code)) {
+  if (/\b(using|import)\s+[A-Z]\w*/.test(first100Lines)) {
+    if (/\b(function|struct|mutable\s+struct|export|const)\b/.test(code)) {
       return 'julia';
     }
+  }
+
+  if (/^module\s+[A-Z]\w*$/m.test(first100Lines) &&
+      /\b(function|struct|mutable\s+struct|export|const)\b/.test(code)) {
+    return 'julia';
   }
 
   if (/@\w+/.test(code) && /\bfunction\b.*\bend\b/.test(code)) {

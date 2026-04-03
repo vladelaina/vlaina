@@ -2,7 +2,11 @@ import type { LanguageDetector } from '../types';
 
 export const detectCPP: LanguageDetector = (ctx) => {
   const { first100Lines, sample, code } = ctx;
-  
+
+  if (/^[A-Za-z_][\w-]*="[^"]*"/m.test(first100Lines) && /\bprintf\s*\(/.test(code) && code.includes('$')) {
+    return null;
+  }
+
   // Helper variables
   const hasDoubleColon = sample.includes('::');
   const hasClass = sample.includes('class');
@@ -18,6 +22,11 @@ export const detectCPP: LanguageDetector = (ctx) => {
   }
 
   if (/\b(proc|iterator|template|macro)\s+\w+/.test(first100Lines)) {
+    return null;
+  }
+
+  if (/^namespace\s+[A-Z]\w*(\\[A-Z]\w*)*;$/m.test(first100Lines) &&
+      /^\s*(class|interface|trait|enum)\s+[A-Z]\w*/m.test(code)) {
     return null;
   }
 
@@ -65,7 +74,7 @@ export const detectCPP: LanguageDetector = (ctx) => {
 
   // C++ class definition
   if (/^class\s+\w+\s*\{/m.test(code) || /^class\s+\w+\s*$/m.test(code)) {
-    if (/#include\s*[<"]/.test(first100Lines) || 
+    if (/#include\s*[<"]/.test(first100Lines) ||
         /\b(public|private|protected):\s*$/m.test(code) ||
         /\b(std::|cout|cin|vector|template|namespace)\b/.test(code)) {
       return 'cpp';
@@ -115,13 +124,16 @@ export const detectCPP: LanguageDetector = (ctx) => {
     return 'c';
   }
 
-  if (/#include\s*[<"]/.test(first100Lines) || /\b(printf|scanf|malloc|free|sizeof|NULL)\b/.test(first100Lines)) {
+  if (/#include\s*[<"]/ .test(first100Lines) || /\b(printf|scanf|malloc|free|sizeof|NULL)\b/.test(first100Lines)) {
+    if (/^[A-Za-z_][\w-]*="[^"]*"/m.test(first100Lines) && /\bprintf\b/.test(code) && code.includes("$")) {
+      return null;
+    }
     if (/@(interface|implementation|property|protocol)\b/.test(code) ||
         /\bNS[A-Z]\w+\s*\*/.test(first100Lines) ||
         /#import\s+<(Foundation|UIKit|CoreFoundation|CFNetwork)\//.test(first100Lines)) {
       return null;
     }
-    
+
     if (/#include\s+<(IOKit|CoreVideo|CoreGraphics|ApplicationServices)\//.test(first100Lines)) {
       if (/\b(CF|CG|IO|CV)[A-Z]\w+\s*\(/.test(code)) {
         return 'objectivec';
