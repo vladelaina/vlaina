@@ -6,6 +6,7 @@ import {
   getBlockRangesKey,
   isRectIntersecting,
   normalizeBlockRanges,
+  pruneContainedBlockRanges,
   resolveDisplayedDragViewportRect,
   resolveIntersectedBlockRanges,
   type BlockRect,
@@ -41,6 +42,18 @@ describe('blockSelectionUtils', () => {
     expect(ranges).toEqual([
       { from: 4, to: 8 },
       { from: 10, to: 20 },
+    ]);
+  });
+
+  it('drops ranges fully contained by an outer selected block', () => {
+    expect(pruneContainedBlockRanges([
+      { from: 0, to: 30 },
+      { from: 8, to: 17 },
+      { from: 18, to: 27 },
+      { from: 30, to: 37 },
+    ])).toEqual([
+      { from: 0, to: 30 },
+      { from: 30, to: 37 },
     ]);
   });
 

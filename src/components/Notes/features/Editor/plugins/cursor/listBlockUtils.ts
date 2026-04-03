@@ -171,7 +171,7 @@ export function buildDeleteRangesFromSelectedListItems(
   for (const range of normalized) {
     const info = listItemInfoByRangeKey.get(getRangeKey(range));
     if (!info) {
-      deleteRanges.push(range);
+      deleteRanges.push({ ...range });
       continue;
     }
 
@@ -193,9 +193,11 @@ export function buildDeleteRangesFromSelectedListItems(
   }
 
   const normalizedDeleteRanges = normalizeBlockRanges(deleteRanges);
-  if (normalizedDeleteRanges.length <= 1) return normalizedDeleteRanges;
+  if (normalizedDeleteRanges.length <= 1) {
+    return normalizedDeleteRanges.map((range) => ({ ...range }));
+  }
 
-  const merged: BlockRange[] = [normalizedDeleteRanges[0]];
+  const merged: BlockRange[] = [{ ...normalizedDeleteRanges[0] }];
   for (let i = 1; i < normalizedDeleteRanges.length; i += 1) {
     const current = normalizedDeleteRanges[i];
     const last = merged[merged.length - 1];

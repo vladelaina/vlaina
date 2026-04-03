@@ -20,6 +20,25 @@ function readCodeBlockThemeSource() {
 }
 
 describe('editor embedded CodeMirror selection styles', () => {
+  it('keeps nested list block selection overlays from stacking darker backgrounds', () => {
+    const css = readStyleFile('core.css');
+
+    expect(css).toContain('.milkdown .ProseMirror li.vlaina-block-selected .vlaina-block-selected {');
+    expect(css).toContain('background-color: transparent;');
+    expect(css).toContain('box-shadow: none;');
+  });
+
+  it('keeps block drag previews transparent and lightens preview text', () => {
+    const css = readStyleFile('core.css');
+
+    expect(css).toContain('.vlaina-block-drag-preview {');
+    expect(css).toContain('background: transparent;');
+    expect(css).toContain('border: 0;');
+    expect(css).toContain('box-shadow: none;');
+    expect(css).toContain('--vlaina-block-drag-preview-fg: color-mix(in srgb, var(--vlaina-text-primary, currentColor) 40%, white 60%);');
+    expect(css).toContain('.vlaina-block-drag-preview-layer * {');
+  });
+
   it('keeps code block selection rendering on the CodeMirror selection layer', () => {
     const css = readStyleFile('code-block.css');
 

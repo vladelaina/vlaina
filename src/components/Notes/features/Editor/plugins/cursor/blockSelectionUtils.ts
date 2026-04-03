@@ -55,6 +55,26 @@ export function normalizeBlockRanges(ranges: readonly BlockRange[]): BlockRange[
   return unique;
 }
 
+export function pruneContainedBlockRanges(ranges: readonly BlockRange[]): BlockRange[] {
+  const normalized = normalizeBlockRanges(ranges);
+  if (normalized.length <= 1) return normalized;
+
+  const sorted = [...normalized].sort((a, b) => (
+    a.from === b.from ? b.to - a.to : a.from - b.from
+  ));
+
+  const pruned: BlockRange[] = [];
+  for (const range of sorted) {
+    const previous = pruned[pruned.length - 1];
+    if (previous && range.from >= previous.from && range.to <= previous.to) {
+      continue;
+    }
+    pruned.push(range);
+  }
+
+  return pruned.sort((a, b) => (a.from === b.from ? a.to - b.to : a.from - b.from));
+}
+
 export function resolveIntersectedBlockRanges(
   blocks: readonly BlockRect[],
   selectionRect: RectBounds,

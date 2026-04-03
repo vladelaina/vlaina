@@ -1,6 +1,6 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockRange } from './blockSelectionUtils';
-import { resolveBlockElementAtPos } from './topLevelBlockDom';
+import { resolveSelectableBlockTargetByPos } from './blockUnitResolver';
 
 const SOURCE_CLASS = 'vlaina-block-drag-source';
 const PREVIEW_CLASS = 'vlaina-block-drag-preview';
@@ -27,13 +27,28 @@ function clamp(value: number, min: number, max: number): number {
   return value;
 }
 
+function resolvePreviewOffsetX(clientX: number, sourceLeft: number, previewWidth: number): number {
+  const rawOffsetX = clientX - sourceLeft;
+  const maxOffsetX = Math.max(10, previewWidth - 10);
+  return Math.min(rawOffsetX, maxOffsetX);
+}
+
 function collectBlockElements(view: EditorView, ranges: readonly BlockRange[]): HTMLElement[] {
-  const unique = new Set<HTMLElement>();
   const elements: HTMLElement[] = [];
   for (const range of ranges) {
-    const element = resolveBlockElementAtPos(view, range.from);
-    if (!element || unique.has(element)) continue;
-    unique.add(element);
+    const target = resolveSelectableBlockTargetByPos(view, range.from);
+    const element = target?.element;
+    if (!element) continue;
+
+    const existingAncestorIndex = elements.findIndex((existing) => existing.contains(element));
+    if (existingAncestorIndex >= 0) continue;
+
+    for (let index = elements.length - 1; index >= 0; index -= 1) {
+      if (element.contains(elements[index])) {
+        elements.splice(index, 1);
+      }
+    }
+
     elements.push(element);
   }
   return elements;
@@ -116,7 +131,7 @@ export function createBlockDragPreview({
 
   const firstRect = elements[0].getBoundingClientRect();
   const previewRect = preview.getBoundingClientRect();
-  const offsetX = clamp(clientX - firstRect.left, 10, Math.max(10, previewRect.width - 10));
+  const offsetX = resolvePreviewOffsetX(clientX, firstRect.left, previewRect.width);
   const offsetY = clamp(clientY - firstRect.top, 8, Math.max(8, previewRect.height - 8));
 
   elements.forEach((element) => element.classList.add(SOURCE_CLASS));
