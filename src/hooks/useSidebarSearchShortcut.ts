@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { SIDEBAR_OPEN_SEARCH_EVENT } from '@/components/layout/sidebar/sidebarEvents';
 
-export function useGlobalSearch(onSearch: () => void, enabled = true) {
+export function useSidebarSearchShortcut(onSearch: () => void, enabled = true) {
   useEffect(() => {
     if (!enabled) {
       return;

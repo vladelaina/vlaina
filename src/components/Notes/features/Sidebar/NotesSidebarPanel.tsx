@@ -1,10 +1,8 @@
-import { useCallback, useEffect } from 'react';
 import { useUIStore } from '@/stores/uiSlice';
 import { SidebarContent } from './SidebarContent';
 import { NotesOutline } from './Outline';
 import { NotesSidebarSurface } from './NotesSidebarPrimitives';
-import { useGlobalSearch } from '@/hooks/useGlobalSearch';
-import { useNotesSidebarSearchState } from './notesSidebarSearch';
+import { useNotesSidebarSearch } from './useNotesSidebarSearch';
 import type { FolderNode } from '@/stores/useNotesStore';
 
 interface NotesSidebarPanelProps {
@@ -26,24 +24,7 @@ export function NotesSidebarPanel({
 }: NotesSidebarPanelProps) {
   const appViewMode = useUIStore((s) => s.appViewMode);
   const sidebarView = useUIStore((s) => s.notesSidebarView);
-  const setSidebarView = useUIStore((s) => s.setNotesSidebarView);
-  const { isSearchOpen, openSearch, closeSearch } = useNotesSidebarSearchState();
-
-  const toggleSearch = useCallback(() => {
-    if (isSearchOpen) {
-      closeSearch();
-      return;
-    }
-
-    setSidebarView('workspace');
-    openSearch();
-  }, [closeSearch, isSearchOpen, openSearch, setSidebarView]);
-
-  useGlobalSearch(toggleSearch, appViewMode === 'notes');
-
-  useEffect(() => {
-    closeSearch();
-  }, [closeSearch, sidebarView]);
+  const search = useNotesSidebarSearch(appViewMode === 'notes');
 
   return (
     <NotesSidebarSurface isPeeking={isPeeking} className="min-h-0">
@@ -54,6 +35,7 @@ export function NotesSidebarPanel({
           currentNotePath={currentNotePath}
           createNote={createNote}
           createFolder={createFolder}
+          search={search}
           isPeeking={isPeeking}
         />
       ) : (

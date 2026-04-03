@@ -1,23 +1,24 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { cn } from '@/lib/utils';
-import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
-import { NotesSidebarScrollArea } from './NotesSidebarPrimitives';
-import { NotesSidebarRow } from './NotesSidebarRow';
-import { NotesSidebarTopActions } from './NotesSidebarTopActions';
 import { Icon } from '@/components/ui/icons';
-import { StarredSection } from '../Starred';
-import { RootFolderRow } from './RootFolderRow';
-import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
-import { NoteDisambiguatedTitle } from '../common/noteDisambiguation';
 import {
   SidebarSearchDrawer,
   useSidebarSearchDrawerState,
 } from '@/components/layout/sidebar/SidebarSearchDrawer';
+import type { SidebarSearchState } from '@/components/layout/sidebar/useSidebarSearchState';
+import { cn } from '@/lib/utils';
+import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
+import { StarredSection } from '../Starred';
+import { NoteDisambiguatedTitle } from '../common/noteDisambiguation';
 import { triggerHoveredSidebarRename } from '../common/sidebarHoverRename';
+import { NotesSidebarRow } from './NotesSidebarRow';
+import { NotesSidebarScrollArea } from './NotesSidebarPrimitives';
+import { NotesSidebarTopActions } from './NotesSidebarTopActions';
+import { RootFolderRow } from './RootFolderRow';
 import {
-  buildNotesSidebarSearchResults,
-  useNotesSidebarSearchState,
-} from './notesSidebarSearch';
+  buildNotesSidebarSearchIndex,
+  queryNotesSidebarSearch,
+} from './notesSidebarSearchResults';
+import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
 
 interface SidebarContentProps {
   rootFolder: FolderNode | null;
@@ -25,6 +26,7 @@ interface SidebarContentProps {
   currentNotePath?: string | null;
   createNote: () => Promise<unknown>;
   createFolder: (path: string) => Promise<string | null>;
+  search: SidebarSearchState;
   className?: string;
   isPeeking?: boolean;
 }
@@ -35,13 +37,12 @@ export function SidebarContent({
   currentNotePath,
   createNote,
   createFolder,
+  search,
   className,
   isPeeking = false,
 }: SidebarContentProps) {
   const openNote = useNotesStore((s) => s.openNote);
   const getDisplayName = useNotesStore((s) => s.getDisplayName);
-  const { isSearchOpen, searchQuery, setSearchQuery, openSearch, closeSearch } =
-    useNotesSidebarSearchState();
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
   const {
     inputRef,
@@ -50,16 +51,21 @@ export function SidebarContent({
     handleScroll,
     shouldShowSearchResults,
   } = useSidebarSearchDrawerState({
-    isOpen: isSearchOpen,
-    query: searchQuery,
-    onOpen: openSearch,
-    onClose: closeSearch,
+    isOpen: search.isSearchOpen,
+    query: search.searchQuery,
+    onOpen: search.openSearch,
+    onClose: search.closeSearch,
     scopeRef: sidebarRootRef,
   });
 
+  const searchIndex = useMemo(
+    () => buildNotesSidebarSearchIndex(rootFolder, getDisplayName),
+    [getDisplayName, rootFolder],
+  );
+
   const searchResults = useMemo(
-    () => buildNotesSidebarSearchResults(rootFolder, searchQuery, getDisplayName),
-    [getDisplayName, rootFolder, searchQuery],
+    () => queryNotesSidebarSearch(searchIndex, search.searchQuery),
+    [search.searchQuery, searchIndex],
   );
 
   useEffect(() => {
@@ -122,10 +128,10 @@ export function SidebarContent({
   return (
     <div ref={sidebarRootRef} className={cn('flex h-full flex-col', className)}>
       <SidebarSearchDrawer
-        isSearchOpen={isSearchOpen}
+        isSearchOpen={search.isSearchOpen}
         shouldShowTopActions={!shouldShowSearchResults}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
+        searchQuery={search.searchQuery}
+        setSearchQuery={search.setSearchQuery}
         inputRef={inputRef}
         hideSearch={hideSearch}
         canSubmit={Boolean(searchResults[0])}

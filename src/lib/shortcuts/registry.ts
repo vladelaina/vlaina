@@ -24,9 +24,9 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
     section: 'General',
   },
   {
-    id: 'globalSearch',
-    action: 'Global search',
-    description: 'Global Search',
+    id: 'sidebarSearch',
+    action: 'Open sidebar search',
+    description: 'Open sidebar search',
     keys: ['Ctrl', 'F'],
     scope: 'global',
     isSystem: true,

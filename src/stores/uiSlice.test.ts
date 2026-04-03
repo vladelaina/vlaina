@@ -12,7 +12,6 @@ describe('uiSlice', () => {
       notesSidebarView: 'workspace',
       notesPreviewTitle: null,
       drawerOpen: false,
-      searchQuery: '',
       selectedTag: null,
       universalPreviewTarget: null,
       universalPreviewIcon: null,

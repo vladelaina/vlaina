@@ -49,12 +49,6 @@ interface UIStore {
   drawerOpen: boolean;
   setDrawerOpen: (open: boolean) => void;
   toggleDrawer: () => void;
-
-  notesSidebarSearchOpen: boolean;
-  setNotesSidebarSearchOpen: (open: boolean) => void;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-
   selectedTag: string | null;
   setSelectedTag: (tag: string | null) => void;
 
@@ -212,12 +206,6 @@ export const useUIStore = create<UIStore>()((set) => ({
   drawerOpen: false,
   setDrawerOpen: (open) => set({ drawerOpen: open }),
   toggleDrawer: () => set((state) => ({ drawerOpen: !state.drawerOpen })),
-
-  notesSidebarSearchOpen: false,
-  setNotesSidebarSearchOpen: (open) => set({ notesSidebarSearchOpen: open }),
-  searchQuery: '',
-  setSearchQuery: (query) => set({ searchQuery: query }),
-
   selectedTag: loadTagFilter(),
   setSelectedTag: (tag) => {
     saveTagFilter(tag);

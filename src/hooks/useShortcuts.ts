@@ -30,7 +30,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
     toggleNotesSidebarView: () => {
       setNotesSidebarView(notesSidebarView === 'workspace' ? 'outline' : 'workspace');
     },
-    globalSearch: () => {
+    sidebarSearch: () => {
       dispatchSidebarOpenSearchEvent();
     },
     'open-settings': () => {
