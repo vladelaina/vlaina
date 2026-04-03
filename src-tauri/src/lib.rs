@@ -333,6 +333,63 @@ async fn open_external_url(url: String) -> Result<(), String> {
     }
 }
 
+
+#[tauri::command]
+async fn open_in_system_file_manager(path: String) -> Result<(), String> {
+    use std::path::Path;
+    use std::process::Command;
+
+    let target = Path::new(path.trim());
+    if target.as_os_str().is_empty() {
+        return Err("Path is empty".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let status = Command::new("explorer")
+            .arg(format!("/select,{}", target.display()))
+            .status()
+            .map_err(|e| e.to_string())?;
+        if status.success() {
+            return Ok(());
+        }
+        return Err(format!("Failed to open file manager (explorer exit code {:?})", status.code()));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let status = Command::new("open")
+            .arg("-R")
+            .arg(target)
+            .status()
+            .map_err(|e| e.to_string())?;
+        if status.success() {
+            return Ok(());
+        }
+        return Err(format!("Failed to open file manager (open exit code {:?})", status.code()));
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let open_target = if target.is_dir() {
+            target.parent().unwrap_or(target)
+        } else {
+            target.parent().unwrap_or(target)
+        };
+        let status = Command::new("xdg-open")
+            .arg(open_target)
+            .status()
+            .map_err(|e| e.to_string())?;
+        if status.success() {
+            return Ok(());
+        }
+        return Err(format!("Failed to open file manager (xdg-open exit code {:?})", status.code()));
+    }
+
+    #[allow(unreachable_code)]
+    Err("Opening the system file manager is not supported on this platform".to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -348,6 +405,7 @@ pub fn run() {
             focus_window,
             move_to_trash,
             open_external_url,
+            open_in_system_file_manager,
             account::ai_secret_commands::get_ai_provider_secrets,
             account::ai_secret_commands::set_ai_provider_secret,
             account::ai_secret_commands::delete_ai_provider_secret,

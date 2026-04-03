@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type React from 'react';
 import { useNotesStore, type NoteFile } from '@/stores/useNotesStore';
 import type { NotesSidebarRowDragHandlers } from '../../Sidebar/NotesSidebarRow';
-import { getSidebarMenuPositionFromTriggerRect } from '../../common/sidebarMenuPosition';
+import { getSidebarContextMenuPosition, getSidebarMenuPositionFromTriggerRect } from '../../common/sidebarMenuPosition';
 
 export function useFileItemState(node: NoteFile) {
   const openNote = useNotesStore((state) => state.openNote);
@@ -33,7 +33,7 @@ export function useFileItemState(node: NoteFile) {
   const handleContextMenu = useCallback((event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    setMenuPosition({ top: event.clientY, left: event.clientX });
+    setMenuPosition(getSidebarContextMenuPosition(event.currentTarget.getBoundingClientRect(), event.clientY));
     setShowMenu(true);
   }, []);
 

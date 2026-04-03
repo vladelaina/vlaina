@@ -12,10 +12,11 @@ import { FileItem } from '../FileTree/FileItem';
 import { FolderItem } from '../FileTree/FolderItem';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 import { NotesSidebarSection } from '../Sidebar/NotesSidebarPrimitives';
+import { NotesSidebarContextMenu } from '../Sidebar/NotesSidebarContextMenu';
 import {
-  NotesSidebarContextMenu,
-  NotesSidebarContextMenuItem,
-} from '../Sidebar/NotesSidebarContextMenu';
+  NotesSidebarContextMenuContent,
+  type NotesSidebarMenuEntry,
+} from '../Sidebar/context-menu/NotesSidebarContextMenuContent';
 import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 import { SidebarStarBadge } from '../common/SidebarStarBadge';
 import { getSidebarMenuPositionFromTriggerRect } from '../common/sidebarMenuPosition';
@@ -181,23 +182,29 @@ function ExternalStarredEntryRow({
         onClose={() => setShowMenu(false)}
         position={menuPosition}
       >
-        {entry.kind === 'note' ? (
-          <NotesSidebarContextMenuItem
-            icon={<Icon name="nav.external" size="md" />}
-            label="Open in new tab"
-            onClick={() => {
-              onOpen(true);
-              setShowMenu(false);
-            }}
-          />
-        ) : null}
-        <NotesSidebarContextMenuItem
-          icon={<Icon name="misc.star" size="md" className="fill-amber-500 text-amber-500" />}
-          label="Remove from Starred"
-          onClick={() => {
-            onRemove();
-            setShowMenu(false);
-          }}
+        <NotesSidebarContextMenuContent
+          entries={[
+            ...(entry.kind === 'note'
+              ? [{
+                  key: 'open-new-tab',
+                  icon: <Icon name="nav.external" size="md" />,
+                  label: 'Open in new tab',
+                  onClick: () => {
+                    onOpen(true);
+                    setShowMenu(false);
+                  },
+                } satisfies NotesSidebarMenuEntry]
+              : []),
+            {
+              key: 'remove-starred',
+              icon: <Icon name="misc.star" size="md" className="fill-amber-500 text-amber-500" />,
+              label: 'Remove from Starred',
+              onClick: () => {
+                onRemove();
+                setShowMenu(false);
+              },
+            } satisfies NotesSidebarMenuEntry,
+          ]}
         />
       </NotesSidebarContextMenu>
     </>

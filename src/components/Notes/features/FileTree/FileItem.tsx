@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef } from 'react';
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { Icon } from '@/components/ui/icons';
+import { useToastStore } from '@/stores/useToastStore';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import type { NoteFile } from '@/stores/useNotesStore';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -13,6 +14,7 @@ import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 import { NoteDisambiguatedTitle } from '../common/noteDisambiguation';
 import { SidebarStarBadge } from '../common/SidebarStarBadge';
+import { copyTreeItemPath, openTreeItemLocation } from './pathActions';
 import { scrollSidebarItemIntoView } from '../common/sidebarScrollIntoView';
 import {
   clearHoveredSidebarRenamePath,
@@ -56,6 +58,7 @@ export const FileItem = memo(function FileItem({
     toggleStarred,
   } = useFileItemState(node);
   const isNewlyCreated = useNotesStore((state) => state.isNewlyCreated);
+  const notesPath = useNotesStore((state) => state.notesPath);
 
   const displayName = useDisplayName(node.path) || node.name;
   const noteIcon = useDisplayIcon(node.path);
@@ -183,6 +186,28 @@ export const FileItem = memo(function FileItem({
         onToggleStar={() => {
           toggleStarred(node.path);
           setShowMenu(false);
+        }}
+        onCopyPath={async () => {
+          setShowMenu(false);
+          try {
+            await copyTreeItemPath(notesPath, node.path);
+          } catch (error) {
+            useToastStore.getState().addToast(
+              error instanceof Error ? error.message : 'Failed to copy path.',
+              'error'
+            );
+          }
+        }}
+        onOpenFileLocation={async () => {
+          setShowMenu(false);
+          try {
+            await openTreeItemLocation(notesPath, node.path);
+          } catch (error) {
+            useToastStore.getState().addToast(
+              error instanceof Error ? error.message : 'Failed to open file location.',
+              'error'
+            );
+          }
         }}
         onDelete={() => {
           setShowMenu(false);

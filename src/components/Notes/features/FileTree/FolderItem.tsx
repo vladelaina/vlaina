@@ -2,6 +2,8 @@ import { memo, useEffect, useRef } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import type { FolderNode } from '@/stores/useNotesStore';
+import { useNotesStore } from '@/stores/useNotesStore';
+import { useToastStore } from '@/stores/useToastStore';
 import { FileItem } from './FileItem';
 import { FolderItemMenu } from './components/FolderItemMenu';
 import { TreeItemDeleteDialog } from './components/TreeItemDeleteDialog';
@@ -11,6 +13,7 @@ import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
 import { SidebarStarBadge } from '../common/SidebarStarBadge';
+import { copyTreeItemPath, openTreeItemLocation } from './pathActions';
 import {
   clearHoveredSidebarRenamePath,
   registerSidebarHoverRenameTarget,
@@ -54,6 +57,7 @@ export const FolderItem = memo(function FolderItem({
     toggleFolderStarred,
   } = useFolderItemState(node);
   const hasChildren = node.children.length > 0;
+  const notesPath = useNotesStore((state) => state.notesPath);
 
   useEffect(() => {
     isRenamingRef.current = isRenaming;
@@ -177,6 +181,28 @@ export const FolderItem = memo(function FolderItem({
         onToggleStar={() => {
           toggleFolderStarred(node.path);
           setShowMenu(false);
+        }}
+        onCopyPath={async () => {
+          setShowMenu(false);
+          try {
+            await copyTreeItemPath(notesPath, node.path);
+          } catch (error) {
+            useToastStore.getState().addToast(
+              error instanceof Error ? error.message : 'Failed to copy path.',
+              'error'
+            );
+          }
+        }}
+        onOpenFolderLocation={async () => {
+          setShowMenu(false);
+          try {
+            await openTreeItemLocation(notesPath, node.path);
+          } catch (error) {
+            useToastStore.getState().addToast(
+              error instanceof Error ? error.message : 'Failed to open folder location.',
+              'error'
+            );
+          }
         }}
         onDelete={() => {
           setShowMenu(false);
