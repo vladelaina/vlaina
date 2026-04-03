@@ -1,8 +1,9 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { blankAreaDragBoxPluginKey } from './blankAreaDragBoxPlugin';
+import { getBlockSelectionPluginState } from './blockSelectionPluginState';
 import { getBlockRangesKey, normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
 import { pickPointerBlock } from './blockControlsUtils';
 import { createBlockDragPreview, type BlockDragPreviewHandle } from './blockDragPreview';
+import { createBlockControlsDom } from './blockControlsDom';
 import {
   applyBlockMove,
   canApplyBlockMove,
@@ -20,46 +21,10 @@ const WHEEL_DELTA_MODE_LINE = 1;
 const WHEEL_DELTA_MODE_PAGE = 2;
 const WHEEL_LINE_HEIGHT_PX = 16;
 
-interface BlockSelectionPluginState {
-  selectedBlocks: BlockRange[];
-}
-
 function normalizeWheelDelta(delta: number, deltaMode: number, pageSize: number): number {
   if (deltaMode === WHEEL_DELTA_MODE_LINE) return delta * WHEEL_LINE_HEIGHT_PX;
   if (deltaMode === WHEEL_DELTA_MODE_PAGE) return delta * pageSize;
   return delta;
-}
-
-function createControls(doc: Document): { controls: HTMLDivElement; handleButton: HTMLButtonElement } {
-  const controls = doc.createElement('div');
-  controls.className = 'vlaina-block-controls';
-  controls.setAttribute('data-no-block-controls', 'true');
-  controls.setAttribute('data-no-editor-drag-box', 'true');
-
-  const handleButton = doc.createElement('button');
-  handleButton.type = 'button';
-  handleButton.className = 'vlaina-block-control-btn vlaina-block-control-handle';
-  handleButton.setAttribute('aria-label', 'Drag block');
-  handleButton.setAttribute('data-no-block-controls', 'true');
-  handleButton.setAttribute('data-no-editor-drag-box', 'true');
-  handleButton.draggable = false;
-  handleButton.innerHTML = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="20" height="20" aria-hidden="true" focusable="false">
-      <path d="M108,60A16,16,0,1,1,92,44,16,16,0,0,1,108,60Zm56,16a16,16,0,1,0-16-16A16,16,0,0,0,164,76ZM92,112a16,16,0,1,0,16,16A16,16,0,0,0,92,112Zm72,0a16,16,0,1,0,16,16A16,16,0,0,0,164,112ZM92,180a16,16,0,1,0,16,16A16,16,0,0,0,92,180Zm72,0a16,16,0,1,0,16,16A16,16,0,0,0,164,180Z" fill="currentColor"></path>
-    </svg>
-  `;
-  controls.appendChild(handleButton);
-  doc.body.appendChild(controls);
-
-  return { controls, handleButton };
-}
-
-function createDropIndicator(doc: Document): HTMLDivElement {
-  const dropIndicator = doc.createElement('div');
-  dropIndicator.className = 'vlaina-block-drop-indicator';
-  dropIndicator.setAttribute('aria-hidden', 'true');
-  doc.body.appendChild(dropIndicator);
-  return dropIndicator;
 }
 
 export class BlockControlsViewSession {
@@ -90,10 +55,10 @@ export class BlockControlsViewSession {
     this.scrollRoot = view.dom.closest(SCROLL_ROOT_SELECTOR) as HTMLElement | null;
     this.cachedDoc = view.state.doc;
 
-    const { controls, handleButton } = createControls(this.doc);
+    const { controls, handleButton, dropIndicator } = createBlockControlsDom(this.doc);
     this.controls = controls;
     this.handleButton = handleButton;
-    this.dropIndicator = createDropIndicator(this.doc);
+    this.dropIndicator = dropIndicator;
 
     this.handleButton.addEventListener('mousedown', this.handleHandleMouseDown);
     this.doc.addEventListener('mousemove', this.handleDocumentMouseMove, true);
@@ -133,9 +98,7 @@ export class BlockControlsViewSession {
   }
 
   private getSelectedBlockRanges(): BlockRange[] {
-    const pluginState = blankAreaDragBoxPluginKey.getState(this.view.state) as BlockSelectionPluginState | undefined;
-    if (!pluginState || !Array.isArray(pluginState.selectedBlocks)) return [];
-    return normalizeBlockRanges(pluginState.selectedBlocks);
+    return normalizeBlockRanges(getBlockSelectionPluginState(this.view.state).selectedBlocks);
   }
 
   private hideControls(): void {

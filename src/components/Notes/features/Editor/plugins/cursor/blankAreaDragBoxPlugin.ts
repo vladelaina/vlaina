@@ -1,9 +1,8 @@
 import { $prose } from '@milkdown/kit/utils';
 import { serializerCtx } from '@milkdown/kit/core';
-import { Plugin, PluginKey, Selection, type EditorState } from '@milkdown/kit/prose/state';
-import { DecorationSet, type EditorView } from '@milkdown/kit/prose/view';
+import { Plugin, Selection, type EditorState } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import type { Serializer } from '@milkdown/kit/transformer';
-import { isClickBelowLastBlock } from './endBlankClickUtils';
 import { dispatchTailBlankClickAction } from './endBlankClickPlugin';
 import {
   createBlockSelectionDecorations,
@@ -22,95 +21,30 @@ import { type BlockDragStartZone } from './blockDragSession';
 import {
   applyBlankAreaPlainClickSelection,
 } from './blankAreaPlainClick';
+import {
+  blankAreaDragBoxPluginKey,
+  CLEAR_BLOCKS_ACTION,
+  clearBlockSelection,
+  dispatchBlockSelectionAction,
+  EMPTY_BLOCK_SELECTION_PLUGIN_STATE,
+  getBlockSelectionPluginState,
+  hasSelectedBlocks,
+  setBlockSelectionVisualState,
+  syncBlockSelectionVisualState,
+  type BlankAreaDragBoxState,
+  type BlockSelectionAction,
+} from './blockSelectionPluginState';
+import {
+  isIgnoredBlankAreaDragBoxTarget,
+  resolveBlankAreaDragStartZone,
+} from './blankAreaDragTargets';
 
-export const blankAreaDragBoxPluginKey = new PluginKey('blankAreaDragBox');
+export { blankAreaDragBoxPluginKey } from './blockSelectionPluginState';
 
 const DRAG_THRESHOLD = 4;
 const DRAG_BOX_COLOR = 'color-mix(in srgb, var(--vlaina-text-tertiary, #71717a) 18%, transparent)';
 const DRAG_SESSION_CURSOR = 'crosshair';
-const BLOCK_SELECTION_ACTIVE_CLASS = 'vlaina-block-selection-active';
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
-const NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR = '[data-notes-sidebar-scroll-root="true"]';
-const COVER_REGION_SELECTOR = '[data-note-cover-region="true"]';
-const INTERACTIVE_SELECTOR = [
-  'a',
-  'button',
-  'input',
-  'textarea',
-  'select',
-  'summary',
-  'label',
-  '[role="button"]',
-  '[contenteditable="false"]',
-  '[data-no-editor-drag-box="true"]',
-].join(', ');
-
-interface BlankAreaDragBoxState {
-  selectedBlocks: BlockRange[];
-  decorations: DecorationSet;
-}
-
-type BlockSelectionAction =
-  | { type: 'set-blocks'; blocks: BlockRange[] }
-  | { type: 'clear-blocks' };
-
-const EMPTY_PLUGIN_STATE: BlankAreaDragBoxState = {
-  selectedBlocks: [],
-  decorations: DecorationSet.empty,
-};
-
-const CLEAR_BLOCKS_ACTION: BlockSelectionAction = { type: 'clear-blocks' };
-
-function getScrollRoot(element: HTMLElement | null): HTMLElement | null {
-  if (!element) return null;
-  return element.closest(SCROLL_ROOT_SELECTOR) as HTMLElement | null;
-}
-
-function isSidebarBlankStartTarget(target: HTMLElement): boolean {
-  const sidebarScrollRoot = target.closest(NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR) as HTMLElement | null;
-  if (!sidebarScrollRoot) return false;
-  return target === sidebarScrollRoot;
-}
-
-function resolveDragStartZone(view: EditorView, event: MouseEvent): BlockDragStartZone | null {
-  if (!(event.target instanceof HTMLElement)) return null;
-  const target = event.target;
-
-  const editorScrollRoot = getScrollRoot(view.dom);
-  const targetScrollRoot = getScrollRoot(target);
-  const isSameEditorScrollRoot = !!editorScrollRoot && !!targetScrollRoot && editorScrollRoot === targetScrollRoot;
-  const isSidebarBlankStart = isSidebarBlankStartTarget(target);
-  if (!isSameEditorScrollRoot && !isSidebarBlankStart) return null;
-
-  if (target.closest(COVER_REGION_SELECTOR)) return null;
-  if (target.closest(INTERACTIVE_SELECTOR)) return null;
-
-  if (view.dom.contains(target)) {
-    if (target === view.dom && isClickBelowLastBlock(view.dom, event.clientY)) {
-      return 'below-last-block';
-    }
-    return null;
-  }
-
-  if (isSidebarBlankStart) {
-    return 'outside-editor';
-  }
-
-  return 'outside-editor';
-}
-
-function getPluginState(state: EditorState): BlankAreaDragBoxState {
-  return blankAreaDragBoxPluginKey.getState(state) ?? EMPTY_PLUGIN_STATE;
-}
-
-function dispatchSelectionAction(view: EditorView, action: BlockSelectionAction): void {
-  view.dispatch(view.state.tr.setMeta(blankAreaDragBoxPluginKey, action));
-}
-
-function clearBlockSelection(view: EditorView): void {
-  if (getPluginState(view.state).selectedBlocks.length === 0) return;
-  dispatchSelectionAction(view, CLEAR_BLOCKS_ACTION);
-}
 
 function dispatchBlankAreaPlainClick(view: EditorView, action: {
   targetPos: number;
@@ -134,21 +68,8 @@ function clearTextSelectionForDragSession(view: EditorView): void {
   window.getSelection()?.removeAllRanges();
 }
 
-function setBlockSelectionVisualState(view: EditorView, active: boolean): void {
-  view.dom.classList.toggle(BLOCK_SELECTION_ACTIVE_CLASS, active);
-}
-
-function syncBlockSelectionVisualState(view: EditorView): void {
-  const active = getPluginState(view.state).selectedBlocks.length > 0;
-  setBlockSelectionVisualState(view, active);
-}
-
 function isClipboardEvent(event: Event): event is ClipboardEvent {
   return 'clipboardData' in event;
-}
-
-function isIgnoredDragBoxTarget(target: EventTarget | null): boolean {
-  return target instanceof Element && !!target.closest('[data-no-editor-drag-box="true"]');
 }
 
 function deleteSelectedBlocks(view: EditorView, blocks: readonly BlockRange[]): boolean {
@@ -189,7 +110,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
   const tryStartSession = (view: EditorView, event: MouseEvent): BlockDragStartZone | null => {
     if (event.button !== 0) return null;
     if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return null;
-    const startZone = resolveDragStartZone(view, event);
+    const startZone = resolveBlankAreaDragStartZone(view, event);
     if (!startZone) return null;
 
     clearTextSelectionForDragSession(view);
@@ -203,9 +124,9 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
       cursor: DRAG_SESSION_CURSOR,
       dragBoxColor: DRAG_BOX_COLOR,
       scrollRootSelector: SCROLL_ROOT_SELECTOR,
-      initialSelectedBlocks: getPluginState(view.state).selectedBlocks,
+      initialSelectedBlocks: getBlockSelectionPluginState(view.state).selectedBlocks,
       onSelectionChange(blocks) {
-        dispatchSelectionAction(view, blocks.length > 0
+        dispatchBlockSelectionAction(view, blocks.length > 0
           ? { type: 'set-blocks', blocks }
           : CLEAR_BLOCKS_ACTION);
       },
@@ -236,12 +157,12 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
     key: blankAreaDragBoxPluginKey,
     state: {
       init() {
-        return EMPTY_PLUGIN_STATE;
+        return EMPTY_BLOCK_SELECTION_PLUGIN_STATE;
       },
       apply(tr, pluginState: BlankAreaDragBoxState) {
         const action = tr.getMeta(blankAreaDragBoxPluginKey) as BlockSelectionAction | undefined;
         if (action?.type === 'clear-blocks') {
-          return EMPTY_PLUGIN_STATE;
+          return EMPTY_BLOCK_SELECTION_PLUGIN_STATE;
         }
         if (action?.type === 'set-blocks') {
           const selectedBlocks = normalizeBlockRanges(action.blocks);
@@ -256,7 +177,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         }
 
         const selectedBlocks = mapBlockRangesThroughTransaction(pluginState.selectedBlocks, tr);
-        if (selectedBlocks.length === 0) return EMPTY_PLUGIN_STATE;
+        if (selectedBlocks.length === 0) return EMPTY_BLOCK_SELECTION_PLUGIN_STATE;
         return {
           selectedBlocks,
           decorations: createBlockSelectionDecorations(tr.doc, selectedBlocks),
@@ -265,10 +186,10 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
     },
     props: {
       decorations(state) {
-        return getPluginState(state).decorations;
+        return getBlockSelectionPluginState(state).decorations;
       },
       handleKeyDown(view, event) {
-        const { selectedBlocks } = getPluginState(view.state);
+        const { selectedBlocks } = getBlockSelectionPluginState(view.state);
         if (selectedBlocks.length === 0) return false;
 
         const key = event.key.toLowerCase();
@@ -299,7 +220,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
       handleDOMEvents: {
         copy(view, event) {
           if (!isClipboardEvent(event)) return false;
-          const { selectedBlocks } = getPluginState(view.state);
+          const { selectedBlocks } = getBlockSelectionPluginState(view.state);
           if (selectedBlocks.length === 0) return false;
 
           const text = serializeSelectedBlocks(view.state, selectedBlocks);
@@ -308,7 +229,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         },
         cut(view, event) {
           if (!isClipboardEvent(event)) return false;
-          const { selectedBlocks } = getPluginState(view.state);
+          const { selectedBlocks } = getBlockSelectionPluginState(view.state);
           if (selectedBlocks.length === 0) return false;
 
           const text = serializeSelectedBlocks(view.state, selectedBlocks);
@@ -317,9 +238,9 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         },
         mousedown(view, event) {
           if (!(event instanceof MouseEvent)) return false;
-          if (isIgnoredDragBoxTarget(event.target)) return false;
+          if (isIgnoredBlankAreaDragBoxTarget(event.target)) return false;
           const target = event.target;
-          if (target instanceof Node && view.dom.contains(target) && getPluginState(view.state).selectedBlocks.length > 0) {
+          if (target instanceof Node && view.dom.contains(target) && hasSelectedBlocks(view.state)) {
             clearBlockSelection(view);
           }
 
@@ -334,10 +255,10 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
       const doc = view.dom.ownerDocument;
       syncBlockSelectionVisualState(view);
       const handleDocumentMouseDown = (event: MouseEvent) => {
-        if (isIgnoredDragBoxTarget(event.target)) return;
+        if (isIgnoredBlankAreaDragBoxTarget(event.target)) return;
         const target = event.target;
         if (target instanceof Node && view.dom.contains(target)) {
-          if (getPluginState(view.state).selectedBlocks.length > 0) {
+          if (hasSelectedBlocks(view.state)) {
             clearBlockSelection(view);
           }
           return;
