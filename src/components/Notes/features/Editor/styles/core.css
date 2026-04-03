@@ -104,12 +104,11 @@ body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hide
 
 /* Notion-like drag block selection highlight */
 .milkdown .ProseMirror .vlaina-block-selected {
-  --vlaina-block-selection-color: var(--vlaina-hover-filled);
+  --vlaina-block-selection-color: color-mix(in srgb, var(--vlaina-text-tertiary, #71717a) 14%, transparent);
   --vlaina-block-selection-bleed-y: 4px;
   --vlaina-block-selection-bleed-x-start: 0;
   background-color: var(--vlaina-block-selection-color);
   box-shadow:
-    inset 0 0 0 1px var(--vlaina-block-selection-color),
     0 var(--vlaina-block-selection-bleed-y) 0 0 var(--vlaina-block-selection-color),
     0 calc(-1 * var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-color),
     calc(-1 * var(--vlaina-block-selection-bleed-x-start)) 0 0 0 var(--vlaina-block-selection-color);

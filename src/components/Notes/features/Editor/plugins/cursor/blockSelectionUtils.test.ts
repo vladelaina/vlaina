@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
+  convertBlockRectsToDocumentSpace,
+  convertViewportDragRectToDocumentRect,
   createDragSelectionRect,
   getBlockRangesKey,
   isRectIntersecting,
   normalizeBlockRanges,
+  resolveDisplayedDragViewportRect,
   resolveIntersectedBlockRanges,
   type BlockRect,
 } from './blockSelectionUtils';
@@ -39,6 +42,38 @@ describe('blockSelectionUtils', () => {
       { from: 4, to: 8 },
       { from: 10, to: 20 },
     ]);
+  });
+
+  it('converts drag rectangles into document space across scroll changes', () => {
+    expect(
+      convertViewportDragRectToDocumentRect(
+        { left: 80, top: 120, right: 20, bottom: 40 },
+        80,
+        120,
+        10,
+        20,
+        50,
+        70,
+      ),
+    ).toEqual({ left: 70, top: 110, right: 90, bottom: 140 });
+
+    expect(
+      resolveDisplayedDragViewportRect(
+        { left: 80, top: 120, right: 20, bottom: 40 },
+        80,
+        120,
+        10,
+        20,
+        50,
+        70,
+      ),
+    ).toEqual({ left: 20, top: 40, right: 40, bottom: 70 });
+  });
+
+  it('converts block rects into document space', () => {
+    expect(
+      convertBlockRectsToDocumentSpace([{ from: 1, to: 2, left: 10, top: 20, right: 30, bottom: 40 }], 5, 7),
+    ).toEqual([{ from: 1, to: 2, left: 15, top: 27, right: 35, bottom: 47 }]);
   });
 
   it('selects only intersected blocks and returns ordered ranges', () => {

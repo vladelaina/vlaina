@@ -1,3 +1,6 @@
+import type { EditorState, Transaction } from '@milkdown/kit/prose/state';
+import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
+
 export interface RectBounds {
   left: number;
   top: number;
@@ -66,4 +69,119 @@ export function resolveIntersectedBlockRanges(
 export function getBlockRangesKey(ranges: readonly BlockRange[]): string {
   if (ranges.length === 0) return '';
   return ranges.map((range) => `${range.from}:${range.to}`).join('|');
+}
+
+
+export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks: readonly BlockRange[]): DecorationSet {
+  if (blocks.length === 0) return DecorationSet.empty;
+
+  const displayRanges = normalizeBlockRanges(blocks.map((block) => {
+    const safeFrom = Math.max(0, Math.min(block.from, doc.content.size));
+    let from = block.from;
+    let to = block.to;
+    try {
+      const $from = doc.resolve(safeFrom);
+      const nodeAfter = $from.nodeAfter;
+      if (nodeAfter && nodeAfter.type.name === 'list_item') {
+        from = safeFrom;
+        to = safeFrom + nodeAfter.nodeSize;
+      }
+    } catch {
+    }
+    return { from, to };
+  }));
+
+  const decorations = displayRanges.map((range) => Decoration.node(range.from, range.to, {
+    class: 'vlaina-block-selected',
+  }));
+
+  return DecorationSet.create(doc, decorations);
+}
+
+export function mapBlockRangesThroughTransaction(blocks: readonly BlockRange[], tr: Transaction): BlockRange[] {
+  if (blocks.length === 0) return [];
+
+  const mapped = blocks
+    .map((block) => ({
+      from: tr.mapping.map(block.from, 1),
+      to: tr.mapping.map(block.to, -1),
+    }))
+    .filter((block) => block.to > block.from);
+
+  return normalizeBlockRanges(mapped);
+}
+
+function resolveDragPointerCoordinate(start: number, min: number, max: number): number {
+  return start === min ? max : min;
+}
+
+export function convertViewportDragRectToDocumentRect(
+  viewportRect: RectBounds,
+  startX: number,
+  startY: number,
+  startScrollLeft: number,
+  startScrollTop: number,
+  currentScrollLeft: number,
+  currentScrollTop: number,
+): RectBounds {
+  const currentX = resolveDragPointerCoordinate(startX, viewportRect.left, viewportRect.right);
+  const currentY = resolveDragPointerCoordinate(startY, viewportRect.top, viewportRect.bottom);
+  const startDocX = startX + startScrollLeft;
+  const startDocY = startY + startScrollTop;
+  const currentDocX = currentX + currentScrollLeft;
+  const currentDocY = currentY + currentScrollTop;
+  return createDragSelectionRect(startDocX, startDocY, currentDocX, currentDocY);
+}
+
+export function convertDocumentRectToViewportRect(
+  documentRect: RectBounds,
+  currentScrollLeft: number,
+  currentScrollTop: number,
+): RectBounds {
+  return {
+    left: documentRect.left - currentScrollLeft,
+    right: documentRect.right - currentScrollLeft,
+    top: documentRect.top - currentScrollTop,
+    bottom: documentRect.bottom - currentScrollTop,
+  };
+}
+
+export function resolveDisplayedDragViewportRect(
+  rawViewportRect: RectBounds,
+  startX: number,
+  startY: number,
+  startScrollLeft: number,
+  startScrollTop: number,
+  currentScrollLeft: number,
+  currentScrollTop: number,
+): RectBounds {
+  const documentRect = convertViewportDragRectToDocumentRect(
+    rawViewportRect,
+    startX,
+    startY,
+    startScrollLeft,
+    startScrollTop,
+    currentScrollLeft,
+    currentScrollTop,
+  );
+
+  return convertDocumentRectToViewportRect(documentRect, currentScrollLeft, currentScrollTop);
+}
+
+export function convertBlockRectsToDocumentSpace(
+  blockRects: readonly BlockRect[],
+  scrollLeft: number,
+  scrollTop: number,
+): BlockRect[] {
+  if (scrollLeft === 0 && scrollTop === 0) {
+    return [...blockRects];
+  }
+
+  return blockRects.map((block) => ({
+    ...block,
+    left: block.left + scrollLeft,
+    right: block.right + scrollLeft,
+    top: block.top + scrollTop,
+    bottom: block.bottom + scrollTop,
+  }));
 }
