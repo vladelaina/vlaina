@@ -1,26 +1,26 @@
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect } from 'react';
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { Icon } from '@/components/ui/icons';
-import { useToastStore } from '@/stores/useToastStore';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import type { NoteFile } from '@/stores/useNotesStore';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { FileItemMenu } from './components/FileItemMenu';
 import { TreeItemDeleteDialog } from './components/TreeItemDeleteDialog';
 import { useFileItemState } from './hooks/useFileItemState';
 import { NoteIcon } from '../IconPicker/NoteIcon';
-import { cn, iconButtonStyles } from '@/lib/utils';
-import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
+import { cn } from '@/lib/utils';
 import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 import { NoteDisambiguatedTitle } from '../common/noteDisambiguation';
 import { SidebarStarBadge } from '../common/SidebarStarBadge';
-import { copyTreeItemPath, openTreeItemLocation } from './pathActions';
 import { scrollSidebarItemIntoView } from '../common/sidebarScrollIntoView';
+import { TreeItemShell } from './components/TreeItemShell';
 import {
-  clearHoveredSidebarRenamePath,
-  registerSidebarHoverRenameTarget,
-  setHoveredSidebarRenamePath,
-} from '../common/sidebarHoverRename';
+  createTreeItemDeleteEntries,
+  createTreeItemPathSubmenu,
+  createTreeItemStarEntry,
+  TreeItemMenu,
+} from './components/TreeItemMenu';
+import { useTreeItemPathActions } from './hooks/useTreeItemPathActions';
+import type { NotesSidebarMenuEntry } from '../Sidebar/context-menu/NotesSidebarContextMenuContent';
 
 interface FileItemProps {
   node: NoteFile;
@@ -35,8 +35,6 @@ export const FileItem = memo(function FileItem({
   currentNotePath,
   showStarBadge = false,
 }: FileItemProps) {
-  const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const isRenamingRef = useRef(false);
   const {
     showMenu,
     setShowMenu,
@@ -59,27 +57,53 @@ export const FileItem = memo(function FileItem({
   } = useFileItemState(node);
   const isNewlyCreated = useNotesStore((state) => state.isNewlyCreated);
   const notesPath = useNotesStore((state) => state.notesPath);
+  const { handleCopyPath, handleOpenLocation } = useTreeItemPathActions({
+    notesPath,
+    itemPath: node.path,
+  });
 
   const displayName = useDisplayName(node.path) || node.name;
   const noteIcon = useDisplayIcon(node.path);
   const isActive = node.path === currentNotePath;
-
-  useEffect(() => {
-    isRenamingRef.current = isRenaming;
-  }, [isRenaming]);
-
-  useEffect(() => {
-    return registerSidebarHoverRenameTarget(node.path, {
-      startRename: () => {
+  const menuEntries: NotesSidebarMenuEntry[] = [
+    {
+      key: 'rename',
+      icon: <Icon name="common.compose" size="md" />,
+      label: 'Rename',
+      onClick: () => {
         setIsRenaming(true);
         setShowMenu(false);
       },
-      cancelRename: () => {
-        setIsRenaming(false);
+    },
+    {
+      key: 'open-new-tab',
+      icon: <Icon name="nav.external" size="md" />,
+      label: 'Open in new tab',
+      onClick: () => {
+        void openNote(node.path, true);
+        setShowMenu(false);
       },
-      isRenaming: () => isRenamingRef.current,
-    });
-  }, [node.path, setIsRenaming, setShowMenu]);
+    },
+    createTreeItemStarEntry(isItemStarred, () => {
+      toggleStarred(node.path);
+      setShowMenu(false);
+    }),
+    createTreeItemPathSubmenu({
+      onCopyPath: async () => {
+        setShowMenu(false);
+        await handleCopyPath();
+      },
+      onOpenLocation: async () => {
+        setShowMenu(false);
+        await handleOpenLocation();
+      },
+      openLocationLabel: 'Open File Location',
+    }),
+    ...createTreeItemDeleteEntries(() => {
+      setShowMenu(false);
+      setShowDeleteDialog(true);
+    }),
+  ];
 
   useEffect(() => {
     if (!isNewlyCreated || !isActive) {
@@ -96,124 +120,61 @@ export const FileItem = memo(function FileItem({
   }, [isActive, isNewlyCreated, node.path]);
 
   return (
-    <div className="relative" data-file-tree-path={node.path} data-file-tree-kind="file">
-      <NotesSidebarRow
-        depth={depth}
-        actionFadeClassName={showStarBadge ? 'w-3 from-transparent' : undefined}
-        onMouseEnter={() => setHoveredSidebarRenamePath(node.path)}
-        onMouseLeave={() => clearHoveredSidebarRenamePath(node.path)}
-        leading={
-          noteIcon ? (
-            <NoteIcon icon={noteIcon} size={NOTES_SIDEBAR_ICON_SIZE} />
-          ) : (
-            <Icon name="file.text" size={NOTES_SIDEBAR_ICON_SIZE} className="text-[var(--notes-sidebar-file-icon)]" />
-          )
-        }
-        isActive={isActive}
-        isHighlighted={showMenu}
-        onClick={handleClick}
-        onContextMenu={handleContextMenu}
-        dragHandlers={dragHandlers}
-        showActionsByDefault={showMenu}
-        main={
-          isRenaming ? (
-            <SidebarInlineRenameInput
-              value={renameValue}
-              onValueChange={setRenameValue}
-              onSubmit={handleRenameSubmit}
-              onCancel={() => setIsRenaming(false)}
-              className={cn(
-                'w-full min-w-0 border-none bg-transparent p-0 text-sm leading-5 outline-none',
-                isActive || showMenu
-                  ? 'font-medium text-[var(--notes-sidebar-text)]'
-                  : 'text-[var(--notes-sidebar-text-muted)]'
-              )}
-            />
-          ) : (
-            <div className={cn('relative min-w-0', showStarBadge && 'pr-5')}>
-              <NoteDisambiguatedTitle
-                path={node.path}
-                fallbackName={displayName}
-                className={cn(isActive && 'text-[var(--notes-sidebar-text)]')}
-                titleClassName={cn(isActive && 'font-medium')}
-                hintClassName="text-[var(--notes-sidebar-text-soft)]"
-              />
-              {showStarBadge ? (
-                <SidebarStarBadge
-                  ariaLabel={isItemStarred ? 'Remove from Starred' : 'Add to Starred'}
-                  onClick={() => toggleStarred(node.path)}
-                />
-              ) : null}
-            </div>
-          )
-        }
-        actions={
-          <button
-            ref={menuButtonRef}
-            type="button"
-            aria-label="Open file menu"
-            onClick={(event) => {
-              event.stopPropagation();
-              if (!menuButtonRef.current) return;
-              handleMenuTrigger(event, menuButtonRef.current.getBoundingClientRect());
-            }}
+    <TreeItemShell
+      itemPath={node.path}
+      itemKind="file"
+      depth={depth}
+      actionFadeClassName={showStarBadge ? 'w-3 from-transparent' : undefined}
+      leading={
+        noteIcon ? (
+          <NoteIcon icon={noteIcon} size={NOTES_SIDEBAR_ICON_SIZE} />
+        ) : (
+          <Icon name="file.text" size={NOTES_SIDEBAR_ICON_SIZE} className="text-[var(--notes-sidebar-file-icon)]" />
+        )
+      }
+      isActive={isActive}
+      isHighlighted={showMenu}
+      onClick={handleClick}
+      onContextMenu={handleContextMenu}
+      dragHandlers={dragHandlers}
+      showActionsByDefault={showMenu}
+      menuButtonLabel="Open file menu"
+      onMenuClick={handleMenuTrigger}
+      isMenuButtonActive={showMenu || isActive}
+      main={
+        isRenaming ? (
+          <SidebarInlineRenameInput
+            value={renameValue}
+            onValueChange={setRenameValue}
+            onSubmit={handleRenameSubmit}
+            onCancel={() => setIsRenaming(false)}
             className={cn(
-              'rounded-md p-1 focus:outline-none',
-              iconButtonStyles,
-              showMenu || isActive
-                ? 'text-[var(--notes-sidebar-icon-hover)] hover:text-[var(--notes-sidebar-text)]'
-                : 'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]'
+              'w-full min-w-0 border-none bg-transparent p-0 text-sm leading-5 outline-none',
+              isActive || showMenu
+                ? 'font-medium text-[var(--notes-sidebar-text)]'
+                : 'text-[var(--notes-sidebar-text-muted)]'
             )}
-          >
-            <Icon name="common.more" size="md" />
-          </button>
-        }
-      />
-
-      <FileItemMenu
-        isOpen={showMenu}
-        onClose={() => setShowMenu(false)}
-        position={menuPosition}
-        isStarred={isItemStarred}
-        onRename={() => {
-          setIsRenaming(true);
-          setShowMenu(false);
-        }}
-        onOpenNewTab={() => {
-          void openNote(node.path, true);
-          setShowMenu(false);
-        }}
-        onToggleStar={() => {
-          toggleStarred(node.path);
-          setShowMenu(false);
-        }}
-        onCopyPath={async () => {
-          setShowMenu(false);
-          try {
-            await copyTreeItemPath(notesPath, node.path);
-          } catch (error) {
-            useToastStore.getState().addToast(
-              error instanceof Error ? error.message : 'Failed to copy path.',
-              'error'
-            );
-          }
-        }}
-        onOpenFileLocation={async () => {
-          setShowMenu(false);
-          try {
-            await openTreeItemLocation(notesPath, node.path);
-          } catch (error) {
-            useToastStore.getState().addToast(
-              error instanceof Error ? error.message : 'Failed to open file location.',
-              'error'
-            );
-          }
-        }}
-        onDelete={() => {
-          setShowMenu(false);
-          setShowDeleteDialog(true);
-        }}
-      />
+          />
+        ) : (
+          <div className={cn('relative min-w-0', showStarBadge && 'pr-5')}>
+            <NoteDisambiguatedTitle
+              path={node.path}
+              fallbackName={displayName}
+              className={cn(isActive && 'text-[var(--notes-sidebar-text)]')}
+              titleClassName={cn(isActive && 'font-medium')}
+              hintClassName="text-[var(--notes-sidebar-text-soft)]"
+            />
+            {showStarBadge ? (
+              <SidebarStarBadge
+                ariaLabel={isItemStarred ? 'Remove from Starred' : 'Add to Starred'}
+                onClick={() => toggleStarred(node.path)}
+              />
+            ) : null}
+          </div>
+        )
+      }
+    >
+      <TreeItemMenu isOpen={showMenu} onClose={() => setShowMenu(false)} position={menuPosition} entries={menuEntries} />
 
       <TreeItemDeleteDialog
         open={showDeleteDialog}
@@ -222,7 +183,7 @@ export const FileItem = memo(function FileItem({
         itemType="Note"
         onConfirm={() => deleteNote(node.path)}
       />
-    </div>
+    </TreeItemShell>
   );
 }, areFileItemPropsEqual);
 

@@ -1,5 +1,4 @@
 import { Icon } from '@/components/ui/icons';
-import { useToastStore } from '@/stores/useToastStore';
 import { type FileTreeSortMode } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 import { NotesSidebarContextMenu } from './NotesSidebarContextMenu';
@@ -12,7 +11,7 @@ import {
   FILE_TREE_SORT_OPTIONS,
   getFileTreeSortLabel,
 } from '@/stores/notes/fileTreeSorting';
-import { copyTreeItemPath, openTreeItemLocation } from '../FileTree/pathActions';
+import { useTreeItemPathActions } from '../FileTree/hooks/useTreeItemPathActions';
 
 interface RootFolderMenuProps {
   isOpen: boolean;
@@ -49,30 +48,11 @@ export function RootFolderMenu({
   vaultPath,
 }: RootFolderMenuProps) {
   const currentSortLabel = getFileTreeSortLabel(fileTreeSortMode);
-
-  const handleCopyPath = async () => {
-    onClose();
-    try {
-      await copyTreeItemPath(vaultPath, vaultPath);
-    } catch (error) {
-      useToastStore.getState().addToast(
-        error instanceof Error ? error.message : 'Failed to copy path.',
-        'error',
-      );
-    }
-  };
-
-  const handleOpenFolderLocation = async () => {
-    onClose();
-    try {
-      await openTreeItemLocation(vaultPath, vaultPath);
-    } catch (error) {
-      useToastStore.getState().addToast(
-        error instanceof Error ? error.message : 'Failed to open folder location.',
-        'error',
-      );
-    }
-  };
+  const { handleCopyPath, handleOpenLocation } = useTreeItemPathActions({
+    notesPath: vaultPath,
+    itemPath: vaultPath,
+    openLocationErrorMessage: 'Failed to open folder location.',
+  });
 
   const entries: NotesSidebarMenuEntry[] = [
     {
@@ -144,14 +124,20 @@ export function RootFolderMenu({
           key: 'copy-path',
           icon: <Icon name="common.copy" size="md" />,
           label: 'Copy Path',
-          onClick: handleCopyPath,
+          onClick: async () => {
+            onClose();
+            await handleCopyPath();
+          },
           disabled: !vaultPath,
         },
         {
           key: 'open-folder-location',
           icon: <Icon name="file.folderOpen" size="md" />,
           label: 'Open Folder Location',
-          onClick: handleOpenFolderLocation,
+          onClick: async () => {
+            onClose();
+            await handleOpenLocation();
+          },
           disabled: !vaultPath,
         },
       ],
