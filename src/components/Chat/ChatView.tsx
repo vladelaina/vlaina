@@ -70,29 +70,6 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
     [messages]
   );
 
-  useEffect(() => {
-    if (!import.meta.env.DEV) {
-      return;
-    }
-
-    const assistantMessages = messages
-      .filter((message) => message.role === 'assistant')
-      .map((message) => ({
-        id: message.id,
-        imageSources: message.imageSources || [],
-        extractedImageSources: extractMessageImageSources(message.content || ''),
-        contentPreview: (message.content || '').slice(0, 180),
-      }))
-      .filter(
-        (message) =>
-          message.imageSources.length > 0 || message.extractedImageSources.length > 0
-      );
-
-    if (imageGallery.length === 0 && assistantMessages.length === 0) {
-      return;
-    }
-  }, [currentSessionId, imageGallery, messages]);
-
   const sentUserMessages = useMemo(
     () =>
       messages
