@@ -40,6 +40,7 @@ export const useMessageAutoscroll = ({
   const pendingScrollMessageCountRef = useRef<number | null>(null);
   const isAutoFollowRef = useRef(true);
   const prevChatIdRef = useRef<string | null>(chatId);
+  const initialScrollPendingRef = useRef(!!chatId);
   const [spacerHeight, setSpacerHeight] = useState(0);
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
 
@@ -151,10 +152,27 @@ export const useMessageAutoscroll = ({
       pendingScrollToBottomRef.current = false;
       pendingScrollMessageCountRef.current = null;
       isAutoFollowRef.current = true;
+      initialScrollPendingRef.current = !!chatId;
       setSpacerHeight(0);
       setShouldScrollToBottom(true);
     }
   }, [chatId]);
+
+  useLayoutEffect(() => {
+    if (
+      !initialScrollPendingRef.current ||
+      !chatId ||
+      !messages.length ||
+      !containerRef.current
+    ) {
+      return;
+    }
+
+    const container = containerRef.current;
+    container.scrollTop = container.scrollHeight;
+    isAutoFollowRef.current = true;
+    initialScrollPendingRef.current = false;
+  }, [chatId, messages.length]);
 
   useLayoutEffect(() => {
     if (!shouldScrollToBottom || !messages.length || !containerRef.current) {
