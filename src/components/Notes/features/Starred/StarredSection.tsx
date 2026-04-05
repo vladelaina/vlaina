@@ -299,6 +299,7 @@ export function StarredSection({
               depth={0}
               currentNotePath={currentNote?.path}
               showStarBadge
+              dragEnabled={false}
             />
           ) : (
             <FileItem
@@ -307,6 +308,7 @@ export function StarredSection({
               depth={0}
               currentNotePath={currentNote?.path}
               showStarBadge
+              dragEnabled={false}
             />
           );
         }

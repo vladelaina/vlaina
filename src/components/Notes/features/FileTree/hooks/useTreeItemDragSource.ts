@@ -1,18 +1,32 @@
 import { useCallback } from 'react';
 import type React from 'react';
 import type { NotesSidebarRowDragHandlers } from '../../Sidebar/NotesSidebarRow';
+import { startFileTreePointerDrag, useFileTreePointerDragState } from './fileTreePointerDragState';
 
 export function useTreeItemDragSource(path: string, disabled = false): NotesSidebarRowDragHandlers {
-  const handleDragStart = useCallback(
-    (event: React.DragEvent) => {
-      event.dataTransfer.setData('text/plain', path);
-      event.dataTransfer.effectAllowed = 'move';
+  const isDragging = useFileTreePointerDragState((state) => state.activeSourcePath === path);
+
+  const handlePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (disabled || event.button !== 0 || event.pointerType === 'touch') {
+        return;
+      }
+
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target.closest('button, input, textarea, select, a, [contenteditable="true"], [data-slot="dialog-close"]')
+      ) {
+        return;
+      }
+
+      startFileTreePointerDrag(path, event.currentTarget, event.nativeEvent);
     },
-    [path],
+    [disabled, path],
   );
 
   return {
-    draggable: !disabled,
-    onDragStart: handleDragStart,
+    onPointerDown: handlePointerDown,
+    isDragging,
   };
 }

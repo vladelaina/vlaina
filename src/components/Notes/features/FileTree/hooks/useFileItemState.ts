@@ -4,7 +4,7 @@ import { useNotesStore, type NoteFile } from '@/stores/useNotesStore';
 import { useTreeItemUiState } from './useTreeItemUiState';
 import { useTreeItemDragSource } from './useTreeItemDragSource';
 
-export function useFileItemState(node: NoteFile) {
+export function useFileItemState(node: NoteFile, dragEnabled = true) {
   const openNote = useNotesStore((state) => state.openNote);
   const deleteNote = useNotesStore((state) => state.deleteNote);
   const renameNote = useNotesStore((state) => state.renameNote);
@@ -26,7 +26,7 @@ export function useFileItemState(node: NoteFile) {
     path: node.path,
     name: node.name,
   });
-  const dragHandlers = useTreeItemDragSource(node.path, isRenaming);
+  const dragHandlers = useTreeItemDragSource(node.path, isRenaming || !dragEnabled);
 
   const handleClick = useCallback(
     (event: React.MouseEvent) => {

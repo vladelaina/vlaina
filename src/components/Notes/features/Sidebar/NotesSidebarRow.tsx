@@ -3,11 +3,8 @@ import { SidebarRow } from '@/components/layout/sidebar/SidebarRow';
 import { cn } from '@/lib/utils';
 
 export interface NotesSidebarRowDragHandlers {
-  draggable: boolean;
-  onDragStart?: (event: React.DragEvent) => void;
-  onDragOver?: (event: React.DragEvent) => void;
-  onDragLeave?: (event: React.DragEvent) => void;
-  onDrop?: (event: React.DragEvent) => void;
+  onPointerDown?: (event: React.PointerEvent<HTMLDivElement>) => void;
+  isDragging?: boolean;
 }
 
 interface NotesSidebarRowProps extends HTMLAttributes<HTMLDivElement> {
@@ -56,7 +53,7 @@ export function NotesSidebarRow({
       isHighlighted={isHighlighted}
       isDragOver={isDragOver}
       showActionsByDefault={showActionsByDefault}
-      className={className}
+      className={cn(className, dragHandlers?.isDragging && 'opacity-60')}
       contentClassName={contentClassName}
       actionFadeClassName={cn(
         'from-[var(--notes-sidebar-fade)]',
@@ -69,11 +66,7 @@ export function NotesSidebarRow({
       highlightClassName="bg-[var(--notes-sidebar-row-hover)] text-[var(--notes-sidebar-text)]"
       inactiveClassName="text-[var(--notes-sidebar-text-muted)] hover:bg-[var(--notes-sidebar-row-hover)]"
       dragOverClassName="bg-[var(--notes-sidebar-row-drag)] ring-1 ring-[var(--vlaina-accent)]"
-      draggable={dragHandlers?.draggable}
-      onDragStart={dragHandlers?.onDragStart}
-      onDragOver={dragHandlers?.onDragOver}
-      onDragLeave={dragHandlers?.onDragLeave}
-      onDrop={dragHandlers?.onDrop}
+      onPointerDown={dragHandlers?.onPointerDown}
       {...props}
     >
       {children}

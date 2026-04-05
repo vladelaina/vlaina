@@ -27,6 +27,7 @@ interface FileItemProps {
   depth: number;
   currentNotePath?: string;
   showStarBadge?: boolean;
+  dragEnabled?: boolean;
 }
 
 export const FileItem = memo(function FileItem({
@@ -34,6 +35,7 @@ export const FileItem = memo(function FileItem({
   depth,
   currentNotePath,
   showStarBadge = false,
+  dragEnabled = true,
 }: FileItemProps) {
   const {
     showMenu,
@@ -54,7 +56,7 @@ export const FileItem = memo(function FileItem({
     openNote,
     deleteNote,
     toggleStarred,
-  } = useFileItemState(node);
+  } = useFileItemState(node, dragEnabled);
   const isNewlyCreated = useNotesStore((state) => state.isNewlyCreated);
   const notesPath = useNotesStore((state) => state.notesPath);
   const { handleCopyPath, handleOpenLocation } = useTreeItemPathActions({

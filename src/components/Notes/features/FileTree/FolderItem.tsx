@@ -25,6 +25,7 @@ interface FolderItemProps {
   depth: number;
   currentNotePath?: string;
   showStarBadge?: boolean;
+  dragEnabled?: boolean;
 }
 
 export const FolderItem = memo(function FolderItem({
@@ -32,6 +33,7 @@ export const FolderItem = memo(function FolderItem({
   depth,
   currentNotePath,
   showStarBadge = false,
+  dragEnabled = true,
 }: FolderItemProps) {
   const {
     showMenu,
@@ -53,7 +55,7 @@ export const FolderItem = memo(function FolderItem({
     createNote,
     deleteFolder,
     toggleFolderStarred,
-  } = useFolderItemState(node);
+  } = useFolderItemState(node, dragEnabled);
   const hasChildren = node.children.length > 0;
   const notesPath = useNotesStore((state) => state.notesPath);
   const { handleCopyPath, handleOpenLocation } = useTreeItemPathActions({
@@ -106,7 +108,6 @@ export const FolderItem = memo(function FolderItem({
       setShowDeleteDialog(true);
     }),
   ];
-
   return (
     <TreeItemShell
       itemPath={node.path}
@@ -174,6 +175,7 @@ export const FolderItem = memo(function FolderItem({
 
       {node.expanded && node.children.length > 0 ? (
         <div>
+          <div aria-hidden="true" className="h-2" />
           {node.children.map((child) =>
             child.isFolder ? (
               <FolderItem
@@ -182,6 +184,7 @@ export const FolderItem = memo(function FolderItem({
                 depth={depth + 1}
                 currentNotePath={currentNotePath}
                 showStarBadge={false}
+                dragEnabled={dragEnabled}
               />
             ) : (
               <FileItem
@@ -190,6 +193,7 @@ export const FolderItem = memo(function FolderItem({
                 depth={depth + 1}
                 currentNotePath={currentNotePath}
                 showStarBadge={false}
+                dragEnabled={dragEnabled}
               />
             )
           )}

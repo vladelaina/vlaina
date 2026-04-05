@@ -1,13 +1,12 @@
 import { useCallback, useEffect } from 'react';
 import type React from 'react';
 import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
-import type { NotesSidebarRowDragHandlers } from '../../Sidebar/NotesSidebarRow';
 import { scrollSidebarItemIntoView } from '../../common/sidebarScrollIntoView';
 import { useTreeItemUiState } from './useTreeItemUiState';
 import { useTreeItemDragSource } from './useTreeItemDragSource';
 import { useFolderDropTarget } from './useFolderDropTarget';
 
-export function useFolderItemState(node: FolderNode) {
+export function useFolderItemState(node: FolderNode, dragEnabled = true) {
   const toggleFolder = useNotesStore((state) => state.toggleFolder);
   const deleteFolder = useNotesStore((state) => state.deleteFolder);
   const renameFolder = useNotesStore((state) => state.renameFolder);
@@ -32,8 +31,8 @@ export function useFolderItemState(node: FolderNode) {
     path: node.path,
     name: node.name,
   });
-  const dragSourceHandlers = useTreeItemDragSource(node.path, isRenaming);
-  const { isDragOver, handleDragOver, handleDragLeave, handleDrop } = useFolderDropTarget(node.path);
+  const dragSourceHandlers = useTreeItemDragSource(node.path, isRenaming || !dragEnabled);
+  const { isDragOver } = useFolderDropTarget(node.path, dragEnabled);
 
   useEffect(() => {
     if (node.path !== newlyCreatedFolderPath) return;
@@ -59,13 +58,6 @@ export function useFolderItemState(node: FolderNode) {
     setIsRenaming(false);
   }, [node.name, node.path, renameFolder, renameValue]);
 
-  const dragHandlers: NotesSidebarRowDragHandlers = {
-    ...dragSourceHandlers,
-    onDragOver: handleDragOver,
-    onDragLeave: handleDragLeave,
-    onDrop: handleDrop,
-  };
-
   return {
     showMenu,
     setShowMenu,
@@ -82,7 +74,7 @@ export function useFolderItemState(node: FolderNode) {
     handleContextMenu,
     handleMenuTrigger,
     handleRenameSubmit,
-    dragHandlers,
+    dragHandlers: dragSourceHandlers,
     createNote,
     deleteFolder,
     toggleFolderStarred,
