@@ -128,6 +128,14 @@ body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hide
   box-shadow: none;
 }
 
+.milkdown .ProseMirror .image-block-container.vlaina-block-selected {
+  --vlaina-block-selection-bleed-y: 0px;
+}
+
+.milkdown .ProseMirror p.vlaina-block-selected:has(> .image-block-container:only-child) {
+  --vlaina-block-selection-bleed-y: 0px;
+}
+
 /* Hide text caret while drag block selection is active */
 .milkdown .ProseMirror.vlaina-block-selection-active {
   caret-color: transparent !important;

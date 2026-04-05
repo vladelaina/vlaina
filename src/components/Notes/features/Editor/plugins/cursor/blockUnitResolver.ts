@@ -1,6 +1,10 @@
 import type { EditorState } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
+import {
+  normalizeBlockRanges,
+  resolveStandaloneImageBlockRange,
+  type BlockRange,
+} from './blockSelectionUtils';
 import { resolveBlockElementAtPos, resolveTopLevelBlockElement } from './topLevelBlockDom';
 
 export interface SelectableBlockTarget {
@@ -124,12 +128,42 @@ function resolveListItemElement(view: EditorView, from: number, to: number): HTM
   return null;
 }
 
+function resolveStandaloneImageElement(view: EditorView, range: BlockRange): HTMLElement | null {
+  const imageRange = resolveStandaloneImageBlockRange(view.state.doc, range);
+  if (!imageRange) return null;
+
+  const resolveImageContainer = (node: Node | null): HTMLElement | null => {
+    if (!node) return null;
+    const base = node instanceof HTMLElement ? node : node.parentElement;
+    const container = base?.closest('.image-block-container') ?? null;
+    if (!(container instanceof HTMLElement)) return null;
+    if (!view.dom.contains(container)) return null;
+    return container;
+  };
+
+  const nodeDom = view.nodeDOM(imageRange.from);
+  const directContainer = resolveImageContainer(nodeDom as Node | null);
+  if (directContainer) return directContainer;
+
+  try {
+    const domPos = view.domAtPos(imageRange.from);
+    const domContainer = resolveImageContainer(domPos.node);
+    if (domContainer) return domContainer;
+  } catch {
+  }
+
+  return null;
+}
+
 function resolveRangeElement(view: EditorView, range: BlockRange): HTMLElement | null {
   const listItemTo = getListItemRangeEnd(view.state.doc, range.from);
   if (listItemTo !== null) {
     const element = resolveListItemElement(view, range.from, range.to);
     if (element) return element;
   }
+
+  const imageElement = resolveStandaloneImageElement(view, range);
+  if (imageElement) return imageElement;
 
   const topLevelElement = resolveTopLevelBlockElement(view, range.from);
   if (topLevelElement) return topLevelElement;

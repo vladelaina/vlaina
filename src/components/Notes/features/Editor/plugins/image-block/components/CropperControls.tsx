@@ -39,7 +39,6 @@ export const CropperControls = ({
                 onPointerDown={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
             >
-                <span className="text-[10px] font-bold text-[var(--vlaina-text-tertiary)] mr-2 uppercase tracking-wide">Zoom</span>
                 <PremiumSlider
                     min={minZoom}
                     max={maxZoom}

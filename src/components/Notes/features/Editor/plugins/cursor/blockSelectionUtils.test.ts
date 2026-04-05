@@ -1,8 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
+import { commonmark } from '@milkdown/kit/preset/commonmark';
+import { gfm } from '@milkdown/kit/preset/gfm';
 import {
   convertBlockRectsToDocumentSpace,
   convertViewportDragRectToDocumentRect,
   createDragSelectionRect,
+  getDisplayBlockRangesForDecorations,
   getBlockRangesKey,
   isRectIntersecting,
   normalizeBlockRanges,
@@ -11,6 +15,22 @@ import {
   resolveIntersectedBlockRanges,
   type BlockRect,
 } from './blockSelectionUtils';
+
+async function createEditor(markdown: string) {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, markdown);
+    })
+    .use(commonmark)
+    .use(gfm);
+
+  await editor.create();
+  return editor;
+}
+
+afterEach(() => {
+  document.body.innerHTML = '';
+});
 
 describe('blockSelectionUtils', () => {
   it('normalizes drag rectangle in any direction', () => {
@@ -109,5 +129,15 @@ describe('blockSelectionUtils', () => {
       { from: 20, to: 30 },
     ]);
     expect(getBlockRangesKey(result)).toBe('0:10|10:20|20:30');
+  });
+
+  it('renders standalone image paragraphs using the image node range', async () => {
+    const editor = await createEditor('![](./demo.png)');
+    const view = editor.ctx.get(editorViewCtx);
+    const displayRanges = getDisplayBlockRangesForDecorations(view.state.doc, [{ from: 0, to: 3 }]);
+
+    expect(displayRanges).toEqual([{ from: 1, to: 2 }]);
+
+    await editor.destroy();
   });
 });

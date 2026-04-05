@@ -91,25 +91,63 @@ export function getBlockRangesKey(ranges: readonly BlockRange[]): string {
   return ranges.map((range) => `${range.from}:${range.to}`).join('|');
 }
 
+export function resolveStandaloneImageBlockRange(
+  doc: EditorState['doc'],
+  block: BlockRange,
+): BlockRange | null {
+  const safeFrom = Math.max(0, Math.min(block.from, doc.content.size));
+  const safeTo = Math.max(0, Math.min(block.to, doc.content.size));
+
+  try {
+    const $from = doc.resolve(safeFrom);
+    const nodeAfter = $from.nodeAfter;
+    if (!nodeAfter || nodeAfter.type.name !== 'paragraph') return null;
+    if (safeTo !== safeFrom + nodeAfter.nodeSize) return null;
+    if (nodeAfter.childCount !== 1 || nodeAfter.firstChild?.type.name !== 'image') return null;
+
+    const imageFrom = safeFrom + 1;
+    return {
+      from: imageFrom,
+      to: imageFrom + nodeAfter.firstChild.nodeSize,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function getDisplayBlockRangesForDecorations(
+  doc: EditorState['doc'],
+  blocks: readonly BlockRange[],
+): BlockRange[] {
+  return normalizeBlockRanges(blocks.map((block) => {
+    const safeFrom = Math.max(0, Math.min(block.from, doc.content.size));
+    let from = block.from;
+    let to = block.to;
+
+    try {
+      const $from = doc.resolve(safeFrom);
+      const nodeAfter = $from.nodeAfter;
+      if (nodeAfter?.type.name === 'list_item') {
+        from = safeFrom;
+        to = safeFrom + nodeAfter.nodeSize;
+      } else {
+        const imageRange = resolveStandaloneImageBlockRange(doc, block);
+        if (imageRange) {
+          from = imageRange.from;
+          to = imageRange.to;
+        }
+      }
+    } catch {
+    }
+
+    return { from, to };
+  }));
+}
 
 export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks: readonly BlockRange[]): DecorationSet {
   if (blocks.length === 0) return DecorationSet.empty;
 
-  const displayRanges = normalizeBlockRanges(blocks.map((block) => {
-    const safeFrom = Math.max(0, Math.min(block.from, doc.content.size));
-    let from = block.from;
-    let to = block.to;
-    try {
-      const $from = doc.resolve(safeFrom);
-      const nodeAfter = $from.nodeAfter;
-      if (nodeAfter && nodeAfter.type.name === 'list_item') {
-        from = safeFrom;
-        to = safeFrom + nodeAfter.nodeSize;
-      }
-    } catch {
-    }
-    return { from, to };
-  }));
+  const displayRanges = getDisplayBlockRangesForDecorations(doc, blocks);
 
   const decorations = displayRanges.map((range) => Decoration.node(range.from, range.to, {
     class: 'vlaina-block-selected',

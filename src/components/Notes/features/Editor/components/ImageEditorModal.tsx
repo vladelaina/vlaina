@@ -87,7 +87,6 @@ export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEdi
 
                     <div className="p-4 space-y-4">
                         <div className="flex items-center gap-4">
-                            <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--vlaina-text-tertiary)] w-10">Zoom</span>
                             <PremiumSlider
                                 min={1}
                                 max={5}
