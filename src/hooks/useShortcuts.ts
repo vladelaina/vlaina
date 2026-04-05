@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import { windowCommands } from '@/lib/tauri/invoke';
 import { isTauri } from '@/lib/storage/adapter';
+import { dispatchEditorFindOpenEvent } from '@/components/Notes/features/Editor/find/editorFindEvents';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore as useAppUIStore } from '@/stores/uiSlice';
 import { getShortcuts, getKeysFromEvent, matchShortcut, ShortcutScope, ShortcutHandler } from '@/lib/shortcuts';
@@ -32,6 +33,9 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
     },
     sidebarSearch: () => {
       dispatchSidebarOpenSearchEvent();
+    },
+    editorFind: () => {
+      dispatchEditorFindOpenEvent();
     },
     'open-settings': () => {
       window.dispatchEvent(new Event('open-settings'));

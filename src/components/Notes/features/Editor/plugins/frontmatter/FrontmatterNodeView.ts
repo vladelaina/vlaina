@@ -17,6 +17,12 @@ import {
   mapDocumentOffsetToCodeBlockEditorOffset,
   normalizeCodeBlockEditorText,
 } from '../code/codemirror';
+import { getEditorFindState } from '../find/editorFindCommands';
+import {
+  buildCodeMirrorFindHighlightRanges,
+  codeMirrorFindHighlightExtensions,
+  syncCodeMirrorFindHighlights,
+} from '../find/editorFindCodeMirrorHighlights';
 import { forwardCodeBlockUpdate } from '../code/codeBlockNodeViewUtils';
 import { deleteSelectedFrontmatterBlocks } from './frontmatterBlockSelection';
 
@@ -72,6 +78,7 @@ export class FrontmatterNodeView implements NodeView {
           this.languageCompartment.of([]),
           CodeMirror.lineWrapping,
           drawSelection(),
+          ...codeMirrorFindHighlightExtensions,
           ...createCodeBlockEditorTheme(),
           codeMirrorKeymap.of(this.createKeymap()),
           EditorState.changeFilter.of(() => this.view.editable),
@@ -87,6 +94,7 @@ export class FrontmatterNodeView implements NodeView {
     this.dom.ownerDocument?.addEventListener('selectionchange', this.handleDocumentSelectionChange);
 
     this.updatePlaceholder();
+    this.syncFindHighlights();
     void this.syncLanguage();
   }
 
@@ -107,6 +115,35 @@ export class FrontmatterNodeView implements NodeView {
         getPos: this.getPos,
       }),
     ];
+  }
+
+  private syncFindHighlights() {
+    const nodePos = this.getPos();
+    if (nodePos === undefined) {
+      syncCodeMirrorFindHighlights(this.cm, []);
+      return;
+    }
+
+    const state = getEditorFindState(this.view);
+    if (!state || state.matches.length === 0) {
+      syncCodeMirrorFindHighlights(this.cm, []);
+      return;
+    }
+
+    const contentFrom = nodePos + 1;
+    const contentTo = nodePos + this.node.nodeSize - 1;
+
+    syncCodeMirrorFindHighlights(
+      this.cm,
+      buildCodeMirrorFindHighlightRanges({
+        matches: state.matches,
+        activeIndex: state.activeIndex,
+        contentFrom,
+        contentTo,
+        rawText: this.node.textContent ?? '',
+        mapDocumentOffsetToEditorOffset: mapDocumentOffsetToCodeBlockEditorOffset,
+      }),
+    );
   }
 
   private syncProseMirrorSelection() {
@@ -231,6 +268,7 @@ export class FrontmatterNodeView implements NodeView {
     }
 
     this.updatePlaceholder();
+    this.syncFindHighlights();
     this.syncProseMirrorSelection();
     this.scheduleMeasure();
 

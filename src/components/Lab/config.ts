@@ -13,8 +13,16 @@ import { FirstPrinciplesLinkEditor } from './playground/FirstPrinciplesLinkEdito
 import { NotesSidebarModeLab } from './playground/NotesSidebarModeLab';
 import { MembershipBadgeLab } from './playground/MembershipBadgeLab';
 import { VlainaInsightSidebarLab } from './playground/VlainaInsightSidebarLab';
+import { SearchDesignLab } from './playground/SearchDesignLab';
 
 export const LAB_MODULES = [
+  {
+    id: 'search-design-20',
+    label: 'Search Design 20',
+    icon: 'common.search',
+    component: SearchDesignLab,
+    description: '20 Apple-style architectural solutions for the Find/Replace experience. From Dynamic Island to Spotlight.'
+  },
   {
     id: 'vlaina-insight-sidebar-50',
     label: 'vlaina: Insight 50',
