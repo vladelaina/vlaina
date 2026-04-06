@@ -31,6 +31,6 @@ export function deleteSelectedBlocks(
   tr = tr.setSelection(Selection.near(tr.doc.resolve(targetPos), -1));
   tr = applyClearSelectionMeta(tr);
   view.dispatch(tr.scrollIntoView());
-  view.focus();
+  view.dom.blur();
   return true;
 }
