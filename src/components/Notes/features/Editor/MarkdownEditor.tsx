@@ -41,6 +41,12 @@ import { hasTemporaryTailParagraph } from './plugins/cursor/endBlankClickPlugin'
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
 import { useNoteEditorFind } from './find';
 import { EditorTopRightToolbar } from './EditorTopRightToolbar';
+import { isSidebarSearchNavigationPending } from '../Sidebar/sidebarSearchNavigation';
+import {
+  getSidebarSearchDebugScrollMeta,
+  getSidebarSearchDebugViewMeta,
+  logSidebarSearchDebug,
+} from '../Sidebar/sidebarSearchDebug';
 import './styles/index.css';
 
 const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
@@ -144,6 +150,9 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       if (!editor) {
         setCurrentEditorView(null);
         clearCurrentMarkdownRuntime();
+        logSidebarSearchDebug('editor:view-registry:clear:no-editor', {
+          currentNotePath: currentNotePath ?? null,
+        });
         return;
       }
       const view = editor.ctx.get(editorViewCtx);
@@ -155,13 +164,24 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       }
       setCurrentEditorView(view as EditorView);
       setCurrentMarkdownRuntime({ parser });
+      logSidebarSearchDebug('editor:view-registry:set', {
+        currentNotePath: currentNotePath ?? null,
+        view: getSidebarSearchDebugViewMeta(view as EditorView),
+      });
       return () => {
         setCurrentEditorView(null);
         clearCurrentMarkdownRuntime();
+        logSidebarSearchDebug('editor:view-registry:cleanup', {
+          currentNotePath: currentNotePath ?? null,
+          view: getSidebarSearchDebugViewMeta(view as EditorView),
+        });
       };
     } catch {
       setCurrentEditorView(null);
       clearCurrentMarkdownRuntime();
+      logSidebarSearchDebug('editor:view-registry:clear:error', {
+        currentNotePath: currentNotePath ?? null,
+      });
       return;
     }
   }, [get, currentNotePath]);
@@ -227,6 +247,7 @@ export function MarkdownEditor({
     return currentNotePath && noteMetadata?.notes ? noteMetadata.notes[currentNotePath] : undefined;
   }, [currentNotePath, noteMetadata]);
   const textStats = useMemo(() => calculateTextStats(currentNoteContent), [currentNoteContent]);
+  const isSidebarSearchJumpPending = isSidebarSearchNavigationPending(currentNotePath);
 
   const starred = currentNotePath ? isStarred(currentNotePath) : false;
   const coverController = useNoteCoverController(currentNotePath);
@@ -248,6 +269,14 @@ export function MarkdownEditor({
     const handleScroll = () => {
       const path = activePathRef.current;
       if (!path) return;
+
+      if (isSidebarSearchNavigationPending(path)) {
+        logSidebarSearchDebug('editor:scroll:event:pending', {
+          path,
+          scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
+          currentView: getSidebarSearchDebugViewMeta(getCurrentEditorView()),
+        });
+      }
 
       const restoreSession = restoreSessionRef.current;
       if (restoreSession?.path === path) return;
@@ -275,10 +304,23 @@ export function MarkdownEditor({
     if (!scrollRoot) return;
 
     const previousPath = activePathRef.current;
+    logSidebarSearchDebug('editor:scroll-restore:effect:start', {
+      previousPath,
+      currentNotePath: currentNotePath ?? null,
+      isSidebarSearchJumpPending,
+      scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
+      currentView: getSidebarSearchDebugViewMeta(getCurrentEditorView()),
+    });
+
     if (previousPath) {
       const cachedScrollTop = scrollPositionsRef.current.get(previousPath);
       const nextSavedScrollTop = cachedScrollTop ?? scrollRoot.scrollTop;
       scrollPositionsRef.current.set(previousPath, nextSavedScrollTop);
+      logSidebarSearchDebug('editor:scroll-restore:save-previous', {
+        previousPath,
+        savedScrollTop: nextSavedScrollTop,
+        scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
+      });
     }
 
     activePathRef.current = currentNotePath ?? null;
@@ -286,6 +328,19 @@ export function MarkdownEditor({
     if (!currentNotePath) {
       restoreSessionRef.current = null;
       scrollRoot.scrollTop = 0;
+      logSidebarSearchDebug('editor:scroll-restore:reset-empty', {
+        scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
+      });
+      return;
+    }
+
+    if (isSidebarSearchNavigationPending(currentNotePath)) {
+      restoreSessionRef.current = null;
+      logSidebarSearchDebug('editor:scroll-restore:skip-pending', {
+        currentNotePath,
+        scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
+        currentView: getSidebarSearchDebugViewMeta(getCurrentEditorView()),
+      });
       return;
     }
 
@@ -295,28 +350,44 @@ export function MarkdownEditor({
       targetScrollTop,
     };
 
-    const restoreScrollTop = () => {
+    logSidebarSearchDebug('editor:scroll-restore:begin', {
+      currentNotePath,
+      targetScrollTop,
+      scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
+    });
+
+    const restoreScrollTop = (reason: string) => {
       if (activePathRef.current !== currentNotePath) return;
       scrollRoot.scrollTop = targetScrollTop;
+      logSidebarSearchDebug('editor:scroll-restore:apply', {
+        currentNotePath,
+        reason,
+        targetScrollTop,
+        scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
+      });
     };
 
     const finishRestoreSession = () => {
       if (activePathRef.current !== currentNotePath) return;
       scrollPositionsRef.current.set(currentNotePath, scrollRoot.scrollTop);
       restoreSessionRef.current = null;
+      logSidebarSearchDebug('editor:scroll-restore:finish', {
+        currentNotePath,
+        scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
+      });
     };
 
-    restoreScrollTop();
+    restoreScrollTop('sync');
     const frameA = requestAnimationFrame(() => {
-      restoreScrollTop();
+      restoreScrollTop('raf-1');
     });
     const frameB = requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        restoreScrollTop();
+        restoreScrollTop('raf-2');
       });
     });
     const timeoutId = window.setTimeout(() => {
-      restoreScrollTop();
+      restoreScrollTop('timeout');
       finishRestoreSession();
     }, 120);
 
@@ -327,8 +398,21 @@ export function MarkdownEditor({
       if (restoreSessionRef.current?.path === currentNotePath) {
         restoreSessionRef.current = null;
       }
+      logSidebarSearchDebug('editor:scroll-restore:cleanup', {
+        currentNotePath,
+        scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
+      });
     };
   }, [currentNotePath]);
+
+  useEffect(() => {
+    logSidebarSearchDebug('editor:overlay-visibility', {
+      currentNotePath: currentNotePath ?? null,
+      hidden: isSidebarSearchJumpPending,
+      scrollRoot: getSidebarSearchDebugScrollMeta(scrollRootRef.current),
+      currentView: getSidebarSearchDebugViewMeta(getCurrentEditorView()),
+    });
+  }, [currentNotePath, isSidebarSearchJumpPending]);
 
   return (
     <div
@@ -347,7 +431,10 @@ export function MarkdownEditor({
 
       <OverlayScrollArea
         ref={scrollRootRef}
-        className="flex-1 relative"
+        className={cn(
+          'flex-1 relative transition-opacity duration-75',
+          isSidebarSearchJumpPending && 'opacity-0 pointer-events-none',
+        )}
         viewportClassName="flex flex-col items-center relative"
         draggingBodyClassName="vlaina-overlay-scrollbar-dragging"
         scrollbarVariant="compact"

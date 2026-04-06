@@ -4,6 +4,7 @@ export {
   getEditorFindState,
   replaceAllEditorFindMatches,
   replaceCurrentEditorFindMatch,
+  setEditorFindActiveIndex,
   setEditorFindQuery,
   stepEditorFindMatch,
 } from './editorFindCommands';

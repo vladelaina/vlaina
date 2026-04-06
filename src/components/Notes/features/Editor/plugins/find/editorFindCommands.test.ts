@@ -19,6 +19,7 @@ vi.mock('./editorFindReveal', () => ({
 import {
   replaceAllEditorFindMatches,
   replaceCurrentEditorFindMatch,
+  setEditorFindActiveIndex,
   setEditorFindQuery,
   stepEditorFindMatch,
 } from './editorFindCommands';
@@ -171,6 +172,25 @@ describe('editorFindCommands', () => {
       activeIndex: 1,
     });
     expect(revealEditorFindMatchMock).toHaveBeenCalledWith(view, createMatch(10, 14));
+    expect(view.dispatch).toHaveBeenCalledWith(view.state.tr);
+  });
+
+  it('jumps to an explicit active match index', () => {
+    const view = createView({
+      editorFindState: {
+        query: 'beta',
+        matches: [createMatch(2, 6), createMatch(10, 14), createMatch(20, 24)],
+        activeIndex: 0,
+      },
+    });
+
+    setEditorFindActiveIndex(view as never, 2);
+
+    expect(view.state.tr.setMeta).toHaveBeenCalledWith(editorFindPluginKeyMock, {
+      type: 'set-active-index',
+      activeIndex: 2,
+    });
+    expect(revealEditorFindMatchMock).toHaveBeenCalledWith(view, createMatch(20, 24));
     expect(view.dispatch).toHaveBeenCalledWith(view.state.tr);
   });
 
