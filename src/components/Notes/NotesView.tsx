@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { windowCommands } from '@/lib/tauri/invoke';
 import { openDialog, messageDialog } from '@/lib/storage/dialog';
+import { OPEN_MARKDOWN_FILE_ACTION } from '@/lib/notes/openMarkdownFileText';
 import { getSingleOpenSelection, isSupportedMarkdownSelection, resolveOpenNoteTarget } from './features/OpenTarget/openTargetSelection';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -225,7 +226,7 @@ export function NotesView() {
     if (isOpenTargetBusy) return;
 
     const selected = getSingleOpenSelection(await openDialog({
-      title: 'Open Markdown File',
+      title: OPEN_MARKDOWN_FILE_ACTION,
       defaultPath: currentVault?.path,
       filters: [{ name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd'] }],
     }));
