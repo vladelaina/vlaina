@@ -38,6 +38,14 @@ export const detectLua: LanguageDetector = (ctx) => {
     return null;
   }
 
+  if (
+    /\b(?:async\s+)?function\s+\w+(?:<[^>\n]+>)?\s*\([^)]*:\s*[^)]+\)\s*:\s*[^({\n]+/.test(code) ||
+    /\basserts\s+\w+\s+is\s+\w+/.test(code) ||
+    /\bvalue\s+is\s+\w+/.test(code)
+  ) {
+    return null;
+  }
+
   if (/^function\s+\w+\s*\(/m.test(first100Lines) && (/^##/m.test(first100Lines) || /\[[\d\s.]+\]/.test(first100Lines))) {
     return null;
   }
@@ -72,7 +80,7 @@ export const detectLua: LanguageDetector = (ctx) => {
         return null;
       }
       // Exclude TypeScript/JavaScript (has type annotations or semicolons)
-      if (/:\s*(string|number|boolean|void|any)\b/.test(code)) {
+      if (/:\s*(string|number|boolean|void|any|unknown|never|Promise<)/.test(code)) {
         return null;
       }
       // Exclude JavaScript (has curly braces without 'end')

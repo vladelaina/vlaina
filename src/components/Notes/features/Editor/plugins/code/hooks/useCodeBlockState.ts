@@ -12,7 +12,7 @@ interface UseCodeBlockStateProps {
 }
 
 export function useCodeBlockState({ node, view, getPos, getNode }: UseCodeBlockStateProps) {
-    const language = node.attrs.language || 'text';
+    const language = node.attrs.language || 'txt';
     const [copied, setCopied] = useState(false);
     const isCollapsed = Boolean(node.attrs.collapsed);
     const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);

@@ -43,6 +43,12 @@ export const detectProtobuf: LanguageDetector = (ctx) => {
     return null;
   }
 
+  if (/^package\s+\w+;$/m.test(first100Lines) &&
+      /\boption\s+\w+\s*=/.test(code) &&
+      /\benum\s+\w+\s*\{[\s\S]*?=\s*\d+/.test(code)) {
+    return 'protobuf';
+  }
+
   if (/^syntax\s*=\s*"proto[23]"/.test(firstLine)) {
     return 'protobuf';
   }

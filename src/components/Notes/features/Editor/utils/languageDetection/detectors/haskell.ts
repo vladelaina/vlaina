@@ -3,6 +3,43 @@ import type { LanguageDetector } from '../types';
 export const detectHaskell: LanguageDetector = (ctx) => {
   const { code, first100Lines, firstLine, lines } = ctx;
 
+  if (
+    /^type\s+[A-Z_]\w*\s*=\s*(?:dict|list|tuple|set|frozenset|str|int|float|bool|bytes)\b/m.test(first100Lines) ||
+    /^require(?:_relative)?\s+['"]/.test(first100Lines) ||
+    /\b(Gem::Specification\.new|Sidekiq::Worker|Minitest::Test|ActiveSupport::Concern|RSpec\.(describe|shared_examples)|FactoryBot\.define|ApplicationRecord|ApplicationJob|ApplicationMailer|ApplicationController|described_class|delegate_missing_to|attr_reader|attr_accessor|attr_writer)\b/.test(code) ||
+    /(?:^|\n)\s*(?:export\s+)?type\s+\w+(?:<[^>\n]+>)?\s*=.*;/.test(code) ||
+    /\b(?:readonly|keyof|infer|satisfies|asserts|typeof|Record<|Partial<|Required<|Pick<|Omit<|Extract<|Exclude<|ReturnType<|Parameters<|InstanceType<|Awaited<|Promise<|JSX\.Element)\b/.test(code) ||
+    /(?:^|\n)\s*(?:interface|enum|namespace|declare)\b/.test(code)
+  ) {
+    return null;
+  }
+
+  if (/^type\s+\w+<[^>]+>\s*=\s*\{/m.test(first100Lines) && /const\s+\w+\s*=\s*<[^>]+>\s*\([^)]*\)\s*:\s*\w+\s*=>/.test(code)) {
+    return null;
+  }
+
+  if (/^import\s+(SwiftUI|Foundation|UIKit|Combine)\b/m.test(first100Lines) ||
+      /@(Published|MainActor|State|Binding|ObservedObject|EnvironmentObject|StateObject|AppStorage)\b/.test(code) ||
+      /\bObservableObject\b/.test(code)) {
+    return null;
+  }
+
+  if (/^type\s+[a-z]\w*\s*=/.test(first100Lines) && /^\s*\|\s+[A-Z]\w+/m.test(code)) {
+    return null;
+  }
+
+  if (/^type\s+\w+(?:<[^>]+>)?\s*=\s*[^;]*\b(?:Result|Option|Box|dyn)\b[^;]*::[^;]*;/m.test(first100Lines)) {
+    return null;
+  }
+
+  if (/\bstruct\s+\w+:\s*View\s*\{/.test(code) || /\bguard\s+let\s+\w+\s*=/.test(code) || /@State\b/.test(code)) {
+    return null;
+  }
+
+  if (/\bval\s+\w+\s*=/.test(first100Lines) || /\bprintln\(/.test(code) || /\(1\s+to\s+\d+\)/.test(code)) {
+    return null;
+  }
+
   // Haskell function with type signature
   if (/^\w+\s*::\s*[A-Z]/.test(first100Lines)) {
     return 'haskell';
@@ -13,6 +50,11 @@ export const detectHaskell: LanguageDetector = (ctx) => {
     if (/\bderiving\s*\(/.test(code) || /^\s*\|\s+[A-Z]\w+/.test(code)) {
       return 'haskell';
     }
+  }
+
+  if (/^import\s+[A-Z][\w.]*\s+from\s+['"]/m.test(first100Lines) ||
+      /^export\s+default\s+function\s+\w+/.test(code)) {
+    return null;
   }
 
   // Haskell import with qualified
@@ -111,7 +153,7 @@ export const detectHaskell: LanguageDetector = (ctx) => {
     return null;
   }
 
-  if (/^(interface|type)\s+\w+\s*=\s*\{/.test(firstLine)) {
+  if (/^(interface|type)\s+\w+(<[^>]+>)?\s*=\s*\{/.test(firstLine)) {
     return null;
   }
 
@@ -176,7 +218,7 @@ export const detectHaskell: LanguageDetector = (ctx) => {
   }
 
   if (/^[a-z]\w*\s+[a-z]\w*(\s+[a-z]\w*)*\s*=\s*/.test(firstLine)) {
-    if (lines.length <= 3 && !/\b(var|const|let|function|def|class|local)\b/.test(code)) {
+    if (lines.length <= 3 && !/\b(var|const|let|function|def|class|local|val)\b/.test(code)) {
       return 'haskell';
     }
   }

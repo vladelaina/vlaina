@@ -3,6 +3,14 @@ import type { LanguageDetector } from '../types';
 export const detectPerl: LanguageDetector = (ctx) => {
   const { code, first100Lines, lines } = ctx;
 
+  if (
+    /^\s*\w+\s*<-\s*/m.test(code) &&
+    (/^\s*(library|require)\s*\(/m.test(code) ||
+      /\b(data\.frame|ggplot|summary|mutate|filter|select)\s*\(/.test(code))
+  ) {
+    return null;
+  }
+
   // Simple single-line Perl patterns
   if (lines.length <= 3) {
     if (/^print\s+["'].*["']\s*;/.test(code.trim())) {

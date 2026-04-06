@@ -27,12 +27,23 @@ export const detectLiquid: LanguageDetector = (ctx) => {
   if (/\{%-?\s*(if\s+not|elif)\b/.test(code) || /\{%-[\s\S]*?-%\}/.test(code)) {
     return null;
   }
+  if (/\{%\s*for\s+\w+\s+in\s+\w+\s*\|\s*filter\(/.test(code)) {
+    return null;
+  }
+
 
   const liquidFilters = /\|\s*(pluralize|money|asset_url|global_asset_url|shopify_asset_url|stylesheet_tag|script_tag|link_to|link_to_add_tag|link_to_tag|link_to_vendor|link_to_type|highlight_active_tag|product_img_url|json)\b/.test(code);
+  const commonInlineLiquidFilters = /\|\s*(upcase|downcase|capitalize|date|default|escape|first|join|last|size|split|strip|truncate|remove|replace|slice|append)\b/.test(code);
+  const commonFilterCount = (code.match(/\|\s*(capitalize|date|default|escape|first|join|last|size|split|strip|upcase|downcase|truncate|remove|replace|slice|append)\b/g) || []).length;
 
   const liquidTags = /\{%\s*(assign|capture|tablerow|liquid|render|cycle|case|when)\b/.test(code);
+  const hasLiquidObjects = /\{\{\s*(page|site|content|layout|product|collection|cart|shop|article|blog|variant|search)\.\w+/.test(code) || /\b(page|site|content|layout|product|collection|cart|shop|article|blog|variant|search)\.\w+/.test(code);
 
   if (liquidFilters || liquidTags) {
+    return 'liquid';
+  }
+
+  if (/\{\{[\s\S]*?\}\}/.test(code) && commonInlineLiquidFilters && !/\{%/.test(code)) {
     return 'liquid';
   }
 
@@ -43,7 +54,9 @@ export const detectLiquid: LanguageDetector = (ctx) => {
       if (/\{%\s*endfor\s*%\}/.test(code)) {
 
         if (!/\{%\s*(extends|block|macro|set|import|if\s+not|elif)\b/.test(code) && !/\{%-[\s\S]*?-%\}/.test(code)) {
-          return 'liquid';
+          if (liquidFilters || liquidTags || hasLiquidObjects || commonFilterCount >= 2) {
+            return 'liquid';
+          }
         }
       }
     }
@@ -54,8 +67,7 @@ export const detectLiquid: LanguageDetector = (ctx) => {
 
         if (!/\{%\s*(extends|block|macro|set|import|if\s+not|elif)\b/.test(code) && !/\{%-[\s\S]*?-%\}/.test(code)) {
 
-          const commonFilters = (code.match(/\|\s*(capitalize|date|default|escape|first|join|last|size|split|strip|upcase|downcase|truncate|remove|replace|slice|append)\b/g) || []).length;
-          if (commonFilters >= 2) {
+          if (commonFilterCount >= 2 || hasLiquidObjects) {
             return 'liquid';
           }
         }
@@ -73,6 +85,9 @@ export const detectLiquid: LanguageDetector = (ctx) => {
     ].filter(Boolean).length;
 
     if (liquidPatterns >= 2 && !/\{%\s*(extends|block|macro|set|import|if\s+not|elif)\b/.test(code) && !/\{%-[\s\S]*?-%\}/.test(code)) {
+      if (/\{%\s*(for|if|unless)\s+/.test(code) && !liquidFilters && !liquidTags && !hasLiquidObjects && commonFilterCount < 2) {
+        return null;
+      }
       return 'liquid';
     }
   }

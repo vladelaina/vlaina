@@ -326,4 +326,30 @@ describe('useCodeBlockState', () => {
 
     expect(clearTimeoutSpy).toHaveBeenCalled();
   });
+  it('defaults unlabeled blocks to txt and resolves the display label from the catalog', () => {
+    const node = {
+      attrs: { collapsed: false },
+      textContent: 'plain text',
+    } as any;
+
+    const { view } = createMockView({
+      getPos: 10,
+      docSize: 100,
+      nodeSize: 10,
+      currentNodeAttrs: { collapsed: false },
+      selection: { from: 12, to: 12 },
+    });
+
+    const { result } = renderHook(() =>
+      useCodeBlockState({
+        node,
+        view,
+        getPos: () => 10,
+        getNode: () => node,
+      }),
+    );
+
+    expect(result.current.language).toBe('txt');
+    expect(result.current.displayName).toBe('TXT');
+  });
 });

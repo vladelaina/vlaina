@@ -7,7 +7,7 @@ export const detectPowerShell: LanguageDetector = (ctx) => {
     return null;
   }
 
-  if (/^#!.*bash/.test(first100Lines) || /\b(echo|if\s+\[|then|fi|for\s+\w+\s+in)\b/.test(first100Lines)) {
+  if (/^#!.*bash/.test(first100Lines) || /(^|\n)\s*(echo\s+|if\s+\[|then\b|fi\b|for\s+\w+\s+in)/.test(first100Lines)) {
     return null;
   }
 

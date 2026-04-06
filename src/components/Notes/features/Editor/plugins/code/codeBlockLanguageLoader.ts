@@ -1,6 +1,6 @@
 import type { LanguageDescription } from '@codemirror/language';
 import { languages } from '@codemirror/language-data';
-import { normalizeLanguage } from '../../utils/shiki';
+import { normalizeSupportedCodeLanguage, supportedCodeLanguages } from '../../utils/codeLanguages';
 
 type SupportedLanguageDescription = LanguageDescription & {
   alias: readonly string[];
@@ -12,40 +12,72 @@ export interface CodeBlockLanguageInfo {
   aliases: readonly string[];
 }
 
+function getDescriptionId(description: SupportedLanguageDescription) {
+  return description.alias[0] ?? description.name.toLowerCase();
+}
+
 export class CodeBlockLanguageLoader {
   private readonly descriptions: SupportedLanguageDescription[];
-  private readonly map: Record<string, SupportedLanguageDescription>;
+  private readonly descriptionMap: Record<string, SupportedLanguageDescription>;
+  private readonly languageInfos: CodeBlockLanguageInfo[];
 
   constructor(descriptions: readonly LanguageDescription[]) {
     this.descriptions = descriptions
       .filter((description): description is SupportedLanguageDescription => Array.isArray(description.alias))
       .sort((left, right) => left.name.localeCompare(right.name));
-    this.map = {};
+    this.descriptionMap = {};
 
     for (const description of this.descriptions) {
-      this.map[description.name.toLowerCase()] = description;
+      this.descriptionMap[description.name.toLowerCase()] = description;
       for (const alias of description.alias) {
-        this.map[alias.toLowerCase()] = description;
+        this.descriptionMap[alias.toLowerCase()] = description;
       }
     }
+
+    const catalogOnlyLanguages = supportedCodeLanguages
+      .filter((language) => !this.descriptionMap[language.id])
+      .map((language) => ({
+        id: language.id,
+        name: language.name,
+        aliases: language.aliases ?? [],
+      }));
+
+    this.languageInfos = [
+      ...this.descriptions.map((description) => ({
+        id: getDescriptionId(description),
+        name: description.name,
+        aliases: description.alias,
+      })),
+      ...catalogOnlyLanguages,
+    ].sort((left, right) => left.name.localeCompare(right.name));
   }
 
   getAll(): CodeBlockLanguageInfo[] {
-    return this.descriptions.map((description) => ({
-      id: description.alias[0] ?? description.name.toLowerCase(),
-      name: description.name,
-      aliases: description.alias,
-    }));
+    return this.languageInfos;
   }
 
   resolveLanguageId(languageName: string | null | undefined) {
-    const normalized = normalizeLanguage(languageName ?? '') ?? languageName?.toLowerCase().trim() ?? '';
-    const description = this.map[normalized];
+    const normalizedCatalogLanguage = normalizeSupportedCodeLanguage(languageName);
+    if (normalizedCatalogLanguage) {
+      const description = this.descriptionMap[normalizedCatalogLanguage];
+      if (description) {
+        return getDescriptionId(description);
+      }
+
+      return normalizedCatalogLanguage;
+    }
+
+    const normalized = languageName?.toLowerCase().trim() ?? '';
+    if (!normalized) {
+      return null;
+    }
+
+    const description = this.descriptionMap[normalized];
     if (!description) {
       return null;
     }
 
-    return description.alias[0] ?? description.name.toLowerCase();
+    return getDescriptionId(description);
   }
 
   normalizeLanguageId(languageName: string | null | undefined) {
@@ -64,7 +96,7 @@ export class CodeBlockLanguageLoader {
       return Promise.resolve(undefined);
     }
 
-    const description = this.map[normalizedLanguageId];
+    const description = this.descriptionMap[normalizedLanguageId];
     if (!description) {
       return Promise.resolve(undefined);
     }

@@ -3,6 +3,23 @@ import type { LanguageDetector } from '../types';
 export const detectMakefile: LanguageDetector = (ctx) => {
   const { code, firstLine, first100Lines } = ctx;
 
+  if (
+    /(?:^|\n)\s*(?:if|elif|else|for|while|try|except|finally|with|match|case)\b[^\n]*:/.test(code) ||
+    /(?:^|\n)\s*(?:async\s+def|def|class)\s+\w+[^\n]*:/.test(code) ||
+    /\b(?:None|True|False|self|__name__|__main__)\b/.test(code) ||
+    /\b(?:len|sum|min|max|any|all|enumerate|zip|sorted|range|isinstance|print)\s*\(/.test(code) ||
+    /\.(?:get|setdefault|append|extend|pop|appendleft|exists|read_text|write_text|unlink)\s*\(/.test(code) ||
+    /(?:^|\n)\s*\w+(?:\s*,\s*\*?\w+)+\s*=/.test(code) ||
+    /\[[^\]\n]*:[^\]\n]*\]/.test(code) ||
+    /^require(?:_relative)?\s+['"]/.test(first100Lines) ||
+    /\b(attr_reader|attr_accessor|attr_writer|module_function|delegate_missing_to|described_class|Sidekiq::Worker|Minitest::Test|ActiveSupport::Concern|ApplicationRecord|ApplicationJob|ApplicationMailer|ApplicationController|Bundler\.require|Gem::Specification\.new)\b/.test(code) ||
+    /\b(Struct\.new|Hash\.new|OpenStruct\.new|Pathname\.new|ENV\.fetch|ERB\.new|YAML\.load_file|JSON\.parse|Open3\.capture3|File\.read)\(/.test(code) ||
+    /\b\d+\.(times|upto)\b/.test(code) ||
+    /\{\s*:\w+\s*=>/.test(code)
+  ) {
+    return null;
+  }
+
   if (/^---\s*$/m.test(code) || /^\.\.\.\s*$/m.test(code)) {
     return null;
   }

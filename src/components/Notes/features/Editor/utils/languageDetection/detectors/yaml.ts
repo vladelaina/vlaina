@@ -3,6 +3,21 @@ import type { LanguageDetector } from '../types';
 export const detectYAML: LanguageDetector = (ctx) => {
   const { code, lines, first100Lines, firstLine } = ctx;
 
+  if (/^#include\s*[<"]/m.test(first100Lines) || /\b(public|private|protected):\s*$/m.test(code) || /\b(virtual|override|noexcept|enum\s+class)\b/.test(code) || /\bstd::/.test(code)) {
+    return null;
+  }
+
+  if (
+    /\b(for\s+\w+\s+in|do|done|if\s+\[|then|fi)\b/.test(code) &&
+    /^\s*echo\s+["'][^"']+:\s*["']?\s*$/m.test(code)
+  ) {
+    return null;
+  }
+
+  if (/^\s+at\s+\w+.*:\d+:\d+\)?$/m.test(code)) {
+    return null;
+  }
+
   // Simple single-line YAML patterns
   if (lines.length <= 3) {
     if (/^[\w-]+:\s+\w+/.test(code.trim())) {
@@ -57,6 +72,10 @@ export const detectYAML: LanguageDetector = (ctx) => {
     if (!/^\t/m.test(code) && !/\$\(/.test(code)) {
       return 'yaml';
     }
+  }
+
+  if (/^\s*-\s+[\w-]+:\s*/m.test(code) && /^\s{2,}[\w-]+:\s*/m.test(code)) {
+    return 'yaml';
   }
 
   // YAML document separator
@@ -137,7 +156,15 @@ export const detectYAML: LanguageDetector = (ctx) => {
     for (let i = 0; i < maxLines; i++) {
       if (/^\s*-\s+\w+/.test(lines[i])) {
         listCount++;
-        if (listCount >= 2 && !/\{|\}|;/.test(code)) {
+        if (
+          listCount >= 2 &&
+          !/\{|\}|;/.test(code) &&
+          (
+            /^[\w-]+:\s*/m.test(code) ||
+            /^\s*-\s+[\w-]+:\s*/m.test(code) ||
+            /^---\s*$/m.test(code)
+          )
+        ) {
           return 'yaml';
         }
       }

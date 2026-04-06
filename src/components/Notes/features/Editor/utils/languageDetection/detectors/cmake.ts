@@ -21,6 +21,10 @@ export const detectCMake: LanguageDetector = (ctx) => {
     return null;
   }
 
+  if (/\b(?:const|let|var)\s+\w+\s*:\s*Set<[^>\n]+>\s*=/.test(code) || /\bnew\s+Set\s*\(/.test(code)) {
+    return null;
+  }
+
   if (/\b(cmake_minimum_required|project|add_executable|add_library|target_link_libraries|find_package|find_library|include_directories|set|option|enable_testing|add_custom_command)\s*\(/i.test(code)) {
     return 'cmake';
   }

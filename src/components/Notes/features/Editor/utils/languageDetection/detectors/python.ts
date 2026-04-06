@@ -1,174 +1,187 @@
 import type { LanguageDetector } from '../types';
 
 export const detectPython: LanguageDetector = (ctx) => {
-  const { firstLine, first100Lines, lines, hasCurlyBraces, code } = ctx;
+  const { firstLine, first100Lines, lines, hasCurlyBraces, hasSemicolon, code } = ctx;
 
-  // Simple single-line Python patterns
-  if (lines.length <= 3) {
-    if (/^print\s*\(/.test(code.trim())) {
-      // Check for Python-specific patterns
-      if (/^print\s*\(\s*["']/.test(code.trim()) && !/\bvar\b|\blet\b|\bfunc\b/.test(code)) {
-        return 'python';
-      }
-    }
-  }
-
-  // Python import statements - must be before JavaScript check
-  if (/^from\s+\w+\s+import\s+/.test(first100Lines)) {
-    // Python-style: from X import Y (no quotes, no semicolons)
-    if (!/['"]/.test(first100Lines) && !/;/.test(first100Lines)) {
-      return 'python';
-    }
-  }
-  
-  if (/^import\s+\w+/.test(first100Lines)) {
-    // Check for Python-specific imports or Python-style imports (no semicolons)
-    if (/\bimport\s+(numpy|pandas|matplotlib|scipy|sklearn|torch|tensorflow|typing|os|sys|re|json|math|random|datetime|collections|itertools)\b/.test(first100Lines)) {
-      return 'python';
-    }
-    // Python import without semicolon
-    if (!/;/.test(first100Lines) && !/\bfrom\s+['"]/.test(first100Lines)) {
-      return 'python';
-    }
-  }
-
-  // Python import statements
-  if (/^(import|from)\s+\w+/.test(first100Lines)) {
-    // Exclude Haskell (imports start with capital letter)
-    if (/^import\s+(qualified\s+)?[A-Z][\w.]*/.test(first100Lines)) {
-      // Check if it's Haskell (has type signatures or data types)
-      if (/::\s*[A-Z]/.test(code) || /^data\s+[A-Z]/.test(code) || /\bderiving\s*\(/.test(code)) {
-        return null;
-      }
-    }
-    
-    if (/\bfrom\s+typing\s+import\b/.test(first100Lines) || 
-        /\bimport\s+(numpy|pandas|matplotlib|scipy|sklearn|torch|tensorflow)\b/.test(first100Lines)) {
-      return 'python';
-    }
-    // Check for Python-style imports (no 'from' with quotes)
-    if (/^from\s+\w+\s+import\s+\w+/.test(first100Lines) && !/['"]/.test(first100Lines)) {
-      return 'python';
-    }
+  if (
+    /\bswitch\s*\(/.test(code) && /\bcase\b/.test(code) && /[{}]/.test(code) ||
+    /(?:^|\n)\s*[a-z_]\w*\([^ )\n]*[^\n]*\)\s*->/.test(code) ||
+    /\blists:\w+\s*\(/.test(code) ||
+    /^#include\s*[<"]/m.test(first100Lines) ||
+    /\b(public|private|protected):\s*$/m.test(code) ||
+    /\b(enum\s+class|virtual|override|noexcept|constexpr)\b/.test(code) ||
+    /\bstd::/.test(code) ||
+    /^package\s+[\w:]+;/m.test(first100Lines) ||
+    /^import\s+static\s+java\./m.test(first100Lines) ||
+    /^import\s+(?:java|javax|jakarta|javafx|lombok|org\.(?:springframework|junit|apache|jooq)|com\.(?:fasterxml|google|intellij))\./m.test(first100Lines) ||
+    /^@(Override|Deprecated|SuppressWarnings|Test|RestController|RequestMapping|GetMapping|PostMapping|PutMapping|DeleteMapping|Autowired|Component|Service|Repository|Controller|Entity|Table|Column|Id)\b/m.test(code) ||
+    /^namespace\s+[A-Z]\w*(\\[A-Z]\w*)*;$/m.test(first100Lines) ||
+    /^use\s+(strict|warnings|lib)\b/m.test(first100Lines) ||
+    /\b(import\s+.*from|export\s+(default|const|function|class)|const\s+\w+\s*=|let\s+\w+\s*=|var\s+\w+\s*=)\b/.test(first100Lines) ||
+    /^require(?:_relative)?\s+['"]/.test(first100Lines) ||
+    /require\s+["'].*spec_helper["']/.test(first100Lines) ||
+    /\b(defmodule|defp|def\s+\w+.*\s+do\b|use\s+[A-Z]|alias\s+[A-Z])\b/.test(first100Lines) ||
+    /(?:^|\n)\s*(?:extends\s+\w+|signal\s+\w+|export\s*\(|onready\s+var|func\s+_ready\(\))/m.test(first100Lines) ||
+    /^\(ns\s+[\w.-]+|^\((def|defn|defmacro|deftask)\s+/m.test(first100Lines) ||
+    (/^import\s+(qualified\s+)?[A-Z][\w.]*/m.test(first100Lines) &&
+      /(::\s*[A-Z]|^data\s+[A-Z]|\bderiving\s*\()/m.test(code)) ||
+    /^#!.*crystal/.test(firstLine)
+  ) {
+    return null;
   }
 
   if (firstLine.startsWith('# -*- coding:') || firstLine.startsWith('# coding:')) {
     return 'python';
   }
 
-  if (/^package\s+[\w:]+;/m.test(first100Lines) ||
-      /^use\s+(strict|warnings|lib)\b/m.test(first100Lines) ||
-      (/^sub\s+\w+\s*\{/m.test(first100Lines) && /[\$@%][\w]+/.test(first100Lines))) {
-    return null;
-  }
+  const hasPythonImport =
+    /^(?:from\s+[._a-z][\w.]*\s+import\s+|import\s+[a-z_][\w.]*(?:\s+as\s+\w+)?(?:\s*,\s*[a-z_][\w.]*(?:\s+as\s+\w+)?)*)/m.test(
+      first100Lines,
+    );
+  const hasPythonDef = /\bdef\s+\w+\s*\([^)\n]*\)\s*(?:->\s*[^:\n]+)?\s*:/.test(code);
+  const hasPythonAsyncDef =
+    /\basync\s+def\s+\w+\s*\([^)\n]*\)\s*(?:->\s*[^:\n]+)?\s*:/.test(code);
+  const hasPythonClass = /\bclass\s+\w+(?:\([^)\n]*\))?\s*:/.test(code);
+  const hasPythonDecorator =
+    /(?:^|\n)\s*@[a-z_]\w*(?:\.[a-z_]\w*)*(?:\([^)\n]*\))?\s*$/im.test(first100Lines);
+  const hasPythonFlow = /(?:^|\n)\s*(?:if|elif|else|for|while|try|except|finally|with|match|case)\b[^\n]*:/.test(code);
+  const hasPythonIndent = lines.slice(1, 25).some((line) => /^(?: {4,}|\t)\S/.test(line));
+  const hasPythonLiterals = /\b(?:None|True|False|self|cls|__init__|__name__|__main__)\b/.test(code);
+  const hasPythonComprehension =
+    /(?:\[[^\]\n]*\bfor\b[^\]\n]*\bin\b[^\]\n]*\]|\{[^\}\n]*\bfor\b[^\}\n]*\bin\b[^\}\n]*\}|\([^)\n]*\bfor\b[^)\n]*\bin\b[^)\n]*\))/.test(
+      code,
+    );
+  const hasPythonLambda = /\blambda\b[^\n:]*:/.test(code);
+  const hasPythonYield = /\byield(?:\s+from)?\b/.test(code);
+  const hasPythonFString = /(^|[^A-Za-z0-9_])(?:[rub]|br|rb)?f(?:"[^"\n]*\{|'[^'\n]*\{)/i.test(code);
+  const hasPythonWalrus = /:=/.test(code);
+  const hasPythonTypeAlias =
+    /(?:^|\n)\s*type\s+[A-Z_]\w*\s*=\s*(?:dict|list|tuple|set|frozenset|str|int|float|bool|bytes|Callable|Iterable|Sequence|Mapping)\b/.test(
+      code,
+    );
+  const hasPythonTypeHints =
+    /(?:^|\n)\s*\w+\s*:\s*(?:str|int|bool|float|bytes|dict|list|tuple|set|None|Literal|Final|Protocol|[A-Z]\w*)(?:\[[^\]\n]+\])?/.test(
+      code,
+    ) || /\)\s*->\s*[A-Za-z_][^:\n]*\s*:/.test(code);
+  const hasPythonTupleUnpack = /(?:^|\n)\s*\w+(?:\s*,\s*\*?\w+)+\s*=/.test(code);
+  const hasPythonSlice = /\[[^\]\n]*:[^\]\n]*\]/.test(code);
+  const hasPythonBuiltins =
+    /\b(?:len|sum|min|max|any|all|enumerate|zip|isinstance|issubclass|print|range|sorted|open|list|dict|set|tuple|cast|namedtuple|select)\s*\(/.test(
+      code,
+    );
+  const hasPythonTypingSymbol = /\b(?:Literal|Final|Protocol|TypeVar|overload|dataclass|cached_property|Enum|StrEnum)\b/.test(code);
+  const hasPythonLibraryCall =
+    /\b(?:Counter|defaultdict|deque|chain|lru_cache|suppress|Decimal|Fraction|NamedTemporaryFile|uuid4|ArgumentParser|FastAPI|BaseModel|JsonResponse|TypeVar|Literal)\s*\(/.test(
+      code,
+    );
+  const hasPythonMemberCall =
+    /\.(?:append|extend|pop|appendleft|get|setdefault|exists|read_text|write_text|unlink|strip|lower|upper|split|items|values|keys|json|head|desc|order_by|is_|filter|getLogger|add_argument|echo|raises|assertEqual|connect|execute|getenv|loads|join|now)\s*\(/.test(
+      code,
+    );
+  const hasPythonFramework =
+    /@(app|router|api)\.(route|get|post|put|delete|patch)\b/.test(code) ||
+    /\b\w+\.objects\.(?:filter|all|get|create|update|delete)\s*\(/.test(code) ||
+    /\b(?:pd|np|plt|pytest)\.\w+\s*\(/.test(code);
+  const hasPythonAsyncUse = /\b(?:await|async\s+for|async\s+with)\b/.test(code);
+  const hasPythonRaiseOrAssert = /(?:^|\n)\s*(?:raise|assert)\b/.test(code);
+  const hasPythonWithOpen = /\bwith\s+open\s*\([^)\n]*\)\s+as\s+\w+\s*:/.test(code);
+  const hasSimpleAssignment = /(?:^|\n)\s*[A-Za-z_]\w*(?:\s*,\s*\*?\w+)*\s*=/.test(code);
 
-  if (/^#!.*crystal/.test(firstLine) ||
-      /require\s+["'].*spec_helper["']/.test(first100Lines) ||
-      (/\bdescribe\s+["']/.test(code) && /\.should\s+(eq|be_true|be_false|be_nil)/.test(code)) ||
-      (/^module\s+[A-Z]\w*$/m.test(first100Lines) && /\bdef\s+\w+/.test(first100Lines) && /\bend\b/.test(code))) {
-    return null;
-  }
-
-  if (/^\(ns\s+[\w.-]+|^\((def|defn|defmacro|deftask)\s+/m.test(first100Lines)) {
-    return null;
-  }
-  if (/^;;/.test(first100Lines) && /^\(/m.test(first100Lines)) {
-    return null;
-  }
-
-  if (/\bwith\s+open\s*\(/.test(code) && /\bas\s+\w+:/.test(code)) {
+  if (/^print\s*\(\s*['"]/m.test(code) && !/;/.test(code)) {
     return 'python';
   }
 
-  if (/^lambda\s+[\w,\s]+:/.test(code.trim())) {
+  if (hasPythonTypeAlias || /__name__\s*==\s*['"]__main__['"]/.test(code) || hasPythonWalrus) {
     return 'python';
   }
 
-  if (/\[.+\s+for\s+\w+\s+in\s+.+\]/.test(code)) {
-    if (/\[\s*\w+\s*\^\s*\d+\s+for\s+\w+\s+in\s+\d+:\d+/.test(code)) {
-      return null;
-    }
-    if (/\bfor\s+\w+\s+in\s+\d+:\d+/.test(code) && /\^\d+/.test(code)) {
-      return null;
-    }
+  if (hasPythonDecorator && (hasPythonDef || hasPythonAsyncDef || hasPythonClass)) {
     return 'python';
   }
 
-  if (/^@\w+(\.\w+)*(\(.*\))?$/m.test(first100Lines)) {
-    if (lines.length <= 5) {
-      return 'python';
-    }
-  }
-
-  if (/\b(pd|np|plt|df)\.\w+\(/.test(code)) {
+  if ((hasPythonDef || hasPythonAsyncDef) && (/^\s{4,}[A-Za-z_]\w+\s*=/m.test(code) || /^\s{4,}return\b/m.test(code))) {
     return 'python';
   }
 
-  if (/@(app|router|api)\.(route|get|post|put|delete|patch)/.test(code)) {
+  if (
+    hasPythonImport &&
+    (hasPythonDef ||
+      hasPythonAsyncDef ||
+      hasPythonClass ||
+      hasPythonDecorator ||
+      hasPythonFlow ||
+      hasPythonLiterals ||
+      hasPythonTypeHints ||
+      hasPythonBuiltins ||
+      hasPythonTypingSymbol ||
+      hasPythonLibraryCall ||
+      hasPythonMemberCall ||
+      hasPythonFramework ||
+      hasPythonAsyncUse)
+  ) {
     return 'python';
   }
 
-  if (/@(login_required|require_http_methods|permission_classes|csrf_exempt)/.test(code)) {
+  if (
+    (hasPythonAsyncDef || hasPythonDef) &&
+    (hasPythonIndent || hasPythonFlow || hasPythonYield || hasPythonLiterals || hasPythonTypeHints || hasPythonAsyncUse)
+  ) {
     return 'python';
   }
 
-  if (/\bUser\.objects\.(filter|all|get|create|update|delete)/.test(code)) {
+  if (hasPythonClass && (hasPythonIndent || hasPythonDecorator || hasPythonTypeHints || /(?:^|\n)\s*def\s+/.test(code))) {
     return 'python';
   }
 
-  if (/:\s*(str|int|bool|float|List|Dict|Tuple|Optional|Union|Any|Callable|Type|Sequence|Iterable)\b/.test(first100Lines)) {
-    if (/\bdef\s+\w+\s*\(/.test(first100Lines) || /\bclass\s+\w+/.test(first100Lines)) {
-      if (/\bfrom\s+typing\s+import\b/.test(first100Lines) || /\bTypeVar\b/.test(first100Lines)) {
-        return 'python';
-      }
-    }
-  }
-
-  if (/\bdef\s+(setup|draw)\s*\(\s*\):/.test(code)) {
+  if (
+    (hasPythonComprehension ||
+      hasPythonLambda ||
+      hasPythonYield ||
+      hasPythonFString ||
+      hasPythonRaiseOrAssert ||
+      hasPythonTupleUnpack ||
+      hasPythonSlice ||
+      hasPythonWithOpen) &&
+    !hasSemicolon
+  ) {
     return 'python';
   }
 
-  if (/^[\w-]+:\s*$/m.test(code) && /^\t/.test(code)) {
-    if (/\bdef\s+\w+\s*\(/.test(first100Lines) || /\bclass\s+\w+/.test(first100Lines)) {
-      return 'python';
-    }
-    return null;
-  }  if (!/[{}]/.test(code) && !/;/.test(code) && /\b(color|background|margin|padding|border|width|height)\s*:/.test(first100Lines)) {
-
-    if (/\bdef\s+\w+\s*\(/.test(first100Lines) || /\bclass\s+\w+/.test(first100Lines) || /\bfrom\s+typing\s+import\b/.test(first100Lines)) {
-      return 'python';
-    }
-    return null;
+  if (
+    hasPythonFlow &&
+    (hasPythonIndent || hasPythonBuiltins || hasPythonMemberCall || hasPythonLiterals || hasPythonTupleUnpack || hasPythonAsyncUse)
+  ) {
+    return 'python';
   }
 
-  if (/\bdef\s+\w+\s*\(/.test(first100Lines)) {
-
-    if (/\bfor\s+\w+\s+in\s+/.test(code) || /\bif\s+.*:/.test(code) || /\bimport\s+\w+/.test(first100Lines)) {
-      return 'python';
-    }
+  if (
+    !hasSemicolon &&
+    hasSimpleAssignment &&
+    (hasPythonLiterals || hasPythonBuiltins || hasPythonTypingSymbol || hasPythonMemberCall || hasPythonTupleUnpack || hasPythonSlice || hasPythonLibraryCall)
+  ) {
+    return 'python';
   }
 
-  if (/\b(defmodule|defp|def\s+\w+.*\s+do\b|use\s+[A-Z]|import\s+[A-Z]|alias\s+[A-Z])\b/.test(first100Lines)) {
-    return null;
+  let pythonScore = 0;
+
+  if (hasPythonImport) pythonScore += 3;
+  if (hasPythonDef || hasPythonAsyncDef) pythonScore += 3;
+  if (hasPythonClass) pythonScore += 2;
+  if (hasPythonDecorator) pythonScore += 2;
+  if (hasPythonFlow) pythonScore += 2;
+  if (hasPythonComprehension) pythonScore += 2;
+  if (hasPythonLambda || hasPythonYield || hasPythonFString || hasPythonWalrus) pythonScore += 2;
+  if (hasPythonLiterals) pythonScore += 2;
+  if (hasPythonTypeHints || hasPythonTypeAlias || hasPythonTypingSymbol) pythonScore += 2;
+  if (hasPythonBuiltins || hasPythonLibraryCall || hasPythonTypingSymbol) pythonScore += 1;
+  if (hasPythonMemberCall || hasPythonFramework || hasPythonTupleUnpack || hasPythonSlice || hasPythonAsyncUse) {
+    pythonScore += 1;
   }
+  if (hasPythonIndent) pythonScore += 1;
+  if (!hasSemicolon) pythonScore += 1;
+  if (!hasCurlyBraces || hasPythonComprehension || hasPythonTypeHints || hasPythonMemberCall) pythonScore += 1;
 
-  if (/\b(extends\s+\w+|signal\s+\w+|export\s*\(|onready\s+var|func\s+_ready\(\))\b/.test(first100Lines)) {
-    return null;
-  }
-
-  if (!/\b(def\s+\w+|class\s+\w+|import\s+\w+|from\s+\w+\s+import|if\s+.*:|elif\s+.*:|else:|print\(|lambda\s+|with\s+.*:|async\s+def|@\w+\s*\n\s*def)\b/.test(first100Lines)) {
-    return null;
-  }
-
-  const pythonScore = (
-    (/\b(def\s+\w+\s*\(|class\s+\w+\s*:)/.test(first100Lines) ? 2 : 0) +
-    (/\b(self|__init__|__name__|__main__|None|True|False|range\(|append\(|len\()\b/.test(first100Lines) ? 2 : 0) +
-    (/^(def|class|import|from)\s+/.test(firstLine) ? 1 : 0) +
-    (lines.slice(0, 20).filter(l => /^\s{4}|\t/.test(l)).length > 2 ? 1 : 0) +
-    (!hasCurlyBraces ? 1 : 0)
-  );
-
-  if (pythonScore >= 3) {
+  if (pythonScore >= 6) {
     return 'python';
   }
 

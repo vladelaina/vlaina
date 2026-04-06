@@ -3,10 +3,13 @@ import type { LanguageDetector } from '../types';
 export const detectNginx: LanguageDetector = (ctx) => {
   const { code, first100Lines, lines } = ctx;
 
-  // Simple single-line Nginx patterns
+  if (/\b(await|async\s+let|for\s+await|withCheckedContinuation|MainActor\.run|Task\s*\{)\b/.test(code) ||
+      /\bguard\s+let\b|if\s+#available\(/.test(code)) {
+    return null;
+  }
+
   if (lines.length <= 3) {
     const trimmed = code.trim();
-    // Nginx directive: server_name example.com;
     if (/^(server_name|listen|root|index|location|proxy_pass|return|rewrite)\s+/.test(trimmed)) {
       return 'nginx';
     }
@@ -20,14 +23,11 @@ export const detectNginx: LanguageDetector = (ctx) => {
     return null;
   }
 
-  if (/\b(server|location|upstream|proxy_pass|listen|root|index|error_page|access_log|error_log)\b/.test(code)) {
-
-    if (/server\s*\{|location\s+[^\{]*\{/.test(code)) {
-
-      const nginxDirectives = (code.match(/\b(server|location|upstream|proxy_pass|listen|root|index|error_page|access_log|error_log|rewrite|return|try_files)\b/g) || []).length;
-      if (nginxDirectives >= 2) {
-        return 'nginx';
-      }
+  if (/\b(server|location|upstream|proxy_pass|listen|root|index|error_page|access_log|error_log)\b/.test(code) &&
+      /server\s*\{|location\s+[^\{]*\{/.test(code)) {
+    const nginxDirectives = (code.match(/\b(server|location|upstream|proxy_pass|listen|root|index|error_page|access_log|error_log|rewrite|return|try_files)\b/g) || []).length;
+    if (nginxDirectives >= 2) {
+      return 'nginx';
     }
   }
 
