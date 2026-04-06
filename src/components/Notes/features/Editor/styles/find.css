@@ -1,0 +1,20 @@
+.milkdown .ProseMirror .vlaina-editor-find-match {
+  border-radius: 4px;
+  background: rgba(255, 221, 87, 0.82);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.milkdown .ProseMirror .vlaina-editor-find-match-active {
+  background: rgba(255, 176, 32, 0.96);
+  box-shadow: inset 0 0 0 1px rgba(120, 53, 15, 0.2), 0 0 0 1px rgba(255, 176, 32, 0.45);
+}
+
+.dark .milkdown .ProseMirror .vlaina-editor-find-match {
+  background: rgba(250, 204, 21, 0.5);
+}
+
+.dark .milkdown .ProseMirror .vlaina-editor-find-match-active {
+  background: rgba(251, 191, 36, 0.82);
+  box-shadow: inset 0 0 0 1px rgba(255, 251, 235, 0.08), 0 0 0 1px rgba(251, 191, 36, 0.38);
+}

@@ -23,6 +23,12 @@ import {
   mapDocumentOffsetToCodeBlockEditorOffset,
   normalizeCodeBlockEditorText,
 } from './codemirror';
+import { getEditorFindState } from '../find/editorFindCommands';
+import {
+  buildCodeMirrorFindHighlightRanges,
+  codeMirrorFindHighlightExtensions,
+  syncCodeMirrorFindHighlights,
+} from '../find/editorFindCodeMirrorHighlights';
 import {
   applyCodeBlockCollapsedState,
   forwardCodeBlockUpdate,
@@ -86,6 +92,7 @@ export class CodeBlockNodeView implements NodeView {
           this.lineNumbersCompartment.of(this.getLineNumberExtensions(this.node)),
           this.wrapCompartment.of(this.node.attrs.wrap ? [CodeMirror.lineWrapping] : []),
           drawSelection(),
+          ...codeMirrorFindHighlightExtensions,
           ...createCodeBlockEditorTheme(),
           codeMirrorKeymap.of(this.createKeymap()),
           EditorState.changeFilter.of(() => this.view.editable),
@@ -113,6 +120,7 @@ export class CodeBlockNodeView implements NodeView {
     });
 
     this.applyCollapsedState();
+    this.syncFindHighlights();
     this.root = createRoot(this.headerDOM);
     this.render();
     void this.syncLanguage();
@@ -165,6 +173,35 @@ export class CodeBlockNodeView implements NodeView {
   private applyCollapsedState() {
     applyCodeBlockCollapsedState(this.dom, this.editorDOM, Boolean(this.node.attrs.collapsed));
     this.scheduleMeasure();
+  }
+
+  private syncFindHighlights() {
+    const nodePos = this.getPos();
+    if (nodePos === undefined) {
+      syncCodeMirrorFindHighlights(this.cm, []);
+      return;
+    }
+
+    const state = getEditorFindState(this.view);
+    if (!state || state.matches.length === 0) {
+      syncCodeMirrorFindHighlights(this.cm, []);
+      return;
+    }
+
+    const contentFrom = nodePos + 1;
+    const contentTo = nodePos + this.node.nodeSize - 1;
+
+    syncCodeMirrorFindHighlights(
+      this.cm,
+      buildCodeMirrorFindHighlightRanges({
+        matches: state.matches,
+        activeIndex: state.activeIndex,
+        contentFrom,
+        contentTo,
+        rawText: this.node.textContent ?? '',
+        mapDocumentOffsetToEditorOffset: mapDocumentOffsetToCodeBlockEditorOffset,
+      }),
+    );
   }
 
   private scheduleMeasure() {
@@ -250,6 +287,8 @@ export class CodeBlockNodeView implements NodeView {
       this.updating = false;
       this.scheduleMeasure();
     }
+
+    this.syncFindHighlights();
 
     if (this.selected) {
       this.cm.focus();

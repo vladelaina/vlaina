@@ -1,11 +1,5 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
   Editor,
   rootCtx,
   defaultValueCtx,
@@ -21,10 +15,9 @@ import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { tableBlock } from '@milkdown/kit/component/table-block';
 import type { Parser } from '@milkdown/kit/transformer';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
-import { Icon } from '@/components/ui/icons';
 import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { cn, iconButtonStyles } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { NoteHeader } from './NoteHeader';
 import { useNoteCoverController, NoteCoverCanvas } from '../Cover';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
@@ -46,6 +39,8 @@ import {
 } from './plugins/frontmatter/frontmatterMarkdown';
 import { hasTemporaryTailParagraph } from './plugins/cursor/endBlankClickPlugin';
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
+import { useNoteEditorFind } from './find';
+import { EditorTopRightToolbar } from './EditorTopRightToolbar';
 import './styles/index.css';
 
 const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
@@ -236,6 +231,7 @@ export function MarkdownEditor({
   const starred = currentNotePath ? isStarred(currentNotePath) : false;
   const coverController = useNoteCoverController(currentNotePath);
   const coverUrl = coverController.cover.url;
+  const editorFind = useNoteEditorFind(currentNotePath);
   useHeldPageScroll(scrollRootRef);
 
   const handleEditorClick = (e: React.MouseEvent) => {
@@ -340,56 +336,14 @@ export function MarkdownEditor({
       data-note-toolbar-root="true"
       onClick={handleEditorClick}
     >
-      <div className="absolute top-2 right-2 z-20 flex items-center gap-1">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            currentNotePath && toggleStarred(currentNotePath);
-          }}
-          className={cn(
-            "p-1.5 transition-colors",
-            starred
-              ? "text-yellow-500"
-              : `${iconButtonStyles} hover:text-yellow-500`
-          )}
-        >
-          <Icon size="md" name="misc.star" style={{ fill: starred ? "currentColor" : "none" }} />
-        </button>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              onClick={(e) => e.stopPropagation()}
-              className={cn(
-                "p-1.5 transition-colors",
-                iconButtonStyles
-              )}
-            >
-              <Icon size="md" name="common.more" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <div className="px-2 py-1.5 text-xs text-muted-foreground grid grid-cols-[78px_1fr] gap-1">
-              <span className="font-medium">Lines:</span>
-              <span className="tabular-nums">{textStats.lineCount}</span>
-
-              <span className="font-medium">Words:</span>
-              <span className="tabular-nums">{textStats.wordCount}</span>
-
-              <span className="font-medium">Characters:</span>
-              <span className="tabular-nums">{textStats.characterCount}</span>
-            </div>
-            <DropdownMenuSeparator />
-            <div className="px-2 py-1.5 text-xs text-muted-foreground grid grid-cols-[78px_1fr] gap-1">
-              <span className="font-medium">Created:</span>
-              <span>{currentNoteMetadata?.createdAt ? new Date(currentNoteMetadata.createdAt).toLocaleString() : '-'}</span>
-
-              <span className="font-medium">Updated:</span>
-              <span>{currentNoteMetadata?.updatedAt ? new Date(currentNoteMetadata.updatedAt).toLocaleString() : '-'}</span>
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      <EditorTopRightToolbar
+        editorFind={editorFind}
+        currentNotePath={currentNotePath}
+        starred={starred}
+        toggleStarred={toggleStarred}
+        currentNoteMetadata={currentNoteMetadata}
+        textStats={textStats}
+      />
 
       <OverlayScrollArea
         ref={scrollRootRef}

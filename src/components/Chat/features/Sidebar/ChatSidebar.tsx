@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { cn, iconButtonStyles } from '@/lib/utils';
-import { isTemporarySession } from '@/lib/ai/temporaryChat';
 import { ChatSidebarList, ChatSidebarRow, ChatSidebarScrollArea, ChatSidebarSurface } from './ChatSidebarPrimitives';
 import {
   DropdownMenu,
@@ -16,12 +15,9 @@ import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { Icon } from '@/components/ui/icons';
 import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
 import { ChatSidebarTopActions } from './ChatSidebarTopActions';
-import { useGlobalSearch } from '@/hooks/useGlobalSearch';
-import {
-  SidebarSearchDrawer,
-  useSidebarSearchDrawerState,
-} from '@/components/layout/sidebar/SidebarSearchDrawer';
+import { SidebarSearchDrawer } from '@/components/layout/sidebar/SidebarSearchDrawer';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
+import { useChatSidebarSearch } from './useChatSidebarSearch';
 
 interface ChatSidebarProps {
   isPeeking?: boolean;
@@ -56,45 +52,25 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
   const preventNextMenuAutoFocusRef = useRef(false);
-
-  const openSearch = useCallback(() => {
-    setIsSearchOpen(true);
-  }, []);
-  const closeSearch = useCallback(() => {
-    setIsSearchOpen(false);
-    setSearchQuery('');
-  }, []);
-  const toggleSearch = useCallback(() => {
-    setIsSearchOpen((previous) => {
-      const next = !previous;
-      if (!next) {
-        setSearchQuery('');
-      }
-      return next;
-    });
-  }, []);
   const {
     inputRef: searchInputRef,
     scrollRootRef,
     hideSearch,
     handleScroll,
     shouldShowSearchResults,
-  } = useSidebarSearchDrawerState({
-    isOpen: isSearchOpen,
-    query: searchQuery,
-    onOpen: openSearch,
-    onClose: closeSearch,
+    isSearchOpen,
+    searchQuery,
+    setSearchQuery,
+    filteredSessions,
+    hasSessions,
+    sessionsToRender,
+  } = useChatSidebarSearch({
+    enabled: appViewMode === 'chat',
     scopeRef: sidebarRootRef,
+    sessions,
   });
-
-  const visibleSessions = useMemo(
-    () => sessions.filter((session) => !isTemporarySession(session)),
-    [sessions]
-  );
 
   useEffect(() => {
     const handleDeleteChat = (e: Event) => {
@@ -110,29 +86,6 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
         window.removeEventListener('vlaina-delete-chat', handleDeleteChat);
     };
   }, []);
-
-  useGlobalSearch(toggleSearch, appViewMode === 'chat');
-
-  const sortedSessions = useMemo(() => {
-    return [...visibleSessions].sort((a, b) => {
-      const pinDiff = Number(Boolean(b.isPinned)) - Number(Boolean(a.isPinned));
-      if (pinDiff !== 0) {
-        return pinDiff;
-      }
-      return b.updatedAt - a.updatedAt;
-    });
-  }, [visibleSessions]);
-
-  const filteredSessions = useMemo(() => {
-    const trimmedQuery = searchQuery.trim().toLowerCase();
-    if (!trimmedQuery) {
-      return [];
-    }
-
-    return sortedSessions.filter((session) =>
-      (session.title || 'New Chat').toLowerCase().includes(trimmedQuery)
-    );
-  }, [searchQuery, sortedSessions]);
 
   const handleRename = (sessionId: string, currentTitle: string) => {
       setRenamingSessionId(sessionId);
@@ -176,9 +129,6 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
       });
     });
   };
-
-  const hasSessions = visibleSessions.length > 0;
-  const sessionsToRender = shouldShowSearchResults ? filteredSessions : sortedSessions;
 
   return (
     <>
@@ -283,11 +233,11 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                           <DropdownMenuTrigger
                               onClick={(e) => { e.stopPropagation(); }}
                               className={cn(
-                                  "p-1 rounded-md focus:outline-none",
+                                  'p-1 rounded-md focus:outline-none',
                                   iconButtonStyles,
                                   isActive
-                                    ? "text-[var(--chat-sidebar-icon-hover)] hover:text-[var(--chat-sidebar-text)]"
-                                    : "text-[var(--chat-sidebar-icon)] hover:text-[var(--chat-sidebar-icon-hover)]"
+                                    ? 'text-[var(--chat-sidebar-icon-hover)] hover:text-[var(--chat-sidebar-text)]'
+                                    : 'text-[var(--chat-sidebar-icon)] hover:text-[var(--chat-sidebar-icon-hover)]'
                               )}
                           >
                               <Icon name="common.more" size="md" />
@@ -303,10 +253,10 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                 preventNextMenuAutoFocusRef.current = false;
                               }}
                               className={cn(
-                                  "w-44 p-1.5 rounded-2xl bg-white dark:bg-neutral-800",
-                                  "border border-neutral-100 dark:border-neutral-600/40",
-                                  "backdrop-blur-lg shadow-xl",
-                                  "animate-in fade-in-0 zoom-in-95 duration-75"
+                                  'w-44 p-1.5 rounded-2xl bg-white dark:bg-neutral-800',
+                                  'border border-neutral-100 dark:border-neutral-600/40',
+                                  'backdrop-blur-lg shadow-xl',
+                                  'animate-in fade-in-0 zoom-in-95 duration-75'
                               )}
                           >
                               <DropdownMenuItem
@@ -315,10 +265,10 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                       handleRename(session.id, session.title);
                                   }}
                                   className={cn(
-                                    "text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none",
-                                    "text-[var(--chat-sidebar-text)]",
-                                    "hover:bg-[var(--chat-sidebar-row-hover)] focus:bg-[var(--chat-sidebar-row-hover)] data-[highlighted]:bg-[var(--chat-sidebar-row-hover)]",
-                                    "focus:text-[var(--chat-sidebar-text)] data-[highlighted]:text-[var(--chat-sidebar-text)]"
+                                    'text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none',
+                                    'text-[var(--chat-sidebar-text)]',
+                                    'hover:bg-[var(--chat-sidebar-row-hover)] focus:bg-[var(--chat-sidebar-row-hover)] data-[highlighted]:bg-[var(--chat-sidebar-row-hover)]',
+                                    'focus:text-[var(--chat-sidebar-text)] data-[highlighted]:text-[var(--chat-sidebar-text)]'
                                   )}
                               >
                                   <Icon name="common.rename" size="md" className="mr-2 text-[var(--chat-sidebar-icon)]" />
@@ -330,10 +280,10 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                       handleTogglePin(session.id, session.isPinned);
                                   }}
                                   className={cn(
-                                    "text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none",
-                                    "text-[var(--chat-sidebar-text)]",
-                                    "hover:bg-[var(--chat-sidebar-row-hover)] focus:bg-[var(--chat-sidebar-row-hover)] data-[highlighted]:bg-[var(--chat-sidebar-row-hover)]",
-                                    "focus:text-[var(--chat-sidebar-text)] data-[highlighted]:text-[var(--chat-sidebar-text)]"
+                                    'text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none',
+                                    'text-[var(--chat-sidebar-text)]',
+                                    'hover:bg-[var(--chat-sidebar-row-hover)] focus:bg-[var(--chat-sidebar-row-hover)] data-[highlighted]:bg-[var(--chat-sidebar-row-hover)]',
+                                    'focus:text-[var(--chat-sidebar-text)] data-[highlighted]:text-[var(--chat-sidebar-text)]'
                                   )}
                               >
                                   {session.isPinned ? (
@@ -350,10 +300,10 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                       setDeleteId(session.id);
                                   }}
                                   className={cn(
-                                    "text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none",
-                                    "text-red-600 dark:text-red-400",
-                                    "hover:bg-[var(--chat-sidebar-row-hover)] focus:bg-[var(--chat-sidebar-row-hover)] data-[highlighted]:bg-[var(--chat-sidebar-row-hover)]",
-                                    "focus:text-red-600 dark:focus:text-red-400 data-[highlighted]:text-red-600 dark:data-[highlighted]:text-red-400"
+                                    'text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none',
+                                    'text-red-600 dark:text-red-400',
+                                    'hover:bg-[var(--chat-sidebar-row-hover)] focus:bg-[var(--chat-sidebar-row-hover)] data-[highlighted]:bg-[var(--chat-sidebar-row-hover)]',
+                                    'focus:text-red-600 dark:focus:text-red-400 data-[highlighted]:text-red-600 dark:data-[highlighted]:text-red-400'
                                   )}
                               >
                                   <DeleteIcon className="mr-2 text-current" />

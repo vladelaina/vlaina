@@ -27,6 +27,7 @@ export { listCollapsePlugin } from './collapse';
 export { clipboardPlugin } from './clipboard';
 export { imageUploadPlugin } from './image-upload';
 export { selectAllPlugin } from './select-all';
+export { editorFindPlugin } from './find';
 export { blankAreaDragBoxPlugin, blockControlsPlugin, endBlankClickPlugin, titleNavigationPlugin } from './cursor';
 export { hrAutoParagraphPlugin } from './hr';
 export type { SlashMenuItem } from './slash/types';
