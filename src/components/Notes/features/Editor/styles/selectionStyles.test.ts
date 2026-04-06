@@ -67,6 +67,14 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('.vlaina-block-drag-preview-layer * {');
   });
 
+  it('keeps block handle dragging on a grabbing cursor', () => {
+    const css = readStyleFile('core.css');
+
+    expect(css).toContain('body.vlaina-block-drag-active,');
+    expect(css).toContain('body.vlaina-block-drag-active * {');
+    expect(css).toContain('cursor: grabbing !important;');
+  });
+
   it('keeps code block selection rendering on the CodeMirror selection layer', () => {
     const css = readStyleFile('code-block.css');
 
