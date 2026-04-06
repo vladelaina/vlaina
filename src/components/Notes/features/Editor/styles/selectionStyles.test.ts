@@ -26,6 +26,13 @@ function readTypographySource() {
   );
 }
 
+function readPreviewStylesSource() {
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar', 'previewStyles.ts'),
+    'utf8'
+  );
+}
+
 describe('editor embedded CodeMirror selection styles', () => {
   it('keeps nested list block selection overlays from stacking darker backgrounds', () => {
     const css = readStyleFile('core.css');
@@ -99,6 +106,45 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('background: transparent !important;');
     expect(css).not.toContain('.cm-editor.cm-focused .cm-content ::selection');
     expect(css).not.toContain('.cm-editor.cm-focused .cm-line ::selection');
+  });
+
+  it('keeps floating toolbar hover states flat without lift transforms', () => {
+    const css = readStyleFile('floating-toolbar.css');
+
+    expect(css).toContain('.toolbar-btn:hover {');
+    expect(css).toContain('background-color: var(--vlaina-hover, #f4f4f5);');
+    expect(css).not.toContain('transform: translateY(-1px);');
+  });
+
+  it('hides original list and blockquote chrome during block preview remapping', () => {
+    const css = readStyleFile('markdown.css');
+
+    expect(css).toContain('.milkdown li[data-preview-hide-list-marker] {');
+    expect(css).toContain('list-style-type: none !important;');
+    expect(css).toContain('.milkdown li[data-preview-hide-list-marker]::before {');
+    expect(css).toContain('.milkdown blockquote[data-preview-hide-blockquote] {');
+    expect(css).toContain('padding-left: 0 !important;');
+    expect(css).toContain('.milkdown blockquote[data-preview-hide-blockquote]::before {');
+  });
+
+  it('applies block preview sizes directly without transform scaling', () => {
+    const source = readPreviewStylesSource();
+
+    expect(source).not.toContain('delete nextStyles.fontSize;');
+    expect(source).not.toContain('delete nextStyles.lineHeight;');
+    expect(source).not.toContain('scale(');
+    expect(source).not.toContain('transformOrigin');
+  });
+
+  it('keeps block preview spacing aligned with actual typography spacing', () => {
+    const source = readPreviewStylesSource();
+
+    expect(source).toContain("marginTop");
+    expect(source).toContain("marginBottom");
+    expect(source).toContain("paddingTop");
+    expect(source).toContain("paddingBottom");
+    expect(source).toContain("target.matches(':first-child')");
+    expect(source).toContain("nextStyles.marginTop = '0px';");
   });
 
   it('keeps the code block theme aligned with the CSS padding model', () => {

@@ -130,7 +130,6 @@
 
 .toolbar-btn:hover {
   background-color: var(--vlaina-hover, #f4f4f5);
-  transform: translateY(-1px);
 }
 
 .toolbar-btn.active {
