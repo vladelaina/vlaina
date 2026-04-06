@@ -41,6 +41,10 @@ class CollapsedStateManager {
 
 export const collapsedState = new CollapsedStateManager();
 
+export function isCollapseToggleTarget(target: EventTarget | null): boolean {
+    return target instanceof Element && !!target.closest('.vlaina-collapse-btn');
+}
+
 export function createCollapseToggleButton(
     type: string,
     pos: number,
@@ -57,7 +61,7 @@ export function createCollapseToggleButton(
 
     button.innerHTML = createCollapseTriangleSvgMarkup(16);
 
-    button.addEventListener('mousedown', (e) => {
+    const handleTogglePointer = (e: Event) => {
         e.preventDefault();
         e.stopPropagation();
 
@@ -68,7 +72,19 @@ export function createCollapseToggleButton(
             detail: { type, pos }
         });
         document.dispatchEvent(event);
-    });
+    };
+
+    const stopClick = (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+    };
+
+    if (typeof PointerEvent !== 'undefined') {
+        button.addEventListener('pointerdown', handleTogglePointer);
+    } else {
+        button.addEventListener('mousedown', handleTogglePointer);
+    }
+    button.addEventListener('click', stopClick);
 
     return button;
 }
