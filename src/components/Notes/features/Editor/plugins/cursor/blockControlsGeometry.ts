@@ -1,5 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
-import type { BlockRange } from './blockSelectionUtils';
+import { pruneContainedBlockRanges, type BlockRange } from './blockSelectionUtils';
 import { pickPointerBlock } from './blockControlsUtils';
 import {
   collectSelectableBlockTargets,
@@ -63,8 +63,10 @@ export function setControlsPosition(
 }
 
 export function getDraggableBlockRanges(view: EditorView, selectedRanges: readonly BlockRange[]): BlockRange[] {
-  return mapRangesToSelectableBlocks(view.state.doc, selectedRanges)
-    .filter((range) => !isNonDraggableBlockRange(view.state.doc, range));
+  return pruneContainedBlockRanges(
+    mapRangesToSelectableBlocks(view.state.doc, selectedRanges)
+      .filter((range) => !isNonDraggableBlockRange(view.state.doc, range))
+  );
 }
 
 export function resolveDropTarget(view: EditorView, clientX: number, clientY: number): DropTarget | null {

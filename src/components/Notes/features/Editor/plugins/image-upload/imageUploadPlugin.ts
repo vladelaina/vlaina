@@ -3,8 +3,9 @@ import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import {
     extractImageFilesFromClipboardItems,
     extractImageFilesFromFileList,
-    uploadImagesAndInsert,
-} from './imageUploadHelpers';
+} from './imageFileExtraction';
+import { handleEditorImageFiles } from './handleEditorImageFiles';
+import { canInsertImageNodeAtSelection } from './imageNodeInsertion';
 
 export const imageUploadPluginKey = new PluginKey('vlaina-image-upload');
 
@@ -16,18 +17,20 @@ export const imageUploadPlugin = $prose(() => {
                 paste(view, event) {
                     const imageFiles = extractImageFilesFromClipboardItems(event.clipboardData?.items);
                     if (imageFiles.length === 0) return false;
+                    if (!canInsertImageNodeAtSelection(view)) return false;
 
                     event.preventDefault();
-                    void uploadImagesAndInsert(imageFiles, view);
+                    void handleEditorImageFiles(imageFiles, view);
                     return true;
                 },
 
                 drop(view, event) {
                     const imageFiles = extractImageFilesFromFileList(event.dataTransfer?.files);
                     if (imageFiles.length === 0) return false;
+                    if (!canInsertImageNodeAtSelection(view)) return false;
 
                     event.preventDefault();
-                    void uploadImagesAndInsert(imageFiles, view);
+                    void handleEditorImageFiles(imageFiles, view);
                     return true;
                 }
             }

@@ -1,6 +1,7 @@
 import { Fragment } from '@milkdown/kit/prose/model';
+import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import type { BlockRange } from './blockSelectionUtils';
+import { pruneContainedBlockRanges, type BlockRange } from './blockSelectionUtils';
 import { createBlockMovePlan } from './blockControlsUtils';
 import {
   buildDeleteRangesFromSelectedListItems,
@@ -60,7 +61,7 @@ export function resolveBlockMoveContext(
   selectedRanges: readonly BlockRange[],
   insertPos: number,
 ): BlockMoveContext | null {
-  const movePlan = createBlockMovePlan(selectedRanges, insertPos);
+  const movePlan = createBlockMovePlan(pruneContainedBlockRanges(selectedRanges), insertPos);
   if (!movePlan) return null;
 
   const listItemInfoByRangeKey = collectSelectedListItemInfo(view.state, movePlan.selectedRanges);
@@ -156,6 +157,62 @@ function collectSourceResidualInsertions(
   return insertions;
 }
 
+function createSelectedListItemInfoByFrom(
+  selectedRanges: readonly BlockRange[],
+  listItemInfoByRangeKey: ReadonlyMap<string, SelectedListItemInfo>,
+): Map<number, SelectedListItemInfo> {
+  const selectedInfoByFrom = new Map<number, SelectedListItemInfo>();
+  for (const range of selectedRanges) {
+    const info = listItemInfoByRangeKey.get(getRangeKey(range));
+    if (!info) continue;
+    selectedInfoByFrom.set(range.from, info);
+  }
+  return selectedInfoByFrom;
+}
+
+function collectNestedSelectedListItemStarts(
+  selectedInfoByFrom: ReadonlyMap<number, SelectedListItemInfo>,
+): Set<number> {
+  const nestedSelectedStarts = new Set<number>();
+  for (const info of selectedInfoByFrom.values()) {
+    for (const group of info.liftedListGroups) {
+      for (const item of group.items) {
+        if (!selectedInfoByFrom.has(item.from)) continue;
+        nestedSelectedStarts.add(item.from);
+      }
+    }
+  }
+  return nestedSelectedStarts;
+}
+
+function buildSelectedListItemNode(
+  info: SelectedListItemInfo,
+  selectedInfoByFrom: ReadonlyMap<number, SelectedListItemInfo>,
+  cache: Map<number, ProseNode>,
+): ProseNode {
+  const cached = cache.get(info.range.from);
+  if (cached) return cached;
+
+  const children: ProseNode[] = [];
+  info.moveItemNode.forEach((child) => {
+    children.push(child);
+  });
+
+  for (const group of info.liftedListGroups) {
+    const selectedChildNodes = group.items
+      .map((item) => selectedInfoByFrom.get(item.from))
+      .filter((childInfo): childInfo is SelectedListItemInfo => childInfo !== undefined)
+      .map((childInfo) => buildSelectedListItemNode(childInfo, selectedInfoByFrom, cache));
+
+    if (selectedChildNodes.length === 0) continue;
+    children.push(group.type.create(group.attrs, selectedChildNodes));
+  }
+
+  const nextNode = info.moveItemNode.type.create(info.moveItemNode.attrs, children);
+  cache.set(info.range.from, nextNode);
+  return nextNode;
+}
+
 function buildMovedContent(
   view: EditorView,
   selectedRanges: readonly BlockRange[],
@@ -164,22 +221,37 @@ function buildMovedContent(
 ): Fragment {
   let content = Fragment.empty;
   let wrappedListBuffer: WrappedListBuffer | null = null;
+  const selectedInfoByFrom = createSelectedListItemInfoByFrom(selectedRanges, listItemInfoByRangeKey);
+  const nestedSelectedStarts = collectNestedSelectedListItemStarts(selectedInfoByFrom);
+  const moveNodeCache = new Map<number, ProseNode>();
 
   for (const range of selectedRanges) {
     const info = listItemInfoByRangeKey.get(getRangeKey(range));
-    if (info && !insertInsideList) {
+    if (info) {
+      if (nestedSelectedStarts.has(range.from)) {
+        continue;
+      }
+
+      const moveItemNode = buildSelectedListItemNode(info, selectedInfoByFrom, moveNodeCache);
+      if (insertInsideList) {
+        content = appendListBuffer(content, wrappedListBuffer);
+        wrappedListBuffer = null;
+        content = content.append(Fragment.from(moveItemNode));
+        continue;
+      }
+
       if (
         wrappedListBuffer
         && wrappedListBuffer.type === info.parentType
         && areNodeAttrsEqual(wrappedListBuffer.attrs, info.parentAttrs)
       ) {
-        wrappedListBuffer.items.push(info.moveItemNode);
+        wrappedListBuffer.items.push(moveItemNode);
       } else {
         content = appendListBuffer(content, wrappedListBuffer);
         wrappedListBuffer = {
           type: info.parentType,
           attrs: info.parentAttrs,
-          items: [info.moveItemNode],
+          items: [moveItemNode],
         };
       }
       continue;

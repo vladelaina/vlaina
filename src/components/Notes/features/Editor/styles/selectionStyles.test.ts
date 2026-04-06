@@ -19,7 +19,54 @@ function readCodeBlockThemeSource() {
   );
 }
 
+function readTypographySource() {
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/styles', 'typography.css'),
+    'utf8'
+  );
+}
+
 describe('editor embedded CodeMirror selection styles', () => {
+  it('keeps nested list block selection overlays from stacking darker backgrounds', () => {
+    const css = readStyleFile('core.css');
+
+    expect(css).toContain('.milkdown .ProseMirror li.vlaina-block-selected .vlaina-block-selected {');
+    expect(css).toContain('background-color: transparent;');
+    expect(css).toContain('box-shadow: none;');
+  });
+
+  it('disables vertical bleed for image block selection overlays', () => {
+    const css = readStyleFile('core.css');
+
+    expect(css).toContain('.milkdown .ProseMirror .image-block-container.vlaina-block-selected {');
+    expect(css).toContain('--vlaina-block-selection-bleed-y: 0px;');
+    expect(css).toContain('.milkdown .ProseMirror p.vlaina-block-selected:has(> .image-block-container:only-child) {');
+  });
+
+  it('collapses paragraph line box around standalone image blocks', () => {
+    const css = readTypographySource();
+
+    expect(css).toContain('.milkdown p:has(> .image-block-container:only-child) {');
+    expect(css).toContain('font-size: 0;');
+    expect(css).toContain('line-height: 0;');
+    expect(css).toContain('margin-top: 1rem;');
+    expect(css).toContain('margin-bottom: 1rem;');
+    expect(css).toContain('.milkdown p:has(> .image-block-container:only-child) > .image-block-container {');
+    expect(css).toContain('margin-top: 0;');
+    expect(css).toContain('margin-bottom: 0;');
+  });
+
+  it('keeps block drag previews transparent and lightens preview text', () => {
+    const css = readStyleFile('core.css');
+
+    expect(css).toContain('.vlaina-block-drag-preview {');
+    expect(css).toContain('background: transparent;');
+    expect(css).toContain('border: 0;');
+    expect(css).toContain('box-shadow: none;');
+    expect(css).toContain('--vlaina-block-drag-preview-fg: color-mix(in srgb, var(--vlaina-text-primary, currentColor) 40%, white 60%);');
+    expect(css).toContain('.vlaina-block-drag-preview-layer * {');
+  });
+
   it('keeps code block selection rendering on the CodeMirror selection layer', () => {
     const css = readStyleFile('code-block.css');
 

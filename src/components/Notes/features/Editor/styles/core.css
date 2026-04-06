@@ -104,12 +104,11 @@ body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hide
 
 /* Notion-like drag block selection highlight */
 .milkdown .ProseMirror .vlaina-block-selected {
-  --vlaina-block-selection-color: var(--vlaina-hover-filled);
+  --vlaina-block-selection-color: color-mix(in srgb, var(--vlaina-text-tertiary, #71717a) 14%, transparent);
   --vlaina-block-selection-bleed-y: 4px;
   --vlaina-block-selection-bleed-x-start: 0;
   background-color: var(--vlaina-block-selection-color);
   box-shadow:
-    inset 0 0 0 1px var(--vlaina-block-selection-color),
     0 var(--vlaina-block-selection-bleed-y) 0 0 var(--vlaina-block-selection-color),
     0 calc(-1 * var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-color),
     calc(-1 * var(--vlaina-block-selection-bleed-x-start)) 0 0 0 var(--vlaina-block-selection-color);
@@ -121,6 +120,19 @@ body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hide
 .milkdown .ProseMirror li.vlaina-block-selected,
 .milkdown .ProseMirror li .vlaina-block-selected {
   --vlaina-block-selection-bleed-x-start: 24px;
+  --vlaina-block-selection-bleed-y: 0px;
+}
+
+.milkdown .ProseMirror li.vlaina-block-selected .vlaina-block-selected {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.milkdown .ProseMirror .image-block-container.vlaina-block-selected {
+  --vlaina-block-selection-bleed-y: 0px;
+}
+
+.milkdown .ProseMirror p.vlaina-block-selected:has(> .image-block-container:only-child) {
   --vlaina-block-selection-bleed-y: 0px;
 }
 
@@ -214,23 +226,29 @@ body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hide
   will-change: transform;
   transform: translateZ(0);
   opacity: 1;
-  background: var(--vlaina-bg-primary);
-  border: 1px solid var(--vlaina-border);
-  border-radius: 4px;
-  box-shadow:
-    0 18px 40px -18px rgb(15 23 42 / 0.35),
-    0 10px 18px -14px rgb(15 23 42 / 0.2);
-  overflow: hidden;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
 }
 
 .vlaina-block-drag-preview-layer {
+  --vlaina-block-drag-preview-fg: color-mix(in srgb, var(--vlaina-text-primary, currentColor) 40%, white 60%);
   position: relative;
   z-index: 2;
-  background: inherit;
+  background: transparent;
+  color: var(--vlaina-block-drag-preview-fg);
+  -webkit-text-fill-color: var(--vlaina-block-drag-preview-fg);
 }
 
 .vlaina-block-drag-preview-layer > * {
   pointer-events: none !important;
+}
+
+.vlaina-block-drag-preview-layer * {
+  color: var(--vlaina-block-drag-preview-fg) !important;
+  -webkit-text-fill-color: var(--vlaina-block-drag-preview-fg) !important;
 }
 
 .milkdown .milkdown-table-block {

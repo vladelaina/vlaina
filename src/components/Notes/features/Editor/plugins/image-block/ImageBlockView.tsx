@@ -182,7 +182,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
             <div
                 className={cn(
-                    'w-full flex my-2 group/image',
+                    'w-full flex group/image',
                     WRAPPER_ALIGNMENT_CLASSES[alignment],
                     isDragging && 'hidden',
                 )}

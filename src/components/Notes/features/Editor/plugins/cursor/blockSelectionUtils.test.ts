@@ -1,12 +1,36 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
+import { commonmark } from '@milkdown/kit/preset/commonmark';
+import { gfm } from '@milkdown/kit/preset/gfm';
 import {
+  convertBlockRectsToDocumentSpace,
+  convertViewportDragRectToDocumentRect,
   createDragSelectionRect,
+  getDisplayBlockRangesForDecorations,
   getBlockRangesKey,
   isRectIntersecting,
   normalizeBlockRanges,
+  pruneContainedBlockRanges,
+  resolveDisplayedDragViewportRect,
   resolveIntersectedBlockRanges,
   type BlockRect,
 } from './blockSelectionUtils';
+
+async function createEditor(markdown: string) {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, markdown);
+    })
+    .use(commonmark)
+    .use(gfm);
+
+  await editor.create();
+  return editor;
+}
+
+afterEach(() => {
+  document.body.innerHTML = '';
+});
 
 describe('blockSelectionUtils', () => {
   it('normalizes drag rectangle in any direction', () => {
@@ -41,6 +65,50 @@ describe('blockSelectionUtils', () => {
     ]);
   });
 
+  it('drops ranges fully contained by an outer selected block', () => {
+    expect(pruneContainedBlockRanges([
+      { from: 0, to: 30 },
+      { from: 8, to: 17 },
+      { from: 18, to: 27 },
+      { from: 30, to: 37 },
+    ])).toEqual([
+      { from: 0, to: 30 },
+      { from: 30, to: 37 },
+    ]);
+  });
+
+  it('converts drag rectangles into document space across scroll changes', () => {
+    expect(
+      convertViewportDragRectToDocumentRect(
+        { left: 80, top: 120, right: 20, bottom: 40 },
+        80,
+        120,
+        10,
+        20,
+        50,
+        70,
+      ),
+    ).toEqual({ left: 70, top: 110, right: 90, bottom: 140 });
+
+    expect(
+      resolveDisplayedDragViewportRect(
+        { left: 80, top: 120, right: 20, bottom: 40 },
+        80,
+        120,
+        10,
+        20,
+        50,
+        70,
+      ),
+    ).toEqual({ left: 20, top: 40, right: 40, bottom: 70 });
+  });
+
+  it('converts block rects into document space', () => {
+    expect(
+      convertBlockRectsToDocumentSpace([{ from: 1, to: 2, left: 10, top: 20, right: 30, bottom: 40 }], 5, 7),
+    ).toEqual([{ from: 1, to: 2, left: 15, top: 27, right: 35, bottom: 47 }]);
+  });
+
   it('selects only intersected blocks and returns ordered ranges', () => {
     const blocks: BlockRect[] = [
       { from: 20, to: 30, left: 0, top: 70, right: 100, bottom: 90 },
@@ -61,5 +129,15 @@ describe('blockSelectionUtils', () => {
       { from: 20, to: 30 },
     ]);
     expect(getBlockRangesKey(result)).toBe('0:10|10:20|20:30');
+  });
+
+  it('renders standalone image paragraphs using the image node range', async () => {
+    const editor = await createEditor('![](./demo.png)');
+    const view = editor.ctx.get(editorViewCtx);
+    const displayRanges = getDisplayBlockRangesForDecorations(view.state.doc, [{ from: 0, to: 3 }]);
+
+    expect(displayRanges).toEqual([{ from: 1, to: 2 }]);
+
+    await editor.destroy();
   });
 });

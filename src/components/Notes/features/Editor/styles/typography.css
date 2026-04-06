@@ -100,6 +100,22 @@
   margin-top: 0;
 }
 
+.milkdown p:has(> .image-block-container:only-child) {
+  font-size: 0;
+  line-height: 0;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.milkdown p:has(> .image-block-container:only-child):first-child {
+  margin-top: 0;
+}
+
+.milkdown p:has(> .image-block-container:only-child) > .image-block-container {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
 /* Keep long alpha-numeric text wrapping consistent across prose blocks. */
 .milkdown :is(h1, h2, h3, h4, h5, h6, p, li, blockquote, td, th) {
   overflow-wrap: anywhere;
