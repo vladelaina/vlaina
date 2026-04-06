@@ -72,9 +72,9 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
     section: 'Notes',
   },
   {
-    id: 'openVaultOrNote',
-    action: 'Open folder or Markdown file',
-    description: 'Open folder or Markdown file',
+    id: 'openMarkdownFile',
+    action: 'Open Markdown file',
+    description: 'Open Markdown file and switch to its parent folder',
     keys: ['Ctrl', 'O'],
     scope: 'notes',
     isSystem: true,
