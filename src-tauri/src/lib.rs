@@ -333,7 +333,6 @@ async fn open_external_url(url: String) -> Result<(), String> {
     }
 }
 
-
 #[tauri::command]
 async fn open_in_system_file_manager(path: String) -> Result<(), String> {
     use std::path::Path;
@@ -353,7 +352,10 @@ async fn open_in_system_file_manager(path: String) -> Result<(), String> {
         if status.success() {
             return Ok(());
         }
-        return Err(format!("Failed to open file manager (explorer exit code {:?})", status.code()));
+        return Err(format!(
+            "Failed to open file manager (explorer exit code {:?})",
+            status.code()
+        ));
     }
 
     #[cfg(target_os = "macos")]
@@ -366,7 +368,10 @@ async fn open_in_system_file_manager(path: String) -> Result<(), String> {
         if status.success() {
             return Ok(());
         }
-        return Err(format!("Failed to open file manager (open exit code {:?})", status.code()));
+        return Err(format!(
+            "Failed to open file manager (open exit code {:?})",
+            status.code()
+        ));
     }
 
     #[cfg(all(unix, not(target_os = "macos")))]
@@ -383,7 +388,10 @@ async fn open_in_system_file_manager(path: String) -> Result<(), String> {
         if status.success() {
             return Ok(());
         }
-        return Err(format!("Failed to open file manager (xdg-open exit code {:?})", status.code()));
+        return Err(format!(
+            "Failed to open file manager (xdg-open exit code {:?})",
+            status.code()
+        ));
     }
 
     #[allow(unreachable_code)]
