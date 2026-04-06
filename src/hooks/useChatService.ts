@@ -14,13 +14,12 @@ import { needsAutoTitle } from '@/lib/ai/temporaryChat';
 import {
   buildMentionedNotesContext,
   buildMessageImageSources,
-  createChunkScheduler,
   loadMentionedNotes,
   normalizeNoteMentions,
   normalizeVisionAttachment,
   refreshManagedBudgetIfNeeded,
-  resolveAssistantContent,
 } from './chatService/helpers';
+import { runStreamedAssistantMessage } from './chatService/runStreamedAssistantMessage';
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
@@ -146,16 +145,7 @@ export function useChatService() {
         modelId: selectedModel.id,
       });
 
-      const controller = requestManager.start(targetSessionId);
-      setSessionLoading(targetSessionId, true);
-      setError(null);
-
       const isTemporaryTarget = isTemporarySession(targetSessionId);
-
-      const streamScheduler = createChunkScheduler((nextContent) =>
-        updateMessage(targetSessionId, assistantMessageId, nextContent)
-      );
-      let lastStreamedContent = '';
 
       try {
         const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
@@ -193,50 +183,39 @@ export function useChatService() {
           }
         }
 
-        const returnedContent = await openaiClient.sendMessage(
-          apiMessageContent,
-          requestHistory,
-          selectedModel,
-          provider,
-          (chunk) => {
-            lastStreamedContent = chunk;
-            streamScheduler.push(chunk);
-          },
-          controller.signal
-        );
-        streamScheduler.flushNow();
-        resolveAssistantContent(
-          returnedContent,
-          lastStreamedContent,
-          (content) => {
-            lastStreamedContent = content;
-            updateMessage(targetSessionId, assistantMessageId, content);
-          },
-        );
-        completeMessage(targetSessionId, assistantMessageId);
-        refreshManagedBudgetIfNeeded(provider.id);
-        if (!isTemporaryTarget) {
-          maybeGenerateAutoTitle(targetSessionId, provider.id, selectedModel.id);
-        }
+        await runStreamedAssistantMessage({
+          sessionId: targetSessionId,
+          assistantMessageId,
+          execute: (onChunk, signal) =>
+            openaiClient.sendMessage(
+              apiMessageContent,
+              requestHistory,
+              selectedModel,
+              provider,
+              onChunk,
+              signal
+            ),
+          updateMessage,
+          completeMessage,
+          setSessionLoading,
+          setError,
+          buildErrorPayload: buildChatErrorPayload,
+          onSuccess: () => {
+            refreshManagedBudgetIfNeeded(provider.id);
+            if (!isTemporaryTarget) {
+              maybeGenerateAutoTitle(targetSessionId, provider.id, selectedModel.id);
+            }
 
-        const current = useUnifiedStore.getState().data.ai?.currentSessionId;
-        if (targetSessionId !== current && !isTemporarySession(targetSessionId)) {
-          markSessionUnread(targetSessionId);
-        }
-      } catch (error: any) {
-        streamScheduler.flushNow();
-        if (error.name === 'AbortError') {
-          return;
-        }
-
+            const current = useUnifiedStore.getState().data.ai?.currentSessionId;
+            if (targetSessionId !== current && !isTemporarySession(targetSessionId)) {
+              markSessionUnread(targetSessionId);
+            }
+          },
+        });
+      } catch (error) {
         const { message, xml } = buildChatErrorPayload(error)
-
         setError(message);
         updateMessage(targetSessionId, assistantMessageId, xml);
-      } finally {
-        streamScheduler.cancel();
-        requestManager.finish(targetSessionId, controller);
-        setSessionLoading(targetSessionId, false);
       }
     },
     [
@@ -283,15 +262,6 @@ export function useChatService() {
         modelId: selectedModel.id,
       });
 
-      const controller = requestManager.start(sessionId);
-      setSessionLoading(sessionId, true);
-      setError(null);
-
-      const streamScheduler = createChunkScheduler((nextContent) =>
-        updateMessage(sessionId, assistantMessageId, nextContent)
-      );
-      let lastStreamedContent = '';
-
       try {
         const state = useUnifiedStore.getState();
         const sessionMessages = state.data.ai?.messages[sessionId] || [];
@@ -300,6 +270,7 @@ export function useChatService() {
         if (userMsgIndex === -1) {
           return;
         }
+
         const history = sessionMessages.slice(0, userMsgIndex);
         const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
         const requestHistory = buildRequestHistory({
@@ -310,42 +281,32 @@ export function useChatService() {
           customSystemPrompt
         });
 
-        const returnedContent = await openaiClient.sendMessage(
-          newContent,
-          requestHistory,
-          selectedModel,
-          provider,
-          (chunk) => {
-            lastStreamedContent = chunk;
-            streamScheduler.push(chunk);
+        await runStreamedAssistantMessage({
+          sessionId,
+          assistantMessageId,
+          execute: (onChunk, signal) =>
+            openaiClient.sendMessage(
+              newContent,
+              requestHistory,
+              selectedModel,
+              provider,
+              onChunk,
+              signal
+            ),
+          updateMessage,
+          completeMessage,
+          setSessionLoading,
+          setError,
+          buildErrorPayload: buildChatErrorPayload,
+          onSuccess: () => {
+            refreshManagedBudgetIfNeeded(provider.id);
+            maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
           },
-          controller.signal
-        );
-        streamScheduler.flushNow();
-        resolveAssistantContent(
-          returnedContent,
-          lastStreamedContent,
-          (content) => {
-            lastStreamedContent = content;
-            updateMessage(sessionId, assistantMessageId, content);
-          },
-        );
-        completeMessage(sessionId, assistantMessageId);
-        refreshManagedBudgetIfNeeded(provider.id);
-        maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
-      } catch (error: any) {
-        streamScheduler.flushNow();
-        if (error.name === 'AbortError') {
-          return;
-        }
-
+        });
+      } catch (error) {
         const { message, xml } = buildChatErrorPayload(error)
         setError(message);
         updateMessage(sessionId, assistantMessageId, xml);
-      } finally {
-        streamScheduler.cancel();
-        requestManager.finish(sessionId, controller);
-        setSessionLoading(sessionId, false);
       }
     },
     [
@@ -385,15 +346,6 @@ export function useChatService() {
 
       addVersion(msgId);
 
-      const controller = requestManager.start(sessionId);
-      setSessionLoading(sessionId, true);
-      setError(null);
-
-      const streamScheduler = createChunkScheduler((nextContent) =>
-        updateMessage(sessionId, msgId, nextContent)
-      );
-      let lastStreamedContent = '';
-
       try {
         const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
         const requestHistory = buildRequestHistory({
@@ -404,43 +356,32 @@ export function useChatService() {
           customSystemPrompt
         });
 
-        const returnedContent = await openaiClient.sendMessage(
-          promptMsg.content,
-          requestHistory,
-          selectedModel,
-          provider,
-          (chunk) => {
-            lastStreamedContent = chunk;
-            streamScheduler.push(chunk);
+        await runStreamedAssistantMessage({
+          sessionId,
+          assistantMessageId: msgId,
+          execute: (onChunk, signal) =>
+            openaiClient.sendMessage(
+              promptMsg.content,
+              requestHistory,
+              selectedModel,
+              provider,
+              onChunk,
+              signal
+            ),
+          updateMessage,
+          completeMessage,
+          setSessionLoading,
+          setError,
+          buildErrorPayload: buildChatErrorPayload,
+          onSuccess: () => {
+            refreshManagedBudgetIfNeeded(provider.id);
+            maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
           },
-          controller.signal
-        );
-        streamScheduler.flushNow();
-        resolveAssistantContent(
-          returnedContent,
-          lastStreamedContent,
-          (content) => {
-            lastStreamedContent = content;
-            updateMessage(sessionId, msgId, content);
-          },
-        );
-        completeMessage(sessionId, msgId);
-        refreshManagedBudgetIfNeeded(provider.id);
-        maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
-      } catch (error: any) {
-        streamScheduler.flushNow();
-        if (error.name === 'AbortError') {
-          return;
-        }
-
+        });
+      } catch (error) {
         const { message, xml } = buildChatErrorPayload(error)
-
         setError(message);
         updateMessage(sessionId, msgId, xml);
-      } finally {
-        streamScheduler.cancel();
-        requestManager.finish(sessionId, controller);
-        setSessionLoading(sessionId, false);
       }
     },
     [

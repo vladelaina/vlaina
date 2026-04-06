@@ -9,7 +9,7 @@ const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
 interface UseChatComposerOptions {
   onSend: (message: string, attachments: Attachment[], noteMentions: NoteMentionReference[]) => void;
   attachments: Attachment[];
-  noteMentions: NoteMentionReference[];
+  getNoteMentions: () => NoteMentionReference[];
   onAfterSend: () => void;
   focusTrigger?: number;
 }
@@ -17,7 +17,7 @@ interface UseChatComposerOptions {
 export function useChatComposer({
   onSend,
   attachments,
-  noteMentions,
+  getNoteMentions,
   onAfterSend,
   focusTrigger,
 }: UseChatComposerOptions) {
@@ -109,6 +109,7 @@ export function useChatComposer({
 
   const handleSend = useCallback(
     (overrideMessage?: string) => {
+      const noteMentions = getNoteMentions();
       const rawMessage = overrideMessage ?? message;
       const cleanedMessage = rawMessage.replace(INVISIBLE_BREAK_REGEX, '');
       const normalizedMessage = cleanedMessage.replace(UNIVERSAL_NEWLINE_REGEX, '\n');
@@ -132,7 +133,7 @@ export function useChatComposer({
         }
       });
     },
-    [attachments, message, noteMentions, onAfterSend, onSend]
+    [attachments, getNoteMentions, message, onAfterSend, onSend]
   );
 
   const handleCompositionEnd = useCallback(() => {
