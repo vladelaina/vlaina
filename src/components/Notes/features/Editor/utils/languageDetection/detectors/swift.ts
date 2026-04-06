@@ -1,181 +1,176 @@
 import type { LanguageDetector } from '../types';
 
 export const detectSwift: LanguageDetector = (ctx) => {
-  const { sample, first100Lines, hasCurlyBraces, code, lines } = ctx;
+  const { code, first100Lines, lines } = ctx;
 
-  // Simple single-line Swift patterns
-  if (lines.length <= 3) {
-    // Swift optional chaining: let length = user?.name?.count
-    if (/\b(let|var)\s+\w+\s*=\s*\w+\?\.\w+(\?\.\w+)*/.test(code.trim())) {
-      return 'swift';
-    }
-    
-    if (/^print\s*\(/.test(code.trim())) {
-      // Check for Swift-specific patterns
-      if (/\bprint\s*\(\s*"[^"]*"\s*\)\s*$/.test(code.trim())) {
-        // Just print("string") - ambiguous, default to Python (more common)
-        return null;
-      }
-      if (/\blet\b|\bvar\b|\bfunc\b|\bstruct\b/.test(code)) {
-        return 'swift';
-      }
-    }
-    // Swift type annotation with colon
-    if (/\b(var|let)\s+\w+\s*:\s*[A-Z]\w*\s*=/.test(code)) {
-      return 'swift';
-    }
+  if (/^\s*@import\s+(Foundation|UIKit|CoreFoundation|CFNetwork)\s*;/m.test(first100Lines) ||
+      /@(interface|implementation|protocol|property|dynamic|synthesize|selector|autoreleasepool|synchronized)\b/.test(code)) {
+    return null;
   }
 
-  // Swift struct definition
-  if (/^struct\s+\w+\s*\{/m.test(code)) {
-    if (/\b(var|let)\s+\w+:\s*\w+/.test(code)) {
-      return 'swift';
-    }
+  if (/^package\s+[\w.]+;/m.test(first100Lines) || /^package\s+\w+$/m.test(first100Lines) || /^import\s+java\./m.test(first100Lines)) {
+    return null;
+  }
+
+  if (/\b(import\s+.*from|export\s+(default|const|function)|module\.exports|require\()\b/.test(first100Lines) ||
+      /\b(?:const|let|var)\s+\w+\s*=\s*async\s*\(/.test(code) ||
+      /\basync\s+function\b/.test(code) ||
+      /(?:^|\n)\s*function\*?\s+\w+\s*\(/.test(code) ||
+      /\bconsole\.(log|error|warn|info|table)\b/.test(code) ||
+      /\bconst\s+\w+\s*=/.test(code) ||
+      /=>/.test(code) ||
+      /\breturn\s+await\s+fetch\(/.test(code) ||
+      /\bPromise<[^>]+>/.test(code) ||
+      /\bimport\.meta\b/.test(code) ||
+      /constructor\(\s*private\s+\w+/.test(code) ||
+      /^type\s+\w+\s+struct\s*\{/m.test(code)) {
+    return null;
   }
 
   if (/^extends\s+\w+/m.test(first100Lines)) {
     return null;
   }
 
-  // Exclude C/C++ files (has /* */ comments, #include, or typedef)
-  if (/^\/\*[\s\S]*?\*\//m.test(first100Lines) ||
-      /#include\s*[<"]/.test(first100Lines) ||
-      /\btypedef\s+(struct|enum|union)\b/.test(first100Lines)) {
+  if (/^#(include|define|ifdef|ifndef|elif|else|endif)\b/m.test(first100Lines) ||
+      /\btypedef\s+(struct|enum|union)\b/.test(first100Lines) ||
+      /\b(restrict|volatile|extern)\b/.test(code) ||
+      /\bdo\s*\{[\s\S]*\}\s*while\s*\(/.test(code) ||
+      /\b(?:int|char|float|double|short|long|unsigned|signed|void)\s+\**\w+\s*\([^)]*\)\s*\{/.test(code)) {
     return null;
   }
 
-  if (/\b(let|var)\s+\w+\s*=\s*\w+\.(filter|map|flatMap|compactMap|reduce)\s*\{\s*\$0/.test(code)) {
+  if (/^import\s+(Foundation|UIKit|SwiftUI|Combine)\b/m.test(first100Lines)) {
     return 'swift';
   }
 
-  if (/\b(let|var)\s+\w+\s*=\s*\w+\.sorted\s*\{/.test(code) && /\$0\.\w+/.test(code)) {
+  if (/(?:^|\n)\s*enum\s+\w+(?:\s*:\s*[^\{\n]+)?\s*\{/m.test(code) && /(?:^|\n)\s*case\s+\w+(?:\([^\)\n]*\))?/m.test(code)) {
     return 'swift';
   }
 
-  if (/\.(prefix|suffix)\s*\(\d+\)/.test(code) && /\blet\s+/.test(code)) {
-    return 'swift';
+  let score = 0;
+
+  if (/@(?:MainActor|State|Binding|ObservedObject|EnvironmentObject|StateObject|Published|AppStorage|Sendable)\b/.test(code)) {
+    score += 3;
   }
 
-  if (/\b(guard|defer)\s+/.test(first100Lines)) {
-    return 'swift';
+  if (/(?:\b(?:actor|nonisolated|async\s+let|for\s+await)\b|Task\s*\{|Task\.sleep|MainActor\.run|withCheckedContinuation|withThrowingTaskGroup)/.test(code)) {
+    score += 3;
   }
 
-  if (/@(Published|State|Binding|ObservedObject|EnvironmentObject|AppStorage)\b/.test(first100Lines)) {
-    return 'swift';
+  if (/\bawait\b/.test(code)) {
+    score += 1;
   }
 
-  // SwiftUI View protocol (very strong indicator)
-  if (/struct\s+\w+:\s*View\s*\{/.test(code) ||
-      /\bvar\s+body:\s*some\s+View\s*\{/.test(code)) {
-    return 'swift';
+  if (/\b(?:guard|if)\s+let\b|\bguard\s+case\b/.test(code) || /\bguard\s+![^\n{]+else\b/.test(code)) {
+    score += 2;
   }
 
-  // SwiftUI components (strong indicator)
-  if (/\b(NavigationView|List|ForEach|Button|Text|VStack|HStack|ZStack)\s*\{/.test(code)) {
-    if (/@State|@Binding|\.sheet\(|\.toolbar\(/.test(code)) {
+  if (/\b(?:defer|mutating|inout|associatedtype|CaseIterable|Codable|Hashable|AnyObject)\b/.test(code)) {
+    score += 2;
+  }
+
+  if (/(?:^|\n)\s*(?:struct|class|enum|protocol)\s+\w+(?:\s*:\s*[^\{\n]+)?\s*\{/m.test(code)) {
+    score += 1;
+  }
+
+  if (/(?:^|\n)\s*extension\s+\w+(?:\s*:\s*[^\{\n]+|\s+where\s+[^\{\n]+)?\s*\{/m.test(code)) {
+    score += 2;
+  }
+
+  if (/\bfunc\s+\w+(?:<[^>]+>)?\s*\([^)]*\)\s*(?:async\s+)?(?:throws\s+)?(?:->\s*[^\{\n]+)?/.test(code)) {
+    score += 2;
+  }
+
+  if (/\b(?:let|var)\s+\w+\s*:\s*\([^)]*\)\s*->\s*[\w\[\]<>?.!]+\s*=/.test(code)) {
+    score += 2;
+  }
+
+  if (/\b(?:let|var)\s+\w+\s*:\s*\[[^\]]+\]\s*=/.test(code) ||
+      /\b(?:let|var)\s+\w+\s*:\s*Result<[^>]+>\s*=/.test(code) ||
+      /\b(?:let|var)\s+\w+\s*:\s*[A-Z]\w*(?:<[^>]+>)?(?:\?|!)?\s*=/.test(code) ||
+      /\b(?:let|var)\s+\w+\s*:\s*[A-Z]\w*(?:<[^>]+>)?(?:\?|!)?(?:\s*$|\s*\n)/m.test(code)) {
+    score += 2;
+  }
+
+  if (/\b(?:let|var)\s+\w+\s*=\s*(?:Set|Dictionary)<[^>]+>\(\)/.test(code) ||
+      /\b(?:let|var)\s+\w+\s*=\s*URL\(string:/.test(code) ||
+      /\blet\s*\([^)]*,[^)]*\)\s*=/.test(code)) {
+    score += 2;
+  }
+
+  if (/\b(?:let|var)\s+\w+\s*=.+\?\?.+/.test(code) || /\?\./.test(code)) {
+    score += 2;
+  }
+
+  if (/\\\([^)]*\)/.test(code)) {
+    score += 2;
+  }
+
+  if (/\b(?:weak|lazy)\s+var\s+\w+\s*:\s*[A-Z]\w*(?:<[^>]+>)?\??/.test(code) ||
+      /\bprivate\(set\)\s+var\b/.test(code)) {
+    score += 2;
+  }
+
+  if (/\bdo\s*\{/.test(code) && /\bcatch\b/.test(code)) {
+    score += 2;
+  }
+
+  if ((/\.(map|compactMap|reduce|sorted|filter)\b/.test(code) && /\$0|\$1/.test(code)) || /\.compactMap\([^)]*\.init\(\w+:/.test(code) || /removeAll\s*\{/.test(code)) {
+    score += 2;
+  }
+
+  if (/\bif\s+case\s+let\s+\.\w+/.test(code)) {
+    score += 2;
+  }
+
+  if (/\bswitch\s+\w+\s*\{/.test(code) && /\bcase\s+\.\w+/.test(code)) {
+    score += 2;
+  }
+
+  if (/\bcase\s+\d+\.\.\.\d+/.test(code) || /\bfor\s+\w+\s+in\s+0\.\.</.test(code) || /stride\(from:/.test(code)) {
+    score += 2;
+  }
+
+  if (/DispatchQueue\.main\.async|JSONDecoder\(\)\.decode|URLSession\.shared\.dataTask|URLSession\.shared\.data\(|UIView\.animate\(withDuration:|UIImage\(named:|NumberFormatter\(\)|DateFormatter\(\)|URLComponents\(|NotificationCenter\.default/.test(code)) {
+    score += 2;
+  }
+
+  if (/if\s+#available\(/.test(code)) {
+    score += 2;
+  }
+
+  if ((/\bcase\s+\.\w+/.test(code) || /\bcase\s+let\s+\.\w+/.test(code)) && /\b(enum|switch)\b/.test(code)) {
+    score += 1;
+  }
+
+  if (/ToolbarItem\(|NavigationStack\b|List\s*\{|ForEach\s*\(|Button\(|Image\(systemName:/.test(code)) {
+    score += 2;
+  }
+
+  if (/\{\s*\$0|\$0\.|\$1\./.test(code)) {
+    score += 1;
+  }
+
+  if (/\b[A-Z]\w+\.init\(\w+:/.test(code)) {
+    score += 1;
+  }
+
+  if (/\b(?:print|fatalError)\s*\(/.test(code) && /\\\([^)]*\)/.test(code)) {
+    score += 1;
+  }
+
+  if (lines.length <= 3) {
+    if (/\b(let|var)\s+\w+\s*=\s*\w+\?\.\w+(?:\?\.\w+)*/.test(code.trim())) {
+      return 'swift';
+    }
+
+    if (/^print\s*\(/.test(code.trim()) && /\\\([^)]*\)/.test(code)) {
       return 'swift';
     }
   }
 
-  // SwiftUI with @State and struct
-  if (/@State\s+(private\s+)?var\s+\w+/.test(code) && /struct\s+\w+/.test(code)) {
+  if (score >= 2) {
     return 'swift';
-  }
-
-  // SwiftUI navigation and sheets (very strong indicator)
-  if (/\.sheet\s*\(\s*isPresented:\s*\$/.test(code) ||
-      /\.toolbar\s*\{/.test(code) ||
-      /\.navigationTitle\(/.test(code)) {
-    return 'swift';
-  }
-
-  // SwiftUI binding syntax (very strong indicator)
-  if (/\$\w+/.test(code) && /@State/.test(code)) {
-    return 'swift';
-  }
-
-  // SwiftUI List with ForEach
-  if (/\bList\s*\{/.test(code) && /\bForEach\s*\(/.test(code)) {
-    return 'swift';
-  }
-
-  // SwiftUI onDelete
-  if (/\.onDelete\s*\(\s*perform:\s*\w+\)/.test(code)) {
-    return 'swift';
-  }
-
-  // SwiftUI Image with systemName
-  if (/\bImage\s*\(\s*systemName:\s*"/.test(code)) {
-    return 'swift';
-  }
-
-  // SwiftUI items.remove(atOffsets:)
-  if (/\.remove\s*\(\s*atOffsets:\s*/.test(code)) {
-    return 'swift';
-  }
-
-  if (/\bguard\s+let\s+\w+\s*=/.test(first100Lines)) {
-    return 'swift';
-  }
-
-  if (/\b(import\s+Foundation|import\s+UIKit|import\s+SwiftUI)\b/.test(first100Lines)) {
-    return 'swift';
-  }
-
-  if (/\b(func\s+\w+|var\s+\w+:\s*\w+|let\s+\w+:\s*\w+|class\s+\w+:[ \t]*\w+|struct\s+\w+|enum\s+\w+|protocol\s+\w+)\b/.test(first100Lines)) {
-    if (sample.includes('->') ||
-        /\b(guard|defer|mutating|inout|@\w+|extension\s+\w+)\b/.test(first100Lines) ||
-        /\?\?|\?\./.test(first100Lines)) {
-      return 'swift';
-    }
-  }
-
-  if (/\\\([\w\s+]+\)/.test(first100Lines)) {
-    return 'swift';
-  }
-
-  if (/\b(if|guard)\s+let\s+\w+/.test(first100Lines)) {
-    return 'swift';
-  }
-
-  if (/\b(let|var)\s+\w+\s*=\s*\w+\[\]\(\)/.test(first100Lines)) {
-    return 'swift';
-  }
-
-  if (/\b(let|var)\s+\w+\s*=\s*Dictionary</.test(first100Lines)) {
-    return 'swift';
-  }
-
-  if (/\b(var|let)\s+\w+\s*=\s*\[/.test(first100Lines)) {
-
-    if (/\[[\s\n]*"[^"]+"\s*:\s*"[^"]+"\s*[,\]]/.test(first100Lines)) {
-      return 'swift';
-    }
-
-    if (/\[[\s\n]*"[^"]+"\s*,/.test(first100Lines)) {
-      return 'swift';
-    }
-  }
-
-  if (ctx.lines.length <= 3 && /^\w+\s*=\s*\[\s*\]/.test(first100Lines.trim())) {
-    return 'swift';
-  }
-
-  if (hasCurlyBraces) {
-
-    if (/\bfor\s+\w+\s+in\s+/.test(first100Lines)) {
-      if (/\b(let|var)\s+\w+\s*=/.test(first100Lines)) {
-        return 'swift';
-      }
-    }
-
-    if (/\bswitch\s+\w+\s*\{/.test(first100Lines) && /\bcase\s+/.test(first100Lines)) {
-      return 'swift';
-    }
-
-    if (/\bdo\s*\{/.test(first100Lines) && /\}\s*while\s+/.test(first100Lines)) {
-      return 'swift';
-    }
   }
 
   return null;

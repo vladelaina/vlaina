@@ -2,6 +2,11 @@ import type { LanguageDetector } from '../types';
 
 export const detectCPP: LanguageDetector = (ctx) => {
   const { first100Lines, sample, code } = ctx;
+  const hasCppAccessModifier = /\b(public|private|protected):\s*$/m.test(code);
+  const cppOnlyHeaderPattern = /#include\s*<(algorithm|array|atomic|chrono|condition_variable|deque|filesystem|format|forward_list|fstream|functional|future|initializer_list|iomanip|iosfwd|iostream|istream|list|map|memory|mutex|optional|ostream|queue|random|ranges|regex|set|shared_mutex|source_location|span|sstream|stack|stop_token|string|string_view|syncstream|thread|tuple|type_traits|unordered_map|unordered_set|utility|variant|vector)>/;
+  const hasCppExclusiveSyntax = /\b(constexpr|decltype|namespace|template|typename|concept|requires|mutable)\b/.test(code) ||
+    /\boperator\s*(?:[+\-*/%<>=!]+|\(\)|\[\])/.test(code) ||
+    /\b(?:const\s+)?[A-Za-z_]\w*(?:::\w+)?\s*&\s*[A-Za-z_]\w*/.test(code);
 
   if (/^[A-Za-z_][\w-]*="[^"]*"/m.test(first100Lines) && /\bprintf\s*\(/.test(code) && code.includes('$')) {
     return null;
@@ -72,10 +77,56 @@ export const detectCPP: LanguageDetector = (ctx) => {
     }
   }
 
+  if (/\benum\s+class\s+\w+/.test(code)) {
+    return 'cpp';
+  }
+
+  if (/^#\s*(define|ifdef|ifndef|elif|else|endif)\b/m.test(first100Lines) || /\btypedef\s+struct\b/.test(code) || /\bunion\s+\w+\s*\{/.test(code) || /\bextern\s+\w/.test(code) || /\bvolatile\s+\w/.test(code) || /\brestrict\b/.test(code) || /\bstatic\s+inline\b/.test(code) || /\b(int|char|float|double|short|long|unsigned|signed|void)\s+\w+\s*\([^)]*\)\s*\{/.test(code) || /\bconst\s+char\s*\*\s*\w+\s*\([^)]*\)\s*\{/.test(code) || /\bdo\s*\{[\s\S]*\}\s*while\s*\(/.test(code) || /^enum\s+\w+\s*\{/m.test(code) || /^struct\s+\w+\s*\{/m.test(code) || /^typedef\s+.*\(\*\w+\)\(/m.test(code) || /\[[0-9]+\]\s*=/.test(code)) {
+    if (!hasDoubleColon &&
+        !sample.includes('class') &&
+        !sample.includes('template') &&
+        !sample.includes('namespace') &&
+        !hasCppExclusiveSyntax) {
+      return 'c';
+    }
+  }
+
+  if (cppOnlyHeaderPattern.test(first100Lines)) {
+    return 'cpp';
+  }
+
+  if (/\bstd::(ifstream|ofstream|fstream|stringstream|istringstream|ostringstream|getline|shared_ptr|weak_ptr|unique_ptr|enable_shared_from_this|make_shared|make_unique|format|clamp|jthread|stop_token|future|promise|packaged_task|lock_guard|unique_lock|scoped_lock|filesystem|path|optional|variant|visit|expected)\b/.test(code)) {
+    return 'cpp';
+  }
+
+  if (/\b(class|struct)\s+\w+(?:\s+final)?\s*:\s*(public|private|protected)\b/.test(code)) {
+    return 'cpp';
+  }
+
+  if (/^namespace\s+\w+(::\w+)+\s*\{/m.test(code)) {
+    return 'cpp';
+  }
+
+  if (/\b(?:virtual|override|noexcept)\b/.test(code) && (hasCppAccessModifier || /\b(class|struct)\s+\w+/.test(code) || /^#include\s*[<"]/m.test(first100Lines))) {
+    return 'cpp';
+  }
+
+  if (/=\s*(delete|default)\s*;/.test(code)) {
+    return 'cpp';
+  }
+
+  if (/\boperator\s*(?:[+\-*/%<>=!]+|\(\)|\[\])/.test(code)) {
+    return 'cpp';
+  }
+
+  if (/\[\s*[^\]]*\]\s*\([^)]*\)\s*mutable\b/.test(code)) {
+    return 'cpp';
+  }
+
   // C++ class definition
   if (/^class\s+\w+\s*\{/m.test(code) || /^class\s+\w+\s*$/m.test(code)) {
     if (/#include\s*[<"]/.test(first100Lines) ||
-        /\b(public|private|protected):\s*$/m.test(code) ||
+        hasCppAccessModifier ||
         /\b(std::|cout|cin|vector|template|namespace)\b/.test(code)) {
       return 'cpp';
     }
@@ -140,7 +191,8 @@ export const detectCPP: LanguageDetector = (ctx) => {
       }
     }
 
-    if (/\b(std::|cout|cin|vector|template|class|namespace|new\s+\w+|delete\s+\w+|using\s+namespace)\b/.test(first100Lines) ||
+    if (cppOnlyHeaderPattern.test(first100Lines) ||
+        /\b(std::|cout|cin|vector|template|class|namespace|new\s+\w+|delete\s+\w+|using\s+namespace)\b/.test(first100Lines) ||
         (/\bstring\b/.test(first100Lines) && !/<string\.h>/.test(first100Lines))) {
       return 'cpp';
     }
@@ -155,7 +207,7 @@ export const detectCPP: LanguageDetector = (ctx) => {
       return 'c';
     }
 
-    if (!hasDoubleColon && !sample.includes('class') && !sample.includes('template') && !sample.includes('namespace')) {
+    if (!hasDoubleColon && !sample.includes('class') && !sample.includes('template') && !sample.includes('namespace') && !cppOnlyHeaderPattern.test(first100Lines)) {
       return 'c';
     }
     return 'cpp';
@@ -175,7 +227,7 @@ export const detectCPP: LanguageDetector = (ctx) => {
     return 'cpp';
   }
 
-  if (/\b(protected|private|public)\s*:/.test(first100Lines) && hasClass) {
+  if ((/\b(protected|private|public)\s*:/.test(first100Lines) || hasCppAccessModifier) && hasClass) {
     if (!sample.includes('alert(') && !sample.includes('super.')) {
       return 'cpp';
     }

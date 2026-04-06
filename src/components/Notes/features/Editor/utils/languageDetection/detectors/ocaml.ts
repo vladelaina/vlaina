@@ -15,6 +15,14 @@ export const detectOCaml: LanguageDetector = (ctx) => {
     return null;
   }
 
+  if (
+    /(?:^|\n)\s*(?:export\s+)?type\s+\w+(?:<[^>\n]+>)?\s*=.*;/.test(code) ||
+    /\b(?:readonly|keyof|infer|satisfies|asserts|typeof|null|Record<|Partial<|Required<|Pick<|Omit<|Extract<|Exclude<|ReturnType<|Parameters<|InstanceType<|Awaited<|Promise<)\b/.test(code) ||
+    /(?:^|\n)\s*(?:interface|enum|namespace|declare)\b/.test(code)
+  ) {
+    return null;
+  }
+
   // Simple single-line OCaml patterns
   if (lines.length <= 3) {
     // OCaml single-line function: let square x = x * x

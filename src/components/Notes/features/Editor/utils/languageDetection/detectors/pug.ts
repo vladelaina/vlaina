@@ -6,6 +6,9 @@ export const detectPug: LanguageDetector = (ctx) => {
   // Simple single-line Pug patterns: h1 Hello World
   if (lines.length <= 3) {
     const trimmed = code.trim();
+    if (/\.\w+\(/.test(trimmed) || /=>/.test(trimmed) || /;\s*$/.test(trimmed)) {
+      return null;
+    }
     // Pug tag followed by text (no angle brackets)
     if (/^(h[1-6]|p|div|span|a|li|td|th|button|label)\s+[A-Z]/.test(trimmed)) {
       return 'pug';
@@ -17,6 +20,10 @@ export const detectPug: LanguageDetector = (ctx) => {
   }
 
   if (/</.test(code)) {
+    return null;
+  }
+
+  if (/\b(?:const|let|var)\s+\w+\s*=/.test(first100Lines) || /=>/.test(code) || /\bconsole\./.test(code) || /\baddEventListener\(/.test(code) || /\.\w+\(/.test(code)) {
     return null;
   }
 

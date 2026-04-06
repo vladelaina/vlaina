@@ -3,6 +3,10 @@ import type { LanguageDetector } from '../types';
 export const detectNim: LanguageDetector = (ctx) => {
   const { code, first100Lines, firstLine, lines } = ctx;
 
+  if (/\b(?:const|let|var)\s+\w+\s*=/.test(first100Lines) && (/=>/.test(code) || /\bimport\(/.test(code) || /\bimport\.meta\b/.test(code) || /\brequire\(/.test(code) || /\bconsole\./.test(code))) {
+    return null;
+  }
+
   if (/^\s*def\s+\w+\s*\([^)]*\)\s*(->\s*[^:]+)?:/m.test(code) || /^\s*class\s+\w+\s*:/m.test(code)) {
   if (/^type\s+\w+\*?\s*=\s*object\b/m.test(code)) {
     return 'nim';
@@ -152,7 +156,7 @@ export const detectNim: LanguageDetector = (ctx) => {
 
   if (/^(const|let)\s*$/m.test(code) || /^(const|let)\s+\w+\s*=/.test(code)) {
 
-    if (/\b(when|proc|template|import)\b/.test(code)) {
+    if (/(?:^|\n)\s*(when|proc|template|import)\b/m.test(code)) {
       return 'nim';
     }
   }

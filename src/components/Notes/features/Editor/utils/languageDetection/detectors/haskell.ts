@@ -3,15 +3,32 @@ import type { LanguageDetector } from '../types';
 export const detectHaskell: LanguageDetector = (ctx) => {
   const { code, first100Lines, firstLine, lines } = ctx;
 
+  if (
+    /^type\s+[A-Z_]\w*\s*=\s*(?:dict|list|tuple|set|frozenset|str|int|float|bool|bytes)\b/m.test(first100Lines) ||
+    /^require(?:_relative)?\s+['"]/.test(first100Lines) ||
+    /\b(Gem::Specification\.new|Sidekiq::Worker|Minitest::Test|ActiveSupport::Concern|RSpec\.(describe|shared_examples)|FactoryBot\.define|ApplicationRecord|ApplicationJob|ApplicationMailer|ApplicationController|described_class|delegate_missing_to|attr_reader|attr_accessor|attr_writer)\b/.test(code) ||
+    /(?:^|\n)\s*(?:export\s+)?type\s+\w+(?:<[^>\n]+>)?\s*=.*;/.test(code) ||
+    /\b(?:readonly|keyof|infer|satisfies|asserts|typeof|Record<|Partial<|Required<|Pick<|Omit<|Extract<|Exclude<|ReturnType<|Parameters<|InstanceType<|Awaited<|Promise<|JSX\.Element)\b/.test(code) ||
+    /(?:^|\n)\s*(?:interface|enum|namespace|declare)\b/.test(code)
+  ) {
+    return null;
+  }
+
   if (/^type\s+\w+<[^>]+>\s*=\s*\{/m.test(first100Lines) && /const\s+\w+\s*=\s*<[^>]+>\s*\([^)]*\)\s*:\s*\w+\s*=>/.test(code)) {
     return null;
   }
 
-  if (/^import\s+(SwiftUI|Foundation|UIKit)\b/m.test(first100Lines)) {
+  if (/^import\s+(SwiftUI|Foundation|UIKit|Combine)\b/m.test(first100Lines) ||
+      /@(Published|MainActor|State|Binding|ObservedObject|EnvironmentObject|StateObject|AppStorage)\b/.test(code) ||
+      /\bObservableObject\b/.test(code)) {
     return null;
   }
 
   if (/^type\s+[a-z]\w*\s*=/.test(first100Lines) && /^\s*\|\s+[A-Z]\w+/m.test(code)) {
+    return null;
+  }
+
+  if (/^type\s+\w+(?:<[^>]+>)?\s*=\s*[^;]*\b(?:Result|Option|Box|dyn)\b[^;]*::[^;]*;/m.test(first100Lines)) {
     return null;
   }
 

@@ -3,7 +3,11 @@ import type { LanguageDetector } from '../types';
 export const detectCoffeeScript: LanguageDetector = (ctx) => {
   const { code, first100Lines } = ctx;
 
-  if (/^\s*fn\s+\w+\s*\([^)]*\)\s*->/.test(first100Lines) || /\bOption<[A-Z]\w*>/.test(first100Lines)) {
+  if (/^\s*fn\s+\w+\s*\([^)]*\)\s*->/.test(first100Lines) || /\bOption<[A-Z]\w*>/.test(first100Lines) || /\b(use\s+(?:std|crate|self|super)::|impl\b|struct\s+\w+|trait\s+\w+|enum\s+\w+|fn\s+\w+\s*\()/.test(first100Lines)) {
+    return null;
+  }
+
+  if (/\$\w+\s*=/.test(first100Lines) && (/\$\w+->\w+/.test(code) || /\b[A-Z]\w*(?:::[A-Za-z_]\w*)+\s*\(/.test(code))) {
     return null;
   }
 

@@ -3,6 +3,10 @@ import type { LanguageDetector } from '../types';
 export const detectYAML: LanguageDetector = (ctx) => {
   const { code, lines, first100Lines, firstLine } = ctx;
 
+  if (/^#include\s*[<"]/m.test(first100Lines) || /\b(public|private|protected):\s*$/m.test(code) || /\b(virtual|override|noexcept|enum\s+class)\b/.test(code) || /\bstd::/.test(code)) {
+    return null;
+  }
+
   if (
     /\b(for\s+\w+\s+in|do|done|if\s+\[|then|fi)\b/.test(code) &&
     /^\s*echo\s+["'][^"']+:\s*["']?\s*$/m.test(code)

@@ -15,6 +15,7 @@ const cases: readonly AdversarialCase[] = [
   { language: 'python', sample: '[item.strip() for item in values]' },
   { language: 'ruby', sample: 'items.each { |item| puts item }' },
   { language: 'ruby', sample: 'module Admin\n  class User\n  end\nend' },
+  { language: 'ruby', sample: 'require \'redcarpet\'\nmarkdown = Redcarpet.new("Hello World!")\nputs markdown.to_html' },
   { language: 'bash', sample: 'find . -name "*.ts" | xargs grep TODO' },
   { language: 'bash', sample: 'alpha="value"\nprintf "%s\\n" "$value"' },
   { language: 'go', sample: 'client, err := load()' },

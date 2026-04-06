@@ -46,6 +46,22 @@ export const detectPHP: LanguageDetector = (ctx) => {
     return 'php';
   }
 
+  if (/\$\w+\s*=\s*\$\w+->\w+\s*\(/.test(code)) {
+    return 'php';
+  }
+
+  if (/\$\w+\s*=\s*[A-Z]\w*(?:::[A-Za-z_]\w*)+\s*\(/.test(code)) {
+    return 'php';
+  }
+
+  if (/\$\w+\s*=\s*(?:collect|config|response|view|app)\s*\(/.test(code)) {
+    return 'php';
+  }
+
+  if (/\$\w+->\w+\s*\(/.test(code) && !/\b(import|export|const|let|var)\b/.test(first100Lines)) {
+    return 'php';
+  }
+
   if (/^namespace\s+[A-Z]\w*(\\[A-Z]\w*)*;$/m.test(first100Lines) &&
       /^\s*(class|interface|trait|enum)\s+[A-Z]\w*/m.test(code)) {
     return 'php';

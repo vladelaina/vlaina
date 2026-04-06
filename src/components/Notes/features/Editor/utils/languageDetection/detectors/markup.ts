@@ -2,6 +2,10 @@ import type { LanguageDetector } from '../types';
 
 export const detectHTML: LanguageDetector = (ctx) => {
   const { first100Lines, sample, code, firstLine, lines } = ctx;
+  if (/^#include\s*</m.test(first100Lines)) {
+    return null;
+  }
+
 
   if (lines.length <= 3) {
     if (/\{\{[\s\S]*?\}\}/.test(code)) {

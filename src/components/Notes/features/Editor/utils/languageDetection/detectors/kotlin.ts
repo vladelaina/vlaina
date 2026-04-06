@@ -1,83 +1,129 @@
 import type { LanguageDetector } from '../types';
 
 export const detectKotlin: LanguageDetector = (ctx) => {
-  const { sample, first100Lines, hasCurlyBraces, hasSemicolon, code, lines } = ctx;
+  const { code, first100Lines, firstLine, hasCurlyBraces, hasSemicolon, lines } = ctx;
 
-  // Simple single-line Kotlin patterns
-  if (lines.length <= 3) {
-    if (/^println\s*\(/.test(code.trim())) {
-      // Check for Julia-specific patterns (^ operator)
-      if (/\^\d+/.test(code)) {
-        return null; // Let Julia detector handle it
-      }
-      return 'kotlin';
+  if (lines.length <= 3 && /^println\s*\(/.test(code.trim())) {
+    if (/\^\d+/.test(code)) {
+      return null;
     }
-  }
 
-  if (/\bdata\s+class\s+\w+\s*\(/.test(first100Lines)) {
-    if (/\bval\s+\w+:\s*\w+/.test(first100Lines)) {
-      return 'kotlin';
-    }
     return 'kotlin';
   }
 
-  if (!hasCurlyBraces) {
+  if (
+    /#import\s+["<]/.test(first100Lines) ||
+    /@(interface|implementation|property|protocol)\b/.test(first100Lines) ||
+    /\bNS[A-Z]\w+\s*\*/.test(first100Lines) ||
+    /^using\s+[A-Z]/m.test(first100Lines) ||
+    /^namespace\s+[\w.]+/m.test(first100Lines) ||
+    /\b(get;\s*set;|init;|Console\.(?:Write|WriteLine)|async\s+Task|IEnumerable<|Dictionary<|ControllerBase\b|ActionResult<)\b/.test(code) ||
+    /^package\s+[\w.]+;/m.test(first100Lines) ||
+    /^import\s+(?:static\s+)?(?:java|javax|jakarta|org\.|com\.)/m.test(first100Lines) ||
+    /@(RestController|RequestMapping|GetMapping|PostMapping|Autowired|Component|Service|Repository|Controller|Entity|Table)\b/.test(code) ||
+    /(?:^|\n)\s*@(Override|FunctionalInterface|SafeVarargs|BeforeEach|AfterEach)\b/.test(code) ||
+    /^import\s+(Foundation|SwiftUI|UIKit|Combine)\b/m.test(first100Lines) ||
+    /\bguard\s+let\b/.test(code) ||
+    /\bfunc\s+\w+\s*\(/.test(code) ||
+    /\b(?:some\s+View|@State|@Published)\b/.test(code) ||
+    /(?:^|\n)\s*(?:class|struct|enum)\s+\w+\s*:\s*(?:NSObject|Codable|Hashable|Identifiable|CaseIterable|Equatable|View)\b/m.test(code) ||
+    /(?:^|\n)\s*(?:let|var)\s+\w+\s*:\s*(?:\[[^\]\n]+\]|[A-Z][\w.<>?]*)/.test(code) ||
+    /\bcase\s+class\b/.test(code) ||
+    /\bsealed\s+trait\b/.test(code) ||
+    /\bobject\s+\w+\s+extends\b/.test(code) ||
+    /\bdef\s+\w+\s*\(/.test(code) ||
+    /\bmatch\s*\{/.test(code) ||
+    /\bgiven\b|\busing\s*\(/.test(code) ||
+    /^#include\s*[<"]/m.test(first100Lines) ||
+    /\bstd::/.test(code) ||
+    /\btemplate\s*</.test(code)
+  ) {
     return null;
   }
 
-  if (/^package\s+\w+$/m.test(first100Lines) && /\bfunc\s+\w+/.test(first100Lines)) {
-    return null;
-  }
+  const hasKotlinPackage = /^package\s+[\w.]+$/m.test(first100Lines);
+  const hasKotlinImport = /^import\s+(?:kotlin|kotlinx|androidx?|io\.ktor|org\.jetbrains|java\.time|java\.util|java\.io)\.[\w.*]+$/m.test(first100Lines);
+  const hasDataClass = /(?:^|\n)\s*data\s+class\s+[A-Z]\w*(?:<[^>\n]+>)?\s*\([^)]*\b(?:val|var)\s+\w+\s*:/m.test(code);
+  const hasSealedType = /\bsealed\s+(?:class|interface)\s+[A-Z]\w*/.test(code);
+  const hasEnumClass = /(?:^|\n)\s*enum\s+class\s+[A-Z]\w*/.test(code);
+  const hasObjectDecl = /(?:^|\n)\s*(?:data\s+)?object\s+[A-Z]\w*(?:\s*:\s*[^\n{]+)?\s*\{/m.test(code);
+  const hasCompanionObject = /\bcompanion\s+object\b/.test(code);
+  const hasFunInterface = /\bfun\s+interface\s+[A-Z]\w*/.test(code);
+  const hasAnnotationClass = /\bannotation\s+class\s+[A-Z]\w*/.test(code);
+  const hasValueClass = /\b(?:value|data)\s+class\s+[A-Z]\w*\s*@?/.test(code) && /@JvmInline/.test(code);
+  const hasPrimaryClass =
+    /(?:^|\n)\s*(?:(?:public|private|protected|internal|open|abstract|sealed|data|final)\s+)*class\s+[A-Z]\w*(?:<[^>\n]+>)?(?:\s*\([^)]*\))?(?:\s*:\s*[^\n{]+)?\s*\{/m.test(
+      code,
+    );
+  const hasPrimaryConstructorParams = /class\s+[A-Z]\w*(?:<[^>\n]+>)?\s*\([^)]*\b(?:val|var)\s+\w+\s*:/.test(code);
+  const hasInterfaceDecl = /(?:^|\n)\s*(?:(?:public|private|protected|internal|sealed|fun)\s+)*interface\s+[A-Z]\w*(?:<[^>\n]+>)?\s*(?:\{|:\s*[^\n{]+\{)/m.test(code);
+  const hasFunction =
+    /(?:^|\n)\s*(?:(?:public|private|protected|internal|inline|tailrec|operator|infix|override|abstract|open|final|suspend|external)\s+)*fun(?:\s*<[^>\n]+>)?\s+(?:[A-Z]\w*(?:<[^>\n]+>)?\.)?[A-Za-z_]\w*\s*\([^)]*\)\s*(?::\s*[^={\n]+)?\s*(?:\{|=)/m.test(
+      code,
+    );
+  const hasOverrideFun = /\boverride\s+fun\s+\w+/.test(code);
+  const hasProperty =
+    /(?:^|\n)\s*(?:(?:public|private|protected|internal|override|lateinit|const)\s+)*(?:val|var)\s+\w+(?::\s*[^=\n{]+)?(?:\s*=\s*[^;\n]+)?(?:\s+by\s+\w+(?:\([^)]*\))?)?/m.test(
+      code,
+    );
+  const hasPropertySetter = /\bprivate\s+set\b/.test(code);
+  const hasNullSafety = /\?\.|!!|\?:|\bas\?\b|\bis\s+null\b/.test(code);
+  const hasWhenExpression = /\bwhen\s*\(/.test(code);
+  const hasStringTemplate = /"[^"\n]*\$[A-Za-z_\{]/.test(code);
+  const hasRuntime =
+    /\b(?:println\(|listOf\(|mutableListOf\(|mapOf\(|mutableMapOf\(|setOf\(|mutableSetOf\(|emptyList\(|emptyMap\(|sequenceOf\(|flowOf\(|runCatching\s*\{|coroutineScope\s*\{|launch\s*\{|async\s*\{|mutableStateOf\(|isNullOrBlank\(|requireNotNull\(|checkNotNull\(|buildList\s*\{|buildMap\s*\{|lazy\s*\{|withContext\(|collect\s*\{|firstOrNull\(|getOrNull\()/m.test(
+      code,
+    );
+  const hasLambdaChain = /\.(?:map|flatMap|filter|associate|groupBy|forEach|fold)\s*\{/.test(code);
+  const hasTypeAlias = /\btypealias\s+[A-Z]\w*\s*=/.test(code);
+  const hasNullableType = /:\s*[A-Z][\w.<>]*\?/.test(code) || /:\s*(?:String|Int|Long|Boolean|Double|Float|Any)\?/.test(code);
 
-  if (/\b(defmodule|defp|def\s+\w+.*\s+do\b)\b/.test(first100Lines)) {
-    return null;
-  }
-
-  if (/\bval\s+\w+\s*=\s*\w+\.groupBy\s*\{/.test(code)) {
-    if (/\bit\.\w+/.test(code) || /\bmapValues\s*\{/.test(code)) {
-      return 'kotlin';
-    }
-  }
-
-  if (/\bsealed\s+class\s+\w+</.test(code)) {
-    if (/\bdata\s+class\s+\w+</.test(code) || /\bobject\s+\w+\s*:/.test(code)) {
-      return 'kotlin';
-    }
-  }
-
-  if (/\binline\s+fun\s+<reified\s+T>/.test(code)) {
+  if (hasDataClass || hasEnumClass || hasFunInterface || hasAnnotationClass || hasValueClass) {
     return 'kotlin';
   }
 
-  if (/\b(val|var)\s+\w+\s*=.*\.(filter|map)\s*\{/.test(first100Lines)) {
-    if (/\bit\.\w+/.test(first100Lines) || /\{ it\./.test(first100Lines) || /\brepository\./.test(first100Lines) || /\bdata\s+class\b/.test(first100Lines)) {
-      return 'kotlin';
-    }
-  }
-
-  if (/\bval\s+\w+\s*=\s*\w+\.\w+\(\)\.filter\s*\{/.test(code)) {
-    if (/\bit\.\w+/.test(code) || /\brepository\./.test(code)) {
-      return 'kotlin';
-    }
-  }
-
-  if (/\bsuspend\s+fun\s+/.test(first100Lines)) {
+  if (hasKotlinPackage && hasKotlinImport && (hasFunction || hasProperty || hasPrimaryClass || hasObjectDecl || hasInterfaceDecl)) {
     return 'kotlin';
   }
 
-  if (/^package\s+[\w.]+$/m.test(first100Lines) && /^import\s+[\w.]+/.test(first100Lines)) {
-    if (/\b(fun\s+\w+|val\s+\w+|var\s+\w+:\s*\w+|class\s+\w+|object\s+\w+|interface\s+\w+|data\s+class)\b/.test(first100Lines)) {
-      return 'kotlin';
-    }
+  if (hasSealedType && (hasWhenExpression || hasObjectDecl || hasDataClass || hasFunction)) {
+    return 'kotlin';
   }
 
-  if (/\b(fun\s+\w+|data\s+class|sealed\s+class|companion\s+object)\b/.test(first100Lines)) {
-    if (sample.includes('?.') ||
-        sample.includes('!!') ||
-        /\b(suspend|inline|reified|when\s*\{)\b/.test(first100Lines) ||
-        !hasSemicolon) {
-      return 'kotlin';
-    }
+  if (hasCompanionObject && (hasPrimaryClass || hasFunction || hasProperty)) {
+    return 'kotlin';
+  }
+
+  if (hasFunction && (hasNullSafety || hasWhenExpression || hasStringTemplate || hasRuntime || hasLambdaChain || hasNullableType || !hasSemicolon)) {
+    return 'kotlin';
+  }
+
+  if ((hasPrimaryClass || hasInterfaceDecl || hasObjectDecl) && (hasProperty || hasOverrideFun || hasRuntime || hasLambdaChain || hasStringTemplate || hasPropertySetter || hasPrimaryConstructorParams) && !hasSemicolon) {
+    return 'kotlin';
+  }
+
+  if (!hasCurlyBraces && !hasDataClass && !hasEnumClass && !hasFunInterface && !hasAnnotationClass) {
+    return null;
+  }
+
+  let score = 0;
+  if (hasKotlinPackage) score += 2;
+  if (hasKotlinImport) score += 2;
+  if (hasDataClass || hasEnumClass || hasFunInterface || hasAnnotationClass || hasValueClass) score += 4;
+  if (hasSealedType) score += 2;
+  if (hasPrimaryClass || hasObjectDecl || hasInterfaceDecl) score += 2;
+  if (hasPrimaryConstructorParams) score += 2;
+  if (hasFunction || hasOverrideFun) score += 2;
+  if (hasProperty || hasPropertySetter) score += 1;
+  if (hasNullSafety || hasNullableType) score += 1;
+  if (hasWhenExpression) score += 1;
+  if (hasStringTemplate) score += 1;
+  if (hasRuntime || hasLambdaChain) score += 2;
+  if (hasTypeAlias || hasCompanionObject) score += 1;
+  if (!hasSemicolon) score += 1;
+
+  if (score >= 5) {
+    return 'kotlin';
   }
 
   return null;

@@ -7,7 +7,43 @@ export const detectJavaScript: LanguageDetector = (ctx) => {
     return null;
   }
 
+  if (/^require(?:_relative)?\s+['"]/m.test(first100Lines)) {
+    return null;
+  }
+
+  if (/^import\s+(?:static\s+)?(?:java|javax|jakarta|org\.(?:springframework|junit|apache|jooq)|com\.(?:fasterxml|google|intellij)|lombok|javafx)\./m.test(first100Lines)) {
+    return null;
+  }
+
+  if (/^(?:from\s+[._a-z][\w.]*\s+import\s+|import\s+(?:os|sys|re|json|datetime|pathlib|typing|collections|itertools|functools|contextlib|decimal|fractions|subprocess|tempfile|uuid|logging|pytest|unittest|django|fastapi|pydantic|sqlite3|httpx|requests|argparse|click|rich)\b)/m.test(first100Lines)) {
+    return null;
+  }
+
+  if (/^\s*task\s+['"][^'"]+['"]\s*,\s*->/m.test(first100Lines) || /\bconsole\.(?:log|error|warn|info)\s+['"]/m.test(code)) {
+    return null;
+  }
+
+  const hasJsArrowAssignment = /\b(?:const|let|var)\s+\w+\s*=\s*(?:\([^)]*\)|\w+)\s*=>/.test(first100Lines);
+  const hasJsSpreadLiteral = /\b(?:const|let|var)\s+\w+\s*=\s*[\[{][\s\S]*\.\.\./.test(code);
+  const hasJsRequire = /\b(?:const|let|var)\s+\w+\s*=\s*require\(["'][^"']+["']\)/.test(code);
+  const hasJsModuleExports = /\b(?:module\.exports|exports\.\w+)\s*=/.test(code);
+  const hasJsImportExport = /^(?:import\s+.+\s+from\s+["']|export\s+(?:default|const|function|class)\b)/m.test(first100Lines);
+  const hasJsAsyncFunction = /\basync\s+function\s+\w+\s*\(/.test(code);
+  const hasJsPlainFunction = /(?:^|\n)\s*function\*?\s+\w+\s*\([^):]*\)\s*\{/.test(code);
+  const hasJsClassSyntax = /\bclass\s+\w+(?:\s+extends\s+\w+)?\s*\{/.test(code) && (/\bconstructor\s*\(/.test(code) || /\bstatic\s+\w+\s*\(/.test(code) || /\bget\s+\w+\s*\(/.test(code) || /\bset\s+\w+\s*\(/.test(code) || /#\w+\s*=/.test(code) || /\bstatic\s*\{/.test(code));
+  const hasJsRuntime = /\b(?:console\.(?:log|error|warn|info|table)|document\.|window\.|localStorage|sessionStorage|fetch\(|addEventListener\(|setTimeout\(|setInterval\(|clearTimeout\(|clearInterval\(|URLSearchParams|AbortController|Promise\.(?:all|race|any)|queueMicrotask|JSON\.parse|Object\.(?:fromEntries|entries|hasOwn)|Reflect\.ownKeys|import\.meta|navigator\.clipboard|history\.pushState|indexedDB\.open|FormData|Blob|Response|Headers|WebSocket|IntersectionObserver|MutationObserver|ResizeObserver|requestAnimationFrame|structuredClone|Buffer\.from|process\.env|customElements\.define)\b/.test(code);
+  const hasJsModernOperator = /\?\.|\?\?=?|\|\|=|&&=|\b(?:findLast|toSorted|flatMap|matchAll)\s*\(/.test(code);
+  const hasTypeScriptSyntax = /\b(?:interface|type|enum|namespace|readonly|implements|abstract\s+class)\b/.test(first100Lines) || /\b(?:public|private|protected)\s+\w+/.test(first100Lines) || /import\s+type\s+/.test(first100Lines) || /function\s+\w+\s*\([^)]*:\s*\w+/.test(first100Lines) || /\)\s*:\s*\w+/.test(first100Lines) || /const\s+\w+\s*=\s*\([^)]*:\s*\w+/.test(first100Lines);
+
+  if (!hasTypeScriptSyntax && (hasJsImportExport || hasJsRequire || hasJsModuleExports || hasJsArrowAssignment || hasJsSpreadLiteral || hasJsAsyncFunction || hasJsPlainFunction || hasJsClassSyntax || hasJsRuntime || hasJsModernOperator)) {
+    return 'javascript';
+  }
+
   if (/^\\(name|alias|title|usage|arguments|value|description|details|docType)\{/m.test(first100Lines)) {
+    return null;
+  }
+
+  if (/^#include\s*[<"]/m.test(first100Lines) || /^#\s*(define|ifdef|ifndef|elif|else|endif)\b/m.test(first100Lines) || /\b(public|private|protected):\s*$/m.test(code) || /\b(enum\s+class|virtual|override|noexcept|constexpr)\b/.test(code) || /\btemplate\s*</.test(code) || /\boperator\s*(?:[+\-*/%<>=!]+|\(\)|\[\])/.test(code) || /\bstd::/.test(code) || /\b(typedef\s+struct|typedef\s+void\s*\(\*|union\s+\w+\s*\{|restrict\b|volatile\b|extern\s+\w|static\s+inline)\b/.test(code) || /^struct\s+\w+\s*\{/m.test(code) || /^enum\s+\w+\s*\{/m.test(code) || /\bconst\s+char\s*\*/.test(code) || /\bunsigned\s+long\b/.test(code) || /\b(?:int|char|float|double|short|long|unsigned|signed|void)\s+\**\w+\s*\([^)]*\)\s*\{/.test(code)) {
     return null;
   }
 
@@ -200,6 +236,10 @@ export const detectJavaScript: LanguageDetector = (ctx) => {
 
   if (/\bconstructor\s*\(\s*(public|private|protected)\s+\w+\s*\)/.test(first100Lines)) {
     return 'typescript';
+  }
+
+  if (!hasTypeScriptSyntax && /(?:^|\n)\s*function\s+\w+\s*\([^):]*\)\s*\{/.test(code)) {
+    return 'javascript';
   }
 
   // TypeScript type annotations in function parameters

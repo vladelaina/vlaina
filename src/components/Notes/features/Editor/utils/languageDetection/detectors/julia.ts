@@ -17,6 +17,16 @@ export const detectJulia: LanguageDetector = (ctx) => {
     return null;
   }
 
+  if (/^require(?:_relative)?\s+["']/.test(first100Lines) ||
+      /^class\s+[A-Z]\w*/m.test(first100Lines) ||
+      /^module\s+[A-Z]\w*/m.test(first100Lines) ||
+      /^def\s+\w+/m.test(first100Lines) ||
+      /\b(attr_reader|attr_accessor|attr_writer|include\s+[A-Z]|extend\s+[A-Z]|ApplicationRecord|ApplicationJob|ApplicationMailer|ApplicationController|Sidekiq::Worker|ActiveSupport::Concern|FactoryBot\.define|RSpec\.(describe|shared_examples)|Minitest::Test|described_class|perform_later|deliver_later|delegate_missing_to|present\?|blank\?|destroy!|update!|begin|rescue|ensure|retry|yield|block_given\?|Bundler\.require|Gem::Specification\.new|Time\.now|Date\.today)\b/.test(code) ||
+      /\b(abort|warn|format)\s*\(/.test(code) ||
+      /\b(ENV\.fetch|Open3\.capture3|Pathname\.new|YAML\.load_file|URI\.parse|Set\.new|OpenStruct\.new|JSON\.parse|File\.read|ERB\.new)\(/.test(code)) {
+    return null;
+  }
+
   // Simple single-line Julia patterns
   if (lines.length <= 3) {
     const trimmed = code.trim();

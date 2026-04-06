@@ -2,6 +2,10 @@ import type { LanguageDetector } from '../types';
 
 export const detectStylus: LanguageDetector = (ctx) => {
   const { code, first100Lines, lines } = ctx;
+  if (/^#include\s*[<"]/m.test(first100Lines) || /\bstd::/.test(code) || /\b(public|private|protected):\s*$/m.test(code) || /\b(virtual|override|noexcept|enum\s+class)\b/.test(code)) {
+    return null;
+  }
+
   if (/;/.test(code) && /\b(plot|linspace|zeros|ones|eye|disp|size|meshgrid)\s*\(/.test(code)) {
     return null;
   }

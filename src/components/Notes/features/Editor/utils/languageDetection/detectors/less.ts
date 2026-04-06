@@ -3,14 +3,12 @@ import type { LanguageDetector } from '../types';
 export const detectLess: LanguageDetector = (ctx) => {
   const { code, first100Lines } = ctx;
 
-  // Exclude Swift (strong Swift indicators)
   if (/@State\s+(private\s+)?var\s+\w+/.test(first100Lines) ||
       /struct\s+\w+:\s*View\s*\{/.test(first100Lines) ||
       /\bvar\s+body:\s*some\s+View/.test(first100Lines)) {
     return null;
   }
 
-  // Exclude Dart/Flutter (strong Dart indicators)
   if (/class\s+\w+\s+extends\s+(StatefulWidget|StatelessWidget)/.test(first100Lines) ||
       /class\s+_\w+State\s+extends\s+State</.test(first100Lines) ||
       /@override\s+Widget\s+build/.test(first100Lines)) {
@@ -22,6 +20,10 @@ export const detectLess: LanguageDetector = (ctx) => {
   }
 
   if (/^use\s+\w+::/m.test(first100Lines) || /\/\*!/.test(first100Lines)) {
+    return null;
+  }
+
+  if (/@import\(["']/.test(first100Lines) || /std\.heap\.GeneralPurposeAllocator\(\.\{\}\)\{\}/.test(code)) {
     return null;
   }
 
