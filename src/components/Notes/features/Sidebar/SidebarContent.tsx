@@ -306,7 +306,11 @@ export function SidebarContent({
     setIsContentScanPending(true);
 
     const promise = scanAllNotes()
-      .catch(() => {})
+      .catch((error: unknown) => {
+        if (import.meta.env.DEV) {
+          console.warn('[SidebarContent] scanAllNotes failed:', error);
+        }
+      })
       .finally(() => {
         if (contentScanPromiseRef.current === promise) {
           contentScanPromiseRef.current = null;

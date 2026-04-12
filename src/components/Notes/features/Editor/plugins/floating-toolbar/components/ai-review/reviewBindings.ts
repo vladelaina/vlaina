@@ -122,6 +122,15 @@ export function bindAiReviewActions({
         isLoading: false,
         errorMessage: null,
       });
+    }).catch((error: unknown) => {
+      if (error instanceof Error && error.name === 'AbortError') return;
+      const currentReview = floatingToolbarKey.getState(view.state)?.aiReview;
+      if (!currentReview || currentReview.requestKey !== liveReview.requestKey) return;
+      updateReview({
+        ...liveReview,
+        isLoading: false,
+        errorMessage: error instanceof Error ? error.message : 'Retry failed',
+      });
     });
   }, { signal });
 

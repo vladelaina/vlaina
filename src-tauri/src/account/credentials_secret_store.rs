@@ -31,11 +31,11 @@ pub(crate) fn read_secret(account: &str) -> Result<Option<String>, String> {
     let entry = secret_entry(account)?;
     match entry.get_password() {
         Ok(value) => {
-            let normalized = value.trim().to_string();
-            if normalized.is_empty() {
+            let trimmed = value.trim().to_string();
+            if trimmed.is_empty() {
                 Ok(None)
             } else {
-                Ok(Some(value))
+                Ok(Some(trimmed))
             }
         }
         Err(Error::NoEntry) => Ok(None),

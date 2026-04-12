@@ -127,14 +127,15 @@ export async function applySidebarSearchNavigation(target: SidebarSearchNavigati
       return true;
     }
 
-    if (state && state.matches.length > target.contentMatchOrdinal) {
-      setEditorFindActiveIndex(view, target.contentMatchOrdinal, 'instant');
+    if (state && state.matches.length > 0) {
+      const clampedOrdinal = Math.min(target.contentMatchOrdinal, state.matches.length - 1);
+      setEditorFindActiveIndex(view, clampedOrdinal, 'instant');
       clearSidebarSearchNavigationPending(target.path);
       logSidebarSearchDebug('navigation:apply:success-match', {
         path: target.path ?? null,
         attempt,
         requestedOrdinal: target.contentMatchOrdinal,
-        activeIndex: target.contentMatchOrdinal,
+        activeIndex: clampedOrdinal,
         view: getSidebarSearchDebugViewMeta(view),
         scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
       });

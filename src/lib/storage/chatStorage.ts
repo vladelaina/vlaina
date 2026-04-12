@@ -113,7 +113,9 @@ export async function loadSessionJson(sessionId: string): Promise<ChatMessage[] 
   if (await storage.exists(path)) {
       try {
           const content = await storage.readFile(path);
-          return JSON.parse(content);
+          const parsed: unknown = JSON.parse(content);
+          if (!Array.isArray(parsed)) return null;
+          return parsed as ChatMessage[];
       } catch (error) {
           console.error('[chatStorage] Failed to load session file:', path, error);
           return null;

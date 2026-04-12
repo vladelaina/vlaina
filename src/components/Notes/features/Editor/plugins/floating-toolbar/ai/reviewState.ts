@@ -4,7 +4,7 @@ import type { AiSelectionSuggestion, AiSelectionSuggestionResult } from './selec
 import type { AiReviewState } from '../types';
 
 function createReviewRequestKey(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return `review-${crypto.randomUUID()}`;
 }
 
 export function createAiReviewState(

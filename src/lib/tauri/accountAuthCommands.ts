@@ -184,7 +184,7 @@ export const accountCommands = {
     signal?: AbortSignal,
     externalRequestId?: string
   ) {
-    const requestId = externalRequestId?.trim() || `managed-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const requestId = externalRequestId?.trim() || `managed-${crypto.randomUUID()}`;
     const chunkEvent = `managed-chat-stream:${requestId}:chunk`;
     const doneEvent = `managed-chat-stream:${requestId}:done`;
     const errorEvent = `managed-chat-stream:${requestId}:error`;

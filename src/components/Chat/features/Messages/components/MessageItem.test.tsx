@@ -24,12 +24,16 @@ vi.mock("./AIMessage", () => ({
 import { MessageItem } from "./MessageItem";
 
 function createMessage(role: ChatMessage["role"], id: string): ChatMessage {
+  const content = `${role}-${id}`;
+  const timestamp = Date.now();
   return {
     id,
     role,
-    content: `${role}-${id}`,
+    content,
     modelId: "model-a",
-    timestamp: Date.now(),
+    timestamp,
+    versions: [{ content, createdAt: timestamp, subsequentMessages: [] }],
+    currentVersionIndex: 0,
   };
 }
 

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { useUnifiedStore } from '../unified/useUnifiedStore'
 import type { ChatMessage, ChatSession } from '@/lib/ai/types'
+import { generateId } from '@/lib/id'
 import { saveSessionJson } from '@/lib/storage/chatStorage'
 import {
   createTemporarySession,
@@ -98,7 +99,7 @@ export function createAIChatSession(title = 'New Chat'): string {
     return temporaryState.currentSessionId
   }
 
-  const id = `session-${now}-${Math.random().toString(36).substring(2, 11)}`
+  const id = generateId('session-')
   const newSession: ChatSession = {
     id,
     title,

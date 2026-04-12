@@ -35,6 +35,7 @@ function createEntry(
 
 describe('starred persistence', () => {
   beforeEach(() => {
+    vi.resetModules();
     vi.useFakeTimers();
     vi.clearAllMocks();
   });
