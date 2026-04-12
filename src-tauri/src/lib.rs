@@ -388,11 +388,7 @@ async fn open_in_system_file_manager(path: String) -> Result<(), String> {
 
     #[cfg(all(unix, not(target_os = "macos")))]
     {
-        let open_target = if target.is_dir() {
-            target.parent().unwrap_or(target)
-        } else {
-            target.parent().unwrap_or(target)
-        };
+        let open_target = target.parent().unwrap_or(target.as_path());
         let status = Command::new("xdg-open")
             .arg(open_target)
             .status()

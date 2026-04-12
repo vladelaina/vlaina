@@ -8,11 +8,21 @@ export const detectCSharp: LanguageDetector = (ctx) => {
     /@(interface|implementation|property|protocol)\b/.test(first100Lines) ||
     /\bNS[A-Z]\w+\s*\*/.test(first100Lines) ||
     firstLine.trim() === '---' ||
+    /^package\s+[\w.]+$/m.test(first100Lines) ||
     /^package\s+[\w.]+;/m.test(first100Lines) ||
+    /^import\s+(?:kotlin|kotlinx|androidx?|io\.ktor|org\.jetbrains|java\.(?:time|util|io)|kotlin\.collections)\.[\w.*]+$/m.test(first100Lines) ||
     /^import\s+static\s+[\w.]+\.[A-Za-z_]\w*\s*;$/m.test(first100Lines) ||
     /^import\s+(?:java|javax|jakarta|org\.|com\.)/m.test(first100Lines) ||
     /(?:^|\n)\s*(?:public|protected|private)?\s*String\s+[a-z_]\w*\s*\(/m.test(code) ||
     /(?:^|\n)\s*(?:public|protected|private)\s+String\s+[a-z_]\w*\s*(?:=|;)/m.test(code) ||
+    /\b(?:data|enum|annotation|value)\s+class\s+[A-Z]\w*/.test(code) ||
+    /\bfun\s+interface\s+[A-Z]\w*/.test(code) ||
+    /\bcompanion\s+object\b/.test(code) ||
+    /\btypealias\s+[A-Z]\w*\s*=/.test(code) ||
+    /\b(?:open|sealed)\s+(?:class|interface)\s+[A-Z]\w*/.test(code) ||
+    /\boverride\s+(?:fun|val)\s+\w+/.test(code) ||
+    /\bfun\s+\w+\s*\(/.test(code) ||
+    /\bprivate\s+set\b/.test(code) && !/\bprivate\s+set;/.test(code) ||
     /\bstatic\s+final\b/.test(code) ||
     /@(RestController|RequestMapping|GetMapping|PostMapping|Autowired|Component|Service|Repository|Controller|Entity|Table)\b/.test(code) ||
     /(?:^|\n)\s*@(Override|Deprecated|SuppressWarnings|FunctionalInterface|SafeVarargs|Test|BeforeEach|AfterEach)\b/m.test(code) ||

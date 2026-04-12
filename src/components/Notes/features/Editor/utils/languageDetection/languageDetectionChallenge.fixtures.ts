@@ -49,7 +49,6 @@ const pascalName = fc
   .tuple(pascalWord, fc.array(pascalWord, { minLength: 0, maxLength: 1 }))
   .map(([head, tail]) => [head, ...tail].join(''));
 
-const lowerQuoted = lowerWord.map((value) => `"${value}"`);
 const routeWord = fc.constantFrom('users', 'notes', 'tasks', 'reports', 'sessions');
 const portNumber = fc.integer({ min: 3000, max: 9999 });
 

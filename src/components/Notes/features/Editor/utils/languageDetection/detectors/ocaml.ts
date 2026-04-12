@@ -16,6 +16,23 @@ export const detectOCaml: LanguageDetector = (ctx) => {
   }
 
   if (
+    /^package\s+[\w.]+$/m.test(first100Lines) ||
+    /^import\s+(?:kotlin|kotlinx|androidx?|io\.ktor|org\.jetbrains|java\.(?:time|util|io)|kotlin\.collections)\.[\w.*]+$/m.test(first100Lines) ||
+    /\b(?:data|enum|annotation|value)\s+class\s+[A-Z]\w*/.test(code) ||
+    /\bfun\s+interface\s+[A-Z]\w*/.test(code) ||
+    /\bcompanion\s+object\b/.test(code) ||
+    /\btypealias\s+[A-Z]\w*\s*=/.test(code) ||
+    /\b(?:open|sealed)\s+(?:class|interface)\s+[A-Z]\w*/.test(code) ||
+    /\boverride\s+(?:fun|val)\s+\w+/.test(code) ||
+    /\bconstructor\s*\([^)]*\)\s*\{/.test(code) ||
+    /\binit\s*\{/.test(code) ||
+    /\b(?:MutableList|MutableMap|MutableSet)<[^>\n]+>\s*=\s*mutable(?:List|Map|Set)Of\(/.test(code) ||
+    /\b(?:listOf|mapOf|setOf|mutableListOf|mutableMapOf|mutableSetOf|emptyList|buildList|buildMap|firstOrNull|getOrNull|requireNotNull|checkNotNull|takeUnless|takeIf|runCatching)\s*\(/.test(code) && /\b(?:fun|val|var|class|object)\b/.test(code)
+  ) {
+    return null;
+  }
+
+  if (
     /(?:^|\n)\s*(?:export\s+)?type\s+\w+(?:<[^>\n]+>)?\s*=.*;/.test(code) ||
     /\b(?:readonly|keyof|infer|satisfies|asserts|typeof|null|Record<|Partial<|Required<|Pick<|Omit<|Extract<|Exclude<|ReturnType<|Parameters<|InstanceType<|Awaited<|Promise<)\b/.test(code) ||
     /(?:^|\n)\s*(?:interface|enum|namespace|declare)\b/.test(code)

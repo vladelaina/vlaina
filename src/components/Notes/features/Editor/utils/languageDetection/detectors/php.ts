@@ -1,7 +1,7 @@
 import type { LanguageDetector } from '../types';
 
 export const detectPHP: LanguageDetector = (ctx) => {
-  const { firstLine, sample, first100Lines, hasConst, hasLet, lines, code } = ctx;
+  const { firstLine, first100Lines, hasConst, hasLet, lines, code } = ctx;
 
   if (firstLine.startsWith('<?php') || /^\s*<\?(php|=)/m.test(first100Lines)) {
     return 'php';
