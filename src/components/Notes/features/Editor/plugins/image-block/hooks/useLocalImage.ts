@@ -61,7 +61,7 @@ export function useLocalImage(
                 }
             } catch (err) {
                 if (isMounted) {
-                    console.warn(`Failed to resolve image: ${rawSrc}`, err);
+                    if (import.meta.env.DEV) console.warn(`Failed to resolve image: ${rawSrc}`, err);
                     setError(err instanceof Error ? err : new Error('Unknown error loading image'));
                     setResolvedSrc(getImageSourceBase(rawSrc));
                 }

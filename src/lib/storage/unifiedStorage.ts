@@ -244,8 +244,9 @@ async function performSplitSave(data: UnifiedData) {
         lastModified: Date.now(),
         data: mainPart as UnifiedData
     };
-    await storage.writeFile(mainBackupPath, JSON.stringify(mainFile, null, 2));
-    await storage.writeFile(mainPath, JSON.stringify(mainFile, null, 2));
+    const mainPayload = JSON.stringify(mainFile, null, 2);
+    await storage.writeFile(mainPath, mainPayload);
+    await storage.writeFile(mainBackupPath, mainPayload);
 
     if (ai) {
         await syncProviderSecrets(ai.providers || []);
@@ -294,7 +295,7 @@ async function performSplitSave(data: UnifiedData) {
                 }
                 await storage.deleteFile(entry.path);
             } catch (error) {
-                console.warn('[Storage] failed to cleanup stale provider channel file:', entry.path, error);
+                if (import.meta.env.DEV) console.warn('[Storage] failed to cleanup stale provider channel file:', entry.path, error);
             }
         }
 
@@ -311,7 +312,7 @@ async function performSplitSave(data: UnifiedData) {
                 }
                 await storage.deleteFile(entry.path);
             } catch (error) {
-                console.warn('[Storage] failed to cleanup removed TTS provider channel file:', entry.path, error);
+                if (import.meta.env.DEV) console.warn('[Storage] failed to cleanup removed TTS provider channel file:', entry.path, error);
             }
         }
     }

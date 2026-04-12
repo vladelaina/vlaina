@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useUnifiedStore } from '../unified/useUnifiedStore';
 import type { UnifiedProgress } from '@/lib/storage/unifiedStorage';
 import { getTodayKey } from '@/lib/date';
@@ -85,16 +86,26 @@ function toProgressOrCounter(item: UnifiedProgress): ProgressOrCounter {
 }
 
 export function useProgressStore() {
-  const store = useUnifiedStore();
-  
+  const progress = useUnifiedStore(s => s.data.progress);
+  const loaded = useUnifiedStore(s => s.loaded);
+  const load = useUnifiedStore(s => s.load);
+  const addProgress = useUnifiedStore(s => s.addProgress);
+  const updateProgress = useUnifiedStore(s => s.updateProgress);
+  const deleteProgress = useUnifiedStore(s => s.deleteProgress);
+  const toggleProgressArchive = useUnifiedStore(s => s.toggleProgressArchive);
+  const updateProgressItem = useUnifiedStore(s => s.updateProgressItem);
+  const reorderProgress = useUnifiedStore(s => s.reorderProgress);
+
+  const items = useMemo(() => progress.map(toProgressOrCounter), [progress]);
+
   return {
-    items: store.data.progress.map(toProgressOrCounter),
-    loaded: store.loaded,
+    items,
+    loaded,
     
-    loadItems: store.load,
+    loadItems: load,
     
     addProgress: (data: Omit<ProgressItem, 'id' | 'type' | 'current' | 'todayCount' | 'createdAt'>) => {
-      store.addProgress({
+      addProgress({
         type: 'progress',
         title: data.title,
         tags: normalizeTags(data.tags),
@@ -108,7 +119,7 @@ export function useProgressStore() {
     },
     
     addCounter: (data: { title: string; tags?: string[]; icon?: string; step: number; unit: string; frequency: 'daily' | 'weekly' | 'monthly'; resetFrequency?: 'daily' | 'weekly' | 'monthly' | 'none' }) => {
-      store.addProgress({
+      addProgress({
         type: 'counter',
         title: data.title,
         tags: normalizeTags(data.tags),
@@ -120,19 +131,19 @@ export function useProgressStore() {
       });
     },
     
-    updateCurrent: store.updateProgress,
-    deleteItem: store.deleteProgress,
-    toggleArchive: store.toggleProgressArchive,
-    updateItem: store.updateProgressItem,
-    reorderItems: store.reorderProgress,
+    updateCurrent: updateProgress,
+    deleteItem: deleteProgress,
+    toggleArchive: toggleProgressArchive,
+    updateItem: updateProgressItem,
+    reorderItems: reorderProgress,
     
     validateDailyState: () => {
       const todayKey = getTodayKey();
-      const items = store.data.progress;
+      const currentProgress = useUnifiedStore.getState().data.progress;
       
-      items.forEach(item => {
+      currentProgress.forEach(item => {
         if (item.resetFrequency === 'daily' && item.lastUpdateDate !== todayKey) {
-          store.updateProgressItem(item.id, {
+          updateProgressItem(item.id, {
             current: 0,
             todayCount: 0,
             lastUpdateDate: todayKey,

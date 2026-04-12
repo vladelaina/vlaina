@@ -378,11 +378,12 @@ export function MarkdownEditor({
     };
 
     restoreScrollTop('sync');
+    let innerFrame: number | undefined;
     const frameA = requestAnimationFrame(() => {
       restoreScrollTop('raf-1');
     });
     const frameB = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
+      innerFrame = requestAnimationFrame(() => {
         restoreScrollTop('raf-2');
       });
     });
@@ -394,6 +395,7 @@ export function MarkdownEditor({
     return () => {
       cancelAnimationFrame(frameA);
       cancelAnimationFrame(frameB);
+      if (innerFrame !== undefined) cancelAnimationFrame(innerFrame);
       window.clearTimeout(timeoutId);
       if (restoreSessionRef.current?.path === currentNotePath) {
         restoreSessionRef.current = null;

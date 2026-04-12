@@ -63,6 +63,6 @@ describe('notes starred storage helpers', () => {
     expect(entry.kind).toBe('note');
     expect(entry.vaultPath).toBe('C:/vault-a');
     expect(entry.relativePath).toBe('docs/alpha.md');
-    expect(entry.id.startsWith('starred_')).toBe(true);
+    expect(entry.id.startsWith('starred-')).toBe(true);
   });
 });

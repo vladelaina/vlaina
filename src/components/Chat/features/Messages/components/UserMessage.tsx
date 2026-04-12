@@ -154,8 +154,8 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
   const loadFileTree = useNotesStore((state) => state.loadFileTree);
   const getDisplayName = useNotesStore((state) => state.getDisplayName);
 
-  const versions = message.versions || [];
-  const currentIdx = message.currentVersionIndex ?? 0;
+  const versions = message.versions;
+  const currentIdx = message.currentVersionIndex;
   const hasMultipleVersions = versions.length > 1;
 
   const resetEditDraft = useCallback(() => {
@@ -587,9 +587,9 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
       ) : (
         <div className="w-full flex flex-col items-end">
           <div className="w-full flex flex-col items-end gap-2">
-            {parsedContent.imageSources.map((src, i) => (
+            {parsedContent.imageSources.map((src) => (
               <div
-                key={i}
+                key={src}
                 data-no-focus-input="true"
                 className="rounded-xl overflow-hidden border border-black/5 dark:border-white/10 shadow-sm bg-white dark:bg-zinc-800"
               >

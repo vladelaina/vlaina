@@ -30,8 +30,8 @@ export function MessageToolbar({
   const [copyFeedbackSource, setCopyFeedbackSource] = useState<CopyFeedbackSource>(null);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const versions = msg.versions || [msg.content];
-  const currentIndex = msg.currentVersionIndex ?? 0;
+  const versions = msg.versions;
+  const currentIndex = msg.currentVersionIndex;
   const currentVer = currentIndex + 1;
   const totalVer = versions.length;
 

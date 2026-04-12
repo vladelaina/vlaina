@@ -4,7 +4,7 @@ const debugObjectIds = new WeakMap<object, string>();
 let debugObjectCounter = 0;
 
 export function isSidebarSearchDebugEnabled(): boolean {
-  return true;
+  return import.meta.env.DEV;
 }
 
 export function logSidebarSearchDebug(label: string, meta?: Record<string, unknown>): void {
@@ -38,7 +38,7 @@ export function getSidebarSearchDebugObjectId(
 }
 
 export function getSidebarSearchDebugViewMeta(view: EditorView | null | undefined) {
-  if (!view) {
+  if (!view?.state) {
     return null;
   }
 

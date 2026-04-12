@@ -50,7 +50,7 @@ export function createStarredEntry(
   }
 
   return {
-    id: `starred_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+    id: `starred-${crypto.randomUUID()}`,
     kind,
     vaultPath: normalizeStarredVaultPath(vaultPath),
     relativePath: normalizedPath,

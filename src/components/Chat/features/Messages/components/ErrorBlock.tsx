@@ -23,7 +23,7 @@ const renderWithLinks = (text: string) => {
     if (urls.includes(part)) {
       return (
         <a
-          key={index}
+          key={`${index}-${part}`}
           {...getExternalLinkProps(part)}
           data-no-focus-input="true"
           className="underline break-all"

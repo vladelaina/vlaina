@@ -35,12 +35,15 @@ export function sanitizeHistory(messages: ChatMessage[]): ChatMessage[] {
 }
 
 function createSystemMessage(content: string, modelId: string): ChatMessage {
+  const now = Date.now();
   return {
     role: 'system',
     content,
     modelId,
-    id: `sys-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
-    timestamp: Date.now(),
+    id: `sys-${crypto.randomUUID()}`,
+    timestamp: now,
+    versions: [{ content, createdAt: now, subsequentMessages: [] }],
+    currentVersionIndex: 0,
   };
 }
 

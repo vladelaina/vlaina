@@ -33,7 +33,7 @@ describe('sidebarSearchNavigation', () => {
   });
 
   it('applies the find query and jumps to the requested match ordinal', async () => {
-    const view = { id: 'view' };
+    const view = { id: 'view', dom: { closest: () => null } };
     mocks.getCurrentEditorViewMock.mockReturnValue(view);
     mocks.getEditorFindStateMock.mockReturnValue({
       matches: [{ from: 1, to: 3 }, { from: 5, to: 7 }, { from: 9, to: 11 }],
@@ -45,12 +45,12 @@ describe('sidebarSearchNavigation', () => {
     });
 
     expect(applied).toBe(true);
-    expect(mocks.setEditorFindQueryMock).toHaveBeenCalledWith(view, 'alpha');
-    expect(mocks.setEditorFindActiveIndexMock).toHaveBeenCalledWith(view, 2);
+    expect(mocks.setEditorFindQueryMock).toHaveBeenCalledWith(view, 'alpha', 'instant');
+    expect(mocks.setEditorFindActiveIndexMock).toHaveBeenCalledWith(view, 2, 'instant');
   });
 
   it('clamps the requested match ordinal to the available match count', async () => {
-    const view = { id: 'view' };
+    const view = { id: 'view', dom: { closest: () => null } };
     mocks.getCurrentEditorViewMock.mockReturnValue(view);
     mocks.getEditorFindStateMock.mockReturnValue({
       matches: [{ from: 1, to: 3 }],
@@ -61,11 +61,11 @@ describe('sidebarSearchNavigation', () => {
       contentMatchOrdinal: 99,
     });
 
-    expect(mocks.setEditorFindActiveIndexMock).toHaveBeenCalledWith(view, 0);
+    expect(mocks.setEditorFindActiveIndexMock).toHaveBeenCalledWith(view, 0, 'instant');
   });
 
   it('only sets the query when the result has no content match ordinal', async () => {
-    const view = { id: 'view' };
+    const view = { id: 'view', dom: { closest: () => null } };
     mocks.getCurrentEditorViewMock.mockReturnValue(view);
 
     await applySidebarSearchNavigation({
@@ -73,7 +73,7 @@ describe('sidebarSearchNavigation', () => {
       contentMatchOrdinal: null,
     });
 
-    expect(mocks.setEditorFindQueryMock).toHaveBeenCalledWith(view, 'alpha');
+    expect(mocks.setEditorFindQueryMock).toHaveBeenCalledWith(view, 'alpha', 'instant');
     expect(mocks.setEditorFindActiveIndexMock).not.toHaveBeenCalled();
   });
 });

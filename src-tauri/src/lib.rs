@@ -294,9 +294,11 @@ async fn create_new_window(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-// Focus a window by label and bring it to front
 #[tauri::command]
 async fn focus_window(app: AppHandle, label: String) -> Result<bool, String> {
+    if !is_valid_window_label(&label) {
+        return Err(format!("Invalid window label: {}", label));
+    }
     if let Some(window) = app.get_webview_window(&label) {
         window.set_focus().map_err(|e| e.to_string())?;
         window.unminimize().map_err(|e| e.to_string())?;
@@ -316,10 +318,24 @@ async fn set_window_resizable(window: tauri::WebviewWindow, resizable: bool) -> 
     Ok(())
 }
 
-// Move file to system trash
+fn validate_user_path(raw: &str) -> Result<std::path::PathBuf, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err("Path is empty".to_string());
+    }
+    let path = std::path::Path::new(trimmed);
+    path.canonicalize()
+        .map_err(|e| format!("Invalid path '{}': {}", trimmed, e))
+}
+
+fn is_valid_window_label(label: &str) -> bool {
+    label == "main" || label == "drag-overlay" || label.starts_with("main-")
+}
+
 #[tauri::command]
 async fn move_to_trash(path: String) -> Result<(), String> {
-    trash::delete(&path).map_err(|e| e.to_string())?;
+    let canonical = validate_user_path(&path)?;
+    trash::delete(&canonical).map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -335,13 +351,9 @@ async fn open_external_url(url: String) -> Result<(), String> {
 
 #[tauri::command]
 async fn open_in_system_file_manager(path: String) -> Result<(), String> {
-    use std::path::Path;
     use std::process::Command;
 
-    let target = Path::new(path.trim());
-    if target.as_os_str().is_empty() {
-        return Err("Path is empty".to_string());
-    }
+    let target = validate_user_path(&path)?;
 
     #[cfg(target_os = "windows")]
     {

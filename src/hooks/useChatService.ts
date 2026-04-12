@@ -5,6 +5,7 @@ import type { Attachment } from '@/lib/storage/attachmentStorage';
 import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { buildRequestHistory } from '@/lib/ai/requestContext';
+import { generateId } from '@/lib/id';
 import { isManagedProviderId } from '@/lib/ai/managedService';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useAutoTitle } from './useAutoTitle';
@@ -137,7 +138,7 @@ export function useChatService() {
         modelId: selectedModel.id,
       });
 
-      const assistantMessageId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      const assistantMessageId = generateId('msg-');
       addMessage({
         id: assistantMessageId,
         role: 'assistant',
@@ -254,7 +255,7 @@ export function useChatService() {
 
       editMessageAndBranch(sessionId, messageId, newContent);
 
-      const assistantMessageId = `msg-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      const assistantMessageId = generateId('msg-');
       addMessage({
         id: assistantMessageId,
         role: 'assistant',

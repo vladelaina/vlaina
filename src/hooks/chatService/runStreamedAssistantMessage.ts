@@ -65,6 +65,10 @@ export async function runStreamedAssistantMessage({
           : '';
 
     if (errorName === 'AbortError') {
+      if (lastStreamedContent) {
+        updateMessage(sessionId, assistantMessageId, lastStreamedContent);
+      }
+      completeMessage(sessionId, assistantMessageId);
       status = 'aborted';
     } else {
       const { message, xml } = buildErrorPayload(error);
