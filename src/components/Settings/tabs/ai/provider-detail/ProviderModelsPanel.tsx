@@ -547,11 +547,7 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                       trailing={null}
                     />
                   ))
-                ) : (
-                  <div className="rounded-[18px] border border-zinc-200/80 bg-zinc-50/60 px-3.5 py-3 text-[13px] text-zinc-500">
-                    No models added yet.
-                  </div>
-                )}
+                ) : null}
               </div>
 
               <div className="space-y-2">
@@ -573,11 +569,7 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                       trailing={null}
                     />
                   ))
-                ) : (
-                  <div className="rounded-[18px] border border-zinc-200/80 bg-zinc-50/60 px-3.5 py-3 text-[13px] text-zinc-500">
-                    All fetched models are already selected.
-                  </div>
-                )}
+                ) : null}
               </div>
             </div>
           ) : null}
