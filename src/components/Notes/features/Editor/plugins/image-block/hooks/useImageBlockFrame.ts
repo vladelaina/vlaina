@@ -6,6 +6,7 @@ interface UseImageBlockFrameOptions {
     height: number | undefined;
     isEditingCaption: boolean;
     isActive: boolean;
+    isHoverDisabled: boolean;
     setIsHovered: (hovered: boolean) => void;
 }
 
@@ -13,6 +14,7 @@ export function useImageBlockFrame({
     height,
     isEditingCaption,
     isActive,
+    isHoverDisabled,
     setIsHovered,
 }: UseImageBlockFrameOptions) {
     const containerRef = useRef<HTMLDivElement>(null);
@@ -48,17 +50,27 @@ export function useImageBlockFrame({
     }, []);
 
     const handleMouseEnter = useCallback(() => {
+        if (isHoverDisabled) {
+            setIsHovered(false);
+            return;
+        }
+
         if (hoverTimeoutRef.current) {
             clearTimeout(hoverTimeoutRef.current);
             hoverTimeoutRef.current = undefined;
         }
         setIsHovered(true);
-    }, [setIsHovered]);
+    }, [isHoverDisabled, setIsHovered]);
 
     const handleMouseLeave = useCallback(() => {
+        if (isHoverDisabled) {
+            setIsHovered(false);
+            return;
+        }
+
         if (isEditingCaption || isActive) return;
         hoverTimeoutRef.current = setTimeout(() => setIsHovered(false), HOVER_HIDE_DELAY_MS);
-    }, [isEditingCaption, isActive, setIsHovered]);
+    }, [isHoverDisabled, isEditingCaption, isActive, setIsHovered]);
 
     const finalContainerSize = useMemo(() => {
         return dragDimensions || {

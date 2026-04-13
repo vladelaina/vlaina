@@ -4,6 +4,7 @@ import { getBlockRangesKey, normalizeBlockRanges, type BlockRange } from './bloc
 import { pickPointerBlock } from './blockControlsUtils';
 import { createBlockDragPreview, type BlockDragPreviewHandle } from './blockDragPreview';
 import { createBlockControlsDom } from './blockControlsDom';
+import { setBlockDraggingVisualState } from './blockDragVisualState';
 import {
   applyBlockMove,
   canApplyBlockMove,
@@ -81,6 +82,7 @@ export class BlockControlsViewSession {
       window.cancelAnimationFrame(this.refreshRafId);
       this.refreshRafId = 0;
     }
+    setBlockDraggingVisualState(false);
     this.handleButton.removeEventListener('mousedown', this.handleHandleMouseDown);
     this.doc.removeEventListener('mousemove', this.handleDocumentMouseMove, true);
     this.doc.removeEventListener('mouseup', this.handleDocumentMouseUp, true);
@@ -191,6 +193,7 @@ export class BlockControlsViewSession {
       this.dragPreview.destroy();
       this.dragPreview = null;
     }
+    setBlockDraggingVisualState(false);
     this.controls.classList.remove('dragging');
     this.hideDropIndicator();
   }
@@ -204,6 +207,7 @@ export class BlockControlsViewSession {
     event.stopPropagation();
 
     this.draggedRanges = draggableRanges;
+    setBlockDraggingVisualState(true);
     this.controls.classList.add('dragging');
 
     const preview = createBlockDragPreview({

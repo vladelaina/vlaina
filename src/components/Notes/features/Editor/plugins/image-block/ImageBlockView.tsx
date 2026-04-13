@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,7 @@ import { useImageBlockFrame } from './hooks/useImageBlockFrame';
 import { useImageDrag } from './hooks/useImageDrag';
 import { useImageResize } from './hooks/useImageResize';
 import { useImageMediaLifecycle } from './hooks/useImageMediaLifecycle';
+import { useBlockDragState } from './hooks/useBlockDragState';
 import type { CropperViewportState } from './types';
 
 const WRAPPER_ALIGNMENT_CLASSES: Record<'left' | 'center' | 'right', string> = {
@@ -28,6 +29,7 @@ interface ImageBlockProps {
 
 export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const latestStateRef = useRef<CropperViewportState | null>(null);
+    const isBlockDragging = useBlockDragState();
 
     const handleStateChange = useCallback((state: CropperViewportState) => {
         latestStateRef.current = state;
@@ -96,6 +98,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         height,
         isEditingCaption,
         isActive,
+        isHoverDisabled: isBlockDragging,
         setIsHovered,
     });
 
@@ -169,6 +172,12 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         setIsActive(true);
     }, [restoreIfNeeded, setIsActive]);
 
+    useEffect(() => {
+        if (!isBlockDragging) return;
+        setIsHovered(false);
+        setIsEditingCaption(false);
+    }, [isBlockDragging, setIsHovered, setIsEditingCaption]);
+
     return (
         <>
             <ImageDragOverlay
@@ -193,7 +202,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                     draggable={false}
                     className={cn(
                         'relative flex flex-col leading-none text-[0px] select-none',
-                        (isHovered || isEditingCaption || isActive) ? 'z-10' : '',
+                        (isHovered || isEditingCaption || isActive) && !isBlockDragging ? 'z-10' : '',
                     )}
                     style={containerStyle}
                     onMouseEnter={handleMouseEnter}
@@ -224,9 +233,9 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                         nodeAlt={nodeAlt}
                         captionInput={captionInput}
                         isEditingCaption={isEditingCaption}
-                        isHovered={isHovered}
+                        isHovered={isHovered && !isBlockDragging}
                         isActive={isActive}
-                        isDragging={isDragging}
+                        isDragging={isDragging || isBlockDragging}
                         loadError={!!loadError}
                         alignment={alignment}
                         onCaptionChange={setCaptionInput}

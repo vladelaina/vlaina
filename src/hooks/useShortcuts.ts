@@ -49,8 +49,8 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
         : undefined;
       createNote(folderPath);
     },
-    openVaultOrNote: () => {
-      window.dispatchEvent(new Event('vlaina-open-vault-or-note'));
+    openMarkdownFile: () => {
+      window.dispatchEvent(new Event('vlaina-open-markdown-file'));
     },
     toggleDrawer,
   }), [toggleAppViewMode, toggleSidebar, setNotesSidebarView, notesSidebarView, createNote, currentNote?.path, toggleDrawer]);

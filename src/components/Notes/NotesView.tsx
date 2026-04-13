@@ -1,8 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { windowCommands } from '@/lib/tauri/invoke';
 import { openDialog, messageDialog } from '@/lib/storage/dialog';
+import { OPEN_MARKDOWN_FILE_ACTION } from '@/lib/notes/openMarkdownFileText';
 import { getSingleOpenSelection, isSupportedMarkdownSelection, resolveOpenNoteTarget } from './features/OpenTarget/openTargetSelection';
-import { NotesOpenTargetDialog } from './features/OpenTarget/NotesOpenTargetDialog';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useUIStore } from '@/stores/uiSlice';
@@ -52,7 +52,6 @@ export function NotesView() {
   const setLayoutPanelDragging = useUIStore((s) => s.setLayoutPanelDragging);
 
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
-  const [isOpenTargetDialogOpen, setIsOpenTargetDialogOpen] = useState(false);
   const [isOpenTargetBusy, setIsOpenTargetBusy] = useState(false);
   const [pendingShortcutNoteTarget, setPendingShortcutNoteTarget] = useState<{
     vaultPath: string;
@@ -223,29 +222,11 @@ export function NotesView() {
     return !useNotesStore.getState().isDirty;
   }, [isDirty, saveNote]);
 
-  const handleOpenSelectedFolder = useCallback(async () => {
-    setIsOpenTargetDialogOpen(false);
-    const selected = getSingleOpenSelection(await openDialog({
-      directory: true,
-      title: 'Open Folder',
-      defaultPath: currentVault?.path,
-    }));
-    if (!selected) return;
-
-    setIsOpenTargetBusy(true);
-    try {
-      const canContinue = await saveCurrentNoteIfNeeded();
-      if (!canContinue) return;
-      await openVault(selected);
-    } finally {
-      setIsOpenTargetBusy(false);
-    }
-  }, [currentVault?.path, openVault, saveCurrentNoteIfNeeded]);
-
   const handleOpenSelectedFile = useCallback(async () => {
-    setIsOpenTargetDialogOpen(false);
+    if (isOpenTargetBusy) return;
+
     const selected = getSingleOpenSelection(await openDialog({
-      title: 'Open Markdown File',
+      title: OPEN_MARKDOWN_FILE_ACTION,
       defaultPath: currentVault?.path,
       filters: [{ name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd'] }],
     }));
@@ -264,7 +245,7 @@ export function NotesView() {
       const canContinue = await saveCurrentNoteIfNeeded();
       if (!canContinue) return;
 
-      const target = await resolveOpenNoteTarget(selected);
+      const target = resolveOpenNoteTarget(selected);
 
       if (currentVault?.path === target.vaultPath && notesPath === target.vaultPath && rootFolder) {
         const opened = await openShortcutNoteTarget({
@@ -310,13 +291,16 @@ export function NotesView() {
     } finally {
       setIsOpenTargetBusy(false);
     }
-  }, [currentVault?.path, notesPath, openShortcutNoteTarget, openVault, rootFolder, saveCurrentNoteIfNeeded]);
+  }, [currentVault?.path, isOpenTargetBusy, notesPath, openShortcutNoteTarget, openVault, rootFolder, saveCurrentNoteIfNeeded]);
 
   useEffect(() => {
-    const handleOpenVaultOrNote = () => setIsOpenTargetDialogOpen(true);
-    window.addEventListener('vlaina-open-vault-or-note', handleOpenVaultOrNote);
-    return () => window.removeEventListener('vlaina-open-vault-or-note', handleOpenVaultOrNote);
-  }, []);
+    const handleOpenMarkdownFile = () => {
+      void handleOpenSelectedFile();
+    };
+
+    window.addEventListener('vlaina-open-markdown-file', handleOpenMarkdownFile);
+    return () => window.removeEventListener('vlaina-open-markdown-file', handleOpenMarkdownFile);
+  }, [handleOpenSelectedFile]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -375,14 +359,6 @@ export function NotesView() {
 
   return (
     <>
-      <NotesOpenTargetDialog
-        open={isOpenTargetDialogOpen}
-        onOpenChange={setIsOpenTargetDialogOpen}
-        onOpenFolder={handleOpenSelectedFolder}
-        onOpenFile={handleOpenSelectedFile}
-        isBusy={isOpenTargetBusy}
-      />
-
       <div data-notes-view-mode="true" className="h-full w-full relative flex min-w-0">
         <div className="flex-1 min-w-0">
           {currentNotePath ? (
