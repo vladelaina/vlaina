@@ -1,10 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-const { storage } = vi.hoisted(() => ({
-  storage: {
-    exists: vi.fn<(path: string) => Promise<boolean>>(),
-  },
-}));
+import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/lib/storage/adapter', () => {
   const normalize = (path: string) => path.replace(/\\/g, '/');
@@ -41,24 +35,10 @@ vi.mock('@/lib/storage/adapter', () => {
     return name.slice(lastDot + 1);
   };
 
-  const relativePath = (from: string, to: string): string => {
-    const fromNormalized = normalize(from).replace(/\/$/, '');
-    const toNormalized = normalize(to);
-
-    if (toNormalized.startsWith(`${fromNormalized}/`)) {
-      return toNormalized.slice(fromNormalized.length + 1);
-    }
-
-    return toNormalized;
-  };
-
   return {
-    getStorageAdapter: () => storage,
     getParentPath,
     getBaseName,
     getExtension,
-    relativePath,
-    joinPath: (...segments: string[]) => Promise.resolve(segments.filter(Boolean).join('/')),
   };
 });
 
@@ -69,10 +49,6 @@ import {
 } from './openTargetSelection';
 
 describe('openTargetSelection', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('normalizes single dialog selections', () => {
     expect(getSingleOpenSelection(null)).toBeNull();
     expect(getSingleOpenSelection('/vault/docs/a.md')).toBe('/vault/docs/a.md');
@@ -85,34 +61,24 @@ describe('openTargetSelection', () => {
     expect(isSupportedMarkdownSelection('/vault/docs/data.txt')).toBe(false);
   });
 
-  it('uses the nearest configured vault ancestor for Markdown files', async () => {
-    storage.exists.mockImplementation(async (path: string) => {
-      return path === '/vault/projects/.vlaina/store/config.json';
-    });
-
-    await expect(resolveOpenNoteTarget('/vault/projects/docs/a.md')).resolves.toEqual({
-      vaultPath: '/vault/projects',
-      notePath: 'docs/a.md',
+  it('uses the selected file parent folder as the opened vault', () => {
+    expect(resolveOpenNoteTarget('/vault/projects/docs/a.md')).toEqual({
+      vaultPath: '/vault/projects/docs',
+      notePath: 'a.md',
     });
   });
 
-  it('falls back to the parent folder when no vault config exists', async () => {
-    storage.exists.mockResolvedValue(false);
-
-    await expect(resolveOpenNoteTarget('/vault/docs/a.md')).resolves.toEqual({
+  it('falls back to the parent folder when opening a file at the vault root', () => {
+    expect(resolveOpenNoteTarget('/vault/docs/a.md')).toEqual({
       vaultPath: '/vault/docs',
       notePath: 'a.md',
     });
   });
 
-  it('resolves Windows paths into vault-relative note paths', async () => {
-    storage.exists.mockImplementation(async (path: string) => {
-      return path === 'C:\\vault/.vlaina/store/config.json';
-    });
-
-    await expect(resolveOpenNoteTarget('C:\\vault\\docs\\a.md')).resolves.toEqual({
-      vaultPath: 'C:\\vault',
-      notePath: 'docs/a.md',
+  it('resolves Windows paths using the selected file parent folder', () => {
+    expect(resolveOpenNoteTarget('C:\\vault\\docs\\a.md')).toEqual({
+      vaultPath: 'C:\\vault\\docs',
+      notePath: 'a.md',
     });
   });
 });

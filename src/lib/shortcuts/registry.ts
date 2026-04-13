@@ -1,4 +1,8 @@
 import type { ShortcutConfig, ShortcutDefinition, ShortcutModule } from './types';
+import {
+  OPEN_MARKDOWN_FILE_ACTION,
+  OPEN_MARKDOWN_FILE_DESCRIPTION,
+} from '@/lib/notes/openMarkdownFileText';
 
 const ALL_MODULES: ShortcutModule[] = ['notes', 'chat'];
 
@@ -72,9 +76,9 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
     section: 'Notes',
   },
   {
-    id: 'openVaultOrNote',
-    action: 'Open folder or Markdown file',
-    description: 'Open folder or Markdown file',
+    id: 'openMarkdownFile',
+    action: OPEN_MARKDOWN_FILE_ACTION,
+    description: OPEN_MARKDOWN_FILE_DESCRIPTION,
     keys: ['Ctrl', 'O'],
     scope: 'notes',
     isSystem: true,

@@ -40,7 +40,6 @@ import {
   ViewColumnsIcon,
   ArrowTopRightOnSquareIcon,
   MapPinIcon,
-  CalendarIcon,
   ChartPieIcon,
   UserIcon,
   ArrowLeftOnRectangleIcon,
@@ -83,7 +82,6 @@ import {
 } from '@heroicons/react/24/outline';
 
 import { NewChatIcon } from './custom/mit/NewChatIcon';
-import { SquareCheckBigIcon } from './custom/mit/SquareCheckBigIcon';
 import { CropIcon } from './custom/mit/CropIcon';
 import { SendIcon } from './custom/mit/SendIcon';
 import { SquareStopIcon } from './custom/mit/SquareStopIcon';
@@ -174,8 +172,6 @@ export const icons: Record<string, IconSource> = {
   'nav.external': ArrowTopRightOnSquareIcon,
   'nav.location': MapPinIcon,
   'nav.unfold': ChevronUpDownIcon,
-  'sidebar.todo': SquareCheckBigIcon,
-  'sidebar.calendar': CalendarIcon,
   'sidebar.stats': ChartPieIcon,
   'sidebar.completed': CheckCircleIcon,
   'sidebar.panel': ViewColumnsIcon,

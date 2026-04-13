@@ -50,6 +50,11 @@ body.vlaina-block-dragging-cursor * {
   cursor: crosshair !important;
 }
 
+body.vlaina-block-drag-active,
+body.vlaina-block-drag-active * {
+  cursor: grabbing !important;
+}
+
 /* ProseMirror editor needs min-height to be clickable */
 .milkdown .ProseMirror {
   min-height: calc(100vh - 250px);
