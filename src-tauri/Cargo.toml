@@ -28,7 +28,7 @@ tauri-plugin-dialog = "2"
 reqwest = { version = "0.12", features = ["json", "stream"] }
 base64 = "0.22"
 rand = "0.8"
-tokio = { version = "1", features = ["full", "net"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time"] }
 chrono = { version = "0.4", features = ["serde"] }
 thiserror = "1"
 keyring = { version = "3.6.3", features = ["apple-native", "windows-native", "linux-native-sync-persistent"] }
@@ -38,3 +38,7 @@ trash = "5"
 
 [dev-dependencies]
 tempfile = "3"
+
+[profile.release]
+strip = "symbols"
+lto = "thin"

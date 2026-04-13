@@ -41,7 +41,7 @@ export const detectElixir: LanguageDetector = (ctx) => {
     return 'elixir';
   }
 
-  if (/\b(use|import|alias|require)\s+[A-Z][\w.]*/.test(first100Lines)) {
+  if (/^\s*(use|import|alias|require)\s+[A-Z][\w.]*(?:\s|$)/m.test(first100Lines)) {
     if (/\b(def|defp|defmodule)\b/.test(code)) {
       return 'elixir';
     }

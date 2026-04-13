@@ -3,41 +3,44 @@ import type { LanguageDetector } from '../types';
 export const detectObjectiveC: LanguageDetector = (ctx) => {
   const { code, first100Lines } = ctx;
 
-  // Objective-C #import with Foundation/UIKit
-  if (/#import\s+[<"]/.test(first100Lines)) {
-    // Foundation/UIKit imports (very distinctive) - immediate match
-    if (/#import\s+<(Foundation|UIKit|CoreFoundation|CFNetwork|MobileCoreServices|SystemConfiguration)\//.test(first100Lines)) {
-      return 'objectivec';
-    }
-
-    // Objective-C NS* types
-    if (/\bNS[A-Z]\w+\s*\*/.test(first100Lines)) {
-      return 'objectivec';
-    }
-
-    // Objective-C @interface, @implementation, @protocol
-    if (/@interface\s+\w+|@implementation\s+\w+|@protocol\s+\w+/.test(code)) {
-      return 'objectivec';
-    }
-
-    // Objective-C method declaration
-    if (/[-+]\s*\([^)]+\)\s*\w+/.test(code)) {
-      return 'objectivec';
-    }
-
-    // Objective-C @property
-    if (/@property\s*\([^)]*\)/.test(code)) {
-      return 'objectivec';
-    }
-
-    // Objective-C header import
-    if (/#import\s+"[\w/]+\.h"/.test(first100Lines) &&
-        !/\b(using\s+namespace|std::|template|class\s+\w+\s*:\s*public)\b/.test(first100Lines)) {
-      return 'objectivec';
-    }
+  if (
+    /(?:^|\n)\s*@[a-z_]\w*(?:\.[a-z_]\w*)*(?:\([^)\n]*\))?\s*$/im.test(code) &&
+    /(?:^|\n)\s*def\s+\w+\s*\([^)\n]*\)\s*(?:->\s*[^:\n]+)?\s*:/.test(code)
+  ) {
+    return null;
   }
 
-  if (/\b(import\s+.*from|export\s+(default|const|function)|interface\s+\w+)\b/.test(first100Lines)) {
+  if (/(?:^|\n)\s*class\s+\w+(?:\([^)\n]*\))?\s*:/.test(code)) {
+    return null;
+  }
+
+  const hasModuleImport = /^\s*@import\s+(Foundation|UIKit|CoreFoundation|CFNetwork|MobileCoreServices|SystemConfiguration)\s*;/m.test(first100Lines);
+  const hasFrameworkImport = /#import\s+<(Foundation|UIKit|CoreFoundation|CFNetwork|MobileCoreServices|SystemConfiguration)\//.test(first100Lines);
+  const hasObjectiveCImport = /#import\s+[<"]/.test(first100Lines);
+  const hasNsOrUiType = /\b(?:NS|UI|CF|CG|CA)[A-Z]\w*(?:<[^>\n]+>)?\s*\*/.test(code);
+  const hasRuntimeDirective = /@(interface|implementation|protocol|property|dynamic|synthesize|selector|autoreleasepool|synchronized|try|catch|finally)\b/.test(code);
+  const hasMethodSignature = /(?:^|\n)\s*[-+]\s*\([^)]+\)\s*\w+(?::[^;{\n]+)?/m.test(code);
+  const hasMessageSend = /\[\s*(?:\[[^\]]+\]|self|super|[A-Z]\w*|\w+)\s+(?!in\b)\w+/.test(code);
+  const hasObjcQualifiers = /\b(?:__bridge|__weak|__block|nullable|nonnull|_Nullable|_Nonnull)\b/.test(code) || /\bNS_ASSUME_NONNULL_(?:BEGIN|END)\b/.test(code);
+  const hasObjcExports = /\bFOUNDATION_EXPORT\b/.test(code) || /\bNS_(?:ENUM|OPTIONS)\b/.test(code);
+
+  if (/^package\s+[\w.]+;/m.test(first100Lines) || /^import\s+java\./m.test(first100Lines)) {
+    return null;
+  }
+
+  if (/\[(?:weak|unowned|strong)\s+self\]\s+in/.test(code)) {
+    return null;
+  }
+
+  if (hasModuleImport || hasFrameworkImport) {
+    return 'objectivec';
+  }
+
+  if (hasRuntimeDirective || hasObjcExports || hasMethodSignature) {
+    return 'objectivec';
+  }
+
+  if (/\b(import\s+.*from|export\s+(default|const|function))\b/.test(first100Lines)) {
     return null;
   }
 
@@ -49,38 +52,24 @@ export const detectObjectiveC: LanguageDetector = (ctx) => {
     return null;
   }
 
-  if (/\bNSArray\s*\*\w+\s*=\s*\[/.test(code)) {
+  if (hasObjcQualifiers && (hasNsOrUiType || hasMessageSend || hasObjectiveCImport || hasModuleImport)) {
     return 'objectivec';
   }
 
-  if (/\[\w+\s+filteredArrayUsingPredicate:/.test(code)) {
+  if (/@autoreleasepool\b/.test(code) && (/\bNSLog\s*\(/.test(code) || hasNsOrUiType || /@\[[\s\S]*\]/.test(code))) {
     return 'objectivec';
   }
 
-  if (/@interface\s+\w+|@implementation\s+\w+/.test(code)) {
+  if (hasNsOrUiType && (hasMessageSend || /@\[[\s\S]*\]|@\{[\s\S]*\}|@\(/.test(code))) {
     return 'objectivec';
   }
 
-  if (/@protocol\s+\w+/.test(code)) {
+  if (hasMessageSend && (hasObjectiveCImport || hasNsOrUiType || /\b(?:self|super)\b/.test(code))) {
     return 'objectivec';
   }
 
-  if (/[-+]\s*\([^)]+\)\s*\w+/.test(code)) {
-
-    if (/@interface|@implementation|@protocol/.test(code)) {
-      return 'objectivec';
-    }
-  }
-
-  if (/@property\s*\([^)]*\)/.test(code)) {
+  if (/#import\s+"[\w/]+\.h"/.test(first100Lines) && !/\b(std::|template|using\s+namespace|class\s+\w+\s*:\s*public)\b/.test(code)) {
     return 'objectivec';
-  }
-
-  if (/\[\w+\s+\w+/.test(code)) {
-
-    if (/@interface|@implementation|@protocol|#import/.test(code)) {
-      return 'objectivec';
-    }
   }
 
   return null;

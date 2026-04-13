@@ -3,6 +3,10 @@ import type { LanguageDetector } from '../types';
 export const detectGraphQL: LanguageDetector = (ctx) => {
   const { code } = ctx;
 
+  if (/\b(import|export|const|let|var|require|function|class|interface|namespace|declare)\b/.test(code) || /(?:^|\n)\s*type\s+\w+(?:<[^>\n]+>)?\s*=/.test(code)) {
+    return null;
+  }
+
   // Simple single-line GraphQL query: { user(id: 1) { name email } }
   if (ctx.lines.length <= 3) {
     const trimmed = code.trim();

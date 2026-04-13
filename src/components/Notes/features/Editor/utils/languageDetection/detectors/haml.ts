@@ -3,6 +3,10 @@ import type { LanguageDetector } from '../types';
 export const detectHaml: LanguageDetector = (ctx) => {
   const { code, first100Lines } = ctx;
 
+  if (/#include\s*[<"]/.test(first100Lines) || /\b(printf|scanf|fprintf|fscanf|malloc|calloc|realloc|free|sizeof)\s*\(/.test(code)) {
+    return null;
+  }
+
   if (/^%\s/m.test(first100Lines) && /\bfunction\b/.test(first100Lines)) {
     return null;
   }

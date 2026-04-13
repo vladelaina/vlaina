@@ -11,6 +11,7 @@ import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ToastContainer } from '@/components/ui/Toast';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useAIStore } from '@/stores/useAIStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
@@ -353,7 +354,9 @@ function App() {
 
   return (
     <ThemeProvider>
-      <AppContent />
+      <ErrorBoundary>
+        <AppContent />
+      </ErrorBoundary>
       <ToastContainer />
     </ThemeProvider>
   );

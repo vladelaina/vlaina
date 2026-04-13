@@ -1,4 +1,5 @@
 import type { ChatMessage, MessageVersion } from '@/lib/ai/types'
+import { generateId } from '@/lib/id'
 import {
   saveSessionJson,
   scheduleSessionJsonSave,
@@ -17,7 +18,7 @@ function createMessageVersion(content: string, createdAt: number): MessageVersio
 
 export function createMessageActions() {
   return {
-    addMessage: (message: Omit<ChatMessage, 'id' | 'timestamp'> & { id?: string }) => {
+    addMessage: (message: Omit<ChatMessage, 'id' | 'timestamp' | 'versions' | 'currentVersionIndex'> & { id?: string }) => {
       const state = useUnifiedStore.getState()
       const ai = state.data.ai!
       const { currentSessionId } = ai
@@ -32,7 +33,7 @@ export function createMessageActions() {
                 ? message.imageSources
                 : extractMessageImageSources(message.content || ''))
             : message.imageSources,
-        id: message.id || `msg-${createdAt}-${Math.random().toString(36).substring(2, 11)}`,
+        id: message.id || generateId('msg-'),
         timestamp: createdAt,
         versions: [createMessageVersion(message.content || '', createdAt)],
         currentVersionIndex: 0
@@ -64,10 +65,8 @@ export function createMessageActions() {
       const newMessages = sessionMessages.map((message) => {
         if (message.id !== id) return message
 
-        const currentVersionIndex = message.currentVersionIndex ?? 0
-        const versions = message.versions
-          ? [...message.versions]
-          : [createMessageVersion(message.content, message.timestamp)]
+        const currentVersionIndex = message.currentVersionIndex
+        const versions = [...message.versions]
 
         if (versions[currentVersionIndex]) {
           versions[currentVersionIndex] = { ...versions[currentVersionIndex], content }
@@ -114,9 +113,7 @@ export function createMessageActions() {
       const newMessages = sessionMessages.map((message) => {
         if (message.id !== id) return message
 
-        const versions = message.versions
-          ? [...message.versions]
-          : [createMessageVersion(typeof message.content === 'string' ? message.content : '', message.timestamp)]
+        const versions = [...message.versions]
         versions.push(createMessageVersion('', Date.now()))
 
         return {
@@ -149,10 +146,8 @@ export function createMessageActions() {
       const targetMessage = messages[index]
       const futureMessages = messages.slice(index + 1)
 
-      const currentVersionIndex = targetMessage.currentVersionIndex ?? 0
-      const versions = targetMessage.versions
-        ? [...targetMessage.versions]
-        : [createMessageVersion(targetMessage.content, targetMessage.timestamp)]
+      const currentVersionIndex = targetMessage.currentVersionIndex
+      const versions = [...targetMessage.versions]
 
       versions[currentVersionIndex] = {
         ...versions[currentVersionIndex],
@@ -186,9 +181,9 @@ export function createMessageActions() {
       if (index === -1) return
 
       const targetMessage = messages[index]
-      if (!targetMessage.versions || !targetMessage.versions[targetIndex]) return
+      if (!targetMessage.versions[targetIndex]) return
 
-      const currentVersionIndex = targetMessage.currentVersionIndex ?? 0
+      const currentVersionIndex = targetMessage.currentVersionIndex
       if (currentVersionIndex === targetIndex) return
 
       const futureMessages = messages.slice(index + 1)

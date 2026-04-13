@@ -21,7 +21,7 @@ export async function openDialog(options: OpenDialogOptions = {}): Promise<strin
   }
   
   if (options.directory) {
-    console.warn('[Dialog] Directory selection is not supported on web platform');
+    if (import.meta.env.DEV) console.warn('[Dialog] Directory selection is not supported on web platform');
     return null;
   }
   
@@ -34,7 +34,7 @@ export async function saveDialog(options: SaveDialogOptions = {}): Promise<strin
     return save(options);
   }
   
-  console.warn('[Dialog] Save dialog is not supported on web platform');
+  if (import.meta.env.DEV) console.warn('[Dialog] Save dialog is not supported on web platform');
   return null;
 }
 

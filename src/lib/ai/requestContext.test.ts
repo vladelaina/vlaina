@@ -2,14 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { buildRequestHistory, sanitizeHistory } from './requestContext';
 import type { ChatMessage } from './types';
 
-function createMessage(overrides: Partial<ChatMessage>): ChatMessage {
+function createMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
+  const content = overrides.content ?? '';
+  const timestamp = overrides.timestamp ?? Date.now();
   return {
-    id: overrides.id || 'm1',
-    role: overrides.role || 'user',
-    content: overrides.content || '',
-    modelId: overrides.modelId || 'model-1',
-    timestamp: overrides.timestamp || Date.now(),
-    ...overrides,
+    id: overrides.id ?? 'm1',
+    role: overrides.role ?? 'user',
+    content,
+    modelId: overrides.modelId ?? 'model-1',
+    timestamp,
+    ...(overrides.imageSources !== undefined ? { imageSources: overrides.imageSources } : {}),
+    versions:
+      overrides.versions ?? [{ content, createdAt: timestamp, subsequentMessages: [] }],
+    currentVersionIndex: overrides.currentVersionIndex ?? 0,
   };
 }
 

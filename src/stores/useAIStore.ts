@@ -3,6 +3,7 @@ import { useUnifiedStore } from './unified/useUnifiedStore'
 import { useAccountSessionStore } from './accountSession'
 import { useManagedAIStore } from './useManagedAIStore'
 import type { Provider, AIModel, ProviderBenchmarkRecord } from '@/lib/ai/types'
+import { generateId } from '@/lib/id'
 import { buildScopedModelId, generateModelName, generateModelGroup } from '@/lib/ai/utils'
 import {
   MANAGED_PROVIDER_ID,
@@ -70,7 +71,7 @@ function filterModelsByEnabledProviders(models: AIModel[], providers: Provider[]
 
 export const actions = {
   addProvider: (provider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const id = `provider-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+    const id = generateId('provider-')
     const now = Date.now()
     const newProvider: Provider = { ...provider, id, createdAt: now, updatedAt: now }
     const state = useUnifiedStore.getState();
@@ -122,14 +123,12 @@ export const actions = {
   addModel: (model: Omit<AIModel, 'createdAt'>) => {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
-    const apiModelId = (model.apiModelId || model.id).trim()
-    if (!apiModelId) return
+    if (!model.apiModelId.trim()) return
     const newModel: AIModel = {
       ...model,
-      id: buildScopedModelId(model.providerId, apiModelId),
-      apiModelId,
-      name: model.name || generateModelName(apiModelId),
-      group: model.group || generateModelGroup(apiModelId),
+      id: buildScopedModelId(model.providerId, model.apiModelId),
+      name: model.name || generateModelName(model.apiModelId),
+      group: model.group || generateModelGroup(model.apiModelId),
       createdAt: Date.now()
     }
     
@@ -144,14 +143,15 @@ export const actions = {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
     const now = Date.now()
-    const newModels: AIModel[] = models.map((model) => ({
-      ...model,
-      id: buildScopedModelId(model.providerId, (model.apiModelId || model.id).trim()),
-      apiModelId: (model.apiModelId || model.id).trim(),
-      name: model.name || generateModelName((model.apiModelId || model.id).trim()),
-      group: model.group || generateModelGroup((model.apiModelId || model.id).trim()),
-      createdAt: now
-    })).filter((model) => model.apiModelId.length > 0)
+    const newModels: AIModel[] = models
+      .filter((model) => model.apiModelId.trim().length > 0)
+      .map((model) => ({
+        ...model,
+        id: buildScopedModelId(model.providerId, model.apiModelId),
+        name: model.name || generateModelName(model.apiModelId),
+        group: model.group || generateModelGroup(model.apiModelId),
+        createdAt: now
+      }))
     
     const updates: any = { models: [...ai.models, ...newModels] };
     if (!ai.selectedModelId && newModels.length > 0) {

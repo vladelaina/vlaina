@@ -357,23 +357,37 @@ async function parseManagedError(response: Response): Promise<Error> {
   return new Error(raw);
 }
 
+const MANAGED_JSON_TIMEOUT_MS = 30_000;
+
 async function requestManagedWebJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${MANAGED_API_BASE}${path}`, {
-    ...init,
-    cache: 'no-store',
-    credentials: 'include',
-    headers: {
-      Accept: 'application/json',
-      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
-      ...(init?.headers ?? {}),
-    },
-  });
+  const timeoutController = new AbortController();
+  const timer = setTimeout(() => timeoutController.abort(), MANAGED_JSON_TIMEOUT_MS);
 
-  if (!response.ok) {
-    throw await parseManagedError(response);
+  const combinedSignal = init?.signal
+    ? AbortSignal.any([init.signal, timeoutController.signal])
+    : timeoutController.signal;
+
+  try {
+    const response = await fetch(`${MANAGED_API_BASE}${path}`, {
+      ...init,
+      signal: combinedSignal,
+      cache: 'no-store',
+      credentials: 'include',
+      headers: {
+        Accept: 'application/json',
+        ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(init?.headers ?? {}),
+      },
+    });
+
+    if (!response.ok) {
+      throw await parseManagedError(response);
+    }
+
+    return response.json() as Promise<T>;
+  } finally {
+    clearTimeout(timer);
   }
-
-  return response.json() as Promise<T>;
 }
 
 async function requestManagedWebStream(
@@ -462,7 +476,11 @@ async function requestManagedWebStream(
         if (reasoning || content) {
           onChunk(fullContent);
         }
-      } catch {}
+      } catch (parseError) {
+        if (import.meta.env.DEV) {
+          console.warn('[managedService] SSE line parse failed:', parseError);
+        }
+      }
     }
   }
 

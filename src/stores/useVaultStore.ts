@@ -45,8 +45,8 @@ const VAULTS_STORAGE_KEY = 'vlaina-vaults';
 const CURRENT_VAULT_KEY = 'vlaina-current-vault';
 const MAX_RECENT_VAULTS = 5;
 
-function generateId(): string {
-  return `vault_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+function generateVaultId(): string {
+  return `vault-${crypto.randomUUID()}`;
 }
 
 function loadFromStorage<T>(key: string, defaultValue: T): T {
@@ -222,7 +222,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
   checkVaultOpenInOtherWindow: async (path: string): Promise<string | null> => {
     const normalizedPath = normalizeVaultPath(path);
-    const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    const requestId = `req-${crypto.randomUUID()}`;
 
     return new Promise((resolve) => {
       pendingQueries.set(requestId, resolve);
@@ -271,7 +271,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
         vault = { ...vault, name: vaultName, lastOpened: Date.now() };
       } else {
         vault = {
-          id: generateId(),
+          id: generateVaultId(),
           name: vaultName,
           path: normalizedPath,
           lastOpened: Date.now(),

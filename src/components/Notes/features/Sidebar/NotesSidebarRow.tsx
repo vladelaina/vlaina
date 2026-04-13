@@ -11,6 +11,7 @@ interface NotesSidebarRowProps extends HTMLAttributes<HTMLDivElement> {
   depth?: number;
   leading?: ReactNode;
   leadingClassName?: string;
+  rowClassName?: string;
   main: ReactNode;
   trailing?: ReactNode;
   actions?: ReactNode;
@@ -27,6 +28,7 @@ export function NotesSidebarRow({
   depth = 0,
   leading,
   leadingClassName,
+  rowClassName,
   main,
   trailing,
   actions,
@@ -46,6 +48,7 @@ export function NotesSidebarRow({
       indentWidth={depth * 16}
       leading={leading}
       leadingClassName={leadingClassName}
+      rowClassName={rowClassName}
       main={main}
       trailing={trailing}
       actions={actions}

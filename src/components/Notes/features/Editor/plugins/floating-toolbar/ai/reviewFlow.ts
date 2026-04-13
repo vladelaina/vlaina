@@ -58,7 +58,7 @@ export function openAiSelectionReview(view: EditorView, requestKey?: string): bo
       payload: {
         dragPosition: null,
         aiReview: createEmptyAiReviewState(
-          requestKey ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          requestKey ?? `review-${crypto.randomUUID()}`,
           from,
           to,
           originalText
@@ -83,7 +83,7 @@ export async function runAiSelectionReviewCommand(
     return false;
   }
 
-  const requestKey = review.requestKey || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const requestKey = review.requestKey || `review-${crypto.randomUUID()}`;
   abortReviewRequest(requestKey);
   ensureReviewSelectionVisible(view, review.from, review.to);
 

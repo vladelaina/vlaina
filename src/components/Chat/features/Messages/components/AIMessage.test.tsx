@@ -35,12 +35,15 @@ vi.mock("./ErrorBlock", () => ({
 import { AIMessage } from "./AIMessage";
 
 function createMessage(content: string): ChatMessage {
+  const timestamp = Date.now();
   return {
     id: "m1",
     role: "assistant",
     content,
     modelId: "model-a",
-    timestamp: Date.now(),
+    timestamp,
+    versions: [{ content, createdAt: timestamp, subsequentMessages: [] }],
+    currentVersionIndex: 0,
   };
 }
 

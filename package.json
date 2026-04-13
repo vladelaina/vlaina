@@ -12,11 +12,13 @@
     "deploy:web:production": "npx wrangler deploy --config wrangler.production.jsonc",
     "deploy:web:preview:staging": "npx wrangler versions upload",
     "deploy:web:preview:production": "npx wrangler versions upload --config wrangler.production.jsonc",
+    "test:language-detection": "node scripts/ensure-not-wsl.mjs test:language-detection && pnpm exec vitest run src/components/Notes/features/Editor/utils/languageDetection/*.test.ts",
     "typecheck": "node scripts/ensure-not-wsl.mjs typecheck && tsc --noEmit --pretty false",
     "test": "node scripts/ensure-not-wsl.mjs test && vitest run",
     "preview": "node scripts/ensure-not-wsl.mjs preview && vite preview",
     "tauri": "node scripts/ensure-not-wsl.mjs tauri && tauri",
     "dev:dynamic": "node scripts/dev-dynamic.js",
+    "quality:language-detection": "node scripts/language-detection-gate.mjs",
     "quality:verify": "pnpm run typecheck && pnpm run test && pnpm build",
     "quality:budget": "node scripts/check-build-budget.mjs temp/build-quality-gate.log",
     "quality:gate": "node scripts/quality-gate.mjs"

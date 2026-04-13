@@ -5,6 +5,7 @@ interface SidebarRowProps extends HTMLAttributes<HTMLDivElement> {
   indentWidth?: number;
   leading?: ReactNode;
   leadingClassName?: string;
+  rowClassName?: string;
   main: ReactNode;
   trailing?: ReactNode;
   actions?: ReactNode;
@@ -24,6 +25,7 @@ export function SidebarRow({
   indentWidth = 0,
   leading,
   leadingClassName,
+  rowClassName,
   main,
   trailing,
   actions,
@@ -51,6 +53,7 @@ export function SidebarRow({
         style={rowStyle}
         className={cn(
           'relative flex h-[30px] flex-1 items-center gap-2 rounded-md px-3 py-1 text-sm transition-all duration-150 ease-out',
+          rowClassName,
           props.onClick && 'cursor-pointer',
           isHighlighted
             ? highlightClassName ?? inactiveClassName

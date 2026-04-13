@@ -2,6 +2,21 @@ import type { LanguageDetector } from '../types';
 
 export const detectRuby: LanguageDetector = (ctx) => {
   const { sample, first100Lines, firstLine, hasCurlyBraces, code, lines } = ctx;
+  const hasRubyEnd = /\bend\b/.test(sample);
+
+  if (
+    /(?:^|\n)\s*(?:async\s+def|def)\s+\w+\s*\([^)\n]*\)\s*(?:->\s*[^:\n]+)?\s*:/.test(code) ||
+    /(?:^|\n)\s*class\s+\w+(?:\([^)\n]*\))?\s*:/.test(code) ||
+    /\byield\s+from\b/.test(code) ||
+    /\blen\s*\(/.test(code) ||
+    (/(?:^|\n)\s*@[a-z_]\w*(?:\.[a-z_]\w*)*(?:\([^)\n]*\))?\s*$/im.test(code) && /(?:^|\n)\s*def\s+\w+\s*\(/.test(code))
+  ) {
+    return null;
+  }
+  if (/^#include\s*[<"]/m.test(first100Lines) || /\bstd::/.test(code) || /\b(public|private|protected):\s*$/m.test(code) || /\btemplate\s*</.test(code) || /\b(enum\s+class|override|noexcept)\b/.test(code)) {
+    return null;
+  }
+
 
   // Simple single-line Ruby patterns
   if (lines.length <= 3) {
@@ -22,6 +37,10 @@ export const detectRuby: LanguageDetector = (ctx) => {
     return null;
   }
 
+  if (((/\b(?:const|let|var)\s+\w+\s*=/.test(first100Lines) || /(?:^|\n)\s*function\*?\s+\w+\s*\(/.test(code) || /\basync\s+function\b/.test(code) || /\bclass\s+\w+\s+extends\s+\w+/.test(code) || /\bstatic\s+\w+\s*\(/.test(code) || /#\w+\s*=/.test(code)) && (/=>/.test(code) || /;/.test(code) || /\bconsole\./.test(code))) || /\b(?:module\.exports|import\.meta|customElements\.define|structuredClone)\b/.test(code)) {
+    return null;
+  }
+
   if (/\b(import\s+.*from|export\s+(default|const|function)|interface\s+\w+|abstract\s+class)\b/.test(first100Lines)) {
     return null;
   }
@@ -31,8 +50,11 @@ export const detectRuby: LanguageDetector = (ctx) => {
   }
 
   if (/^class\s+\w+/m.test(first100Lines)) {
-
-    if (/->|=>/.test(first100Lines) && !/\bdef\s+\w+/.test(first100Lines)) {
+    if (
+      /->|=>/.test(first100Lines) &&
+      !/\bdef\s+\w+/.test(first100Lines) &&
+      !/\b(scope|has_many|belongs_to|has_one|validates|before_save|after_create)\b/.test(code)
+    ) {
       return null;
     }
   }
@@ -55,7 +77,7 @@ export const detectRuby: LanguageDetector = (ctx) => {
     return null;
   }
 
-  if (/\bdef\s+\w+\s*\([^)]*:\s*\w+/.test(first100Lines)) {
+  if (/\bdef\s+\w+\s*\([^)]*\w+\s*:\s*[A-Z]\w*/.test(first100Lines)) {
     return null;
   }
 
@@ -151,6 +173,79 @@ export const detectRuby: LanguageDetector = (ctx) => {
     }
   }
 
+  if (/^require(?:_relative)?\s+['"]/.test(first100Lines)) {
+    if (
+      /\b(puts|warn|abort)\b/.test(code) ||
+      /\b([A-Z]\w*\.new|Bundler\.require|CSV\.foreach|Date\.today|ERB\.new|File\.read|Gem::Specification\.new|JSON\.parse|Net::HTTP\.get|Open3\.capture3|OpenStruct\.new|OptionParser\.new|Pathname\.new|Set\.new|Shellwords\.split|Time\.now|URI\.parse|YAML\.load_file)\b/.test(code)
+    ) {
+      return 'ruby';
+    }
+  }
+
+  if ((/^class\s+[A-Z]\w*/m.test(first100Lines) || /^module\s+[A-Z]\w*/m.test(first100Lines) || /^def\s+\w+[!?=]?/m.test(first100Lines)) && /\bend\b/.test(code)) {
+    return 'ruby';
+  }
+
+  if (/\b(attr_reader|attr_accessor|attr_writer|delegate_missing_to|def_delegators|scope\s+:\w+,\s*->|has_many\s+:\w+|belongs_to\s+:\w+|has_one\s+:\w+|validates\s+:\w+|before_\w+\s+:\w+|after_\w+\s+:\w+|default_scope\s*\{|enum\s+\w+:\s*\{|serialize\s+:\w+|queue_as\s+:\w+|perform_later|deliver_later|FactoryBot\.define|RSpec\.describe|Minitest::Test|ApplicationRecord|ApplicationJob|ApplicationMailer|ApplicationController|Sidekiq::Worker|ActiveSupport::Concern|delegate\s+:\w+,\s+to:|params\.require\(|Gem::Specification\.new|namespace\s+:\w+\s+do|task\s+\w+:)\b/.test(code)) {
+    return 'ruby';
+  }
+
+  if (/\b(rescue|ensure|unless|yield|public_send|send|destroy!|update!|create!|reload|constantize|module_function|prepend)\b/.test(code) || /\b(block_given\?|present\?|blank\?|empty\?|nil\?)/.test(code)) {
+    return 'ruby';
+  }
+
+  if (/\b(Hash\.new|Struct\.new|Thread\.new|Mutex\.new|Queue\.new|Pathname\.new|OptionParser\.new|CSV\.foreach|ERB\.new|Open3\.capture3|File\.read|ENV\.fetch|Shellwords\.split|Rails\.cache\.fetch|OpenStruct\.new|JSON\.parse|YAML\.load_file|Set\.new|URI\.parse|Date\.today|Time\.now|Bundler\.require|Net::HTTP\.get)\b/.test(code)) {
+    return 'ruby';
+  }
+
+  if (/\bcase\b/.test(code) && /\bwhen\b/.test(code) && /\bend\b/.test(code)) {
+    return 'ruby';
+  }
+
+  if (/\bcase\b/.test(code) && /\bin\s+\{/.test(code) && /\bend\b/.test(code)) {
+    return 'ruby';
+  }
+
+  if (/&\./.test(code)) {
+    return 'ruby';
+  }
+
+  if (/<<~[A-Z][A-Z0-9_]*/.test(code) && /\bputs\b/.test(code)) {
+    return 'ruby';
+  }
+
+  if (/->\s*\(/.test(code) && /\bputs\b/.test(code)) {
+    return 'ruby';
+  }
+
+  if (/\b\d+\.(times|upto)\b/.test(code) && /\bdo\b/.test(code)) {
+    return 'ruby';
+  }
+
+  if (/^\s*(get|post|put|patch|delete)\s+['"][^'"]+['"]\s+do\b/m.test(code)) {
+    return 'ruby';
+  }
+
+  if (/\{\s*:\w+\s*=>/.test(code)) {
+    return 'ruby';
+  }
+
+  if ((/\{\s*\w+:[ \t]+(?::\w+|['"]|\d+|true\b|false\b|nil\b|\{|\[)/.test(code) || /\[\s*:\w+\s*\]/.test(code)) && /:\w+/.test(code)) {
+    return 'ruby';
+  }
+
+  if (/%w\[[^\]]+\](\.freeze)?/.test(code)) {
+    return 'ruby';
+  }
+
+  if (/\bdescribed_class\b/.test(code) || /\b(format|warn|abort|system)\s*\(/.test(code) || /\.tap\s+do\s+\|[^|]+\|/.test(code) || /\.dig\(\s*:\w+/.test(code) || /\.fetch\(\s*:\w+/.test(code)) {
+    return 'ruby';
+  }
+
+  if (/\{\s*\|[^|]+\|/.test(code) && /\b(Array\.new|map|select|reject|inject|tap|transform_values|group_by|sort_by|with_index)\b/.test(code)) {
+    return 'ruby';
+  }
+
   // Ruby block iteration
   if (/\.(each|map|select|reject|filter)\s+(do\s+\||\{)/.test(code)) {
     if (/\bend\b/.test(code) || /\}\s*$/.test(code)) {
@@ -175,7 +270,7 @@ export const detectRuby: LanguageDetector = (ctx) => {
   }
 
   if (/^module\s+\w+\s*$/m.test(first100Lines) || /^class\s+\w+\s*$/m.test(first100Lines)) {
-    if (sample.includes('end')) {
+    if (hasRubyEnd) {
       return 'ruby';
     }
   }
@@ -184,15 +279,19 @@ export const detectRuby: LanguageDetector = (ctx) => {
     return 'ruby';
   }
 
+  if (/\.(map|select|reject|filter|sort_by)\s*\(&:/.test(code)) {
+    return 'ruby';
+  }
+
   if (/\b(def\s+\w+|class\s+\w+\s*<|module\s+\w+|attr_accessor|attr_reader|attr_writer)\b/.test(first100Lines)) {
-    if (sample.includes('end') &&
+    if (hasRubyEnd &&
         (/\b(puts|print|gets|chomp|each|map|select|reject|nil\?|empty\?|require|include\s+\w+)\b/.test(first100Lines) ||
          /@\w+/.test(first100Lines))) {
       return 'ruby';
     }
   }
 
-  if (!hasCurlyBraces && /\b(def|elsif|unless)\b/.test(first100Lines) && sample.includes('end')) {
+  if (!hasCurlyBraces && /\b(def|elsif|unless)\b/.test(first100Lines) && hasRubyEnd) {
     return 'ruby';
   }
 

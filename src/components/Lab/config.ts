@@ -3,7 +3,6 @@ import { PracticalOutlineLab } from './variants/PracticalOutlineLab';
 import { OutlineRevolutionLab } from './variants/OutlineRevolutionLab';
 import { AnimationLab } from './playground/AnimationLab';
 import { AiToolbarDropdownLab } from './playground/AiToolbarDropdownLab';
-import { LinkEditorLab } from './playground/LinkEditorLab';
 import { ChatSidebarLoadingLab } from './playground/ChatSidebarLoadingLab';
 import { TopLeftEvolutionLab } from './playground/TopLeftEvolutionLab';
 import { CoreNavigationLab } from './playground/CoreNavigationLab';
@@ -85,13 +84,6 @@ export const LAB_MODULES = [
     icon: 'misc.lab',
     component: FirstPrinciplesLinkEditor,
     description: '50 first-principles directions for note link editing. From the 1px rail to the chrono-trace veil.'
-  },
-  {
-    id: 'link-editor',
-    label: 'Link Editor (Legacy)',
-    icon: 'misc.lab',
-    component: LinkEditorLab,
-    description: 'Original GPT-style visual directions for comparison.'
   },
   {
     id: 'top-left-evolution',

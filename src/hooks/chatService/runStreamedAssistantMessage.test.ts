@@ -98,7 +98,7 @@ describe('runStreamedAssistantMessage', () => {
     expect(status).toBe('aborted');
     expect(setError).toHaveBeenCalledWith(null);
     expect(updateMessage).not.toHaveBeenCalled();
-    expect(completeMessage).not.toHaveBeenCalled();
+    expect(completeMessage).toHaveBeenCalledWith('session-1', 'assistant-1');
     expect(setSessionLoading).toHaveBeenLastCalledWith('session-1', false);
   });
 });

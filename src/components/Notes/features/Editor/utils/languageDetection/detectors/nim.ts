@@ -3,6 +3,26 @@ import type { LanguageDetector } from '../types';
 export const detectNim: LanguageDetector = (ctx) => {
   const { code, first100Lines, firstLine, lines } = ctx;
 
+  if (/\b(?:const|let|var)\s+\w+\s*=/.test(first100Lines) && (/=>/.test(code) || /\bimport\(/.test(code) || /\bimport\.meta\b/.test(code) || /\brequire\(/.test(code) || /\bconsole\./.test(code))) {
+    return null;
+  }
+
+  if (/^\s*def\s+\w+\s*\([^)]*\)\s*(->\s*[^:]+)?:/m.test(code) || /^\s*class\s+\w+\s*:/m.test(code)) {
+  if (/^type\s+\w+\*?\s*=\s*object\b/m.test(code)) {
+    return 'nim';
+  }
+
+  if (/^when\s+isMainModule:\s*$/m.test(code)) {
+    return 'nim';
+  }
+
+  if (/^let\s+\w+\s*=\s*@\[[^\]]+\]\s*$/m.test(code) && /^for\s+\w+\s+in\s+\w+:\s*$/m.test(code) && /^\s*echo\s+\w+/m.test(code)) {
+    return 'nim';
+  }
+
+    return null;
+  }
+
   // Simple single-line Nim patterns
   if (lines.length <= 3) {
     // Nim echo is very distinctive - it doesn't use $ for variables like bash
@@ -129,17 +149,28 @@ export const detectNim: LanguageDetector = (ctx) => {
   }
 
   if (/^from\s+\w+\s+import\s+\w+/m.test(code)) {
-
-    if (/\b(proc|template|when|const|let|var|discard|echo)\b/.test(code)) {
+    if (/^\s*(proc|template|when|const|let|var|discard)\b/m.test(code) || /^\s*echo\b/m.test(code)) {
       return 'nim';
     }
   }
 
   if (/^(const|let)\s*$/m.test(code) || /^(const|let)\s+\w+\s*=/.test(code)) {
 
-    if (/\b(when|proc|template|import)\b/.test(code)) {
+    if (/(?:^|\n)\s*(when|proc|template|import)\b/m.test(code)) {
       return 'nim';
     }
+  }
+
+  if (/^type\s+\w+\*?\s*=\s*object\b/m.test(code)) {
+    return 'nim';
+  }
+
+  if (/^when\s+isMainModule:\s*$/m.test(code)) {
+    return 'nim';
+  }
+
+  if (/^let\s+\w+\s*=\s*@\[[^\]]+\]\s*$/m.test(code) && /^for\s+\w+\s+in\s+\w+:\s*$/m.test(code) && /^\s*echo\s+\w+/m.test(code)) {
+    return 'nim';
   }
 
   return null;

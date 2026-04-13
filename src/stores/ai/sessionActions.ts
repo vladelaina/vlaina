@@ -1,4 +1,5 @@
 import type { ChatMessage, ChatSession } from '@/lib/ai/types'
+import { generateId } from '@/lib/id'
 import {
   cancelSessionJsonSave,
   deleteSessionJson,
@@ -17,6 +18,8 @@ import {
   stripTemporaryForMutation,
   useAIUIStore,
 } from './chatState'
+
+let switchSessionGeneration = 0;
 
 export function createSessionActions() {
   return {
@@ -98,7 +101,7 @@ export function createSessionActions() {
       }
 
       const now = Date.now()
-      const promotedSessionId = `session-${now}-${Math.random().toString(36).substring(2, 11)}`
+      const promotedSessionId = generateId('session-')
       const promotedSession: ChatSession = {
         id: promotedSessionId,
         title: 'New Chat',
@@ -143,6 +146,8 @@ export function createSessionActions() {
     createSession: (title = 'New Chat') => createAIChatSession(title),
 
     switchSession: async (sessionId: string) => {
+      switchSessionGeneration += 1
+      const myGeneration = switchSessionGeneration
       const state = useUnifiedStore.getState()
       const ai = state.data.ai!
 
@@ -176,6 +181,7 @@ export function createSessionActions() {
       const latestAI = useUnifiedStore.getState().data.ai!
       if (!(sessionId in latestAI.messages)) {
         const loadedMessages = await loadSessionJson(sessionId)
+        if (switchSessionGeneration !== myGeneration) return
         const freshState = useUnifiedStore.getState()
         freshState.updateAIData({
           messages: {

@@ -48,6 +48,8 @@ class LinkTooltipView {
     activeAnchor: LinkTooltipAnchor | null = null;
     hideTimer: number | null = null;
     showTimer: number | null = null;
+    focusTimer: number | null = null;
+    pendingRafs: Set<number> = new Set();
     isKeyboardInteraction: boolean = false;
     resizeObserver: ResizeObserver | null = null;
     mutationObserver: MutationObserver | null = null;
@@ -99,8 +101,7 @@ class LinkTooltipView {
             event.preventDefault();
             event.stopPropagation();
             this.hide(true);
-            // Restore focus with a slight delay to allow UI to update
-            setTimeout(() => this.view.focus(), 10);
+            this.scheduleFocus();
         }
     };
 
@@ -193,6 +194,21 @@ class LinkTooltipView {
         }, LINK_TOOLTIP_SHOW_DELAY);
     }
 
+    scheduleRaf(callback: () => void) {
+        const id = requestAnimationFrame(() => {
+            this.pendingRafs.delete(id);
+            callback();
+        });
+        this.pendingRafs.add(id);
+    }
+
+    cancelAllRafs() {
+        for (const id of this.pendingRafs) {
+            cancelAnimationFrame(id);
+        }
+        this.pendingRafs.clear();
+    }
+
     clearShowTimer() {
         if (this.showTimer) {
             clearTimeout(this.showTimer);
@@ -211,6 +227,18 @@ class LinkTooltipView {
         if (this.hideTimer) {
             clearTimeout(this.hideTimer);
             this.hideTimer = null;
+        }
+    }
+
+    scheduleFocus() {
+        this.clearFocusTimer();
+        this.focusTimer = window.setTimeout(() => this.view.focus(), 10);
+    }
+
+    clearFocusTimer() {
+        if (this.focusTimer) {
+            clearTimeout(this.focusTimer);
+            this.focusTimer = null;
         }
     }
 
@@ -325,13 +353,13 @@ class LinkTooltipView {
 
         if (shouldClose) {
             this.hide();
-            setTimeout(() => this.view.focus(), 10); // Restore focus with delay
+            this.scheduleFocus();
             return;
         }
 
         // Don't hide! Find the new link and keep showing it.
         // Use RAF to ensure DOM is fully updated before reading textContent
-        requestAnimationFrame(() => {
+        this.scheduleRaf(() => {
             try {
                 const newStart = tr.mapping.map(absoluteStart);
                 const domInfo = this.view.domAtPos(newStart + 1);
@@ -345,14 +373,11 @@ class LinkTooltipView {
                 }
 
                 if (newLink) {
-                    // Determine if we need to force a refresh even if it's arguably the "same" link
-                    // Forcing show() will re-render React component with new props (href/text)
                     this.show(newLink);
                 } else {
                     this.hide();
                 }
-            } catch (e) {
-                console.warn('Failed to locate new link node after edit', e);
+            } catch {
                 this.hide();
             }
         });
@@ -385,7 +410,7 @@ class LinkTooltipView {
 
         this.dom.classList.remove('hidden');
         this.applyPosition(this.activeAnchor);
-        requestAnimationFrame(() => this.reposition());
+        this.scheduleRaf(() => this.reposition());
     }
 
     handleUnlink = (link: HTMLElement) => {
@@ -540,8 +565,7 @@ class LinkTooltipView {
         try {
             this.applyPosition(this.activeAnchor);
             requestAnimationFrame(() => this.reposition());
-        } catch (e) {
-            console.warn('[LinkTooltipPlugin] Failed to get coords:', e);
+        } catch {
         }
     }
 
@@ -569,11 +593,11 @@ class LinkTooltipView {
 
         if (shouldClose) {
             this.hide();
-            setTimeout(() => this.view.focus(), 10);
+            this.scheduleFocus();
             return;
         }
 
-        requestAnimationFrame(() => {
+        this.scheduleRaf(() => {
             try {
                 const newStart = tr.mapping.map(from);
                 const domInfo = this.view.domAtPos(newStart + 1);
@@ -591,8 +615,7 @@ class LinkTooltipView {
                 } else {
                     this.hide();
                 }
-            } catch (e) {
-                console.warn('Failed to locate new link node after edit', e);
+            } catch {
                 this.hide();
             }
         });
@@ -601,13 +624,15 @@ class LinkTooltipView {
     destroy() {
         this.clearShowTimer();
         this.clearHideTimer();
+        this.clearFocusTimer();
+        this.cancelAllRafs();
         this.view.dom.removeEventListener('mouseover', this.handleEditorMouseOver);
         this.view.dom.removeEventListener('mouseout', this.handleEditorMouseOut);
         this.view.dom.removeEventListener('mousedown', this.handleEditorMouseDown, true);
         this.dom.removeEventListener('mouseenter', this.handleTooltipMouseEnter);
         this.dom.removeEventListener('mouseleave', this.handleTooltipMouseLeave);
         window.removeEventListener('scroll', this.handleScroll, true);
-        this.view.dom.removeEventListener('keydown', this.handleEditorKeyDown);
+        this.view.dom.removeEventListener('keydown', this.handleEditorKeyDown, true);
         document.removeEventListener('keydown', this.handleGlobalKeyDown, true);
         this.resizeObserver?.disconnect();
         this.mutationObserver?.disconnect();
@@ -704,6 +729,7 @@ export const linkTooltipPlugin = $prose(() => {
         },
         view(editorView) {
             const tooltipView = new LinkTooltipView(editorView);
+            let pendingShowTimer: number | null = null;
 
             return {
                 update(view, prevState) {
@@ -711,23 +737,20 @@ export const linkTooltipPlugin = $prose(() => {
 
                     const pluginState = linkTooltipPluginKey.getState(view.state);
 
-                    // Only process if shouldShow is true AND not already handled
                     if (pluginState?.shouldShow && !pluginState.handled) {
-
-                        // Mark as handled immediately to prevent duplicate calls
-                        // We do this by dispatching a transaction that marks it handled
                         const { from, to, autoFocus } = pluginState;
 
-                        // Dispatch immediately to clean the state and mark as handled
                         view.dispatch(view.state.tr.setMeta(linkTooltipPluginKey, { type: 'CLEAR_LINK_TOOLTIP' }));
 
-                        // Use setTimeout to let any pending DOM updates complete
-                        setTimeout(() => {
+                        if (pendingShowTimer != null) clearTimeout(pendingShowTimer);
+                        pendingShowTimer = window.setTimeout(() => {
+                            pendingShowTimer = null;
                             tooltipView.showAtPosition(from, to, autoFocus);
                         }, 50);
                     }
                 },
                 destroy() {
+                    if (pendingShowTimer != null) clearTimeout(pendingShowTimer);
                     tooltipView.destroy();
                 },
             };

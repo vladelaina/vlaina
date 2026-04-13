@@ -6,7 +6,7 @@ interface ManagedQuotaMeterProps {
 }
 
 export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
-  const { budget } = useManagedAIStore();
+  const budget = useManagedAIStore(s => s.budget);
 
   if (!budget) {
     return null;

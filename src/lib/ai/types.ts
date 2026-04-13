@@ -57,8 +57,8 @@ export interface ChatMessage {
   modelId: string
   timestamp: number
   
-  versions?: MessageVersion[]
-  currentVersionIndex?: number
+  versions: MessageVersion[]
+  currentVersionIndex: number
 }
 
 export type ChatMessageContentPart = 

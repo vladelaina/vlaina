@@ -20,12 +20,15 @@ interface AiRequestResult {
 }
 
 function createSystemMessage(content: string, modelId: string): ChatMessage {
+  const now = Date.now();
   return {
-    id: `editor-ai-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    id: `editor-ai-${crypto.randomUUID()}`,
     role: 'system',
     content,
     modelId,
-    timestamp: Date.now(),
+    timestamp: now,
+    versions: [{ content, createdAt: now, subsequentMessages: [] }],
+    currentVersionIndex: 0,
   };
 }
 
@@ -76,7 +79,7 @@ function buildSuggestion(
   suggestedText: string
 ): AiSelectionSuggestion {
   return {
-    requestKey: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    requestKey: `review-${crypto.randomUUID()}`,
     from,
     to,
     instruction,
