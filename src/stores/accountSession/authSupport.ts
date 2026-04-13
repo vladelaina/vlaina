@@ -66,7 +66,11 @@ export async function refreshAvatar(
         set({ localAvatarUrl: nextLocalSrc });
       }
     })
-    .catch(() => {});
+    .catch((error: unknown) => {
+      if (import.meta.env.DEV) {
+        console.warn('[authSupport] avatar download failed:', error);
+      }
+    });
 }
 
 export function isSessionConnected(get: Get): boolean {

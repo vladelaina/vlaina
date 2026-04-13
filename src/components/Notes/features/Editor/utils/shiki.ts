@@ -1,40 +1,15 @@
-import { createHighlighter, type BundledLanguage, type Highlighter } from 'shiki';
+import { createHighlighter, type Highlighter } from 'shiki';
+import {
+  initialHighlighterLanguages,
+  normalizeSupportedCodeLanguage,
+  supportedCodeLanguages,
+  type CodeLanguageId,
+} from './codeLanguages';
 
 let highlighterInstance: Highlighter | null = null;
 let highlighterPromise: Promise<Highlighter> | null = null;
-type EditorLanguage = BundledLanguage | 'txt';
 
-const CORE_LANGUAGES: { id: BundledLanguage; name: string; aliases?: string[] }[] = [
-  { id: 'javascript', name: 'JavaScript', aliases: ['js'] },
-  { id: 'typescript', name: 'TypeScript', aliases: ['ts'] },
-  { id: 'jsx', name: 'JSX' },
-  { id: 'tsx', name: 'TSX' },
-  { id: 'python', name: 'Python', aliases: ['py'] },
-  { id: 'java', name: 'Java' },
-  { id: 'go', name: 'Go', aliases: ['golang'] },
-  { id: 'rust', name: 'Rust', aliases: ['rs'] },
-  { id: 'csharp', name: 'C#', aliases: ['cs', 'c#'] },
-  { id: 'php', name: 'PHP' },
-  { id: 'kotlin', name: 'Kotlin', aliases: ['kt'] },
-  { id: 'swift', name: 'Swift' },
-  { id: 'ruby', name: 'Ruby', aliases: ['rb'] },
-  { id: 'lua', name: 'Lua' },
-  { id: 'sql', name: 'SQL' },
-  { id: 'bash', name: 'Bash', aliases: ['shell', 'sh'] },
-  { id: 'json', name: 'JSON' },
-  { id: 'yaml', name: 'YAML', aliases: ['yml'] },
-  { id: 'html', name: 'HTML' },
-  { id: 'css', name: 'CSS' },
-  { id: 'xml', name: 'XML' },
-  { id: 'markdown', name: 'Markdown', aliases: ['md'] },
-];
-
-export const SUPPORTED_LANGUAGES: { id: EditorLanguage; name: string; aliases?: string[] }[] = [
-  { id: 'txt', name: 'TXT', aliases: ['text', 'plaintext'] },
-  ...CORE_LANGUAGES,
-];
-
-const INITIAL_LANGUAGES: BundledLanguage[] = CORE_LANGUAGES.map((lang) => lang.id);
+export const SUPPORTED_LANGUAGES = supportedCodeLanguages;
 
 export async function getHighlighter(): Promise<Highlighter> {
   if (highlighterInstance) {
@@ -47,31 +22,15 @@ export async function getHighlighter(): Promise<Highlighter> {
 
   highlighterPromise = createHighlighter({
     themes: ['github-dark', 'github-light'],
-    langs: INITIAL_LANGUAGES,
+    langs: initialHighlighterLanguages,
   });
 
   highlighterInstance = await highlighterPromise;
   return highlighterInstance;
 }
 
-export function normalizeLanguage(lang: string | null): EditorLanguage | null {
-  if (!lang) {
-    return null;
-  }
-
-  const normalized = lang.toLowerCase().trim();
-
-  const direct = SUPPORTED_LANGUAGES.find((language) => language.id === normalized);
-  if (direct) {
-    return direct.id;
-  }
-
-  const aliased = SUPPORTED_LANGUAGES.find((language) => language.aliases?.includes(normalized));
-  if (aliased) {
-    return aliased.id;
-  }
-
-  return null;
+export function normalizeLanguage(lang: string | null): CodeLanguageId | null {
+  return normalizeSupportedCodeLanguage(lang);
 }
 
 export async function highlightCode(

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { codeBlockLanguages } from './codeBlockLanguageLoader';
 import {
   normalizeCodeBlockLanguage,
   parseCodeFenceLanguage,
@@ -18,9 +19,21 @@ describe('codeBlockLanguage', () => {
     expect(parseCodeFenceLanguage('``')).toBeNull();
   });
 
-  it('normalizes known languages and preserves unknown ids consistently', () => {
+  it('normalizes catalog aliases before falling back to lowercase ids', () => {
     expect(normalizeCodeBlockLanguage('TS')).toBe('ts');
+    expect(normalizeCodeBlockLanguage('text')).toBe('txt');
+    expect(normalizeCodeBlockLanguage('plaintext')).toBe('txt');
+    expect(normalizeCodeBlockLanguage('vim')).toBe('viml');
     expect(normalizeCodeBlockLanguage('Custom-Lang')).toBe('custom-lang');
     expect(normalizeCodeBlockLanguage('')).toBeNull();
+  });
+
+  it('exposes catalog-only languages in the selector list', () => {
+    expect(codeBlockLanguages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'txt', name: 'TXT' }),
+        expect.objectContaining({ id: 'viml', name: 'Vim Script' }),
+      ]),
+    );
   });
 });

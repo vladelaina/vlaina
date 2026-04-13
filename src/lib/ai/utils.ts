@@ -4,9 +4,8 @@ export function buildScopedModelId(providerId: string, apiModelId: string): stri
   return `${providerId}::${apiModelId}`
 }
 
-export function resolveApiModelId(model: Pick<AIModel, 'id' | 'apiModelId'> | { id: string; apiModelId?: string }): string {
-  const apiModelId = typeof model.apiModelId === 'string' ? model.apiModelId.trim() : ''
-  return apiModelId || model.id
+export function resolveApiModelId(model: Pick<AIModel, 'apiModelId'>): string {
+  return model.apiModelId
 }
 
 export function generateModelName(modelId: string): string {
@@ -59,33 +58,6 @@ export function generateModelGroup(modelId: string): string {
   }
   
   return 'Other'
-}
-
-export function groupModels(models: AIModel[]): Record<string, AIModel[]> {
-  return models.reduce((acc, model) => {
-    const group = model.group || 'Other'
-    if (!acc[group]) {
-      acc[group] = []
-    }
-    acc[group].push(model)
-    return acc
-  }, {} as Record<string, AIModel[]>)
-}
-
-export function validateApiHost(url: string): boolean {
-  try {
-    const parsed = new URL(url)
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
-  } catch {
-    return false
-  }
-}
-
-export function maskApiKey(apiKey: string): string {
-  if (apiKey.length <= 8) {
-    return '•'.repeat(apiKey.length)
-  }
-  return apiKey.slice(0, 4) + '•'.repeat(apiKey.length - 8) + apiKey.slice(-4)
 }
 
 export function normalizeApiHost(url: string): string {

@@ -3,6 +3,33 @@ import type { LanguageDetector } from '../types';
 export const detectTOML: LanguageDetector = (ctx) => {
   const { code, first100Lines, firstLine, lines } = ctx;
 
+  if (/^\s*@import\s+\w+/m.test(first100Lines) ||
+      /#import\s+[<"]/m.test(first100Lines) ||
+      /@(interface|implementation|protocol|property|selector|autoreleasepool|dynamic|synthesize)\b/.test(code) ||
+      /\b(?:NS|UI|CF)[A-Z]\w*(?:<[^>\n]+>)?\s*\*/.test(code) ||
+      /\[\s*(?:\[[^\]]+\]|self|super|[A-Z]\w*|\w+)\s+\w+/.test(code)) {
+    return null;
+  }
+
+  if (
+    /\b(?:None|True|False|Literal)\b/.test(code) ||
+    /\b(?:len|sum|min|max|any|all|enumerate|zip|sorted|range|isinstance|print)\s*\(/.test(code) ||
+    /\.(?:get|setdefault|append|extend|pop|appendleft|exists|read_text|write_text|unlink|getenv|loads|join|now)\s*\(/.test(code) ||
+    /(?:^|\n)\s*\w+(?:\s*,\s*\*?\w+)+\s*=/.test(code) ||
+    /\[[^\]\n]*:[^\]\n]*\]/.test(code) ||
+    /^require(?:_relative)?\s+['"]/.test(first100Lines) ||
+    /\b(attr_reader|attr_accessor|attr_writer|module_function|delegate_missing_to|described_class|Sidekiq::Worker|Minitest::Test|ActiveSupport::Concern|Bundler\.require|Gem::Specification\.new)\b/.test(code) ||
+    /\b(puts|warn|abort|format)\s*\(/.test(code) ||
+    /\b\d+\.(times|upto)\b/.test(code) ||
+    /\{\s*:\w+\s*=>/.test(code)
+  ) {
+    return null;
+  }
+
+  if (/^[A-Za-z_][\w-]*\s*=\s*["'].*["']/m.test(first100Lines) && /\b(printf|echo|grep|sed|awk|find)\b/.test(code) && code.includes('$')) {
+    return null;
+  }
+
   // Simple single-line TOML patterns: [server] or host = "localhost"
   if (lines.length <= 3) {
     const trimmed = code.trim();
@@ -19,6 +46,9 @@ export const detectTOML: LanguageDetector = (ctx) => {
       if (!/\{|\}|;|function|class|def|import|package|:/.test(code)) {
         return 'toml';
       }
+    }
+    if (/^[\w-]+\s*=\s*(true|false)\s*$/i.test(trimmed)) {
+      return 'toml';
     }
     // TOML key-value with number: port = 8080
     if (/^[\w-]+\s*=\s*\d+\s*$/.test(trimmed)) {

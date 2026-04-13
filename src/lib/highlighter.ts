@@ -27,7 +27,7 @@ export async function initHighlighter() {
       ],
     });
   } catch (e) {
-    console.warn("Failed to initialize Shiki highlighter:", e);
+    if (import.meta.env.DEV) console.warn("Failed to initialize Shiki highlighter:", e);
     highlighter = {
       codeToHtml: (code: string, _options: any) => {
         const escaped = code

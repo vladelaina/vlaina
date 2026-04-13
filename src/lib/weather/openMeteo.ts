@@ -55,7 +55,7 @@ export async function searchCity(name: string): Promise<GeoLocation[]> {
       admin1: item.admin1
     }));
   } catch (e) {
-    console.warn("Geocoding failed/timed out", e);
+    if (import.meta.env.DEV) console.warn("Geocoding failed/timed out", e);
     return [];
   }
 }
@@ -92,7 +92,7 @@ export async function getWeather(lat: number, lon: number): Promise<WeatherData 
       }
     };
   } catch (e) {
-    console.warn("Weather fetch failed/timed out", e);
+    if (import.meta.env.DEV) console.warn("Weather fetch failed/timed out", e);
     return null;
   }
 }

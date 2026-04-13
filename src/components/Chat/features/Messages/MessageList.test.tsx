@@ -25,12 +25,16 @@ vi.mock("@/components/Chat/features/Messages/components/ChatLoading", () => ({
 import { MessageList } from "./MessageList";
 
 function createMessage(id: string, role: ChatMessage["role"]): ChatMessage {
+  const content = `${role}-${id}`;
+  const timestamp = Date.now();
   return {
     id,
     role,
-    content: `${role}-${id}`,
+    content,
     modelId: "model-a",
-    timestamp: Date.now(),
+    timestamp,
+    versions: [{ content, createdAt: timestamp, subsequentMessages: [] }],
+    currentVersionIndex: 0,
   };
 }
 

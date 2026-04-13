@@ -11,13 +11,18 @@ vi.mock("@/components/ui/icons", () => ({
 import { MessageToolbar } from "./MessageToolbar";
 
 function createMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
+  const content = overrides.content ?? "Answer";
+  const timestamp = overrides.timestamp ?? Date.now();
   return {
-    id: "m1",
-    role: "assistant",
-    content: "Answer",
-    modelId: "model-a",
-    timestamp: Date.now(),
-    ...overrides,
+    id: overrides.id ?? "m1",
+    role: overrides.role ?? "assistant",
+    content,
+    modelId: overrides.modelId ?? "model-a",
+    timestamp,
+    ...(overrides.imageSources !== undefined ? { imageSources: overrides.imageSources } : {}),
+    versions:
+      overrides.versions ?? [{ content, createdAt: timestamp, subsequentMessages: [] }],
+    currentVersionIndex: overrides.currentVersionIndex ?? 0,
   };
 }
 

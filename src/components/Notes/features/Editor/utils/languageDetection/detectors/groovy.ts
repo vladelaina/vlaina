@@ -3,6 +3,25 @@ import type { LanguageDetector } from '../types';
 export const detectGroovy: LanguageDetector = (ctx) => {
   const { code, first100Lines, firstLine, lines } = ctx;
 
+  if (
+    /(?:^|\n)\s*@[a-z_]\w*(?:\.[a-z_]\w*)*(?:\([^)\n]*\))?\s*$/im.test(code) &&
+    /(?:^|\n)\s*(?:async\s+def|def|class)\s+\w+[^\n]*:/.test(code)
+  ) {
+    return null;
+  }
+
+  if (/(?:^|\n)\s*(?:async\s+def|def)\s+\w+\s*\([^)\n]*\)\s*(?:->\s*[^:\n]+)?\s*:/.test(code)) {
+    return null;
+  }
+
+  if (/(?:^|\n)\s*class\s+\w+(?:\([^)\n]*\))?\s*:/.test(code)) {
+    return null;
+  }
+
+  if (/\b(import\s+\{|\bconst\b|\blet\b|\bvar\b|export\s+default)\b/.test(first100Lines)) {
+    return null;
+  }
+
   // Simple single-line Groovy patterns
   if (lines.length <= 3) {
     const trimmed = code.trim();
@@ -83,6 +102,16 @@ export const detectGroovy: LanguageDetector = (ctx) => {
   }
 
   if (/^package\s+[\w.]+;/m.test(first100Lines) || /^import\s+java\./m.test(first100Lines)) {
+    return null;
+  }
+
+  if (
+    /^import\s+(?:static\s+)?(?:java|javax|jakarta|org\.(?:springframework|junit|apache)|com\.(?:fasterxml|intellij))\./m.test(first100Lines) ||
+    /(?:^|\n)\s*@(Override|Deprecated|SuppressWarnings|Test|RestController|RequestMapping|GetMapping|PostMapping|PutMapping|DeleteMapping|Autowired|Component|Service|Repository|Controller|Entity|Table|Column|Id)\b/m.test(code) ||
+    /\bSystem\.out\.println\s*\(/.test(code) ||
+    /(?:^|\n)\s*(?:(?:public|protected|private)\s+)?class\s+[A-Z]\w*(?:\s+extends\s+[^{\n]+)?(?:\s+implements\s+[^{\n]+)?\s*\{/.test(code) ||
+    /\b(?:throws\s+[A-Z]\w*|synchronized\s*\(|new\s+Thread\s*\(|instanceof\s+[A-Z]\w+\s+[a-z_]\w*)/.test(code)
+  ) {
     return null;
   }
 

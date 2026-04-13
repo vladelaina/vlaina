@@ -11,7 +11,13 @@ function getScrollRoot(view: EditorView): HTMLElement | null {
   return view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
 }
 
-function scrollEditorFindMatchIntoView(view: EditorView, match: EditorFindMatch) {
+type EditorFindScrollBehavior = 'smooth' | 'instant';
+
+function scrollEditorFindMatchIntoView(
+  view: EditorView,
+  match: EditorFindMatch,
+  behavior: EditorFindScrollBehavior = 'smooth',
+) {
   requestAnimationFrame(() => {
     try {
       const startRect = view.coordsAtPos(match.from);
@@ -36,7 +42,7 @@ function scrollEditorFindMatchIntoView(view: EditorView, match: EditorFindMatch)
 
         scrollRoot.scrollTo({
           top: Math.max(centeredOffset, 0),
-          behavior: 'smooth',
+          behavior: behavior === 'smooth' ? 'smooth' : 'auto',
         });
         return;
       }
@@ -48,14 +54,17 @@ function scrollEditorFindMatchIntoView(view: EditorView, match: EditorFindMatch)
 
       window.scrollBy({
         top: top - Math.max(32, (window.innerHeight - (bottom - top)) / 2),
-        behavior: 'smooth',
+        behavior: behavior === 'smooth' ? 'smooth' : 'auto',
       });
     } catch {
     }
   });
 }
 
-function maybeScrollToActiveMatch(view: EditorView) {
+function maybeScrollToActiveMatch(
+  view: EditorView,
+  behavior: EditorFindScrollBehavior = 'smooth',
+) {
   const state = getEditorFindState(view);
   if (!state || state.activeIndex < 0) {
     return;
@@ -67,7 +76,7 @@ function maybeScrollToActiveMatch(view: EditorView) {
   }
 
   revealEditorFindMatch(view, activeMatch);
-  scrollEditorFindMatchIntoView(view, activeMatch);
+  scrollEditorFindMatchIntoView(view, activeMatch, behavior);
 }
 
 function dispatchEditorFindMeta(view: EditorView, meta: EditorFindPluginMeta) {
@@ -83,7 +92,11 @@ export function getEditorFindState(view: EditorView): EditorFindPluginState | un
   }
 }
 
-export function setEditorFindQuery(view: EditorView, query: string) {
+export function setEditorFindQuery(
+  view: EditorView,
+  query: string,
+  behavior: EditorFindScrollBehavior = 'smooth',
+) {
   const state = getEditorFindState(view);
   const preferredFrom =
     state && state.query.length > 0 && state.activeIndex >= 0
@@ -95,7 +108,7 @@ export function setEditorFindQuery(view: EditorView, query: string) {
     query,
     preferredFrom,
   });
-  maybeScrollToActiveMatch(view);
+  maybeScrollToActiveMatch(view, behavior);
 }
 
 export function clearEditorFind(view: EditorView) {
@@ -119,6 +132,23 @@ export function stepEditorFindMatch(view: EditorView, delta: number) {
     activeIndex: nextIndex,
   });
   maybeScrollToActiveMatch(view);
+}
+
+export function setEditorFindActiveIndex(
+  view: EditorView,
+  activeIndex: number,
+  behavior: EditorFindScrollBehavior = 'smooth',
+) {
+  const state = getEditorFindState(view);
+  if (!state || state.matches.length === 0) {
+    return;
+  }
+
+  dispatchEditorFindMeta(view, {
+    type: 'set-active-index',
+    activeIndex,
+  });
+  maybeScrollToActiveMatch(view, behavior);
 }
 
 export function replaceCurrentEditorFindMatch(view: EditorView, replacement: string): boolean {

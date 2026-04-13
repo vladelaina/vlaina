@@ -76,7 +76,7 @@ export class AssetService {
       const files = await storage.listDir(targetDir);
       existingFiles = files.filter(f => f.isFile).map(f => f.name);
     } catch (error) {
-      console.warn('Failed to list directory for conflict resolution, falling back to asset list', error);
+      if (import.meta.env.DEV) console.warn('Failed to list directory for conflict resolution, falling back to asset list', error);
       existingFiles = existingAssets.map(a => a.filename.split('/').pop() || '');
     }
 

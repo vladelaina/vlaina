@@ -1,34 +1,73 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { checkBuildBudget } from './check-build-budget.mjs';
 import { assertNotWsl } from './ensure-not-wsl.mjs';
 
 function runPnpm(args) {
-  if (process.platform === 'win32') {
-    return spawnSync('cmd.exe', ['/c', 'pnpm', ...args], { encoding: 'utf8' });
-  }
-  return spawnSync('pnpm', args, { encoding: 'utf8' });
+  return new Promise((resolve) => {
+    const child =
+      process.platform === 'win32'
+        ? spawn('cmd.exe', ['/c', 'pnpm', ...args], { stdio: ['ignore', 'pipe', 'pipe'] })
+        : spawn('pnpm', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout?.setEncoding('utf8');
+    child.stderr?.setEncoding('utf8');
+    child.stdout?.on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr?.on('data', (chunk) => {
+      stderr += chunk;
+    });
+
+    child.on('error', (error) => {
+      resolve({
+        status: 1,
+        stdout,
+        stderr: `${stderr}${error.stack ?? error.message}`,
+      });
+    });
+
+    child.on('close', (status) => {
+      resolve({
+        status: status ?? 1,
+        stdout,
+        stderr,
+      });
+    });
+  });
 }
 
-function runStep(label, args) {
+function startStep(label, args) {
   console.log(`[QualityGate] ${label}...`);
-  const result = runPnpm(args);
-
-  const output = `${result.stdout || ''}${result.stderr || ''}`;
-  if (result.status !== 0) {
-    process.stdout.write(output);
-    throw new Error(`[QualityGate] ${label} failed with code ${result.status ?? 'unknown'}.`);
-  }
-
-  process.stdout.write(output);
-  return output;
+  return runPnpm(args).then((result) => ({
+    label,
+    ...result,
+    output: `${result.stdout || ''}${result.stderr || ''}`,
+  }));
 }
 
-function main() {
+async function main() {
   assertNotWsl('quality:gate');
-  runStep('Typecheck', ['exec', 'tsc', '--noEmit', '--pretty', 'false']);
-  runStep('Tests', ['exec', 'vitest', 'run']);
-  const buildLog = runStep('Build', ['build']);
+
+  const results = await Promise.all([
+    startStep('Typecheck', ['exec', 'tsc', '--noEmit', '--pretty', 'false']),
+    startStep('Tests', ['exec', 'vitest', 'run']),
+    startStep('Build', ['build']),
+  ]);
+
+  for (const result of results) {
+    process.stdout.write(result.output);
+  }
+
+  const failed = results.find((result) => result.status !== 0);
+  if (failed) {
+    throw new Error(`[QualityGate] ${failed.label} failed with code ${failed.status ?? 'unknown'}.`);
+  }
+
+  const buildLog = results.find((result) => result.label === 'Build')?.output ?? '';
 
   mkdirSync('temp', { recursive: true });
   const logPath = 'temp/build-quality-gate.log';
@@ -52,4 +91,4 @@ function main() {
   console.log('[QualityGate] PASS');
 }
 
-main();
+await main();

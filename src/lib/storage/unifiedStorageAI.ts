@@ -15,20 +15,10 @@ export function normalizeLoadedAIModels(
 
   const normalizedModels = models
     .filter((model) => providerIds.has(model.providerId))
-    .map((model) => {
-      const apiModelId =
-        typeof (model as AIModel & { apiModelId?: string }).apiModelId === 'string' &&
-        (model as AIModel & { apiModelId?: string }).apiModelId.trim().length > 0
-          ? (model as AIModel & { apiModelId?: string }).apiModelId.trim()
-          : model.id;
-
-      const normalizedId = buildScopedModelId(model.providerId, apiModelId);
-      return {
-        ...model,
-        id: normalizedId,
-        apiModelId,
-      };
-    });
+    .map((model) => ({
+      ...model,
+      id: buildScopedModelId(model.providerId, model.apiModelId),
+    }));
 
   const availableIds = new Set(normalizedModels.map((model) => model.id));
 

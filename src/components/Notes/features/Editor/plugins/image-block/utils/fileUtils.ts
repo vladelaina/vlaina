@@ -97,6 +97,13 @@ export async function restoreImageFromTrash(
     }
 }
 
+export function cancelAllPendingImageDeletions(): void {
+    for (const [path, timerId] of pendingDeletions) {
+        clearTimeout(timerId);
+        pendingDeletions.delete(path);
+    }
+}
+
 async function resolveImagePath(src: string, notesPath: string, currentNotePath?: string): Promise<string> {
     return (await resolveImageSourcePath({
         rawSrc: src,

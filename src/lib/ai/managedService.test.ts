@@ -33,6 +33,7 @@ vi.mock('@/lib/tauri/webAccountCommands', () => ({
 
 describe('managedService', () => {
   beforeEach(() => {
+    vi.resetModules();
     hasBackendCommandsMock.mockReset();
     clearClientSessionMock.mockReset();
     getManagedModelsMock.mockReset();
@@ -41,6 +42,7 @@ describe('managedService', () => {
     vi.spyOn(console, 'log').mockImplementation(() => undefined);
     vi.spyOn(console, 'debug').mockImplementation(() => undefined);
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   });
 
   it('uses credentialed web requests for managed models', async () => {
@@ -61,6 +63,7 @@ describe('managedService', () => {
       method: 'GET',
       cache: 'no-store',
       credentials: 'include',
+      signal: expect.any(AbortSignal),
       headers: {
         Accept: 'application/json',
       },

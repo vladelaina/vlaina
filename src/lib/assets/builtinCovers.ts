@@ -32,7 +32,7 @@ export function getBuiltinCoverUrl(assetPath: string): string {
   const id = assetPath.slice(1); // Remove @ prefix
   const cover = COVER_BY_ID.get(id);
   if (!cover) {
-    console.warn('Unknown built-in cover:', assetPath);
+    if (import.meta.env.DEV) console.warn('Unknown built-in cover:', assetPath);
     return '';
   }
   return `/covers/${cover.path}`;

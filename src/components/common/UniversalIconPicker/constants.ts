@@ -5,7 +5,7 @@ export type TabType = 'emoji' | 'upload';
 
 export const RECENT_ICONS_KEY = 'vlaina-recent-icons';
 export const SKIN_TONE_KEY = 'vlaina-emoji-skin-tone';
-export const ICON_COLOR_KEY = 'vlaina-icon-color-v2';
+export const ICON_COLOR_KEY = 'vlaina-icon-color';
 export const ACTIVE_TAB_KEY = 'vlaina-icon-picker-tab';
 export const MAX_RECENT_EMOJIS = 18;
 export const EMOJI_PER_ROW = 9;

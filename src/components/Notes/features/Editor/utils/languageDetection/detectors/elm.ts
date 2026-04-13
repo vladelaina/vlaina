@@ -2,6 +2,10 @@ import type { LanguageDetector } from '../types';
 
 export const detectElm: LanguageDetector = (ctx) => {
   const { code, first100Lines } = ctx;
+  if (/^#include\s*[<"]/m.test(first100Lines) || /^#\s*(define|ifdef|ifndef|elif|else|endif)\b/m.test(first100Lines) || /\bstd::/.test(code) || /\bmutable\b/.test(code) || /\b(public|private|protected):\s*$/m.test(code) || /\b(typedef\s+struct|typedef\s+void\s*\(\*|union\s+\w+\s*\{|restrict\b|volatile\b|extern\s+\w)\b/.test(code) || /\bdo\s*\{[\s\S]*\}\s*while\s*\(/.test(code)) {
+    return null;
+  }
+
 
   if (/\b(const|var|export\s+default|export\s+const|import\s+.*from)\s+/.test(first100Lines)) {
     return null;

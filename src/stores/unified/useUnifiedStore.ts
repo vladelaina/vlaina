@@ -8,7 +8,6 @@ import {
   type TimezoneInfo,
 } from '@/lib/storage/unifiedStorage';
 import { scanGlobalIcons } from '@/lib/storage/assetStorage';
-import { isTemporarySession, isTemporarySessionId } from '@/lib/ai/temporaryChat';
 
 import { createProgressActions } from './actions/progressActions';
 import { createSettingsActions } from './actions/settingsActions';
@@ -36,7 +35,7 @@ interface UnifiedStoreState {
 
 interface UnifiedStoreActions {
   load: () => Promise<void>;
-  reloadFromDisk: (options?: { preserveRuntimeChat?: boolean }) => Promise<void>;
+  reloadFromDisk: () => Promise<void>;
   
   addProgress: (item: Omit<UnifiedProgress, 'id' | 'createdAt' | 'current' | 'todayCount'>) => void;
   updateProgress: (id: string, delta: number) => void;
@@ -112,54 +111,6 @@ function normalizeUnifiedData(data: UnifiedData): UnifiedData {
   return normalized;
 }
 
-function mergeRuntimeChatState(nextData: UnifiedData, previousData: UnifiedData): UnifiedData {
-  const nextAI = nextData.ai;
-  const prevAI = previousData.ai;
-
-  if (!nextAI || !prevAI) {
-    return nextData;
-  }
-
-  const mergedAI = { ...nextAI };
-  const existingSessionIds = new Set(mergedAI.sessions.map((session) => session.id));
-  const preservedMessages: NonNullable<UnifiedData['ai']>['messages'] = {};
-
-  for (const [sessionId, messages] of Object.entries(prevAI.messages || {})) {
-    if (existingSessionIds.has(sessionId) || isTemporarySessionId(sessionId)) {
-      preservedMessages[sessionId] = messages;
-    }
-  }
-  mergedAI.messages = { ...mergedAI.messages, ...preservedMessages };
-
-  if (prevAI.temporaryChatEnabled) {
-    const temporarySessions = prevAI.sessions.filter((session) => isTemporarySession(session));
-    if (temporarySessions.length > 0) {
-      const nonDuplicateTemps = temporarySessions.filter(
-        (session) => !existingSessionIds.has(session.id)
-      );
-      if (nonDuplicateTemps.length > 0) {
-        mergedAI.sessions = [...nonDuplicateTemps, ...mergedAI.sessions];
-      }
-      mergedAI.temporaryChatEnabled = true;
-    }
-  }
-
-  if (prevAI.currentSessionId) {
-    const hasCurrentSession =
-      mergedAI.sessions.some((session) => session.id === prevAI.currentSessionId) ||
-      !!mergedAI.messages[prevAI.currentSessionId];
-    if (hasCurrentSession) {
-      mergedAI.currentSessionId = prevAI.currentSessionId;
-    }
-  }
-
-  if (prevAI.selectedModelId && mergedAI.models.some((model) => model.id === prevAI.selectedModelId)) {
-    mergedAI.selectedModelId = prevAI.selectedModelId;
-  }
-
-  return { ...nextData, ai: mergedAI };
-}
-
 const initialState: UnifiedStoreState = {
   data: {
     progress: [],
@@ -183,12 +134,8 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
       await get().reloadFromDisk();
     },
 
-    reloadFromDisk: async (options) => {
-      const previousData = get().data;
-      const normalizedData = normalizeUnifiedData(await loadUnifiedData());
-      const data = options?.preserveRuntimeChat
-        ? mergeRuntimeChatState(normalizedData, previousData)
-        : normalizedData;
+    reloadFromDisk: async () => {
+      const data = normalizeUnifiedData(await loadUnifiedData());
       set({ data, loaded: true });
     },
 

@@ -3,7 +3,7 @@ import * as fc from "fast-check";
 import { shouldBlockBrowserReservedShortcut } from "./browserGuards";
 
 describe("shouldBlockBrowserReservedShortcut", () => {
-  it("blocks Ctrl+J and Cmd+J without Shift/Alt", () => {
+  it("blocks Ctrl/Cmd+J and Ctrl/Cmd+P without Shift/Alt", () => {
     const ctrlJ = new KeyboardEvent("keydown", {
       key: "j",
       ctrlKey: true,
@@ -12,9 +12,19 @@ describe("shouldBlockBrowserReservedShortcut", () => {
       key: "j",
       metaKey: true,
     });
+    const ctrlP = new KeyboardEvent("keydown", {
+      key: "p",
+      ctrlKey: true,
+    });
+    const metaP = new KeyboardEvent("keydown", {
+      key: "p",
+      metaKey: true,
+    });
 
     expect(shouldBlockBrowserReservedShortcut(ctrlJ)).toBe(true);
     expect(shouldBlockBrowserReservedShortcut(metaJ)).toBe(true);
+    expect(shouldBlockBrowserReservedShortcut(ctrlP)).toBe(true);
+    expect(shouldBlockBrowserReservedShortcut(metaP)).toBe(true);
   });
 
   it("does not block when Shift/Alt are pressed", () => {
@@ -41,7 +51,7 @@ describe("shouldBlockBrowserReservedShortcut", () => {
     expect(shouldBlockBrowserReservedShortcut(ctrlK)).toBe(false);
   });
 
-  it("only blocks the exact modifier+J shape under randomized input", () => {
+  it("only blocks the exact modifier+J/P shape under randomized input", () => {
     fc.assert(
       fc.property(
         fc.string({ minLength: 1, maxLength: 3 }),
@@ -62,12 +72,12 @@ describe("shouldBlockBrowserReservedShortcut", () => {
             (ctrlKey || metaKey) &&
             !shiftKey &&
             !altKey &&
-            key.toLowerCase() === "j";
+            ["j", "p"].includes(key.toLowerCase());
 
           expect(shouldBlockBrowserReservedShortcut(event)).toBe(expected);
         },
       ),
-      { numRuns: 150 },
+      { numRuns: 150, seed: 20260412 },
     );
   });
 });

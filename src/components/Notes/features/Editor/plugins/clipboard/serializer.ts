@@ -1,3 +1,11 @@
+function escapeLinkText(text: string): string {
+    return text.replace(/([[\]])/g, '\\$1');
+}
+
+function escapeLinkUrl(url: string): string {
+    return url.replace(/([()])/g, '\\$1');
+}
+
 export function serializeSliceToText(slice: any): string {
     const processNode = (node: any): string => {
         if (node.isText && node.text) {
@@ -6,7 +14,7 @@ export function serializeSliceToText(slice: any): string {
                 if (node.text === linkMark.attrs.href) {
                     return node.text;
                 } else {
-                    return '[' + node.text + '](' + linkMark.attrs.href + ')';
+                    return '[' + escapeLinkText(node.text) + '](' + escapeLinkUrl(linkMark.attrs.href) + ')';
                 }
             }
             return node.text;

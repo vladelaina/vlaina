@@ -22,7 +22,7 @@ export async function safeInvoke<T>(
     return options.webFallback;
   }
 
-  console.warn(`[Invoke] Command '${command}' called on web platform, returning undefined`);
+  if (import.meta.env.DEV) console.warn(`[Invoke] Command '${command}' called on web platform, returning undefined`);
   return undefined;
 }
 

@@ -194,7 +194,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
       await cleanupTempFiles(coversDir);
       await cleanupTempFiles(iconsDir);
     } catch (error) {
-      console.warn('Failed to cleanup asset temp files:', error);
+      if (import.meta.env.DEV) console.warn('Failed to cleanup asset temp files:', error);
     }
   },
 

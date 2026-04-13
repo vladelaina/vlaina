@@ -3,6 +3,32 @@ import type { LanguageDetector } from '../types';
 export const detectCrystal: LanguageDetector = (ctx) => {
   const { code, first100Lines, firstLine, lines } = ctx;
 
+  if ((/@property\b/.test(code) || /@[a-z_]\w*\.setter\b/.test(code)) && /(?:^|\n)\s*def\s+\w+\s*\([^)\n]*\)\s*(?:->\s*[^:\n]+)?\s*:/.test(code)) {
+    return null;
+  }
+  if (/^#include\s*[<"]/m.test(first100Lines) || /\benum\s+class\b/.test(code) || /\bstd::/.test(code) || /\b(public|private|protected):\s*$/m.test(code)) {
+    return null;
+  }
+
+
+  if (
+    /^require(?:_relative)?\s+['"]/.test(first100Lines) &&
+    !/^#!.*crystal/.test(firstLine) &&
+    (
+      /\b(Bundler\.require|JSON\.parse|Net::HTTP\.get|OpenStruct\.new|OptionParser\.new|ERB\.new|Date\.today|Time\.now|URI\.parse|Set\.new|Pathname\.new|YAML\.load_file|Shellwords\.split|Open3\.capture3|File\.read|CSV\.foreach|Gem::Specification\.new)\b/.test(code) ||
+      /\bputs\s+\w+\./.test(code)
+    )
+  ) {
+    return null;
+  }
+
+  if (
+    /\b(Sidekiq::Worker|Minitest::Test|ActiveSupport::Concern|ApplicationRecord|ApplicationJob|ApplicationMailer|ApplicationController|FactoryBot\.define|RSpec\.(describe|shared_examples)|described_class|delegate_missing_to|perform_later|deliver_later|module_function)\b/.test(code) ||
+    /\bclass\s+\w+\s*<\s*(ApplicationRecord|ApplicationJob|ApplicationMailer|ApplicationController|Minitest::Test)\b/.test(code)
+  ) {
+    return null;
+  }
+
   // Crystal type annotations
   if (/:\s*[A-Z]\w*/.test(code) && /\b(def|class|property|getter|setter)\b/.test(code)) {
     if (/^#!.*crystal/.test(firstLine) || /require\s+["']/.test(first100Lines) || /\b(property|getter|setter)\b/.test(code)) {
@@ -88,7 +114,7 @@ export const detectCrystal: LanguageDetector = (ctx) => {
   }
 
   if (/@\w+\s*::\s*[A-Z]\w*/.test(code) || /\w+\s*::\s*[A-Z]\w*/.test(code)) {
-    if (/\b(def|class|module|require)\b/.test(code)) {
+    if (/\b(def|class|module|struct|lib|fun|macro)\b/.test(code)) {
       return 'crystal';
     }
   }
@@ -134,17 +160,16 @@ export const detectCrystal: LanguageDetector = (ctx) => {
     return 'crystal';
   }
 
-  // Simple puts statement - only Crystal if it has Crystal-specific features
+  // Simple puts statement should stay with Ruby unless Crystal-only markers exist
   if (lines.length <= 3 && /\bputs\s+/.test(code)) {
-    // Check for Crystal-specific features
-    if (/\b(require|property|getter|setter|:\s*[A-Z]\w*)\b/.test(code)) {
+    if (/\b(property|getter|setter)\b/.test(code)) {
       return 'crystal';
     }
-    // Crystal type annotation with space before colon
+
     if (/\w+\s*:\s*[A-Z]\w*\s*=/.test(code)) {
       return 'crystal';
     }
-    // Otherwise, let Ruby handle it
+
     return null;
   }
 

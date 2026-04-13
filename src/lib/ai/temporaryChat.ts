@@ -13,7 +13,7 @@ export function isTemporarySession(session: ChatSession | null | undefined): boo
 export function createTemporarySession(modelId: string): ChatSession {
   const now = Date.now();
   return {
-    id: `${TEMP_SESSION_PREFIX}${now}-${Math.random().toString(36).substring(2, 11)}`,
+    id: `${TEMP_SESSION_PREFIX}${crypto.randomUUID()}`,
     title: 'Temporary Chat',
     modelId,
     createdAt: now,
