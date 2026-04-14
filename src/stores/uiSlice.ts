@@ -8,7 +8,6 @@ const STORAGE_KEY_IMAGE_STORAGE_MODE = 'vlaina_image_storage_mode';
 const STORAGE_KEY_IMAGE_SUBFOLDER_NAME = 'vlaina_image_subfolder_name';
 const STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME = 'vlaina_image_vault_subfolder_name';
 const STORAGE_KEY_IMAGE_FILENAME_FORMAT = 'vlaina_image_filename_format';
-const STORAGE_KEY_TAG_FILTER = 'vlaina_tag_filter';
 
 export type AppViewMode = 'notes' | 'chat' | 'lab';
 export type NotesSidebarView = 'workspace' | 'outline';
@@ -49,8 +48,6 @@ interface UIStore {
   drawerOpen: boolean;
   setDrawerOpen: (open: boolean) => void;
   toggleDrawer: () => void;
-  selectedTag: string | null;
-  setSelectedTag: (tag: string | null) => void;
 
   universalPreviewTarget: string | null;
   universalPreviewIcon: string | null;
@@ -103,25 +100,6 @@ function loadNumber(key: string, defaultValue: number): number {
   } catch {
   }
   return defaultValue;
-}
-
-function loadTagFilter(): string | null {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY_TAG_FILTER);
-    if (!saved) return null;
-    const value = saved.trim();
-    return value.length > 0 ? value : null;
-  } catch {
-  }
-  return null;
-}
-
-function saveTagFilter(tag: string | null): void {
-  if (!tag) {
-    localStorage.removeItem(STORAGE_KEY_TAG_FILTER);
-    return;
-  }
-  localStorage.setItem(STORAGE_KEY_TAG_FILTER, tag);
 }
 
 function loadImageStorageMode(): ImageStorageMode {
@@ -206,11 +184,6 @@ export const useUIStore = create<UIStore>()((set) => ({
   drawerOpen: false,
   setDrawerOpen: (open) => set({ drawerOpen: open }),
   toggleDrawer: () => set((state) => ({ drawerOpen: !state.drawerOpen })),
-  selectedTag: loadTagFilter(),
-  setSelectedTag: (tag) => {
-    saveTagFilter(tag);
-    set({ selectedTag: tag });
-  },
 
   universalPreviewTarget: null,
   universalPreviewIcon: null,

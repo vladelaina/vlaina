@@ -570,22 +570,22 @@ ORDER BY ms.month DESC, rank;
 ### Vue - Composition API
 ```vue
 <template>
-  <div class="todo-list">
+  <div class="entry-list">
     <input 
-      v-model="newTodo" 
-      @keyup.enter="addTodo"
-      placeholder="Add a todo..."
+      v-model="newEntry" 
+      @keyup.enter="addEntry"
+      placeholder="Add an entry..."
     >
     <ul>
-      <li v-for="todo in filteredTodos" :key="todo.id">
+      <li v-for="entry in filteredEntries" :key="entry.id">
         <input 
           type="checkbox" 
-          v-model="todo.completed"
+          v-model="entry.completed"
         >
-        <span :class="{ completed: todo.completed }">
-          {{ todo.text }}
+        <span :class="{ completed: entry.completed }">
+          {{ entry.text }}
         </span>
-        <button @click="removeTodo(todo.id)">Delete</button>
+        <button @click="removeEntry(entry.id)">Delete</button>
       </li>
     </ul>
   </div>
@@ -594,26 +594,26 @@ ORDER BY ms.month DESC, rank;
 <script setup>
 import { ref, computed } from 'vue';
 
-const newTodo = ref('');
-const todos = ref([]);
+const newEntry = ref('');
+const entries = ref([]);
 
-const addTodo = () => {
-  if (newTodo.value.trim()) {
-    todos.value.push({
+const addEntry = () => {
+  if (newEntry.value.trim()) {
+    entries.value.push({
       id: Date.now(),
-      text: newTodo.value,
+      text: newEntry.value,
       completed: false
     });
-    newTodo.value = '';
+    newEntry.value = '';
   }
 };
 
-const removeTodo = (id) => {
-  todos.value = todos.value.filter(t => t.id !== id);
+const removeEntry = (id) => {
+  entries.value = entries.value.filter(t => t.id !== id);
 };
 
-const filteredTodos = computed(() => {
-  return todos.value.filter(t => !t.completed);
+const filteredEntries = computed(() => {
+  return entries.value.filter(t => !t.completed);
 });
 </script>
 ```
@@ -1128,34 +1128,34 @@ return config
 ```dart
 import 'package:flutter/material.dart';
 
-class TodoList extends StatefulWidget {
+class EntryList extends StatefulWidget {
   @override
-  _TodoListState createState() => _TodoListState();
+  _EntryListState createState() => _EntryListState();
 }
 
-class _TodoListState extends State<TodoList> {
-  final List<String> _todos = [];
+class _EntryListState extends State<EntryList> {
+  final List<String> _entries = [];
   final TextEditingController _controller = TextEditingController();
 
-  void _addTodo() {
+  void _addEntry() {
     if (_controller.text.isNotEmpty) {
       setState(() {
-        _todos.add(_controller.text);
+        _entries.add(_controller.text);
         _controller.clear();
       });
     }
   }
 
-  void _removeTodo(int index) {
+  void _removeEntry(int index) {
     setState(() {
-      _todos.removeAt(index);
+      _entries.removeAt(index);
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Todo List')),
+      appBar: AppBar(title: Text('Entry List')),
       body: Column(
         children: [
           Padding(
@@ -1163,24 +1163,24 @@ class _TodoListState extends State<TodoList> {
             child: TextField(
               controller: _controller,
               decoration: InputDecoration(
-                hintText: 'Enter a todo',
+                hintText: 'Enter an entry',
                 suffixIcon: IconButton(
                   icon: Icon(Icons.add),
-                  onPressed: _addTodo,
+                  onPressed: _addEntry,
                 ),
               ),
-              onSubmitted: (_) => _addTodo(),
+              onSubmitted: (_) => _addEntry(),
             ),
           ),
           Expanded(
             child: ListView.builder(
-              itemCount: _todos.length,
+              itemCount: _entries.length,
               itemBuilder: (context, index) {
                 return ListTile(
-                  title: Text(_todos[index]),
+                  title: Text(_entries[index]),
                   trailing: IconButton(
                     icon: Icon(Icons.delete),
-                    onPressed: () => _removeTodo(index),
+                    onPressed: () => _removeEntry(index),
                   ),
                 );
               },

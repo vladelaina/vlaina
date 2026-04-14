@@ -12,7 +12,6 @@ describe('uiSlice', () => {
       notesSidebarView: 'workspace',
       notesPreviewTitle: null,
       drawerOpen: false,
-      selectedTag: null,
       universalPreviewTarget: null,
       universalPreviewIcon: null,
       universalPreviewColor: null,
@@ -67,14 +66,6 @@ describe('uiSlice', () => {
       universalPreviewTone: 2,
       universalPreviewIconSize: 20,
     });
-  });
-
-  it('persists selected tag filter', () => {
-    useUIStore.getState().setSelectedTag('Deep Work');
-    expect(useUIStore.getState().selectedTag).toBe('Deep Work');
-
-    useUIStore.getState().setSelectedTag(null);
-    expect(useUIStore.getState().selectedTag).toBeNull();
   });
 
   it('sanitizes image folder names before persisting', () => {

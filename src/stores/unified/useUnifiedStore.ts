@@ -3,16 +3,13 @@ import {
   loadUnifiedData,
   saveUnifiedData,
   type UnifiedData,
-  type UnifiedProgress,
   type CustomIcon,
   type TimezoneInfo,
 } from '@/lib/storage/unifiedStorage';
 import { scanGlobalIcons } from '@/lib/storage/assetStorage';
 
-import { createProgressActions } from './actions/progressActions';
 import { createSettingsActions } from './actions/settingsActions';
 import { resolveMarkdownSettings } from './settings/markdownSettings';
-import type { TimeView } from '@/lib/date';
 import type { ItemColor } from '@/lib/colors';
 import { 
   DEFAULT_SETTINGS,
@@ -20,12 +17,11 @@ import {
 import type { UndoAction } from '../types';
 
 export type {
-  UnifiedProgress,
   CustomIcon,
   TimezoneInfo,
 };
 
-export type { ItemColor, TimeView };
+export type { ItemColor };
 
 interface UnifiedStoreState {
   data: UnifiedData;
@@ -36,20 +32,8 @@ interface UnifiedStoreState {
 interface UnifiedStoreActions {
   load: () => Promise<void>;
   reloadFromDisk: () => Promise<void>;
-  
-  addProgress: (item: Omit<UnifiedProgress, 'id' | 'createdAt' | 'current' | 'todayCount'>) => void;
-  updateProgress: (id: string, delta: number) => void;
-  updateProgressItem: (id: string, updates: Partial<UnifiedProgress>) => void;
-  deleteProgress: (id: string) => void;
-  toggleProgressArchive: (id: string) => void;
-  reorderProgress: (activeId: string, overId: string) => void;
 
   setTimezone: (offset: number, city: string) => void;
-  setViewMode: (mode: TimeView) => void;
-  setDayCount: (count: number) => void;
-  setHourHeight: (height: number) => void;
-  toggle24Hour: () => void;
-  setDayStartTime: (minutes: number) => void;
   setMarkdownCodeBlockLineNumbers: (showLineNumbers: boolean) => void;
   
   addCustomIcon: (icon: CustomIcon) => void;
@@ -87,14 +71,13 @@ function normalizeUnifiedData(data: UnifiedData): UnifiedData {
   const settings = normalized.settings;
 
   normalized.settings = {
-    ...DEFAULT_SETTINGS,
-    ...settings,
     timezone: {
       ...DEFAULT_SETTINGS.timezone,
       ...settings?.timezone,
     },
     markdown: resolveMarkdownSettings(settings?.markdown),
   };
+  normalized.customIcons = normalized.customIcons || [];
 
   normalized.ai = ai
     ? {
@@ -113,7 +96,6 @@ function normalizeUnifiedData(data: UnifiedData): UnifiedData {
 
 const initialState: UnifiedStoreState = {
   data: {
-    progress: [],
     settings: { ...DEFAULT_SETTINGS },
     customIcons: [],
     ai: createDefaultAIData(),
@@ -123,7 +105,6 @@ const initialState: UnifiedStoreState = {
 };
 
 export const useUnifiedStore = create<UnifiedStore>((set, get) => {
-  const progressActions = createProgressActions(set as any, persist);
   const settingsActions = createSettingsActions(set as any, persist);
 
   return {
@@ -195,7 +176,6 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
         }
     },
 
-    ...progressActions,
     ...settingsActions,
   };
 });

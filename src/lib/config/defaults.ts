@@ -1,12 +1,6 @@
-import type { TimeView } from '@/lib/date';
 import { detectSystemTimezone } from './detectTimezone';
 
 export const DEFAULT_TIMEZONE = detectSystemTimezone();
-export const DEFAULT_VIEW_MODE: TimeView = 'day';
-export const DEFAULT_DAY_COUNT = 1;
-export const DEFAULT_HOUR_HEIGHT = 64;
-export const DEFAULT_USE_24_HOUR = false;
-export const DEFAULT_DAY_START_TIME = 300;
 export const STORAGE_KEY_SHORTCUTS = 'vlaina-shortcuts';
 export const STORAGE_KEY_PENDING_SYNC = 'pendingSync';
 export const STORAGE_KEY_FONT_SIZE = 'fontSize';
@@ -19,11 +13,6 @@ export const DEFAULT_SETTINGS = {
     offset: DEFAULT_TIMEZONE,
     city: 'Beijing',
   },
-  viewMode: DEFAULT_VIEW_MODE,
-  dayCount: DEFAULT_DAY_COUNT,
-  hourHeight: DEFAULT_HOUR_HEIGHT,
-  use24Hour: DEFAULT_USE_24_HOUR,
-  dayStartTime: DEFAULT_DAY_START_TIME,
   markdown: {
     codeBlock: {
       showLineNumbers: true,
