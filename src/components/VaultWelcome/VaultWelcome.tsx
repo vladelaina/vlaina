@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { LogicalSize } from '@tauri-apps/api/dpi';
 import { useVaultStore } from '@/stores/useVaultStore';
-import { windowCommands, hasBackendCommands } from '@/lib/tauri/invoke';
+import { windowCommands } from '@/lib/tauri/invoke';
 import { isTauri } from '@/lib/storage/adapter';
 import { cn } from '@/lib/utils';
 import { RecentVaultsList } from './components/RecentVaultsList';
 import './VaultWelcome.css';
 
 export function VaultWelcome() {
-  const { initialize, recentVaults, openVault, checkVaultOpenInOtherWindow, isLoading } =
+  const { initialize, recentVaults, openVault, isLoading } =
     useVaultStore();
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -49,18 +49,6 @@ export function VaultWelcome() {
   }, []);
 
   const handleOpenRecent = async (path: string) => {
-    if (hasBackendCommands()) {
-      const existingWindowLabel = await checkVaultOpenInOtherWindow(path);
-
-      if (existingWindowLabel) {
-        await windowCommands.focusWindow(existingWindowLabel);
-        if (isTauri()) {
-          getCurrentWindow().close();
-        }
-        return;
-      }
-    }
-
     await openVault(path);
   };
 

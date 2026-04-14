@@ -10,6 +10,7 @@ import { matchesShortcutBinding } from '@/lib/shortcuts';
 import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
 import { ResizablePanel } from '@/components/layout/ResizablePanel';
 import { ModuleShortcutsDialog } from '@/components/common/ModuleShortcutsDialog';
+import { readWindowLaunchContext } from '@/lib/tauri/windowLaunchContext';
 import { MarkdownEditor } from './features/Editor';
 import { useModuleShortcutsDialog } from '@/hooks/useModuleShortcutsDialog';
 import {
@@ -18,6 +19,7 @@ import {
 } from '@/components/Chat/features/Temporary/temporaryChatCommands';
 import { useCurrentVaultExternalPathSync } from './hooks/useCurrentVaultExternalPathSync';
 import { useNotesExternalSync } from './hooks/useNotesExternalSync';
+import { openStoredNotePath } from '@/stores/notes/openNotePath';
 
 const EmbeddedChatView = lazy(async () => {
   const mod = await import('@/components/Chat/ChatView');
@@ -59,6 +61,8 @@ export function NotesView() {
     absolutePath: string;
   } | null>(null);
   const chatComposerFocusFrameRef = useRef<number | null>(null);
+  const launchContextRef = useRef(readWindowLaunchContext());
+  const hasHandledLaunchNoteRef = useRef(false);
   const toggleShortcutsDialog = useCallback(() => setIsShortcutsOpen((prev) => !prev), []);
   const handleChatPanelDragStateChange = useCallback((dragging: boolean) => {
     setLayoutPanelDragging(dragging);
@@ -119,7 +123,7 @@ export function NotesView() {
       await Promise.all([
         loadMetadata(currentVault.path),
         loadAssets(currentVault.path),
-        loadFileTree(),
+        loadFileTree(Boolean(launchContextRef.current.notePath)),
         cleanupAssetTempFiles(),
       ]);
 
@@ -135,6 +139,19 @@ export function NotesView() {
       clearAssetUrlCache();
     };
   }, [currentVault, loadStarred, loadMetadata, loadAssets, loadFileTree, cleanupAssetTempFiles, clearAssetUrlCache]);
+
+  useEffect(() => {
+    if (hasHandledLaunchNoteRef.current) return;
+
+    const launchNotePath = launchContextRef.current.notePath;
+    if (!launchNotePath || !currentVault || notesPath !== currentVault.path) return;
+
+    hasHandledLaunchNoteRef.current = true;
+    void openStoredNotePath(launchNotePath, {
+      openNote,
+      openNoteByAbsolutePath,
+    });
+  }, [currentVault, notesPath, openNote, openNoteByAbsolutePath]);
 
   useEffect(() => {
     if (!currentVault || !pendingStarredNavigation) return;

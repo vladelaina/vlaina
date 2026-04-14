@@ -237,6 +237,7 @@ export function MarkdownEditor({
   const restoreSessionRef = useRef<{ path: string; targetScrollTop: number } | null>(null);
 
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
+  const currentNoteRevision = useNotesStore(s => s.currentNoteRevision);
   const openTabs = useNotesStore(s => s.openTabs);
   const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
   const isStarred = useNotesStore(s => s.isStarred);
@@ -459,7 +460,7 @@ export function MarkdownEditor({
             onAddCover={coverController.addRandomCoverAndOpenPicker}
           />
 
-          <MilkdownProvider key={currentNotePath}>
+          <MilkdownProvider key={`${currentNotePath ?? 'empty'}:${currentNoteRevision}`}>
             <MilkdownEditorInner />
           </MilkdownProvider>
         </div>

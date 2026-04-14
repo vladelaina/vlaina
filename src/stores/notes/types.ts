@@ -68,6 +68,7 @@ export interface NoteContentCacheEntry {
 export interface NotesState {
   rootFolder: FolderNode | null;
   currentNote: CurrentNoteState | null;
+  currentNoteRevision: number;
   notesPath: string;
   isDirty: boolean;
   isLoading: boolean;

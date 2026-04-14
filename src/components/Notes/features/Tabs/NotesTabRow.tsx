@@ -88,7 +88,14 @@ const SortableTab = memo(function SortableTab({
     transition: undefined,
   };
 
+  const isInteractiveTarget = (target: EventTarget | null) =>
+    target instanceof Element && Boolean(target.closest('button'));
+
   const handlePointerDown = (e: React.PointerEvent) => {
+    if (isInteractiveTarget(e.target)) {
+      return;
+    }
+
     if (e.button === 1) {
       e.preventDefault();
       e.stopPropagation();
@@ -108,6 +115,9 @@ const SortableTab = memo(function SortableTab({
           {...listeners}
           onPointerDown={handlePointerDown}
           onClick={(e) => {
+            if (isInteractiveTarget(e.target)) {
+              return;
+            }
             if (e.button === 1) return;
             onClick(tab.path);
           }}
@@ -133,10 +143,14 @@ const SortableTab = memo(function SortableTab({
           <button
             type="button"
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               onToggleStar(tab.path);
             }}
-            onPointerDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
             className={cn(
               'rounded p-0.5 transition-all',
               isStarred
@@ -148,11 +162,16 @@ const SortableTab = memo(function SortableTab({
           </button>
 
           <button
+            type="button"
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               onClose(tab.path);
             }}
-            onPointerDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
             className={cn(
               'ml-auto rounded p-0.5 opacity-0 transition-all pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100',
               'text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400'
@@ -282,7 +301,7 @@ export function NotesTabRow() {
         </TooltipTrigger>
         <TooltipContent side="bottom" sideOffset={5} className="flex items-center gap-1.5 text-xs">
           <span>New Note</span>
-          <ShortcutKeys keys={['Ctrl', 'N']} />
+          <ShortcutKeys keys={['Ctrl', 'T']} />
         </TooltipContent>
       </Tooltip>
     </div>

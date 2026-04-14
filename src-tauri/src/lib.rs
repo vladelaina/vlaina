@@ -243,17 +243,40 @@ async fn toggle_fullscreen(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-// Create a new application window (opens to welcome screen)
+// Create a new application window
 #[tauri::command]
-async fn create_new_window(app: AppHandle) -> Result<(), String> {
+async fn create_new_window(
+    app: AppHandle,
+    vault_path: Option<String>,
+    note_path: Option<String>,
+) -> Result<(), String> {
     use std::sync::atomic::{AtomicU32, Ordering};
     static WINDOW_COUNTER: AtomicU32 = AtomicU32::new(1);
 
     let window_id = WINDOW_COUNTER.fetch_add(1, Ordering::SeqCst);
     let window_label = format!("main-{}", window_id);
 
-    // Use URL with query param to indicate new window should show welcome screen
-    let url = WebviewUrl::App("index.html?newWindow=true".into());
+    let mut launch_url = Url::parse("https://vlaina.local/index.html").map_err(|e| e.to_string())?;
+    {
+        let mut pairs = launch_url.query_pairs_mut();
+        pairs.append_pair("newWindow", "true");
+
+        if let Some(vault_path) = vault_path.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+            pairs.append_pair("vaultPath", vault_path);
+        }
+
+        if let Some(note_path) = note_path.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+            pairs.append_pair("notePath", note_path);
+        }
+    }
+
+    let url = WebviewUrl::App(
+        format!(
+            "index.html?{}",
+            launch_url.query().unwrap_or("newWindow=true")
+        )
+        .into(),
+    );
 
     // Calculate offset position based on window count (cascade effect)
     let offset = (window_id as f64) * 30.0;
@@ -274,7 +297,7 @@ async fn create_new_window(app: AppHandle) -> Result<(), String> {
         .inner_size(980.0, 640.0)
         .min_inner_size(720.0, 540.0)
         .decorations(false)
-        .background_color(Color(0, 0, 0, 0))
+        .background_color(Color(255, 255, 255, 255))
         .resizable(false) // Start locked (Welcome mode)
         .maximizable(false)
         .visible(false); // Start hidden
