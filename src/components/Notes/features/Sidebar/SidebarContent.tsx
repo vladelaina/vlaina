@@ -25,6 +25,7 @@ import {
 import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
 import {
   applySidebarSearchNavigation,
+  clearSidebarSearchHighlights,
   clearSidebarSearchNavigationPending,
   markSidebarSearchNavigationPending,
 } from './sidebarSearchNavigation';
@@ -285,6 +286,15 @@ export function SidebarContent({
       window.removeEventListener('keydown', handleKeyDown, true);
     };
   }, []);
+
+  useEffect(() => {
+    if (search.isSearchOpen) {
+      return;
+    }
+
+    clearSidebarSearchHighlights();
+    setPendingNavigation(null);
+  }, [search.isSearchOpen]);
 
   useEffect(() => {
     if (

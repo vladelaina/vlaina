@@ -97,14 +97,26 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       const batch = filePaths.slice(i, i + BATCH_SIZE);
       const results = await Promise.allSettled(
         batch.map(async ({ path, fullPath }) => {
-          const content = await storage.readFile(fullPath);
-          return { path, content };
+          const [content, fileInfo] = await Promise.all([
+            storage.readFile(fullPath),
+            storage.stat(fullPath),
+          ]);
+          return {
+            path,
+            content,
+            modifiedAt: fileInfo?.modifiedAt ?? null,
+          };
         })
       );
 
       results.forEach((result) => {
         if (result.status === 'fulfilled') {
-          cache = setCachedNoteContent(cache, result.value.path, result.value.content, null);
+          cache = setCachedNoteContent(
+            cache,
+            result.value.path,
+            result.value.content,
+            result.value.modifiedAt
+          );
         }
       });
     }

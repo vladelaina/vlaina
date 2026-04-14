@@ -1,6 +1,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { getCurrentEditorView } from '../Editor/utils/editorViewRegistry';
 import {
+  clearEditorFind,
   getEditorFindState,
   setEditorFindActiveIndex,
   setEditorFindQuery,
@@ -19,6 +20,7 @@ export interface SidebarSearchNavigationTarget {
 }
 
 let pendingSidebarSearchNavigationPath: string | null = null;
+let activeSidebarSearchQuery: string | null = null;
 
 function getViewScrollRoot(view: EditorView): HTMLElement | null {
   return view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
@@ -47,6 +49,18 @@ export function clearSidebarSearchNavigationPending(path?: string | null) {
 
 export function isSidebarSearchNavigationPending(path: string | null | undefined) {
   return Boolean(path && pendingSidebarSearchNavigationPath === path);
+}
+
+export function clearSidebarSearchHighlights() {
+  const view = getCurrentEditorView();
+  if (view && activeSidebarSearchQuery != null) {
+    const state = getEditorFindState(view);
+    if (state?.query === activeSidebarSearchQuery) {
+      clearEditorFind(view);
+    }
+  }
+
+  activeSidebarSearchQuery = null;
 }
 
 async function waitForNextFrame(frameCount = 1) {
@@ -102,6 +116,7 @@ export async function applySidebarSearchNavigation(target: SidebarSearchNavigati
     const isPreviousView = Boolean(target.previousView && view === target.previousView);
 
     setEditorFindQuery(view, trimmedQuery, 'instant');
+    activeSidebarSearchQuery = trimmedQuery;
     const state = getEditorFindState(view);
 
     logSidebarSearchDebug('navigation:apply:attempt', {
@@ -146,6 +161,7 @@ export async function applySidebarSearchNavigation(target: SidebarSearchNavigati
   }
 
   clearSidebarSearchNavigationPending(target.path);
+  activeSidebarSearchQuery = trimmedQuery;
   logSidebarSearchDebug('navigation:apply:failed-timeout', {
     path: target.path ?? null,
     query: trimmedQuery,
