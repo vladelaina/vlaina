@@ -1,5 +1,6 @@
 import { isTauri } from '@/lib/storage/adapter';
 import { invoke } from '@tauri-apps/api/core';
+import type { WindowLaunchViewMode } from './windowLaunchContext';
 import { buildWindowLaunchSearch } from './windowLaunchContext';
 
 export async function safeInvoke<T>(
@@ -50,6 +51,7 @@ export const windowCommands = {
   async createNewWindow(options?: {
     vaultPath?: string | null;
     notePath?: string | null;
+    viewMode?: WindowLaunchViewMode | null;
   }): Promise<void> {
     if (!isTauri()) {
       const nextUrl = new URL(window.location.href);

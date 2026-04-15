@@ -20,6 +20,8 @@ import {
 import { useCurrentVaultExternalPathSync } from './hooks/useCurrentVaultExternalPathSync';
 import { useNotesExternalSync } from './hooks/useNotesExternalSync';
 import { openStoredNotePath } from '@/stores/notes/openNotePath';
+import { isDraftNotePath } from '@/stores/notes/draftNote';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 
 const EmbeddedChatView = lazy(async () => {
   const mod = await import('@/components/Chat/ChatView');
@@ -31,6 +33,7 @@ export function NotesView() {
   const loadFileTree = useNotesStore(s => s.loadFileTree);
   const openTabs = useNotesStore(s => s.openTabs);
   const closeTab = useNotesStore(s => s.closeTab);
+  const createNote = useNotesStore(s => s.createNote);
   const openNote = useNotesStore(s => s.openNote);
   const loadStarred = useNotesStore(s => s.loadStarred);
   const loadMetadata = useNotesStore(s => s.loadMetadata);
@@ -44,7 +47,12 @@ export function NotesView() {
   const setPendingStarredNavigation = useNotesStore(s => s.setPendingStarredNavigation);
   const notesPath = useNotesStore(s => s.notesPath);
   const rootFolder = useNotesStore(s => s.rootFolder);
+  const draftNotes = useNotesStore(s => s.draftNotes);
+  const isLoading = useNotesStore(s => s.isLoading);
   const openNoteByAbsolutePath = useNotesStore(s => s.openNoteByAbsolutePath);
+  const pendingDraftDiscardPath = useNotesStore(s => s.pendingDraftDiscardPath);
+  const cancelPendingDraftDiscard = useNotesStore(s => s.cancelPendingDraftDiscard);
+  const confirmPendingDraftDiscard = useNotesStore(s => s.confirmPendingDraftDiscard);
 
   const { currentVault, openVault } = useVaultStore();
   const sidebarWidth = useUIStore((s) => s.sidebarWidth);
@@ -61,6 +69,7 @@ export function NotesView() {
     absolutePath: string;
   } | null>(null);
   const chatComposerFocusFrameRef = useRef<number | null>(null);
+  const blankDraftRequestInFlightRef = useRef(false);
   const launchContextRef = useRef(readWindowLaunchContext());
   const hasHandledLaunchNoteRef = useRef(false);
   const toggleShortcutsDialog = useCallback(() => setIsShortcutsOpen((prev) => !prev), []);
@@ -233,11 +242,65 @@ export function NotesView() {
     };
   }, [currentVault, notesPath, openShortcutNoteTarget, pendingShortcutNoteTarget, rootFolder]);
 
+  useEffect(() => {
+    if (
+      isLoading ||
+      currentNotePath ||
+      openTabs.length > 0 ||
+      pendingShortcutNoteTarget ||
+      pendingStarredNavigation ||
+      isOpenTargetBusy ||
+      blankDraftRequestInFlightRef.current
+    ) {
+      return;
+    }
+
+    if (launchContextRef.current.notePath && !hasHandledLaunchNoteRef.current) {
+      return;
+    }
+
+    if (currentVault && (notesPath !== currentVault.path || !rootFolder)) {
+      return;
+    }
+
+    const draftPaths = Object.keys(draftNotes);
+    blankDraftRequestInFlightRef.current = true;
+
+    const ensureBlankDraft = async () => {
+      try {
+        if (draftPaths.length > 0) {
+          await openNote(draftPaths[0]);
+          return;
+        }
+
+        await createNote();
+      } finally {
+        blankDraftRequestInFlightRef.current = false;
+      }
+    };
+
+    void ensureBlankDraft();
+  }, [
+    createNote,
+    currentNotePath,
+    currentVault,
+    draftNotes,
+    isLoading,
+    isOpenTargetBusy,
+    notesPath,
+    openNote,
+    openTabs,
+    pendingShortcutNoteTarget,
+    pendingStarredNavigation,
+    rootFolder,
+  ]);
+
   const saveCurrentNoteIfNeeded = useCallback(async () => {
     if (!isDirty) return true;
+    if (isDraftNotePath(currentNotePath)) return true;
     await saveNote();
     return !useNotesStore.getState().isDirty;
-  }, [isDirty, saveNote]);
+  }, [currentNotePath, isDirty, saveNote]);
 
   const handleOpenSelectedFile = useCallback(async () => {
     if (isOpenTargetBusy) return;
@@ -406,6 +469,17 @@ export function NotesView() {
 
       </div>
       
+      <ConfirmDialog
+        isOpen={Boolean(pendingDraftDiscardPath)}
+        onClose={cancelPendingDraftDiscard}
+        onConfirm={confirmPendingDraftDiscard}
+        title="Discard Draft"
+        description="Are you sure you want to discard this unsaved draft? Any content that was not saved with Ctrl+S will be lost."
+        confirmText="Discard"
+        cancelText="Cancel"
+        variant="danger"
+      />
+
       <ModuleShortcutsDialog module="notes" open={isShortcutsOpen} onOpenChange={setIsShortcutsOpen} />
     </>
   );

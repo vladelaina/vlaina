@@ -8,6 +8,7 @@ import { HeroIconHeader } from '@/components/common/HeroIconHeader';
 import { CoverAddOverlay } from '../Cover';
 import { NotePathBreadcrumb } from './components/NotePathBreadcrumb';
 import { focusEditorAtTop } from './utils/focusEditor';
+import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
 
 interface NoteHeaderProps {
     coverUrl: string | null;
@@ -22,8 +23,7 @@ export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
 
     const noteIcon = useNotesStore(
         useCallback(state => {
-            if (!currentNotePath) return undefined;
-            return state.noteMetadata?.notes[currentNotePath]?.icon;
+            return getNoteMetadataEntry(state.noteMetadata, currentNotePath)?.icon;
         }, [currentNotePath])
     );
 

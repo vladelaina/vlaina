@@ -7,6 +7,7 @@ import {
 import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { NoteEditorFindBar, type NoteEditorFindController } from './find';
+import { canStarNotePath } from '@/stores/notes/notePathState';
 
 interface EditorTopRightToolbarProps {
   editorFind: NoteEditorFindController;
@@ -38,30 +39,34 @@ export function EditorTopRightToolbar({
   currentNoteMetadata,
   textStats,
 }: EditorTopRightToolbarProps) {
+  const canToggleStar = canStarNotePath(currentNotePath);
+
   return (
     <div className="absolute top-3 right-3 z-30 flex items-start gap-2">
       <NoteEditorFindBar controller={editorFind} />
 
       {!editorFind.isOpen ? (
         <>
-          <button
-            onClick={(event) => {
-              event.stopPropagation();
-              if (currentNotePath) {
-                toggleStarred(currentNotePath);
-              }
-            }}
-            className={cn(
-              'p-1.5 transition-colors',
-              starred ? 'text-yellow-500' : `${iconButtonStyles} hover:text-yellow-500`,
-            )}
-          >
-            <Icon
-              size="md"
-              name="misc.star"
-              style={{ fill: starred ? 'currentColor' : 'none' }}
-            />
-          </button>
+          {canToggleStar ? (
+            <button
+              onClick={(event) => {
+                event.stopPropagation();
+                if (canStarNotePath(currentNotePath)) {
+                  toggleStarred(currentNotePath);
+                }
+              }}
+              className={cn(
+                'p-1.5 transition-colors',
+                starred ? 'text-yellow-500' : `${iconButtonStyles} hover:text-yellow-500`,
+              )}
+            >
+              <Icon
+                size="md"
+                name="misc.star"
+                style={{ fill: starred ? 'currentColor' : 'none' }}
+              />
+            </button>
+          ) : null}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

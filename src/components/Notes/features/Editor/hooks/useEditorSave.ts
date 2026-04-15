@@ -4,7 +4,7 @@ import { createPersistenceQueue, type PersistenceQueue } from '@/lib/storage/per
 const SAVE_DEBOUNCE_MS = 800;
 const SAVE_MAX_WAIT_MS = 2500;
 
-export function useEditorSave(saveNote: () => Promise<void>) {
+export function useEditorSave(saveNote: (options?: { explicit?: boolean }) => Promise<void>) {
   const saveNoteRef = useRef(saveNote);
   const saveQueueRef = useRef<PersistenceQueue<number> | null>(null);
   const saveSequenceRef = useRef(0);
@@ -16,12 +16,17 @@ export function useEditorSave(saveNote: () => Promise<void>) {
       debounceMs: SAVE_DEBOUNCE_MS,
       maxWaitMs: SAVE_MAX_WAIT_MS,
       write: async () => {
-        await saveNoteRef.current();
+        await saveNoteRef.current({ explicit: false });
       },
     });
   }
 
-  const flushSave = useCallback(() => {
+  const flushSave = useCallback((explicit = false) => {
+    if (explicit) {
+      void saveNoteRef.current({ explicit: true });
+      return;
+    }
+
     void saveQueueRef.current?.flush();
   }, []);
 

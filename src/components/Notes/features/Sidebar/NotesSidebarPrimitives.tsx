@@ -31,7 +31,7 @@ export function NotesSidebarSurface({
   return (
     <SidebarSurface
       className={cn(
-        'flex h-full flex-col bg-[var(--notes-sidebar-surface)] text-[var(--notes-sidebar-text)]',
+        'group/notes-sidebar-surface flex h-full flex-col bg-[var(--notes-sidebar-surface)] text-[var(--notes-sidebar-text)]',
         className
       )}
       isPeeking={isPeeking}
@@ -171,6 +171,30 @@ export function NotesSidebarEmptyState({
       {description ? (
         <span className="text-[11px] text-[var(--notes-sidebar-text-soft)]">{description}</span>
       ) : null}
+    </div>
+  );
+}
+
+interface NotesSidebarHoverEmptyHintProps extends HTMLAttributes<HTMLDivElement> {
+  title: string;
+}
+
+export function NotesSidebarHoverEmptyHint({
+  title,
+  className,
+  ...props
+}: NotesSidebarHoverEmptyHintProps) {
+  return (
+    <div
+      className={cn(
+        'pointer-events-none absolute left-1/2 top-[38.2%] flex -translate-x-1/2 -translate-y-1/2 items-center justify-center opacity-0 transition-opacity duration-150 group-hover/notes-sidebar-surface:opacity-100',
+        className,
+      )}
+      {...props}
+    >
+      <span className="max-w-[170px] px-4 text-center text-[13px] text-[var(--notes-sidebar-text-soft)]">
+        {title}
+      </span>
     </div>
   );
 }

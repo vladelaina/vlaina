@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { DndContext, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
 import { isTauri } from '@/lib/storage/adapter';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -16,11 +16,17 @@ import { useAIStore } from '@/stores/useAIStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useVaultStore } from '@/stores/useVaultStore';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import { useSyncInit } from '@/hooks/useSyncInit';
+import { useUnifiedExternalSync } from '@/hooks/useUnifiedExternalSync';
 import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
+import { runTemporaryChatWelcomeShortcut } from '@/components/Chat/features/Temporary/temporaryChatCommands';
 import { flushPendingSave } from '@/lib/storage/unifiedStorage';
 import { flushPendingSessionJsonSaves } from '@/lib/storage/chatStorage';
+import { confirmDialog } from '@/lib/storage/dialog';
+import { isDraftNotePath } from '@/stores/notes/draftNote';
+import { readWindowLaunchContext } from '@/lib/tauri/windowLaunchContext';
 
 const SettingsModal = lazy(async () => {
   const mod = await import('@/components/Settings');
@@ -74,8 +80,11 @@ function AppContent() {
     toggleSidebar,
     setAppViewMode
   } = useUIStore();
+  const unifiedLoaded = useUnifiedStore((s) => s.loaded);
   const { currentVault, initialize } = useVaultStore();
   const { showInTitleBar } = useTemporaryTogglePresentation();
+  const launchContextRef = useRef(readWindowLaunchContext());
+  const hasHandledChatLaunchRef = useRef(false);
   const shouldShowTemporaryToggleInTitleBar =
     showInTitleBar &&
     (
@@ -98,10 +107,29 @@ function AppContent() {
   useShortcuts();
 
   useSyncInit();
+  useUnifiedExternalSync();
 
   useEffect(() => {
     initialize();
   }, [initialize]);
+
+  useEffect(() => {
+    if (hasHandledChatLaunchRef.current) {
+      return;
+    }
+
+    const launchContext = launchContextRef.current;
+    if (!launchContext.isNewWindow || launchContext.viewMode !== 'chat') {
+      return;
+    }
+
+    if (!unifiedLoaded || appViewMode !== 'chat') {
+      return;
+    }
+
+    hasHandledChatLaunchRef.current = true;
+    runTemporaryChatWelcomeShortcut();
+  }, [appViewMode, unifiedLoaded]);
 
   useEffect(() => {
     if (appViewMode === 'chat' || typeof document === 'undefined') {
@@ -261,7 +289,7 @@ function App() {
         ];
 
         const notesState = useNotesStore.getState();
-        if (notesState.isDirty) {
+        if (notesState.isDirty && !isDraftNotePath(notesState.currentNote?.path)) {
           tasks.push({
             name: 'notes storage',
             task: notesState.saveNote().then(() => {
@@ -308,14 +336,30 @@ function App() {
         }
 
         const notesState = useNotesStore.getState();
-        if (!notesState.isDirty) {
+        const hasUnsavedDrafts = notesState.openTabs.some(
+          (tab) => tab.isDirty && isDraftNotePath(tab.path),
+        );
+
+        if (!notesState.isDirty && !hasUnsavedDrafts) {
           return;
         }
 
         event.preventDefault();
-        const flushed = await runFlushAllPendingWrites();
-        if (!flushed) {
-          return;
+        if (hasUnsavedDrafts) {
+          const shouldDiscard = await confirmDialog(
+            'Close vlaina and discard all unsaved drafts? Drafts are only saved when you press Ctrl+S.',
+            { title: 'Unsaved Drafts', kind: 'warning' },
+          );
+          if (!shouldDiscard) {
+            return;
+          }
+        }
+
+        if (notesState.isDirty && !isDraftNotePath(notesState.currentNote?.path)) {
+          const flushed = await runFlushAllPendingWrites();
+          if (!flushed) {
+            return;
+          }
         }
 
         allowNextWindowClose = true;

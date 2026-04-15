@@ -403,6 +403,10 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
           openTabs: [],
           rootFolder: null,
           notesPath: '',
+          draftNotes: {},
+          pendingDraftDiscardPath: null,
+          displayNames: new Map(),
+          noteContentsCache: new Map(),
         });
         await waitForUiRelease();
 

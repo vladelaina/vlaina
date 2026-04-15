@@ -23,6 +23,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { canStarNotePath, resolveSiblingNoteParentPath } from '@/stores/notes/notePathState';
 
 interface TabContentProps {
   tab: { path: string; name: string; isDirty: boolean };
@@ -64,6 +65,7 @@ interface SortableTabProps {
   tab: { path: string; name: string; isDirty: boolean };
   isActive: boolean;
   isStarred: boolean;
+  canToggleStar: boolean;
   onClose: (path: string) => void | Promise<void>;
   onClick: (path: string) => void;
   onToggleStar: (path: string) => void;
@@ -74,6 +76,7 @@ const SortableTab = memo(function SortableTab({
   tab,
   isActive,
   isStarred,
+  canToggleStar,
   onClose,
   onClick,
   onToggleStar,
@@ -140,26 +143,28 @@ const SortableTab = memo(function SortableTab({
           )}
           <TabContent tab={tab} isActive={isActive} icon={icon} title={title} disambiguation={disambiguation} />
 
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onToggleStar(tab.path);
-            }}
-            onPointerDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            className={cn(
-              'rounded p-0.5 transition-all',
-              isStarred
-                ? 'opacity-100 text-amber-500'
-                : 'pointer-events-none opacity-0 text-zinc-300 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 hover:text-amber-500 dark:text-zinc-600 dark:hover:text-amber-400'
-            )}
-          >
-            <Icon size="sm" name="misc.star" className={cn(isStarred && 'fill-current')} />
-          </button>
+          {canToggleStar ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onToggleStar(tab.path);
+              }}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              className={cn(
+                'rounded p-0.5 transition-all',
+                isStarred
+                  ? 'opacity-100 text-amber-500'
+                  : 'pointer-events-none opacity-0 text-zinc-300 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 hover:text-amber-500 dark:text-zinc-600 dark:hover:text-amber-400'
+              )}
+            >
+              <Icon size="sm" name="misc.star" className={cn(isStarred && 'fill-current')} />
+            </button>
+          ) : null}
 
           <button
             type="button"
@@ -232,10 +237,10 @@ export function NotesTabRow() {
   );
 
   const handleCreateNote = useCallback(() => {
-    const currentPath = currentNote?.path;
-    const folderPath = currentPath && currentPath.includes('/')
-      ? currentPath.substring(0, currentPath.lastIndexOf('/')) || undefined
-      : undefined;
+    const folderPath = resolveSiblingNoteParentPath(
+      useNotesStore.getState().draftNotes,
+      currentNote?.path,
+    );
     createNote(folderPath);
   }, [currentNote?.path, createNote]);
 
@@ -273,6 +278,7 @@ export function NotesTabRow() {
                 tab={tab}
                 isActive={currentNote?.path === tab.path}
                 isStarred={isStarred(tab.path)}
+                canToggleStar={canStarNotePath(tab.path)}
                 onClose={closeTab}
                 onClick={(path) => void openNote(path)}
                 onToggleStar={toggleStarred}

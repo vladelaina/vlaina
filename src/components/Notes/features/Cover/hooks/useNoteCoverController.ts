@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { getRandomBuiltinCover } from '@/lib/assets/builtinCovers';
+import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
 import type { NoteCoverController } from '../types';
 
 export function useNoteCoverController(currentNotePath?: string): NoteCoverController {
@@ -8,8 +9,7 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
   const setNoteCover = useNotesStore(s => s.setNoteCover);
   const coverEntry = useNotesStore(
     useCallback((state) => {
-      if (!currentNotePath) return undefined;
-      return state.noteMetadata?.notes[currentNotePath];
+      return getNoteMetadataEntry(state.noteMetadata, currentNotePath);
     }, [currentNotePath])
   );
 

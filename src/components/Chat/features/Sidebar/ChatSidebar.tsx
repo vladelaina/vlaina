@@ -2,7 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { cn, iconButtonStyles } from '@/lib/utils';
-import { ChatSidebarList, ChatSidebarRow, ChatSidebarScrollArea, ChatSidebarSurface } from './ChatSidebarPrimitives';
+import {
+  ChatSidebarHoverEmptyHint,
+  ChatSidebarList,
+  ChatSidebarRow,
+  ChatSidebarScrollArea,
+  ChatSidebarSurface,
+} from './ChatSidebarPrimitives';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -163,73 +169,74 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
           ref={scrollRootRef}
           onScroll={handleScroll}
         >
-          {shouldShowSearchResults && filteredSessions.length === 0 ? null : !shouldShowSearchResults && !hasSessions ? null : (
-            <ChatSidebarList>
-              {sessionsToRender.map(session => {
-                const isActive = currentSessionId === session.id;
-                const isGenerating = isSessionLoading(session.id);
-                const isUnread = isSessionUnread(session.id);
-                const isRenaming = renamingSessionId === session.id;
-                const displayTitle = session.title || 'New Chat';
-                const showMenuByDefault = isActive && !session.isPinned;
-                const statusIndicator = isGenerating && !isActive ? (
-                  null
-                ) : isUnread ? (
-                  <div className="h-2 w-2 rounded-full bg-[var(--chat-sidebar-status-warning)] shadow-[0_0_8px_rgba(245,158,11,0.45)]" />
-                ) : session.isPinned ? (
-                  <Icon name="common.pinPrimer" size={14} className="text-[var(--chat-sidebar-pin)]" />
-                ) : null;
+          <div className="relative min-h-full">
+            {shouldShowSearchResults && filteredSessions.length === 0 ? null : !shouldShowSearchResults && !hasSessions ? null : (
+              <ChatSidebarList>
+                {sessionsToRender.map(session => {
+                  const isActive = currentSessionId === session.id;
+                  const isGenerating = isSessionLoading(session.id);
+                  const isUnread = isSessionUnread(session.id);
+                  const isRenaming = renamingSessionId === session.id;
+                  const displayTitle = session.title || 'New Chat';
+                  const showMenuByDefault = isActive && !session.isPinned;
+                  const statusIndicator = isGenerating && !isActive ? (
+                    null
+                  ) : isUnread ? (
+                    <div className="h-2 w-2 rounded-full bg-[var(--chat-sidebar-status-warning)] shadow-[0_0_8px_rgba(245,158,11,0.45)]" />
+                  ) : session.isPinned ? (
+                    <Icon name="common.pinPrimer" size={14} className="text-[var(--chat-sidebar-pin)]" />
+                  ) : null;
 
-                return (
-                  <ChatSidebarRow
-                    key={session.id}
-                    isActive={isActive}
-                    showActionsByDefault={showMenuByDefault}
-                    onClick={() => {
-                      if (isRenaming) {
-                        return;
-                      }
-                      handleSwitch(session.id, isUnread);
-                      if (shouldShowSearchResults) {
-                        hideSearch();
-                      }
-                    }}
-                    main={
-                      isRenaming ? (
-                        <SidebarInlineRenameInput
-                          value={renameDraft}
-                          onValueChange={setRenameDraft}
-                          onSubmit={() => commitRename(session.id, displayTitle)}
-                          onCancel={cancelRename}
-                          className={cn(
-                            'w-full min-w-0 border-none bg-transparent p-0 text-sm leading-5 outline-none',
-                            isGenerating || isUnread
-                              ? 'font-medium text-[var(--chat-sidebar-text)]'
-                              : 'text-[var(--chat-sidebar-text-muted)]'
-                          )}
-                        />
-                      ) : (
-                        isGenerating && !isActive ? (
-                          <span className="block truncate">
-                            <ChatSidebarLoadingTitle title={displayTitle} />
-                          </span>
-                        ) : (
-                          <span
+                  return (
+                    <ChatSidebarRow
+                      key={session.id}
+                      isActive={isActive}
+                      showActionsByDefault={showMenuByDefault}
+                      onClick={() => {
+                        if (isRenaming) {
+                          return;
+                        }
+                        handleSwitch(session.id, isUnread);
+                        if (shouldShowSearchResults) {
+                          hideSearch();
+                        }
+                      }}
+                      main={
+                        isRenaming ? (
+                          <SidebarInlineRenameInput
+                            value={renameDraft}
+                            onValueChange={setRenameDraft}
+                            onSubmit={() => commitRename(session.id, displayTitle)}
+                            onCancel={cancelRename}
                             className={cn(
-                              'block truncate transition-opacity',
+                              'w-full min-w-0 border-none bg-transparent p-0 text-sm leading-5 outline-none',
                               isGenerating || isUnread
                                 ? 'font-medium text-[var(--chat-sidebar-text)]'
-                                : undefined
+                                : 'text-[var(--chat-sidebar-text-muted)]'
                             )}
-                          >
-                            {displayTitle}
-                          </span>
+                          />
+                        ) : (
+                          isGenerating && !isActive ? (
+                            <span className="block truncate">
+                              <ChatSidebarLoadingTitle title={displayTitle} />
+                            </span>
+                          ) : (
+                            <span
+                              className={cn(
+                                'block truncate transition-opacity',
+                                isGenerating || isUnread
+                                  ? 'font-medium text-[var(--chat-sidebar-text)]'
+                                  : undefined
+                              )}
+                            >
+                              {displayTitle}
+                            </span>
+                          )
                         )
-                      )
-                    }
-                    trailing={statusIndicator}
-                    actions={
-                      <DropdownMenu>
+                      }
+                      trailing={statusIndicator}
+                      actions={
+                        <DropdownMenu>
                           <DropdownMenuTrigger
                               onClick={(e) => { e.stopPropagation(); }}
                               className={cn(
@@ -310,13 +317,17 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
                                   <span>Delete</span>
                               </DropdownMenuItem>
                           </DropdownMenuContent>
-                      </DropdownMenu>
-                    }
-                  />
-                );
-              })}
-            </ChatSidebarList>
-          )}
+                        </DropdownMenu>
+                      }
+                    />
+                  );
+                })}
+              </ChatSidebarList>
+            )}
+            {!shouldShowSearchResults && !hasSessions ? (
+              <ChatSidebarHoverEmptyHint title="No conversations yet" />
+            ) : null}
+          </div>
         </ChatSidebarScrollArea>
       </ChatSidebarSurface>
 

@@ -249,6 +249,7 @@ async fn create_new_window(
     app: AppHandle,
     vault_path: Option<String>,
     note_path: Option<String>,
+    view_mode: Option<String>,
 ) -> Result<(), String> {
     use std::sync::atomic::{AtomicU32, Ordering};
     static WINDOW_COUNTER: AtomicU32 = AtomicU32::new(1);
@@ -267,6 +268,10 @@ async fn create_new_window(
 
         if let Some(note_path) = note_path.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
             pairs.append_pair("notePath", note_path);
+        }
+
+        if let Some(view_mode) = view_mode.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+            pairs.append_pair("viewMode", view_mode);
         }
     }
 

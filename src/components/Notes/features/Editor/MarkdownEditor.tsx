@@ -47,6 +47,8 @@ import {
   getSidebarSearchDebugViewMeta,
   logSidebarSearchDebug,
 } from '../Sidebar/sidebarSearchDebug';
+import { isDraftNotePath } from '@/stores/notes/draftNote';
+import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
 import './styles/index.css';
 
 const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
@@ -54,6 +56,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   const saveNote = useNotesStore(s => s.saveNote);
   const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
+  const isDraftNote = isDraftNotePath(currentNotePath);
 
   const hasAutoFocused = useRef(false);
   const hasIgnoredInitNoise = useRef(false);
@@ -67,7 +70,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
-        flushSave();
+        flushSave(true);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -125,7 +128,9 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
                 return;
               }
               updateContent(nextMarkdown);
-              debouncedSave();
+              if (!isDraftNote) {
+                debouncedSave();
+              }
             });
           });
       })
@@ -136,7 +141,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       .use(configureTheme)
       .use(tableBlock)
       .use(customPlugins),
-    [currentNotePath]
+    [currentNotePath, isDraftNote]
   );
 
   useEffect(() => {
@@ -193,7 +198,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
 
   useEffect(() => {
     if (!get || hasAutoFocused.current) return;
-    if (!isNewlyCreated && !isEmptyContent) return;
+    if (isNewlyCreated || !isEmptyContent) return;
 
     hasAutoFocused.current = true;
 
@@ -211,7 +216,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [get, isNewlyCreated, isEmptyContent]);
+  }, [get, isDraftNote, isNewlyCreated, isEmptyContent]);
 
   return (
     <div
@@ -245,7 +250,7 @@ export function MarkdownEditor({
   const noteMetadata = useNotesStore(s => s.noteMetadata);
   
   const currentNoteMetadata = useMemo(() => {
-    return currentNotePath && noteMetadata?.notes ? noteMetadata.notes[currentNotePath] : undefined;
+    return getNoteMetadataEntry(noteMetadata, currentNotePath);
   }, [currentNotePath, noteMetadata]);
   const textStats = useMemo(() => calculateTextStats(currentNoteContent), [currentNoteContent]);
   const isSidebarSearchJumpPending = isSidebarSearchNavigationPending(currentNotePath);

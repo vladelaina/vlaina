@@ -28,7 +28,7 @@ export const ChatSidebarSurface = forwardRef<HTMLDivElement, ChatSidebarSurfaceP
     <SidebarSurface
       ref={ref}
       className={cn(
-        'flex h-full flex-col bg-[var(--chat-sidebar-surface)] text-[var(--chat-sidebar-text)]',
+        'group/chat-sidebar-surface flex h-full flex-col bg-[var(--chat-sidebar-surface)] text-[var(--chat-sidebar-text)]',
         className
       )}
       isPeeking={isPeeking}
@@ -88,5 +88,29 @@ export function ChatSidebarRow({
     >
       {children}
     </SidebarRow>
+  );
+}
+
+interface ChatSidebarHoverEmptyHintProps extends HTMLAttributes<HTMLDivElement> {
+  title: string;
+}
+
+export function ChatSidebarHoverEmptyHint({
+  title,
+  className,
+  ...props
+}: ChatSidebarHoverEmptyHintProps) {
+  return (
+    <div
+      className={cn(
+        'pointer-events-none absolute left-1/2 top-[38.2%] flex -translate-x-1/2 -translate-y-1/2 items-center justify-center opacity-0 transition-opacity duration-150 group-hover/chat-sidebar-surface:opacity-100',
+        className,
+      )}
+      {...props}
+    >
+      <span className="max-w-[170px] px-4 text-center text-[13px] text-[var(--chat-sidebar-text-soft)]">
+        {title}
+      </span>
+    </div>
   );
 }

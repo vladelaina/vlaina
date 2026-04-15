@@ -5,6 +5,13 @@ import { getStorageBasePath } from './basePath';
 
 const sessionQueues = new Map<string, PersistenceQueue<ChatMessage[]>>();
 const DEFAULT_DEBOUNCE_MS = 180;
+let autoSyncTrigger: ((sessionId?: string) => void) | null = null;
+
+export function setChatStorageAutoSyncTrigger(
+  trigger: ((sessionId?: string) => void) | null,
+): void {
+  autoSyncTrigger = trigger;
+}
 
 function serializeSessionMessages(messages: ChatMessage[]): string {
   return JSON.stringify(messages);
@@ -49,6 +56,7 @@ async function writeSessionJsonRaw(sessionId: string, payload: string) {
 
   const path = await joinPath(dir, `${sessionId}.json`);
   await storage.writeFile(path, payload);
+  autoSyncTrigger?.(sessionId);
 }
 
 export async function saveSessionJson(sessionId: string, messages: ChatMessage[]) {
@@ -102,6 +110,7 @@ export async function deleteSessionJson(sessionId: string): Promise<void> {
   const path = await joinPath(base, '.vlaina', 'chat', 'sessions', `${sessionId}.json`);
   if (await storage.exists(path)) {
     await storage.deleteFile(path);
+    autoSyncTrigger?.(sessionId);
   }
 }
 

@@ -200,12 +200,31 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
 
   getAssetList: (category?: 'covers' | 'icons' | 'content'): AssetEntry[] => {
     const list = get().assetList;
-    if (!category) return list;
+    if (!category) {
+      const builtinCoverAssets = getBuiltinCovers().map((cover) => ({
+        filename: toBuiltinAssetPath(cover),
+        hash: '',
+        size: 0,
+        mimeType: 'image/webp',
+        uploadedAt: '',
+      }));
+      const existing = new Set(list.map((asset) => asset.filename));
+      return [...list, ...builtinCoverAssets.filter((asset) => !existing.has(asset.filename))];
+    }
 
     if (category === 'icons') {
       return list.filter(a => a.filename.startsWith('icons/'));
     } else if (category === 'covers') {
-      return list.filter(a => !a.filename.startsWith('icons/'));
+      const coverAssets = list.filter(a => !a.filename.startsWith('icons/'));
+      const existing = new Set(coverAssets.map((asset) => asset.filename));
+      const builtinCoverAssets = getBuiltinCovers().map((cover) => ({
+        filename: toBuiltinAssetPath(cover),
+        hash: '',
+        size: 0,
+        mimeType: 'image/webp',
+        uploadedAt: '',
+      }));
+      return [...coverAssets, ...builtinCoverAssets.filter((asset) => !existing.has(asset.filename))];
     } else {
       // content
       return list.filter(a => !a.filename.startsWith('icons/'));

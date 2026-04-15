@@ -2,6 +2,7 @@ import { StateCreator } from 'zustand';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { NotesStore } from '../types';
+import { updateDisplayName } from '../displayNameUtils';
 import {
   buildFileTree,
   updateFolderExpanded,
@@ -32,12 +33,16 @@ import { renameNoteImpl, moveItemImpl } from '../utils/fs/renameOperations';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { uploadNoteAssetImpl } from '../utils/fs/uploadOperations';
 import {
+  removeCachedNoteContent,
   setCachedNoteContent,
 } from '../document/noteContentCache';
 import { markExpectedExternalChange } from '../document/externalChangeRegistry';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import {
-} from '../document/externalPathSync';
+  createDraftNotePath,
+  isDraftNotePath,
+  resolveDraftNoteTitle,
+} from '../draftNote';
 
 export interface FileSystemSlice {
   rootFolder: NotesStore['rootFolder'];
@@ -45,6 +50,7 @@ export interface FileSystemSlice {
   isNewlyCreated: NotesStore['isNewlyCreated'];
   newlyCreatedFolderPath: NotesStore['newlyCreatedFolderPath'];
   fileTreeSortMode: NotesStore['fileTreeSortMode'];
+  draftNotes: NotesStore['draftNotes'];
 
   loadFileTree: (skipRestore?: boolean) => Promise<void>;
   toggleFolder: (path: string) => void;
@@ -60,6 +66,8 @@ export interface FileSystemSlice {
   renameFolder: (path: string, newName: string) => Promise<void>;
   createFolder: (parentPath: string, name?: string) => Promise<string | null>;
   clearNewlyCreatedFolder: () => void;
+  updateDraftNoteName: NotesStore['updateDraftNoteName'];
+  discardDraftNote: NotesStore['discardDraftNote'];
   deleteFolder: (path: string) => Promise<void>;
   moveItem: (sourcePath: string, targetFolderPath: string) => Promise<void>;
   uploadNoteAsset: (notePath: string, file: File) => Promise<string | null>;
@@ -87,8 +95,9 @@ function replaceCurrentTabOrAppend(
   openTabs: NotesStore['openTabs'],
   currentNotePath: string | null | undefined,
   nextTab: NotesStore['openTabs'][number],
+  replaceCurrentTab = true,
 ) {
-  if (!currentNotePath) {
+  if (!currentNotePath || !replaceCurrentTab) {
     return [...openTabs, nextTab];
   }
 
@@ -111,6 +120,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   isNewlyCreated: false,
   newlyCreatedFolderPath: null,
   fileTreeSortMode: DEFAULT_FILE_TREE_SORT_MODE,
+  draftNotes: {},
 
   loadFileTree: async (skipRestore = false) => {
     set({ isLoading: true, error: null });
@@ -147,22 +157,21 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         noteMetadata: metadata,
         starredNotes: starredPaths.notes,
         starredFolders: starredPaths.folders,
-        isLoading: false,
         fileTreeSortMode,
       });
 
       if (!skipRestore && workspace?.currentNotePath) {
-        setTimeout(async () => {
-          try {
-            const fullPath = await joinPath(basePath, workspace.currentNotePath!);
-            const fileExists = await storage.exists(fullPath);
-            if (fileExists) {
-              get().openNote(workspace.currentNotePath!);
-            }
-          } catch {
+        try {
+          const fullPath = await joinPath(basePath, workspace.currentNotePath);
+          const fileExists = await storage.exists(fullPath);
+          if (fileExists) {
+            await get().openNote(workspace.currentNotePath);
           }
-        }, 0);
+        } catch {
+        }
       }
+
+      set({ isLoading: false });
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to load notes',
@@ -201,74 +210,71 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
 
   createNote: async (folderPath?: string) => {
     let {
-      notesPath,
       openTabs,
-      recentNotes,
       rootFolder,
       currentNote,
       isDirty,
       saveNote,
       fileTreeSortMode,
       noteContentsCache,
+      draftNotes,
     } = get();
 
     try {
-      if (isDirty) {
+      if (isDirty && !isDraftNotePath(currentNote?.path)) {
         await saveNote();
         if (get().isDirty) {
           throw new Error('Failed to save current note before creating a new note');
         }
-        ({ openTabs, recentNotes, rootFolder, currentNote, noteContentsCache } = get());
+        ({ openTabs, rootFolder, currentNote, noteContentsCache, draftNotes } = get());
       }
 
-      if (!notesPath) {
-        notesPath = await getNotesBasePath();
-        await ensureNotesFolder(notesPath);
-        set({ notesPath });
-      }
-
-      const currentRootFolder = ensureRootFolderState(rootFolder);
-      const { 
-          relativePath, 
-          fileName, 
-          updatedMetadata, 
-          newChildren, 
-          updatedRecent 
-      } = await createNoteImpl(notesPath, folderPath, undefined, '', {
-        rootFolder: currentRootFolder,
-        recentNotes,
-      });
-
-      const nextRootFolder = buildSortedRootFolder(
-        currentRootFolder,
-        newChildren,
-        fileTreeSortMode,
-        updatedMetadata
+      const nextRootFolder = rootFolder
+        ? (
+            folderPath
+              ? {
+                  ...rootFolder,
+                  children: expandFoldersForPath(rootFolder.children, folderPath),
+                }
+              : rootFolder
+          )
+        : null;
+      const draftPath = createDraftNotePath();
+      const tabName = resolveDraftNoteTitle('');
+      const newTab = { path: draftPath, name: tabName, isDirty: true };
+      const updatedTabs = replaceCurrentTabOrAppend(
+        openTabs,
+        currentNote?.path,
+        newTab,
+        !isDraftNotePath(currentNote?.path),
       );
 
+      updateDisplayName(set, draftPath, tabName);
+
       set({
         rootFolder: nextRootFolder,
-        noteMetadata: updatedMetadata,
-      });
-
-      const tabName = getNoteTitleFromPath(fileName);
-      const newTab = { path: relativePath, name: tabName, isDirty: false };
-      const updatedTabs = replaceCurrentTabOrAppend(openTabs, currentNote?.path, newTab);
-
-      set({
-        currentNote: { path: relativePath, content: '' },
-        isDirty: false,
+        currentNote: { path: draftPath, content: '' },
+        isDirty: true,
         openTabs: updatedTabs,
-        recentNotes: updatedRecent,
         isNewlyCreated: true,
-        noteContentsCache: setCachedNoteContent(noteContentsCache, relativePath, '', null),
+        noteContentsCache: setCachedNoteContent(noteContentsCache, draftPath, '', null),
+        draftNotes: {
+          ...draftNotes,
+          [draftPath]: {
+            parentPath: folderPath ?? null,
+            name: '',
+          },
+        },
       });
-      persistWorkspaceSnapshot(notesPath, {
-        rootFolder: nextRootFolder,
-        currentNotePath: relativePath,
-        fileTreeSortMode,
-      });
-      return relativePath;
+      const nextNotesPath = get().notesPath;
+      if (nextNotesPath) {
+        persistWorkspaceSnapshot(nextNotesPath, {
+          rootFolder: nextRootFolder,
+          currentNotePath: null,
+          fileTreeSortMode,
+        });
+      }
+      return draftPath;
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to create note' });
       throw error;
@@ -294,7 +300,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
     const storage = getStorageAdapter();
 
     try {
-      if (isDirty) {
+      if (isDirty && !isDraftNotePath(currentNote?.path)) {
         await saveNote();
         if (get().isDirty) {
           throw new Error('Failed to save current note before creating a new note');
@@ -344,7 +350,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         path: relativePath,
         name: tabName,
         isDirty: false,
-      });
+      }, !isDraftNotePath(currentNote?.path));
 
       set({
         currentNote: { path: relativePath, content },
@@ -642,6 +648,66 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   },
 
   clearNewlyCreatedFolder: () => set({ newlyCreatedFolderPath: null }),
+
+  updateDraftNoteName: (path: string, name: string) => {
+    const { draftNotes } = get();
+    const draftNote = draftNotes[path];
+    if (!draftNote) {
+      return;
+    }
+
+    updateDisplayName(set, path, resolveDraftNoteTitle(name));
+    set({
+      draftNotes: {
+        ...draftNotes,
+        [path]: {
+          ...draftNote,
+          name,
+        },
+      },
+    });
+  },
+
+  discardDraftNote: (path: string) => {
+    const {
+      currentNote,
+      displayNames,
+      draftNotes,
+      fileTreeSortMode,
+      noteContentsCache,
+      notesPath,
+      openTabs,
+      rootFolder,
+    } = get();
+
+    if (!draftNotes[path]) {
+      return;
+    }
+
+    const nextDraftNotes = { ...draftNotes };
+    delete nextDraftNotes[path];
+
+    const nextDisplayNames = new Map(displayNames);
+    nextDisplayNames.delete(path);
+
+    set({
+      currentNote: currentNote?.path === path ? null : currentNote,
+      displayNames: nextDisplayNames,
+      draftNotes: nextDraftNotes,
+      openTabs: openTabs.filter((tab) => tab.path !== path),
+      noteContentsCache: removeCachedNoteContent(noteContentsCache, path),
+      isDirty: currentNote?.path === path ? false : get().isDirty,
+      isNewlyCreated: currentNote?.path === path ? false : get().isNewlyCreated,
+    });
+
+    if (currentNote?.path === path) {
+      persistWorkspaceSnapshot(notesPath, {
+        rootFolder,
+        currentNotePath: null,
+        fileTreeSortMode,
+      });
+    }
+  },
 
   deleteFolder: async (path: string) => {
     const {
