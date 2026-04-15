@@ -13,6 +13,7 @@ import { requestManager } from '@/lib/ai/requestManager';
 import { getUserFacingAIError } from '@/lib/ai/errors';
 import { needsAutoTitle } from '@/lib/ai/temporaryChat';
 import { runWithSessionMutationLock } from '@/lib/ai/sessionMutationLock';
+import { useAIUIStore } from '@/stores/ai/chatState';
 import {
   buildMentionedNotesContext,
   buildMessageImageSources,
@@ -69,7 +70,7 @@ export function useChatService() {
   const selectedModel = getSelectedModel();
 
   const stop = useCallback(() => {
-    const sessionId = useUnifiedStore.getState().data.ai?.currentSessionId;
+    const sessionId = useAIUIStore.getState().currentSessionId;
     if (!sessionId) return;
     requestManager.abort(sessionId);
     setSessionLoading(sessionId, false);
@@ -148,7 +149,10 @@ export function useChatService() {
           role: 'assistant',
           content: '',
           modelId: selectedModel.id,
-        }, targetSessionId);
+        }, targetSessionId, {
+          persistUnified: false,
+          touchSession: false,
+        });
 
         const isTemporaryTarget = isTemporarySession(targetSessionId);
 
@@ -211,7 +215,7 @@ export function useChatService() {
                 maybeGenerateAutoTitle(targetSessionId, provider.id, selectedModel.id);
               }
 
-              const current = useUnifiedStore.getState().data.ai?.currentSessionId;
+              const current = useAIUIStore.getState().currentSessionId;
               if (targetSessionId !== current && !isTemporarySession(targetSessionId)) {
                 markSessionUnread(targetSessionId);
               }
@@ -266,7 +270,10 @@ export function useChatService() {
           role: 'assistant',
           content: '',
           modelId: selectedModel.id,
-        }, sessionId);
+        }, sessionId, {
+          persistUnified: false,
+          touchSession: false,
+        });
 
         try {
           const state = useUnifiedStore.getState();

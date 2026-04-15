@@ -1,5 +1,7 @@
 import { isTauri } from './adapter';
 
+let saveDialogModulePromise: Promise<typeof import('@tauri-apps/plugin-dialog')> | null = null;
+
 export interface OpenDialogOptions {
   directory?: boolean;
   multiple?: boolean;
@@ -30,7 +32,8 @@ export async function openDialog(options: OpenDialogOptions = {}): Promise<strin
 
 export async function saveDialog(options: SaveDialogOptions = {}): Promise<string | null> {
   if (isTauri()) {
-    const { save } = await import('@tauri-apps/plugin-dialog');
+    saveDialogModulePromise ??= import('@tauri-apps/plugin-dialog');
+    const { save } = await saveDialogModulePromise;
     return save(options);
   }
   

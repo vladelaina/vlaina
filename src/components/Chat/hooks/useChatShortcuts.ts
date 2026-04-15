@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { actions as aiActions } from '@/stores/useAIStore';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import { useAIUIStore } from '@/stores/ai/chatState';
 import { isToggleShortcutsBinding, matchesShortcutBinding } from '@/lib/shortcuts';
 import { shouldBlockBrowserReservedShortcut } from '@/lib/shortcuts/browserGuards';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
@@ -121,7 +122,7 @@ export function useChatShortcuts(
           e.preventDefault();
           const state = useUnifiedStore.getState();
           const rawSessions = state.data.ai?.sessions || [];
-          const currentId = state.data.ai?.currentSessionId;
+          const currentId = useAIUIStore.getState().currentSessionId;
           
           if (rawSessions.length < 2) return;
 
@@ -144,9 +145,9 @@ export function useChatShortcuts(
 
       const state = useUnifiedStore.getState();
       const ai = state.data.ai;
-      if (!ai || !ai.currentSessionId) return;
+      const currentId = useAIUIStore.getState().currentSessionId;
+      if (!ai || !currentId) return;
 
-      const currentId = ai.currentSessionId;
       const currentMsgs = ai.messages[currentId] || [];
 
       if (matchesShortcutBinding(e, 'deleteChat')) {

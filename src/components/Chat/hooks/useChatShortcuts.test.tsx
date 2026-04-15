@@ -9,6 +9,7 @@ const mocked = vi.hoisted(() => ({
   openNewChat: vi.fn(),
   switchSession: vi.fn(),
   getState: vi.fn(),
+  getUIState: vi.fn(),
   writeText: vi.fn(),
   dispatchChatMessageCopied: vi.fn(),
   isComposerFocusTarget: vi.fn(),
@@ -27,6 +28,12 @@ vi.mock("@/stores/useAIStore", () => ({
 vi.mock("@/stores/unified/useUnifiedStore", () => ({
   useUnifiedStore: {
     getState: mocked.getState,
+  },
+}));
+
+vi.mock("@/stores/ai/chatState", () => ({
+  useAIUIStore: {
+    getState: mocked.getUIState,
   },
 }));
 
@@ -72,8 +79,6 @@ function createState(overrides?: any) {
   return {
     data: {
       ai: {
-        temporaryChatEnabled: false,
-        currentSessionId: "session-1",
         messages: {
           "session-1": [{ id: "m1", role: "user", content: "hello" }],
         },
@@ -87,8 +92,17 @@ function createState(overrides?: any) {
   };
 }
 
+function createUIState(overrides?: any) {
+  return {
+    temporaryChatEnabled: false,
+    currentSessionId: "session-1",
+    ...overrides,
+  };
+}
+
 function setup(options?: {
   state?: any;
+  uiState?: any;
   isGenerating?: boolean;
   scrollRef?: RefObject<HTMLDivElement | null>;
   enabled?: boolean;
@@ -98,6 +112,7 @@ function setup(options?: {
   const onStopGeneration = vi.fn();
   const scrollRef = options?.scrollRef ?? ({ current: null } as RefObject<HTMLDivElement | null>);
   mocked.getState.mockReturnValue(options?.state ?? createState());
+  mocked.getUIState.mockReturnValue(options?.uiState ?? createUIState());
 
   const rendered = render(
     <TestHarness
@@ -117,6 +132,7 @@ describe("useChatShortcuts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocked.getState.mockReturnValue(createState());
+    mocked.getUIState.mockReturnValue(createUIState());
     mocked.isComposerFocusTarget.mockReturnValue(false);
     mocked.selectComposerInputAll.mockReturnValue(true);
     Object.defineProperty(navigator, "clipboard", {
@@ -199,7 +215,8 @@ describe("useChatShortcuts", () => {
 
   it("opens temporary chat on Ctrl+Shift+J when temporary mode is disabled", () => {
     const { onFocusInput } = setup({
-      state: createState({ temporaryChatEnabled: false }),
+      state: createState(),
+      uiState: createUIState({ temporaryChatEnabled: false }),
     });
 
     const event = fireKeydown({ key: "j", ctrlKey: true, shiftKey: true });
@@ -213,9 +230,11 @@ describe("useChatShortcuts", () => {
   it("exits temporary chat to a blank normal draft on Ctrl+Shift+J when current temporary chat is empty", () => {
     const { onFocusInput } = setup({
       state: createState({
+        messages: { "temp-1": [] },
+      }),
+      uiState: createUIState({
         temporaryChatEnabled: true,
         currentSessionId: "temp-1",
-        messages: { "temp-1": [] },
       }),
     });
 
@@ -230,9 +249,11 @@ describe("useChatShortcuts", () => {
   it("creates a fresh temporary chat on Ctrl+Shift+J when current temporary chat is not empty", () => {
     const { onFocusInput } = setup({
       state: createState({
+        messages: { "temp-1": [{ id: "x", role: "user", content: "occupied" }] },
+      }),
+      uiState: createUIState({
         temporaryChatEnabled: true,
         currentSessionId: "temp-1",
-        messages: { "temp-1": [{ id: "x", role: "user", content: "occupied" }] },
       }),
     });
 
