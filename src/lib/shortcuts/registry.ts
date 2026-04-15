@@ -60,7 +60,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
     id: 'newWindow',
     action: 'New window',
     description: 'New Window',
-    keys: ['Ctrl', 'Shift', 'N'],
+    keys: ['Ctrl', 'N'],
     scope: 'global',
     isSystem: true,
     modules: ALL_MODULES,

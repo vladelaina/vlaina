@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useNotesOutline } from './useNotesOutline';
 import { CollapseTriangleAffordance } from '../../common/collapseTrianglePrimitive';
-import { NotesSidebarScrollArea } from '../NotesSidebarPrimitives';
+import {
+  NotesSidebarHoverEmptyHint,
+  NotesSidebarScrollArea,
+} from '../NotesSidebarPrimitives';
 import { NotesSidebarTopActions } from '../NotesSidebarTopActions';
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
 import { NOTES_SIDEBAR_ROW_HEIGHT } from '../sidebarLayout';
@@ -114,11 +117,16 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
         className={cn(isPeeking ? 'vlaina-scrollbar-rounded pt-4 pb-4' : 'pt-2')}
         data-notes-sidebar-scroll-root="true"
       >
-        {headings.length > 0 ? (
-          <nav aria-label="Document outline" className="space-y-0.5">
-            {renderTreeNodes(headingTree)}
-          </nav>
-        ) : null}
+        <div className="relative min-h-full">
+          {headings.length > 0 ? (
+            <nav aria-label="Document outline" className="space-y-0.5">
+              {renderTreeNodes(headingTree)}
+            </nav>
+          ) : null}
+          {headings.length === 0 ? (
+            <NotesSidebarHoverEmptyHint title="Outline is empty" />
+          ) : null}
+        </div>
       </NotesSidebarScrollArea>
     </div>
   );

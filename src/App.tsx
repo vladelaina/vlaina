@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { DndContext, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
 import { isTauri } from '@/lib/storage/adapter';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -11,16 +11,23 @@ import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ToastContainer } from '@/components/ui/Toast';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useAIStore } from '@/stores/useAIStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useVaultStore } from '@/stores/useVaultStore';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import { useSyncInit } from '@/hooks/useSyncInit';
+import { useUnifiedExternalSync } from '@/hooks/useUnifiedExternalSync';
 import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
+import { runTemporaryChatWelcomeShortcut } from '@/components/Chat/features/Temporary/temporaryChatCommands';
 import { flushPendingSave } from '@/lib/storage/unifiedStorage';
 import { flushPendingSessionJsonSaves } from '@/lib/storage/chatStorage';
+import { hasDraftUnsavedChanges, isDraftNotePath } from '@/stores/notes/draftNote';
+import { openStoredNotePath } from '@/stores/notes/openNotePath';
+import { readWindowLaunchContext } from '@/lib/tauri/windowLaunchContext';
 
 const SettingsModal = lazy(async () => {
   const mod = await import('@/components/Settings');
@@ -74,8 +81,11 @@ function AppContent() {
     toggleSidebar,
     setAppViewMode
   } = useUIStore();
+  const unifiedLoaded = useUnifiedStore((s) => s.loaded);
   const { currentVault, initialize } = useVaultStore();
   const { showInTitleBar } = useTemporaryTogglePresentation();
+  const launchContextRef = useRef(readWindowLaunchContext());
+  const hasHandledChatLaunchRef = useRef(false);
   const shouldShowTemporaryToggleInTitleBar =
     showInTitleBar &&
     (
@@ -98,10 +108,29 @@ function AppContent() {
   useShortcuts();
 
   useSyncInit();
+  useUnifiedExternalSync();
 
   useEffect(() => {
     initialize();
   }, [initialize]);
+
+  useEffect(() => {
+    if (hasHandledChatLaunchRef.current) {
+      return;
+    }
+
+    const launchContext = launchContextRef.current;
+    if (!launchContext.isNewWindow || launchContext.viewMode !== 'chat') {
+      return;
+    }
+
+    if (!unifiedLoaded || appViewMode !== 'chat') {
+      return;
+    }
+
+    hasHandledChatLaunchRef.current = true;
+    runTemporaryChatWelcomeShortcut();
+  }, [appViewMode, unifiedLoaded]);
 
   useEffect(() => {
     if (appViewMode === 'chat' || typeof document === 'undefined') {
@@ -151,7 +180,7 @@ function AppContent() {
   let centerSlot = null;
   let rightSlot = null;
 
-  if (appViewMode === 'notes' && currentVault) {
+  if (appViewMode === 'notes') {
     centerSlot = (
       <Suspense fallback={null}>
         <NotesTabRow />
@@ -244,9 +273,145 @@ function AppContent() {
 }
 
 function App() {
+  const [isCloseDraftConfirmOpen, setIsCloseDraftConfirmOpen] = useState(false);
+  const allowNextWindowCloseRef = useRef(false);
+  const runFlushAllPendingWritesRef = useRef<() => Promise<boolean>>(async () => true);
+
+  const getDiscardableDraftPaths = useCallback(() => {
+    const notesState = useNotesStore.getState();
+
+    return notesState.openTabs.flatMap((tab) => {
+      if (!isDraftNotePath(tab.path)) {
+        return [];
+      }
+
+      const draftEntry = notesState.draftNotes[tab.path];
+      const hasDraftTitle = Boolean(draftEntry?.name.trim());
+      const draftContent = notesState.noteContentsCache.get(tab.path)?.content ?? '';
+      const draftMetadata = notesState.noteMetadata?.notes[tab.path];
+
+      return hasDraftUnsavedChanges({
+        draftName: hasDraftTitle ? draftEntry?.name : draftEntry?.name,
+        content: draftContent,
+        metadata: draftMetadata,
+      }) ? [tab.path] : [];
+    });
+  }, []);
+
+  const restorePathAfterCloseInterruption = useCallback(async (path: string | null) => {
+    if (!path) {
+      return;
+    }
+
+    const notesState = useNotesStore.getState();
+    if (!notesState.openTabs.some((tab) => tab.path === path) && notesState.currentNote?.path !== path) {
+      return;
+    }
+
+    await openStoredNotePath(path, {
+      openNote: notesState.openNote,
+      openNoteByAbsolutePath: notesState.openNoteByAbsolutePath,
+    });
+  }, []);
+
+  const hasDiscardableDrafts = useCallback(() => {
+    return getDiscardableDraftPaths().length > 0;
+  }, [getDiscardableDraftPaths]);
+
+  const saveDraftsBeforeClose = useCallback(async () => {
+    const draftPaths = getDiscardableDraftPaths();
+    if (draftPaths.length === 0) {
+      return {
+        saved: true,
+        restorePath: useNotesStore.getState().currentNote?.path ?? null,
+      };
+    }
+
+    let restorePath = useNotesStore.getState().currentNote?.path ?? null;
+
+    for (const draftPath of draftPaths) {
+      await useNotesStore.getState().openNote(draftPath);
+
+      const latestState = useNotesStore.getState();
+      if (latestState.currentNote?.path !== draftPath || !latestState.draftNotes[draftPath]) {
+        await restorePathAfterCloseInterruption(restorePath);
+        return {
+          saved: false,
+          restorePath,
+        };
+      }
+
+      await latestState.saveNote({ explicit: true, suppressOpenTarget: true });
+
+      const afterSaveState = useNotesStore.getState();
+      if (restorePath === draftPath) {
+        restorePath = afterSaveState.currentNote?.path ?? restorePath;
+      }
+
+      if (afterSaveState.draftNotes[draftPath]) {
+        await restorePathAfterCloseInterruption(restorePath);
+        return {
+          saved: false,
+          restorePath,
+        };
+      }
+    }
+
+    return {
+      saved: true,
+      restorePath,
+    };
+  }, [getDiscardableDraftPaths, restorePathAfterCloseInterruption]);
+
+  const continueWindowClose = useCallback(async (
+    options?: {
+      skipDraftConfirm?: boolean;
+      saveDrafts?: boolean;
+    }
+  ) => {
+    const skipDraftConfirm = options?.skipDraftConfirm ?? false;
+    const saveDrafts = options?.saveDrafts ?? false;
+    const hasUnsavedDrafts = hasDiscardableDrafts();
+    let restorePath: string | null = null;
+
+    if (hasUnsavedDrafts && !skipDraftConfirm) {
+      setIsCloseDraftConfirmOpen(true);
+      return;
+    }
+
+    if (saveDrafts) {
+      const saveResult = await saveDraftsBeforeClose();
+      restorePath = saveResult.restorePath;
+      if (!saveResult.saved) {
+        return;
+      }
+    }
+
+    const latestNotesState = useNotesStore.getState();
+    if (latestNotesState.isDirty && !isDraftNotePath(latestNotesState.currentNote?.path)) {
+      const flushed = await runFlushAllPendingWritesRef.current();
+      if (!flushed) {
+        await restorePathAfterCloseInterruption(restorePath);
+        return;
+      }
+    }
+
+    if (!isTauri()) {
+      await restorePathAfterCloseInterruption(restorePath);
+      return;
+    }
+
+    try {
+      allowNextWindowCloseRef.current = true;
+      await getCurrentWindow().close();
+    } catch {
+      allowNextWindowCloseRef.current = false;
+      await restorePathAfterCloseInterruption(restorePath);
+    }
+  }, [hasDiscardableDrafts, restorePathAfterCloseInterruption, saveDraftsBeforeClose]);
+
   useEffect(() => {
     let activeFlush: Promise<boolean> | null = null;
-    let allowNextWindowClose = false;
     let unlistenCloseRequested: (() => void) | null = null;
 
     const runFlushAllPendingWrites = async (): Promise<boolean> => {
@@ -261,7 +426,7 @@ function App() {
         ];
 
         const notesState = useNotesStore.getState();
-        if (notesState.isDirty) {
+        if (notesState.isDirty && !isDraftNotePath(notesState.currentNote?.path)) {
           tasks.push({
             name: 'notes storage',
             task: notesState.saveNote().then(() => {
@@ -294,6 +459,8 @@ function App() {
       void runFlushAllPendingWrites();
     };
 
+    runFlushAllPendingWritesRef.current = runFlushAllPendingWrites;
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         flushAllPendingWrites();
@@ -302,24 +469,20 @@ function App() {
 
     if (isTauri()) {
       void getCurrentWindow().onCloseRequested(async (event) => {
-        if (allowNextWindowClose) {
-          allowNextWindowClose = false;
+        if (allowNextWindowCloseRef.current) {
+          allowNextWindowCloseRef.current = false;
           return;
         }
 
         const notesState = useNotesStore.getState();
-        if (!notesState.isDirty) {
+        const hasUnsavedDrafts = hasDiscardableDrafts();
+
+        if (!notesState.isDirty && !hasUnsavedDrafts) {
           return;
         }
 
         event.preventDefault();
-        const flushed = await runFlushAllPendingWrites();
-        if (!flushed) {
-          return;
-        }
-
-        allowNextWindowClose = true;
-        await getCurrentWindow().close();
+        await continueWindowClose();
       }).then((unlisten) => {
         unlistenCloseRequested = unlisten;
       });
@@ -334,8 +497,9 @@ function App() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pagehide', flushAllPendingWrites);
       window.removeEventListener('beforeunload', flushAllPendingWrites);
+      runFlushAllPendingWritesRef.current = async () => true;
     };
-  }, []);
+  }, [continueWindowClose, hasDiscardableDrafts]);
 
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
@@ -357,6 +521,24 @@ function App() {
       <ErrorBoundary>
         <AppContent />
       </ErrorBoundary>
+      <ConfirmDialog
+        isOpen={isCloseDraftConfirmOpen}
+        onClose={() => setIsCloseDraftConfirmOpen(false)}
+        onConfirm={() => void continueWindowClose({ skipDraftConfirm: true })}
+        onCancelAction={async () => {
+          setIsCloseDraftConfirmOpen(false);
+          await continueWindowClose({
+            skipDraftConfirm: true,
+            saveDrafts: true,
+          });
+        }}
+        title="Unsaved Drafts"
+        description="Close vlaina and discard all unsaved drafts? Drafts are only saved when you press Ctrl+S."
+        confirmText="Discard and Close"
+        cancelText="Save"
+        variant="danger"
+        initialFocus="cancel"
+      />
       <ToastContainer />
     </ThemeProvider>
   );

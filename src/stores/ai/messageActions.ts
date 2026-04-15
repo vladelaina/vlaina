@@ -18,11 +18,14 @@ function createMessageVersion(content: string, createdAt: number): MessageVersio
 
 export function createMessageActions() {
   return {
-    addMessage: (message: Omit<ChatMessage, 'id' | 'timestamp' | 'versions' | 'currentVersionIndex'> & { id?: string }) => {
+    addMessage: (
+      message: Omit<ChatMessage, 'id' | 'timestamp' | 'versions' | 'currentVersionIndex'> & { id?: string },
+      sessionId?: string,
+    ) => {
       const state = useUnifiedStore.getState()
       const ai = state.data.ai!
-      const { currentSessionId } = ai
-      if (!currentSessionId) return
+      const targetSessionId = sessionId || ai.currentSessionId
+      if (!targetSessionId) return
 
       const createdAt = Date.now()
       const newMessage: ChatMessage = {
@@ -39,18 +42,18 @@ export function createMessageActions() {
         currentVersionIndex: 0
       }
 
-      const sessionMessages = ai.messages[currentSessionId] || []
+      const sessionMessages = ai.messages[targetSessionId] || []
       const newMessages = [...sessionMessages, newMessage]
 
       state.updateAIData({
-        messages: { ...ai.messages, [currentSessionId]: newMessages },
+        messages: { ...ai.messages, [targetSessionId]: newMessages },
         sessions: ai.sessions.map((session) =>
-          session.id === currentSessionId ? { ...session, updatedAt: Date.now() } : session
+          session.id === targetSessionId ? { ...session, updatedAt: Date.now() } : session
         )
       })
 
-      if (shouldPersistSession(ai, currentSessionId)) {
-        saveSessionJson(currentSessionId, newMessages)
+      if (shouldPersistSession(ai, targetSessionId)) {
+        saveSessionJson(targetSessionId, newMessages)
       }
       return newMessage.id
     },
@@ -103,13 +106,13 @@ export function createMessageActions() {
       state.updateAIData({})
     },
 
-    addVersion: (id: string) => {
+    addVersion: (id: string, sessionId?: string) => {
       const state = useUnifiedStore.getState()
       const ai = state.data.ai!
-      const { currentSessionId } = ai
-      if (!currentSessionId) return
+      const targetSessionId = sessionId || ai.currentSessionId
+      if (!targetSessionId) return
 
-      const sessionMessages = ai.messages[currentSessionId] || []
+      const sessionMessages = ai.messages[targetSessionId] || []
       const newMessages = sessionMessages.map((message) => {
         if (message.id !== id) return message
 
@@ -127,12 +130,12 @@ export function createMessageActions() {
       state.updateAIData({
         messages: {
           ...ai.messages,
-          [currentSessionId]: newMessages
+          [targetSessionId]: newMessages
         }
       })
 
-      if (shouldPersistSession(ai, currentSessionId)) {
-        saveSessionJson(currentSessionId, newMessages)
+      if (shouldPersistSession(ai, targetSessionId)) {
+        saveSessionJson(targetSessionId, newMessages)
       }
     },
 

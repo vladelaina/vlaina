@@ -12,6 +12,7 @@ import { useAutoTitle } from './useAutoTitle';
 import { requestManager } from '@/lib/ai/requestManager';
 import { getUserFacingAIError } from '@/lib/ai/errors';
 import { needsAutoTitle } from '@/lib/ai/temporaryChat';
+import { runWithSessionMutationLock } from '@/lib/ai/sessionMutationLock';
 import {
   buildMentionedNotesContext,
   buildMessageImageSources,
@@ -21,6 +22,7 @@ import {
   refreshManagedBudgetIfNeeded,
 } from './chatService/helpers';
 import { runStreamedAssistantMessage } from './chatService/runStreamedAssistantMessage';
+import { hydrateSessionMessagesFromDisk } from '@/stores/ai/sessionConsistency';
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
@@ -46,7 +48,6 @@ export function useChatService() {
   const { generateAutoTitle } = useAutoTitle();
 
   const {
-    messages: allMessages,
     currentSessionId,
     createSession,
     addMessage,
@@ -54,6 +55,7 @@ export function useChatService() {
     completeMessage,
     editMessageAndBranch,
     addVersion,
+    switchMessageVersion: switchMessageVersionInStore,
     getSelectedModel,
     providers,
     isTemporarySession,
@@ -64,7 +66,6 @@ export function useChatService() {
     setError,
   } = useAIStore();
 
-  const messages = currentSessionId ? allMessages[currentSessionId] || [] : [];
   const selectedModel = getSelectedModel();
 
   const stop = useCallback(() => {
@@ -118,106 +119,110 @@ export function useChatService() {
 
       const targetSessionId = activeSessionId;
 
-      let storageContent = userMessageText;
-      let messageImageSources: string[] = [];
-      if (attachments.length > 0) {
-        const builtImages = buildMessageImageSources(attachments);
-        const imageMarkdown = builtImages.content;
-        messageImageSources = builtImages.imageSources;
-        storageContent = imageMarkdown + (userMessageText ? `\n\n${userMessageText}` : '');
-      }
+      await runWithSessionMutationLock(targetSessionId, async () => {
+        const latestMessages = await hydrateSessionMessagesFromDisk(targetSessionId);
 
-      if (!storageContent.trim() && normalizedMentions.length > 0) {
-        storageContent = mentionText;
-      }
-
-      addMessage({
-        role: 'user',
-        content: storageContent,
-        imageSources: messageImageSources,
-        modelId: selectedModel.id,
-      });
-
-      const assistantMessageId = generateId('msg-');
-      addMessage({
-        id: assistantMessageId,
-        role: 'assistant',
-        content: '',
-        modelId: selectedModel.id,
-      });
-
-      const isTemporaryTarget = isTemporarySession(targetSessionId);
-
-      try {
-        const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
-        const requestHistory = buildRequestHistory({
-          history: messages,
-          modelId: selectedModel.id,
-          timezoneOffset,
-          includeTimeContext,
-          customSystemPrompt
-        });
-
-        const mentionedNotes = await loadMentionedNotes(normalizedMentions);
-        const notesContext = buildMentionedNotesContext(mentionedNotes);
-        const requestText = userMessageText;
-        const textPayload = notesContext
-          ? requestText
-            ? `${notesContext}\n\nUser request:\n${requestText}`
-            : `${notesContext}\n\nUser request: (none)`
-          : requestText;
-
-        let apiMessageContent: ChatMessageContent = textPayload;
+        let storageContent = userMessageText;
+        let messageImageSources: string[] = [];
         if (attachments.length > 0) {
-          const parts: ChatMessageContentPart[] = [];
-          if (textPayload) {
-            parts.push({ type: 'text', text: textPayload });
-          }
-          for (const att of attachments) {
-            const imagePart = await normalizeVisionAttachment(att);
-            if (imagePart) {
-              parts.push(imagePart);
-            }
-          }
-          if (parts.length > 0) {
-            apiMessageContent = parts;
-          }
+          const builtImages = buildMessageImageSources(attachments);
+          const imageMarkdown = builtImages.content;
+          messageImageSources = builtImages.imageSources;
+          storageContent = imageMarkdown + (userMessageText ? `\n\n${userMessageText}` : '');
         }
 
-        await runStreamedAssistantMessage({
-          sessionId: targetSessionId,
-          assistantMessageId,
-          execute: (onChunk, signal) =>
-            openaiClient.sendMessage(
-              apiMessageContent,
-              requestHistory,
-              selectedModel,
-              provider,
-              onChunk,
-              signal
-            ),
-          updateMessage,
-          completeMessage,
-          setSessionLoading,
-          setError,
-          buildErrorPayload: buildChatErrorPayload,
-          onSuccess: () => {
-            refreshManagedBudgetIfNeeded(provider.id);
-            if (!isTemporaryTarget) {
-              maybeGenerateAutoTitle(targetSessionId, provider.id, selectedModel.id);
-            }
+        if (!storageContent.trim() && normalizedMentions.length > 0) {
+          storageContent = mentionText;
+        }
 
-            const current = useUnifiedStore.getState().data.ai?.currentSessionId;
-            if (targetSessionId !== current && !isTemporarySession(targetSessionId)) {
-              markSessionUnread(targetSessionId);
+        addMessage({
+          role: 'user',
+          content: storageContent,
+          imageSources: messageImageSources,
+          modelId: selectedModel.id,
+        }, targetSessionId);
+
+        const assistantMessageId = generateId('msg-');
+        addMessage({
+          id: assistantMessageId,
+          role: 'assistant',
+          content: '',
+          modelId: selectedModel.id,
+        }, targetSessionId);
+
+        const isTemporaryTarget = isTemporarySession(targetSessionId);
+
+        try {
+          const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
+          const requestHistory = buildRequestHistory({
+            history: latestMessages,
+            modelId: selectedModel.id,
+            timezoneOffset,
+            includeTimeContext,
+            customSystemPrompt
+          });
+
+          const mentionedNotes = await loadMentionedNotes(normalizedMentions);
+          const notesContext = buildMentionedNotesContext(mentionedNotes);
+          const requestText = userMessageText;
+          const textPayload = notesContext
+            ? requestText
+              ? `${notesContext}\n\nUser request:\n${requestText}`
+              : `${notesContext}\n\nUser request: (none)`
+            : requestText;
+
+          let apiMessageContent: ChatMessageContent = textPayload;
+          if (attachments.length > 0) {
+            const parts: ChatMessageContentPart[] = [];
+            if (textPayload) {
+              parts.push({ type: 'text', text: textPayload });
             }
-          },
-        });
-      } catch (error) {
-        const { message, xml } = buildChatErrorPayload(error)
-        setError(message);
-        updateMessage(targetSessionId, assistantMessageId, xml);
-      }
+            for (const att of attachments) {
+              const imagePart = await normalizeVisionAttachment(att);
+              if (imagePart) {
+                parts.push(imagePart);
+              }
+            }
+            if (parts.length > 0) {
+              apiMessageContent = parts;
+            }
+          }
+
+          await runStreamedAssistantMessage({
+            sessionId: targetSessionId,
+            assistantMessageId,
+            execute: (onChunk, signal) =>
+              openaiClient.sendMessage(
+                apiMessageContent,
+                requestHistory,
+                selectedModel,
+                provider,
+                onChunk,
+                signal
+              ),
+            updateMessage,
+            completeMessage,
+            setSessionLoading,
+            setError,
+            buildErrorPayload: buildChatErrorPayload,
+            onSuccess: () => {
+              refreshManagedBudgetIfNeeded(provider.id);
+              if (!isTemporaryTarget) {
+                maybeGenerateAutoTitle(targetSessionId, provider.id, selectedModel.id);
+              }
+
+              const current = useUnifiedStore.getState().data.ai?.currentSessionId;
+              if (targetSessionId !== current && !isTemporarySession(targetSessionId)) {
+                markSessionUnread(targetSessionId);
+              }
+            },
+          });
+        } catch (error) {
+          const { message, xml } = buildChatErrorPayload(error)
+          setError(message);
+          updateMessage(targetSessionId, assistantMessageId, xml);
+        }
+      });
     },
     [
       currentSessionId,
@@ -232,7 +237,6 @@ export function useChatService() {
       includeTimeContext,
       setSessionLoading,
       setError,
-      messages,
       maybeGenerateAutoTitle,
       markSessionUnread,
     ]
@@ -248,67 +252,69 @@ export function useChatService() {
         setError('This channel is turned off.');
         return;
       }
-      const initialMessages = useUnifiedStore.getState().data.ai?.messages[sessionId] || [];
-      if (!initialMessages.some((m) => m.id === messageId)) {
-        return;
-      }
-
-      editMessageAndBranch(sessionId, messageId, newContent);
-
-      const assistantMessageId = generateId('msg-');
-      addMessage({
-        id: assistantMessageId,
-        role: 'assistant',
-        content: '',
-        modelId: selectedModel.id,
-      });
-
-      try {
-        const state = useUnifiedStore.getState();
-        const sessionMessages = state.data.ai?.messages[sessionId] || [];
-
-        const userMsgIndex = sessionMessages.findIndex((m) => m.id === messageId);
-        if (userMsgIndex === -1) {
+      await runWithSessionMutationLock(sessionId, async () => {
+        const initialMessages = await hydrateSessionMessagesFromDisk(sessionId);
+        if (!initialMessages.some((m) => m.id === messageId)) {
           return;
         }
 
-        const history = sessionMessages.slice(0, userMsgIndex);
-        const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
-        const requestHistory = buildRequestHistory({
-          history,
-          modelId: selectedModel.id,
-          timezoneOffset,
-          includeTimeContext,
-          customSystemPrompt
-        });
+        editMessageAndBranch(sessionId, messageId, newContent);
 
-        await runStreamedAssistantMessage({
-          sessionId,
-          assistantMessageId,
-          execute: (onChunk, signal) =>
-            openaiClient.sendMessage(
-              newContent,
-              requestHistory,
-              selectedModel,
-              provider,
-              onChunk,
-              signal
-            ),
-          updateMessage,
-          completeMessage,
-          setSessionLoading,
-          setError,
-          buildErrorPayload: buildChatErrorPayload,
-          onSuccess: () => {
-            refreshManagedBudgetIfNeeded(provider.id);
-            maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
-          },
-        });
-      } catch (error) {
-        const { message, xml } = buildChatErrorPayload(error)
-        setError(message);
-        updateMessage(sessionId, assistantMessageId, xml);
-      }
+        const assistantMessageId = generateId('msg-');
+        addMessage({
+          id: assistantMessageId,
+          role: 'assistant',
+          content: '',
+          modelId: selectedModel.id,
+        }, sessionId);
+
+        try {
+          const state = useUnifiedStore.getState();
+          const sessionMessages = state.data.ai?.messages[sessionId] || [];
+
+          const userMsgIndex = sessionMessages.findIndex((m) => m.id === messageId);
+          if (userMsgIndex === -1) {
+            return;
+          }
+
+          const history = sessionMessages.slice(0, userMsgIndex);
+          const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
+          const requestHistory = buildRequestHistory({
+            history,
+            modelId: selectedModel.id,
+            timezoneOffset,
+            includeTimeContext,
+            customSystemPrompt
+          });
+
+          await runStreamedAssistantMessage({
+            sessionId,
+            assistantMessageId,
+            execute: (onChunk, signal) =>
+              openaiClient.sendMessage(
+                newContent,
+                requestHistory,
+                selectedModel,
+                provider,
+                onChunk,
+                signal
+              ),
+            updateMessage,
+            completeMessage,
+            setSessionLoading,
+            setError,
+            buildErrorPayload: buildChatErrorPayload,
+            onSuccess: () => {
+              refreshManagedBudgetIfNeeded(provider.id);
+              maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
+            },
+          });
+        } catch (error) {
+          const { message, xml } = buildChatErrorPayload(error)
+          setError(message);
+          updateMessage(sessionId, assistantMessageId, xml);
+        }
+      });
     },
     [
       currentSessionId,
@@ -330,64 +336,66 @@ export function useChatService() {
     async (msgId: string) => {
       if (!selectedModel || !currentSessionId) return;
       const sessionId = currentSessionId;
+      await runWithSessionMutationLock(sessionId, async () => {
+        const latestMessages = await hydrateSessionMessagesFromDisk(sessionId);
 
-      const msgIndex = messages.findIndex((m) => m.id === msgId);
-      if (msgIndex <= 0) return;
+        const msgIndex = latestMessages.findIndex((m) => m.id === msgId);
+        if (msgIndex <= 0) return;
 
-      const promptMsg = messages[msgIndex - 1];
-      if (promptMsg.role !== 'user') return;
+        const promptMsg = latestMessages[msgIndex - 1];
+        if (promptMsg.role !== 'user') return;
 
-      const history = messages.slice(0, msgIndex - 1);
-      const provider = providers.find((p) => p.id === selectedModel.providerId);
-      if (!provider) return;
-      if (provider.enabled === false) {
-        setError('This channel is turned off.');
-        return;
-      }
+        const history = latestMessages.slice(0, msgIndex - 1);
+        const provider = providers.find((p) => p.id === selectedModel.providerId);
+        if (!provider) return;
+        if (provider.enabled === false) {
+          setError('This channel is turned off.');
+          return;
+        }
 
-      addVersion(msgId);
+        addVersion(msgId, sessionId);
 
-      try {
-        const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
-        const requestHistory = buildRequestHistory({
-          history,
-          modelId: selectedModel.id,
-          timezoneOffset,
-          includeTimeContext,
-          customSystemPrompt
-        });
+        try {
+          const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
+          const requestHistory = buildRequestHistory({
+            history,
+            modelId: selectedModel.id,
+            timezoneOffset,
+            includeTimeContext,
+            customSystemPrompt
+          });
 
-        await runStreamedAssistantMessage({
-          sessionId,
-          assistantMessageId: msgId,
-          execute: (onChunk, signal) =>
-            openaiClient.sendMessage(
-              promptMsg.content,
-              requestHistory,
-              selectedModel,
-              provider,
-              onChunk,
-              signal
-            ),
-          updateMessage,
-          completeMessage,
-          setSessionLoading,
-          setError,
-          buildErrorPayload: buildChatErrorPayload,
-          onSuccess: () => {
-            refreshManagedBudgetIfNeeded(provider.id);
-            maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
-          },
-        });
-      } catch (error) {
-        const { message, xml } = buildChatErrorPayload(error)
-        setError(message);
-        updateMessage(sessionId, msgId, xml);
-      }
+          await runStreamedAssistantMessage({
+            sessionId,
+            assistantMessageId: msgId,
+            execute: (onChunk, signal) =>
+              openaiClient.sendMessage(
+                promptMsg.content,
+                requestHistory,
+                selectedModel,
+                provider,
+                onChunk,
+                signal
+              ),
+            updateMessage,
+            completeMessage,
+            setSessionLoading,
+            setError,
+            buildErrorPayload: buildChatErrorPayload,
+            onSuccess: () => {
+              refreshManagedBudgetIfNeeded(provider.id);
+              maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
+            },
+          });
+        } catch (error) {
+          const { message, xml } = buildChatErrorPayload(error)
+          setError(message);
+          updateMessage(sessionId, msgId, xml);
+        }
+      });
     },
     [
       selectedModel,
-      messages,
       providers,
       customSystemPrompt,
       includeTimeContext,
@@ -401,5 +409,17 @@ export function useChatService() {
     ]
   );
 
-  return { sendMessage, regenerate, editMessage, stop };
+  const switchMessageVersion = useCallback(
+    async (sessionId: string, messageId: string, versionIndex: number) => {
+      if (!sessionId) return;
+
+      await runWithSessionMutationLock(sessionId, async () => {
+        await hydrateSessionMessagesFromDisk(sessionId);
+        switchMessageVersionInStore(sessionId, messageId, versionIndex);
+      });
+    },
+    [switchMessageVersionInStore]
+  );
+
+  return { sendMessage, regenerate, editMessage, switchMessageVersion, stop };
 }

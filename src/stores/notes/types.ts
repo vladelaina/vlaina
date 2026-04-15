@@ -60,6 +60,11 @@ export interface CurrentNoteState {
   content: string;
 }
 
+export interface DraftNoteEntry {
+  parentPath: string | null;
+  name: string;
+}
+
 export interface NoteContentCacheEntry {
   content: string;
   modifiedAt: number | null;
@@ -68,6 +73,7 @@ export interface NoteContentCacheEntry {
 export interface NotesState {
   rootFolder: FolderNode | null;
   currentNote: CurrentNoteState | null;
+  currentNoteRevision: number;
   notesPath: string;
   isDirty: boolean;
   isLoading: boolean;
@@ -75,6 +81,7 @@ export interface NotesState {
   recentNotes: string[];
   openTabs: { path: string; name: string; isDirty: boolean }[];
   noteContentsCache: Map<string, NoteContentCacheEntry>;
+  draftNotes: Record<string, DraftNoteEntry>;
   starredEntries: StarredEntry[];
   starredNotes: string[];
   starredFolders: string[];
@@ -83,6 +90,7 @@ export interface NotesState {
   noteMetadata: MetadataFile | null;
   displayNames: Map<string, string>;
   isNewlyCreated: boolean;
+  pendingDraftDiscardPath: string | null;
   newlyCreatedFolderPath: string | null;
   assetList: AssetEntry[];
   isLoadingAssets: boolean;
@@ -95,7 +103,8 @@ export interface NotesActions {
   toggleFolder: (path: string) => void;
   openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
   openNoteByAbsolutePath: (absolutePath: string, openInNewTab?: boolean) => Promise<void>;
-  saveNote: () => Promise<void>;
+  adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => boolean;
+  saveNote: (options?: { explicit?: boolean; suppressOpenTarget?: boolean }) => Promise<void>;
   syncCurrentNoteFromDisk: () => Promise<'ignored' | 'unchanged' | 'reloaded' | 'conflict' | 'deleted' | 'deleted-conflict'>;
   invalidateNoteCache: (path: string) => void;
   applyExternalPathRename: (oldPath: string, newPath: string) => Promise<void>;
@@ -110,6 +119,10 @@ export interface NotesActions {
   deleteFolder: (path: string) => Promise<void>;
   moveItem: (sourcePath: string, targetFolderPath: string) => Promise<void>;
   updateContent: (content: string) => void;
+  updateDraftNoteName: (path: string, name: string) => void;
+  discardDraftNote: (path: string) => void;
+  cancelPendingDraftDiscard: () => void;
+  confirmPendingDraftDiscard: () => Promise<void>;
   closeNote: () => void;
   closeTab: (path: string) => Promise<void>;
   switchTab: (path: string) => void;

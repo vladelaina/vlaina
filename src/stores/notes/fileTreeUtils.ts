@@ -2,7 +2,7 @@ import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import type { FileTreeNode } from './types';
 import { sortFileTree } from './fileTreeSorting';
 
-export async function buildFileTree(basePath: string, relativePath: string = ''): Promise<FileTreeNode[]> {
+export async function buildFileTreeLevel(basePath: string, relativePath: string = ''): Promise<FileTreeNode[]> {
   const storage = getStorageAdapter();
   const fullPath = relativePath ? await joinPath(basePath, relativePath) : basePath;
   const entries = await storage.listDir(fullPath);
@@ -18,13 +18,12 @@ export async function buildFileTree(basePath: string, relativePath: string = '')
     const isFile = entry.isFile === true;
 
     if (isDir) {
-      const children = await buildFileTree(basePath, entryPath);
       nodes.push({
         id: entryPath,
         name: entry.name,
         path: entryPath,
         isFolder: true,
-        children,
+        children: [],
         expanded: false,
       });
     } else if (isFile && entry.name.toLowerCase().endsWith('.md')) {
@@ -35,6 +34,24 @@ export async function buildFileTree(basePath: string, relativePath: string = '')
         isFolder: false,
       });
     }
+  }
+
+  return sortFileTree(nodes);
+}
+
+export async function buildFileTree(basePath: string, relativePath: string = ''): Promise<FileTreeNode[]> {
+  const nodes = await buildFileTreeLevel(basePath, relativePath);
+
+  for (let index = 0; index < nodes.length; index += 1) {
+    const node = nodes[index];
+    if (!node.isFolder) {
+      continue;
+    }
+
+    nodes[index] = {
+      ...node,
+      children: await buildFileTree(basePath, node.path),
+    };
   }
 
   return sortFileTree(nodes);

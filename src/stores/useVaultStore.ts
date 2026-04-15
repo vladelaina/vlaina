@@ -7,6 +7,7 @@ import {
   normalizeStarredVaultPath,
   saveStarredRegistry,
 } from '@/stores/notes/starred';
+import { readWindowLaunchContext } from '@/lib/tauri/windowLaunchContext';
 import { sanitizeFileName } from '@/stores/notes/noteUtils';
 import { markExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
 import { suspendExternalSync } from '@/stores/notes/document/externalSyncControl';
@@ -102,6 +103,33 @@ function normalizeRecentVaults(vaults: VaultInfo[]): VaultInfo[] {
   return normalizedVaults.slice(0, MAX_RECENT_VAULTS);
 }
 
+function upsertRecentVault(
+  recentVaults: VaultInfo[],
+  path: string,
+  name?: string
+) {
+  const normalizedPath = normalizeVaultPath(path);
+  const vaultName = name || getVaultName(normalizedPath);
+  const existingVault = recentVaults.find((candidate) => candidate.path === normalizedPath);
+
+  const vault = existingVault
+    ? { ...existingVault, name: vaultName, lastOpened: Date.now() }
+    : {
+        id: generateVaultId(),
+        name: vaultName,
+        path: normalizedPath,
+        lastOpened: Date.now(),
+      };
+
+  return {
+    vault,
+    recentVaults: normalizeRecentVaults([
+      vault,
+      ...recentVaults.filter((candidate) => candidate.path !== normalizedPath),
+    ]),
+  };
+}
+
 async function resolveRenamedVaultPath(currentPath: string, nextName: string) {
   const storage = getStorageAdapter();
   const parentPath = getParentPath(currentPath);
@@ -181,11 +209,12 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
     const savedVaults = normalizeRecentVaults(loadFromStorage<VaultInfo[]>(VAULTS_STORAGE_KEY, []));
     const currentVaultId = loadFromStorage<string | null>(CURRENT_VAULT_KEY, null);
     const isWebPlatform = storage.platform === 'web';
+    const launchContext = readWindowLaunchContext();
+    const requestedVaultPath = launchContext.vaultPath
+      ? normalizeVaultPath(launchContext.vaultPath)
+      : null;
 
     windowLabel = await getCurrentWindowLabel();
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const isNewWindow = urlParams.get('newWindow') === 'true';
 
     const existChecks = await Promise.all(
       savedVaults.map(async (vault) => {
@@ -195,7 +224,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
         return { vault, exists: await storage.exists(vault.path) };
       })
     );
-    const recentVaults = normalizeRecentVaults(
+    let recentVaults = normalizeRecentVaults(
       existChecks.filter((candidate) => candidate.exists).map((candidate) => candidate.vault)
     );
 
@@ -204,7 +233,23 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
     }
 
     let currentVault: VaultInfo | null = null;
-    if (currentVaultId && !isNewWindow) {
+    if (requestedVaultPath) {
+      const requestedVaultExists =
+        !isWebPlatform || !isNativeFilesystemPath(requestedVaultPath)
+          ? await storage.exists(requestedVaultPath)
+          : false;
+
+      if (requestedVaultExists) {
+        await ensureVaultConfig(requestedVaultPath);
+        const nextVaultState = upsertRecentVault(recentVaults, requestedVaultPath);
+        recentVaults = nextVaultState.recentVaults;
+        currentVault = nextVaultState.vault;
+        saveToStorage(VAULTS_STORAGE_KEY, recentVaults);
+        saveToStorage(CURRENT_VAULT_KEY, currentVault.id);
+        windowVaultPath = currentVault.path;
+        setCurrentVaultPath(currentVault.path);
+      }
+    } else if (currentVaultId && !launchContext.isNewWindow) {
       currentVault = recentVaults.find((vault) => vault.id === currentVaultId) || null;
       if (currentVault) {
         await ensureVaultConfig(currentVault.path);
@@ -244,6 +289,8 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
   openVault: async (path: string, name?: string) => {
     set({ isLoading: true, error: null });
+    const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    console.info('[Vault] openVault:start', { path, name });
 
     try {
       const storage = getStorageAdapter();
@@ -262,26 +309,13 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
       await ensureVaultConfig(normalizedPath);
 
-      const recentVaults = normalizeRecentVaults(get().recentVaults);
-      const vaultName = name || getVaultName(normalizedPath);
-
-      let vault = recentVaults.find((candidate) => candidate.path === normalizedPath);
-
-      if (vault) {
-        vault = { ...vault, name: vaultName, lastOpened: Date.now() };
-      } else {
-        vault = {
-          id: generateVaultId(),
-          name: vaultName,
-          path: normalizedPath,
-          lastOpened: Date.now(),
-        };
-      }
-
-      const updatedRecent = normalizeRecentVaults([
-        vault,
-        ...recentVaults.filter((candidate) => candidate.path !== normalizedPath),
-      ]);
+      const nextVaultState = upsertRecentVault(
+        normalizeRecentVaults(get().recentVaults),
+        normalizedPath,
+        name
+      );
+      const vault = nextVaultState.vault;
+      const updatedRecent = nextVaultState.recentVaults;
 
       saveToStorage(VAULTS_STORAGE_KEY, updatedRecent);
       saveToStorage(CURRENT_VAULT_KEY, vault.id);
@@ -294,9 +328,18 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
       windowVaultPath = vault.path;
       setCurrentVaultPath(vault.path);
+      useNotesStore.setState({ notesPath: vault.path });
+      console.info('[Vault] openVault:ready', {
+        path: vault.path,
+        durationMs: Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - startedAt),
+      });
 
       return true;
     } catch (error) {
+      console.info('[Vault] openVault:failed', {
+        path,
+        durationMs: Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - startedAt),
+      });
       set({
         error: error instanceof Error ? error.message : 'Failed to open vault',
         isLoading: false,
@@ -371,6 +414,10 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
           openTabs: [],
           rootFolder: null,
           notesPath: '',
+          draftNotes: {},
+          pendingDraftDiscardPath: null,
+          displayNames: new Map(),
+          noteContentsCache: new Map(),
         });
         await waitForUiRelease();
 

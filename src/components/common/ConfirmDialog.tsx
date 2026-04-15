@@ -13,22 +13,32 @@ interface ConfirmDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => void | Promise<void>;
+  onCancelAction?: () => void | Promise<void>;
+  onAuxAction?: () => void | Promise<void>;
   title: string;
   description?: string;
   confirmText?: string;
+  auxActionText?: string;
   cancelText?: string;
   variant?: 'danger' | 'default';
+  auxActionVariant?: 'success' | 'default';
+  initialFocus?: 'confirm' | 'cancel';
 }
 
 export function ConfirmDialog({
   isOpen,
   onClose,
   onConfirm,
+  onCancelAction,
+  onAuxAction,
   title,
   description,
   confirmText = 'Confirm',
+  auxActionText,
   cancelText = 'Cancel',
   variant = 'default',
+  auxActionVariant = 'default',
+  initialFocus = 'confirm',
 }: ConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
@@ -63,6 +73,10 @@ export function ConfirmDialog({
           <DialogPrimitive.Content
             onOpenAutoFocus={(event) => {
               event.preventDefault();
+              if (initialFocus === 'cancel') {
+                cancelRef.current?.focus();
+                return;
+              }
               confirmRef.current?.focus();
             }}
             onKeyDown={handleKeyDown}
@@ -79,6 +93,22 @@ export function ConfirmDialog({
               )}
 
               <div className="mt-7 flex flex-col gap-2.5">
+                {onAuxAction && auxActionText ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      await onAuxAction();
+                    }}
+                    className={cn(
+                      "inline-flex h-12 items-center justify-center rounded-2xl px-4 text-[14px] font-semibold transition-colors outline-none",
+                      auxActionVariant === 'success'
+                        ? "bg-[#16a34a] text-white hover:bg-[#15803d]"
+                        : "bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200"
+                    )}
+                  >
+                    {auxActionText}
+                  </button>
+                ) : null}
                 <button
                   ref={confirmRef}
                   type="button"
@@ -98,7 +128,13 @@ export function ConfirmDialog({
                 <button
                   ref={cancelRef}
                   type="button"
-                  onClick={onClose}
+                  onClick={async () => {
+                    if (onCancelAction) {
+                      await onCancelAction();
+                      return;
+                    }
+                    onClose();
+                  }}
                   className="inline-flex h-12 items-center justify-center rounded-2xl border border-zinc-200 bg-white px-4 text-[14px] font-medium text-zinc-700 transition-colors outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-transparent dark:text-zinc-300 dark:hover:bg-white/[0.04]"
                 >
                   {cancelText}

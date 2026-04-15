@@ -18,6 +18,10 @@ import {
   stripTemporaryForMutation,
   useAIUIStore,
 } from './chatState'
+import {
+  runWithSessionMutationLock,
+  runWithSessionMutationLocks,
+} from '@/lib/ai/sessionMutationLock'
 
 let switchSessionGeneration = 0;
 
@@ -193,24 +197,31 @@ export function createSessionActions() {
     },
 
     updateSession: (id: string, updates: Partial<ChatSession>) => {
-      const state = useUnifiedStore.getState()
-      const ai = state.data.ai!
-      state.updateAIData({
-        sessions: ai.sessions.map((session) =>
-          session.id === id ? { ...session, ...updates, updatedAt: Date.now() } : session
-        )
+      void runWithSessionMutationLock(id, async () => {
+        const state = useUnifiedStore.getState()
+        const ai = state.data.ai!
+        if (!ai.sessions.some((session) => session.id === id)) {
+          return
+        }
+
+        state.updateAIData({
+          sessions: ai.sessions.map((session) =>
+            session.id === id ? { ...session, ...updates, updatedAt: Date.now() } : session
+          )
+        })
       })
     },
 
-    deleteSession: (id: string) => {
+    deleteSession: async (id: string) => {
       const state = useUnifiedStore.getState()
       const ai = state.data.ai!
       const uiState = useAIUIStore.getState()
-      requestManager.abort(id)
-      cancelSessionJsonSave(id)
-      uiState.clearSessionState(id)
 
       if (isTemporarySessionId(id)) {
+        requestManager.abort(id)
+        cancelSessionJsonSave(id)
+        uiState.clearSessionState(id)
+
         const stripped = stripTemporaryForMutation(ai)
 
         if (ai.temporaryChatEnabled) {
@@ -230,43 +241,67 @@ export function createSessionActions() {
         return
       }
 
-      const newSessions = ai.sessions.filter((session) => session.id !== id)
-      const newMessages = { ...ai.messages }
-      delete newMessages[id]
+      await runWithSessionMutationLock(id, async () => {
+        const latestState = useUnifiedStore.getState()
+        const latestAI = latestState.data.ai!
+        const latestUIState = useAIUIStore.getState()
 
-      state.updateAIData({
-        sessions: newSessions,
-        messages: newMessages,
-        currentSessionId: ai.currentSessionId === id ? null : ai.currentSessionId
+        requestManager.abort(id)
+        cancelSessionJsonSave(id)
+        latestUIState.clearSessionState(id)
+
+        if (!latestAI.sessions.some((session) => session.id === id)) {
+          return
+        }
+
+        const newSessions = latestAI.sessions.filter((session) => session.id !== id)
+        const newMessages = { ...latestAI.messages }
+        delete newMessages[id]
+
+        latestState.updateAIData({
+          sessions: newSessions,
+          messages: newMessages,
+          currentSessionId: latestAI.currentSessionId === id ? null : latestAI.currentSessionId
+        })
+        await deleteSessionJson(id)
       })
-      void deleteSessionJson(id)
     },
 
-    clearSessions: () => {
+    clearSessions: async () => {
       const state = useUnifiedStore.getState()
       const ai = state.data.ai!
-      const uiState = useAIUIStore.getState()
-      ai.sessions.forEach((session) => {
-        requestManager.abort(session.id)
-        cancelSessionJsonSave(session.id)
-        uiState.clearSessionState(session.id)
-        if (!isTemporarySession(session)) {
-          void deleteSessionJson(session.id)
+      const sessionIds = ai.sessions.map((session) => session.id)
+
+      await runWithSessionMutationLocks(sessionIds, async () => {
+        const latestState = useUnifiedStore.getState()
+        const latestAI = latestState.data.ai!
+        const uiState = useAIUIStore.getState()
+
+        await Promise.all(
+          latestAI.sessions.map(async (session) => {
+            requestManager.abort(session.id)
+            cancelSessionJsonSave(session.id)
+            uiState.clearSessionState(session.id)
+
+            if (!isTemporarySession(session)) {
+              await deleteSessionJson(session.id)
+            }
+          })
+        )
+
+        if (latestAI.temporaryChatEnabled) {
+          stripTemporaryForMutation(latestAI)
+          const temporaryState = buildTemporarySessionState({ sessions: [], messages: {} }, latestAI.selectedModelId || '')
+          latestState.updateAIData({
+            sessions: temporaryState.sessions,
+            messages: temporaryState.messages,
+            currentSessionId: temporaryState.currentSessionId
+          })
+          return
         }
+
+        latestState.updateAIData({ sessions: [], messages: {}, currentSessionId: null })
       })
-
-      if (ai.temporaryChatEnabled) {
-        stripTemporaryForMutation(ai)
-        const temporaryState = buildTemporarySessionState({ sessions: [], messages: {} }, ai.selectedModelId || '')
-        state.updateAIData({
-          sessions: temporaryState.sessions,
-          messages: temporaryState.messages,
-          currentSessionId: temporaryState.currentSessionId
-        })
-        return
-      }
-
-      state.updateAIData({ sessions: [], messages: {}, currentSessionId: null })
     },
   }
 }

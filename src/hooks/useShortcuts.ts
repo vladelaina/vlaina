@@ -7,6 +7,7 @@ import { useUIStore as useAppUIStore } from '@/stores/uiSlice';
 import { getShortcuts, getKeysFromEvent, matchShortcut, ShortcutScope, ShortcutHandler } from '@/lib/shortcuts';
 import { shouldBlockBrowserReservedShortcut } from '@/lib/shortcuts/browserGuards';
 import { dispatchSidebarOpenSearchEvent } from '@/components/layout/sidebar/sidebarEvents';
+import { resolveSiblingNoteParentPath } from '@/stores/notes/notePathState';
 
 interface UseShortcutsOptions {
   scope?: ShortcutScope;
@@ -41,19 +42,20 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       window.dispatchEvent(new Event('open-settings'));
     },
     newWindow: async () => {
-      await windowCommands.createNewWindow();
+      await windowCommands.createNewWindow({ viewMode: appViewMode });
     },
     newTab: () => {
-      const folderPath = currentNote?.path 
-        ? currentNote.path.substring(0, currentNote.path.lastIndexOf('/')) || undefined
-        : undefined;
+      const folderPath = resolveSiblingNoteParentPath(
+        useNotesStore.getState().draftNotes,
+        currentNote?.path,
+      );
       createNote(folderPath);
     },
     openMarkdownFile: () => {
       window.dispatchEvent(new Event('vlaina-open-markdown-file'));
     },
     toggleDrawer,
-  }), [toggleAppViewMode, toggleSidebar, setNotesSidebarView, notesSidebarView, createNote, currentNote?.path, toggleDrawer]);
+  }), [toggleAppViewMode, toggleSidebar, setNotesSidebarView, notesSidebarView, createNote, currentNote?.path, toggleDrawer, appViewMode]);
 
   const handlers = useMemo(() => ({
     ...builtinHandlers,
@@ -65,6 +67,12 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       if (e.key === 'F11') {
         e.preventDefault();
         await windowCommands.toggleFullscreen();
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault();
+        await handlers.newWindow?.();
         return;
       }
 

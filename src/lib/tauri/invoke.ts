@@ -1,5 +1,7 @@
 import { isTauri } from '@/lib/storage/adapter';
 import { invoke } from '@tauri-apps/api/core';
+import type { WindowLaunchViewMode } from './windowLaunchContext';
+import { buildWindowLaunchSearch } from './windowLaunchContext';
 
 export async function safeInvoke<T>(
   command: string,
@@ -46,12 +48,18 @@ export const windowCommands = {
     await safeInvoke('focus_window', { label });
   },
 
-  async createNewWindow(): Promise<void> {
+  async createNewWindow(options?: {
+    vaultPath?: string | null;
+    notePath?: string | null;
+    viewMode?: WindowLaunchViewMode | null;
+  }): Promise<void> {
     if (!isTauri()) {
-      window.open(window.location.href, '_blank');
+      const nextUrl = new URL(window.location.href);
+      nextUrl.search = buildWindowLaunchSearch(options);
+      window.open(nextUrl.toString(), '_blank');
       return;
     }
-    await safeInvoke('create_new_window');
+    await safeInvoke('create_new_window', options);
   },
 };
 

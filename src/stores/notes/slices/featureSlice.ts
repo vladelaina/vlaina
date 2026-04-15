@@ -6,8 +6,14 @@ import {
   loadRecentNotes,
   loadNoteMetadata,
   saveNoteMetadata,
-  setNoteEntry,
 } from '../storage';
+import { canStarNotePath } from '../notePathState';
+import {
+  applyNoteMetadataUpdates,
+  ensureMetadataFile,
+  getNoteMetadataEntry,
+  persistNoteMetadataIfNeeded,
+} from '../noteMetadataState';
 import {
   loadStarredForVault,
   removeStarredEntryById,
@@ -97,14 +103,26 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       const batch = filePaths.slice(i, i + BATCH_SIZE);
       const results = await Promise.allSettled(
         batch.map(async ({ path, fullPath }) => {
-          const content = await storage.readFile(fullPath);
-          return { path, content };
+          const [content, fileInfo] = await Promise.all([
+            storage.readFile(fullPath),
+            storage.stat(fullPath),
+          ]);
+          return {
+            path,
+            content,
+            modifiedAt: fileInfo?.modifiedAt ?? null,
+          };
         })
       );
 
       results.forEach((result) => {
         if (result.status === 'fulfilled') {
-          cache = setCachedNoteContent(cache, result.value.path, result.value.content, null);
+          cache = setCachedNoteContent(
+            cache,
+            result.value.path,
+            result.value.content,
+            result.value.modifiedAt
+          );
         }
       });
     }
@@ -178,6 +196,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
   },
 
   toggleStarred: (path: string) => {
+    if (!canStarNotePath(path)) return;
     toggleStarredEntry(set, get, 'note', path);
   },
 
@@ -189,26 +208,24 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     removeStarredEntryById(set, get, id);
   },
 
-  isStarred: (path: string) => get().starredNotes.includes(path),
+  isStarred: (path: string) => canStarNotePath(path) && get().starredNotes.includes(path),
 
   isFolderStarred: (path: string) => get().starredFolders.includes(path),
 
   setPendingStarredNavigation: (pendingStarredNavigation) => set({ pendingStarredNavigation }),
 
   getNoteIcon: (path: string) => {
-    const { noteMetadata } = get();
-    if (!noteMetadata) return undefined;
-    return noteMetadata.notes[path]?.icon;
+    return getNoteMetadataEntry(get().noteMetadata, path)?.icon;
   },
 
   setNoteIcon: (path: string, emoji: string | null) => {
     const { noteMetadata, notesPath } = get();
-    if (!noteMetadata || !notesPath) return;
-
     const updates = emoji ? { icon: emoji } : { icon: undefined };
-    const updated = setNoteEntry(noteMetadata, path, updates);
+    const updated = applyNoteMetadataUpdates(noteMetadata, path, updates);
     set({ noteMetadata: updated });
-    saveNoteMetadata(notesPath, updated);
+    if (notesPath) {
+      persistNoteMetadataIfNeeded(notesPath, path, updated);
+    }
   },
 
   updateAllIconColors: (newColor: string) => {
@@ -267,24 +284,22 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
   },
 
   getNoteCover: (path: string) => {
-    const { noteMetadata } = get();
-    if (!noteMetadata) return {};
-    const entry = noteMetadata.notes[path];
+    const entry = getNoteMetadataEntry(get().noteMetadata, path);
     if (!entry) return {};
     return { cover: entry.cover, coverX: entry.coverX, coverY: entry.coverY, coverH: entry.coverH, coverScale: entry.coverScale };
   },
 
   setNoteCover: (path: string, cover: string | null, coverX?: number, coverY?: number, coverH?: number, coverScale?: number) => {
     const { noteMetadata, notesPath } = get();
-    if (!noteMetadata || !notesPath) return;
-
     const updates = cover
       ? { cover, coverX: coverX ?? 50, coverY: coverY ?? 50, coverH: coverH, coverScale: coverScale ?? 1 }
       : { cover: undefined, coverX: undefined, coverY: undefined, coverH: undefined, coverScale: undefined };
 
-    const updated = setNoteEntry(noteMetadata, path, updates);
+    const updated = applyNoteMetadataUpdates(noteMetadata, path, updates);
     set({ noteMetadata: updated });
-    saveNoteMetadata(notesPath, updated);
+    if (notesPath) {
+      persistNoteMetadataIfNeeded(notesPath, path, updated);
+    }
   },
 
   getNoteIconSize: (_path: string) => {
@@ -294,19 +309,21 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
   setGlobalIconSize: (size: number) => {
     const { noteMetadata, notesPath } = get();
-    if (!noteMetadata || !notesPath) return;
+    const currentMetadata = ensureMetadataFile(noteMetadata);
 
-    const updated: MetadataFile = { ...noteMetadata, defaultIconSize: size };
+    const updated: MetadataFile = { ...currentMetadata, defaultIconSize: size };
     set({ noteMetadata: updated });
-    saveNoteMetadata(notesPath, updated);
+    if (notesPath) {
+      saveNoteMetadata(notesPath, updated);
+    }
   },
 
   setNoteIconSize: (path: string, size: number) => {
     const { noteMetadata, notesPath } = get();
-    if (!noteMetadata || !notesPath) return;
-
-    const updated = setNoteEntry(noteMetadata, path, { iconSize: size });
+    const updated = applyNoteMetadataUpdates(noteMetadata, path, { iconSize: size });
     set({ noteMetadata: updated });
-    saveNoteMetadata(notesPath, updated);
+    if (notesPath) {
+      persistNoteMetadataIfNeeded(notesPath, path, updated);
+    }
   },
 });

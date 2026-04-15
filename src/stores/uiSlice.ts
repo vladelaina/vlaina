@@ -3,6 +3,7 @@ import {
   STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED,
 } from '@/lib/config';
 import { getDefaultSidebarWidth } from '@/lib/layout/sidebarWidth';
+import { readWindowLaunchContext } from '@/lib/tauri/windowLaunchContext';
 const STORAGE_KEY_SIDEBAR_WIDTH = 'vlaina_sidebar_width';
 const STORAGE_KEY_IMAGE_STORAGE_MODE = 'vlaina_image_storage_mode';
 const STORAGE_KEY_IMAGE_SUBFOLDER_NAME = 'vlaina_image_subfolder_name';
@@ -167,8 +168,14 @@ function loadImageFilenameFormat(): ImageFilenameFormat {
 function loadNotesChatPanelCollapsed(): boolean {
   return loadBoolean(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, false);
 }
+
+function getInitialAppViewMode(): AppViewMode {
+  const launchViewMode = readWindowLaunchContext().viewMode;
+  return launchViewMode ?? 'notes';
+}
+
 export const useUIStore = create<UIStore>()((set) => ({
-  appViewMode: 'notes' as AppViewMode,
+  appViewMode: getInitialAppViewMode(),
   setAppViewMode: (mode) => set({ appViewMode: mode }),
   toggleAppViewMode: () => set((state) => ({
     appViewMode: state.appViewMode === 'chat' ? 'notes' : 'chat'

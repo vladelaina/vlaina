@@ -23,6 +23,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { resolveSiblingNoteParentPath } from '@/stores/notes/notePathState';
 
 interface TabContentProps {
   tab: { path: string; name: string; isDirty: boolean };
@@ -63,20 +64,16 @@ function TabContent({ tab, isActive, icon, title, disambiguation }: TabContentPr
 interface SortableTabProps {
   tab: { path: string; name: string; isDirty: boolean };
   isActive: boolean;
-  isStarred: boolean;
   onClose: (path: string) => void | Promise<void>;
   onClick: (path: string) => void;
-  onToggleStar: (path: string) => void;
   showSeparator?: boolean;
 }
 
 const SortableTab = memo(function SortableTab({
   tab,
   isActive,
-  isStarred,
   onClose,
   onClick,
-  onToggleStar,
   showSeparator,
 }: SortableTabProps) {
   const icon = useDisplayIcon(tab.path);
@@ -88,7 +85,14 @@ const SortableTab = memo(function SortableTab({
     transition: undefined,
   };
 
+  const isInteractiveTarget = (target: EventTarget | null) =>
+    target instanceof Element && Boolean(target.closest('button'));
+
   const handlePointerDown = (e: React.PointerEvent) => {
+    if (isInteractiveTarget(e.target)) {
+      return;
+    }
+
     if (e.button === 1) {
       e.preventDefault();
       e.stopPropagation();
@@ -108,6 +112,9 @@ const SortableTab = memo(function SortableTab({
           {...listeners}
           onPointerDown={handlePointerDown}
           onClick={(e) => {
+            if (isInteractiveTarget(e.target)) {
+              return;
+            }
             if (e.button === 1) return;
             onClick(tab.path);
           }}
@@ -133,26 +140,14 @@ const SortableTab = memo(function SortableTab({
           <button
             type="button"
             onClick={(e) => {
-              e.stopPropagation();
-              onToggleStar(tab.path);
-            }}
-            onPointerDown={(e) => e.stopPropagation()}
-            className={cn(
-              'rounded p-0.5 transition-all',
-              isStarred
-                ? 'opacity-100 text-amber-500'
-                : 'pointer-events-none opacity-0 text-zinc-300 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100 hover:text-amber-500 dark:text-zinc-600 dark:hover:text-amber-400'
-            )}
-          >
-            <Icon size="sm" name="misc.star" className={cn(isStarred && 'fill-current')} />
-          </button>
-
-          <button
-            onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               onClose(tab.path);
             }}
-            onPointerDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
             className={cn(
               'ml-auto rounded p-0.5 opacity-0 transition-all pointer-events-none group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100',
               'text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400'
@@ -201,8 +196,6 @@ export function NotesTabRow() {
   const openNote = useNotesStore((s) => s.openNote);
   const createNote = useNotesStore((s) => s.createNote);
   const reorderTabs = useNotesStore((s) => s.reorderTabs);
-  const isStarred = useNotesStore((s) => s.isStarred);
-  const toggleStarred = useNotesStore((s) => s.toggleStarred);
 
   const [activeTabId, setActiveTabId] = React.useState<string | null>(null);
 
@@ -213,10 +206,10 @@ export function NotesTabRow() {
   );
 
   const handleCreateNote = useCallback(() => {
-    const currentPath = currentNote?.path;
-    const folderPath = currentPath && currentPath.includes('/')
-      ? currentPath.substring(0, currentPath.lastIndexOf('/')) || undefined
-      : undefined;
+    const folderPath = resolveSiblingNoteParentPath(
+      useNotesStore.getState().draftNotes,
+      currentNote?.path,
+    );
     createNote(folderPath);
   }, [currentNote?.path, createNote]);
 
@@ -253,10 +246,8 @@ export function NotesTabRow() {
                 key={tab.path}
                 tab={tab}
                 isActive={currentNote?.path === tab.path}
-                isStarred={isStarred(tab.path)}
                 onClose={closeTab}
                 onClick={(path) => void openNote(path)}
-                onToggleStar={toggleStarred}
                 showSeparator={index > 0}
               />
             ))}
@@ -282,7 +273,7 @@ export function NotesTabRow() {
         </TooltipTrigger>
         <TooltipContent side="bottom" sideOffset={5} className="flex items-center gap-1.5 text-xs">
           <span>New Note</span>
-          <ShortcutKeys keys={['Ctrl', 'N']} />
+          <ShortcutKeys keys={['Ctrl', 'T']} />
         </TooltipContent>
       </Tooltip>
     </div>
