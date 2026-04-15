@@ -9,7 +9,6 @@ import {
 import {
   createCodeBlockInputRule,
   insertImageInputRule,
-  insertHrInputRule,
   wrapInBlockquoteInputRule,
   wrapInBulletListInputRule,
   wrapInHeadingInputRule,
@@ -23,7 +22,6 @@ export const inputRules: MilkdownPlugin[] = [
   wrapInOrderedListInputRule,
   createCodeBlockInputRule,
   insertImageInputRule,
-  insertHrInputRule,
   wrapInHeadingInputRule,
 ].flat()
 
