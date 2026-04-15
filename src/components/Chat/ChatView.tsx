@@ -21,6 +21,10 @@ import { WelcomeScreen } from '@/components/Chat/layout/WelcomeScreen';
 import { ChatShortcutsDialog } from '@/components/Chat/common/ChatShortcutsDialog';
 import { TemporaryChatToggle } from '@/components/Chat/features/Temporary/TemporaryChatToggle';
 import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
+import {
+  estimateChatLoadingHeight,
+  estimateChatMessageHeight,
+} from '@/components/Chat/features/Layout/chatMessageLayout';
 
 interface ChatImageGalleryItem {
   id: string;
@@ -104,11 +108,22 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
 
   const isEmpty = !currentSessionId || (isMessagesLoaded && messages.length === 0);
   const { showInChatArea } = useTemporaryTogglePresentation();
+  const estimateMessageHeight = useCallback(
+    (message: typeof messages[number], messageIsStreaming: boolean, containerWidth: number) =>
+      estimateChatMessageHeight(message, {
+        containerWidth,
+        isStreaming: messageIsStreaming,
+      }),
+    []
+  );
 
   const { containerRef, handleNewUserMessage, spacerHeight } = useMessageAutoscroll({
       messages,
       isStreaming: isSessionActive,
-      chatId: currentSessionId
+      chatId: currentSessionId,
+      showLoading,
+      estimateMessageHeight,
+      estimateLoadingHeight: estimateChatLoadingHeight,
   });
   useHeldPageScroll(containerRef, {
     ignoreEditableTargets: true,

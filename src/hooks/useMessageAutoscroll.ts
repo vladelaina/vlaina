@@ -12,6 +12,9 @@ interface UseMessageAutoscrollOptions {
   messages: ChatMessage[];
   isStreaming: boolean;
   chatId: string | null;
+  estimateMessageHeight?: (message: ChatMessage, isStreaming: boolean, containerWidth: number) => number;
+  estimateLoadingHeight?: () => number;
+  showLoading?: boolean;
 }
 
 interface MessageAutoscrollBehavior {
@@ -34,6 +37,9 @@ export const useMessageAutoscroll = ({
   messages,
   isStreaming,
   chatId,
+  estimateMessageHeight,
+  estimateLoadingHeight,
+  showLoading = false,
 }: UseMessageAutoscrollOptions): MessageAutoscrollBehavior => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pendingScrollToBottomRef = useRef(false);
@@ -86,27 +92,55 @@ export const useMessageAutoscroll = ({
     const targetElement = container.querySelector(
       `[data-message-index="${lastUserIndex}"]`,
     ) as HTMLElement | null;
+    const containerWidth = container.clientWidth;
+    let contentHeightAfterTarget = 0;
+    let targetMessageHeight = 0;
 
-    if (!targetElement) {
-      setSpacerHeight(0);
-      return;
+    if (estimateMessageHeight && containerWidth > 0) {
+      targetMessageHeight = estimateMessageHeight(
+        messages[lastUserIndex]!,
+        false,
+        containerWidth,
+      );
+      contentHeightAfterTarget = messages
+        .slice(lastUserIndex + 1)
+        .reduce(
+          (sum, message, index) =>
+            sum +
+            estimateMessageHeight(
+              message,
+              isStreaming && lastUserIndex + 1 + index === messages.length - 1,
+              containerWidth,
+            ),
+          0,
+        );
+
+      if (showLoading) {
+        contentHeightAfterTarget += estimateLoadingHeight?.() ?? 0;
+      }
+    } else {
+      if (!targetElement) {
+        setSpacerHeight(0);
+        return;
+      }
+
+      const messageElements = container.querySelectorAll(
+        "[data-message-index]",
+      ) as NodeListOf<HTMLElement>;
+
+      const elementsAfter = Array.from(messageElements).filter((el) => {
+        const idx = Number(el.dataset.messageIndex);
+        return Number.isFinite(idx) && idx > lastUserIndex;
+      });
+
+      contentHeightAfterTarget = elementsAfter.reduce(
+        (sum, el) => sum + el.offsetHeight,
+        0,
+      );
+
+      targetMessageHeight = targetElement.offsetHeight;
     }
 
-    const messageElements = container.querySelectorAll(
-      "[data-message-index]",
-    ) as NodeListOf<HTMLElement>;
-
-    const elementsAfter = Array.from(messageElements).filter((el) => {
-      const idx = Number(el.dataset.messageIndex);
-      return Number.isFinite(idx) && idx > lastUserIndex;
-    });
-
-    const contentHeightAfterTarget = elementsAfter.reduce(
-      (sum, el) => sum + el.offsetHeight,
-      0,
-    );
-
-    const targetMessageHeight = targetElement.offsetHeight;
     const unclampedBaseHeight = Math.max(
       0,
       containerHeight - contentHeightAfterTarget - targetMessageHeight,
@@ -120,7 +154,15 @@ export const useMessageAutoscroll = ({
         : 0;
 
     setSpacerHeight(Math.max(0, Math.round(baseHeight + extraSpaceForAssistant)));
-  }, [getLastUserMessageIndex, hasVisibleAssistantOutput, isStreaming]);
+  }, [
+    estimateLoadingHeight,
+    estimateMessageHeight,
+    getLastUserMessageIndex,
+    hasVisibleAssistantOutput,
+    isStreaming,
+    messages,
+    showLoading,
+  ]);
 
   const handleNewUserMessage = useCallback(() => {
     pendingScrollToBottomRef.current = true;

@@ -26,6 +26,11 @@ function createScrollContainer() {
     get: () => 600,
   });
 
+  Object.defineProperty(element, 'clientWidth', {
+    configurable: true,
+    get: () => 900,
+  });
+
   Object.defineProperty(element, 'scrollHeight', {
     configurable: true,
     get: () => 1800,
@@ -83,5 +88,39 @@ describe('useMessageAutoscroll', () => {
     });
 
     expect(container.scrollTop).toBe(container.scrollHeight);
+  });
+
+  it('computes spacer height from estimated message sizes when DOM rows are unavailable', () => {
+    const container = createScrollContainer();
+    const { result, rerender } = renderHook(
+      ({ messages }) =>
+        useMessageAutoscroll({
+          messages,
+          isStreaming: true,
+          chatId: 'chat-1',
+          showLoading: false,
+          estimateMessageHeight: (_message, _isStreaming, _containerWidth) => 120,
+        }),
+      {
+        initialProps: {
+          messages: [] as ChatMessage[],
+        },
+      }
+    );
+
+    act(() => {
+      result.current.containerRef.current = container;
+    });
+    act(() => {
+      rerender({
+        messages: [
+          createMessage('u1', 'user'),
+          createMessage('a1', 'assistant'),
+          createMessage('a2', 'assistant'),
+        ],
+      });
+    });
+
+    expect(result.current.spacerHeight).toBeGreaterThan(0);
   });
 });

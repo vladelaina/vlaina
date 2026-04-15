@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { registerComposerFocusAdapter } from '@/lib/ui/composerFocusRegistry';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
+import { usePredictedTextareaHeight } from '@/hooks/usePredictedTextareaHeight';
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
@@ -87,14 +88,11 @@ export function useChatComposer({
     return unregister;
   }, []);
 
-  useEffect(() => {
-    const input = textareaRef.current;
-    if (!input) {
-      return;
-    }
-    input.style.height = 'auto';
-    input.style.height = `${Math.min(input.scrollHeight, 320)}px`;
-  }, [message]);
+  usePredictedTextareaHeight(textareaRef, {
+    value: message,
+    minHeight: 24,
+    maxHeight: 320,
+  });
 
   const markExplicitMultiline = useCallback(() => {
     hasExplicitMultilineRef.current = true;

@@ -30,6 +30,7 @@ import {
   type MentionPreviewPart,
   type NoteMentionCandidate,
 } from '@/components/Chat/features/Input/noteMentionHelpers';
+import { usePredictedTextareaHeight } from '@/hooks/usePredictedTextareaHeight';
 
 interface ParsedUserMessageContent {
   text: string;
@@ -263,12 +264,11 @@ export function UserMessage({ message, onEdit, onSwitchVersion }: UserMessagePro
       });
   }, [isEditing]);
 
-  useEffect(() => {
-      if (!isEditing || !editTextareaRef.current) return;
-      const el = editTextareaRef.current;
-      el.style.height = "auto";
-      el.style.height = `${Math.min(el.scrollHeight, 320)}px`;
-  }, [isEditing, editValue]);
+  usePredictedTextareaHeight(editTextareaRef, {
+    value: editValue,
+    minHeight: 24,
+    maxHeight: 320,
+  });
 
   const removeEditMention = useCallback(
     (path: string, rangeStart?: number) => {
