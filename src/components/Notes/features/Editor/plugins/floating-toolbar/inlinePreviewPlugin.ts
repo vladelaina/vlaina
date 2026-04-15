@@ -6,8 +6,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 type InlinePreviewMeta =
   | {
       type: 'show';
-      from: number;
-      to: number;
+      ranges: Array<{ from: number; to: number }>;
       style: string;
     }
   | {
@@ -32,16 +31,17 @@ export const floatingToolbarInlinePreviewPlugin = $prose(() => {
         }
 
         if (meta?.type === 'show') {
-          if (meta.from >= meta.to) {
+          const validRanges = meta.ranges.filter(({ from, to }) => from < to);
+          if (validRanges.length === 0) {
             return DecorationSet.empty;
           }
 
-          return DecorationSet.create(tr.doc, [
-            Decoration.inline(meta.from, meta.to, {
+          return DecorationSet.create(tr.doc, validRanges.map(({ from, to }) =>
+            Decoration.inline(from, to, {
               class: 'floating-toolbar-inline-preview',
               style: meta.style,
-            }),
-          ]);
+            })
+          ));
         }
 
         if (tr.selectionSet) {
@@ -71,8 +71,7 @@ function toInlineStyleText(styles: Record<string, string>): string {
 
 export function showInlineFormatPreview(
   view: EditorView,
-  from: number,
-  to: number,
+  ranges: Array<{ from: number; to: number }>,
   styles: Record<string, string>
 ): void {
   const style = toInlineStyleText(styles);
@@ -81,8 +80,7 @@ export function showInlineFormatPreview(
       .setMeta('addToHistory', false)
       .setMeta(floatingToolbarInlinePreviewKey, {
         type: 'show',
-        from,
-        to,
+        ranges,
         style,
       } satisfies InlinePreviewMeta)
   );

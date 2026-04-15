@@ -1,16 +1,250 @@
 import { lift, wrapIn } from '@milkdown/kit/prose/commands';
+import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType, TextAlignment } from './types';
 import { createCodeBlockAttrs } from '../code/codeBlockSettings';
+import { normalizeTopLevelBlockPos } from '../cursor/topLevelBlockDom';
 import {
   convertToList,
   convertToTextBlock,
   normalizeCurrentBlockToParagraph,
 } from './blockTypeConversion';
 
+function getHeadingLevel(blockType: BlockType): number | null {
+  if (!blockType.startsWith('heading')) {
+    return null;
+  }
+
+  const level = Number.parseInt(blockType.replace('heading', ''), 10);
+  return Number.isInteger(level) && level >= 1 && level <= 6 ? level : null;
+}
+
+function isTableContainer(typeName: string | undefined): boolean {
+  return typeName === 'table_cell' || typeName === 'table_header';
+}
+
+function isConvertibleTextBlock(node: { type: { name: string } }): boolean {
+  return node.type.name === 'paragraph' || node.type.name === 'heading';
+}
+
+function canConvertTextBlockInParent(parentTypeName: string | undefined): boolean {
+  return !isTableContainer(parentTypeName);
+}
+
+function isInsideTableContainerAtDepth(
+  $pos: EditorView['state']['selection']['$from'],
+  depth: number
+): boolean {
+  for (let currentDepth = depth - 1; currentDepth > 0; currentDepth -= 1) {
+    if (isTableContainer($pos.node(currentDepth)?.type.name)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function getSelectionBoundaryTextBlock(
+  $pos: EditorView['state']['selection']['$from'] | undefined
+): { node: { type: { name: string }; attrs?: Record<string, unknown> }; pos: number } | null {
+  if (!$pos || typeof $pos.depth !== 'number' || typeof $pos.node !== 'function') {
+    return null;
+  }
+
+  for (let depth = $pos.depth; depth > 0; depth -= 1) {
+    const node = $pos.node(depth);
+    if (!isConvertibleTextBlock(node)) {
+      continue;
+    }
+
+    if (isInsideTableContainerAtDepth($pos, depth)) {
+      return null;
+    }
+
+    return {
+      node,
+      pos: $pos.before(depth),
+    };
+  }
+
+  return null;
+}
+
+function getDomSelectedTextBlocks(
+  view: EditorView
+): Array<{ node: { type: { name: string }; attrs?: Record<string, unknown> }; pos: number }> {
+  if (typeof window === 'undefined' || !(view.dom instanceof HTMLElement)) {
+    return [];
+  }
+
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    return [];
+  }
+
+  const range = selection.getRangeAt(0);
+  if (range.collapsed) {
+    return [];
+  }
+
+  const seen = new Set<number>();
+  const entries: Array<{ node: { type: { name: string }; attrs?: Record<string, unknown> }; pos: number }> = [];
+
+  for (const child of Array.from(view.dom.children)) {
+    if (!(child instanceof HTMLElement)) {
+      continue;
+    }
+
+    let intersects = false;
+    try {
+      intersects = range.intersectsNode(child);
+    } catch {
+      intersects = false;
+    }
+
+    if (!intersects) {
+      continue;
+    }
+
+    let rawPos: number | null = null;
+    try {
+      rawPos = view.posAtDOM(child, 0);
+    } catch {
+      rawPos = null;
+    }
+
+    if (rawPos === null) {
+      continue;
+    }
+
+    const pos = normalizeTopLevelBlockPos(view, rawPos);
+    if (pos === null || seen.has(pos)) {
+      continue;
+    }
+
+    const node = view.state.doc.nodeAt(pos);
+    if (!node || !isConvertibleTextBlock(node)) {
+      continue;
+    }
+
+    seen.add(pos);
+    entries.push({ node, pos });
+  }
+
+  return entries;
+}
+
+function applyTextBlockTypeAcrossSelection(
+  view: EditorView,
+  nodeType: { name: string } | undefined,
+  attrs?: Record<string, unknown>,
+): { handled: boolean; tr: EditorView['state']['tr'] | null } {
+  const { state, dispatch } = view;
+  const { from, to, empty } = state.selection;
+  if (
+    empty ||
+    !nodeType ||
+    !state.doc ||
+    typeof state.doc.nodesBetween !== 'function'
+  ) {
+    return { handled: false, tr: null };
+  }
+
+  const seenPositions = new Set<number>();
+  const targets = new Map<number, { node: { type: { name: string }; attrs?: Record<string, unknown> }; pos: number }>();
+
+  const registerTarget = (
+    node: { type: { name: string }; attrs?: Record<string, unknown> },
+    pos: number
+  ) => {
+    if (seenPositions.has(pos)) {
+      return;
+    }
+
+    seenPositions.add(pos);
+    targets.set(pos, { node, pos });
+  };
+
+  const boundaryEntries = [
+    getSelectionBoundaryTextBlock(state.selection.$from),
+    getSelectionBoundaryTextBlock('$to' in state.selection ? state.selection.$to : undefined),
+  ];
+
+  for (const entry of boundaryEntries) {
+    if (!entry) {
+      continue;
+    }
+
+    registerTarget(entry.node, entry.pos);
+  }
+
+  const domSelectionEntries = getDomSelectedTextBlocks(view);
+  for (const entry of domSelectionEntries) {
+    registerTarget(entry.node, entry.pos);
+  }
+
+  state.doc.nodesBetween(from, to, (node, pos, parent) => {
+    if (!isConvertibleTextBlock(node)) {
+      return;
+    }
+
+    if (!canConvertTextBlockInParent(parent?.type.name)) {
+      return false;
+    }
+
+    registerTarget(node, pos);
+    return false;
+  });
+
+  const orderedTargets = Array.from(targets.values()).sort((a, b) => b.pos - a.pos);
+
+  if (orderedTargets.length === 0) {
+    return { handled: false, tr: null };
+  }
+
+  let updated = false;
+
+  for (const target of orderedTargets) {
+    const currentNode = view.state.doc.nodeAt(target.pos);
+    if (!currentNode || !isConvertibleTextBlock(currentNode)) {
+      continue;
+    }
+
+    const selectionPos = Math.max(1, Math.min(target.pos + 1, view.state.doc.content.size));
+    dispatch(
+      view.state.tr
+        .setSelection(TextSelection.create(view.state.doc, selectionPos))
+        .setMeta('addToHistory', false)
+    );
+
+    const beforeNodeDoc = view.state.doc;
+    convertToTextBlock(view, nodeType, attrs);
+    const nodeChanged = !beforeNodeDoc.eq(view.state.doc);
+    updated = updated || nodeChanged;
+  }
+  return { handled: updated, tr: null };
+}
+
 export function convertBlockType(view: EditorView, blockType: BlockType): void {
   const { state, dispatch } = view;
   const { $from } = state.selection;
+
+  if (blockType === 'paragraph' || getHeadingLevel(blockType) !== null) {
+    const targetNodeType = blockType === 'paragraph'
+      ? state.schema.nodes.paragraph
+      : state.schema.nodes.heading;
+    const headingLevel = getHeadingLevel(blockType);
+    const selectionResult = applyTextBlockTypeAcrossSelection(
+      view,
+      targetNodeType,
+      headingLevel !== null ? { level: headingLevel } : undefined
+    );
+
+    if (selectionResult.handled) {
+      view.focus();
+      return;
+    }
+  }
 
   switch (blockType) {
     case 'paragraph': {
@@ -27,9 +261,9 @@ export function convertBlockType(view: EditorView, blockType: BlockType): void {
     case 'heading4':
     case 'heading5':
     case 'heading6': {
-      const level = parseInt(blockType.replace('heading', ''));
+      const level = getHeadingLevel(blockType);
       const headingType = state.schema.nodes.heading;
-      if (headingType) {
+      if (headingType && level !== null) {
         convertToTextBlock(view, headingType, { level });
       }
       break;

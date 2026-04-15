@@ -54,9 +54,23 @@ export class CodeBlockNodeView implements NodeView {
   private selected = false;
   private headerStateKey = '';
   private pendingMeasureFrame: number | null = null;
+  private pendingSelectionSyncFrame: number | null = null;
   private readonly disposeFontMetricsSync: () => void;
   private readonly unsubscribeSettings: () => void;
   private showLineNumbers = selectCodeBlockLineNumbersEnabled(useUnifiedStore.getState());
+
+  private getOwnerDocument(): Document | null {
+    return (
+      this.dom.ownerDocument ??
+      this.editorDOM.ownerDocument ??
+      (this.view.root instanceof Document ? this.view.root : this.view.root.ownerDocument) ??
+      null
+    );
+  }
+
+  private getOwnerWindow(): Window | null {
+    return this.getOwnerDocument()?.defaultView ?? null;
+  }
 
   constructor(node: Node, view: EditorView, getPos: () => number | undefined) {
     this.node = node;
@@ -118,9 +132,11 @@ export class CodeBlockNodeView implements NodeView {
       });
       this.scheduleMeasure();
     });
+    this.dom.ownerDocument?.addEventListener('selectionchange', this.handleDocumentSelectionChange);
 
     this.applyCollapsedState();
     this.syncFindHighlights();
+    this.syncProseMirrorSelection();
     this.root = createRoot(this.headerDOM);
     this.render();
     void this.syncLanguage();
@@ -204,22 +220,68 @@ export class CodeBlockNodeView implements NodeView {
     );
   }
 
+  private syncProseMirrorSelection() {
+    const nodePos = this.getPos();
+    if (nodePos === undefined) {
+      this.dom.dataset.pmSelected = 'false';
+      return;
+    }
+
+    const contentFrom = nodePos + 1;
+    const contentTo = nodePos + this.node.nodeSize - 1;
+    const selectionFrom = Math.max(this.view.state.selection.from, contentFrom);
+    const selectionTo = Math.min(this.view.state.selection.to, contentTo);
+    const hasSelection = selectionTo > selectionFrom;
+
+    this.dom.dataset.pmSelected = hasSelection ? 'true' : 'false';
+
+    if (!hasSelection || this.cm.hasFocus || this.node.attrs.collapsed) {
+      return;
+    }
+
+    const rawText = this.node.textContent ?? '';
+    const nextAnchor = mapDocumentOffsetToCodeBlockEditorOffset(rawText, selectionFrom - contentFrom);
+    const nextHead = mapDocumentOffsetToCodeBlockEditorOffset(rawText, selectionTo - contentFrom);
+
+    this.updating = true;
+    this.cm.dispatch({
+      selection: {
+        anchor: nextAnchor,
+        head: nextHead,
+      },
+    });
+    this.updating = false;
+  }
+
+  private readonly handleDocumentSelectionChange = () => {
+    const window = this.getOwnerWindow();
+    if (!window) {
+      this.syncProseMirrorSelection();
+      return;
+    }
+
+    if (this.pendingSelectionSyncFrame !== null) {
+      window.cancelAnimationFrame(this.pendingSelectionSyncFrame);
+    }
+
+    this.pendingSelectionSyncFrame = window.requestAnimationFrame(() => {
+      this.pendingSelectionSyncFrame = null;
+      this.syncProseMirrorSelection();
+    });
+  };
+
   private scheduleMeasure() {
-    const ownerDocument =
-      this.dom.ownerDocument ??
-      this.editorDOM.ownerDocument ??
-      (this.view.root instanceof Document ? this.view.root : this.view.root.ownerDocument);
-    const view = ownerDocument?.defaultView;
-    if (!view) {
+    const window = this.getOwnerWindow();
+    if (!window) {
       this.cm.requestMeasure();
       return;
     }
 
     if (this.pendingMeasureFrame !== null) {
-      view.cancelAnimationFrame(this.pendingMeasureFrame);
+      window.cancelAnimationFrame(this.pendingMeasureFrame);
     }
 
-    this.pendingMeasureFrame = view.requestAnimationFrame(() => {
+    this.pendingMeasureFrame = window.requestAnimationFrame(() => {
       this.pendingMeasureFrame = null;
       this.cm.requestMeasure();
     });
@@ -289,6 +351,7 @@ export class CodeBlockNodeView implements NodeView {
     }
 
     this.syncFindHighlights();
+    this.syncProseMirrorSelection();
 
     if (this.selected) {
       this.cm.focus();
@@ -340,17 +403,18 @@ export class CodeBlockNodeView implements NodeView {
   }
 
   destroy() {
-    const ownerDocument =
-      this.dom.ownerDocument ??
-      this.editorDOM.ownerDocument ??
-      (this.view.root instanceof Document ? this.view.root : this.view.root.ownerDocument);
-    const view = ownerDocument?.defaultView;
-    if (view && this.pendingMeasureFrame !== null) {
-      view.cancelAnimationFrame(this.pendingMeasureFrame);
+    const window = this.getOwnerWindow();
+    if (window && this.pendingMeasureFrame !== null) {
+      window.cancelAnimationFrame(this.pendingMeasureFrame);
       this.pendingMeasureFrame = null;
+    }
+    if (window && this.pendingSelectionSyncFrame !== null) {
+      window.cancelAnimationFrame(this.pendingSelectionSyncFrame);
+      this.pendingSelectionSyncFrame = null;
     }
     this.unsubscribeSettings();
     this.disposeFontMetricsSync();
+    this.dom.ownerDocument?.removeEventListener('selectionchange', this.handleDocumentSelectionChange);
     this.root.unmount();
     this.cm.destroy();
     this.dom.remove();

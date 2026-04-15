@@ -4,6 +4,7 @@ import {
   getBgColor,
   getCurrentAlignment,
   getCurrentBlockType,
+  getFormattableTextRanges,
   getLinkUrl,
   getTextColor,
 } from './selectionHelpers';
@@ -69,8 +70,15 @@ function createView(
         $from: resolve(selection.from),
       },
       doc: {
-        nodesBetween: (_from: number, _to: number, callback: (node: unknown, pos: number) => void) => {
+        nodesBetween: (_from: number, _to: number, callback: (node: unknown, pos: number, parent?: unknown) => void) => {
           nodes.forEach((node) => {
+            const path = resolvedByPos[node.pos];
+            const parent = path
+              ? {
+                  type: { name: path[path.length - 1].type },
+                  attrs: path[path.length - 1].attrs ?? {},
+                }
+              : undefined;
             callback(
               {
                 isText: node.isText ?? Boolean(node.text),
@@ -81,7 +89,8 @@ function createView(
                   attrs: mark.attrs ?? {},
                 })),
               },
-              node.pos
+              node.pos,
+              parent
             );
           });
         },
@@ -263,5 +272,27 @@ describe('selection helpers', () => {
 
     expect(getCurrentAlignment(mixedAlignmentView)).toBeNull();
     expect(getCurrentAlignment(codeAndCenteredParagraphView)).toBe('center');
+  });
+
+  it('ignores restricted block text when computing formattable ranges and mark state', () => {
+    const view = createView(
+      [
+        { ...createTextNode('ab', [{ name: 'strong' }]), pos: 0 },
+        { ...createTextNode('cd'), pos: 2 },
+        { ...createTextNode('ef', [{ name: 'strong' }]), pos: 4 },
+      ],
+      { from: 0, to: 6 },
+      {
+        0: [{ type: 'doc' }, { type: 'paragraph', before: 1 }],
+        2: [{ type: 'doc' }, { type: 'code_block', before: 3 }],
+        4: [{ type: 'doc' }, { type: 'paragraph', before: 7 }],
+      }
+    );
+
+    expect(getFormattableTextRanges(view)).toEqual([
+      { from: 0, to: 2 },
+      { from: 4, to: 6 },
+    ]);
+    expect(getActiveMarks(view)).toEqual(new Set(['strong']));
   });
 });

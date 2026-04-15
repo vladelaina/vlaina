@@ -25,6 +25,11 @@ type ResolvedPosLike = {
   parent?: NodeWithTypeAndAttrs;
 };
 
+type TextRange = {
+  from: number;
+  to: number;
+};
+
 type SelectedTextContext = {
   node: TextNodeLike;
   pos: number;
@@ -33,10 +38,12 @@ type SelectedTextContext = {
 };
 
 const NO_COMMON_VALUE = Symbol('no-common-value');
+const RESTRICTED_SELECTION_BLOCK_TYPES = new Set(['code_block', 'frontmatter']);
 
 function forEachSelectedTextNode(
   view: EditorView,
-  callback: (context: SelectedTextContext) => void
+  callback: (context: SelectedTextContext) => void,
+  options?: { excludeRestrictedParents?: boolean }
 ): boolean {
   const { state } = view;
   const { from, to, empty } = state.selection;
@@ -46,8 +53,17 @@ function forEachSelectedTextNode(
     return false;
   }
 
-  state.doc.nodesBetween(from, to, (node, pos) => {
+  state.doc.nodesBetween(from, to, (node, pos, parent) => {
     const textNode = node as unknown as TextNodeLike;
+    const parentNode = parent as NodeWithTypeAndAttrs | undefined;
+    if (
+      options?.excludeRestrictedParents &&
+      parentNode &&
+      RESTRICTED_SELECTION_BLOCK_TYPES.has(parentNode.type.name)
+    ) {
+      return;
+    }
+
     if (!textNode.isText || !textNode.text || textNode.text.length === 0) {
       return;
     }
@@ -73,34 +89,6 @@ function forEachSelectedTextNode(
   return hasSelectedText;
 }
 
-function getCommonMarkAttribute(
-  view: EditorView,
-  markName: string,
-  attrName: string
-): string | null {
-  let commonValue: string | null | typeof NO_COMMON_VALUE | undefined;
-
-  const hasSelectedText = forEachSelectedTextNode(view, ({ node }) => {
-    const value = node.marks.find((mark) => mark.type.name === markName)?.attrs?.[attrName] ?? null;
-    const normalizedValue = typeof value === 'string' && value.length > 0 ? value : null;
-
-    if (commonValue === undefined) {
-      commonValue = normalizedValue;
-      return;
-    }
-
-    if (commonValue !== normalizedValue) {
-      commonValue = NO_COMMON_VALUE;
-    }
-  });
-
-  if (!hasSelectedText || commonValue === undefined || commonValue === NO_COMMON_VALUE) {
-    return null;
-  }
-
-  return commonValue;
-}
-
 export function getActiveMarks(view: EditorView): Set<string> {
   let activeMarks: Set<string> | null = null;
 
@@ -117,7 +105,7 @@ export function getActiveMarks(view: EditorView): Set<string> {
         activeMarks?.delete(markName);
       }
     });
-  });
+  }, { excludeRestrictedParents: true });
 
   if (!hasSelectedText || activeMarks === null) {
     return new Set<string>();
@@ -307,15 +295,62 @@ export function isSelectionInFirstH1(view: EditorView): boolean {
 }
 
 export function getLinkUrl(view: EditorView): string | null {
-  return getCommonMarkAttribute(view, 'link', 'href');
+  return getCommonMarkAttributeForFormattableText(view, 'link', 'href');
 }
 
 export function getTextColor(view: EditorView): string | null {
-  return getCommonMarkAttribute(view, 'textColor', 'color');
+  return getCommonMarkAttributeForFormattableText(view, 'textColor', 'color');
 }
 
 export function getBgColor(view: EditorView): string | null {
-  return getCommonMarkAttribute(view, 'bgColor', 'color');
+  return getCommonMarkAttributeForFormattableText(view, 'bgColor', 'color');
+}
+
+function getCommonMarkAttributeForFormattableText(
+  view: EditorView,
+  markName: string,
+  attrName: string
+): string | null {
+  let commonValue: string | null | typeof NO_COMMON_VALUE | undefined;
+
+  const hasSelectedText = forEachSelectedTextNode(view, ({ node }) => {
+    const value = node.marks.find((mark) => mark.type.name === markName)?.attrs?.[attrName] ?? null;
+    const normalizedValue = typeof value === 'string' && value.length > 0 ? value : null;
+
+    if (commonValue === undefined) {
+      commonValue = normalizedValue;
+      return;
+    }
+
+    if (commonValue !== normalizedValue) {
+      commonValue = NO_COMMON_VALUE;
+    }
+  }, { excludeRestrictedParents: true });
+
+  if (!hasSelectedText || commonValue === undefined || commonValue === NO_COMMON_VALUE) {
+    return null;
+  }
+
+  return commonValue;
+}
+
+export function getFormattableTextRanges(view: EditorView): TextRange[] {
+  const ranges: TextRange[] = [];
+
+  forEachSelectedTextNode(view, ({ selectedFrom, selectedTo }) => {
+    const previousRange = ranges.length > 0 ? ranges[ranges.length - 1] : null;
+    if (previousRange && previousRange.to === selectedFrom) {
+      previousRange.to = selectedTo;
+      return;
+    }
+
+    ranges.push({
+      from: selectedFrom,
+      to: selectedTo,
+    });
+  }, { excludeRestrictedParents: true });
+
+  return ranges;
 }
 
 export function calculatePosition(view: EditorView): { 

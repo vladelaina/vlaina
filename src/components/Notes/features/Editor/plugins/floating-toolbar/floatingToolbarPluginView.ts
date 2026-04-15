@@ -344,17 +344,6 @@ export function createFloatingToolbarPluginView(
       return;
     }
 
-    if (
-      !isReviewModeActive
-      && (
-        selection.$from.parent.type.name === 'code_block'
-        || selection.$from.parent.type.name === 'frontmatter'
-      )
-    ) {
-      hideToolbarAndReset();
-      return;
-    }
-
     syncAiReviewWidth(isReviewModeActive, pluginState);
 
     const activeMarks = getActiveMarks(editorView);

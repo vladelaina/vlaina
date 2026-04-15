@@ -1,6 +1,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType } from './types';
 import { clearInlineFormatPreview, showInlineFormatPreview } from './inlinePreviewPlugin';
+import { getFormattableTextRanges } from './selectionHelpers';
 
 const FORMAT_SELECTORS: Record<string, string> = {
   bold: '.milkdown strong',
@@ -433,13 +434,17 @@ function resolveBlockPreviewTarget(blockType: BlockType, node: Node | null): HTM
   return textBlock instanceof HTMLElement ? textBlock : node;
 }
 
+function isRestrictedPreviewTarget(node: HTMLElement | null): boolean {
+  return Boolean(node?.closest('.code-block-container, .frontmatter-block-container'));
+}
+
 function collectSelectedBlockElements(view: EditorView, blockType: BlockType): HTMLElement[] {
   const elements: HTMLElement[] = [];
   const seen = new Set<HTMLElement>();
   const { from, to, $from } = view.state.selection;
 
   const pushElement = (node: Node | null) => {
-    if (!(node instanceof HTMLElement) || seen.has(node)) {
+    if (!(node instanceof HTMLElement) || seen.has(node) || isRestrictedPreviewTarget(node)) {
       return;
     }
 
@@ -451,7 +456,6 @@ function collectSelectedBlockElements(view: EditorView, blockType: BlockType): H
     if (
       node.type.name !== 'paragraph' &&
       node.type.name !== 'heading' &&
-      node.type.name !== 'code_block' &&
       node.type.name !== 'blockquote'
     ) {
       return;
@@ -473,13 +477,13 @@ function collectSelectedBlockElements(view: EditorView, blockType: BlockType): H
 export function applyFormatPreview(view: EditorView, action: string, isActive: boolean = false): void {
   clearFormatPreview(view);
 
-  const { selection } = view.state;
-  if (selection.empty) return;
+  const ranges = getFormattableTextRanges(view);
+  if (ranges.length === 0) return;
 
   const styles = isActive ? getResetStyles(action) : getFormatStyles(action);
   if (Object.keys(styles).length === 0) return;
 
-  showInlineFormatPreview(view, selection.from, selection.to, styles);
+  showInlineFormatPreview(view, ranges, styles);
 }
 
 export function applyBlockPreview(view: EditorView, blockType: BlockType): void {

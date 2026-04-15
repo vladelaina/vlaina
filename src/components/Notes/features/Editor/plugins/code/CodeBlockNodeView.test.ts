@@ -31,6 +31,17 @@ function createMockNodeWithText(textContent: string, collapsed = false): ProseNo
   } as unknown as ProseNode;
 }
 
+function createMockSelection(from: number, to: number) {
+  return {
+    from,
+    to,
+    empty: from === to,
+    $from: {},
+    $to: {},
+    eq: vi.fn(() => false),
+  };
+}
+
 function createMockView(): EditorView {
   const tr = {
     setSelection: vi.fn(() => tr),
@@ -44,7 +55,7 @@ function createMockView(): EditorView {
     editable: true,
     state: {
       tr,
-      selection: { from: 1, to: 1 },
+      selection: createMockSelection(1, 1),
       doc: { resolve: vi.fn(() => ({})) },
       schema: {
         text: vi.fn((value: string) => value),
@@ -77,6 +88,7 @@ describe('CodeBlockNodeView', () => {
   beforeEach(() => {
     renderMock.mockClear();
     unmountMock.mockClear();
+    document.body.innerHTML = '';
   });
 
   it('keeps header controls non-editable and does not expose a ProseMirror contentDOM', () => {
@@ -211,6 +223,41 @@ describe('CodeBlockNodeView', () => {
     expect(() => nodeView.setSelection(8, 8)).not.toThrow();
     expect(cm.state.selection.main.anchor).toBe(6);
     expect(cm.state.selection.main.head).toBe(6);
+    nodeView.destroy();
+  });
+
+  it('mirrors an outer ProseMirror selection into the embedded editor', () => {
+    const node = createMockNodeWithText('const a = 1;');
+    const view = createMockView();
+    view.state.selection = createMockSelection(1, node.textContent.length + 1) as never;
+    const nodeView = new CodeBlockNodeView(node, view, () => 0);
+    const cm = getCodeMirror(nodeView);
+
+    nodeView.update(node);
+
+    expect(nodeView.dom.dataset.pmSelected).toBe('true');
+    expect(cm.state.selection.main.anchor).toBe(0);
+    expect(cm.state.selection.main.head).toBe(node.textContent.length);
+
+    nodeView.destroy();
+  });
+
+  it('syncs outer selection changes after document selectionchange', async () => {
+    const node = createMockNodeWithText('const a = 1;');
+    const view = createMockView();
+    const selection = view.state.selection as { from: number; to: number };
+    const nodeView = new CodeBlockNodeView(node, view, () => 0);
+    const cm = getCodeMirror(nodeView);
+
+    selection.from = 1;
+    selection.to = node.textContent.length + 1;
+    document.dispatchEvent(new Event('selectionchange'));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    expect(nodeView.dom.dataset.pmSelected).toBe('true');
+    expect(cm.state.selection.main.anchor).toBe(0);
+    expect(cm.state.selection.main.head).toBe(node.textContent.length);
+
     nodeView.destroy();
   });
 });

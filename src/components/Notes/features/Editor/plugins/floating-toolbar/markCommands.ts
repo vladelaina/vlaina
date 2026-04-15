@@ -3,17 +3,17 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 export function toggleMark(view: EditorView, markName: string): void {
   const { state, dispatch } = view;
   const markType = state.schema.marks[markName];
-  if (!markType) return;
+  if (!markType) {
+    return;
+  }
 
   const { from, to } = state.selection;
   const hasMark = state.doc.rangeHasMark(from, to, markType);
+  const tr = hasMark
+    ? state.tr.removeMark(from, to, markType)
+    : state.tr.addMark(from, to, markType.create());
 
-  if (hasMark) {
-    dispatch(state.tr.removeMark(from, to, markType));
-  } else {
-    dispatch(state.tr.addMark(from, to, markType.create()));
-  }
-
+  dispatch(tr);
   view.focus();
 }
 
@@ -46,14 +46,15 @@ export function setLink(view: EditorView, url: string | null): void {
   const { from, to } = state.selection;
   const linkMark = state.schema.marks.link;
 
-  if (!linkMark) return;
-
-  if (url !== null) {
-    dispatch(state.tr.addMark(from, to, linkMark.create({ href: url })));
-  } else {
-    dispatch(state.tr.removeMark(from, to, linkMark));
+  if (!linkMark) {
+    return;
   }
 
+  const tr = url !== null
+    ? state.tr.addMark(from, to, linkMark.create({ href: url }))
+    : state.tr.removeMark(from, to, linkMark);
+
+  dispatch(tr);
   view.focus();
 }
 
@@ -62,14 +63,15 @@ export function setTextColor(view: EditorView, color: string | null): void {
   const { from, to } = state.selection;
   const colorMark = state.schema.marks.textColor;
 
-  if (!colorMark) return;
-
-  if (color) {
-    dispatch(state.tr.addMark(from, to, colorMark.create({ color })));
-  } else {
-    dispatch(state.tr.removeMark(from, to, colorMark));
+  if (!colorMark) {
+    return;
   }
 
+  const tr = color
+    ? state.tr.addMark(from, to, colorMark.create({ color }))
+    : state.tr.removeMark(from, to, colorMark);
+
+  dispatch(tr);
   view.focus();
 }
 
@@ -78,13 +80,14 @@ export function setBgColor(view: EditorView, color: string | null): void {
   const { from, to } = state.selection;
   const colorMark = state.schema.marks.bgColor;
 
-  if (!colorMark) return;
-
-  if (color) {
-    dispatch(state.tr.addMark(from, to, colorMark.create({ color })));
-  } else {
-    dispatch(state.tr.removeMark(from, to, colorMark));
+  if (!colorMark) {
+    return;
   }
 
+  const tr = color
+    ? state.tr.addMark(from, to, colorMark.create({ color }))
+    : state.tr.removeMark(from, to, colorMark);
+
+  dispatch(tr);
   view.focus();
 }

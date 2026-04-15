@@ -4,11 +4,18 @@ import { copySelectionToClipboard, convertBlockType, setTextAlignment } from './
 const mockSetBlockType = vi.fn();
 const mockWrapIn = vi.fn();
 const mockLift = vi.fn();
+const mockTextSelectionCreate = vi.fn();
 
 vi.mock('@milkdown/kit/prose/commands', () => ({
   setBlockType: (...args: unknown[]) => mockSetBlockType(...args),
   wrapIn: (...args: unknown[]) => mockWrapIn(...args),
   lift: (...args: unknown[]) => mockLift(...args),
+}));
+
+vi.mock('@milkdown/kit/prose/state', () => ({
+  TextSelection: {
+    create: (...args: unknown[]) => mockTextSelectionCreate(...args),
+  },
 }));
 
 function createListToHeadingView(listType: 'bullet_list' | 'ordered_list', checked: boolean | null = null) {
@@ -782,6 +789,280 @@ describe('floating toolbar commands', () => {
     expect(clipboardWrite).toHaveBeenCalledWith('Hello');
     expect(view.state.tr.setMeta).toHaveBeenCalled();
     expect(view.dispatch).toHaveBeenCalledWith(view.state.tr);
+    expect(view.focus).toHaveBeenCalled();
+  });
+
+  it('converts every selected plain text block around code blocks into headings', () => {
+    const paragraphNode = {
+      type: { name: 'paragraph' },
+      attrs: {},
+    };
+    const headingNode = {
+      type: { name: 'heading' },
+      attrs: { level: 2 },
+    };
+    const codeBlockNode = {
+      type: { name: 'code_block' },
+      attrs: {},
+    };
+
+    const selectionByPos = new Map<number, any>();
+    const docEntries = [
+      { node: paragraphNode, pos: 1, parent: { type: { name: 'doc' } } },
+      { node: codeBlockNode, pos: 9, parent: { type: { name: 'doc' } } },
+      { node: headingNode, pos: 20, parent: { type: { name: 'doc' } } },
+    ];
+
+    const createSelection = (pos: number, parent: any) => ({
+      from: pos,
+      to: pos,
+      empty: true,
+      $from: {
+        depth: 1,
+        pos,
+        parent,
+        before: vi.fn(() => pos - 1),
+        node: vi.fn((depth: number) => (depth === 1 ? parent : { type: { name: 'doc' } })),
+      },
+      $to: {
+        depth: 1,
+        pos,
+        parent,
+        before: vi.fn(() => pos - 1),
+        node: vi.fn((depth: number) => (depth === 1 ? parent : { type: { name: 'doc' } })),
+      },
+    });
+
+    selectionByPos.set(2, createSelection(2, paragraphNode));
+    selectionByPos.set(21, createSelection(21, headingNode));
+
+    const createDoc = () => {
+      const doc: any = {
+        content: { size: 40 },
+        nodeAt: vi.fn((pos: number) => docEntries.find((entry) => entry.pos === pos)?.node ?? null),
+        nodesBetween: vi.fn((_from: number, _to: number, callback: (node: any, pos: number, parent: any) => void) => {
+          docEntries.forEach((entry) => callback(entry.node, entry.pos, entry.parent));
+        }),
+      };
+      doc.eq = vi.fn((other: unknown) => other === doc);
+      return doc;
+    };
+
+    const tr: any = {
+      _selection: null,
+      setSelection: vi.fn(function (selection: any) {
+        this._selection = selection;
+        return this;
+      }),
+      setMeta: vi.fn(function () {
+        return this;
+      }),
+    };
+
+    const view: any = {
+      state: {
+        selection: {
+          from: 1,
+          to: 30,
+          empty: false,
+          $from: {
+            parent: paragraphNode,
+            before: vi.fn(() => 1),
+            node: vi.fn(() => ({ type: { name: 'doc' } })),
+          },
+        },
+        schema: {
+          nodes: {
+            paragraph: { name: 'paragraph' },
+            heading: { name: 'heading' },
+          },
+        },
+        tr,
+        doc: createDoc(),
+      },
+      dom: document.createElement('div'),
+      dispatch: vi.fn((nextTr: any) => {
+        if (nextTr?._selection?.from) {
+          view.state.selection = selectionByPos.get(nextTr._selection.from) ?? view.state.selection;
+        }
+      }),
+      focus: vi.fn(),
+    };
+
+    mockTextSelectionCreate.mockImplementation((_doc: unknown, pos: number) => ({ from: pos, to: pos }));
+    mockSetBlockType.mockImplementation(() => () => {
+      view.state = {
+        ...view.state,
+        doc: createDoc(),
+      };
+      return true;
+    });
+
+    convertBlockType(view, 'heading4');
+
+    expect(mockTextSelectionCreate).toHaveBeenNthCalledWith(1, expect.anything(), 21);
+    expect(mockTextSelectionCreate).toHaveBeenNthCalledWith(2, expect.anything(), 2);
+    expect(mockSetBlockType).toHaveBeenCalledTimes(2);
+    expect(mockSetBlockType).toHaveBeenNthCalledWith(1, view.state.schema.nodes.heading, { level: 4 });
+    expect(mockSetBlockType).toHaveBeenNthCalledWith(2, view.state.schema.nodes.heading, { level: 4 });
+    expect(view.focus).toHaveBeenCalled();
+  });
+
+  it('converts selected list items above code blocks into headings too', () => {
+    const listParagraphNode = {
+      type: { name: 'paragraph' },
+      attrs: {},
+    };
+    const lowerParagraphNode = {
+      type: { name: 'paragraph' },
+      attrs: {},
+    };
+    const codeBlockNode = {
+      type: { name: 'code_block' },
+      attrs: {},
+    };
+
+    const listItemNode = {
+      type: { name: 'list_item' },
+      attrs: { label: '•', listType: 'bullet', checked: null },
+    };
+
+    const selectionByPos = new Map<number, any>();
+    const docEntries = [
+      { node: listParagraphNode, pos: 3, parent: listItemNode },
+      { node: codeBlockNode, pos: 11, parent: { type: { name: 'doc' } } },
+      { node: lowerParagraphNode, pos: 20, parent: { type: { name: 'doc' } } },
+    ];
+
+    const createSelection = (pos: number, parent: any, depth = 1) => ({
+      from: pos,
+      to: pos,
+      empty: true,
+      $from: {
+        depth,
+        pos,
+        parent,
+        before: vi.fn((currentDepth?: number) => {
+          if (currentDepth === 2) {
+            return 2;
+          }
+
+          return pos - 1;
+        }),
+        node: vi.fn((currentDepth: number) => {
+          if (depth === 2 && currentDepth === 2) {
+            return parent;
+          }
+          if (depth === 2 && currentDepth === 1) {
+            return listItemNode;
+          }
+          return currentDepth === depth ? parent : { type: { name: 'doc' } };
+        }),
+      },
+      $to: {
+        depth,
+        pos,
+        parent,
+        before: vi.fn(() => pos - 1),
+        node: vi.fn((currentDepth: number) => (currentDepth === depth ? parent : { type: { name: 'doc' } })),
+      },
+    });
+
+    selectionByPos.set(4, createSelection(4, listParagraphNode, 2));
+    selectionByPos.set(21, createSelection(21, lowerParagraphNode));
+
+    const createDoc = () => {
+      const doc: any = {
+        content: { size: 40 },
+        nodeAt: vi.fn((pos: number) => docEntries.find((entry) => entry.pos === pos)?.node ?? null),
+        nodesBetween: vi.fn((_from: number, _to: number, callback: (node: any, pos: number, parent: any) => void) => {
+          docEntries.forEach((entry) => callback(entry.node, entry.pos, entry.parent));
+        }),
+      };
+      doc.eq = vi.fn((other: unknown) => other === doc);
+      return doc;
+    };
+
+    const tr: any = {
+      _selection: null,
+      setSelection: vi.fn(function (selection: any) {
+        this._selection = selection;
+        return this;
+      }),
+      setMeta: vi.fn(function () {
+        return this;
+      }),
+    };
+
+    const view: any = {
+      state: {
+        selection: {
+          from: 6,
+          to: 28,
+          empty: false,
+          $from: {
+            depth: 2,
+            parent: listParagraphNode,
+            before: vi.fn(() => 2),
+            node: vi.fn((depth: number) => {
+              if (depth === 2) {
+                return listParagraphNode;
+              }
+              if (depth === 1) {
+                return listItemNode;
+              }
+
+              return { type: { name: 'doc' } };
+            }),
+          },
+          $to: {
+            depth: 1,
+            parent: lowerParagraphNode,
+            before: vi.fn(() => 20),
+            node: vi.fn((depth: number) => {
+              if (depth === 1) {
+                return lowerParagraphNode;
+              }
+
+              return { type: { name: 'doc' } };
+            }),
+          },
+        },
+        schema: {
+          nodes: {
+            heading: { name: 'heading' },
+          },
+        },
+        tr,
+        doc: createDoc(),
+      },
+      dom: document.createElement('div'),
+      dispatch: vi.fn((nextTr: any) => {
+        if (nextTr?._selection?.from) {
+          view.state.selection = selectionByPos.get(nextTr._selection.from) ?? view.state.selection;
+        }
+      }),
+      focus: vi.fn(),
+    };
+
+    mockTextSelectionCreate.mockImplementation((_doc: unknown, pos: number) => ({ from: pos, to: pos }));
+    mockLift.mockImplementation(() => true);
+    mockSetBlockType.mockImplementation(() => () => {
+      view.state = {
+        ...view.state,
+        doc: createDoc(),
+      };
+      return true;
+    });
+
+    convertBlockType(view, 'heading1');
+
+    expect(mockTextSelectionCreate).toHaveBeenNthCalledWith(1, expect.anything(), 21);
+    expect(mockTextSelectionCreate).toHaveBeenNthCalledWith(2, expect.anything(), 4);
+    expect(mockLift).toHaveBeenCalled();
+    expect(mockSetBlockType).toHaveBeenCalledTimes(2);
+    expect(mockSetBlockType).toHaveBeenNthCalledWith(1, view.state.schema.nodes.heading, { level: 1 });
+    expect(mockSetBlockType).toHaveBeenNthCalledWith(2, view.state.schema.nodes.heading, { level: 1 });
     expect(view.focus).toHaveBeenCalled();
   });
 
