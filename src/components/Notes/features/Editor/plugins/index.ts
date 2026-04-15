@@ -7,7 +7,7 @@ export {
 } from './floating-toolbar';
 export type { FloatingToolbarState, BlockType, SubMenuType, TextAlignment } from './floating-toolbar';
 export { headingPlugin, collapsePlugin } from './heading';
-export { mathPlugin, mathClickPlugin } from './math';
+export { mathPlugin, mathEditorPlugin } from './math';
 export { slashPlugin } from './slash';
 export { dragPlugin } from './drag';
 export { tablePlugin } from './table';

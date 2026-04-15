@@ -1,8 +1,8 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin } from '@milkdown/kit/prose/state';
-import { resolveMathEditorOpenState } from './mathEditorOpen';
+import { resolveMathEditorOpenState } from './mathEditorOpenResolver';
 import { mathEditorPluginKey } from './mathEditorPluginKey';
-import { getMathAnchorElement, getMathEditorViewportPosition } from './mathEditorPositioning';
+import { getMathAnchorViewportPosition, resolveMathAnchorElement } from './mathEditorPlacement';
 import { createClosedMathEditorState } from './mathEditorState';
 import { createMathEditorViewSession } from './mathEditorViewSession';
 import type { MathEditorState } from './types';
@@ -17,8 +17,8 @@ function createOpenMetaResolver(view: {
 }) {
   return (args: { pos: number; target: EventTarget | null }) => {
     const getPosition = (nodePos: number) =>
-      getMathEditorViewportPosition(
-        getMathAnchorElement(
+      getMathAnchorViewportPosition(
+        resolveMathAnchorElement(
           args.target,
           typeof view.nodeDOM === 'function' ? view.nodeDOM(nodePos) : null
         )
@@ -32,7 +32,7 @@ function createOpenMetaResolver(view: {
   };
 }
 
-export const mathClickPlugin = $prose(() => {
+export const mathEditorPlugin = $prose(() => {
   let suppressOpenUntil = 0;
 
   const shouldIgnoreOpen = (state: MathEditorState | null | undefined) => {

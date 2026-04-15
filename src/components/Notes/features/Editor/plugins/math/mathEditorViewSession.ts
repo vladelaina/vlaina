@@ -9,7 +9,11 @@ import {
   createMathEditorElements,
   renderMathEditorPreview,
 } from './mathEditorPopupDom';
-import { clampMathEditorPosition, getMathAnchorElement, getMathEditorViewportPosition } from './mathEditorPositioning';
+import {
+  getMathAnchorViewportPosition,
+  resolveMathAnchorElement,
+  resolveMathEditorPlacement,
+} from './mathEditorPlacement';
 import { createClosedMathEditorState, shouldDiscardEmptyMathNodeOnCancel } from './mathEditorState';
 import type { MathEditorState } from './types';
 
@@ -29,6 +33,23 @@ export function createMathEditorViewSession(args: {
   const contentRoot = editorView.dom.closest('[data-note-content-root="true"]') as HTMLElement | null;
   const positionRoot = contentRoot ?? scrollRoot;
 
+  const getEditorState = () =>
+    mathEditorPluginKey.getState(editorView.state) as MathEditorState | undefined;
+
+  const clearEditorElements = () => {
+    if (editorElement) {
+      editorElement.remove();
+    }
+    editorElement = null;
+    textareaElement = null;
+    previewElement = null;
+  };
+
+  const resetRenderedState = () => {
+    draftLatex = '';
+    renderedState = null;
+  };
+
   const scheduleOutsideMouseDownSuppression = () => {
     suppressOutsideMouseDown = true;
     if (suppressOutsideMouseDownTimer !== null && typeof window !== 'undefined') {
@@ -46,21 +67,15 @@ export function createMathEditorViewSession(args: {
   };
 
   const closeEditor = () => {
-    if (editorElement) {
-      editorElement.remove();
-      editorElement = null;
-      textareaElement = null;
-      previewElement = null;
-    }
-    draftLatex = '';
-    renderedState = null;
+    clearEditorElements();
+    resetRenderedState();
     editorView.dispatch(
       editorView.state.tr.setMeta(mathEditorPluginKey, createClosedMathEditorState())
     );
   };
 
   const cancelAndClose = () => {
-    const state = mathEditorPluginKey.getState(editorView.state) as MathEditorState | undefined;
+    const state = getEditorState();
     if (state && shouldDiscardEmptyMathNodeOnCancel(state, draftLatex)) {
       removeMathNode(editorView as never, state.nodePos);
     }
@@ -70,7 +85,7 @@ export function createMathEditorViewSession(args: {
   };
 
   const saveAndClose = () => {
-    const state = mathEditorPluginKey.getState(editorView.state) as MathEditorState | undefined;
+    const state = getEditorState();
     if (!state || state.nodePos < 0 || !textareaElement) {
       closeEditor();
       return;
@@ -88,7 +103,7 @@ export function createMathEditorViewSession(args: {
     }
 
     if (editorElement && !editorElement.contains(e.target as Node)) {
-      const state = mathEditorPluginKey.getState(editorView.state) as MathEditorState | undefined;
+      const state = getEditorState();
       onOutsideCloseIntent();
 
       if (shouldDiscardEmptyMathNodeOnCancel(state, draftLatex)) {
@@ -118,8 +133,8 @@ export function createMathEditorViewSession(args: {
 
   const resolveViewportPosition = (state: MathEditorState) => {
     const nodeDom = typeof editorView.nodeDOM === 'function' ? editorView.nodeDOM(state.nodePos) : null;
-    const anchor = getMathAnchorElement(null, nodeDom);
-    return anchor ? getMathEditorViewportPosition(anchor) : state.position;
+    const anchor = resolveMathAnchorElement(null, nodeDom);
+    return anchor ? getMathAnchorViewportPosition(anchor) : state.position;
   };
 
   const renderEditor = (state: MathEditorState) => {
@@ -174,17 +189,11 @@ export function createMathEditorViewSession(args: {
 
   return {
     update() {
-      const state = mathEditorPluginKey.getState(editorView.state) as MathEditorState | undefined;
+      const state = getEditorState();
 
       if (!state?.isOpen) {
-        if (editorElement) {
-          editorElement.remove();
-          editorElement = null;
-          textareaElement = null;
-          previewElement = null;
-        }
-        draftLatex = '';
-        renderedState = null;
+        clearEditorElements();
+        resetRenderedState();
         return;
       }
 
@@ -205,7 +214,7 @@ export function createMathEditorViewSession(args: {
         renderEditor(state);
       }
 
-      const nextPosition = clampMathEditorPosition({
+      const nextPosition = resolveMathEditorPlacement({
         editorView,
         positionRoot,
         viewportPosition: resolveViewportPosition(state),
@@ -219,13 +228,8 @@ export function createMathEditorViewSession(args: {
       if (suppressOutsideMouseDownTimer !== null && typeof window !== 'undefined') {
         window.clearTimeout(suppressOutsideMouseDownTimer);
       }
-      if (editorElement) {
-        editorElement.remove();
-      }
-      textareaElement = null;
-      previewElement = null;
-      draftLatex = '';
-      renderedState = null;
+      clearEditorElements();
+      resetRenderedState();
       suppressOutsideMouseDown = false;
       suppressOutsideMouseDownTimer = null;
     },

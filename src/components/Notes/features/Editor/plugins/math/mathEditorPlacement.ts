@@ -3,7 +3,7 @@ import { toContainerPosition } from '../floating-toolbar/floatingToolbarDom';
 
 const MATH_NODE_SELECTOR = '[data-type="math-block"], [data-type="math-inline"]';
 
-export function getMathAnchorElement(target: EventTarget | null, fallback: Node | null) {
+export function resolveMathAnchorElement(target: EventTarget | null, fallback: Node | null) {
   const targetElement =
     target instanceof Element ? target : target instanceof Node ? target.parentElement : null;
   const closestMathElement = targetElement?.closest(MATH_NODE_SELECTOR);
@@ -19,7 +19,7 @@ export function getMathAnchorElement(target: EventTarget | null, fallback: Node 
   return targetElement instanceof HTMLElement ? targetElement : null;
 }
 
-export function getMathEditorViewportPosition(anchorElement: HTMLElement | null) {
+export function getMathAnchorViewportPosition(anchorElement: HTMLElement | null) {
   if (!anchorElement) {
     return { x: 16, y: 16 };
   }
@@ -31,7 +31,7 @@ export function getMathEditorViewportPosition(anchorElement: HTMLElement | null)
   };
 }
 
-export function clampMathEditorPosition(args: {
+export function resolveMathEditorPlacement(args: {
   editorView: { dom: HTMLElement };
   positionRoot: HTMLElement | null;
   viewportPosition: { x: number; y: number };
