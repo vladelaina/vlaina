@@ -41,7 +41,6 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
     messages: allMessages, 
     currentSessionId, 
     switchSession,
-    switchMessageVersion, 
     providers,
     selectedModel,
     models,
@@ -85,7 +84,7 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
       }
   }, [currentSessionId, allMessages, switchSession]);
 
-  const { sendMessage, regenerate, editMessage, stop } = useChatService();
+  const { sendMessage, regenerate, editMessage, switchMessageVersion, stop } = useChatService();
   const regenerateRef = useRef(regenerate);
   const editMessageRef = useRef(editMessage);
   const switchMessageVersionRef = useRef(switchMessageVersion);

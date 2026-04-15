@@ -5,6 +5,8 @@ import { NotesStore } from '../types';
 import { updateDisplayName } from '../displayNameUtils';
 import {
   buildFileTree,
+  buildFileTreeLevel,
+  collectExpandedPaths,
   updateFolderExpanded,
   updateFolderNode,
   expandFoldersForPath,
@@ -111,6 +113,10 @@ function replaceCurrentTabOrAppend(
   return nextTabs;
 }
 
+let activeFileTreeLoadPath: string | null = null;
+let activeFileTreeLoadPromise: Promise<void> | null = null;
+let latestFileTreeLoadGeneration = 0;
+
 export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemSlice> = (
   set,
   get
@@ -123,61 +129,122 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   draftNotes: {},
 
   loadFileTree: async (skipRestore = false) => {
-    set({ isLoading: true, error: null });
-    try {
-      const storage = getStorageAdapter();
-      const basePath = await getNotesBasePath();
-
-      await ensureNotesFolder(basePath);
-      const metadata = await loadNoteMetadata(basePath);
-      const workspace = await loadWorkspaceState(basePath);
-      const fileTreeSortMode = workspace?.fileTreeSortMode ?? DEFAULT_FILE_TREE_SORT_MODE;
-      const children = sortNestedFileTree(await buildFileTree(basePath), {
-        mode: fileTreeSortMode,
-        metadata,
-      });
-      const starredPaths = getVaultStarredPaths(get().starredEntries, basePath);
-
-      let restoredChildren = children;
-      if (workspace?.expandedFolders?.length) {
-        const expandedSet = new Set(workspace.expandedFolders);
-        restoredChildren = restoreExpandedState(children, expandedSet);
-      }
-
-      set({
-        notesPath: basePath,
-        rootFolder: {
-          id: '',
-          name: 'Notes',
-          path: '',
-          isFolder: true,
-          children: restoredChildren,
-          expanded: true,
-        },
-        noteMetadata: metadata,
-        starredNotes: starredPaths.notes,
-        starredFolders: starredPaths.folders,
-        fileTreeSortMode,
-      });
-
-      if (!skipRestore && workspace?.currentNotePath) {
-        try {
-          const fullPath = await joinPath(basePath, workspace.currentNotePath);
-          const fileExists = await storage.exists(fullPath);
-          if (fileExists) {
-            await get().openNote(workspace.currentNotePath);
-          }
-        } catch {
-        }
-      }
-
-      set({ isLoading: false });
-    } catch (error) {
-      set({
-        error: error instanceof Error ? error.message : 'Failed to load notes',
-        isLoading: false,
-      });
+    const basePath = await getNotesBasePath();
+    if (activeFileTreeLoadPath === basePath && activeFileTreeLoadPromise) {
+      await activeFileTreeLoadPromise;
+      return;
     }
+
+    const run = async () => {
+      set({ isLoading: true, error: null });
+      const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      const generation = ++latestFileTreeLoadGeneration;
+
+      try {
+        const storage = getStorageAdapter();
+        console.info('[NotesFileTree] load:start', { basePath, skipRestore });
+
+        await ensureNotesFolder(basePath);
+        const metadata = await loadNoteMetadata(basePath);
+        const workspace = await loadWorkspaceState(basePath);
+        const fileTreeSortMode = workspace?.fileTreeSortMode ?? DEFAULT_FILE_TREE_SORT_MODE;
+        const shallowChildren = sortNestedFileTree(await buildFileTreeLevel(basePath), {
+          mode: fileTreeSortMode,
+          metadata,
+        });
+        const starredPaths = getVaultStarredPaths(get().starredEntries, basePath);
+
+        let restoredChildren = shallowChildren;
+        if (workspace?.expandedFolders?.length) {
+          const expandedSet = new Set(workspace.expandedFolders);
+          restoredChildren = restoreExpandedState(shallowChildren, expandedSet);
+        }
+
+        set({
+          notesPath: basePath,
+          rootFolder: {
+            id: '',
+            name: 'Notes',
+            path: '',
+            isFolder: true,
+            children: restoredChildren,
+            expanded: true,
+          },
+          noteMetadata: metadata,
+          starredNotes: starredPaths.notes,
+          starredFolders: starredPaths.folders,
+          fileTreeSortMode,
+          isLoading: false,
+        });
+        console.info('[NotesFileTree] load:shallow-ready', {
+          basePath,
+          childCount: shallowChildren.length,
+          durationMs: Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - startedAt),
+        });
+
+        if (!skipRestore && workspace?.currentNotePath) {
+          try {
+            const fullPath = await joinPath(basePath, workspace.currentNotePath);
+            const fileExists = await storage.exists(fullPath);
+            if (fileExists) {
+              await get().openNote(workspace.currentNotePath);
+            }
+          } catch {
+          }
+        }
+
+        void (async () => {
+          const fullStartedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+          const fullChildren = sortNestedFileTree(await buildFileTree(basePath), {
+            mode: fileTreeSortMode,
+            metadata,
+          });
+
+          if (latestFileTreeLoadGeneration !== generation || get().notesPath !== basePath) {
+            return;
+          }
+
+          const expandedPaths = get().rootFolder
+            ? collectExpandedPaths(get().rootFolder!.children)
+            : new Set<string>();
+
+          set({
+            rootFolder: {
+              id: '',
+              name: 'Notes',
+              path: '',
+              isFolder: true,
+              children: restoreExpandedState(fullChildren, expandedPaths),
+              expanded: true,
+            },
+          });
+
+          console.info('[NotesFileTree] load:full-ready', {
+            basePath,
+            childCount: fullChildren.length,
+            durationMs: Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - fullStartedAt),
+          });
+        })();
+      } catch (error) {
+        console.info('[NotesFileTree] load:failed', {
+          durationMs: Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - startedAt),
+        });
+        set({
+          error: error instanceof Error ? error.message : 'Failed to load notes',
+          isLoading: false,
+        });
+      }
+    };
+
+    activeFileTreeLoadPath = basePath;
+    activeFileTreeLoadPromise = run().finally(() => {
+      if (activeFileTreeLoadPath === basePath) {
+        activeFileTreeLoadPath = null;
+        activeFileTreeLoadPromise = null;
+      }
+    });
+
+    await activeFileTreeLoadPromise;
   },
 
   toggleFolder: (path: string) => {

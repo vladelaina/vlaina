@@ -289,6 +289,8 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
   openVault: async (path: string, name?: string) => {
     set({ isLoading: true, error: null });
+    const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    console.info('[Vault] openVault:start', { path, name });
 
     try {
       const storage = getStorageAdapter();
@@ -326,9 +328,18 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
       windowVaultPath = vault.path;
       setCurrentVaultPath(vault.path);
+      useNotesStore.setState({ notesPath: vault.path });
+      console.info('[Vault] openVault:ready', {
+        path: vault.path,
+        durationMs: Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - startedAt),
+      });
 
       return true;
     } catch (error) {
+      console.info('[Vault] openVault:failed', {
+        path,
+        durationMs: Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - startedAt),
+      });
       set({
         error: error instanceof Error ? error.message : 'Failed to open vault',
         isLoading: false,

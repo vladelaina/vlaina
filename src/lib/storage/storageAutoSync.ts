@@ -33,8 +33,9 @@ function parseStorageAutoSyncEvent(value: unknown): StorageAutoSyncEvent | null 
   }
 
   const event = value as Partial<StorageAutoSyncEvent>;
+  const kind = String(event.kind);
   if (
-    !isStorageAutoSyncKind(String(event.kind)) ||
+    !isStorageAutoSyncKind(kind) ||
     typeof event.sourceId !== 'string' ||
     typeof event.stamp !== 'number' ||
     typeof event.nonce !== 'string'
@@ -43,7 +44,7 @@ function parseStorageAutoSyncEvent(value: unknown): StorageAutoSyncEvent | null 
   }
 
   return {
-    kind: event.kind,
+    kind,
     sourceId: event.sourceId,
     stamp: event.stamp,
     nonce: event.nonce,

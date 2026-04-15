@@ -3,6 +3,7 @@ import { windowCommands } from '@/lib/tauri/invoke';
 import { openDialog, messageDialog } from '@/lib/storage/dialog';
 import { OPEN_MARKDOWN_FILE_ACTION } from '@/lib/notes/openMarkdownFileText';
 import { getSingleOpenSelection, isSupportedMarkdownSelection, resolveOpenNoteTarget } from './features/OpenTarget/openTargetSelection';
+import { subscribeOpenMarkdownTargetEvent } from './features/OpenTarget/openTargetEvents';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useUIStore } from '@/stores/uiSlice';
@@ -22,6 +23,7 @@ import { useNotesExternalSync } from './hooks/useNotesExternalSync';
 import { openStoredNotePath } from '@/stores/notes/openNotePath';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { normalizeVaultPath } from '@/stores/vaultConfig';
 
 const EmbeddedChatView = lazy(async () => {
   const mod = await import('@/components/Chat/ChatView');
@@ -36,7 +38,6 @@ export function NotesView() {
   const createNote = useNotesStore(s => s.createNote);
   const openNote = useNotesStore(s => s.openNote);
   const loadStarred = useNotesStore(s => s.loadStarred);
-  const loadMetadata = useNotesStore(s => s.loadMetadata);
   const loadAssets = useNotesStore(s => s.loadAssets);
   const saveNote = useNotesStore(s => s.saveNote);
   const cleanupAssetTempFiles = useNotesStore(s => s.cleanupAssetTempFiles);
@@ -50,6 +51,7 @@ export function NotesView() {
   const draftNotes = useNotesStore(s => s.draftNotes);
   const isLoading = useNotesStore(s => s.isLoading);
   const openNoteByAbsolutePath = useNotesStore(s => s.openNoteByAbsolutePath);
+  const adoptAbsoluteNoteIntoVault = useNotesStore(s => s.adoptAbsoluteNoteIntoVault);
   const pendingDraftDiscardPath = useNotesStore(s => s.pendingDraftDiscardPath);
   const cancelPendingDraftDiscard = useNotesStore(s => s.cancelPendingDraftDiscard);
   const confirmPendingDraftDiscard = useNotesStore(s => s.confirmPendingDraftDiscard);
@@ -67,6 +69,7 @@ export function NotesView() {
     vaultPath: string;
     notePath: string;
     absolutePath: string;
+    startedAt: number;
   } | null>(null);
   const chatComposerFocusFrameRef = useRef<number | null>(null);
   const blankDraftRequestInFlightRef = useRef(false);
@@ -130,7 +133,6 @@ export function NotesView() {
     const initializeVault = async () => {
       await loadStarred(currentVault.path);
       await Promise.all([
-        loadMetadata(currentVault.path),
         loadAssets(currentVault.path),
         loadFileTree(Boolean(launchContextRef.current.notePath)),
         cleanupAssetTempFiles(),
@@ -147,7 +149,7 @@ export function NotesView() {
       cancelled = true;
       clearAssetUrlCache();
     };
-  }, [currentVault, loadStarred, loadMetadata, loadAssets, loadFileTree, cleanupAssetTempFiles, clearAssetUrlCache]);
+  }, [currentVault, loadStarred, loadAssets, loadFileTree, cleanupAssetTempFiles, clearAssetUrlCache]);
 
   useEffect(() => {
     if (hasHandledLaunchNoteRef.current) return;
@@ -199,25 +201,55 @@ export function NotesView() {
     setPendingStarredNavigation,
   ]);
 
-  const openShortcutNoteTarget = useCallback(async (target: { notePath: string; absolutePath: string }) => {
-    await openNote(target.notePath);
-    if (useNotesStore.getState().currentNote?.path === target.notePath) {
-      return true;
+  const openShortcutNoteTarget = useCallback(async (target: {
+    vaultPath: string;
+    notePath: string;
+    absolutePath: string;
+  }) => {
+    const store = useNotesStore.getState();
+    const activeNotesPath = store.notesPath;
+    const currentPath = store.currentNote?.path;
+
+    if (activeNotesPath === target.vaultPath && currentPath === target.absolutePath) {
+      const adopted = adoptAbsoluteNoteIntoVault(target.absolutePath, target.notePath);
+      console.info('[NotesOpenTarget] adopt-current:done', {
+        absolutePath: target.absolutePath,
+        notePath: target.notePath,
+        adopted,
+      });
+      if (adopted) {
+        return true;
+      }
+    }
+
+    if (activeNotesPath === target.vaultPath) {
+      await openNote(target.notePath);
+      const openedPath = useNotesStore.getState().currentNote?.path;
+      if (openedPath === target.notePath) {
+        return true;
+      }
     }
 
     await openNoteByAbsolutePath(target.absolutePath);
-    return useNotesStore.getState().currentNote?.path === target.absolutePath;
-  }, [openNote, openNoteByAbsolutePath]);
+    const openedPath = useNotesStore.getState().currentNote?.path;
+    return openedPath === target.absolutePath || openedPath === target.notePath;
+  }, [adoptAbsoluteNoteIntoVault, openNote, openNoteByAbsolutePath]);
 
   useEffect(() => {
     if (!pendingShortcutNoteTarget || !currentVault) return;
     if (currentVault.path !== pendingShortcutNoteTarget.vaultPath) return;
-    if (notesPath !== pendingShortcutNoteTarget.vaultPath || !rootFolder) return;
 
     let cancelled = false;
 
     const openPendingShortcutNote = async () => {
       let opened = false;
+      console.info('[NotesOpenTarget] pending-open:start', {
+        absolutePath: pendingShortcutNoteTarget.absolutePath,
+        vaultPath: pendingShortcutNoteTarget.vaultPath,
+        notesPath,
+        rootFolderReady: Boolean(rootFolder),
+        elapsedMs: Math.round(performance.now() - pendingShortcutNoteTarget.startedAt),
+      });
 
       try {
         opened = await openShortcutNoteTarget(pendingShortcutNoteTarget);
@@ -228,9 +260,22 @@ export function NotesView() {
       }
 
       if (!cancelled && !opened) {
+        console.info('[NotesOpenTarget] pending-open:failed', {
+          absolutePath: pendingShortcutNoteTarget.absolutePath,
+          elapsedMs: Math.round(performance.now() - pendingShortcutNoteTarget.startedAt),
+        });
         await messageDialog('Failed to open the selected Markdown file.', {
           title: 'Open Failed',
           kind: 'error',
+        });
+        return;
+      }
+
+      if (!cancelled) {
+        console.info('[NotesOpenTarget] pending-open:done', {
+          absolutePath: pendingShortcutNoteTarget.absolutePath,
+          elapsedMs: Math.round(performance.now() - pendingShortcutNoteTarget.startedAt),
+          notesPath: useNotesStore.getState().notesPath,
         });
       }
     };
@@ -302,6 +347,99 @@ export function NotesView() {
     return !useNotesStore.getState().isDirty;
   }, [currentNotePath, isDirty, saveNote]);
 
+  const openMarkdownTarget = useCallback(async (selected: string) => {
+    const startedAt = performance.now();
+    console.info('[NotesOpenTarget] start', {
+      absolutePath: selected,
+      currentVaultPath: currentVault?.path ?? null,
+      notesPath,
+    });
+    setIsOpenTargetBusy(true);
+    try {
+      const canContinue = await saveCurrentNoteIfNeeded();
+      if (!canContinue) return;
+      console.info('[NotesOpenTarget] after-save-check', {
+        absolutePath: selected,
+        elapsedMs: Math.round(performance.now() - startedAt),
+      });
+
+      const target = resolveOpenNoteTarget(selected);
+      const normalizedTargetVaultPath = normalizeVaultPath(target.vaultPath);
+      console.info('[NotesOpenTarget] target-resolved', {
+        absolutePath: selected,
+        targetVaultPath: normalizedTargetVaultPath,
+        notePath: target.notePath,
+        elapsedMs: Math.round(performance.now() - startedAt),
+      });
+
+      if (currentVault?.path === normalizedTargetVaultPath && notesPath === normalizedTargetVaultPath) {
+        const opened = await openShortcutNoteTarget({
+          vaultPath: normalizedTargetVaultPath,
+          notePath: target.notePath,
+          absolutePath: selected,
+        });
+        console.info('[NotesOpenTarget] same-vault:done', {
+          absolutePath: selected,
+          opened,
+          elapsedMs: Math.round(performance.now() - startedAt),
+        });
+        if (!opened) {
+          await messageDialog('Failed to open the selected Markdown file.', {
+            title: 'Open Failed',
+            kind: 'error',
+          });
+        }
+        return;
+      }
+
+      setPendingShortcutNoteTarget({
+        vaultPath: normalizedTargetVaultPath,
+        notePath: target.notePath,
+        absolutePath: selected,
+        startedAt,
+      });
+      console.info('[NotesOpenTarget] pending-open:queued', {
+        absolutePath: selected,
+        targetVaultPath: normalizedTargetVaultPath,
+        elapsedMs: Math.round(performance.now() - startedAt),
+      });
+
+      if (currentVault?.path === normalizedTargetVaultPath) {
+        return;
+      }
+
+      const openedVault = await openVault(normalizedTargetVaultPath);
+      console.info('[NotesOpenTarget] open-vault:done', {
+        absolutePath: selected,
+        targetVaultPath: normalizedTargetVaultPath,
+        openedVault,
+        elapsedMs: Math.round(performance.now() - startedAt),
+      });
+      if (!openedVault) {
+        setPendingShortcutNoteTarget(null);
+        await messageDialog('Failed to open the selected vault.', {
+          title: 'Open Failed',
+          kind: 'error',
+        });
+      }
+    } catch (error) {
+      setPendingShortcutNoteTarget(null);
+      console.info('[NotesOpenTarget] failed', {
+        absolutePath: selected,
+        elapsedMs: Math.round(performance.now() - startedAt),
+      });
+      await messageDialog(
+        error instanceof Error ? error.message : 'Failed to open the selected Markdown file.',
+        {
+          title: 'Open Failed',
+          kind: 'error',
+        }
+      );
+    } finally {
+      setIsOpenTargetBusy(false);
+    }
+  }, [currentVault?.path, isOpenTargetBusy, notesPath, openShortcutNoteTarget, openVault, rootFolder, saveCurrentNoteIfNeeded]);
+
   const handleOpenSelectedFile = useCallback(async () => {
     if (isOpenTargetBusy) return;
 
@@ -320,58 +458,8 @@ export function NotesView() {
       return;
     }
 
-    setIsOpenTargetBusy(true);
-    try {
-      const canContinue = await saveCurrentNoteIfNeeded();
-      if (!canContinue) return;
-
-      const target = resolveOpenNoteTarget(selected);
-
-      if (currentVault?.path === target.vaultPath && notesPath === target.vaultPath && rootFolder) {
-        const opened = await openShortcutNoteTarget({
-          notePath: target.notePath,
-          absolutePath: selected,
-        });
-        if (!opened) {
-          await messageDialog('Failed to open the selected Markdown file.', {
-            title: 'Open Failed',
-            kind: 'error',
-          });
-        }
-        return;
-      }
-
-      setPendingShortcutNoteTarget({
-        vaultPath: target.vaultPath,
-        notePath: target.notePath,
-        absolutePath: selected,
-      });
-
-      if (currentVault?.path === target.vaultPath) {
-        return;
-      }
-
-      const openedVault = await openVault(target.vaultPath);
-      if (!openedVault) {
-        setPendingShortcutNoteTarget(null);
-        await messageDialog('Failed to open the selected vault.', {
-          title: 'Open Failed',
-          kind: 'error',
-        });
-      }
-    } catch (error) {
-      setPendingShortcutNoteTarget(null);
-      await messageDialog(
-        error instanceof Error ? error.message : 'Failed to open the selected Markdown file.',
-        {
-          title: 'Open Failed',
-          kind: 'error',
-        }
-      );
-    } finally {
-      setIsOpenTargetBusy(false);
-    }
-  }, [currentVault?.path, isOpenTargetBusy, notesPath, openShortcutNoteTarget, openVault, rootFolder, saveCurrentNoteIfNeeded]);
+    await openMarkdownTarget(selected);
+  }, [currentVault?.path, isOpenTargetBusy, openMarkdownTarget]);
 
   useEffect(() => {
     const handleOpenMarkdownFile = () => {
@@ -381,6 +469,12 @@ export function NotesView() {
     window.addEventListener('vlaina-open-markdown-file', handleOpenMarkdownFile);
     return () => window.removeEventListener('vlaina-open-markdown-file', handleOpenMarkdownFile);
   }, [handleOpenSelectedFile]);
+
+  useEffect(() => {
+    return subscribeOpenMarkdownTargetEvent((absolutePath) => {
+      void openMarkdownTarget(absolutePath);
+    });
+  }, [openMarkdownTarget]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useAIUIStore } from '@/stores/ai/chatState';
+import { reloadSessionMessagesFromDisk } from '@/stores/ai/sessionConsistency';
 import { setUnifiedStorageAutoSyncTrigger } from '@/lib/storage/unifiedStorage';
 import { setChatStorageAutoSyncTrigger } from '@/lib/storage/chatStorage';
 import {
   emitStorageAutoSyncEvent,
   subscribeStorageAutoSync,
+  type StorageAutoSyncEvent,
 } from '@/lib/storage/storageAutoSync';
 
 const RELOAD_DEBOUNCE_MS = 220;
@@ -23,8 +25,9 @@ export function useUnifiedExternalSync() {
 
   const reloadTimerRef = useRef<number | null>(null);
   const reloadInFlightRef = useRef(false);
-  const pendingReloadRef = useRef(false);
   const canReloadRef = useRef(false);
+  const pendingUnifiedReloadRef = useRef(false);
+  const pendingSessionReloadIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
     canReloadRef.current = loaded && !temporaryChatEnabled && !hasActiveGeneration;
@@ -48,37 +51,62 @@ export function useUnifiedExternalSync() {
   }, []);
 
   useEffect(() => {
+    const hasPendingReloads = () =>
+      pendingUnifiedReloadRef.current || pendingSessionReloadIdsRef.current.size > 0;
+
+    const shouldReloadSession = (sessionId: string) => {
+      const ai = useUnifiedStore.getState().data.ai;
+      if (!ai) {
+        return false;
+      }
+
+      return ai.currentSessionId === sessionId || sessionId in ai.messages;
+    };
+
     const runReload = async () => {
       if (!canReloadRef.current) {
-        pendingReloadRef.current = true;
         return;
       }
 
       if (reloadInFlightRef.current) {
-        pendingReloadRef.current = true;
         return;
       }
 
       reloadInFlightRef.current = true;
+
+      const shouldReloadUnified = pendingUnifiedReloadRef.current;
+      const pendingSessionIds = new Set(pendingSessionReloadIdsRef.current);
+      pendingUnifiedReloadRef.current = false;
+      pendingSessionReloadIdsRef.current.clear();
+
       try {
-        await reloadFromDisk();
+        if (shouldReloadUnified) {
+          await reloadFromDisk();
+          const activeSessionId = useUnifiedStore.getState().data.ai?.currentSessionId;
+          if (activeSessionId) {
+            pendingSessionIds.add(activeSessionId);
+          }
+        }
+
+        for (const sessionId of pendingSessionIds) {
+          if (!shouldReloadSession(sessionId)) {
+            continue;
+          }
+
+          await reloadSessionMessagesFromDisk(sessionId);
+        }
       } finally {
         reloadInFlightRef.current = false;
-        if (pendingReloadRef.current && canReloadRef.current) {
-          pendingReloadRef.current = false;
-          if (reloadTimerRef.current !== null) {
-            window.clearTimeout(reloadTimerRef.current);
-          }
-          reloadTimerRef.current = window.setTimeout(() => {
-            reloadTimerRef.current = null;
-            void runReload();
-          }, RELOAD_DEBOUNCE_MS);
+        if (hasPendingReloads() && canReloadRef.current) {
+          scheduleReload();
         }
       }
     };
 
     const scheduleReload = () => {
-      pendingReloadRef.current = true;
+      if (!hasPendingReloads()) {
+        return;
+      }
 
       if (!canReloadRef.current) {
         return;
@@ -90,44 +118,28 @@ export function useUnifiedExternalSync() {
 
       reloadTimerRef.current = window.setTimeout(() => {
         reloadTimerRef.current = null;
-        pendingReloadRef.current = false;
         void runReload();
       }, RELOAD_DEBOUNCE_MS);
     };
 
-    const unsubscribe = subscribeStorageAutoSync(() => {
-      scheduleReload();
-    });
+    const queueReload = (event: StorageAutoSyncEvent) => {
+      if (event.kind === 'chat-session' && event.sessionId) {
+        pendingSessionReloadIdsRef.current.add(event.sessionId);
+      } else {
+        pendingUnifiedReloadRef.current = true;
+      }
 
-    if (pendingReloadRef.current && canReloadRef.current) {
+      scheduleReload();
+    };
+
+    const unsubscribe = subscribeStorageAutoSync(queueReload);
+
+    if (hasPendingReloads() && canReloadRef.current) {
       scheduleReload();
     }
 
     return () => {
       unsubscribe();
-      if (reloadTimerRef.current !== null) {
-        window.clearTimeout(reloadTimerRef.current);
-        reloadTimerRef.current = null;
-      }
-    };
-  }, [reloadFromDisk]);
-
-  useEffect(() => {
-    if (!canReloadRef.current || !pendingReloadRef.current) {
-      return;
-    }
-
-    if (reloadTimerRef.current !== null) {
-      return;
-    }
-
-    reloadTimerRef.current = window.setTimeout(() => {
-      reloadTimerRef.current = null;
-      pendingReloadRef.current = false;
-      void reloadFromDisk();
-    }, RELOAD_DEBOUNCE_MS);
-
-    return () => {
       if (reloadTimerRef.current !== null) {
         window.clearTimeout(reloadTimerRef.current);
         reloadTimerRef.current = null;

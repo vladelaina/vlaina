@@ -103,10 +103,8 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
 
   return (
     <div className="h-4 flex items-center mb-1">
-      <div className="flex flex-wrap items-center gap-x-1 gap-y-0 text-[12px] leading-none opacity-0 transition-opacity duration-150 group-hover/note-title:opacity-100 group-focus-within/note-title:opacity-100">
-        {isUnsavedDraft ? (
-          <span className="max-w-[360px] truncate text-[var(--vlaina-text-secondary)]">{noteLabel}</span>
-        ) : (
+      {!isUnsavedDraft ? (
+        <div className="flex flex-wrap items-center gap-x-1 gap-y-0 text-[12px] leading-none opacity-0 transition-opacity duration-150 group-hover/note-title:opacity-100 group-focus-within/note-title:opacity-100">
           <>
             <button
               type="button"
@@ -141,8 +139,8 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
               <span className="max-w-[360px] truncate text-[var(--vlaina-text-secondary)]">{noteLabel}</span>
             )}
           </>
-        )}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }
