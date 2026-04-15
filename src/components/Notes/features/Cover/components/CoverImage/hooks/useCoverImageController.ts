@@ -106,6 +106,18 @@ export function useCoverImageController({
     setIsImageReady,
   });
 
+  const effectiveMediaSize = useMemo(() => {
+    if (mediaSize) {
+      return mediaSize;
+    }
+
+    if (!mediaSrc) {
+      return null;
+    }
+
+    return getCachedDimensions(mediaSrc) ?? null;
+  }, [mediaSize, mediaSrc]);
+
   useEffect(() => {
     if (!mediaSrc) {
       setMediaSize(null);
@@ -142,7 +154,7 @@ export function useCoverImageController({
     frozenImageState,
     frozenImgRef,
   } = useCoverInteractionController({
-    mediaSize,
+    mediaSize: effectiveMediaSize,
     effectiveContainerSize: interactionContainerSize,
     windowResizeActive,
     zoom,
@@ -213,7 +225,7 @@ export function useCoverImageController({
       isImageReady: sourceIsReady,
       isResizing,
       isResizeSettling,
-      mediaSize,
+      mediaSize: effectiveMediaSize,
       wrapperRef,
       frozenImgRef,
       frozenImageState,

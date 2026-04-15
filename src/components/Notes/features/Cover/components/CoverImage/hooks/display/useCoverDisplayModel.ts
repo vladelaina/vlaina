@@ -38,7 +38,7 @@ export function useCoverDisplayModel({
   const syncPositionX = useSelectionDefaults ? DEFAULT_POSITION_PERCENT : positionX;
   const syncPositionY = useSelectionDefaults ? DEFAULT_POSITION_PERCENT : positionY;
   const syncZoom = useSelectionDefaults ? DEFAULT_SCALE : zoom;
-  const sourceIsReady = Boolean(mediaSrc) && readySrc === mediaSrc;
+  const sourceIsReady = Boolean(mediaSrc) && readySrc === mediaSrc && isImageReady;
   const placeholderSrc = sourceIsReady
     ? mediaSrc
     : (readySrc || prevSrcRef.current || mediaSrc);

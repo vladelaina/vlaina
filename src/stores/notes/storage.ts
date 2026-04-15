@@ -7,7 +7,7 @@ import {
   METADATA_FILE,
   WORKSPACE_FILE,
 } from './constants';
-import type { FileTreeSortMode, MetadataFile, NoteMetadataEntry } from './types';
+import type { FileTreeSortMode, MetadataFile, NoteCoverMetadata, NoteMetadataEntry } from './types';
 
 export type { MetadataFile, NoteMetadataEntry };
 
@@ -46,7 +46,94 @@ export async function safeWriteTextFile(path: string, content: string): Promise<
   await storage.writeFile(path, content);
 }
 
-const CURRENT_METADATA_VERSION = 1;
+const CURRENT_METADATA_VERSION = 2;
+
+interface LegacyNoteMetadataEntryV1 {
+  icon?: string;
+  iconSize?: number;
+  cover?: string;
+  coverX?: number;
+  coverY?: number;
+  coverH?: number;
+  coverScale?: number;
+  createdAt?: number;
+  updatedAt?: number;
+}
+
+interface LegacyMetadataFile {
+  version?: number;
+  defaultIconSize?: number;
+  notes?: Record<string, LegacyNoteMetadataEntryV1 | NoteMetadataEntry>;
+}
+
+function normalizeCover(cover: NoteCoverMetadata | null | undefined): NoteCoverMetadata | undefined {
+  if (!cover?.assetPath) {
+    return undefined;
+  }
+
+  const normalized: NoteCoverMetadata = {
+    assetPath: cover.assetPath,
+  };
+
+  if (cover.positionX !== undefined) normalized.positionX = cover.positionX;
+  if (cover.positionY !== undefined) normalized.positionY = cover.positionY;
+  if (cover.height !== undefined) normalized.height = cover.height;
+  if (cover.scale !== undefined) normalized.scale = cover.scale;
+
+  return normalized;
+}
+
+function normalizeLoadedEntry(
+  entry: LegacyNoteMetadataEntryV1 | NoteMetadataEntry | null | undefined
+): NoteMetadataEntry {
+  if (!entry) {
+    return {};
+  }
+
+  const normalized: NoteMetadataEntry = {};
+
+  if (entry.icon !== undefined) normalized.icon = entry.icon;
+  if (entry.iconSize !== undefined) normalized.iconSize = entry.iconSize;
+  if (entry.createdAt !== undefined) normalized.createdAt = entry.createdAt;
+  if (entry.updatedAt !== undefined) normalized.updatedAt = entry.updatedAt;
+
+  if (typeof entry.cover === 'string') {
+    const legacyEntry = entry as LegacyNoteMetadataEntryV1;
+    normalized.cover = normalizeCover({
+      assetPath: entry.cover,
+      positionX: legacyEntry.coverX,
+      positionY: legacyEntry.coverY,
+      height: legacyEntry.coverH,
+      scale: legacyEntry.coverScale,
+    });
+    return normalized;
+  }
+
+  normalized.cover = normalizeCover(entry.cover);
+  return normalized;
+}
+
+function normalizeLoadedMetadata(raw: unknown): MetadataFile {
+  if (!raw || typeof raw !== 'object') {
+    return { version: CURRENT_METADATA_VERSION, notes: {} };
+  }
+
+  const data = raw as LegacyMetadataFile;
+  const notes: MetadataFile['notes'] = {};
+
+  for (const [path, entry] of Object.entries(data.notes ?? {})) {
+    const normalizedEntry = normalizeLoadedEntry(entry);
+    if (Object.keys(normalizedEntry).length > 0) {
+      notes[path] = normalizedEntry;
+    }
+  }
+
+  return {
+    version: CURRENT_METADATA_VERSION,
+    defaultIconSize: data.defaultIconSize,
+    notes,
+  };
+}
 
 export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile> {
   try {
@@ -56,8 +143,7 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
 
     if (await storage.exists(metadataPath)) {
       const content = await storage.readFile(metadataPath);
-      const data = JSON.parse(content) as MetadataFile;
-      return data;
+      return normalizeLoadedMetadata(JSON.parse(content));
     }
 
     return { version: CURRENT_METADATA_VERSION, notes: {} };
@@ -100,12 +186,11 @@ export function setNoteEntry(
   const updated = { ...existing, ...updates };
 
   if (updated.icon === null || updated.icon === undefined) delete updated.icon;
-  if (updated.cover === null || updated.cover === undefined) {
+  const normalizedCover = normalizeCover(updated.cover);
+  if (!normalizedCover) {
     delete updated.cover;
-    delete updated.coverX;
-    delete updated.coverY;
-    delete updated.coverH;
-    delete updated.coverScale;
+  } else {
+    updated.cover = normalizedCover;
   }
 
   if (Object.keys(updated).length === 0) {

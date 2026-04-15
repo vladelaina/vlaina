@@ -37,7 +37,7 @@ describe('useCoverDisplayModel', () => {
 
   it('marks source ready when current media source is reported loaded', async () => {
     const setIsImageReady = vi.fn();
-    const { result } = renderHook(() =>
+    const { result, rerender } = renderHook(({ isImageReady }) =>
       useCoverDisplayModel({
         phase: 'ready',
         previewSrc: null,
@@ -47,9 +47,10 @@ describe('useCoverDisplayModel', () => {
         zoom: 1.2,
         positionX: 40,
         positionY: 60,
-        isImageReady: false,
+        isImageReady,
         setIsImageReady,
-      })
+      }),
+      { initialProps: { isImageReady: false } }
     );
 
     expect(result.current.sourceIsReady).toBe(false);
@@ -58,6 +59,8 @@ describe('useCoverDisplayModel', () => {
     act(() => {
       result.current.handleSourceReady('/covers/resolved.webp');
     });
+
+    rerender({ isImageReady: true });
 
     await waitFor(() => {
       expect(result.current.sourceIsReady).toBe(true);
@@ -71,7 +74,7 @@ describe('useCoverDisplayModel', () => {
   });
 
   it('keeps position sync suspended during selection commit', async () => {
-    const { result } = renderHook(() =>
+    const { result, rerender } = renderHook(({ isImageReady }) =>
       useCoverDisplayModel({
         phase: 'committing',
         previewSrc: null,
@@ -81,9 +84,10 @@ describe('useCoverDisplayModel', () => {
         zoom: 1,
         positionX: 50,
         positionY: 50,
-        isImageReady: true,
+        isImageReady,
         setIsImageReady: vi.fn(),
-      })
+      }),
+      { initialProps: { isImageReady: true } }
     );
 
     expect(result.current.displayPositionX).toBe(50);
@@ -97,6 +101,8 @@ describe('useCoverDisplayModel', () => {
     act(() => {
       result.current.handleSourceReady('/covers/resolved.webp');
     });
+
+    rerender({ isImageReady: true });
 
     await waitFor(() => {
       expect(result.current.sourceIsReady).toBe(true);

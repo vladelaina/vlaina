@@ -9,7 +9,7 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
   const coverEntry = useNotesStore(
     useCallback((state) => {
       if (!currentNotePath) return undefined;
-      return state.noteMetadata?.notes[currentNotePath];
+      return state.noteMetadata?.notes[currentNotePath]?.cover;
     }, [currentNotePath])
   );
 
@@ -21,18 +21,29 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
 
   const cover = useMemo(() => {
     return {
-      url: coverEntry?.cover ?? null,
-      positionX: coverEntry?.coverX ?? 50,
-      positionY: coverEntry?.coverY ?? 50,
-      height: coverEntry?.coverH,
-      scale: coverEntry?.coverScale ?? 1,
+      url: coverEntry?.assetPath ?? null,
+      positionX: coverEntry?.positionX ?? 50,
+      positionY: coverEntry?.positionY ?? 50,
+      height: coverEntry?.height,
+      scale: coverEntry?.scale ?? 1,
     };
   }, [coverEntry]);
 
   const updateCover = useCallback(
     (url: string | null, positionX: number, positionY: number, height?: number, scale?: number) => {
       if (!currentNotePath) return;
-      setNoteCover(currentNotePath, url, positionX, positionY, height, scale);
+      setNoteCover(
+        currentNotePath,
+        url
+          ? {
+              assetPath: url,
+              positionX,
+              positionY,
+              height,
+              scale,
+            }
+          : null
+      );
     },
     [currentNotePath, setNoteCover]
   );
@@ -45,7 +56,13 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
       ? allCovers[Math.floor(Math.random() * allCovers.length)].filename
       : getRandomBuiltinCover();
 
-    setNoteCover(currentNotePath, nextCover, 50, 50, 200, 1);
+    setNoteCover(currentNotePath, {
+      assetPath: nextCover,
+      positionX: 50,
+      positionY: 50,
+      height: 200,
+      scale: 1,
+    });
     setPickerOpen(true);
   }, [currentNotePath, setNoteCover]);
 

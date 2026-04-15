@@ -44,6 +44,8 @@ export function useCoverSelectionFlow({
   const previewRequestRef = useRef(new Map<string, Promise<string | null>>());
 
   const handleCoverSelect = useCallback((assetPath: string) => {
+    lastPreviewPathRef.current = null;
+
     if (assetPath === url) {
       setPreviewSrc(null);
       endSelectionCommit();
@@ -52,6 +54,7 @@ export function useCoverSelectionFlow({
       return;
     }
 
+    setPreviewSrc(null);
     beginSelectionCommit();
     onUpdate(assetPath, DEFAULT_POSITION_PERCENT, DEFAULT_POSITION_PERCENT, coverHeight, DEFAULT_SCALE);
     setShowPicker(false);
@@ -107,6 +110,7 @@ export function useCoverSelectionFlow({
   }, [endSelectionCommit, isSelectionCommitting, setPreviewSrc, vaultPath]);
 
   const handlePickerClose = useCallback(() => {
+    lastPreviewPathRef.current = null;
     if (!isSelectionCommitting) {
       setPreviewSrc(null);
     }

@@ -50,6 +50,8 @@ export const CoverRenderer = React.memo(({
         isImageReady={isImageReady}
         positionX={positionX}
         positionY={positionY}
+        mediaSize={mediaSize}
+        effectiveContainerSize={effectiveContainerSize}
         zoom={zoom}
         forceVisible={placeholderFallbackVisible}
       />

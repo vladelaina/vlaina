@@ -1,7 +1,7 @@
 import { StateCreator } from 'zustand';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
-import { NotesStore, FileTreeNode, MetadataFile } from '../types';
+import { NotesStore, FileTreeNode, MetadataFile, NoteCoverMetadata } from '../types';
 import {
   loadRecentNotes,
   loadNoteMetadata,
@@ -44,8 +44,8 @@ export interface FeatureSlice {
   setNoteIcon: (path: string, emoji: string | null) => void;
   updateAllIconColors: (newColor: string) => void;
   updateAllEmojiSkinTones: (newTone: number) => Promise<void>;
-  getNoteCover: (path: string) => { cover?: string; coverX?: number; coverY?: number; coverH?: number; coverScale?: number };
-  setNoteCover: (path: string, cover: string | null, coverX?: number, coverY?: number, coverH?: number, coverScale?: number) => void;
+  getNoteCover: (path: string) => NoteCoverMetadata | undefined;
+  setNoteCover: (path: string, cover: NoteCoverMetadata | null) => void;
   getNoteIconSize: (path: string) => number | undefined;
   setNoteIconSize: (path: string, size: number) => void;
   setGlobalIconSize: (size: number) => void;
@@ -268,19 +268,24 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
   getNoteCover: (path: string) => {
     const { noteMetadata } = get();
-    if (!noteMetadata) return {};
-    const entry = noteMetadata.notes[path];
-    if (!entry) return {};
-    return { cover: entry.cover, coverX: entry.coverX, coverY: entry.coverY, coverH: entry.coverH, coverScale: entry.coverScale };
+    return noteMetadata?.notes[path]?.cover;
   },
 
-  setNoteCover: (path: string, cover: string | null, coverX?: number, coverY?: number, coverH?: number, coverScale?: number) => {
+  setNoteCover: (path: string, cover: NoteCoverMetadata | null) => {
     const { noteMetadata, notesPath } = get();
     if (!noteMetadata || !notesPath) return;
 
-    const updates = cover
-      ? { cover, coverX: coverX ?? 50, coverY: coverY ?? 50, coverH: coverH, coverScale: coverScale ?? 1 }
-      : { cover: undefined, coverX: undefined, coverY: undefined, coverH: undefined, coverScale: undefined };
+    const updates = {
+      cover: cover?.assetPath
+        ? {
+            assetPath: cover.assetPath,
+            positionX: cover.positionX ?? 50,
+            positionY: cover.positionY ?? 50,
+            height: cover.height,
+            scale: cover.scale ?? 1,
+          }
+        : undefined,
+    };
 
     const updated = setNoteEntry(noteMetadata, path, updates);
     set({ noteMetadata: updated });

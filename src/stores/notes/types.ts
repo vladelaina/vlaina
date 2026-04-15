@@ -20,14 +20,18 @@ export interface FolderNode {
 export type FileTreeNode = NoteFile | FolderNode;
 export type FileTreeSortMode = 'name-asc' | 'name-desc' | 'updated-desc' | 'created-desc';
 
+export interface NoteCoverMetadata {
+  assetPath: string;
+  positionX?: number;
+  positionY?: number;
+  height?: number;
+  scale?: number;
+}
+
 export interface NoteMetadataEntry {
   icon?: string;
   iconSize?: number;
-  cover?: string;
-  coverX?: number;
-  coverY?: number;
-  coverH?: number;
-  coverScale?: number;
+  cover?: NoteCoverMetadata;
   createdAt?: number;
   updatedAt?: number;
 }
@@ -136,8 +140,8 @@ export interface NotesActions {
   getDisplayName: (path: string) => string;
   revealFolder: (path: string) => void;
   uploadNoteAsset: (notePath: string, file: File) => Promise<string | null>;
-  getNoteCover: (path: string) => { cover?: string; coverX?: number; coverY?: number; coverH?: number; coverScale?: number };
-  setNoteCover: (path: string, cover: string | null, coverX?: number, coverY?: number, coverH?: number, coverScale?: number) => void;
+  getNoteCover: (path: string) => NoteCoverMetadata | undefined;
+  setNoteCover: (path: string, cover: NoteCoverMetadata | null) => void;
   loadAssets: (vaultPath: string) => Promise<void>;
   uploadAsset: (file: File, category?: 'covers' | 'icons' | 'content', currentNotePath?: string) => Promise<UploadResult>;
   deleteAsset: (filename: string) => Promise<void>;

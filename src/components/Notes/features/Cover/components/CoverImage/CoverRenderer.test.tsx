@@ -195,6 +195,32 @@ describe('CoverRenderer', () => {
     expect(image.style.transform).toContain('scale(2)');
   });
 
+  it('keeps placeholder geometry aligned with the cropper when dimensions are known', () => {
+    const { container } = render(
+      <CoverRenderer
+        {...buildProps({
+          isImageReady: false,
+          crop: { x: 18, y: -12 },
+          zoom: 1.35,
+          positionX: 35,
+          positionY: 70,
+          mediaSize: { width: 1600, height: 900 },
+          effectiveContainerSize: { width: 900, height: 240 },
+        })}
+      />
+    );
+
+    const placeholder = container.querySelector('img[alt="Cover"]') as HTMLImageElement | null;
+
+    expect(placeholder).not.toBeNull();
+    if (!placeholder) return;
+
+    expect(placeholder.style.width).toBe('900px');
+    expect(placeholder.style.height).toBe('506.25px');
+    expect(placeholder.style.transform).toContain('translate(');
+    expect(placeholder.style.transform).toContain('scale(1.35)');
+  });
+
   it('keeps fallback sizing aspect-safe before media dimensions are ready', () => {
     const { container } = render(
       <CoverRenderer

@@ -74,7 +74,6 @@ describe('useCoverSelectionFlow', () => {
       result.current.handleCoverSelect('@monet/5');
     });
 
-    expect(result.current.phase).toBe('committing');
     expect(result.current.isSelectionCommitting).toBe(true);
     expect(onUpdate).toHaveBeenCalledWith('@monet/5', 50, 50, 240, 1);
     expect(setShowPicker).toHaveBeenCalledWith(false);
@@ -151,5 +150,79 @@ describe('useCoverSelectionFlow', () => {
     expect(hoisted.resolveSystemAssetPath).toHaveBeenCalledTimes(1);
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(1);
     expect(hoisted.loadImageWithDimensions).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not let a late preview overwrite a committed cover selection', async () => {
+    const onUpdate = vi.fn();
+    const setShowPicker = vi.fn();
+    let resolvePreview: ((value: { width: number; height: number } | null) => void) | null = null;
+
+    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.vlaina/assets/covers/b.png');
+    hoisted.loadImageAsBlob.mockResolvedValue('blob:cover-b');
+    hoisted.loadImageWithDimensions.mockImplementation(() => new Promise((resolve) => {
+      resolvePreview = resolve;
+    }));
+
+    const { result } = renderHook(() =>
+      useCoverSelectionFlow({
+        url: 'covers/a.png',
+        coverHeight: 240,
+        vaultPath: '/vault-a',
+        onUpdate,
+        setShowPicker,
+      })
+    );
+
+    await act(async () => {
+      void result.current.handlePreview('covers/b.png');
+    });
+
+    act(() => {
+      result.current.handleCoverSelect('covers/a.png');
+    });
+
+    await act(async () => {
+      resolvePreview?.({ width: 1200, height: 800 });
+    });
+
+    expect(result.current.previewSrc).toBeNull();
+    expect(onUpdate).toHaveBeenCalledWith('covers/a.png', 50, 50, 240, 1);
+  });
+
+  it('does not restore preview after picker close when a late request resolves', async () => {
+    const onUpdate = vi.fn();
+    const setShowPicker = vi.fn();
+    let resolvePreview: ((value: { width: number; height: number } | null) => void) | null = null;
+
+    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.vlaina/assets/covers/b.png');
+    hoisted.loadImageAsBlob.mockResolvedValue('blob:cover-b');
+    hoisted.loadImageWithDimensions.mockImplementation(() => new Promise((resolve) => {
+      resolvePreview = resolve;
+    }));
+
+    const { result } = renderHook(() =>
+      useCoverSelectionFlow({
+        url: 'covers/a.png',
+        coverHeight: 240,
+        vaultPath: '/vault-a',
+        onUpdate,
+        setShowPicker,
+      })
+    );
+
+    await act(async () => {
+      void result.current.handlePreview('covers/b.png');
+    });
+
+    act(() => {
+      result.current.handlePickerClose();
+    });
+
+    await act(async () => {
+      resolvePreview?.({ width: 1200, height: 800 });
+    });
+
+    expect(result.current.previewSrc).toBeNull();
+    expect(setShowPicker).toHaveBeenCalledWith(false);
   });
 });

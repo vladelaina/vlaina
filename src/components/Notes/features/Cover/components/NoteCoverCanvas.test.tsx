@@ -49,7 +49,7 @@ describe('NoteCoverCanvas', () => {
     hoisted.renderSpy.mockReset();
   });
 
-  it('remounts cover image when note path changes', () => {
+  it('keeps the cover image mounted when note path changes', () => {
     const controller = createController();
     const { rerender } = render(
       <NoteCoverCanvas controller={controller} notePath="a.md" />
@@ -57,10 +57,35 @@ describe('NoteCoverCanvas', () => {
 
     expect(hoisted.mountSpy).toHaveBeenCalledTimes(1);
     expect(hoisted.unmountSpy).not.toHaveBeenCalled();
+    expect(hoisted.renderSpy).toHaveBeenLastCalledWith(expect.objectContaining({
+      url: 'covers/example.png',
+      positionX: 50,
+      positionY: 50,
+      height: 220,
+      scale: 1,
+    }));
 
-    rerender(<NoteCoverCanvas controller={controller} notePath="b.md" />);
+    const nextController: NoteCoverController = {
+      ...controller,
+      cover: {
+        url: 'covers/next.png',
+        positionX: 32,
+        positionY: 64,
+        height: 260,
+        scale: 1.25,
+      },
+    };
 
-    expect(hoisted.unmountSpy).toHaveBeenCalledTimes(1);
-    expect(hoisted.mountSpy).toHaveBeenCalledTimes(2);
+    rerender(<NoteCoverCanvas controller={nextController} notePath="b.md" />);
+
+    expect(hoisted.unmountSpy).not.toHaveBeenCalled();
+    expect(hoisted.mountSpy).toHaveBeenCalledTimes(1);
+    expect(hoisted.renderSpy).toHaveBeenLastCalledWith(expect.objectContaining({
+      url: 'covers/next.png',
+      positionX: 32,
+      positionY: 64,
+      height: 260,
+      scale: 1.25,
+    }));
   });
 });

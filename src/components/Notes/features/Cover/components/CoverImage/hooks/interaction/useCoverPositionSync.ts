@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
 import { calculateCropPixels } from '../../../../utils/coverGeometry';
 
 interface UseCoverPositionSyncProps {
@@ -26,7 +26,7 @@ export function useCoverPositionSync({
   ignoreCropSyncRef,
   setCrop,
 }: UseCoverPositionSyncProps) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (suspendSync) return;
     if (isInteracting || isResizing || !mediaSize || !effectiveContainerSize) return;
     if (ignoreCropSyncRef.current) {

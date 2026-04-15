@@ -30,13 +30,11 @@ describe('resolveCoverAssetUrl', () => {
     hoisted.isBuiltinCover.mockReturnValue(false);
   });
 
-  it('returns http url when allowed', async () => {
-    const url = await resolveCoverAssetUrl({
+  it('rejects remote cover urls', async () => {
+    await expect(resolveCoverAssetUrl({
       assetPath: 'https://example.com/cover.jpg',
       vaultPath: '',
-      allowHttp: true,
-    });
-    expect(url).toBe('https://example.com/cover.jpg');
+    })).rejects.toThrow('remote-cover-unsupported');
   });
 
   it('returns builtin url', async () => {

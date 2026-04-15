@@ -1,4 +1,4 @@
-import { useReducer, useRef, useEffect, useCallback } from 'react';
+import { useReducer, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { loadImageWithDimensions } from '../utils/coverDimensionCache';
 import { resolveCoverAssetUrl } from '../utils/resolveCoverAssetUrl';
 import { coverSourceReducer, initialCoverSourceState } from './coverSourceState';
@@ -35,7 +35,7 @@ export function useCoverSource({ url, vaultPath }: UseCoverSourceProps) {
         prevSrcRef.current = state.resolvedSrc;
     }, [state.resolvedSrc]);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (url === prevUrlRef.current) return;
 
         if (url) {
@@ -64,7 +64,6 @@ export function useCoverSource({ url, vaultPath }: UseCoverSourceProps) {
                 imageUrl = await resolveCoverAssetUrl({
                     assetPath: url,
                     vaultPath,
-                    allowHttp: true,
                     localCategory: 'covers',
                 });
             } catch {

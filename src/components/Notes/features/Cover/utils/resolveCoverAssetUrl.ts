@@ -5,7 +5,6 @@ import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
 interface ResolveCoverAssetUrlOptions {
   assetPath: string;
   vaultPath: string;
-  allowHttp?: boolean;
   localCategory?: 'covers' | 'icons' | 'auto';
 }
 
@@ -19,11 +18,10 @@ function resolveLocalCategory(assetPath: string, localCategory: 'covers' | 'icon
 export async function resolveCoverAssetUrl({
   assetPath,
   vaultPath,
-  allowHttp = false,
   localCategory = 'covers',
 }: ResolveCoverAssetUrlOptions): Promise<string> {
-  if (allowHttp && assetPath.startsWith('http')) {
-    return assetPath;
+  if (assetPath.startsWith('http://') || assetPath.startsWith('https://')) {
+    throw new Error('remote-cover-unsupported');
   }
 
   if (isBuiltinCover(assetPath)) {
