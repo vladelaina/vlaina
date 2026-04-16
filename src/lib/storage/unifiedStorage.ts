@@ -143,6 +143,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
         benchmarkResults: {},
         fetchedModels: {},
         sessions: [],
+        unreadSessionIds: [],
         selectedModelId: null,
         currentSessionId: null,
         temporaryChatEnabled: false,
@@ -156,16 +157,23 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
         try {
             const sessionsData = JSON.parse(await storage.readFile(sessionsPath));
             const loadedSessions = Array.isArray(sessionsData.sessions) ? sessionsData.sessions : [];
-            combinedData.ai.sessions = loadedSessions.filter((session: ChatSession) => !isTemporarySession(session));
-            combinedData.ai.selectedModelId = sessionsData.selectedModelId || null;
+            const aiData = combinedData.ai;
+            aiData.sessions = loadedSessions.filter((session: ChatSession) => !isTemporarySession(session));
+            aiData.selectedModelId = sessionsData.selectedModelId || null;
             const currentSessionId = sessionsData.currentSessionId || null;
             const hasCurrentSession = currentSessionId
-              ? combinedData.ai.sessions.some((session) => session.id === currentSessionId)
+              ? aiData.sessions.some((session) => session.id === currentSessionId)
               : false;
-            combinedData.ai.currentSessionId = hasCurrentSession ? currentSessionId : null;
-            combinedData.ai.temporaryChatEnabled = false;
-            combinedData.ai.customSystemPrompt = typeof sessionsData.customSystemPrompt === 'string' ? sessionsData.customSystemPrompt : '';
-            combinedData.ai.includeTimeContext = sessionsData.includeTimeContext !== false;
+            const unreadSessionIds = Array.isArray(sessionsData.unreadSessionIds)
+              ? sessionsData.unreadSessionIds.filter((sessionId: unknown): sessionId is string => typeof sessionId === 'string')
+              : [];
+            aiData.currentSessionId = hasCurrentSession ? currentSessionId : null;
+            aiData.unreadSessionIds = unreadSessionIds.filter((sessionId: string) =>
+              aiData.sessions.some((session) => session.id === sessionId)
+            );
+            aiData.temporaryChatEnabled = false;
+            aiData.customSystemPrompt = typeof sessionsData.customSystemPrompt === 'string' ? sessionsData.customSystemPrompt : '';
+            aiData.includeTimeContext = sessionsData.includeTimeContext !== false;
             providerIds = sessionsData.providerIds || [];
         } catch (e) { console.error('Failed to load sessions.json', e); }
     }
@@ -258,6 +266,7 @@ async function performSplitSave(data: UnifiedData) {
         const sessionsData = {
             sessions: persistedSessions,
             selectedModelId: ai.selectedModelId,
+            unreadSessionIds: (ai.unreadSessionIds || []).filter((sessionId) => persistedSessionIds.has(sessionId)),
             currentSessionId: ai.currentSessionId && persistedSessionIds.has(ai.currentSessionId)
               ? ai.currentSessionId
               : null,

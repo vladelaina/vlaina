@@ -15,7 +15,8 @@ const RELOAD_DEBOUNCE_MS = 220;
 export function useUnifiedExternalSync() {
   const loaded = useUnifiedStore((state) => state.loaded);
   const reloadFromDisk = useUnifiedStore((state) => state.reloadFromDisk);
-  const temporaryChatEnabled = useUnifiedStore((state) => !!state.data.ai?.temporaryChatEnabled);
+  const temporaryChatEnabled = useAIUIStore((state) => state.temporaryChatEnabled);
+  const currentSessionId = useAIUIStore((state) => state.currentSessionId);
   const generatingSessions = useAIUIStore((state) => state.generatingSessions);
 
   const hasActiveGeneration = useMemo(
@@ -55,12 +56,19 @@ export function useUnifiedExternalSync() {
       pendingUnifiedReloadRef.current || pendingSessionReloadIdsRef.current.size > 0;
 
     const shouldReloadSession = (sessionId: string) => {
-      const ai = useUnifiedStore.getState().data.ai;
-      if (!ai) {
-        return false;
+      return useAIUIStore.getState().currentSessionId === sessionId;
+    };
+
+    const invalidateCachedSession = (sessionId: string) => {
+      const store = useUnifiedStore.getState();
+      const ai = store.data.ai;
+      if (!ai || !(sessionId in ai.messages)) {
+        return;
       }
 
-      return ai.currentSessionId === sessionId || sessionId in ai.messages;
+      const nextMessages = { ...ai.messages };
+      delete nextMessages[sessionId];
+      store.updateAIData({ messages: nextMessages }, true);
     };
 
     const runReload = async () => {
@@ -82,7 +90,7 @@ export function useUnifiedExternalSync() {
       try {
         if (shouldReloadUnified) {
           await reloadFromDisk();
-          const activeSessionId = useUnifiedStore.getState().data.ai?.currentSessionId;
+          const activeSessionId = useAIUIStore.getState().currentSessionId;
           if (activeSessionId) {
             pendingSessionIds.add(activeSessionId);
           }
@@ -124,6 +132,10 @@ export function useUnifiedExternalSync() {
 
     const queueReload = (event: StorageAutoSyncEvent) => {
       if (event.kind === 'chat-session' && event.sessionId) {
+        if (!shouldReloadSession(event.sessionId)) {
+          invalidateCachedSession(event.sessionId);
+          return;
+        }
         pendingSessionReloadIdsRef.current.add(event.sessionId);
       } else {
         pendingUnifiedReloadRef.current = true;
@@ -145,5 +157,5 @@ export function useUnifiedExternalSync() {
         reloadTimerRef.current = null;
       }
     };
-  }, [hasActiveGeneration, loaded, reloadFromDisk, temporaryChatEnabled]);
+  }, [currentSessionId, hasActiveGeneration, loaded, reloadFromDisk, temporaryChatEnabled]);
 }

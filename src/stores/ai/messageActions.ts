@@ -7,6 +7,7 @@ import {
 import { shouldPersistSession } from '@/lib/ai/temporaryChat'
 import { extractMessageImageSources } from '@/components/Chat/common/messageClipboard'
 import { useUnifiedStore } from '../unified/useUnifiedStore'
+import { useAIUIStore } from './chatState'
 
 function createMessageVersion(content: string, createdAt: number): MessageVersion {
   return {
@@ -16,16 +17,24 @@ function createMessageVersion(content: string, createdAt: number): MessageVersio
   }
 }
 
+interface AddMessageOptions {
+  persistUnified?: boolean
+  touchSession?: boolean
+}
+
 export function createMessageActions() {
   return {
     addMessage: (
       message: Omit<ChatMessage, 'id' | 'timestamp' | 'versions' | 'currentVersionIndex'> & { id?: string },
       sessionId?: string,
+      options?: AddMessageOptions,
     ) => {
       const state = useUnifiedStore.getState()
       const ai = state.data.ai!
-      const targetSessionId = sessionId || ai.currentSessionId
+      const targetSessionId = sessionId || useAIUIStore.getState().currentSessionId
       if (!targetSessionId) return
+      const persistUnified = options?.persistUnified !== false
+      const touchSession = options?.touchSession !== false
 
       const createdAt = Date.now()
       const newMessage: ChatMessage = {
@@ -47,10 +56,12 @@ export function createMessageActions() {
 
       state.updateAIData({
         messages: { ...ai.messages, [targetSessionId]: newMessages },
-        sessions: ai.sessions.map((session) =>
-          session.id === targetSessionId ? { ...session, updatedAt: Date.now() } : session
-        )
-      })
+        sessions: touchSession
+          ? ai.sessions.map((session) =>
+              session.id === targetSessionId ? { ...session, updatedAt: Date.now() } : session
+            )
+          : ai.sessions
+      }, !persistUnified)
 
       if (shouldPersistSession(ai, targetSessionId)) {
         saveSessionJson(targetSessionId, newMessages)
@@ -103,13 +114,12 @@ export function createMessageActions() {
       if (sessionMessages && shouldPersistSession(ai, sessionId)) {
         void saveSessionJson(sessionId, sessionMessages)
       }
-      state.updateAIData({})
     },
 
     addVersion: (id: string, sessionId?: string) => {
       const state = useUnifiedStore.getState()
       const ai = state.data.ai!
-      const targetSessionId = sessionId || ai.currentSessionId
+      const targetSessionId = sessionId || useAIUIStore.getState().currentSessionId
       if (!targetSessionId) return
 
       const sessionMessages = ai.messages[targetSessionId] || []
@@ -132,7 +142,7 @@ export function createMessageActions() {
           ...ai.messages,
           [targetSessionId]: newMessages
         }
-      })
+      }, true)
 
       if (shouldPersistSession(ai, targetSessionId)) {
         saveSessionJson(targetSessionId, newMessages)
@@ -169,7 +179,7 @@ export function createMessageActions() {
 
       state.updateAIData({
         messages: { ...ai.messages, [sessionId]: newMessages }
-      })
+      }, true)
 
       if (shouldPersistSession(ai, sessionId)) {
         saveSessionJson(sessionId, newMessages)
@@ -210,7 +220,7 @@ export function createMessageActions() {
 
       state.updateAIData({
         messages: { ...ai.messages, [sessionId]: finalMessages }
-      })
+      }, true)
 
       if (shouldPersistSession(ai, sessionId)) {
         saveSessionJson(sessionId, finalMessages)

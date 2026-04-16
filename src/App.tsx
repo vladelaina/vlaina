@@ -17,17 +17,14 @@ import { useAIStore } from '@/stores/useAIStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useVaultStore } from '@/stores/useVaultStore';
-import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import { useSyncInit } from '@/hooks/useSyncInit';
 import { useUnifiedExternalSync } from '@/hooks/useUnifiedExternalSync';
 import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
-import { runTemporaryChatWelcomeShortcut } from '@/components/Chat/features/Temporary/temporaryChatCommands';
 import { flushPendingSave } from '@/lib/storage/unifiedStorage';
 import { flushPendingSessionJsonSaves } from '@/lib/storage/chatStorage';
 import { hasDraftUnsavedChanges, isDraftNotePath } from '@/stores/notes/draftNote';
 import { openStoredNotePath } from '@/stores/notes/openNotePath';
-import { readWindowLaunchContext } from '@/lib/tauri/windowLaunchContext';
 
 const SettingsModal = lazy(async () => {
   const mod = await import('@/components/Settings');
@@ -81,11 +78,8 @@ function AppContent() {
     toggleSidebar,
     setAppViewMode
   } = useUIStore();
-  const unifiedLoaded = useUnifiedStore((s) => s.loaded);
   const { currentVault, initialize } = useVaultStore();
   const { showInTitleBar } = useTemporaryTogglePresentation();
-  const launchContextRef = useRef(readWindowLaunchContext());
-  const hasHandledChatLaunchRef = useRef(false);
   const shouldShowTemporaryToggleInTitleBar =
     showInTitleBar &&
     (
@@ -113,24 +107,6 @@ function AppContent() {
   useEffect(() => {
     initialize();
   }, [initialize]);
-
-  useEffect(() => {
-    if (hasHandledChatLaunchRef.current) {
-      return;
-    }
-
-    const launchContext = launchContextRef.current;
-    if (!launchContext.isNewWindow || launchContext.viewMode !== 'chat') {
-      return;
-    }
-
-    if (!unifiedLoaded || appViewMode !== 'chat') {
-      return;
-    }
-
-    hasHandledChatLaunchRef.current = true;
-    runTemporaryChatWelcomeShortcut();
-  }, [appViewMode, unifiedLoaded]);
 
   useEffect(() => {
     if (appViewMode === 'chat' || typeof document === 'undefined') {
@@ -330,10 +306,14 @@ function App() {
     let restorePath = useNotesStore.getState().currentNote?.path ?? null;
 
     for (const draftPath of draftPaths) {
-      await useNotesStore.getState().openNote(draftPath);
-
       const latestState = useNotesStore.getState();
-      if (latestState.currentNote?.path !== draftPath || !latestState.draftNotes[draftPath]) {
+      if (latestState.currentNote?.path === draftPath) {
+      } else {
+        await latestState.openNote(draftPath);
+      }
+
+      const currentState = useNotesStore.getState();
+      if (currentState.currentNote?.path !== draftPath || !currentState.draftNotes[draftPath]) {
         await restorePathAfterCloseInterruption(restorePath);
         return {
           saved: false,
@@ -341,7 +321,7 @@ function App() {
         };
       }
 
-      await latestState.saveNote({ explicit: true, suppressOpenTarget: true });
+      await currentState.saveNote({ explicit: true, suppressOpenTarget: true });
 
       const afterSaveState = useNotesStore.getState();
       if (restorePath === draftPath) {

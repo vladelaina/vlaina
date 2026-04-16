@@ -39,9 +39,10 @@ export async function chooseDraftSavePath(
   notesPath: string,
   draftNote: DraftNoteEntry,
 ): Promise<string | null> {
+  const defaultPath = await buildDraftSaveDefaultPath(notesPath, draftNote);
   const selectedPath = await saveDialog({
     title: 'Save Note As',
-    defaultPath: await buildDraftSaveDefaultPath(notesPath, draftNote),
+    defaultPath,
     filters: [{ name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd'] }],
   });
 

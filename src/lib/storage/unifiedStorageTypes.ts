@@ -61,6 +61,7 @@ export interface UnifiedData {
     fetchedModels?: Record<string, string[]>;
     sessions: ChatSession[];
     messages: Record<string, ChatMessage[]>;
+    unreadSessionIds?: string[];
     selectedModelId: string | null;
     currentSessionId: string | null;
     temporaryChatEnabled?: boolean;

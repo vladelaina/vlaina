@@ -9,6 +9,7 @@ const mocked = vi.hoisted(() => ({
   createSession: vi.fn(),
   openNewChat: vi.fn(),
   getState: vi.fn(),
+  getUIState: vi.fn(),
 }));
 
 vi.mock("@/stores/useAIStore", () => ({
@@ -25,12 +26,16 @@ vi.mock("@/stores/unified/useUnifiedStore", () => ({
   },
 }));
 
+vi.mock("@/stores/ai/chatState", () => ({
+  useAIUIStore: {
+    getState: mocked.getUIState,
+  },
+}));
+
 function createState(overrides?: any) {
   return {
     data: {
       ai: {
-        temporaryChatEnabled: false,
-        currentSessionId: "session-1",
         messages: {
           "session-1": [{ id: "m1", role: "user", content: "hello" }],
         },
@@ -40,10 +45,19 @@ function createState(overrides?: any) {
   };
 }
 
+function createUIState(overrides?: any) {
+  return {
+    temporaryChatEnabled: false,
+    currentSessionId: "session-1",
+    ...overrides,
+  };
+}
+
 describe("temporaryChatCommands", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocked.getState.mockReturnValue(createState());
+    mocked.getUIState.mockReturnValue(createUIState());
   });
 
   it("opens a regular new chat", () => {
@@ -63,9 +77,13 @@ describe("temporaryChatCommands", () => {
   it("returns to a blank regular chat when the current temporary chat is empty", () => {
     mocked.getState.mockReturnValue(
       createState({
+        messages: { "temp-1": [] },
+      }),
+    );
+    mocked.getUIState.mockReturnValue(
+      createUIState({
         temporaryChatEnabled: true,
         currentSessionId: "temp-1",
-        messages: { "temp-1": [] },
       }),
     );
 
@@ -79,9 +97,13 @@ describe("temporaryChatCommands", () => {
   it("creates a fresh temporary chat when the current temporary chat already has content", () => {
     mocked.getState.mockReturnValue(
       createState({
+        messages: { "temp-1": [{ id: "m1", role: "user", content: "occupied" }] },
+      }),
+    );
+    mocked.getUIState.mockReturnValue(
+      createUIState({
         temporaryChatEnabled: true,
         currentSessionId: "temp-1",
-        messages: { "temp-1": [{ id: "m1", role: "user", content: "occupied" }] },
       }),
     );
 

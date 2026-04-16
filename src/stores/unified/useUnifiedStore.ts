@@ -65,6 +65,31 @@ function persist(data: UnifiedData) {
   saveUnifiedData(data);
 }
 
+export function retainLoadedSessionMessages(
+  previousData: UnifiedData,
+  nextData: UnifiedData,
+): UnifiedData {
+  const previousMessages = previousData.ai?.messages;
+  const nextAI = nextData.ai;
+
+  if (!previousMessages || !nextAI) {
+    return nextData;
+  }
+
+  const persistedSessionIds = new Set(nextAI.sessions.map((session) => session.id));
+  const retainedMessages = Object.fromEntries(
+    Object.entries(previousMessages).filter(([sessionId]) => persistedSessionIds.has(sessionId))
+  );
+
+  return {
+    ...nextData,
+    ai: {
+      ...nextAI,
+      messages: retainedMessages,
+    },
+  };
+}
+
 function createDefaultAIData(): NonNullable<UnifiedData['ai']> {
   return {
     providers: [],
@@ -73,6 +98,7 @@ function createDefaultAIData(): NonNullable<UnifiedData['ai']> {
     fetchedModels: {},
     sessions: [],
     messages: {},
+    unreadSessionIds: [],
     selectedModelId: null,
     currentSessionId: null,
     temporaryChatEnabled: false,
@@ -104,13 +130,13 @@ function normalizeUnifiedData(data: UnifiedData): UnifiedData {
         fetchedModels: ai.fetchedModels || {},
         customSystemPrompt: ai.customSystemPrompt || '',
         includeTimeContext: ai.includeTimeContext !== false,
+        unreadSessionIds: Array.isArray(ai.unreadSessionIds) ? ai.unreadSessionIds : [],
         temporaryChatEnabled: false,
       }
     : createDefaultAIData();
 
   return normalized;
 }
-
 const initialState: UnifiedStoreState = {
   data: {
     progress: [],
@@ -135,7 +161,11 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
     },
 
     reloadFromDisk: async () => {
-      const data = normalizeUnifiedData(await loadUnifiedData());
+      const previousData = get().data;
+      const data = retainLoadedSessionMessages(
+        previousData,
+        normalizeUnifiedData(await loadUnifiedData())
+      );
       set({ data, loaded: true });
     },
 

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useUnifiedStore } from './unified/useUnifiedStore'
 import { useAccountSessionStore } from './accountSession'
 import { useManagedAIStore } from './useManagedAIStore'
@@ -18,6 +18,7 @@ import {
 } from '@/lib/ai/temporaryChat';
 import { createChatActions } from './ai/chatActions'
 import { useAIUIStore } from './ai/chatState'
+import { readWindowLaunchContext } from '@/lib/tauri/windowLaunchContext'
 
 export { createAIChatSession } from './ai/chatState'
 
@@ -32,7 +33,7 @@ function sortProviders(providers: Provider[]): Provider[] {
 function ensureManagedProvider(providers: Provider[]): Provider[] {
   const now = Date.now()
   const managed = providers.find((provider) => provider.id === MANAGED_PROVIDER_ID)
-  const nextManaged = createManagedProvider(managed?.createdAt || now)
+  const nextManaged = managed ?? createManagedProvider(now)
   const nextProviders = providers.filter((provider) => provider.id !== MANAGED_PROVIDER_ID)
   nextProviders.unshift(nextManaged)
   return sortProviders(nextProviders)
@@ -59,7 +60,78 @@ function chooseFallbackSelectedModelId(
 
 function replaceProviderModels(allModels: AIModel[], providerId: string, nextModels: AIModel[]): AIModel[] {
   const otherModels = allModels.filter((model) => model.providerId !== providerId)
-  return [...otherModels, ...nextModels]
+  const existingModels = new Map(
+    allModels
+      .filter((model) => model.providerId === providerId)
+      .map((model) => [model.id, model] as const)
+  )
+
+  return [
+    ...otherModels,
+    ...nextModels.map((model) => {
+      const existing = existingModels.get(model.id)
+      if (!existing) {
+        return model
+      }
+
+      if (
+        existing.apiModelId === model.apiModelId &&
+        existing.name === model.name &&
+        existing.providerId === model.providerId &&
+        existing.group === model.group
+      ) {
+        return existing
+      }
+
+      return {
+        ...model,
+        createdAt: existing.createdAt,
+        enabled: existing.enabled,
+        pinned: existing.pinned,
+      }
+    }),
+  ]
+}
+
+function areProvidersEqual(left: Provider[], right: Provider[]): boolean {
+  if (left.length !== right.length) {
+    return false
+  }
+
+  return left.every((provider, index) => {
+    const other = right[index]
+    return !!other && (
+      provider.id === other.id &&
+      provider.name === other.name &&
+      provider.icon === other.icon &&
+      provider.type === other.type &&
+      provider.apiHost === other.apiHost &&
+      provider.apiKey === other.apiKey &&
+      provider.enabled === other.enabled &&
+      provider.createdAt === other.createdAt &&
+      provider.updatedAt === other.updatedAt
+    )
+  })
+}
+
+function areModelsEqual(left: AIModel[], right: AIModel[]): boolean {
+  if (left.length !== right.length) {
+    return false
+  }
+
+  return left.every((model, index) => {
+    const other = right[index]
+    return !!other && (
+      model.id === other.id &&
+      model.apiModelId === other.apiModelId &&
+      model.name === other.name &&
+      model.providerId === other.providerId &&
+      model.group === other.group &&
+      model.enabled === other.enabled &&
+      model.pinned === other.pinned &&
+      model.createdAt === other.createdAt
+    )
+  })
 }
 
 function filterModelsByEnabledProviders(models: AIModel[], providers: Provider[]): AIModel[] {
@@ -276,21 +348,42 @@ export const useAIStore = () => {
   const loaded = useUnifiedStore(s => s.loaded);
   const load = useUnifiedStore(s => s.load);
   const accountConnected = useAccountSessionStore((s) => s.isConnected);
+  const launchContextRef = useRef(readWindowLaunchContext());
+  const suppressStartupAIPersistRef = useRef((() => {
+    const launchContext = launchContextRef.current;
+    return launchContext.isNewWindow && launchContext.viewMode === 'chat';
+  })());
 
   useEffect(() => {
-      if (!loaded) {
-          load();
-      }
-  }, [loaded, load]);
-
-  useEffect(() => {
-    if (!loaded || !aiData?.temporaryChatEnabled) {
+    if (!loaded || uiState.selectionInitialized) {
       return;
     }
 
-    const currentSessionId = aiData.currentSessionId;
+    const launchContext = launchContextRef.current;
+    if (launchContext.isNewWindow && launchContext.viewMode === 'chat') {
+      uiState.initializeSelection({ currentSessionId: null, temporaryChatEnabled: false });
+      return;
+    }
+
+    uiState.initializeSelection({
+      currentSessionId: aiData?.currentSessionId ?? null,
+      temporaryChatEnabled: !!aiData?.temporaryChatEnabled,
+    });
+  }, [
+    aiData?.currentSessionId,
+    aiData?.temporaryChatEnabled,
+    loaded,
+    uiState,
+  ]);
+
+  useEffect(() => {
+    if (!loaded || !uiState.selectionInitialized || !uiState.temporaryChatEnabled) {
+      return;
+    }
+
+    const currentSessionId = uiState.currentSessionId;
     const currentSession = currentSessionId
-      ? aiData.sessions.find((session) => session.id === currentSessionId)
+      ? aiData?.sessions.find((session) => session.id === currentSessionId)
       : null;
     const hasActiveTemporarySession =
       isTemporarySessionId(currentSessionId) || isTemporarySession(currentSession);
@@ -299,8 +392,52 @@ export const useAIStore = () => {
       return;
     }
 
-    useUnifiedStore.getState().updateAIData({ temporaryChatEnabled: false });
-  }, [aiData?.currentSessionId, aiData?.sessions, aiData?.temporaryChatEnabled, loaded]);
+    uiState.setTemporaryChatEnabled(false);
+  }, [
+    aiData?.sessions,
+    loaded,
+    uiState,
+  ]);
+
+  useEffect(() => {
+    if (!loaded || !uiState.selectionInitialized) {
+      return;
+    }
+
+    const currentSessionId = uiState.currentSessionId;
+    if (!currentSessionId || isTemporarySessionId(currentSessionId)) {
+      return;
+    }
+
+    if (aiData?.sessions.some((session) => session.id === currentSessionId)) {
+      return;
+    }
+
+    uiState.setCurrentSessionId(null);
+  }, [aiData?.sessions, loaded, uiState]);
+
+  useEffect(() => {
+    if (!loaded || !uiState.selectionInitialized) {
+      return;
+    }
+
+    const currentSessionId = uiState.currentSessionId;
+    if (!currentSessionId) {
+      return;
+    }
+
+    if (!(aiData?.unreadSessionIds || []).includes(currentSessionId)) {
+      return;
+    }
+
+    uiState.markSessionRead(currentSessionId);
+  }, [aiData?.unreadSessionIds, loaded, uiState]);
+
+  useEffect(() => {
+    if (!loaded) {
+      load();
+    }
+  }, [loaded, load]);
 
   useEffect(() => {
     if (!loaded) {
@@ -317,7 +454,7 @@ export const useAIStore = () => {
       nextProviders.some((provider, index) => ai.providers[index]?.id !== provider.id);
 
     if (providersChanged) {
-      store.updateAIData({ providers: nextProviders });
+      store.updateAIData({ providers: nextProviders }, suppressStartupAIPersistRef.current);
     }
   }, [loaded]);
 
@@ -342,11 +479,20 @@ export const useAIStore = () => {
           MANAGED_PROVIDER_ID
         );
 
+        const providersChanged = !areProvidersEqual(ai.providers, nextProviders);
+        const modelsChanged = !areModelsEqual(ai.models, nextModels);
+        const selectedModelChanged = ai.selectedModelId !== selectedModelId;
+
+        if (!providersChanged && !modelsChanged && !selectedModelChanged) {
+          void useManagedAIStore.getState().refreshBudget();
+          return;
+        }
+
         store.updateAIData({
           providers: nextProviders,
           models: nextModels,
           selectedModelId,
-        });
+        }, suppressStartupAIPersistRef.current);
         void useManagedAIStore.getState().refreshBudget();
       } catch (error) {
         if (!isManagedServiceRecoverableError(error)) {
@@ -390,7 +536,7 @@ export const useAIStore = () => {
       providers: nextProviders,
       models: nextModels,
       selectedModelId: nextSelectedModelId,
-    });
+    }, suppressStartupAIPersistRef.current);
     useManagedAIStore.getState().clearBudget();
   }, [loaded, accountConnected]);
 
@@ -400,10 +546,8 @@ export const useAIStore = () => {
     benchmarkResults: aiData?.benchmarkResults || {},
     fetchedModels: aiData?.fetchedModels || {},
     sessions: aiData?.sessions || [],
-    currentSessionId: aiData?.currentSessionId || null,
     messages: aiData?.messages || {},
     selectedModelId: aiData?.selectedModelId || null,
-    temporaryChatEnabled: !!aiData?.temporaryChatEnabled,
     customSystemPrompt: aiData?.customSystemPrompt || '',
     includeTimeContext: aiData?.includeTimeContext !== false,
     
@@ -430,8 +574,8 @@ export const useAIStore = () => {
     },
     
     isSessionLoading: (sessionId: string) => !!uiState.generatingSessions[sessionId],
-    isSessionUnread: (sessionId: string) => !!uiState.unreadSessions[sessionId],
-    isLoading: aiData?.currentSessionId ? !!uiState.generatingSessions[aiData.currentSessionId] : false,
+    isSessionUnread: (sessionId: string) => !!aiData?.unreadSessionIds?.includes(sessionId),
+    isLoading: uiState.currentSessionId ? !!uiState.generatingSessions[uiState.currentSessionId] : false,
     selectedModel: aiData?.selectedModelId
       ? (() => {
           const model = aiData.models.find(m => m.id === aiData.selectedModelId)
