@@ -111,6 +111,46 @@ describe('useCoverContainerObserver', () => {
     expect(result.current).toEqual({ width: 757, height: 200 });
   });
 
+  it('does not mark container resizing when observer reports the same size after rebinding', () => {
+    const el = document.createElement('div');
+    vi.spyOn(el, 'getBoundingClientRect').mockReturnValue({
+      width: 640,
+      height: 240,
+      top: 0,
+      left: 0,
+      right: 640,
+      bottom: 240,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    const { result } = renderHook(() => {
+      const containerRef = useRef<HTMLDivElement | null>(el);
+      const isManualResizingRef = useRef(false);
+      const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+      const [isContainerResizing, setIsContainerResizing] = useState(false);
+      useCoverContainerObserver({
+        containerRef,
+        isManualResizingRef,
+        setContainerSize: setSize,
+        setIsContainerResizing,
+        observeKey: 'same-size',
+      });
+      return { size, isContainerResizing };
+    });
+
+    expect(result.current.size).toEqual({ width: 640, height: 240 });
+    expect(result.current.isContainerResizing).toBe(false);
+
+    act(() => {
+      resizeObserverState.emit(640, 240);
+    });
+
+    expect(result.current.size).toEqual({ width: 640, height: 240 });
+    expect(result.current.isContainerResizing).toBe(false);
+  });
+
   it('does not update size while manual resizing flag is active', () => {
     const { result } = renderHook(() => {
       const containerRef = useRef<HTMLDivElement>(document.createElement('div'));

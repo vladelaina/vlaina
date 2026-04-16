@@ -1,7 +1,7 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { getNoteTitleFromPath, normalizeNotePathKey } from '@/lib/notes/displayName';
 import { sanitizeFileName } from '../../noteUtils';
-import { remapMetadataEntries, saveNoteMetadata } from '../../storage';
+import { remapMetadataEntries } from '../../storage';
 import { getVaultStarredPaths, remapStarredEntriesForVault, saveStarredRegistry } from '../../starred';
 import { updateFileNodePath, findNode, deepUpdateNodePath, addNodeToTree, removeNodeFromTree } from '../../fileTreeUtils';
 import { resolveUniqueMovedPath, resolveUniqueRenamedPath } from './pathOperations';
@@ -47,9 +47,6 @@ export async function renameNoteImpl(
         }
         return newPath;
     });
-    if (updatedMetadata !== noteMetadata && updatedMetadata) {
-        saveNoteMetadata(notesPath, updatedMetadata);
-    }
 
     const updatedTabs = remapOpenTabsForExternalRename(openTabs, path, newPath);
 
@@ -126,9 +123,6 @@ export async function moveItemImpl(
     });
 
     const updatedMetadata = remapMetadataEntries(noteMetadata, (relativePath) => remapPath(relativePath));
-    if (updatedMetadata !== noteMetadata && updatedMetadata) {
-        saveNoteMetadata(notesPath, updatedMetadata);
-    }
 
     let nextCurrentNote = currentNote;
     if (currentNote?.path) {

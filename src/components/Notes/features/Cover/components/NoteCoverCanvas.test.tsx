@@ -35,6 +35,7 @@ function createController(): NoteCoverController {
       scale: 1,
     },
     vaultPath: '/vault',
+    currentNotePath: 'a.md',
     isPickerOpen: false,
     setPickerOpen: vi.fn(),
     updateCover: vi.fn(),

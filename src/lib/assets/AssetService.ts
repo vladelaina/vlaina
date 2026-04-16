@@ -7,7 +7,6 @@ import { writeAssetAtomic } from './io/writer';
 export interface AssetContext {
   vaultPath: string;
   currentNotePath?: string;
-  category?: 'covers' | 'icons' | 'content';
 }
 
 export interface AssetConfig {
@@ -126,23 +125,7 @@ export class AssetService {
     context: AssetContext, 
     config: AssetConfig
   ): Promise<{ targetDir: string; storedPathPrefix: string }> {
-    const { vaultPath, currentNotePath, category } = context;
-    
-    if (category === 'icons') {
-      const assetsBaseDir = await joinPath(vaultPath, '.vlaina', 'assets');
-      return {
-        targetDir: await joinPath(assetsBaseDir, 'icons'),
-        storedPathPrefix: 'icons/'
-      };
-    }
-    
-    if (category === 'covers') {
-       const assetsBaseDir = await joinPath(vaultPath, '.vlaina', 'assets');
-       return {
-         targetDir: await joinPath(assetsBaseDir, 'covers'),
-         storedPathPrefix: ''
-       };
-    }
+    const { vaultPath, currentNotePath } = context;
 
     switch (config.storageMode) {
       case 'vault':

@@ -10,7 +10,6 @@ import { createWorkspaceSlice } from './workspaceSlice';
 import type { FolderNode, NoteFile, NotesStore } from '../types';
 
 const hoisted = vi.hoisted(() => ({
-  saveNoteMetadata: vi.fn(),
   persistRecentNotes: vi.fn(),
   saveStarredRegistry: vi.fn(),
   persistWorkspaceSnapshot: vi.fn(),
@@ -21,7 +20,6 @@ vi.mock('../storage', async () => {
   const actual = await vi.importActual<typeof import('../storage')>('../storage');
   return {
     ...actual,
-    saveNoteMetadata: hoisted.saveNoteMetadata,
     persistRecentNotes: hoisted.persistRecentNotes,
   };
 });
@@ -86,6 +84,7 @@ function createNotesStore(overrides: Partial<NotesStore> = {}) {
     starredLoaded: true,
     pendingStarredNavigation: null,
     noteMetadata: { version: 1, notes: {} },
+    noteIconSize: 60,
     displayNames: new Map(),
     isNewlyCreated: false,
     newlyCreatedFolderPath: null,

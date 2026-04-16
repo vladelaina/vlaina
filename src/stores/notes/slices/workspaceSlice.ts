@@ -5,7 +5,9 @@ import { NotesStore } from '../types';
 import { updateDisplayName } from '../displayNameUtils';
 import {
   addToRecentNotes,
+  createEmptyMetadataFile,
   persistRecentNotes,
+  setNoteEntry,
 } from '../storage';
 import {
   collectExpandedPaths,
@@ -41,9 +43,10 @@ import {
   remapRecentNotesForExternalRename,
   shouldPreserveDeletedCurrentNote,
 } from '../document/externalPathSync';
-import { remapMetadataEntries, saveNoteMetadata } from '../storage';
+import { remapMetadataEntries } from '../storage';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
+import { readNoteMetadataFromMarkdown } from '../frontmatter';
 
 export interface WorkspaceSlice {
   currentNote: NotesStore['currentNote'];
@@ -94,6 +97,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         path,
         cache: noteContentsCache,
       });
+      const nextMetadata = setNoteEntry(
+        get().noteMetadata ?? createEmptyMetadataFile(),
+        path,
+        readNoteMetadataFromMarkdown(content)
+      );
       const fileName = getNoteTitleFromPath(path);
       const tabName = fileName;
       const updatedRecent = addToRecentNotes(path, recentNotes);
@@ -123,6 +131,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         openTabs: updatedTabs,
         isNewlyCreated: false,
         noteContentsCache: nextCache,
+        noteMetadata: nextMetadata,
       });
 
       const { rootFolder, fileTreeSortMode } = get();
@@ -150,6 +159,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         path: absolutePath,
         cache: noteContentsCache,
       });
+      const nextMetadata = setNoteEntry(
+        get().noteMetadata ?? createEmptyMetadataFile(),
+        absolutePath,
+        readNoteMetadataFromMarkdown(content)
+      );
       const fileName = getNoteTitleFromPath(absolutePath);
       const tabName = fileName;
       const existingTab = openTabs.find((t) => t.path === absolutePath);
@@ -177,6 +191,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         openTabs: updatedTabs,
         isNewlyCreated: false,
         noteContentsCache: nextCache,
+        noteMetadata: nextMetadata,
       });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to open note' });
@@ -184,19 +199,27 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   },
 
   saveNote: async () => {
-    const { currentNote, notesPath, noteContentsCache } = get();
+    const { currentNote, notesPath, noteContentsCache, noteMetadata, rootFolder, fileTreeSortMode } = get();
     if (!currentNote) return;
 
     try {
-      const { nextCache, updatedMetadata } = await saveNoteDocument({
+      const { content, metadata, nextCache } = await saveNoteDocument({
         notesPath,
         currentNote,
         cache: noteContentsCache,
       });
+      const nextMetadata = setNoteEntry(
+        noteMetadata ?? createEmptyMetadataFile(),
+        currentNote.path,
+        metadata
+      );
+      const nextRootFolder = buildSortedRootFolder(rootFolder, rootFolder?.children ?? [], fileTreeSortMode, nextMetadata);
 
       set({
+        currentNote: { path: currentNote.path, content },
         isDirty: false,
-        noteMetadata: updatedMetadata,
+        noteMetadata: nextMetadata,
+        rootFolder: nextRootFolder,
         noteContentsCache: nextCache,
         openTabs: setNoteTabDirtyState(get().openTabs, currentNote.path, false),
         error: null,
@@ -207,7 +230,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   },
 
   syncCurrentNoteFromDisk: async () => {
-    const { currentNote, notesPath, isDirty, noteContentsCache, openTabs } = get();
+    const { currentNote, notesPath, isDirty, noteContentsCache, openTabs, noteMetadata, rootFolder, fileTreeSortMode } = get();
     if (!currentNote) {
       return 'ignored';
     }
@@ -260,10 +283,18 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       }
 
       const nextContent = await storage.readFile(fullPath);
+      const nextMetadata = setNoteEntry(
+        noteMetadata ?? createEmptyMetadataFile(),
+        currentNote.path,
+        readNoteMetadataFromMarkdown(nextContent)
+      );
+      const nextRootFolder = buildSortedRootFolder(rootFolder, rootFolder?.children ?? [], fileTreeSortMode, nextMetadata);
       set({
         currentNote: { path: currentNote.path, content: nextContent },
         isDirty: false,
         openTabs: setNoteTabDirtyState(openTabs, currentNote.path, false),
+        noteMetadata: nextMetadata,
+        rootFolder: nextRootFolder,
         noteContentsCache: setCachedNoteContent(
           noteContentsCache,
           currentNote.path,
@@ -337,9 +368,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       return relativePath;
     });
 
-    if (nextMetadata !== noteMetadata && nextMetadata) {
-      void saveNoteMetadata(notesPath, nextMetadata);
-    }
     if (starredResult.changed) {
       void saveStarredRegistry(starredResult.entries);
     }
@@ -434,9 +462,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       return relativePath;
     });
 
-    if (nextMetadata !== noteMetadata && nextMetadata) {
-      void saveNoteMetadata(notesPath, nextMetadata);
-    }
     if (starredResult.changed) {
       void saveStarredRegistry(starredResult.entries);
     }

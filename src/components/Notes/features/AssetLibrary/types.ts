@@ -5,6 +5,7 @@ export interface CoverPickerProps {
   onRemove?: () => void;
   onPreview?: (assetPath: string | null) => void;
   vaultPath: string;
+  currentNotePath?: string;
 }
 
 export interface AssetGridProps {
@@ -13,7 +14,7 @@ export interface AssetGridProps {
   vaultPath: string;
   compact?: boolean;
   itemSize?: number;
-  category?: 'covers' | 'icons';
+  category?: 'builtinCovers';
 }
 
 export interface UploadZoneProps {

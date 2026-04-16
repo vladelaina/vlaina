@@ -129,7 +129,7 @@ export const FileItem = memo(function FileItem({
       actionFadeClassName={showStarBadge ? 'w-3 from-transparent' : undefined}
       leading={
         noteIcon ? (
-          <NoteIcon icon={noteIcon} size={NOTES_SIDEBAR_ICON_SIZE} />
+          <NoteIcon icon={noteIcon} notePath={node.path} size={NOTES_SIDEBAR_ICON_SIZE} />
         ) : (
           <Icon name="file.text" size={NOTES_SIDEBAR_ICON_SIZE} className="text-[var(--notes-sidebar-file-icon)]" />
         )

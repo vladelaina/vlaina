@@ -51,7 +51,7 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
   const addRandomCoverAndOpenPicker = useCallback(() => {
     if (!currentNotePath) return;
 
-    const allCovers = useNotesStore.getState().getAssetList('covers');
+    const allCovers = useNotesStore.getState().getAssetList('builtinCovers');
     const nextCover = allCovers.length > 0
       ? allCovers[Math.floor(Math.random() * allCovers.length)].filename
       : getRandomBuiltinCover();
@@ -69,6 +69,7 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
   return {
     cover,
     vaultPath: notesPath || '',
+    currentNotePath,
     isPickerOpen,
     setPickerOpen,
     updateCover,

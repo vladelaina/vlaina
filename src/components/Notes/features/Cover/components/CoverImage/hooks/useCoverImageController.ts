@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useUIStore } from '@/stores/uiSlice';
 import { useCoverState } from './state/useCoverState';
 import { useCoverDisplayModel } from './display/useCoverDisplayModel';
@@ -26,9 +26,15 @@ export function useCoverImageController({
   readOnly,
   onUpdate,
   vaultPath,
+  currentNotePath,
   pickerOpen,
   onPickerOpenChange,
 }: UseCoverImageControllerProps): CoverImageControllerModel {
+  const stableMediaStateRef = useRef<{
+    src: string;
+    size: { width: number; height: number };
+  } | null>(null);
+  const [mediaSizeSrc, setMediaSizeSrc] = useState<string | null>(null);
   const layoutPanelDragging = useUIStore((state) => state.layoutPanelDragging);
   const windowResizeActive = useUIStore((state) => state.windowResizeActive);
   const {
@@ -47,6 +53,7 @@ export function useCoverImageController({
     resolvedSrc,
     previewSrc,
     phase,
+    isResolvedSourceStale,
     isImageReady,
     setIsImageReady,
     prevSrcRef,
@@ -58,6 +65,7 @@ export function useCoverImageController({
     url,
     coverHeight,
     vaultPath,
+    currentNotePath,
     onUpdate,
     setShowPicker,
   });
@@ -91,12 +99,14 @@ export function useCoverImageController({
     syncPositionY,
     syncZoom,
     placeholderSrc,
+    isHoldingPreviousFrame,
     suspendPositionSync,
     handleSourceReady,
   } = useCoverDisplayModel({
     phase,
     previewSrc,
     resolvedSrc,
+    isSourceStale: isResolvedSourceStale,
     prevSrcRef,
     crop,
     zoom,
@@ -106,34 +116,78 @@ export function useCoverImageController({
     setIsImageReady,
   });
 
-  const effectiveMediaSize = useMemo(() => {
-    if (mediaSize) {
-      return mediaSize;
-    }
-
+  const cachedMediaSize = useMemo(() => {
     if (!mediaSrc) {
       return null;
     }
 
     return getCachedDimensions(mediaSrc) ?? null;
-  }, [mediaSize, mediaSrc]);
+  }, [mediaSrc]);
+
+  const effectiveMediaSize = useMemo(() => {
+    if (mediaSize && mediaSizeSrc === mediaSrc) {
+      return mediaSize;
+    }
+
+    return cachedMediaSize;
+  }, [cachedMediaSize, mediaSize, mediaSizeSrc, mediaSrc]);
+
+  useEffect(() => {
+    if (!sourceIsReady || !mediaSrc || !effectiveMediaSize) {
+      return;
+    }
+
+    stableMediaStateRef.current = {
+      src: mediaSrc,
+      size: effectiveMediaSize,
+    };
+  }, [effectiveMediaSize, mediaSrc, sourceIsReady]);
+
+  const placeholderMediaSize = useMemo(() => {
+    if (
+      isHoldingPreviousFrame &&
+      placeholderSrc &&
+      stableMediaStateRef.current?.src === placeholderSrc
+    ) {
+      return stableMediaStateRef.current.size;
+    }
+
+    return effectiveMediaSize;
+  }, [effectiveMediaSize, isHoldingPreviousFrame, placeholderSrc]);
+
+  const handleResolvedMediaSize = useCallback((src: string, size: { width: number; height: number }) => {
+    setMediaSizeSrc((prevSrc) => (prevSrc === src ? prevSrc : src));
+    setMediaSize((prev) => {
+      if (prev?.width === size.width && prev?.height === size.height) {
+        return prev;
+      }
+      return size;
+    });
+  }, [setMediaSize]);
 
   useEffect(() => {
     if (!mediaSrc) {
+      setMediaSizeSrc(null);
       setMediaSize(null);
       return;
     }
 
-    const cached = getCachedDimensions(mediaSrc);
-    if (!cached) return;
+    if (!cachedMediaSize) {
+      if (mediaSizeSrc !== mediaSrc) {
+        setMediaSizeSrc(null);
+        setMediaSize(null);
+      }
+      return;
+    }
 
+    setMediaSizeSrc(mediaSrc);
     setMediaSize((prev) => {
-      if (prev?.width === cached.width && prev?.height === cached.height) {
+      if (prev?.width === cachedMediaSize.width && prev?.height === cachedMediaSize.height) {
         return prev;
       }
-      return { width: cached.width, height: cached.height };
+      return { width: cachedMediaSize.width, height: cachedMediaSize.height };
     });
-  }, [mediaSrc, setMediaSize]);
+  }, [cachedMediaSize, mediaSizeSrc, mediaSrc, setMediaSize]);
 
   const {
     objectFitMode,
@@ -186,7 +240,7 @@ export function useCoverImageController({
     syncPositionX,
     syncPositionY,
     syncZoom,
-    setMediaSize,
+    setMediaSize: handleResolvedMediaSize,
     setCrop,
     setZoom,
     setIsImageReady,
@@ -197,6 +251,7 @@ export function useCoverImageController({
     url,
     readOnly,
     vaultPath,
+    currentNotePath,
     phase,
     showPicker,
     previewSrc,
@@ -222,6 +277,7 @@ export function useCoverImageController({
       isWindowResizing: windowResizeActive,
       isContainerResizing,
       placeholderSrc,
+      placeholderMediaSize,
       isImageReady: sourceIsReady,
       isResizing,
       isResizeSettling,

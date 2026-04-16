@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { loadNoteMetadata, setNoteEntry } from './storage';
+import {
+  createEmptyMetadataFile,
+  loadNoteMetadata,
+  setNoteEntry,
+} from './storage';
 import type { MetadataFile } from './types';
 
 const adapter = {
@@ -7,6 +11,9 @@ const adapter = {
   readFile: vi.fn<(path: string) => Promise<string>>(),
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
   mkdir: vi.fn<(path: string, recursive?: boolean) => Promise<void>>(),
+  listDir: vi.fn<
+    (path: string) => Promise<Array<{ name: string; isDirectory?: boolean; isFile?: boolean }>>
+  >(),
 };
 
 vi.mock('@/lib/storage/adapter', () => ({
@@ -17,38 +24,81 @@ vi.mock('@/lib/storage/adapter', () => ({
 describe('notes metadata storage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    adapter.exists.mockResolvedValue(false);
   });
 
-  it('migrates legacy flat cover fields into the normalized cover object', async () => {
-    adapter.exists.mockResolvedValue(true);
-    adapter.readFile.mockResolvedValue(JSON.stringify({
-      version: 1,
-      defaultIconSize: 64,
-      notes: {
-        'alpha.md': {
-          cover: 'covers/alpha.webp',
-          coverX: 12,
-          coverY: 24,
-          coverH: 260,
-          coverScale: 1.4,
-        },
-      },
-    }));
+  it('scans markdown frontmatter into the runtime metadata index', async () => {
+    adapter.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault-a') {
+        return [
+          { name: 'alpha.md', isFile: true },
+          { name: 'docs', isDirectory: true },
+          { name: '.vlaina', isDirectory: true },
+        ];
+      }
+
+      if (path === '/vault-a/docs') {
+        return [{ name: 'beta.md', isFile: true }];
+      }
+
+      return [];
+    });
+
+    adapter.readFile.mockImplementation(async (path: string) => {
+      if (path === '/vault-a/alpha.md') {
+        return [
+          '---',
+          'cover: "assets/alpha.webp"',
+          'cover_x: 12',
+          'cover_y: 24',
+          'cover_height: 260',
+          'cover_scale: 1.4',
+          'icon: "🐱"',
+          'created: "2026-04-15T00:00:00.000Z"',
+          'updated: "2026-04-16T00:00:00.000Z"',
+          '---',
+          '',
+          '# Alpha',
+        ].join('\n');
+      }
+
+      return [
+        '---',
+        'title: Beta',
+        '',
+        'updated: "2026-04-17T00:00:00.000Z"',
+        '---',
+        '',
+        '# Beta',
+      ].join('\n');
+    });
 
     await expect(loadNoteMetadata('/vault-a')).resolves.toEqual({
       version: 2,
-      defaultIconSize: 64,
       notes: {
         'alpha.md': {
           cover: {
-            assetPath: 'covers/alpha.webp',
+            assetPath: 'assets/alpha.webp',
             positionX: 12,
             positionY: 24,
             height: 260,
             scale: 1.4,
           },
+          icon: '🐱',
+          createdAt: Date.parse('2026-04-15T00:00:00.000Z'),
+          updatedAt: Date.parse('2026-04-16T00:00:00.000Z'),
+        },
+        'docs/beta.md': {
+          updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
         },
       },
+    });
+  });
+
+  it('creates an empty metadata file shape when needed', () => {
+    expect(createEmptyMetadataFile()).toEqual({
+      version: 2,
+      notes: {},
     });
   });
 
@@ -58,7 +108,7 @@ describe('notes metadata storage', () => {
       notes: {
         'alpha.md': {
           cover: {
-            assetPath: 'covers/alpha.webp',
+            assetPath: 'assets/alpha.webp',
             positionX: 50,
             positionY: 50,
           },

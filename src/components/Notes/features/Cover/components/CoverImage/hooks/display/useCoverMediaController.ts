@@ -7,7 +7,7 @@ interface UseCoverMediaControllerProps {
   syncPositionX: number;
   syncPositionY: number;
   syncZoom: number;
-  setMediaSize: (size: { width: number; height: number }) => void;
+  setMediaSize: (src: string, size: { width: number; height: number }) => void;
   setCrop: (crop: { x: number; y: number }) => void;
   setZoom: (zoom: number) => void;
   setIsImageReady: (ready: boolean) => void;

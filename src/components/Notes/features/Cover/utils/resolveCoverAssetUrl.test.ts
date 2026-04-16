@@ -3,7 +3,7 @@ import { resolveCoverAssetUrl } from './resolveCoverAssetUrl';
 
 const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
-  resolveSystemAssetPath: vi.fn(),
+  resolveVaultAssetPath: vi.fn(),
   isBuiltinCover: vi.fn(),
   getBuiltinCoverUrl: vi.fn(),
 }));
@@ -13,7 +13,7 @@ vi.mock('@/lib/assets/io/reader', () => ({
 }));
 
 vi.mock('@/lib/assets/core/paths', () => ({
-  resolveSystemAssetPath: hoisted.resolveSystemAssetPath,
+  resolveVaultAssetPath: hoisted.resolveVaultAssetPath,
 }));
 
 vi.mock('@/lib/assets/builtinCovers', () => ({
@@ -24,7 +24,7 @@ vi.mock('@/lib/assets/builtinCovers', () => ({
 describe('resolveCoverAssetUrl', () => {
   beforeEach(() => {
     hoisted.loadImageAsBlob.mockReset();
-    hoisted.resolveSystemAssetPath.mockReset();
+    hoisted.resolveVaultAssetPath.mockReset();
     hoisted.isBuiltinCover.mockReset();
     hoisted.getBuiltinCoverUrl.mockReset();
     hoisted.isBuiltinCover.mockReturnValue(false);
@@ -48,36 +48,36 @@ describe('resolveCoverAssetUrl', () => {
     expect(url).toBe('/builtin/cover.webp');
   });
 
-  it('resolves local cover path with covers category by default', async () => {
-    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.vlaina/assets/covers/a.webp');
+  it('resolves local cover path against the vault', async () => {
+    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/a.webp');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:a');
 
     const url = await resolveCoverAssetUrl({
-      assetPath: 'covers/a.webp',
+      assetPath: 'assets/a.webp',
       vaultPath: '/vault-a',
     });
 
     expect(url).toBe('blob:a');
-    expect(hoisted.resolveSystemAssetPath).toHaveBeenCalledWith('/vault-a', 'covers/a.webp', 'covers');
+    expect(hoisted.resolveVaultAssetPath).toHaveBeenCalledWith('/vault-a', 'assets/a.webp', undefined);
   });
 
-  it('resolves local path with auto icons category', async () => {
-    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.vlaina/assets/icons/star.webp');
-    hoisted.loadImageAsBlob.mockResolvedValue('blob:icon');
+  it('resolves note-relative cover paths against the current note', async () => {
+    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/notes/assets/cover.webp');
+    hoisted.loadImageAsBlob.mockResolvedValue('blob:relative');
 
     const url = await resolveCoverAssetUrl({
-      assetPath: 'icons/star.webp',
+      assetPath: './assets/cover.webp',
       vaultPath: '/vault-a',
-      localCategory: 'auto',
+      currentNotePath: 'notes/today.md',
     });
 
-    expect(url).toBe('blob:icon');
-    expect(hoisted.resolveSystemAssetPath).toHaveBeenCalledWith('/vault-a', 'icons/star.webp', 'icons');
+    expect(url).toBe('blob:relative');
+    expect(hoisted.resolveVaultAssetPath).toHaveBeenCalledWith('/vault-a', './assets/cover.webp', 'notes/today.md');
   });
 
   it('throws when local asset requires vault path', async () => {
     await expect(resolveCoverAssetUrl({
-      assetPath: 'covers/a.webp',
+      assetPath: 'assets/a.webp',
       vaultPath: '',
     })).rejects.toThrow('vault-path-required');
   });

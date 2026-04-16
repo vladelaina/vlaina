@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
-import { resolveSystemAssetPath } from '@/lib/assets/core/paths';
+import { resolveVaultAssetPath } from '@/lib/assets/core/paths';
 import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
 
 interface AssetThumbnailProps {
@@ -41,8 +41,7 @@ export const AssetThumbnail = memo(function AssetThumbnail({
                 setSrc(getBuiltinCoverUrl(filename));
               }
             } else if (vaultPath) {
-              const category = filename.startsWith('icons/') ? 'icons' : 'covers';
-              const fullPath = await resolveSystemAssetPath(vaultPath, filename, category);
+              const fullPath = await resolveVaultAssetPath(vaultPath, filename);
               const blobUrl = await loadImageAsBlob(fullPath);
 
               if (mountIdRef.current === currentMountId) {

@@ -37,7 +37,7 @@ function TabContent({ tab, isActive, icon, title, disambiguation }: TabContentPr
     <>
       {icon ? (
         <span className="pointer-events-none flex-shrink-0">
-          <NoteIcon icon={icon} size="md" />
+          <NoteIcon icon={icon} notePath={tab.path} size="md" />
         </span>
       ) : (
         <Icon

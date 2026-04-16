@@ -16,6 +16,7 @@ export function CoverPicker({
   onRemove,
   onPreview,
   vaultPath,
+  currentNotePath,
 }: CoverPickerProps) {
   const isMac = typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
   const [activeTab, setActiveTab] = useState<CoverPickerTab>('library');
@@ -24,7 +25,7 @@ export function CoverPicker({
   const { getAssetList, loadAssets, uploadAsset } = useNotesStore();
   const uploadingRef = useRef(false);
 
-  const assets = getAssetList('covers');
+  const assets = getAssetList('builtinCovers');
   const hasAssets = assets.length > 0;
 
   useEffect(() => {
@@ -79,7 +80,7 @@ export function CoverPicker({
             uploadingRef.current = true;
             setIsUploading(true);
 
-            const result = await uploadAsset(file);
+            const result = await uploadAsset(file, currentNotePath);
 
             uploadingRef.current = false;
             setIsUploading(false);
@@ -99,7 +100,7 @@ export function CoverPicker({
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('paste', handlePaste);
     };
-  }, [isOpen, onClose, uploadAsset, onSelect, onPreview]);
+  }, [currentNotePath, isOpen, onClose, uploadAsset, onSelect, onPreview]);
 
   return (
     <Popover open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -162,14 +163,14 @@ export function CoverPicker({
                 onHover={handleAssetHover}
                 vaultPath={vaultPath}
                 compact
-                category="covers"
+                category="builtinCovers"
               />
             ) : (
               <EmptyState onUploadClick={handleSwitchToUpload} compact />
             )
           ) : (
             <div className="p-3">
-              <UploadZone onUploadComplete={handleUploadComplete} compact />
+              <UploadZone onUploadComplete={handleUploadComplete} compact currentNotePath={currentNotePath} />
               <p className="mt-2 text-xs text-center text-[var(--vlaina-text-tertiary)]">
                 {isMac ? '⌘' : 'Ctrl'}+V to paste
               </p>

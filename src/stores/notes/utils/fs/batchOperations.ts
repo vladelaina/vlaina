@@ -1,4 +1,4 @@
-import { remapMetadataEntries, saveNoteMetadata } from '../../storage';
+import { remapMetadataEntries } from '../../storage';
 import { getVaultStarredPaths, remapStarredEntriesForVault, saveStarredRegistry } from '../../starred';
 import type { FileOperationContext, FolderRenameResult } from './operationTypes';
 
@@ -43,10 +43,6 @@ export async function processFolderRename(
         }
         return relativePath;
     });
-
-    if (updatedMetadata !== currentStore.noteMetadata && updatedMetadata) {
-        saveNoteMetadata(notesPath, updatedMetadata);
-    }
 
     return {
         newPath,

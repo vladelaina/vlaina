@@ -1,5 +1,4 @@
 import { AssetEntry, UploadResult } from '@/lib/assets/types';
-import { CustomEmojiSlice } from './slices/customEmojiSlice';
 
 export interface NoteFile {
   id: string;
@@ -30,7 +29,6 @@ export interface NoteCoverMetadata {
 
 export interface NoteMetadataEntry {
   icon?: string;
-  iconSize?: number;
   cover?: NoteCoverMetadata;
   createdAt?: number;
   updatedAt?: number;
@@ -38,7 +36,6 @@ export interface NoteMetadataEntry {
 
 export interface MetadataFile {
   version: number;
-  defaultIconSize?: number;
   notes: Record<string, NoteMetadataEntry>;
 }
 
@@ -85,6 +82,7 @@ export interface NotesState {
   starredLoaded: boolean;
   pendingStarredNavigation: PendingStarredNavigation | null;
   noteMetadata: MetadataFile | null;
+  noteIconSize: number;
   displayNames: Map<string, string>;
   isNewlyCreated: boolean;
   newlyCreatedFolderPath: string | null;
@@ -139,16 +137,15 @@ export interface NotesActions {
   syncDisplayName: (path: string, title: string) => void;
   getDisplayName: (path: string) => string;
   revealFolder: (path: string) => void;
-  uploadNoteAsset: (notePath: string, file: File) => Promise<string | null>;
   getNoteCover: (path: string) => NoteCoverMetadata | undefined;
   setNoteCover: (path: string, cover: NoteCoverMetadata | null) => void;
   loadAssets: (vaultPath: string) => Promise<void>;
-  uploadAsset: (file: File, category?: 'covers' | 'icons' | 'content', currentNotePath?: string) => Promise<UploadResult>;
+  uploadAsset: (file: File, currentNotePath?: string) => Promise<UploadResult>;
   deleteAsset: (filename: string) => Promise<void>;
   cleanupAssetTempFiles: () => Promise<void>;
-  getAssetList: (category?: 'covers' | 'icons') => AssetEntry[];
+  getAssetList: (category?: 'builtinCovers') => AssetEntry[];
   clearAssetUrlCache: () => void;
   setFileTreeSortMode: (mode: FileTreeSortMode) => Promise<void>;
 }
 
-export type NotesStore = NotesState & NotesActions & CustomEmojiSlice;
+export type NotesStore = NotesState & NotesActions;

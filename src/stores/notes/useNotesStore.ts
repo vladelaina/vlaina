@@ -4,7 +4,6 @@ import { createFileSystemSlice } from './slices/fileSystemSlice';
 import { createWorkspaceSlice } from './slices/workspaceSlice';
 import { createFeatureSlice } from './slices/featureSlice';
 import { createAssetSlice } from './slices/assetSlice';
-import { createCustomEmojiSlice } from './slices/customEmojiSlice';
 
 export * from './types';
 export { sortFileTree } from './fileTreeSorting';
@@ -15,5 +14,4 @@ export const useNotesStore = create<NotesStore>()((...a) => ({
   ...createWorkspaceSlice(...a),
   ...createFeatureSlice(...a),
   ...createAssetSlice(...a),
-  ...createCustomEmojiSlice(...a),
 }));

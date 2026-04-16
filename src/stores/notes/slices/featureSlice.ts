@@ -1,11 +1,14 @@
 import { StateCreator } from 'zustand';
-import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
-import { NotesStore, FileTreeNode, MetadataFile, NoteCoverMetadata } from '../types';
+import { NotesStore, FileTreeNode, MetadataFile, NoteCoverMetadata, NoteMetadataEntry } from '../types';
 import {
+  createEmptyMetadataFile,
+  loadGlobalNoteIconSize,
   loadRecentNotes,
   loadNoteMetadata,
-  saveNoteMetadata,
+  persistGlobalNoteIconSize,
+  safeWriteTextFile,
   setNoteEntry,
 } from '../storage';
 import {
@@ -13,7 +16,13 @@ import {
   removeStarredEntryById,
   toggleStarredEntry,
 } from '../starred';
-import { setCachedNoteContent } from '../document/noteContentCache';
+import {
+  getCachedNoteModifiedAt,
+  setCachedNoteContent,
+} from '../document/noteContentCache';
+import { markExpectedExternalChange } from '../document/externalChangeRegistry';
+import { updateNoteMetadataInMarkdown } from '../frontmatter';
+import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -28,6 +37,7 @@ export interface FeatureSlice {
   starredLoaded: NotesStore['starredLoaded'];
   pendingStarredNavigation: NotesStore['pendingStarredNavigation'];
   noteMetadata: MetadataFile | null;
+  noteIconSize: number;
 
   loadStarred: (vaultPath: string) => Promise<void>;
   loadMetadata: (vaultPath: string) => Promise<void>;
@@ -51,267 +61,347 @@ export interface FeatureSlice {
   setGlobalIconSize: (size: number) => void;
 }
 
-export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> = (set, get) => ({
-  recentNotes: loadRecentNotes(),
-  noteContentsCache: new Map(),
-  starredEntries: [],
-  starredNotes: [],
-  starredFolders: [],
-  starredLoaded: false,
-  pendingStarredNavigation: null,
-  noteMetadata: null,
+export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> = (set, get) => {
+  const writeNoteContent = async (path: string, content: string) => {
+    const { notesPath } = get();
+    const fullPath = isAbsolutePath(path)
+      ? path
+      : notesPath
+        ? await joinPath(notesPath, path)
+        : null;
 
-  loadStarred: async (vaultPath: string) => {
-    await loadStarredForVault(set, get, vaultPath);
-  },
-
-  loadMetadata: async (vaultPath: string) => {
-    const metadata = await loadNoteMetadata(vaultPath);
-    set({ noteMetadata: metadata });
-  },
-
-
-  scanAllNotes: async () => {
-    const { notesPath, rootFolder, currentNote, noteContentsCache } = get();
-    if (!rootFolder || !notesPath) return;
+    if (!fullPath) {
+      return getCachedNoteModifiedAt(get().noteContentsCache, path);
+    }
 
     const storage = getStorageAdapter();
-    let cache: NotesStore['noteContentsCache'] = new Map();
-    const filePaths: { path: string; fullPath: string }[] = [];
+    markExpectedExternalChange(fullPath);
+    await safeWriteTextFile(fullPath, content);
+    const fileInfo = await storage.stat(fullPath);
+    return fileInfo?.modifiedAt ?? getCachedNoteModifiedAt(get().noteContentsCache, path);
+  };
 
-    const collectPaths = async (nodes: FileTreeNode[]) => {
-      for (const node of nodes) {
-        if (node.isFolder) {
-          await collectPaths(node.children);
-        } else {
-          const fullPath = await joinPath(notesPath, node.path);
-          filePaths.push({ path: node.path, fullPath });
-        }
+  const updateSingleNoteMetadata = async (
+    path: string,
+    updates: Partial<NoteMetadataEntry>
+  ) => {
+    const state = get();
+    const metadataBase = state.noteMetadata ?? createEmptyMetadataFile();
+    const isCurrentNote = state.currentNote?.path === path;
+    let sourceContent =
+      (isCurrentNote ? state.currentNote?.content : undefined) ??
+      state.noteContentsCache.get(path)?.content;
+
+    if (sourceContent === undefined) {
+      const { notesPath } = state;
+      const fullPath = isAbsolutePath(path)
+        ? path
+        : notesPath
+          ? await joinPath(notesPath, path)
+          : null;
+
+      if (!fullPath) {
+        return;
       }
-    };
 
-    await collectPaths(rootFolder.children);
+      const storage = getStorageAdapter();
+      sourceContent = await storage.readFile(fullPath);
+    }
 
-    const BATCH_SIZE = 10;
-    for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
-      const batch = filePaths.slice(i, i + BATCH_SIZE);
-      const results = await Promise.allSettled(
-        batch.map(async ({ path, fullPath }) => {
-          const content = await storage.readFile(fullPath);
-          return { path, content };
-        })
-      );
+    const { content, metadata } = updateNoteMetadataInMarkdown(sourceContent, {
+      ...updates,
+      updatedAt: Date.now(),
+    });
+    const nextMetadata = setNoteEntry(metadataBase, path, metadata);
+    const nextRootFolder = buildSortedRootFolder(
+      state.rootFolder,
+      state.rootFolder?.children ?? [],
+      state.fileTreeSortMode,
+      nextMetadata
+    );
+    const cachedModifiedAt = getCachedNoteModifiedAt(state.noteContentsCache, path);
+    let nextCache = setCachedNoteContent(state.noteContentsCache, path, content, cachedModifiedAt);
 
-      results.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          cache = setCachedNoteContent(cache, result.value.path, result.value.content, null);
+    set({
+      noteMetadata: nextMetadata,
+      rootFolder: nextRootFolder,
+      noteContentsCache: nextCache,
+      currentNote: isCurrentNote ? { path, content } : state.currentNote,
+      error: null,
+    });
+
+    if (isCurrentNote && state.isDirty) {
+      return;
+    }
+
+    try {
+      const modifiedAt = await writeNoteContent(path, content);
+      nextCache = setCachedNoteContent(nextCache, path, content, modifiedAt);
+      set({
+        noteContentsCache: nextCache,
+        currentNote: isCurrentNote ? { path, content } : get().currentNote,
+        error: null,
+      });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : 'Failed to update note metadata' });
+    }
+  };
+
+  const updateManyNoteMetadata = async (
+    entries: Array<{ path: string; updates: Partial<NoteMetadataEntry> }>
+  ) => {
+    for (const entry of entries) {
+      await updateSingleNoteMetadata(entry.path, entry.updates);
+    }
+  };
+
+  return {
+    recentNotes: loadRecentNotes(),
+    noteContentsCache: new Map(),
+    starredEntries: [],
+    starredNotes: [],
+    starredFolders: [],
+    starredLoaded: false,
+    pendingStarredNavigation: null,
+    noteMetadata: null,
+    noteIconSize: loadGlobalNoteIconSize(),
+
+    loadStarred: async (vaultPath: string) => {
+      await loadStarredForVault(set, get, vaultPath);
+    },
+
+    loadMetadata: async (vaultPath: string) => {
+      const metadata = await loadNoteMetadata(vaultPath);
+      set({
+        noteMetadata: metadata,
+      });
+    },
+
+    scanAllNotes: async () => {
+      const { notesPath, rootFolder, currentNote, noteContentsCache } = get();
+      if (!rootFolder || !notesPath) return;
+
+      const storage = getStorageAdapter();
+      let cache: NotesStore['noteContentsCache'] = new Map();
+      const filePaths: { path: string; fullPath: string }[] = [];
+
+      const collectPaths = async (nodes: FileTreeNode[]) => {
+        for (const node of nodes) {
+          if (node.isFolder) {
+            await collectPaths(node.children);
+          } else {
+            const fullPath = await joinPath(notesPath, node.path);
+            filePaths.push({ path: node.path, fullPath });
+          }
+        }
+      };
+
+      await collectPaths(rootFolder.children);
+
+      const BATCH_SIZE = 10;
+      for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
+        const batch = filePaths.slice(i, i + BATCH_SIZE);
+        const results = await Promise.allSettled(
+          batch.map(async ({ path, fullPath }) => {
+            const content = await storage.readFile(fullPath);
+            return { path, content };
+          })
+        );
+
+        results.forEach((result) => {
+          if (result.status === 'fulfilled') {
+            cache = setCachedNoteContent(cache, result.value.path, result.value.content, null);
+          }
+        });
+      }
+
+      if (currentNote) {
+        const currentEntry = noteContentsCache.get(currentNote.path);
+        cache = setCachedNoteContent(
+          cache,
+          currentNote.path,
+          currentNote.content,
+          currentEntry?.modifiedAt ?? null
+        );
+      }
+
+      set({ noteContentsCache: cache });
+    },
+
+    getBacklinks: (notePath: string) => {
+      const { noteContentsCache } = get();
+      const results: { path: string; name: string; context: string }[] = [];
+      const noteName = getNoteTitleFromPath(notePath).toLowerCase();
+      const escapedNoteName = escapeRegExp(noteName);
+
+      const patterns = [
+        new RegExp(`\\[\\[${escapedNoteName}\\]\\]`, 'gi'),
+        new RegExp(`\\[\\[${escapedNoteName}\\|[^\\]]+\\]\\]`, 'gi'),
+      ];
+
+      noteContentsCache.forEach((entry, path) => {
+        const content = entry.content;
+        if (path === notePath || !content.includes('[[')) return;
+
+        for (const pattern of patterns) {
+          pattern.lastIndex = 0;
+          const match = pattern.exec(content);
+          if (match) {
+            const index = match.index;
+            const start = Math.max(0, index - 50);
+            const end = Math.min(content.length, index + match[0].length + 50);
+            let context = content.substring(start, end).replace(/\n/g, ' ').trim();
+            if (start > 0) context = '...' + context;
+            if (end < content.length) context = context + '...';
+
+            const fileName = getNoteTitleFromPath(path);
+            results.push({ path, name: fileName, context });
+            break;
+          }
         }
       });
-    }
 
-    if (currentNote) {
-      const currentEntry = noteContentsCache.get(currentNote.path);
-      cache = setCachedNoteContent(
-        cache,
-        currentNote.path,
-        currentNote.content,
-        currentEntry?.modifiedAt ?? null
-      );
-    }
+      return results;
+    },
 
-    set({ noteContentsCache: cache });
-  },
+    getAllTags: () => {
+      const { noteContentsCache } = get();
+      const tagCounts = new Map<string, number>();
+      const tagRegex = /(?:^|\s)#([a-zA-Z][a-zA-Z0-9_/-]*)/g;
 
-  getBacklinks: (notePath: string) => {
-    const { noteContentsCache } = get();
-    const results: { path: string; name: string; context: string }[] = [];
-    const noteName = getNoteTitleFromPath(notePath).toLowerCase();
-    const escapedNoteName = escapeRegExp(noteName);
-
-    const patterns = [
-      new RegExp(`\\[\\[${escapedNoteName}\\]\\]`, 'gi'),
-      new RegExp(`\\[\\[${escapedNoteName}\\|[^\\]]+\\]\\]`, 'gi'),
-    ];
-
-    noteContentsCache.forEach((entry, path) => {
-      const content = entry.content;
-      if (path === notePath || !content.includes('[[')) return;
-
-      for (const pattern of patterns) {
-        pattern.lastIndex = 0;
-        const match = pattern.exec(content);
-        if (match) {
-          const index = match.index;
-          const start = Math.max(0, index - 50);
-          const end = Math.min(content.length, index + match[0].length + 50);
-          let context = content.substring(start, end).replace(/\n/g, ' ').trim();
-          if (start > 0) context = '...' + context;
-          if (end < content.length) context = context + '...';
-
-          const fileName = getNoteTitleFromPath(path);
-          results.push({ path, name: fileName, context });
-          break;
+      noteContentsCache.forEach((entry) => {
+        const content = entry.content;
+        let match;
+        while ((match = tagRegex.exec(content)) !== null) {
+          const tag = match[1].toLowerCase();
+          tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
         }
-      }
-    });
+      });
 
-    return results;
-  },
+      return Array.from(tagCounts.entries())
+        .map(([tag, count]) => ({ tag, count }))
+        .sort((a, b) => b.count - a.count);
+    },
 
-  getAllTags: () => {
-    const { noteContentsCache } = get();
-    const tagCounts = new Map<string, number>();
-    const tagRegex = /(?:^|\s)#([a-zA-Z][a-zA-Z0-9_/-]*)/g;
+    toggleStarred: (path: string) => {
+      toggleStarredEntry(set, get, 'note', path);
+    },
 
-    noteContentsCache.forEach((entry) => {
-      const content = entry.content;
-      let match;
-      while ((match = tagRegex.exec(content)) !== null) {
-        const tag = match[1].toLowerCase();
-        tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
-      }
-    });
+    toggleFolderStarred: (path: string) => {
+      toggleStarredEntry(set, get, 'folder', path);
+    },
 
-    return Array.from(tagCounts.entries())
-      .map(([tag, count]) => ({ tag, count }))
-      .sort((a, b) => b.count - a.count);
-  },
+    removeStarredEntry: (id: string) => {
+      removeStarredEntryById(set, get, id);
+    },
 
-  toggleStarred: (path: string) => {
-    toggleStarredEntry(set, get, 'note', path);
-  },
+    isStarred: (path: string) => get().starredNotes.includes(path),
 
-  toggleFolderStarred: (path: string) => {
-    toggleStarredEntry(set, get, 'folder', path);
-  },
+    isFolderStarred: (path: string) => get().starredFolders.includes(path),
 
-  removeStarredEntry: (id: string) => {
-    removeStarredEntryById(set, get, id);
-  },
+    setPendingStarredNavigation: (pendingStarredNavigation) => set({ pendingStarredNavigation }),
 
-  isStarred: (path: string) => get().starredNotes.includes(path),
+    getNoteIcon: (path: string) => {
+      const { noteMetadata } = get();
+      if (!noteMetadata) return undefined;
+      return noteMetadata.notes[path]?.icon;
+    },
 
-  isFolderStarred: (path: string) => get().starredFolders.includes(path),
+    setNoteIcon: (path: string, emoji: string | null) => {
+      void updateSingleNoteMetadata(path, { icon: emoji ?? undefined });
+    },
 
-  setPendingStarredNavigation: (pendingStarredNavigation) => set({ pendingStarredNavigation }),
+    updateAllIconColors: (newColor: string) => {
+      const { noteMetadata } = get();
+      if (!noteMetadata) return;
 
-  getNoteIcon: (path: string) => {
-    const { noteMetadata } = get();
-    if (!noteMetadata) return undefined;
-    return noteMetadata.notes[path]?.icon;
-  },
-
-  setNoteIcon: (path: string, emoji: string | null) => {
-    const { noteMetadata, notesPath } = get();
-    if (!noteMetadata || !notesPath) return;
-
-    const updates = emoji ? { icon: emoji } : { icon: undefined };
-    const updated = setNoteEntry(noteMetadata, path, updates);
-    set({ noteMetadata: updated });
-    saveNoteMetadata(notesPath, updated);
-  },
-
-  updateAllIconColors: (newColor: string) => {
-    const { noteMetadata, notesPath } = get();
-    if (!noteMetadata || !notesPath) return;
-
-    let hasChanges = false;
-    const updatedNotes = { ...noteMetadata.notes };
-
-    Object.entries(updatedNotes).forEach(([path, entry]) => {
-      if (entry.icon?.startsWith('icon:')) {
-        const parts = entry.icon.split(':');
-        const iconName = parts[1];
-        const newIcon = `icon:${iconName}:${newColor}`;
-        if (newIcon !== entry.icon) {
-          updatedNotes[path] = { ...entry, icon: newIcon };
-          hasChanges = true;
-        }
-      }
-    });
-
-    if (hasChanges) {
-      const updated: MetadataFile = { ...noteMetadata, notes: updatedNotes };
-      set({ noteMetadata: updated });
-      saveNoteMetadata(notesPath, updated);
-    }
-  },
-
-  updateAllEmojiSkinTones: async (newTone: number) => {
-    const { noteMetadata, notesPath } = get();
-    if (!noteMetadata || !notesPath) return;
-    const { EMOJI_MAP } = await import('@/components/common/UniversalIconPicker/constants');
-
-    let hasChanges = false;
-    const updatedNotes = { ...noteMetadata.notes };
-
-    Object.entries(updatedNotes).forEach(([path, entry]) => {
-      const icon = entry.icon;
-      if (!icon || icon.startsWith('icon:')) return;
-
-      const item = EMOJI_MAP.get(icon);
-      if (item && item.skins && item.skins.length > newTone) {
-        const newEmoji = newTone === 0 ? item.native : (item.skins[newTone]?.native || item.native);
-        if (newEmoji !== icon) {
-          updatedNotes[path] = { ...entry, icon: newEmoji };
-          hasChanges = true;
-        }
-      }
-    });
-
-    if (hasChanges) {
-      const updated: MetadataFile = { ...noteMetadata, notes: updatedNotes };
-      set({ noteMetadata: updated });
-      saveNoteMetadata(notesPath, updated);
-    }
-  },
-
-  getNoteCover: (path: string) => {
-    const { noteMetadata } = get();
-    return noteMetadata?.notes[path]?.cover;
-  },
-
-  setNoteCover: (path: string, cover: NoteCoverMetadata | null) => {
-    const { noteMetadata, notesPath } = get();
-    if (!noteMetadata || !notesPath) return;
-
-    const updates = {
-      cover: cover?.assetPath
-        ? {
-            assetPath: cover.assetPath,
-            positionX: cover.positionX ?? 50,
-            positionY: cover.positionY ?? 50,
-            height: cover.height,
-            scale: cover.scale ?? 1,
+      const updates = Object.entries(noteMetadata.notes)
+        .map(([path, entry]) => {
+          if (!entry.icon?.startsWith('icon:')) {
+            return null;
           }
-        : undefined,
-    };
 
-    const updated = setNoteEntry(noteMetadata, path, updates);
-    set({ noteMetadata: updated });
-    saveNoteMetadata(notesPath, updated);
-  },
+          const parts = entry.icon.split(':');
+          const iconName = parts[1];
+          const nextIcon = iconName ? `icon:${iconName}:${newColor}` : entry.icon;
+          if (!iconName || nextIcon === entry.icon) {
+            return null;
+          }
 
-  getNoteIconSize: (_path: string) => {
-    const { noteMetadata } = get();
-    return noteMetadata?.defaultIconSize ?? 60;
-  },
+          return {
+            path,
+            updates: { icon: nextIcon },
+          };
+        })
+        .filter((entry): entry is { path: string; updates: { icon: string } } => entry !== null);
 
-  setGlobalIconSize: (size: number) => {
-    const { noteMetadata, notesPath } = get();
-    if (!noteMetadata || !notesPath) return;
+      void updateManyNoteMetadata(updates);
+    },
 
-    const updated: MetadataFile = { ...noteMetadata, defaultIconSize: size };
-    set({ noteMetadata: updated });
-    saveNoteMetadata(notesPath, updated);
-  },
+    updateAllEmojiSkinTones: async (newTone: number) => {
+      const { noteMetadata } = get();
+      if (!noteMetadata) return;
+      const { EMOJI_MAP } = await import('@/components/common/UniversalIconPicker/constants');
 
-  setNoteIconSize: (path: string, size: number) => {
-    const { noteMetadata, notesPath } = get();
-    if (!noteMetadata || !notesPath) return;
+      const updates = Object.entries(noteMetadata.notes)
+        .map(([path, entry]) => {
+          const icon = entry.icon;
+          if (!icon || icon.startsWith('icon:')) {
+            return null;
+          }
 
-    const updated = setNoteEntry(noteMetadata, path, { iconSize: size });
-    set({ noteMetadata: updated });
-    saveNoteMetadata(notesPath, updated);
-  },
-});
+          const item = EMOJI_MAP.get(icon);
+          if (!item || !item.skins || item.skins.length <= newTone) {
+            return null;
+          }
+
+          const nextIcon =
+            newTone === 0 ? item.native : (item.skins[newTone]?.native || item.native);
+          if (nextIcon === icon) {
+            return null;
+          }
+
+          return {
+            path,
+            updates: { icon: nextIcon },
+          };
+        })
+        .filter((entry): entry is { path: string; updates: { icon: string } } => entry !== null);
+
+      await updateManyNoteMetadata(updates);
+    },
+
+    getNoteCover: (path: string) => {
+      const { noteMetadata } = get();
+      return noteMetadata?.notes[path]?.cover;
+    },
+
+    setNoteCover: (path: string, cover: NoteCoverMetadata | null) => {
+      void updateSingleNoteMetadata(path, {
+        cover: cover?.assetPath
+          ? {
+              assetPath: cover.assetPath,
+              positionX: cover.positionX ?? 50,
+              positionY: cover.positionY ?? 50,
+              height: cover.height,
+              scale: cover.scale ?? 1,
+            }
+          : undefined,
+      });
+    },
+
+    getNoteIconSize: (_path: string) => {
+      return get().noteIconSize;
+    },
+
+    setGlobalIconSize: (size: number) => {
+      const normalized = persistGlobalNoteIconSize(size);
+      set({ noteIconSize: normalized });
+    },
+
+    setNoteIconSize: (_path: string, size: number) => {
+      const normalized = persistGlobalNoteIconSize(size);
+      set({ noteIconSize: normalized });
+    },
+  };
+};

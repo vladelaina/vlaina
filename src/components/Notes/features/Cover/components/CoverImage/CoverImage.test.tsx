@@ -76,6 +76,7 @@ describe('CoverImage', () => {
         readOnly={true}
         onUpdate={vi.fn()}
         vaultPath="/vault-a"
+        currentNotePath="notes/a.md"
         pickerOpen={true}
         onPickerOpenChange={vi.fn()}
       />
@@ -90,6 +91,7 @@ describe('CoverImage', () => {
       readOnly: true,
       onUpdate: expect.any(Function),
       vaultPath: '/vault-a',
+      currentNotePath: 'notes/a.md',
       pickerOpen: true,
       onPickerOpenChange: expect.any(Function),
     });

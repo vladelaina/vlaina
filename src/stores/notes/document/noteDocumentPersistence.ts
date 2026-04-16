@@ -1,17 +1,15 @@
 import { getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import {
-  loadNoteMetadata,
-  saveNoteMetadataOrThrow,
   safeWriteTextFile,
-  setNoteEntry,
 } from '../storage';
-import type { CurrentNoteState, MetadataFile } from '../types';
+import type { CurrentNoteState, NoteMetadataEntry } from '../types';
 import {
   getCachedNoteContent,
   setCachedNoteContent,
   type NoteContentCache,
 } from './noteContentCache';
 import { markExpectedExternalChange } from './externalChangeRegistry';
+import { updateNoteMetadataInMarkdown } from '../frontmatter';
 
 interface LoadNoteDocumentOptions {
   notesPath: string;
@@ -32,9 +30,10 @@ export interface LoadedNoteDocument {
 }
 
 export interface SavedNoteDocument {
+  content: string;
   modifiedAt: number | null;
   nextCache: NoteContentCache;
-  updatedMetadata: MetadataFile;
+  metadata: NoteMetadataEntry;
 }
 
 async function resolveStoredPath(notesPath: string, path: string): Promise<string> {
@@ -81,21 +80,20 @@ export async function saveNoteDocument({
 }: SaveNoteDocumentOptions): Promise<SavedNoteDocument> {
   const storage = getStorageAdapter();
   const fullPath = await resolveStoredPath(notesPath, currentNote.path);
+  const { content, metadata } = updateNoteMetadataInMarkdown(currentNote.content, {
+    updatedAt: Date.now(),
+  });
 
   markExpectedExternalChange(fullPath);
-  await safeWriteTextFile(fullPath, currentNote.content);
+  await safeWriteTextFile(fullPath, content);
 
   const fileInfo = await storage.stat(fullPath);
   const modifiedAt = fileInfo?.modifiedAt ?? null;
-  const metadata = await loadNoteMetadata(notesPath);
-  const updatedMetadata = setNoteEntry(metadata, currentNote.path, {
-    updatedAt: Date.now(),
-  });
-  await saveNoteMetadataOrThrow(notesPath, updatedMetadata);
 
   return {
+    content,
+    metadata,
     modifiedAt,
-    nextCache: setCachedNoteContent(cache, currentNote.path, currentNote.content, modifiedAt),
-    updatedMetadata,
+    nextCache: setCachedNoteContent(cache, currentNote.path, content, modifiedAt),
   };
 }

@@ -4,7 +4,7 @@ import { useCoverSelectionFlow } from './useCoverSelectionFlow';
 
 const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
-  resolveSystemAssetPath: vi.fn(),
+  resolveVaultAssetPath: vi.fn(),
   isBuiltinCover: vi.fn(),
   getBuiltinCoverUrl: vi.fn(),
   loadImageWithDimensions: vi.fn(),
@@ -15,7 +15,7 @@ vi.mock('@/lib/assets/io/reader', () => ({
 }));
 
 vi.mock('@/lib/assets/core/paths', () => ({
-  resolveSystemAssetPath: hoisted.resolveSystemAssetPath,
+  resolveVaultAssetPath: hoisted.resolveVaultAssetPath,
 }));
 
 vi.mock('@/lib/assets/builtinCovers', () => ({
@@ -35,7 +35,7 @@ vi.mock('../../../../utils/coverDimensionCache', () => ({
 describe('useCoverSelectionFlow', () => {
   beforeEach(() => {
     hoisted.loadImageAsBlob.mockReset();
-    hoisted.resolveSystemAssetPath.mockReset();
+    hoisted.resolveVaultAssetPath.mockReset();
     hoisted.isBuiltinCover.mockReset();
     hoisted.getBuiltinCoverUrl.mockReset();
     hoisted.loadImageWithDimensions.mockReset();
@@ -75,8 +75,46 @@ describe('useCoverSelectionFlow', () => {
     });
 
     expect(result.current.isSelectionCommitting).toBe(true);
+    expect(result.current.previewSrc).toBeNull();
+    expect(result.current.phase).toBe('idle');
     expect(onUpdate).toHaveBeenCalledWith('@monet/5', 50, 50, 240, 1);
     expect(setShowPicker).toHaveBeenCalledWith(false);
+  });
+
+  it('keeps the active preview visible while committing the previewed cover', async () => {
+    const onUpdate = vi.fn();
+    const setShowPicker = vi.fn();
+
+    const { result } = renderHook(() =>
+      useCoverSelectionFlow({
+        url: '@monet/2',
+        coverHeight: 240,
+        vaultPath: '/vault-a',
+        onUpdate,
+        setShowPicker,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBe('/builtin/@monet/2.webp');
+    });
+
+    await act(async () => {
+      await result.current.handlePreview('@monet/5');
+    });
+
+    await waitFor(() => {
+      expect(result.current.previewSrc).toBe('/builtin/@monet/5.webp');
+    });
+
+    act(() => {
+      result.current.handleCoverSelect('@monet/5');
+    });
+
+    expect(result.current.previewSrc).toBe('/builtin/@monet/5.webp');
+    expect(result.current.isSelectionCommitting).toBe(true);
+    expect(result.current.phase).toBe('committing');
+    expect(onUpdate).toHaveBeenCalledWith('@monet/5', 50, 50, 240, 1);
   });
 
   it('selecting same cover clears preview and keeps non-committing state', async () => {
@@ -119,11 +157,37 @@ describe('useCoverSelectionFlow', () => {
     expect(setShowPicker).toHaveBeenCalledWith(false);
   });
 
+  it('does not enter preview mode when hovering the currently selected cover', async () => {
+    const onUpdate = vi.fn();
+    const setShowPicker = vi.fn();
+
+    const { result } = renderHook(() =>
+      useCoverSelectionFlow({
+        url: '@monet/2',
+        coverHeight: 240,
+        vaultPath: '/vault-a',
+        onUpdate,
+        setShowPicker,
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBe('/builtin/@monet/2.webp');
+    });
+
+    await act(async () => {
+      await result.current.handlePreview('@monet/2');
+    });
+
+    expect(result.current.previewSrc).toBeNull();
+    expect(result.current.phase).toBe('ready');
+  });
+
   it('reuses the same in-flight preview request for repeated preview of one asset', async () => {
     const onUpdate = vi.fn();
     const setShowPicker = vi.fn();
 
-    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.vlaina/assets/covers/a.png');
+    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/a.png');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:cover-a');
 
     const { result } = renderHook(() =>
@@ -147,7 +211,7 @@ describe('useCoverSelectionFlow', () => {
       expect(result.current.previewSrc).toBe('blob:cover-a');
     });
 
-    expect(hoisted.resolveSystemAssetPath).toHaveBeenCalledTimes(1);
+    expect(hoisted.resolveVaultAssetPath).toHaveBeenCalledTimes(1);
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(1);
     expect(hoisted.loadImageWithDimensions).toHaveBeenCalledTimes(1);
   });
@@ -157,7 +221,7 @@ describe('useCoverSelectionFlow', () => {
     const setShowPicker = vi.fn();
     let resolvePreview: ((value: { width: number; height: number } | null) => void) | null = null;
 
-    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.vlaina/assets/covers/b.png');
+    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/b.png');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:cover-b');
     hoisted.loadImageWithDimensions.mockImplementation(() => new Promise((resolve) => {
       resolvePreview = resolve;
@@ -194,7 +258,7 @@ describe('useCoverSelectionFlow', () => {
     const setShowPicker = vi.fn();
     let resolvePreview: ((value: { width: number; height: number } | null) => void) | null = null;
 
-    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.vlaina/assets/covers/b.png');
+    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/b.png');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:cover-b');
     hoisted.loadImageWithDimensions.mockImplementation(() => new Promise((resolve) => {
       resolvePreview = resolve;
@@ -224,5 +288,37 @@ describe('useCoverSelectionFlow', () => {
 
     expect(result.current.previewSrc).toBeNull();
     expect(setShowPicker).toHaveBeenCalledWith(false);
+  });
+
+  it('passes current note path to relative preview resolution', async () => {
+    const onUpdate = vi.fn();
+    const setShowPicker = vi.fn();
+
+    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/daily/assets/b.png');
+    hoisted.loadImageAsBlob.mockResolvedValue('blob:relative-cover');
+
+    const { result } = renderHook(() =>
+      useCoverSelectionFlow({
+        url: null,
+        coverHeight: 240,
+        vaultPath: '/vault-a',
+        currentNotePath: 'daily/2026-04-15.md',
+        onUpdate,
+        setShowPicker,
+      })
+    );
+
+    await act(async () => {
+      await result.current.handlePreview('./assets/b.png');
+    });
+
+    await waitFor(() => {
+      expect(result.current.previewSrc).toBe('blob:relative-cover');
+    });
+    expect(hoisted.resolveVaultAssetPath).toHaveBeenCalledWith(
+      '/vault-a',
+      './assets/b.png',
+      'daily/2026-04-15.md'
+    );
   });
 });

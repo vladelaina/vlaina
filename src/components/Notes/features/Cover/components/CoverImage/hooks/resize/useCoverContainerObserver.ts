@@ -86,6 +86,12 @@ export function useCoverContainerObserver({
 
       const roundedWidth = Math.round(entry.contentRect.width);
       const roundedHeight = Math.round(entry.contentRect.height);
+      const changed = roundedWidth !== lastObservedWidth || roundedHeight !== lastObservedHeight;
+
+      if (!changed) {
+        return;
+      }
+
       scheduleResizeSettled();
       updateContainerSize(roundedWidth, roundedHeight, !freezeSizeSync);
     });

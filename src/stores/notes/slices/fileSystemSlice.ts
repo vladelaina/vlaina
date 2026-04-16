@@ -30,7 +30,6 @@ import { getStateForPathDeletion, getStateForPathRename } from '../utils/fs/path
 import { resolveUniquePath, resolveUniqueRenamedPath } from '../utils/fs/pathOperations';
 import { renameNoteImpl, moveItemImpl } from '../utils/fs/renameOperations';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
-import { uploadNoteAssetImpl } from '../utils/fs/uploadOperations';
 import {
   setCachedNoteContent,
 } from '../document/noteContentCache';
@@ -62,7 +61,6 @@ export interface FileSystemSlice {
   clearNewlyCreatedFolder: () => void;
   deleteFolder: (path: string) => Promise<void>;
   moveItem: (sourcePath: string, targetFolderPath: string) => Promise<void>;
-  uploadNoteAsset: (notePath: string, file: File) => Promise<string | null>;
   setFileTreeSortMode: NotesStore['setFileTreeSortMode'];
 }
 
@@ -210,6 +208,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       saveNote,
       fileTreeSortMode,
       noteContentsCache,
+      noteMetadata,
     } = get();
 
     try {
@@ -218,7 +217,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         if (get().isDirty) {
           throw new Error('Failed to save current note before creating a new note');
         }
-        ({ openTabs, recentNotes, rootFolder, currentNote, noteContentsCache } = get());
+        ({ openTabs, recentNotes, rootFolder, currentNote, noteContentsCache, noteMetadata } = get());
       }
 
       if (!notesPath) {
@@ -230,6 +229,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       const currentRootFolder = ensureRootFolderState(rootFolder);
       const { 
           relativePath, 
+          content,
           fileName, 
           updatedMetadata, 
           newChildren, 
@@ -237,6 +237,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       } = await createNoteImpl(notesPath, folderPath, undefined, '', {
         rootFolder: currentRootFolder,
         recentNotes,
+        noteMetadata,
       });
 
       const nextRootFolder = buildSortedRootFolder(
@@ -256,12 +257,12 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       const updatedTabs = replaceCurrentTabOrAppend(openTabs, currentNote?.path, newTab);
 
       set({
-        currentNote: { path: relativePath, content: '' },
+        currentNote: { path: relativePath, content },
         isDirty: false,
         openTabs: updatedTabs,
         recentNotes: updatedRecent,
         isNewlyCreated: true,
-        noteContentsCache: setCachedNoteContent(noteContentsCache, relativePath, '', null),
+        noteContentsCache: setCachedNoteContent(noteContentsCache, relativePath, content, null),
       });
       persistWorkspaceSnapshot(notesPath, {
         rootFolder: nextRootFolder,
@@ -290,6 +291,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       saveNote,
       fileTreeSortMode,
       noteContentsCache,
+      noteMetadata,
     } = get();
     const storage = getStorageAdapter();
 
@@ -299,7 +301,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         if (get().isDirty) {
           throw new Error('Failed to save current note before creating a new note');
         }
-        ({ rootFolder, recentNotes, openTabs, currentNote, noteContentsCache } = get());
+        ({ rootFolder, recentNotes, openTabs, currentNote, noteContentsCache, noteMetadata } = get());
       }
 
       if (!notesPath) {
@@ -318,6 +320,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
 
       const { 
           relativePath, 
+          content: createdContent,
           fileName,
           updatedMetadata, 
           newChildren, 
@@ -325,6 +328,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       } = await createNoteImpl(notesPath, folderPath, name, content, {
         rootFolder: currentRootFolder,
         recentNotes,
+        noteMetadata,
       });
 
       const nextRootFolder = buildSortedRootFolder(
@@ -347,11 +351,11 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       });
 
       set({
-        currentNote: { path: relativePath, content },
+        currentNote: { path: relativePath, content: createdContent },
         isDirty: false,
         recentNotes: updatedRecent,
         openTabs: updatedTabs,
-        noteContentsCache: setCachedNoteContent(noteContentsCache, relativePath, content, null),
+        noteContentsCache: setCachedNoteContent(noteContentsCache, relativePath, createdContent, null),
       });
       persistWorkspaceSnapshot(notesPath, {
         rootFolder: nextRootFolder,
@@ -777,12 +781,6 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         set({ error: error instanceof Error ? error.message : 'Failed to move item' });
     }
   },
-
-  uploadNoteAsset: async (_notePath: string, file: File): Promise<string | null> => {
-    const { notesPath } = get();
-    return uploadNoteAssetImpl(notesPath, file);
-  },
-
   setFileTreeSortMode: async (mode) => {
     const { rootFolder, noteMetadata, notesPath, currentNote, fileTreeSortMode } = get();
     if (mode === fileTreeSortMode) {

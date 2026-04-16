@@ -11,6 +11,7 @@ export function CoverImage({
     readOnly = false,
     onUpdate,
     vaultPath,
+    currentNotePath,
     pickerOpen,
     onPickerOpenChange,
 }: CoverImageProps) {
@@ -23,6 +24,7 @@ export function CoverImage({
     readOnly,
     onUpdate,
     vaultPath,
+    currentNotePath,
     pickerOpen,
     onPickerOpenChange,
   });

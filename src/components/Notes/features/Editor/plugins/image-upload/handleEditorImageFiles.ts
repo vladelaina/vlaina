@@ -10,7 +10,7 @@ export async function uploadImageFile(
     file: File,
     storeState: ImageUploadStoreState,
 ): Promise<UploadResult> {
-    return storeState.uploadAsset(file, 'content', storeState.currentNote?.path);
+    return storeState.uploadAsset(file, storeState.currentNote?.path);
 }
 
 export async function uploadImageFileAndInsert(

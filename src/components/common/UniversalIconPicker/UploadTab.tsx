@@ -258,14 +258,31 @@ export function UploadTab({
                     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-900 px-3">
                         <div className="flex-1 overflow-y-auto vlaina-scrollbar pr-1 grid grid-cols-7 gap-2 content-start pb-2">
                             {customIcons.map((emoji) => (
-                                <DeletableItem
-                                    key={emoji.id}
-                                    id={emoji.id}
-                                    onDelete={(id) => onDeleteCustomIcon?.(id)}
-                                    className="relative aspect-square flex items-center justify-center cursor-pointer transition-all active:scale-95"
-                                >
+                                onDeleteCustomIcon ? (
+                                    <DeletableItem
+                                        key={emoji.id}
+                                        id={emoji.id}
+                                        onDelete={onDeleteCustomIcon}
+                                        className="relative aspect-square flex items-center justify-center cursor-pointer transition-all active:scale-95"
+                                    >
+                                        <div
+                                            className="w-full h-full"
+                                            onClick={() => handleLibraryItemClick(emoji.url)}
+                                            onMouseEnter={() => onPreview?.(emoji.url)}
+                                            onMouseLeave={() => onPreview?.(null)}
+                                        >
+                                            <UniversalIcon
+                                                icon={emoji.url}
+                                                size={44}
+                                                className="w-full h-full object-contain"
+                                                imageLoader={imageLoader}
+                                            />
+                                        </div>
+                                    </DeletableItem>
+                                ) : (
                                     <div
-                                        className="w-full h-full"
+                                        key={emoji.id}
+                                        className="relative aspect-square flex items-center justify-center cursor-pointer transition-all active:scale-95"
                                         onClick={() => handleLibraryItemClick(emoji.url)}
                                         onMouseEnter={() => onPreview?.(emoji.url)}
                                         onMouseLeave={() => onPreview?.(null)}
@@ -277,11 +294,11 @@ export function UploadTab({
                                             imageLoader={imageLoader}
                                         />
                                     </div>
-                                </DeletableItem>
+                                )
                             ))}
                             {customIcons.length === 0 && (
                                 <div className="col-span-7 py-8 text-center text-xs text-muted-foreground italic">
-                                    No saved icons yet
+                                    {onDeleteCustomIcon ? 'No saved icons yet' : 'Upload an image to use it as the note icon'}
                                 </div>
                             )}
                         </div>

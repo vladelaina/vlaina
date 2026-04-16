@@ -45,7 +45,9 @@ export function useCoverState({
 
   useLayoutEffect(() => {
     const safeZoom = Math.max(scale, 1);
-    setZoom((prevZoom) => (Math.abs(prevZoom - safeZoom) > 0.0001 ? safeZoom : prevZoom));
+    setZoom((prevZoom) => {
+      return Math.abs(prevZoom - safeZoom) > 0.0001 ? safeZoom : prevZoom;
+    });
   }, [scale]);
 
   return {

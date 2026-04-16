@@ -1,5 +1,6 @@
 export interface CoverSourceState {
   resolvedSrc: string | null;
+  resolvedAssetPath: string | null;
   previewSrc: string | null;
   isImageReady: boolean;
   isError: boolean;
@@ -14,10 +15,11 @@ export type CoverSourceAction =
   | { type: 'url-switch-reset' }
   | { type: 'source-clear' }
   | { type: 'resolve-error' }
-  | { type: 'resolve-success'; imageUrl: string };
+  | { type: 'resolve-success'; imageUrl: string; assetPath: string };
 
 export const initialCoverSourceState: CoverSourceState = {
   resolvedSrc: null,
+  resolvedAssetPath: null,
   previewSrc: null,
   isImageReady: false,
   isError: false,
@@ -51,6 +53,7 @@ export function coverSourceReducer(state: CoverSourceState, action: CoverSourceA
       return {
         ...state,
         resolvedSrc: null,
+        resolvedAssetPath: null,
         isImageReady: false,
         isError: false,
       };
@@ -58,6 +61,7 @@ export function coverSourceReducer(state: CoverSourceState, action: CoverSourceA
       return {
         ...state,
         resolvedSrc: null,
+        resolvedAssetPath: null,
         previewSrc: null,
         isError: false,
         isSelectionCommitting: false,
@@ -66,6 +70,7 @@ export function coverSourceReducer(state: CoverSourceState, action: CoverSourceA
       return {
         ...state,
         resolvedSrc: null,
+        resolvedAssetPath: null,
         previewSrc: null,
         isError: true,
         isSelectionCommitting: false,
@@ -74,6 +79,7 @@ export function coverSourceReducer(state: CoverSourceState, action: CoverSourceA
       return {
         ...state,
         resolvedSrc: action.imageUrl,
+        resolvedAssetPath: action.assetPath,
         previewSrc: null,
         isError: false,
         isSelectionCommitting: false,

@@ -4,7 +4,7 @@ import { useCoverSource } from './useCoverSource';
 
 const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
-  resolveSystemAssetPath: vi.fn(),
+  resolveVaultAssetPath: vi.fn(),
   isBuiltinCover: vi.fn(),
   getBuiltinCoverUrl: vi.fn(),
   loadImageWithDimensions: vi.fn(),
@@ -15,7 +15,7 @@ vi.mock('@/lib/assets/io/reader', () => ({
 }));
 
 vi.mock('@/lib/assets/core/paths', () => ({
-  resolveSystemAssetPath: hoisted.resolveSystemAssetPath,
+  resolveVaultAssetPath: hoisted.resolveVaultAssetPath,
 }));
 
 vi.mock('@/lib/assets/builtinCovers', () => ({
@@ -30,7 +30,7 @@ vi.mock('../utils/coverDimensionCache', () => ({
 describe('useCoverSource', () => {
   beforeEach(() => {
     hoisted.loadImageAsBlob.mockReset();
-    hoisted.resolveSystemAssetPath.mockReset();
+    hoisted.resolveVaultAssetPath.mockReset();
     hoisted.isBuiltinCover.mockReset();
     hoisted.getBuiltinCoverUrl.mockReset();
     hoisted.loadImageWithDimensions.mockReset();
@@ -44,38 +44,38 @@ describe('useCoverSource', () => {
     hoisted.getBuiltinCoverUrl.mockReturnValue('/builtin/cover.jpg');
 
     const { result } = renderHook(() =>
-      useCoverSource({ url: 'builtin:covers/default', vaultPath: '/vault-a' })
+      useCoverSource({ url: '@monet/1', vaultPath: '/vault-a' })
     );
 
     await waitFor(() => {
       expect(result.current.resolvedSrc).toBe('/builtin/cover.jpg');
     });
     expect(result.current.isError).toBe(false);
-    expect(hoisted.resolveSystemAssetPath).not.toHaveBeenCalled();
+    expect(hoisted.resolveVaultAssetPath).not.toHaveBeenCalled();
   });
 
-  it('resolves local covers through system path + blob loader', async () => {
-    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.vlaina/assets/covers/a.png');
+  it('resolves local covers through vault-relative paths', async () => {
+    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/a.png');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:cover-a');
 
     const { result } = renderHook(() =>
-      useCoverSource({ url: 'covers/a.png', vaultPath: '/vault-a' })
+      useCoverSource({ url: 'assets/a.png', vaultPath: '/vault-a' })
     );
 
     await waitFor(() => {
       expect(result.current.resolvedSrc).toBe('blob:cover-a');
     });
 
-    expect(hoisted.resolveSystemAssetPath).toHaveBeenCalledWith('/vault-a', 'covers/a.png', 'covers');
-    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/vault/.vlaina/assets/covers/a.png');
+    expect(hoisted.resolveVaultAssetPath).toHaveBeenCalledWith('/vault-a', 'assets/a.png', undefined);
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/vault/assets/a.png');
     expect(result.current.isError).toBe(false);
   });
 
   it('marks error when local resolution fails', async () => {
-    hoisted.resolveSystemAssetPath.mockRejectedValue(new Error('resolve failed'));
+    hoisted.resolveVaultAssetPath.mockRejectedValue(new Error('resolve failed'));
 
     const { result } = renderHook(() =>
-      useCoverSource({ url: 'covers/missing.png', vaultPath: '/vault-a' })
+      useCoverSource({ url: 'assets/missing.png', vaultPath: '/vault-a' })
     );
 
     await waitFor(() => {
@@ -85,7 +85,7 @@ describe('useCoverSource', () => {
   });
 
   it('re-resolves when vaultPath changes for the same url', async () => {
-    hoisted.resolveSystemAssetPath
+    hoisted.resolveVaultAssetPath
       .mockResolvedValueOnce('/vault-a/a.png')
       .mockResolvedValueOnce('/vault-b/a.png');
     hoisted.loadImageAsBlob
@@ -93,7 +93,7 @@ describe('useCoverSource', () => {
       .mockResolvedValueOnce('blob:a-vault-b');
 
     const { result, rerender } = renderHook(
-      ({ vaultPath }) => useCoverSource({ url: 'covers/a.png', vaultPath }),
+      ({ vaultPath }) => useCoverSource({ url: 'assets/a.png', vaultPath }),
       { initialProps: { vaultPath: '/vault-a' } }
     );
 
@@ -106,26 +106,57 @@ describe('useCoverSource', () => {
     await waitFor(() => {
       expect(result.current.resolvedSrc).toBe('blob:a-vault-b');
     });
-    expect(hoisted.resolveSystemAssetPath).toHaveBeenNthCalledWith(1, '/vault-a', 'covers/a.png', 'covers');
-    expect(hoisted.resolveSystemAssetPath).toHaveBeenNthCalledWith(2, '/vault-b', 'covers/a.png', 'covers');
+    expect(hoisted.resolveVaultAssetPath).toHaveBeenNthCalledWith(1, '/vault-a', 'assets/a.png', undefined);
+    expect(hoisted.resolveVaultAssetPath).toHaveBeenNthCalledWith(2, '/vault-b', 'assets/a.png', undefined);
+  });
+
+  it('keeps image-ready setter stable across url changes', async () => {
+    hoisted.resolveVaultAssetPath.mockImplementation(async (_vaultPath: string, assetPath: string) => {
+      if (assetPath === 'assets/a.png') return '/vault/assets/a.png';
+      return '/vault/assets/b.png';
+    });
+    hoisted.loadImageAsBlob.mockImplementation(async (fullPath: string) => {
+      if (fullPath.includes('/a.png')) return 'blob:cover-a';
+      return 'blob:cover-b';
+    });
+
+    const { result, rerender } = renderHook(
+      ({ url }) => useCoverSource({ url, vaultPath: '/vault-a' }),
+      { initialProps: { url: 'assets/a.png' as string | null } }
+    );
+
+    const initialSetter = result.current.setIsImageReady;
+
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBe('blob:cover-a');
+    });
+
+    rerender({ url: 'assets/b.png' });
+
+    expect(result.current.setIsImageReady).toBe(initialSetter);
+
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBe('blob:cover-b');
+    });
+    expect(result.current.setIsImageReady).toBe(initialSetter);
   });
 
   it('keeps previous source while switching to a new cover', async () => {
-    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.vlaina/assets/covers/a.png');
+    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/a.png');
     hoisted.loadImageAsBlob
       .mockResolvedValueOnce('blob:cover-a')
       .mockImplementationOnce(() => new Promise<string>(() => {}));
 
     const { result, rerender } = renderHook(
       ({ url }) => useCoverSource({ url, vaultPath: '/vault-a' }),
-      { initialProps: { url: 'covers/a.png' as string | null } }
+      { initialProps: { url: 'assets/a.png' as string | null } }
     );
 
     await waitFor(() => {
       expect(result.current.resolvedSrc).toBe('blob:cover-a');
     });
 
-    rerender({ url: 'covers/b.png' });
+    rerender({ url: 'assets/b.png' });
 
     await waitFor(() => {
       expect(result.current.resolvedSrc).toBeNull();
@@ -134,11 +165,11 @@ describe('useCoverSource', () => {
   });
 
   it('clears committing state when preview starts', async () => {
-    hoisted.resolveSystemAssetPath.mockResolvedValue('/vault/.vlaina/assets/covers/a.png');
+    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/a.png');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:cover-a');
 
     const { result } = renderHook(() =>
-      useCoverSource({ url: 'covers/a.png', vaultPath: '/vault-a' })
+      useCoverSource({ url: 'assets/a.png', vaultPath: '/vault-a' })
     );
 
     await waitFor(() => {
@@ -158,10 +189,10 @@ describe('useCoverSource', () => {
   });
 
   it('clears committing state after new cover resolves', async () => {
-    hoisted.resolveSystemAssetPath.mockImplementation(async (_vaultPath: string, assetPath: string) => {
-      if (assetPath === 'covers/a.png') return '/vault/.vlaina/assets/covers/a.png';
-      if (assetPath === 'covers/b.png') return '/vault/.vlaina/assets/covers/b.png';
-      return '/vault/.vlaina/assets/covers/unknown.png';
+    hoisted.resolveVaultAssetPath.mockImplementation(async (_vaultPath: string, assetPath: string) => {
+      if (assetPath === 'assets/a.png') return '/vault/assets/a.png';
+      if (assetPath === 'assets/b.png') return '/vault/assets/b.png';
+      return '/vault/assets/unknown.png';
     });
     hoisted.loadImageAsBlob.mockImplementation(async (fullPath: string) => {
       if (fullPath.includes('/a.png')) return 'blob:cover-a';
@@ -171,7 +202,7 @@ describe('useCoverSource', () => {
 
     const { result, rerender } = renderHook(
       ({ url }) => useCoverSource({ url, vaultPath: '/vault-a' }),
-      { initialProps: { url: 'covers/a.png' as string | null } }
+      { initialProps: { url: 'assets/a.png' as string | null } }
     );
 
     await waitFor(() => {
@@ -183,7 +214,7 @@ describe('useCoverSource', () => {
     });
     expect(result.current.isSelectionCommitting).toBe(true);
 
-    rerender({ url: 'covers/b.png' });
+    rerender({ url: 'assets/b.png' });
 
     await waitFor(() => {
       expect(result.current.resolvedSrc).toBe('blob:cover-b');
@@ -192,9 +223,9 @@ describe('useCoverSource', () => {
   });
 
   it('resolves each switched url only once', async () => {
-    hoisted.resolveSystemAssetPath.mockImplementation(async (_vaultPath: string, assetPath: string) => {
-      if (assetPath === 'covers/a.png') return '/vault/.vlaina/assets/covers/a.png';
-      return '/vault/.vlaina/assets/covers/b.png';
+    hoisted.resolveVaultAssetPath.mockImplementation(async (_vaultPath: string, assetPath: string) => {
+      if (assetPath === 'assets/a.png') return '/vault/assets/a.png';
+      return '/vault/assets/b.png';
     });
     hoisted.loadImageAsBlob.mockImplementation(async (fullPath: string) => {
       if (fullPath.includes('/a.png')) return 'blob:cover-a';
@@ -203,21 +234,44 @@ describe('useCoverSource', () => {
 
     const { result, rerender } = renderHook(
       ({ url }) => useCoverSource({ url, vaultPath: '/vault-a' }),
-      { initialProps: { url: 'covers/a.png' as string | null } }
+      { initialProps: { url: 'assets/a.png' as string | null } }
     );
 
     await waitFor(() => {
       expect(result.current.resolvedSrc).toBe('blob:cover-a');
     });
 
-    rerender({ url: 'covers/b.png' });
+    rerender({ url: 'assets/b.png' });
 
     await waitFor(() => {
       expect(result.current.resolvedSrc).toBe('blob:cover-b');
     });
 
-    expect(hoisted.resolveSystemAssetPath).toHaveBeenCalledTimes(2);
+    expect(hoisted.resolveVaultAssetPath).toHaveBeenCalledTimes(2);
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(2);
     expect(hoisted.loadImageWithDimensions).toHaveBeenCalledTimes(2);
+  });
+
+  it('resolves note-relative paths against the current note', async () => {
+    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/daily/assets/a.png');
+    hoisted.loadImageAsBlob.mockResolvedValue('blob:daily-cover');
+
+    const { result } = renderHook(() =>
+      useCoverSource({
+        url: './assets/a.png',
+        vaultPath: '/vault-a',
+        currentNotePath: 'daily/2026-04-15.md',
+      })
+    );
+
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBe('blob:daily-cover');
+    });
+
+    expect(hoisted.resolveVaultAssetPath).toHaveBeenCalledWith(
+      '/vault-a',
+      './assets/a.png',
+      'daily/2026-04-15.md'
+    );
   });
 });

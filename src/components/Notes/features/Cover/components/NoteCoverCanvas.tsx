@@ -18,6 +18,7 @@ export function NoteCoverCanvas({ controller }: NoteCoverCanvasProps) {
       scale={cover.scale}
       onUpdate={updateCover}
       vaultPath={vaultPath}
+      currentNotePath={controller.currentNotePath}
       pickerOpen={isPickerOpen}
       onPickerOpenChange={setPickerOpen}
     />

@@ -131,7 +131,7 @@ function SidebarSearchResultRow({
     <NotesSidebarRow
       leading={showFileHeader ? (
         noteIcon ? (
-          <NoteIcon icon={noteIcon} size={NOTES_SIDEBAR_ICON_SIZE} />
+          <NoteIcon icon={noteIcon} notePath={path} size={NOTES_SIDEBAR_ICON_SIZE} />
         ) : (
           <Icon
             name="file.text"
