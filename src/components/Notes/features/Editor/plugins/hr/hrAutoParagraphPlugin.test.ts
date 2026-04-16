@@ -4,7 +4,7 @@ import {
   Editor,
   editorViewCtx,
 } from '@milkdown/kit/core';
-import { Selection, TextSelection } from '@milkdown/kit/prose/state';
+import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 
@@ -34,8 +34,49 @@ function typeText(view: EditorView, input: string): void {
   }
 }
 
-function setSelectionToDocumentEnd(view: EditorView): void {
-  view.dispatch(view.state.tr.setSelection(Selection.atEnd(view.state.doc)));
+function setTextSelection(view: EditorView, fromOffset: number, toOffset = fromOffset): void {
+  view.dispatch(
+    view.state.tr.setSelection(
+      TextSelection.create(view.state.doc, 1 + fromOffset, 1 + toOffset),
+    ),
+  );
+}
+
+function pressKey(
+  view: EditorView,
+  key: string,
+  options?: {
+    altKey?: boolean;
+    ctrlKey?: boolean;
+    isComposing?: boolean;
+    metaKey?: boolean;
+    shiftKey?: boolean;
+  },
+): boolean {
+  const event = new KeyboardEvent('keydown', {
+    key,
+    bubbles: true,
+    cancelable: true,
+    altKey: options?.altKey,
+    ctrlKey: options?.ctrlKey,
+    metaKey: options?.metaKey,
+    shiftKey: options?.shiftKey,
+  });
+  if (options?.isComposing) {
+    Object.defineProperty(event, 'isComposing', { value: true });
+  }
+
+  let handled = false;
+
+  view.someProp('handleKeyDown', (handleKeyDown: any) => {
+    if (handled) {
+      return handled;
+    }
+    handled = handleKeyDown(view, event) || handled;
+    return handled;
+  });
+
+  return handled;
 }
 
 function replaceLastParagraphText(view: EditorView, text: string): void {
@@ -56,6 +97,16 @@ function replaceLastParagraphText(view: EditorView, text: string): void {
   const tr = view.state.tr.insertText(text, from, to);
   tr.setSelection(TextSelection.create(tr.doc, from + text.length));
   view.dispatch(tr);
+}
+
+function hasHorizontalRule(view: EditorView): boolean {
+  for (let index = 0; index < view.state.doc.childCount; index += 1) {
+    if (view.state.doc.child(index)?.type.name === 'hr') {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 describe('hrAutoParagraphPlugin', () => {
@@ -91,6 +142,54 @@ describe('hrAutoParagraphPlugin', () => {
     await editor.destroy();
   });
 
+  it('converts *** on Enter as a thematic break', async () => {
+    const editor = createEditor();
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, '***');
+
+    expect(handleHorizontalRuleShortcutEnter(view)).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('hr');
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+
+    await editor.destroy();
+  });
+
+  it('converts ___ on Enter as a thematic break', async () => {
+    const editor = createEditor();
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, '___');
+
+    expect(handleHorizontalRuleShortcutEnter(view)).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('hr');
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+
+    await editor.destroy();
+  });
+
+  it('converts spaced thematic break text on Enter', async () => {
+    const editor = createEditor();
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    replaceLastParagraphText(view, '- - -');
+
+    expect(handleHorizontalRuleShortcutEnter(view)).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('hr');
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+
+    await editor.destroy();
+  });
+
   it('does not convert non-standalone text on Enter', async () => {
     const editor = createEditor();
 
@@ -104,6 +203,84 @@ describe('hrAutoParagraphPlugin', () => {
     expect(view.state.doc.childCount).toBe(1);
     expect(view.state.doc.firstChild?.type.name).toBe('paragraph');
     expect(view.state.doc.firstChild?.textContent).toBe('---text---');
+
+    await editor.destroy();
+  });
+
+  it('does not convert --- at the leading frontmatter slot', async () => {
+    const editor = createEditor('placeholder');
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    replaceLastParagraphText(view, '---');
+
+    expect(handleHorizontalRuleShortcutEnter(view)).toBe(false);
+    expect(view.state.doc.childCount).toBe(1);
+    expect(view.state.doc.firstChild?.type.name).toBe('paragraph');
+    expect(view.state.doc.firstChild?.textContent).toBe('---');
+
+    await editor.destroy();
+  });
+
+  it('does not convert when the cursor is not at the end of the line', async () => {
+    const editor = createEditor();
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, '---');
+    setTextSelection(view, 2);
+
+    expect(handleHorizontalRuleShortcutEnter(view)).toBe(false);
+    expect(view.state.doc.childCount).toBe(1);
+    expect(view.state.doc.firstChild?.type.name).toBe('paragraph');
+    expect(view.state.doc.firstChild?.textContent).toBe('---');
+
+    await editor.destroy();
+  });
+
+  it('does not convert when a text range is selected', async () => {
+    const editor = createEditor();
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, '---');
+    setTextSelection(view, 0, 3);
+
+    expect(handleHorizontalRuleShortcutEnter(view)).toBe(false);
+    expect(view.state.doc.childCount).toBe(1);
+    expect(view.state.doc.firstChild?.type.name).toBe('paragraph');
+    expect(view.state.doc.firstChild?.textContent).toBe('---');
+
+    await editor.destroy();
+  });
+
+  it('does not convert to a thematic break while the user is composing input', async () => {
+    const editor = createEditor();
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, '---');
+
+    pressKey(view, 'Enter', { isComposing: true });
+    expect(hasHorizontalRule(view)).toBe(false);
+
+    await editor.destroy();
+  });
+
+  it('does not convert to a thematic break for modified Enter shortcuts', async () => {
+    const editor = createEditor();
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    typeText(view, '---');
+
+    pressKey(view, 'Enter', { shiftKey: true });
+    expect(hasHorizontalRule(view)).toBe(false);
 
     await editor.destroy();
   });

@@ -30,6 +30,7 @@ export { selectAllPlugin } from './select-all';
 export { editorFindPlugin } from './find';
 export { blankAreaDragBoxPlugin, blockControlsPlugin, endBlankClickPlugin, titleNavigationPlugin } from './cursor';
 export { hrAutoParagraphPlugin } from './hr';
+export { autoPairPlugin } from './pairs';
 export type { SlashMenuItem } from './slash/types';
 export type { CalloutBlockAttrs, IconData } from './callout/types';
 export type { CodeBlockAttrs } from './code/types';

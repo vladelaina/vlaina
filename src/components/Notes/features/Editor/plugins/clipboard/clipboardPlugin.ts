@@ -1,6 +1,6 @@
 import { $prose } from '@milkdown/kit/utils';
 import { parserCtx, serializerCtx } from '@milkdown/kit/core';
-import { Plugin, PluginKey, Selection } from '@milkdown/kit/prose/state';
+import { Plugin, PluginKey, Selection, TextSelection } from '@milkdown/kit/prose/state';
 import { Fragment, Slice, type Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { Parser, Serializer } from '@milkdown/kit/transformer';
@@ -19,6 +19,7 @@ import {
     parseStandaloneFencedCodeBlock,
 } from './fencedCodePaste';
 import { findTailCursorPosInRange, isMarkdownStructuralResult } from './pasteCursorUtils';
+import { createMarkdownPasteSlice, hasOnlyParagraphNodes } from './markdownPasteSlice';
 
 export const clipboardPluginKey = new PluginKey('vlaina-clipboard');
 
@@ -59,16 +60,31 @@ export const clipboardPlugin = $prose((ctx) => {
         }
     };
 
-    const dispatchSliceAndKeepCursorAtTail = (view: EditorView, slice: Slice) => {
+    const dispatchSliceAndKeepCursorAtTail = (
+        view: EditorView,
+        slice: Slice,
+        options?: {
+            preferRangeEnd?: boolean;
+        },
+    ) => {
         const { state } = view;
         const { from, to } = state.selection;
         const tr = state.tr.replaceRange(from, to, slice);
+        tr.setMeta(clipboardPluginKey, true);
         const mappedFrom = tr.mapping.map(from, -1);
         const mappedTo = Math.min(mappedFrom + slice.content.size, tr.doc.content.size);
-        const tailPos = findTailCursorPosInRange(tr.doc, mappedFrom, mappedTo) ?? mappedTo;
+        const tailPos = options?.preferRangeEnd
+            ? mappedTo
+            : findTailCursorPosInRange(tr.doc, mappedFrom, mappedTo) ?? mappedTo;
         const safePos = Math.max(0, Math.min(tailPos, tr.doc.content.size));
 
-        tr.setSelection(Selection.near(tr.doc.resolve(safePos), -1));
+        tr.setSelection(
+            options?.preferRangeEnd
+                ? TextSelection.create(tr.doc, safePos)
+                : tailPos == null
+                ? Selection.near(tr.doc.resolve(safePos), -1)
+                : Selection.near(tr.doc.resolve(safePos), 1)
+        );
         view.dispatch(tr.scrollIntoView());
 
         return safePos;
@@ -163,9 +179,11 @@ export const clipboardPlugin = $prose((ctx) => {
                     if (fencedMarkdownCandidate) {
                         const markdownNodes = parseMarkdownNodes(fencedMarkdownCandidate);
                         if (markdownNodes) {
+                            const markdownSlice = createMarkdownPasteSlice(state, markdownNodes);
                             dispatchSliceAndKeepCursorAtTail(
                                 view,
-                                new Slice(Fragment.from(markdownNodes), 0, 0),
+                                markdownSlice,
+                                { preferRangeEnd: hasOnlyParagraphNodes(markdownNodes) },
                             );
                             event.preventDefault();
                             return true;
@@ -212,7 +230,12 @@ export const clipboardPlugin = $prose((ctx) => {
                 );
                 if (!markdownNodes) return false;
 
-                dispatchSliceAndKeepCursorAtTail(view, new Slice(Fragment.from(markdownNodes), 0, 0));
+                const markdownSlice = createMarkdownPasteSlice(state, markdownNodes);
+                dispatchSliceAndKeepCursorAtTail(
+                    view,
+                    markdownSlice,
+                    { preferRangeEnd: hasOnlyParagraphNodes(markdownNodes) },
+                );
                 event.preventDefault();
                 return true;
             },
