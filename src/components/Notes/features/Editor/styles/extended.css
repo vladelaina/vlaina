@@ -279,16 +279,6 @@
   background-color: rgba(107, 114, 128, 0.2);
 }
 
-/* Math Block */
-.milkdown .math-block {
-  padding: 1rem;
-  text-align: center;
-  background-color: var(--vlaina-bg-secondary);
-  border-radius: 0.5rem;
-  overflow-x: auto;
-  margin: 1rem 0;
-}
-
 /* === Collapse Toggle Button (shared by heading and list collapse) === */
 
 /* List items need position:relative for absolute positioning of toggle */

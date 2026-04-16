@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createClosedMathEditorState } from './mathEditorState';
-import { getMathAnchorElement, getMathEditorViewportPosition } from './mathEditorPositioning';
-import { resolveMathEditorOpenState } from './mathEditorOpen';
+import { getMathAnchorViewportPosition, resolveMathAnchorElement } from './mathEditorPlacement';
+import { resolveMathEditorOpenState } from './mathEditorOpenResolver';
 
-describe('mathClickPlugin', () => {
+describe('mathEditorPlugin', () => {
   it('creates a closed default editor state', () => {
     expect(createClosedMathEditorState()).toEqual({
       isOpen: false,
@@ -22,7 +22,7 @@ describe('mathClickPlugin', () => {
     inner.className = 'katex-html';
     wrapper.appendChild(inner);
 
-    expect(getMathAnchorElement(inner, null)).toBe(wrapper);
+    expect(resolveMathAnchorElement(inner, null)).toBe(wrapper);
   });
 
   it('falls back to the provided node DOM when the click target is outside the wrapper element', () => {
@@ -30,7 +30,7 @@ describe('mathClickPlugin', () => {
     wrapper.setAttribute('data-type', 'math-block');
     const strayTarget = document.createElement('span');
 
-    expect(getMathAnchorElement(strayTarget, wrapper)).toBe(wrapper);
+    expect(resolveMathAnchorElement(strayTarget, wrapper)).toBe(wrapper);
   });
 
   it('positions the editor below the anchor rect in viewport coordinates', () => {
@@ -49,14 +49,14 @@ describe('mathClickPlugin', () => {
       }),
     });
 
-    expect(getMathEditorViewportPosition(wrapper)).toEqual({
+    expect(getMathAnchorViewportPosition(wrapper)).toEqual({
       x: 120,
       y: 80,
     });
   });
 
   it('falls back to a safe viewport offset when no anchor element is available', () => {
-    expect(getMathEditorViewportPosition(null)).toEqual({
+    expect(getMathAnchorViewportPosition(null)).toEqual({
       x: 16,
       y: 16,
     });

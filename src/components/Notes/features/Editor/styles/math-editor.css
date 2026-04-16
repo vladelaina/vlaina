@@ -34,6 +34,32 @@
   cursor: pointer !important;
 }
 
+.milkdown [data-type='math-block'].math-block-wrapper {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 1rem 0;
+  padding: 1rem;
+  text-align: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  box-sizing: border-box;
+}
+
+.milkdown [data-type='math-block'].math-block-wrapper .katex-display {
+  display: block;
+  max-width: 100%;
+  margin: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-align: center;
+}
+
+.milkdown [data-type='math-block'].math-block-wrapper .katex-display > .katex {
+  display: inline-block;
+  min-width: max-content;
+}
+
 .math-editor-popup {
   z-index: 80;
 }
@@ -204,6 +230,27 @@
   width: 36px;
   min-width: 36px;
   height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition: color 0.2s cubic-bezier(0.23, 1, 0.32, 1);
+  color: rgb(113 113 122 / 1);
+}
+
+.math-editor-icon-action-primary {
+  color: rgb(24 24 27 / 1);
+}
+
+.dark .math-editor-icon-action {
+  color: rgb(212 212 216 / 1);
+}
+
+.dark .math-editor-icon-action-primary {
+  color: rgb(244 244 245 / 1);
 }
 
 .math-editor-icon-action svg {

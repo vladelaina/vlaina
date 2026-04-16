@@ -24,4 +24,15 @@ describe('math hover styles', () => {
     expect(css).toContain('border-radius: 0;');
     expect(css).toContain('cursor: pointer !important;');
   });
+
+  it('keeps oversized block formulas inside a horizontal scroll container', () => {
+    const css = readMathStyles();
+
+    expect(css).toContain(".milkdown [data-type='math-block'].math-block-wrapper {");
+    expect(css).toContain('overflow-x: auto;');
+    expect(css).toContain(".milkdown [data-type='math-block'].math-block-wrapper .katex-display {");
+    expect(css).toContain('max-width: 100%;');
+    expect(css).toContain(".milkdown [data-type='math-block'].math-block-wrapper .katex-display > .katex {");
+    expect(css).toContain('min-width: max-content;');
+  });
 });
