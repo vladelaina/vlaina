@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Selection } from '@milkdown/kit/prose/state';
 
 import {
@@ -12,6 +12,10 @@ import {
   simulateTextInput,
   typeText,
 } from './autoPairPlugin.testUtils';
+import { autoPairSpecs } from './pairSpecs';
+
+const pairCases = autoPairSpecs.map((spec) => [spec.open, spec.close] as const);
+const asymmetricPairCases = autoPairSpecs.filter((spec) => !spec.symmetric).map((spec) => [spec.open, spec.close] as const);
 
 describe('autoPairPlugin input', () => {
   it('auto-inserts a matching ascii parenthesis pair', async () => {
@@ -81,6 +85,48 @@ describe('autoPairPlugin input', () => {
     expect(view.state.doc.firstChild?.textContent).toBe("''");
     expect(view.state.selection.$from.parentOffset).toBe(1);
 
+    await editor.destroy();
+  });
+
+
+  it.each(pairCases)('auto-pairs and skips the closer for %s%s', async (open, close) => {
+    const editor = createEditor();
+
+    await editor.create();
+
+    const view = getView(editor);
+    simulateTextInput(view, open);
+
+    expect(view.state.doc.firstChild?.textContent).toBe(open + close);
+    expect(view.state.selection.$from.parentOffset).toBe(1);
+
+    simulateTextInput(view, close);
+
+    expect(view.state.doc.firstChild?.textContent).toBe(open + close);
+    expect(view.state.selection.$from.parentOffset).toBe(2);
+
+    await editor.destroy();
+  });
+
+  it.each(asymmetricPairCases)('delayed second closer still inserts for %s%s', async (open, close) => {
+    const editor = createEditor();
+    const now = vi.spyOn(performance, 'now');
+    let currentTime = 100;
+    now.mockImplementation(() => currentTime);
+
+    await editor.create();
+
+    const view = getView(editor);
+    simulateTextInput(view, open);
+    currentTime = 200;
+    simulateTextInput(view, close);
+    currentTime = 400;
+    simulateTextInput(view, close);
+
+    expect(view.state.doc.firstChild?.textContent).toBe(open + close + close);
+    expect(view.state.selection.$from.parentOffset).toBe(3);
+
+    now.mockRestore();
     await editor.destroy();
   });
 
@@ -473,6 +519,58 @@ describe('autoPairPlugin input', () => {
     expect(view.state.doc.firstChild?.textContent).toBe('（标题）');
     expect(view.state.selection.$from.parentOffset).toBe(4);
 
+    await editor.destroy();
+  });
+
+
+  it.each(autoPairSpecs)(
+    'suppresses an immediate duplicate closing input for $open$close',
+    async ({ open, close }) => {
+      const editor = createEditor();
+      const now = vi.spyOn(performance, 'now');
+      let currentTime = 100;
+      now.mockImplementation(() => currentTime);
+
+      await editor.create();
+
+      const view = getView(editor);
+      simulateTextInput(view, open);
+      currentTime = 200;
+      simulateTextInput(view, close);
+
+      expect(view.state.doc.firstChild?.textContent).toBe(open + close);
+      expect(view.state.selection.$from.parentOffset).toBe(2);
+
+      currentTime = 210;
+      simulateTextInput(view, close);
+
+      expect(view.state.doc.firstChild?.textContent).toBe(open + close);
+      expect(view.state.selection.$from.parentOffset).toBe(2);
+
+      now.mockRestore();
+      await editor.destroy();
+    },
+  );
+
+  it('allows a real second closing bracket after the duplicate-input guard window', async () => {
+    const editor = createEditor();
+    const now = vi.spyOn(performance, 'now');
+    let currentTime = 100;
+    now.mockImplementation(() => currentTime);
+
+    await editor.create();
+
+    const view = getView(editor);
+    simulateTextInput(view, '（');
+    currentTime = 200;
+    simulateTextInput(view, '）');
+    currentTime = 400;
+    simulateTextInput(view, '）');
+
+    expect(view.state.doc.firstChild?.textContent).toBe('（））');
+    expect(view.state.selection.$from.parentOffset).toBe(3);
+
+    now.mockRestore();
     await editor.destroy();
   });
 });

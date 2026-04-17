@@ -22,7 +22,7 @@ export const autoPairPlugin = $prose(() => new Plugin({
     const oldClosers = getAutoInsertedClosers(oldState);
     if (oldClosers.length === 0) return;
 
-    const recoverableCloser = findRecoverableAutoCloserFromSelection(newState);
+    const recoverableCloser = findRecoverableAutoCloserFromSelection(newState.selection);
     if (!recoverableCloser) return;
 
     const shouldRestoreClipboardCursor = transactions.some((tr) => tr.getMeta(clipboardPluginKey));

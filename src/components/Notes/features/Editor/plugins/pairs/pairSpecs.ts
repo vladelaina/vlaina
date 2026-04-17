@@ -4,7 +4,7 @@ export type AutoPairSpec = {
   symmetric?: boolean;
 };
 
-const AUTO_PAIR_SPECS: AutoPairSpec[] = [
+export const autoPairSpecs: AutoPairSpec[] = [
   { open: '(', close: ')' },
   { open: '（', close: '）' },
   { open: '[', close: ']' },
@@ -20,5 +20,5 @@ const AUTO_PAIR_SPECS: AutoPairSpec[] = [
   { open: "'", close: "'", symmetric: true },
 ];
 
-export const openPairSpecs = new Map(AUTO_PAIR_SPECS.map((spec) => [spec.open, spec]));
-export const closePairSpecs = new Map(AUTO_PAIR_SPECS.map((spec) => [spec.close, spec]));
+export const openPairSpecs = new Map(autoPairSpecs.map((spec) => [spec.open, spec]));
+export const closePairSpecs = new Map(autoPairSpecs.map((spec) => [spec.close, spec]));

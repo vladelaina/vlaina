@@ -1,11 +1,15 @@
 import { PluginKey } from '@milkdown/kit/prose/state';
 
-import { closePairSpecs, openPairSpecs } from './pairSpecs';
+import { recoverSelectionAutoClosers } from './pairRecovery';
+import { closePairSpecs } from './pairSpecs';
+import type {
+  AutoInsertedCloser,
+  DocLike,
+  EditorStateLike,
+  TransactionLike,
+} from './pairTypes';
 
-export type AutoInsertedCloser = {
-  close: string;
-  pos: number;
-};
+export type { AutoInsertedCloser } from './pairTypes';
 
 type PairStateMeta =
   | { type: 'add-auto-closers'; entries: AutoInsertedCloser[] };
@@ -13,39 +17,6 @@ type PairStateMeta =
 export const autoPairPluginKey = new PluginKey<AutoInsertedCloser[]>('autoPair');
 
 const HISTORY_META_KEY = 'history$';
-
-type DocLike = {
-  content: { size: number };
-  textBetween: (from: number, to: number, blockSeparator?: string, leafText?: string) => string;
-};
-
-type SelectionLike = {
-  empty: boolean;
-  from: number;
-  $from: {
-    parent: {
-      isTextblock: boolean;
-      textContent: string;
-    };
-    parentOffset: number;
-  };
-};
-
-type EditorStateLike = {
-  doc: DocLike;
-  selection: SelectionLike;
-};
-
-type MappingLike = {
-  map: (pos: number, assoc?: number) => number;
-  mapResult?: (pos: number, assoc?: number) => { pos: number; deleted: boolean };
-};
-
-type TransactionLike = {
-  docChanged: boolean;
-  getMeta?: (key: string | PluginKey<AutoInsertedCloser[]>) => unknown;
-  mapping: MappingLike;
-};
 
 function isHistoryTransaction(tr: { getMeta?: (key: string) => unknown }): boolean {
   return tr.getMeta?.(HISTORY_META_KEY) != null;
@@ -69,50 +40,6 @@ function getDocCharAt(
 ): string {
   if (pos < 0 || pos >= doc.content.size) return '';
   return doc.textBetween(pos, pos + 1, '', '');
-}
-
-function findMatchingOpenOffset(
-  text: string,
-  closeOffset: number,
-  rangeStart: number,
-): number {
-  const close = text[closeOffset];
-  const spec = closePairSpecs.get(close);
-  if (!spec || spec.symmetric) return -1;
-
-  let depth = 0;
-
-  for (let offset = closeOffset - 1; offset >= rangeStart; offset -= 1) {
-    const char = text[offset];
-    if (char === close) {
-      depth += 1;
-      continue;
-    }
-
-    if (char !== spec.open) continue;
-    if (depth === 0) return offset;
-    depth -= 1;
-  }
-
-  return -1;
-}
-
-function recoverTrailingNestedClosers(
-  text: string,
-  textStart: number,
-  rangeStart: number,
-  rangeEnd: number,
-): AutoInsertedCloser[] {
-  if (rangeEnd <= rangeStart) return [];
-
-  const closeOffset = rangeEnd - 1;
-  const openOffset = findMatchingOpenOffset(text, closeOffset, rangeStart);
-  if (openOffset < 0) return [];
-
-  return [
-    ...recoverTrailingNestedClosers(text, textStart, openOffset + 1, closeOffset),
-    { close: text[closeOffset], pos: textStart + closeOffset },
-  ];
 }
 
 function mapAutoInsertedClosers(
@@ -143,55 +70,6 @@ function mapAutoInsertedClosers(
   return Array.from(deduped.values()).sort((a, b) => a.pos - b.pos);
 }
 
-function recoverSelectionAutoCloser(
-  newState: EditorStateLike,
-): AutoInsertedCloser[] {
-  if (!newState.selection.empty) return [];
-
-  const { $from, from } = newState.selection;
-  if (!$from.parent.isTextblock) return [];
-  const text = $from.parent.textContent;
-  const entries: AutoInsertedCloser[] = [];
-  const textStart = from - $from.parentOffset;
-
-  if ($from.parentOffset < text.length) {
-    const close = text[$from.parentOffset];
-    if (closePairSpecs.has(close)) {
-      const openOffset = findMatchingOpenOffset(text, $from.parentOffset, 0);
-      if (openOffset >= 0) {
-        entries.push({ close, pos: from });
-      } else if ($from.parentOffset > 0) {
-        const open = text[$from.parentOffset - 1];
-        const spec = openPairSpecs.get(open);
-        if (spec?.close === close) {
-          entries.push({ close, pos: from });
-        }
-      }
-    }
-  }
-
-  if ($from.parentOffset > 0) {
-    const previousChar = text[$from.parentOffset - 1];
-    if (closePairSpecs.has(previousChar)) {
-      entries.push({ close: previousChar, pos: from - 1 });
-    }
-
-    entries.push(
-      ...recoverTrailingNestedClosers(text, textStart, 0, $from.parentOffset),
-    );
-  }
-
-  return entries;
-}
-
-function recoverHistoryAutoCloser(
-  tr: TransactionLike,
-  newState: EditorStateLike,
-): AutoInsertedCloser[] {
-  if (!isHistoryTransaction(tr)) return [];
-  return recoverSelectionAutoCloser(newState);
-}
-
 export function getAutoInsertedClosers(state: {
   doc: DocLike;
 }): AutoInsertedCloser[] {
@@ -212,39 +90,7 @@ export function createAddAutoClosersMeta(entries: AutoInsertedCloser[]): PairSta
   return { type: 'add-auto-closers', entries };
 }
 
-export function findRecoverableAutoCloserFromSelection(state: {
-  selection: SelectionLike;
-}): AutoInsertedCloser | null {
-  const { selection } = state;
-  if (!selection.empty) return null;
-
-  const { $from, from } = selection;
-  if (!$from.parent.isTextblock) return null;
-
-  const text = $from.parent.textContent;
-  for (let offset = $from.parentOffset; offset < text.length; offset += 1) {
-    const close = text[offset];
-    if (!closePairSpecs.has(close)) continue;
-
-    const openOffset = findMatchingOpenOffset(text, offset, 0);
-    if (openOffset >= 0 && openOffset < $from.parentOffset) {
-      return { close, pos: from + (offset - $from.parentOffset) };
-    }
-  }
-
-  if ($from.parentOffset > 0) {
-    const previousOffset = $from.parentOffset - 1;
-    const close = text[previousOffset];
-    if (closePairSpecs.has(close)) {
-      const openOffset = findMatchingOpenOffset(text, previousOffset, 0);
-      if (openOffset >= 0 && openOffset < previousOffset) {
-        return { close, pos: from - 1 };
-      }
-    }
-  }
-
-  return null;
-}
+export { findRecoverableAutoCloserFromSelection } from './pairRecovery';
 
 export const autoPairPluginState = {
   init(): AutoInsertedCloser[] {
@@ -258,6 +104,7 @@ export const autoPairPluginState = {
   ): AutoInsertedCloser[] {
     const mapped = mapAutoInsertedClosers(value, tr, newState.doc);
     const meta = tr.getMeta?.(autoPairPluginKey);
+
     if (isPairStateMeta(meta) && meta.type === 'add-auto-closers') {
       return mapAutoInsertedClosers([...mapped, ...meta.entries], {
         docChanged: false,
@@ -266,10 +113,11 @@ export const autoPairPluginState = {
     }
 
     const recovered = isHistoryTransaction(tr)
-      ? recoverHistoryAutoCloser(tr, newState)
+      ? recoverSelectionAutoClosers(newState)
       : tr.docChanged && value.length > 0
-        ? recoverSelectionAutoCloser(newState)
+        ? recoverSelectionAutoClosers(newState)
         : [];
+
     return mapAutoInsertedClosers([...mapped, ...recovered], {
       docChanged: false,
       mapping: tr.mapping,
