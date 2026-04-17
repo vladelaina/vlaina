@@ -3,6 +3,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } fr
 import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 import { cn } from '@/lib/utils';
 import { ModuleShortcutId, ModuleShortcutSection, getModuleShortcutPreset } from '@/lib/shortcuts/moduleShortcuts';
+import { useDialogWindowDrag } from '@/hooks/useDialogWindowDrag';
 
 interface ModuleShortcutsDialogProps {
   module: ModuleShortcutId;
@@ -26,6 +27,15 @@ export function ModuleShortcutsDialog({
   const resolvedTitle = title ?? preset.title;
   const resolvedDescription = description ?? preset.description;
   const resolvedSections = sections ?? preset.sections;
+  const {
+    handleDragHandleMouseDown,
+    handleInteractOutside,
+    handlePointerDownOutside,
+  } = useDialogWindowDrag({
+    open,
+    onOpenChange,
+    errorLabel: 'shortcuts dialog drag',
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -36,10 +46,15 @@ export function ModuleShortcutsDialog({
         onOpenAutoFocus={(event) => {
           event.preventDefault();
         }}
+        onPointerDownOutside={handlePointerDownOutside}
+        onInteractOutside={handleInteractOutside}
         className="sm:max-w-lg rounded-[20px] border border-black/5 bg-white p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)] overflow-hidden dark:border-white/5 dark:bg-[#1E1E1E] dark:shadow-[0_24px_60px_rgba(0,0,0,0.35)]"
       >
-        <div className="flex min-w-0 items-start justify-between gap-3 px-1 pb-4">
-          <div className="min-w-0">
+        <div
+          className="flex min-w-0 items-start justify-between gap-3 px-1 pb-4 cursor-grab active:cursor-grabbing select-none"
+          onMouseDown={handleDragHandleMouseDown}
+        >
+          <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center gap-2">
               <DialogTitle className="text-[20px] font-semibold tracking-[-0.03em] text-zinc-900 dark:text-zinc-100">
                 {resolvedTitle}
@@ -55,7 +70,12 @@ export function ModuleShortcutsDialog({
             </DialogDescription>
           </div>
 
-          <DialogClose className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-white/5 dark:hover:text-zinc-200">
+          <DialogClose
+            onMouseDown={(event) => {
+              event.stopPropagation();
+            }}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-white/5 dark:hover:text-zinc-200"
+          >
             <Icon name="common.close" size="md" />
             <span className="sr-only">Close</span>
           </DialogClose>

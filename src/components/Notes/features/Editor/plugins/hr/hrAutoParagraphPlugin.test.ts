@@ -306,6 +306,10 @@ describe('hrAutoParagraphPlugin', () => {
 
     expect(hrPos).not.toBeNull();
 
+    if (hrPos === null) {
+      throw new Error('Expected horizontal rule selection target');
+    }
+
     view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, hrPos)));
 
     let blurCalled = false;

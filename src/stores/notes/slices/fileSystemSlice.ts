@@ -668,7 +668,17 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
   },
 
   createFolder: async (parentPath: string, name?: string) => {
-    let { notesPath, fileTreeSortMode, noteMetadata } = get();
+    let {
+      notesPath,
+      fileTreeSortMode,
+      noteMetadata,
+      openTabs,
+      currentNote,
+      currentNoteRevision,
+      noteContentsCache,
+      draftNotes,
+      displayNames,
+    } = get();
     const storage = getStorageAdapter();
 
     try {
@@ -676,7 +686,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         const currentVaultPath = getCurrentVaultPath();
         if (!currentVaultPath) {
           const { draftPath, nextState } = createBlankDraftState({
-            folderPath,
+            folderPath: parentPath || undefined,
             openTabs,
             currentNote,
             currentNoteRevision,

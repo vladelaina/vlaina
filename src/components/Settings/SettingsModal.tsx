@@ -1,8 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Icon, IconName } from '@/components/ui/icons';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getCurrentWindow } from '@tauri-apps/api/window';
-
 import { BlurBackdrop } from '@/components/common/BlurBackdrop';
 import { useModalBehavior } from './hooks/useModalBehavior';
 import { AboutTab } from './tabs/AboutTab';
@@ -12,6 +10,7 @@ import { ShortcutsTab } from './tabs/ShortcutsTab';
 import { ImagesTab } from './tabs/ImagesTab';
 import { AITab } from './tabs/AITab';
 import { cn } from '@/lib/utils';
+import { useWindowDragGesture } from '@/hooks/useWindowDragGesture';
 
 interface SettingsModalProps {
   open: boolean;
@@ -68,18 +67,14 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     onClose,
   });
 
-  const isDraggingRef = useRef(false);
-  const startPosRef = useRef({ x: 0, y: 0 });
+  const { beginWindowDragTracking, stopWindowDragTracking } = useWindowDragGesture({
+    errorLabel: 'settings modal drag',
+  });
 
-  const startDrag = async () => {
-    isDraggingRef.current = true;
-
-    try {
-      await getCurrentWindow().startDragging();
-    } catch (e) {
-      console.error('Failed to start dragging', e);
-    }
-  };
+  useEffect(() => {
+    if (open) return;
+    stopWindowDragTracking();
+  }, [open, stopWindowDragTracking]);
 
   return (
     <AnimatePresence>
@@ -89,28 +84,13 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
           <div className="fixed inset-0 flex items-center justify-center z-[100] pointer-events-none p-4">
             <div
-              className="absolute top-0 left-0 right-0 h-14 z-[105] pointer-events-auto"
+              className="absolute top-0 left-0 right-0 h-14 z-[105] pointer-events-auto cursor-grab active:cursor-grabbing select-none"
               onMouseDown={(e) => {
                 if (e.button !== 0) return;
-
-                isDraggingRef.current = false;
-                startPosRef.current = { x: e.clientX, y: e.clientY };
-              }}
-              onMouseMove={(e) => {
-                if (isDraggingRef.current || e.buttons !== 1) return;
-
-                const dx = e.clientX - startPosRef.current.x;
-                const dy = e.clientY - startPosRef.current.y;
-
-                if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-                  startDrag();
-                }
-              }}
-              onMouseUp={() => {
-                if (!isDraggingRef.current) {
-                  onClose();
-                }
-                isDraggingRef.current = false;
+                beginWindowDragTracking(
+                  { x: e.clientX, y: e.clientY },
+                  { onReleaseWithoutDrag: onClose }
+                );
               }}
             />
 
