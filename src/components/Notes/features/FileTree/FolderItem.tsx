@@ -188,6 +188,7 @@ export const FolderItem = memo(function FolderItem({
                 key={child.id}
                 node={child}
                 depth={depth + 1}
+                parentFolderPath={node.path}
                 showStarBadge={false}
                 dragEnabled={dragEnabled}
               />

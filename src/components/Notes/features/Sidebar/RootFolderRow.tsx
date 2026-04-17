@@ -209,6 +209,7 @@ export function RootFolderRow({
               key={node.id}
               node={node}
               depth={1}
+              parentFolderPath=""
             />
           ))}
         </NotesSidebarList>

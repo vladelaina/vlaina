@@ -11,6 +11,7 @@ import {
 interface TreeItemShellProps {
   itemPath: string;
   itemKind: 'file' | 'folder';
+  parentFolderPath?: string;
   depth: number;
   leading: ReactNode;
   main: ReactNode;
@@ -31,6 +32,7 @@ interface TreeItemShellProps {
 export function TreeItemShell({
   itemPath,
   itemKind,
+  parentFolderPath,
   depth,
   leading,
   main,
@@ -50,7 +52,12 @@ export function TreeItemShell({
   const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   return (
-    <div className="relative" data-file-tree-path={itemPath} data-file-tree-kind={itemKind}>
+    <div
+      className="relative"
+      data-file-tree-path={itemPath}
+      data-file-tree-kind={itemKind}
+      data-file-tree-parent-folder-path={parentFolderPath}
+    >
       <NotesSidebarRow
         depth={depth}
         actionFadeClassName={actionFadeClassName}

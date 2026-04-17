@@ -108,18 +108,22 @@ function resolveDropTargetPath(clientX: number, clientY: number, sourcePath: str
       continue;
     }
 
-    const rootDropTarget = element.closest<HTMLElement>('[data-file-tree-root-drop-target="true"]');
-    if (rootDropTarget && !isInvalidMoveTarget(sourcePath, '')) {
-      return '';
+    const itemElement = element.closest<HTMLElement>('[data-file-tree-path]');
+    const parentFolderPath = itemElement?.dataset.fileTreeParentFolderPath;
+    if (parentFolderPath != null && !isInvalidMoveTarget(sourcePath, parentFolderPath)) {
+      return parentFolderPath;
     }
 
     const folderElement = element.closest<HTMLElement>('[data-file-tree-kind="folder"]');
     const targetPath = folderElement?.dataset.fileTreePath;
-    if (!targetPath || isInvalidMoveTarget(sourcePath, targetPath)) {
-      continue;
+    if (targetPath && !isInvalidMoveTarget(sourcePath, targetPath)) {
+      return targetPath;
     }
 
-    return targetPath;
+    const rootDropTarget = element.closest<HTMLElement>('[data-file-tree-root-drop-target="true"]');
+    if (rootDropTarget && !isInvalidMoveTarget(sourcePath, '')) {
+      return '';
+    }
   }
 
   return null;

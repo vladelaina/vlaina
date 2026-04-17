@@ -25,6 +25,7 @@ import type { NotesSidebarMenuEntry } from '../Sidebar/context-menu/NotesSidebar
 interface FileItemProps {
   node: NoteFile;
   depth: number;
+  parentFolderPath?: string;
   showStarBadge?: boolean;
   dragEnabled?: boolean;
 }
@@ -32,6 +33,7 @@ interface FileItemProps {
 export const FileItem = memo(function FileItem({
   node,
   depth,
+  parentFolderPath = '',
   showStarBadge = false,
   dragEnabled = true,
 }: FileItemProps) {
@@ -123,6 +125,7 @@ export const FileItem = memo(function FileItem({
     <TreeItemShell
       itemPath={node.path}
       itemKind="file"
+      parentFolderPath={parentFolderPath}
       depth={depth}
       actionFadeClassName={showStarBadge ? 'w-3 from-transparent' : undefined}
       leading={
@@ -193,6 +196,7 @@ function areFileItemPropsEqual(prevProps: FileItemProps, nextProps: FileItemProp
     prevProps.node.name === nextProps.node.name &&
     prevProps.node.path === nextProps.node.path &&
     prevProps.depth === nextProps.depth &&
+    prevProps.parentFolderPath === nextProps.parentFolderPath &&
     prevProps.showStarBadge === nextProps.showStarBadge
   );
 }
