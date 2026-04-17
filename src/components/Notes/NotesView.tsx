@@ -23,7 +23,9 @@ import { useNotesExternalSync } from './hooks/useNotesExternalSync';
 import { openStoredNotePath } from '@/stores/notes/openNotePath';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { TreeItemDeleteDialog } from '@/components/Notes/features/FileTree/components/TreeItemDeleteDialog';
 import { normalizeVaultPath } from '@/stores/vaultConfig';
+import { subscribeDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEvents';
 
 const EmbeddedChatView = lazy(async () => {
   const mod = await import('@/components/Chat/ChatView');
@@ -38,6 +40,7 @@ export function NotesView() {
   const createNote = useNotesStore(s => s.createNote);
   const openNote = useNotesStore(s => s.openNote);
   const loadStarred = useNotesStore(s => s.loadStarred);
+  const deleteNote = useNotesStore(s => s.deleteNote);
   const loadAssets = useNotesStore(s => s.loadAssets);
   const saveNote = useNotesStore(s => s.saveNote);
   const cleanupAssetTempFiles = useNotesStore(s => s.cleanupAssetTempFiles);
@@ -55,6 +58,7 @@ export function NotesView() {
   const pendingDraftDiscardPath = useNotesStore(s => s.pendingDraftDiscardPath);
   const cancelPendingDraftDiscard = useNotesStore(s => s.cancelPendingDraftDiscard);
   const confirmPendingDraftDiscard = useNotesStore(s => s.confirmPendingDraftDiscard);
+  const getDisplayName = useNotesStore(s => s.getDisplayName);
 
   const { currentVault, openVault } = useVaultStore();
   const sidebarWidth = useUIStore((s) => s.sidebarWidth);
@@ -64,6 +68,7 @@ export function NotesView() {
   const setLayoutPanelDragging = useUIStore((s) => s.setLayoutPanelDragging);
 
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [pendingDeleteCurrentNotePath, setPendingDeleteCurrentNotePath] = useState<string | null>(null);
   const [isOpenTargetBusy, setIsOpenTargetBusy] = useState(false);
   const [pendingShortcutNoteTarget, setPendingShortcutNoteTarget] = useState<{
     vaultPath: string;
@@ -477,6 +482,15 @@ export function NotesView() {
   }, [openMarkdownTarget]);
 
   useEffect(() => {
+    return subscribeDeleteCurrentNoteEvent(() => {
+      if (!currentNotePath) {
+        return;
+      }
+      setPendingDeleteCurrentNotePath(currentNotePath);
+    });
+  }, [currentNotePath]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (matchesShortcutBinding(e, 'toggleEmbeddedChat')) {
         e.preventDefault();
@@ -562,6 +576,24 @@ export function NotesView() {
         )}
 
       </div>
+
+      <TreeItemDeleteDialog
+        open={Boolean(pendingDeleteCurrentNotePath)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingDeleteCurrentNotePath(null);
+          }
+        }}
+        itemLabel={pendingDeleteCurrentNotePath ? getDisplayName(pendingDeleteCurrentNotePath) : ''}
+        itemType="Note"
+        onConfirm={() => {
+          const path = pendingDeleteCurrentNotePath;
+          setPendingDeleteCurrentNotePath(null);
+          if (path) {
+            void deleteNote(path);
+          }
+        }}
+      />
       
       <ConfirmDialog
         isOpen={Boolean(pendingDraftDiscardPath)}
@@ -576,5 +608,5 @@ export function NotesView() {
 
       <ModuleShortcutsDialog module="notes" open={isShortcutsOpen} onOpenChange={setIsShortcutsOpen} />
     </>
-  );
-}
+  );}
+

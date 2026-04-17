@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EDITOR_FIND_OPEN_EVENT } from '@/components/Notes/features/Editor/find/editorFindEvents';
+import { DELETE_CURRENT_NOTE_EVENT } from '@/components/Notes/noteDeleteEvents';
 import { SIDEBAR_OPEN_SEARCH_EVENT } from '@/components/layout/sidebar/sidebarEvents';
 import { useUIStore } from '@/stores/uiSlice';
 import { useShortcuts } from './useShortcuts';
@@ -73,6 +74,31 @@ describe('useShortcuts', () => {
     } finally {
       window.removeEventListener(EDITOR_FIND_OPEN_EVENT, editorFindListener);
       window.removeEventListener(SIDEBAR_OPEN_SEARCH_EVENT, sidebarListener);
+    }
+  });
+
+
+  it('dispatches delete current note for Ctrl+Shift+Backspace in notes mode', () => {
+    const deleteListener = vi.fn();
+    window.addEventListener(DELETE_CURRENT_NOTE_EVENT, deleteListener);
+
+    try {
+      renderHook(() => useShortcuts());
+
+      const event = new KeyboardEvent('keydown', {
+        key: 'Backspace',
+        ctrlKey: true,
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+
+      window.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(deleteListener).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener(DELETE_CURRENT_NOTE_EVENT, deleteListener);
     }
   });
 

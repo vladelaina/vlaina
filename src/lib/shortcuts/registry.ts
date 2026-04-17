@@ -151,6 +151,15 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
     section: 'Notes',
   },
   {
+    id: 'deleteCurrentNote',
+    action: 'Delete current note',
+    description: 'Delete current note',
+    keys: ['Ctrl', 'Shift', 'Backspace'],
+    scope: 'notes',
+    modules: ['notes'],
+    section: 'Notes',
+  },
+  {
     id: 'openNewChat',
     action: 'Open new chat',
     description: 'Open new chat',
