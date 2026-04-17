@@ -31,7 +31,7 @@ describe('handleEditorImageFiles', () => {
             currentNote: { path: 'daily/demo.md', content: '' },
         }))).resolves.toBe(true);
 
-        expect(uploadAsset).toHaveBeenCalledWith(file, 'content', 'daily/demo.md');
+        expect(uploadAsset).toHaveBeenCalledWith(file, 'daily/demo.md');
         expect(replaceSelectionWith).toHaveBeenCalledTimes(2);
         expect(dispatch).toHaveBeenCalledTimes(1);
     });

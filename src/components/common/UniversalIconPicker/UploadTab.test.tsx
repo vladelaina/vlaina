@@ -82,7 +82,7 @@ describe('UploadTab', () => {
   it('shows an empty-state message when there are no saved icons', () => {
     render(<UploadTab onSelect={() => {}} onPreview={() => {}} onClose={() => {}} customIcons={[]} />);
 
-    expect(screen.getByText('No saved icons yet')).toBeInTheDocument();
+    expect(screen.getByText('Upload an image to use it as the note icon')).toBeInTheDocument();
   });
 
   it('supports preview, selection, and deletion from the custom icon library', () => {
