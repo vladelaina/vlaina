@@ -73,14 +73,15 @@ export function useSidebarSearchControls({
 
     const handleWheel = (event: WheelEvent) => {
       if (isOpen) {
-        if (scrollRoot.scrollTop === 0 && event.deltaY < 0) {
-          event.preventDefault();
-          return;
-        }
-        if (scrollRoot.scrollTop === 0 && event.deltaY > 0 && !query.trim()) {
+        if (!query.trim() && event.deltaY > 0) {
           event.preventDefault();
           shouldResetScrollTopOnCloseRef.current = true;
           hideSearch();
+          return;
+        }
+
+        if (scrollRoot.scrollTop === 0 && event.deltaY < 0) {
+          event.preventDefault();
         }
         return;
       }

@@ -107,6 +107,8 @@ export const SidebarActionButton = forwardRef<HTMLButtonElement, SidebarActionBu
   },
 );
 
+const SIDEBAR_SEARCH_ICON_SIZE = 18;
+
 export const SidebarSearchField = forwardRef<HTMLInputElement, SidebarSearchFieldProps>(
   function SidebarSearchField(
     {
@@ -130,7 +132,7 @@ export const SidebarSearchField = forwardRef<HTMLInputElement, SidebarSearchFiel
         >
           <Icon
             name="common.search"
-            size="md"
+            size={SIDEBAR_SEARCH_ICON_SIZE}
             className="text-[#999999]"
           />
           <input

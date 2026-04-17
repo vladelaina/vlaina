@@ -23,11 +23,13 @@ function SidebarSearchControlsHarness({
   query,
   onOpen,
   onClose,
+  scrollTop = 0,
 }: {
   isOpen: boolean;
   query: string;
   onOpen: () => void;
   onClose: () => void;
+  scrollTop?: number;
 }) {
   const interactionScopeRef = useRef<HTMLDivElement | null>(null);
   const { scrollRootRef } = useSidebarSearchControls({
@@ -44,8 +46,8 @@ function SidebarSearchControlsHarness({
       return;
     }
 
-    setScrollableMetrics(element, { scrollTop: 0 });
-  }, [scrollRootRef]);
+    setScrollableMetrics(element, { scrollTop });
+  }, [scrollRootRef, scrollTop]);
 
   return (
     <div ref={interactionScopeRef} data-testid="interaction-scope">
@@ -65,6 +67,36 @@ describe('useSidebarSearchControls', () => {
         query=""
         onOpen={onOpen}
         onClose={onClose}
+      />,
+    );
+
+    const interactionScope = screen.getByTestId('interaction-scope');
+    const wheelEvent = new WheelEvent('wheel', {
+      bubbles: true,
+      cancelable: true,
+      deltaY: 100,
+    });
+
+    act(() => {
+      interactionScope.dispatchEvent(wheelEvent);
+    });
+
+    expect(wheelEvent.defaultPrevented).toBe(true);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('still closes the empty search drawer on downward wheel even after results were scrolled', () => {
+    const onOpen = vi.fn();
+    const onClose = vi.fn();
+
+    render(
+      <SidebarSearchControlsHarness
+        isOpen
+        query=""
+        onOpen={onOpen}
+        onClose={onClose}
+        scrollTop={48}
       />,
     );
 
