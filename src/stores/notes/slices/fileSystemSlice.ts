@@ -15,6 +15,7 @@ import {
   sortNestedFileTree,
 } from '../fileTreeSorting';
 import {
+  getCurrentVaultPath,
   getNotesBasePath,
   ensureNotesFolder,
   loadNoteMetadata,
@@ -35,6 +36,7 @@ import {
 } from '../document/noteContentCache';
 import { markExpectedExternalChange } from '../document/externalChangeRegistry';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
+import { createDraftNotePath } from '../draftNote';
 import {
 } from '../document/externalPathSync';
 
@@ -98,6 +100,50 @@ function replaceCurrentTabOrAppend(
   const nextTabs = [...openTabs];
   nextTabs[currentTabIndex] = nextTab;
   return nextTabs;
+}
+
+function createBlankDraftState({
+  folderPath,
+  openTabs,
+  currentNote,
+  currentNoteRevision,
+  noteContentsCache,
+  draftNotes,
+  displayNames,
+}: {
+  folderPath?: string;
+  openTabs: NotesStore['openTabs'];
+  currentNote: NotesStore['currentNote'];
+  currentNoteRevision: NotesStore['currentNoteRevision'];
+  noteContentsCache: NotesStore['noteContentsCache'];
+  draftNotes: NotesStore['draftNotes'];
+  displayNames: NotesStore['displayNames'];
+}) {
+  const draftPath = createDraftNotePath();
+  const nextTab = { path: draftPath, name: '', isDirty: false };
+  const nextDisplayNames = new Map(displayNames);
+  nextDisplayNames.set(draftPath, '');
+
+  return {
+    draftPath,
+    nextState: {
+      currentNote: { path: draftPath, content: '' },
+      currentNoteRevision: currentNoteRevision + 1,
+      isDirty: false,
+      openTabs: replaceCurrentTabOrAppend(openTabs, currentNote?.path, nextTab),
+      isNewlyCreated: true,
+      error: null,
+      noteContentsCache: setCachedNoteContent(noteContentsCache, draftPath, '', null),
+      draftNotes: {
+        ...draftNotes,
+        [draftPath]: {
+          parentPath: folderPath ?? null,
+          name: '',
+        },
+      },
+      displayNames: nextDisplayNames,
+    },
+  };
 }
 
 export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemSlice> = (
@@ -209,6 +255,9 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       fileTreeSortMode,
       noteContentsCache,
       noteMetadata,
+      draftNotes,
+      displayNames,
+      currentNoteRevision,
     } = get();
 
     try {
@@ -217,11 +266,36 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         if (get().isDirty) {
           throw new Error('Failed to save current note before creating a new note');
         }
-        ({ openTabs, recentNotes, rootFolder, currentNote, noteContentsCache, noteMetadata } = get());
+        ({
+          openTabs,
+          recentNotes,
+          rootFolder,
+          currentNote,
+          noteContentsCache,
+          noteMetadata,
+          draftNotes,
+          displayNames,
+          currentNoteRevision,
+        } = get());
       }
 
       if (!notesPath) {
-        notesPath = await getNotesBasePath();
+        const currentVaultPath = getCurrentVaultPath();
+        if (!currentVaultPath) {
+          const { draftPath, nextState } = createBlankDraftState({
+            folderPath,
+            openTabs,
+            currentNote,
+            currentNoteRevision,
+            noteContentsCache,
+            draftNotes,
+            displayNames,
+          });
+          set(nextState);
+          return draftPath;
+        }
+
+        notesPath = currentVaultPath;
         await ensureNotesFolder(notesPath);
         set({ notesPath });
       }
@@ -599,7 +673,22 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
 
     try {
       if (!notesPath) {
-        notesPath = await getNotesBasePath();
+        const currentVaultPath = getCurrentVaultPath();
+        if (!currentVaultPath) {
+          const { draftPath, nextState } = createBlankDraftState({
+            folderPath,
+            openTabs,
+            currentNote,
+            currentNoteRevision,
+            noteContentsCache,
+            draftNotes,
+            displayNames,
+          });
+          set(nextState);
+          return draftPath;
+        }
+
+        notesPath = currentVaultPath;
         await ensureNotesFolder(notesPath);
         set({ notesPath });
       }
