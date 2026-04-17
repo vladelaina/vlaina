@@ -226,12 +226,6 @@ export function createFileSystemCreateActions(
         notesPath,
         fileTreeSortMode,
         noteMetadata,
-        openTabs,
-        currentNote,
-        currentNoteRevision,
-        noteContentsCache,
-        draftNotes,
-        displayNames,
       } = get();
       const storage = getStorageAdapter();
 
@@ -239,17 +233,7 @@ export function createFileSystemCreateActions(
         if (!notesPath) {
           const currentVaultPath = getCurrentVaultPath();
           if (!currentVaultPath) {
-            const { draftPath, nextState } = createBlankDraftState({
-              folderPath: parentPath || undefined,
-              openTabs,
-              currentNote,
-              currentNoteRevision,
-              noteContentsCache,
-              draftNotes,
-              displayNames,
-            });
-            set(nextState);
-            return draftPath;
+            return null;
           }
 
           notesPath = currentVaultPath;
