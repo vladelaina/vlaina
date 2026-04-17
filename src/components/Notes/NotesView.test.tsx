@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { render, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { dispatchDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEvents';
 import { NotesView } from './NotesView';
 
 type MockNotesState = {
@@ -10,6 +11,7 @@ type MockNotesState = {
   closeTab: ReturnType<typeof vi.fn>;
   createNote: ReturnType<typeof vi.fn>;
   openNote: ReturnType<typeof vi.fn>;
+  deleteNote: ReturnType<typeof vi.fn>;
   loadStarred: ReturnType<typeof vi.fn>;
   loadMetadata: ReturnType<typeof vi.fn>;
   loadAssets: ReturnType<typeof vi.fn>;
@@ -32,6 +34,10 @@ type MockNotesState = {
   draftNotes: Record<string, { parentPath: string | null; name: string }>;
   isLoading: boolean;
   openNoteByAbsolutePath: ReturnType<typeof vi.fn>;
+  pendingDraftDiscardPath: string | null;
+  cancelPendingDraftDiscard: ReturnType<typeof vi.fn>;
+  confirmPendingDraftDiscard: ReturnType<typeof vi.fn>;
+  getDisplayName: ReturnType<typeof vi.fn>;
 };
 
 const mocks = vi.hoisted(() => {
@@ -42,6 +48,7 @@ const mocks = vi.hoisted(() => {
     closeTab: vi.fn(),
     createNote: vi.fn().mockResolvedValue('draft:test'),
     openNote: vi.fn().mockResolvedValue(undefined),
+    deleteNote: vi.fn().mockResolvedValue(undefined),
     loadStarred: vi.fn().mockResolvedValue(undefined),
     loadMetadata: vi.fn().mockResolvedValue(undefined),
     loadAssets: vi.fn().mockResolvedValue(undefined),
@@ -64,6 +71,10 @@ const mocks = vi.hoisted(() => {
     draftNotes: {},
     isLoading: false,
     openNoteByAbsolutePath: vi.fn().mockResolvedValue(undefined),
+    pendingDraftDiscardPath: null,
+    cancelPendingDraftDiscard: vi.fn(),
+    confirmPendingDraftDiscard: vi.fn(),
+    getDisplayName: vi.fn((path: string) => path.split('/').pop() || path),
   };
 
   const vaultState = {
@@ -170,11 +181,23 @@ vi.mock('@/stores/notes/openNotePath', () => ({
   openStoredNotePath: vi.fn(),
 }));
 
+
+vi.mock('@/components/Notes/features/FileTree/components/TreeItemDeleteDialog', () => ({
+  TreeItemDeleteDialog: ({ open, itemLabel, onConfirm }: { open: boolean; itemLabel: string; onConfirm: () => void }) =>
+    open ? (
+      <div>
+        <span data-testid="delete-note-label">{itemLabel}</span>
+        <button type="button" onClick={onConfirm}>Confirm Delete Note</button>
+      </div>
+    ) : null,
+}));
+
 const notesState = mocks.notesState;
 const uiState = mocks.uiState;
 
 describe('NotesView', () => {
   beforeEach(() => {
+    mocks.vaultState.currentVault = { path: '/vault' };
     notesState.currentNote = null;
     notesState.openTabs = [];
     notesState.draftNotes = {};
@@ -192,6 +215,7 @@ describe('NotesView', () => {
     notesState.closeTab.mockClear();
     notesState.createNote.mockClear();
     notesState.openNote.mockClear();
+    notesState.deleteNote.mockClear();
     notesState.loadStarred.mockClear();
     notesState.loadMetadata.mockClear();
     notesState.loadAssets.mockClear();
@@ -201,6 +225,9 @@ describe('NotesView', () => {
     notesState.revealFolder.mockClear();
     notesState.setPendingStarredNavigation.mockClear();
     notesState.openNoteByAbsolutePath.mockClear();
+    notesState.cancelPendingDraftDiscard.mockClear();
+    notesState.confirmPendingDraftDiscard.mockClear();
+    notesState.getDisplayName.mockClear();
 
     uiState.setNotesChatPanelCollapsed.mockClear();
     uiState.toggleNotesChatPanel.mockClear();
@@ -241,6 +268,24 @@ describe('NotesView', () => {
 
     await waitFor(() => {
       expect(notesState.createNote).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('opens the delete dialog for the current note and confirms deletion', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+
+    render(<NotesView />);
+
+    await act(async () => {
+      dispatchDeleteCurrentNoteEvent();
+    });
+
+    expect(await screen.findByTestId('delete-note-label')).toHaveTextContent('alpha.md');
+
+    fireEvent.click(screen.getByText('Confirm Delete Note'));
+
+    await waitFor(() => {
+      expect(notesState.deleteNote).toHaveBeenCalledWith('docs/alpha.md');
     });
   });
 });

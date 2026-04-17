@@ -8,6 +8,7 @@ import { getShortcuts, getKeysFromEvent, matchShortcut, ShortcutScope, ShortcutH
 import { shouldBlockBrowserReservedShortcut } from '@/lib/shortcuts/browserGuards';
 import { dispatchSidebarOpenSearchEvent } from '@/components/layout/sidebar/sidebarEvents';
 import { resolveSiblingNoteParentPath } from '@/stores/notes/notePathState';
+import { dispatchDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEvents';
 
 interface UseShortcutsOptions {
   scope?: ShortcutScope;
@@ -53,6 +54,9 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
     },
     openMarkdownFile: () => {
       window.dispatchEvent(new Event('vlaina-open-markdown-file'));
+    },
+    deleteCurrentNote: () => {
+      dispatchDeleteCurrentNoteEvent();
     },
     toggleDrawer,
   }), [toggleAppViewMode, toggleSidebar, setNotesSidebarView, notesSidebarView, createNote, currentNote?.path, toggleDrawer, appViewMode]);
