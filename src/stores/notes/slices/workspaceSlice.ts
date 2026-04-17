@@ -718,5 +718,12 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     updateDisplayName(set, path, title);
   },
 
-  getDisplayName: (path: string) => get().displayNames.get(path) ?? getNoteTitleFromPath(path),
+  getDisplayName: (path: string) => {
+    const draftNote = get().draftNotes[path];
+    if (draftNote) {
+      return resolveDraftNoteTitle(draftNote.name);
+    }
+
+    return get().displayNames.get(path) ?? getNoteTitleFromPath(path);
+  },
 });
