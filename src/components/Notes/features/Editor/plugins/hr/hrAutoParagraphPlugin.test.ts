@@ -4,7 +4,7 @@ import {
   Editor,
   editorViewCtx,
 } from '@milkdown/kit/core';
-import { TextSelection } from '@milkdown/kit/prose/state';
+import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 
@@ -107,6 +107,17 @@ function hasHorizontalRule(view: EditorView): boolean {
   }
 
   return false;
+}
+
+function findHorizontalRulePos(view: EditorView): number | null {
+  let foundPos: number | null = null;
+  view.state.doc.forEach((node, offset) => {
+    if (foundPos === null && node.type.name === 'hr') {
+      foundPos = offset;
+    }
+  });
+
+  return foundPos;
 }
 
 describe('hrAutoParagraphPlugin', () => {
@@ -281,6 +292,34 @@ describe('hrAutoParagraphPlugin', () => {
 
     pressKey(view, 'Enter', { shiftKey: true });
     expect(hasHorizontalRule(view)).toBe(false);
+
+    await editor.destroy();
+  });
+
+  it('deletes a selected horizontal rule without leaving the editor focused on the next paragraph', async () => {
+    const editor = createEditor('before\n\n---\n\nafter');
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const hrPos = findHorizontalRulePos(view);
+
+    expect(hrPos).not.toBeNull();
+
+    view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, hrPos)));
+
+    let blurCalled = false;
+    const originalBlur = view.dom.blur.bind(view.dom);
+    view.dom.blur = () => {
+      blurCalled = true;
+      originalBlur();
+    };
+
+    expect(pressKey(view, 'Delete')).toBe(true);
+    expect(hasHorizontalRule(view)).toBe(false);
+    expect(blurCalled).toBe(true);
+
+    view.dom.blur = originalBlur;
 
     await editor.destroy();
   });

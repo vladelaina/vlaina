@@ -164,6 +164,31 @@ function deleteAdjacentHorizontalRule(view: EditorView, key: string): boolean {
   return false;
 }
 
+function deleteSelectedHorizontalRule(view: EditorView, key: string): boolean {
+  if (key !== 'Backspace' && key !== 'Delete') return false;
+
+  const { state } = view;
+  const { selection } = state;
+  if (!(selection instanceof NodeSelection)) return false;
+  if (selection.node.type !== state.schema.nodes.hr) return false;
+
+  const anchorHint = selection.from;
+  let tr = state.tr.deleteSelection();
+
+  if (tr.doc.content.size === 0) {
+    const paragraphType = tr.doc.type.schema.nodes.paragraph;
+    if (paragraphType) {
+      tr = tr.insert(0, paragraphType.create());
+    }
+  }
+
+  const targetPos = Math.max(0, Math.min(anchorHint, tr.doc.content.size));
+  tr = tr.setSelection(Selection.near(tr.doc.resolve(targetPos), -1));
+  view.dispatch(tr.scrollIntoView());
+  view.dom.blur();
+  return true;
+}
+
 export const hrAutoParagraphPlugin = $prose(() => {
   return new Plugin({
     key: hrAutoParagraphPluginKey,
@@ -191,6 +216,11 @@ export const hrAutoParagraphPlugin = $prose(() => {
         }
 
         if (event.key === 'Backspace' || event.key === 'Delete') {
+          if (deleteSelectedHorizontalRule(view, event.key)) {
+            event.preventDefault();
+            return true;
+          }
+
           if (!deleteAdjacentHorizontalRule(view, event.key)) return false;
           event.preventDefault();
           return true;

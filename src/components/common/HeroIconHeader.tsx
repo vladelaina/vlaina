@@ -5,7 +5,7 @@ import { useIconPreview } from '@/components/common/UniversalIconPicker/useIconP
 import { AppIcon } from '@/components/common/AppIcon';
 import { type CustomIcon } from '@/lib/storage/unifiedStorage';
 import { useUIStore } from '@/stores/uiSlice';
-import { getRandomHeaderEmoji } from '@/components/common/UniversalIconPicker/randomEmoji';
+import { getRandomHeaderEmoji, preloadRandomEmojiData } from '@/components/common/UniversalIconPicker/randomEmoji';
 import { type ItemColor, COLOR_HEX } from '@/lib/colors';
 import { ICON_SIZES, IconSize } from '@/components/ui/icons/sizes';
 
@@ -130,6 +130,10 @@ export function HeroIconHeader({
       headerRef.current.style.setProperty('--header-icon-size', `${effectiveSize}px`);
     }
   }, [effectiveSize]);
+
+  useEffect(() => {
+    void preloadRandomEmojiData();
+  }, []);
 
   const handleIconSelect = useCallback((newIcon: string) => {
     onIconChange(newIcon);
