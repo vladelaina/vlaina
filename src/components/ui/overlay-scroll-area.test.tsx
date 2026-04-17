@@ -128,6 +128,7 @@ describe('OverlayScrollArea', () => {
     const track = rail?.firstElementChild as HTMLDivElement | null;
     const thumb = track?.firstElementChild as HTMLDivElement | null;
 
+    expect(rail?.dataset.noFocusInput).toBe('true');
     expect(rail?.className).toContain('cursor-default');
     expect(track?.className).toContain('cursor-default');
     expect(thumb?.className).toContain('cursor-default');

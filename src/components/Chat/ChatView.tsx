@@ -284,7 +284,7 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
           isSessionActive={isSessionActive}
           showLoading={showLoading}
           isLayoutCentered={isEmpty}
-          useOverlayScrollbar={isEmbedded}
+          useOverlayScrollbar
           spacerHeight={spacerHeight}
           containerRef={containerRef}
           onCopy={copyToClipboard}
