@@ -43,8 +43,8 @@ describe('createNoteImpl', () => {
 
     const result = await createNoteImpl('/vault', undefined, 'alpha', [
       '---',
-      'cover: "assets/alpha.webp"',
-      'icon: "🐱"',
+      'vlaina_cover: "assets/alpha.webp"',
+      'vlaina_icon: "🐱"',
       '---',
       '',
       '# Alpha',
@@ -63,10 +63,10 @@ describe('createNoteImpl', () => {
 
     expect(adapter.writeFile).toHaveBeenNthCalledWith(1, '/vault/alpha.md', [
       '---',
-      'cover: "assets/alpha.webp"',
-      'icon: "🐱"',
-      'created: "2026-04-15T10:00:00.000Z"',
-      'updated: "2026-04-15T10:00:00.000Z"',
+      'vlaina_cover: "assets/alpha.webp"',
+      'vlaina_icon: "🐱"',
+      'vlaina_created: "2026-04-15T10:00:00.000Z"',
+      'vlaina_updated: "2026-04-15T10:00:00.000Z"',
       '---',
       '',
       '# Alpha',

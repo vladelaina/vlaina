@@ -2,16 +2,25 @@ import type { NoteCoverMetadata, NoteMetadataEntry } from './types';
 
 const LINE_ENDING_PATTERN = /\r\n?/g;
 const FRONTMATTER_DELIMITER = '---';
+const VLAINA_PREFIX = 'vlaina_';
+const KEY_COVER = `${VLAINA_PREFIX}cover`;
+const KEY_COVER_X = `${VLAINA_PREFIX}cover_x`;
+const KEY_COVER_Y = `${VLAINA_PREFIX}cover_y`;
+const KEY_COVER_HEIGHT = `${VLAINA_PREFIX}cover_height`;
+const KEY_COVER_SCALE = `${VLAINA_PREFIX}cover_scale`;
+const KEY_ICON = `${VLAINA_PREFIX}icon`;
+const KEY_CREATED = `${VLAINA_PREFIX}created`;
+const KEY_UPDATED = `${VLAINA_PREFIX}updated`;
 
 const MANAGED_KEYS = new Set([
-  'cover',
-  'cover_x',
-  'cover_y',
-  'cover_height',
-  'cover_scale',
-  'icon',
-  'created',
-  'updated',
+  KEY_COVER,
+  KEY_COVER_X,
+  KEY_COVER_Y,
+  KEY_COVER_HEIGHT,
+  KEY_COVER_SCALE,
+  KEY_ICON,
+  KEY_CREATED,
+  KEY_UPDATED,
 ]);
 
 interface FrontmatterSections {
@@ -163,41 +172,41 @@ export function readNoteMetadataFromMarkdown(markdown: string): NoteMetadataEntr
     parsedValues.set(key, parseYamlScalar(rawValue));
   }
 
-  const coverValue = parsedValues.get('cover');
+  const coverValue = parsedValues.get(KEY_COVER);
   const normalized: NoteMetadataEntry = {};
 
-  if (typeof parsedValues.get('icon') === 'string') {
-    normalized.icon = parsedValues.get('icon') as string;
+  if (typeof parsedValues.get(KEY_ICON) === 'string') {
+    normalized.icon = parsedValues.get(KEY_ICON) as string;
   }
 
   if (typeof coverValue === 'string' && coverValue) {
     normalized.cover = normalizeCover({
       assetPath: coverValue,
       positionX:
-        typeof parsedValues.get('cover_x') === 'number'
-          ? (parsedValues.get('cover_x') as number)
+        typeof parsedValues.get(KEY_COVER_X) === 'number'
+          ? (parsedValues.get(KEY_COVER_X) as number)
           : undefined,
       positionY:
-        typeof parsedValues.get('cover_y') === 'number'
-          ? (parsedValues.get('cover_y') as number)
+        typeof parsedValues.get(KEY_COVER_Y) === 'number'
+          ? (parsedValues.get(KEY_COVER_Y) as number)
           : undefined,
       height:
-        typeof parsedValues.get('cover_height') === 'number'
-          ? (parsedValues.get('cover_height') as number)
+        typeof parsedValues.get(KEY_COVER_HEIGHT) === 'number'
+          ? (parsedValues.get(KEY_COVER_HEIGHT) as number)
           : undefined,
       scale:
-        typeof parsedValues.get('cover_scale') === 'number'
-          ? (parsedValues.get('cover_scale') as number)
+        typeof parsedValues.get(KEY_COVER_SCALE) === 'number'
+          ? (parsedValues.get(KEY_COVER_SCALE) as number)
           : undefined,
     });
   }
 
-  const createdAt = parseTimestamp(parsedValues.get('created') ?? null);
+  const createdAt = parseTimestamp(parsedValues.get(KEY_CREATED) ?? null);
   if (createdAt !== undefined) {
     normalized.createdAt = createdAt;
   }
 
-  const updatedAt = parseTimestamp(parsedValues.get('updated') ?? null);
+  const updatedAt = parseTimestamp(parsedValues.get(KEY_UPDATED) ?? null);
   if (updatedAt !== undefined) {
     normalized.updatedAt = updatedAt;
   }
@@ -220,23 +229,23 @@ export function writeNoteMetadataToMarkdown(
   const cover = normalizedEntry.cover;
 
   if (cover?.assetPath) {
-    managedLines.push(`cover: ${quoteYamlString(cover.assetPath)}`);
-    if (cover.positionX !== undefined) managedLines.push(`cover_x: ${cover.positionX}`);
-    if (cover.positionY !== undefined) managedLines.push(`cover_y: ${cover.positionY}`);
-    if (cover.height !== undefined) managedLines.push(`cover_height: ${cover.height}`);
-    if (cover.scale !== undefined) managedLines.push(`cover_scale: ${cover.scale}`);
+    managedLines.push(`${KEY_COVER}: ${quoteYamlString(cover.assetPath)}`);
+    if (cover.positionX !== undefined) managedLines.push(`${KEY_COVER_X}: ${cover.positionX}`);
+    if (cover.positionY !== undefined) managedLines.push(`${KEY_COVER_Y}: ${cover.positionY}`);
+    if (cover.height !== undefined) managedLines.push(`${KEY_COVER_HEIGHT}: ${cover.height}`);
+    if (cover.scale !== undefined) managedLines.push(`${KEY_COVER_SCALE}: ${cover.scale}`);
   }
 
   if (normalizedEntry.icon) {
-    managedLines.push(`icon: ${quoteYamlString(normalizedEntry.icon)}`);
+    managedLines.push(`${KEY_ICON}: ${quoteYamlString(normalizedEntry.icon)}`);
   }
 
   if (normalizedEntry.createdAt !== undefined) {
-    managedLines.push(`created: ${quoteYamlString(new Date(normalizedEntry.createdAt).toISOString())}`);
+    managedLines.push(`${KEY_CREATED}: ${quoteYamlString(new Date(normalizedEntry.createdAt).toISOString())}`);
   }
 
   if (normalizedEntry.updatedAt !== undefined) {
-    managedLines.push(`updated: ${quoteYamlString(new Date(normalizedEntry.updatedAt).toISOString())}`);
+    managedLines.push(`${KEY_UPDATED}: ${quoteYamlString(new Date(normalizedEntry.updatedAt).toISOString())}`);
   }
 
   const nextFrontmatterLines = [...preservedLines];

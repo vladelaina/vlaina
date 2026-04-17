@@ -31,7 +31,7 @@ describe('saveNoteDocument', () => {
         path: 'alpha.md',
         content: [
           '---',
-          'created: "2026-04-14T10:00:00.000Z"',
+          'vlaina_created: "2026-04-14T10:00:00.000Z"',
           '---',
           '',
           '# Alpha',
@@ -44,8 +44,8 @@ describe('saveNoteDocument', () => {
       '/vault/alpha.md',
       [
         '---',
-        'created: "2026-04-14T10:00:00.000Z"',
-        'updated: "2026-04-15T10:00:00.000Z"',
+        'vlaina_created: "2026-04-14T10:00:00.000Z"',
+        'vlaina_updated: "2026-04-15T10:00:00.000Z"',
         '---',
         '',
         '# Alpha',

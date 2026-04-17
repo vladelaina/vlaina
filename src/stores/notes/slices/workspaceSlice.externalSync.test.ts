@@ -83,7 +83,7 @@ function createNotesStore(overrides: Partial<NotesStore> = {}) {
     starredFolders: [],
     starredLoaded: true,
     pendingStarredNavigation: null,
-    noteMetadata: { version: 1, notes: {} },
+    noteMetadata: { version: 2, notes: {} },
     noteIconSize: 60,
     displayNames: new Map(),
     isNewlyCreated: false,
