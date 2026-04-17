@@ -7,7 +7,7 @@ import { FileItem } from './FileItem';
 import { TreeItemDeleteDialog } from './components/TreeItemDeleteDialog';
 import { useFolderItemState } from './hooks/useFolderItemState';
 import { cn } from '@/lib/utils';
-import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
+import { getSidebarTextClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
 import { SidebarStarBadge } from '../common/SidebarStarBadge';
 import { TreeItemShell } from './components/TreeItemShell';
@@ -151,14 +151,14 @@ export const FolderItem = memo(function FolderItem({
             onCancel={() => setIsRenaming(false)}
             className={cn(
               'w-full min-w-0 border-none bg-transparent p-0 text-sm leading-5 outline-none',
-              showMenu
-                ? 'text-[var(--notes-sidebar-text)]'
-                : 'text-[var(--notes-sidebar-text-muted)]'
+              getSidebarTextClass('notes')
             )}
           />
         ) : (
           <div className={cn('relative min-w-0', showStarBadge && 'pr-5')}>
-            <span className="block truncate text-[var(--notes-sidebar-text)]">{node.name}</span>
+            <span className={cn('block truncate', getSidebarTextClass('notes'))}>
+              {node.name}
+            </span>
             {showStarBadge ? (
               <SidebarStarBadge
                 ariaLabel={isItemStarred ? 'Remove from Starred' : 'Add to Starred'}

@@ -8,6 +8,10 @@ import {
 import { Icon } from '@/components/ui/icons';
 import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area';
 import { cn } from '@/lib/utils';
+import {
+  getSidebarActionButtonClass,
+  type SidebarTone,
+} from '@/components/layout/sidebar/sidebarLabelStyles';
 
 interface SidebarSurfaceProps extends HTMLAttributes<HTMLDivElement> {
   isPeeking?: boolean;
@@ -21,6 +25,7 @@ interface SidebarActionButtonProps extends ButtonHTMLAttributes<HTMLButtonElemen
   icon: ReactNode;
   label: ReactNode;
   iconClassName?: string;
+  tone?: SidebarTone;
 }
 
 interface SidebarSearchFieldProps
@@ -74,7 +79,7 @@ export function SidebarActionGroup({
 
 export const SidebarActionButton = forwardRef<HTMLButtonElement, SidebarActionButtonProps>(
   function SidebarActionButton(
-    { icon, label, className, iconClassName, type = 'button', ...props },
+    { icon, label, className, iconClassName, tone, type = 'button', ...props },
     ref,
   ) {
     return (
@@ -82,7 +87,8 @@ export const SidebarActionButton = forwardRef<HTMLButtonElement, SidebarActionBu
         ref={ref}
         type={type}
         className={cn(
-          'flex h-[30px] w-full cursor-pointer items-center gap-2 rounded-md bg-transparent px-3 py-1 text-sm font-medium shadow-none transition-colors hover:shadow-none',
+          'flex h-[30px] w-full cursor-pointer items-center gap-2 rounded-md bg-transparent px-3 py-1 text-sm shadow-none transition-colors hover:shadow-none',
+          tone ? getSidebarActionButtonClass(tone) : undefined,
           className,
         )}
         {...props}

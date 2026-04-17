@@ -1,6 +1,7 @@
 import type { HTMLAttributes, ReactNode } from 'react';
 import { SidebarRow } from '@/components/layout/sidebar/SidebarRow';
 import { cn } from '@/lib/utils';
+import { getSidebarToneStyles } from '@/components/layout/sidebar/sidebarLabelStyles';
 
 export interface NotesSidebarRowDragHandlers {
   onPointerDown?: (event: React.PointerEvent<HTMLDivElement>) => void;
@@ -43,6 +44,8 @@ export function NotesSidebarRow({
   children,
   ...props
 }: NotesSidebarRowProps) {
+  const styles = getSidebarToneStyles('notes');
+
   return (
     <SidebarRow
       indentWidth={depth * 16}
@@ -59,15 +62,15 @@ export function NotesSidebarRow({
       className={cn(className, dragHandlers?.isDragging && 'opacity-60')}
       contentClassName={contentClassName}
       actionFadeClassName={cn(
-        'from-[var(--notes-sidebar-fade)]',
-        isHighlighted && 'from-[var(--notes-sidebar-row-hover)]',
-        isActive && !isHighlighted && 'from-[var(--notes-sidebar-row-active)]',
-        !isActive && !isHighlighted && 'group-hover/sidebar-row:from-[var(--notes-sidebar-row-hover)]',
+        styles.fade,
+        isHighlighted && styles.fadeHover,
+        isActive && !isHighlighted && styles.fadeActive,
+        !isActive && !isHighlighted && styles.groupFadeHover,
         actionFadeClassName,
       )}
-      activeClassName="bg-[var(--notes-sidebar-row-active)] text-[var(--notes-sidebar-text)]"
-      highlightClassName="bg-[var(--notes-sidebar-row-hover)] text-[var(--notes-sidebar-text)]"
-      inactiveClassName="text-[var(--notes-sidebar-text-muted)] hover:bg-[var(--notes-sidebar-row-hover)]"
+      activeClassName={styles.activeRow}
+      highlightClassName={styles.highlightRow}
+      inactiveClassName={styles.inactiveRow}
       dragOverClassName="bg-[var(--notes-sidebar-row-drag)] ring-1 ring-[var(--vlaina-accent)]"
       onPointerDown={dragHandlers?.onPointerDown}
       {...props}

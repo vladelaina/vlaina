@@ -1,6 +1,7 @@
 import { memo, useRef } from 'react';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { cn, iconButtonStyles } from '@/lib/utils';
+import { getSidebarLabelClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 import { ChatSidebarRow } from './ChatSidebarPrimitives';
 import {
   DropdownMenu,
@@ -91,9 +92,7 @@ function ChatSidebarSessionRowInner({
             onCancel={onCancelRename}
             className={cn(
               'w-full min-w-0 border-none bg-transparent p-0 text-sm leading-5 outline-none',
-              isGenerating || isUnread
-                ? 'font-medium text-[var(--chat-sidebar-text)]'
-                : 'text-[var(--chat-sidebar-text-muted)]'
+              getSidebarLabelClass('chat', { emphasized: isGenerating || isUnread })
             )}
           />
         ) : isGenerating && !isActive ? (
@@ -104,9 +103,7 @@ function ChatSidebarSessionRowInner({
           <span
             className={cn(
               'block truncate transition-opacity',
-              isGenerating || isUnread
-                ? 'font-medium text-[var(--chat-sidebar-text)]'
-                : undefined
+              getSidebarLabelClass('chat', { emphasized: isGenerating || isUnread })
             )}
           >
             {displayTitle}

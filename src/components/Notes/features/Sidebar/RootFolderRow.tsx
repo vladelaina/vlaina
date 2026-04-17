@@ -5,11 +5,11 @@ import { useVaultStore } from '@/stores/useVaultStore';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import { type FolderNode } from '@/stores/useNotesStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
+import { getSidebarTextClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 import { NotesSidebarList } from './NotesSidebarPrimitives';
 import { NotesSidebarRow } from './NotesSidebarRow';
 import { RootFolderMenu } from './RootFolderMenu';
 import { FileTreeItem } from '../FileTree';
-import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
 import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
 import { getSidebarContextMenuPosition, getSidebarMenuPositionFromTriggerRect } from '../common/sidebarMenuPosition';
 import { useFileTreePointerDragState } from '../FileTree/hooks/fileTreePointerDragState';
@@ -158,10 +158,13 @@ export function RootFolderRow({
               onValueChange={setRenameValue}
               onSubmit={handleRenameSubmit}
               onCancel={() => setIsRenaming(false)}
-              className="w-full min-w-0 border-none bg-transparent p-0 text-sm leading-5 text-[var(--notes-sidebar-text)] outline-none"
+              className={cn(
+                'w-full min-w-0 border-none bg-transparent p-0 text-sm leading-5 outline-none',
+                getSidebarTextClass('notes')
+              )}
             />
           ) : (
-            <span className="block truncate text-[var(--notes-sidebar-text)]">
+            <span className={cn('block truncate', getSidebarTextClass('notes'))}>
               {title}
             </span>
           )

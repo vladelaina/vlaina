@@ -6,6 +6,7 @@ import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import type { FileTreeNode, FolderNode, StarredEntry } from '@/stores/notes/types';
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { cn, iconButtonStyles } from '@/lib/utils';
+import { getSidebarLabelClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 import { normalizeStarredVaultPath } from '@/stores/notes/starred';
 import { NoteIcon } from '../IconPicker/NoteIcon';
 import { FileItem } from '../FileTree/FileItem';
@@ -143,10 +144,7 @@ function ExternalStarredEntryRow({
         main={
           <div className="relative min-w-0 pr-5">
             <span
-              className={cn(
-                'block truncate',
-                isActive && 'font-medium text-[var(--notes-sidebar-text)]'
-              )}
+              className={getSidebarLabelClass('notes', { selected: isActive })}
             >
               {title}
             </span>

@@ -1,5 +1,6 @@
 import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { getSidebarToneStyles } from '@/components/layout/sidebar/sidebarLabelStyles';
 import {
   SidebarList,
   SidebarScrollArea,
@@ -69,6 +70,8 @@ export function ChatSidebarRow({
   children,
   ...props
 }: ChatSidebarRowProps) {
+  const styles = getSidebarToneStyles('chat');
+
   return (
     <SidebarRow
       main={main}
@@ -77,12 +80,12 @@ export function ChatSidebarRow({
       isActive={isActive}
       showActionsByDefault={showActionsByDefault}
       className={className}
-      activeClassName="bg-[var(--chat-sidebar-row-active)] text-[var(--chat-sidebar-text)]"
-      inactiveClassName="text-[var(--chat-sidebar-text-muted)] hover:bg-[var(--chat-sidebar-row-hover)]"
+      activeClassName={styles.activeRow}
+      inactiveClassName={styles.inactiveRow}
       actionFadeClassName={cn(
-        'from-[var(--chat-sidebar-fade)]',
-        isActive && 'from-[var(--chat-sidebar-row-active)]',
-        !isActive && 'group-hover/sidebar-row:from-[var(--chat-sidebar-row-hover)]'
+        styles.fade,
+        isActive && styles.fadeActive,
+        !isActive && styles.groupFadeHover
       )}
       {...props}
     >

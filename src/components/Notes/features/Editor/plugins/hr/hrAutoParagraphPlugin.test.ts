@@ -305,6 +305,9 @@ describe('hrAutoParagraphPlugin', () => {
     const hrPos = findHorizontalRulePos(view);
 
     expect(hrPos).not.toBeNull();
+    if (hrPos === null) {
+      throw new Error('Expected horizontal rule position');
+    }
 
     view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, hrPos)));
 
