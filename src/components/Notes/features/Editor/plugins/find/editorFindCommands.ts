@@ -6,12 +6,83 @@ import {
 import { editorFindPluginKey } from './editorFindKey';
 import { revealEditorFindMatch } from './editorFindReveal';
 import type { EditorFindPluginMeta, EditorFindPluginState } from './editorFindState';
+import { getCurrentEditorBlockPositionSnapshot } from '../../utils/editorBlockPositionCache';
 
 function getScrollRoot(view: EditorView): HTMLElement | null {
   return view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
 }
 
 type EditorFindScrollBehavior = 'smooth' | 'instant';
+
+function toDocumentOffset(viewportOffset: number, scrollRoot: HTMLElement): number {
+  return viewportOffset - scrollRoot.getBoundingClientRect().top + scrollRoot.scrollTop;
+}
+
+function resolveEditorFindMatchDocumentBounds(
+  view: EditorView,
+  match: EditorFindMatch,
+  scrollRoot: HTMLElement,
+): { top: number; bottom: number } | null {
+  try {
+    const startRect = view.coordsAtPos(match.from);
+    const endRect = view.coordsAtPos(Math.max(match.to - 1, match.from));
+    const top = Math.min(startRect.top, endRect.top);
+    const bottom = Math.max(startRect.bottom, endRect.bottom);
+
+    return {
+      top: toDocumentOffset(top, scrollRoot),
+      bottom: toDocumentOffset(bottom, scrollRoot),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function resolveEditorFindMatchScrollTop(
+  view: EditorView,
+  match: EditorFindMatch,
+  scrollRoot: HTMLElement,
+): number | null {
+  const snapshot = getCurrentEditorBlockPositionSnapshot();
+  if (snapshot?.view !== view || snapshot.scrollRoot !== scrollRoot) {
+    return null;
+  }
+
+  const bounds = resolveEditorFindMatchDocumentBounds(view, match, scrollRoot);
+  if (!bounds) {
+    return null;
+  }
+
+  const padding = 96;
+  const visibleTop = scrollRoot.scrollTop + padding;
+  const visibleBottom = scrollRoot.scrollTop + scrollRoot.clientHeight - padding;
+  if (bounds.top >= visibleTop && bounds.bottom <= visibleBottom) {
+    return null;
+  }
+
+  const containingBlock = snapshot.blocks.find(
+    (block) => match.from >= block.from && match.to <= block.to,
+  );
+  const centeredScrollTop =
+    bounds.top - Math.max(32, (scrollRoot.clientHeight - (bounds.bottom - bounds.top)) / 2);
+
+  if (!containingBlock) {
+    return Math.max(centeredScrollTop, 0);
+  }
+
+  const minScrollTop = bounds.bottom - (scrollRoot.clientHeight - padding);
+  const maxScrollTop = bounds.top - padding;
+  if (minScrollTop > maxScrollTop) {
+    return Math.max(centeredScrollTop, 0);
+  }
+
+  const preferredScrollTop =
+    containingBlock.documentTop - Math.max(40, Math.min(160, scrollRoot.clientHeight * 0.26));
+  return Math.max(
+    0,
+    Math.min(maxScrollTop, Math.max(minScrollTop, preferredScrollTop)),
+  );
+}
 
 function scrollEditorFindMatchIntoView(
   view: EditorView,
@@ -27,13 +98,14 @@ function scrollEditorFindMatchIntoView(
       const scrollRoot = getScrollRoot(view);
 
       if (scrollRoot) {
-        const rootRect = scrollRoot.getBoundingClientRect();
         const padding = 96;
+        const rootRect = scrollRoot.getBoundingClientRect();
 
         if (top >= rootRect.top + padding && bottom <= rootRect.bottom - padding) {
           return;
         }
 
+        const contextualScrollTop = resolveEditorFindMatchScrollTop(view, match, scrollRoot);
         const centeredOffset =
           scrollRoot.scrollTop +
           top -
@@ -41,7 +113,7 @@ function scrollEditorFindMatchIntoView(
           Math.max(32, (scrollRoot.clientHeight - (bottom - top)) / 2);
 
         scrollRoot.scrollTo({
-          top: Math.max(centeredOffset, 0),
+          top: Math.max(contextualScrollTop ?? centeredOffset, 0),
           behavior: behavior === 'smooth' ? 'smooth' : 'auto',
         });
         return;

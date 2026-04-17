@@ -125,6 +125,47 @@ describe("MessageList", () => {
     });
   });
 
+  it("does not rerender message items when parent rerenders with identical props", () => {
+    const messages = [createMessage("a1", "assistant")];
+    const containerRef = createRef<HTMLDivElement>();
+    const getImageGallery = vi.fn(() => []);
+    const onCopy = vi.fn();
+    const onRegenerate = vi.fn();
+    const onSwitchVersion = vi.fn();
+
+    const view = render(
+      <MessageList
+        messages={messages}
+        getImageGallery={getImageGallery}
+        isSessionActive={false}
+        showLoading={false}
+        spacerHeight={0}
+        containerRef={containerRef}
+        onCopy={onCopy}
+        onRegenerate={onRegenerate}
+        onSwitchVersion={onSwitchVersion}
+      />,
+    );
+
+    expect(messageItemSpy).toHaveBeenCalledTimes(1);
+
+    view.rerender(
+      <MessageList
+        messages={messages}
+        getImageGallery={getImageGallery}
+        isSessionActive={false}
+        showLoading={false}
+        spacerHeight={0}
+        containerRef={containerRef}
+        onCopy={onCopy}
+        onRegenerate={onRegenerate}
+        onSwitchVersion={onSwitchVersion}
+      />,
+    );
+
+    expect(messageItemSpy).toHaveBeenCalledTimes(1);
+  });
+
   it("shows the trailing loading indicator when requested", () => {
     render(
       <MessageList

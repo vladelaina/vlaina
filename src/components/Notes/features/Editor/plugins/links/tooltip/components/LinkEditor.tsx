@@ -1,5 +1,10 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+    measureTextNaturalWidth,
+    resolveElementTextLayoutMetrics,
+} from '@/lib/text-layout';
+import { usePredictedTextareaHeight } from '@/hooks/usePredictedTextareaHeight';
 
 interface LinkEditorProps {
     editUrl: string;
@@ -21,21 +26,27 @@ export const LinkEditor = ({
     isNewLink,
     autoFocus,
 }: LinkEditorProps) => {
+    const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
-    const measureRef = useRef<HTMLDivElement>(null);
     const [isFocused, setIsFocused] = useState(false);
-    const [contentWidth, setContentWidth] = useState<number | null>(null);
+    const [surfaceWidth, setSurfaceWidth] = useState<number | null>(null);
     const [editorWidth, setEditorWidth] = useState(280);
 
+    usePredictedTextareaHeight(inputRef, {
+        value: editUrl,
+        minHeight: 0,
+        maxHeight: 100000,
+    });
+
     useEffect(() => {
-        const contentRoot = document.querySelector('[data-note-content-root="true"]');
-        if (!(contentRoot instanceof HTMLElement)) {
+        const positionRoot = containerRef.current?.parentElement;
+        if (!(positionRoot instanceof HTMLElement)) {
             return;
         }
 
         const updateWidth = () => {
-            const nextWidth = Math.round(contentRoot.getBoundingClientRect().width);
-            setContentWidth(nextWidth > 0 ? nextWidth : null);
+            const nextWidth = Math.round(positionRoot.clientWidth);
+            setSurfaceWidth(nextWidth > 0 ? nextWidth : null);
         };
 
         updateWidth();
@@ -43,48 +54,38 @@ export const LinkEditor = ({
         const resizeObserver = typeof ResizeObserver !== 'undefined'
             ? new ResizeObserver(updateWidth)
             : null;
-        resizeObserver?.observe(contentRoot);
-        window.addEventListener('resize', updateWidth);
+        resizeObserver?.observe(positionRoot);
 
         return () => {
             resizeObserver?.disconnect();
-            window.removeEventListener('resize', updateWidth);
         };
     }, []);
 
     useLayoutEffect(() => {
         const input = inputRef.current;
-        const measure = measureRef.current;
-        if (!input || !measure) {
+        if (!input) {
             return;
         }
 
-        const inputStyles = window.getComputedStyle(input);
-        measure.style.font = inputStyles.font;
-        measure.style.letterSpacing = inputStyles.letterSpacing;
-        measure.style.fontKerning = inputStyles.fontKerning;
-
         const text = editUrl.trim().length > 0 ? editUrl : input.placeholder;
-        const lines = text.split('\n');
-        const longestLine = lines.reduce((longest, line) => (
-            line.length > longest.length ? line : longest
-        ), '');
-
-        measure.textContent = longestLine || ' ';
+        const metrics = resolveElementTextLayoutMetrics(input);
+        const naturalWidth = measureTextNaturalWidth(text, {
+            font: metrics.font,
+            prepareOptions: {
+                whiteSpace: 'pre-wrap',
+            },
+        });
 
         const shellPadding = 40;
         const actionWidth = editUrl.length > 0 ? 36 : 0;
-        const nextMaxWidth = Math.max(280, Math.min(contentWidth ?? 680, window.innerWidth - 32));
+        const nextMaxWidth = Math.max(280, Math.min(surfaceWidth ?? 680, window.innerWidth - 32));
         const nextWidth = Math.min(
             nextMaxWidth,
-            Math.max(280, Math.ceil(measure.scrollWidth) + shellPadding + actionWidth)
+            Math.max(280, naturalWidth + shellPadding + actionWidth)
         );
 
         setEditorWidth(nextWidth);
-
-        input.style.height = '0px';
-        input.style.height = `${input.scrollHeight}px`;
-    }, [editUrl, contentWidth]);
+    }, [editUrl, surfaceWidth]);
 
     useEffect(() => {
         if (!autoFocus && isNewLink) {
@@ -116,6 +117,7 @@ export const LinkEditor = ({
 
     return (
         <motion.div
+            ref={containerRef}
             initial={{ opacity: 0, y: -4, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             style={{
@@ -124,11 +126,6 @@ export const LinkEditor = ({
             className="flex items-end min-w-[280px] max-w-[calc(100vw-32px)] bg-white dark:bg-[#1a1a1a] border border-black/[0.08] dark:border-white/[0.08] rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] p-1.5 pr-2 z-[100]"
             onMouseDown={(e) => e.stopPropagation()}
         >
-            <div
-                ref={measureRef}
-                aria-hidden="true"
-                className="pointer-events-none absolute -z-10 whitespace-pre px-0 py-0 opacity-0"
-            />
             <div className="relative flex-1 px-2">
                 <textarea
                     ref={inputRef}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useAIStore } from '@/stores/useAIStore';
 import { useAccountSessionStore } from '@/stores/accountSession';
@@ -169,7 +169,8 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
     return [...new Set(fetchedModels)].sort((a, b) => a.localeCompare(b));
   }, [fetchedModels]);
 
-  const normalizedQuery = modelQuery.trim().toLowerCase();
+  const deferredModelQuery = useDeferredValue(modelQuery);
+  const normalizedQuery = deferredModelQuery.trim().toLowerCase();
   const filteredProviderModels = useMemo(() => {
     const base = [...providerModels].sort((a, b) => a.apiModelId.localeCompare(b.apiModelId));
     if (!normalizedQuery) return base;

@@ -5,10 +5,9 @@ import { FileTreeItem } from './FileTreeItem';
 interface FileTreeProps {
   rootFolder: FolderNode | null;
   isLoading: boolean;
-  currentNotePath?: string;
 }
 
-export function FileTree({ rootFolder, isLoading, currentNotePath }: FileTreeProps) {
+export function FileTree({ rootFolder, isLoading }: FileTreeProps) {
   if (isLoading) {
     return (
       <div className="px-2 py-4">
@@ -35,7 +34,6 @@ export function FileTree({ rootFolder, isLoading, currentNotePath }: FileTreePro
           key={node.id} 
           node={node} 
           depth={0}
-          currentNotePath={currentNotePath}
         />
       ))}
     </NotesSidebarList>

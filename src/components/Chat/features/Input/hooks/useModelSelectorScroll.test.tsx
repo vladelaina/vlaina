@@ -4,13 +4,34 @@ import { useEffect, useRef, useState } from 'react'
 import { useModelSelectorScroll } from './useModelSelectorScroll'
 
 function ScrollHarness() {
-  const [focusedModelId, setFocusedModelId] = useState<string | null>(null)
+  const [focusedIndex, setFocusedIndex] = useState(-1)
   const listRef = useRef<HTMLDivElement>(null)
 
   const { requestCenterScroll, requestNearestScroll, clearScrollMode } = useModelSelectorScroll({
     isOpen: true,
-    focusedModelId,
-    listRef,
+    focusedIndex,
+    scrollToIndex: (index, align) => {
+      const list = listRef.current
+      if (!list) {
+        return
+      }
+
+      const itemTop = index * 40
+      const itemBottom = itemTop + 40
+
+      if (align === 'center') {
+        list.scrollTop = itemTop - (list.clientHeight / 2) + 20
+        return
+      }
+
+      const viewTop = list.scrollTop
+      const viewBottom = viewTop + list.clientHeight
+      if (itemTop < viewTop) {
+        list.scrollTop = itemTop
+      } else if (itemBottom > viewBottom) {
+        list.scrollTop = itemBottom - list.clientHeight
+      }
+    },
   })
 
   useEffect(() => {
@@ -36,7 +57,7 @@ function ScrollHarness() {
         data-testid="center"
         onClick={() => {
           requestCenterScroll()
-          setFocusedModelId('model-5')
+          setFocusedIndex(4)
         }}
       >
         center
@@ -45,7 +66,7 @@ function ScrollHarness() {
         data-testid="nearest-down"
         onClick={() => {
           requestNearestScroll()
-          setFocusedModelId('model-8')
+          setFocusedIndex(7)
         }}
       >
         nearest-down
@@ -54,7 +75,7 @@ function ScrollHarness() {
         data-testid="none"
         onClick={() => {
           clearScrollMode()
-          setFocusedModelId('model-2')
+          setFocusedIndex(1)
         }}
       >
         none

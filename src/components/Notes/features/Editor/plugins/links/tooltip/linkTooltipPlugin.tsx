@@ -564,7 +564,7 @@ class LinkTooltipView {
         this.dom.classList.remove('hidden');
         try {
             this.applyPosition(this.activeAnchor);
-            requestAnimationFrame(() => this.reposition());
+            this.scheduleRaf(() => this.reposition());
         } catch {
         }
     }

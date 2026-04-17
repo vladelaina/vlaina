@@ -1,9 +1,8 @@
 import { useEffect, type Dispatch, type SetStateAction } from 'react'
-import type { AIModel } from '@/lib/ai/types'
 
 interface UseModelSelectorKeyboardParams {
   isOpen: boolean
-  filteredModels: AIModel[]
+  visibleModelIds: string[]
   focusedModelId: string | null
   setFocusedModelId: Dispatch<SetStateAction<string | null>>
   setKeyboardNavigating: (value: boolean) => void
@@ -16,7 +15,7 @@ interface UseModelSelectorKeyboardParams {
 
 export function useModelSelectorKeyboard({
   isOpen,
-  filteredModels,
+  visibleModelIds,
   focusedModelId,
   setFocusedModelId,
   setKeyboardNavigating,
@@ -43,7 +42,7 @@ export function useModelSelectorKeyboard({
 
       if (e.key === 'ArrowDown') {
         e.preventDefault()
-        if (filteredModels.length === 0) {
+        if (visibleModelIds.length === 0) {
           clearScrollMode()
           setFocusedModelId(null)
           return
@@ -51,16 +50,16 @@ export function useModelSelectorKeyboard({
         setKeyboardNavigating(true)
         requestNearestScroll()
         setFocusedModelId((current) => {
-          const currentIndex = filteredModels.findIndex((model) => model.id === current)
-          const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % filteredModels.length
-          return filteredModels[nextIndex]?.id ?? current
+          const currentIndex = visibleModelIds.findIndex((modelId) => modelId === current)
+          const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % visibleModelIds.length
+          return visibleModelIds[nextIndex] ?? current
         })
         return
       }
 
       if (e.key === 'ArrowUp') {
         e.preventDefault()
-        if (filteredModels.length === 0) {
+        if (visibleModelIds.length === 0) {
           clearScrollMode()
           setFocusedModelId(null)
           return
@@ -68,22 +67,22 @@ export function useModelSelectorKeyboard({
         setKeyboardNavigating(true)
         requestNearestScroll()
         setFocusedModelId((current) => {
-          const currentIndex = filteredModels.findIndex((model) => model.id === current)
+          const currentIndex = visibleModelIds.findIndex((modelId) => modelId === current)
           const prevIndex = currentIndex === -1
-            ? filteredModels.length - 1
-            : (currentIndex - 1 + filteredModels.length) % filteredModels.length
-          return filteredModels[prevIndex]?.id ?? current
+            ? visibleModelIds.length - 1
+            : (currentIndex - 1 + visibleModelIds.length) % visibleModelIds.length
+          return visibleModelIds[prevIndex] ?? current
         })
         return
       }
 
       if (e.key === 'Enter') {
         e.preventDefault()
-        const hasVisibleFocusedModel = !!focusedModelId && filteredModels.some((model) => model.id === focusedModelId)
+        const hasVisibleFocusedModel = !!focusedModelId && visibleModelIds.includes(focusedModelId)
         if (hasVisibleFocusedModel && focusedModelId) {
           onSelectModel(focusedModelId)
-        } else if (filteredModels.length > 0) {
-          onSelectModel(filteredModels[0].id)
+        } else if (visibleModelIds.length > 0) {
+          onSelectModel(visibleModelIds[0])
         }
         return
       }
@@ -98,7 +97,6 @@ export function useModelSelectorKeyboard({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [
     clearScrollMode,
-    filteredModels,
     focusedModelId,
     isOpen,
     onClose,
@@ -107,5 +105,6 @@ export function useModelSelectorKeyboard({
     requestNearestScroll,
     setFocusedModelId,
     setKeyboardNavigating,
+    visibleModelIds,
   ])
 }

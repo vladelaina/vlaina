@@ -1,6 +1,8 @@
-import { useState, useRef, useEffect, useMemo, memo, useCallback, type RefObject } from 'react'
+import { useDeferredValue, useState, useRef, useEffect, useMemo, memo, useCallback, type RefObject } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { Icon } from '@/components/ui/icons'
-import { useAIStore } from '@/stores/useAIStore'
+import { actions as aiActions } from '@/stores/useAIStore'
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore'
 import { cn } from '@/lib/utils'
 import { useModelSelectorKeyboard } from './hooks/useModelSelectorKeyboard'
 import { useModelSelectorScroll } from './hooks/useModelSelectorScroll'
@@ -8,6 +10,20 @@ import type { AIModel } from '@/lib/ai/types';
 import { isManagedProviderId, MANAGED_PROVIDER_NAME } from '@/lib/ai/managedService'
 
 type ModelSelectorTheme = 'chat' | 'notes'
+type ModelSelectorListRow =
+  | {
+      type: 'label'
+      id: string
+      providerName: string
+    }
+  | {
+      type: 'model'
+      id: string
+      model: AIModel
+    }
+
+const MODEL_SELECTOR_LABEL_HEIGHT = 34
+const MODEL_SELECTOR_ROW_HEIGHT = 40
 
 const MODEL_SELECTOR_THEME_STYLES: Record<
   ModelSelectorTheme,
@@ -133,16 +149,31 @@ export function ModelSelector({
   theme = 'chat',
   isEmbedded = false,
 }: ModelSelectorProps) {
-  const { models, providers, selectedModelId, selectModel, getSelectedModel } = useAIStore()
+  const models = useUnifiedStore((state) => state.data.ai?.models || [])
+  const providers = useUnifiedStore((state) => state.data.ai?.providers || [])
+  const selectedModelId = useUnifiedStore((state) => state.data.ai?.selectedModelId || null)
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [focusedModelId, setFocusedModelId] = useState<string | null>(null)
+  const deferredSearchQuery = useDeferredValue(searchQuery)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const isKeyboardNavigating = useRef(false)
 
-  const selectedModel = getSelectedModel()
+  const selectedModel = useMemo(() => {
+    if (!selectedModelId) {
+      return undefined
+    }
+
+    const model = models.find((item) => item.id === selectedModelId)
+    if (!model) {
+      return undefined
+    }
+
+    const provider = providers.find((item) => item.id === model.providerId)
+    return provider?.enabled === false ? undefined : model
+  }, [models, providers, selectedModelId])
   const styles = MODEL_SELECTOR_THEME_STYLES[theme]
 
   const enabledProviderIds = useMemo(
@@ -156,12 +187,12 @@ export function ModelSelector({
   );
 
   const filteredModels = useMemo(() => {
-      const term = searchQuery.toLowerCase();
+      const term = deferredSearchQuery.toLowerCase();
       return enabledModels.filter(model => 
           model.name.toLowerCase().includes(term) ||
           model.apiModelId.toLowerCase().includes(term)
       );
-  }, [enabledModels, searchQuery]);
+  }, [deferredSearchQuery, enabledModels]);
 
   const groupedFilteredModels = useMemo(() => {
       const providerMap = new Map(providers.map((provider) => [provider.id, provider]));
@@ -200,6 +231,42 @@ export function ModelSelector({
   }, [filteredModels, providers]);
 
   const showGroupedSections = groupedFilteredModels.length > 1;
+  const listRows = useMemo<ModelSelectorListRow[]>(() => {
+      return groupedFilteredModels.flatMap((group) => {
+          const rows: ModelSelectorListRow[] = [];
+          if (showGroupedSections) {
+              rows.push({
+                  type: 'label',
+                  id: `label:${group.providerId}`,
+                  providerName: group.providerName,
+              });
+          }
+          group.models.forEach((model) => {
+              rows.push({
+                  type: 'model',
+                  id: model.id,
+                  model,
+              });
+          });
+          return rows;
+      });
+  }, [groupedFilteredModels, showGroupedSections]);
+  const visibleModelIds = useMemo(
+      () => listRows.flatMap((row) => (row.type === 'model' ? [row.model.id] : [])),
+      [listRows],
+  );
+  const focusedRowIndex = useMemo(
+      () => listRows.findIndex((row) => row.type === 'model' && row.model.id === focusedModelId),
+      [focusedModelId, listRows],
+  );
+  const virtualizer = useVirtualizer({
+      count: listRows.length,
+      getScrollElement: () => listRef.current,
+      estimateSize: (index) => listRows[index]?.type === 'label'
+        ? MODEL_SELECTOR_LABEL_HEIGHT
+        : MODEL_SELECTOR_ROW_HEIGHT,
+      overscan: 10,
+  });
 
   const {
       requestCenterScroll,
@@ -207,8 +274,10 @@ export function ModelSelector({
       clearScrollMode,
   } = useModelSelectorScroll({
       isOpen,
-      focusedModelId,
-      listRef,
+      focusedIndex: focusedRowIndex,
+      scrollToIndex: (index, align) => {
+          virtualizer.scrollToIndex(index, { align });
+      },
   });
 
   const focusSearchInput = useCallback(() => {
@@ -265,15 +334,15 @@ export function ModelSelector({
   }, [isOpen]);
 
   const handleSelectModel = useCallback((modelId: string) => {
-    selectModel(modelId)
+    aiActions.selectModel(modelId)
     onSelectModel?.(modelId)
     closeSelector(true)
     setSearchQuery('')
-  }, [closeSelector, onSelectModel, selectModel]);
+  }, [closeSelector, onSelectModel]);
 
   useModelSelectorKeyboard({
       isOpen,
-      filteredModels,
+      visibleModelIds,
       focusedModelId,
       setFocusedModelId,
       setKeyboardNavigating,
@@ -314,6 +383,10 @@ export function ModelSelector({
       clearScrollMode();
       setFocusedModelId(selectedModelId ?? null);
   }, [clearScrollMode, selectedModelId]);
+
+  useEffect(() => {
+      virtualizer.measure();
+  }, [listRows, virtualizer]);
 
   return (
     <div className="relative select-none w-fit" ref={dropdownRef}>
@@ -389,51 +462,56 @@ export function ModelSelector({
             className="overflow-y-auto p-1 scrollbar-none flex-1"
             style={{ height: '256px' }}
           >
-            {filteredModels.length === 0 ? (
+            {listRows.length === 0 ? (
               <div className={cn("py-8 text-center text-xs", styles.emptyText)}>
                 No models found
               </div>
             ) : (
-              <div className={cn("flex flex-col", showGroupedSections && "gap-2")}>
-                {groupedFilteredModels.map((group) => (
-                  <div key={group.providerId} className={cn(showGroupedSections && "px-1")}>
-                    {showGroupedSections ? (
-                      <>
-                        <div className={cn("px-2 pt-2 pb-1 text-[11px] font-medium", styles.sectionLabel)}>
-                          {group.providerName}
+              <div
+                style={{
+                  height: `${virtualizer.getTotalSize()}px`,
+                  position: 'relative',
+                  width: '100%',
+                }}
+              >
+                {virtualizer.getVirtualItems().map((virtualRow) => {
+                  const row = listRows[virtualRow.index]
+                  if (!row) {
+                    return null
+                  }
+
+                  return (
+                    <div
+                      key={row.id}
+                      style={{
+                        height: `${virtualRow.size}px`,
+                        left: 0,
+                        position: 'absolute',
+                        top: 0,
+                        transform: `translateY(${virtualRow.start}px)`,
+                        width: '100%',
+                      }}
+                    >
+                      {row.type === 'label' ? (
+                        <div className="px-1">
+                          <div className={cn("px-2 pt-2 pb-1 text-[11px] font-medium", styles.sectionLabel)}>
+                            {row.providerName}
+                          </div>
+                          <div className={cn("border-t", styles.divider)} />
                         </div>
-                        <div className={cn("border-t", styles.divider)} />
-                        <div className="pt-1">
-                          {group.models.map(model => (
-                            <ModelOption 
-                              key={model.id}
-                              model={model}
-                              isSelected={selectedModelId === model.id}
-                              isFocused={focusedModelId === model.id}
-                              onSelect={handleSelectModel}
-                              onHover={handleHover}
-                              theme={theme}
-                            />
-                          ))}
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        {group.models.map(model => (
-                          <ModelOption 
-                            key={model.id}
-                            model={model}
-                            isSelected={selectedModelId === model.id}
-                            isFocused={focusedModelId === model.id}
-                            onSelect={handleSelectModel}
-                            onHover={handleHover}
-                            theme={theme}
-                          />
-                        ))}
-                      </>
-                    )}
-                  </div>
-                ))}
+                      ) : (
+                        <ModelOption 
+                          model={row.model}
+                          isSelected={selectedModelId === row.model.id}
+                          isFocused={focusedModelId === row.model.id}
+                          onSelect={handleSelectModel}
+                          onHover={handleHover}
+                          theme={theme}
+                        />
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>

@@ -9,6 +9,7 @@ import { PreviewSection } from './PreviewSection';
 import { CreateModalProps } from './types';
 import { useGlobalIconUpload } from '@/components/common/UniversalIconPicker/hooks/useGlobalIconUpload';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
+import { usePredictedTextareaHeight } from '@/hooks/usePredictedTextareaHeight';
 
 // Get window dynamically for multi-window support
 const getWindow = () => getCurrentWindow();
@@ -34,6 +35,7 @@ export function CreateModal({
       if (!src.startsWith('img:')) return src;
       return await loadImageAsBlob(src.substring(4));
   }, []);
+  const titleTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Adaptive Scaling
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -62,6 +64,14 @@ export function CreateModal({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open, onClose, isPickingIcon, setIsPickingIcon]);
+
+  const titleValue = type === 'progress' ? progressForm.title : counterForm.title;
+
+  usePredictedTextareaHeight(titleTextareaRef, {
+    value: titleValue,
+    minHeight: 40,
+    maxHeight: 100000,
+  });
 
   return (
     <AnimatePresence>
@@ -179,16 +189,12 @@ export function CreateModal({
                   </motion.button>
 
                   <textarea
-                    value={type === 'progress' ? progressForm.title : counterForm.title}
+                    ref={titleTextareaRef}
+                    value={titleValue}
                     onChange={(e) => {
                       const val = e.target.value;
                       setProgressForm((prev: any) => ({ ...prev, title: val }));
                       setCounterForm((prev: any) => ({ ...prev, title: val }));
-                    }}
-                    onInput={(e) => {
-                      const target = e.target as HTMLTextAreaElement;
-                      target.style.height = 'auto';
-                      target.style.height = `${target.scrollHeight}px`;
                     }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {

@@ -1,4 +1,12 @@
-import { layout, prepare, type PrepareOptions, type PreparedText } from './pretext/layout';
+import {
+  layout,
+  measureNaturalWidth,
+  prepare,
+  prepareWithSegments,
+  type PrepareOptions,
+  type PreparedText,
+  type PreparedTextWithSegments,
+} from './pretext/layout';
 
 export interface TextLayoutMetrics {
   font: string;
@@ -7,6 +15,7 @@ export interface TextLayoutMetrics {
 
 export interface ElementTextLayoutMetrics extends TextLayoutMetrics {
   fontSize: number;
+  paddingBlock: number;
 }
 
 export interface TextBlockMeasureOptions extends TextLayoutMetrics {
@@ -16,9 +25,40 @@ export interface TextBlockMeasureOptions extends TextLayoutMetrics {
 }
 
 const preparedCache = new Map<string, PreparedText>();
+const preparedSegmentsCache = new Map<string, PreparedTextWithSegments>();
+const PREPARED_CACHE_LIMIT = 500;
 const DEFAULT_FONT_FAMILY = 'Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif';
 const DEFAULT_FONT_SIZE = 15;
 const DEFAULT_LINE_HEIGHT_RATIO = 1.6;
+
+function setPreparedCacheEntry(cacheKey: string, prepared: PreparedText): void {
+  if (preparedCache.has(cacheKey)) {
+    preparedCache.delete(cacheKey);
+  } else if (preparedCache.size >= PREPARED_CACHE_LIMIT) {
+    const oldestKey = preparedCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      preparedCache.delete(oldestKey);
+    }
+  }
+
+  preparedCache.set(cacheKey, prepared);
+}
+
+function setPreparedSegmentsCacheEntry(
+  cacheKey: string,
+  prepared: PreparedTextWithSegments,
+): void {
+  if (preparedSegmentsCache.has(cacheKey)) {
+    preparedSegmentsCache.delete(cacheKey);
+  } else if (preparedSegmentsCache.size >= PREPARED_CACHE_LIMIT) {
+    const oldestKey = preparedSegmentsCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      preparedSegmentsCache.delete(oldestKey);
+    }
+  }
+
+  preparedSegmentsCache.set(cacheKey, prepared);
+}
 
 function getPreparedText(
   text: string,
@@ -34,7 +74,25 @@ function getPreparedText(
   }
 
   const prepared = prepare(text, font, options);
-  preparedCache.set(cacheKey, prepared);
+  setPreparedCacheEntry(cacheKey, prepared);
+  return prepared;
+}
+
+function getPreparedTextWithSegments(
+  text: string,
+  font: string,
+  options: PrepareOptions | undefined,
+): PreparedTextWithSegments {
+  const whiteSpace = options?.whiteSpace ?? 'normal';
+  const wordBreak = options?.wordBreak ?? 'normal';
+  const cacheKey = `${font}\u0000${whiteSpace}\u0000${wordBreak}\u0000${text}`;
+  const cached = preparedSegmentsCache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const prepared = prepareWithSegments(text, font, options);
+  setPreparedSegmentsCacheEntry(cacheKey, prepared);
   return prepared;
 }
 
@@ -58,6 +116,8 @@ export function resolveElementTextLayoutMetrics(element: HTMLElement): ElementTe
   const fontSize = parsePixelValue(styles.fontSize) ?? DEFAULT_FONT_SIZE;
   const lineHeight =
     parsePixelValue(styles.lineHeight) ?? Math.round(fontSize * DEFAULT_LINE_HEIGHT_RATIO);
+  const paddingTop = parsePixelValue(styles.paddingTop) ?? 0;
+  const paddingBottom = parsePixelValue(styles.paddingBottom) ?? 0;
   const fontStyle = styles.fontStyle || 'normal';
   const fontWeight = styles.fontWeight || '400';
   const fontSizeToken = `${fontSize}px`;
@@ -67,6 +127,7 @@ export function resolveElementTextLayoutMetrics(element: HTMLElement): ElementTe
     font: `${fontStyle} ${fontWeight} ${fontSizeToken} ${fontFamily}`,
     fontSize,
     lineHeight,
+    paddingBlock: paddingTop + paddingBottom,
   };
 }
 
@@ -97,4 +158,17 @@ export function measureTextBlockHeight(
   const result = layout(prepared, safeWidth, safeLineHeight);
   const intrinsicHeight = Math.max(result.lineCount, 1) * safeLineHeight;
   return clampHeight(Math.ceil(intrinsicHeight), options.minHeight, options.maxHeight);
+}
+
+export function measureTextNaturalWidth(
+  text: string,
+  {
+    font,
+    prepareOptions,
+  }: Pick<TextBlockMeasureOptions, 'font' | 'prepareOptions'>,
+): number {
+  const prepared = getPreparedTextWithSegments(text, font, {
+    ...prepareOptions,
+  });
+  return Math.max(0, Math.ceil(measureNaturalWidth(prepared)));
 }

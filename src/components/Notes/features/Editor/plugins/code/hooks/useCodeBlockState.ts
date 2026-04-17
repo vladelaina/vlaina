@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
 import { toggleCodeBlockCollapsed, updateCodeBlockLanguage } from '../codeBlockTransactions';
@@ -18,7 +18,10 @@ export function useCodeBlockState({ node, view, getPos, getNode }: UseCodeBlockS
     const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
     const copyTimerRef = useRef<number | null>(null);
 
-    const langInfo = codeBlockLanguages.find((item) => item.id === language || item.aliases.includes(language));
+    const langInfo = useMemo(
+        () => codeBlockLanguages.find((item) => item.id === language || item.aliases.includes(language)),
+        [language],
+    );
     const displayName = langInfo ? langInfo.name : language;
 
     const updateLanguage = useCallback((newLang: string) => {

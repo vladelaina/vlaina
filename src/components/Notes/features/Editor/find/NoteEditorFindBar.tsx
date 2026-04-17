@@ -75,6 +75,9 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
   }
 
   const hasQuery = controller.query.length > 0;
+  const matchLabel = hasQuery
+    ? `${controller.activeMatchNumber} / ${controller.totalMatches}`
+    : '0 / 0';
 
   return (
     <motion.div
@@ -109,35 +112,30 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
         />
 
         <div className="flex items-center gap-1.5">
-          <AnimatePresence mode="popLayout">
-            {hasQuery && (
-              <motion.div 
-                initial={{ opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 8 }}
-                className="flex items-center gap-1"
-              >
-                <span className="shrink-0 px-1 text-[11px] font-bold tabular-nums text-zinc-400/80 uppercase tracking-tighter">
-                  {controller.activeMatchNumber} / {controller.totalMatches}
-                </span>
-                <div className="flex items-center gap-0.5 ml-1 border-l border-black/[0.05] dark:border-white/[0.05] pl-1">
-                  <FindToolbarButton
-                    label="Previous"
-                    icon="nav.chevronUp"
-                    onClick={controller.goToPrevious}
-                    disabled={!controller.canNavigate}
-                  />
-                  <FindToolbarButton
-                    label="Next"
-                    icon="nav.chevronDown"
-                    onClick={controller.goToNext}
-                    disabled={!controller.canNavigate}
-                  />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
+          <div className="flex min-w-[132px] items-center justify-end gap-1">
+            <span
+              className={cn(
+                'shrink-0 px-1 text-[11px] font-bold tabular-nums uppercase tracking-tighter transition-opacity',
+                hasQuery ? 'text-zinc-400/80 opacity-100' : 'text-zinc-300/70 opacity-0',
+              )}
+            >
+              {matchLabel}
+            </span>
+            <div className="flex items-center gap-0.5 border-l border-black/[0.05] pl-1 dark:border-white/[0.05]">
+              <FindToolbarButton
+                label="Previous"
+                icon="nav.chevronUp"
+                onClick={controller.goToPrevious}
+                disabled={!controller.canNavigate}
+              />
+              <FindToolbarButton
+                label="Next"
+                icon="nav.chevronDown"
+                onClick={controller.goToNext}
+                disabled={!controller.canNavigate}
+              />
+            </div>
+          </div>
           <div className="flex items-center gap-0.5">
             <FindToolbarButton
               label={controller.isReplaceOpen ? 'Hide replace' : 'Show replace'}

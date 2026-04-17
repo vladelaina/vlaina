@@ -40,6 +40,7 @@ export {
 } from './pretext/rich-inline';
 
 export {
+  measureTextNaturalWidth,
   measureTextBlockHeight,
   measureTextareaContentHeight,
   resolveElementTextLayoutMetrics,

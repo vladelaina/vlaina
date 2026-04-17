@@ -21,6 +21,130 @@ import { useAIUIStore } from './ai/chatState'
 
 export { createAIChatSession } from './ai/chatState'
 
+export function useAIStoreRuntimeEffects(): void {
+  const aiData = useUnifiedStore(s => s.data.ai);
+  const loaded = useUnifiedStore(s => s.loaded);
+  const load = useUnifiedStore(s => s.load);
+  const accountConnected = useAccountSessionStore((s) => s.isConnected);
+
+  useEffect(() => {
+      if (!loaded) {
+          load();
+      }
+  }, [loaded, load]);
+
+  useEffect(() => {
+    if (!loaded || !aiData?.temporaryChatEnabled) {
+      return;
+    }
+
+    const currentSessionId = aiData.currentSessionId;
+    const currentSession = currentSessionId
+      ? aiData.sessions.find((session) => session.id === currentSessionId)
+      : null;
+    const hasActiveTemporarySession =
+      isTemporarySessionId(currentSessionId) || isTemporarySession(currentSession);
+
+    if (hasActiveTemporarySession) {
+      return;
+    }
+
+    useUnifiedStore.getState().updateAIData({ temporaryChatEnabled: false });
+  }, [aiData?.currentSessionId, aiData?.sessions, aiData?.temporaryChatEnabled, loaded]);
+
+  useEffect(() => {
+    if (!loaded) {
+      return;
+    }
+
+    const store = useUnifiedStore.getState();
+    const ai = store.data.ai;
+    if (!ai) return;
+
+    const nextProviders = ensureManagedProvider(ai.providers);
+    const providersChanged =
+      nextProviders.length !== ai.providers.length ||
+      nextProviders.some((provider, index) => ai.providers[index]?.id !== provider.id);
+
+    if (providersChanged) {
+      store.updateAIData({ providers: nextProviders });
+    }
+  }, [loaded]);
+
+  useEffect(() => {
+    if (!loaded || !accountConnected) {
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const models = await fetchManagedModels();
+        if (cancelled) return;
+
+        const store = useUnifiedStore.getState();
+        const ai = store.data.ai!;
+        const nextProviders = ensureManagedProvider(ai.providers);
+        const nextModels = replaceProviderModels(ai.models, MANAGED_PROVIDER_ID, models);
+        const selectedModelId = chooseFallbackSelectedModelId(
+          ai.selectedModelId,
+          nextModels,
+          MANAGED_PROVIDER_ID
+        );
+
+        store.updateAIData({
+          providers: nextProviders,
+          models: nextModels,
+          selectedModelId,
+        });
+        void useManagedAIStore.getState().refreshBudget();
+      } catch (error) {
+        if (!isManagedServiceRecoverableError(error)) {
+          console.error('Failed to sync managed AI models from Worker', error);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loaded, accountConnected]);
+
+  useEffect(() => {
+    if (!loaded || accountConnected) {
+      return;
+    }
+    const store = useUnifiedStore.getState();
+    const ai = store.data.ai;
+    if (!ai) return;
+    const nextProviders = ensureManagedProvider(ai.providers);
+    const nextModels = ai.models.filter((model) => model.providerId !== MANAGED_PROVIDER_ID);
+    const nextSelectedModelId = chooseFallbackSelectedModelId(
+      ai.selectedModelId && ai.models.some((model) => model.id === ai.selectedModelId && model.providerId === MANAGED_PROVIDER_ID)
+        ? null
+        : ai.selectedModelId,
+      nextModels
+    );
+
+    const modelsChanged = nextModels.length !== ai.models.length;
+    const providersChanged =
+      nextProviders.length !== ai.providers.length ||
+      nextProviders.some((provider, index) => ai.providers[index]?.id !== provider.id);
+
+    if (!modelsChanged && !providersChanged && nextSelectedModelId === ai.selectedModelId) {
+      useManagedAIStore.getState().clearBudget();
+      return;
+    }
+
+    store.updateAIData({
+      providers: nextProviders,
+      models: nextModels,
+      selectedModelId: nextSelectedModelId,
+    });
+    useManagedAIStore.getState().clearBudget();
+  }, [loaded, accountConnected]);
+}
+
 function sortProviders(providers: Provider[]): Provider[] {
   return [...providers].sort((a, b) => {
     if (a.id === MANAGED_PROVIDER_ID) return -1
@@ -271,128 +395,10 @@ export const actions = {
 };
 
 export const useAIStore = () => {
+  useAIStoreRuntimeEffects();
+
   const aiData = useUnifiedStore(s => s.data.ai);
   const uiState = useAIUIStore();
-  const loaded = useUnifiedStore(s => s.loaded);
-  const load = useUnifiedStore(s => s.load);
-  const accountConnected = useAccountSessionStore((s) => s.isConnected);
-
-  useEffect(() => {
-      if (!loaded) {
-          load();
-      }
-  }, [loaded, load]);
-
-  useEffect(() => {
-    if (!loaded || !aiData?.temporaryChatEnabled) {
-      return;
-    }
-
-    const currentSessionId = aiData.currentSessionId;
-    const currentSession = currentSessionId
-      ? aiData.sessions.find((session) => session.id === currentSessionId)
-      : null;
-    const hasActiveTemporarySession =
-      isTemporarySessionId(currentSessionId) || isTemporarySession(currentSession);
-
-    if (hasActiveTemporarySession) {
-      return;
-    }
-
-    useUnifiedStore.getState().updateAIData({ temporaryChatEnabled: false });
-  }, [aiData?.currentSessionId, aiData?.sessions, aiData?.temporaryChatEnabled, loaded]);
-
-  useEffect(() => {
-    if (!loaded) {
-      return;
-    }
-
-    const store = useUnifiedStore.getState();
-    const ai = store.data.ai;
-    if (!ai) return;
-
-    const nextProviders = ensureManagedProvider(ai.providers);
-    const providersChanged =
-      nextProviders.length !== ai.providers.length ||
-      nextProviders.some((provider, index) => ai.providers[index]?.id !== provider.id);
-
-    if (providersChanged) {
-      store.updateAIData({ providers: nextProviders });
-    }
-  }, [loaded]);
-
-  useEffect(() => {
-    if (!loaded || !accountConnected) {
-      return;
-    }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const models = await fetchManagedModels();
-        if (cancelled) return;
-
-        const store = useUnifiedStore.getState();
-        const ai = store.data.ai!;
-        const nextProviders = ensureManagedProvider(ai.providers);
-        const nextModels = replaceProviderModels(ai.models, MANAGED_PROVIDER_ID, models);
-        const selectedModelId = chooseFallbackSelectedModelId(
-          ai.selectedModelId,
-          nextModels,
-          MANAGED_PROVIDER_ID
-        );
-
-        store.updateAIData({
-          providers: nextProviders,
-          models: nextModels,
-          selectedModelId,
-        });
-        void useManagedAIStore.getState().refreshBudget();
-      } catch (error) {
-        if (!isManagedServiceRecoverableError(error)) {
-          console.error('Failed to sync managed AI models from Worker', error);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [loaded, accountConnected]);
-
-  useEffect(() => {
-    if (!loaded || accountConnected) {
-      return;
-    }
-    const store = useUnifiedStore.getState();
-    const ai = store.data.ai;
-    if (!ai) return;
-    const nextProviders = ensureManagedProvider(ai.providers);
-    const nextModels = ai.models.filter((model) => model.providerId !== MANAGED_PROVIDER_ID);
-    const nextSelectedModelId = chooseFallbackSelectedModelId(
-      ai.selectedModelId && ai.models.some((model) => model.id === ai.selectedModelId && model.providerId === MANAGED_PROVIDER_ID)
-        ? null
-        : ai.selectedModelId,
-      nextModels
-    );
-
-    const modelsChanged = nextModels.length !== ai.models.length;
-    const providersChanged =
-      nextProviders.length !== ai.providers.length ||
-      nextProviders.some((provider, index) => ai.providers[index]?.id !== provider.id);
-
-    if (!modelsChanged && !providersChanged && nextSelectedModelId === ai.selectedModelId) {
-      useManagedAIStore.getState().clearBudget();
-      return;
-    }
-
-    store.updateAIData({
-      providers: nextProviders,
-      models: nextModels,
-      selectedModelId: nextSelectedModelId,
-    });
-    useManagedAIStore.getState().clearBudget();
-  }, [loaded, accountConnected]);
 
   return {
     providers: aiData?.providers || [],

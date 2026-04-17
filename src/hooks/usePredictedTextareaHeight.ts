@@ -1,4 +1,4 @@
-import { useLayoutEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import {
   measureTextareaContentHeight,
@@ -25,11 +25,13 @@ export function usePredictedTextareaHeight(
   textareaRef: RefObject<HTMLTextAreaElement | null>,
   { maxHeight, minHeight, value }: UsePredictedTextareaHeightOptions,
 ): void {
+  const latestOptionsRef = useRef({ maxHeight, minHeight, value });
+  const applyHeightRef = useRef<() => void>(() => {});
+  const observerRef = useRef<ResizeObserver | null>(null);
+  const observedTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+
   useLayoutEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) {
-      return;
-    }
+    latestOptionsRef.current = { maxHeight, minHeight, value };
 
     const applyHeight = () => {
       const current = textareaRef.current;
@@ -37,35 +39,62 @@ export function usePredictedTextareaHeight(
         return;
       }
 
+      const {
+        maxHeight: nextMaxHeight,
+        minHeight: nextMinHeight,
+        value: nextValue,
+      } = latestOptionsRef.current;
+
+      if (nextMaxHeight <= 0) {
+        return;
+      }
+
       const width = current.clientWidth;
       if (width <= 0) {
-        applyFallbackHeight(current, minHeight, maxHeight);
+        applyFallbackHeight(current, nextMinHeight, nextMaxHeight);
         return;
       }
 
       try {
         const metrics = resolveElementTextLayoutMetrics(current);
-        const nextHeight = measureTextareaContentHeight(value, width, {
+        const nextHeight = measureTextareaContentHeight(nextValue, width, {
           font: metrics.font,
           lineHeight: metrics.lineHeight,
-          minHeight,
-          maxHeight,
+          minHeight: Math.max(0, nextMinHeight - metrics.paddingBlock),
+          maxHeight: Math.max(0, nextMaxHeight - metrics.paddingBlock),
         });
-        current.style.height = `${nextHeight}px`;
+        current.style.height = `${nextHeight + metrics.paddingBlock}px`;
       } catch {
-        applyFallbackHeight(current, minHeight, maxHeight);
+        applyFallbackHeight(current, nextMinHeight, nextMaxHeight);
       }
     };
 
+    applyHeightRef.current = applyHeight;
     applyHeight();
 
+    const textarea = textareaRef.current;
+    if (
+      !textarea ||
+      observedTextareaRef.current === textarea ||
+      typeof ResizeObserver === 'undefined'
+    ) {
+      return;
+    }
+
+    observerRef.current?.disconnect();
     const resizeObserver = new ResizeObserver(() => {
-      applyHeight();
+      applyHeightRef.current();
     });
     resizeObserver.observe(textarea);
-
-    return () => {
-      resizeObserver.disconnect();
-    };
+    observerRef.current = resizeObserver;
+    observedTextareaRef.current = textarea;
   }, [maxHeight, minHeight, textareaRef, value]);
+
+  useEffect(() => {
+    return () => {
+      observerRef.current?.disconnect();
+      observerRef.current = null;
+      observedTextareaRef.current = null;
+    };
+  }, []);
 }

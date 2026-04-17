@@ -1,7 +1,9 @@
 import { Icon } from '@/components/ui/icons';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ShortcutKeys } from '@/components/ui/shortcut-keys';
-import { useAIStore } from '@/stores/useAIStore';
+import { actions as aiActions } from '@/stores/useAIStore';
+import { useAIUIStore } from '@/stores/ai/chatState';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { hasUserMessage } from '@/lib/ai/temporaryChat';
 import { useAutoTitle } from '@/hooks/useAutoTitle';
@@ -11,24 +13,47 @@ interface TemporaryChatToggleProps {
   mode?: 'toggle' | 'promote';
 }
 
+const EMPTY_MESSAGES: never[] = [];
+
 export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: TemporaryChatToggleProps) {
-  const {
-    temporaryChatEnabled,
-    toggleTemporaryChat,
-    promoteTemporarySession,
-    currentSessionId,
-    messages,
-    sessions,
-    getModel,
-    selectedModel,
-    isSessionLoading
-  } = useAIStore();
+  const temporaryChatEnabled = useUnifiedStore((state) => !!state.data.ai?.temporaryChatEnabled);
+  const currentSessionId = useUnifiedStore((state) => state.data.ai?.currentSessionId || null);
+  const currentMessages = useUnifiedStore((state) => {
+    const sessionId = state.data.ai?.currentSessionId;
+    if (!sessionId) {
+      return EMPTY_MESSAGES;
+    }
+
+    return state.data.ai?.messages?.[sessionId] || EMPTY_MESSAGES;
+  });
+  const currentSessionModelId = useUnifiedStore((state) => {
+    const sessionId = state.data.ai?.currentSessionId;
+    if (!sessionId) {
+      return undefined;
+    }
+
+    return (state.data.ai?.sessions || []).find((session) => session.id === sessionId)?.modelId;
+  });
+  const models = useUnifiedStore((state) => state.data.ai?.models || []);
+  const providers = useUnifiedStore((state) => state.data.ai?.providers || []);
+  const selectedModelId = useUnifiedStore((state) => state.data.ai?.selectedModelId || null);
+  const isCurrentSessionGenerating = useAIUIStore((state) =>
+    currentSessionId ? !!state.generatingSessions[currentSessionId] : false
+  );
   const { generateAutoTitle } = useAutoTitle();
-  const currentMessages = currentSessionId ? (messages[currentSessionId] || []) : [];
+  const selectedModel = selectedModelId
+    ? (() => {
+        const model = models.find((item) => item.id === selectedModelId);
+        if (!model) {
+          return undefined;
+        }
+        const provider = providers.find((item) => item.id === model.providerId);
+        return provider?.enabled === false ? undefined : model;
+      })()
+    : undefined;
   const hasUserMessageInCurrentSession = hasUserMessage(currentMessages);
   const canDisableTemporaryChat = !temporaryChatEnabled || !hasUserMessageInCurrentSession;
   const isPromoteMode = mode === 'promote';
-  const isCurrentSessionGenerating = currentSessionId ? isSessionLoading(currentSessionId) : false;
   const isDisabled = readOnly || (isPromoteMode && isCurrentSessionGenerating);
 
   const handleClick = () => {
@@ -37,13 +62,12 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
     }
 
     if (isPromoteMode) {
-      const promotedSessionId = promoteTemporarySession();
+      const promotedSessionId = aiActions.promoteTemporarySession();
       if (!promotedSessionId) return;
 
-      const sessionModelId = currentSessionId
-        ? sessions.find((session) => session.id === currentSessionId)?.modelId
-        : undefined;
-      const modelForTitle = (sessionModelId ? getModel(sessionModelId) : undefined) || selectedModel;
+      const modelForTitle = (currentSessionModelId
+        ? models.find((model) => model.id === currentSessionModelId)
+        : undefined) || selectedModel;
 
       if (modelForTitle) {
         void generateAutoTitle(promotedSessionId, modelForTitle.providerId, modelForTitle.id);
@@ -52,12 +76,12 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
     }
 
     if (!temporaryChatEnabled) {
-      toggleTemporaryChat(true);
+      aiActions.toggleTemporaryChat(true);
       return;
     }
 
     if (canDisableTemporaryChat) {
-      toggleTemporaryChat(false);
+      aiActions.toggleTemporaryChat(false);
       return;
     }
   };

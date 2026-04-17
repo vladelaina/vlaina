@@ -1,18 +1,18 @@
-import { useCallback, useEffect, useRef, type RefObject } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 type ScrollMode = 'none' | 'center' | 'nearest'
 
 interface UseModelSelectorScrollParams {
   isOpen: boolean
-  focusedModelId: string | null
-  listRef: RefObject<HTMLDivElement | null>
+  focusedIndex: number
+  scrollToIndex: (index: number, align: 'auto' | 'center') => void
   onDebugLog?: (message: string, payload?: Record<string, unknown>) => void
 }
 
 export function useModelSelectorScroll({
   isOpen,
-  focusedModelId,
-  listRef,
+  focusedIndex,
+  scrollToIndex,
   onDebugLog,
 }: UseModelSelectorScrollParams) {
   const scrollModeRef = useRef<ScrollMode>('none')
@@ -30,7 +30,7 @@ export function useModelSelectorScroll({
   }, [])
 
   useEffect(() => {
-    if (!isOpen || !focusedModelId || !listRef.current) {
+    if (!isOpen || focusedIndex < 0) {
       return
     }
 
@@ -39,29 +39,11 @@ export function useModelSelectorScroll({
       return
     }
 
-    const list = listRef.current
-    const activeItem = list.querySelector(`[data-model-id="${focusedModelId}"]`) as HTMLElement | null
-    if (!activeItem) {
-      scrollModeRef.current = 'none'
-      return
-    }
-
-    const itemTop = activeItem.offsetTop
-    const itemBottom = itemTop + activeItem.offsetHeight
-
     if (scrollMode === 'center') {
-      const targetScrollTop = itemTop - (list.clientHeight / 2) + (activeItem.offsetHeight / 2)
-      const maxScrollTop = Math.max(0, list.scrollHeight - list.clientHeight)
-      const nextScrollTop = Math.max(0, Math.min(maxScrollTop, targetScrollTop))
       onDebugLog?.('scroll-center', {
-        focusedModelId,
-        from: list.scrollTop,
-        to: nextScrollTop,
-        listHeight: list.clientHeight,
-        itemTop,
-        itemHeight: activeItem.offsetHeight,
+        focusedIndex,
       })
-      list.scrollTop = nextScrollTop
+      scrollToIndex(focusedIndex, 'center')
       scrollModeRef.current = 'none'
       return
     }
@@ -70,18 +52,12 @@ export function useModelSelectorScroll({
       return
     }
 
-    const viewTop = list.scrollTop
-    const viewBottom = viewTop + list.clientHeight
-    if (itemTop < viewTop) {
-      onDebugLog?.('scroll-nearest-up', { focusedModelId, from: viewTop, to: itemTop })
-      list.scrollTop = itemTop
-    } else if (itemBottom > viewBottom) {
-      const nextScrollTop = itemBottom - list.clientHeight
-      onDebugLog?.('scroll-nearest-down', { focusedModelId, from: viewTop, to: nextScrollTop })
-      list.scrollTop = nextScrollTop
-    }
+    onDebugLog?.('scroll-nearest', {
+      focusedIndex,
+    })
+    scrollToIndex(focusedIndex, 'auto')
     scrollModeRef.current = 'none'
-  }, [focusedModelId, isOpen, listRef, onDebugLog])
+  }, [focusedIndex, isOpen, onDebugLog, scrollToIndex])
 
   return {
     requestCenterScroll,

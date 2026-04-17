@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/ai/types';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
-import { CHAT_MESSAGE_COPIED_EVENT } from '@/components/Chat/common/copyFeedback';
+import { subscribeChatMessageCopied } from '@/components/Chat/common/copyFeedback';
 
 const COPY_FEEDBACK_DURATION_MS = 1200;
 const COPY_FEEDBACK_CLOSING_MS = 160;
@@ -18,7 +18,7 @@ interface MessageToolbarProps {
   onSwitchVersion: (targetIndex: number) => void;
 }
 
-export function MessageToolbar({
+export const MessageToolbar = memo(function MessageToolbar({
   msg,
   isLoading,
   onCopy,
@@ -58,18 +58,12 @@ export function MessageToolbar({
   }, []);
 
   useEffect(() => {
-      const handleCopied = (event: Event) => {
-          const copiedEvent = event as CustomEvent<{ messageId?: string }>;
-          if (copiedEvent.detail?.messageId !== msg.id) {
+      return subscribeChatMessageCopied((messageId) => {
+          if (messageId !== msg.id) {
               return;
           }
           triggerCopiedState('shortcut');
-      };
-
-      window.addEventListener(CHAT_MESSAGE_COPIED_EVENT, handleCopied);
-      return () => {
-          window.removeEventListener(CHAT_MESSAGE_COPIED_EVENT, handleCopied);
-      };
+      });
   }, [msg.id, triggerCopiedState]);
 
   useEffect(() => {
@@ -139,4 +133,4 @@ export function MessageToolbar({
         </div>
     </div>
   );
-}
+});

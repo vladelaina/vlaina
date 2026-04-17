@@ -14,14 +14,14 @@ interface LanguageSelectorProps {
     onOpenChange: (open: boolean) => void;
 }
 
-export const LanguageSelector = ({
+export const LanguageSelector = React.memo(function LanguageSelector({
     language,
     displayName,
     getNodeText,
     onLanguageChange,
     isOpen,
     onOpenChange
-}: LanguageSelectorProps) => {
+}: LanguageSelectorProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [activeIndex, setActiveIndex] = useState(0);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -166,4 +166,4 @@ export const LanguageSelector = ({
             </PopoverContent>
         </Popover>
     );
-};
+});

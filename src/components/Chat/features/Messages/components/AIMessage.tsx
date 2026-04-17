@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MarkdownRenderer from '@/components/Chat/features/Markdown/MarkdownRenderer';
 import { MessageToolbar } from './MessageToolbar';
 import { ErrorBlock } from './ErrorBlock';
@@ -34,6 +34,29 @@ export function AIMessage({
 }: AIMessageProps) {
   const [copiedCodeBlockId, setCopiedCodeBlockId] = useState<string | null>(null);
   const copiedCodeBlockTimerRef = useRef<number | null>(null);
+  const startTime = useMemo(
+    () => (msg.timestamp ? new Date(msg.timestamp) : undefined),
+    [msg.timestamp],
+  );
+
+  const {
+    errorType,
+    errorCode,
+    errorContent,
+    contentWithoutError,
+  } = useMemo(() => {
+    const parsedError = parseErrorTag(msg.content);
+    const nextErrorContent = parsedError?.content ?? null;
+
+    return {
+      errorType: parsedError?.type,
+      errorCode: parsedError?.code,
+      errorContent: nextErrorContent,
+      contentWithoutError: nextErrorContent
+        ? msg.content.replace(/<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/i, '')
+        : msg.content,
+    };
+  }, [msg.content]);
 
   useEffect(() => {
     setCopiedCodeBlockId(null);
@@ -51,14 +74,9 @@ export function AIMessage({
     };
   }, []);
 
-  const parsedError = parseErrorTag(msg.content);
-  const errorType = parsedError?.type;
-  const errorCode = parsedError?.code;
-  const errorContent = parsedError?.content ?? null;
-  const contentWithoutError = errorContent ? msg.content.replace(/<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/i, '') : msg.content;
   const shouldShowInlineLoading = isLoading && !!contentWithoutError.trim();
 
-  const handleCodeBlockCopy = (blockId: string) => {
+  const handleCodeBlockCopy = useCallback((blockId: string) => {
     setCopiedCodeBlockId(blockId);
     if (copiedCodeBlockTimerRef.current !== null) {
       window.clearTimeout(copiedCodeBlockTimerRef.current);
@@ -67,7 +85,7 @@ export function AIMessage({
       setCopiedCodeBlockId((currentBlockId) => currentBlockId === blockId ? null : currentBlockId);
       copiedCodeBlockTimerRef.current = null;
     }, 1200);
-  };
+  }, []);
 
   return (
     <div className="w-full pl-[15px]">
@@ -81,7 +99,7 @@ export function AIMessage({
                 copiedCodeBlockId={copiedCodeBlockId}
                 onCopyCodeBlock={handleCodeBlockCopy}
                 isStreaming={isLoading}
-                startTime={msg.timestamp ? new Date(msg.timestamp) : undefined}
+                startTime={startTime}
             />
         </div>
 

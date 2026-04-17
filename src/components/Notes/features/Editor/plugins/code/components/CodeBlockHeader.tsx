@@ -15,7 +15,7 @@ interface CodeBlockHeaderProps {
     onCopy: (e: React.MouseEvent) => void;
 }
 
-export const CodeBlockHeader = ({
+export const CodeBlockHeader = React.memo(function CodeBlockHeader({
     language,
     displayName,
     getNodeText,
@@ -25,7 +25,7 @@ export const CodeBlockHeader = ({
     onToggleCollapse,
     onLanguageChange,
     onCopy
-}: CodeBlockHeaderProps) => {
+}: CodeBlockHeaderProps) {
     return (
         <div 
             onClick={onToggleCollapse}
@@ -57,4 +57,4 @@ export const CodeBlockHeader = ({
             </div>
         </div>
     );
-};
+});

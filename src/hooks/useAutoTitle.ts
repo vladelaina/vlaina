@@ -1,11 +1,12 @@
 import { useCallback, useRef } from 'react';
-import { useAIStore } from '@/stores/useAIStore';
+import { actions as aiActions } from '@/stores/useAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { buildTitleSourceFromMessages, needsAutoTitle } from '@/lib/ai/temporaryChat';
 
 export function useAutoTitle() {
-  const { providers, getModel, updateSession } = useAIStore();
+  const providers = useUnifiedStore((state) => state.data.ai?.providers || []);
+  const models = useUnifiedStore((state) => state.data.ai?.models || []);
   const inFlightSessionIdsRef = useRef(new Set<string>());
 
   const generateAutoTitle = useCallback(async (sessionId: string, providerId: string, modelId: string) => {
@@ -21,7 +22,7 @@ export function useAutoTitle() {
           const provider = providers.find(p => p.id === providerId);
           if (!provider) return;
           if (provider.enabled === false) return;
-          const model = getModel(modelId);
+          const model = models.find((item) => item.id === modelId);
           if (!model) return;
           const messages = useUnifiedStore.getState().data.ai?.messages[sessionId] || [];
           const titleSource = buildTitleSourceFromMessages(messages);
@@ -51,7 +52,7 @@ Conversation Content: ${titleSource}`;
               .data.ai?.sessions.find((item) => item.id === sessionId);
 
           if (cleanTitle && !needsAutoTitle(cleanTitle) && latestSession && needsAutoTitle(latestSession.title)) {
-              updateSession(sessionId, { title: cleanTitle });
+              aiActions.updateSession(sessionId, { title: cleanTitle });
           }
       } catch (error) {
         if (import.meta.env.DEV) {
@@ -60,7 +61,7 @@ Conversation Content: ${titleSource}`;
       } finally {
           inFlightSessionIdsRef.current.delete(sessionId);
       }
-  }, [providers, getModel, updateSession]);
+  }, [models, providers]);
 
   return { generateAutoTitle };
 }

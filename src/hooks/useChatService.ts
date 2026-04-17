@@ -1,5 +1,5 @@
-import { useCallback } from 'react';
-import { useAIStore } from '@/stores/useAIStore';
+import { useCallback, useMemo } from 'react';
+import { actions as aiActions } from '@/stores/useAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
@@ -8,10 +8,11 @@ import { buildRequestHistory } from '@/lib/ai/requestContext';
 import { generateId } from '@/lib/id';
 import { isManagedProviderId } from '@/lib/ai/managedService';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import { useAIUIStore } from '@/stores/ai/chatState';
 import { useAutoTitle } from './useAutoTitle';
 import { requestManager } from '@/lib/ai/requestManager';
 import { getUserFacingAIError } from '@/lib/ai/errors';
-import { needsAutoTitle } from '@/lib/ai/temporaryChat';
+import { isTemporarySession, isTemporarySessionId, needsAutoTitle } from '@/lib/ai/temporaryChat';
 import {
   buildMentionedNotesContext,
   buildMessageImageSources,
@@ -24,6 +25,7 @@ import { runStreamedAssistantMessage } from './chatService/runStreamedAssistantM
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
+const EMPTY_MESSAGES: never[] = [];
 
 function escapeXml(value: string) {
   return value
@@ -44,44 +46,53 @@ function buildChatErrorPayload(error: unknown) {
 
 export function useChatService() {
   const { generateAutoTitle } = useAutoTitle();
+  const currentSessionId = useUnifiedStore((s) => s.data.ai?.currentSessionId || null);
+  const messages = useUnifiedStore((state) => {
+    const sessionId = state.data.ai?.currentSessionId;
+    if (!sessionId) {
+      return EMPTY_MESSAGES;
+    }
 
-  const {
-    messages: allMessages,
-    currentSessionId,
-    createSession,
-    addMessage,
-    updateMessage,
-    completeMessage,
-    editMessageAndBranch,
-    addVersion,
-    getSelectedModel,
-    providers,
-    isTemporarySession,
-    customSystemPrompt,
-    includeTimeContext,
-    setSessionLoading,
-    markSessionUnread,
-    setError,
-  } = useAIStore();
+    return state.data.ai?.messages?.[sessionId] || EMPTY_MESSAGES;
+  });
+  const providers = useUnifiedStore((s) => s.data.ai?.providers || []);
+  const models = useUnifiedStore((s) => s.data.ai?.models || []);
+  const selectedModelId = useUnifiedStore((s) => s.data.ai?.selectedModelId || null);
+  const customSystemPrompt = useUnifiedStore((s) => s.data.ai?.customSystemPrompt || '');
+  const includeTimeContext = useUnifiedStore((s) => s.data.ai?.includeTimeContext !== false);
+  const setSessionLoading = useAIUIStore((s) => s.setSessionLoading);
+  const markSessionUnread = useAIUIStore((s) => s.markSessionUnread);
+  const setError = useAIUIStore((s) => s.setError);
 
-  const messages = currentSessionId ? allMessages[currentSessionId] || [] : [];
-  const selectedModel = getSelectedModel();
+  const selectedModel = useMemo(() => {
+    if (!selectedModelId) {
+      return undefined;
+    }
+
+    const model = models.find((item) => item.id === selectedModelId);
+    if (!model) {
+      return undefined;
+    }
+
+    const provider = providers.find((item) => item.id === model.providerId);
+    return provider?.enabled === false ? undefined : model;
+  }, [models, providers, selectedModelId]);
 
   const stop = useCallback(() => {
-    const sessionId = useUnifiedStore.getState().data.ai?.currentSessionId;
-    if (!sessionId) return;
-    requestManager.abort(sessionId);
-    setSessionLoading(sessionId, false);
+      const sessionId = useUnifiedStore.getState().data.ai?.currentSessionId;
+      if (!sessionId) return;
+      requestManager.abort(sessionId);
+      setSessionLoading(sessionId, false);
   }, [setSessionLoading]);
 
   const maybeGenerateAutoTitle = useCallback(
     (sessionId: string, providerId: string, modelId: string) => {
-      if (isTemporarySession(sessionId)) return;
       const session = useUnifiedStore.getState().data.ai?.sessions.find((item) => item.id === sessionId);
+      if (isTemporarySessionId(sessionId) || isTemporarySession(session)) return;
       if (!session || !needsAutoTitle(session.title)) return;
       void generateAutoTitle(sessionId, providerId, modelId);
     },
-    [generateAutoTitle, isTemporarySession]
+    [generateAutoTitle]
   );
 
   const sendMessage = useCallback(
@@ -113,7 +124,7 @@ export function useChatService() {
 
       let activeSessionId = currentSessionId;
       if (!activeSessionId) {
-        activeSessionId = createSession('');
+        activeSessionId = aiActions.createSession('');
       }
 
       const targetSessionId = activeSessionId;
@@ -131,7 +142,7 @@ export function useChatService() {
         storageContent = mentionText;
       }
 
-      addMessage({
+      aiActions.addMessage({
         role: 'user',
         content: storageContent,
         imageSources: messageImageSources,
@@ -139,14 +150,15 @@ export function useChatService() {
       });
 
       const assistantMessageId = generateId('msg-');
-      addMessage({
+      aiActions.addMessage({
         id: assistantMessageId,
         role: 'assistant',
         content: '',
         modelId: selectedModel.id,
       });
 
-      const isTemporaryTarget = isTemporarySession(targetSessionId);
+      const targetSession = useUnifiedStore.getState().data.ai?.sessions.find((item) => item.id === targetSessionId);
+      const isTemporaryTarget = isTemporarySessionId(targetSessionId) || isTemporarySession(targetSession);
 
       try {
         const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
@@ -196,8 +208,8 @@ export function useChatService() {
               onChunk,
               signal
             ),
-          updateMessage,
-          completeMessage,
+          updateMessage: aiActions.updateMessage,
+          completeMessage: aiActions.completeMessage,
           setSessionLoading,
           setError,
           buildErrorPayload: buildChatErrorPayload,
@@ -208,7 +220,7 @@ export function useChatService() {
             }
 
             const current = useUnifiedStore.getState().data.ai?.currentSessionId;
-            if (targetSessionId !== current && !isTemporarySession(targetSessionId)) {
+            if (targetSessionId !== current && !isTemporaryTarget) {
               markSessionUnread(targetSessionId);
             }
           },
@@ -216,18 +228,13 @@ export function useChatService() {
       } catch (error) {
         const { message, xml } = buildChatErrorPayload(error)
         setError(message);
-        updateMessage(targetSessionId, assistantMessageId, xml);
+        aiActions.updateMessage(targetSessionId, assistantMessageId, xml);
       }
     },
     [
       currentSessionId,
-      createSession,
-      addMessage,
-      updateMessage,
-      completeMessage,
       selectedModel,
       providers,
-      isTemporarySession,
       customSystemPrompt,
       includeTimeContext,
       setSessionLoading,
@@ -253,10 +260,10 @@ export function useChatService() {
         return;
       }
 
-      editMessageAndBranch(sessionId, messageId, newContent);
+      aiActions.editMessageAndBranch(sessionId, messageId, newContent);
 
       const assistantMessageId = generateId('msg-');
-      addMessage({
+      aiActions.addMessage({
         id: assistantMessageId,
         role: 'assistant',
         content: '',
@@ -294,8 +301,8 @@ export function useChatService() {
               onChunk,
               signal
             ),
-          updateMessage,
-          completeMessage,
+          updateMessage: aiActions.updateMessage,
+          completeMessage: aiActions.completeMessage,
           setSessionLoading,
           setError,
           buildErrorPayload: buildChatErrorPayload,
@@ -307,7 +314,7 @@ export function useChatService() {
       } catch (error) {
         const { message, xml } = buildChatErrorPayload(error)
         setError(message);
-        updateMessage(sessionId, assistantMessageId, xml);
+        aiActions.updateMessage(sessionId, assistantMessageId, xml);
       }
     },
     [
@@ -316,10 +323,6 @@ export function useChatService() {
       providers,
       customSystemPrompt,
       includeTimeContext,
-      editMessageAndBranch,
-      addMessage,
-      updateMessage,
-      completeMessage,
       setError,
       setSessionLoading,
       maybeGenerateAutoTitle,
@@ -345,7 +348,7 @@ export function useChatService() {
         return;
       }
 
-      addVersion(msgId);
+      aiActions.addVersion(msgId);
 
       try {
         const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
@@ -369,8 +372,8 @@ export function useChatService() {
               onChunk,
               signal
             ),
-          updateMessage,
-          completeMessage,
+          updateMessage: aiActions.updateMessage,
+          completeMessage: aiActions.completeMessage,
           setSessionLoading,
           setError,
           buildErrorPayload: buildChatErrorPayload,
@@ -382,7 +385,7 @@ export function useChatService() {
       } catch (error) {
         const { message, xml } = buildChatErrorPayload(error)
         setError(message);
-        updateMessage(sessionId, msgId, xml);
+        aiActions.updateMessage(sessionId, msgId, xml);
       }
     },
     [
@@ -391,10 +394,7 @@ export function useChatService() {
       providers,
       customSystemPrompt,
       includeTimeContext,
-      addVersion,
       setSessionLoading,
-      updateMessage,
-      completeMessage,
       setError,
       currentSessionId,
       maybeGenerateAutoTitle,

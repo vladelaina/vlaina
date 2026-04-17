@@ -124,12 +124,6 @@ export function useChatComposer({
       onSend(outgoingMessage, attachments, noteMentions);
       setMessage('');
       onAfterSend();
-
-      requestAnimationFrame(() => {
-        if (textareaRef.current) {
-          textareaRef.current.style.height = 'auto';
-        }
-      });
     },
     [attachments, getNoteMentions, message, onAfterSend, onSend]
   );

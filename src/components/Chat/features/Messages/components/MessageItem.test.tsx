@@ -50,6 +50,7 @@ describe("MessageItem", () => {
     render(
       <MessageItem
         msg={createMessage("user", "u1")}
+        userBubbleContainerWidth={880}
         imageGallery={[]}
         isLoading={false}
         onCopy={() => {}}
@@ -64,6 +65,7 @@ describe("MessageItem", () => {
     expect(userMessageSpy).toHaveBeenCalledTimes(1);
     expect(userMessageSpy.mock.calls[0][0]).toMatchObject({
       message: expect.objectContaining({ id: "u1", role: "user" }),
+      containerWidth: 880,
       onEdit,
       onSwitchVersion,
     });
@@ -106,6 +108,110 @@ describe("MessageItem", () => {
     expect(onRegenerate).toHaveBeenCalledWith("a1");
     expect(onSwitchVersion).toHaveBeenCalledWith("a1", 2);
     expect(userMessageSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not rerender user messages when only loading state changes", () => {
+    const onEdit = vi.fn();
+    const onSwitchVersion = vi.fn();
+    const msg = createMessage("user", "u2");
+
+    const view = render(
+      <MessageItem
+        msg={msg}
+        userBubbleContainerWidth={880}
+        imageGallery={[]}
+        isLoading={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onEdit={onEdit}
+        onSwitchVersion={onSwitchVersion}
+      />,
+    );
+
+    expect(userMessageSpy).toHaveBeenCalledTimes(1);
+
+    view.rerender(
+      <MessageItem
+        msg={msg}
+        userBubbleContainerWidth={880}
+        imageGallery={[]}
+        isLoading
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onEdit={onEdit}
+        onSwitchVersion={onSwitchVersion}
+      />,
+    );
+
+    expect(userMessageSpy).toHaveBeenCalledTimes(1);
+    expect(aiMessageSpy).not.toHaveBeenCalled();
+  });
+
+  it("rerenders assistant messages when loading state changes", () => {
+    const msg = createMessage("assistant", "a2");
+    const onCopy = vi.fn();
+    const onRegenerate = vi.fn();
+    const onSwitchVersion = vi.fn();
+
+    const view = render(
+      <MessageItem
+        msg={msg}
+        isLoading={false}
+        onCopy={onCopy}
+        onRegenerate={onRegenerate}
+        onSwitchVersion={onSwitchVersion}
+      />,
+    );
+
+    expect(aiMessageSpy).toHaveBeenCalledTimes(1);
+
+    view.rerender(
+      <MessageItem
+        msg={msg}
+        isLoading
+        onCopy={onCopy}
+        onRegenerate={onRegenerate}
+        onSwitchVersion={onSwitchVersion}
+      />,
+    );
+
+    expect(aiMessageSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("rerenders user messages when the shared container width changes", () => {
+    const onEdit = vi.fn();
+    const onSwitchVersion = vi.fn();
+    const msg = createMessage("user", "u3");
+
+    const view = render(
+      <MessageItem
+        msg={msg}
+        userBubbleContainerWidth={880}
+        imageGallery={[]}
+        isLoading={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onEdit={onEdit}
+        onSwitchVersion={onSwitchVersion}
+      />,
+    );
+
+    expect(userMessageSpy).toHaveBeenCalledTimes(1);
+
+    view.rerender(
+      <MessageItem
+        msg={msg}
+        userBubbleContainerWidth={720}
+        imageGallery={[]}
+        isLoading={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onEdit={onEdit}
+        onSwitchVersion={onSwitchVersion}
+      />,
+    );
+
+    expect(userMessageSpy).toHaveBeenCalledTimes(2);
   });
 
 });

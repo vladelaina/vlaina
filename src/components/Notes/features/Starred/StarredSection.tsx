@@ -297,7 +297,6 @@ export function StarredSection({
               key={entry.id}
               node={treeNode}
               depth={0}
-              currentNotePath={currentNote?.path}
               showStarBadge
               dragEnabled={false}
             />
@@ -306,7 +305,6 @@ export function StarredSection({
               key={entry.id}
               node={treeNode}
               depth={0}
-              currentNotePath={currentNote?.path}
               showStarBadge
               dragEnabled={false}
             />

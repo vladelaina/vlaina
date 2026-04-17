@@ -1,6 +1,7 @@
-import { forwardRef, useLayoutEffect, useRef } from 'react';
+import { forwardRef, useRef } from 'react';
 import type { ComponentPropsWithoutRef, ReactNode, TextareaHTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
+import { usePredictedTextareaHeight } from '@/hooks/usePredictedTextareaHeight';
 
 const fieldShellClassName =
   'rounded-2xl border border-zinc-200/90 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-colors focus-within:border-zinc-300 dark:border-white/10 dark:bg-[#202020] dark:focus-within:border-white/15';
@@ -48,6 +49,11 @@ export const SettingsTextarea = forwardRef<HTMLTextAreaElement, SettingsTextarea
     ref
   ) {
     const innerRef = useRef<HTMLTextAreaElement | null>(null);
+    const textareaValue = typeof value === 'string'
+      ? value
+      : Array.isArray(value)
+        ? value.join('\n')
+        : '';
 
     const attachRef = (node: HTMLTextAreaElement | null) => {
       innerRef.current = node;
@@ -58,27 +64,18 @@ export const SettingsTextarea = forwardRef<HTMLTextAreaElement, SettingsTextarea
       }
     };
 
-    const syncHeight = () => {
-      if (!autoGrow || !innerRef.current) {
-        return;
-      }
-      innerRef.current.style.height = '0px';
-      innerRef.current.style.height = `${innerRef.current.scrollHeight}px`;
-    };
-
-    useLayoutEffect(() => {
-      syncHeight();
-    }, [autoGrow, value]);
+    usePredictedTextareaHeight(innerRef, {
+      value: textareaValue,
+      minHeight: 0,
+      maxHeight: autoGrow ? 100000 : 0,
+    });
 
     return (
       <div className={cn(fieldShellClassName, shellClassName, className)}>
         <textarea
           ref={attachRef}
           value={value}
-          onChange={(event) => {
-            onChange?.(event);
-            syncHeight();
-          }}
+          onChange={onChange}
           className={cn(
             'block w-full rounded-2xl border-0 bg-transparent px-4 py-3 text-[14px] leading-6 text-zinc-900 outline-none placeholder:text-zinc-400 focus:ring-0 dark:text-zinc-100 dark:placeholder:text-zinc-500',
             autoGrow && 'min-h-0 resize-none overflow-y-auto',

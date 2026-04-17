@@ -11,6 +11,7 @@ import { SPRING_SNAPPY, SPRING_GENTLE } from '@/lib/animations';
 import { useGlobalIconUpload } from '@/components/common/UniversalIconPicker/hooks/useGlobalIconUpload';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { HeroIconHeader } from '@/components/common/HeroIconHeader';
+import { usePredictedTextareaHeight } from '@/hooks/usePredictedTextareaHeight';
 
 // Get window dynamically for multi-window support
 const getWindow = () => getCurrentWindow();
@@ -55,6 +56,7 @@ export function DetailModal({
 
   // Adaptive Scaling Logic (Direct DOM for Performance)
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const titleTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const handleResize = () => {
@@ -117,10 +119,11 @@ export function DetailModal({
     handleClose();
   };
 
-  const adjustHeight = (el: HTMLTextAreaElement) => {
-    el.style.height = 'auto';
-    el.style.height = el.scrollHeight + 'px';
-  };
+  usePredictedTextareaHeight(titleTextareaRef, {
+    value: isEditing ? displayItem.title : '',
+    minHeight: 0,
+    maxHeight: isEditing ? 240 : 0,
+  });
 
   return (
     <AnimatePresence>
@@ -212,10 +215,9 @@ export function DetailModal({
                               autoFocus={focusTarget === 'title'}
                               value={displayItem.title}
                               rows={1}
-                              ref={(el) => { if (el) adjustHeight(el); }}
+                              ref={titleTextareaRef}
                               onChange={(e) => {
                                 updateDraft('title', e.target.value);
-                                adjustHeight(e.target);
                               }}
                               className="text-center text-3xl font-medium bg-transparent border-none outline-none p-0 text-zinc-900 dark:text-zinc-100 w-full resize-none overflow-hidden placeholder:text-zinc-200 dark:placeholder:text-zinc-700"
                               placeholder="Untitled"

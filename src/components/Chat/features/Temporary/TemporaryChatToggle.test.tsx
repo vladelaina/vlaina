@@ -4,12 +4,26 @@ import type { ReactNode } from "react";
 import { TemporaryChatToggle } from "./TemporaryChatToggle";
 
 const mocks = vi.hoisted(() => ({
-  useAIStore: vi.fn(),
+  useUnifiedStore: vi.fn(),
+  useAIUIStore: vi.fn(),
+  promoteTemporarySession: vi.fn(),
+  toggleTemporaryChat: vi.fn(),
   generateAutoTitle: vi.fn(),
 }));
 
 vi.mock("@/stores/useAIStore", () => ({
-  useAIStore: mocks.useAIStore,
+  actions: {
+    promoteTemporarySession: (...args: unknown[]) => mocks.promoteTemporarySession(...args),
+    toggleTemporaryChat: (...args: unknown[]) => mocks.toggleTemporaryChat(...args),
+  },
+}));
+
+vi.mock("@/stores/unified/useUnifiedStore", () => ({
+  useUnifiedStore: mocks.useUnifiedStore,
+}));
+
+vi.mock("@/stores/ai/chatState", () => ({
+  useAIUIStore: mocks.useAIUIStore,
 }));
 
 vi.mock("@/hooks/useAutoTitle", () => ({
@@ -34,42 +48,44 @@ vi.mock("@/components/ui/icons", () => ({
 
 function createStore(overrides?: Record<string, unknown>) {
   return {
-    temporaryChatEnabled: true,
-    toggleTemporaryChat: vi.fn(),
-    promoteTemporarySession: vi.fn(),
-    currentSessionId: "temp-session-1",
-    sessions: [
-      {
-        id: "temp-session-1",
-        modelId: "model-1",
-      },
-    ],
-    getModel: vi.fn((id: string) =>
-      id === "model-1"
-        ? {
+    data: {
+      ai: {
+        temporaryChatEnabled: true,
+        currentSessionId: "temp-session-1",
+        sessions: [
+          {
+            id: "temp-session-1",
+            modelId: "model-1",
+          },
+        ],
+        messages: {
+          "temp-session-1": [
+            {
+              id: "u1",
+              role: "user",
+              content: "![image](asset://x)\n\nDraft an API design",
+              modelId: "model-1",
+              timestamp: 1,
+            },
+          ],
+        },
+        providers: [
+          {
+            id: "provider-1",
+            enabled: true,
+          },
+        ],
+        models: [
+          {
             id: "model-1",
             apiModelId: "model-1",
             providerId: "provider-1",
-          }
-        : undefined,
-    ),
-    messages: {
-      "temp-session-1": [
-        {
-          id: "u1",
-          role: "user",
-          content: "![image](asset://x)\n\nDraft an API design",
-          modelId: "model-1",
-          timestamp: 1,
-        },
-      ],
+          },
+        ],
+        selectedModelId: "model-1",
+      },
     },
-    selectedModel: {
-      id: "model-1",
-      apiModelId: "model-1",
-      providerId: "provider-1",
-    },
-    isSessionLoading: vi.fn(() => false),
+    generatingSessions: {},
     ...overrides,
   };
 }
@@ -80,10 +96,12 @@ describe("TemporaryChatToggle", () => {
   });
 
   it("promotes temporary chat and triggers auto title generation in promote mode", () => {
-    const store = createStore({
-      promoteTemporarySession: vi.fn(() => "session-123"),
-    });
-    mocks.useAIStore.mockReturnValue(store);
+    const store = createStore();
+    mocks.promoteTemporarySession.mockReturnValue("session-123");
+    mocks.useUnifiedStore.mockImplementation((selector: (state: typeof store) => unknown) => selector(store));
+    mocks.useAIUIStore.mockImplementation((selector: (state: { generatingSessions: Record<string, boolean> }) => unknown) =>
+      selector({ generatingSessions: store.generatingSessions as Record<string, boolean> })
+    );
 
     render(<TemporaryChatToggle mode="promote" />);
 
@@ -91,7 +109,7 @@ describe("TemporaryChatToggle", () => {
       screen.getByRole("button", { name: "Save temporary chat as regular chat" }),
     );
 
-    expect(store.promoteTemporarySession).toHaveBeenCalledTimes(1);
+    expect(mocks.promoteTemporarySession).toHaveBeenCalledTimes(1);
     expect(mocks.generateAutoTitle).toHaveBeenCalledWith(
       "session-123",
       "provider-1",
@@ -101,63 +119,140 @@ describe("TemporaryChatToggle", () => {
 
   it("skips auto title generation when selected model is unavailable", () => {
     const store = createStore({
-      selectedModel: undefined,
-      sessions: [],
-      getModel: vi.fn(() => undefined),
-      promoteTemporarySession: vi.fn(() => "session-123"),
+      data: {
+        ai: {
+          temporaryChatEnabled: true,
+          currentSessionId: "temp-session-1",
+          sessions: [],
+          messages: {
+            "temp-session-1": [],
+          },
+          providers: [],
+          models: [],
+          selectedModelId: null,
+        },
+      },
     });
-    mocks.useAIStore.mockReturnValue(store);
+    mocks.promoteTemporarySession.mockReturnValue("session-123");
+    mocks.useUnifiedStore.mockImplementation((selector: (state: typeof store) => unknown) => selector(store));
+    mocks.useAIUIStore.mockImplementation((selector: (state: { generatingSessions: Record<string, boolean> }) => unknown) =>
+      selector({ generatingSessions: store.generatingSessions as Record<string, boolean> })
+    );
 
     render(<TemporaryChatToggle mode="promote" />);
     fireEvent.click(
       screen.getByRole("button", { name: "Save temporary chat as regular chat" }),
     );
 
-    expect(store.promoteTemporarySession).toHaveBeenCalledTimes(1);
+    expect(mocks.promoteTemporarySession).toHaveBeenCalledTimes(1);
     expect(mocks.generateAutoTitle).not.toHaveBeenCalled();
   });
 
   it("toggle mode enables temporary chat when currently disabled", () => {
     const store = createStore({
-      temporaryChatEnabled: false,
-      currentSessionId: "session-1",
-      messages: { "session-1": [] },
+      data: {
+        ai: {
+          temporaryChatEnabled: false,
+          currentSessionId: "session-1",
+          sessions: [
+            {
+              id: "session-1",
+              modelId: "model-1",
+            },
+          ],
+          messages: { "session-1": [] },
+          providers: [
+            {
+              id: "provider-1",
+              enabled: true,
+            },
+          ],
+          models: [
+            {
+              id: "model-1",
+              apiModelId: "model-1",
+              providerId: "provider-1",
+            },
+          ],
+          selectedModelId: "model-1",
+        },
+      },
     });
-    mocks.useAIStore.mockReturnValue(store);
+    mocks.useUnifiedStore.mockImplementation((selector: (state: typeof store) => unknown) => selector(store));
+    mocks.useAIUIStore.mockImplementation((selector: (state: { generatingSessions: Record<string, boolean> }) => unknown) =>
+      selector({ generatingSessions: store.generatingSessions as Record<string, boolean> })
+    );
 
     render(<TemporaryChatToggle mode="toggle" />);
     fireEvent.click(screen.getByRole("button", { name: "Enable Temporary Chat" }));
 
-    expect(store.toggleTemporaryChat).toHaveBeenCalledWith(true);
+    expect(mocks.toggleTemporaryChat).toHaveBeenCalledWith(true);
   });
 
   it("toggle mode disables temporary chat when no user message exists", () => {
     const store = createStore({
-      messages: { "temp-session-1": [] },
+      data: {
+        ai: {
+          temporaryChatEnabled: true,
+          currentSessionId: "temp-session-1",
+          sessions: [
+            {
+              id: "temp-session-1",
+              modelId: "model-1",
+            },
+          ],
+          messages: { "temp-session-1": [] },
+          providers: [
+            {
+              id: "provider-1",
+              enabled: true,
+            },
+          ],
+          models: [
+            {
+              id: "model-1",
+              apiModelId: "model-1",
+              providerId: "provider-1",
+            },
+          ],
+          selectedModelId: "model-1",
+        },
+      },
     });
-    mocks.useAIStore.mockReturnValue(store);
+    mocks.useUnifiedStore.mockImplementation((selector: (state: typeof store) => unknown) => selector(store));
+    mocks.useAIUIStore.mockImplementation((selector: (state: { generatingSessions: Record<string, boolean> }) => unknown) =>
+      selector({ generatingSessions: store.generatingSessions as Record<string, boolean> })
+    );
 
     render(<TemporaryChatToggle mode="toggle" />);
     fireEvent.click(screen.getByRole("button", { name: "Temporary Chat is On" }));
 
-    expect(store.toggleTemporaryChat).toHaveBeenCalledWith(false);
+    expect(mocks.toggleTemporaryChat).toHaveBeenCalledWith(false);
   });
 
   it("toggle mode does not disable temporary chat when current temporary session already has user messages", () => {
     const store = createStore();
-    mocks.useAIStore.mockReturnValue(store);
+    mocks.useUnifiedStore.mockImplementation((selector: (state: typeof store) => unknown) => selector(store));
+    mocks.useAIUIStore.mockImplementation((selector: (state: { generatingSessions: Record<string, boolean> }) => unknown) =>
+      selector({ generatingSessions: store.generatingSessions as Record<string, boolean> })
+    );
 
     render(<TemporaryChatToggle mode="toggle" />);
     fireEvent.click(screen.getByRole("button", { name: "Temporary Chat is On" }));
 
-    expect(store.toggleTemporaryChat).not.toHaveBeenCalled();
+    expect(mocks.toggleTemporaryChat).not.toHaveBeenCalled();
   });
 
   it("promote button is disabled while session is generating", () => {
     const store = createStore({
-      isSessionLoading: vi.fn(() => true),
+      generatingSessions: {
+        "temp-session-1": true,
+      },
     });
-    mocks.useAIStore.mockReturnValue(store);
+    mocks.useUnifiedStore.mockImplementation((selector: (state: typeof store) => unknown) => selector(store));
+    mocks.useAIUIStore.mockImplementation((selector: (state: { generatingSessions: Record<string, boolean> }) => unknown) =>
+      selector({ generatingSessions: store.generatingSessions as Record<string, boolean> })
+    );
 
     render(<TemporaryChatToggle mode="promote" />);
     const button = screen.getByRole("button", {
@@ -166,6 +261,6 @@ describe("TemporaryChatToggle", () => {
     expect(button).toBeDisabled();
 
     fireEvent.click(button);
-    expect(store.promoteTemporarySession).not.toHaveBeenCalled();
+    expect(mocks.promoteTemporarySession).not.toHaveBeenCalled();
   });
 });

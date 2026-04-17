@@ -7,6 +7,11 @@ import {
   useMemo,
 } from "react";
 import type { ChatMessage } from "@/lib/ai/types";
+import {
+  buildChatMessageFrameLayout,
+  CHAT_MESSAGE_LIST_GAP,
+} from "@/components/Chat/features/Layout/chatMessageFrames";
+import { normalizeChatContainerWidth } from "@/components/Chat/features/Layout/chatWidthBuckets";
 
 interface UseMessageAutoscrollOptions {
   messages: ChatMessage[];
@@ -33,6 +38,25 @@ function isNearBottom(container: HTMLElement): boolean {
   return distanceToBottom <= NEAR_BOTTOM_THRESHOLD;
 }
 
+function computeSpacerHeight(
+  containerHeight: number,
+  targetMessageHeight: number,
+  contentHeightAfterTarget: number,
+  hasVisibleAssistantOutput: boolean,
+): number {
+  const unclampedBaseHeight = Math.max(
+    0,
+    containerHeight - contentHeightAfterTarget - targetMessageHeight,
+  );
+  const maxBaseHeight = containerHeight * MAX_BASE_SPACER_RATIO;
+  const baseHeight = Math.min(unclampedBaseHeight, maxBaseHeight);
+  const extraSpaceForAssistant = hasVisibleAssistantOutput
+    ? containerHeight * STREAMING_EXTRA_SPACER_RATIO
+    : 0;
+
+  return Math.max(0, Math.round(baseHeight + extraSpaceForAssistant));
+}
+
 export const useMessageAutoscroll = ({
   messages,
   isStreaming,
@@ -42,6 +66,9 @@ export const useMessageAutoscroll = ({
   showLoading = false,
 }: UseMessageAutoscrollOptions): MessageAutoscrollBehavior => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const updateSpacerHeightRef = useRef<() => void>(() => {});
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const observedContainerRef = useRef<HTMLDivElement | null>(null);
   const pendingScrollToBottomRef = useRef(false);
   const pendingScrollMessageCountRef = useRef<number | null>(null);
   const isAutoFollowRef = useRef(true);
@@ -82,6 +109,7 @@ export const useMessageAutoscroll = ({
 
     const container = containerRef.current;
     const containerHeight = container.clientHeight;
+    const layoutWidth = normalizeChatContainerWidth(container.clientWidth);
     const lastUserIndex = getLastUserMessageIndex();
 
     if (lastUserIndex < 0) {
@@ -89,18 +117,14 @@ export const useMessageAutoscroll = ({
       return;
     }
 
-    const targetElement = container.querySelector(
-      `[data-message-index="${lastUserIndex}"]`,
-    ) as HTMLElement | null;
-    const containerWidth = container.clientWidth;
-    let contentHeightAfterTarget = 0;
     let targetMessageHeight = 0;
+    let contentHeightAfterTarget = 0;
 
-    if (estimateMessageHeight && containerWidth > 0) {
+    if (estimateMessageHeight) {
       targetMessageHeight = estimateMessageHeight(
         messages[lastUserIndex]!,
         false,
-        containerWidth,
+        layoutWidth,
       );
       contentHeightAfterTarget = messages
         .slice(lastUserIndex + 1)
@@ -110,51 +134,47 @@ export const useMessageAutoscroll = ({
             estimateMessageHeight(
               message,
               isStreaming && lastUserIndex + 1 + index === messages.length - 1,
-              containerWidth,
+              layoutWidth,
             ),
           0,
         );
 
-      if (showLoading) {
-        contentHeightAfterTarget += estimateLoadingHeight?.() ?? 0;
+      if (messages.length > lastUserIndex + 1) {
+        contentHeightAfterTarget +=
+          (messages.length - lastUserIndex - 1) * CHAT_MESSAGE_LIST_GAP;
       }
     } else {
-      if (!targetElement) {
+      const estimatedLayout = buildChatMessageFrameLayout(messages, {
+        cacheKey: chatId,
+        containerWidth: layoutWidth,
+        isSessionActive: isStreaming,
+      });
+      const targetFrame = estimatedLayout.items[lastUserIndex];
+      if (!targetFrame) {
         setSpacerHeight(0);
         return;
       }
 
-      const messageElements = container.querySelectorAll(
-        "[data-message-index]",
-      ) as NodeListOf<HTMLElement>;
-
-      const elementsAfter = Array.from(messageElements).filter((el) => {
-        const idx = Number(el.dataset.messageIndex);
-        return Number.isFinite(idx) && idx > lastUserIndex;
-      });
-
-      contentHeightAfterTarget = elementsAfter.reduce(
-        (sum, el) => sum + el.offsetHeight,
-        0,
-      );
-
-      targetMessageHeight = targetElement.offsetHeight;
+      targetMessageHeight = targetFrame.height;
+      if (estimatedLayout.items.length > lastUserIndex + 1) {
+        const lastFrame = estimatedLayout.items[estimatedLayout.items.length - 1]!;
+        contentHeightAfterTarget = lastFrame.bottom - targetFrame.bottom;
+      }
     }
 
-    const unclampedBaseHeight = Math.max(
-      0,
-      containerHeight - contentHeightAfterTarget - targetMessageHeight,
+    if (showLoading) {
+      contentHeightAfterTarget += CHAT_MESSAGE_LIST_GAP + (estimateLoadingHeight?.() ?? 0);
+    }
+
+    const nextSpacerHeight = computeSpacerHeight(
+      containerHeight,
+      targetMessageHeight,
+      contentHeightAfterTarget,
+      isStreaming && hasVisibleAssistantOutput,
     );
-    const maxBaseHeight = containerHeight * MAX_BASE_SPACER_RATIO;
-    const baseHeight = Math.min(unclampedBaseHeight, maxBaseHeight);
-
-    const extraSpaceForAssistant =
-      isStreaming && hasVisibleAssistantOutput
-        ? containerHeight * STREAMING_EXTRA_SPACER_RATIO
-        : 0;
-
-    setSpacerHeight(Math.max(0, Math.round(baseHeight + extraSpaceForAssistant)));
+    setSpacerHeight((current) => (current === nextSpacerHeight ? current : nextSpacerHeight));
   }, [
+    chatId,
     estimateLoadingHeight,
     estimateMessageHeight,
     getLastUserMessageIndex,
@@ -163,6 +183,10 @@ export const useMessageAutoscroll = ({
     messages,
     showLoading,
   ]);
+
+  useEffect(() => {
+    updateSpacerHeightRef.current = updateSpacerHeight;
+  }, [updateSpacerHeight]);
 
   const handleNewUserMessage = useCallback(() => {
     pendingScrollToBottomRef.current = true;
@@ -236,72 +260,24 @@ export const useMessageAutoscroll = ({
   }, [isStreaming]);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
 
-    let resizeTimeout: ReturnType<typeof setTimeout> | undefined;
-    let immediateUpdate = false;
     const container = containerRef.current;
+    if (!container || observedContainerRef.current === container) {
+      return;
+    }
 
-    const resizeObserver = new ResizeObserver((entries) => {
-      let hasSignificantChange = false;
-      for (const entry of entries) {
-        const element = entry.target as HTMLElement;
-        if (!element.dataset.messageIndex) continue;
-
-        const heightDiff = Math.abs(entry.contentRect.height - element.offsetHeight);
-        if (heightDiff > 50) {
-          hasSignificantChange = true;
-          break;
-        }
-      }
-
-      if (hasSignificantChange || immediateUpdate) {
-        updateSpacerHeight();
-        immediateUpdate = false;
-        return;
-      }
-
-      if (resizeTimeout) {
-        clearTimeout(resizeTimeout);
-      }
-      resizeTimeout = setTimeout(() => {
-        updateSpacerHeight();
-      }, 100);
-    });
-
-    const mutationObserver = new MutationObserver((mutations) => {
-      const hasToggleMutation = mutations.some(
-        (mutation) =>
-          mutation.type === "attributes" &&
-          (mutation.attributeName === "open" ||
-            mutation.attributeName === "data-expanded"),
-      );
-
-      if (!hasToggleMutation) return;
-      immediateUpdate = true;
-      updateSpacerHeight();
+    resizeObserverRef.current?.disconnect();
+    const resizeObserver = new ResizeObserver(() => {
+      updateSpacerHeightRef.current();
     });
 
     resizeObserver.observe(container);
-    mutationObserver.observe(container, {
-      attributes: true,
-      subtree: true,
-      attributeFilter: ["open", "data-expanded"],
-    });
-
-    const messageElements = container.querySelectorAll(
-      "[data-message-index]",
-    ) as NodeListOf<HTMLElement>;
-    messageElements.forEach((element) => resizeObserver.observe(element));
-
-    return () => {
-      if (resizeTimeout) {
-        clearTimeout(resizeTimeout);
-      }
-      resizeObserver.disconnect();
-      mutationObserver.disconnect();
-    };
-  }, [messages, updateSpacerHeight]);
+    resizeObserverRef.current = resizeObserver;
+    observedContainerRef.current = container;
+  }, [messages.length]);
 
   useLayoutEffect(() => {
     if (
@@ -345,18 +321,25 @@ export const useMessageAutoscroll = ({
   }, [isStreaming, updateSpacerHeight]);
 
   useEffect(() => {
+    if (typeof ResizeObserver !== "undefined") {
+      return;
+    }
+
     const handleResize = () => {
-      updateSpacerHeight();
+      updateSpacerHeightRef.current();
     };
 
     window.addEventListener("resize", handleResize);
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, [updateSpacerHeight]);
+  }, []);
 
   useEffect(() => {
     return () => {
+      resizeObserverRef.current?.disconnect();
+      resizeObserverRef.current = null;
+      observedContainerRef.current = null;
       pendingScrollToBottomRef.current = false;
       pendingScrollMessageCountRef.current = null;
     };

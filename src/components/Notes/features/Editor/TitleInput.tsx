@@ -32,6 +32,10 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
   }, [autoFocus]);
 
   useEffect(() => {
+    if (inputRef.current === document.activeElement || isCommittingRef.current) {
+      return;
+    }
+
     setTitle(initialTitle);
   }, [initialTitle]);
 
