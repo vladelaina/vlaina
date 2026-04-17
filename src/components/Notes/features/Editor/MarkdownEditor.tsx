@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useSyncExternalStore } from 'react';
 import {
   Editor,
   rootCtx,
@@ -27,12 +27,18 @@ import { notesRemarkStringifyOptions } from './config/stringifyOptions';
 import { useEditorLayout } from './hooks/useEditorLayout';
 import { useEditorSave } from './hooks/useEditorSave';
 import { calculateTextStats } from './utils/textStats';
+import { createScrollRestoreSession } from './utils/scrollRestoreSession';
 import {
   clearCurrentMarkdownRuntime,
   getCurrentEditorView,
   setCurrentEditorView,
   setCurrentMarkdownRuntime,
 } from './utils/editorViewRegistry';
+import {
+  clearCurrentEditorBlockPositionSnapshot,
+  createCurrentEditorBlockPositionController,
+  subscribeCurrentEditorBlockPositionSnapshot,
+} from './utils/editorBlockPositionCache';
 import {
   normalizeLeadingFrontmatterMarkdown,
   serializeLeadingFrontmatterMarkdown,
@@ -41,7 +47,11 @@ import { hasTemporaryTailParagraph } from './plugins/cursor/endBlankClickPlugin'
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
 import { useNoteEditorFind } from './find';
 import { EditorTopRightToolbar } from './EditorTopRightToolbar';
-import { isSidebarSearchNavigationPending } from '../Sidebar/sidebarSearchNavigation';
+import {
+  getSidebarSearchNavigationPendingPath,
+  isSidebarSearchNavigationPending,
+  subscribeSidebarSearchNavigationPending,
+} from '../Sidebar/sidebarSearchNavigation';
 import {
   getSidebarSearchDebugScrollMeta,
   getSidebarSearchDebugViewMeta,
@@ -154,6 +164,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       const editor = get?.();
       if (!editor) {
         setCurrentEditorView(null);
+        clearCurrentEditorBlockPositionSnapshot();
         clearCurrentMarkdownRuntime();
         logSidebarSearchDebug('editor:view-registry:clear:no-editor', {
           currentNotePath: currentNotePath ?? null,
@@ -168,13 +179,16 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
         parser = null;
       }
       setCurrentEditorView(view as EditorView);
+      const blockPositionController = createCurrentEditorBlockPositionController(view as EditorView);
       setCurrentMarkdownRuntime({ parser });
       logSidebarSearchDebug('editor:view-registry:set', {
         currentNotePath: currentNotePath ?? null,
         view: getSidebarSearchDebugViewMeta(view as EditorView),
       });
       return () => {
+        blockPositionController.destroy();
         setCurrentEditorView(null);
+        clearCurrentEditorBlockPositionSnapshot();
         clearCurrentMarkdownRuntime();
         logSidebarSearchDebug('editor:view-registry:cleanup', {
           currentNotePath: currentNotePath ?? null,
@@ -183,6 +197,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       };
     } catch {
       setCurrentEditorView(null);
+      clearCurrentEditorBlockPositionSnapshot();
       clearCurrentMarkdownRuntime();
       logSidebarSearchDebug('editor:view-registry:clear:error', {
         currentNotePath: currentNotePath ?? null,
@@ -253,7 +268,13 @@ export function MarkdownEditor({
     return getNoteMetadataEntry(noteMetadata, currentNotePath);
   }, [currentNotePath, noteMetadata]);
   const textStats = useMemo(() => calculateTextStats(currentNoteContent), [currentNoteContent]);
-  const isSidebarSearchJumpPending = isSidebarSearchNavigationPending(currentNotePath);
+  const pendingSidebarSearchNavigationPath = useSyncExternalStore(
+    subscribeSidebarSearchNavigationPending,
+    getSidebarSearchNavigationPendingPath,
+    getSidebarSearchNavigationPendingPath,
+  );
+  const isSidebarSearchJumpPending =
+    Boolean(currentNotePath && pendingSidebarSearchNavigationPath === currentNotePath);
 
   const starred = currentNotePath ? isStarred(currentNotePath) : false;
   const coverController = useNoteCoverController(currentNotePath);
@@ -362,47 +383,71 @@ export function MarkdownEditor({
       scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
     });
 
-    const restoreScrollTop = (reason: string) => {
-      if (activePathRef.current !== currentNotePath) return;
-      scrollRoot.scrollTop = targetScrollTop;
-      logSidebarSearchDebug('editor:scroll-restore:apply', {
-        currentNotePath,
-        reason,
-        targetScrollTop,
-        scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
-      });
-    };
+    let unsubscribeBlockSnapshot = () => {};
+    let frameA = 0;
+    let timeoutId = 0;
 
-    const finishRestoreSession = () => {
-      if (activePathRef.current !== currentNotePath) return;
-      scrollPositionsRef.current.set(currentNotePath, scrollRoot.scrollTop);
-      restoreSessionRef.current = null;
-      logSidebarSearchDebug('editor:scroll-restore:finish', {
-        currentNotePath,
-        scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
-      });
-    };
+    const restoreSession = createScrollRestoreSession({
+      notePath: currentNotePath,
+      targetScrollTop,
+      getActivePath: () => activePathRef.current,
+      getSessionPath: () => restoreSessionRef.current?.path ?? null,
+      readScrollTop: () => scrollRoot.scrollTop,
+      writeScrollTop: (nextScrollTop) => {
+        scrollRoot.scrollTop = nextScrollTop;
+      },
+      onApply: (reason) => {
+        logSidebarSearchDebug('editor:scroll-restore:apply', {
+          currentNotePath,
+          reason,
+          targetScrollTop,
+          scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
+        });
+      },
+      onFinish: () => {
+        scrollPositionsRef.current.set(currentNotePath, scrollRoot.scrollTop);
+        restoreSessionRef.current = null;
+        logSidebarSearchDebug('editor:scroll-restore:finish', {
+          currentNotePath,
+          scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
+        });
+      },
+      onStop: () => {
+        unsubscribeBlockSnapshot();
+        cancelAnimationFrame(frameA);
+        window.clearTimeout(timeoutId);
+      },
+    });
 
-    restoreScrollTop('sync');
-    let innerFrame: number | undefined;
-    const frameA = requestAnimationFrame(() => {
-      restoreScrollTop('raf-1');
+    restoreSession.restore('sync');
+    unsubscribeBlockSnapshot = subscribeCurrentEditorBlockPositionSnapshot((snapshot) => {
+      if (
+        !restoreSession.isActive()
+        || !snapshot
+        || snapshot.scrollRoot !== scrollRoot
+        || activePathRef.current !== currentNotePath
+      ) {
+        return;
+      }
+
+      const alreadyRestored = restoreSession.restore(`snapshot:${snapshot.version}`, snapshot.scrollTop);
+      if (alreadyRestored) {
+        restoreSession.finish();
+      }
     });
-    const frameB = requestAnimationFrame(() => {
-      innerFrame = requestAnimationFrame(() => {
-        restoreScrollTop('raf-2');
-      });
+    frameA = requestAnimationFrame(() => {
+      const alreadyRestored = restoreSession.restore('raf');
+      if (alreadyRestored) {
+        restoreSession.finish();
+      }
     });
-    const timeoutId = window.setTimeout(() => {
-      restoreScrollTop('timeout');
-      finishRestoreSession();
-    }, 120);
+    timeoutId = window.setTimeout(() => {
+      restoreSession.restore('timeout');
+      restoreSession.finish();
+    }, 160);
 
     return () => {
-      cancelAnimationFrame(frameA);
-      cancelAnimationFrame(frameB);
-      if (innerFrame !== undefined) cancelAnimationFrame(innerFrame);
-      window.clearTimeout(timeoutId);
+      restoreSession.stop();
       if (restoreSessionRef.current?.path === currentNotePath) {
         restoreSessionRef.current = null;
       }

@@ -16,6 +16,7 @@ export interface NotesSidebarSearchResult extends NotesSidebarSearchEntry {
 
 const CONTENT_SEARCH_MIN_QUERY_LENGTH = 2;
 const CONTENT_SNIPPET_RADIUS = 36;
+const MAX_SEARCH_RESULTS = 200;
 
 function collectNotesSidebarSearchEntries(
   children: FileTreeNode[],
@@ -212,5 +213,5 @@ export function queryNotesSidebarSearch(
         a.name.localeCompare(b.name)
       );
     })
-    .slice(0, 12);
+    .slice(0, MAX_SEARCH_RESULTS);
 }

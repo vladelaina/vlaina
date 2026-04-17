@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 
 export interface UseLinkStateProps {
     href: string;
@@ -12,6 +12,7 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
     const isNewLink = !href;
     const [mode, setMode] = useState<'view' | 'edit'>(isNewLink ? 'edit' : 'view');
     const [showCopied, setShowCopied] = useState(false);
+    const copyFeedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Detect if this is an autolink (pure URL) vs a Markdown link [text](url)
     const isAutolink = useMemo(() => {
@@ -31,6 +32,12 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
         setEditUrl(href);
         setEditText(isAutolink ? '' : initialText);
     }, [href, initialText, isAutolink]);
+
+    useEffect(() => () => {
+        if (copyFeedbackTimerRef.current) {
+            clearTimeout(copyFeedbackTimerRef.current);
+        }
+    }, []);
 
     // Sync edit mode to parent container
     useEffect(() => {
@@ -90,7 +97,13 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
         }
         navigator.clipboard.writeText(copyText);
         setShowCopied(true);
-        setTimeout(() => setShowCopied(false), 2000);
+        if (copyFeedbackTimerRef.current) {
+            clearTimeout(copyFeedbackTimerRef.current);
+        }
+        copyFeedbackTimerRef.current = setTimeout(() => {
+            copyFeedbackTimerRef.current = null;
+            setShowCopied(false);
+        }, 2000);
     }, [isAutolink, href, initialText]);
 
     const displayUrl = useMemo(() => {

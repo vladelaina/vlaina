@@ -30,7 +30,7 @@ function fireKeydown(init: KeyboardEventInit, composing = false): KeyboardEvent 
 
 function KeyboardHarness({
   isOpen = true,
-  filteredModels = MODELS,
+  visibleModelIds = MODELS.map((model) => model.id),
   initialFocusedId = null,
   onShortcutToggle = vi.fn(),
   onClose = vi.fn(),
@@ -40,7 +40,7 @@ function KeyboardHarness({
   setKeyboardNavigating = vi.fn(),
 }: {
   isOpen?: boolean
-  filteredModels?: AIModel[]
+  visibleModelIds?: string[]
   initialFocusedId?: string | null
   onShortcutToggle?: () => void
   onClose?: () => void
@@ -53,7 +53,7 @@ function KeyboardHarness({
 
   useModelSelectorKeyboard({
     isOpen,
-    filteredModels,
+    visibleModelIds,
     focusedModelId,
     setFocusedModelId,
     setKeyboardNavigating,
@@ -81,7 +81,7 @@ describe('useModelSelectorKeyboard', () => {
     render(
       <KeyboardHarness
         isOpen
-        filteredModels={MODELS.slice(1)}
+        visibleModelIds={MODELS.slice(1).map((model) => model.id)}
         initialFocusedId="model-a"
         onSelectModel={onSelectModel}
       />,
@@ -99,7 +99,7 @@ describe('useModelSelectorKeyboard', () => {
     render(
       <KeyboardHarness
         isOpen
-        filteredModels={MODELS}
+        visibleModelIds={MODELS.map((model) => model.id)}
         initialFocusedId="model-a"
         onSelectModel={onSelectModel}
       />,
@@ -119,7 +119,7 @@ describe('useModelSelectorKeyboard', () => {
     render(
       <KeyboardHarness
         isOpen
-        filteredModels={[]}
+        visibleModelIds={[]}
         initialFocusedId="model-a"
         requestNearestScroll={requestNearestScroll}
         clearScrollMode={clearScrollMode}
@@ -150,5 +150,23 @@ describe('useModelSelectorKeyboard', () => {
 
     expect(event!.defaultPrevented).toBe(true)
     expect(onShortcutToggle).toHaveBeenCalledTimes(1)
+  })
+
+  it('navigates by rendered model order instead of source array order', async () => {
+    render(
+      <KeyboardHarness
+        isOpen
+        visibleModelIds={['model-b', 'model-a', 'model-c']}
+        initialFocusedId="model-b"
+      />,
+    )
+
+    act(() => {
+      fireKeydown({ key: 'ArrowDown' })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByTestId('focused-id')).toHaveTextContent('model-a')
+    })
   })
 })

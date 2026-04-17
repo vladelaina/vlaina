@@ -57,21 +57,38 @@ export async function buildFileTree(basePath: string, relativePath: string = '')
   return sortFileTree(nodes);
 }
 
+function isPathOnRoute(nodePath: string, targetPath: string): boolean {
+  return targetPath === nodePath || targetPath.startsWith(`${nodePath}/`);
+}
 export function updateFileNodePath(
   nodes: FileTreeNode[],
   oldPath: string,
   newPath: string,
   newName: string
 ): FileTreeNode[] {
-  return nodes.map(node => {
+  let didChange = false;
+  const nextNodes = nodes.map(node => {
     if (node.isFolder) {
-      return { ...node, children: updateFileNodePath(node.children, oldPath, newPath, newName) };
+      if (!isPathOnRoute(node.path, oldPath)) {
+        return node;
+      }
+
+      const nextChildren = updateFileNodePath(node.children, oldPath, newPath, newName);
+      if (nextChildren === node.children) {
+        return node;
+      }
+
+      didChange = true;
+      return { ...node, children: nextChildren };
     }
     if (node.path === oldPath) {
+      didChange = true;
       return { ...node, id: newPath, path: newPath, name: newName };
     }
     return node;
   });
+
+  return didChange ? nextNodes : nodes;
 }
 
 export function updateFolderNode(
@@ -80,7 +97,12 @@ export function updateFolderNode(
   newName: string,
   newPath: string
 ): FileTreeNode[] {
-  return nodes.map(node => {
+  let didChange = false;
+  const nextNodes = nodes.map(node => {
+    if (node.isFolder && !isPathOnRoute(node.path, targetPath) && node.path !== targetPath) {
+      return node;
+    }
+
     if (node.path === targetPath && node.isFolder) {
       const updateChildPaths = (
         children: FileTreeNode[],
@@ -100,6 +122,7 @@ export function updateFolderNode(
           return { ...child, id: newChildPath, path: newChildPath };
         });
       };
+      didChange = true;
       return {
         ...node,
         id: newPath,
@@ -109,22 +132,45 @@ export function updateFolderNode(
       };
     }
     if (node.isFolder) {
-      return { ...node, children: updateFolderNode(node.children, targetPath, newName, newPath) };
+      const nextChildren = updateFolderNode(node.children, targetPath, newName, newPath);
+      if (nextChildren === node.children) {
+        return node;
+      }
+
+      didChange = true;
+      return { ...node, children: nextChildren };
     }
     return node;
   });
+
+  return didChange ? nextNodes : nodes;
 }
 
 export function updateFolderExpanded(nodes: FileTreeNode[], targetPath: string): FileTreeNode[] {
-  return nodes.map(node => {
+  let didChange = false;
+  const nextNodes = nodes.map(node => {
     if (node.isFolder) {
       if (node.path === targetPath) {
+        didChange = true;
         return { ...node, expanded: !node.expanded };
       }
-      return { ...node, children: updateFolderExpanded(node.children, targetPath) };
+
+      if (!isPathOnRoute(node.path, targetPath)) {
+        return node;
+      }
+
+      const nextChildren = updateFolderExpanded(node.children, targetPath);
+      if (nextChildren === node.children) {
+        return node;
+      }
+
+      didChange = true;
+      return { ...node, children: nextChildren };
     }
     return node;
   });
+
+  return didChange ? nextNodes : nodes;
 }
 
 export function collectExpandedPaths(nodes: FileTreeNode[]): Set<string> {
@@ -160,24 +206,31 @@ export function restoreExpandedState(
 }
 
 export function expandFoldersForPath(nodes: FileTreeNode[], targetPath: string): FileTreeNode[] {
-  const pathSegments = targetPath.split('/').filter(Boolean);
-  const expandedPaths = new Set<string>();
-
-  for (let index = 0; index < pathSegments.length; index += 1) {
-    expandedPaths.add(pathSegments.slice(0, index + 1).join('/'));
-  }
-
-  return nodes.map((node) => {
+  let didChange = false;
+  const nextNodes = nodes.map((node) => {
     if (!node.isFolder) {
       return node;
     }
 
+    if (!isPathOnRoute(node.path, targetPath)) {
+      return node;
+    }
+
+    const nextChildren = expandFoldersForPath(node.children, targetPath);
+    const nextExpanded = node.expanded || isPathOnRoute(node.path, targetPath);
+    if (nextChildren === node.children && nextExpanded === node.expanded) {
+      return node;
+    }
+
+    didChange = true;
     return {
       ...node,
-      expanded: node.expanded || expandedPaths.has(node.path),
-      children: expandFoldersForPath(node.children, targetPath),
+      expanded: nextExpanded,
+      children: nextChildren,
     };
   });
+
+  return didChange ? nextNodes : nodes;
 }
 
 export function addNodeToTree(
@@ -189,37 +242,73 @@ export function addNodeToTree(
     return sortFileTree([...nodes, newNode]);
   }
 
-  return nodes.map(node => {
+  let didChange = false;
+  const nextNodes = nodes.map(node => {
     if (node.isFolder) {
+      if (!isPathOnRoute(node.path, targetFolderPath)) {
+        return node;
+      }
+
       if (node.path === targetFolderPath) {
+        didChange = true;
         return {
           ...node,
           children: sortFileTree([...node.children, newNode]),
           expanded: true // Auto-expand parent when adding child
         };
       }
+
+      const nextChildren = addNodeToTree(node.children, targetFolderPath, newNode);
+      if (nextChildren === node.children) {
+        return node;
+      }
+
+      didChange = true;
       return {
         ...node,
-        children: addNodeToTree(node.children, targetFolderPath, newNode)
+        children: nextChildren
       };
     }
     return node;
   });
+
+  return didChange ? nextNodes : nodes;
 }
 
 export function removeNodeFromTree(
   nodes: FileTreeNode[],
   targetPath: string
 ): FileTreeNode[] {
-  return nodes.filter(node => node.path !== targetPath).map(node => {
+  let didChange = false;
+  const filteredNodes = nodes.filter(node => {
+    const shouldKeep = node.path !== targetPath;
+    if (!shouldKeep) {
+      didChange = true;
+    }
+    return shouldKeep;
+  });
+
+  const nextNodes = filteredNodes.map(node => {
     if (node.isFolder) {
+      if (!isPathOnRoute(node.path, targetPath)) {
+        return node;
+      }
+
+      const nextChildren = removeNodeFromTree(node.children, targetPath);
+      if (nextChildren === node.children) {
+        return node;
+      }
+
+      didChange = true;
       return {
         ...node,
-        children: removeNodeFromTree(node.children, targetPath)
+        children: nextChildren
       };
     }
     return node;
   });
+
+  return didChange ? nextNodes : nodes;
 }
 
 export function findNode(nodes: FileTreeNode[], targetPath: string): FileTreeNode | null {

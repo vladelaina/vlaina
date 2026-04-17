@@ -13,7 +13,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { ToastContainer } from '@/components/ui/Toast';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
-import { useAIStore } from '@/stores/useAIStore';
+import { useAIStoreRuntimeEffects } from '@/stores/useAIStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -67,7 +67,7 @@ const NotesTabRow = lazy(async () => {
 });
 
 function AppContent() {
-  useAIStore();
+  useAIStoreRuntimeEffects();
 
   const {
     appViewMode,

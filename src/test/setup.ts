@@ -51,3 +51,39 @@ if (typeof Range !== 'undefined') {
       }),
   });
 }
+
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+class OffscreenCanvasMock {
+  width: number;
+  height: number;
+
+  constructor(width: number, height: number) {
+    this.width = width;
+    this.height = height;
+  }
+
+  getContext() {
+    return {
+      font: '',
+      measureText: (text: string) => ({ width: text.length * 8 }),
+    };
+  }
+}
+
+vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+vi.stubGlobal('OffscreenCanvas', OffscreenCanvasMock);
+
+if (typeof HTMLCanvasElement !== 'undefined') {
+  Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
+    configurable: true,
+    value: () => ({
+      font: '',
+      measureText: (text: string) => ({ width: text.length * 8 }),
+    }),
+  });
+}

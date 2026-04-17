@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo, type RefObject } from 'react';
 import type { ComponentProps, ReactNode } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import type { AIModel } from '@/lib/ai/types';
 import { Icon } from '@/components/ui/icons';
 import { SettingsTextInput } from '@/components/Settings/components/SettingsFields';
@@ -9,6 +10,7 @@ import { formatBenchmarkLatency, type HealthStatus } from '../components/ModelLi
 
 const SLOW_BENCHMARK_LATENCY_MS = 5000;
 const QUICK_ADD_SPLIT_PATTERN = /[,\uFF0C]+/;
+const MODEL_ROW_SLOT_HEIGHT = 58;
 
 function compareHealthStatus(left?: HealthStatus, right?: HealthStatus) {
   const score = (health?: HealthStatus) => {
@@ -279,16 +281,131 @@ function ModelRow({
   return <div className={className}>{content}</div>;
 }
 
+function ModelSearchInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <SettingsTextInput
+      type="text"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder="Filter models..."
+      leading={<Icon name="common.search" size="sm" className="text-zinc-400" />}
+      trailing={value ? (
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
+        >
+          <Icon name="common.close" size="sm" />
+        </button>
+      ) : null}
+    />
+  );
+}
+
+function VirtualModelList<T>({
+  items,
+  resetKey,
+  scrollRef,
+  getKey,
+  renderItem,
+  emptyState,
+}: {
+  items: T[];
+  resetKey: string;
+  scrollRef?: RefObject<HTMLDivElement | null>;
+  getKey: (item: T) => string;
+  renderItem: (item: T) => ReactNode;
+  emptyState: ReactNode;
+}) {
+  const innerScrollRef = useRef<HTMLDivElement | null>(null);
+  const resolvedScrollRef = scrollRef ?? innerScrollRef;
+  const itemKeys = useMemo(
+    () => items.map((item) => getKey(item)).join('\u0000'),
+    [getKey, items],
+  );
+  const virtualizer = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => resolvedScrollRef.current,
+    estimateSize: () => MODEL_ROW_SLOT_HEIGHT,
+    overscan: 6,
+  });
+
+  useEffect(() => {
+    resolvedScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+  }, [resetKey, resolvedScrollRef]);
+
+  useEffect(() => {
+    virtualizer.measure();
+  }, [itemKeys, virtualizer]);
+
+  if (items.length === 0) {
+    return (
+      <div className="rounded-[18px] border border-dashed border-zinc-200/90 px-3.5 py-6 text-center text-[12px] text-zinc-400">
+        {emptyState}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={resolvedScrollRef}
+      className="max-h-[420px] overflow-y-auto pr-1 vlaina-scrollbar"
+    >
+      <div
+        style={{
+          height: `${virtualizer.getTotalSize()}px`,
+          position: 'relative',
+          width: '100%',
+        }}
+      >
+        {virtualizer.getVirtualItems().map((virtualRow) => {
+          const item = items[virtualRow.index];
+          if (!item) {
+            return null;
+          }
+
+          return (
+            <div
+              key={getKey(item)}
+              style={{
+                height: `${virtualRow.size}px`,
+                left: 0,
+                position: 'absolute',
+                top: 0,
+                transform: `translateY(${virtualRow.start}px)`,
+                width: '100%',
+              }}
+            >
+              <div className="pb-2">
+                {renderItem(item)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
   const [isQuickAddFocused, setIsQuickAddFocused] = useState(false);
   const [highlightedQuickAddIndex, setHighlightedQuickAddIndex] = useState(0);
   const quickAddItemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const selectedListScrollRef = useRef<HTMLDivElement | null>(null);
+  const availableListScrollRef = useRef<HTMLDivElement | null>(null);
   const hasFetchedModels = props.sortedFetchedModels.length > 0;
+  const hasActiveQuery = props.modelQuery.trim().length > 0;
   const quickAddIds = parseQuickAddModelIds(props.quickAddModelId);
   const quickAddSegments = props.quickAddModelId.split(/[,\uFF0C]/);
   const quickAddQuery = quickAddSegments[quickAddSegments.length - 1]?.trim() ?? '';
   const queuedQuickAddIds = new Set(quickAddIds.slice(0, -1).map((id) => id.toLowerCase()));
-  const selectedModelsSource = props.filteredProviderModels.length > 0
+  const selectedModelsSource = hasActiveQuery
     ? props.filteredProviderModels
     : props.providerModels;
   const selectedModels = [...selectedModelsSource].sort((left, right) => {
@@ -301,8 +418,9 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
     }
     return left.apiModelId.localeCompare(right.apiModelId);
   });
-  const discoveredModels =
-    props.filteredFetchedModels.length > 0 ? props.filteredFetchedModels : props.sortedFetchedModels;
+  const discoveredModels = hasActiveQuery
+    ? props.filteredFetchedModels
+    : props.sortedFetchedModels;
   const availableModels = discoveredModels
     .filter((modelId) => !props.providerModelIdSet.has(modelId.toLowerCase()))
     .sort((left, right) => {
@@ -430,6 +548,13 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
           )}
 
           {hasFetchedModels ? (
+            <ModelSearchInput
+              value={props.modelQuery}
+              onChange={props.onModelQueryChange}
+            />
+          ) : null}
+
+          {hasFetchedModels ? (
             <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
               <div className="relative">
                 <SettingsTextInput
@@ -536,18 +661,22 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                   busy={props.selectedBenchmarkActive}
                   onBenchmark={props.onBenchmarkSelected}
                 />
-                {selectedModels.length > 0 ? (
-                  selectedModels.map((model) => (
+                <VirtualModelList
+                  items={selectedModels}
+                  resetKey={props.modelQuery}
+                  scrollRef={selectedListScrollRef}
+                  getKey={(model) => model.id}
+                  renderItem={(model) => (
                     <ModelRow
-                      key={model.id}
                       model={model.apiModelId}
                       selected
                       health={props.healthStatus[model.id]}
                       onClick={() => props.onDeleteModel(model.id)}
                       trailing={null}
                     />
-                  ))
-                ) : null}
+                  )}
+                  emptyState="No selected models"
+                />
               </div>
 
               <div className="space-y-2">
@@ -557,10 +686,13 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                   busy={props.availableBenchmarkActive}
                   onBenchmark={props.onBenchmarkAvailable}
                 />
-                {availableModels.length > 0 ? (
-                  availableModels.map((modelId) => (
+                <VirtualModelList
+                  items={availableModels}
+                  resetKey={props.modelQuery}
+                  scrollRef={availableListScrollRef}
+                  getKey={(modelId) => modelId}
+                  renderItem={(modelId) => (
                     <ModelRow
-                      key={modelId}
                       model={modelId}
                       health={props.healthStatus[buildScopedModelId(props.providerId, modelId)]}
                       onClick={() => {
@@ -568,8 +700,9 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                       }}
                       trailing={null}
                     />
-                  ))
-                ) : null}
+                  )}
+                  emptyState="No available models"
+                />
               </div>
             </div>
           ) : null}

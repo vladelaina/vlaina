@@ -1,65 +1,36 @@
-import { useEffect, useRef, useState } from 'react';
-import { useAIStore } from '@/stores/useAIStore';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { actions as aiActions } from '@/stores/useAIStore';
+import { useAIUIStore } from '@/stores/ai/chatState';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useUIStore } from '@/stores/uiSlice';
-import { cn, iconButtonStyles } from '@/lib/utils';
 import {
   ChatSidebarHoverEmptyHint,
   ChatSidebarList,
-  ChatSidebarRow,
   ChatSidebarScrollArea,
   ChatSidebarSurface,
 } from './ChatSidebarPrimitives';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
-import { DeleteIcon } from '@/components/common/DeleteIcon';
-import { Icon } from '@/components/ui/icons';
 import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
 import { ChatSidebarTopActions } from './ChatSidebarTopActions';
 import { SidebarSearchDrawer } from '@/components/layout/sidebar/SidebarSearchDrawer';
-import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
+import { ChatSidebarVirtualList } from './ChatSidebarVirtualList';
 import { useChatSidebarSearch } from './useChatSidebarSearch';
 
 interface ChatSidebarProps {
   isPeeking?: boolean;
 }
 
-function ChatSidebarLoadingTitle({ title }: { title: string }) {
-  return (
-    <span className="chat-sidebar-loading-title">
-      <span className="chat-sidebar-loading-title-base">{title}</span>
-      <span className="chat-sidebar-loading-title-overlay" aria-hidden>
-        {title}
-      </span>
-    </span>
-  );
-}
-
 export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
-  const appViewMode = useUIStore((s) => s.appViewMode);
-  const setAppViewMode = useUIStore((s) => s.setAppViewMode);
-  const {
-      sessions,
-      currentSessionId,
-      openNewChat,
-      switchSession,
-      deleteSession,
-      updateSession,
-      isSessionLoading,
-      isSessionUnread,
-      markSessionRead
-  } = useAIStore();
+  const appViewMode = useUIStore((state) => state.appViewMode);
+  const setAppViewMode = useUIStore((state) => state.setAppViewMode);
+  const sessions = useUnifiedStore((state) => state.data.ai?.sessions || []);
+  const currentSessionId = useAIUIStore((state) => state.currentSessionId);
+  const markSessionRead = useAIUIStore((state) => state.markSessionRead);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
-  const preventNextMenuAutoFocusRef = useRef(false);
   const {
     inputRef: searchInputRef,
     scrollRootRef,
@@ -68,6 +39,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
     shouldShowSearchResults,
     isSearchOpen,
     searchQuery,
+    deferredSearchQuery,
     setSearchQuery,
     filteredSessions,
     hasSessions,
@@ -79,53 +51,54 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
   });
 
   useEffect(() => {
-    const handleDeleteChat = (e: Event) => {
-        const customEvent = e as CustomEvent;
-        if (customEvent.detail?.id) {
-            setDeleteId(customEvent.detail.id);
-        }
+    const handleDeleteChat = (event: Event) => {
+      const customEvent = event as CustomEvent<{ id?: string }>;
+      if (customEvent.detail?.id) {
+        setDeleteId(customEvent.detail.id);
+      }
     };
 
     window.addEventListener('vlaina-delete-chat', handleDeleteChat);
-
     return () => {
-        window.removeEventListener('vlaina-delete-chat', handleDeleteChat);
+      window.removeEventListener('vlaina-delete-chat', handleDeleteChat);
     };
   }, []);
 
-  const handleRename = (sessionId: string, currentTitle: string) => {
-      setRenamingSessionId(sessionId);
-      setRenameDraft(currentTitle || 'New Chat');
-  };
+  const handleRename = useCallback((sessionId: string, currentTitle: string) => {
+    setRenamingSessionId(sessionId);
+    setRenameDraft(currentTitle || 'New Chat');
+  }, []);
 
-  const cancelRename = () => {
-      setRenamingSessionId(null);
-      setRenameDraft('');
-  };
+  const cancelRename = useCallback(() => {
+    setRenamingSessionId(null);
+    setRenameDraft('');
+  }, []);
 
-  const commitRename = (sessionId: string, originalTitle: string) => {
-      const nextTitle = renameDraft.trim();
-      if (!nextTitle) {
-          cancelRename();
-          return;
-      }
-      if (nextTitle !== originalTitle) {
-          updateSession(sessionId, { title: nextTitle });
-      }
+  const commitRename = useCallback((sessionId: string, originalTitle: string) => {
+    const nextTitle = renameDraft.trim();
+    if (!nextTitle) {
       cancelRename();
-  };
+      return;
+    }
+    if (nextTitle !== originalTitle) {
+      aiActions.updateSession(sessionId, { title: nextTitle });
+    }
+    cancelRename();
+  }, [cancelRename, renameDraft]);
 
-  const handleTogglePin = (sessionId: string, isPinned?: boolean) => {
-      updateSession(sessionId, { isPinned: !isPinned });
-  };
+  const handleTogglePin = useCallback((sessionId: string, isPinned?: boolean) => {
+    aiActions.updateSession(sessionId, { isPinned: !isPinned });
+  }, []);
 
-  const handleSwitch = (sessionId: string, isUnread: boolean) => {
-      if (isUnread) markSessionRead(sessionId);
-      switchSession(sessionId);
-  };
+  const handleSwitch = useCallback((sessionId: string, isUnread: boolean) => {
+    if (isUnread) {
+      markSessionRead(sessionId);
+    }
+    void aiActions.switchSession(sessionId);
+  }, [markSessionRead]);
 
-  const handleOpenNewChat = () => {
-    openNewChat();
+  const handleOpenNewChat = useCallback(() => {
+    aiActions.openNewChat();
     requestAnimationFrame(() => {
       if (focusComposerInput()) {
         return;
@@ -134,7 +107,15 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
         focusComposerInput();
       });
     });
-  };
+  }, []);
+
+  const handleRenameDraftChange = useCallback((value: string) => {
+    setRenameDraft(value);
+  }, []);
+
+  const handleRequestDelete = useCallback((sessionId: string) => {
+    setDeleteId(sessionId);
+  }, []);
 
   return (
     <>
@@ -152,7 +133,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
             if (!session) {
               return;
             }
-            handleSwitch(session.id, isSessionUnread(session.id));
+            handleSwitch(session.id, !!useAIUIStore.getState().unreadSessions[session.id]);
             hideSearch();
           }}
           placeholder="Search conversations..."
@@ -165,163 +146,27 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
           )}
         />
 
-        <ChatSidebarScrollArea
-          ref={scrollRootRef}
-          onScroll={handleScroll}
-        >
+        <ChatSidebarScrollArea ref={scrollRootRef} onScroll={handleScroll}>
           <div className="relative min-h-full">
             {shouldShowSearchResults && filteredSessions.length === 0 ? null : !shouldShowSearchResults && !hasSessions ? null : (
               <ChatSidebarList>
-                {sessionsToRender.map(session => {
-                  const isActive = currentSessionId === session.id;
-                  const isGenerating = isSessionLoading(session.id);
-                  const isUnread = isSessionUnread(session.id);
-                  const isRenaming = renamingSessionId === session.id;
-                  const displayTitle = session.title || 'New Chat';
-                  const showMenuByDefault = isActive && !session.isPinned;
-                  const statusIndicator = isGenerating && !isActive ? (
-                    null
-                  ) : isUnread ? (
-                    <div className="h-2 w-2 rounded-full bg-[var(--chat-sidebar-status-warning)] shadow-[0_0_8px_rgba(245,158,11,0.45)]" />
-                  ) : session.isPinned ? (
-                    <Icon name="common.pinPrimer" size={14} className="text-[var(--chat-sidebar-pin)]" />
-                  ) : null;
-
-                  return (
-                    <ChatSidebarRow
-                      key={session.id}
-                      isActive={isActive}
-                      showActionsByDefault={showMenuByDefault}
-                      onClick={() => {
-                        if (isRenaming) {
-                          return;
-                        }
-                        handleSwitch(session.id, isUnread);
-                        if (shouldShowSearchResults) {
-                          hideSearch();
-                        }
-                      }}
-                      main={
-                        isRenaming ? (
-                          <SidebarInlineRenameInput
-                            value={renameDraft}
-                            onValueChange={setRenameDraft}
-                            onSubmit={() => commitRename(session.id, displayTitle)}
-                            onCancel={cancelRename}
-                            className={cn(
-                              'w-full min-w-0 border-none bg-transparent p-0 text-sm leading-5 outline-none',
-                              isGenerating || isUnread
-                                ? 'font-medium text-[var(--chat-sidebar-text)]'
-                                : 'text-[var(--chat-sidebar-text-muted)]'
-                            )}
-                          />
-                        ) : (
-                          isGenerating && !isActive ? (
-                            <span className="block truncate">
-                              <ChatSidebarLoadingTitle title={displayTitle} />
-                            </span>
-                          ) : (
-                            <span
-                              className={cn(
-                                'block truncate transition-opacity',
-                                isGenerating || isUnread
-                                  ? 'font-medium text-[var(--chat-sidebar-text)]'
-                                  : undefined
-                              )}
-                            >
-                              {displayTitle}
-                            </span>
-                          )
-                        )
-                      }
-                      trailing={statusIndicator}
-                      actions={
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                              onClick={(e) => { e.stopPropagation(); }}
-                              className={cn(
-                                  'p-1 rounded-md focus:outline-none',
-                                  iconButtonStyles,
-                                  isActive
-                                    ? 'text-[var(--chat-sidebar-icon-hover)] hover:text-[var(--chat-sidebar-text)]'
-                                    : 'text-[var(--chat-sidebar-icon)] hover:text-[var(--chat-sidebar-icon-hover)]'
-                              )}
-                          >
-                              <Icon name="common.more" size="md" />
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                              align="end"
-                              sideOffset={6}
-                              onCloseAutoFocus={(event) => {
-                                if (!preventNextMenuAutoFocusRef.current) {
-                                  return;
-                                }
-                                event.preventDefault();
-                                preventNextMenuAutoFocusRef.current = false;
-                              }}
-                              className={cn(
-                                  'w-44 p-1.5 rounded-2xl bg-white dark:bg-neutral-800',
-                                  'border border-neutral-100 dark:border-neutral-600/40',
-                                  'backdrop-blur-lg shadow-xl',
-                                  'animate-in fade-in-0 zoom-in-95 duration-75'
-                              )}
-                          >
-                              <DropdownMenuItem
-                                  onSelect={() => {
-                                      preventNextMenuAutoFocusRef.current = true;
-                                      handleRename(session.id, session.title);
-                                  }}
-                                  className={cn(
-                                    'text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none',
-                                    'text-[var(--chat-sidebar-text)]',
-                                    'hover:bg-[var(--chat-sidebar-row-hover)] focus:bg-[var(--chat-sidebar-row-hover)] data-[highlighted]:bg-[var(--chat-sidebar-row-hover)]',
-                                    'focus:text-[var(--chat-sidebar-text)] data-[highlighted]:text-[var(--chat-sidebar-text)]'
-                                  )}
-                              >
-                                  <Icon name="common.rename" size="md" className="mr-2 text-[var(--chat-sidebar-icon)]" />
-                                  <span>Rename</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                  onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleTogglePin(session.id, session.isPinned);
-                                  }}
-                                  className={cn(
-                                    'text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none',
-                                    'text-[var(--chat-sidebar-text)]',
-                                    'hover:bg-[var(--chat-sidebar-row-hover)] focus:bg-[var(--chat-sidebar-row-hover)] data-[highlighted]:bg-[var(--chat-sidebar-row-hover)]',
-                                    'focus:text-[var(--chat-sidebar-text)] data-[highlighted]:text-[var(--chat-sidebar-text)]'
-                                  )}
-                              >
-                                  {session.isPinned ? (
-                                    <Icon name="common.unpinPrimer" size={16} className="mr-2 text-[var(--chat-sidebar-icon)]" />
-                                  ) : (
-                                    <Icon name="common.pinPrimer" size={16} className="mr-2 text-[var(--chat-sidebar-icon)]" />
-                                  )}
-                                  <span>{session.isPinned ? 'Unpin' : 'Pin'}</span>
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator className="bg-neutral-200 dark:bg-neutral-700 my-1 opacity-70" />
-                              <DropdownMenuItem
-                                  onClick={(e) => {
-                                      e.stopPropagation();
-                                      setDeleteId(session.id);
-                                  }}
-                                  className={cn(
-                                    'text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none',
-                                    'text-red-600 dark:text-red-400',
-                                    'hover:bg-[var(--chat-sidebar-row-hover)] focus:bg-[var(--chat-sidebar-row-hover)] data-[highlighted]:bg-[var(--chat-sidebar-row-hover)]',
-                                    'focus:text-red-600 dark:focus:text-red-400 data-[highlighted]:text-red-600 dark:data-[highlighted]:text-red-400'
-                                  )}
-                              >
-                                  <DeleteIcon className="mr-2 text-current" />
-                                  <span>Delete</span>
-                              </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      }
-                    />
-                  );
-                })}
+                <ChatSidebarVirtualList
+                  sessions={sessionsToRender}
+                  currentSessionId={currentSessionId}
+                  renamingSessionId={renamingSessionId}
+                  renameDraft={renameDraft}
+                  shouldHideSearchResults={shouldShowSearchResults}
+                  scrollRootRef={scrollRootRef}
+                  onRenameDraftChange={handleRenameDraftChange}
+                  onStartRename={handleRename}
+                  onCommitRename={commitRename}
+                  onCancelRename={cancelRename}
+                  onSwitch={handleSwitch}
+                  onRequestDelete={handleRequestDelete}
+                  onTogglePin={handleTogglePin}
+                  onHideSearch={hideSearch}
+                  resetKey={shouldShowSearchResults ? deferredSearchQuery.trim() : ''}
+                />
               </ChatSidebarList>
             )}
             {!shouldShowSearchResults && !hasSessions ? (
@@ -335,7 +180,9 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
         isOpen={!!deleteId}
         onClose={() => setDeleteId(null)}
         onConfirm={() => {
-            if (deleteId) deleteSession(deleteId);
+          if (deleteId) {
+            void aiActions.deleteSession(deleteId);
+          }
         }}
         title="Delete Chat?"
         description="Are you sure you want to delete this chat session? This action cannot be undone."

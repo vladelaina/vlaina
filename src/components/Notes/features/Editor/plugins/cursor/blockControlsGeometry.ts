@@ -8,6 +8,10 @@ import {
   resolveSelectableBlockTargetByPos,
 } from './blockUnitResolver';
 import type { DropTarget, HandleBlockTarget } from './blockControlsInteractionTypes';
+import {
+  getCachedEditorBlockTargetByPos,
+  getCachedEditorBlockTargets,
+} from '../../utils/editorBlockPositionCache';
 
 const LIST_CHILD_INDENT_PX = 24;
 const MIN_DROP_LINE_WIDTH = 24;
@@ -40,7 +44,7 @@ function resolveListChildInsertPos(
 }
 
 export function resolveBlockTargetByPos(view: EditorView, blockPos: number): HandleBlockTarget | null {
-  const target = resolveSelectableBlockTargetByPos(view, blockPos);
+  const target = getCachedEditorBlockTargetByPos(view, blockPos) ?? resolveSelectableBlockTargetByPos(view, blockPos);
   if (!target) return null;
   if (isNonDraggableBlockRange(view.state.doc, target.range)) return null;
   return {
@@ -75,7 +79,7 @@ export function resolveDropTarget(view: EditorView, clientX: number, clientY: nu
     return null;
   }
 
-  const blockTargets = collectSelectableBlockTargets(view).filter(
+  const blockTargets = (getCachedEditorBlockTargets(view) ?? collectSelectableBlockTargets(view)).filter(
     (target) => !isNonDraggableBlockRange(view.state.doc, target.range),
   );
   const target = pickPointerBlock(blockTargets, clientY);

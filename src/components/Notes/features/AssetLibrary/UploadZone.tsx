@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { cn } from '@/lib/utils';
 import { Icon } from '@/components/ui/icons';
@@ -16,25 +16,38 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
   const [status, setStatus] = useState<UploadStatus>('idle');
   const [message, setMessage] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleReset = useCallback((delayMs: number) => {
+    if (resetTimerRef.current) {
+      clearTimeout(resetTimerRef.current);
+    }
+
+    resetTimerRef.current = setTimeout(() => {
+      resetTimerRef.current = null;
+      setStatus('idle');
+      setMessage('');
+    }, delayMs);
+  }, []);
+
+  useEffect(() => () => {
+    if (resetTimerRef.current) {
+      clearTimeout(resetTimerRef.current);
+    }
+  }, []);
 
   const handleFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
       setStatus('error');
       setMessage('Only image files are supported');
-      setTimeout(() => {
-        setStatus('idle');
-        setMessage('');
-      }, 3000);
+      scheduleReset(3000);
       return;
     }
 
     if (file.size > 50 * 1024 * 1024) {
       setStatus('error');
       setMessage('File exceeds maximum size of 50MB');
-      setTimeout(() => {
-        setStatus('idle');
-        setMessage('');
-      }, 3000);
+      scheduleReset(3000);
       return;
     }
 
@@ -61,11 +74,8 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
       setMessage(result.error || 'Upload failed');
     }
 
-    setTimeout(() => {
-      setStatus('idle');
-      setMessage('');
-    }, 2000);
-  }, [uploadAsset, onUploadComplete, onDuplicateDetected]);
+    scheduleReset(2000);
+  }, [uploadAsset, onUploadComplete, onDuplicateDetected, currentNotePath, scheduleReset]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

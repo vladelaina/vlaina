@@ -23,7 +23,6 @@ import type { NotesSidebarMenuEntry } from '../Sidebar/context-menu/NotesSidebar
 interface FolderItemProps {
   node: FolderNode;
   depth: number;
-  currentNotePath?: string;
   showStarBadge?: boolean;
   dragEnabled?: boolean;
 }
@@ -31,7 +30,6 @@ interface FolderItemProps {
 export const FolderItem = memo(function FolderItem({
   node,
   depth,
-  currentNotePath,
   showStarBadge = false,
   dragEnabled = true,
 }: FolderItemProps) {
@@ -182,7 +180,6 @@ export const FolderItem = memo(function FolderItem({
                 key={child.id}
                 node={child}
                 depth={depth + 1}
-                currentNotePath={currentNotePath}
                 showStarBadge={false}
                 dragEnabled={dragEnabled}
               />
@@ -191,7 +188,6 @@ export const FolderItem = memo(function FolderItem({
                 key={child.id}
                 node={child}
                 depth={depth + 1}
-                currentNotePath={currentNotePath}
                 showStarBadge={false}
                 dragEnabled={dragEnabled}
               />
@@ -219,7 +215,6 @@ function areFolderItemPropsEqual(prevProps: FolderItemProps, nextProps: FolderIt
     prevProps.node.expanded === nextProps.node.expanded &&
     prevProps.node.children === nextProps.node.children &&
     prevProps.depth === nextProps.depth &&
-    prevProps.currentNotePath === nextProps.currentNotePath &&
     prevProps.showStarBadge === nextProps.showStarBadge
   );
 }

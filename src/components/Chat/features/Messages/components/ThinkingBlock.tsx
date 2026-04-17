@@ -22,8 +22,17 @@ export function ThinkingBlock({
   const [hasOverflow, setHasOverflow] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const observedContentRef = useRef<HTMLDivElement | null>(null);
+  const syncContentHeightRef = useRef<() => void>(() => {});
 
   const finishedThinking = !activelyThinking;
+
+  syncContentHeightRef.current = () => {
+    if (contentRef.current) {
+      setContentHeight(contentRef.current.scrollHeight);
+    }
+  };
 
   useEffect(() => {
     if (!activelyThinking && !hasUserInteracted) {
@@ -39,15 +48,25 @@ export function ThinkingBlock({
   }, [activelyThinking]);
 
   useEffect(() => {
-    if (contentRef.current) {
-      const resizeObserver = new ResizeObserver(() => {
-        if (contentRef.current) {
-          setContentHeight(contentRef.current.scrollHeight);
-        }
-      });
-      resizeObserver.observe(contentRef.current);
-      return () => resizeObserver.disconnect();
+    if (typeof ResizeObserver === "undefined") {
+      syncContentHeightRef.current();
+      return;
     }
+
+    const content = contentRef.current;
+    if (!content || observedContentRef.current === content) {
+      syncContentHeightRef.current();
+      return;
+    }
+
+    resizeObserverRef.current?.disconnect();
+    const resizeObserver = new ResizeObserver(() => {
+      syncContentHeightRef.current();
+    });
+    resizeObserver.observe(content);
+    resizeObserverRef.current = resizeObserver;
+    observedContentRef.current = content;
+    syncContentHeightRef.current();
   }, [thinking]);
 
   useEffect(() => {
@@ -81,6 +100,14 @@ export function ThinkingBlock({
     setIsCollapsed(!isCollapsed);
     setHasUserInteracted(true);
   };
+
+  useEffect(() => {
+    return () => {
+      resizeObserverRef.current?.disconnect();
+      resizeObserverRef.current = null;
+      observedContentRef.current = null;
+    };
+  }, []);
 
   const getMaxHeight = () => {
     if (isCollapsed) {

@@ -1,13 +1,16 @@
-export const CHAT_MESSAGE_COPIED_EVENT = 'vlaina-chat-message-copied';
+type ChatMessageCopiedListener = (messageId: string) => void;
 
-interface ChatMessageCopiedDetail {
-  messageId: string;
-}
+const copiedListeners = new Set<ChatMessageCopiedListener>();
 
 export function dispatchChatMessageCopied(messageId: string) {
-  window.dispatchEvent(
-    new CustomEvent<ChatMessageCopiedDetail>(CHAT_MESSAGE_COPIED_EVENT, {
-      detail: { messageId },
-    })
-  );
+  copiedListeners.forEach((listener) => {
+    listener(messageId);
+  });
+}
+
+export function subscribeChatMessageCopied(listener: ChatMessageCopiedListener) {
+  copiedListeners.add(listener);
+  return () => {
+    copiedListeners.delete(listener);
+  };
 }

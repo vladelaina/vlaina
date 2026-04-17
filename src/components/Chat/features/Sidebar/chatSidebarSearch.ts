@@ -1,6 +1,11 @@
 import { isTemporarySession } from '@/lib/ai/temporaryChat';
 import type { ChatSession } from '@/lib/ai/types';
 
+export interface ChatSidebarSearchEntry {
+  session: ChatSession;
+  searchText: string;
+}
+
 export function getVisibleChatSidebarSessions(sessions: ChatSession[]) {
   return sessions.filter((session) => !isTemporarySession(session));
 }
@@ -16,16 +21,27 @@ export function sortChatSidebarSessions(sessions: ChatSession[]) {
   });
 }
 
-export function filterChatSidebarSessions(
-  sessions: ChatSession[],
-  query: string,
-) {
+export function buildChatSidebarSearchEntries(sessions: ChatSession[]): ChatSidebarSearchEntry[] {
+  return sessions.map((session) => ({
+    session,
+    searchText: (session.title || 'New Chat').toLowerCase(),
+  }));
+}
+
+export function queryChatSidebarSessions(entries: ChatSidebarSearchEntry[], query: string) {
   const trimmedQuery = query.trim().toLowerCase();
   if (!trimmedQuery) {
     return [];
   }
 
-  return sessions.filter((session) =>
-    (session.title || 'New Chat').toLowerCase().includes(trimmedQuery),
-  );
+  return entries
+    .filter((entry) => entry.searchText.includes(trimmedQuery))
+    .map((entry) => entry.session);
+}
+
+export function filterChatSidebarSessions(
+  sessions: ChatSession[],
+  query: string,
+) {
+  return queryChatSidebarSessions(buildChatSidebarSearchEntries(sessions), query);
 }

@@ -22,7 +22,6 @@ import {
 interface RootFolderRowProps {
   rootFolder: FolderNode | null;
   isLoading: boolean;
-  currentNotePath?: string | null;
   onCreateNote: () => Promise<unknown>;
   onCreateFolder: () => Promise<string | null>;
 }
@@ -30,7 +29,6 @@ interface RootFolderRowProps {
 export function RootFolderRow({
   rootFolder,
   isLoading,
-  currentNotePath,
   onCreateNote,
   onCreateFolder,
 }: RootFolderRowProps) {
@@ -211,7 +209,6 @@ export function RootFolderRow({
               key={node.id}
               node={node}
               depth={1}
-              currentNotePath={currentNotePath ?? undefined}
             />
           ))}
         </NotesSidebarList>

@@ -154,7 +154,7 @@ export function CoverPicker({
           )}
         </div>
 
-        <div className="flex-1 overflow-auto max-h-[280px]">
+        <div className="flex-1 overflow-hidden">
           {activeTab === 'library' ? (
             hasAssets ? (
               <AssetGrid

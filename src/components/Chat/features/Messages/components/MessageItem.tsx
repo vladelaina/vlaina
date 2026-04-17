@@ -13,6 +13,7 @@ type ChatImageGalleryGetter = () => ChatImageGalleryItem[];
 
 interface MessageItemProps {
   msg: ChatMessage;
+  userBubbleContainerWidth?: number;
   imageGallery?: ChatImageGalleryItem[];
   getImageGallery?: ChatImageGalleryGetter;
   isLoading: boolean;
@@ -22,8 +23,9 @@ interface MessageItemProps {
   onSwitchVersion: (id: string, targetIndex: number) => void;
 }
 
-export const MessageItem = memo(function MessageItem({
+function MessageItemInner({
   msg,
+  userBubbleContainerWidth,
   imageGallery,
   getImageGallery,
   isLoading,
@@ -52,6 +54,7 @@ export const MessageItem = memo(function MessageItem({
           {isUser ? (
               <UserMessage 
                   message={msg}
+                  containerWidth={userBubbleContainerWidth || 0}
                   onEdit={onEdit}
                   onSwitchVersion={onSwitchVersion}
               />
@@ -69,4 +72,32 @@ export const MessageItem = memo(function MessageItem({
       </div>
     </div>
   );
-});
+}
+
+function areMessageItemPropsEqual(prevProps: MessageItemProps, nextProps: MessageItemProps): boolean {
+  if (prevProps.msg !== nextProps.msg) {
+    return false;
+  }
+
+  if (prevProps.onEdit !== nextProps.onEdit) {
+    return false;
+  }
+
+  if (prevProps.onSwitchVersion !== nextProps.onSwitchVersion) {
+    return false;
+  }
+
+  if (prevProps.msg.role === 'user' && nextProps.msg.role === 'user') {
+    return prevProps.userBubbleContainerWidth === nextProps.userBubbleContainerWidth;
+  }
+
+  return (
+    prevProps.imageGallery === nextProps.imageGallery &&
+    prevProps.getImageGallery === nextProps.getImageGallery &&
+    prevProps.isLoading === nextProps.isLoading &&
+    prevProps.onCopy === nextProps.onCopy &&
+    prevProps.onRegenerate === nextProps.onRegenerate
+  );
+}
+
+export const MessageItem = memo(MessageItemInner, areMessageItemPropsEqual);

@@ -8,19 +8,44 @@ import { slashMenuItems } from './slashItems';
 import { slashPluginKey } from './slashPluginKey';
 import { filterSlashItems } from './slashQuery';
 import { createSlashState, getSlashMenuPosition, getSlashTextRange } from './slashState';
+import { getContentLayoutContext } from '../floating-toolbar/floatingToolbarLayout';
+import { getScrollRoot, getToolbarRoot, toContainerPosition } from '../floating-toolbar/floatingToolbarDom';
+
+const SLASH_MENU_MARGIN_PX = 12;
+const SLASH_MENU_MAX_HEIGHT_PX = 360;
+const SLASH_MENU_MIN_HEIGHT_PX = 160;
 
 export class SlashMenuView {
   private menuElement: HTMLElement | null = null;
   private root: Root | null = null;
   private filtered = [...slashMenuItems];
+  private readonly scrollRoot: HTMLElement | null;
+  private readonly positionRoot: HTMLElement | null;
+  private readonly resizeObserver: ResizeObserver | null;
+  private layoutRaf = 0;
 
   constructor(
     private readonly editorView: EditorView,
     private readonly ctx: Ctx
   ) {
+    this.scrollRoot = getScrollRoot(editorView);
+    this.positionRoot = getToolbarRoot(editorView) ?? this.scrollRoot;
+    this.resizeObserver = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(() => {
+          this.scheduleViewportChange();
+        });
+
     window.addEventListener('resize', this.handleViewportChange);
-    window.addEventListener('scroll', this.handleViewportChange, true);
+    this.scrollRoot?.addEventListener('scroll', this.handleViewportChange, { passive: true });
     document.addEventListener('mousedown', this.handleDocumentMouseDown, true);
+    this.resizeObserver?.observe(this.editorView.dom);
+    if (this.scrollRoot) {
+      this.resizeObserver?.observe(this.scrollRoot);
+    }
+    if (this.positionRoot && this.positionRoot !== this.scrollRoot) {
+      this.resizeObserver?.observe(this.positionRoot);
+    }
   }
 
   update() {
@@ -48,13 +73,19 @@ export class SlashMenuView {
       })
     );
 
+    this.scheduleViewportChange();
     this.keepSelectedItemVisible();
   }
 
   destroy() {
+    if (this.layoutRaf !== 0) {
+      cancelAnimationFrame(this.layoutRaf);
+      this.layoutRaf = 0;
+    }
     window.removeEventListener('resize', this.handleViewportChange);
-    window.removeEventListener('scroll', this.handleViewportChange, true);
+    this.scrollRoot?.removeEventListener('scroll', this.handleViewportChange);
     document.removeEventListener('mousedown', this.handleDocumentMouseDown, true);
+    this.resizeObserver?.disconnect();
     this.destroyMenu();
   }
 
@@ -81,7 +112,8 @@ export class SlashMenuView {
 
     const menu = document.createElement('div');
     menu.className = 'slash-menu';
-    document.body.appendChild(menu);
+    menu.style.position = this.positionRoot ? 'absolute' : 'fixed';
+    (this.positionRoot ?? document.body).appendChild(menu);
     this.root = createRoot(menu);
     this.menuElement = menu;
     return menu;
@@ -99,9 +131,57 @@ export class SlashMenuView {
   private syncPosition() {
     if (!this.menuElement) return;
 
-    const position = getSlashMenuPosition(this.editorView);
-    this.menuElement.style.left = `${position.x}px`;
-    this.menuElement.style.top = `${position.y}px`;
+    const viewportPosition = getSlashMenuPosition(this.editorView);
+    const containerPosition = toContainerPosition(viewportPosition, this.positionRoot);
+    const layout = getContentLayoutContext(this.editorView, this.positionRoot);
+    const menuWidth = this.menuElement.offsetWidth || 320;
+    const menuHeight = this.menuElement.offsetHeight || SLASH_MENU_MAX_HEIGHT_PX;
+    const horizontalBounds = this.positionRoot
+      ? {
+          left: layout.containerBounds?.left ?? SLASH_MENU_MARGIN_PX,
+          right: layout.containerBounds?.right ?? this.positionRoot.clientWidth,
+        }
+      : {
+          left: layout.viewportBounds.left,
+          right: layout.viewportBounds.right,
+        };
+    const minX = horizontalBounds.left + SLASH_MENU_MARGIN_PX;
+    const maxX = horizontalBounds.right - SLASH_MENU_MARGIN_PX - menuWidth;
+    const nextX = maxX < minX
+      ? minX
+      : Math.max(minX, Math.min(containerPosition.x, maxX));
+    const availableBelow = this.positionRoot
+      ? this.positionRoot.clientHeight - containerPosition.y - 24
+      : window.innerHeight - viewportPosition.y - 24;
+    const availableAbove = containerPosition.y - 24;
+    const shouldPlaceAbove =
+      availableBelow < Math.min(menuHeight, 220) &&
+      availableAbove > availableBelow;
+    const nextY = shouldPlaceAbove
+      ? Math.max(24, containerPosition.y - menuHeight - 8)
+      : containerPosition.y;
+    const availableHeight = shouldPlaceAbove ? availableAbove : availableBelow;
+
+    this.menuElement.style.left = `${Math.round(nextX)}px`;
+    this.menuElement.style.top = `${Math.round(nextY)}px`;
+    this.menuElement.style.maxHeight = `${Math.max(
+      SLASH_MENU_MIN_HEIGHT_PX,
+      Math.min(SLASH_MENU_MAX_HEIGHT_PX, availableHeight),
+    )}px`;
+  }
+
+  private scheduleViewportChange() {
+    if (this.layoutRaf !== 0) {
+      return;
+    }
+
+    this.layoutRaf = requestAnimationFrame(() => {
+      this.layoutRaf = 0;
+      if (!slashPluginKey.getState(this.editorView.state)?.isOpen) {
+        return;
+      }
+      this.syncPosition();
+    });
   }
 
   private keepSelectedItemVisible() {
@@ -126,8 +206,7 @@ export class SlashMenuView {
   }
 
   private handleViewportChange = () => {
-    if (!slashPluginKey.getState(this.editorView.state)?.isOpen) return;
-    this.syncPosition();
+    this.scheduleViewportChange();
   };
 
   private handleDocumentMouseDown = (event: MouseEvent) => {

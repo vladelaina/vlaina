@@ -76,4 +76,20 @@ describe('sidebarSearchNavigation', () => {
     expect(mocks.setEditorFindQueryMock).toHaveBeenCalledWith(view, 'alpha', 'instant');
     expect(mocks.setEditorFindActiveIndexMock).not.toHaveBeenCalled();
   });
+
+  it('aborts when the navigation session is no longer active', async () => {
+    const view = { id: 'view', dom: { closest: () => null } };
+    mocks.getCurrentEditorViewMock.mockReturnValue(view);
+
+    const applied = await applySidebarSearchNavigation({
+      path: 'a.md',
+      query: 'alpha',
+      contentMatchOrdinal: 0,
+      shouldContinue: () => false,
+    });
+
+    expect(applied).toBe(false);
+    expect(mocks.setEditorFindQueryMock).not.toHaveBeenCalled();
+    expect(mocks.setEditorFindActiveIndexMock).not.toHaveBeenCalled();
+  });
 });

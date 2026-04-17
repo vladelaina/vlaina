@@ -19,7 +19,7 @@ import {
   removeStarredEntryById,
   toggleStarredEntry,
 } from '../starred';
-import { setCachedNoteContent } from '../document/noteContentCache';
+import { pruneCachedNoteContents, setCachedNoteContent } from '../document/noteContentCache';
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -82,7 +82,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     if (!rootFolder || !notesPath) return;
 
     const storage = getStorageAdapter();
-    let cache: NotesStore['noteContentsCache'] = new Map();
+    let cache: NotesStore['noteContentsCache'] = noteContentsCache;
     const filePaths: { path: string; fullPath: string }[] = [];
 
     const collectPaths = async (nodes: FileTreeNode[]) => {
@@ -98,37 +98,14 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
     await collectPaths(rootFolder.children);
 
-    const BATCH_SIZE = 10;
-    for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
-      const batch = filePaths.slice(i, i + BATCH_SIZE);
-      const results = await Promise.allSettled(
-        batch.map(async ({ path, fullPath }) => {
-          const [content, fileInfo] = await Promise.all([
-            storage.readFile(fullPath),
-            storage.stat(fullPath),
-          ]);
-          return {
-            path,
-            content,
-            modifiedAt: fileInfo?.modifiedAt ?? null,
-          };
-        })
-      );
+    const validPaths = new Set(filePaths.map(({ path }) => path));
+    cache = pruneCachedNoteContents(cache, (cachedPath) => !validPaths.has(cachedPath));
 
-      results.forEach((result) => {
-        if (result.status === 'fulfilled') {
-          cache = setCachedNoteContent(
-            cache,
-            result.value.path,
-            result.value.content,
-            result.value.modifiedAt
-          );
-        }
-      });
-    }
+    const BATCH_SIZE = 10;
+    const pathsToRead = filePaths.filter(({ path }) => path !== currentNote?.path && !cache.has(path));
 
     if (currentNote) {
-      const currentEntry = noteContentsCache.get(currentNote.path);
+      const currentEntry = cache.get(currentNote.path) ?? noteContentsCache.get(currentNote.path);
       cache = setCachedNoteContent(
         cache,
         currentNote.path,
@@ -137,7 +114,31 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       );
     }
 
-    set({ noteContentsCache: cache });
+    if (cache !== noteContentsCache) {
+      set({ noteContentsCache: cache });
+    }
+
+    for (let i = 0; i < pathsToRead.length; i += BATCH_SIZE) {
+      const batch = pathsToRead.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(
+        batch.map(async ({ path, fullPath }) => {
+          const content = await storage.readFile(fullPath);
+          return { path, content };
+        })
+      );
+
+      let didBatchChange = false;
+      results.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          cache = setCachedNoteContent(cache, result.value.path, result.value.content, null);
+          didBatchChange = true;
+        }
+      });
+
+      if (didBatchChange) {
+        set({ noteContentsCache: cache });
+      }
+    }
   },
 
   getBacklinks: (notePath: string) => {

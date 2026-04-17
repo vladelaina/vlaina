@@ -1,15 +1,16 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useAIStore } from '@/stores/useAIStore';
+import { actions as aiActions, useAIStoreRuntimeEffects } from '@/stores/useAIStore';
+import { useAIUIStore } from '@/stores/ai/chatState';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useChatService } from '@/hooks/useChatService';
 import { useMessageAutoscroll } from '@/hooks/useMessageAutoscroll';
 import { useChatShortcuts } from './hooks/useChatShortcuts';
 import { useComposerClickFocus } from './hooks/useComposerClickFocus';
+import { useStableChatMessageDerivatives } from './hooks/useStableChatMessageDerivatives';
 import { cn } from '@/lib/utils';
 import { Attachment } from '@/lib/storage/attachmentStorage';
 import { focusComposerInput, insertTextIntoComposer } from '@/lib/ui/composerFocusRegistry';
 import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
-import { extractMessageImageSources } from '@/components/Chat/common/messageClipboard';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { useUIStore } from '@/stores/uiSlice';
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
@@ -21,68 +22,70 @@ import { WelcomeScreen } from '@/components/Chat/layout/WelcomeScreen';
 import { ChatShortcutsDialog } from '@/components/Chat/common/ChatShortcutsDialog';
 import { TemporaryChatToggle } from '@/components/Chat/features/Temporary/TemporaryChatToggle';
 import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
-
-interface ChatImageGalleryItem {
-  id: string;
-  src: string;
-}
+import { estimateChatLoadingHeight } from '@/components/Chat/features/Layout/chatMessageLayout';
 
 interface ChatViewProps {
   mode?: 'full' | 'embedded';
 }
 
+const EMPTY_MESSAGES: never[] = [];
+
 export function ChatView({ mode = 'full' }: ChatViewProps) {
+  useAIStoreRuntimeEffects();
+
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [focusInputTrigger, setFocusInputTrigger] = useState(0); 
   const isEmbedded = mode === 'embedded';
+  const currentSessionId = useAIUIStore((state) => state.currentSessionId);
+  const sessions = useUnifiedStore((state) => state.data.ai?.sessions || []);
+  const messages = useUnifiedStore((state) => {
+    const sessionId = currentSessionId;
+    if (!sessionId) {
+      return EMPTY_MESSAGES;
+    }
 
-  const { 
-    sessions,
-    messages: allMessages, 
-    currentSessionId, 
-    switchSession,
-    providers,
-    selectedModel,
-    models,
-    selectModel,
-    isSessionLoading,
-  } = useAIStore();
+    return state.data.ai?.messages?.[sessionId] || EMPTY_MESSAGES;
+  });
+  const isMessagesLoaded = useUnifiedStore((state) => {
+    const sessionId = currentSessionId;
+    if (!sessionId) {
+      return true;
+    }
+
+    if (!sessions.some((session) => session.id === sessionId)) {
+      return true;
+    }
+
+    return state.data.ai?.messages?.[sessionId] !== undefined;
+  });
+  const providers = useUnifiedStore((s) => s.data.ai?.providers || []);
+  const models = useUnifiedStore((s) => s.data.ai?.models || []);
+  const selectedModelId = useUnifiedStore((s) => s.data.ai?.selectedModelId || null);
 
   const loaded = useUnifiedStore(s => s.loaded);
   const pendingComposerInsert = useUIStore((state) => state.pendingNotesChatComposerInsert);
   const consumePendingComposerInsert = useUIStore((state) => state.consumePendingNotesChatComposerInsert);
 
-  const messages = currentSessionId ? (allMessages[currentSessionId] || []) : [];
-  const imageGallery = useMemo<ChatImageGalleryItem[]>(
-    () =>
-      messages.flatMap((message) =>
-        message.role === 'assistant'
-          ? (message.imageSources && message.imageSources.length > 0
-              ? message.imageSources
-              : extractMessageImageSources(message.content || '')
-            ).map((src, index) => ({
-              id: `${message.id}:${index}`,
-              src,
-            }))
-          : []
-      ),
-    [messages]
-  );
+  const { imageGallery, sentUserMessages } = useStableChatMessageDerivatives(messages);
+  const selectedModel = useMemo(() => {
+    if (!selectedModelId) {
+      return undefined;
+    }
 
-  const sentUserMessages = useMemo(
-    () =>
-      messages
-        .filter((msg) => msg.role === 'user')
-        .map((msg) => msg.content)
-        .filter((content) => content.trim().length > 0),
-    [messages]
-  );
+    const model = models.find((item) => item.id === selectedModelId);
+    if (!model) {
+      return undefined;
+    }
+
+    const provider = providers.find((item) => item.id === model.providerId);
+    return provider?.enabled === false ? undefined : model;
+  }, [models, providers, selectedModelId]);
   
   useEffect(() => {
-      if (currentSessionId && allMessages[currentSessionId] === undefined) {
-          switchSession(currentSessionId);
-      }
-  }, [currentSessionId, allMessages, switchSession]);
+    if (currentSessionId && !isMessagesLoaded) {
+      aiActions.switchSession(currentSessionId);
+    }
+  }, [currentSessionId, isMessagesLoaded]);
 
   const { sendMessage, regenerate, editMessage, switchMessageVersion, stop } = useChatService();
   const regenerateRef = useRef(regenerate);
@@ -91,23 +94,24 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
   const currentSessionIdRef = useRef(currentSessionId);
   const imageGalleryRef = useRef(imageGallery);
   
-  const isSessionActive = currentSessionId ? isSessionLoading(currentSessionId) : false;
+  const isSessionActive = useAIUIStore((state) =>
+    currentSessionId ? !!state.generatingSessions[currentSessionId] : false
+  );
   const lastMessage = messages[messages.length - 1];
   const showLoading = isSessionActive && (
       lastMessage?.role === 'user' || 
       (lastMessage?.role === 'assistant' && (!lastMessage.content || !lastMessage.content.trim()))
   );
   
-  const sessionExists = currentSessionId ? sessions.some(s => s.id === currentSessionId) : false;
-  const isMessagesLoaded = currentSessionId && sessionExists ? allMessages[currentSessionId] !== undefined : true;
-
   const isEmpty = !currentSessionId || (isMessagesLoaded && messages.length === 0);
   const { showInChatArea } = useTemporaryTogglePresentation();
 
   const { containerRef, handleNewUserMessage, spacerHeight } = useMessageAutoscroll({
       messages,
       isStreaming: isSessionActive,
-      chatId: currentSessionId
+      chatId: currentSessionId,
+      showLoading,
+      estimateLoadingHeight: estimateChatLoadingHeight,
   });
   useHeldPageScroll(containerRef, {
     ignoreEditableTargets: true,
@@ -142,9 +146,9 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
 
   useEffect(() => {
       if (!selectedModel && firstEnabledModel) {
-          selectModel(firstEnabledModel.id);
+          aiActions.selectModel(firstEnabledModel.id);
       }
-  }, [firstEnabledModel, selectedModel, selectModel]);
+  }, [firstEnabledModel, selectedModel]);
 
   useEffect(() => {
       setFocusInputTrigger(n => n + 1);
@@ -274,6 +278,7 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
       )}
 
       <MessageList 
+          chatId={currentSessionId}
           messages={messages}
           getImageGallery={getImageGallery}
           isSessionActive={isSessionActive}
@@ -303,7 +308,7 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
                 onSend={handleSend} 
                 onStop={stop}
                 isLoading={isSessionActive} 
-                selectedModel={selectedModel} 
+                hasSelectedModel={!!selectedModel}
                 focusTrigger={focusInputTrigger}
                 sessionId={currentSessionId}
                 sentUserMessages={sentUserMessages}

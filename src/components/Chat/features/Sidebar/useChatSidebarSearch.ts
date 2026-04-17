@@ -1,11 +1,12 @@
-import { useMemo, type RefObject } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, type RefObject } from 'react';
 import { useSidebarSearchDrawerState } from '@/components/layout/sidebar/SidebarSearchDrawer';
 import { useSidebarSearchState } from '@/components/layout/sidebar/useSidebarSearchState';
 import { useSidebarSearchShortcut } from '@/hooks/useSidebarSearchShortcut';
 import type { ChatSession } from '@/lib/ai/types';
 import {
-  filterChatSidebarSessions,
+  buildChatSidebarSearchEntries,
   getVisibleChatSidebarSessions,
+  queryChatSidebarSessions,
   sortChatSidebarSessions,
 } from './chatSidebarSearch';
 
@@ -30,6 +31,8 @@ export function useChatSidebarSearch({
   } = useSidebarSearchState();
 
   useSidebarSearchShortcut(toggleSearch, enabled);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const previousQueryRef = useRef('');
 
   const drawer = useSidebarSearchDrawerState({
     isOpen: isSearchOpen,
@@ -49,14 +52,30 @@ export function useChatSidebarSearch({
     [visibleSessions],
   );
 
-  const filteredSessions = useMemo(
-    () => filterChatSidebarSessions(sortedSessions, searchQuery),
-    [searchQuery, sortedSessions],
+  const searchEntries = useMemo(
+    () => buildChatSidebarSearchEntries(sortedSessions),
+    [sortedSessions],
   );
+
+  const filteredSessions = useMemo(
+    () => queryChatSidebarSessions(searchEntries, deferredSearchQuery),
+    [deferredSearchQuery, searchEntries],
+  );
+
+  useEffect(() => {
+    const trimmedQuery = deferredSearchQuery.trim();
+    if (trimmedQuery === previousQueryRef.current) {
+      return;
+    }
+
+    previousQueryRef.current = trimmedQuery;
+    drawer.scrollRootRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+  }, [deferredSearchQuery, drawer.scrollRootRef]);
 
   return {
     isSearchOpen,
     searchQuery,
+    deferredSearchQuery,
     setSearchQuery,
     openSearch,
     closeSearch,

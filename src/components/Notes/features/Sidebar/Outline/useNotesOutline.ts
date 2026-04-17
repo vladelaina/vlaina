@@ -1,188 +1,119 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { NotesOutlineHeading } from './types';
+import { areOutlineHeadingsEqual } from './outlineUtils';
 import {
-  areOutlineHeadingsEqual,
-  createOutlineHeadingId,
-  getHeadingLevelFromTagName,
-  normalizeHeadingText,
-} from './outlineUtils';
+  selectActiveOutlineHeadingId,
+  type OutlineHeadingMetric,
+} from './outlinePositionCache';
+import {
+  getCurrentEditorBlockPositionSnapshot,
+  subscribeCurrentEditorBlockPositionSnapshot,
+  type EditorBlockPositionSnapshot,
+} from '@/components/Notes/features/Editor/utils/editorBlockPositionCache';
 
-const EDITOR_ROOT_SELECTOR = '.milkdown .ProseMirror';
-const EDITOR_SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const ACTIVE_OFFSET_PX = 72;
 const ACTIVE_SNAP_PX = 12;
 const JUMP_LOCK_DURATION_MS = 900;
 const JUMP_LOCK_TOLERANCE_PX = 2;
-const POLL_INTERVAL_MS = 450;
-
-function readOutlineFromEditor(editorRoot: HTMLElement): {
-  headings: NotesOutlineHeading[];
-  elementMap: Map<string, HTMLElement>;
-} {
-  const headingElements = Array.from(
-    editorRoot.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6'),
-  );
-
-  const headings: NotesOutlineHeading[] = [];
-  const elementMap = new Map<string, HTMLElement>();
-
-  headingElements.forEach((element, index) => {
-    const level = getHeadingLevelFromTagName(element.tagName);
-    if (!level) return;
-
-    const text = normalizeHeadingText(element.textContent ?? '');
-    const id = createOutlineHeadingId(index, level, text);
-
-    headings.push({ id, level, text });
-    elementMap.set(id, element);
-  });
-
-  return { headings, elementMap };
-}
-
-function selectActiveHeadingId(
-  headings: NotesOutlineHeading[],
-  elementMap: Map<string, HTMLElement>,
-  scrollRoot: HTMLElement | null,
-): string | null {
-  if (!scrollRoot || headings.length === 0) return null;
-
-  const rootRect = scrollRoot.getBoundingClientRect();
-  const anchorY = scrollRoot.scrollTop + ACTIVE_OFFSET_PX;
-  let activeId: string | null = headings[0]?.id ?? null;
-  let activeY = Number.NEGATIVE_INFINITY;
-
-  for (const heading of headings) {
-    const element = elementMap.get(heading.id);
-    if (!element) continue;
-
-    const y = element.getBoundingClientRect().top - rootRect.top + scrollRoot.scrollTop;
-    if (y <= anchorY) {
-      activeId = heading.id;
-      activeY = y;
-    } else {
-      if (activeY !== Number.NEGATIVE_INFINITY) {
-        const currentDistance = y - anchorY;
-        const previousDistance = anchorY - activeY;
-        if (currentDistance <= ACTIVE_SNAP_PX && currentDistance < previousDistance) {
-          activeId = heading.id;
-        }
-      }
-      break;
-    }
-  }
-
-  return activeId;
-}
 
 export function useNotesOutline(enabled: boolean) {
   const [headings, setHeadings] = useState<NotesOutlineHeading[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const headingsRef = useRef<NotesOutlineHeading[]>([]);
+  const headingMetricsRef = useRef<OutlineHeadingMetric[]>([]);
   const elementMapRef = useRef<Map<string, HTMLElement>>(new Map());
+  const positionMapRef = useRef<Map<string, number>>(new Map());
   const editorRootRef = useRef<HTMLElement | null>(null);
   const scrollRootRef = useRef<HTMLElement | null>(null);
-  const updateOnScrollRef = useRef<(() => void) | null>(null);
+  const refreshOutlineRef = useRef<((snapshot: EditorBlockPositionSnapshot | null) => void) | null>(null);
+  const scrollSyncRafRef = useRef<number | null>(null);
   const jumpLockRef = useRef<{
     headingId: string;
     targetScrollTop: number;
     expireAt: number;
   } | null>(null);
 
-  const syncActiveHeading = useCallback(() => {
+  const syncActiveHeading = useCallback((scrollTopOverride?: number | null) => {
     const jumpLock = jumpLockRef.current;
     const scrollRoot = scrollRootRef.current;
+    const nextScrollTop = scrollTopOverride ?? scrollRoot?.scrollTop ?? 0;
     if (jumpLock && scrollRoot) {
-      const reachedTarget = Math.abs(scrollRoot.scrollTop - jumpLock.targetScrollTop) <= JUMP_LOCK_TOLERANCE_PX;
+      const reachedTarget = Math.abs(nextScrollTop - jumpLock.targetScrollTop) <= JUMP_LOCK_TOLERANCE_PX;
       const expired = Date.now() >= jumpLock.expireAt;
       if (!reachedTarget && !expired) {
-        setActiveId((prev) => (prev === jumpLock.headingId ? prev : jumpLock.headingId));
+        setActiveId((previous) => (previous === jumpLock.headingId ? previous : jumpLock.headingId));
         return;
       }
       jumpLockRef.current = null;
     }
 
-    const nextActive = selectActiveHeadingId(
-      headingsRef.current,
-      elementMapRef.current,
-      scrollRoot,
-    );
-    setActiveId((prev) => (prev === nextActive ? prev : nextActive));
-  }, []);
+    if (!scrollRoot) {
+      setActiveId(null);
+      return;
+    }
 
-  updateOnScrollRef.current = syncActiveHeading;
+    const nextActiveId = selectActiveOutlineHeadingId(
+      headingMetricsRef.current,
+      nextScrollTop,
+      ACTIVE_OFFSET_PX,
+      ACTIVE_SNAP_PX,
+    );
+    setActiveId((previous) => (previous === nextActiveId ? previous : nextActiveId));
+  }, []);
 
   useEffect(() => {
     if (!enabled) {
+      if (scrollSyncRafRef.current !== null) {
+        cancelAnimationFrame(scrollSyncRafRef.current);
+        scrollSyncRafRef.current = null;
+      }
       headingsRef.current = [];
+      headingMetricsRef.current = [];
       elementMapRef.current = new Map();
+      positionMapRef.current = new Map();
       editorRootRef.current = null;
       scrollRootRef.current = null;
       jumpLockRef.current = null;
+      refreshOutlineRef.current = null;
       setHeadings([]);
       setActiveId(null);
       return;
     }
 
-    let rafId = 0;
-    let pollId = 0;
-    let mutationObserver: MutationObserver | null = null;
-
-    const attachMutationObserver = (editorRoot: HTMLElement | null) => {
-      mutationObserver?.disconnect();
-      mutationObserver = null;
-
-      if (!editorRoot) return;
-
-      mutationObserver = new MutationObserver(() => {
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = requestAnimationFrame(refreshOutline);
-      });
-
-      mutationObserver.observe(editorRoot, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-      });
-    };
-
-    const updateScrollBinding = (scrollRoot: HTMLElement | null) => {
-      if (scrollRootRef.current === scrollRoot) return;
-
-      if (scrollRootRef.current && updateOnScrollRef.current) {
-        scrollRootRef.current.removeEventListener('scroll', updateOnScrollRef.current);
-      }
-
+    const refreshOutline = (snapshot: EditorBlockPositionSnapshot | null) => {
+      const editorRoot = snapshot?.editorRoot ?? null;
+      const scrollRoot = snapshot?.scrollRoot ?? null;
       scrollRootRef.current = scrollRoot;
+      editorRootRef.current = editorRoot;
 
-      if (scrollRoot && updateOnScrollRef.current) {
-        scrollRoot.addEventListener('scroll', updateOnScrollRef.current, { passive: true });
-      }
-    };
-
-    const refreshOutline = () => {
-      const editorRoot = document.querySelector<HTMLElement>(EDITOR_ROOT_SELECTOR);
-      const scrollRoot = document.querySelector<HTMLElement>(EDITOR_SCROLL_ROOT_SELECTOR);
-
-      if (editorRootRef.current !== editorRoot) {
-        editorRootRef.current = editorRoot;
-        attachMutationObserver(editorRoot);
-      }
-
-      updateScrollBinding(scrollRoot);
-
-      if (!editorRoot) {
+      if (!snapshot || !editorRoot || !scrollRoot || !editorRoot.isConnected || !scrollRoot.isConnected) {
         headingsRef.current = [];
+        headingMetricsRef.current = [];
         elementMapRef.current = new Map();
+        positionMapRef.current = new Map();
         jumpLockRef.current = null;
-        setHeadings((prev) => (prev.length === 0 ? prev : []));
+        setHeadings((previous) => (previous.length === 0 ? previous : []));
         setActiveId(null);
         return;
       }
 
-      const { headings: nextHeadings, elementMap } = readOutlineFromEditor(editorRoot);
-      elementMapRef.current = elementMap;
+      const metrics: OutlineHeadingMetric[] = snapshot.headings.map((heading) => ({
+        id: heading.id,
+        level: heading.level,
+        text: heading.text,
+        element: heading.element,
+        top: heading.top,
+      }));
+      const nextHeadings = snapshot.headings.map(({ id, level, text }) => ({
+        id,
+        level,
+        text,
+      }));
+
+      headingMetricsRef.current = metrics;
+      elementMapRef.current = new Map(snapshot.headings.map((heading) => [heading.id, heading.element]));
+      positionMapRef.current = new Map(snapshot.headings.map((heading) => [heading.id, heading.top]));
 
       if (!areOutlineHeadingsEqual(headingsRef.current, nextHeadings)) {
         headingsRef.current = nextHeadings;
@@ -191,21 +122,30 @@ export function useNotesOutline(enabled: boolean) {
         headingsRef.current = nextHeadings;
       }
 
-      syncActiveHeading();
+      syncActiveHeading(snapshot.scrollTop);
     };
 
-    refreshOutline();
-    pollId = window.setInterval(refreshOutline, POLL_INTERVAL_MS);
+    refreshOutlineRef.current = refreshOutline;
+    refreshOutline(getCurrentEditorBlockPositionSnapshot());
+    const unsubscribe = subscribeCurrentEditorBlockPositionSnapshot((snapshot) => {
+      if (scrollSyncRafRef.current !== null) {
+        cancelAnimationFrame(scrollSyncRafRef.current);
+      }
+      scrollSyncRafRef.current = requestAnimationFrame(() => {
+        scrollSyncRafRef.current = null;
+        refreshOutlineRef.current?.(snapshot);
+      });
+    });
 
     return () => {
-      if (rafId) cancelAnimationFrame(rafId);
-      if (pollId) window.clearInterval(pollId);
-      mutationObserver?.disconnect();
-      if (scrollRootRef.current && updateOnScrollRef.current) {
-        scrollRootRef.current.removeEventListener('scroll', updateOnScrollRef.current);
+      unsubscribe();
+      if (scrollSyncRafRef.current !== null) {
+        cancelAnimationFrame(scrollSyncRafRef.current);
+        scrollSyncRafRef.current = null;
       }
       scrollRootRef.current = null;
       editorRootRef.current = null;
+      refreshOutlineRef.current = null;
     };
   }, [enabled, syncActiveHeading]);
 
@@ -218,12 +158,15 @@ export function useNotesOutline(enabled: boolean) {
   ) => {
     const headingElement = elementMapRef.current.get(headingId);
     const scrollRoot = scrollRootRef.current;
-    if (!headingElement || !scrollRoot) return;
+    if (!headingElement || !scrollRoot) {
+      return;
+    }
 
-    const rootRect = scrollRoot.getBoundingClientRect();
-    const targetY =
-      headingElement.getBoundingClientRect().top - rootRect.top + scrollRoot.scrollTop - ACTIVE_OFFSET_PX;
-    const targetScrollTop = Math.max(0, targetY);
+    const cachedTop = positionMapRef.current.get(headingId);
+    const fallbackTop =
+      headingElement.getBoundingClientRect().top - scrollRoot.getBoundingClientRect().top + scrollRoot.scrollTop;
+    const targetScrollTop = Math.max(0, (cachedTop ?? fallbackTop) - ACTIVE_OFFSET_PX);
+
     jumpLockRef.current = {
       headingId,
       targetScrollTop,
@@ -235,8 +178,7 @@ export function useNotesOutline(enabled: boolean) {
       behavior: options?.behavior ?? 'smooth',
     });
 
-    const editorRoot = document.querySelector<HTMLElement>(EDITOR_ROOT_SELECTOR);
-    editorRoot?.focus({ preventScroll: true });
+    editorRootRef.current?.focus({ preventScroll: true });
     if (options?.selectText) {
       const selection = window.getSelection();
       if (selection) {

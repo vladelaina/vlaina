@@ -25,7 +25,6 @@ import type { NotesSidebarMenuEntry } from '../Sidebar/context-menu/NotesSidebar
 interface FileItemProps {
   node: NoteFile;
   depth: number;
-  currentNotePath?: string;
   showStarBadge?: boolean;
   dragEnabled?: boolean;
 }
@@ -33,7 +32,6 @@ interface FileItemProps {
 export const FileItem = memo(function FileItem({
   node,
   depth,
-  currentNotePath,
   showStarBadge = false,
   dragEnabled = true,
 }: FileItemProps) {
@@ -63,10 +61,10 @@ export const FileItem = memo(function FileItem({
     notesPath,
     itemPath: node.path,
   });
+  const isActive = useNotesStore((state) => state.currentNote?.path === node.path);
 
   const displayName = useDisplayName(node.path) || node.name;
   const noteIcon = useDisplayIcon(node.path);
-  const isActive = node.path === currentNotePath;
   const menuEntries: NotesSidebarMenuEntry[] = [
     {
       key: 'rename',
@@ -195,7 +193,6 @@ function areFileItemPropsEqual(prevProps: FileItemProps, nextProps: FileItemProp
     prevProps.node.name === nextProps.node.name &&
     prevProps.node.path === nextProps.node.path &&
     prevProps.depth === nextProps.depth &&
-    prevProps.currentNotePath === nextProps.currentNotePath &&
     prevProps.showStarBadge === nextProps.showStarBadge
   );
 }

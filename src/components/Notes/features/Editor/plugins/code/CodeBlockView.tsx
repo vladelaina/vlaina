@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Node } from '@milkdown/kit/prose/model';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { useCodeBlockState } from './hooks/useCodeBlockState';
@@ -12,7 +12,7 @@ interface CodeBlockViewProps {
 }
 
 export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos, getNode }) => {
-    const {
+  const {
         language,
         displayName,
         copied,
@@ -22,12 +22,13 @@ export const CodeBlockView: React.FC<CodeBlockViewProps> = ({ node, view, getPos
         handleCopy,
         toggleCollapse
     } = useCodeBlockState({ node, view, getPos, getNode });
+    const getNodeText = useCallback(() => getNode().textContent, [getNode]);
 
     return (
         <CodeBlockHeader 
             language={language}
             displayName={displayName}
-            getNodeText={() => getNode().textContent}
+            getNodeText={getNodeText}
             copied={copied}
             isLangMenuOpen={isLangMenuOpen}
             setIsLangMenuOpen={setIsLangMenuOpen}

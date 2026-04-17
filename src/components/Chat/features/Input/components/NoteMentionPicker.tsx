@@ -6,6 +6,7 @@ interface NoteMentionPickerProps {
   currentPageCandidates: NoteMentionCandidate[];
   linkedPageCandidates: NoteMentionCandidate[];
   activeCandidatePath: string | null;
+  className?: string;
   onSelect: (candidate: NoteMentionCandidate) => void;
 }
 
@@ -60,11 +61,15 @@ export function NoteMentionPicker({
   currentPageCandidates,
   linkedPageCandidates,
   activeCandidatePath,
+  className,
   onSelect,
 }: NoteMentionPickerProps) {
   return (
     <div
-      className="absolute left-3 right-3 bottom-full mb-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#1d1d1d] shadow-xl p-2 max-h-72 overflow-y-auto z-40"
+      className={cn(
+        'absolute bottom-full mb-2 max-h-72 overflow-y-auto rounded-xl border border-gray-200 bg-white p-2 shadow-xl dark:border-gray-700 dark:bg-[#1d1d1d] z-40',
+        className ?? 'left-3 right-3',
+      )}
       data-no-focus-input="true"
     >
       <div className="space-y-2">

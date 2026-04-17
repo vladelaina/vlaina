@@ -4,7 +4,7 @@ import type { MentionPreviewPart } from '../noteMentionHelpers';
 interface MentionPreviewOverlayProps {
   mentionPreviewParts: MentionPreviewPart[];
   textareaScrollTop: number;
-  onRemoveMention: (path: string) => void;
+  onRemoveMention: (path: string, rangeStart?: number) => void;
 }
 
 export function MentionPreviewOverlay({
@@ -48,7 +48,7 @@ function MentionPreviewToken({
   onRemoveMention,
 }: {
   part: MentionPreviewPart & { mention: NoteMentionReference };
-  onRemoveMention: (path: string) => void;
+  onRemoveMention: (path: string, rangeStart?: number) => void;
 }) {
   return (
     <span
@@ -60,7 +60,7 @@ function MentionPreviewToken({
         type="button"
         className="absolute -right-1 -top-1 z-10 rounded-full bg-blue-500/95 px-1 text-[10px] leading-4 text-white opacity-0 transition-opacity group-hover:opacity-100"
         onMouseDown={(event) => event.preventDefault()}
-        onClick={() => onRemoveMention(part.mention.path)}
+        onClick={() => onRemoveMention(part.mention.path, part.start)}
       >
         ×
       </button>

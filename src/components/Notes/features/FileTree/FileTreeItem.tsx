@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { FileTreeNode } from '@/stores/useNotesStore';
 import { FileItem } from './FileItem';
 import { FolderItem } from './FolderItem';
@@ -5,13 +6,16 @@ import { FolderItem } from './FolderItem';
 interface FileTreeItemProps {
   node: FileTreeNode;
   depth: number;
-  currentNotePath?: string;
 }
 
-export function FileTreeItem({ node, depth, currentNotePath }: FileTreeItemProps) {
+export const FileTreeItem = memo(function FileTreeItem({ node, depth }: FileTreeItemProps) {
   if (node.isFolder) {
-    return <FolderItem node={node} depth={depth} currentNotePath={currentNotePath} />;
+    return <FolderItem node={node} depth={depth} />;
   }
 
-  return <FileItem node={node} depth={depth} currentNotePath={currentNotePath} />;
+  return <FileItem node={node} depth={depth} />;
+}, areFileTreeItemPropsEqual);
+
+function areFileTreeItemPropsEqual(prevProps: FileTreeItemProps, nextProps: FileTreeItemProps) {
+  return prevProps.node === nextProps.node && prevProps.depth === nextProps.depth;
 }

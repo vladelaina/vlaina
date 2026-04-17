@@ -1,6 +1,5 @@
 import { memo, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import type { AIModel } from '@/lib/ai/types';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import {
@@ -20,7 +19,7 @@ interface ChatInputProps {
   onSend: (message: string, attachments: Attachment[], noteMentions: NoteMentionReference[]) => void;
   onStop: () => void;
   isLoading: boolean;
-  selectedModel: AIModel | undefined;
+  hasSelectedModel: boolean;
   focusTrigger?: number;
   sessionId?: string | null;
   sentUserMessages: string[];
@@ -31,7 +30,7 @@ export const ChatInput = memo(function ChatInput({
   onSend,
   onStop,
   isLoading,
-  selectedModel,
+  hasSelectedModel,
   focusTrigger,
   sessionId,
   sentUserMessages,
@@ -213,7 +212,7 @@ export const ChatInput = memo(function ChatInput({
 
   const canSend =
     (!!message.trim() || attachments.length > 0 || noteMentions.length > 0) &&
-    !!selectedModel;
+    hasSelectedModel;
   const handleComposerChange = useCallback(
     (event: React.ChangeEvent<HTMLTextAreaElement>) => {
       handleMessageChange(event.target.value);
@@ -278,7 +277,7 @@ export const ChatInput = memo(function ChatInput({
             onBlur={handleCaretBlur}
             onPaste={handleTextareaPaste}
             onScroll={(e) => setTextareaScrollTop(e.currentTarget.scrollTop)}
-            placeholder={!selectedModel ? 'Select a model...' : isLoading ? 'Type to interrupt...' : 'Message...'}
+            placeholder={!hasSelectedModel ? 'Select a model...' : isLoading ? 'Type to interrupt...' : 'Message...'}
             mentionPreviewParts={mentionPreviewParts}
             textareaScrollTop={textareaScrollTop}
             onRemoveMention={removeNoteMention}
