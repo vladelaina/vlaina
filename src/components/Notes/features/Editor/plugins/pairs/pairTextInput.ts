@@ -1,8 +1,13 @@
 import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 
+import { consumeDuplicateCloseEvent, recordSkippedCloser } from './pairDuplicateCloseGuard';
 import { closePairSpecs, openPairSpecs } from './pairSpecs';
-import { createAddAutoClosersMeta, hasAutoInsertedCloserAt, autoPairPluginKey } from './pairState';
+import {
+  createAddAutoClosersMeta,
+  hasAutoInsertedCloserAt,
+  autoPairPluginKey,
+} from './pairState';
 
 function isWordLikeChar(char: string | undefined): boolean {
   return typeof char === 'string' && /[\p{L}\p{N}_]/u.test(char);
@@ -52,6 +57,7 @@ function handleClosingPairSkip(
   if (!hasAutoInsertedCloserAt(view.state, from, text)) return false;
 
   moveSelectionTo(view, from + text.length);
+  recordSkippedCloser(view, text, from, from + text.length);
   return true;
 }
 
@@ -117,6 +123,7 @@ export function handleAutoPairTextInput(
 ): boolean {
   if (text.length !== 1) return false;
 
+  if (consumeDuplicateCloseEvent(view, from, text)) return true;
   if (handleClosingPairSkip(view, from, text)) return true;
   if (handleSelectionWrap(view, from, to, text)) return true;
   return handleCollapsedOpenPair(view, from, to, text);
