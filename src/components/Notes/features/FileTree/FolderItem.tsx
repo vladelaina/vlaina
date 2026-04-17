@@ -63,9 +63,9 @@ export const FolderItem = memo(function FolderItem({
   });
 
   const leading = node.expanded ? (
-    <Icon name="file.folderOpen" size={NOTES_SIDEBAR_ICON_SIZE} className="text-[var(--notes-sidebar-folder-icon)]" />
+    <Icon name="file.folderOpen" size={16} className="text-[var(--notes-sidebar-folder-icon)]" />
   ) : (
-    <Icon name="file.folder" size={NOTES_SIDEBAR_ICON_SIZE} className="text-[var(--notes-sidebar-folder-icon)]" />
+    <Icon name="file.folder" size={16} className="text-[var(--notes-sidebar-folder-icon)]" />
   );
   const menuEntries: NotesSidebarMenuEntry[] = [
     {

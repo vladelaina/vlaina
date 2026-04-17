@@ -47,8 +47,6 @@ import {
   MoonIcon,
   ComputerDesktopIcon,
   SwatchIcon,
-  FolderIcon,
-  FolderOpenIcon,
   DocumentPlusIcon,
   DocumentTextIcon,
   PhotoIcon,
@@ -96,6 +94,8 @@ import { ReviewCloseIcon } from './custom/mit/ReviewCloseIcon';
 import { SidebarDockIcon } from './custom/mit/SidebarDockIcon';
 import { MagicWandIcon } from './custom/mit/MagicWandIcon';
 import { ShootingStarIcon } from './custom/mit/ShootingStarIcon';
+import { FileDirectoryFillIcon } from './custom/mit/FileDirectoryFillIcon';
+import { FileDirectoryOpenFillIcon } from './custom/mit/FileDirectoryOpenFillIcon';
 
 export type IconSource = ComponentType<SVGProps<SVGSVGElement> & { size?: number | string }>;
 
@@ -181,8 +181,8 @@ export const icons: Record<string, IconSource> = {
   'theme.system': ComputerDesktopIcon,
   'theme.palette': SwatchIcon,
   'theme.sunny': SunIcon,
-  'file.folder': FolderIcon,
-  'file.folderOpen': FolderOpenIcon,
+  'file.folder': FileDirectoryFillIcon,
+  'file.folderOpen': FileDirectoryOpenFillIcon,
   'file.add': DocumentPlusIcon,
   'file.text': DocumentTextIcon,
   'file.image': PhotoIcon,

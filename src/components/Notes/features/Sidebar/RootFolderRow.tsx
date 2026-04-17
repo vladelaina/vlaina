@@ -132,7 +132,7 @@ export function RootFolderRow({
             >
               <Icon
                 name={expanded ? 'file.folderOpen' : 'file.folder'}
-                size={NOTES_SIDEBAR_ICON_SIZE}
+                size={16}
                 className="text-[var(--notes-sidebar-folder-icon)]"
               />
             </span>
