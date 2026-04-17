@@ -315,6 +315,7 @@ export const OverlayScrollArea = forwardRef<HTMLDivElement, OverlayScrollAreaPro
       {metrics.canScroll ? (
         <div
           aria-hidden="true"
+          data-no-focus-input="true"
           className={cn(
             'absolute inset-y-0 right-0 flex cursor-default transition-[opacity,width] duration-100',
             isVisible ? 'pointer-events-auto' : 'pointer-events-none',
