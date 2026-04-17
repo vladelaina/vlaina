@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
+import {
+  getSidebarLabelClass,
+  getSidebarSoftTextClass,
+  getSidebarToneStyles,
+} from '@/components/layout/sidebar/sidebarLabelStyles';
 import { useNotesOutline } from './useNotesOutline';
 import { CollapseTriangleAffordance } from '../../common/collapseTrianglePrimitive';
 import {
@@ -27,6 +32,7 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
   const [collapsedHeadingIds, setCollapsedHeadingIds] = useState<Set<string>>(() => new Set());
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
   const scrollRootRef = useRef<HTMLDivElement | null>(null);
+  const styles = getSidebarToneStyles('notes');
 
   useHeldPageScroll(scrollRootRef, {
     scopeRef: sidebarRootRef,
@@ -58,10 +64,8 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
           <div
             className={cn(
               'group flex items-center rounded-md transition-colors',
-              'hover:bg-[var(--notes-sidebar-row-hover)]',
-              isActive
-                ? 'bg-[var(--notes-sidebar-row-active)] text-[var(--notes-sidebar-text)]'
-                : 'text-[var(--notes-sidebar-text-muted)]',
+              styles.rowHover,
+              isActive ? styles.activeRow : undefined,
             )}
             style={{
               minHeight: NOTES_SIDEBAR_ROW_HEIGHT,
@@ -83,13 +87,17 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
                   event.stopPropagation();
                   toggleOutlineNode(node.id);
                 }}
-                className="mr-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm text-[var(--notes-sidebar-text-muted)] hover:text-[var(--notes-sidebar-text)]"
+                className={cn(
+                  'mr-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm',
+                  getSidebarSoftTextClass('notes'),
+                  'hover:text-[var(--notes-sidebar-text)]',
+                )}
               >
-              <CollapseTriangleAffordance
-                collapsed={isCollapsed}
-                visibility="hover-unless-collapsed"
-                size={12}
-              />
+                <CollapseTriangleAffordance
+                  collapsed={isCollapsed}
+                  visibility="hover-unless-collapsed"
+                  size={12}
+                />
               </button>
             ) : (
               <span className="mr-1 inline-flex h-4 w-4 shrink-0" aria-hidden="true" />
@@ -97,7 +105,10 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
             <button
               type="button"
               onClick={() => jumpToHeading(node.id)}
-              className="flex min-w-0 flex-1 items-center py-0 text-left text-[13px] leading-5 whitespace-normal break-words"
+              className={cn(
+                'flex min-w-0 flex-1 items-center py-0 text-left text-[13px] leading-5 whitespace-normal break-words',
+                getSidebarLabelClass('notes', { selected: isActive }),
+              )}
               style={{ minHeight: NOTES_SIDEBAR_ROW_HEIGHT }}
             >
               {node.text}

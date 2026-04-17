@@ -8,6 +8,7 @@ import { TreeItemDeleteDialog } from './components/TreeItemDeleteDialog';
 import { useFileItemState } from './hooks/useFileItemState';
 import { NoteIcon } from '../IconPicker/NoteIcon';
 import { cn } from '@/lib/utils';
+import { getSidebarLabelClass, getSidebarTextClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 import { NoteDisambiguatedTitle } from '../common/noteDisambiguation';
 import { SidebarStarBadge } from '../common/SidebarStarBadge';
@@ -153,9 +154,7 @@ export const FileItem = memo(function FileItem({
             onCancel={() => setIsRenaming(false)}
             className={cn(
               'w-full min-w-0 border-none bg-transparent p-0 text-sm leading-5 outline-none',
-              isActive || showMenu
-                ? 'font-medium text-[var(--notes-sidebar-text)]'
-                : 'text-[var(--notes-sidebar-text-muted)]'
+              getSidebarLabelClass('notes', { selected: isActive || showMenu })
             )}
           />
         ) : (
@@ -163,8 +162,8 @@ export const FileItem = memo(function FileItem({
             <NoteDisambiguatedTitle
               path={node.path}
               fallbackName={displayName}
-              className={cn(isActive && 'text-[var(--notes-sidebar-text)]')}
-              titleClassName={cn(isActive && 'font-medium')}
+              className={getSidebarTextClass('notes')}
+              titleClassName={getSidebarLabelClass('notes', { selected: isActive })}
               hintClassName="text-[var(--notes-sidebar-text-soft)]"
             />
             {showStarBadge ? (

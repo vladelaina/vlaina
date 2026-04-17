@@ -1,3 +1,4 @@
+import { type ReactNode } from 'react';
 import { Icon } from '@/components/ui/icons';
 import {
   SidebarActionButton,
@@ -9,26 +10,44 @@ interface ChatSidebarTopActionsProps {
   onOpenNotes: () => void;
 }
 
+interface ChatSidebarTopAction {
+  key: string;
+  label: string;
+  icon: ReactNode;
+  onClick: () => void;
+}
+
 export function ChatSidebarTopActions({
   onOpenNewChat,
   onOpenNotes,
 }: ChatSidebarTopActionsProps) {
+  const actions: ChatSidebarTopAction[] = [
+    {
+      key: 'new-chat',
+      label: 'New Chat',
+      icon: <Icon name="common.compose" size="md" />,
+      onClick: onOpenNewChat,
+    },
+    {
+      key: 'notes',
+      label: 'Notes',
+      icon: <Icon name="file.text" size="md" />,
+      onClick: onOpenNotes,
+    },
+  ];
+
   return (
     <SidebarActionGroup>
-      <SidebarActionButton
-        onClick={onOpenNewChat}
-        icon={<Icon name="common.compose" size="md" />}
-        label="New Chat"
-        className="text-[var(--chat-sidebar-text-muted)] hover:bg-[var(--chat-sidebar-row-hover)]"
-        iconClassName="text-[var(--notes-sidebar-file-icon)]"
-      />
-      <SidebarActionButton
-        onClick={onOpenNotes}
-        icon={<Icon name="file.text" size="md" />}
-        label="Notes"
-        className="text-[var(--chat-sidebar-text-muted)] hover:bg-[var(--chat-sidebar-row-hover)]"
-        iconClassName="text-[var(--notes-sidebar-file-icon)]"
-      />
+      {actions.map((action) => (
+        <SidebarActionButton
+          key={action.key}
+          tone="chat"
+          onClick={action.onClick}
+          icon={action.icon}
+          label={action.label}
+          iconClassName="text-[var(--notes-sidebar-file-icon)]"
+        />
+      ))}
     </SidebarActionGroup>
   );
 }

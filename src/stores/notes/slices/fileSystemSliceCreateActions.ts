@@ -1,0 +1,303 @@
+import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { getNoteTitleFromPath } from '@/lib/notes/displayName';
+import type { NotesStore } from '../types';
+import { addNodeToTree } from '../fileTreeUtils';
+import { ensureNotesFolder, getCurrentVaultPath, getNotesBasePath } from '../storage';
+import { createNoteImpl } from '../utils/fs/crudOperations';
+import { resolveUniquePath } from '../utils/fs/pathOperations';
+import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
+import { setCachedNoteContent } from '../document/noteContentCache';
+import { markExpectedExternalChange } from '../document/externalChangeRegistry';
+import { persistWorkspaceSnapshot } from '../workspacePersistence';
+import {
+  createBlankDraftState,
+  ensureRootFolderState,
+  replaceCurrentTabOrAppend,
+} from './fileSystemSliceHelpers';
+import type { FileSystemSlice, FileSystemSliceGet, FileSystemSliceSet } from './fileSystemSliceContracts';
+
+type CreateNoteResult = Awaited<ReturnType<typeof createNoteImpl>>;
+
+async function ensureCurrentNoteSaved(get: FileSystemSliceGet) {
+  const state = get();
+  if (!state.isDirty) {
+    return state;
+  }
+
+  await state.saveNote();
+  if (get().isDirty) {
+    throw new Error('Failed to save current note before creating a new note');
+  }
+
+  return get();
+}
+
+function finalizeCreatedNote({
+  set,
+  notesPath,
+  relativePath,
+  content,
+  fileName,
+  updatedMetadata,
+  newChildren,
+  updatedRecent,
+  fileTreeSortMode,
+  noteContentsCache,
+  openTabs,
+  currentNote,
+  currentRootFolder,
+}: {
+  set: FileSystemSliceSet;
+  notesPath: string;
+  relativePath: CreateNoteResult['relativePath'];
+  content: CreateNoteResult['content'];
+  fileName: CreateNoteResult['fileName'];
+  updatedMetadata: CreateNoteResult['updatedMetadata'];
+  newChildren: CreateNoteResult['newChildren'];
+  updatedRecent: CreateNoteResult['updatedRecent'];
+  fileTreeSortMode: NotesStore['fileTreeSortMode'];
+  noteContentsCache: NotesStore['noteContentsCache'];
+  openTabs: NotesStore['openTabs'];
+  currentNote: NotesStore['currentNote'];
+  currentRootFolder: NonNullable<NotesStore['rootFolder']>;
+}) {
+  const nextRootFolder = buildSortedRootFolder(
+    currentRootFolder,
+    newChildren,
+    fileTreeSortMode,
+    updatedMetadata,
+  );
+  const updatedTabs = replaceCurrentTabOrAppend(openTabs, currentNote?.path, {
+    path: relativePath,
+    name: getNoteTitleFromPath(fileName),
+    isDirty: false,
+  });
+
+  set({
+    rootFolder: nextRootFolder,
+    noteMetadata: updatedMetadata,
+    currentNote: { path: relativePath, content },
+    isDirty: false,
+    openTabs: updatedTabs,
+    recentNotes: updatedRecent,
+    isNewlyCreated: true,
+    noteContentsCache: setCachedNoteContent(noteContentsCache, relativePath, content, null),
+  });
+
+  persistWorkspaceSnapshot(notesPath, {
+    rootFolder: nextRootFolder,
+    currentNotePath: relativePath,
+    fileTreeSortMode,
+  });
+
+  return relativePath;
+}
+
+export function createFileSystemCreateActions(
+  set: FileSystemSliceSet,
+  get: FileSystemSliceGet,
+): Pick<
+  FileSystemSlice,
+  'createNote' | 'createNoteWithContent' | 'createFolder' | 'clearNewlyCreatedFolder'
+> {
+  return {
+    createNote: async (folderPath?: string) => {
+      let {
+        notesPath,
+        openTabs,
+        recentNotes,
+        rootFolder,
+        currentNote,
+        fileTreeSortMode,
+        noteContentsCache,
+        noteMetadata,
+        draftNotes,
+        displayNames,
+        currentNoteRevision,
+      } = await ensureCurrentNoteSaved(get);
+
+      try {
+        if (!notesPath) {
+          const currentVaultPath = getCurrentVaultPath();
+          if (!currentVaultPath) {
+            const { draftPath, nextState } = createBlankDraftState({
+              folderPath,
+              openTabs,
+              currentNote,
+              currentNoteRevision,
+              noteContentsCache,
+              draftNotes,
+              displayNames,
+            });
+            set(nextState);
+            return draftPath;
+          }
+
+          notesPath = currentVaultPath;
+          await ensureNotesFolder(notesPath);
+          set({ notesPath });
+        }
+
+        const currentRootFolder = ensureRootFolderState(rootFolder);
+        const result = await createNoteImpl(notesPath, folderPath, undefined, '', {
+          rootFolder: currentRootFolder,
+          recentNotes,
+          noteMetadata,
+        });
+
+        return finalizeCreatedNote({
+          set,
+          notesPath,
+          relativePath: result.relativePath,
+          content: result.content,
+          fileName: result.fileName,
+          updatedMetadata: result.updatedMetadata,
+          newChildren: result.newChildren,
+          updatedRecent: result.updatedRecent,
+          fileTreeSortMode,
+          noteContentsCache,
+          openTabs,
+          currentNote,
+          currentRootFolder,
+        });
+      } catch (error) {
+        set({ error: error instanceof Error ? error.message : 'Failed to create note' });
+        throw error;
+      }
+    },
+
+    createNoteWithContent: async (folderPath: string | undefined, name: string, content: string) => {
+      let {
+        notesPath,
+        rootFolder,
+        recentNotes,
+        openTabs,
+        currentNote,
+        fileTreeSortMode,
+        noteContentsCache,
+        noteMetadata,
+      } = await ensureCurrentNoteSaved(get);
+      const storage = getStorageAdapter();
+
+      try {
+        if (!notesPath) {
+          notesPath = await getNotesBasePath();
+          await ensureNotesFolder(notesPath);
+          set({ notesPath });
+        }
+
+        const currentRootFolder = ensureRootFolderState(rootFolder);
+        if (folderPath) {
+          const folderFullPath = await joinPath(notesPath, folderPath);
+          if (!await storage.exists(folderFullPath)) {
+            await storage.mkdir(folderFullPath, true);
+          }
+        }
+
+        const result = await createNoteImpl(notesPath, folderPath, name, content, {
+          rootFolder: currentRootFolder,
+          recentNotes,
+          noteMetadata,
+        });
+
+        return finalizeCreatedNote({
+          set,
+          notesPath,
+          relativePath: result.relativePath,
+          content: result.content,
+          fileName: result.fileName,
+          updatedMetadata: result.updatedMetadata,
+          newChildren: result.newChildren,
+          updatedRecent: result.updatedRecent,
+          fileTreeSortMode,
+          noteContentsCache,
+          openTabs,
+          currentNote,
+          currentRootFolder,
+        });
+      } catch (error) {
+        set({ error: error instanceof Error ? error.message : 'Failed to create note' });
+        throw error;
+      }
+    },
+
+    createFolder: async (parentPath: string, name?: string) => {
+      let {
+        notesPath,
+        fileTreeSortMode,
+        noteMetadata,
+        openTabs,
+        currentNote,
+        currentNoteRevision,
+        noteContentsCache,
+        draftNotes,
+        displayNames,
+      } = get();
+      const storage = getStorageAdapter();
+
+      try {
+        if (!notesPath) {
+          const currentVaultPath = getCurrentVaultPath();
+          if (!currentVaultPath) {
+            const { draftPath, nextState } = createBlankDraftState({
+              folderPath: parentPath || undefined,
+              openTabs,
+              currentNote,
+              currentNoteRevision,
+              noteContentsCache,
+              draftNotes,
+              displayNames,
+            });
+            set(nextState);
+            return draftPath;
+          }
+
+          notesPath = currentVaultPath;
+          await ensureNotesFolder(notesPath);
+          set({ notesPath });
+        }
+
+        const { relativePath, fullPath, fileName } = await resolveUniquePath(
+          notesPath,
+          parentPath || undefined,
+          name || 'Untitled',
+          true,
+        );
+
+        markExpectedExternalChange(fullPath, true);
+        await storage.mkdir(fullPath, true);
+
+        const currentRootFolder = ensureRootFolderState(get().rootFolder);
+        const nextRootFolder = buildSortedRootFolder(
+          currentRootFolder,
+          addNodeToTree(currentRootFolder.children, parentPath, {
+            id: relativePath,
+            name: fileName,
+            path: relativePath,
+            isFolder: true,
+            children: [],
+            expanded: false,
+          }),
+          fileTreeSortMode,
+          noteMetadata,
+        );
+
+        set({
+          rootFolder: nextRootFolder,
+          newlyCreatedFolderPath: !name ? relativePath : null,
+        });
+        persistWorkspaceSnapshot(notesPath, {
+          rootFolder: nextRootFolder,
+          currentNotePath: get().currentNote?.path ?? null,
+          fileTreeSortMode,
+        });
+        return relativePath;
+      } catch (error) {
+        set({ error: error instanceof Error ? error.message : 'Failed to create folder' });
+        return null;
+      }
+    },
+
+    clearNewlyCreatedFolder: () => set({ newlyCreatedFolderPath: null }),
+  };
+}

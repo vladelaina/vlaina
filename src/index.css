@@ -218,7 +218,7 @@ html, body, #root {
   --chat-sidebar-fade: #ffffff;
 
   --notes-sidebar-surface: #ffffff;
-  --notes-sidebar-row-hover: #fbfbfb;
+  --notes-sidebar-row-hover: #f8f8f8;
   --notes-sidebar-row-active: #f8f8f8;
   --notes-sidebar-row-drag: rgba(30, 150, 235, 0.1);
   --notes-sidebar-text: #27262b;
@@ -342,7 +342,7 @@ textarea,
 }
 
 .chat-sidebar-loading-title-base {
-  color: var(--chat-sidebar-text-soft);
+  color: var(--chat-sidebar-text);
   font-weight: 500;
 }
 
