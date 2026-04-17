@@ -5,7 +5,7 @@ import { useNoteCoverController } from './useNoteCoverController';
 const hoisted = vi.hoisted(() => {
   const setNoteCover = vi.fn();
   const getAssetList = vi.fn();
-  const getRandomBuiltinCover = vi.fn(() => 'builtin:covers/default');
+  const getRandomBuiltinCover = vi.fn(() => '@monet/1');
   const storeRef: { state: any } = { state: null };
 
   const useNotesStore = ((selector?: (state: any) => any) => {
@@ -40,29 +40,38 @@ describe('useNoteCoverController', () => {
 
   it('returns note cover values from metadata and updates cover', () => {
     hoisted.storeRef.state.noteMetadata.notes['a.md'] = {
-      cover: 'covers/a.png',
-      coverX: 12,
-      coverY: 24,
-      coverH: 222,
-      coverScale: 1.6,
+      cover: {
+        assetPath: 'assets/a.png',
+        positionX: 12,
+        positionY: 24,
+        height: 222,
+        scale: 1.6,
+      },
     };
 
     const { result } = renderHook(() => useNoteCoverController('a.md'));
 
     expect(result.current.cover).toEqual({
-      url: 'covers/a.png',
+      url: 'assets/a.png',
       positionX: 12,
       positionY: 24,
       height: 222,
       scale: 1.6,
     });
     expect(result.current.vaultPath).toBe('/vault');
+    expect(result.current.currentNotePath).toBe('a.md');
 
     act(() => {
-      result.current.updateCover('covers/next.png', 30, 40, 260, 1.2);
+      result.current.updateCover('assets/next.png', 30, 40, 260, 1.2);
     });
 
-    expect(hoisted.setNoteCover).toHaveBeenCalledWith('a.md', 'covers/next.png', 30, 40, 260, 1.2);
+    expect(hoisted.setNoteCover).toHaveBeenCalledWith('a.md', {
+      assetPath: 'assets/next.png',
+      positionX: 30,
+      positionY: 40,
+      height: 260,
+      scale: 1.2,
+    });
   });
 
   it('uses defaults when note has no cover metadata', () => {
@@ -77,14 +86,20 @@ describe('useNoteCoverController', () => {
   });
 
   it('adds random cover from assets and opens picker', () => {
-    hoisted.getAssetList.mockReturnValue([{ filename: 'covers/library.png' }]);
+    hoisted.getAssetList.mockReturnValue([{ filename: '@monet/2' }]);
     const { result } = renderHook(() => useNoteCoverController('random.md'));
 
     act(() => {
       result.current.addRandomCoverAndOpenPicker();
     });
 
-    expect(hoisted.setNoteCover).toHaveBeenCalledWith('random.md', 'covers/library.png', 50, 50, 200, 1);
+    expect(hoisted.setNoteCover).toHaveBeenCalledWith('random.md', {
+      assetPath: '@monet/2',
+      positionX: 50,
+      positionY: 50,
+      height: 200,
+      scale: 1,
+    });
     expect(result.current.isPickerOpen).toBe(true);
     expect(hoisted.getRandomBuiltinCover).not.toHaveBeenCalled();
   });
@@ -98,7 +113,13 @@ describe('useNoteCoverController', () => {
     });
 
     expect(hoisted.getRandomBuiltinCover).toHaveBeenCalledTimes(1);
-    expect(hoisted.setNoteCover).toHaveBeenCalledWith('builtin.md', 'builtin:covers/default', 50, 50, 200, 1);
+    expect(hoisted.setNoteCover).toHaveBeenCalledWith('builtin.md', {
+      assetPath: '@monet/1',
+      positionX: 50,
+      positionY: 50,
+      height: 200,
+      scale: 1,
+    });
   });
 
   it('closes picker when current note changes', () => {

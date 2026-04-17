@@ -42,7 +42,7 @@ export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEdi
 
             const fileToUpload = new File([croppedBlob], fileName, { type: 'image/png' });
 
-            const result = await uploadAsset(fileToUpload, 'covers', currentNote?.path);
+            const result = await uploadAsset(fileToUpload, currentNote?.path);
 
             if (result.success && result.path) {
                 onSave(result.path);

@@ -54,7 +54,7 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
     setStatus('uploading');
     setMessage('Uploading...');
 
-    const result = await uploadAsset(file, 'covers', currentNotePath);
+    const result = await uploadAsset(file, currentNotePath);
 
     if (result.success) {
       if (result.isDuplicate) {

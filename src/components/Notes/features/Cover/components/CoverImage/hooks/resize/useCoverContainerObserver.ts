@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
 
 interface UseCoverContainerObserverOptions {
   containerRef: React.RefObject<HTMLDivElement | null>;
@@ -19,7 +19,7 @@ export function useCoverContainerObserver({
   suspended = false,
   freezeSizeSync = false,
 }: UseCoverContainerObserverOptions) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
@@ -86,6 +86,12 @@ export function useCoverContainerObserver({
 
       const roundedWidth = Math.round(entry.contentRect.width);
       const roundedHeight = Math.round(entry.contentRect.height);
+      const changed = roundedWidth !== lastObservedWidth || roundedHeight !== lastObservedHeight;
+
+      if (!changed) {
+        return;
+      }
+
       scheduleResizeSettled();
       updateContainerSize(roundedWidth, roundedHeight, !freezeSizeSync);
     });

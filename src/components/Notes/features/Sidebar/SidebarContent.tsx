@@ -1,4 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { Icon } from '@/components/ui/icons';
 import {
   SidebarSearchDrawer,
   useSidebarSearchDrawerState,
@@ -6,26 +7,25 @@ import {
 import type { SidebarSearchState } from '@/components/layout/sidebar/useSidebarSearchState';
 import { cn } from '@/lib/utils';
 import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
+import { useDisplayIcon } from '@/hooks/useTitleSync';
+import { NoteIcon } from '../IconPicker/NoteIcon';
 import { StarredSection } from '../Starred';
 import { triggerHoveredSidebarRename } from '../common/sidebarHoverRename';
-import {
-  NotesSidebarHoverEmptyHint,
-  NotesSidebarScrollArea,
-} from './NotesSidebarPrimitives';
-import { SidebarSearchResultsList } from './SidebarSearchResultsList';
+import { NotesSidebarRow } from './NotesSidebarRow';
+import { NotesSidebarScrollArea } from './NotesSidebarPrimitives';
 import { NotesSidebarTopActions } from './NotesSidebarTopActions';
 import { RootFolderRow } from './RootFolderRow';
 import {
   buildNotesSidebarSearchIndex,
+  countNotesSidebarSearchEntries,
   type NotesSidebarSearchResult,
   queryNotesSidebarSearch,
   shouldSearchNotesSidebarContents,
 } from './notesSidebarSearchResults';
+import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
 import {
   applySidebarSearchNavigation,
-  clearSidebarSearchHighlights,
   clearSidebarSearchNavigationPending,
-  isSidebarSearchNavigationPending,
   markSidebarSearchNavigationPending,
 } from './sidebarSearchNavigation';
 import { getCurrentEditorView } from '../Editor/utils/editorViewRegistry';
@@ -45,6 +45,135 @@ interface SidebarContentProps {
   isPeeking?: boolean;
 }
 
+interface SidebarSearchResultRowProps {
+  result: NotesSidebarSearchResult;
+  query: string;
+  currentNotePath?: string | null;
+  onOpen: (result: NotesSidebarSearchResult) => void;
+  showFileHeader: boolean;
+}
+
+function HighlightedSearchText({
+  text,
+  query,
+  className,
+}: {
+  text: string;
+  query: string;
+  className?: string;
+}) {
+  const trimmedQuery = query.trim();
+
+  if (!trimmedQuery) {
+    return <span className={className}>{text}</span>;
+  }
+
+  const lowerText = text.toLowerCase();
+  const lowerQuery = trimmedQuery.toLowerCase();
+  const parts: Array<{ text: string; highlighted: boolean }> = [];
+  let cursor = 0;
+
+  while (cursor < text.length) {
+    const matchIndex = lowerText.indexOf(lowerQuery, cursor);
+    if (matchIndex === -1) {
+      parts.push({ text: text.slice(cursor), highlighted: false });
+      break;
+    }
+
+    if (matchIndex > cursor) {
+      parts.push({ text: text.slice(cursor, matchIndex), highlighted: false });
+    }
+
+    parts.push({
+      text: text.slice(matchIndex, matchIndex + trimmedQuery.length),
+      highlighted: true,
+    });
+    cursor = matchIndex + trimmedQuery.length;
+  }
+
+  return (
+    <span className={className}>
+      {parts.map((part, index) => (
+        <span
+          key={`${part.text}-${index}`}
+          className={part.highlighted ? 'text-blue-500' : undefined}
+        >
+          {part.text}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+function SidebarSearchResultRow({
+  result,
+  query,
+  currentNotePath,
+  onOpen,
+  showFileHeader,
+}: SidebarSearchResultRowProps) {
+  const { path, name, preview, contentSnippet } = result;
+  const noteIcon = useDisplayIcon(path);
+  const locationLabel = preview.replace(/\/$/, '');
+  const hasLocationLine = Boolean(locationLabel);
+  const hasContentLine = Boolean(contentSnippet);
+  const rowClassName = hasContentLine
+    ? 'h-auto min-h-[58px] items-start py-2'
+    : hasLocationLine
+      ? 'h-auto min-h-[40px] items-start py-1.5'
+      : undefined;
+  const leadingClassName =
+    showFileHeader && (hasLocationLine || hasContentLine) ? 'self-start pt-0.5' : undefined;
+  const contentClassName =
+    showFileHeader && (hasLocationLine || hasContentLine) ? 'pt-0.5' : undefined;
+
+  return (
+    <NotesSidebarRow
+      leading={showFileHeader ? (
+        noteIcon ? (
+          <NoteIcon icon={noteIcon} notePath={path} size={NOTES_SIDEBAR_ICON_SIZE} />
+        ) : (
+          <Icon
+            name="file.text"
+            size={NOTES_SIDEBAR_ICON_SIZE}
+            className="text-[var(--notes-sidebar-file-icon)]"
+          />
+        )
+      ) : (
+        <span aria-hidden="true" className="block size-[20px]" />
+      )}
+      leadingClassName={leadingClassName}
+      rowClassName={rowClassName}
+      contentClassName={contentClassName}
+      isActive={path === currentNotePath}
+      onClick={() => onOpen(result)}
+      main={(
+        <div className={cn('min-w-0', hasContentLine && 'space-y-0.5')}>
+          {showFileHeader ? (
+            <div className="truncate text-[13px] leading-5 text-[var(--notes-sidebar-text)]">
+              <HighlightedSearchText
+                text={name}
+                query={query}
+                className={cn(path === currentNotePath && 'font-medium')}
+              />
+            </div>
+          ) : null}
+          {locationLabel ? (
+            <div className="truncate text-[10px] leading-4 text-[var(--notes-sidebar-text-soft)]">
+              <HighlightedSearchText text={locationLabel} query={query} />
+            </div>
+          ) : null}
+          {contentSnippet ? (
+            <div className="whitespace-normal break-words text-[11px] leading-4 text-[var(--notes-sidebar-text-soft)]">
+              <HighlightedSearchText text={contentSnippet} query={query} />
+            </div>
+          ) : null}
+        </div>
+      )}
+    />
+  );
+}
+
 export function SidebarContent({
   rootFolder,
   isLoading,
@@ -55,10 +184,10 @@ export function SidebarContent({
   className,
   isPeeking = false,
 }: SidebarContentProps) {
-  const openNote = useNotesStore((state) => state.openNote);
-  const getDisplayName = useNotesStore((state) => state.getDisplayName);
-  const noteContentsCache = useNotesStore((state) => state.noteContentsCache);
-  const scanAllNotes = useNotesStore((state) => state.scanAllNotes);
+  const openNote = useNotesStore((s) => s.openNote);
+  const getDisplayName = useNotesStore((s) => s.getDisplayName);
+  const noteContentsCache = useNotesStore((s) => s.noteContentsCache);
+  const scanAllNotes = useNotesStore((s) => s.scanAllNotes);
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
   const contentScanPromiseRef = useRef<Promise<void> | null>(null);
   const [isContentScanPending, setIsContentScanPending] = useState(false);
@@ -87,19 +216,13 @@ export function SidebarContent({
     () => buildNotesSidebarSearchIndex(rootFolder, getDisplayName),
     [getDisplayName, rootFolder],
   );
-  const isWorkspaceEmpty = !isLoading && (!rootFolder || rootFolder.children.length === 0);
-  const searchableNoteCount = searchIndex.length;
-  const shouldSearchContents = shouldSearchNotesSidebarContents(deferredSearchQuery);
-  const uncachedSearchableNoteCount = useMemo(
-    () =>
-      searchIndex.reduce(
-        (count, entry) => (noteContentsCache.has(entry.path) ? count : count + 1),
-        0,
-      ),
-    [noteContentsCache, searchIndex],
+  const searchableNoteCount = useMemo(
+    () => countNotesSidebarSearchEntries(rootFolder),
+    [rootFolder],
   );
+  const shouldSearchContents = shouldSearchNotesSidebarContents(deferredSearchQuery);
   const isContentIndexReady =
-    searchableNoteCount > 0 && uncachedSearchableNoteCount === 0;
+    searchableNoteCount > 0 && noteContentsCache.size >= searchableNoteCount;
 
   const searchResults = useMemo(
     () =>
@@ -162,15 +285,6 @@ export function SidebarContent({
       window.removeEventListener('keydown', handleKeyDown, true);
     };
   }, []);
-
-  useEffect(() => {
-    if (search.isSearchOpen) {
-      return;
-    }
-
-    clearSidebarSearchHighlights();
-    setPendingNavigation(null);
-  }, [search.isSearchOpen]);
 
   useEffect(() => {
     if (
@@ -250,10 +364,6 @@ export function SidebarContent({
       query: pendingNavigation.query,
       contentMatchOrdinal: pendingNavigation.contentMatchOrdinal,
       previousView: pendingNavigation.previousView,
-      shouldContinue: () =>
-        !cancelled &&
-        useNotesStore.getState().currentNote?.path === pendingNavigation.path &&
-        isSidebarSearchNavigationPending(pendingNavigation.path),
     })
       .then((success) => {
         logSidebarSearchDebug('sidebar:pending-navigation:apply:resolved', {
@@ -371,31 +481,38 @@ export function SidebarContent({
         data-notes-sidebar-scroll-root="true"
         onScroll={handleScroll}
       >
-        <div className="relative min-h-full">
-          {shouldShowSearchResults ? (
-            <SidebarSearchResultsList
-              results={searchResults}
-              query={deferredSearchQuery}
-              currentNotePath={currentNotePath}
-              onOpen={handleOpenSearchResult}
-              scrollRootRef={scrollRootRef}
-              isContentScanPending={isContentScanPending}
-            />
-          ) : (
-            <div className="space-y-1">
-              <StarredSection showTitle={false} />
-              <RootFolderRow
-                rootFolder={rootFolder}
-                isLoading={isLoading}
-                onCreateNote={createNote}
-                onCreateFolder={() => createFolder('')}
-              />
+        {shouldShowSearchResults ? (
+          searchResults.length > 0 || isContentScanPending ? (
+            <div className="flex flex-col gap-0.5">
+              {isContentScanPending ? (
+                <div className="px-3 py-1 text-[11px] text-[var(--notes-sidebar-text-soft)]">
+                  Searching note contents...
+                </div>
+              ) : null}
+              {searchResults.map((result, index) => (
+                <SidebarSearchResultRow
+                  key={result.id}
+                  result={result}
+                  query={deferredSearchQuery}
+                  currentNotePath={currentNotePath}
+                  onOpen={handleOpenSearchResult}
+                  showFileHeader={index === 0 || searchResults[index - 1]?.path !== result.path}
+                />
+              ))}
             </div>
-          )}
-          {!shouldShowSearchResults && isWorkspaceEmpty ? (
-            <NotesSidebarHoverEmptyHint title="No folder opened" />
-          ) : null}
-        </div>
+          ) : null
+        ) : (
+          <div className="space-y-1">
+            <StarredSection showTitle={false} />
+            <RootFolderRow
+              rootFolder={rootFolder}
+              isLoading={isLoading}
+              currentNotePath={currentNotePath}
+              onCreateNote={createNote}
+              onCreateFolder={() => createFolder('')}
+            />
+          </div>
+        )}
       </NotesSidebarScrollArea>
     </div>
   );

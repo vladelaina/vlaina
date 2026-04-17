@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
-import { resolveSystemAssetPath } from '@/lib/assets/core/paths';
+import { resolveVaultAssetPath } from '@/lib/assets/core/paths';
 import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
 
 interface AssetThumbnailProps {
@@ -20,6 +20,7 @@ export const AssetThumbnail = memo(function AssetThumbnail({
   const [src, setSrc] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const imgRef = useRef<HTMLDivElement>(null);
   const mountIdRef = useRef(0);
 
   useEffect(() => {
@@ -29,30 +30,38 @@ export const AssetThumbnail = memo(function AssetThumbnail({
     setIsLoaded(false);
     setHasError(false);
 
-    void (async () => {
-      try {
-        if (isBuiltinCover(filename)) {
-          if (mountIdRef.current === currentMountId) {
-            setSrc(getBuiltinCoverUrl(filename));
+    if (!imgRef.current) return;
+
+    const observer = new IntersectionObserver(
+      async (entries) => {
+        if (entries[0].isIntersecting) {
+          try {
+            if (isBuiltinCover(filename)) {
+              if (mountIdRef.current === currentMountId) {
+                setSrc(getBuiltinCoverUrl(filename));
+              }
+            } else if (vaultPath) {
+              const fullPath = await resolveVaultAssetPath(vaultPath, filename);
+              const blobUrl = await loadImageAsBlob(fullPath);
+
+              if (mountIdRef.current === currentMountId) {
+                setSrc(blobUrl);
+              }
+            }
+          } catch (error) {
+            console.error('Failed to load thumbnail:', filename, error);
           }
-          return;
+          observer.disconnect();
         }
+      },
+      { threshold: 0.1 }
+    );
 
-        if (!vaultPath) {
-          return;
-        }
+    observer.observe(imgRef.current);
 
-        const category = filename.startsWith('icons/') ? 'icons' : 'covers';
-        const fullPath = await resolveSystemAssetPath(vaultPath, filename, category);
-        const blobUrl = await loadImageAsBlob(fullPath);
-
-        if (mountIdRef.current === currentMountId) {
-          setSrc(blobUrl);
-        }
-      } catch (error) {
-        console.error('Failed to load thumbnail:', filename, error);
-      }
-    })();
+    return () => {
+      observer.disconnect();
+    };
   }, [filename, vaultPath]);
 
   const handleImageError = useCallback(() => {
@@ -71,6 +80,7 @@ export const AssetThumbnail = memo(function AssetThumbnail({
 
   return (
     <div
+      ref={imgRef}
       data-filename={filename}
       className={cn(
         "relative aspect-square rounded-lg overflow-hidden cursor-pointer",

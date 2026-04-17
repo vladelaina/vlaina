@@ -1,4 +1,4 @@
-export type AssetCategory = 'covers' | 'icons' | 'content';
+export type AssetCategory = 'content';
 
 export interface AssetEntry {
   filename: string;

@@ -1,8 +1,9 @@
 import { resolveUniquePath } from './pathOperations';
-import { safeWriteTextFile, loadNoteMetadata, setNoteEntry, saveNoteMetadata, addToRecentNotes } from '../../storage';
+import { safeWriteTextFile, createEmptyMetadataFile, setNoteEntry, addToRecentNotes } from '../../storage';
 import { addNodeToTree } from '../../fileTreeUtils';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
+import { readNoteMetadataFromMarkdown, updateNoteMetadataInMarkdown } from '../../frontmatter';
 
 export async function createNoteImpl(
     notesPath: string,
@@ -21,16 +22,19 @@ export async function createNoteImpl(
     if (folderPath) {
     }
 
-    markExpectedExternalChange(fullPath);
-    await safeWriteTextFile(fullPath, content);
-
     const now = Date.now();
-    const metadata = await loadNoteMetadata(notesPath);
-    const updatedMetadata = setNoteEntry(metadata, relativePath, {
-        createdAt: now,
-        updatedAt: now,
+    const initialMetadata = readNoteMetadataFromMarkdown(content);
+    const { content: initialContent, metadata } = updateNoteMetadataInMarkdown(content, {
+        createdAt: initialMetadata.createdAt ?? now,
+        updatedAt: initialMetadata.updatedAt ?? now,
     });
-    await saveNoteMetadata(notesPath, updatedMetadata);
+
+    markExpectedExternalChange(fullPath);
+    await safeWriteTextFile(fullPath, initialContent);
+
+    const updatedMetadata = setNoteEntry(currentStore.noteMetadata ?? createEmptyMetadataFile(), relativePath, {
+        ...metadata,
+    });
 
     const newNode = {
         id: relativePath,
@@ -48,6 +52,7 @@ export async function createNoteImpl(
     return {
         relativePath,
         fileName,
+        content: initialContent,
         updatedMetadata,
         newChildren,
         updatedRecent

@@ -12,7 +12,8 @@ export interface CoverRendererProps {
   layoutPanelDragging?: boolean;
   isWindowResizing?: boolean;
   isContainerResizing?: boolean;
-  placeholderSrc?: string;
+  placeholderSrc?: string | null;
+  placeholderMediaSize?: { width: number; height: number } | null;
   isImageReady: boolean;
   isResizing: boolean;
   isResizeSettling: boolean;

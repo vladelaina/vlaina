@@ -6,12 +6,11 @@ interface NoteCoverCanvasProps {
   notePath?: string;
 }
 
-export function NoteCoverCanvas({ controller, notePath }: NoteCoverCanvasProps) {
+export function NoteCoverCanvas({ controller }: NoteCoverCanvasProps) {
   const { cover, vaultPath, isPickerOpen, setPickerOpen, updateCover } = controller;
 
   return (
     <CoverImage
-      key={notePath ?? 'note-cover-empty'}
       url={cover.url}
       positionX={cover.positionX}
       positionY={cover.positionY}
@@ -19,6 +18,7 @@ export function NoteCoverCanvas({ controller, notePath }: NoteCoverCanvasProps) 
       scale={cover.scale}
       onUpdate={updateCover}
       vaultPath={vaultPath}
+      currentNotePath={controller.currentNotePath}
       pickerOpen={isPickerOpen}
       onPickerOpenChange={setPickerOpen}
     />

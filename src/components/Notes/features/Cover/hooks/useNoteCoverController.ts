@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { getRandomBuiltinCover } from '@/lib/assets/builtinCovers';
-import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
 import type { NoteCoverController } from '../types';
 
 export function useNoteCoverController(currentNotePath?: string): NoteCoverController {
@@ -9,7 +8,8 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
   const setNoteCover = useNotesStore(s => s.setNoteCover);
   const coverEntry = useNotesStore(
     useCallback((state) => {
-      return getNoteMetadataEntry(state.noteMetadata, currentNotePath);
+      if (!currentNotePath) return undefined;
+      return state.noteMetadata?.notes[currentNotePath]?.cover;
     }, [currentNotePath])
   );
 
@@ -21,18 +21,29 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
 
   const cover = useMemo(() => {
     return {
-      url: coverEntry?.cover ?? null,
-      positionX: coverEntry?.coverX ?? 50,
-      positionY: coverEntry?.coverY ?? 50,
-      height: coverEntry?.coverH,
-      scale: coverEntry?.coverScale ?? 1,
+      url: coverEntry?.assetPath ?? null,
+      positionX: coverEntry?.positionX ?? 50,
+      positionY: coverEntry?.positionY ?? 50,
+      height: coverEntry?.height,
+      scale: coverEntry?.scale ?? 1,
     };
   }, [coverEntry]);
 
   const updateCover = useCallback(
     (url: string | null, positionX: number, positionY: number, height?: number, scale?: number) => {
       if (!currentNotePath) return;
-      setNoteCover(currentNotePath, url, positionX, positionY, height, scale);
+      setNoteCover(
+        currentNotePath,
+        url
+          ? {
+              assetPath: url,
+              positionX,
+              positionY,
+              height,
+              scale,
+            }
+          : null
+      );
     },
     [currentNotePath, setNoteCover]
   );
@@ -40,18 +51,25 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
   const addRandomCoverAndOpenPicker = useCallback(() => {
     if (!currentNotePath) return;
 
-    const allCovers = useNotesStore.getState().getAssetList('covers');
+    const allCovers = useNotesStore.getState().getAssetList('builtinCovers');
     const nextCover = allCovers.length > 0
       ? allCovers[Math.floor(Math.random() * allCovers.length)].filename
       : getRandomBuiltinCover();
 
-    setNoteCover(currentNotePath, nextCover, 50, 50, 200, 1);
+    setNoteCover(currentNotePath, {
+      assetPath: nextCover,
+      positionX: 50,
+      positionY: 50,
+      height: 200,
+      scale: 1,
+    });
     setPickerOpen(true);
   }, [currentNotePath, setNoteCover]);
 
   return {
     cover,
     vaultPath: notesPath || '',
+    currentNotePath,
     isPickerOpen,
     setPickerOpen,
     updateCover,

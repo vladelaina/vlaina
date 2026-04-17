@@ -9,6 +9,7 @@ interface UseCoverSelectionFlowOptions {
   url: string | null;
   coverHeight: number;
   vaultPath: string;
+  currentNotePath?: string;
   onUpdate: (url: string | null, positionX: number, positionY: number, height?: number, scale?: number) => void;
   setShowPicker: (open: boolean) => void;
 }
@@ -17,12 +18,14 @@ export function useCoverSelectionFlow({
   url,
   coverHeight,
   vaultPath,
+  currentNotePath,
   onUpdate,
   setShowPicker,
 }: UseCoverSelectionFlowOptions) {
   const {
     resolvedSrc,
     previewSrc,
+    isResolvedSourceStale,
     setPreviewSrc,
     isImageReady,
     setIsImageReady,
@@ -31,7 +34,7 @@ export function useCoverSelectionFlow({
     beginSelectionCommit,
     endSelectionCommit,
     prevSrcRef,
-  } = useCoverSource({ url, vaultPath });
+  } = useCoverSource({ url, vaultPath, currentNotePath });
 
   const phase = useMemo(() => resolveCoverFlowPhase({
     url,
@@ -44,6 +47,9 @@ export function useCoverSelectionFlow({
   const previewRequestRef = useRef(new Map<string, Promise<string | null>>());
 
   const handleCoverSelect = useCallback((assetPath: string) => {
+    const previewedAssetPath = lastPreviewPathRef.current;
+    lastPreviewPathRef.current = null;
+
     if (assetPath === url) {
       setPreviewSrc(null);
       endSelectionCommit();
@@ -52,6 +58,13 @@ export function useCoverSelectionFlow({
       return;
     }
 
+    const shouldKeepPreview =
+      Boolean(previewSrc) &&
+      assetPath === previewedAssetPath;
+
+    if (!shouldKeepPreview) {
+      setPreviewSrc(null);
+    }
     beginSelectionCommit();
     onUpdate(assetPath, DEFAULT_POSITION_PERCENT, DEFAULT_POSITION_PERCENT, coverHeight, DEFAULT_SCALE);
     setShowPicker(false);
@@ -84,7 +97,7 @@ export function useCoverSelectionFlow({
             const imageUrl = await resolveCoverAssetUrl({
               assetPath,
               vaultPath,
-              localCategory: 'auto',
+              currentNotePath,
             });
             const dimensions = await loadImageWithDimensions(imageUrl);
             return dimensions ? imageUrl : null;
@@ -100,22 +113,30 @@ export function useCoverSelectionFlow({
         if (assetPath === lastPreviewPathRef.current) setPreviewSrc(null);
         return;
       }
-      if (assetPath === lastPreviewPathRef.current) setPreviewSrc(imageUrl);
+      if (assetPath === lastPreviewPathRef.current) {
+        if (assetPath === url || imageUrl === resolvedSrc) {
+          setPreviewSrc(null);
+          return;
+        }
+        setPreviewSrc(imageUrl);
+      }
     } catch {
       if (assetPath === lastPreviewPathRef.current) setPreviewSrc(null);
     }
-  }, [endSelectionCommit, isSelectionCommitting, setPreviewSrc, vaultPath]);
+  }, [currentNotePath, endSelectionCommit, isSelectionCommitting, resolvedSrc, setPreviewSrc, url, vaultPath]);
 
   const handlePickerClose = useCallback(() => {
+    lastPreviewPathRef.current = null;
     if (!isSelectionCommitting) {
       setPreviewSrc(null);
     }
     setShowPicker(false);
-  }, [isSelectionCommitting, setPreviewSrc, setShowPicker]);
+  }, [isSelectionCommitting, setPreviewSrc, setShowPicker, url]);
 
   return {
     resolvedSrc,
     previewSrc,
+    isResolvedSourceStale,
     isImageReady,
     setIsImageReady,
     isError,

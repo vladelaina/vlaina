@@ -46,7 +46,7 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
 
       {icon ? (
         <span className="flex-shrink-0">
-          <NoteIcon icon={icon} size="md" />
+          <NoteIcon icon={icon} notePath={tab.path} size="md" />
         </span>
       ) : (
         <Icon

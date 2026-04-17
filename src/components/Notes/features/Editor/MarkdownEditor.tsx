@@ -126,8 +126,8 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
               return;
             }
 
-            const nextMarkdown = serializeLeadingFrontmatterMarkdown(markdown);
             const currentContent = useNotesStore.getState().currentNote?.content ?? '';
+            const nextMarkdown = serializeLeadingFrontmatterMarkdown(markdown, currentContent);
             if (currentContent === nextMarkdown) {
               return;
             }

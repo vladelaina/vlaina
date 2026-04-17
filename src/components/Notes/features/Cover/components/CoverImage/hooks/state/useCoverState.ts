@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useLayoutEffect, useCallback } from 'react';
 import { DEFAULT_HEIGHT } from '../../../../utils/coverConstants';
 
 interface UseCoverStateProps {
@@ -17,7 +17,7 @@ export function useCoverState({
   const [coverHeight, setCoverHeight] = useState(initialHeight ?? DEFAULT_HEIGHT);
   const lastHeightProp = useRef(initialHeight);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (initialHeight === undefined || initialHeight === lastHeightProp.current) return;
     lastHeightProp.current = initialHeight;
     setCoverHeight(initialHeight);
@@ -43,9 +43,11 @@ export function useCoverState({
     }
   }, [onPickerOpenChange]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const safeZoom = Math.max(scale, 1);
-    setZoom((prevZoom) => (Math.abs(prevZoom - safeZoom) > 0.0001 ? safeZoom : prevZoom));
+    setZoom((prevZoom) => {
+      return Math.abs(prevZoom - safeZoom) > 0.0001 ? safeZoom : prevZoom;
+    });
   }, [scale]);
 
   return {

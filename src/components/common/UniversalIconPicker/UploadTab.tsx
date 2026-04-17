@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import Cropper from 'react-easy-crop';
 import { Button } from '@/components/ui/button';
@@ -15,156 +14,6 @@ export interface CustomIcon {
     id: string;
     url: string;
     name: string;
-}
-
-const CUSTOM_ICON_COLUMNS = 7;
-const CUSTOM_ICON_GAP_PX = 8;
-const CUSTOM_ICON_MIN_SIZE_PX = 44;
-
-function CustomIconLibraryGrid({
-    customIcons,
-    imageLoader,
-    onDeleteCustomIcon,
-    onPreview,
-    onSelect,
-}: {
-    customIcons: CustomIcon[];
-    imageLoader?: (src: string) => Promise<string>;
-    onDeleteCustomIcon?: (id: string) => void;
-    onPreview?: (url: string | null) => void;
-    onSelect: (url: string) => void;
-}) {
-    const scrollRef = useRef<HTMLDivElement | null>(null);
-    const [containerWidth, setContainerWidth] = useState(0);
-    const rowCount = Math.ceil(customIcons.length / CUSTOM_ICON_COLUMNS);
-    const itemSize = useMemo(() => {
-        const width = Math.max(0, containerWidth);
-        if (width === 0) {
-            return CUSTOM_ICON_MIN_SIZE_PX;
-        }
-
-        return Math.max(
-            CUSTOM_ICON_MIN_SIZE_PX,
-            Math.floor((width - CUSTOM_ICON_GAP_PX * (CUSTOM_ICON_COLUMNS - 1)) / CUSTOM_ICON_COLUMNS),
-        );
-    }, [containerWidth]);
-    const rowHeight = itemSize + CUSTOM_ICON_GAP_PX;
-    const rows = useMemo(
-        () =>
-            Array.from({ length: rowCount }, (_, rowIndex) => {
-                const start = rowIndex * CUSTOM_ICON_COLUMNS;
-                return customIcons.slice(start, start + CUSTOM_ICON_COLUMNS);
-            }),
-        [customIcons, rowCount],
-    );
-    const virtualizer = useVirtualizer({
-        count: rowCount,
-        getScrollElement: () => scrollRef.current,
-        estimateSize: () => rowHeight,
-        overscan: 5,
-    });
-
-    useEffect(() => {
-        const node = scrollRef.current;
-        if (!node) {
-            return;
-        }
-
-        const commitWidth = () => {
-            const nextWidth = node.clientWidth - 4;
-            setContainerWidth((current) => (current === nextWidth ? current : nextWidth));
-        };
-
-        commitWidth();
-
-        if (typeof ResizeObserver === 'undefined') {
-            return;
-        }
-
-        const resizeObserver = new ResizeObserver(() => {
-            commitWidth();
-        });
-        resizeObserver.observe(node);
-
-        return () => {
-            resizeObserver.disconnect();
-        };
-    }, []);
-
-    useEffect(() => {
-        virtualizer.measure();
-    }, [rowHeight, virtualizer]);
-
-    if (customIcons.length === 0) {
-        return (
-            <div className="py-8 text-center text-xs text-muted-foreground italic">
-                No saved icons yet
-            </div>
-        );
-    }
-
-    return (
-        <div ref={scrollRef} className="flex-1 overflow-y-auto vlaina-scrollbar pr-1">
-            <div
-                style={{
-                    height: `${virtualizer.getTotalSize()}px`,
-                    position: 'relative',
-                    width: '100%',
-                }}
-            >
-                {virtualizer.getVirtualItems().map((virtualRow) => {
-                    const rowIcons = rows[virtualRow.index];
-                    if (!rowIcons || rowIcons.length === 0) {
-                        return null;
-                    }
-
-                    return (
-                        <div
-                            key={`custom-icon-row-${virtualRow.index}`}
-                            style={{
-                                height: `${virtualRow.size}px`,
-                                left: 0,
-                                position: 'absolute',
-                                top: 0,
-                                transform: `translateY(${virtualRow.start}px)`,
-                                width: '100%',
-                            }}
-                        >
-                            <div
-                                className="grid grid-cols-7 gap-2"
-                                style={{
-                                    gridAutoRows: `${itemSize}px`,
-                                }}
-                            >
-                                {rowIcons.map((emoji) => (
-                                    <DeletableItem
-                                        key={emoji.id}
-                                        id={emoji.id}
-                                        onDelete={(id) => onDeleteCustomIcon?.(id)}
-                                        className="relative aspect-square flex items-center justify-center cursor-pointer transition-all active:scale-95"
-                                    >
-                                        <div
-                                            className="w-full h-full"
-                                            onClick={() => onSelect(emoji.url)}
-                                            onMouseEnter={() => onPreview?.(emoji.url)}
-                                            onMouseLeave={() => onPreview?.(null)}
-                                        >
-                                            <UniversalIcon
-                                                icon={emoji.url}
-                                                size={44}
-                                                className="w-full h-full object-contain"
-                                                imageLoader={imageLoader}
-                                            />
-                                        </div>
-                                    </DeletableItem>
-                                ))}
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-        </div>
-    );
 }
 
 interface UploadTabProps {
@@ -406,14 +255,53 @@ export function UploadTab({
                         </div>
                     </div>
 
-                    <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-900 px-3 pb-2">
-                        <CustomIconLibraryGrid
-                            customIcons={customIcons}
-                            imageLoader={imageLoader}
-                            onDeleteCustomIcon={onDeleteCustomIcon}
-                            onPreview={onPreview}
-                            onSelect={handleLibraryItemClick}
-                        />
+                    <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-900 px-3">
+                        <div className="flex-1 overflow-y-auto vlaina-scrollbar pr-1 grid grid-cols-7 gap-2 content-start pb-2">
+                            {customIcons.map((emoji) => (
+                                onDeleteCustomIcon ? (
+                                    <DeletableItem
+                                        key={emoji.id}
+                                        id={emoji.id}
+                                        onDelete={onDeleteCustomIcon}
+                                        className="relative aspect-square flex items-center justify-center cursor-pointer transition-all active:scale-95"
+                                    >
+                                        <div
+                                            className="w-full h-full"
+                                            onClick={() => handleLibraryItemClick(emoji.url)}
+                                            onMouseEnter={() => onPreview?.(emoji.url)}
+                                            onMouseLeave={() => onPreview?.(null)}
+                                        >
+                                            <UniversalIcon
+                                                icon={emoji.url}
+                                                size={44}
+                                                className="w-full h-full object-contain"
+                                                imageLoader={imageLoader}
+                                            />
+                                        </div>
+                                    </DeletableItem>
+                                ) : (
+                                    <div
+                                        key={emoji.id}
+                                        className="relative aspect-square flex items-center justify-center cursor-pointer transition-all active:scale-95"
+                                        onClick={() => handleLibraryItemClick(emoji.url)}
+                                        onMouseEnter={() => onPreview?.(emoji.url)}
+                                        onMouseLeave={() => onPreview?.(null)}
+                                    >
+                                        <UniversalIcon
+                                            icon={emoji.url}
+                                            size={44}
+                                            className="w-full h-full object-contain"
+                                            imageLoader={imageLoader}
+                                        />
+                                    </div>
+                                )
+                            ))}
+                            {customIcons.length === 0 && (
+                                <div className="col-span-7 py-8 text-center text-xs text-muted-foreground italic">
+                                    {onDeleteCustomIcon ? 'No saved icons yet' : 'Upload an image to use it as the note icon'}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}

@@ -83,10 +83,9 @@ export function CoverCropperLayer({
       transform: `translate(calc(-50% + ${crop.x}px), calc(-50% + ${crop.y}px)) scale(${zoom})`,
     };
   }, [baseDimensions, crop.x, crop.y, objectFitMode, zoom]);
-
   const emitMediaLoaded = useCallback(() => {
     const image = imageRef.current;
-    if (!image || !image.naturalWidth || !image.naturalHeight) return;
+    if (!image || !image.complete || !image.naturalWidth || !image.naturalHeight) return;
 
     const media = {
       width: image.clientWidth || image.naturalWidth,

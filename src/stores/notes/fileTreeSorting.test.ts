@@ -23,7 +23,7 @@ describe('fileTreeSorting', () => {
       { id: 'newer.md', name: 'newer', path: 'newer.md', isFolder: false },
     ];
     const metadata: MetadataFile = {
-      version: 1,
+      version: 2,
       notes: {
         'older.md': { updatedAt: 10 },
         'newer.md': { updatedAt: 20 },
@@ -50,7 +50,7 @@ describe('fileTreeSorting', () => {
       },
     ];
     const metadata: MetadataFile = {
-      version: 1,
+      version: 2,
       notes: {
         'docs/first.md': { createdAt: 100 },
         'docs/second.md': { createdAt: 200 },

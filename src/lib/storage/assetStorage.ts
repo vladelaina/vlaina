@@ -2,7 +2,7 @@ import { getPaths } from './paths';
 import { getStorageAdapter, joinPath } from './adapter';
 import type { CustomIcon } from '@/lib/storage/unifiedStorage';
 
-export async function saveGlobalAsset(file: File, folder: 'icons' | 'covers'): Promise<string> {
+export async function saveGlobalAsset(file: File, folder: 'icons'): Promise<string> {
   const adapter = getStorageAdapter();
   const { metadata } = await getPaths();
   const assetsDir = await joinPath(metadata, 'assets', folder);

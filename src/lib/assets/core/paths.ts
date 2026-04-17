@@ -1,18 +1,29 @@
-import { getParentPath, joinPath } from '@/lib/storage/adapter';
+import { getParentPath, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 
-export async function resolveSystemAssetPath(
-  vaultPath: string, 
-  filename: string, 
-  category: 'covers' | 'icons'
+export async function resolveVaultAssetPath(
+  vaultPath: string,
+  assetPath: string,
+  currentNotePath?: string,
 ): Promise<string> {
-  const assetsBaseDir = await joinPath(vaultPath, '.vlaina', 'assets');
-  
-  if (category === 'icons') {
-    const name = filename.replace(/^icons[\\/]/, '');
-    return joinPath(assetsBaseDir, 'icons', name);
-  } else {
-    return joinPath(assetsBaseDir, 'covers', filename);
+  if (isAbsolutePath(assetPath)) {
+    return assetPath;
   }
+
+  const currentNoteDir = currentNotePath
+    ? getParentPath(
+        isAbsolutePath(currentNotePath)
+          ? currentNotePath
+          : await joinPath(vaultPath, currentNotePath)
+      )
+    : null;
+
+  if (assetPath.startsWith('./') || assetPath.startsWith('../')) {
+    return joinPath(currentNoteDir ?? vaultPath, assetPath);
+  }
+
+  return currentNoteDir
+    ? joinPath(currentNoteDir, assetPath)
+    : joinPath(vaultPath, assetPath);
 }
 
 export async function joinPaths(...paths: string[]): Promise<string> {

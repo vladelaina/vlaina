@@ -10,7 +10,7 @@ interface UseCoverMediaSyncProps {
   syncPositionX: number;
   syncPositionY: number;
   syncZoom: number;
-  setMediaSize: (size: { width: number; height: number }) => void;
+  setMediaSize: (src: string, size: { width: number; height: number }) => void;
   setCrop: (crop: { x: number; y: number }) => void;
   setZoom: (zoom: number) => void;
   setIsImageReady: (ready: boolean) => void;
@@ -31,7 +31,9 @@ export function useCoverMediaSync({
   onSourceReady,
 }: UseCoverMediaSyncProps) {
   const handleMediaLoaded = useCallback((media: LoadedCoverMedia) => {
-    setMediaSize({ width: media.naturalWidth, height: media.naturalHeight });
+    if (currentSrc) {
+      setMediaSize(currentSrc, { width: media.naturalWidth, height: media.naturalHeight });
+    }
 
     if (effectiveContainerSize && !isImageReady) {
       const pixels = calculateCropPixels(

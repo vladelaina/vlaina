@@ -8,6 +8,7 @@ export function CoverImageShell({
   url,
   readOnly,
   vaultPath,
+  currentNotePath,
   phase,
   showPicker,
   previewSrc,
@@ -44,6 +45,7 @@ export function CoverImageShell({
           onSelect={onSelectCover}
           onPreview={onPreview}
           vaultPath={vaultPath}
+          currentNotePath={currentNotePath}
         />
       </div>
     );
@@ -103,6 +105,7 @@ export function CoverImageShell({
         onRemove={url ? onRemoveCover : undefined}
         onPreview={onPreview}
         vaultPath={vaultPath}
+        currentNotePath={currentNotePath}
       />
     </div>
   );

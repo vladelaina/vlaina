@@ -122,6 +122,7 @@ describe('CoverRenderer', () => {
 
     if (!image || !cropper) return;
 
+    Object.defineProperty(image, 'complete', { value: true, configurable: true });
     Object.defineProperty(image, 'naturalWidth', { value: 1200, configurable: true });
     Object.defineProperty(image, 'naturalHeight', { value: 600, configurable: true });
     Object.defineProperty(image, 'clientWidth', { value: 800, configurable: true });
@@ -153,6 +154,7 @@ describe('CoverRenderer', () => {
     expect(image).not.toBeNull();
     if (!image) return;
 
+    Object.defineProperty(image, 'complete', { value: true, configurable: true });
     Object.defineProperty(image, 'naturalWidth', { value: 1200, configurable: true });
     Object.defineProperty(image, 'naturalHeight', { value: 600, configurable: true });
     Object.defineProperty(image, 'clientWidth', { value: 800, configurable: true });
@@ -162,6 +164,66 @@ describe('CoverRenderer', () => {
     fireEvent.load(image);
 
     expect(props.onMediaLoaded).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not reuse the previous image dimensions immediately after switching sources', () => {
+    const onMediaLoaded = vi.fn();
+    const baseProps = buildProps({
+      displaySrc: '/cover-a.png',
+      onMediaLoaded,
+    });
+    const { container, rerender } = render(<CoverRenderer {...baseProps} />);
+    const image = container.querySelector('img[alt="Cover Cropper"]') as HTMLImageElement | null;
+
+    expect(image).not.toBeNull();
+    if (!image) return;
+
+    Object.defineProperty(image, 'complete', { value: true, configurable: true });
+    Object.defineProperty(image, 'naturalWidth', { value: 1200, configurable: true });
+    Object.defineProperty(image, 'naturalHeight', { value: 600, configurable: true });
+    Object.defineProperty(image, 'clientWidth', { value: 800, configurable: true });
+    Object.defineProperty(image, 'clientHeight', { value: 400, configurable: true });
+
+    fireEvent.load(image);
+
+    expect(onMediaLoaded).toHaveBeenCalledTimes(1);
+    expect(onMediaLoaded).toHaveBeenLastCalledWith({
+      width: 800,
+      height: 400,
+      naturalWidth: 1200,
+      naturalHeight: 600,
+    });
+
+    Object.defineProperty(image, 'complete', { value: false, configurable: true });
+    Object.defineProperty(image, 'naturalWidth', { value: 1200, configurable: true });
+    Object.defineProperty(image, 'naturalHeight', { value: 600, configurable: true });
+
+    rerender(
+      <CoverRenderer
+        {...buildProps({
+          displaySrc: '/cover-b.png',
+          onMediaLoaded,
+        })}
+      />
+    );
+
+    expect(onMediaLoaded).toHaveBeenCalledTimes(1);
+
+    Object.defineProperty(image, 'complete', { value: true, configurable: true });
+    Object.defineProperty(image, 'naturalWidth', { value: 1500, configurable: true });
+    Object.defineProperty(image, 'naturalHeight', { value: 969, configurable: true });
+    Object.defineProperty(image, 'clientWidth', { value: 699, configurable: true });
+    Object.defineProperty(image, 'clientHeight', { value: 452, configurable: true });
+
+    fireEvent.load(image);
+
+    expect(onMediaLoaded).toHaveBeenCalledTimes(2);
+    expect(onMediaLoaded).toHaveBeenLastCalledWith({
+      width: 699,
+      height: 452,
+      naturalWidth: 1500,
+      naturalHeight: 969,
+    });
   });
 
   it('uses wheel to zoom through a native non-passive listener', () => {
@@ -195,6 +257,34 @@ describe('CoverRenderer', () => {
     expect(image.style.transform).toContain('scale(2)');
   });
 
+  it('keeps placeholder geometry aligned with the cropper when dimensions are known', () => {
+    const { container } = render(
+      <CoverRenderer
+        {...buildProps({
+          isImageReady: false,
+          crop: { x: 18, y: -12 },
+          zoom: 1.35,
+          positionX: 35,
+          positionY: 70,
+          mediaSize: { width: 1600, height: 900 },
+          effectiveContainerSize: { width: 900, height: 240 },
+        })}
+      />
+    );
+
+    const placeholder = container.querySelector('img[alt="Cover"]') as HTMLImageElement | null;
+
+    expect(placeholder).not.toBeNull();
+    if (!placeholder) return;
+
+    expect(placeholder.style.width).toBe('900px');
+    expect(placeholder.style.height).toBe('506.25px');
+    expect(placeholder.style.transform).toContain('translate(');
+    expect(placeholder.style.transform).toContain('18px');
+    expect(placeholder.style.transform).toContain('-12px');
+    expect(placeholder.style.transform).toContain('scale(1.35)');
+  });
+
   it('keeps fallback sizing aspect-safe before media dimensions are ready', () => {
     const { container } = render(
       <CoverRenderer
@@ -211,5 +301,28 @@ describe('CoverRenderer', () => {
 
     expect(image.style.width).toBe('100%');
     expect(image.style.height).toBe('auto');
+  });
+
+  it('keeps placeholder fallback sizing aligned with the cropper before media dimensions are ready', () => {
+    const { container } = render(
+      <CoverRenderer
+        {...buildProps({
+          mediaSize: null,
+          crop: { x: 14, y: -8 },
+          objectFitMode: 'vertical-cover',
+        })}
+      />
+    );
+
+    const placeholder = container.querySelector('img[alt="Cover"]') as HTMLImageElement | null;
+
+    expect(placeholder).not.toBeNull();
+    if (!placeholder) return;
+
+    expect(placeholder.style.width).toBe('auto');
+    expect(placeholder.style.height).toBe('100%');
+    expect(placeholder.style.transform).toContain('translate(');
+    expect(placeholder.style.transform).toContain('14px');
+    expect(placeholder.style.transform).toContain('-8px');
   });
 });
