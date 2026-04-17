@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface AccountEmailCodeCardProps {
@@ -17,6 +17,15 @@ export function AccountEmailCodeCard({
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'email' | 'code'>('email');
   const [isLoading, setIsLoading] = useState(false);
+  const codeInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (step !== 'code' || disabled || isLoading) {
+      return;
+    }
+
+    codeInputRef.current?.focus();
+  }, [step, disabled, isLoading]);
 
   const handleRequestCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +88,7 @@ export function AccountEmailCodeCard({
       <div className="space-y-2">
         <p className="text-[11px] font-black uppercase tracking-widest text-zinc-400 text-center">Enter the code sent to your inbox</p>
         <input
+          ref={codeInputRef}
           type="text"
           value={code}
           onChange={(e) => {
