@@ -23,6 +23,14 @@ function isVlainaFrontmatterLine(line: string): boolean {
   return Boolean(key && key.startsWith(VLAINA_PREFIX));
 }
 
+function trimTrailingBlankLines(lines: string[]): string[] {
+  let end = lines.length;
+  while (end > 0 && lines[end - 1]?.trim() === '') {
+    end -= 1;
+  }
+  return lines.slice(0, end);
+}
+
 function splitLeadingFrontmatter(markdown: string): FrontmatterSections | null {
   const normalized = normalizeLineEndings(markdown);
   const lines = normalized.split('\n');
@@ -65,9 +73,13 @@ export function normalizeLeadingFrontmatterMarkdown(markdown: string): string {
     return normalizeLineEndings(markdown);
   }
 
+  const hasHiddenFrontmatterLines = sections.frontmatterLines.some((line) => isVlainaFrontmatterLine(line));
   const visibleFrontmatterLines = sections.frontmatterLines.filter((line) => !isVlainaFrontmatterLine(line));
+  const normalizedVisibleFrontmatterLines = hasHiddenFrontmatterLines
+    ? trimTrailingBlankLines(visibleFrontmatterLines)
+    : visibleFrontmatterLines;
 
-  return buildFrontmatterBlock(visibleFrontmatterLines, sections.bodyLines, true);
+  return buildFrontmatterBlock(normalizedVisibleFrontmatterLines, sections.bodyLines, true);
 }
 
 export function serializeLeadingFrontmatterMarkdown(markdown: string, referenceMarkdown?: string): string {

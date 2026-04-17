@@ -22,6 +22,23 @@ describe('frontmatterMarkdown', () => {
     ).toBe(`\`\`\`${getFrontmatterFenceLanguage()}\ntitle: Demo\n\`\`\`\n# Heading`);
   });
 
+  it('removes spacer blank lines that only exist above hidden vlaina-managed frontmatter', () => {
+    expect(
+      normalizeLeadingFrontmatterMarkdown(
+        [
+          '---',
+          'title: Demo',
+          '',
+          '',
+          'vlaina_cover: "@biva/1"',
+          'vlaina_icon: "🧏‍♂️"',
+          '---',
+          '# Heading',
+        ].join('\n'),
+      )
+    ).toBe(`\`\`\`${getFrontmatterFenceLanguage()}\ntitle: Demo\n\`\`\`\n# Heading`);
+  });
+
   it('normalizes any leading frontmatter block, including empty placeholders', () => {
     expect(normalizeLeadingFrontmatterMarkdown('---\n---\n# Heading')).toBe('# Heading');
   });
