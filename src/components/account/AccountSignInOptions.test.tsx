@@ -59,8 +59,9 @@ describe('AccountSignInOptions', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /continue with email/i }));
 
-    const codeInput = await screen.findByRole('textbox');
     await waitFor(() => {
+      const codeInput = document.querySelector('input[autocomplete="one-time-code"]');
+      expect(codeInput).toBeTruthy();
       expect(document.activeElement).toBe(codeInput);
     });
   });

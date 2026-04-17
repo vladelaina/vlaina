@@ -36,20 +36,33 @@ async fn create_new_window(
     let window_id = WINDOW_COUNTER.fetch_add(1, Ordering::SeqCst);
     let window_label = format!("main-{}", window_id);
 
-    let mut launch_url = Url::parse("https://vlaina.local/index.html").map_err(|e| e.to_string())?;
+    let mut launch_url =
+        Url::parse("https://vlaina.local/index.html").map_err(|e| e.to_string())?;
     {
         let mut pairs = launch_url.query_pairs_mut();
         pairs.append_pair("newWindow", "true");
 
-        if let Some(vault_path) = vault_path.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+        if let Some(vault_path) = vault_path
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
             pairs.append_pair("vaultPath", vault_path);
         }
 
-        if let Some(note_path) = note_path.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+        if let Some(note_path) = note_path
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
             pairs.append_pair("notePath", note_path);
         }
 
-        if let Some(view_mode) = view_mode.as_deref().map(str::trim).filter(|value| !value.is_empty()) {
+        if let Some(view_mode) = view_mode
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
             pairs.append_pair("viewMode", view_mode);
         }
     }
