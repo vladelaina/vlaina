@@ -20,7 +20,6 @@ const mocked = vi.hoisted(() => {
   return {
     saveUnifiedData: vi.fn(),
     loadUnifiedData: vi.fn(async () => ({
-      progress: [],
       settings: {},
       customIcons: [],
       ai: null,
@@ -123,7 +122,6 @@ function seedStores(overrides?: {
   useUnifiedStore.setState({
     loaded: true,
     data: {
-      progress: [],
       settings: {} as never,
       customIcons: [],
       ai: {

@@ -4,7 +4,6 @@ import type { UnifiedData } from '@/lib/storage/unifiedStorage';
 
 function createData(overrides?: Partial<NonNullable<UnifiedData['ai']>>): UnifiedData {
   return {
-    progress: [],
     settings: {} as never,
     customIcons: [],
     ai: {

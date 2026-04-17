@@ -12,11 +12,16 @@ vi.mock('@milkdown/kit/prose/commands', () => ({
   lift: (...args: unknown[]) => mockLift(...args),
 }));
 
-vi.mock('@milkdown/kit/prose/state', () => ({
-  TextSelection: {
-    create: (...args: unknown[]) => mockTextSelectionCreate(...args),
-  },
-}));
+vi.mock('@milkdown/kit/prose/state', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@milkdown/kit/prose/state')>();
+  return {
+    ...actual,
+    TextSelection: {
+      ...actual.TextSelection,
+      create: (...args: unknown[]) => mockTextSelectionCreate(...args),
+    },
+  };
+});
 
 function createListToHeadingView(listType: 'bullet_list' | 'ordered_list', checked: boolean | null = null) {
   const initialState: any = {
@@ -850,11 +855,11 @@ describe('floating toolbar commands', () => {
 
     const tr: any = {
       _selection: null,
-      setSelection: vi.fn(function (selection: any) {
+      setSelection: vi.fn(function (this: any, selection: any) {
         this._selection = selection;
         return this;
       }),
-      setMeta: vi.fn(function () {
+      setMeta: vi.fn(function (this: any) {
         return this;
       }),
     };
@@ -985,11 +990,11 @@ describe('floating toolbar commands', () => {
 
     const tr: any = {
       _selection: null,
-      setSelection: vi.fn(function (selection: any) {
+      setSelection: vi.fn(function (this: any, selection: any) {
         this._selection = selection;
         return this;
       }),
-      setMeta: vi.fn(function () {
+      setMeta: vi.fn(function (this: any) {
         return this;
       }),
     };

@@ -30,6 +30,7 @@ describe('windowLaunchContext', () => {
       isNewWindow: true,
       vaultPath: 'C:/vault',
       notePath: 'docs/note.md',
+      viewMode: null,
     });
   });
 });

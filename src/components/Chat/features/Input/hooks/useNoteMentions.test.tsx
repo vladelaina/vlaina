@@ -30,7 +30,7 @@ describe('useNoteMentions', () => {
       rootFolder: {
         children: [
           { isFolder: false, path: 'Today.md' },
-          { isFolder: false, path: 'Ideas.md' },
+          { isFolder: false, path: 'Tomorrow.md' },
           { isFolder: false, path: 'Archive.md' },
         ],
       },
@@ -66,7 +66,7 @@ describe('useNoteMentions', () => {
 
     expect(result.current.showMentionPicker).toBe(true);
     expect(result.current.currentPageCandidates.map((item) => item.title)).toEqual(['Today']);
-    expect(result.current.linkedPageCandidates.map((item) => item.title)).toEqual(['Ideas']);
+    expect(result.current.linkedPageCandidates.map((item) => item.title)).toEqual(['Tomorrow']);
   });
 
   it('applies the active candidate on Enter', () => {
