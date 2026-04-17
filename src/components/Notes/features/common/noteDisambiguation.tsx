@@ -45,7 +45,7 @@ function collectNoteCandidates(
 function getParentSegments(path: string) {
   const normalizedPath = normalizeNotePathKey(path) ?? path;
   const segments = normalizedPath.split('/').filter(Boolean).slice(0, -1);
-  return segments.length > 0 ? segments : ['Root'];
+  return segments;
 }
 
 function buildDuplicateHintRegistry(rootFolder: FolderNode, displayNames: Map<string, string>) {

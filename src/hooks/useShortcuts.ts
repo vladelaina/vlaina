@@ -25,7 +25,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
     notesSidebarView,
     setNotesSidebarView,
   } = useAppUIStore();
-  const { createNote, currentNote } = useNotesStore();
+  const { createNote, currentNote, saveNote } = useNotesStore();
 
   const builtinHandlers = useMemo<Record<string, ShortcutHandler>>(() => ({
     toggleAppViewMode,
@@ -55,11 +55,14 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
     openMarkdownFile: () => {
       window.dispatchEvent(new Event('vlaina-open-markdown-file'));
     },
+    saveNote: async () => {
+      await saveNote({ explicit: true });
+    },
     deleteCurrentNote: () => {
       dispatchDeleteCurrentNoteEvent();
     },
     toggleDrawer,
-  }), [toggleAppViewMode, toggleSidebar, setNotesSidebarView, notesSidebarView, createNote, currentNote?.path, toggleDrawer, appViewMode]);
+  }), [toggleAppViewMode, toggleSidebar, setNotesSidebarView, notesSidebarView, createNote, currentNote?.path, saveNote, toggleDrawer, appViewMode]);
 
   const handlers = useMemo(() => ({
     ...builtinHandlers,

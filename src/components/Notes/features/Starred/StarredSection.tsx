@@ -119,7 +119,7 @@ function ExternalStarredEntryRow({
         leading={
           entry.kind === 'note' ? (
             liveIcon ? (
-              <NoteIcon icon={liveIcon} notePath={entry.relativePath} size={NOTES_SIDEBAR_ICON_SIZE} />
+              <NoteIcon icon={liveIcon} notePath={entry.relativePath} size={16} />
             ) : (
               <Icon
                 name="file.text"
@@ -130,7 +130,7 @@ function ExternalStarredEntryRow({
           ) : (
             <Icon
               name="file.folder"
-              size={NOTES_SIDEBAR_ICON_SIZE}
+              size={16}
               className="text-[var(--notes-sidebar-folder-icon)]"
             />
           )
