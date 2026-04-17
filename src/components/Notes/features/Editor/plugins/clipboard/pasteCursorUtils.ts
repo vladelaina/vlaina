@@ -24,8 +24,6 @@ export const findTailCursorPosInRange = (doc: DocLike, from: number, to: number)
 
     doc.nodesBetween(from, scanTo, (node, pos) => {
         if (!node.isTextblock) return;
-
-        // Cursor after the last character inside a textblock is `pos + content.size + 1`.
         const textTailPos = pos + node.content.size + 1;
         if (textTailPos < from || textTailPos > doc.content.size) return;
         tailPos = textTailPos;

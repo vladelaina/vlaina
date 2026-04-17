@@ -52,7 +52,7 @@ it('should serialize fullwidth heading marker as standard markdown', async () =>
   expect(markdown).toBe('# 标题\n')
 })
 
-it('should serialize fullwidth thematic break marker as standard markdown', async () => {
+it('should keep fullwidth thematic break marker as plain text without an Enter shortcut', async () => {
   const editor = createEditor()
 
   await editor.create()
@@ -61,10 +61,8 @@ it('should serialize fullwidth thematic break marker as standard markdown', asyn
 
   typeText(view, '－－－ ')
 
-  expect(view.state.doc.firstChild?.type.name).toBe('hr')
-
-  const markdown = editor.action(getMarkdown())
-  expect(markdown).toBe('---\n')
+  expect(view.state.doc.firstChild?.type.name).toBe('paragraph')
+  expect(view.state.doc.firstChild?.textContent).toBe('－－－ ')
 })
 
 it('should create code block from fullwidth fence marker', async () => {

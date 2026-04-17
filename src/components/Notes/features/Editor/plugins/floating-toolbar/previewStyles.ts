@@ -1,5 +1,10 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType } from './types';
+import {
+  collectBlockPreviewDomAdjustments,
+  getBlockPreviewStructuralStyles,
+} from './blockPreviewDomAdjustments';
+import { resolveOrderedListPreviewLabel } from './blockPreviewListLabel';
 import { clearInlineFormatPreview, showInlineFormatPreview } from './inlinePreviewPlugin';
 import { getFormattableTextRanges } from './selectionHelpers';
 
@@ -100,33 +105,19 @@ const STYLE_PROPS: Record<string, string[]> = {
 };
 
 const BLOCK_STYLE_PROPS: Partial<Record<BlockType, string[]>> = {
-  paragraph: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color'],
-  heading1: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color'],
-  heading2: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color'],
-  heading3: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color'],
-  heading4: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color'],
-  heading5: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color'],
-  heading6: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color'],
-  bulletList: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color'],
-  orderedList: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color'],
-  taskList: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color'],
-  blockquote: ['color', 'lineHeight', 'paddingLeft'],
-  codeBlock: ['fontFamily', 'fontSize', 'lineHeight', 'backgroundColor', 'borderRadius', 'padding', 'color'],
+  paragraph: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color', 'marginTop', 'marginBottom', 'paddingTop', 'paddingBottom'],
+  heading1: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color', 'marginTop', 'marginBottom', 'paddingTop', 'paddingBottom'],
+  heading2: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color', 'marginTop', 'marginBottom', 'paddingTop', 'paddingBottom'],
+  heading3: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color', 'marginTop', 'marginBottom', 'paddingTop', 'paddingBottom'],
+  heading4: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color', 'marginTop', 'marginBottom', 'paddingTop', 'paddingBottom'],
+  heading5: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color', 'marginTop', 'marginBottom', 'paddingTop', 'paddingBottom'],
+  heading6: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color', 'marginTop', 'marginBottom', 'paddingTop', 'paddingBottom'],
+  bulletList: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color', 'marginTop', 'marginBottom', 'paddingTop', 'paddingBottom'],
+  orderedList: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color', 'marginTop', 'marginBottom', 'paddingTop', 'paddingBottom'],
+  taskList: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color', 'marginTop', 'marginBottom', 'paddingTop', 'paddingBottom'],
+  blockquote: ['color', 'lineHeight', 'paddingLeft', 'paddingTop', 'paddingBottom', 'marginTop', 'marginBottom'],
+  codeBlock: ['fontFamily', 'fontSize', 'lineHeight', 'backgroundColor', 'borderRadius', 'padding', 'color', 'marginTop', 'marginBottom'],
 };
-
-const SCALE_BLOCK_PREVIEW_TYPES = new Set<BlockType>([
-  'paragraph',
-  'heading1',
-  'heading2',
-  'heading3',
-  'heading4',
-  'heading5',
-  'heading6',
-  'bulletList',
-  'orderedList',
-  'taskList',
-  'blockquote',
-]);
 
 const styleCache: Record<string, Record<string, string>> = {};
 type StylePreviewEntry = {
@@ -337,32 +328,9 @@ function getBlockPreviewStyles(
     };
   }
 
-  if (!SCALE_BLOCK_PREVIEW_TYPES.has(blockType)) {
-    return nextStyles;
-  }
-
-  const current = window.getComputedStyle(target);
-  const currentFontSize = parseFloat(current.fontSize);
-  const targetFontSize = parseFloat(nextStyles.fontSize || '');
-
-  delete nextStyles.fontSize;
-  delete nextStyles.lineHeight;
-
-  if (
-    Number.isFinite(currentFontSize) &&
-    currentFontSize > 0 &&
-    Number.isFinite(targetFontSize) &&
-    targetFontSize > 0
-  ) {
-    const scale = targetFontSize / currentFontSize;
-    if (Math.abs(scale - 1) > 0.001) {
-      nextStyles.transform = `scale(${scale})`;
-      nextStyles.transformOrigin =
-        current.textAlign === 'center'
-          ? 'center top'
-          : current.textAlign === 'right'
-            ? 'right top'
-            : 'left top';
+  if (target.matches(':first-child')) {
+    if (blockType === 'paragraph' || blockType === 'heading1') {
+      nextStyles.marginTop = '0px';
     }
   }
 
@@ -372,14 +340,21 @@ function getBlockPreviewStyles(
     nextStyles.textAlign = 'left';
   }
 
-  return nextStyles;
+  return {
+    ...nextStyles,
+    ...getBlockPreviewStructuralStyles(target),
+  };
 }
 
-function getBlockPreviewAttributes(blockType: BlockType): Record<string, string> {
+function getBlockPreviewAttributes(
+  target: HTMLElement,
+  blockType: BlockType,
+  targetIndex: number
+): Record<string, string> {
   if (blockType === 'orderedList') {
     return {
       'data-preview-block-type': blockType,
-      'data-preview-list-label': '1.',
+      'data-preview-list-label': resolveOrderedListPreviewLabel(target, targetIndex),
     };
   }
 
@@ -434,8 +409,20 @@ function resolveBlockPreviewTarget(blockType: BlockType, node: Node | null): HTM
   return textBlock instanceof HTMLElement ? textBlock : node;
 }
 
-function isRestrictedPreviewTarget(node: HTMLElement | null): boolean {
-  return Boolean(node?.closest('.code-block-container, .frontmatter-block-container'));
+function isRestrictedPreviewTarget(blockType: BlockType, node: HTMLElement | null): boolean {
+  if (!node) {
+    return false;
+  }
+
+  if (node.closest('.frontmatter-block-container')) {
+    return true;
+  }
+
+  if (blockType !== 'codeBlock' && node.closest('.code-block-container')) {
+    return true;
+  }
+
+  return false;
 }
 
 function collectSelectedBlockElements(view: EditorView, blockType: BlockType): HTMLElement[] {
@@ -444,7 +431,11 @@ function collectSelectedBlockElements(view: EditorView, blockType: BlockType): H
   const { from, to, $from } = view.state.selection;
 
   const pushElement = (node: Node | null) => {
-    if (!(node instanceof HTMLElement) || seen.has(node) || isRestrictedPreviewTarget(node)) {
+    if (
+      !(node instanceof HTMLElement) ||
+      seen.has(node) ||
+      isRestrictedPreviewTarget(blockType, node)
+    ) {
       return;
     }
 
@@ -456,7 +447,8 @@ function collectSelectedBlockElements(view: EditorView, blockType: BlockType): H
     if (
       node.type.name !== 'paragraph' &&
       node.type.name !== 'heading' &&
-      node.type.name !== 'blockquote'
+      !(blockType === 'blockquote' && node.type.name === 'blockquote') &&
+      !(blockType === 'codeBlock' && node.type.name === 'code_block')
     ) {
       return;
     }
@@ -497,39 +489,67 @@ export function applyBlockPreview(view: EditorView, blockType: BlockType): void 
   withDomObserverPaused(view, () => {
     try {
       const targets = collectSelectedBlockElements(view, blockType);
+      const seenNodes = new Set<HTMLElement>();
 
-      for (const target of targets) {
+      for (const [targetIndex, target] of targets.entries()) {
         const previewStyles = getBlockPreviewStyles(view, target, blockType, styles);
-        const previewAttributes = getBlockPreviewAttributes(blockType);
+        const previewAttributes = getBlockPreviewAttributes(target, blockType, targetIndex);
         if (Object.keys(previewStyles).length === 0 && Object.keys(previewAttributes).length === 0) {
           continue;
         }
 
-        const originalStyles: Record<string, string> = {};
-        Object.keys(previewStyles).forEach((key) => {
-          const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
-          originalStyles[key] = target.style.getPropertyValue(cssKey);
-        });
+        registerPreviewMutation(target, previewStyles, previewAttributes, seenNodes);
 
-        const originalAttributes: Record<string, string | null> = {};
-        Object.keys(previewAttributes).forEach((key) => {
-          originalAttributes[key] = target.getAttribute(key);
-        });
-
-        previewNodes.push({ kind: 'style', node: target, originalStyles, originalAttributes });
-
-        Object.entries(previewStyles).forEach(([key, value]) => {
-          const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
-          target.style.setProperty(cssKey, value, 'important');
-        });
-
-        Object.entries(previewAttributes).forEach(([key, value]) => {
-          target.setAttribute(key, value);
-        });
+        for (const adjustment of collectBlockPreviewDomAdjustments(target)) {
+          registerPreviewMutation(adjustment.node, {}, adjustment.attributes, seenNodes);
+        }
       }
     } catch {
       previewNodes = [];
     }
+  });
+}
+
+function registerPreviewMutation(
+  node: HTMLElement,
+  previewStyles: Record<string, string>,
+  previewAttributes: Record<string, string>,
+  seenNodes: Set<HTMLElement>
+): void {
+  if (seenNodes.has(node)) {
+    Object.entries(previewStyles).forEach(([key, value]) => {
+      const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+      node.style.setProperty(cssKey, value, 'important');
+    });
+
+    Object.entries(previewAttributes).forEach(([key, value]) => {
+      node.setAttribute(key, value);
+    });
+    return;
+  }
+
+  seenNodes.add(node);
+
+  const originalStyles: Record<string, string> = {};
+  Object.keys(previewStyles).forEach((key) => {
+    const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+    originalStyles[key] = node.style.getPropertyValue(cssKey);
+  });
+
+  const originalAttributes: Record<string, string | null> = {};
+  Object.keys(previewAttributes).forEach((key) => {
+    originalAttributes[key] = node.getAttribute(key);
+  });
+
+  previewNodes.push({ kind: 'style', node, originalStyles, originalAttributes });
+
+  Object.entries(previewStyles).forEach(([key, value]) => {
+    const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+    node.style.setProperty(cssKey, value, 'important');
+  });
+
+  Object.entries(previewAttributes).forEach(([key, value]) => {
+    node.setAttribute(key, value);
   });
 }
 

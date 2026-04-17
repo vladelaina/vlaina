@@ -34,6 +34,7 @@ import {
   blockControlsPlugin,
   endBlankClickPlugin,
   hrAutoParagraphPlugin,
+  autoPairPlugin,
   titleNavigationPlugin,
 } from '../plugins';
 
@@ -71,6 +72,7 @@ export const customPlugins = [
   editorFindPlugin,
   blockControlsPlugin,
   blankAreaDragBoxPlugin,
+  autoPairPlugin,
   hrAutoParagraphPlugin,
   endBlankClickPlugin,
   titleNavigationPlugin,

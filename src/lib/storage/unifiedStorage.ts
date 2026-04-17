@@ -14,7 +14,6 @@ import {
 } from './unifiedStorageTypes';
 
 export type {
-  UnifiedProgress,
   CustomIcon,
   TimezoneInfo,
   UnifiedData,
@@ -26,6 +25,32 @@ const MAIN_DATA_BACKUP_FILE = 'data.backup.json';
 let autoSyncTrigger: (() => void) | null = null;
 let hasShownPersistenceFailureToast = false;
 let hasShownSecretLoadFailureToast = false;
+
+function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
+  const defaults = createDefaultUnifiedData();
+  const settings = data.settings;
+  const timezoneOffset = settings?.timezone?.offset;
+  const timezoneCity = settings?.timezone?.city;
+  const showLineNumbers = settings?.markdown?.codeBlock?.showLineNumbers;
+
+  return {
+    settings: {
+      timezone: {
+        offset: Number.isFinite(timezoneOffset) ? timezoneOffset : defaults.settings.timezone.offset,
+        city: typeof timezoneCity === 'string' && timezoneCity.trim().length > 0
+          ? timezoneCity
+          : defaults.settings.timezone.city,
+      },
+      markdown: {
+        codeBlock: {
+          showLineNumbers: showLineNumbers !== false,
+        },
+      },
+    },
+    customIcons: Array.isArray(data.customIcons) ? data.customIcons : [],
+    ai: data.ai,
+  };
+}
 
 export function setUnifiedStorageAutoSyncTrigger(trigger: (() => void) | null): void {
   autoSyncTrigger = trigger;
@@ -128,12 +153,12 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
 
     const loadedMainData = await loadMainDataFromPath(mainPath);
     if (loadedMainData) {
-      combinedData = { ...combinedData, ...loadedMainData };
+      combinedData = sanitizeUnifiedData({ ...combinedData, ...loadedMainData });
     } else {
       const loadedBackupData = await loadMainDataFromPath(mainBackupPath);
       if (loadedBackupData) {
         console.warn('[Storage] Loaded unified data from backup file');
-        combinedData = { ...combinedData, ...loadedBackupData };
+        combinedData = sanitizeUnifiedData({ ...combinedData, ...loadedBackupData });
       }
     }
 
@@ -222,7 +247,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
     combinedData.ai.selectedModelId = normalizedAI.selectedModelId;
     combinedData.ai.sessions = normalizedAI.sessions;
 
-    return combinedData;
+    return sanitizeUnifiedData(combinedData);
   } catch (error) {
     console.error('[Storage] Failed to load unified data:', error);
     return createDefaultUnifiedData();
@@ -245,7 +270,8 @@ async function performSplitSave(data: UnifiedData) {
         await storage.mkdir(channelsDir, true);
     }
 
-    const { ai, ...mainPart } = data;
+    const sanitizedData = sanitizeUnifiedData(data);
+    const { ai, ...mainPart } = sanitizedData;
     
     const mainFile: DataFile = {
         version: 2,

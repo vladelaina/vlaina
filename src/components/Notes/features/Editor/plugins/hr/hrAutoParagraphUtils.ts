@@ -4,13 +4,9 @@ export function isThematicBreakPattern(text: string): boolean {
   return THEMATIC_BREAK_PATTERN.test(text);
 }
 
-export function shouldConvertLineToThematicBreak(
+export function shouldConvertParagraphToThematicBreak(
   lineText: string,
-  insertOffset: number,
-  inputChar: string,
+  cursorOffset: number,
 ): boolean {
-  if (inputChar !== '-' && inputChar !== '*' && inputChar !== '_') return false;
-
-  const nextText = `${lineText.slice(0, insertOffset)}${inputChar}${lineText.slice(insertOffset)}`;
-  return isThematicBreakPattern(nextText);
+  return cursorOffset === lineText.length && isThematicBreakPattern(lineText);
 }

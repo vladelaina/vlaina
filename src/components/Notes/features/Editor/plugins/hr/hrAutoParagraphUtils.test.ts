@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isThematicBreakPattern, shouldConvertLineToThematicBreak } from './hrAutoParagraphUtils';
+import { isThematicBreakPattern, shouldConvertParagraphToThematicBreak } from './hrAutoParagraphUtils';
 
 describe('isThematicBreakPattern', () => {
   it('matches markdown thematic breaks', () => {
@@ -18,16 +18,16 @@ describe('isThematicBreakPattern', () => {
   });
 });
 
-describe('shouldConvertLineToThematicBreak', () => {
-  it('returns true when newly typed character completes a valid break', () => {
-    expect(shouldConvertLineToThematicBreak('--', 2, '-')).toBe(true);
-    expect(shouldConvertLineToThematicBreak('**', 2, '*')).toBe(true);
-    expect(shouldConvertLineToThematicBreak('__', 2, '_')).toBe(true);
+describe('shouldConvertParagraphToThematicBreak', () => {
+  it('returns true for standalone thematic break text when the cursor is at the end', () => {
+    expect(shouldConvertParagraphToThematicBreak('---', 3)).toBe(true);
+    expect(shouldConvertParagraphToThematicBreak('***', 3)).toBe(true);
+    expect(shouldConvertParagraphToThematicBreak('___', 3)).toBe(true);
   });
 
-  it('returns false when line still does not form a break', () => {
-    expect(shouldConvertLineToThematicBreak('a--', 3, '-')).toBe(false);
-    expect(shouldConvertLineToThematicBreak('**', 2, '-')).toBe(false);
-    expect(shouldConvertLineToThematicBreak('__', 2, '.')).toBe(false);
+  it('returns false when the cursor is not at the end or the text is not standalone', () => {
+    expect(shouldConvertParagraphToThematicBreak('---', 2)).toBe(false);
+    expect(shouldConvertParagraphToThematicBreak('---text---', 10)).toBe(false);
+    expect(shouldConvertParagraphToThematicBreak('**', 2)).toBe(false);
   });
 });

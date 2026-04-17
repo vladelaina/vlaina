@@ -43,8 +43,8 @@
       "icons/icon.ico"
     ],
     "category": "Productivity",
-    "shortDescription": "A minimal, elegant task manager",
-    "longDescription": "vlaina is a cross-platform To-Do app with Markdown storage, Activity Heatmap, and Time Auditing features.",
+    "shortDescription": "A local-first notes and chat workspace",
+    "longDescription": "vlaina is a cross-platform local-first workspace for notes and chat.",
     "windows": {
       "nsis": {
         "installMode": "currentUser"

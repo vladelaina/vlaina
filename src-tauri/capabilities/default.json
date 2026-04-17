@@ -4,8 +4,7 @@
   "description": "Capability for all windows",
   "windows": [
     "main",
-    "main-*",
-    "drag-overlay"
+    "main-*"
   ],
   "permissions": [
     "core:default",

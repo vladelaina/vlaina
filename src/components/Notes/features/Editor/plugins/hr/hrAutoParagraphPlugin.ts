@@ -8,15 +8,11 @@ import {
 } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { focusNoteTitleInputAtEnd } from '../../utils/titleInputDom';
-import { shouldConvertLineToThematicBreak } from './hrAutoParagraphUtils';
+import { shouldConvertParagraphToThematicBreak } from './hrAutoParagraphUtils';
 
 export const hrAutoParagraphPluginKey = new PluginKey('hrAutoParagraph');
 
-function shouldPreserveLeadingFrontmatterShortcut(view: EditorView, text: string): boolean {
-  if (text !== '-') {
-    return false;
-  }
-
+function shouldPreserveLeadingFrontmatterShortcut(view: EditorView): boolean {
   const { selection } = view.state;
   const parentDepth = selection.$from.depth - 1;
   if (parentDepth !== 0) {
@@ -27,26 +23,23 @@ function shouldPreserveLeadingFrontmatterShortcut(view: EditorView, text: string
     return false;
   }
 
-  const parentText = selection.$from.parent.textContent;
-  const offset = selection.$from.parentOffset;
-  const nextText = `${parentText.slice(0, offset)}-${parentText.slice(offset)}`;
-  return nextText.trim() === '---';
+  return selection.$from.parent.textContent.trim() === '---';
 }
 
-function shouldConvertToHorizontalRule(view: EditorView, from: number, to: number, text: string): boolean {
-  if (from !== to) return false;
-
+export function handleHorizontalRuleShortcutEnter(view: EditorView): boolean {
   const { state } = view;
   const { selection } = state;
-  if (!selection.empty || selection.from !== from) return false;
-  if (shouldPreserveLeadingFrontmatterShortcut(view, text)) return false;
+  if (!selection.empty) return false;
+  if (shouldPreserveLeadingFrontmatterShortcut(view)) return false;
 
   const paragraphType = state.schema.nodes.paragraph;
   if (!paragraphType || selection.$from.parent.type !== paragraphType) return false;
 
   const parent = selection.$from.parent;
   const offset = selection.$from.parentOffset;
-  return shouldConvertLineToThematicBreak(parent.textContent, offset, text);
+  if (!shouldConvertParagraphToThematicBreak(parent.textContent, offset)) return false;
+
+  return insertHorizontalRuleWithTrailingParagraph(view);
 }
 
 function insertHorizontalRuleWithTrailingParagraph(view: EditorView): boolean {
@@ -184,6 +177,13 @@ export const hrAutoParagraphPlugin = $prose(() => {
           return true;
         }
 
+        if (event.key === 'Enter') {
+          if (event.isComposing) return false;
+          if (!handleHorizontalRuleShortcutEnter(view)) return false;
+          event.preventDefault();
+          return true;
+        }
+
         if (event.key === 'ArrowDown') {
           if (!skipHorizontalRuleOnArrowDown(view)) return false;
           event.preventDefault();
@@ -197,10 +197,6 @@ export const hrAutoParagraphPlugin = $prose(() => {
         }
 
         return false;
-      },
-      handleTextInput(view, from, to, text) {
-        if (!shouldConvertToHorizontalRule(view, from, to, text)) return false;
-        return insertHorizontalRuleWithTrailingParagraph(view);
       },
       handleDOMEvents: {
         mousedown(view, event) {

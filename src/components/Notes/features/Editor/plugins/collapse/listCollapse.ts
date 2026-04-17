@@ -5,7 +5,8 @@ import {
     collapsedState,
     createCollapseToggleButton,
     COLLAPSED_CONTENT_CLASS,
-    COLLAPSE_TOGGLE_EVENT
+    COLLAPSE_TOGGLE_EVENT,
+    isCollapseToggleTarget
 } from './collapseUtils';
 
 const LIST_COLLAPSE_KEY = new PluginKey('listCollapse');
@@ -52,6 +53,9 @@ export const listCollapsePlugin = $prose(() => {
                                 Decoration.widget(pos + 1, button, {
                                     side: -1,
                                     key: `list-toggle-${pos}`,
+                                    stopEvent(event) {
+                                        return isCollapseToggleTarget(event.target);
+                                    },
                                 })
                             );
 

@@ -3,7 +3,6 @@ export {
   saveUnifiedData,
   saveUnifiedDataImmediate,
   type UnifiedData,
-  type UnifiedProgress,
 } from './unifiedStorage';
 
 export {
