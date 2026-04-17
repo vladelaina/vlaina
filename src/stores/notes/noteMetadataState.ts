@@ -1,4 +1,4 @@
-import { saveNoteMetadata, setNoteEntry } from './storage';
+import { setNoteEntry } from './storage';
 import { isVaultNotePath } from './notePathState';
 import type { MetadataFile, NoteMetadataEntry } from './types';
 
@@ -39,7 +39,7 @@ export function persistNoteMetadataIfNeeded(
     return;
   }
 
-  saveNoteMetadata(notesPath, metadata);
+  void metadata;
 }
 
 export function applyNoteMetadataUpdates(

@@ -102,7 +102,7 @@ describe('AssetGrid', () => {
         onSelect={onSelect}
         onHover={() => {}}
         vaultPath="/vault"
-        category="covers"
+        category="builtinCovers"
       />,
     );
 
@@ -125,7 +125,7 @@ describe('AssetGrid', () => {
         onSelect={() => {}}
         onHover={() => {}}
         vaultPath="/vault"
-        category="covers"
+        category="builtinCovers"
       />,
     );
 
@@ -141,7 +141,7 @@ describe('AssetGrid', () => {
         onSelect={() => {}}
         onHover={() => {}}
         vaultPath="/vault"
-        category="covers"
+        category="builtinCovers"
       />,
     );
 

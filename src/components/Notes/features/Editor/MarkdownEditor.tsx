@@ -52,11 +52,6 @@ import {
   isSidebarSearchNavigationPending,
   subscribeSidebarSearchNavigationPending,
 } from '../Sidebar/sidebarSearchNavigation';
-import {
-  getSidebarSearchDebugScrollMeta,
-  getSidebarSearchDebugViewMeta,
-  logSidebarSearchDebug,
-} from '../Sidebar/sidebarSearchDebug';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
 import './styles/index.css';
@@ -166,9 +161,6 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
         setCurrentEditorView(null);
         clearCurrentEditorBlockPositionSnapshot();
         clearCurrentMarkdownRuntime();
-        logSidebarSearchDebug('editor:view-registry:clear:no-editor', {
-          currentNotePath: currentNotePath ?? null,
-        });
         return;
       }
       const view = editor.ctx.get(editorViewCtx);
@@ -181,27 +173,16 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       setCurrentEditorView(view as EditorView);
       const blockPositionController = createCurrentEditorBlockPositionController(view as EditorView);
       setCurrentMarkdownRuntime({ parser });
-      logSidebarSearchDebug('editor:view-registry:set', {
-        currentNotePath: currentNotePath ?? null,
-        view: getSidebarSearchDebugViewMeta(view as EditorView),
-      });
       return () => {
         blockPositionController.destroy();
         setCurrentEditorView(null);
         clearCurrentEditorBlockPositionSnapshot();
         clearCurrentMarkdownRuntime();
-        logSidebarSearchDebug('editor:view-registry:cleanup', {
-          currentNotePath: currentNotePath ?? null,
-          view: getSidebarSearchDebugViewMeta(view as EditorView),
-        });
       };
     } catch {
       setCurrentEditorView(null);
       clearCurrentEditorBlockPositionSnapshot();
       clearCurrentMarkdownRuntime();
-      logSidebarSearchDebug('editor:view-registry:clear:error', {
-        currentNotePath: currentNotePath ?? null,
-      });
       return;
     }
   }, [get, currentNotePath]);
@@ -297,14 +278,6 @@ export function MarkdownEditor({
       const path = activePathRef.current;
       if (!path) return;
 
-      if (isSidebarSearchNavigationPending(path)) {
-        logSidebarSearchDebug('editor:scroll:event:pending', {
-          path,
-          scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
-          currentView: getSidebarSearchDebugViewMeta(getCurrentEditorView()),
-        });
-      }
-
       const restoreSession = restoreSessionRef.current;
       if (restoreSession?.path === path) return;
 
@@ -331,23 +304,11 @@ export function MarkdownEditor({
     if (!scrollRoot) return;
 
     const previousPath = activePathRef.current;
-    logSidebarSearchDebug('editor:scroll-restore:effect:start', {
-      previousPath,
-      currentNotePath: currentNotePath ?? null,
-      isSidebarSearchJumpPending,
-      scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
-      currentView: getSidebarSearchDebugViewMeta(getCurrentEditorView()),
-    });
 
     if (previousPath) {
       const cachedScrollTop = scrollPositionsRef.current.get(previousPath);
       const nextSavedScrollTop = cachedScrollTop ?? scrollRoot.scrollTop;
       scrollPositionsRef.current.set(previousPath, nextSavedScrollTop);
-      logSidebarSearchDebug('editor:scroll-restore:save-previous', {
-        previousPath,
-        savedScrollTop: nextSavedScrollTop,
-        scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
-      });
     }
 
     activePathRef.current = currentNotePath ?? null;
@@ -355,19 +316,11 @@ export function MarkdownEditor({
     if (!currentNotePath) {
       restoreSessionRef.current = null;
       scrollRoot.scrollTop = 0;
-      logSidebarSearchDebug('editor:scroll-restore:reset-empty', {
-        scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
-      });
       return;
     }
 
     if (isSidebarSearchNavigationPending(currentNotePath)) {
       restoreSessionRef.current = null;
-      logSidebarSearchDebug('editor:scroll-restore:skip-pending', {
-        currentNotePath,
-        scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
-        currentView: getSidebarSearchDebugViewMeta(getCurrentEditorView()),
-      });
       return;
     }
 
@@ -376,12 +329,6 @@ export function MarkdownEditor({
       path: currentNotePath,
       targetScrollTop,
     };
-
-    logSidebarSearchDebug('editor:scroll-restore:begin', {
-      currentNotePath,
-      targetScrollTop,
-      scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
-    });
 
     let unsubscribeBlockSnapshot = () => {};
     let frameA = 0;
@@ -396,21 +343,10 @@ export function MarkdownEditor({
       writeScrollTop: (nextScrollTop) => {
         scrollRoot.scrollTop = nextScrollTop;
       },
-      onApply: (reason) => {
-        logSidebarSearchDebug('editor:scroll-restore:apply', {
-          currentNotePath,
-          reason,
-          targetScrollTop,
-          scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
-        });
-      },
+      onApply: () => {},
       onFinish: () => {
         scrollPositionsRef.current.set(currentNotePath, scrollRoot.scrollTop);
         restoreSessionRef.current = null;
-        logSidebarSearchDebug('editor:scroll-restore:finish', {
-          currentNotePath,
-          scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
-        });
       },
       onStop: () => {
         unsubscribeBlockSnapshot();
@@ -451,21 +387,8 @@ export function MarkdownEditor({
       if (restoreSessionRef.current?.path === currentNotePath) {
         restoreSessionRef.current = null;
       }
-      logSidebarSearchDebug('editor:scroll-restore:cleanup', {
-        currentNotePath,
-        scrollRoot: getSidebarSearchDebugScrollMeta(scrollRoot),
-      });
     };
   }, [currentNotePath]);
-
-  useEffect(() => {
-    logSidebarSearchDebug('editor:overlay-visibility', {
-      currentNotePath: currentNotePath ?? null,
-      hidden: isSidebarSearchJumpPending,
-      scrollRoot: getSidebarSearchDebugScrollMeta(scrollRootRef.current),
-      currentView: getSidebarSearchDebugViewMeta(getCurrentEditorView()),
-    });
-  }, [currentNotePath, isSidebarSearchJumpPending]);
 
   return (
     <div

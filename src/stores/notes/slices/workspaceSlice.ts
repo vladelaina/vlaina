@@ -50,20 +50,28 @@ import { readNoteMetadataFromMarkdown } from '../frontmatter';
 
 export interface WorkspaceSlice {
   currentNote: NotesStore['currentNote'];
+  currentNoteRevision: NotesStore['currentNoteRevision'];
   isDirty: NotesStore['isDirty'];
   isLoading: NotesStore['isLoading'];
   error: NotesStore['error'];
   openTabs: NotesStore['openTabs'];
+  draftNotes: NotesStore['draftNotes'];
+  pendingDraftDiscardPath: NotesStore['pendingDraftDiscardPath'];
   displayNames: NotesStore['displayNames'];
 
   openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
   openNoteByAbsolutePath: (absolutePath: string, openInNewTab?: boolean) => Promise<void>;
-  saveNote: () => Promise<void>;
+  adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => boolean;
+  saveNote: NotesStore['saveNote'];
   syncCurrentNoteFromDisk: NotesStore['syncCurrentNoteFromDisk'];
   invalidateNoteCache: NotesStore['invalidateNoteCache'];
   applyExternalPathRename: NotesStore['applyExternalPathRename'];
   applyExternalPathDeletion: NotesStore['applyExternalPathDeletion'];
   updateContent: (content: string) => void;
+  updateDraftNoteName: (path: string, name: string) => void;
+  discardDraftNote: (path: string) => void;
+  cancelPendingDraftDiscard: () => void;
+  confirmPendingDraftDiscard: () => Promise<void>;
   closeNote: () => void;
   closeTab: (path: string) => Promise<void>;
   switchTab: (path: string) => void;
@@ -77,10 +85,13 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   get
 ) => ({
   currentNote: null,
+  currentNoteRevision: 0,
   isDirty: false,
   isLoading: false,
   error: null,
   openTabs: [],
+  draftNotes: {},
+  pendingDraftDiscardPath: null,
   displayNames: new Map(),
 
   openNote: async (path: string, openInNewTab: boolean = false) => {
@@ -125,6 +136,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       updateDisplayName(set, path, tabName);
       set({
         currentNote: { path, content },
+        currentNoteRevision: get().currentNoteRevision + 1,
         isDirty: false,
         error: null,
         recentNotes: updatedRecent,
@@ -186,6 +198,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       updateDisplayName(set, absolutePath, tabName);
       set({
         currentNote: { path: absolutePath, content },
+        currentNoteRevision: get().currentNoteRevision + 1,
         isDirty: false,
         error: null,
         openTabs: updatedTabs,
@@ -198,7 +211,30 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     }
   },
 
-  saveNote: async () => {
+  adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => {
+    const { currentNote, openTabs, noteContentsCache, noteMetadata, displayNames, recentNotes } = get();
+    if (currentNote?.path !== absolutePath) {
+      return false;
+    }
+
+    set({
+      currentNote: remapCurrentNoteForExternalRename(currentNote, absolutePath, nextPath),
+      currentNoteRevision: get().currentNoteRevision + 1,
+      openTabs: remapOpenTabsForExternalRename(openTabs, absolutePath, nextPath),
+      noteContentsCache: remapCachedNoteContents(noteContentsCache, (path) =>
+        path === absolutePath ? nextPath : path
+      ),
+      noteMetadata: remapMetadataEntries(noteMetadata, (path) =>
+        path === absolutePath ? nextPath : path
+      ),
+      displayNames: remapDisplayNamesForExternalRename(displayNames, absolutePath, nextPath),
+      recentNotes: remapRecentNotesForExternalRename(recentNotes, absolutePath, nextPath),
+    });
+
+    return true;
+  },
+
+  saveNote: async (_options) => {
     const { currentNote, notesPath, noteContentsCache, noteMetadata, rootFolder, fileTreeSortMode } = get();
     if (!currentNote) return;
 
@@ -217,6 +253,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
       set({
         currentNote: { path: currentNote.path, content },
+        currentNoteRevision: get().currentNoteRevision + 1,
         isDirty: false,
         noteMetadata: nextMetadata,
         rootFolder: nextRootFolder,
@@ -528,6 +565,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     if (!currentNote || currentNote.content === content) return;
     set({
       currentNote: { ...currentNote, content },
+      currentNoteRevision: get().currentNoteRevision + 1,
       isDirty: true,
       openTabs: setNoteTabDirtyState(openTabs, currentNote.path, true),
       noteContentsCache: setCachedNoteContent(
@@ -539,9 +577,64 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     });
   },
 
+  updateDraftNoteName: (path: string, name: string) => {
+    const draftEntry = get().draftNotes[path];
+    if (!draftEntry) {
+      return;
+    }
+
+    set({
+      draftNotes: {
+        ...get().draftNotes,
+        [path]: {
+          ...draftEntry,
+          name,
+        },
+      },
+    });
+  },
+
+  discardDraftNote: (path: string) => {
+    const { draftNotes, openTabs, currentNote, noteContentsCache, pendingDraftDiscardPath, isDirty } = get();
+    if (!draftNotes[path]) {
+      return;
+    }
+
+    const { [path]: _removedDraft, ...nextDraftNotes } = draftNotes;
+    const isCurrentDraft = currentNote?.path === path;
+
+    set({
+      draftNotes: nextDraftNotes,
+      openTabs: openTabs.filter((tab) => tab.path !== path),
+      currentNote: isCurrentDraft ? null : currentNote,
+      currentNoteRevision: isCurrentDraft ? get().currentNoteRevision + 1 : get().currentNoteRevision,
+      noteContentsCache: removeCachedNoteContent(noteContentsCache, path),
+      isDirty: isCurrentDraft ? false : isDirty,
+      pendingDraftDiscardPath: pendingDraftDiscardPath === path ? null : pendingDraftDiscardPath,
+    });
+  },
+
+  cancelPendingDraftDiscard: () => {
+    set({ pendingDraftDiscardPath: null });
+  },
+
+  confirmPendingDraftDiscard: async () => {
+    const pendingPath = get().pendingDraftDiscardPath;
+    if (!pendingPath) {
+      return;
+    }
+
+    set({ pendingDraftDiscardPath: null });
+    get().discardDraftNote(pendingPath);
+  },
+
   closeNote: () => {
     const { notesPath, rootFolder, fileTreeSortMode } = get();
-    set({ currentNote: null, isDirty: false });
+    set({
+      currentNote: null,
+      currentNoteRevision: get().currentNoteRevision + 1,
+      isDirty: false,
+    });
     persistWorkspaceSnapshot(notesPath, {
       rootFolder,
       currentNotePath: null,

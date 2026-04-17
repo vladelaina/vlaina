@@ -29,10 +29,6 @@ import {
   markSidebarSearchNavigationPending,
 } from './sidebarSearchNavigation';
 import { getCurrentEditorView } from '../Editor/utils/editorViewRegistry';
-import {
-  getSidebarSearchDebugViewMeta,
-  logSidebarSearchDebug,
-} from './sidebarSearchDebug';
 
 interface SidebarContentProps {
   rootFolder: FolderNode | null;
@@ -336,62 +332,26 @@ export function SidebarContent({
 
   useEffect(() => {
     if (!pendingNavigation || currentNotePath !== pendingNavigation.path) {
-      if (pendingNavigation) {
-        logSidebarSearchDebug('sidebar:pending-navigation:waiting', {
-          currentNotePath: currentNotePath ?? null,
-          pendingPath: pendingNavigation.path,
-          query: pendingNavigation.query,
-          contentMatchOrdinal: pendingNavigation.contentMatchOrdinal,
-          previousView: getSidebarSearchDebugViewMeta(pendingNavigation.previousView),
-          currentView: getSidebarSearchDebugViewMeta(getCurrentEditorView()),
-        });
-      }
       return;
     }
 
     let cancelled = false;
-    logSidebarSearchDebug('sidebar:pending-navigation:apply:start', {
-      currentNotePath,
-      pendingPath: pendingNavigation.path,
-      query: pendingNavigation.query,
-      contentMatchOrdinal: pendingNavigation.contentMatchOrdinal,
-      previousView: getSidebarSearchDebugViewMeta(pendingNavigation.previousView),
-      currentView: getSidebarSearchDebugViewMeta(getCurrentEditorView()),
-    });
 
     void applySidebarSearchNavigation({
       path: pendingNavigation.path,
       query: pendingNavigation.query,
       contentMatchOrdinal: pendingNavigation.contentMatchOrdinal,
       previousView: pendingNavigation.previousView,
-    })
-      .then((success) => {
-        logSidebarSearchDebug('sidebar:pending-navigation:apply:resolved', {
-          currentNotePath,
-          pendingPath: pendingNavigation.path,
-          success,
-          currentView: getSidebarSearchDebugViewMeta(getCurrentEditorView()),
-        });
-      })
-      .finally(() => {
-        logSidebarSearchDebug('sidebar:pending-navigation:apply:finally', {
-          currentNotePath,
-          pendingPath: pendingNavigation.path,
-          cancelled,
-        });
-        if (!cancelled) {
-          setPendingNavigation((current) =>
-            current === pendingNavigation ? null : current,
-          );
-        }
-      });
+    }).finally(() => {
+      if (!cancelled) {
+        setPendingNavigation((current) =>
+          current === pendingNavigation ? null : current,
+        );
+      }
+    });
 
     return () => {
       cancelled = true;
-      logSidebarSearchDebug('sidebar:pending-navigation:apply:cleanup', {
-        currentNotePath: currentNotePath ?? null,
-        pendingPath: pendingNavigation.path,
-      });
     };
   }, [currentNotePath, pendingNavigation]);
 
@@ -404,53 +364,19 @@ export function SidebarContent({
       previousView,
     };
 
-    logSidebarSearchDebug('sidebar:result:click', {
-      resultId: result.id,
-      currentNotePath: currentNotePath ?? null,
-      targetPath: result.path,
-      query: deferredSearchQuery,
-      contentMatchOrdinal: result.contentMatchOrdinal,
-      previousView: getSidebarSearchDebugViewMeta(previousView),
-    });
     markSidebarSearchNavigationPending(result.path);
     setPendingNavigation(nextNavigation);
-    logSidebarSearchDebug('sidebar:pending-navigation:set', {
-      currentNotePath: currentNotePath ?? null,
-      targetPath: result.path,
-      query: deferredSearchQuery,
-      contentMatchOrdinal: result.contentMatchOrdinal,
-      previousView: getSidebarSearchDebugViewMeta(previousView),
-    });
 
     if (currentNotePath === result.path) {
-      logSidebarSearchDebug('sidebar:result:click:same-note', {
-        path: result.path,
-      });
       return;
     }
 
-    logSidebarSearchDebug('sidebar:open-note:start', {
-      fromPath: currentNotePath ?? null,
-      targetPath: result.path,
+    void openNote(result.path).catch(() => {
+      clearSidebarSearchNavigationPending(result.path);
+      setPendingNavigation((current) =>
+        current === nextNavigation ? null : current,
+      );
     });
-    void openNote(result.path)
-      .then(() => {
-        logSidebarSearchDebug('sidebar:open-note:resolved', {
-          targetPath: result.path,
-          currentNotePath: useNotesStore.getState().currentNote?.path ?? null,
-          currentView: getSidebarSearchDebugViewMeta(getCurrentEditorView()),
-        });
-      })
-      .catch((error) => {
-        logSidebarSearchDebug('sidebar:open-note:rejected', {
-          targetPath: result.path,
-          message: error instanceof Error ? error.message : String(error),
-        });
-        clearSidebarSearchNavigationPending(result.path);
-        setPendingNavigation((current) =>
-          current === nextNavigation ? null : current,
-        );
-      });
   };
 
   return (
@@ -507,7 +433,6 @@ export function SidebarContent({
             <RootFolderRow
               rootFolder={rootFolder}
               isLoading={isLoading}
-              currentNotePath={currentNotePath}
               onCreateNote={createNote}
               onCreateFolder={() => createFolder('')}
             />
