@@ -5,7 +5,7 @@ import { useIconPreview } from '@/components/common/UniversalIconPicker/useIconP
 import { AppIcon } from '@/components/common/AppIcon';
 import { type CustomIcon } from '@/lib/storage/unifiedStorage';
 import { useUIStore } from '@/stores/uiSlice';
-import { getRandomEmojiFromPreference } from '@/components/common/UniversalIconPicker/randomEmoji';
+import { getRandomHeaderEmoji } from '@/components/common/UniversalIconPicker/randomEmoji';
 import { type ItemColor, COLOR_HEX } from '@/lib/colors';
 import { ICON_SIZES, IconSize } from '@/components/ui/icons/sizes';
 
@@ -35,6 +35,7 @@ interface HeroIconHeaderProps {
   onUploadFile?: (file: File) => Promise<{ success: boolean; url?: string; error?: string }>;
   onDeleteCustomIcon?: (id: string) => void;
   imageLoader?: (src: string) => Promise<string>;
+  onRequestRandomIcon?: () => string | null;
 
   className?: string;
   coverUrl?: string | null;
@@ -102,6 +103,7 @@ export function HeroIconHeader({
   onUploadFile,
   onDeleteCustomIcon,
   imageLoader,
+  onRequestRandomIcon,
   className,
   coverUrl,
   children,
@@ -222,11 +224,12 @@ export function HeroIconHeader({
                   <button
                       ref={iconButtonRef}
                       onClick={() => {
-                          void (async () => {
-                            const randomEmoji = await getRandomEmojiFromPreference();
-                            onIconChange(randomEmoji);
-                            setShowIconPicker(true);
-                          })();
+                          const randomIcon = onRequestRandomIcon?.() ?? getRandomHeaderEmoji();
+                          if (!randomIcon) {
+                            return;
+                          }
+                          onIconChange(randomIcon);
+                          setShowIconPicker(true);
                       }}
                       className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--vlaina-text-secondary)] hover:text-[var(--vlaina-text-primary)] transition-colors")}
                   >

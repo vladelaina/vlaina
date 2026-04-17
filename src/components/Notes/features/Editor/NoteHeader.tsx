@@ -1,14 +1,16 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { TitleInput } from './TitleInput';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { resolveVaultAssetPath } from '@/lib/assets/core/paths';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
+import { getParentPath } from '@/lib/storage/adapter';
 import { HeroIconHeader } from '@/components/common/HeroIconHeader';
 import { CoverAddOverlay } from '../Cover';
 import { NotePathBreadcrumb } from './components/NotePathBreadcrumb';
 import { focusEditorAtTop } from './utils/focusEditor';
 import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
+import { getRandomHeaderEmoji } from '@/components/common/UniversalIconPicker/randomEmoji';
 
 interface NoteHeaderProps {
     coverUrl: string | null;
@@ -20,6 +22,7 @@ export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
     const setNoteIcon = useNotesStore(s => s.setNoteIcon);
     const setGlobalIconSize = useNotesStore(s => s.setGlobalIconSize);
     const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
+    const noteMetadata = useNotesStore(s => s.noteMetadata);
 
     const noteIcon = useNotesStore(
         useCallback(state => {
@@ -71,6 +74,36 @@ export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
         }
     };
 
+    const scopedUsedIcons = useMemo(() => {
+        const usedIcons = new Set<string>();
+        if (!noteMetadata) {
+            return usedIcons;
+        }
+
+        const parentPath = currentNotePath ? getParentPath(currentNotePath) : null;
+        const folderPrefix = parentPath ? `${parentPath.replace(/\/+$/, '')}/` : '';
+
+        for (const [path, entry] of Object.entries(noteMetadata.notes)) {
+            if (path === currentNotePath) {
+                continue;
+            }
+
+            if (folderPrefix && !path.startsWith(folderPrefix)) {
+                continue;
+            }
+
+            if (entry.icon) {
+                usedIcons.add(entry.icon);
+            }
+        }
+
+        return usedIcons;
+    }, [currentNotePath, noteMetadata]);
+
+    const handleRequestRandomIcon = useCallback(() => {
+        return getRandomHeaderEmoji(scopedUsedIcons);
+    }, [scopedUsedIcons]);
+
     return (
         <HeroIconHeader
             id={currentNotePath || 'note-header'}
@@ -86,6 +119,7 @@ export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
             
             onUploadFile={handleUploadFile}
             imageLoader={imageLoader}
+            onRequestRandomIcon={handleRequestRandomIcon}
             
             renderTitle={() => currentNotePath && (
                 <div className="group/note-title">
