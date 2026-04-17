@@ -473,30 +473,26 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
           persistRecentNotes(nextRecentNotes);
         }
         
-        set({ 
-            openTabs: result.updatedTabs,
-            starredEntries: result.updatedStarredEntries,
-            starredNotes: result.updatedStarredNotes,
-            starredFolders: result.updatedStarredFolders,
-            recentNotes: nextRecentNotes,
-            displayNames: nextDisplayNames,
-            noteMetadata: result.updatedMetadata ?? noteMetadata,
-            noteContentsCache: nextNoteContentsCache,
-        });
-
-        if (currentNote?.path === path) {
-          set({ currentNote: null, isDirty: false });
-        }
-
+        const shouldOpenNextNote = currentNote?.path === path && result.nextAction?.type === 'open';
         const nextRootFolder = buildSortedRootFolder(
           rootFolder,
           result.newChildren,
           fileTreeSortMode,
           result.updatedMetadata ?? noteMetadata
         );
-        if (nextRootFolder) {
-          set({ rootFolder: nextRootFolder });
-        }
+
+        set({
+          openTabs: result.updatedTabs,
+          starredEntries: result.updatedStarredEntries,
+          starredNotes: result.updatedStarredNotes,
+          starredFolders: result.updatedStarredFolders,
+          recentNotes: nextRecentNotes,
+          displayNames: nextDisplayNames,
+          noteMetadata: result.updatedMetadata ?? noteMetadata,
+          noteContentsCache: nextNoteContentsCache,
+          rootFolder: nextRootFolder ?? rootFolder,
+          ...(currentNote?.path === path && !shouldOpenNextNote ? { currentNote: null, isDirty: false } : {}),
+        });
 
         persistWorkspaceSnapshot(notesPath, {
           rootFolder: nextRootFolder ?? rootFolder,
@@ -506,7 +502,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
           fileTreeSortMode,
         });
 
-        if (result.nextAction && result.nextAction.type === 'open') {
+        if (shouldOpenNextNote) {
             await get().openNote(result.nextAction.path);
         }
     } catch (error) {
@@ -765,30 +761,32 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
           persistRecentNotes(nextRecentNotes);
         }
 
-        set({
-            starredEntries: result.updatedStarredEntries,
-            starredFolders: result.updatedStarredFolders,
-            starredNotes: result.updatedStarredNotes,
-            openTabs: result.updatedTabs,
-            recentNotes: nextRecentNotes,
-            displayNames: nextDisplayNames,
-            noteMetadata: result.updatedMetadata ?? noteMetadata,
-            noteContentsCache: nextNoteContentsCache,
-        });
-
-        if (currentNote && isPathWithinFolder(currentNote.path, path)) {
-          set({ currentNote: null, isDirty: false });
-        }
-
+        const shouldOpenNextNote = Boolean(
+          currentNote &&
+          isPathWithinFolder(currentNote.path, path) &&
+          result.nextAction?.type === 'open'
+        );
         const nextRootFolder = buildSortedRootFolder(
           rootFolder,
           result.newChildren,
           fileTreeSortMode,
           result.updatedMetadata ?? noteMetadata
         );
-        if (nextRootFolder) {
-          set({ rootFolder: nextRootFolder });
-        }
+
+        set({
+          starredEntries: result.updatedStarredEntries,
+          starredFolders: result.updatedStarredFolders,
+          starredNotes: result.updatedStarredNotes,
+          openTabs: result.updatedTabs,
+          recentNotes: nextRecentNotes,
+          displayNames: nextDisplayNames,
+          noteMetadata: result.updatedMetadata ?? noteMetadata,
+          noteContentsCache: nextNoteContentsCache,
+          rootFolder: nextRootFolder ?? rootFolder,
+          ...(currentNote && isPathWithinFolder(currentNote.path, path) && !shouldOpenNextNote
+            ? { currentNote: null, isDirty: false }
+            : {}),
+        });
 
         persistWorkspaceSnapshot(notesPath, {
           rootFolder: nextRootFolder ?? rootFolder,
@@ -798,7 +796,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
           fileTreeSortMode,
         });
 
-        if (result.nextAction && result.nextAction.type === 'open') {
+        if (shouldOpenNextNote) {
           await get().openNote(result.nextAction.path);
         }
     } catch (error) {

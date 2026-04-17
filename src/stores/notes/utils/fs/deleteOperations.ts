@@ -3,7 +3,54 @@ import { getVaultStarredPaths, remapStarredEntriesForVault, saveStarredRegistry 
 import { removeNodeFromTree } from '../../fileTreeUtils';
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
 import { remapMetadataEntries } from '../../storage';
-import type { DeleteOperationResult, FileOperationContext, FileOperationNextAction, NoteTabState } from './operationTypes';
+import type {
+    DeleteOperationResult,
+    FileOperationContext,
+    FileOperationNextAction,
+    FileTreeChildren,
+    NoteTabState,
+} from './operationTypes';
+
+function collectNotePaths(nodes: FileTreeChildren, result: string[] = []): string[] {
+    for (const node of nodes) {
+        if (node.isFolder) {
+            collectNotePaths(node.children, result);
+            continue;
+        }
+
+        result.push(node.path);
+    }
+
+    return result;
+}
+
+function resolveAdjacentNotePath(
+    nodes: FileTreeChildren,
+    targetPath: string,
+    isRemovedPath: (path: string) => boolean,
+): string | null {
+    const notePaths = collectNotePaths(nodes);
+    const currentIndex = notePaths.indexOf(targetPath);
+    if (currentIndex === -1) {
+        return null;
+    }
+
+    for (let index = currentIndex + 1; index < notePaths.length; index += 1) {
+        const nextPath = notePaths[index];
+        if (nextPath && !isRemovedPath(nextPath)) {
+            return nextPath;
+        }
+    }
+
+    for (let index = currentIndex - 1; index >= 0; index -= 1) {
+        const previousPath = notePaths[index];
+        if (previousPath && !isRemovedPath(previousPath)) {
+            return previousPath;
+        }
+    }
+
+    return null;
+}
 
 export async function deleteNoteImpl(
     notesPath: string,
@@ -28,20 +75,28 @@ export async function deleteNoteImpl(
         void saveStarredRegistry(starredResult.entries);
     }
 
+    const newChildren = rootFolder ? removeNodeFromTree(rootFolder.children, path) : [];
     let nextAction: FileOperationNextAction = null;
 
     if (currentNote?.path === path) {
-        const lastTab = updatedTabs[updatedTabs.length - 1] as NoteTabState | undefined;
-        if (lastTab) {
-            nextAction = { type: 'open', path: lastTab.path };
+        const adjacentNotePath = resolveAdjacentNotePath(
+            rootFolder?.children ?? [],
+            path,
+            (candidatePath) => candidatePath === path,
+        );
+        if (adjacentNotePath) {
+            nextAction = { type: 'open', path: adjacentNotePath };
+        } else {
+            const lastTab = updatedTabs[updatedTabs.length - 1] as NoteTabState | undefined;
+            if (lastTab) {
+                nextAction = { type: 'open', path: lastTab.path };
+            }
         }
     }
 
     const updatedMetadata = remapMetadataEntries(noteMetadata ?? null, (relativePath) =>
         relativePath === path ? null : relativePath
     );
-
-    const newChildren = rootFolder ? removeNodeFromTree(rootFolder.children, path) : [];
 
     return {
         updatedTabs,
@@ -81,9 +136,18 @@ export async function deleteFolderImpl(
 
     let nextAction: FileOperationNextAction = null;
     if (currentNote && (currentNote.path === path || currentNote.path.startsWith(path + '/'))) {
-        const lastTab = updatedTabs[updatedTabs.length - 1] as NoteTabState | undefined;
-        if (lastTab) {
-            nextAction = { type: 'open', path: lastTab.path };
+        const adjacentNotePath = resolveAdjacentNotePath(
+            rootFolder?.children ?? [],
+            currentNote.path,
+            (candidatePath) => candidatePath === path || candidatePath.startsWith(path + '/'),
+        );
+        if (adjacentNotePath) {
+            nextAction = { type: 'open', path: adjacentNotePath };
+        } else {
+            const lastTab = updatedTabs[updatedTabs.length - 1] as NoteTabState | undefined;
+            if (lastTab) {
+                nextAction = { type: 'open', path: lastTab.path };
+            }
         }
     }
 
