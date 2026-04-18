@@ -28,7 +28,10 @@ export function NotesSidebarPanel({
 
   return (
     <NotesSidebarSurface isPeeking={isPeeking} className="min-h-0">
-      {sidebarView === 'workspace' ? (
+      <div
+        className={sidebarView === 'workspace' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}
+        aria-hidden={sidebarView !== 'workspace'}
+      >
         <SidebarContent
           rootFolder={rootFolder}
           isLoading={isLoading}
@@ -38,13 +41,17 @@ export function NotesSidebarPanel({
           search={search}
           isPeeking={isPeeking}
         />
-      ) : (
+      </div>
+      <div
+        className={sidebarView === 'outline' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}
+        aria-hidden={sidebarView !== 'outline'}
+      >
         <NotesOutline
-          enabled={Boolean(currentNotePath)}
+          enabled={Boolean(currentNotePath) && sidebarView === 'outline'}
           isPeeking={isPeeking}
           className="min-h-0 flex-1"
         />
-      )}
+      </div>
     </NotesSidebarSurface>
   );
 }

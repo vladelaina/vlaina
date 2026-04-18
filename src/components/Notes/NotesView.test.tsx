@@ -286,6 +286,17 @@ describe('NotesView', () => {
     uiState.setLayoutPanelDragging.mockClear();
   });
 
+  it('does not register blank-workspace drag handlers while inactive', async () => {
+    render(<NotesView active={false} />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mocks.windowState.onDragDropEvent).not.toHaveBeenCalled();
+    expect(mocks.windowState.dropHandler).toBeNull();
+  });
+
   it('keeps the workspace blank when nothing is open', async () => {
     render(<NotesView />);
 

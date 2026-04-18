@@ -36,7 +36,7 @@ const EmbeddedChatView = lazy(async () => {
   return { default: mod.ChatView };
 });
 
-export function NotesView() {
+export function NotesView({ active = true }: { active?: boolean }) {
   const currentNote = useNotesStore(s => s.currentNote);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const loadFileTree = useNotesStore(s => s.loadFileTree);
@@ -114,7 +114,7 @@ export function NotesView() {
     chatComposerFocusFrameRef.current = requestAnimationFrame(tryFocus);
   }, [setChatPanelCollapsed]);
 
-  useModuleShortcutsDialog({ onToggle: toggleShortcutsDialog });
+  useModuleShortcutsDialog({ enabled: active, onToggle: toggleShortcutsDialog });
   useCurrentVaultExternalPathSync(currentVault?.path ?? null);
   useNotesExternalSync(currentVault?.path ?? null, notesPath);
 
@@ -421,13 +421,13 @@ export function NotesView() {
   })();
 
   const isBlankWorkspaceDropActive = useBlankWorkspaceDropOpen({
-    enabled: acceptsBlankWorkspaceDrop && !isOpenTargetBusy,
+    enabled: active && acceptsBlankWorkspaceDrop && !isOpenTargetBusy,
     openMarkdownTarget,
     openVault,
   });
 
   useNotesSidebarExternalDropImport({
-    enabled: !acceptsBlankWorkspaceDrop && Boolean(currentVault?.path && rootFolder),
+    enabled: active && !acceptsBlankWorkspaceDrop && Boolean(currentVault?.path && rootFolder),
     vaultPath: currentVault?.path ?? '',
     loadFileTree,
     revealFolder,
@@ -479,6 +479,10 @@ export function NotesView() {
   }, [currentNotePath]);
 
   useEffect(() => {
+    if (!active) {
+      return;
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (matchesShortcutBinding(e, 'toggleEmbeddedChat')) {
         e.preventDefault();
@@ -531,7 +535,7 @@ export function NotesView() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [closeTab, currentNotePath, focusNotesChatComposer, openNote, openTabs, toggleChatPanel]);
+  }, [active, closeTab, currentNotePath, focusNotesChatComposer, openNote, openTabs, toggleChatPanel]);
 
   return (
     <>
@@ -559,7 +563,7 @@ export function NotesView() {
           )}
         </div>
 
-        {!chatPanelCollapsed && (
+        {active && !chatPanelCollapsed && (
           <ResizablePanel
             defaultWidth={420}
             minWidth={320}
@@ -570,7 +574,7 @@ export function NotesView() {
           >
             <div data-notes-chat-panel="true" className="h-full min-h-0 relative">
               <Suspense fallback={null}>
-                <EmbeddedChatView mode="embedded" />
+                <EmbeddedChatView mode="embedded" active={active} />
               </Suspense>
             </div>
           </ResizablePanel>

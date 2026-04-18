@@ -176,13 +176,7 @@ function AppContent() {
   }
 
   let mainContent = null;
-  if (appViewMode === 'chat') {
-    mainContent = (
-      <Suspense fallback={null}>
-        <ChatView />
-      </Suspense>
-    );
-  } else if (appViewMode === 'lab') {
+  if (appViewMode === 'lab') {
     mainContent = (
       <Suspense fallback={null}>
         <LabView />
@@ -190,9 +184,24 @@ function AppContent() {
     );
   } else {
     mainContent = (
-      <Suspense fallback={null}>
-        <NotesView />
-      </Suspense>
+      <>
+        <div
+          className={cn('h-full', appViewMode !== 'notes' && 'hidden')}
+          aria-hidden={appViewMode !== 'notes'}
+        >
+          <Suspense fallback={null}>
+            <NotesView active={appViewMode === 'notes'} />
+          </Suspense>
+        </div>
+        <div
+          className={cn('h-full', appViewMode !== 'chat' && 'hidden')}
+          aria-hidden={appViewMode !== 'chat'}
+        >
+          <Suspense fallback={null}>
+            <ChatView active={appViewMode === 'chat'} />
+          </Suspense>
+        </div>
+      </>
     );
   }
 

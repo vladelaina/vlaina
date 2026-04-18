@@ -542,8 +542,6 @@ export const actions = {
 };
 
 export const useAIStore = () => {
-  useAIStoreRuntimeEffects();
-
   const aiData = useUnifiedStore(s => s.data.ai);
   const uiState = useAIUIStore();
 

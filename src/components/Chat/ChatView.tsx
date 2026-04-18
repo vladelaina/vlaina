@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { actions as aiActions, useAIStoreRuntimeEffects } from '@/stores/useAIStore';
+import { actions as aiActions } from '@/stores/useAIStore';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useChatService } from '@/hooks/useChatService';
@@ -26,13 +26,12 @@ import { estimateChatLoadingHeight } from '@/components/Chat/features/Layout/cha
 
 interface ChatViewProps {
   mode?: 'full' | 'embedded';
+  active?: boolean;
 }
 
 const EMPTY_MESSAGES: never[] = [];
 
-export function ChatView({ mode = 'full' }: ChatViewProps) {
-  useAIStoreRuntimeEffects();
-
+export function ChatView({ mode = 'full', active = true }: ChatViewProps) {
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [focusInputTrigger, setFocusInputTrigger] = useState(0); 
   const isEmbedded = mode === 'embedded';
@@ -234,7 +233,7 @@ export function ChatView({ mode = 'full' }: ChatViewProps) {
     onStopGeneration: stop,
     isGenerating: isSessionActive,
     scrollRef: containerRef,
-  }, !isEmbedded);
+  }, active && !isEmbedded);
 
   const copyToClipboard = useCallback((text: string) => copyMessageContentToClipboard(text), []);
   const getImageGallery = useCallback(() => imageGalleryRef.current, []);

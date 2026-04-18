@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { actions, createAIChatSession, useAIStore } from '@/stores/useAIStore';
+import { actions, createAIChatSession, useAIStore, useAIStoreRuntimeEffects } from '@/stores/useAIStore';
 import { useAIUIStore } from './chatState';
 import { useUnifiedStore } from '../unified/useUnifiedStore';
 
@@ -203,7 +203,10 @@ describe('spark window selection isolation', () => {
         }
       | undefined;
     await act(async () => {
-      hook = renderHook(() => useAIStore());
+      hook = renderHook(() => {
+        useAIStoreRuntimeEffects();
+        return useAIStore();
+      });
     });
 
     const { result, unmount } = hook!;
@@ -229,7 +232,10 @@ describe('spark window selection isolation', () => {
         }
       | undefined;
     await act(async () => {
-      hook = renderHook(() => useAIStore());
+      hook = renderHook(() => {
+        useAIStoreRuntimeEffects();
+        return useAIStore();
+      });
     });
 
     const { result, unmount } = hook!;
