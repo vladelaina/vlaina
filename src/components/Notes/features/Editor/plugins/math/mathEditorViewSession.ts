@@ -1,5 +1,4 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { renderLatex } from './katex';
 import {
   getScrollRoot,
 } from '../floating-toolbar/floatingToolbarDom';
@@ -7,7 +6,6 @@ import { applyMathNodeLatex, removeMathNode } from './mathEditorEditing';
 import { mathEditorPluginKey } from './mathEditorPluginKey';
 import {
   createMathEditorElements,
-  renderMathEditorPreview,
 } from './mathEditorPopupDom';
 import {
   getMathAnchorViewportPosition,
@@ -24,8 +22,8 @@ export function createMathEditorViewSession(args: {
   const { editorView, onOutsideCloseIntent } = args;
   let editorElement: HTMLElement | null = null;
   let textareaElement: HTMLTextAreaElement | null = null;
-  let previewElement: HTMLElement | null = null;
   let draftLatex = '';
+  let initialLatex = '';
   let renderedState: Pick<MathEditorState, 'nodePos' | 'displayMode'> | null = null;
   let suppressOutsideMouseDown = false;
   let suppressOutsideMouseDownTimer: number | null = null;
@@ -42,11 +40,11 @@ export function createMathEditorViewSession(args: {
     }
     editorElement = null;
     textareaElement = null;
-    previewElement = null;
   };
 
   const resetRenderedState = () => {
     draftLatex = '';
+    initialLatex = '';
     renderedState = null;
   };
 
@@ -74,10 +72,25 @@ export function createMathEditorViewSession(args: {
     );
   };
 
+  const restoreOriginalLatex = (state: MathEditorState) => {
+    applyMathNodeLatex(editorView, state.nodePos, initialLatex || state.latex);
+  };
+
+  const syncDraftToNode = (state: MathEditorState) => {
+    if (!textareaElement) {
+      return;
+    }
+
+    draftLatex = textareaElement.value;
+    applyMathNodeLatex(editorView, state.nodePos, draftLatex);
+  };
+
   const cancelAndClose = () => {
     const state = getEditorState();
     if (state && shouldDiscardEmptyMathNodeOnCancel(state, draftLatex)) {
       removeMathNode(editorView as never, state.nodePos);
+    } else if (state) {
+      restoreOriginalLatex(state);
     }
 
     closeEditor();
@@ -86,13 +99,12 @@ export function createMathEditorViewSession(args: {
 
   const saveAndClose = () => {
     const state = getEditorState();
-    if (!state || state.nodePos < 0 || !textareaElement) {
+    if (!state || state.nodePos < 0) {
       closeEditor();
       return;
     }
 
-    applyMathNodeLatex(editorView, state.nodePos, draftLatex);
-
+    syncDraftToNode(state);
     closeEditor();
     editorView.focus();
   };
@@ -115,22 +127,6 @@ export function createMathEditorViewSession(args: {
     }
   };
 
-  const updatePreview = (displayMode: boolean) => {
-    if (!textareaElement || !previewElement) {
-      return;
-    }
-
-    draftLatex = textareaElement.value;
-    const { html, error, errorDetails } = renderLatex(draftLatex, displayMode);
-    renderMathEditorPreview({
-      preview: previewElement,
-      html,
-      error,
-      errorDetails,
-      displayMode,
-    });
-  };
-
   const resolveViewportPosition = (state: MathEditorState) => {
     const nodeDom = typeof editorView.nodeDOM === 'function' ? editorView.nodeDOM(state.nodePos) : null;
     const anchor = resolveMathAnchorElement(null, nodeDom);
@@ -145,19 +141,18 @@ export function createMathEditorViewSession(args: {
     const {
       card,
       textarea,
-      preview,
       cancelButton,
       saveButton,
     } = createMathEditorElements();
 
     editorElement.replaceChildren(card);
     textareaElement = textarea;
-    previewElement = preview;
+    initialLatex = state.latex;
     draftLatex = state.latex;
     textareaElement.value = draftLatex;
     scheduleOutsideMouseDownSuppression();
 
-    textareaElement.addEventListener('input', () => updatePreview(state.displayMode));
+    textareaElement.addEventListener('input', () => syncDraftToNode(state));
     textareaElement.addEventListener('keydown', (e) => {
       if (e.isComposing) {
         return;
@@ -175,7 +170,6 @@ export function createMathEditorViewSession(args: {
     cancelButton.addEventListener('click', cancelAndClose);
     saveButton.addEventListener('click', saveAndClose);
     renderedState = { nodePos: state.nodePos, displayMode: state.displayMode };
-    updatePreview(state.displayMode);
 
     setTimeout(() => {
       const nextTextarea = textareaElement;

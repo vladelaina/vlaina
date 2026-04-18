@@ -13,8 +13,16 @@ import { NotesSidebarModeLab } from './playground/NotesSidebarModeLab';
 import { MembershipBadgeLab } from './playground/MembershipBadgeLab';
 import { VlainaInsightSidebarLab } from './playground/VlainaInsightSidebarLab';
 import { SearchDesignLab } from './playground/SearchDesignLab';
+import { MathEditorDialogLab } from './playground/MathEditorDialogLab';
 
 export const LAB_MODULES = [
+  {
+    id: 'math-editor-dialog-50',
+    label: 'Math Editor 50',
+    icon: 'misc.lab',
+    component: MathEditorDialogLab,
+    description: '50 design directions for the math editor dialog. Ten layout systems crossed with five surface skins.'
+  },
   {
     id: 'search-design-20',
     label: 'Search Design 20',

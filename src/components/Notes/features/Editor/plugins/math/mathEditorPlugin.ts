@@ -11,6 +11,49 @@ function getSuppressDeadline() {
   return typeof performance !== 'undefined' ? performance.now() : Date.now();
 }
 
+function isHorizontalScrollbarPointerDown(args: {
+  event: MouseEvent;
+  mathElement: HTMLElement;
+}) {
+  const { event, mathElement } = args;
+  if (typeof window === 'undefined' || mathElement.dataset.type !== 'math-block') {
+    return false;
+  }
+
+  const target = event.target instanceof HTMLElement ? event.target : null;
+  let current: HTMLElement | null = target;
+
+  while (current) {
+    const overflowX = window.getComputedStyle(current).overflowX;
+    const scrollbarHeight = current.offsetHeight - current.clientHeight;
+    const hasHorizontalScrollbar =
+      (overflowX === 'auto' || overflowX === 'scroll') &&
+      current.scrollWidth > current.clientWidth &&
+      scrollbarHeight > 0;
+
+    if (hasHorizontalScrollbar) {
+      const rect = current.getBoundingClientRect();
+      const hitHorizontalScrollbar =
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.bottom - scrollbarHeight &&
+        event.clientY <= rect.bottom;
+
+      if (hitHorizontalScrollbar) {
+        return true;
+      }
+    }
+
+    if (current === mathElement) {
+      break;
+    }
+
+    current = current.parentElement;
+  }
+
+  return false;
+}
+
 function createOpenMetaResolver(view: {
   state: { doc: { resolve: (pos: number) => unknown; nodeAt: (pos: number) => unknown } };
   nodeDOM?: (pos: number) => Node | null;
@@ -73,6 +116,10 @@ export const mathEditorPlugin = $prose(() => {
             return false;
           }
 
+          if (isHorizontalScrollbarPointerDown({ event, mathElement })) {
+            return false;
+          }
+
           try {
             const meta = createOpenMetaResolver(view)({
               pos: view.posAtDOM(mathElement, 0),
@@ -93,6 +140,14 @@ export const mathEditorPlugin = $prose(() => {
       handleClick(view, pos, event) {
         if (shouldIgnoreOpen(mathEditorPluginKey.getState(view.state) as MathEditorState | undefined)) {
           return false;
+        }
+
+        const target = event.target instanceof HTMLElement ? event.target : null;
+        const mathElement = target?.closest('[data-type="math-block"], [data-type="math-inline"]');
+        if (mathElement instanceof HTMLElement && view.dom.contains(mathElement)) {
+          if (isHorizontalScrollbarPointerDown({ event, mathElement })) {
+            return false;
+          }
         }
 
         const meta = createOpenMetaResolver(view)({
