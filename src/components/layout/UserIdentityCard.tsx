@@ -5,6 +5,7 @@ import { useUserAvatar } from '@/hooks/useUserAvatar';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { ManagedQuotaMeter } from './ManagedQuotaMeter';
+import { BillingPlansDialog } from './BillingPlansDialog';
 
 interface UserIdentityCardProps {
   onLogout: () => void | Promise<void>;
@@ -14,6 +15,7 @@ interface UserIdentityCardProps {
 export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, onSwitchAccount }) => {
   const { username, primaryEmail, isConnected, membershipTier, membershipName } = useAccountSessionStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isBillingDialogOpen, setIsBillingDialogOpen] = useState(false);
 
   const displayName = username || primaryEmail || 'vlaina';
   const displayIdentity = primaryEmail || username || 'vlaina';
@@ -87,7 +89,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
         {isMenuOpen && (
           <>
             <div className="fixed inset-0 z-[60]" onClick={() => setIsMenuOpen(false)} />
-            <div className="absolute left-[calc(100%-10px)] top-8 z-[70] w-40 rounded-lg border border-[var(--vlaina-border)] bg-[var(--vlaina-bg-primary)] p-1 shadow-xl animate-in fade-in-0 zoom-in-95 slide-in-from-top-1">
+            <div className="absolute left-[calc(100%-10px)] top-8 z-[70] w-44 rounded-lg border border-[var(--vlaina-border)] bg-[var(--vlaina-bg-primary)] p-1 shadow-xl animate-in fade-in-0 zoom-in-95 slide-in-from-top-1">
               <button
                 onClick={() => {
                   setIsMenuOpen(false);
@@ -100,6 +102,19 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
               >
                 <Icon size="md" name="user.switch" />
                 Switch Account
+              </button>
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  setIsBillingDialogOpen(true);
+                }}
+                className={cn(
+                  'flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] font-medium transition-colors',
+                  iconButtonStyles
+                )}
+              >
+                <Icon size="md" name="misc.crown" />
+                Membership
               </button>
               <button
                 onClick={() => {
@@ -118,6 +133,8 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
           </>
         )}
       </div>
+
+      <BillingPlansDialog open={isBillingDialogOpen} onOpenChange={setIsBillingDialogOpen} />
     </div>
   );
 };
