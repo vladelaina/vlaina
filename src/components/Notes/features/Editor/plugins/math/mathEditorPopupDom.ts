@@ -1,11 +1,9 @@
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
-import type { MathRenderErrorDetails } from './katex';
 
 export interface MathEditorElements {
   card: HTMLElement;
   content: HTMLElement;
   textarea: HTMLTextAreaElement;
-  preview: HTMLElement;
   actions: HTMLElement;
   cancelButton: HTMLButtonElement;
   saveButton: HTMLButtonElement;
@@ -25,9 +23,6 @@ export function createMathEditorElements(): MathEditorElements {
   textarea.className = 'math-editor-textarea';
   textarea.placeholder = 'Enter LaTeX...';
 
-  const preview = document.createElement('div');
-  preview.className = 'math-editor-preview';
-
   const actions = document.createElement('div');
   actions.className = 'math-editor-footer';
 
@@ -43,60 +38,10 @@ export function createMathEditorElements(): MathEditorElements {
   saveButton.setAttribute('aria-label', 'Apply');
   saveButton.innerHTML = EDITOR_ICONS.reviewApply;
 
-  content.append(preview, textarea);
+  content.append(textarea);
   actions.append(cancelButton, saveButton);
   body.append(content, actions);
   card.append(body);
 
-  return { card, content, textarea, preview, actions, cancelButton, saveButton };
-}
-
-export function renderMathEditorPreview(args: {
-  preview: HTMLElement;
-  html: string;
-  error: string | null;
-  errorDetails: MathRenderErrorDetails | null;
-  displayMode: boolean;
-}) {
-  const { preview, html, error, errorDetails, displayMode } = args;
-  preview.innerHTML = '';
-
-  const content = document.createElement('div');
-  content.className = `math-editor-preview-content${displayMode ? ' display-mode' : ''}`;
-  content.innerHTML = html;
-  preview.appendChild(content);
-
-  if (!error) {
-    return;
-  }
-
-  const errorElement = document.createElement('div');
-  errorElement.className = 'math-editor-error';
-  const summaryElement = document.createElement('div');
-  summaryElement.className = 'math-editor-error-summary';
-  summaryElement.textContent = errorDetails?.summary ?? error;
-  errorElement.appendChild(summaryElement);
-
-  if (errorDetails?.locationLabel) {
-    const locationElement = document.createElement('div');
-    locationElement.className = 'math-editor-error-location';
-    locationElement.textContent = errorDetails.locationLabel;
-    errorElement.appendChild(locationElement);
-  }
-
-  if (errorDetails?.context && errorDetails.pointer) {
-    const contextElement = document.createElement('pre');
-    contextElement.className = 'math-editor-error-context';
-    contextElement.textContent = `${errorDetails.context}\n${errorDetails.pointer}`;
-    errorElement.appendChild(contextElement);
-  }
-
-  if (errorDetails?.rawMessage && errorDetails.rawMessage !== errorDetails.summary) {
-    const rawElement = document.createElement('div');
-    rawElement.className = 'math-editor-error-raw';
-    rawElement.textContent = errorDetails.rawMessage;
-    errorElement.appendChild(rawElement);
-  }
-
-  preview.appendChild(errorElement);
+  return { card, content, textarea, actions, cancelButton, saveButton };
 }
