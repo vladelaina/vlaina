@@ -432,6 +432,7 @@ pub fn run() {
             account::auth::session_commands::verify_email_auth_code,
             account::auth::managed_api_commands::get_managed_models,
             account::auth::managed_api_commands::get_managed_budget,
+            account::auth::managed_api_commands::create_billing_checkout,
             account::auth::managed_api_commands::managed_chat_completion,
             account::auth::managed_api_commands::managed_chat_completion_stream,
         ])

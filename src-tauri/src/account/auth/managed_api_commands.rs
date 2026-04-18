@@ -1,6 +1,6 @@
 use crate::account::credentials::get_stored_app_session_token;
 use futures_util::StreamExt;
-use serde_json::Value;
+use serde_json::{json, Value};
 use tauri::Emitter;
 
 use super::{
@@ -25,6 +25,14 @@ fn managed_budget_url() -> String {
 
 fn managed_chat_completions_url() -> String {
     format!("{}/chat/completions", managed_api_base_url())
+}
+
+fn managed_billing_base_url() -> String {
+    format!("{}/billing", read_api_base_url())
+}
+
+fn managed_billing_checkout_url() -> String {
+    format!("{}/checkout", managed_billing_base_url())
 }
 
 fn managed_chat_stream_chunk_event(request_id: &str) -> String {
@@ -127,6 +135,19 @@ pub async fn managed_chat_completion(app: tauri::AppHandle, body: Value) -> Resu
         reqwest::Method::POST,
         managed_chat_completions_url(),
         Some(&body),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn create_billing_checkout(app: tauri::AppHandle, tier: String) -> Result<Value, String> {
+    let session_token = require_managed_session_token(&app)?;
+    request_managed_json(
+        &app,
+        &session_token,
+        reqwest::Method::POST,
+        managed_billing_checkout_url(),
+        Some(&json!({ "tier": tier })),
     )
     .await
 }

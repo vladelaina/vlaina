@@ -13,9 +13,12 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { ToastContainer } from '@/components/ui/Toast';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { useAIStore } from '@/stores/useAIStore';
+import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useVaultStore } from '@/stores/useVaultStore';
+import { useAccountSessionStore } from '@/stores/accountSession';
+import { useToastStore } from '@/stores/useToastStore';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import { useSyncInit } from '@/hooks/useSyncInit';
 import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
@@ -351,6 +354,36 @@ function App() {
     document.addEventListener('contextmenu', handleContextMenu);
     return () => document.removeEventListener('contextmenu', handleContextMenu);
   }, []);
+
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    const billingResult = url.searchParams.get('billing')
+
+    if (billingResult !== 'success' && billingResult !== 'cancel') {
+      return
+    }
+
+    url.searchParams.delete('billing')
+    window.history.replaceState({}, document.title, url.toString())
+
+    const addToast = useToastStore.getState().addToast
+    if (billingResult === 'success') {
+      addToast('Checkout completed. Membership will refresh shortly.', 'success', 5000)
+      void useAccountSessionStore.getState().checkStatus()
+      void useManagedAIStore.getState().refreshBudget()
+
+      const timer = window.setTimeout(() => {
+        void useAccountSessionStore.getState().checkStatus()
+        void useManagedAIStore.getState().refreshBudget()
+      }, 4000)
+
+      return () => {
+        window.clearTimeout(timer)
+      }
+    }
+
+    addToast('Checkout was canceled.', 'info', 3500)
+  }, [])
 
   return (
     <ThemeProvider>
