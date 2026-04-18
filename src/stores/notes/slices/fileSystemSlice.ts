@@ -37,6 +37,8 @@ import {
 import { markExpectedExternalChange } from '../document/externalChangeRegistry';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { createDraftNotePath } from '../draftNote';
+import { suspendExternalSync } from '../document/externalSyncControl';
+import { logNotesDebug } from '../debugLog';
 import {
 } from '../document/externalPathSync';
 
@@ -100,6 +102,15 @@ function replaceCurrentTabOrAppend(
   const nextTabs = [...openTabs];
   nextTabs[currentTabIndex] = nextTab;
   return nextTabs;
+}
+
+async function runWithExternalSyncSuspended<T>(task: () => Promise<T>): Promise<T> {
+  const resumeExternalSync = await suspendExternalSync();
+  try {
+    return await task();
+  } finally {
+    resumeExternalSync();
+  }
 }
 
 function createBlankDraftState({
@@ -300,50 +311,53 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         set({ notesPath });
       }
 
-      const currentRootFolder = ensureRootFolderState(rootFolder);
-      const { 
-          relativePath, 
-          content,
-          fileName, 
-          updatedMetadata, 
-          newChildren, 
-          updatedRecent 
-      } = await createNoteImpl(notesPath, folderPath, undefined, '', {
-        rootFolder: currentRootFolder,
-        recentNotes,
-        noteMetadata,
-      });
+      return await runWithExternalSyncSuspended(async () => {
+        const currentRootFolder = ensureRootFolderState(rootFolder);
+        const {
+            relativePath,
+            content,
+            modifiedAt,
+            fileName,
+            updatedMetadata,
+            newChildren,
+            updatedRecent
+        } = await createNoteImpl(notesPath, folderPath, undefined, '', {
+          rootFolder: currentRootFolder,
+          recentNotes,
+          noteMetadata,
+        });
 
-      const nextRootFolder = buildSortedRootFolder(
-        currentRootFolder,
-        newChildren,
-        fileTreeSortMode,
-        updatedMetadata
-      );
+        const nextRootFolder = buildSortedRootFolder(
+          currentRootFolder,
+          newChildren,
+          fileTreeSortMode,
+          updatedMetadata
+        );
 
-      set({
-        rootFolder: nextRootFolder,
-        noteMetadata: updatedMetadata,
-      });
+        set({
+          rootFolder: nextRootFolder,
+          noteMetadata: updatedMetadata,
+        });
 
-      const tabName = getNoteTitleFromPath(fileName);
-      const newTab = { path: relativePath, name: tabName, isDirty: false };
-      const updatedTabs = replaceCurrentTabOrAppend(openTabs, currentNote?.path, newTab);
+        const tabName = getNoteTitleFromPath(fileName);
+        const newTab = { path: relativePath, name: tabName, isDirty: false };
+        const updatedTabs = replaceCurrentTabOrAppend(openTabs, currentNote?.path, newTab);
 
-      set({
-        currentNote: { path: relativePath, content },
-        isDirty: false,
-        openTabs: updatedTabs,
-        recentNotes: updatedRecent,
-        isNewlyCreated: true,
-        noteContentsCache: setCachedNoteContent(noteContentsCache, relativePath, content, null),
+        set({
+          currentNote: { path: relativePath, content },
+          isDirty: false,
+          openTabs: updatedTabs,
+          recentNotes: updatedRecent,
+          isNewlyCreated: true,
+          noteContentsCache: setCachedNoteContent(noteContentsCache, relativePath, content, modifiedAt),
+        });
+        persistWorkspaceSnapshot(notesPath, {
+          rootFolder: nextRootFolder,
+          currentNotePath: relativePath,
+          fileTreeSortMode,
+        });
+        return relativePath;
       });
-      persistWorkspaceSnapshot(notesPath, {
-        rootFolder: nextRootFolder,
-        currentNotePath: relativePath,
-        fileTreeSortMode,
-      });
-      return relativePath;
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to create note' });
       throw error;
@@ -384,59 +398,62 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         set({ notesPath });
       }
 
-      const currentRootFolder = ensureRootFolderState(rootFolder);
-      if (folderPath) {
-        const folderFullPath = await joinPath(notesPath, folderPath);
-        if (!await storage.exists(folderFullPath)) {
-            await storage.mkdir(folderFullPath, true);
+      return await runWithExternalSyncSuspended(async () => {
+        const currentRootFolder = ensureRootFolderState(rootFolder);
+        if (folderPath) {
+          const folderFullPath = await joinPath(notesPath, folderPath);
+          if (!await storage.exists(folderFullPath)) {
+              await storage.mkdir(folderFullPath, true);
+          }
         }
-      }
 
-      const { 
-          relativePath, 
-          content: createdContent,
-          fileName,
-          updatedMetadata, 
-          newChildren, 
-          updatedRecent 
-      } = await createNoteImpl(notesPath, folderPath, name, content, {
-        rootFolder: currentRootFolder,
-        recentNotes,
-        noteMetadata,
-      });
+        const {
+            relativePath,
+            content: createdContent,
+            modifiedAt,
+            fileName,
+            updatedMetadata,
+            newChildren,
+            updatedRecent
+        } = await createNoteImpl(notesPath, folderPath, name, content, {
+          rootFolder: currentRootFolder,
+          recentNotes,
+          noteMetadata,
+        });
 
-      const nextRootFolder = buildSortedRootFolder(
-        currentRootFolder,
-        newChildren,
-        fileTreeSortMode,
-        updatedMetadata
-      );
+        const nextRootFolder = buildSortedRootFolder(
+          currentRootFolder,
+          newChildren,
+          fileTreeSortMode,
+          updatedMetadata
+        );
 
-      set({
-        rootFolder: nextRootFolder,
-        noteMetadata: updatedMetadata,
-      });
+        set({
+          rootFolder: nextRootFolder,
+          noteMetadata: updatedMetadata,
+        });
 
-      const tabName = getNoteTitleFromPath(fileName);
-      const updatedTabs = replaceCurrentTabOrAppend(openTabs, currentNote?.path, {
-        path: relativePath,
-        name: tabName,
-        isDirty: false,
-      });
+        const tabName = getNoteTitleFromPath(fileName);
+        const updatedTabs = replaceCurrentTabOrAppend(openTabs, currentNote?.path, {
+          path: relativePath,
+          name: tabName,
+          isDirty: false,
+        });
 
-      set({
-        currentNote: { path: relativePath, content: createdContent },
-        isDirty: false,
-        recentNotes: updatedRecent,
-        openTabs: updatedTabs,
-        noteContentsCache: setCachedNoteContent(noteContentsCache, relativePath, createdContent, null),
+        set({
+          currentNote: { path: relativePath, content: createdContent },
+          isDirty: false,
+          recentNotes: updatedRecent,
+          openTabs: updatedTabs,
+          noteContentsCache: setCachedNoteContent(noteContentsCache, relativePath, createdContent, modifiedAt),
+        });
+        persistWorkspaceSnapshot(notesPath, {
+          rootFolder: nextRootFolder,
+          currentNotePath: relativePath,
+          fileTreeSortMode,
+        });
+        return relativePath;
       });
-      persistWorkspaceSnapshot(notesPath, {
-        rootFolder: nextRootFolder,
-        currentNotePath: relativePath,
-        fileTreeSortMode,
-      });
-      return relativePath;
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to create note' });
       throw error;
@@ -457,59 +474,80 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       displayNames,
     } = get();
     try {
-        const result = await deleteNoteImpl(
-          notesPath,
-          path,
-          { rootFolder, currentNote, openTabs, starredEntries, noteMetadata }
-        );
+        await runWithExternalSyncSuspended(async () => {
+          logNotesDebug('fileSystemSlice:deleteNote:start', {
+            notePath: path,
+            currentNotePath: currentNote?.path ?? null,
+            isDirty: get().isDirty,
+            openTabCount: openTabs.length,
+          });
+          const result = await deleteNoteImpl(
+            notesPath,
+            path,
+            { rootFolder, currentNote, openTabs, starredEntries, noteMetadata }
+          );
 
-        const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = getStateForPathDeletion({
-          path,
-          recentNotes,
-          displayNames,
-          noteContentsCache,
+          const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = getStateForPathDeletion({
+            path,
+            recentNotes,
+            displayNames,
+            noteContentsCache,
+          });
+          if (nextRecentNotes !== recentNotes) {
+            persistRecentNotes(nextRecentNotes);
+          }
+
+          set({
+              openTabs: result.updatedTabs,
+              starredEntries: result.updatedStarredEntries,
+              starredNotes: result.updatedStarredNotes,
+              starredFolders: result.updatedStarredFolders,
+              recentNotes: nextRecentNotes,
+              displayNames: nextDisplayNames,
+              noteMetadata: result.updatedMetadata ?? noteMetadata,
+              noteContentsCache: nextNoteContentsCache,
+          });
+
+          if (currentNote?.path === path) {
+            set({ currentNote: null, isDirty: false });
+            logNotesDebug('fileSystemSlice:deleteNote:cleared-current-note', {
+              notePath: path,
+            });
+          }
+
+          const nextRootFolder = buildSortedRootFolder(
+            rootFolder,
+            result.newChildren,
+            fileTreeSortMode,
+            result.updatedMetadata ?? noteMetadata
+          );
+          if (nextRootFolder) {
+            set({ rootFolder: nextRootFolder });
+          }
+
+          persistWorkspaceSnapshot(notesPath, {
+            rootFolder: nextRootFolder ?? rootFolder,
+            currentNotePath:
+              result.nextAction?.path ??
+              (currentNote?.path === path ? null : currentNote?.path ?? null),
+            fileTreeSortMode,
+          });
+
+          if (result.nextAction && result.nextAction.type === 'open') {
+              await get().openNote(result.nextAction.path);
+          }
+          logNotesDebug('fileSystemSlice:deleteNote:finish', {
+            notePath: path,
+            nextAction: result.nextAction,
+            currentNotePath: get().currentNote?.path ?? null,
+            openTabCount: get().openTabs.length,
+          });
         });
-        if (nextRecentNotes !== recentNotes) {
-          persistRecentNotes(nextRecentNotes);
-        }
-        
-        set({ 
-            openTabs: result.updatedTabs,
-            starredEntries: result.updatedStarredEntries,
-            starredNotes: result.updatedStarredNotes,
-            starredFolders: result.updatedStarredFolders,
-            recentNotes: nextRecentNotes,
-            displayNames: nextDisplayNames,
-            noteMetadata: result.updatedMetadata ?? noteMetadata,
-            noteContentsCache: nextNoteContentsCache,
-        });
-
-        if (currentNote?.path === path) {
-          set({ currentNote: null, isDirty: false });
-        }
-
-        const nextRootFolder = buildSortedRootFolder(
-          rootFolder,
-          result.newChildren,
-          fileTreeSortMode,
-          result.updatedMetadata ?? noteMetadata
-        );
-        if (nextRootFolder) {
-          set({ rootFolder: nextRootFolder });
-        }
-
-        persistWorkspaceSnapshot(notesPath, {
-          rootFolder: nextRootFolder ?? rootFolder,
-          currentNotePath:
-            result.nextAction?.path ??
-            (currentNote?.path === path ? null : currentNote?.path ?? null),
-          fileTreeSortMode,
-        });
-
-        if (result.nextAction && result.nextAction.type === 'open') {
-            await get().openNote(result.nextAction.path);
-        }
     } catch (error) {
+        logNotesDebug('fileSystemSlice:deleteNote:error', {
+          notePath: path,
+          error,
+        });
         set({ error: error instanceof Error ? error.message : 'Failed to delete note' });
     }
   },
@@ -528,49 +566,51 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       displayNames,
     } = get();
     try {
-        const result = await renameNoteImpl(
-            notesPath, path, newName, 
-            { rootFolder, currentNote, openTabs, starredEntries, noteMetadata }
-        );
+        await runWithExternalSyncSuspended(async () => {
+          const result = await renameNoteImpl(
+              notesPath, path, newName,
+              { rootFolder, currentNote, openTabs, starredEntries, noteMetadata }
+          );
 
-        if (!result) return;
+          if (!result) return;
 
-        const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = getStateForPathRename({
-          oldPath: path,
-          newPath: result.newPath,
-          recentNotes,
-          displayNames,
-          noteContentsCache,
-        });
-        if (nextRecentNotes !== recentNotes) {
-          persistRecentNotes(nextRecentNotes);
-        }
+          const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = getStateForPathRename({
+            oldPath: path,
+            newPath: result.newPath,
+            recentNotes,
+            displayNames,
+            noteContentsCache,
+          });
+          if (nextRecentNotes !== recentNotes) {
+            persistRecentNotes(nextRecentNotes);
+          }
 
-        set({
-            starredEntries: result.updatedStarredEntries,
-            starredNotes: result.updatedStarredNotes,
-            starredFolders: result.updatedStarredFolders,
-            noteMetadata: result.updatedMetadata,
-            openTabs: result.updatedTabs,
-            currentNote: result.nextCurrentNote,
-            recentNotes: nextRecentNotes,
-            displayNames: nextDisplayNames,
-            noteContentsCache: nextNoteContentsCache,
-        });
+          set({
+              starredEntries: result.updatedStarredEntries,
+              starredNotes: result.updatedStarredNotes,
+              starredFolders: result.updatedStarredFolders,
+              noteMetadata: result.updatedMetadata,
+              openTabs: result.updatedTabs,
+              currentNote: result.nextCurrentNote,
+              recentNotes: nextRecentNotes,
+              displayNames: nextDisplayNames,
+              noteContentsCache: nextNoteContentsCache,
+          });
 
-        const nextRootFolder = buildSortedRootFolder(
-          rootFolder,
-          result.updatedChildren,
-          fileTreeSortMode,
-          result.updatedMetadata
-        );
-        if (nextRootFolder) {
-          set({ rootFolder: nextRootFolder });
-        }
-        persistWorkspaceSnapshot(notesPath, {
-          rootFolder: nextRootFolder ?? rootFolder,
-          currentNotePath: result.nextCurrentNote?.path ?? null,
-          fileTreeSortMode,
+          const nextRootFolder = buildSortedRootFolder(
+            rootFolder,
+            result.updatedChildren,
+            fileTreeSortMode,
+            result.updatedMetadata
+          );
+          if (nextRootFolder) {
+            set({ rootFolder: nextRootFolder });
+          }
+          persistWorkspaceSnapshot(notesPath, {
+            rootFolder: nextRootFolder ?? rootFolder,
+            currentNotePath: result.nextCurrentNote?.path ?? null,
+            fileTreeSortMode,
+          });
         });
     } catch (error) {
         set({ error: error instanceof Error ? error.message : 'Failed to rename note' });
@@ -593,75 +633,77 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
     const storage = getStorageAdapter();
 
     try {
-      const fullPath = await joinPath(notesPath, path);
-      const {
-        relativePath: newPath,
-        fullPath: newFullPath,
-        fileName: resolvedFolderName,
-      } = await resolveUniqueRenamedPath(notesPath, path, newName, true);
+      await runWithExternalSyncSuspended(async () => {
+        const fullPath = await joinPath(notesPath, path);
+        const {
+          relativePath: newPath,
+          fullPath: newFullPath,
+          fileName: resolvedFolderName,
+        } = await resolveUniqueRenamedPath(notesPath, path, newName, true);
 
-      if (newPath === path) {
-        return;
-      }
+        if (newPath === path) {
+          return;
+        }
 
-      markExpectedExternalChange(fullPath, true);
-      markExpectedExternalChange(newFullPath, true);
-      await storage.rename(fullPath, newFullPath);
+        markExpectedExternalChange(fullPath, true);
+        markExpectedExternalChange(newFullPath, true);
+        await storage.rename(fullPath, newFullPath);
 
-      const {
-          updatedStarredEntries,
-          updatedStarredFolders,
-          updatedStarredNotes,
-          updatedTabs,
-          updatedCurrentNote,
-          updatedMetadata,
-      } = await processFolderRename(
-        notesPath,
-        path,
-        resolvedFolderName,
-        { rootFolder, currentNote, openTabs, starredEntries, noteMetadata }
-      );
-
-      const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = getStateForPathRename({
-        oldPath: path,
-        newPath,
-        recentNotes,
-        displayNames,
-        noteContentsCache,
-      });
-      if (nextRecentNotes !== recentNotes) {
-        persistRecentNotes(nextRecentNotes);
-      }
-
-      set({
-        starredEntries: updatedStarredEntries,
-        starredFolders: updatedStarredFolders,
-        starredNotes: updatedStarredNotes,
-        noteMetadata: updatedMetadata ?? noteMetadata,
-        recentNotes: nextRecentNotes,
-        displayNames: nextDisplayNames,
-        noteContentsCache: nextNoteContentsCache,
-      });
-
-      if (rootFolder) {
-        const updatedChildren = updateFolderNode(rootFolder.children, path, resolvedFolderName, newPath);
-        const nextRootFolder = buildSortedRootFolder(
-          rootFolder,
-          updatedChildren,
-          fileTreeSortMode,
-          updatedMetadata ?? noteMetadata
+        const {
+            updatedStarredEntries,
+            updatedStarredFolders,
+            updatedStarredNotes,
+            updatedTabs,
+            updatedCurrentNote,
+            updatedMetadata,
+        } = await processFolderRename(
+          notesPath,
+          path,
+          resolvedFolderName,
+          { rootFolder, currentNote, openTabs, starredEntries, noteMetadata }
         );
+
+        const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = getStateForPathRename({
+          oldPath: path,
+          newPath,
+          recentNotes,
+          displayNames,
+          noteContentsCache,
+        });
+        if (nextRecentNotes !== recentNotes) {
+          persistRecentNotes(nextRecentNotes);
+        }
+
         set({
-          rootFolder: nextRootFolder,
-          openTabs: updatedTabs,
-          currentNote: updatedCurrentNote,
+          starredEntries: updatedStarredEntries,
+          starredFolders: updatedStarredFolders,
+          starredNotes: updatedStarredNotes,
+          noteMetadata: updatedMetadata ?? noteMetadata,
+          recentNotes: nextRecentNotes,
+          displayNames: nextDisplayNames,
+          noteContentsCache: nextNoteContentsCache,
         });
-        persistWorkspaceSnapshot(notesPath, {
-          rootFolder: nextRootFolder ?? rootFolder,
-          currentNotePath: updatedCurrentNote?.path ?? null,
-          fileTreeSortMode,
-        });
-      }
+
+        if (rootFolder) {
+          const updatedChildren = updateFolderNode(rootFolder.children, path, resolvedFolderName, newPath);
+          const nextRootFolder = buildSortedRootFolder(
+            rootFolder,
+            updatedChildren,
+            fileTreeSortMode,
+            updatedMetadata ?? noteMetadata
+          );
+          set({
+            rootFolder: nextRootFolder,
+            openTabs: updatedTabs,
+            currentNote: updatedCurrentNote,
+          });
+          persistWorkspaceSnapshot(notesPath, {
+            rootFolder: nextRootFolder ?? rootFolder,
+            currentNotePath: updatedCurrentNote?.path ?? null,
+            fileTreeSortMode,
+          });
+        }
+      });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to rename folder' });
     }
@@ -675,17 +717,7 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       if (!notesPath) {
         const currentVaultPath = getCurrentVaultPath();
         if (!currentVaultPath) {
-          const { draftPath, nextState } = createBlankDraftState({
-            folderPath,
-            openTabs,
-            currentNote,
-            currentNoteRevision,
-            noteContentsCache,
-            draftNotes,
-            displayNames,
-          });
-          set(nextState);
-          return draftPath;
+          return null;
         }
 
         notesPath = currentVaultPath;
@@ -693,41 +725,43 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
         set({ notesPath });
       }
 
-      const {
-        relativePath: folderPath,
-        fullPath,
-        fileName: folderName,
-      } = await resolveUniquePath(notesPath, parentPath || undefined, name || 'Untitled', true);
+      return await runWithExternalSyncSuspended(async () => {
+        const {
+          relativePath: folderPath,
+          fullPath,
+          fileName: folderName,
+        } = await resolveUniquePath(notesPath, parentPath || undefined, name || 'Untitled', true);
 
-      markExpectedExternalChange(fullPath, true);
-      await storage.mkdir(fullPath, true);
+        markExpectedExternalChange(fullPath, true);
+        await storage.mkdir(fullPath, true);
 
-      const newNode: any = {
-        id: folderPath,
-        name: folderName,
-        path: folderPath,
-        isFolder: true,
-        children: [],
-        expanded: false
-      };
+        const newNode: any = {
+          id: folderPath,
+          name: folderName,
+          path: folderPath,
+          isFolder: true,
+          children: [],
+          expanded: false
+        };
 
-      const currentRootFolder = ensureRootFolderState(get().rootFolder);
-      const nextRootFolder = buildSortedRootFolder(
-        currentRootFolder,
-        addNodeToTree(currentRootFolder.children, parentPath, newNode),
-        fileTreeSortMode,
-        noteMetadata
-      );
-      set({
-        rootFolder: nextRootFolder,
-        newlyCreatedFolderPath: !name ? folderPath : null,
+        const currentRootFolder = ensureRootFolderState(get().rootFolder);
+        const nextRootFolder = buildSortedRootFolder(
+          currentRootFolder,
+          addNodeToTree(currentRootFolder.children, parentPath, newNode),
+          fileTreeSortMode,
+          noteMetadata
+        );
+        set({
+          rootFolder: nextRootFolder,
+          newlyCreatedFolderPath: !name ? folderPath : null,
+        });
+        persistWorkspaceSnapshot(notesPath, {
+          rootFolder: nextRootFolder,
+          currentNotePath: get().currentNote?.path ?? null,
+          fileTreeSortMode,
+        });
+        return folderPath;
       });
-      persistWorkspaceSnapshot(notesPath, {
-        rootFolder: nextRootFolder,
-        currentNotePath: get().currentNote?.path ?? null,
-        fileTreeSortMode,
-      });
-      return folderPath;
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to create folder' });
       return null;
@@ -750,57 +784,59 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       displayNames,
     } = get();
     try {
-        const result = await deleteFolderImpl(
-            notesPath, path,
-            { rootFolder, currentNote, openTabs, starredEntries, noteMetadata }
-        );
+        await runWithExternalSyncSuspended(async () => {
+          const result = await deleteFolderImpl(
+              notesPath, path,
+              { rootFolder, currentNote, openTabs, starredEntries, noteMetadata }
+          );
 
-        const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = getStateForPathDeletion({
-          path,
-          recentNotes,
-          displayNames,
-          noteContentsCache,
+          const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = getStateForPathDeletion({
+            path,
+            recentNotes,
+            displayNames,
+            noteContentsCache,
+          });
+          if (nextRecentNotes !== recentNotes) {
+            persistRecentNotes(nextRecentNotes);
+          }
+
+          set({
+              starredEntries: result.updatedStarredEntries,
+              starredFolders: result.updatedStarredFolders,
+              starredNotes: result.updatedStarredNotes,
+              openTabs: result.updatedTabs,
+              recentNotes: nextRecentNotes,
+              displayNames: nextDisplayNames,
+              noteMetadata: result.updatedMetadata ?? noteMetadata,
+              noteContentsCache: nextNoteContentsCache,
+          });
+
+          if (currentNote && isPathWithinFolder(currentNote.path, path)) {
+            set({ currentNote: null, isDirty: false });
+          }
+
+          const nextRootFolder = buildSortedRootFolder(
+            rootFolder,
+            result.newChildren,
+            fileTreeSortMode,
+            result.updatedMetadata ?? noteMetadata
+          );
+          if (nextRootFolder) {
+            set({ rootFolder: nextRootFolder });
+          }
+
+          persistWorkspaceSnapshot(notesPath, {
+            rootFolder: nextRootFolder ?? rootFolder,
+            currentNotePath:
+              result.nextAction?.path ??
+              (currentNote && isPathWithinFolder(currentNote.path, path) ? null : currentNote?.path ?? null),
+            fileTreeSortMode,
+          });
+
+          if (result.nextAction && result.nextAction.type === 'open') {
+            await get().openNote(result.nextAction.path);
+          }
         });
-        if (nextRecentNotes !== recentNotes) {
-          persistRecentNotes(nextRecentNotes);
-        }
-
-        set({
-            starredEntries: result.updatedStarredEntries,
-            starredFolders: result.updatedStarredFolders,
-            starredNotes: result.updatedStarredNotes,
-            openTabs: result.updatedTabs,
-            recentNotes: nextRecentNotes,
-            displayNames: nextDisplayNames,
-            noteMetadata: result.updatedMetadata ?? noteMetadata,
-            noteContentsCache: nextNoteContentsCache,
-        });
-
-        if (currentNote && isPathWithinFolder(currentNote.path, path)) {
-          set({ currentNote: null, isDirty: false });
-        }
-
-        const nextRootFolder = buildSortedRootFolder(
-          rootFolder,
-          result.newChildren,
-          fileTreeSortMode,
-          result.updatedMetadata ?? noteMetadata
-        );
-        if (nextRootFolder) {
-          set({ rootFolder: nextRootFolder });
-        }
-
-        persistWorkspaceSnapshot(notesPath, {
-          rootFolder: nextRootFolder ?? rootFolder,
-          currentNotePath:
-            result.nextAction?.path ??
-            (currentNote && isPathWithinFolder(currentNote.path, path) ? null : currentNote?.path ?? null),
-          fileTreeSortMode,
-        });
-
-        if (result.nextAction && result.nextAction.type === 'open') {
-          await get().openNote(result.nextAction.path);
-        }
     } catch (error) {
         set({ error: error instanceof Error ? error.message : 'Failed to delete folder' });
     }
@@ -820,51 +856,53 @@ export const createFileSystemSlice: StateCreator<NotesStore, [], [], FileSystemS
       displayNames,
     } = get();
     try {
-        if (isInvalidMoveTarget(sourcePath, targetFolderPath)) {
-          return;
-        }
+        await runWithExternalSyncSuspended(async () => {
+          if (isInvalidMoveTarget(sourcePath, targetFolderPath)) {
+            return;
+          }
 
-        const result = await moveItemImpl(
-            notesPath, sourcePath, targetFolderPath,
-            { rootFolder, currentNote, openTabs, starredEntries, noteMetadata }
-        );
+          const result = await moveItemImpl(
+              notesPath, sourcePath, targetFolderPath,
+              { rootFolder, currentNote, openTabs, starredEntries, noteMetadata }
+          );
 
-        const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = getStateForPathRename({
-          oldPath: result.sourcePath,
-          newPath: result.newPath,
-          recentNotes,
-          displayNames,
-          noteContentsCache,
-        });
-        if (nextRecentNotes !== recentNotes) {
-          persistRecentNotes(nextRecentNotes);
-        }
+          const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = getStateForPathRename({
+            oldPath: result.sourcePath,
+            newPath: result.newPath,
+            recentNotes,
+            displayNames,
+            noteContentsCache,
+          });
+          if (nextRecentNotes !== recentNotes) {
+            persistRecentNotes(nextRecentNotes);
+          }
 
-        set({
-            starredEntries: result.updatedStarredEntries,
-            starredNotes: result.updatedStarredNotes,
-            starredFolders: result.updatedStarredFolders,
-            noteMetadata: result.updatedMetadata ?? noteMetadata,
-            openTabs: result.updatedTabs,
-            currentNote: result.nextCurrentNote,
-            recentNotes: nextRecentNotes,
-            displayNames: nextDisplayNames,
-            noteContentsCache: nextNoteContentsCache,
-        });
+          set({
+              starredEntries: result.updatedStarredEntries,
+              starredNotes: result.updatedStarredNotes,
+              starredFolders: result.updatedStarredFolders,
+              noteMetadata: result.updatedMetadata ?? noteMetadata,
+              openTabs: result.updatedTabs,
+              currentNote: result.nextCurrentNote,
+              recentNotes: nextRecentNotes,
+              displayNames: nextDisplayNames,
+              noteContentsCache: nextNoteContentsCache,
+          });
 
-        const nextRootFolder = buildSortedRootFolder(
-          rootFolder,
-          result.newChildren,
-          fileTreeSortMode,
-          result.updatedMetadata ?? noteMetadata
-        );
-        if (nextRootFolder) {
-          set({ rootFolder: nextRootFolder });
-        }
-        persistWorkspaceSnapshot(notesPath, {
-          rootFolder: nextRootFolder ?? rootFolder,
-          currentNotePath: result.nextCurrentNote?.path ?? null,
-          fileTreeSortMode,
+          const nextRootFolder = buildSortedRootFolder(
+            rootFolder,
+            result.newChildren,
+            fileTreeSortMode,
+            result.updatedMetadata ?? noteMetadata
+          );
+          if (nextRootFolder) {
+            set({ rootFolder: nextRootFolder });
+          }
+          persistWorkspaceSnapshot(notesPath, {
+            rootFolder: nextRootFolder ?? rootFolder,
+            currentNotePath: result.nextCurrentNote?.path ?? null,
+            fileTreeSortMode,
+          });
         });
     } catch (error) {
         set({ error: error instanceof Error ? error.message : 'Failed to move item' });

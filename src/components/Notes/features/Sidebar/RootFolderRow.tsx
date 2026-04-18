@@ -13,6 +13,7 @@ import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
 import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
 import { getSidebarContextMenuPosition, getSidebarMenuPositionFromTriggerRect } from '../common/sidebarMenuPosition';
 import { useFileTreePointerDragState } from '../FileTree/hooks/fileTreePointerDragState';
+import { useExternalFileTreeDropState } from '../FileTree/hooks/externalFileTreeDropState';
 import {
   clearHoveredSidebarRenamePath,
   registerSidebarHoverRenameTarget,
@@ -43,7 +44,9 @@ export function RootFolderRow({
   const [renameValue, setRenameValue] = useState('');
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const isRenamingRef = useRef(false);
-  const isDragOver = useFileTreePointerDragState((state) => state.dropTargetPath === '');
+  const isDragOver =
+    useFileTreePointerDragState((state) => state.dropTargetPath === '') ||
+    useExternalFileTreeDropState((state) => state.dropTargetPath === '');
 
   const title = currentVault?.name || rootFolder?.name || 'Notes';
   const vaultPath = currentVault?.path ?? '';

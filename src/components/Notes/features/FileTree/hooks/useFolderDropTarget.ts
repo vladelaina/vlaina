@@ -1,7 +1,15 @@
 import { useFileTreePointerDragState } from './fileTreePointerDragState';
+import { useExternalFileTreeDropState } from './externalFileTreeDropState';
 
 export function useFolderDropTarget(path: string, enabled = true) {
+  const isInternalDragOver = useFileTreePointerDragState(
+    (state) => enabled && state.dropTargetPath === path,
+  );
+  const isExternalDragOver = useExternalFileTreeDropState(
+    (state) => enabled && state.dropTargetPath === path,
+  );
+
   return {
-    isDragOver: useFileTreePointerDragState((state) => enabled && state.dropTargetPath === path),
+    isDragOver: isInternalDragOver || isExternalDragOver,
   };
 }

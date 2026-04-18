@@ -6,6 +6,7 @@ import { NotesView } from './NotesView';
 
 type MockNotesState = {
   currentNote: { path: string; content: string } | null;
+  noteMetadata: { notes: Record<string, Record<string, unknown>> } | null;
   loadFileTree: ReturnType<typeof vi.fn>;
   openTabs: Array<{ path: string; name: string; isDirty: boolean }>;
   closeTab: ReturnType<typeof vi.fn>;
@@ -34,6 +35,7 @@ type MockNotesState = {
   draftNotes: Record<string, { parentPath: string | null; name: string }>;
   isLoading: boolean;
   openNoteByAbsolutePath: ReturnType<typeof vi.fn>;
+  adoptAbsoluteNoteIntoVault: ReturnType<typeof vi.fn>;
   pendingDraftDiscardPath: string | null;
   cancelPendingDraftDiscard: ReturnType<typeof vi.fn>;
   confirmPendingDraftDiscard: ReturnType<typeof vi.fn>;
@@ -43,6 +45,7 @@ type MockNotesState = {
 const mocks = vi.hoisted(() => {
   const notesState: MockNotesState = {
     currentNote: null,
+    noteMetadata: null,
     loadFileTree: vi.fn().mockResolvedValue(undefined),
     openTabs: [],
     closeTab: vi.fn(),
@@ -71,6 +74,7 @@ const mocks = vi.hoisted(() => {
     draftNotes: {},
     isLoading: false,
     openNoteByAbsolutePath: vi.fn().mockResolvedValue(undefined),
+    adoptAbsoluteNoteIntoVault: vi.fn().mockReturnValue(false),
     pendingDraftDiscardPath: null,
     cancelPendingDraftDiscard: vi.fn(),
     confirmPendingDraftDiscard: vi.fn(),
@@ -90,10 +94,24 @@ const mocks = vi.hoisted(() => {
     setLayoutPanelDragging: vi.fn(),
   };
 
+  const windowState = {
+    dropHandler: null as ((event: { payload: { type: string; paths?: string[] } }) => void) | null,
+    onDragDropEvent: vi.fn(async (handler: (event: { payload: { type: string; paths?: string[] } }) => void) => {
+      windowState.dropHandler = handler;
+      return vi.fn();
+    }),
+  };
+
+  const storageState = {
+    stat: vi.fn(),
+  };
+
   return {
     notesState,
     vaultState,
     uiState,
+    windowState,
+    storageState,
   };
 });
 
@@ -121,6 +139,23 @@ vi.mock('@/lib/tauri/invoke', () => ({
   },
 }));
 
+vi.mock('@tauri-apps/api/window', () => ({
+  getCurrentWindow: () => ({
+    onDragDropEvent: mocks.windowState.onDragDropEvent,
+  }),
+}));
+
+vi.mock('@/lib/storage/adapter', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/storage/adapter')>('@/lib/storage/adapter');
+  return {
+    ...actual,
+    isTauri: vi.fn(() => true),
+    getStorageAdapter: () => ({
+      stat: mocks.storageState.stat,
+    }),
+  };
+});
+
 vi.mock('@/lib/storage/dialog', () => ({
   openDialog: vi.fn(),
   messageDialog: vi.fn(),
@@ -132,8 +167,11 @@ vi.mock('@/lib/notes/openMarkdownFileText', () => ({
 
 vi.mock('./features/OpenTarget/openTargetSelection', () => ({
   getSingleOpenSelection: vi.fn(),
-  isSupportedMarkdownSelection: vi.fn(),
-  resolveOpenNoteTarget: vi.fn(),
+  isSupportedMarkdownSelection: vi.fn((path: string) => path.toLowerCase().endsWith('.md')),
+  resolveOpenNoteTarget: vi.fn((path: string) => ({
+    vaultPath: '/vault',
+    notePath: path.split('/').pop() || path,
+  })),
 }));
 
 vi.mock('@/lib/shortcuts', () => ({
@@ -199,6 +237,7 @@ describe('NotesView', () => {
   beforeEach(() => {
     mocks.vaultState.currentVault = { path: '/vault' };
     notesState.currentNote = null;
+    notesState.noteMetadata = null;
     notesState.openTabs = [];
     notesState.draftNotes = {};
     notesState.isLoading = false;
@@ -210,6 +249,16 @@ describe('NotesView', () => {
       children: [],
       expanded: true,
     };
+    notesState.openNote.mockImplementation(async (path: string) => {
+      notesState.currentNote = { path, content: '' };
+    });
+    notesState.openNoteByAbsolutePath.mockImplementation(async (path: string) => {
+      notesState.currentNote = { path, content: '' };
+    });
+    notesState.adoptAbsoluteNoteIntoVault.mockReturnValue(false);
+    mocks.vaultState.openVault.mockResolvedValue(true);
+    mocks.windowState.dropHandler = null;
+    mocks.storageState.stat.mockReset();
 
     notesState.loadFileTree.mockClear();
     notesState.closeTab.mockClear();
@@ -225,26 +274,32 @@ describe('NotesView', () => {
     notesState.revealFolder.mockClear();
     notesState.setPendingStarredNavigation.mockClear();
     notesState.openNoteByAbsolutePath.mockClear();
+    notesState.adoptAbsoluteNoteIntoVault.mockClear();
     notesState.cancelPendingDraftDiscard.mockClear();
     notesState.confirmPendingDraftDiscard.mockClear();
     notesState.getDisplayName.mockClear();
+    mocks.vaultState.openVault.mockClear();
+    mocks.windowState.onDragDropEvent.mockClear();
 
     uiState.setNotesChatPanelCollapsed.mockClear();
     uiState.toggleNotesChatPanel.mockClear();
     uiState.setLayoutPanelDragging.mockClear();
   });
 
-  it('creates a draft when the workspace is blank', async () => {
+  it('keeps the workspace blank when nothing is open', async () => {
     render(<NotesView />);
 
     await waitFor(() => {
-      expect(notesState.createNote).toHaveBeenCalledTimes(1);
+      expect(mocks.windowState.onDragDropEvent).toHaveBeenCalledTimes(1);
     });
 
+    expect(screen.queryByTestId('markdown-editor')).toBeNull();
+    expect(screen.queryByTestId('blank-workspace-drop-overlay')).toBeNull();
+    expect(notesState.createNote).not.toHaveBeenCalled();
     expect(notesState.openNote).not.toHaveBeenCalled();
   });
 
-  it('reopens an existing draft instead of creating another one', async () => {
+  it('does not auto-open an existing draft when the workspace is blank', async () => {
     notesState.draftNotes = {
       'draft:existing': {
         parentPath: null,
@@ -255,19 +310,95 @@ describe('NotesView', () => {
     render(<NotesView />);
 
     await waitFor(() => {
-      expect(notesState.openNote).toHaveBeenCalledWith('draft:existing');
+      expect(mocks.windowState.onDragDropEvent).toHaveBeenCalledTimes(1);
     });
 
+    expect(screen.queryByTestId('markdown-editor')).toBeNull();
     expect(notesState.createNote).not.toHaveBeenCalled();
+    expect(notesState.openNote).not.toHaveBeenCalled();
   });
 
-  it('creates a draft even when no vault is open', async () => {
+  it('keeps the workspace blank even when no vault is open', async () => {
     mocks.vaultState.currentVault = null;
 
     render(<NotesView />);
 
     await waitFor(() => {
-      expect(notesState.createNote).toHaveBeenCalledTimes(1);
+      expect(mocks.windowState.onDragDropEvent).toHaveBeenCalledTimes(1);
+    });
+
+    expect(screen.queryByTestId('markdown-editor')).toBeNull();
+    expect(notesState.createNote).not.toHaveBeenCalled();
+  });
+
+  it('opens a dropped folder when the workspace is blank', async () => {
+    mocks.storageState.stat.mockResolvedValue({
+      name: 'dropped-vault',
+      path: '/dropped-vault',
+      isDirectory: true,
+      isFile: false,
+    });
+
+    render(<NotesView />);
+
+    await waitFor(() => {
+      expect(mocks.windowState.onDragDropEvent).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      mocks.windowState.dropHandler?.({
+        payload: {
+          type: 'enter',
+          paths: ['/dropped-vault'],
+        },
+      });
+    });
+
+    expect(screen.getByTestId('blank-workspace-drop-overlay')).toBeInTheDocument();
+
+    await act(async () => {
+      mocks.windowState.dropHandler?.({
+        payload: {
+          type: 'drop',
+          paths: ['/dropped-vault'],
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(mocks.vaultState.openVault).toHaveBeenCalledWith('/dropped-vault');
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('blank-workspace-drop-overlay')).toBeNull();
+    });
+  });
+
+  it('opens a dropped markdown file when the workspace is blank', async () => {
+    mocks.storageState.stat.mockResolvedValue({
+      name: 'alpha.md',
+      path: '/vault/alpha.md',
+      isDirectory: false,
+      isFile: true,
+    });
+
+    render(<NotesView />);
+
+    await waitFor(() => {
+      expect(mocks.windowState.onDragDropEvent).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      mocks.windowState.dropHandler?.({
+        payload: {
+          type: 'drop',
+          paths: ['/vault/alpha.md'],
+        },
+      });
+    });
+
+    await waitFor(() => {
+      expect(notesState.openNote).toHaveBeenCalledWith('alpha.md');
     });
   });
 

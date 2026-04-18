@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { SIDEBAR_SCROLL_ROOT_SELECTOR } from '../../Sidebar/context-menu/shared';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { isInvalidMoveTarget } from '@/stores/notes/utils/fs/moveValidation';
+import { resolveInternalMoveDropTargetPath } from './dropTargetDom';
 
 interface FileTreePointerDragSnapshot {
   activeSourcePath: string | null;
@@ -100,31 +100,6 @@ function getScrollRoot() {
   return document.querySelector<HTMLElement>(SIDEBAR_SCROLL_ROOT_SELECTOR);
 }
 
-function resolveDropTargetPath(clientX: number, clientY: number, sourcePath: string) {
-  const elements = document.elementsFromPoint(clientX, clientY);
-
-  for (const element of elements) {
-    if (!(element instanceof HTMLElement)) {
-      continue;
-    }
-
-    const rootDropTarget = element.closest<HTMLElement>('[data-file-tree-root-drop-target="true"]');
-    if (rootDropTarget && !isInvalidMoveTarget(sourcePath, '')) {
-      return '';
-    }
-
-    const folderElement = element.closest<HTMLElement>('[data-file-tree-kind="folder"]');
-    const targetPath = folderElement?.dataset.fileTreePath;
-    if (!targetPath || isInvalidMoveTarget(sourcePath, targetPath)) {
-      continue;
-    }
-
-    return targetPath;
-  }
-
-  return null;
-}
-
 function updateDropTarget() {
   if (!activeSession?.activated) {
     return;
@@ -132,7 +107,7 @@ function updateDropTarget() {
 
   setSnapshot({
     activeSourcePath: activeSession.sourcePath,
-    dropTargetPath: resolveDropTargetPath(
+    dropTargetPath: resolveInternalMoveDropTargetPath(
       activeSession.lastClientX,
       activeSession.lastClientY,
       activeSession.sourcePath,
@@ -252,7 +227,7 @@ function handlePointerMove(event: PointerEvent) {
     updatePreviewPosition();
     setSnapshot({
       activeSourcePath: activeSession.sourcePath,
-      dropTargetPath: resolveDropTargetPath(
+      dropTargetPath: resolveInternalMoveDropTargetPath(
         activeSession.lastClientX,
         activeSession.lastClientY,
         activeSession.sourcePath,

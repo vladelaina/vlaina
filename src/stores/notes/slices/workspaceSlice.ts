@@ -47,6 +47,7 @@ import { remapMetadataEntries } from '../storage';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { readNoteMetadataFromMarkdown } from '../frontmatter';
+import { logNotesDebug } from '../debugLog';
 
 export interface WorkspaceSlice {
   currentNote: NotesStore['currentNote'];
@@ -234,11 +235,19 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     return true;
   },
 
-  saveNote: async (_options) => {
+  saveNote: async (options) => {
     const { currentNote, notesPath, noteContentsCache, noteMetadata, rootFolder, fileTreeSortMode } = get();
-    if (!currentNote) return;
+    if (!currentNote) {
+      logNotesDebug('workspaceSlice:saveNote:ignored-no-current-note');
+      return;
+    }
 
     try {
+      logNotesDebug('workspaceSlice:saveNote:start', {
+        notePath: currentNote.path,
+        explicit: options?.explicit ?? false,
+        isDirty: get().isDirty,
+      });
       const { content, metadata, nextCache } = await saveNoteDocument({
         notesPath,
         currentNote,
@@ -261,7 +270,16 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         openTabs: setNoteTabDirtyState(get().openTabs, currentNote.path, false),
         error: null,
       });
+      logNotesDebug('workspaceSlice:saveNote:finish', {
+        notePath: currentNote.path,
+        explicit: options?.explicit ?? false,
+      });
     } catch (error) {
+      logNotesDebug('workspaceSlice:saveNote:error', {
+        notePath: currentNote.path,
+        explicit: options?.explicit ?? false,
+        error,
+      });
       set({ error: error instanceof Error ? error.message : 'Failed to save note' });
     }
   },
@@ -269,6 +287,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   syncCurrentNoteFromDisk: async () => {
     const { currentNote, notesPath, isDirty, noteContentsCache, openTabs, noteMetadata, rootFolder, fileTreeSortMode } = get();
     if (!currentNote) {
+      logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:ignored-no-current-note');
       return 'ignored';
     }
 
@@ -280,9 +299,20 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       const exists = await storage.exists(fullPath);
       const fileInfo = await storage.stat(fullPath);
       const cachedModifiedAt = getCachedNoteModifiedAt(noteContentsCache, currentNote.path);
+      logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:start', {
+        notePath: currentNote.path,
+        fullPath,
+        isDirty,
+        exists,
+        cachedModifiedAt,
+        nextModifiedAt: fileInfo?.modifiedAt ?? null,
+      });
 
       if (!exists || fileInfo?.isFile === false) {
         if (isDirty) {
+          logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:deleted-conflict', {
+            notePath: currentNote.path,
+          });
           set({ error: 'Current note was deleted outside vlaina while you still have unsaved changes.' });
           return 'deleted-conflict';
         }
@@ -306,15 +336,28 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
           }
         }
 
+        logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:deleted', {
+          notePath: currentNote.path,
+          remainingTabCount: updatedTabs.length,
+        });
         return 'deleted';
       }
 
       const nextModifiedAt = fileInfo?.modifiedAt ?? cachedModifiedAt ?? null;
       if (nextModifiedAt === cachedModifiedAt) {
+        logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:unchanged', {
+          notePath: currentNote.path,
+          modifiedAt: nextModifiedAt,
+        });
         return 'unchanged';
       }
 
       if (isDirty) {
+        logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:conflict', {
+          notePath: currentNote.path,
+          cachedModifiedAt,
+          nextModifiedAt,
+        });
         set({ error: 'Current note changed outside vlaina while you still have unsaved changes.' });
         return 'conflict';
       }
@@ -341,8 +384,18 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         error: null,
       });
 
+      logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:reloaded', {
+        notePath: currentNote.path,
+        cachedModifiedAt,
+        nextModifiedAt,
+        contentLength: nextContent.length,
+      });
       return 'reloaded';
     } catch (error) {
+      logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:error', {
+        notePath: currentNote.path,
+        error,
+      });
       set({ error: error instanceof Error ? error.message : 'Failed to sync note from disk' });
       return 'ignored';
     }

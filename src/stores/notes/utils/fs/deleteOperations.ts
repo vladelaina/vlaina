@@ -4,6 +4,7 @@ import { removeNodeFromTree } from '../../fileTreeUtils';
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
 import { remapMetadataEntries } from '../../storage';
 import type { DeleteOperationResult, FileOperationContext, FileOperationNextAction, NoteTabState } from './operationTypes';
+import { logNotesDebug } from '../../debugLog';
 
 export async function deleteNoteImpl(
     notesPath: string,
@@ -12,6 +13,12 @@ export async function deleteNoteImpl(
 ): Promise<DeleteOperationResult> {
     const storage = getStorageAdapter();
     const fullPath = await joinPath(notesPath, path);
+    logNotesDebug('deleteNoteImpl:start', {
+        notePath: path,
+        fullPath,
+        currentNotePath: currentStore.currentNote?.path ?? null,
+        openTabCount: currentStore.openTabs.length,
+    });
     markExpectedExternalChange(fullPath);
     await storage.deleteFile(fullPath);
 
@@ -42,6 +49,12 @@ export async function deleteNoteImpl(
     );
 
     const newChildren = rootFolder ? removeNodeFromTree(rootFolder.children, path) : [];
+
+    logNotesDebug('deleteNoteImpl:finish', {
+        notePath: path,
+        nextAction,
+        remainingTabCount: updatedTabs.length,
+    });
 
     return {
         updatedTabs,

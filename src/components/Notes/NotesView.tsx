@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { windowCommands } from '@/lib/tauri/invoke';
 import { openDialog, messageDialog } from '@/lib/storage/dialog';
 import { OPEN_MARKDOWN_FILE_ACTION } from '@/lib/notes/openMarkdownFileText';
@@ -21,11 +22,14 @@ import {
 import { useCurrentVaultExternalPathSync } from './hooks/useCurrentVaultExternalPathSync';
 import { useNotesExternalSync } from './hooks/useNotesExternalSync';
 import { openStoredNotePath } from '@/stores/notes/openNotePath';
-import { isDraftNotePath } from '@/stores/notes/draftNote';
+import { hasDraftUnsavedChanges, isDraftNotePath } from '@/stores/notes/draftNote';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { BlurBackdrop } from '@/components/common/BlurBackdrop';
 import { TreeItemDeleteDialog } from '@/components/Notes/features/FileTree/components/TreeItemDeleteDialog';
 import { normalizeVaultPath } from '@/stores/vaultConfig';
 import { subscribeDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEvents';
+import { useBlankWorkspaceDropOpen } from './hooks/useBlankWorkspaceDropOpen';
+import { useNotesSidebarExternalDropImport } from './hooks/useNotesSidebarExternalDropImport';
 
 const EmbeddedChatView = lazy(async () => {
   const mod = await import('@/components/Chat/ChatView');
@@ -33,11 +37,11 @@ const EmbeddedChatView = lazy(async () => {
 });
 
 export function NotesView() {
+  const currentNote = useNotesStore(s => s.currentNote);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const loadFileTree = useNotesStore(s => s.loadFileTree);
   const openTabs = useNotesStore(s => s.openTabs);
   const closeTab = useNotesStore(s => s.closeTab);
-  const createNote = useNotesStore(s => s.createNote);
   const openNote = useNotesStore(s => s.openNote);
   const loadStarred = useNotesStore(s => s.loadStarred);
   const deleteNote = useNotesStore(s => s.deleteNote);
@@ -52,7 +56,7 @@ export function NotesView() {
   const notesPath = useNotesStore(s => s.notesPath);
   const rootFolder = useNotesStore(s => s.rootFolder);
   const draftNotes = useNotesStore(s => s.draftNotes);
-  const isLoading = useNotesStore(s => s.isLoading);
+  const noteMetadata = useNotesStore(s => s.noteMetadata);
   const openNoteByAbsolutePath = useNotesStore(s => s.openNoteByAbsolutePath);
   const adoptAbsoluteNoteIntoVault = useNotesStore(s => s.adoptAbsoluteNoteIntoVault);
   const pendingDraftDiscardPath = useNotesStore(s => s.pendingDraftDiscardPath);
@@ -77,7 +81,6 @@ export function NotesView() {
     startedAt: number;
   } | null>(null);
   const chatComposerFocusFrameRef = useRef<number | null>(null);
-  const blankDraftRequestInFlightRef = useRef(false);
   const launchContextRef = useRef(readWindowLaunchContext());
   const hasHandledLaunchNoteRef = useRef(false);
   const toggleShortcutsDialog = useCallback(() => setIsShortcutsOpen((prev) => !prev), []);
@@ -292,59 +295,6 @@ export function NotesView() {
     };
   }, [currentVault, notesPath, openShortcutNoteTarget, pendingShortcutNoteTarget, rootFolder]);
 
-  useEffect(() => {
-    if (
-      isLoading ||
-      currentNotePath ||
-      openTabs.length > 0 ||
-      pendingShortcutNoteTarget ||
-      pendingStarredNavigation ||
-      isOpenTargetBusy ||
-      blankDraftRequestInFlightRef.current
-    ) {
-      return;
-    }
-
-    if (launchContextRef.current.notePath && !hasHandledLaunchNoteRef.current) {
-      return;
-    }
-
-    if (currentVault && (notesPath !== currentVault.path || !rootFolder)) {
-      return;
-    }
-
-    const draftPaths = Object.keys(draftNotes);
-    blankDraftRequestInFlightRef.current = true;
-
-    const ensureBlankDraft = async () => {
-      try {
-        if (draftPaths.length > 0) {
-          await openNote(draftPaths[0]);
-          return;
-        }
-
-        await createNote();
-      } finally {
-        blankDraftRequestInFlightRef.current = false;
-      }
-    };
-
-    void ensureBlankDraft();
-  }, [
-    createNote,
-    currentNotePath,
-    currentVault,
-    draftNotes,
-    isLoading,
-    isOpenTargetBusy,
-    notesPath,
-    openNote,
-    openTabs,
-    pendingShortcutNoteTarget,
-    pendingStarredNavigation,
-    rootFolder,
-  ]);
-
   const saveCurrentNoteIfNeeded = useCallback(async () => {
     if (!isDirty) return true;
     if (isDraftNotePath(currentNotePath)) return true;
@@ -444,6 +394,44 @@ export function NotesView() {
       setIsOpenTargetBusy(false);
     }
   }, [currentVault?.path, isOpenTargetBusy, notesPath, openShortcutNoteTarget, openVault, rootFolder, saveCurrentNoteIfNeeded]);
+
+  const acceptsBlankWorkspaceDrop = (() => {
+    if (!currentNotePath) {
+      return openTabs.length === 0;
+    }
+
+    if (!currentNote || !isDraftNotePath(currentNotePath)) {
+      return false;
+    }
+
+    if (openTabs.length !== 1 || openTabs[0]?.path !== currentNotePath) {
+      return false;
+    }
+
+    const draftEntry = draftNotes[currentNotePath];
+    if (!draftEntry) {
+      return false;
+    }
+
+    return !hasDraftUnsavedChanges({
+      draftName: draftEntry.name,
+      content: currentNote.content,
+      metadata: noteMetadata?.notes[currentNotePath],
+    });
+  })();
+
+  const isBlankWorkspaceDropActive = useBlankWorkspaceDropOpen({
+    enabled: acceptsBlankWorkspaceDrop && !isOpenTargetBusy,
+    openMarkdownTarget,
+    openVault,
+  });
+
+  useNotesSidebarExternalDropImport({
+    enabled: !acceptsBlankWorkspaceDrop && Boolean(currentVault?.path && rootFolder),
+    vaultPath: currentVault?.path ?? '',
+    loadFileTree,
+    revealFolder,
+  });
 
   const handleOpenSelectedFile = useCallback(async () => {
     if (isOpenTargetBusy) return;
@@ -547,6 +535,19 @@ export function NotesView() {
 
   return (
     <>
+      <AnimatePresence>
+        {isBlankWorkspaceDropActive && (
+          <BlurBackdrop
+            className="pointer-events-none"
+            overlayClassName="bg-white/20 dark:bg-white/5"
+            zIndex={70}
+            blurPx={6}
+            duration={0.18}
+            data-testid="blank-workspace-drop-overlay"
+          />
+        )}
+      </AnimatePresence>
+
       <div data-notes-view-mode="true" className="h-full w-full relative flex min-w-0">
         <div className="flex-1 min-w-0">
           {currentNotePath ? (
@@ -609,4 +610,3 @@ export function NotesView() {
       <ModuleShortcutsDialog module="notes" open={isShortcutsOpen} onOpenChange={setIsShortcutsOpen} />
     </>
   );}
-

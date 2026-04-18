@@ -1,4 +1,5 @@
 import { normalizeNotePathKey } from '@/lib/notes/displayName';
+import { logNotesDebug } from '../debugLog';
 
 interface ExpectedExternalChange {
   path: string;
@@ -28,6 +29,12 @@ export function markExpectedExternalChange(path: string, recursive = false): voi
     recursive,
     expiresAt: now + EXPECTED_CHANGE_TTL_MS,
   });
+
+  logNotesDebug('externalChangeRegistry:mark', {
+    path: normalizedPath,
+    recursive,
+    pendingCount: expectedChanges.length,
+  });
 }
 
 export function shouldIgnoreExpectedExternalChange(path: string): boolean {
@@ -39,11 +46,20 @@ export function shouldIgnoreExpectedExternalChange(path: string): boolean {
   const now = Date.now();
   pruneExpiredExpectedChanges(now);
 
-  return expectedChanges.some((entry) => {
+  const matched = expectedChanges.some((entry) => {
     if (entry.path === normalizedPath) {
       return true;
     }
 
     return entry.recursive && normalizedPath.startsWith(`${entry.path}/`);
   });
+
+  if (matched) {
+    logNotesDebug('externalChangeRegistry:ignore', {
+      path: normalizedPath,
+      pendingCount: expectedChanges.length,
+    });
+  }
+
+  return matched;
 }
