@@ -10,6 +10,7 @@ import {
 } from './noteContentCache';
 import { markExpectedExternalChange } from './externalChangeRegistry';
 import { updateNoteMetadataInMarkdown } from '../frontmatter';
+import { logNotesDebug } from '../debugLog';
 
 interface LoadNoteDocumentOptions {
   notesPath: string;
@@ -84,11 +85,22 @@ export async function saveNoteDocument({
     updatedAt: Date.now(),
   });
 
+  logNotesDebug('noteDocumentPersistence:write-start', {
+    notePath: currentNote.path,
+    fullPath,
+    contentLength: content.length,
+  });
   markExpectedExternalChange(fullPath);
   await safeWriteTextFile(fullPath, content);
 
   const fileInfo = await storage.stat(fullPath);
   const modifiedAt = fileInfo?.modifiedAt ?? null;
+
+  logNotesDebug('noteDocumentPersistence:write-finish', {
+    notePath: currentNote.path,
+    fullPath,
+    modifiedAt,
+  });
 
   return {
     content,

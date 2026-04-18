@@ -4,6 +4,9 @@ import { createNoteImpl } from './crudOperations';
 const adapter = {
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
   exists: vi.fn<(path: string) => Promise<boolean>>(),
+  stat: vi.fn<
+    (path: string) => Promise<{ isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null } | null>
+  >(),
   mkdir: vi.fn<(path: string, recursive?: boolean) => Promise<void>>(),
   readFile: vi.fn<(path: string) => Promise<string>>(),
 };
@@ -30,6 +33,7 @@ describe('createNoteImpl', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     adapter.writeFile.mockResolvedValue();
+    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
   });
 
   it('preserves incoming managed frontmatter fields while filling missing timestamps', async () => {
@@ -79,6 +83,7 @@ describe('createNoteImpl', () => {
       createdAt: Date.parse('2026-04-15T10:00:00.000Z'),
       updatedAt: Date.parse('2026-04-15T10:00:00.000Z'),
     });
+    expect(result.modifiedAt).toBe(123);
 
     vi.useRealTimers();
   });

@@ -1,5 +1,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { createPersistenceQueue, type PersistenceQueue } from '@/lib/storage/persistenceEngine';
+import { useNotesStore } from '@/stores/useNotesStore';
+import { logNotesDebug } from '@/stores/notes/debugLog';
 
 const SAVE_DEBOUNCE_MS = 800;
 const SAVE_MAX_WAIT_MS = 2500;
@@ -11,17 +13,32 @@ export function useEditorSave(saveNote: (options?: { explicit?: boolean }) => Pr
 
   saveNoteRef.current = saveNote;
 
+  const getDebugSnapshot = () => {
+    const state = useNotesStore.getState();
+    return {
+      currentNotePath: state.currentNote?.path ?? null,
+      isDirty: state.isDirty,
+    };
+  };
+
   if (!saveQueueRef.current) {
     saveQueueRef.current = createPersistenceQueue<number>({
       debounceMs: SAVE_DEBOUNCE_MS,
       maxWaitMs: SAVE_MAX_WAIT_MS,
       write: async () => {
+        logNotesDebug('useEditorSave:queue-write', getDebugSnapshot());
         await saveNoteRef.current({ explicit: false });
       },
     });
   }
 
   const flushSave = useCallback((explicit = false) => {
+    logNotesDebug('useEditorSave:flush-request', {
+      explicit,
+      ...getDebugSnapshot(),
+      hasPending: saveQueueRef.current?.hasPending() ?? false,
+    });
+
     if (explicit) {
       void saveNoteRef.current({ explicit: true });
       return;
@@ -32,12 +49,20 @@ export function useEditorSave(saveNote: (options?: { explicit?: boolean }) => Pr
 
   const debouncedSave = useCallback(() => {
     saveSequenceRef.current += 1;
+    logNotesDebug('useEditorSave:debounced-schedule', {
+      sequence: saveSequenceRef.current,
+      ...getDebugSnapshot(),
+    });
     saveQueueRef.current?.schedule(saveSequenceRef.current);
   }, []);
 
   useEffect(() => {
     return () => {
-      void saveQueueRef.current?.flush();
+      logNotesDebug('useEditorSave:cleanup-cancel', {
+        ...getDebugSnapshot(),
+        hasPending: saveQueueRef.current?.hasPending() ?? false,
+      });
+      saveQueueRef.current?.cancel();
     };
   }, []);
 

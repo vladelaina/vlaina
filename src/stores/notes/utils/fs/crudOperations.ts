@@ -2,6 +2,7 @@ import { resolveUniquePath } from './pathOperations';
 import { safeWriteTextFile, createEmptyMetadataFile, setNoteEntry, addToRecentNotes } from '../../storage';
 import { addNodeToTree } from '../../fileTreeUtils';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
+import { getStorageAdapter } from '@/lib/storage/adapter';
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
 import { readNoteMetadataFromMarkdown, updateNoteMetadataInMarkdown } from '../../frontmatter';
 
@@ -12,6 +13,7 @@ export async function createNoteImpl(
     content: string,
     currentStore: any
 ) {
+    const adapter = getStorageAdapter();
     const { relativePath, fullPath, fileName } = await resolveUniquePath(
         notesPath, 
         folderPath, 
@@ -31,6 +33,7 @@ export async function createNoteImpl(
 
     markExpectedExternalChange(fullPath);
     await safeWriteTextFile(fullPath, initialContent);
+    const fileInfo = await adapter.stat?.(fullPath);
 
     const updatedMetadata = setNoteEntry(currentStore.noteMetadata ?? createEmptyMetadataFile(), relativePath, {
         ...metadata,
@@ -53,6 +56,7 @@ export async function createNoteImpl(
         relativePath,
         fileName,
         content: initialContent,
+        modifiedAt: fileInfo?.modifiedAt ?? null,
         updatedMetadata,
         newChildren,
         updatedRecent
