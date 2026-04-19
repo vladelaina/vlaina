@@ -1,5 +1,6 @@
 import { $node, $command } from '@milkdown/kit/utils';
 import type { VideoAttrs } from './types';
+import { SANDBOXED_IFRAME_SANDBOX } from '../clipboard/sanitizer';
 
 function parseVideoUrl(url: string): { type: 'youtube' | 'bilibili' | 'direct'; embedUrl: string } | null {
   const youtubeMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
@@ -95,6 +96,9 @@ export const videoSchema = $node('video', () => ({
       iframe.frameBorder = '0';
       iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
       iframe.allowFullscreen = true;
+      iframe.sandbox.value = SANDBOXED_IFRAME_SANDBOX;
+      iframe.referrerPolicy = 'no-referrer';
+      iframe.loading = 'lazy';
       if (attrs.title) iframe.title = attrs.title;
       wrapper.appendChild(iframe);
     }
