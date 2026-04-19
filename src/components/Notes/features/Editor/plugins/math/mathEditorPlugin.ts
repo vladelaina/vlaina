@@ -1,78 +1,18 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin } from '@milkdown/kit/prose/state';
-import { resolveMathEditorOpenState } from './mathEditorOpenResolver';
+import {
+  findMathEditorTargetElement,
+  isHorizontalScrollbarPointerDown,
+  resolveMathEditorOpenMeta,
+  resolveMathEditorPointerOpen,
+} from './mathEditorOpenInteraction';
 import { mathEditorPluginKey } from './mathEditorPluginKey';
-import { getMathAnchorViewportPosition, resolveMathAnchorElement } from './mathEditorPlacement';
 import { createClosedMathEditorState } from './mathEditorState';
 import { createMathEditorViewSession } from './mathEditorViewSession';
 import type { MathEditorState } from './types';
 
 function getSuppressDeadline() {
   return typeof performance !== 'undefined' ? performance.now() : Date.now();
-}
-
-function isHorizontalScrollbarPointerDown(args: {
-  event: MouseEvent;
-  mathElement: HTMLElement;
-}) {
-  const { event, mathElement } = args;
-  if (typeof window === 'undefined' || mathElement.dataset.type !== 'math-block') {
-    return false;
-  }
-
-  const target = event.target instanceof HTMLElement ? event.target : null;
-  let current: HTMLElement | null = target;
-
-  while (current) {
-    const overflowX = window.getComputedStyle(current).overflowX;
-    const scrollbarHeight = current.offsetHeight - current.clientHeight;
-    const hasHorizontalScrollbar =
-      (overflowX === 'auto' || overflowX === 'scroll') &&
-      current.scrollWidth > current.clientWidth &&
-      scrollbarHeight > 0;
-
-    if (hasHorizontalScrollbar) {
-      const rect = current.getBoundingClientRect();
-      const hitHorizontalScrollbar =
-        event.clientX >= rect.left &&
-        event.clientX <= rect.right &&
-        event.clientY >= rect.bottom - scrollbarHeight &&
-        event.clientY <= rect.bottom;
-
-      if (hitHorizontalScrollbar) {
-        return true;
-      }
-    }
-
-    if (current === mathElement) {
-      break;
-    }
-
-    current = current.parentElement;
-  }
-
-  return false;
-}
-
-function createOpenMetaResolver(view: {
-  state: { doc: { resolve: (pos: number) => unknown; nodeAt: (pos: number) => unknown } };
-  nodeDOM?: (pos: number) => Node | null;
-}) {
-  return (args: { pos: number; target: EventTarget | null }) => {
-    const getPosition = (nodePos: number) =>
-      getMathAnchorViewportPosition(
-        resolveMathAnchorElement(
-          args.target,
-          typeof view.nodeDOM === 'function' ? view.nodeDOM(nodePos) : null
-        )
-      );
-
-    return resolveMathEditorOpenState({
-      view: view as never,
-      pos: args.pos,
-      getPosition,
-    });
-  };
 }
 
 export const mathEditorPlugin = $prose(() => {
@@ -110,31 +50,21 @@ export const mathEditorPlugin = $prose(() => {
             return false;
           }
 
-          const target = event.target instanceof HTMLElement ? event.target : null;
-          const mathElement = target?.closest('[data-type="math-block"], [data-type="math-inline"]');
-          if (!(mathElement instanceof HTMLElement) || !view.dom.contains(mathElement)) {
+          const openRequest = resolveMathEditorPointerOpen({
+            view: view as never,
+            target: event.target,
+          });
+          if (!openRequest) {
             return false;
           }
 
-          if (isHorizontalScrollbarPointerDown({ event, mathElement })) {
+          if (isHorizontalScrollbarPointerDown({ event, mathElement: openRequest.mathElement })) {
             return false;
           }
 
-          try {
-            const meta = createOpenMetaResolver(view)({
-              pos: view.posAtDOM(mathElement, 0),
-              target: event.target,
-            });
-            if (!meta) {
-              return false;
-            }
-
-            event.preventDefault();
-            view.dispatch(view.state.tr.setMeta(mathEditorPluginKey, meta));
-            return true;
-          } catch {
-            return false;
-          }
+          event.preventDefault();
+          view.dispatch(view.state.tr.setMeta(mathEditorPluginKey, openRequest.meta));
+          return true;
         },
       },
       handleClick(view, pos, event) {
@@ -142,15 +72,13 @@ export const mathEditorPlugin = $prose(() => {
           return false;
         }
 
-        const target = event.target instanceof HTMLElement ? event.target : null;
-        const mathElement = target?.closest('[data-type="math-block"], [data-type="math-inline"]');
-        if (mathElement instanceof HTMLElement && view.dom.contains(mathElement)) {
-          if (isHorizontalScrollbarPointerDown({ event, mathElement })) {
-            return false;
-          }
+        const mathElement = findMathEditorTargetElement(view, event.target);
+        if (mathElement && isHorizontalScrollbarPointerDown({ event, mathElement })) {
+          return false;
         }
 
-        const meta = createOpenMetaResolver(view)({
+        const meta = resolveMathEditorOpenMeta({
+          view: view as never,
           pos,
           target: event.target,
         });

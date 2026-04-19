@@ -1,5 +1,3 @@
-import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
-
 export interface MathEditorElements {
   card: HTMLElement;
   content: HTMLElement;
@@ -9,12 +7,18 @@ export interface MathEditorElements {
   saveButton: HTMLButtonElement;
 }
 
+export interface MountMathEditorCardArgs {
+  container: HTMLElement;
+  latex: string;
+  displayMode: boolean;
+  onInput: (latex: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
+}
+
 export function createMathEditorElements(): MathEditorElements {
   const card = document.createElement('div');
   card.className = 'math-editor-card';
-
-  const body = document.createElement('div');
-  body.className = 'math-editor-body';
 
   const content = document.createElement('div');
   content.className = 'math-editor-content';
@@ -26,22 +30,57 @@ export function createMathEditorElements(): MathEditorElements {
   const actions = document.createElement('div');
   actions.className = 'math-editor-footer';
 
+  const buttonGroup = document.createElement('div');
+  buttonGroup.className = 'math-editor-actions';
+
   const cancelButton = document.createElement('button');
   cancelButton.type = 'button';
-  cancelButton.className = 'vlaina-icon-shadow-button math-editor-icon-action math-editor-icon-action-secondary';
+  cancelButton.className = 'math-editor-action-button math-editor-action-button-secondary';
   cancelButton.setAttribute('aria-label', 'Cancel');
-  cancelButton.innerHTML = EDITOR_ICONS.reviewClose;
+  cancelButton.textContent = 'Cancel';
 
   const saveButton = document.createElement('button');
   saveButton.type = 'button';
-  saveButton.className = 'vlaina-icon-shadow-button math-editor-icon-action math-editor-icon-action-primary';
-  saveButton.setAttribute('aria-label', 'Apply');
-  saveButton.innerHTML = EDITOR_ICONS.reviewApply;
+  saveButton.className = 'math-editor-action-button math-editor-action-button-primary';
+  saveButton.setAttribute('aria-label', 'Save');
+  saveButton.textContent = 'Save';
 
   content.append(textarea);
-  actions.append(cancelButton, saveButton);
-  body.append(content, actions);
-  card.append(body);
+  buttonGroup.append(cancelButton, saveButton);
+  actions.append(buttonGroup);
+  card.append(content, actions);
 
   return { card, content, textarea, actions, cancelButton, saveButton };
+}
+
+export function mountMathEditorCard(args: MountMathEditorCardArgs): MathEditorElements {
+  const { container, latex, displayMode: _displayMode, onInput, onCancel, onSave } = args;
+  const elements = createMathEditorElements();
+  const { card, textarea, cancelButton, saveButton } = elements;
+
+  textarea.value = latex;
+  textarea.addEventListener('input', () => onInput(textarea.value));
+  textarea.addEventListener('keydown', (event) => {
+    if (event.isComposing) {
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onCancel();
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      onSave();
+      return;
+    }
+  });
+
+  cancelButton.addEventListener('click', onCancel);
+  saveButton.addEventListener('click', onSave);
+  container.replaceChildren(card);
+
+  return elements;
 }
