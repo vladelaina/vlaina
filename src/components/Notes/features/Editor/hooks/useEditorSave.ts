@@ -33,12 +33,6 @@ export function useEditorSave(saveNote: (options?: { explicit?: boolean }) => Pr
   }
 
   const flushSave = useCallback((explicit = false) => {
-    logNotesDebug('useEditorSave:flush-request', {
-      explicit,
-      ...getDebugSnapshot(),
-      hasPending: saveQueueRef.current?.hasPending() ?? false,
-    });
-
     if (explicit) {
       void saveNoteRef.current({ explicit: true });
       return;
@@ -58,10 +52,6 @@ export function useEditorSave(saveNote: (options?: { explicit?: boolean }) => Pr
 
   useEffect(() => {
     return () => {
-      logNotesDebug('useEditorSave:cleanup-cancel', {
-        ...getDebugSnapshot(),
-        hasPending: saveQueueRef.current?.hasPending() ?? false,
-      });
       saveQueueRef.current?.cancel();
     };
   }, []);

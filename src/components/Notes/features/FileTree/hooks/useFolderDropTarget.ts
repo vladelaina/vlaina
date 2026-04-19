@@ -10,6 +10,8 @@ export function useFolderDropTarget(path: string, enabled = true) {
   );
 
   return {
+    isInternalDragOver,
+    isExternalDragOver,
     isDragOver: isInternalDragOver || isExternalDragOver,
   };
 }
