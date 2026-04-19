@@ -46,6 +46,7 @@ import {
 import { hasTemporaryTailParagraph } from './plugins/cursor/endBlankClickPlugin';
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
 import { useNoteEditorFind } from './find';
+import { normalizeSerializedMarkdownDocument } from './plugins/clipboard/markdownSerializationUtils';
 import { EditorTopRightToolbar } from './EditorTopRightToolbar';
 import {
   getSidebarSearchNavigationPendingPath,
@@ -122,7 +123,8 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
             }
 
             const currentContent = useNotesStore.getState().currentNote?.content ?? '';
-            const nextMarkdown = serializeLeadingFrontmatterMarkdown(markdown, currentContent);
+            const normalizedMarkdown = normalizeSerializedMarkdownDocument(markdown);
+            const nextMarkdown = serializeLeadingFrontmatterMarkdown(normalizedMarkdown, currentContent);
             if (currentContent === nextMarkdown) {
               return;
             }

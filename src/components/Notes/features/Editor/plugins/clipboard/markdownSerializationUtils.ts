@@ -4,6 +4,7 @@ const EMPTY_MARKDOWN_LINE_PLACEHOLDER_PATTERN =
   /^(\s*(?:>\s*)*(?:(?:[-+*]|\d+\.)\s+(?:\[(?: |x|X)\]\s+)?)?)<br\s*\/?>$/gim;
 const EMPTY_TABLE_CELL_PLACEHOLDER_PATTERN = /(\|\s*)<br\s*\/?>(\s*\|)/g;
 const LIST_ITEM_MARKER_PATTERN = /^\s*(?:[-+*]|\d+\.)\s+(?:\[(?: |x|X)\]\s+)?/;
+const STANDALONE_BREAK_LINE_PATTERN = /^[\t ]*<br\s*\/?>(?:[\t ]*)$/gim;
 
 function unescapeMarkdownPunctuation(text: string): string {
   return text.replace(MARKDOWN_ESCAPE_PATTERN, '$1');
@@ -27,6 +28,12 @@ export function normalizeSerializedMarkdownBlock(text: string): string {
   );
   if (BR_ONLY_PATTERN.test(withoutTrailingNewlines.trim())) return '';
   return unescapeMarkdownPunctuation(withoutTrailingNewlines);
+}
+
+export function normalizeSerializedMarkdownDocument(text: string): string {
+  return unescapeMarkdownPunctuation(
+    stripEmptyMarkdownPlaceholders(text).replace(STANDALONE_BREAK_LINE_PATTERN, '')
+  );
 }
 
 export function normalizeSerializedMarkdownSelection(text: string): string {

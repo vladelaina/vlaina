@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   joinSerializedBlocks,
   normalizeSerializedMarkdownBlock,
+  normalizeSerializedMarkdownDocument,
   normalizeSerializedMarkdownSelection,
   stripTrailingNewlines,
 } from './markdownSerializationUtils';
@@ -32,6 +33,20 @@ describe('normalizeSerializedMarkdownBlock', () => {
 
   it('keeps normal markdown content', () => {
     expect(normalizeSerializedMarkdownBlock('# Title\n')).toBe('# Title');
+  });
+});
+
+describe('normalizeSerializedMarkdownDocument', () => {
+  it('converts standalone br lines into markdown blank lines', () => {
+    expect(normalizeSerializedMarkdownDocument('1\n<br />\n2\n')).toBe('1\n\n2\n');
+    expect(normalizeSerializedMarkdownDocument('<br />')).toBe('');
+  });
+
+  it('removes placeholder br tags from persisted empty task items and table cells', () => {
+    expect(normalizeSerializedMarkdownDocument('- [ ] <br />\n')).toBe('- [ ]\n');
+    expect(
+      normalizeSerializedMarkdownDocument('| a | b |\n| --- | --- |\n| <br /> | 2 |\n')
+    ).toBe('| a | b |\n| --- | --- |\n|   | 2 |\n');
   });
 });
 
