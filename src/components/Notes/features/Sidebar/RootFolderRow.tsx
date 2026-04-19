@@ -37,7 +37,7 @@ export function RootFolderRow({
   const renameCurrentVault = useVaultStore((state) => state.renameCurrentVault);
   const fileTreeSortMode = useNotesStore((state) => state.fileTreeSortMode);
   const setFileTreeSortMode = useNotesStore((state) => state.setFileTreeSortMode);
-  const [expanded, setExpanded] = useState(true);
+  const toggleFolder = useNotesStore((state) => state.toggleFolder);
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [isRenaming, setIsRenaming] = useState(false);
@@ -51,6 +51,7 @@ export function RootFolderRow({
   const title = currentVault?.name || rootFolder?.name || 'Notes';
   const vaultPath = currentVault?.path ?? '';
   const hasChildren = rootFolder ? rootFolder.children.length > 0 : false;
+  const expanded = rootFolder?.expanded ?? true;
 
   useEffect(() => {
     isRenamingRef.current = isRenaming;
@@ -150,7 +151,7 @@ export function RootFolderRow({
             ) : null}
           </span>
         }
-        onClick={() => setExpanded((value) => !value)}
+        onClick={() => toggleFolder('')}
         isHighlighted={showMenu}
         isDragOver={isDragOver}
         showActionsByDefault={showMenu}
@@ -199,7 +200,12 @@ export function RootFolderRow({
         onClose={() => setShowMenu(false)}
         position={menuPosition}
         expanded={expanded}
-        setExpanded={setExpanded}
+        setExpanded={(value) => {
+          const nextExpanded = typeof value === 'function' ? value(expanded) : value;
+          if (nextExpanded !== expanded) {
+            toggleFolder('');
+          }
+        }}
         onCreateNote={onCreateNote}
         onCreateFolder={onCreateFolder}
         onStartRename={() => setIsRenaming(true)}

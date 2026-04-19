@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useId, useRef, useState } from 'react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import {
   Dialog,
@@ -40,21 +40,38 @@ export function ConfirmDialog({
   auxActionVariant = 'default',
   initialFocus = 'confirm',
 }: ConfirmDialogProps) {
+  const descriptionId = useId();
+  const auxActionRef = useRef<HTMLButtonElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
+  const [showKeyboardSelection, setShowKeyboardSelection] = useState(false);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
+    const isBackward = e.key === 'ArrowLeft' || e.key === 'ArrowUp';
+    const isForward = e.key === 'ArrowRight' || e.key === 'ArrowDown';
+
+    if (!isBackward && !isForward) {
+      return;
+    }
+
+    setShowKeyboardSelection(true);
+
+    const focusableButtons = [
+      auxActionRef.current,
+      confirmRef.current,
+      cancelRef.current,
+    ].filter((button): button is HTMLButtonElement => button !== null);
+
+    if (focusableButtons.length < 2) {
       return;
     }
 
     e.preventDefault();
-    const active = document.activeElement;
-    if (active === confirmRef.current) {
-      cancelRef.current?.focus();
-      return;
-    }
-    confirmRef.current?.focus();
+    const activeIndex = focusableButtons.findIndex((button) => button === document.activeElement);
+    const currentIndex = activeIndex === -1 ? 0 : activeIndex;
+    const delta = isBackward ? -1 : 1;
+    const nextIndex = (currentIndex + delta + focusableButtons.length) % focusableButtons.length;
+    focusableButtons[nextIndex]?.focus();
   };
 
   return (
@@ -71,8 +88,10 @@ export function ConfirmDialog({
         </DialogPrimitive.Overlay>
         <div className="fixed inset-0 z-[121] flex items-center justify-center p-4">
           <DialogPrimitive.Content
+            aria-describedby={description ? descriptionId : undefined}
             onOpenAutoFocus={(event) => {
               event.preventDefault();
+              setShowKeyboardSelection(false);
               if (initialFocus === 'cancel') {
                 cancelRef.current?.focus();
                 return;
@@ -87,7 +106,7 @@ export function ConfirmDialog({
                 {title}
               </DialogTitle>
               {description && (
-                <DialogDescription className="mt-3 text-[14px] leading-6 text-zinc-500 dark:text-zinc-400">
+                <DialogDescription id={descriptionId} className="mt-3 text-[14px] leading-6 text-zinc-500 dark:text-zinc-400">
                   {description}
                 </DialogDescription>
               )}
@@ -95,15 +114,17 @@ export function ConfirmDialog({
               <div className="mt-7 flex flex-col gap-2.5">
                 {onAuxAction && auxActionText ? (
                   <button
+                    ref={auxActionRef}
                     type="button"
                     onClick={async () => {
                       await onAuxAction();
                     }}
                     className={cn(
-                      "inline-flex h-12 items-center justify-center rounded-2xl px-4 text-[14px] font-semibold transition-colors outline-none",
+                      "inline-flex h-12 items-center justify-center rounded-2xl px-4 text-[14px] font-semibold transition-[color,background-color,box-shadow,border-color] outline-none ring-offset-2 ring-offset-white dark:ring-offset-[#171717]",
+                      showKeyboardSelection && 'focus:ring-2',
                       auxActionVariant === 'success'
-                        ? "bg-[#16a34a] text-white hover:bg-[#15803d]"
-                        : "bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200"
+                        ? "bg-[#16a34a] text-white hover:bg-[#15803d] focus:ring-[#16a34a]/35 dark:focus:ring-[#22c55e]/35"
+                        : "bg-zinc-950 text-white hover:bg-zinc-800 focus:ring-zinc-950/20 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200 dark:focus:ring-zinc-100/30"
                     )}
                   >
                     {auxActionText}
@@ -117,10 +138,11 @@ export function ConfirmDialog({
                     onClose();
                   }}
                   className={cn(
-                    "inline-flex h-12 items-center justify-center rounded-2xl px-4 text-[14px] font-semibold transition-colors outline-none",
+                    "inline-flex h-12 items-center justify-center rounded-2xl px-4 text-[14px] font-semibold transition-[color,background-color,box-shadow,border-color] outline-none ring-offset-2 ring-offset-white dark:ring-offset-[#171717]",
+                    showKeyboardSelection && 'focus:ring-2',
                     variant === 'danger'
-                      ? "bg-[#ef4444] text-white hover:bg-[#dc2626]"
-                      : "bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200"
+                      ? "bg-[#ef4444] text-white hover:bg-[#dc2626] focus:ring-[#ef4444]/35 dark:focus:ring-[#f87171]/35"
+                      : "bg-zinc-950 text-white hover:bg-zinc-800 focus:ring-zinc-950/20 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200 dark:focus:ring-zinc-100/30"
                   )}
                 >
                   {confirmText}
@@ -135,7 +157,10 @@ export function ConfirmDialog({
                     }
                     onClose();
                   }}
-                  className="inline-flex h-12 items-center justify-center rounded-2xl border border-zinc-200 bg-white px-4 text-[14px] font-medium text-zinc-700 transition-colors outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-transparent dark:text-zinc-300 dark:hover:bg-white/[0.04]"
+                  className={cn(
+                    "inline-flex h-12 items-center justify-center rounded-2xl border border-zinc-200 bg-white px-4 text-[14px] font-medium text-zinc-700 transition-[color,background-color,box-shadow,border-color] outline-none ring-offset-2 ring-offset-white hover:bg-zinc-50 dark:border-white/10 dark:bg-transparent dark:text-zinc-300 dark:ring-offset-[#171717] dark:hover:bg-white/[0.04]",
+                    showKeyboardSelection && 'focus:border-zinc-400 focus:ring-2 focus:ring-zinc-950/12 dark:focus:border-white/30 dark:focus:ring-zinc-100/20',
+                  )}
                 >
                   {cancelText}
                 </button>

@@ -416,7 +416,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   syncCurrentNoteFromDisk: async () => {
     const { currentNote, notesPath, isDirty, noteContentsCache, openTabs, noteMetadata, rootFolder, fileTreeSortMode } = get();
     if (!currentNote) {
-      logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:ignored-no-current-note');
       return 'ignored';
     }
 

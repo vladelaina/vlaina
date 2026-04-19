@@ -106,7 +106,6 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
     const reconcileCurrentNote = async () => {
       const currentNotePath = useNotesStore.getState().currentNote?.path ?? null;
       if (!currentNotePath) {
-        logNotesDebug('useNotesExternalSync:reconcileCurrentNote:ignored-no-current-note');
         return;
       }
 
@@ -258,18 +257,11 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
 
       reconcileInFlightRef.current = true;
       try {
-        logNotesDebug('useNotesExternalSync:polling-reconcile:start', {
-          currentNotePath: useNotesStore.getState().currentNote?.path ?? null,
-        });
         await flushPendingRenameDeletions();
         const hadTreeChanges = await reconcileExternalTree();
         if (!hadTreeChanges) {
           await reconcileCurrentNote();
         }
-        logNotesDebug('useNotesExternalSync:polling-reconcile:finish', {
-          hadTreeChanges,
-          currentNotePath: useNotesStore.getState().currentNote?.path ?? null,
-        });
       } catch (error) {
         console.error(
           '[NotesExternalSync] Poll reconcile failed:',

@@ -4,7 +4,6 @@ import { useUIStore } from '@/stores/uiSlice';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useDisplayName } from '@/hooks/useTitleSync';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
-import { findNode } from '@/stores/notes/fileTreeUtils';
 import { getDraftNoteEntry, isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
 import { cn } from '@/lib/utils';
 
@@ -50,26 +49,10 @@ function scrollToFolder(path: string): void {
   target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
 
-function expandFolderChain(targetPath: string): void {
-  const parts = targetPath.split('/').filter(Boolean);
-  let current = '';
-
-  for (const part of parts) {
-    current = current ? `${current}/${part}` : part;
-    const state = useNotesStore.getState();
-    const root = state.rootFolder;
-    if (!root) continue;
-
-    const node = findNode(root.children, current);
-    if (node?.isFolder && !node.expanded) {
-      state.toggleFolder(current);
-    }
-  }
-}
-
 export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
   const notesPath = useNotesStore((s) => s.notesPath);
   const draftNotes = useNotesStore((s) => s.draftNotes);
+  const revealFolder = useNotesStore((s) => s.revealFolder);
   const vaultName = useVaultStore((s) => s.currentVault?.name ?? 'Root');
   const displayName = useDisplayName(notePath);
   const draftNote = getDraftNoteEntry(draftNotes, notePath);
@@ -91,14 +74,21 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
 
   const handleFolderClick = (targetPath: string) => {
     setNotesSidebarView('workspace');
-    expandFolderChain(targetPath);
-    requestAnimationFrame(() => scrollToFolder(targetPath));
+    revealFolder(targetPath);
+    requestAnimationFrame(() => {
+      useNotesStore.getState().revealFolder(targetPath);
+      requestAnimationFrame(() => scrollToFolder(targetPath));
+    });
   };
 
   const handleRootClick = () => {
     setNotesSidebarView('workspace');
-    const scrollRoot = document.querySelector<HTMLElement>('[data-notes-sidebar-scroll-root="true"]');
-    if (scrollRoot) scrollRoot.scrollTo({ top: 0, behavior: 'smooth' });
+    const revealPath = folderSegments[folderSegments.length - 1]?.fullPath ?? '';
+    useNotesStore.getState().revealFolder(revealPath);
+    requestAnimationFrame(() => {
+      const scrollRoot = document.querySelector<HTMLElement>('[data-notes-sidebar-scroll-root="true"]');
+      if (scrollRoot) scrollRoot.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   };
 
   return (

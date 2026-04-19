@@ -84,10 +84,15 @@ export function createFileSystemTreeActions(
         return;
       }
 
-      const updatedRootFolder = {
-        ...rootFolder,
-        children: updateFolderExpanded(rootFolder.children, path),
-      };
+      const updatedRootFolder = path === ''
+        ? {
+            ...rootFolder,
+            expanded: !rootFolder.expanded,
+          }
+        : {
+            ...rootFolder,
+            children: updateFolderExpanded(rootFolder.children, path),
+          };
       const { currentNote } = get();
 
       set({ rootFolder: updatedRootFolder });
@@ -104,10 +109,16 @@ export function createFileSystemTreeActions(
         return;
       }
 
-      const updatedRootFolder = {
-        ...rootFolder,
-        children: expandFoldersForPath(rootFolder.children, path),
-      };
+      const updatedRootFolder = path === ''
+        ? {
+            ...rootFolder,
+            expanded: true,
+          }
+        : {
+            ...rootFolder,
+            expanded: true,
+            children: expandFoldersForPath(rootFolder.children, path),
+          };
 
       set({ rootFolder: updatedRootFolder });
       persistWorkspaceSnapshot(notesPath, {
