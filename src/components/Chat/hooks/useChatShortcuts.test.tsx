@@ -335,6 +335,72 @@ describe("useChatShortcuts", () => {
     expect(mocked.getState).not.toHaveBeenCalled();
   });
 
+  it("uses the same session order as the chat sidebar for Ctrl+Tab navigation", () => {
+    const previousTauri = (window as any).__TAURI__;
+    (window as any).__TAURI__ = {};
+
+    setup({
+      state: createState({
+        sessions: [
+          { id: "session-1", updatedAt: 20, createdAt: 1, title: "one", modelId: "m" },
+          { id: "temp-session-1", updatedAt: 999, createdAt: 1, title: "temp", modelId: "m" },
+          { id: "session-2", updatedAt: 10, createdAt: 1, title: "two", modelId: "m", isPinned: true },
+          { id: "session-3", updatedAt: 30, createdAt: 1, title: "three", modelId: "m" },
+        ],
+      }),
+      uiState: createUIState({ currentSessionId: "session-1" }),
+    });
+
+    const event = fireKeydown({ key: "Tab", ctrlKey: true });
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(mocked.switchSession).toHaveBeenCalledWith("session-2");
+
+    if (previousTauri === undefined) {
+      delete (window as any).__TAURI__;
+    } else {
+      (window as any).__TAURI__ = previousTauri;
+    }
+  });
+
+  it("does not switch chat sessions on Ctrl+Tab inside a dialog", () => {
+    const previousTauri = (window as any).__TAURI__;
+    (window as any).__TAURI__ = {};
+
+    setup({
+      state: createState({
+        sessions: [
+          { id: "session-1", updatedAt: 20, createdAt: 1, title: "one", modelId: "m" },
+          { id: "session-2", updatedAt: 10, createdAt: 1, title: "two", modelId: "m" },
+        ],
+      }),
+      uiState: createUIState({ currentSessionId: "session-1" }),
+    });
+
+    const dialog = document.createElement("div");
+    dialog.setAttribute("role", "dialog");
+    const button = document.createElement("button");
+    dialog.appendChild(button);
+    document.body.appendChild(dialog);
+
+    const event = new KeyboardEvent("keydown", {
+      key: "Tab",
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    button.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(mocked.switchSession).not.toHaveBeenCalled();
+
+    if (previousTauri === undefined) {
+      delete (window as any).__TAURI__;
+    } else {
+      (window as any).__TAURI__ = previousTauri;
+    }
+  });
+
   it("does nothing when shortcuts are disabled", () => {
     const { onToggleShortcuts, onFocusInput } = setup({ enabled: false });
 

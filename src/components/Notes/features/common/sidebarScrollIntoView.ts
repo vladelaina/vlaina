@@ -23,3 +23,17 @@ export function scrollSidebarItemIntoView(path: string) {
     behavior: 'smooth',
   });
 }
+
+
+export function scheduleSidebarItemIntoView(path: string, frameCount: number = 1) {
+  const run = (remainingFrames: number) => {
+    if (remainingFrames <= 0) {
+      scrollSidebarItemIntoView(path);
+      return;
+    }
+
+    window.requestAnimationFrame(() => run(remainingFrames - 1));
+  };
+
+  run(frameCount);
+}

@@ -78,6 +78,51 @@ describe('useShortcuts', () => {
   });
 
 
+  it('does not dispatch find shortcuts from inside a dialog', () => {
+    const editorFindListener = vi.fn();
+    const sidebarListener = vi.fn();
+    window.addEventListener(EDITOR_FIND_OPEN_EVENT, editorFindListener);
+    window.addEventListener(SIDEBAR_OPEN_SEARCH_EVENT, sidebarListener);
+
+    try {
+      renderHook(() => useShortcuts());
+
+      const dialog = document.createElement('div');
+      dialog.setAttribute('role', 'dialog');
+      const button = document.createElement('button');
+      dialog.appendChild(button);
+      document.body.appendChild(dialog);
+
+      const findEvent = new KeyboardEvent('keydown', {
+        key: 'f',
+        code: 'KeyF',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      button.dispatchEvent(findEvent);
+
+      const sidebarEvent = new KeyboardEvent('keydown', {
+        key: 'F',
+        code: 'KeyF',
+        ctrlKey: true,
+        shiftKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      button.dispatchEvent(sidebarEvent);
+
+      expect(findEvent.defaultPrevented).toBe(false);
+      expect(sidebarEvent.defaultPrevented).toBe(false);
+      expect(editorFindListener).not.toHaveBeenCalled();
+      expect(sidebarListener).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener(EDITOR_FIND_OPEN_EVENT, editorFindListener);
+      window.removeEventListener(SIDEBAR_OPEN_SEARCH_EVENT, sidebarListener);
+    }
+  });
+
+
   it('dispatches delete current note for Ctrl+Shift+Backspace in notes mode', () => {
     const deleteListener = vi.fn();
     window.addEventListener(DELETE_CURRENT_NOTE_EVENT, deleteListener);

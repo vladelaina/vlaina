@@ -21,6 +21,10 @@ export function sortChatSidebarSessions(sessions: ChatSession[]) {
   });
 }
 
+export function getNavigableChatSidebarSessions(sessions: ChatSession[]) {
+  return sortChatSidebarSessions(getVisibleChatSidebarSessions(sessions));
+}
+
 export function buildChatSidebarSearchEntries(sessions: ChatSession[]): ChatSidebarSearchEntry[] {
   return sessions.map((session) => ({
     session,

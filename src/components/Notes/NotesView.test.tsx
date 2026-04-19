@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { dispatchDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEvents';
+import { matchesShortcutBinding } from '@/lib/shortcuts';
 import { NotesView } from './NotesView';
 
 type MockNotesState = {
@@ -232,6 +233,7 @@ vi.mock('@/components/Notes/features/FileTree/components/TreeItemDeleteDialog', 
 
 const notesState = mocks.notesState;
 const uiState = mocks.uiState;
+const shortcutMatchesMock = vi.mocked(matchesShortcutBinding);
 
 describe('NotesView', () => {
   beforeEach(() => {
@@ -259,6 +261,8 @@ describe('NotesView', () => {
     mocks.vaultState.openVault.mockResolvedValue(true);
     mocks.windowState.dropHandler = null;
     mocks.storageState.stat.mockReset();
+    shortcutMatchesMock.mockReset();
+    shortcutMatchesMock.mockReturnValue(false);
 
     notesState.loadFileTree.mockClear();
     notesState.closeTab.mockClear();
@@ -411,6 +415,125 @@ describe('NotesView', () => {
     await waitFor(() => {
       expect(notesState.openNote).toHaveBeenCalledWith('alpha.md');
     });
+  });
+
+
+  it('cycles to the next note in tree order when only one note tab is open', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    notesState.openTabs = [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }];
+    notesState.rootFolder = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [
+        {
+          id: 'docs',
+          name: 'docs',
+          path: 'docs',
+          isFolder: true,
+          expanded: true,
+          children: [
+            { id: 'docs/alpha.md', name: 'alpha', path: 'docs/alpha.md', isFolder: false },
+            { id: 'docs/beta.md', name: 'beta', path: 'docs/beta.md', isFolder: false },
+          ],
+        },
+      ],
+    };
+    shortcutMatchesMock.mockImplementation((event, binding) => binding === 'nextNoteTab' && event.key === 'Tab' && event.ctrlKey && !event.shiftKey);
+
+    render(<NotesView />);
+
+    fireEvent.keyDown(document, { key: 'Tab', ctrlKey: true });
+
+    await waitFor(() => {
+      expect(notesState.revealFolder).toHaveBeenCalledWith('docs/beta.md');
+      expect(notesState.openNote).toHaveBeenCalledWith('docs/beta.md');
+    });
+  });
+
+  it('cycles to the previous note in tree order when only one note tab is open', async () => {
+    notesState.currentNote = { path: 'docs/beta.md', content: '# beta' };
+    notesState.openTabs = [{ path: 'docs/beta.md', name: 'beta', isDirty: false }];
+    notesState.rootFolder = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [
+        {
+          id: 'docs',
+          name: 'docs',
+          path: 'docs',
+          isFolder: true,
+          expanded: true,
+          children: [
+            { id: 'docs/alpha.md', name: 'alpha', path: 'docs/alpha.md', isFolder: false },
+            { id: 'docs/beta.md', name: 'beta', path: 'docs/beta.md', isFolder: false },
+          ],
+        },
+      ],
+    };
+    shortcutMatchesMock.mockImplementation((event, binding) => binding === 'previousNoteTab' && event.key === 'Tab' && event.ctrlKey && event.shiftKey);
+
+    render(<NotesView />);
+
+    fireEvent.keyDown(document, { key: 'Tab', ctrlKey: true, shiftKey: true });
+
+    await waitFor(() => {
+      expect(notesState.revealFolder).toHaveBeenCalledWith('docs/alpha.md');
+      expect(notesState.openNote).toHaveBeenCalledWith('docs/alpha.md');
+    });
+  });
+
+  it('does not cycle notes on Ctrl+Tab from inside a dialog', () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    notesState.openTabs = [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }];
+    notesState.rootFolder = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [
+        {
+          id: 'docs',
+          name: 'docs',
+          path: 'docs',
+          isFolder: true,
+          expanded: true,
+          children: [
+            { id: 'docs/alpha.md', name: 'alpha', path: 'docs/alpha.md', isFolder: false },
+            { id: 'docs/beta.md', name: 'beta', path: 'docs/beta.md', isFolder: false },
+          ],
+        },
+      ],
+    };
+    shortcutMatchesMock.mockImplementation((event, binding) => binding === 'nextNoteTab' && event.key === 'Tab' && event.ctrlKey && !event.shiftKey);
+
+    render(<NotesView />);
+    notesState.openNote.mockClear();
+    notesState.revealFolder.mockClear();
+
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    const button = document.createElement('button');
+    dialog.appendChild(button);
+    document.body.appendChild(dialog);
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    button.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(notesState.revealFolder).not.toHaveBeenCalled();
+    expect(notesState.openNote).not.toHaveBeenCalled();
   });
 
   it('opens the delete dialog for the current note and confirms deletion', async () => {

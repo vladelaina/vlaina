@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { Attachment } from '@/lib/storage/attachmentStorage';
 import { focusComposerInput, insertTextIntoComposer } from '@/lib/ui/composerFocusRegistry';
 import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
+import { isEventInsideDialog } from '@/lib/shortcuts/dialogGuards';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { useUIStore } from '@/stores/uiSlice';
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
@@ -169,10 +170,7 @@ export function ChatView({ mode = 'full', active = true }: ChatViewProps) {
         return;
       }
 
-      if (
-        event.target instanceof Element &&
-        event.target.closest('[role="dialog"], [aria-modal="true"]')
-      ) {
+      if (isEventInsideDialog(event.target)) {
         return;
       }
 

@@ -6,6 +6,7 @@ import { useDisplayName } from '@/hooks/useTitleSync';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { getDraftNoteEntry, isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
 import { cn } from '@/lib/utils';
+import { scheduleSidebarItemIntoView } from '@/components/Notes/features/common/sidebarScrollIntoView';
 
 interface NotePathBreadcrumbProps {
   notePath: string;
@@ -43,12 +44,6 @@ function buildFolderSegments(displayPath: string): FolderSegment[] {
   }));
 }
 
-function scrollToFolder(path: string): void {
-  const elements = document.querySelectorAll<HTMLElement>('[data-file-tree-path]');
-  const target = Array.from(elements).find((element) => element.dataset.fileTreePath === path);
-  target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-}
-
 export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
   const notesPath = useNotesStore((s) => s.notesPath);
   const draftNotes = useNotesStore((s) => s.draftNotes);
@@ -75,10 +70,7 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
   const handleFolderClick = (targetPath: string) => {
     setNotesSidebarView('workspace');
     revealFolder(targetPath);
-    requestAnimationFrame(() => {
-      useNotesStore.getState().revealFolder(targetPath);
-      requestAnimationFrame(() => scrollToFolder(targetPath));
-    });
+    scheduleSidebarItemIntoView(targetPath, 2);
   };
 
   const handleRootClick = () => {

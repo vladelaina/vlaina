@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { windowCommands } from '@/lib/tauri/invoke';
 import { openDialog, messageDialog } from '@/lib/storage/dialog';
@@ -8,17 +8,13 @@ import { subscribeOpenMarkdownTargetEvent } from './features/OpenTarget/openTarg
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useUIStore } from '@/stores/uiSlice';
-import { matchesShortcutBinding } from '@/lib/shortcuts';
 import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
 import { ResizablePanel } from '@/components/layout/ResizablePanel';
 import { ModuleShortcutsDialog } from '@/components/common/ModuleShortcutsDialog';
 import { readWindowLaunchContext } from '@/lib/tauri/windowLaunchContext';
 import { MarkdownEditor } from './features/Editor';
+import { useNotesViewShortcuts } from './hooks/useNotesViewShortcuts';
 import { useModuleShortcutsDialog } from '@/hooks/useModuleShortcutsDialog';
-import {
-  runOpenNewChatShortcut,
-  runTemporaryChatWelcomeShortcut,
-} from '@/components/Chat/features/Temporary/temporaryChatCommands';
 import { useCurrentVaultExternalPathSync } from './hooks/useCurrentVaultExternalPathSync';
 import { useNotesExternalSync } from './hooks/useNotesExternalSync';
 import { openStoredNotePath } from '@/stores/notes/openNotePath';
@@ -30,6 +26,8 @@ import { normalizeVaultPath } from '@/stores/vaultConfig';
 import { subscribeDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEvents';
 import { useBlankWorkspaceDropOpen } from './hooks/useBlankWorkspaceDropOpen';
 import { useNotesSidebarExternalDropImport } from './hooks/useNotesSidebarExternalDropImport';
+import { collectNotePathsInTreeOrder } from './features/common/noteTreeNavigation';
+import { scheduleSidebarItemIntoView } from './features/common/sidebarScrollIntoView';
 
 const EmbeddedChatView = lazy(async () => {
   const mod = await import('@/components/Chat/ChatView');
@@ -87,6 +85,15 @@ export function NotesView({ active = true }: { active?: boolean }) {
   const handleChatPanelDragStateChange = useCallback((dragging: boolean) => {
     setLayoutPanelDragging(dragging);
   }, [setLayoutPanelDragging]);
+  const notePathsInTreeOrder = useMemo(() => (
+    rootFolder ? collectNotePathsInTreeOrder(rootFolder.children) : []
+  ), [rootFolder]);
+
+  const focusSidebarPath = useCallback((path: string) => {
+    revealFolder(path);
+    scheduleSidebarItemIntoView(path, 2);
+  }, [revealFolder]);
+
   const focusNotesChatComposer = useCallback(() => {
     if (chatComposerFocusFrameRef.current !== null) {
       cancelAnimationFrame(chatComposerFocusFrameRef.current);
@@ -478,64 +485,17 @@ export function NotesView({ active = true }: { active?: boolean }) {
     });
   }, [currentNotePath]);
 
-  useEffect(() => {
-    if (!active) {
-      return;
-    }
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (matchesShortcutBinding(e, 'toggleEmbeddedChat')) {
-        e.preventDefault();
-        toggleChatPanel();
-        return;
-      }
-
-      if (matchesShortcutBinding(e, 'openNewChat')) {
-        e.preventDefault();
-        runOpenNewChatShortcut();
-        focusNotesChatComposer();
-        return;
-      }
-
-      if (matchesShortcutBinding(e, 'toggleTemporaryChatWelcome')) {
-        e.preventDefault();
-        runTemporaryChatWelcomeShortcut();
-        focusNotesChatComposer();
-        return;
-      }
-
-      const target = e.target;
-      if (target instanceof Element && target.closest('[data-notes-chat-panel="true"]')) {
-        return;
-      }
-
-      if (matchesShortcutBinding(e, 'nextNoteTab') && openTabs.length > 1) {
-        e.preventDefault();
-        const currentIndex = openTabs.findIndex(t => t.path === currentNotePath);
-        if (currentIndex === -1) return;
-        const nextIndex = currentIndex === openTabs.length - 1 ? 0 : currentIndex + 1;
-        openNote(openTabs[nextIndex].path);
-        return;
-      }
-
-      if (matchesShortcutBinding(e, 'previousNoteTab') && openTabs.length > 1) {
-        e.preventDefault();
-        const currentIndex = openTabs.findIndex(t => t.path === currentNotePath);
-        if (currentIndex === -1) return;
-        const nextIndex = currentIndex === 0 ? openTabs.length - 1 : currentIndex - 1;
-        openNote(openTabs[nextIndex].path);
-        return;
-      }
-
-      if (matchesShortcutBinding(e, 'closeCurrentTab') && currentNotePath) {
-        e.preventDefault();
-        closeTab(currentNotePath);
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [active, closeTab, currentNotePath, focusNotesChatComposer, openNote, openTabs, toggleChatPanel]);
+    useNotesViewShortcuts({
+    active,
+    currentNotePath,
+    openTabs,
+    notePathsInTreeOrder,
+    openNote,
+    closeTab,
+    toggleChatPanel,
+    focusNotesChatComposer,
+    focusSidebarPath,
+  });
 
   return (
     <>

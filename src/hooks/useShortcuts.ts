@@ -6,6 +6,7 @@ import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore as useAppUIStore } from '@/stores/uiSlice';
 import { getShortcuts, getKeysFromEvent, matchShortcut, ShortcutScope, ShortcutHandler } from '@/lib/shortcuts';
 import { shouldBlockBrowserReservedShortcut } from '@/lib/shortcuts/browserGuards';
+import { isEventInsideDialog } from '@/lib/shortcuts/dialogGuards';
 import { dispatchSidebarOpenSearchEvent } from '@/components/layout/sidebar/sidebarEvents';
 import { resolveSiblingNoteParentPath } from '@/stores/notes/notePathState';
 import { dispatchDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEvents';
@@ -85,6 +86,10 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
 
       if (isTauri() && shouldBlockBrowserReservedShortcut(e)) {
         e.preventDefault();
+        return;
+      }
+
+      if (isEventInsideDialog(e.target)) {
         return;
       }
       

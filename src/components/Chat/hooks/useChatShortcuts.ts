@@ -4,6 +4,7 @@ import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { isToggleShortcutsBinding, matchesShortcutBinding } from '@/lib/shortcuts';
 import { shouldBlockBrowserReservedShortcut } from '@/lib/shortcuts/browserGuards';
+import { isEventInsideDialog } from '@/lib/shortcuts/dialogGuards';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { dispatchChatMessageCopied } from '@/components/Chat/common/copyFeedback';
 import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
@@ -12,6 +13,7 @@ import {
   runOpenNewChatShortcut,
   runTemporaryChatWelcomeShortcut,
 } from '@/components/Chat/features/Temporary/temporaryChatCommands';
+import { getNavigableChatSidebarSessions } from '@/components/Chat/features/Sidebar/chatSidebarSearch';
 
 interface UseChatShortcutsOptions {
   onFocusInput: () => void;
@@ -36,11 +38,6 @@ export function useChatShortcuts(
       return !!target.closest('[contenteditable="true"]');
     };
 
-    const isInsideDialog = (target: EventTarget | null): boolean => {
-      if (!(target instanceof Element)) return false;
-      return !!target.closest('[role="dialog"], [aria-modal="true"]');
-    };
-
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMod = e.metaKey || e.ctrlKey;
       const key = e.key.toLowerCase();
@@ -57,7 +54,11 @@ export function useChatShortcuts(
         return;
       }
 
-      if (matchesShortcutBinding(e, 'stopResponse') && isGenerating && !isInsideDialog(e.target)) {
+      if (isEventInsideDialog(e.target)) {
+        return;
+      }
+
+      if (matchesShortcutBinding(e, 'stopResponse') && isGenerating) {
         e.preventDefault();
         e.stopPropagation();
         onStopGeneration?.();
@@ -121,14 +122,12 @@ export function useChatShortcuts(
 
           e.preventDefault();
           const state = useUnifiedStore.getState();
-          const rawSessions = state.data.ai?.sessions || [];
+          const sessions = getNavigableChatSidebarSessions(state.data.ai?.sessions || []);
           const currentId = useAIUIStore.getState().currentSessionId;
           
-          if (rawSessions.length < 2) return;
+          if (sessions.length < 2) return;
 
-          const sessions = [...rawSessions].sort((a, b) => b.updatedAt - a.updatedAt);
-
-          const currentIndex = sessions.findIndex(s => s.id === currentId);
+          const currentIndex = sessions.findIndex((session) => session.id === currentId);
           let nextIndex;
 
           if (matchesShortcutBinding(e, 'previousChatSession')) {
@@ -137,7 +136,8 @@ export function useChatShortcuts(
               nextIndex = currentIndex < sessions.length - 1 ? currentIndex + 1 : 0;
           }
 
-          const nextId = sessions[nextIndex].id;
+          const nextId = sessions[nextIndex]?.id;
+          if (!nextId) return;
           aiActions.switchSession(nextId);
           onFocusInput();
           return;
