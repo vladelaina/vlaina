@@ -11,6 +11,7 @@ type MockNotesState = {
   loadFileTree: ReturnType<typeof vi.fn>;
   openTabs: Array<{ path: string; name: string; isDirty: boolean }>;
   closeTab: ReturnType<typeof vi.fn>;
+  reopenClosedTab: ReturnType<typeof vi.fn>;
   createNote: ReturnType<typeof vi.fn>;
   openNote: ReturnType<typeof vi.fn>;
   deleteNote: ReturnType<typeof vi.fn>;
@@ -50,6 +51,7 @@ const mocks = vi.hoisted(() => {
     loadFileTree: vi.fn().mockResolvedValue(undefined),
     openTabs: [],
     closeTab: vi.fn(),
+    reopenClosedTab: vi.fn().mockResolvedValue(undefined),
     createNote: vi.fn().mockResolvedValue('draft:test'),
     openNote: vi.fn().mockResolvedValue(undefined),
     deleteNote: vi.fn().mockResolvedValue(undefined),
@@ -266,6 +268,7 @@ describe('NotesView', () => {
 
     notesState.loadFileTree.mockClear();
     notesState.closeTab.mockClear();
+    notesState.reopenClosedTab.mockClear();
     notesState.createNote.mockClear();
     notesState.openNote.mockClear();
     notesState.deleteNote.mockClear();
@@ -534,6 +537,21 @@ describe('NotesView', () => {
     expect(event.defaultPrevented).toBe(false);
     expect(notesState.revealFolder).not.toHaveBeenCalled();
     expect(notesState.openNote).not.toHaveBeenCalled();
+  });
+
+  it('reopens the last closed tab on Ctrl+Shift+T', async () => {
+    notesState.currentNote = { path: 'docs/current.md', content: '# current' };
+    shortcutMatchesMock.mockImplementation((event, binding) => (
+      binding === 'reopenClosedTab' && event.key.toLowerCase() === 't' && event.ctrlKey && event.shiftKey
+    ));
+
+    render(<NotesView />);
+
+    fireEvent.keyDown(document, { key: 'T', ctrlKey: true, shiftKey: true });
+
+    await waitFor(() => {
+      expect(notesState.reopenClosedTab).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('opens the delete dialog for the current note and confirms deletion', async () => {

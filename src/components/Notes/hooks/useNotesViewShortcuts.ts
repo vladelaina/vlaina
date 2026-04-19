@@ -14,6 +14,7 @@ interface UseNotesViewShortcutsOptions {
   notePathsInTreeOrder: readonly string[];
   openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
   closeTab: (path: string) => Promise<void>;
+  reopenClosedTab: () => Promise<void>;
   toggleChatPanel: () => void;
   focusNotesChatComposer: () => void;
   focusSidebarPath: (path: string) => void;
@@ -26,6 +27,7 @@ export function useNotesViewShortcuts({
   notePathsInTreeOrder,
   openNote,
   closeTab,
+  reopenClosedTab,
   toggleChatPanel,
   focusNotesChatComposer,
   focusSidebarPath,
@@ -122,6 +124,12 @@ export function useNotesViewShortcuts({
       if (matchesShortcutBinding(event, 'closeCurrentTab') && currentNotePath) {
         event.preventDefault();
         void closeTab(currentNotePath);
+        return;
+      }
+
+      if (matchesShortcutBinding(event, 'reopenClosedTab')) {
+        event.preventDefault();
+        void reopenClosedTab();
       }
     };
 
@@ -130,6 +138,7 @@ export function useNotesViewShortcuts({
   }, [
     active,
     closeTab,
+    reopenClosedTab,
     currentNotePath,
     focusNotesChatComposer,
     focusSidebarPath,

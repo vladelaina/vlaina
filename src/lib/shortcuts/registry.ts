@@ -105,6 +105,15 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
     section: 'Notes',
   },
   {
+    id: 'reopenClosedTab',
+    action: 'Reopen closed tab',
+    description: 'Reopen closed note tab',
+    keys: ['Ctrl', 'Shift', 'T'],
+    scope: 'notes',
+    modules: ['notes'],
+    section: 'Notes',
+  },
+  {
     id: 'nextNoteTab',
     action: 'Next tab',
     description: 'Next note tab',

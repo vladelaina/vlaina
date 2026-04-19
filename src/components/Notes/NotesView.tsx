@@ -40,6 +40,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
   const loadFileTree = useNotesStore(s => s.loadFileTree);
   const openTabs = useNotesStore(s => s.openTabs);
   const closeTab = useNotesStore(s => s.closeTab);
+  const reopenClosedTab = useNotesStore(s => s.reopenClosedTab);
   const openNote = useNotesStore(s => s.openNote);
   const loadStarred = useNotesStore(s => s.loadStarred);
   const deleteNote = useNotesStore(s => s.deleteNote);
@@ -485,13 +486,14 @@ export function NotesView({ active = true }: { active?: boolean }) {
     });
   }, [currentNotePath]);
 
-    useNotesViewShortcuts({
+  useNotesViewShortcuts({
     active,
     currentNotePath,
     openTabs,
     notePathsInTreeOrder,
     openNote,
     closeTab,
+    reopenClosedTab,
     toggleChatPanel,
     focusNotesChatComposer,
     focusSidebarPath,

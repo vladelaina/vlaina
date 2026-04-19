@@ -61,6 +61,17 @@ export interface CurrentNoteState {
   content: string;
 }
 
+export interface NoteTabState {
+  path: string;
+  name: string;
+  isDirty: boolean;
+}
+
+export interface RecentlyClosedTabState {
+  tab: NoteTabState;
+  index: number;
+}
+
 export interface DraftNoteEntry {
   parentPath: string | null;
   name: string;
@@ -80,7 +91,8 @@ export interface NotesState {
   isLoading: boolean;
   error: string | null;
   recentNotes: string[];
-  openTabs: { path: string; name: string; isDirty: boolean }[];
+  openTabs: NoteTabState[];
+  recentlyClosedTabs: RecentlyClosedTabState[];
   noteContentsCache: Map<string, NoteContentCacheEntry>;
   draftNotes: Record<string, DraftNoteEntry>;
   starredEntries: StarredEntry[];
@@ -127,6 +139,7 @@ export interface NotesActions {
   confirmPendingDraftDiscard: () => Promise<void>;
   closeNote: () => void;
   closeTab: (path: string) => Promise<void>;
+  reopenClosedTab: () => Promise<void>;
   switchTab: (path: string) => void;
   reorderTabs: (fromIndex: number, toIndex: number) => void;
   scanAllNotes: () => Promise<void>;

@@ -412,6 +412,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
         useNotesStore.setState({
           currentNote: null,
           openTabs: [],
+          recentlyClosedTabs: [],
           rootFolder: null,
           notesPath: '',
           draftNotes: {},

@@ -35,6 +35,12 @@ import {
 import { loadNoteDocument, saveNoteDocument } from '../document/noteDocumentPersistence';
 import { setNoteTabDirtyState } from '../document/noteTabState';
 import {
+  pruneRecentlyClosedTabsForExternalDeletion,
+  pushRecentlyClosedTab,
+  remapRecentlyClosedTabsForExternalRename,
+  restoreClosedTabOrder,
+} from '../document/recentlyClosedTabState';
+import {
   pruneDisplayNamesForExternalDeletion,
   pruneExpandedFoldersForExternalDeletion,
   pruneOpenTabsForExternalDeletion,
@@ -60,6 +66,7 @@ export interface WorkspaceSlice {
   isLoading: NotesStore['isLoading'];
   error: NotesStore['error'];
   openTabs: NotesStore['openTabs'];
+  recentlyClosedTabs: NotesStore['recentlyClosedTabs'];
   draftNotes: NotesStore['draftNotes'];
   pendingDraftDiscardPath: NotesStore['pendingDraftDiscardPath'];
   displayNames: NotesStore['displayNames'];
@@ -79,6 +86,7 @@ export interface WorkspaceSlice {
   confirmPendingDraftDiscard: () => Promise<void>;
   closeNote: () => void;
   closeTab: (path: string) => Promise<void>;
+  reopenClosedTab: () => Promise<void>;
   switchTab: (path: string) => void;
   reorderTabs: (fromIndex: number, toIndex: number) => void;
   syncDisplayName: (path: string, title: string) => void;
@@ -95,6 +103,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   isLoading: false,
   error: null,
   openTabs: [],
+  recentlyClosedTabs: [],
   draftNotes: {},
   pendingDraftDiscardPath: null,
   displayNames: new Map(),
@@ -546,6 +555,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       noteContentsCache,
       noteMetadata,
       starredEntries,
+      recentlyClosedTabs,
       notesPath,
       recentNotes,
       rootFolder,
@@ -556,6 +566,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     const nextOpenTabs = remapOpenTabsForExternalRename(openTabs, oldPath, newPath);
     const nextDisplayNames = remapDisplayNamesForExternalRename(displayNames, oldPath, newPath);
     const nextRecentNotes = remapRecentNotesForExternalRename(recentNotes, oldPath, newPath);
+    const nextRecentlyClosedTabs = remapRecentlyClosedTabsForExternalRename(recentlyClosedTabs, oldPath, newPath);
     const nextCache = remapCachedNoteContents(noteContentsCache, (path) => {
       if (path === oldPath) {
         return newPath;
@@ -610,6 +621,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       openTabs: nextOpenTabs,
       displayNames: nextDisplayNames,
       recentNotes: nextRecentNotes,
+      recentlyClosedTabs: nextRecentlyClosedTabs,
       noteContentsCache: nextCache,
       noteMetadata: nextMetadata ?? noteMetadata,
       rootFolder: nextRootFolder,
@@ -641,6 +653,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       noteContentsCache,
       noteMetadata,
       starredEntries,
+      recentlyClosedTabs,
       notesPath,
       isDirty,
       recentNotes,
@@ -653,6 +666,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     const nextOpenTabs = pruneOpenTabsForExternalDeletion(openTabs, path, preservedPath);
     const nextDisplayNames = pruneDisplayNamesForExternalDeletion(displayNames, path, preservedPath);
     const nextRecentNotes = pruneRecentNotesForExternalDeletion(recentNotes, path, preservedPath);
+    const nextRecentlyClosedTabs = pruneRecentlyClosedTabsForExternalDeletion(recentlyClosedTabs, path);
     const nextCache = pruneCachedNoteContents(noteContentsCache, (cachedPath) => {
       if (preservedPath && cachedPath === preservedPath) {
         return false;
@@ -700,6 +714,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       openTabs: nextOpenTabs,
       displayNames: nextDisplayNames,
       recentNotes: nextRecentNotes,
+      recentlyClosedTabs: nextRecentlyClosedTabs,
       noteContentsCache: nextCache,
       noteMetadata: nextMetadata ?? noteMetadata,
       rootFolder: nextRootFolder,
@@ -832,6 +847,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       notesPath,
       rootFolder,
       fileTreeSortMode,
+      recentlyClosedTabs,
     } = get();
 
     const pathIsAbsolute = isAbsolutePath(path);
@@ -856,16 +872,24 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       if (get().isDirty) return;
     }
 
+    const closedTab = openTabs.find((tab) => tab.path === path);
     const updatedTabs = openTabs.filter((t) => t.path !== path);
-    set({ openTabs: updatedTabs });
+    set({
+      openTabs: updatedTabs,
+      recentlyClosedTabs: closedTab
+        ? pushRecentlyClosedTab(recentlyClosedTabs, closedTab, openTabs.findIndex((tab) => tab.path === path))
+        : recentlyClosedTabs,
+    });
 
     if (currentNote?.path === path) {
       if (updatedTabs.length > 0) {
         const lastTab = updatedTabs[updatedTabs.length - 1];
-        void openStoredNotePath(lastTab.path, {
-          openNote: get().openNote,
-          openNoteByAbsolutePath: get().openNoteByAbsolutePath,
-        });
+        if (lastTab) {
+          void openStoredNotePath(lastTab.path, {
+            openNote: get().openNote,
+            openNoteByAbsolutePath: get().openNoteByAbsolutePath,
+          });
+        }
       } else {
         set({ currentNote: null, isDirty: false });
         persistWorkspaceSnapshot(notesPath, {
@@ -874,6 +898,52 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
           fileTreeSortMode,
         });
       }
+    }
+  },
+
+  reopenClosedTab: async () => {
+    const closedTabs = get().recentlyClosedTabs;
+    if (closedTabs.length === 0) {
+      return;
+    }
+
+    for (let index = 0; index < closedTabs.length; index += 1) {
+      const entry = closedTabs[index];
+      if (!entry) {
+        continue;
+      }
+
+      const remainingTabs = closedTabs.slice(index + 1);
+      const wasDirty = get().isDirty;
+      const previousPath = get().currentNote?.path ?? null;
+      const alreadyOpen = get().openTabs.some((tab) => tab.path === entry.tab.path);
+
+      await openStoredNotePath(
+        entry.tab.path,
+        {
+          openNote: get().openNote,
+          openNoteByAbsolutePath: get().openNoteByAbsolutePath,
+        },
+        alreadyOpen ? undefined : { openInNewTab: true },
+      );
+
+      const nextState = get();
+      const reopened = nextState.currentNote?.path === entry.tab.path && nextState.openTabs.some((tab) => tab.path === entry.tab.path);
+      if (reopened) {
+        set({
+          openTabs: alreadyOpen
+            ? nextState.openTabs
+            : restoreClosedTabOrder(nextState.openTabs, entry.tab.path, entry.index),
+          recentlyClosedTabs: remainingTabs,
+        });
+        return;
+      }
+
+      if (wasDirty && nextState.isDirty && nextState.currentNote?.path === previousPath) {
+        return;
+      }
+
+      set({ recentlyClosedTabs: remainingTabs });
     }
   },
 
