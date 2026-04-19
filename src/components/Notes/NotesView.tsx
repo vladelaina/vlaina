@@ -148,9 +148,12 @@ export function NotesView({ active = true }: { active?: boolean }) {
 
     const initializeVault = async () => {
       await loadStarred(currentVault.path);
+      const shouldSkipWorkspaceRestore =
+        pendingStarredNavigation?.vaultPath === currentVault.path &&
+        pendingStarredNavigation.skipWorkspaceRestore === true;
       await Promise.all([
         loadAssets(currentVault.path),
-        loadFileTree(Boolean(launchContextRef.current.notePath)),
+        loadFileTree(Boolean(launchContextRef.current.notePath) || shouldSkipWorkspaceRestore),
         cleanupAssetTempFiles(),
       ]);
 
@@ -165,7 +168,15 @@ export function NotesView({ active = true }: { active?: boolean }) {
       cancelled = true;
       clearAssetUrlCache();
     };
-  }, [currentVault, loadStarred, loadAssets, loadFileTree, cleanupAssetTempFiles, clearAssetUrlCache]);
+  }, [
+    currentVault,
+    pendingStarredNavigation,
+    loadStarred,
+    loadAssets,
+    loadFileTree,
+    cleanupAssetTempFiles,
+    clearAssetUrlCache,
+  ]);
 
   useEffect(() => {
     if (hasHandledLaunchNoteRef.current) return;

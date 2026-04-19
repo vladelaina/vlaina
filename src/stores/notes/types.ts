@@ -54,6 +54,7 @@ export interface PendingStarredNavigation {
   kind: StarredKind;
   relativePath: string;
   openInNewTab?: boolean;
+  skipWorkspaceRestore?: boolean;
 }
 
 export interface CurrentNoteState {
