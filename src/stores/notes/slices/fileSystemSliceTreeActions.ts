@@ -37,7 +37,7 @@ export function createFileSystemTreeActions(
         });
         const starredPaths = getVaultStarredPaths(get().starredEntries, basePath);
 
-        const restoredChildren = workspace?.expandedFolders?.length
+        const restoredChildren = !skipRestore && workspace?.expandedFolders?.length
           ? restoreExpandedState(children, new Set(workspace.expandedFolders))
           : children;
 

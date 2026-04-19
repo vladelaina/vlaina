@@ -112,6 +112,7 @@ export const FolderItem = memo(function FolderItem({
       itemKind="folder"
       depth={depth}
       actionFadeClassName={showStarBadge ? 'w-3 from-transparent' : undefined}
+      contentClassName={showStarBadge ? 'z-30' : undefined}
       leading={
         <span className="relative flex size-[20px] items-center justify-center">
           <span

@@ -129,6 +129,7 @@ export const FileItem = memo(function FileItem({
       parentFolderPath={parentFolderPath}
       depth={depth}
       actionFadeClassName={showStarBadge ? 'w-3 from-transparent' : undefined}
+      contentClassName={showStarBadge ? 'z-30' : undefined}
       leading={
         noteIcon ? (
           <NoteIcon icon={noteIcon} notePath={node.path} size={NOTES_SIDEBAR_ICON_SIZE} />

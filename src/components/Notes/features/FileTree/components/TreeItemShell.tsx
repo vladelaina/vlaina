@@ -17,6 +17,7 @@ interface TreeItemShellProps {
   main: ReactNode;
   children?: ReactNode;
   actionFadeClassName?: string;
+  contentClassName?: string;
   isActive?: boolean;
   isHighlighted?: boolean;
   isDragOver?: boolean;
@@ -38,6 +39,7 @@ export function TreeItemShell({
   main,
   children,
   actionFadeClassName,
+  contentClassName,
   isActive = false,
   isHighlighted = false,
   isDragOver = false,
@@ -65,6 +67,7 @@ export function TreeItemShell({
         onMouseLeave={() => clearHoveredSidebarRenamePath(itemPath)}
         leading={leading}
         main={main}
+        contentClassName={contentClassName}
         isActive={isActive}
         isHighlighted={isHighlighted}
         isDragOver={isDragOver}
