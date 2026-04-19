@@ -8,6 +8,7 @@ import {
   setExternalFileTreeDropTarget,
 } from '../features/FileTree/hooks/externalFileTreeDropState';
 import { resolveExternalFolderDropTargetPath } from '../features/FileTree/hooks/dropTargetDom';
+import { createExternalDragPreview, type ExternalDragPreviewHandle } from '../features/FileTree/hooks/externalDragPreview';
 import { importExternalMarkdownEntries } from './externalMarkdownImport';
 
 interface UseNotesSidebarExternalDropImportOptions {
@@ -47,6 +48,7 @@ export function useNotesSidebarExternalDropImport({
 
     let cancelled = false;
     let unlisten: (() => void) | null = null;
+    let preview: ExternalDragPreviewHandle | null = null;
 
     void getCurrentWindow().onDragDropEvent((event) => {
       logExternalDrop('window-event', {
@@ -56,14 +58,29 @@ export function useNotesSidebarExternalDropImport({
       });
 
       if (event.payload.type === 'enter' || event.payload.type === 'over') {
+        const position = 'position' in event.payload ? event.payload.position : null;
+        const paths = 'paths' in event.payload ? event.payload.paths : [];
+        if (position) {
+          if (!preview && paths.length > 0) {
+            preview = createExternalDragPreview(paths);
+          }
+          preview?.updatePaths(paths);
+          preview?.updatePosition(position.x, position.y);
+        }
+
+        if (!position) {
+          setExternalFileTreeDropTarget(null);
+          return;
+        }
+
         const dropTargetPath = resolveExternalFolderDropTargetPath(
-          event.payload.position.x,
-          event.payload.position.y,
+          position.x,
+          position.y,
         );
         logExternalDrop('hover-target', {
           type: event.payload.type,
-          x: event.payload.position.x,
-          y: event.payload.position.y,
+          x: position.x,
+          y: position.y,
           dropTargetPath,
         });
         setExternalFileTreeDropTarget(dropTargetPath);
@@ -72,6 +89,8 @@ export function useNotesSidebarExternalDropImport({
 
       if (event.payload.type === 'leave') {
         logExternalDrop('leave', {});
+        preview?.dispose();
+        preview = null;
         clearExternalFileTreeDropTarget();
         return;
       }
@@ -80,15 +99,29 @@ export function useNotesSidebarExternalDropImport({
         return;
       }
 
+      const position = 'position' in event.payload ? event.payload.position : null;
+      if (!position) {
+        preview?.dispose();
+        preview = null;
+        clearExternalFileTreeDropTarget();
+        logExternalDrop('drop-aborted:no-position', {
+          paths: event.payload.paths,
+        });
+        return;
+      }
+
       const dropTargetPath = resolveExternalFolderDropTargetPath(
-        event.payload.position.x,
-        event.payload.position.y,
+        position.x,
+        position.y,
       );
       const { paths } = event.payload;
 
+      preview?.dispose();
+      preview = null;
+
       logExternalDrop('drop-resolved', {
-        x: event.payload.position.x,
-        y: event.payload.position.y,
+        x: position.x,
+        y: position.y,
         dropTargetPath,
         paths,
       });
@@ -97,8 +130,8 @@ export function useNotesSidebarExternalDropImport({
 
       if (!dropTargetPath && dropTargetPath !== '') {
         logExternalDrop('drop-aborted:no-target', {
-          x: event.payload.position.x,
-          y: event.payload.position.y,
+          x: position.x,
+          y: position.y,
           paths,
         });
         return;
@@ -177,6 +210,7 @@ export function useNotesSidebarExternalDropImport({
 
     return () => {
       cancelled = true;
+      preview?.dispose();
       clearExternalFileTreeDropTarget();
       unlisten?.();
       logExternalDrop('listener-disposed', { vaultPath });
