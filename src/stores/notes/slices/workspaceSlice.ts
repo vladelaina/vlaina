@@ -436,14 +436,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       const exists = await storage.exists(fullPath);
       const fileInfo = await storage.stat(fullPath);
       const cachedModifiedAt = getCachedNoteModifiedAt(noteContentsCache, currentNote.path);
-      logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:start', {
-        notePath: currentNote.path,
-        fullPath,
-        isDirty,
-        exists,
-        cachedModifiedAt,
-        nextModifiedAt: fileInfo?.modifiedAt ?? null,
-      });
 
       if (!exists || fileInfo?.isFile === false) {
         if (isDirty) {
@@ -482,10 +474,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
       const nextModifiedAt = fileInfo?.modifiedAt ?? cachedModifiedAt ?? null;
       if (nextModifiedAt === cachedModifiedAt) {
-        logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:unchanged', {
-          notePath: currentNote.path,
-          modifiedAt: nextModifiedAt,
-        });
         return 'unchanged';
       }
 

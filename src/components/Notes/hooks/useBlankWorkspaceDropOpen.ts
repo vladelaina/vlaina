@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { getStorageAdapter, isTauri } from '@/lib/storage/adapter';
 import { messageDialog } from '@/lib/storage/dialog';
+import { createExternalDragPreview, type ExternalDragPreviewHandle } from '../features/FileTree/hooks/externalDragPreview';
 import { isSupportedMarkdownSelection } from '../features/OpenTarget/openTargetSelection';
 
 interface UseBlankWorkspaceDropOpenOptions {
@@ -26,15 +27,27 @@ export function useBlankWorkspaceDropOpen({
     const storage = getStorageAdapter();
     let cancelled = false;
     let unlisten: (() => void) | null = null;
+    let preview: ExternalDragPreviewHandle | null = null;
 
     void getCurrentWindow().onDragDropEvent((event) => {
       if (event.payload.type === 'enter' || event.payload.type === 'over') {
         setIsDragActive(true);
+        const position = 'position' in event.payload ? event.payload.position : null;
+        const paths = 'paths' in event.payload ? event.payload.paths : [];
+        if (position) {
+          if (!preview && paths.length > 0) {
+            preview = createExternalDragPreview(paths);
+          }
+          preview?.updatePaths(paths);
+          preview?.updatePosition(position.x, position.y);
+        }
         return;
       }
 
       if (event.payload.type === 'leave') {
         setIsDragActive(false);
+        preview?.dispose();
+        preview = null;
         return;
       }
 
@@ -43,6 +56,8 @@ export function useBlankWorkspaceDropOpen({
       }
 
       setIsDragActive(false);
+      preview?.dispose();
+      preview = null;
 
       const { paths } = event.payload;
 
@@ -97,6 +112,7 @@ export function useBlankWorkspaceDropOpen({
     return () => {
       cancelled = true;
       setIsDragActive(false);
+      preview?.dispose();
       unlisten?.();
     };
   }, [enabled, openMarkdownTarget, openVault]);

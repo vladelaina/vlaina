@@ -110,10 +110,12 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
       }
 
       const result = await syncCurrentNoteFromDisk();
-      logNotesDebug('useNotesExternalSync:reconcileCurrentNote:result', {
-        currentNotePath,
-        result,
-      });
+      if (result !== 'unchanged') {
+        logNotesDebug('useNotesExternalSync:reconcileCurrentNote:result', {
+          currentNotePath,
+          result,
+        });
+      }
       if (result === 'reloaded') {
         notifyOnce(
           `reloaded:${currentNotePath}`,

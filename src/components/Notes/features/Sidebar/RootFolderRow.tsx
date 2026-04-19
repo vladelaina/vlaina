@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
+import { logNotesDebug } from '@/stores/notes/debugLog';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
@@ -19,6 +20,13 @@ import {
   registerSidebarHoverRenameTarget,
   setHoveredSidebarRenamePath,
 } from '../common/sidebarHoverRename';
+
+const INTERNAL_ROOT_AUTO_EXPAND_DELAY_MS = 120;
+const EXTERNAL_ROOT_AUTO_EXPAND_DELAY_MS = 560;
+
+function logRootAutoExpand(event: string, details: Record<string, unknown>) {
+  logNotesDebug(`RootFolderRow:${event}`, details);
+}
 
 interface RootFolderRowProps {
   rootFolder: FolderNode | null;
@@ -44,9 +52,14 @@ export function RootFolderRow({
   const [renameValue, setRenameValue] = useState('');
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const isRenamingRef = useRef(false);
-  const isDragOver =
-    useFileTreePointerDragState((state) => state.dropTargetPath === '') ||
-    useExternalFileTreeDropState((state) => state.dropTargetPath === '');
+  const isInternalRootDragOver = useFileTreePointerDragState((state) => state.dropTargetPath === '');
+  const isExternalRootDragOver = useExternalFileTreeDropState((state) => state.dropTargetPath === '');
+  const isRootDragOver = isInternalRootDragOver || isExternalRootDragOver;
+  const autoExpandDelayMs = isInternalRootDragOver
+    ? INTERNAL_ROOT_AUTO_EXPAND_DELAY_MS
+    : EXTERNAL_ROOT_AUTO_EXPAND_DELAY_MS;
+  const isDragOver = isRootDragOver;
+  const autoExpandTimeoutRef = useRef<number | null>(null);
 
   const title = currentVault?.name || rootFolder?.name || 'Notes';
   const vaultPath = currentVault?.path ?? '';
@@ -81,6 +94,43 @@ export function RootFolderRow({
       isRenaming: () => isRenamingRef.current,
     });
   }, [rootFolder]);
+
+  useEffect(() => {
+    if (autoExpandTimeoutRef.current !== null) {
+      logRootAutoExpand('cancel-pending', {
+        expanded,
+      });
+      window.clearTimeout(autoExpandTimeoutRef.current);
+      autoExpandTimeoutRef.current = null;
+    }
+
+    if (!isRootDragOver || expanded) {
+      if (isRootDragOver) {
+        logRootAutoExpand('skip-already-expanded', {});
+      }
+      return;
+    }
+
+    logRootAutoExpand('schedule', {
+      delayMs: autoExpandDelayMs,
+      mode: isInternalRootDragOver ? 'internal' : 'external',
+    });
+    autoExpandTimeoutRef.current = window.setTimeout(() => {
+      logRootAutoExpand('fire', {
+        mode: isInternalRootDragOver ? 'internal' : 'external',
+      });
+      setExpanded(true);
+      autoExpandTimeoutRef.current = null;
+    }, autoExpandDelayMs);
+
+    return () => {
+      if (autoExpandTimeoutRef.current !== null) {
+        logRootAutoExpand('cleanup', {});
+        window.clearTimeout(autoExpandTimeoutRef.current);
+        autoExpandTimeoutRef.current = null;
+      }
+    };
+  }, [autoExpandDelayMs, expanded, isInternalRootDragOver, isRootDragOver]);
 
   if (isLoading) {
     return (

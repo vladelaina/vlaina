@@ -71,7 +71,7 @@ export function NotesSidebarRow({
       activeClassName={styles.activeRow}
       highlightClassName={styles.highlightRow}
       inactiveClassName={styles.inactiveRow}
-      dragOverClassName="bg-[var(--notes-sidebar-row-drag)] ring-1 ring-[var(--vlaina-accent)]"
+      dragOverClassName="bg-[var(--notes-sidebar-row-drag)] ring-1 ring-[var(--vlaina-accent)] shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_10px_24px_-18px_rgba(30,150,235,0.65)]"
       onPointerDown={dragHandlers?.onPointerDown}
       {...props}
     >
