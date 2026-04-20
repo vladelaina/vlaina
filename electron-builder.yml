@@ -21,6 +21,7 @@ files:
 asar: true
 artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 mac:
+  icon: build/icon.icns
   target:
     - dmg
     - zip
