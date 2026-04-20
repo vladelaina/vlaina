@@ -1,0 +1,22 @@
+appId: com.vlaina.desktop
+productName: vlaina
+directories:
+  output: release
+files:
+  - dist/**
+  - electron/**
+  - package.json
+asar: true
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.productivity
+win:
+  target:
+    - nsis
+linux:
+  category: Utility
+  target:
+    - AppImage

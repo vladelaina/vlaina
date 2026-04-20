@@ -11,6 +11,10 @@ concurrency:
   group: build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  CSC_IDENTITY_AUTO_DISCOVERY: false
+
 jobs:
   test:
     runs-on: windows-latest
@@ -21,15 +25,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
-          version: 10.33.0
+          version: 10
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version-file: .node-version
           cache: pnpm
@@ -44,24 +48,38 @@ jobs:
         run: pnpm test
 
   build:
-    runs-on: windows-latest
-    timeout-minutes: 45
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     needs: test
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: --win
+            artifact_name: vlaina-installers-windows
+          - os: macos-latest
+            target: --mac
+            artifact_name: vlaina-installers-macos
+          - os: ubuntu-latest
+            target: --linux
+            artifact_name: vlaina-installers-linux
 
     permissions:
       contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
-          version: 10.33.0
+          version: 10
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version-file: .node-version
           cache: pnpm
@@ -69,13 +87,24 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build
+      - name: Build renderer
         run: pnpm build
+
+      - name: Package Electron app
+        run: pnpm dlx electron-builder --config electron-builder.yml ${{ matrix.target }} --publish never
 
       - name: Upload dist artifact
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
-          name: vlaina-dist
+          name: ${{ matrix.artifact_name }}-dist
           path: dist
+          if-no-files-found: error
+
+      - name: Upload installer artifacts
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: release
           if-no-files-found: error
