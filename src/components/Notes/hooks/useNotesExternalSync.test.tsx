@@ -24,20 +24,19 @@ const hoisted = vi.hoisted(() => {
     watchHandler: null as ((event: WatchEvent) => void | Promise<void>) | null,
     unwatch: vi.fn(),
     releaseWatcher: vi.fn(),
-    watchImmediate: vi.fn(async (_path: string, handler: (event: WatchEvent) => void | Promise<void>) => {
+    watchDesktopPath: vi.fn(async (_path: string, handler: (event: WatchEvent) => void | Promise<void>) => {
       hoisted.watchHandler = handler;
       return hoisted.unwatch;
     }),
   };
 });
 
-vi.mock('@tauri-apps/plugin-fs', () => ({
-  watchImmediate: hoisted.watchImmediate,
+vi.mock('@/lib/desktop/watch', () => ({
+  watchDesktopPath: hoisted.watchDesktopPath,
 }));
 
 vi.mock('@/lib/storage/adapter', () => ({
   isAbsolutePath: (path: string) => path.startsWith('/'),
-  isTauri: () => true,
 }));
 
 vi.mock('@/stores/notes/useNotesStore', () => ({

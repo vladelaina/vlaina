@@ -1,6 +1,6 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
-import { watchImmediate } from '@tauri-apps/plugin-fs';
-import { isAbsolutePath, isTauri } from '@/lib/storage/adapter';
+import { watchDesktopPath } from '@/lib/desktop/watch';
+import { isAbsolutePath } from '@/lib/storage/adapter';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { shouldIgnoreExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
@@ -56,12 +56,12 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
   const reconcileInFlightRef = useRef(false);
 
   useEffect(() => {
-    if (!vaultPath || !notesPath || !isTauri() || isPaused) {
+    if (!vaultPath || !notesPath || isPaused) {
       return;
     }
 
     let disposed = false;
-    let unwatch: (() => void) | null = null;
+      let unwatch: (() => Promise<void>) | null = null;
     let releaseWatcher: (() => void) | null = null;
     let reconcilePollTimer: number | null = null;
 
@@ -304,7 +304,7 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
 
     const run = async () => {
       try {
-        unwatch = await watchImmediate(notesPath, async (event) => {
+        unwatch = await watchDesktopPath(notesPath, async (event) => {
           if (disposed) {
             return;
           }
@@ -371,7 +371,7 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
             getRelevantRelativeWatchPaths(vaultPath, unexpectedPaths),
             isRemoveWatchEvent(event)
           );
-        }, { recursive: true });
+        });
         releaseWatcher = registerExternalSyncWatcher();
       } catch (error) {
         if (disposed) {
@@ -408,7 +408,7 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
         pendingRenameTimerRef.current = null;
       }
       pendingRenamesRef.current = [];
-      unwatch?.();
+          void unwatch?.();
       releaseWatcher?.();
     };
   }, [

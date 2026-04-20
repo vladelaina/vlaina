@@ -11,7 +11,7 @@ describe('openStoredNotePath', () => {
       openNoteByAbsolutePath,
     });
 
-    expect(openNote).toHaveBeenCalledWith('cloud://12/main/docs/a.md');
+    expect(openNote).toHaveBeenCalledWith('cloud://12/main/docs/a.md', undefined);
     expect(openNoteByAbsolutePath).not.toHaveBeenCalled();
   });
 
@@ -25,7 +25,7 @@ describe('openStoredNotePath', () => {
     });
 
     expect(openNote).not.toHaveBeenCalled();
-    expect(openNoteByAbsolutePath).toHaveBeenCalledWith('C:\\vault\\docs\\a.md');
+    expect(openNoteByAbsolutePath).toHaveBeenCalledWith('C:\\vault\\docs\\a.md', undefined);
   });
 
   it('routes relative vault paths through openNote', async () => {
@@ -37,7 +37,22 @@ describe('openStoredNotePath', () => {
       openNoteByAbsolutePath,
     });
 
-    expect(openNote).toHaveBeenCalledWith('docs/a.md');
+    expect(openNote).toHaveBeenCalledWith('docs/a.md', undefined);
     expect(openNoteByAbsolutePath).not.toHaveBeenCalled();
+  });
+
+  it('forwards the open-in-new-tab option to the selected handler', async () => {
+    const openNote = vi.fn(async () => undefined);
+    const openNoteByAbsolutePath = vi.fn(async () => undefined);
+
+    await openStoredNotePath('/vault/docs/a.md', {
+      openNote,
+      openNoteByAbsolutePath,
+    }, {
+      openInNewTab: true,
+    });
+
+    expect(openNote).not.toHaveBeenCalled();
+    expect(openNoteByAbsolutePath).toHaveBeenCalledWith('/vault/docs/a.md', true);
   });
 });

@@ -1,16 +1,17 @@
-export type Platform = 'tauri' | 'web';
+export type Platform = 'electron' | 'web';
 
 export function getPlatform(): Platform {
   if (typeof window === 'undefined') return 'web';
-  
-  if ('__TAURI_INTERNALS__' in window || '__TAURI__' in window) {
-    return 'tauri';
+
+  if ('__VL_ELECTRON__' in window || 'vlainaDesktop' in window) {
+    return 'electron';
   }
+
   return 'web';
 }
 
-export function isTauri(): boolean {
-  return getPlatform() === 'tauri';
+export function isElectron(): boolean {
+  return getPlatform() === 'electron';
 }
 
 export function isWeb(): boolean {
@@ -18,15 +19,14 @@ export function isWeb(): boolean {
 }
 
 export async function platformSwitch<T>(handlers: {
-  tauri: () => T | Promise<T>;
+  electron: () => T | Promise<T>;
   web: () => T | Promise<T>;
 }): Promise<T> {
-  const platform = getPlatform();
-  return handlers[platform]();
+  return handlers[getPlatform()]();
 }
 
-export async function tauriOnly<T>(fn: () => T | Promise<T>): Promise<T | undefined> {
-  if (isTauri()) {
+export async function electronOnly<T>(fn: () => T | Promise<T>): Promise<T | undefined> {
+  if (isElectron()) {
     return fn();
   }
   return undefined;
@@ -39,6 +39,6 @@ export async function webOnly<T>(fn: () => T | Promise<T>): Promise<T | undefine
   return undefined;
 }
 
-export function platformValue<T>(values: { tauri: T; web: T }): T {
+export function platformValue<T>(values: { electron: T; web: T }): T {
   return values[getPlatform()];
 }

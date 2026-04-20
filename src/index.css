@@ -42,6 +42,23 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+.vlaina-drag-region {
+  -webkit-app-region: drag;
+}
+
+.vlaina-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+.vlaina-drag-region button,
+.vlaina-drag-region a,
+.vlaina-drag-region input,
+.vlaina-drag-region textarea,
+.vlaina-drag-region select,
+.vlaina-drag-region [role="button"] {
+  -webkit-app-region: no-drag;
+}
+
 html, body, #root {
   height: 100%;
   overflow: hidden;

@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Icon } from '@/components/ui/icons'
 import { createBillingCheckout, fetchBillingPlans, type BillingPlan } from '@/lib/billing/checkout'
 import { openExternalHref } from '@/lib/navigation/externalLinks'
-import { hasBackendCommands } from '@/lib/tauri/invoke'
+import { hasBackendCommands } from '@/lib/desktop/backend'
 import { cn } from '@/lib/utils'
 import { useAccountSessionStore } from '@/stores/accountSession'
 import { useToastStore } from '@/stores/useToastStore'

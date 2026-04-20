@@ -1,6 +1,4 @@
 import { useEffect } from 'react';
-import { getCurrentWindow } from '@tauri-apps/api/window';
-import { isTauri } from '@/lib/storage/adapter';
 import { messageDialog } from '@/lib/storage/dialog';
 import { logNotesDebug } from '@/stores/notes/debugLog';
 import {
@@ -27,6 +25,13 @@ function logExternalDrop(event: string, details: Record<string, unknown>) {
   logNotesDebug(`useNotesSidebarExternalDropImport:${event}`, details);
 }
 
+function getDroppedPaths(event: DragEvent): string[] {
+  const fileList = Array.from(event.dataTransfer?.files ?? []);
+  return fileList
+    .map((file) => ((file as File & { path?: string }).path ?? '').trim())
+    .filter(Boolean);
+}
+
 export function useNotesSidebarExternalDropImport({
   enabled,
   vaultPath,
@@ -34,12 +39,8 @@ export function useNotesSidebarExternalDropImport({
   revealFolder,
 }: UseNotesSidebarExternalDropImportOptions) {
   useEffect(() => {
-    if (!enabled || !vaultPath || !isTauri()) {
-      logExternalDrop('disabled', {
-        enabled,
-        vaultPath,
-        isTauri: isTauri(),
-      });
+    if (!enabled || !vaultPath) {
+      logExternalDrop('disabled', { enabled, vaultPath });
       clearExternalFileTreeDropTarget();
       return;
     }
@@ -47,109 +48,71 @@ export function useNotesSidebarExternalDropImport({
     logExternalDrop('enabled', { vaultPath });
 
     let cancelled = false;
-    let unlisten: (() => void) | null = null;
     let preview: ExternalDragPreviewHandle | null = null;
 
-    void getCurrentWindow().onDragDropEvent((event) => {
-      logExternalDrop('window-event', {
-        type: event.payload.type,
-        position: 'position' in event.payload ? event.payload.position : null,
-        paths: 'paths' in event.payload ? event.payload.paths : null,
-      });
+    const updateTarget = (event: DragEvent, paths: string[]) => {
+      const clientX = event.clientX;
+      const clientY = event.clientY;
+      const dropTargetPath = resolveExternalFolderDropTargetPath(clientX, clientY);
+      setExternalFileTreeDropTarget(dropTargetPath);
 
-      if (event.payload.type === 'enter' || event.payload.type === 'over') {
-        const position = 'position' in event.payload ? event.payload.position : null;
-        const paths = 'paths' in event.payload ? event.payload.paths : [];
-        if (position) {
-          if (!preview && paths.length > 0) {
-            preview = createExternalDragPreview(paths);
-          }
-          preview?.updatePaths(paths);
-          preview?.updatePosition(position.x, position.y);
-        }
+      preview ??= createExternalDragPreview(paths);
+      preview.updatePaths(paths);
+      preview.updatePosition(clientX, clientY);
 
-        if (!position) {
-          setExternalFileTreeDropTarget(null);
-          return;
-        }
-
-        const dropTargetPath = resolveExternalFolderDropTargetPath(
-          position.x,
-          position.y,
-        );
-        logExternalDrop('hover-target', {
-          type: event.payload.type,
-          x: position.x,
-          y: position.y,
-          dropTargetPath,
-        });
-        setExternalFileTreeDropTarget(dropTargetPath);
-        return;
-      }
-
-      if (event.payload.type === 'leave') {
-        logExternalDrop('leave', {});
-        preview?.dispose();
-        preview = null;
-        clearExternalFileTreeDropTarget();
-        return;
-      }
-
-      if (event.payload.type !== 'drop') {
-        return;
-      }
-
-      const position = 'position' in event.payload ? event.payload.position : null;
-      if (!position) {
-        preview?.dispose();
-        preview = null;
-        clearExternalFileTreeDropTarget();
-        logExternalDrop('drop-aborted:no-position', {
-          paths: event.payload.paths,
-        });
-        return;
-      }
-
-      const dropTargetPath = resolveExternalFolderDropTargetPath(
-        position.x,
-        position.y,
-      );
-      const { paths } = event.payload;
-
-      preview?.dispose();
-      preview = null;
-
-      logExternalDrop('drop-resolved', {
-        x: position.x,
-        y: position.y,
+      logExternalDrop('drag-over', {
+        vaultPath,
         dropTargetPath,
         paths,
+        clientX,
+        clientY,
       });
 
-      clearExternalFileTreeDropTarget();
+      return dropTargetPath;
+    };
 
-      if (!dropTargetPath && dropTargetPath !== '') {
-        logExternalDrop('drop-aborted:no-target', {
-          x: position.x,
-          y: position.y,
-          paths,
-        });
+    const handleDragEnter = (event: DragEvent) => {
+      const paths = getDroppedPaths(event);
+      if (paths.length === 0) {
         return;
       }
 
-      void (async () => {
-        logExternalDrop('import-start', {
-          vaultPath,
-          dropTargetPath,
-          paths,
-        });
-        const result = await importExternalMarkdownEntries(
-          vaultPath,
-          dropTargetPath,
-          paths,
-        );
+      event.preventDefault();
+      updateTarget(event, paths);
+    };
 
-        logExternalDrop('import-result', {
+    const handleDragOver = (event: DragEvent) => {
+      const paths = getDroppedPaths(event);
+      if (paths.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      updateTarget(event, paths);
+    };
+
+    const handleDragLeave = () => {
+      preview?.dispose();
+      preview = null;
+      clearExternalFileTreeDropTarget();
+    };
+
+    const handleDrop = (event: DragEvent) => {
+      const paths = getDroppedPaths(event);
+      if (paths.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      const dropTargetPath = updateTarget(event, paths) ?? '';
+      preview?.dispose();
+      preview = null;
+      clearExternalFileTreeDropTarget();
+
+      void (async () => {
+        const result = await importExternalMarkdownEntries(vaultPath, dropTargetPath, paths);
+
+        logExternalDrop('import-finished', {
           vaultPath,
           dropTargetPath,
           importedNotePaths: result.importedNotePaths,
@@ -199,20 +162,21 @@ export function useNotesSidebarExternalDropImport({
         });
         revealFolder(revealPath);
       })();
-    }).then((dispose) => {
-      if (cancelled) {
-        dispose();
-        return;
-      }
-      unlisten = dispose;
-      logExternalDrop('listener-ready', { vaultPath });
-    });
+    };
+
+    window.addEventListener('dragenter', handleDragEnter);
+    window.addEventListener('dragover', handleDragOver);
+    window.addEventListener('dragleave', handleDragLeave);
+    window.addEventListener('drop', handleDrop);
 
     return () => {
       cancelled = true;
       preview?.dispose();
       clearExternalFileTreeDropTarget();
-      unlisten?.();
+      window.removeEventListener('dragenter', handleDragEnter);
+      window.removeEventListener('dragover', handleDragOver);
+      window.removeEventListener('dragleave', handleDragLeave);
+      window.removeEventListener('drop', handleDrop);
       logExternalDrop('listener-disposed', { vaultPath });
     };
   }, [enabled, loadFileTree, revealFolder, vaultPath]);

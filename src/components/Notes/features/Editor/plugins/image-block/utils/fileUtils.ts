@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { moveDesktopItemToTrash } from '@/lib/desktop/trash';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { getImageSourceBase, isVirtualImageSource, resolveImageSourcePath } from './imageSourcePath';
 
@@ -61,7 +61,7 @@ export async function moveImageToTrash(
 
         const timerId = setTimeout(async () => {
             try {
-                await invoke('move_to_trash', { path: fullPath });
+                await moveDesktopItemToTrash(fullPath);
             } catch (err) {
                 console.error('[ImageTrash] Failed to move to trash:', err);
             } finally {

@@ -71,7 +71,7 @@ vi.mock('@/lib/storage/chatStorage', () => ({
   flushPendingSessionJsonSaves: mocked.flushPendingSessionJsonSaves,
 }));
 
-vi.mock('@/lib/tauri/windowLaunchContext', () => ({
+vi.mock('@/lib/desktop/launchContext', () => ({
   readWindowLaunchContext: mocked.readWindowLaunchContext,
 }));
 

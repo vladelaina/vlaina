@@ -3,10 +3,15 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "main": "electron/main.mjs",
   "scripts": {
     "preinstall": "node scripts/ensure-not-wsl.mjs install",
-    "dev": "node scripts/ensure-not-wsl.mjs dev && vite --force",
+    "dev": "node scripts/ensure-not-wsl.mjs dev && concurrently -k \"pnpm run dev:renderer\" \"pnpm run dev:electron\"",
+    "dev:renderer": "node scripts/ensure-not-wsl.mjs dev:renderer && vite --force",
+    "dev:electron": "node scripts/ensure-not-wsl.mjs dev:electron && wait-on tcp:3000 && electron .",
+    "start": "node scripts/ensure-not-wsl.mjs start && electron .",
     "build": "node scripts/ensure-not-wsl.mjs build && tsc && vite build",
+    "build:renderer": "node scripts/ensure-not-wsl.mjs build:renderer && tsc && vite build",
     "build:web": "node scripts/ensure-not-wsl.mjs build:web && tsc && vite build",
     "deploy:web:staging": "npx wrangler deploy",
     "deploy:web:production": "npx wrangler deploy --config wrangler.production.jsonc",
@@ -16,7 +21,6 @@
     "typecheck": "node scripts/ensure-not-wsl.mjs typecheck && tsc --noEmit --pretty false",
     "test": "node scripts/ensure-not-wsl.mjs test && vitest run",
     "preview": "node scripts/ensure-not-wsl.mjs preview && vite preview",
-    "tauri": "node scripts/ensure-not-wsl.mjs tauri && tauri",
     "dev:dynamic": "node scripts/dev-dynamic.js",
     "quality:language-detection": "node scripts/language-detection-gate.mjs",
     "quality:verify": "pnpm run typecheck && pnpm run test && pnpm build",
@@ -24,6 +28,11 @@
     "quality:gate": "node scripts/quality-gate.mjs"
   },
   "dependencies": {
+    "@codemirror/language": "^6.12.2",
+    "@codemirror/language-data": "^6.5.2",
+    "@codemirror/state": "^6.6.0",
+    "@codemirror/theme-one-dark": "^6.1.3",
+    "@codemirror/view": "^6.40.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -49,11 +58,6 @@
     "@milkdown/plugin-slash": "workspace:*",
     "@milkdown/react": "workspace:*",
     "@milkdown/theme-nord": "workspace:*",
-    "@codemirror/language": "^6.12.2",
-    "@codemirror/language-data": "^6.5.2",
-    "@codemirror/state": "^6.6.0",
-    "@codemirror/theme-one-dark": "^6.1.3",
-    "@codemirror/view": "^6.40.0",
     "@radix-ui/react-checkbox": "^1.3.3",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
@@ -62,9 +66,6 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tanstack/react-virtual": "^3.13.14",
-    "@tauri-apps/api": "2.9.0",
-    "@tauri-apps/plugin-dialog": "2.4.2",
-    "@tauri-apps/plugin-fs": "2.4.4",
     "@types/highlight.js": "^10.1.0",
     "@types/katex": "^0.16.7",
     "class-variance-authority": "^0.7.1",
@@ -100,7 +101,6 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.17",
-    "@tauri-apps/cli": "2.9.4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
     "@types/dompurify": "^3.2.0",
@@ -110,6 +110,8 @@
     "@vitejs/plugin-react": "^4.6.0",
     "autoprefixer": "^10.4.22",
     "baseline-browser-mapping": "^2.9.19",
+    "concurrently": "^9.2.1",
+    "electron": "41.2.1",
     "fast-check": "^4.5.2",
     "jsdom": "^27.3.0",
     "postcss": "^8.5.6",
@@ -118,11 +120,16 @@
     "typescript": "~5.8.3",
     "vite": "^7.0.4",
     "vite-plugin-static-copy": "^3.1.4",
-    "vitest": "^4.0.16"
+    "vitest": "^4.0.16",
+    "wait-on": "^8.0.3"
   },
   "pnpm": {
     "overrides": {
       "lodash-es": "4.18.1"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild"
+    ]
   }
 }

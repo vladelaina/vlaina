@@ -1,10 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { hasBackendCommands } from '@/lib/tauri/invoke';
+import { hasBackendCommands } from '@/lib/desktop/backend';
 import { AccountEmailCodeCard } from './AccountEmailCodeCard';
 import { AccountSignInOptions } from './AccountSignInOptions';
 
-vi.mock('@/lib/tauri/invoke', () => ({
+vi.mock('@/lib/desktop/backend', () => ({
   hasBackendCommands: vi.fn(),
 }));
 

@@ -1,18 +1,18 @@
 import { create } from 'zustand';
-import { getCurrentWindow } from '@tauri-apps/api/window';
-import { getStorageAdapter, getBaseName, getParentPath, joinPath, isTauri } from '@/lib/storage/adapter';
+import { getStorageAdapter, getBaseName, getParentPath, joinPath } from '@/lib/storage/adapter';
 import { resolveUniqueName } from '@/lib/naming/uniqueName';
 import {
   getVaultStarredPaths,
   normalizeStarredVaultPath,
   saveStarredRegistry,
 } from '@/stores/notes/starred';
-import { readWindowLaunchContext } from '@/lib/tauri/windowLaunchContext';
+import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
 import { sanitizeFileName } from '@/stores/notes/noteUtils';
 import { markExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
 import { suspendExternalSync } from '@/stores/notes/document/externalSyncControl';
 import { setCurrentVaultPath, useNotesStore } from './useNotesStore';
 import { ensureVaultConfig, normalizeVaultPath } from './vaultConfig';
+import { desktopWindow } from '@/lib/desktop/window';
 
 export interface VaultInfo {
   id: string;
@@ -189,10 +189,8 @@ function setupBroadcastChannel() {
 }
 
 async function getCurrentWindowLabel(): Promise<string | null> {
-  if (!isTauri()) return null;
-
   try {
-    return getCurrentWindow().label;
+    return await desktopWindow.getLabel();
   } catch {
     return null;
   }
@@ -289,8 +287,6 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
   openVault: async (path: string, name?: string) => {
     set({ isLoading: true, error: null });
-    const startedAt = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    console.info('[Vault] openVault:start', { path, name });
 
     try {
       const storage = getStorageAdapter();
@@ -329,17 +325,9 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
       windowVaultPath = vault.path;
       setCurrentVaultPath(vault.path);
       useNotesStore.setState({ notesPath: vault.path });
-      console.info('[Vault] openVault:ready', {
-        path: vault.path,
-        durationMs: Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - startedAt),
-      });
 
       return true;
     } catch (error) {
-      console.info('[Vault] openVault:failed', {
-        path,
-        durationMs: Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - startedAt),
-      });
       set({
         error: error instanceof Error ? error.message : 'Failed to open vault',
         isLoading: false,

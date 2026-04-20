@@ -1,10 +1,6 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
-vi.mock('@tauri-apps/api/core', () => ({
-  invoke: vi.fn(),
-}));
-
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {

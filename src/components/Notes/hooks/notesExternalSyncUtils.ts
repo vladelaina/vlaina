@@ -1,4 +1,4 @@
-import type { WatchEvent } from '@tauri-apps/plugin-fs';
+import type { DesktopWatchEvent } from '@/lib/desktop/watch';
 import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { APP_CONFIG_FOLDER } from '@/stores/notes/constants';
 
@@ -56,28 +56,21 @@ function toRelevantRelativePath(vaultPath: string, absolutePath: string): string
 }
 
 export function getRelevantRelativeWatchPaths(vaultPath: string, absolutePaths: string[]): string[] {
-  const uniquePaths = new Set<string>();
-
-  for (const absolutePath of absolutePaths) {
-    const relativePath = toRelevantRelativePath(vaultPath, normalizeFsPath(absolutePath));
-    if (relativePath != null) {
-      uniquePaths.add(relativePath);
-    }
-  }
-
-  return Array.from(uniquePaths);
+  return absolutePaths
+    .map((absolutePath) => toRelevantRelativePath(vaultPath, absolutePath))
+    .filter((relativePath): relativePath is string => relativePath != null);
 }
 
-export function isRemoveWatchEvent(event: Pick<WatchEvent, 'type'>): boolean {
+export function isRemoveWatchEvent(event: Pick<DesktopWatchEvent, 'type'>): boolean {
   return typeof event.type !== 'string' && 'remove' in event.type;
 }
 
-export function isCreateWatchEvent(event: Pick<WatchEvent, 'type'>): boolean {
+export function isCreateWatchEvent(event: Pick<DesktopWatchEvent, 'type'>): boolean {
   return typeof event.type !== 'string' && 'create' in event.type;
 }
 
 export function getAbsoluteRenameWatchPaths(
-  event: Pick<WatchEvent, 'type' | 'paths'>
+  event: Pick<DesktopWatchEvent, 'type' | 'paths'>
 ): { oldPath: string | null; newPath: string | null } | null {
   if (typeof event.type === 'string' || !('modify' in event.type) || event.type.modify.kind !== 'rename') {
     return null;
@@ -115,7 +108,7 @@ export function getAbsoluteRenameWatchPaths(
 
 export function getRelativeRenameWatchPaths(
   vaultPath: string,
-  event: Pick<WatchEvent, 'type' | 'paths'>
+  event: Pick<DesktopWatchEvent, 'type' | 'paths'>
 ): { oldPath: string | null; newPath: string | null } | null {
   const absolutePaths = getAbsoluteRenameWatchPaths(event);
   if (!absolutePaths) {

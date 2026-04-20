@@ -1,4 +1,4 @@
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import { desktopWindow } from '@/lib/desktop/window';
 import { Icon } from '@/components/ui/icons';
 import { iconButtonStyles } from '@/lib/utils';
 
@@ -8,12 +8,10 @@ interface WindowControlsProps {
 }
 
 export function WindowControls({ className, minimal }: WindowControlsProps) {
-  const getWindow = () => getCurrentWindow();
-
   return (
-    <div className={`flex shrink-0 h-10 ${className || ''}`}>
+    <div className={`vlaina-no-drag flex shrink-0 h-10 ${className || ''}`}>
       <button
-        onClick={() => getWindow().minimize()}
+        onClick={() => void desktopWindow.minimize()}
         className={`h-full w-12 flex items-center justify-center transition-colors ${iconButtonStyles}`}
       >
         <Icon size="md" name="window.minimize" />
@@ -21,7 +19,7 @@ export function WindowControls({ className, minimal }: WindowControlsProps) {
 
       {!minimal && (
         <button
-          onClick={() => getWindow().toggleMaximize()}
+          onClick={() => void desktopWindow.toggleMaximize()}
           className={`h-full w-12 flex items-center justify-center transition-colors ${iconButtonStyles}`}
         >
           <Icon name="window.maximize" size="md" />
@@ -29,7 +27,7 @@ export function WindowControls({ className, minimal }: WindowControlsProps) {
       )}
 
       <button
-        onClick={() => getWindow().close()}
+        onClick={() => void desktopWindow.close()}
         className="h-full w-12 flex items-center justify-center hover:bg-red-500 transition-colors group"
       >
         <Icon size="md" name="window.close" className="text-[var(--vlaina-text-tertiary)] group-hover:text-white" />

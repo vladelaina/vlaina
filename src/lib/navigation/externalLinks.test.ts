@@ -1,17 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import * as fc from "fast-check";
 
-const { safeInvokeMock, isTauriMock } = vi.hoisted(() => ({
-  safeInvokeMock: vi.fn(),
-  isTauriMock: vi.fn(() => false),
+const { openExternalUrlMock } = vi.hoisted(() => ({
+  openExternalUrlMock: vi.fn(),
 }));
 
-vi.mock("@/lib/tauri/invoke", () => ({
-  safeInvoke: safeInvokeMock,
-}));
-
-vi.mock("@/lib/storage/adapter", () => ({
-  isTauri: isTauriMock,
+vi.mock("@/lib/desktop/shell", () => ({
+  openExternalUrl: openExternalUrlMock,
 }));
 
 import {
@@ -23,7 +18,6 @@ import {
 describe("externalLinks", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    isTauriMock.mockReturnValue(false);
   });
 
   describe("normalizeExternalHref", () => {
@@ -65,23 +59,17 @@ describe("externalLinks", () => {
   });
 
   describe("openExternalHref", () => {
-    it("uses tauri command for valid desktop URLs", async () => {
-      isTauriMock.mockReturnValue(true);
-      safeInvokeMock.mockResolvedValue(undefined);
+    it("uses desktop shell for valid external URLs", async () => {
+      openExternalUrlMock.mockResolvedValue(undefined);
 
       await openExternalHref("https://example.com/docs");
 
-      expect(safeInvokeMock).toHaveBeenCalledTimes(1);
-      expect(safeInvokeMock).toHaveBeenCalledWith(
-        "open_external_url",
-        { url: "https://example.com/docs" },
-        { throwOnWeb: true },
-      );
+      expect(openExternalUrlMock).toHaveBeenCalledTimes(1);
+      expect(openExternalUrlMock).toHaveBeenCalledWith("https://example.com/docs");
     });
 
-    it("falls back to window.open when desktop command fails", async () => {
-      isTauriMock.mockReturnValue(true);
-      safeInvokeMock.mockRejectedValue(new Error("command unavailable"));
+    it("falls back to window.open when desktop shell fails", async () => {
+      openExternalUrlMock.mockRejectedValue(new Error("command unavailable"));
       const windowOpenSpy = vi
         .spyOn(window, "open")
         .mockImplementation(() => null as any);
@@ -97,10 +85,9 @@ describe("externalLinks", () => {
       windowOpenSpy.mockRestore();
     });
 
-    it("does nothing for invalid input and avoids desktop command", async () => {
-      isTauriMock.mockReturnValue(true);
+    it("does nothing for invalid input and avoids desktop shell", async () => {
       await openExternalHref("javascript:alert(1)");
-      expect(safeInvokeMock).not.toHaveBeenCalled();
+      expect(openExternalUrlMock).not.toHaveBeenCalled();
     });
   });
 

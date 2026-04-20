@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getCurrentWindow } from '@tauri-apps/api/window';
-import { getStorageAdapter, isTauri } from '@/lib/storage/adapter';
+import { getStorageAdapter } from '@/lib/storage/adapter';
 import { messageDialog } from '@/lib/storage/dialog';
 import { createExternalDragPreview, type ExternalDragPreviewHandle } from '../features/FileTree/hooks/externalDragPreview';
 import { isSupportedMarkdownSelection } from '../features/OpenTarget/openTargetSelection';
@@ -11,6 +10,13 @@ interface UseBlankWorkspaceDropOpenOptions {
   openVault: (path: string) => Promise<boolean>;
 }
 
+function getDroppedPaths(event: DragEvent): string[] {
+  const fileList = Array.from(event.dataTransfer?.files ?? []);
+  return fileList
+    .map((file) => ((file as File & { path?: string }).path ?? '').trim())
+    .filter(Boolean);
+}
+
 export function useBlankWorkspaceDropOpen({
   enabled,
   openMarkdownTarget,
@@ -19,47 +25,57 @@ export function useBlankWorkspaceDropOpen({
   const [isDragActive, setIsDragActive] = useState(false);
 
   useEffect(() => {
-    if (!enabled || !isTauri()) {
+    if (!enabled) {
       setIsDragActive(false);
       return;
     }
 
     const storage = getStorageAdapter();
     let cancelled = false;
-    let unlisten: (() => void) | null = null;
     let preview: ExternalDragPreviewHandle | null = null;
 
-    void getCurrentWindow().onDragDropEvent((event) => {
-      if (event.payload.type === 'enter' || event.payload.type === 'over') {
-        setIsDragActive(true);
-        const position = 'position' in event.payload ? event.payload.position : null;
-        const paths = 'paths' in event.payload ? event.payload.paths : [];
-        if (position) {
-          if (!preview && paths.length > 0) {
-            preview = createExternalDragPreview(paths);
-          }
-          preview?.updatePaths(paths);
-          preview?.updatePosition(position.x, position.y);
-        }
+    const handleDragEnter = (event: DragEvent) => {
+      const paths = getDroppedPaths(event);
+      if (paths.length === 0) {
         return;
       }
 
-      if (event.payload.type === 'leave') {
-        setIsDragActive(false);
-        preview?.dispose();
-        preview = null;
+      event.preventDefault();
+      setIsDragActive(true);
+      preview ??= createExternalDragPreview(paths);
+      preview.updatePaths(paths);
+      preview.updatePosition(event.clientX, event.clientY);
+    };
+
+    const handleDragOver = (event: DragEvent) => {
+      const paths = getDroppedPaths(event);
+      if (paths.length === 0) {
         return;
       }
 
-      if (event.payload.type !== 'drop') {
-        return;
-      }
+      event.preventDefault();
+      setIsDragActive(true);
+      preview ??= createExternalDragPreview(paths);
+      preview.updatePaths(paths);
+      preview.updatePosition(event.clientX, event.clientY);
+    };
 
+    const handleDragLeave = () => {
       setIsDragActive(false);
       preview?.dispose();
       preview = null;
+    };
 
-      const { paths } = event.payload;
+    const handleDrop = (event: DragEvent) => {
+      const paths = getDroppedPaths(event);
+      if (paths.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      setIsDragActive(false);
+      preview?.dispose();
+      preview = null;
 
       void (async () => {
         if (paths.length !== 1) {
@@ -70,11 +86,7 @@ export function useBlankWorkspaceDropOpen({
           return;
         }
 
-        const droppedPath = paths[0]?.trim();
-        if (!droppedPath) {
-          return;
-        }
-
+        const droppedPath = paths[0];
         const info = await storage.stat(droppedPath);
         if (cancelled) {
           return;
@@ -101,19 +113,21 @@ export function useBlankWorkspaceDropOpen({
           kind: 'warning',
         });
       })();
-    }).then((dispose) => {
-      if (cancelled) {
-        dispose();
-        return;
-      }
-      unlisten = dispose;
-    });
+    };
+
+    window.addEventListener('dragenter', handleDragEnter);
+    window.addEventListener('dragover', handleDragOver);
+    window.addEventListener('dragleave', handleDragLeave);
+    window.addEventListener('drop', handleDrop);
 
     return () => {
       cancelled = true;
       setIsDragActive(false);
       preview?.dispose();
-      unlisten?.();
+      window.removeEventListener('dragenter', handleDragEnter);
+      window.removeEventListener('dragover', handleDragOver);
+      window.removeEventListener('dragleave', handleDragLeave);
+      window.removeEventListener('drop', handleDrop);
     };
   }, [enabled, openMarkdownTarget, openVault]);
 

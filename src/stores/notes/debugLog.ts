@@ -1,5 +1,9 @@
 export function logNotesDebug(scope: string, payload?: unknown) {
-  if (!import.meta.env.DEV) {
+  if (!import.meta.env.DEV || typeof window === 'undefined') {
+    return;
+  }
+
+  if (window.localStorage.getItem('vlaina:debug:notes') !== '1') {
     return;
   }
 

@@ -3,7 +3,7 @@ import {
   STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED,
 } from '@/lib/config';
 import { getDefaultSidebarWidth } from '@/lib/layout/sidebarWidth';
-import { readWindowLaunchContext } from '@/lib/tauri/windowLaunchContext';
+import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
 const STORAGE_KEY_SIDEBAR_WIDTH = 'vlaina_sidebar_width';
 const STORAGE_KEY_IMAGE_STORAGE_MODE = 'vlaina_image_storage_mode';
 const STORAGE_KEY_IMAGE_SUBFOLDER_NAME = 'vlaina_image_subfolder_name';

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { isElectronRuntime } from '@/lib/electron/bridge';
 import { actions as aiActions } from '@/stores/useAIStore';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useAIUIStore } from '@/stores/ai/chatState';
@@ -115,10 +116,7 @@ export function useChatShortcuts(
       }
 
       if (matchesShortcutBinding(e, 'nextChatSession') || matchesShortcutBinding(e, 'previousChatSession')) {
-          const isTauri = typeof window !== 'undefined' && 
-              ('__TAURI_IPC__' in window || '__TAURI_INTERNALS__' in window || '__TAURI__' in window);
-          
-          if (!isTauri) return;
+          if (!isElectronRuntime()) return;
 
           e.preventDefault();
           const state = useUnifiedStore.getState();

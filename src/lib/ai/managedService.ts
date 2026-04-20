@@ -1,8 +1,8 @@
 import type { AIModel, Provider } from '@/lib/ai/types';
 import { buildScopedModelId } from '@/lib/ai/utils';
-import { hasBackendCommands } from '@/lib/tauri/invoke';
-import { accountCommands } from '@/lib/tauri/accountAuthCommands';
-import { webAccountCommands } from '@/lib/tauri/webAccountCommands';
+import { hasBackendCommands } from '@/lib/desktop/backend';
+import { accountCommands } from '@/lib/account/desktopCommands';
+import { webAccountCommands } from '@/lib/account/webCommands';
 
 export const MANAGED_PROVIDER_ID = 'vlaina-managed';
 export const MANAGED_PROVIDER_NAME = 'vlaina';

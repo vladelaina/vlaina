@@ -1,6 +1,6 @@
 function isTauriEnv(): boolean {
   if (typeof window === 'undefined') return false;
-  return '__TAURI_INTERNALS__' in window || '__TAURI__' in window;
+  return '__VL_ELECTRON__' in window || 'vlainaDesktop' in window;
 }
 
 export function getPathSeparator(path?: string): string {

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 
 interface WindowDragOrigin {
   x: number;
@@ -11,15 +10,15 @@ interface BeginWindowDragOptions {
 }
 
 interface UseWindowDragGestureOptions {
-  errorLabel?: string;
   threshold?: number;
+  errorLabel?: string;
 }
 
 const DEFAULT_WINDOW_DRAG_THRESHOLD = 10;
 
 export function useWindowDragGesture({
-  errorLabel = 'window drag',
   threshold = DEFAULT_WINDOW_DRAG_THRESHOLD,
+  errorLabel: _errorLabel,
 }: UseWindowDragGestureOptions = {}) {
   const dragTrackingRef = useRef(false);
   const windowDraggingRef = useRef(false);
@@ -33,26 +32,13 @@ export function useWindowDragGesture({
     windowDraggingRef.current = false;
   }, []);
 
-  const startWindowDrag = useCallback(async () => {
-    dragTrackingRef.current = false;
-    windowDraggingRef.current = true;
-
-    try {
-      await getCurrentWindow().startDragging();
-    } catch (error) {
-      console.error(`Failed to start ${errorLabel}`, error);
-    } finally {
-      windowDraggingRef.current = false;
-    }
-  }, [errorLabel]);
-
   const beginWindowDragTracking = useCallback((
     origin: WindowDragOrigin,
     options?: BeginWindowDragOptions
   ) => {
-    dragCleanupRef.current?.();
+    stopWindowDragTracking();
+
     dragTrackingRef.current = true;
-    windowDraggingRef.current = false;
     dragStartRef.current = origin;
 
     const cleanupListeners = () => {
@@ -64,18 +50,16 @@ export function useWindowDragGesture({
     };
 
     const handleWindowMouseMove = (moveEvent: MouseEvent) => {
-      if (!dragTrackingRef.current || windowDraggingRef.current || (moveEvent.buttons & 1) !== 1) {
+      if (!dragTrackingRef.current || (moveEvent.buttons & 1) !== 1) {
         return;
       }
 
       const dx = moveEvent.clientX - dragStartRef.current.x;
       const dy = moveEvent.clientY - dragStartRef.current.y;
-      if (Math.abs(dx) <= threshold && Math.abs(dy) <= threshold) {
-        return;
-      }
 
-      cleanupListeners();
-      void startWindowDrag();
+      if (Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
+        windowDraggingRef.current = true;
+      }
     };
 
     const handleWindowMouseUp = () => {
@@ -90,7 +74,7 @@ export function useWindowDragGesture({
     dragCleanupRef.current = cleanupListeners;
     window.addEventListener('mousemove', handleWindowMouseMove);
     window.addEventListener('mouseup', handleWindowMouseUp);
-  }, [startWindowDrag, stopWindowDragTracking, threshold]);
+  }, [stopWindowDragTracking, threshold]);
 
   const isWindowDragActive = useCallback(() => {
     return dragTrackingRef.current || windowDraggingRef.current;

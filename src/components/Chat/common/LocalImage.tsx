@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { readFile, BaseDirectory } from '@tauri-apps/plugin-fs';
-import { isTauri } from '@/lib/storage/adapter';
+import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { cn } from '@/lib/utils';
 
 interface LocalImageProps {
@@ -32,6 +31,7 @@ function isDirectRenderableSrc(value: string): boolean {
         value.startsWith('https://') ||
         value.startsWith('data:') ||
         value.startsWith('blob:') ||
+        value.startsWith('file://') ||
         isRelativePath(value)
     );
 }
@@ -41,51 +41,58 @@ function sanitizeAttachmentFilename(value: string): string | null {
     if (!normalized || normalized === '.' || normalized === '..') {
         return null;
     }
-    if (!/^[A-Za-z0-9._-]{1,255}$/.test(normalized)) {
+
+    if (/[\\/]/.test(normalized)) {
         return null;
     }
+
     return normalized;
 }
 
 function extractAttachmentFilename(src: string): string | null {
-    const decoded = decodeURIComponent(src);
+    const trimmed = src.trim();
+    if (!trimmed) return null;
+
+    if (trimmed.startsWith('attachment://')) {
+        return sanitizeAttachmentFilename(trimmed.slice('attachment://'.length));
+    }
+
+    if (trimmed.startsWith('app-file://attachment/')) {
+        return sanitizeAttachmentFilename(trimmed.slice('app-file://attachment/'.length));
+    }
+
+    if (/^[^/\\]+\.[a-z0-9]+$/i.test(trimmed)) {
+        return sanitizeAttachmentFilename(trimmed);
+    }
 
     try {
-        const parsed = new URL(decoded);
-        const protocol = parsed.protocol.toLowerCase();
-        const hostname = parsed.hostname.trim().toLowerCase();
-        const pathname = parsed.pathname || '';
-
-        if (
-            protocol === 'asset:' &&
-            (hostname === 'localhost' || hostname === 'asset.localhost')
-        ) {
-            const basename = pathname.split('/').pop() || '';
-            return sanitizeAttachmentFilename(basename);
-        }
-
-        if (
-            (protocol === 'http:' || protocol === 'https:') &&
-            hostname === 'asset.localhost'
-        ) {
-            const basename = pathname.split('/').pop() || '';
-            return sanitizeAttachmentFilename(basename);
-        }
+        const url = new URL(trimmed);
+        const marker = '/attachments/';
+        const markerIndex = url.pathname.lastIndexOf(marker);
+        if (markerIndex === -1) return null;
+        const filename = decodeURIComponent(url.pathname.slice(markerIndex + marker.length));
+        return sanitizeAttachmentFilename(filename);
     } catch {
         return null;
     }
+}
 
-    return null;
+function uint8ArrayToBase64(data: Uint8Array): string {
+    let binary = '';
+    for (let i = 0; i < data.length; i++) {
+        binary += String.fromCharCode(data[i]);
+    }
+    return window.btoa(binary);
 }
 
 export function LocalImage({ src, alt, className, onClick }: LocalImageProps) {
-    const [displaySrc, setDisplaySrc] = useState<string>('');
+    const [displaySrc, setDisplaySrc] = useState<string | null>(null);
     const [error, setError] = useState(false);
 
     useEffect(() => {
         let active = true;
+        setDisplaySrc(null);
         setError(false);
-        setDisplaySrc('');
 
         const loadLocalImage = async () => {
             if (isDirectRenderableSrc(src)) {
@@ -95,34 +102,31 @@ export function LocalImage({ src, alt, className, onClick }: LocalImageProps) {
 
             const filename = extractAttachmentFilename(src);
 
-            if (isTauri() && filename) {
-                try {
-                    const data = await readFile(`attachments/${filename}`, { baseDir: BaseDirectory.AppData });
-                    
-                    let binary = '';
-                    const len = data.byteLength;
-                    for (let i = 0; i < len; i++) {
-                        binary += String.fromCharCode(data[i]);
-                    }
-                    const base64 = window.btoa(binary);
-                    
-                    const mime = inferMimeTypeFromFilename(filename);
-                    
-                    if (active) {
-                        setDisplaySrc(`data:${mime};base64,${base64}`);
-                    }
-                } catch (e) {
-                    console.error('[LocalImage] Failed to load local image:', src, e);
-                    if (active) {
-                        setError(true);
-                    }
-                }
-            } else {
+            if (!filename) {
                 setError(true);
+                return;
+            }
+
+            try {
+                const storage = getStorageAdapter();
+                const basePath = await storage.getBasePath();
+                const fullPath = await joinPath(basePath, 'attachments', filename);
+                const data = await storage.readBinaryFile(fullPath);
+                const base64 = uint8ArrayToBase64(data);
+                const mime = inferMimeTypeFromFilename(filename);
+
+                if (active) {
+                    setDisplaySrc(`data:${mime};base64,${base64}`);
+                }
+            } catch (e) {
+                console.error('[LocalImage] Failed to load local image:', src, e);
+                if (active) {
+                    setError(true);
+                }
             }
         };
 
-        loadLocalImage();
+        void loadLocalImage();
 
         return () => { active = false; };
     }, [src]);

@@ -12,11 +12,11 @@ const {
   managedChatCompletionStreamMock: vi.fn(),
 }));
 
-vi.mock('@/lib/tauri/invoke', () => ({
+vi.mock('@/lib/desktop/backend', () => ({
   hasBackendCommands: hasBackendCommandsMock,
 }));
 
-vi.mock('@/lib/tauri/accountAuthCommands', () => ({
+vi.mock('@/lib/account/desktopCommands', () => ({
   accountCommands: {
     getManagedModels: getManagedModelsMock,
     getManagedBudget: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('@/lib/tauri/accountAuthCommands', () => ({
   },
 }));
 
-vi.mock('@/lib/tauri/webAccountCommands', () => ({
+vi.mock('@/lib/account/webCommands', () => ({
   webAccountCommands: {
     clearClientSession: clearClientSessionMock,
   },
@@ -103,7 +103,7 @@ describe('managedService', () => {
     expect(isManagedServiceRecoverableError(new Error('Unexpected JSON shape'))).toBe(false);
   });
 
-  it('keeps desktop managed model requests inside tauri commands', async () => {
+  it('keeps desktop managed model requests inside desktop commands', async () => {
     hasBackendCommandsMock.mockReturnValue(true);
     getManagedModelsMock.mockResolvedValue({
       data: [{ id: 'gpt-4o-mini' }],

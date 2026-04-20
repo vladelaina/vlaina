@@ -18,7 +18,7 @@ import {
 } from '@/lib/ai/temporaryChat';
 import { createChatActions } from './ai/chatActions'
 import { useAIUIStore } from './ai/chatState'
-import { readWindowLaunchContext } from '@/lib/tauri/windowLaunchContext'
+import { readWindowLaunchContext } from '@/lib/desktop/launchContext'
 
 export { createAIChatSession } from './ai/chatState'
 

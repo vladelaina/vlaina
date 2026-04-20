@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react';
-import { getCurrentWindow } from '@tauri-apps/api/window';
-import { LogicalSize } from '@tauri-apps/api/dpi';
 import { useVaultStore } from '@/stores/useVaultStore';
-import { windowCommands } from '@/lib/tauri/invoke';
-import { isTauri } from '@/lib/storage/adapter';
+import { desktopWindow } from '@/lib/desktop/window';
 import { cn } from '@/lib/utils';
 import { RecentVaultsList } from './components/RecentVaultsList';
 import './VaultWelcome.css';
@@ -18,14 +15,11 @@ export function VaultWelcome() {
   }, [initialize]);
 
   useEffect(() => {
-    if (!isTauri()) return;
-
     const lockWindow = async () => {
-      try {
-        const appWindow = getCurrentWindow();
-        await windowCommands.setResizable(false);
-        await appWindow.setSize(new LogicalSize(980, 640));
-        await appWindow.center();
+        try {
+          await desktopWindow.setResizable(false);
+          await desktopWindow.setSize({ width: 980, height: 640 });
+          await desktopWindow.center();
       } catch (e) {
         console.error('Failed to lock window:', e);
       }
@@ -36,10 +30,9 @@ export function VaultWelcome() {
     return () => {
       const unlockWindow = async () => {
         try {
-          const appWindow = getCurrentWindow();
-          await windowCommands.setResizable(true);
-          await appWindow.setSize(new LogicalSize(980, 640));
-          await appWindow.center();
+          await desktopWindow.setResizable(true);
+          await desktopWindow.setSize({ width: 980, height: 640 });
+          await desktopWindow.center();
         } catch (e) {
           console.error('Failed to unlock window:', e);
         }

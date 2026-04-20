@@ -97,14 +97,6 @@ const mocks = vi.hoisted(() => {
     setLayoutPanelDragging: vi.fn(),
   };
 
-  const windowState = {
-    dropHandler: null as ((event: { payload: { type: string; paths?: string[] } }) => void) | null,
-    onDragDropEvent: vi.fn(async (handler: (event: { payload: { type: string; paths?: string[] } }) => void) => {
-      windowState.dropHandler = handler;
-      return vi.fn();
-    }),
-  };
-
   const storageState = {
     stat: vi.fn(),
   };
@@ -113,7 +105,6 @@ const mocks = vi.hoisted(() => {
     notesState,
     vaultState,
     uiState,
-    windowState,
     storageState,
   };
 });
@@ -136,23 +127,16 @@ vi.mock('@/stores/uiSlice', () => ({
   useUIStore: (selector: (state: typeof mocks.uiState) => unknown) => selector(mocks.uiState),
 }));
 
-vi.mock('@/lib/tauri/invoke', () => ({
-  windowCommands: {
+vi.mock('@/lib/desktop/window', () => ({
+  desktopWindow: {
     setResizable: vi.fn().mockResolvedValue(undefined),
   },
-}));
-
-vi.mock('@tauri-apps/api/window', () => ({
-  getCurrentWindow: () => ({
-    onDragDropEvent: mocks.windowState.onDragDropEvent,
-  }),
 }));
 
 vi.mock('@/lib/storage/adapter', async () => {
   const actual = await vi.importActual<typeof import('@/lib/storage/adapter')>('@/lib/storage/adapter');
   return {
     ...actual,
-    isTauri: vi.fn(() => true),
     getStorageAdapter: () => ({
       stat: mocks.storageState.stat,
     }),
@@ -189,11 +173,19 @@ vi.mock('@/components/layout/ResizablePanel', () => ({
   ResizablePanel: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
+vi.mock('@/components/Notes/features/FileTree/hooks/externalDragPreview', () => ({
+  createExternalDragPreview: () => ({
+    updatePaths: vi.fn(),
+    updatePosition: vi.fn(),
+    dispose: vi.fn(),
+  }),
+}));
+
 vi.mock('@/components/common/ModuleShortcutsDialog', () => ({
   ModuleShortcutsDialog: () => null,
 }));
 
-vi.mock('@/lib/tauri/windowLaunchContext', () => ({
+vi.mock('@/lib/desktop/launchContext', () => ({
   readWindowLaunchContext: vi.fn(() => ({})),
 }));
 
@@ -237,6 +229,27 @@ const notesState = mocks.notesState;
 const uiState = mocks.uiState;
 const shortcutMatchesMock = vi.mocked(matchesShortcutBinding);
 
+function createDropFile(path: string) {
+  const file = new File([''], path.split('/').pop() || 'dropped-item');
+  Object.defineProperty(file, 'path', {
+    value: path,
+    configurable: true,
+  });
+  return file as File & { path: string };
+}
+
+function dispatchWindowDragEvent(type: 'dragenter' | 'dragover' | 'dragleave' | 'drop', paths: string[] = []) {
+  const files = paths.map(createDropFile);
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperty(event, 'dataTransfer', {
+    value: {
+      files,
+    },
+    configurable: true,
+  });
+  fireEvent(window, event);
+}
+
 describe('NotesView', () => {
   beforeEach(() => {
     mocks.vaultState.currentVault = { path: '/vault' };
@@ -261,7 +274,6 @@ describe('NotesView', () => {
     });
     notesState.adoptAbsoluteNoteIntoVault.mockReturnValue(false);
     mocks.vaultState.openVault.mockResolvedValue(true);
-    mocks.windowState.dropHandler = null;
     mocks.storageState.stat.mockReset();
     shortcutMatchesMock.mockReset();
     shortcutMatchesMock.mockReturnValue(false);
@@ -286,30 +298,39 @@ describe('NotesView', () => {
     notesState.confirmPendingDraftDiscard.mockClear();
     notesState.getDisplayName.mockClear();
     mocks.vaultState.openVault.mockClear();
-    mocks.windowState.onDragDropEvent.mockClear();
 
     uiState.setNotesChatPanelCollapsed.mockClear();
     uiState.toggleNotesChatPanel.mockClear();
     uiState.setLayoutPanelDragging.mockClear();
   });
 
-  it('does not register blank-workspace drag handlers while inactive', async () => {
+  it('ignores blank-workspace drops while inactive', async () => {
+    mocks.storageState.stat.mockResolvedValue({
+      name: 'alpha.md',
+      path: '/vault/alpha.md',
+      isDirectory: false,
+      isFile: true,
+    });
+
     render(<NotesView active={false} />);
 
     await act(async () => {
       await Promise.resolve();
     });
 
-    expect(mocks.windowState.onDragDropEvent).not.toHaveBeenCalled();
-    expect(mocks.windowState.dropHandler).toBeNull();
+    await act(async () => {
+      dispatchWindowDragEvent('dragenter', ['/vault/alpha.md']);
+      dispatchWindowDragEvent('drop', ['/vault/alpha.md']);
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByTestId('blank-workspace-drop-overlay')).toBeNull();
+    expect(notesState.openNote).not.toHaveBeenCalled();
+    expect(mocks.vaultState.openVault).not.toHaveBeenCalled();
   });
 
   it('keeps the workspace blank when nothing is open', async () => {
     render(<NotesView />);
-
-    await waitFor(() => {
-      expect(mocks.windowState.onDragDropEvent).toHaveBeenCalledTimes(1);
-    });
 
     expect(screen.queryByTestId('markdown-editor')).toBeNull();
     expect(screen.queryByTestId('blank-workspace-drop-overlay')).toBeNull();
@@ -327,10 +348,6 @@ describe('NotesView', () => {
 
     render(<NotesView />);
 
-    await waitFor(() => {
-      expect(mocks.windowState.onDragDropEvent).toHaveBeenCalledTimes(1);
-    });
-
     expect(screen.queryByTestId('markdown-editor')).toBeNull();
     expect(notesState.createNote).not.toHaveBeenCalled();
     expect(notesState.openNote).not.toHaveBeenCalled();
@@ -340,10 +357,6 @@ describe('NotesView', () => {
     mocks.vaultState.currentVault = null;
 
     render(<NotesView />);
-
-    await waitFor(() => {
-      expect(mocks.windowState.onDragDropEvent).toHaveBeenCalledTimes(1);
-    });
 
     expect(screen.queryByTestId('markdown-editor')).toBeNull();
     expect(notesState.createNote).not.toHaveBeenCalled();
@@ -359,28 +372,14 @@ describe('NotesView', () => {
 
     render(<NotesView />);
 
-    await waitFor(() => {
-      expect(mocks.windowState.onDragDropEvent).toHaveBeenCalledTimes(1);
-    });
-
     await act(async () => {
-      mocks.windowState.dropHandler?.({
-        payload: {
-          type: 'enter',
-          paths: ['/dropped-vault'],
-        },
-      });
+      dispatchWindowDragEvent('dragenter', ['/dropped-vault']);
     });
 
     expect(screen.getByTestId('blank-workspace-drop-overlay')).toBeInTheDocument();
 
     await act(async () => {
-      mocks.windowState.dropHandler?.({
-        payload: {
-          type: 'drop',
-          paths: ['/dropped-vault'],
-        },
-      });
+      dispatchWindowDragEvent('drop', ['/dropped-vault']);
     });
 
     await waitFor(() => {
@@ -402,17 +401,8 @@ describe('NotesView', () => {
 
     render(<NotesView />);
 
-    await waitFor(() => {
-      expect(mocks.windowState.onDragDropEvent).toHaveBeenCalledTimes(1);
-    });
-
     await act(async () => {
-      mocks.windowState.dropHandler?.({
-        payload: {
-          type: 'drop',
-          paths: ['/vault/alpha.md'],
-        },
-      });
+      dispatchWindowDragEvent('drop', ['/vault/alpha.md']);
     });
 
     await waitFor(() => {

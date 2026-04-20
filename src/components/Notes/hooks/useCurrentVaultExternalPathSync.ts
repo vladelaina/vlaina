@@ -1,6 +1,6 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
-import { watchImmediate } from '@tauri-apps/plugin-fs';
-import { getParentPath, isTauri } from '@/lib/storage/adapter';
+import { watchDesktopPath } from '@/lib/desktop/watch';
+import { getParentPath } from '@/lib/storage/adapter';
 import { shouldIgnoreExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
 import { ensureVaultConfig } from '@/stores/vaultConfig';
 import {
@@ -55,7 +55,7 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
   const reconcileInFlightRef = useRef(false);
 
   useEffect(() => {
-    if (!vaultPath || !isTauri() || isPaused) {
+    if (!vaultPath || isPaused) {
       return;
     }
 
@@ -67,7 +67,7 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
     }
 
     let disposed = false;
-    let unwatch: (() => void) | null = null;
+      let unwatch: (() => Promise<void>) | null = null;
     let releaseWatcher: (() => void) | null = null;
     let reconcilePollTimer: number | null = null;
     let vaultSignature: string | null = null;
@@ -178,7 +178,7 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
       try {
         await ensureVaultConfig(vaultPath);
         vaultSignature = await readVaultConfigSignature(vaultPath);
-        unwatch = await watchImmediate(watchParentPath, async (event) => {
+        unwatch = await watchDesktopPath(watchParentPath, async (event) => {
           if (disposed) {
             return;
           }
@@ -293,7 +293,7 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
         pendingRenameTimerRef.current = null;
       }
       pendingRenamesRef.current = [];
-      unwatch?.();
+          void unwatch?.();
       releaseWatcher?.();
     };
   }, [isPaused, syncCurrentVaultExternalPath, vaultPath]);

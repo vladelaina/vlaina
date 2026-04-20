@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { useAccountSessionStore } from '../accountSession/store';
-import { ACCOUNT_AUTH_INVALIDATED_EVENT } from '@/lib/tauri/webAccountSession';
+import { ACCOUNT_AUTH_INVALIDATED_EVENT } from '@/lib/account/sessionEvent';
 
 describe('accountSession store', () => {
   it('clears in-memory auth state when the web session is invalidated', () => {

@@ -20,8 +20,8 @@ describe("normalizeRenderableImageSrc", () => {
     expect(normalizeRenderableImageSrc("javascript:alert(1)")).toBeNull();
     expect(normalizeRenderableImageSrc("vbscript:msgbox(1)")).toBeNull();
     expect(normalizeRenderableImageSrc("file:///tmp/image.png")).toBeNull();
-    expect(normalizeRenderableImageSrc("tauri://localhost/image.png")).toBeNull();
     expect(normalizeRenderableImageSrc("app://localhost/image.png")).toBeNull();
+    expect(normalizeRenderableImageSrc("custom://localhost/image.png")).toBeNull();
     expect(normalizeRenderableImageSrc("asset://evilhost/image.png")).toBeNull();
     expect(normalizeRenderableImageSrc("")).toBeNull();
     expect(normalizeRenderableImageSrc("   ")).toBeNull();
@@ -41,6 +41,6 @@ describe("createMarkdownSanitizeSchema", () => {
     expect(hrefProtocols).not.toContain("asset");
     expect(hrefProtocols).not.toContain("file");
     expect(srcProtocols).not.toContain("file");
-    expect(srcProtocols).not.toContain("tauri");
+    expect(srcProtocols).not.toContain("app");
   });
 });

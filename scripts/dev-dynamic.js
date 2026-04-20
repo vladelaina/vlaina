@@ -1,11 +1,7 @@
 import net from 'net';
 import { spawn } from 'child_process';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { createRequire } from 'module';
 import { assertNotWsl } from './ensure-not-wsl.mjs';
 
-const require = createRequire(import.meta.url);
 assertNotWsl('dev:dynamic');
 
 // Start checking from default port
@@ -46,41 +42,19 @@ async function startDev() {
     // Set environment variable for Vite
     process.env.VITE_PORT = port.toString();
 
-    // Construct the Tauri dev URL dynamically
+    // Construct the renderer dev URL dynamically
     const devUrl = `http://127.0.0.1:${port}`;
 
-    // Arguments for tauri dev
-    const config = {
-      build: {
-        devUrl: devUrl
-      }
-    };
+    console.log(`\x1b[36m[vlaina] Starting Electron dev with renderer URL: ${devUrl}\x1b[0m`);
 
-    // Serialize config to JSON
-    const configJson = JSON.stringify(config);
-
-    // Resolve Tauri CLI directly using Node's resolution algo
-    // This is cross-platform and handles pnpm symlinks correctly
-    let tauriScript;
-    try {
-      // Resolve package.json first to find the root
-      const cliPkg = require.resolve('@tauri-apps/cli/package.json');
-      const cliDir = path.dirname(cliPkg);
-      // We know from package.json that bin is ./tauri.js
-      tauriScript = path.join(cliDir, 'tauri.js');
-    } catch (e) {
-      // Fallback or error
-      console.error('Could not resolve @tauri-apps/cli location:', e);
-      process.exit(1);
-    }
-
-    console.log(`\x1b[36m[vlaina] Starting Tauri with devUrl: ${devUrl}\x1b[0m`);
-
-    // Execute via node directly
-    const child = spawn(process.execPath, [tauriScript, 'dev', '--config', configJson], {
+    const child = spawn('pnpm', ['run', 'dev'], {
       stdio: 'inherit',
       shell: false,
-      env: { ...process.env, VITE_PORT: port.toString() }
+      env: {
+        ...process.env,
+        VITE_PORT: port.toString(),
+        VITE_DEV_SERVER_URL: devUrl,
+      }
     });
 
     child.on('error', (err) => {

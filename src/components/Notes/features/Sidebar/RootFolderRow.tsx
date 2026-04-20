@@ -65,6 +65,12 @@ export function RootFolderRow({
   const vaultPath = currentVault?.path ?? '';
   const hasChildren = rootFolder ? rootFolder.children.length > 0 : false;
   const expanded = rootFolder?.expanded ?? true;
+  const setExpanded = (value: boolean | ((value: boolean) => boolean)) => {
+    const nextValue = typeof value === 'function' ? value(expanded) : value;
+    if (nextValue !== expanded) {
+      toggleFolder('');
+    }
+  };
 
   useEffect(() => {
     isRenamingRef.current = isRenaming;

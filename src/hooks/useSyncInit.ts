@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAccountSessionStore } from '@/stores/accountSession';
-import { hasBackendCommands } from '@/lib/tauri/invoke';
+import { hasBackendCommands } from '@/lib/desktop/backend';
 
 const TOKEN_CHECK_INTERVAL = 4 * 60 * 1000;
 

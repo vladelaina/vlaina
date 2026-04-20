@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ACCOUNT_AUTH_INVALIDATED_EVENT } from '@/lib/tauri/webAccountSession';
+import { ACCOUNT_AUTH_INVALIDATED_EVENT } from '@/lib/account/sessionEvent';
 import {
   createCheckStatus,
   createHandleAuthCallback,

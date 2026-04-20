@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { windowCommands } from '@/lib/tauri/invoke';
+import { desktopWindow } from '@/lib/desktop/window';
 import { openDialog, messageDialog } from '@/lib/storage/dialog';
 import { OPEN_MARKDOWN_FILE_ACTION } from '@/lib/notes/openMarkdownFileText';
 import { getSingleOpenSelection, isSupportedMarkdownSelection, resolveOpenNoteTarget } from './features/OpenTarget/openTargetSelection';
@@ -11,7 +11,7 @@ import { useUIStore } from '@/stores/uiSlice';
 import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
 import { ResizablePanel } from '@/components/layout/ResizablePanel';
 import { ModuleShortcutsDialog } from '@/components/common/ModuleShortcutsDialog';
-import { readWindowLaunchContext } from '@/lib/tauri/windowLaunchContext';
+import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
 import { MarkdownEditor } from './features/Editor';
 import { useNotesViewShortcuts } from './hooks/useNotesViewShortcuts';
 import { useModuleShortcutsDialog } from '@/hooks/useModuleShortcutsDialog';
@@ -140,7 +140,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
 
     const unlockWindow = async () => {
       try {
-        await windowCommands.setResizable(true);
+        await desktopWindow.setResizable(true);
       } catch (e) {
         console.error('Failed to unlock window:', e);
       }
@@ -239,11 +239,6 @@ export function NotesView({ active = true }: { active?: boolean }) {
 
     if (activeNotesPath === target.vaultPath && currentPath === target.absolutePath) {
       const adopted = adoptAbsoluteNoteIntoVault(target.absolutePath, target.notePath);
-      console.info('[NotesOpenTarget] adopt-current:done', {
-        absolutePath: target.absolutePath,
-        notePath: target.notePath,
-        adopted,
-      });
       if (adopted) {
         return true;
       }
@@ -270,13 +265,6 @@ export function NotesView({ active = true }: { active?: boolean }) {
 
     const openPendingShortcutNote = async () => {
       let opened = false;
-      console.info('[NotesOpenTarget] pending-open:start', {
-        absolutePath: pendingShortcutNoteTarget.absolutePath,
-        vaultPath: pendingShortcutNoteTarget.vaultPath,
-        notesPath,
-        rootFolderReady: Boolean(rootFolder),
-        elapsedMs: Math.round(performance.now() - pendingShortcutNoteTarget.startedAt),
-      });
 
       try {
         opened = await openShortcutNoteTarget(pendingShortcutNoteTarget);
@@ -287,10 +275,6 @@ export function NotesView({ active = true }: { active?: boolean }) {
       }
 
       if (!cancelled && !opened) {
-        console.info('[NotesOpenTarget] pending-open:failed', {
-          absolutePath: pendingShortcutNoteTarget.absolutePath,
-          elapsedMs: Math.round(performance.now() - pendingShortcutNoteTarget.startedAt),
-        });
         await messageDialog('Failed to open the selected Markdown file.', {
           title: 'Open Failed',
           kind: 'error',
@@ -298,13 +282,6 @@ export function NotesView({ active = true }: { active?: boolean }) {
         return;
       }
 
-      if (!cancelled) {
-        console.info('[NotesOpenTarget] pending-open:done', {
-          absolutePath: pendingShortcutNoteTarget.absolutePath,
-          elapsedMs: Math.round(performance.now() - pendingShortcutNoteTarget.startedAt),
-          notesPath: useNotesStore.getState().notesPath,
-        });
-      }
     };
 
     void openPendingShortcutNote();
@@ -322,40 +299,19 @@ export function NotesView({ active = true }: { active?: boolean }) {
   }, [currentNotePath, isDirty, saveNote]);
 
   const openMarkdownTarget = useCallback(async (selected: string) => {
-    const startedAt = performance.now();
-    console.info('[NotesOpenTarget] start', {
-      absolutePath: selected,
-      currentVaultPath: currentVault?.path ?? null,
-      notesPath,
-    });
     setIsOpenTargetBusy(true);
     try {
       const canContinue = await saveCurrentNoteIfNeeded();
       if (!canContinue) return;
-      console.info('[NotesOpenTarget] after-save-check', {
-        absolutePath: selected,
-        elapsedMs: Math.round(performance.now() - startedAt),
-      });
 
       const target = resolveOpenNoteTarget(selected);
       const normalizedTargetVaultPath = normalizeVaultPath(target.vaultPath);
-      console.info('[NotesOpenTarget] target-resolved', {
-        absolutePath: selected,
-        targetVaultPath: normalizedTargetVaultPath,
-        notePath: target.notePath,
-        elapsedMs: Math.round(performance.now() - startedAt),
-      });
 
       if (currentVault?.path === normalizedTargetVaultPath && notesPath === normalizedTargetVaultPath) {
         const opened = await openShortcutNoteTarget({
           vaultPath: normalizedTargetVaultPath,
           notePath: target.notePath,
           absolutePath: selected,
-        });
-        console.info('[NotesOpenTarget] same-vault:done', {
-          absolutePath: selected,
-          opened,
-          elapsedMs: Math.round(performance.now() - startedAt),
         });
         if (!opened) {
           await messageDialog('Failed to open the selected Markdown file.', {
@@ -370,12 +326,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
         vaultPath: normalizedTargetVaultPath,
         notePath: target.notePath,
         absolutePath: selected,
-        startedAt,
-      });
-      console.info('[NotesOpenTarget] pending-open:queued', {
-        absolutePath: selected,
-        targetVaultPath: normalizedTargetVaultPath,
-        elapsedMs: Math.round(performance.now() - startedAt),
+        startedAt: performance.now(),
       });
 
       if (currentVault?.path === normalizedTargetVaultPath) {
@@ -383,12 +334,6 @@ export function NotesView({ active = true }: { active?: boolean }) {
       }
 
       const openedVault = await openVault(normalizedTargetVaultPath);
-      console.info('[NotesOpenTarget] open-vault:done', {
-        absolutePath: selected,
-        targetVaultPath: normalizedTargetVaultPath,
-        openedVault,
-        elapsedMs: Math.round(performance.now() - startedAt),
-      });
       if (!openedVault) {
         setPendingShortcutNoteTarget(null);
         await messageDialog('Failed to open the selected vault.', {
@@ -398,10 +343,6 @@ export function NotesView({ active = true }: { active?: boolean }) {
       }
     } catch (error) {
       setPendingShortcutNoteTarget(null);
-      console.info('[NotesOpenTarget] failed', {
-        absolutePath: selected,
-        elapsedMs: Math.round(performance.now() - startedAt),
-      });
       await messageDialog(
         error instanceof Error ? error.message : 'Failed to open the selected Markdown file.',
         {

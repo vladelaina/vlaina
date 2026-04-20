@@ -1,6 +1,5 @@
-import { appDataDir, join } from '@tauri-apps/api/path';
-import { convertFileSrc } from '@tauri-apps/api/core';
-import { getStorageAdapter } from './adapter';
+import { getElectronBridge } from '@/lib/electron/bridge';
+import { getStorageAdapter, joinPath } from './adapter';
 
 export interface Attachment {
     id: string;
@@ -14,6 +13,14 @@ export interface Attachment {
 
 const ATTACHMENT_DIR = 'attachments';
 
+function getPathApi() {
+    const bridge = getElectronBridge();
+    if (!bridge) {
+        throw new Error('Electron path bridge is not available.');
+    }
+    return bridge.path;
+}
+
 export async function saveAttachment(file: File): Promise<Attachment> {
     const base64 = await fileToBase64(file);
     let absolutePath = '';
@@ -21,39 +28,35 @@ export async function saveAttachment(file: File): Promise<Attachment> {
 
     const storage = getStorageAdapter();
 
-    if (storage.platform === 'tauri') {
-        try {
-            const appDataPath = await appDataDir();
-            const dirPath = await join(appDataPath, ATTACHMENT_DIR);
+    try {
+        const appDataPath = await storage.getBasePath();
+        const dirPath = await joinPath(appDataPath, ATTACHMENT_DIR);
 
-            if (!(await storage.exists(dirPath))) {
-                await storage.mkdir(dirPath, true);
-            }
-
-            const ext = file.name.split('.').pop() || 'bin';
-            const filename = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
-            absolutePath = await join(dirPath, filename);
-
-            const buffer = await file.arrayBuffer();
-            const data = new Uint8Array(buffer);
-            await storage.writeBinaryFile(absolutePath, data);
-
-            assetUrl = convertFileSrc(absolutePath);
-        } catch (e) {
-            console.error('[Attachment] Disk save failed:', e);
+        if (!(await storage.exists(dirPath))) {
+            await storage.mkdir(dirPath, true);
         }
-    } else {
-        assetUrl = base64;
+
+        const ext = file.name.split('.').pop() || 'bin';
+        const filename = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}.${ext}`;
+        absolutePath = await joinPath(dirPath, filename);
+
+        const buffer = await file.arrayBuffer();
+        const data = new Uint8Array(buffer);
+        await storage.writeBinaryFile(absolutePath, data, { recursive: true });
+
+        assetUrl = await getPathApi().toFileUrl(absolutePath);
+    } catch (e) {
+        console.error('[Attachment] Disk save failed:', e);
     }
 
     return {
         id: crypto.randomUUID(),
         path: absolutePath,
         previewUrl: base64,
-        assetUrl: assetUrl || base64,
+        assetUrl,
         name: file.name,
-        type: file.type,
-        size: file.size
+        type: file.type || 'application/octet-stream',
+        size: file.size,
     };
 }
 
@@ -83,16 +86,11 @@ export async function convertToBase64(attachment: Attachment): Promise<string> {
 
     const storage = getStorageAdapter();
 
-    if (storage.platform === 'tauri' && attachment.path) {
+    if (attachment.path) {
         try {
-            const filename = attachment.path.split(/[\\/]/).pop();
-            if (filename) {
-                const appDataPath = await appDataDir();
-                const fullPath = await join(appDataPath, ATTACHMENT_DIR, filename);
-                const data = await storage.readBinaryFile(fullPath);
-                const base64 = uint8ArrayToBase64(data);
-                return `data:${attachment.type};base64,${base64}`;
-            }
+            const data = await storage.readBinaryFile(attachment.path);
+            const base64 = uint8ArrayToBase64(data);
+            return `data:${attachment.type};base64,${base64}`;
         } catch (e) {
             console.error('[Attachment] Fallback disk read failed:', e);
         }

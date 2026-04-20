@@ -146,10 +146,6 @@ export default defineConfig(async () => ({
             return 'cytoscape-vendor';
           }
 
-          if (id.includes('/@tauri-apps/')) {
-            return 'tauri-vendor';
-          }
-
           if (id.includes('/framer-motion/') || id.includes('/@radix-ui/')) {
             return 'ui-vendor';
           }
@@ -158,11 +154,8 @@ export default defineConfig(async () => ({
     },
   },
 
-  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
-  //
-  // 1. prevent Vite from obscuring rust errors
+  // Vite options for Electron renderer development.
   clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
   server: {
     port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : 3000,
     strictPort: true,
@@ -176,10 +169,6 @@ export default defineConfig(async () => ({
       : undefined,
     headers: {
       "Cache-Control": "no-store",
-    },
-    watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
     },
   },
 }));

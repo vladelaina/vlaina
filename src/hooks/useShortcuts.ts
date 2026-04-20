@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
-import { windowCommands } from '@/lib/tauri/invoke';
-import { isTauri } from '@/lib/storage/adapter';
+import { desktopWindow } from '@/lib/desktop/window';
+import { isElectronRuntime } from '@/lib/electron/bridge';
 import { dispatchEditorFindOpenEvent } from '@/components/Notes/features/Editor/find/editorFindEvents';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore as useAppUIStore } from '@/stores/uiSlice';
@@ -44,7 +44,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       window.dispatchEvent(new Event('open-settings'));
     },
     newWindow: async () => {
-      await windowCommands.createNewWindow({ viewMode: appViewMode });
+      await desktopWindow.create({ viewMode: appViewMode });
     },
     newTab: () => {
       const folderPath = resolveSiblingNoteParentPath(
@@ -74,7 +74,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
     const handleKeyDown = async (e: KeyboardEvent) => {
       if (e.key === 'F11') {
         e.preventDefault();
-        await windowCommands.toggleFullscreen();
+        await desktopWindow.toggleFullscreen();
         return;
       }
 
@@ -84,7 +84,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
         return;
       }
 
-      if (isTauri() && shouldBlockBrowserReservedShortcut(e)) {
+      if (isElectronRuntime() && shouldBlockBrowserReservedShortcut(e)) {
         e.preventDefault();
         return;
       }

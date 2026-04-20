@@ -1,11 +1,12 @@
-import { getStorageAdapter, isTauri, joinPath } from '@/lib/storage/adapter';
+import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { isElectronRuntime } from '@/lib/electron/bridge';
 import { createPersistenceQueue } from './persistenceEngine';
 import type { Provider } from '@/lib/ai/types';
 import type { ChatSession } from '@/lib/ai/types';
 import { isTemporarySession } from '@/lib/ai/temporaryChat';
 import { getStorageBasePath } from './basePath';
 import { normalizeLoadedAIModels } from './unifiedStorageAI';
-import { aiProviderSecretCommands } from '@/lib/tauri/aiProviderSecretCommands';
+import { aiProviderSecretCommands } from '@/lib/desktop/secretsCommands';
 import { useToastStore } from '@/stores/useToastStore';
 import {
   createDefaultUnifiedData,
@@ -63,7 +64,7 @@ async function getBasePath(): Promise<string> {
 async function hydrateProvidersWithSecrets(
   providers: Provider[]
 ): Promise<Provider[]> {
-  if (!isTauri() || providers.length === 0) {
+  if (!isElectronRuntime() || providers.length === 0) {
     return providers;
   }
 
@@ -88,7 +89,7 @@ async function hydrateProvidersWithSecrets(
 }
 
 function sanitizeProviderForDisk(provider: Provider): Provider {
-  if (!isTauri()) {
+  if (!isElectronRuntime()) {
     return provider;
   }
 
@@ -103,7 +104,7 @@ function sanitizeProviderForDisk(provider: Provider): Provider {
 }
 
 async function syncProviderSecrets(providers: Provider[]): Promise<void> {
-  if (!isTauri()) {
+  if (!isElectronRuntime()) {
     return;
   }
 
@@ -325,7 +326,7 @@ async function performSplitSave(data: UnifiedData) {
                 continue;
             }
             try {
-                if (isTauri()) {
+                if (isElectronRuntime()) {
                     await aiProviderSecretCommands.deleteProviderSecret(providerId);
                 }
                 await storage.deleteFile(entry.path);
@@ -342,7 +343,7 @@ async function performSplitSave(data: UnifiedData) {
             }
             const providerId = entry.name.slice(0, -5);
             try {
-                if (isTauri()) {
+                if (isElectronRuntime()) {
                     await aiProviderSecretCommands.deleteProviderSecret(providerId);
                 }
                 await storage.deleteFile(entry.path);

@@ -1,4 +1,4 @@
-import { hasBackendCommands, safeInvoke } from '@/lib/tauri/invoke'
+import { createDesktopBillingCheckout, hasBackendCommands } from '@/lib/desktop/backend'
 
 const API_BASE = 'https://api.vlaina.com'
 
@@ -92,11 +92,7 @@ export async function fetchBillingPlans(): Promise<{
 
 export async function createBillingCheckout(tier: BillingPlanTier): Promise<string> {
   if (hasBackendCommands()) {
-    const data = await safeInvoke<BillingCheckoutResponse>('create_billing_checkout', { tier }, {
-      webFallback: undefined,
-      throwOnWeb: true,
-    })
-
+    const data = await createDesktopBillingCheckout(tier) as BillingCheckoutResponse
     return normalizeCheckoutUrl(data)
   }
 

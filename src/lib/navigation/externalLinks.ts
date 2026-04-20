@@ -1,6 +1,5 @@
-import type { MouseEventHandler } from "react";
-import { isTauri } from "@/lib/storage/adapter";
-import { safeInvoke } from "@/lib/tauri/invoke";
+import type { MouseEvent as ReactMouseEvent, MouseEventHandler } from "react";
+import { openExternalUrl } from "@/lib/desktop/shell";
 
 const EXTERNAL_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 const ALLOWED_LINK_PREFIX_REGEX = /^(https?:\/\/|mailto:)/i;
@@ -14,8 +13,10 @@ export function normalizeExternalHref(href: string | null | undefined): string |
 
   try {
     const url = new URL(trimmed, window.location.href);
-    if (!EXTERNAL_PROTOCOLS.has(url.protocol)) return null;
-    return url.href;
+    if (!EXTERNAL_PROTOCOLS.has(url.protocol)) {
+      return null;
+    }
+    return url.toString();
   } catch {
     return null;
   }
@@ -23,22 +24,20 @@ export function normalizeExternalHref(href: string | null | undefined): string |
 
 export async function openExternalHref(href: string | null | undefined): Promise<void> {
   const normalized = normalizeExternalHref(href);
-  if (!normalized) return;
+  if (!normalized) {
+    return;
+  }
 
-  if (isTauri()) {
-    try {
-      await safeInvoke("open_external_url", { url: normalized }, { throwOnWeb: true });
-      return;
-    } catch {}
+  try {
+    await openExternalUrl(normalized);
+    return;
+  } catch {
   }
 
   window.open(normalized, "_blank", "noopener,noreferrer");
 }
 
-function handleExternalLinkActivation(
-  event: Parameters<MouseEventHandler<HTMLElement>>[0],
-  href: string | null,
-): void {
+function handleExternalLinkActivation(event: ReactMouseEvent<HTMLElement>, href: string | null) {
   event.preventDefault();
   event.stopPropagation();
   if (!href) return;

@@ -1,8 +1,8 @@
 import type { StoreApi } from 'zustand';
 import type { AccountProvider, AccountSessionActions, AccountSessionState } from './state';
-import { hasBackendCommands } from '@/lib/tauri/invoke';
-import { accountCommands } from '@/lib/tauri/accountAuthCommands';
-import { webAccountCommands, handleAuthCallback as parseAuthCallback } from '@/lib/tauri/webAccountCommands';
+import { hasBackendCommands } from '@/lib/desktop/backend';
+import { accountCommands } from '@/lib/account/desktopCommands';
+import { webAccountCommands, handleAuthCallback as parseAuthCallback } from '@/lib/account/webCommands';
 import { isOauthAccountProvider, normalizeAccountProvider } from '@/lib/account/provider';
 import {
   AUTH_PROVIDER_STORAGE_KEY,

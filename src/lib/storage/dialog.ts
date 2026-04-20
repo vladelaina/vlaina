@@ -1,6 +1,4 @@
-import { isTauri } from './adapter';
-
-let saveDialogModulePromise: Promise<typeof import('@tauri-apps/plugin-dialog')> | null = null;
+import { openDesktopDialog, saveDesktopDialog, showDesktopConfirm, showDesktopMessage } from '@/lib/desktop/dialog';
 
 export interface OpenDialogOptions {
   directory?: boolean;
@@ -17,55 +15,27 @@ export interface SaveDialogOptions {
 }
 
 export async function openDialog(options: OpenDialogOptions = {}): Promise<string | string[] | null> {
-  if (isTauri()) {
-    const { open } = await import('@tauri-apps/plugin-dialog');
-    return open(options);
-  }
-  
-  if (options.directory) {
-    if (import.meta.env.DEV) console.warn('[Dialog] Directory selection is not supported on web platform');
-    return null;
-  }
-  
-  return null;
+  return openDesktopDialog(options);
 }
 
 export async function saveDialog(options: SaveDialogOptions = {}): Promise<string | null> {
-  if (isTauri()) {
-    saveDialogModulePromise ??= import('@tauri-apps/plugin-dialog');
-    const { save } = await saveDialogModulePromise;
-    return save(options);
-  }
-  
-  if (import.meta.env.DEV) console.warn('[Dialog] Save dialog is not supported on web platform');
-  return null;
+  return saveDesktopDialog(options);
 }
 
 export async function messageDialog(
   message: string,
   options: { title?: string; kind?: 'info' | 'warning' | 'error' } = {}
 ): Promise<void> {
-  if (isTauri()) {
-    const { message: tauriMessage } = await import('@tauri-apps/plugin-dialog');
-    await tauriMessage(message, options);
-    return;
-  }
-  
-  alert(message);
+  await showDesktopMessage(message, options);
 }
 
 export async function confirmDialog(
   message: string,
   options: { title?: string; kind?: 'info' | 'warning' | 'error' } = {}
 ): Promise<boolean> {
-  if (isTauri()) {
-    const { confirm } = await import('@tauri-apps/plugin-dialog');
-    return confirm(message, options);
-  }
-  
-  return confirm(message);
+  return showDesktopConfirm(message, options);
 }
 
 export function hasNativeDialogs(): boolean {
-  return isTauri();
+  return true;
 }

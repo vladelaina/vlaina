@@ -1,4 +1,5 @@
-import { isTauri } from "@/lib/storage/adapter";
+import { writeDesktopBinaryFile } from "@/lib/desktop/fs";
+import { saveDialog } from "@/lib/storage/dialog";
 
 const IMAGE_EXT_BY_MIME: Record<string, string> = {
   "image/png": "png",
@@ -75,14 +76,12 @@ export async function downloadImageWithPrompt(src: string, alt?: string): Promis
 
   const filename = resolveFilename(alt, src, blob?.type || "");
 
-  if (isTauri() && blob) {
-    const { save } = await import("@tauri-apps/plugin-dialog");
-    const { writeFile } = await import("@tauri-apps/plugin-fs");
+  if (blob) {
     const defaultExt = filename.split(".").pop()?.toLowerCase() || "png";
     const extensions = Array.from(
       new Set([defaultExt, "png", "jpg", "jpeg", "webp", "gif", "bmp", "svg"])
     );
-    const filePath = await save({
+    const filePath = await saveDialog({
       title: "Save image",
       defaultPath: filename,
       filters: [{ name: "Images", extensions }],
@@ -90,17 +89,7 @@ export async function downloadImageWithPrompt(src: string, alt?: string): Promis
     if (!filePath) {
       return;
     }
-    await writeFile(filePath, new Uint8Array(await blob.arrayBuffer()));
-    return;
-  }
-
-  if (blob) {
-    const objectUrl = URL.createObjectURL(blob);
-    try {
-      await downloadViaAnchor(objectUrl, filename);
-    } finally {
-      URL.revokeObjectURL(objectUrl);
-    }
+    await writeDesktopBinaryFile(filePath, new Uint8Array(await blob.arrayBuffer()));
     return;
   }
 

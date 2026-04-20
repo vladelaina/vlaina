@@ -84,7 +84,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
           <div className="fixed inset-0 flex items-center justify-center z-[100] pointer-events-none p-4">
             <div
-              className="absolute top-0 left-0 right-0 h-14 z-[105] pointer-events-auto cursor-grab active:cursor-grabbing select-none"
+              className="vlaina-drag-region absolute top-0 left-0 right-0 h-14 z-[105] pointer-events-auto cursor-grab active:cursor-grabbing select-none"
               onMouseDown={(e) => {
                 if (e.button !== 0) return;
                 beginWindowDragTracking(

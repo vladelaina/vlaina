@@ -1,8 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { DndContext, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
-import { isTauri } from '@/lib/storage/adapter';
-import { getCurrentWindow } from '@tauri-apps/api/window';
-import { LogicalSize } from '@tauri-apps/api/dpi';
 
 import { AppShell } from '@/components/layout/shell/AppShell';
 import { SidebarUserHeader } from '@/components/layout/SidebarUserHeader';
@@ -28,6 +25,7 @@ import { flushPendingSave } from '@/lib/storage/unifiedStorage';
 import { flushPendingSessionJsonSaves } from '@/lib/storage/chatStorage';
 import { hasDraftUnsavedChanges, isDraftNotePath } from '@/stores/notes/draftNote';
 import { openStoredNotePath } from '@/stores/notes/openNotePath';
+import { desktopWindow } from '@/lib/desktop/window';
 
 const SettingsModal = lazy(async () => {
   const mod = await import('@/components/Settings');
@@ -120,19 +118,17 @@ function AppContent() {
   }, [appViewMode]);
 
   useEffect(() => {
-    if (!isTauri()) return;
     const unlockWindow = async () => {
-      const appWindow = getCurrentWindow();
-      await appWindow.setResizable(true);
-      await appWindow.setMaximizable(true);
-      await appWindow.setMinSize(new LogicalSize(800, 600));
-      const size = await appWindow.outerSize();
+      await desktopWindow.setResizable(true);
+      await desktopWindow.setMaximizable(true);
+      await desktopWindow.setMinSize({ width: 800, height: 600 });
+      const size = await desktopWindow.getSize();
       if (size.width < 980 || size.height < 640) {
-        await appWindow.setSize(new LogicalSize(980, 640));
-        await appWindow.center();
+        await desktopWindow.setSize({ width: 980, height: 640 });
+        await desktopWindow.center();
       }
     };
-    unlockWindow();
+    void unlockWindow();
   }, []);
 
   const sensors = useSensors(
@@ -388,14 +384,9 @@ function App() {
       }
     }
 
-    if (!isTauri()) {
-      await restorePathAfterCloseInterruption(restorePath);
-      return;
-    }
-
     try {
       allowNextWindowCloseRef.current = true;
-      await getCurrentWindow().close();
+      await desktopWindow.confirmClose();
     } catch {
       allowNextWindowCloseRef.current = false;
       await restorePathAfterCloseInterruption(restorePath);
@@ -459,26 +450,23 @@ function App() {
       }
     };
 
-    if (isTauri()) {
-      void getCurrentWindow().onCloseRequested(async (event) => {
-        if (allowNextWindowCloseRef.current) {
-          allowNextWindowCloseRef.current = false;
-          return;
-        }
+    unlistenCloseRequested = desktopWindow.onCloseRequested(() => {
+      if (allowNextWindowCloseRef.current) {
+        allowNextWindowCloseRef.current = false;
+        return;
+      }
 
-        const notesState = useNotesStore.getState();
-        const hasUnsavedDrafts = hasDiscardableDrafts();
+      const notesState = useNotesStore.getState();
+      const hasUnsavedDrafts = hasDiscardableDrafts();
 
-        if (!notesState.isDirty && !hasUnsavedDrafts) {
-          return;
-        }
+      if (!notesState.isDirty && !hasUnsavedDrafts) {
+        allowNextWindowCloseRef.current = true;
+        void desktopWindow.confirmClose();
+        return;
+      }
 
-        event.preventDefault();
-        await continueWindowClose();
-      }).then((unlisten) => {
-        unlistenCloseRequested = unlisten;
-      });
-    }
+      void continueWindowClose();
+    });
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('pagehide', flushAllPendingWrites);
