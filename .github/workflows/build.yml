@@ -59,12 +59,26 @@ jobs:
           - os: windows-latest
             target: --win
             artifact_name: vlaina-installers-windows
+            artifact_path: |
+              release/*.exe
+              release/*.blockmap
+              release/latest*.yml
           - os: macos-latest
             target: --mac
             artifact_name: vlaina-installers-macos
+            artifact_path: |
+              release/*.dmg
+              release/*.zip
+              release/*.blockmap
+              release/latest*.yml
           - os: ubuntu-latest
             target: --linux
             artifact_name: vlaina-installers-linux
+            artifact_path: |
+              release/*.AppImage
+              release/*.tar.gz
+              release/*.deb
+              release/latest*.yml
 
     permissions:
       contents: read
@@ -102,5 +116,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact_name }}
-          path: release
+          path: ${{ matrix.artifact_path }}
           if-no-files-found: error
