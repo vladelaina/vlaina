@@ -22,6 +22,7 @@ const apiBaseUrl = (process.env.APP_API_BASE_URL ?? 'https://api.vlaina.com').tr
 const managedApiBaseUrl = `${apiBaseUrl}/v1`;
 const appSessionHeader = 'x-app-session-token';
 const loopbackCallbackPath = '/oauth/callback';
+const appIconPath = path.join(__dirname, '..', 'public', 'logo.png');
 const closeApprovedWebContents = new Set();
 const windowLabels = new Map();
 const activeWatchers = new Map();
@@ -545,6 +546,19 @@ function isDevelopment() {
   return !app.isPackaged;
 }
 
+function normalizeExternalUrl(rawUrl) {
+  if (typeof rawUrl !== 'string' || !rawUrl.trim()) {
+    throw new Error('A non-empty URL is required.');
+  }
+
+  const parsed = new URL(rawUrl.trim());
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:' && parsed.protocol !== 'mailto:') {
+    throw new Error(`Unsupported external URL protocol: ${parsed.protocol}`);
+  }
+
+  return parsed.toString();
+}
+
 function buildRendererUrl(windowOptions = {}) {
   const url = new URL(rendererDevUrl);
   const params = new URLSearchParams();
@@ -634,6 +648,7 @@ function createWindow(windowOptions = {}) {
     minWidth: 400,
     minHeight: 300,
     center: true,
+    icon: appIconPath,
     backgroundColor: '#FFFFFFFF',
     autoHideMenuBar: true,
     titleBarStyle: 'hidden',
@@ -641,7 +656,7 @@ function createWindow(windowOptions = {}) {
       preload: path.join(__dirname, 'preload.mjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
     },
   });
 
@@ -744,12 +759,8 @@ ipcMain.handle('desktop:window:toggle-fullscreen', (event) => {
   const window = resolveTargetWindow(event);
   if (!window) return false;
 
-  const next = !window.isMaximized();
-  if (next) {
-    window.maximize();
-  } else {
-    window.unmaximize();
-  }
+  const next = !window.isFullScreen();
+  window.setFullScreen(next);
   return next;
 });
 
@@ -763,11 +774,7 @@ ipcMain.handle('desktop:window:create', (_event, windowOptions) => {
 });
 
 ipcMain.handle('desktop:shell:open-external', async (_event, url) => {
-  if (typeof url !== 'string' || !url.trim()) {
-    throw new Error('A non-empty URL is required.');
-  }
-
-  await shell.openExternal(url);
+  await shell.openExternal(normalizeExternalUrl(url));
 });
 
 ipcMain.handle('desktop:shell:trash-item', async (_event, filePath) => {
@@ -1248,6 +1255,10 @@ ipcMain.handle('desktop:fs:unwatch', (_event, watchId) => {
 });
 
 app.whenReady().then(() => {
+  if (process.platform === 'win32') {
+    app.setAppUserModelId('com.vlaina.desktop');
+  }
+
   createMainWindow();
 
   app.on('activate', () => {

@@ -90,8 +90,12 @@ jobs:
       - name: Build renderer
         run: pnpm build
 
+      - name: Generate Windows icon
+        if: matrix.os == 'windows-latest'
+        run: pnpm run prepare:desktop-assets
+
       - name: Package Electron app
-        run: pnpm dlx electron-builder --config electron-builder.yml ${{ matrix.target }} --publish never
+        run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.target }} --publish never
 
       - name: Upload installer artifacts
         if: success()

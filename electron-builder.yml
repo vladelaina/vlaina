@@ -5,6 +5,7 @@ npmRebuild: false
 removePackageScripts: true
 directories:
   output: release
+  buildResources: build
 files:
   - dist/**
   - electron/**
@@ -25,9 +26,11 @@ mac:
     - zip
   category: public.app-category.productivity
 win:
+  icon: build/icon.ico
   target:
     - nsis
 linux:
   category: Utility
+  icon: build/icon.png
   target:
     - AppImage
