@@ -9,7 +9,7 @@ function bufferToHex(buffer: ArrayBuffer): string {
     .join('');
 }
 
-async function sha256(data: ArrayBuffer): Promise<string> {
+async function sha256(data: BufferSource): Promise<string> {
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   return bufferToHex(hashBuffer);
 }
@@ -36,6 +36,6 @@ export function isLargeFile(file: File): boolean {
 
 export async function computeBufferHash(buffer: Uint8Array): Promise<string> {
   const copy = new Uint8Array(buffer);
-  const fullHash = await sha256(copy.buffer as ArrayBuffer);
+  const fullHash = await sha256(copy);
   return fullHash.substring(0, HASH_LENGTH);
 }
