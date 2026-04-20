@@ -93,14 +93,6 @@ jobs:
       - name: Package Electron app
         run: pnpm dlx electron-builder --config electron-builder.yml ${{ matrix.target }} --publish never
 
-      - name: Upload dist artifact
-        if: success()
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ matrix.artifact_name }}-dist
-          path: dist
-          if-no-files-found: error
-
       - name: Upload installer artifacts
         if: success()
         uses: actions/upload-artifact@v7

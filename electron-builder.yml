@@ -1,11 +1,22 @@
 appId: com.vlaina.desktop
 productName: vlaina
+compression: maximum
+npmRebuild: false
+removePackageScripts: true
 directories:
   output: release
 files:
   - dist/**
   - electron/**
   - package.json
+  - "!dist/**/*.map"
+  - "!electron/**/*.map"
+  - "!**/__tests__/**"
+  - "!**/test/**"
+  - "!**/tests/**"
+  - "!**/example/**"
+  - "!**/examples/**"
+  - "!**/.github/**"
 asar: true
 artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 mac:
