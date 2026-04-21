@@ -433,6 +433,7 @@ export function ModelSelector({
               <input
                 ref={inputRef}
                 type="text"
+                spellCheck={false}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Find model..."

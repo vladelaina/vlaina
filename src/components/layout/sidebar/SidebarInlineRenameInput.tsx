@@ -49,6 +49,7 @@ export function SidebarInlineRenameInput({
       {...props}
       ref={inputRef}
       type="text"
+      spellCheck={false}
       value={value}
       onChange={(event) => onValueChange(event.target.value)}
       onBlur={() => void onSubmit()}

@@ -138,6 +138,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
       ref={inputRef}
       {...titleInputDataAttrs}
       type="text"
+      spellCheck={false}
       value={title}
       onChange={handleChange}
       onBlur={handleBlur}

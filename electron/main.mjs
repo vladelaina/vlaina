@@ -657,6 +657,7 @@ function createWindow(windowOptions = {}) {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
+      spellcheck: false,
     },
   });
 

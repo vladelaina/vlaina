@@ -92,14 +92,14 @@ function AppContent() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
-    const handleOpenSettings = () => setSettingsOpen(prev => !prev)
+    const handleOpenSettings = () => setSettingsOpen(true);
 
-    window.addEventListener('open-settings', handleOpenSettings)
+    window.addEventListener('open-settings', handleOpenSettings);
 
     return () => {
-        window.removeEventListener('open-settings', handleOpenSettings)
-    }
-  }, [])
+      window.removeEventListener('open-settings', handleOpenSettings);
+    };
+  }, []);
 
   useShortcuts();
 
@@ -117,6 +117,15 @@ function AppContent() {
     document.body.removeAttribute('data-chat-selection-lock');
     document.body.removeAttribute('data-chat-selection-freeze');
   }, [appViewMode]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    document.documentElement.setAttribute('spellcheck', 'false');
+    document.body.setAttribute('spellcheck', 'false');
+  }, []);
 
   useEffect(() => {
     if (!isElectronRuntime()) {
@@ -245,7 +254,6 @@ function AppContent() {
 
         titleBarLeft={
           <SidebarUserHeader
-            onOpenSettings={() => setSettingsOpen(true)}
             toggleSidebar={toggleSidebar}
           />
         }

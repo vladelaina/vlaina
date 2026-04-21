@@ -114,6 +114,7 @@ export function ImagesTab() {
                     </label>
                     <input
                         type="text"
+                        spellCheck={false}
                         value={imageVaultSubfolderName}
                         onChange={(e) => setImageVaultSubfolderName(e.target.value)}
                         placeholder="assets"
@@ -132,6 +133,7 @@ export function ImagesTab() {
                     </label>
                     <input
                         type="text"
+                        spellCheck={false}
                         value={imageSubfolderName}
                         onChange={(e) => setImageSubfolderName(e.target.value)}
                         placeholder="assets"

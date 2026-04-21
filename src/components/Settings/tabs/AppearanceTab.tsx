@@ -57,6 +57,7 @@ export function AppearanceTab() {
  <Icon size="md" name="editor.type" className="text-zinc-400" />
           <input
             type="range"
+            spellCheck={false}
             min="12"
             max="20"
             step="1"

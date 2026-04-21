@@ -55,6 +55,7 @@ export function AccountEmailCodeCard({
       <form noValidate onSubmit={handleRequestCode} className="space-y-4 w-full">
         <input
           type="email"
+          spellCheck={false}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email Address"
@@ -90,6 +91,7 @@ export function AccountEmailCodeCard({
         <input
           ref={codeInputRef}
           type="text"
+          spellCheck={false}
           value={code}
           onChange={(e) => {
             const nextCode = e.target.value.replace(/\D/g, '').slice(0, 6);

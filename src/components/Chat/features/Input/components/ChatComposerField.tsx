@@ -55,6 +55,7 @@ export function ChatComposerField({
         <textarea
           ref={textareaRef}
           value={message}
+          spellCheck={false}
           onChange={onChange}
           onCompositionStart={onCompositionStart}
           onCompositionEnd={onCompositionEnd}

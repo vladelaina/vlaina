@@ -23,6 +23,7 @@ export const SettingsTextInput = forwardRef<HTMLInputElement, SettingsTextInputP
         {leading ? <div className="pointer-events-none absolute left-4 top-1/2 z-10 -translate-y-1/2">{leading}</div> : null}
         <input
           ref={ref}
+          spellCheck={false}
           className={cn(
             'block h-11 w-full rounded-2xl border-0 bg-transparent px-4 text-[14px] text-zinc-900 outline-none placeholder:text-zinc-400 focus:ring-0 dark:text-zinc-100 dark:placeholder:text-zinc-500',
             leading && 'pl-11',
@@ -76,6 +77,7 @@ export const SettingsTextarea = forwardRef<HTMLTextAreaElement, SettingsTextarea
           ref={attachRef}
           value={value}
           onChange={onChange}
+          spellCheck={false}
           className={cn(
             'block w-full rounded-2xl border-0 bg-transparent px-4 py-3 text-[14px] leading-6 text-zinc-900 outline-none placeholder:text-zinc-400 focus:ring-0 dark:text-zinc-100 dark:placeholder:text-zinc-500',
             autoGrow && 'min-h-0 resize-none overflow-y-auto',

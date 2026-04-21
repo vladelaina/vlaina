@@ -91,6 +91,7 @@ export function PremiumSlider({
             <input
                 ref={inputRef}
                 type="range"
+                spellCheck={false}
                 min={min}
                 max={max}
                 step={step}

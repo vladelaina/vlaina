@@ -226,6 +226,7 @@ export const ChatInput = memo(function ChatInput({
     <>
       <input
         type="file"
+        spellCheck={false}
         multiple
         className="hidden"
         ref={fileInputRef}

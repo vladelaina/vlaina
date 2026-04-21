@@ -152,6 +152,7 @@ export function EmojiTab({
           <input
             ref={searchInputRef}
             type="text"
+            spellCheck={false}
             placeholder="Filter..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}

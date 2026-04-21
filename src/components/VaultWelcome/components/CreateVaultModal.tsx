@@ -102,6 +102,7 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
                 <label className="vault-modal__label">Vault Name</label>
                 <input
                   type="text"
+                  spellCheck={false}
                   className="vault-modal__input"
                   placeholder="My Notes"
                   value={name}
@@ -125,6 +126,7 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
                   <input
                     ref={pathInputRef}
                     type="text"
+                    spellCheck={false}
                     className="vault-modal__input"
                     placeholder={isWebPlatform ? '/vaults/my-notes' : 'Select a folder...'}
                     value={parentPath}

@@ -137,6 +137,7 @@ export const SidebarSearchField = forwardRef<HTMLInputElement, SidebarSearchFiel
           />
           <input
             ref={ref}
+            spellCheck={false}
             className={cn(
               'min-w-0 flex-1 bg-transparent text-[13px] text-[#999999] outline-none placeholder:text-[#999999]',
               inputClassName,

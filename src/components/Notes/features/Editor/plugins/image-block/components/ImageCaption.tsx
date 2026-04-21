@@ -69,6 +69,7 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
                 <input
                     ref={inputRef}
                     type="text"
+                    spellCheck={false}
                     value={value}
                     onChange={(e) => onChange(e.target.value)}
                     onBlur={onSubmit}

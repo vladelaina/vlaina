@@ -112,6 +112,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                         <Icon size="md" name="common.search" className="absolute left-2.5 top-1/2 -translate-y-1/2  text-gray-400" />
                         <input
                             autoFocus
+                            spellCheck={false}
                             className="w-full bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-lg pl-8 pr-10 py-1.5 text-xs outline-none ring-0 focus:ring-0 focus:border-gray-200 dark:focus:border-zinc-800 transition-all"
                             placeholder="Search language..."
                             value={searchTerm}
