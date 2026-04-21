@@ -26,6 +26,7 @@ import { flushPendingSessionJsonSaves } from '@/lib/storage/chatStorage';
 import { hasDraftUnsavedChanges, isDraftNotePath } from '@/stores/notes/draftNote';
 import { openStoredNotePath } from '@/stores/notes/openNotePath';
 import { desktopWindow } from '@/lib/desktop/window';
+import { isElectronRuntime } from '@/lib/electron/bridge';
 
 const SettingsModal = lazy(async () => {
   const mod = await import('@/components/Settings');
@@ -118,6 +119,10 @@ function AppContent() {
   }, [appViewMode]);
 
   useEffect(() => {
+    if (!isElectronRuntime()) {
+      return;
+    }
+
     const unlockWindow = async () => {
       await desktopWindow.setResizable(true);
       await desktopWindow.setMaximizable(true);
@@ -394,6 +399,10 @@ function App() {
   }, [hasDiscardableDrafts, restorePathAfterCloseInterruption, saveDraftsBeforeClose]);
 
   useEffect(() => {
+    if (!isElectronRuntime()) {
+      return;
+    }
+
     let activeFlush: Promise<boolean> | null = null;
     let unlistenCloseRequested: (() => void) | null = null;
 

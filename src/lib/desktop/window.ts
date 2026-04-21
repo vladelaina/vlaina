@@ -8,67 +8,64 @@ export interface WindowSize {
 
 function getWindowApi() {
   const bridge = getElectronBridge();
-  if (!bridge) {
-    throw new Error('Electron window bridge is not available.');
-  }
-  return bridge.window;
+  return bridge?.window ?? null;
 }
 
 export const desktopWindow = {
   minimize() {
-    return getWindowApi().minimize();
+    return getWindowApi()?.minimize() ?? Promise.resolve();
   },
 
   toggleMaximize() {
-    return getWindowApi().toggleMaximize();
+    return getWindowApi()?.toggleMaximize() ?? Promise.resolve(false);
   },
 
   close() {
-    return getWindowApi().close();
+    return getWindowApi()?.close() ?? Promise.resolve();
   },
 
   confirmClose() {
-    return getWindowApi().confirmClose();
+    return getWindowApi()?.confirmClose() ?? Promise.resolve();
   },
 
   isMaximized() {
-    return getWindowApi().isMaximized();
+    return getWindowApi()?.isMaximized() ?? Promise.resolve(false);
   },
 
   setResizable(resizable: boolean) {
-    return getWindowApi().setResizable(resizable);
+    return getWindowApi()?.setResizable(resizable) ?? Promise.resolve();
   },
 
   setMaximizable(maximizable: boolean) {
-    return getWindowApi().setMaximizable(maximizable);
+    return getWindowApi()?.setMaximizable(maximizable) ?? Promise.resolve();
   },
 
   setMinSize(size: WindowSize) {
-    return getWindowApi().setMinSize(size.width, size.height);
+    return getWindowApi()?.setMinSize(size.width, size.height) ?? Promise.resolve();
   },
 
   setSize(size: WindowSize) {
-    return getWindowApi().setSize(size.width, size.height);
+    return getWindowApi()?.setSize(size.width, size.height) ?? Promise.resolve();
   },
 
   center() {
-    return getWindowApi().center();
+    return getWindowApi()?.center() ?? Promise.resolve();
   },
 
   getSize() {
-    return getWindowApi().getSize();
+    return getWindowApi()?.getSize() ?? Promise.resolve({ width: 0, height: 0 });
   },
 
   getLabel() {
-    return getWindowApi().getLabel();
+    return getWindowApi()?.getLabel() ?? Promise.resolve(null);
   },
 
   focus(label: string) {
-    return getWindowApi().focus(label);
+    return getWindowApi()?.focus(label) ?? Promise.resolve(false);
   },
 
   toggleFullscreen() {
-    return getWindowApi().toggleFullscreen();
+    return getWindowApi()?.toggleFullscreen() ?? Promise.resolve(false);
   },
 
   create(options?: {
@@ -76,10 +73,10 @@ export const desktopWindow = {
     notePath?: string | null;
     viewMode?: WindowLaunchViewMode | null;
   }) {
-    return getWindowApi().create(options);
+    return getWindowApi()?.create(options) ?? Promise.resolve();
   },
 
   onCloseRequested(callback: () => void) {
-    return getWindowApi().onCloseRequested(callback);
+    return getWindowApi()?.onCloseRequested(callback) ?? (() => {});
   },
 };
