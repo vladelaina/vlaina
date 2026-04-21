@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { desktopWindow } from '@/lib/desktop/window';
-import { isElectronRuntime } from '@/lib/electron/bridge';
+import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
 import { dispatchEditorFindOpenEvent } from '@/components/Notes/features/Editor/find/editorFindEvents';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore as useAppUIStore } from '@/stores/uiSlice';
@@ -84,7 +84,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
         return;
       }
 
-      if (isElectronRuntime() && shouldBlockBrowserReservedShortcut(e)) {
+      if (hasElectronDesktopBridge() && shouldBlockBrowserReservedShortcut(e)) {
         e.preventDefault();
         return;
       }

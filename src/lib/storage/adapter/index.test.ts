@@ -30,7 +30,6 @@ describe('storage adapter index', () => {
     mocks.electronCtor.mockClear();
     mocks.webCtor.mockClear();
     mocks.electronJoin.mockClear();
-    delete (window as any).__VL_ELECTRON__;
     delete (window as any).vlainaDesktop;
   });
 
@@ -50,7 +49,7 @@ describe('storage adapter index', () => {
   });
 
   it('uses the electron platform and caches the adapter instance when the bridge exists', () => {
-    (window as any).__VL_ELECTRON__ = { platform: 'electron' };
+    (window as any).vlainaDesktop = { platform: 'electron' };
 
     expect(getPlatform()).toBe('electron');
     expect(isElectron()).toBe(true);
@@ -63,8 +62,21 @@ describe('storage adapter index', () => {
     expect(mocks.webCtor).not.toHaveBeenCalled();
   });
 
+  it('stays on the web adapter when the desktop bridge key exists but is not a valid electron bridge', () => {
+    (window as any).vlainaDesktop = {};
+
+    expect(getPlatform()).toBe('web');
+    expect(isElectron()).toBe(false);
+
+    getStorageAdapter();
+
+    expect(mocks.webCtor).toHaveBeenCalledTimes(1);
+    expect(mocks.electronCtor).not.toHaveBeenCalled();
+  });
+
   it('routes joinPath through the electron path bridge in electron runtime', async () => {
     (window as any).vlainaDesktop = {
+      platform: 'electron',
       path: {
         join: mocks.electronJoin,
       },

@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => {
   return {
     storage,
     joinPath: vi.fn(),
-    isElectronRuntime: vi.fn(() => true),
+    hasElectronDesktopBridge: vi.fn(() => true),
     setProviderSecret: vi.fn().mockResolvedValue(undefined),
     deleteProviderSecret: vi.fn().mockResolvedValue(undefined),
     addToast: vi.fn(),
@@ -26,8 +26,8 @@ vi.mock('@/lib/storage/adapter', () => ({
   joinPath: mocks.joinPath,
 }));
 
-vi.mock('@/lib/electron/bridge', () => ({
-  isElectronRuntime: mocks.isElectronRuntime,
+vi.mock('@/lib/desktop/backend', () => ({
+  hasElectronDesktopBridge: mocks.hasElectronDesktopBridge,
 }));
 
 vi.mock('@/lib/desktop/secretsCommands', () => ({
@@ -55,7 +55,7 @@ describe('unifiedStorage electron save', () => {
     mocks.storage.listDir.mockReset();
     mocks.storage.deleteFile.mockClear();
     mocks.joinPath.mockReset();
-    mocks.isElectronRuntime.mockReturnValue(true);
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
     mocks.setProviderSecret.mockClear();
     mocks.deleteProviderSecret.mockClear();
 
@@ -150,7 +150,7 @@ describe('unifiedStorage electron save', () => {
   });
 
   it('skips keychain cleanup work outside electron runtime', async () => {
-    mocks.isElectronRuntime.mockReturnValue(false);
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
 
     const data: UnifiedData = {
       settings: {

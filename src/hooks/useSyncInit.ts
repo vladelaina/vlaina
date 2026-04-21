@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useAccountSessionStore } from '@/stores/accountSession';
-import { hasBackendCommands } from '@/lib/desktop/backend';
+import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
 
 const TOKEN_CHECK_INTERVAL = 4 * 60 * 1000;
 
@@ -12,7 +12,7 @@ export function useSyncInit() {
   const authHandledRef = useRef(false);
 
   useEffect(() => {
-    if (hasBackendCommands() || authHandledRef.current) return;
+    if (hasElectronDesktopBridge() || authHandledRef.current) return;
     authHandledRef.current = true;
 
     const run = async () => {
@@ -33,7 +33,7 @@ export function useSyncInit() {
 
   useEffect(() => {
     void useAccountSessionStore.getState().hydrateAvatar();
-    if (!hasBackendCommands()) return;
+    if (!hasElectronDesktopBridge()) return;
     void checkStatus();
   }, [checkStatus]);
 

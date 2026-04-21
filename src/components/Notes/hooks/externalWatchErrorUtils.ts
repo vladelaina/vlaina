@@ -30,6 +30,7 @@ export function getExternalWatchErrorMessage(error: unknown): string {
 export function isExternalWatchUnavailableError(error: unknown) {
   const message = getExternalWatchErrorMessage(error).toLowerCase();
   return (
+    message.includes('electron fs bridge is not available') ||
     message.includes('fs.watch not allowed') ||
     message.includes('watch not allowed') ||
     message.includes('command watch not found') ||

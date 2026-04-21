@@ -82,6 +82,24 @@ describe('attachmentStorage', () => {
     });
   });
 
+  it('falls back to preview data for assetUrl when the electron path bridge is unavailable', async () => {
+    mocks.getElectronBridge.mockReturnValue(null);
+
+    const file = new File([new Uint8Array([1, 2, 3])], 'note.png', { type: 'image/png' });
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: async () => new Uint8Array([1, 2, 3]).buffer,
+      configurable: true,
+    });
+
+    const attachment = await saveAttachment(file);
+
+    expect(attachment).toMatchObject({
+      path: '/appdata/attachments/12345678-note.png',
+      previewUrl: 'data:image/png;base64,PREVIEW',
+      assetUrl: 'data:image/png;base64,PREVIEW',
+    });
+  });
+
   it('reuses existing preview data when converting to base64', async () => {
     await expect(convertToBase64({
       id: 'a',

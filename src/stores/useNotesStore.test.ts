@@ -4,7 +4,7 @@
  * Feature: markdown-notes
  * Tests the file tree sorting and state management logic
  * 
- * Note: File system operations require Tauri runtime and cannot be tested
+ * Note: File system operations require the desktop runtime bridge and cannot be tested
  * in unit tests. We test the pure logic functions instead.
  */
 

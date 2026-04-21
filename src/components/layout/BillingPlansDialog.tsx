@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Icon } from '@/components/ui/icons'
 import { createBillingCheckout, fetchBillingPlans, type BillingPlan } from '@/lib/billing/checkout'
 import { openExternalHref } from '@/lib/navigation/externalLinks'
-import { hasBackendCommands } from '@/lib/desktop/backend'
+import { hasElectronDesktopBridge } from '@/lib/desktop/backend'
 import { cn } from '@/lib/utils'
 import { useAccountSessionStore } from '@/stores/accountSession'
 import { useToastStore } from '@/stores/useToastStore'
@@ -90,7 +90,7 @@ export function BillingPlansDialog({ open, onOpenChange }: BillingPlansDialogPro
   }, [open])
 
   const currentPlanLabel = membershipName || (membershipTier === 'free' ? 'Free' : null)
-  const checkoutButtonLabel = hasBackendCommands() ? 'Open in Browser' : 'Continue to Checkout'
+  const checkoutButtonLabel = hasElectronDesktopBridge() ? 'Open in Browser' : 'Continue to Checkout'
 
   const handleCheckout = async (plan: BillingPlan) => {
     if (isStartingTier) {
@@ -101,7 +101,7 @@ export function BillingPlansDialog({ open, onOpenChange }: BillingPlansDialogPro
     try {
       const checkoutUrl = await createBillingCheckout(plan.tier)
 
-      if (hasBackendCommands()) {
+      if (hasElectronDesktopBridge()) {
         await openExternalHref(checkoutUrl)
         addToast('Stripe checkout opened in your browser.', 'info', 4500)
         onOpenChange(false)
@@ -138,7 +138,7 @@ export function BillingPlansDialog({ open, onOpenChange }: BillingPlansDialogPro
               {currentPlanLabel ? `${currentPlanLabel} is active on this account` : 'Choose a membership plan'}
             </DialogTitle>
             <DialogDescription className="max-w-[620px] text-[14px] leading-6 text-zinc-600 dark:text-zinc-400">
-              {hasBackendCommands()
+              {hasElectronDesktopBridge()
                 ? 'Checkout opens in your default browser. After payment, your membership syncs back to the app automatically.'
                 : 'Choose a plan and continue to Stripe checkout.'}
             </DialogDescription>

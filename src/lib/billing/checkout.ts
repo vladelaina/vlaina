@@ -1,4 +1,4 @@
-import { createDesktopBillingCheckout, hasBackendCommands } from '@/lib/desktop/backend'
+import { createElectronBillingCheckout, hasElectronDesktopBridge } from '@/lib/desktop/backend'
 
 const API_BASE = 'https://api.vlaina.com'
 
@@ -26,7 +26,7 @@ interface BillingCheckoutResponse {
 }
 
 function isSupportedBillingOrigin(): boolean {
-  if (typeof window === 'undefined' || hasBackendCommands()) {
+  if (typeof window === 'undefined' || hasElectronDesktopBridge()) {
     return true
   }
 
@@ -91,8 +91,8 @@ export async function fetchBillingPlans(): Promise<{
 }
 
 export async function createBillingCheckout(tier: BillingPlanTier): Promise<string> {
-  if (hasBackendCommands()) {
-    const data = await createDesktopBillingCheckout(tier) as BillingCheckoutResponse
+  if (hasElectronDesktopBridge()) {
+    const data = await createElectronBillingCheckout(tier) as BillingCheckoutResponse
     return normalizeCheckoutUrl(data)
   }
 

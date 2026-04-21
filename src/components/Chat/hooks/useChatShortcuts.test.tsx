@@ -143,7 +143,6 @@ describe("useChatShortcuts", () => {
 
   afterEach(() => {
     cleanup();
-    delete (window as any).__VL_ELECTRON__;
     delete (window as any).vlainaDesktop;
   });
 
@@ -338,9 +337,6 @@ describe("useChatShortcuts", () => {
   });
 
   it("uses the same session order as the chat sidebar for Ctrl+Tab navigation", () => {
-    const previousElectronFlag = (window as any).__VL_ELECTRON__;
-    const previousDesktopBridge = (window as any).vlainaDesktop;
-    (window as any).__VL_ELECTRON__ = { platform: "electron" };
     (window as any).vlainaDesktop = { platform: "electron" };
 
     setup({
@@ -359,24 +355,9 @@ describe("useChatShortcuts", () => {
 
     expect(event.defaultPrevented).toBe(true);
     expect(mocked.switchSession).toHaveBeenCalledWith("session-2");
-
-    if (previousElectronFlag === undefined) {
-      delete (window as any).__VL_ELECTRON__;
-    } else {
-      (window as any).__VL_ELECTRON__ = previousElectronFlag;
-    }
-
-    if (previousDesktopBridge === undefined) {
-      delete (window as any).vlainaDesktop;
-    } else {
-      (window as any).vlainaDesktop = previousDesktopBridge;
-    }
   });
 
   it("does not switch chat sessions on Ctrl+Tab inside a dialog", () => {
-    const previousElectronFlag = (window as any).__VL_ELECTRON__;
-    const previousDesktopBridge = (window as any).vlainaDesktop;
-    (window as any).__VL_ELECTRON__ = { platform: "electron" };
     (window as any).vlainaDesktop = { platform: "electron" };
 
     setup({
@@ -405,18 +386,6 @@ describe("useChatShortcuts", () => {
 
     expect(event.defaultPrevented).toBe(false);
     expect(mocked.switchSession).not.toHaveBeenCalled();
-
-    if (previousElectronFlag === undefined) {
-      delete (window as any).__VL_ELECTRON__;
-    } else {
-      (window as any).__VL_ELECTRON__ = previousElectronFlag;
-    }
-
-    if (previousDesktopBridge === undefined) {
-      delete (window as any).vlainaDesktop;
-    } else {
-      (window as any).vlainaDesktop = previousDesktopBridge;
-    }
   });
 
   it("does nothing when shortcuts are disabled", () => {

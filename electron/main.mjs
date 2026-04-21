@@ -533,7 +533,7 @@ async function requestManagedJson(pathname, init = {}) {
   return await readJsonResponse(response, `Managed API request failed: HTTP ${response.status}`);
 }
 
-async function createDesktopBillingCheckout(tier) {
+async function createElectronBillingCheckout(tier) {
   const response = await fetchWithStoredSession(`${apiBaseUrl}/billing/checkout`, {
     method: 'POST',
     cache: 'no-store',
@@ -1090,7 +1090,7 @@ ipcMain.handle('desktop:account:disconnect', async () => {
 });
 
 ipcMain.handle('desktop:billing:create-checkout', async (_event, tier) => {
-  return await createDesktopBillingCheckout(String(tier ?? ''));
+  return await createElectronBillingCheckout(String(tier ?? ''));
 });
 
 ipcMain.handle('desktop:managed:get-models', async () => {

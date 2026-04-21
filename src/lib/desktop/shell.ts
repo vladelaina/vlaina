@@ -3,7 +3,10 @@ import { getElectronBridge } from '@/lib/electron/bridge';
 export async function openExternalUrl(url: string): Promise<void> {
   const bridge = getElectronBridge();
   if (!bridge) {
-    throw new Error('Electron shell bridge is not available.');
+    if (typeof window !== 'undefined') {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+    return;
   }
 
   await bridge.shell.openExternal(url);
@@ -12,7 +15,7 @@ export async function openExternalUrl(url: string): Promise<void> {
 export async function revealItemInFolder(filePath: string): Promise<void> {
   const bridge = getElectronBridge();
   if (!bridge) {
-    throw new Error('Electron shell bridge is not available.');
+    return;
   }
 
   await bridge.shell.revealItem(filePath);

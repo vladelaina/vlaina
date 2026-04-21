@@ -1,6 +1,6 @@
 import type { StoreApi } from 'zustand';
 import type { AccountProvider, AccountSessionActions, AccountSessionState } from './state';
-import { hasBackendCommands } from '@/lib/desktop/backend';
+import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
 import { accountCommands } from '@/lib/account/desktopCommands';
 import { webAccountCommands, handleAuthCallback as parseAuthCallback } from '@/lib/account/webCommands';
 import { isOauthAccountProvider, normalizeAccountProvider } from '@/lib/account/provider';
@@ -26,7 +26,7 @@ export function createCheckStatus(set: Set, get: Get): () => Promise<void> {
     set({ isLoading: true });
 
     try {
-      const status = hasBackendCommands()
+      const status = hasElectronDesktopBridge()
         ? await accountCommands.getAccountSessionStatus()
         : await webAccountCommands.probeStatus();
       const provider = normalizeAccountProvider(status?.provider);
@@ -78,7 +78,7 @@ export function createSignIn(
     (window as Window & { __vlaina_auth_timeout?: number | ReturnType<typeof setTimeout> | null }).__vlaina_auth_timeout =
       timeoutId;
 
-    if (hasBackendCommands()) {
+    if (hasElectronDesktopBridge()) {
       try {
         const result = await accountCommands.accountAuth(provider);
         clearTimeout(timeoutId);
@@ -139,7 +139,7 @@ export function createRequestEmailCode(set: Set, get: Get): (email: string) => P
 
     set({ error: null });
     try {
-      const ok = hasBackendCommands()
+      const ok = hasElectronDesktopBridge()
         ? await accountCommands.requestEmailAuthCode(email)
         : await webAccountCommands.requestEmailCode(email);
       if (!ok) {
@@ -158,7 +158,7 @@ export function createVerifyEmailCode(set: Set, get: Get): (email: string, code:
   return async (email: string, code: string) => {
     set({ error: null });
     try {
-      if (hasBackendCommands()) {
+      if (hasElectronDesktopBridge()) {
         const result = await accountCommands.verifyEmailAuthCode(email, code);
         if (result?.success) {
           await get().checkStatus();
@@ -188,7 +188,7 @@ export function createVerifyEmailCode(set: Set, get: Get): (email: string, code:
 
 export function createHandleAuthCallback(set: Set, get: Get): () => Promise<boolean> {
   return async () => {
-    if (hasBackendCommands()) return false;
+    if (hasElectronDesktopBridge()) return false;
 
     const callback = parseAuthCallback();
     if (!callback) return false;
@@ -241,7 +241,7 @@ export function createSignOut(set: Set, _get: Get): () => Promise<void> {
     clearAuthIntent();
 
     try {
-      if (hasBackendCommands()) {
+      if (hasElectronDesktopBridge()) {
         await accountCommands.accountDisconnect();
       } else {
         await webAccountCommands.disconnect();

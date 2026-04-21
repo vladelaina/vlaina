@@ -1,6 +1,7 @@
-function isTauriEnv(): boolean {
-  if (typeof window === 'undefined') return false;
-  return '__VL_ELECTRON__' in window || 'vlainaDesktop' in window;
+import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
+
+function isElectronEnv(): boolean {
+  return hasElectronDesktopBridge();
 }
 
 export function getPathSeparator(path?: string): string {
@@ -14,7 +15,7 @@ export function getPathSeparator(path?: string): string {
 }
 
 export function normalizePath(path: string, forceForwardSlash = false): string {
-  if (forceForwardSlash || !isTauriEnv()) {
+  if (forceForwardSlash || !isElectronEnv()) {
     return path.replace(/\\/g, '/');
   }
   return path;
@@ -24,7 +25,7 @@ export function joinPath(...segments: string[]): string {
   const filtered = segments.filter(Boolean);
   if (filtered.length === 0) return '';
   
-  const sep = isTauriEnv() ? getPathSeparator(filtered[0]) : '/';
+  const sep = isElectronEnv() ? getPathSeparator(filtered[0]) : '/';
   
   return filtered
     .map((segment, index) => {

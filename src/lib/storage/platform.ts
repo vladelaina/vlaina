@@ -1,9 +1,9 @@
+import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
+
 export type Platform = 'electron' | 'web';
 
 export function getPlatform(): Platform {
-  if (typeof window === 'undefined') return 'web';
-
-  if ('__VL_ELECTRON__' in window || 'vlainaDesktop' in window) {
+  if (hasElectronDesktopBridge()) {
     return 'electron';
   }
 

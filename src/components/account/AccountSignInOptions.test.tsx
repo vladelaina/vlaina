@@ -1,14 +1,14 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { hasBackendCommands } from '@/lib/desktop/backend';
+import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
 import { AccountEmailCodeCard } from './AccountEmailCodeCard';
 import { AccountSignInOptions } from './AccountSignInOptions';
 
 vi.mock('@/lib/desktop/backend', () => ({
-  hasBackendCommands: vi.fn(),
+  hasElectronDesktopBridge: vi.fn(),
 }));
 
-const mockedHasBackendCommands = vi.mocked(hasBackendCommands);
+const mockedHasElectronDesktopBridge = vi.mocked(hasElectronDesktopBridge);
 
 function buildProps() {
   return {
@@ -22,8 +22,8 @@ function buildProps() {
 
 describe('AccountSignInOptions', () => {
   beforeEach(() => {
-    mockedHasBackendCommands.mockReset();
-    mockedHasBackendCommands.mockReturnValue(false);
+    mockedHasElectronDesktopBridge.mockReset();
+    mockedHasElectronDesktopBridge.mockReturnValue(false);
   });
 
   it('shows OAuth buttons on web', () => {
@@ -35,7 +35,7 @@ describe('AccountSignInOptions', () => {
   });
 
   it('shows OAuth buttons on desktop and keeps email sign-in available', () => {
-    mockedHasBackendCommands.mockReturnValue(true);
+    mockedHasElectronDesktopBridge.mockReturnValue(true);
 
     render(<AccountSignInOptions {...buildProps()} />);
 

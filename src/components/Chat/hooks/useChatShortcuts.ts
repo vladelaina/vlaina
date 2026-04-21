@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { isElectronRuntime } from '@/lib/electron/bridge';
+import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
 import { actions as aiActions } from '@/stores/useAIStore';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useAIUIStore } from '@/stores/ai/chatState';
@@ -116,7 +116,7 @@ export function useChatShortcuts(
       }
 
       if (matchesShortcutBinding(e, 'nextChatSession') || matchesShortcutBinding(e, 'previousChatSession')) {
-          if (!isElectronRuntime()) return;
+          if (!hasElectronDesktopBridge()) return;
 
           e.preventDefault();
           const state = useUnifiedStore.getState();

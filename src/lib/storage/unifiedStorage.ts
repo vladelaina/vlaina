@@ -1,5 +1,5 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
-import { isElectronRuntime } from '@/lib/electron/bridge';
+import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
 import { createPersistenceQueue } from './persistenceEngine';
 import type { Provider } from '@/lib/ai/types';
 import type { ChatSession } from '@/lib/ai/types';
@@ -64,7 +64,7 @@ async function getBasePath(): Promise<string> {
 async function hydrateProvidersWithSecrets(
   providers: Provider[]
 ): Promise<Provider[]> {
-  if (!isElectronRuntime() || providers.length === 0) {
+  if (!hasElectronDesktopBridge() || providers.length === 0) {
     return providers;
   }
 
@@ -89,7 +89,7 @@ async function hydrateProvidersWithSecrets(
 }
 
 function sanitizeProviderForDisk(provider: Provider): Provider {
-  if (!isElectronRuntime()) {
+  if (!hasElectronDesktopBridge()) {
     return provider;
   }
 
@@ -104,7 +104,7 @@ function sanitizeProviderForDisk(provider: Provider): Provider {
 }
 
 async function syncProviderSecrets(providers: Provider[]): Promise<void> {
-  if (!isElectronRuntime()) {
+  if (!hasElectronDesktopBridge()) {
     return;
   }
 
@@ -326,7 +326,7 @@ async function performSplitSave(data: UnifiedData) {
                 continue;
             }
             try {
-                if (isElectronRuntime()) {
+                if (hasElectronDesktopBridge()) {
                     await aiProviderSecretCommands.deleteProviderSecret(providerId);
                 }
                 await storage.deleteFile(entry.path);
@@ -343,7 +343,7 @@ async function performSplitSave(data: UnifiedData) {
             }
             const providerId = entry.name.slice(0, -5);
             try {
-                if (isElectronRuntime()) {
+                if (hasElectronDesktopBridge()) {
                     await aiProviderSecretCommands.deleteProviderSecret(providerId);
                 }
                 await storage.deleteFile(entry.path);

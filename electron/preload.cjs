@@ -217,8 +217,4 @@ const desktopApi = {
   },
 };
 
-contextBridge.exposeInMainWorld('__VL_ELECTRON__', {
-  platform: 'electron',
-});
-
 contextBridge.exposeInMainWorld('vlainaDesktop', desktopApi);

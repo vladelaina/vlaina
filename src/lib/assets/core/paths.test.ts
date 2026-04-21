@@ -2,9 +2,9 @@
  * Path Utils Tests
  * 
  * NOTE: The original sync functions (buildFullAssetPath, etc.) have been deprecated and removed.
- * The new path resolution logic relies on Tauri's async Path API.
+ * The new path resolution logic relies on the desktop async path bridge.
  * 
- * Testing async Tauri API wrappers requires extensive mocking of the import which is 
+ * Testing async desktop path wrappers requires extensive mocking of the host bridge which is 
  * outside the scope of this basic unit test file.
  * 
  * For now, this file is cleared to prevent CI failures due to missing exports.

@@ -86,7 +86,7 @@ vi.mock('@/lib/electron/bridge', () => ({
   getElectronBridge: mocks.getElectronBridge,
 }));
 
-import { safeInvoke, hasBackendCommands, createDesktopBillingCheckout } from './backend';
+import { hasElectronDesktopBridge, createElectronBillingCheckout } from './backend';
 import { openDesktopDialog, saveDesktopDialog, showDesktopConfirm, showDesktopMessage } from './dialog';
 import { writeDesktopBinaryFile } from './fs';
 import {
@@ -142,12 +142,25 @@ describe('desktop runtime adapters', () => {
     expect(off).toBe(unsubscribe);
   });
 
-  it('throws clear bridge errors when the window api is unavailable', async () => {
+  it('safely degrades window operations when the window api is unavailable', async () => {
     mocks.getElectronBridge.mockReturnValue(null as never);
 
-    await expect(Promise.resolve().then(() => desktopWindow.getSize())).rejects.toThrow(
-      'Electron window bridge is not available.',
-    );
+    await expect(desktopWindow.minimize()).resolves.toBeUndefined();
+    await expect(desktopWindow.toggleMaximize()).resolves.toBe(false);
+    await expect(desktopWindow.close()).resolves.toBeUndefined();
+    await expect(desktopWindow.confirmClose()).resolves.toBeUndefined();
+    await expect(desktopWindow.isMaximized()).resolves.toBe(false);
+    await expect(desktopWindow.setResizable(true)).resolves.toBeUndefined();
+    await expect(desktopWindow.setMaximizable(true)).resolves.toBeUndefined();
+    await expect(desktopWindow.setMinSize({ width: 800, height: 600 })).resolves.toBeUndefined();
+    await expect(desktopWindow.setSize({ width: 980, height: 640 })).resolves.toBeUndefined();
+    await expect(desktopWindow.center()).resolves.toBeUndefined();
+    await expect(desktopWindow.getSize()).resolves.toEqual({ width: 0, height: 0 });
+    await expect(desktopWindow.getLabel()).resolves.toBeNull();
+    await expect(desktopWindow.focus('main')).resolves.toBe(false);
+    await expect(desktopWindow.toggleFullscreen()).resolves.toBe(false);
+    await expect(desktopWindow.create({ viewMode: 'notes' })).resolves.toBeUndefined();
+    expect(desktopWindow.onCloseRequested(() => {})).toEqual(expect.any(Function));
   });
 
   it('delegates dialog, shell, trash, fs and watch helpers', async () => {
@@ -192,39 +205,28 @@ describe('desktop runtime adapters', () => {
     expect(mocks.bridge.secrets.deleteAIProviderSecret).toHaveBeenCalledWith('anthropic');
   });
 
-  it('routes backend commands through electron implementations', async () => {
-    expect(hasBackendCommands()).toBe(true);
-    expect(await safeInvoke('open_in_system_file_manager', { path: '/tmp/file.md' })).toBeUndefined();
-    expect(await safeInvoke('get_ai_provider_secrets', { providerIds: ['openai'] })).toEqual({ openai: 'secret' });
-    expect(await safeInvoke('create_billing_checkout', { tier: 'pro' })).toEqual({
-      success: true,
-      url: 'https://example.com',
-    });
-    expect(await createDesktopBillingCheckout('max')).toEqual({
+  it('routes billing helpers through electron implementations', async () => {
+    expect(hasElectronDesktopBridge()).toBe(true);
+    expect(await createElectronBillingCheckout('max')).toEqual({
       success: true,
       url: 'https://example.com',
     });
 
-    expect(mocks.bridge.shell.revealItem).toHaveBeenCalledWith('/tmp/file.md');
-    expect(mocks.bridge.account.createBillingCheckout).toHaveBeenCalledWith('pro');
     expect(mocks.bridge.account.createBillingCheckout).toHaveBeenCalledWith('max');
   });
 
-  it('handles web fallback and missing bridge errors for backend commands', async () => {
+  it('handles missing bridge errors for billing helpers', async () => {
     mocks.getElectronBridge.mockReturnValue(null as never);
+    const windowOpen = vi.spyOn(window, 'open').mockReturnValue(null);
 
-    expect(hasBackendCommands()).toBe(false);
-    await expect(safeInvoke('missing_on_web', undefined, {
-      throwOnWeb: true,
-      webErrorMessage: 'desktop only',
-    })).rejects.toThrow('desktop only');
-    await expect(createDesktopBillingCheckout('pro')).rejects.toThrow('Electron desktop bridge is not available.');
-    await expect(Promise.resolve().then(() => openDesktopDialog())).rejects.toThrow(
-      'Electron dialog bridge is not available.',
-    );
-    await expect(Promise.resolve().then(() => openExternalUrl('https://example.com'))).rejects.toThrow(
-      'Electron shell bridge is not available.',
-    );
+    expect(hasElectronDesktopBridge()).toBe(false);
+    await expect(createElectronBillingCheckout('pro')).rejects.toThrow('Electron desktop bridge is not available.');
+    await expect(openDesktopDialog()).resolves.toBeNull();
+    await expect(saveDesktopDialog()).resolves.toBeNull();
+    await expect(showDesktopConfirm('Continue?')).resolves.toBe(false);
+    await expect(showDesktopMessage('Saved')).resolves.toBeUndefined();
+    await expect(openExternalUrl('https://example.com')).resolves.toBeUndefined();
+    await expect(revealItemInFolder('/tmp/file.md')).resolves.toBeUndefined();
     await expect(Promise.resolve().then(() => writeDesktopBinaryFile('/tmp/file.bin', new Uint8Array()))).rejects.toThrow(
       'Electron fs bridge is not available.',
     );
@@ -232,10 +234,7 @@ describe('desktop runtime adapters', () => {
       'Electron fs bridge is not available.',
     );
 
-    expect(await safeInvoke('noop', undefined, { webFallback: 'fallback' })).toBe('fallback');
-  });
-
-  it('rejects unsupported backend commands even on desktop', async () => {
-    await expect(safeInvoke('unsupported_command')).rejects.toThrow('Unsupported desktop command: unsupported_command');
+    expect(windowOpen).toHaveBeenCalledWith('https://example.com', '_blank', 'noopener,noreferrer');
+    windowOpen.mockRestore();
   });
 });

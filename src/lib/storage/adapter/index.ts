@@ -1,3 +1,5 @@
+import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
+import { getElectronBridge } from '@/lib/electron/bridge';
 import type { StorageAdapter } from './types';
 import { ElectronAdapter } from './ElectronAdapter';
 import { WebAdapter } from './WebAdapter';
@@ -11,9 +13,7 @@ export * from './pathUtils';
 let adapterInstance: StorageAdapter | null = null;
 
 export function getPlatform(): 'electron' | 'web' {
-  if (typeof window === 'undefined') return 'web';
-
-  if ('__VL_ELECTRON__' in window || 'vlainaDesktop' in window) {
+  if (hasElectronDesktopBridge()) {
     return 'electron';
   }
 
@@ -45,7 +45,7 @@ export function resetStorageAdapter(): void {
 
 export async function joinPath(...segments: string[]): Promise<string> {
   if (isElectron()) {
-    const bridge = window.vlainaDesktop;
+    const bridge = getElectronBridge();
     if (!bridge) {
       throw new Error('Electron path bridge is not available.');
     }

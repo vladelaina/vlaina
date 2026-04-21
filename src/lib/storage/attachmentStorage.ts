@@ -15,10 +15,16 @@ const ATTACHMENT_DIR = 'attachments';
 
 function getPathApi() {
     const bridge = getElectronBridge();
-    if (!bridge) {
-        throw new Error('Electron path bridge is not available.');
+    return bridge?.path ?? null;
+}
+
+async function buildAttachmentAssetUrl(absolutePath: string, previewUrl: string): Promise<string> {
+    const pathApi = getPathApi();
+    if (!pathApi || !absolutePath) {
+        return previewUrl;
     }
-    return bridge.path;
+
+    return await pathApi.toFileUrl(absolutePath);
 }
 
 export async function saveAttachment(file: File): Promise<Attachment> {
@@ -44,7 +50,7 @@ export async function saveAttachment(file: File): Promise<Attachment> {
         const data = new Uint8Array(buffer);
         await storage.writeBinaryFile(absolutePath, data, { recursive: true });
 
-        assetUrl = await getPathApi().toFileUrl(absolutePath);
+        assetUrl = await buildAttachmentAssetUrl(absolutePath, base64);
     } catch (e) {
         console.error('[Attachment] Disk save failed:', e);
     }

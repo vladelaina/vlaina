@@ -1,19 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
-  hasBackendCommandsMock,
+  hasElectronDesktopBridgeMock,
   clearClientSessionMock,
   getManagedModelsMock,
   managedChatCompletionStreamMock,
 } = vi.hoisted(() => ({
-  hasBackendCommandsMock: vi.fn(),
+  hasElectronDesktopBridgeMock: vi.fn(),
   clearClientSessionMock: vi.fn(),
   getManagedModelsMock: vi.fn(),
   managedChatCompletionStreamMock: vi.fn(),
 }));
 
 vi.mock('@/lib/desktop/backend', () => ({
-  hasBackendCommands: hasBackendCommandsMock,
+  hasElectronDesktopBridge: hasElectronDesktopBridgeMock,
 }));
 
 vi.mock('@/lib/account/desktopCommands', () => ({
@@ -34,7 +34,7 @@ vi.mock('@/lib/account/webCommands', () => ({
 describe('managedService', () => {
   beforeEach(() => {
     vi.resetModules();
-    hasBackendCommandsMock.mockReset();
+    hasElectronDesktopBridgeMock.mockReset();
     clearClientSessionMock.mockReset();
     getManagedModelsMock.mockReset();
     managedChatCompletionStreamMock.mockReset();
@@ -46,7 +46,7 @@ describe('managedService', () => {
   });
 
   it('uses credentialed web requests for managed models', async () => {
-    hasBackendCommandsMock.mockReturnValue(false);
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -71,7 +71,7 @@ describe('managedService', () => {
   });
 
   it('clears client session when managed web auth is rejected', async () => {
-    hasBackendCommandsMock.mockReturnValue(false);
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 401,
@@ -104,7 +104,7 @@ describe('managedService', () => {
   });
 
   it('keeps desktop managed model requests inside desktop commands', async () => {
-    hasBackendCommandsMock.mockReturnValue(true);
+    hasElectronDesktopBridgeMock.mockReturnValue(true);
     getManagedModelsMock.mockResolvedValue({
       data: [{ id: 'gpt-4o-mini' }],
     });
@@ -117,7 +117,7 @@ describe('managedService', () => {
   });
 
   it('streams managed chat completions on web', async () => {
-    hasBackendCommandsMock.mockReturnValue(false);
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
     const encoder = new TextEncoder();
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -169,7 +169,7 @@ describe('managedService', () => {
   });
 
   it('passes the managed diagnostic request id into the desktop stream bridge', async () => {
-    hasBackendCommandsMock.mockReturnValue(true);
+    hasElectronDesktopBridgeMock.mockReturnValue(true);
     managedChatCompletionStreamMock.mockResolvedValue('ok');
 
     const { requestManagedChatCompletionStream } = await import('./managedService');

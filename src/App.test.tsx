@@ -55,6 +55,10 @@ vi.mock('@/lib/desktop/window', () => ({
   desktopWindow: mocks.desktopWindow,
 }));
 
+vi.mock('@/lib/electron/bridge', () => ({
+  isElectronRuntime: () => true,
+}));
+
 vi.mock('@/lib/storage/unifiedStorage', () => ({
   flushPendingSave: mocks.flushPendingSave,
 }));

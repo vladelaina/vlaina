@@ -1,6 +1,6 @@
 import type { AIModel, Provider } from '@/lib/ai/types';
 import { buildScopedModelId } from '@/lib/ai/utils';
-import { hasBackendCommands } from '@/lib/desktop/backend';
+import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
 import { accountCommands } from '@/lib/account/desktopCommands';
 import { webAccountCommands } from '@/lib/account/webCommands';
 
@@ -83,7 +83,7 @@ function logManagedClientDiagnostic(event: string, details: ManagedClientDiagnos
 }
 
 function getManagedRuntime(): ManagedRuntime {
-  return hasBackendCommands() ? 'desktop' : 'web'
+  return hasElectronDesktopBridge() ? 'desktop' : 'web'
 }
 
 function createManagedDiagnosticId(prefix: string): string {
@@ -492,7 +492,7 @@ async function requestManagedWebStream(
 }
 
 export async function fetchManagedModels(): Promise<AIModel[]> {
-  if (hasBackendCommands()) {
+  if (hasElectronDesktopBridge()) {
     const payload = (await accountCommands.getManagedModels()) as ManagedModelsPayload | undefined;
     return normalizeManagedModelsPayload(payload ?? {});
   }
@@ -512,7 +512,7 @@ export async function fetchManagedBudget(): Promise<ManagedBudgetStatus> {
     startedAt: toIsoTimestamp(startedAt),
   })
 
-  if (hasBackendCommands()) {
+  if (hasElectronDesktopBridge()) {
     try {
       const payload = (await accountCommands.getManagedBudget()) as ManagedBudgetPayload | undefined;
       const budget = normalizeManagedBudgetPayload(payload ?? {})
@@ -590,7 +590,7 @@ export async function requestManagedChatCompletion(
     ...buildBudgetContext(startedAt),
   })
 
-  if (hasBackendCommands()) {
+  if (hasElectronDesktopBridge()) {
     try {
       const payload = (await accountCommands.managedChatCompletion(body)) as Record<string, unknown>
       const finishedAt = Date.now()
@@ -693,7 +693,7 @@ export async function requestManagedChatCompletionStream(
     ...buildBudgetContext(startedAt),
   })
 
-  if (hasBackendCommands()) {
+  if (hasElectronDesktopBridge()) {
     try {
       const content = await accountCommands.managedChatCompletionStream(body, tracedOnChunk, signal, requestId)
       const finishedAt = Date.now()
