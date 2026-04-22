@@ -15,7 +15,7 @@ interface WorkspaceSwitcherProps {
 }
 
 const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
-  const { isConnected, provider, username, primaryEmail, signOut } = useAccountSessionStore();
+  const { isConnected, username, primaryEmail, signOut } = useAccountSessionStore();
 
   const [isOpen, setIsOpen] = React.useState(false);
   const [isLoginDialogOpen, setIsLoginDialogOpen] = React.useState(false);
@@ -42,10 +42,9 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
   }, [onOpenSettings]);
 
   const userAvatar = useUserAvatar();
-  const displayName =
-    provider === 'google' ? username || primaryEmail || 'vlaina' : 'vlaina';
+  const displayName = isConnected ? username || primaryEmail || 'vlaina' : 'vlaina';
   const displayAvatar =
-    provider === 'google' && userAvatar ? userAvatar : '/logo.png?v=20260327';
+    isConnected && userAvatar ? userAvatar : '/logo.png?v=20260327';
 
   const handleOpenLoginDialog = useCallback(() => {
     setIsOpen(false);

@@ -3,13 +3,6 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import fs from "fs";
 
-const host = process.env.TAURI_DEV_HOST;
-const vueFeatureFlags = {
-  __VUE_OPTIONS_API__: JSON.stringify(true),
-  __VUE_PROD_DEVTOOLS__: JSON.stringify(false),
-  __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: JSON.stringify(false),
-};
-
 /**
  * Plugin to copy index.html to 404.html for SPA support
  */
@@ -37,7 +30,6 @@ function spaFallbackPlugin(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  define: vueFeatureFlags,
   plugins: [
     react(),
     spaFallbackPlugin(),
@@ -54,12 +46,6 @@ export default defineConfig(async () => ({
       "@codemirror/view": path.resolve(__dirname, "./vendor/milkdown/packages/crepe/node_modules/@codemirror/view"),
     },
   },
-  optimizeDeps: {
-    esbuildOptions: {
-      define: vueFeatureFlags,
-    },
-  },
-
   // Base path - always '/' for custom domain (app.vlaina.com)
   base: '/',
 
@@ -150,13 +136,6 @@ export default defineConfig(async () => ({
     port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : 3000,
     strictPort: true,
     host: "127.0.0.1",
-    hmr: host
-      ? {
-        protocol: "ws",
-        host,
-        port: 1421,
-      }
-      : undefined,
     headers: {
       "Cache-Control": "no-store",
     },

@@ -13,6 +13,7 @@ interface AccountLoginDialogProps {
 export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogProps) {
   const { isConnecting, error, signIn, requestEmailCode, verifyEmailCode, cancelConnect, clearError } =
     useAccountSessionStore();
+  const closeButtonRef = React.useRef<HTMLButtonElement | null>(null);
 
   const handleOpenChange = React.useCallback(
     (nextOpen: boolean) => {
@@ -36,6 +37,7 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
         }}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
+          closeButtonRef.current?.focus();
         }}
         className={cn(
           "w-full max-w-[min(460px,calc(100vw-1.5rem))] border-none p-0 overflow-visible bg-transparent shadow-none select-none",
@@ -52,7 +54,10 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
           "shadow-[0_40px_100px_rgba(0,0,0,0.06),inset_0_0_20px_rgba(255,255,255,1)] dark:shadow-[0_40px_120px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.05)]",
           "border border-white dark:border-zinc-800"
         )}>
-          <DialogClose className="absolute right-5 top-5 inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-300 transition-all hover:text-zinc-950 hover:bg-zinc-50 sm:right-7 sm:top-7 md:right-10 md:top-10 dark:text-zinc-600 dark:hover:text-white dark:hover:bg-white/5">
+          <DialogClose
+            ref={closeButtonRef}
+            className="absolute right-5 top-5 inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-300 transition-all hover:text-zinc-950 hover:bg-zinc-50 sm:right-7 sm:top-7 md:right-10 md:top-10 dark:text-zinc-600 dark:hover:text-white dark:hover:bg-white/5"
+          >
             <Icon name="common.close" size="md" />
           </DialogClose>
 

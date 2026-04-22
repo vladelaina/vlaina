@@ -9,7 +9,7 @@
   "scripts": {
     "preinstall": "node scripts/ensure-not-wsl.mjs install",
     "prepare:desktop-assets": "node scripts/generate-windows-icon.mjs",
-    "dev": "node scripts/ensure-not-wsl.mjs dev && concurrently -k \"pnpm run dev:renderer\" \"pnpm run dev:electron\"",
+    "dev": "node scripts/dev-dynamic.js",
     "dev:renderer": "node scripts/ensure-not-wsl.mjs dev:renderer && vite --force",
     "dev:electron": "node scripts/ensure-not-wsl.mjs dev:electron && wait-on tcp:3000 && electron .",
     "start": "node scripts/ensure-not-wsl.mjs start && electron .",

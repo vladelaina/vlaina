@@ -1,5 +1,17 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+function deepFreeze(value) {
+  if (!value || typeof value !== 'object' || Object.isFrozen(value)) {
+    return value;
+  }
+
+  Object.freeze(value);
+  for (const nested of Object.values(value)) {
+    deepFreeze(nested);
+  }
+  return value;
+}
+
 const desktopApi = {
   platform: 'electron',
   getPlatform() {
@@ -160,6 +172,9 @@ const desktopApi = {
     getSessionStatus() {
       return ipcRenderer.invoke('desktop:account:get-session-status');
     },
+    getAuthDebugLog() {
+      return ipcRenderer.invoke('desktop:account:get-auth-debug-log');
+    },
     startAuth(provider) {
       return ipcRenderer.invoke('desktop:account:start-auth', provider);
     },
@@ -217,4 +232,4 @@ const desktopApi = {
   },
 };
 
-contextBridge.exposeInMainWorld('vlainaDesktop', desktopApi);
+contextBridge.exposeInMainWorld('vlainaDesktop', deepFreeze(desktopApi));

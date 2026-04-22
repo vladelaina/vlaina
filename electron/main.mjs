@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, safeStorage, session, shell } from 'electron';
 import { watch } from 'node:fs';
 import { createServer } from 'node:http';
 import {
@@ -14,21 +14,140 @@ import {
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import {
+  buildDisconnectedDesktopStatus,
+  resolveDesktopSessionProbe,
+} from './accountSessionStatus.mjs';
+import {
+  buildDesktopSessionHeaders,
+  desktopLegacySessionHeader,
+  resolveDesktopSessionToken,
+} from './accountSessionAuth.mjs';
+import { decodeSecretRecord, encodeSecretRecord } from './secureSecretRecord.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rendererDevUrl = process.env.VITE_DEV_SERVER_URL ?? 'http://127.0.0.1:3000';
 const apiBaseUrl = (process.env.APP_API_BASE_URL ?? 'https://api.vlaina.com').trim().replace(/\/+$/, '');
 const managedApiBaseUrl = `${apiBaseUrl}/v1`;
-const appSessionHeader = 'x-app-session-token';
 const loopbackCallbackPath = '/oauth/callback';
 const appIconPath = path.join(__dirname, '..', 'public', 'logo.png');
 const closeApprovedWebContents = new Set();
 const windowLabels = new Map();
 const activeWatchers = new Map();
 const activeManagedStreams = new Map();
+const desktopAuthDebugBuffer = [];
 let secondaryWindowCounter = 0;
 let watcherCounter = 0;
+
+function isDesktopAuthDebugEnabled() {
+  return !app.isPackaged || process.env.VLAINA_DESKTOP_AUTH_DEBUG === '1';
+}
+
+function redactToken(value) {
+  if (typeof value !== 'string') {
+    return value ?? null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+
+  if (trimmed.length <= 10) {
+    return `${trimmed.slice(0, 2)}…${trimmed.slice(-2)}`;
+  }
+
+  return `${trimmed.slice(0, 6)}…${trimmed.slice(-4)}`;
+}
+
+function summarizeAuthPayload(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return payload ?? null;
+  }
+
+  return {
+    ...payload,
+    sessionToken: redactToken(payload.sessionToken),
+    appSessionToken: redactToken(payload.appSessionToken),
+    token: redactToken(payload.token),
+    resultToken: redactToken(payload.resultToken),
+    verifier: redactToken(payload.verifier),
+    state: typeof payload.state === 'string' ? payload.state : payload.state ?? null,
+  };
+}
+
+function summarizeAuthResultShape(result) {
+  if (!result || typeof result !== 'object') {
+    return result ?? null;
+  }
+
+  return {
+    success: result.success ?? null,
+    pending: result.pending ?? null,
+    provider: typeof result.provider === 'string' ? result.provider : null,
+    username: typeof result.username === 'string' ? result.username : null,
+    primaryEmail: typeof result.primaryEmail === 'string' ? result.primaryEmail : null,
+    hasSessionToken: typeof result.sessionToken === 'string' && result.sessionToken.trim().length > 0,
+    hasAppSessionToken: typeof result.appSessionToken === 'string' && result.appSessionToken.trim().length > 0,
+    hasToken: typeof result.token === 'string' && result.token.trim().length > 0,
+    error: typeof result.error === 'string' ? result.error : null,
+  };
+}
+
+function logDesktopAuth(event, details = {}) {
+  if (!isDesktopAuthDebugEnabled()) {
+    return;
+  }
+
+  const timestamp = new Date().toISOString();
+  const entry = {
+    timestamp,
+    event,
+    details: summarizeAuthPayload(details),
+  };
+  desktopAuthDebugBuffer.push(entry);
+  if (desktopAuthDebugBuffer.length > 200) {
+    desktopAuthDebugBuffer.splice(0, desktopAuthDebugBuffer.length - 200);
+  }
+  console.info(`[desktop auth][${timestamp}] ${event}`, entry.details);
+}
+
+async function fetchJsonWithDebug(url, init = {}, eventPrefix) {
+  logDesktopAuth(`${eventPrefix}:request`, {
+    url,
+    method: init.method ?? 'GET',
+    body: typeof init.body === 'string' ? init.body : null,
+  });
+
+  const response = await fetch(url, init);
+  const text = await response.text();
+  let payload = null;
+
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = null;
+    }
+  }
+
+  logDesktopAuth(`${eventPrefix}:response`, {
+    url,
+    status: response.status,
+      ok: response.ok,
+      headers: {
+      [desktopLegacySessionHeader]: redactToken(
+        response.headers.get(desktopLegacySessionHeader)?.trim() ?? ''
+      ),
+      'content-type': response.headers.get('content-type'),
+    },
+    text,
+    payload,
+  });
+
+  return { response, text, payload };
+}
 
 async function readSecretsStore() {
   const secretsDir = path.join(app.getPath('userData'), '.vlaina', 'secrets');
@@ -38,7 +157,12 @@ async function readSecretsStore() {
 
   try {
     const content = await readFile(secretsPath, 'utf8');
-    return { secretsDir, secretsPath, data: JSON.parse(content) };
+    const parsed = JSON.parse(content);
+    const { record, needsMigration } = decodeSecretRecord(parsed, safeStorage);
+    if (needsMigration) {
+      await writeFile(secretsPath, JSON.stringify(encodeSecretRecord(record, safeStorage), null, 2));
+    }
+    return { secretsDir, secretsPath, data: record };
   } catch {
     return { secretsDir, secretsPath, data: {} };
   }
@@ -46,11 +170,20 @@ async function readSecretsStore() {
 
 async function writeSecretsStore(data) {
   const { secretsPath } = await readSecretsStore();
-  await writeFile(secretsPath, JSON.stringify(data, null, 2));
+  await writeFile(secretsPath, JSON.stringify(encodeSecretRecord(data, safeStorage), null, 2));
 }
 
 function isSupportedAccountProvider(provider) {
   return provider === 'github' || provider === 'google' || provider === 'email';
+}
+
+function normalizeDesktopAccountProvider(provider, fallback = null) {
+  if (typeof provider !== 'string') {
+    return fallback;
+  }
+
+  const normalized = provider.trim().toLowerCase();
+  return isSupportedAccountProvider(normalized) ? normalized : fallback;
 }
 
 async function readJsonFile(filePath, fallbackValue) {
@@ -78,25 +211,54 @@ async function getAccountStorePaths() {
 async function readStoredAccountCredentials() {
   const { metaPath, secretsPath } = await getAccountStorePaths();
   const meta = await readJsonFile(metaPath, null);
-  const secrets = await readJsonFile(secretsPath, null);
+  const rawSecrets = await readJsonFile(secretsPath, null);
+  const { record: secrets, needsMigration } = decodeSecretRecord(rawSecrets, safeStorage);
+  if (needsMigration) {
+    await writeFile(secretsPath, JSON.stringify(encodeSecretRecord(secrets, safeStorage), null, 2));
+  }
   const provider = typeof meta?.provider === 'string' ? meta.provider.trim() : '';
   const username = typeof meta?.username === 'string' ? meta.username.trim() : '';
   const appSessionToken = typeof secrets?.appSessionToken === 'string' ? secrets.appSessionToken.trim() : '';
 
   if (!isSupportedAccountProvider(provider) || !username || !appSessionToken) {
+    logDesktopAuth('read_stored_credentials:empty_or_invalid', {
+      metaPath,
+      secretsPath,
+      meta,
+      secrets,
+      provider,
+      username,
+      appSessionToken,
+    });
     return null;
   }
 
-  return {
+  const credentials = {
     appSessionToken,
     provider,
     username,
     primaryEmail: typeof meta?.primaryEmail === 'string' ? meta.primaryEmail : null,
     avatarUrl: typeof meta?.avatarUrl === 'string' ? meta.avatarUrl : null,
   };
+  logDesktopAuth('read_stored_credentials:resolved', {
+    metaPath,
+    secretsPath,
+    credentials,
+    meta,
+    secrets,
+  });
+  return credentials;
 }
 
 async function writeStoredAccountCredentials(credentials) {
+  logDesktopAuth('write_stored_credentials:start', {
+    provider: credentials.provider,
+    username: credentials.username,
+    primaryEmail: credentials.primaryEmail,
+    avatarUrl: credentials.avatarUrl,
+    appSessionToken: credentials.appSessionToken,
+  });
+
   const { metaPath, secretsPath } = await getAccountStorePaths();
   await writeFile(
     metaPath,
@@ -114,26 +276,44 @@ async function writeStoredAccountCredentials(credentials) {
   await writeFile(
     secretsPath,
     JSON.stringify(
-      {
-        appSessionToken: credentials.appSessionToken,
-      },
+      encodeSecretRecord(
+        {
+          appSessionToken: credentials.appSessionToken,
+        },
+        safeStorage
+      ),
       null,
       2
     )
   );
+
+  logDesktopAuth('write_stored_credentials:done', {
+    provider: credentials.provider,
+    username: credentials.username,
+    primaryEmail: credentials.primaryEmail,
+    avatarUrl: credentials.avatarUrl,
+    metaPath,
+    secretsPath,
+  });
 }
 
 async function clearStoredAccountCredentials() {
+  logDesktopAuth('clear_stored_credentials:start');
   const { metaPath, secretsPath } = await getAccountStorePaths();
   await rm(metaPath, { force: true });
   await rm(secretsPath, { force: true });
+  logDesktopAuth('clear_stored_credentials:done', { metaPath, secretsPath });
 }
 
 async function rotateStoredSessionToken(headers) {
-  const rotatedToken = headers.get(appSessionHeader)?.trim();
+  const rotatedToken = headers.get(desktopLegacySessionHeader)?.trim();
   if (!rotatedToken) {
     return;
   }
+
+  logDesktopAuth('rotate_session_token:received', {
+    appSessionToken: rotatedToken,
+  });
 
   const current = await readStoredAccountCredentials();
   if (!current) {
@@ -147,15 +327,7 @@ async function rotateStoredSessionToken(headers) {
 }
 
 function disconnectedAccountStatus() {
-  return {
-    connected: false,
-    provider: null,
-    username: null,
-    primaryEmail: null,
-    avatarUrl: null,
-    membershipTier: null,
-    membershipName: null,
-  };
+  return buildDisconnectedDesktopStatus();
 }
 
 function accountErrorResult(message) {
@@ -194,8 +366,35 @@ async function readJsonResponse(response, fallbackMessage) {
 }
 
 async function fetchDesktopJson(url, init = {}) {
+  logDesktopAuth('fetch_json:start', {
+    url,
+    method: init.method ?? 'GET',
+    body: typeof init.body === 'string' ? init.body : null,
+  });
   const response = await fetch(url, init);
-  return { response, data: await readJsonResponse(response, `Request failed: HTTP ${response.status}`) };
+  const data = await readJsonResponse(response, `Request failed: HTTP ${response.status}`);
+  const headerAppSessionToken = response.headers.get(desktopLegacySessionHeader)?.trim() ?? '';
+  const nextData =
+    headerAppSessionToken && data && typeof data === 'object' && !Array.isArray(data)
+      ? {
+          ...data,
+          appSessionToken:
+            typeof data.appSessionToken === 'string' && data.appSessionToken.trim()
+              ? data.appSessionToken.trim()
+              : headerAppSessionToken,
+        }
+      : data;
+  logDesktopAuth('fetch_json:done', {
+    url,
+    status: response.status,
+    headerAppSessionToken,
+    data: nextData,
+    summary:
+      url.includes('/desktop/result')
+        ? summarizeAuthResultShape(nextData)
+        : null,
+  });
+  return { response, data: nextData };
 }
 
 async function fetchWithStoredSession(url, init = {}) {
@@ -208,8 +407,8 @@ async function fetchWithStoredSession(url, init = {}) {
     ...init,
     headers: {
       Accept: 'application/json',
-      Authorization: `Bearer ${credentials.appSessionToken}`,
       ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+      ...buildDesktopSessionHeaders(credentials.appSessionToken),
       ...(init.headers ?? {}),
     },
   });
@@ -264,6 +463,13 @@ async function bindLoopbackServer(timeoutSeconds) {
       const state = requestUrl.searchParams.get('state')?.trim() ?? '';
       const resultToken = requestUrl.searchParams.get('result_token')?.trim() ?? '';
       const error = requestUrl.searchParams.get('error')?.trim() ?? null;
+
+      logDesktopAuth('loopback_callback:received', {
+        pathname: requestUrl.pathname,
+        state,
+        resultToken,
+        error,
+      });
 
       if (!state || !resultToken) {
         response.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -336,108 +542,194 @@ async function bindLoopbackServer(timeoutSeconds) {
 
 async function getDesktopAccountSessionStatus() {
   const credentials = await readStoredAccountCredentials();
+  logDesktopAuth('session_status:start', { credentials });
   if (!credentials) {
+    logDesktopAuth('session_status:no_credentials');
     return disconnectedAccountStatus();
   }
 
   try {
-    const response = await fetch(`${apiBaseUrl}/auth/session`, {
+    const { response, payload, text } = await fetchJsonWithDebug(`${apiBaseUrl}/auth/session`, {
       method: 'GET',
       cache: 'no-store',
-      headers: {
+      headers: buildDesktopSessionHeaders(credentials.appSessionToken, {
         Accept: 'application/json',
-        Authorization: `Bearer ${credentials.appSessionToken}`,
-      },
-    });
+      }),
+    }, 'session_status:http');
 
     if (response.status === 401 || response.status === 403) {
-      await clearStoredAccountCredentials();
-      return disconnectedAccountStatus();
+      logDesktopAuth('session_status:unauthorized', { status: response.status });
+      const resolved = resolveDesktopSessionProbe(credentials, { kind: 'unauthorized' });
+      if (resolved.clearStoredCredentials) {
+        await clearStoredAccountCredentials();
+      }
+      return resolved.status;
     }
 
     if (!response.ok) {
-      return {
-        connected: true,
-        provider: credentials.provider,
-        username: credentials.username,
-        primaryEmail: credentials.primaryEmail,
-        avatarUrl: credentials.avatarUrl,
-        membershipTier: null,
-        membershipName: null,
-      };
+      logDesktopAuth('session_status:non_ok_fallback', {
+        status: response.status,
+        text,
+        payload,
+        credentials,
+      });
+      return resolveDesktopSessionProbe(credentials, { kind: 'non_ok' }).status;
     }
 
     await rotateStoredSessionToken(response.headers);
-    const payload = await response.json();
-    if (!payload?.success || payload.connected !== true) {
+    const rotatedAppSessionToken = (await readStoredAccountCredentials())?.appSessionToken ?? credentials.appSessionToken;
+    logDesktopAuth('session_status:payload', {
+      status: response.status,
+      payload,
+      text,
+      summary: {
+      connected: payload?.connected ?? null,
+      provider: typeof payload?.provider === 'string' ? payload.provider : null,
+      username: typeof payload?.username === 'string' ? payload.username : null,
+        error: typeof payload?.error === 'string' ? payload.error : null,
+      },
+    });
+    const resolved = resolveDesktopSessionProbe(credentials, {
+      kind: 'ok',
+      payload,
+      rotatedAppSessionToken,
+    });
+    if (resolved.clearStoredCredentials) {
+      logDesktopAuth('session_status:disconnected_payload', { payload });
       await clearStoredAccountCredentials();
-      return disconnectedAccountStatus();
+      return resolved.status;
     }
 
-    const nextCredentials = {
-      appSessionToken: (await readStoredAccountCredentials())?.appSessionToken ?? credentials.appSessionToken,
-      provider: isSupportedAccountProvider(payload.provider) ? payload.provider : credentials.provider,
-      username:
-        typeof payload.username === 'string' && payload.username.trim()
-          ? payload.username.trim()
-          : credentials.username,
-      primaryEmail:
-        typeof payload.primaryEmail === 'string' ? payload.primaryEmail : credentials.primaryEmail,
-      avatarUrl: typeof payload.avatarUrl === 'string' ? payload.avatarUrl : credentials.avatarUrl,
-    };
-    await writeStoredAccountCredentials(nextCredentials);
+    if (resolved.nextCredentials) {
+      await writeStoredAccountCredentials(resolved.nextCredentials);
+    }
 
-    return {
-      connected: true,
-      provider: nextCredentials.provider,
-      username: nextCredentials.username,
-      primaryEmail: nextCredentials.primaryEmail,
-      avatarUrl: nextCredentials.avatarUrl,
-      membershipTier:
-        payload.membershipTier === 'free' ||
-        payload.membershipTier === 'plus' ||
-        payload.membershipTier === 'pro' ||
-        payload.membershipTier === 'max'
-          ? payload.membershipTier
-          : null,
-      membershipName: typeof payload.membershipName === 'string' ? payload.membershipName : null,
-    };
-  } catch {
-    return {
-      connected: true,
-      provider: credentials.provider,
-      username: credentials.username,
-      primaryEmail: credentials.primaryEmail,
-      avatarUrl: credentials.avatarUrl,
-      membershipTier: null,
-      membershipName: null,
-    };
+    logDesktopAuth('session_status:resolved_connected', {
+      nextCredentials: resolved.nextCredentials,
+      membershipTier: resolved.status.membershipTier,
+      membershipName: resolved.status.membershipName,
+    });
+
+    return resolved.status;
+  } catch (error) {
+    logDesktopAuth('session_status:error_fallback', {
+      error: error instanceof Error ? error.message : String(error),
+      credentials,
+    });
+    return resolveDesktopSessionProbe(credentials, { kind: 'error' }).status;
   }
 }
 
-async function persistDesktopAuthResult(provider, result) {
-  const appSessionToken =
-    typeof result?.sessionToken === 'string' && result.sessionToken.trim() ? result.sessionToken.trim() : '';
-  const username =
-    typeof result?.username === 'string' && result.username.trim() ? result.username.trim() : '';
+async function readDesktopSessionIdentity(appSessionToken) {
+  logDesktopAuth('session_identity:start', { appSessionToken });
+  const { response, payload, text } = await fetchJsonWithDebug(`${apiBaseUrl}/auth/session`, {
+    method: 'GET',
+    cache: 'no-store',
+    headers: buildDesktopSessionHeaders(appSessionToken, {
+      Accept: 'application/json',
+    }),
+  }, 'session_identity:http');
 
-  if (!appSessionToken || !username) {
-    throw new Error('Account sign-in result missing session token or username');
+  if (response.status === 401 || response.status === 403) {
+    logDesktopAuth('session_identity:unauthorized', { status: response.status });
+    return null;
+  }
+
+  if (!response.ok) {
+    logDesktopAuth('session_identity:non_ok', { status: response.status, text, payload });
+    throw new Error(`Failed to verify desktop session: HTTP ${response.status}`);
+  }
+
+  logDesktopAuth('session_identity:payload', { status: response.status, payload, text });
+  if (payload?.connected !== true) {
+    logDesktopAuth('session_identity:disconnected_payload', { payload });
+    return null;
+  }
+
+  const identity = {
+    provider: normalizeDesktopAccountProvider(payload.provider),
+    username: typeof payload.username === 'string' && payload.username.trim() ? payload.username.trim() : null,
+    primaryEmail:
+      typeof payload.primaryEmail === 'string' && payload.primaryEmail.trim()
+        ? payload.primaryEmail.trim()
+        : null,
+    avatarUrl:
+      typeof payload.avatarUrl === 'string' && payload.avatarUrl.trim() ? payload.avatarUrl.trim() : null,
+  };
+  logDesktopAuth('session_identity:resolved', identity);
+  return identity;
+}
+
+async function persistDesktopAuthResult(provider, result) {
+  logDesktopAuth('persist_auth_result:start', { provider, result });
+  const appSessionToken =
+    resolveDesktopSessionToken(result);
+  const rawUsername =
+    typeof result?.username === 'string' && result.username.trim() ? result.username.trim() : null;
+  const rawPrimaryEmail =
+    typeof result?.primaryEmail === 'string' && result.primaryEmail.trim()
+      ? result.primaryEmail.trim()
+      : null;
+  const rawAvatarUrl =
+    typeof result?.avatarUrl === 'string' && result.avatarUrl.trim() ? result.avatarUrl.trim() : null;
+
+  if (!appSessionToken) {
+    logDesktopAuth('persist_auth_result:missing_token', { provider, result });
+    throw new Error('Account sign-in result missing session token');
+  }
+
+  const sessionIdentity = await readDesktopSessionIdentity(appSessionToken).catch((error) => {
+    logDesktopAuth('persist_auth_result:session_identity_error', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  });
+  const resolvedProvider =
+    sessionIdentity?.provider ??
+    normalizeDesktopAccountProvider(result?.provider, null) ??
+    provider;
+  const resolvedUsername = sessionIdentity?.username ?? rawUsername ?? rawPrimaryEmail ?? '';
+  const resolvedPrimaryEmail = sessionIdentity?.primaryEmail ?? rawPrimaryEmail;
+  const resolvedAvatarUrl = sessionIdentity?.avatarUrl ?? rawAvatarUrl;
+
+  if (!resolvedUsername) {
+    logDesktopAuth('persist_auth_result:missing_identity', {
+      provider,
+      result,
+      sessionIdentity,
+      resolvedProvider,
+      resolvedPrimaryEmail,
+      resolvedAvatarUrl,
+    });
+    throw new Error('Account sign-in completed but no desktop account identity could be resolved');
   }
 
   const credentials = {
     appSessionToken,
-    provider,
-    username,
-    primaryEmail: typeof result?.primaryEmail === 'string' ? result.primaryEmail : null,
-    avatarUrl: typeof result?.avatarUrl === 'string' ? result.avatarUrl : null,
+    provider: resolvedProvider,
+    username: resolvedUsername,
+    primaryEmail: resolvedPrimaryEmail,
+    avatarUrl: resolvedAvatarUrl,
   };
   await writeStoredAccountCredentials(credentials);
 
+  logDesktopAuth('persist_auth_result:done', {
+    provider,
+    result: summarizeAuthResultShape(result),
+    sessionIdentity,
+    credentials: {
+      provider: credentials.provider,
+      username: credentials.username,
+      primaryEmail: credentials.primaryEmail,
+      avatarUrl: credentials.avatarUrl,
+      appSessionToken: credentials.appSessionToken,
+    },
+  });
+
   return {
     success: true,
-    provider,
-    username,
+    provider: resolvedProvider,
+    username: resolvedUsername,
     primaryEmail: credentials.primaryEmail,
     avatarUrl: credentials.avatarUrl,
     error: null,
@@ -445,6 +737,7 @@ async function persistDesktopAuthResult(provider, result) {
 }
 
 async function requestDesktopAuthResult(provider, state, verifier, resultToken) {
+  logDesktopAuth('request_auth_result:start', { provider, state, verifier, resultToken });
   const { data } = await fetchDesktopJson(buildDesktopAuthResultUrl(provider), {
     method: 'POST',
     headers: {
@@ -457,14 +750,30 @@ async function requestDesktopAuthResult(provider, state, verifier, resultToken) 
       resultToken,
     }),
   });
+  logDesktopAuth('request_auth_result:done', { provider, state, resultToken, data });
+  logDesktopAuth('request_auth_result:summary', {
+    provider,
+    state,
+    resultToken,
+    result: summarizeAuthResultShape(data),
+  });
   return data;
 }
 
 async function waitForDesktopAuthCompletion(provider, state, verifier, resultToken, expiresInSeconds) {
   const deadline = Date.now() + Math.max(300, Math.min(900, expiresInSeconds ?? 300)) * 1000;
+  let attempt = 0;
 
   while (true) {
+    attempt += 1;
     const result = await requestDesktopAuthResult(provider, state, verifier, resultToken);
+    logDesktopAuth('wait_auth_completion:attempt', {
+      attempt,
+      provider,
+      state,
+      resultToken,
+      result,
+    });
     if (result?.success === true || result?.pending !== true) {
       return result;
     }
@@ -478,6 +787,7 @@ async function waitForDesktopAuthCompletion(provider, state, verifier, resultTok
 }
 
 async function performDesktopOauth(provider) {
+  logDesktopAuth('oauth:start', { provider });
   if (!isSupportedAccountProvider(provider) || provider === 'email') {
     return accountErrorResult('Unsupported desktop sign-in provider');
   }
@@ -501,13 +811,27 @@ async function performDesktopOauth(provider) {
   const expiresInSeconds =
     typeof authStart?.expiresInSeconds === 'number' ? authStart.expiresInSeconds : 300;
 
+  logDesktopAuth('oauth:start_response', {
+    provider,
+    authStart,
+    callbackUrl: loopback.callbackUrl,
+    verifier,
+  });
+
   if (!authStart?.success || !state || !authUrl) {
     return accountErrorResult('Sign-in start response is missing auth URL or state');
   }
 
   await shell.openExternal(authUrl);
+  logDesktopAuth('oauth:browser_opened', { provider, authUrl });
   const callback = await loopback.waitForCallback();
+  logDesktopAuth('oauth:callback_resolved', { provider, callback });
   if (callback.state !== state) {
+    logDesktopAuth('oauth:state_mismatch', {
+      provider,
+      expectedState: state,
+      receivedState: callback.state,
+    });
     return accountErrorResult('OAuth state mismatch');
   }
   const result = await waitForDesktopAuthCompletion(
@@ -519,10 +843,13 @@ async function performDesktopOauth(provider) {
   );
 
   if (!result?.success) {
+    logDesktopAuth('oauth:result_failed', { provider, callback, result });
     return accountErrorResult(callback.error || result?.error || 'Authorization failed');
   }
 
-  return await persistDesktopAuthResult(provider, result);
+  const persisted = await persistDesktopAuthResult(provider, result);
+  logDesktopAuth('oauth:completed', { provider, persisted });
+  return persisted;
 }
 
 async function requestManagedJson(pathname, init = {}) {
@@ -557,6 +884,52 @@ function normalizeExternalUrl(rawUrl) {
   }
 
   return parsed.toString();
+}
+
+function isTrustedRendererUrl(rawUrl) {
+  try {
+    const url = new URL(rawUrl);
+    if (url.protocol === 'file:') {
+      return true;
+    }
+
+    const rendererOrigin = new URL(rendererDevUrl).origin;
+    return url.origin === rendererOrigin;
+  } catch {
+    return false;
+  }
+}
+
+function assertTrustedIpcSender(event) {
+  const senderUrl = event?.senderFrame?.url || event?.sender?.getURL?.() || '';
+  if (!isTrustedRendererUrl(senderUrl)) {
+    throw new Error(`Blocked IPC from untrusted renderer: ${senderUrl || 'unknown sender'}`);
+  }
+}
+
+function handleIpc(channel, listener) {
+  ipcMain.handle(channel, async (event, ...args) => {
+    assertTrustedIpcSender(event);
+    return await listener(event, ...args);
+  });
+}
+
+function tryNormalizeExternalUrl(rawUrl) {
+  try {
+    return normalizeExternalUrl(rawUrl);
+  } catch {
+    return null;
+  }
+}
+
+function openExternalIfAllowed(rawUrl) {
+  const normalized = tryNormalizeExternalUrl(rawUrl);
+  if (!normalized) {
+    return false;
+  }
+
+  void shell.openExternal(normalized);
+  return true;
 }
 
 function buildRendererUrl(windowOptions = {}) {
@@ -627,6 +1000,48 @@ function attachWindowLifecycle(window) {
     windowLabels.delete(window.id);
   });
 
+  if (isDevelopment()) {
+    window.webContents.on('before-input-event', (event, input) => {
+      const isDevToolsShortcut =
+        input.type === 'keyDown' &&
+        (
+          input.key === 'F12' ||
+          ((input.control || input.meta) && input.shift && input.key.toLowerCase() === 'i')
+        );
+
+      if (!isDevToolsShortcut) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (window.webContents.isDevToolsOpened()) {
+        window.webContents.closeDevTools();
+        return;
+      }
+
+      window.webContents.openDevTools({ mode: 'detach' });
+    });
+  }
+
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    openExternalIfAllowed(url);
+    return { action: 'deny' };
+  });
+
+  window.webContents.on('will-navigate', (event, url) => {
+    if (isTrustedRendererUrl(url)) {
+      return;
+    }
+
+    event.preventDefault();
+    openExternalIfAllowed(url);
+  });
+
+  window.webContents.on('will-attach-webview', (event) => {
+    event.preventDefault();
+  });
+
   window.on('close', (event) => {
     if (closeApprovedWebContents.has(window.webContents.id)) {
       closeApprovedWebContents.delete(window.webContents.id);
@@ -656,7 +1071,10 @@ function createWindow(windowOptions = {}) {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      webviewTag: false,
       spellcheck: false,
     },
   });
@@ -675,13 +1093,13 @@ function createMainWindow() {
   return createWindow({ label: 'main' });
 }
 
-ipcMain.handle('desktop:get-platform', () => 'electron');
+handleIpc('desktop:get-platform', () => 'electron');
 
-ipcMain.handle('desktop:window:minimize', (event) => {
+handleIpc('desktop:window:minimize', (event) => {
   resolveTargetWindow(event)?.minimize();
 });
 
-ipcMain.handle('desktop:window:maximize-toggle', (event) => {
+handleIpc('desktop:window:maximize-toggle', (event) => {
   const window = resolveTargetWindow(event);
   if (!window) return false;
 
@@ -694,11 +1112,11 @@ ipcMain.handle('desktop:window:maximize-toggle', (event) => {
   return true;
 });
 
-ipcMain.handle('desktop:window:close', (event) => {
+handleIpc('desktop:window:close', (event) => {
   resolveTargetWindow(event)?.close();
 });
 
-ipcMain.handle('desktop:window:confirm-close', (event) => {
+handleIpc('desktop:window:confirm-close', (event) => {
   const window = resolveTargetWindow(event);
   if (!window) return;
 
@@ -706,31 +1124,31 @@ ipcMain.handle('desktop:window:confirm-close', (event) => {
   window.close();
 });
 
-ipcMain.handle('desktop:window:is-maximized', (event) => {
+handleIpc('desktop:window:is-maximized', (event) => {
   return resolveTargetWindow(event)?.isMaximized() ?? false;
 });
 
-ipcMain.handle('desktop:window:set-resizable', (event, resizable) => {
+handleIpc('desktop:window:set-resizable', (event, resizable) => {
   resolveTargetWindow(event)?.setResizable(Boolean(resizable));
 });
 
-ipcMain.handle('desktop:window:set-maximizable', (event, maximizable) => {
+handleIpc('desktop:window:set-maximizable', (event, maximizable) => {
   resolveTargetWindow(event)?.setMaximizable(Boolean(maximizable));
 });
 
-ipcMain.handle('desktop:window:set-min-size', (event, width, height) => {
+handleIpc('desktop:window:set-min-size', (event, width, height) => {
   resolveTargetWindow(event)?.setMinimumSize(width, height);
 });
 
-ipcMain.handle('desktop:window:set-size', (event, width, height) => {
+handleIpc('desktop:window:set-size', (event, width, height) => {
   resolveTargetWindow(event)?.setSize(width, height);
 });
 
-ipcMain.handle('desktop:window:center', (event) => {
+handleIpc('desktop:window:center', (event) => {
   resolveTargetWindow(event)?.center();
 });
 
-ipcMain.handle('desktop:window:get-size', (event) => {
+handleIpc('desktop:window:get-size', (event) => {
   const window = resolveTargetWindow(event);
   if (!window) {
     return { width: 0, height: 0 };
@@ -740,12 +1158,12 @@ ipcMain.handle('desktop:window:get-size', (event) => {
   return { width, height };
 });
 
-ipcMain.handle('desktop:window:get-label', (event) => {
+handleIpc('desktop:window:get-label', (event) => {
   const window = resolveTargetWindow(event);
   return window ? getWindowLabel(window) : null;
 });
 
-ipcMain.handle('desktop:window:focus', (_event, label) => {
+handleIpc('desktop:window:focus', (_event, label) => {
   for (const window of BrowserWindow.getAllWindows()) {
     if (getWindowLabel(window) === label) {
       window.focus();
@@ -756,7 +1174,7 @@ ipcMain.handle('desktop:window:focus', (_event, label) => {
   return false;
 });
 
-ipcMain.handle('desktop:window:toggle-fullscreen', (event) => {
+handleIpc('desktop:window:toggle-fullscreen', (event) => {
   const window = resolveTargetWindow(event);
   if (!window) return false;
 
@@ -765,7 +1183,7 @@ ipcMain.handle('desktop:window:toggle-fullscreen', (event) => {
   return next;
 });
 
-ipcMain.handle('desktop:window:create', (_event, windowOptions) => {
+handleIpc('desktop:window:create', (_event, windowOptions) => {
   createWindow({
     newWindow: true,
     vaultPath: windowOptions?.vaultPath ?? null,
@@ -774,11 +1192,11 @@ ipcMain.handle('desktop:window:create', (_event, windowOptions) => {
   });
 });
 
-ipcMain.handle('desktop:shell:open-external', async (_event, url) => {
+handleIpc('desktop:shell:open-external', async (_event, url) => {
   await shell.openExternal(normalizeExternalUrl(url));
 });
 
-ipcMain.handle('desktop:shell:trash-item', async (_event, filePath) => {
+handleIpc('desktop:shell:trash-item', async (_event, filePath) => {
   if (typeof filePath !== 'string' || !filePath.trim()) {
     throw new Error('A non-empty file path is required.');
   }
@@ -786,7 +1204,7 @@ ipcMain.handle('desktop:shell:trash-item', async (_event, filePath) => {
   await shell.trashItem(filePath);
 });
 
-ipcMain.handle('desktop:shell:reveal-item', async (_event, filePath) => {
+handleIpc('desktop:shell:reveal-item', async (_event, filePath) => {
   if (typeof filePath !== 'string' || !filePath.trim()) {
     throw new Error('A non-empty file path is required.');
   }
@@ -794,7 +1212,7 @@ ipcMain.handle('desktop:shell:reveal-item', async (_event, filePath) => {
   shell.showItemInFolder(filePath);
 });
 
-ipcMain.handle('desktop:dialog:open', async (event, options) => {
+handleIpc('desktop:dialog:open', async (event, options) => {
   const window = resolveTargetWindow(event);
   const properties = [];
 
@@ -826,7 +1244,7 @@ ipcMain.handle('desktop:dialog:open', async (event, options) => {
   return result.filePaths[0] ?? null;
 });
 
-ipcMain.handle('desktop:dialog:save', async (event, options) => {
+handleIpc('desktop:dialog:save', async (event, options) => {
   const window = resolveTargetWindow(event);
   const result = await dialog.showSaveDialog(window ?? undefined, {
     title: options?.title,
@@ -836,7 +1254,7 @@ ipcMain.handle('desktop:dialog:save', async (event, options) => {
   return result.canceled ? null : result.filePath ?? null;
 });
 
-ipcMain.handle('desktop:dialog:message', async (event, message, options) => {
+handleIpc('desktop:dialog:message', async (event, message, options) => {
   const window = resolveTargetWindow(event);
   await dialog.showMessageBox(window ?? undefined, {
     type: options?.kind ?? 'info',
@@ -845,7 +1263,7 @@ ipcMain.handle('desktop:dialog:message', async (event, message, options) => {
   });
 });
 
-ipcMain.handle('desktop:dialog:confirm', async (event, message, options) => {
+handleIpc('desktop:dialog:confirm', async (event, message, options) => {
   const window = resolveTargetWindow(event);
   const result = await dialog.showMessageBox(window ?? undefined, {
     type: options?.kind ?? 'question',
@@ -859,7 +1277,7 @@ ipcMain.handle('desktop:dialog:confirm', async (event, message, options) => {
   return result.response === 0;
 });
 
-ipcMain.handle('desktop:fs:write-binary', async (_event, filePath, bytes) => {
+handleIpc('desktop:fs:write-binary', async (_event, filePath, bytes) => {
   if (typeof filePath !== 'string' || !filePath) {
     throw new Error('A file path is required.');
   }
@@ -867,7 +1285,7 @@ ipcMain.handle('desktop:fs:write-binary', async (_event, filePath, bytes) => {
   await writeFile(filePath, Buffer.from(bytes));
 });
 
-ipcMain.handle('desktop:fs:read-binary', async (_event, filePath) => {
+handleIpc('desktop:fs:read-binary', async (_event, filePath) => {
   if (typeof filePath !== 'string' || !filePath) {
     throw new Error('A file path is required.');
   }
@@ -875,7 +1293,7 @@ ipcMain.handle('desktop:fs:read-binary', async (_event, filePath) => {
   return new Uint8Array(await readFile(filePath));
 });
 
-ipcMain.handle('desktop:fs:read-text', async (_event, filePath) => {
+handleIpc('desktop:fs:read-text', async (_event, filePath) => {
   if (typeof filePath !== 'string' || !filePath) {
     throw new Error('A file path is required.');
   }
@@ -883,7 +1301,7 @@ ipcMain.handle('desktop:fs:read-text', async (_event, filePath) => {
   return readFile(filePath, 'utf8');
 });
 
-ipcMain.handle('desktop:fs:write-text', async (_event, filePath, content, options) => {
+handleIpc('desktop:fs:write-text', async (_event, filePath, content, options) => {
   if (typeof filePath !== 'string' || !filePath) {
     throw new Error('A file path is required.');
   }
@@ -901,7 +1319,7 @@ ipcMain.handle('desktop:fs:write-text', async (_event, filePath, content, option
   await writeFile(filePath, String(content ?? ''));
 });
 
-ipcMain.handle('desktop:fs:exists', async (_event, filePath) => {
+handleIpc('desktop:fs:exists', async (_event, filePath) => {
   if (typeof filePath !== 'string' || !filePath) {
     return false;
   }
@@ -914,7 +1332,7 @@ ipcMain.handle('desktop:fs:exists', async (_event, filePath) => {
   }
 });
 
-ipcMain.handle('desktop:fs:mkdir', async (_event, filePath, recursive) => {
+handleIpc('desktop:fs:mkdir', async (_event, filePath, recursive) => {
   if (typeof filePath !== 'string' || !filePath) {
     throw new Error('A file path is required.');
   }
@@ -922,7 +1340,7 @@ ipcMain.handle('desktop:fs:mkdir', async (_event, filePath, recursive) => {
   await mkdir(filePath, { recursive: Boolean(recursive) });
 });
 
-ipcMain.handle('desktop:fs:delete-file', async (_event, filePath) => {
+handleIpc('desktop:fs:delete-file', async (_event, filePath) => {
   if (typeof filePath !== 'string' || !filePath) {
     throw new Error('A file path is required.');
   }
@@ -930,7 +1348,7 @@ ipcMain.handle('desktop:fs:delete-file', async (_event, filePath) => {
   await rm(filePath, { force: true });
 });
 
-ipcMain.handle('desktop:fs:delete-dir', async (_event, filePath, recursive) => {
+handleIpc('desktop:fs:delete-dir', async (_event, filePath, recursive) => {
   if (typeof filePath !== 'string' || !filePath) {
     throw new Error('A file path is required.');
   }
@@ -938,7 +1356,7 @@ ipcMain.handle('desktop:fs:delete-dir', async (_event, filePath, recursive) => {
   await rm(filePath, { recursive: Boolean(recursive), force: true });
 });
 
-ipcMain.handle('desktop:fs:list-dir', async (_event, filePath) => {
+handleIpc('desktop:fs:list-dir', async (_event, filePath) => {
   if (typeof filePath !== 'string' || !filePath) {
     throw new Error('A file path is required.');
   }
@@ -960,15 +1378,15 @@ ipcMain.handle('desktop:fs:list-dir', async (_event, filePath) => {
   }));
 });
 
-ipcMain.handle('desktop:fs:rename', async (_event, oldPath, newPath) => {
+handleIpc('desktop:fs:rename', async (_event, oldPath, newPath) => {
   await rename(oldPath, newPath);
 });
 
-ipcMain.handle('desktop:fs:copy-file', async (_event, sourcePath, targetPath) => {
+handleIpc('desktop:fs:copy-file', async (_event, sourcePath, targetPath) => {
   await copyFile(sourcePath, targetPath);
 });
 
-ipcMain.handle('desktop:fs:stat', async (_event, filePath) => {
+handleIpc('desktop:fs:stat', async (_event, filePath) => {
   try {
     const info = await stat(filePath);
     return {
@@ -984,19 +1402,19 @@ ipcMain.handle('desktop:fs:stat', async (_event, filePath) => {
   }
 });
 
-ipcMain.handle('desktop:path:join', (_event, ...segments) => {
+handleIpc('desktop:path:join', (_event, ...segments) => {
   return path.join(...segments);
 });
 
-ipcMain.handle('desktop:path:app-data', () => {
+handleIpc('desktop:path:app-data', () => {
   return app.getPath('userData');
 });
 
-ipcMain.handle('desktop:path:to-file-url', (_event, filePath) => {
+handleIpc('desktop:path:to-file-url', (_event, filePath) => {
   return pathToFileURL(filePath).toString();
 });
 
-ipcMain.handle('desktop:secrets:get-ai-provider-secrets', async (_event, providerIds) => {
+handleIpc('desktop:secrets:get-ai-provider-secrets', async (_event, providerIds) => {
   const { data } = await readSecretsStore();
   const result = {};
 
@@ -1009,7 +1427,7 @@ ipcMain.handle('desktop:secrets:get-ai-provider-secrets', async (_event, provide
   return result;
 });
 
-ipcMain.handle('desktop:secrets:set-ai-provider-secret', async (_event, providerId, apiKey) => {
+handleIpc('desktop:secrets:set-ai-provider-secret', async (_event, providerId, apiKey) => {
   if (typeof providerId !== 'string' || !providerId.trim()) {
     throw new Error('A provider id is required.');
   }
@@ -1019,7 +1437,7 @@ ipcMain.handle('desktop:secrets:set-ai-provider-secret', async (_event, provider
   await writeSecretsStore(store.data);
 });
 
-ipcMain.handle('desktop:secrets:delete-ai-provider-secret', async (_event, providerId) => {
+handleIpc('desktop:secrets:delete-ai-provider-secret', async (_event, providerId) => {
   if (typeof providerId !== 'string' || !providerId.trim()) {
     throw new Error('A provider id is required.');
   }
@@ -1029,15 +1447,21 @@ ipcMain.handle('desktop:secrets:delete-ai-provider-secret', async (_event, provi
   await writeSecretsStore(store.data);
 });
 
-ipcMain.handle('desktop:account:get-session-status', async () => {
+handleIpc('desktop:account:get-session-status', async () => {
+  logDesktopAuth('ipc:get_session_status');
   return await getDesktopAccountSessionStatus();
 });
 
-ipcMain.handle('desktop:account:start-auth', async (_event, provider) => {
+handleIpc('desktop:account:get-auth-debug-log', async () => {
+  return desktopAuthDebugBuffer.slice(-80);
+});
+
+handleIpc('desktop:account:start-auth', async (_event, provider) => {
+  logDesktopAuth('ipc:start_auth', { provider: String(provider ?? '') });
   return await performDesktopOauth(String(provider ?? ''));
 });
 
-ipcMain.handle('desktop:account:request-email-code', async (_event, email) => {
+handleIpc('desktop:account:request-email-code', async (_event, email) => {
   const response = await fetch(`${apiBaseUrl}/auth/email/request-code`, {
     method: 'POST',
     cache: 'no-store',
@@ -1052,7 +1476,7 @@ ipcMain.handle('desktop:account:request-email-code', async (_event, email) => {
   return true;
 });
 
-ipcMain.handle('desktop:account:verify-email-code', async (_event, email, code) => {
+handleIpc('desktop:account:verify-email-code', async (_event, email, code) => {
   const { data } = await fetchDesktopJson(`${apiBaseUrl}/auth/email/verify-code`, {
     method: 'POST',
     headers: {
@@ -1073,15 +1497,13 @@ ipcMain.handle('desktop:account:verify-email-code', async (_event, email, code) 
   return await persistDesktopAuthResult('email', data);
 });
 
-ipcMain.handle('desktop:account:disconnect', async () => {
+handleIpc('desktop:account:disconnect', async () => {
   const credentials = await readStoredAccountCredentials();
   if (credentials?.appSessionToken) {
     try {
       await fetch(`${apiBaseUrl}/auth/session/revoke`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${credentials.appSessionToken}`,
-        },
+        headers: buildDesktopSessionHeaders(credentials.appSessionToken),
       });
     } catch {
     }
@@ -1090,26 +1512,26 @@ ipcMain.handle('desktop:account:disconnect', async () => {
   await clearStoredAccountCredentials();
 });
 
-ipcMain.handle('desktop:billing:create-checkout', async (_event, tier) => {
+handleIpc('desktop:billing:create-checkout', async (_event, tier) => {
   return await createElectronBillingCheckout(String(tier ?? ''));
 });
 
-ipcMain.handle('desktop:managed:get-models', async () => {
+handleIpc('desktop:managed:get-models', async () => {
   return await requestManagedJson('/models', { method: 'GET' });
 });
 
-ipcMain.handle('desktop:managed:get-budget', async () => {
+handleIpc('desktop:managed:get-budget', async () => {
   return await requestManagedJson('/budget', { method: 'GET' });
 });
 
-ipcMain.handle('desktop:managed:chat-completion', async (_event, body) => {
+handleIpc('desktop:managed:chat-completion', async (_event, body) => {
   return await requestManagedJson('/chat/completions', {
     method: 'POST',
     body: JSON.stringify(body ?? {}),
   });
 });
 
-ipcMain.handle('desktop:managed:chat-completion-stream:start', async (event, requestId, body) => {
+handleIpc('desktop:managed:chat-completion-stream:start', async (event, requestId, body) => {
   const id = String(requestId ?? '').trim();
   if (!id) {
     throw new Error('A managed stream request id is required.');
@@ -1215,7 +1637,7 @@ ipcMain.handle('desktop:managed:chat-completion-stream:start', async (event, req
   })();
 });
 
-ipcMain.handle('desktop:managed:chat-completion-stream:cancel', async (_event, requestId) => {
+handleIpc('desktop:managed:chat-completion-stream:cancel', async (_event, requestId) => {
   const id = String(requestId ?? '').trim();
   const controller = activeManagedStreams.get(id);
   if (controller) {
@@ -1224,7 +1646,7 @@ ipcMain.handle('desktop:managed:chat-completion-stream:cancel', async (_event, r
   }
 });
 
-ipcMain.handle('desktop:fs:watch', (event, watchPath) => {
+handleIpc('desktop:fs:watch', (event, watchPath) => {
   if (typeof watchPath !== 'string' || !watchPath) {
     throw new Error('A watch path is required.');
   }
@@ -1247,7 +1669,7 @@ ipcMain.handle('desktop:fs:watch', (event, watchPath) => {
   return watchId;
 });
 
-ipcMain.handle('desktop:fs:unwatch', (_event, watchId) => {
+handleIpc('desktop:fs:unwatch', (_event, watchId) => {
   const listener = activeWatchers.get(watchId);
   if (listener) {
     listener.close();
@@ -1259,6 +1681,11 @@ app.whenReady().then(() => {
   if (process.platform === 'win32') {
     app.setAppUserModelId('com.vlaina.desktop');
   }
+
+  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
+    callback(false);
+  });
+  session.defaultSession.setPermissionCheckHandler(() => false);
 
   createMainWindow();
 

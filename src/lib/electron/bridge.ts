@@ -99,6 +99,11 @@ export interface ElectronAccountApi {
     membershipTier: string | null;
     membershipName: string | null;
   }>;
+  getAuthDebugLog(): Promise<Array<{
+    timestamp: string;
+    event: string;
+    details: Record<string, unknown> | null;
+  }>>;
   startAuth(provider: string): Promise<{
     success: boolean;
     provider: string | null;
