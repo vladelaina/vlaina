@@ -22,6 +22,23 @@ export function buildCachedDesktopStatus(credentials) {
   };
 }
 
+export function isDesktopSessionWithinGracePeriod(
+  credentials,
+  now = Date.now(),
+  gracePeriodMs = 60_000,
+) {
+  const authenticatedAt =
+    typeof credentials?.authenticatedAt === 'number' && Number.isFinite(credentials.authenticatedAt)
+      ? credentials.authenticatedAt
+      : null;
+
+  if (authenticatedAt == null) {
+    return false;
+  }
+
+  return now - authenticatedAt >= 0 && now - authenticatedAt <= gracePeriodMs;
+}
+
 export function resolveDesktopSessionProbe(credentials, probe) {
   if (!credentials) {
     return {

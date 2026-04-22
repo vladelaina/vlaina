@@ -31,15 +31,26 @@ describe('desktop account session auth helpers', () => {
     ).toBe('tok_fallback');
   });
 
-  it('builds bearer auth headers for desktop session requests', () => {
+  it('uses bearer auth only for desktop session tokens', () => {
     expect(
       buildDesktopSessionHeaders('nts_session', {
         Accept: 'application/json',
       }),
     ).toEqual({
       Accept: 'application/json',
-      [desktopLegacySessionHeader]: 'nts_session',
       Authorization: 'Bearer nts_session',
+    });
+  });
+
+  it('keeps the legacy header for non-bearer desktop tokens', () => {
+    expect(
+      buildDesktopSessionHeaders('ats_legacy', {
+        Accept: 'application/json',
+      }),
+    ).toEqual({
+      Accept: 'application/json',
+      [desktopLegacySessionHeader]: 'ats_legacy',
+      Authorization: 'Bearer ats_legacy',
     });
   });
 

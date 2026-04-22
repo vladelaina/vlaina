@@ -57,6 +57,11 @@ vi.mock('@/lib/desktop/window', () => ({
 
 vi.mock('@/lib/electron/bridge', () => ({
   isElectronRuntime: () => true,
+  getElectronBridge: () => ({
+    account: {
+      onAuthLog: vi.fn(() => vi.fn()),
+    },
+  }),
 }));
 
 vi.mock('@/lib/storage/unifiedStorage', () => ({

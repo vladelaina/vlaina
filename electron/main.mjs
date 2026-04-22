@@ -16,6 +16,8 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   buildDisconnectedDesktopStatus,
+  buildCachedDesktopStatus,
+  isDesktopSessionWithinGracePeriod,
   resolveDesktopSessionProbe,
 } from './accountSessionStatus.mjs';
 import {
@@ -37,6 +39,8 @@ const windowLabels = new Map();
 const activeWatchers = new Map();
 const activeManagedStreams = new Map();
 const desktopAuthDebugBuffer = [];
+const desktopSessionRetryDelaysMs = [250, 500, 1000, 2000, 3000, 5000];
+const desktopSessionActivationGracePeriodMs = 60_000;
 let secondaryWindowCounter = 0;
 let watcherCounter = 0;
 
@@ -111,6 +115,12 @@ function logDesktopAuth(event, details = {}) {
     desktopAuthDebugBuffer.splice(0, desktopAuthDebugBuffer.length - 200);
   }
   console.info(`[desktop auth][${timestamp}] ${event}`, entry.details);
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (window.isDestroyed()) {
+      continue;
+    }
+    window.webContents.send('desktop:account:auth-log', entry);
+  }
 }
 
 async function fetchJsonWithDebug(url, init = {}, eventPrefix) {
@@ -147,6 +157,10 @@ async function fetchJsonWithDebug(url, init = {}, eventPrefix) {
   });
 
   return { response, text, payload };
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function readSecretsStore() {
@@ -239,6 +253,10 @@ async function readStoredAccountCredentials() {
     username,
     primaryEmail: typeof meta?.primaryEmail === 'string' ? meta.primaryEmail : null,
     avatarUrl: typeof meta?.avatarUrl === 'string' ? meta.avatarUrl : null,
+    authenticatedAt:
+      typeof meta?.authenticatedAt === 'number' && Number.isFinite(meta.authenticatedAt)
+        ? meta.authenticatedAt
+        : null,
   };
   logDesktopAuth('read_stored_credentials:resolved', {
     metaPath,
@@ -268,6 +286,10 @@ async function writeStoredAccountCredentials(credentials) {
         username: credentials.username,
         primaryEmail: credentials.primaryEmail ?? null,
         avatarUrl: credentials.avatarUrl ?? null,
+        authenticatedAt:
+          typeof credentials.authenticatedAt === 'number' && Number.isFinite(credentials.authenticatedAt)
+            ? credentials.authenticatedAt
+            : null,
       },
       null,
       2
@@ -328,6 +350,14 @@ async function rotateStoredSessionToken(headers) {
 
 function disconnectedAccountStatus() {
   return buildDisconnectedDesktopStatus();
+}
+
+function shouldGraceDesktopSession(credentials) {
+  return isDesktopSessionWithinGracePeriod(
+    credentials,
+    Date.now(),
+    desktopSessionActivationGracePeriodMs,
+  );
 }
 
 function accountErrorResult(message) {
@@ -398,10 +428,61 @@ async function fetchDesktopJson(url, init = {}) {
 }
 
 async function fetchWithStoredSession(url, init = {}) {
-  const credentials = await readStoredAccountCredentials();
+  let credentials = await readStoredAccountCredentials();
   if (!credentials) {
     throw new Error('vlaina sign-in required');
   }
+
+  let response = await performStoredSessionRequest(credentials, url, init);
+
+  for (let attempt = 0; attempt < desktopSessionRetryDelaysMs.length; attempt += 1) {
+    if (response.status !== 401 && response.status !== 403) {
+      break;
+    }
+
+    const delayMs = desktopSessionRetryDelaysMs[attempt];
+    logDesktopAuth('stored_session:http:retry_scheduled', {
+      attempt: attempt + 1,
+      delayMs,
+      status: response.status,
+      url,
+      credentials,
+    });
+    await delay(delayMs);
+
+    credentials = (await readStoredAccountCredentials()) ?? credentials;
+    response = await performStoredSessionRequest(
+      credentials,
+      url,
+      init,
+      `stored_session:http:retry_${attempt + 1}`,
+    );
+  }
+
+  if (response.status === 401 || response.status === 403) {
+    if (shouldGraceDesktopSession(credentials)) {
+      logDesktopAuth('stored_session:http:grace_period', {
+        status: response.status,
+        url,
+        credentials,
+      });
+      throw new Error('vlaina session is still activating');
+    }
+    await clearStoredAccountCredentials();
+    throw new Error('vlaina sign-in required');
+  }
+
+  await rotateStoredSessionToken(response.headers);
+  return response;
+}
+
+async function performStoredSessionRequest(credentials, url, init = {}, eventPrefix = 'stored_session:http') {
+  logDesktopAuth(`${eventPrefix}:request`, {
+    url,
+    method: init.method ?? 'GET',
+    body: typeof init.body === 'string' ? init.body : null,
+    credentials,
+  });
 
   const response = await fetch(url, {
     ...init,
@@ -413,13 +494,53 @@ async function fetchWithStoredSession(url, init = {}) {
     },
   });
 
-  if (response.status === 401 || response.status === 403) {
-    await clearStoredAccountCredentials();
-    throw new Error('vlaina sign-in required');
+  logDesktopAuth(`${eventPrefix}:response`, {
+    url,
+    status: response.status,
+    ok: response.ok,
+    headers: {
+      [desktopLegacySessionHeader]: redactToken(
+        response.headers.get(desktopLegacySessionHeader)?.trim() ?? ''
+      ),
+      'content-type': response.headers.get('content-type'),
+    },
+    credentials,
+  });
+
+  return response;
+}
+
+async function probeDesktopSession(appSessionToken, eventPrefix = 'session_status:http') {
+  return await fetchJsonWithDebug(`${apiBaseUrl}/auth/session`, {
+    method: 'GET',
+    cache: 'no-store',
+    headers: buildDesktopSessionHeaders(appSessionToken, {
+      Accept: 'application/json',
+    }),
+  }, eventPrefix);
+}
+
+async function probeDesktopSessionWithRetry(appSessionToken, eventPrefix = 'session_status:http') {
+  let lastResult = await probeDesktopSession(appSessionToken, eventPrefix);
+
+  for (let attempt = 0; attempt < desktopSessionRetryDelaysMs.length; attempt += 1) {
+    if (lastResult.response.status !== 401 && lastResult.response.status !== 403) {
+      return lastResult;
+    }
+
+    const delayMs = desktopSessionRetryDelaysMs[attempt];
+    logDesktopAuth(`${eventPrefix}:retry_scheduled`, {
+      attempt: attempt + 1,
+      delayMs,
+      status: lastResult.response.status,
+      appSessionToken,
+    });
+    await delay(delayMs);
+
+    lastResult = await probeDesktopSession(appSessionToken, `${eventPrefix}:retry_${attempt + 1}`);
   }
 
-  await rotateStoredSessionToken(response.headers);
-  return response;
+  return lastResult;
 }
 
 function buildDesktopAuthStartUrl(provider) {
@@ -549,15 +670,20 @@ async function getDesktopAccountSessionStatus() {
   }
 
   try {
-    const { response, payload, text } = await fetchJsonWithDebug(`${apiBaseUrl}/auth/session`, {
-      method: 'GET',
-      cache: 'no-store',
-      headers: buildDesktopSessionHeaders(credentials.appSessionToken, {
-        Accept: 'application/json',
-      }),
-    }, 'session_status:http');
+    const { response, payload, text } = await probeDesktopSessionWithRetry(
+      credentials.appSessionToken,
+      'session_status:http',
+    );
 
     if (response.status === 401 || response.status === 403) {
+      if (shouldGraceDesktopSession(credentials)) {
+        logDesktopAuth('session_status:unauthorized_grace', {
+          status: response.status,
+          credentials,
+        });
+        return buildCachedDesktopStatus(credentials);
+      }
+
       logDesktopAuth('session_status:unauthorized', { status: response.status });
       const resolved = resolveDesktopSessionProbe(credentials, { kind: 'unauthorized' });
       if (resolved.clearStoredCredentials) {
@@ -622,13 +748,10 @@ async function getDesktopAccountSessionStatus() {
 
 async function readDesktopSessionIdentity(appSessionToken) {
   logDesktopAuth('session_identity:start', { appSessionToken });
-  const { response, payload, text } = await fetchJsonWithDebug(`${apiBaseUrl}/auth/session`, {
-    method: 'GET',
-    cache: 'no-store',
-    headers: buildDesktopSessionHeaders(appSessionToken, {
-      Accept: 'application/json',
-    }),
-  }, 'session_identity:http');
+  const { response, payload, text } = await probeDesktopSessionWithRetry(
+    appSessionToken,
+    'session_identity:http',
+  );
 
   if (response.status === 401 || response.status === 403) {
     logDesktopAuth('session_identity:unauthorized', { status: response.status });
@@ -678,58 +801,141 @@ async function persistDesktopAuthResult(provider, result) {
     throw new Error('Account sign-in result missing session token');
   }
 
-  const sessionIdentity = await readDesktopSessionIdentity(appSessionToken).catch((error) => {
-    logDesktopAuth('persist_auth_result:session_identity_error', {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  });
-  const resolvedProvider =
-    sessionIdentity?.provider ??
+  const fallbackProvider =
     normalizeDesktopAccountProvider(result?.provider, null) ??
     provider;
-  const resolvedUsername = sessionIdentity?.username ?? rawUsername ?? rawPrimaryEmail ?? '';
-  const resolvedPrimaryEmail = sessionIdentity?.primaryEmail ?? rawPrimaryEmail;
-  const resolvedAvatarUrl = sessionIdentity?.avatarUrl ?? rawAvatarUrl;
+  const fallbackUsername = rawUsername ?? rawPrimaryEmail ?? '';
+  const fallbackPrimaryEmail = rawPrimaryEmail;
+  const fallbackAvatarUrl = rawAvatarUrl;
+  const authenticatedAt = Date.now();
 
-  if (!resolvedUsername) {
-    logDesktopAuth('persist_auth_result:missing_identity', {
-      provider,
-      result,
-      sessionIdentity,
-      resolvedProvider,
-      resolvedPrimaryEmail,
-      resolvedAvatarUrl,
+  if (!fallbackUsername) {
+    const sessionIdentity = await readDesktopSessionIdentity(appSessionToken).catch((error) => {
+      logDesktopAuth('persist_auth_result:session_identity_error', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return null;
     });
-    throw new Error('Account sign-in completed but no desktop account identity could be resolved');
+    const resolvedProvider =
+      sessionIdentity?.provider ??
+      fallbackProvider;
+    const resolvedUsername = sessionIdentity?.username ?? fallbackUsername;
+    const resolvedPrimaryEmail = sessionIdentity?.primaryEmail ?? fallbackPrimaryEmail;
+    const resolvedAvatarUrl = sessionIdentity?.avatarUrl ?? fallbackAvatarUrl;
+
+    if (!resolvedUsername) {
+      logDesktopAuth('persist_auth_result:missing_identity', {
+        provider,
+        result,
+        sessionIdentity,
+        resolvedProvider,
+        resolvedPrimaryEmail,
+        resolvedAvatarUrl,
+      });
+      throw new Error('Account sign-in completed but no desktop account identity could be resolved');
+    }
+
+    const credentials = {
+      appSessionToken,
+      provider: resolvedProvider,
+      username: resolvedUsername,
+      primaryEmail: resolvedPrimaryEmail,
+      avatarUrl: resolvedAvatarUrl,
+      authenticatedAt,
+    };
+    await writeStoredAccountCredentials(credentials);
+
+    logDesktopAuth('persist_auth_result:done', {
+      provider,
+      result: summarizeAuthResultShape(result),
+      sessionIdentity,
+      credentials: {
+        provider: credentials.provider,
+        username: credentials.username,
+        primaryEmail: credentials.primaryEmail,
+        avatarUrl: credentials.avatarUrl,
+        appSessionToken: credentials.appSessionToken,
+        authenticatedAt: credentials.authenticatedAt,
+      },
+    });
+
+    return {
+      success: true,
+      provider: resolvedProvider,
+      username: resolvedUsername,
+      primaryEmail: credentials.primaryEmail,
+      avatarUrl: credentials.avatarUrl,
+      error: null,
+    };
   }
 
   const credentials = {
     appSessionToken,
-    provider: resolvedProvider,
-    username: resolvedUsername,
-    primaryEmail: resolvedPrimaryEmail,
-    avatarUrl: resolvedAvatarUrl,
+    provider: fallbackProvider,
+    username: fallbackUsername,
+    primaryEmail: fallbackPrimaryEmail,
+    avatarUrl: fallbackAvatarUrl,
+    authenticatedAt,
   };
   await writeStoredAccountCredentials(credentials);
+
+  void readDesktopSessionIdentity(appSessionToken)
+    .then(async (sessionIdentity) => {
+      if (!sessionIdentity) {
+        logDesktopAuth('persist_auth_result:session_identity_deferred_unavailable', {
+          provider,
+          appSessionToken,
+        });
+        return;
+      }
+
+      const currentCredentials = await readStoredAccountCredentials();
+      if (!currentCredentials || currentCredentials.appSessionToken !== appSessionToken) {
+        logDesktopAuth('persist_auth_result:session_identity_deferred_skipped', {
+          provider,
+          appSessionToken,
+        });
+        return;
+      }
+
+      const nextCredentials = {
+        ...currentCredentials,
+        provider: sessionIdentity.provider ?? currentCredentials.provider,
+        username: sessionIdentity.username ?? currentCredentials.username,
+        primaryEmail: sessionIdentity.primaryEmail ?? currentCredentials.primaryEmail,
+        avatarUrl: sessionIdentity.avatarUrl ?? currentCredentials.avatarUrl,
+      };
+      await writeStoredAccountCredentials(nextCredentials);
+      logDesktopAuth('persist_auth_result:session_identity_deferred_applied', {
+        provider,
+        sessionIdentity,
+        credentials: nextCredentials,
+      });
+    })
+    .catch((error) => {
+      logDesktopAuth('persist_auth_result:session_identity_deferred_error', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
 
   logDesktopAuth('persist_auth_result:done', {
     provider,
     result: summarizeAuthResultShape(result),
-    sessionIdentity,
+    sessionIdentity: null,
     credentials: {
       provider: credentials.provider,
       username: credentials.username,
       primaryEmail: credentials.primaryEmail,
       avatarUrl: credentials.avatarUrl,
       appSessionToken: credentials.appSessionToken,
+      authenticatedAt: credentials.authenticatedAt,
     },
   });
 
   return {
     success: true,
-    provider: resolvedProvider,
-    username: resolvedUsername,
+    provider: fallbackProvider,
+    username: fallbackUsername,
     primaryEmail: credentials.primaryEmail,
     avatarUrl: credentials.avatarUrl,
     error: null,
@@ -900,8 +1106,25 @@ function isTrustedRendererUrl(rawUrl) {
   }
 }
 
+function resolveTrustedSenderUrl(event) {
+  const candidates = [
+    event?.senderFrame?.url,
+    event?.senderFrame?.top?.url,
+    event?.sender?.getURL?.(),
+    BrowserWindow.fromWebContents(event?.sender ?? null)?.webContents?.getURL?.(),
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate;
+    }
+  }
+
+  return '';
+}
+
 function assertTrustedIpcSender(event) {
-  const senderUrl = event?.senderFrame?.url || event?.sender?.getURL?.() || '';
+  const senderUrl = resolveTrustedSenderUrl(event);
   if (!isTrustedRendererUrl(senderUrl)) {
     throw new Error(`Blocked IPC from untrusted renderer: ${senderUrl || 'unknown sender'}`);
   }
@@ -912,6 +1135,26 @@ function handleIpc(channel, listener) {
     assertTrustedIpcSender(event);
     return await listener(event, ...args);
   });
+}
+
+function requireNonEmptyString(value, label) {
+  if (typeof value !== 'string' || !value.trim()) {
+    throw new Error(`A non-empty ${label} is required.`);
+  }
+
+  return value;
+}
+
+function requireFilePath(value) {
+  return requireNonEmptyString(value, 'file path');
+}
+
+function requireStringArray(values, label) {
+  if (!Array.isArray(values)) {
+    throw new Error(`A ${label} array is required.`);
+  }
+
+  return values.map((value, index) => requireNonEmptyString(value, `${label} value at index ${index}`));
 }
 
 function tryNormalizeExternalUrl(rawUrl) {
@@ -1184,11 +1427,24 @@ handleIpc('desktop:window:toggle-fullscreen', (event) => {
 });
 
 handleIpc('desktop:window:create', (_event, windowOptions) => {
+  const vaultPath =
+    typeof windowOptions?.vaultPath === 'string' && windowOptions.vaultPath.trim()
+      ? windowOptions.vaultPath
+      : null;
+  const notePath =
+    typeof windowOptions?.notePath === 'string' && windowOptions.notePath.trim()
+      ? windowOptions.notePath
+      : null;
+  const viewMode =
+    typeof windowOptions?.viewMode === 'string' && windowOptions.viewMode.trim()
+      ? windowOptions.viewMode
+      : null;
+
   createWindow({
     newWindow: true,
-    vaultPath: windowOptions?.vaultPath ?? null,
-    notePath: windowOptions?.notePath ?? null,
-    viewMode: windowOptions?.viewMode ?? null,
+    vaultPath,
+    notePath,
+    viewMode,
   });
 });
 
@@ -1197,19 +1453,12 @@ handleIpc('desktop:shell:open-external', async (_event, url) => {
 });
 
 handleIpc('desktop:shell:trash-item', async (_event, filePath) => {
-  if (typeof filePath !== 'string' || !filePath.trim()) {
-    throw new Error('A non-empty file path is required.');
-  }
-
-  await shell.trashItem(filePath);
+  const resolvedPath = requireFilePath(filePath);
+  await shell.trashItem(resolvedPath);
 });
 
 handleIpc('desktop:shell:reveal-item', async (_event, filePath) => {
-  if (typeof filePath !== 'string' || !filePath.trim()) {
-    throw new Error('A non-empty file path is required.');
-  }
-
-  shell.showItemInFolder(filePath);
+  shell.showItemInFolder(requireFilePath(filePath));
 });
 
 handleIpc('desktop:dialog:open', async (event, options) => {
@@ -1278,49 +1527,35 @@ handleIpc('desktop:dialog:confirm', async (event, message, options) => {
 });
 
 handleIpc('desktop:fs:write-binary', async (_event, filePath, bytes) => {
-  if (typeof filePath !== 'string' || !filePath) {
-    throw new Error('A file path is required.');
-  }
-
-  await writeFile(filePath, Buffer.from(bytes));
+  await writeFile(requireFilePath(filePath), Buffer.from(bytes));
 });
 
 handleIpc('desktop:fs:read-binary', async (_event, filePath) => {
-  if (typeof filePath !== 'string' || !filePath) {
-    throw new Error('A file path is required.');
-  }
-
-  return new Uint8Array(await readFile(filePath));
+  return new Uint8Array(await readFile(requireFilePath(filePath)));
 });
 
 handleIpc('desktop:fs:read-text', async (_event, filePath) => {
-  if (typeof filePath !== 'string' || !filePath) {
-    throw new Error('A file path is required.');
-  }
-
-  return readFile(filePath, 'utf8');
+  return readFile(requireFilePath(filePath), 'utf8');
 });
 
 handleIpc('desktop:fs:write-text', async (_event, filePath, content, options) => {
-  if (typeof filePath !== 'string' || !filePath) {
-    throw new Error('A file path is required.');
-  }
+  const resolvedPath = requireFilePath(filePath);
 
   if (options?.recursive) {
-    await mkdir(path.dirname(filePath), { recursive: true });
+    await mkdir(path.dirname(resolvedPath), { recursive: true });
   }
 
   if (options?.append) {
-    const previous = await readFile(filePath, 'utf8').catch(() => '');
-    await writeFile(filePath, previous + String(content ?? ''));
+    const previous = await readFile(resolvedPath, 'utf8').catch(() => '');
+    await writeFile(resolvedPath, previous + String(content ?? ''));
     return;
   }
 
-  await writeFile(filePath, String(content ?? ''));
+  await writeFile(resolvedPath, String(content ?? ''));
 });
 
 handleIpc('desktop:fs:exists', async (_event, filePath) => {
-  if (typeof filePath !== 'string' || !filePath) {
+  if (typeof filePath !== 'string' || !filePath.trim()) {
     return false;
   }
 
@@ -1333,37 +1568,23 @@ handleIpc('desktop:fs:exists', async (_event, filePath) => {
 });
 
 handleIpc('desktop:fs:mkdir', async (_event, filePath, recursive) => {
-  if (typeof filePath !== 'string' || !filePath) {
-    throw new Error('A file path is required.');
-  }
-
-  await mkdir(filePath, { recursive: Boolean(recursive) });
+  await mkdir(requireFilePath(filePath), { recursive: Boolean(recursive) });
 });
 
 handleIpc('desktop:fs:delete-file', async (_event, filePath) => {
-  if (typeof filePath !== 'string' || !filePath) {
-    throw new Error('A file path is required.');
-  }
-
-  await rm(filePath, { force: true });
+  await rm(requireFilePath(filePath), { force: true });
 });
 
 handleIpc('desktop:fs:delete-dir', async (_event, filePath, recursive) => {
-  if (typeof filePath !== 'string' || !filePath) {
-    throw new Error('A file path is required.');
-  }
-
-  await rm(filePath, { recursive: Boolean(recursive), force: true });
+  await rm(requireFilePath(filePath), { recursive: Boolean(recursive), force: true });
 });
 
 handleIpc('desktop:fs:list-dir', async (_event, filePath) => {
-  if (typeof filePath !== 'string' || !filePath) {
-    throw new Error('A file path is required.');
-  }
+  const resolvedPath = requireFilePath(filePath);
 
   let entries;
   try {
-    entries = await readdir(filePath, { withFileTypes: true });
+    entries = await readdir(resolvedPath, { withFileTypes: true });
   } catch (error) {
     if (error && typeof error === 'object' && error.code === 'ENOENT') {
       return [];
@@ -1372,26 +1593,27 @@ handleIpc('desktop:fs:list-dir', async (_event, filePath) => {
   }
   return entries.map((entry) => ({
     name: entry.name,
-    path: path.join(filePath, entry.name),
+    path: path.join(resolvedPath, entry.name),
     isDirectory: entry.isDirectory(),
     isFile: entry.isFile(),
   }));
 });
 
 handleIpc('desktop:fs:rename', async (_event, oldPath, newPath) => {
-  await rename(oldPath, newPath);
+  await rename(requireFilePath(oldPath), requireFilePath(newPath));
 });
 
 handleIpc('desktop:fs:copy-file', async (_event, sourcePath, targetPath) => {
-  await copyFile(sourcePath, targetPath);
+  await copyFile(requireFilePath(sourcePath), requireFilePath(targetPath));
 });
 
 handleIpc('desktop:fs:stat', async (_event, filePath) => {
+  const resolvedPath = requireFilePath(filePath);
   try {
-    const info = await stat(filePath);
+    const info = await stat(resolvedPath);
     return {
-      name: path.basename(filePath),
-      path: filePath,
+      name: path.basename(resolvedPath),
+      path: resolvedPath,
       isDirectory: info.isDirectory(),
       isFile: info.isFile(),
       size: info.size,
@@ -1403,7 +1625,7 @@ handleIpc('desktop:fs:stat', async (_event, filePath) => {
 });
 
 handleIpc('desktop:path:join', (_event, ...segments) => {
-  return path.join(...segments);
+  return path.join(...requireStringArray(segments, 'path segment'));
 });
 
 handleIpc('desktop:path:app-data', () => {
@@ -1411,7 +1633,7 @@ handleIpc('desktop:path:app-data', () => {
 });
 
 handleIpc('desktop:path:to-file-url', (_event, filePath) => {
-  return pathToFileURL(filePath).toString();
+  return pathToFileURL(requireFilePath(filePath)).toString();
 });
 
 handleIpc('desktop:secrets:get-ai-provider-secrets', async (_event, providerIds) => {
@@ -1428,22 +1650,18 @@ handleIpc('desktop:secrets:get-ai-provider-secrets', async (_event, providerIds)
 });
 
 handleIpc('desktop:secrets:set-ai-provider-secret', async (_event, providerId, apiKey) => {
-  if (typeof providerId !== 'string' || !providerId.trim()) {
-    throw new Error('A provider id is required.');
-  }
+  const normalizedProviderId = requireNonEmptyString(providerId, 'provider id');
 
   const store = await readSecretsStore();
-  store.data[providerId] = String(apiKey ?? '');
+  store.data[normalizedProviderId] = String(apiKey ?? '');
   await writeSecretsStore(store.data);
 });
 
 handleIpc('desktop:secrets:delete-ai-provider-secret', async (_event, providerId) => {
-  if (typeof providerId !== 'string' || !providerId.trim()) {
-    throw new Error('A provider id is required.');
-  }
+  const normalizedProviderId = requireNonEmptyString(providerId, 'provider id');
 
   const store = await readSecretsStore();
-  delete store.data[providerId];
+  delete store.data[normalizedProviderId];
   await writeSecretsStore(store.data);
 });
 
@@ -1638,7 +1856,7 @@ handleIpc('desktop:managed:chat-completion-stream:start', async (event, requestI
 });
 
 handleIpc('desktop:managed:chat-completion-stream:cancel', async (_event, requestId) => {
-  const id = String(requestId ?? '').trim();
+  const id = requireNonEmptyString(requestId, 'managed stream request id');
   const controller = activeManagedStreams.get(id);
   if (controller) {
     controller.abort();
@@ -1647,17 +1865,15 @@ handleIpc('desktop:managed:chat-completion-stream:cancel', async (_event, reques
 });
 
 handleIpc('desktop:fs:watch', (event, watchPath) => {
-  if (typeof watchPath !== 'string' || !watchPath) {
-    throw new Error('A watch path is required.');
-  }
+  const resolvedWatchPath = requireNonEmptyString(watchPath, 'watch path');
 
   const watchId = `watch-${++watcherCounter}`;
   const sender = event.sender;
   const listener = watch(
-    watchPath,
+    resolvedWatchPath,
     { recursive: true },
     (eventType, filename) => {
-      const resolvedPath = filename ? path.join(watchPath, filename.toString()) : watchPath;
+      const resolvedPath = filename ? path.join(resolvedWatchPath, filename.toString()) : resolvedWatchPath;
       const payload = eventType === 'rename'
         ? { type: { remove: { kind: 'any' } }, paths: [resolvedPath] }
         : { type: { modify: { kind: 'data', mode: 'any' } }, paths: [resolvedPath] };
@@ -1670,7 +1886,7 @@ handleIpc('desktop:fs:watch', (event, watchPath) => {
 });
 
 handleIpc('desktop:fs:unwatch', (_event, watchId) => {
-  const listener = activeWatchers.get(watchId);
+  const listener = activeWatchers.get(requireNonEmptyString(watchId, 'watch id'));
   if (listener) {
     listener.close();
     activeWatchers.delete(watchId);

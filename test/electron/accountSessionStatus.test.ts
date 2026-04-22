@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildCachedDesktopStatus,
   buildDisconnectedDesktopStatus,
+  isDesktopSessionWithinGracePeriod,
   resolveDesktopSessionProbe,
 } from '../../electron/accountSessionStatus.mjs';
 
@@ -85,5 +86,31 @@ describe('desktop account session status resolution', () => {
       },
       clearStoredCredentials: false,
     });
+  });
+
+  it('treats recent desktop auth records as being within the activation grace period', () => {
+    expect(
+      isDesktopSessionWithinGracePeriod(
+        {
+          ...credentials,
+          authenticatedAt: 1_000,
+        },
+        20_000,
+        30_000,
+      ),
+    ).toBe(true);
+
+    expect(
+      isDesktopSessionWithinGracePeriod(
+        {
+          ...credentials,
+          authenticatedAt: 1_000,
+        },
+        40_000,
+        30_000,
+      ),
+    ).toBe(false);
+
+    expect(isDesktopSessionWithinGracePeriod(credentials, 20_000, 30_000)).toBe(false);
   });
 });

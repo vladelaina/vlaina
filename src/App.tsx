@@ -26,7 +26,7 @@ import { flushPendingSessionJsonSaves } from '@/lib/storage/chatStorage';
 import { hasDraftUnsavedChanges, isDraftNotePath } from '@/stores/notes/draftNote';
 import { openStoredNotePath } from '@/stores/notes/openNotePath';
 import { desktopWindow } from '@/lib/desktop/window';
-import { isElectronRuntime } from '@/lib/electron/bridge';
+import { getElectronBridge, isElectronRuntime } from '@/lib/electron/bridge';
 
 const SettingsModal = lazy(async () => {
   const mod = await import('@/components/Settings');
@@ -143,6 +143,20 @@ function AppContent() {
       }
     };
     void unlockWindow();
+  }, []);
+
+  useEffect(() => {
+    if (!isElectronRuntime()) {
+      return;
+    }
+
+    const unsubscribe = getElectronBridge()?.account.onAuthLog?.((entry) => {
+      console.info(`[desktop auth] ${entry.event}`, entry);
+    });
+
+    return () => {
+      unsubscribe?.();
+    };
   }, []);
 
   const sensors = useSensors(
