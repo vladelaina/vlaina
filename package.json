@@ -29,8 +29,9 @@
     "test": "node scripts/ensure-not-wsl.mjs test && vitest run",
     "preview": "node scripts/ensure-not-wsl.mjs preview && vite preview",
     "dev:dynamic": "node scripts/dev-dynamic.js",
+    "quality:electron-only": "node scripts/assert-electron-only.mjs",
     "quality:language-detection": "node scripts/language-detection-gate.mjs",
-    "quality:verify": "pnpm run typecheck && pnpm run test && pnpm build",
+    "quality:verify": "pnpm run quality:electron-only && pnpm run typecheck && pnpm run test && pnpm build",
     "quality:budget": "node scripts/check-build-budget.mjs temp/build-quality-gate.log",
     "quality:gate": "node scripts/quality-gate.mjs"
   },

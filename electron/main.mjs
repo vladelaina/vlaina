@@ -38,11 +38,16 @@ const closeApprovedWebContents = new Set();
 const windowLabels = new Map();
 const activeWatchers = new Map();
 const activeManagedStreams = new Map();
+const authorizedFsRootPaths = new Set();
+const authorizedFsFilePaths = new Set();
 const desktopAuthDebugBuffer = [];
 const desktopSessionRetryDelaysMs = [250, 500, 1000, 2000, 3000, 5000];
 const desktopSessionActivationGracePeriodMs = 60_000;
 let secondaryWindowCounter = 0;
 let watcherCounter = 0;
+let authorizedFsPathsLoaded = false;
+let authorizedFsPathsLoadPromise = null;
+let authorizedFsPathsSavePromise = Promise.resolve();
 
 function isDesktopAuthDebugEnabled() {
   return !app.isPackaged || process.env.VLAINA_DESKTOP_AUTH_DEBUG === '1';
@@ -1157,6 +1162,142 @@ function requireStringArray(values, label) {
   return values.map((value, index) => requireNonEmptyString(value, `${label} value at index ${index}`));
 }
 
+function normalizeFsPathForAccess(filePath) {
+  return path.resolve(requireFilePath(filePath));
+}
+
+function normalizeFsPathKey(filePath) {
+  const resolved = path.resolve(filePath);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+function isSameOrChildPath(rootPath, candidatePath) {
+  const relative = path.relative(rootPath, candidatePath);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function getAuthorizedFsPathsPath() {
+  return path.join(app.getPath('userData'), '.vlaina', 'store', 'authorized-fs-paths.json');
+}
+
+async function readAuthorizedFsPaths() {
+  try {
+    const payload = JSON.parse(await readFile(getAuthorizedFsPathsPath(), 'utf8'));
+    return {
+      roots: Array.isArray(payload?.roots) ? payload.roots : [],
+      files: Array.isArray(payload?.files) ? payload.files : [],
+    };
+  } catch {
+    return { roots: [], files: [] };
+  }
+}
+
+async function writeAuthorizedFsPaths() {
+  authorizedFsPathsSavePromise = authorizedFsPathsSavePromise.then(async () => {
+    const storePath = getAuthorizedFsPathsPath();
+    await mkdir(path.dirname(storePath), { recursive: true });
+    await writeFile(
+      storePath,
+      JSON.stringify({
+        roots: Array.from(authorizedFsRootPaths).sort(),
+        files: Array.from(authorizedFsFilePaths).sort(),
+      }, null, 2),
+      'utf8',
+    );
+  });
+
+  return authorizedFsPathsSavePromise;
+}
+
+async function ensureAuthorizedFsPathsLoaded() {
+  if (authorizedFsPathsLoaded) {
+    return;
+  }
+
+  if (!authorizedFsPathsLoadPromise) {
+    authorizedFsPathsLoadPromise = (async () => {
+      const appDataPath = normalizeFsPathKey(app.getPath('userData'));
+      authorizedFsRootPaths.add(appDataPath);
+
+      const saved = await readAuthorizedFsPaths();
+      for (const rootPath of saved.roots) {
+        if (typeof rootPath === 'string' && rootPath.trim()) {
+          authorizedFsRootPaths.add(normalizeFsPathKey(rootPath));
+        }
+      }
+      for (const filePath of saved.files) {
+        if (typeof filePath === 'string' && filePath.trim()) {
+          authorizedFsFilePaths.add(normalizeFsPathKey(filePath));
+        }
+      }
+
+      authorizedFsPathsLoaded = true;
+    })();
+  }
+
+  await authorizedFsPathsLoadPromise;
+}
+
+function isAuthorizedFsPathKey(candidateKey) {
+  if (authorizedFsFilePaths.has(candidateKey)) {
+    return true;
+  }
+
+  for (const rootKey of authorizedFsRootPaths) {
+    if (isSameOrChildPath(rootKey, candidateKey)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function assertAuthorizedFsPath(filePath) {
+  await ensureAuthorizedFsPathsLoaded();
+  const resolvedPath = normalizeFsPathForAccess(filePath);
+  const pathKey = normalizeFsPathKey(resolvedPath);
+  if (!isAuthorizedFsPathKey(pathKey)) {
+    throw new Error(`File path is not authorized for desktop access: ${resolvedPath}`);
+  }
+
+  return resolvedPath;
+}
+
+async function authorizeFsPath(filePath, kind) {
+  await ensureAuthorizedFsPathsLoaded();
+  const resolvedPath = normalizeFsPathForAccess(filePath);
+  const pathKey = normalizeFsPathKey(resolvedPath);
+
+  if (kind === 'file') {
+    authorizedFsFilePaths.add(pathKey);
+  } else {
+    authorizedFsRootPaths.add(pathKey);
+  }
+
+  await writeAuthorizedFsPaths();
+  return resolvedPath;
+}
+
+function canRenameAuthorizedRoot(sourcePath, targetPath) {
+  const sourceKey = normalizeFsPathKey(sourcePath);
+  if (!authorizedFsRootPaths.has(sourceKey)) {
+    return false;
+  }
+
+  return normalizeFsPathKey(path.dirname(sourcePath)) === normalizeFsPathKey(path.dirname(targetPath));
+}
+
+async function updateAuthorizedRootRename(sourcePath, targetPath) {
+  const sourceKey = normalizeFsPathKey(sourcePath);
+  if (!authorizedFsRootPaths.has(sourceKey)) {
+    return;
+  }
+
+  authorizedFsRootPaths.delete(sourceKey);
+  authorizedFsRootPaths.add(normalizeFsPathKey(targetPath));
+  await writeAuthorizedFsPaths();
+}
+
 function tryNormalizeExternalUrl(rawUrl) {
   try {
     return normalizeExternalUrl(rawUrl);
@@ -1238,8 +1379,10 @@ async function loadRenderer(window, windowOptions = {}) {
 }
 
 function attachWindowLifecycle(window) {
+  const webContentsId = window.webContents.id;
+
   window.on('closed', () => {
-    closeApprovedWebContents.delete(window.webContents.id);
+    closeApprovedWebContents.delete(webContentsId);
     windowLabels.delete(window.id);
   });
 
@@ -1286,8 +1429,8 @@ function attachWindowLifecycle(window) {
   });
 
   window.on('close', (event) => {
-    if (closeApprovedWebContents.has(window.webContents.id)) {
-      closeApprovedWebContents.delete(window.webContents.id);
+    if (closeApprovedWebContents.has(webContentsId)) {
+      closeApprovedWebContents.delete(webContentsId);
       return;
     }
 
@@ -1453,12 +1596,12 @@ handleIpc('desktop:shell:open-external', async (_event, url) => {
 });
 
 handleIpc('desktop:shell:trash-item', async (_event, filePath) => {
-  const resolvedPath = requireFilePath(filePath);
+  const resolvedPath = await assertAuthorizedFsPath(filePath);
   await shell.trashItem(resolvedPath);
 });
 
 handleIpc('desktop:shell:reveal-item', async (_event, filePath) => {
-  shell.showItemInFolder(requireFilePath(filePath));
+  shell.showItemInFolder(await assertAuthorizedFsPath(filePath));
 });
 
 handleIpc('desktop:dialog:open', async (event, options) => {
@@ -1487,10 +1630,17 @@ handleIpc('desktop:dialog:open', async (event, options) => {
   }
 
   if (options?.multiple) {
+    const kind = options?.directory ? 'root' : 'file';
+    await Promise.all(result.filePaths.map((filePath) => authorizeFsPath(filePath, kind)));
     return result.filePaths;
   }
 
-  return result.filePaths[0] ?? null;
+  const selectedPath = result.filePaths[0] ?? null;
+  if (selectedPath) {
+    await authorizeFsPath(selectedPath, options?.directory ? 'root' : 'file');
+  }
+
+  return selectedPath;
 });
 
 handleIpc('desktop:dialog:save', async (event, options) => {
@@ -1500,7 +1650,12 @@ handleIpc('desktop:dialog:save', async (event, options) => {
     defaultPath: options?.defaultPath,
     filters: options?.filters,
   });
-  return result.canceled ? null : result.filePath ?? null;
+  if (result.canceled || !result.filePath) {
+    return null;
+  }
+
+  await authorizeFsPath(result.filePath, 'file');
+  return result.filePath;
 });
 
 handleIpc('desktop:dialog:message', async (event, message, options) => {
@@ -1527,19 +1682,19 @@ handleIpc('desktop:dialog:confirm', async (event, message, options) => {
 });
 
 handleIpc('desktop:fs:write-binary', async (_event, filePath, bytes) => {
-  await writeFile(requireFilePath(filePath), Buffer.from(bytes));
+  await writeFile(await assertAuthorizedFsPath(filePath), Buffer.from(bytes));
 });
 
 handleIpc('desktop:fs:read-binary', async (_event, filePath) => {
-  return new Uint8Array(await readFile(requireFilePath(filePath)));
+  return new Uint8Array(await readFile(await assertAuthorizedFsPath(filePath)));
 });
 
 handleIpc('desktop:fs:read-text', async (_event, filePath) => {
-  return readFile(requireFilePath(filePath), 'utf8');
+  return readFile(await assertAuthorizedFsPath(filePath), 'utf8');
 });
 
 handleIpc('desktop:fs:write-text', async (_event, filePath, content, options) => {
-  const resolvedPath = requireFilePath(filePath);
+  const resolvedPath = await assertAuthorizedFsPath(filePath);
 
   if (options?.recursive) {
     await mkdir(path.dirname(resolvedPath), { recursive: true });
@@ -1560,7 +1715,7 @@ handleIpc('desktop:fs:exists', async (_event, filePath) => {
   }
 
   try {
-    await stat(filePath);
+    await stat(await assertAuthorizedFsPath(filePath));
     return true;
   } catch {
     return false;
@@ -1568,19 +1723,19 @@ handleIpc('desktop:fs:exists', async (_event, filePath) => {
 });
 
 handleIpc('desktop:fs:mkdir', async (_event, filePath, recursive) => {
-  await mkdir(requireFilePath(filePath), { recursive: Boolean(recursive) });
+  await mkdir(await assertAuthorizedFsPath(filePath), { recursive: Boolean(recursive) });
 });
 
 handleIpc('desktop:fs:delete-file', async (_event, filePath) => {
-  await rm(requireFilePath(filePath), { force: true });
+  await rm(await assertAuthorizedFsPath(filePath), { force: true });
 });
 
 handleIpc('desktop:fs:delete-dir', async (_event, filePath, recursive) => {
-  await rm(requireFilePath(filePath), { recursive: Boolean(recursive), force: true });
+  await rm(await assertAuthorizedFsPath(filePath), { recursive: Boolean(recursive), force: true });
 });
 
 handleIpc('desktop:fs:list-dir', async (_event, filePath) => {
-  const resolvedPath = requireFilePath(filePath);
+  const resolvedPath = await assertAuthorizedFsPath(filePath);
 
   let entries;
   try {
@@ -1600,15 +1755,22 @@ handleIpc('desktop:fs:list-dir', async (_event, filePath) => {
 });
 
 handleIpc('desktop:fs:rename', async (_event, oldPath, newPath) => {
-  await rename(requireFilePath(oldPath), requireFilePath(newPath));
+  const resolvedOldPath = await assertAuthorizedFsPath(oldPath);
+  const resolvedNewPath = normalizeFsPathForAccess(newPath);
+  if (!isAuthorizedFsPathKey(normalizeFsPathKey(resolvedNewPath)) && !canRenameAuthorizedRoot(resolvedOldPath, resolvedNewPath)) {
+    throw new Error(`File path is not authorized for desktop access: ${resolvedNewPath}`);
+  }
+
+  await rename(resolvedOldPath, resolvedNewPath);
+  await updateAuthorizedRootRename(resolvedOldPath, resolvedNewPath);
 });
 
 handleIpc('desktop:fs:copy-file', async (_event, sourcePath, targetPath) => {
-  await copyFile(requireFilePath(sourcePath), requireFilePath(targetPath));
+  await copyFile(await assertAuthorizedFsPath(sourcePath), await assertAuthorizedFsPath(targetPath));
 });
 
 handleIpc('desktop:fs:stat', async (_event, filePath) => {
-  const resolvedPath = requireFilePath(filePath);
+  const resolvedPath = await assertAuthorizedFsPath(filePath);
   try {
     const info = await stat(resolvedPath);
     return {
@@ -1632,8 +1794,8 @@ handleIpc('desktop:path:app-data', () => {
   return app.getPath('userData');
 });
 
-handleIpc('desktop:path:to-file-url', (_event, filePath) => {
-  return pathToFileURL(requireFilePath(filePath)).toString();
+handleIpc('desktop:path:to-file-url', async (_event, filePath) => {
+  return pathToFileURL(await assertAuthorizedFsPath(filePath)).toString();
 });
 
 handleIpc('desktop:secrets:get-ai-provider-secrets', async (_event, providerIds) => {
@@ -1864,8 +2026,8 @@ handleIpc('desktop:managed:chat-completion-stream:cancel', async (_event, reques
   }
 });
 
-handleIpc('desktop:fs:watch', (event, watchPath) => {
-  const resolvedWatchPath = requireNonEmptyString(watchPath, 'watch path');
+handleIpc('desktop:fs:watch', async (event, watchPath) => {
+  const resolvedWatchPath = await assertAuthorizedFsPath(watchPath);
 
   const watchId = `watch-${++watcherCounter}`;
   const sender = event.sender;

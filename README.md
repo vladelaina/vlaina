@@ -2,7 +2,7 @@
 
 `vlaina` is a local-first desktop workspace built with React, Vite, and Electron.
 
-The current desktop host is Electron only. The old desktop host has been removed from the runtime path.
+The current desktop host is Electron only. This repository does not keep a Tauri compatibility layer or runtime fallback.
 
 ## Highlights
 
@@ -77,3 +77,4 @@ GitHub Actions runs the Windows build pipeline from [.github/workflows/build.yml
 
 - If you previously mixed Windows and WSL installs, delete `node_modules` and reinstall from Windows.
 - Electron is now the only desktop runtime target in this repository.
+- Tauri runtime files, dependencies, compatibility layers, and data migrations are intentionally not supported.

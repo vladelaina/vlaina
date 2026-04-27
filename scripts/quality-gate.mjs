@@ -53,6 +53,7 @@ async function main() {
   assertNotWsl('quality:gate');
 
   const results = await Promise.all([
+    startStep('Electron-only guard', ['run', 'quality:electron-only']),
     startStep('Typecheck', ['exec', 'tsc', '--noEmit', '--pretty', 'false']),
     startStep('Tests', ['exec', 'vitest', 'run']),
     startStep('Build', ['build']),
