@@ -58,9 +58,10 @@ export function setControlsPosition(
   controls: HTMLElement,
   target: HandleBlockTarget,
   controlsLeftOffset: number,
+  horizontalAnchor: HandleBlockTarget = target,
 ): void {
-  const listMarkerOffset = target.isListItem ? 24 : 0;
-  const left = Math.max(8, target.rect.left - controlsLeftOffset - listMarkerOffset);
+  const listMarkerOffset = horizontalAnchor.isListItem ? 24 : 0;
+  const left = Math.max(8, horizontalAnchor.rect.left - controlsLeftOffset - listMarkerOffset);
   const top = target.rect.top + target.rect.height / 2;
   controls.style.left = `${Math.round(left)}px`;
   controls.style.top = `${Math.round(top)}px`;

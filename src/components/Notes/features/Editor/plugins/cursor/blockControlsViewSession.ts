@@ -173,7 +173,8 @@ export class BlockControlsViewSession {
       this.hideControls();
       return;
     }
-    setControlsPosition(this.controls, nextTarget, CONTROLS_LEFT_OFFSET);
+    const horizontalAnchor = targets.length > 1 ? targets[0] : nextTarget;
+    setControlsPosition(this.controls, nextTarget, CONTROLS_LEFT_OFFSET, horizontalAnchor);
     this.controls.classList.add('visible');
   }
 
