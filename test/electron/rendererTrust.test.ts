@@ -32,6 +32,17 @@ describe('Electron renderer trust boundary', () => {
     ).toBe(false);
   });
 
+  it('normalizes packaged renderer file paths before comparing', () => {
+    const nonNormalizedRendererFile = path.join('/app', 'dist', '..', 'dist', 'index.html');
+
+    expect(
+      isTrustedRendererUrl(`${pathToFileURL(rendererFile).toString()}?newWindow=true`, {
+        rendererDevUrl,
+        rendererFile: nonNormalizedRendererFile,
+      }),
+    ).toBe(true);
+  });
+
   it('rejects malformed and unrelated renderer URLs', () => {
     expect(isTrustedRendererUrl('not a url', { rendererDevUrl, rendererFile })).toBe(false);
     expect(isTrustedRendererUrl('https://example.com', { rendererDevUrl, rendererFile })).toBe(false);
