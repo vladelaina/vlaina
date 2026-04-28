@@ -1,18 +1,30 @@
 import { create } from 'zustand';
-import { getStorageAdapter, getBaseName, getParentPath, joinPath } from '@/lib/storage/adapter';
-import { resolveUniqueName } from '@/lib/naming/uniqueName';
-import {
-  getVaultStarredPaths,
-  normalizeStarredVaultPath,
-  saveStarredRegistry,
-} from '@/stores/notes/starred';
+import { getStorageAdapter } from '@/lib/storage/adapter';
+import { normalizeStarredVaultPath, saveStarredRegistry } from '@/stores/notes/starred';
 import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
-import { sanitizeFileName } from '@/stores/notes/noteUtils';
 import { markExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
 import { suspendExternalSync } from '@/stores/notes/document/externalSyncControl';
 import { setCurrentVaultPath, useNotesStore } from './useNotesStore';
 import { ensureVaultConfig, normalizeVaultPath } from './vaultConfig';
-import { desktopWindow } from '@/lib/desktop/window';
+import {
+  CURRENT_VAULT_KEY,
+  VAULTS_STORAGE_KEY,
+  initializeWindowLabel,
+  isNativeFilesystemPath,
+  loadFromStorage,
+  normalizeRecentVaults,
+  normalizeVaultInfo,
+  queryVaultOpenInOtherWindow,
+  closeCurrentVaultAction,
+  removeRecentVaultAction,
+  resolveRenamedVaultPath,
+  saveToStorage,
+  setWindowVaultPath,
+  setupBroadcastChannel,
+  syncCurrentVaultExternalPathAction,
+  upsertRecentVault,
+  waitForUiRelease,
+} from './vaultStoreSupport';
 
 export interface VaultInfo {
   id: string;
@@ -42,160 +54,6 @@ interface VaultActions {
 
 type VaultStore = VaultState & VaultActions;
 
-const VAULTS_STORAGE_KEY = 'vlaina-vaults';
-const CURRENT_VAULT_KEY = 'vlaina-current-vault';
-const MAX_RECENT_VAULTS = 5;
-
-function generateVaultId(): string {
-  return `vault-${crypto.randomUUID()}`;
-}
-
-function loadFromStorage<T>(key: string, defaultValue: T): T {
-  try {
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : defaultValue;
-  } catch {
-    return defaultValue;
-  }
-}
-
-function saveToStorage<T>(key: string, value: T): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-  }
-}
-
-function waitForUiRelease() {
-  return new Promise<void>((resolve) => {
-    window.setTimeout(resolve, 80);
-  });
-}
-
-function getVaultName(path: string): string {
-  const parts = path.replace(/\\/g, '/').split('/');
-  return parts[parts.length - 1] || 'Untitled';
-}
-
-function normalizeVaultInfo(vault: VaultInfo): VaultInfo {
-  const normalizedPath = normalizeVaultPath(vault.path);
-  return {
-    ...vault,
-    name: vault.name || getVaultName(normalizedPath),
-    path: normalizedPath,
-  };
-}
-
-function normalizeRecentVaults(vaults: VaultInfo[]): VaultInfo[] {
-  const seenPaths = new Set<string>();
-  const normalizedVaults: VaultInfo[] = [];
-
-  for (const vault of vaults) {
-    const normalizedVault = normalizeVaultInfo(vault);
-    if (seenPaths.has(normalizedVault.path)) {
-      continue;
-    }
-
-    seenPaths.add(normalizedVault.path);
-    normalizedVaults.push(normalizedVault);
-  }
-
-  return normalizedVaults.slice(0, MAX_RECENT_VAULTS);
-}
-
-function upsertRecentVault(
-  recentVaults: VaultInfo[],
-  path: string,
-  name?: string
-) {
-  const normalizedPath = normalizeVaultPath(path);
-  const vaultName = name || getVaultName(normalizedPath);
-  const existingVault = recentVaults.find((candidate) => candidate.path === normalizedPath);
-
-  const vault = existingVault
-    ? { ...existingVault, name: vaultName, lastOpened: Date.now() }
-    : {
-        id: generateVaultId(),
-        name: vaultName,
-        path: normalizedPath,
-        lastOpened: Date.now(),
-      };
-
-  return {
-    vault,
-    recentVaults: normalizeRecentVaults([
-      vault,
-      ...recentVaults.filter((candidate) => candidate.path !== normalizedPath),
-    ]),
-  };
-}
-
-async function resolveRenamedVaultPath(currentPath: string, nextName: string) {
-  const storage = getStorageAdapter();
-  const parentPath = getParentPath(currentPath);
-  if (!parentPath) {
-    throw new Error('Cannot rename the current vault at this path');
-  }
-
-  const currentFolderName = getBaseName(currentPath);
-  const desiredName = sanitizeFileName(nextName);
-  const resolvedName = await resolveUniqueName(desiredName, async (candidateName) => {
-    if (candidateName === currentFolderName) {
-      return false;
-    }
-
-    const candidatePath = await joinPath(parentPath, candidateName);
-    return storage.exists(candidatePath);
-  });
-
-  return {
-    name: resolvedName,
-    path: normalizeVaultPath(await joinPath(parentPath, resolvedName)),
-  };
-}
-
-function isNativeFilesystemPath(path: string): boolean {
-  if (/^[a-zA-Z]:[\\/]/.test(path)) return true;
-  if (path.startsWith('~')) return true;
-  if (/^\/(?:Users|home|var|etc|usr|opt|tmp|root|mnt|media|System|Library|Applications|Volumes)(?:\/|$)/i.test(path)) return true;
-  return false;
-}
-
-let windowVaultPath: string | null = null;
-let windowLabel: string | null = null;
-let vaultChannel: BroadcastChannel | null = null;
-let pendingQueries: Map<string, (label: string | null) => void> = new Map();
-
-function setupBroadcastChannel() {
-  if (vaultChannel) return;
-
-  vaultChannel = new BroadcastChannel('vlaina-vault');
-
-  vaultChannel.onmessage = (event) => {
-    const { type, requestId, vaultPath, responseLabel } = event.data;
-
-    if (type === 'query' && windowVaultPath === vaultPath && windowLabel) {
-      vaultChannel?.postMessage({
-        type: 'response',
-        requestId,
-        responseLabel: windowLabel,
-      });
-    } else if (type === 'response' && pendingQueries.has(requestId)) {
-      const resolve = pendingQueries.get(requestId);
-      pendingQueries.delete(requestId);
-      resolve?.(responseLabel);
-    }
-  };
-}
-
-async function getCurrentWindowLabel(): Promise<string | null> {
-  try {
-    return await desktopWindow.getLabel();
-  } catch {
-    return null;
-  }
-}
-
 export const useVaultStore = create<VaultStore>()((set, get) => ({
   currentVault: null,
   recentVaults: [],
@@ -212,7 +70,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
       ? normalizeVaultPath(launchContext.vaultPath)
       : null;
 
-    windowLabel = await getCurrentWindowLabel();
+    await initializeWindowLabel();
 
     const existChecks = await Promise.all(
       savedVaults.map(async (vault) => {
@@ -244,14 +102,14 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
         currentVault = nextVaultState.vault;
         saveToStorage(VAULTS_STORAGE_KEY, recentVaults);
         saveToStorage(CURRENT_VAULT_KEY, currentVault.id);
-        windowVaultPath = currentVault.path;
+        setWindowVaultPath(currentVault.path);
         setCurrentVaultPath(currentVault.path);
       }
     } else if (currentVaultId && !launchContext.isNewWindow) {
       currentVault = recentVaults.find((vault) => vault.id === currentVaultId) || null;
       if (currentVault) {
         await ensureVaultConfig(currentVault.path);
-        windowVaultPath = currentVault.path;
+        setWindowVaultPath(currentVault.path);
         setCurrentVaultPath(currentVault.path);
       } else {
         saveToStorage(CURRENT_VAULT_KEY, null);
@@ -264,25 +122,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
   },
 
   checkVaultOpenInOtherWindow: async (path: string): Promise<string | null> => {
-    const normalizedPath = normalizeVaultPath(path);
-    const requestId = `req-${crypto.randomUUID()}`;
-
-    return new Promise((resolve) => {
-      pendingQueries.set(requestId, resolve);
-
-      vaultChannel?.postMessage({
-        type: 'query',
-        requestId,
-        vaultPath: normalizedPath,
-      });
-
-      setTimeout(() => {
-        if (pendingQueries.has(requestId)) {
-          pendingQueries.delete(requestId);
-          resolve(null);
-        }
-      }, 150);
-    });
+    return queryVaultOpenInOtherWindow(path);
   },
 
   openVault: async (path: string, name?: string) => {
@@ -322,7 +162,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
         isLoading: false,
       });
 
-      windowVaultPath = vault.path;
+      setWindowVaultPath(vault.path);
       setCurrentVaultPath(vault.path);
       useNotesStore.setState({ notesPath: vault.path });
 
@@ -440,7 +280,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
           starredEntries: nextStarredEntries,
         });
         saveStarredRegistry(nextStarredEntries);
-        windowVaultPath = nextPath;
+        setWindowVaultPath(nextPath);
         setCurrentVaultPath(nextPath);
         set({
           currentVault: nextVault,
@@ -468,87 +308,16 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
   syncCurrentVaultExternalPath: (path: string) => {
     const { currentVault, recentVaults } = get();
-    if (!currentVault) {
-      return;
-    }
-
-    const normalizedPath = normalizeVaultPath(path);
-    const normalizedCurrentVault = normalizeVaultInfo(currentVault);
-    const normalizedCurrentVaultPath = normalizeVaultPath(normalizedCurrentVault.path);
-    if (!normalizedPath || normalizedPath === normalizedCurrentVaultPath) {
-      return;
-    }
-
-    const nextVault = normalizeVaultInfo({
-      ...normalizedCurrentVault,
-      name: getVaultName(normalizedPath),
-      path: normalizedPath,
-      lastOpened: Date.now(),
-    });
-    const nextRecentVaults = normalizeRecentVaults([
-      nextVault,
-      ...normalizeRecentVaults(recentVaults).filter(
-        (vault) => vault.id !== normalizedCurrentVault.id && vault.path !== normalizedPath
-      ),
-    ]);
-
-    saveToStorage(VAULTS_STORAGE_KEY, nextRecentVaults);
-    saveToStorage(CURRENT_VAULT_KEY, nextVault.id);
-
-    const notesState = useNotesStore.getState();
-    const normalizedStarredVaultPath = normalizeStarredVaultPath(normalizedCurrentVaultPath);
-    const nextStarredEntries = notesState.starredEntries.map((entry) =>
-      normalizeStarredVaultPath(entry.vaultPath) === normalizedStarredVaultPath
-        ? { ...entry, vaultPath: normalizedPath }
-        : entry
-    );
-    const nextStarredPaths = getVaultStarredPaths(nextStarredEntries, normalizedPath);
-    const pendingStarredNavigation = notesState.pendingStarredNavigation;
-    const nextPendingStarredNavigation =
-      pendingStarredNavigation &&
-      normalizeStarredVaultPath(pendingStarredNavigation.vaultPath) === normalizedStarredVaultPath
-        ? { ...pendingStarredNavigation, vaultPath: normalizedPath }
-        : pendingStarredNavigation;
-
-    windowVaultPath = normalizedPath;
-    setCurrentVaultPath(normalizedPath);
-
-    notesState.clearAssetUrlCache();
-    useNotesStore.setState({
-      notesPath: normalizedPath,
-      starredEntries: nextStarredEntries,
-      starredNotes: nextStarredPaths.notes,
-      starredFolders: nextStarredPaths.folders,
-      pendingStarredNavigation: nextPendingStarredNavigation,
-    });
-    void saveStarredRegistry(nextStarredEntries);
-
-    set({
-      currentVault: nextVault,
-      recentVaults: nextRecentVaults,
-      error: null,
-    });
+    syncCurrentVaultExternalPathAction({ path, currentVault, recentVaults, set });
   },
 
   removeFromRecent: (id: string) => {
     const { recentVaults, currentVault } = get();
-    const updatedRecent = recentVaults.filter((vault) => vault.id !== id);
-
-    saveToStorage(VAULTS_STORAGE_KEY, updatedRecent);
-
-    if (currentVault?.id === id) {
-      saveToStorage(CURRENT_VAULT_KEY, null);
-      set({ currentVault: null, recentVaults: updatedRecent });
-    } else {
-      set({ recentVaults: updatedRecent });
-    }
+    removeRecentVaultAction({ id, recentVaults, currentVault, set });
   },
 
   closeVault: () => {
-    saveToStorage(CURRENT_VAULT_KEY, null);
-    windowVaultPath = null;
-    setCurrentVaultPath(null);
-    set({ currentVault: null });
+    closeCurrentVaultAction(set);
   },
 
   clearError: () => {

@@ -1,0 +1,223 @@
+import { getParentPath } from '@/lib/storage/adapter';
+import { getNoteTitleFromPath } from '@/lib/notes/displayName';
+import { addToRecentNotes, createEmptyMetadataFile, persistRecentNotes, remapMetadataEntries, setNoteEntry } from '../storage';
+import { addNodeToTree, findNode } from '../fileTreeUtils';
+import { chooseDraftSavePath, resolveDraftSaveLocation } from '../draftNoteSave';
+import {
+  getCachedNoteModifiedAt,
+  removeCachedNoteContent,
+  setCachedNoteContent,
+} from '../document/noteContentCache';
+import { saveNoteDocument } from '../document/noteDocumentPersistence';
+import { setNoteTabDirtyState } from '../document/noteTabState';
+import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
+import { dispatchOpenMarkdownTargetEvent } from '@/components/Notes/features/OpenTarget/openTargetEvents';
+import { logNotesDebug } from '../debugLog';
+import { persistWorkspaceSnapshot } from '../workspacePersistence';
+import { createWorkspaceDiskSyncAction } from './workspaceDiskSyncActions';
+import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
+
+type WorkspaceDocumentActions = Pick<
+  WorkspaceSlice,
+  'saveNote' | 'syncCurrentNoteFromDisk' | 'invalidateNoteCache' | 'updateContent'
+>;
+
+export function createWorkspaceDocumentActions(
+  set: NotesSet,
+  get: NotesGet
+): WorkspaceDocumentActions {
+  return {
+    saveNote: async (options) => {
+      const {
+        currentNote,
+        notesPath,
+        noteContentsCache,
+        noteMetadata,
+        rootFolder,
+        fileTreeSortMode,
+        draftNotes,
+        openTabs,
+        recentNotes,
+        displayNames,
+        pendingDraftDiscardPath,
+      } = get();
+      if (!currentNote) {
+        logNotesDebug('workspaceSlice:saveNote:ignored-no-current-note');
+        return;
+      }
+
+      try {
+        logNotesDebug('workspaceSlice:saveNote:start', {
+          notePath: currentNote.path,
+          explicit: options?.explicit ?? false,
+          isDirty: get().isDirty,
+        });
+
+        const draftNote = draftNotes[currentNote.path];
+        if (draftNote) {
+          if (!options?.explicit) return;
+
+          const selectedPath = await chooseDraftSavePath(notesPath, draftNote);
+          if (!selectedPath) return;
+
+          const { absolutePath, relativePath } = resolveDraftSaveLocation(selectedPath, notesPath);
+          const savedPath = relativePath ?? absolutePath;
+          const { content, metadata, nextCache } = await saveNoteDocument({
+            notesPath,
+            currentNote: { path: savedPath, content: currentNote.content },
+            cache: noteContentsCache,
+          });
+
+          const tabName = getNoteTitleFromPath(savedPath);
+          const nextTabs = openTabs
+            .map((tab) =>
+              tab.path === currentNote.path
+                ? { path: savedPath, name: tabName, isDirty: false }
+                : tab,
+            )
+            .filter((tab, index, tabs) => tabs.findIndex((candidate) => candidate.path === tab.path) === index);
+
+          const nextDisplayNames = new Map(displayNames);
+          nextDisplayNames.delete(currentNote.path);
+          nextDisplayNames.set(savedPath, tabName);
+
+          const nextDraftNotes = { ...draftNotes };
+          delete nextDraftNotes[currentNote.path];
+
+          let nextMetadata = remapMetadataEntries(noteMetadata ?? createEmptyMetadataFile(), (path) => {
+            if (path === currentNote.path) return relativePath ?? null;
+            return path;
+          }) ?? createEmptyMetadataFile();
+
+          nextMetadata = setNoteEntry(nextMetadata, savedPath, metadata);
+
+          const nextCacheWithSavedNote = removeCachedNoteContent(nextCache, currentNote.path);
+          const nextRecentNotes = relativePath ? addToRecentNotes(relativePath, recentNotes) : recentNotes;
+          if (nextRecentNotes !== recentNotes) {
+            persistRecentNotes(nextRecentNotes);
+          }
+
+          let nextRootFolder = rootFolder;
+          if (relativePath && rootFolder && !findNode(rootFolder.children, relativePath)) {
+            nextRootFolder = buildSortedRootFolder(
+              rootFolder,
+              addNodeToTree(rootFolder.children, getParentPath(relativePath), {
+                id: relativePath,
+                name: tabName,
+                path: relativePath,
+                isFolder: false as const,
+              }),
+              fileTreeSortMode,
+              nextMetadata,
+            );
+          } else if (relativePath) {
+            nextRootFolder = buildSortedRootFolder(
+              rootFolder,
+              rootFolder?.children ?? [],
+              fileTreeSortMode,
+              nextMetadata,
+            );
+          }
+
+          set({
+            currentNote: { path: savedPath, content },
+            currentNoteRevision: get().currentNoteRevision + 1,
+            isDirty: false,
+            noteMetadata: nextMetadata,
+            rootFolder: nextRootFolder,
+            noteContentsCache: nextCacheWithSavedNote,
+            openTabs: nextTabs,
+            recentNotes: nextRecentNotes,
+            displayNames: nextDisplayNames,
+            draftNotes: nextDraftNotes,
+            pendingDraftDiscardPath: pendingDraftDiscardPath === currentNote.path ? null : pendingDraftDiscardPath,
+            error: null,
+          });
+
+          persistWorkspaceSnapshot(notesPath, {
+            rootFolder: nextRootFolder,
+            currentNotePath: relativePath ?? null,
+            fileTreeSortMode,
+          });
+
+          if (!relativePath && !options?.suppressOpenTarget) {
+            dispatchOpenMarkdownTargetEvent(absolutePath);
+          }
+
+          logNotesDebug('workspaceSlice:saveNote:finish', {
+            notePath: savedPath,
+            explicit: options?.explicit ?? false,
+            wasDraft: true,
+            relativePath: relativePath ?? null,
+          });
+          return;
+        }
+
+        const { content, metadata, nextCache } = await saveNoteDocument({
+          notesPath,
+          currentNote,
+          cache: noteContentsCache,
+        });
+        const nextMetadata = setNoteEntry(
+          noteMetadata ?? createEmptyMetadataFile(),
+          currentNote.path,
+          metadata,
+        );
+        const nextRootFolder = buildSortedRootFolder(
+          rootFolder,
+          rootFolder?.children ?? [],
+          fileTreeSortMode,
+          nextMetadata,
+        );
+
+        set({
+          currentNote: { path: currentNote.path, content },
+          currentNoteRevision: get().currentNoteRevision + 1,
+          isDirty: false,
+          noteMetadata: nextMetadata,
+          rootFolder: nextRootFolder,
+          noteContentsCache: nextCache,
+          openTabs: setNoteTabDirtyState(get().openTabs, currentNote.path, false),
+          error: null,
+        });
+        logNotesDebug('workspaceSlice:saveNote:finish', {
+          notePath: currentNote.path,
+          explicit: options?.explicit ?? false,
+          wasDraft: false,
+        });
+      } catch (error) {
+        logNotesDebug('workspaceSlice:saveNote:error', {
+          notePath: currentNote.path,
+          explicit: options?.explicit ?? false,
+          error,
+        });
+        set({ error: error instanceof Error ? error.message : 'Failed to save note' });
+      }
+    },
+
+    ...createWorkspaceDiskSyncAction(set, get),
+
+    invalidateNoteCache: (path: string) => {
+      const { currentNote, noteContentsCache } = get();
+      if (currentNote?.path === path) return;
+      set({ noteContentsCache: removeCachedNoteContent(noteContentsCache, path) });
+    },
+
+    updateContent: (content: string) => {
+      const { currentNote, noteContentsCache, openTabs } = get();
+      if (!currentNote || currentNote.content === content) return;
+      set({
+        currentNote: { ...currentNote, content },
+        currentNoteRevision: get().currentNoteRevision + 1,
+        isDirty: true,
+        openTabs: setNoteTabDirtyState(openTabs, currentNote.path, true),
+        noteContentsCache: setCachedNoteContent(
+          noteContentsCache,
+          currentNote.path,
+          content,
+          getCachedNoteModifiedAt(noteContentsCache, currentNote.path)
+        ),
+      });
+    },
+  };
+}

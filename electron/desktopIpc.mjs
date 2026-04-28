@@ -1,5 +1,4 @@
 import electron from 'electron';
-import { watch } from 'node:fs';
 import {
   copyFile,
   mkdir,
@@ -12,6 +11,8 @@ import {
 } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { registerDesktopDialogIpc } from './desktopDialogIpc.mjs';
+import { registerDesktopWatchIpc } from './desktopWatchIpc.mjs';
 import {
   assertAuthorizedFsPath,
   assertAuthorizedFsWatchPath,
@@ -24,25 +25,6 @@ import {
 } from './fsAccess.mjs';
 
 const { app, dialog, shell } = electron;
-
-const activeWatchers = new Map();
-let watcherCounter = 0;
-
-function isDesktopDialogDebugEnabled() {
-  return !app.isPackaged || process.env.VLAINA_DESKTOP_DIALOG_DEBUG === '1';
-}
-
-function logDesktopDialog(event, details = {}) {
-  if (!isDesktopDialogDebugEnabled()) {
-    return;
-  }
-
-  console.info(`[desktop dialog] ${event}`, details);
-}
-
-function getErrorMessage(error) {
-  return error instanceof Error ? error.message : String(error);
-}
 
 export function registerDesktopIpc({
   handleIpc,
@@ -64,127 +46,12 @@ export function registerDesktopIpc({
     shell.showItemInFolder(await assertAuthorizedFsPath(filePath));
   });
 
-  handleIpc('desktop:dialog:open', async (event, options) => {
-    const window = resolveTargetWindow(event);
-    const properties = [];
-
-    if (options?.directory) {
-      properties.push('openDirectory');
-    } else {
-      properties.push('openFile');
-    }
-
-    if (options?.multiple) {
-      properties.push('multiSelections');
-    }
-
-    const dialogOptions = {
-      title: options?.title,
-      defaultPath: options?.defaultPath,
-      filters: options?.filters,
-      properties,
-    };
-
-    logDesktopDialog('open:start', {
-      options: dialogOptions,
-      hasWindow: Boolean(window),
-      windowId: window?.id ?? null,
-      platform: process.platform,
-      sessionType: process.env.XDG_SESSION_TYPE ?? null,
-      desktop: process.env.XDG_CURRENT_DESKTOP ?? process.env.DESKTOP_SESSION ?? null,
-      portalDesktop: process.env.XDG_DESKTOP_PORTAL_DIR ?? null,
-    });
-
-    let result;
-    try {
-      result = await dialog.showOpenDialog(window ?? undefined, dialogOptions);
-    } catch (error) {
-      logDesktopDialog('open:error', {
-        message: getErrorMessage(error),
-        stack: error instanceof Error ? error.stack : null,
-      });
-      throw error;
-    }
-
-    logDesktopDialog('open:result', {
-      canceled: result.canceled,
-      filePathCount: result.filePaths.length,
-      filePaths: result.filePaths,
-    });
-
-    if (result.canceled) {
-      return null;
-    }
-
-    if (options?.multiple) {
-      const kind = options?.directory ? 'root' : 'file';
-      await Promise.all(result.filePaths.flatMap((filePath) => {
-        const authorizations = [authorizeFsPath(filePath, kind)];
-        if (!options?.directory && options?.authorizeParentDirectory) {
-          const parentPath = path.dirname(filePath);
-          authorizations.push(authorizeFsPath(parentPath, 'root'));
-          authorizations.push(authorizeFsPath(path.dirname(parentPath), 'watch-root'));
-        }
-        return authorizations;
-      }));
-      return result.filePaths;
-    }
-
-    const selectedPath = result.filePaths[0] ?? null;
-    if (selectedPath) {
-      await authorizeFsPath(selectedPath, options?.directory ? 'root' : 'file');
-      if (!options?.directory && options?.authorizeParentDirectory) {
-        const parentPath = path.dirname(selectedPath);
-        const watchParentPath = path.dirname(parentPath);
-        await authorizeFsPath(parentPath, 'root');
-        await authorizeFsPath(watchParentPath, 'watch-root');
-        logDesktopDialog('open:authorized_parent', {
-          selectedPath,
-          parentPath,
-          watchParentPath,
-        });
-      }
-    }
-
-    return selectedPath;
-  });
-
-  handleIpc('desktop:dialog:save', async (event, options) => {
-    const window = resolveTargetWindow(event);
-    const result = await dialog.showSaveDialog(window ?? undefined, {
-      title: options?.title,
-      defaultPath: options?.defaultPath,
-      filters: options?.filters,
-    });
-    if (result.canceled || !result.filePath) {
-      return null;
-    }
-
-    await authorizeFsPath(result.filePath, 'file');
-    return result.filePath;
-  });
-
-  handleIpc('desktop:dialog:message', async (event, message, options) => {
-    const window = resolveTargetWindow(event);
-    await dialog.showMessageBox(window ?? undefined, {
-      type: options?.kind ?? 'info',
-      title: options?.title,
-      message,
-    });
-  });
-
-  handleIpc('desktop:dialog:confirm', async (event, message, options) => {
-    const window = resolveTargetWindow(event);
-    const result = await dialog.showMessageBox(window ?? undefined, {
-      type: options?.kind ?? 'question',
-      title: options?.title,
-      message,
-      buttons: ['OK', 'Cancel'],
-      defaultId: 0,
-      cancelId: 1,
-    });
-
-    return result.response === 0;
+  registerDesktopDialogIpc({
+    app,
+    dialog,
+    handleIpc,
+    resolveTargetWindow,
+    authorizeFsPath,
   });
 
   handleIpc('desktop:fs:write-binary', async (_event, filePath, bytes) => {
@@ -304,32 +171,9 @@ export function registerDesktopIpc({
     return pathToFileURL(await assertAuthorizedFsPath(filePath)).toString();
   });
 
-  handleIpc('desktop:fs:watch', async (event, watchPath) => {
-    const resolvedWatchPath = await assertAuthorizedFsWatchPath(watchPath);
-
-    const watchId = `watch-${++watcherCounter}`;
-    const sender = event.sender;
-    const listener = watch(
-      resolvedWatchPath,
-      { recursive: true },
-      (eventType, filename) => {
-        const resolvedPath = filename ? path.join(resolvedWatchPath, filename.toString()) : resolvedWatchPath;
-        const payload = eventType === 'rename'
-          ? { type: { remove: { kind: 'any' } }, paths: [resolvedPath] }
-          : { type: { modify: { kind: 'data', mode: 'any' } }, paths: [resolvedPath] };
-        sender.send(`desktop:fs:watch:${watchId}`, payload);
-      },
-    );
-
-    activeWatchers.set(watchId, listener);
-    return watchId;
-  });
-
-  handleIpc('desktop:fs:unwatch', (_event, watchId) => {
-    const listener = activeWatchers.get(requireNonEmptyString(watchId, 'watch id'));
-    if (listener) {
-      listener.close();
-      activeWatchers.delete(watchId);
-    }
+  registerDesktopWatchIpc({
+    handleIpc,
+    requireNonEmptyString,
+    assertAuthorizedFsWatchPath,
   });
 }
