@@ -147,6 +147,30 @@ describe('useShortcuts', () => {
     }
   });
 
+  it('dispatches open markdown file for Ctrl+O in notes mode', () => {
+    const openMarkdownListener = vi.fn();
+    window.addEventListener('vlaina-open-markdown-file', openMarkdownListener);
+
+    try {
+      renderHook(() => useShortcuts());
+
+      const event = new KeyboardEvent('keydown', {
+        key: 'o',
+        code: 'KeyO',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+
+      window.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(openMarkdownListener).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener('vlaina-open-markdown-file', openMarkdownListener);
+    }
+  });
+
   it('does not dispatch in-note find outside notes mode', () => {
     useUIStore.setState({ appViewMode: 'chat' });
     const editorFindListener = vi.fn();

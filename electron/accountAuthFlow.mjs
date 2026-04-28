@@ -1,4 +1,4 @@
-import { shell } from 'electron';
+import electron from 'electron';
 import { randomBytes } from 'node:crypto';
 import { createDesktopAuthLogger, summarizeAuthResultShape } from './accountAuthDebug.mjs';
 import {
@@ -13,6 +13,8 @@ import { createDesktopAuthPersistence } from './accountAuthPersistence.mjs';
 import { bindDesktopAuthLoopbackServer } from './accountLoopbackServer.mjs';
 import { createDesktopAccountSessionClient } from './accountSessionClient.mjs';
 
+const { shell } = electron;
+
 function accountErrorResult(message) {
   return {
     success: false,
@@ -26,6 +28,14 @@ function accountErrorResult(message) {
 
 function generateDesktopVerifier() {
   return randomBytes(48).toString('base64url');
+}
+
+function getErrorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function accountNetworkErrorResult(error) {
+  return accountErrorResult(`Unable to reach vlaina API: ${getErrorMessage(error)}`);
 }
 
 export function createDesktopAccountService({ apiBaseUrl }) {
@@ -132,62 +142,73 @@ export function createDesktopAccountService({ apiBaseUrl }) {
       logDesktopAuth,
       timeoutSeconds: 300,
     });
-    const { data: authStart } = await fetchDesktopJson(buildDesktopAuthStartUrl(provider), {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+
+    try {
+      const { data: authStart } = await fetchDesktopJson(buildDesktopAuthStartUrl(provider), {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          callbackUrl: loopback.callbackUrl,
+          verifier,
+        }),
+      });
+
+      const state = typeof authStart?.state === 'string' ? authStart.state.trim() : '';
+      const authUrl = typeof authStart?.authUrl === 'string' ? authStart.authUrl.trim() : '';
+      const expiresInSeconds =
+        typeof authStart?.expiresInSeconds === 'number' ? authStart.expiresInSeconds : 300;
+
+      logDesktopAuth('oauth:start_response', {
+        provider,
+        authStart,
         callbackUrl: loopback.callbackUrl,
         verifier,
-      }),
-    });
-
-    const state = typeof authStart?.state === 'string' ? authStart.state.trim() : '';
-    const authUrl = typeof authStart?.authUrl === 'string' ? authStart.authUrl.trim() : '';
-    const expiresInSeconds =
-      typeof authStart?.expiresInSeconds === 'number' ? authStart.expiresInSeconds : 300;
-
-    logDesktopAuth('oauth:start_response', {
-      provider,
-      authStart,
-      callbackUrl: loopback.callbackUrl,
-      verifier,
-    });
-
-    if (!authStart?.success || !state || !authUrl) {
-      return accountErrorResult('Sign-in start response is missing auth URL or state');
-    }
-
-    await shell.openExternal(authUrl);
-    logDesktopAuth('oauth:browser_opened', { provider, authUrl });
-    const callback = await loopback.waitForCallback();
-    logDesktopAuth('oauth:callback_resolved', { provider, callback });
-    if (callback.state !== state) {
-      logDesktopAuth('oauth:state_mismatch', {
-        provider,
-        expectedState: state,
-        receivedState: callback.state,
       });
-      return accountErrorResult('OAuth state mismatch');
-    }
-    const result = await waitForDesktopAuthCompletion(
-      provider,
-      callback.state,
-      verifier,
-      callback.resultToken,
-      expiresInSeconds
-    );
 
-    if (!result?.success) {
-      logDesktopAuth('oauth:result_failed', { provider, callback, result });
-      return accountErrorResult(callback.error || result?.error || 'Authorization failed');
-    }
+      if (!authStart?.success || !state || !authUrl) {
+        loopback.close();
+        return accountErrorResult('Sign-in start response is missing auth URL or state');
+      }
 
-    const persisted = await persistDesktopAuthResult(provider, result);
-    logDesktopAuth('oauth:completed', { provider, persisted });
-    return persisted;
+      await shell.openExternal(authUrl);
+      logDesktopAuth('oauth:browser_opened', { provider, authUrl });
+      const callback = await loopback.waitForCallback();
+      logDesktopAuth('oauth:callback_resolved', { provider, callback });
+      if (callback.state !== state) {
+        logDesktopAuth('oauth:state_mismatch', {
+          provider,
+          expectedState: state,
+          receivedState: callback.state,
+        });
+        return accountErrorResult('OAuth state mismatch');
+      }
+      const result = await waitForDesktopAuthCompletion(
+        provider,
+        callback.state,
+        verifier,
+        callback.resultToken,
+        expiresInSeconds
+      );
+
+      if (!result?.success) {
+        logDesktopAuth('oauth:result_failed', { provider, callback, result });
+        return accountErrorResult(callback.error || result?.error || 'Authorization failed');
+      }
+
+      const persisted = await persistDesktopAuthResult(provider, result);
+      logDesktopAuth('oauth:completed', { provider, persisted });
+      return persisted;
+    } catch (error) {
+      loopback.close();
+      logDesktopAuth('oauth:error', {
+        provider,
+        error: getErrorMessage(error),
+      });
+      return accountNetworkErrorResult(error);
+    }
   }
 
   function registerAccountIpc({ handleIpc }) {

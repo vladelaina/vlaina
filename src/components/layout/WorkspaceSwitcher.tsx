@@ -37,7 +37,11 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
   }, []);
 
   const handleOpenSettings = useCallback(() => {
-    onOpenSettings?.();
+    if (onOpenSettings) {
+      onOpenSettings();
+    } else {
+      window.dispatchEvent(new Event('open-settings'));
+    }
     setIsOpen(false);
   }, [onOpenSettings]);
 

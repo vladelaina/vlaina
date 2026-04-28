@@ -17,6 +17,10 @@ export interface ElectronWindowApi {
   onCloseRequested(callback: () => void): () => void;
 }
 
+export interface ElectronShortcutsApi {
+  onOpenMarkdownFile(callback: () => void): () => void;
+}
+
 export interface ElectronShellApi {
   openExternal(url: string): Promise<void>;
   trashItem(filePath: string): Promise<void>;
@@ -154,6 +158,7 @@ export interface VlainaDesktopApi {
   platform: 'electron';
   getPlatform(): Promise<'electron'>;
   window: ElectronWindowApi;
+  shortcuts: ElectronShortcutsApi;
   shell: ElectronShellApi;
   dialog: ElectronDialogApi;
   fs: ElectronFsApi;

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { assertNotWsl } from './ensure-not-wsl.mjs';
 
@@ -160,7 +160,9 @@ async function startElectron(env) {
   }
 
   log('36', 'Starting Electron');
-  electronProcess = spawnPnpm(['exec', 'electron', '.'], env, 'Electron');
+  const electronEnv = normalizeElectronDesktopEnv(env);
+  updateLinuxDesktopActivationEnvironment(electronEnv);
+  electronProcess = spawnPnpm(['exec', 'electron', '.'], electronEnv, 'Electron');
 
   electronProcess.once('exit', async (code, signal) => {
     const exitedProcess = electronProcess;
@@ -283,6 +285,78 @@ async function shutdown(exitCode = 0) {
   rendererProcess = null;
 
   process.exit(exitCode);
+}
+
+function normalizeElectronDesktopEnv(env) {
+  if (process.platform !== 'linux') {
+    return env;
+  }
+
+  const next = { ...env };
+  const hasWaylandDisplay = typeof next.WAYLAND_DISPLAY === 'string' && next.WAYLAND_DISPLAY.trim().length > 0;
+  const hasX11Display = typeof next.DISPLAY === 'string' && next.DISPLAY.trim().length > 0;
+  const sessionType = typeof next.XDG_SESSION_TYPE === 'string' ? next.XDG_SESSION_TYPE.trim().toLowerCase() : '';
+
+  if (hasWaylandDisplay && (!sessionType || sessionType === 'tty')) {
+    next.XDG_SESSION_TYPE = 'wayland';
+    log('33', 'Adjusted Electron XDG_SESSION_TYPE=wayland for desktop dialogs');
+  } else if (hasX11Display && (!sessionType || sessionType === 'tty')) {
+    next.XDG_SESSION_TYPE = 'x11';
+    log('33', 'Adjusted Electron XDG_SESSION_TYPE=x11 for desktop dialogs');
+  }
+
+  if (!next.XDG_CURRENT_DESKTOP) {
+    if (typeof next.DESKTOP_SESSION === 'string' && next.DESKTOP_SESSION.trim()) {
+      next.XDG_CURRENT_DESKTOP = next.DESKTOP_SESSION.trim();
+      log('33', `Adjusted Electron XDG_CURRENT_DESKTOP=${next.XDG_CURRENT_DESKTOP} from DESKTOP_SESSION`);
+    } else if (fs.existsSync('/usr/share/xdg-desktop-portal/niri-portals.conf')) {
+      next.XDG_CURRENT_DESKTOP = 'niri';
+      log('33', 'Adjusted Electron XDG_CURRENT_DESKTOP=niri for xdg-desktop-portal');
+    } else {
+      log('33', 'XDG_CURRENT_DESKTOP is not set; Linux file dialogs may require xdg-desktop-portal configuration');
+    }
+  }
+
+  return next;
+}
+
+let desktopActivationEnvironmentUpdated = false;
+
+function updateLinuxDesktopActivationEnvironment(env) {
+  if (desktopActivationEnvironmentUpdated || process.platform !== 'linux') {
+    return;
+  }
+
+  desktopActivationEnvironmentUpdated = true;
+
+  const variables = [
+    'WAYLAND_DISPLAY',
+    'DISPLAY',
+    'XDG_CURRENT_DESKTOP',
+    'XDG_SESSION_TYPE',
+    'DESKTOP_SESSION',
+    'DBUS_SESSION_BUS_ADDRESS',
+  ]
+    .filter((name) => typeof env[name] === 'string' && env[name].trim().length > 0)
+    .map((name) => `${name}=${env[name]}`);
+
+  if (variables.length === 0) {
+    return;
+  }
+
+  const result = spawnSync('dbus-update-activation-environment', ['--systemd', ...variables], {
+    env,
+    stdio: 'pipe',
+    encoding: 'utf8',
+  });
+
+  if (result.status === 0) {
+    log('33', 'Updated D-Bus/systemd desktop activation environment for Linux dialogs');
+    return;
+  }
+
+  const message = (result.stderr || result.stdout || '').trim();
+  log('33', `Failed to update D-Bus/systemd desktop activation environment${message ? `: ${message}` : ''}`);
 }
 
 async function startDev() {

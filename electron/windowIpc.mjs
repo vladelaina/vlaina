@@ -1,4 +1,6 @@
-import { BrowserWindow } from 'electron';
+import electron from 'electron';
+
+const { BrowserWindow } = electron;
 
 export function registerWindowIpc({
   closeApprovedWebContents,

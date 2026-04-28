@@ -21,14 +21,6 @@ function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function stringifyAuthDebug(value: unknown): string {
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch (error) {
-    return `[unserializable: ${error instanceof Error ? error.message : String(error)}]`;
-  }
-}
-
 function isRelevantElectronAuthEvent(event: string): boolean {
   if (
     event.startsWith('session_status:http') ||
@@ -95,48 +87,14 @@ export function selectRelevantElectronAuthEntries(entries: Array<{
   return entries.slice(-40).filter((entry) => isRelevantElectronAuthEvent(entry.event));
 }
 
-async function dumpElectronAuthDebugLog(label: string): Promise<void> {
-  if (!import.meta.env.DEV || !hasElectronDesktopBridge()) {
-    return;
-  }
-
-  try {
-    const entries = await accountCommands.getAuthDebugLog();
-    const relevantEntries = selectRelevantElectronAuthEntries(entries);
-    console.info(`[account auth] ${label}:electron_debug_log`, relevantEntries);
-    console.info(
-      `[account auth] ${label}:electron_debug_log:json`,
-      stringifyAuthDebug(relevantEntries),
-    );
-  } catch (error) {
-    console.error(
-      `[account auth] ${label}:electron_debug_log:error`,
-      stringifyAuthDebug({
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack ?? null : null,
-      }),
-    );
-  }
-}
-
 export function createCheckStatus(set: Set, get: Get): () => Promise<void> {
   return async () => {
-    if (import.meta.env.DEV) {
-      console.info('[account auth] checkStatus:start', {
-        electron: hasElectronDesktopBridge(),
-      });
-    }
     set({ isLoading: true });
 
     try {
       const status = hasElectronDesktopBridge()
         ? await accountCommands.getAccountSessionStatus()
         : await webAccountCommands.probeStatus();
-      if (import.meta.env.DEV) {
-        console.info('[account auth] checkStatus:status', status);
-        console.info('[account auth] checkStatus:status:json', stringifyAuthDebug(status));
-        await dumpElectronAuthDebugLog('checkStatus');
-      }
       const provider = normalizeAccountProvider(status?.provider);
       const connected = status?.connected === true;
       const username = status?.username ?? null;
@@ -165,15 +123,6 @@ export function createCheckStatus(set: Set, get: Get): () => Promise<void> {
       await refreshAvatar(set, get, username, avatarUrl);
     } catch (error) {
       console.error('Failed to check account auth status:', error);
-      if (import.meta.env.DEV) {
-        console.error(
-          '[account auth] checkStatus:error:json',
-          stringifyAuthDebug({
-            message: error instanceof Error ? error.message : String(error),
-            stack: error instanceof Error ? error.stack ?? null : null,
-          }),
-        );
-      }
       applyDisconnectedAccount(set);
     }
   };
@@ -184,19 +133,6 @@ export function createSignIn(
   get: Get
 ): (provider: Exclude<AccountProvider, 'email'>) => Promise<boolean> {
   return async (provider) => {
-    if (import.meta.env.DEV) {
-      console.info('[account auth] signIn:start', {
-        provider,
-        electron: hasElectronDesktopBridge(),
-      });
-      console.info(
-        '[account auth] signIn:start:json',
-        stringifyAuthDebug({
-          provider,
-          electron: hasElectronDesktopBridge(),
-        }),
-      );
-    }
     set({ isConnecting: true, error: null });
 
     const timeoutId = setTimeout(() => {
@@ -211,11 +147,6 @@ export function createSignIn(
     if (hasElectronDesktopBridge()) {
       try {
         const result = await accountCommands.accountAuth(provider);
-        if (import.meta.env.DEV) {
-          console.info('[account auth] signIn:electron_result', result);
-          console.info('[account auth] signIn:electron_result:json', stringifyAuthDebug(result));
-          await dumpElectronAuthDebugLog('signIn');
-        }
         clearTimeout(timeoutId);
 
         if (result?.success) {

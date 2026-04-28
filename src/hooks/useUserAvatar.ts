@@ -1,7 +1,7 @@
 import { useAccountSessionStore } from '@/stores/accountSession';
 
 export function useUserAvatar() {
-    const { localAvatarUrl } = useAccountSessionStore();
+    const { avatarUrl, localAvatarUrl } = useAccountSessionStore();
 
-    return localAvatarUrl || null;
+    return localAvatarUrl || avatarUrl || null;
 }

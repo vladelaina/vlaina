@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import { cn, iconButtonStyles } from '@/lib/utils';
@@ -7,26 +8,39 @@ interface SidebarUserHeaderProps {
 }
 
 export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
+    const [showCollapse, setShowCollapse] = useState(false);
+
     return (
         <div
-            className="vlaina-drag-region group/header flex items-center px-3 h-10 w-full gap-1"
+            className="vlaina-drag-region flex items-center px-3 h-10 w-full gap-1"
+            onMouseEnter={() => setShowCollapse(true)}
+            onMouseLeave={() => setShowCollapse(false)}
+            onFocus={() => setShowCollapse(true)}
+            onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) {
+                    setShowCollapse(false);
+                }
+            }}
         >
             <WorkspaceSwitcher />
-            <div className="flex-1 h-full vlaina-drag-region" />
             <button
                 type="button"
                 onClick={toggleSidebar}
                 aria-label="Collapse sidebar"
                 className={cn(
-                    "vlaina-no-drag group flex items-center justify-center w-7 h-7 rounded-md flex-shrink-0 transition-colors",
-                    "hover:bg-[#f5f5f5] dark:hover:bg-white/10",
+                    "vlaina-no-drag flex h-full min-w-0 flex-1 items-center justify-end bg-transparent",
                     iconButtonStyles
                 )}
             >
-                <>
-                    <Icon name="nav.sidebarDock" size="md" className="group-hover:hidden" />
-                    <Icon name="nav.collapse" size="md" className="hidden group-hover:block" />
-                </>
+                <span
+                    className={cn(
+                        "flex h-7 w-7 items-center justify-center rounded-md opacity-0 transition-[background-color,opacity]",
+                        showCollapse && "opacity-100",
+                        "hover:bg-[#f5f5f5] dark:hover:bg-white/10"
+                    )}
+                >
+                    <Icon name="nav.collapse" size="md" />
+                </span>
             </button>
         </div>
     );

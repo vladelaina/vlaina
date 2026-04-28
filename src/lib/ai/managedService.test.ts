@@ -100,6 +100,11 @@ describe('managedService', () => {
       )
     ).toBe(true);
     expect(isManagedServiceRecoverableError(new Error('Failed to fetch'))).toBe(true);
+    expect(
+      isManagedServiceRecoverableError(
+        new Error("Error invoking remote method 'desktop:managed:get-models': TypeError: fetch failed")
+      )
+    ).toBe(true);
     expect(isManagedServiceRecoverableError(new Error('Unexpected JSON shape'))).toBe(false);
   });
 

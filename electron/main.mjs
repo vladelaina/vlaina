@@ -1,11 +1,14 @@
-import { app, BrowserWindow, ipcMain, session, shell } from 'electron';
+import electron from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createDesktopAccountService } from './accountAuthFlow.mjs';
 import { readSecretsStore, writeSecretsStore } from './aiProviderSecretStore.mjs';
 import { registerDesktopIpc } from './desktopIpc.mjs';
 import { registerManagedIpc } from './managedIpc.mjs';
+import { isTrustedRendererUrl as isTrustedRendererUrlForConfig } from './rendererTrust.mjs';
 import { createWindowManager } from './windowManager.mjs';
+
+const { app, BrowserWindow, ipcMain, session, shell } = electron;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,6 +16,7 @@ const rendererDevUrl = process.env.VITE_DEV_SERVER_URL ?? 'http://127.0.0.1:3000
 const apiBaseUrl = (process.env.APP_API_BASE_URL ?? 'https://api.vlaina.com').trim().replace(/\/+$/, '');
 const managedApiBaseUrl = `${apiBaseUrl}/v1`;
 const appIconPath = path.join(__dirname, '..', 'public', 'logo.png');
+const rendererFile = path.join(__dirname, '..', 'dist', 'index.html');
 const desktopAccountService = createDesktopAccountService({ apiBaseUrl });
 const { fetchWithStoredSession, readJsonResponse } = desktopAccountService;
 
@@ -51,17 +55,7 @@ function normalizeExternalUrl(rawUrl) {
 }
 
 function isTrustedRendererUrl(rawUrl) {
-  try {
-    const url = new URL(rawUrl);
-    if (url.protocol === 'file:') {
-      return true;
-    }
-
-    const rendererOrigin = new URL(rendererDevUrl).origin;
-    return url.origin === rendererOrigin;
-  } catch {
-    return false;
-  }
+  return isTrustedRendererUrlForConfig(rawUrl, { rendererDevUrl, rendererFile });
 }
 
 function resolveTrustedSenderUrl(event) {

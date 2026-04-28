@@ -61,13 +61,7 @@ export async function downloadAndSaveAvatar(url: string, username: string): Prom
             return avatarPath;
         } catch (error) {
             failedDownloads.set(downloadKey, Date.now());
-            if (import.meta.env.DEV) {
-                if (error instanceof DOMException && error.name === 'AbortError') {
-                    console.warn('[AvatarManager] Avatar fetch timed out, will retry later.');
-                } else {
-                    console.warn('[AvatarManager] Failed to save avatar locally:', error);
-                }
-            }
+            void error;
             return null;
         } finally {
             pendingDownloads.delete(username);

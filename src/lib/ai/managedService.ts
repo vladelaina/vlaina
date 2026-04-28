@@ -69,10 +69,12 @@ export function isManagedServiceRecoverableError(error: unknown): boolean {
   const normalized = message.toLowerCase();
   return (
     normalized.includes('failed to fetch') ||
+    normalized.includes('fetch failed') ||
     normalized.includes('networkerror') ||
     normalized.includes('load failed') ||
     normalized.includes('error sending request') ||
     normalized.includes('timed out') ||
+    normalized.includes('etimedout') ||
     normalized.includes('aborterror')
   );
 }

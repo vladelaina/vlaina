@@ -71,6 +71,16 @@ const desktopApi = {
       };
     },
   },
+  shortcuts: {
+    onOpenMarkdownFile(callback) {
+      const channel = 'desktop:shortcut:open-markdown-file';
+      const handler = () => callback();
+      ipcRenderer.on(channel, handler);
+      return () => {
+        ipcRenderer.removeListener(channel, handler);
+      };
+    },
+  },
   shell: {
     openExternal(url) {
       return ipcRenderer.invoke('desktop:shell:open-external', url);

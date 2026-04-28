@@ -1,4 +1,4 @@
-import { app, dialog, shell } from 'electron';
+import electron from 'electron';
 import { watch } from 'node:fs';
 import {
   copyFile,
@@ -14,6 +14,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
   assertAuthorizedFsPath,
+  assertAuthorizedFsWatchPath,
   authorizeFsPath,
   canRenameAuthorizedRoot,
   isAuthorizedFsPathKey,
@@ -22,8 +23,26 @@ import {
   updateAuthorizedRootRename,
 } from './fsAccess.mjs';
 
+const { app, dialog, shell } = electron;
+
 const activeWatchers = new Map();
 let watcherCounter = 0;
+
+function isDesktopDialogDebugEnabled() {
+  return !app.isPackaged || process.env.VLAINA_DESKTOP_DIALOG_DEBUG === '1';
+}
+
+function logDesktopDialog(event, details = {}) {
+  if (!isDesktopDialogDebugEnabled()) {
+    return;
+  }
+
+  console.info(`[desktop dialog] ${event}`, details);
+}
+
+function getErrorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
 
 export function registerDesktopIpc({
   handleIpc,
@@ -59,11 +78,38 @@ export function registerDesktopIpc({
       properties.push('multiSelections');
     }
 
-    const result = await dialog.showOpenDialog(window ?? undefined, {
+    const dialogOptions = {
       title: options?.title,
       defaultPath: options?.defaultPath,
       filters: options?.filters,
       properties,
+    };
+
+    logDesktopDialog('open:start', {
+      options: dialogOptions,
+      hasWindow: Boolean(window),
+      windowId: window?.id ?? null,
+      platform: process.platform,
+      sessionType: process.env.XDG_SESSION_TYPE ?? null,
+      desktop: process.env.XDG_CURRENT_DESKTOP ?? process.env.DESKTOP_SESSION ?? null,
+      portalDesktop: process.env.XDG_DESKTOP_PORTAL_DIR ?? null,
+    });
+
+    let result;
+    try {
+      result = await dialog.showOpenDialog(window ?? undefined, dialogOptions);
+    } catch (error) {
+      logDesktopDialog('open:error', {
+        message: getErrorMessage(error),
+        stack: error instanceof Error ? error.stack : null,
+      });
+      throw error;
+    }
+
+    logDesktopDialog('open:result', {
+      canceled: result.canceled,
+      filePathCount: result.filePaths.length,
+      filePaths: result.filePaths,
     });
 
     if (result.canceled) {
@@ -72,13 +118,32 @@ export function registerDesktopIpc({
 
     if (options?.multiple) {
       const kind = options?.directory ? 'root' : 'file';
-      await Promise.all(result.filePaths.map((filePath) => authorizeFsPath(filePath, kind)));
+      await Promise.all(result.filePaths.flatMap((filePath) => {
+        const authorizations = [authorizeFsPath(filePath, kind)];
+        if (!options?.directory && options?.authorizeParentDirectory) {
+          const parentPath = path.dirname(filePath);
+          authorizations.push(authorizeFsPath(parentPath, 'root'));
+          authorizations.push(authorizeFsPath(path.dirname(parentPath), 'watch-root'));
+        }
+        return authorizations;
+      }));
       return result.filePaths;
     }
 
     const selectedPath = result.filePaths[0] ?? null;
     if (selectedPath) {
       await authorizeFsPath(selectedPath, options?.directory ? 'root' : 'file');
+      if (!options?.directory && options?.authorizeParentDirectory) {
+        const parentPath = path.dirname(selectedPath);
+        const watchParentPath = path.dirname(parentPath);
+        await authorizeFsPath(parentPath, 'root');
+        await authorizeFsPath(watchParentPath, 'watch-root');
+        logDesktopDialog('open:authorized_parent', {
+          selectedPath,
+          parentPath,
+          watchParentPath,
+        });
+      }
     }
 
     return selectedPath;
@@ -240,7 +305,7 @@ export function registerDesktopIpc({
   });
 
   handleIpc('desktop:fs:watch', async (event, watchPath) => {
-    const resolvedWatchPath = await assertAuthorizedFsPath(watchPath);
+    const resolvedWatchPath = await assertAuthorizedFsWatchPath(watchPath);
 
     const watchId = `watch-${++watcherCounter}`;
     const sender = event.sender;

@@ -1,7 +1,9 @@
-import { app, safeStorage } from 'electron';
+import electron from 'electron';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { decodeSecretRecord, encodeSecretRecord } from './secureSecretRecord.mjs';
+
+const { app, safeStorage } = electron;
 
 export function isSupportedAccountProvider(provider) {
   return provider === 'github' || provider === 'google' || provider === 'email';

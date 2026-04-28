@@ -3,6 +3,7 @@ import { openDesktopDialog, saveDesktopDialog, showDesktopConfirm, showDesktopMe
 export interface OpenDialogOptions {
   directory?: boolean;
   multiple?: boolean;
+  authorizeParentDirectory?: boolean;
   title?: string;
   defaultPath?: string;
   filters?: { name: string; extensions: string[] }[];

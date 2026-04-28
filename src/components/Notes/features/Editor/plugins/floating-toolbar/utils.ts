@@ -60,6 +60,8 @@ export function isValidUrl(input: string): boolean {
   if (!input || input.trim() === '') return false;
   
   const trimmed = input.trim();
+  if (trimmed !== input) return false;
+
   const validPatterns = [
     /^https?:\/\/.+/i,
     /^mailto:.+/i,

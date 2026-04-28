@@ -26,7 +26,7 @@ import { flushPendingSessionJsonSaves } from '@/lib/storage/chatStorage';
 import { hasDraftUnsavedChanges, isDraftNotePath } from '@/stores/notes/draftNote';
 import { openStoredNotePath } from '@/stores/notes/openNotePath';
 import { desktopWindow } from '@/lib/desktop/window';
-import { getElectronBridge, isElectronRuntime } from '@/lib/electron/bridge';
+import { isElectronRuntime } from '@/lib/electron/bridge';
 
 const SettingsModal = lazy(async () => {
   const mod = await import('@/components/Settings');
@@ -145,20 +145,6 @@ function AppContent() {
     void unlockWindow();
   }, []);
 
-  useEffect(() => {
-    if (!isElectronRuntime()) {
-      return;
-    }
-
-    const unsubscribe = getElectronBridge()?.account.onAuthLog?.((entry) => {
-      console.info(`[desktop auth] ${entry.event}`, entry);
-    });
-
-    return () => {
-      unsubscribe?.();
-    };
-  }, []);
-
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
@@ -231,7 +217,7 @@ function AppContent() {
 
   const showLabEntry = import.meta.env.DEV && appViewMode !== 'lab';
   const mainOverlay = showLabEntry ? (
-    <div className="pointer-events-none absolute bottom-3 left-2 z-30">
+    <div className="pointer-events-none absolute bottom-3 right-3 z-30">
       <Tooltip delayDuration={700}>
         <TooltipTrigger asChild>
           <button
@@ -246,7 +232,7 @@ function AppContent() {
             <Icon name="misc.lab" size="md" />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="right" sideOffset={8}>
+        <TooltipContent side="left" sideOffset={8}>
           <span className="text-xs">Open Design Lab</span>
         </TooltipContent>
       </Tooltip>

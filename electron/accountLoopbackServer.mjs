@@ -2,6 +2,15 @@ import { createServer } from 'node:http';
 
 const loopbackCallbackPath = '/oauth/callback';
 
+export function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export async function bindDesktopAuthLoopbackServer({ logDesktopAuth, timeoutSeconds }) {
   let settled = false;
   let timer = null;
@@ -48,8 +57,8 @@ export async function bindDesktopAuthLoopbackServer({ logDesktopAuth, timeoutSec
       response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       response.end(
         error
-          ? `<h1>Authorization Failed</h1><p>${error}</p><p>You can return to vlaina now.</p>`
-          : '<h1>Authorization Successful</h1><p>You can close this window and return to vlaina.</p>'
+          ? `<h1>Authorization Failed</h1><p>${escapeHtml(error)}</p><p>You can return to vlaina now.</p>`
+          : '<h1>Authorization Received</h1><p>Return to vlaina to finish sign-in.</p>'
       );
 
       if (!settled) {
@@ -104,6 +113,15 @@ export async function bindDesktopAuthLoopbackServer({ logDesktopAuth, timeoutSec
 
   return {
     ...serverReady,
+    close: () => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      clearTimeout(timer);
+      server.close();
+    },
     waitForCallback: () => callbackPromise,
   };
 }

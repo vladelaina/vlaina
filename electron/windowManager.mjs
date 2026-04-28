@@ -1,7 +1,9 @@
-import { BrowserWindow } from 'electron';
+import electron from 'electron';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { registerWindowIpc as registerWindowIpcHandlers } from './windowIpc.mjs';
+
+const { BrowserWindow } = electron;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -95,19 +97,29 @@ export function createWindowManager({
       windowLabels.delete(window.id);
     });
 
-    if (isDevelopment()) {
-      window.webContents.on('before-input-event', (event, input) => {
-        const isDevToolsShortcut =
-          input.type === 'keyDown' &&
-          (
-            input.key === 'F12' ||
-            ((input.control || input.meta) && input.shift && input.key.toLowerCase() === 'i')
-          );
+    window.webContents.on('before-input-event', (event, input) => {
+      const isOpenMarkdownShortcut =
+        input.type === 'keyDown' &&
+        (input.control || input.meta) &&
+        !input.shift &&
+        !input.alt &&
+        input.key.toLowerCase() === 'o';
 
-        if (!isDevToolsShortcut) {
-          return;
-        }
+      if (isOpenMarkdownShortcut) {
+        event.preventDefault();
+        window.webContents.send('desktop:shortcut:open-markdown-file');
+        return;
+      }
 
+      const isDevToolsShortcut =
+        isDevelopment() &&
+        input.type === 'keyDown' &&
+        (
+          input.key === 'F12' ||
+          ((input.control || input.meta) && input.shift && input.key.toLowerCase() === 'i')
+        );
+
+      if (isDevToolsShortcut) {
         event.preventDefault();
 
         if (window.webContents.isDevToolsOpened()) {
@@ -116,8 +128,8 @@ export function createWindowManager({
         }
 
         window.webContents.openDevTools({ mode: 'detach' });
-      });
-    }
+      }
+    });
 
     window.webContents.setWindowOpenHandler(({ url }) => {
       openExternalIfAllowed(url);

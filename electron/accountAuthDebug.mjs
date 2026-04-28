@@ -1,7 +1,9 @@
-import { app, BrowserWindow } from 'electron';
+import electron from 'electron';
+
+const { app, BrowserWindow } = electron;
 
 export function isDesktopAuthDebugEnabled() {
-  return !app.isPackaged || process.env.VLAINA_DESKTOP_AUTH_DEBUG === '1';
+  return !app?.isPackaged || process.env.VLAINA_DESKTOP_AUTH_DEBUG === '1';
 }
 
 export function redactToken(value) {
@@ -21,20 +23,39 @@ export function redactToken(value) {
   return `${trimmed.slice(0, 6)}…${trimmed.slice(-4)}`;
 }
 
+function shouldRedactKey(key) {
+  return /token|secret|verifier/i.test(String(key));
+}
+
+function redactAuthPayload(value, key = '') {
+  const sensitiveKey = shouldRedactKey(key);
+
+  if (typeof value === 'string') {
+    return sensitiveKey ? redactToken(value) : value;
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value ?? null;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => redactAuthPayload(item, key));
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([entryKey, entryValue]) => [
+      entryKey,
+      redactAuthPayload(entryValue, sensitiveKey ? key : entryKey),
+    ]),
+  );
+}
+
 export function summarizeAuthPayload(payload) {
   if (!payload || typeof payload !== 'object') {
     return payload ?? null;
   }
 
-  return {
-    ...payload,
-    sessionToken: redactToken(payload.sessionToken),
-    appSessionToken: redactToken(payload.appSessionToken),
-    token: redactToken(payload.token),
-    resultToken: redactToken(payload.resultToken),
-    verifier: redactToken(payload.verifier),
-    state: typeof payload.state === 'string' ? payload.state : payload.state ?? null,
-  };
+  return redactAuthPayload(payload);
 }
 
 export function summarizeAuthResultShape(result) {
@@ -73,8 +94,7 @@ export function createDesktopAuthLogger() {
     if (desktopAuthDebugBuffer.length > 200) {
       desktopAuthDebugBuffer.splice(0, desktopAuthDebugBuffer.length - 200);
     }
-    console.info(`[desktop auth][${timestamp}] ${event}`, entry.details);
-    for (const window of BrowserWindow.getAllWindows()) {
+    for (const window of BrowserWindow?.getAllWindows?.() ?? []) {
       if (window.isDestroyed()) {
         continue;
       }
