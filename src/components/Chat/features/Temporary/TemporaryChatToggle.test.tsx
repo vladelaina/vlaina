@@ -90,6 +90,16 @@ function createStore(overrides?: Record<string, unknown>) {
   };
 }
 
+function createUIState(store: ReturnType<typeof createStore>, overrides?: Record<string, unknown>) {
+  const ai = store.data.ai;
+  return {
+    generatingSessions: store.generatingSessions as Record<string, boolean>,
+    currentSessionId: ai.currentSessionId,
+    temporaryChatEnabled: ai.temporaryChatEnabled,
+    ...overrides,
+  };
+}
+
 describe("TemporaryChatToggle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -97,11 +107,10 @@ describe("TemporaryChatToggle", () => {
 
   it("promotes temporary chat and triggers auto title generation in promote mode", () => {
     const store = createStore();
+    const uiState = createUIState(store);
     mocks.promoteTemporarySession.mockReturnValue("session-123");
     mocks.useUnifiedStore.mockImplementation((selector: (state: typeof store) => unknown) => selector(store));
-    mocks.useAIUIStore.mockImplementation((selector: (state: { generatingSessions: Record<string, boolean> }) => unknown) =>
-      selector({ generatingSessions: store.generatingSessions as Record<string, boolean> })
-    );
+    mocks.useAIUIStore.mockImplementation((selector: (state: typeof uiState) => unknown) => selector(uiState));
 
     render(<TemporaryChatToggle mode="promote" />);
 
@@ -133,11 +142,10 @@ describe("TemporaryChatToggle", () => {
         },
       },
     });
+    const uiState = createUIState(store);
     mocks.promoteTemporarySession.mockReturnValue("session-123");
     mocks.useUnifiedStore.mockImplementation((selector: (state: typeof store) => unknown) => selector(store));
-    mocks.useAIUIStore.mockImplementation((selector: (state: { generatingSessions: Record<string, boolean> }) => unknown) =>
-      selector({ generatingSessions: store.generatingSessions as Record<string, boolean> })
-    );
+    mocks.useAIUIStore.mockImplementation((selector: (state: typeof uiState) => unknown) => selector(uiState));
 
     render(<TemporaryChatToggle mode="promote" />);
     fireEvent.click(
@@ -154,34 +162,13 @@ describe("TemporaryChatToggle", () => {
         ai: {
           temporaryChatEnabled: false,
           currentSessionId: "session-1",
-          sessions: [
-            {
-              id: "session-1",
-              modelId: "model-1",
-            },
-          ],
           messages: { "session-1": [] },
-          providers: [
-            {
-              id: "provider-1",
-              enabled: true,
-            },
-          ],
-          models: [
-            {
-              id: "model-1",
-              apiModelId: "model-1",
-              providerId: "provider-1",
-            },
-          ],
-          selectedModelId: "model-1",
         },
       },
     });
+    const uiState = createUIState(store);
     mocks.useUnifiedStore.mockImplementation((selector: (state: typeof store) => unknown) => selector(store));
-    mocks.useAIUIStore.mockImplementation((selector: (state: { generatingSessions: Record<string, boolean> }) => unknown) =>
-      selector({ generatingSessions: store.generatingSessions as Record<string, boolean> })
-    );
+    mocks.useAIUIStore.mockImplementation((selector: (state: typeof uiState) => unknown) => selector(uiState));
 
     render(<TemporaryChatToggle mode="toggle" />);
     fireEvent.click(screen.getByRole("button", { name: "Enable Temporary Chat" }));
@@ -195,34 +182,46 @@ describe("TemporaryChatToggle", () => {
         ai: {
           temporaryChatEnabled: true,
           currentSessionId: "temp-session-1",
-          sessions: [
-            {
-              id: "temp-session-1",
-              modelId: "model-1",
-            },
-          ],
           messages: { "temp-session-1": [] },
-          providers: [
-            {
-              id: "provider-1",
-              enabled: true,
-            },
-          ],
-          models: [
-            {
-              id: "model-1",
-              apiModelId: "model-1",
-              providerId: "provider-1",
-            },
-          ],
-          selectedModelId: "model-1",
         },
       },
     });
+    const uiState = createUIState(store);
     mocks.useUnifiedStore.mockImplementation((selector: (state: typeof store) => unknown) => selector(store));
-    mocks.useAIUIStore.mockImplementation((selector: (state: { generatingSessions: Record<string, boolean> }) => unknown) =>
-      selector({ generatingSessions: store.generatingSessions as Record<string, boolean> })
-    );
+    mocks.useAIUIStore.mockImplementation((selector: (state: typeof uiState) => unknown) => selector(uiState));
+
+    render(<TemporaryChatToggle mode="toggle" />);
+    fireEvent.click(screen.getByRole("button", { name: "Temporary Chat is On" }));
+
+    expect(mocks.toggleTemporaryChat).toHaveBeenCalledWith(false);
+  });
+
+  it("uses UI selection state when persisted chat selection is stale", () => {
+    const store = createStore({
+      data: {
+        ai: {
+          temporaryChatEnabled: false,
+          currentSessionId: "session-1",
+          messages: {
+            "session-1": [
+              {
+                id: "u1",
+                role: "user",
+                content: "Persisted session",
+                timestamp: 1,
+              },
+            ],
+            "temp-session-1": [],
+          },
+        },
+      },
+    });
+    const uiState = createUIState(store, {
+      currentSessionId: "temp-session-1",
+      temporaryChatEnabled: true,
+    });
+    mocks.useUnifiedStore.mockImplementation((selector: (state: typeof store) => unknown) => selector(store));
+    mocks.useAIUIStore.mockImplementation((selector: (state: typeof uiState) => unknown) => selector(uiState));
 
     render(<TemporaryChatToggle mode="toggle" />);
     fireEvent.click(screen.getByRole("button", { name: "Temporary Chat is On" }));
@@ -232,10 +231,9 @@ describe("TemporaryChatToggle", () => {
 
   it("toggle mode does not disable temporary chat when current temporary session already has user messages", () => {
     const store = createStore();
+    const uiState = createUIState(store);
     mocks.useUnifiedStore.mockImplementation((selector: (state: typeof store) => unknown) => selector(store));
-    mocks.useAIUIStore.mockImplementation((selector: (state: { generatingSessions: Record<string, boolean> }) => unknown) =>
-      selector({ generatingSessions: store.generatingSessions as Record<string, boolean> })
-    );
+    mocks.useAIUIStore.mockImplementation((selector: (state: typeof uiState) => unknown) => selector(uiState));
 
     render(<TemporaryChatToggle mode="toggle" />);
     fireEvent.click(screen.getByRole("button", { name: "Temporary Chat is On" }));
@@ -249,10 +247,9 @@ describe("TemporaryChatToggle", () => {
         "temp-session-1": true,
       },
     });
+    const uiState = createUIState(store);
     mocks.useUnifiedStore.mockImplementation((selector: (state: typeof store) => unknown) => selector(store));
-    mocks.useAIUIStore.mockImplementation((selector: (state: { generatingSessions: Record<string, boolean> }) => unknown) =>
-      selector({ generatingSessions: store.generatingSessions as Record<string, boolean> })
-    );
+    mocks.useAIUIStore.mockImplementation((selector: (state: typeof uiState) => unknown) => selector(uiState));
 
     render(<TemporaryChatToggle mode="promote" />);
     const button = screen.getByRole("button", {

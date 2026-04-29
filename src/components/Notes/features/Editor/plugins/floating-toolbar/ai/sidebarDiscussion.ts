@@ -1,6 +1,6 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { createAIChatSession } from '@/stores/useAIStore';
-import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import { useAIUIStore } from '@/stores/ai/chatState';
 import { useToastStore } from '@/stores/useToastStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { normalizeSelectedTextForComposer } from '@/lib/ui/normalizeSelectedTextForComposer';
@@ -16,7 +16,7 @@ export function openSidebarDiscussionForSelection(view: EditorView): boolean {
   }
 
   const ui = useUIStore.getState();
-  const currentSessionId = useUnifiedStore.getState().data.ai?.currentSessionId ?? null;
+  const currentSessionId = useAIUIStore.getState().currentSessionId;
 
   if (ui.notesChatPanelCollapsed || !currentSessionId) {
     createAIChatSession('');
