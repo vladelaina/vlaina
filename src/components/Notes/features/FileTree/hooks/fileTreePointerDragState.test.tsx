@@ -108,24 +108,34 @@ function dispatchDocumentPointerEvent(
 
 interface DragHarnessProps {
   path?: string;
+  kind?: 'note' | 'folder';
   disabled?: boolean;
   folderTargetPath?: string;
   showRootTarget?: boolean;
+  showStarredTarget?: boolean;
 }
 
 function DragHarness({
   path = 'Source.md',
+  kind = 'note',
   disabled = false,
   folderTargetPath,
   showRootTarget = false,
+  showStarredTarget = false,
 }: DragHarnessProps) {
-  const dragHandlers = useTreeItemDragSource(path, disabled);
+  const dragHandlers = useTreeItemDragSource(path, disabled, kind);
   const activeSourcePath = useFileTreePointerDragState((state) => state.activeSourcePath);
   const dropTargetPath = useFileTreePointerDragState((state) => state.dropTargetPath);
+  const dropTargetKind = useFileTreePointerDragState((state) => state.dropTargetKind);
 
   return (
     <div>
       <div data-notes-sidebar-scroll-root="true" data-testid="scroll-root">
+        {showStarredTarget ? (
+          <div data-file-tree-starred-drop-target="true" data-testid="starred-target">
+            Starred
+          </div>
+        ) : null}
         {showRootTarget ? (
           <div data-file-tree-root-drop-target="true" data-testid="root-target">
             Root
@@ -150,6 +160,7 @@ function DragHarness({
       </div>
       <div data-testid="active-source">{activeSourcePath ?? ''}</div>
       <div data-testid="drop-target">{dropTargetPath ?? ''}</div>
+      <div data-testid="drop-target-kind">{dropTargetKind ?? ''}</div>
     </div>
   );
 }
@@ -161,6 +172,7 @@ function setupHarness(options: DragHarnessProps = {}) {
   const scrollRoot = screen.getByTestId('scroll-root') as HTMLDivElement;
   const folderTarget = screen.queryByTestId('folder-target');
   const rootTarget = screen.queryByTestId('root-target');
+  const starredTarget = screen.queryByTestId('starred-target');
 
   setRect(scrollRoot, {
     left: 0,
@@ -198,17 +210,29 @@ function setupHarness(options: DragHarnessProps = {}) {
     });
   }
 
+  if (starredTarget) {
+    setRect(starredTarget, {
+      left: 24,
+      top: 120,
+      width: 160,
+      height: 32,
+    });
+  }
+
   return {
     source,
     folderTarget,
     rootTarget,
+    starredTarget,
     activeSource: screen.getByTestId('active-source'),
     dropTarget: screen.getByTestId('drop-target'),
+    dropTargetKind: screen.getByTestId('drop-target-kind'),
   };
 }
 
 describe('fileTreePointerDragState', () => {
   const moveItemMock = vi.fn<(...args: [string, string]) => Promise<void>>();
+  const setStateMock = vi.fn();
   const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
   const originalCancelAnimationFrame = globalThis.cancelAnimationFrame;
   const originalElementsFromPoint = document.elementsFromPoint;
@@ -216,10 +240,14 @@ describe('fileTreePointerDragState', () => {
   beforeEach(() => {
     moveItemMock.mockReset();
     moveItemMock.mockResolvedValue(undefined);
+    setStateMock.mockReset();
 
     vi.spyOn(useNotesStore, 'getState').mockReturnValue({
       moveItem: moveItemMock,
+      notesPath: '/vault',
+      starredEntries: [],
     } as unknown as ReturnType<typeof useNotesStore.getState>);
+    vi.spyOn(useNotesStore, 'setState').mockImplementation(setStateMock);
 
     globalThis.requestAnimationFrame = vi.fn(() => 1) as unknown as typeof requestAnimationFrame;
     globalThis.cancelAnimationFrame = vi.fn() as unknown as typeof cancelAnimationFrame;
@@ -342,6 +370,165 @@ describe('fileTreePointerDragState', () => {
 
     await waitFor(() => {
       expect(moveItemMock).toHaveBeenCalledWith('Folder/Source.md', '');
+    });
+  });
+
+  it('stars a note when dropped on the starred target without moving it', async () => {
+    const { source, starredTarget, dropTargetKind } = setupHarness({
+      path: 'Source.md',
+      showStarredTarget: true,
+    });
+
+    document.elementsFromPoint = vi.fn(() => [starredTarget as Element]);
+
+    fireEvent.pointerDown(source, {
+      button: 0,
+      clientX: 40,
+      clientY: 40,
+      pointerType: 'mouse',
+    });
+
+    dispatchDocumentPointerEvent('pointermove', {
+      clientX: 40,
+      clientY: 52,
+      buttons: 1,
+    });
+
+    await waitFor(() => {
+      expect(dropTargetKind.textContent).toBe('starred');
+      expect(document.querySelector('[data-file-tree-drag-star-badge="true"]')).not.toBeNull();
+    });
+
+    dispatchDocumentPointerEvent('pointerup', {
+      clientX: 40,
+      clientY: 52,
+      buttons: 0,
+    });
+
+    await waitFor(() => {
+      expect(setStateMock).toHaveBeenCalledWith(expect.objectContaining({
+        starredNotes: ['Source.md'],
+        starredFolders: [],
+      }));
+      expect(moveItemMock).not.toHaveBeenCalled();
+    });
+  });
+
+  it('stars a folder when dropped on the starred target', async () => {
+    const { source, starredTarget } = setupHarness({
+      path: 'Projects',
+      kind: 'folder',
+      showStarredTarget: true,
+    });
+
+    document.elementsFromPoint = vi.fn(() => [starredTarget as Element]);
+
+    fireEvent.pointerDown(source, {
+      button: 0,
+      clientX: 40,
+      clientY: 40,
+      pointerType: 'mouse',
+    });
+    dispatchDocumentPointerEvent('pointermove', {
+      clientX: 40,
+      clientY: 52,
+      buttons: 1,
+    });
+    dispatchDocumentPointerEvent('pointerup', {
+      clientX: 40,
+      clientY: 52,
+      buttons: 0,
+    });
+
+    await waitFor(() => {
+      expect(setStateMock).toHaveBeenCalledWith(expect.objectContaining({
+        starredNotes: [],
+        starredFolders: ['Projects'],
+      }));
+      expect(moveItemMock).not.toHaveBeenCalled();
+    });
+  });
+
+  it('does not duplicate an already starred note when dropped on the starred target', async () => {
+    vi.spyOn(useNotesStore, 'getState').mockReturnValue({
+      moveItem: moveItemMock,
+      notesPath: '/vault',
+      starredEntries: [{
+        id: 'starred-existing',
+        kind: 'note',
+        vaultPath: '/vault',
+        relativePath: 'Source.md',
+        addedAt: 1,
+      }],
+    } as unknown as ReturnType<typeof useNotesStore.getState>);
+
+    const { source, starredTarget } = setupHarness({
+      path: 'Source.md',
+      showStarredTarget: true,
+    });
+
+    document.elementsFromPoint = vi.fn(() => [starredTarget as Element]);
+
+    fireEvent.pointerDown(source, {
+      button: 0,
+      clientX: 40,
+      clientY: 40,
+      pointerType: 'mouse',
+    });
+    dispatchDocumentPointerEvent('pointermove', {
+      clientX: 40,
+      clientY: 52,
+      buttons: 1,
+    });
+    dispatchDocumentPointerEvent('pointerup', {
+      clientX: 40,
+      clientY: 52,
+      buttons: 0,
+    });
+
+    await waitFor(() => {
+      expect(setStateMock).not.toHaveBeenCalled();
+      expect(moveItemMock).not.toHaveBeenCalled();
+    });
+  });
+
+  it('keeps the starred drop intent when the pointerup hit test misses the target', async () => {
+    const { source, starredTarget, dropTargetKind } = setupHarness({
+      path: 'Source.md',
+      showStarredTarget: true,
+    });
+
+    document.elementsFromPoint = vi.fn(() => [starredTarget as Element]);
+
+    fireEvent.pointerDown(source, {
+      button: 0,
+      clientX: 40,
+      clientY: 40,
+      pointerType: 'mouse',
+    });
+    dispatchDocumentPointerEvent('pointermove', {
+      clientX: 40,
+      clientY: 52,
+      buttons: 1,
+    });
+
+    await waitFor(() => {
+      expect(dropTargetKind.textContent).toBe('starred');
+    });
+
+    document.elementsFromPoint = vi.fn(() => []);
+
+    dispatchDocumentPointerEvent('pointerup', {
+      clientX: 40,
+      clientY: 52,
+      buttons: 0,
+    });
+
+    await waitFor(() => {
+      expect(setStateMock).toHaveBeenCalledWith(expect.objectContaining({
+        starredNotes: ['Source.md'],
+      }));
+      expect(moveItemMock).not.toHaveBeenCalled();
     });
   });
 

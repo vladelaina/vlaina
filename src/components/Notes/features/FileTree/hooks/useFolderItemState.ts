@@ -35,7 +35,7 @@ export function useFolderItemState(node: FolderNode, dragEnabled = true) {
     path: node.path,
     name: node.name,
   });
-  const dragSourceHandlers = useTreeItemDragSource(node.path, isRenaming || !dragEnabled);
+  const dragSourceHandlers = useTreeItemDragSource(node.path, isRenaming || !dragEnabled, 'folder');
   const {
     isDragOver,
     isInternalDragOver,
