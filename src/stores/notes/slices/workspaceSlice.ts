@@ -41,11 +41,18 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   displayNames: new Map(),
 
   openNote: async (path: string, openInNewTab: boolean = false) => {
-    let { notesPath, isDirty, saveNote, recentNotes, openTabs, currentNote, noteContentsCache } = get();
-    if (isDirty) {
+    let { notesPath, isDirty, saveNote, recentNotes, openTabs, currentNote, noteContentsCache, draftNotes } = get();
+    let shouldOpenInNewTab = openInNewTab;
+    let existingTab = openTabs.find((t) => t.path === path);
+    if (isDirty && currentNote && draftNotes[currentNote.path]) {
+      shouldOpenInNewTab = true;
+    }
+
+    if (isDirty && !shouldOpenInNewTab && !existingTab) {
       await saveNote();
       if (get().isDirty) return;
       ({ notesPath, recentNotes, openTabs, currentNote, noteContentsCache } = get());
+      existingTab = openTabs.find((t) => t.path === path);
     }
 
     try {
@@ -62,12 +69,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       const fileName = getNoteTitleFromPath(path);
       const tabName = fileName;
       const updatedRecent = addToRecentNotes(path, recentNotes);
-      const existingTab = openTabs.find((t) => t.path === path);
 
       let updatedTabs = openTabs;
       if (existingTab) {
         updatedTabs = openTabs.map((t) => (t.path === path ? { ...t, name: tabName } : t));
-      } else if (openInNewTab || openTabs.length === 0) {
+      } else if (shouldOpenInNewTab || openTabs.length === 0) {
         updatedTabs = [...openTabs, { path, name: tabName, isDirty: false }];
       } else {
         const currentTabIndex = openTabs.findIndex((t) => t.path === currentNote?.path);
@@ -83,7 +89,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       set({
         currentNote: { path, content },
         currentNoteRevision: get().currentNoteRevision + 1,
-        isDirty: false,
+        isDirty: existingTab?.isDirty ?? false,
         error: null,
         recentNotes: updatedRecent,
         openTabs: updatedTabs,
@@ -104,11 +110,18 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   },
 
   openNoteByAbsolutePath: async (absolutePath: string, openInNewTab: boolean = false) => {
-    let { notesPath, isDirty, saveNote, openTabs, currentNote, noteContentsCache } = get();
-    if (isDirty) {
+    let { notesPath, isDirty, saveNote, openTabs, currentNote, noteContentsCache, draftNotes } = get();
+    let shouldOpenInNewTab = openInNewTab;
+    let existingTab = openTabs.find((t) => t.path === absolutePath);
+    if (isDirty && currentNote && draftNotes[currentNote.path]) {
+      shouldOpenInNewTab = true;
+    }
+
+    if (isDirty && !shouldOpenInNewTab && !existingTab) {
       await saveNote();
       if (get().isDirty) return;
       ({ notesPath, openTabs, currentNote, noteContentsCache } = get());
+      existingTab = openTabs.find((t) => t.path === absolutePath);
     }
 
     try {
@@ -124,12 +137,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       );
       const fileName = getNoteTitleFromPath(absolutePath);
       const tabName = fileName;
-      const existingTab = openTabs.find((t) => t.path === absolutePath);
 
       let updatedTabs = openTabs;
       if (existingTab) {
         updatedTabs = openTabs.map((t) => (t.path === absolutePath ? { ...t, name: tabName } : t));
-      } else if (openInNewTab || openTabs.length === 0) {
+      } else if (shouldOpenInNewTab || openTabs.length === 0) {
         updatedTabs = [...openTabs, { path: absolutePath, name: tabName, isDirty: false }];
       } else {
         const currentTabIndex = openTabs.findIndex((t) => t.path === currentNote?.path);
@@ -145,7 +157,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       set({
         currentNote: { path: absolutePath, content },
         currentNoteRevision: get().currentNoteRevision + 1,
-        isDirty: false,
+        isDirty: existingTab?.isDirty ?? false,
         error: null,
         openTabs: updatedTabs,
         isNewlyCreated: false,

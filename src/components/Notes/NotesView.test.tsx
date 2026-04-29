@@ -372,6 +372,33 @@ describe('NotesView', () => {
     });
   });
 
+  it('does not recreate a blank note after the user closes the last tab', async () => {
+    notesState.currentNote = { path: 'draft:blank', content: '' };
+    notesState.openTabs = [{ path: 'draft:blank', name: '', isDirty: false }];
+    notesState.draftNotes = {
+      'draft:blank': { parentPath: null, name: '' },
+    };
+
+    const { rerender } = render(<NotesView />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(notesState.createNote).not.toHaveBeenCalled();
+
+    notesState.currentNote = null;
+    notesState.openTabs = [];
+    notesState.draftNotes = {};
+    rerender(<NotesView />);
+
+    await act(async () => {
+      await Promise.resolve();
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
+  });
+
   it('opens a dropped folder when the workspace is blank', async () => {
     mocks.storageState.stat.mockResolvedValue({
       name: 'dropped-vault',

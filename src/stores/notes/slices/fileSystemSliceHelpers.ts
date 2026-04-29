@@ -1,4 +1,5 @@
 import { getStateForPathDeletion, getStateForPathRename } from '../utils/fs/pathStateEffects';
+import { isAbsolutePath } from '@/lib/storage/adapter';
 import { persistRecentNotes } from '../storage';
 import { setCachedNoteContent } from '../document/noteContentCache';
 import { createDraftNotePath } from '../draftNote';
@@ -28,11 +29,12 @@ export function replaceCurrentTabOrAppend(
   currentNotePath: string | null | undefined,
   nextTab: NotesStore['openTabs'][number],
 ) {
-  if (!currentNotePath) {
+  const currentTab = openTabs.find((tab) => tab.path === currentNotePath);
+  if (!currentNotePath || isAbsolutePath(currentNotePath) || currentTab?.isDirty) {
     return [...openTabs, nextTab];
   }
 
-  const currentTabIndex = openTabs.findIndex((tab) => tab.path === currentNotePath);
+  const currentTabIndex = currentTab ? openTabs.indexOf(currentTab) : -1;
   if (currentTabIndex === -1) {
     return [...openTabs, nextTab];
   }

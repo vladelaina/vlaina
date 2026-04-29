@@ -71,6 +71,9 @@ export interface NoteTabState {
 export interface RecentlyClosedTabState {
   tab: NoteTabState;
   index: number;
+  draftNote?: DraftNoteEntry;
+  content?: string;
+  modifiedAt?: number | null;
 }
 
 export interface DraftNoteEntry {

@@ -18,9 +18,13 @@ import type { FileSystemSlice, FileSystemSliceGet, FileSystemSliceSet } from './
 
 type CreateNoteResult = Awaited<ReturnType<typeof createNoteImpl>>;
 
-async function ensureCurrentNoteSaved(get: FileSystemSliceGet) {
+async function ensureCurrentNoteSaved(get: FileSystemSliceGet, options?: { skipDraft?: boolean }) {
   const state = get();
   if (!state.isDirty) {
+    return state;
+  }
+
+  if (options?.skipDraft && state.currentNote && state.draftNotes[state.currentNote.path]) {
     return state;
   }
 
@@ -114,7 +118,7 @@ export function createFileSystemCreateActions(
         draftNotes,
         displayNames,
         currentNoteRevision,
-      } = await ensureCurrentNoteSaved(get);
+      } = await ensureCurrentNoteSaved(get, { skipDraft: true });
 
       try {
         if (!notesPath) {

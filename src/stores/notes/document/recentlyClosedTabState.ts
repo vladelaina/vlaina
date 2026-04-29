@@ -8,9 +8,10 @@ export function pushRecentlyClosedTab(
   recentlyClosedTabs: RecentlyClosedTabState[],
   tab: NoteTabState,
   index: number,
+  snapshot?: Omit<RecentlyClosedTabState, 'tab' | 'index'>,
 ): RecentlyClosedTabState[] {
   const deduped = recentlyClosedTabs.filter((entry) => entry.tab.path !== tab.path);
-  return [{ tab, index }, ...deduped].slice(0, MAX_RECENTLY_CLOSED_TABS);
+  return [{ tab, index, ...snapshot }, ...deduped].slice(0, MAX_RECENTLY_CLOSED_TABS);
 }
 
 export function remapRecentlyClosedTabsForExternalRename(
