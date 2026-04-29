@@ -6,6 +6,7 @@ import {
   removeNodeFromTree,
   updateFolderExpanded,
 } from './fileTreeUtils';
+import { ensureFileNodeInTree } from './fileTreePreservation';
 
 function createTree(): FileTreeNode[] {
   return [
@@ -103,5 +104,36 @@ describe('fileTreeUtils structural sharing', () => {
         { isFolder: true }
       >).children.length),
     ).toBe(1);
+  });
+
+  it('re-adds a missing current file path with its folder chain expanded', () => {
+    const nextTree = ensureFileNodeInTree([], 'drafts/today/note.md');
+
+    expect(nextTree).toEqual([
+      {
+        id: 'drafts',
+        name: 'drafts',
+        path: 'drafts',
+        isFolder: true,
+        expanded: true,
+        children: [
+          {
+            id: 'drafts/today',
+            name: 'today',
+            path: 'drafts/today',
+            isFolder: true,
+            expanded: true,
+            children: [
+              {
+                id: 'drafts/today/note.md',
+                name: 'note',
+                path: 'drafts/today/note.md',
+                isFolder: false,
+              },
+            ],
+          },
+        ],
+      },
+    ]);
   });
 });

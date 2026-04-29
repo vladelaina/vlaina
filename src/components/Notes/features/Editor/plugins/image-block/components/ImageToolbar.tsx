@@ -7,7 +7,7 @@ interface ImageToolbarProps {
     alignment: 'left' | 'center' | 'right';
     onAlign: (align: 'left' | 'center' | 'right') => void;
     onEdit: () => void;
-    onCopy: () => void;
+    onCopy: () => boolean | Promise<boolean> | void | Promise<void>;
     onDownload: () => void;
     onDelete: () => void;
     isVisible: boolean;
@@ -32,8 +32,11 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
     }, [copied]);
 
     const handleCopy = () => {
-        onCopy();
-        setCopied(true);
+        void Promise.resolve(onCopy()).then((didCopy) => {
+            if (didCopy !== false) {
+                setCopied(true);
+            }
+        }, () => undefined);
     };
 
     return (

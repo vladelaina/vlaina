@@ -3,6 +3,7 @@ import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
 import { toggleCodeBlockCollapsed, updateCodeBlockLanguage } from '../codeBlockTransactions';
 import { codeBlockLanguages } from '../codeBlockLanguageLoader';
+import { writeTextToClipboard } from '../../cursor/blockSelectionCommands';
 
 interface UseCodeBlockStateProps {
     node: Node;
@@ -35,15 +36,19 @@ export function useCodeBlockState({ node, view, getPos, getNode }: UseCodeBlockS
         e.preventDefault();
         e.stopPropagation();
         const code = getNode().textContent;
-        void navigator.clipboard.writeText(code);
-        if (copyTimerRef.current !== null) {
-            window.clearTimeout(copyTimerRef.current);
-        }
-        setCopied(true);
-        copyTimerRef.current = window.setTimeout(() => {
-            setCopied(false);
-            copyTimerRef.current = null;
-        }, 2000);
+        void writeTextToClipboard(code)
+            .then((didCopy) => {
+                if (!didCopy) return;
+
+                if (copyTimerRef.current !== null) {
+                    window.clearTimeout(copyTimerRef.current);
+                }
+                setCopied(true);
+                copyTimerRef.current = window.setTimeout(() => {
+                    setCopied(false);
+                    copyTimerRef.current = null;
+                }, 2000);
+            }, () => undefined);
     }, [getNode]);
 
     const toggleCollapse = useCallback((e: React.MouseEvent) => {

@@ -178,8 +178,8 @@ export function remapCurrentNoteForExternalRename(
 
 export function shouldPreserveDeletedCurrentNote(
   currentNote: CurrentNoteState | null,
-  isDirty: boolean,
+  _isDirty: boolean,
   deletedPath: string
 ): boolean {
-  return Boolean(currentNote && isDirty && shouldRemoveForExternalDeletion(currentNote.path, deletedPath));
+  return Boolean(currentNote && shouldRemoveForExternalDeletion(currentNote.path, deletedPath));
 }

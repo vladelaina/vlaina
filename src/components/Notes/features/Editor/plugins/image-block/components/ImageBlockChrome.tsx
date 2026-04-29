@@ -17,7 +17,7 @@ interface ImageBlockChromeProps {
     onCaptionEditStart: () => void;
     onAlign: (align: Alignment) => void | Promise<void>;
     onEdit: () => void | Promise<void>;
-    onCopy: () => void;
+    onCopy: () => boolean | Promise<boolean> | void | Promise<void>;
     onDownload: () => void;
     onDelete: () => void;
 }

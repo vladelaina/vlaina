@@ -131,8 +131,10 @@ export const clipboardPlugin = $prose((ctx) => {
                 if (text.length === 0) return false;
 
                 event.preventDefault();
-                void writeTextToClipboard(text).then(() => {
-                    collapseSelectionAndHideFloatingToolbar(view);
+                void writeTextToClipboard(text).then((didCopy) => {
+                    if (didCopy) {
+                        collapseSelectionAndHideFloatingToolbar(view);
+                    }
                 });
                 return true;
             },

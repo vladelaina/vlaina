@@ -177,7 +177,7 @@ export function createWorkspaceExternalActions(
       const nextRootFolder = rootFolder
         ? buildSortedRootFolder(
             rootFolder,
-            removeNodeFromTree(rootFolder.children, path),
+            preserveCurrentNote ? rootFolder.children : removeNodeFromTree(rootFolder.children, path),
             fileTreeSortMode,
             nextMetadata ?? noteMetadata
           )

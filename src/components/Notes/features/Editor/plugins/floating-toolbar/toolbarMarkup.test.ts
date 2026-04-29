@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { useAccountSessionStore } from '@/stores/accountSession';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { renderToolbarMarkup } from './toolbarMarkup';
 import type { FloatingToolbarState } from './types';
 
@@ -22,6 +24,19 @@ function createState(overrides?: Partial<FloatingToolbarState>): FloatingToolbar
 }
 
 describe('toolbar markup', () => {
+  beforeEach(() => {
+    useAccountSessionStore.setState({ isConnected: true });
+    useUnifiedStore.setState((state) => ({
+      data: {
+        ...state.data,
+        ai: {
+          ...state.data.ai!,
+          providers: [],
+        },
+      },
+    }));
+  });
+
   it('renders a reduced toolbar for code blocks', () => {
     const markup = renderToolbarMarkup(createState({ currentBlockType: 'codeBlock' }));
 
@@ -34,6 +49,45 @@ describe('toolbar markup', () => {
     expect(markup).not.toContain('data-action="italic"');
     expect(markup).not.toContain('data-action="link"');
     expect(markup).not.toContain('data-action="color"');
+  });
+
+  it('hides AI tools when no account or custom provider is available', () => {
+    useAccountSessionStore.setState({ isConnected: false });
+
+    const markup = renderToolbarMarkup(createState());
+
+    expect(markup).not.toContain('data-action="ai"');
+    expect(markup).not.toContain('toolbar-ai-group');
+    expect(markup).toContain('data-action="bold"');
+  });
+
+  it('keeps AI tools visible for a signed-out user with a custom provider', () => {
+    useAccountSessionStore.setState({ isConnected: false });
+    useUnifiedStore.setState((state) => ({
+      data: {
+        ...state.data,
+        ai: {
+          ...state.data.ai!,
+          providers: [
+            {
+              id: 'custom-openai',
+              name: 'Custom OpenAI',
+              type: 'newapi',
+              apiHost: 'https://example.com',
+              apiKey: 'key',
+              enabled: true,
+              createdAt: 1,
+              updatedAt: 1,
+            },
+          ],
+        },
+      },
+    }));
+
+    const markup = renderToolbarMarkup(createState());
+
+    expect(markup).toContain('data-action="ai"');
+    expect(markup).toContain('toolbar-ai-group');
   });
 
   it('renders neutral dropdown states for mixed selections and activates link/color buttons from shared state', () => {

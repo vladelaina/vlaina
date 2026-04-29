@@ -62,3 +62,13 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 **Target a maximum of 300 lines per file.**
 If a file exceeds this, propose a logical split into smaller modules.
+
+## 6. Commit Messages
+
+**Use emoji + conventional keyword + scope.**
+
+When creating commits:
+- Format commit messages as `emoji type(scope): subject`.
+- Keep the subject short, imperative, and specific.
+- Match the type to the change, such as `fix`, `feat`, `refactor`, `test`, `docs`, `chore`.
+- Example: `🐛fix(shortcuts): block background shortcuts while dialogs are focused`

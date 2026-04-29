@@ -2,11 +2,9 @@ import { getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapt
 import { createEmptyMetadataFile, setNoteEntry } from '../storage';
 import {
   getCachedNoteModifiedAt,
-  removeCachedNoteContent,
   setCachedNoteContent,
 } from '../document/noteContentCache';
 import { setNoteTabDirtyState } from '../document/noteTabState';
-import { openStoredNotePath } from '../openNotePath';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { readNoteMetadataFromMarkdown } from '../frontmatter';
 import { logNotesDebug } from '../debugLog';
@@ -31,38 +29,27 @@ export function createWorkspaceDiskSyncAction(
         const cachedModifiedAt = getCachedNoteModifiedAt(noteContentsCache, currentNote.path);
 
         if (!exists || fileInfo?.isFile === false) {
-          if (isDirty) {
-            logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:deleted-conflict', {
-              notePath: currentNote.path,
-            });
-            set({ error: 'Current note was deleted outside vlaina while you still have unsaved changes.' });
-            return 'deleted-conflict';
-          }
-
-          const updatedTabs = openTabs.filter((tab) => tab.path !== currentNote.path);
+          const updatedTabs = setNoteTabDirtyState(openTabs, currentNote.path, true);
           set({
-            currentNote: null,
-            isDirty: false,
+            currentNote,
+            isDirty: true,
             openTabs: updatedTabs,
-            noteContentsCache: removeCachedNoteContent(noteContentsCache, currentNote.path),
-            error: null,
+            noteContentsCache: setCachedNoteContent(
+              noteContentsCache,
+              currentNote.path,
+              currentNote.content,
+              cachedModifiedAt
+            ),
+            error: isDirty
+              ? 'Current note was deleted outside vlaina while you still have unsaved changes.'
+              : 'Current note is missing on disk. Its content is preserved in the editor; save to restore it.',
           });
 
-          if (updatedTabs.length > 0) {
-            const lastTab = updatedTabs[updatedTabs.length - 1];
-            if (lastTab) {
-              void openStoredNotePath(lastTab.path, {
-                openNote: get().openNote,
-                openNoteByAbsolutePath: get().openNoteByAbsolutePath,
-              });
-            }
-          }
-
-          logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:deleted', {
+          logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:deleted-conflict', {
             notePath: currentNote.path,
-            remainingTabCount: updatedTabs.length,
+            wasDirty: isDirty,
           });
-          return 'deleted';
+          return 'deleted-conflict';
         }
 
         const nextModifiedAt = fileInfo?.modifiedAt ?? cachedModifiedAt ?? null;

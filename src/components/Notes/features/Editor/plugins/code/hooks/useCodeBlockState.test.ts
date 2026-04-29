@@ -1,7 +1,14 @@
 import { act, renderHook } from '@testing-library/react';
 import { Selection } from '@milkdown/kit/prose/state';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { writeTextToClipboard } from '../../cursor/blockSelectionCommands';
 import { useCodeBlockState } from './useCodeBlockState';
+
+vi.mock('../../cursor/blockSelectionCommands', () => ({
+  writeTextToClipboard: vi.fn(),
+}));
+
+const writeTextToClipboardMock = vi.mocked(writeTextToClipboard);
 
 function createMockMouseEvent() {
   return {
@@ -55,6 +62,7 @@ function createMockView(options: {
 describe('useCodeBlockState', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    writeTextToClipboardMock.mockReset();
   });
 
   afterEach(() => {
@@ -66,11 +74,6 @@ describe('useCodeBlockState', () => {
     const nearSpy = vi
       .spyOn(Selection, 'near')
       .mockImplementation((resolvedPos: any, bias?: number) => ({ resolvedPos, bias }) as any);
-    const clipboardWrite = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'clipboard', {
-      value: { writeText: clipboardWrite },
-      configurable: true,
-    });
 
     const node = {
       attrs: { language: 'ts', collapsed: false },
@@ -138,11 +141,7 @@ describe('useCodeBlockState', () => {
   });
 
   it('shows copied state then resets after timeout when user clicks copy', async () => {
-    const clipboardWrite = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'clipboard', {
-      value: { writeText: clipboardWrite },
-      configurable: true,
-    });
+    writeTextToClipboardMock.mockResolvedValue(true);
 
     const node = {
       attrs: { language: 'ts', collapsed: false },
@@ -171,13 +170,47 @@ describe('useCodeBlockState', () => {
       await Promise.resolve();
     });
 
-    expect(clipboardWrite).toHaveBeenCalledWith('const copied = true;');
+    expect(writeTextToClipboardMock).toHaveBeenCalledWith('const copied = true;');
     expect(result.current.copied).toBe(true);
 
     act(() => {
       vi.advanceTimersByTime(2000);
     });
 
+    expect(result.current.copied).toBe(false);
+  });
+
+  it('does not show copied state when clipboard write fails', async () => {
+    writeTextToClipboardMock.mockResolvedValue(false);
+
+    const node = {
+      attrs: { language: 'ts', collapsed: false },
+      textContent: 'const copied = false;',
+    } as any;
+
+    const { view } = createMockView({
+      getPos: 10,
+      docSize: 100,
+      nodeSize: 10,
+      currentNodeAttrs: { language: 'ts', collapsed: false },
+      selection: { from: 12, to: 12 },
+    });
+
+    const { result } = renderHook(() =>
+      useCodeBlockState({
+        node,
+        view,
+        getPos: () => 10,
+        getNode: () => node,
+      }),
+    );
+
+    await act(async () => {
+      result.current.handleCopy(createMockMouseEvent());
+      await Promise.resolve();
+    });
+
+    expect(writeTextToClipboardMock).toHaveBeenCalledWith('const copied = false;');
     expect(result.current.copied).toBe(false);
   });
 
@@ -217,11 +250,7 @@ describe('useCodeBlockState', () => {
   });
 
   it('copies the latest code text from getNode instead of a stale prop snapshot', async () => {
-    const clipboardWrite = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'clipboard', {
-      value: { writeText: clipboardWrite },
-      configurable: true,
-    });
+    writeTextToClipboardMock.mockResolvedValue(true);
 
     const currentNode = {
       attrs: { language: 'ts', collapsed: false },
@@ -252,7 +281,7 @@ describe('useCodeBlockState', () => {
       await Promise.resolve();
     });
 
-    expect(clipboardWrite).toHaveBeenCalledWith('const latest = true;');
+    expect(writeTextToClipboardMock).toHaveBeenCalledWith('const latest = true;');
   });
 
   it('does nothing when language updates cannot resolve a current position', () => {
@@ -288,11 +317,7 @@ describe('useCodeBlockState', () => {
   });
 
   it('clears the copy timer during unmount', async () => {
-    const clipboardWrite = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'clipboard', {
-      value: { writeText: clipboardWrite },
-      configurable: true,
-    });
+    writeTextToClipboardMock.mockResolvedValue(true);
 
     const clearTimeoutSpy = vi.spyOn(window, 'clearTimeout');
     const node = {

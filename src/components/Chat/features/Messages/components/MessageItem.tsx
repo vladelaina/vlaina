@@ -17,7 +17,7 @@ interface MessageItemProps {
   imageGallery?: ChatImageGalleryItem[];
   getImageGallery?: ChatImageGalleryGetter;
   isLoading: boolean;
-  onCopy: (text: string) => Promise<void> | void;
+  onCopy: (text: string) => Promise<boolean | void> | boolean | void;
   onRegenerate: (id: string) => void;
   onEdit?: (id: string, newContent: string) => void;
   onSwitchVersion: (id: string, targetIndex: number) => void;
