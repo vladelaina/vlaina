@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Icon } from '@/components/ui/icons';
+import { cn } from '@/lib/utils';
+import { useFileTreePointerDragState } from '../FileTree/hooks/fileTreePointerDragState';
 import { FileItem } from '../FileTree/FileItem';
 import { FolderItem } from '../FileTree/FolderItem';
 import { NotesSidebarSection } from '../Sidebar/NotesSidebarPrimitives';
@@ -15,6 +18,8 @@ export function StarredSection({
   showTitle = true,
 }: StarredSectionProps = {}) {
   const { starredLoaded, hasEntries, entries: entryViewModels } = useStarredSectionEntries();
+  const activeDragSourcePath = useFileTreePointerDragState((state) => state.activeSourcePath);
+  const isDragOver = useFileTreePointerDragState((state) => state.dropTargetKind === 'starred');
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
@@ -23,13 +28,24 @@ export function StarredSection({
     }
   }, [hasEntries, starredLoaded]);
 
-  if (!starredLoaded || !hasEntries) {
+  if (!starredLoaded || (!hasEntries && !activeDragSourcePath)) {
     return null;
   }
 
   const content = (
-    <div>
-      {entryViewModels.map(({ entry, isCurrentVaultEntry, isActive, treeNode, onOpen, onRemove }) => {
+    <div
+      data-file-tree-starred-drop-target="true"
+      className={cn(
+        'rounded-md transition-colors',
+        isDragOver && 'bg-[var(--notes-sidebar-row-drag)] ring-1 ring-[var(--vlaina-accent)]',
+      )}
+    >
+      {!hasEntries ? (
+        <div className="flex min-h-8 items-center gap-2 rounded-md px-2 text-[12px] text-[var(--notes-sidebar-text-soft)]">
+          <Icon name="misc.star" size="sm" className="fill-amber-500 text-amber-500" />
+          <span>Starred</span>
+        </div>
+      ) : entryViewModels.map(({ entry, isCurrentVaultEntry, isActive, treeNode, onOpen, onRemove }) => {
         if (isCurrentVaultEntry && treeNode) {
           return treeNode.isFolder ? (
             <FolderItem
@@ -76,6 +92,8 @@ export function StarredSection({
       animated={false}
       nested={nested}
       headerClassName={nested ? 'px-2' : undefined}
+      data-file-tree-starred-drop-target="true"
+      className={cn(isDragOver && 'rounded-md bg-[var(--notes-sidebar-row-drag)]')}
     >
       {content}
     </NotesSidebarSection>

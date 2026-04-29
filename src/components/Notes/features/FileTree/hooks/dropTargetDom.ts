@@ -22,6 +22,13 @@ function resolveFolderDropTargetPathFromElements(elements: Element[]) {
   return null;
 }
 
+export function resolveStarredDropTargetFromElements(elements: Element[]) {
+  return elements.some((element) => (
+    element instanceof HTMLElement &&
+    element.closest('[data-file-tree-starred-drop-target="true"]')
+  ));
+}
+
 export function resolveExternalFolderDropTargetPath(clientX: number, clientY: number) {
   const elements = document.elementsFromPoint(clientX, clientY);
   const targetPath = resolveFolderDropTargetPathFromElements(elements);

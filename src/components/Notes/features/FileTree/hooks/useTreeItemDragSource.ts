@@ -3,7 +3,11 @@ import type React from 'react';
 import type { NotesSidebarRowDragHandlers } from '../../Sidebar/NotesSidebarRow';
 import { startFileTreePointerDrag, useFileTreePointerDragState } from './fileTreePointerDragState';
 
-export function useTreeItemDragSource(path: string, disabled = false): NotesSidebarRowDragHandlers {
+export function useTreeItemDragSource(
+  path: string,
+  disabled = false,
+  kind: 'note' | 'folder' = 'note',
+): NotesSidebarRowDragHandlers {
   const isDragging = useFileTreePointerDragState((state) => state.activeSourcePath === path);
 
   const handlePointerDown = useCallback(
@@ -20,9 +24,9 @@ export function useTreeItemDragSource(path: string, disabled = false): NotesSide
         return;
       }
 
-      startFileTreePointerDrag(path, event.currentTarget, event.nativeEvent);
+      startFileTreePointerDrag(path, kind, event.currentTarget, event.nativeEvent);
     },
-    [disabled, path],
+    [disabled, kind, path],
   );
 
   return {

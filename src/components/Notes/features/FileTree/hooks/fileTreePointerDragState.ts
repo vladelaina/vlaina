@@ -1,15 +1,27 @@
 import { useSyncExternalStore } from 'react';
 import { SIDEBAR_SCROLL_ROOT_SELECTOR } from '../../Sidebar/context-menu/shared';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { resolveInternalMoveDropTargetPath } from './dropTargetDom';
+import {
+  createStarredEntry,
+  getStarredEntryKey,
+  getVaultStarredPaths,
+  saveStarredRegistry,
+} from '@/stores/notes/starred';
+import type { StarredKind } from '@/stores/notes/types';
+import { resolveInternalMoveDropTargetPath, resolveStarredDropTargetFromElements } from './dropTargetDom';
+
+type FileTreePointerDragSourceKind = 'note' | 'folder';
+type FileTreePointerDropTargetKind = 'folder' | 'starred' | null;
 
 interface FileTreePointerDragSnapshot {
   activeSourcePath: string | null;
   dropTargetPath: string | null;
+  dropTargetKind: FileTreePointerDropTargetKind;
 }
 
 interface FileTreePointerDragSession {
   sourcePath: string;
+  sourceKind: FileTreePointerDragSourceKind;
   sourceElement: HTMLElement;
   startX: number;
   startY: number;
@@ -21,6 +33,7 @@ interface FileTreePointerDragSession {
   previewElement: HTMLElement | null;
   previewOffsetX: number;
   previewOffsetY: number;
+  pendingStarredDrop: boolean;
   previousBodyCursor: string;
   previousBodyUserSelect: string;
   suppressClickTimeout: number | null;
@@ -31,6 +44,7 @@ const DRAG_THRESHOLD_PX = 4;
 let snapshot: FileTreePointerDragSnapshot = {
   activeSourcePath: null,
   dropTargetPath: null,
+  dropTargetKind: null,
 };
 
 let activeSession: FileTreePointerDragSession | null = null;
@@ -44,7 +58,8 @@ function emitSnapshot() {
 function setSnapshot(nextSnapshot: FileTreePointerDragSnapshot) {
   if (
     snapshot.activeSourcePath === nextSnapshot.activeSourcePath &&
-    snapshot.dropTargetPath === nextSnapshot.dropTargetPath
+    snapshot.dropTargetPath === nextSnapshot.dropTargetPath &&
+    snapshot.dropTargetKind === nextSnapshot.dropTargetKind
   ) {
     return;
   }
@@ -83,9 +98,44 @@ function createPreviewElement(sourceElement: HTMLElement) {
   previewElement.style.boxShadow = '0 14px 32px rgba(15, 23, 42, 0.18)';
   previewElement.style.filter = 'saturate(1.02)';
   previewElement.style.willChange = 'transform';
+  previewElement.dataset.fileTreeDragOriginalPaddingRight = previewElement.style.paddingRight;
   previewElement.classList.add('rounded-md');
   document.body.appendChild(previewElement);
   return { previewElement, rect };
+}
+
+function createPreviewStarBadge() {
+  const badge = document.createElement('span');
+  badge.dataset.fileTreeDragStarBadge = 'true';
+  badge.setAttribute('aria-hidden', 'true');
+  badge.style.position = 'absolute';
+  badge.style.right = '8px';
+  badge.style.top = '50%';
+  badge.style.transform = 'translateY(-50%)';
+  badge.style.display = 'inline-flex';
+  badge.style.alignItems = 'center';
+  badge.style.justifyContent = 'center';
+  badge.style.width = '18px';
+  badge.style.height = '18px';
+  badge.style.color = '#f59e0b';
+  badge.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16"><path d="M9.1 2.5a1 1 0 0 1 1.8 0l1.6 3.3 3.6.5a1 1 0 0 1 .6 1.7l-2.6 2.5.6 3.6a1 1 0 0 1-1.5 1.1L10 13.5l-3.2 1.7a1 1 0 0 1-1.5-1.1l.6-3.6L3.3 8a1 1 0 0 1 .6-1.7l3.6-.5 1.6-3.3Z"/></svg>';
+  return badge;
+}
+
+function setPreviewStarred(starred: boolean) {
+  const previewElement = activeSession?.previewElement;
+  if (!previewElement) return;
+
+  const existing = previewElement.querySelector('[data-file-tree-drag-star-badge="true"]');
+  if (!starred) {
+    existing?.remove();
+    previewElement.style.paddingRight = previewElement.dataset.fileTreeDragOriginalPaddingRight ?? '';
+    return;
+  }
+
+  if (existing) return;
+  previewElement.style.paddingRight = '30px';
+  previewElement.appendChild(createPreviewStarBadge());
 }
 
 function updatePreviewPosition() {
@@ -105,13 +155,29 @@ function updateDropTarget() {
     return;
   }
 
+  const elements = document.elementsFromPoint(activeSession.lastClientX, activeSession.lastClientY);
+  if (resolveStarredDropTargetFromElements(elements)) {
+    activeSession.pendingStarredDrop = true;
+    setPreviewStarred(true);
+    setSnapshot({
+      activeSourcePath: activeSession.sourcePath,
+      dropTargetPath: null,
+      dropTargetKind: 'starred',
+    });
+    return;
+  }
+
+  activeSession.pendingStarredDrop = false;
+  setPreviewStarred(false);
+  const folderDropTargetPath = resolveInternalMoveDropTargetPath(
+    activeSession.lastClientX,
+    activeSession.lastClientY,
+    activeSession.sourcePath,
+  );
   setSnapshot({
     activeSourcePath: activeSession.sourcePath,
-    dropTargetPath: resolveInternalMoveDropTargetPath(
-      activeSession.lastClientX,
-      activeSession.lastClientY,
-      activeSession.sourcePath,
-    ),
+    dropTargetPath: folderDropTargetPath,
+    dropTargetKind: folderDropTargetPath == null ? null : 'folder',
   });
 }
 
@@ -225,14 +291,7 @@ function handlePointerMove(event: PointerEvent) {
     activeSession.previewOffsetX = Math.min(Math.max(activeSession.startX - rect.left, 16), rect.width - 16);
     activeSession.previewOffsetY = Math.min(Math.max(activeSession.startY - rect.top, 12), rect.height - 12);
     updatePreviewPosition();
-    setSnapshot({
-      activeSourcePath: activeSession.sourcePath,
-      dropTargetPath: resolveInternalMoveDropTargetPath(
-        activeSession.lastClientX,
-        activeSession.lastClientY,
-        activeSession.sourcePath,
-      ),
-    });
+    updateDropTarget();
 
     activeSession.scrollRoot?.addEventListener('scroll', handleScrollRootScroll, true);
   } else {
@@ -277,6 +336,26 @@ function handleScrollRootScroll() {
   queueAutoScroll();
 }
 
+function ensureStarredPath(kind: StarredKind, relativePath: string) {
+  const state = useNotesStore.getState();
+  const { notesPath, starredEntries } = state;
+  if (!notesPath) return;
+
+  const key = getStarredEntryKey({ kind, vaultPath: notesPath, relativePath });
+  if (starredEntries.some((entry) => getStarredEntryKey(entry) === key)) {
+    return;
+  }
+
+  const updatedEntries = [...starredEntries, createStarredEntry(kind, notesPath, relativePath)];
+  const starredPaths = getVaultStarredPaths(updatedEntries, notesPath);
+  useNotesStore.setState({
+    starredEntries: updatedEntries,
+    starredNotes: starredPaths.notes,
+    starredFolders: starredPaths.folders,
+  });
+  saveStarredRegistry(updatedEntries);
+}
+
 function teardownPointerDrag() {
   stopAutoScroll();
   document.removeEventListener('pointermove', handlePointerMove, true);
@@ -304,6 +383,7 @@ function teardownPointerDrag() {
   setSnapshot({
     activeSourcePath: null,
     dropTargetPath: null,
+    dropTargetKind: null,
   });
 }
 
@@ -313,8 +393,16 @@ function finishPointerDrag(shouldCommit: boolean) {
   }
 
   const sourcePath = activeSession.sourcePath;
+  const sourceKind = activeSession.sourceKind;
+  const hasVisibleStarBadge = Boolean(
+    activeSession.previewElement?.querySelector('[data-file-tree-drag-star-badge="true"]'),
+  );
+  const shouldStar = shouldCommit && activeSession.activated && (
+    activeSession.pendingStarredDrop || hasVisibleStarBadge || snapshot.dropTargetKind === 'starred'
+  );
   const dropTargetPath = snapshot.dropTargetPath;
-  const shouldMove = shouldCommit && activeSession.activated && dropTargetPath != null;
+  const dropTargetKind = snapshot.dropTargetKind;
+  const shouldMove = !shouldStar && shouldCommit && activeSession.activated && dropTargetKind === 'folder' && dropTargetPath != null;
   const shouldSuppressClick = shouldCommit && activeSession.activated;
 
   teardownPointerDrag();
@@ -323,18 +411,28 @@ function finishPointerDrag(shouldCommit: boolean) {
     suppressNextClick();
   }
 
+  if (shouldStar) {
+    ensureStarredPath(sourceKind === 'folder' ? 'folder' : 'note', sourcePath);
+  }
+
   if (shouldMove && dropTargetPath !== null) {
     void useNotesStore.getState().moveItem(sourcePath, dropTargetPath);
   }
 }
 
-export function startFileTreePointerDrag(sourcePath: string, sourceElement: HTMLElement, event: PointerEvent) {
+export function startFileTreePointerDrag(
+  sourcePath: string,
+  sourceKind: FileTreePointerDragSourceKind,
+  sourceElement: HTMLElement,
+  event: PointerEvent,
+) {
   if (activeSession) {
     finishPointerDrag(false);
   }
 
   activeSession = {
     sourcePath,
+    sourceKind,
     sourceElement,
     startX: event.clientX,
     startY: event.clientY,
@@ -346,6 +444,7 @@ export function startFileTreePointerDrag(sourcePath: string, sourceElement: HTML
     previewElement: null,
     previewOffsetX: 20,
     previewOffsetY: 14,
+    pendingStarredDrop: false,
     previousBodyCursor: document.body.style.cursor,
     previousBodyUserSelect: document.body.style.userSelect,
     suppressClickTimeout: null,
