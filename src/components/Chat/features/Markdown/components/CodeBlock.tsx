@@ -1,6 +1,7 @@
 import { isValidElement, memo, useMemo } from 'react';
 import 'highlight.js/styles/github-dark.css';
 import CopyButton from '@/components/Chat/common/CopyButton';
+import { writeTextToClipboard } from '@/lib/clipboard';
 import { chatHighlighter } from '../utils/chatHighlighter';
 
 interface CodeBlockProps {
@@ -62,10 +63,13 @@ export const CodeBlock = memo(({ className, children, blockId, copied = false, o
   }, [codeText, language]);
 
   const handleCopy = async (content: string) => {
-    await navigator.clipboard.writeText(content);
+    const didCopy = await writeTextToClipboard(content);
+    if (!didCopy) return false;
+
     if (blockId && onCopy) {
       onCopy(blockId);
     }
+    return true;
   };
 
   return (

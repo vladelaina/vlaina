@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import Cropper from "react-easy-crop";
 import { Icon } from "@/components/ui/icons";
 import { BlurBackdrop } from "@/components/common/BlurBackdrop";
+import { writeTextToClipboard } from "@/lib/clipboard";
 import { cn, iconButtonStyles } from "@/lib/utils";
 import { copyImageSourceToClipboard } from "@/components/Chat/common/messageClipboard";
 import { downloadImageWithPrompt } from "@/components/Chat/common/imageDownload";
@@ -20,12 +21,12 @@ const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 5;
 const ZOOM_STEP = 0.12;
 
-async function copyImageOrUrl(src: string): Promise<void> {
+async function copyImageOrUrl(src: string): Promise<boolean> {
   const copied = await copyImageSourceToClipboard(src);
   if (copied) {
-    return;
+    return true;
   }
-  await navigator.clipboard.writeText(src);
+  return writeTextToClipboard(src);
 }
 
 function clampZoom(value: number): number {
@@ -249,8 +250,7 @@ export function ChatImageViewer({
 
   const handleCopy = async () => {
     try {
-      await copyImageOrUrl(activeSrc);
-      setCopied(true);
+      setCopied(await copyImageOrUrl(activeSrc));
     } catch {
       setCopied(false);
     }

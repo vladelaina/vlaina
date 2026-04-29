@@ -60,7 +60,9 @@ function UserMessageInner({
 
   const handleCopy = useCallback(async () => {
     try {
-      await copyMessageContentToClipboard(content);
+      const didCopy = await copyMessageContentToClipboard(content);
+      if (!didCopy) return;
+
       setIsCopied(true);
       if (copiedTimerRef.current !== null) {
         clearTimeout(copiedTimerRef.current);

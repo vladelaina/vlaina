@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useToastStore } from '@/stores/useToastStore';
+import { writeTextToClipboard } from '@/lib/clipboard';
 import { writeDesktopBinaryFile } from '@/lib/desktop/fs';
 import { saveDialog } from '@/lib/storage/dialog';
 import { generateCropFragment } from '../utils/imageSourceFragment';
@@ -71,11 +72,12 @@ export function useImageActions({
                 const response = await fetch(resolvedSrc);
                 const blob = await response.blob();
                 await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+                return true;
             } else {
-                await navigator.clipboard.writeText(nodeSrc);
+                return writeTextToClipboard(nodeSrc);
             }
         } catch {
-            try { await navigator.clipboard.writeText(nodeSrc); } catch { }
+            try { return await writeTextToClipboard(nodeSrc); } catch { return false; }
         }
     };
 

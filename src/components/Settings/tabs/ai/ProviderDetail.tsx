@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { Provider } from '@/lib/ai/types';
+import { writeTextToClipboard } from '@/lib/clipboard';
 import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
 import { ManagedProviderPanel } from './provider-detail/ManagedProviderPanel';
 import { ProviderModelsPanel } from './provider-detail/ProviderModelsPanel';
@@ -147,9 +148,11 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
   const handleCopyApiKey = async () => {
     if (!apiKey) return;
     try {
-      await navigator.clipboard.writeText(apiKey);
-      setApiKeyCopied(true);
-      setTimeout(() => setApiKeyCopied(false), 1500);
+      const didCopy = await writeTextToClipboard(apiKey);
+      if (didCopy) {
+        setApiKeyCopied(true);
+        setTimeout(() => setApiKeyCopied(false), 1500);
+      }
     } catch {}
   };
 

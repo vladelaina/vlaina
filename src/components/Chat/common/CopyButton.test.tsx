@@ -83,4 +83,19 @@ describe("CopyButton", () => {
 
     expect(screen.getByRole("button")).toHaveAttribute("title", "Copy to clipboard");
   });
+
+  it("does not show copied feedback when a custom copy reports failure", async () => {
+    const onCopy = vi.fn().mockResolvedValue(false);
+
+    render(<CopyButton content="const e = 5;" onCopy={onCopy} showLabels />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button"));
+      await Promise.resolve();
+    });
+
+    expect(onCopy).toHaveBeenCalledWith("const e = 5;");
+    expect(screen.getByRole("button")).toHaveAttribute("title", "Copy to clipboard");
+    expect(screen.getByText("Copy")).toBeInTheDocument();
+  });
 });

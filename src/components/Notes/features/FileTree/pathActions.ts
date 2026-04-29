@@ -1,5 +1,6 @@
 import { isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import { revealItemInFolder } from '@/lib/desktop/shell';
+import { writeTextToClipboard } from '@/lib/clipboard';
 
 async function resolveAbsoluteTreeItemPath(notesPath: string, itemPath: string) {
   if (!notesPath) {
@@ -11,7 +12,7 @@ async function resolveAbsoluteTreeItemPath(notesPath: string, itemPath: string) 
 
 export async function copyTreeItemPath(notesPath: string, itemPath: string) {
   const absolutePath = await resolveAbsoluteTreeItemPath(notesPath, itemPath);
-  await navigator.clipboard.writeText(absolutePath);
+  await writeTextToClipboard(absolutePath);
 }
 
 export async function openTreeItemLocation(notesPath: string, itemPath: string) {

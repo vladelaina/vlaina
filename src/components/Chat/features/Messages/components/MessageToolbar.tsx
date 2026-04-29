@@ -13,7 +13,7 @@ type CopyFeedbackSource = 'manual' | 'shortcut' | null;
 interface MessageToolbarProps {
   msg: ChatMessage;
   isLoading: boolean;
-  onCopy: (text: string) => Promise<void> | void;
+  onCopy: (text: string) => Promise<boolean | void> | boolean | void;
   onRegenerate: () => void;
   onSwitchVersion: (targetIndex: number) => void;
 }
@@ -80,8 +80,10 @@ export const MessageToolbar = memo(function MessageToolbar({
   const handleCopy = async () => {
       const cleanContent = stripThinkingContent(msg.content);
       try {
-          await onCopy(cleanContent);
-          triggerCopiedState('manual');
+          const didCopy = await onCopy(cleanContent);
+          if (didCopy !== false) {
+              triggerCopiedState('manual');
+          }
       } catch (error) {
           console.error('[MessageToolbar] Failed to copy message:', error);
       }

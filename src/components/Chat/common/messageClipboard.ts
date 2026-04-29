@@ -1,4 +1,5 @@
 import { stripErrorTags } from '@/lib/ai/errorTag';
+import { writeTextToClipboard } from '@/lib/clipboard';
 
 function normalizeImageMarkdownTarget(rawTarget: string): string | null {
   const trimmed = rawTarget.trim();
@@ -206,14 +207,14 @@ export async function copyImageSourceToClipboard(src: string): Promise<boolean> 
   return false;
 }
 
-export async function copyMessageContentToClipboard(content: string): Promise<void> {
+export async function copyMessageContentToClipboard(content: string): Promise<boolean> {
   const imageSources = extractMessageImageSources(content);
   if (imageSources.length > 0) {
     const copied = await copyImageSourceToClipboard(imageSources[0]);
     if (copied) {
-      return;
+      return true;
     }
   }
 
-  await navigator.clipboard.writeText(formatMessageCopyText(content));
+  return writeTextToClipboard(formatMessageCopyText(content));
 }
