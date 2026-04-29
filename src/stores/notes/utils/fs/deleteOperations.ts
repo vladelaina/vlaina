@@ -1,9 +1,10 @@
-import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { joinPath } from '@/lib/storage/adapter';
 import { getVaultStarredPaths, remapStarredEntriesForVault, saveStarredRegistry } from '../../starred';
 import { removeNodeFromTree } from '../../fileTreeUtils';
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
 import { remapMetadataEntries } from '../../storage';
 import { logNotesDebug } from '../../debugLog';
+import { deleteNoteItemToRecoverableLocation } from './trashOperations';
 import type {
   DeleteOperationResult,
   FileOperationContext,
@@ -58,7 +59,6 @@ export async function deleteNoteImpl(
   path: string,
   currentStore: FileOperationContext,
 ): Promise<DeleteOperationResult> {
-  const storage = getStorageAdapter();
   const fullPath = await joinPath(notesPath, path);
   logNotesDebug('deleteNoteImpl:start', {
     notePath: path,
@@ -67,7 +67,7 @@ export async function deleteNoteImpl(
     openTabCount: currentStore.openTabs.length,
   });
   markExpectedExternalChange(fullPath);
-  await storage.deleteFile(fullPath);
+  await deleteNoteItemToRecoverableLocation(fullPath, 'file');
 
   const { openTabs, starredEntries, currentNote, rootFolder, noteMetadata } = currentStore;
 
@@ -128,10 +128,9 @@ export async function deleteFolderImpl(
   path: string,
   currentStore: FileOperationContext,
 ): Promise<DeleteOperationResult> {
-  const storage = getStorageAdapter();
   const fullPath = await joinPath(notesPath, path);
   markExpectedExternalChange(fullPath, true);
-  await storage.deleteDir(fullPath, true);
+  await deleteNoteItemToRecoverableLocation(fullPath, 'folder');
 
   const { openTabs, starredEntries, currentNote, rootFolder, noteMetadata } = currentStore;
 
