@@ -1,6 +1,7 @@
 import type { BlockType, FloatingToolbarState, TextAlignment } from './types';
 import type { ToolbarButtonConfig, ToolbarGroupKey, ToolbarLayout } from './toolbarConfig';
 import { EXTRA_BUTTONS, FORMAT_BUTTONS, TOOLBAR_LAYOUTS } from './toolbarConfig';
+import { canShowSelectionAiTools } from './aiAvailability';
 import { getBlockTypeIconMarkup } from './components/BlockDropdown';
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
 
@@ -149,6 +150,9 @@ function renderCopyDeleteGroup(state: FloatingToolbarState): string {
 function renderToolbarGroup(group: ToolbarGroupKey, state: FloatingToolbarState): string {
   switch (group) {
     case 'ai':
+      if (!canShowSelectionAiTools()) {
+        return '';
+      }
       return `<div class="toolbar-group toolbar-ai-group">${renderAiButton()}</div>`;
     case 'block':
       return `<div class="toolbar-group toolbar-block-group">${renderBlockButton(state)}</div>`;
@@ -175,11 +179,16 @@ export function renderToolbarBodyMarkup(state: FloatingToolbarState): string {
   const groups = TOOLBAR_LAYOUTS[getToolbarLayout(state)];
   const parts: string[] = [];
 
-  groups.forEach((group, index) => {
-    parts.push(renderToolbarGroup(group, state));
-    if (index < groups.length - 1) {
+  groups.forEach((group) => {
+    const groupMarkup = renderToolbarGroup(group, state);
+    if (!groupMarkup) {
+      return;
+    }
+
+    if (parts.length > 0) {
       parts.push('<div class="toolbar-divider"></div>');
     }
+    parts.push(groupMarkup);
   });
 
   return `

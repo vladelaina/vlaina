@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { AppShell } from '@/components/layout/shell/AppShell';
 import { SidebarUserHeader } from '@/components/layout/SidebarUserHeader';
@@ -74,6 +74,8 @@ export function AppContent() {
     (appViewMode === 'chat' || (appViewMode === 'notes' && currentVault && !notesChatPanelCollapsed));
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [notesDebugCopyState, setNotesDebugCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const notesDebugCopyTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const handleOpenSettings = () => setSettingsOpen(true);
@@ -117,6 +119,36 @@ export function AppContent() {
       }
     };
     void unlockWindow();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (notesDebugCopyTimerRef.current !== null) {
+        window.clearTimeout(notesDebugCopyTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleCopyNotesDebug = useCallback(() => {
+    if (notesDebugCopyTimerRef.current !== null) {
+      window.clearTimeout(notesDebugCopyTimerRef.current);
+    }
+
+    void (window as Window & {
+      __vlainaCopyNotesDebug?: () => Promise<{ ok: boolean; chars: number; error?: string }>;
+    }).__vlainaCopyNotesDebug?.()
+      .then((result) => {
+        setNotesDebugCopyState(result?.ok ? 'copied' : 'failed');
+      })
+      .catch(() => {
+        setNotesDebugCopyState('failed');
+      })
+      .finally(() => {
+        notesDebugCopyTimerRef.current = window.setTimeout(() => {
+          setNotesDebugCopyState('idle');
+          notesDebugCopyTimerRef.current = null;
+        }, 1200);
+      });
   }, []);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -168,26 +200,58 @@ export function AppContent() {
   );
 
   const showLabEntry = import.meta.env.DEV && appViewMode !== 'lab';
-  const mainOverlay = showLabEntry ? (
-    <div className="pointer-events-none absolute bottom-3 right-3 z-30">
-      <Tooltip delayDuration={700}>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={() => setAppViewMode('lab')}
-            aria-label="Open Design Lab"
-            className={cn(
-              'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md border border-[#eff3f4] bg-white/92 shadow-sm backdrop-blur-sm transition-colors hover:bg-[#f5f5f5]',
-              iconButtonStyles
-            )}
-          >
-            <Icon name="misc.lab" size="md" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="left" sideOffset={8}>
-          <span className="text-xs">Open Design Lab</span>
-        </TooltipContent>
-      </Tooltip>
+  const showNotesDebugCopy = import.meta.env.DEV && appViewMode === 'notes';
+  const mainOverlay = showLabEntry || showNotesDebugCopy ? (
+    <div className="pointer-events-none absolute bottom-3 right-3 z-30 flex flex-col items-end gap-2">
+      {showNotesDebugCopy ? (
+        <Tooltip delayDuration={700}>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={handleCopyNotesDebug}
+              aria-label="Copy Notes Debug Log"
+              className={cn(
+                'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md border border-[#eff3f4] bg-white/92 shadow-sm backdrop-blur-sm transition-[background-color,box-shadow,transform,border-color] duration-200 hover:bg-[#f5f5f5]',
+                iconButtonStyles,
+                notesDebugCopyState === 'copied' && 'scale-110 border-emerald-300 text-emerald-600 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]',
+                notesDebugCopyState === 'failed' && 'scale-105 border-red-300 text-red-600 shadow-[0_0_0_3px_rgba(239,68,68,0.16)]',
+              )}
+            >
+              <Icon name={notesDebugCopyState === 'copied' ? 'common.check' : 'common.copy'} size="md" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="left" sideOffset={8}>
+            <span className="text-xs">
+              {notesDebugCopyState === 'copied'
+                ? 'Copied Notes Debug Log'
+                : notesDebugCopyState === 'failed'
+                  ? 'Copy Failed'
+                  : 'Copy Notes Debug Log'}
+            </span>
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
+
+      {showLabEntry ? (
+        <Tooltip delayDuration={700}>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={() => setAppViewMode('lab')}
+              aria-label="Open Design Lab"
+              className={cn(
+                'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md border border-[#eff3f4] bg-white/92 shadow-sm backdrop-blur-sm transition-colors hover:bg-[#f5f5f5]',
+                iconButtonStyles
+              )}
+            >
+              <Icon name="misc.lab" size="md" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="left" sideOffset={8}>
+            <span className="text-xs">Open Design Lab</span>
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
     </div>
   ) : null;
 

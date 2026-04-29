@@ -40,7 +40,7 @@ interface MessageListProps {
   useOverlayScrollbar?: boolean;
   spacerHeight: number;
   containerRef: React.RefObject<HTMLDivElement | null>;
-  onCopy: (text: string) => Promise<void> | void;
+  onCopy: (text: string) => Promise<boolean | void> | boolean | void;
   onRegenerate: (id: string) => void;
   onEdit?: (id: string, newContent: string) => void;
   onSwitchVersion: (msgId: string, idx: number) => void;

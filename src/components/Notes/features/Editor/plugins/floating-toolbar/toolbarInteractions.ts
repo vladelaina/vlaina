@@ -2,6 +2,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import type { FloatingToolbarState } from './types';
 import { TOOLBAR_ACTIONS } from './types';
+import { canShowSelectionAiTools } from './aiAvailability';
 import { floatingToolbarKey } from './floatingToolbarPlugin';
 import { copySelectionToClipboard, toggleMark, setLink } from './commands';
 import { applyFormatPreview, clearFormatPreview, hasFormatPreview } from './previewStyles';
@@ -198,6 +199,10 @@ export function createToolbarEventDelegation(
       return true;
     },
     ai: (view) => {
+      if (!canShowSelectionAiTools()) {
+        return false;
+      }
+
       return toggleSubMenu(view, 'ai');
     },
     color: (view) => {

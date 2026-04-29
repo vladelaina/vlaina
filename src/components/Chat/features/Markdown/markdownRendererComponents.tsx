@@ -1,5 +1,6 @@
 import React, { isValidElement, useEffect, useState } from 'react';
 import { getExternalLinkProps } from '@/lib/navigation/externalLinks';
+import { writeTextToClipboard } from '@/lib/clipboard';
 import { LocalImage } from '@/components/Chat/common/LocalImage';
 import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
@@ -112,13 +113,13 @@ function resolvePreCodePayload(children: React.ReactNode): {
   };
 }
 
-async function copyImageOrUrl(src: string): Promise<void> {
+async function copyImageOrUrl(src: string): Promise<boolean> {
   const copied = await copyImageSourceToClipboard(src);
   if (copied) {
-    return;
+    return true;
   }
 
-  await navigator.clipboard.writeText(src);
+  return writeTextToClipboard(src);
 }
 
 function MarkdownImage({
@@ -148,8 +149,7 @@ function MarkdownImage({
 
   const handleCopy = async () => {
     try {
-      await copyImageOrUrl(src);
-      setCopied(true);
+      setCopied(await copyImageOrUrl(src));
     } catch {
       setCopied(false);
     }

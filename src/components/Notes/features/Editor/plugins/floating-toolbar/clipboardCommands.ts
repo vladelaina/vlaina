@@ -9,7 +9,11 @@ export async function copySelectionToClipboard(view: EditorView): Promise<boolea
     return false;
   }
 
-  await writeTextToClipboard(text);
+  const didCopy = await writeTextToClipboard(text);
+  if (!didCopy) {
+    return false;
+  }
+
   collapseSelectionAndHideFloatingToolbar(view);
   return true;
 }

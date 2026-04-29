@@ -1,10 +1,11 @@
-import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import {
   buildFileTree,
   expandFoldersForPath,
   restoreExpandedState,
   updateFolderExpanded,
 } from '../fileTreeUtils';
+import { ensureFileNodeInTree } from '../fileTreePreservation';
 import { DEFAULT_FILE_TREE_SORT_MODE, sortNestedFileTree } from '../fileTreeSorting';
 import {
   ensureNotesFolder,
@@ -31,10 +32,17 @@ export function createFileSystemTreeActions(
         const metadata = await loadNoteMetadata(basePath);
         const workspace = await loadWorkspaceState(basePath);
         const fileTreeSortMode = workspace?.fileTreeSortMode ?? DEFAULT_FILE_TREE_SORT_MODE;
-        const children = sortNestedFileTree(await buildFileTree(basePath), {
+        let children = sortNestedFileTree(await buildFileTree(basePath), {
           mode: fileTreeSortMode,
           metadata,
         });
+        const currentNote = get().currentNote;
+        if (currentNote && !isAbsolutePath(currentNote.path)) {
+          children = sortNestedFileTree(ensureFileNodeInTree(children, currentNote.path), {
+            mode: fileTreeSortMode,
+            metadata,
+          });
+        }
         const starredPaths = getVaultStarredPaths(get().starredEntries, basePath);
 
         const restoredChildren = !skipRestore && workspace?.expandedFolders?.length

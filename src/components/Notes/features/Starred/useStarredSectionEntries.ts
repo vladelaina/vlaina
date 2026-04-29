@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
+import { joinPath } from '@/lib/storage/adapter';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import type { FileTreeNode, StarredEntry } from '@/stores/notes/types';
 import { normalizeStarredVaultPath } from '@/stores/notes/starred';
-import { buildNodeLookup, getVaultLabel, sortStarredEntries } from './starredSectionUtils';
+import { buildNodeLookup, sortStarredEntries } from './starredSectionUtils';
 
 export interface StarredSectionEntryViewModel {
   entry: StarredEntry;
@@ -21,12 +22,10 @@ export function useStarredSectionEntries() {
     currentNote,
     rootFolder,
     openNote,
-    toggleFolder,
-    revealFolder,
+    openNoteByAbsolutePath,
     removeStarredEntry,
-    setPendingStarredNavigation,
   } = useNotesStore();
-  const { currentVault, recentVaults, openVault } = useVaultStore();
+  const { currentVault } = useVaultStore();
 
   const currentVaultPath = currentVault?.path ? normalizeStarredVaultPath(currentVault.path) : '';
   const sortedStarredEntries = useMemo(() => sortStarredEntries(starredEntries), [starredEntries]);
@@ -40,7 +39,6 @@ export function useStarredSectionEntries() {
         const treeNode = isCurrentVaultEntry
           ? nodeLookup.get(entry.relativePath) ?? null
           : null;
-        const vaultLabel = getVaultLabel(entry.vaultPath, recentVaults);
         const isActive =
           entry.kind === 'note' &&
           isCurrentVaultEntry &&
@@ -53,34 +51,22 @@ export function useStarredSectionEntries() {
           treeNode,
           onOpen: (openInNewTab = false) => {
             void (async () => {
-              if (isCurrentVaultEntry) {
-                if (entry.kind === 'folder') {
-                  if (treeNode?.isFolder) {
-                    toggleFolder(treeNode.path);
-                  } else {
-                    revealFolder(entry.relativePath);
-                  }
-                } else {
-                  await openNote(entry.relativePath, openInNewTab);
-                }
+              if (entry.kind === 'folder') {
                 return;
               }
 
-              setPendingStarredNavigation({
-                vaultPath: entry.vaultPath,
-                kind: entry.kind,
-                relativePath: entry.relativePath,
-                openInNewTab,
-                skipWorkspaceRestore: entry.kind === 'note',
-              });
-
-              const opened = await openVault(entry.vaultPath, vaultLabel);
-              if (!opened) {
-                setPendingStarredNavigation(null);
+              if (!isCurrentVaultEntry) {
+                const absolutePath = await joinPath(entry.vaultPath, entry.relativePath);
+                await openNoteByAbsolutePath(absolutePath, openInNewTab);
+                return;
               }
+
+              await openNote(entry.relativePath, openInNewTab);
             })();
           },
-          onRemove: () => removeStarredEntry(entry.id),
+          onRemove: () => {
+            removeStarredEntry(entry.id);
+          },
         };
       }),
     [
@@ -88,13 +74,9 @@ export function useStarredSectionEntries() {
       currentVaultPath,
       nodeLookup,
       openNote,
-      openVault,
-      recentVaults,
+      openNoteByAbsolutePath,
       removeStarredEntry,
-      revealFolder,
-      setPendingStarredNavigation,
       sortedStarredEntries,
-      toggleFolder,
     ],
   );
 

@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { useFileTreePointerDragState } from '../FileTree/hooks/fileTreePointerDragState';
-import { FileItem } from '../FileTree/FileItem';
-import { FolderItem } from '../FileTree/FolderItem';
 import { NotesSidebarSection } from '../Sidebar/NotesSidebarPrimitives';
 import { ExternalStarredEntryRow } from './ExternalStarredEntryRow';
 import { useStarredSectionEntries } from './useStarredSectionEntries';
@@ -45,38 +43,16 @@ export function StarredSection({
           <Icon name="misc.star" size="sm" className="fill-amber-500 text-amber-500" />
           <span>Starred</span>
         </div>
-      ) : entryViewModels.map(({ entry, isCurrentVaultEntry, isActive, treeNode, onOpen, onRemove }) => {
-        if (isCurrentVaultEntry && treeNode) {
-          return treeNode.isFolder ? (
-            <FolderItem
-              key={entry.id}
-              node={treeNode}
-              depth={0}
-              showStarBadge
-              dragEnabled={false}
-            />
-          ) : (
-            <FileItem
-              key={entry.id}
-              node={treeNode}
-              depth={0}
-              showStarBadge
-              dragEnabled={false}
-            />
-          );
-        }
-
-        return (
-          <ExternalStarredEntryRow
-            key={entry.id}
-            entry={entry}
-            isCurrentVaultEntry={isCurrentVaultEntry}
-            isActive={isActive}
-            onOpen={onOpen}
-            onRemove={onRemove}
-          />
-        );
-      })}
+      ) : entryViewModels.map(({ entry, isCurrentVaultEntry, isActive, onOpen, onRemove }) => (
+        <ExternalStarredEntryRow
+          key={entry.id}
+          entry={entry}
+          isCurrentVaultEntry={isCurrentVaultEntry}
+          isActive={isActive}
+          onOpen={onOpen}
+          onRemove={onRemove}
+        />
+      ))}
     </div>
   );
 

@@ -25,12 +25,13 @@ export function NotesSidebarPanel({
   const appViewMode = useUIStore((s) => s.appViewMode);
   const sidebarView = useUIStore((s) => s.notesSidebarView);
   const search = useNotesSidebarSearch(appViewMode === 'notes');
+  const effectiveSidebarView = currentNotePath ? sidebarView : 'workspace';
 
   return (
     <NotesSidebarSurface isPeeking={isPeeking} className="min-h-0">
       <div
-        className={sidebarView === 'workspace' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}
-        aria-hidden={sidebarView !== 'workspace'}
+        className={effectiveSidebarView === 'workspace' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}
+        aria-hidden={effectiveSidebarView !== 'workspace'}
       >
         <SidebarContent
           rootFolder={rootFolder}
@@ -43,11 +44,11 @@ export function NotesSidebarPanel({
         />
       </div>
       <div
-        className={sidebarView === 'outline' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}
-        aria-hidden={sidebarView !== 'outline'}
+        className={effectiveSidebarView === 'outline' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}
+        aria-hidden={effectiveSidebarView !== 'outline'}
       >
         <NotesOutline
-          enabled={Boolean(currentNotePath) && sidebarView === 'outline'}
+          enabled={Boolean(currentNotePath) && effectiveSidebarView === 'outline'}
           isPeeking={isPeeking}
           className="min-h-0 flex-1"
         />

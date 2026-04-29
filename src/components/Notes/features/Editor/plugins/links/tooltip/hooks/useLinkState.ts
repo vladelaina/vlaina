@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { writeTextToClipboard } from '@/lib/clipboard';
 
 export interface UseLinkStateProps {
     href: string;
@@ -95,15 +96,18 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
         } else {
             copyText = `[${initialText}](${href})`;
         }
-        navigator.clipboard.writeText(copyText);
-        setShowCopied(true);
-        if (copyFeedbackTimerRef.current) {
-            clearTimeout(copyFeedbackTimerRef.current);
-        }
-        copyFeedbackTimerRef.current = setTimeout(() => {
-            copyFeedbackTimerRef.current = null;
-            setShowCopied(false);
-        }, 2000);
+        void writeTextToClipboard(copyText).then((didCopy) => {
+            if (!didCopy) return;
+
+            setShowCopied(true);
+            if (copyFeedbackTimerRef.current) {
+                clearTimeout(copyFeedbackTimerRef.current);
+            }
+            copyFeedbackTimerRef.current = setTimeout(() => {
+                copyFeedbackTimerRef.current = null;
+                setShowCopied(false);
+            }, 2000);
+        }, () => undefined);
     }, [isAutolink, href, initialText]);
 
     const displayUrl = useMemo(() => {

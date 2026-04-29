@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
+import { writeTextToClipboard } from '@/lib/clipboard';
 import { cn } from '@/lib/utils';
 
 interface CopyButtonProps {
@@ -7,7 +8,7 @@ interface CopyButtonProps {
   className?: string;
   showLabels?: boolean;
   copied?: boolean;
-  onCopy?: (content: string) => Promise<void> | void;
+  onCopy?: (content: string) => Promise<boolean | void> | boolean | void;
 }
 
 export default function CopyButton({
@@ -43,13 +44,17 @@ export default function CopyButton({
   const handleCopy = async () => {
     try {
       if (onCopy) {
-        await onCopy(content);
-        triggerOptimisticCopied();
+        const didCopy = await onCopy(content);
+        if (didCopy !== false) {
+          triggerOptimisticCopied();
+        }
         return;
       }
 
-      await navigator.clipboard.writeText(content);
-      triggerOptimisticCopied();
+      const didCopy = await writeTextToClipboard(content);
+      if (didCopy) {
+        triggerOptimisticCopied();
+      }
     } catch (err) {
       console.error('Failed to copy text: ', err);
     }

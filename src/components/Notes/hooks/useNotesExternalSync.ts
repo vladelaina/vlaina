@@ -309,20 +309,11 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
             return;
           }
 
-          logNotesDebug('useNotesExternalSync:watch-event', {
-            event,
-          });
-
           await flushPendingRenameDeletions();
 
           const unexpectedPaths = event.paths.map((path) => {
             const normalizedPath = normalizeFsPath(path);
             return shouldIgnoreExpectedExternalChange(normalizedPath) ? '' : normalizedPath;
-          });
-
-          logNotesDebug('useNotesExternalSync:watch-event:filtered', {
-            paths: event.paths,
-            unexpectedPaths,
           });
 
           if (unexpectedPaths.every((path) => !path)) {

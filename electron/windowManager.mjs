@@ -49,6 +49,19 @@ export function createWindowManager({
     return window && !window.isDestroyed() && !window.webContents.isDestroyed();
   }
 
+  function safeSend(window, channel, payload) {
+    if (!isUsableWindow(window)) {
+      return false;
+    }
+
+    try {
+      window.webContents.send(channel, payload);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   function resolveTargetWindow(event) {
     if (event?.sender && !event.sender.isDestroyed()) {
       const fromSender = BrowserWindow.fromWebContents(event.sender);
@@ -107,7 +120,7 @@ export function createWindowManager({
 
       if (isOpenMarkdownShortcut) {
         event.preventDefault();
-        window.webContents.send('desktop:shortcut:open-markdown-file');
+        safeSend(window, 'desktop:shortcut:open-markdown-file');
         return;
       }
 
@@ -160,7 +173,7 @@ export function createWindowManager({
       }
 
       event.preventDefault();
-      window.webContents.send('desktop:window:close-requested');
+      safeSend(window, 'desktop:window:close-requested');
     });
   }
 

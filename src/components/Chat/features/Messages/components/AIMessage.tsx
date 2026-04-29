@@ -18,7 +18,7 @@ interface AIMessageProps {
   imageGallery?: ChatImageGalleryItem[];
   getImageGallery?: ChatImageGalleryGetter;
   isLoading: boolean;
-  onCopy: (text: string) => Promise<void> | void;
+  onCopy: (text: string) => Promise<boolean | void> | boolean | void;
   onRegenerate: () => void;
   onSwitchVersion: (targetIndex: number) => void;
 }

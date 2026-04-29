@@ -7,6 +7,7 @@ import { isToggleShortcutsBinding, matchesShortcutBinding } from '@/lib/shortcut
 import { shouldBlockBrowserReservedShortcut } from '@/lib/shortcuts/browserGuards';
 import { isEventInsideDialog } from '@/lib/shortcuts/dialogGuards';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
+import { writeTextToClipboard } from '@/lib/clipboard';
 import { dispatchChatMessageCopied } from '@/components/Chat/common/copyFeedback';
 import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
 import { isComposerFocusTarget, selectComposerInputAll } from '@/lib/ui/composerFocusRegistry';
@@ -161,8 +162,10 @@ export function useChatShortcuts(
           try {
             const copyRequest = copyMessageContentToClipboard(stripThinkingContent(lastAI.content));
             void Promise.resolve(copyRequest)
-              .then(() => {
-                dispatchChatMessageCopied(lastAI.id);
+              .then((didCopy) => {
+                if (didCopy) {
+                  dispatchChatMessageCopied(lastAI.id);
+                }
               })
               .catch((error) => {
                 console.error('[useChatShortcuts] Failed to copy response:', error);
@@ -186,10 +189,11 @@ export function useChatShortcuts(
               .replace(/```\w*\n?/, '')
               .replace(/```$/, '');
             try {
-              const copyRequest = navigator.clipboard.writeText(lastCode);
-              void Promise.resolve(copyRequest).catch((error) => {
-                console.error('[useChatShortcuts] Failed to copy code block:', error);
-              });
+              const copyRequest = writeTextToClipboard(lastCode);
+              void Promise.resolve(copyRequest)
+                .catch((error) => {
+                  console.error('[useChatShortcuts] Failed to copy code block:', error);
+                });
             } catch (error) {
               console.error('[useChatShortcuts] Failed to copy code block:', error);
             }

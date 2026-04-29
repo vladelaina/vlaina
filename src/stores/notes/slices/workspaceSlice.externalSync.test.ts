@@ -187,6 +187,48 @@ describe('workspaceSlice external sync', () => {
     );
   });
 
+  it('preserves the current note and tree node when external deletion touches the open file', async () => {
+    const removeFile = createFile('docs/remove.md', 'remove');
+    const store = createNotesStore({
+      rootFolder: createFolder('', 'Notes', [
+        createFolder('docs', 'docs', [removeFile]),
+      ]),
+      currentNote: { path: 'docs/remove.md', content: '# remove' },
+      isDirty: false,
+      openTabs: [{ path: 'docs/remove.md', name: 'remove', isDirty: false }],
+      noteContentsCache: new Map([['docs/remove.md', { content: '# remove', modifiedAt: 1 }]]),
+    });
+
+    await store.getState().applyExternalPathDeletion('docs/remove.md');
+
+    expect(store.getState().currentNote).toEqual({ path: 'docs/remove.md', content: '# remove' });
+    expect(store.getState().openTabs).toEqual([{ path: 'docs/remove.md', name: 'remove', isDirty: false }]);
+    expect(store.getState().rootFolder?.children[0]).toEqual(
+      createFolder('docs', 'docs', [removeFile]),
+    );
+    expect(hoisted.openStoredNotePath).not.toHaveBeenCalled();
+  });
+
+  it('keeps current note content editable when disk sync cannot find the file', async () => {
+    storageAdapter.exists.mockResolvedValue(false);
+    storageAdapter.stat.mockResolvedValue(null);
+
+    const store = createNotesStore({
+      currentNote: { path: 'docs/alpha.md', content: '# alpha draft' },
+      isDirty: false,
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha draft', modifiedAt: 1 }]]),
+    });
+
+    const result = await store.getState().syncCurrentNoteFromDisk();
+
+    expect(result).toBe('deleted-conflict');
+    expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# alpha draft' });
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().openTabs).toEqual([{ path: 'docs/alpha.md', name: 'alpha', isDirty: true }]);
+    expect(hoisted.openStoredNotePath).not.toHaveBeenCalled();
+  });
+
 
   it('does not treat the current note as deleted when exists succeeds but stat metadata is unavailable', async () => {
     storageAdapter.exists.mockResolvedValue(true);
