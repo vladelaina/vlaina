@@ -1,4 +1,5 @@
 import type { NotesStore } from '../../types';
+import type { RecoverableDeletedItem } from './trashOperations';
 
 export type NoteTabState = NotesStore['openTabs'][number];
 export type FileTreeChildren = NonNullable<NotesStore['rootFolder']>['children'];
@@ -43,6 +44,7 @@ export interface DeleteOperationResult {
   nextAction: FileOperationNextAction;
   updatedMetadata: NotesStore['noteMetadata'];
   newChildren: FileTreeChildren;
+  recoverableDelete: RecoverableDeletedItem;
 }
 
 export interface FolderRenameResult {

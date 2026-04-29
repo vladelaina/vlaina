@@ -67,7 +67,7 @@ export async function deleteNoteImpl(
     openTabCount: currentStore.openTabs.length,
   });
   markExpectedExternalChange(fullPath);
-  await deleteNoteItemToRecoverableLocation(fullPath, 'file');
+  const recoverableDelete = await deleteNoteItemToRecoverableLocation(notesPath, path, 'file');
 
   const { openTabs, starredEntries, currentNote, rootFolder, noteMetadata } = currentStore;
 
@@ -120,6 +120,7 @@ export async function deleteNoteImpl(
     nextAction,
     updatedMetadata,
     newChildren,
+    recoverableDelete,
   };
 }
 
@@ -130,7 +131,7 @@ export async function deleteFolderImpl(
 ): Promise<DeleteOperationResult> {
   const fullPath = await joinPath(notesPath, path);
   markExpectedExternalChange(fullPath, true);
-  await deleteNoteItemToRecoverableLocation(fullPath, 'folder');
+  const recoverableDelete = await deleteNoteItemToRecoverableLocation(notesPath, path, 'folder');
 
   const { openTabs, starredEntries, currentNote, rootFolder, noteMetadata } = currentStore;
 
@@ -181,5 +182,6 @@ export async function deleteFolderImpl(
     nextAction,
     updatedMetadata,
     newChildren,
+    recoverableDelete,
   };
 }
