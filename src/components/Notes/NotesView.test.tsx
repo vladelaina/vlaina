@@ -329,16 +329,20 @@ describe('NotesView', () => {
     expect(mocks.vaultState.openVault).not.toHaveBeenCalled();
   });
 
-  it('keeps the workspace blank when nothing is open', async () => {
+  it('creates a note when the workspace starts blank', async () => {
     render(<NotesView />);
 
     expect(screen.queryByTestId('markdown-editor')).toBeNull();
     expect(screen.queryByTestId('blank-workspace-drop-overlay')).toBeNull();
     expect(notesState.createNote).not.toHaveBeenCalled();
     expect(notesState.openNote).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(notesState.createNote).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it('does not auto-open an existing draft when the workspace is blank', async () => {
+  it('creates a fresh editable note instead of opening an existing draft automatically', async () => {
     notesState.draftNotes = {
       'draft:existing': {
         parentPath: null,
@@ -349,17 +353,23 @@ describe('NotesView', () => {
     render(<NotesView />);
 
     expect(screen.queryByTestId('markdown-editor')).toBeNull();
-    expect(notesState.createNote).not.toHaveBeenCalled();
     expect(notesState.openNote).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(notesState.createNote).toHaveBeenCalledTimes(1);
+    });
   });
 
-  it('keeps the workspace blank even when no vault is open', async () => {
+  it('creates a draft when the workspace starts blank without an open vault', async () => {
     mocks.vaultState.currentVault = null;
 
     render(<NotesView />);
 
     expect(screen.queryByTestId('markdown-editor')).toBeNull();
     expect(notesState.createNote).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(notesState.createNote).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('opens a dropped folder when the workspace is blank', async () => {

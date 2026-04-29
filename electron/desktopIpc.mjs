@@ -24,7 +24,7 @@ import {
   updateAuthorizedRootRename,
 } from './fsAccess.mjs';
 
-const { app, dialog, shell } = electron;
+const { app, clipboard, dialog, shell } = electron;
 
 export function registerDesktopIpc({
   handleIpc,
@@ -44,6 +44,10 @@ export function registerDesktopIpc({
 
   handleIpc('desktop:shell:reveal-item', async (_event, filePath) => {
     shell.showItemInFolder(await assertAuthorizedFsPath(filePath));
+  });
+
+  handleIpc('desktop:clipboard:write-text', async (_event, text) => {
+    clipboard.writeText(String(text ?? ''));
   });
 
   registerDesktopDialogIpc({

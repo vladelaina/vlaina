@@ -1,5 +1,18 @@
 const activeManagedStreams = new Map();
 
+function safeSend(sender, channel, payload) {
+  if (!sender || sender.isDestroyed()) {
+    return false;
+  }
+
+  try {
+    sender.send(channel, payload);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function registerManagedIpc({
   handleIpc,
   requestManagedJson,
@@ -107,7 +120,10 @@ export function registerManagedIpc({
               }
 
               if (reasoning || content) {
-                sender.send(`desktop:managed:stream:${id}:chunk`, fullContent);
+                if (!safeSend(sender, `desktop:managed:stream:${id}:chunk`, fullContent)) {
+                  controller.abort();
+                  return;
+                }
               }
             } catch {
             }
@@ -118,12 +134,12 @@ export function registerManagedIpc({
           fullContent += '</think>';
         }
 
-        sender.send(`desktop:managed:stream:${id}:done`, { content: fullContent });
+        safeSend(sender, `desktop:managed:stream:${id}:done`, { content: fullContent });
       } catch (error) {
         if (controller.signal.aborted) {
-          sender.send(`desktop:managed:stream:${id}:error`, { message: 'Aborted' });
+          safeSend(sender, `desktop:managed:stream:${id}:error`, { message: 'Aborted' });
         } else {
-          sender.send(`desktop:managed:stream:${id}:error`, {
+          safeSend(sender, `desktop:managed:stream:${id}:error`, {
             message: error instanceof Error ? error.message : String(error),
           });
         }

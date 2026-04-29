@@ -4,6 +4,19 @@ import path from 'node:path';
 const activeWatchers = new Map();
 let watcherCounter = 0;
 
+function safeSend(sender, channel, payload) {
+  if (!sender || sender.isDestroyed()) {
+    return false;
+  }
+
+  try {
+    sender.send(channel, payload);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function registerDesktopWatchIpc({
   handleIpc,
   requireNonEmptyString,
@@ -21,7 +34,10 @@ export function registerDesktopWatchIpc({
         const payload = eventType === 'rename'
           ? { type: { remove: { kind: 'any' } }, paths: [resolvedPath] }
           : { type: { modify: { kind: 'data', mode: 'any' } }, paths: [resolvedPath] };
-        sender.send(`desktop:fs:watch:${watchId}`, payload);
+        if (!safeSend(sender, `desktop:fs:watch:${watchId}`, payload)) {
+          listener.close();
+          activeWatchers.delete(watchId);
+        }
       },
     );
 

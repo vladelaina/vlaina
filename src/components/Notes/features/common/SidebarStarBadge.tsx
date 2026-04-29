@@ -1,5 +1,6 @@
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
+import type { MouseEvent, PointerEvent } from 'react';
 
 interface SidebarStarBadgeProps {
   onClick?: () => void;
@@ -12,12 +13,21 @@ export function SidebarStarBadge({
   className,
   ariaLabel = 'Remove from Starred',
 }: SidebarStarBadgeProps) {
+  const stopRowInteraction = (
+    event: MouseEvent<HTMLButtonElement> | PointerEvent<HTMLButtonElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
   return (
     <button
       type="button"
       aria-label={ariaLabel}
+      onPointerDown={stopRowInteraction}
+      onMouseDown={stopRowInteraction}
       onClick={(event) => {
-        event.stopPropagation();
+        stopRowInteraction(event);
         onClick?.();
       }}
       className={cn(

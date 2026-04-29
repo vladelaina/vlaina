@@ -40,6 +40,10 @@ export interface ElectronDialogApi {
   ): Promise<boolean>;
 }
 
+export interface ElectronClipboardApi {
+  writeText(text: string): Promise<void>;
+}
+
 export interface ElectronFsApi {
   readBinaryFile(filePath: string): Promise<Uint8Array>;
   readTextFile(filePath: string): Promise<string>;
@@ -160,6 +164,7 @@ export interface VlainaDesktopApi {
   window: ElectronWindowApi;
   shortcuts: ElectronShortcutsApi;
   shell: ElectronShellApi;
+  clipboard: ElectronClipboardApi;
   dialog: ElectronDialogApi;
   fs: ElectronFsApi;
   path: ElectronPathApi;

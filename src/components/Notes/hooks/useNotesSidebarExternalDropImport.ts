@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { messageDialog } from '@/lib/storage/dialog';
-import { logNotesDebug } from '@/stores/notes/debugLog';
 import {
   clearExternalFileTreeDropTarget,
   setExternalFileTreeDropTarget,
@@ -21,10 +20,6 @@ function getParentRelativePath(path: string) {
   return lastSlashIndex === -1 ? '' : path.slice(0, lastSlashIndex);
 }
 
-function logExternalDrop(event: string, details: Record<string, unknown>) {
-  logNotesDebug(`useNotesSidebarExternalDropImport:${event}`, details);
-}
-
 function getDroppedPaths(event: DragEvent): string[] {
   const fileList = Array.from(event.dataTransfer?.files ?? []);
   return fileList
@@ -40,12 +35,9 @@ export function useNotesSidebarExternalDropImport({
 }: UseNotesSidebarExternalDropImportOptions) {
   useEffect(() => {
     if (!enabled || !vaultPath) {
-      logExternalDrop('disabled', { enabled, vaultPath });
       clearExternalFileTreeDropTarget();
       return;
     }
-
-    logExternalDrop('enabled', { vaultPath });
 
     let cancelled = false;
     let preview: ExternalDragPreviewHandle | null = null;
@@ -59,14 +51,6 @@ export function useNotesSidebarExternalDropImport({
       preview ??= createExternalDragPreview(paths);
       preview.updatePaths(paths);
       preview.updatePosition(clientX, clientY);
-
-      logExternalDrop('drag-over', {
-        vaultPath,
-        dropTargetPath,
-        paths,
-        clientX,
-        clientY,
-      });
 
       return dropTargetPath;
     };
@@ -112,27 +96,11 @@ export function useNotesSidebarExternalDropImport({
       void (async () => {
         const result = await importExternalMarkdownEntries(vaultPath, dropTargetPath, paths);
 
-        logExternalDrop('import-finished', {
-          vaultPath,
-          dropTargetPath,
-          importedNotePaths: result.importedNotePaths,
-          importedFolderPaths: result.importedFolderPaths,
-        });
-
         if (cancelled) {
-          logExternalDrop('import-cancelled', {
-            vaultPath,
-            dropTargetPath,
-          });
           return;
         }
 
         if (result.importedNotePaths.length === 0 && result.importedFolderPaths.length === 0) {
-          logExternalDrop('import-rejected:unsupported', {
-            vaultPath,
-            dropTargetPath,
-            paths,
-          });
           await messageDialog(
             'Only Markdown files or folders containing Markdown can be dropped into the current vault.',
             {
@@ -145,10 +113,6 @@ export function useNotesSidebarExternalDropImport({
 
         await loadFileTree(true);
         if (cancelled) {
-          logExternalDrop('reload-cancelled', {
-            vaultPath,
-            dropTargetPath,
-          });
           return;
         }
 
@@ -156,10 +120,6 @@ export function useNotesSidebarExternalDropImport({
           result.importedFolderPaths[0] ??
           (result.importedNotePaths[0] ? getParentRelativePath(result.importedNotePaths[0]) : dropTargetPath);
 
-        logExternalDrop('reveal-folder', {
-          revealPath,
-          dropTargetPath,
-        });
         revealFolder(revealPath);
       })();
     };
@@ -177,7 +137,6 @@ export function useNotesSidebarExternalDropImport({
       window.removeEventListener('dragover', handleDragOver);
       window.removeEventListener('dragleave', handleDragLeave);
       window.removeEventListener('drop', handleDrop);
-      logExternalDrop('listener-disposed', { vaultPath });
     };
   }, [enabled, loadFileTree, revealFolder, vaultPath]);
 }

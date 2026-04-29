@@ -95,10 +95,13 @@ export function createDesktopAuthLogger() {
       desktopAuthDebugBuffer.splice(0, desktopAuthDebugBuffer.length - 200);
     }
     for (const window of BrowserWindow?.getAllWindows?.() ?? []) {
-      if (window.isDestroyed()) {
+      if (window.isDestroyed() || window.webContents.isDestroyed()) {
         continue;
       }
-      window.webContents.send('desktop:account:auth-log', entry);
+      try {
+        window.webContents.send('desktop:account:auth-log', entry);
+      } catch {
+      }
     }
   }
 

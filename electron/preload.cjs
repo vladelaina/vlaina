@@ -92,6 +92,11 @@ const desktopApi = {
       return ipcRenderer.invoke('desktop:shell:reveal-item', filePath);
     },
   },
+  clipboard: {
+    writeText(text) {
+      return ipcRenderer.invoke('desktop:clipboard:write-text', text);
+    },
+  },
   dialog: {
     open(options) {
       return ipcRenderer.invoke('desktop:dialog:open', options);

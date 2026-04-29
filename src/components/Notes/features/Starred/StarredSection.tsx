@@ -1,6 +1,4 @@
 import { useEffect, useState } from 'react';
-import { FileItem } from '../FileTree/FileItem';
-import { FolderItem } from '../FileTree/FolderItem';
 import { NotesSidebarSection } from '../Sidebar/NotesSidebarPrimitives';
 import { ExternalStarredEntryRow } from './ExternalStarredEntryRow';
 import { useStarredSectionEntries } from './useStarredSectionEntries';
@@ -29,27 +27,7 @@ export function StarredSection({
 
   const content = (
     <div>
-      {entryViewModels.map(({ entry, isCurrentVaultEntry, isActive, treeNode, onOpen, onRemove }) => {
-        if (isCurrentVaultEntry && treeNode) {
-          return treeNode.isFolder ? (
-            <FolderItem
-              key={entry.id}
-              node={treeNode}
-              depth={0}
-              showStarBadge
-              dragEnabled={false}
-            />
-          ) : (
-            <FileItem
-              key={entry.id}
-              node={treeNode}
-              depth={0}
-              showStarBadge
-              dragEnabled={false}
-            />
-          );
-        }
-
+      {entryViewModels.map(({ entry, isCurrentVaultEntry, isActive, onOpen, onRemove }) => {
         return (
           <ExternalStarredEntryRow
             key={entry.id}

@@ -37,6 +37,7 @@ type MockNotesState = {
     expanded: boolean;
   } | null;
   openNote: ReturnType<typeof vi.fn>;
+  openNoteByAbsolutePath: ReturnType<typeof vi.fn>;
   toggleFolder: ReturnType<typeof vi.fn>;
   revealFolder: ReturnType<typeof vi.fn>;
   removeStarredEntry: ReturnType<typeof vi.fn>;
@@ -50,6 +51,7 @@ const mocked = vi.hoisted(() => {
     currentNote: null,
     rootFolder: null,
     openNote: vi.fn(async () => undefined),
+    openNoteByAbsolutePath: vi.fn(async () => undefined),
     toggleFolder: vi.fn(),
     revealFolder: vi.fn(),
     removeStarredEntry: vi.fn(),
@@ -89,6 +91,8 @@ describe('useStarredSectionEntries', () => {
     mocked.notesState.rootFolder = null;
     mocked.notesState.openNote.mockReset();
     mocked.notesState.openNote.mockResolvedValue(undefined);
+    mocked.notesState.openNoteByAbsolutePath.mockReset();
+    mocked.notesState.openNoteByAbsolutePath.mockResolvedValue(undefined);
     mocked.notesState.toggleFolder.mockReset();
     mocked.notesState.revealFolder.mockReset();
     mocked.notesState.removeStarredEntry.mockReset();
@@ -124,7 +128,7 @@ describe('useStarredSectionEntries', () => {
     expect(mocked.vaultState.openVault).not.toHaveBeenCalled();
   });
 
-  it('toggles a current-vault starred folder when the tree node exists', async () => {
+  it('does not open a current-vault starred folder', async () => {
     mocked.notesState.starredEntries = [
       {
         id: 'folder-1',
@@ -158,12 +162,13 @@ describe('useStarredSectionEntries', () => {
       await result.current.entries[0]?.onOpen();
     });
 
-    expect(mocked.notesState.toggleFolder).toHaveBeenCalledWith('docs');
+    expect(mocked.notesState.toggleFolder).not.toHaveBeenCalled();
     expect(mocked.notesState.revealFolder).not.toHaveBeenCalled();
     expect(mocked.notesState.setPendingStarredNavigation).not.toHaveBeenCalled();
+    expect(mocked.notesState.openNote).not.toHaveBeenCalled();
   });
 
-  it('sets skipWorkspaceRestore for a cross-vault starred note before opening the target vault', async () => {
+  it('opens a cross-vault starred note without switching to the target vault', async () => {
     mocked.notesState.starredEntries = [
       {
         id: 'note-2',
@@ -180,18 +185,16 @@ describe('useStarredSectionEntries', () => {
       await result.current.entries[0]?.onOpen();
     });
 
-    expect(mocked.notesState.setPendingStarredNavigation).toHaveBeenCalledWith({
-      vaultPath: '/vault-b',
-      kind: 'note',
-      relativePath: 'docs/beta.md',
-      openInNewTab: false,
-      skipWorkspaceRestore: true,
-    });
-    expect(mocked.vaultState.openVault).toHaveBeenCalledWith('/vault-b', 'Vault B');
+    expect(mocked.notesState.openNoteByAbsolutePath).toHaveBeenCalledWith(
+      '/vault-b/docs/beta.md',
+      false,
+    );
+    expect(mocked.notesState.setPendingStarredNavigation).not.toHaveBeenCalled();
+    expect(mocked.vaultState.openVault).not.toHaveBeenCalled();
     expect(mocked.notesState.openNote).not.toHaveBeenCalled();
   });
 
-  it('clears pending starred navigation when the target vault fails to open', async () => {
+  it('does not open a cross-vault starred folder', async () => {
     mocked.notesState.starredEntries = [
       {
         id: 'folder-2',
@@ -209,13 +212,7 @@ describe('useStarredSectionEntries', () => {
       await result.current.entries[0]?.onOpen();
     });
 
-    expect(mocked.notesState.setPendingStarredNavigation).toHaveBeenNthCalledWith(1, {
-      vaultPath: '/vault-b',
-      kind: 'folder',
-      relativePath: 'archive',
-      openInNewTab: false,
-      skipWorkspaceRestore: false,
-    });
-    expect(mocked.notesState.setPendingStarredNavigation).toHaveBeenNthCalledWith(2, null);
+    expect(mocked.notesState.setPendingStarredNavigation).not.toHaveBeenCalled();
+    expect(mocked.vaultState.openVault).not.toHaveBeenCalled();
   });
 });

@@ -41,6 +41,7 @@ export function ExternalStarredEntryRow({
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const title = liveTitle || getEntryTitle(entry);
+  const canOpen = entry.kind === 'note';
 
   const handleContextMenu = (event: MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -50,7 +51,7 @@ export function ExternalStarredEntryRow({
   };
 
   const menuEntries: NotesSidebarMenuEntry[] = [
-    ...(entry.kind === 'note'
+    ...(canOpen
       ? [{
           key: 'open-new-tab',
           icon: <Icon name="nav.external" size="md" />,
@@ -75,6 +76,10 @@ export function ExternalStarredEntryRow({
   return (
     <>
       <NotesSidebarRow
+        data-starred-entry-id={entry.id}
+        data-starred-entry-kind={entry.kind}
+        data-starred-entry-path={entry.relativePath}
+        data-starred-entry-vault-path={entry.vaultPath}
         leading={
           entry.kind === 'note' ? (
             liveIcon ? (
@@ -97,7 +102,9 @@ export function ExternalStarredEntryRow({
         isActive={isActive}
         isHighlighted={showMenu}
         showActionsByDefault={showMenu}
-        onClick={(event) => onOpen(entry.kind === 'note' && (event.ctrlKey || event.metaKey))}
+        onClick={canOpen ? (event) => {
+          onOpen(event.ctrlKey || event.metaKey);
+        } : undefined}
         onContextMenu={handleContextMenu}
         contentClassName="z-30"
         main={
@@ -105,7 +112,11 @@ export function ExternalStarredEntryRow({
             <span className={getSidebarLabelClass('notes', { selected: isActive })}>
               {title}
             </span>
-            <SidebarStarBadge onClick={onRemove} />
+            <SidebarStarBadge
+              onClick={() => {
+                onRemove();
+              }}
+            />
           </div>
         }
         actions={

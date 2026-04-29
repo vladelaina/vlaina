@@ -50,6 +50,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
   const setPendingStarredNavigation = useNotesStore(s => s.setPendingStarredNavigation);
   const notesPath = useNotesStore(s => s.notesPath);
   const rootFolder = useNotesStore(s => s.rootFolder);
+  const isLoading = useNotesStore(s => s.isLoading);
   const draftNotes = useNotesStore(s => s.draftNotes);
   const noteMetadata = useNotesStore(s => s.noteMetadata);
   const openNoteByAbsolutePath = useNotesStore(s => s.openNoteByAbsolutePath);
@@ -70,6 +71,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
   const [pendingDeleteCurrentNotePath, setPendingDeleteCurrentNotePath] = useState<string | null>(null);
   const launchContextRef = useRef(readWindowLaunchContext());
   const hasHandledLaunchNoteRef = useRef(false);
+  const autoCreateBlankNoteRef = useRef(false);
   const toggleShortcutsDialog = useCallback(() => setIsShortcutsOpen((prev) => !prev), []);
   const handleChatPanelDragStateChange = useCallback((dragging: boolean) => {
     setLayoutPanelDragging(dragging);
@@ -193,6 +195,55 @@ export function NotesView({ active = true }: { active?: boolean }) {
     openVault,
   });
 
+  useEffect(() => {
+    if (
+      !active ||
+      currentNotePath ||
+      openTabs.length > 0 ||
+      isLoading ||
+      isOpenTargetBusy ||
+      pendingStarredNavigation ||
+      autoCreateBlankNoteRef.current
+    ) {
+      return;
+    }
+
+    if (launchContextRef.current.notePath && !hasHandledLaunchNoteRef.current) {
+      return;
+    }
+
+    if (currentVault && !rootFolder) {
+      return;
+    }
+
+    autoCreateBlankNoteRef.current = true;
+    const timeoutId = window.setTimeout(() => {
+      const state = useNotesStore.getState();
+      if (state.currentNote || state.openTabs.length > 0) {
+        autoCreateBlankNoteRef.current = false;
+        return;
+      }
+
+      void state.createNote().catch(() => {
+        autoCreateBlankNoteRef.current = false;
+      });
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      autoCreateBlankNoteRef.current = false;
+    };
+  }, [
+    active,
+    currentNotePath,
+    currentVault,
+    isLoading,
+    isOpenTargetBusy,
+    openTabs.length,
+    pendingStarredNavigation,
+    rootFolder,
+  ]);
+
   useNotesSidebarExternalDropImport({
     enabled: active && !acceptsBlankWorkspaceDrop && Boolean(currentVault?.path && rootFolder),
     vaultPath: currentVault?.path ?? '',
@@ -242,7 +293,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
           {currentNotePath ? (
             <MarkdownEditor peekOffset={sidebarWidth} />
           ) : (
-            <div className="flex-1 h-full" />
+            <div className="h-full w-full" />
           )}
         </div>
 
