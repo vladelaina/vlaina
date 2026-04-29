@@ -16,23 +16,21 @@ interface TemporaryChatToggleProps {
 const EMPTY_MESSAGES: never[] = [];
 
 export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: TemporaryChatToggleProps) {
-  const temporaryChatEnabled = useUnifiedStore((state) => !!state.data.ai?.temporaryChatEnabled);
-  const currentSessionId = useUnifiedStore((state) => state.data.ai?.currentSessionId || null);
+  const temporaryChatEnabled = useAIUIStore((state) => state.temporaryChatEnabled);
+  const currentSessionId = useAIUIStore((state) => state.currentSessionId);
   const currentMessages = useUnifiedStore((state) => {
-    const sessionId = state.data.ai?.currentSessionId;
-    if (!sessionId) {
+    if (!currentSessionId) {
       return EMPTY_MESSAGES;
     }
 
-    return state.data.ai?.messages?.[sessionId] || EMPTY_MESSAGES;
+    return state.data.ai?.messages?.[currentSessionId] || EMPTY_MESSAGES;
   });
   const currentSessionModelId = useUnifiedStore((state) => {
-    const sessionId = state.data.ai?.currentSessionId;
-    if (!sessionId) {
+    if (!currentSessionId) {
       return undefined;
     }
 
-    return (state.data.ai?.sessions || []).find((session) => session.id === sessionId)?.modelId;
+    return (state.data.ai?.sessions || []).find((session) => session.id === currentSessionId)?.modelId;
   });
   const models = useUnifiedStore((state) => state.data.ai?.models || []);
   const providers = useUnifiedStore((state) => state.data.ai?.providers || []);

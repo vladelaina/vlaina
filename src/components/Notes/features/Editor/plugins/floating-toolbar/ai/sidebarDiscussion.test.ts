@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import { useAIUIStore } from '@/stores/ai/chatState';
 import { useUIStore } from '@/stores/uiSlice';
 import { useToastStore } from '@/stores/useToastStore';
 import { TOOLBAR_ACTIONS } from '../types';
@@ -36,16 +36,11 @@ describe('openSidebarDiscussionForSelection', () => {
       notesChatPanelCollapsed: false,
       pendingNotesChatComposerInsert: null,
     });
-    useUnifiedStore.setState((state) => ({
-      ...state,
-      data: {
-        ...state.data,
-        ai: {
-          ...state.data.ai!,
-          currentSessionId: 'session-1',
-        },
-      },
-    }));
+    useAIUIStore.setState({
+      currentSessionId: 'session-1',
+      temporaryChatEnabled: false,
+      selectionInitialized: true,
+    });
     vi.mocked(createAIChatSession).mockReset();
     vi.mocked(getSerializedSelectionText).mockReset();
   });
@@ -71,6 +66,20 @@ describe('openSidebarDiscussionForSelection', () => {
     useUIStore.setState({
       notesChatPanelCollapsed: true,
       pendingNotesChatComposerInsert: null,
+    });
+    vi.mocked(getSerializedSelectionText).mockReturnValue('Selected line 1');
+
+    openSidebarDiscussionForSelection(createView());
+
+    expect(createAIChatSession).toHaveBeenCalledWith('');
+    expect(useUIStore.getState().pendingNotesChatComposerInsert?.text).toBe('Selected line 1');
+  });
+
+  it('creates a new session before queuing when the UI selection has no active session', () => {
+    useAIUIStore.setState({
+      currentSessionId: null,
+      temporaryChatEnabled: false,
+      selectionInitialized: true,
     });
     vi.mocked(getSerializedSelectionText).mockReturnValue('Selected line 1');
 
