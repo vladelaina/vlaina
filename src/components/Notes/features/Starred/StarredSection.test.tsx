@@ -52,4 +52,13 @@ describe('StarredSection', () => {
     expect(screen.getByText('Starred')).toBeInTheDocument();
     expect(document.querySelector('[data-file-tree-starred-drop-target="true"]')).not.toBeNull();
   });
+
+  it('opens the empty starred section while a file tree item is being dragged', () => {
+    mocked.dragSnapshot.activeSourcePath = 'Source.md';
+
+    const { container } = render(<StarredSection />);
+
+    const contentGrid = container.querySelector('[class*="grid-rows-"]');
+    expect(contentGrid?.className).toContain('grid-rows-[1fr]');
+  });
 });

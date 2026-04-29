@@ -19,6 +19,7 @@ export function StarredSection({
   const activeDragSourcePath = useFileTreePointerDragState((state) => state.activeSourcePath);
   const isDragOver = useFileTreePointerDragState((state) => state.dropTargetKind === 'starred');
   const [expanded, setExpanded] = useState(false);
+  const isExpanded = expanded || (!hasEntries && activeDragSourcePath != null);
 
   useEffect(() => {
     if (starredLoaded && hasEntries) {
@@ -63,7 +64,7 @@ export function StarredSection({
   return (
     <NotesSidebarSection
       title="Starred"
-      expanded={expanded}
+      expanded={isExpanded}
       onToggle={() => setExpanded((value) => !value)}
       animated={false}
       nested={nested}
