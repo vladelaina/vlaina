@@ -33,18 +33,18 @@ function tryExecCommandCopy(text: string): boolean {
   }
 }
 
-export async function writeTextToClipboard(text: string): Promise<void> {
+export async function writeTextToClipboard(text: string): Promise<boolean> {
   if (tryExecCommandCopy(text)) {
-    return;
+    return true;
   }
 
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
     try {
       await navigator.clipboard.writeText(text);
-      return;
+      return true;
     } catch {
     }
   }
 
-  tryExecCommandCopy(text);
+  return tryExecCommandCopy(text);
 }
