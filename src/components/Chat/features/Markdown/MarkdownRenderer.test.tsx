@@ -88,11 +88,11 @@ describe("MarkdownRenderer", () => {
     expect(screen.queryByTestId("streamdown")).not.toBeInTheDocument();
   });
 
-  it("passes streaming flags through to streamdown", () => {
+  it("parses incomplete markdown while keeping stream animations disabled", () => {
     render(<MarkdownRenderer content={"Visible"} isStreaming />);
 
     expect(screen.getByTestId("streamdown")).toHaveAttribute("data-streaming", "true");
-    expect(screen.getByTestId("streamdown")).toHaveAttribute("data-animating", "true");
+    expect(screen.getByTestId("streamdown")).toHaveAttribute("data-animating", "false");
   });
 
   it("assigns stable code block ids and controlled copied state", () => {

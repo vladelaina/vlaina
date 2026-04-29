@@ -50,6 +50,11 @@ const TemporaryChatToggle = lazy(async () => {
   return { default: mod.TemporaryChatToggle };
 });
 
+const ModelSelector = lazy(async () => {
+  const mod = await import('@/components/Chat/features/Input/ModelSelector');
+  return { default: mod.ModelSelector };
+});
+
 const NotesTabRow = lazy(async () => {
   const mod = await import('@/components/Notes/features/Tabs/NotesTabRow');
   return { default: mod.NotesTabRow };
@@ -140,6 +145,12 @@ export function AppContent() {
     <Suspense fallback={null}>
       <NotesTabRow />
     </Suspense>
+  ) : appViewMode === 'chat' ? (
+    <Suspense fallback={null}>
+      <div className="flex h-full translate-y-0.5 items-center pl-2">
+        <ModelSelector dropdownPlacement="bottom" dropdownAlign="left" />
+      </div>
+    </Suspense>
   ) : null;
 
   const rightSlot = shouldShowTemporaryToggleInTitleBar ? (
@@ -206,6 +217,7 @@ export function AppContent() {
         titleBarLeft={<SidebarUserHeader toggleSidebar={toggleSidebar} />}
         titleBarCenter={centerSlot}
         titleBarRight={rightSlot}
+        titleBarCenterOverflowVisible={appViewMode === 'chat'}
         mainOverlay={mainOverlay}
         backgroundColor="var(--vlaina-sidebar-bg)"
       >

@@ -56,14 +56,21 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       };
     }, [content]);
 
-    const components = createMarkdownComponents({
+    const components = useMemo(() => createMarkdownComponents({
       codeBlockIdBase,
       copiedCodeBlockId,
       getImageGallery,
       imageGallery,
       imageIdBase,
       onCopyCodeBlock,
-    });
+    }), [
+      codeBlockIdBase,
+      copiedCodeBlockId,
+      getImageGallery,
+      imageGallery,
+      imageIdBase,
+      onCopyCodeBlock,
+    ]);
 
     return (
       <div className="flex flex-col">
@@ -86,7 +93,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
           >
             <Streamdown
               parseIncompleteMarkdown={isStreaming}
-              isAnimating={isStreaming}
+              isAnimating={false}
               controls={false}
               remarkPlugins={REMARK_PLUGINS}
               rehypePlugins={REHYPE_PLUGINS}

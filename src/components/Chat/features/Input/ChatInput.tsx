@@ -23,7 +23,6 @@ interface ChatInputProps {
   focusTrigger?: number;
   sessionId?: string | null;
   sentUserMessages: string[];
-  isEmbedded?: boolean;
 }
 
 export const ChatInput = memo(function ChatInput({
@@ -34,7 +33,6 @@ export const ChatInput = memo(function ChatInput({
   focusTrigger,
   sessionId,
   sentUserMessages,
-  isEmbedded = false,
 }: ChatInputProps) {
   const {
     attachments,
@@ -291,8 +289,6 @@ export const ChatInput = memo(function ChatInput({
             hasDraftMessage={!!message.trim()}
             onStop={onStop}
             onSend={() => handleSend()}
-            composerInputRef={textareaRef}
-            isEmbedded={isEmbedded}
           />
         </div>
       </div>

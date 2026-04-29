@@ -309,7 +309,6 @@ export function ChatView({ mode = 'full', active = true }: ChatViewProps) {
                 focusTrigger={focusInputTrigger}
                 sessionId={currentSessionId}
                 sentUserMessages={sentUserMessages}
-                isEmbedded={isEmbedded}
               />
           </div>
       </div>

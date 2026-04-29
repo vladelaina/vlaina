@@ -11,6 +11,7 @@ interface UnifiedTitleBarProps {
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
   backgroundColor?: string;
+  centerOverflowVisible?: boolean;
   showWindowControls?: boolean;
 }
 
@@ -21,6 +22,7 @@ export function UnifiedTitleBar({
   sidebarCollapsed,
   onToggleSidebar,
   backgroundColor = NOTES_COLORS.sidebarBg,
+  centerOverflowVisible = false,
   showWindowControls = true
 }: UnifiedTitleBarProps) {
   const handleTitleBarMouseDownCapture = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -80,7 +82,7 @@ export function UnifiedTitleBar({
         style={{ left: sidebarCollapsed ? 0 : 'var(--vlaina-shell-sidebar-width)' }}
       />
 
-      <div className="flex-1 flex items-center z-20 overflow-hidden min-w-0 h-full relative vlaina-drag-region">
+      <div className={`flex-1 flex items-center z-20 min-w-0 h-full relative vlaina-drag-region ${centerOverflowVisible ? 'overflow-visible' : 'overflow-hidden'}`}>
         {centerSlot}
       </div>
 
