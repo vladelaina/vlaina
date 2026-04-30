@@ -10,6 +10,10 @@ type MockNotesState = {
   noteMetadata: { notes: Record<string, Record<string, unknown>> } | null;
   loadFileTree: ReturnType<typeof vi.fn>;
   openTabs: Array<{ path: string; name: string; isDirty: boolean }>;
+  recentlyClosedTabs: Array<{
+    tab: { path: string; name: string; isDirty: boolean };
+    index: number;
+  }>;
   closeTab: ReturnType<typeof vi.fn>;
   reopenClosedTab: ReturnType<typeof vi.fn>;
   createNote: ReturnType<typeof vi.fn>;
@@ -50,6 +54,7 @@ const mocks = vi.hoisted(() => {
     noteMetadata: null,
     loadFileTree: vi.fn().mockResolvedValue(undefined),
     openTabs: [],
+    recentlyClosedTabs: [],
     closeTab: vi.fn(),
     reopenClosedTab: vi.fn().mockResolvedValue(undefined),
     createNote: vi.fn().mockResolvedValue('draft:test'),
@@ -276,6 +281,7 @@ describe('NotesView', () => {
     notesState.currentNote = null;
     notesState.noteMetadata = null;
     notesState.openTabs = [];
+    notesState.recentlyClosedTabs = [];
     notesState.draftNotes = {};
     notesState.isLoading = false;
     notesState.rootFolder = {
@@ -390,6 +396,43 @@ describe('NotesView', () => {
     await waitFor(() => {
       expect(notesState.createNote).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('does not create an untitled note after the last tab was closed', async () => {
+    notesState.currentNote = null;
+    notesState.openTabs = [];
+    notesState.recentlyClosedTabs = [
+      {
+        tab: { path: 'alpha.md', name: 'alpha', isDirty: false },
+        index: 0,
+      },
+    ];
+
+    render(<NotesView />);
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
+  });
+
+  it('does not create an untitled note after an opened workspace becomes empty', async () => {
+    notesState.currentNote = { path: 'alpha.md', content: '# alpha' };
+    notesState.openTabs = [{ path: 'alpha.md', name: 'alpha', isDirty: false }];
+
+    const { rerender } = render(<NotesView />);
+
+    notesState.createNote.mockClear();
+    notesState.currentNote = null;
+    notesState.openTabs = [];
+    rerender(<NotesView />);
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
   });
 
   it('opens a dropped folder when the workspace is blank', async () => {

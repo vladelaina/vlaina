@@ -35,6 +35,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const loadFileTree = useNotesStore(s => s.loadFileTree);
   const openTabs = useNotesStore(s => s.openTabs);
+  const recentlyClosedTabs = useNotesStore(s => s.recentlyClosedTabs);
   const closeTab = useNotesStore(s => s.closeTab);
   const reopenClosedTab = useNotesStore(s => s.reopenClosedTab);
   const openNote = useNotesStore(s => s.openNote);
@@ -72,6 +73,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
   const launchContextRef = useRef(readWindowLaunchContext());
   const hasHandledLaunchNoteRef = useRef(false);
   const autoCreateBlankNoteRef = useRef(false);
+  const hasPresentedNoteRef = useRef(false);
   const toggleShortcutsDialog = useCallback(() => setIsShortcutsOpen((prev) => !prev), []);
   const handleChatPanelDragStateChange = useCallback((dragging: boolean) => {
     setLayoutPanelDragging(dragging);
@@ -203,10 +205,18 @@ export function NotesView({ active = true }: { active?: boolean }) {
   });
 
   useEffect(() => {
+    if (currentNotePath || openTabs.length > 0) {
+      hasPresentedNoteRef.current = true;
+    }
+  }, [currentNotePath, openTabs.length]);
+
+  useEffect(() => {
     if (
       !active ||
       currentNotePath ||
       openTabs.length > 0 ||
+      recentlyClosedTabs.length > 0 ||
+      hasPresentedNoteRef.current ||
       isLoading ||
       isOpenTargetBusy ||
       pendingStarredNavigation ||
@@ -248,6 +258,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
     isOpenTargetBusy,
     openTabs.length,
     pendingStarredNavigation,
+    recentlyClosedTabs.length,
     rootFolder,
   ]);
 
