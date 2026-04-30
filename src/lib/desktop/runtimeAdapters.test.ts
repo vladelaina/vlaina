@@ -185,10 +185,20 @@ describe('desktop runtime adapters', () => {
     expect(mocks.bridge.shell.revealItem).toHaveBeenCalledWith('/tmp/file.md');
     expect(mocks.bridge.shell.trashItem).toHaveBeenCalledWith('/tmp/file.md');
     expect(mocks.bridge.fs.writeBinaryFile).toHaveBeenCalledWith('/tmp/file.bin', new Uint8Array([7, 8]));
-    expect(mocks.bridge.fs.watch).toHaveBeenCalledWith('/tmp', expect.any(Function));
+    expect(mocks.bridge.fs.watch).toHaveBeenCalledWith('/tmp', expect.any(Function), undefined);
 
     await stopWatching();
     expect(unwatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('forwards filesystem watch options through the electron bridge', async () => {
+    await watchDesktopPath('/tmp', () => {}, { recursive: false });
+
+    expect(mocks.bridge.fs.watch).toHaveBeenCalledWith(
+      '/tmp',
+      expect.any(Function),
+      { recursive: false }
+    );
   });
 
   it('delegates secrets helpers and secret commands', async () => {

@@ -48,14 +48,6 @@ vi.mock('@/stores/notes/useNotesStore', () => ({
   ),
 }));
 
-vi.mock('@/stores/useToastStore', () => ({
-  useToastStore: {
-    getState: () => ({
-      addToast: vi.fn(),
-    }),
-  },
-}));
-
 vi.mock('@/stores/notes/document/externalChangeRegistry', () => ({
   shouldIgnoreExpectedExternalChange: vi.fn(() => false),
 }));
@@ -92,8 +84,14 @@ describe('useNotesExternalSync', () => {
     vi.useRealTimers();
   });
 
-  it('reconciles the current note and reloads the tree after an external current-note change', async () => {
+  it('reconciles the current note without reloading the tree after an external current-note change', async () => {
     const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    expect(hoisted.watchDesktopPath).toHaveBeenCalledWith(
+      '/vault',
+      expect.any(Function),
+      { recursive: true }
+    );
 
     await act(async () => {
       await hoisted.watchHandler?.({
@@ -106,7 +104,7 @@ describe('useNotesExternalSync', () => {
     expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalledTimes(1);
     expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalledWith({ force: true });
     expect(hoisted.notesState.invalidateNoteCache).not.toHaveBeenCalled();
-    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+    expect(hoisted.notesState.loadFileTree).not.toHaveBeenCalled();
 
     hook.unmount();
   });
@@ -125,6 +123,24 @@ describe('useNotesExternalSync', () => {
     expect(hoisted.notesState.syncCurrentNoteFromDisk).not.toHaveBeenCalled();
     expect(hoisted.notesState.invalidateNoteCache).toHaveBeenCalledWith('docs/other.md');
     expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
+  it('ignores watch events outside the active notes path even if the vault path is broader', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/home/user', '/home/user/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: 'modify',
+        paths: ['/home/user/.cache/firefox/cache-entry'],
+      });
+      await vi.advanceTimersByTimeAsync(221);
+    });
+
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).not.toHaveBeenCalled();
+    expect(hoisted.notesState.invalidateNoteCache).not.toHaveBeenCalled();
+    expect(hoisted.notesState.loadFileTree).not.toHaveBeenCalled();
 
     hook.unmount();
   });

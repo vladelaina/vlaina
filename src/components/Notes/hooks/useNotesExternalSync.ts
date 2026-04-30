@@ -12,6 +12,7 @@ import {
   isExternalWatchUnavailableError,
 } from './externalWatchErrorUtils';
 import { createNotesExternalSyncActions } from './notesExternalSyncActions';
+import { logNotesDebug } from '@/stores/notes/debugLog';
 
 const NOTES_RECONCILE_POLL_MS = 1500;
 
@@ -30,7 +31,6 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
   const reloadTimerRef = useRef<number | null>(null);
   const pendingRenameTimerRef = useRef<number | null>(null);
   const pendingRenamesRef = useRef<PendingRenameEntry[]>([]);
-  const lastToastKeyRef = useRef<string | null>(null);
   const reconcileInFlightRef = useRef(false);
 
   useEffect(() => {
@@ -53,7 +53,6 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
       reloadTimerRef,
       pendingRenameTimerRef,
       pendingRenamesRef,
-      lastToastKeyRef,
       reconcileInFlightRef,
     });
 
@@ -90,13 +89,17 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
 
     const run = async () => {
       try {
-        const stopWatching = await watchDesktopPath(notesPath, async (event) => {
-          if (disposed) {
-            return;
-          }
+        const stopWatching = await watchDesktopPath(
+          notesPath,
+          async (event) => {
+            if (disposed) {
+              return;
+            }
 
-          await syncActions.handleWatchEvent(vaultPath, event);
-        });
+            await syncActions.handleWatchEvent(notesPath, event);
+          },
+          { recursive: true }
+        );
         if (disposed) {
           void stopWatching();
           return;
@@ -110,6 +113,11 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
         }
 
         if (isExternalWatchUnavailableError(error)) {
+          logNotesDebug('useNotesExternalSync:watch:fallback-to-polling', {
+            vaultPath,
+            notesPath,
+            error: getExternalWatchErrorMessage(error),
+          });
           startReconcilePolling();
           return;
         }

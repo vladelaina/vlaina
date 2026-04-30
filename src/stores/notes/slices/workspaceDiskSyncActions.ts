@@ -92,12 +92,6 @@ export function createWorkspaceDiskSyncAction(
           error: null,
         });
 
-        logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:reloaded', {
-          notePath: currentNote.path,
-          cachedModifiedAt,
-          nextModifiedAt,
-          contentLength: nextContent.length,
-        });
         return 'reloaded';
       } catch (error) {
         logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:error', {

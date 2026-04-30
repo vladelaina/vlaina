@@ -34,6 +34,8 @@ export function isExternalWatchUnavailableError(error: unknown) {
     message.includes('fs.watch not allowed') ||
     message.includes('watch not allowed') ||
     message.includes('command watch not found') ||
-    message.includes('command not found: watch')
+    message.includes('command not found: watch') ||
+    message.includes('enospc') ||
+    message.includes('system limit for number of file watchers reached')
   );
 }

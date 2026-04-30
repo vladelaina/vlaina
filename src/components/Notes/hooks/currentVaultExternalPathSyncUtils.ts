@@ -4,7 +4,6 @@ import { normalizeFsPath } from './notesExternalSyncUtils';
 
 const CONFIG_FILE_NAME = 'config.json';
 
-
 export function isDirectChildPath(parentPath: string, absolutePath: string) {
   return getParentPath(absolutePath) === parentPath;
 }

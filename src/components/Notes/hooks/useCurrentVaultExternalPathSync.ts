@@ -35,6 +35,7 @@ import {
 
 const ROOT_PENDING_RENAME_TTL_MS = 500;
 const ROOT_RECONCILE_POLL_MS = 1500;
+
 export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
   const isPaused = useSyncExternalStore(
     subscribeExternalSyncPause,
@@ -73,7 +74,6 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
       if (delay == null) {
         return;
       }
-
       pendingRenameTimerRef.current = window.setTimeout(() => {
         pendingRenameTimerRef.current = null;
         pendingRenamesRef.current = flushExpiredPendingRenames(
@@ -88,7 +88,6 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
       if (oldPath !== normalizedVaultPath) {
         return;
       }
-
       pendingRenamesRef.current = queuePendingRename(
         pendingRenamesRef.current,
         oldPath,
@@ -120,7 +119,6 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
       if (!matchedPath) {
         return false;
       }
-
       syncCurrentVaultExternalPath(normalizeFsPath(matchedPath));
       return true;
     };
@@ -172,95 +170,93 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
       try {
         await ensureVaultConfig(vaultPath);
         vaultSignature = await readVaultConfigSignature(vaultPath);
-        const stopWatching = await watchDesktopPath(watchParentPath, async (event) => {
-          if (disposed) {
-            return;
-          }
-
-          pendingRenamesRef.current = flushExpiredPendingRenames(
-            pendingRenamesRef.current,
-            Date.now()
-          ).queue;
-          schedulePendingRenameFlush();
-
-          const unexpectedPaths = event.paths
-            .map((path) => normalizeFsPath(path))
-            .filter((path) => path && !shouldIgnoreExpectedExternalChange(path));
-
-          if (unexpectedPaths.length === 0) {
-            return;
-          }
-
-
-          const renamePaths = getAbsoluteRenameWatchPaths({
-            ...event,
-            paths: unexpectedPaths,
-          });
-
-          if (renamePaths) {
-            const oldPath = renamePaths.oldPath ? normalizeFsPath(renamePaths.oldPath) : null;
-            const newPath = renamePaths.newPath ? normalizeFsPath(renamePaths.newPath) : null;
-
-            if (oldPath === normalizedVaultPath && newPath) {
-              if (await applyMatchedVaultRename(newPath)) {
-                return;
-              }
-              await reconcileMissingVaultPath();
+        const stopWatching = await watchDesktopPath(
+          watchParentPath,
+          async (event) => {
+            if (disposed) {
               return;
             }
 
-            if (oldPath === normalizedVaultPath) {
-              queueVaultRename(oldPath);
+            pendingRenamesRef.current = flushExpiredPendingRenames(
+              pendingRenamesRef.current,
+              Date.now()
+            ).queue;
+            schedulePendingRenameFlush();
+
+            const unexpectedPaths = event.paths
+              .map((path) => normalizeFsPath(path))
+              .filter((path) => path && !shouldIgnoreExpectedExternalChange(path));
+
+            if (unexpectedPaths.length === 0) {
               return;
             }
+            const renamePaths = getAbsoluteRenameWatchPaths({
+              ...event,
+              paths: unexpectedPaths,
+            });
 
-            if (newPath) {
-              const { queue, oldPath: matchedOldPath } = matchPendingRename(
-                pendingRenamesRef.current,
-                Date.now()
-              );
-              pendingRenamesRef.current = queue;
-              schedulePendingRenameFlush();
+            if (renamePaths) {
+              const oldPath = renamePaths.oldPath ? normalizeFsPath(renamePaths.oldPath) : null;
+              const newPath = renamePaths.newPath ? normalizeFsPath(renamePaths.newPath) : null;
 
-              if (matchedOldPath === normalizedVaultPath) {
+              if (oldPath === normalizedVaultPath && newPath) {
                 if (await applyMatchedVaultRename(newPath)) {
                   return;
                 }
                 await reconcileMissingVaultPath();
+                return;
               }
-            }
 
-            return;
-          }
+              if (oldPath === normalizedVaultPath) {
+                queueVaultRename(oldPath);
+                return;
+              }
+              if (newPath) {
+                const { queue, oldPath: matchedOldPath } = matchPendingRename(
+                  pendingRenamesRef.current,
+                  Date.now()
+                );
+                pendingRenamesRef.current = queue;
+                schedulePendingRenameFlush();
 
-          if (isRemoveWatchEvent(event) && unexpectedPaths.includes(normalizedVaultPath)) {
-            queueVaultRename(normalizedVaultPath);
-            return;
-          }
+                if (matchedOldPath === normalizedVaultPath) {
+                  if (await applyMatchedVaultRename(newPath)) {
+                    return;
+                  }
+                  await reconcileMissingVaultPath();
+                }
+              }
 
-          if (!isCreateWatchEvent(event)) {
-            return;
-          }
-
-          const { queue, oldPath: matchedOldPath } = matchPendingRename(
-            pendingRenamesRef.current,
-            Date.now()
-          );
-          pendingRenamesRef.current = queue;
-          schedulePendingRenameFlush();
-
-          if (matchedOldPath !== normalizedVaultPath) {
-            return;
-          }
-
-          for (const candidatePath of unexpectedPaths) {
-            if (await applyMatchedVaultRename(candidatePath)) {
               return;
             }
-          }
 
-          await reconcileMissingVaultPath();
-        });
+            if (isRemoveWatchEvent(event) && unexpectedPaths.includes(normalizedVaultPath)) {
+              queueVaultRename(normalizedVaultPath);
+              return;
+            }
+
+            if (!isCreateWatchEvent(event)) {
+              return;
+            }
+            const { queue, oldPath: matchedOldPath } = matchPendingRename(
+              pendingRenamesRef.current,
+              Date.now()
+            );
+            pendingRenamesRef.current = queue;
+            schedulePendingRenameFlush();
+
+            if (matchedOldPath !== normalizedVaultPath) {
+              return;
+            }
+            for (const candidatePath of unexpectedPaths) {
+              if (await applyMatchedVaultRename(candidatePath)) {
+                return;
+              }
+            }
+            await reconcileMissingVaultPath();
+          },
+          { recursive: false }
+        );
         if (disposed) {
           void stopWatching();
           return;
@@ -274,7 +270,10 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
             startReconcilePolling();
             return;
           }
-          console.error('[CurrentVaultExternalSync] Failed to start filesystem watch:', getExternalWatchErrorMessage(error));
+          console.error(
+            '[CurrentVaultExternalSync] Failed to start filesystem watch:',
+            getExternalWatchErrorMessage(error)
+          );
         }
       }
     };

@@ -2,7 +2,6 @@ import type { MutableRefObject } from 'react';
 import type { DesktopWatchEvent } from '@/lib/desktop/watch';
 import { isAbsolutePath } from '@/lib/storage/adapter';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
-import { shouldIgnoreExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
 import {
   flushExpiredPendingRenames,
   getNextPendingRenameDelay,
@@ -15,16 +14,16 @@ import {
   getRelevantRelativeWatchPaths,
   isMarkdownPath,
   isRemoveWatchEvent,
-  normalizeFsPath,
 } from './notesExternalSyncUtils';
 import {
   buildExternalTreeSnapshot,
   detectExternalTreePathChanges,
 } from './notesExternalPollingUtils';
 import { createCurrentNoteExternalSync } from './notesExternalCurrentNoteSync';
+import { createNotesExternalSyncTimers } from './notesExternalSyncTimers';
+import { classifyWatchEventPaths } from './notesExternalWatchEventDebug';
 import { getExternalWatchErrorMessage } from './externalWatchErrorUtils';
 
-const FILE_TREE_RELOAD_DEBOUNCE_MS = 220;
 const PENDING_RENAME_TTL_MS = 180;
 
 type SyncCurrentNoteFromDisk = ReturnType<typeof useNotesStore.getState>['syncCurrentNoteFromDisk'];
@@ -39,40 +38,28 @@ interface CreateNotesExternalSyncActionsOptions {
   reloadTimerRef: MutableRefObject<number | null>;
   pendingRenameTimerRef: MutableRefObject<number | null>;
   pendingRenamesRef: MutableRefObject<PendingRenameEntry[]>;
-  lastToastKeyRef: MutableRefObject<string | null>;
   reconcileInFlightRef: MutableRefObject<boolean>;
 }
 
 export function createNotesExternalSyncActions(options: CreateNotesExternalSyncActionsOptions) {
   const {
-    notesPath,
-    loadFileTree,
-    invalidateNoteCache,
-    syncCurrentNoteFromDisk,
-    applyExternalPathRename,
-    applyExternalPathDeletion,
+    notesPath, loadFileTree, invalidateNoteCache, syncCurrentNoteFromDisk,
+    applyExternalPathRename, applyExternalPathDeletion,
     reloadTimerRef,
     pendingRenameTimerRef,
     pendingRenamesRef,
-    lastToastKeyRef,
     reconcileInFlightRef,
   } = options;
-
-  const scheduleFileTreeReload = () => {
-    if (reloadTimerRef.current !== null) {
-      window.clearTimeout(reloadTimerRef.current);
-    }
-
-    reloadTimerRef.current = window.setTimeout(() => {
-      reloadTimerRef.current = null;
-      void loadFileTree(true);
-    }, FILE_TREE_RELOAD_DEBOUNCE_MS);
-  };
 
   const { applyExternalDeletion, reconcileCurrentNote } = createCurrentNoteExternalSync({
     syncCurrentNoteFromDisk,
     applyExternalPathDeletion,
-    lastToastKeyRef,
+  });
+  const { clearTimers, scheduleFileTreeReload } = createNotesExternalSyncTimers({
+    loadFileTree,
+    reloadTimerRef,
+    pendingRenameTimerRef,
+    pendingRenamesRef,
   });
 
   const schedulePendingRenameFlush = () => {
@@ -85,7 +72,6 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
     if (delay == null) {
       return;
     }
-
     pendingRenameTimerRef.current = window.setTimeout(() => {
       pendingRenameTimerRef.current = null;
       void flushPendingRenameDeletions();
@@ -100,11 +86,9 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
     if (expiredPaths.length === 0) {
       return;
     }
-
     for (const expiredPath of expiredPaths) {
       await applyExternalDeletion(expiredPath);
     }
-
     scheduleFileTreeReload();
   };
 
@@ -114,22 +98,22 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
     const currentNotePath = useNotesStore.getState().currentNote?.path ?? null;
 
     for (const relativePath of relativePaths) {
-      shouldReloadTree = true;
-
       if (isRemoveEvent) {
+        shouldReloadTree = true;
         await applyExternalDeletion(relativePath);
         continue;
       }
 
+      if (currentNotePath && !isAbsolutePath(currentNotePath) && currentNotePath === relativePath) {
+        if (isMarkdownPath(relativePath)) {
+          shouldSyncCurrentNote = true;
+        }
+        continue;
+      }
+      shouldReloadTree = true;
       if (!isMarkdownPath(relativePath)) {
         continue;
       }
-
-      if (currentNotePath && !isAbsolutePath(currentNotePath) && currentNotePath === relativePath) {
-        shouldSyncCurrentNote = true;
-        continue;
-      }
-
       invalidateNoteCache(relativePath);
     }
 
@@ -150,7 +134,6 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
     if (!changes.hasChanges) {
       return false;
     }
-
     for (const rename of changes.renames) {
       await applyExternalPathRename(rename.oldPath, rename.newPath);
     }
@@ -189,16 +172,15 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
   };
 
   const handleWatchEvent = async (vaultPath: string, event: DesktopWatchEvent) => {
-    await flushPendingRenameDeletions();
-
-    const unexpectedPaths = event.paths.map((path) => {
-      const normalizedPath = normalizeFsPath(path);
-      return shouldIgnoreExpectedExternalChange(normalizedPath) ? '' : normalizedPath;
-    });
-
+    const { pathDetails, unexpectedPaths } = classifyWatchEventPaths(vaultPath, event.paths);
+    if (pathDetails.every((detail) => detail.ignoredByVaultRules)) {
+      return;
+    }
     if (unexpectedPaths.every((path) => !path)) {
       return;
     }
+
+    await flushPendingRenameDeletions();
 
     const renamePaths = getRelativeRenameWatchPaths(vaultPath, {
       ...event,
@@ -238,22 +220,12 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
       return;
     }
 
-    await handleRelevantPaths(
-      getRelevantRelativeWatchPaths(vaultPath, unexpectedPaths),
-      isRemoveWatchEvent(event)
-    );
-  };
+    const relativePaths = getRelevantRelativeWatchPaths(vaultPath, unexpectedPaths);
+    if (relativePaths.length === 0) {
+      return;
+    }
 
-  const clearTimers = () => {
-    if (reloadTimerRef.current !== null) {
-      window.clearTimeout(reloadTimerRef.current);
-      reloadTimerRef.current = null;
-    }
-    if (pendingRenameTimerRef.current !== null) {
-      window.clearTimeout(pendingRenameTimerRef.current);
-      pendingRenameTimerRef.current = null;
-    }
-    pendingRenamesRef.current = [];
+    await handleRelevantPaths(relativePaths, isRemoveWatchEvent(event));
   };
 
   return {

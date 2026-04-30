@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createDesktopWatchPayload } from '../../electron/desktopWatchIpc.mjs';
+import {
+  createDesktopWatchPayload,
+  normalizeDesktopWatchOptions,
+} from '../../electron/desktopWatchIpc.mjs';
 
 function fileInfo(isDirectory = false) {
   return {
@@ -8,6 +11,12 @@ function fileInfo(isDirectory = false) {
 }
 
 describe('desktop watch ipc payload mapping', () => {
+  it('defaults watches to recursive and allows non-recursive parent watches', () => {
+    expect(normalizeDesktopWatchOptions(undefined)).toEqual({ recursive: true });
+    expect(normalizeDesktopWatchOptions({ recursive: true })).toEqual({ recursive: true });
+    expect(normalizeDesktopWatchOptions({ recursive: false })).toEqual({ recursive: false });
+  });
+
   it('maps data changes to modify events without stat calls', async () => {
     const statPath = vi.fn();
 
