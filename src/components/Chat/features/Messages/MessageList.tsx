@@ -89,6 +89,8 @@ export const MessageList = memo(function MessageList({
   const viewportMetricsRafRef = useRef<number | null>(null);
   const measuredHeightsRafRef = useRef<number | null>(null);
   const pendingMeasuredHeightsRef = useRef(new Map<string, number>());
+  const measuredHeightsRef = useRef(measuredHeights);
+  const lastStreamingMessageIdRef = useRef<string | null>(null);
   const measuredHeightContextRef = useRef({
     chatId,
     layoutWidth: 0,
@@ -101,6 +103,8 @@ export const MessageList = memo(function MessageList({
   const lastStreamingMessageId = isSessionActive
     ? messages[messages.length - 1]?.id ?? null
     : null;
+  measuredHeightsRef.current = measuredHeights;
+  lastStreamingMessageIdRef.current = lastStreamingMessageId;
   const messageById = useMemo(
     () => new Map(messages.map((message) => [message.id, message])),
     [messages]
@@ -266,12 +270,12 @@ export const MessageList = memo(function MessageList({
   }, [flushMeasuredHeights]);
 
   const shouldMeasureVisibleRowSynchronously = useCallback((messageId: string) => {
-    if (messageId === lastStreamingMessageId) {
+    if (messageId === lastStreamingMessageIdRef.current) {
       return true;
     }
 
-    return !measuredHeights.has(messageId);
-  }, [lastStreamingMessageId, measuredHeights]);
+    return !measuredHeightsRef.current.has(messageId);
+  }, []);
 
   useEffect(() => {
     if (typeof ResizeObserver === 'undefined') {
@@ -308,6 +312,19 @@ export const MessageList = memo(function MessageList({
       pendingMeasuredHeightsRef.current.clear();
     };
   }, [flushMeasuredHeights, scheduleMeasuredHeight, shouldMeasureVisibleRowSynchronously]);
+
+  useLayoutEffect(() => {
+    if (!lastStreamingMessageId) {
+      return;
+    }
+
+    const node = observedRowsRef.current.get(lastStreamingMessageId);
+    if (!node) {
+      return;
+    }
+
+    scheduleMeasuredHeight(lastStreamingMessageId, node.getBoundingClientRect().height);
+  }, [lastStreamingMessageId, scheduleMeasuredHeight]);
 
   const bindVisibleRow = useCallback((messageId: string, node: HTMLDivElement | null) => {
     const previous = observedRowsRef.current.get(messageId);

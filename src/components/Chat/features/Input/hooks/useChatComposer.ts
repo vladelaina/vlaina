@@ -28,6 +28,8 @@ export function useChatComposer({
   const composerRootRef = useRef<HTMLDivElement>(null);
   const submitAfterCompositionRef = useRef(false);
   const hasExplicitMultilineRef = useRef(false);
+  const focusRafRef = useRef<number | null>(null);
+  const submitRafRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (focusTrigger && textareaRef.current) {
@@ -72,7 +74,11 @@ export function useChatComposer({
           return `${prev}${separator}${normalized}`;
         });
 
-        requestAnimationFrame(() => {
+        if (focusRafRef.current !== null) {
+          cancelAnimationFrame(focusRafRef.current);
+        }
+        focusRafRef.current = requestAnimationFrame(() => {
+          focusRafRef.current = null;
           const input = textareaRef.current;
           if (!input) {
             return;
@@ -86,6 +92,19 @@ export function useChatComposer({
     });
 
     return unregister;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (focusRafRef.current !== null) {
+        cancelAnimationFrame(focusRafRef.current);
+        focusRafRef.current = null;
+      }
+      if (submitRafRef.current !== null) {
+        cancelAnimationFrame(submitRafRef.current);
+        submitRafRef.current = null;
+      }
+    };
   }, []);
 
   usePredictedTextareaHeight(textareaRef, {
@@ -135,7 +154,11 @@ export function useChatComposer({
     }
 
     submitAfterCompositionRef.current = false;
-    requestAnimationFrame(() => {
+    if (submitRafRef.current !== null) {
+      cancelAnimationFrame(submitRafRef.current);
+    }
+    submitRafRef.current = requestAnimationFrame(() => {
+      submitRafRef.current = null;
       handleSend(textareaRef.current?.value ?? message);
     });
   }, [handleSend, message]);

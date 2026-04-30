@@ -1,12 +1,12 @@
 import React, { memo, useMemo } from 'react';
-import { Streamdown, defaultRemarkPlugins, defaultRehypePlugins } from 'streamdown';
-import rehypeSanitize from 'rehype-sanitize';
-import remarkMath from 'remark-math';
-import remarkCitationParser from '@/lib/ai/plugins/remarkCitationParser';
+import ReactMarkdown from 'react-markdown';
 import { ThinkingBlock } from '@/components/Chat/features/Messages/components/ThinkingBlock';
 import { extractThinkingSections } from '@/components/Chat/features/Layout/chatAssistantMarkdownParsing';
-import { createMarkdownSanitizeSchema } from './imagePolicy';
 import { createMarkdownComponents } from './markdownRendererComponents';
+import {
+  CHAT_MARKDOWN_REHYPE_PLUGINS,
+  CHAT_MARKDOWN_REMARK_PLUGINS,
+} from './markdownPipeline';
 
 interface MarkdownRendererProps {
   content: string;
@@ -16,18 +16,10 @@ interface MarkdownRendererProps {
   codeBlockIdBase?: string;
   copiedCodeBlockId?: string | null;
   onCopyCodeBlock?: (blockId: string) => void;
-  isStreaming?: boolean;
   size?: 'sm' | 'md' | 'lg';
-  browserToolResult?: any;
   startTime?: Date;
 }
 
-const MARKDOWN_SANITIZE_SCHEMA = createMarkdownSanitizeSchema();
-const REMARK_PLUGINS = [defaultRemarkPlugins.gfm, remarkMath, remarkCitationParser].filter(Boolean);
-const REHYPE_PLUGINS = [
-  defaultRehypePlugins.raw,
-  [rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA],
-] as any[];
 const PROSE_SIZE_CLASS: Record<NonNullable<MarkdownRendererProps['size']>, string> = {
   lg: 'prose-lg',
   md: '',
@@ -45,7 +37,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
     onCopyCodeBlock,
     size,
     startTime,
-    isStreaming = false,
   }) => {
     const { body: thinking, isComplete: isThinkingDone, markdown } = useMemo(() => {
       const sections = extractThinkingSections(content || '');
@@ -84,16 +75,13 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
               .filter(Boolean)
               .join(' ')}
           >
-            <Streamdown
-              parseIncompleteMarkdown={isStreaming}
-              isAnimating={isStreaming}
-              controls={false}
-              remarkPlugins={REMARK_PLUGINS}
-              rehypePlugins={REHYPE_PLUGINS}
+            <ReactMarkdown
+              remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
+              rehypePlugins={CHAT_MARKDOWN_REHYPE_PLUGINS}
               components={components}
             >
                 {markdown}
-            </Streamdown>
+            </ReactMarkdown>
           </div>
         )}
       </div>

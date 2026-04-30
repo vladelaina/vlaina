@@ -16,6 +16,7 @@ interface AppShellProps {
   titleBarLeft?: ReactNode;
   titleBarCenter?: ReactNode;
   titleBarRight?: ReactNode;
+  titleBarCenterOverflowVisible?: boolean;
   mainOverlay?: ReactNode;
   
   backgroundColor?: string;
@@ -34,6 +35,7 @@ export function AppShell({
   titleBarLeft,
   titleBarCenter,
   titleBarRight,
+  titleBarCenterOverflowVisible = false,
   mainOverlay,
   
   backgroundColor = 'var(--vlaina-color-surface-shell-sidebar)',
@@ -102,6 +104,7 @@ export function AppShell({
         leftSlot={titleBarLeft}
         centerSlot={titleBarCenter}
         rightSlot={titleBarRight}
+        centerOverflowVisible={titleBarCenterOverflowVisible}
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={onSidebarToggle}
         backgroundColor={backgroundColor}

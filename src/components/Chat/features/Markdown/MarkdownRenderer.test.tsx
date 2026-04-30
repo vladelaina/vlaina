@@ -1,24 +1,24 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 
-const { streamdownSpy, codeBlockSpy, thinkingBlockSpy } = vi.hoisted(() => ({
-  streamdownSpy: vi.fn(),
+const { reactMarkdownSpy, codeBlockSpy, thinkingBlockSpy } = vi.hoisted(() => ({
+  reactMarkdownSpy: vi.fn(),
   codeBlockSpy: vi.fn(),
   thinkingBlockSpy: vi.fn(),
 }));
 
-vi.mock("streamdown", () => ({
-  Streamdown: (props: any) => {
-    streamdownSpy(props);
-    const { components, children, parseIncompleteMarkdown, isAnimating } = props;
+vi.mock("react-markdown", () => ({
+  default: (props: any) => {
+    reactMarkdownSpy(props);
+    const { components, children, remarkPlugins, rehypePlugins } = props;
 
     return (
       <div
-        data-testid="streamdown"
-        data-streaming={String(parseIncompleteMarkdown)}
-        data-animating={String(isAnimating)}
+        data-testid="react-markdown"
+        data-remark-count={String(remarkPlugins.length)}
+        data-rehype-count={String(rehypePlugins.length)}
       >
-        <div data-testid="streamdown-children">{children}</div>
+        <div data-testid="markdown-children">{children}</div>
         {components.p?.({ children: "inline paragraph", "data-testid": "inline-paragraph" })}
         {components.p?.({
           children: <pre data-testid="block-child">block paragraph</pre>,
@@ -29,8 +29,6 @@ vi.mock("streamdown", () => ({
       </div>
     );
   },
-  defaultRemarkPlugins: { gfm: "gfm" },
-  defaultRehypePlugins: { raw: "raw" },
 }));
 
 vi.mock("./components/CodeBlock", () => ({
@@ -67,7 +65,7 @@ import MarkdownRenderer from "./MarkdownRenderer";
 
 describe("MarkdownRenderer", () => {
   beforeEach(() => {
-    streamdownSpy.mockClear();
+    reactMarkdownSpy.mockClear();
     codeBlockSpy.mockClear();
     thinkingBlockSpy.mockClear();
   });
@@ -77,28 +75,48 @@ describe("MarkdownRenderer", () => {
 
     expect(screen.getByTestId("thinking-block")).toHaveTextContent("reasoning");
     expect(screen.getByTestId("thinking-block")).toHaveAttribute("data-streaming", "false");
-    expect(screen.getByTestId("streamdown-children")).toHaveTextContent("AnswerDone");
+    expect(screen.getByTestId("markdown-children")).toHaveTextContent("AnswerDone");
   });
 
-  it("keeps incomplete think blocks in streaming mode and skips markdown output", () => {
-    render(<MarkdownRenderer content={"<think>working"} isStreaming />);
+  it("keeps incomplete think blocks streaming and skips markdown output", () => {
+    render(<MarkdownRenderer content={"<think>working"} />);
 
     expect(screen.getByTestId("thinking-block")).toHaveTextContent("working");
     expect(screen.getByTestId("thinking-block")).toHaveAttribute("data-streaming", "true");
-    expect(screen.queryByTestId("streamdown")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("react-markdown")).not.toBeInTheDocument();
   });
 
-  it("passes streaming flags through to streamdown", () => {
-    render(<MarkdownRenderer content={"Visible"} isStreaming />);
+  it("renders markdown through the local react-markdown pipeline", () => {
+    render(<MarkdownRenderer content={"Visible"} />);
 
-    expect(screen.getByTestId("streamdown")).toHaveAttribute("data-streaming", "true");
-    expect(screen.getByTestId("streamdown")).toHaveAttribute("data-animating", "true");
+    expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-remark-count", "3");
+    expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-rehype-count", "3");
   });
 
   it("assigns stable code block ids and controlled copied state", () => {
-    render(
+    const { rerender } = render(
       <MarkdownRenderer
         content={"```ts\nconst a = 1;\n```\n```js\nconst b = 2;\n```"}
+        codeBlockIdBase="m1"
+        copiedCodeBlockId="m1:1"
+      />,
+    );
+
+    expect(codeBlockSpy).toHaveBeenCalledTimes(2);
+    expect(codeBlockSpy.mock.calls[0][0]).toMatchObject({
+      blockId: "m1:0",
+      copied: false,
+    });
+    expect(codeBlockSpy.mock.calls[1][0]).toMatchObject({
+      blockId: "m1:1",
+      copied: true,
+    });
+
+    codeBlockSpy.mockClear();
+
+    rerender(
+      <MarkdownRenderer
+        content={"Intro\n```ts\nconst a = 1;\n```\n```js\nconst b = 2;\n```"}
         codeBlockIdBase="m1"
         copiedCodeBlockId="m1:1"
       />,

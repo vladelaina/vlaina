@@ -98,7 +98,6 @@ export function AIMessage({
                 codeBlockIdBase={msg.id}
                 copiedCodeBlockId={copiedCodeBlockId}
                 onCopyCodeBlock={handleCodeBlockCopy}
-                isStreaming={isLoading}
                 startTime={startTime}
             />
         </div>

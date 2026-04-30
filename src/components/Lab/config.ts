@@ -1,69 +1,16 @@
-import { StickyOutlineLab } from './variants/StickyOutlineLab';
-import { PracticalOutlineLab } from './variants/PracticalOutlineLab';
-import { OutlineRevolutionLab } from './variants/OutlineRevolutionLab';
-import { AnimationLab } from './playground/AnimationLab';
-import { AiToolbarDropdownLab } from './playground/AiToolbarDropdownLab';
 import { ChatSidebarLoadingLab } from './playground/ChatSidebarLoadingLab';
-import { TopLeftEvolutionLab } from './playground/TopLeftEvolutionLab';
 import { CoreNavigationLab } from './playground/CoreNavigationLab';
 import { SidebarResizeLab } from './playground/SidebarResizeLab';
-import { FirstPrinciplesTableDrag } from './playground/FirstPrinciplesTableDrag';
 import { FirstPrinciplesLinkEditor } from './playground/FirstPrinciplesLinkEditor';
-import { NotesSidebarModeLab } from './playground/NotesSidebarModeLab';
-import { MembershipBadgeLab } from './playground/MembershipBadgeLab';
-import { VlainaInsightSidebarLab } from './playground/VlainaInsightSidebarLab';
 import { SearchDesignLab } from './playground/SearchDesignLab';
-import { MathEditorDialogLab } from './playground/MathEditorDialogLab';
 
 export const LAB_MODULES = [
-  {
-    id: 'math-editor-dialog-50',
-    label: 'Math Editor 50',
-    icon: 'misc.lab',
-    component: MathEditorDialogLab,
-    description: '50 design directions for the math editor dialog. Ten layout systems crossed with five surface skins.'
-  },
   {
     id: 'search-design-20',
     label: 'Search Design 20',
     icon: 'common.search',
     component: SearchDesignLab,
     description: '20 Apple-style architectural solutions for the Find/Replace experience. From Dynamic Island to Spotlight.'
-  },
-  {
-    id: 'vlaina-insight-sidebar-50',
-    label: 'vlaina: Insight 50',
-    icon: 'misc.lab',
-    component: VlainaInsightSidebarLab,
-    description: '50 architectural variations inspired by the vlaina Magic Scholar logo. Exploring Tome, Star, and Aura.'
-  },
-  {
-    id: 'outline-sticky-paradigm',
-    label: 'The Entry Lab (Sticky)',
-    icon: 'misc.lab',
-    component: StickyOutlineLab,
-    description: '30 Fixed-position, non-scrolling entry points for the Files / Outline transition.'
-  },
-  {
-    id: 'outline-practical-architecture',
-    label: 'Practical Architecture',
-    icon: 'misc.lab',
-    component: PracticalOutlineLab,
-    description: '30 production-ready coordinates for the Files / Outline transition based on real UI mockup.'
-  },
-  {
-    id: 'outline-revolution-paradigm',
-    label: 'The Revolution',
-    icon: 'misc.lab',
-    component: OutlineRevolutionLab,
-    description: '30 revolutionary UI/UX concepts based on spatial metaphors and Apple-style physics.'
-  },
-  {
-    id: 'notes-sidebar-modes',
-    label: 'Notes Sidebar Modes',
-    icon: 'misc.lab',
-    component: NotesSidebarModeLab,
-    description: 'Placement experiments for the Files / Outline switch inside the Notes sidebar.'
   },
   {
     id: 'sidebar-resize',
@@ -80,13 +27,6 @@ export const LAB_MODULES = [
     description: '30 Apple-style architectural solutions for Chat & Notes switching.'
   },
   {
-    id: 'fp-table-drag',
-    label: 'FP: Table Drag',
-    icon: 'misc.lab',
-    component: FirstPrinciplesTableDrag,
-    description: '30 first-principles re-imaginings of table column reordering. Kinetic, grid-bound, and aesthetic models.'
-  },
-  {
     id: 'fp-link-editor',
     label: 'FP: Link Editor',
     icon: 'misc.lab',
@@ -94,39 +34,11 @@ export const LAB_MODULES = [
     description: '50 first-principles directions for note link editing. From the 1px rail to the chrono-trace veil.'
   },
   {
-    id: 'top-left-evolution',
-    label: 'Top-Left Evolution',
-    icon: 'misc.animation',
-    component: TopLeftEvolutionLab,
-    description: '30 micro-architectural solutions for re-organizing top-left sidebar actions.'
-  },
-  {
-    id: 'animation',
-    label: 'AI Dropdown',
-    icon: 'misc.animation',
-    component: AnimationLab,
-    description: 'Dropdown explorations for translation languages and AI action selection.'
-  },
-  {
-    id: 'ai-toolbar-dropdown',
-    label: 'Toolbar AI Menu',
-    icon: 'misc.animation',
-    component: AiToolbarDropdownLab,
-    description: 'Dropdown explorations for the star button in the floating toolbar.'
-  },
-  {
     id: 'chat-sidebar-loading',
     label: 'Sidebar Loading',
     icon: 'misc.animation',
     component: ChatSidebarLoadingLab,
     description: 'Ten interaction directions for replacing the yellow in-progress dot in the chat sidebar.'
-  },
-  {
-    id: 'membership-crowns',
-    label: 'Membership Crowns',
-    icon: 'misc.crown',
-    component: MembershipBadgeLab,
-    description: 'Five crown-led color systems for the avatar-side membership pill in desktop.'
   }
 ] as const;
 

@@ -57,9 +57,15 @@ export const useAIUIStore = create<AIUIState>((set) => ({
   temporaryChatEnabled: false,
   selectionInitialized: false,
   temporaryReturnSessionId: null,
-  setSessionLoading: (id, loading) => set((state) => ({
-    generatingSessions: { ...state.generatingSessions, [id]: loading }
-  })),
+  setSessionLoading: (id, loading) => set((state) => {
+    const generatingSessions = { ...state.generatingSessions }
+    if (loading) {
+      generatingSessions[id] = true
+    } else {
+      delete generatingSessions[id]
+    }
+    return { generatingSessions }
+  }),
   markSessionUnread: (id) => {
     set((state) => ({
       unreadSessions: { ...state.unreadSessions, [id]: true }

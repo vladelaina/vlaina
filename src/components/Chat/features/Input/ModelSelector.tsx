@@ -8,6 +8,7 @@ import { useModelSelectorKeyboard } from './hooks/useModelSelectorKeyboard'
 import { useModelSelectorScroll } from './hooks/useModelSelectorScroll'
 import type { AIModel } from '@/lib/ai/types';
 import { isManagedProviderId, MANAGED_PROVIDER_NAME } from '@/lib/ai/managedService'
+import { focusComposerInput as focusRegisteredComposerInput } from '@/lib/ui/composerFocusRegistry'
 
 type ModelSelectorTheme = 'chat' | 'notes'
 type ModelSelectorListRow =
@@ -135,8 +136,9 @@ const ModelOption = memo(({
 });
 
 interface ModelSelectorProps {
-  composerInputRef: RefObject<HTMLInputElement | HTMLTextAreaElement | null>
+  composerInputRef?: RefObject<HTMLInputElement | HTMLTextAreaElement | null>
   dropdownPlacement?: 'top' | 'bottom'
+  dropdownAlign?: 'left' | 'right'
   onSelectModel?: (modelId: string) => void
   theme?: ModelSelectorTheme
   isEmbedded?: boolean
@@ -145,6 +147,7 @@ interface ModelSelectorProps {
 export function ModelSelector({
   composerInputRef,
   dropdownPlacement = 'top',
+  dropdownAlign = 'right',
   onSelectModel,
   theme = 'chat',
   isEmbedded = false,
@@ -160,6 +163,7 @@ export function ModelSelector({
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const isKeyboardNavigating = useRef(false)
+  const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const selectedModel = useMemo(() => {
     if (!selectedModelId) {
@@ -281,19 +285,40 @@ export function ModelSelector({
   });
 
   const focusSearchInput = useCallback(() => {
-      setTimeout(() => inputRef.current?.focus(), 50);
+      if (focusTimerRef.current !== null) {
+          clearTimeout(focusTimerRef.current)
+      }
+      focusTimerRef.current = setTimeout(() => {
+          focusTimerRef.current = null
+          inputRef.current?.focus()
+      }, 50);
   }, []);
 
   const focusComposerInput = useCallback(() => {
-      setTimeout(() => {
-          const input = composerInputRef.current;
+      if (focusTimerRef.current !== null) {
+          clearTimeout(focusTimerRef.current)
+      }
+      focusTimerRef.current = setTimeout(() => {
+          focusTimerRef.current = null
+          const input = composerInputRef?.current;
           if (input) {
               input.focus({ preventScroll: true });
               const position = input.value.length;
               input.setSelectionRange(position, position);
+              return;
           }
+          focusRegisteredComposerInput();
       }, 50);
   }, [composerInputRef]);
+
+  useEffect(() => {
+      return () => {
+          if (focusTimerRef.current !== null) {
+              clearTimeout(focusTimerRef.current)
+              focusTimerRef.current = null
+          }
+      }
+  }, [])
 
   const setKeyboardNavigating = useCallback((value: boolean) => {
       isKeyboardNavigating.current = value;
@@ -417,8 +442,9 @@ export function ModelSelector({
         <div 
           className={cn(
             dropdownPlacement === 'bottom'
-              ? "absolute top-full right-0 mt-1"
-              : "absolute bottom-full right-0 mb-1",
+              ? "absolute top-full mt-1"
+              : "absolute bottom-full mb-1",
+            dropdownAlign === 'left' ? "left-0" : "right-0",
             isEmbedded ? "w-[15.5rem]" : "w-64",
             "rounded-2xl shadow-xl",
             "border",

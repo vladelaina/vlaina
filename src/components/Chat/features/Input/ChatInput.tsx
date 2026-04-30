@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect } from 'react';
+import { memo, useCallback, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
@@ -23,7 +23,6 @@ interface ChatInputProps {
   focusTrigger?: number;
   sessionId?: string | null;
   sentUserMessages: string[];
-  isEmbedded?: boolean;
 }
 
 export const ChatInput = memo(function ChatInput({
@@ -34,8 +33,9 @@ export const ChatInput = memo(function ChatInput({
   focusTrigger,
   sessionId,
   sentUserMessages,
-  isEmbedded = false,
 }: ChatInputProps) {
+  const focusRafRef = useRef<number | null>(null);
+  const restoreFocusListenerRef = useRef<(() => void) | null>(null);
   const {
     attachments,
     isDragging,
@@ -82,15 +82,34 @@ export const ChatInput = memo(function ChatInput({
     [handlePaste, markExplicitMultiline]
   );
 
-  const focusComposerToEnd = useCallback(() => {
-    const input = textareaRef.current;
-    if (!input) {
-      return;
+  const scheduleComposerFocus = useCallback((position?: number) => {
+    if (focusRafRef.current !== null) {
+      cancelAnimationFrame(focusRafRef.current);
     }
-    input.focus({ preventScroll: true });
-    const pos = input.value.length;
-    input.setSelectionRange(pos, pos);
+    focusRafRef.current = requestAnimationFrame(() => {
+      focusRafRef.current = null;
+      const input = textareaRef.current;
+      if (!input) {
+        return;
+      }
+      input.focus({ preventScroll: true });
+      const nextPosition = position ?? input.value.length;
+      input.setSelectionRange(nextPosition, nextPosition);
+    });
   }, [textareaRef]);
+
+  useEffect(() => {
+    return () => {
+      if (focusRafRef.current !== null) {
+        cancelAnimationFrame(focusRafRef.current);
+        focusRafRef.current = null;
+      }
+      if (restoreFocusListenerRef.current) {
+        window.removeEventListener('focus', restoreFocusListenerRef.current, { capture: true });
+        restoreFocusListenerRef.current = null;
+      }
+    };
+  }, []);
 
   const {
     noteMentions,
@@ -121,16 +140,9 @@ export const ChatInput = memo(function ChatInput({
       handleMessageChange(nextMessage);
       const nextCaret = nextMessage.length;
       handleCaretChange(nextCaret);
-      requestAnimationFrame(() => {
-        const input = textareaRef.current;
-        if (!input) {
-          return;
-        }
-        input.focus({ preventScroll: true });
-        input.setSelectionRange(nextCaret, nextCaret);
-      });
+      scheduleComposerFocus(nextCaret);
     },
-    [handleCaretChange, handleMessageChange, markExplicitMultiline, textareaRef]
+    [handleCaretChange, handleMessageChange, markExplicitMultiline, scheduleComposerFocus]
   );
 
   const {
@@ -157,11 +169,9 @@ export const ChatInput = memo(function ChatInput({
   const handleHiddenFileInputChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       await handleFileChange(e);
-      requestAnimationFrame(() => {
-        focusComposerToEnd();
-      });
+      scheduleComposerFocus();
     },
-    [focusComposerToEnd, handleFileChange]
+    [handleFileChange, scheduleComposerFocus]
   );
 
   const handleTriggerFileSelect = useCallback(() => {
@@ -169,13 +179,17 @@ export const ChatInput = memo(function ChatInput({
     if (typeof window === 'undefined') {
       return;
     }
+    if (restoreFocusListenerRef.current) {
+      window.removeEventListener('focus', restoreFocusListenerRef.current, { capture: true });
+      restoreFocusListenerRef.current = null;
+    }
     const restoreFocus = () => {
-      requestAnimationFrame(() => {
-        focusComposerToEnd();
-      });
+      restoreFocusListenerRef.current = null;
+      scheduleComposerFocus();
     };
+    restoreFocusListenerRef.current = restoreFocus;
     window.addEventListener('focus', restoreFocus, { capture: true, once: true });
-  }, [focusComposerToEnd, triggerFileSelect]);
+  }, [scheduleComposerFocus, triggerFileSelect]);
 
   const handleTextareaKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -291,8 +305,6 @@ export const ChatInput = memo(function ChatInput({
             hasDraftMessage={!!message.trim()}
             onStop={onStop}
             onSend={() => handleSend()}
-            composerInputRef={textareaRef}
-            isEmbedded={isEmbedded}
           />
         </div>
       </div>
