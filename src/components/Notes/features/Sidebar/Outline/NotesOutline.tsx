@@ -63,7 +63,7 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
         <div key={node.id}>
           <div
             className={cn(
-              'group flex items-center rounded-md transition-colors',
+              'group flex cursor-pointer items-center rounded-md transition-colors',
               styles.rowHover,
               isActive ? styles.activeRow : undefined,
             )}
@@ -88,7 +88,7 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
                   toggleOutlineNode(node.id);
                 }}
                 className={cn(
-                  'mr-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm',
+                  'mr-1 inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-sm',
                   getSidebarSoftTextClass('notes'),
                   'hover:text-[var(--notes-sidebar-text)]',
                 )}
@@ -106,7 +106,7 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
               type="button"
               onClick={() => jumpToHeading(node.id)}
               className={cn(
-                'flex min-w-0 flex-1 items-center py-0 text-left text-[13px] leading-5 whitespace-normal break-words',
+                'flex min-w-0 flex-1 cursor-pointer items-center py-0 text-left text-[13px] leading-5 whitespace-normal break-words',
                 getSidebarLabelClass('notes', { selected: isActive }),
               )}
               style={{ minHeight: NOTES_SIDEBAR_ROW_HEIGHT }}

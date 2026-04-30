@@ -48,7 +48,14 @@ export function SidebarRow({
   const rowStyle = indentWidth > 0 ? { paddingLeft: `calc(0.75rem + ${indentWidth}px)` } : undefined;
 
   return (
-    <div className={cn('group/sidebar-row flex items-center py-[1px]', className)} {...props}>
+    <div
+      className={cn(
+        'group/sidebar-row flex items-center py-[1px]',
+        props.onClick && 'cursor-pointer',
+        className,
+      )}
+      {...props}
+    >
       <div
         style={rowStyle}
         className={cn(

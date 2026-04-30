@@ -50,7 +50,7 @@ export function UnifiedTitleBar({
           <button
             type="button"
             onClick={onToggleSidebar}
-            className="vlaina-no-drag group flex h-8 w-8 items-center justify-center rounded-md text-[var(--vlaina-text-primary)] transition-colors hover:bg-[var(--vlaina-bg-primary)] dark:hover:bg-white/10"
+            className="vlaina-no-drag group flex h-8 w-8 items-center justify-center rounded-md text-[var(--vlaina-text-tertiary)] transition-colors hover:bg-[var(--vlaina-bg-primary)] hover:text-[var(--vlaina-text-primary)] dark:hover:bg-white/10"
           >
             <>
               <Icon name="common.menu" size="md" className="group-hover:hidden" />
