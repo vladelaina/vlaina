@@ -3,6 +3,7 @@ import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import {
+  clampViewportRectTop,
   convertBlockRectsToDocumentSpace,
   convertViewportDragRectToDocumentRect,
   createDragSelectionRect,
@@ -139,6 +140,18 @@ describe('blockSelectionUtils', () => {
         70,
       ),
     ).toEqual({ left: 20, top: 40, right: 40, bottom: 70 });
+  });
+
+  it('clamps displayed drag rectangles below the editor viewport top', () => {
+    expect(clampViewportRectTop(
+      { left: 20, top: -12, right: 80, bottom: 64 },
+      40,
+    )).toEqual({ left: 20, top: 40, right: 80, bottom: 64 });
+
+    expect(clampViewportRectTop(
+      { left: 20, top: -12, right: 80, bottom: 24 },
+      40,
+    )).toEqual({ left: 20, top: 40, right: 80, bottom: 40 });
   });
 
   it('converts block rects into document space', () => {

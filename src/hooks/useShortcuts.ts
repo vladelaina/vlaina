@@ -16,6 +16,19 @@ interface UseShortcutsOptions {
   handlers?: Record<string, ShortcutHandler>;
 }
 
+function isEditableUndoTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  if (target.closest('[contenteditable="true"], .ProseMirror, .cm-editor')) {
+    return true;
+  }
+
+  const tagName = target.tagName.toLowerCase();
+  return tagName === 'input' || tagName === 'textarea' || tagName === 'select';
+}
+
 export function useShortcuts(options: UseShortcutsOptions = {}) {
   const { scope = 'global', handlers: extraHandlers = {} } = options;
   const {
@@ -26,7 +39,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
     notesSidebarView,
     setNotesSidebarView,
   } = useAppUIStore();
-  const { createNote, currentNote, saveNote } = useNotesStore();
+  const { createNote, currentNote, saveNote, restoreLastDeletedItem } = useNotesStore();
 
   const builtinHandlers = useMemo<Record<string, ShortcutHandler>>(() => ({
     toggleAppViewMode,
@@ -92,6 +105,20 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       if (isEventInsideDialog(e.target)) {
         return;
       }
+
+      if (
+        appViewMode === 'notes' &&
+        (e.ctrlKey || e.metaKey) &&
+        !e.shiftKey &&
+        !e.altKey &&
+        e.key.toLowerCase() === 'z' &&
+        !isEditableUndoTarget(e.target) &&
+        useNotesStore.getState().pendingDeletedItems.length > 0
+      ) {
+        e.preventDefault();
+        await restoreLastDeletedItem();
+        return;
+      }
       
       const pressedKeys = getKeysFromEvent(e);
       if (pressedKeys.length < 2) return;
@@ -116,5 +143,5 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [scope, appViewMode, handlers]);
+  }, [scope, appViewMode, handlers, restoreLastDeletedItem]);
 }

@@ -51,7 +51,14 @@ function createFolder(path: string, children: Array<FolderNode | NoteFile>): Fol
 describe('deleteOperations', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hoisted.deleteNoteItemToRecoverableLocation.mockResolvedValue(undefined);
+    hoisted.deleteNoteItemToRecoverableLocation.mockResolvedValue({
+      id: 'delete-1',
+      kind: 'file',
+      originalPath: 'docs/remove.md',
+      originalFullPath: '/vault/docs/remove.md',
+      trashPath: '/vault/.vlaina/trash/delete-1/remove.md',
+      deletedAt: 1,
+    });
   });
 
   it('moves deleted notes through the recoverable delete helper', async () => {
@@ -65,7 +72,8 @@ describe('deleteOperations', () => {
 
     expect(hoisted.markExpectedExternalChange).toHaveBeenCalledWith('/vault/docs/remove.md');
     expect(hoisted.deleteNoteItemToRecoverableLocation).toHaveBeenCalledWith(
-      '/vault/docs/remove.md',
+      '/vault',
+      'docs/remove.md',
       'file'
     );
   });
@@ -81,7 +89,8 @@ describe('deleteOperations', () => {
 
     expect(hoisted.markExpectedExternalChange).toHaveBeenCalledWith('/vault/docs', true);
     expect(hoisted.deleteNoteItemToRecoverableLocation).toHaveBeenCalledWith(
-      '/vault/docs',
+      '/vault',
+      'docs',
       'folder'
     );
   });

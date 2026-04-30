@@ -6,6 +6,7 @@ export interface FileSystemSlice {
   isNewlyCreated: NotesStore['isNewlyCreated'];
   newlyCreatedFolderPath: NotesStore['newlyCreatedFolderPath'];
   fileTreeSortMode: NotesStore['fileTreeSortMode'];
+  pendingDeletedItems: NotesStore['pendingDeletedItems'];
 
   loadFileTree: (skipRestore?: boolean) => Promise<void>;
   toggleFolder: (path: string) => void;
@@ -17,6 +18,7 @@ export interface FileSystemSlice {
     content: string,
   ) => Promise<string>;
   deleteNote: (path: string) => Promise<void>;
+  restoreLastDeletedItem: () => Promise<string | null>;
   renameNote: (path: string, newName: string) => Promise<void>;
   renameFolder: (path: string, newName: string) => Promise<void>;
   createFolder: (parentPath: string, name?: string) => Promise<string | null>;
@@ -32,6 +34,7 @@ export const fileSystemSliceInitialState = {
   isNewlyCreated: false,
   newlyCreatedFolderPath: null,
   fileTreeSortMode: 'name-asc' as const,
+  pendingDeletedItems: [],
 };
 
 export type FileSystemSliceSet = (

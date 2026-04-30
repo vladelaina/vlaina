@@ -1,4 +1,5 @@
 import { AssetEntry, UploadResult } from '@/lib/assets/types';
+import type { RecoverableDeletedItem } from './utils/fs/trashOperations';
 
 export interface NoteFile {
   id: string;
@@ -81,6 +82,13 @@ export interface DraftNoteEntry {
   name: string;
 }
 
+export interface PendingDeletedItemState extends RecoverableDeletedItem {
+  previousCurrentNote: CurrentNoteState | null;
+  previousIsDirty: boolean;
+  deletedStarredEntries: StarredEntry[];
+  deletedMetadata: MetadataFile | null;
+}
+
 export interface NoteContentCacheEntry {
   content: string;
   modifiedAt: number | null;
@@ -109,6 +117,7 @@ export interface NotesState {
   displayNames: Map<string, string>;
   isNewlyCreated: boolean;
   pendingDraftDiscardPath: string | null;
+  pendingDeletedItems: PendingDeletedItemState[];
   newlyCreatedFolderPath: string | null;
   assetList: AssetEntry[];
   isLoadingAssets: boolean;
@@ -130,6 +139,7 @@ export interface NotesActions {
   createNote: (folderPath?: string) => Promise<string>;
   createNoteWithContent: (folderPath: string | undefined, name: string, content: string) => Promise<string>;
   deleteNote: (path: string) => Promise<void>;
+  restoreLastDeletedItem: () => Promise<string | null>;
   renameNote: (path: string, newName: string) => Promise<void>;
   renameFolder: (path: string, newName: string) => Promise<void>;
   createFolder: (parentPath: string, name?: string) => Promise<string | null>;

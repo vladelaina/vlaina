@@ -1,6 +1,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { createBlockRectResolver } from './blockRectResolver';
 import {
+  clampViewportRectTop,
   convertBlockRectsToDocumentSpace,
   convertViewportDragRectToDocumentRect,
   getBlockRangesKey,
@@ -60,6 +61,10 @@ function updateDragBox(box: HTMLDivElement, rect: RectBounds): void {
   box.style.top = `${rect.top}px`;
   box.style.width = `${width}px`;
   box.style.height = `${height}px`;
+}
+
+function getDragBoxTopBoundary(scrollRoot: HTMLElement | null): number {
+  return scrollRoot?.getBoundingClientRect().top ?? 0;
 }
 
 export function startBlankAreaSelectionSession(
@@ -160,7 +165,7 @@ export function startBlankAreaSelectionSession(
         currentScrollLeft,
         currentScrollTop,
       );
-      updateDragBox(dragBox, viewportRect);
+      updateDragBox(dragBox, clampViewportRectTop(viewportRect, getDragBoxTopBoundary(scrollRoot)));
     }
 
     scheduleDragRectSelection(lastViewportDragRect);
@@ -193,7 +198,7 @@ export function startBlankAreaSelectionSession(
         currentScrollTop,
       );
       if (dragBox) {
-        updateDragBox(dragBox, displayedViewportRect);
+        updateDragBox(dragBox, clampViewportRectTop(displayedViewportRect, getDragBoxTopBoundary(scrollRoot)));
       }
       scheduleDragRectSelection(dragRect);
     },

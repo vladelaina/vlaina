@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EDITOR_FIND_OPEN_EVENT } from '@/components/Notes/features/Editor/find/editorFindEvents';
 import { DELETE_CURRENT_NOTE_EVENT } from '@/components/Notes/noteDeleteEvents';
 import { SIDEBAR_OPEN_SEARCH_EVENT } from '@/components/layout/sidebar/sidebarEvents';
+import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useShortcuts } from './useShortcuts';
 
@@ -13,6 +14,10 @@ describe('useShortcuts', () => {
       appViewMode: 'notes',
       notesSidebarView: 'workspace',
       drawerOpen: false,
+    });
+    useNotesStore.setState({
+      pendingDeletedItems: [],
+      restoreLastDeletedItem: vi.fn().mockResolvedValue(null),
     });
   });
 
@@ -169,6 +174,109 @@ describe('useShortcuts', () => {
     } finally {
       window.removeEventListener('vlaina-open-markdown-file', openMarkdownListener);
     }
+  });
+
+  it('restores the last deleted item for Ctrl+Z outside editable content', async () => {
+    const restoreLastDeletedItem = vi.fn().mockResolvedValue('alpha.md');
+    useNotesStore.setState({
+      pendingDeletedItems: [{
+        id: 'delete-1',
+        kind: 'file',
+        originalPath: 'alpha.md',
+        originalFullPath: '/vault/alpha.md',
+        trashPath: '/vault/.vlaina/trash/delete-1/alpha.md',
+        deletedAt: 1,
+        previousCurrentNote: null,
+        previousIsDirty: false,
+        deletedStarredEntries: [],
+        deletedMetadata: null,
+      }],
+      restoreLastDeletedItem,
+    });
+
+    renderHook(() => useShortcuts());
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'z',
+      code: 'KeyZ',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+
+    window.dispatchEvent(event);
+    await Promise.resolve();
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(restoreLastDeletedItem).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not steal Ctrl+Z from editor content', async () => {
+    const restoreLastDeletedItem = vi.fn().mockResolvedValue('alpha.md');
+    useNotesStore.setState({
+      pendingDeletedItems: [{
+        id: 'delete-1',
+        kind: 'file',
+        originalPath: 'alpha.md',
+        originalFullPath: '/vault/alpha.md',
+        trashPath: '/vault/.vlaina/trash/delete-1/alpha.md',
+        deletedAt: 1,
+        previousCurrentNote: null,
+        previousIsDirty: false,
+        deletedStarredEntries: [],
+        deletedMetadata: null,
+      }],
+      restoreLastDeletedItem,
+    });
+
+    try {
+      renderHook(() => useShortcuts());
+
+      const editor = document.createElement('div');
+      editor.className = 'ProseMirror';
+      editor.setAttribute('contenteditable', 'true');
+      document.body.appendChild(editor);
+
+      const event = new KeyboardEvent('keydown', {
+        key: 'z',
+        code: 'KeyZ',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+
+      editor.dispatchEvent(event);
+      await Promise.resolve();
+
+      expect(event.defaultPrevented).toBe(false);
+      expect(restoreLastDeletedItem).not.toHaveBeenCalled();
+    } finally {
+      document.querySelector('.ProseMirror')?.remove();
+    }
+  });
+
+  it('does not prevent Ctrl+Z when there is no deleted item to restore', async () => {
+    const restoreLastDeletedItem = vi.fn().mockResolvedValue(null);
+    useNotesStore.setState({
+      pendingDeletedItems: [],
+      restoreLastDeletedItem,
+    });
+
+    renderHook(() => useShortcuts());
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'z',
+      code: 'KeyZ',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+
+    window.dispatchEvent(event);
+    await Promise.resolve();
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(restoreLastDeletedItem).not.toHaveBeenCalled();
   });
 
   it('does not dispatch in-note find outside notes mode', () => {

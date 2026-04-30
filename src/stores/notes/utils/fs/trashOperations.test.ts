@@ -1,60 +1,110 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { deleteNoteItemToRecoverableLocation } from './trashOperations';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  deleteNoteItemToRecoverableLocation,
+  restoreNoteItemFromRecoverableLocation,
+} from './trashOperations';
 
 const hoisted = vi.hoisted(() => ({
-  isElectron: vi.fn(),
-  moveDesktopItemToTrash: vi.fn(),
-  deleteFile: vi.fn(),
-  deleteDir: vi.fn(),
-}));
-
-vi.mock('@/lib/desktop/trash', () => ({
-  moveDesktopItemToTrash: hoisted.moveDesktopItemToTrash,
+  mkdir: vi.fn(),
+  rename: vi.fn(),
+  exists: vi.fn(),
+  markExpectedExternalChange: vi.fn(),
 }));
 
 vi.mock('@/lib/storage/adapter', () => ({
-  isElectron: hoisted.isElectron,
+  joinPath: (...segments: string[]) => Promise.resolve(segments.join('/').replace(/\/+/g, '/')),
   getStorageAdapter: () => ({
-    deleteFile: hoisted.deleteFile,
-    deleteDir: hoisted.deleteDir,
+    mkdir: hoisted.mkdir,
+    rename: hoisted.rename,
+    exists: hoisted.exists,
   }),
+}));
+
+vi.mock('../../document/externalChangeRegistry', () => ({
+  markExpectedExternalChange: hoisted.markExpectedExternalChange,
 }));
 
 describe('deleteNoteItemToRecoverableLocation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hoisted.isElectron.mockReturnValue(false);
-    hoisted.moveDesktopItemToTrash.mockResolvedValue(undefined);
-    hoisted.deleteFile.mockResolvedValue(undefined);
-    hoisted.deleteDir.mockResolvedValue(undefined);
+    vi.spyOn(Date, 'now').mockReturnValue(1000);
+    vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    hoisted.mkdir.mockResolvedValue(undefined);
+    hoisted.rename.mockResolvedValue(undefined);
+    hoisted.exists.mockResolvedValue(false);
+    hoisted.markExpectedExternalChange.mockClear();
   });
 
-  it('moves desktop note files to the system trash', async () => {
-    hoisted.isElectron.mockReturnValue(true);
-
-    await deleteNoteItemToRecoverableLocation('/vault/note.md', 'file');
-
-    expect(hoisted.moveDesktopItemToTrash).toHaveBeenCalledWith('/vault/note.md');
-    expect(hoisted.deleteFile).not.toHaveBeenCalled();
-    expect(hoisted.deleteDir).not.toHaveBeenCalled();
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
-  it('moves desktop note folders to the system trash', async () => {
-    hoisted.isElectron.mockReturnValue(true);
+  it('moves note files into the vault recoverable trash area', async () => {
+    const result = await deleteNoteItemToRecoverableLocation('/vault', 'docs/note.md', 'file');
 
-    await deleteNoteItemToRecoverableLocation('/vault/folder', 'folder');
-
-    expect(hoisted.moveDesktopItemToTrash).toHaveBeenCalledWith('/vault/folder');
-    expect(hoisted.deleteFile).not.toHaveBeenCalled();
-    expect(hoisted.deleteDir).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      id: '1000-i',
+      kind: 'file',
+      originalPath: 'docs/note.md',
+      originalFullPath: '/vault/docs/note.md',
+      trashPath: '/vault/.vlaina/trash/1000-i/note.md',
+      deletedAt: 1000,
+    });
+    expect(hoisted.mkdir).toHaveBeenCalledWith('/vault/.vlaina/trash/1000-i', true);
+    expect(hoisted.rename).toHaveBeenCalledWith(
+      '/vault/docs/note.md',
+      '/vault/.vlaina/trash/1000-i/note.md',
+    );
   });
 
-  it('falls back to adapter deletion outside desktop', async () => {
-    await deleteNoteItemToRecoverableLocation('/vault/note.md', 'file');
-    await deleteNoteItemToRecoverableLocation('/vault/folder', 'folder');
+  it('restores deleted files to a non-conflicting path', async () => {
+    hoisted.exists
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
 
-    expect(hoisted.deleteFile).toHaveBeenCalledWith('/vault/note.md');
-    expect(hoisted.deleteDir).toHaveBeenCalledWith('/vault/folder', true);
-    expect(hoisted.moveDesktopItemToTrash).not.toHaveBeenCalled();
+    const result = await restoreNoteItemFromRecoverableLocation('/vault', {
+      id: 'delete-1',
+      kind: 'file',
+      originalPath: 'docs/note.md',
+      originalFullPath: '/vault/docs/note.md',
+      trashPath: '/vault/.vlaina/trash/delete-1/note.md',
+      deletedAt: 1000,
+    });
+
+    expect(result).toEqual({
+      restoredPath: 'docs/note 1.md',
+      restoredFullPath: '/vault/docs/note 1.md',
+    });
+    expect(hoisted.mkdir).toHaveBeenCalledWith('/vault/docs', true);
+    expect(hoisted.rename).toHaveBeenCalledWith(
+      '/vault/.vlaina/trash/delete-1/note.md',
+      '/vault/docs/note 1.md',
+    );
+    expect(hoisted.markExpectedExternalChange).toHaveBeenCalledWith('/vault/.vlaina/trash/delete-1/note.md');
+    expect(hoisted.markExpectedExternalChange).toHaveBeenCalledWith('/vault/docs/note 1.md');
+  });
+
+  it('restores deleted folders to a non-conflicting path', async () => {
+    hoisted.exists
+      .mockResolvedValueOnce(true)
+      .mockResolvedValueOnce(false);
+
+    const result = await restoreNoteItemFromRecoverableLocation('/vault', {
+      id: 'delete-1',
+      kind: 'folder',
+      originalPath: 'docs',
+      originalFullPath: '/vault/docs',
+      trashPath: '/vault/.vlaina/trash/delete-1/docs',
+      deletedAt: 1000,
+    });
+
+    expect(result).toEqual({
+      restoredPath: 'docs 1',
+      restoredFullPath: '/vault/docs 1',
+    });
+    expect(hoisted.rename).toHaveBeenCalledWith(
+      '/vault/.vlaina/trash/delete-1/docs',
+      '/vault/docs 1',
+    );
   });
 });
