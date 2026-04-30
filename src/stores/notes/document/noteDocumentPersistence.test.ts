@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { saveNoteDocument } from './noteDocumentPersistence';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { NoteWriteConflictError, saveNoteDocument } from './noteDocumentPersistence';
 
 const adapter = {
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
@@ -19,6 +19,10 @@ vi.mock('./externalChangeRegistry', () => ({
 }));
 
 describe('saveNoteDocument', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('writes updated timestamp back into markdown frontmatter', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
@@ -58,5 +62,20 @@ describe('saveNoteDocument', () => {
     expect(result.modifiedAt).toBe(123);
 
     vi.useRealTimers();
+  });
+
+  it('refuses to overwrite a note that changed on disk after it was loaded', async () => {
+    adapter.stat.mockResolvedValue({ modifiedAt: 200 });
+
+    await expect(saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: '# Local edit',
+      },
+      cache: new Map([['alpha.md', { content: '# Loaded', modifiedAt: 100 }]]),
+    })).rejects.toBeInstanceOf(NoteWriteConflictError);
+
+    expect(adapter.writeFile).not.toHaveBeenCalled();
   });
 });

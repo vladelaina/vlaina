@@ -5,6 +5,7 @@ import {
 import type { CurrentNoteState, NoteMetadataEntry } from '../types';
 import {
   getCachedNoteContent,
+  getCachedNoteModifiedAt,
   setCachedNoteContent,
   type NoteContentCache,
 } from './noteContentCache';
@@ -35,6 +36,13 @@ export interface SavedNoteDocument {
   modifiedAt: number | null;
   nextCache: NoteContentCache;
   metadata: NoteMetadataEntry;
+}
+
+export class NoteWriteConflictError extends Error {
+  constructor() {
+    super('Current note changed on disk. Reload or resolve the conflict before saving.');
+    this.name = 'NoteWriteConflictError';
+  }
 }
 
 async function resolveStoredPath(notesPath: string, path: string): Promise<string> {
@@ -81,6 +89,13 @@ export async function saveNoteDocument({
 }: SaveNoteDocumentOptions): Promise<SavedNoteDocument> {
   const storage = getStorageAdapter();
   const fullPath = await resolveStoredPath(notesPath, currentNote.path);
+  const cachedModifiedAt = getCachedNoteModifiedAt(cache, currentNote.path);
+  const fileInfoBeforeWrite = await storage.stat(fullPath);
+  const diskModifiedAt = fileInfoBeforeWrite?.modifiedAt ?? null;
+  if (cachedModifiedAt != null && diskModifiedAt != null && diskModifiedAt !== cachedModifiedAt) {
+    throw new NoteWriteConflictError();
+  }
+
   const { content, metadata } = updateNoteMetadataInMarkdown(currentNote.content, {
     updatedAt: Date.now(),
   });

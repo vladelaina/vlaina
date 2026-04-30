@@ -248,4 +248,24 @@ describe('workspaceSlice external sync', () => {
     expect(storageAdapter.readFile).not.toHaveBeenCalled();
   });
 
+  it('force reloads the current note when a watcher reports a change with the same mtime', async () => {
+    storageAdapter.exists.mockResolvedValue(true);
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 1 });
+    storageAdapter.readFile.mockResolvedValue('# updated');
+
+    const store = createNotesStore({
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      currentNoteDiskRevision: 3,
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+
+    const result = await store.getState().syncCurrentNoteFromDisk({ force: true });
+
+    expect(result).toBe('reloaded');
+    expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# updated' });
+    expect(store.getState().currentNoteDiskRevision).toBe(4);
+    expect(store.getState().isDirty).toBe(false);
+  });
+
 });

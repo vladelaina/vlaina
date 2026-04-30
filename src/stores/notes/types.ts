@@ -98,6 +98,7 @@ export interface NotesState {
   rootFolder: FolderNode | null;
   currentNote: CurrentNoteState | null;
   currentNoteRevision: number;
+  currentNoteDiskRevision: number;
   notesPath: string;
   isDirty: boolean;
   isLoading: boolean;
@@ -132,7 +133,7 @@ export interface NotesActions {
   openNoteByAbsolutePath: (absolutePath: string, openInNewTab?: boolean) => Promise<void>;
   adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => boolean;
   saveNote: (options?: { explicit?: boolean; suppressOpenTarget?: boolean }) => Promise<void>;
-  syncCurrentNoteFromDisk: () => Promise<'ignored' | 'unchanged' | 'reloaded' | 'conflict' | 'deleted' | 'deleted-conflict'>;
+  syncCurrentNoteFromDisk: (options?: { force?: boolean }) => Promise<'ignored' | 'unchanged' | 'reloaded' | 'conflict' | 'deleted' | 'deleted-conflict'>;
   invalidateNoteCache: (path: string) => void;
   applyExternalPathRename: (oldPath: string, newPath: string) => Promise<void>;
   applyExternalPathDeletion: (path: string) => Promise<void>;

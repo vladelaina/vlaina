@@ -1,6 +1,5 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { watchDesktopPath } from '@/lib/desktop/watch';
-import { getParentPath } from '@/lib/storage/adapter';
 import { shouldIgnoreExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
 import { ensureVaultConfig } from '@/stores/vaultConfig';
 import {
@@ -18,6 +17,9 @@ import {
 } from './notesExternalRenameQueue';
 import {
   findRenamedVaultPathBySignature,
+  getVaultExternalWatchPaths,
+  isDirectChildPath,
+  looksLikeVaultRoot,
   readVaultConfigSignature,
 } from './currentVaultExternalPathSyncUtils';
 import {
@@ -33,16 +35,6 @@ import {
 
 const ROOT_PENDING_RENAME_TTL_MS = 500;
 const ROOT_RECONCILE_POLL_MS = 1500;
-
-
-function isDirectChildPath(parentPath: string, absolutePath: string) {
-  return getParentPath(absolutePath) === parentPath;
-}
-
-async function looksLikeVaultRoot(path: string) {
-  return (await readVaultConfigSignature(path)) !== null;
-}
-
 export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
   const isPaused = useSyncExternalStore(
     subscribeExternalSyncPause,
@@ -59,12 +51,11 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
       return;
     }
 
-    const normalizedVaultPath = normalizeFsPath(vaultPath);
-    const watchParentPath = getParentPath(vaultPath);
-    const normalizedParentPath = watchParentPath ? normalizeFsPath(watchParentPath) : null;
-    if (!watchParentPath || !normalizedParentPath) {
+    const watchPaths = getVaultExternalWatchPaths(vaultPath);
+    if (!watchPaths) {
       return;
     }
+    const { normalizedVaultPath, normalizedParentPath, watchParentPath } = watchPaths;
 
     let disposed = false;
     let unwatch: (() => Promise<void>) | null = null;
@@ -160,6 +151,9 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
       }
 
       reconcilePollTimer = window.setInterval(() => {
+        if (document.visibilityState !== 'visible') {
+          return;
+        }
         void runReconcile();
       }, ROOT_RECONCILE_POLL_MS);
     };

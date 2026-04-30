@@ -46,15 +46,17 @@ export function shouldIgnoreExpectedExternalChange(path: string): boolean {
   const now = Date.now();
   pruneExpiredExpectedChanges(now);
 
-  const matched = expectedChanges.some((entry) => {
+  const matchedIndex = expectedChanges.findIndex((entry) => {
     if (entry.path === normalizedPath) {
       return true;
     }
 
     return entry.recursive && normalizedPath.startsWith(`${entry.path}/`);
   });
+  const matched = matchedIndex !== -1;
 
   if (matched) {
+    expectedChanges.splice(matchedIndex, 1);
     logNotesDebug('externalChangeRegistry:ignore', {
       path: normalizedPath,
       pendingCount: expectedChanges.length,

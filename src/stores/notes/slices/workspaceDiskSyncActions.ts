@@ -15,7 +15,7 @@ export function createWorkspaceDiskSyncAction(
   get: NotesGet
 ): Pick<WorkspaceSlice, 'syncCurrentNoteFromDisk'> {
   return {
-    syncCurrentNoteFromDisk: async () => {
+    syncCurrentNoteFromDisk: async (options) => {
       const { currentNote, notesPath, isDirty, noteContentsCache, openTabs, noteMetadata, rootFolder, fileTreeSortMode } = get();
       if (!currentNote) return 'ignored';
 
@@ -53,7 +53,7 @@ export function createWorkspaceDiskSyncAction(
         }
 
         const nextModifiedAt = fileInfo?.modifiedAt ?? cachedModifiedAt ?? null;
-        if (nextModifiedAt === cachedModifiedAt) return 'unchanged';
+        if (!options?.force && nextModifiedAt === cachedModifiedAt) return 'unchanged';
 
         if (isDirty) {
           logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:conflict', {
@@ -66,6 +66,10 @@ export function createWorkspaceDiskSyncAction(
         }
 
         const nextContent = await storage.readFile(fullPath);
+        if (nextContent === currentNote.content && nextModifiedAt === cachedModifiedAt) {
+          return 'unchanged';
+        }
+
         const nextMetadata = setNoteEntry(
           noteMetadata ?? createEmptyMetadataFile(),
           currentNote.path,
@@ -74,6 +78,7 @@ export function createWorkspaceDiskSyncAction(
         const nextRootFolder = buildSortedRootFolder(rootFolder, rootFolder?.children ?? [], fileTreeSortMode, nextMetadata);
         set({
           currentNote: { path: currentNote.path, content: nextContent },
+          currentNoteDiskRevision: get().currentNoteDiskRevision + 1,
           isDirty: false,
           openTabs: setNoteTabDirtyState(openTabs, currentNote.path, false),
           noteMetadata: nextMetadata,
