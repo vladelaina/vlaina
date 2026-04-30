@@ -1,5 +1,7 @@
 import React, { memo, useMemo } from 'react';
-import { Streamdown, defaultRemarkPlugins, defaultRehypePlugins } from 'streamdown';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
 import remarkMath from 'remark-math';
 import remarkCitationParser from '@/lib/ai/plugins/remarkCitationParser';
@@ -23,9 +25,9 @@ interface MarkdownRendererProps {
 }
 
 const MARKDOWN_SANITIZE_SCHEMA = createMarkdownSanitizeSchema();
-const REMARK_PLUGINS = [defaultRemarkPlugins.gfm, remarkMath, remarkCitationParser].filter(Boolean);
+const REMARK_PLUGINS = [remarkGfm, remarkMath, remarkCitationParser].filter(Boolean);
 const REHYPE_PLUGINS = [
-  defaultRehypePlugins.raw,
+  rehypeRaw,
   [rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA],
 ] as any[];
 const PROSE_SIZE_CLASS: Record<NonNullable<MarkdownRendererProps['size']>, string> = {
@@ -45,7 +47,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
     onCopyCodeBlock,
     size,
     startTime,
-    isStreaming = false,
   }) => {
     const { body: thinking, isComplete: isThinkingDone, markdown } = useMemo(() => {
       const sections = extractThinkingSections(content || '');
@@ -91,16 +92,13 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
               .filter(Boolean)
               .join(' ')}
           >
-            <Streamdown
-              parseIncompleteMarkdown={isStreaming}
-              isAnimating={false}
-              controls={false}
+            <ReactMarkdown
               remarkPlugins={REMARK_PLUGINS}
               rehypePlugins={REHYPE_PLUGINS}
               components={components}
             >
                 {markdown}
-            </Streamdown>
+            </ReactMarkdown>
           </div>
         )}
       </div>
