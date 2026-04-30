@@ -90,13 +90,33 @@ describe("MarkdownRenderer", () => {
     render(<MarkdownRenderer content={"Visible"} />);
 
     expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-remark-count", "3");
-    expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-rehype-count", "2");
+    expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-rehype-count", "3");
   });
 
   it("assigns stable code block ids and controlled copied state", () => {
-    render(
+    const { rerender } = render(
       <MarkdownRenderer
         content={"```ts\nconst a = 1;\n```\n```js\nconst b = 2;\n```"}
+        codeBlockIdBase="m1"
+        copiedCodeBlockId="m1:1"
+      />,
+    );
+
+    expect(codeBlockSpy).toHaveBeenCalledTimes(2);
+    expect(codeBlockSpy.mock.calls[0][0]).toMatchObject({
+      blockId: "m1:0",
+      copied: false,
+    });
+    expect(codeBlockSpy.mock.calls[1][0]).toMatchObject({
+      blockId: "m1:1",
+      copied: true,
+    });
+
+    codeBlockSpy.mockClear();
+
+    rerender(
+      <MarkdownRenderer
+        content={"Intro\n```ts\nconst a = 1;\n```\n```js\nconst b = 2;\n```"}
         codeBlockIdBase="m1"
         copiedCodeBlockId="m1:1"
       />,

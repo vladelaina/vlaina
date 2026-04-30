@@ -1,14 +1,12 @@
 import React, { memo, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeRaw from 'rehype-raw';
-import rehypeSanitize from 'rehype-sanitize';
-import remarkMath from 'remark-math';
-import remarkCitationParser from '@/lib/ai/plugins/remarkCitationParser';
 import { ThinkingBlock } from '@/components/Chat/features/Messages/components/ThinkingBlock';
 import { extractThinkingSections } from '@/components/Chat/features/Layout/chatAssistantMarkdownParsing';
-import { createMarkdownSanitizeSchema } from './imagePolicy';
 import { createMarkdownComponents } from './markdownRendererComponents';
+import {
+  CHAT_MARKDOWN_REHYPE_PLUGINS,
+  CHAT_MARKDOWN_REMARK_PLUGINS,
+} from './markdownPipeline';
 
 interface MarkdownRendererProps {
   content: string;
@@ -22,12 +20,6 @@ interface MarkdownRendererProps {
   startTime?: Date;
 }
 
-const MARKDOWN_SANITIZE_SCHEMA = createMarkdownSanitizeSchema();
-const REMARK_PLUGINS = [remarkGfm, remarkMath, remarkCitationParser].filter(Boolean);
-const REHYPE_PLUGINS = [
-  rehypeRaw,
-  [rehypeSanitize, MARKDOWN_SANITIZE_SCHEMA],
-] as any[];
 const PROSE_SIZE_CLASS: Record<NonNullable<MarkdownRendererProps['size']>, string> = {
   lg: 'prose-lg',
   md: '',
@@ -55,21 +47,14 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       };
     }, [content]);
 
-    const components = useMemo(() => createMarkdownComponents({
+    const components = createMarkdownComponents({
       codeBlockIdBase,
       copiedCodeBlockId,
       getImageGallery,
       imageGallery,
       imageIdBase,
       onCopyCodeBlock,
-    }), [
-      codeBlockIdBase,
-      copiedCodeBlockId,
-      getImageGallery,
-      imageGallery,
-      imageIdBase,
-      onCopyCodeBlock,
-    ]);
+    });
 
     return (
       <div className="flex flex-col">
@@ -91,8 +76,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
               .join(' ')}
           >
             <ReactMarkdown
-              remarkPlugins={REMARK_PLUGINS}
-              rehypePlugins={REHYPE_PLUGINS}
+              remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
+              rehypePlugins={CHAT_MARKDOWN_REHYPE_PLUGINS}
               components={components}
             >
                 {markdown}
