@@ -1,6 +1,5 @@
 import { ReactNode, useCallback } from 'react';
 import { Icon } from '@/components/ui/icons';
-import { NOTES_COLORS } from '@/lib/utils';
 import { WindowControls } from '@/components/layout/WindowControls';
 import { blurComposerInput, isComposerInputFocused } from '@/lib/ui/composerFocusRegistry';
 
@@ -20,7 +19,7 @@ export function UnifiedTitleBar({
   rightSlot,
   sidebarCollapsed,
   onToggleSidebar,
-  backgroundColor = NOTES_COLORS.sidebarBg,
+  backgroundColor = 'var(--vlaina-color-surface-shell-sidebar)',
   showWindowControls = true
 }: UnifiedTitleBarProps) {
   const handleTitleBarMouseDownCapture = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -47,7 +46,7 @@ export function UnifiedTitleBar({
       onMouseDownCapture={handleTitleBarMouseDownCapture}
     >
       {sidebarCollapsed ? (
-        <div className="relative z-20 flex items-center h-full pl-2 pr-3 bg-white dark:bg-zinc-800">
+        <div className="relative z-20 flex items-center h-full pl-2 pr-3 bg-[var(--vlaina-bg-primary)] dark:bg-zinc-800">
           <button
             type="button"
             onClick={onToggleSidebar}
@@ -71,12 +70,12 @@ export function UnifiedTitleBar({
       {!sidebarCollapsed ? (
         <div
           className="absolute top-0 bottom-0 z-30 w-px"
-          style={{ left: 'var(--vlaina-shell-sidebar-width)', backgroundColor: NOTES_COLORS.divider }}
+          style={{ left: 'var(--vlaina-shell-sidebar-width)', backgroundColor: 'var(--vlaina-shell-divider)' }}
         />
       ) : null}
 
       <div
-        className="absolute top-0 bottom-0 right-0 bg-white dark:bg-zinc-800"
+        className="absolute top-0 bottom-0 right-0 bg-[var(--vlaina-bg-primary)] dark:bg-zinc-800"
         style={{ left: sidebarCollapsed ? 0 : 'var(--vlaina-shell-sidebar-width)' }}
       />
 
@@ -85,7 +84,7 @@ export function UnifiedTitleBar({
       </div>
 
       {rightSlot && (
-        <div className="relative z-20 flex items-center h-full bg-white dark:bg-zinc-800 pr-2 vlaina-drag-region">
+        <div className="relative z-20 flex items-center h-full bg-[var(--vlaina-bg-primary)] dark:bg-zinc-800 pr-2 vlaina-drag-region">
           {rightSlot}
         </div>
       )}
