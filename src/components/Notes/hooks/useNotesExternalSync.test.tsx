@@ -22,7 +22,7 @@ const hoisted = vi.hoisted(() => {
   return {
     notesState,
     watchHandler: null as ((event: WatchEvent) => void | Promise<void>) | null,
-    unwatch: vi.fn(),
+    unwatch: vi.fn(async () => undefined) as () => Promise<void>,
     releaseWatcher: vi.fn(),
     watchDesktopPath: vi.fn(async (_path: string, handler: (event: WatchEvent) => void | Promise<void>) => {
       hoisted.watchHandler = handler;
@@ -143,5 +143,27 @@ describe('useNotesExternalSync', () => {
     expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
 
     hook.unmount();
+  });
+
+  it('unwatches if the effect is disposed before the async watcher resolves', async () => {
+    let resolveWatch: ((unwatch: () => Promise<void>) => void) | null = null;
+    hoisted.watchDesktopPath.mockImplementationOnce(async (_path, handler) => {
+      hoisted.watchHandler = handler;
+      return await new Promise<() => Promise<void>>((resolve) => {
+        resolveWatch = resolve;
+      });
+    });
+
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    hook.unmount();
+
+    await act(async () => {
+      resolveWatch?.(hoisted.unwatch);
+      await Promise.resolve();
+    });
+
+    expect(hoisted.unwatch).toHaveBeenCalledTimes(1);
+    expect(hoisted.releaseWatcher).not.toHaveBeenCalled();
   });
 });

@@ -24,7 +24,8 @@ describe('caret styles', () => {
   it('uses a shared global caret color token', () => {
     const css = readIndexStyles();
 
-    expect(css).toContain('--vlaina-caret-color: #41ace2;');
+    expect(css).toContain('--vlaina-color-caret: #41ace2;');
+    expect(css).toContain('--vlaina-caret-color: var(--vlaina-color-caret);');
     expect(css).toContain("[contenteditable='true'] {");
     expect(css).toContain('caret-color: var(--vlaina-caret-color);');
   });

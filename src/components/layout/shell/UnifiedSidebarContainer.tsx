@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { cn, NOTES_COLORS } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { useShellSidebarResize } from './useShellSidebarResize';
 import { RESIZE_HANDLE_HALF_WIDTH } from './ResizeDividerVisual';
 import { ResizeHandle } from './ResizeHandle';
@@ -21,7 +21,7 @@ export function UnifiedSidebarContainer({
   onWidthChange,
   onLiveWidthChange,
   onDragStateChange,
-  backgroundColor = NOTES_COLORS.sidebarBg,
+  backgroundColor = 'var(--vlaina-color-surface-shell-sidebar)',
 }: UnifiedSidebarContainerProps) {
   const { isDragging, handleDragStart } = useShellSidebarResize({
     width,
@@ -50,7 +50,7 @@ export function UnifiedSidebarContainer({
         <>
           <div
             className="w-px flex-shrink-0 z-20"
-            style={{ backgroundColor: NOTES_COLORS.divider }}
+            style={{ backgroundColor: 'var(--vlaina-shell-divider)' }}
           />
           <ResizeHandle
             onMouseDown={handleDragStart}

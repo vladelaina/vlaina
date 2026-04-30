@@ -41,8 +41,22 @@ export async function getCroppedImg(
 function createImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
-    image.addEventListener('load', () => resolve(image));
-    image.addEventListener('error', (error) => reject(error));
+
+    const cleanup = () => {
+      image.removeEventListener('load', handleLoad);
+      image.removeEventListener('error', handleError);
+    };
+    const handleLoad = () => {
+      cleanup();
+      resolve(image);
+    };
+    const handleError = (error: Event) => {
+      cleanup();
+      reject(error);
+    };
+
+    image.addEventListener('load', handleLoad);
+    image.addEventListener('error', handleError);
     image.setAttribute('crossOrigin', 'anonymous');
     image.src = url;
   });

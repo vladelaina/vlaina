@@ -1,5 +1,5 @@
 import { useCallback, useRef } from 'react';
-import { clampCropToBounds, type TranslateBounds } from './coverInteractionMath';
+import { calculateCursorAnchoredCrop, clampCropToBounds, type TranslateBounds } from './coverInteractionMath';
 import { DRAG_THRESHOLD } from '../../../../utils/coverConstants';
 
 interface UseCoverInteractionHandlersProps {
@@ -108,11 +108,14 @@ export function useCoverInteractionHandlers({
     }
   }, [readOnly, cachedBounds, setCrop]);
 
-  const onCropperZoomChange = useCallback((newZoom: number) => {
+  const onCropperZoomChange = useCallback((newZoom: number, anchor?: { x: number; y: number }) => {
     if (readOnly) return;
 
     const clampedZoom = Math.max(newZoom, effectiveMinZoom);
-    const clampedCrop = clampCropForZoom(latestCropRef.current, clampedZoom);
+    const nextCrop = anchor
+      ? calculateCursorAnchoredCrop(latestCropRef.current, latestZoomRef.current, clampedZoom, anchor)
+      : latestCropRef.current;
+    const clampedCrop = clampCropForZoom(nextCrop, clampedZoom);
     const cropChanged =
       Math.abs(clampedCrop.x - latestCropRef.current.x) > 0.001 ||
       Math.abs(clampedCrop.y - latestCropRef.current.y) > 0.001;

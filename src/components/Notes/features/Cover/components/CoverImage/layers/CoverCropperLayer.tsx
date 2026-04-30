@@ -18,7 +18,7 @@ interface CoverCropperLayerProps {
   effectiveMaxZoom: number;
   objectFitMode: 'contain' | 'horizontal-cover' | 'vertical-cover';
   onCropperCropChange: (crop: { x: number; y: number }) => void;
-  onCropperZoomChange: (zoom: number) => void;
+  onCropperZoomChange: (zoom: number, anchor?: { x: number; y: number }) => void;
   onPointerIntent: (x?: number, y?: number) => void;
   onPointerMoveIntent: (x: number, y: number) => void;
   onNonPointerIntent: () => void;

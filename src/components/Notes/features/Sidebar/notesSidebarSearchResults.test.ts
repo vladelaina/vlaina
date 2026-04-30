@@ -149,4 +149,19 @@ describe('notesSidebarSearchResults', () => {
     expect(results[2].contentSnippet).not.toContain('frameborder');
     expect(results[3].contentSnippet).toContain('alpha release checklist is still open.');
   });
+
+  it('caps content matches per note before ranking results', () => {
+    const index = [{
+      path: 'dense.md',
+      name: 'dense.md',
+      preview: '',
+    }];
+    const results = queryNotesSidebarSearch(index, 'needle', () =>
+      Array.from({ length: 12 }, (_, index) => `line ${index} needle`).join('\n'),
+    );
+
+    expect(results).toHaveLength(5);
+    expect(results.every((result) => result.matchKind === 'content')).toBe(true);
+    expect(results.map((result) => result.contentMatchOrdinal)).toEqual([0, 1, 2, 3, 4]);
+  });
 });

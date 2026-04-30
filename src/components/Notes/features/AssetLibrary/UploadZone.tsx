@@ -17,6 +17,7 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
   const [message, setMessage] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
   const scheduleReset = useCallback((delayMs: number) => {
     if (resetTimerRef.current) {
@@ -31,8 +32,10 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
   }, []);
 
   useEffect(() => () => {
+    mountedRef.current = false;
     if (resetTimerRef.current) {
       clearTimeout(resetTimerRef.current);
+      resetTimerRef.current = null;
     }
   }, []);
 
@@ -55,6 +58,9 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
     setMessage('Uploading...');
 
     const result = await uploadAsset(file, currentNotePath);
+    if (!mountedRef.current) {
+      return;
+    }
 
     if (result.success) {
       if (result.isDuplicate) {

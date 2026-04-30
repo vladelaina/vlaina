@@ -61,7 +61,7 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
     }
 
     let disposed = false;
-      let unwatch: (() => Promise<void>) | null = null;
+    let unwatch: (() => Promise<void>) | null = null;
     let releaseWatcher: (() => void) | null = null;
     let reconcilePollTimer: number | null = null;
 
@@ -304,7 +304,7 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
 
     const run = async () => {
       try {
-        unwatch = await watchDesktopPath(notesPath, async (event) => {
+        const stopWatching = await watchDesktopPath(notesPath, async (event) => {
           if (disposed) {
             return;
           }
@@ -363,6 +363,12 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
             isRemoveWatchEvent(event)
           );
         });
+        if (disposed) {
+          void stopWatching();
+          return;
+        }
+
+        unwatch = stopWatching;
         releaseWatcher = registerExternalSyncWatcher();
       } catch (error) {
         if (disposed) {
@@ -399,7 +405,7 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
         pendingRenameTimerRef.current = null;
       }
       pendingRenamesRef.current = [];
-          void unwatch?.();
+      void unwatch?.();
       releaseWatcher?.();
     };
   }, [

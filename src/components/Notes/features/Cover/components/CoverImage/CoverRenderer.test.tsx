@@ -241,7 +241,7 @@ describe('CoverRenderer', () => {
     expect(props.onInteractionStart).toHaveBeenCalled();
     expect(props.onNonPointerIntent).toHaveBeenCalled();
     expect(props.onCropperZoomChange).toHaveBeenCalledTimes(1);
-    expect(props.onCropperZoomChange).toHaveBeenCalledWith(expect.any(Number));
+    expect(props.onCropperZoomChange).toHaveBeenCalledWith(expect.any(Number), expect.any(Object));
   });
 
   it('applies zoom through transform', () => {
@@ -255,6 +255,28 @@ describe('CoverRenderer', () => {
     if (!image) return;
 
     expect(image.style.transform).toContain('scale(2)');
+  });
+
+  it('keeps a responsive backdrop behind the cropper during layout resizing', () => {
+    const { container } = render(
+      <CoverRenderer
+        {...buildProps({
+          isImageReady: true,
+          layoutPanelDragging: true,
+          positionX: 33,
+          positionY: 67,
+        })}
+      />
+    );
+
+    const backdrop = container.querySelector('img[aria-hidden="true"]') as HTMLImageElement | null;
+    const cropper = container.querySelector('[data-testid="cover-cropper"]') as HTMLDivElement | null;
+
+    expect(backdrop).not.toBeNull();
+    expect(backdrop?.className).toContain('object-cover');
+    expect(backdrop?.style.objectPosition).toBe('33% 67%');
+    expect(cropper?.className.includes('opacity-100')).toBe(true);
+    expect(cropper?.className.includes('pointer-events-none')).toBe(false);
   });
 
   it('keeps placeholder geometry aligned with the cropper when dimensions are known', () => {

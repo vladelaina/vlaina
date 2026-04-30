@@ -12,7 +12,7 @@ import {
 import { cn } from '@/lib/utils';
 
 const MIN_THUMB_HEIGHT = 36;
-const scrollbarThumbIdleColor = 'bg-[#eeeff0] dark:bg-[rgba(150,150,150,0.15)]';
+const scrollbarThumbIdleColor = 'bg-[#efefef] dark:bg-[rgba(150,150,150,0.15)]';
 const scrollbarThumbActiveColor = 'bg-[rgba(120,120,120,0.5)] dark:bg-[rgba(150,150,150,0.4)]';
 const scrollbarThumbHoverColor = 'hover:bg-[rgba(120,120,120,0.5)] dark:hover:bg-[rgba(150,150,150,0.4)]';
 

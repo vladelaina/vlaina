@@ -7,7 +7,7 @@ interface UseCoverCropperInteractionProps {
   effectiveMinZoom: number;
   effectiveMaxZoom: number;
   onCropperCropChange: (crop: { x: number; y: number }) => void;
-  onCropperZoomChange: (zoom: number) => void;
+  onCropperZoomChange: (zoom: number, anchor?: { x: number; y: number }) => void;
   onPointerIntent: (x?: number, y?: number) => void;
   onPointerMoveIntent: (x: number, y: number) => void;
   onNonPointerIntent: () => void;
@@ -132,9 +132,18 @@ export function useCoverCropperInteraction({
       startInteraction();
     }
 
+    const rect = wheelTargetRef.current?.getBoundingClientRect();
+    const anchor = rect
+      ? {
+          x: event.clientX - rect.left - rect.width / 2,
+          y: event.clientY - rect.top - rect.height / 2,
+        }
+      : undefined;
     const zoomDelta = Math.exp(-event.deltaY * 0.0015);
     const nextZoom = currentZoom * zoomDelta;
-    emitZoomChange(Math.min(currentMaxZoom, Math.max(currentMinZoom, nextZoom)));
+    const clampedZoom = Math.min(currentMaxZoom, Math.max(currentMinZoom, nextZoom));
+    latestStateRef.current.zoom = clampedZoom;
+    emitZoomChange(clampedZoom, anchor);
     scheduleWheelInteractionEnd();
   }, [scheduleWheelInteractionEnd]);
 

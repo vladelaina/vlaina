@@ -1,5 +1,5 @@
 export const chatComposerSurfaceClass = [
-  "bg-white dark:bg-[#18181b]",
+  "bg-[var(--vlaina-bg-primary)] dark:bg-[#18181b]",
   "border border-black/5 dark:border-white/10",
   "rounded-[26px]",
   "shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]",

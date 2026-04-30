@@ -28,6 +28,9 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+const MAX_SEARCHABLE_NOTE_BYTES = 512 * 1024;
+const MAX_SCANNED_NOTE_CONTENT_CHARS = 8 * 1024 * 1024;
+
 export interface FeatureSlice {
   recentNotes: NotesStore['recentNotes'];
   noteContentsCache: NotesStore['noteContentsCache'];
@@ -182,7 +185,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       if (!rootFolder || !notesPath) return;
 
       const storage = getStorageAdapter();
-      let cache: NotesStore['noteContentsCache'] = new Map();
+      const cache: NotesStore['noteContentsCache'] = new Map();
       const filePaths: { path: string; fullPath: string }[] = [];
 
       const collectPaths = async (nodes: FileTreeNode[]) => {
@@ -199,30 +202,60 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       await collectPaths(rootFolder.children);
 
       const BATCH_SIZE = 10;
+      let scannedContentChars = 0;
       for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
         const batch = filePaths.slice(i, i + BATCH_SIZE);
+        if (scannedContentChars >= MAX_SCANNED_NOTE_CONTENT_CHARS) {
+          batch.forEach(({ path }) => {
+            cache.set(path, { content: '', modifiedAt: null });
+          });
+          continue;
+        }
+
         const results = await Promise.allSettled(
           batch.map(async ({ path, fullPath }) => {
-            const content = await storage.readFile(fullPath);
-            return { path, content };
+            let modifiedAt: number | null = null;
+            try {
+              const fileInfo = await storage.stat(fullPath);
+              modifiedAt = fileInfo?.modifiedAt ?? null;
+              if (fileInfo?.size && fileInfo.size > MAX_SEARCHABLE_NOTE_BYTES) {
+                return { path, content: '', modifiedAt };
+              }
+            } catch {
+              // Some adapters/tests may not expose stat; still read the note content.
+            }
+
+            try {
+              const content = await storage.readFile(fullPath);
+              return { path, content, modifiedAt };
+            } catch {
+              return { path, content: '', modifiedAt: null };
+            }
           })
         );
 
         results.forEach((result) => {
           if (result.status === 'fulfilled') {
-            cache = setCachedNoteContent(cache, result.value.path, result.value.content, null);
+            const content =
+              scannedContentChars + result.value.content.length <= MAX_SCANNED_NOTE_CONTENT_CHARS
+                ? result.value.content
+                : '';
+
+            scannedContentChars += content.length;
+            cache.set(result.value.path, {
+              content,
+              modifiedAt: result.value.modifiedAt,
+            });
           }
         });
       }
 
       if (currentNote) {
         const currentEntry = noteContentsCache.get(currentNote.path);
-        cache = setCachedNoteContent(
-          cache,
-          currentNote.path,
-          currentNote.content,
-          currentEntry?.modifiedAt ?? null
-        );
+        cache.set(currentNote.path, {
+          content: currentNote.content,
+          modifiedAt: currentEntry?.modifiedAt ?? null,
+        });
       }
 
       set({ noteContentsCache: cache });

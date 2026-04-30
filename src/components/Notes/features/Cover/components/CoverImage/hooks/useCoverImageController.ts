@@ -6,7 +6,6 @@ import { useCoverPreviewReset } from './display/useCoverPreviewReset';
 import { useCoverSelectionFlow } from './source/useCoverSelectionFlow';
 import { useCoverInteractionController } from './useCoverInteractionController';
 import { useCoverMediaController } from './display/useCoverMediaController';
-import { useStableCoverContainerSize } from './display/useStableCoverContainerSize';
 import type { CoverImageControllerModel, CoverImageProps } from '../coverImage.types';
 import { DEFAULT_POSITION_PERCENT } from '../../../utils/coverConstants';
 import { getCachedDimensions } from '../../../utils/coverDimensionCache';
@@ -82,11 +81,6 @@ export function useCoverImageController({
     if (containerSize.width <= 0 || coverHeight <= 0) return null;
     return { width: containerSize.width, height: coverHeight };
   }, [containerSize, coverHeight]);
-
-  const interactionContainerSize = useStableCoverContainerSize({
-    effectiveContainerSize,
-    freeze: windowResizeActive,
-  });
 
   const {
     mediaSrc,
@@ -209,8 +203,7 @@ export function useCoverImageController({
     frozenImgRef,
   } = useCoverInteractionController({
     mediaSize: effectiveMediaSize,
-    effectiveContainerSize: interactionContainerSize,
-    windowResizeActive,
+    effectiveContainerSize,
     zoom,
     setZoom,
     crop,
@@ -235,7 +228,7 @@ export function useCoverImageController({
 
   const { handleMediaLoaded } = useCoverMediaController({
     mediaSrc,
-    effectiveContainerSize: interactionContainerSize,
+    effectiveContainerSize,
     isImageReady,
     syncPositionX,
     syncPositionY,
@@ -287,7 +280,7 @@ export function useCoverImageController({
       frozenImageState,
       crop: effectiveCrop,
       zoom: effectiveZoom,
-      effectiveContainerSize: interactionContainerSize,
+      effectiveContainerSize,
       effectiveMinZoom,
       effectiveMaxZoom,
       objectFitMode,

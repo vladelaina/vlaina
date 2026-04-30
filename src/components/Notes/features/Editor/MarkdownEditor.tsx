@@ -66,6 +66,8 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
 
   const hasAutoFocused = useRef(false);
   const hasIgnoredInitNoise = useRef(false);
+  const pendingMarkdownUpdateFrameRef = useRef<number | null>(null);
+  const pendingMarkdownRef = useRef<string | null>(null);
   const { debouncedSave, flushSave } = useEditorSave(saveNote);
 
   const initialContent = useMemo(() => {
@@ -129,12 +131,24 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
               return;
             }
 
-            requestAnimationFrame(() => {
-              const latestNote = useNotesStore.getState().currentNote;
-              if (!latestNote || latestNote.path !== currentNotePath || latestNote.content === nextMarkdown) {
+            pendingMarkdownRef.current = nextMarkdown;
+            if (pendingMarkdownUpdateFrameRef.current !== null) {
+              return;
+            }
+
+            pendingMarkdownUpdateFrameRef.current = requestAnimationFrame(() => {
+              pendingMarkdownUpdateFrameRef.current = null;
+              const pendingMarkdown = pendingMarkdownRef.current;
+              pendingMarkdownRef.current = null;
+              if (pendingMarkdown === null) {
                 return;
               }
-              updateContent(nextMarkdown);
+
+              const latestNote = useNotesStore.getState().currentNote;
+              if (!latestNote || latestNote.path !== currentNotePath || latestNote.content === pendingMarkdown) {
+                return;
+              }
+              updateContent(pendingMarkdown);
               if (!isDraftNote) {
                 debouncedSave();
               }
@@ -155,6 +169,16 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
     hasAutoFocused.current = false;
     hasIgnoredInitNoise.current = false;
   }, [currentNotePath]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingMarkdownUpdateFrameRef.current !== null) {
+        cancelAnimationFrame(pendingMarkdownUpdateFrameRef.current);
+        pendingMarkdownUpdateFrameRef.current = null;
+      }
+      pendingMarkdownRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     try {

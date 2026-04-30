@@ -1,5 +1,5 @@
 import { ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { cn, NOTES_COLORS } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/uiSlice';
 import { UnifiedSidebarContainer } from './UnifiedSidebarContainer';
 import { UnifiedTitleBar } from './UnifiedTitleBar';
@@ -36,7 +36,7 @@ export function AppShell({
   titleBarRight,
   mainOverlay,
   
-  backgroundColor = NOTES_COLORS.sidebarBg,
+  backgroundColor = 'var(--vlaina-color-surface-shell-sidebar)',
   isDragging = false
 }: AppShellProps) {
   const shellRef = useRef<HTMLDivElement>(null);
@@ -123,7 +123,7 @@ export function AppShell({
         )}
         
         <main
-          className="flex-1 flex flex-col min-w-0 bg-white dark:bg-zinc-800 relative vlaina-scrollbar"
+          className="flex-1 flex flex-col min-w-0 bg-[var(--vlaina-bg-primary)] dark:bg-zinc-800 relative vlaina-scrollbar"
         >
           {children}
           {mainOverlay}

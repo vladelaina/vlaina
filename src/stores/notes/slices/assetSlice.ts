@@ -6,6 +6,17 @@ import { getBuiltinCovers, toBuiltinAssetPath } from '@/lib/assets/builtinCovers
 import { useUIStore } from '@/stores/uiSlice';
 import { clearImageCache } from '@/lib/assets';
 
+let uploadProgressResetTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearUploadProgressResetTimer() {
+  if (uploadProgressResetTimer === null) {
+    return;
+  }
+
+  clearTimeout(uploadProgressResetTimer);
+  uploadProgressResetTimer = null;
+}
+
 export interface AssetSlice {
   assetList: AssetEntry[];
   isLoadingAssets: boolean;
@@ -83,6 +94,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
       currentNotePath,
     };
 
+    clearUploadProgressResetTimer();
     set({ uploadProgress: 0 });
 
     try {
@@ -94,10 +106,14 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
         (progress) => set({ uploadProgress: progress })
       );
 
-      setTimeout(() => set({ uploadProgress: null }), 500);
+      uploadProgressResetTimer = setTimeout(() => {
+        uploadProgressResetTimer = null;
+        set({ uploadProgress: null });
+      }, 500);
       return result;
 
     } catch (error) {
+      clearUploadProgressResetTimer();
       set({ uploadProgress: null });
       console.error('Failed to upload asset:', error);
       return {
@@ -126,5 +142,6 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
 
   clearAssetUrlCache: () => {
     clearImageCache();
+    clearUploadProgressResetTimer();
   },
 });
