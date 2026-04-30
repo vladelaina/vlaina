@@ -18,9 +18,7 @@ interface MarkdownRendererProps {
   codeBlockIdBase?: string;
   copiedCodeBlockId?: string | null;
   onCopyCodeBlock?: (blockId: string) => void;
-  isStreaming?: boolean;
   size?: 'sm' | 'md' | 'lg';
-  browserToolResult?: any;
   startTime?: Date;
 }
 

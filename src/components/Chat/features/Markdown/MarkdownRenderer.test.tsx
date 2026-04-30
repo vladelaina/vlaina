@@ -78,8 +78,8 @@ describe("MarkdownRenderer", () => {
     expect(screen.getByTestId("markdown-children")).toHaveTextContent("AnswerDone");
   });
 
-  it("keeps incomplete think blocks in streaming mode and skips markdown output", () => {
-    render(<MarkdownRenderer content={"<think>working"} isStreaming />);
+  it("keeps incomplete think blocks streaming and skips markdown output", () => {
+    render(<MarkdownRenderer content={"<think>working"} />);
 
     expect(screen.getByTestId("thinking-block")).toHaveTextContent("working");
     expect(screen.getByTestId("thinking-block")).toHaveAttribute("data-streaming", "true");
@@ -87,7 +87,7 @@ describe("MarkdownRenderer", () => {
   });
 
   it("renders markdown through the local react-markdown pipeline", () => {
-    render(<MarkdownRenderer content={"Visible"} isStreaming />);
+    render(<MarkdownRenderer content={"Visible"} />);
 
     expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-remark-count", "3");
     expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-rehype-count", "2");
