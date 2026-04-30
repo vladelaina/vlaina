@@ -1,5 +1,5 @@
 import { createRef } from "react";
-import { describe, expect, it, beforeEach, vi } from "vitest";
+import { afterEach, describe, expect, it, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { ChatMessage } from "@/lib/ai/types";
 
@@ -41,6 +41,10 @@ function createMessage(id: string, role: ChatMessage["role"]): ChatMessage {
 describe("MessageList", () => {
   beforeEach(() => {
     messageItemSpy.mockClear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("renders an empty hidden scroll container when there are no messages", () => {
@@ -182,5 +186,65 @@ describe("MessageList", () => {
     );
 
     expect(screen.getByTestId("chat-loading")).toBeInTheDocument();
+  });
+
+  it("keeps the row ResizeObserver stable across streaming message updates", () => {
+    class ResizeObserverMock {
+      static instances: ResizeObserverMock[] = [];
+
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+
+      constructor(_callback: ResizeObserverCallback) {
+        ResizeObserverMock.instances.push(this);
+      }
+    }
+
+    vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+
+    const containerRef = createRef<HTMLDivElement>();
+    const messages = [createMessage("u1", "user"), createMessage("a1", "assistant")];
+    const view = render(
+      <MessageList
+        messages={messages}
+        getImageGallery={() => []}
+        isSessionActive
+        showLoading={false}
+        spacerHeight={0}
+        containerRef={containerRef}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+    const observerCountAfterInitialRender = ResizeObserverMock.instances.length;
+
+    view.rerender(
+      <MessageList
+        messages={[
+          messages[0]!,
+          {
+            ...messages[1]!,
+            content: `${messages[1]!.content} streamed`,
+          },
+        ]}
+        getImageGallery={() => []}
+        isSessionActive
+        showLoading={false}
+        spacerHeight={0}
+        containerRef={containerRef}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(observerCountAfterInitialRender).toBeGreaterThan(0);
+    expect(ResizeObserverMock.instances).toHaveLength(observerCountAfterInitialRender);
+
+    view.unmount();
+
+    expect(ResizeObserverMock.instances.every((observer) => observer.disconnect.mock.calls.length === 1)).toBe(true);
   });
 });

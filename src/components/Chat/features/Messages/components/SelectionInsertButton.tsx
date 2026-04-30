@@ -263,10 +263,17 @@ export function SelectionInsertButton() {
     };
 
     let outsideClampRaf: number | null = null;
+    let mouseUpRaf: number | null = null;
     const stopOutsideClamp = () => {
       if (outsideClampRaf !== null) {
         cancelAnimationFrame(outsideClampRaf);
         outsideClampRaf = null;
+      }
+    };
+    const stopMouseUpRaf = () => {
+      if (mouseUpRaf !== null) {
+        cancelAnimationFrame(mouseUpRaf);
+        mouseUpRaf = null;
       }
     };
     const resetSelectionInteractionState = () => {
@@ -349,7 +356,9 @@ export function SelectionInsertButton() {
       if (isSelectingFromChatRef.current) {
         restoreLastValidSelection({ force: true });
       }
-      requestAnimationFrame(() => {
+      stopMouseUpRaf();
+      mouseUpRaf = requestAnimationFrame(() => {
+        mouseUpRaf = null;
         resetSelectionInteractionState();
         const nextState = computeStateFromSelection();
         lastStateSignatureRef.current = getStateSignature(nextState);
@@ -410,6 +419,7 @@ export function SelectionInsertButton() {
 
     return () => {
       resetSelectionInteractionState();
+      stopMouseUpRaf();
       window.removeEventListener("mousedown", handleMouseDown, true);
       window.removeEventListener("mousemove", handleMouseMove, true);
       window.removeEventListener("mouseup", handleMouseUp, true);

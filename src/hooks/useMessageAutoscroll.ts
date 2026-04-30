@@ -67,6 +67,7 @@ export const useMessageAutoscroll = ({
 }: UseMessageAutoscrollOptions): MessageAutoscrollBehavior => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const updateSpacerHeightRef = useRef<() => void>(() => {});
+  const isStreamingRef = useRef(isStreaming);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const observedContainerRef = useRef<HTMLDivElement | null>(null);
   const pendingScrollToBottomRef = useRef(false);
@@ -188,6 +189,10 @@ export const useMessageAutoscroll = ({
     updateSpacerHeightRef.current = updateSpacerHeight;
   }, [updateSpacerHeight]);
 
+  useEffect(() => {
+    isStreamingRef.current = isStreaming;
+  }, [isStreaming]);
+
   const handleNewUserMessage = useCallback(() => {
     pendingScrollToBottomRef.current = true;
     pendingScrollMessageCountRef.current = messages.length;
@@ -307,7 +312,7 @@ export const useMessageAutoscroll = ({
         return;
       }
 
-      if (isStreaming) {
+      if (isStreamingRef.current) {
         isAutoFollowRef.current = false;
       }
     };
@@ -318,7 +323,7 @@ export const useMessageAutoscroll = ({
     return () => {
       container.removeEventListener("scroll", handleScroll);
     };
-  }, [isStreaming, updateSpacerHeight]);
+  }, []);
 
   useEffect(() => {
     if (typeof ResizeObserver !== "undefined") {

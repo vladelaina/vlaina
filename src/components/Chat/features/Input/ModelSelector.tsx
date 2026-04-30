@@ -163,6 +163,7 @@ export function ModelSelector({
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const isKeyboardNavigating = useRef(false)
+  const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const selectedModel = useMemo(() => {
     if (!selectedModelId) {
@@ -284,11 +285,21 @@ export function ModelSelector({
   });
 
   const focusSearchInput = useCallback(() => {
-      setTimeout(() => inputRef.current?.focus(), 50);
+      if (focusTimerRef.current !== null) {
+          clearTimeout(focusTimerRef.current)
+      }
+      focusTimerRef.current = setTimeout(() => {
+          focusTimerRef.current = null
+          inputRef.current?.focus()
+      }, 50);
   }, []);
 
   const focusComposerInput = useCallback(() => {
-      setTimeout(() => {
+      if (focusTimerRef.current !== null) {
+          clearTimeout(focusTimerRef.current)
+      }
+      focusTimerRef.current = setTimeout(() => {
+          focusTimerRef.current = null
           const input = composerInputRef?.current;
           if (input) {
               input.focus({ preventScroll: true });
@@ -299,6 +310,15 @@ export function ModelSelector({
           focusRegisteredComposerInput();
       }, 50);
   }, [composerInputRef]);
+
+  useEffect(() => {
+      return () => {
+          if (focusTimerRef.current !== null) {
+              clearTimeout(focusTimerRef.current)
+              focusTimerRef.current = null
+          }
+      }
+  }, [])
 
   const setKeyboardNavigating = useCallback((value: boolean) => {
       isKeyboardNavigating.current = value;

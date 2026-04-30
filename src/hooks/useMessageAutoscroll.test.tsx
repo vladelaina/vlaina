@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, render, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChatMessage } from '@/lib/ai/types';
 import { useMessageAutoscroll } from './useMessageAutoscroll';
@@ -200,5 +200,49 @@ describe('useMessageAutoscroll', () => {
     unmount();
 
     expect(ResizeObserverMock.instances[0]!.disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the scroll listener stable across message updates', () => {
+    const addEventListenerSpy = vi.spyOn(HTMLDivElement.prototype, 'addEventListener');
+    const removeEventListenerSpy = vi.spyOn(HTMLDivElement.prototype, 'removeEventListener');
+
+    function TestHarness({ messages }: { messages: ChatMessage[] }) {
+      const { containerRef } = useMessageAutoscroll({
+          messages,
+          isStreaming: true,
+          chatId: 'chat-1',
+          showLoading: false,
+      });
+      return <div ref={containerRef} />;
+    }
+
+    const view = render(<TestHarness messages={[]} />);
+    const isHookScrollListenerCall = ([event, _listener, options]: unknown[]) =>
+      event === 'scroll' &&
+      typeof options === 'object' &&
+      options !== null &&
+      'passive' in options &&
+      options.passive === true;
+    const scrollListenerCountAfterInitialRender = addEventListenerSpy.mock.calls.filter(
+      isHookScrollListenerCall,
+    ).length;
+
+    view.rerender(<TestHarness messages={[createMessage('u1', 'user')]} />);
+
+    view.rerender(
+      <TestHarness messages={[createMessage('u1', 'user'), createMessage('a1', 'assistant')]} />,
+    );
+
+    expect(scrollListenerCountAfterInitialRender).toBeGreaterThan(0);
+    expect(addEventListenerSpy.mock.calls.filter(isHookScrollListenerCall)).toHaveLength(
+      scrollListenerCountAfterInitialRender,
+    );
+    expect(removeEventListenerSpy).not.toHaveBeenCalledWith('scroll', expect.any(Function));
+
+    view.unmount();
+
+    expect(removeEventListenerSpy.mock.calls.filter(([event]) => event === 'scroll')).toHaveLength(
+      scrollListenerCountAfterInitialRender,
+    );
   });
 });
