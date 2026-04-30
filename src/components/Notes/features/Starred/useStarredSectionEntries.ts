@@ -4,6 +4,7 @@ import { useNotesStore } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import type { FileTreeNode, StarredEntry } from '@/stores/notes/types';
 import { normalizeStarredVaultPath } from '@/stores/notes/starred';
+import { flushCurrentTitleCommit } from '../Editor/utils/titleCommitRegistry';
 import { buildNodeLookup, sortStarredEntries } from './starredSectionUtils';
 
 export interface StarredSectionEntryViewModel {
@@ -20,7 +21,6 @@ export function useStarredSectionEntries() {
     starredEntries,
     starredLoaded,
     currentNote,
-    isDirty,
     rootFolder,
     openNote,
     openNoteByAbsolutePath,
@@ -52,19 +52,26 @@ export function useStarredSectionEntries() {
           treeNode,
           onOpen: (openInNewTab = false) => {
             void (async () => {
-              if (entry.kind === 'folder') {
+              await flushCurrentTitleCommit();
+
+              const notesState = useNotesStore.getState();
+              const latestEntry =
+                notesState.starredEntries.find((candidate) => candidate.id === entry.id) ?? entry;
+              if (latestEntry.kind === 'folder') {
                 return;
               }
 
-              const shouldOpenInNewTab = openInNewTab || isDirty;
+              const shouldOpenInNewTab = openInNewTab || notesState.isDirty;
+              const isLatestCurrentVaultEntry =
+                normalizeStarredVaultPath(latestEntry.vaultPath) === currentVaultPath;
 
-              if (!isCurrentVaultEntry) {
-                const absolutePath = await joinPath(entry.vaultPath, entry.relativePath);
+              if (!isLatestCurrentVaultEntry) {
+                const absolutePath = await joinPath(latestEntry.vaultPath, latestEntry.relativePath);
                 await openNoteByAbsolutePath(absolutePath, shouldOpenInNewTab);
                 return;
               }
 
-              await openNote(entry.relativePath, shouldOpenInNewTab);
+              await openNote(latestEntry.relativePath, shouldOpenInNewTab);
             })();
           },
           onRemove: () => {
@@ -75,7 +82,6 @@ export function useStarredSectionEntries() {
     [
       currentNote?.path,
       currentVaultPath,
-      isDirty,
       nodeLookup,
       openNote,
       openNoteByAbsolutePath,

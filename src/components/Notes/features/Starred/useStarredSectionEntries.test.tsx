@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStarredSectionEntries } from './useStarredSectionEntries';
+import { registerCurrentTitleCommitter } from '../Editor/utils/titleCommitRegistry';
 
 type MockFileNode = {
   id: string;
@@ -76,8 +77,11 @@ const mocked = vi.hoisted(() => {
 });
 
 vi.mock('@/stores/useNotesStore', () => ({
-  useNotesStore: (selector?: (state: MockNotesState) => unknown) =>
-    selector ? selector(mocked.notesState) : mocked.notesState,
+  useNotesStore: Object.assign(
+    (selector?: (state: MockNotesState) => unknown) =>
+      selector ? selector(mocked.notesState) : mocked.notesState,
+    { getState: () => mocked.notesState },
+  ),
 }));
 
 vi.mock('@/stores/useVaultStore', () => ({
@@ -86,6 +90,10 @@ vi.mock('@/stores/useVaultStore', () => ({
 }));
 
 describe('useStarredSectionEntries', () => {
+  afterEach(() => {
+    registerCurrentTitleCommitter(() => undefined)();
+  });
+
   beforeEach(() => {
     mocked.notesState.starredEntries = [];
     mocked.notesState.starredLoaded = true;
@@ -220,6 +228,38 @@ describe('useStarredSectionEntries', () => {
       '/vault-b/docs/gamma.md',
       true,
     );
+  });
+
+  it('flushes pending title rename before opening the latest starred path', async () => {
+    mocked.notesState.starredEntries = [
+      {
+        id: 'note-4',
+        kind: 'note',
+        vaultPath: '/vault-a',
+        relativePath: 'docs/old.md',
+        addedAt: 1,
+      },
+    ];
+    registerCurrentTitleCommitter(async () => {
+      mocked.notesState.starredEntries = [
+        {
+          id: 'note-4',
+          kind: 'note',
+          vaultPath: '/vault-a',
+          relativePath: 'docs/new.md',
+          addedAt: 1,
+        },
+      ];
+    });
+
+    const { result } = renderHook(() => useStarredSectionEntries());
+
+    await act(async () => {
+      await result.current.entries[0]?.onOpen();
+    });
+
+    expect(mocked.notesState.openNote).toHaveBeenCalledWith('docs/new.md', false);
+    expect(mocked.notesState.openNote).not.toHaveBeenCalledWith('docs/old.md', false);
   });
 
   it('does not open a cross-vault starred folder', async () => {

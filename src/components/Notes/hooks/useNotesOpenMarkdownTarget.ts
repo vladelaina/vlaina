@@ -13,6 +13,7 @@ import {
   resolveOpenNoteTarget,
 } from '../features/OpenTarget/openTargetSelection';
 import { subscribeOpenMarkdownTargetEvent } from '../features/OpenTarget/openTargetEvents';
+import { flushCurrentTitleCommit } from '../features/Editor/utils/titleCommitRegistry';
 
 function logOpenMarkdownTarget(event: string, details: Record<string, unknown>) {
   if (!import.meta.env.DEV || import.meta.env.MODE === 'test') {
@@ -120,6 +121,7 @@ export function useNotesOpenMarkdownTarget({
   const openMarkdownTarget = useCallback(async (selected: string) => {
     setIsOpenTargetBusy(true);
     try {
+      await flushCurrentTitleCommit();
       logOpenMarkdownTarget('start', { selected, currentVaultPath, notesPath });
 
       const canContinue = await saveCurrentNoteIfNeeded();
@@ -203,6 +205,7 @@ export function useNotesOpenMarkdownTarget({
 
     let selected: string | null;
     try {
+      await flushCurrentTitleCommit();
       selected = getSingleOpenSelection(await openDialog({
         title: OPEN_MARKDOWN_FILE_ACTION,
         defaultPath: currentVaultPath ?? undefined,
