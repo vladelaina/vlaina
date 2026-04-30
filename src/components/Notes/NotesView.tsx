@@ -35,6 +35,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const loadFileTree = useNotesStore(s => s.loadFileTree);
   const openTabs = useNotesStore(s => s.openTabs);
+  const recentlyClosedTabs = useNotesStore(s => s.recentlyClosedTabs);
   const closeTab = useNotesStore(s => s.closeTab);
   const reopenClosedTab = useNotesStore(s => s.reopenClosedTab);
   const openNote = useNotesStore(s => s.openNote);
@@ -72,7 +73,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
   const launchContextRef = useRef(readWindowLaunchContext());
   const hasHandledLaunchNoteRef = useRef(false);
   const autoCreateBlankNoteRef = useRef(false);
-  const hasHadOpenWorkspaceRef = useRef(false);
+  const hasPresentedNoteRef = useRef(false);
   const toggleShortcutsDialog = useCallback(() => setIsShortcutsOpen((prev) => !prev), []);
   const handleChatPanelDragStateChange = useCallback((dragging: boolean) => {
     setLayoutPanelDragging(dragging);
@@ -88,6 +89,23 @@ export function NotesView({ active = true }: { active?: boolean }) {
 
   const focusNotesChatComposer = useNotesChatComposerFocus(setChatPanelCollapsed);
 
+  const {
+    isOpenTargetBusy,
+    openMarkdownTarget,
+    pendingOpenMarkdownTargetVaultPath,
+  } = useNotesOpenMarkdownTarget({
+    active,
+    currentVaultPath: currentVault?.path ?? null,
+    notesPath,
+    currentNotePath,
+    isDirty,
+    saveNote,
+    openNote,
+    openNoteByAbsolutePath,
+    adoptAbsoluteNoteIntoVault,
+    openVault,
+  });
+
   useModuleShortcutsDialog({ enabled: active, onToggle: toggleShortcutsDialog });
   useCurrentVaultExternalPathSync(currentVault?.path ?? null);
   useNotesExternalSync(currentVault?.path ?? null, notesPath);
@@ -95,6 +113,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
     currentVaultPath: currentVault?.path ?? null,
     launchNotePath: launchContextRef.current.notePath,
     pendingStarredNavigation,
+    pendingOpenMarkdownTargetVaultPath,
     loadStarred,
     loadAssets,
     loadFileTree,
@@ -152,19 +171,6 @@ export function NotesView({ active = true }: { active?: boolean }) {
     setPendingStarredNavigation,
   ]);
 
-  const { isOpenTargetBusy, openMarkdownTarget } = useNotesOpenMarkdownTarget({
-    active,
-    currentVaultPath: currentVault?.path ?? null,
-    notesPath,
-    currentNotePath,
-    isDirty,
-    saveNote,
-    openNote,
-    openNoteByAbsolutePath,
-    adoptAbsoluteNoteIntoVault,
-    openVault,
-  });
-
   const acceptsBlankWorkspaceDrop = (() => {
     if (!currentNotePath) {
       return openTabs.length === 0;
@@ -190,15 +196,17 @@ export function NotesView({ active = true }: { active?: boolean }) {
     });
   })();
 
+  const blankWorkspaceDropEnabled = active && acceptsBlankWorkspaceDrop && !isOpenTargetBusy;
+
   const isBlankWorkspaceDropActive = useBlankWorkspaceDropOpen({
-    enabled: active && acceptsBlankWorkspaceDrop && !isOpenTargetBusy,
+    enabled: blankWorkspaceDropEnabled,
     openMarkdownTarget,
     openVault,
   });
 
   useEffect(() => {
     if (currentNotePath || openTabs.length > 0) {
-      hasHadOpenWorkspaceRef.current = true;
+      hasPresentedNoteRef.current = true;
     }
   }, [currentNotePath, openTabs.length]);
 
@@ -207,11 +215,12 @@ export function NotesView({ active = true }: { active?: boolean }) {
       !active ||
       currentNotePath ||
       openTabs.length > 0 ||
+      recentlyClosedTabs.length > 0 ||
+      hasPresentedNoteRef.current ||
       isLoading ||
       isOpenTargetBusy ||
       pendingStarredNavigation ||
-      autoCreateBlankNoteRef.current ||
-      hasHadOpenWorkspaceRef.current
+      autoCreateBlankNoteRef.current
     ) {
       return;
     }
@@ -249,6 +258,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
     isOpenTargetBusy,
     openTabs.length,
     pendingStarredNavigation,
+    recentlyClosedTabs.length,
     rootFolder,
   ]);
 

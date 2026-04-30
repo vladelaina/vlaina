@@ -1,5 +1,4 @@
 import { isInvalidMoveTarget } from '@/stores/notes/utils/fs/moveValidation';
-import { logNotesDebug } from '@/stores/notes/debugLog';
 
 function resolveFolderDropTargetPathFromElements(elements: Element[]) {
   for (const element of elements) {
@@ -30,31 +29,7 @@ export function resolveStarredDropTargetFromElements(elements: Element[]) {
 }
 
 export function resolveExternalFolderDropTargetPath(clientX: number, clientY: number) {
-  const elements = document.elementsFromPoint(clientX, clientY);
-  const targetPath = resolveFolderDropTargetPathFromElements(elements);
-
-  logNotesDebug('dropTargetDom:resolveExternalFolderDropTargetPath', {
-    x: clientX,
-    y: clientY,
-    targetPath,
-    elements: elements.slice(0, 8).map((element) => {
-      if (!(element instanceof HTMLElement)) {
-        return {
-          tagName: element.tagName,
-        };
-      }
-
-      return {
-        tagName: element.tagName,
-        className: element.className,
-        fileTreeKind: element.dataset.fileTreeKind ?? null,
-        fileTreePath: element.dataset.fileTreePath ?? null,
-        rootDropTarget: element.dataset.fileTreeRootDropTarget ?? null,
-      };
-    }),
-  });
-
-  return targetPath;
+  return resolveFolderDropTargetPathFromElements(document.elementsFromPoint(clientX, clientY));
 }
 
 export function resolveInternalMoveDropTargetPath(

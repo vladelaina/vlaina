@@ -5,6 +5,7 @@ export function useCurrentVaultInitialization({
   currentVaultPath,
   launchNotePath,
   pendingStarredNavigation,
+  pendingOpenMarkdownTargetVaultPath,
   loadStarred,
   loadAssets,
   loadFileTree,
@@ -14,6 +15,7 @@ export function useCurrentVaultInitialization({
   currentVaultPath: string | null;
   launchNotePath: string | null | undefined;
   pendingStarredNavigation: { vaultPath: string; skipWorkspaceRestore?: boolean } | null;
+  pendingOpenMarkdownTargetVaultPath: string | null;
   loadStarred: (vaultPath: string) => Promise<void>;
   loadAssets: (vaultPath: string) => Promise<void>;
   loadFileTree: (skipWorkspaceRestore?: boolean) => Promise<void>;
@@ -37,9 +39,11 @@ export function useCurrentVaultInitialization({
       const shouldSkipWorkspaceRestore =
         pendingStarredNavigation?.vaultPath === currentVaultPath &&
         pendingStarredNavigation.skipWorkspaceRestore === true;
+      const shouldSkipRestoreForOpenMarkdownTarget =
+        pendingOpenMarkdownTargetVaultPath === currentVaultPath;
       await Promise.all([
         loadAssets(currentVaultPath),
-        loadFileTree(Boolean(launchNotePath) || shouldSkipWorkspaceRestore),
+        loadFileTree(Boolean(launchNotePath) || shouldSkipWorkspaceRestore || shouldSkipRestoreForOpenMarkdownTarget),
         cleanupAssetTempFiles(),
       ]);
 
@@ -58,6 +62,7 @@ export function useCurrentVaultInitialization({
     currentVaultPath,
     launchNotePath,
     pendingStarredNavigation,
+    pendingOpenMarkdownTargetVaultPath,
     loadStarred,
     loadAssets,
     loadFileTree,

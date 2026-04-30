@@ -1,12 +1,24 @@
 import { useEffect } from 'react';
+import { getElectronBridge } from '@/lib/electron/bridge';
 import { messageDialog } from '@/lib/storage/dialog';
+import {
+  createStarredEntry,
+  getStarredEntryKey,
+  getVaultStarredPaths,
+  saveStarredRegistry,
+} from '@/stores/notes/starred';
+import { useNotesStore } from '@/stores/useNotesStore';
 import {
   clearExternalFileTreeDropTarget,
   setExternalFileTreeDropTarget,
 } from '../features/FileTree/hooks/externalFileTreeDropState';
-import { resolveExternalFolderDropTargetPath } from '../features/FileTree/hooks/dropTargetDom';
+import {
+  resolveExternalFolderDropTargetPath,
+  resolveStarredDropTargetFromElements,
+} from '../features/FileTree/hooks/dropTargetDom';
 import { createExternalDragPreview, type ExternalDragPreviewHandle } from '../features/FileTree/hooks/externalDragPreview';
 import { importExternalMarkdownEntries } from './externalMarkdownImport';
+import { SIDEBAR_SCROLL_ROOT_SELECTOR } from '../features/Sidebar/context-menu/shared';
 
 interface UseNotesSidebarExternalDropImportOptions {
   enabled: boolean;
@@ -21,10 +33,70 @@ function getParentRelativePath(path: string) {
 }
 
 function getDroppedPaths(event: DragEvent): string[] {
+  const dragDrop = getElectronBridge()?.dragDrop;
   const fileList = Array.from(event.dataTransfer?.files ?? []);
   return fileList
-    .map((file) => ((file as File & { path?: string }).path ?? '').trim())
+    .map((file) => (
+      ((file as File & { path?: string }).path ?? '').trim() ||
+      dragDrop?.getPathForFile(file).trim() ||
+      ''
+    ))
     .filter(Boolean);
+}
+
+function isFileDrag(event: DragEvent) {
+  return Array.from(event.dataTransfer?.types ?? []).includes('Files');
+}
+
+function getSidebarDropState(event: DragEvent) {
+  const elements = document.elementsFromPoint?.(event.clientX, event.clientY) ?? [];
+  const isOverSidebar = elements.some((element) => (
+    element instanceof HTMLElement &&
+    element.closest(SIDEBAR_SCROLL_ROOT_SELECTOR)
+  ));
+
+  return {
+    elements,
+    isOverSidebar,
+    isOverStarred: resolveStarredDropTargetFromElements(elements),
+  };
+}
+
+function ensureExternalDropStarredPaths(
+  notePaths: string[],
+  folderPaths: string[],
+) {
+  const state = useNotesStore.getState();
+  const { notesPath, starredEntries } = state;
+  if (!notesPath) return;
+
+  let updatedEntries = starredEntries;
+
+  for (const relativePath of notePaths) {
+    const key = getStarredEntryKey({ kind: 'note', vaultPath: notesPath, relativePath });
+    if (!updatedEntries.some((entry) => getStarredEntryKey(entry) === key)) {
+      updatedEntries = [...updatedEntries, createStarredEntry('note', notesPath, relativePath)];
+    }
+  }
+
+  for (const relativePath of folderPaths) {
+    const key = getStarredEntryKey({ kind: 'folder', vaultPath: notesPath, relativePath });
+    if (!updatedEntries.some((entry) => getStarredEntryKey(entry) === key)) {
+      updatedEntries = [...updatedEntries, createStarredEntry('folder', notesPath, relativePath)];
+    }
+  }
+
+  if (updatedEntries === starredEntries) {
+    return;
+  }
+
+  const starredPaths = getVaultStarredPaths(updatedEntries, notesPath);
+  useNotesStore.setState({
+    starredEntries: updatedEntries,
+    starredNotes: starredPaths.notes,
+    starredFolders: starredPaths.folders,
+  });
+  saveStarredRegistry(updatedEntries);
 }
 
 export function useNotesSidebarExternalDropImport({
@@ -45,19 +117,29 @@ export function useNotesSidebarExternalDropImport({
     const updateTarget = (event: DragEvent, paths: string[]) => {
       const clientX = event.clientX;
       const clientY = event.clientY;
-      const dropTargetPath = resolveExternalFolderDropTargetPath(clientX, clientY);
-      setExternalFileTreeDropTarget(dropTargetPath);
+      const { isOverStarred } = getSidebarDropState(event);
+      const dropTargetPath = isOverStarred ? null : resolveExternalFolderDropTargetPath(clientX, clientY);
+      setExternalFileTreeDropTarget(
+        dropTargetPath,
+        isOverStarred ? 'starred' : dropTargetPath == null ? null : 'folder',
+      );
 
-      preview ??= createExternalDragPreview(paths);
-      preview.updatePaths(paths);
-      preview.updatePosition(clientX, clientY);
+      if (paths.length > 0) {
+        preview ??= createExternalDragPreview(paths);
+        preview.updatePaths(paths);
+        preview.updatePosition(clientX, clientY);
+      }
 
-      return dropTargetPath;
+      return {
+        dropTargetPath,
+        isOverStarred,
+      };
     };
 
     const handleDragEnter = (event: DragEvent) => {
       const paths = getDroppedPaths(event);
-      if (paths.length === 0) {
+      const dropState = getSidebarDropState(event);
+      if (!isFileDrag(event) || !dropState.isOverSidebar) {
         return;
       }
 
@@ -67,7 +149,8 @@ export function useNotesSidebarExternalDropImport({
 
     const handleDragOver = (event: DragEvent) => {
       const paths = getDroppedPaths(event);
-      if (paths.length === 0) {
+      const dropState = getSidebarDropState(event);
+      if (!isFileDrag(event) || !dropState.isOverSidebar) {
         return;
       }
 
@@ -83,18 +166,20 @@ export function useNotesSidebarExternalDropImport({
 
     const handleDrop = (event: DragEvent) => {
       const paths = getDroppedPaths(event);
-      if (paths.length === 0) {
+      const dropState = getSidebarDropState(event);
+      if (paths.length === 0 || !dropState.isOverSidebar) {
         return;
       }
 
       event.preventDefault();
-      const dropTargetPath = updateTarget(event, paths) ?? '';
+      const { dropTargetPath, isOverStarred } = updateTarget(event, paths);
+      const importTargetPath = dropTargetPath ?? '';
       preview?.dispose();
       preview = null;
       clearExternalFileTreeDropTarget();
 
       void (async () => {
-        const result = await importExternalMarkdownEntries(vaultPath, dropTargetPath, paths);
+        const result = await importExternalMarkdownEntries(vaultPath, importTargetPath, paths);
 
         if (cancelled) {
           return;
@@ -116,9 +201,13 @@ export function useNotesSidebarExternalDropImport({
           return;
         }
 
+        if (isOverStarred) {
+          ensureExternalDropStarredPaths(result.importedNotePaths, result.importedFolderPaths);
+        }
+
         const revealPath =
           result.importedFolderPaths[0] ??
-          (result.importedNotePaths[0] ? getParentRelativePath(result.importedNotePaths[0]) : dropTargetPath);
+          (result.importedNotePaths[0] ? getParentRelativePath(result.importedNotePaths[0]) : importTargetPath);
 
         revealFolder(revealPath);
       })();

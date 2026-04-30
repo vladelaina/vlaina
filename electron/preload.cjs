@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 function deepFreeze(value) {
   if (!value || typeof value !== 'object' || Object.isFrozen(value)) {
@@ -95,6 +95,14 @@ const desktopApi = {
   clipboard: {
     writeText(text) {
       return ipcRenderer.invoke('desktop:clipboard:write-text', text);
+    },
+  },
+  dragDrop: {
+    getPathForFile(file) {
+      return webUtils.getPathForFile(file);
+    },
+    authorizePath(filePath) {
+      return ipcRenderer.invoke('desktop:drag-drop:authorize-path', filePath);
     },
   },
   dialog: {

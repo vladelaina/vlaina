@@ -197,7 +197,9 @@ function updateDropTarget() {
   }
 
   const elements = document.elementsFromPoint(activeSession.lastClientX, activeSession.lastClientY);
-  if (resolveStarredDropTargetFromElements(elements)) {
+  const isStarredDropTarget = resolveStarredDropTargetFromElements(elements);
+
+  if (isStarredDropTarget) {
     activeSession.pendingStarredDrop = true;
     setPreviewStarred(true);
     setSnapshot({
@@ -503,6 +505,10 @@ export function startFileTreePointerDrag(
   document.addEventListener('pointercancel', handlePointerCancel, true);
   document.addEventListener('keydown', handleKeyDown, true);
   window.addEventListener('blur', handlePointerCancel, true);
+}
+
+export function requestFileTreePointerDragDropTargetUpdate() {
+  updateDropTarget();
 }
 
 export function useFileTreePointerDragState<T>(selector: (snapshot: FileTreePointerDragSnapshot) => T) {

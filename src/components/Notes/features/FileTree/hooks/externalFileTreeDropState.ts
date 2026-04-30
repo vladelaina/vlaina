@@ -3,11 +3,13 @@ import { useSyncExternalStore } from 'react';
 interface ExternalFileTreeDropSnapshot {
   active: boolean;
   dropTargetPath: string | null;
+  dropTargetKind: 'folder' | 'starred' | null;
 }
 
 let snapshot: ExternalFileTreeDropSnapshot = {
   active: false,
   dropTargetPath: null,
+  dropTargetKind: null,
 };
 
 const listeners = new Set<() => void>();
@@ -19,7 +21,8 @@ function emitSnapshot() {
 function setSnapshot(nextSnapshot: ExternalFileTreeDropSnapshot) {
   if (
     snapshot.active === nextSnapshot.active &&
-    snapshot.dropTargetPath === nextSnapshot.dropTargetPath
+    snapshot.dropTargetPath === nextSnapshot.dropTargetPath &&
+    snapshot.dropTargetKind === nextSnapshot.dropTargetKind
   ) {
     return;
   }
@@ -39,10 +42,14 @@ function getSnapshot() {
   return snapshot;
 }
 
-export function setExternalFileTreeDropTarget(dropTargetPath: string | null) {
+export function setExternalFileTreeDropTarget(
+  dropTargetPath: string | null,
+  dropTargetKind: 'folder' | 'starred' | null = dropTargetPath == null ? null : 'folder',
+) {
   setSnapshot({
     active: true,
     dropTargetPath,
+    dropTargetKind,
   });
 }
 
@@ -50,6 +57,7 @@ export function clearExternalFileTreeDropTarget() {
   setSnapshot({
     active: false,
     dropTargetPath: null,
+    dropTargetKind: null,
   });
 }
 

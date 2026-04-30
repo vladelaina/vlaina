@@ -50,6 +50,22 @@ export function registerDesktopIpc({
     clipboard.writeText(String(text ?? ''));
   });
 
+  handleIpc('desktop:drag-drop:authorize-path', async (_event, filePath) => {
+    const resolvedPath = normalizeFsPathForAccess(filePath);
+    const info = await stat(resolvedPath);
+    const authorizedPath = info.isDirectory() ? resolvedPath : path.dirname(resolvedPath);
+    await authorizeFsPath(authorizedPath, 'root');
+
+    return {
+      name: path.basename(resolvedPath),
+      path: resolvedPath,
+      isDirectory: info.isDirectory(),
+      isFile: info.isFile(),
+      size: info.size,
+      modifiedAt: info.mtimeMs,
+    };
+  });
+
   registerDesktopDialogIpc({
     app,
     dialog,
