@@ -238,12 +238,17 @@ function createDropFile(path: string) {
   return file as File & { path: string };
 }
 
-function dispatchWindowDragEvent(type: 'dragenter' | 'dragover' | 'dragleave' | 'drop', paths: string[] = []) {
+function dispatchWindowDragEvent(
+  type: 'dragenter' | 'dragover' | 'dragleave' | 'drop',
+  paths: string[] = [],
+  types: string[] = paths.length > 0 ? ['Files'] : [],
+) {
   const files = paths.map(createDropFile);
   const event = new Event(type, { bubbles: true, cancelable: true });
   Object.defineProperty(event, 'dataTransfer', {
     value: {
       files,
+      types,
     },
     configurable: true,
   });
@@ -410,6 +415,31 @@ describe('NotesView', () => {
     });
 
     render(<NotesView />);
+
+    await act(async () => {
+      dispatchWindowDragEvent('drop', ['/vault/alpha.md']);
+    });
+
+    await waitFor(() => {
+      expect(notesState.openNote).toHaveBeenCalledWith('alpha.md');
+    });
+  });
+
+  it('accepts a blank-workspace file drag before Electron exposes file paths', async () => {
+    mocks.storageState.stat.mockResolvedValue({
+      name: 'alpha.md',
+      path: '/vault/alpha.md',
+      isDirectory: false,
+      isFile: true,
+    });
+
+    render(<NotesView />);
+
+    await act(async () => {
+      dispatchWindowDragEvent('dragenter', [], ['Files']);
+    });
+
+    expect(screen.getByTestId('blank-workspace-drop-overlay')).toBeInTheDocument();
 
     await act(async () => {
       dispatchWindowDragEvent('drop', ['/vault/alpha.md']);

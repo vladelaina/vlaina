@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
+import { logNotesDebug } from '@/stores/notes/debugLog';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { ResizablePanel } from '@/components/layout/ResizablePanel';
@@ -189,8 +190,32 @@ export function NotesView({ active = true }: { active?: boolean }) {
     });
   })();
 
+  const blankWorkspaceDropEnabled = active && acceptsBlankWorkspaceDrop && !isOpenTargetBusy;
+
+  useEffect(() => {
+    logNotesDebug('notesView:blankDropEligibility', {
+      active,
+      acceptsBlankWorkspaceDrop,
+      blankWorkspaceDropEnabled,
+      currentNotePath,
+      openTabCount: openTabs.length,
+      isOpenTargetBusy,
+      currentVaultPath: currentVault?.path ?? null,
+      hasRootFolder: Boolean(rootFolder),
+    });
+  }, [
+    active,
+    acceptsBlankWorkspaceDrop,
+    blankWorkspaceDropEnabled,
+    currentNotePath,
+    openTabs.length,
+    isOpenTargetBusy,
+    currentVault?.path,
+    rootFolder,
+  ]);
+
   const isBlankWorkspaceDropActive = useBlankWorkspaceDropOpen({
-    enabled: active && acceptsBlankWorkspaceDrop && !isOpenTargetBusy,
+    enabled: blankWorkspaceDropEnabled,
     openMarkdownTarget,
     openVault,
   });

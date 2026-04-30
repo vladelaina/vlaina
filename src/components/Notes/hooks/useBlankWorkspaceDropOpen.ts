@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { messageDialog } from '@/lib/storage/dialog';
+import { logNotesDebug } from '@/stores/notes/debugLog';
 import { createExternalDragPreview, type ExternalDragPreviewHandle } from '../features/FileTree/hooks/externalDragPreview';
 import { isSupportedMarkdownSelection } from '../features/OpenTarget/openTargetSelection';
+import { SIDEBAR_SCROLL_ROOT_SELECTOR } from '../features/Sidebar/context-menu/shared';
 
 interface UseBlankWorkspaceDropOpenOptions {
   enabled: boolean;
@@ -17,6 +19,22 @@ function getDroppedPaths(event: DragEvent): string[] {
     .filter(Boolean);
 }
 
+function getDataTransferTypes(event: DragEvent): string[] {
+  return Array.from(event.dataTransfer?.types ?? []);
+}
+
+function hasExternalFiles(event: DragEvent): boolean {
+  return getDataTransferTypes(event).includes('Files') || (event.dataTransfer?.files?.length ?? 0) > 0;
+}
+
+function isOverNotesSidebar(event: DragEvent) {
+  const elements = document.elementsFromPoint?.(event.clientX, event.clientY) ?? [];
+  return elements.some((element) => (
+    element instanceof HTMLElement &&
+    element.closest(SIDEBAR_SCROLL_ROOT_SELECTOR)
+  ));
+}
+
 export function useBlankWorkspaceDropOpen({
   enabled,
   openMarkdownTarget,
@@ -25,6 +43,8 @@ export function useBlankWorkspaceDropOpen({
   const [isDragActive, setIsDragActive] = useState(false);
 
   useEffect(() => {
+    logNotesDebug('blankWorkspaceDrop:effect', { enabled });
+
     if (!enabled) {
       setIsDragActive(false);
       return;
@@ -35,29 +55,48 @@ export function useBlankWorkspaceDropOpen({
     let preview: ExternalDragPreviewHandle | null = null;
 
     const handleDragEnter = (event: DragEvent) => {
+      const overNotesSidebar = isOverNotesSidebar(event);
+      const externalFiles = hasExternalFiles(event);
       const paths = getDroppedPaths(event);
-      if (paths.length === 0) {
+
+      logNotesDebug('blankWorkspaceDrop:dragenter', {
+        externalFiles,
+        fileCount: event.dataTransfer?.files?.length ?? 0,
+        paths,
+        types: getDataTransferTypes(event),
+        overNotesSidebar,
+      });
+
+      if (overNotesSidebar || !externalFiles) {
         return;
       }
 
       event.preventDefault();
+      event.stopPropagation();
       setIsDragActive(true);
-      preview ??= createExternalDragPreview(paths);
-      preview.updatePaths(paths);
-      preview.updatePosition(event.clientX, event.clientY);
+      if (paths.length > 0) {
+        preview ??= createExternalDragPreview(paths);
+        preview.updatePaths(paths);
+        preview.updatePosition(event.clientX, event.clientY);
+      }
     };
 
     const handleDragOver = (event: DragEvent) => {
+      const externalFiles = hasExternalFiles(event);
       const paths = getDroppedPaths(event);
-      if (paths.length === 0) {
+
+      if (isOverNotesSidebar(event) || !externalFiles) {
         return;
       }
 
       event.preventDefault();
+      event.stopPropagation();
       setIsDragActive(true);
-      preview ??= createExternalDragPreview(paths);
-      preview.updatePaths(paths);
-      preview.updatePosition(event.clientX, event.clientY);
+      if (paths.length > 0) {
+        preview ??= createExternalDragPreview(paths);
+        preview.updatePaths(paths);
+        preview.updatePosition(event.clientX, event.clientY);
+      }
     };
 
     const handleDragLeave = () => {
@@ -67,17 +106,37 @@ export function useBlankWorkspaceDropOpen({
     };
 
     const handleDrop = (event: DragEvent) => {
+      const overNotesSidebar = isOverNotesSidebar(event);
+      const externalFiles = hasExternalFiles(event);
       const paths = getDroppedPaths(event);
-      if (paths.length === 0) {
+
+      logNotesDebug('blankWorkspaceDrop:drop', {
+        externalFiles,
+        fileCount: event.dataTransfer?.files?.length ?? 0,
+        paths,
+        types: getDataTransferTypes(event),
+        overNotesSidebar,
+      });
+
+      if (overNotesSidebar || !externalFiles) {
         return;
       }
 
       event.preventDefault();
+      event.stopPropagation();
       setIsDragActive(false);
       preview?.dispose();
       preview = null;
 
       void (async () => {
+        if (paths.length === 0) {
+          await messageDialog('Failed to read the dropped file path.', {
+            title: 'Open Failed',
+            kind: 'error',
+          });
+          return;
+        }
+
         if (paths.length !== 1) {
           await messageDialog('Drop a single folder or Markdown file to open it.', {
             title: 'Unsupported Drop',
@@ -115,19 +174,19 @@ export function useBlankWorkspaceDropOpen({
       })();
     };
 
-    window.addEventListener('dragenter', handleDragEnter);
-    window.addEventListener('dragover', handleDragOver);
-    window.addEventListener('dragleave', handleDragLeave);
-    window.addEventListener('drop', handleDrop);
+    window.addEventListener('dragenter', handleDragEnter, true);
+    window.addEventListener('dragover', handleDragOver, true);
+    window.addEventListener('dragleave', handleDragLeave, true);
+    window.addEventListener('drop', handleDrop, true);
 
     return () => {
       cancelled = true;
       setIsDragActive(false);
       preview?.dispose();
-      window.removeEventListener('dragenter', handleDragEnter);
-      window.removeEventListener('dragover', handleDragOver);
-      window.removeEventListener('dragleave', handleDragLeave);
-      window.removeEventListener('drop', handleDrop);
+      window.removeEventListener('dragenter', handleDragEnter, true);
+      window.removeEventListener('dragover', handleDragOver, true);
+      window.removeEventListener('dragleave', handleDragLeave, true);
+      window.removeEventListener('drop', handleDrop, true);
     };
   }, [enabled, openMarkdownTarget, openVault]);
 
