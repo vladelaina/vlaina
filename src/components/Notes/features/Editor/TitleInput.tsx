@@ -3,6 +3,7 @@ import { useNotesStore } from '@/stores/useNotesStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { focusEditorToFirstLineStart } from './utils/focusEditor';
 import { NOTE_TITLE_INPUT_DATA_ATTR } from './utils/titleInputDom';
+import { registerCurrentTitleCommitter } from './utils/titleCommitRegistry';
 import { isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
 import { isAbsolutePath } from '@/lib/storage/adapter';
 
@@ -18,6 +19,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
   const inputRef = useRef<HTMLInputElement>(null);
   const skipNextBlurCommitRef = useRef(false);
   const isCommittingRef = useRef(false);
+  const commitTitleRef = useRef<() => Promise<void>>(async () => undefined);
   const renameNote = useNotesStore(s => s.renameNote);
   const renameAbsoluteNote = useNotesStore(s => s.renameAbsoluteNote);
   const updateDraftNoteName = useNotesStore(s => s.updateDraftNoteName);
@@ -91,6 +93,12 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
       setNotesPreviewTitle(null, null);
     }
   }, [title, initialTitle, notePath, renameAbsoluteNote, renameNote, setNotesPreviewTitle, updateDraftNoteName]);
+
+  commitTitleRef.current = commitTitleIfNeeded;
+
+  useEffect(() => {
+    return registerCurrentTitleCommitter(() => commitTitleRef.current());
+  }, []);
 
   const handleBlur = useCallback(async () => {
     if (skipNextBlurCommitRef.current) {
