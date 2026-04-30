@@ -28,9 +28,33 @@ function spaFallbackPlugin(): Plugin {
   };
 }
 
+function woff2OnlyFontCssPlugin(): Plugin {
+  const fallbackFontSrcPattern =
+    /src:\s*url\(([^)]*?\.woff2[^)]*)\)\s*format\((['"])woff2\2\)(?:\s*,\s*url\([^)]*?\)\s*format\((['"])(?:woff|truetype)\3\))+(?=[;}])/g;
+
+  return {
+    name: 'woff2-only-font-css',
+    enforce: 'pre',
+    transform(code, id) {
+      const normalizedId = id.replace(/\\/g, '/');
+      if (!normalizedId.includes('@fontsource') && !normalizedId.includes('/katex/dist/katex')) {
+        return null;
+      }
+
+      const nextCode = code.replace(
+        fallbackFontSrcPattern,
+        (_match, woff2Url: string) => `src: url(${woff2Url}) format("woff2")`,
+      );
+
+      return nextCode === code ? null : { code: nextCode, map: null };
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig(async () => ({
   plugins: [
+    woff2OnlyFontCssPlugin(),
     react(),
     spaFallbackPlugin(),
   ],
