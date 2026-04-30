@@ -33,6 +33,7 @@ const createToggleWidgetDecoration = (
                 }
 
                 dispatchToggle(view, headingPos, isCollapsed);
+                view.dom.blur();
             };
 
             if (typeof PointerEvent !== 'undefined') {
