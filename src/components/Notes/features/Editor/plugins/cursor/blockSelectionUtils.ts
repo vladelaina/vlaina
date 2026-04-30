@@ -226,6 +226,16 @@ export function resolveDisplayedDragViewportRect(
   return convertDocumentRectToViewportRect(documentRect, currentScrollLeft, currentScrollTop);
 }
 
+export function clampViewportRectTop(rect: RectBounds, minTop: number): RectBounds {
+  if (rect.top >= minTop) return rect;
+
+  return {
+    ...rect,
+    top: minTop,
+    bottom: Math.max(rect.bottom, minTop),
+  };
+}
+
 export function convertBlockRectsToDocumentSpace(
   blockRects: readonly BlockRect[],
   scrollLeft: number,
