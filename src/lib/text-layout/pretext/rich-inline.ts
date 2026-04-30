@@ -25,6 +25,7 @@ declare const preparedRichInlineBrand: unique symbol
 export type RichInlineItem = {
   text: string // Raw author text, including any leading/trailing collapsible spaces
   font: string // Canvas font shorthand used to prepare and measure this item
+  letterSpacing?: number // Extra horizontal spacing between graphemes, in CSS px
   break?: 'normal' | 'never' // `never` keeps the item atomic, like a pill or mention chip
   extraWidth?: number // Caller-owned horizontal chrome, e.g. padding + border width
 }
@@ -114,14 +115,16 @@ function isLineStartCursor(cursor: LayoutCursor): boolean {
   return cursor.segmentIndex === 0 && cursor.graphemeIndex === 0
 }
 
-function getCollapsedSpaceWidth(font: string, cache: Map<string, number>): number {
-  const cached = cache.get(font)
+function getCollapsedSpaceWidth(font: string, letterSpacing: number, cache: Map<string, number>): number {
+  const cacheKey = `${font}\u0000${letterSpacing}`
+  const cached = cache.get(cacheKey)
   if (cached !== undefined) return cached
 
-  const joinedWidth = measureNaturalWidth(prepareWithSegments('A A', font))
-  const compactWidth = measureNaturalWidth(prepareWithSegments('AA', font))
+  const options = letterSpacing === 0 ? undefined : { letterSpacing }
+  const joinedWidth = measureNaturalWidth(prepareWithSegments('A A', font, options))
+  const compactWidth = measureNaturalWidth(prepareWithSegments('AA', font, options))
   const collapsedWidth = Math.max(0, joinedWidth - compactWidth)
-  cache.set(font, collapsedWidth)
+  cache.set(cacheKey, collapsedWidth)
   return collapsedWidth
 }
 
@@ -160,6 +163,7 @@ export function prepareRichInline(items: RichInlineItem[]): PreparedRichInline {
 
   for (let index = 0; index < items.length; index++) {
     const item = items[index]!
+    const letterSpacing = item.letterSpacing ?? 0
     const hasLeadingWhitespace = LEADING_COLLAPSIBLE_BOUNDARY_RE.test(item.text)
     const hasTrailingWhitespace = TRAILING_COLLAPSIBLE_BOUNDARY_RE.test(item.text)
     const trimmedText = item.text
@@ -168,7 +172,7 @@ export function prepareRichInline(items: RichInlineItem[]): PreparedRichInline {
 
     if (trimmedText.length === 0) {
       if (COLLAPSIBLE_BOUNDARY_RE.test(item.text) && pendingGapWidth === 0) {
-        pendingGapWidth = getCollapsedSpaceWidth(item.font, collapsedSpaceWidthCache)
+        pendingGapWidth = getCollapsedSpaceWidth(item.font, letterSpacing, collapsedSpaceWidthCache)
       }
       continue
     }
@@ -177,12 +181,18 @@ export function prepareRichInline(items: RichInlineItem[]): PreparedRichInline {
       pendingGapWidth > 0
         ? pendingGapWidth
         : hasLeadingWhitespace
-          ? getCollapsedSpaceWidth(item.font, collapsedSpaceWidthCache)
+          ? getCollapsedSpaceWidth(item.font, letterSpacing, collapsedSpaceWidthCache)
           : 0
-    const prepared = prepareWithSegments(trimmedText, item.font)
+    const prepared = prepareWithSegments(
+      trimmedText,
+      item.font,
+      letterSpacing === 0 ? undefined : { letterSpacing },
+    )
     const wholeLine = prepareWholeItemLine(prepared)
     if (wholeLine === null) {
-      pendingGapWidth = hasTrailingWhitespace ? getCollapsedSpaceWidth(item.font, collapsedSpaceWidthCache) : 0
+      pendingGapWidth = hasTrailingWhitespace
+        ? getCollapsedSpaceWidth(item.font, letterSpacing, collapsedSpaceWidthCache)
+        : 0
       continue
     }
 
@@ -199,7 +209,9 @@ export function prepareRichInline(items: RichInlineItem[]): PreparedRichInline {
     preparedItems.push(preparedItem)
     itemsBySourceItemIndex[index] = preparedItem
 
-    pendingGapWidth = hasTrailingWhitespace ? getCollapsedSpaceWidth(item.font, collapsedSpaceWidthCache) : 0
+    pendingGapWidth = hasTrailingWhitespace
+      ? getCollapsedSpaceWidth(item.font, letterSpacing, collapsedSpaceWidthCache)
+      : 0
   }
 
   return {

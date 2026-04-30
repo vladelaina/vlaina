@@ -3,6 +3,7 @@ import {
   measureNaturalWidth,
   prepare,
   prepareWithSegments,
+  walkLineRanges,
   type PrepareOptions,
   type PreparedText,
   type PreparedTextWithSegments,
@@ -22,6 +23,11 @@ export interface TextBlockMeasureOptions extends TextLayoutMetrics {
   maxHeight?: number;
   minHeight?: number;
   prepareOptions?: PrepareOptions;
+}
+
+export interface TextWrapStats {
+  lineCount: number;
+  maxLineWidth: number;
 }
 
 const preparedCache = new Map<string, PreparedText>();
@@ -67,7 +73,8 @@ function getPreparedText(
 ): PreparedText {
   const whiteSpace = options?.whiteSpace ?? 'normal';
   const wordBreak = options?.wordBreak ?? 'normal';
-  const cacheKey = `${font}\u0000${whiteSpace}\u0000${wordBreak}\u0000${text}`;
+  const letterSpacing = options?.letterSpacing ?? 0;
+  const cacheKey = `${font}\u0000${whiteSpace}\u0000${wordBreak}\u0000${letterSpacing}\u0000${text}`;
   const cached = preparedCache.get(cacheKey);
   if (cached) {
     return cached;
@@ -85,7 +92,8 @@ function getPreparedTextWithSegments(
 ): PreparedTextWithSegments {
   const whiteSpace = options?.whiteSpace ?? 'normal';
   const wordBreak = options?.wordBreak ?? 'normal';
-  const cacheKey = `${font}\u0000${whiteSpace}\u0000${wordBreak}\u0000${text}`;
+  const letterSpacing = options?.letterSpacing ?? 0;
+  const cacheKey = `${font}\u0000${whiteSpace}\u0000${wordBreak}\u0000${letterSpacing}\u0000${text}`;
   const cached = preparedSegmentsCache.get(cacheKey);
   if (cached) {
     return cached;
@@ -158,6 +166,38 @@ export function measureTextBlockHeight(
   const result = layout(prepared, safeWidth, safeLineHeight);
   const intrinsicHeight = Math.max(result.lineCount, 1) * safeLineHeight;
   return clampHeight(Math.ceil(intrinsicHeight), options.minHeight, options.maxHeight);
+}
+
+export function measureTextLineCount(
+  text: string,
+  width: number,
+  options: TextBlockMeasureOptions,
+): number {
+  const safeWidth = Math.max(1, Math.floor(width));
+  const safeLineHeight = Math.max(1, options.lineHeight);
+  const prepared = getPreparedText(text, options.font, {
+    ...options.prepareOptions,
+  });
+  return layout(prepared, safeWidth, safeLineHeight).lineCount;
+}
+
+export function measureTextWrapStats(
+  text: string,
+  width: number,
+  options: Pick<TextBlockMeasureOptions, 'font' | 'prepareOptions'>,
+): TextWrapStats {
+  const safeWidth = Math.max(1, Math.floor(width));
+  const prepared = getPreparedTextWithSegments(text, options.font, {
+    ...options.prepareOptions,
+  });
+  let maxLineWidth = 0;
+  const lineCount = walkLineRanges(prepared, safeWidth, (line) => {
+    if (line.width > maxLineWidth) {
+      maxLineWidth = line.width;
+    }
+  });
+
+  return { lineCount, maxLineWidth };
 }
 
 export function measureTextNaturalWidth(
