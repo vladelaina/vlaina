@@ -110,6 +110,29 @@ describe('OverlayScrollArea', () => {
     expect(defaultThumb?.className).toContain('w-2');
   });
 
+  it('uses the configured idle thumb color before hover', () => {
+    render(
+      <div style={{ height: 120 }}>
+        <OverlayScrollArea scrollbarVariant="compact">
+          <div style={{ height: 480 }}>content</div>
+        </OverlayScrollArea>
+      </div>
+    );
+
+    const viewport = screen.getByText('content').parentElement as HTMLDivElement;
+    setViewportMetrics(viewport, { clientHeight: 120, scrollHeight: 480 });
+    fireEvent.mouseEnter(viewport.parentElement as HTMLDivElement);
+    fireEvent.scroll(viewport);
+
+    const rail = viewport.parentElement?.querySelector('.absolute.inset-y-0.right-0') as HTMLDivElement | null;
+    const track = rail?.firstElementChild as HTMLDivElement | null;
+    const thumb = track?.firstElementChild as HTMLDivElement | null;
+
+    expect(thumb?.className).toContain('bg-[#efefef]');
+    expect(thumb?.className).toContain('right-0');
+    expect(thumb?.className).toContain('w-[5px]');
+  });
+
   it('expands the compact scrollbar on hover and uses the default cursor', () => {
     render(
       <div style={{ height: 120 }}>
