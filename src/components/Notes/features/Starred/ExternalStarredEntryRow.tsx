@@ -1,8 +1,7 @@
-import { useRef, useState, type MouseEvent } from 'react';
+import { useState, type MouseEvent } from 'react';
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { Icon } from '@/components/ui/icons';
 import { getSidebarLabelClass } from '@/components/layout/sidebar/sidebarLabelStyles';
-import { cn, iconButtonStyles } from '@/lib/utils';
 import type { StarredEntry } from '@/stores/notes/types';
 import { NoteIcon } from '../IconPicker/NoteIcon';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
@@ -13,8 +12,17 @@ import {
 } from '../Sidebar/context-menu/NotesSidebarContextMenuContent';
 import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 import { SidebarStarBadge } from '../common/SidebarStarBadge';
-import { getSidebarMenuPositionFromTriggerRect } from '../common/sidebarMenuPosition';
 import { getEntryTitle } from './starredSectionUtils';
+
+function getStarredNoteDisplayPath(entry: StarredEntry, isCurrentVaultEntry: boolean) {
+  if (entry.kind !== 'note') {
+    return undefined;
+  }
+
+  return isCurrentVaultEntry
+    ? entry.relativePath
+    : `${entry.vaultPath.replace(/\/+$/, '')}/${entry.relativePath}`;
+}
 
 interface ExternalStarredEntryRowProps {
   entry: StarredEntry;
@@ -31,13 +39,9 @@ export function ExternalStarredEntryRow({
   onOpen,
   onRemove,
 }: ExternalStarredEntryRowProps) {
-  const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const liveTitle = useDisplayName(
-    isCurrentVaultEntry && entry.kind === 'note' ? entry.relativePath : undefined,
-  );
-  const liveIcon = useDisplayIcon(
-    isCurrentVaultEntry && entry.kind === 'note' ? entry.relativePath : undefined,
-  );
+  const displayPath = getStarredNoteDisplayPath(entry, isCurrentVaultEntry);
+  const liveTitle = useDisplayName(displayPath);
+  const liveIcon = useDisplayIcon(displayPath);
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const title = liveTitle || getEntryTitle(entry);
@@ -118,30 +122,6 @@ export function ExternalStarredEntryRow({
               }}
             />
           </div>
-        }
-        actions={
-          <button
-            ref={menuButtonRef}
-            type="button"
-            aria-label={`Open ${title} menu`}
-            onClick={(event) => {
-              event.stopPropagation();
-              if (!menuButtonRef.current) return;
-              setMenuPosition(
-                getSidebarMenuPositionFromTriggerRect(menuButtonRef.current.getBoundingClientRect()),
-              );
-              setShowMenu((prev) => !prev);
-            }}
-            className={cn(
-              'rounded-md p-1 focus:outline-none',
-              iconButtonStyles,
-              showMenu || isActive
-                ? 'text-[var(--notes-sidebar-icon-hover)] hover:text-[var(--notes-sidebar-text)]'
-                : 'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]',
-            )}
-          >
-            <Icon name="common.more" size="md" />
-          </button>
         }
       />
 

@@ -4,6 +4,7 @@ import { useUIStore } from '@/stores/uiSlice';
 import { focusEditorToFirstLineStart } from './utils/focusEditor';
 import { NOTE_TITLE_INPUT_DATA_ATTR } from './utils/titleInputDom';
 import { isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
+import { isAbsolutePath } from '@/lib/storage/adapter';
 
 interface TitleInputProps {
   notePath: string;
@@ -18,6 +19,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
   const skipNextBlurCommitRef = useRef(false);
   const isCommittingRef = useRef(false);
   const renameNote = useNotesStore(s => s.renameNote);
+  const renameAbsoluteNote = useNotesStore(s => s.renameAbsoluteNote);
   const updateDraftNoteName = useNotesStore(s => s.updateDraftNoteName);
   const setNotesPreviewTitle = useUIStore(s => s.setNotesPreviewTitle);
   const titleInputDataAttrs = { [NOTE_TITLE_INPUT_DATA_ATTR]: 'true' as const };
@@ -79,12 +81,16 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
         return;
       }
 
-      await renameNote(notePath, trimmed);
+      if (isAbsolutePath(notePath)) {
+        await renameAbsoluteNote(notePath, trimmed);
+      } else {
+        await renameNote(notePath, trimmed);
+      }
     } finally {
       isCommittingRef.current = false;
       setNotesPreviewTitle(null, null);
     }
-  }, [title, initialTitle, notePath, renameNote, setNotesPreviewTitle, updateDraftNoteName]);
+  }, [title, initialTitle, notePath, renameAbsoluteNote, renameNote, setNotesPreviewTitle, updateDraftNoteName]);
 
   const handleBlur = useCallback(async () => {
     if (skipNextBlurCommitRef.current) {
