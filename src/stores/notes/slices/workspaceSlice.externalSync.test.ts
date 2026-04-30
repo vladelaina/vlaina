@@ -160,6 +160,66 @@ describe('workspaceSlice external sync', () => {
     );
   });
 
+  it('remaps starred notes when a file is renamed externally', async () => {
+    const store = createNotesStore({
+      rootFolder: createFolder('', 'Notes', [
+        createFolder('docs', 'docs', [createFile('docs/alpha.md', 'alpha')]),
+      ]),
+      starredEntries: [
+        {
+          id: 'starred-note',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: 'docs/alpha.md',
+          addedAt: 1,
+        },
+      ],
+      starredNotes: ['docs/alpha.md'],
+    });
+
+    await store.getState().applyExternalPathRename('docs/alpha.md', 'docs/beta.md');
+
+    expect(store.getState().starredEntries).toEqual([
+      {
+        id: 'starred-note',
+        kind: 'note',
+        vaultPath: '/vault',
+        relativePath: 'docs/beta.md',
+        addedAt: 1,
+      },
+    ]);
+    expect(store.getState().starredNotes).toEqual(['docs/beta.md']);
+    expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith(store.getState().starredEntries);
+  });
+
+  it('remaps starred child notes when a folder is renamed externally', async () => {
+    const store = createNotesStore({
+      rootFolder: createFolder('', 'Notes', [
+        createFolder('docs', 'docs', [
+          createFolder('docs/guide', 'guide', [
+            createFile('docs/guide/intro.md', 'intro'),
+          ]),
+        ]),
+      ]),
+      starredEntries: [
+        {
+          id: 'starred-child-note',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: 'docs/guide/intro.md',
+          addedAt: 1,
+        },
+      ],
+      starredNotes: ['docs/guide/intro.md'],
+    });
+
+    await store.getState().applyExternalPathRename('docs/guide', 'docs/tutorial');
+
+    expect(store.getState().starredEntries[0]?.relativePath).toBe('docs/tutorial/intro.md');
+    expect(store.getState().starredNotes).toEqual(['docs/tutorial/intro.md']);
+    expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith(store.getState().starredEntries);
+  });
+
   it('removes the in-memory tree node immediately when a file is deleted externally', async () => {
     const keepFile = createFile('docs/keep.md', 'keep');
     const removeFile = createFile('docs/remove.md', 'remove');

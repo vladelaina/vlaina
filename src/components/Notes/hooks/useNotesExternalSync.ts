@@ -11,7 +11,7 @@ import {
   getExternalWatchErrorMessage,
   isExternalWatchUnavailableError,
 } from './externalWatchErrorUtils';
-import { createNotesExternalSyncActions } from './notesExternalSyncActions';
+import { createNotesExternalSyncActions, type PendingCreateEntry } from './notesExternalSyncActions';
 import { logNotesDebug } from '@/stores/notes/debugLog';
 
 const NOTES_RECONCILE_POLL_MS = 1500;
@@ -31,6 +31,7 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
   const reloadTimerRef = useRef<number | null>(null);
   const pendingRenameTimerRef = useRef<number | null>(null);
   const pendingRenamesRef = useRef<PendingRenameEntry[]>([]);
+  const pendingCreatesRef = useRef<PendingCreateEntry[]>([]);
   const reconcileInFlightRef = useRef(false);
 
   useEffect(() => {
@@ -53,6 +54,7 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
       reloadTimerRef,
       pendingRenameTimerRef,
       pendingRenamesRef,
+      pendingCreatesRef,
       reconcileInFlightRef,
     });
 
