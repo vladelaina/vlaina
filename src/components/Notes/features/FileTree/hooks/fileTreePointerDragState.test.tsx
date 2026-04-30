@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useNotesStore } from '@/stores/useNotesStore';
+import { NOTES_DRAG_RETURN_ANIMATION } from '../../common/NotesDragOverlay';
 import { useFileTreePointerDragState } from './fileTreePointerDragState';
 import { useTreeItemDragSource } from './useTreeItemDragSource';
 
@@ -312,6 +313,57 @@ describe('fileTreePointerDragState', () => {
       expect(dropTarget.textContent).toBe('');
       expect(screen.getAllByTestId('source')).toHaveLength(1);
     });
+  });
+
+  it('uses the shared drag overlay timing when returning the preview', async () => {
+    const animateMock = vi.fn(() => ({
+      finished: Promise.resolve(),
+    }));
+    const animateDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'animate');
+    Object.defineProperty(HTMLElement.prototype, 'animate', {
+      configurable: true,
+      value: animateMock,
+    });
+
+    try {
+      const { source, folderTarget } = setupHarness({
+        path: 'Source.md',
+        folderTargetPath: 'Archive',
+      });
+
+      document.elementsFromPoint = vi.fn(() => [folderTarget as Element]);
+
+      fireEvent.pointerDown(source, {
+        button: 0,
+        clientX: 40,
+        clientY: 40,
+        pointerType: 'mouse',
+      });
+      dispatchDocumentPointerEvent('pointermove', {
+        clientX: 40,
+        clientY: 52,
+        buttons: 1,
+      });
+      dispatchDocumentPointerEvent('pointerup', {
+        clientX: 40,
+        clientY: 52,
+        buttons: 0,
+      });
+
+      expect(animateMock).toHaveBeenCalledWith(
+        expect.any(Array),
+        expect.objectContaining({
+          duration: NOTES_DRAG_RETURN_ANIMATION.duration,
+          easing: NOTES_DRAG_RETURN_ANIMATION.easing,
+        }),
+      );
+    } finally {
+      if (animateDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, 'animate', animateDescriptor);
+      } else {
+        delete (HTMLElement.prototype as { animate?: unknown }).animate;
+      }
+    }
   });
 
   it('moves to the explicit root drop target', async () => {

@@ -15,6 +15,42 @@ export interface ToolbarEventDelegationController {
   destroy: () => void;
 }
 
+function getSelectedCodeBlockDom(view: EditorView, from: number, to: number): HTMLElement | null {
+  let codeBlockDom: HTMLElement | null = null;
+
+  view.state.doc.nodesBetween(from, to, (node, pos) => {
+    if (node.type.name !== 'code_block') {
+      return;
+    }
+
+    const contentFrom = pos + 1;
+    const contentTo = pos + node.nodeSize - 1;
+    if (from < contentFrom || to > contentTo || node.attrs.collapsed) {
+      return false;
+    }
+
+    const nodeDom = view.nodeDOM(pos);
+    codeBlockDom = nodeDom instanceof HTMLElement ? nodeDom : null;
+    return false;
+  });
+
+  return codeBlockDom;
+}
+
+export function focusSelectedCodeBlockAfterDelete(codeBlockDom: HTMLElement | null): boolean {
+  if (!codeBlockDom?.isConnected) {
+    return false;
+  }
+
+  const codeMirrorContent = codeBlockDom.querySelector<HTMLElement>('.cm-content');
+  if (!codeMirrorContent) {
+    return false;
+  }
+
+  codeMirrorContent.focus();
+  return true;
+}
+
 export function createToolbarEventDelegation(
   toolbarElement: HTMLElement
 ): ToolbarEventDelegationController {
@@ -163,11 +199,14 @@ export function createToolbarEventDelegation(
     delete: (view) => {
       const { state: editorState, dispatch } = view;
       const { from, to } = editorState.selection;
+      const codeBlockDom = from < to ? getSelectedCodeBlockDom(view, from, to) : null;
       if (from < to) {
         const { tr } = deleteSelectionRange(view, from, to);
         dispatch(tr);
       }
-      view.focus();
+      if (!focusSelectedCodeBlockAfterDelete(codeBlockDom)) {
+        view.focus();
+      }
       return false;
     },
     copy: async (view) => {

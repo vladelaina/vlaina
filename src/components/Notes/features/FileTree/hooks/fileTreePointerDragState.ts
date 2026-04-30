@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { SIDEBAR_SCROLL_ROOT_SELECTOR } from '../../Sidebar/context-menu/shared';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { resolveInternalMoveDropTargetPath } from './dropTargetDom';
+import { NOTES_DRAG_RETURN_ANIMATION } from '../../common/NotesDragOverlay';
 
 interface FileTreePointerDragSnapshot {
   activeSourcePath: string | null;
@@ -94,6 +95,46 @@ function updatePreviewPosition() {
   }
 
   activeSession.previewElement.style.transform = `translate3d(${Math.round(activeSession.lastClientX - activeSession.previewOffsetX)}px, ${Math.round(activeSession.lastClientY - activeSession.previewOffsetY)}px, 0)`;
+}
+
+function animatePreviewBackToSource(
+  previewElement: HTMLElement | null,
+  sourceElement: HTMLElement | null,
+) {
+  if (!previewElement?.isConnected || !sourceElement?.isConnected) {
+    previewElement?.remove();
+    return;
+  }
+
+  const sourceRect = sourceElement.getBoundingClientRect();
+  const currentTransform = previewElement.style.transform;
+  const targetTransform = `translate3d(${Math.round(sourceRect.left)}px, ${Math.round(sourceRect.top)}px, 0)`;
+  const animate = previewElement.animate?.bind(previewElement);
+
+  if (!animate) {
+    previewElement.remove();
+    return;
+  }
+
+  previewElement.style.transform = targetTransform;
+  previewElement.style.pointerEvents = 'none';
+
+  const animation = animate(
+    [
+      { transform: currentTransform, opacity: previewElement.style.opacity || '0.92' },
+      { transform: targetTransform, opacity: previewElement.style.opacity || '0.92' },
+    ],
+    {
+      duration: NOTES_DRAG_RETURN_ANIMATION.duration,
+      easing: NOTES_DRAG_RETURN_ANIMATION.easing,
+      fill: 'forwards',
+    },
+  );
+
+  void animation.finished.then(
+    () => previewElement.remove(),
+    () => previewElement.remove(),
+  );
 }
 
 function getScrollRoot() {
@@ -289,7 +330,9 @@ function teardownPointerDrag() {
     activeSession.scrollRoot.removeEventListener('scroll', handleScrollRootScroll, true);
   }
 
-  activeSession?.previewElement?.remove();
+  if (activeSession?.previewElement) {
+    activeSession.previewElement.remove();
+  }
 
   if (activeSession?.suppressClickTimeout != null) {
     window.clearTimeout(activeSession.suppressClickTimeout);
@@ -313,11 +356,16 @@ function finishPointerDrag(shouldCommit: boolean) {
   }
 
   const sourcePath = activeSession.sourcePath;
+  const sourceElement = activeSession.sourceElement;
+  const previewElement = activeSession.previewElement;
   const dropTargetPath = snapshot.dropTargetPath;
   const shouldMove = shouldCommit && activeSession.activated && dropTargetPath != null;
   const shouldSuppressClick = shouldCommit && activeSession.activated;
 
+  activeSession.previewElement = null;
+
   teardownPointerDrag();
+  animatePreviewBackToSource(previewElement, sourceElement);
 
   if (shouldSuppressClick) {
     suppressNextClick();

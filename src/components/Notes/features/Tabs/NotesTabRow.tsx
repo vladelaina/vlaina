@@ -15,7 +15,6 @@ import {
   useSensors,
   DragEndEvent,
   DragStartEvent,
-  DragOverlay,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -24,6 +23,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { resolveSiblingNoteParentPath } from '@/stores/notes/notePathState';
+import { NotesDragOverlay } from '../common/NotesDragOverlay';
 
 interface TabContentProps {
   tab: { path: string; name: string; isDirty: boolean };
@@ -254,11 +254,11 @@ export function NotesTabRow() {
           </div>
         </SortableContext>
 
-        <DragOverlay>
+        <NotesDragOverlay>
           {activeTab ? (
             <TabOverlay tab={activeTab} isActive={currentNote?.path === activeTab.path} />
           ) : null}
-        </DragOverlay>
+        </NotesDragOverlay>
       </DndContext>
 
       <Tooltip delayDuration={500}>
