@@ -43,6 +43,7 @@ export async function chooseDraftSavePath(
   const selectedPath = await saveDialog({
     title: 'Save Note As',
     defaultPath,
+    authorizeParentDirectory: true,
     filters: [{ name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd'] }],
   });
 

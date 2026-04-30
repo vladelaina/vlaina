@@ -89,6 +89,17 @@ export function registerDesktopDialogIpc({
     }
 
     await authorizeFsPath(result.filePath, 'file');
+    if (options?.authorizeParentDirectory) {
+      const parentPath = path.dirname(result.filePath);
+      const watchParentPath = path.dirname(parentPath);
+      await authorizeFsPath(parentPath, 'root');
+      await authorizeFsPath(watchParentPath, 'watch-root');
+      logDesktopDialog(app, 'save:authorized_parent', {
+        selectedPath: result.filePath,
+        parentPath,
+        watchParentPath,
+      });
+    }
     return result.filePath;
   });
 

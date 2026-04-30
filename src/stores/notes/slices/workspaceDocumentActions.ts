@@ -45,6 +45,8 @@ export function createWorkspaceDocumentActions(
         logNotesDebug('workspaceSlice:saveNote:ignored-no-current-note');
         return;
       }
+      const notePathAtSaveStart = currentNote.path;
+      const wasDirtyAtSaveStart = get().isDirty;
 
       try {
         logNotesDebug('workspaceSlice:saveNote:start', {
@@ -191,7 +193,21 @@ export function createWorkspaceDocumentActions(
           explicit: options?.explicit ?? false,
           error,
         });
-        set({ error: error instanceof Error ? error.message : 'Failed to save note' });
+        const currentState = get();
+        const dirtyPath = currentState.currentNote?.path ?? notePathAtSaveStart;
+        set({
+          error: error instanceof Error ? error.message : 'Failed to save note',
+          ...(wasDirtyAtSaveStart
+            ? {
+                isDirty: true,
+                openTabs: setNoteTabDirtyState(
+                  setNoteTabDirtyState(currentState.openTabs, dirtyPath, true),
+                  notePathAtSaveStart,
+                  true,
+                ),
+              }
+            : {}),
+        });
       }
     },
 

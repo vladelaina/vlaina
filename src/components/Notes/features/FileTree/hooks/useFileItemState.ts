@@ -3,6 +3,7 @@ import type React from 'react';
 import { useNotesStore, type NoteFile } from '@/stores/useNotesStore';
 import { useTreeItemUiState } from './useTreeItemUiState';
 import { useTreeItemDragSource } from './useTreeItemDragSource';
+import { scrollCurrentNoteToTop } from '../../Editor/utils/scrollCurrentNoteToTop';
 
 export function useFileItemState(node: NoteFile, dragEnabled = true) {
   const openNote = useNotesStore((state) => state.openNote);
@@ -10,6 +11,7 @@ export function useFileItemState(node: NoteFile, dragEnabled = true) {
   const renameNote = useNotesStore((state) => state.renameNote);
   const toggleStarred = useNotesStore((state) => state.toggleStarred);
   const isStarred = useNotesStore((state) => state.isStarred);
+  const currentNotePath = useNotesStore((state) => state.currentNote?.path);
   const {
     showMenu,
     setShowMenu,
@@ -31,9 +33,14 @@ export function useFileItemState(node: NoteFile, dragEnabled = true) {
   const handleClick = useCallback(
     (event: React.MouseEvent) => {
       event.stopPropagation();
+      if (!event.ctrlKey && !event.metaKey && currentNotePath === node.path) {
+        scrollCurrentNoteToTop();
+        return;
+      }
+
       void openNote(node.path, event.ctrlKey || event.metaKey);
     },
-    [node.path, openNote]
+    [currentNotePath, node.path, openNote]
   );
 
   const handleRenameSubmit = useCallback(async () => {

@@ -26,20 +26,34 @@ export function registerDesktopWatchIpc({
     const resolvedWatchPath = await assertAuthorizedFsWatchPath(watchPath);
     const watchId = `watch-${++watcherCounter}`;
     const sender = event.sender;
-    const listener = watch(
-      resolvedWatchPath,
-      { recursive: true },
-      (eventType, filename) => {
-        const resolvedPath = filename ? path.join(resolvedWatchPath, filename.toString()) : resolvedWatchPath;
-        const payload = eventType === 'rename'
-          ? { type: { remove: { kind: 'any' } }, paths: [resolvedPath] }
-          : { type: { modify: { kind: 'data', mode: 'any' } }, paths: [resolvedPath] };
-        if (!safeSend(sender, `desktop:fs:watch:${watchId}`, payload)) {
-          listener.close();
-          activeWatchers.delete(watchId);
-        }
-      },
-    );
+    let listener;
+
+    try {
+      listener = watch(
+        resolvedWatchPath,
+        { recursive: true },
+        (eventType, filename) => {
+          const resolvedPath = filename ? path.join(resolvedWatchPath, filename.toString()) : resolvedWatchPath;
+          const payload = eventType === 'rename'
+            ? { type: { remove: { kind: 'any' } }, paths: [resolvedPath] }
+            : { type: { modify: { kind: 'data', mode: 'any' } }, paths: [resolvedPath] };
+          if (!safeSend(sender, `desktop:fs:watch:${watchId}`, payload)) {
+            listener.close();
+            activeWatchers.delete(watchId);
+          }
+        },
+      );
+    } catch (error) {
+      throw new Error(`Failed to start filesystem watch for ${resolvedWatchPath}: ${getWatchErrorMessage(error)}`);
+    }
+
+    listener.on('error', (error) => {
+      console.warn(
+        `[desktopWatchIpc] filesystem watch failed for ${resolvedWatchPath}: ${getWatchErrorMessage(error)}`,
+      );
+      listener.close();
+      activeWatchers.delete(watchId);
+    });
 
     activeWatchers.set(watchId, listener);
     return watchId;
@@ -52,4 +66,8 @@ export function registerDesktopWatchIpc({
       activeWatchers.delete(watchId);
     }
   });
+}
+
+function getWatchErrorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
 }

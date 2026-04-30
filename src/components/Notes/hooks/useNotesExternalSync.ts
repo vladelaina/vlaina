@@ -37,6 +37,23 @@ const FILE_TREE_RELOAD_DEBOUNCE_MS = 220;
 const PENDING_RENAME_TTL_MS = 180;
 const NOTES_RECONCILE_POLL_MS = 1500;
 
+function shouldAvoidRecursiveNativeWatch(path: string) {
+  const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '');
+  if (!normalized) {
+    return true;
+  }
+
+  if (normalized === '/' || /^[a-z]:$/i.test(normalized)) {
+    return true;
+  }
+
+  return (
+    /^\/home\/[^/]+$/i.test(normalized) ||
+    /^\/users\/[^/]+$/i.test(normalized) ||
+    /^[a-z]:\/users\/[^/]+$/i.test(normalized)
+  );
+}
+
 export function useNotesExternalSync(vaultPath: string | null, notesPath: string) {
   const isPaused = useSyncExternalStore(
     subscribeExternalSyncPause,
@@ -282,6 +299,11 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
     };
 
     const startReconcilePolling = () => {
+      if (shouldAvoidRecursiveNativeWatch(notesPath)) {
+        void runPollingReconcile();
+        return;
+      }
+
       if (reconcilePollTimer !== null) {
         return;
       }
@@ -303,6 +325,10 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
     };
 
     const run = async () => {
+      if (shouldAvoidRecursiveNativeWatch(notesPath)) {
+        return;
+      }
+
       try {
         const stopWatching = await watchDesktopPath(notesPath, async (event) => {
           if (disposed) {

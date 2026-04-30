@@ -75,17 +75,6 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   }, [currentNotePath]);
 
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-        e.preventDefault();
-        flushSave(true);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [flushSave]);
-
-  useEffect(() => {
     const handleBlur = () => {
       flushSave();
     };
