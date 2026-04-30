@@ -18,6 +18,7 @@ export interface FileSystemSlice {
   ) => Promise<string>;
   deleteNote: (path: string) => Promise<void>;
   renameNote: (path: string, newName: string) => Promise<void>;
+  renameAbsoluteNote: (path: string, newName: string) => Promise<void>;
   renameFolder: (path: string, newName: string) => Promise<void>;
   createFolder: (parentPath: string, name?: string) => Promise<string | null>;
   clearNewlyCreatedFolder: () => void;
