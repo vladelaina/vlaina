@@ -1,8 +1,6 @@
 import {
-  layout,
-  prepareWithSegments,
-  walkLineRanges,
-  type PreparedTextWithSegments,
+  measureTextLineCount,
+  measureTextWrapStats,
 } from '@/lib/text-layout';
 import { getChatContentWidth, normalizeChatContainerWidth } from './chatWidthBuckets';
 import {
@@ -12,23 +10,8 @@ import {
 
 const USER_BUBBLE_MAX_RATIO = 0.9;
 const USER_BUBBLE_PADDING_X = 32;
-const preparedCache = new Map<string, PreparedTextWithSegments>();
 const widthCache = new Map<string, number>();
-const PREPARED_CACHE_LIMIT = 300;
 const WIDTH_CACHE_LIMIT = 800;
-
-function setPreparedCacheEntry(text: string, prepared: PreparedTextWithSegments): void {
-  if (preparedCache.has(text)) {
-    preparedCache.delete(text);
-  } else if (preparedCache.size >= PREPARED_CACHE_LIMIT) {
-    const oldestKey = preparedCache.keys().next().value;
-    if (oldestKey !== undefined) {
-      preparedCache.delete(oldestKey);
-    }
-  }
-
-  preparedCache.set(text, prepared);
-}
 
 function setWidthCacheEntry(key: string, width: number): void {
   if (widthCache.has(key)) {
@@ -41,39 +24,6 @@ function setWidthCacheEntry(key: string, width: number): void {
   }
 
   widthCache.set(key, width);
-}
-
-function getPreparedText(text: string): PreparedTextWithSegments {
-  const cached = preparedCache.get(text);
-  if (cached) {
-    return cached;
-  }
-
-  const prepared = prepareWithSegments(text, BODY_FONT, {
-    whiteSpace: 'pre-wrap',
-  });
-  setPreparedCacheEntry(text, prepared);
-  return prepared;
-}
-
-function collectWrapMetrics(
-  prepared: PreparedTextWithSegments,
-  maxWidth: number,
-): {
-  lineCount: number;
-  maxLineWidth: number;
-} {
-  let maxLineWidth = 0;
-  const lineCount = walkLineRanges(prepared, maxWidth, (line) => {
-    if (line.width > maxLineWidth) {
-      maxLineWidth = line.width;
-    }
-  });
-
-  return {
-    lineCount,
-    maxLineWidth,
-  };
 }
 
 export function resolveUserMessageBubbleWidth(text: string, containerWidth: number): number | null {
@@ -92,8 +42,12 @@ export function resolveUserMessageBubbleWidth(text: string, containerWidth: numb
 
   const maxBubbleWidth = Math.max(1, Math.floor(getChatContentWidth(normalizedWidth) * USER_BUBBLE_MAX_RATIO));
   const maxTextWidth = Math.max(1, maxBubbleWidth - USER_BUBBLE_PADDING_X);
-  const prepared = getPreparedText(text);
-  const initialMetrics = collectWrapMetrics(prepared, maxTextWidth);
+  const measurementOptions = {
+    font: BODY_FONT,
+    lineHeight: BODY_LINE_HEIGHT,
+    prepareOptions: { whiteSpace: 'pre-wrap' as const },
+  };
+  const initialMetrics = measureTextWrapStats(text, maxTextWidth, measurementOptions);
 
   if (initialMetrics.lineCount <= 1) {
     const width = Math.min(maxBubbleWidth, Math.ceil(initialMetrics.maxLineWidth) + USER_BUBBLE_PADDING_X);
@@ -106,7 +60,7 @@ export function resolveUserMessageBubbleWidth(text: string, containerWidth: numb
 
   while (low < high) {
     const mid = Math.floor((low + high) / 2);
-    const midLineCount = layout(prepared, mid, BODY_LINE_HEIGHT).lineCount;
+    const midLineCount = measureTextLineCount(text, mid, measurementOptions);
     if (midLineCount <= initialMetrics.lineCount) {
       high = mid;
     } else {
@@ -114,7 +68,7 @@ export function resolveUserMessageBubbleWidth(text: string, containerWidth: numb
     }
   }
 
-  const tightMetrics = collectWrapMetrics(prepared, low);
+  const tightMetrics = measureTextWrapStats(text, low, measurementOptions);
   const width = Math.min(maxBubbleWidth, Math.ceil(tightMetrics.maxLineWidth) + USER_BUBBLE_PADDING_X);
   setWidthCacheEntry(cacheKey, width);
   return width;

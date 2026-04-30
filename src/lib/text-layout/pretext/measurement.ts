@@ -4,12 +4,14 @@ export type SegmentMetrics = {
   width: number
   containsCJK: boolean
   emojiCount?: number
+  breakableFitMode?: BreakableFitMode
   breakableFitAdvances?: number[] | null
 }
 
 export type EngineProfile = {
   lineFitEpsilon: number
   carryCJKAfterClosingQuote: boolean
+  breakKeepAllAfterPunctuation: boolean
   preferPrefixWidthsForBreakableRuns: boolean
   preferEarlySoftHyphenBreak: boolean
 }
@@ -76,6 +78,7 @@ export function getEngineProfile(): EngineProfile {
     cachedEngineProfile = {
       lineFitEpsilon: 0.005,
       carryCJKAfterClosingQuote: false,
+      breakKeepAllAfterPunctuation: true,
       preferPrefixWidthsForBreakableRuns: false,
       preferEarlySoftHyphenBreak: false,
     }
@@ -101,6 +104,7 @@ export function getEngineProfile(): EngineProfile {
   cachedEngineProfile = {
     lineFitEpsilon: isSafari ? 1 / 64 : 0.005,
     carryCJKAfterClosingQuote: isChromium,
+    breakKeepAllAfterPunctuation: !isSafari,
     preferPrefixWidthsForBreakableRuns: isSafari,
     preferEarlySoftHyphenBreak: isSafari,
   }
@@ -200,7 +204,10 @@ export function getSegmentBreakableFitAdvances(
   emojiCorrection: number,
   mode: BreakableFitMode,
 ): number[] | null {
-  if (metrics.breakableFitAdvances !== undefined) return metrics.breakableFitAdvances
+  if (metrics.breakableFitAdvances !== undefined && metrics.breakableFitMode === mode) {
+    return metrics.breakableFitAdvances
+  }
+  metrics.breakableFitMode = mode
 
   const graphemeSegmenter = getSharedGraphemeSegmenter()
   const graphemes: string[] = []
