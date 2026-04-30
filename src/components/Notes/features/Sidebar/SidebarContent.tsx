@@ -8,7 +8,10 @@ import { cn } from '@/lib/utils';
 import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
 import { StarredSection } from '../Starred';
 import { triggerHoveredSidebarRename } from '../common/sidebarHoverRename';
-import { NotesSidebarScrollArea } from './NotesSidebarPrimitives';
+import {
+  NotesSidebarHoverEmptyHint,
+  NotesSidebarScrollArea,
+} from './NotesSidebarPrimitives';
 import { NotesSidebarTopActions } from './NotesSidebarTopActions';
 import { RootFolderRow } from './RootFolderRow';
 import { SidebarSearchResultsList } from './SidebarSearchResultsList';
@@ -54,6 +57,7 @@ export function SidebarContent({
   const scanAllNotes = useNotesStore((s) => s.scanAllNotes);
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
   const contentScanPromiseRef = useRef<Promise<void> | null>(null);
+  const [isSidebarHovered, setIsSidebarHovered] = useState(false);
   const [isContentScanPending, setIsContentScanPending] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<{
     path: string;
@@ -87,6 +91,9 @@ export function SidebarContent({
   const shouldSearchContents = shouldSearchNotesSidebarContents(deferredSearchQuery);
   const isContentIndexReady =
     searchableNoteCount > 0 && noteContentsCache.size >= searchableNoteCount;
+  const shouldShowEmptyHint =
+    !isLoading &&
+    (!rootFolder || rootFolder.children.length === 0);
 
   const searchResults = useMemo(
     () =>
@@ -257,8 +264,17 @@ export function SidebarContent({
     });
   };
 
+  const handleOpenMarkdownFile = () => {
+    window.dispatchEvent(new Event('vlaina-open-markdown-file'));
+  };
+
   return (
-    <div ref={sidebarRootRef} className={cn('flex h-full flex-col', className)}>
+    <div
+      ref={sidebarRootRef}
+      className={cn('group/sidebar-content relative flex h-full flex-col', className)}
+      onMouseEnter={() => setIsSidebarHovered(true)}
+      onMouseLeave={() => setIsSidebarHovered(false)}
+    >
       <SidebarSearchDrawer
         isSearchOpen={search.isSearchOpen}
         shouldShowTopActions={!shouldShowSearchResults}
@@ -306,6 +322,14 @@ export function SidebarContent({
           </div>
         )}
       </NotesSidebarScrollArea>
+      {!shouldShowSearchResults && shouldShowEmptyHint ? (
+        <NotesSidebarHoverEmptyHint
+          title="No notes yet"
+          actionLabel="Open"
+          onAction={handleOpenMarkdownFile}
+          visible={isSidebarHovered}
+        />
+      ) : null}
     </div>
   );
 }

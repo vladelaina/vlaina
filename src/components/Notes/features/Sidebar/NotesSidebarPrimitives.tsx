@@ -177,24 +177,45 @@ export function NotesSidebarEmptyState({
 
 interface NotesSidebarHoverEmptyHintProps extends HTMLAttributes<HTMLDivElement> {
   title: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  visible?: boolean;
 }
 
 export function NotesSidebarHoverEmptyHint({
   title,
+  actionLabel,
+  onAction,
+  visible = false,
   className,
   ...props
 }: NotesSidebarHoverEmptyHintProps) {
   return (
     <div
       className={cn(
-        'pointer-events-none absolute left-1/2 top-[38.2%] flex -translate-x-1/2 -translate-y-1/2 items-center justify-center opacity-0 transition-opacity duration-150 group-hover/notes-sidebar-surface:opacity-100',
+        'pointer-events-none absolute left-1/2 top-[38.2%] z-10 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center transition-opacity duration-150',
+        visible ? 'opacity-100' : 'opacity-0 group-hover/notes-sidebar-surface:opacity-100',
         className,
       )}
       {...props}
     >
-      <span className="max-w-[170px] px-4 text-center text-[13px] text-[var(--notes-sidebar-text-soft)]">
-        {title}
-      </span>
+      <div className="flex max-w-[180px] flex-col items-center gap-2 px-4 text-center">
+        <span className="text-[13px] text-[var(--notes-sidebar-text-soft)]">
+          {title}
+        </span>
+        {actionLabel && onAction ? (
+          <button
+            type="button"
+            className="pointer-events-auto h-7 rounded-md px-3 text-[12px] text-[var(--notes-sidebar-text)] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)] focus:outline-none"
+            onClick={(event) => {
+              event.stopPropagation();
+              onAction();
+            }}
+          >
+            {actionLabel}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SidebarContent } from './SidebarContent';
 
@@ -21,6 +21,7 @@ vi.mock('@/stores/useNotesStore', () => ({
     getDisplayName: vi.fn((path: string) => path),
     noteContentsCache: new Map(),
     scanAllNotes: hoisted.scanAllNotes,
+    starredEntries: [],
   }),
 }));
 
@@ -53,6 +54,20 @@ vi.mock('./NotesSidebarRow', () => ({
 
 vi.mock('./NotesSidebarPrimitives', () => ({
   NotesSidebarScrollArea: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+  NotesSidebarHoverEmptyHint: ({
+    title,
+    actionLabel,
+    onAction,
+  }: {
+    title: string;
+    actionLabel?: string;
+    onAction?: () => void;
+  }) => (
+    <div>
+      <span>{title}</span>
+      {actionLabel ? <button onClick={onAction}>{actionLabel}</button> : null}
+    </div>
+  ),
 }));
 
 vi.mock('./NotesSidebarTopActions', () => ({
@@ -123,5 +138,65 @@ describe('SidebarContent search highlight cleanup', () => {
 
     expect(hoisted.clearSidebarSearchHighlights).toHaveBeenCalledTimes(1);
     expect(hoisted.clearSidebarSearchNavigationPending).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the hover empty hint when the notes directory has no notes', () => {
+    const rootFolder = {
+      id: 'root',
+      name: 'Notes',
+      path: '',
+      isFolder: true as const,
+      expanded: true,
+      children: [],
+    };
+
+    const { getByText } = render(
+      <SidebarContent
+        rootFolder={rootFolder}
+        isLoading={false}
+        currentNotePath={null}
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(getByText('No notes yet')).toBeTruthy();
+  });
+
+  it('shows the hover empty hint before a root folder exists', () => {
+    const { getByText } = render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="draft:blank"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(getByText('No notes yet')).toBeTruthy();
+  });
+
+  it('opens the markdown picker from the empty hint action', () => {
+    const openHandler = vi.fn();
+    window.addEventListener('vlaina-open-markdown-file', openHandler);
+
+    const { getByText } = render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="draft:blank"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    fireEvent.click(getByText('Open'));
+
+    expect(openHandler).toHaveBeenCalledTimes(1);
+    window.removeEventListener('vlaina-open-markdown-file', openHandler);
   });
 });
