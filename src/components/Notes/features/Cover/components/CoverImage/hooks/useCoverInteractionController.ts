@@ -7,7 +7,6 @@ import { useCoverContainerObserver } from './resize/useCoverContainerObserver';
 interface UseCoverInteractionControllerProps {
   mediaSize: { width: number; height: number } | null;
   effectiveContainerSize: { width: number; height: number } | null;
-  windowResizeActive: boolean;
   zoom: number;
   setZoom: (zoom: number) => void;
   crop: { x: number; y: number };
@@ -33,7 +32,6 @@ interface UseCoverInteractionControllerProps {
 export function useCoverInteractionController({
   mediaSize,
   effectiveContainerSize,
-  windowResizeActive,
   zoom,
   setZoom,
   crop,
@@ -112,7 +110,7 @@ export function useCoverInteractionController({
     zoom,
     isInteracting,
     isResizing,
-    suspendSync: suspendPositionSync || windowResizeActive,
+    suspendSync: suspendPositionSync,
     ignoreCropSyncRef,
     setCrop,
   });
@@ -123,7 +121,6 @@ export function useCoverInteractionController({
     setContainerSize,
     setIsContainerResizing,
     observeKey: url,
-    freezeSizeSync: windowResizeActive,
   });
 
   return {

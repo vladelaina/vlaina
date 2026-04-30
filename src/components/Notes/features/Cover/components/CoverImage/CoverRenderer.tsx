@@ -39,19 +39,28 @@ export const CoverRenderer = React.memo(({
   const frozenLayerVisible = Boolean(frozenImageState) && (isResizing || isResizeSettling);
   const placeholderFallbackVisible =
     !isImageReady ||
-    layoutPanelDragging ||
-    isWindowResizing ||
-    isContainerResizing ||
     (isResizing && !frozenLayerVisible);
   const placeholderDisplaySrc = placeholderSrc || displaySrc;
+  const layoutBackdropVisible =
+    Boolean(placeholderDisplaySrc) &&
+    (layoutPanelDragging || isWindowResizing || isContainerResizing);
   const cropperSuspended =
-    layoutPanelDragging ||
-    isWindowResizing ||
-    isContainerResizing ||
     (isResizing && frozenLayerVisible);
 
   return (
     <>
+      {layoutBackdropVisible ? (
+        <img
+          src={placeholderDisplaySrc}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full object-cover pointer-events-none select-none"
+          style={{
+            objectPosition: `${positionX}% ${positionY}%`,
+            transform: 'translateZ(0)',
+          }}
+        />
+      ) : null}
       <CoverPlaceholderLayer
         displaySrc={placeholderDisplaySrc}
         isImageReady={isImageReady}

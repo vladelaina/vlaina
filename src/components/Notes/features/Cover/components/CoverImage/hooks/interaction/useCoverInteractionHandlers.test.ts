@@ -106,6 +106,27 @@ describe('useCoverInteractionHandlers', () => {
     expect(props.setZoom).toHaveBeenCalledWith(1.2);
   });
 
+  it('adjusts crop around the wheel cursor anchor while zooming', () => {
+    const props = createProps({
+      crop: { x: 10, y: -20 },
+      zoom: 1,
+      clampCropForZoom: vi.fn((crop) => crop),
+    });
+    const { result } = renderHook((nextProps) => useCoverInteractionHandlers(nextProps), {
+      initialProps: props,
+    });
+
+    act(() => {
+      result.current.markNonPointerIntent();
+      result.current.handleInteractionStart();
+      result.current.onCropperZoomChange(2, { x: 100, y: 40 });
+    });
+
+    expect(props.clampCropForZoom).toHaveBeenCalledWith({ x: -80, y: -80 }, 2);
+    expect(props.setCrop).toHaveBeenCalledWith({ x: -80, y: -80 });
+    expect(props.setZoom).toHaveBeenCalledWith(2);
+  });
+
   it('does not toggle picker for non-pointer interaction without changes', () => {
     const props = createProps();
     const { result } = renderHook((nextProps) => useCoverInteractionHandlers(nextProps), {

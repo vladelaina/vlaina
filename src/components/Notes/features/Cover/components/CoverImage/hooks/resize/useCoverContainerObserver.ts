@@ -7,7 +7,6 @@ interface UseCoverContainerObserverOptions {
   setIsContainerResizing?: (resizing: boolean) => void;
   observeKey?: string | null;
   suspended?: boolean;
-  freezeSizeSync?: boolean;
 }
 
 export function useCoverContainerObserver({
@@ -17,7 +16,6 @@ export function useCoverContainerObserver({
   setIsContainerResizing,
   observeKey,
   suspended = false,
-  freezeSizeSync = false,
 }: UseCoverContainerObserverOptions) {
   useLayoutEffect(() => {
     const el = containerRef.current;
@@ -93,7 +91,7 @@ export function useCoverContainerObserver({
       }
 
       scheduleResizeSettled();
-      updateContainerSize(roundedWidth, roundedHeight, !freezeSizeSync);
+      updateContainerSize(roundedWidth, roundedHeight, true);
     });
 
     syncContainerSize();
@@ -104,5 +102,5 @@ export function useCoverContainerObserver({
       resizeActive = false;
       setIsContainerResizing?.(false);
     };
-  }, [containerRef, freezeSizeSync, isManualResizingRef, observeKey, setContainerSize, setIsContainerResizing, suspended]);
+  }, [containerRef, isManualResizingRef, observeKey, setContainerSize, setIsContainerResizing, suspended]);
 }

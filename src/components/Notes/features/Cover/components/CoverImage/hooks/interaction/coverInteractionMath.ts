@@ -52,3 +52,21 @@ export function clampCropToBounds(crop: Point, bounds: TranslateBounds): Point {
     y: Math.max(-bounds.maxTranslateY, Math.min(bounds.maxTranslateY, crop.y)),
   };
 }
+
+export function calculateCursorAnchoredCrop(
+  crop: Point,
+  currentZoom: number,
+  nextZoom: number,
+  anchor: Point
+): Point {
+  if (currentZoom <= 0 || nextZoom <= 0) {
+    return crop;
+  }
+
+  const zoomRatio = nextZoom / currentZoom;
+
+  return {
+    x: crop.x + (anchor.x - crop.x) * (1 - zoomRatio),
+    y: crop.y + (anchor.y - crop.y) * (1 - zoomRatio),
+  };
+}

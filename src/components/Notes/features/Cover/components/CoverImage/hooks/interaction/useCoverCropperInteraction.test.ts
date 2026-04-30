@@ -37,9 +37,22 @@ describe('useCoverCropperInteraction', () => {
     act(() => {
       result.current.bindWheelTarget(wrapper);
     });
+    vi.spyOn(wrapper, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 10,
+      top: 20,
+      right: 210,
+      bottom: 120,
+      width: 200,
+      height: 100,
+      toJSON: () => ({}),
+    });
 
     const wheelEvent = new WheelEvent('wheel', {
       deltaY: 100,
+      clientX: 160,
+      clientY: 90,
       cancelable: true,
     });
 
@@ -51,6 +64,7 @@ describe('useCoverCropperInteraction', () => {
     expect(props.onNonPointerIntent).toHaveBeenCalledTimes(1);
     expect(props.onInteractionStart).toHaveBeenCalledTimes(1);
     expect(props.onCropperZoomChange).toHaveBeenCalledTimes(1);
+    expect(props.onCropperZoomChange).toHaveBeenCalledWith(expect.any(Number), { x: 50, y: 20 });
     expect(props.onInteractionEnd).not.toHaveBeenCalled();
 
     act(() => {
@@ -97,6 +111,43 @@ describe('useCoverCropperInteraction', () => {
     expect(props.onInteractionStart).not.toHaveBeenCalled();
     expect(props.onCropperZoomChange).not.toHaveBeenCalled();
     expect(props.onPointerIntent).not.toHaveBeenCalled();
+  });
+
+  it('accumulates rapid wheel zoom before React rerenders', () => {
+    const props = createProps({
+      zoom: 1,
+    });
+    const wrapper = document.createElement('div');
+    vi.spyOn(wrapper, 'getBoundingClientRect').mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 200,
+      bottom: 100,
+      width: 200,
+      height: 100,
+      toJSON: () => ({}),
+    });
+
+    const { result } = renderHook((nextProps) => useCoverCropperInteraction(nextProps), {
+      initialProps: props,
+    });
+
+    act(() => {
+      result.current.bindWheelTarget(wrapper);
+      wrapper.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, clientX: 100, clientY: 50, cancelable: true }));
+      wrapper.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, clientX: 100, clientY: 50, cancelable: true }));
+    });
+
+    const zoomChange = vi.mocked(props.onCropperZoomChange);
+    const firstZoom = zoomChange.mock.calls[0]?.[0];
+    const secondZoom = zoomChange.mock.calls[1]?.[0];
+
+    expect(props.onCropperZoomChange).toHaveBeenCalledTimes(2);
+    expect(firstZoom).toBeDefined();
+    expect(secondZoom).toBeDefined();
+    expect(secondZoom!).toBeGreaterThan(firstZoom!);
   });
 
   it('tracks pointer drag updates and ends only for the active pointer', () => {

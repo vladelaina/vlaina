@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  calculateCursorAnchoredCrop,
   calculateTranslateBounds,
   clampCropToBounds,
   resolveCoverObjectFitMode,
@@ -60,5 +61,16 @@ describe('coverInteractionMath', () => {
       { maxTranslateX: 100, maxTranslateY: 50 }
     );
     expect(clamped).toEqual({ x: 100, y: -50 });
+  });
+
+  it('keeps the cursor anchor visually stable while zooming', () => {
+    const nextCrop = calculateCursorAnchoredCrop(
+      { x: 10, y: -20 },
+      1,
+      2,
+      { x: 100, y: 40 }
+    );
+
+    expect(nextCrop).toEqual({ x: -80, y: -80 });
   });
 });
