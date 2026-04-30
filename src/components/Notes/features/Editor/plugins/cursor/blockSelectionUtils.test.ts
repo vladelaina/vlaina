@@ -42,13 +42,51 @@ describe('blockSelectionUtils', () => {
     });
   });
 
-  it('treats touching edges as intersection', () => {
+  it('requires positive overlap instead of selecting on touching edges', () => {
     expect(
       isRectIntersecting(
         { left: 0, top: 0, right: 10, bottom: 10 },
         { left: 10, top: 5, right: 20, bottom: 15 },
       ),
+    ).toBe(false);
+
+    expect(
+      isRectIntersecting(
+        { left: 0, top: 0, right: 10, bottom: 10 },
+        { left: 9, top: 5, right: 20, bottom: 15 },
+      ),
     ).toBe(true);
+  });
+
+  it('allows line-shaped drag selections only when they pass through block interiors', () => {
+    const block = { left: 0, top: 0, right: 100, bottom: 20 };
+
+    expect(
+      isRectIntersecting(block, {
+        left: 10,
+        top: 10,
+        right: 90,
+        bottom: 10,
+      }),
+    ).toBe(true);
+
+    expect(
+      isRectIntersecting(block, {
+        left: 50,
+        top: 5,
+        right: 50,
+        bottom: 15,
+      }),
+    ).toBe(true);
+
+    expect(
+      isRectIntersecting(block, {
+        left: 10,
+        top: 20,
+        right: 90,
+        bottom: 20,
+      }),
+    ).toBe(false);
   });
 
   it('normalizes and deduplicates block ranges', () => {
@@ -129,6 +167,57 @@ describe('blockSelectionUtils', () => {
       { from: 20, to: 30 },
     ]);
     expect(getBlockRangesKey(result)).toBe('0:10|10:20|20:30');
+  });
+
+  it('does not select the previous block when dragging from the gap below it', () => {
+    const blocks: BlockRect[] = [
+      { from: 0, to: 10, left: 0, top: 0, right: 100, bottom: 20 },
+      { from: 10, to: 20, left: 0, top: 30, right: 100, bottom: 50 },
+    ];
+
+    expect(
+      resolveIntersectedBlockRanges(blocks, {
+        left: 10,
+        top: 20,
+        right: 90,
+        bottom: 35,
+      }),
+    ).toEqual([{ from: 10, to: 20 }]);
+  });
+
+  it('matches common block drag selection gestures from surrounding blank space', () => {
+    const blocks: BlockRect[] = [
+      { from: 0, to: 10, left: 100, top: 0, right: 500, bottom: 24 },
+      { from: 10, to: 20, left: 100, top: 36, right: 500, bottom: 60 },
+      { from: 20, to: 30, left: 100, top: 72, right: 500, bottom: 96 },
+    ];
+
+    expect(resolveIntersectedBlockRanges(blocks, {
+      left: 20,
+      top: 8,
+      right: 160,
+      bottom: 44,
+    })).toEqual([
+      { from: 0, to: 10 },
+      { from: 10, to: 20 },
+    ]);
+
+    expect(resolveIntersectedBlockRanges(blocks, {
+      left: 20,
+      top: 48,
+      right: 160,
+      bottom: 84,
+    })).toEqual([
+      { from: 10, to: 20 },
+      { from: 20, to: 30 },
+    ]);
+
+    expect(resolveIntersectedBlockRanges(blocks, {
+      left: 20,
+      top: 48,
+      right: 160,
+      bottom: 48,
+    })).toEqual([{ from: 10, to: 20 }]);
   });
 
   it('renders standalone image paragraphs using the image node range', async () => {
