@@ -44,6 +44,18 @@ export interface ElectronClipboardApi {
   writeText(text: string): Promise<void>;
 }
 
+export interface ElectronDragDropApi {
+  getPathForFile(file: File): string;
+  authorizePath(filePath: string): Promise<{
+    name: string;
+    path: string;
+    isDirectory: boolean;
+    isFile: boolean;
+    size?: number;
+    modifiedAt?: number;
+  }>;
+}
+
 export interface ElectronFsApi {
   readBinaryFile(filePath: string): Promise<Uint8Array>;
   readTextFile(filePath: string): Promise<string>;
@@ -165,6 +177,7 @@ export interface VlainaDesktopApi {
   shortcuts: ElectronShortcutsApi;
   shell: ElectronShellApi;
   clipboard: ElectronClipboardApi;
+  dragDrop: ElectronDragDropApi;
   dialog: ElectronDialogApi;
   fs: ElectronFsApi;
   path: ElectronPathApi;

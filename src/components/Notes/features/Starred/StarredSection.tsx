@@ -1,7 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
-import { useFileTreePointerDragState } from '../FileTree/hooks/fileTreePointerDragState';
+import {
+  requestFileTreePointerDragDropTargetUpdate,
+  useFileTreePointerDragState,
+} from '../FileTree/hooks/fileTreePointerDragState';
+import { useExternalFileTreeDropState } from '../FileTree/hooks/externalFileTreeDropState';
 import { NotesSidebarSection } from '../Sidebar/NotesSidebarPrimitives';
 import { ExternalStarredEntryRow } from './ExternalStarredEntryRow';
 import { useStarredSectionEntries } from './useStarredSectionEntries';
@@ -17,9 +21,13 @@ export function StarredSection({
 }: StarredSectionProps = {}) {
   const { starredLoaded, hasEntries, entries: entryViewModels } = useStarredSectionEntries();
   const activeDragSourcePath = useFileTreePointerDragState((state) => state.activeSourcePath);
-  const isDragOver = useFileTreePointerDragState((state) => state.dropTargetKind === 'starred');
+  const isInternalDragOver = useFileTreePointerDragState((state) => state.dropTargetKind === 'starred');
+  const isExternalDragActive = useExternalFileTreeDropState((state) => state.active);
+  const isExternalDragOver = useExternalFileTreeDropState((state) => state.dropTargetKind === 'starred');
   const [expanded, setExpanded] = useState(false);
-  const isExpanded = expanded || (!hasEntries && activeDragSourcePath != null);
+  const hasActiveDrag = activeDragSourcePath != null || isExternalDragActive;
+  const isDragOver = isInternalDragOver || isExternalDragOver;
+  const isExpanded = expanded || (!hasEntries && hasActiveDrag);
 
   useEffect(() => {
     if (starredLoaded && hasEntries) {
@@ -27,7 +35,13 @@ export function StarredSection({
     }
   }, [hasEntries, starredLoaded]);
 
-  if (!starredLoaded || (!hasEntries && !activeDragSourcePath)) {
+  useLayoutEffect(() => {
+    if (!hasEntries && activeDragSourcePath != null) {
+      requestFileTreePointerDragDropTargetUpdate();
+    }
+  }, [activeDragSourcePath, hasEntries, isExpanded]);
+
+  if (!starredLoaded || (!hasEntries && !hasActiveDrag)) {
     return null;
   }
 

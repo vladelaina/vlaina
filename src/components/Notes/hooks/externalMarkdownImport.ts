@@ -1,3 +1,4 @@
+import { getElectronBridge } from '@/lib/electron/bridge';
 import { getBaseName, getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { markExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
 import { resolveUniquePath } from '@/stores/notes/utils/fs/pathOperations';
@@ -6,6 +7,15 @@ import { isSupportedMarkdownSelection } from '../features/OpenTarget/openTargetS
 interface ExternalMarkdownImportResult {
   importedNotePaths: string[];
   importedFolderPaths: string[];
+}
+
+async function statExternalMarkdownPath(absolutePath: string) {
+  const dragDrop = getElectronBridge()?.dragDrop;
+  if (dragDrop) {
+    return dragDrop.authorizePath(absolutePath);
+  }
+
+  return getStorageAdapter().stat(absolutePath);
 }
 
 async function importExternalMarkdownFile(
@@ -88,12 +98,11 @@ export async function importExternalMarkdownEntries(
   targetFolderPath: string,
   absolutePaths: string[],
 ): Promise<ExternalMarkdownImportResult> {
-  const storage = getStorageAdapter();
   const importedNotePaths: string[] = [];
   const importedFolderPaths: string[] = [];
 
   for (const absolutePath of absolutePaths) {
-    const info = await storage.stat(absolutePath);
+    const info = await statExternalMarkdownPath(absolutePath);
     if (info?.isDirectory) {
       await importExternalMarkdownDirectory(
         absolutePath,

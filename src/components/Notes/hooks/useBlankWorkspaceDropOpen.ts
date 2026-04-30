@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { getStorageAdapter } from '@/lib/storage/adapter';
+import { getElectronBridge } from '@/lib/electron/bridge';
+import { getStorageAdapter, type FileInfo } from '@/lib/storage/adapter';
 import { messageDialog } from '@/lib/storage/dialog';
 import { logNotesDebug } from '@/stores/notes/debugLog';
 import { createExternalDragPreview, type ExternalDragPreviewHandle } from '../features/FileTree/hooks/externalDragPreview';
@@ -12,10 +13,39 @@ interface UseBlankWorkspaceDropOpenOptions {
   openVault: (path: string) => Promise<boolean>;
 }
 
+function describeDroppedFiles(event: DragEvent) {
+  return Array.from(event.dataTransfer?.files ?? []).map((file) => {
+    const legacyPath = ((file as File & { path?: string }).path ?? '').trim();
+    return {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      hasLegacyPath: legacyPath.length > 0,
+      legacyPath,
+    };
+  });
+}
+
 function getDroppedPaths(event: DragEvent): string[] {
+  const dragDrop = getElectronBridge()?.dragDrop;
   const fileList = Array.from(event.dataTransfer?.files ?? []);
   return fileList
-    .map((file) => ((file as File & { path?: string }).path ?? '').trim())
+    .map((file) => {
+      const legacyPath = ((file as File & { path?: string }).path ?? '').trim();
+      if (legacyPath) {
+        return legacyPath;
+      }
+
+      try {
+        return dragDrop?.getPathForFile(file).trim() || '';
+      } catch (error) {
+        logNotesDebug('blankWorkspaceDrop:getPathForFileError', {
+          fileName: file.name,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return '';
+      }
+    })
     .filter(Boolean);
 }
 
@@ -35,6 +65,15 @@ function isOverNotesSidebar(event: DragEvent) {
   ));
 }
 
+async function statDroppedPath(path: string): Promise<FileInfo | null> {
+  const dragDrop = getElectronBridge()?.dragDrop;
+  if (dragDrop) {
+    return dragDrop.authorizePath(path);
+  }
+
+  return getStorageAdapter().stat(path);
+}
+
 export function useBlankWorkspaceDropOpen({
   enabled,
   openMarkdownTarget,
@@ -43,8 +82,6 @@ export function useBlankWorkspaceDropOpen({
   const [isDragActive, setIsDragActive] = useState(false);
 
   useEffect(() => {
-    logNotesDebug('blankWorkspaceDrop:effect', { enabled });
-
     if (!enabled) {
       setIsDragActive(false);
       return;
@@ -54,18 +91,16 @@ export function useBlankWorkspaceDropOpen({
     let cancelled = false;
     let preview: ExternalDragPreviewHandle | null = null;
 
+    logNotesDebug('blankWorkspaceDrop:enabled', {
+      hasElectronBridge: Boolean(getElectronBridge()),
+      hasDragDropBridge: Boolean(getElectronBridge()?.dragDrop),
+      storagePlatform: storage.platform,
+    });
+
     const handleDragEnter = (event: DragEvent) => {
       const overNotesSidebar = isOverNotesSidebar(event);
       const externalFiles = hasExternalFiles(event);
       const paths = getDroppedPaths(event);
-
-      logNotesDebug('blankWorkspaceDrop:dragenter', {
-        externalFiles,
-        fileCount: event.dataTransfer?.files?.length ?? 0,
-        paths,
-        types: getDataTransferTypes(event),
-        overNotesSidebar,
-      });
 
       if (overNotesSidebar || !externalFiles) {
         return;
@@ -112,10 +147,13 @@ export function useBlankWorkspaceDropOpen({
 
       logNotesDebug('blankWorkspaceDrop:drop', {
         externalFiles,
-        fileCount: event.dataTransfer?.files?.length ?? 0,
-        paths,
-        types: getDataTransferTypes(event),
         overNotesSidebar,
+        types: getDataTransferTypes(event),
+        fileCount: event.dataTransfer?.files?.length ?? 0,
+        files: describeDroppedFiles(event),
+        paths,
+        hasElectronBridge: Boolean(getElectronBridge()),
+        hasDragDropBridge: Boolean(getElectronBridge()?.dragDrop),
       });
 
       if (overNotesSidebar || !externalFiles) {
@@ -145,32 +183,52 @@ export function useBlankWorkspaceDropOpen({
           return;
         }
 
-        const droppedPath = paths[0];
-        const info = await storage.stat(droppedPath);
-        if (cancelled) {
-          return;
-        }
+        try {
+          const droppedPath = paths[0];
+          logNotesDebug('blankWorkspaceDrop:statStart', { droppedPath });
+          const info = await statDroppedPath(droppedPath);
+          logNotesDebug('blankWorkspaceDrop:statResult', {
+            droppedPath,
+            info,
+          });
+          if (cancelled) {
+            return;
+          }
 
-        if (info?.isDirectory) {
-          const opened = await openVault(droppedPath);
-          if (!opened && !cancelled) {
-            await messageDialog('Failed to open the dropped folder.', {
+          if (info?.isDirectory) {
+            logNotesDebug('blankWorkspaceDrop:openVault', { droppedPath });
+            const opened = await openVault(droppedPath);
+            logNotesDebug('blankWorkspaceDrop:openVaultResult', { droppedPath, opened });
+            if (!opened && !cancelled) {
+              await messageDialog('Failed to open the dropped folder.', {
+                title: 'Open Failed',
+                kind: 'error',
+              });
+            }
+            return;
+          }
+
+          if (info?.isFile && isSupportedMarkdownSelection(droppedPath)) {
+            logNotesDebug('blankWorkspaceDrop:openMarkdownTarget', { droppedPath });
+            await openMarkdownTarget(droppedPath);
+            return;
+          }
+
+          await messageDialog('Drop a folder or a Markdown file to open it.', {
+            title: 'Unsupported Drop',
+            kind: 'warning',
+          });
+        } catch (error) {
+          logNotesDebug('blankWorkspaceDrop:openError', {
+            error: error instanceof Error ? error.message : String(error),
+          });
+          if (!cancelled) {
+            await messageDialog(error instanceof Error ? error.message : 'Failed to open the dropped file.', {
               title: 'Open Failed',
               kind: 'error',
             });
           }
-          return;
         }
-
-        if (info?.isFile && isSupportedMarkdownSelection(droppedPath)) {
-          await openMarkdownTarget(droppedPath);
-          return;
-        }
-
-        await messageDialog('Drop a folder or a Markdown file to open it.', {
-          title: 'Unsupported Drop',
-          kind: 'warning',
-        });
       })();
     };
 

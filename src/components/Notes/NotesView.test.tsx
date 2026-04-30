@@ -119,8 +119,13 @@ vi.mock('@/stores/notes/useNotesStore', () => ({
 }));
 
 vi.mock('@/stores/useVaultStore', () => ({
-  useVaultStore: (selector?: (state: typeof mocks.vaultState) => unknown) =>
-    selector ? selector(mocks.vaultState) : mocks.vaultState,
+  useVaultStore: Object.assign(
+    (selector?: (state: typeof mocks.vaultState) => unknown) =>
+      selector ? selector(mocks.vaultState) : mocks.vaultState,
+    {
+      getState: () => mocks.vaultState,
+    },
+  ),
 }));
 
 vi.mock('@/stores/uiSlice', () => ({
@@ -229,21 +234,22 @@ const notesState = mocks.notesState;
 const uiState = mocks.uiState;
 const shortcutMatchesMock = vi.mocked(matchesShortcutBinding);
 
-function createDropFile(path: string) {
+function createDropFile(path: string, exposePath = true) {
   const file = new File([''], path.split('/').pop() || 'dropped-item');
-  Object.defineProperty(file, 'path', {
-    value: path,
-    configurable: true,
-  });
+  if (exposePath) {
+    Object.defineProperty(file, 'path', {
+      value: path,
+      configurable: true,
+    });
+  }
   return file as File & { path: string };
 }
 
-function dispatchWindowDragEvent(
+function dispatchWindowDragEventWithFiles(
   type: 'dragenter' | 'dragover' | 'dragleave' | 'drop',
-  paths: string[] = [],
-  types: string[] = paths.length > 0 ? ['Files'] : [],
+  files: File[],
+  types: string[] = files.length > 0 ? ['Files'] : [],
 ) {
-  const files = paths.map(createDropFile);
   const event = new Event(type, { bubbles: true, cancelable: true });
   Object.defineProperty(event, 'dataTransfer', {
     value: {
@@ -255,8 +261,17 @@ function dispatchWindowDragEvent(
   fireEvent(window, event);
 }
 
+function dispatchWindowDragEvent(
+  type: 'dragenter' | 'dragover' | 'dragleave' | 'drop',
+  paths: string[] = [],
+  types: string[] = paths.length > 0 ? ['Files'] : [],
+) {
+  dispatchWindowDragEventWithFiles(type, paths.map((path) => createDropFile(path)), types);
+}
+
 describe('NotesView', () => {
   beforeEach(() => {
+    delete (window as Window & { vlainaDesktop?: unknown }).vlainaDesktop;
     mocks.vaultState.currentVault = { path: '/vault' };
     notesState.currentNote = null;
     notesState.noteMetadata = null;
@@ -425,6 +440,40 @@ describe('NotesView', () => {
     });
   });
 
+  it('opens a dropped markdown file after opening its vault from a new workspace', async () => {
+    mocks.vaultState.currentVault = null;
+    notesState.notesPath = '';
+    notesState.rootFolder = null;
+    mocks.storageState.stat.mockResolvedValue({
+      name: 'alpha.md',
+      path: '/vault/alpha.md',
+      isDirectory: false,
+      isFile: true,
+    });
+    mocks.vaultState.openVault.mockImplementation(async (path: string) => {
+      mocks.vaultState.currentVault = { path };
+      notesState.notesPath = path;
+      return true;
+    });
+
+    const { rerender } = render(<NotesView />);
+
+    await act(async () => {
+      dispatchWindowDragEvent('drop', ['/vault/alpha.md']);
+    });
+
+    await waitFor(() => {
+      expect(mocks.vaultState.openVault).toHaveBeenCalledWith('/vault');
+    });
+
+    rerender(<NotesView />);
+
+    await waitFor(() => {
+      expect(notesState.openNote).toHaveBeenCalledWith('alpha.md');
+      expect(notesState.loadFileTree).toHaveBeenCalledWith(true);
+    });
+  });
+
   it('accepts a blank-workspace file drag before Electron exposes file paths', async () => {
     mocks.storageState.stat.mockResolvedValue({
       name: 'alpha.md',
@@ -446,6 +495,39 @@ describe('NotesView', () => {
     });
 
     await waitFor(() => {
+      expect(notesState.openNote).toHaveBeenCalledWith('alpha.md');
+    });
+  });
+
+  it('opens a dropped markdown file through Electron file path resolution', async () => {
+    const getPathForFile = vi.fn((file: File) => `/vault/${file.name}`);
+    const authorizePath = vi.fn(async (path: string) => ({
+      name: 'alpha.md',
+      path,
+      isDirectory: false,
+      isFile: true,
+    }));
+    (window as any).vlainaDesktop = {
+      platform: 'electron',
+      dragDrop: { getPathForFile, authorizePath },
+    };
+    mocks.storageState.stat.mockResolvedValue({
+      name: 'alpha.md',
+      path: '/vault/alpha.md',
+      isDirectory: false,
+      isFile: true,
+    });
+
+    render(<NotesView />);
+
+    const file = createDropFile('/vault/alpha.md', false);
+    await act(async () => {
+      dispatchWindowDragEventWithFiles('drop', [file]);
+    });
+
+    await waitFor(() => {
+      expect(getPathForFile).toHaveBeenCalledWith(file);
+      expect(authorizePath).toHaveBeenCalledWith('/vault/alpha.md');
       expect(notesState.openNote).toHaveBeenCalledWith('alpha.md');
     });
   });

@@ -1,7 +1,10 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { useFileTreePointerDragState } from './fileTreePointerDragState';
+import {
+  requestFileTreePointerDragDropTargetUpdate,
+  useFileTreePointerDragState,
+} from './fileTreePointerDragState';
 import { useTreeItemDragSource } from './useTreeItemDragSource';
 
 function setRect(
@@ -517,6 +520,54 @@ describe('fileTreePointerDragState', () => {
     });
 
     document.elementsFromPoint = vi.fn(() => []);
+
+    dispatchDocumentPointerEvent('pointerup', {
+      clientX: 40,
+      clientY: 52,
+      buttons: 0,
+    });
+
+    await waitFor(() => {
+      expect(setStateMock).toHaveBeenCalledWith(expect.objectContaining({
+        starredNotes: ['Source.md'],
+      }));
+      expect(moveItemMock).not.toHaveBeenCalled();
+    });
+  });
+
+  it('can refresh the starred drop target after it appears during an active drag', async () => {
+    const { source, starredTarget, dropTargetKind } = setupHarness({
+      path: 'Source.md',
+      showStarredTarget: true,
+    });
+
+    document.elementsFromPoint = vi.fn(() => []);
+
+    fireEvent.pointerDown(source, {
+      button: 0,
+      clientX: 40,
+      clientY: 40,
+      pointerType: 'mouse',
+    });
+    dispatchDocumentPointerEvent('pointermove', {
+      clientX: 40,
+      clientY: 52,
+      buttons: 1,
+    });
+
+    await waitFor(() => {
+      expect(dropTargetKind.textContent).toBe('');
+    });
+
+    document.elementsFromPoint = vi.fn(() => [starredTarget as Element]);
+
+    act(() => {
+      requestFileTreePointerDragDropTargetUpdate();
+    });
+
+    await waitFor(() => {
+      expect(dropTargetKind.textContent).toBe('starred');
+    });
 
     dispatchDocumentPointerEvent('pointerup', {
       clientX: 40,

@@ -3,6 +3,7 @@ import { onDesktopOpenMarkdownFileShortcut } from '@/lib/desktop/shortcuts';
 import { OPEN_MARKDOWN_FILE_ACTION } from '@/lib/notes/openMarkdownFileText';
 import { messageDialog, openDialog } from '@/lib/storage/dialog';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
+import { logNotesDebug } from '@/stores/notes/debugLog';
 import { openStoredNotePath } from '@/stores/notes/openNotePath';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -15,11 +16,7 @@ import {
 import { subscribeOpenMarkdownTargetEvent } from '../features/OpenTarget/openTargetEvents';
 
 function logOpenMarkdownTarget(event: string, details: Record<string, unknown>) {
-  if (!import.meta.env.DEV || import.meta.env.MODE === 'test') {
-    return;
-  }
-
-  console.info(`[open markdown target] ${event}`, details);
+  logNotesDebug(`openMarkdownTarget:${event}`, details);
 }
 
 export function useNotesOpenMarkdownTarget({
@@ -88,7 +85,18 @@ export function useNotesOpenMarkdownTarget({
       let opened = false;
 
       try {
+        logOpenMarkdownTarget('pending_start', {
+          currentVaultPath,
+          targetVaultPath: pendingShortcutNoteTarget.vaultPath,
+          notePath: pendingShortcutNoteTarget.notePath,
+          absolutePath: pendingShortcutNoteTarget.absolutePath,
+        });
         opened = await openShortcutNoteTarget(pendingShortcutNoteTarget);
+        logOpenMarkdownTarget('pending_result', {
+          opened,
+          currentNotePath: useNotesStore.getState().currentNote?.path ?? null,
+          openTabPaths: useNotesStore.getState().openTabs.map((tab) => tab.path),
+        });
       } finally {
         if (!cancelled) {
           setPendingShortcutNoteTarget(null);
@@ -175,6 +183,8 @@ export function useNotesOpenMarkdownTarget({
         normalizedTargetVaultPath,
         openedVault,
         vaultError: useVaultStore.getState().error,
+        currentVaultPath: useVaultStore.getState().currentVault?.path ?? null,
+        notesPath: useNotesStore.getState().notesPath,
       });
       if (!openedVault) {
         setPendingShortcutNoteTarget(null);
@@ -254,6 +264,7 @@ export function useNotesOpenMarkdownTarget({
   return {
     isOpenTargetBusy,
     openMarkdownTarget,
+    pendingOpenMarkdownTargetVaultPath: pendingShortcutNoteTarget?.vaultPath ?? null,
     openStoredNotePath,
   };
 }
