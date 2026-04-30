@@ -24,6 +24,7 @@ import {
   syncCodeMirrorFindHighlights,
 } from '../find/editorFindCodeMirrorHighlights';
 import { forwardCodeBlockUpdate } from '../code/codeBlockNodeViewUtils';
+import { subscribeCodeBlockSelectionSync } from '../code/codeBlockSelectionSync';
 import { deleteSelectedFrontmatterBlocks } from './frontmatterBlockSelection';
 
 export class FrontmatterNodeView implements NodeView {
@@ -40,8 +41,9 @@ export class FrontmatterNodeView implements NodeView {
   private updating = false;
   private selected = false;
   private pendingMeasureFrame: number | null = null;
-  private pendingSelectionSyncFrame: number | null = null;
   private readonly disposeFontMetricsSync: () => void;
+  private readonly unsubscribeSelectionSync: () => void;
+  private destroyed = false;
 
   private getOwnerDocument(): Document | null {
     return (
@@ -91,7 +93,10 @@ export class FrontmatterNodeView implements NodeView {
       this.dom.ownerDocument,
       () => this.scheduleMeasure()
     );
-    this.dom.ownerDocument?.addEventListener('selectionchange', this.handleDocumentSelectionChange);
+    this.unsubscribeSelectionSync = subscribeCodeBlockSelectionSync(
+      this.dom.ownerDocument,
+      this.syncProseMirrorSelection
+    );
 
     this.updatePlaceholder();
     this.syncFindHighlights();
@@ -146,7 +151,7 @@ export class FrontmatterNodeView implements NodeView {
     );
   }
 
-  private syncProseMirrorSelection() {
+  private readonly syncProseMirrorSelection = () => {
     const nodePos = this.getPos();
     if (nodePos === undefined) {
       this.dom.dataset.pmSelected = 'false';
@@ -177,7 +182,7 @@ export class FrontmatterNodeView implements NodeView {
       },
     });
     this.updating = false;
-  }
+  };
 
   private handleUpdate = (update: ViewUpdate) => {
     this.updatePlaceholder();
@@ -196,24 +201,11 @@ export class FrontmatterNodeView implements NodeView {
     this.dom.dataset.empty = this.cm.state.doc.length === 0 ? 'true' : 'false';
   }
 
-  private readonly handleDocumentSelectionChange = () => {
-    const window = this.getOwnerWindow();
-    if (!window) {
-      this.syncProseMirrorSelection();
+  private scheduleMeasure() {
+    if (this.destroyed) {
       return;
     }
 
-    if (this.pendingSelectionSyncFrame !== null) {
-      window.cancelAnimationFrame(this.pendingSelectionSyncFrame);
-    }
-
-    this.pendingSelectionSyncFrame = window.requestAnimationFrame(() => {
-      this.pendingSelectionSyncFrame = null;
-      this.syncProseMirrorSelection();
-    });
-  };
-
-  private scheduleMeasure() {
     const window = this.getOwnerWindow();
     if (!window) {
       this.cm.requestMeasure();
@@ -232,6 +224,10 @@ export class FrontmatterNodeView implements NodeView {
 
   private async syncLanguage() {
     const support = await codeBlockLanguageLoader.load('yaml');
+    if (this.destroyed) {
+      return;
+    }
+
     this.cm.dispatch({
       effects: this.languageCompartment.reconfigure(support ? [support] : []),
     });
@@ -320,18 +316,14 @@ export class FrontmatterNodeView implements NodeView {
   }
 
   destroy() {
+    this.destroyed = true;
     const window = this.getOwnerWindow();
     if (window && this.pendingMeasureFrame !== null) {
       window.cancelAnimationFrame(this.pendingMeasureFrame);
       this.pendingMeasureFrame = null;
     }
-    if (window && this.pendingSelectionSyncFrame !== null) {
-      window.cancelAnimationFrame(this.pendingSelectionSyncFrame);
-      this.pendingSelectionSyncFrame = null;
-    }
-
     this.disposeFontMetricsSync();
-    this.dom.ownerDocument?.removeEventListener('selectionchange', this.handleDocumentSelectionChange);
+    this.unsubscribeSelectionSync();
     this.cm.destroy();
     this.dom.remove();
   }

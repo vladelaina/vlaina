@@ -16,6 +16,7 @@ export interface NotesSidebarSearchResult extends NotesSidebarSearchEntry {
 
 const CONTENT_SEARCH_MIN_QUERY_LENGTH = 2;
 const CONTENT_SNIPPET_RADIUS = 36;
+const MAX_CONTENT_MATCHES_PER_NOTE = 5;
 const MAX_SEARCH_RESULTS = 200;
 
 function collectNotesSidebarSearchEntries(
@@ -146,6 +147,9 @@ function getContentMatches(content: string | undefined, lowerQuery: string) {
       });
 
       ordinal += 1;
+      if (matches.length >= MAX_CONTENT_MATCHES_PER_NOTE) {
+        return matches;
+      }
       searchFrom = matchIndex + Math.max(lowerQuery.length, 1);
     }
   }

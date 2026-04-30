@@ -67,7 +67,7 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
     }
 
     let disposed = false;
-      let unwatch: (() => Promise<void>) | null = null;
+    let unwatch: (() => Promise<void>) | null = null;
     let releaseWatcher: (() => void) | null = null;
     let reconcilePollTimer: number | null = null;
     let vaultSignature: string | null = null;
@@ -178,7 +178,7 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
       try {
         await ensureVaultConfig(vaultPath);
         vaultSignature = await readVaultConfigSignature(vaultPath);
-        unwatch = await watchDesktopPath(watchParentPath, async (event) => {
+        const stopWatching = await watchDesktopPath(watchParentPath, async (event) => {
           if (disposed) {
             return;
           }
@@ -267,6 +267,12 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
 
           await reconcileMissingVaultPath();
         });
+        if (disposed) {
+          void stopWatching();
+          return;
+        }
+
+        unwatch = stopWatching;
         releaseWatcher = registerExternalSyncWatcher();
       } catch (error) {
         if (!disposed) {
@@ -293,7 +299,7 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
         pendingRenameTimerRef.current = null;
       }
       pendingRenamesRef.current = [];
-          void unwatch?.();
+      void unwatch?.();
       releaseWatcher?.();
     };
   }, [isPaused, syncCurrentVaultExternalPath, vaultPath]);

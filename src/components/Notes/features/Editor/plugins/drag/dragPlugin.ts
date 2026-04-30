@@ -125,78 +125,81 @@ export const dragPlugin = $prose(() => {
       };
       
       const editorContainer = editorView.dom.parentElement;
+
+      const handleDragOver = (e: DragEvent) => {
+        if (draggedNodePos === null) return;
+
+        e.preventDefault();
+        e.dataTransfer!.dropEffect = 'move';
+
+        const pos = editorView.posAtCoords({ left: e.clientX, top: e.clientY });
+        if (!pos) return;
+
+        const $pos = editorView.state.doc.resolve(pos.pos);
+        let depth = $pos.depth;
+        while (depth > 1) depth--;
+
+        if (depth < 1) return;
+
+        const targetPos = $pos.before(depth);
+        const coords = editorView.coordsAtPos(targetPos);
+
+        if (!dropIndicator) {
+          dropIndicator = document.createElement('div');
+          dropIndicator.className = 'drop-indicator';
+          document.body.appendChild(dropIndicator);
+        }
+
+        dropIndicator.style.left = `${coords.left}px`;
+        dropIndicator.style.top = `${coords.top - 2}px`;
+        dropIndicator.style.width = `${editorView.dom.clientWidth}px`;
+      };
+
+      const handleDrop = (e: DragEvent) => {
+        if (draggedNodePos === null) return;
+
+        e.preventDefault();
+
+        const pos = editorView.posAtCoords({ left: e.clientX, top: e.clientY });
+        if (!pos) return;
+
+        const $pos = editorView.state.doc.resolve(pos.pos);
+        let depth = $pos.depth;
+        while (depth > 1) depth--;
+
+        if (depth < 1) return;
+
+        const targetPos = $pos.before(depth);
+
+        if (targetPos === draggedNodePos) return;
+
+        const { state } = editorView;
+        const node = state.doc.nodeAt(draggedNodePos);
+
+        if (!node) return;
+
+        let tr = state.tr;
+        tr = tr.delete(draggedNodePos, draggedNodePos + node.nodeSize);
+
+        let adjustedTarget = targetPos;
+        if (targetPos > draggedNodePos) {
+          adjustedTarget -= node.nodeSize;
+        }
+
+        tr = tr.insert(adjustedTarget, node);
+        editorView.dispatch(tr);
+
+        if (dropIndicator) {
+          dropIndicator.remove();
+          dropIndicator = null;
+        }
+
+        draggedNodePos = null;
+      };
       
       if (editorContainer) {
-        editorContainer.addEventListener('dragover', (e) => {
-          if (draggedNodePos === null) return;
-          
-          e.preventDefault();
-          e.dataTransfer!.dropEffect = 'move';
-          
-          const pos = editorView.posAtCoords({ left: e.clientX, top: e.clientY });
-          if (!pos) return;
-          
-          const $pos = editorView.state.doc.resolve(pos.pos);
-          let depth = $pos.depth;
-          while (depth > 1) depth--;
-          
-          if (depth < 1) return;
-          
-          const targetPos = $pos.before(depth);
-          const coords = editorView.coordsAtPos(targetPos);
-          
-          if (!dropIndicator) {
-            dropIndicator = document.createElement('div');
-            dropIndicator.className = 'drop-indicator';
-            document.body.appendChild(dropIndicator);
-          }
-          
-          dropIndicator.style.left = `${coords.left}px`;
-          dropIndicator.style.top = `${coords.top - 2}px`;
-          dropIndicator.style.width = `${editorView.dom.clientWidth}px`;
-        });
-        
-        editorContainer.addEventListener('drop', (e) => {
-          if (draggedNodePos === null) return;
-          
-          e.preventDefault();
-          
-          const pos = editorView.posAtCoords({ left: e.clientX, top: e.clientY });
-          if (!pos) return;
-          
-          const $pos = editorView.state.doc.resolve(pos.pos);
-          let depth = $pos.depth;
-          while (depth > 1) depth--;
-          
-          if (depth < 1) return;
-          
-          const targetPos = $pos.before(depth);
-          
-          if (targetPos === draggedNodePos) return;
-          
-          const { state } = editorView;
-          const node = state.doc.nodeAt(draggedNodePos);
-          
-          if (!node) return;
-          
-          let tr = state.tr;
-          tr = tr.delete(draggedNodePos, draggedNodePos + node.nodeSize);
-          
-          let adjustedTarget = targetPos;
-          if (targetPos > draggedNodePos) {
-            adjustedTarget -= node.nodeSize;
-          }
-          
-          tr = tr.insert(adjustedTarget, node);
-          editorView.dispatch(tr);
-          
-          if (dropIndicator) {
-            dropIndicator.remove();
-            dropIndicator = null;
-          }
-          
-          draggedNodePos = null;
-        });
+        editorContainer.addEventListener('dragover', handleDragOver);
+        editorContainer.addEventListener('drop', handleDrop);
       }
       
       return {
@@ -229,6 +232,8 @@ export const dragPlugin = $prose(() => {
           if (dropIndicator) {
             dropIndicator.remove();
           }
+          editorContainer?.removeEventListener('dragover', handleDragOver);
+          editorContainer?.removeEventListener('drop', handleDrop);
         }
       };
     }

@@ -79,7 +79,7 @@ export function revokeImageBlob(fullPath: string): void {
 }
 
 export function invalidateImageCache(fullPath: string): void {
-  blobUrlCache.delete(fullPath);
+  revokeImageBlob(fullPath);
 }
 
 export function clearImageCache(): void {
