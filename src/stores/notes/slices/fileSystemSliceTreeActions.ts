@@ -1,6 +1,7 @@
 import { getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 import {
   buildFileTree,
+  collectExpandedPaths,
   expandFoldersForPath,
   restoreExpandedState,
   updateFolderExpanded,
@@ -45,9 +46,14 @@ export function createFileSystemTreeActions(
         }
         const starredPaths = getVaultStarredPaths(get().starredEntries, basePath);
 
-        const restoredChildren = !skipRestore && workspace?.expandedFolders?.length
-          ? restoreExpandedState(children, new Set(workspace.expandedFolders))
-          : children;
+        const currentExpandedPaths = get().rootFolder
+          ? collectExpandedPaths(get().rootFolder?.children ?? [])
+          : null;
+        const restoredChildren = skipRestore
+          ? (currentExpandedPaths ? restoreExpandedState(children, currentExpandedPaths) : children)
+          : (workspace?.expandedFolders?.length
+              ? restoreExpandedState(children, new Set(workspace.expandedFolders))
+              : children);
 
         set({
           notesPath: basePath,

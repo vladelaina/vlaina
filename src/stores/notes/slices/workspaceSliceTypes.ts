@@ -4,6 +4,7 @@ import type { NotesStore } from '../types';
 export interface WorkspaceSlice {
   currentNote: NotesStore['currentNote'];
   currentNoteRevision: NotesStore['currentNoteRevision'];
+  currentNoteDiskRevision: NotesStore['currentNoteDiskRevision'];
   isDirty: NotesStore['isDirty'];
   isLoading: NotesStore['isLoading'];
   error: NotesStore['error'];

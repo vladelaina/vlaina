@@ -1,4 +1,5 @@
 import { watch } from 'node:fs';
+import { stat } from 'node:fs/promises';
 import path from 'node:path';
 
 const activeWatchers = new Map();
@@ -17,6 +18,28 @@ function safeSend(sender, channel, payload) {
   }
 }
 
+export async function createDesktopWatchPayload(eventType, resolvedPath, statPath = stat) {
+  if (eventType !== 'rename') {
+    return {
+      type: { modify: { kind: 'data', mode: 'any' } },
+      paths: [resolvedPath],
+    };
+  }
+
+  try {
+    const info = await statPath(resolvedPath);
+    return {
+      type: { create: { kind: info.isDirectory() ? 'folder' : 'file' } },
+      paths: [resolvedPath],
+    };
+  } catch {
+    return {
+      type: { remove: { kind: 'any' } },
+      paths: [resolvedPath],
+    };
+  }
+}
+
 export function registerDesktopWatchIpc({
   handleIpc,
   requireNonEmptyString,
@@ -31,13 +54,12 @@ export function registerDesktopWatchIpc({
       { recursive: true },
       (eventType, filename) => {
         const resolvedPath = filename ? path.join(resolvedWatchPath, filename.toString()) : resolvedWatchPath;
-        const payload = eventType === 'rename'
-          ? { type: { remove: { kind: 'any' } }, paths: [resolvedPath] }
-          : { type: { modify: { kind: 'data', mode: 'any' } }, paths: [resolvedPath] };
-        if (!safeSend(sender, `desktop:fs:watch:${watchId}`, payload)) {
-          listener.close();
-          activeWatchers.delete(watchId);
-        }
+        void createDesktopWatchPayload(eventType, resolvedPath).then((payload) => {
+          if (!safeSend(sender, `desktop:fs:watch:${watchId}`, payload)) {
+            listener.close();
+            activeWatchers.delete(watchId);
+          }
+        });
       },
     );
 

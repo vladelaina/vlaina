@@ -31,6 +31,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 ) => ({
   currentNote: null,
   currentNoteRevision: 0,
+  currentNoteDiskRevision: 0,
   isDirty: false,
   isLoading: false,
   error: null,

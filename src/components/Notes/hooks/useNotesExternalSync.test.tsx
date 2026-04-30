@@ -104,6 +104,7 @@ describe('useNotesExternalSync', () => {
     });
 
     expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalledTimes(1);
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalledWith({ force: true });
     expect(hoisted.notesState.invalidateNoteCache).not.toHaveBeenCalled();
     expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
 
