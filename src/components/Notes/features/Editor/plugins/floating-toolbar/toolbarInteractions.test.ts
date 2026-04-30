@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createToolbarEventDelegation } from './toolbarInteractions';
+import {
+  createToolbarEventDelegation,
+  focusSelectedCodeBlockAfterDelete,
+} from './toolbarInteractions';
 import { floatingToolbarKey } from './floatingToolbarPlugin';
 import { TOOLBAR_ACTIONS } from './types';
 import { linkTooltipPluginKey } from '../links';
@@ -100,5 +103,26 @@ describe('toolbar interactions', () => {
     expect(focus).toHaveBeenCalled();
 
     delegation.destroy();
+  });
+
+  it('focuses the embedded code editor after deleting a code block text selection', () => {
+    const codeBlockDom = document.createElement('div');
+    const codeMirrorContent = document.createElement('div');
+    codeMirrorContent.className = 'cm-content';
+    codeMirrorContent.tabIndex = 0;
+    codeBlockDom.appendChild(codeMirrorContent);
+    document.body.appendChild(codeBlockDom);
+
+    expect(focusSelectedCodeBlockAfterDelete(codeBlockDom)).toBe(true);
+    expect(document.activeElement).toBe(codeMirrorContent);
+  });
+
+  it('does not claim code block focus when the embedded editor was removed', () => {
+    const codeBlockDom = document.createElement('div');
+    const codeMirrorContent = document.createElement('div');
+    codeMirrorContent.className = 'cm-content';
+    codeBlockDom.appendChild(codeMirrorContent);
+
+    expect(focusSelectedCodeBlockAfterDelete(codeBlockDom)).toBe(false);
   });
 });

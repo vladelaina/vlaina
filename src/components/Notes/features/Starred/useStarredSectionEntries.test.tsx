@@ -28,6 +28,7 @@ type MockNotesState = {
   }>;
   starredLoaded: boolean;
   currentNote: { path: string; content: string } | null;
+  isDirty: boolean;
   rootFolder: {
     id: string;
     name: string;
@@ -49,6 +50,7 @@ const mocked = vi.hoisted(() => {
     starredEntries: [],
     starredLoaded: true,
     currentNote: null,
+    isDirty: false,
     rootFolder: null,
     openNote: vi.fn(async () => undefined),
     openNoteByAbsolutePath: vi.fn(async () => undefined),
@@ -88,6 +90,7 @@ describe('useStarredSectionEntries', () => {
     mocked.notesState.starredEntries = [];
     mocked.notesState.starredLoaded = true;
     mocked.notesState.currentNote = null;
+    mocked.notesState.isDirty = false;
     mocked.notesState.rootFolder = null;
     mocked.notesState.openNote.mockReset();
     mocked.notesState.openNote.mockResolvedValue(undefined);
@@ -192,6 +195,31 @@ describe('useStarredSectionEntries', () => {
     expect(mocked.notesState.setPendingStarredNavigation).not.toHaveBeenCalled();
     expect(mocked.vaultState.openVault).not.toHaveBeenCalled();
     expect(mocked.notesState.openNote).not.toHaveBeenCalled();
+  });
+
+  it('opens a starred note in a new tab when the current note is dirty', async () => {
+    mocked.notesState.currentNote = { path: 'draft:blank', content: 'draft text' };
+    mocked.notesState.isDirty = true;
+    mocked.notesState.starredEntries = [
+      {
+        id: 'note-3',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: 'docs/gamma.md',
+        addedAt: 1,
+      },
+    ];
+
+    const { result } = renderHook(() => useStarredSectionEntries());
+
+    await act(async () => {
+      await result.current.entries[0]?.onOpen();
+    });
+
+    expect(mocked.notesState.openNoteByAbsolutePath).toHaveBeenCalledWith(
+      '/vault-b/docs/gamma.md',
+      true,
+    );
   });
 
   it('does not open a cross-vault starred folder', async () => {

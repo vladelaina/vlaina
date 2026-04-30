@@ -32,8 +32,27 @@ export function createDragSelectionRect(
   };
 }
 
+function isAxisIntersecting(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
+  const aSize = aEnd - aStart;
+  const bSize = bEnd - bStart;
+
+  if (aSize === 0 && bSize === 0) {
+    return false;
+  }
+  if (aSize === 0) {
+    return aStart > bStart && aStart < bEnd;
+  }
+  if (bSize === 0) {
+    return bStart > aStart && bStart < aEnd;
+  }
+  return aEnd > bStart && aStart < bEnd;
+}
+
 export function isRectIntersecting(a: RectBounds, b: RectBounds): boolean {
-  return !(a.right < b.left || a.left > b.right || a.bottom < b.top || a.top > b.bottom);
+  return (
+    isAxisIntersecting(a.left, a.right, b.left, b.right) &&
+    isAxisIntersecting(a.top, a.bottom, b.top, b.bottom)
+  );
 }
 
 export function normalizeBlockRanges(ranges: readonly BlockRange[]): BlockRange[] {

@@ -22,7 +22,7 @@ afterEach(() => {
 });
 
 describe('deleteSelectedBlocks', () => {
-  it('blurs the editor instead of restoring text input focus after deletion', async () => {
+  it('restores text input focus after deletion', async () => {
     const editor = await createEditor('A\n\nB');
     const view = editor.ctx.get(editorViewCtx);
     const blocks = collectSelectableBlockRanges(view.state.doc);
@@ -31,8 +31,8 @@ describe('deleteSelectedBlocks', () => {
     const blurSpy = vi.spyOn(view.dom, 'blur');
 
     expect(deleteSelectedBlocks(view, [blocks[0]], (tr) => tr)).toBe(true);
-    expect(focusSpy).not.toHaveBeenCalled();
-    expect(blurSpy).toHaveBeenCalledTimes(1);
+    expect(focusSpy).toHaveBeenCalledTimes(1);
+    expect(blurSpy).not.toHaveBeenCalled();
     expect(view.state.doc.textContent).toBe('B');
 
     await editor.destroy();

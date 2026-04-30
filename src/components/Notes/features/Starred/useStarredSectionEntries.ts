@@ -20,6 +20,7 @@ export function useStarredSectionEntries() {
     starredEntries,
     starredLoaded,
     currentNote,
+    isDirty,
     rootFolder,
     openNote,
     openNoteByAbsolutePath,
@@ -55,13 +56,15 @@ export function useStarredSectionEntries() {
                 return;
               }
 
+              const shouldOpenInNewTab = openInNewTab || isDirty;
+
               if (!isCurrentVaultEntry) {
                 const absolutePath = await joinPath(entry.vaultPath, entry.relativePath);
-                await openNoteByAbsolutePath(absolutePath, openInNewTab);
+                await openNoteByAbsolutePath(absolutePath, shouldOpenInNewTab);
                 return;
               }
 
-              await openNote(entry.relativePath, openInNewTab);
+              await openNote(entry.relativePath, shouldOpenInNewTab);
             })();
           },
           onRemove: () => {
@@ -72,6 +75,7 @@ export function useStarredSectionEntries() {
     [
       currentNote?.path,
       currentVaultPath,
+      isDirty,
       nodeLookup,
       openNote,
       openNoteByAbsolutePath,

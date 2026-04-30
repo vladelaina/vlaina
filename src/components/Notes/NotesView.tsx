@@ -72,6 +72,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
   const launchContextRef = useRef(readWindowLaunchContext());
   const hasHandledLaunchNoteRef = useRef(false);
   const autoCreateBlankNoteRef = useRef(false);
+  const hasHadOpenWorkspaceRef = useRef(false);
   const toggleShortcutsDialog = useCallback(() => setIsShortcutsOpen((prev) => !prev), []);
   const handleChatPanelDragStateChange = useCallback((dragging: boolean) => {
     setLayoutPanelDragging(dragging);
@@ -196,6 +197,12 @@ export function NotesView({ active = true }: { active?: boolean }) {
   });
 
   useEffect(() => {
+    if (currentNotePath || openTabs.length > 0) {
+      hasHadOpenWorkspaceRef.current = true;
+    }
+  }, [currentNotePath, openTabs.length]);
+
+  useEffect(() => {
     if (
       !active ||
       currentNotePath ||
@@ -203,7 +210,8 @@ export function NotesView({ active = true }: { active?: boolean }) {
       isLoading ||
       isOpenTargetBusy ||
       pendingStarredNavigation ||
-      autoCreateBlankNoteRef.current
+      autoCreateBlankNoteRef.current ||
+      hasHadOpenWorkspaceRef.current
     ) {
       return;
     }

@@ -215,4 +215,208 @@ describe('workspaceSlice tab history', () => {
       },
     ]);
   });
+
+  it('opens an absolute note in a new tab without saving the dirty draft tab', async () => {
+    const saveNote = vi.fn(async () => undefined);
+    storageAdapter.readFile.mockResolvedValue('# starred');
+
+    const store = createNotesStore({
+      currentNote: { path: 'draft:blank', content: 'draft text' },
+      isDirty: true,
+      saveNote,
+      openTabs: [{ path: 'draft:blank', name: '', isDirty: true }],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: '' },
+      },
+      noteContentsCache: new Map([
+        ['draft:blank', { content: 'draft text', modifiedAt: null }],
+      ]),
+    });
+
+    await store.getState().openNoteByAbsolutePath('/other-vault/starred.md', true);
+
+    expect(saveNote).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toEqual({
+      path: '/other-vault/starred.md',
+      content: '# starred',
+    });
+    expect(store.getState().openTabs).toEqual([
+      { path: 'draft:blank', name: '', isDirty: true },
+      { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+    ]);
+    expect(store.getState().noteContentsCache.get('draft:blank')).toEqual({
+      content: 'draft text',
+      modifiedAt: null,
+    });
+  });
+
+  it('switches to an already open tab without saving the dirty draft tab', async () => {
+    const saveNote = vi.fn(async () => undefined);
+    const store = createNotesStore({
+      currentNote: { path: 'draft:blank', content: 'draft text' },
+      isDirty: true,
+      saveNote,
+      openTabs: [
+        { path: 'draft:blank', name: '', isDirty: true },
+        { path: 'alpha.md', name: 'alpha', isDirty: false },
+      ],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: '' },
+      },
+      noteContentsCache: new Map([
+        ['draft:blank', { content: 'draft text', modifiedAt: null }],
+        ['alpha.md', { content: '# alpha', modifiedAt: 1 }],
+      ]),
+    });
+
+    await store.getState().openNote('alpha.md');
+
+    expect(saveNote).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toEqual({ path: 'alpha.md', content: '# alpha' });
+    expect(store.getState().isDirty).toBe(false);
+
+    await store.getState().openNote('draft:blank');
+
+    expect(store.getState().currentNote).toEqual({ path: 'draft:blank', content: 'draft text' });
+    expect(store.getState().isDirty).toBe(true);
+  });
+
+  it('opens a vault note in a new tab when the current draft is dirty', async () => {
+    const saveNote = vi.fn(async () => undefined);
+    const store = createNotesStore({
+      currentNote: { path: 'draft:blank', content: 'draft text' },
+      isDirty: true,
+      saveNote,
+      openTabs: [{ path: 'draft:blank', name: '', isDirty: true }],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: '' },
+      },
+      noteContentsCache: new Map([
+        ['draft:blank', { content: 'draft text', modifiedAt: null }],
+        ['alpha.md', { content: '# alpha', modifiedAt: 1 }],
+      ]),
+    });
+
+    await store.getState().openNote('alpha.md');
+
+    expect(saveNote).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toEqual({ path: 'alpha.md', content: '# alpha' });
+    expect(store.getState().openTabs).toEqual([
+      { path: 'draft:blank', name: '', isDirty: true },
+      { path: 'alpha.md', name: 'alpha', isDirty: false },
+    ]);
+    expect(store.getState().noteContentsCache.get('draft:blank')).toEqual({
+      content: 'draft text',
+      modifiedAt: null,
+    });
+  });
+
+  it('prompts instead of closing a dirty draft tab', async () => {
+    const saveNote = vi.fn(async () => undefined);
+    const store = createNotesStore({
+      currentNote: { path: 'draft:blank', content: 'draft text' },
+      isDirty: true,
+      saveNote,
+      openTabs: [{ path: 'draft:blank', name: '', isDirty: true }],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: '' },
+      },
+      noteContentsCache: new Map([
+        ['draft:blank', { content: 'draft text', modifiedAt: null }],
+      ]),
+    });
+
+    await store.getState().closeTab('draft:blank');
+
+    expect(saveNote).not.toHaveBeenCalled();
+    expect(store.getState().pendingDraftDiscardPath).toBe('draft:blank');
+    expect(store.getState().openTabs).toEqual([{ path: 'draft:blank', name: '', isDirty: true }]);
+    expect(store.getState().currentNote).toEqual({ path: 'draft:blank', content: 'draft text' });
+  });
+
+  it('closes an empty clean draft tab without deleting from disk or prompting', async () => {
+    const deleteNote = vi.fn(async () => undefined);
+    const store = createNotesStore({
+      currentNote: { path: 'draft:blank', content: '' },
+      isDirty: false,
+      isNewlyCreated: true,
+      deleteNote,
+      openTabs: [{ path: 'draft:blank', name: '', isDirty: false }],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: '' },
+      },
+      noteContentsCache: new Map([
+        ['draft:blank', { content: '', modifiedAt: null }],
+      ]),
+    });
+
+    await store.getState().closeTab('draft:blank');
+
+    expect(deleteNote).not.toHaveBeenCalled();
+    expect(store.getState().pendingDraftDiscardPath).toBeNull();
+    expect(store.getState().currentNote).toBeNull();
+    expect(store.getState().openTabs).toEqual([]);
+    expect(store.getState().draftNotes['draft:blank']).toBeUndefined();
+  });
+
+  it('prompts before closing a dirty draft tab that is not focused', async () => {
+    const store = createNotesStore({
+      currentNote: { path: '/other-vault/starred.md', content: '# starred' },
+      isDirty: false,
+      openTabs: [
+        { path: 'draft:blank', name: '', isDirty: true },
+        { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+      ],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: '' },
+      },
+      noteContentsCache: new Map([
+        ['draft:blank', { content: 'draft text', modifiedAt: null }],
+        ['/other-vault/starred.md', { content: '# starred', modifiedAt: 1 }],
+      ]),
+    });
+
+    await store.getState().closeTab('draft:blank');
+
+    expect(store.getState().pendingDraftDiscardPath).toBe('draft:blank');
+    expect(store.getState().openTabs.map((tab) => tab.path)).toEqual([
+      'draft:blank',
+      '/other-vault/starred.md',
+    ]);
+    expect(store.getState().currentNote?.path).toBe('/other-vault/starred.md');
+  });
+
+  it('restores a discarded dirty draft tab with its unsaved content', async () => {
+    const store = createNotesStore({
+      currentNote: { path: '/other-vault/starred.md', content: '# starred' },
+      isDirty: false,
+      openTabs: [
+        { path: 'draft:blank', name: '', isDirty: true },
+        { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+      ],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: '' },
+      },
+      noteContentsCache: new Map([
+        ['draft:blank', { content: 'draft text', modifiedAt: null }],
+        ['/other-vault/starred.md', { content: '# starred', modifiedAt: 1 }],
+      ]),
+    });
+
+    await store.getState().closeTab('draft:blank');
+    await store.getState().confirmPendingDraftDiscard();
+
+    expect(store.getState().openTabs.map((tab) => tab.path)).toEqual(['/other-vault/starred.md']);
+    expect(store.getState().draftNotes['draft:blank']).toBeUndefined();
+
+    await store.getState().reopenClosedTab();
+
+    expect(store.getState().currentNote).toEqual({ path: 'draft:blank', content: 'draft text' });
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().openTabs).toEqual([
+      { path: 'draft:blank', name: '', isDirty: true },
+      { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+    ]);
+    expect(store.getState().draftNotes['draft:blank']).toEqual({ parentPath: null, name: '' });
+  });
 });
