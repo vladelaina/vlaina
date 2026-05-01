@@ -2,6 +2,7 @@ import { useRef, type ReactNode } from 'react';
 import type React from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
+import { SidebarRowActionButton } from '@/components/layout/sidebar/SidebarRow';
 import { NotesSidebarRow, type NotesSidebarRowDragHandlers } from '../../Sidebar/NotesSidebarRow';
 import {
   clearHoveredSidebarRenamePath,
@@ -78,12 +79,10 @@ export function TreeItemShell({
         dragHandlers={dragHandlers}
         showActionsByDefault={showActionsByDefault}
         actions={showMenuButton ? (
-          <button
+          <SidebarRowActionButton
             ref={menuButtonRef}
-            type="button"
             aria-label={menuButtonLabel}
             onClick={(event) => {
-              event.stopPropagation();
               const button = menuButtonRef.current;
               if (!button) {
                 return;
@@ -100,7 +99,7 @@ export function TreeItemShell({
             )}
           >
             <Icon name="common.more" size="md" />
-          </button>
+          </SidebarRowActionButton>
         ) : null}
       />
 

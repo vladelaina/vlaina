@@ -55,6 +55,7 @@ export const SidebarScrollArea = forwardRef<HTMLDivElement, SidebarScrollAreaPro
       <OverlayScrollArea
         ref={ref}
         scrollbarVariant="compact"
+        data-sidebar-scroll-root="true"
         viewportClassName={cn('px-2 py-2', viewportClassName, className)}
         onMouseEnter={onMouseEnter}
         {...props}

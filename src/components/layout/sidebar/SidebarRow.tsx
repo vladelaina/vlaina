@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from 'react';
+import { forwardRef, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 interface SidebarRowProps extends HTMLAttributes<HTMLDivElement> {
@@ -20,6 +20,47 @@ interface SidebarRowProps extends HTMLAttributes<HTMLDivElement> {
   inactiveClassName: string;
   dragOverClassName?: string;
 }
+
+interface SidebarRowActionButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  stopRowActivation?: boolean;
+}
+
+export const SidebarRowActionButton = forwardRef<HTMLButtonElement, SidebarRowActionButtonProps>(
+  function SidebarRowActionButton({
+    stopRowActivation = true,
+    type = 'button',
+    onPointerDown,
+    onPointerUp,
+    onClick,
+    ...props
+  }, ref) {
+    return (
+      <button
+        ref={ref}
+        type={type}
+        onPointerDown={(event) => {
+          if (stopRowActivation) {
+            event.stopPropagation();
+          }
+          onPointerDown?.(event);
+        }}
+        onPointerUp={(event) => {
+          if (stopRowActivation) {
+            event.stopPropagation();
+          }
+          onPointerUp?.(event);
+        }}
+        onClick={(event) => {
+          if (stopRowActivation) {
+            event.stopPropagation();
+          }
+          onClick?.(event);
+        }}
+        {...props}
+      />
+    );
+  },
+);
 
 export function SidebarRow({
   indentWidth = 0,
