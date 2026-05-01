@@ -13,6 +13,7 @@ describe('externalWatchErrorUtils', () => {
 
   it('treats unsupported watch commands as unavailable watchers', () => {
     expect(isExternalWatchUnavailableError('Electron fs bridge is not available.')).toBe(true);
+    expect(isExternalWatchUnavailableError('ENOSPC: System limit for number of file watchers reached')).toBe(true);
     expect(isExternalWatchUnavailableError('fs.watch not allowed')).toBe(true);
     expect(isExternalWatchUnavailableError('watch not allowed')).toBe(true);
     expect(isExternalWatchUnavailableError('Command watch not found')).toBe(true);

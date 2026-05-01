@@ -49,19 +49,20 @@ export function registerDesktopWatchIpc({
     const resolvedWatchPath = await assertAuthorizedFsWatchPath(watchPath);
     const watchId = `watch-${++watcherCounter}`;
     const sender = event.sender;
-    const listener = watch(
-      resolvedWatchPath,
-      { recursive: true },
-      (eventType, filename) => {
-        const resolvedPath = filename ? path.join(resolvedWatchPath, filename.toString()) : resolvedWatchPath;
-        void createDesktopWatchPayload(eventType, resolvedPath).then((payload) => {
-          if (!safeSend(sender, `desktop:fs:watch:${watchId}`, payload)) {
-            listener.close();
-            activeWatchers.delete(watchId);
-          }
-        });
-      },
-    );
+    const listener = watch(resolvedWatchPath, (eventType, filename) => {
+      const resolvedPath = filename ? path.join(resolvedWatchPath, filename.toString()) : resolvedWatchPath;
+      void createDesktopWatchPayload(eventType, resolvedPath).then((payload) => {
+        if (!safeSend(sender, `desktop:fs:watch:${watchId}`, payload)) {
+          listener.close();
+          activeWatchers.delete(watchId);
+        }
+      });
+    });
+
+    listener.on('error', () => {
+      listener.close();
+      activeWatchers.delete(watchId);
+    });
 
     activeWatchers.set(watchId, listener);
     return watchId;

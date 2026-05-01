@@ -22,6 +22,7 @@ interface TreeItemShellProps {
   isHighlighted?: boolean;
   isDragOver?: boolean;
   showActionsByDefault?: boolean;
+  showMenuButton?: boolean;
   dragHandlers?: NotesSidebarRowDragHandlers;
   menuButtonLabel: string;
   isMenuButtonActive?: boolean;
@@ -44,6 +45,7 @@ export function TreeItemShell({
   isHighlighted = false,
   isDragOver = false,
   showActionsByDefault = false,
+  showMenuButton = true,
   dragHandlers,
   menuButtonLabel,
   isMenuButtonActive = false,
@@ -75,7 +77,7 @@ export function TreeItemShell({
         onContextMenu={onContextMenu}
         dragHandlers={dragHandlers}
         showActionsByDefault={showActionsByDefault}
-        actions={
+        actions={showMenuButton ? (
           <button
             ref={menuButtonRef}
             type="button"
@@ -99,7 +101,7 @@ export function TreeItemShell({
           >
             <Icon name="common.more" size="md" />
           </button>
-        }
+        ) : null}
       />
 
       {children}

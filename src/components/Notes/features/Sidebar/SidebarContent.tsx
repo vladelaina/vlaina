@@ -311,7 +311,7 @@ export function SidebarContent({
             isContentScanPending={isContentScanPending}
           />
         ) : (
-          <div className="space-y-1">
+          <div className="relative">
             <StarredSection showTitle={false} />
             <RootFolderRow
               rootFolder={rootFolder}
