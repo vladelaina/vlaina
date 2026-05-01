@@ -1,20 +1,20 @@
 import { measureTextBlockHeight } from '@/lib/text-layout';
 import type { NotesSidebarSearchResult } from './notesSidebarSearchResults';
 
-const TITLE_FONT = 'normal 400 13px Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif';
-const META_FONT = 'normal 400 10px Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif';
-const SNIPPET_FONT = 'normal 400 11px Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif';
-const TITLE_LINE_HEIGHT = 20;
-const META_LINE_HEIGHT = 16;
-const SNIPPET_LINE_HEIGHT = 16;
+const TITLE_FONT = 'normal 400 16px Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif';
+const META_FONT = 'normal 400 16px Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif';
+const SNIPPET_FONT = 'normal 400 16px Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif';
+const TITLE_LINE_HEIGHT = 22;
+const META_LINE_HEIGHT = 22;
+const SNIPPET_LINE_HEIGHT = 22;
 const SIDEBAR_ROW_HORIZONTAL_PADDING = 12;
 const SIDEBAR_ROW_VERTICAL_PADDING = 8;
 const SIDEBAR_ROW_ICON_WIDTH = 20;
 const SIDEBAR_ROW_GAP = 8;
 const SIDEBAR_ROW_TRAILING_RESERVE = 8;
-const SIDEBAR_ROW_MIN_HEIGHT = 30;
-const SIDEBAR_ROW_LOCATION_MIN_HEIGHT = 40;
-const SIDEBAR_ROW_CONTENT_MIN_HEIGHT = 58;
+const SIDEBAR_ROW_MIN_HEIGHT = 36;
+const SIDEBAR_ROW_LOCATION_MIN_HEIGHT = 60;
+const SIDEBAR_ROW_CONTENT_MIN_HEIGHT = 82;
 
 export interface NotesSidebarSearchLayoutItem {
   result: NotesSidebarSearchResult;

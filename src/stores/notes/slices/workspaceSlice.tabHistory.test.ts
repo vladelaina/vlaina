@@ -250,6 +250,30 @@ describe('workspaceSlice tab history', () => {
     });
   });
 
+  it('prefetches a note into cache without changing the current note or tabs', async () => {
+    storageAdapter.readFile.mockResolvedValue('# prefetched');
+    storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true });
+
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: '# alpha', modifiedAt: 1 }],
+      ]),
+    });
+
+    await store.getState().prefetchNote('beta.md');
+
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/beta.md');
+    expect(store.getState().currentNote).toEqual({ path: 'alpha.md', content: '# alpha' });
+    expect(store.getState().openTabs).toEqual([{ path: 'alpha.md', name: 'alpha', isDirty: false }]);
+    expect(store.getState().recentNotes).toEqual([]);
+    expect(store.getState().noteContentsCache.get('beta.md')).toEqual({
+      content: '# prefetched',
+      modifiedAt: 4,
+    });
+  });
+
   it('switches to an already open tab without saving the dirty draft tab', async () => {
     const saveNote = vi.fn(async () => undefined);
     const store = createNotesStore({

@@ -7,11 +7,13 @@ import { useUIStore } from '@/stores/uiSlice';
 
 interface NoteIconProps extends Omit<UniversalIconProps, 'imageLoader'> {
   notePath?: string;
+  vaultPath?: string;
 }
 
-export function NoteIcon({ notePath, ...props }: NoteIconProps) {
-  const vaultPath = useNotesStore(s => s.notesPath);
+export function NoteIcon({ notePath, vaultPath: vaultPathOverride, ...props }: NoteIconProps) {
+  const notesPath = useNotesStore(s => s.notesPath);
   const { universalPreviewColor, universalPreviewTone } = useUIStore();
+  const vaultPath = vaultPathOverride || notesPath;
 
   const imageLoader = useCallback(async (src: string) => {
     if (!vaultPath) return src;

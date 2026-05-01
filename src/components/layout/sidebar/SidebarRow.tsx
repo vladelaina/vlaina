@@ -100,7 +100,7 @@ export function SidebarRow({
       <div
         style={rowStyle}
         className={cn(
-          'relative flex h-[30px] flex-1 items-center gap-2 rounded-md px-3 py-1 text-sm transition-all duration-150 ease-out',
+          'relative flex h-[36px] flex-1 items-center gap-2 rounded-xl px-3 py-1 text-[16px]',
           rowClassName,
           props.onClick && 'cursor-pointer',
           isHighlighted

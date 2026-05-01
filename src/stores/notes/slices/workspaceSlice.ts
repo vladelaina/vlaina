@@ -1,5 +1,6 @@
 import { StateCreator } from 'zustand';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
+import { createAsyncPrefetchQueue } from '@/lib/asyncPrefetchQueue';
 import { NotesStore } from '../types';
 import { updateDisplayName } from '../displayNameUtils';
 import {
@@ -24,6 +25,9 @@ import { createWorkspaceDocumentActions } from './workspaceDocumentActions';
 import { createWorkspaceExternalActions } from './workspaceExternalActions';
 import { createWorkspaceTabActions } from './workspaceTabActions';
 import type { WorkspaceSlice } from './workspaceSliceTypes';
+
+const pendingNotePrefetches = new Map<string, Promise<void>>();
+const notePrefetchQueue = createAsyncPrefetchQueue(2);
 
 export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSlice> = (
   set,
@@ -167,6 +171,49 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to open note' });
+    }
+  },
+
+  prefetchNote: async (path: string) => {
+    const { notesPath, noteContentsCache } = get();
+    if (noteContentsCache.has(path)) {
+      return;
+    }
+
+    const prefetchKey = `${notesPath}\0${path}`;
+    const existing = pendingNotePrefetches.get(prefetchKey);
+    if (existing) {
+      await existing;
+      return;
+    }
+
+    const task = notePrefetchQueue.run(async () => {
+      const { nextCache } = await loadNoteDocument({
+        notesPath,
+        path,
+        cache: get().noteContentsCache,
+      });
+      const prefetchedEntry = nextCache.get(path);
+      if (!prefetchedEntry) {
+        return;
+      }
+      set((state) => {
+        if (state.notesPath !== notesPath || state.noteContentsCache.has(path)) {
+          return {};
+        }
+        const mergedCache = new Map(state.noteContentsCache);
+        mergedCache.set(path, prefetchedEntry);
+        return { noteContentsCache: mergedCache };
+      });
+    });
+
+    pendingNotePrefetches.set(prefetchKey, task);
+    try {
+      await task;
+    } catch {
+      // Hover prefetch should not replace the explicit open-note error path.
+    } finally {
+      pendingNotePrefetches.delete(prefetchKey);
     }
   },
 

@@ -131,6 +131,7 @@ export interface NotesActions {
   toggleFolder: (path: string) => void;
   openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
   openNoteByAbsolutePath: (absolutePath: string, openInNewTab?: boolean) => Promise<void>;
+  prefetchNote: (path: string) => Promise<void>;
   adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => boolean;
   saveNote: (options?: { explicit?: boolean; suppressOpenTarget?: boolean }) => Promise<void>;
   syncCurrentNoteFromDisk: (options?: { force?: boolean }) => Promise<'ignored' | 'unchanged' | 'reloaded' | 'conflict' | 'deleted' | 'deleted-conflict'>;

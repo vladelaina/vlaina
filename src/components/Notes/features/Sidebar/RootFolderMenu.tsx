@@ -109,7 +109,7 @@ export function RootFolderMenu({
           onClose();
         },
         className: cn(
-          'py-1.5 text-[13px]',
+          'py-1.5 text-[16px]',
           option.value === fileTreeSortMode && 'bg-[var(--notes-sidebar-row-hover)]',
         ),
       })),

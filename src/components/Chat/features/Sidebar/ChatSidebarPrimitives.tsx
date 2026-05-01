@@ -115,7 +115,7 @@ export function ChatSidebarHoverEmptyHint({
       )}
       {...props}
     >
-      <span className="max-w-[170px] px-4 text-center text-[13px] text-[var(--chat-sidebar-text-soft)]">
+      <span className="max-w-[170px] px-4 text-center text-[16px] text-[var(--chat-sidebar-text-soft)]">
         {title}
       </span>
     </div>

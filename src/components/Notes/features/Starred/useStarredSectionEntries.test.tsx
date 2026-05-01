@@ -205,6 +205,23 @@ describe('useStarredSectionEntries', () => {
     expect(mocked.notesState.openNote).not.toHaveBeenCalled();
   });
 
+  it('marks an opened cross-vault starred note as active', () => {
+    mocked.notesState.currentNote = { path: '/vault-b/docs/beta.md', content: '# beta' };
+    mocked.notesState.starredEntries = [
+      {
+        id: 'note-2',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: 'docs/beta.md',
+        addedAt: 1,
+      },
+    ];
+
+    const { result } = renderHook(() => useStarredSectionEntries());
+
+    expect(result.current.entries[0]?.isActive).toBe(true);
+  });
+
   it('opens a starred note in a new tab when the current note is dirty', async () => {
     mocked.notesState.currentNote = { path: 'draft:blank', content: 'draft text' };
     mocked.notesState.isDirty = true;

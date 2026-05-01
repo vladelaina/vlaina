@@ -27,6 +27,8 @@ interface TreeItemShellProps {
   dragHandlers?: NotesSidebarRowDragHandlers;
   menuButtonLabel: string;
   isMenuButtonActive?: boolean;
+  onMouseEnter?: (event: React.MouseEvent<HTMLDivElement>) => void;
+  onMouseLeave?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onMenuClick: (event: React.MouseEvent<HTMLButtonElement>, rect: DOMRect) => void;
@@ -50,6 +52,8 @@ export function TreeItemShell({
   dragHandlers,
   menuButtonLabel,
   isMenuButtonActive = false,
+  onMouseEnter,
+  onMouseLeave,
   onClick,
   onContextMenu,
   onMenuClick,
@@ -66,8 +70,14 @@ export function TreeItemShell({
       <NotesSidebarRow
         depth={depth}
         actionFadeClassName={actionFadeClassName}
-        onMouseEnter={() => setHoveredSidebarRenamePath(itemPath)}
-        onMouseLeave={() => clearHoveredSidebarRenamePath(itemPath)}
+        onMouseEnter={(event) => {
+          setHoveredSidebarRenamePath(itemPath);
+          onMouseEnter?.(event);
+        }}
+        onMouseLeave={(event) => {
+          clearHoveredSidebarRenamePath(itemPath);
+          onMouseLeave?.(event);
+        }}
         leading={leading}
         main={main}
         contentClassName={contentClassName}
