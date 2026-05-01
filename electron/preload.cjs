@@ -196,6 +196,9 @@ const desktopApi = {
     startAuth(provider) {
       return ipcRenderer.invoke('desktop:account:start-auth', provider);
     },
+    cancelAuth() {
+      return ipcRenderer.invoke('desktop:account:cancel-auth');
+    },
     requestEmailCode(email) {
       return ipcRenderer.invoke('desktop:account:request-email-code', email);
     },

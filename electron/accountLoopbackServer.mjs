@@ -122,6 +122,16 @@ export async function bindDesktopAuthLoopbackServer({ logDesktopAuth, timeoutSec
       clearTimeout(timer);
       server.close();
     },
+    cancel: (reason = 'Authorization cancelled') => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      clearTimeout(timer);
+      server.close();
+      rejectCallback(new Error(reason));
+    },
     waitForCallback: () => callbackPromise,
   };
 }

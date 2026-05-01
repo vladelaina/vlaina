@@ -19,6 +19,10 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function elapsedSince(startedAt) {
+  return Math.max(0, Math.round(performance.now() - startedAt));
+}
+
 export function createDesktopAccountSessionClient({
   apiBaseUrl,
   clearStoredAccountCredentials,
@@ -40,6 +44,7 @@ export function createDesktopAccountSessionClient({
   }
 
   async function performStoredSessionRequest(credentials, url, init = {}, eventPrefix = 'stored_session:http') {
+    const startedAt = performance.now();
     logDesktopAuth(`${eventPrefix}:request`, {
       url,
       method: init.method ?? 'GET',
@@ -68,12 +73,14 @@ export function createDesktopAccountSessionClient({
         'content-type': response.headers.get('content-type'),
       },
       credentials,
+      durationMs: elapsedSince(startedAt),
     });
 
     return response;
   }
 
   async function fetchWithStoredSession(url, init = {}) {
+    const startedAt = performance.now();
     let credentials = await readStoredAccountCredentials();
     if (!credentials) {
       throw new Error('vlaina sign-in required');
@@ -119,6 +126,11 @@ export function createDesktopAccountSessionClient({
     }
 
     await rotateStoredSessionToken(response.headers);
+    logDesktopAuth('stored_session:http:done', {
+      url,
+      status: response.status,
+      durationMs: elapsedSince(startedAt),
+    });
     return response;
   }
 
@@ -133,10 +145,16 @@ export function createDesktopAccountSessionClient({
   }
 
   async function probeDesktopSessionWithRetry(appSessionToken, eventPrefix = 'session_status:http') {
+    const startedAt = performance.now();
     let lastResult = await probeDesktopSession(appSessionToken, eventPrefix);
 
     for (let attempt = 0; attempt < desktopSessionRetryDelaysMs.length; attempt += 1) {
       if (lastResult.response.status !== 401 && lastResult.response.status !== 403) {
+        logDesktopAuth(`${eventPrefix}:retry_done`, {
+          status: lastResult.response.status,
+          attempts: attempt + 1,
+          durationMs: elapsedSince(startedAt),
+        });
         return lastResult;
       }
 
@@ -152,10 +170,16 @@ export function createDesktopAccountSessionClient({
       lastResult = await probeDesktopSession(appSessionToken, `${eventPrefix}:retry_${attempt + 1}`);
     }
 
+    logDesktopAuth(`${eventPrefix}:retry_done`, {
+      status: lastResult.response.status,
+      attempts: desktopSessionRetryDelaysMs.length + 1,
+      durationMs: elapsedSince(startedAt),
+    });
     return lastResult;
   }
 
   async function getDesktopAccountSessionStatus() {
+    const startedAt = performance.now();
     const credentials = await readStoredAccountCredentials();
     logDesktopAuth('session_status:start', { credentials });
     if (!credentials) {
@@ -207,8 +231,10 @@ export function createDesktopAccountSessionClient({
           connected: payload?.connected ?? null,
           provider: typeof payload?.provider === 'string' ? payload.provider : null,
           username: typeof payload?.username === 'string' ? payload.username : null,
+          hasAvatarUrl: typeof payload?.avatarUrl === 'string' && payload.avatarUrl.trim().length > 0,
           error: typeof payload?.error === 'string' ? payload.error : null,
         },
+        durationMs: elapsedSince(startedAt),
       });
       const resolved = resolveDesktopSessionProbe(credentials, {
         kind: 'ok',
@@ -229,6 +255,8 @@ export function createDesktopAccountSessionClient({
         nextCredentials: resolved.nextCredentials,
         membershipTier: resolved.status.membershipTier,
         membershipName: resolved.status.membershipName,
+        hasAvatarUrl: typeof resolved.status.avatarUrl === 'string' && resolved.status.avatarUrl.trim().length > 0,
+        durationMs: elapsedSince(startedAt),
       });
 
       return resolved.status;
@@ -236,12 +264,14 @@ export function createDesktopAccountSessionClient({
       logDesktopAuth('session_status:error_fallback', {
         error: error instanceof Error ? error.message : String(error),
         credentials,
+        durationMs: elapsedSince(startedAt),
       });
       return resolveDesktopSessionProbe(credentials, { kind: 'error' }).status;
     }
   }
 
   async function readDesktopSessionIdentity(appSessionToken) {
+    const startedAt = performance.now();
     logDesktopAuth('session_identity:start', { appSessionToken });
     const { response, payload, text } = await probeDesktopSessionWithRetry(
       appSessionToken,
@@ -249,18 +279,18 @@ export function createDesktopAccountSessionClient({
     );
 
     if (response.status === 401 || response.status === 403) {
-      logDesktopAuth('session_identity:unauthorized', { status: response.status });
+      logDesktopAuth('session_identity:unauthorized', { status: response.status, durationMs: elapsedSince(startedAt) });
       return null;
     }
 
     if (!response.ok) {
-      logDesktopAuth('session_identity:non_ok', { status: response.status, text, payload });
+      logDesktopAuth('session_identity:non_ok', { status: response.status, text, payload, durationMs: elapsedSince(startedAt) });
       throw new Error(`Failed to verify desktop session: HTTP ${response.status}`);
     }
 
-    logDesktopAuth('session_identity:payload', { status: response.status, payload, text });
+    logDesktopAuth('session_identity:payload', { status: response.status, payload, text, durationMs: elapsedSince(startedAt) });
     if (payload?.connected !== true) {
-      logDesktopAuth('session_identity:disconnected_payload', { payload });
+      logDesktopAuth('session_identity:disconnected_payload', { payload, durationMs: elapsedSince(startedAt) });
       return null;
     }
 
@@ -274,7 +304,11 @@ export function createDesktopAccountSessionClient({
       avatarUrl:
         typeof payload.avatarUrl === 'string' && payload.avatarUrl.trim() ? payload.avatarUrl.trim() : null,
     };
-    logDesktopAuth('session_identity:resolved', identity);
+    logDesktopAuth('session_identity:resolved', {
+      ...identity,
+      hasAvatarUrl: typeof identity.avatarUrl === 'string' && identity.avatarUrl.trim().length > 0,
+      durationMs: elapsedSince(startedAt),
+    });
     return identity;
   }
 

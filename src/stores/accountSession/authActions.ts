@@ -33,15 +33,25 @@ function isRelevantElectronAuthEvent(event: string): boolean {
   return new Set([
     'ipc:start_auth',
     'oauth:start',
+    'oauth:loopback_bound',
+    'oauth:start_response',
+    'oauth:browser_opened',
     'loopback_callback:received',
     'oauth:callback_resolved',
+    'request_auth_result:done',
     'request_auth_result:summary',
+    'oauth:completion_resolved',
+    'oauth:persist_resolved',
+    'oauth:completed',
     'persist_auth_result:missing_token',
     'persist_auth_result:missing_identity',
     'persist_auth_result:session_identity_error',
+    'persist_auth_result:session_identity_inline_done',
+    'persist_auth_result:session_identity_deferred_applied',
     'persist_auth_result:done',
     'read_stored_credentials:empty_or_invalid',
     'read_stored_credentials:resolved',
+    'write_stored_credentials:done',
     'session_status:start',
     'session_status:unauthorized',
     'session_status:payload',
@@ -55,6 +65,12 @@ function isRelevantElectronAuthEvent(event: string): boolean {
     'clear_stored_credentials:start',
     'clear_stored_credentials:done',
   ]).has(event);
+}
+
+function logAccountAuthStep(event: string, details: Record<string, unknown> = {}): void {
+  if (import.meta.env.DEV) {
+    console.info(`[account:auth] ${event}`, details);
+  }
 }
 
 export function selectRelevantElectronAuthEntries(entries: Array<{
@@ -135,22 +151,39 @@ export function createSignIn(
   return async (provider) => {
     set({ isConnecting: true, error: null });
 
+    const isDesktop = hasElectronDesktopBridge();
     const timeoutId = setTimeout(() => {
       if (get().isConnecting) {
+        if (isDesktop) {
+          void accountCommands.cancelAccountAuth().catch(() => undefined);
+        }
         set({ isConnecting: false, error: null });
       }
-    }, 60000);
+    }, isDesktop ? 300000 : 60000);
 
     (window as Window & { __vlaina_auth_timeout?: number | ReturnType<typeof setTimeout> | null }).__vlaina_auth_timeout =
       timeoutId;
 
-    if (hasElectronDesktopBridge()) {
+    if (isDesktop) {
       try {
+        const authStartedAt = performance.now();
+        logAccountAuthStep('desktop_auth:start', { provider });
         const result = await accountCommands.accountAuth(provider);
+        logAccountAuthStep('desktop_auth:resolved', {
+          provider,
+          durationMs: Math.max(0, Math.round(performance.now() - authStartedAt)),
+          success: result?.success === true,
+          hasAvatarUrl: typeof result?.avatarUrl === 'string' && result.avatarUrl.trim().length > 0,
+        });
         clearTimeout(timeoutId);
 
         if (result?.success) {
+          const checkStartedAt = performance.now();
           await get().checkStatus();
+          logAccountAuthStep('desktop_auth:check_status_resolved', {
+            provider,
+            durationMs: Math.max(0, Math.round(performance.now() - checkStartedAt)),
+          });
           set({ isConnecting: false, error: null });
           return true;
         }
@@ -319,5 +352,22 @@ export function createSignOut(set: Set, _get: Get): () => Promise<void> {
     }
 
     applyDisconnectedAccount(set);
+  };
+}
+
+export function createCancelConnect(set: Set, _get: Get): () => Promise<void> {
+  return async () => {
+    const win = window as Window & { __vlaina_auth_timeout?: number | ReturnType<typeof setTimeout> | null };
+    if (win.__vlaina_auth_timeout) {
+      clearTimeout(win.__vlaina_auth_timeout);
+      win.__vlaina_auth_timeout = null;
+    }
+    clearAuthIntent();
+
+    if (hasElectronDesktopBridge()) {
+      await accountCommands.cancelAccountAuth().catch(() => undefined);
+    }
+
+    set({ isConnecting: false, error: null });
   };
 }

@@ -63,12 +63,23 @@ export function summarizeAuthResultShape(result) {
     return result ?? null;
   }
 
+  const avatarUrl = typeof result.avatarUrl === 'string' && result.avatarUrl.trim() ? result.avatarUrl.trim() : '';
+  let avatarHost = null;
+  if (avatarUrl) {
+    try {
+      avatarHost = new URL(avatarUrl).host;
+    } catch {
+      avatarHost = 'invalid';
+    }
+  }
   return {
     success: result.success ?? null,
     pending: result.pending ?? null,
     provider: typeof result.provider === 'string' ? result.provider : null,
     username: typeof result.username === 'string' ? result.username : null,
     primaryEmail: typeof result.primaryEmail === 'string' ? result.primaryEmail : null,
+    hasAvatarUrl: avatarUrl.length > 0,
+    avatarHost,
     hasSessionToken: typeof result.sessionToken === 'string' && result.sessionToken.trim().length > 0,
     hasAppSessionToken: typeof result.appSessionToken === 'string' && result.appSessionToken.trim().length > 0,
     hasToken: typeof result.token === 'string' && result.token.trim().length > 0,

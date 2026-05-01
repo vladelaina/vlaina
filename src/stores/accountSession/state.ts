@@ -22,7 +22,7 @@ export interface AccountSessionActions {
   verifyEmailCode: (email: string, code: string) => Promise<boolean>;
   signOut: () => Promise<void>;
   clearError: () => void;
-  cancelConnect: () => void;
+  cancelConnect: () => Promise<void>;
   handleAuthCallback: () => Promise<boolean>;
   hydrateAvatar: () => Promise<void>;
 }

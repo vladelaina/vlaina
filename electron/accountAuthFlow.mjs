@@ -34,12 +34,17 @@ function getErrorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
+function elapsedSince(startedAt) {
+  return Math.max(0, Math.round(performance.now() - startedAt));
+}
+
 function accountNetworkErrorResult(error) {
   return accountErrorResult(`Unable to reach vlaina API: ${getErrorMessage(error)}`);
 }
 
 export function createDesktopAccountService({ apiBaseUrl }) {
   const { getAuthDebugLog, logDesktopAuth } = createDesktopAuthLogger();
+  let activeOauthFlow = null;
 
   const {
     readStoredAccountCredentials,
@@ -82,6 +87,7 @@ export function createDesktopAccountService({ apiBaseUrl }) {
   }
 
   async function requestDesktopAuthResult(provider, state, verifier, resultToken) {
+    const startedAt = performance.now();
     logDesktopAuth('request_auth_result:start', { provider, state, verifier, resultToken });
     const { data } = await fetchDesktopJson(buildDesktopAuthResultUrl(provider), {
       method: 'POST',
@@ -95,7 +101,13 @@ export function createDesktopAccountService({ apiBaseUrl }) {
         resultToken,
       }),
     });
-    logDesktopAuth('request_auth_result:done', { provider, state, resultToken, data });
+    logDesktopAuth('request_auth_result:done', {
+      provider,
+      state,
+      resultToken,
+      durationMs: elapsedSince(startedAt),
+      data,
+    });
     logDesktopAuth('request_auth_result:summary', {
       provider,
       state,
@@ -132,20 +144,48 @@ export function createDesktopAccountService({ apiBaseUrl }) {
   }
 
   async function performDesktopOauth(provider) {
+    const flowStartedAt = performance.now();
     logDesktopAuth('oauth:start', { provider });
     if (!isSupportedAccountProvider(provider) || provider === 'email') {
       return accountErrorResult('Unsupported desktop sign-in provider');
     }
+    if (activeOauthFlow) {
+      return accountErrorResult('Another sign-in is already in progress');
+    }
 
     const verifier = generateDesktopVerifier();
-    const loopback = await bindDesktopAuthLoopbackServer({
-      logDesktopAuth,
-      timeoutSeconds: 300,
-    });
+    const abortController = new AbortController();
+    const flow = {
+      provider,
+      cancelled: false,
+      loopback: null,
+      abortController,
+      cancel(reason = 'Authorization cancelled') {
+        this.cancelled = true;
+        this.abortController.abort();
+        this.loopback?.cancel(reason);
+      },
+    };
+    activeOauthFlow = flow;
+    let loopback = null;
 
     try {
+      const loopbackStartedAt = performance.now();
+      loopback = await bindDesktopAuthLoopbackServer({
+        logDesktopAuth,
+        timeoutSeconds: 300,
+      });
+      flow.loopback = loopback;
+      logDesktopAuth('oauth:loopback_bound', {
+        provider,
+        callbackUrl: loopback.callbackUrl,
+        durationMs: elapsedSince(loopbackStartedAt),
+      });
+
+      const startRequestStartedAt = performance.now();
       const { data: authStart } = await fetchDesktopJson(buildDesktopAuthStartUrl(provider), {
         method: 'POST',
+        signal: abortController.signal,
         headers: {
           Accept: 'application/json',
           'Content-Type': 'application/json',
@@ -166,6 +206,7 @@ export function createDesktopAccountService({ apiBaseUrl }) {
         authStart,
         callbackUrl: loopback.callbackUrl,
         verifier,
+        durationMs: elapsedSince(startRequestStartedAt),
       });
 
       if (!authStart?.success || !state || !authUrl) {
@@ -173,10 +214,28 @@ export function createDesktopAccountService({ apiBaseUrl }) {
         return accountErrorResult('Sign-in start response is missing auth URL or state');
       }
 
+      if (flow.cancelled) {
+        loopback.close();
+        return accountErrorResult('Authorization cancelled');
+      }
+
+      const browserOpenStartedAt = performance.now();
       await shell.openExternal(authUrl);
-      logDesktopAuth('oauth:browser_opened', { provider, authUrl });
+      logDesktopAuth('oauth:browser_opened', {
+        provider,
+        authUrl,
+        durationMs: elapsedSince(browserOpenStartedAt),
+      });
+      const callbackWaitStartedAt = performance.now();
       const callback = await loopback.waitForCallback();
-      logDesktopAuth('oauth:callback_resolved', { provider, callback });
+      if (flow.cancelled) {
+        return accountErrorResult('Authorization cancelled');
+      }
+      logDesktopAuth('oauth:callback_resolved', {
+        provider,
+        callback,
+        durationMs: elapsedSince(callbackWaitStartedAt),
+      });
       if (callback.state !== state) {
         logDesktopAuth('oauth:state_mismatch', {
           provider,
@@ -185,6 +244,7 @@ export function createDesktopAccountService({ apiBaseUrl }) {
         });
         return accountErrorResult('OAuth state mismatch');
       }
+      const completionStartedAt = performance.now();
       const result = await waitForDesktopAuthCompletion(
         provider,
         callback.state,
@@ -192,23 +252,63 @@ export function createDesktopAccountService({ apiBaseUrl }) {
         callback.resultToken,
         expiresInSeconds
       );
+      if (flow.cancelled) {
+        return accountErrorResult('Authorization cancelled');
+      }
+      logDesktopAuth('oauth:completion_resolved', {
+        provider,
+        durationMs: elapsedSince(completionStartedAt),
+      });
 
       if (!result?.success) {
         logDesktopAuth('oauth:result_failed', { provider, callback, result });
         return accountErrorResult(callback.error || result?.error || 'Authorization failed');
       }
 
+      const persistStartedAt = performance.now();
       const persisted = await persistDesktopAuthResult(provider, result);
-      logDesktopAuth('oauth:completed', { provider, persisted });
+      if (flow.cancelled) {
+        return accountErrorResult('Authorization cancelled');
+      }
+      logDesktopAuth('oauth:persist_resolved', {
+        provider,
+        durationMs: elapsedSince(persistStartedAt),
+        persisted,
+      });
+      logDesktopAuth('oauth:completed', {
+        provider,
+        totalDurationMs: elapsedSince(flowStartedAt),
+        persisted,
+      });
       return persisted;
     } catch (error) {
-      loopback.close();
+      loopback?.close();
       logDesktopAuth('oauth:error', {
         provider,
         error: getErrorMessage(error),
       });
+      if (flow.cancelled || error?.name === 'AbortError') {
+        return accountErrorResult('Authorization cancelled');
+      }
       return accountNetworkErrorResult(error);
+    } finally {
+      if (activeOauthFlow === flow) {
+        activeOauthFlow = null;
+      }
     }
+  }
+
+  function cancelDesktopOauth() {
+    if (!activeOauthFlow) {
+      logDesktopAuth('oauth:cancel_noop');
+      return false;
+    }
+
+    logDesktopAuth('oauth:cancel_requested', {
+      provider: activeOauthFlow.provider,
+    });
+    activeOauthFlow.cancel('Authorization cancelled');
+    return true;
   }
 
   function registerAccountIpc({ handleIpc }) {
@@ -224,6 +324,10 @@ export function createDesktopAccountService({ apiBaseUrl }) {
     handleIpc('desktop:account:start-auth', async (_event, provider) => {
       logDesktopAuth('ipc:start_auth', { provider: String(provider ?? '') });
       return await performDesktopOauth(String(provider ?? ''));
+    });
+
+    handleIpc('desktop:account:cancel-auth', async () => {
+      return cancelDesktopOauth();
     });
 
     handleIpc('desktop:account:request-email-code', async (_event, email) => {

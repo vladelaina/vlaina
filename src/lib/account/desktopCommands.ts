@@ -88,6 +88,10 @@ export const accountCommands = {
     return await getDesktopAccountBridge().startAuth(provider);
   },
 
+  async cancelAccountAuth() {
+    return await getDesktopAccountBridge().cancelAuth?.();
+  },
+
   async getAuthDebugLog() {
     return await getDesktopAccountBridge().getAuthDebugLog();
   },

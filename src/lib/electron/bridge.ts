@@ -123,6 +123,7 @@ export interface ElectronAccountApi {
     avatarUrl: string | null;
     error: string | null;
   }>;
+  cancelAuth?(): Promise<boolean>;
   requestEmailCode(email: string): Promise<boolean>;
   verifyEmailCode(email: string, code: string): Promise<{
     success: boolean;

@@ -42,6 +42,7 @@ async function getAccountStorePaths() {
 
 export function createAccountCredentialStore({ desktopLegacySessionHeader, logDesktopAuth }) {
   async function readStoredAccountCredentials() {
+    const startedAt = performance.now();
     const { metaPath, secretsPath } = await getAccountStorePaths();
     const meta = await readJsonFile(metaPath, null);
     const rawSecrets = await readJsonFile(secretsPath, null);
@@ -62,6 +63,7 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader, logDe
         provider,
         username,
         appSessionToken,
+        durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
       });
       return null;
     }
@@ -83,11 +85,13 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader, logDe
       credentials,
       meta,
       secrets,
+      durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
     });
     return credentials;
   }
 
   async function writeStoredAccountCredentials(credentials) {
+    const startedAt = performance.now();
     logDesktopAuth('write_stored_credentials:start', {
       provider: credentials.provider,
       username: credentials.username,
@@ -135,15 +139,21 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader, logDe
       avatarUrl: credentials.avatarUrl,
       metaPath,
       secretsPath,
+      durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
     });
   }
 
   async function clearStoredAccountCredentials() {
+    const startedAt = performance.now();
     logDesktopAuth('clear_stored_credentials:start');
     const { metaPath, secretsPath } = await getAccountStorePaths();
     await rm(metaPath, { force: true });
     await rm(secretsPath, { force: true });
-    logDesktopAuth('clear_stored_credentials:done', { metaPath, secretsPath });
+    logDesktopAuth('clear_stored_credentials:done', {
+      metaPath,
+      secretsPath,
+      durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
+    });
   }
 
   async function rotateStoredSessionToken(headers) {
