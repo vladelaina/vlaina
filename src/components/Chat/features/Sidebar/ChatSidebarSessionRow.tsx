@@ -1,7 +1,14 @@
-import { memo, useRef } from 'react';
+import { memo, useRef, useState } from 'react';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { getSidebarLabelClass } from '@/components/layout/sidebar/sidebarLabelStyles';
+import { SidebarRowActionButton } from '@/components/layout/sidebar/SidebarRow';
+import { SidebarContextMenu } from '@/components/layout/sidebar/SidebarContextMenu';
+import {
+  SidebarContextMenuContent,
+  type SidebarMenuEntry,
+} from '@/components/layout/sidebar/context-menu/SidebarContextMenuContent';
+import { getSidebarContextMenuPosition } from '@/components/layout/sidebar/sidebarMenuPosition';
 import { ChatSidebarRow } from './ChatSidebarPrimitives';
 import {
   DropdownMenu,
@@ -58,10 +65,52 @@ function ChatSidebarSessionRowInner({
   shouldHideSearchResults,
 }: ChatSidebarSessionRowProps) {
   const preventNextMenuAutoFocusRef = useRef(false);
+  const [showContextMenu, setShowContextMenu] = useState(false);
+  const [contextMenuPosition, setContextMenuPosition] = useState({ top: 0, left: 0 });
   const isGenerating = useAIUIStore((state) => !!state.generatingSessions[session.id]);
   const isUnread = useAIUIStore((state) => !!state.unreadSessions[session.id]);
   const displayTitle = session.title || 'New Chat';
   const showMenuByDefault = isActive && !session.isPinned;
+  const handleStartRename = () => {
+    preventNextMenuAutoFocusRef.current = true;
+    onStartRename(session.id, session.title);
+    setShowContextMenu(false);
+  };
+  const handleTogglePin = () => {
+    onTogglePin(session.id, session.isPinned);
+    setShowContextMenu(false);
+  };
+  const handleRequestDelete = () => {
+    onRequestDelete(session.id);
+    setShowContextMenu(false);
+  };
+  const contextMenuEntries: SidebarMenuEntry[] = [
+    {
+      key: 'rename',
+      icon: <Icon name="common.rename" size="md" />,
+      label: 'Rename',
+      onClick: handleStartRename,
+    },
+    {
+      key: 'pin',
+      icon: (
+        <Icon
+          name={session.isPinned ? 'common.unpinPrimer' : 'common.pinPrimer'}
+          size={16}
+        />
+      ),
+      label: session.isPinned ? 'Unpin' : 'Pin',
+      onClick: handleTogglePin,
+    },
+    { kind: 'divider', key: 'delete-divider' },
+    {
+      key: 'delete',
+      icon: <DeleteIcon className="text-current" />,
+      label: 'Delete',
+      onClick: handleRequestDelete,
+      danger: true,
+    },
+  ];
   const statusIndicator = isGenerating && !isActive ? (
     null
   ) : isUnread ? (
@@ -74,6 +123,15 @@ function ChatSidebarSessionRowInner({
     <ChatSidebarRow
       isActive={isActive}
       showActionsByDefault={showMenuByDefault}
+      isHighlighted={showContextMenu}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setContextMenuPosition(
+          getSidebarContextMenuPosition(event.currentTarget.getBoundingClientRect(), event.clientY),
+        );
+        setShowContextMenu(true);
+      }}
       onClick={() => {
         if (isRenaming) {
           return;
@@ -113,19 +171,19 @@ function ChatSidebarSessionRowInner({
       trailing={statusIndicator}
       actions={
         <DropdownMenu>
-          <DropdownMenuTrigger
-            onClick={(event) => {
-              event.stopPropagation();
-            }}
-            className={cn(
-              'p-1 rounded-md focus:outline-none',
-              iconButtonStyles,
-              isActive
-                ? 'text-[var(--chat-sidebar-icon-hover)] hover:text-[var(--chat-sidebar-text)]'
-                : 'text-[var(--chat-sidebar-icon)] hover:text-[var(--chat-sidebar-icon-hover)]'
-            )}
-          >
-            <Icon name="common.more" size="md" />
+          <DropdownMenuTrigger asChild>
+            <SidebarRowActionButton
+              aria-label="Open chat session menu"
+              className={cn(
+                'p-1 rounded-md focus:outline-none',
+                iconButtonStyles,
+                isActive
+                  ? 'text-[var(--chat-sidebar-icon-hover)] hover:text-[var(--chat-sidebar-text)]'
+                  : 'text-[var(--chat-sidebar-icon)] hover:text-[var(--chat-sidebar-icon-hover)]'
+              )}
+            >
+              <Icon name="common.more" size="md" />
+            </SidebarRowActionButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
@@ -145,10 +203,7 @@ function ChatSidebarSessionRowInner({
             )}
           >
             <DropdownMenuItem
-              onSelect={() => {
-                preventNextMenuAutoFocusRef.current = true;
-                onStartRename(session.id, session.title);
-              }}
+              onSelect={handleStartRename}
               className={cn(
                 'text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none',
                 'text-[var(--chat-sidebar-text)]',
@@ -162,7 +217,7 @@ function ChatSidebarSessionRowInner({
             <DropdownMenuItem
               onClick={(event) => {
                 event.stopPropagation();
-                onTogglePin(session.id, session.isPinned);
+                handleTogglePin();
               }}
               className={cn(
                 'text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none',
@@ -182,7 +237,7 @@ function ChatSidebarSessionRowInner({
             <DropdownMenuItem
               onClick={(event) => {
                 event.stopPropagation();
-                onRequestDelete(session.id);
+                handleRequestDelete();
               }}
               className={cn(
                 'text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none',
@@ -197,7 +252,15 @@ function ChatSidebarSessionRowInner({
           </DropdownMenuContent>
         </DropdownMenu>
       }
-    />
+    >
+      <SidebarContextMenu
+        isOpen={showContextMenu}
+        onClose={() => setShowContextMenu(false)}
+        position={contextMenuPosition}
+      >
+        <SidebarContextMenuContent entries={contextMenuEntries} />
+      </SidebarContextMenu>
+    </ChatSidebarRow>
   );
 }
 

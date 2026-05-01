@@ -17,6 +17,7 @@ interface ChatSidebarRowProps extends HTMLAttributes<HTMLDivElement> {
   trailing?: ReactNode;
   actions?: ReactNode;
   isActive?: boolean;
+  isHighlighted?: boolean;
   showActionsByDefault?: boolean;
 }
 
@@ -65,6 +66,7 @@ export function ChatSidebarRow({
   trailing,
   actions,
   isActive = false,
+  isHighlighted = false,
   showActionsByDefault = false,
   className,
   children,
@@ -78,9 +80,11 @@ export function ChatSidebarRow({
       trailing={trailing}
       actions={actions}
       isActive={isActive}
+      isHighlighted={isHighlighted}
       showActionsByDefault={showActionsByDefault}
       className={className}
       activeClassName={styles.activeRow}
+      highlightClassName={styles.highlightRow}
       inactiveClassName={styles.inactiveRow}
       actionFadeClassName={cn(
         styles.fade,

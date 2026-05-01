@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
-import { logNotesDebug } from '@/stores/notes/debugLog';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
+import { SidebarRowActionButton } from '@/components/layout/sidebar/SidebarRow';
 import { type FolderNode } from '@/stores/useNotesStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { getSidebarTextClass } from '@/components/layout/sidebar/sidebarLabelStyles';
@@ -23,10 +23,6 @@ import {
 
 const INTERNAL_ROOT_AUTO_EXPAND_DELAY_MS = 120;
 const EXTERNAL_ROOT_AUTO_EXPAND_DELAY_MS = 560;
-
-function logRootAutoExpand(event: string, details: Record<string, unknown>) {
-  logNotesDebug(`RootFolderRow:${event}`, details);
-}
 
 interface RootFolderRowProps {
   rootFolder: FolderNode | null;
@@ -52,8 +48,12 @@ export function RootFolderRow({
   const [renameValue, setRenameValue] = useState('');
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const isRenamingRef = useRef(false);
-  const isInternalRootDragOver = useFileTreePointerDragState((state) => state.dropTargetPath === '');
-  const isExternalRootDragOver = useExternalFileTreeDropState((state) => state.dropTargetPath === '');
+  const isInternalRootDragOver = useFileTreePointerDragState(
+    (state) => state.dropTargetKind === 'folder' && state.dropTargetPath === '',
+  );
+  const isExternalRootDragOver = useExternalFileTreeDropState(
+    (state) => state.dropTargetKind === 'folder' && state.dropTargetPath === '',
+  );
   const isRootDragOver = isInternalRootDragOver || isExternalRootDragOver;
   const autoExpandDelayMs = isInternalRootDragOver
     ? INTERNAL_ROOT_AUTO_EXPAND_DELAY_MS
@@ -103,35 +103,21 @@ export function RootFolderRow({
 
   useEffect(() => {
     if (autoExpandTimeoutRef.current !== null) {
-      logRootAutoExpand('cancel-pending', {
-        expanded,
-      });
       window.clearTimeout(autoExpandTimeoutRef.current);
       autoExpandTimeoutRef.current = null;
     }
 
     if (!isRootDragOver || expanded) {
-      if (isRootDragOver) {
-        logRootAutoExpand('skip-already-expanded', {});
-      }
       return;
     }
 
-    logRootAutoExpand('schedule', {
-      delayMs: autoExpandDelayMs,
-      mode: isInternalRootDragOver ? 'internal' : 'external',
-    });
     autoExpandTimeoutRef.current = window.setTimeout(() => {
-      logRootAutoExpand('fire', {
-        mode: isInternalRootDragOver ? 'internal' : 'external',
-      });
       setExpanded(true);
       autoExpandTimeoutRef.current = null;
     }, autoExpandDelayMs);
 
     return () => {
       if (autoExpandTimeoutRef.current !== null) {
-        logRootAutoExpand('cleanup', {});
         window.clearTimeout(autoExpandTimeoutRef.current);
         autoExpandTimeoutRef.current = null;
       }
@@ -230,12 +216,10 @@ export function RootFolderRow({
           )
         }
         actions={
-          <button
+          <SidebarRowActionButton
             ref={menuButtonRef}
-            type="button"
             aria-label="Open root folder menu"
-            onClick={(event) => {
-              event.stopPropagation();
+            onClick={() => {
               handleMenuOpen();
             }}
             className={cn(
@@ -247,7 +231,7 @@ export function RootFolderRow({
             )}
           >
             <Icon name="common.more" size="md" />
-          </button>
+          </SidebarRowActionButton>
         }
       />
 

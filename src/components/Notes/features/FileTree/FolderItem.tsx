@@ -25,6 +25,7 @@ interface FolderItemProps {
   depth: number;
   showStarBadge?: boolean;
   dragEnabled?: boolean;
+  showMenuButton?: boolean;
 }
 
 export const FolderItem = memo(function FolderItem({
@@ -32,6 +33,7 @@ export const FolderItem = memo(function FolderItem({
   depth,
   showStarBadge = false,
   dragEnabled = true,
+  showMenuButton = true,
 }: FolderItemProps) {
   const {
     showMenu,
@@ -140,6 +142,7 @@ export const FolderItem = memo(function FolderItem({
       onContextMenu={handleContextMenu}
       dragHandlers={dragHandlers}
       showActionsByDefault={showMenu}
+      showMenuButton={showMenuButton}
       menuButtonLabel="Open folder menu"
       onMenuClick={handleMenuTrigger}
       isMenuButtonActive={showMenu}
@@ -183,6 +186,7 @@ export const FolderItem = memo(function FolderItem({
                 depth={depth + 1}
                 showStarBadge={false}
                 dragEnabled={dragEnabled}
+                showMenuButton={showMenuButton}
               />
             ) : (
               <FileItem
@@ -192,6 +196,7 @@ export const FolderItem = memo(function FolderItem({
                 parentFolderPath={node.path}
                 showStarBadge={false}
                 dragEnabled={dragEnabled}
+                showMenuButton={showMenuButton}
               />
             )
           )}
@@ -217,6 +222,7 @@ function areFolderItemPropsEqual(prevProps: FolderItemProps, nextProps: FolderIt
     prevProps.node.expanded === nextProps.node.expanded &&
     prevProps.node.children === nextProps.node.children &&
     prevProps.depth === nextProps.depth &&
-    prevProps.showStarBadge === nextProps.showStarBadge
+    prevProps.showStarBadge === nextProps.showStarBadge &&
+    prevProps.showMenuButton === nextProps.showMenuButton
   );
 }

@@ -54,8 +54,15 @@ describe('StarredSection', () => {
     cleanup();
   });
 
-  it('stays hidden when empty and no file tree item is being dragged', () => {
+  it('reserves embedded sidebar space when empty and no file tree item is being dragged', () => {
     const { container } = render(<StarredSection showTitle={false} />);
+
+    expect(container.querySelector('[aria-hidden="true"]')).not.toBeNull();
+    expect(screen.queryByText('Starred')).toBeNull();
+  });
+
+  it('stays hidden in titled sections when empty and no file tree item is being dragged', () => {
+    const { container } = render(<StarredSection />);
 
     expect(container).toBeEmptyDOMElement();
   });
@@ -63,10 +70,12 @@ describe('StarredSection', () => {
   it('renders an empty starred drop target while a file tree item is being dragged', () => {
     mocked.dragSnapshot.activeSourcePath = 'Source.md';
 
-    render(<StarredSection showTitle={false} />);
+    const { container } = render(<StarredSection showTitle={false} />);
 
     expect(screen.getAllByText('Starred').length).toBeGreaterThan(0);
-    expect(document.querySelector('[data-file-tree-starred-drop-target="true"]')).not.toBeNull();
+    const target = container.querySelector('[data-file-tree-starred-drop-target="true"]');
+    expect(target).not.toBeNull();
+    expect(target?.className).not.toContain('absolute');
   });
 
   it('opens the empty starred section while a file tree item is being dragged', () => {

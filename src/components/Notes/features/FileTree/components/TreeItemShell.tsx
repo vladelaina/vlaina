@@ -2,6 +2,7 @@ import { useRef, type ReactNode } from 'react';
 import type React from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
+import { SidebarRowActionButton } from '@/components/layout/sidebar/SidebarRow';
 import { NotesSidebarRow, type NotesSidebarRowDragHandlers } from '../../Sidebar/NotesSidebarRow';
 import {
   clearHoveredSidebarRenamePath,
@@ -22,6 +23,7 @@ interface TreeItemShellProps {
   isHighlighted?: boolean;
   isDragOver?: boolean;
   showActionsByDefault?: boolean;
+  showMenuButton?: boolean;
   dragHandlers?: NotesSidebarRowDragHandlers;
   menuButtonLabel: string;
   isMenuButtonActive?: boolean;
@@ -44,6 +46,7 @@ export function TreeItemShell({
   isHighlighted = false,
   isDragOver = false,
   showActionsByDefault = false,
+  showMenuButton = true,
   dragHandlers,
   menuButtonLabel,
   isMenuButtonActive = false,
@@ -75,13 +78,11 @@ export function TreeItemShell({
         onContextMenu={onContextMenu}
         dragHandlers={dragHandlers}
         showActionsByDefault={showActionsByDefault}
-        actions={
-          <button
+        actions={showMenuButton ? (
+          <SidebarRowActionButton
             ref={menuButtonRef}
-            type="button"
             aria-label={menuButtonLabel}
             onClick={(event) => {
-              event.stopPropagation();
               const button = menuButtonRef.current;
               if (!button) {
                 return;
@@ -98,8 +99,8 @@ export function TreeItemShell({
             )}
           >
             <Icon name="common.more" size="md" />
-          </button>
-        }
+          </SidebarRowActionButton>
+        ) : null}
       />
 
       {children}

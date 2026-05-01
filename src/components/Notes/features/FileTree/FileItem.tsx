@@ -29,6 +29,7 @@ interface FileItemProps {
   parentFolderPath?: string;
   showStarBadge?: boolean;
   dragEnabled?: boolean;
+  showMenuButton?: boolean;
 }
 
 export const FileItem = memo(function FileItem({
@@ -37,6 +38,7 @@ export const FileItem = memo(function FileItem({
   parentFolderPath = '',
   showStarBadge = false,
   dragEnabled = true,
+  showMenuButton = true,
 }: FileItemProps) {
   const {
     showMenu,
@@ -143,6 +145,7 @@ export const FileItem = memo(function FileItem({
       onContextMenu={handleContextMenu}
       dragHandlers={dragHandlers}
       showActionsByDefault={showMenu}
+      showMenuButton={showMenuButton}
       menuButtonLabel="Open file menu"
       onMenuClick={handleMenuTrigger}
       isMenuButtonActive={showMenu || isActive}
@@ -197,6 +200,7 @@ function areFileItemPropsEqual(prevProps: FileItemProps, nextProps: FileItemProp
     prevProps.node.path === nextProps.node.path &&
     prevProps.depth === nextProps.depth &&
     prevProps.parentFolderPath === nextProps.parentFolderPath &&
-    prevProps.showStarBadge === nextProps.showStarBadge
+    prevProps.showStarBadge === nextProps.showStarBadge &&
+    prevProps.showMenuButton === nextProps.showMenuButton
   );
 }

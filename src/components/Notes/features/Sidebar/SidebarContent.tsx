@@ -94,8 +94,12 @@ export function SidebarContent({
     [rootFolder],
   );
   const shouldSearchContents = shouldSearchNotesSidebarContents(deferredSearchQuery);
-  const isContentIndexReady =
-    searchableNoteCount > 0 && noteContentsCache.size >= searchableNoteCount;
+  const isContentIndexReady = useMemo(
+    () =>
+      searchableNoteCount > 0 &&
+      searchIndex.every((entry) => noteContentsCache.has(entry.path)),
+    [noteContentsCache, searchableNoteCount, searchIndex],
+  );
   const shouldShowEmptyHint =
     !isLoading &&
     (!rootFolder || rootFolder.children.length === 0);
@@ -334,7 +338,7 @@ export function SidebarContent({
             isContentScanPending={isContentScanPending}
           />
         ) : (
-          <div className="space-y-1">
+          <div className="relative">
             <StarredSection showTitle={false} />
             <RootFolderRow
               rootFolder={rootFolder}

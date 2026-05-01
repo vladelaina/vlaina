@@ -1,12 +1,24 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FileTreeNode } from './types';
 import {
   addNodeToTree,
+  buildFileTree,
   expandFoldersForPath,
   removeNodeFromTree,
   updateFolderExpanded,
 } from './fileTreeUtils';
 import { ensureFileNodeInTree } from './fileTreePreservation';
+
+const mocks = vi.hoisted(() => ({
+  listDir: vi.fn(),
+}));
+
+vi.mock('@/lib/storage/adapter', () => ({
+  getStorageAdapter: () => ({
+    listDir: mocks.listDir,
+  }),
+  joinPath: async (...segments: string[]) => segments.filter(Boolean).join('/'),
+}));
 
 function createTree(): FileTreeNode[] {
   return [
@@ -53,6 +65,64 @@ function createTree(): FileTreeNode[] {
 }
 
 describe('fileTreeUtils structural sharing', () => {
+  beforeEach(() => {
+    mocks.listDir.mockReset();
+  });
+
+  it('does not recurse into heavy generated folders while building the tree', async () => {
+    mocks.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault') {
+        return [
+          { name: 'node_modules', path: '/vault/node_modules', isDirectory: true, isFile: false },
+          { name: 'docs', path: '/vault/docs', isDirectory: true, isFile: false },
+        ];
+      }
+
+      if (path === '/vault/docs') {
+        return [
+          { name: 'alpha.md', path: '/vault/docs/alpha.md', isDirectory: false, isFile: true },
+        ];
+      }
+
+      if (path === '/vault/node_modules') {
+        return [
+          { name: 'package.md', path: '/vault/node_modules/package.md', isDirectory: false, isFile: true },
+        ];
+      }
+
+      return [];
+    });
+
+    const tree = await buildFileTree('/vault');
+
+    expect(mocks.listDir).not.toHaveBeenCalledWith('/vault/node_modules');
+    expect(tree).toEqual([
+      {
+        id: 'docs',
+        name: 'docs',
+        path: 'docs',
+        isFolder: true,
+        expanded: false,
+        children: [
+          {
+            id: 'docs/alpha.md',
+            name: 'alpha',
+            path: 'docs/alpha.md',
+            isFolder: false,
+          },
+        ],
+      },
+      {
+        id: 'node_modules',
+        name: 'node_modules',
+        path: 'node_modules',
+        isFolder: true,
+        expanded: false,
+        children: [],
+      },
+    ]);
+  });
+
   it('toggles only the targeted folder route', () => {
     const tree = createTree();
     const nextTree = updateFolderExpanded(tree, 'docs/guides');

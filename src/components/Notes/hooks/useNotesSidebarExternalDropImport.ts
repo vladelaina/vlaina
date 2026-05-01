@@ -7,6 +7,7 @@ import {
   getVaultStarredPaths,
   saveStarredRegistry,
 } from '@/stores/notes/starred';
+import type { StarredEntry } from '@/stores/notes/types';
 import { useNotesStore } from '@/stores/useNotesStore';
 import {
   clearExternalFileTreeDropTarget,
@@ -17,7 +18,11 @@ import {
   resolveStarredDropTargetFromElements,
 } from '../features/FileTree/hooks/dropTargetDom';
 import { createExternalDragPreview, type ExternalDragPreviewHandle } from '../features/FileTree/hooks/externalDragPreview';
-import { importExternalMarkdownEntries } from './externalMarkdownImport';
+import {
+  importExternalMarkdownEntries,
+  type ExternalMarkdownStarredTarget,
+  resolveExternalMarkdownEntriesForStarred,
+} from './externalMarkdownImport';
 import { SIDEBAR_SCROLL_ROOT_SELECTOR } from '../features/Sidebar/context-menu/shared';
 
 interface UseNotesSidebarExternalDropImportOptions {
@@ -62,27 +67,20 @@ function getSidebarDropState(event: DragEvent) {
   };
 }
 
-function ensureExternalDropStarredPaths(
-  notePaths: string[],
-  folderPaths: string[],
-) {
+function ensureExternalDropStarredTargets(targets: ExternalMarkdownStarredTarget[]) {
   const state = useNotesStore.getState();
   const { notesPath, starredEntries } = state;
-  if (!notesPath) return;
+  if (!notesPath || targets.length === 0) return;
 
-  let updatedEntries = starredEntries;
+  let updatedEntries: StarredEntry[] = starredEntries;
 
-  for (const relativePath of notePaths) {
-    const key = getStarredEntryKey({ kind: 'note', vaultPath: notesPath, relativePath });
+  for (const { kind, vaultPath: targetVaultPath, relativePath } of targets) {
+    const key = getStarredEntryKey({ kind, vaultPath: targetVaultPath, relativePath });
     if (!updatedEntries.some((entry) => getStarredEntryKey(entry) === key)) {
-      updatedEntries = [...updatedEntries, createStarredEntry('note', notesPath, relativePath)];
-    }
-  }
-
-  for (const relativePath of folderPaths) {
-    const key = getStarredEntryKey({ kind: 'folder', vaultPath: notesPath, relativePath });
-    if (!updatedEntries.some((entry) => getStarredEntryKey(entry) === key)) {
-      updatedEntries = [...updatedEntries, createStarredEntry('folder', notesPath, relativePath)];
+      updatedEntries = [
+        ...updatedEntries,
+        createStarredEntry(kind, targetVaultPath, relativePath),
+      ];
     }
   }
 
@@ -179,6 +177,28 @@ export function useNotesSidebarExternalDropImport({
       clearExternalFileTreeDropTarget();
 
       void (async () => {
+        if (isOverStarred) {
+          const starredTargets = await resolveExternalMarkdownEntriesForStarred(vaultPath, paths);
+
+          if (cancelled) {
+            return;
+          }
+
+          if (starredTargets.length === 0) {
+            await messageDialog(
+              'Only Markdown files or folders can be added to Starred.',
+              {
+                title: 'Unsupported Drop',
+                kind: 'warning',
+              },
+            );
+            return;
+          }
+
+          ensureExternalDropStarredTargets(starredTargets);
+          return;
+        }
+
         const result = await importExternalMarkdownEntries(vaultPath, importTargetPath, paths);
 
         if (cancelled) {
@@ -196,13 +216,11 @@ export function useNotesSidebarExternalDropImport({
           return;
         }
 
-        await loadFileTree(true);
-        if (cancelled) {
-          return;
-        }
-
-        if (isOverStarred) {
-          ensureExternalDropStarredPaths(result.importedNotePaths, result.importedFolderPaths);
+        if (result.didImport) {
+          await loadFileTree(true);
+          if (cancelled) {
+            return;
+          }
         }
 
         const revealPath =
