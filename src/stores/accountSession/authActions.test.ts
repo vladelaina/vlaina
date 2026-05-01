@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   hasElectronDesktopBridge: vi.fn(),
@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
     requestEmailAuthCode: vi.fn(),
     verifyEmailAuthCode: vi.fn(),
     accountDisconnect: vi.fn(),
+    cancelAccountAuth: vi.fn(),
     getAuthDebugLog: vi.fn(),
   },
   webAccountCommands: {
@@ -66,6 +67,7 @@ import {
   createCheckStatus,
   createHandleAuthCallback,
   createRequestEmailCode,
+  createCancelConnect,
   createSignIn,
   createSignOut,
   selectRelevantElectronAuthEntries,
@@ -94,6 +96,10 @@ describe('accountSession auth actions', () => {
       warn: vi.fn(),
       error: vi.fn(),
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('checkStatus persists connected desktop identities and refreshes avatar', async () => {
@@ -196,6 +202,21 @@ describe('accountSession auth actions', () => {
     });
   });
 
+  it('signIn cancels pending desktop auth when the desktop timeout expires', async () => {
+    vi.useFakeTimers();
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    mocks.accountCommands.accountAuth.mockReturnValue(new Promise(() => undefined));
+    mocks.accountCommands.cancelAccountAuth.mockResolvedValue(true);
+    const set = vi.fn();
+    const get = vi.fn(() => ({ isConnecting: true }));
+
+    void createSignIn(set as never, get as never)('google');
+    await vi.advanceTimersByTimeAsync(300000);
+
+    expect(mocks.accountCommands.cancelAccountAuth).toHaveBeenCalledTimes(1);
+    expect(set).toHaveBeenLastCalledWith({ isConnecting: false, error: null });
+  });
+
   it('requestEmailCode rejects invalid or duplicate emails before any network call', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     const set = vi.fn();
@@ -293,6 +314,21 @@ describe('accountSession auth actions', () => {
     expect(mocks.clearAuthIntent).toHaveBeenCalledTimes(1);
     expect(mocks.accountCommands.accountDisconnect).toHaveBeenCalledTimes(1);
     expect(mocks.applyDisconnectedAccount).toHaveBeenCalledWith(set);
+  });
+
+  it('cancelConnect clears pending desktop auth in the main process', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    mocks.accountCommands.cancelAccountAuth.mockResolvedValue(true);
+    const timeoutId = window.setTimeout(() => undefined, 1000);
+    (window as Window & { __vlaina_auth_timeout?: number | null }).__vlaina_auth_timeout = timeoutId;
+    sessionStorage.setItem('vlaina_auth_state', 'state');
+
+    const set = vi.fn();
+    await createCancelConnect(set as never, vi.fn() as never)();
+
+    expect(mocks.clearAuthIntent).toHaveBeenCalledTimes(1);
+    expect(mocks.accountCommands.cancelAccountAuth).toHaveBeenCalledTimes(1);
+    expect(set).toHaveBeenCalledWith({ isConnecting: false, error: null });
   });
 
   it('keeps session retry and identity diagnostics in the filtered electron auth log', () => {

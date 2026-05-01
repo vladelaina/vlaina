@@ -74,6 +74,15 @@ class OffscreenCanvasMock {
 vi.stubGlobal('ResizeObserver', ResizeObserverMock);
 vi.stubGlobal('OffscreenCanvas', OffscreenCanvasMock);
 
+if (typeof window !== 'undefined') {
+  if (typeof window.HTMLTableRowElement !== 'undefined') {
+    vi.stubGlobal('HTMLTableRowElement', window.HTMLTableRowElement);
+  }
+  if (typeof window.HTMLTableCellElement !== 'undefined') {
+    vi.stubGlobal('HTMLTableCellElement', window.HTMLTableCellElement);
+  }
+}
+
 if (typeof HTMLCanvasElement !== 'undefined') {
   Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
     configurable: true,

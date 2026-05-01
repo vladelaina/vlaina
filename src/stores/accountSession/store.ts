@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { ACCOUNT_AUTH_INVALIDATED_EVENT } from '@/lib/account/sessionEvent';
 import {
   createCheckStatus,
+  createCancelConnect,
   createHandleAuthCallback,
   createRequestEmailCode,
   createSignIn,
@@ -23,7 +24,7 @@ export const useAccountSessionStore = create<AccountSessionStore>((set, get) => 
   handleAuthCallback: createHandleAuthCallback(set, get),
   signOut: createSignOut(set, get),
   clearError: () => set({ error: null }),
-  cancelConnect: () => set({ isConnecting: false, error: null }),
+  cancelConnect: createCancelConnect(set, get),
   hydrateAvatar: createHydrateAvatar(set, get),
 }));
 
