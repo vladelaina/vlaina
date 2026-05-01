@@ -156,8 +156,8 @@ const desktopApi = {
     stat(filePath) {
       return ipcRenderer.invoke('desktop:fs:stat', filePath);
     },
-    watch(filePath, callback) {
-      return ipcRenderer.invoke('desktop:fs:watch', filePath).then((watchId) => {
+    watch(filePath, callback, options) {
+      return ipcRenderer.invoke('desktop:fs:watch', filePath, options).then((watchId) => {
         const channel = `desktop:fs:watch:${watchId}`;
         const handler = (_event, payload) => callback(payload);
         ipcRenderer.on(channel, handler);

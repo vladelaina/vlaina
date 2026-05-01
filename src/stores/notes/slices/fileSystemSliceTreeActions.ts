@@ -24,7 +24,8 @@ export function createFileSystemTreeActions(
 ): Pick<FileSystemSlice, 'loadFileTree' | 'toggleFolder' | 'revealFolder' | 'setFileTreeSortMode'> {
   return {
     loadFileTree: async (skipRestore = false) => {
-      set({ isLoading: true, error: null });
+      const shouldShowLoading = !get().rootFolder;
+      set(shouldShowLoading ? { isLoading: true, error: null } : { error: null });
       try {
         const storage = getStorageAdapter();
         const basePath = await getNotesBasePath();

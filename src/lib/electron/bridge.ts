@@ -93,7 +93,8 @@ export interface ElectronFsApi {
         | { create: { kind: string } }
         | { modify: { kind: string; mode?: string } };
       paths: string[];
-    }) => void | Promise<void>
+    }) => void | Promise<void>,
+    options?: { recursive?: boolean }
   ): Promise<() => Promise<void>>;
 }
 

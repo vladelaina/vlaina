@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createDesktopWatchPayload } from '../../electron/desktopWatchIpc.mjs';
+import {
+  createDesktopWatchPayload,
+  isPathCoveredByWatchPath,
+  normalizeDesktopWatchOptions,
+} from '../../electron/desktopWatchIpc.mjs';
 
 function fileInfo(isDirectory = false) {
   return {
@@ -8,6 +12,12 @@ function fileInfo(isDirectory = false) {
 }
 
 describe('desktop watch ipc payload mapping', () => {
+  it('defaults watches to recursive and allows non-recursive parent watches', () => {
+    expect(normalizeDesktopWatchOptions(undefined)).toEqual({ recursive: true });
+    expect(normalizeDesktopWatchOptions({ recursive: true })).toEqual({ recursive: true });
+    expect(normalizeDesktopWatchOptions({ recursive: false })).toEqual({ recursive: false });
+  });
+
   it('maps data changes to modify events without stat calls', async () => {
     const statPath = vi.fn();
 
@@ -45,5 +55,12 @@ describe('desktop watch ipc payload mapping', () => {
       type: { remove: { kind: 'any' } },
       paths: ['/vault/old.md'],
     });
+  });
+
+  it('matches synthetic rename notifications to recursive and direct child watchers', () => {
+    expect(isPathCoveredByWatchPath('/vault', '/vault/docs/a.md', true)).toBe(true);
+    expect(isPathCoveredByWatchPath('/vault', '/vault/docs/a.md', false)).toBe(false);
+    expect(isPathCoveredByWatchPath('/vault/docs', '/vault/docs/a.md', false)).toBe(true);
+    expect(isPathCoveredByWatchPath('/vault/docs', '/vault/other/a.md', true)).toBe(false);
   });
 });

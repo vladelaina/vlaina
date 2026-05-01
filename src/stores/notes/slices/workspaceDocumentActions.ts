@@ -12,9 +12,9 @@ import { saveNoteDocument } from '../document/noteDocumentPersistence';
 import { setNoteTabDirtyState } from '../document/noteTabState';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { dispatchOpenMarkdownTargetEvent } from '@/components/Notes/features/OpenTarget/openTargetEvents';
-import { logNotesDebug } from '../debugLog';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { createWorkspaceDiskSyncAction } from './workspaceDiskSyncActions';
+import { logNotesDebug } from '../debugLog';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 
 type WorkspaceDocumentActions = Pick<
@@ -42,19 +42,12 @@ export function createWorkspaceDocumentActions(
         pendingDraftDiscardPath,
       } = get();
       if (!currentNote) {
-        logNotesDebug('workspaceSlice:saveNote:ignored-no-current-note');
         return;
       }
       const notePathAtSaveStart = currentNote.path;
       const wasDirtyAtSaveStart = get().isDirty;
 
       try {
-        logNotesDebug('workspaceSlice:saveNote:start', {
-          notePath: currentNote.path,
-          explicit: options?.explicit ?? false,
-          isDirty: get().isDirty,
-        });
-
         const draftNote = draftNotes[currentNote.path];
         if (draftNote) {
           if (!options?.explicit) return;
@@ -146,12 +139,6 @@ export function createWorkspaceDocumentActions(
             dispatchOpenMarkdownTargetEvent(absolutePath);
           }
 
-          logNotesDebug('workspaceSlice:saveNote:finish', {
-            notePath: savedPath,
-            explicit: options?.explicit ?? false,
-            wasDraft: true,
-            relativePath: relativePath ?? null,
-          });
           return;
         }
 
@@ -181,11 +168,6 @@ export function createWorkspaceDocumentActions(
           noteContentsCache: nextCache,
           openTabs: setNoteTabDirtyState(get().openTabs, currentNote.path, false),
           error: null,
-        });
-        logNotesDebug('workspaceSlice:saveNote:finish', {
-          notePath: currentNote.path,
-          explicit: options?.explicit ?? false,
-          wasDraft: false,
         });
       } catch (error) {
         logNotesDebug('workspaceSlice:saveNote:error', {

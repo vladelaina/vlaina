@@ -6,6 +6,7 @@ import { getVaultStarredPaths, remapStarredEntriesForVault, saveStarredRegistry 
 import { updateFileNodePath, findNode, deepUpdateNodePath, addNodeToTree, removeNodeFromTree } from '../../fileTreeUtils';
 import { resolveUniqueMovedPath, resolveUniqueRenamedPath } from './pathOperations';
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
+import { emitNotesExternalPathRename } from '../../document/externalPathBroadcast';
 import { remapOpenTabsForExternalRename } from '../../document/externalPathSync';
 import type { FileOperationContext, MoveItemResult, RenameNoteResult } from './operationTypes';
 
@@ -30,6 +31,7 @@ export async function renameNoteImpl(
     markExpectedExternalChange(fullPath);
     markExpectedExternalChange(newFullPath);
     await storage.rename(fullPath, newFullPath);
+    emitNotesExternalPathRename({ notesPath, oldPath: path, newPath });
 
     const { starredEntries, noteMetadata, openTabs, rootFolder, currentNote } = currentStore;
     const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath, kind) => {
@@ -98,6 +100,7 @@ export async function moveItemImpl(
     markExpectedExternalChange(sourceFullPath, Boolean(nodeToMove?.isFolder));
     markExpectedExternalChange(targetFullPath, Boolean(nodeToMove?.isFolder));
     await storage.rename(sourceFullPath, targetFullPath);
+    emitNotesExternalPathRename({ notesPath, oldPath: normalizedSourcePath, newPath });
 
     const remapPath = (value: string): string => {
         const normalized = normalizeNotePathKey(value) ?? value;

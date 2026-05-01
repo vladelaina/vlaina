@@ -1,13 +1,15 @@
 import { normalizeNotePathKey } from '@/lib/notes/displayName';
-import { logNotesDebug } from '../debugLog';
 
 interface ExpectedExternalChange {
   path: string;
   recursive: boolean;
+  createdAt: number;
   expiresAt: number;
+  remainingEvents: number;
 }
 
-const EXPECTED_CHANGE_TTL_MS = 4000;
+const EXPECTED_CHANGE_TTL_MS = 1000;
+const EXPECTED_CHANGE_MAX_EVENTS = 2;
 
 let expectedChanges: ExpectedExternalChange[] = [];
 
@@ -24,17 +26,23 @@ export function markExpectedExternalChange(path: string, recursive = false): voi
   const now = Date.now();
   pruneExpiredExpectedChanges(now);
 
-  expectedChanges.push({
-    path: normalizedPath,
-    recursive,
-    expiresAt: now + EXPECTED_CHANGE_TTL_MS,
-  });
+  const existing = expectedChanges.find((entry) =>
+    entry.path === normalizedPath && entry.recursive === recursive
+  );
+  if (existing) {
+    existing.createdAt = now;
+    existing.expiresAt = now + EXPECTED_CHANGE_TTL_MS;
+    existing.remainingEvents = EXPECTED_CHANGE_MAX_EVENTS;
+  } else {
+    expectedChanges.push({
+      path: normalizedPath,
+      recursive,
+      createdAt: now,
+      expiresAt: now + EXPECTED_CHANGE_TTL_MS,
+      remainingEvents: EXPECTED_CHANGE_MAX_EVENTS,
+    });
+  }
 
-  logNotesDebug('externalChangeRegistry:mark', {
-    path: normalizedPath,
-    recursive,
-    pendingCount: expectedChanges.length,
-  });
 }
 
 export function shouldIgnoreExpectedExternalChange(path: string): boolean {
@@ -56,11 +64,11 @@ export function shouldIgnoreExpectedExternalChange(path: string): boolean {
   const matched = matchedIndex !== -1;
 
   if (matched) {
-    expectedChanges.splice(matchedIndex, 1);
-    logNotesDebug('externalChangeRegistry:ignore', {
-      path: normalizedPath,
-      pendingCount: expectedChanges.length,
-    });
+    const entry = expectedChanges[matchedIndex];
+    entry.remainingEvents -= 1;
+    if (entry.remainingEvents <= 0) {
+      expectedChanges.splice(matchedIndex, 1);
+    }
   }
 
   return matched;

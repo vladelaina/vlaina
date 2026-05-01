@@ -12,7 +12,7 @@ import {
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { registerDesktopDialogIpc } from './desktopDialogIpc.mjs';
-import { registerDesktopWatchIpc } from './desktopWatchIpc.mjs';
+import { notifyDesktopWatchRename, registerDesktopWatchIpc } from './desktopWatchIpc.mjs';
 import {
   assertAuthorizedFsPath,
   assertAuthorizedFsWatchPath,
@@ -156,6 +156,7 @@ export function registerDesktopIpc({
 
     await rename(resolvedOldPath, resolvedNewPath);
     await updateAuthorizedRootRename(resolvedOldPath, resolvedNewPath);
+    notifyDesktopWatchRename(resolvedOldPath, resolvedNewPath);
   });
 
   handleIpc('desktop:fs:copy-file', async (_event, sourcePath, targetPath) => {
