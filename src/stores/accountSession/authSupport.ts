@@ -55,6 +55,39 @@ export function persistUser(data: {
   localStorage.setItem(ACCOUNT_USER_PERSIST_KEY, JSON.stringify(data));
 }
 
+export function loadPersistedUser(): Partial<AccountSessionState> {
+  try {
+    const raw = localStorage.getItem(ACCOUNT_USER_PERSIST_KEY);
+    if (!raw) {
+      return {};
+    }
+
+    const parsed = JSON.parse(raw) as Partial<AccountSessionState>;
+    const provider = parsed.provider === 'github' || parsed.provider === 'google' || parsed.provider === 'email'
+      ? parsed.provider
+      : null;
+    const membershipTier =
+      parsed.membershipTier === 'free' ||
+      parsed.membershipTier === 'plus' ||
+      parsed.membershipTier === 'pro' ||
+      parsed.membershipTier === 'max'
+        ? parsed.membershipTier
+        : null;
+
+    return {
+      isConnected: parsed.isConnected === true,
+      provider,
+      username: typeof parsed.username === 'string' ? parsed.username : null,
+      primaryEmail: typeof parsed.primaryEmail === 'string' ? parsed.primaryEmail : null,
+      avatarUrl: typeof parsed.avatarUrl === 'string' ? parsed.avatarUrl : null,
+      membershipTier,
+      membershipName: typeof parsed.membershipName === 'string' ? parsed.membershipName : null,
+    };
+  } catch {
+    return {};
+  }
+}
+
 export function clearAuthIntent(): void {
   sessionStorage.removeItem(AUTH_STATE_STORAGE_KEY);
   sessionStorage.removeItem(AUTH_PROVIDER_STORAGE_KEY);
