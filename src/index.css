@@ -120,7 +120,7 @@ html, body, #root {
   --vlaina-color-surface-hover: rgba(0, 0, 0, 0.04);
   --vlaina-color-surface-active: rgba(0, 0, 0, 0.08);
   --vlaina-color-surface-row-hover: #f8f8f8;
-  --vlaina-color-surface-row-active: #f8f8f8;
+  --vlaina-color-surface-row-active: #f2f2f2;
   --vlaina-color-surface-empty: #f1f1f2;
   --vlaina-color-text-strong: #121212;
   --vlaina-color-text-primary: #2c2c2b;
