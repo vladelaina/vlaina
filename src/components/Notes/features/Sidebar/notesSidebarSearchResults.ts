@@ -9,12 +9,12 @@ export interface NotesSidebarSearchEntry {
 export interface NotesSidebarSearchResult extends NotesSidebarSearchEntry {
   id: string;
   matchIndex: number;
-  matchKind: 'name' | 'content';
+  matchKind: 'name' | 'path' | 'content';
   contentSnippet: string | null;
   contentMatchOrdinal: number | null;
 }
 
-const CONTENT_SEARCH_MIN_QUERY_LENGTH = 2;
+const CONTENT_SEARCH_MIN_QUERY_LENGTH = 1;
 const CONTENT_SNIPPET_RADIUS = 36;
 const MAX_CONTENT_MATCHES_PER_NOTE = 5;
 const MAX_SEARCH_RESULTS = 200;
@@ -172,18 +172,30 @@ export function queryNotesSidebarSearch(
 
   return index
     .flatMap((entry) => {
-      const matchIndex = entry.name.toLowerCase().indexOf(lowerQuery);
+      const nameMatchIndex = entry.name.toLowerCase().indexOf(lowerQuery);
+      const pathMatchIndex = entry.preview.toLowerCase().indexOf(lowerQuery);
       const contentMatches = includeContentMatches
         ? getContentMatches(getNoteContent?.(entry.path), lowerQuery)
         : [];
       const results: NotesSidebarSearchResult[] = [];
 
-      if (matchIndex !== -1) {
+      if (nameMatchIndex !== -1) {
         results.push({
           ...entry,
           id: `${entry.path}::name`,
-          matchIndex,
+          matchIndex: nameMatchIndex,
           matchKind: 'name',
+          contentSnippet: null,
+          contentMatchOrdinal: contentMatches[0]?.ordinal ?? null,
+        });
+      }
+
+      if (pathMatchIndex !== -1) {
+        results.push({
+          ...entry,
+          id: `${entry.path}::path`,
+          matchIndex: pathMatchIndex,
+          matchKind: 'path',
           contentSnippet: null,
           contentMatchOrdinal: contentMatches[0]?.ordinal ?? null,
         });
@@ -204,7 +216,8 @@ export function queryNotesSidebarSearch(
     })
     .sort((a, b) => {
       if (a.matchKind !== b.matchKind) {
-        return a.matchKind === 'name' ? -1 : 1;
+        const rank = { name: 0, path: 1, content: 2 };
+        return rank[a.matchKind] - rank[b.matchKind];
       }
 
       if (a.path !== b.path) {

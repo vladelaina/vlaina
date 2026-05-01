@@ -83,7 +83,7 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
 
     const startReconcilePolling = () => {
       if (shouldAvoidRecursiveNativeWatch(notesPath)) {
-        void runPollingReconcile();
+        void syncActions.runPollingReconcile();
         return;
       }
 

@@ -49,9 +49,10 @@ describe('notesSidebarSearchResults', () => {
     expect(countNotesSidebarSearchEntries(rootFolder)).toBe(3);
   });
 
-  it('requires at least two characters before searching note contents', () => {
-    expect(shouldSearchNotesSidebarContents('t')).toBe(false);
-    expect(shouldSearchNotesSidebarContents('te')).toBe(true);
+  it('searches note contents for a single non-empty character', () => {
+    expect(shouldSearchNotesSidebarContents('')).toBe(false);
+    expect(shouldSearchNotesSidebarContents(' ')).toBe(false);
+    expect(shouldSearchNotesSidebarContents('t')).toBe(true);
   });
 
   it('builds a flat search index with parent previews', () => {
@@ -91,6 +92,25 @@ describe('notesSidebarSearchResults', () => {
     expect(results.map((result) => result.id)).toEqual([
       'note-zeta.md::name',
       'projects/template-notes.md::name',
+    ]);
+  });
+
+  it('matches parent folder paths after file name matches', () => {
+    const index = buildNotesSidebarSearchIndex(rootFolder, () => '');
+    const results = queryNotesSidebarSearch(index, 'projects');
+
+    expect(results.map((result) => ({
+      path: result.path,
+      matchKind: result.matchKind,
+    }))).toEqual([
+      {
+        path: 'projects/alpha.md',
+        matchKind: 'path',
+      },
+      {
+        path: 'projects/template-notes.md',
+        matchKind: 'path',
+      },
     ]);
   });
 
@@ -148,6 +168,21 @@ describe('notesSidebarSearchResults', () => {
     expect(results[2].contentSnippet).not.toContain('- [ ]');
     expect(results[2].contentSnippet).not.toContain('frameborder');
     expect(results[3].contentSnippet).toContain('alpha release checklist is still open.');
+  });
+
+  it('returns content matches for a single-character query', () => {
+    const index = buildNotesSidebarSearchIndex(rootFolder, () => '');
+    const results = queryNotesSidebarSearch(index, 'x', (path) =>
+      path === 'projects/alpha.md' ? 'single x content match' : '',
+    );
+
+    expect(results).toEqual([
+      expect.objectContaining({
+        path: 'projects/alpha.md',
+        matchKind: 'content',
+        contentSnippet: 'single x content match',
+      }),
+    ]);
   });
 
   it('caps content matches per note before ranking results', () => {

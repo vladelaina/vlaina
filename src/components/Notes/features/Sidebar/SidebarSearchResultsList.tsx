@@ -215,9 +215,7 @@ export function SidebarSearchResultsList({
     virtualizer.measure();
   }, [containerWidth, estimates, virtualizer]);
 
-  if (items.length === 0 && !isContentScanPending) {
-    return null;
-  }
+  const hasQuery = deferredQuery.trim().length > 0;
 
   return (
     <div className="flex flex-col gap-0.5">
@@ -262,6 +260,10 @@ export function SidebarSearchResultsList({
               </div>
             );
           })}
+        </div>
+      ) : hasQuery && !isContentScanPending ? (
+        <div className="px-3 py-2 text-[11px] text-[var(--notes-sidebar-text-soft)]">
+          No results
         </div>
       ) : null}
     </div>
