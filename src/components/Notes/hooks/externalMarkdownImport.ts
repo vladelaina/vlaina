@@ -1,12 +1,27 @@
 import { getElectronBridge } from '@/lib/electron/bridge';
-import { getBaseName, getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import {
+  getBaseName,
+  getParentPath,
+  getStorageAdapter,
+  joinPath,
+  relativePath,
+} from '@/lib/storage/adapter';
+import type { StarredKind } from '@/stores/notes/types';
 import { markExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
+import { normalizeStarredRelativePath, normalizeStarredVaultPath } from '@/stores/notes/starred';
 import { resolveUniquePath } from '@/stores/notes/utils/fs/pathOperations';
 import { isSupportedMarkdownSelection } from '../features/OpenTarget/openTargetSelection';
 
 interface ExternalMarkdownImportResult {
   importedNotePaths: string[];
   importedFolderPaths: string[];
+  didImport: boolean;
+}
+
+export interface ExternalMarkdownStarredTarget {
+  kind: StarredKind;
+  vaultPath: string;
+  relativePath: string;
 }
 
 async function statExternalMarkdownPath(absolutePath: string) {
@@ -16,6 +31,16 @@ async function statExternalMarkdownPath(absolutePath: string) {
   }
 
   return getStorageAdapter().stat(absolutePath);
+}
+
+function getExistingVaultRelativePath(vaultPath: string, absolutePath: string) {
+  const normalizedVaultPath = normalizeStarredVaultPath(vaultPath);
+  const normalizedPath = normalizeStarredVaultPath(absolutePath);
+  if (!normalizedPath.startsWith(`${normalizedVaultPath}/`)) {
+    return null;
+  }
+
+  return normalizeStarredRelativePath(relativePath(normalizedVaultPath, normalizedPath));
 }
 
 async function importExternalMarkdownFile(
@@ -129,5 +154,56 @@ export async function importExternalMarkdownEntries(
   return {
     importedNotePaths,
     importedFolderPaths,
+    didImport: importedNotePaths.length > 0 || importedFolderPaths.length > 0,
   };
+}
+
+export async function resolveExternalMarkdownEntriesForStarred(
+  vaultPath: string,
+  absolutePaths: string[],
+): Promise<ExternalMarkdownStarredTarget[]> {
+  const targets: ExternalMarkdownStarredTarget[] = [];
+
+  for (const absolutePath of absolutePaths) {
+    const info = await statExternalMarkdownPath(absolutePath);
+    const existingRelativePath = getExistingVaultRelativePath(vaultPath, absolutePath);
+
+    if (existingRelativePath) {
+      if (info?.isDirectory) {
+        targets.push({
+          kind: 'folder',
+          vaultPath,
+          relativePath: existingRelativePath,
+        });
+        continue;
+      }
+
+      if (info?.isFile && isSupportedMarkdownSelection(absolutePath)) {
+        targets.push({
+          kind: 'note',
+          vaultPath,
+          relativePath: existingRelativePath,
+        });
+        continue;
+      }
+    }
+
+    if (!info?.isDirectory && !(info?.isFile && isSupportedMarkdownSelection(absolutePath))) {
+      continue;
+    }
+
+    const parentPath = getParentPath(absolutePath);
+    const relativePath = getBaseName(absolutePath);
+    if (!parentPath || !relativePath) {
+      continue;
+    }
+
+    targets.push({
+      kind: info.isDirectory ? 'folder' : 'note',
+      vaultPath: parentPath,
+      relativePath,
+    });
+  }
+
+  return targets;
 }

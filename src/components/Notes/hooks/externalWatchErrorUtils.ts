@@ -31,6 +31,8 @@ export function isExternalWatchUnavailableError(error: unknown) {
   const message = getExternalWatchErrorMessage(error).toLowerCase();
   return (
     message.includes('electron fs bridge is not available') ||
+    message.includes('enospc') ||
+    message.includes('system limit for number of file watchers') ||
     message.includes('fs.watch not allowed') ||
     message.includes('watch not allowed') ||
     message.includes('enospc') ||

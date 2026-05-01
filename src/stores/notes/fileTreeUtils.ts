@@ -2,6 +2,25 @@ import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import type { FileTreeNode } from './types';
 import { sortFileTree } from './fileTreeSorting';
 
+const MAX_FILE_TREE_ENTRIES = 5000;
+const MAX_FILE_TREE_DEPTH = 24;
+const SKIPPED_DIRECTORY_NAMES = new Set([
+  'node_modules',
+  'vendor',
+  'dist',
+  'build',
+  'target',
+  '__pycache__',
+]);
+
+interface FileTreeBuildBudget {
+  visitedEntries: number;
+}
+
+function shouldSkipDirectory(name: string) {
+  return name.startsWith('.') || SKIPPED_DIRECTORY_NAMES.has(name);
+}
+
 export async function buildFileTreeLevel(basePath: string, relativePath: string = ''): Promise<FileTreeNode[]> {
   const storage = getStorageAdapter();
   const fullPath = relativePath ? await joinPath(basePath, relativePath) : basePath;
@@ -39,22 +58,43 @@ export async function buildFileTreeLevel(basePath: string, relativePath: string 
   return sortFileTree(nodes);
 }
 
-export async function buildFileTree(basePath: string, relativePath: string = ''): Promise<FileTreeNode[]> {
+async function buildFileTreeWithBudget(
+  basePath: string,
+  relativePath: string,
+  budget: FileTreeBuildBudget,
+): Promise<FileTreeNode[]> {
+  if (budget.visitedEntries >= MAX_FILE_TREE_ENTRIES) {
+    return [];
+  }
+
   const nodes = await buildFileTreeLevel(basePath, relativePath);
+  budget.visitedEntries += nodes.length;
+
+  const depth = relativePath.split('/').filter(Boolean).length;
+  if (depth >= MAX_FILE_TREE_DEPTH) {
+    return nodes;
+  }
 
   for (let index = 0; index < nodes.length; index += 1) {
     const node = nodes[index];
     if (!node.isFolder) {
       continue;
     }
+    if (shouldSkipDirectory(node.name) || budget.visitedEntries >= MAX_FILE_TREE_ENTRIES) {
+      continue;
+    }
 
     nodes[index] = {
       ...node,
-      children: await buildFileTree(basePath, node.path),
+      children: await buildFileTreeWithBudget(basePath, node.path, budget),
     };
   }
 
   return sortFileTree(nodes);
+}
+
+export async function buildFileTree(basePath: string, relativePath: string = ''): Promise<FileTreeNode[]> {
+  return buildFileTreeWithBudget(basePath, relativePath, { visitedEntries: 0 });
 }
 
 function isPathOnRoute(nodePath: string, targetPath: string): boolean {

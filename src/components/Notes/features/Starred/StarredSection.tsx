@@ -43,7 +43,15 @@ export function StarredSection({
     }
   }, [activeDragSourcePath, hasEntries, isExpanded]);
 
-  if (!starredLoaded || (!hasEntries && !hasActiveDrag)) {
+  if (!starredLoaded) {
+    return null;
+  }
+
+  if (!showTitle && !hasEntries && !hasActiveDrag) {
+    return <div aria-hidden="true" className="h-8 w-full pointer-events-none opacity-0" />;
+  }
+
+  if (!hasEntries && !hasActiveDrag) {
     return null;
   }
 
@@ -51,12 +59,16 @@ export function StarredSection({
     <div
       data-file-tree-starred-drop-target="true"
       className={cn(
-        'rounded-md transition-colors',
+        'w-full rounded-md transition-colors',
+        !showTitle && hasEntries && 'mb-1',
         isDragOver && 'bg-[var(--notes-sidebar-row-drag)] ring-1 ring-[var(--vlaina-accent)]',
       )}
     >
       {!hasEntries ? (
-        <div className="flex min-h-8 items-center gap-2 rounded-md px-2 text-[12px] text-[var(--notes-sidebar-text-soft)]">
+        <div
+          data-file-tree-starred-drop-target="true"
+          className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-[12px] text-[var(--notes-sidebar-text-soft)]"
+        >
           <Icon name="misc.star" size="sm" className="fill-amber-500 text-amber-500" />
           <span>Starred</span>
         </div>
@@ -70,6 +82,7 @@ export function StarredSection({
                 depth={0}
                 showStarBadge
                 dragEnabled={false}
+                showMenuButton={false}
               />
             ) : (
               <FileItem
@@ -78,6 +91,7 @@ export function StarredSection({
                 depth={0}
                 showStarBadge
                 dragEnabled={false}
+                showMenuButton={false}
               />
             );
           }
