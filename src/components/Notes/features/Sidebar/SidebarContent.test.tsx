@@ -11,8 +11,11 @@ const hoisted = vi.hoisted(() => ({
   countNotesSidebarSearchEntries: vi.fn(() => 0),
   markSidebarSearchNavigationPending: vi.fn(),
   queryNotesSidebarSearch: vi.fn(() => []),
+  revealFolder: vi.fn(),
+  scheduleSidebarItemIntoView: vi.fn(),
   scanAllNotes: vi.fn(() => Promise.resolve()),
   shouldSearchNotesSidebarContents: vi.fn(() => false),
+  shouldShowSearchResults: false,
 }));
 
 vi.mock('@/stores/useNotesStore', () => ({
@@ -20,6 +23,7 @@ vi.mock('@/stores/useNotesStore', () => ({
     openNote: vi.fn(() => Promise.resolve()),
     getDisplayName: vi.fn((path: string) => path),
     noteContentsCache: new Map(),
+    revealFolder: hoisted.revealFolder,
     scanAllNotes: hoisted.scanAllNotes,
     starredEntries: [],
   }),
@@ -36,7 +40,7 @@ vi.mock('@/components/layout/sidebar/SidebarSearchDrawer', () => ({
     scrollRootRef: { current: null },
     hideSearch: vi.fn(),
     handleScroll: vi.fn(),
-    shouldShowSearchResults: false,
+    shouldShowSearchResults: hoisted.shouldShowSearchResults,
   }),
 }));
 
@@ -46,6 +50,10 @@ vi.mock('../Starred', () => ({
 
 vi.mock('../common/sidebarHoverRename', () => ({
   triggerHoveredSidebarRename: () => false,
+}));
+
+vi.mock('../common/sidebarScrollIntoView', () => ({
+  scheduleSidebarItemIntoView: hoisted.scheduleSidebarItemIntoView,
 }));
 
 vi.mock('./NotesSidebarRow', () => ({
@@ -109,6 +117,7 @@ const createSearchState = (overrides: Partial<Parameters<typeof SidebarContent>[
 describe('SidebarContent search highlight cleanup', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    hoisted.shouldShowSearchResults = false;
   });
 
   it('clears editor highlights when sidebar search is closed', () => {
@@ -138,6 +147,35 @@ describe('SidebarContent search highlight cleanup', () => {
 
     expect(hoisted.clearSidebarSearchHighlights).toHaveBeenCalledTimes(1);
     expect(hoisted.clearSidebarSearchNavigationPending).toHaveBeenCalledTimes(1);
+  });
+
+  it('reveals the current file when leaving sidebar search results', () => {
+    hoisted.shouldShowSearchResults = true;
+    const { rerender } = render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="docs/alpha.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState()}
+      />,
+    );
+
+    hoisted.shouldShowSearchResults = false;
+    rerender(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="docs/alpha.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(hoisted.revealFolder).toHaveBeenCalledWith('docs/alpha.md');
+    expect(hoisted.scheduleSidebarItemIntoView).toHaveBeenCalledWith('docs/alpha.md', 2);
   });
 
   it('shows the hover empty hint when the notes directory has no notes', () => {

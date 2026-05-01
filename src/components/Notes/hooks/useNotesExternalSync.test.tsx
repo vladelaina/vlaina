@@ -167,4 +167,17 @@ describe('useNotesExternalSync', () => {
     expect(hoisted.unwatch).toHaveBeenCalledTimes(1);
     expect(hoisted.releaseWatcher).not.toHaveBeenCalled();
   });
+
+  it('does not start recursive native watching for a user home directory', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/home/vladelaina', '/home/vladelaina'));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(hoisted.watchDesktopPath).not.toHaveBeenCalled();
+    expect(hoisted.releaseWatcher).not.toHaveBeenCalled();
+
+    hook.unmount();
+  });
 });

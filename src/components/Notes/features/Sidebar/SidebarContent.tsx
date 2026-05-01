@@ -5,7 +5,9 @@ import {
 } from '@/components/layout/sidebar/SidebarSearchDrawer';
 import type { SidebarSearchState } from '@/components/layout/sidebar/useSidebarSearchState';
 import { cn } from '@/lib/utils';
+import { isAbsolutePath } from '@/lib/storage/adapter';
 import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
+import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { StarredSection } from '../Starred';
 import { triggerHoveredSidebarRename } from '../common/sidebarHoverRename';
 import {
@@ -29,6 +31,7 @@ import {
   markSidebarSearchNavigationPending,
 } from './sidebarSearchNavigation';
 import { getCurrentEditorView } from '../Editor/utils/editorViewRegistry';
+import { scheduleSidebarItemIntoView } from '../common/sidebarScrollIntoView';
 
 interface SidebarContentProps {
   rootFolder: FolderNode | null;
@@ -52,6 +55,7 @@ export function SidebarContent({
   isPeeking = false,
 }: SidebarContentProps) {
   const openNote = useNotesStore((s) => s.openNote);
+  const revealFolder = useNotesStore((s) => s.revealFolder);
   const getDisplayName = useNotesStore((s) => s.getDisplayName);
   const noteContentsCache = useNotesStore((s) => s.noteContentsCache);
   const scanAllNotes = useNotesStore((s) => s.scanAllNotes);
@@ -79,6 +83,7 @@ export function SidebarContent({
     onClose: search.closeSearch,
     scopeRef: sidebarRootRef,
   });
+  const wasShowingSearchResultsRef = useRef(shouldShowSearchResults);
 
   const searchIndex = useMemo(
     () => buildNotesSidebarSearchIndex(rootFolder, getDisplayName),
@@ -156,6 +161,24 @@ export function SidebarContent({
       window.removeEventListener('keydown', handleKeyDown, true);
     };
   }, []);
+
+  useEffect(() => {
+    const wasShowingSearchResults = wasShowingSearchResultsRef.current;
+    wasShowingSearchResultsRef.current = shouldShowSearchResults;
+
+    if (
+      !wasShowingSearchResults ||
+      shouldShowSearchResults ||
+      !currentNotePath ||
+      isDraftNotePath(currentNotePath) ||
+      isAbsolutePath(currentNotePath)
+    ) {
+      return;
+    }
+
+    revealFolder(currentNotePath);
+    scheduleSidebarItemIntoView(currentNotePath, 2);
+  }, [currentNotePath, revealFolder, shouldShowSearchResults]);
 
   useEffect(() => {
     if (search.isSearchOpen && search.searchQuery.trim().length > 0) {

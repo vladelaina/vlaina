@@ -10,6 +10,7 @@ export interface OpenDialogOptions {
 }
 
 export interface SaveDialogOptions {
+  authorizeParentDirectory?: boolean;
   title?: string;
   defaultPath?: string;
   filters?: { name: string; extensions: string[] }[];
