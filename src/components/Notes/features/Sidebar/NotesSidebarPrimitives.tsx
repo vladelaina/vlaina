@@ -206,7 +206,7 @@ export function NotesSidebarHoverEmptyHint({
         {actionLabel && onAction ? (
           <button
             type="button"
-            className="pointer-events-auto h-7 rounded-md px-3 text-[12px] text-[var(--notes-sidebar-text)] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)] focus:outline-none"
+            className="pointer-events-auto h-7 cursor-pointer rounded-md px-3 text-[12px] text-[var(--notes-sidebar-text)] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)] focus:outline-none"
             onClick={(event) => {
               event.stopPropagation();
               onAction();
