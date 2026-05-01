@@ -176,6 +176,9 @@ const desktopApi = {
     appDataDir() {
       return ipcRenderer.invoke('desktop:path:app-data');
     },
+    homeDir() {
+      return ipcRenderer.invoke('desktop:path:home');
+    },
     toFileUrl(filePath) {
       return ipcRenderer.invoke('desktop:path:to-file-url', filePath);
     },

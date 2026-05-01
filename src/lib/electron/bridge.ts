@@ -101,6 +101,7 @@ export interface ElectronFsApi {
 export interface ElectronPathApi {
   join(...segments: string[]): Promise<string>;
   appDataDir(): Promise<string>;
+  homeDir(): Promise<string>;
   toFileUrl(filePath: string): Promise<string>;
 }
 

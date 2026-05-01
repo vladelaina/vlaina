@@ -146,11 +146,13 @@ export function NotesView({ active = true }: { active?: boolean }) {
     const navigateToStarredTarget = async () => {
       if (pendingStarredNavigation.kind === 'folder') {
         revealFolder(pendingStarredNavigation.relativePath);
+        scheduleSidebarItemIntoView(pendingStarredNavigation.relativePath, 2);
       } else {
         await openNote(
           pendingStarredNavigation.relativePath,
           pendingStarredNavigation.openInNewTab ?? false
         );
+        scheduleSidebarItemIntoView(pendingStarredNavigation.relativePath, 2);
       }
 
       if (!cancelled) {

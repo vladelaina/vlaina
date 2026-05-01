@@ -188,6 +188,10 @@ export function registerDesktopIpc({
     return app.getPath('userData');
   });
 
+  handleIpc('desktop:path:home', () => {
+    return app.getPath('home');
+  });
+
   handleIpc('desktop:path:to-file-url', async (_event, filePath) => {
     return pathToFileURL(await assertAuthorizedFsPath(filePath)).toString();
   });

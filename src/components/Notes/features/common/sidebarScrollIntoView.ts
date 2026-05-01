@@ -6,7 +6,7 @@ function escapeAttributeValue(value: string) {
   return value.replace(/["\\]/g, '\\$&');
 }
 
-export function scrollSidebarItemIntoView(path: string) {
+export function scrollSidebarItemIntoView(path: string, block: ScrollLogicalPosition = 'center') {
   const scrollRoot = document.querySelector<HTMLElement>('[data-notes-sidebar-scroll-root="true"]');
   if (!scrollRoot) {
     return;
@@ -19,16 +19,19 @@ export function scrollSidebarItemIntoView(path: string) {
   }
 
   target.scrollIntoView({
-    block: 'center',
+    block,
     behavior: 'smooth',
   });
 }
 
-
-export function scheduleSidebarItemIntoView(path: string, frameCount: number = 1) {
+export function scheduleSidebarItemIntoView(
+  path: string,
+  frameCount: number = 1,
+  block: ScrollLogicalPosition = 'center'
+) {
   const run = (remainingFrames: number) => {
     if (remainingFrames <= 0) {
-      scrollSidebarItemIntoView(path);
+      scrollSidebarItemIntoView(path, block);
       return;
     }
 
