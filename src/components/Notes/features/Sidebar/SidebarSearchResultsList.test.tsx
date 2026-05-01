@@ -152,4 +152,19 @@ describe('SidebarSearchResultsList', () => {
 
     expect(screen.getByText('Searching note contents...')).toBeInTheDocument();
   });
+
+  it('shows an empty result message after content scanning finishes', () => {
+    render(
+      <SidebarSearchResultsList
+        results={[]}
+        query="missing"
+        currentNotePath={null}
+        onOpen={() => {}}
+        scrollRootRef={createRef<HTMLDivElement>()}
+        isContentScanPending={false}
+      />,
+    );
+
+    expect(screen.getByText('No results')).toBeInTheDocument();
+  });
 });

@@ -2,14 +2,16 @@ import type { ReactNode } from 'react';
 import { fireEvent, render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SidebarContent } from './SidebarContent';
+import type { NotesSidebarSearchEntry } from './notesSidebarSearchResults';
 
 const hoisted = vi.hoisted(() => ({
   applySidebarSearchNavigation: vi.fn(() => Promise.resolve(false)),
-  buildNotesSidebarSearchIndex: vi.fn(() => []),
+  buildNotesSidebarSearchIndex: vi.fn<() => NotesSidebarSearchEntry[]>(() => []),
   clearSidebarSearchHighlights: vi.fn(),
   clearSidebarSearchNavigationPending: vi.fn(),
   countNotesSidebarSearchEntries: vi.fn(() => 0),
   markSidebarSearchNavigationPending: vi.fn(),
+  noteContentsCache: new Map<string, { content: string; modifiedAt: number | null }>(),
   queryNotesSidebarSearch: vi.fn(() => []),
   revealFolder: vi.fn(),
   scheduleSidebarItemIntoView: vi.fn(),
@@ -22,7 +24,7 @@ vi.mock('@/stores/useNotesStore', () => ({
   useNotesStore: (selector: (state: any) => unknown) => selector({
     openNote: vi.fn(() => Promise.resolve()),
     getDisplayName: vi.fn((path: string) => path),
-    noteContentsCache: new Map(),
+    noteContentsCache: hoisted.noteContentsCache,
     revealFolder: hoisted.revealFolder,
     scanAllNotes: hoisted.scanAllNotes,
     starredEntries: [],
@@ -114,10 +116,20 @@ const createSearchState = (overrides: Partial<Parameters<typeof SidebarContent>[
   ...overrides,
 });
 
+const createSearchEntries = (): NotesSidebarSearchEntry[] => [
+  { path: 'docs/alpha.md', name: 'alpha', preview: 'docs/' },
+  { path: 'docs/beta.md', name: 'beta', preview: 'docs/' },
+];
+
 describe('SidebarContent search highlight cleanup', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hoisted.shouldShowSearchResults = false;
+    hoisted.buildNotesSidebarSearchIndex.mockReturnValue([]);
+    hoisted.countNotesSidebarSearchEntries.mockReturnValue(0);
+    hoisted.noteContentsCache = new Map();
+    hoisted.scanAllNotes.mockResolvedValue(undefined);
+    hoisted.shouldSearchNotesSidebarContents.mockReturnValue(false);
   });
 
   it('clears editor highlights when sidebar search is closed', () => {
@@ -236,5 +248,54 @@ describe('SidebarContent search highlight cleanup', () => {
 
     expect(openHandler).toHaveBeenCalledTimes(1);
     window.removeEventListener('vlaina-open-markdown-file', openHandler);
+  });
+
+  it('scans note contents when cached entries do not cover the current file tree', () => {
+    hoisted.shouldShowSearchResults = true;
+    hoisted.shouldSearchNotesSidebarContents.mockReturnValue(true);
+    hoisted.scanAllNotes.mockReturnValue(new Promise<void>(() => {}));
+    hoisted.countNotesSidebarSearchEntries.mockReturnValue(2);
+    hoisted.buildNotesSidebarSearchIndex.mockReturnValue(createSearchEntries());
+    hoisted.noteContentsCache = new Map([
+      ['other/one.md', { content: 'cached', modifiedAt: 1 }],
+      ['other/two.md', { content: 'cached', modifiedAt: 1 }],
+    ]);
+
+    render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="docs/alpha.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: true, searchQuery: 'alpha' })}
+      />,
+    );
+
+    expect(hoisted.scanAllNotes).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not rescan note contents when every current search entry is cached', () => {
+    hoisted.shouldShowSearchResults = true;
+    hoisted.shouldSearchNotesSidebarContents.mockReturnValue(true);
+    hoisted.countNotesSidebarSearchEntries.mockReturnValue(2);
+    hoisted.buildNotesSidebarSearchIndex.mockReturnValue(createSearchEntries());
+    hoisted.noteContentsCache = new Map([
+      ['docs/alpha.md', { content: 'alpha body', modifiedAt: 1 }],
+      ['docs/beta.md', { content: 'beta body', modifiedAt: 1 }],
+    ]);
+
+    render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="docs/alpha.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: true, searchQuery: 'alpha' })}
+      />,
+    );
+
+    expect(hoisted.scanAllNotes).not.toHaveBeenCalled();
   });
 });
