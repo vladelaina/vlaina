@@ -3,6 +3,7 @@ import { Icon } from '@/components/ui/icons';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
+import { SidebarRowActionButton } from '@/components/layout/sidebar/SidebarRow';
 import { type FolderNode } from '@/stores/useNotesStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { getSidebarTextClass } from '@/components/layout/sidebar/sidebarLabelStyles';
@@ -215,12 +216,10 @@ export function RootFolderRow({
           )
         }
         actions={
-          <button
+          <SidebarRowActionButton
             ref={menuButtonRef}
-            type="button"
             aria-label="Open root folder menu"
-            onClick={(event) => {
-              event.stopPropagation();
+            onClick={() => {
               handleMenuOpen();
             }}
             className={cn(
@@ -232,7 +231,7 @@ export function RootFolderRow({
             )}
           >
             <Icon name="common.more" size="md" />
-          </button>
+          </SidebarRowActionButton>
         }
       />
 
