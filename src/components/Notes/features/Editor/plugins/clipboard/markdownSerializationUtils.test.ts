@@ -38,8 +38,77 @@ describe('normalizeSerializedMarkdownBlock', () => {
 
 describe('normalizeSerializedMarkdownDocument', () => {
   it('converts standalone br lines into markdown blank lines', () => {
-    expect(normalizeSerializedMarkdownDocument('1\n<br />\n2\n')).toBe('1\n\n2\n');
-    expect(normalizeSerializedMarkdownDocument('<br />')).toBe('');
+    expect(
+      normalizeSerializedMarkdownDocument('1\n<br data-vlaina-empty-line="true" />\n2\n')
+    ).toBe('1\n\n2\n');
+    expect(normalizeSerializedMarkdownDocument('<br data-vlaina-empty-line="true" />')).toBe('');
+  });
+
+  it('keeps user-authored standalone br tags', () => {
+    expect(normalizeSerializedMarkdownDocument('1\n<br />\n2\n')).toBe('1\n<br />\n2\n');
+    expect(normalizeSerializedMarkdownDocument('<br />')).toBe('<br />');
+    expect(normalizeSerializedMarkdownDocument('> <br />')).toBe('> <br />');
+    expect(
+      normalizeSerializedMarkdownDocument('<br data-vlaina-blockquote-depth="2" data-vlaina-user-br="true" />')
+    ).toBe('> > <br />');
+  });
+
+  it('does not rewrite user text that resembles internal sentinels', () => {
+    expect(normalizeSerializedMarkdownDocument('VLAINA_LIST_GAP_SENTINEL')).toBe(
+      'VLAINA_LIST_GAP_SENTINEL'
+    );
+  });
+
+  it('does not rewrite placeholder-like text inside fenced code', () => {
+    const markdown = [
+      '```md',
+      '<br data-vlaina-empty-line="true" />',
+      '- [ ] <br />',
+      '- one',
+      '',
+      '- two',
+      '```',
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
+  it('does not rewrite placeholder-like text inside raw html blocks', () => {
+    const markdown = ['<pre>', '<br data-vlaina-empty-line="true" />', '</pre>'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
+  it('does not rewrite placeholder-like text inside blockquote fenced code', () => {
+    const markdown = [
+      '> ```md',
+      '> <br data-vlaina-empty-line="true" />',
+      '> - [ ] <br />',
+      '> ```',
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
+  it('does not rewrite placeholder-like text inside blockquote raw html blocks', () => {
+    const markdown = [
+      '> <pre>',
+      '> <br data-vlaina-empty-line="true" />',
+      '> </pre>',
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
+  it('does not rewrite placeholder-like text inside nested blockquote protected blocks', () => {
+    const markdown = [
+      '> > ```md',
+      '> > <br data-vlaina-empty-line="true" />',
+      '> > - [ ] <br />',
+      '> > ```',
+    ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });
 
   it('removes placeholder br tags from persisted empty task items and table cells', () => {
@@ -53,6 +122,18 @@ describe('normalizeSerializedMarkdownDocument', () => {
 describe('normalizeSerializedMarkdownSelection', () => {
   it('converts standalone br tags to single newline', () => {
     expect(normalizeSerializedMarkdownSelection('<br />')).toBe('\n');
+  });
+
+  it('converts marked standalone br placeholders to single newline', () => {
+    expect(normalizeSerializedMarkdownSelection('<br data-vlaina-empty-line="true" />')).toBe('\n');
+  });
+
+  it('keeps blockquote user br placeholders when normalizing selections', () => {
+    expect(
+      normalizeSerializedMarkdownSelection(
+        '<br data-vlaina-blockquote-depth="2" data-vlaina-user-br="true" />'
+      )
+    ).toBe('> > <br />');
   });
 
   it('removes placeholder br tags from copied empty task items', () => {
@@ -87,5 +168,6 @@ describe('joinSerializedBlocks', () => {
 
   it('keeps adjacent list items tightly joined', () => {
     expect(joinSerializedBlocks(['- first', '- second'])).toBe('- first\n- second');
+    expect(joinSerializedBlocks(['1) first', '2) second'])).toBe('1) first\n2) second');
   });
 });

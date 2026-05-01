@@ -46,7 +46,10 @@ import {
 import { hasTemporaryTailParagraph } from './plugins/cursor/endBlankClickPlugin';
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
 import { useNoteEditorFind } from './find';
-import { normalizeSerializedMarkdownDocument } from './plugins/clipboard/markdownSerializationUtils';
+import {
+  normalizeSerializedMarkdownDocument,
+  preserveMarkdownBlankLinesForEditor,
+} from './plugins/clipboard/markdownSerializationUtils';
 import { EditorTopRightToolbar } from './EditorTopRightToolbar';
 import {
   getSidebarSearchNavigationPendingPath,
@@ -86,7 +89,9 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
     Editor.make()
       .config((ctx) => {
         ctx.set(rootCtx, root);
-        ctx.set(defaultValueCtx, normalizeLeadingFrontmatterMarkdown(initialContent));
+        ctx.set(defaultValueCtx, preserveMarkdownBlankLinesForEditor(
+          normalizeLeadingFrontmatterMarkdown(initialContent)
+        ));
         ctx.update(remarkStringifyOptionsCtx, (prev) => ({
           ...prev,
           ...notesRemarkStringifyOptions,
