@@ -6,7 +6,13 @@ import {
   registerExternalSyncWatcher,
   subscribeExternalSyncPause,
 } from '@/stores/notes/document/externalSyncControl';
+import {
+  getNotesExternalPathEventsRelativePath,
+  readNotesExternalPathEvents,
+  subscribeNotesExternalPathRename,
+} from '@/stores/notes/document/externalPathBroadcast';
 import { type PendingRenameEntry } from './notesExternalRenameQueue';
+import { toVaultRelativePath } from './notesExternalSyncUtils';
 import {
   getExternalWatchErrorMessage,
   isExternalWatchUnavailableError,
@@ -32,6 +38,7 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
   const pendingRenameTimerRef = useRef<number | null>(null);
   const pendingRenamesRef = useRef<PendingRenameEntry[]>([]);
   const pendingCreatesRef = useRef<PendingCreateEntry[]>([]);
+  const processedRenameEventNoncesRef = useRef<Set<string>>(new Set());
   const reconcileInFlightRef = useRef(false);
 
   useEffect(() => {
@@ -43,6 +50,13 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
     let unwatch: (() => Promise<void>) | null = null;
     let releaseWatcher: (() => void) | null = null;
     let reconcilePollTimer: number | null = null;
+    const eventFileStartedAt = Date.now();
+    const unsubscribeRenameBroadcast = subscribeNotesExternalPathRename(
+      notesPath,
+      (event) => {
+        void applyRenameEvent(event);
+      }
+    );
 
     const syncActions = createNotesExternalSyncActions({
       notesPath,
@@ -57,6 +71,32 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
       pendingCreatesRef,
       reconcileInFlightRef,
     });
+
+    async function applyRenameEvent(event: { nonce?: string; oldPath: string; newPath: string }) {
+      if (event.nonce) {
+        if (processedRenameEventNoncesRef.current.has(event.nonce)) {
+          return;
+        }
+        processedRenameEventNoncesRef.current.add(event.nonce);
+      }
+
+      await applyExternalPathRename(event.oldPath, event.newPath);
+      await loadFileTree(true);
+    }
+
+    const reconcileExternalPathEventFile = async () => {
+      const events = await readNotesExternalPathEvents(notesPath, {
+        afterStamp: eventFileStartedAt,
+      });
+      for (const event of events) {
+        await applyRenameEvent(event);
+      }
+    };
+
+    const isExternalPathEventFileWatchEvent = (paths: string[]) => {
+      const eventRelativePath = getNotesExternalPathEventsRelativePath();
+      return paths.some((path) => toVaultRelativePath(notesPath, path) === eventRelativePath);
+    };
 
     const stopReconcilePolling = () => {
       if (reconcilePollTimer !== null) {
@@ -95,6 +135,11 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
           notesPath,
           async (event) => {
             if (disposed) {
+              return;
+            }
+
+            if (isExternalPathEventFileWatchEvent(event.paths)) {
+              await reconcileExternalPathEventFile();
               return;
             }
 
@@ -140,6 +185,7 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
       window.removeEventListener('focus', reconcileOnFocus);
       document.removeEventListener('visibilitychange', reconcileOnVisibilityChange);
       stopReconcilePolling();
+      unsubscribeRenameBroadcast();
       syncActions.clearTimers();
       void unwatch?.();
       releaseWatcher?.();

@@ -14,6 +14,7 @@ import { resolveUniqueRenamedPath } from '../utils/fs/pathOperations';
 import { moveItemImpl, renameNoteImpl } from '../utils/fs/renameOperations';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { markExpectedExternalChange } from '../document/externalChangeRegistry';
+import { emitNotesExternalPathRename } from '../document/externalPathBroadcast';
 import { remapMetadataEntries } from '../storage';
 import {
   getVaultStarredPaths,
@@ -131,6 +132,7 @@ export function createFileSystemRenameActions(
         markExpectedExternalChange(path);
         markExpectedExternalChange(newPath);
         await storage.rename(path, newPath);
+        emitNotesExternalPathRename({ notesPath: parentPath, oldPath: path, newPath });
 
         let starredChanged = false;
         const normalizedOldPath = path.replace(/\\/g, '/');
@@ -218,6 +220,7 @@ export function createFileSystemRenameActions(
         markExpectedExternalChange(fullPath, true);
         markExpectedExternalChange(newFullPath, true);
         await storage.rename(fullPath, newFullPath);
+        emitNotesExternalPathRename({ notesPath, oldPath: path, newPath });
 
         const result = await processFolderRename(notesPath, path, fileName, {
           rootFolder,

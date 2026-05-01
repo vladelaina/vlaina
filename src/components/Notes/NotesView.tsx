@@ -12,6 +12,7 @@ import { useModuleShortcutsDialog } from '@/hooks/useModuleShortcutsDialog';
 import { useCurrentVaultExternalPathSync } from './hooks/useCurrentVaultExternalPathSync';
 import { useCurrentVaultInitialization } from './hooks/useCurrentVaultInitialization';
 import { useNotesChatComposerFocus } from './hooks/useNotesChatComposerFocus';
+import { useAbsoluteNoteExternalRenameSync } from './hooks/useAbsoluteNoteExternalRenameSync';
 import { useNotesExternalSync } from './hooks/useNotesExternalSync';
 import { useNotesOpenMarkdownTarget } from './hooks/useNotesOpenMarkdownTarget';
 import { openStoredNotePath } from '@/stores/notes/openNotePath';
@@ -91,6 +92,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
   useModuleShortcutsDialog({ enabled: active, onToggle: toggleShortcutsDialog });
   useCurrentVaultExternalPathSync(currentVault?.path ?? null);
   useNotesExternalSync(currentVault?.path ?? null, notesPath);
+  useAbsoluteNoteExternalRenameSync(currentNotePath);
   useCurrentVaultInitialization({
     currentVaultPath: currentVault?.path ?? null,
     launchNotePath: launchContextRef.current.notePath,

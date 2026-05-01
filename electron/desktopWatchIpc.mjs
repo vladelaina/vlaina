@@ -27,6 +27,18 @@ function getWatcherGroupKey(watchPath, options) {
   return JSON.stringify([watchPath, options.recursive]);
 }
 
+function isPathCoveredByWatchPath(watchPath, watchedPath, recursive) {
+  if (watchedPath === watchPath) {
+    return true;
+  }
+
+  if (recursive) {
+    return watchedPath.startsWith(`${watchPath}${path.sep}`);
+  }
+
+  return path.dirname(watchedPath) === watchPath;
+}
+
 function closeWatcherGroup(groupKey) {
   const group = watcherGroups.get(groupKey);
   if (!group) {
@@ -52,6 +64,8 @@ function sendWatchPayloadToSubscribers(group, payload) {
 function createWatcherGroup(groupKey, resolvedWatchPath, options) {
   const group = {
     listener: null,
+    resolvedWatchPath,
+    options,
     subscribers: new Map(),
   };
 
@@ -77,6 +91,28 @@ function createWatcherGroup(groupKey, resolvedWatchPath, options) {
   group.listener = listener;
   watcherGroups.set(groupKey, group);
   return group;
+}
+
+export function notifyDesktopWatchRename(oldPath, newPath) {
+  const payload = {
+    type: { modify: { kind: 'rename', mode: 'both' } },
+    paths: [oldPath, newPath],
+  };
+
+  for (const [groupKey, group] of watcherGroups) {
+    const coversRename =
+      isPathCoveredByWatchPath(group.resolvedWatchPath, oldPath, group.options.recursive) ||
+      isPathCoveredByWatchPath(group.resolvedWatchPath, newPath, group.options.recursive);
+
+    if (!coversRename) {
+      continue;
+    }
+
+    sendWatchPayloadToSubscribers(group, payload);
+    if (group.subscribers.size === 0) {
+      closeWatcherGroup(groupKey);
+    }
+  }
 }
 
 export async function createDesktopWatchPayload(eventType, resolvedPath, statPath = stat) {
@@ -138,4 +174,4 @@ export function registerDesktopWatchIpc({
   });
 }
 
-export { normalizeDesktopWatchOptions };
+export { isPathCoveredByWatchPath, normalizeDesktopWatchOptions };

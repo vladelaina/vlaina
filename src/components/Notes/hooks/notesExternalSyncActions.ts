@@ -161,17 +161,27 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
     pendingCreatesRef.current = createQueue;
     schedulePendingRenameFlush();
 
-    if (expiredCreates.length > 0) {
-      await handleRelevantPaths(expiredCreates, false);
+    if (expiredPaths.length === 0 && expiredCreates.length === 0) {
+      return false;
+    }
+
+    if (await reconcileExternalTree()) {
+      return true;
     }
 
     for (const expiredPath of expiredPaths) {
       await applyExternalDeletion(expiredPath);
     }
 
+    if (expiredCreates.length > 0) {
+      await handleRelevantPaths(expiredCreates, false);
+    }
+
     if (expiredPaths.length > 0) {
       scheduleFileTreeReload();
     }
+
+    return expiredPaths.length > 0 || expiredCreates.length > 0;
   };
 
   const handleRelevantPaths = async (relativePaths: string[], isRemoveEvent: boolean) => {
@@ -285,7 +295,10 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
 
     reconcileInFlightRef.current = true;
     try {
-      await flushPendingRenameDeletions();
+      const hadPendingChanges = await flushPendingRenameDeletions();
+      if (hadPendingChanges) {
+        return;
+      }
       const hadTreeChanges = await reconcileExternalTree();
       if (!hadTreeChanges) {
         await reconcileCurrentNote();

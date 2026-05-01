@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   createDesktopWatchPayload,
+  isPathCoveredByWatchPath,
   normalizeDesktopWatchOptions,
 } from '../../electron/desktopWatchIpc.mjs';
 
@@ -54,5 +55,12 @@ describe('desktop watch ipc payload mapping', () => {
       type: { remove: { kind: 'any' } },
       paths: ['/vault/old.md'],
     });
+  });
+
+  it('matches synthetic rename notifications to recursive and direct child watchers', () => {
+    expect(isPathCoveredByWatchPath('/vault', '/vault/docs/a.md', true)).toBe(true);
+    expect(isPathCoveredByWatchPath('/vault', '/vault/docs/a.md', false)).toBe(false);
+    expect(isPathCoveredByWatchPath('/vault/docs', '/vault/docs/a.md', false)).toBe(true);
+    expect(isPathCoveredByWatchPath('/vault/docs', '/vault/other/a.md', true)).toBe(false);
   });
 });

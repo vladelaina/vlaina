@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useNotesExternalSync } from './useNotesExternalSync';
+import { detectExternalTreePathChanges } from './notesExternalPollingUtils';
 
 type WatchEvent = {
   type: unknown;
@@ -28,6 +29,15 @@ const hoisted = vi.hoisted(() => {
       hoisted.watchHandler = handler;
       return hoisted.unwatch;
     }),
+    renameBroadcastHandler: null as ((event: { nonce: string; oldPath: string; newPath: string }) => void) | null,
+    unsubscribeRenameBroadcast: vi.fn(),
+    subscribeNotesExternalPathRename: vi.fn(
+      (_notesPath: string, handler: (event: { nonce: string; oldPath: string; newPath: string }) => void) => {
+        hoisted.renameBroadcastHandler = handler;
+        return hoisted.unsubscribeRenameBroadcast;
+      }
+    ),
+    readNotesExternalPathEvents: vi.fn(async () => [] as Array<{ nonce: string; oldPath: string; newPath: string }>),
   };
 });
 
@@ -58,6 +68,12 @@ vi.mock('@/stores/notes/document/externalSyncControl', () => ({
   registerExternalSyncWatcher: vi.fn(() => hoisted.releaseWatcher),
 }));
 
+vi.mock('@/stores/notes/document/externalPathBroadcast', () => ({
+  getNotesExternalPathEventsRelativePath: () => '.vlaina/store/external-path-events.json',
+  readNotesExternalPathEvents: hoisted.readNotesExternalPathEvents,
+  subscribeNotesExternalPathRename: hoisted.subscribeNotesExternalPathRename,
+}));
+
 vi.mock('./notesExternalPollingUtils', () => ({
   buildExternalTreeSnapshot: vi.fn(async () => []),
   detectExternalTreePathChanges: vi.fn(() => ({
@@ -77,6 +93,7 @@ describe('useNotesExternalSync', () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     hoisted.watchHandler = null;
+    hoisted.renameBroadcastHandler = null;
     hoisted.notesState.currentNote = { path: 'docs/current.md' };
   });
 
@@ -219,6 +236,78 @@ describe('useNotesExternalSync', () => {
 
     expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
     expect(hoisted.notesState.invalidateNoteCache).toHaveBeenCalledWith('docs/new.md');
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+  });
+
+  it('reconciles a single create event as a rename when the tree diff matches one', async () => {
+    vi.mocked(detectExternalTreePathChanges).mockReturnValueOnce({
+      hasChanges: true,
+      renames: [{ oldPath: 'docs/alpha.md', newPath: 'docs/beta.md' }],
+      deletions: [],
+      hasAdditions: false,
+    });
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { create: { kind: 'file' } },
+        paths: ['/vault/docs/beta.md'],
+      });
+      await vi.advanceTimersByTimeAsync(181);
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith('docs/alpha.md', 'docs/beta.md');
+    expect(hoisted.notesState.applyExternalPathDeletion).not.toHaveBeenCalled();
+    expect(hoisted.notesState.loadFileTree).not.toHaveBeenCalled();
+
+    hook.unmount();
+  });
+
+  it('applies semantic rename broadcasts from another window', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      hoisted.renameBroadcastHandler?.({
+        nonce: 'rename-event-1',
+        oldPath: 'docs/alpha.md',
+        newPath: 'docs/beta.md',
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(hoisted.subscribeNotesExternalPathRename).toHaveBeenCalledWith('/vault', expect.any(Function));
+    expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith('docs/alpha.md', 'docs/beta.md');
+    expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
+
+    hook.unmount();
+    expect(hoisted.unsubscribeRenameBroadcast).toHaveBeenCalled();
+  });
+
+  it('applies rename events written to the vault event file', async () => {
+    hoisted.readNotesExternalPathEvents.mockResolvedValueOnce([
+      {
+        nonce: 'rename-file-event-1',
+        oldPath: 'docs/alpha.md',
+        newPath: 'docs/beta.md',
+      },
+    ]);
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: { modify: { kind: 'data', mode: 'any' } },
+        paths: ['/vault/.vlaina/store/external-path-events.json'],
+      });
+      await Promise.resolve();
+    });
+
+    expect(hoisted.readNotesExternalPathEvents).toHaveBeenCalledWith('/vault', {
+      afterStamp: expect.any(Number),
+    });
+    expect(hoisted.notesState.applyExternalPathRename).toHaveBeenCalledWith('docs/alpha.md', 'docs/beta.md');
     expect(hoisted.notesState.loadFileTree).toHaveBeenCalledWith(true);
 
     hook.unmount();
