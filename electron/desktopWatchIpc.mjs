@@ -27,16 +27,36 @@ function getWatcherGroupKey(watchPath, options) {
   return JSON.stringify([watchPath, options.recursive]);
 }
 
+function normalizeWatchComparisonPath(value) {
+  const normalized = value.replace(/\\/g, '/');
+  if (normalized === '/') {
+    return normalized;
+  }
+  return normalized.replace(/\/+$/, '');
+}
+
+function getWatchComparisonParentPath(value) {
+  const normalized = normalizeWatchComparisonPath(value);
+  const index = normalized.lastIndexOf('/');
+  if (index <= 0) {
+    return '';
+  }
+  return normalized.slice(0, index);
+}
+
 function isPathCoveredByWatchPath(watchPath, watchedPath, recursive) {
-  if (watchedPath === watchPath) {
+  const normalizedWatchPath = normalizeWatchComparisonPath(watchPath);
+  const normalizedWatchedPath = normalizeWatchComparisonPath(watchedPath);
+
+  if (normalizedWatchedPath === normalizedWatchPath) {
     return true;
   }
 
   if (recursive) {
-    return watchedPath.startsWith(`${watchPath}${path.sep}`);
+    return normalizedWatchedPath.startsWith(`${normalizedWatchPath}/`);
   }
 
-  return path.dirname(watchedPath) === watchPath;
+  return getWatchComparisonParentPath(normalizedWatchedPath) === normalizedWatchPath;
 }
 
 function closeWatcherGroup(groupKey) {
