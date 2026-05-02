@@ -1,5 +1,8 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { getSerializedSelectionText } from './selectionCommands';
+import {
+  getSerializedSelectionContext,
+  getSerializedSelectionText,
+} from './selectionCommands';
 import type { AiSelectionSuggestion, AiSelectionSuggestionResult } from './selectionCommandTypes';
 import type { AiReviewState } from '../types';
 
@@ -13,6 +16,14 @@ export function createAiReviewState(
   commandId: string,
   toneId: string
 ): AiReviewState {
+  const originalText = getSerializedSelectionText(view);
+  const context = getSerializedSelectionContext(
+    view,
+    view.state.selection.from,
+    view.state.selection.to,
+    originalText
+  );
+
   return {
     requestKey: createReviewRequestKey(),
     instruction: prompt,
@@ -20,7 +31,9 @@ export function createAiReviewState(
     toneId: toneId || null,
     from: view.state.selection.from,
     to: view.state.selection.to,
-    originalText: getSerializedSelectionText(view),
+    originalText,
+    beforeContext: context.beforeContext,
+    afterContext: context.afterContext,
     suggestedText: '',
     isLoading: true,
     errorMessage: null,
@@ -31,7 +44,9 @@ export function createEmptyAiReviewState(
   requestKey: string,
   from: number,
   to: number,
-  originalText: string
+  originalText: string,
+  beforeContext = '',
+  afterContext = ''
 ): AiReviewState {
   return {
     requestKey,
@@ -41,6 +56,8 @@ export function createEmptyAiReviewState(
     from,
     to,
     originalText,
+    beforeContext,
+    afterContext,
     suggestedText: '',
     isLoading: false,
     errorMessage: null,

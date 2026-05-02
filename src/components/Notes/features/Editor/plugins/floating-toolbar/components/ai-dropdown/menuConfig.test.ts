@@ -13,10 +13,20 @@ describe('ai dropdown menu config', () => {
     const sidebar = groups.find((group) => group.id === 'sidebar');
 
     expect(groups.map((group) => group.id)).toEqual(['actions', 'tone', 'translate', 'sidebar']);
-    expect(groups.find((group) => group.id === 'actions')?.items.map((item) => item.id)).toContain('clarify');
-    expect(groups.find((group) => group.id === 'actions')?.items.map((item) => item.id)).toContain('simplify');
-    expect(groups.find((group) => group.id === 'tone')?.items.map((item) => item.id)).toContain('tone-empathetic');
-    expect(groups.find((group) => group.id === 'tone')?.items.map((item) => item.id)).toContain('tone-persuasive');
+    expect(groups.find((group) => group.id === 'actions')?.items.slice(0, 5).map((item) => item.id)).toEqual([
+      'polish',
+      'rewrite',
+      'fix-grammar',
+      'simplify',
+      'clarify',
+    ]);
+    expect(groups.find((group) => group.id === 'tone')?.items.slice(0, 5).map((item) => item.id)).toEqual([
+      'tone-context-fit',
+      'tone-professional',
+      'tone-clear',
+      'tone-friendly',
+      'tone-casual',
+    ]);
     expect(translate?.items.slice(0, 5).map((item) => item.id)).toEqual([
       'translate-en',
       'translate-zh-hans',
@@ -43,7 +53,7 @@ describe('ai dropdown menu config', () => {
       'clarify',
       'rewrite',
       'polish',
-      'simplify',
+      'fix-grammar',
     ]);
   });
 
@@ -60,7 +70,7 @@ describe('ai dropdown menu config', () => {
     expect(tone?.items.slice(0, 3).map((item) => item.id)).toEqual([
       'tone-empathetic',
       'tone-friendly',
-      'tone-professional',
+      'tone-context-fit',
     ]);
     expect(translate?.items[0]?.id).toBe('translate-en');
   });
