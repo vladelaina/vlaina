@@ -16,11 +16,9 @@ import {
   type PendingRenameEntry,
 } from './notesExternalRenameQueue';
 import {
-  findRenamedVaultPathBySignature,
   getVaultExternalWatchPaths,
   isDirectChildPath,
   looksLikeVaultRoot,
-  readVaultConfigSignature,
 } from './currentVaultExternalPathSyncUtils';
 import {
   getExternalWatchErrorMessage,
@@ -34,7 +32,6 @@ import {
 } from './notesExternalSyncUtils';
 
 const ROOT_PENDING_RENAME_TTL_MS = 500;
-const ROOT_RECONCILE_POLL_MS = 1500;
 
 export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
   const isPaused = useSyncExternalStore(
@@ -45,7 +42,6 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
   const syncCurrentVaultExternalPath = useVaultStore((state) => state.syncCurrentVaultExternalPath);
   const pendingRenameTimerRef = useRef<number | null>(null);
   const pendingRenamesRef = useRef<PendingRenameEntry[]>([]);
-  const reconcileInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!vaultPath || isPaused) {
@@ -61,8 +57,6 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
     let disposed = false;
     let unwatch: (() => Promise<void>) | null = null;
     let releaseWatcher: (() => void) | null = null;
-    let reconcilePollTimer: number | null = null;
-    let vaultSignature: string | null = null;
 
     const schedulePendingRenameFlush = () => {
       if (pendingRenameTimerRef.current !== null) {
@@ -110,66 +104,9 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
       return true;
     };
 
-    const reconcileMissingVaultPath = async () => {
-      const matchedPath = await findRenamedVaultPathBySignature(
-        watchParentPath,
-        vaultPath,
-        vaultSignature
-      );
-      if (!matchedPath) {
-        return false;
-      }
-      syncCurrentVaultExternalPath(normalizeFsPath(matchedPath));
-      return true;
-    };
-
-    const runReconcile = async () => {
-      if (reconcileInFlightRef.current) {
-        return false;
-      }
-
-      reconcileInFlightRef.current = true;
-      try {
-        return await reconcileMissingVaultPath();
-      } finally {
-        reconcileInFlightRef.current = false;
-      }
-    };
-
-    const stopReconcilePolling = () => {
-      if (reconcilePollTimer !== null) {
-        window.clearInterval(reconcilePollTimer);
-        reconcilePollTimer = null;
-      }
-    };
-
-    const startReconcilePolling = () => {
-      if (reconcilePollTimer !== null) {
-        return;
-      }
-
-      reconcilePollTimer = window.setInterval(() => {
-        if (document.visibilityState !== 'visible') {
-          return;
-        }
-        void runReconcile();
-      }, ROOT_RECONCILE_POLL_MS);
-    };
-
-    const reconcileOnFocus = () => {
-      void runReconcile();
-    };
-
-    const reconcileOnVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        void runReconcile();
-      }
-    };
-
     const run = async () => {
       try {
         await ensureVaultConfig(vaultPath);
-        vaultSignature = await readVaultConfigSignature(vaultPath);
         const stopWatching = await watchDesktopPath(
           watchParentPath,
           async (event) => {
@@ -203,7 +140,6 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
                 if (await applyMatchedVaultRename(newPath)) {
                   return;
                 }
-                await reconcileMissingVaultPath();
                 return;
               }
 
@@ -223,7 +159,6 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
                   if (await applyMatchedVaultRename(newPath)) {
                     return;
                   }
-                  await reconcileMissingVaultPath();
                 }
               }
 
@@ -253,7 +188,6 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
                 return;
               }
             }
-            await reconcileMissingVaultPath();
           },
           { recursive: false }
         );
@@ -267,7 +201,6 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
       } catch (error) {
         if (!disposed) {
           if (isExternalWatchUnavailableError(error)) {
-            startReconcilePolling();
             return;
           }
           console.error(
@@ -279,14 +212,9 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
     };
 
     void run();
-    window.addEventListener('focus', reconcileOnFocus);
-    document.addEventListener('visibilitychange', reconcileOnVisibilityChange);
 
     return () => {
       disposed = true;
-      window.removeEventListener('focus', reconcileOnFocus);
-      document.removeEventListener('visibilitychange', reconcileOnVisibilityChange);
-      stopReconcilePolling();
       if (pendingRenameTimerRef.current !== null) {
         window.clearTimeout(pendingRenameTimerRef.current);
         pendingRenameTimerRef.current = null;

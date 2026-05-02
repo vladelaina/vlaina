@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createEmptyMetadataFile,
   loadNoteMetadata,
+  saveWorkspaceState,
   setNoteEntry,
 } from './storage';
 import type { MetadataFile } from './types';
@@ -11,6 +12,7 @@ const adapter = {
   readFile: vi.fn<(path: string) => Promise<string>>(),
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
   mkdir: vi.fn<(path: string, recursive?: boolean) => Promise<void>>(),
+  getBasePath: vi.fn<() => Promise<string>>(),
   listDir: vi.fn<
     (path: string) => Promise<Array<{ name: string; isDirectory?: boolean; isFile?: boolean }>>
   >(),
@@ -25,6 +27,7 @@ describe('notes metadata storage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     adapter.exists.mockResolvedValue(false);
+    adapter.getBasePath.mockResolvedValue('/app');
   });
 
   it('scans markdown frontmatter into the runtime metadata index', async () => {
@@ -100,6 +103,27 @@ describe('notes metadata storage', () => {
       version: 2,
       notes: {},
     });
+  });
+
+  it('stores workspace state in the system config folder instead of the vault folder', async () => {
+    await saveWorkspaceState('/vault-a', {
+      currentNotePath: 'alpha.md',
+      expandedFolders: ['docs'],
+      fileTreeSortMode: 'updated-desc',
+    });
+
+    expect(adapter.mkdir).toHaveBeenCalledWith(
+      '/app/.vlaina/store/notes/vaults/vault-1dwgd8k',
+      true
+    );
+    expect(adapter.writeFile).toHaveBeenCalledWith(
+      '/app/.vlaina/store/notes/vaults/vault-1dwgd8k/workspace.json',
+      JSON.stringify({
+        currentNotePath: 'alpha.md',
+        expandedFolders: ['docs'],
+        fileTreeSortMode: 'updated-desc',
+      }, null, 2)
+    );
   });
 
   it('drops empty cover payloads when updating metadata', () => {

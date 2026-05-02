@@ -69,7 +69,7 @@ vi.mock('@/stores/notes/document/externalSyncControl', () => ({
 }));
 
 vi.mock('@/stores/notes/document/externalPathBroadcast', () => ({
-  getNotesExternalPathEventsRelativePath: () => '.vlaina/store/external-path-events.json',
+  getNotesExternalPathEventsRelativePath: () => '__vlaina_system__/external-path-events.json',
   readNotesExternalPathEvents: hoisted.readNotesExternalPathEvents,
   subscribeNotesExternalPathRename: hoisted.subscribeNotesExternalPathRename,
 }));
@@ -299,7 +299,7 @@ describe('useNotesExternalSync', () => {
     await act(async () => {
       await hoisted.watchHandler?.({
         type: { modify: { kind: 'data', mode: 'any' } },
-        paths: ['/vault/.vlaina/store/external-path-events.json'],
+        paths: ['/vault/__vlaina_system__/external-path-events.json'],
       });
       await Promise.resolve();
     });

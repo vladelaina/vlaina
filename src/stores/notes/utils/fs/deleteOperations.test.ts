@@ -56,7 +56,7 @@ describe('deleteOperations', () => {
       kind: 'file',
       originalPath: 'docs/remove.md',
       originalFullPath: '/vault/docs/remove.md',
-      trashPath: '/vault/.vlaina/trash/delete-1/remove.md',
+      trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/remove.md',
       deletedAt: 1,
     });
   });

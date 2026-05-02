@@ -32,7 +32,6 @@ vi.mock('@/stores/notes/document/externalChangeRegistry', () => ({
 }));
 
 vi.mock('./currentVaultExternalPathSyncUtils', () => ({
-  findRenamedVaultPathBySignature: vi.fn(async () => null),
   getVaultExternalWatchPaths: vi.fn(() => ({
     normalizedVaultPath: '/home/user/vault',
     normalizedParentPath: '/home/user',
@@ -40,7 +39,6 @@ vi.mock('./currentVaultExternalPathSyncUtils', () => ({
   })),
   isDirectChildPath: vi.fn(() => true),
   looksLikeVaultRoot: vi.fn(async () => true),
-  readVaultConfigSignature: vi.fn(async () => 'signature'),
 }));
 
 vi.mock('./notesExternalSyncUtils', () => ({

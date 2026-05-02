@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { normalizeStarredVaultPath, saveStarredRegistry } from '@/stores/notes/starred';
+import { moveVaultSystemStore } from '@/stores/notes/systemStoragePaths';
 import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
 import { markExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
 import { suspendExternalSync } from '@/stores/notes/document/externalSyncControl';
@@ -253,6 +254,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
         markExpectedExternalChange(normalizedCurrentVault.path, true);
         markExpectedExternalChange(nextPath, true);
         await storage.rename(normalizedCurrentVault.path, nextPath);
+        await moveVaultSystemStore(normalizedCurrentVault.path, nextPath);
 
         const nextVault = normalizeVaultInfo({
           ...normalizedCurrentVault,

@@ -3,12 +3,11 @@ import {
   RECENT_NOTES_KEY,
   NOTE_ICON_SIZE_KEY,
   MAX_RECENT_NOTES,
-  APP_CONFIG_FOLDER,
-  STORE_FOLDER,
   WORKSPACE_FILE,
 } from './constants';
 import type { FileTreeSortMode, MetadataFile, NoteCoverMetadata, NoteMetadataEntry } from './types';
 import { normalizeNoteMetadataEntry, readNoteMetadataFromMarkdown } from './frontmatter';
+import { ensureSystemDirectory, getVaultSystemStorePath } from './systemStoragePaths';
 
 export type { MetadataFile, NoteMetadataEntry };
 
@@ -268,7 +267,7 @@ export interface WorkspaceState {
 export async function loadWorkspaceState(vaultPath: string): Promise<WorkspaceState | null> {
   try {
     const storage = getStorageAdapter();
-    const wsPath = await joinPath(vaultPath, APP_CONFIG_FOLDER, STORE_FOLDER, WORKSPACE_FILE);
+    const wsPath = await getVaultSystemStorePath(vaultPath, WORKSPACE_FILE);
 
     if (!(await storage.exists(wsPath))) {
       return null;
@@ -284,12 +283,8 @@ export async function loadWorkspaceState(vaultPath: string): Promise<WorkspaceSt
 
 export async function saveWorkspaceState(vaultPath: string, state: WorkspaceState): Promise<void> {
   try {
-    const storage = getStorageAdapter();
-    const storePath = await joinPath(vaultPath, APP_CONFIG_FOLDER, STORE_FOLDER);
-
-    if (!(await storage.exists(storePath))) {
-      await storage.mkdir(storePath, true);
-    }
+    const storePath = await getVaultSystemStorePath(vaultPath);
+    await ensureSystemDirectory(storePath);
 
     const wsPath = await joinPath(storePath, WORKSPACE_FILE);
     await safeWriteTextFile(wsPath, JSON.stringify(state, null, 2));
