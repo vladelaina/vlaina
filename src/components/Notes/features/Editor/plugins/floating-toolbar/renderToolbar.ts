@@ -1,7 +1,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { FloatingToolbarState } from './types';
 import { TOOLBAR_ACTIONS } from './types';
-import { floatingToolbarKey } from './floatingToolbarPlugin';
+import { floatingToolbarKey } from './floatingToolbarKey';
 import { renderAlignmentDropdown } from './components/AlignmentDropdown';
 import { createAiDropdownController } from './components/AiDropdown';
 import { createAiReviewPanelController } from './components/AiReviewPanel';

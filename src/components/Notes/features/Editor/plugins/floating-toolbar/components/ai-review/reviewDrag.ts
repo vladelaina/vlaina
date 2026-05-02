@@ -1,5 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { floatingToolbarKey } from '../../floatingToolbarPlugin';
+import { floatingToolbarKey } from '../../floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from '../../types';
 
 interface BindAiReviewDragParams {

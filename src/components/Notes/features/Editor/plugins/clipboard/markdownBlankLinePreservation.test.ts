@@ -153,6 +153,20 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });
 
+  it('escapes user-authored vlaina break placeholders before editor parsing', () => {
+    expect(preserveMarkdownBlankLinesForEditor('<br data-vlaina-empty-line="true" />')).toBe(
+      '<\u200cbr data-vlaina-empty-line="true" />'
+    );
+  });
+
+  it('keeps user-authored vlaina break placeholders editable through the editor parser and serializer', async () => {
+    await expectEditorMarkdown('<br data-vlaina-empty-line="true" />');
+  });
+
+  it('keeps blockquote user-authored vlaina break placeholders editable through the editor parser and serializer', async () => {
+    await expectEditorMarkdown('> <br data-vlaina-user-br="true" />');
+  });
+
   it('does not treat backtick fences with backticks in the info string as fenced code', () => {
     expect(
       preserveMarkdownBlankLinesForEditor(['``` invalid ` info', '', 'after'].join('\n'))

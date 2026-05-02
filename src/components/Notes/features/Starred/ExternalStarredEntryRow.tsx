@@ -12,6 +12,8 @@ import {
 } from '../Sidebar/context-menu/NotesSidebarContextMenuContent';
 import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 import { SidebarStarBadge } from '../common/SidebarStarBadge';
+import { createTreeItemPathSubmenu } from '../FileTree/components/TreeItemMenu';
+import { useTreeItemPathActions } from '../FileTree/hooks/useTreeItemPathActions';
 import { getEntryTitle } from './starredSectionUtils';
 import { useStarredEntryIcon } from './useStarredEntryIcon';
 
@@ -49,6 +51,13 @@ export function ExternalStarredEntryRow({
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const title = liveTitle || getEntryTitle(entry);
   const canOpen = entry.kind === 'note';
+  const { handleCopyPath, handleOpenLocation } = useTreeItemPathActions({
+    notesPath: entry.vaultPath,
+    itemPath: entry.relativePath,
+    openLocationErrorMessage: entry.kind === 'folder'
+      ? 'Failed to open folder location.'
+      : 'Failed to open file location.',
+  });
 
   const handleContextMenu = (event: MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -78,6 +87,17 @@ export function ExternalStarredEntryRow({
         setShowMenu(false);
       },
     } satisfies NotesSidebarMenuEntry,
+    createTreeItemPathSubmenu({
+      onCopyPath: async () => {
+        setShowMenu(false);
+        await handleCopyPath();
+      },
+      onOpenLocation: async () => {
+        setShowMenu(false);
+        await handleOpenLocation();
+      },
+      openLocationLabel: entry.kind === 'folder' ? 'Open Folder Location' : 'Open File Location',
+    }),
   ];
 
   return (

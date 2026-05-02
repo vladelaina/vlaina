@@ -2,7 +2,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { ChatLoading } from '@/components/Chat/features/Messages/components/ChatLoading';
-import { floatingToolbarKey } from '../floatingToolbarPlugin';
+import { floatingToolbarKey } from '../floatingToolbarKey';
 import { TOOLBAR_ACTIONS, type FloatingToolbarState } from '../types';
 import { runAiSelectionReviewCommand } from '../ai/reviewFlow';
 import { AiToolbarModelSelector } from './AiToolbarModelSelector';

@@ -1,6 +1,6 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { linkTooltipPluginKey } from '../links';
-import { floatingToolbarKey } from './floatingToolbarPlugin';
+import { floatingToolbarKey } from './floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from './types';
 
 export function openLinkTooltipFromSelection(

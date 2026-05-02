@@ -3,7 +3,7 @@ import {
   createToolbarEventDelegation,
   focusSelectedCodeBlockAfterDelete,
 } from './toolbarInteractions';
-import { floatingToolbarKey } from './floatingToolbarPlugin';
+import { floatingToolbarKey } from './floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from './types';
 import { linkTooltipPluginKey } from '../links';
 

@@ -4,7 +4,7 @@ import { useAIUIStore } from '@/stores/ai/chatState';
 import { useToastStore } from '@/stores/useToastStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { normalizeSelectedTextForComposer } from '@/lib/ui/normalizeSelectedTextForComposer';
-import { floatingToolbarKey } from '../floatingToolbarPlugin';
+import { floatingToolbarKey } from '../floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from '../types';
 import { getSerializedSelectionText } from './selectionCommands';
 

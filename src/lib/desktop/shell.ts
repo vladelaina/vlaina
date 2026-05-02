@@ -15,7 +15,7 @@ export async function openExternalUrl(url: string): Promise<void> {
 export async function revealItemInFolder(filePath: string): Promise<void> {
   const bridge = getElectronBridge();
   if (!bridge) {
-    return;
+    throw new Error('Open file location is only available in the desktop app.');
   }
 
   await bridge.shell.revealItem(filePath);

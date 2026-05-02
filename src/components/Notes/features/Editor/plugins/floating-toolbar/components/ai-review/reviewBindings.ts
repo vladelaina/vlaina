@@ -3,7 +3,7 @@ import {
   applyAiSelectionSuggestion,
   retryAiSelectionSuggestionResult,
 } from '../../ai/selectionCommands';
-import { floatingToolbarKey } from '../../floatingToolbarPlugin';
+import { floatingToolbarKey } from '../../floatingToolbarKey';
 import type { FloatingToolbarState } from '../../types';
 import type { AiReviewElements } from './reviewDom';
 import { toAiSelectionSuggestion } from './reviewState';

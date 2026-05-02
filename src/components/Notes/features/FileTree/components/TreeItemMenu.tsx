@@ -57,7 +57,7 @@ export function createTreeItemPathSubmenu({
       },
       {
         key: 'open-location',
-        icon: <Icon name="file.folderOpen" size="md" />,
+        icon: <Icon name="file.folderOpenArrow" size="md" />,
         label: openLocationLabel,
         onClick: onOpenLocation,
       },

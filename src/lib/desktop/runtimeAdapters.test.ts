@@ -236,7 +236,9 @@ describe('desktop runtime adapters', () => {
     await expect(showDesktopConfirm('Continue?')).resolves.toBe(false);
     await expect(showDesktopMessage('Saved')).resolves.toBeUndefined();
     await expect(openExternalUrl('https://example.com')).resolves.toBeUndefined();
-    await expect(revealItemInFolder('/tmp/file.md')).resolves.toBeUndefined();
+    await expect(revealItemInFolder('/tmp/file.md')).rejects.toThrow(
+      'Open file location is only available in the desktop app.',
+    );
     await expect(Promise.resolve().then(() => writeDesktopBinaryFile('/tmp/file.bin', new Uint8Array()))).rejects.toThrow(
       'Electron fs bridge is not available.',
     );

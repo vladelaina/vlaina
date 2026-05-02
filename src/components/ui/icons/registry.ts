@@ -96,6 +96,7 @@ import { MagicWandIcon } from './custom/mit/MagicWandIcon';
 import { ShootingStarIcon } from './custom/mit/ShootingStarIcon';
 import { FileDirectoryFillIcon } from './custom/mit/FileDirectoryFillIcon';
 import { FileDirectoryOpenFillIcon } from './custom/mit/FileDirectoryOpenFillIcon';
+import { FileDirectoryOpenArrowIcon } from './custom/mit/FileDirectoryOpenArrowIcon';
 
 export type IconSource = ComponentType<SVGProps<SVGSVGElement> & { size?: number | string }>;
 
@@ -183,6 +184,7 @@ export const icons: Record<string, IconSource> = {
   'theme.sunny': SunIcon,
   'file.folder': FileDirectoryFillIcon,
   'file.folderOpen': FileDirectoryOpenFillIcon,
+  'file.folderOpenArrow': FileDirectoryOpenArrowIcon,
   'file.add': DocumentPlusIcon,
   'file.text': DocumentTextIcon,
   'file.image': PhotoIcon,

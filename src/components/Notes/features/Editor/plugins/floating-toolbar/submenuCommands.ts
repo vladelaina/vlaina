@@ -1,6 +1,6 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { TOOLBAR_ACTIONS } from './types';
-import { floatingToolbarKey } from './floatingToolbarPlugin';
+import { floatingToolbarKey } from './floatingToolbarKey';
 
 export function openLinkEditor(view: EditorView): void {
   view.dispatch(

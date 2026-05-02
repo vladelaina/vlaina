@@ -24,6 +24,11 @@ const MARKED_BLOCKQUOTE_USER_BR_TOKEN_PATTERN =
   /[ \t]*<br\b(?=[^>]*\bdata-vlaina-user-br="true")(?=[^>]*\bdata-vlaina-blockquote-depth="(\d+)")[^>]*\/?>[ \t]*/gi;
 const MARKED_USER_BR_TOKEN_PATTERN = /[ \t]*<br\s+data-vlaina-user-br="true"\s*\/?>[ \t]*/gi;
 const MARKED_LIST_GAP_TOKEN_PATTERN = /[ \t]*<br\s+data-vlaina-list-gap="true"\s*\/?>[ \t]*/gi;
+const USER_AUTHORED_VLAINA_BR_PLACEHOLDER_PATTERN =
+  /^(\s*(?:>\s*)*)<br\b(?=[^>]*\bdata-vlaina-(?:empty-line|user-br|list-gap|blockquote-depth)\b)[^>]*\/?>$/i;
+const USER_AUTHORED_PLACEHOLDER_ESCAPE = '\u200c';
+const ESCAPED_USER_AUTHORED_VLAINA_BR_PATTERN =
+  /<\u200c(br\b(?=[^>]*\bdata-vlaina-(?:empty-line|user-br|list-gap|blockquote-depth)\b)[^>]*\/?>)/gi;
 const EMPTY_LIST_ITEM_PLACEHOLDER_PATTERN =
   /^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+(?:\[(?: |x|X)\]\s+)?)<br\s*\/?>$/gim;
 const EMPTY_TABLE_CELL_PLACEHOLDER_PATTERN = /(\|\s*)<br\s*\/?>(\s*\|)/g;
@@ -33,7 +38,9 @@ const TABLE_DELIMITER_ROW_PATTERN =
 const TABLE_ROW_PATTERN = /^\s*\|.*\|\s*$/;
 
 function unescapeMarkdownPunctuation(text: string): string {
-  return text.replace(MARKDOWN_ESCAPE_PATTERN, '$1');
+  return text
+    .replace(ESCAPED_USER_AUTHORED_VLAINA_BR_PATTERN, '<$1')
+    .replace(MARKDOWN_ESCAPE_PATTERN, '$1');
 }
 
 function stripEmptyMarkdownPlaceholders(text: string): string {
@@ -74,6 +81,11 @@ export function preserveMarkdownBlankLinesForEditor(text: string): string {
   if (text.length === 0) return text;
 
   return mapMarkdownOutsideProtectedBlocks(text, (line, index, lines) => {
+    const userAuthoredPlaceholderMatch = USER_AUTHORED_VLAINA_BR_PLACEHOLDER_PATTERN.exec(line.trimEnd());
+    if (userAuthoredPlaceholderMatch) {
+      return line.replace(/<br\b/i, `<${USER_AUTHORED_PLACEHOLDER_ESCAPE}br`);
+    }
+
     const blockquoteBrMatch = BLOCKQUOTE_BR_ONLY_PATTERN.exec(line);
     if (blockquoteBrMatch) {
       const prefix = blockquoteBrMatch[1] ?? '';

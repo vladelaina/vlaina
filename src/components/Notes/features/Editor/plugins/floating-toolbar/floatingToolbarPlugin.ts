@@ -1,14 +1,13 @@
 import { $prose } from '@milkdown/kit/utils';
-import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
+import { Plugin } from '@milkdown/kit/prose/state';
 import type { FloatingToolbarState, ToolbarMeta } from './types';
 import { getLinkUrl } from './selectionHelpers';
 import { setLink, toggleMark } from './commands';
 import { isFloatingToolbarSuppressed } from './floatingToolbarDom';
 import { createFloatingToolbarPluginView } from './floatingToolbarPluginView';
 import { applyToolbarMeta, createInitialState } from './floatingToolbarState';
+import { floatingToolbarKey } from './floatingToolbarKey';
 import { openLinkTooltipFromSelection } from './linkTooltipActions';
-
-export const floatingToolbarKey = new PluginKey<FloatingToolbarState>('floatingToolbar');
 
 export const floatingToolbarPlugin = $prose(() => {
   const interactionState = {
