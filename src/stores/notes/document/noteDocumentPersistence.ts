@@ -11,6 +11,7 @@ import {
 } from './noteContentCache';
 import { markExpectedExternalChange } from './externalChangeRegistry';
 import { updateNoteMetadataInMarkdown } from '../frontmatter';
+import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 
 interface LoadNoteDocumentOptions {
   notesPath: string;
@@ -59,10 +60,13 @@ export async function loadNoteDocument({
 }: LoadNoteDocumentOptions): Promise<LoadedNoteDocument> {
   const cachedContent = getCachedNoteContent(cache, path);
   if (cachedContent !== undefined) {
+    const normalizedCachedContent = normalizeSerializedMarkdownDocument(cachedContent);
     return {
-      content: cachedContent,
+      content: normalizedCachedContent,
       modifiedAt: cache.get(path)?.modifiedAt ?? null,
-      nextCache: cache,
+      nextCache: normalizedCachedContent === cachedContent
+        ? cache
+        : setCachedNoteContent(cache, path, normalizedCachedContent, cache.get(path)?.modifiedAt ?? null),
     };
   }
 
@@ -72,12 +76,13 @@ export async function loadNoteDocument({
     storage.readFile(fullPath),
     storage.stat(fullPath),
   ]);
+  const normalizedContent = normalizeSerializedMarkdownDocument(content);
   const modifiedAt = fileInfo?.modifiedAt ?? null;
 
   return {
-    content,
+    content: normalizedContent,
     modifiedAt,
-    nextCache: setCachedNoteContent(cache, path, content, modifiedAt),
+    nextCache: setCachedNoteContent(cache, path, normalizedContent, modifiedAt),
   };
 }
 
@@ -95,7 +100,8 @@ export async function saveNoteDocument({
     throw new NoteWriteConflictError();
   }
 
-  const { content, metadata } = updateNoteMetadataInMarkdown(currentNote.content, {
+  const normalizedCurrentContent = normalizeSerializedMarkdownDocument(currentNote.content);
+  const { content, metadata } = updateNoteMetadataInMarkdown(normalizedCurrentContent, {
     updatedAt: Date.now(),
   });
 

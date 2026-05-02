@@ -9,6 +9,7 @@ import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { readNoteMetadataFromMarkdown } from '../frontmatter';
 import { logNotesDebug } from '../debugLog';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
+import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 
 export function createWorkspaceDiskSyncAction(
   set: NotesSet,
@@ -65,7 +66,7 @@ export function createWorkspaceDiskSyncAction(
           return 'conflict';
         }
 
-        const nextContent = await storage.readFile(fullPath);
+        const nextContent = normalizeSerializedMarkdownDocument(await storage.readFile(fullPath));
         if (nextContent === currentNote.content && nextModifiedAt === cachedModifiedAt) {
           return 'unchanged';
         }

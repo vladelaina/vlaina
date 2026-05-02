@@ -398,6 +398,29 @@ describe('NotesView', () => {
     });
   });
 
+  it('does not create an untitled note while the previous workspace note is restoring', async () => {
+    notesState.isLoading = true;
+
+    const { rerender } = render(<NotesView />);
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
+
+    notesState.isLoading = false;
+    notesState.currentNote = { path: 'docs/restored.md', content: '# restored' };
+    notesState.openTabs = [{ path: 'docs/restored.md', name: 'restored', isDirty: false }];
+    rerender(<NotesView />);
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
+  });
+
   it('does not recreate a blank note after the user closes the last tab', async () => {
     notesState.currentNote = { path: 'draft:blank', content: '' };
     notesState.openTabs = [{ path: 'draft:blank', name: '', isDirty: false }];

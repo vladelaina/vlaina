@@ -87,4 +87,41 @@ describe('createNoteImpl', () => {
 
     vi.useRealTimers();
   });
+
+  it('cleans internal editor break markers before creating a note', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    hoisted.resolveUniquePath.mockResolvedValue({
+      relativePath: 'alpha.md',
+      fullPath: '/vault/alpha.md',
+      fileName: 'alpha.md',
+    });
+
+    const result = await createNoteImpl(
+      '/vault',
+      undefined,
+      'alpha',
+      ['# Alpha', '<br date-vlaianempt-line="true"/>', 'Body'].join('\n'),
+      {
+        rootFolder: {
+          id: '',
+          name: 'Notes',
+          path: '',
+          isFolder: true,
+          children: [],
+          expanded: true,
+        },
+        recentNotes: [],
+        noteMetadata: null,
+      }
+    );
+
+    expect(adapter.writeFile).toHaveBeenCalledWith(
+      '/vault/alpha.md',
+      ['---', 'vlaina_created: "2026-04-15T10:00:00.000Z"', 'vlaina_updated: "2026-04-15T10:00:00.000Z"', '---', '', '# Alpha', '', 'Body'].join('\n')
+    );
+    expect(result.content).not.toContain('vlaian');
+
+    vi.useRealTimers();
+  });
 });

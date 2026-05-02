@@ -5,6 +5,7 @@ import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
 import { readNoteMetadataFromMarkdown, updateNoteMetadataInMarkdown } from '../../frontmatter';
+import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 
 export async function createNoteImpl(
     notesPath: string,
@@ -24,9 +25,10 @@ export async function createNoteImpl(
     if (folderPath) {
     }
 
+    const normalizedContent = normalizeSerializedMarkdownDocument(content);
     const now = Date.now();
-    const initialMetadata = readNoteMetadataFromMarkdown(content);
-    const { content: initialContent, metadata } = updateNoteMetadataInMarkdown(content, {
+    const initialMetadata = readNoteMetadataFromMarkdown(normalizedContent);
+    const { content: initialContent, metadata } = updateNoteMetadataInMarkdown(normalizedContent, {
         createdAt: initialMetadata.createdAt ?? now,
         updatedAt: initialMetadata.updatedAt ?? now,
     });

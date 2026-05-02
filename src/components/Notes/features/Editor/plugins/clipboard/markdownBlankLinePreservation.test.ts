@@ -13,7 +13,9 @@ import {
   normalizeSerializedMarkdownDocument,
   preserveMarkdownBlankLinesForEditor,
   stripTrailingNewlines,
-} from './markdownSerializationUtils';
+} from '@/lib/notes/markdown/markdownSerializationUtils';
+
+const EMPTY_LINE_PLACEHOLDER = '\u200B';
 
 async function serializeMarkdownThroughEditor(
   markdown: string,
@@ -49,7 +51,7 @@ async function expectEditorMarkdown(markdown: string, expected = markdown): Prom
 describe('preserveMarkdownBlankLinesForEditor', () => {
   it('turns markdown blank lines into editor placeholders', () => {
     expect(preserveMarkdownBlankLinesForEditor('1\n\n2')).toBe(
-      '1\n<br data-vlaina-empty-line="true" />\n2'
+      `1\n${EMPTY_LINE_PLACEHOLDER}\n2`
     );
   });
 
@@ -59,7 +61,7 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
         ['```ts', 'const a = 1;', '', 'const b = 2;', '```', '', 'after'].join('\n')
       )
     ).toBe(
-      ['```ts', 'const a = 1;', '', 'const b = 2;', '```', '<br data-vlaina-empty-line="true" />', 'after'].join('\n')
+      ['```ts', 'const a = 1;', '', 'const b = 2;', '```', EMPTY_LINE_PLACEHOLDER, 'after'].join('\n')
     );
   });
 
@@ -99,7 +101,7 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
         '',
         'summary: Test',
         '```',
-        '<br data-vlaina-empty-line="true" />',
+        EMPTY_LINE_PLACEHOLDER,
         '# Heading',
       ].join('\n')
     );
@@ -108,31 +110,31 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
   it('matches fenced code closers by marker and length', () => {
     expect(
       preserveMarkdownBlankLinesForEditor(['````', '```', '', 'code', '````', '', 'after'].join('\n'))
-    ).toBe(['````', '```', '', 'code', '````', '<br data-vlaina-empty-line="true" />', 'after'].join('\n'));
+    ).toBe(['````', '```', '', 'code', '````', EMPTY_LINE_PLACEHOLDER, 'after'].join('\n'));
   });
 
   it('does not close a fenced code block with a content line that only starts with a fence', () => {
     expect(
       preserveMarkdownBlankLinesForEditor(['```', '```still code', '', '```', '', 'after'].join('\n'))
-    ).toBe(['```', '```still code', '', '```', '<br data-vlaina-empty-line="true" />', 'after'].join('\n'));
+    ).toBe(['```', '```still code', '', '```', EMPTY_LINE_PLACEHOLDER, 'after'].join('\n'));
   });
 
   it('does not treat indented code as fenced code', () => {
     expect(
       preserveMarkdownBlankLinesForEditor(['    ```', '', 'after'].join('\n'))
-    ).toBe(['    ```', '<br data-vlaina-empty-line="true" />', 'after'].join('\n'));
+    ).toBe(['    ```', EMPTY_LINE_PLACEHOLDER, 'after'].join('\n'));
   });
 
   it('does not add placeholders inside indented code blocks', () => {
     expect(
       preserveMarkdownBlankLinesForEditor(['    line 1', '', '    line 2', '', 'after'].join('\n'))
-    ).toBe(['    line 1', '', '    line 2', '<br data-vlaina-empty-line="true" />', 'after'].join('\n'));
+    ).toBe(['    line 1', '', '    line 2', EMPTY_LINE_PLACEHOLDER, 'after'].join('\n'));
   });
 
   it('does not add placeholders inside tab-indented code blocks', () => {
     expect(
       preserveMarkdownBlankLinesForEditor(['\tline 1', '', '\tline 2', '', 'after'].join('\n'))
-    ).toBe(['\tline 1', '', '\tline 2', '<br data-vlaina-empty-line="true" />', 'after'].join('\n'));
+    ).toBe(['\tline 1', '', '\tline 2', EMPTY_LINE_PLACEHOLDER, 'after'].join('\n'));
   });
 
   it('detects indented code blocks after paragraph breaks', () => {
@@ -144,11 +146,11 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
   it('does not keep trailing document blank lines inside indented code blocks', () => {
     expect(
       preserveMarkdownBlankLinesForEditor(['    line', ''].join('\n'))
-    ).toBe(['    line', '<br data-vlaina-empty-line="true" />'].join('\n'));
+    ).toBe(['    line', EMPTY_LINE_PLACEHOLDER].join('\n'));
   });
 
   it('does not rewrite placeholder-like text inside indented code blocks', () => {
-    const markdown = ['    <br data-vlaina-empty-line="true" />', '', '    <br />', '', 'after'].join('\n');
+    const markdown = [`    ${EMPTY_LINE_PLACEHOLDER}`, '', '    <br />', '', 'after'].join('\n');
 
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });
@@ -156,25 +158,25 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
   it('does not treat backtick fences with backticks in the info string as fenced code', () => {
     expect(
       preserveMarkdownBlankLinesForEditor(['``` invalid ` info', '', 'after'].join('\n'))
-    ).toBe(['``` invalid ` info', '<br data-vlaina-empty-line="true" />', 'after'].join('\n'));
+    ).toBe(['``` invalid ` info', EMPTY_LINE_PLACEHOLDER, 'after'].join('\n'));
   });
 
   it('does not treat mixed backtick and tilde marker runs as fenced code', () => {
     expect(
       preserveMarkdownBlankLinesForEditor(['``~', '', 'after'].join('\n'))
-    ).toBe(['``~', '<br data-vlaina-empty-line="true" />', 'after'].join('\n'));
+    ).toBe(['``~', EMPTY_LINE_PLACEHOLDER, 'after'].join('\n'));
   });
 
   it('does not add placeholders inside raw html blocks that allow blank lines', () => {
     expect(
       preserveMarkdownBlankLinesForEditor(['<pre>', 'line 1', '', 'line 2', '</pre>', '', 'after'].join('\n'))
-    ).toBe(['<pre>', 'line 1', '', 'line 2', '</pre>', '<br data-vlaina-empty-line="true" />', 'after'].join('\n'));
+    ).toBe(['<pre>', 'line 1', '', 'line 2', '</pre>', EMPTY_LINE_PLACEHOLDER, 'after'].join('\n'));
   });
 
   it('does not start fenced code state inside raw html blocks', () => {
     expect(
       preserveMarkdownBlankLinesForEditor(['<pre>', '```', '', '```', '</pre>', '', 'after'].join('\n'))
-    ).toBe(['<pre>', '```', '', '```', '</pre>', '<br data-vlaina-empty-line="true" />', 'after'].join('\n'));
+    ).toBe(['<pre>', '```', '', '```', '</pre>', EMPTY_LINE_PLACEHOLDER, 'after'].join('\n'));
   });
 
   it('does not add placeholders inside blockquote raw html blocks', () => {
@@ -186,13 +188,13 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
   it('does not add placeholders inside markdown html comments', () => {
     expect(
       preserveMarkdownBlankLinesForEditor(['<!--', 'note', '', 'comment', '-->', '', 'after'].join('\n'))
-    ).toBe(['<!--', 'note', '', 'comment', '-->', '<br data-vlaina-empty-line="true" />', 'after'].join('\n'));
+    ).toBe(['<!--', 'note', '', 'comment', '-->', EMPTY_LINE_PLACEHOLDER, 'after'].join('\n'));
   });
 
   it('does not add placeholders inside lowercase html declarations', () => {
     expect(
       preserveMarkdownBlankLinesForEditor(['<!doctype', '', 'html>', '', 'after'].join('\n'))
-    ).toBe(['<!doctype', '', 'html>', '<br data-vlaina-empty-line="true" />', 'after'].join('\n'));
+    ).toBe(['<!doctype', '', 'html>', EMPTY_LINE_PLACEHOLDER, 'after'].join('\n'));
   });
 
   it('round trips representative markdown through preserve and normalize', () => {
@@ -229,11 +231,11 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
 
   it('strips marked break placeholders after editor serialization', async () => {
     const serialized = await serializeMarkdownThroughEditor(
-      '<br data-vlaina-empty-line="true" />',
+      EMPTY_LINE_PLACEHOLDER,
       { preserveBlankLines: false },
     );
 
-    expect(serialized).toBe('<br data-vlaina-empty-line="true" />\n');
+    expect(serialized).toBe(`${EMPTY_LINE_PLACEHOLDER}\n`);
     expect(normalizeSerializedMarkdownDocument(serialized)).toBe('\n');
   });
 
