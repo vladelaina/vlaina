@@ -1,9 +1,18 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const hoisted = vi.hoisted(() => ({
+  persistWorkspaceSnapshot: vi.fn(),
+}));
+
+vi.mock('../workspacePersistence', () => ({
+  persistWorkspaceSnapshot: hoisted.persistWorkspaceSnapshot,
+}));
+
 import { createFileSystemSlice } from './fileSystemSlice';
 import { replaceCurrentTabOrAppend } from './fileSystemSliceHelpers';
 import { setCurrentVaultPath } from '../storage';
 
-function createSliceHarness() {
+function createSliceHarness(overrides: Record<string, unknown> = {}) {
   let state: any;
 
   const set = (partial: any) => {
@@ -27,6 +36,7 @@ function createSliceHarness() {
     noteMetadata: null,
     displayNames: new Map(),
     saveNote: vi.fn(),
+    ...overrides,
   };
 
   return {
@@ -37,6 +47,7 @@ function createSliceHarness() {
 describe('createFileSystemSlice draft flows', () => {
   beforeEach(() => {
     setCurrentVaultPath(null);
+    vi.clearAllMocks();
   });
 
   it('creates an unsaved draft note when no vault is selected', async () => {
@@ -93,6 +104,94 @@ describe('createFileSystemSlice draft flows', () => {
       content: 'draft text',
       modifiedAt: null,
     });
+  });
+});
+
+describe('createFileSystemSlice tree flows', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
+  });
+
+  it('expands folders immediately and defers workspace persistence', () => {
+    const harness = createSliceHarness({
+      notesPath: '/vault',
+      currentNote: { path: 'alpha.md', content: '# alpha' },
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [
+          {
+            id: 'docs',
+            name: 'docs',
+            path: 'docs',
+            isFolder: true,
+            expanded: false,
+            children: [],
+          },
+        ],
+      },
+    });
+
+    harness.getState().toggleFolder('docs');
+
+    expect(harness.getState().rootFolder.children[0].expanded).toBe(true);
+    expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
+
+    vi.runOnlyPendingTimers();
+
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
+      currentNotePath: 'alpha.md',
+      rootFolder: expect.objectContaining({
+        children: [
+          expect.objectContaining({
+            path: 'docs',
+            expanded: true,
+          }),
+        ],
+      }),
+    }));
+  });
+
+  it('uses the latest current note when deferred folder persistence flushes', () => {
+    const harness = createSliceHarness({
+      notesPath: '/vault',
+      currentNote: { path: 'alpha.md', content: '# alpha' },
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [
+          {
+            id: 'docs',
+            name: 'docs',
+            path: 'docs',
+            isFolder: true,
+            expanded: false,
+            children: [],
+          },
+        ],
+      },
+    });
+
+    harness.getState().toggleFolder('docs');
+    harness.getState().currentNote = { path: 'beta.md', content: '# beta' };
+
+    vi.runOnlyPendingTimers();
+
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
+      currentNotePath: 'beta.md',
+    }));
   });
 });
 

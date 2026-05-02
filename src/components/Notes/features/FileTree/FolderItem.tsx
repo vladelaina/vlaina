@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import type { FolderNode } from '@/stores/useNotesStore';
@@ -57,6 +57,7 @@ export const FolderItem = memo(function FolderItem({
     toggleFolderStarred,
   } = useFolderItemState(node, dragEnabled);
   const hasChildren = node.children.length > 0;
+  const [shouldRenderChildren, setShouldRenderChildren] = useState(node.expanded);
   const notesPath = useNotesStore((state) => state.notesPath);
   const { handleCopyPath, handleOpenLocation } = useTreeItemPathActions({
     notesPath,
@@ -108,6 +109,22 @@ export const FolderItem = memo(function FolderItem({
       setShowDeleteDialog(true);
     }),
   ];
+
+  useEffect(() => {
+    if (!node.expanded) {
+      setShouldRenderChildren(false);
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      setShouldRenderChildren(true);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [node.expanded]);
+
   return (
     <TreeItemShell
       itemPath={node.path}
@@ -119,7 +136,7 @@ export const FolderItem = memo(function FolderItem({
         <span className="relative flex size-[20px] items-center justify-center">
           <span
             className={cn(
-              'transition-opacity duration-150',
+              'transition-none',
               hasChildren && 'group-hover/sidebar-row:opacity-0 group-focus-within/sidebar-row:opacity-0',
             )}
           >
@@ -130,7 +147,7 @@ export const FolderItem = memo(function FolderItem({
               collapsed={!node.expanded}
               visibility="always"
               size={14}
-              className="absolute inset-0 opacity-0 transition-opacity duration-150 group-hover/sidebar-row:opacity-100 group-focus-within/sidebar-row:opacity-100"
+              className="absolute inset-0 opacity-0 transition-none group-hover/sidebar-row:opacity-100 group-focus-within/sidebar-row:opacity-100"
               iconClassName="text-[var(--notes-sidebar-file-icon)]"
             />
           ) : null}
@@ -175,7 +192,7 @@ export const FolderItem = memo(function FolderItem({
     >
       <TreeItemMenu isOpen={showMenu} onClose={() => setShowMenu(false)} position={menuPosition} entries={menuEntries} />
 
-      {node.expanded && node.children.length > 0 ? (
+      {node.expanded && shouldRenderChildren && node.children.length > 0 ? (
         <div>
           <div aria-hidden="true" className="h-2" />
           {node.children.map((child) =>

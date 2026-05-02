@@ -46,6 +46,7 @@ export function RootFolderRow({
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
+  const [shouldRenderChildren, setShouldRenderChildren] = useState(rootFolder?.expanded ?? true);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const isRenamingRef = useRef(false);
   const isInternalRootDragOver = useFileTreePointerDragState(
@@ -75,6 +76,21 @@ export function RootFolderRow({
   useEffect(() => {
     isRenamingRef.current = isRenaming;
   }, [isRenaming]);
+
+  useEffect(() => {
+    if (!expanded) {
+      setShouldRenderChildren(false);
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      setShouldRenderChildren(true);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [expanded]);
 
   useEffect(() => {
     if (isRenaming) {
@@ -172,7 +188,7 @@ export function RootFolderRow({
           <span className="relative flex size-[20px] items-center justify-center">
             <span
               className={cn(
-                'transition-opacity duration-150',
+                'transition-none',
                 hasChildren && 'group-hover/sidebar-row:opacity-0 group-focus-within/sidebar-row:opacity-0',
               )}
             >
@@ -187,7 +203,7 @@ export function RootFolderRow({
                 collapsed={!expanded}
                 visibility="always"
                 size={14}
-                className="absolute inset-0 opacity-0 transition-opacity duration-150 group-hover/sidebar-row:opacity-100 group-focus-within/sidebar-row:opacity-100"
+                className="absolute inset-0 opacity-0 transition-none group-hover/sidebar-row:opacity-100 group-focus-within/sidebar-row:opacity-100"
                 iconClassName="text-[var(--notes-sidebar-file-icon)]"
               />
             ) : null}
@@ -254,7 +270,7 @@ export function RootFolderRow({
         vaultPath={vaultPath}
       />
 
-      {expanded && rootFolder.children.length > 0 ? (
+      {expanded && shouldRenderChildren && rootFolder.children.length > 0 ? (
         <NotesSidebarList>
           {rootFolder.children.map((node) => (
             <FileTreeItem

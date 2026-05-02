@@ -18,6 +18,36 @@ import { getVaultStarredPaths } from '../starred';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import type { FileSystemSlice, FileSystemSliceGet, FileSystemSliceSet } from './fileSystemSliceContracts';
 
+let pendingWorkspaceSnapshotTimeout: ReturnType<typeof setTimeout> | null = null;
+let pendingWorkspaceSnapshotGet: FileSystemSliceGet | null = null;
+
+function scheduleWorkspaceSnapshotPersistence(get: FileSystemSliceGet) {
+  pendingWorkspaceSnapshotGet = get;
+
+  if (pendingWorkspaceSnapshotTimeout !== null) {
+    clearTimeout(pendingWorkspaceSnapshotTimeout);
+  }
+
+  pendingWorkspaceSnapshotTimeout = setTimeout(() => {
+    const getSnapshotState = pendingWorkspaceSnapshotGet;
+    pendingWorkspaceSnapshotGet = null;
+    pendingWorkspaceSnapshotTimeout = null;
+
+    if (!getSnapshotState) {
+      return;
+    }
+
+    const { notesPath, rootFolder, currentNote, fileTreeSortMode } = getSnapshotState();
+    if (rootFolder) {
+      persistWorkspaceSnapshot(notesPath, {
+        rootFolder,
+        currentNotePath: currentNote?.path ?? null,
+        fileTreeSortMode,
+      });
+    }
+  }, 0);
+}
+
 export function createFileSystemTreeActions(
   set: FileSystemSliceSet,
   get: FileSystemSliceGet,
@@ -94,7 +124,7 @@ export function createFileSystemTreeActions(
     },
 
     toggleFolder: (path: string) => {
-      const { rootFolder, notesPath, fileTreeSortMode } = get();
+      const { rootFolder } = get();
       if (!rootFolder) {
         return;
       }
@@ -108,18 +138,13 @@ export function createFileSystemTreeActions(
             ...rootFolder,
             children: updateFolderExpanded(rootFolder.children, path),
           };
-      const { currentNote } = get();
 
       set({ rootFolder: updatedRootFolder });
-      persistWorkspaceSnapshot(notesPath, {
-        rootFolder: updatedRootFolder,
-        currentNotePath: currentNote?.path ?? null,
-        fileTreeSortMode,
-      });
+      scheduleWorkspaceSnapshotPersistence(get);
     },
 
     revealFolder: (path: string) => {
-      const { rootFolder, notesPath, currentNote, fileTreeSortMode } = get();
+      const { rootFolder } = get();
       if (!rootFolder) {
         return;
       }
@@ -136,15 +161,11 @@ export function createFileSystemTreeActions(
           };
 
       set({ rootFolder: updatedRootFolder });
-      persistWorkspaceSnapshot(notesPath, {
-        rootFolder: updatedRootFolder,
-        currentNotePath: currentNote?.path ?? null,
-        fileTreeSortMode,
-      });
+      scheduleWorkspaceSnapshotPersistence(get);
     },
 
     setFileTreeSortMode: async (mode) => {
-      const { rootFolder, noteMetadata, notesPath, currentNote, fileTreeSortMode } = get();
+      const { rootFolder, noteMetadata, fileTreeSortMode } = get();
       if (mode === fileTreeSortMode) {
         return;
       }
@@ -164,11 +185,7 @@ export function createFileSystemTreeActions(
         rootFolder: nextRootFolder,
       });
 
-      persistWorkspaceSnapshot(notesPath, {
-        rootFolder: nextRootFolder,
-        currentNotePath: currentNote?.path ?? null,
-        fileTreeSortMode: mode,
-      });
+      scheduleWorkspaceSnapshotPersistence(get);
     },
   };
 }

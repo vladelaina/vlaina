@@ -47,7 +47,7 @@ export function CollapseTriangleIcon({
       strokeLinecap="round"
       strokeLinejoin="round"
       className={cn(collapsed && '-rotate-90', className)}
-      style={{ transition: 'transform 0.15s ease', ...style }}
+      style={style}
       focusable="false"
       {...props}
     >
@@ -73,7 +73,7 @@ export function CollapseTriangleAffordance({
         getVisibilityClassName(visibility, collapsed),
         className
       )}
-      style={{ transition: 'opacity 0.15s, color 0.15s', ...style }}
+      style={style}
       {...props}
     >
       <CollapseTriangleIcon collapsed={collapsed} size={size} className={iconClassName} />
