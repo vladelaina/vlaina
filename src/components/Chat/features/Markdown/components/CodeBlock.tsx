@@ -78,15 +78,8 @@ export const CodeBlock = memo(({ className, children, blockId, copied = false, o
         <span className="text-[13px] text-neutral-500 dark:text-neutral-400 font-mono">
             {language || 'text'}
         </span>
-        <CopyButton
-          content={codeText}
-          copied={copied}
-          onCopy={handleCopy}
-          showLabels={false}
-          className="text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors"
-        />
       </div>
-      <div className="overflow-x-auto p-4 pt-0">
+      <div className="overflow-x-auto p-4 pt-0 pb-12">
         {highlightedHTML ? (
           <code
             className={`block whitespace-pre font-mono text-sm leading-relaxed hljs ${language} !bg-transparent !p-0`}
@@ -99,6 +92,15 @@ export const CodeBlock = memo(({ className, children, blockId, copied = false, o
             </code>
           </pre>
         )}
+      </div>
+      <div className="absolute bottom-2 right-2 z-10 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
+        <CopyButton
+          content={codeText}
+          copied={copied}
+          onCopy={handleCopy}
+          showLabels={false}
+          className="rounded-lg bg-white/85 px-2 py-1.5 text-neutral-500 shadow-sm ring-1 ring-black/5 backdrop-blur hover:text-neutral-900 dark:bg-zinc-900/85 dark:text-neutral-400 dark:ring-white/10 dark:hover:text-neutral-200"
+        />
       </div>
     </div>
   );

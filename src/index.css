@@ -479,13 +479,13 @@ body[data-chat-selection-lock="1"] [data-chat-scrollable="true"] * {
   user-select: none !important;
 }
 
-body[data-chat-selection-lock="1"] [data-message-item="true"][data-role="assistant"],
-body[data-chat-selection-lock="1"] [data-message-item="true"][data-role="assistant"] * {
+body[data-chat-selection-lock="1"] [data-chat-selection-surface="true"],
+body[data-chat-selection-lock="1"] [data-chat-selection-surface="true"] * {
   user-select: text !important;
 }
 
-body[data-chat-selection-freeze="1"],
-body[data-chat-selection-freeze="1"] * {
+body[data-chat-selection-lock="1"] [data-chat-selection-excluded="true"],
+body[data-chat-selection-lock="1"] [data-chat-selection-excluded="true"] * {
   user-select: none !important;
 }
 

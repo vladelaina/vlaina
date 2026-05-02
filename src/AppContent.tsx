@@ -101,7 +101,6 @@ export function AppContent() {
   useEffect(() => {
     if (appViewMode === 'chat' || typeof document === 'undefined') return;
     document.body.removeAttribute('data-chat-selection-lock');
-    document.body.removeAttribute('data-chat-selection-freeze');
   }, [appViewMode]);
 
   useEffect(() => {

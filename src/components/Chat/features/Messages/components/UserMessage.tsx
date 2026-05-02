@@ -124,7 +124,8 @@ function UserMessageInner({
             {parsedContent.text && (
               <div
                 data-no-focus-input="true"
-                className="inline-block max-w-[90%] rounded-3xl bg-[#41a8ea] px-4 py-1.5 text-left text-[15px] leading-6 text-white"
+                data-chat-selection-surface="true"
+                className="inline-block max-w-[90%] select-text rounded-3xl bg-[#41a8ea] px-4 py-1.5 text-left text-[15px] leading-6 text-white"
                 style={textBubbleWidth ? { width: `${textBubbleWidth}px` } : undefined}
               >
                 <div className="whitespace-pre-wrap break-words">{parsedContent.text}</div>
