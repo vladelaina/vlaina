@@ -1,11 +1,22 @@
 import { useMemo } from 'react';
 import { joinPath } from '@/lib/storage/adapter';
+import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import type { FileTreeNode, StarredEntry } from '@/stores/notes/types';
 import { normalizeStarredVaultPath } from '@/stores/notes/starred';
 import { flushCurrentTitleCommit } from '../Editor/utils/titleCommitRegistry';
 import { buildNodeLookup, sortStarredEntries } from './starredSectionUtils';
+
+function getStarredAbsolutePath(entry: StarredEntry) {
+  const vaultPath = normalizeStarredVaultPath(entry.vaultPath);
+  const relativePath = normalizeNotePathKey(entry.relativePath);
+  if (!relativePath) {
+    return vaultPath;
+  }
+
+  return `${vaultPath}/${relativePath}`.replace(/\/+/g, '/');
+}
 
 export interface StarredSectionEntryViewModel {
   entry: StarredEntry;
@@ -40,10 +51,14 @@ export function useStarredSectionEntries() {
         const treeNode = isCurrentVaultEntry
           ? nodeLookup.get(entry.relativePath) ?? null
           : null;
+        const currentNotePath = normalizeNotePathKey(currentNote?.path);
+        const entryRelativePath = normalizeNotePathKey(entry.relativePath);
         const isActive =
           entry.kind === 'note' &&
-          isCurrentVaultEntry &&
-          currentNote?.path === entry.relativePath;
+          currentNotePath != null &&
+          (isCurrentVaultEntry
+            ? currentNotePath === entryRelativePath
+            : currentNotePath === getStarredAbsolutePath(entry));
 
         return {
           entry,

@@ -104,8 +104,8 @@ export function NotesSidebarSection({
           <div className="min-w-0 flex-1">
             <div className="inline-flex max-w-full items-center gap-1 align-middle">
               <span className={cn(
-                'min-w-0 truncate font-semibold text-[var(--notes-sidebar-section-label)] transition-colors group-hover:text-[var(--notes-sidebar-section-label-hover)]',
-                nested ? 'text-[10px] tracking-[0.1em]' : 'text-[11px] tracking-[0.08em]'
+                'min-w-0 truncate font-semibold text-[var(--notes-sidebar-section-label)] group-hover:text-[var(--notes-sidebar-section-label-hover)]',
+                nested ? 'text-[16px] tracking-[0.1em]' : 'text-[16px] tracking-[0.08em]'
               )}>
                 {title}
               </span>
@@ -167,9 +167,9 @@ export function NotesSidebarEmptyState({
           {icon}
         </div>
       ) : null}
-      <span className="text-[13px] text-[var(--notes-sidebar-text-muted)]">{title}</span>
+      <span className="text-[16px] text-[var(--notes-sidebar-text-muted)]">{title}</span>
       {description ? (
-        <span className="text-[11px] text-[var(--notes-sidebar-text-soft)]">{description}</span>
+        <span className="text-[16px] text-[var(--notes-sidebar-text-soft)]">{description}</span>
       ) : null}
     </div>
   );
@@ -200,13 +200,13 @@ export function NotesSidebarHoverEmptyHint({
       {...props}
     >
       <div className="flex max-w-[180px] flex-col items-center gap-2 px-4 text-center">
-        <span className="text-[13px] text-[var(--notes-sidebar-text-soft)]">
+        <span className="text-[16px] text-[var(--notes-sidebar-text-soft)]">
           {title}
         </span>
         {actionLabel && onAction ? (
           <button
             type="button"
-            className="pointer-events-auto h-7 cursor-pointer rounded-md px-3 text-[12px] text-[var(--notes-sidebar-text)] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)] focus:outline-none"
+            className="pointer-events-auto h-7 cursor-pointer rounded-md px-3 text-[16px] text-[var(--notes-sidebar-text)] hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)] focus:outline-none"
             onClick={(event) => {
               event.stopPropagation();
               onAction();

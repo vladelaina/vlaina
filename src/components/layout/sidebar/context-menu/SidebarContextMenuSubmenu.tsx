@@ -114,7 +114,7 @@ export function SidebarContextMenuSubmenu({
           event.stopPropagation();
           openMenu();
         }}
-        className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-sm font-medium text-[var(--notes-sidebar-text)] outline-none transition-colors hover:bg-[var(--notes-sidebar-row-hover)]"
+        className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-[16px] font-medium text-[var(--notes-sidebar-text)] outline-none transition-colors hover:bg-[var(--notes-sidebar-row-hover)]"
       >
         <span className="flex size-[20px] items-center justify-center text-[var(--notes-sidebar-icon)]">
           {icon}

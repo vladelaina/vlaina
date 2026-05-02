@@ -127,7 +127,7 @@ export function RootFolderRow({
   if (isLoading) {
     return (
       <div className="py-1">
-        <div className="flex h-[30px] items-center gap-2 rounded-md px-3 py-1">
+        <div className="flex h-[36px] items-center gap-2 rounded-xl px-3 py-1">
           <div className="h-[18px] w-[18px] rounded bg-[var(--vlaina-bg-tertiary)] animate-pulse" />
           <div className="h-[18px] flex-1 rounded bg-[var(--vlaina-bg-tertiary)] animate-pulse" />
         </div>
@@ -205,7 +205,7 @@ export function RootFolderRow({
               onSubmit={handleRenameSubmit}
               onCancel={() => setIsRenaming(false)}
               className={cn(
-                'w-full min-w-0 border-none bg-transparent p-0 text-sm leading-5 outline-none',
+                'w-full min-w-0 border-none bg-transparent p-0 text-[16px] leading-5 outline-none',
                 getSidebarTextClass('notes')
               )}
             />

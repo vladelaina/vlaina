@@ -154,7 +154,7 @@ export const FolderItem = memo(function FolderItem({
             onSubmit={handleRenameSubmit}
             onCancel={() => setIsRenaming(false)}
             className={cn(
-              'w-full min-w-0 border-none bg-transparent p-0 text-sm leading-5 outline-none',
+              'w-full min-w-0 border-none bg-transparent p-0 text-[16px] leading-5 outline-none',
               getSidebarTextClass('notes')
             )}
           />

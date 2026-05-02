@@ -3,7 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import type { ChatSession } from '@/lib/ai/types';
 import { ChatSidebarSessionRow } from './ChatSidebarSessionRow';
 
-const CHAT_SIDEBAR_ROW_HEIGHT = 34;
+const CHAT_SIDEBAR_ROW_HEIGHT = 38;
 
 interface ChatSidebarVirtualListProps {
   sessions: ChatSession[];

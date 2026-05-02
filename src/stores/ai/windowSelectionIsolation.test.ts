@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { actions, createAIChatSession, useAIStore, useAIStoreRuntimeEffects } from '@/stores/useAIStore';
 import { useAIUIStore } from './chatState';
 import { useUnifiedStore } from '../unified/useUnifiedStore';
+import type { ChatMessage } from '@/lib/ai/types';
 
 const mocked = vi.hoisted(() => {
   const managedStore = {
@@ -29,7 +30,7 @@ const mocked = vi.hoisted(() => {
     scheduleSessionJsonSave: vi.fn(),
     cancelSessionJsonSave: vi.fn(),
     deleteSessionJson: vi.fn(async () => {}),
-    loadSessionJson: vi.fn(async () => []),
+    loadSessionJson: vi.fn(async (): Promise<ChatMessage[]> => []),
     flushPendingSessionJsonSaves: vi.fn(async () => {}),
     readWindowLaunchContext: vi.fn(() => ({
       isNewWindow: false,
@@ -258,6 +259,46 @@ describe('spark window selection isolation', () => {
 
     expect(useAIUIStore.getState().currentSessionId).toBe('session-2');
     expect(useUnifiedStore.getState().data.ai?.currentSessionId).toBe('session-1');
+  });
+
+  it('prefetches a missing session without switching the active session', async () => {
+    mocked.loadSessionJson.mockResolvedValueOnce([
+      {
+        id: 'm2',
+        role: 'user',
+        content: 'prefetched',
+        modelId: managedModel.id,
+        timestamp: 2,
+        versions: [{ content: 'prefetched', createdAt: 2, subsequentMessages: [] }],
+        currentVersionIndex: 0,
+      },
+    ]);
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: 'session-1',
+      temporaryChatEnabled: false,
+    });
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              messages: { 'session-1': state.data.ai.messages['session-1'] },
+            }
+          : state.data.ai,
+      },
+    }));
+
+    await act(async () => {
+      await actions.prefetchSession('session-2');
+    });
+
+    expect(mocked.loadSessionJson).toHaveBeenCalledWith('session-2');
+    expect(useAIUIStore.getState().currentSessionId).toBe('session-1');
+    expect(useUnifiedStore.getState().data.ai?.currentSessionId).toBe('session-1');
+    expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content).toBe('prefetched');
+    expect(mocked.saveUnifiedData).not.toHaveBeenCalled();
   });
 
   it('opens a blank new chat locally without mutating shared selection', () => {

@@ -1,13 +1,16 @@
-import { memo, useRef, useState } from 'react';
+import { memo, useCallback, useRef, useState } from 'react';
 import { useAIUIStore } from '@/stores/ai/chatState';
+import { actions as aiActions } from '@/stores/useAIStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { getSidebarLabelClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 import { SidebarRowActionButton } from '@/components/layout/sidebar/SidebarRow';
 import { SidebarContextMenu } from '@/components/layout/sidebar/SidebarContextMenu';
+import { useSidebarHoverPrefetch } from '@/components/layout/sidebar/useSidebarHoverPrefetch';
 import {
   SidebarContextMenuContent,
   type SidebarMenuEntry,
 } from '@/components/layout/sidebar/context-menu/SidebarContextMenuContent';
+import { MENU_PANEL_CLASS_NAME } from '@/components/layout/sidebar/context-menu/shared';
 import { getSidebarContextMenuPosition } from '@/components/layout/sidebar/sidebarMenuPosition';
 import { ChatSidebarRow } from './ChatSidebarPrimitives';
 import {
@@ -71,6 +74,10 @@ function ChatSidebarSessionRowInner({
   const isUnread = useAIUIStore((state) => !!state.unreadSessions[session.id]);
   const displayTitle = session.title || 'New Chat';
   const showMenuByDefault = isActive && !session.isPinned;
+  const hoverPrefetch = useSidebarHoverPrefetch(
+    useCallback(() => aiActions.prefetchSession(session.id), [session.id]),
+    { enabled: !isActive && !isRenaming },
+  );
   const handleStartRename = () => {
     preventNextMenuAutoFocusRef.current = true;
     onStartRename(session.id, session.title);
@@ -124,6 +131,8 @@ function ChatSidebarSessionRowInner({
       isActive={isActive}
       showActionsByDefault={showMenuByDefault}
       isHighlighted={showContextMenu}
+      onMouseEnter={hoverPrefetch.onMouseEnter}
+      onMouseLeave={hoverPrefetch.onMouseLeave}
       onContextMenu={(event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -149,7 +158,7 @@ function ChatSidebarSessionRowInner({
             onSubmit={() => onCommitRename(session.id, displayTitle)}
             onCancel={onCancelRename}
             className={cn(
-              'w-full min-w-0 border-none bg-transparent p-0 text-sm leading-5 outline-none',
+              'w-full min-w-0 border-none bg-transparent p-0 text-[16px] leading-5 outline-none',
               getSidebarLabelClass('chat', { emphasized: isGenerating || isUnread })
             )}
           />
@@ -196,16 +205,15 @@ function ChatSidebarSessionRowInner({
               preventNextMenuAutoFocusRef.current = false;
             }}
             className={cn(
-              'w-44 p-1.5 rounded-2xl bg-white dark:bg-neutral-800',
-              'border border-neutral-100 dark:border-neutral-600/40',
-              'backdrop-blur-lg shadow-xl',
+              MENU_PANEL_CLASS_NAME,
+              'w-44 !rounded-2xl !shadow-[var(--notes-sidebar-menu-shadow)] backdrop-blur-lg',
               'animate-in fade-in-0 zoom-in-95 duration-75'
             )}
           >
             <DropdownMenuItem
               onSelect={handleStartRename}
               className={cn(
-                'text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none',
+                'text-[16px] font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none',
                 'text-[var(--chat-sidebar-text)]',
                 'hover:bg-[var(--chat-sidebar-row-hover)] focus:bg-[var(--chat-sidebar-row-hover)] data-[highlighted]:bg-[var(--chat-sidebar-row-hover)]',
                 'focus:text-[var(--chat-sidebar-text)] data-[highlighted]:text-[var(--chat-sidebar-text)]'
@@ -220,7 +228,7 @@ function ChatSidebarSessionRowInner({
                 handleTogglePin();
               }}
               className={cn(
-                'text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none',
+                'text-[16px] font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none',
                 'text-[var(--chat-sidebar-text)]',
                 'hover:bg-[var(--chat-sidebar-row-hover)] focus:bg-[var(--chat-sidebar-row-hover)] data-[highlighted]:bg-[var(--chat-sidebar-row-hover)]',
                 'focus:text-[var(--chat-sidebar-text)] data-[highlighted]:text-[var(--chat-sidebar-text)]'
@@ -240,7 +248,7 @@ function ChatSidebarSessionRowInner({
                 handleRequestDelete();
               }}
               className={cn(
-                'text-sm font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none',
+                'text-[16px] font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none',
                 'text-red-600 dark:text-red-400',
                 'hover:bg-[var(--chat-sidebar-row-hover)] focus:bg-[var(--chat-sidebar-row-hover)] data-[highlighted]:bg-[var(--chat-sidebar-row-hover)]',
                 'focus:text-red-600 dark:focus:text-red-400 data-[highlighted]:text-red-600 dark:data-[highlighted]:text-red-400'

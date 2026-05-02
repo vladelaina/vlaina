@@ -1,4 +1,4 @@
-import { memo, useEffect } from 'react';
+import { memo, useCallback, useEffect } from 'react';
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { Icon } from '@/components/ui/icons';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
@@ -9,6 +9,7 @@ import { useFileItemState } from './hooks/useFileItemState';
 import { NoteIcon } from '../IconPicker/NoteIcon';
 import { cn } from '@/lib/utils';
 import { getSidebarLabelClass, getSidebarTextClass } from '@/components/layout/sidebar/sidebarLabelStyles';
+import { useSidebarHoverPrefetch } from '@/components/layout/sidebar/useSidebarHoverPrefetch';
 import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 import { NoteDisambiguatedTitle } from '../common/noteDisambiguation';
 import { SidebarStarBadge } from '../common/SidebarStarBadge';
@@ -62,11 +63,16 @@ export const FileItem = memo(function FileItem({
   } = useFileItemState(node, dragEnabled);
   const isNewlyCreated = useNotesStore((state) => state.isNewlyCreated);
   const notesPath = useNotesStore((state) => state.notesPath);
+  const prefetchNote = useNotesStore((state) => state.prefetchNote);
   const { handleCopyPath, handleOpenLocation } = useTreeItemPathActions({
     notesPath,
     itemPath: node.path,
   });
   const isActive = useNotesStore((state) => state.currentNote?.path === node.path);
+  const hoverPrefetch = useSidebarHoverPrefetch(
+    useCallback(() => prefetchNote(node.path), [node.path, prefetchNote]),
+    { enabled: !isActive && !isRenaming },
+  );
 
   const displayName = useDisplayName(node.path) || node.name;
   const noteIcon = useDisplayIcon(node.path);
@@ -141,6 +147,8 @@ export const FileItem = memo(function FileItem({
       }
       isActive={isActive}
       isHighlighted={showMenu}
+      onMouseEnter={hoverPrefetch.onMouseEnter}
+      onMouseLeave={hoverPrefetch.onMouseLeave}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
       dragHandlers={dragHandlers}
@@ -157,7 +165,7 @@ export const FileItem = memo(function FileItem({
             onSubmit={handleRenameSubmit}
             onCancel={() => setIsRenaming(false)}
             className={cn(
-              'w-full min-w-0 border-none bg-transparent p-0 text-sm leading-5 outline-none',
+              'w-full min-w-0 border-none bg-transparent p-0 text-[16px] leading-5 outline-none',
               getSidebarLabelClass('notes', { selected: isActive || showMenu })
             )}
           />

@@ -33,9 +33,9 @@ function applyPreviewElementStyles(element: HTMLElement) {
   element.style.opacity = '0.92';
   element.style.transform = 'translate3d(-9999px, -9999px, 0)';
   element.style.boxShadow = '0 14px 32px rgba(15, 23, 42, 0.18)';
+  element.style.borderRadius = '0.75rem';
   element.style.filter = 'saturate(1.02)';
   element.style.willChange = 'transform';
-  element.classList.add('rounded-md');
 }
 
 function getKindIconName(kind: ExternalDragPreviewKind): IconName {
@@ -52,7 +52,7 @@ function getKindIconName(kind: ExternalDragPreviewKind): IconName {
 
 function ExternalDragPreviewCard({ count, kind, label }: ExternalDragPreviewState) {
   return (
-    <div className="flex h-[30px] items-center gap-2 rounded-md bg-[var(--notes-sidebar-surface)] px-3 py-1 text-sm text-[var(--notes-sidebar-text)]">
+    <div className="flex h-[36px] items-center gap-2 rounded-xl bg-[var(--notes-sidebar-surface)] px-3 py-1 text-[16px] text-[var(--notes-sidebar-text)]">
       <span className="flex size-[20px] shrink-0 items-center justify-center">
         <Icon
           name={getKindIconName(kind)}
@@ -62,7 +62,7 @@ function ExternalDragPreviewCard({ count, kind, label }: ExternalDragPreviewStat
       </span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
       {count > 1 ? (
-        <span className="shrink-0 rounded-full bg-[var(--notes-sidebar-row-hover)] px-2 py-[1px] text-[11px] font-medium text-[var(--notes-sidebar-text-muted)]">
+        <span className="shrink-0 rounded-full bg-[var(--notes-sidebar-row-hover)] px-2 py-[1px] text-[16px] font-medium text-[var(--notes-sidebar-text-muted)]">
           {count}
         </span>
       ) : null}

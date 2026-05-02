@@ -31,7 +31,7 @@ export function SidebarStarBadge({
         onClick?.();
       }}
       className={cn(
-        'absolute right-0 top-0 z-30 flex h-4 w-4 cursor-pointer items-center justify-center text-amber-500 opacity-100 hover:opacity-100 focus-visible:opacity-100',
+        'absolute right-0 top-1/2 z-30 flex h-4 w-4 -translate-y-1/2 cursor-pointer items-center justify-center text-amber-500 opacity-100 hover:opacity-100 focus-visible:opacity-100',
         className,
       )}
     >

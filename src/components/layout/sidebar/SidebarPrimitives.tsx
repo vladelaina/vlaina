@@ -88,7 +88,7 @@ export const SidebarActionButton = forwardRef<HTMLButtonElement, SidebarActionBu
         ref={ref}
         type={type}
         className={cn(
-          'flex h-[30px] w-full cursor-pointer items-center gap-2 rounded-md bg-transparent px-3 py-1 text-sm shadow-none transition-colors hover:shadow-none',
+          'flex h-[36px] w-full cursor-pointer items-center gap-2 rounded-xl bg-transparent px-3 py-1 text-[16px] shadow-none hover:shadow-none',
           tone ? getSidebarActionButtonClass(tone) : undefined,
           className,
         )}
@@ -140,7 +140,7 @@ export const SidebarSearchField = forwardRef<HTMLInputElement, SidebarSearchFiel
             ref={ref}
             spellCheck={false}
             className={cn(
-              'min-w-0 flex-1 bg-transparent text-[13px] text-[#999999] outline-none placeholder:text-[#999999]',
+              'min-w-0 flex-1 bg-transparent text-[16px] text-[#999999] outline-none placeholder:text-[#999999]',
               inputClassName,
             )}
             {...props}

@@ -8,12 +8,12 @@ const measureMock = vi.fn();
 
 vi.mock('@tanstack/react-virtual', () => ({
   useVirtualizer: ({ count }: { count: number }) => ({
-    getTotalSize: () => count * 34,
+    getTotalSize: () => count * 38,
     getVirtualItems: () =>
       Array.from({ length: count }, (_, index) => ({
         index,
-        size: 34,
-        start: index * 34,
+        size: 38,
+        start: index * 38,
       })),
     measure: measureMock,
   }),

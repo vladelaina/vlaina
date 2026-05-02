@@ -13,6 +13,7 @@ import {
 import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 import { SidebarStarBadge } from '../common/SidebarStarBadge';
 import { getEntryTitle } from './starredSectionUtils';
+import { useStarredEntryIcon } from './useStarredEntryIcon';
 
 function getStarredNoteDisplayPath(entry: StarredEntry, isCurrentVaultEntry: boolean) {
   if (entry.kind !== 'note') {
@@ -42,6 +43,8 @@ export function ExternalStarredEntryRow({
   const displayPath = getStarredNoteDisplayPath(entry, isCurrentVaultEntry);
   const liveTitle = useDisplayName(displayPath);
   const liveIcon = useDisplayIcon(displayPath);
+  const starredIcon = useStarredEntryIcon(entry, !liveIcon);
+  const displayIcon = liveIcon || starredIcon;
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const title = liveTitle || getEntryTitle(entry);
@@ -86,8 +89,13 @@ export function ExternalStarredEntryRow({
         data-starred-entry-vault-path={entry.vaultPath}
         leading={
           entry.kind === 'note' ? (
-            liveIcon ? (
-              <NoteIcon icon={liveIcon} notePath={entry.relativePath} size={16} />
+            displayIcon ? (
+              <NoteIcon
+                icon={displayIcon}
+                notePath={entry.relativePath}
+                vaultPath={entry.vaultPath}
+                size={16}
+              />
             ) : (
               <Icon
                 name="file.text"

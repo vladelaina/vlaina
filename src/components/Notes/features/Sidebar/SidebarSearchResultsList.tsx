@@ -124,7 +124,7 @@ function SidebarSearchResultRow({
       main={(
         <div className={cn('min-w-0', hasContentLine && 'space-y-0.5')}>
           {showFileHeader ? (
-            <div className="truncate text-[13px] leading-5 text-[var(--notes-sidebar-text)]">
+            <div className="truncate text-[16px] leading-5 text-[var(--notes-sidebar-text)]">
               <HighlightedSearchText
                 text={name}
                 query={query}
@@ -133,12 +133,12 @@ function SidebarSearchResultRow({
             </div>
           ) : null}
           {locationLabel ? (
-            <div className="truncate text-[10px] leading-4 text-[var(--notes-sidebar-text-soft)]">
+            <div className="truncate text-[16px] leading-4 text-[var(--notes-sidebar-text-soft)]">
               <HighlightedSearchText text={locationLabel} query={query} />
             </div>
           ) : null}
           {contentSnippet ? (
-            <div className="whitespace-normal break-words text-[11px] leading-4 text-[var(--notes-sidebar-text-soft)]">
+            <div className="whitespace-normal break-words text-[16px] leading-4 text-[var(--notes-sidebar-text-soft)]">
               <HighlightedSearchText text={contentSnippet} query={query} />
             </div>
           ) : null}
@@ -220,7 +220,7 @@ export function SidebarSearchResultsList({
   return (
     <div className="flex flex-col gap-0.5">
       {isContentScanPending ? (
-        <div className="px-3 py-1 text-[11px] text-[var(--notes-sidebar-text-soft)]">
+        <div className="px-3 py-1 text-[16px] text-[var(--notes-sidebar-text-soft)]">
           Searching note contents...
         </div>
       ) : null}
@@ -262,7 +262,7 @@ export function SidebarSearchResultsList({
           })}
         </div>
       ) : hasQuery && !isContentScanPending ? (
-        <div className="px-3 py-2 text-[11px] text-[var(--notes-sidebar-text-soft)]">
+        <div className="px-3 py-2 text-[16px] text-[var(--notes-sidebar-text-soft)]">
           No results
         </div>
       ) : null}

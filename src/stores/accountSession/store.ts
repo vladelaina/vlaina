@@ -9,14 +9,18 @@ import {
   createSignOut,
   createVerifyEmailCode,
 } from './authActions';
+import { loadPersistedUser } from './authSupport';
 import { createHydrateAvatar } from './avatarActions';
 import { initialAccountSessionState, type AccountSessionStore } from './state';
 
 export type { AccountProvider, AccountSessionActions, AccountSessionState } from './state';
 export { ACCOUNT_USER_PERSIST_KEY } from './state';
 
+const persistedUser = loadPersistedUser();
+
 export const useAccountSessionStore = create<AccountSessionStore>((set, get) => ({
   ...initialAccountSessionState,
+  ...persistedUser,
   checkStatus: createCheckStatus(set, get),
   signIn: createSignIn(set, get),
   requestEmailCode: createRequestEmailCode(set, get),

@@ -97,10 +97,10 @@ function createPreviewElement(sourceElement: HTMLElement) {
   previewElement.style.opacity = '0.92';
   previewElement.style.transform = 'translate3d(-9999px, -9999px, 0)';
   previewElement.style.boxShadow = '0 14px 32px rgba(15, 23, 42, 0.18)';
+  previewElement.style.borderRadius = '0.75rem';
   previewElement.style.filter = 'saturate(1.02)';
   previewElement.style.willChange = 'transform';
   previewElement.dataset.fileTreeDragOriginalPaddingRight = previewElement.style.paddingRight;
-  previewElement.classList.add('rounded-md');
   document.body.appendChild(previewElement);
   return { previewElement, rect };
 }
