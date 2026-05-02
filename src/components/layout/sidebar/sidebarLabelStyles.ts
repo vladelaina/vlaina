@@ -70,7 +70,12 @@ export function getSidebarLabelClass(
     emphasized?: boolean;
   } = {},
 ) {
-  return cn(getSidebarTextClass(tone), getSidebarLabelWeightClass(options));
+  return cn(
+    options.selected
+      ? 'text-[var(--sidebar-row-selected-text)]'
+      : getSidebarTextClass(tone),
+    getSidebarLabelWeightClass(options)
+  );
 }
 
 export function getSidebarActionButtonClass(tone: SidebarTone) {
