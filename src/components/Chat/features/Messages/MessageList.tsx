@@ -93,6 +93,7 @@ export const MessageList = memo(function MessageList({
   const lastStreamingMessageIdRef = useRef<string | null>(null);
   const measuredHeightContextRef = useRef({
     chatId,
+    isSessionActive,
     layoutWidth: 0,
     messageById: new Map<string, ChatMessage>(),
   });
@@ -113,10 +114,11 @@ export const MessageList = memo(function MessageList({
   useEffect(() => {
     measuredHeightContextRef.current = {
       chatId,
+      isSessionActive,
       layoutWidth,
       messageById,
     };
-  }, [chatId, layoutWidth, messageById]);
+  }, [chatId, isSessionActive, layoutWidth, messageById]);
 
   const commitViewportMetrics = useCallback(() => {
     const viewport = containerRef.current;
@@ -191,10 +193,11 @@ export const MessageList = memo(function MessageList({
       const restored = restoreCachedMeasuredHeights(messages, {
         cacheKey: chatId,
         containerWidth: layoutWidth,
+        isSessionActive,
       });
       return areMeasuredHeightsEqual(current, restored) ? current : restored;
     });
-  }, [chatId, layoutWidth, messages]);
+  }, [chatId, isSessionActive, layoutWidth, messages]);
 
   const flushMeasuredHeights = useCallback(() => {
     measuredHeightsRafRef.current = null;
@@ -207,6 +210,7 @@ export const MessageList = memo(function MessageList({
 
     const {
       chatId: activeChatId,
+      isSessionActive: activeIsSessionActive,
       layoutWidth: activeLayoutWidth,
       messageById: activeMessageById,
     } = measuredHeightContextRef.current;
@@ -221,6 +225,7 @@ export const MessageList = memo(function MessageList({
         rememberMeasuredChatMessageHeight(message, {
           cacheKey: activeChatId,
           containerWidth: activeLayoutWidth,
+          isSessionActive: activeIsSessionActive,
           height,
         });
       });

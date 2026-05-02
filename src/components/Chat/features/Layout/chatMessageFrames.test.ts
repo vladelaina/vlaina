@@ -3,6 +3,7 @@ import type { ChatMessage } from '@/lib/ai/types';
 import {
   buildChatMessageFrameLayout,
   buildTrailingChatLayout,
+  CHAT_MESSAGE_LOADING_GAP,
   CHAT_MESSAGE_LIST_ACTIVE_OVERSCAN,
   CHAT_MESSAGE_LIST_BOTTOM_PADDING,
   CHAT_MESSAGE_LIST_GAP,
@@ -240,12 +241,14 @@ describe('chatMessageFrames', () => {
     rememberMeasuredChatMessageHeight(message, {
       cacheKey: 'chat-1',
       containerWidth: 900,
+      isSessionActive: false,
       height: 144,
     });
 
     const restored = restoreCachedMeasuredHeights([message], {
       cacheKey: 'chat-1',
       containerWidth: 900,
+      isSessionActive: false,
     });
 
     expect(restored.get('u1')).toBe(144);
@@ -256,12 +259,14 @@ describe('chatMessageFrames', () => {
     rememberMeasuredChatMessageHeight(message, {
       cacheKey: 'chat-3',
       containerWidth: 721,
+      isSessionActive: false,
       height: 188,
     });
 
     const restored = restoreCachedMeasuredHeights([message], {
       cacheKey: 'chat-3',
       containerWidth: 727,
+      isSessionActive: false,
     });
 
     expect(restored.get('u2')).toBe(188);
@@ -272,6 +277,7 @@ describe('chatMessageFrames', () => {
     rememberMeasuredChatMessageHeight(first, {
       cacheKey: 'chat-2',
       containerWidth: 900,
+      isSessionActive: false,
       height: 132,
     });
 
@@ -288,6 +294,25 @@ describe('chatMessageFrames', () => {
     const restored = restoreCachedMeasuredHeights([updated], {
       cacheKey: 'chat-2',
       containerWidth: 900,
+      isSessionActive: false,
+    });
+
+    expect(restored.has('u1')).toBe(false);
+  });
+
+  it('does not restore measured heights across idle and active session states', () => {
+    const message = createMessage('u1', 'user', 'hello world');
+    rememberMeasuredChatMessageHeight(message, {
+      cacheKey: 'chat-4',
+      containerWidth: 900,
+      isSessionActive: false,
+      height: 144,
+    });
+
+    const restored = restoreCachedMeasuredHeights([message], {
+      cacheKey: 'chat-4',
+      containerWidth: 900,
+      isSessionActive: true,
     });
 
     expect(restored.has('u1')).toBe(false);
@@ -301,12 +326,12 @@ describe('chatMessageFrames', () => {
 
     const trailing = buildTrailingChatLayout(messageLayout, true, 96);
 
-    expect(trailing.loadingTop).toBe(CHAT_MESSAGE_LIST_TOP_PADDING + 240 + CHAT_MESSAGE_LIST_GAP);
+    expect(trailing.loadingTop).toBe(CHAT_MESSAGE_LIST_TOP_PADDING + 240 + CHAT_MESSAGE_LOADING_GAP);
     expect(trailing.spacerTop).toBe(
-      CHAT_MESSAGE_LIST_TOP_PADDING + 240 + CHAT_MESSAGE_LIST_GAP + 24 + CHAT_MESSAGE_LIST_GAP,
+      CHAT_MESSAGE_LIST_TOP_PADDING + 240 + CHAT_MESSAGE_LOADING_GAP + 24 + CHAT_MESSAGE_LIST_GAP,
     );
     expect(trailing.totalHeight).toBe(
-      CHAT_MESSAGE_LIST_TOP_PADDING + 240 + CHAT_MESSAGE_LIST_GAP + 24 + CHAT_MESSAGE_LIST_GAP + 96 + CHAT_MESSAGE_LIST_BOTTOM_PADDING,
+      CHAT_MESSAGE_LIST_TOP_PADDING + 240 + CHAT_MESSAGE_LOADING_GAP + 24 + CHAT_MESSAGE_LIST_GAP + 96 + CHAT_MESSAGE_LIST_BOTTOM_PADDING,
     );
   });
 });

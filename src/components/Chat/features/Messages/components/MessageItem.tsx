@@ -42,7 +42,7 @@ function MessageItemInner({
       data-role={msg.role}
       className={cn(
         "flex w-full group",
-        isUser ? "justify-end" : "justify-start"
+        isUser ? "justify-end select-none" : "justify-start select-text"
       )}
     >
       <div 
@@ -55,6 +55,7 @@ function MessageItemInner({
               <UserMessage 
                   message={msg}
                   containerWidth={userBubbleContainerWidth || 0}
+                  isAwaitingResponse={isLoading}
                   onEdit={onEdit}
                   onSwitchVersion={onSwitchVersion}
               />
@@ -88,7 +89,10 @@ function areMessageItemPropsEqual(prevProps: MessageItemProps, nextProps: Messag
   }
 
   if (prevProps.msg.role === 'user' && nextProps.msg.role === 'user') {
-    return prevProps.userBubbleContainerWidth === nextProps.userBubbleContainerWidth;
+    return (
+      prevProps.userBubbleContainerWidth === nextProps.userBubbleContainerWidth &&
+      prevProps.isLoading === nextProps.isLoading
+    );
   }
 
   return (

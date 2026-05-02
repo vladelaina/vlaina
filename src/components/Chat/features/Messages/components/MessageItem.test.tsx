@@ -66,10 +66,30 @@ describe("MessageItem", () => {
     expect(userMessageSpy.mock.calls[0][0]).toMatchObject({
       message: expect.objectContaining({ id: "u1", role: "user" }),
       containerWidth: 880,
+      isAwaitingResponse: false,
       onEdit,
       onSwitchVersion,
     });
     expect(aiMessageSpy).not.toHaveBeenCalled();
+  });
+
+  it("marks the last user message as awaiting a response while loading", () => {
+    render(
+      <MessageItem
+        msg={createMessage("user", "u1")}
+        userBubbleContainerWidth={880}
+        imageGallery={[]}
+        isLoading
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onEdit={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(userMessageSpy.mock.calls[0][0]).toMatchObject({
+      isAwaitingResponse: true,
+    });
   });
 
   it("renders assistant messages with bound regenerate and version callbacks", () => {
@@ -110,7 +130,7 @@ describe("MessageItem", () => {
     expect(userMessageSpy).not.toHaveBeenCalled();
   });
 
-  it("does not rerender user messages when only loading state changes", () => {
+  it("rerenders user messages when loading state changes", () => {
     const onEdit = vi.fn();
     const onSwitchVersion = vi.fn();
     const msg = createMessage("user", "u2");
@@ -143,7 +163,10 @@ describe("MessageItem", () => {
       />,
     );
 
-    expect(userMessageSpy).toHaveBeenCalledTimes(1);
+    expect(userMessageSpy).toHaveBeenCalledTimes(2);
+    expect(userMessageSpy.mock.calls[1][0]).toMatchObject({
+      isAwaitingResponse: true,
+    });
     expect(aiMessageSpy).not.toHaveBeenCalled();
   });
 

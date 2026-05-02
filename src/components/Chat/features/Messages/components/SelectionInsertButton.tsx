@@ -20,11 +20,11 @@ interface OutsideMoveDecision {
 
 export function resolveOutsideMoveDecision({
   isSelectingFromChat,
-  pointerInsideChat,
+  pointerInsideSelectionSurface,
   isSelectionFrozen,
 }: {
   isSelectingFromChat: boolean;
-  pointerInsideChat: boolean;
+  pointerInsideSelectionSurface: boolean;
   isSelectionFrozen: boolean;
 }): OutsideMoveDecision {
   if (!isSelectingFromChat) {
@@ -34,7 +34,7 @@ export function resolveOutsideMoveDecision({
       shouldRestore: false,
     };
   }
-  if (pointerInsideChat) {
+  if (pointerInsideSelectionSurface) {
     return {
       nextFrozen: false,
       shouldPreventDefault: false,
@@ -78,6 +78,10 @@ function toElement(node: Node | null): Element | null {
 
 function isInsideMessageItem(element: Element | null): boolean {
   return !!element?.closest('[data-message-item="true"]');
+}
+
+function isInsideAssistantMessageItem(element: Element | null): boolean {
+  return !!element?.closest('[data-message-item="true"][data-role="assistant"]');
 }
 
 function isInsideChatScrollable(element: Element | null): boolean {
@@ -213,7 +217,7 @@ export function SelectionInsertButton() {
   const [state, setState] = useState<SelectionInsertState | null>(null);
   const [mounted, setMounted] = useState(false);
   const isSelectingFromChatRef = useRef(false);
-  const isPointerInsideChatRef = useRef(true);
+  const isPointerInsideSelectionSurfaceRef = useRef(true);
   const isSelectionFrozenRef = useRef(false);
   const lastValidRangeRef = useRef<Range | null>(null);
   const lastValidTextRef = useRef("");
@@ -236,7 +240,7 @@ export function SelectionInsertButton() {
       }
       const range = selection.getRangeAt(0);
       const isRangeInsideChat = isSelectionFullyInsideChatMessages(selection, range);
-      if (isRangeInsideChat && isPointerInsideChatRef.current) {
+      if (isRangeInsideChat && isPointerInsideSelectionSurfaceRef.current) {
         const normalizedText = normalizeSelectedTextForComposer(selection.toString());
         if (!normalizedText) {
           return false;
@@ -278,7 +282,7 @@ export function SelectionInsertButton() {
     };
     const resetSelectionInteractionState = () => {
       isSelectingFromChatRef.current = false;
-      isPointerInsideChatRef.current = true;
+      isPointerInsideSelectionSurfaceRef.current = true;
       isSelectionFrozenRef.current = false;
       lastValidRangeRef.current = null;
       lastValidTextRef.current = "";
@@ -306,8 +310,8 @@ export function SelectionInsertButton() {
         return;
       }
       const target = event.target;
-      isSelectingFromChatRef.current = target instanceof Element && !!target.closest('[data-message-item="true"]');
-      isPointerInsideChatRef.current = target instanceof Element && !!target.closest('[data-chat-scrollable="true"]');
+      isSelectingFromChatRef.current = target instanceof Element && isInsideAssistantMessageItem(target);
+      isPointerInsideSelectionSurfaceRef.current = isSelectingFromChatRef.current;
       isSelectionFrozenRef.current = false;
       lastValidRangeRef.current = null;
       lastValidTextRef.current = "";
@@ -321,10 +325,11 @@ export function SelectionInsertButton() {
         return;
       }
       const target = event.target;
-      isPointerInsideChatRef.current = target instanceof Element && !!target.closest('[data-chat-scrollable="true"]');
+      isPointerInsideSelectionSurfaceRef.current =
+        target instanceof Element && isInsideAssistantMessageItem(target);
       const decision = resolveOutsideMoveDecision({
         isSelectingFromChat: isSelectingFromChatRef.current,
-        pointerInsideChat: isPointerInsideChatRef.current,
+        pointerInsideSelectionSurface: isPointerInsideSelectionSurfaceRef.current,
         isSelectionFrozen: isSelectionFrozenRef.current,
       });
       if (decision.nextFrozen !== isSelectionFrozenRef.current) {
@@ -346,7 +351,7 @@ export function SelectionInsertButton() {
     };
 
     const handleSelectStart = (event: Event) => {
-      if (!isSelectingFromChatRef.current || isPointerInsideChatRef.current) {
+      if (!isSelectingFromChatRef.current || isPointerInsideSelectionSurfaceRef.current) {
         return;
       }
       event.preventDefault();
@@ -389,7 +394,7 @@ export function SelectionInsertButton() {
       }
 
       if (isSelectingFromChatRef.current) {
-        if (!isPointerInsideChatRef.current) {
+        if (!isPointerInsideSelectionSurfaceRef.current) {
           return;
         }
         restoreLastValidSelection();

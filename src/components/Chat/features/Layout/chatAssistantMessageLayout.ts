@@ -17,7 +17,6 @@ import { getMarkdownBlocksHeight } from './chatAssistantMarkdownBlocks';
 
 const ASSISTANT_LEFT_PADDING = 15;
 const ASSISTANT_TOOLBAR_HEIGHT = 30;
-const ASSISTANT_INLINE_LOADING_HEIGHT = 24;
 const ASSISTANT_IMAGE_HEIGHT = 220;
 const ASSISTANT_IMAGE_GAP = 12;
 const ASSISTANT_BLOCK_GAP = 20;
@@ -49,10 +48,6 @@ function estimateThinkingHeight(
   });
 
   return ASSISTANT_THINKING_HEADER_HEIGHT + ASSISTANT_THINKING_BODY_GAP + bodyHeight;
-}
-
-export function estimateChatLoadingHeight(): number {
-  return 24;
 }
 
 export function estimateAssistantMessageHeight(
@@ -103,18 +98,13 @@ export function estimateAssistantMessageHeight(
     height += measureErrorHeight(parsedError.content, contentWidth) + ASSISTANT_ERROR_MARGIN_BOTTOM;
   }
 
-  const hasVisibleAssistantOutput =
-    parsedMarkdown.blocks.length > 0
-    || parsedMarkdown.imageCount > 0
-    || parsedError?.content
-    || thinkingHeight > 0;
-  if (isStreaming && hasVisibleAssistantOutput) {
-    height += ASSISTANT_INLINE_LOADING_HEIGHT;
-  }
-
   if (!isStreaming) {
     height += ASSISTANT_TOOLBAR_HEIGHT;
   }
 
   return Math.max(height, BODY_LINE_HEIGHT);
+}
+
+export function estimateChatLoadingHeight(): number {
+  return 24;
 }

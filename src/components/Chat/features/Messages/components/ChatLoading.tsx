@@ -1,6 +1,6 @@
 export function ChatLoading() {
     return (
-        <div className="flex w-fit items-center space-x-1.5 py-3 mt-2 self-start rounded-full min-w-0 select-none">
+        <div className="flex h-6 w-fit items-center space-x-1.5 self-start rounded-full min-w-0 select-none">
             <style dangerouslySetInnerHTML={{ __html: `
                 @keyframes vlaina-typing {
                     0%, 100% { opacity: 0.4; transform: translateY(0); }

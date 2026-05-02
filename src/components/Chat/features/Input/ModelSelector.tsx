@@ -111,7 +111,7 @@ const ModelOption = memo(({
             onClick={() => onSelect(model.id)}
             onMouseEnter={() => onHover(model.id)}
             className={cn(
-                "w-full flex items-center justify-between px-3 py-2 rounded-md text-left transition-colors duration-75",
+                "w-full flex cursor-pointer items-center justify-between px-3 py-2 rounded-md text-left transition-colors duration-75",
                 isSelected
                   ? styles.optionActive
                   : isFocused
@@ -418,7 +418,7 @@ export function ModelSelector({
       <button
         onClick={toggleSelector}
         className={cn(
-          "flex items-center gap-1.5 px-3 h-9 rounded-full transition-all group",
+          "flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3 transition-all group",
           "bg-transparent border-none",
           styles.triggerHover,
           selectedModel ? styles.triggerTextActive : styles.triggerText
@@ -455,7 +455,7 @@ export function ModelSelector({
           )}
           style={{ maxHeight: '320px' }}
         >
-          <div className={cn("flex items-center gap-1 px-1 py-2 border-b", styles.divider)}>
+          <div className={cn("flex items-center gap-1 border-b px-2 py-2", styles.divider)}>
               <input
                 ref={inputRef}
                 type="text"
@@ -465,7 +465,7 @@ export function ModelSelector({
                 placeholder="Find model..."
                 autoCorrect="off"
                 className={cn(
-                  "flex-1 px-2 py-0.5 bg-transparent border-none outline-none text-sm",
+                  "min-w-0 flex-1 bg-transparent px-2 py-0.5 text-sm outline-none border-none",
                   styles.inputText,
                   styles.inputPlaceholder
                 )}
@@ -477,7 +477,7 @@ export function ModelSelector({
                       const event = new CustomEvent('open-settings', { detail: { tab: 'ai' } });
                       window.dispatchEvent(event);
                   }}
-                  className={cn("p-1.5 rounded-lg transition-colors", styles.settingsButton)}
+                  className={cn("flex-shrink-0 cursor-pointer rounded-lg p-1.5 transition-colors", styles.settingsButton)}
               >
                   <Icon name="common.settings" size="md" />
               </button>

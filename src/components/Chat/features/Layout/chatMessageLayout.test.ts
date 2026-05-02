@@ -31,6 +31,20 @@ describe('estimateChatMessageHeight', () => {
     expect(longHeight).toBeGreaterThan(shortHeight);
   });
 
+  it('does not reserve user toolbar height while waiting for a response', () => {
+    const message = createMessage('user', 'short');
+    const idleHeight = estimateChatMessageHeight(message, {
+      containerWidth: 900,
+      isStreaming: false,
+    });
+    const waitingHeight = estimateChatMessageHeight(message, {
+      containerWidth: 900,
+      isStreaming: true,
+    });
+
+    expect(waitingHeight).toBeLessThan(idleHeight);
+  });
+
   it('accounts for assistant code fences and images', () => {
     const plainHeight = estimateChatMessageHeight(
       createMessage('assistant', 'hello world'),

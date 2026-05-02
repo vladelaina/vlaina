@@ -9,6 +9,7 @@ import {
 import type { ChatMessage } from "@/lib/ai/types";
 import {
   buildChatMessageFrameLayout,
+  CHAT_MESSAGE_LOADING_GAP,
   CHAT_MESSAGE_LIST_GAP,
 } from "@/components/Chat/features/Layout/chatMessageFrames";
 import { normalizeChatContainerWidth } from "@/components/Chat/features/Layout/chatWidthBuckets";
@@ -164,7 +165,7 @@ export const useMessageAutoscroll = ({
     }
 
     if (showLoading) {
-      contentHeightAfterTarget += CHAT_MESSAGE_LIST_GAP + (estimateLoadingHeight?.() ?? 0);
+      contentHeightAfterTarget += CHAT_MESSAGE_LOADING_GAP + (estimateLoadingHeight?.() ?? 0);
     }
 
     const nextSpacerHeight = computeSpacerHeight(

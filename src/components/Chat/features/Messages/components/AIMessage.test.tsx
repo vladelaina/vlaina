@@ -59,7 +59,7 @@ describe("AIMessage", () => {
     vi.useRealTimers();
   });
 
-  it("shows inline loading dots when streaming content is already visible", () => {
+  it("does not show inline loading dots when streaming content is already visible", () => {
     render(
       <AIMessage
         msg={createMessage("Processing image...")}
@@ -71,10 +71,10 @@ describe("AIMessage", () => {
       />,
     );
 
-    expect(document.querySelectorAll(".vlaina-dot").length).toBe(3);
+    expect(document.querySelectorAll(".vlaina-dot").length).toBe(0);
   });
 
-  it("does not show inline loading dots when content is empty", () => {
+  it("does not show inline loading dots when streaming content is empty", () => {
     render(
       <AIMessage
         msg={createMessage("")}

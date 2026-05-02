@@ -77,4 +77,17 @@ describe('UserMessage', () => {
     expect(screen.getByRole('textbox')).toBeInTheDocument();
     expect(useNotesStoreMock).toHaveBeenCalled();
   });
+
+  it('does not render the hover toolbar while waiting for an assistant response', () => {
+    render(
+      <UserMessage
+        message={createMessage()}
+        containerWidth={880}
+        isAwaitingResponse
+        onEdit={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
 });

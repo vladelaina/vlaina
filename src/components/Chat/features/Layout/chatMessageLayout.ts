@@ -34,7 +34,11 @@ function countRenderableImages(content: string): number {
   return markdownImageMatches.length + htmlImageMatches.length;
 }
 
-function estimateUserMessageHeight(message: ChatMessage, containerWidth: number): number {
+function estimateUserMessageHeight(
+  message: ChatMessage,
+  containerWidth: number,
+  isStreaming: boolean,
+): number {
   const contentWidth = getChatContentWidth(containerWidth);
   const bubbleWidth = Math.max(120, Math.floor(contentWidth * USER_BUBBLE_MAX_RATIO));
   const textWidth = Math.max(1, bubbleWidth - USER_BUBBLE_PADDING_X);
@@ -63,7 +67,7 @@ function estimateUserMessageHeight(message: ChatMessage, containerWidth: number)
     height = BODY_LINE_HEIGHT + USER_BUBBLE_PADDING_Y;
   }
 
-  return height + USER_TOOLBAR_HEIGHT;
+  return height + (isStreaming ? 0 : USER_TOOLBAR_HEIGHT);
 }
 
 export { estimateChatLoadingHeight };
@@ -74,7 +78,7 @@ export function estimateChatMessageHeight(
 ): number {
   const normalizedWidth = normalizeChatContainerWidth(containerWidth);
   if (message.role === 'user') {
-    return estimateUserMessageHeight(message, normalizedWidth);
+    return estimateUserMessageHeight(message, normalizedWidth, isStreaming);
   }
 
   return estimateAssistantMessageHeight(message, normalizedWidth, isStreaming);

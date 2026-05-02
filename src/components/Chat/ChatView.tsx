@@ -93,13 +93,14 @@ export function ChatView({ mode = 'full', active = true }: ChatViewProps) {
   const switchMessageVersionRef = useRef(switchMessageVersion);
   const currentSessionIdRef = useRef(currentSessionId);
   const imageGalleryRef = useRef(imageGallery);
+  const wasActiveRef = useRef(active);
   
   const isSessionActive = useAIUIStore((state) =>
     currentSessionId ? !!state.generatingSessions[currentSessionId] : false
   );
   const lastMessage = messages[messages.length - 1];
   const showLoading = isSessionActive && (
-      lastMessage?.role === 'user' || 
+      lastMessage?.role === 'user' ||
       (lastMessage?.role === 'assistant' && (!lastMessage.content || !lastMessage.content.trim()))
   );
   
@@ -153,6 +154,32 @@ export function ChatView({ mode = 'full', active = true }: ChatViewProps) {
   useEffect(() => {
       setFocusInputTrigger(n => n + 1);
   }, [currentSessionId]);
+
+  useEffect(() => {
+    if (isEmbedded || !active || wasActiveRef.current) {
+      wasActiveRef.current = active;
+      return;
+    }
+
+    wasActiveRef.current = active;
+    let secondFrameId = 0;
+    const firstFrameId = requestAnimationFrame(() => {
+      if (focusComposerInput()) {
+        return;
+      }
+      setFocusInputTrigger(n => n + 1);
+      secondFrameId = requestAnimationFrame(() => {
+        focusComposerInput();
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(firstFrameId);
+      if (secondFrameId) {
+        cancelAnimationFrame(secondFrameId);
+      }
+    };
+  }, [active, isEmbedded]);
 
   useEffect(() => {
     if (!isEmbedded || !isSessionActive) {
