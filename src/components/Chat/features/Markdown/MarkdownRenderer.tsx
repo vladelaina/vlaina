@@ -68,6 +68,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
 
         {markdown && (
           <div
+            data-chat-selection-surface="true"
             className={[
               'max-w-full break-words prose prose-neutral prose-headings:font-semibold prose-pre:m-0 prose-pre:bg-transparent prose-pre:p-0 dark:prose-invert',
               PROSE_SIZE_CLASS[size ?? 'md'],

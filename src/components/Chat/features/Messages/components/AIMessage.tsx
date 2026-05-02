@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MarkdownRenderer from '@/components/Chat/features/Markdown/MarkdownRenderer';
 import { MessageToolbar } from './MessageToolbar';
 import { ErrorBlock } from './ErrorBlock';
-import { ChatLoading } from './ChatLoading';
 import type { ChatMessage } from '@/lib/ai/types';
 import { parseErrorTag } from '@/lib/ai/errorTag';
 
@@ -74,8 +73,6 @@ export function AIMessage({
     };
   }, []);
 
-  const shouldShowInlineLoading = isLoading && !!contentWithoutError.trim();
-
   const handleCodeBlockCopy = useCallback((blockId: string) => {
     setCopiedCodeBlockId(blockId);
     if (copiedCodeBlockTimerRef.current !== null) {
@@ -112,12 +109,6 @@ export function AIMessage({
             </div>
         )}
 
-        {shouldShowInlineLoading && (
-            <div className="-mt-1 mb-1">
-                <ChatLoading />
-            </div>
-        )}
-        
         <MessageToolbar 
             msg={msg}
             isLoading={isLoading}

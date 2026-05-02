@@ -3,6 +3,7 @@ import { estimateChatMessageHeight, estimateChatLoadingHeight } from './chatMess
 import { normalizeChatContainerWidth } from './chatWidthBuckets';
 
 export const CHAT_MESSAGE_LIST_GAP = 32;
+export const CHAT_MESSAGE_LOADING_GAP = 16;
 export const CHAT_MESSAGE_LIST_TOP_PADDING = 32;
 export const CHAT_MESSAGE_LIST_BOTTOM_PADDING = 16;
 export const CHAT_MESSAGE_LIST_OVERSCAN = 480;
@@ -110,9 +111,10 @@ function getSharedMessagePrefixLength(
 function getMeasuredHeightCacheKey(
   cacheKey: string | null | undefined,
   containerWidth: number,
+  isSessionActive: boolean,
   messageId: string,
 ): string {
-  return `${cacheKey ?? 'sessionless'}\u0000${containerWidth}\u0000${messageId}`;
+  return `${cacheKey ?? 'sessionless'}\u0000${containerWidth}\u0000${isSessionActive ? 1 : 0}\u0000${messageId}`;
 }
 
 export function restoreCachedMeasuredHeights(
@@ -120,13 +122,14 @@ export function restoreCachedMeasuredHeights(
   {
     cacheKey,
     containerWidth,
-  }: Pick<BuildChatMessageFrameLayoutOptions, 'cacheKey' | 'containerWidth'>,
+    isSessionActive,
+  }: Pick<BuildChatMessageFrameLayoutOptions, 'cacheKey' | 'containerWidth' | 'isSessionActive'>,
 ): Map<string, number> {
   const normalizedWidth = normalizeChatContainerWidth(containerWidth);
   const restored = new Map<string, number>();
 
   for (const message of messages) {
-    const key = getMeasuredHeightCacheKey(cacheKey, normalizedWidth, message.id);
+    const key = getMeasuredHeightCacheKey(cacheKey, normalizedWidth, isSessionActive, message.id);
     const cached = measuredHeightCache.get(key);
     if (!cached || cached.signature !== getMessageSignature(message)) {
       continue;
@@ -145,13 +148,14 @@ export function rememberMeasuredChatMessageHeight(
   {
     cacheKey,
     containerWidth,
+    isSessionActive,
     height,
-  }: Pick<BuildChatMessageFrameLayoutOptions, 'cacheKey' | 'containerWidth'> & { height: number },
+  }: Pick<BuildChatMessageFrameLayoutOptions, 'cacheKey' | 'containerWidth' | 'isSessionActive'> & { height: number },
 ): void {
   const normalizedWidth = normalizeChatContainerWidth(containerWidth);
   const normalizedHeight = Math.max(1, Math.ceil(height));
   setMeasuredHeightCacheEntry(
-    getMeasuredHeightCacheKey(cacheKey, normalizedWidth, message.id),
+    getMeasuredHeightCacheKey(cacheKey, normalizedWidth, isSessionActive, message.id),
     {
       height: normalizedHeight,
       signature: getMessageSignature(message),
@@ -407,7 +411,7 @@ export function buildTrailingChatLayout(
 
   if (showLoading) {
     if (hasMessages) {
-      offset += CHAT_MESSAGE_LIST_GAP;
+      offset += CHAT_MESSAGE_LOADING_GAP;
     }
     loadingTop = offset;
     offset += estimateChatLoadingHeight();

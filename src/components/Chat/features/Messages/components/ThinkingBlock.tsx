@@ -125,6 +125,7 @@ export function ThinkingBlock({
          hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors select-none`}
     >
       <div
+        data-chat-selection-excluded="true"
         className="flex items-center cursor-pointer group/thinking self-start relative py-1"
         onClick={handleToggle}
       >
@@ -169,6 +170,7 @@ export function ThinkingBlock({
       >
         <div
           ref={contentRef}
+          data-chat-selection-surface="true"
           className="transition-transform duration-300 opacity-90 select-text leading-relaxed prose prose-neutral dark:prose-invert max-w-none"
         >
           <ReactMarkdown

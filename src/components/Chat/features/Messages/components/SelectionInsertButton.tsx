@@ -1,222 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/ui/icons";
-import { focusComposerInput, insertTextIntoComposer, isComposerFocusTarget } from "@/lib/ui/composerFocusRegistry";
+import { focusComposerInput, insertTextIntoComposer } from "@/lib/ui/composerFocusRegistry";
 import { normalizeSelectedTextForComposer } from "@/lib/ui/normalizeSelectedTextForComposer";
 import { cn, iconButtonStyles } from "@/lib/utils";
-
-interface SelectionInsertState {
-  text: string;
-  x: number;
-  y: number;
-  placeBelow: boolean;
-}
-
-interface OutsideMoveDecision {
-  nextFrozen: boolean;
-  shouldPreventDefault: boolean;
-  shouldRestore: boolean;
-}
-
-export function resolveOutsideMoveDecision({
-  isSelectingFromChat,
-  pointerInsideChat,
-  isSelectionFrozen,
-}: {
-  isSelectingFromChat: boolean;
-  pointerInsideChat: boolean;
-  isSelectionFrozen: boolean;
-}): OutsideMoveDecision {
-  if (!isSelectingFromChat) {
-    return {
-      nextFrozen: isSelectionFrozen,
-      shouldPreventDefault: false,
-      shouldRestore: false,
-    };
-  }
-  if (pointerInsideChat) {
-    return {
-      nextFrozen: false,
-      shouldPreventDefault: false,
-      shouldRestore: false,
-    };
-  }
-  return {
-    nextFrozen: true,
-    shouldPreventDefault: true,
-    shouldRestore: !isSelectionFrozen,
-  };
-}
-
-function setChatSelectionLock(active: boolean) {
-  if (typeof document === "undefined") {
-    return;
-  }
-  if (active) {
-    document.body.setAttribute("data-chat-selection-lock", "1");
-    return;
-  }
-  document.body.removeAttribute("data-chat-selection-lock");
-}
-
-function setChatSelectionFreeze(active: boolean) {
-  if (typeof document === "undefined") {
-    return;
-  }
-  if (active) {
-    document.body.setAttribute("data-chat-selection-freeze", "1");
-    return;
-  }
-  document.body.removeAttribute("data-chat-selection-freeze");
-}
-
-function toElement(node: Node | null): Element | null {
-  if (!node) return null;
-  if (node instanceof Element) return node;
-  return node.parentElement;
-}
-
-function isInsideMessageItem(element: Element | null): boolean {
-  return !!element?.closest('[data-message-item="true"]');
-}
-
-function isInsideChatScrollable(element: Element | null): boolean {
-  return !!element?.closest('[data-chat-scrollable="true"]');
-}
-
-function isSelectionInsideChatMessages(selection: Selection, range: Range): boolean {
-  const anchorElement = toElement(selection.anchorNode);
-  const focusElement = toElement(selection.focusNode);
-  const ancestorElement = toElement(range.commonAncestorContainer);
-
-  if (anchorElement && isComposerFocusTarget(anchorElement)) return false;
-  if (focusElement && isComposerFocusTarget(focusElement)) return false;
-  if (ancestorElement && isComposerFocusTarget(ancestorElement)) return false;
-
-  const endpointInChat = [anchorElement, focusElement, ancestorElement].some((element) =>
-    isInsideChatScrollable(element)
-  );
-  if (!endpointInChat) {
-    return false;
-  }
-
-  const endpointInMessageItem = [anchorElement, focusElement, ancestorElement].some((element) =>
-    isInsideMessageItem(element)
-  );
-  if (endpointInMessageItem) {
-    return true;
-  }
-
-  const chatScrollable =
-    ancestorElement?.closest('[data-chat-scrollable="true"]') ??
-    anchorElement?.closest('[data-chat-scrollable="true"]') ??
-    focusElement?.closest('[data-chat-scrollable="true"]') ??
-    document.querySelector('[data-chat-scrollable="true"]');
-  if (!chatScrollable) {
-    return false;
-  }
-
-  const messageItems = chatScrollable.querySelectorAll('[data-message-item="true"]');
-  for (const item of messageItems) {
-    try {
-      if (range.intersectsNode(item)) {
-        return true;
-      }
-    } catch {}
-  }
-
-  return false;
-}
-
-function isSelectionFullyInsideChatMessages(selection: Selection, range: Range): boolean {
-  const anchorElement = toElement(selection.anchorNode);
-  const focusElement = toElement(selection.focusNode);
-
-  if (!isInsideChatScrollable(anchorElement) || !isInsideChatScrollable(focusElement)) {
-    return false;
-  }
-
-  const chatScrollable =
-    anchorElement?.closest('[data-chat-scrollable="true"]') ??
-    focusElement?.closest('[data-chat-scrollable="true"]') ??
-    document.querySelector('[data-chat-scrollable="true"]');
-  if (!chatScrollable) {
-    return false;
-  }
-
-  const messageItems = chatScrollable.querySelectorAll('[data-message-item="true"]');
-  for (const item of messageItems) {
-    try {
-      if (range.intersectsNode(item)) {
-        return true;
-      }
-    } catch {}
-  }
-
-  return false;
-}
-
-function isSameRange(a: Range, b: Range): boolean {
-  try {
-    return (
-      a.compareBoundaryPoints(Range.START_TO_START, b) === 0 &&
-      a.compareBoundaryPoints(Range.END_TO_END, b) === 0
-    );
-  } catch {
-    return false;
-  }
-}
-
-function computeStateFromSelection(): SelectionInsertState | null {
-  if (typeof window === "undefined") {
-    return null;
-  }
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
-    return null;
-  }
-
-  const text = normalizeSelectedTextForComposer(selection.toString());
-  if (!text) {
-    return null;
-  }
-
-  const range = selection.getRangeAt(0);
-  if (!isSelectionInsideChatMessages(selection, range)) {
-    return null;
-  }
-
-  const rect = range.getBoundingClientRect();
-  if (!rect || (rect.width === 0 && rect.height === 0)) {
-    return null;
-  }
-
-  const minX = 24;
-  const maxX = Math.max(24, window.innerWidth - 24);
-  const centerX = rect.left + rect.width / 2;
-  const x = Math.min(Math.max(centerX, minX), maxX);
-
-  const placeBelow = rect.top < 64;
-  const y = placeBelow ? rect.bottom + 10 : rect.top - 10;
-
-  return { text, x, y, placeBelow };
-}
-
-function getStateSignature(state: SelectionInsertState | null): string {
-  if (!state) {
-    return "";
-  }
-  return `${state.text}|${Math.round(state.x)}|${Math.round(state.y)}|${state.placeBelow ? "1" : "0"}`;
-}
+import {
+  canStartChatSelection,
+  computeStateFromSelection,
+  createSelectionSnapshot,
+  getStateSignature,
+  isInsideSelectionSurface,
+  isSameRange,
+  isSelectionFullyInsideChatMessages,
+  restoreSelectionSnapshot,
+  resolveOutsideMoveDecision,
+  setChatSelectionLock,
+  type LastValidSelectionSnapshot,
+  type SelectionInsertState,
+} from "./chatSelectionBehavior";
 
 export function SelectionInsertButton() {
   const [state, setState] = useState<SelectionInsertState | null>(null);
   const [mounted, setMounted] = useState(false);
   const isSelectingFromChatRef = useRef(false);
-  const isPointerInsideChatRef = useRef(true);
+  const isPointerInsideSelectionSurfaceRef = useRef(true);
   const isSelectionFrozenRef = useRef(false);
-  const lastValidRangeRef = useRef<Range | null>(null);
-  const lastValidTextRef = useRef("");
+  const lastValidSelectionRef = useRef<LastValidSelectionSnapshot | null>(null);
   const isRestoringRangeRef = useRef(false);
   const lastStateSignatureRef = useRef<string>("");
 
@@ -236,30 +45,28 @@ export function SelectionInsertButton() {
       }
       const range = selection.getRangeAt(0);
       const isRangeInsideChat = isSelectionFullyInsideChatMessages(selection, range);
-      if (isRangeInsideChat && isPointerInsideChatRef.current) {
+      if (isRangeInsideChat && isPointerInsideSelectionSurfaceRef.current) {
         const normalizedText = normalizeSelectedTextForComposer(selection.toString());
         if (!normalizedText) {
           return false;
         }
-        lastValidRangeRef.current = range.cloneRange();
-        lastValidTextRef.current = normalizedText;
+        lastValidSelectionRef.current = createSelectionSnapshot(selection, range, normalizedText);
         return false;
       }
-      if (!lastValidRangeRef.current) {
+      if (!lastValidSelectionRef.current) {
         return false;
       }
       const currentText = normalizeSelectedTextForComposer(selection.toString());
-      if (!force && currentText && currentText === lastValidTextRef.current) {
+      if (!force && currentText && currentText === lastValidSelectionRef.current.text) {
         return false;
       }
-      if (!force && isSameRange(range, lastValidRangeRef.current)) {
+      if (!force && isSameRange(range, lastValidSelectionRef.current.range)) {
         return false;
       }
       isRestoringRangeRef.current = true;
-      selection.removeAllRanges();
-      selection.addRange(lastValidRangeRef.current);
+      const didRestore = restoreSelectionSnapshot(selection, lastValidSelectionRef.current);
       isRestoringRangeRef.current = false;
-      return true;
+      return didRestore;
     };
 
     let outsideClampRaf: number | null = null;
@@ -278,13 +85,11 @@ export function SelectionInsertButton() {
     };
     const resetSelectionInteractionState = () => {
       isSelectingFromChatRef.current = false;
-      isPointerInsideChatRef.current = true;
+      isPointerInsideSelectionSurfaceRef.current = true;
       isSelectionFrozenRef.current = false;
-      lastValidRangeRef.current = null;
-      lastValidTextRef.current = "";
+      lastValidSelectionRef.current = null;
       stopOutsideClamp();
       setChatSelectionLock(false);
-      setChatSelectionFreeze(false);
     };
     const startOutsideClamp = () => {
       if (outsideClampRaf !== null) {
@@ -306,14 +111,13 @@ export function SelectionInsertButton() {
         return;
       }
       const target = event.target;
-      isSelectingFromChatRef.current = target instanceof Element && !!target.closest('[data-message-item="true"]');
-      isPointerInsideChatRef.current = target instanceof Element && !!target.closest('[data-chat-scrollable="true"]');
+      isSelectingFromChatRef.current = target instanceof Element && canStartChatSelection(target);
+      isPointerInsideSelectionSurfaceRef.current =
+        target instanceof Element && isInsideSelectionSurface(target);
       isSelectionFrozenRef.current = false;
-      lastValidRangeRef.current = null;
-      lastValidTextRef.current = "";
+      lastValidSelectionRef.current = null;
       stopOutsideClamp();
       setChatSelectionLock(isSelectingFromChatRef.current);
-      setChatSelectionFreeze(false);
     };
 
     const handleMouseMove = (event: MouseEvent) => {
@@ -321,15 +125,15 @@ export function SelectionInsertButton() {
         return;
       }
       const target = event.target;
-      isPointerInsideChatRef.current = target instanceof Element && !!target.closest('[data-chat-scrollable="true"]');
+      isPointerInsideSelectionSurfaceRef.current =
+        target instanceof Element && isInsideSelectionSurface(target);
       const decision = resolveOutsideMoveDecision({
         isSelectingFromChat: isSelectingFromChatRef.current,
-        pointerInsideChat: isPointerInsideChatRef.current,
+        pointerInsideSelectionSurface: isPointerInsideSelectionSurfaceRef.current,
         isSelectionFrozen: isSelectionFrozenRef.current,
       });
       if (decision.nextFrozen !== isSelectionFrozenRef.current) {
         isSelectionFrozenRef.current = decision.nextFrozen;
-        setChatSelectionFreeze(decision.nextFrozen);
         if (decision.nextFrozen) {
           startOutsideClamp();
         } else {
@@ -346,7 +150,7 @@ export function SelectionInsertButton() {
     };
 
     const handleSelectStart = (event: Event) => {
-      if (!isSelectingFromChatRef.current || isPointerInsideChatRef.current) {
+      if (!isSelectingFromChatRef.current || isPointerInsideSelectionSurfaceRef.current) {
         return;
       }
       event.preventDefault();
@@ -389,7 +193,7 @@ export function SelectionInsertButton() {
       }
 
       if (isSelectingFromChatRef.current) {
-        if (!isPointerInsideChatRef.current) {
+        if (!isPointerInsideSelectionSurfaceRef.current) {
           return;
         }
         restoreLastValidSelection();

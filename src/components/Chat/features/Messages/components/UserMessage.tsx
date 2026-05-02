@@ -15,6 +15,7 @@ import {
 interface UserMessageProps {
   message: ChatMessage;
   containerWidth: number;
+  isAwaitingResponse?: boolean;
   onEdit?: (id: string, newContent: string) => void;
   onSwitchVersion?: (id: string, targetIndex: number) => void;
 }
@@ -22,6 +23,7 @@ interface UserMessageProps {
 function UserMessageInner({
   message,
   containerWidth,
+  isAwaitingResponse = false,
   onEdit,
   onSwitchVersion,
 }: UserMessageProps) {
@@ -122,7 +124,8 @@ function UserMessageInner({
             {parsedContent.text && (
               <div
                 data-no-focus-input="true"
-                className="inline-block max-w-[90%] rounded-3xl bg-[#41a8ea] px-4 py-1.5 text-left text-[15px] leading-6 text-white"
+                data-chat-selection-surface="true"
+                className="inline-block max-w-[90%] select-text rounded-3xl bg-[#41a8ea] px-4 py-1.5 text-left text-[15px] leading-6 text-white"
                 style={textBubbleWidth ? { width: `${textBubbleWidth}px` } : undefined}
               >
                 <div className="whitespace-pre-wrap break-words">{parsedContent.text}</div>
@@ -130,54 +133,56 @@ function UserMessageInner({
             )}
           </div>
 
-          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 mr-1 mt-1">
-            {hasMultipleVersions && onSwitchVersion && (
-              <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/5 rounded-md p-0.5 select-none">
+          {!isAwaitingResponse && (
+            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 mr-1 mt-1">
+              {hasMultipleVersions && onSwitchVersion && (
+                <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/5 rounded-md p-0.5 select-none">
+                  <button
+                    onClick={() => {
+                      currentIdx > 0 && onSwitchVersion(message.id, currentIdx - 1);
+                    }}
+                    disabled={currentIdx === 0}
+                    className="p-0.5 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
+                  >
+                    <Icon name="nav.chevronLeft" size="md" />
+                  </button>
+                  <span className="text-[10px] font-mono font-medium text-gray-600 dark:text-gray-400 min-w-[24px] text-center">
+                    {currentIdx + 1} / {versions.length}
+                  </span>
+                  <button
+                    onClick={() => {
+                      currentIdx < versions.length - 1 && onSwitchVersion(message.id, currentIdx + 1);
+                    }}
+                    disabled={currentIdx === versions.length - 1}
+                    className="p-0.5 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
+                  >
+                    <Icon name="nav.chevronRight" size="md" />
+                  </button>
+                </div>
+              )}
+
+              <div className="flex items-center gap-1">
                 <button
-                  onClick={() => {
-                    currentIdx > 0 && onSwitchVersion(message.id, currentIdx - 1);
-                  }}
-                  disabled={currentIdx === 0}
-                  className="p-0.5 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
+                  onClick={handleCopy}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 rounded-md transition-colors"
                 >
-                  <Icon name="nav.chevronLeft" size="md" />
+                  {isCopied ? <Icon name="common.check" size="md" /> : <Icon name="common.copy" size="md" />}
                 </button>
-                <span className="text-[10px] font-mono font-medium text-gray-600 dark:text-gray-400 min-w-[24px] text-center">
-                  {currentIdx + 1} / {versions.length}
-                </span>
+
                 <button
-                  onClick={() => {
-                    currentIdx < versions.length - 1 && onSwitchVersion(message.id, currentIdx + 1);
-                  }}
-                  disabled={currentIdx === versions.length - 1}
-                  className="p-0.5 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
+                  onClick={handleStartEditing}
+                  className={cn(
+                    'p-1.5 rounded-md transition-colors',
+                    onEdit
+                      ? 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10'
+                      : 'text-gray-300 cursor-not-allowed'
+                  )}
                 >
-                  <Icon name="nav.chevronRight" size="md" />
+                  <Icon name="common.compose" size="md" />
                 </button>
               </div>
-            )}
-
-            <div className="flex items-center gap-1">
-              <button
-                onClick={handleCopy}
-                className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 rounded-md transition-colors"
-              >
-                {isCopied ? <Icon name="common.check" size="md" /> : <Icon name="common.copy" size="md" />}
-              </button>
-
-              <button
-                onClick={handleStartEditing}
-                className={cn(
-                  'p-1.5 rounded-md transition-colors',
-                  onEdit
-                    ? 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10'
-                    : 'text-gray-300 cursor-not-allowed'
-                )}
-              >
-                <Icon name="common.compose" size="md" />
-              </button>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
@@ -188,6 +193,7 @@ function areUserMessagePropsEqual(prevProps: UserMessageProps, nextProps: UserMe
   return (
     prevProps.message === nextProps.message &&
     prevProps.containerWidth === nextProps.containerWidth &&
+    prevProps.isAwaitingResponse === nextProps.isAwaitingResponse &&
     prevProps.onEdit === nextProps.onEdit &&
     prevProps.onSwitchVersion === nextProps.onSwitchVersion
   );
