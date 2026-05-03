@@ -122,15 +122,23 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
         className={cn(isPeeking ? 'vlaina-scrollbar-rounded pt-4 pb-4' : 'pt-2')}
         data-notes-sidebar-scroll-root="true"
       >
-        <div className="relative min-h-full">
+        <div className="relative flex min-h-full flex-col">
           {headings.length > 0 ? (
             <nav aria-label="Document outline" className="space-y-0.5">
               {renderTreeNodes(headingTree)}
             </nav>
           ) : null}
-          {headings.length === 0 ? (
-            <NotesSidebarHoverEmptyHint title="Outline is empty" />
-          ) : null}
+          <div
+            data-notes-sidebar-blank-drag-root="true"
+            className={cn('flex flex-1 items-center justify-center', headings.length === 0 && 'min-h-[160px] pb-8')}
+          >
+            {headings.length === 0 ? (
+              <NotesSidebarHoverEmptyHint
+                title="Outline is empty"
+                placement="inline"
+              />
+            ) : null}
+          </div>
         </div>
       </NotesSidebarScrollArea>
     </div>

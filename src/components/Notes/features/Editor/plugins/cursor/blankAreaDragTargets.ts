@@ -4,7 +4,9 @@ import { type BlockDragStartZone } from './blockDragSession';
 
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR = '[data-notes-sidebar-scroll-root="true"]';
+const NOTES_SIDEBAR_BLANK_DRAG_ROOT_SELECTOR = '[data-notes-sidebar-blank-drag-root="true"]';
 const COVER_REGION_SELECTOR = '[data-note-cover-region="true"]';
+const NO_EDITOR_DRAG_BOX_SELECTOR = '[data-no-editor-drag-box="true"]';
 const INTERACTIVE_SELECTOR = [
   'a',
   'button',
@@ -15,7 +17,7 @@ const INTERACTIVE_SELECTOR = [
   'label',
   '[role="button"]',
   '[contenteditable="false"]',
-  '[data-no-editor-drag-box="true"]',
+  NO_EDITOR_DRAG_BOX_SELECTOR,
 ].join(', ');
 
 function getScrollRoot(element: HTMLElement | null): HTMLElement | null {
@@ -26,11 +28,11 @@ function getScrollRoot(element: HTMLElement | null): HTMLElement | null {
 function isSidebarBlankStartTarget(target: HTMLElement): boolean {
   const sidebarScrollRoot = target.closest(NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR) as HTMLElement | null;
   if (!sidebarScrollRoot) return false;
-  return target === sidebarScrollRoot;
+  return target === sidebarScrollRoot || !!target.closest(NOTES_SIDEBAR_BLANK_DRAG_ROOT_SELECTOR);
 }
 
 export function isIgnoredBlankAreaDragBoxTarget(target: EventTarget | null): boolean {
-  return target instanceof Element && !!target.closest('[data-no-editor-drag-box="true"]');
+  return target instanceof Element && !!target.closest(NO_EDITOR_DRAG_BOX_SELECTOR);
 }
 
 export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEvent): BlockDragStartZone | null {
