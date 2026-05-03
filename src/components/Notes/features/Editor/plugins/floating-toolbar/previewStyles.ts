@@ -1,3 +1,4 @@
+import { DOMSerializer, Fragment } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType } from './types';
 import {
@@ -15,6 +16,15 @@ const FORMAT_SELECTORS: Record<string, string> = {
   strike: '.milkdown del, .milkdown s',
   code: '.milkdown code:not(pre code)',
   highlight: '.milkdown mark.highlight, .milkdown mark',
+};
+
+const FORMAT_MARKS: Record<string, string> = {
+  bold: 'strong',
+  italic: 'emphasis',
+  underline: 'underline',
+  strike: 'strike_through',
+  code: 'inlineCode',
+  highlight: 'highlight',
 };
 
 const FALLBACK_STYLES: Record<string, Record<string, string>> = {
@@ -84,14 +94,21 @@ const BLOCK_FALLBACK_STYLES: Partial<Record<BlockType, Record<string, string>>> 
     color: 'var(--vlaina-text-secondary)',
     lineHeight: '26px',
     paddingLeft: '17px',
+    paddingTop: '10px',
+    paddingBottom: '10px',
+    marginTop: '8px',
+    position: 'relative',
+    fontStyle: 'normal',
   },
   codeBlock: {
     fontFamily: 'var(--font-geist-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace)',
     fontSize: '0.875rem',
     lineHeight: '1.7',
-    backgroundColor: 'var(--vlaina-bg-secondary)',
-    borderRadius: '0.5rem',
-    padding: '0.875rem 1rem',
+    backgroundColor: 'var(--vlaina-code-block-background, #f5f5f5)',
+    borderRadius: '1rem',
+    padding: '0.25rem 1rem 1rem',
+    marginTop: '1rem',
+    marginBottom: '1rem',
   },
 };
 
@@ -115,8 +132,8 @@ const BLOCK_STYLE_PROPS: Partial<Record<BlockType, string[]>> = {
   bulletList: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color', 'marginTop', 'marginBottom', 'paddingTop', 'paddingBottom'],
   orderedList: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color', 'marginTop', 'marginBottom', 'paddingTop', 'paddingBottom'],
   taskList: ['fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'color', 'marginTop', 'marginBottom', 'paddingTop', 'paddingBottom'],
-  blockquote: ['color', 'lineHeight', 'paddingLeft', 'paddingTop', 'paddingBottom', 'marginTop', 'marginBottom'],
-  codeBlock: ['fontFamily', 'fontSize', 'lineHeight', 'backgroundColor', 'borderRadius', 'padding', 'color', 'marginTop', 'marginBottom'],
+  blockquote: ['color', 'lineHeight', 'paddingLeft', 'paddingTop', 'paddingBottom', 'marginTop', 'marginBottom', 'position', 'fontStyle'],
+  codeBlock: ['fontFamily', 'fontSize', 'lineHeight', 'backgroundColor', 'borderRadius', 'padding', 'color', 'marginTop', 'marginBottom', 'overflow'],
 };
 
 const styleCache: Record<string, Record<string, string>> = {};
@@ -154,13 +171,23 @@ function getCssValue(computed: CSSStyleDeclaration, prop: string): string {
   return computed.getPropertyValue(prop.replace(/([A-Z])/g, '-$1').toLowerCase());
 }
 
-function getFormatStyles(action: string): Record<string, string> {
-  if (styleCache[action]) {
-    return styleCache[action];
+function getFormatStyles(view: EditorView, action: string): Record<string, string> {
+  const themeKey = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+  const cacheKey = `format:${themeKey}:${action}`;
+  if (styleCache[cacheKey]) {
+    return styleCache[cacheKey];
+  }
+
+  const probedStyles = getFormatStylesFromSchemaProbe(view, action);
+  if (Object.keys(probedStyles).length > 0) {
+    styleCache[cacheKey] = probedStyles;
+    return probedStyles;
   }
 
   const selector = FORMAT_SELECTORS[action];
-  if (!selector) return {};
+  if (!selector) {
+    return {};
+  }
 
   const element = document.querySelector(selector) as HTMLElement | null;
   if (element) {
@@ -175,11 +202,68 @@ function getFormatStyles(action: string): Record<string, string> {
       }
     });
 
-    styleCache[action] = styles;
+    styleCache[cacheKey] = styles;
     return styles;
   }
 
   return FALLBACK_STYLES[action] || {};
+}
+
+function getFormatStylesFromSchemaProbe(view: EditorView, action: string): Record<string, string> {
+  const markName = FORMAT_MARKS[action];
+  const markType = markName ? view.state.schema.marks[markName] : null;
+  const props = STYLE_PROPS[action] || [];
+  if (!markType || props.length === 0) {
+    return {};
+  }
+
+  const proseRoot = viewRootForProbe(view);
+  if (!proseRoot) {
+    return {};
+  }
+
+  const probeHost = document.createElement('span');
+  probeHost.setAttribute('aria-hidden', 'true');
+  probeHost.style.position = 'absolute';
+  probeHost.style.left = '-99999px';
+  probeHost.style.top = '0';
+  probeHost.style.visibility = 'hidden';
+  probeHost.style.pointerEvents = 'none';
+  probeHost.style.contain = 'layout style paint';
+
+  try {
+    const mark = markType.create();
+    const textNode = view.state.schema.text('Preview', [mark]);
+    const fragment = DOMSerializer
+      .fromSchema(view.state.schema)
+      .serializeFragment(Fragment.from(textNode), {
+        document: view.dom.ownerDocument,
+      });
+
+    probeHost.appendChild(fragment);
+    proseRoot.appendChild(probeHost);
+
+    const element = probeHost.querySelector('*') as HTMLElement | null;
+    if (!element) {
+      return {};
+    }
+
+    const computed = window.getComputedStyle(element);
+    const styles: Record<string, string> = {};
+
+    props.forEach((prop) => {
+      const value = getCssValue(computed, prop);
+      if (value) {
+        styles[prop] = value;
+      }
+    });
+
+    return styles;
+  } catch {
+    return {};
+  } finally {
+    probeHost.remove();
+  }
 }
 
 function getResetStyles(action: string): Record<string, string> {
@@ -302,9 +386,19 @@ function createBlockProbe(blockType: BlockType): HTMLElement {
       return blockquote;
     }
     case 'codeBlock': {
-      const pre = document.createElement('pre');
-      pre.textContent = 'Preview';
-      return pre;
+      const container = document.createElement('div');
+      container.className = 'code-block-container';
+      const editable = document.createElement('div');
+      editable.className = 'code-block-editable';
+      const editor = document.createElement('div');
+      editor.className = 'cm-editor';
+      const line = document.createElement('div');
+      line.className = 'cm-line';
+      line.textContent = 'Preview';
+      editor.appendChild(line);
+      editable.appendChild(editor);
+      container.appendChild(editable);
+      return container;
     }
     case 'paragraph':
     default:
@@ -325,6 +419,25 @@ function getBlockPreviewStyles(
     nextStyles = {
       ...paragraphStyles,
       ...nextStyles,
+      position: 'relative',
+      fontStyle: 'normal',
+    };
+  }
+
+  if (blockType === 'codeBlock') {
+    nextStyles = {
+      ...nextStyles,
+      display: 'block',
+      overflow: 'hidden',
+      whiteSpace: 'pre-wrap',
+      fontFamily: 'var(--font-geist-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace)',
+      fontSize: '0.875rem',
+      lineHeight: '1.7',
+      backgroundColor: 'var(--vlaina-code-block-background, #f5f5f5)',
+      borderRadius: '1rem',
+      padding: '0.25rem 1rem 1rem',
+      marginTop: '1rem',
+      marginBottom: '1rem',
     };
   }
 
@@ -361,7 +474,8 @@ function getBlockPreviewAttributes(
   if (
     blockType === 'bulletList' ||
     blockType === 'taskList' ||
-    blockType === 'blockquote'
+    blockType === 'blockquote' ||
+    blockType === 'codeBlock'
   ) {
     return {
       'data-preview-block-type': blockType,
@@ -472,7 +586,7 @@ export function applyFormatPreview(view: EditorView, action: string, isActive: b
   const ranges = getFormattableTextRanges(view);
   if (ranges.length === 0) return;
 
-  const styles = isActive ? getResetStyles(action) : getFormatStyles(action);
+  const styles = isActive ? getResetStyles(action) : getFormatStyles(view, action);
   if (Object.keys(styles).length === 0) return;
 
   showInlineFormatPreview(view, ranges, styles);

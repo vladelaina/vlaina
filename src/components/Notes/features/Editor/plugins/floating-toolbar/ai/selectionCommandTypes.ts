@@ -17,4 +17,6 @@ export interface SelectionSource {
   from: number;
   to: number;
   originalText: string;
+  beforeContext?: string;
+  afterContext?: string;
 }

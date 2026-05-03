@@ -54,12 +54,12 @@ export function createToolbarEventDelegation(
       <span class="toolbar-tooltip-shortcut">${keys}</span>
       <span class="toolbar-tooltip-arrow" aria-hidden="true"></span>
     `;
-    tooltip.dataset.side = 'top';
+    tooltip.dataset.side = 'bottom';
 
     const rect = button.getBoundingClientRect();
     tooltip.style.left = `${rect.left + rect.width / 2}px`;
-    tooltip.style.top = `${rect.top - 8}px`;
-    tooltip.style.transform = 'translate(-50%, -100%)';
+    tooltip.style.top = `${rect.bottom + 8}px`;
+    tooltip.style.transform = 'translate(-50%, 0)';
     tooltip.classList.add('visible');
   };
 

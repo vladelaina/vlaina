@@ -288,12 +288,14 @@ html, body, #root {
   --vlaina-hover-filled: var(--vlaina-color-surface-tertiary);
   --vlaina-sidebar-width: 270px;
   --vlaina-sidebar-bg: var(--vlaina-color-surface-shell-sidebar);
+  --sidebar-row-selected-bg: #ecf6ff;
+  --sidebar-row-selected-text: #41a8ea;
   --vlaina-header-height: 52px;
   --vlaina-font-base: 16px;
   --vlaina-line-height: 1.6;
   --chat-sidebar-surface: var(--vlaina-color-surface-sidebar);
   --chat-sidebar-row-hover: var(--vlaina-color-surface-row-hover);
-  --chat-sidebar-row-active: var(--vlaina-color-surface-row-active);
+  --chat-sidebar-row-active: var(--sidebar-row-selected-bg);
   --chat-sidebar-text: var(--vlaina-color-text-sidebar);
   --chat-sidebar-text-muted: var(--vlaina-color-text-muted);
   --chat-sidebar-text-soft: var(--vlaina-color-text-soft);
@@ -306,7 +308,7 @@ html, body, #root {
 
   --notes-sidebar-surface: var(--vlaina-color-surface-sidebar);
   --notes-sidebar-row-hover: var(--vlaina-color-surface-row-hover);
-  --notes-sidebar-row-active: var(--vlaina-color-surface-row-active);
+  --notes-sidebar-row-active: var(--sidebar-row-selected-bg);
   --notes-sidebar-row-drag: var(--vlaina-color-accent-light);
   --notes-sidebar-text: var(--vlaina-color-text-sidebar);
   --notes-sidebar-text-muted: var(--vlaina-color-text-muted);

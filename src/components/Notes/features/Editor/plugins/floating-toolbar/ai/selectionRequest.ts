@@ -12,7 +12,10 @@ import {
   type AiSelectionSuggestionResult,
   type SelectionSource,
 } from './selectionCommandTypes';
-import { getSerializedSelectionText } from './selectionEditing';
+import {
+  getSerializedSelectionContext,
+  getSerializedSelectionText,
+} from './selectionEditing';
 
 interface AiRequestResult {
   suggestedText: string | null;
@@ -76,7 +79,9 @@ function buildSuggestion(
   to: number,
   instruction: string,
   originalText: string,
-  suggestedText: string
+  suggestedText: string,
+  beforeContext = '',
+  afterContext = ''
 ): AiSelectionSuggestion {
   return {
     requestKey: `review-${crypto.randomUUID()}`,
@@ -86,6 +91,8 @@ function buildSuggestion(
     commandId: null,
     toneId: null,
     originalText,
+    beforeContext,
+    afterContext,
     suggestedText,
   };
 }
@@ -93,6 +100,7 @@ function buildSuggestion(
 async function requestAiEdit(
   instruction: string,
   selectedText: string,
+  context?: { beforeContext?: string; afterContext?: string },
   signal?: AbortSignal,
   options?: AiRequestOptions
 ): Promise<AiRequestResult> {
@@ -122,7 +130,7 @@ async function requestAiEdit(
 
   const { model, provider } = resolved;
   const history: ChatMessage[] = [createSystemMessage(EDITOR_AI_SYSTEM_PROMPT, model.id)];
-  const message = buildEditorAiUserMessage(trimmedInstruction, selectedText);
+  const message = buildEditorAiUserMessage(trimmedInstruction, selectedText, context);
 
   try {
     const result = await openaiClient.sendMessage(
@@ -187,10 +195,17 @@ export async function createAiSelectionSuggestionResult(
     useToastStore.getState().addToast('The current selection cannot be edited by AI.', 'warning');
     return { suggestion: null, errorMessage: null };
   }
+  const context = selectionSource
+    ? {
+        beforeContext: selectionSource.beforeContext ?? '',
+        afterContext: selectionSource.afterContext ?? '',
+      }
+    : getSerializedSelectionContext(view, from, to, selectedText);
 
   const { suggestedText, errorMessage } = await requestAiEdit(
     trimmedInstruction,
     selectedText,
+    context,
     signal,
     options
   );
@@ -204,7 +219,9 @@ export async function createAiSelectionSuggestionResult(
       to,
       trimmedInstruction,
       selectedText,
-      suggestedText
+      suggestedText,
+      context.beforeContext,
+      context.afterContext
     ),
     errorMessage: null,
   };
@@ -233,6 +250,10 @@ export async function retryAiSelectionSuggestionResult(
   const { suggestedText, errorMessage } = await requestAiEdit(
     suggestion.instruction,
     suggestion.originalText,
+    {
+      beforeContext: suggestion.beforeContext ?? '',
+      afterContext: suggestion.afterContext ?? '',
+    },
     signal,
     options
   );
@@ -250,7 +271,9 @@ export async function retryAiSelectionSuggestionResult(
       suggestion.to,
       suggestion.instruction,
       suggestion.originalText,
-      suggestedText
+      suggestedText,
+      suggestion.beforeContext ?? '',
+      suggestion.afterContext ?? ''
     ),
     errorMessage: null,
   };

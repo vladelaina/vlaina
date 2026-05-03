@@ -14,7 +14,11 @@ export type {
   SelectionSource,
 } from './selectionCommandTypes';
 import { applyAiSelectionSuggestion } from './selectionEditing';
-export { applyAiSelectionSuggestion, getSerializedSelectionText } from './selectionEditing';
+export {
+  applyAiSelectionSuggestion,
+  getSerializedSelectionContext,
+  getSerializedSelectionText,
+} from './selectionEditing';
 
 export async function executeAiSelectionInstruction(
   view: EditorView,

@@ -28,6 +28,7 @@
   display: flex;
   flex-direction: column;
   width: 100%;
+  cursor: default;
   opacity: 0;
   animation: aiReviewPanelFadeIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: opacity, transform, filter;

@@ -4,6 +4,7 @@ import { floatingToolbarKey } from '../floatingToolbarKey';
 import { TOOLBAR_ACTIONS, type AiReviewState } from '../types';
 import {
   createAiSelectionSuggestionResult,
+  getSerializedSelectionContext,
   getSerializedSelectionText,
 } from './selectionCommands';
 import {
@@ -49,6 +50,7 @@ export function openAiSelectionReview(view: EditorView, requestKey?: string): bo
     useToastStore.getState().addToast('The current selection cannot be edited by AI.', 'warning');
     return false;
   }
+  const context = getSerializedSelectionContext(view, from, to, originalText);
 
   ensureReviewSelectionVisible(view, from, to);
 
@@ -61,7 +63,9 @@ export function openAiSelectionReview(view: EditorView, requestKey?: string): bo
           requestKey ?? `review-${crypto.randomUUID()}`,
           from,
           to,
-          originalText
+          originalText,
+          context.beforeContext,
+          context.afterContext
         ),
       },
     })
@@ -106,6 +110,8 @@ export async function runAiSelectionReviewCommand(
     from: review.from,
     to: review.to,
     originalText: review.originalText,
+    beforeContext: review.beforeContext,
+    afterContext: review.afterContext,
   };
   const controller = new AbortController();
   activeReviewControllers.set(requestKey, controller);

@@ -5,14 +5,24 @@ describe('ai selection commands', () => {
   it('builds an editor instruction payload around the selected text', () => {
     const message = __testing__.buildEditorAiUserMessage(
       TRANSLATE_TO_ENGLISH_PROMPT,
-      '你好世界'
+      'Hello world',
+      {
+        beforeContext: 'The previous sentence.',
+        afterContext: 'The next sentence.',
+      }
     );
 
     expect(message).toContain('Instruction: Translate to English');
+    expect(message).toContain('Use the surrounding context only to understand meaning');
+    expect(message).toContain('Do not edit or return the surrounding context.');
+    expect(message).toContain('Read-only context before the selection:');
+    expect(message).toContain('The previous sentence.');
     expect(message).toContain('Selected content:');
     expect(message).toContain('<<<SELECTION');
-    expect(message).toContain('你好世界');
+    expect(message).toContain('Hello world');
     expect(message).toContain('>>>');
+    expect(message).toContain('Read-only context after the selection:');
+    expect(message).toContain('The next sentence.');
   });
 
   it('normalizes fenced and thinking-tagged model output', () => {

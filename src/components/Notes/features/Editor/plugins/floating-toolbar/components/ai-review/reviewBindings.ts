@@ -39,8 +39,9 @@ export function bindAiReviewActions({
       return;
     }
 
-    applyAiSelectionSuggestion(view, suggestion);
-    onClose();
+    if (applyAiSelectionSuggestion(view, suggestion)) {
+      onClose();
+    }
   };
 
   const handlePanelKeyDown = (event: KeyboardEvent) => {
@@ -100,7 +101,7 @@ export function bindAiReviewActions({
     }
 
     updateReview({ ...liveReview, isLoading: true, errorMessage: null });
-    void retryAiSelectionSuggestionResult(suggestion, signal, { suppressToast: true }).then((result) => {
+    void retryAiSelectionSuggestionResult(suggestion, undefined, { suppressToast: true }).then((result) => {
       const currentReview = floatingToolbarKey.getState(view.state)?.aiReview;
       if (!currentReview || currentReview.requestKey !== liveReview.requestKey) {
         return;
