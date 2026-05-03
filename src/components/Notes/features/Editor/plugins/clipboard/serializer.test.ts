@@ -84,4 +84,24 @@ describe('serializeSliceToText', () => {
 
         expect(serializeSliceToText(slice)).toBe('[OpenAI](https://openai.com)');
     });
+
+    it('escapes linked text and parenthesized urls as standard markdown', () => {
+        const slice = createSlice([
+            createInlineNode('paragraph', [
+                createTextNode('Docs [draft]', [{ type: { name: 'link' }, attrs: { href: 'https://example.com/a_(b)' } }]),
+            ]),
+        ]);
+
+        expect(serializeSliceToText(slice)).toBe('[Docs \\[draft\\]](https://example.com/a_\\(b\\))');
+    });
+
+    it('uses angle destinations for linked urls with spaces', () => {
+        const slice = createSlice([
+            createInlineNode('paragraph', [
+                createTextNode('Local file', [{ type: { name: 'link' }, attrs: { href: 'docs/file name.md' } }]),
+            ]),
+        ]);
+
+        expect(serializeSliceToText(slice)).toBe('[Local file](<docs/file name.md>)');
+    });
 });

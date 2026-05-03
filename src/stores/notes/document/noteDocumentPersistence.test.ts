@@ -89,6 +89,35 @@ describe('saveNoteDocument', () => {
     vi.useRealTimers();
   });
 
+  it('canonicalizes supported inline html text before writing markdown', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    adapter.writeFile.mockResolvedValue();
+    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+
+    await saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: '<sup>a < b & c</sup>',
+      },
+      cache: new Map(),
+    });
+
+    expect(adapter.writeFile).toHaveBeenCalledWith(
+      '/vault/alpha.md',
+      [
+        '---',
+        'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+        '---',
+        '',
+        '<sup>a &lt; b &amp; c</sup>',
+      ].join('\n')
+    );
+
+    vi.useRealTimers();
+  });
+
   it('cleans internal editor break markers when loading markdown', async () => {
     adapter.readFile.mockResolvedValue(['# Alpha', '<br date-vlaianempt-line="true"/>', 'Body'].join('\n'));
     adapter.stat.mockResolvedValue({ modifiedAt: 123 });

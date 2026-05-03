@@ -45,7 +45,17 @@ async function serializeMarkdownThroughEditor(
 
 async function expectEditorMarkdown(markdown: string, expected = markdown): Promise<void> {
   const serialized = await serializeMarkdownThroughEditor(markdown);
-  expect(stripTrailingNewlines(normalizeSerializedMarkdownDocument(serialized))).toBe(expected);
+  const normalized = normalizeSerializedMarkdownDocument(serialized);
+  expectPersistedMarkdownToBeClean(normalized);
+  expect(stripTrailingNewlines(normalized)).toBe(expected);
+}
+
+function expectPersistedMarkdownToBeClean(markdown: string): void {
+  expect(markdown).not.toMatch(/data-vlaina-/);
+  expect(markdown).not.toMatch(/date-vlaina-/);
+  expect(markdown).not.toContain('\u200B');
+  expect(markdown).not.toContain('\u200C');
+  expect(markdown).not.toContain('VLAINA_LIST_GAP_SENTINEL');
 }
 
 describe('preserveMarkdownBlankLinesForEditor', () => {
@@ -143,6 +153,34 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
     ).toBe(['before', '', '    line 1', '', '    line 2'].join('\n'));
   });
 
+  it('keeps structural blank lines before fenced code blocks', () => {
+    expect(
+      preserveMarkdownBlankLinesForEditor(['before', '', '```ts', 'const value = 1;', '```'].join('\n'))
+    ).toBe(['before', '', '```ts', 'const value = 1;', '```'].join('\n'));
+  });
+
+  it('keeps structural blank lines before nested fenced code blocks', () => {
+    expect(
+      preserveMarkdownBlankLinesForEditor([
+        '- item',
+        '',
+        '  detail',
+        '',
+        '  ```ts',
+        '  const value = 1;',
+        '  ```',
+      ].join('\n'))
+    ).toBe([
+      '- item',
+      '',
+      '  detail',
+      '',
+      '  ```ts',
+      '  const value = 1;',
+      '  ```',
+    ].join('\n'));
+  });
+
   it('does not keep trailing document blank lines inside indented code blocks', () => {
     expect(
       preserveMarkdownBlankLinesForEditor(['    line', ''].join('\n'))
@@ -188,13 +226,25 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
   it('does not add placeholders inside markdown html comments', () => {
     expect(
       preserveMarkdownBlankLinesForEditor(['<!--', 'note', '', 'comment', '-->', '', 'after'].join('\n'))
-    ).toBe(['<!--', 'note', '', 'comment', '-->', EMPTY_LINE_PLACEHOLDER, 'after'].join('\n'));
+    ).toBe(['<!--', 'note', '', 'comment', '-->', '', 'after'].join('\n'));
+  });
+
+  it('does not add placeholders around block alignment comments', () => {
+    const markdown = ['Paragraph', '', '<!--align:center-->', '', '# Heading'].join('\n');
+
+    expect(preserveMarkdownBlankLinesForEditor(markdown)).toBe(markdown);
   });
 
   it('does not add placeholders inside lowercase html declarations', () => {
     expect(
       preserveMarkdownBlankLinesForEditor(['<!doctype', '', 'html>', '', 'after'].join('\n'))
     ).toBe(['<!doctype', '', 'html>', EMPTY_LINE_PLACEHOLDER, 'after'].join('\n'));
+  });
+
+  it('keeps structural blank lines after one-line html blocks', () => {
+    expect(
+      preserveMarkdownBlankLinesForEditor(['<?note value?>', '', '<!doctype html>', '', 'after'].join('\n'))
+    ).toBe(['<?note value?>', '', '<!doctype html>', '', 'after'].join('\n'));
   });
 
   it('round trips representative markdown through preserve and normalize', () => {
@@ -241,6 +291,134 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
 
   it('round trips existing markdown blank lines through the editor parser and serializer', async () => {
     await expectEditorMarkdown(['1', '', '2', '', '', '3'].join('\n'));
+  });
+
+  it.each([
+    {
+      name: 'paragraphs and inline marks',
+      markdown: [
+        'Plain paragraph with **bold**, *italic*, ~~strike~~, `code`, and [link](https://example.com).',
+        '',
+        'Second paragraph with escaped punctuation: \\*literal\\*.',
+      ].join('\n'),
+      expected: [
+        'Plain paragraph with **bold**, *italic*, ~~strike~~, `code`, and [link](https://example.com).',
+        '',
+        'Second paragraph with escaped punctuation: \\*literal\\*.',
+      ].join('\n'),
+    },
+    {
+      name: 'nested unordered and ordered lists',
+      markdown: [
+        '- one',
+        '  - nested',
+        '  - nested two',
+        '- two',
+        '',
+        '1. first',
+        '2. second',
+      ].join('\n'),
+    },
+    {
+      name: 'task lists',
+      markdown: [
+        '- [ ] unchecked',
+        '- [x] checked',
+        '  - [ ] nested',
+      ].join('\n'),
+    },
+    {
+      name: 'blockquotes and nested blockquotes',
+      markdown: [
+        '> quote',
+        '>',
+        '> - item',
+        '> > nested quote',
+      ].join('\n'),
+      expected: [
+        '> quote',
+        '>',
+        '> - item',
+        '>',
+        '> > nested quote',
+      ].join('\n'),
+    },
+    {
+      name: 'links and images',
+      markdown: [
+        '[Docs](https://example.com "Title")',
+        '',
+        '![Alt text](image.png "Image title")',
+      ].join('\n'),
+    },
+    {
+      name: 'fenced code with blank lines',
+      markdown: [
+        '```ts',
+        'const value = 1;',
+        '',
+        'console.log(value);',
+        '```',
+      ].join('\n'),
+    },
+    {
+      name: 'raw html blocks',
+      markdown: [
+        '<pre>',
+        'line 1',
+        '',
+        'line 2',
+        '</pre>',
+      ].join('\n'),
+    },
+    {
+      name: 'hard break tags',
+      markdown: [
+        'before',
+        '<br />',
+        'after',
+      ].join('\n'),
+    },
+    {
+      name: 'tables',
+      markdown: [
+        '| Left | Right |',
+        '| --- | --- |',
+        '| A | B |',
+      ].join('\n'),
+      expected: [
+        '| Left | Right |',
+        '| ---- | ----- |',
+        '| A    | B     |',
+      ].join('\n'),
+    },
+    {
+      name: 'horizontal rules',
+      markdown: [
+        'before',
+        '',
+        '---',
+        '',
+        'after',
+      ].join('\n'),
+    },
+  ])('round trips standard markdown without internal persistence markers: $name', async ({ markdown, expected }) => {
+    await expectEditorMarkdown(markdown, expected ?? markdown);
+  });
+
+  it('does not add synthetic blank lines between adjacent headings', async () => {
+    await expectEditorMarkdown([
+      '# Level 1',
+      '## Level 2',
+      '### Level 3',
+      '#### Level 4',
+      '##### Level 5',
+      '###### Level 6',
+    ].join('\n'));
+  });
+
+  it('preserves user-authored blank lines between adjacent headings', async () => {
+    await expectEditorMarkdown(['# Level 1', '', '## Level 2'].join('\n'));
   });
 
   it('round trips user-authored br tags through the editor parser and serializer', async () => {

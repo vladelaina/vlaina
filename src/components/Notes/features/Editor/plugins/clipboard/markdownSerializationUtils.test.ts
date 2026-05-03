@@ -153,8 +153,63 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });
 
+  it('escapes supported inline html text before persistence', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(
+        '<sup>a < b & c</sup> <mark>h = i</mark> <u>x + y</u> <mark style="background-color: #fff">x > y</mark>'
+      )
+    ).toBe(
+      '<sup>a &lt; b &amp; c</sup> <mark>h = i</mark> <u>x + y</u> <mark style="background-color: #fff">x &gt; y</mark>'
+    );
+  });
+
+  it('escapes generic inline html text before persistence', () => {
+    expect(
+      normalizeSerializedMarkdownDocument('<span data-note="keep">plain < text & value</span> <kbd>Ctrl & A</kbd>')
+    ).toBe('<span data-note="keep">plain &lt; text &amp; value</span> <kbd>Ctrl &amp; A</kbd>');
+  });
+
+  it('keeps nested generic inline html tags intact', () => {
+    expect(
+      normalizeSerializedMarkdownDocument('<span data-note="keep"><em>plain</em></span>')
+    ).toBe('<span data-note="keep"><em>plain</em></span>');
+  });
+
+  it('canonicalizes strong text before inline code when the editor cannot keep the mark boundary stable', () => {
+    expect(normalizeSerializedMarkdownDocument('Use **bold with `code`** here.')).toBe(
+      'Use **bold with** `code` here.'
+    );
+  });
+
+  it('canonicalizes adjacent callout list items to the editor spread structure', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(['> 💡 Callout title', '>', '> - First item', '> - Second item'].join('\n'))
+    ).toBe(['> 💡 Callout title', '>', '> - First item', '>', '> - Second item'].join('\n'));
+  });
+
+  it('canonicalizes thematic break variants to unambiguous separators', () => {
+    expect(normalizeSerializedMarkdownDocument(['before', '', '***', '', 'after'].join('\n'))).toBe(
+      ['before', '', '---', '', 'after'].join('\n')
+    );
+    expect(normalizeSerializedMarkdownDocument(['before', '', '___', '', 'after'].join('\n'))).toBe(
+      ['before', '', '---', '', 'after'].join('\n')
+    );
+  });
+
+  it('does not rewrite custom inline html text inside fenced code', () => {
+    const markdown = ['```html', '<sup>a < b & c</sup>', '```'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
   it('does not rewrite placeholder-like text inside raw html blocks', () => {
     const markdown = ['<pre>', '<br data-vlaina-empty-line="true" />', '</pre>'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
+  it('does not rewrite placeholder-like text inside generic html blocks', () => {
+    const markdown = ['<div>', '<br data-vlaina-empty-line="true" />', '</div>'].join('\n');
 
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });

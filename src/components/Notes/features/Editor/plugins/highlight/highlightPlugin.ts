@@ -2,6 +2,10 @@ import { $mark, $inputRule } from '@milkdown/kit/utils';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
 import { toggleMark } from '@milkdown/kit/prose/commands';
 import { $command, $remark } from '@milkdown/kit/utils';
+import {
+  decodeMarkdownHtmlText,
+  escapeMarkdownHtmlText,
+} from '@/lib/notes/markdown/markdownHtmlText';
 
 interface MdastNode {
   type: string;
@@ -69,7 +73,7 @@ function replaceInlineHtmlMark(tree: MdastNode, type: string, pattern: RegExp) {
         if (match) {
           node.children.splice(index, 1, {
             type,
-            children: [{ type: 'text', value: match[1] }],
+            children: [{ type: 'text', value: decodeMarkdownHtmlText(match[1]) }],
           });
           continue;
         }
@@ -85,6 +89,7 @@ function replaceInlineHtmlMark(tree: MdastNode, type: string, pattern: RegExp) {
 function remarkHighlight() {
   return (tree: MdastNode) => {
     replaceDelimitedTextMark(tree, 'highlight', /==([^=]+)==/g);
+    replaceInlineHtmlMark(tree, 'highlight', /^<mark>([\s\S]*?)<\/mark>$/i);
     replaceInlineHtmlMark(tree, 'superscript', /^<sup>([\s\S]*?)<\/sup>$/i);
     replaceInlineHtmlMark(tree, 'subscript', /^<sub>([\s\S]*?)<\/sub>$/i);
   };
@@ -110,7 +115,12 @@ export const highlightMark = $mark('highlight', () => ({
   toMarkdown: {
     match: (mark) => mark.type.name === 'highlight',
     runner: (state, _mark, node) => {
-      state.addNode('text', undefined, `==${node.text || ''}==`);
+      const text = node.text || '';
+      if (text.includes('=')) {
+        state.addNode('html', undefined, `<mark>${escapeMarkdownHtmlText(text)}</mark>`);
+      } else {
+        state.addNode('text', undefined, `==${text}==`);
+      }
       return true;
     }
   }
@@ -160,7 +170,7 @@ export const superscriptMark = $mark('superscript', () => ({
   toMarkdown: {
     match: (mark) => mark.type.name === 'superscript',
     runner: (state, _mark, node) => {
-      state.addNode('html', undefined, `<sup>${node.text || ''}</sup>`);
+      state.addNode('html', undefined, `<sup>${escapeMarkdownHtmlText(node.text || '')}</sup>`);
       return true;
     }
   }
@@ -210,7 +220,7 @@ export const subscriptMark = $mark('subscript', () => ({
   toMarkdown: {
     match: (mark) => mark.type.name === 'subscript',
     runner: (state, _mark, node) => {
-      state.addNode('html', undefined, `<sub>${node.text || ''}</sub>`);
+      state.addNode('html', undefined, `<sub>${escapeMarkdownHtmlText(node.text || '')}</sub>`);
       return true;
     }
   }
