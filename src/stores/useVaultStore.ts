@@ -5,6 +5,8 @@ import { moveVaultSystemStore } from '@/stores/notes/systemStoragePaths';
 import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
 import { markExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
 import { suspendExternalSync } from '@/stores/notes/document/externalSyncControl';
+import { saveDirtyRegularOpenTabs } from '@/stores/notes/dirtyOpenTabs';
+import { hasDraftUnsavedChanges, isDraftNotePath } from '@/stores/notes/draftNote';
 import { setCurrentVaultPath, useNotesStore } from './useNotesStore';
 import { ensureVaultConfig, normalizeVaultPath } from './vaultConfig';
 import {
@@ -48,12 +50,62 @@ interface VaultActions {
   renameCurrentVault: (name: string) => Promise<boolean>;
   syncCurrentVaultExternalPath: (path: string) => void;
   removeFromRecent: (id: string) => void;
-  closeVault: () => void;
+  closeVault: () => Promise<boolean>;
   clearError: () => void;
   checkVaultOpenInOtherWindow: (path: string) => Promise<string | null>;
 }
 
 type VaultStore = VaultState & VaultActions;
+
+function hasUnsavedDraftTabs(): boolean {
+  const notesState = useNotesStore.getState();
+  const draftPaths = new Set(
+    notesState.openTabs
+      .filter((tab) => isDraftNotePath(tab.path))
+      .map((tab) => tab.path)
+  );
+
+  if (isDraftNotePath(notesState.currentNote?.path)) {
+    draftPaths.add(notesState.currentNote.path);
+  }
+
+  for (const draftPath of draftPaths) {
+    const draftEntry = notesState.draftNotes[draftPath];
+    const draftContent = notesState.noteContentsCache.get(draftPath)?.content ?? '';
+    const draftMetadata = notesState.noteMetadata?.notes[draftPath];
+    if (
+      hasDraftUnsavedChanges({
+        draftName: draftEntry?.name,
+        content: draftContent,
+        metadata: draftMetadata,
+      })
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+async function prepareNotesForVaultExit(): Promise<{ ok: true } | { ok: false; error: string }> {
+  const savedDirtyTabs = await saveDirtyRegularOpenTabs();
+  const notesState = useNotesStore.getState();
+  const hasDirtyRegularTabs = notesState.openTabs.some(
+    (tab) => tab.isDirty && !isDraftNotePath(tab.path)
+  );
+  const currentRegularStillDirty =
+    notesState.isDirty && !isDraftNotePath(notesState.currentNote?.path);
+
+  if (!savedDirtyTabs || hasDirtyRegularTabs || currentRegularStillDirty) {
+    return { ok: false, error: 'Failed to save pending note changes' };
+  }
+
+  if (hasUnsavedDraftTabs()) {
+    return { ok: false, error: 'Save or discard draft notes before switching vaults' };
+  }
+
+  return { ok: true };
+}
 
 export const useVaultStore = create<VaultStore>()((set, get) => ({
   currentVault: null,
@@ -130,6 +182,12 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
+      const prepared = await prepareNotesForVaultExit();
+      if (!prepared.ok) {
+        set({ error: prepared.error, isLoading: false });
+        return false;
+      }
+
       const storage = getStorageAdapter();
 
       if (storage.platform === 'web' && isNativeFilesystemPath(path)) {
@@ -181,6 +239,12 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
+      const prepared = await prepareNotesForVaultExit();
+      if (!prepared.ok) {
+        set({ error: prepared.error, isLoading: false });
+        return false;
+      }
+
       const storage = getStorageAdapter();
       const normalizedPath = normalizeVaultPath(path);
       const pathExists = await storage.exists(normalizedPath);
@@ -216,11 +280,10 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
         return false;
       }
 
-      if (notesState.isDirty) {
-        await notesState.saveNote();
-        if (useNotesStore.getState().isDirty) {
-          return false;
-        }
+      const prepared = await prepareNotesForVaultExit();
+      if (!prepared.ok) {
+        set({ error: prepared.error });
+        return false;
       }
 
       const { name: nextName, path: nextPath } = await resolveRenamedVaultPath(
@@ -318,8 +381,16 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
     removeRecentVaultAction({ id, recentVaults, currentVault, set });
   },
 
-  closeVault: () => {
+  closeVault: async () => {
+    const prepared = await prepareNotesForVaultExit();
+    if (!prepared.ok) {
+      set({ error: prepared.error });
+      return false;
+    }
+
     closeCurrentVaultAction(set);
+    set({ error: null });
+    return true;
   },
 
   clearError: () => {

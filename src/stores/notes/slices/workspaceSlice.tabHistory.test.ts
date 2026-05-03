@@ -305,6 +305,32 @@ describe('workspaceSlice tab history', () => {
     expect(store.getState().isDirty).toBe(true);
   });
 
+  it('restores unsaved cached content when switching back to a dirty regular tab', async () => {
+    const saveNote = vi.fn(async () => undefined);
+    const store = createNotesStore({
+      currentNote: { path: 'beta.md', content: '# beta' },
+      isDirty: false,
+      saveNote,
+      openTabs: [
+        { path: 'alpha.md', name: 'alpha', isDirty: true },
+        { path: 'beta.md', name: 'beta', isDirty: false },
+      ],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
+        ['beta.md', { content: '# beta', modifiedAt: 2 }],
+      ]),
+    });
+
+    await store.getState().openNote('alpha.md');
+
+    expect(saveNote).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toEqual({
+      path: 'alpha.md',
+      content: 'Unsaved alpha',
+    });
+    expect(store.getState().isDirty).toBe(true);
+  });
+
   it('opens a vault note in a new tab when the current draft is dirty', async () => {
     const saveNote = vi.fn(async () => undefined);
     const store = createNotesStore({
@@ -408,6 +434,33 @@ describe('workspaceSlice tab history', () => {
       '/other-vault/starred.md',
     ]);
     expect(store.getState().currentNote?.path).toBe('/other-vault/starred.md');
+  });
+
+  it('focuses a dirty background note instead of closing and losing its cached content', async () => {
+    const store = createNotesStore({
+      currentNote: { path: 'beta.md', content: '# beta' },
+      isDirty: false,
+      openTabs: [
+        { path: 'alpha.md', name: 'alpha', isDirty: true },
+        { path: 'beta.md', name: 'beta', isDirty: false },
+      ],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
+        ['beta.md', { content: '# beta', modifiedAt: 2 }],
+      ]),
+    });
+
+    await store.getState().closeTab('alpha.md');
+
+    expect(store.getState().currentNote).toEqual({
+      path: 'alpha.md',
+      content: 'Unsaved alpha',
+    });
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().openTabs).toEqual([
+      { path: 'alpha.md', name: 'alpha', isDirty: true },
+      { path: 'beta.md', name: 'beta', isDirty: false },
+    ]);
   });
 
   it('restores a discarded dirty draft tab with its unsaved content', async () => {

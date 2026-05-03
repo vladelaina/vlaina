@@ -29,6 +29,10 @@ import { useEditorSave } from './hooks/useEditorSave';
 import { calculateTextStats } from './utils/textStats';
 import { createScrollRestoreSession } from './utils/scrollRestoreSession';
 import {
+  flushPendingEditorMarkdown,
+  setPendingEditorMarkdownFlusher,
+} from '@/stores/notes/pendingEditorMarkdown';
+import {
   clearCurrentMarkdownRuntime,
   getCurrentEditorView,
   setCurrentEditorView,
@@ -168,14 +172,23 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   }, [currentNotePath]);
 
   useEffect(() => {
-    return () => {
+    const flushPendingMarkdown = () => {
       if (pendingMarkdownUpdateFrameRef.current !== null) {
         cancelAnimationFrame(pendingMarkdownUpdateFrameRef.current);
         pendingMarkdownUpdateFrameRef.current = null;
       }
+      const pendingMarkdown = pendingMarkdownRef.current;
       pendingMarkdownRef.current = null;
+      return flushPendingEditorMarkdown(currentNotePath, pendingMarkdown);
     };
-  }, []);
+
+    setPendingEditorMarkdownFlusher(flushPendingMarkdown);
+
+    return () => {
+      flushPendingMarkdown();
+      setPendingEditorMarkdownFlusher(null);
+    };
+  }, [currentNotePath]);
 
   useEffect(() => {
     try {

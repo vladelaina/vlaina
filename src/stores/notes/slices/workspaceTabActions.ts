@@ -180,6 +180,14 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
         if (get().isDirty) return;
       }
 
+      if (currentNote?.path !== path && closingTab?.isDirty) {
+        await openStoredNotePath(path, {
+          openNote: get().openNote,
+          openNoteByAbsolutePath: get().openNoteByAbsolutePath,
+        });
+        return;
+      }
+
       const updatedTabs = openTabs.filter((t) => t.path !== path);
       set({
         openTabs: updatedTabs,
