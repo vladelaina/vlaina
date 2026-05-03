@@ -8,6 +8,7 @@ import {
   type PreparedText,
   type PreparedTextWithSegments,
 } from './pretext/layout';
+import { APP_SANS_FONT_FAMILY } from '@/lib/typography/fontFamilies';
 
 export interface TextLayoutMetrics {
   font: string;
@@ -33,7 +34,7 @@ export interface TextWrapStats {
 const preparedCache = new Map<string, PreparedText>();
 const preparedSegmentsCache = new Map<string, PreparedTextWithSegments>();
 const PREPARED_CACHE_LIMIT = 500;
-const DEFAULT_FONT_FAMILY = 'Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif';
+const DEFAULT_FONT_FAMILY = APP_SANS_FONT_FAMILY;
 const DEFAULT_FONT_SIZE = 15;
 const DEFAULT_LINE_HEIGHT_RATIO = 1.6;
 
