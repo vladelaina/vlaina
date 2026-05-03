@@ -116,11 +116,11 @@ export function SidebarContextMenuSubmenu({
         }}
         className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-[16px] font-medium text-[var(--notes-sidebar-text)] outline-none transition-colors hover:bg-[var(--notes-sidebar-row-hover)]"
       >
-        <span className="flex size-[20px] items-center justify-center text-[var(--notes-sidebar-icon)]">
+        <span className="flex size-[20px] items-center justify-center text-[var(--notes-sidebar-text)]">
           {icon}
         </span>
         <span className="min-w-0 flex-1 truncate text-left">{label}</span>
-        <span className="shrink-0 text-[var(--notes-sidebar-icon)]">
+        <span className="shrink-0 text-[var(--notes-sidebar-text)]">
           <span className="flex size-[20px] items-center justify-center">
             <span aria-hidden="true">›</span>
           </span>

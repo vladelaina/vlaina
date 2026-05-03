@@ -69,7 +69,7 @@ export function RootFolderMenu({
     },
     {
       key: 'new-folder',
-      icon: <Icon name="file.folder" size="md" />,
+      icon: <Icon name="file.folderOutline" size="md" />,
       label: 'New Folder',
       onClick: async () => {
         if (!expanded) {

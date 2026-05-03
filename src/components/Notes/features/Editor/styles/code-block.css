@@ -8,7 +8,7 @@
   background: var(--vlaina-code-block-background) !important;
   border-radius: 1rem !important;
   overflow: hidden !important;
-  font-family: var(--font-geist-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace) !important;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace) !important;
   font-size: 0.875rem !important;
   line-height: 1.7 !important;
   padding: 0.25rem 1rem 1rem !important;

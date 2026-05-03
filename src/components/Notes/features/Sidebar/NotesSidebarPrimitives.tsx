@@ -179,41 +179,67 @@ interface NotesSidebarHoverEmptyHintProps extends HTMLAttributes<HTMLDivElement>
   title: string;
   actionLabel?: string;
   onAction?: () => void;
+  actions?: Array<{
+    label: string;
+    onAction: () => void;
+  }>;
   visible?: boolean;
+  placement?: 'overlay' | 'inline';
 }
 
 export function NotesSidebarHoverEmptyHint({
   title,
   actionLabel,
   onAction,
+  actions,
   visible = false,
+  placement = 'overlay',
   className,
   ...props
 }: NotesSidebarHoverEmptyHintProps) {
+  const actionItems = actions ?? (
+    actionLabel && onAction
+      ? [{ label: actionLabel, onAction }]
+      : []
+  );
+
   return (
     <div
       className={cn(
-        'pointer-events-none absolute left-1/2 top-[38.2%] z-10 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center transition-opacity duration-150',
+        'pointer-events-none flex items-center justify-center transition-opacity duration-150',
+        placement === 'overlay'
+          ? 'absolute left-1/2 top-[38.2%] z-10 -translate-x-1/2 -translate-y-1/2'
+          : 'relative left-auto top-auto z-0 translate-x-0 translate-y-0',
         visible ? 'opacity-100' : 'opacity-0 group-hover/notes-sidebar-surface:opacity-100',
         className,
       )}
       {...props}
     >
-      <div className="flex max-w-[180px] flex-col items-center gap-2 px-4 text-center">
-        <span className="text-[16px] text-[var(--notes-sidebar-text-soft)]">
+      <div className="flex max-w-[180px] flex-col items-center gap-1.5 px-4 text-center">
+        <span className="text-[16px] text-[var(--notes-sidebar-text)]">
           {title}
         </span>
-        {actionLabel && onAction ? (
-          <button
-            type="button"
-            className="pointer-events-auto h-7 cursor-pointer rounded-md px-3 text-[16px] text-[var(--notes-sidebar-text)] hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)] focus:outline-none"
-            onClick={(event) => {
-              event.stopPropagation();
-              onAction();
-            }}
-          >
-            {actionLabel}
-          </button>
+        {actionItems.length > 0 ? (
+          <div className="flex items-center justify-center gap-1">
+            {actions && actionLabel && actionLabel !== title ? (
+              <span className="text-[16px] text-[var(--notes-sidebar-text)]">
+                {actionLabel}
+              </span>
+            ) : null}
+            {actionItems.map((action) => (
+              <button
+                key={action.label}
+                type="button"
+                className="pointer-events-auto h-7 cursor-pointer rounded-md px-3 text-[16px] text-[var(--notes-sidebar-text-soft)] hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)] focus:outline-none"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  action.onAction();
+                }}
+              >
+                {action.label}
+              </button>
+            ))}
+          </div>
         ) : null}
       </div>
     </div>

@@ -1,24 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { onDesktopOpenMarkdownFileShortcut } from '@/lib/desktop/shortcuts';
-import { OPEN_MARKDOWN_FILE_ACTION } from '@/lib/notes/openMarkdownFileText';
-import { messageDialog, openDialog } from '@/lib/storage/dialog';
+import { messageDialog } from '@/lib/storage/dialog';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
-import { logNotesDebug } from '@/stores/notes/debugLog';
 import { openStoredNotePath } from '@/stores/notes/openNotePath';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
-import { useVaultStore } from '@/stores/useVaultStore';
 import { normalizeVaultPath } from '@/stores/vaultConfig';
-import {
-  getSingleOpenSelection,
-  isSupportedMarkdownSelection,
-  resolveOpenNoteTarget,
-} from '../features/OpenTarget/openTargetSelection';
+import { resolveOpenNoteTarget } from '../features/OpenTarget/openTargetSelection';
 import { subscribeOpenMarkdownTargetEvent } from '../features/OpenTarget/openTargetEvents';
 import { flushCurrentTitleCommit } from '../features/Editor/utils/titleCommitRegistry';
-
-function logOpenMarkdownTarget(event: string, details: Record<string, unknown>) {
-  logNotesDebug(`openMarkdownTarget:${event}`, details);
-}
+import { useNotesOpenTargetPicker } from './useNotesOpenTargetPicker';
 
 export function useNotesOpenMarkdownTarget({
   active,
@@ -86,18 +75,7 @@ export function useNotesOpenMarkdownTarget({
       let opened = false;
 
       try {
-        logOpenMarkdownTarget('pending_start', {
-          currentVaultPath,
-          targetVaultPath: pendingShortcutNoteTarget.vaultPath,
-          notePath: pendingShortcutNoteTarget.notePath,
-          absolutePath: pendingShortcutNoteTarget.absolutePath,
-        });
         opened = await openShortcutNoteTarget(pendingShortcutNoteTarget);
-        logOpenMarkdownTarget('pending_result', {
-          opened,
-          currentNotePath: useNotesStore.getState().currentNote?.path ?? null,
-          openTabPaths: useNotesStore.getState().openTabs.map((tab) => tab.path),
-        });
       } finally {
         if (!cancelled) {
           setPendingShortcutNoteTarget(null);
@@ -130,29 +108,20 @@ export function useNotesOpenMarkdownTarget({
     setIsOpenTargetBusy(true);
     try {
       await flushCurrentTitleCommit();
-      logOpenMarkdownTarget('start', { selected, currentVaultPath, notesPath });
 
       const canContinue = await saveCurrentNoteIfNeeded();
       if (!canContinue) {
-        logOpenMarkdownTarget('blocked_by_unsaved_note', { selected });
         return;
       }
 
       const target = resolveOpenNoteTarget(selected);
       const normalizedTargetVaultPath = normalizeVaultPath(target.vaultPath);
-      logOpenMarkdownTarget('resolved_target', { selected, target, normalizedTargetVaultPath });
 
       if (currentVaultPath === normalizedTargetVaultPath && notesPath === normalizedTargetVaultPath) {
         const opened = await openShortcutNoteTarget({
           vaultPath: normalizedTargetVaultPath,
           notePath: target.notePath,
           absolutePath: selected,
-        });
-        logOpenMarkdownTarget('open_current_vault_note_result', {
-          selected,
-          opened,
-          normalizedTargetVaultPath,
-          notePath: target.notePath,
         });
         if (!opened) {
           await messageDialog('Failed to open the selected Markdown file.', {
@@ -171,23 +140,10 @@ export function useNotesOpenMarkdownTarget({
       });
 
       if (currentVaultPath === normalizedTargetVaultPath) {
-        logOpenMarkdownTarget('waiting_for_current_vault_pending_note', {
-          selected,
-          normalizedTargetVaultPath,
-          notePath: target.notePath,
-        });
         return;
       }
 
       const openedVault = await openVault(normalizedTargetVaultPath);
-      logOpenMarkdownTarget('open_vault_result', {
-        selected,
-        normalizedTargetVaultPath,
-        openedVault,
-        vaultError: useVaultStore.getState().error,
-        currentVaultPath: useVaultStore.getState().currentVault?.path ?? null,
-        notesPath: useNotesStore.getState().notesPath,
-      });
       if (!openedVault) {
         setPendingShortcutNoteTarget(null);
         await messageDialog('Failed to open the selected vault.', {
@@ -196,10 +152,6 @@ export function useNotesOpenMarkdownTarget({
         });
       }
     } catch (error) {
-      logOpenMarkdownTarget('error', {
-        selected,
-        error: error instanceof Error ? error.message : String(error),
-      });
       setPendingShortcutNoteTarget(null);
       await messageDialog(error instanceof Error ? error.message : 'Failed to open the selected Markdown file.', {
         title: 'Open Failed',
@@ -210,53 +162,40 @@ export function useNotesOpenMarkdownTarget({
     }
   }, [currentVaultPath, notesPath, openShortcutNoteTarget, openVault, saveCurrentNoteIfNeeded]);
 
-  const handleOpenSelectedFile = useCallback(async () => {
-    if (isOpenTargetBusy) return;
-
-    let selected: string | null;
+  const openFolderTarget = useCallback(async (selected: string) => {
+    setIsOpenTargetBusy(true);
     try {
       await flushCurrentTitleCommit();
-      selected = getSingleOpenSelection(await openDialog({
-        title: OPEN_MARKDOWN_FILE_ACTION,
-        defaultPath: currentVaultPath ?? undefined,
-        authorizeParentDirectory: true,
-        filters: [{ name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd'] }],
-      }));
+
+      const canContinue = await saveCurrentNoteIfNeeded();
+      if (!canContinue) {
+        return;
+      }
+
+      const openedVault = await openVault(selected);
+      if (!openedVault) {
+        await messageDialog('Failed to open the selected folder.', {
+          title: 'Open Failed',
+          kind: 'error',
+        });
+      }
     } catch (error) {
-      console.warn('[NotesView] open markdown file dialog failed:', error);
-      await messageDialog('Failed to open the file picker.', {
-        title: 'Open File Failed',
-        kind: 'warning',
+      await messageDialog(error instanceof Error ? error.message : 'Failed to open the selected folder.', {
+        title: 'Open Failed',
+        kind: 'error',
       });
-      return;
+    } finally {
+      setIsOpenTargetBusy(false);
     }
+  }, [openVault, saveCurrentNoteIfNeeded]);
 
-    if (!selected) return;
-
-    if (!isSupportedMarkdownSelection(selected)) {
-      await messageDialog('Please select a Markdown file.', {
-        title: 'Unsupported File',
-        kind: 'warning',
-      });
-      return;
-    }
-
-    await openMarkdownTarget(selected);
-  }, [currentVaultPath, isOpenTargetBusy, openMarkdownTarget]);
-
-  useEffect(() => {
-    const handleOpenMarkdownFile = () => {
-      if (!active) return;
-      void handleOpenSelectedFile();
-    };
-
-    window.addEventListener('vlaina-open-markdown-file', handleOpenMarkdownFile);
-    const unsubscribeDesktopShortcut = onDesktopOpenMarkdownFileShortcut(handleOpenMarkdownFile);
-    return () => {
-      window.removeEventListener('vlaina-open-markdown-file', handleOpenMarkdownFile);
-      unsubscribeDesktopShortcut();
-    };
-  }, [active, handleOpenSelectedFile]);
+  useNotesOpenTargetPicker({
+    active,
+    currentVaultPath,
+    isOpenTargetBusy,
+    openMarkdownTarget,
+    openFolderTarget,
+  });
 
   useEffect(() => {
     return subscribeOpenMarkdownTargetEvent((absolutePath) => {

@@ -33,6 +33,13 @@ function readPreviewStylesSource() {
   );
 }
 
+function readBlankAreaDragBoxSource() {
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/cursor', 'blankAreaDragBoxPlugin.ts'),
+    'utf8'
+  );
+}
+
 describe('editor embedded CodeMirror selection styles', () => {
   it('keeps nested list block selection overlays from stacking darker backgrounds', () => {
     const css = readStyleFile('core.css');
@@ -80,6 +87,15 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('body.vlaina-block-drag-active,');
     expect(css).toContain('body.vlaina-block-drag-active * {');
     expect(css).toContain('cursor: grabbing !important;');
+  });
+
+  it('keeps editor block selection color independent from global gray text tokens', () => {
+    const css = readStyleFile('core.css');
+    const source = readBlankAreaDragBoxSource();
+
+    expect(css).toContain('--vlaina-editor-block-selection-base: var(--vlaina-color-editor-block-selection, #71717a);');
+    expect(css).toContain('color-mix(in srgb, var(--vlaina-editor-block-selection-base, #71717a) 14%, transparent)');
+    expect(source).toContain('color-mix(in srgb, var(--vlaina-color-editor-block-selection, #71717a) 18%, transparent)');
   });
 
   it('keeps code block selection rendering on the CodeMirror selection layer', () => {

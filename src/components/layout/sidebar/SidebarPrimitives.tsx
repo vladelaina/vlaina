@@ -134,13 +134,13 @@ export const SidebarSearchField = forwardRef<HTMLInputElement, SidebarSearchFiel
           <Icon
             name="common.search"
             size={SIDEBAR_SEARCH_ICON_SIZE}
-            className="text-[#999999]"
+            className="text-[var(--vlaina-color-text-soft)]"
           />
           <input
             ref={ref}
             spellCheck={false}
             className={cn(
-              'min-w-0 flex-1 bg-transparent text-[16px] text-[#999999] outline-none placeholder:text-[#999999]',
+              'min-w-0 flex-1 bg-transparent text-[16px] text-[var(--vlaina-color-text-soft)] outline-none placeholder:text-[var(--vlaina-color-text-soft)]',
               inputClassName,
             )}
             {...props}
@@ -150,7 +150,7 @@ export const SidebarSearchField = forwardRef<HTMLInputElement, SidebarSearchFiel
             onClick={onClose}
             aria-label={closeLabel}
             className={cn(
-              'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-[#999999] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[#27262b]',
+              'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)]',
               closeButtonClassName,
             )}
           >

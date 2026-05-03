@@ -101,7 +101,7 @@ const BLOCK_FALLBACK_STYLES: Partial<Record<BlockType, Record<string, string>>> 
     fontStyle: 'normal',
   },
   codeBlock: {
-    fontFamily: 'var(--font-geist-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace)',
+    fontFamily: 'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace)',
     fontSize: '0.875rem',
     lineHeight: '1.7',
     backgroundColor: 'var(--vlaina-code-block-background, #f5f5f5)',
@@ -430,7 +430,7 @@ function getBlockPreviewStyles(
       display: 'block',
       overflow: 'hidden',
       whiteSpace: 'pre-wrap',
-      fontFamily: 'var(--font-geist-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace)',
+      fontFamily: 'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace)',
       fontSize: '0.875rem',
       lineHeight: '1.7',
       backgroundColor: 'var(--vlaina-code-block-background, #f5f5f5)',

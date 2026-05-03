@@ -9,16 +9,9 @@
 
 :root {
   --font-fallback: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Tahoma, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-  --font-sans: 'Inter', 'Source Sans 3', 'Poppins', var(--font-fallback);
-  --font-serif: 'Source Serif 4', 'Noto Serif', 'Lora', 'Cambria', Georgia, serif, var(--font-fallback);
+  --font-sans: 'Inter', var(--font-fallback);
+  --font-serif: Georgia, 'Times New Roman', serif, var(--font-fallback);
   --font-mono: 'JetBrains Mono', var(--font-sans);
-  --font-number: 'Roboto Mono', 'JetBrains Mono', var(--font-fallback);
-
-  --vlaina-font-family: var(--font-sans);
-  --vlaina-font-serif-family: var(--font-serif);
-  --vlaina-font-mono-family: var(--font-mono);
-  --vlaina-font-number-family: var(--font-number);
-  --vlaina-font-code-family: var(--font-mono);
 
   --vlaina-font-title: 36px;
   --vlaina-font-h1: 28px;
@@ -103,7 +96,7 @@ html, body, #root {
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
-  --font-serif: 'Source Serif 4', 'Noto Serif', 'Lora', 'Cambria', Georgia, serif;
+  --font-serif: Georgia, 'Times New Roman', serif;
   --font-mono: 'JetBrains Mono', 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
 }
 
@@ -126,12 +119,13 @@ html, body, #root {
   --vlaina-color-text-primary: #2c2c2b;
   --vlaina-color-text-sidebar: #27262b;
   --vlaina-color-text-hover: #27262b;
-  --vlaina-color-text-secondary: #8e8b86;
-  --vlaina-color-text-muted: #999999;
-  --vlaina-color-text-soft: #999999;
-  --vlaina-color-text-tertiary: #b9b9bc;
-  --vlaina-color-text-disabled: #c9c9ca;
-  --vlaina-color-sidebar-pin: #999999;
+  --vlaina-color-text-secondary: #636363;
+  --vlaina-color-text-muted: #636363;
+  --vlaina-color-text-soft: #636363;
+  --vlaina-color-text-tertiary: #636363;
+  --vlaina-color-text-disabled: #636363;
+  --vlaina-color-editor-block-selection: #b9b9bc;
+  --vlaina-color-sidebar-pin: #636363;
   --vlaina-color-border: #e3e2e4;
   --vlaina-color-border-shell: #eff3f4;
   --vlaina-color-accent: #1e96eb;
@@ -190,12 +184,13 @@ html, body, #root {
   --vlaina-color-text-primary: #eeeeee;
   --vlaina-color-text-sidebar: #f3f4f6;
   --vlaina-color-text-hover: #d1d5db;
-  --vlaina-color-text-secondary: #a0a0a0;
-  --vlaina-color-text-muted: #9ca3af;
-  --vlaina-color-text-soft: #6b7280;
-  --vlaina-color-text-tertiary: #5d5d5f;
-  --vlaina-color-text-disabled: #424242;
-  --vlaina-color-sidebar-pin: #8b93a1;
+  --vlaina-color-text-secondary: #636363;
+  --vlaina-color-text-muted: #636363;
+  --vlaina-color-text-soft: #636363;
+  --vlaina-color-text-tertiary: #636363;
+  --vlaina-color-text-disabled: #636363;
+  --vlaina-color-editor-block-selection: #5d5d5f;
+  --vlaina-color-sidebar-pin: #636363;
   --vlaina-color-border: #333333;
   --vlaina-color-border-shell: #333333;
   --vlaina-color-accent-hover: #5eabf7;
@@ -296,11 +291,11 @@ html, body, #root {
   --chat-sidebar-surface: var(--vlaina-color-surface-sidebar);
   --chat-sidebar-row-hover: var(--vlaina-color-surface-row-hover);
   --chat-sidebar-row-active: var(--sidebar-row-selected-bg);
-  --chat-sidebar-text: var(--vlaina-color-text-sidebar);
-  --chat-sidebar-text-muted: var(--vlaina-color-text-muted);
-  --chat-sidebar-text-soft: var(--vlaina-color-text-soft);
-  --chat-sidebar-icon: var(--vlaina-color-text-soft);
-  --chat-sidebar-icon-hover: var(--vlaina-color-text-hover);
+  --chat-sidebar-text: #050505;
+  --chat-sidebar-text-muted: #636363;
+  --chat-sidebar-text-soft: #636363;
+  --chat-sidebar-icon: #636363;
+  --chat-sidebar-icon-hover: #636363;
   --chat-sidebar-pin: var(--vlaina-color-sidebar-pin);
   --chat-sidebar-status-info: var(--vlaina-color-info);
   --chat-sidebar-status-warning: var(--vlaina-color-warning);
@@ -310,13 +305,13 @@ html, body, #root {
   --notes-sidebar-row-hover: var(--vlaina-color-surface-row-hover);
   --notes-sidebar-row-active: var(--sidebar-row-selected-bg);
   --notes-sidebar-row-drag: var(--vlaina-color-accent-light);
-  --notes-sidebar-text: var(--vlaina-color-text-sidebar);
-  --notes-sidebar-text-muted: var(--vlaina-color-text-muted);
-  --notes-sidebar-text-soft: var(--vlaina-color-text-soft);
-  --notes-sidebar-section-label: var(--vlaina-color-text-soft);
-  --notes-sidebar-section-label-hover: var(--vlaina-color-text-hover);
-  --notes-sidebar-icon: var(--vlaina-color-text-soft);
-  --notes-sidebar-icon-hover: var(--vlaina-color-text-hover);
+  --notes-sidebar-text: #050505;
+  --notes-sidebar-text-muted: #636363;
+  --notes-sidebar-text-soft: #636363;
+  --notes-sidebar-section-label: #050505;
+  --notes-sidebar-section-label-hover: #050505;
+  --notes-sidebar-icon: #636363;
+  --notes-sidebar-icon-hover: #636363;
   --notes-sidebar-outline-icon: var(--vlaina-color-caret);
   --notes-sidebar-spark-icon: var(--vlaina-color-caret);
   --notes-sidebar-file-icon: var(--vlaina-color-caret);

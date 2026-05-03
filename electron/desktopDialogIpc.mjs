@@ -45,31 +45,20 @@ export function registerDesktopDialogIpc({
     }
 
     if (options?.multiple) {
-      const kind = options?.directory ? 'root' : 'file';
-      await Promise.all(result.filePaths.flatMap((filePath) => {
-        const authorizations = [authorizeFsPath(filePath, kind)];
-        if (!options?.directory && options?.authorizeParentDirectory) {
-          const parentPath = path.dirname(filePath);
-          authorizations.push(authorizeFsPath(parentPath, 'root'));
-          authorizations.push(authorizeFsPath(path.dirname(parentPath), 'watch-root'));
-        }
-        return authorizations;
-      }));
+      await Promise.all(result.filePaths.map((filePath) => (
+        authorizeOpenDialogPath(filePath, options, authorizeFsPath)
+      )));
       return result.filePaths;
     }
 
     const selectedPath = result.filePaths[0] ?? null;
     if (selectedPath) {
-      await authorizeFsPath(selectedPath, options?.directory ? 'root' : 'file');
-      if (!options?.directory && options?.authorizeParentDirectory) {
-        const parentPath = path.dirname(selectedPath);
-        const watchParentPath = path.dirname(parentPath);
-        await authorizeFsPath(parentPath, 'root');
-        await authorizeFsPath(watchParentPath, 'watch-root');
+      const authorization = await authorizeOpenDialogPath(selectedPath, options, authorizeFsPath);
+      if (authorization.parentPath && authorization.watchParentPath) {
         logDesktopDialog(app, 'open:authorized_parent', {
           selectedPath,
-          parentPath,
-          watchParentPath,
+          parentPath: authorization.parentPath,
+          watchParentPath: authorization.watchParentPath,
         });
       }
     }
@@ -125,6 +114,24 @@ export function registerDesktopDialogIpc({
 
     return result.response === 0;
   });
+}
+
+async function authorizeOpenDialogPath(filePath, options, authorizeFsPath) {
+  if (options?.directory) {
+    await authorizeFsPath(filePath, 'root');
+    return {};
+  }
+
+  await authorizeFsPath(filePath, 'file');
+  if (options?.authorizeParentDirectory) {
+    const parentPath = path.dirname(filePath);
+    const watchParentPath = path.dirname(parentPath);
+    await authorizeFsPath(parentPath, 'root');
+    await authorizeFsPath(watchParentPath, 'watch-root');
+    return { parentPath, watchParentPath };
+  }
+
+  return {};
 }
 
 async function showLoggedOpenDialog(app, dialog, window, dialogOptions) {
