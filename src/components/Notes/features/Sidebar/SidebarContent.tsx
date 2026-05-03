@@ -1,8 +1,5 @@
 import { useDeferredValue, useEffect, useRef, useState } from 'react';
-import {
-  SidebarSearchDrawer,
-  useSidebarSearchDrawerState,
-} from '@/components/layout/sidebar/SidebarSearchDrawer';
+import { SidebarSearchDrawer, useSidebarSearchDrawerState } from '@/components/layout/sidebar/SidebarSearchDrawer';
 import type { SidebarSearchState } from '@/components/layout/sidebar/useSidebarSearchState';
 import { cn } from '@/lib/utils';
 import { isAbsolutePath } from '@/lib/storage/adapter';
@@ -10,10 +7,7 @@ import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { StarredSection } from '../Starred';
 import { triggerHoveredSidebarRename } from '../common/sidebarHoverRename';
-import {
-  NotesSidebarHoverEmptyHint,
-  NotesSidebarScrollArea,
-} from './NotesSidebarPrimitives';
+import { NotesSidebarHoverEmptyHint, NotesSidebarScrollArea } from './NotesSidebarPrimitives';
 import { NotesSidebarTopActions } from './NotesSidebarTopActions';
 import { RootFolderRow } from './RootFolderRow';
 import { SidebarSearchResultsList } from './SidebarSearchResultsList';
@@ -55,6 +49,7 @@ export function SidebarContent({
   const noteContentsCache = useNotesStore((s) => s.noteContentsCache);
   const scanAllNotes = useNotesStore((s) => s.scanAllNotes);
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
+  const rootBlankAreaRef = useRef<HTMLDivElement | null>(null);
   const [isSidebarHovered, setIsSidebarHovered] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<{
     path: string;
@@ -77,9 +72,7 @@ export function SidebarContent({
     scopeRef: sidebarRootRef,
   });
   const wasShowingSearchResultsRef = useRef(shouldShowSearchResults);
-  const shouldShowEmptyHint =
-    !isLoading &&
-    (!rootFolder || rootFolder.children.length === 0);
+  const shouldShowEmptyHint = !isLoading && !rootFolder;
   const { isContentScanPending, searchResults } = useSidebarContentSearchResults({
     rootFolder,
     getDisplayName,
@@ -276,9 +269,16 @@ export function SidebarContent({
               isLoading={isLoading}
               onCreateNote={createNote}
               onCreateFolder={() => createFolder('')}
+              blankContextMenuRef={rootBlankAreaRef}
             />
-            {shouldShowEmptyHint ? (
-              <div className="flex min-h-[160px] flex-1 items-center justify-center pb-8">
+            <div
+              ref={rootFolder ? rootBlankAreaRef : undefined}
+              className={cn(
+                'flex flex-1 items-center justify-center',
+                rootFolder ? 'min-h-0' : 'min-h-[160px] pb-8',
+              )}
+            >
+              {shouldShowEmptyHint ? (
                 <NotesSidebarHoverEmptyHint
                   title="Open"
                   actions={[
@@ -288,8 +288,8 @@ export function SidebarContent({
                   placement="inline"
                   visible={isSidebarHovered}
                 />
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
         )}
       </NotesSidebarScrollArea>

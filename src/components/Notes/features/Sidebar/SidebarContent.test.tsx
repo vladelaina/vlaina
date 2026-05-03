@@ -195,7 +195,7 @@ describe('SidebarContent search highlight cleanup', () => {
     expect(hoisted.scheduleSidebarItemIntoView).toHaveBeenCalledWith('docs/alpha.md', 2);
   });
 
-  it('shows the hover empty hint when the notes directory has no notes', () => {
+  it('does not show the open hint after an empty notes directory is open', () => {
     const rootFolder = {
       id: 'root',
       name: 'Notes',
@@ -205,7 +205,7 @@ describe('SidebarContent search highlight cleanup', () => {
       children: [],
     };
 
-    const { getByText } = render(
+    const { queryByText } = render(
       <SidebarContent
         rootFolder={rootFolder}
         isLoading={false}
@@ -216,7 +216,7 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(getByText('Open')).toBeTruthy();
+    expect(queryByText('Open')).toBeNull();
   });
 
   it('shows the hover empty hint before a root folder exists', () => {
