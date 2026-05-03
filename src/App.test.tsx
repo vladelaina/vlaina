@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 
 type NotesState = {
-  openTabs: Array<{ path: string }>;
+  openTabs: Array<{ path: string; isDirty?: boolean }>;
   draftNotes: Record<string, { name: string }>;
   noteContentsCache: Map<string, { content: string }>;
   noteMetadata: { notes: Record<string, unknown> } | null;
-  currentNote: { path: string } | null;
+  currentNote: { path: string; content?: string } | null;
   isDirty: boolean;
   openNote: ReturnType<typeof vi.fn>;
   openNoteByAbsolutePath: ReturnType<typeof vi.fn>;
@@ -45,6 +45,7 @@ const mocks = vi.hoisted(() => {
     },
     flushPendingSave: vi.fn().mockResolvedValue(undefined),
     flushPendingSessionJsonSaves: vi.fn().mockResolvedValue(undefined),
+    openStoredNotePath: vi.fn().mockResolvedValue(undefined),
     addToast: vi.fn(),
     checkStatus: vi.fn().mockResolvedValue(undefined),
     refreshBudget: vi.fn().mockResolvedValue(undefined),
@@ -142,7 +143,7 @@ vi.mock('@/stores/notes/draftNote', () => ({
 }));
 
 vi.mock('@/stores/notes/openNotePath', () => ({
-  openStoredNotePath: vi.fn().mockResolvedValue(undefined),
+  openStoredNotePath: (...args: unknown[]) => mocks.openStoredNotePath(...args),
 }));
 
 vi.mock('@/components/theme-provider', () => ({
@@ -225,6 +226,15 @@ describe('App close flow', () => {
     mocks.notesState.openNote.mockClear();
     mocks.notesState.openNoteByAbsolutePath.mockClear();
     mocks.notesState.saveNote.mockClear();
+    mocks.openStoredNotePath.mockReset();
+    mocks.openStoredNotePath.mockImplementation(async (path: string) => {
+      const tab = mocks.notesState.openTabs.find((item) => item.path === path);
+      mocks.notesState.currentNote = {
+        path,
+        content: mocks.notesState.noteContentsCache.get(path)?.content ?? '',
+      };
+      mocks.notesState.isDirty = Boolean(tab?.isDirty);
+    });
     mocks.desktopWindow.setResizable.mockClear();
     mocks.desktopWindow.setMaximizable.mockClear();
     mocks.desktopWindow.setMinSize.mockClear();
@@ -261,9 +271,13 @@ describe('App close flow', () => {
 
   it('flushes pending writes before closing when a non-draft note is dirty', async () => {
     mocks.notesState.currentNote = { path: 'docs/a.md' };
+    mocks.notesState.openTabs = [{ path: 'docs/a.md', isDirty: true }];
     mocks.notesState.isDirty = true;
     mocks.notesState.saveNote.mockImplementation(async () => {
       mocks.notesState.isDirty = false;
+      mocks.notesState.openTabs = mocks.notesState.openTabs.map((tab) =>
+        tab.path === 'docs/a.md' ? { ...tab, isDirty: false } : tab
+      );
     });
 
     render(<App />);
@@ -280,6 +294,48 @@ describe('App close flow', () => {
     await waitFor(() => {
       expect(mocks.flushPendingSave).toHaveBeenCalledTimes(1);
       expect(mocks.flushPendingSessionJsonSaves).toHaveBeenCalledTimes(1);
+      expect(mocks.notesState.saveNote).toHaveBeenCalledTimes(1);
+      expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('flushes dirty regular background tabs before closing', async () => {
+    mocks.notesState.currentNote = { path: 'docs/b.md', content: '# B' };
+    mocks.notesState.openTabs = [
+      { path: 'docs/a.md', isDirty: true },
+      { path: 'docs/b.md', isDirty: false },
+    ];
+    mocks.notesState.noteContentsCache = new Map([
+      ['docs/a.md', { content: 'Unsaved A' }],
+      ['docs/b.md', { content: '# B' }],
+    ]);
+    mocks.notesState.saveNote.mockImplementation(async () => {
+      const path = mocks.notesState.currentNote?.path;
+      mocks.notesState.isDirty = false;
+      mocks.notesState.openTabs = mocks.notesState.openTabs.map((tab) =>
+        tab.path === path ? { ...tab, isDirty: false } : tab
+      );
+    });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(mocks.desktopWindow.onCloseRequested).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      mocks.closeRequestedHandler?.();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mocks.openStoredNotePath).toHaveBeenCalledWith(
+        'docs/a.md',
+        expect.objectContaining({
+          openNote: mocks.notesState.openNote,
+          openNoteByAbsolutePath: mocks.notesState.openNoteByAbsolutePath,
+        })
+      );
       expect(mocks.notesState.saveNote).toHaveBeenCalledTimes(1);
       expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
     });
