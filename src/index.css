@@ -289,7 +289,7 @@ html, body, #root {
   --vlaina-sidebar-width: 270px;
   --vlaina-sidebar-bg: var(--vlaina-color-surface-shell-sidebar);
   --sidebar-row-selected-bg: #ecf6ff;
-  --sidebar-row-selected-text: #050505;
+  --sidebar-row-selected-text: #41a8ea;
   --vlaina-header-height: 52px;
   --vlaina-font-base: 16px;
   --vlaina-line-height: 1.6;
