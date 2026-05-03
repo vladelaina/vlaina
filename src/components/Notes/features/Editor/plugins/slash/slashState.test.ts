@@ -1,13 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { slashPluginKey } from './slashPluginKey';
-import { createSlashState, deriveSlashState } from './slashState';
+import {
+  canOpenSlashMenuFromSelection,
+  createSlashState,
+  deriveSlashState,
+} from './slashState';
 
-function createSelection(textBefore: string, pos = textBefore.length) {
+function createSelection(
+  textBefore: string,
+  pos = textBefore.length,
+  options: { empty?: boolean; isTextblock?: boolean; isCode?: boolean } = {}
+) {
   return {
+    empty: options.empty ?? true,
     $from: {
       parentOffset: textBefore.length,
       pos,
       parent: {
+        isTextblock: options.isTextblock ?? true,
+        type: { spec: { code: options.isCode ?? false } },
         textBetween: () => textBefore,
       },
     },
@@ -94,5 +105,51 @@ describe('deriveSlashState', () => {
     );
 
     expect(next).toEqual(createSlashState());
+  });
+
+  it('closes after whitespace in the slash query', () => {
+    const next = deriveSlashState(
+      createTransaction({
+        selectionText: '/h ',
+        docChanged: true,
+      }),
+      {
+        isOpen: true,
+        query: 'h',
+        selectedIndex: 0,
+      }
+    );
+
+    expect(next).toEqual(createSlashState());
+  });
+
+  it('does not track slashes inside words or urls', () => {
+    const next = deriveSlashState(
+      createTransaction({
+        selectionText: 'https://example.com',
+        docChanged: true,
+      }),
+      {
+        isOpen: true,
+        query: '',
+        selectedIndex: 0,
+      }
+    );
+
+    expect(next).toEqual(createSlashState());
+  });
+});
+
+describe('canOpenSlashMenuFromSelection', () => {
+  it('opens at the start of a text block or after whitespace', () => {
+    expect(canOpenSlashMenuFromSelection(createSelection(''))).toBe(true);
+    expect(canOpenSlashMenuFromSelection(createSelection('hello '))).toBe(true);
+  });
+
+  it('does not open inside words, urls, code blocks, or range selections', () => {
+    expect(canOpenSlashMenuFromSelection(createSelection('hello'))).toBe(false);
+    expect(canOpenSlashMenuFromSelection(createSelection('https:/'))).toBe(false);
+    expect(canOpenSlashMenuFromSelection(createSelection('', 0, { isCode: true }))).toBe(false);
+    expect(canOpenSlashMenuFromSelection(createSelection('', 0, { empty: false }))).toBe(false);
   });
 });

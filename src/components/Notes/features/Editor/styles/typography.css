@@ -8,6 +8,7 @@
   font-size: 28px;
   font-weight: 700;
   letter-spacing: -0.02em;
+  --heading-line-extra: 8px;
   line-height: calc(1em + 8px);
   padding-top: 0;
   padding-bottom: 0;
@@ -25,6 +26,7 @@
   font-size: 26px;
   font-weight: 600;
   letter-spacing: -0.02em;
+  --heading-line-extra: 10px;
   line-height: calc(1em + 10px);
   padding-top: 0;
   padding-bottom: 0;
@@ -38,6 +40,7 @@
   font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.02em;
+  --heading-line-extra: 8px;
   line-height: calc(1em + 8px);
   padding-top: 0;
   padding-bottom: 0;
@@ -51,6 +54,7 @@
   font-size: 22px;
   font-weight: 600;
   letter-spacing: -0.015em;
+  --heading-line-extra: 8px;
   line-height: calc(1em + 8px);
   padding-top: 0;
   padding-bottom: 0;
@@ -64,6 +68,7 @@
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.015em;
+  --heading-line-extra: 8px;
   line-height: calc(1em + 8px);
   padding-top: 0;
   padding-bottom: 0;
@@ -77,6 +82,7 @@
   font-size: 18px;
   font-weight: 600;
   letter-spacing: -0.015em;
+  --heading-line-extra: 8px;
   line-height: calc(1em + 8px);
   padding-top: 0;
   padding-bottom: 0;
@@ -185,7 +191,7 @@
   position: absolute;
   left: var(--collapse-pos-heading);
   /* Use unified variable from extended.css */
-  top: 50%;
+  top: calc((1em + var(--heading-line-extra, 8px)) / 2);
   transform: translateY(-50%);
   width: 18px;
   height: 18px;

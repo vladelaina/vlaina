@@ -1,11 +1,9 @@
-import type { SlashCommandId } from './slashCommands';
+import type { SlashCommandId } from './slashCommandDefinitions';
 
 export interface SlashMenuItem {
   id: string;
   name: string;
   icon: string;
-  description?: string;
-  group: string;
   searchTerms: string[];
   commandId: SlashCommandId;
 }
