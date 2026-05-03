@@ -9,7 +9,7 @@ vi.mock('../../../utils/editorViewRegistry', () => ({
   getCurrentMarkdownParser: () => mockGetCurrentMarkdownParser(),
 }));
 
-vi.mock('../../clipboard/markdownSerializationUtils', () => ({
+vi.mock('@/lib/notes/markdown/markdownSerializationUtils', () => ({
   normalizeSerializedMarkdownSelection: (value: string) =>
     mockNormalizeSerializedMarkdownSelection(value),
 }));

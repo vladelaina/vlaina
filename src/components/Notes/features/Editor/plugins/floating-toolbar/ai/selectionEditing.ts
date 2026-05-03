@@ -1,6 +1,6 @@
 import { Slice } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { normalizeSerializedMarkdownSelection } from '../../clipboard/markdownSerializationUtils';
+import { normalizeSerializedMarkdownSelection } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { serializeSliceToText } from '../../clipboard/serializer';
 import { getCurrentMarkdownParser } from '../../../utils/editorViewRegistry';
 import type { AiSelectionSuggestion } from './selectionCommandTypes';

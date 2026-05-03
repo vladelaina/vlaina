@@ -1,7 +1,7 @@
 import type { EditorState } from '@milkdown/kit/prose/state';
 import type { Serializer } from '@milkdown/kit/transformer';
 import { serializeSliceToText } from '../clipboard/serializer';
-import { normalizeSerializedMarkdownBlock } from '../clipboard/markdownSerializationUtils';
+import { normalizeSerializedMarkdownBlock } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { serializeLeadingFrontmatterMarkdown } from '../frontmatter/frontmatterMarkdown';
 import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
 

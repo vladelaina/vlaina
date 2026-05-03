@@ -99,22 +99,21 @@ export function createFileSystemTreeActions(
           noteMetadata: metadata,
           starredNotes: starredPaths.notes,
           starredFolders: starredPaths.folders,
-          isLoading: false,
           fileTreeSortMode,
         });
 
         const currentNotePath = workspace?.currentNotePath;
         if (!skipRestore && currentNotePath) {
-          setTimeout(async () => {
-            try {
-              const fullPath = await joinPath(basePath, currentNotePath);
-              if (await storage.exists(fullPath)) {
-                get().openNote(currentNotePath);
-              }
-            } catch {
+          try {
+            const fullPath = await joinPath(basePath, currentNotePath);
+            if (await storage.exists(fullPath)) {
+              await get().openNote(currentNotePath);
             }
-          }, 0);
+          } catch {
+          }
         }
+
+        set({ isLoading: false });
       } catch (error) {
         set({
           error: error instanceof Error ? error.message : 'Failed to load notes',

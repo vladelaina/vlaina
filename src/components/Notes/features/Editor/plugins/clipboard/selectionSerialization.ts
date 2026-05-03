@@ -6,7 +6,7 @@ import {
   joinSerializedBlocks,
   normalizeSerializedMarkdownBlock,
   normalizeSerializedMarkdownSelection,
-} from './markdownSerializationUtils';
+} from '@/lib/notes/markdown/markdownSerializationUtils';
 import { serializeSliceToText } from './serializer';
 import { serializeLeadingFrontmatterMarkdown } from '../frontmatter/frontmatterMarkdown';
 

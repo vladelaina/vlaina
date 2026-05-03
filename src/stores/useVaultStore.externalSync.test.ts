@@ -4,6 +4,7 @@ import { useVaultStore } from './useVaultStore';
 
 const hoisted = vi.hoisted(() => ({
   saveStarredRegistry: vi.fn(),
+  moveVaultSystemStore: vi.fn(async () => undefined),
 }));
 
 vi.mock('@/stores/notes/starred', async () => {
@@ -13,6 +14,10 @@ vi.mock('@/stores/notes/starred', async () => {
     saveStarredRegistry: hoisted.saveStarredRegistry,
   };
 });
+
+vi.mock('@/stores/notes/systemStoragePaths', () => ({
+  moveVaultSystemStore: hoisted.moveVaultSystemStore,
+}));
 
 describe('useVaultStore external sync', () => {
   beforeEach(() => {
@@ -102,6 +107,7 @@ describe('useVaultStore external sync', () => {
         expect.objectContaining({ vaultPath: 'C:/vault-new', relativePath: 'docs' }),
       ])
     );
+    expect(hoisted.moveVaultSystemStore).toHaveBeenCalledWith('C:/vault-old', 'C:/vault-new');
     expect(useNotesStore.getState().clearAssetUrlCache).toHaveBeenCalledTimes(1);
   });
 

@@ -49,6 +49,7 @@ let snapshot: FileTreePointerDragSnapshot = {
 };
 
 let activeSession: FileTreePointerDragSession | null = null;
+let pendingClickSuppressionCleanup: (() => void) | null = null;
 
 const listeners = new Set<() => void>();
 
@@ -283,20 +284,38 @@ function queueAutoScroll() {
 }
 
 function suppressNextClick() {
+  pendingClickSuppressionCleanup?.();
+  if (typeof document === 'undefined' || typeof window === 'undefined') {
+    return;
+  }
+
+  let timeoutId: number | null = null;
   const handleClick = (event: MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    document.removeEventListener('click', handleClick, true);
+    cleanup();
+  };
+
+  const cleanup = () => {
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('click', handleClick, true);
+    }
+    if (timeoutId != null) {
+      globalThis.clearTimeout(timeoutId);
+      timeoutId = null;
+    }
     if (activeSession?.suppressClickTimeout != null) {
-      window.clearTimeout(activeSession.suppressClickTimeout);
+      globalThis.clearTimeout(activeSession.suppressClickTimeout);
       activeSession.suppressClickTimeout = null;
+    }
+    if (pendingClickSuppressionCleanup === cleanup) {
+      pendingClickSuppressionCleanup = null;
     }
   };
 
   document.addEventListener('click', handleClick, true);
-  const timeoutId = window.setTimeout(() => {
-    document.removeEventListener('click', handleClick, true);
-  }, 250);
+  timeoutId = window.setTimeout(cleanup, 250);
+  pendingClickSuppressionCleanup = cleanup;
 
   if (activeSession) {
     activeSession.suppressClickTimeout = timeoutId;

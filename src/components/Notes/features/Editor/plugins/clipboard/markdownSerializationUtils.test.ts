@@ -5,7 +5,7 @@ import {
   normalizeSerializedMarkdownDocument,
   normalizeSerializedMarkdownSelection,
   stripTrailingNewlines,
-} from './markdownSerializationUtils';
+} from '@/lib/notes/markdown/markdownSerializationUtils';
 
 describe('stripTrailingNewlines', () => {
   it('removes trailing newlines only', () => {
@@ -18,6 +18,10 @@ describe('normalizeSerializedMarkdownBlock', () => {
   it('converts standalone br tags to empty block text', () => {
     expect(normalizeSerializedMarkdownBlock('<br />')).toBe('');
     expect(normalizeSerializedMarkdownBlock('<br/>\n')).toBe('');
+  });
+
+  it('converts invisible editor blank-line placeholders to empty block text', () => {
+    expect(normalizeSerializedMarkdownBlock('\u200B\n')).toBe('');
   });
 
   it('removes placeholder br tags from empty list items', () => {
@@ -37,11 +41,39 @@ describe('normalizeSerializedMarkdownBlock', () => {
 });
 
 describe('normalizeSerializedMarkdownDocument', () => {
+  it('converts invisible editor blank-line placeholders into markdown blank lines', () => {
+    expect(normalizeSerializedMarkdownDocument('1\n\u200B\n2\n')).toBe('1\n\n2\n');
+    expect(normalizeSerializedMarkdownDocument('- one\n\u200B\u200C\n- two\n')).toBe('- one\n\n- two\n');
+  });
+
+  it('converts invisible blank placeholders next to internal user br placeholders', () => {
+    expect(
+      normalizeSerializedMarkdownDocument('A\n\u200B <br data-vlaina-user-br="true" />\n\u200B\nB')
+    ).toBe('A\n\n<br />\n\nB');
+  });
+
   it('converts standalone br lines into markdown blank lines', () => {
     expect(
       normalizeSerializedMarkdownDocument('1\n<br data-vlaina-empty-line="true" />\n2\n')
     ).toBe('1\n\n2\n');
     expect(normalizeSerializedMarkdownDocument('<br data-vlaina-empty-line="true" />')).toBe('');
+  });
+
+  it('converts internal empty line placeholders with serialized html variants', () => {
+    expect(
+      normalizeSerializedMarkdownDocument('1\n<br data-vlaina-empty-line="true"/>\n2\n')
+    ).toBe('1\n\n2\n');
+    expect(
+      normalizeSerializedMarkdownDocument(
+        '1\n<br class="x" data-vlaina-empty-line=true></br>\n2\n'
+      )
+    ).toBe('1\n\n2\n');
+    expect(
+      normalizeSerializedMarkdownDocument('1\n<br date-vlaina-empty-line="true"/>\n2\n')
+    ).toBe('1\n\n2\n');
+    expect(
+      normalizeSerializedMarkdownDocument('1\n<br date-vlaianempt-line="true"/>\n2\n')
+    ).toBe('1\n\n2\n');
   });
 
   it('keeps user-authored standalone br tags', () => {
@@ -53,10 +85,52 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ).toBe('> > <br />');
   });
 
+  it('converts internal user br placeholders with serialized html variants', () => {
+    expect(
+      normalizeSerializedMarkdownDocument('1\n<br data-vlaina-user-br="true"/>\n2\n')
+    ).toBe('1\n<br />\n2\n');
+    expect(
+      normalizeSerializedMarkdownDocument('1\n<br class="x" data-vlaina-user-br=true></br>\n2\n')
+    ).toBe('1\n<br />\n2\n');
+    expect(
+      normalizeSerializedMarkdownDocument('1\n<br date-vlaina-user-br="true"/>\n2\n')
+    ).toBe('1\n<br />\n2\n');
+  });
+
+  it('converts internal blockquote br placeholders with serialized html variants', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(
+        '<br class="x" data-vlaina-user-br=true data-vlaina-blockquote-depth=2></br>'
+      )
+    ).toBe('> > <br />');
+    expect(
+      normalizeSerializedMarkdownDocument(
+        '<br date-vlaina-blockquote-depth="2" date-vlaina-user-br="true"/>'
+      )
+    ).toBe('> > <br />');
+  });
+
   it('does not rewrite user text that resembles internal sentinels', () => {
     expect(normalizeSerializedMarkdownDocument('VLAINA_LIST_GAP_SENTINEL')).toBe(
       'VLAINA_LIST_GAP_SENTINEL'
     );
+  });
+
+  it('converts internal list gap placeholders back to markdown blank lines', () => {
+    expect(
+      normalizeSerializedMarkdownDocument('- one\n<br data-vlaina-list-gap="true"/>\n- two\n')
+    ).toBe('- one\n\n- two\n');
+    expect(
+      normalizeSerializedMarkdownDocument(
+        '- one\n<br class="x" data-vlaina-list-gap=true></br>\n- two\n'
+      )
+    ).toBe('- one\n\n- two\n');
+    expect(
+      normalizeSerializedMarkdownDocument('- one\n<br date-vlaina-list-gap="true"/>\n- two\n')
+    ).toBe('- one\n\n- two\n');
+    expect(
+      normalizeSerializedMarkdownDocument('- one\n<br date-vlaianlist-gap="true"/>\n- two\n')
+    ).toBe('- one\n\n- two\n');
   });
 
   it('does not rewrite placeholder-like text inside fenced code', () => {
@@ -69,6 +143,12 @@ describe('normalizeSerializedMarkdownDocument', () => {
       '- two',
       '```',
     ].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
+  it('does not unescape markdown punctuation inside fenced code', () => {
+    const markdown = ['```md', '\\*literal\\*', '```'].join('\n');
 
     expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });
@@ -124,8 +204,13 @@ describe('normalizeSerializedMarkdownSelection', () => {
     expect(normalizeSerializedMarkdownSelection('<br />')).toBe('\n');
   });
 
+  it('converts standalone invisible blank-line placeholders to single newline', () => {
+    expect(normalizeSerializedMarkdownSelection('\u200B\n')).toBe('\n');
+  });
+
   it('converts marked standalone br placeholders to single newline', () => {
     expect(normalizeSerializedMarkdownSelection('<br data-vlaina-empty-line="true" />')).toBe('\n');
+    expect(normalizeSerializedMarkdownSelection('<br data-vlaina-empty-line="true"/>')).toBe('\n');
   });
 
   it('keeps blockquote user br placeholders when normalizing selections', () => {

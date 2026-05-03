@@ -23,6 +23,7 @@ import {
 import { markExpectedExternalChange } from '../document/externalChangeRegistry';
 import { updateNoteMetadataInMarkdown } from '../frontmatter';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
+import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -111,7 +112,8 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       sourceContent = await storage.readFile(fullPath);
     }
 
-    const { content, metadata } = updateNoteMetadataInMarkdown(sourceContent, {
+    const normalizedSourceContent = normalizeSerializedMarkdownDocument(sourceContent);
+    const { content, metadata } = updateNoteMetadataInMarkdown(normalizedSourceContent, {
       ...updates,
       updatedAt: Date.now(),
     });
@@ -226,7 +228,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
             }
 
             try {
-              const content = await storage.readFile(fullPath);
+              const content = normalizeSerializedMarkdownDocument(await storage.readFile(fullPath));
               return { path, content, modifiedAt };
             } catch {
               return { path, content: '', modifiedAt: null };

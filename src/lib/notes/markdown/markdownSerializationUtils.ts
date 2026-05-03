@@ -5,30 +5,38 @@ import {
 
 const BR_ONLY_PATTERN = /^<br\s*\/?>$/i;
 const BLOCKQUOTE_BR_ONLY_PATTERN = /^(\s*(?:>\s*)+)<br\s*\/?>$/i;
-const MARKED_BR_ONLY_PATTERN = /^<br\s+data-vlaina-empty-line="true"\s*\/?>$/i;
+const VLAINA_EMPTY_LINE_ATTR_PATTERN = '\\bdat[ae]-vla(?:ina|ian)-?(?:empty|empt)-line';
+const VLAINA_LIST_GAP_ATTR_PATTERN = '\\bdat[ae]-vla(?:ina|ian)-?list-gap';
+const VLAINA_USER_BR_ATTR_PATTERN = '\\bdat[ae]-vla(?:ina|ian)-?user-br';
+const VLAINA_BLOCKQUOTE_DEPTH_ATTR_PATTERN = '\\bdat[ae]-vla(?:ina|ian)-?blockquote-depth';
+const TRUE_ATTR_VALUE_PATTERN = '(?:"true"|\'true\'|true\\b)';
+const DEPTH_ATTR_VALUE_PATTERN = '(?:"(\\d+)"|\'(\\d+)\'|(\\d+)\\b)';
+const MARKED_BR_ONLY_PATTERN =
+  new RegExp(`^<br\\b(?=[^>]*${VLAINA_EMPTY_LINE_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
 const MARKDOWN_ESCAPE_PATTERN = /\\([\\`*_{}[\]()#+\-.!])/g;
-const EMPTY_LINE_PLACEHOLDER = '<br data-vlaina-empty-line="true" />';
+const EMPTY_LINE_PLACEHOLDER = '\u200B';
 const USER_BR_PLACEHOLDER = '<br data-vlaina-user-br="true" />';
-const LIST_GAP_PLACEHOLDER = '<br data-vlaina-list-gap="true" />';
+const LIST_GAP_PLACEHOLDER = '\u200B\u200C';
 const LIST_GAP_SENTINEL = '\u0000VLAINA_LIST_GAP_SENTINEL\u0000';
+const INVISIBLE_EMPTY_LINE_PLACEHOLDER_PATTERN = /^[\t ]*\\?\u200B[\t ]*$/;
+const INVISIBLE_LIST_GAP_PLACEHOLDER_PATTERN = /^[\t ]*\\?\u200B\\?\u200C[\t ]*$/;
 const MARKED_EMPTY_MARKDOWN_LINE_PLACEHOLDER_PATTERN =
-  /^(\s*(?:>\s*)*(?:(?:[-+*]|\d+[.)])\s+(?:\[(?: |x|X)\]\s+)?)?)<br\s+data-vlaina-empty-line="true"\s*\/?>$/gim;
-const MARKED_EMPTY_LINE_PATTERN = /^<br\s+data-vlaina-empty-line="true"\s*\/?>$/i;
-const MARKED_EMPTY_LINE_TOKEN_PATTERN = /[ \t]*<br\s+data-vlaina-empty-line="true"\s*\/?>[ \t]*/gi;
-const MARKED_USER_BR_PATTERN = /^<br\s+data-vlaina-user-br="true"\s*\/?>$/i;
+  new RegExp(`^(\\s*(?:>\\s*)*(?:(?:[-+*]|\\d+[.)])\\s+(?:\\[(?: |x|X)\\]\\s+)?)?)<br\\b(?=[^>]*${VLAINA_EMPTY_LINE_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'gim');
+const MARKED_EMPTY_LINE_PATTERN =
+  new RegExp(`^<br\\b(?=[^>]*${VLAINA_EMPTY_LINE_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
+const MARKED_EMPTY_LINE_TOKEN_PATTERN =
+  new RegExp(`[ \\t]*<br\\b(?=[^>]*${VLAINA_EMPTY_LINE_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>[ \\t]*(?:<\\/br>)?`, 'gi');
+const MARKED_USER_BR_PATTERN =
+  new RegExp(`^<br\\b(?=[^>]*${VLAINA_USER_BR_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
 const MARKED_BLOCKQUOTE_USER_BR_PATTERN =
-  /^(\s*(?:>\s*)+)<br\s+data-vlaina-user-br="true"\s*\/?>$/i;
+  new RegExp(`^(\\s*(?:>\\s*)+)<br\\b(?=[^>]*${VLAINA_USER_BR_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
 const MARKED_BLOCKQUOTE_USER_BR_WITH_DEPTH_PATTERN =
-  /^(\s*(?:>\s*)*)<br\b(?=[^>]*\bdata-vlaina-user-br="true")(?=[^>]*\bdata-vlaina-blockquote-depth="(\d+)")[^>]*\/?>$/i;
+  new RegExp(`^(\\s*(?:>\\s*)*)<br\\b(?=[^>]*${VLAINA_USER_BR_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})(?=[^>]*${VLAINA_BLOCKQUOTE_DEPTH_ATTR_PATTERN}=${DEPTH_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
 const MARKED_BLOCKQUOTE_USER_BR_TOKEN_PATTERN =
-  /[ \t]*<br\b(?=[^>]*\bdata-vlaina-user-br="true")(?=[^>]*\bdata-vlaina-blockquote-depth="(\d+)")[^>]*\/?>[ \t]*/gi;
-const MARKED_USER_BR_TOKEN_PATTERN = /[ \t]*<br\s+data-vlaina-user-br="true"\s*\/?>[ \t]*/gi;
-const MARKED_LIST_GAP_TOKEN_PATTERN = /[ \t]*<br\s+data-vlaina-list-gap="true"\s*\/?>[ \t]*/gi;
-const USER_AUTHORED_VLAINA_BR_PLACEHOLDER_PATTERN =
-  /^(\s*(?:>\s*)*)<br\b(?=[^>]*\bdata-vlaina-(?:empty-line|user-br|list-gap|blockquote-depth)\b)[^>]*\/?>$/i;
-const USER_AUTHORED_PLACEHOLDER_ESCAPE = '\u200c';
-const ESCAPED_USER_AUTHORED_VLAINA_BR_PATTERN =
-  /<\u200c(br\b(?=[^>]*\bdata-vlaina-(?:empty-line|user-br|list-gap|blockquote-depth)\b)[^>]*\/?>)/gi;
+  new RegExp(`[ \\t]*(?:\\\\?\\u200B[ \\t]*)?<br\\b(?=[^>]*${VLAINA_USER_BR_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})(?=[^>]*${VLAINA_BLOCKQUOTE_DEPTH_ATTR_PATTERN}=${DEPTH_ATTR_VALUE_PATTERN})[^>]*\\/?>[ \\t]*(?:<\\/br>)?`, 'gi');
+const MARKED_USER_BR_TOKEN_PATTERN =
+  new RegExp(`[ \\t]*(?:\\\\?\\u200B[ \\t]*)?<br\\b(?=[^>]*${VLAINA_USER_BR_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>[ \\t]*(?:<\\/br>)?`, 'gi');
+const MARKED_LIST_GAP_TOKEN_PATTERN = new RegExp(`[ \\t]*<br\\b(?=[^>]*${VLAINA_LIST_GAP_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>[ \\t]*(?:<\\/br>)?`, 'gi');
 const EMPTY_LIST_ITEM_PLACEHOLDER_PATTERN =
   /^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+(?:\[(?: |x|X)\]\s+)?)<br\s*\/?>$/gim;
 const EMPTY_TABLE_CELL_PLACEHOLDER_PATTERN = /(\|\s*)<br\s*\/?>(\s*\|)/g;
@@ -38,9 +46,7 @@ const TABLE_DELIMITER_ROW_PATTERN =
 const TABLE_ROW_PATTERN = /^\s*\|.*\|\s*$/;
 
 function unescapeMarkdownPunctuation(text: string): string {
-  return text
-    .replace(ESCAPED_USER_AUTHORED_VLAINA_BR_PATTERN, '<$1')
-    .replace(MARKDOWN_ESCAPE_PATTERN, '$1');
+  return mapMarkdownOutsideProtectedBlocks(text, (line) => line.replace(MARKDOWN_ESCAPE_PATTERN, '$1'));
 }
 
 function stripEmptyMarkdownPlaceholders(text: string): string {
@@ -81,11 +87,6 @@ export function preserveMarkdownBlankLinesForEditor(text: string): string {
   if (text.length === 0) return text;
 
   return mapMarkdownOutsideProtectedBlocks(text, (line, index, lines) => {
-    const userAuthoredPlaceholderMatch = USER_AUTHORED_VLAINA_BR_PLACEHOLDER_PATTERN.exec(line.trimEnd());
-    if (userAuthoredPlaceholderMatch) {
-      return line.replace(/<br\b/i, `<${USER_AUTHORED_PLACEHOLDER_ESCAPE}br`);
-    }
-
     const blockquoteBrMatch = BLOCKQUOTE_BR_ONLY_PATTERN.exec(line);
     if (blockquoteBrMatch) {
       const prefix = blockquoteBrMatch[1] ?? '';
@@ -125,19 +126,30 @@ function normalizeEditorBreakPlaceholders(text: string): string {
     text,
     (line) => {
       const trimmed = line.trim();
-      if (MARKED_EMPTY_LINE_PATTERN.test(trimmed)) {
+      if (INVISIBLE_LIST_GAP_PLACEHOLDER_PATTERN.test(line)) {
+        return LIST_GAP_SENTINEL;
+      }
+      if (INVISIBLE_EMPTY_LINE_PLACEHOLDER_PATTERN.test(line)) {
         return '';
       }
-      if (MARKED_USER_BR_PATTERN.test(trimmed)) {
-        return '<br />';
+      if (MARKED_EMPTY_LINE_PATTERN.test(trimmed)) {
+        return '';
       }
       const blockquoteUserBrWithDepthMatch =
         MARKED_BLOCKQUOTE_USER_BR_WITH_DEPTH_PATTERN.exec(line);
       if (blockquoteUserBrWithDepthMatch) {
         const prefix = blockquoteUserBrWithDepthMatch[1] || getBlockquotePrefix(
-          Number(blockquoteUserBrWithDepthMatch[2] ?? 0)
+          Number(
+            blockquoteUserBrWithDepthMatch[2]
+            ?? blockquoteUserBrWithDepthMatch[3]
+            ?? blockquoteUserBrWithDepthMatch[4]
+            ?? 0
+          )
         );
         return `${prefix}<br />`;
+      }
+      if (MARKED_USER_BR_PATTERN.test(trimmed)) {
+        return '<br />';
       }
       const blockquoteUserBrMatch = MARKED_BLOCKQUOTE_USER_BR_PATTERN.exec(line);
       if (blockquoteUserBrMatch) {
@@ -148,7 +160,10 @@ function normalizeEditorBreakPlaceholders(text: string): string {
         .replace(MARKED_EMPTY_LINE_TOKEN_PATTERN, '\n')
         .replace(
           MARKED_BLOCKQUOTE_USER_BR_TOKEN_PATTERN,
-          (_match, depth: string) => `\n${getBlockquotePrefix(Number(depth))}<br />`
+          (_match, doubleQuotedDepth: string, singleQuotedDepth: string, unquotedDepth: string) =>
+            `\n${getBlockquotePrefix(Number(
+              doubleQuotedDepth ?? singleQuotedDepth ?? unquotedDepth
+            ))}<br />`
         )
         .replace(MARKED_USER_BR_TOKEN_PATTERN, '\n<br />');
     }
@@ -254,7 +269,11 @@ export function normalizeSerializedMarkdownSelection(text: string): string {
   const withoutTrailingNewlines = stripTrailingNewlines(
     stripEmptyMarkdownPlaceholders(text)
   );
-  if (isStandaloneBreak || BR_ONLY_PATTERN.test(withoutTrailingNewlines.trim())) return '\n';
+  if (
+    isStandaloneBreak
+    || (text.length > 0 && withoutTrailingNewlines.length === 0)
+    || BR_ONLY_PATTERN.test(withoutTrailingNewlines.trim())
+  ) return '\n';
   return unescapeMarkdownPunctuation(withoutTrailingNewlines);
 }
 

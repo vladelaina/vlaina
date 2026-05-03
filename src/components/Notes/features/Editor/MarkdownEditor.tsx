@@ -49,7 +49,7 @@ import { useNoteEditorFind } from './find';
 import {
   normalizeSerializedMarkdownDocument,
   preserveMarkdownBlankLinesForEditor,
-} from './plugins/clipboard/markdownSerializationUtils';
+} from '@/lib/notes/markdown/markdownSerializationUtils';
 import { EditorTopRightToolbar } from './EditorTopRightToolbar';
 import {
   getSidebarSearchNavigationPendingPath,
@@ -74,7 +74,8 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   const { debouncedSave, flushSave } = useEditorSave(saveNote);
 
   const initialContent = useMemo(() => {
-    return useNotesStore.getState().currentNote?.content || '';
+    const content = useNotesStore.getState().currentNote?.content || '';
+    return normalizeSerializedMarkdownDocument(content);
   }, [currentNotePath]);
 
   useEffect(() => {
@@ -88,10 +89,12 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   const { get } = useEditor((root) =>
     Editor.make()
       .config((ctx) => {
-        ctx.set(rootCtx, root);
-        ctx.set(defaultValueCtx, preserveMarkdownBlankLinesForEditor(
+        const defaultValue = preserveMarkdownBlankLinesForEditor(
           normalizeLeadingFrontmatterMarkdown(initialContent)
-        ));
+        );
+
+        ctx.set(rootCtx, root);
+        ctx.set(defaultValueCtx, defaultValue);
         ctx.update(remarkStringifyOptionsCtx, (prev) => ({
           ...prev,
           ...notesRemarkStringifyOptions,

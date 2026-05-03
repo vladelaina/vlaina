@@ -328,4 +328,27 @@ describe('workspaceSlice external sync', () => {
     expect(store.getState().isDirty).toBe(false);
   });
 
+  it('cleans internal editor break markers when disk sync reloads the current note', async () => {
+    storageAdapter.exists.mockResolvedValue(true);
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2 });
+    storageAdapter.readFile.mockResolvedValue(['# updated', '<br date-vlaianempt-line="true"/>', 'Body'].join('\n'));
+
+    const store = createNotesStore({
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+
+    const result = await store.getState().syncCurrentNoteFromDisk();
+
+    expect(result).toBe('reloaded');
+    expect(store.getState().currentNote).toEqual({
+      path: 'docs/alpha.md',
+      content: ['# updated', '', 'Body'].join('\n'),
+    });
+    expect(store.getState().noteContentsCache.get('docs/alpha.md')?.content).toBe(
+      ['# updated', '', 'Body'].join('\n')
+    );
+  });
+
 });

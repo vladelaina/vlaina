@@ -8,6 +8,10 @@ const hoisted = vi.hoisted(() => ({
   mkdir: vi.fn(),
   rename: vi.fn(),
   exists: vi.fn(),
+  copyFile: vi.fn(),
+  deleteFile: vi.fn(),
+  deleteDir: vi.fn(),
+  listDir: vi.fn(),
   markExpectedExternalChange: vi.fn(),
 }));
 
@@ -17,6 +21,11 @@ vi.mock('@/lib/storage/adapter', () => ({
     mkdir: hoisted.mkdir,
     rename: hoisted.rename,
     exists: hoisted.exists,
+    copyFile: hoisted.copyFile,
+    deleteFile: hoisted.deleteFile,
+    deleteDir: hoisted.deleteDir,
+    listDir: hoisted.listDir,
+    getBasePath: vi.fn(async () => '/app'),
   }),
 }));
 
@@ -32,6 +41,10 @@ describe('deleteNoteItemToRecoverableLocation', () => {
     hoisted.mkdir.mockResolvedValue(undefined);
     hoisted.rename.mockResolvedValue(undefined);
     hoisted.exists.mockResolvedValue(false);
+    hoisted.copyFile.mockResolvedValue(undefined);
+    hoisted.deleteFile.mockResolvedValue(undefined);
+    hoisted.deleteDir.mockResolvedValue(undefined);
+    hoisted.listDir.mockResolvedValue([]);
     hoisted.markExpectedExternalChange.mockClear();
   });
 
@@ -39,7 +52,7 @@ describe('deleteNoteItemToRecoverableLocation', () => {
     vi.restoreAllMocks();
   });
 
-  it('moves note files into the vault recoverable trash area', async () => {
+  it('moves note files into the system recoverable trash area', async () => {
     const result = await deleteNoteItemToRecoverableLocation('/vault', 'docs/note.md', 'file');
 
     expect(result).toEqual({
@@ -47,13 +60,16 @@ describe('deleteNoteItemToRecoverableLocation', () => {
       kind: 'file',
       originalPath: 'docs/note.md',
       originalFullPath: '/vault/docs/note.md',
-      trashPath: '/vault/.vlaina/trash/1000-i/note.md',
+      trashPath: '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/1000-i/note.md',
       deletedAt: 1000,
     });
-    expect(hoisted.mkdir).toHaveBeenCalledWith('/vault/.vlaina/trash/1000-i', true);
+    expect(hoisted.mkdir).toHaveBeenCalledWith(
+      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/1000-i',
+      true
+    );
     expect(hoisted.rename).toHaveBeenCalledWith(
       '/vault/docs/note.md',
-      '/vault/.vlaina/trash/1000-i/note.md',
+      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/1000-i/note.md',
     );
   });
 
@@ -67,7 +83,7 @@ describe('deleteNoteItemToRecoverableLocation', () => {
       kind: 'file',
       originalPath: 'docs/note.md',
       originalFullPath: '/vault/docs/note.md',
-      trashPath: '/vault/.vlaina/trash/delete-1/note.md',
+      trashPath: '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/delete-1/note.md',
       deletedAt: 1000,
     });
 
@@ -77,10 +93,12 @@ describe('deleteNoteItemToRecoverableLocation', () => {
     });
     expect(hoisted.mkdir).toHaveBeenCalledWith('/vault/docs', true);
     expect(hoisted.rename).toHaveBeenCalledWith(
-      '/vault/.vlaina/trash/delete-1/note.md',
+      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/delete-1/note.md',
       '/vault/docs/note 1.md',
     );
-    expect(hoisted.markExpectedExternalChange).toHaveBeenCalledWith('/vault/.vlaina/trash/delete-1/note.md');
+    expect(hoisted.markExpectedExternalChange).toHaveBeenCalledWith(
+      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/delete-1/note.md'
+    );
     expect(hoisted.markExpectedExternalChange).toHaveBeenCalledWith('/vault/docs/note 1.md');
   });
 
@@ -94,7 +112,7 @@ describe('deleteNoteItemToRecoverableLocation', () => {
       kind: 'folder',
       originalPath: 'docs',
       originalFullPath: '/vault/docs',
-      trashPath: '/vault/.vlaina/trash/delete-1/docs',
+      trashPath: '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/delete-1/docs',
       deletedAt: 1000,
     });
 
@@ -103,7 +121,7 @@ describe('deleteNoteItemToRecoverableLocation', () => {
       restoredFullPath: '/vault/docs 1',
     });
     expect(hoisted.rename).toHaveBeenCalledWith(
-      '/vault/.vlaina/trash/delete-1/docs',
+      '/app/.vlaina/store/notes/vaults/vault-1y3s8he/trash/delete-1/docs',
       '/vault/docs 1',
     );
   });

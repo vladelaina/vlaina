@@ -1,6 +1,6 @@
 import { normalizeNotePathKey } from '@/lib/notes/displayName';
-import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
-import { APP_CONFIG_FOLDER, STORE_FOLDER } from '../constants';
+import { getStorageAdapter } from '@/lib/storage/adapter';
+import { ensureSystemDirectory, getVaultSystemStorePath } from '../systemStoragePaths';
 
 export interface NotesExternalPathRenameEvent {
   type: 'rename';
@@ -169,7 +169,7 @@ export function subscribeNotesExternalPathRename(
 }
 
 export function getNotesExternalPathEventsRelativePath() {
-  return `${APP_CONFIG_FOLDER}/${STORE_FOLDER}/${EVENT_FILE_NAME}`;
+  return `__vlaina_system__/${EVENT_FILE_NAME}`;
 }
 
 export async function readNotesExternalPathEvents(
@@ -219,13 +219,14 @@ export async function readNotesExternalPathEvents(
 }
 
 async function getNotesExternalPathEventsPath(notesPath: string) {
-  return joinPath(notesPath, getNotesExternalPathEventsRelativePath());
+  return getVaultSystemStorePath(notesPath, EVENT_FILE_NAME);
 }
 
 async function appendNotesExternalPathEvent(event: NotesExternalPathRenameEvent) {
   try {
     const storage = getStorageAdapter();
     const eventPath = await getNotesExternalPathEventsPath(event.notesPath);
+    await ensureSystemDirectory(await getVaultSystemStorePath(event.notesPath));
     const previousEvents = await readStoredEvents(eventPath);
     const nextEvents = [...previousEvents, event].slice(-MAX_STORED_EVENTS);
     await storage.writeFile(eventPath, JSON.stringify(nextEvents), { recursive: true });
