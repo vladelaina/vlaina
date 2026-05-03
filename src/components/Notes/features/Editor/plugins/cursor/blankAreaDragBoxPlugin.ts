@@ -42,7 +42,7 @@ import {
 export { blankAreaDragBoxPluginKey } from './blockSelectionPluginState';
 
 const DRAG_THRESHOLD = 4;
-const DRAG_BOX_COLOR = 'color-mix(in srgb, var(--vlaina-text-tertiary, #71717a) 18%, transparent)';
+const DRAG_BOX_COLOR = 'color-mix(in srgb, var(--vlaina-color-editor-block-selection, #71717a) 18%, transparent)';
 const DRAG_SESSION_CURSOR = 'crosshair';
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 
