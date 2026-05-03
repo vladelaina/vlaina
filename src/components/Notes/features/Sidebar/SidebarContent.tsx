@@ -273,6 +273,7 @@ export function SidebarContent({
             />
             <div
               ref={rootFolder ? rootBlankAreaRef : undefined}
+              data-notes-sidebar-blank-drag-root={!rootFolder ? 'true' : undefined}
               className={cn(
                 'flex flex-1 items-center justify-center',
                 rootFolder ? 'min-h-0' : 'min-h-[160px] pb-8',
