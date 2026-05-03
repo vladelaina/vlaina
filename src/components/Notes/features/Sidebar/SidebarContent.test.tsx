@@ -68,14 +68,19 @@ vi.mock('./NotesSidebarPrimitives', () => ({
     title,
     actionLabel,
     onAction,
+    actions,
   }: {
     title: string;
     actionLabel?: string;
     onAction?: () => void;
+    actions?: Array<{ label: string; onAction: () => void }>;
   }) => (
     <div>
       <span>{title}</span>
       {actionLabel ? <button onClick={onAction}>{actionLabel}</button> : null}
+      {actions?.map((action) => (
+        <button key={action.label} onClick={action.onAction}>{action.label}</button>
+      ))}
     </div>
   ),
 }));
@@ -211,7 +216,7 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(getByText('No notes yet')).toBeTruthy();
+    expect(getByText('Open')).toBeTruthy();
   });
 
   it('shows the hover empty hint before a root folder exists', () => {
@@ -226,28 +231,37 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(getByText('No notes yet')).toBeTruthy();
+    expect(getByText('Open')).toBeTruthy();
   });
 
-  it('opens the markdown picker from the empty hint action', () => {
-    const openHandler = vi.fn();
-    window.addEventListener('vlaina-open-markdown-file', openHandler);
+  it('opens files and folders from the empty hint actions', () => {
+    const openFileHandler = vi.fn();
+    const openFolderHandler = vi.fn();
+    window.addEventListener('vlaina-open-markdown-target-file', openFileHandler);
+    window.addEventListener('vlaina-open-markdown-target-folder', openFolderHandler);
 
-    const { getByText } = render(
-      <SidebarContent
-        rootFolder={null}
-        isLoading={false}
-        currentNotePath="draft:blank"
-        createNote={vi.fn(async () => undefined)}
-        createFolder={vi.fn(async () => null)}
-        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
-      />,
-    );
+    try {
+      const { getByText } = render(
+        <SidebarContent
+          rootFolder={null}
+          isLoading={false}
+          currentNotePath="draft:blank"
+          createNote={vi.fn(async () => undefined)}
+          createFolder={vi.fn(async () => null)}
+          search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+        />,
+      );
 
-    fireEvent.click(getByText('Open'));
+      expect(getByText('Open')).toBeTruthy();
+      fireEvent.click(getByText('File'));
+      fireEvent.click(getByText('Folder'));
 
-    expect(openHandler).toHaveBeenCalledTimes(1);
-    window.removeEventListener('vlaina-open-markdown-file', openHandler);
+      expect(openFileHandler).toHaveBeenCalledTimes(1);
+      expect(openFolderHandler).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener('vlaina-open-markdown-target-file', openFileHandler);
+      window.removeEventListener('vlaina-open-markdown-target-folder', openFolderHandler);
+    }
   });
 
   it('scans note contents when cached entries do not cover the current file tree', () => {

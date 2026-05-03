@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { dispatchDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEvents';
 import { matchesShortcutBinding } from '@/lib/shortcuts';
+import { messageDialog } from '@/lib/storage/dialog';
 import { NotesView } from './NotesView';
 
 type MockNotesState = {
@@ -324,6 +325,7 @@ describe('NotesView', () => {
     notesState.confirmPendingDraftDiscard.mockClear();
     notesState.getDisplayName.mockClear();
     mocks.vaultState.openVault.mockClear();
+    vi.mocked(messageDialog).mockReset();
 
     uiState.setNotesChatPanelCollapsed.mockClear();
     uiState.toggleNotesChatPanel.mockClear();

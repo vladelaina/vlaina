@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useRef, useState } from 'react';
 import {
   SidebarSearchDrawer,
   useSidebarSearchDrawerState,
@@ -17,13 +17,7 @@ import {
 import { NotesSidebarTopActions } from './NotesSidebarTopActions';
 import { RootFolderRow } from './RootFolderRow';
 import { SidebarSearchResultsList } from './SidebarSearchResultsList';
-import {
-  buildNotesSidebarSearchIndex,
-  countNotesSidebarSearchEntries,
-  type NotesSidebarSearchResult,
-  queryNotesSidebarSearch,
-  shouldSearchNotesSidebarContents,
-} from './notesSidebarSearchResults';
+import { type NotesSidebarSearchResult } from './notesSidebarSearchResults';
 import {
   applySidebarSearchNavigation,
   clearSidebarSearchHighlights,
@@ -32,6 +26,7 @@ import {
 } from './sidebarSearchNavigation';
 import { getCurrentEditorView } from '../Editor/utils/editorViewRegistry';
 import { scheduleSidebarItemIntoView } from '../common/sidebarScrollIntoView';
+import { useSidebarContentSearchResults } from './useSidebarContentSearchResults';
 
 interface SidebarContentProps {
   rootFolder: FolderNode | null;
@@ -60,9 +55,7 @@ export function SidebarContent({
   const noteContentsCache = useNotesStore((s) => s.noteContentsCache);
   const scanAllNotes = useNotesStore((s) => s.scanAllNotes);
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
-  const contentScanPromiseRef = useRef<Promise<void> | null>(null);
   const [isSidebarHovered, setIsSidebarHovered] = useState(false);
-  const [isContentScanPending, setIsContentScanPending] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<{
     path: string;
     query: string;
@@ -84,35 +77,17 @@ export function SidebarContent({
     scopeRef: sidebarRootRef,
   });
   const wasShowingSearchResultsRef = useRef(shouldShowSearchResults);
-
-  const searchIndex = useMemo(
-    () => buildNotesSidebarSearchIndex(rootFolder, getDisplayName),
-    [getDisplayName, rootFolder],
-  );
-  const searchableNoteCount = useMemo(
-    () => countNotesSidebarSearchEntries(rootFolder),
-    [rootFolder],
-  );
-  const shouldSearchContents = shouldSearchNotesSidebarContents(deferredSearchQuery);
-  const isContentIndexReady = useMemo(
-    () =>
-      searchableNoteCount > 0 &&
-      searchIndex.every((entry) => noteContentsCache.has(entry.path)),
-    [noteContentsCache, searchableNoteCount, searchIndex],
-  );
   const shouldShowEmptyHint =
     !isLoading &&
     (!rootFolder || rootFolder.children.length === 0);
-
-  const searchResults = useMemo(
-    () =>
-      queryNotesSidebarSearch(
-        searchIndex,
-        deferredSearchQuery,
-        (path) => noteContentsCache.get(path)?.content,
-      ),
-    [deferredSearchQuery, noteContentsCache, searchIndex],
-  );
+  const { isContentScanPending, searchResults } = useSidebarContentSearchResults({
+    rootFolder,
+    getDisplayName,
+    noteContentsCache,
+    scanAllNotes,
+    searchQuery: deferredSearchQuery,
+    isSearchOpen: search.isSearchOpen,
+  });
 
   useEffect(() => {
     const isMac =
@@ -195,54 +170,6 @@ export function SidebarContent({
   }, [search.isSearchOpen, search.searchQuery]);
 
   useEffect(() => {
-    if (
-      !search.isSearchOpen ||
-      !shouldSearchContents ||
-      searchableNoteCount === 0 ||
-      isContentIndexReady
-    ) {
-      setIsContentScanPending(false);
-      return;
-    }
-
-    if (contentScanPromiseRef.current) {
-      setIsContentScanPending(true);
-      return;
-    }
-
-    let cancelled = false;
-    setIsContentScanPending(true);
-
-    const promise = scanAllNotes()
-      .catch((error: unknown) => {
-        if (import.meta.env.DEV) {
-          console.warn('[SidebarContent] scanAllNotes failed:', error);
-        }
-      })
-      .finally(() => {
-        if (contentScanPromiseRef.current === promise) {
-          contentScanPromiseRef.current = null;
-        }
-
-        if (!cancelled) {
-          setIsContentScanPending(false);
-        }
-      });
-
-    contentScanPromiseRef.current = promise;
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    isContentIndexReady,
-    scanAllNotes,
-    search.isSearchOpen,
-    searchableNoteCount,
-    shouldSearchContents,
-  ]);
-
-  useEffect(() => {
     if (!pendingNavigation || currentNotePath !== pendingNavigation.path) {
       return;
     }
@@ -292,7 +219,11 @@ export function SidebarContent({
   };
 
   const handleOpenMarkdownFile = () => {
-    window.dispatchEvent(new Event('vlaina-open-markdown-file'));
+    window.dispatchEvent(new Event('vlaina-open-markdown-target-file'));
+  };
+
+  const handleOpenFolder = () => {
+    window.dispatchEvent(new Event('vlaina-open-markdown-target-folder'));
   };
 
   return (
@@ -338,7 +269,7 @@ export function SidebarContent({
             isContentScanPending={isContentScanPending}
           />
         ) : (
-          <div className="relative">
+          <div className="relative flex min-h-full flex-col">
             <StarredSection showTitle={false} />
             <RootFolderRow
               rootFolder={rootFolder}
@@ -346,17 +277,22 @@ export function SidebarContent({
               onCreateNote={createNote}
               onCreateFolder={() => createFolder('')}
             />
+            {shouldShowEmptyHint ? (
+              <div className="flex min-h-[160px] flex-1 items-center justify-center pb-8">
+                <NotesSidebarHoverEmptyHint
+                  title="Open"
+                  actions={[
+                    { label: 'File', onAction: handleOpenMarkdownFile },
+                    { label: 'Folder', onAction: handleOpenFolder },
+                  ]}
+                  placement="inline"
+                  visible={isSidebarHovered}
+                />
+              </div>
+            ) : null}
           </div>
         )}
       </NotesSidebarScrollArea>
-      {!shouldShowSearchResults && shouldShowEmptyHint ? (
-        <NotesSidebarHoverEmptyHint
-          title="No notes yet"
-          actionLabel="Open"
-          onAction={handleOpenMarkdownFile}
-          visible={isSidebarHovered}
-        />
-      ) : null}
     </div>
   );
 }
