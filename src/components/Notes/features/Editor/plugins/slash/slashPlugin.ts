@@ -4,7 +4,12 @@ import { SlashMenuView } from './SlashMenuView';
 import { slashMenuItems } from './slashItems';
 import { slashPluginKey } from './slashPluginKey';
 import { filterSlashItems } from './slashQuery';
-import { createSlashState, deriveSlashState } from './slashState';
+import {
+  canOpenSlashMenuFromSelection,
+  createSlashState,
+  deriveSlashState,
+  getSlashTextRange,
+} from './slashState';
 
 export const slashPlugin = $prose((ctx) => {
   return new Plugin({
@@ -18,8 +23,20 @@ export const slashPlugin = $prose((ctx) => {
         const state = slashPluginKey.getState(view.state);
 
         if (!state?.isOpen) {
-          if (event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+          if (
+            event.key === '/' &&
+            !event.ctrlKey &&
+            !event.metaKey &&
+            !event.altKey &&
+            !event.isComposing &&
+            canOpenSlashMenuFromSelection(view.state.selection)
+          ) {
             setTimeout(() => {
+              const slashRange = getSlashTextRange(view);
+              if (!slashRange || slashRange.query !== '') {
+                return;
+              }
+
               view.dispatch(
                 view.state.tr.setMeta(slashPluginKey, {
                   isOpen: true,

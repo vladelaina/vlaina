@@ -23,6 +23,8 @@ export class SlashMenuView {
   private readonly positionRoot: HTMLElement | null;
   private readonly resizeObserver: ResizeObserver | null;
   private layoutRaf = 0;
+  private selectedScrollRaf = 0;
+  private skipNextSelectedScroll = false;
 
   constructor(
     private readonly editorView: EditorView,
@@ -74,13 +76,21 @@ export class SlashMenuView {
     );
 
     this.scheduleViewportChange();
-    this.keepSelectedItemVisible();
+    if (this.skipNextSelectedScroll) {
+      this.skipNextSelectedScroll = false;
+    } else {
+      this.scheduleSelectedItemScroll();
+    }
   }
 
   destroy() {
     if (this.layoutRaf !== 0) {
       cancelAnimationFrame(this.layoutRaf);
       this.layoutRaf = 0;
+    }
+    if (this.selectedScrollRaf !== 0) {
+      cancelAnimationFrame(this.selectedScrollRaf);
+      this.selectedScrollRaf = 0;
     }
     window.removeEventListener('resize', this.handleViewportChange);
     this.scrollRoot?.removeEventListener('scroll', this.handleViewportChange);
@@ -184,6 +194,17 @@ export class SlashMenuView {
     });
   }
 
+  private scheduleSelectedItemScroll() {
+    if (this.selectedScrollRaf !== 0) {
+      return;
+    }
+
+    this.selectedScrollRaf = requestAnimationFrame(() => {
+      this.selectedScrollRaf = 0;
+      this.keepSelectedItemVisible();
+    });
+  }
+
   private keepSelectedItemVisible() {
     if (!this.menuElement) return;
 
@@ -223,6 +244,7 @@ export class SlashMenuView {
     const state = slashPluginKey.getState(this.editorView.state);
     if (!state?.isOpen || state.selectedIndex === index) return;
 
+    this.skipNextSelectedScroll = true;
     this.editorView.dispatch(this.editorView.state.tr.setMeta(slashPluginKey, { selectedIndex: index }));
   };
 }
