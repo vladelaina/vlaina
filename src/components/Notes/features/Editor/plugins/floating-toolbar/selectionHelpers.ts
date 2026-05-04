@@ -353,14 +353,11 @@ export function getFormattableTextRanges(view: EditorView): TextRange[] {
   return ranges;
 }
 
-export function calculatePosition(view: EditorView): { 
+export function calculatePositionForRange(view: EditorView, from: number, to: number): {
   x: number; 
   y: number; 
   placement: 'top' | 'bottom' 
 } {
-  const { state } = view;
-  const { from, to } = state.selection;
-
   const start = view.coordsAtPos(from);
   const end = view.coordsAtPos(to);
 
@@ -373,14 +370,22 @@ export function calculatePosition(view: EditorView): {
   return { x, y: finalY, placement };
 }
 
-export function calculateBottomPosition(view: EditorView): {
+export function calculatePosition(view: EditorView): {
   x: number;
   y: number;
-  placement: 'bottom';
+  placement: 'top' | 'bottom'
 } {
   const { state } = view;
   const { from, to } = state.selection;
 
+  return calculatePositionForRange(view, from, to);
+}
+
+export function calculateBottomPositionForRange(view: EditorView, from: number, to: number): {
+  x: number;
+  y: number;
+  placement: 'bottom';
+} {
   const start = view.coordsAtPos(from);
   const end = view.coordsAtPos(to);
 
@@ -389,4 +394,15 @@ export function calculateBottomPosition(view: EditorView): {
     y: end.bottom + 8,
     placement: 'bottom',
   };
+}
+
+export function calculateBottomPosition(view: EditorView): {
+  x: number;
+  y: number;
+  placement: 'bottom';
+} {
+  const { state } = view;
+  const { from, to } = state.selection;
+
+  return calculateBottomPositionForRange(view, from, to);
 }

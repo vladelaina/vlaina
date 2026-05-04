@@ -3,7 +3,9 @@ import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType, TextAlignment } from './types';
 import { createCodeBlockAttrs } from '../code/codeBlockSettings';
+import { normalizeCodeBlockLanguage } from '../code/codeBlockLanguage';
 import { normalizeTopLevelBlockPos } from '../cursor/topLevelBlockDom';
+import { guessLanguage } from '../../utils/languageDetection';
 import {
   convertToList,
   convertToTextBlock,
@@ -17,6 +19,49 @@ function getHeadingLevel(blockType: BlockType): number | null {
 
   const level = Number.parseInt(blockType.replace('heading', ''), 10);
   return Number.isInteger(level) && level >= 1 && level <= 6 ? level : null;
+}
+
+export function getSelectedCodeBlockSourceText(view: EditorView): string {
+  const { state } = view;
+  const { from, to, empty, $from } = state.selection;
+  if (!empty && to > from && typeof state.doc?.textBetween === 'function') {
+    return state.doc.textBetween(from, to, '\n', '\n').trim();
+  }
+
+  const parentText = typeof $from.parent?.textContent === 'string'
+    ? $from.parent.textContent
+    : '';
+  return parentText.trim();
+}
+
+export function inferCodeBlockLanguage(view: EditorView): string | null {
+  const sourceText = getSelectedCodeBlockSourceText(view);
+  if (!sourceText) {
+    return null;
+  }
+
+  return normalizeCodeBlockLanguage(guessLanguage(sourceText));
+}
+
+function createCodeBlockContent(view: EditorView, text: string) {
+  return text.length > 0 ? view.state.schema.text(text) : null;
+}
+
+function convertSelectionToSingleCodeBlock(view: EditorView): boolean {
+  const codeBlockType = view.state.schema.nodes.code_block;
+  if (!codeBlockType) {
+    return false;
+  }
+
+  const codeText = getSelectedCodeBlockSourceText(view);
+  const attrs = createCodeBlockAttrs({
+    language: inferCodeBlockLanguage(view),
+  });
+  const codeBlockNode = codeBlockType.create(attrs, createCodeBlockContent(view, codeText));
+  const { from, to } = view.state.selection;
+  const tr = view.state.tr.replaceRangeWith(from, to, codeBlockNode).scrollIntoView();
+  view.dispatch(tr);
+  return true;
 }
 
 function isTableContainer(typeName: string | undefined): boolean {
@@ -308,10 +353,17 @@ export function convertBlockType(view: EditorView, blockType: BlockType): void {
     }
 
     case 'codeBlock': {
-      const codeBlockType = state.schema.nodes.code_block;
-      if (codeBlockType) {
-        convertToTextBlock(view, codeBlockType, createCodeBlockAttrs());
+      if (state.selection.empty) {
+        const codeBlockType = state.schema.nodes.code_block;
+        if (codeBlockType) {
+          convertToTextBlock(view, codeBlockType, createCodeBlockAttrs({
+            language: inferCodeBlockLanguage(view),
+          }));
+        }
+        break;
       }
+
+      convertSelectionToSingleCodeBlock(view);
       break;
     }
   }

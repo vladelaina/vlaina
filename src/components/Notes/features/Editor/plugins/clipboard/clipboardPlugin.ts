@@ -4,6 +4,7 @@ import { Plugin, PluginKey, Selection, TextSelection } from '@milkdown/kit/prose
 import { Fragment, Slice, type Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { Parser, Serializer } from '@milkdown/kit/transformer';
+import { preserveMarkdownBlankLinesForEditor } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { collapseSelectionAndHideFloatingToolbar } from './copyCleanup';
 import { sanitizeHtml } from './sanitizer';
 import { serializeSelectionToClipboardText } from './selectionSerialization';
@@ -18,7 +19,7 @@ import {
     parseStandaloneAtxHeading,
     parseStandaloneFencedCodeBlock,
 } from './fencedCodePaste';
-import { findTailCursorPosInRange, isMarkdownStructuralResult } from './pasteCursorUtils';
+import { findTailCursorPosInRange, isMarkdownStructuralResult, resolvePasteRange } from './pasteCursorUtils';
 import { createMarkdownPasteSlice, hasOnlyParagraphNodes } from './markdownPasteSlice';
 
 export const clipboardPluginKey = new PluginKey('vlaina-clipboard');
@@ -68,7 +69,7 @@ export const clipboardPlugin = $prose((ctx) => {
         },
     ) => {
         const { state } = view;
-        const { from, to } = state.selection;
+        const { from, to } = resolvePasteRange(state, slice);
         const tr = state.tr.replaceRange(from, to, slice);
         tr.setMeta(clipboardPluginKey, true);
         const mappedFrom = tr.mapping.map(from, -1);
@@ -99,8 +100,10 @@ export const clipboardPlugin = $prose((ctx) => {
         let parsedDoc: ProseNode;
         try {
             parsedDoc = parser(
-                normalizeStandaloneThematicBreaksForPaste(
-                    normalizeLeadingFrontmatterMarkdown(text)
+                preserveMarkdownBlankLinesForEditor(
+                    normalizeStandaloneThematicBreaksForPaste(
+                        normalizeLeadingFrontmatterMarkdown(text)
+                    )
                 )
             );
         } catch {

@@ -4,7 +4,9 @@ import { abortActiveAiSelectionReview } from './ai/reviewFlow';
 import { createToolbarRenderer } from './renderToolbar';
 import {
   calculateBottomPosition,
+  calculateBottomPositionForRange,
   calculatePosition,
+  calculatePositionForRange,
   getActiveMarks,
   getBgColor,
   getCurrentAlignment,
@@ -53,19 +55,51 @@ export function createFloatingToolbarPluginView(
   let lastScrollLeft: number | null = null;
   let lastScrollTop: number | null = null;
   let lastTextSelection: { from: number; to: number } | null = null;
+  let lastSelectionToolbarRenderState = '';
+  let selectionToolbarSubMenu: FloatingToolbarState['subMenu'] = null;
 
   const toolbarElement = createToolbarElement();
   const toolbarRenderer = createToolbarRenderer(toolbarElement);
+  const selectionToolbarElement = createToolbarElement();
+  const selectionToolbarRenderer = createToolbarRenderer(selectionToolbarElement, {
+    onToggleSubMenu: (_view, currentState, nextSubMenu) => {
+      selectionToolbarSubMenu = currentState?.subMenu === nextSubMenu ? null : nextSubMenu;
+      lastSelectionToolbarRenderState = '';
+      scheduleToolbarUpdate();
+      return false;
+    },
+    onCloseToolbar: () => {
+      selectionToolbarSubMenu = null;
+      lastSelectionToolbarRenderState = '';
+      hideToolbar(selectionToolbarElement);
+      scheduleToolbarUpdate();
+      return true;
+    },
+  });
   const scrollRoot = getScrollRoot(editorView);
   const toolbarRoot = getToolbarRoot(editorView);
   const positionRoot = toolbarRoot ?? scrollRoot ?? document.body;
+  const reviewToolbars = new Map<string, {
+    element: HTMLElement;
+    renderer: ReturnType<typeof createToolbarRenderer>;
+    lastRenderState: string;
+  }>();
   positionRoot.appendChild(toolbarElement);
+  positionRoot.appendChild(selectionToolbarElement);
 
   const ensureToolbarParent = (_isReviewMode: boolean) => {
     const targetParent = positionRoot;
     if (toolbarElement.parentElement !== targetParent) {
       targetParent.appendChild(toolbarElement);
     }
+    if (selectionToolbarElement.parentElement !== targetParent) {
+      targetParent.appendChild(selectionToolbarElement);
+    }
+    reviewToolbars.forEach(({ element }) => {
+      if (element.parentElement !== targetParent) {
+        targetParent.appendChild(element);
+      }
+    });
   };
 
   const resetToolbarTracking = () => {
@@ -79,11 +113,44 @@ export function createFloatingToolbarPluginView(
     lastScrollLeft = null;
     lastScrollTop = null;
     lastTextSelection = null;
+    lastSelectionToolbarRenderState = '';
+    selectionToolbarSubMenu = null;
   };
 
   const hideToolbarAndReset = () => {
     hideToolbar(toolbarElement);
+    hideToolbar(selectionToolbarElement);
+    reviewToolbars.forEach(({ element }) => hideToolbar(element));
     resetToolbarTracking();
+  };
+
+  const destroyReviewToolbar = (requestKey: string) => {
+    const entry = reviewToolbars.get(requestKey);
+    if (!entry) {
+      return;
+    }
+
+    entry.renderer.destroy();
+    entry.element.remove();
+    reviewToolbars.delete(requestKey);
+  };
+
+  const getReviewToolbar = (requestKey: string) => {
+    const existing = reviewToolbars.get(requestKey);
+    if (existing) {
+      return existing;
+    }
+
+    const element = createToolbarElement();
+    const renderer = createToolbarRenderer(element);
+    positionRoot.appendChild(element);
+    const entry = {
+      element,
+      renderer,
+      lastRenderState: '',
+    };
+    reviewToolbars.set(requestKey, entry);
+    return entry;
   };
 
   const restoreLastSelection = () => {
@@ -124,7 +191,7 @@ export function createFloatingToolbarPluginView(
     return layout.containerBounds;
   };
 
-  const correctToolbarToContentBounds = (x: number) => {
+  const correctToolbarToContentBounds = (toolbar: HTMLElement, x: number) => {
     const container = positionRoot instanceof HTMLElement ? positionRoot : null;
     if (!container) {
       return x;
@@ -133,8 +200,8 @@ export function createFloatingToolbarPluginView(
     const layout = getContentLayoutContext(editorView, container);
     const contentLeft = layout.viewportBounds.left;
     const contentRight = layout.viewportBounds.right;
-    const toolbarBodyNode = toolbarElement.querySelector<HTMLElement>('.floating-toolbar-inner');
-    const toolbarRect = (toolbarBodyNode instanceof HTMLElement ? toolbarBodyNode : toolbarElement).getBoundingClientRect();
+    const toolbarBodyNode = toolbar.querySelector<HTMLElement>('.floating-toolbar-inner');
+    const toolbarRect = (toolbarBodyNode instanceof HTMLElement ? toolbarBodyNode : toolbar).getBoundingClientRect();
     const contentWidth = Math.max(0, contentRight - contentLeft);
     const toolbarWidth = toolbarRect.width;
 
@@ -151,19 +218,19 @@ export function createFloatingToolbarPluginView(
     }
 
     if (correctedX !== x) {
-      toolbarElement.style.left = `${correctedX}px`;
+      toolbar.style.left = `${correctedX}px`;
     }
 
     return correctedX;
   };
 
-  const correctSubmenusToContentBounds = () => {
+  const correctSubmenusToContentBounds = (toolbar: HTMLElement) => {
     const layout = getContentLayoutContext(editorView, positionRoot instanceof HTMLElement ? positionRoot : null);
     const contentLeft = layout.viewportBounds.left;
     const contentRight = layout.viewportBounds.right;
 
     const visibleSubmenus = Array.from(
-      toolbarElement.querySelectorAll<HTMLElement>('.toolbar-submenu')
+      toolbar.querySelectorAll<HTMLElement>('.toolbar-submenu')
     ).filter((submenu) => submenu.offsetParent !== null);
 
     for (const submenu of visibleSubmenus) {
@@ -216,20 +283,30 @@ export function createFloatingToolbarPluginView(
       bgColor: ReturnType<typeof getBgColor>;
     }
   ) => {
-    const cacheKey = [
-      Array.from(toolbarState.activeMarks).sort().join(','),
-      toolbarState.currentBlockType,
-      toolbarState.currentAlignment,
-      toolbarState.linkUrl || '',
-      toolbarState.textColor || '',
-      toolbarState.bgColor || '',
-      pluginState.copied ? 'copied' : '',
-      pluginState.subMenu || '',
-      pluginState.aiReview?.instruction || '',
-      pluginState.aiReview?.originalText || '',
-      pluginState.aiReview?.suggestedText || '',
-      pluginState.aiReview?.isLoading ? 'loading' : '',
-    ].join('|');
+    const cacheKey = pluginState.subMenu === 'aiReview' && pluginState.aiReview
+      ? [
+          'aiReview',
+          pluginState.aiReview.requestKey,
+          pluginState.aiReview.from,
+          pluginState.aiReview.to,
+          pluginState.aiReview.instruction || '',
+          pluginState.aiReview.commandId || '',
+          pluginState.aiReview.toneId || '',
+          pluginState.aiReview.originalText || '',
+          pluginState.aiReview.suggestedText || '',
+          pluginState.aiReview.errorMessage || '',
+          pluginState.aiReview.isLoading ? 'loading' : '',
+        ].join('|')
+      : [
+          Array.from(toolbarState.activeMarks).sort().join(','),
+          toolbarState.currentBlockType,
+          toolbarState.currentAlignment,
+          toolbarState.linkUrl || '',
+          toolbarState.textColor || '',
+          toolbarState.bgColor || '',
+          pluginState.copied ? 'copied' : '',
+          pluginState.subMenu || '',
+        ].join('|');
 
     if (cacheKey === lastRenderState) {
       return;
@@ -242,13 +319,105 @@ export function createFloatingToolbarPluginView(
     });
   };
 
+  const updateSelectionToolbarForReview = (
+    pluginState: FloatingToolbarState,
+    toolbarState: {
+      activeMarks: Set<string>;
+      currentBlockType: ReturnType<typeof getCurrentBlockType>;
+      currentAlignment: ReturnType<typeof getCurrentAlignment>;
+      linkUrl: ReturnType<typeof getLinkUrl>;
+      textColor: ReturnType<typeof getTextColor>;
+      bgColor: ReturnType<typeof getBgColor>;
+    },
+    selection: EditorView['state']['selection']
+  ) => {
+    if (
+      pluginState.subMenu !== 'aiReview' ||
+      !pluginState.aiReview ||
+      selection.empty ||
+      !(selection instanceof TextSelection) ||
+      (selection.from === pluginState.aiReview.from && selection.to === pluginState.aiReview.to)
+    ) {
+      hideToolbar(selectionToolbarElement);
+      lastSelectionToolbarRenderState = '';
+      selectionToolbarSubMenu = null;
+      return;
+    }
+
+    const selectionState: FloatingToolbarState = {
+      ...pluginState,
+      subMenu: selectionToolbarSubMenu,
+      aiReview: null,
+      dragPosition: null,
+      isVisible: true,
+      copied: false,
+    };
+    const renderState = [
+      selection.from,
+      selection.to,
+      selectionToolbarSubMenu || '',
+      Array.from(toolbarState.activeMarks).sort().join(','),
+      toolbarState.currentBlockType,
+      toolbarState.currentAlignment,
+      toolbarState.linkUrl || '',
+      toolbarState.textColor || '',
+      toolbarState.bgColor || '',
+    ].join('|');
+
+    if (renderState !== lastSelectionToolbarRenderState) {
+      lastSelectionToolbarRenderState = renderState;
+      selectionToolbarRenderer.render(editorView, {
+        ...selectionState,
+        ...toolbarState,
+      });
+    }
+
+    const layout = getContentLayoutContext(
+      editorView,
+      positionRoot instanceof HTMLElement ? positionRoot : null
+    );
+    const nextPosition = calculatePosition(editorView);
+    const containerPosition = resolveToolbarContainerPosition(
+      selectionState,
+      nextPosition,
+      positionRoot instanceof HTMLElement ? positionRoot : null
+    );
+    const clamped = clampToolbarX(
+      containerPosition.x,
+      positionRoot instanceof HTMLElement ? positionRoot : null,
+      false,
+      selectionToolbarElement,
+      layout.containerBounds
+    );
+
+    showToolbar(
+      selectionToolbarElement,
+      { x: clamped.clampedX, y: containerPosition.y },
+      nextPosition.placement,
+      false
+    );
+    correctToolbarToContentBounds(selectionToolbarElement, clamped.clampedX);
+    correctSubmenusToContentBounds(selectionToolbarElement);
+  };
+
   const resolveDisplayedToolbarPosition = (args: {
     pluginState: FloatingToolbarState;
     isReviewModeActive: boolean;
     selection: TextSelection;
   }) => {
     const { pluginState, isReviewModeActive, selection } = args;
-    const aiPosition = calculateBottomPosition(editorView);
+    const reviewRange = isReviewModeActive && pluginState.aiReview
+      ? {
+          from: pluginState.aiReview.from,
+          to: pluginState.aiReview.to,
+        }
+      : null;
+    const aiPosition = reviewRange
+      ? calculateBottomPositionForRange(editorView, reviewRange.from, reviewRange.to)
+      : calculateBottomPosition(editorView);
+    const selectionPosition = reviewRange
+      ? calculatePositionForRange(editorView, reviewRange.from, reviewRange.to)
+      : calculatePosition(editorView);
     const layout = getContentLayoutContext(
       editorView,
       positionRoot instanceof HTMLElement ? positionRoot : null
@@ -257,7 +426,7 @@ export function createFloatingToolbarPluginView(
       aiPosition,
       layout,
       pluginState,
-      selectionPosition: calculatePosition(editorView),
+      selectionPosition,
     });
 
     const containerPosition = resolveToolbarContainerPosition(
@@ -317,8 +486,105 @@ export function createFloatingToolbarPluginView(
     };
   };
 
+  const getReviewRenderState = (review: NonNullable<FloatingToolbarState['aiReview']>) => [
+    'aiReview',
+    review.requestKey,
+    review.from,
+    review.to,
+    review.instruction || '',
+    review.commandId || '',
+    review.toneId || '',
+    review.originalText || '',
+    review.suggestedText || '',
+    review.errorMessage || '',
+    review.isLoading ? 'loading' : '',
+  ].join('|');
+
+  const renderReviewToolbars = (
+    pluginState: FloatingToolbarState,
+    toolbarState: {
+      activeMarks: Set<string>;
+      currentBlockType: ReturnType<typeof getCurrentBlockType>;
+      currentAlignment: ReturnType<typeof getCurrentAlignment>;
+      linkUrl: ReturnType<typeof getLinkUrl>;
+      textColor: ReturnType<typeof getTextColor>;
+      bgColor: ReturnType<typeof getBgColor>;
+    }
+  ) => {
+    const reviews = pluginState.aiReviews.length > 0
+      ? pluginState.aiReviews
+      : pluginState.aiReview
+        ? [pluginState.aiReview]
+        : [];
+    const liveKeys = new Set(reviews.map((review) => review.requestKey));
+    Array.from(reviewToolbars.keys()).forEach((requestKey) => {
+      if (!liveKeys.has(requestKey)) {
+        destroyReviewToolbar(requestKey);
+      }
+    });
+
+    reviews.forEach((review) => {
+      const entry = getReviewToolbar(review.requestKey);
+      const blockElement = getBlockElementAtPos(editorView, review.from);
+      if (blockElement) {
+        entry.element.style.setProperty(
+          '--ai-review-width',
+          `${Math.round(blockElement.getBoundingClientRect().width)}px`
+        );
+      } else {
+        entry.element.style.removeProperty('--ai-review-width');
+      }
+
+      const reviewState: FloatingToolbarState = {
+        ...pluginState,
+        subMenu: 'aiReview',
+        aiReview: review,
+        isVisible: true,
+      };
+      const renderState = getReviewRenderState(review);
+      if (entry.lastRenderState !== renderState) {
+        entry.lastRenderState = renderState;
+        entry.renderer.render(editorView, {
+          ...reviewState,
+          ...toolbarState,
+        });
+      }
+
+      const reviewRange = {
+        from: review.from,
+        to: review.to,
+      };
+      const aiPosition = calculateBottomPositionForRange(editorView, reviewRange.from, reviewRange.to);
+      const selectionPosition = calculatePositionForRange(editorView, reviewRange.from, reviewRange.to);
+      const layout = getContentLayoutContext(
+        editorView,
+        positionRoot instanceof HTMLElement ? positionRoot : null
+      );
+      const nextPosition = resolveToolbarViewportPosition({
+        aiPosition,
+        layout,
+        pluginState: reviewState,
+        selectionPosition,
+      });
+      const containerPosition = resolveToolbarContainerPosition(
+        reviewState,
+        nextPosition,
+        positionRoot instanceof HTMLElement ? positionRoot : null
+      );
+
+      showToolbar(
+        entry.element,
+        { x: containerPosition.x, y: containerPosition.y },
+        nextPosition.placement,
+        true
+      );
+      correctSubmenusToContentBounds(entry.element);
+    });
+  };
+
   const updateToolbar = () => {
     const pluginState = toolbarKey.getState(editorView.state);
+    const hasReviewPanels = Boolean(pluginState && (pluginState.aiReviews.length > 0 || pluginState.aiReview));
     const isReviewModeActive = pluginState?.subMenu === 'aiReview' && Boolean(pluginState.aiReview);
     ensureToolbarParent(isReviewModeActive);
     let { selection } = editorView.state;
@@ -328,18 +594,23 @@ export function createFloatingToolbarPluginView(
       return;
     }
 
-    if (!pluginState?.isVisible) {
+    if (!pluginState?.isVisible && !hasReviewPanels) {
       hideToolbarAndReset();
       return;
     }
 
-    if (!isReviewModeActive && (selection.empty || !(selection instanceof TextSelection))) {
+    if (!pluginState) {
+      hideToolbarAndReset();
+      return;
+    }
+
+    if (!hasReviewPanels && !isReviewModeActive && (selection.empty || !(selection instanceof TextSelection))) {
       if (restoreSelectionForToolbar()) {
         selection = editorView.state.selection;
       }
     }
 
-    if (!isReviewModeActive && (selection.empty || !(selection instanceof TextSelection))) {
+    if (!hasReviewPanels && !isReviewModeActive && (selection.empty || !(selection instanceof TextSelection))) {
       hideToolbarAndReset();
       return;
     }
@@ -352,14 +623,26 @@ export function createFloatingToolbarPluginView(
     const linkUrl = getLinkUrl(editorView);
     const textColor = getTextColor(editorView);
     const bgColor = getBgColor(editorView);
-    renderToolbarIfNeeded(pluginState, {
+    const toolbarState = {
       activeMarks,
       currentBlockType,
       currentAlignment,
       linkUrl,
       textColor,
       bgColor,
-    });
+    };
+
+    if (hasReviewPanels) {
+      renderReviewToolbars(pluginState, toolbarState);
+      hideToolbar(toolbarElement);
+      lastRenderState = '';
+      updateSelectionToolbarForReview(pluginState, toolbarState, selection);
+      return;
+    }
+
+    reviewToolbars.forEach((_, requestKey) => destroyReviewToolbar(requestKey));
+
+    renderToolbarIfNeeded(pluginState, toolbarState);
 
     const {
       containerWidth,
@@ -383,8 +666,16 @@ export function createFloatingToolbarPluginView(
     );
     const correctedX = pluginState.subMenu === 'aiReview'
       ? finalX
-      : correctToolbarToContentBounds(finalX);
-    correctSubmenusToContentBounds();
+      : correctToolbarToContentBounds(toolbarElement, finalX);
+    correctSubmenusToContentBounds(toolbarElement);
+    updateSelectionToolbarForReview(pluginState, {
+      activeMarks,
+      currentBlockType,
+      currentAlignment,
+      linkUrl,
+      textColor,
+      bgColor,
+    }, selection);
 
     lastSelectionSignature = selectionSignature;
     lastToolbarX = correctedX;
@@ -446,6 +737,10 @@ export function createFloatingToolbarPluginView(
     interactionState.isMouseDown = false;
     if (isFloatingToolbarSuppressed()) {
       interactionState.pendingShow = false;
+      const pluginState = toolbarKey.getState(editorView.state);
+      if (pluginState?.subMenu === 'aiReview' && pluginState.aiReview) {
+        return;
+      }
       hideToolbar(toolbarElement);
       return;
     }
@@ -486,6 +781,11 @@ export function createFloatingToolbarPluginView(
 
   const handleToolbarPointerLeave = () => {
     interactionState.isPointerInsideToolbar = false;
+    const pluginState = toolbarKey.getState(editorView.state);
+    if (pluginState?.subMenu === 'aiReview' && pluginState.aiReview) {
+      return;
+    }
+
     if (!editorView.state.selection.empty) {
       return;
     }
@@ -498,18 +798,16 @@ export function createFloatingToolbarPluginView(
   };
 
   const handleClickOutside = (event: MouseEvent) => {
-    if (!toolbarElement || toolbarElement.contains(event.target as Node)) {
+    if (
+      !toolbarElement ||
+      toolbarElement.contains(event.target as Node) ||
+      selectionToolbarElement.contains(event.target as Node)
+    ) {
       return;
     }
 
     const pluginState = toolbarKey.getState(editorView.state);
     if (pluginState?.subMenu === 'aiReview') {
-      abortActiveAiSelectionReview(editorView);
-      editorView.dispatch(
-        editorView.state.tr.setMeta(toolbarKey, {
-          type: TOOLBAR_ACTIONS.HIDE,
-        })
-      );
       return;
     }
 
@@ -532,6 +830,10 @@ export function createFloatingToolbarPluginView(
 
     const pluginState = toolbarKey.getState(editorView.state);
     if (!pluginState?.isVisible) {
+      return;
+    }
+
+    if (pluginState.subMenu === 'aiReview' && pluginState.aiReview) {
       return;
     }
 
@@ -573,7 +875,14 @@ export function createFloatingToolbarPluginView(
 
       unbindGlobalListeners(resizeObserver);
       toolbarRenderer.destroy();
+      selectionToolbarRenderer.destroy();
+      reviewToolbars.forEach(({ renderer, element }) => {
+        renderer.destroy();
+        element.remove();
+      });
+      reviewToolbars.clear();
       toolbarElement.remove();
+      selectionToolbarElement.remove();
       resetToolbarTracking();
       interactionState.isPointerInsideToolbar = false;
       interactionState.isMouseDown = false;

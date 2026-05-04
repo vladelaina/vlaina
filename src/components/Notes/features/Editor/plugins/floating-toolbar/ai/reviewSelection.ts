@@ -1,5 +1,8 @@
 import { TextSelection } from '@milkdown/kit/prose/state';
+import type { EditorState } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
+import { floatingToolbarKey } from '../floatingToolbarKey';
 
 function isInlineRangeSelection(selection: EditorView['state']['selection'], from: number, to: number) {
   return (
@@ -19,8 +22,7 @@ export function ensureReviewSelectionVisible(view: EditorView, from: number, to:
     return;
   }
 
-  const currentSelection = view.state.selection;
-  const hasMatchingSelection = isInlineRangeSelection(currentSelection, nextFrom, nextTo);
+  const hasMatchingSelection = isInlineRangeSelection(view.state.selection, nextFrom, nextTo);
 
   if (!view.hasFocus()) {
     view.focus();
@@ -35,4 +37,35 @@ export function ensureReviewSelectionVisible(view: EditorView, from: number, to:
       .setSelection(TextSelection.create(view.state.doc, nextFrom, nextTo))
       .setMeta('addToHistory', false)
   );
+}
+
+export function getAiReviewSelectionDecorations(state: EditorState): DecorationSet {
+  const toolbarState = floatingToolbarKey.getState(state);
+  const reviews = toolbarState?.aiReviews?.length
+    ? toolbarState.aiReviews
+    : toolbarState?.aiReview
+      ? [toolbarState.aiReview]
+      : [];
+  if (reviews.length === 0) {
+    return DecorationSet.empty;
+  }
+
+  const maxPos = state.doc.content.size;
+  const decorations = reviews.flatMap((review) => {
+    const from = Math.max(0, Math.min(review.from, maxPos));
+    const to = Math.max(from, Math.min(review.to, maxPos));
+    if (from === to) {
+      return [];
+    }
+
+    return [
+      Decoration.inline(from, to, {
+        class: 'vlaina-ai-review-selection',
+      }),
+    ];
+  });
+
+  return decorations.length > 0
+    ? DecorationSet.create(state.doc, decorations)
+    : DecorationSet.empty;
 }

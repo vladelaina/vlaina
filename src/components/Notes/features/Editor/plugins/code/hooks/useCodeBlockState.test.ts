@@ -180,6 +180,42 @@ describe('useCodeBlockState', () => {
     expect(result.current.copied).toBe(false);
   });
 
+  it('preserves code block blank lines when copying from the header button', async () => {
+    writeTextToClipboardMock.mockResolvedValue(true);
+
+    const node = {
+      attrs: { language: 'ts', collapsed: false },
+      content: { size: 27 },
+      textBetween: vi.fn(() => 'const a = 1;\n\nconsole.log(a);\n'),
+      textContent: 'collapsed fallback text',
+    } as any;
+
+    const { view } = createMockView({
+      getPos: 10,
+      docSize: 100,
+      nodeSize: 10,
+      currentNodeAttrs: { language: 'ts', collapsed: false },
+      selection: { from: 12, to: 12 },
+    });
+
+    const { result } = renderHook(() =>
+      useCodeBlockState({
+        node,
+        view,
+        getPos: () => 10,
+        getNode: () => node,
+      }),
+    );
+
+    await act(async () => {
+      result.current.handleCopy(createMockMouseEvent());
+      await Promise.resolve();
+    });
+
+    expect(node.textBetween).toHaveBeenCalledWith(0, 27, '\n', '\n');
+    expect(writeTextToClipboardMock).toHaveBeenCalledWith('const a = 1;\n\nconsole.log(a);\n');
+  });
+
   it('does not show copied state when clipboard write fails', async () => {
     writeTextToClipboardMock.mockResolvedValue(false);
 

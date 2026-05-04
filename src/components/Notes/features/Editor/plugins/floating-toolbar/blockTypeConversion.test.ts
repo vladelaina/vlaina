@@ -102,25 +102,20 @@ describe('block type conversion matrix', () => {
     ['paragraph', 'paragraph', { name: 'paragraph' }, undefined],
     ['heading1', 'heading1', { name: 'heading' }, { level: 1 }],
     ['heading6', 'heading6', { name: 'heading' }, { level: 6 }],
-    [
-      'codeBlock',
-      'codeBlock',
-      { name: 'code_block' },
-      expect.objectContaining({
-        language: null,
-        lineNumbers: expect.any(Boolean),
-        wrap: false,
-        collapsed: false,
-      }),
-    ],
   ] as const)('converts plain paragraph to %s', (_label, targetType, nodeType, attrs) => {
     const state: any = {
       selection: {
+        empty: false,
+        from: 1,
+        to: 38,
         $from: {
           depth: 1,
-          parent: { type: { name: 'paragraph' } },
+          parent: { type: { name: 'paragraph' }, textContent: 'const value: number = 1;' },
           node: vi.fn(() => ({ type: { name: 'doc' } })),
         },
+      },
+      doc: {
+        textBetween: vi.fn(() => 'const value: number = 1;'),
       },
       schema: {
         nodes: {
@@ -140,5 +135,117 @@ describe('block type conversion matrix', () => {
     expect(mockSetBlockType).toHaveBeenCalledWith(nodeType, attrs);
     expect(applyBlockType).toHaveBeenCalledWith(state, dispatch);
     expect(view.focus).toHaveBeenCalled();
+  });
+
+  it('converts an empty selection to a code block in place', () => {
+    const state: any = {
+      selection: {
+        empty: true,
+        from: 1,
+        to: 1,
+        $from: {
+          depth: 1,
+          parent: { type: { name: 'paragraph' }, textContent: 'const value: number = 1;' },
+          node: vi.fn(() => ({ type: { name: 'doc' } })),
+        },
+      },
+      schema: {
+        nodes: {
+          code_block: { name: 'code_block' },
+        },
+      },
+    };
+    const dispatch = vi.fn();
+    const view: any = { state, dispatch, focus: vi.fn() };
+    const applyBlockType = vi.fn(() => true);
+    mockSetBlockType.mockReturnValue(applyBlockType);
+
+    convertBlockType(view, 'codeBlock');
+
+    expect(mockSetBlockType).toHaveBeenCalledWith(
+      state.schema.nodes.code_block,
+      expect.objectContaining({
+        language: expect.any(String),
+        lineNumbers: expect.any(Boolean),
+        wrap: false,
+        collapsed: false,
+      })
+    );
+    expect(applyBlockType).toHaveBeenCalledWith(state, dispatch);
+    expect(view.focus).toHaveBeenCalled();
+  });
+
+  it('replaces a multi-block selection with one code block preserving blank lines', () => {
+    const codeText = 'first paragraph\n\nsecond paragraph';
+    const textNode = { type: { name: 'text' }, text: codeText };
+    const codeBlockNode = {
+      type: { name: 'code_block' },
+      attrs: {},
+      content: textNode,
+    };
+    const codeBlockType = {
+      name: 'code_block',
+      create: vi.fn((_attrs: unknown, content: unknown) => ({
+        ...codeBlockNode,
+        attrs: _attrs,
+        content,
+      })),
+    };
+    const tr = {
+      replaceRangeWith: vi.fn(function (this: any) {
+        return this;
+      }),
+      scrollIntoView: vi.fn(function (this: any) {
+        return this;
+      }),
+    };
+    const state: any = {
+      selection: {
+        empty: false,
+        from: 1,
+        to: 42,
+        $from: {
+          depth: 1,
+          parent: { type: { name: 'paragraph' }, textContent: 'first paragraph' },
+          node: vi.fn(() => ({ type: { name: 'doc' } })),
+        },
+      },
+      schema: {
+        text: vi.fn((text: string) => ({ ...textNode, text })),
+        nodes: {
+          code_block: codeBlockType,
+        },
+      },
+      doc: {
+        textBetween: vi.fn(() => codeText),
+      },
+      tr,
+    };
+    const view: any = { state, dispatch: vi.fn(), focus: vi.fn() };
+
+    convertBlockType(view, 'codeBlock');
+
+    expect(state.doc.textBetween).toHaveBeenCalledWith(1, 42, '\n', '\n');
+    expect(state.schema.text).toHaveBeenCalledWith(codeText);
+    expect(codeBlockType.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lineNumbers: expect.any(Boolean),
+        wrap: false,
+        collapsed: false,
+      }),
+      expect.objectContaining({ text: codeText })
+    );
+    expect(tr.replaceRangeWith).toHaveBeenCalledWith(
+      1,
+      42,
+      expect.objectContaining({
+        type: { name: 'code_block' },
+        content: expect.objectContaining({ text: codeText }),
+      })
+    );
+    expect(tr.scrollIntoView).toHaveBeenCalled();
+    expect(view.dispatch).toHaveBeenCalledWith(tr);
+    expect(view.focus).toHaveBeenCalled();
+    expect(mockSetBlockType).not.toHaveBeenCalled();
   });
 });

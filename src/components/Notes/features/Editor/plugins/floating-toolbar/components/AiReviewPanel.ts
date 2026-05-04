@@ -52,7 +52,9 @@ export function createAiReviewPanelController(): AiReviewPanelController {
       modelSelectorRoot.render(
         React.createElement(AiToolbarModelSelector, {
           onSelectModel: () => {
-            const liveReview = floatingToolbarKey.getState(view.state)?.aiReview;
+            const toolbarState = floatingToolbarKey.getState(view.state);
+            const liveReview = toolbarState?.aiReviews.find((item) => item.requestKey === review.requestKey)
+              ?? (toolbarState?.aiReview?.requestKey === review.requestKey ? toolbarState.aiReview : null);
             if (!liveReview?.instruction) {
               return;
             }

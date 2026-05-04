@@ -3,6 +3,7 @@ import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
 import { toggleCodeBlockCollapsed, updateCodeBlockLanguage } from '../codeBlockTransactions';
 import { codeBlockLanguages } from '../codeBlockLanguageLoader';
+import { getCodeBlockSourceText } from '../codeBlockText';
 import { writeTextToClipboard } from '../../cursor/blockSelectionCommands';
 
 interface UseCodeBlockStateProps {
@@ -35,7 +36,7 @@ export function useCodeBlockState({ node, view, getPos, getNode }: UseCodeBlockS
     const handleCopy = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
-        const code = getNode().textContent;
+        const code = getCodeBlockSourceText(getNode());
         void writeTextToClipboard(code)
             .then((didCopy) => {
                 if (!didCopy) return;

@@ -5,9 +5,10 @@ import { getLinkUrl } from './selectionHelpers';
 import { setLink, toggleMark } from './commands';
 import { isFloatingToolbarSuppressed } from './floatingToolbarDom';
 import { createFloatingToolbarPluginView } from './floatingToolbarPluginView';
-import { applyToolbarMeta, createInitialState } from './floatingToolbarState';
+import { applyToolbarMeta, createInitialState, mapAiReviewRange } from './floatingToolbarState';
 import { floatingToolbarKey } from './floatingToolbarKey';
 import { openLinkTooltipFromSelection } from './linkTooltipActions';
+import { getAiReviewSelectionDecorations } from './ai/reviewSelection';
 
 export const floatingToolbarPlugin = $prose(() => {
   const interactionState = {
@@ -21,33 +22,45 @@ export const floatingToolbarPlugin = $prose(() => {
     state: {
       init: () => createInitialState(),
       apply(tr, prevState, _oldState, newState) {
+        const mappedState = tr.docChanged
+          ? mapAiReviewRange(prevState, tr.mapping, newState.doc.content.size)
+          : prevState;
         const meta = tr.getMeta(floatingToolbarKey) as ToolbarMeta | undefined;
-        const nextMetaState = applyToolbarMeta(prevState, meta);
+        const nextMetaState = applyToolbarMeta(mappedState, meta);
         if (nextMetaState) {
           return nextMetaState;
         }
 
         if (tr.selectionSet) {
           const { selection } = newState;
+          const isAiReviewPinned = mappedState.subMenu === 'aiReview' && Boolean(mappedState.aiReview);
           if (selection.empty) {
-            if (prevState.isVisible) {
-              if (interactionState.isPointerInsideToolbar) {
-                return prevState;
+            if (mappedState.isVisible) {
+              if (isAiReviewPinned) {
+                return mappedState;
               }
 
-              return { ...prevState, isVisible: false, subMenu: null, copied: false };
+              if (interactionState.isPointerInsideToolbar) {
+                return mappedState;
+              }
+
+              return { ...mappedState, isVisible: false, subMenu: null, copied: false };
             }
           } else {
             if (isFloatingToolbarSuppressed()) {
-              if (prevState.isVisible) {
-                return { ...prevState, isVisible: false, subMenu: null, copied: false };
+              if (isAiReviewPinned) {
+                return mappedState;
               }
 
-              return prevState;
+              if (mappedState.isVisible) {
+                return { ...mappedState, isVisible: false, subMenu: null, copied: false };
+              }
+
+              return mappedState;
             }
 
-            if (!interactionState.isMouseDown && !prevState.isVisible) {
-              return { ...prevState, isVisible: true };
+            if (!interactionState.isMouseDown && !mappedState.isVisible) {
+              return { ...mappedState, isVisible: true };
             }
 
             if (interactionState.isMouseDown) {
@@ -55,13 +68,16 @@ export const floatingToolbarPlugin = $prose(() => {
             }
           }
         }
-        return prevState;
+        return mappedState;
       },
     },
     view(editorView) {
       return createFloatingToolbarPluginView(editorView, floatingToolbarKey, interactionState);
     },
     props: {
+      decorations(state) {
+        return getAiReviewSelectionDecorations(state);
+      },
       handleKeyDown(view, event) {
         const isMod = event.ctrlKey || event.metaKey;
         if (isMod && !event.shiftKey) {

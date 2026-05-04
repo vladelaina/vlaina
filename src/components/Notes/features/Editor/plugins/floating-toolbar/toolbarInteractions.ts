@@ -4,6 +4,7 @@ import { TOOLBAR_ACTIONS } from './types';
 import { floatingToolbarKey } from './floatingToolbarKey';
 import { applyFormatPreview, clearFormatPreview, hasFormatPreview } from './previewStyles';
 import { createToolbarActionController } from './toolbarActions';
+import type { ToolbarActionControllerOptions } from './toolbarActions';
 
 export { focusSelectedCodeBlockAfterDelete } from './toolbarActions';
 
@@ -14,13 +15,14 @@ export interface ToolbarEventDelegationController {
 }
 
 export function createToolbarEventDelegation(
-  toolbarElement: HTMLElement
+  toolbarElement: HTMLElement,
+  options: ToolbarActionControllerOptions = {}
 ): ToolbarEventDelegationController {
   let currentView: EditorView | null = null;
   let currentState: FloatingToolbarState | null = null;
   let tooltipElement: HTMLElement | null = null;
   let tooltipTimer: ReturnType<typeof setTimeout> | null = null;
-  const actionController = createToolbarActionController(() => currentState);
+  const actionController = createToolbarActionController(() => currentState, options);
 
   const getTooltipElement = () => {
     if (!tooltipElement) {

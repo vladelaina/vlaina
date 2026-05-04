@@ -49,6 +49,7 @@ export interface FloatingToolbarState {
   bgColor: string | null;
   subMenu: SubMenuType;
   aiReview: AiReviewState | null;
+  aiReviews: AiReviewState[];
 }
 
 export interface ToolbarAction {
@@ -86,11 +87,14 @@ export const TOOLBAR_ACTIONS = {
   SET_TEXT_COLOR: 'SET_TEXT_COLOR',
   SET_BG_COLOR: 'SET_BG_COLOR',
   SET_AI_REVIEW: 'SET_AI_REVIEW',
+  CLOSE_AI_REVIEW: 'CLOSE_AI_REVIEW',
 } as const;
 
 export type ToolbarActionType = typeof TOOLBAR_ACTIONS[keyof typeof TOOLBAR_ACTIONS];
 
 export interface ToolbarMeta {
   type: ToolbarActionType;
-  payload?: Partial<FloatingToolbarState>;
+  payload?: Partial<FloatingToolbarState> & {
+    requestKey?: string;
+  };
 }

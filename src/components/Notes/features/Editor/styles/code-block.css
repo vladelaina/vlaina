@@ -8,11 +8,29 @@
   background: var(--vlaina-code-block-background) !important;
   border-radius: 1rem !important;
   overflow: hidden !important;
+  position: relative !important;
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace) !important;
   font-size: 0.875rem !important;
   line-height: 1.7 !important;
-  padding: 0.25rem 1rem 1rem !important;
-  white-space: pre-wrap !important;
+  padding: 2.75rem 1rem 1rem !important;
+  overflow-x: auto !important;
+  white-space: pre !important;
+}
+
+.milkdown [data-preview-block-type="codeBlock"]::before {
+  content: attr(data-preview-code-language);
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  font-size: 0.8125rem;
+  line-height: 1;
+  color: var(--vlaina-text-secondary, #71717a);
+  pointer-events: none;
+  user-select: none;
 }
 
 .dark .milkdown .code-block-container {

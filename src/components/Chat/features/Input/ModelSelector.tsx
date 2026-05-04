@@ -142,6 +142,8 @@ interface ModelSelectorProps {
   onSelectModel?: (modelId: string) => void
   theme?: ModelSelectorTheme
   isEmbedded?: boolean
+  focusSearchOnOpen?: boolean
+  restoreComposerFocusOnClose?: boolean
 }
 
 export function ModelSelector({
@@ -151,6 +153,8 @@ export function ModelSelector({
   onSelectModel,
   theme = 'chat',
   isEmbedded = false,
+  focusSearchOnOpen = true,
+  restoreComposerFocusOnClose = true,
 }: ModelSelectorProps) {
   const models = useUnifiedStore((state) => state.data.ai?.models || [])
   const providers = useUnifiedStore((state) => state.data.ai?.providers || [])
@@ -329,8 +333,10 @@ export function ModelSelector({
       requestCenterScroll();
       setFocusedModelId(initialFocusedId);
       setIsOpen(true);
-      focusSearchInput();
-  }, [focusSearchInput, requestCenterScroll, selectedModelId]);
+      if (focusSearchOnOpen) {
+          focusSearchInput();
+      }
+  }, [focusSearchOnOpen, focusSearchInput, requestCenterScroll, selectedModelId]);
 
   const closeSelector = useCallback((restoreComposerFocus = false) => {
       clearScrollMode();
@@ -361,9 +367,9 @@ export function ModelSelector({
   const handleSelectModel = useCallback((modelId: string) => {
     aiActions.selectModel(modelId)
     onSelectModel?.(modelId)
-    closeSelector(true)
+    closeSelector(restoreComposerFocusOnClose)
     setSearchQuery('')
-  }, [closeSelector, onSelectModel]);
+  }, [closeSelector, onSelectModel, restoreComposerFocusOnClose]);
 
   useModelSelectorKeyboard({
       isOpen,
@@ -372,7 +378,7 @@ export function ModelSelector({
       setFocusedModelId,
       setKeyboardNavigating,
       onShortcutToggle: toggleSelector,
-      onClose: () => closeSelector(true),
+      onClose: () => closeSelector(restoreComposerFocusOnClose),
       onSelectModel: handleSelectModel,
       requestNearestScroll,
       clearScrollMode,
@@ -469,7 +475,7 @@ export function ModelSelector({
                   styles.inputText,
                   styles.inputPlaceholder
                 )}
-                autoFocus
+                autoFocus={focusSearchOnOpen}
               />
               <button
                   onClick={() => {

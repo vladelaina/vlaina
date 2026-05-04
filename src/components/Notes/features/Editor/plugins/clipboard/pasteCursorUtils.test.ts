@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { findTailCursorPosInRange, isMarkdownStructuralResult } from './pasteCursorUtils';
+import { Fragment, Slice } from '@milkdown/kit/prose/model';
+import { findTailCursorPosInRange, isMarkdownStructuralResult, resolvePasteRange } from './pasteCursorUtils';
 
 type FakeNode = {
     isTextblock: boolean;
@@ -86,5 +87,63 @@ describe('isMarkdownStructuralResult', () => {
         ] as any;
 
         expect(isMarkdownStructuralResult(nodes)).toBe(false);
+    });
+});
+
+describe('resolvePasteRange', () => {
+    const createParagraph = (size: number) => ({
+        type: { name: 'paragraph' },
+        content: { size },
+        nodeSize: size + 2,
+    });
+
+    const createText = () => ({
+        isInline: true,
+        isText: true,
+        type: { name: 'text' },
+    });
+
+    const createHeading = () => ({
+        isInline: false,
+        isText: false,
+        type: { name: 'heading' },
+    });
+
+    const createSlice = (nodes: any[]) => new Slice(Fragment.fromArray(nodes), 0, 0);
+
+    it('moves inline paste at an empty paragraph boundary inside that paragraph', () => {
+        const slice = createSlice([createText()]);
+        const state = {
+            selection: { from: 7, to: 7 },
+            doc: {
+                nodeAt: (pos: number) => (pos === 7 ? createParagraph(0) : null),
+            },
+        };
+
+        expect(resolvePasteRange(state as any, slice)).toEqual({ from: 8, to: 8 });
+    });
+
+    it('replaces an empty paragraph boundary for block paste', () => {
+        const slice = createSlice([createHeading()]);
+        const state = {
+            selection: { from: 7, to: 7 },
+            doc: {
+                nodeAt: (pos: number) => (pos === 7 ? createParagraph(0) : null),
+            },
+        };
+
+        expect(resolvePasteRange(state as any, slice)).toEqual({ from: 7, to: 9 });
+    });
+
+    it('keeps ordinary selection ranges unchanged', () => {
+        const slice = createSlice([createText()]);
+        const state = {
+            selection: { from: 2, to: 5 },
+            doc: {
+                nodeAt: () => createParagraph(0),
+            },
+        };
+
+        expect(resolvePasteRange(state as any, slice)).toEqual({ from: 2, to: 5 });
     });
 });

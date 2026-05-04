@@ -12,10 +12,9 @@ export function getSerializedSelectionText(view: EditorView): string {
     return '';
   }
 
-  const serialized = normalizeSerializedMarkdownSelection(
+  return normalizeSerializedMarkdownSelection(
     serializeSliceToText(view.state.doc.slice(from, to))
   );
-  return serialized;
 }
 
 export interface SerializedSelectionContext {
@@ -139,7 +138,7 @@ function parseMarkdownToSlice(
 
     const currentSlice = view.state.doc.slice(from, to);
     return new Slice(doc.content as Slice['content'], currentSlice.openStart, currentSlice.openEnd);
-  } catch (error) {
+  } catch {
     return null;
   }
 }
