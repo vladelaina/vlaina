@@ -31,18 +31,6 @@
   color: rgb(254 202 202 / 1);
 }
 
-.dark .ai-review-diff-added {
-  color: rgb(187 247 208 / 1);
-  background: rgb(20 83 45 / 0.58);
-  box-shadow: inset 0 -2px 0 rgb(74 222 128 / 0.62);
-}
-
-.dark .ai-review-diff-removed {
-  color: rgb(254 202 202 / 1);
-  background: rgb(127 29 29 / 0.48);
-  text-decoration-color: rgb(248 113 113 / 0.84);
-}
-
 .dark .ai-review-action.primary {
   border-color: rgb(244 244 245 / 1);
   background: rgb(244 244 245 / 1);

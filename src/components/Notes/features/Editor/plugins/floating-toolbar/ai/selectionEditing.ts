@@ -1,9 +1,11 @@
 import { Slice } from '@milkdown/kit/prose/model';
+import type { EditorState } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { normalizeSerializedMarkdownSelection } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { useToastStore } from '@/stores/useToastStore';
 import { serializeSliceToText } from '../../clipboard/serializer';
 import { getCurrentMarkdownParser } from '../../../utils/editorViewRegistry';
+import { createAppliedPreviewState } from '../appliedPreviewState';
 import type { AiSelectionSuggestion } from './selectionCommandTypes';
 
 export function getSerializedSelectionText(view: EditorView): string {
@@ -213,4 +215,20 @@ export function applyAiSelectionSuggestion(
 
   replaceSelectionWithText(view, from, to, suggestion.suggestedText);
   return true;
+}
+
+export function createAppliedAiSelectionPreviewState(
+  view: EditorView,
+  suggestion: AiSelectionSuggestion
+): EditorState | null {
+  const maxPos = view.state.doc.content.size;
+  const from = Math.max(0, Math.min(suggestion.from, maxPos));
+  const to = Math.max(from, Math.min(suggestion.to, maxPos));
+  if (!isOriginalSelectionStillCurrent(view, from, to, suggestion.originalText)) {
+    return null;
+  }
+
+  return createAppliedPreviewState(view, (previewView) => {
+    replaceSelectionWithText(previewView, from, to, suggestion.suggestedText);
+  });
 }

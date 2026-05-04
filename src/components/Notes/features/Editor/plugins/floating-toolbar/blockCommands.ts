@@ -115,6 +115,40 @@ function getSelectionBoundaryTextBlock(
   return null;
 }
 
+function resolveSingleSelectedTextBlock(view: EditorView): { from: number; to: number } | null {
+  const { selection } = view.state;
+  const fromEntry = getSelectionBoundaryTextBlock(selection.$from);
+  const toEntry = getSelectionBoundaryTextBlock('$to' in selection ? selection.$to : undefined);
+  if (!fromEntry || !toEntry || fromEntry.pos !== toEntry.pos) {
+    return null;
+  }
+
+  const node = view.state.doc.nodeAt(fromEntry.pos);
+  if (!node || !isConvertibleTextBlock(node)) {
+    return null;
+  }
+
+  return {
+    from: fromEntry.pos + 1,
+    to: fromEntry.pos + Math.max(1, node.nodeSize - 1),
+  };
+}
+
+function runWithSingleTextBlockSelection(view: EditorView, command: () => void): void {
+  const range = resolveSingleSelectedTextBlock(view);
+  if (!range || view.state.selection.empty) {
+    command();
+    return;
+  }
+
+  view.dispatch(
+    view.state.tr
+      .setSelection(TextSelection.create(view.state.doc, range.from, range.to))
+      .setMeta('addToHistory', false)
+  );
+  command();
+}
+
 function getDomSelectedTextBlocks(
   view: EditorView
 ): Array<{ node: { type: { name: string }; attrs?: Record<string, unknown> }; pos: number }> {
@@ -271,8 +305,7 @@ function applyTextBlockTypeAcrossSelection(
 }
 
 export function convertBlockType(view: EditorView, blockType: BlockType): void {
-  const { state, dispatch } = view;
-  const { $from } = state.selection;
+  const { state } = view;
 
   if (blockType === 'paragraph' || getHeadingLevel(blockType) !== null) {
     const targetNodeType = blockType === 'paragraph'
@@ -317,13 +350,15 @@ export function convertBlockType(view: EditorView, blockType: BlockType): void {
     case 'blockquote': {
       const blockquoteType = state.schema.nodes.blockquote;
       if (blockquoteType) {
-        const parent = $from.node(-1);
-        if (parent && parent.type.name === 'blockquote') {
-          lift(state, dispatch);
-        } else {
-          normalizeCurrentBlockToParagraph(view, { unwrapListItem: true });
-          wrapIn(blockquoteType)(view.state, view.dispatch);
-        }
+        runWithSingleTextBlockSelection(view, () => {
+          const parent = view.state.selection.$from.node(-1);
+          if (parent && parent.type.name === 'blockquote') {
+            lift(view.state, view.dispatch);
+          } else {
+            normalizeCurrentBlockToParagraph(view, { unwrapListItem: true });
+            wrapIn(blockquoteType)(view.state, view.dispatch);
+          }
+        });
       }
       break;
     }
@@ -331,7 +366,7 @@ export function convertBlockType(view: EditorView, blockType: BlockType): void {
     case 'bulletList': {
       const bulletListType = state.schema.nodes.bullet_list;
       if (bulletListType) {
-        convertToList(view, bulletListType);
+        runWithSingleTextBlockSelection(view, () => convertToList(view, bulletListType));
       }
       break;
     }
@@ -339,7 +374,7 @@ export function convertBlockType(view: EditorView, blockType: BlockType): void {
     case 'orderedList': {
       const orderedListType = state.schema.nodes.ordered_list;
       if (orderedListType) {
-        convertToList(view, orderedListType);
+        runWithSingleTextBlockSelection(view, () => convertToList(view, orderedListType));
       }
       break;
     }
@@ -347,7 +382,7 @@ export function convertBlockType(view: EditorView, blockType: BlockType): void {
     case 'taskList': {
       const bulletListType = state.schema.nodes.bullet_list;
       if (bulletListType) {
-        convertToList(view, bulletListType, { checked: false });
+        runWithSingleTextBlockSelection(view, () => convertToList(view, bulletListType, { checked: false }));
       }
       break;
     }

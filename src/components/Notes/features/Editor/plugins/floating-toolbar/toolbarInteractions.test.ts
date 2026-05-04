@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createToolbarEventDelegation,
   focusSelectedCodeBlockAfterDelete,
@@ -7,7 +7,27 @@ import { floatingToolbarKey } from './floatingToolbarKey';
 import { TOOLBAR_ACTIONS } from './types';
 import { linkTooltipPluginKey } from '../links';
 
+const previewMocks = vi.hoisted(() => ({
+  applyFormatPreview: vi.fn(),
+  clearFormatPreview: vi.fn(),
+  commitFormatPreview: vi.fn(),
+}));
+
+vi.mock('./previewStyles', () => ({
+  applyFormatPreview: previewMocks.applyFormatPreview,
+  clearFormatPreview: previewMocks.clearFormatPreview,
+  commitFormatPreview: previewMocks.commitFormatPreview,
+  hasFormatPreview: vi.fn((action: string) => ['bold', 'italic', 'underline', 'strike', 'code', 'highlight', 'link'].includes(action)),
+}));
+
 describe('toolbar interactions', () => {
+  beforeEach(() => {
+    previewMocks.applyFormatPreview.mockReset();
+    previewMocks.clearFormatPreview.mockReset();
+    previewMocks.commitFormatPreview.mockReset();
+    previewMocks.commitFormatPreview.mockReturnValue(false);
+  });
+
   it('prevents default when pressing blank space inside the toolbar', () => {
     const toolbar = document.createElement('div');
     const blank = document.createElement('div');
@@ -124,5 +144,47 @@ describe('toolbar interactions', () => {
     codeBlockDom.appendChild(codeMirrorContent);
 
     expect(focusSelectedCodeBlockAfterDelete(codeBlockDom)).toBe(false);
+  });
+
+  it('previews active format buttons as the real toggle-off result', () => {
+    const toolbar = document.createElement('div');
+    const button = document.createElement('button');
+    const view = {} as any;
+    button.dataset.action = 'bold';
+    button.className = 'active';
+    toolbar.appendChild(button);
+    document.body.appendChild(toolbar);
+
+    const delegation = createToolbarEventDelegation(toolbar);
+    delegation.update(view, {} as any);
+
+    button.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+
+    expect(previewMocks.applyFormatPreview).toHaveBeenCalledWith(view, 'bold', true);
+
+    delegation.destroy();
+  });
+
+  it('previews only active link buttons because inactive links open the editor instead', () => {
+    const toolbar = document.createElement('div');
+    const inactiveLink = document.createElement('button');
+    const activeLink = document.createElement('button');
+    const view = {} as any;
+    inactiveLink.dataset.action = 'link';
+    activeLink.dataset.action = 'link';
+    activeLink.className = 'active';
+    toolbar.append(inactiveLink, activeLink);
+    document.body.appendChild(toolbar);
+
+    const delegation = createToolbarEventDelegation(toolbar);
+    delegation.update(view, {} as any);
+
+    inactiveLink.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    activeLink.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+
+    expect(previewMocks.applyFormatPreview).toHaveBeenCalledTimes(1);
+    expect(previewMocks.applyFormatPreview).toHaveBeenCalledWith(view, 'link', true);
+
+    delegation.destroy();
   });
 });

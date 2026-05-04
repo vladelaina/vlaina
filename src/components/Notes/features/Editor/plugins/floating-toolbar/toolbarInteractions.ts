@@ -2,11 +2,26 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import type { FloatingToolbarState } from './types';
 import { TOOLBAR_ACTIONS } from './types';
 import { floatingToolbarKey } from './floatingToolbarKey';
-import { applyFormatPreview, clearFormatPreview, hasFormatPreview } from './previewStyles';
+import {
+  applyFormatPreview,
+  clearFormatPreview,
+  commitFormatPreview,
+  hasFormatPreview,
+} from './previewStyles';
 import { createToolbarActionController } from './toolbarActions';
 import type { ToolbarActionControllerOptions } from './toolbarActions';
 
 export { focusSelectedCodeBlockAfterDelete } from './toolbarActions';
+
+const PREVIEWED_DIRECT_APPLY_ACTIONS = new Set([
+  'bold',
+  'italic',
+  'underline',
+  'strike',
+  'code',
+  'highlight',
+  'link',
+]);
 
 export interface ToolbarEventDelegationController {
   update: (view: EditorView, state: FloatingToolbarState) => void;
@@ -96,12 +111,34 @@ export function createToolbarEventDelegation(
     e.preventDefault();
     e.stopPropagation();
 
-    clearFormatPreview(currentView);
-
     const action = button.dataset.action;
     if (action) {
+      const preservePreviewDuringApply = PREVIEWED_DIRECT_APPLY_ACTIONS.has(action);
+      if (!preservePreviewDuringApply) {
+        clearFormatPreview(currentView);
+      }
+
+      if (
+        preservePreviewDuringApply &&
+        commitFormatPreview(currentView, action, button.classList.contains('active'))
+      ) {
+        const view = currentView;
+        clearFormatPreview(view);
+        hideTooltip();
+        view.dispatch(
+          view.state.tr.setMeta(floatingToolbarKey, {
+            type: TOOLBAR_ACTIONS.HIDE,
+          })
+        );
+        return;
+      }
+
       void actionController.handleAction(currentView, action).then((shouldHideToolbar) => {
         const view = currentView;
+        if (view && preservePreviewDuringApply) {
+          clearFormatPreview(view);
+        }
+
         if (!shouldHideToolbar || !view) {
           return;
         }
@@ -126,8 +163,8 @@ export function createToolbarEventDelegation(
 
     const action = button.dataset.action;
     const isActive = button.classList.contains('active');
-    if (action && hasFormatPreview(action) && !isActive) {
-      applyFormatPreview(currentView, action, false);
+    if (action && hasFormatPreview(action) && (action !== 'link' || isActive)) {
+      applyFormatPreview(currentView, action, isActive);
     }
 
     if (button.dataset.shortcut) {

@@ -1,6 +1,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { FloatingToolbarState, TextAlignment } from '../types';
 import { setTextAlignment } from '../commands';
+import { applyAlignmentPreview, clearFormatPreview, commitAlignmentPreview } from '../previewStyles';
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
 
 const ALIGNMENT_ITEMS: Array<{
@@ -44,13 +45,33 @@ export function renderAlignmentDropdown(
       event.stopPropagation();
     });
 
+    button.addEventListener('mouseenter', () => {
+      const alignment = button.dataset.alignment as TextAlignment;
+      applyAlignmentPreview(view, alignment);
+    });
+
     button.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
 
       const alignment = button.dataset.alignment as TextAlignment;
-      setTextAlignment(view, alignment);
+      let committedPreview = false;
+      try {
+        committedPreview = commitAlignmentPreview(view, alignment);
+        if (!committedPreview) {
+          setTextAlignment(view, alignment);
+        }
+      } finally {
+        clearFormatPreview(view);
+        if (!committedPreview) {
+          view.focus();
+        }
+      }
       onClose();
     });
+  });
+
+  dropdown.addEventListener('mouseleave', () => {
+    clearFormatPreview(view);
   });
 }

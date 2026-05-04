@@ -225,6 +225,112 @@ describe('floating toolbar commands', () => {
     expect(view.focus).toHaveBeenCalled();
   });
 
+  it('scopes list conversion inside a blockquote to the selected text block', () => {
+    const paragraphNode = {
+      type: { name: 'paragraph' },
+      attrs: {},
+      nodeSize: 30,
+    };
+    const initialSelection: any = {
+      empty: false,
+      from: 10,
+      to: 90,
+      $from: {
+        depth: 2,
+        parent: paragraphNode,
+        before: vi.fn((depth?: number) => (depth === 2 ? 10 : 1)),
+        node: vi.fn((depth: number) => {
+          if (depth === 2) return paragraphNode;
+          if (depth === 1) return { type: { name: 'blockquote' } };
+          return { type: { name: 'doc' } };
+        }),
+      },
+      $to: {
+        depth: 2,
+        parent: paragraphNode,
+        before: vi.fn((depth?: number) => (depth === 2 ? 10 : 1)),
+        node: vi.fn((depth: number) => {
+          if (depth === 2) return paragraphNode;
+          if (depth === 1) return { type: { name: 'blockquote' } };
+          return { type: { name: 'doc' } };
+        }),
+      },
+    };
+    const scopedSelection: any = {
+      ...initialSelection,
+      from: 11,
+      to: 39,
+    };
+    const liftedState: any = {
+      selection: {
+        $from: {
+          depth: 1,
+          parent: paragraphNode,
+          node: vi.fn(() => ({ type: { name: 'doc' } })),
+        },
+      },
+      schema: {
+        nodes: {
+          paragraph: { name: 'paragraph' },
+          bullet_list: { name: 'bullet_list' },
+        },
+      },
+    };
+    const tr: any = {
+      setSelection: vi.fn(function (this: any, selection: any) {
+        this._selection = selection;
+        return this;
+      }),
+      setMeta: vi.fn(function (this: any) {
+        return this;
+      }),
+    };
+    const state: any = {
+      selection: initialSelection,
+      schema: {
+        nodes: {
+          paragraph: { name: 'paragraph' },
+          bullet_list: { name: 'bullet_list' },
+        },
+      },
+      doc: {
+        content: { size: 100 },
+        nodeAt: vi.fn((pos: number) => (pos === 10 ? paragraphNode : null)),
+      },
+      tr,
+    };
+    const dispatch = vi.fn((nextTr: any) => {
+      if (nextTr?._selection) {
+        view.state = {
+          ...view.state,
+          selection: nextTr._selection,
+        };
+      }
+    });
+    const view: any = {
+      state,
+      dispatch,
+      focus: vi.fn(),
+    };
+    const applyBulletList = vi.fn(() => true);
+
+    mockTextSelectionCreate.mockReturnValue(scopedSelection);
+    mockLift.mockImplementation(() => {
+      view.state = liftedState;
+      return true;
+    });
+    mockWrapIn.mockReturnValue(applyBulletList);
+
+    convertBlockType(view, 'bulletList');
+
+    expect(mockTextSelectionCreate).toHaveBeenCalledWith(state.doc, 11, 39);
+    expect(tr.setSelection).toHaveBeenCalledWith(scopedSelection);
+    expect(mockLift).toHaveBeenCalledWith(expect.objectContaining({ selection: scopedSelection }), dispatch);
+    expect(mockWrapIn).toHaveBeenCalledWith(state.schema.nodes.bullet_list);
+    expect(applyBulletList).toHaveBeenCalledWith(liftedState, dispatch);
+    expect(view.focus).toHaveBeenCalled();
+  });
+
   it('converts current block to a task list by wrapping bullet list and marking list item unchecked', () => {
     const listItemNode = {
       type: { name: 'list_item' },

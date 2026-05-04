@@ -5,11 +5,13 @@ import { renderBlockDropdown } from './BlockDropdown';
 const previewMocks = vi.hoisted(() => ({
   applyBlockPreview: vi.fn(),
   clearFormatPreview: vi.fn(),
+  commitBlockPreview: vi.fn(),
 }));
 
 vi.mock('../previewStyles', () => ({
   applyBlockPreview: previewMocks.applyBlockPreview,
   clearFormatPreview: previewMocks.clearFormatPreview,
+  commitBlockPreview: previewMocks.commitBlockPreview,
   hasBlockPreview: vi.fn(() => true),
 }));
 
@@ -18,7 +20,7 @@ vi.mock('../commands', () => ({
 }));
 
 function createView(): EditorView {
-  return {} as EditorView;
+  return { focus: vi.fn() } as unknown as EditorView;
 }
 
 describe('BlockDropdown', () => {
@@ -26,6 +28,8 @@ describe('BlockDropdown', () => {
     document.body.innerHTML = '';
     previewMocks.applyBlockPreview.mockReset();
     previewMocks.clearFormatPreview.mockReset();
+    previewMocks.commitBlockPreview.mockReset();
+    previewMocks.commitBlockPreview.mockReturnValue(false);
   });
 
   it('keeps the preview while moving between dropdown items and clears it only after leaving the dropdown', () => {
@@ -58,7 +62,7 @@ describe('BlockDropdown', () => {
     expect(previewMocks.clearFormatPreview).toHaveBeenCalledTimes(1);
   });
 
-  it('clears the preview when hovering the active block type item', () => {
+  it('previews the active block type item through the same applied path', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
 
@@ -75,8 +79,8 @@ describe('BlockDropdown', () => {
 
     paragraphButton?.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
 
-    expect(previewMocks.clearFormatPreview).toHaveBeenCalledTimes(1);
-    expect(previewMocks.applyBlockPreview).not.toHaveBeenCalled();
+    expect(previewMocks.applyBlockPreview).toHaveBeenCalledWith(expect.anything(), 'paragraph');
+    expect(previewMocks.clearFormatPreview).not.toHaveBeenCalled();
   });
 
   it('does not use native title tooltips for block type items', () => {
