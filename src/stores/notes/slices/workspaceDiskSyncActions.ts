@@ -8,6 +8,7 @@ import { setNoteTabDirtyState } from '../document/noteTabState';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { readNoteMetadataFromMarkdown } from '../frontmatter';
 import { logNotesDebug } from '../debugLog';
+import { isDraftNotePath } from '../draftNote';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 
@@ -24,6 +25,9 @@ export function createWorkspaceDiskSyncAction(
     syncCurrentNoteFromDisk: async (options) => {
       const { currentNote, notesPath, isDirty, noteContentsCache, openTabs, noteMetadata, rootFolder, fileTreeSortMode } = get();
       if (!currentNote) return 'ignored';
+      if (isDraftNotePath(currentNote.path)) {
+        return 'ignored';
+      }
 
       try {
         const storage = getStorageAdapter();

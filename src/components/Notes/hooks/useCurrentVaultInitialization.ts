@@ -41,9 +41,11 @@ export function useCurrentVaultInitialization({
         pendingStarredNavigation.skipWorkspaceRestore === true;
       const shouldSkipRestoreForOpenMarkdownTarget =
         pendingOpenMarkdownTargetVaultPath === currentVaultPath;
+      const skipWorkspaceRestore =
+        Boolean(launchNotePath) || shouldSkipWorkspaceRestore || shouldSkipRestoreForOpenMarkdownTarget;
       await Promise.all([
         loadAssets(currentVaultPath),
-        loadFileTree(Boolean(launchNotePath) || shouldSkipWorkspaceRestore || shouldSkipRestoreForOpenMarkdownTarget),
+        loadFileTree(skipWorkspaceRestore),
         cleanupAssetTempFiles(),
       ]);
 

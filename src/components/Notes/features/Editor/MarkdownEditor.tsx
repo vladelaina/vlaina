@@ -70,6 +70,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   const saveNote = useNotesStore(s => s.saveNote);
   const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
+  const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
   const notesPath = useNotesStore(s => s.notesPath);
   const isDraftNote = isDraftNotePath(currentNotePath);
 
@@ -82,9 +83,8 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   const { debouncedSave, flushSave } = useEditorSave(saveNote);
 
   const initialContent = useMemo(() => {
-    const content = useNotesStore.getState().currentNote?.content || '';
-    return normalizeSerializedMarkdownDocument(content);
-  }, [currentNotePath]);
+    return normalizeSerializedMarkdownDocument(currentNoteContent);
+  }, [currentNoteContent]);
 
   useEffect(() => {
     const snapshot = JSON.stringify({
@@ -94,11 +94,12 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       isNewlyCreated,
       initialContentLength: initialContent.length,
       initialContentTrimmedLength: initialContent.trim().length,
+      currentStoreContentLength: currentNoteContent.length,
     });
     if (lastEditorDebugRef.current === snapshot) return;
     lastEditorDebugRef.current = snapshot;
     logNotesDebug('notes:editor:inner-state', JSON.parse(snapshot));
-  }, [currentNotePath, initialContent, isDraftNote, isNewlyCreated, notesPath]);
+  }, [currentNotePath, currentNoteContent, initialContent, isDraftNote, isNewlyCreated, notesPath]);
 
   useEffect(() => {
     const handleBlur = () => {
@@ -177,16 +178,18 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
                 });
                 return;
               }
+              const latestNotesPath = useNotesStore.getState().notesPath;
+              const latestIsDraftNote = isDraftNotePath(latestNote.path);
               logNotesDebug('notes:editor:markdown-update-committed', {
                 currentNotePath,
-                isDraftNote,
-                notesPath,
+                isDraftNote: latestIsDraftNote,
+                notesPath: latestNotesPath,
                 previousLength: latestNote.content.length,
                 nextLength: pendingMarkdown.length,
-                willDebouncedSave: !isDraftNote || Boolean(notesPath),
+                willDebouncedSave: !latestIsDraftNote || Boolean(latestNotesPath),
               });
               updateContent(pendingMarkdown);
-              if (!isDraftNote || notesPath) {
+              if (!latestIsDraftNote || latestNotesPath) {
                 debouncedSave();
               }
             });
@@ -199,7 +202,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       .use(configureTheme)
       .use(tableBlock)
       .use(customPlugins),
-    [currentNotePath, isDraftNote, notesPath]
+    [currentNotePath]
   );
 
   useEffect(() => {

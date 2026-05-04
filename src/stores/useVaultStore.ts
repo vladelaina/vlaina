@@ -7,6 +7,7 @@ import { markExpectedExternalChange } from '@/stores/notes/document/externalChan
 import { suspendExternalSync } from '@/stores/notes/document/externalSyncControl';
 import { saveDirtyRegularOpenTabs } from '@/stores/notes/dirtyOpenTabs';
 import { hasDraftUnsavedChanges, isDraftNotePath } from '@/stores/notes/draftNote';
+import type { MetadataFile, NotesStore } from '@/stores/notes/types';
 import { setCurrentVaultPath, useNotesStore } from './useNotesStore';
 import { ensureVaultConfig, normalizeVaultPath } from './vaultConfig';
 import {
@@ -57,6 +58,18 @@ interface VaultActions {
 
 type VaultStore = VaultState & VaultActions;
 
+type PreservedDraftWorkspace = Pick<
+  NotesStore,
+  | 'currentNote'
+  | 'currentNoteRevision'
+  | 'isDirty'
+  | 'openTabs'
+  | 'draftNotes'
+  | 'pendingDraftDiscardPath'
+  | 'noteContentsCache'
+  | 'noteMetadata'
+> | null;
+
 function hasUnsavedDraftTabs(): boolean {
   const notesState = useNotesStore.getState();
   const draftPaths = new Set(
@@ -87,7 +100,9 @@ function hasUnsavedDraftTabs(): boolean {
   return false;
 }
 
-async function prepareNotesForVaultExit(): Promise<{ ok: true } | { ok: false; error: string }> {
+async function prepareNotesForVaultExit(
+  options: { blockUnsavedDrafts?: boolean } = {},
+): Promise<{ ok: true } | { ok: false; error: string }> {
   const savedDirtyTabs = await saveDirtyRegularOpenTabs();
   const notesState = useNotesStore.getState();
   const hasDirtyRegularTabs = notesState.openTabs.some(
@@ -100,30 +115,91 @@ async function prepareNotesForVaultExit(): Promise<{ ok: true } | { ok: false; e
     return { ok: false, error: 'Failed to save pending note changes' };
   }
 
-  if (hasUnsavedDraftTabs()) {
+  if (options.blockUnsavedDrafts !== false && hasUnsavedDraftTabs()) {
     return { ok: false, error: 'Save or discard draft notes before switching vaults' };
   }
 
   return { ok: true };
 }
 
-function resetNotesWorkspaceForVaultTransition(notesPath = '') {
+function collectDraftWorkspaceForVaultTransition(): PreservedDraftWorkspace {
+  const state = useNotesStore.getState();
+  const draftPaths = new Set(Object.keys(state.draftNotes));
+  state.openTabs.forEach((tab) => {
+    if (isDraftNotePath(tab.path)) draftPaths.add(tab.path);
+  });
+  if (isDraftNotePath(state.currentNote?.path)) {
+    draftPaths.add(state.currentNote.path);
+  }
+
+  if (draftPaths.size === 0) {
+    return null;
+  }
+
+  const openTabs = state.openTabs.filter((tab) => draftPaths.has(tab.path));
+  const currentNote = state.currentNote && draftPaths.has(state.currentNote.path)
+    ? state.currentNote
+    : null;
+  const draftNotes = Object.fromEntries(
+    Object.entries(state.draftNotes)
+      .filter(([path]) => draftPaths.has(path))
+      .map(([path, draftNote]) => [
+        path,
+        {
+          ...draftNote,
+          originNotesPath: draftNote.originNotesPath ?? state.notesPath,
+        },
+      ]),
+  );
+  const noteContentsCache = new Map(
+    [...state.noteContentsCache.entries()].filter(([path]) => draftPaths.has(path)),
+  );
+  const draftMetadataEntries = Object.entries(state.noteMetadata?.notes ?? {})
+    .filter(([path]) => draftPaths.has(path));
+  const noteMetadata: MetadataFile | null = draftMetadataEntries.length > 0
+    ? { version: 1, notes: Object.fromEntries(draftMetadataEntries) }
+    : null;
+
+  const preservedWorkspace = {
+    currentNote,
+    currentNoteRevision: currentNote ? state.currentNoteRevision : 0,
+    isDirty: currentNote ? state.isDirty : false,
+    openTabs,
+    draftNotes,
+    pendingDraftDiscardPath:
+      state.pendingDraftDiscardPath && draftPaths.has(state.pendingDraftDiscardPath)
+        ? state.pendingDraftDiscardPath
+        : null,
+    noteContentsCache,
+    noteMetadata,
+  };
+  return preservedWorkspace;
+}
+
+function resetNotesWorkspaceForVaultTransition(
+  notesPath = '',
+  options: { preserveDrafts?: boolean } = {},
+) {
+  const preservedDraftWorkspace = options.preserveDrafts
+    ? collectDraftWorkspaceForVaultTransition()
+    : null;
+
   useNotesStore.getState().clearAssetUrlCache();
   useNotesStore.setState({
-    currentNote: null,
-    currentNoteRevision: 0,
+    currentNote: preservedDraftWorkspace?.currentNote ?? null,
+    currentNoteRevision: preservedDraftWorkspace?.currentNoteRevision ?? 0,
     currentNoteDiskRevision: 0,
-    isDirty: false,
-    openTabs: [],
+    isDirty: preservedDraftWorkspace?.isDirty ?? false,
+    openTabs: preservedDraftWorkspace?.openTabs ?? [],
     recentlyClosedTabs: [],
     rootFolder: null,
     notesPath,
-    draftNotes: {},
-    pendingDraftDiscardPath: null,
+    draftNotes: preservedDraftWorkspace?.draftNotes ?? {},
+    pendingDraftDiscardPath: preservedDraftWorkspace?.pendingDraftDiscardPath ?? null,
     pendingDeletedItems: [],
-    noteMetadata: null,
+    noteMetadata: preservedDraftWorkspace?.noteMetadata ?? null,
     displayNames: new Map(),
-    noteContentsCache: new Map(),
+    noteContentsCache: preservedDraftWorkspace?.noteContentsCache ?? new Map(),
     isNewlyCreated: false,
     newlyCreatedFolderPath: null,
     assetList: [],
@@ -207,7 +283,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const prepared = await prepareNotesForVaultExit();
+      const prepared = await prepareNotesForVaultExit({ blockUnsavedDrafts: false });
       if (!prepared.ok) {
         set({ error: prepared.error, isLoading: false });
         return false;
@@ -243,7 +319,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
       const previousVault = get().currentVault;
       const previousVaultPath = previousVault?.path ? normalizeVaultPath(previousVault.path) : '';
       if (previousVaultPath !== vault.path) {
-        resetNotesWorkspaceForVaultTransition(vault.path);
+        resetNotesWorkspaceForVaultTransition(vault.path, { preserveDrafts: true });
       }
 
       set({

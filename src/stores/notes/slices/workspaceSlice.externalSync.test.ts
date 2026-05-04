@@ -289,6 +289,30 @@ describe('workspaceSlice external sync', () => {
     expect(hoisted.openStoredNotePath).not.toHaveBeenCalled();
   });
 
+  it('ignores disk sync for in-memory draft notes', async () => {
+    storageAdapter.exists.mockResolvedValue(false);
+    storageAdapter.stat.mockResolvedValue(null);
+
+    const store = createNotesStore({
+      currentNote: { path: 'draft:blank', content: 'draft text' },
+      isDirty: true,
+      openTabs: [{ path: 'draft:blank', name: '', isDirty: true }],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: '' },
+      },
+      noteContentsCache: new Map([['draft:blank', { content: 'draft text', modifiedAt: null }]]),
+    });
+
+    const result = await store.getState().syncCurrentNoteFromDisk();
+
+    expect(result).toBe('ignored');
+    expect(storageAdapter.exists).not.toHaveBeenCalled();
+    expect(storageAdapter.stat).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toEqual({ path: 'draft:blank', content: 'draft text' });
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().error).toBeNull();
+  });
+
 
   it('does not treat the current note as deleted when exists succeeds but stat metadata is unavailable', async () => {
     storageAdapter.exists.mockResolvedValue(true);

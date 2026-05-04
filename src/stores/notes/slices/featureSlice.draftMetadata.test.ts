@@ -146,6 +146,41 @@ describe('featureSlice draft metadata', () => {
     ]);
   });
 
+  it('keeps preserved draft metadata in memory instead of implicitly saving into the new vault', async () => {
+    const saveNote = vi.fn(async () => undefined);
+    const store = createNotesStore({
+      notesPath: '/vault-next',
+      currentNote: { path: 'draft:blank', content: '' },
+      openTabs: [{ path: 'draft:blank', name: '', isDirty: false }],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: '', originNotesPath: '' },
+      },
+      noteContentsCache: new Map([['draft:blank', { content: '', modifiedAt: null }]]),
+      saveNote,
+    });
+
+    store.getState().setNoteIcon('draft:blank', 'sparkles');
+    store.getState().setNoteCover('draft:blank', {
+      assetPath: '@monet/1',
+      positionX: 50,
+      positionY: 50,
+      height: 200,
+      scale: 1,
+    });
+
+    await vi.waitFor(() => {
+      expect(store.getState().noteMetadata?.notes['draft:blank']?.cover?.assetPath).toBe('@monet/1');
+    });
+
+    expect(saveNote).not.toHaveBeenCalled();
+    expect(store.getState().noteMetadata?.notes['draft:blank']?.icon).toBe('sparkles');
+    expect(store.getState().currentNote?.path).toBe('draft:blank');
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().openTabs).toEqual([
+      { path: 'draft:blank', name: '', isDirty: true },
+    ]);
+  });
+
   it('writes metadata for an absolute note opened without a vault', async () => {
     const store = createNotesStore({
       notesPath: '',

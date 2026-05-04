@@ -339,6 +339,34 @@ describe('workspaceSlice tab history', () => {
     expect(store.getState().isDirty).toBe(true);
   });
 
+  it('opens an existing draft tab from memory even when it has no cached content', async () => {
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: '# alpha' },
+      isDirty: false,
+      openTabs: [
+        { path: 'draft:blank', name: '', isDirty: false },
+        { path: 'alpha.md', name: 'alpha', isDirty: false },
+      ],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: '' },
+      },
+      noteContentsCache: new Map([
+        ['alpha.md', { content: '# alpha', modifiedAt: 1 }],
+      ]),
+    });
+
+    await store.getState().openNote('draft:blank');
+
+    expect(storageAdapter.readFile).not.toHaveBeenCalledWith('/vault/draft:blank');
+    expect(store.getState().currentNote).toEqual({ path: 'draft:blank', content: '' });
+    expect(store.getState().isDirty).toBe(false);
+    expect(store.getState().openTabs[0]).toEqual({
+      path: 'draft:blank',
+      name: 'Untitled',
+      isDirty: false,
+    });
+  });
+
   it('restores unsaved cached content when switching back to a dirty regular tab', async () => {
     const saveNote = vi.fn(async () => undefined);
     const store = createNotesStore({

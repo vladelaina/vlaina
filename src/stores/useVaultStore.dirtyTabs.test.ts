@@ -119,23 +119,91 @@ describe('useVaultStore dirty note protection', () => {
     expect(useVaultStore.getState().error).toBe('Failed to save pending note changes');
   });
 
-  it('does not open another vault while draft tabs still have unsaved content', async () => {
+  it('opens another vault while preserving unsaved draft tabs', async () => {
     useNotesStore.setState({
       currentNote: { path: 'draft:alpha', content: 'Draft body' },
       isDirty: true,
       openTabs: [{ path: 'draft:alpha', name: '', isDirty: true }],
       draftNotes: { 'draft:alpha': { parentPath: null, name: 'Draft title' } },
       noteContentsCache: new Map([['draft:alpha', { content: 'Draft body', modifiedAt: null }]]),
+      noteMetadata: { version: 1, notes: { 'draft:alpha': { icon: 'emoji.sparkles' } } },
     });
 
     const opened = await useVaultStore.getState().openVault('/vault/next');
 
-    expect(opened).toBe(false);
-    expect(mocks.storage.exists).not.toHaveBeenCalled();
-    expect(useVaultStore.getState().currentVault?.path).toBe('/vault/old');
-    expect(useVaultStore.getState().error).toBe(
-      'Save or discard draft notes before switching vaults'
-    );
+    expect(opened).toBe(true);
+    expect(useVaultStore.getState().currentVault?.path).toBe('/vault/next');
+    expect(useVaultStore.getState().error).toBeNull();
+    expect(useNotesStore.getState()).toMatchObject({
+      notesPath: '/vault/next',
+      currentNote: { path: 'draft:alpha', content: 'Draft body' },
+      isDirty: true,
+      openTabs: [{ path: 'draft:alpha', name: '', isDirty: true }],
+      draftNotes: {
+        'draft:alpha': {
+          parentPath: null,
+          name: 'Draft title',
+          originNotesPath: '/vault/old',
+        },
+      },
+    });
+    expect(useNotesStore.getState().noteContentsCache.get('draft:alpha')).toEqual({
+      content: 'Draft body',
+      modifiedAt: null,
+    });
+    expect(useNotesStore.getState().noteMetadata?.notes['draft:alpha']).toEqual({
+      icon: 'emoji.sparkles',
+    });
+  });
+
+  it('preserves multiple draft tabs while dropping regular tabs on vault switch', async () => {
+    useNotesStore.setState({
+      currentNote: { path: 'draft:two', content: 'Two body' },
+      currentNoteRevision: 7,
+      isDirty: true,
+      openTabs: [
+        { path: 'regular.md', name: 'regular', isDirty: false },
+        { path: 'draft:one', name: '', isDirty: true },
+        { path: 'draft:two', name: '', isDirty: true },
+      ],
+      draftNotes: {
+        'draft:one': { parentPath: null, name: 'One' },
+        'draft:two': { parentPath: 'ideas', name: 'Two' },
+      },
+      noteContentsCache: new Map([
+        ['regular.md', { content: 'Regular', modifiedAt: 1 }],
+        ['draft:one', { content: 'One body', modifiedAt: null }],
+        ['draft:two', { content: 'Two body', modifiedAt: null }],
+      ]),
+      noteMetadata: {
+        version: 1,
+        notes: {
+          'regular.md': { icon: 'emoji.file' },
+          'draft:one': { icon: 'emoji.one' },
+          'draft:two': { cover: { assetPath: '@cover/2', positionX: 50, positionY: 50, height: 200, scale: 1 } },
+        },
+      },
+    });
+
+    const opened = await useVaultStore.getState().openVault('/vault/next');
+
+    expect(opened).toBe(true);
+    const state = useNotesStore.getState();
+    expect(state.currentNote).toEqual({ path: 'draft:two', content: 'Two body' });
+    expect(state.currentNoteRevision).toBe(7);
+    expect(state.openTabs).toEqual([
+      { path: 'draft:one', name: '', isDirty: true },
+      { path: 'draft:two', name: '', isDirty: true },
+    ]);
+    expect(state.draftNotes).toEqual({
+      'draft:one': { parentPath: null, name: 'One', originNotesPath: '/vault/old' },
+      'draft:two': { parentPath: 'ideas', name: 'Two', originNotesPath: '/vault/old' },
+    });
+    expect(Array.from(state.noteContentsCache.keys())).toEqual(['draft:one', 'draft:two']);
+    expect(state.noteMetadata?.notes).toEqual({
+      'draft:one': { icon: 'emoji.one' },
+      'draft:two': { cover: { assetPath: '@cover/2', positionX: 50, positionY: 50, height: 200, scale: 1 } },
+    });
   });
 
   it('saves dirty regular tabs before closing the current vault', async () => {

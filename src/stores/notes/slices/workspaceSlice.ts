@@ -3,6 +3,7 @@ import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { createAsyncPrefetchQueue } from '@/lib/asyncPrefetchQueue';
 import { NotesStore } from '../types';
 import { updateDisplayName } from '../displayNameUtils';
+import { resolveDraftNoteTitle } from '../draftNote';
 import {
   addToRecentNotes,
   createEmptyMetadataFile,
@@ -25,7 +26,7 @@ import { readNoteMetadataFromMarkdown } from '../frontmatter';
 import { createWorkspaceDocumentActions } from './workspaceDocumentActions';
 import { createWorkspaceExternalActions } from './workspaceExternalActions';
 import { createWorkspaceTabActions } from './workspaceTabActions';
-import type { WorkspaceSlice } from './workspaceSliceTypes';
+import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 
 const pendingNotePrefetches = new Map<string, Promise<void>>();
 const notePrefetchQueue = createAsyncPrefetchQueue(2);
@@ -40,6 +41,59 @@ function getProtectedCachePaths(state: NotesStore, extraPaths: string[] = []) {
   state.openTabs.forEach((tab) => protectedPaths.add(tab.path));
   Object.keys(state.draftNotes).forEach((path) => protectedPaths.add(path));
   return protectedPaths;
+}
+
+function openDraftNoteFromMemory(
+  set: NotesSet,
+  get: NotesGet,
+  path: string,
+  openInNewTab: boolean,
+) {
+  const {
+    currentNote,
+    currentNoteRevision,
+    draftNotes,
+    noteContentsCache,
+    openTabs,
+  } = get();
+  const draftNote = draftNotes[path];
+  if (!draftNote) {
+    return false;
+  }
+
+  const existingTab = openTabs.find((tab) => tab.path === path);
+  const content = currentNote?.path === path
+    ? currentNote.content
+    : noteContentsCache.get(path)?.content ?? '';
+  const tabName = resolveDraftNoteTitle(draftNote.name);
+  const shouldOpenInNewTab = openInNewTab || openTabs.length === 0;
+  let updatedTabs = openTabs;
+
+  if (existingTab) {
+    updatedTabs = openTabs.map((tab) =>
+      tab.path === path ? { ...tab, name: tabName } : tab,
+    );
+  } else if (shouldOpenInNewTab) {
+    updatedTabs = [...openTabs, { path, name: tabName, isDirty: true }];
+  } else {
+    const currentTabIndex = openTabs.findIndex((tab) => tab.path === currentNote?.path);
+    if (currentTabIndex !== -1) {
+      updatedTabs = [...openTabs];
+      updatedTabs[currentTabIndex] = { path, name: tabName, isDirty: true };
+    } else {
+      updatedTabs = [...openTabs, { path, name: tabName, isDirty: true }];
+    }
+  }
+
+  set({
+    currentNote: { path, content },
+    currentNoteRevision: currentNoteRevision + 1,
+    isDirty: existingTab?.isDirty ?? true,
+    openTabs: updatedTabs,
+    isNewlyCreated: false,
+    error: null,
+  });
+  return true;
 }
 
 export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSlice> = (
@@ -60,6 +114,10 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
   openNote: async (path: string, openInNewTab: boolean = false) => {
     const openRequestId = ++latestOpenNoteRequestId;
+    if (openDraftNoteFromMemory(set, get, path, openInNewTab)) {
+      return;
+    }
+
     let { notesPath, isDirty, saveNote, recentNotes, openTabs, currentNote, noteContentsCache, draftNotes } = get();
     let shouldOpenInNewTab = openInNewTab;
     let existingTab = openTabs.find((t) => t.path === path);
