@@ -9,7 +9,6 @@ import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { setCachedNoteContent } from '../document/noteContentCache';
 import { markExpectedExternalChange } from '../document/externalChangeRegistry';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
-import { logNotesDebug } from '../debugLog';
 import {
   createBlankDraftState,
   ensureRootFolderState,
@@ -127,15 +126,6 @@ export function createFileSystemCreateActions(
 
       try {
         if (options?.asDraft) {
-          logNotesDebug('notes:create-note:as-draft:start', {
-            folderPath: folderPath ?? null,
-            notesPath,
-            currentNotePath: currentNote?.path ?? null,
-            openTabsLength: openTabs.length,
-            draftNotesLength: Object.keys(draftNotes).length,
-            displayNamesLength: displayNames.size,
-          });
-
           const { draftPath, nextState } = createBlankDraftState({
             folderPath,
             openTabs,
@@ -146,13 +136,6 @@ export function createFileSystemCreateActions(
             displayNames,
           });
           set(nextState);
-          logNotesDebug('notes:create-note:as-draft:created', {
-            draftPath,
-            nextCurrentNotePath: nextState.currentNote?.path ?? null,
-            nextOpenTabsLength: nextState.openTabs.length,
-            nextDraftNotesLength: Object.keys(nextState.draftNotes).length,
-            nextDisplayNamesLength: nextState.displayNames.size,
-          });
           return draftPath;
         }
 

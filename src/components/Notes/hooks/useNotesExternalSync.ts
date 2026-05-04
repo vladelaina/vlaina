@@ -21,7 +21,6 @@ import {
   isExternalWatchUnavailableError,
 } from './externalWatchErrorUtils';
 import { createNotesExternalSyncActions, type PendingCreateEntry } from './notesExternalSyncActions';
-import { logNotesDebug } from '@/stores/notes/debugLog';
 
 const NOTES_RECONCILE_POLL_MS = 1500;
 
@@ -198,11 +197,6 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
         }
 
         if (isExternalWatchUnavailableError(error)) {
-          logNotesDebug('useNotesExternalSync:watch:fallback-to-polling', {
-            vaultPath,
-            notesPath,
-            error: getExternalWatchErrorMessage(error),
-          });
           startReconcilePolling();
           return;
         }

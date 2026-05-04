@@ -84,7 +84,7 @@ export function stripTrailingNewlines(text: string): string {
 
 export function normalizeSerializedMarkdownBlock(text: string): string {
   const withoutTrailingNewlines = stripTrailingNewlines(
-    stripEmptyMarkdownPlaceholders(text)
+    normalizeUserBreakSentinels(stripEmptyMarkdownPlaceholders(text))
   );
   if (BR_ONLY_PATTERN.test(withoutTrailingNewlines.trim())) return '';
   return unescapeMarkdownPunctuation(withoutTrailingNewlines);
@@ -265,7 +265,7 @@ export function normalizeSerializedMarkdownSelection(text: string): string {
   const isStandaloneBreak =
     BR_ONLY_PATTERN.test(trimmedText) || MARKED_BR_ONLY_PATTERN.test(trimmedText);
   const withoutTrailingNewlines = stripTrailingNewlines(
-    stripEmptyMarkdownPlaceholders(text)
+    normalizeUserBreakSentinels(stripEmptyMarkdownPlaceholders(text))
   );
   if (
     isStandaloneBreak

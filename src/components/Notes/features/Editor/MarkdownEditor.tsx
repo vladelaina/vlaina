@@ -62,7 +62,6 @@ import {
 } from '../Sidebar/sidebarSearchNavigation';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
-import { logNotesDebug } from '@/stores/notes/debugLog';
 import './styles/index.css';
 
 const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
@@ -71,13 +70,11 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
-  const notesPath = useNotesStore(s => s.notesPath);
   const isDraftNote = isDraftNotePath(currentNotePath);
 
   const hasAutoFocused = useRef(false);
   const hasScheduledAutoFocus = useRef(false);
   const hasIgnoredInitNoise = useRef(false);
-  const lastEditorDebugRef = useRef<string | null>(null);
   const pendingMarkdownUpdateFrameRef = useRef<number | null>(null);
   const pendingMarkdownRef = useRef<string | null>(null);
   const { debouncedSave, flushSave } = useEditorSave(saveNote);
@@ -85,21 +82,6 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   const initialContent = useMemo(() => {
     return normalizeSerializedMarkdownDocument(currentNoteContent);
   }, [currentNoteContent]);
-
-  useEffect(() => {
-    const snapshot = JSON.stringify({
-      currentNotePath: currentNotePath ?? null,
-      isDraftNote,
-      notesPath,
-      isNewlyCreated,
-      initialContentLength: initialContent.length,
-      initialContentTrimmedLength: initialContent.trim().length,
-      currentStoreContentLength: currentNoteContent.length,
-    });
-    if (lastEditorDebugRef.current === snapshot) return;
-    lastEditorDebugRef.current = snapshot;
-    logNotesDebug('notes:editor:inner-state', JSON.parse(snapshot));
-  }, [currentNotePath, currentNoteContent, initialContent, isDraftNote, isNewlyCreated, notesPath]);
 
   useEffect(() => {
     const handleBlur = () => {
@@ -166,28 +148,10 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
 
               const latestNote = useNotesStore.getState().currentNote;
               if (!latestNote || latestNote.path !== currentNotePath || latestNote.content === pendingMarkdown) {
-                logNotesDebug('notes:editor:markdown-update-skipped', {
-                  reason: !latestNote
-                    ? 'missing-current-note'
-                    : latestNote.path !== currentNotePath
-                      ? 'stale-note-path'
-                      : 'unchanged-content',
-                  currentNotePath: currentNotePath ?? null,
-                  latestNotePath: latestNote?.path ?? null,
-                  pendingMarkdownLength: pendingMarkdown.length,
-                });
                 return;
               }
               const latestNotesPath = useNotesStore.getState().notesPath;
               const latestIsDraftNote = isDraftNotePath(latestNote.path);
-              logNotesDebug('notes:editor:markdown-update-committed', {
-                currentNotePath,
-                isDraftNote: latestIsDraftNote,
-                notesPath: latestNotesPath,
-                previousLength: latestNote.content.length,
-                nextLength: pendingMarkdown.length,
-                willDebouncedSave: !latestIsDraftNote || Boolean(latestNotesPath),
-              });
               updateContent(pendingMarkdown);
               if (!latestIsDraftNote || latestNotesPath) {
                 debouncedSave();
@@ -209,12 +173,6 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
     hasAutoFocused.current = false;
     hasScheduledAutoFocus.current = false;
     hasIgnoredInitNoise.current = false;
-    logNotesDebug('notes:editor:path-changed', {
-      currentNotePath: currentNotePath ?? null,
-      isDraftNote,
-      isNewlyCreated,
-      initialContentLength: initialContent.length,
-    });
   }, [currentNotePath]);
 
   useEffect(() => {
@@ -276,48 +234,24 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
 
   const shouldFocusEmptyDraftBody = isDraftNote && !isNewlyCreated && isEmptyContent;
 
-  const focusEditorBody = useCallback((source: string) => {
+  const focusEditorBody = useCallback(() => {
     try {
       const editor = get?.();
       if (!editor) {
-        logNotesDebug('notes:editor:autofocus-failed', {
-          source,
-          reason: 'missing-editor',
-          currentNotePath: currentNotePath ?? null,
-        });
         return false;
       }
 
       const view = editor.ctx.get(editorViewCtx);
       if (!view) {
-        logNotesDebug('notes:editor:autofocus-failed', {
-          source,
-          reason: 'missing-editor-view',
-          currentNotePath: currentNotePath ?? null,
-        });
         return false;
       }
 
       view.focus();
-      logNotesDebug('notes:editor:autofocus-applied', {
-        source,
-        currentNotePath: currentNotePath ?? null,
-        activeElementTag: document.activeElement?.tagName ?? null,
-        activeElementClassName: document.activeElement instanceof HTMLElement
-          ? document.activeElement.className
-          : null,
-      });
       return true;
-    } catch (error) {
-      logNotesDebug('notes:editor:autofocus-failed', {
-        source,
-        reason: 'exception',
-        currentNotePath: currentNotePath ?? null,
-        message: error instanceof Error ? error.message : String(error),
-      });
+    } catch {
       return false;
     }
-  }, [currentNotePath, get]);
+  }, [get]);
 
   useEffect(() => {
     if (!get || hasAutoFocused.current || hasScheduledAutoFocus.current) return;
@@ -327,32 +261,13 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
         ? 'non-empty-content'
         : null;
     if (blockedReason) {
-      logNotesDebug('notes:editor:autofocus-skipped', {
-        reason: blockedReason,
-        currentNotePath: currentNotePath ?? null,
-        isDraftNote,
-        isNewlyCreated,
-        isEmptyContent,
-      });
       return;
     }
 
     hasScheduledAutoFocus.current = true;
-    logNotesDebug('notes:editor:autofocus-scheduled', {
-      currentNotePath: currentNotePath ?? null,
-      isDraftNote,
-      isNewlyCreated,
-      isEmptyContent,
-    });
 
     const timer = setTimeout(() => {
-      logNotesDebug('notes:editor:autofocus-timer-fired', {
-        currentNotePath: currentNotePath ?? null,
-        isDraftNote,
-        isNewlyCreated,
-        isEmptyContent,
-      });
-      const focused = focusEditorBody('timer');
+      const focused = focusEditorBody();
       hasScheduledAutoFocus.current = false;
       if (focused) {
         hasAutoFocused.current = true;
@@ -362,12 +277,6 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
     return () => {
       clearTimeout(timer);
       hasScheduledAutoFocus.current = false;
-      logNotesDebug('notes:editor:autofocus-cleanup', {
-        currentNotePath: currentNotePath ?? null,
-        isDraftNote,
-        isNewlyCreated,
-        isEmptyContent,
-      });
     };
   }, [currentNotePath, focusEditorBody, get, isDraftNote, isNewlyCreated, isEmptyContent]);
 
@@ -375,7 +284,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
     if (!shouldFocusEmptyDraftBody || hasAutoFocused.current) return;
     const frame = requestAnimationFrame(() => {
       if (!shouldFocusEmptyDraftBody || hasAutoFocused.current) return;
-      const focused = focusEditorBody('editor-ready-raf');
+      const focused = focusEditorBody();
       if (focused) {
         hasAutoFocused.current = true;
       }
@@ -383,10 +292,6 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
 
     return () => {
       cancelAnimationFrame(frame);
-      logNotesDebug('notes:editor:autofocus-ready-cleanup', {
-        currentNotePath: currentNotePath ?? null,
-        shouldFocusEmptyDraftBody,
-      });
     };
   }, [currentNotePath, focusEditorBody, shouldFocusEmptyDraftBody]);
 

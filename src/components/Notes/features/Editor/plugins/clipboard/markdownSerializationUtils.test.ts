@@ -38,6 +38,12 @@ describe('normalizeSerializedMarkdownBlock', () => {
   it('keeps normal markdown content', () => {
     expect(normalizeSerializedMarkdownBlock('# Title\n')).toBe('# Title');
   });
+
+  it('converts internal user br placeholders in copied blocks', () => {
+    expect(
+      normalizeSerializedMarkdownBlock(['Line one', '<br data-vlaina-user-br="true" />', 'Line two'].join('\n'))
+    ).toBe(['Line one\\', 'Line two'].join('\n'));
+  });
 });
 
 describe('normalizeSerializedMarkdownDocument', () => {
@@ -266,6 +272,12 @@ describe('normalizeSerializedMarkdownSelection', () => {
   it('converts marked standalone br placeholders to single newline', () => {
     expect(normalizeSerializedMarkdownSelection('<br data-vlaina-empty-line="true" />')).toBe('\n');
     expect(normalizeSerializedMarkdownSelection('<br data-vlaina-empty-line="true"/>')).toBe('\n');
+  });
+
+  it('converts internal user br placeholders in copied selections', () => {
+    expect(
+      normalizeSerializedMarkdownSelection(['Line one', '<br data-vlaina-user-br="true" />', 'Line two'].join('\n'))
+    ).toBe(['Line one\\', 'Line two'].join('\n'));
   });
 
   it('keeps blockquote user br placeholders when normalizing selections', () => {

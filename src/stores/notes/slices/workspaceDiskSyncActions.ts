@@ -7,7 +7,6 @@ import {
 import { setNoteTabDirtyState } from '../document/noteTabState';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { readNoteMetadataFromMarkdown } from '../frontmatter';
-import { logNotesDebug } from '../debugLog';
 import { isDraftNotePath } from '../draftNote';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
@@ -59,10 +58,6 @@ export function createWorkspaceDiskSyncAction(
               : 'Current note is missing on disk. Its content is preserved in the editor; save to restore it.',
           });
 
-          logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:deleted-conflict', {
-            notePath: currentNote.path,
-            wasDirty: isDirty,
-          });
           return 'deleted-conflict';
         }
 
@@ -75,11 +70,6 @@ export function createWorkspaceDiskSyncAction(
           if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
             return 'ignored';
           }
-          logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:conflict', {
-            notePath: currentNote.path,
-            cachedModifiedAt,
-            nextModifiedAt,
-          });
           set({ error: 'Current note changed outside vlaina while you still have unsaved changes.' });
           return 'conflict';
         }
@@ -120,10 +110,6 @@ export function createWorkspaceDiskSyncAction(
         if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
           return 'ignored';
         }
-        logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:error', {
-          notePath: currentNote.path,
-          error,
-        });
         set({ error: error instanceof Error ? error.message : 'Failed to sync note from disk' });
         return 'ignored';
       }

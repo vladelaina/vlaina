@@ -2,7 +2,6 @@ import { isAbsolutePath } from '@/lib/storage/adapter';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { updateDisplayName } from '../displayNameUtils';
 import { resolveDraftNoteTitle } from '../draftNote';
-import { logNotesDebug } from '../debugLog';
 import { openStoredNotePath } from '../openNotePath';
 import { removeCachedNoteContent, setCachedNoteContent } from '../document/noteContentCache';
 import {
@@ -32,19 +31,9 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
     updateDraftNoteName: (path: string, name: string) => {
       const draftEntry = get().draftNotes[path];
       if (!draftEntry) {
-        logNotesDebug('notes:draft-title:update-skipped', {
-          reason: 'missing-draft-entry',
-          path,
-          name,
-        });
         return;
       }
 
-      logNotesDebug('notes:draft-title:update', {
-        path,
-        previousName: draftEntry.name,
-        nextName: name,
-      });
       set({
         draftNotes: {
           ...get().draftNotes,
