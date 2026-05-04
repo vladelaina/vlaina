@@ -8,13 +8,16 @@ import { useElectronCloseGuard } from '@/hooks/useElectronCloseGuard';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { useToastStore } from '@/stores/useToastStore';
+import { useDocumentLanguage, useI18n } from '@/lib/i18n';
 
 function App() {
+  const { language } = useI18n();
   const {
     isCloseDraftConfirmOpen,
     setIsCloseDraftConfirmOpen,
     continueWindowClose,
   } = useElectronCloseGuard();
+  useDocumentLanguage(language);
 
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {

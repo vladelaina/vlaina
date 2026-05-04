@@ -70,6 +70,7 @@ If a non-test file exceeds 300 lines, or a test file exceeds 500 lines, propose 
 **Use emoji + conventional keyword + scope.**
 
 When creating commits:
+- Only commit when the user explicitly asks for a commit.
 - Format commit messages as `emoji type(scope): subject`.
 - Keep the subject short, imperative, and specific.
 - Match the type to the change, such as `fix`, `feat`, `refactor`, `test`, `docs`, `chore`.

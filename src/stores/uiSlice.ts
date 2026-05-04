@@ -1,14 +1,18 @@
 import { create } from 'zustand';
-import {
-  STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED,
-} from '@/lib/config';
+import { STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED } from '@/lib/config';
 import { getDefaultSidebarWidth } from '@/lib/layout/sidebarWidth';
 import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
+import {
+  SYSTEM_LANGUAGE_PREFERENCE,
+  normalizeAppLanguagePreference,
+  type AppLanguagePreference,
+} from '@/lib/i18n/languages';
 const STORAGE_KEY_SIDEBAR_WIDTH = 'vlaina_sidebar_width';
 const STORAGE_KEY_IMAGE_STORAGE_MODE = 'vlaina_image_storage_mode';
 const STORAGE_KEY_IMAGE_SUBFOLDER_NAME = 'vlaina_image_subfolder_name';
 const STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME = 'vlaina_image_vault_subfolder_name';
 const STORAGE_KEY_IMAGE_FILENAME_FORMAT = 'vlaina_image_filename_format';
+const STORAGE_KEY_LANGUAGE_PREFERENCE = 'vlaina-language-preference';
 
 export type AppViewMode = 'notes' | 'chat' | 'lab';
 export type NotesSidebarView = 'workspace' | 'outline';
@@ -42,6 +46,8 @@ interface UIStore {
   setSidebarHeaderHovered: (hovered: boolean) => void;
   notesSidebarView: NotesSidebarView;
   setNotesSidebarView: (view: NotesSidebarView) => void;
+  languagePreference: AppLanguagePreference;
+  setLanguagePreference: (language: AppLanguagePreference) => void;
 
   notesPreviewTitle: { path: string; title: string } | null;
   setNotesPreviewTitle: (path: string | null, title: string | null) => void;
@@ -147,6 +153,18 @@ function loadNotesChatPanelCollapsed(): boolean {
   return loadBoolean(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, false);
 }
 
+function loadLanguagePreference(): AppLanguagePreference {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_LANGUAGE_PREFERENCE);
+    const normalized = normalizeAppLanguagePreference(saved);
+    if (normalized) {
+      return normalized;
+    }
+  } catch {
+  }
+  return SYSTEM_LANGUAGE_PREFERENCE;
+}
+
 function getInitialAppViewMode(): AppViewMode {
   const launchViewMode = readWindowLaunchContext().viewMode;
   return launchViewMode ?? 'notes';
@@ -178,6 +196,11 @@ export const useUIStore = create<UIStore>()((set) => ({
   setSidebarHeaderHovered: (hovered) => set({ sidebarHeaderHovered: hovered }),
   notesSidebarView: 'workspace',
   setNotesSidebarView: (view) => set({ notesSidebarView: view }),
+  languagePreference: loadLanguagePreference(),
+  setLanguagePreference: (language) => {
+    localStorage.setItem(STORAGE_KEY_LANGUAGE_PREFERENCE, language);
+    set({ languagePreference: language });
+  },
 
   notesPreviewTitle: null,
   setNotesPreviewTitle: (path, title) => {

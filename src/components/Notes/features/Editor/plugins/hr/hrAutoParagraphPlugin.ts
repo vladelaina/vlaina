@@ -145,6 +145,15 @@ function deleteAdjacentHorizontalRule(view: EditorView, key: string): boolean {
     const prevNode = state.doc.child(indexAtRoot - 1);
     if (prevNode.type === state.schema.nodes.hr) {
       const from = selection.$from.posAtIndex(indexAtRoot - 1, 0);
+      if (selection.$from.parent.content.size === 0) {
+        const paragraphFrom = selection.$from.before();
+        const paragraphTo = paragraphFrom + selection.$from.parent.nodeSize;
+        let tr = state.tr.delete(paragraphFrom, paragraphTo);
+        tr = tr.setSelection(NodeSelection.create(tr.doc, from)).scrollIntoView();
+        view.dispatch(tr);
+        return true;
+      }
+
       const to = from + prevNode.nodeSize;
       view.dispatch(state.tr.delete(from, to).scrollIntoView());
       return true;
@@ -185,7 +194,7 @@ function deleteSelectedHorizontalRule(view: EditorView, key: string): boolean {
   const targetPos = Math.max(0, Math.min(anchorHint, tr.doc.content.size));
   tr = tr.setSelection(Selection.near(tr.doc.resolve(targetPos), -1));
   view.dispatch(tr.scrollIntoView());
-  view.dom.blur();
+  view.focus();
   return true;
 }
 
