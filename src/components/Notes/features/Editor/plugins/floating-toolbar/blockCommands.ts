@@ -3,7 +3,9 @@ import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType, TextAlignment } from './types';
 import { createCodeBlockAttrs } from '../code/codeBlockSettings';
+import { normalizeCodeBlockLanguage } from '../code/codeBlockLanguage';
 import { normalizeTopLevelBlockPos } from '../cursor/topLevelBlockDom';
+import { guessLanguage } from '../../utils/languageDetection';
 import {
   convertToList,
   convertToTextBlock,
@@ -17,6 +19,28 @@ function getHeadingLevel(blockType: BlockType): number | null {
 
   const level = Number.parseInt(blockType.replace('heading', ''), 10);
   return Number.isInteger(level) && level >= 1 && level <= 6 ? level : null;
+}
+
+function getSelectedCodeBlockSourceText(view: EditorView): string {
+  const { state } = view;
+  const { from, to, empty, $from } = state.selection;
+  if (!empty && to > from && typeof state.doc?.textBetween === 'function') {
+    return state.doc.textBetween(from, to, '\n', '\n').trim();
+  }
+
+  const parentText = typeof $from.parent?.textContent === 'string'
+    ? $from.parent.textContent
+    : '';
+  return parentText.trim();
+}
+
+function inferCodeBlockLanguage(view: EditorView): string | null {
+  const sourceText = getSelectedCodeBlockSourceText(view);
+  if (!sourceText) {
+    return null;
+  }
+
+  return normalizeCodeBlockLanguage(guessLanguage(sourceText));
 }
 
 function isTableContainer(typeName: string | undefined): boolean {
@@ -310,7 +334,9 @@ export function convertBlockType(view: EditorView, blockType: BlockType): void {
     case 'codeBlock': {
       const codeBlockType = state.schema.nodes.code_block;
       if (codeBlockType) {
-        convertToTextBlock(view, codeBlockType, createCodeBlockAttrs());
+        convertToTextBlock(view, codeBlockType, createCodeBlockAttrs({
+          language: inferCodeBlockLanguage(view),
+        }));
       }
       break;
     }

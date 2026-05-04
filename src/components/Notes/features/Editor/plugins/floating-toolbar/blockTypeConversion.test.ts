@@ -107,7 +107,7 @@ describe('block type conversion matrix', () => {
       'codeBlock',
       { name: 'code_block' },
       expect.objectContaining({
-        language: null,
+        language: expect.any(String),
         lineNumbers: expect.any(Boolean),
         wrap: false,
         collapsed: false,
@@ -116,11 +116,17 @@ describe('block type conversion matrix', () => {
   ] as const)('converts plain paragraph to %s', (_label, targetType, nodeType, attrs) => {
     const state: any = {
       selection: {
+        empty: false,
+        from: 1,
+        to: 38,
         $from: {
           depth: 1,
-          parent: { type: { name: 'paragraph' } },
+          parent: { type: { name: 'paragraph' }, textContent: 'const value: number = 1;' },
           node: vi.fn(() => ({ type: { name: 'doc' } })),
         },
+      },
+      doc: {
+        textBetween: vi.fn(() => 'const value: number = 1;'),
       },
       schema: {
         nodes: {

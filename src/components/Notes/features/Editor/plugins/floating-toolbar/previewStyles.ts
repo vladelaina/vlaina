@@ -8,6 +8,9 @@ import {
 import { resolveOrderedListPreviewLabel } from './blockPreviewListLabel';
 import { clearInlineFormatPreview, showInlineFormatPreview } from './inlinePreviewPlugin';
 import { getFormattableTextRanges } from './selectionHelpers';
+import { normalizeCodeBlockLanguage } from '../code/codeBlockLanguage';
+import { codeBlockLanguages } from '../code/codeBlockLanguageLoader';
+import { guessLanguage } from '../../utils/languageDetection';
 
 const FORMAT_SELECTORS: Record<string, string> = {
   bold: '.milkdown strong',
@@ -106,7 +109,7 @@ const BLOCK_FALLBACK_STYLES: Partial<Record<BlockType, Record<string, string>>> 
     lineHeight: '1.7',
     backgroundColor: 'var(--vlaina-code-block-background, #f5f5f5)',
     borderRadius: '1rem',
-    padding: '0.25rem 1rem 1rem',
+    padding: '2.75rem 1rem 1rem',
     marginTop: '1rem',
     marginBottom: '1rem',
   },
@@ -388,6 +391,9 @@ function createBlockProbe(blockType: BlockType): HTMLElement {
     case 'codeBlock': {
       const container = document.createElement('div');
       container.className = 'code-block-container';
+      const header = document.createElement('div');
+      header.className = 'code-block-preview-header';
+      header.textContent = 'txt';
       const editable = document.createElement('div');
       editable.className = 'code-block-editable';
       const editor = document.createElement('div');
@@ -397,6 +403,7 @@ function createBlockProbe(blockType: BlockType): HTMLElement {
       line.textContent = 'Preview';
       editor.appendChild(line);
       editable.appendChild(editor);
+      container.appendChild(header);
       container.appendChild(editable);
       return container;
     }
@@ -428,6 +435,7 @@ function getBlockPreviewStyles(
     nextStyles = {
       ...nextStyles,
       display: 'block',
+      position: 'relative',
       overflow: 'hidden',
       whiteSpace: 'pre-wrap',
       fontFamily: 'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace)',
@@ -435,7 +443,7 @@ function getBlockPreviewStyles(
       lineHeight: '1.7',
       backgroundColor: 'var(--vlaina-code-block-background, #f5f5f5)',
       borderRadius: '1rem',
-      padding: '0.25rem 1rem 1rem',
+      padding: '2.75rem 1rem 1rem',
       marginTop: '1rem',
       marginBottom: '1rem',
     };
@@ -477,12 +485,26 @@ function getBlockPreviewAttributes(
     blockType === 'blockquote' ||
     blockType === 'codeBlock'
   ) {
-    return {
+    const attributes: Record<string, string> = {
       'data-preview-block-type': blockType,
     };
+    if (blockType === 'codeBlock') {
+      attributes['data-preview-code-language'] = getCodeBlockPreviewLanguageLabel(target);
+    }
+
+    return attributes;
   }
 
   return {};
+}
+
+function getCodeBlockPreviewLanguageLabel(target: HTMLElement): string {
+  const text = (target.textContent ?? '').trim();
+  const language = normalizeCodeBlockLanguage(guessLanguage(text)) ?? 'txt';
+  const languageInfo = codeBlockLanguages.find(
+    (item) => item.id === language || item.aliases.includes(language)
+  );
+  return languageInfo?.name ?? language;
 }
 
 function withDomObserverPaused<T>(view: EditorView, fn: () => T): T {
