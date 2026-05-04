@@ -88,13 +88,13 @@ describe('normalizeSerializedMarkdownDocument', () => {
   it('converts internal user br placeholders with serialized html variants', () => {
     expect(
       normalizeSerializedMarkdownDocument('1\n<br data-vlaina-user-br="true"/>\n2\n')
-    ).toBe('1\n<br />\n2\n');
+    ).toBe('1\\\n2\n');
     expect(
       normalizeSerializedMarkdownDocument('1\n<br class="x" data-vlaina-user-br=true></br>\n2\n')
-    ).toBe('1\n<br />\n2\n');
+    ).toBe('1\\\n2\n');
     expect(
       normalizeSerializedMarkdownDocument('1\n<br date-vlaina-user-br="true"/>\n2\n')
-    ).toBe('1\n<br />\n2\n');
+    ).toBe('1\\\n2\n');
   });
 
   it('converts internal blockquote br placeholders with serialized html variants', () => {

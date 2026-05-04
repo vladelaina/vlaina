@@ -89,6 +89,37 @@ describe('saveNoteDocument', () => {
     vi.useRealTimers();
   });
 
+  it('converts internal user break markers to markdown hard breaks before writing markdown', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    adapter.writeFile.mockResolvedValue();
+    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+
+    const result = await saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: ['Line one', '<br data-vlaina-user-br="true" />', 'Line two'].join('\n'),
+      },
+      cache: new Map(),
+    });
+
+    expect(adapter.writeFile).toHaveBeenCalledWith(
+      '/vault/alpha.md',
+      [
+        '---',
+        'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+        '---',
+        '',
+        'Line one\\',
+        'Line two',
+      ].join('\n')
+    );
+    expect(result.content).not.toContain('data-vlaina-user-br');
+
+    vi.useRealTimers();
+  });
+
   it('canonicalizes supported inline html text before writing markdown', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
@@ -130,6 +161,20 @@ describe('saveNoteDocument', () => {
 
     expect(result.content).toBe(['# Alpha', '', 'Body'].join('\n'));
     expect(result.nextCache.get('alpha.md')?.content).toBe(['# Alpha', '', 'Body'].join('\n'));
+  });
+
+  it('cleans internal user break markers when loading markdown', async () => {
+    adapter.readFile.mockResolvedValue(['Line one', '<br data-vlaina-user-br="true" />', 'Line two'].join('\n'));
+    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+
+    const result = await loadNoteDocument({
+      notesPath: '/vault',
+      path: 'alpha.md',
+      cache: new Map(),
+    });
+
+    expect(result.content).toBe(['Line one\\', 'Line two'].join('\n'));
+    expect(result.nextCache.get('alpha.md')?.content).toBe(['Line one\\', 'Line two'].join('\n'));
   });
 
   it('cleans internal editor break markers from cached markdown', async () => {

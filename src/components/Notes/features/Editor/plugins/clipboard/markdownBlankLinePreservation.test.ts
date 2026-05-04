@@ -65,6 +65,12 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
     );
   });
 
+  it('does not expose internal user break markers in editor input', () => {
+    expect(preserveMarkdownBlankLinesForEditor(['1', '<br />', '2'].join('\n'))).toBe(
+      ['1\\', '2'].join('\n')
+    );
+  });
+
   it('does not add placeholders inside fenced code blocks', () => {
     expect(
       preserveMarkdownBlankLinesForEditor(
@@ -378,6 +384,10 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
         '<br />',
         'after',
       ].join('\n'),
+      expected: [
+        'before\\',
+        'after',
+      ].join('\n'),
     },
     {
       name: 'tables',
@@ -422,15 +432,21 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
   });
 
   it('round trips user-authored br tags through the editor parser and serializer', async () => {
-    await expectEditorMarkdown(['1', '<br />', '2'].join('\n'));
+    await expectEditorMarkdown(['1', '<br />', '2'].join('\n'), ['1\\', '2'].join('\n'));
   });
 
   it('round trips blockquote user-authored br tags through the editor parser and serializer', async () => {
-    await expectEditorMarkdown(['> before', '> <br />', '> after'].join('\n'));
+    await expectEditorMarkdown(
+      ['> before', '> <br />', '> after'].join('\n'),
+      ['> before\\', '> after'].join('\n'),
+    );
   });
 
   it('round trips nested blockquote user-authored br tags through the editor parser and serializer', async () => {
-    await expectEditorMarkdown(['> > before', '> > <br />', '> > after'].join('\n'));
+    await expectEditorMarkdown(
+      ['> > before', '> > <br />', '> > after'].join('\n'),
+      ['> > before\\', '> > after'].join('\n'),
+    );
   });
 
   it('round trips blockquote paragraph blank lines through the editor parser and serializer', async () => {
@@ -468,7 +484,7 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
   });
 
   it('round trips mixed markdown blank lines and user-authored br tags through the editor parser and serializer', async () => {
-    await expectEditorMarkdown(['A', '', '<br />', '', 'B'].join('\n'));
+    await expectEditorMarkdown(['A', '', '<br />', '', 'B'].join('\n'), ['A', '', '', 'B'].join('\n'));
   });
 
   it('keeps indented code block blank lines through the editor parser and serializer', async () => {

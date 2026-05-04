@@ -32,11 +32,13 @@ const MARKED_BR_ONLY_PATTERN =
   new RegExp(`^<br\\b(?=[^>]*${VLAINA_EMPTY_LINE_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
 const MARKDOWN_ESCAPE_PATTERN = /\\([\\`*_{}[\]()#+\-.!])/g;
 const EMPTY_LINE_PLACEHOLDER = '\u200B';
-const USER_BR_PLACEHOLDER = '<br data-vlaina-user-br="true" />';
 const LIST_GAP_PLACEHOLDER = '\u200B\u200C';
 const LIST_GAP_SENTINEL = '\u0000VLAINA_LIST_GAP_SENTINEL\u0000';
+const USER_BR_SENTINEL = '\u0000VLAINA_USER_BR_SENTINEL\u0000';
 const INVISIBLE_EMPTY_LINE_PLACEHOLDER_PATTERN = /^[\t ]*\\?\u200B[\t ]*$/;
 const INVISIBLE_LIST_GAP_PLACEHOLDER_PATTERN = /^[\t ]*\\?\u200B\\?\u200C[\t ]*$/;
+const USER_BR_SENTINEL_LINE_PATTERN =
+  new RegExp(`^(\\s*(?:>\\s*)*)${USER_BR_SENTINEL}$`);
 const MARKED_EMPTY_MARKDOWN_LINE_PLACEHOLDER_PATTERN =
   new RegExp(`^(\\s*(?:>\\s*)*(?:(?:[-+*]|\\d+[.)])\\s+(?:\\[(?: |x|X)\\]\\s+)?)?)<br\\b(?=[^>]*${VLAINA_EMPTY_LINE_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'gim');
 const MARKED_EMPTY_LINE_PATTERN =
@@ -90,10 +92,12 @@ export function normalizeSerializedMarkdownBlock(text: string): string {
 
 export function normalizeSerializedMarkdownDocument(text: string): string {
   return normalizeListItemBlankLines(
-    stripEmptyMarkdownPlaceholders(
-      normalizeCanonicalMarkdownSpacing(
-        collapseSyntheticBlankLinesAroundEmptyPlaceholders(
-          collapseSyntheticBlankLinesBetweenAdjacentHeadings(text)
+    normalizeUserBreakSentinels(
+      stripEmptyMarkdownPlaceholders(
+        normalizeCanonicalMarkdownSpacing(
+          collapseSyntheticBlankLinesAroundEmptyPlaceholders(
+            collapseSyntheticBlankLinesBetweenAdjacentHeadings(text)
+          )
         )
       )
     )
@@ -103,7 +107,7 @@ export function normalizeSerializedMarkdownDocument(text: string): string {
 export function preserveMarkdownBlankLinesForEditor(text: string): string {
   if (text.length === 0) return text;
 
-  return mapMarkdownOutsideProtectedBlocks(text, (line, index, lines) => {
+  const preserved = mapMarkdownOutsideProtectedBlocks(text, (line, index, lines) => {
     const blockquoteBrMatch = BLOCKQUOTE_BR_ONLY_PATTERN.exec(line);
     if (blockquoteBrMatch) {
       const prefix = blockquoteBrMatch[1] ?? '';
@@ -111,7 +115,7 @@ export function preserveMarkdownBlankLinesForEditor(text: string): string {
     }
 
     if (BR_ONLY_PATTERN.test(line.trim())) {
-      return USER_BR_PLACEHOLDER;
+      return USER_BR_SENTINEL;
     }
 
     if (isBetweenListItemsBlankLine(lines, index)) {
@@ -156,6 +160,7 @@ export function preserveMarkdownBlankLinesForEditor(text: string): string {
 
     return line;
   });
+  return normalizeUserBreakSentinels(preserved);
 }
 
 function normalizeEditorBreakPlaceholders(text: string): string {
@@ -186,11 +191,11 @@ function normalizeEditorBreakPlaceholders(text: string): string {
         return `${prefix}<br />`;
       }
       if (MARKED_USER_BR_PATTERN.test(trimmed)) {
-        return '<br />';
+        return USER_BR_SENTINEL;
       }
       const blockquoteUserBrMatch = MARKED_BLOCKQUOTE_USER_BR_PATTERN.exec(line);
       if (blockquoteUserBrMatch) {
-        return `${blockquoteUserBrMatch[1] ?? ''}<br />`;
+        return `${blockquoteUserBrMatch[1] ?? ''}${USER_BR_SENTINEL}`;
       }
       return line
         .replace(MARKED_LIST_GAP_TOKEN_PATTERN, `\n${LIST_GAP_SENTINEL}\n`)
@@ -200,11 +205,45 @@ function normalizeEditorBreakPlaceholders(text: string): string {
           (_match, doubleQuotedDepth: string, singleQuotedDepth: string, unquotedDepth: string) =>
             `\n${getBlockquotePrefix(Number(
               doubleQuotedDepth ?? singleQuotedDepth ?? unquotedDepth
-            ))}<br />`
+            ))}${USER_BR_SENTINEL}`
         )
-        .replace(MARKED_USER_BR_TOKEN_PATTERN, '\n<br />');
+        .replace(MARKED_USER_BR_TOKEN_PATTERN, `\n${USER_BR_SENTINEL}\n`);
     }
   );
+}
+
+function normalizeUserBreakSentinels(text: string): string {
+  if (!text.includes(USER_BR_SENTINEL)) return text;
+
+  const lines = text.split('\n');
+  const output: string[] = [];
+
+  for (const line of lines) {
+    const sentinelMatch = USER_BR_SENTINEL_LINE_PATTERN.exec(line);
+    if (!sentinelMatch) {
+      output.push(line);
+      continue;
+    }
+
+    const prefix = sentinelMatch[1] ?? '';
+    const previousIndex = output.length - 1;
+    const previousLine = previousIndex >= 0 ? output[previousIndex] : null;
+
+    if (previousLine !== null && !isEditorPlaceholderBlankLine(previousLine)) {
+      output[previousIndex] = previousLine.replace(/[ \t]*$/, '\\');
+      continue;
+    }
+
+    output.push(`${prefix}<br />`);
+  }
+
+  return output.join('\n')
+    .replace(/\n{3,}(<br \/>)/g, '\n\n$1')
+    .replace(/(<br \/>)\n{3,}/g, '$1\n\n');
+}
+
+function isEditorPlaceholderBlankLine(line: string): boolean {
+  return line.replace(/\\?\u200B|\\?\u200C/g, '').trim().length === 0;
 }
 
 function normalizeListItemBlankLines(text: string): string {
@@ -213,12 +252,8 @@ function normalizeListItemBlankLines(text: string): string {
     .replace(new RegExp(`\\n*${LIST_GAP_SENTINEL}\\n*`, 'g'), '\n\n'));
 }
 
-function getBlockquoteUserBrPlaceholder(prefix: string): string {
-  return `<br data-vlaina-user-br="true" data-vlaina-blockquote-depth="${getBlockquoteDepth(prefix)}" />`;
-}
-
-function getBlockquoteDepth(prefix: string): number {
-  return (prefix.match(/>/g) ?? []).length;
+function getBlockquoteUserBrPlaceholder(_prefix: string): string {
+  return USER_BR_SENTINEL;
 }
 
 function getBlockquotePrefix(depth: number): string {
