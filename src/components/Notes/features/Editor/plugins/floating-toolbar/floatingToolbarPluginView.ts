@@ -486,9 +486,13 @@ export function createFloatingToolbarPluginView(
     };
   };
 
-  const getReviewRenderState = (review: NonNullable<FloatingToolbarState['aiReview']>) => [
+  const getReviewRenderState = (
+    review: NonNullable<FloatingToolbarState['aiReview']>,
+    reviewWidth: number | null
+  ) => [
     'aiReview',
     review.requestKey,
+    reviewWidth === null ? '' : reviewWidth,
     review.from,
     review.to,
     review.instruction || '',
@@ -526,10 +530,13 @@ export function createFloatingToolbarPluginView(
     reviews.forEach((review) => {
       const entry = getReviewToolbar(review.requestKey);
       const blockElement = getBlockElementAtPos(editorView, review.from);
+      const reviewWidth = blockElement
+        ? Math.round(blockElement.getBoundingClientRect().width)
+        : null;
       if (blockElement) {
         entry.element.style.setProperty(
           '--ai-review-width',
-          `${Math.round(blockElement.getBoundingClientRect().width)}px`
+          `${reviewWidth}px`
         );
       } else {
         entry.element.style.removeProperty('--ai-review-width');
@@ -541,7 +548,7 @@ export function createFloatingToolbarPluginView(
         aiReview: review,
         isVisible: true,
       };
-      const renderState = getReviewRenderState(review);
+      const renderState = getReviewRenderState(review, reviewWidth);
       if (entry.lastRenderState !== renderState) {
         entry.lastRenderState = renderState;
         entry.renderer.render(editorView, {

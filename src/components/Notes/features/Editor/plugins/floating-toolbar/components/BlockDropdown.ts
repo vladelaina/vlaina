@@ -2,7 +2,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType, FloatingToolbarState } from '../types';
 import { BLOCK_TYPES } from '../utils';
 import { convertBlockType } from '../commands';
-import { applyBlockPreview, clearFormatPreview, hasBlockPreview } from '../previewStyles';
+import { applyBlockPreview, clearFormatPreview, commitBlockPreview, hasBlockPreview } from '../previewStyles';
 import { ICON_SIZES } from '@/components/ui/icons/sizes';
 
 const DROPDOWN_ICON_SIZE = ICON_SIZES.md;
@@ -116,8 +116,7 @@ export function renderBlockDropdown(
     btn.addEventListener('mouseenter', () => {
       const button = btn as HTMLElement;
       const blockType = button.dataset.blockType as BlockType;
-      const isActive = button.classList.contains('active');
-      if (isActive || !hasBlockPreview(blockType)) {
+      if (!hasBlockPreview(blockType)) {
         clearFormatPreview(view);
         return;
       }
@@ -128,9 +127,19 @@ export function renderBlockDropdown(
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      clearFormatPreview(view);
       const blockType = (btn as HTMLElement).dataset.blockType as BlockType;
-      convertBlockType(view, blockType);
+      let committedPreview = false;
+      try {
+        committedPreview = commitBlockPreview(view, blockType);
+        if (!committedPreview) {
+          convertBlockType(view, blockType);
+        }
+      } finally {
+        clearFormatPreview(view);
+        if (!committedPreview) {
+          view.focus();
+        }
+      }
       onClose();
     });
   });

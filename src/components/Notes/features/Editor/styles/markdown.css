@@ -53,17 +53,6 @@
   border-radius: 18px;
 }
 
-.milkdown [data-preview-block-type="blockquote"]::before {
-  content: '';
-  width: 2px;
-  height: calc(100% - 20px);
-  position: absolute;
-  left: 0;
-  top: 10px;
-  background: var(--vlaina-text-tertiary);
-  border-radius: 18px;
-}
-
 /* Lists */
 .milkdown ul,
 .milkdown ol {
@@ -102,68 +91,6 @@
 .milkdown li:has(> [data-text-align="right"]) > ul,
 .milkdown li:has(> [data-text-align="right"]) > ol {
   text-align: left;
-}
-
-.milkdown [data-preview-block-type="bulletList"]::before,
-.milkdown [data-preview-block-type="orderedList"]::before,
-.milkdown [data-preview-block-type="taskList"]::before {
-  position: absolute;
-  left: 0;
-  top: 0;
-  color: var(--vlaina-text-tertiary);
-}
-
-.milkdown [data-preview-block-type="bulletList"]::before {
-  content: '•';
-  font-size: 1.1em;
-  line-height: inherit;
-}
-
-.milkdown [data-preview-block-type="orderedList"]::before {
-  content: attr(data-preview-list-label);
-  font-size: 0.95em;
-  font-variant-numeric: tabular-nums;
-  line-height: inherit;
-}
-
-.milkdown [data-preview-block-type="taskList"]::before {
-  content: '';
-  width: 14px;
-  height: 14px;
-  top: 0.3em;
-  border: 2px solid var(--vlaina-text-tertiary);
-  border-radius: 4px;
-  box-sizing: border-box;
-}
-
-.milkdown li[data-preview-hide-list-marker] {
-  display: block !important;
-  list-style-type: none !important;
-}
-
-.milkdown li[data-preview-hide-list-marker]::before {
-  content: none !important;
-  display: none !important;
-}
-
-.milkdown li[data-preview-hide-list-marker][data-item-type="task"] > p,
-.milkdown li[data-preview-hide-list-marker][data-item-type="task"] > h1,
-.milkdown li[data-preview-hide-list-marker][data-item-type="task"] > h2,
-.milkdown li[data-preview-hide-list-marker][data-item-type="task"] > h3,
-.milkdown li[data-preview-hide-list-marker][data-item-type="task"] > h4,
-.milkdown li[data-preview-hide-list-marker][data-item-type="task"] > h5,
-.milkdown li[data-preview-hide-list-marker][data-item-type="task"] > h6,
-.milkdown li[data-preview-hide-list-marker][data-item-type="task"] > pre {
-  text-decoration: none !important;
-}
-
-.milkdown blockquote[data-preview-hide-blockquote] {
-  padding-left: 0 !important;
-}
-
-.milkdown blockquote[data-preview-hide-blockquote]::before {
-  content: none !important;
-  display: none !important;
 }
 
 .milkdown ul>li:not(.task-list-item) {

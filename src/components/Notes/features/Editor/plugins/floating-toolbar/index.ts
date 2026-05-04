@@ -1,6 +1,5 @@
 export { floatingToolbarPlugin } from './floatingToolbarPlugin';
 export { floatingToolbarKey } from './floatingToolbarKey';
-export { floatingToolbarInlinePreviewPlugin } from './inlinePreviewPlugin';
 export { colorMarksPlugin, textColorMark, bgColorMark, underlineMark } from './colorMarks';
 export { blockAlignmentPlugin } from './blockAlignmentMarkdown';
 export type {

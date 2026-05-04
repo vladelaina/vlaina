@@ -1,6 +1,5 @@
 import type { FloatingToolbarState } from '../types';
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
-import { renderAiReviewDiffMarkup } from './reviewDiff';
 
 function escapeHtml(value: string): string {
   return value
@@ -22,9 +21,7 @@ export function renderAiReviewMarkup(state: FloatingToolbarState): string | null
     ? '<div class="ai-review-loading-slot"></div>'
     : review.errorMessage
       ? `<div class="ai-review-error" role="alert">${escapeHtml(review.errorMessage)}</div>`
-    : `
-      <div class="ai-review-result-surface">${renderAiReviewDiffMarkup(review.originalText, review.suggestedText)}</div>
-    `;
+    : '<div class="ai-review-result-surface"></div>';
 
   return `
     <div class="floating-toolbar-inner floating-toolbar-ai-review-mode">

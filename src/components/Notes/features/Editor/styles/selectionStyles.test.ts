@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -33,11 +33,60 @@ function readPreviewStylesSource() {
   );
 }
 
+function readAppliedPreviewSource() {
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar', 'appliedPreviewState.ts'),
+    'utf8'
+  );
+}
+
+function readFloatingToolbarPluginViewSource() {
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar', 'floatingToolbarPluginView.ts'),
+    'utf8'
+  );
+}
+
 function readBlankAreaDragBoxSource() {
   return readFileSync(
     resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/cursor', 'blankAreaDragBoxPlugin.ts'),
     'utf8'
   );
+}
+
+function readFloatingToolbarSourceFiles() {
+  const root = resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar');
+  const files: Array<{ path: string; source: string }> = [];
+
+  const visit = (dir: string) => {
+    for (const entry of readdirSync(dir)) {
+      const path = resolve(dir, entry);
+      const stat = statSync(path);
+      if (stat.isDirectory()) {
+        visit(path);
+        continue;
+      }
+
+      if (!/\.(ts|tsx|css)$/.test(path) || /\.test\.(ts|tsx)$/.test(path)) {
+        continue;
+      }
+
+      files.push({ path, source: readFileSync(path, 'utf8') });
+    }
+  };
+
+  visit(root);
+  return files;
+}
+
+function readEditorStyleSourceFiles() {
+  const root = resolve(process.cwd(), 'src/components/Notes/features/Editor/styles');
+  return readdirSync(root)
+    .filter((entry) => entry.endsWith('.css'))
+    .map((entry) => {
+      const path = resolve(root, entry);
+      return { path, source: readFileSync(path, 'utf8') };
+    });
 }
 
 describe('editor embedded CodeMirror selection styles', () => {
@@ -133,22 +182,50 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).not.toContain('.cm-editor.cm-focused .cm-line ::selection');
   });
 
-  it('renders code block hover preview with the same container surface as real code blocks', () => {
-    const css = readStyleFile('code-block.css');
+  it('keeps toolbar previews on the applied shadow document path', () => {
+    const codeBlockCss = readStyleFile('code-block.css');
+    const markdownCss = readStyleFile('markdown.css');
     const source = readPreviewStylesSource();
+    const appliedPreviewSource = readAppliedPreviewSource();
 
-    expect(css).toContain('.milkdown [data-preview-block-type="codeBlock"] {');
-    expect(css).toContain('background: var(--vlaina-code-block-background) !important;');
-    expect(css).toContain('border-radius: 1rem !important;');
-    expect(css).toContain('padding: 2.75rem 1rem 1rem !important;');
-    expect(css).toContain('overflow-x: auto !important;');
-    expect(css).toContain('white-space: pre !important;');
-    expect(css).toContain('.milkdown [data-preview-block-type="codeBlock"]::before {');
-    expect(css).toContain('content: attr(data-preview-code-language);');
-    expect(css).toContain('.dark .milkdown [data-preview-block-type="codeBlock"] {');
-    expect(source).toContain("'data-preview-block-type': blockType");
-    expect(source).toContain("'data-preview-code-language'");
-    expect(source).toContain("container.className = 'code-block-container';");
+    expect(source).toContain('function renderAppliedPreview');
+    expect(source).toContain('convertBlockType(previewView, blockType);');
+    expect(source).toContain('toggleMark(previewView, markName);');
+    expect(source).toContain('setLink(previewView, null);');
+    expect(source).toContain('setTextColor(previewView, color);');
+    expect(source).toContain('setBgColor(previewView, color);');
+    expect(source).toContain('setTextAlignment(previewView, alignment);');
+    expect(source).toContain('createAppliedPreviewState(view, apply)');
+    expect(source).toContain('renderAppliedPreviewDocument(previewState, view.dom, view.dom.ownerDocument)');
+    expect(appliedPreviewSource).toContain('DOMSerializer.fromSchema(state.schema)');
+    expect(source).not.toContain('data-preview-block-type');
+    expect(codeBlockCss).not.toContain('data-preview-block-type');
+    expect(markdownCss).not.toContain('data-preview-block-type');
+    expect(markdownCss).not.toContain('data-preview-hide');
+    expect(markdownCss).not.toContain('data-preview-restore');
+    expect(source).not.toContain('renderResultSurfacePreview');
+  });
+
+  it('keeps all floating toolbar preview surfaces off the removed simulation paths', () => {
+    const forbiddenPatterns = [
+      'inlinePreviewPlugin',
+      'blockPreviewDomAdjustments',
+      'blockPreviewListLabel',
+      'reviewDiff',
+      'renderReviewDiff',
+      'renderResultSurfacePreview',
+      'data-preview-block-type',
+      'data-preview-hide',
+      'data-preview-restore',
+      'ai-review-diff-added',
+      'ai-review-diff-removed',
+    ];
+
+    for (const file of [...readFloatingToolbarSourceFiles(), ...readEditorStyleSourceFiles()]) {
+      for (const pattern of forbiddenPatterns) {
+        expect(file.source, `${pattern} leaked into ${file.path}`).not.toContain(pattern);
+      }
+    }
   });
 
   it('keeps frontmatter selection rendering on the CodeMirror selection layer', () => {
@@ -219,17 +296,6 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('color: var(--block-dropdown-active-fg);');
   });
 
-  it('hides original list and blockquote chrome during block preview remapping', () => {
-    const css = readStyleFile('markdown.css');
-
-    expect(css).toContain('.milkdown li[data-preview-hide-list-marker] {');
-    expect(css).toContain('list-style-type: none !important;');
-    expect(css).toContain('.milkdown li[data-preview-hide-list-marker]::before {');
-    expect(css).toContain('.milkdown blockquote[data-preview-hide-blockquote] {');
-    expect(css).toContain('padding-left: 0 !important;');
-    expect(css).toContain('.milkdown blockquote[data-preview-hide-blockquote]::before {');
-  });
-
   it('applies block preview sizes directly without transform scaling', () => {
     const source = readPreviewStylesSource();
 
@@ -239,24 +305,19 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(source).not.toContain('transformOrigin');
   });
 
-  it('keeps block preview spacing aligned with actual typography spacing', () => {
-    const source = readPreviewStylesSource();
-
-    expect(source).toContain("marginTop");
-    expect(source).toContain("marginBottom");
-    expect(source).toContain("paddingTop");
-    expect(source).toContain("paddingBottom");
-    expect(source).toContain("target.matches(':first-child')");
-    expect(source).toContain("nextStyles.marginTop = '0px';");
-  });
-
-  it('samples inline hover preview styles from the active editor schema', () => {
-    const source = readPreviewStylesSource();
+  it('serializes inline hover previews from the applied shadow editor schema', () => {
+    const source = readAppliedPreviewSource();
 
     expect(source).toContain("DOMSerializer");
-    expect(source).toContain("const markType = markName ? view.state.schema.marks[markName] : null;");
-    expect(source).toContain(".fromSchema(view.state.schema)");
-    expect(source).toContain("serializeFragment(Fragment.from(textNode)");
+    expect(source).toContain(".fromSchema(state.schema)");
+    expect(source).toContain("serializeFragment(");
+  });
+
+  it('rerenders AI review previews when the review width changes', () => {
+    const source = readFloatingToolbarPluginViewSource();
+
+    expect(source).toContain('reviewWidth === null ?');
+    expect(source).toContain('const renderState = getReviewRenderState(review, reviewWidth);');
   });
 
   it('keeps the code block theme aligned with the CSS padding model', () => {

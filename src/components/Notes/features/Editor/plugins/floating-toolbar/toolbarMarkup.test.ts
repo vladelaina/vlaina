@@ -150,8 +150,8 @@ describe('toolbar markup', () => {
     );
 
     expect(markup).toContain('ai-review-result-surface');
-    expect(markup).toContain('ai-review-diff-added');
-    expect(markup).toContain('Hello there');
+    expect(markup).not.toContain('ai-review-diff-added');
+    expect(markup).not.toContain('Hello there');
     expect(markup).toContain('ai-review-footer');
     expect(markup).toContain('ai-review-model-selector-slot');
     expect(markup).toContain('ai-review-controls-left');

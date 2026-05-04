@@ -1,7 +1,6 @@
 export {
   floatingToolbarPlugin,
   floatingToolbarKey,
-  floatingToolbarInlinePreviewPlugin,
   colorMarksPlugin,
   blockAlignmentPlugin,
 } from './floating-toolbar';

@@ -145,7 +145,7 @@ export function bindAiReviewActions({
     });
   }, { signal });
 
-  syncReviewUi(panel, review, acceptButton);
+  syncReviewUi(panel, review, acceptButton, view);
   focusFrameId = requestAnimationFrame(() => {
     focusFrameId = 0;
     if (!panel.isConnected) {

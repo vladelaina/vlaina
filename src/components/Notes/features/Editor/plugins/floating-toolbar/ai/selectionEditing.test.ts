@@ -28,6 +28,7 @@ vi.mock('@/stores/useToastStore', () => ({
 
 import {
   applyAiSelectionSuggestion,
+  createAppliedAiSelectionPreviewState,
   getSerializedSelectionContext,
 } from './selectionEditing';
 
@@ -124,6 +125,53 @@ describe('selectionEditing', () => {
     expect(view.state.tr.replaceRange).not.toHaveBeenCalled();
     expect(view.dispatch).toHaveBeenCalledTimes(1);
     expect(view.focus).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates an AI result preview by applying the same replacement to a shadow state', () => {
+    mockGetCurrentMarkdownParser.mockReturnValue(null);
+
+    const view = createView();
+    const appliedState = { ...view.state, preview: true };
+    mockSerializeSliceToText.mockReturnValueOnce('Body');
+    (view.state as any).apply = vi.fn(() => appliedState);
+
+    const previewState = createAppliedAiSelectionPreviewState(view as never, {
+      requestKey: 'request',
+      from: 8,
+      to: 14,
+      instruction: 'Edit the selected text.',
+      commandId: null,
+      toneId: null,
+      originalText: 'Body',
+      suggestedText: 'Updated body',
+    });
+
+    expect(view.state.tr.insertText).toHaveBeenCalledWith('Updated body', 8, 14);
+    expect((view.state as any).apply).toHaveBeenCalledWith(view.state.tr);
+    expect(previewState).toBe(appliedState);
+    expect(view.dispatch).not.toHaveBeenCalled();
+    expect(view.focus).not.toHaveBeenCalled();
+  });
+
+  it('does not create an AI result preview when the original range is stale', () => {
+    const view = createView();
+    mockSerializeSliceToText.mockReturnValueOnce('Changed');
+
+    const previewState = createAppliedAiSelectionPreviewState(view as never, {
+      requestKey: 'request',
+      from: 8,
+      to: 14,
+      instruction: 'Edit the selected text.',
+      commandId: null,
+      toneId: null,
+      originalText: 'Body',
+      suggestedText: 'Updated body',
+    });
+
+    expect(previewState).toBeNull();
+    expect(view.state.tr.insertText).not.toHaveBeenCalled();
+    expect(view.dispatch).not.toHaveBeenCalled();
+    expect(mockAddToast).not.toHaveBeenCalled();
   });
 
   it('uses parsed inline content when replacing text inside one paragraph', () => {
