@@ -82,6 +82,21 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('cursor: grabbing !important;');
   });
 
+  it('lets block selection and drag gestures pass over video embeds', () => {
+    const css = readStyleFile('extended.css');
+
+    expect(css).toContain('.milkdown .video-block::after {');
+    expect(css).toContain('.milkdown .video-block.ProseMirror-selectednode::after {');
+    expect(css).toContain('.milkdown .video-block.vlaina-block-selected {');
+    expect(css).toContain('box-shadow: none;');
+    expect(css).toContain('.vlaina-block-drag-preview .video-drag-preview-surface {');
+    expect(css).toContain('background: transparent;');
+    expect(css).toContain('body.vlaina-block-selection-pending .milkdown .video-block iframe,');
+    expect(css).toContain('body.vlaina-block-dragging-cursor .milkdown .video-block iframe,');
+    expect(css).toContain('body.vlaina-block-drag-active .milkdown .video-block iframe,');
+    expect(css).toContain('pointer-events: none;');
+  });
+
   it('keeps code block selection rendering on the CodeMirror selection layer', () => {
     const css = readStyleFile('code-block.css');
 

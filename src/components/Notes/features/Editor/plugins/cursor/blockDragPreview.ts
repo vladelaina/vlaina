@@ -1,4 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { getElectronBridge } from '@/lib/electron/bridge';
 import type { BlockRange } from './blockSelectionUtils';
 import { resolveSelectableBlockTargetByPos } from './blockUnitResolver';
 
@@ -19,6 +20,11 @@ export interface BlockDragPreviewHandle {
   offsetX: number;
   offsetY: number;
   destroy: () => void;
+}
+
+interface CaptureJob {
+  source: HTMLElement;
+  target: HTMLElement;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -82,7 +88,56 @@ function sanitizeCloneTree(root: HTMLElement): void {
   });
 }
 
-function createContentLayer(doc: Document, elements: readonly HTMLElement[]): HTMLElement {
+function captureElementPreview(element: HTMLElement, target: HTMLElement): Promise<boolean> {
+  const media = getElectronBridge()?.media;
+  if (!media?.capturePage) return Promise.resolve(false);
+
+  const rect = element.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return Promise.resolve(false);
+
+  return media.capturePage({
+    x: rect.left,
+    y: rect.top,
+    width: rect.width,
+    height: rect.height,
+  }).then((dataUrl) => {
+    if (!dataUrl || !target.isConnected) return false;
+    const image = target.ownerDocument.createElement('img');
+    image.className = 'video-drag-preview-image';
+    image.alt = '';
+    image.draggable = false;
+    image.src = dataUrl;
+    target.replaceChildren(image);
+    return true;
+  }).catch(() => {
+    return false;
+  });
+}
+
+function replaceVideoMediaForPreview(sourceRoot: HTMLElement, cloneRoot: HTMLElement, captureJobs: CaptureJob[]): void {
+  const sourceBlocks = sourceRoot.matches('.video-block')
+    ? [sourceRoot]
+    : Array.from(sourceRoot.querySelectorAll<HTMLElement>('.video-block'));
+  const cloneBlocks = cloneRoot.matches('.video-block')
+    ? [cloneRoot]
+    : Array.from(cloneRoot.querySelectorAll<HTMLElement>('.video-block'));
+
+  cloneBlocks.forEach((videoBlock, index) => {
+    const sourceBlock = sourceBlocks[index];
+    const media = videoBlock.querySelectorAll('iframe, video');
+    media.forEach((node, mediaIndex) => {
+      const placeholder = cloneRoot.ownerDocument.createElement('div');
+      placeholder.className = 'video-drag-preview-surface';
+      placeholder.setAttribute('aria-hidden', 'true');
+      node.replaceWith(placeholder);
+      if (mediaIndex === 0 && sourceBlock) {
+        captureJobs.push({ source: sourceBlock, target: placeholder });
+      }
+    });
+  });
+}
+
+function createContentLayer(doc: Document, elements: readonly HTMLElement[], captureJobs: CaptureJob[]): HTMLElement {
   const layer = doc.createElement('div');
   layer.className = PREVIEW_LAYER_CLASS;
   layer.classList.add('milkdown');
@@ -90,9 +145,20 @@ function createContentLayer(doc: Document, elements: readonly HTMLElement[]): HT
     const clone = source.cloneNode(true);
     if (!(clone instanceof HTMLElement)) return;
     sanitizeCloneTree(clone);
+    replaceVideoMediaForPreview(source, clone, captureJobs);
     layer.appendChild(clone);
   });
   return layer;
+}
+
+function revealAfterVideoCaptures(preview: HTMLElement, captureJobs: readonly CaptureJob[]): void {
+  if (captureJobs.length === 0) return;
+
+  preview.style.visibility = 'hidden';
+  void Promise.all(captureJobs.map((job) => captureElementPreview(job.source, job.target))).finally(() => {
+    if (!preview.isConnected) return;
+    preview.style.visibility = '';
+  });
 }
 
 export function createBlockDragPreview({
@@ -119,7 +185,8 @@ export function createBlockDragPreview({
   }
   copyCssVariables(elements[0], preview);
 
-  const contentLayer = createContentLayer(doc, elements);
+  const captureJobs: CaptureJob[] = [];
+  const contentLayer = createContentLayer(doc, elements, captureJobs);
   preview.appendChild(contentLayer);
 
   const viewportWidth = doc.defaultView?.innerWidth ?? 1600;
@@ -128,6 +195,7 @@ export function createBlockDragPreview({
   preview.style.width = `${Math.round(previewWidth)}px`;
 
   doc.body.appendChild(preview);
+  revealAfterVideoCaptures(preview, captureJobs);
 
   const firstRect = elements[0].getBoundingClientRect();
   const previewRect = preview.getBoundingClientRect();

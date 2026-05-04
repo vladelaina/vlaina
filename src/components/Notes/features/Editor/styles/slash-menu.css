@@ -95,3 +95,12 @@
 .slash-menu::-webkit-scrollbar-track {
   background: transparent;
 }
+
+.slash-video-prompt {
+  z-index: 100;
+  width: min(360px, calc(100vw - 24px));
+  background-color: var(--notes-sidebar-menu-bg);
+  border: 1px solid var(--notes-sidebar-menu-border);
+  border-radius: 1rem;
+  box-shadow: var(--notes-sidebar-menu-shadow);
+}

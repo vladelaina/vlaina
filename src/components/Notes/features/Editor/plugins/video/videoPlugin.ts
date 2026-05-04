@@ -1,40 +1,10 @@
-import { $node, $command } from '@milkdown/kit/utils';
+import { $node, $command, $prose } from '@milkdown/kit/utils';
+import { Plugin, TextSelection } from '@milkdown/kit/prose/state';
 import type { VideoAttrs } from './types';
-import { SANDBOXED_IFRAME_SANDBOX } from '../clipboard/sanitizer';
-
-function parseVideoUrl(url: string): { type: 'youtube' | 'bilibili' | 'direct'; embedUrl: string } | null {
-  const youtubeMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-  if (youtubeMatch) {
-    return {
-      type: 'youtube',
-      embedUrl: `https://www.youtube.com/embed/${youtubeMatch[1]}`
-    };
-  }
-  
-  const bilibiliMatch = url.match(/bilibili\.com\/video\/(BV[a-zA-Z0-9]+)/);
-  if (bilibiliMatch) {
-    return {
-      type: 'bilibili',
-      embedUrl: `https://player.bilibili.com/player.html?bvid=${bilibiliMatch[1]}&high_quality=1`
-    };
-  }
-  
-  if (url.match(/\.(mp4|webm|ogg)(\?.*)?$/i)) {
-    return {
-      type: 'direct',
-      embedUrl: url
-    };
-  }
-  
-  return null;
-}
-
-function createVideoMessage(className: string, message: string): HTMLElement {
-  const container = document.createElement('div');
-  container.className = className;
-  container.textContent = message;
-  return container;
-}
+import { createVideoDom } from './videoDom';
+import { logVideoDebug } from './videoDebug';
+import { VideoNodeView } from './videoNodeView';
+import { isSupportedVideoUrl, parseVideoUrl } from './videoUrl';
 
 export const videoSchema = $node('video', () => ({
   group: 'block',
@@ -44,7 +14,7 @@ export const videoSchema = $node('video', () => ({
     src: { default: '' },
     title: { default: '' },
     width: { default: 560 },
-    height: { default: 315 }
+    height: { default: 315 },
   },
   parseDOM: [{
     tag: 'div[data-type="video"]',
@@ -54,56 +24,12 @@ export const videoSchema = $node('video', () => ({
         src: el.dataset.src || '',
         title: el.dataset.title || '',
         width: parseInt(el.dataset.width || '560', 10),
-        height: parseInt(el.dataset.height || '315', 10)
+        height: parseInt(el.dataset.height || '315', 10),
       };
-    }
+    },
   }],
   toDOM: (node) => {
-    const attrs = node.attrs as VideoAttrs;
-    const parsed = parseVideoUrl(attrs.src);
-    
-    const wrapper = document.createElement('div');
-    wrapper.setAttribute('data-type', 'video');
-    wrapper.setAttribute('data-src', attrs.src);
-    wrapper.setAttribute('data-title', attrs.title || '');
-    wrapper.setAttribute('data-width', String(attrs.width || 560));
-    wrapper.setAttribute('data-height', String(attrs.height || 315));
-    wrapper.className = 'video-block';
-    
-    if (!attrs.src) {
-      wrapper.appendChild(createVideoMessage('video-placeholder', 'No video URL'));
-      return wrapper;
-    }
-    
-    if (!parsed) {
-      wrapper.appendChild(createVideoMessage('video-error', `Unsupported video URL: ${attrs.src}`));
-      return wrapper;
-    }
-    
-    if (parsed.type === 'direct') {
-      const video = document.createElement('video');
-      video.src = parsed.embedUrl;
-      video.controls = true;
-      video.style.maxWidth = '100%';
-      video.style.height = 'auto';
-      if (attrs.title) video.title = attrs.title;
-      wrapper.appendChild(video);
-    } else {
-      const iframe = document.createElement('iframe');
-      iframe.src = parsed.embedUrl;
-      iframe.width = String(attrs.width || 560);
-      iframe.height = String(attrs.height || 315);
-      iframe.frameBorder = '0';
-      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
-      iframe.allowFullscreen = true;
-      iframe.sandbox.value = SANDBOXED_IFRAME_SANDBOX;
-      iframe.referrerPolicy = 'no-referrer';
-      iframe.loading = 'lazy';
-      if (attrs.title) iframe.title = attrs.title;
-      wrapper.appendChild(iframe);
-    }
-    
-    return wrapper;
+    return createVideoDom(node.attrs as VideoAttrs);
   },
   parseMarkdown: {
     match: (node) => {
@@ -117,7 +43,7 @@ export const videoSchema = $node('video', () => ({
       const src = (node.url as string) || '';
       const title = (node.title as string) || (node.alt as string) || '';
       state.addNode(type, { src, title });
-    }
+    },
   },
   toMarkdown: {
     match: (node) => node.type.name === 'video',
@@ -125,30 +51,54 @@ export const videoSchema = $node('video', () => ({
       state.addNode('image', undefined, undefined, {
         url: node.attrs.src,
         title: node.attrs.title || undefined,
-        alt: 'video'
+        alt: 'video',
       });
-    }
-  }
+    },
+  },
 }));
 
 export const insertVideoCommand = $command('insertVideo', () => (src: string = '') => {
   return (state: any, dispatch?: ((tr: any) => void) | null) => {
     const { schema } = state;
     const videoType = schema.nodes.video;
-    
+    const paragraphType = schema.nodes.paragraph;
+
     if (!videoType) return false;
-    
+
     if (dispatch) {
       const node = videoType.create({ src });
       const tr = state.tr.replaceSelectionWith(node);
+      const afterVideoPos = tr.selection.from;
+      const nextNode = tr.doc.nodeAt(afterVideoPos);
+      if (nextNode?.isTextblock) {
+        tr.setSelection(TextSelection.create(tr.doc, afterVideoPos + 1));
+      } else if (paragraphType) {
+        tr.insert(afterVideoPos, paragraphType.create());
+        tr.setSelection(TextSelection.create(tr.doc, afterVideoPos + 1));
+      }
+      logVideoDebug('insert_command', {
+        src,
+        supported: isSupportedVideoUrl(src),
+      });
       dispatch(tr.scrollIntoView());
     }
-    
+
     return true;
   };
 });
 
+export const videoNodeViewPlugin = $prose(() => {
+  return new Plugin({
+    props: {
+      nodeViews: {
+        video: (node, view, getPos) => new VideoNodeView(node, view, getPos as () => number | undefined),
+      },
+    },
+  });
+});
+
 export const videoPlugin = [
   videoSchema,
-  insertVideoCommand
+  videoNodeViewPlugin,
+  insertVideoCommand,
 ];

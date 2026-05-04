@@ -4,7 +4,7 @@ type NotesDebugWindow = Window & {
 };
 
 const notesDebugBuffer: string[] = [];
-const MAX_NOTES_DEBUG_LINES = 500;
+const MAX_NOTES_DEBUG_LINES = 1500;
 let debugHelpersRegistered = false;
 
 function formatPayload(payload: unknown): string {

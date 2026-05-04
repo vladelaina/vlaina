@@ -18,6 +18,7 @@ import {
 
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const CONTROLS_LEFT_OFFSET = 44;
+const MIN_DROP_DISTANCE_PX = 4;
 const WHEEL_DELTA_MODE_LINE = 1;
 const WHEEL_DELTA_MODE_PAGE = 2;
 const WHEEL_LINE_HEIGHT_PX = 16;
@@ -39,6 +40,8 @@ export class BlockControlsViewSession {
   private draggedRanges: BlockRange[] | null = null;
   private dragPreview: BlockDragPreviewHandle | null = null;
   private pendingDrop: DropTarget | null = null;
+  private dragStartClientX: number | null = null;
+  private dragStartClientY: number | null = null;
   private lastDragClientX: number | null = null;
   private lastDragClientY: number | null = null;
   private pointerY: number | null = null;
@@ -188,6 +191,8 @@ export class BlockControlsViewSession {
 
   private finishDrag(): void {
     this.draggedRanges = null;
+    this.dragStartClientX = null;
+    this.dragStartClientY = null;
     this.lastDragClientX = null;
     this.lastDragClientY = null;
     if (this.dragPreview) {
@@ -208,6 +213,8 @@ export class BlockControlsViewSession {
     event.stopPropagation();
 
     this.draggedRanges = draggableRanges;
+    this.dragStartClientX = event.clientX;
+    this.dragStartClientY = event.clientY;
     setBlockDraggingVisualState(true);
     this.controls.classList.add('dragging');
 
@@ -287,7 +294,10 @@ export class BlockControlsViewSession {
   private readonly handleDocumentMouseUp = (event: MouseEvent): void => {
     if (!this.draggedRanges) return;
     event.preventDefault();
-    if (!this.pendingDrop) {
+    const draggedDistance = this.dragStartClientX === null || this.dragStartClientY === null
+      ? 0
+      : Math.hypot(event.clientX - this.dragStartClientX, event.clientY - this.dragStartClientY);
+    if (!this.pendingDrop || draggedDistance < MIN_DROP_DISTANCE_PX) {
       this.finishDrag();
     } else {
       applyBlockMove(this.view, this.draggedRanges, this.pendingDrop.insertPos);

@@ -219,4 +219,105 @@ describe('createBlockDragPreview', () => {
     preview?.destroy();
     rectSpy.mockRestore();
   });
+
+  it('replaces video iframes with a stable preview surface', () => {
+    const editorRoot = document.createElement('div');
+    const videoBlock = document.createElement('div');
+    videoBlock.className = 'video-block';
+    videoBlock.dataset.type = 'video';
+    const iframe = document.createElement('iframe');
+    iframe.src = 'https://player.bilibili.com/player.html?bvid=BV1xx411c7mD';
+    videoBlock.appendChild(iframe);
+    editorRoot.appendChild(videoBlock);
+    document.body.appendChild(editorRoot);
+
+    const videoNode = createNode('video', 1);
+    const view = {
+      dom: editorRoot,
+      state: {
+        doc: {
+          content: { size: 2 },
+          forEach(cb: (child: any, offset: number) => void) {
+            cb(videoNode, 0);
+          },
+          resolve(pos: number) {
+            return {
+              pos,
+              depth: 0,
+              nodeAfter: videoNode,
+              node() {
+                return createNode('doc', 2);
+              },
+              before() {
+                return 0;
+              },
+            };
+          },
+        },
+      },
+      nodeDOM() {
+        return videoBlock;
+      },
+      domAtPos() {
+        return { node: videoBlock };
+      },
+    } as any;
+
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        if (this === videoBlock) {
+          return {
+            left: 120,
+            top: 80,
+            width: 560,
+            height: 315,
+            right: 680,
+            bottom: 395,
+            x: 120,
+            y: 80,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        if (this.dataset.noEditorDragBox === 'true') {
+          return {
+            left: 0,
+            top: 0,
+            width: 560,
+            height: 315,
+            right: 560,
+            bottom: 315,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        return {
+          left: 0,
+          top: 0,
+          width: 0,
+          height: 0,
+          right: 0,
+          bottom: 0,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        } as DOMRect;
+      });
+
+    const preview = createBlockDragPreview({
+      view,
+      ranges: [{ from: 0, to: 1 }],
+      clientX: 140,
+      clientY: 96,
+    });
+
+    expect(preview).not.toBeNull();
+    expect(preview?.element.querySelector('iframe')).toBeNull();
+    expect(preview?.element.querySelector('video')).toBeNull();
+    expect(preview?.element.querySelector('.video-drag-preview-surface')?.textContent).toBe('');
+
+    preview?.destroy();
+    rectSpy.mockRestore();
+  });
 });

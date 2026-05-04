@@ -28,6 +28,10 @@ describe('filterSlashItems', () => {
     expect(filterSlashItems('fm')[0]?.name).toBe('Frontmatter');
   });
 
+  it('matches common misspellings for discoverability', () => {
+    expect(filterSlashItems('vedio')[0]?.name).toBe('Video');
+  });
+
   it('keeps stronger matches before fuzzy subsequence matches', () => {
     const names = filterSlashItems('im').map((item) => item.name);
 
