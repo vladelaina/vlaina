@@ -79,8 +79,8 @@ export function AppContent() {
     (appViewMode === 'chat' || (appViewMode === 'notes' && currentVault && !notesChatPanelCollapsed));
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [notesDebugCopyState, setNotesDebugCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
-  const notesDebugCopyTimerRef = useRef<number | null>(null);
+  const [debugCopyState, setDebugCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const debugCopyTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const handleOpenSettings = () => setSettingsOpen(true);
@@ -127,33 +127,45 @@ export function AppContent() {
 
   useEffect(() => {
     return () => {
-      if (notesDebugCopyTimerRef.current !== null) {
-        window.clearTimeout(notesDebugCopyTimerRef.current);
+      if (debugCopyTimerRef.current !== null) {
+        window.clearTimeout(debugCopyTimerRef.current);
       }
     };
   }, []);
 
-  const handleCopyNotesDebug = useCallback(() => {
-    if (notesDebugCopyTimerRef.current !== null) {
-      window.clearTimeout(notesDebugCopyTimerRef.current);
+  const handleCopyDebugLog = useCallback(() => {
+    if (debugCopyTimerRef.current !== null) {
+      window.clearTimeout(debugCopyTimerRef.current);
     }
 
-    void (window as Window & {
+    const win = window as Window & {
       __vlainaCopyNotesDebug?: () => Promise<{ ok: boolean; chars: number; error?: string }>;
-    }).__vlainaCopyNotesDebug?.()
+    };
+    const copyDebugLog = appViewMode === 'notes' ? win.__vlainaCopyNotesDebug : undefined;
+
+    if (!copyDebugLog) {
+      setDebugCopyState('failed');
+      debugCopyTimerRef.current = window.setTimeout(() => {
+        setDebugCopyState('idle');
+        debugCopyTimerRef.current = null;
+      }, 1200);
+      return;
+    }
+
+    void copyDebugLog()
       .then((result) => {
-        setNotesDebugCopyState(result?.ok ? 'copied' : 'failed');
+        setDebugCopyState(result?.ok ? 'copied' : 'failed');
       })
       .catch(() => {
-        setNotesDebugCopyState('failed');
+        setDebugCopyState('failed');
       })
       .finally(() => {
-        notesDebugCopyTimerRef.current = window.setTimeout(() => {
-          setNotesDebugCopyState('idle');
-          notesDebugCopyTimerRef.current = null;
+        debugCopyTimerRef.current = window.setTimeout(() => {
+          setDebugCopyState('idle');
+          debugCopyTimerRef.current = null;
         }, 1200);
       });
-  }, []);
+  }, [appViewMode]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const shouldRenderSidebar = appViewMode === 'chat' || appViewMode === 'notes';
@@ -210,33 +222,34 @@ export function AppContent() {
   );
 
   const showLabEntry = import.meta.env.DEV && appViewMode !== 'lab';
-  const showNotesDebugCopy = import.meta.env.DEV && appViewMode === 'notes';
-  const mainOverlay = showLabEntry || showNotesDebugCopy ? (
+  const showDebugCopy = import.meta.env.DEV && (appViewMode === 'chat' || appViewMode === 'notes');
+  const debugCopyLabel = appViewMode === 'chat' ? 'Chat Debug Log' : 'Notes Debug Log';
+  const mainOverlay = showLabEntry || showDebugCopy ? (
     <div className="pointer-events-none absolute bottom-3 right-3 z-30 flex flex-col items-end gap-2">
-      {showNotesDebugCopy ? (
+      {showDebugCopy ? (
         <Tooltip delayDuration={700}>
           <TooltipTrigger asChild>
             <button
               type="button"
-              onClick={handleCopyNotesDebug}
-              aria-label="Copy Notes Debug Log"
+              onClick={handleCopyDebugLog}
+              aria-label={`Copy ${debugCopyLabel}`}
               className={cn(
                 'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md border border-[#eff3f4] bg-white/92 shadow-sm backdrop-blur-sm transition-[background-color,box-shadow,transform,border-color] duration-200 hover:bg-[#f5f5f5]',
                 iconButtonStyles,
-                notesDebugCopyState === 'copied' && 'scale-110 border-emerald-300 text-emerald-600 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]',
-                notesDebugCopyState === 'failed' && 'scale-105 border-red-300 text-red-600 shadow-[0_0_0_3px_rgba(239,68,68,0.16)]',
+                debugCopyState === 'copied' && 'scale-110 border-emerald-300 text-emerald-600 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]',
+                debugCopyState === 'failed' && 'scale-105 border-red-300 text-red-600 shadow-[0_0_0_3px_rgba(239,68,68,0.16)]',
               )}
             >
-              <Icon name={notesDebugCopyState === 'copied' ? 'common.check' : 'common.copy'} size="md" />
+              <Icon name={debugCopyState === 'copied' ? 'common.check' : 'common.copy'} size="md" />
             </button>
           </TooltipTrigger>
           <TooltipContent side="left" sideOffset={8}>
             <span className="text-xs">
-              {notesDebugCopyState === 'copied'
-                ? 'Copied Notes Debug Log'
-                : notesDebugCopyState === 'failed'
+              {debugCopyState === 'copied'
+                ? `Copied ${debugCopyLabel}`
+                : debugCopyState === 'failed'
                   ? 'Copy Failed'
-                  : 'Copy Notes Debug Log'}
+                  : `Copy ${debugCopyLabel}`}
             </span>
           </TooltipContent>
         </Tooltip>
