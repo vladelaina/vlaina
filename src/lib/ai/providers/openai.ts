@@ -1,7 +1,11 @@
 import type { AIClient } from '../client'
 import type { Provider, AIModel, ChatCompletionRequest, ChatMessage, ChatMessageContent, ChatSendOptions } from '../types'
-import { parseAPIError, parseHTTPError } from '../errors'
+import { createAIError, parseAPIError, parseHTTPError } from '../errors'
+import { AIErrorType } from '../types'
 import { buildOpenAIBaseUrl, resolveApiModelId } from '../utils'
+import { sendAnthropicMessage } from './anthropic'
+import { detectProviderEndpointModels, type ModelFetchResult } from './modelDetection'
+import { providerFetch } from '../providerHttp'
 import {
   fetchManagedModels,
   MANAGED_PROVIDER_ID,
@@ -9,6 +13,10 @@ import {
   requestManagedChatCompletionStream,
 } from '@/lib/ai/managedService'
 import { consumeOpenAIStream } from '@/lib/ai/streaming'
+
+function summarizeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error || 'Unknown error')
+}
 
 export class OpenAICompatibleClient implements AIClient {
   private readonly timeout = 300000
@@ -90,6 +98,21 @@ export class OpenAICompatibleClient implements AIClient {
       return this.sendManagedMessage(body, onChunk, signal)
     }
 
+    if (provider.endpointType === 'anthropic') {
+      const apiKey = await this.resolveApiKey(provider)
+      return sendAnthropicMessage({
+        message,
+        history,
+        model,
+        provider,
+        apiKey,
+        timeoutMs: this.timeout,
+        onChunk: onChunk || (() => {}),
+        signal,
+        options,
+      })
+    }
+
     const apiKey = await this.resolveApiKey(provider)
     const baseUrl = buildOpenAIBaseUrl(provider.apiHost)
     const url = `${baseUrl}/chat/completions`
@@ -120,7 +143,7 @@ export class OpenAICompatibleClient implements AIClient {
     }
 
     try {
-      const response = await fetch(url, {
+      const response = await providerFetch(url, {
         method: 'POST',
         headers,
         body: JSON.stringify(body),
@@ -140,7 +163,8 @@ export class OpenAICompatibleClient implements AIClient {
         throw parseHTTPError(response.status, errorBody)
       }
 
-      return consumeOpenAIStream(response, onChunk)
+      const result = await consumeOpenAIStream(response, onChunk)
+      return result
     } catch (error) {
       clearTimeout(timeoutId)
       if (error instanceof Error && error.name === 'AbortError') {
@@ -149,7 +173,12 @@ export class OpenAICompatibleClient implements AIClient {
         }
         throw error
       }
-      throw parseAPIError(error)
+      const parsedError = parseAPIError(error)
+      const detail = `OpenAI-compatible chat request to ${url} failed: ${summarizeError(error)}`
+      if (parsedError.type === AIErrorType.NETWORK_ERROR) {
+        throw createAIError(parsedError.type, parsedError.message, detail, parsedError.statusCode)
+      }
+      throw parsedError
     }
   }
 
@@ -160,65 +189,29 @@ export class OpenAICompatibleClient implements AIClient {
         return true
       }
 
-      const apiKey = await this.resolveApiKey(provider)
-      const baseUrl = buildOpenAIBaseUrl(provider.apiHost)
-      const url = `${baseUrl}/models`
-
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000)
-
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-        },
-        signal: controller.signal,
-      })
-
-      clearTimeout(timeoutId)
-      return response.ok
+      await this.getModels(provider)
+      return true
     } catch {
       return false
     }
   }
 
   async getModels(provider: Provider): Promise<string[]> {
+    const result = await this.getModelsWithEndpointDetection(provider)
+    return result.models
+  }
+
+  async getModelsWithEndpointDetection(provider: Provider): Promise<ModelFetchResult> {
     if (provider.id === MANAGED_PROVIDER_ID) {
       const models = await fetchManagedModels()
-      return models.map((model) => model.apiModelId)
+      return {
+        models: models.map((model) => model.apiModelId),
+        endpointType: 'openai',
+      }
     }
 
     const apiKey = await this.resolveApiKey(provider)
-    const baseUrl = buildOpenAIBaseUrl(provider.apiHost)
-    const url = `${baseUrl}/models`
-
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 10000)
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
-      signal: controller.signal,
-    })
-
-    clearTimeout(timeoutId)
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch models: ${response.status}`)
-    }
-
-    const data = await response.json()
-
-    if (data.data && Array.isArray(data.data)) {
-      return data.data.map((m: any) => m.id)
-    }
-    if (data.models && Array.isArray(data.models)) {
-      return data.models.map((m: any) => m.name || m.model)
-    }
-
-    return []
+    return detectProviderEndpointModels(provider, apiKey)
   }
 }
 

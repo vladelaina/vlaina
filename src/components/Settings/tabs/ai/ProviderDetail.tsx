@@ -59,6 +59,8 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
     name: initialProvider?.name || '',
     apiHost: initialProvider?.apiHost || '',
     apiKey: initialProvider?.apiKey || '',
+    endpointType: initialProvider?.endpointType,
+    persistedApiHost: initialProvider?.apiHost || '',
   });
   const updateProviderRef = useRef(updateProvider);
 
@@ -108,8 +110,10 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
       name,
       apiHost,
       apiKey,
+      endpointType: initialProvider?.endpointType,
+      persistedApiHost: initialProvider?.apiHost || '',
     };
-  }, [initialProvider?.id, name, apiHost, apiKey]);
+  }, [initialProvider?.id, initialProvider?.apiHost, initialProvider?.endpointType, name, apiHost, apiKey]);
 
   useEffect(() => {
     const flushConnectionDraft = () => {
@@ -117,10 +121,12 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
       if (!draft.providerId || draft.providerId === MANAGED_PROVIDER_ID) {
         return;
       }
+      const endpointType = draft.apiHost === draft.persistedApiHost ? draft.endpointType : undefined;
       updateProviderRef.current(draft.providerId, {
         name: draft.name,
         apiHost: draft.apiHost,
         apiKey: draft.apiKey,
+        endpointType,
         updatedAt: Date.now(),
       });
     };
@@ -141,7 +147,13 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
     if (sameName && sameApiHost && sameApiKey) return;
 
     const timer = setTimeout(() => {
-      updateProvider(initialProvider.id, { name, apiKey, apiHost, updatedAt: Date.now() });
+      updateProvider(initialProvider.id, {
+        name,
+        apiKey,
+        apiHost,
+        endpointType: sameApiHost ? initialProvider.endpointType : undefined,
+        updatedAt: Date.now(),
+      });
     }, 240);
 
     return () => clearTimeout(timer);

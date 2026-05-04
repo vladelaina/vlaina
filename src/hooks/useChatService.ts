@@ -1,6 +1,5 @@
 import { useCallback, useMemo } from 'react';
 import { actions as aiActions } from '@/stores/useAIStore';
-import { openaiClient } from '@/lib/ai/providers/openai';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
@@ -27,6 +26,7 @@ import {
   refreshManagedBudgetIfNeeded,
 } from './chatService/helpers';
 import { runStreamedAssistantMessage } from './chatService/runStreamedAssistantMessage';
+import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
 import { hydrateSessionMessagesFromDisk } from '@/stores/ai/sessionConsistency';
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
@@ -222,14 +222,14 @@ export function useChatService() {
             sessionId: targetSessionId,
             assistantMessageId,
             execute: (onChunk, signal) =>
-              openaiClient.sendMessage(
-                apiMessageContent,
-                requestHistory,
-                selectedModel,
+              sendMessageWithEndpointFallback({
+                content: apiMessageContent,
+                history: requestHistory,
+                model: selectedModel,
                 provider,
                 onChunk,
                 signal,
-              ),
+              }),
             updateMessage: aiActions.updateMessage,
             completeMessage: aiActions.completeMessage,
             setSessionLoading,
@@ -325,14 +325,14 @@ export function useChatService() {
             sessionId,
             assistantMessageId,
             execute: (onChunk, signal) =>
-              openaiClient.sendMessage(
-                newContent,
-                requestHistory,
-                selectedModel,
+              sendMessageWithEndpointFallback({
+                content: newContent,
+                history: requestHistory,
+                model: selectedModel,
                 provider,
                 onChunk,
                 signal,
-              ),
+              }),
             updateMessage: aiActions.updateMessage,
             completeMessage: aiActions.completeMessage,
             setSessionLoading,
@@ -407,14 +407,14 @@ export function useChatService() {
             sessionId,
             assistantMessageId: messageId,
             execute: (onChunk, signal) =>
-              openaiClient.sendMessage(
-                promptMessage.content,
-                requestHistory,
-                selectedModel,
+              sendMessageWithEndpointFallback({
+                content: promptMessage.content,
+                history: requestHistory,
+                model: selectedModel,
                 provider,
                 onChunk,
                 signal,
-              ),
+              }),
             updateMessage: aiActions.updateMessage,
             completeMessage: aiActions.completeMessage,
             setSessionLoading,

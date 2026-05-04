@@ -1,12 +1,17 @@
 import { parseAPIError, parseHTTPError } from '../errors';
 import { parseErrorTag } from '../errorTag';
-import { buildOpenAIBaseUrl, resolveApiModelId } from '../utils';
+import { buildAnthropicBaseUrl, buildOpenAIBaseUrl, resolveApiModelId } from '../utils';
+import { providerFetch } from '../providerHttp';
 import type { AIModel, Provider } from '../types';
 import { DEFAULT_BENCHMARK_TIMEOUT_MS } from './constants';
 import { inferBenchmarkEndpoint } from './endpoint';
 import type { BenchmarkEndpoint, CheckModelHealthOptions, HealthCheckResult } from './types';
 
 function buildBenchmarkUrl(provider: Provider, endpoint: BenchmarkEndpoint): string {
+  if (provider.endpointType === 'anthropic') {
+    return `${buildAnthropicBaseUrl(provider.apiHost)}/messages`;
+  }
+
   const baseUrl = buildOpenAIBaseUrl(provider.apiHost);
 
   if (endpoint === 'embeddings') {
@@ -24,7 +29,27 @@ function buildBenchmarkUrl(provider: Provider, endpoint: BenchmarkEndpoint): str
   return `${baseUrl}/chat/completions`;
 }
 
-function buildBenchmarkBody(modelId: string, endpoint: BenchmarkEndpoint): Record<string, unknown> {
+function buildBenchmarkBody(
+  modelId: string,
+  endpoint: BenchmarkEndpoint,
+  endpointType?: Provider['endpointType']
+): Record<string, unknown> {
+  if (endpoint === 'chat') {
+    const chatBody: Record<string, unknown> = {
+      model: modelId,
+      messages: [{ role: 'user', content: 'hi' }],
+      stream: false,
+    };
+
+    if (endpointType === 'anthropic' || !/^o\d/i.test(modelId)) {
+      chatBody.max_tokens = 16;
+    } else {
+      chatBody.max_completion_tokens = 16;
+    }
+
+    return chatBody;
+  }
+
   if (endpoint === 'embeddings') {
     return {
       model: modelId,
@@ -49,19 +74,7 @@ function buildBenchmarkBody(modelId: string, endpoint: BenchmarkEndpoint): Recor
     };
   }
 
-  const chatBody: Record<string, unknown> = {
-    model: modelId,
-    messages: [{ role: 'user', content: 'hi' }],
-    stream: false,
-  };
-
-  if (/^o\d/i.test(modelId)) {
-    chatBody.max_completion_tokens = 16;
-  } else {
-    chatBody.max_tokens = 16;
-  }
-
-  return chatBody;
+  return {};
 }
 
 function readErrorMessage(payload: unknown): string | undefined {
@@ -240,7 +253,26 @@ function isExpectedSuccessPayload(payload: unknown, endpoint: BenchmarkEndpoint)
     return Array.isArray(body.output) || typeof body.output_text === 'string';
   }
 
-  return Array.isArray(body.choices) && body.choices.length > 0;
+  return (
+    (Array.isArray(body.choices) && body.choices.length > 0) ||
+    (Array.isArray(body.content) && body.content.length > 0)
+  );
+}
+
+function buildBenchmarkHeaders(provider: Provider): Record<string, string> {
+  if (provider.endpointType === 'anthropic') {
+    return {
+      'x-api-key': provider.apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+      'Content-Type': 'application/json',
+    };
+  }
+
+  return {
+    Authorization: `Bearer ${provider.apiKey}`,
+    'Content-Type': 'application/json',
+  };
 }
 
 async function parseResponsePayload(response: Response): Promise<unknown> {
@@ -262,7 +294,7 @@ export async function checkModelHealth(
   options: CheckModelHealthOptions = {}
 ): Promise<HealthCheckResult> {
   const apiModelId = resolveApiModelId(model);
-  const endpoint = inferBenchmarkEndpoint(apiModelId);
+  const endpoint = provider.endpointType === 'anthropic' ? 'chat' : inferBenchmarkEndpoint(apiModelId);
   const requestedTimeoutMs = options.timeoutMs ?? DEFAULT_BENCHMARK_TIMEOUT_MS;
   const timeoutMs = Number.isFinite(requestedTimeoutMs)
     ? Math.max(0, Math.floor(requestedTimeoutMs))
@@ -290,13 +322,10 @@ export async function checkModelHealth(
   }
 
   try {
-    const response = await fetch(buildBenchmarkUrl(provider, endpoint), {
+    const response = await providerFetch(buildBenchmarkUrl(provider, endpoint), {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${provider.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(buildBenchmarkBody(apiModelId, endpoint)),
+      headers: buildBenchmarkHeaders(provider),
+      body: JSON.stringify(buildBenchmarkBody(apiModelId, endpoint, provider.endpointType)),
       signal: controller.signal,
     });
 

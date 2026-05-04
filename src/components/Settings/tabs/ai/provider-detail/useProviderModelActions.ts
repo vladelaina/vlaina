@@ -56,7 +56,8 @@ export function useProviderModelActions({
     setFetchError('');
 
     try {
-      const modelsList = await openaiClient.getModels(tempProvider);
+      const result = await openaiClient.getModelsWithEndpointDetection(tempProvider);
+      const modelsList = result.models;
       setFetchedModels(modelsList);
       setProviderFetchedModels(currentProviderId, modelsList);
       if (modelsList.length === 0) {

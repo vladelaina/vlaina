@@ -36,6 +36,15 @@ function extractErrorMessage(error: unknown): string {
   return String(error || '')
 }
 
+function extractErrorDetails(error: unknown): string {
+  if (!isRecord(error)) {
+    return ''
+  }
+
+  const details = error.details
+  return typeof details === 'string' ? details : ''
+}
+
 function extractErrorCode(error: unknown): string {
   if (!isRecord(error)) {
     const matched = extractErrorMessage(error).match(/\b(?:status|http)\s+(\d{3})\b/i)
@@ -246,6 +255,15 @@ function shouldPreserveOriginalMessage(type: AIErrorType, message: string): bool
 
   switch (type) {
     case AIErrorType.NETWORK_ERROR:
+      if (normalized.toLowerCase().startsWith('managed api request failed')) {
+        return false
+      }
+      return ![
+        'failed to fetch',
+        'fetch failed',
+        'network error',
+        'network request failed',
+      ].includes(normalized.toLowerCase())
     case AIErrorType.TIMEOUT:
     case AIErrorType.AUTH_ERROR:
       return false
@@ -377,14 +395,16 @@ export function parseHTTPError(status: number, body?: any): AIError {
 export function getUserFacingAIError(error: unknown): UserFacingAIError {
   const parsed = parseAPIError(error)
   const message = normalizeUserFacingMessage(extractErrorMessage(error))
+  const details = normalizeUserFacingMessage(extractErrorDetails(error))
+  const displayMessage = details || message
   const code = extractErrorCode(error) || (parsed.statusCode ? String(parsed.statusCode) : '')
-  const specificOverride = getSpecificUserFacingOverride(message, code)
+  const specificOverride = getSpecificUserFacingOverride(displayMessage, code)
   if (specificOverride) {
     return specificOverride
   }
 
   const statusType = inferErrorTypeByStatus(code)
-  const messageType = inferErrorTypeByMessage(message)
+  const messageType = inferErrorTypeByMessage(displayMessage)
 
   let type = parsed.type
   if (statusType) {
@@ -398,8 +418,8 @@ export function getUserFacingAIError(error: unknown): UserFacingAIError {
   return {
     type: normalizedType,
     code,
-    message: shouldPreserveOriginalMessage(normalizedType, message)
-      ? message
+    message: shouldPreserveOriginalMessage(normalizedType, displayMessage)
+      ? displayMessage
       : getUserFacingMessage(normalizedType),
   }
 }

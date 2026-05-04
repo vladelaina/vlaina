@@ -76,3 +76,11 @@ export function buildOpenAIBaseUrl(url: string): string {
 
   return `${normalizedHost}/v1`
 }
+
+export function buildAnthropicBaseUrl(url: string): string {
+  const normalizedHost = normalizeApiHost(url)
+    .replace(/\/(messages|models)$/i, '')
+    .replace(/\/v1$/i, '')
+
+  return `${normalizedHost}/v1`
+}

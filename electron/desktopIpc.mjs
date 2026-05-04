@@ -25,6 +25,68 @@ import {
 } from './fsAccess.mjs';
 
 const { app, clipboard, dialog, shell } = electron;
+const activeAiProviderRequests = new Map();
+
+function safeSend(sender, channel, payload) {
+  if (!sender || sender.isDestroyed()) {
+    return false;
+  }
+
+  try {
+    sender.send(channel, payload);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function normalizeAiProviderRequest(rawRequest) {
+  if (!rawRequest || typeof rawRequest !== 'object') {
+    throw new Error('AI provider request is required.');
+  }
+
+  const url = normalizeAiProviderUrl(rawRequest.url);
+  const method = String(rawRequest.method ?? 'GET').toUpperCase();
+  if (method !== 'GET' && method !== 'POST') {
+    throw new Error(`Unsupported AI provider request method: ${method}`);
+  }
+
+  const headers = normalizeAiProviderHeaders(rawRequest.headers);
+  const body = rawRequest.body == null ? undefined : String(rawRequest.body);
+  return { url, method, headers, body };
+}
+
+function normalizeAiProviderUrl(rawUrl) {
+  if (typeof rawUrl !== 'string' || !rawUrl.trim()) {
+    throw new Error('A non-empty AI provider URL is required.');
+  }
+
+  const parsed = new URL(rawUrl.trim());
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(`Unsupported AI provider URL protocol: ${parsed.protocol}`);
+  }
+
+  return parsed.toString();
+}
+
+function normalizeAiProviderHeaders(rawHeaders) {
+  const headers = {};
+  if (!rawHeaders || typeof rawHeaders !== 'object') {
+    return headers;
+  }
+
+  for (const [key, value] of Object.entries(rawHeaders)) {
+    if (typeof key !== 'string' || !key.trim()) {
+      continue;
+    }
+    if (value == null) {
+      continue;
+    }
+    headers[key] = String(value);
+  }
+
+  return headers;
+}
 
 export function registerDesktopIpc({
   handleIpc,
@@ -48,6 +110,76 @@ export function registerDesktopIpc({
 
   handleIpc('desktop:clipboard:write-text', async (_event, text) => {
     clipboard.writeText(String(text ?? ''));
+  });
+
+  handleIpc('desktop:ai-provider:request:start', async (event, requestId, rawRequest) => {
+    const id = requireNonEmptyString(requestId, 'AI provider request id');
+    const previous = activeAiProviderRequests.get(id);
+    previous?.abort();
+
+    const request = normalizeAiProviderRequest(rawRequest);
+    const controller = new AbortController();
+    activeAiProviderRequests.set(id, controller);
+    const sender = event.sender;
+
+    let response;
+    try {
+      response = await fetch(request.url, {
+        method: request.method,
+        headers: request.headers,
+        body: request.body,
+        signal: controller.signal,
+        cache: 'no-store',
+      });
+    } catch (error) {
+      activeAiProviderRequests.delete(id);
+      throw error;
+    }
+
+    void (async () => {
+      try {
+        if (!response.body) {
+          safeSend(sender, `desktop:ai-provider:request:${id}:done`);
+          return;
+        }
+
+        const reader = response.body.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            break;
+          }
+
+          if (!safeSend(sender, `desktop:ai-provider:request:${id}:chunk`, Array.from(value))) {
+            controller.abort();
+            return;
+          }
+        }
+
+        safeSend(sender, `desktop:ai-provider:request:${id}:done`);
+      } catch (error) {
+        safeSend(sender, `desktop:ai-provider:request:${id}:error`, {
+          message: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        activeAiProviderRequests.delete(id);
+      }
+    })();
+
+    return {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Array.from(response.headers.entries()),
+    };
+  });
+
+  handleIpc('desktop:ai-provider:request:cancel', async (_event, requestId) => {
+    const id = requireNonEmptyString(requestId, 'AI provider request id');
+    const controller = activeAiProviderRequests.get(id);
+    if (controller) {
+      controller.abort();
+      activeAiProviderRequests.delete(id);
+    }
   });
 
   handleIpc('desktop:drag-drop:authorize-path', async (_event, filePath) => {

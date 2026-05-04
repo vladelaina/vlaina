@@ -67,4 +67,22 @@ describe('ThinkingBlock', () => {
 
     expect(wrapper).toHaveStyle({ opacity: '1' });
   });
+
+  it('allows active thinking to be collapsed while streaming', () => {
+    const { container } = render(
+      <ThinkingBlock
+        content="Streaming thought"
+        isStreaming
+      />,
+    );
+
+    const toggle = screen.getByRole('button', { name: 'Thought...' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    const wrapper = container.querySelector<HTMLElement>('[style*="max-height"]');
+    expect(wrapper).toHaveStyle({ maxHeight: '12rem' });
+  });
 });

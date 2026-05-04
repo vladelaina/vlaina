@@ -99,7 +99,7 @@ export function ThinkingBlock({
   }, [thinking, activelyThinking, isCollapsed]);
 
   const handleToggle = () => {
-    setIsCollapsed(!isCollapsed);
+    setIsCollapsed((collapsed) => !collapsed);
     setHasUserInteracted(true);
   };
 
@@ -125,9 +125,12 @@ export function ThinkingBlock({
       className={`flex mb-4 flex-col w-full ${activelyThinking || !isCollapsed ? "text-neutral-800 dark:text-neutral-200" : "text-neutral-600 dark:text-neutral-400"}
          hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors select-none`}
     >
-      <div
+      <button
+        type="button"
         data-chat-selection-excluded="true"
-        className="flex items-center cursor-pointer group/thinking self-start relative py-1"
+        data-no-focus-input="true"
+        aria-expanded={!isCollapsed}
+        className="flex items-center cursor-pointer group/thinking self-start relative border-0 bg-transparent p-0 py-1 text-left text-inherit"
         onClick={handleToggle}
       >
         <div className="relative w-4 h-4 mr-2">
@@ -152,10 +155,10 @@ export function ThinkingBlock({
             <polyline points="6 9 12 15 18 9"></polyline>
           </svg>
         </div>
-        <h3 className="text-[15px] font-medium">
+        <span className="text-[15px] font-medium">
           {titleText}
-        </h3>
-      </div>
+        </span>
+      </button>
       <div
         ref={wrapperRef}
         className={`text-[15px] text-neutral-500 dark:text-neutral-400 rounded-md

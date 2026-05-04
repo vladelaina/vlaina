@@ -13,6 +13,21 @@ describe('getUserFacingAIError', () => {
     });
   });
 
+  it('preserves detailed direct provider transport failures', () => {
+    const result = getUserFacingAIError({
+      type: AIErrorType.NETWORK_ERROR,
+      message: 'Failed to fetch',
+      details: 'OpenAI-compatible chat request to https://api.example.com/v1/chat/completions failed: fetch failed: certificate has expired',
+    });
+
+    expect(result).toEqual({
+      type: AIErrorType.NETWORK_ERROR,
+      code: '',
+      message:
+        'OpenAI-compatible chat request to https://api.example.com/v1/chat/completions failed: fetch failed: certificate has expired',
+    });
+  });
+
   it('maps timeout failures to the timeout message', () => {
     const result = getUserFacingAIError(new Error('The AI request timed out.'));
 

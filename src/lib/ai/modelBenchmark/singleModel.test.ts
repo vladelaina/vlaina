@@ -129,4 +129,35 @@ describe('checkModelHealth', () => {
     const body = JSON.parse(String(requestInit.body));
     expect(body.input).toBe('hi');
   });
+
+  it('uses Anthropic messages endpoint when the provider endpoint type is Anthropic', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ content: [{ type: 'text', text: 'ok' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    const result = await checkModelHealth(
+      { ...provider, endpointType: 'anthropic' },
+      createModel('claude-sonnet-4-5')
+    );
+    expect(result.status).toBe('success');
+    expect(result.endpoint).toBe('chat');
+
+    const [url, requestInit] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.example.com/v1/messages');
+    expect(requestInit.headers).toEqual({
+      'x-api-key': 'sk-test',
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+      'Content-Type': 'application/json',
+    });
+    const body = JSON.parse(String(requestInit.body));
+    expect(body).toMatchObject({
+      model: 'claude-sonnet-4-5',
+      messages: [{ role: 'user', content: 'hi' }],
+      max_tokens: 16,
+    });
+  });
 });
