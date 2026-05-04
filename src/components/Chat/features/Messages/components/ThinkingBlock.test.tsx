@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ThinkingBlock } from './ThinkingBlock';
 
@@ -50,5 +50,21 @@ describe('ThinkingBlock', () => {
     view.unmount();
 
     expect(ResizeObserverMock.instances[0]!.disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('allows completed thinking to be expanded after auto-collapse', () => {
+    const { container } = render(
+      <ThinkingBlock
+        content="Finished thought"
+        isStreaming={false}
+      />,
+    );
+
+    const wrapper = container.querySelector<HTMLElement>('[style*="opacity"]');
+    expect(wrapper).toHaveStyle({ opacity: '0' });
+
+    fireEvent.click(screen.getByText('Reasoning'));
+
+    expect(wrapper).toHaveStyle({ opacity: '1' });
   });
 });

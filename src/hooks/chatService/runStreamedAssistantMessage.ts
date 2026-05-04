@@ -64,7 +64,7 @@ export async function runStreamedAssistantMessage({
           ? error.name
           : '';
 
-    if (errorName === 'AbortError') {
+    if (controller.signal.aborted || errorName === 'AbortError') {
       if (lastStreamedContent) {
         updateMessage(sessionId, assistantMessageId, lastStreamedContent);
       }

@@ -12,6 +12,7 @@ interface UseChatComposerOptions {
   attachments: Attachment[];
   getNoteMentions: () => NoteMentionReference[];
   onAfterSend: () => void;
+  canSubmit?: boolean;
   focusTrigger?: number;
 }
 
@@ -20,6 +21,7 @@ export function useChatComposer({
   attachments,
   getNoteMentions,
   onAfterSend,
+  canSubmit = true,
   focusTrigger,
 }: UseChatComposerOptions) {
   const [message, setMessage] = useState('');
@@ -126,6 +128,11 @@ export function useChatComposer({
 
   const handleSend = useCallback(
     (overrideMessage?: string) => {
+      if (!canSubmit) {
+        submitAfterCompositionRef.current = false;
+        return;
+      }
+
       const noteMentions = getNoteMentions();
       const rawMessage = overrideMessage ?? message;
       const cleanedMessage = rawMessage.replace(INVISIBLE_BREAK_REGEX, '');
@@ -144,7 +151,7 @@ export function useChatComposer({
       setMessage('');
       onAfterSend();
     },
-    [attachments, getNoteMentions, message, onAfterSend, onSend]
+    [attachments, canSubmit, getNoteMentions, message, onAfterSend, onSend]
   );
 
   const handleCompositionEnd = useCallback(() => {

@@ -24,6 +24,7 @@ export interface ChatMessageFrameLayout {
 }
 
 interface BuildChatMessageFrameLayoutOptions {
+  activeMessageId?: string | null;
   cacheKey?: string | null;
   containerWidth: number;
   isSessionActive: boolean;
@@ -120,16 +121,20 @@ function getMeasuredHeightCacheKey(
 export function restoreCachedMeasuredHeights(
   messages: ChatMessage[],
   {
+    activeMessageId,
     cacheKey,
     containerWidth,
     isSessionActive,
-  }: Pick<BuildChatMessageFrameLayoutOptions, 'cacheKey' | 'containerWidth' | 'isSessionActive'>,
+  }: Pick<BuildChatMessageFrameLayoutOptions, 'activeMessageId' | 'cacheKey' | 'containerWidth' | 'isSessionActive'>,
 ): Map<string, number> {
   const normalizedWidth = normalizeChatContainerWidth(containerWidth);
   const restored = new Map<string, number>();
 
   for (const message of messages) {
-    const key = getMeasuredHeightCacheKey(cacheKey, normalizedWidth, isSessionActive, message.id);
+    const shouldUseActiveCache = activeMessageId === undefined
+      ? isSessionActive
+      : isSessionActive && message.id === activeMessageId;
+    const key = getMeasuredHeightCacheKey(cacheKey, normalizedWidth, shouldUseActiveCache, message.id);
     const cached = measuredHeightCache.get(key);
     if (!cached || cached.signature !== getMessageSignature(message)) {
       continue;
@@ -225,6 +230,7 @@ function buildEstimatedChatMessageFrameLayout(
 export function buildChatMessageFrameLayout(
   messages: ChatMessage[],
   {
+    activeMessageId,
     cacheKey,
     containerWidth,
     isSessionActive,
@@ -247,10 +253,20 @@ export function buildChatMessageFrameLayout(
 
   for (let index = 0; index < estimatedLayout.items.length; index += 1) {
     const frame = estimatedLayout.items[index]!;
+    const message = messages[index]!;
     const measuredHeight = measuredHeights.get(frame.id);
-    const height = measuredHeight === undefined
+    const measuredOverride = measuredHeight === undefined
       ? frame.height
       : Math.max(1, Math.ceil(measuredHeight));
+    const isActiveAssistant =
+      isSessionActive &&
+      message.role === 'assistant' &&
+      (activeMessageId === undefined
+        ? index === estimatedLayout.items.length - 1
+        : message.id === activeMessageId);
+    const height = isActiveAssistant
+      ? Math.max(frame.height, measuredOverride)
+      : measuredOverride;
 
     if (height !== frame.height) {
       hasMeasuredOverride = true;

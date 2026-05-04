@@ -8,15 +8,18 @@ vi.mock("@/components/Chat/features/Markdown/MarkdownRenderer", () => ({
     content,
     copiedCodeBlockId,
     onCopyCodeBlock,
+    isStreaming,
   }: {
     content: string;
     copiedCodeBlockId?: string | null;
     onCopyCodeBlock?: (blockId: string) => void;
+    isStreaming?: boolean;
   }) => (
     <div
       data-testid="markdown"
       data-content={content}
       data-copied-code-block-id={copiedCodeBlockId ?? ""}
+      data-streaming={String(Boolean(isStreaming))}
     >
       {content}
       <button onClick={() => onCopyCodeBlock?.("m1:0")}>copy-code-block</button>
@@ -72,6 +75,7 @@ describe("AIMessage", () => {
     );
 
     expect(document.querySelectorAll(".vlaina-dot").length).toBe(0);
+    expect(screen.getByTestId("markdown")).toHaveAttribute("data-streaming", "true");
   });
 
   it("does not show inline loading dots when streaming content is empty", () => {
@@ -88,6 +92,54 @@ describe("AIMessage", () => {
 
     expect(document.querySelectorAll(".vlaina-dot").length).toBe(0);
     expect(screen.getByTestId("toolbar")).toBeInTheDocument();
+    expect(screen.getByTestId("markdown")).toHaveAttribute("data-streaming", "false");
+  });
+
+  it("keeps the markdown transition idle when the message is not loading", () => {
+    render(
+      <AIMessage
+        msg={createMessage("Done")}
+        imageGallery={[]}
+        isLoading={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId("markdown")).toHaveAttribute("data-streaming", "false");
+  });
+
+  it("reveals appended streaming text in small steps", () => {
+    const { rerender } = render(
+      <AIMessage
+        msg={createMessage("Hel")}
+        imageGallery={[]}
+        isLoading
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    rerender(
+      <AIMessage
+        msg={createMessage("Hello world")}
+        imageGallery={[]}
+        isLoading
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Hel");
+
+    act(() => {
+      vi.advanceTimersByTime(320);
+    });
+
+    expect(screen.getByTestId("markdown").getAttribute("data-content")!.length).toBeGreaterThan(3);
   });
 
   it("strips error tags from markdown content and renders the parsed error block", () => {

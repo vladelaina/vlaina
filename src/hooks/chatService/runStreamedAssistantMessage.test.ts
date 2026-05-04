@@ -101,4 +101,42 @@ describe('runStreamedAssistantMessage', () => {
     expect(completeMessage).toHaveBeenCalledWith('session-1', 'assistant-1');
     expect(setSessionLoading).toHaveBeenLastCalledWith('session-1', false);
   });
+
+  it('keeps streamed content when an aborted request reports a timeout-shaped error', async () => {
+    const controller = new AbortController();
+    requestManagerMocks.start.mockReturnValue(controller);
+    const updateMessage = vi.fn();
+    const completeMessage = vi.fn();
+    const setSessionLoading = vi.fn();
+    const setError = vi.fn();
+
+    const status = await runStreamedAssistantMessage({
+      sessionId: 'session-1',
+      assistantMessageId: 'assistant-1',
+      execute: async (onChunk) => {
+        onChunk('already streamed');
+        controller.abort();
+        throw new Error('The AI request timed out.');
+      },
+      updateMessage,
+      completeMessage,
+      setSessionLoading,
+      setError,
+      buildErrorPayload: () => ({
+        message: 'The request timed out. Please try again later.',
+        xml: '<error>The request timed out. Please try again later.</error>',
+      }),
+    });
+
+    expect(status).toBe('aborted');
+    expect(setError).toHaveBeenCalledWith(null);
+    expect(updateMessage).toHaveBeenLastCalledWith('session-1', 'assistant-1', 'already streamed');
+    expect(updateMessage).not.toHaveBeenCalledWith(
+      'session-1',
+      'assistant-1',
+      '<error>The request timed out. Please try again later.</error>',
+    );
+    expect(completeMessage).toHaveBeenCalledWith('session-1', 'assistant-1');
+    expect(setSessionLoading).toHaveBeenLastCalledWith('session-1', false);
+  });
 });

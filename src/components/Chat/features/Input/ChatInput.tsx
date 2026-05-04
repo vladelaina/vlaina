@@ -62,13 +62,19 @@ export const ChatInput = memo(function ChatInput({
     handleCompositionStart,
     handleCompositionEnd,
   } = useChatComposer({
-    onSend,
+    onSend: (text, nextAttachments, nextNoteMentions) => {
+      if (isLoading) {
+        onStop();
+      }
+      onSend(text, nextAttachments, nextNoteMentions);
+    },
     attachments,
     getNoteMentions: () => noteMentions,
     onAfterSend: () => {
       clearAttachments();
       clearNoteMentions();
     },
+    canSubmit: hasSelectedModel,
     focusTrigger,
   });
 
@@ -227,6 +233,7 @@ export const ChatInput = memo(function ChatInput({
   const canSend =
     (!!message.trim() || attachments.length > 0 || noteMentions.length > 0) &&
     hasSelectedModel;
+  const canSubmit = canSend && !isLoading;
   const handleComposerChange = useCallback(
     (event: React.ChangeEvent<HTMLTextAreaElement>) => {
       handleMessageChange(event.target.value);
@@ -302,7 +309,7 @@ export const ChatInput = memo(function ChatInput({
             onTriggerFileSelect={handleTriggerFileSelect}
             isLoading={isLoading}
             canSend={canSend}
-            hasDraftMessage={!!message.trim()}
+            canSubmit={canSubmit}
             onStop={onStop}
             onSend={() => handleSend()}
           />

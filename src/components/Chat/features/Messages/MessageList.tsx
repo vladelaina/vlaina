@@ -92,6 +92,7 @@ export const MessageList = memo(function MessageList({
   const measuredHeightsRef = useRef(measuredHeights);
   const lastStreamingMessageIdRef = useRef<string | null>(null);
   const measuredHeightContextRef = useRef({
+    activeMeasuredMessageId: null as string | null,
     chatId,
     isSessionActive,
     layoutWidth: 0,
@@ -104,6 +105,10 @@ export const MessageList = memo(function MessageList({
   const lastStreamingMessageId = isSessionActive
     ? messages[messages.length - 1]?.id ?? null
     : null;
+  const activeMeasuredMessageId =
+    isSessionActive && messages[messages.length - 1]?.role === 'assistant'
+      ? messages[messages.length - 1]!.id
+      : null;
   measuredHeightsRef.current = measuredHeights;
   lastStreamingMessageIdRef.current = lastStreamingMessageId;
   const messageById = useMemo(
@@ -113,12 +118,13 @@ export const MessageList = memo(function MessageList({
 
   useEffect(() => {
     measuredHeightContextRef.current = {
+      activeMeasuredMessageId,
       chatId,
       isSessionActive,
       layoutWidth,
       messageById,
     };
-  }, [chatId, isSessionActive, layoutWidth, messageById]);
+  }, [activeMeasuredMessageId, chatId, isSessionActive, layoutWidth, messageById]);
 
   const commitViewportMetrics = useCallback(() => {
     const viewport = containerRef.current;
@@ -164,6 +170,7 @@ export const MessageList = memo(function MessageList({
 
     commitViewportMetrics();
     viewport.addEventListener('scroll', handleScroll, { passive: true });
+    viewport.addEventListener('chat-programmatic-scroll', handleScroll);
 
     let resizeObserver: ResizeObserver | null = null;
     if (typeof ResizeObserver !== 'undefined') {
@@ -175,6 +182,7 @@ export const MessageList = memo(function MessageList({
 
     return () => {
       viewport.removeEventListener('scroll', handleScroll);
+      viewport.removeEventListener('chat-programmatic-scroll', handleScroll);
       resizeObserver?.disconnect();
       if (viewportMetricsRafRef.current !== null) {
         cancelAnimationFrame(viewportMetricsRafRef.current);
@@ -191,13 +199,14 @@ export const MessageList = memo(function MessageList({
 
     setMeasuredHeights((current) => {
       const restored = restoreCachedMeasuredHeights(messages, {
+        activeMessageId: activeMeasuredMessageId,
         cacheKey: chatId,
         containerWidth: layoutWidth,
         isSessionActive,
       });
       return areMeasuredHeightsEqual(current, restored) ? current : restored;
     });
-  }, [chatId, isSessionActive, layoutWidth, messages]);
+  }, [activeMeasuredMessageId, chatId, isSessionActive, layoutWidth, messages]);
 
   const flushMeasuredHeights = useCallback(() => {
     measuredHeightsRafRef.current = null;
@@ -210,6 +219,7 @@ export const MessageList = memo(function MessageList({
 
     const {
       chatId: activeChatId,
+      activeMeasuredMessageId,
       isSessionActive: activeIsSessionActive,
       layoutWidth: activeLayoutWidth,
       messageById: activeMessageById,
@@ -225,7 +235,7 @@ export const MessageList = memo(function MessageList({
         rememberMeasuredChatMessageHeight(message, {
           cacheKey: activeChatId,
           containerWidth: activeLayoutWidth,
-          isSessionActive: activeIsSessionActive,
+          isSessionActive: activeIsSessionActive && message.id === activeMeasuredMessageId,
           height,
         });
       });
@@ -379,12 +389,13 @@ export const MessageList = memo(function MessageList({
 
   const frameLayout = useMemo(
     () => buildChatMessageFrameLayout(messages, {
+      activeMessageId: activeMeasuredMessageId,
       cacheKey: chatId,
       containerWidth: Math.max(layoutWidth, 1),
       isSessionActive,
       measuredHeights,
     }),
-    [chatId, isSessionActive, layoutWidth, measuredHeights, messages]
+    [activeMeasuredMessageId, chatId, isSessionActive, layoutWidth, measuredHeights, messages]
   );
 
   const trailingLayout = useMemo(
@@ -483,6 +494,7 @@ export const MessageList = memo(function MessageList({
       <OverlayScrollArea
         ref={containerRef}
         data-chat-scrollable="true"
+        style={{ overflowAnchor: 'none' }}
         className={cn(
           'transition-opacity duration-500',
           isEmpty ? 'pointer-events-none opacity-0' : 'opacity-100',
@@ -499,6 +511,7 @@ export const MessageList = memo(function MessageList({
   return (
       <div
         data-chat-scrollable="true"
+        style={{ overflowAnchor: 'none' }}
         className={cn(
           'flex-1 overflow-y-auto transition-opacity duration-500',
           isEmpty ? 'pointer-events-none opacity-0' : 'opacity-100',

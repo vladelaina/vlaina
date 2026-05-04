@@ -68,6 +68,7 @@ describe("MessageList", () => {
     expect(scrollable).not.toBeNull();
     expect(scrollable).toHaveClass("opacity-0");
     expect(scrollable).toHaveClass("pointer-events-none");
+    expect(scrollable).toHaveStyle({ overflowAnchor: "none" });
     expect(messageItemSpy).not.toHaveBeenCalled();
   });
 

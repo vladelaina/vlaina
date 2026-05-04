@@ -5,6 +5,7 @@ import {
   CHAT_MARKDOWN_REHYPE_PLUGINS,
   CHAT_MARKDOWN_REMARK_PLUGINS,
 } from "@/components/Chat/features/Markdown/markdownPipeline";
+import { PrimerLightbulbIcon } from "@/components/ui/icons/custom/mit/PrimerLightbulbIcon";
 
 interface ThinkingBlockProps {
   content: string;
@@ -130,14 +131,11 @@ export function ThinkingBlock({
         onClick={handleToggle}
       >
         <div className="relative w-4 h-4 mr-2">
-          <svg
-            className={`w-3 absolute left-0.5 top-1/2 -translate-y-1/2 transition-opacity duration-300 ${
+          <PrimerLightbulbIcon
+            className={`h-4 w-4 absolute left-0 top-0 transition-opacity duration-300 ${
               isCollapsed ? "opacity-100" : "opacity-0"
-            } group-hover/thinking:opacity-0 fill-current`}
-            viewBox="0 0 14 24"
-          >
-            <path d="M0 6.01562C0 9.76562 2.24609 10.6934 2.87109 17.207C2.91016 17.5586 3.10547 17.7832 3.47656 17.7832H9.58984C9.9707 17.7832 10.166 17.5586 10.2051 17.207C10.8301 10.6934 13.0664 9.76562 13.0664 6.01562C13.0664 2.64648 10.1855 0 6.5332 0C2.88086 0 0 2.64648 0 6.01562ZM1.47461 6.01562C1.47461 3.37891 3.78906 1.47461 6.5332 1.47461C9.27734 1.47461 11.5918 3.37891 11.5918 6.01562C11.5918 8.81836 9.73633 9.48242 8.85742 16.3086H4.21875C3.33008 9.48242 1.47461 8.81836 1.47461 6.01562ZM3.44727 19.8926H9.62891C9.95117 19.8926 10.1953 19.6387 10.1953 19.3164C10.1953 19.0039 9.95117 18.75 9.62891 18.75H3.44727C3.125 18.75 2.87109 19.0039 2.87109 19.3164C2.87109 19.6387 3.125 19.8926 3.44727 19.8926ZM6.5332 22.7246C8.04688 22.7246 9.30664 21.9824 9.4043 20.8594H3.67188C3.74023 21.9824 5.00977 22.7246 6.5332 22.7246Z" />
-          </svg>
+            } group-hover/thinking:opacity-0`}
+          />
           <svg
             className={`h-4 w-4 absolute top-0 left-0 transition-all duration-300 ${
               isCollapsed

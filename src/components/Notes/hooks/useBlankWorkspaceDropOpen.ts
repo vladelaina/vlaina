@@ -87,15 +87,8 @@ export function useBlankWorkspaceDropOpen({
       return;
     }
 
-    const storage = getStorageAdapter();
     let cancelled = false;
     let preview: ExternalDragPreviewHandle | null = null;
-
-    logNotesDebug('blankWorkspaceDrop:enabled', {
-      hasElectronBridge: Boolean(getElectronBridge()),
-      hasDragDropBridge: Boolean(getElectronBridge()?.dragDrop),
-      storagePlatform: storage.platform,
-    });
 
     const handleDragEnter = (event: DragEvent) => {
       const overNotesSidebar = isOverNotesSidebar(event);

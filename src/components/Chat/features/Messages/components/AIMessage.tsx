@@ -4,6 +4,7 @@ import { MessageToolbar } from './MessageToolbar';
 import { ErrorBlock } from './ErrorBlock';
 import type { ChatMessage } from '@/lib/ai/types';
 import { parseErrorTag } from '@/lib/ai/errorTag';
+import { useAssistantOutputText } from './useAssistantOutputText';
 
 interface ChatImageGalleryItem {
   id: string;
@@ -56,6 +57,12 @@ export function AIMessage({
         : msg.content,
     };
   }, [msg.content]);
+  const isStreamingContentVisible = isLoading && contentWithoutError.trim().length > 0;
+  const visibleContent = useAssistantOutputText(
+    contentWithoutError || ' ',
+    isStreamingContentVisible,
+    msg.id,
+  );
 
   useEffect(() => {
     setCopiedCodeBlockId(null);
@@ -87,8 +94,8 @@ export function AIMessage({
   return (
     <div className="w-full pl-[15px]">
         <div className="[&>*:last-child]:mb-0">
-            <MarkdownRenderer 
-                content={contentWithoutError || ' '} 
+            <MarkdownRenderer
+                content={visibleContent}
                 imageGallery={imageGallery}
                 getImageGallery={getImageGallery}
                 imageIdBase={msg.id}
@@ -96,6 +103,7 @@ export function AIMessage({
                 copiedCodeBlockId={copiedCodeBlockId}
                 onCopyCodeBlock={handleCodeBlockCopy}
                 startTime={startTime}
+                isStreaming={isStreamingContentVisible}
             />
         </div>
 

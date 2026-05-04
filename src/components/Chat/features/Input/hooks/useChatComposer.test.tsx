@@ -55,4 +55,38 @@ describe('useChatComposer', () => {
       expect.objectContaining({ value: '' }),
     );
   });
+
+  it('blocks send and Enter submission while submit is disabled', () => {
+    const onSend = vi.fn();
+    const onAfterSend = vi.fn();
+    const preventDefault = vi.fn();
+
+    const { result } = renderHook(() =>
+      useChatComposer({
+        onSend,
+        attachments: [],
+        getNoteMentions: () => [],
+        onAfterSend,
+        canSubmit: false,
+      }),
+    );
+
+    act(() => {
+      result.current.handleMessageChange('next message');
+    });
+
+    act(() => {
+      result.current.handleKeyDown({
+        key: 'Enter',
+        shiftKey: false,
+        preventDefault,
+        nativeEvent: {},
+      } as any);
+    });
+
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(onSend).not.toHaveBeenCalled();
+    expect(onAfterSend).not.toHaveBeenCalled();
+    expect(result.current.message).toBe('next message');
+  });
 });

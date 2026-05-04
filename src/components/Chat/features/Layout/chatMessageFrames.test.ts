@@ -160,6 +160,63 @@ describe('chatMessageFrames', () => {
     expect(second.items[1]).toBe(first.items[1]);
   });
 
+  it('does not let stale measured assistant heights overlap following messages while active', () => {
+    const messages = [
+      createMessage('u1', 'user', 'hello'),
+      createMessage('a1', 'assistant', 'line\n\n'.repeat(20)),
+      createMessage('u2', 'user', 'next question'),
+    ];
+    const estimated = buildChatMessageFrameLayout(messages, {
+      activeMessageId: 'a1',
+      cacheKey: 'active-floor-estimated',
+      containerWidth: 900,
+      isSessionActive: true,
+    });
+    const staleAssistantHeight = 24;
+
+    const layout = buildChatMessageFrameLayout(messages, {
+      activeMessageId: 'a1',
+      cacheKey: 'active-floor-measured',
+      containerWidth: 900,
+      isSessionActive: true,
+      measuredHeights: new Map([['a1', staleAssistantHeight]]),
+    });
+
+    expect(layout.items[1]!.height).toBe(estimated.items[1]!.height);
+    expect(layout.items[2]!.top).toBeGreaterThan(
+      layout.items[1]!.top + staleAssistantHeight + CHAT_MESSAGE_LIST_GAP,
+    );
+  });
+
+  it('only floors the active assistant height while a later assistant is streaming', () => {
+    const messages = [
+      createMessage('u1', 'user', 'hello'),
+      createMessage('a1', 'assistant', 'line\n\n'.repeat(20)),
+      createMessage('u2', 'user', 'next question'),
+      createMessage('a2', 'assistant', 'streaming reply'),
+    ];
+    const measuredHeights = new Map<string, number>([
+      ['a1', 80],
+      ['a2', 20],
+    ]);
+    const estimated = buildChatMessageFrameLayout(messages, {
+      activeMessageId: 'a2',
+      cacheKey: 'active-only-estimated',
+      containerWidth: 900,
+      isSessionActive: true,
+    });
+    const layout = buildChatMessageFrameLayout(messages, {
+      activeMessageId: 'a2',
+      cacheKey: 'active-only-measured',
+      containerWidth: 900,
+      isSessionActive: true,
+      measuredHeights,
+    });
+
+    expect(layout.items[1]!.height).toBe(80);
+    expect(layout.items[3]!.height).toBe(estimated.items[3]!.height);
+  });
+
   it('finds a visible message slice using binary search', () => {
     const layout = {
       endOffset: 612,
@@ -316,6 +373,40 @@ describe('chatMessageFrames', () => {
     });
 
     expect(restored.has('u1')).toBe(false);
+  });
+
+  it('uses active measured height cache only for the active tail message', () => {
+    const previousAssistant = createMessage('a1', 'assistant', 'previous answer');
+    const activeAssistant = createMessage('a2', 'assistant', 'streaming answer');
+
+    rememberMeasuredChatMessageHeight(previousAssistant, {
+      cacheKey: 'chat-active-tail',
+      containerWidth: 900,
+      isSessionActive: false,
+      height: 180,
+    });
+    rememberMeasuredChatMessageHeight(previousAssistant, {
+      cacheKey: 'chat-active-tail',
+      containerWidth: 900,
+      isSessionActive: true,
+      height: 420,
+    });
+    rememberMeasuredChatMessageHeight(activeAssistant, {
+      cacheKey: 'chat-active-tail',
+      containerWidth: 900,
+      isSessionActive: true,
+      height: 260,
+    });
+
+    const restored = restoreCachedMeasuredHeights([previousAssistant, activeAssistant], {
+      activeMessageId: 'a2',
+      cacheKey: 'chat-active-tail',
+      containerWidth: 900,
+      isSessionActive: true,
+    });
+
+    expect(restored.get('a1')).toBe(180);
+    expect(restored.get('a2')).toBe(260);
   });
 
   it('builds trailing layout for loading and spacer blocks after messages', () => {

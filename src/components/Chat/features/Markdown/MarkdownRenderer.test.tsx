@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 
 const { reactMarkdownSpy, codeBlockSpy, thinkingBlockSpy } = vi.hoisted(() => ({
   reactMarkdownSpy: vi.fn(),
@@ -20,6 +20,7 @@ vi.mock("react-markdown", () => ({
       >
         <div data-testid="markdown-children">{children}</div>
         {components.p?.({ children: "inline paragraph", "data-testid": "inline-paragraph" })}
+        {components.a?.({ href: "https://example.com", children: "link", "data-testid": "inline-link" })}
         {components.p?.({
           children: <pre data-testid="block-child">block paragraph</pre>,
           "data-testid": "block-paragraph",
@@ -82,6 +83,14 @@ describe("MarkdownRenderer", () => {
     render(<MarkdownRenderer content={"<think>working"} />);
 
     expect(screen.getByTestId("thinking-block")).toHaveTextContent("working");
+    expect(screen.getByTestId("thinking-block")).toHaveAttribute("data-streaming", "false");
+    expect(screen.queryByTestId("react-markdown")).not.toBeInTheDocument();
+  });
+
+  it("keeps incomplete think blocks active while the message is still streaming", () => {
+    render(<MarkdownRenderer content={"<think>working"} isStreaming />);
+
+    expect(screen.getByTestId("thinking-block")).toHaveTextContent("working");
     expect(screen.getByTestId("thinking-block")).toHaveAttribute("data-streaming", "true");
     expect(screen.queryByTestId("react-markdown")).not.toBeInTheDocument();
   });
@@ -91,6 +100,37 @@ describe("MarkdownRenderer", () => {
 
     expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-remark-count", "3");
     expect(screen.getByTestId("react-markdown")).toHaveAttribute("data-rehype-count", "3");
+  });
+
+  it("marks visible streaming markdown for the live transition layer", () => {
+    render(<MarkdownRenderer content={"Visible"} isStreaming />);
+
+    const surface = screen.getByTestId("react-markdown").parentElement;
+    expect(surface).toHaveAttribute("data-chat-markdown-live", "true");
+    expect(surface).toHaveClass("chat-markdown-live");
+  });
+
+  it("freezes streaming markdown while text is being selected", () => {
+    const { rerender } = render(<MarkdownRenderer content={"Visible"} isStreaming />);
+
+    const surface = screen.getByTestId("react-markdown").parentElement!;
+    fireEvent.pointerDown(surface, { button: 0 });
+    rerender(<MarkdownRenderer content={"Visible plus more"} isStreaming />);
+
+    expect(screen.getByTestId("markdown-children")).toHaveTextContent("Visible");
+    expect(screen.getByTestId("markdown-children")).not.toHaveTextContent("Visible plus more");
+    expect(surface).not.toHaveAttribute("data-chat-markdown-live");
+    expect(surface).not.toHaveClass("chat-markdown-live");
+  });
+
+  it("does not freeze streaming markdown when interactive content is clicked", () => {
+    const { rerender } = render(<MarkdownRenderer content={"Visible"} isStreaming />);
+
+    fireEvent.pointerDown(screen.getByTestId("inline-link"), { button: 0 });
+    rerender(<MarkdownRenderer content={"Visible plus more"} isStreaming />);
+
+    expect(screen.getByTestId("markdown-children")).toHaveTextContent("Visible plus more");
+    expect(screen.getByTestId("react-markdown").parentElement).toHaveAttribute("data-chat-markdown-live", "true");
   });
 
   it("assigns stable code block ids and controlled copied state", () => {
