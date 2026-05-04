@@ -22,11 +22,29 @@ export function CoverPicker({
   const [activeTab, setActiveTab] = useState<CoverPickerTab>('library');
   const [isUploading, setIsUploading] = useState(false);
 
-  const { getAssetList, loadAssets, uploadAsset } = useNotesStore();
+  const assetList = useNotesStore((state) => state.assetList);
+  const loadAssets = useNotesStore((state) => state.loadAssets);
+  const uploadAsset = useNotesStore((state) => state.uploadAsset);
   const uploadingRef = useRef(false);
+  const mountedRef = useRef(true);
+  const isOpenRef = useRef(isOpen);
 
-  const assets = getAssetList('builtinCovers');
-  const hasAssets = assets.length > 0;
+  const hasAssets = assetList.length > 0;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      uploadingRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    isOpenRef.current = isOpen;
+    if (!isOpen) {
+      uploadingRef.current = false;
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && vaultPath) {
@@ -81,6 +99,10 @@ export function CoverPicker({
             setIsUploading(true);
 
             const result = await uploadAsset(file, currentNotePath);
+
+            if (!mountedRef.current || !isOpenRef.current) {
+              return;
+            }
 
             uploadingRef.current = false;
             setIsUploading(false);

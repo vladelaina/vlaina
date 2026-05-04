@@ -275,7 +275,7 @@ export function MarkdownEditor({
 
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const currentNoteDiskRevision = useNotesStore(s => s.currentNoteDiskRevision);
-  const openTabs = useNotesStore(s => s.openTabs);
+  const openTabPathsKey = useNotesStore(s => s.openTabs.map((tab) => tab.path).join('\0'));
   const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
   const isStarred = useNotesStore(s => s.isStarred);
   const toggleStarred = useNotesStore(s => s.toggleStarred);
@@ -327,13 +327,13 @@ export function MarkdownEditor({
   }, []);
 
   useEffect(() => {
-    const openTabPaths = new Set(openTabs.map((tab) => tab.path));
+    const openTabPaths = new Set(openTabPathsKey ? openTabPathsKey.split('\0') : []);
     for (const path of scrollPositionsRef.current.keys()) {
       if (!openTabPaths.has(path)) {
         scrollPositionsRef.current.delete(path);
       }
     }
-  }, [openTabs]);
+  }, [openTabPathsKey]);
 
   useEffect(() => {
     const scrollRoot = scrollRootRef.current;

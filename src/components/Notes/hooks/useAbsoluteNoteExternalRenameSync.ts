@@ -12,6 +12,7 @@ import {
   normalizeFsPath,
   toVaultRelativePath,
 } from './notesExternalSyncUtils';
+import { rememberProcessedRenameEventNonce } from './notesExternalRenameQueue';
 
 export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | undefined) {
   const applyExternalPathRename = useNotesStore((state) => state.applyExternalPathRename);
@@ -33,10 +34,9 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
 
     async function applyRenameEvent(event: { nonce?: string; oldPath: string; newPath: string }) {
       if (event.nonce) {
-        if (processedRenameEventNoncesRef.current.has(event.nonce)) {
+        if (!rememberProcessedRenameEventNonce(processedRenameEventNoncesRef.current, event.nonce)) {
           return;
         }
-        processedRenameEventNoncesRef.current.add(event.nonce);
       }
 
       await applyExternalPathRename(event.oldPath, event.newPath);

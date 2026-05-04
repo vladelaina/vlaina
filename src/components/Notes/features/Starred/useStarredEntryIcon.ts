@@ -4,7 +4,15 @@ import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
 import type { StarredEntry } from '@/stores/notes/types';
 
-const starredIconCache = new Map<string, string | null>();
+const MAX_STARRED_ICON_CACHE_ENTRIES = 300;
+
+interface StarredIconCacheEntry {
+  modifiedAt: number | null;
+  size: number | null;
+  icon: string | null;
+}
+
+const starredIconCache = new Map<string, StarredIconCacheEntry>();
 
 function getStarredIconCacheKey(entry: StarredEntry) {
   const vaultPath = entry.vaultPath.replace(/\\/g, '/').replace(/\/+$/, '');
@@ -12,11 +20,50 @@ function getStarredIconCacheKey(entry: StarredEntry) {
   return `${vaultPath}/${relativePath}`;
 }
 
+function touchStarredIconCacheEntry(cacheKey: string, entry: StarredIconCacheEntry) {
+  starredIconCache.delete(cacheKey);
+  starredIconCache.set(cacheKey, entry);
+}
+
+function setStarredIconCacheEntry(cacheKey: string, entry: StarredIconCacheEntry) {
+  touchStarredIconCacheEntry(cacheKey, entry);
+
+  while (starredIconCache.size > MAX_STARRED_ICON_CACHE_ENTRIES) {
+    const oldestKey = starredIconCache.keys().next().value;
+    if (oldestKey === undefined) {
+      return;
+    }
+    starredIconCache.delete(oldestKey);
+  }
+}
+
+function getFreshStarredIconCacheEntry(
+  cacheKey: string,
+  modifiedAt: number | null,
+  size: number | null,
+) {
+  const cached = starredIconCache.get(cacheKey);
+  if (!cached) {
+    return null;
+  }
+
+  const canValidateCache = modifiedAt !== null || size !== null;
+  if (!canValidateCache || cached.modifiedAt !== modifiedAt || cached.size !== size) {
+    return null;
+  }
+
+  touchStarredIconCacheEntry(cacheKey, cached);
+  return cached;
+}
+
 export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
-  const cacheKey = useMemo(() => getStarredIconCacheKey(entry), [entry]);
+  const cacheKey = useMemo(
+    () => getStarredIconCacheKey(entry),
+    [entry.relativePath, entry.vaultPath],
+  );
   const [icon, setIcon] = useState<string | undefined>(() => {
     const cached = starredIconCache.get(cacheKey);
-    return cached ?? undefined;
+    return cached?.icon ?? undefined;
   });
 
   useEffect(() => {
@@ -24,24 +71,38 @@ export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
       return;
     }
 
-    const cached = starredIconCache.get(cacheKey);
-    if (cached !== undefined) {
-      setIcon(cached ?? undefined);
-      return;
-    }
-
     let cancelled = false;
     void (async () => {
       try {
         const fullPath = await joinPath(entry.vaultPath, entry.relativePath);
-        const content = await getStorageAdapter().readFile(fullPath);
+        const storage = getStorageAdapter();
+        const fileInfo = await storage.stat(fullPath).catch(() => null);
+        const modifiedAt = fileInfo?.modifiedAt ?? null;
+        const size = fileInfo?.size ?? null;
+        const freshCached = getFreshStarredIconCacheEntry(cacheKey, modifiedAt, size);
+        if (freshCached) {
+          if (!cancelled) {
+            setIcon(freshCached.icon ?? undefined);
+          }
+          return;
+        }
+
+        const content = await storage.readFile(fullPath);
         const nextIcon = readNoteMetadataFromMarkdown(content).icon ?? null;
-        starredIconCache.set(cacheKey, nextIcon);
+        setStarredIconCacheEntry(cacheKey, {
+          modifiedAt,
+          size,
+          icon: nextIcon,
+        });
         if (!cancelled) {
           setIcon(nextIcon ?? undefined);
         }
       } catch {
-        starredIconCache.set(cacheKey, null);
+        setStarredIconCacheEntry(cacheKey, {
+          modifiedAt: null,
+          size: null,
+          icon: null,
+        });
         if (!cancelled) {
           setIcon(undefined);
         }

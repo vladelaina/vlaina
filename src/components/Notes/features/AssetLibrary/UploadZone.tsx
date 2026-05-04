@@ -12,7 +12,8 @@ interface ExtendedUploadZoneProps extends UploadZoneProps {
 
 export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, currentNotePath }: ExtendedUploadZoneProps) {
 
-  const { uploadAsset, uploadProgress } = useNotesStore();
+  const uploadAsset = useNotesStore((state) => state.uploadAsset);
+  const uploadProgress = useNotesStore((state) => state.uploadProgress);
   const [status, setStatus] = useState<UploadStatus>('idle');
   const [message, setMessage] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);

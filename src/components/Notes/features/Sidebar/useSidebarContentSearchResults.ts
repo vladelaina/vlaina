@@ -12,6 +12,7 @@ export function useSidebarContentSearchResults({
   getDisplayName,
   noteContentsCache,
   scanAllNotes,
+  pruneNoteContentsCacheToOpenNotes,
   searchQuery,
   isSearchOpen,
 }: {
@@ -19,10 +20,12 @@ export function useSidebarContentSearchResults({
   getDisplayName: (path: string) => string;
   noteContentsCache: Map<string, { content: string }>;
   scanAllNotes: () => Promise<unknown>;
+  pruneNoteContentsCacheToOpenNotes: () => void;
   searchQuery: string;
   isSearchOpen: boolean;
 }) {
   const contentScanPromiseRef = useRef<Promise<unknown> | null>(null);
+  const shouldPruneAfterScanRef = useRef(false);
   const [isContentScanPending, setIsContentScanPending] = useState(false);
 
   const searchIndex = useMemo(
@@ -59,8 +62,14 @@ export function useSidebarContentSearchResults({
       isContentIndexReady
     ) {
       setIsContentScanPending(false);
+      if (!isSearchOpen || !shouldSearchContents) {
+        shouldPruneAfterScanRef.current = true;
+        pruneNoteContentsCacheToOpenNotes();
+      }
       return;
     }
+
+    shouldPruneAfterScanRef.current = false;
 
     if (contentScanPromiseRef.current) {
       setIsContentScanPending(true);
@@ -84,6 +93,10 @@ export function useSidebarContentSearchResults({
         if (!cancelled) {
           setIsContentScanPending(false);
         }
+
+        if (shouldPruneAfterScanRef.current) {
+          pruneNoteContentsCacheToOpenNotes();
+        }
       });
 
     contentScanPromiseRef.current = promise;
@@ -94,6 +107,7 @@ export function useSidebarContentSearchResults({
   }, [
     isContentIndexReady,
     isSearchOpen,
+    pruneNoteContentsCacheToOpenNotes,
     scanAllNotes,
     searchableNoteCount,
     shouldSearchContents,

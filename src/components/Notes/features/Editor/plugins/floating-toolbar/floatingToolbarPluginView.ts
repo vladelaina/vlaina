@@ -564,6 +564,7 @@ export function createFloatingToolbarPluginView(
       updateToolbar();
     },
     destroy() {
+      abortActiveAiSelectionReview(editorView);
       if (pendingRaf !== null) {
         cancelAnimationFrame(pendingRaf);
       }

@@ -90,7 +90,11 @@ export const mermaidSchema = $node('mermaid', () => ({
     wrapper.appendChild(placeholder);
     
     if (attrs.code) {
-      renderMermaid(attrs.code, id).then((svg) => {
+      const codeSnapshot = attrs.code;
+      renderMermaid(codeSnapshot, id).then((svg) => {
+        if (!wrapper.isConnected || wrapper.dataset.code !== codeSnapshot) {
+          return;
+        }
         wrapper.innerHTML = svg;
       });
     } else {

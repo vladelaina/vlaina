@@ -124,7 +124,7 @@ export async function runAiSelectionReviewCommand(
       controller.signal,
       { suppressToast: true }
     );
-    if (controller.signal.aborted) {
+    if (controller.signal.aborted || !view.dom.isConnected) {
       return false;
     }
 

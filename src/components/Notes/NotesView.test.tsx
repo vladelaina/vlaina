@@ -5,6 +5,9 @@ import { dispatchDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEve
 import { matchesShortcutBinding } from '@/lib/shortcuts';
 import { messageDialog } from '@/lib/storage/dialog';
 import { NotesView } from './NotesView';
+import { useAbsoluteNoteExternalRenameSync } from './hooks/useAbsoluteNoteExternalRenameSync';
+import { useCurrentVaultExternalPathSync } from './hooks/useCurrentVaultExternalPathSync';
+import { useNotesExternalSync } from './hooks/useNotesExternalSync';
 
 type MockNotesState = {
   currentNote: { path: string; content: string } | null;
@@ -221,6 +224,10 @@ vi.mock('./hooks/useNotesExternalSync', () => ({
   useNotesExternalSync: vi.fn(),
 }));
 
+vi.mock('./hooks/useAbsoluteNoteExternalRenameSync', () => ({
+  useAbsoluteNoteExternalRenameSync: vi.fn(),
+}));
+
 vi.mock('@/stores/notes/openNotePath', () => ({
   openStoredNotePath: vi.fn(),
 }));
@@ -326,10 +333,24 @@ describe('NotesView', () => {
     notesState.getDisplayName.mockClear();
     mocks.vaultState.openVault.mockClear();
     vi.mocked(messageDialog).mockReset();
+    vi.mocked(useAbsoluteNoteExternalRenameSync).mockClear();
+    vi.mocked(useCurrentVaultExternalPathSync).mockClear();
+    vi.mocked(useNotesExternalSync).mockClear();
 
     uiState.setNotesChatPanelCollapsed.mockClear();
     uiState.toggleNotesChatPanel.mockClear();
     uiState.setLayoutPanelDragging.mockClear();
+  });
+
+  it('disables external note sync hooks while inactive', () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    notesState.openTabs = [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }];
+
+    render(<NotesView active={false} />);
+
+    expect(useCurrentVaultExternalPathSync).toHaveBeenCalledWith(null);
+    expect(useNotesExternalSync).toHaveBeenCalledWith(null, '');
+    expect(useAbsoluteNoteExternalRenameSync).toHaveBeenCalledWith(undefined);
   });
 
   it('ignores blank-workspace drops while inactive', async () => {

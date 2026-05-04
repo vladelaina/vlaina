@@ -45,6 +45,7 @@ export function useImageBlockFrame({
         return () => {
             if (hoverTimeoutRef.current) {
                 clearTimeout(hoverTimeoutRef.current);
+                hoverTimeoutRef.current = undefined;
             }
         };
     }, []);
@@ -69,6 +70,9 @@ export function useImageBlockFrame({
         }
 
         if (isEditingCaption || isActive) return;
+        if (hoverTimeoutRef.current) {
+            clearTimeout(hoverTimeoutRef.current);
+        }
         hoverTimeoutRef.current = setTimeout(() => setIsHovered(false), HOVER_HIDE_DELAY_MS);
     }, [isHoverDisabled, isEditingCaption, isActive, setIsHovered]);
 

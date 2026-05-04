@@ -4,17 +4,35 @@ import { useUIStore } from '@/stores/uiSlice';
 import { normalizeNotePathKey, resolveNoteDisplayName } from '@/lib/notes/displayName';
 import { resolveDraftNoteTitle } from '@/stores/notes/draftNote';
 
+const TITLE_SNAPSHOT_SEPARATOR = '\u001f';
+
+function encodeTitleSnapshot(displayName: string | undefined, draftName: string | undefined): string {
+  return `${displayName ?? ''}${TITLE_SNAPSHOT_SEPARATOR}${draftName ?? ''}`;
+}
+
+function decodeTitleSnapshot(snapshot: string): {
+  displayName: string | undefined;
+  draftName: string | undefined;
+} {
+  const separatorIndex = snapshot.indexOf(TITLE_SNAPSHOT_SEPARATOR);
+  const displayName = separatorIndex === -1 ? snapshot : snapshot.slice(0, separatorIndex);
+  const draftName = separatorIndex === -1 ? '' : snapshot.slice(separatorIndex + 1);
+  return {
+    displayName: displayName || undefined,
+    draftName: draftName || undefined,
+  };
+}
+
 export function useDisplayName(path: string | undefined): string | undefined {
   const normalizedPath = normalizeNotePathKey(path);
 
-  const getDisplayNameSnapshot = useCallback(() => {
-    if (!path) return undefined;
-    return useNotesStore.getState().displayNames.get(path);
-  }, [path]);
-
-  const getDraftNameSnapshot = useCallback(() => {
-    if (!path) return undefined;
-    return useNotesStore.getState().draftNotes[path]?.name;
+  const getNotesTitleSnapshot = useCallback(() => {
+    if (!path) return encodeTitleSnapshot(undefined, undefined);
+    const notesState = useNotesStore.getState();
+    return encodeTitleSnapshot(
+      notesState.displayNames.get(path),
+      notesState.draftNotes[path]?.name,
+    );
   }, [path]);
 
   const getPreviewTitleSnapshot = useCallback(() => {
@@ -26,16 +44,10 @@ export function useDisplayName(path: string | undefined): string | undefined {
       : undefined;
   }, [normalizedPath, path]);
 
-  const displayName = useSyncExternalStore(
+  const notesTitleSnapshot = useSyncExternalStore(
     useNotesStore.subscribe,
-    getDisplayNameSnapshot,
-    getDisplayNameSnapshot,
-  );
-
-  const draftName = useSyncExternalStore(
-    useNotesStore.subscribe,
-    getDraftNameSnapshot,
-    getDraftNameSnapshot,
+    getNotesTitleSnapshot,
+    getNotesTitleSnapshot,
   );
 
   const previewTitle = useSyncExternalStore(
@@ -43,6 +55,8 @@ export function useDisplayName(path: string | undefined): string | undefined {
     getPreviewTitleSnapshot,
     getPreviewTitleSnapshot,
   );
+
+  const { displayName, draftName } = decodeTitleSnapshot(notesTitleSnapshot);
 
   if (previewTitle?.trim()) return previewTitle.trim();
   if (draftName !== undefined) return resolveDraftNoteTitle(draftName);

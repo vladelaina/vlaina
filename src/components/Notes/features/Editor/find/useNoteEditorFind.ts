@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore, type KeyboardEventHandler } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore, type KeyboardEventHandler } from 'react';
 import {
   clearEditorFind,
   getEditorFindSnapshot,
@@ -15,6 +15,7 @@ import { useNoteEditorFindPanelState } from './useNoteEditorFindPanelState';
 export function useNoteEditorFind(
   notePath: string | null | undefined,
 ): NoteEditorFindController {
+  const restoreFocusFrameRef = useRef<number | null>(null);
   const snapshot = useSyncExternalStore(
     subscribeEditorFindSnapshot,
     getEditorFindSnapshot,
@@ -34,13 +35,25 @@ export function useNoteEditorFind(
       }
 
       if (restoreFocus) {
-        requestAnimationFrame(() => {
+        if (restoreFocusFrameRef.current !== null) {
+          cancelAnimationFrame(restoreFocusFrameRef.current);
+        }
+
+        restoreFocusFrameRef.current = requestAnimationFrame(() => {
+          restoreFocusFrameRef.current = null;
           view?.focus();
         });
       }
     },
     [resolveView],
   );
+
+  useEffect(() => () => {
+    if (restoreFocusFrameRef.current !== null) {
+      cancelAnimationFrame(restoreFocusFrameRef.current);
+      restoreFocusFrameRef.current = null;
+    }
+  }, []);
 
   const panelState = useNoteEditorFindPanelState({
     notePath,

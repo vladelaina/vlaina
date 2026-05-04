@@ -10,6 +10,7 @@ import { ensureFileNodeInTree } from '../fileTreePreservation';
 import { DEFAULT_FILE_TREE_SORT_MODE, sortNestedFileTree } from '../fileTreeSorting';
 import {
   ensureNotesFolder,
+  getCurrentVaultPath,
   getNotesBasePath,
   loadNoteMetadata,
   loadWorkspaceState,
@@ -20,6 +21,7 @@ import type { FileSystemSlice, FileSystemSliceGet, FileSystemSliceSet } from './
 
 let pendingWorkspaceSnapshotTimeout: ReturnType<typeof setTimeout> | null = null;
 let pendingWorkspaceSnapshotGet: FileSystemSliceGet | null = null;
+let latestLoadFileTreeRequestId = 0;
 
 function scheduleWorkspaceSnapshotPersistence(get: FileSystemSliceGet) {
   pendingWorkspaceSnapshotGet = get;
@@ -54,6 +56,7 @@ export function createFileSystemTreeActions(
 ): Pick<FileSystemSlice, 'loadFileTree' | 'toggleFolder' | 'revealFolder' | 'setFileTreeSortMode'> {
   return {
     loadFileTree: async (skipRestore = false) => {
+      const requestId = ++latestLoadFileTreeRequestId;
       const shouldShowLoading = !get().rootFolder;
       set(shouldShowLoading ? { isLoading: true, error: null } : { error: null });
       try {
@@ -68,6 +71,10 @@ export function createFileSystemTreeActions(
           mode: fileTreeSortMode,
           metadata,
         });
+        if (requestId !== latestLoadFileTreeRequestId || getCurrentVaultPath() !== basePath) {
+          return;
+        }
+
         const currentNote = get().currentNote;
         if (currentNote && !isAbsolutePath(currentNote.path)) {
           children = sortNestedFileTree(ensureFileNodeInTree(children, currentNote.path), {
@@ -85,6 +92,10 @@ export function createFileSystemTreeActions(
           : (workspace?.expandedFolders?.length
               ? restoreExpandedState(children, new Set(workspace.expandedFolders))
               : children);
+
+        if (requestId !== latestLoadFileTreeRequestId || getCurrentVaultPath() !== basePath) {
+          return;
+        }
 
         set({
           notesPath: basePath,
@@ -106,19 +117,27 @@ export function createFileSystemTreeActions(
         if (!skipRestore && currentNotePath) {
           try {
             const fullPath = await joinPath(basePath, currentNotePath);
-            if (await storage.exists(fullPath)) {
+            if (
+              requestId === latestLoadFileTreeRequestId &&
+              getCurrentVaultPath() === basePath &&
+              await storage.exists(fullPath)
+            ) {
               await get().openNote(currentNotePath);
             }
           } catch {
           }
         }
 
-        set({ isLoading: false });
+        if (requestId === latestLoadFileTreeRequestId && getCurrentVaultPath() === basePath) {
+          set({ isLoading: false });
+        }
       } catch (error) {
-        set({
-          error: error instanceof Error ? error.message : 'Failed to load notes',
-          isLoading: false,
-        });
+        if (requestId === latestLoadFileTreeRequestId) {
+          set({
+            error: error instanceof Error ? error.message : 'Failed to load notes',
+            isLoading: false,
+          });
+        }
       }
     },
 

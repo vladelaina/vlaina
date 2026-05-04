@@ -28,11 +28,15 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
     useEffect(() => {
         if (isEditing && inputRef.current) {
             const input = inputRef.current;
-            setTimeout(() => {
+            const focusTimer = window.setTimeout(() => {
                 input.focus();
                 const len = input.value.length;
                 input.setSelectionRange(len, len);
             }, 0);
+
+            return () => {
+                window.clearTimeout(focusTimer);
+            };
         }
     }, [isEditing]);
 

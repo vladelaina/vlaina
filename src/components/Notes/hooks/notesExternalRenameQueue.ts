@@ -3,6 +3,30 @@ export interface PendingRenameEntry {
   expiresAt: number;
 }
 
+export const MAX_PROCESSED_RENAME_EVENT_NONCES = 200;
+
+export function rememberProcessedRenameEventNonce(
+  processedNonces: Set<string>,
+  nonce: string,
+  maxNonces = MAX_PROCESSED_RENAME_EVENT_NONCES,
+): boolean {
+  if (processedNonces.has(nonce)) {
+    return false;
+  }
+
+  processedNonces.add(nonce);
+
+  while (processedNonces.size > maxNonces) {
+    const oldestNonce = processedNonces.keys().next().value;
+    if (oldestNonce === undefined) {
+      break;
+    }
+    processedNonces.delete(oldestNonce);
+  }
+
+  return true;
+}
+
 export function queuePendingRename(
   queue: PendingRenameEntry[],
   oldPath: string,

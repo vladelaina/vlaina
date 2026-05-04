@@ -62,7 +62,8 @@ export function NotesView({ active = true }: { active?: boolean }) {
   const confirmPendingDraftDiscard = useNotesStore(s => s.confirmPendingDraftDiscard);
   const getDisplayName = useNotesStore(s => s.getDisplayName);
 
-  const { currentVault, openVault } = useVaultStore();
+  const currentVault = useVaultStore((state) => state.currentVault);
+  const openVault = useVaultStore((state) => state.openVault);
   const sidebarWidth = useUIStore((s) => s.sidebarWidth);
   const chatPanelCollapsed = useUIStore((s) => s.notesChatPanelCollapsed);
   const setChatPanelCollapsed = useUIStore((s) => s.setNotesChatPanelCollapsed);
@@ -108,9 +109,10 @@ export function NotesView({ active = true }: { active?: boolean }) {
   });
 
   useModuleShortcutsDialog({ enabled: active, onToggle: toggleShortcutsDialog });
-  useCurrentVaultExternalPathSync(currentVault?.path ?? null);
-  useNotesExternalSync(currentVault?.path ?? null, notesPath);
-  useAbsoluteNoteExternalRenameSync(currentNotePath);
+  const activeVaultPath = active ? currentVault?.path ?? null : null;
+  useCurrentVaultExternalPathSync(activeVaultPath);
+  useNotesExternalSync(activeVaultPath, active ? notesPath : '');
+  useAbsoluteNoteExternalRenameSync(active ? currentNotePath : undefined);
   useCurrentVaultInitialization({
     currentVaultPath: currentVault?.path ?? null,
     launchNotePath: launchContextRef.current.notePath,

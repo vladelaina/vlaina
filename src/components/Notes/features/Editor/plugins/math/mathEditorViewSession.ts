@@ -29,6 +29,7 @@ export function createMathEditorViewSession(args: {
   let renderedState: Pick<MathEditorState, 'nodePos' | 'displayMode'> | null = null;
   let suppressOutsideMouseDown = false;
   let suppressOutsideMouseDownTimer: number | null = null;
+  let focusTextareaTimer: number | null = null;
   const scrollRoot = getScrollRoot(editorView);
   const contentRoot = editorView.dom.closest('[data-note-content-root="true"]') as HTMLElement | null;
   const positionRoot = contentRoot ?? scrollRoot;
@@ -96,7 +97,12 @@ export function createMathEditorViewSession(args: {
   };
 
   const focusTextareaAtEnd = () => {
-    setTimeout(() => {
+    if (focusTextareaTimer !== null && typeof window !== 'undefined') {
+      window.clearTimeout(focusTextareaTimer);
+    }
+
+    focusTextareaTimer = window.setTimeout(() => {
+      focusTextareaTimer = null;
       const nextTextarea = refs.textareaElement;
       nextTextarea?.focus();
       const length = nextTextarea?.value.length ?? 0;
@@ -185,9 +191,13 @@ export function createMathEditorViewSession(args: {
       if (suppressOutsideMouseDownTimer !== null && typeof window !== 'undefined') {
         window.clearTimeout(suppressOutsideMouseDownTimer);
       }
+      if (focusTextareaTimer !== null && typeof window !== 'undefined') {
+        window.clearTimeout(focusTextareaTimer);
+      }
       resetSessionDom();
       suppressOutsideMouseDown = false;
       suppressOutsideMouseDownTimer = null;
+      focusTextareaTimer = null;
     },
   };
 }

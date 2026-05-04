@@ -102,6 +102,10 @@ export function useCropperInteraction({
         currentRef.addEventListener('wheel', onWheel, { passive: false });
         return () => {
             currentRef.removeEventListener('wheel', onWheel);
+            if (autoSaveTimeoutRef.current) {
+                clearTimeout(autoSaveTimeoutRef.current);
+                autoSaveTimeoutRef.current = null;
+            }
         };
     }, [isActive, minZoomLimit, performSave, setZoom, containerRef]);
 

@@ -13,6 +13,28 @@ export type { MetadataFile, NoteMetadataEntry };
 
 const CURRENT_METADATA_VERSION = 2;
 const DEFAULT_NOTE_ICON_SIZE = 60;
+const MAX_METADATA_CACHE_VAULTS = 8;
+
+interface CachedMetadataEntry {
+  modifiedAt: number | null;
+  size: number | null;
+  metadata: NoteMetadataEntry;
+}
+
+const metadataCacheByVault = new Map<string, Map<string, CachedMetadataEntry>>();
+
+function setMetadataVaultCache(vaultPath: string, cache: Map<string, CachedMetadataEntry>) {
+  metadataCacheByVault.delete(vaultPath);
+  metadataCacheByVault.set(vaultPath, cache);
+
+  while (metadataCacheByVault.size > MAX_METADATA_CACHE_VAULTS) {
+    const oldestVaultPath = metadataCacheByVault.keys().next().value;
+    if (oldestVaultPath === undefined) {
+      return;
+    }
+    metadataCacheByVault.delete(oldestVaultPath);
+  }
+}
 
 export function loadRecentNotes(): string[] {
   try {
@@ -136,6 +158,9 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
     const storage = getStorageAdapter();
     const notePaths = await collectMarkdownPaths(vaultPath);
     const notes: MetadataFile['notes'] = {};
+    const vaultCache = metadataCacheByVault.get(vaultPath) ?? new Map<string, CachedMetadataEntry>();
+    setMetadataVaultCache(vaultPath, vaultCache);
+    const nextCache = new Map<string, CachedMetadataEntry>();
 
     const BATCH_SIZE = 10;
     for (let index = 0; index < notePaths.length; index += BATCH_SIZE) {
@@ -143,10 +168,31 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
       const results = await Promise.allSettled(
         batch.map(async (relativePath) => {
           const fullPath = await joinPath(vaultPath, relativePath);
+          const fileInfo = await storage.stat(fullPath).catch(() => null);
+          const modifiedAt = fileInfo?.modifiedAt ?? null;
+          const size = fileInfo?.size ?? null;
+          const canUseCache = modifiedAt !== null || size !== null;
+          const cached = vaultCache.get(relativePath);
+          if (canUseCache && cached && cached.modifiedAt === modifiedAt && cached.size === size) {
+            nextCache.set(relativePath, cached);
+            return {
+              relativePath,
+              metadata: cached.metadata,
+            };
+          }
+
           const content = await storage.readFile(fullPath);
+          const metadata = normalizeLoadedEntry(readNoteMetadataFromMarkdown(content));
+          if (canUseCache) {
+            nextCache.set(relativePath, {
+              modifiedAt,
+              size,
+              metadata,
+            });
+          }
           return {
             relativePath,
-            metadata: normalizeLoadedEntry(readNoteMetadataFromMarkdown(content)),
+            metadata,
           };
         })
       );
@@ -162,6 +208,8 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
         }
       }
     }
+
+    setMetadataVaultCache(vaultPath, nextCache);
 
     return {
       version: CURRENT_METADATA_VERSION,
