@@ -8,6 +8,7 @@ import { getLinkUrl } from './selectionHelpers';
 import { TOOLBAR_ACTIONS, type FloatingToolbarState } from './types';
 
 type ToolbarActionHandler = (view: EditorView) => boolean | Promise<boolean>;
+type ToggleableSubMenu = 'ai' | 'color' | 'block' | 'alignment';
 
 function getSelectedCodeBlockDom(view: EditorView, from: number, to: number): HTMLElement | null {
   let codeBlockDom: HTMLElement | null = null;
@@ -81,7 +82,7 @@ function deleteSelectionRange(view: EditorView, from: number, to: number) {
 function dispatchSubMenuToggle(
   view: EditorView,
   currentState: FloatingToolbarState | null,
-  nextSubMenu: 'ai' | 'color' | 'block' | 'alignment'
+  nextSubMenu: ToggleableSubMenu
 ) {
   if (!currentState) {
     return false;
@@ -101,8 +102,21 @@ export interface ToolbarActionController {
   destroy: () => void;
 }
 
+export interface ToolbarActionControllerOptions {
+  onToggleSubMenu?: (
+    view: EditorView,
+    currentState: FloatingToolbarState | null,
+    nextSubMenu: ToggleableSubMenu
+  ) => boolean;
+  onCloseToolbar?: (
+    view: EditorView,
+    currentState: FloatingToolbarState | null
+  ) => boolean;
+}
+
 export function createToolbarActionController(
-  getCurrentState: () => FloatingToolbarState | null
+  getCurrentState: () => FloatingToolbarState | null,
+  options: ToolbarActionControllerOptions = {}
 ): ToolbarActionController {
   let copyFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -197,11 +211,25 @@ export function createToolbarActionController(
         return false;
       }
 
-      return dispatchSubMenuToggle(view, getCurrentState(), 'ai');
+      const currentState = getCurrentState();
+      return options.onToggleSubMenu?.(view, currentState, 'ai')
+        ?? dispatchSubMenuToggle(view, currentState, 'ai');
     },
-    color: (view) => dispatchSubMenuToggle(view, getCurrentState(), 'color'),
-    block: (view) => dispatchSubMenuToggle(view, getCurrentState(), 'block'),
-    alignment: (view) => dispatchSubMenuToggle(view, getCurrentState(), 'alignment'),
+    color: (view) => {
+      const currentState = getCurrentState();
+      return options.onToggleSubMenu?.(view, currentState, 'color')
+        ?? dispatchSubMenuToggle(view, currentState, 'color');
+    },
+    block: (view) => {
+      const currentState = getCurrentState();
+      return options.onToggleSubMenu?.(view, currentState, 'block')
+        ?? dispatchSubMenuToggle(view, currentState, 'block');
+    },
+    alignment: (view) => {
+      const currentState = getCurrentState();
+      return options.onToggleSubMenu?.(view, currentState, 'alignment')
+        ?? dispatchSubMenuToggle(view, currentState, 'alignment');
+    },
   };
 
   return {

@@ -20,7 +20,15 @@ function getActiveReviewRequestKey(view: EditorView): string | null {
   return floatingToolbarKey.getState(view.state)?.aiReview?.requestKey ?? null;
 }
 
-function abortReviewRequest(requestKey: string | null) {
+function hasAiSelectionReview(view: EditorView, requestKey: string): boolean {
+  const toolbarState = floatingToolbarKey.getState(view.state);
+  return Boolean(
+    toolbarState?.aiReview?.requestKey === requestKey ||
+    toolbarState?.aiReviews?.some((review) => review.requestKey === requestKey)
+  );
+}
+
+export function abortAiSelectionReviewRequest(requestKey: string | null) {
   if (!requestKey) {
     return;
   }
@@ -35,7 +43,7 @@ function abortReviewRequest(requestKey: string | null) {
 }
 
 export function abortActiveAiSelectionReview(view: EditorView): void {
-  abortReviewRequest(getActiveReviewRequestKey(view));
+  abortAiSelectionReviewRequest(getActiveReviewRequestKey(view));
 }
 
 export function openAiSelectionReview(view: EditorView, requestKey?: string): boolean {
@@ -88,7 +96,7 @@ export async function runAiSelectionReviewCommand(
   }
 
   const requestKey = review.requestKey || `review-${crypto.randomUUID()}`;
-  abortReviewRequest(requestKey);
+  abortAiSelectionReviewRequest(requestKey);
   ensureReviewSelectionVisible(view, review.from, review.to);
 
   view.dispatch(
@@ -129,7 +137,7 @@ export async function runAiSelectionReviewCommand(
     }
 
     if (!suggestion) {
-      if (getActiveReviewRequestKey(view) !== requestKey) {
+      if (!hasAiSelectionReview(view, requestKey)) {
         return false;
       }
 
@@ -151,7 +159,7 @@ export async function runAiSelectionReviewCommand(
       return false;
     }
 
-    if (getActiveReviewRequestKey(view) !== requestKey) {
+    if (!hasAiSelectionReview(view, requestKey)) {
       return false;
     }
 

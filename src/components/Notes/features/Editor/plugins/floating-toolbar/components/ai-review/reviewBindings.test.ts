@@ -128,6 +128,38 @@ describe('bindAiReviewActions', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it('does not steal focus from another active editor control', async () => {
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    input.focus();
+    expect(document.activeElement).toBe(input);
+
+    const elements = createElements();
+
+    bindAiReviewActions({
+      elements,
+      onClose: vi.fn(),
+      review: {
+        requestKey: 'review-1',
+        instruction: 'Translate to English',
+        commandId: 'translate-en',
+        toneId: null,
+        from: 1,
+        to: 4,
+        originalText: '你好',
+        suggestedText: 'Hello',
+        isLoading: false,
+        errorMessage: null,
+      },
+      updateReview: vi.fn(),
+      view: createView(),
+    });
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    expect(document.activeElement).toBe(input);
+  });
+
   it('does not abort retry only because the panel binding is cleaned up during loading rerender', async () => {
     const elements = createElements();
     const cleanup = bindAiReviewActions({
@@ -157,5 +189,65 @@ describe('bindAiReviewActions', () => {
     expect(retryAiSelectionSuggestionResult).toHaveBeenCalledTimes(1);
     const [, signal] = retryAiSelectionSuggestionResult.mock.calls[0];
     expect(signal).toBeUndefined();
+  });
+
+  it('updates the retried review even when another review is active', async () => {
+    const elements = createElements();
+    const updateReview = vi.fn();
+    const review = {
+      requestKey: 'review-1',
+      instruction: 'Polish',
+      commandId: 'polish',
+      toneId: null,
+      from: 1,
+      to: 4,
+      originalText: 'helo',
+      suggestedText: 'hello',
+      isLoading: false,
+      errorMessage: null,
+    };
+    const activeReview = {
+      ...review,
+      requestKey: 'review-2',
+      from: 8,
+      to: 12,
+      originalText: 'bye',
+      suggestedText: 'goodbye',
+    };
+
+    mockGetFloatingToolbarState.mockReturnValue({
+      aiReview: activeReview,
+      aiReviews: [review, activeReview],
+    });
+    retryAiSelectionSuggestionResult.mockResolvedValue({
+      suggestion: {
+        ...review,
+        suggestedText: 'hello!',
+      },
+      errorMessage: null,
+    });
+
+    bindAiReviewActions({
+      elements,
+      onClose: vi.fn(),
+      review,
+      updateReview,
+      view: createView(),
+    });
+
+    elements.retryButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await Promise.resolve();
+
+    expect(updateReview).toHaveBeenCalledWith({
+      ...review,
+      isLoading: true,
+      errorMessage: null,
+    });
+    expect(updateReview).toHaveBeenLastCalledWith({
+      ...review,
+      suggestedText: 'hello!',
+      isLoading: false,
+      errorMessage: null,
+    });
   });
 });

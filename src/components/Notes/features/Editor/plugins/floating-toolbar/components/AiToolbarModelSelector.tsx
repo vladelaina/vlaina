@@ -14,7 +14,9 @@ export function AiToolbarModelSelector({
     <ModelSelector
       composerInputRef={composerInputRef ?? { current: null }}
       dropdownPlacement="top"
+      focusSearchOnOpen={false}
       onSelectModel={onSelectModel}
+      restoreComposerFocusOnClose={false}
       theme="notes"
     />
   );

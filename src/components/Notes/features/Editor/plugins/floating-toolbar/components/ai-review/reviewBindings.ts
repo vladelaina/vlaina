@@ -19,6 +19,16 @@ interface BindAiReviewActionsParams {
 
 export type ReviewBindingsCleanup = () => void;
 
+function getAiReviewByRequestKey(
+  view: EditorView,
+  requestKey: string
+): FloatingToolbarState['aiReview'] {
+  const toolbarState = floatingToolbarKey.getState(view.state);
+  return toolbarState?.aiReviews.find((item) => item.requestKey === requestKey)
+    ?? (toolbarState?.aiReview?.requestKey === requestKey ? toolbarState.aiReview : null)
+    ?? null;
+}
+
 export function bindAiReviewActions({
   elements,
   onClose,
@@ -31,7 +41,7 @@ export function bindAiReviewActions({
   const { signal } = abortController;
   let focusFrameId = 0;
 
-  const getLiveReview = (): typeof review => review;
+  const getLiveReview = (): typeof review => getAiReviewByRequestKey(view, review.requestKey) ?? review;
 
   const applySuggestion = () => {
     const suggestion = toAiSelectionSuggestion(getLiveReview());
@@ -102,7 +112,7 @@ export function bindAiReviewActions({
 
     updateReview({ ...liveReview, isLoading: true, errorMessage: null });
     void retryAiSelectionSuggestionResult(suggestion, undefined, { suppressToast: true }).then((result) => {
-      const currentReview = floatingToolbarKey.getState(view.state)?.aiReview;
+      const currentReview = getAiReviewByRequestKey(view, liveReview.requestKey);
       if (!currentReview || currentReview.requestKey !== liveReview.requestKey) {
         return;
       }
@@ -125,7 +135,7 @@ export function bindAiReviewActions({
       });
     }).catch((error: unknown) => {
       if (error instanceof Error && error.name === 'AbortError') return;
-      const currentReview = floatingToolbarKey.getState(view.state)?.aiReview;
+      const currentReview = getAiReviewByRequestKey(view, liveReview.requestKey);
       if (!currentReview || currentReview.requestKey !== liveReview.requestKey) return;
       updateReview({
         ...liveReview,
@@ -144,6 +154,14 @@ export function bindAiReviewActions({
 
     const activeElement = document.activeElement;
     if (activeElement instanceof HTMLElement && panel.contains(activeElement)) {
+      return;
+    }
+
+    if (
+      activeElement instanceof HTMLElement &&
+      activeElement !== document.body &&
+      activeElement.isConnected
+    ) {
       return;
     }
 

@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mockGetCurrentMarkdownParser = vi.fn();
 const mockNormalizeSerializedMarkdownSelection = vi.fn((value: string) => value);
 const mockSerializeSliceToText = vi.fn((_value?: unknown) => 'serialized');
-const mockLogAiSelectionDebug = vi.fn();
 const mockAddToast = vi.fn();
 
 vi.mock('../../../utils/editorViewRegistry', () => ({
@@ -17,11 +16,6 @@ vi.mock('@/lib/notes/markdown/markdownSerializationUtils', () => ({
 
 vi.mock('../../clipboard/serializer', () => ({
   serializeSliceToText: (value: unknown) => mockSerializeSliceToText(value),
-}));
-
-vi.mock('./debug', () => ({
-  logAiSelectionDebug: (message: string, details?: Record<string, unknown>) =>
-    mockLogAiSelectionDebug(message, details),
 }));
 
 vi.mock('@/stores/useToastStore', () => ({
@@ -75,7 +69,6 @@ describe('selectionEditing', () => {
     mockGetCurrentMarkdownParser.mockReset();
     mockNormalizeSerializedMarkdownSelection.mockClear();
     mockSerializeSliceToText.mockClear();
-    mockLogAiSelectionDebug.mockClear();
     mockAddToast.mockClear();
   });
 

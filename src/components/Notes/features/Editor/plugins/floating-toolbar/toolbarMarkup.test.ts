@@ -19,6 +19,7 @@ function createState(overrides?: Partial<FloatingToolbarState>): FloatingToolbar
     bgColor: null,
     subMenu: null,
     aiReview: null,
+    aiReviews: [],
     ...overrides,
   };
 }

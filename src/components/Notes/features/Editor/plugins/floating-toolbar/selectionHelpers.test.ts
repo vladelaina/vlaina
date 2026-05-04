@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  calculateBottomPositionForRange,
+  calculatePositionForRange,
   getActiveMarks,
   getBgColor,
   getCurrentAlignment,
@@ -101,6 +103,35 @@ function createView(
 }
 
 describe('selection helpers', () => {
+  it('calculates toolbar coordinates from an explicit range instead of the live selection', () => {
+    const coords = new Map<number, { left: number; top: number; bottom: number }>([
+      [10, { left: 100, top: 40, bottom: 60 }],
+      [20, { left: 200, top: 50, bottom: 80 }],
+      [90, { left: 900, top: 400, bottom: 420 }],
+      [91, { left: 910, top: 410, bottom: 430 }],
+    ]);
+    const view = {
+      state: {
+        selection: {
+          from: 90,
+          to: 91,
+        },
+      },
+      coordsAtPos: (pos: number) => coords.get(pos),
+    } as never;
+
+    expect(calculatePositionForRange(view, 10, 20)).toMatchObject({
+      x: 150,
+      y: 88,
+      placement: 'bottom',
+    });
+    expect(calculateBottomPositionForRange(view, 10, 20)).toMatchObject({
+      x: 100,
+      y: 88,
+      placement: 'bottom',
+    });
+  });
+
   it('keeps only marks shared by all selected text segments', () => {
     const view = createView(
       [
