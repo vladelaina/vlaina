@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { Provider } from '@/lib/ai/types';
@@ -11,6 +11,7 @@ import { useProviderBenchmark } from './provider-detail/useProviderBenchmark';
 import { useProviderModelActions } from './provider-detail/useProviderModelActions';
 import { useProviderModelFilters } from './provider-detail/useProviderModelFilters';
 import type { OauthAccountProvider } from '@/lib/account/provider';
+import { SETTINGS_BEFORE_CLOSE_EVENT } from '../../settingsEvents';
 
 const EMPTY_FETCHED_MODELS: string[] = [];
 
@@ -47,11 +48,19 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
   const [apiKey, setApiKey] = useState(initialProvider?.apiKey || '');
   const [apiHost, setApiHost] = useState(initialProvider?.apiHost || '');
   const [showApiKey, setShowApiKey] = useState(false);
+  const [allowHiddenApiKeyEditing, setAllowHiddenApiKeyEditing] = useState(() => !initialProvider?.apiKey);
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
   const [modelQuery, setModelQuery] = useState('');
   const [quickAddModelId, setQuickAddModelId] = useState('');
   const [quickAddError, setQuickAddError] = useState('');
   const [fetchedModels, setFetchedModels] = useState<string[]>([]);
+  const latestConnectionDraftRef = useRef({
+    providerId: initialProvider?.id || '',
+    name: initialProvider?.name || '',
+    apiHost: initialProvider?.apiHost || '',
+    apiKey: initialProvider?.apiKey || '',
+  });
+  const updateProviderRef = useRef(updateProvider);
 
   const providerId = initialProvider?.id;
   const providerModels = initialProvider ? models.filter((m) => m.providerId === initialProvider.id) : [];
@@ -69,10 +78,12 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
       setName(initialProvider.name);
       setApiKey(initialProvider.apiKey || '');
       setApiHost(initialProvider.apiHost || '');
+      setAllowHiddenApiKeyEditing(!initialProvider.apiKey);
     } else {
       setName('');
       setApiKey('');
       setApiHost('');
+      setAllowHiddenApiKeyEditing(true);
     }
 
     setQuickAddModelId('');
@@ -86,6 +97,40 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
   useEffect(() => {
     setFetchedModels(persistedProviderFetchedModels);
   }, [persistedProviderFetchedModels]);
+
+  useEffect(() => {
+    updateProviderRef.current = updateProvider;
+  }, [updateProvider]);
+
+  useEffect(() => {
+    latestConnectionDraftRef.current = {
+      providerId: initialProvider?.id || '',
+      name,
+      apiHost,
+      apiKey,
+    };
+  }, [initialProvider?.id, name, apiHost, apiKey]);
+
+  useEffect(() => {
+    const flushConnectionDraft = () => {
+      const draft = latestConnectionDraftRef.current;
+      if (!draft.providerId || draft.providerId === MANAGED_PROVIDER_ID) {
+        return;
+      }
+      updateProviderRef.current(draft.providerId, {
+        name: draft.name,
+        apiHost: draft.apiHost,
+        apiKey: draft.apiKey,
+        updatedAt: Date.now(),
+      });
+    };
+
+    window.addEventListener(SETTINGS_BEFORE_CLOSE_EVENT, flushConnectionDraft);
+    return () => {
+      window.removeEventListener(SETTINGS_BEFORE_CLOSE_EVENT, flushConnectionDraft);
+      flushConnectionDraft();
+    };
+  }, []);
 
   useEffect(() => {
     if (!initialProvider) return;
@@ -180,6 +225,7 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
         name={name}
         apiHost={apiHost}
         apiKey={apiKey}
+        allowHiddenApiKeyEditing={allowHiddenApiKeyEditing}
         showApiKey={showApiKey}
         apiKeyCopied={apiKeyCopied}
         onNameChange={(nextName) => {
@@ -192,6 +238,7 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
           modelActions.setFetchError('');
         }}
         onApiKeyChange={(nextApiKey) => {
+          setAllowHiddenApiKeyEditing(true);
           setApiKey(nextApiKey);
           modelActions.setFetchError('');
         }}

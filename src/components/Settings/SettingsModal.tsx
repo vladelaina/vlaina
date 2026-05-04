@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { Icon, IconName } from '@/components/ui/icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BlurBackdrop } from '@/components/common/BlurBackdrop';
@@ -6,18 +6,18 @@ import { useModalBehavior } from './hooks/useModalBehavior';
 import { AboutTab } from './tabs/AboutTab';
 import { MarkdownTab } from './tabs/MarkdownTab';
 import { AppearanceTab } from './tabs/AppearanceTab';
-import { ShortcutsTab } from './tabs/ShortcutsTab';
-import { ImagesTab } from './tabs/ImagesTab';
 import { AITab } from './tabs/AITab';
 import { cn } from '@/lib/utils';
 import { useWindowDragGesture } from '@/hooks/useWindowDragGesture';
+import { actions as aiActions } from '@/stores/ai/providerActions';
+import { SETTINGS_BEFORE_CLOSE_EVENT } from './settingsEvents';
 
 interface SettingsModalProps {
   open: boolean;
   onClose: () => void;
 }
 
-type SettingsTab = 'markdown' | 'appearance' | 'shortcuts' | 'images' | 'ai' | 'about';
+type SettingsTab = 'markdown' | 'appearance' | 'ai' | 'about';
 
 interface SidebarItem {
   id: SettingsTab;
@@ -35,22 +35,21 @@ const sidebarGroups: SidebarGroup[] = [
     title: 'General',
     items: [
       { id: 'markdown', label: 'Markdown', icon: 'editor.code' },
+      { id: 'ai', label: 'Spark', icon: 'common.shootingStar' },
       { id: 'appearance', label: 'Appearance', icon: 'theme.palette' },
-      { id: 'shortcuts', label: 'Shortcuts', icon: 'editor.keyboard' },
-      { id: 'ai', label: 'AI Settings', icon: 'common.sparkle' },
       { id: 'about', label: 'about', icon: 'common.info' },
-    ]
-  },
-  {
-    title: 'Workspace',
-    items: [
-      { id: 'images', label: 'Images', icon: 'file.image' },
     ]
   }
 ];
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('markdown');
+
+  const handleClose = useCallback(() => {
+    window.dispatchEvent(new Event(SETTINGS_BEFORE_CLOSE_EVENT));
+    aiActions.deleteIncompleteCustomProviders();
+    onClose();
+  }, [onClose]);
 
   useEffect(() => {
     const handleOpenSettings = (e: CustomEvent<{ tab?: SettingsTab }>) => {
@@ -64,7 +63,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
 
   useModalBehavior({
     open,
-    onClose,
+    onClose: handleClose,
   });
 
   const { beginWindowDragTracking, stopWindowDragTracking } = useWindowDragGesture({
@@ -80,7 +79,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     <AnimatePresence>
       {open && (
         <>
-          <BlurBackdrop onClick={onClose} />
+          <BlurBackdrop onClick={handleClose} />
 
           <div className="fixed inset-0 flex items-center justify-center z-[100] pointer-events-none p-4">
             <div
@@ -89,7 +88,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 if (e.button !== 0) return;
                 beginWindowDragTracking(
                   { x: e.clientX, y: e.clientY },
-                  { onReleaseWithoutDrag: onClose }
+                  { onReleaseWithoutDrag: handleClose }
                 );
               }}
             />
@@ -119,11 +118,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 <div className="flex-1 overflow-y-auto px-3 pt-6 pb-4 space-y-7">
                   {sidebarGroups.map((group) => (
                     <div key={group.title}>
-                      <div className="px-4 mb-2">
-                        <span className="text-[11px] font-bold text-zinc-400/80 dark:text-zinc-600 uppercase tracking-widest">
-                          {group.title}
-                        </span>
-                      </div>
                       <div className="space-y-[2px]">
                         {group.items.map((item) => {
                           const isActive = activeTab === item.id;
@@ -134,7 +128,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                                 className={cn(
                                   "mx-1 flex min-h-9 w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150 ease-out",
                                   isActive
-                                    ? "bg-[var(--chat-sidebar-row-active)] text-[var(--chat-sidebar-text)]"
+                                    ? "bg-[var(--chat-sidebar-row-active)] text-[var(--sidebar-row-selected-text)]"
                                     : "text-[var(--chat-sidebar-text-muted)] hover:bg-[var(--chat-sidebar-row-hover)] hover:text-[var(--chat-sidebar-text)]"
                                 )}
                               >
@@ -144,7 +138,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                                     name={item.icon}
                                     className={cn(
                                       isActive
-                                        ? "text-[var(--chat-sidebar-text)]"
+                                        ? "text-[var(--sidebar-row-selected-text)]"
                                         : "text-[var(--chat-sidebar-icon)] group-hover/chat-sidebar-row:text-[var(--chat-sidebar-icon-hover)]"
                                     )}
                                   />
@@ -163,7 +157,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-[#1E1E1E] relative">
                 <div className="absolute top-3.5 right-5 z-20">
                   <button
-                    onClick={onClose}
+                    onClick={handleClose}
                     className="inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors duration-200"
                   >
                     <Icon name="common.close" className="w-5 h-5" />
@@ -184,8 +178,6 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       {activeTab === 'about' && <AboutTab />}
                       {activeTab === 'markdown' && <MarkdownTab />}
                       {activeTab === 'appearance' && <AppearanceTab />}
-                      {activeTab === 'shortcuts' && <ShortcutsTab />}
-                      {activeTab === 'images' && <ImagesTab />}
                       {activeTab === 'ai' && <AITab />}
                     </div>
                   </div>

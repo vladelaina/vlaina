@@ -1,6 +1,8 @@
 import { useUIStore, type ImageStorageMode } from '@/stores/uiSlice';
 import { Icon, IconName } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
+import { SettingsSectionHeader } from '../components/SettingsControls';
+import { SettingsTextInput } from '../components/SettingsFields';
 
 interface StorageOption {
     id: ImageStorageMode;
@@ -47,11 +49,12 @@ export function ImagesTab() {
     return (
         <div className="space-y-6">
             <div className="space-y-3">
+                <SettingsSectionHeader>Images</SettingsSectionHeader>
                 <div className="flex items-baseline gap-2">
-                    <label className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                    <label className="text-[14px] font-medium text-[#111] dark:text-zinc-100">
                         Storage Location
                     </label>
-                    <code className="text-xs text-zinc-400 dark:text-zinc-500">
+                    <code className="text-[12px] text-zinc-400 dark:text-zinc-500">
                         {imageStorageMode === 'vault' && 'vault/image.png'}
                         {imageStorageMode === 'vaultSubfolder' && `vault/${imageVaultSubfolderName || 'assets'}/image.png`}
                         {imageStorageMode === 'currentFolder' && 'vault/notes/image.png'}
@@ -65,19 +68,20 @@ export function ImagesTab() {
 
                         return (
                             <button
+                                type="button"
                                 key={option.id}
                                 onClick={() => setImageStorageMode(option.id)}
                                 className={cn(
-                                    "w-full flex items-start gap-3 p-3 rounded-lg border transition-all text-left",
+                                    "w-full flex items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors",
                                     isSelected
-                                        ? "border-[#2783de] bg-[#2783de]/10 dark:bg-[#2783de]/20 dark:border-[#2783de]"
-                                        : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
+                                        ? "border-[var(--sidebar-row-selected-text)] bg-[var(--sidebar-row-selected-bg)] dark:bg-[rgba(65,168,234,0.14)]"
+                                        : "border-zinc-200/90 bg-white hover:border-zinc-300 dark:border-white/10 dark:bg-[#202020] dark:hover:border-white/15"
                                 )}
                             >
                                 <div className={cn(
                                     "mt-0.5 w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center flex-shrink-0",
                                     isSelected
-                                        ? "border-[#2783de] bg-[#2783de]"
+                                        ? "border-[var(--sidebar-row-selected-text)] bg-[var(--sidebar-row-selected-text)]"
                                         : "border-zinc-300 dark:border-zinc-600"
                                 )}>
                                     {isSelected && (
@@ -87,13 +91,13 @@ export function ImagesTab() {
 
                                 <Icon name={option.icon} className={cn(
                                     "size-[18px] flex-shrink-0 mt-0.5",
-                                    isSelected ? "text-[#2783de] dark:text-[#2783de]" : "text-zinc-400"
+                                    isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-zinc-400"
                                 )} />
 
                                 <div className="flex-1 min-w-0">
                                     <div className={cn(
                                         "text-sm font-medium",
-                                        isSelected ? "text-[#2783de] dark:text-[#2783de]" : "text-zinc-700 dark:text-zinc-300"
+                                        isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-zinc-700 dark:text-zinc-300"
                                     )}>
                                         {option.label}
                                     </div>
@@ -112,13 +116,11 @@ export function ImagesTab() {
                     <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                         Folder Name
                     </label>
-                    <input
+                    <SettingsTextInput
                         type="text"
-                        spellCheck={false}
                         value={imageVaultSubfolderName}
                         onChange={(e) => setImageVaultSubfolderName(e.target.value)}
                         placeholder="assets"
-                        className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#2783de] focus:border-transparent"
                     />
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">
                         Images will be saved to <code className="px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800">{imageVaultSubfolderName || 'assets'}/</code> in the vault root
@@ -131,21 +133,19 @@ export function ImagesTab() {
                     <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                         Subfolder Name
                     </label>
-                    <input
+                    <SettingsTextInput
                         type="text"
-                        spellCheck={false}
                         value={imageSubfolderName}
                         onChange={(e) => setImageSubfolderName(e.target.value)}
                         placeholder="assets"
-                        className="w-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#2783de] focus:border-transparent"
                     />
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">
                         Images will be saved to <code className="px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800">{imageSubfolderName || 'assets'}/</code> inside the current note's folder
                     </p>
                 </div>
             )}
-            <div className="space-y-3 pt-6 border-t border-zinc-200 dark:border-zinc-700">
-                <label className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+            <div className="space-y-3 pt-5 border-t border-zinc-100 dark:border-white/5">
+                <label className="text-[14px] font-medium text-[#111] dark:text-zinc-100">
                     Filename Format
                 </label>
                 <div className="space-y-2">
@@ -180,18 +180,19 @@ function FilenameFormatOption({ id, label, description, icon }: { id: 'original'
 
     return (
         <button
+            type="button"
             onClick={() => setImageFilenameFormat(id)}
             className={cn(
                 "w-full flex items-center gap-3 p-2.5 rounded-lg border transition-all text-left",
                 isSelected
-                    ? "border-[#2783de] bg-[#2783de]/10 dark:bg-[#2783de]/20 dark:border-[#2783de]"
-                    : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
+                    ? "border-[var(--sidebar-row-selected-text)] bg-[var(--sidebar-row-selected-bg)] dark:bg-[rgba(65,168,234,0.14)]"
+                    : "border-zinc-200/90 bg-white hover:border-zinc-300 dark:border-white/10 dark:bg-[#202020] dark:hover:border-white/15"
             )}
         >
             <div className={cn(
                 "w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center flex-shrink-0",
                 isSelected
-                    ? "border-[#2783de] bg-[#2783de]"
+                    ? "border-[var(--sidebar-row-selected-text)] bg-[var(--sidebar-row-selected-text)]"
                     : "border-zinc-300 dark:border-zinc-600"
             )}>
                 {isSelected && (
@@ -200,12 +201,12 @@ function FilenameFormatOption({ id, label, description, icon }: { id: 'original'
             </div>
             <Icon name={icon} className={cn(
                 "size-[18px] flex-shrink-0",
-                isSelected ? "text-[#2783de] dark:text-[#2783de]" : "text-zinc-400"
+                isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-zinc-400"
             )} />
             <div className="flex-1 min-w-0">
                 <div className={cn(
                     "text-sm font-medium",
-                    isSelected ? "text-[#2783de] dark:text-[#2783de]" : "text-zinc-700 dark:text-zinc-300"
+                    isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-zinc-700 dark:text-zinc-300"
                 )}>
                     {label}
                 </div>
