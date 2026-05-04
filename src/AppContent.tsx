@@ -138,10 +138,9 @@ export function AppContent() {
       window.clearTimeout(debugCopyTimerRef.current);
     }
 
-    const win = window as Window & {
+    const copyDebugLog = (window as Window & {
       __vlainaCopyNotesDebug?: () => Promise<{ ok: boolean; chars: number; error?: string }>;
-    };
-    const copyDebugLog = appViewMode === 'notes' ? win.__vlainaCopyNotesDebug : undefined;
+    }).__vlainaCopyNotesDebug;
 
     if (!copyDebugLog) {
       setDebugCopyState('failed');
@@ -165,7 +164,7 @@ export function AppContent() {
           debugCopyTimerRef.current = null;
         }, 1200);
       });
-  }, [appViewMode]);
+  }, []);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const shouldRenderSidebar = appViewMode === 'chat' || appViewMode === 'notes';
@@ -222,8 +221,7 @@ export function AppContent() {
   );
 
   const showLabEntry = import.meta.env.DEV && appViewMode !== 'lab';
-  const showDebugCopy = import.meta.env.DEV && (appViewMode === 'chat' || appViewMode === 'notes');
-  const debugCopyLabel = appViewMode === 'chat' ? 'Chat Debug Log' : 'Notes Debug Log';
+  const showDebugCopy = import.meta.env.DEV && appViewMode === 'notes';
   const mainOverlay = showLabEntry || showDebugCopy ? (
     <div className="pointer-events-none absolute bottom-3 right-3 z-30 flex flex-col items-end gap-2">
       {showDebugCopy ? (
@@ -232,7 +230,7 @@ export function AppContent() {
             <button
               type="button"
               onClick={handleCopyDebugLog}
-              aria-label={`Copy ${debugCopyLabel}`}
+              aria-label="Copy Notes Debug Log"
               className={cn(
                 'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md border border-[#eff3f4] bg-white/92 shadow-sm backdrop-blur-sm transition-[background-color,box-shadow,transform,border-color] duration-200 hover:bg-[#f5f5f5]',
                 iconButtonStyles,
@@ -246,10 +244,10 @@ export function AppContent() {
           <TooltipContent side="left" sideOffset={8}>
             <span className="text-xs">
               {debugCopyState === 'copied'
-                ? `Copied ${debugCopyLabel}`
+                ? 'Copied Notes Debug Log'
                 : debugCopyState === 'failed'
                   ? 'Copy Failed'
-                  : `Copy ${debugCopyLabel}`}
+                  : 'Copy Notes Debug Log'}
             </span>
           </TooltipContent>
         </Tooltip>
