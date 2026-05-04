@@ -13,12 +13,11 @@ export const messageKeys = [
   'account.signIn',
   'account.switchAccount',
   'language.current',
-  'language.system',
-  'language.systemDescription',
 ] as const;
 
 export type MessageKey = typeof messageKeys[number];
 export type Messages = Record<MessageKey, string>;
+type LocalizedAppLanguage = Exclude<AppLanguage, 'en'>;
 
 const englishMessages: Messages = {
   'account.continueSignIn': 'Continue Sign In',
@@ -33,11 +32,9 @@ const englishMessages: Messages = {
   'account.signIn': 'Sign In',
   'account.switchAccount': 'Switch Account',
   'language.current': 'Current',
-  'language.system': 'System',
-  'language.systemDescription': 'Use device language',
 };
 
-const localizedMessages: Partial<Record<AppLanguage, Partial<Messages>>> = {
+const localizedMessages = {
   'zh-CN': {
     'account.continueSignIn': '继续登录',
     'account.language': '语言',
@@ -51,10 +48,8 @@ const localizedMessages: Partial<Record<AppLanguage, Partial<Messages>>> = {
     'account.signIn': '登录',
     'account.switchAccount': '切换账号',
     'language.current': '当前',
-    'language.system': '系统',
-    'language.systemDescription': '使用设备语言',
   },
-  'zh-TW': {
+  'zh-Hant': {
     'account.continueSignIn': '繼續登入',
     'account.language': '語言',
     'account.logOut': '登出',
@@ -67,15 +62,20 @@ const localizedMessages: Partial<Record<AppLanguage, Partial<Messages>>> = {
     'account.signIn': '登入',
     'account.switchAccount': '切換帳號',
     'language.current': '目前',
-    'language.system': '系統',
-    'language.systemDescription': '使用裝置語言',
   },
   ja: {
+    'account.continueSignIn': 'サインインを続行',
     'account.language': '言語',
+    'account.logOut': 'ログアウト',
+    'account.logOutCancel': 'サインインを維持',
+    'account.logOutDescription': 'このデバイスで現在の vlaina アカウントからログアウトします。',
+    'account.logOutTitle': 'ログアウトしますか？',
+    'account.membership': 'メンバーシップ',
+    'account.poweredBy': '提供',
     'account.settings': '設定',
+    'account.signIn': 'サインイン',
+    'account.switchAccount': 'アカウントを切り替え',
     'language.current': '現在',
-    'language.system': 'システム',
-    'language.systemDescription': 'デバイスの言語を使用',
   },
   ko: {
     'account.continueSignIn': '로그인 계속',
@@ -90,8 +90,6 @@ const localizedMessages: Partial<Record<AppLanguage, Partial<Messages>>> = {
     'account.signIn': '로그인',
     'account.switchAccount': '계정 전환',
     'language.current': '현재',
-    'language.system': '시스템',
-    'language.systemDescription': '기기 언어 사용',
   },
   fr: {
     'account.continueSignIn': 'Continuer la connexion',
@@ -106,8 +104,6 @@ const localizedMessages: Partial<Record<AppLanguage, Partial<Messages>>> = {
     'account.signIn': 'Se connecter',
     'account.switchAccount': 'Changer de compte',
     'language.current': 'Actuel',
-    'language.system': 'Système',
-    'language.systemDescription': 'Utiliser la langue de l’appareil',
   },
   de: {
     'account.continueSignIn': 'Anmeldung fortsetzen',
@@ -122,8 +118,6 @@ const localizedMessages: Partial<Record<AppLanguage, Partial<Messages>>> = {
     'account.signIn': 'Anmelden',
     'account.switchAccount': 'Konto wechseln',
     'language.current': 'Aktuell',
-    'language.system': 'System',
-    'language.systemDescription': 'Gerätesprache verwenden',
   },
   es: {
     'account.continueSignIn': 'Continuar inicio de sesión',
@@ -138,8 +132,6 @@ const localizedMessages: Partial<Record<AppLanguage, Partial<Messages>>> = {
     'account.signIn': 'Iniciar sesión',
     'account.switchAccount': 'Cambiar cuenta',
     'language.current': 'Actual',
-    'language.system': 'Sistema',
-    'language.systemDescription': 'Usar idioma del dispositivo',
   },
   'pt-BR': {
     'account.continueSignIn': 'Continuar login',
@@ -154,8 +146,6 @@ const localizedMessages: Partial<Record<AppLanguage, Partial<Messages>>> = {
     'account.signIn': 'Entrar',
     'account.switchAccount': 'Trocar conta',
     'language.current': 'Atual',
-    'language.system': 'Sistema',
-    'language.systemDescription': 'Usar idioma do dispositivo',
   },
   it: {
     'account.continueSignIn': 'Continua accesso',
@@ -170,8 +160,6 @@ const localizedMessages: Partial<Record<AppLanguage, Partial<Messages>>> = {
     'account.signIn': 'Accedi',
     'account.switchAccount': 'Cambia account',
     'language.current': 'Attuale',
-    'language.system': 'Sistema',
-    'language.systemDescription': 'Usa la lingua del dispositivo',
   },
   ru: {
     'account.continueSignIn': 'Продолжить вход',
@@ -186,8 +174,6 @@ const localizedMessages: Partial<Record<AppLanguage, Partial<Messages>>> = {
     'account.signIn': 'Войти',
     'account.switchAccount': 'Сменить аккаунт',
     'language.current': 'Текущий',
-    'language.system': 'Система',
-    'language.systemDescription': 'Использовать язык устройства',
   },
   tr: {
     'account.continueSignIn': 'Oturum açmaya devam et',
@@ -202,8 +188,6 @@ const localizedMessages: Partial<Record<AppLanguage, Partial<Messages>>> = {
     'account.signIn': 'Oturum aç',
     'account.switchAccount': 'Hesap değiştir',
     'language.current': 'Geçerli',
-    'language.system': 'Sistem',
-    'language.systemDescription': 'Cihaz dilini kullan',
   },
   vi: {
     'account.continueSignIn': 'Tiếp tục đăng nhập',
@@ -218,8 +202,6 @@ const localizedMessages: Partial<Record<AppLanguage, Partial<Messages>>> = {
     'account.signIn': 'Đăng nhập',
     'account.switchAccount': 'Đổi tài khoản',
     'language.current': 'Hiện tại',
-    'language.system': 'Hệ thống',
-    'language.systemDescription': 'Dùng ngôn ngữ thiết bị',
   },
   id: {
     'account.continueSignIn': 'Lanjut masuk',
@@ -234,8 +216,6 @@ const localizedMessages: Partial<Record<AppLanguage, Partial<Messages>>> = {
     'account.signIn': 'Masuk',
     'account.switchAccount': 'Ganti akun',
     'language.current': 'Saat ini',
-    'language.system': 'Sistem',
-    'language.systemDescription': 'Gunakan bahasa perangkat',
   },
   th: {
     'account.continueSignIn': 'ดำเนินการลงชื่อเข้าใช้ต่อ',
@@ -250,12 +230,11 @@ const localizedMessages: Partial<Record<AppLanguage, Partial<Messages>>> = {
     'account.signIn': 'ลงชื่อเข้าใช้',
     'account.switchAccount': 'สลับบัญชี',
     'language.current': 'ปัจจุบัน',
-    'language.system': 'ระบบ',
-    'language.systemDescription': 'ใช้ภาษาของอุปกรณ์',
   },
-};
+} satisfies Record<LocalizedAppLanguage, Messages>;
 
 export function getMessages(language: AppLanguage): Messages {
+  if (language === 'en') return englishMessages;
   return {
     ...englishMessages,
     ...localizedMessages[language],

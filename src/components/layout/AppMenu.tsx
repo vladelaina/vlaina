@@ -55,30 +55,22 @@ export const AppMenu: React.FC<AppMenuProps> = ({ onOpenSettings, onCloseMenu })
                 {isLanguageMenuOpen && (
                     <>
                         <div className="fixed inset-0 z-[60]" onClick={() => setIsLanguageMenuOpen(false)} />
-                        <div className="absolute right-2 bottom-full mb-1 z-[70] max-h-[320px] w-56 overflow-y-auto rounded-lg border border-[var(--vlaina-border)] bg-[var(--vlaina-bg-primary)] p-1 shadow-xl animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-1">
-                            <LanguageOption
-                                label={t('language.system')}
-                                subLabel={t('language.systemDescription')}
-                                selected={languagePreference === SYSTEM_LANGUAGE_PREFERENCE}
-                                onClick={() => {
-                                    setLanguagePreference(SYSTEM_LANGUAGE_PREFERENCE);
-                                    setIsLanguageMenuOpen(false);
-                                }}
-                            />
-                            <div className="my-1 h-[1px] bg-[var(--vlaina-border)] opacity-50" />
-                            {APP_LANGUAGES.map((option) => (
-                                <LanguageOption
-                                    key={option.code}
-                                    label={option.nativeName}
-                                    subLabel={option.englishName}
-                                    selected={languagePreference === option.code}
-                                    trailingLabel={languagePreference === SYSTEM_LANGUAGE_PREFERENCE && language === option.code ? t('language.current') : undefined}
-                                    onClick={() => {
-                                        setLanguagePreference(option.code);
-                                        setIsLanguageMenuOpen(false);
-                                    }}
-                                />
-                            ))}
+                        <div className="absolute left-full top-[-96px] ml-2 z-[70] max-h-[320px] w-44 overflow-y-auto rounded-lg border border-[var(--vlaina-border)] bg-[var(--vlaina-bg-primary)] p-1 shadow-xl animate-in fade-in-0 zoom-in-95 slide-in-from-left-1">
+                            {APP_LANGUAGES.map((option) => {
+                                const isSystemLanguage = languagePreference === SYSTEM_LANGUAGE_PREFERENCE && language === option.code;
+                                return (
+                                    <LanguageOption
+                                        key={option.code}
+                                        label={option.nativeName}
+                                        selected={languagePreference === option.code || isSystemLanguage}
+                                        trailingLabel={isSystemLanguage ? t('language.current') : undefined}
+                                        onClick={() => {
+                                            setLanguagePreference(option.code);
+                                            setIsLanguageMenuOpen(false);
+                                        }}
+                                    />
+                                );
+                            })}
                         </div>
                     </>
                 )}
@@ -89,13 +81,11 @@ export const AppMenu: React.FC<AppMenuProps> = ({ onOpenSettings, onCloseMenu })
 
 const LanguageOption = ({
     label,
-    subLabel,
     selected,
     trailingLabel,
     onClick,
 }: {
     label: string;
-    subLabel: string;
     selected: boolean;
     trailingLabel?: string;
     onClick: () => void;
@@ -105,15 +95,14 @@ const LanguageOption = ({
         className={cn(
             "flex w-full cursor-pointer items-center justify-between rounded-md px-3 py-2 text-left transition-colors",
             "hover:bg-[var(--vlaina-hover)]",
-            selected && "bg-[var(--vlaina-hover)]"
+            selected && "bg-[var(--sidebar-row-selected-bg)] text-[var(--sidebar-row-selected-text)] shadow-sm shadow-[#41a8ea]/25"
         )}
     >
         <div className="flex flex-col">
-            <span className="text-[13px] font-medium text-[var(--vlaina-text-primary)]">{label}</span>
-            <span className="text-[11px] text-[var(--vlaina-text-tertiary)]">{subLabel}</span>
+            <span className={cn("text-[13px] font-medium", selected ? "text-[var(--sidebar-row-selected-text)] font-[550]" : "text-[var(--vlaina-text-primary)]")}>{label}</span>
         </div>
         {selected || trailingLabel ? (
-            <span className="ml-2 flex shrink-0 items-center gap-1 text-[11px] text-[var(--vlaina-text-tertiary)]">
+            <span className={cn("ml-2 flex shrink-0 items-center gap-1 text-[11px]", selected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--vlaina-text-tertiary)]")}>
                 {trailingLabel}
                 {selected ? <Icon size="sm" name="common.check" /> : null}
             </span>

@@ -1,7 +1,7 @@
 export type AppLanguage =
   | 'en'
   | 'zh-CN'
-  | 'zh-TW'
+  | 'zh-Hant'
   | 'ja'
   | 'ko'
   | 'fr'
@@ -20,28 +20,27 @@ export type AppLanguagePreference = 'system' | AppLanguage;
 export interface LanguageOption {
   code: AppLanguage;
   nativeName: string;
-  englishName: string;
 }
 
 export const DEFAULT_APP_LANGUAGE: AppLanguage = 'en';
 export const SYSTEM_LANGUAGE_PREFERENCE = 'system';
 
 export const APP_LANGUAGES: LanguageOption[] = [
-  { code: 'en', nativeName: 'English', englishName: 'English' },
-  { code: 'zh-CN', nativeName: '简体中文', englishName: 'Chinese (Simplified)' },
-  { code: 'zh-TW', nativeName: '繁體中文', englishName: 'Chinese (Traditional)' },
-  { code: 'ja', nativeName: '日本語', englishName: 'Japanese' },
-  { code: 'ko', nativeName: '한국어', englishName: 'Korean' },
-  { code: 'fr', nativeName: 'Français', englishName: 'French' },
-  { code: 'de', nativeName: 'Deutsch', englishName: 'German' },
-  { code: 'es', nativeName: 'Español', englishName: 'Spanish' },
-  { code: 'pt-BR', nativeName: 'Português (Brasil)', englishName: 'Portuguese (Brazil)' },
-  { code: 'it', nativeName: 'Italiano', englishName: 'Italian' },
-  { code: 'ru', nativeName: 'Русский', englishName: 'Russian' },
-  { code: 'tr', nativeName: 'Türkçe', englishName: 'Turkish' },
-  { code: 'vi', nativeName: 'Tiếng Việt', englishName: 'Vietnamese' },
-  { code: 'id', nativeName: 'Bahasa Indonesia', englishName: 'Indonesian' },
-  { code: 'th', nativeName: 'ไทย', englishName: 'Thai' },
+  { code: 'en', nativeName: 'English' },
+  { code: 'zh-CN', nativeName: '简体中文' },
+  { code: 'zh-Hant', nativeName: '繁體中文' },
+  { code: 'ja', nativeName: '日本語' },
+  { code: 'ko', nativeName: '한국어' },
+  { code: 'fr', nativeName: 'Français' },
+  { code: 'de', nativeName: 'Deutsch' },
+  { code: 'es', nativeName: 'Español' },
+  { code: 'pt-BR', nativeName: 'Português (Brasil)' },
+  { code: 'it', nativeName: 'Italiano' },
+  { code: 'ru', nativeName: 'Русский' },
+  { code: 'tr', nativeName: 'Türkçe' },
+  { code: 'vi', nativeName: 'Tiếng Việt' },
+  { code: 'id', nativeName: 'Bahasa Indonesia' },
+  { code: 'th', nativeName: 'ไทย' },
 ];
 
 const LANGUAGE_CODES = new Set<AppLanguage>(APP_LANGUAGES.map((language) => language.code));
@@ -64,6 +63,13 @@ const BASE_LANGUAGE_MAP: Record<string, AppLanguage> = {
 
 export function isAppLanguage(value: string | null | undefined): value is AppLanguage {
   return LANGUAGE_CODES.has(value as AppLanguage);
+}
+
+export function normalizeAppLanguagePreference(
+  value: string | null | undefined
+): AppLanguagePreference | null {
+  if (value?.toLowerCase() === 'zh-tw') return 'zh-Hant';
+  return isAppLanguagePreference(value) ? value : null;
 }
 
 export function isAppLanguagePreference(value: string | null | undefined): value is AppLanguagePreference {
@@ -100,8 +106,11 @@ function normalizeLanguageTag(language: string): string {
   if (!base) return '';
   if (base.toLowerCase() === 'zh') {
     const normalizedRegion = region.toUpperCase();
-    return normalizedRegion === 'TW' || normalizedRegion === 'HK' || normalizedRegion === 'MO'
-      ? 'zh-TW'
+    return normalizedRegion === 'TW'
+      || normalizedRegion === 'HK'
+      || normalizedRegion === 'MO'
+      || region.toLowerCase() === 'hant'
+      ? 'zh-Hant'
       : 'zh-CN';
   }
   if (base.toLowerCase() === 'pt') {

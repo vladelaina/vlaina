@@ -4,7 +4,7 @@ import { getDefaultSidebarWidth } from '@/lib/layout/sidebarWidth';
 import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
 import {
   SYSTEM_LANGUAGE_PREFERENCE,
-  isAppLanguagePreference,
+  normalizeAppLanguagePreference,
   type AppLanguagePreference,
 } from '@/lib/i18n/languages';
 const STORAGE_KEY_SIDEBAR_WIDTH = 'vlaina_sidebar_width';
@@ -156,8 +156,9 @@ function loadNotesChatPanelCollapsed(): boolean {
 function loadLanguagePreference(): AppLanguagePreference {
   try {
     const saved = localStorage.getItem(STORAGE_KEY_LANGUAGE_PREFERENCE);
-    if (isAppLanguagePreference(saved)) {
-      return saved;
+    const normalized = normalizeAppLanguagePreference(saved);
+    if (normalized) {
+      return normalized;
     }
   } catch {
   }
