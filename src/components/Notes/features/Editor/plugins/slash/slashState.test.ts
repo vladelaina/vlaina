@@ -91,6 +91,24 @@ describe('deriveSlashState', () => {
     expect(next.selectedIndex).toBeGreaterThanOrEqual(0);
   });
 
+  it('resets the selected item when the query changes', () => {
+    const next = deriveSlashState(
+      createTransaction({
+        selectionText: '/h',
+        docChanged: true,
+      }),
+      {
+        isOpen: true,
+        query: '',
+        selectedIndex: 5,
+      }
+    );
+
+    expect(next.isOpen).toBe(true);
+    expect(next.query).toBe('h');
+    expect(next.selectedIndex).toBe(0);
+  });
+
   it('closes when query no longer matches any slash item', () => {
     const next = deriveSlashState(
       createTransaction({

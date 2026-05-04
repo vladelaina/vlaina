@@ -54,6 +54,10 @@ export const slashPlugin = $prose((ctx) => {
           return false;
         }
 
+        if (event.isComposing) {
+          return false;
+        }
+
         const filtered = filterSlashItems(state.query, slashMenuItems);
         if (filtered.length === 0) {
           return false;

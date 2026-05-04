@@ -108,7 +108,9 @@ export function deriveSlashState(tr: Transaction, state: SlashMenuState) {
   return {
     ...state,
     query: slashRange.query,
-    selectedIndex: Math.min(state.selectedIndex, filtered.length - 1),
+    selectedIndex: slashRange.query === state.query
+      ? Math.min(state.selectedIndex, filtered.length - 1)
+      : 0,
   };
 }
 
