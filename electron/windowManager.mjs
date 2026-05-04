@@ -105,12 +105,22 @@ export function createWindowManager({
 
   function attachWindowLifecycle(window) {
     const webContentsId = window.webContents.id;
+    let externalOpenModifierActive = false;
     window.on('closed', () => {
       closeApprovedWebContents.delete(webContentsId);
       windowLabels.delete(window.id);
     });
 
     window.webContents.on('before-input-event', (event, input) => {
+      if (input.type === 'keyDown') {
+        externalOpenModifierActive = Boolean(input.control || input.meta);
+      } else if (
+        input.type === 'keyUp' &&
+        (input.key === 'Control' || input.key === 'Meta' || input.key === 'Super')
+      ) {
+        externalOpenModifierActive = false;
+      }
+
       const isOpenMarkdownShortcut =
         input.type === 'keyDown' &&
         (input.control || input.meta) &&
@@ -145,7 +155,9 @@ export function createWindowManager({
     });
 
     window.webContents.setWindowOpenHandler(({ url }) => {
-      openExternalIfAllowed(url);
+      if (externalOpenModifierActive) {
+        openExternalIfAllowed(url);
+      }
       return { action: 'deny' };
     });
 
@@ -155,7 +167,9 @@ export function createWindowManager({
       }
 
       event.preventDefault();
-      openExternalIfAllowed(url);
+      if (externalOpenModifierActive) {
+        openExternalIfAllowed(url);
+      }
     });
 
     window.webContents.on('will-attach-webview', (event) => {

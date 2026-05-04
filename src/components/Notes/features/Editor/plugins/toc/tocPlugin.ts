@@ -5,6 +5,7 @@ import type { TocAttrs, TocItem } from './types';
 import { isTocShortcutText } from './tocShortcut';
 
 const tocViewPluginKey = new PluginKey('tocView');
+const TOC_EMPTY_TEXT = 'No headings yet';
 
 function extractHeadings(doc: any, maxLevel: number = 6): TocItem[] {
   const headings: TocItem[] = [];
@@ -38,7 +39,7 @@ function renderTocContent(contentEl: HTMLElement, headings: readonly TocItem[], 
   if (scopedHeadings.length === 0) {
     const empty = doc.createElement('div');
     empty.className = 'toc-empty';
-    empty.textContent = 'No headings found';
+    empty.textContent = TOC_EMPTY_TEXT;
     contentEl.replaceChildren(empty);
     return;
   }
@@ -161,7 +162,7 @@ export const tocSchema = $node('toc', () => ({
         'data-max-level': String(attrs.maxLevel),
         class: 'toc-block'
       },
-      ['div', { class: 'toc-content' }, '[TOC will be generated here]']
+      ['div', { class: 'toc-content' }, TOC_EMPTY_TEXT]
     ];
   },
   parseMarkdown: {

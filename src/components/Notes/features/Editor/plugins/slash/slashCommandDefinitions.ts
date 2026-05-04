@@ -3,11 +3,17 @@ import { commandsCtx, editorViewCtx } from '@milkdown/kit/core';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { insertHrCommand } from '@milkdown/kit/preset/commonmark';
 import { insertTableCommand } from '@milkdown/kit/preset/gfm';
-import { getMimeType } from '@/lib/assets/core/naming';
-import { getBaseName, getStorageAdapter } from '@/lib/storage/adapter';
-import { openDialog } from '@/lib/storage/dialog';
 import { convertBlockType } from '../floating-toolbar/blockCommands';
-import { handleEditorImageFiles } from '../image-upload/handleEditorImageFiles';
+import { insertImageFromFilePicker, insertFrontmatter } from './slashFileCommands';
+import { insertFootnoteDef, insertFootnoteRef } from './slashFootnoteCommands';
+import { insertMathNodeAndOpenEditor } from './slashMathCommands';
+import { openVideoPrompt } from './slashVideoCommand';
+
+export {
+  collectFootnoteIds,
+  getNextFootnoteDefId,
+  getNextFootnoteRefId,
+} from './slashFootnoteCommands';
 
 interface SlashCommandDefinition {
   id: string;
@@ -53,139 +59,6 @@ function replaceCurrentTextBlockWithParagraphText(ctx: Ctx, text: string) {
 function convertCurrentBlock(ctx: Ctx, blockType: Parameters<typeof convertBlockType>[1]) {
   const view = ctx.get(editorViewCtx);
   convertBlockType(view, blockType);
-}
-
-export function collectFootnoteIds(doc: { descendants?: (callback: (node: any) => void) => void }) {
-  const refs = new Set<string>();
-  const defs = new Set<string>();
-
-  doc.descendants?.((node: any) => {
-    const id = typeof node.attrs?.id === 'string' ? node.attrs.id.trim() : '';
-    if (!id) return;
-
-    if (node.type?.name === 'footnote_ref') {
-      refs.add(id);
-    } else if (node.type?.name === 'footnote_def') {
-      defs.add(id);
-    }
-  });
-
-  return { refs, defs };
-}
-
-function getNextNumericFootnoteId(ids: Iterable<string>) {
-  let maxId = 0;
-  for (const id of ids) {
-    const numericId = Number.parseInt(id, 10);
-    if (Number.isInteger(numericId) && String(numericId) === id) {
-      maxId = Math.max(maxId, numericId);
-    }
-  }
-  return String(maxId + 1);
-}
-
-function compareFootnoteIds(a: string, b: string) {
-  const aNumber = Number.parseInt(a, 10);
-  const bNumber = Number.parseInt(b, 10);
-  const aIsNumeric = Number.isInteger(aNumber) && String(aNumber) === a;
-  const bIsNumeric = Number.isInteger(bNumber) && String(bNumber) === b;
-
-  if (aIsNumeric && bIsNumeric) {
-    return aNumber - bNumber;
-  }
-
-  if (aIsNumeric !== bIsNumeric) {
-    return aIsNumeric ? -1 : 1;
-  }
-
-  return a.localeCompare(b);
-}
-
-export function getNextFootnoteRefId(doc: { descendants?: (callback: (node: any) => void) => void }) {
-  const ids = collectFootnoteIds(doc);
-  return getNextNumericFootnoteId([...ids.refs, ...ids.defs]);
-}
-
-export function getNextFootnoteDefId(doc: { descendants?: (callback: (node: any) => void) => void }) {
-  const ids = collectFootnoteIds(doc);
-  const pendingRefId = Array.from(ids.refs)
-    .filter((id) => !ids.defs.has(id))
-    .sort(compareFootnoteIds)[0];
-
-  return pendingRefId ?? getNextNumericFootnoteId([...ids.refs, ...ids.defs]);
-}
-
-function insertFootnoteRef(ctx: Ctx) {
-  const view = ctx.get(editorViewCtx);
-  insertNode(ctx, 'footnote_ref', { id: getNextFootnoteRefId(view.state.doc) });
-}
-
-function insertFootnoteDef(ctx: Ctx) {
-  const view = ctx.get(editorViewCtx);
-  insertNode(ctx, 'footnote_def', { id: getNextFootnoteDefId(view.state.doc) });
-}
-
-async function insertImageFromFilePicker(ctx: Ctx) {
-  const view = ctx.get(editorViewCtx);
-  const insertionBookmark = view.state.selection.getBookmark();
-
-  try {
-    const selected = await openDialog({
-      title: 'Insert Image',
-      authorizeParentDirectory: true,
-      filters: [
-        {
-          name: 'Images',
-          extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif'],
-        },
-      ],
-    });
-    const selectedPath = Array.isArray(selected) ? selected[0] : selected;
-    if (!selectedPath) return;
-
-    const bytes = await getStorageAdapter().readBinaryFile(selectedPath);
-    const fileName = getBaseName(selectedPath) || 'image';
-    const file = new File([new Uint8Array(bytes)], fileName, {
-      type: getMimeType(fileName),
-    });
-
-    view.dispatch(
-      view.state.tr
-        .setSelection(insertionBookmark.resolve(view.state.doc))
-        .scrollIntoView()
-    );
-    await handleEditorImageFiles([file], view);
-  } catch (error) {
-    console.warn('[SlashMenu] Failed to insert image:', error);
-  }
-}
-
-function insertVideoFromPrompt(ctx: Ctx) {
-  if (typeof window === 'undefined') return;
-
-  const src = window.prompt('Video URL');
-  const trimmedSrc = src?.trim();
-  if (!trimmedSrc) return;
-
-  insertNode(ctx, 'video', { src: trimmedSrc });
-}
-
-function insertFrontmatter(ctx: Ctx) {
-  const view = ctx.get(editorViewCtx);
-  const { state, dispatch } = view;
-  const frontmatter = state.schema.nodes.frontmatter;
-  if (!frontmatter) return;
-
-  const firstNode = state.doc.firstChild;
-  if (firstNode?.type === frontmatter) {
-    dispatch(state.tr.setSelection(TextSelection.create(state.doc, 1)).scrollIntoView());
-    return;
-  }
-
-  const node = frontmatter.create();
-  const tr = state.tr.insert(0, node);
-  tr.setSelection(TextSelection.create(tr.doc, 1)).scrollIntoView();
-  dispatch(tr);
 }
 
 export const slashCommandDefinitions = [
@@ -246,20 +119,20 @@ export const slashCommandDefinitions = [
     run: (ctx) => convertCurrentBlock(ctx, 'taskList'),
   },
   {
-    id: 'bullet-list',
-    name: 'Bullet List',
-    icon: '•',
-    searchTerms: ['ul', 'unordered'],
-    commandId: 'bullet-list',
-    run: (ctx) => convertCurrentBlock(ctx, 'bulletList'),
-  },
-  {
     id: 'ordered-list',
     name: 'Numbered List',
     icon: '1.',
     searchTerms: ['ol', 'ordered'],
     commandId: 'ordered-list',
     run: (ctx) => convertCurrentBlock(ctx, 'orderedList'),
+  },
+  {
+    id: 'bullet-list',
+    name: 'Bullet List',
+    icon: '•',
+    searchTerms: ['ul', 'unordered'],
+    commandId: 'bullet-list',
+    run: (ctx) => convertCurrentBlock(ctx, 'bulletList'),
   },
   {
     id: 'quote',
@@ -327,7 +200,15 @@ export const slashCommandDefinitions = [
     icon: '∑',
     searchTerms: ['math', 'latex', 'formula'],
     commandId: 'equation',
-    run: (ctx) => insertNode(ctx, 'math_block', { latex: '' }),
+    run: (ctx) => insertMathNodeAndOpenEditor(ctx, 'math_block'),
+  },
+  {
+    id: 'inline-math',
+    name: 'Inline Math',
+    icon: 'x²',
+    searchTerms: ['math inline', 'latex inline', 'formula inline'],
+    commandId: 'inline-math',
+    run: (ctx) => insertMathNodeAndOpenEditor(ctx, 'math_inline'),
   },
   {
     id: 'toc',
@@ -373,17 +254,9 @@ export const slashCommandDefinitions = [
     id: 'video',
     name: 'Video',
     icon: '🎬',
-    searchTerms: ['youtube', 'bilibili', 'embed', 'movie'],
+    searchTerms: ['vedio', 'youtube', 'bilibili', 'embed', 'movie'],
     commandId: 'video',
-    run: insertVideoFromPrompt,
-  },
-  {
-    id: 'inline-math',
-    name: 'Inline Math',
-    icon: 'x²',
-    searchTerms: ['math inline', 'latex inline', 'formula inline'],
-    commandId: 'inline-math',
-    run: (ctx) => insertNode(ctx, 'math_inline', { latex: '' }),
+    run: openVideoPrompt,
   },
 ] as const satisfies readonly SlashCommandDefinition[];
 

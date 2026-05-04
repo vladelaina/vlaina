@@ -44,6 +44,36 @@ export interface ElectronClipboardApi {
   writeText(text: string): Promise<void>;
 }
 
+export interface ElectronMediaApi {
+  capturePage(rect: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }): Promise<string>;
+  resolveVideoUrl(url: string): Promise<{
+    resolvedUrl: string;
+    source: 'unchanged' | 'fallback' | 'bilibili';
+    bvid?: string;
+    aid?: number | null;
+    cid?: number | null;
+    page?: number | null;
+    error?: string;
+    stage?: string;
+    timeoutFired?: boolean;
+    durationMs?: number;
+  }>;
+  diagnoseUrl(url: string): Promise<{
+    url: string;
+    proxy: string;
+    proxyConfig: {
+      proxyServer: string;
+      proxyRules: string;
+      source: string;
+    } | null;
+  }>;
+}
+
 export interface ElectronDragDropApi {
   getPathForFile(file: File): string;
   authorizePath(filePath: string): Promise<{
@@ -180,6 +210,7 @@ export interface VlainaDesktopApi {
   shortcuts: ElectronShortcutsApi;
   shell: ElectronShellApi;
   clipboard: ElectronClipboardApi;
+  media?: ElectronMediaApi;
   dragDrop: ElectronDragDropApi;
   dialog: ElectronDialogApi;
   fs: ElectronFsApi;

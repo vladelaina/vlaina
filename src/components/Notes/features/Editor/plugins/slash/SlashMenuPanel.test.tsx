@@ -22,7 +22,7 @@ describe('SlashMenuPanel', () => {
     expect(screen.queryByText('Plain text paragraph')).not.toBeInTheDocument();
   });
 
-  it('notifies hover and select interactions', () => {
+  it('notifies hover only on pointer movement and select interactions', () => {
     const onHoverItem = vi.fn();
     const onSelectItem = vi.fn();
     const items = slashMenuItems.slice(0, 3);
@@ -38,6 +38,9 @@ describe('SlashMenuPanel', () => {
 
     const option = screen.getByRole('option', { name: /Heading 1/i });
     fireEvent.mouseEnter(option);
+    expect(onHoverItem).not.toHaveBeenCalled();
+
+    fireEvent.mouseMove(option);
     fireEvent.mouseDown(option);
 
     expect(onHoverItem).toHaveBeenCalledWith(0);

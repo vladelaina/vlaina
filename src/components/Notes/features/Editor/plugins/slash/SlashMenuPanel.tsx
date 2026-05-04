@@ -26,7 +26,7 @@ export function SlashMenuPanel({
             data-index={index}
             aria-selected={isSelected}
             role="option"
-            onMouseEnter={() => onHoverItem(index)}
+            onMouseMove={() => onHoverItem(index)}
             onMouseDown={(event) => {
               event.preventDefault();
               onSelectItem(index);

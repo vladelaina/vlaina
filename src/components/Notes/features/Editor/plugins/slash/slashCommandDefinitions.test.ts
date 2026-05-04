@@ -39,8 +39,8 @@ describe('slashCommandDefinitions', () => {
       'heading-5',
       'heading-6',
       'task-list',
-      'bullet-list',
       'ordered-list',
+      'bullet-list',
       'quote',
       'callout',
       'divider',
@@ -49,13 +49,13 @@ describe('slashCommandDefinitions', () => {
       'image',
       'frontmatter',
       'equation',
+      'inline-math',
       'toc',
       'mermaid',
       'footnote',
       'footnote-definition',
       'abbreviation',
       'video',
-      'inline-math',
     ]);
 
     expect(ids.includes('text')).toBe(false);

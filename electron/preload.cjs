@@ -97,6 +97,17 @@ const desktopApi = {
       return ipcRenderer.invoke('desktop:clipboard:write-text', text);
     },
   },
+  media: {
+    resolveVideoUrl(url) {
+      return ipcRenderer.invoke('desktop:media:resolve-video-url', url);
+    },
+    diagnoseUrl(url) {
+      return ipcRenderer.invoke('desktop:media:diagnose-url', url);
+    },
+    capturePage(rect) {
+      return ipcRenderer.invoke('desktop:media:capture-page', rect);
+    },
+  },
   dragDrop: {
     getPathForFile(file) {
       return webUtils.getPathForFile(file);

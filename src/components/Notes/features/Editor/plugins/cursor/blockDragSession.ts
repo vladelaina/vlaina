@@ -4,6 +4,8 @@ import { setSelectionDraggingVisualState } from './blockDragVisualState';
 
 export type BlockDragStartZone = 'outside-editor' | 'below-last-block';
 
+const BLOCK_SELECTION_PENDING_CLASS = 'vlaina-block-selection-pending';
+
 interface StartBlockDragSessionOptions {
   view: EditorView;
   event: MouseEvent;
@@ -44,6 +46,7 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
   const previousViewCursor = view.dom.style.cursor;
   const previousEditorRootCursor = editorRoot?.style.cursor ?? '';
 
+  document.body.classList.add(BLOCK_SELECTION_PENDING_CLASS);
   document.body.style.cursor = 'text';
   view.dom.style.cursor = 'text';
   if (editorRoot) editorRoot.style.cursor = 'text';
@@ -53,6 +56,7 @@ export function startBlockDragSession(options: StartBlockDragSessionOptions): Bl
     stopped = true;
     document.body.style.cursor = previousBodyCursor;
     document.body.style.userSelect = previousBodyUserSelect;
+    document.body.classList.remove(BLOCK_SELECTION_PENDING_CLASS);
     setSelectionDraggingVisualState(false);
     view.dom.style.cursor = previousViewCursor;
     if (editorRoot) editorRoot.style.cursor = previousEditorRootCursor;
