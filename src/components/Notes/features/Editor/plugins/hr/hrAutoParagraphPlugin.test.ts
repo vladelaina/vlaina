@@ -296,7 +296,29 @@ describe('hrAutoParagraphPlugin', () => {
     await editor.destroy();
   });
 
-  it('deletes a selected horizontal rule without leaving the editor focused on the next paragraph', async () => {
+  it('removes the generated empty paragraph before selecting the preceding horizontal rule', async () => {
+    const editor = createEditor('before\n\nplaceholder');
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    replaceLastParagraphText(view, '---');
+
+    expect(handleHorizontalRuleShortcutEnter(view)).toBe(true);
+    expect(view.state.doc.childCount).toBe(3);
+    expect(view.state.doc.child(1).type.name).toBe('hr');
+    expect(view.state.doc.child(2).type.name).toBe('paragraph');
+
+    expect(pressKey(view, 'Backspace')).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(1).type.name).toBe('hr');
+    expect(view.state.selection).toBeInstanceOf(NodeSelection);
+    expect((view.state.selection as NodeSelection).node.type.name).toBe('hr');
+
+    await editor.destroy();
+  });
+
+  it('deletes a selected horizontal rule and moves the cursor to the preceding text block end', async () => {
     const editor = createEditor('before\n\n---\n\nafter');
 
     await editor.create();
@@ -315,18 +337,26 @@ describe('hrAutoParagraphPlugin', () => {
 
     view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, hrPos)));
 
-    let blurCalled = false;
+    let focusCalled = false;
     const originalBlur = view.dom.blur.bind(view.dom);
+    const originalFocus = view.focus.bind(view);
     view.dom.blur = () => {
-      blurCalled = true;
       originalBlur();
+    };
+    view.focus = () => {
+      focusCalled = true;
+      originalFocus();
     };
 
     expect(pressKey(view, 'Delete')).toBe(true);
     expect(hasHorizontalRule(view)).toBe(false);
-    expect(blurCalled).toBe(true);
+    expect(focusCalled).toBe(true);
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.from).toBe(7);
+    expect(view.state.selection.to).toBe(7);
 
     view.dom.blur = originalBlur;
+    view.focus = originalFocus;
 
     await editor.destroy();
   });
