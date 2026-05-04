@@ -85,3 +85,12 @@ When resolving conflicts:
 - Preserve the latest intent unless it breaks the current main branch or drops a necessary existing fix.
 - If the latest side is stale against main, apply the smallest compatibility fix instead of keeping both versions.
 - After resolving, check for conflict markers, unmerged paths, compile or type issues, and run the most relevant tests when practical.
+
+## 8. Local Milkdown Vendor
+
+**`vendor/milkdown` is fully maintained locally.**
+
+When a task involves Milkdown behavior, schemas, commands, plugins, or editor internals:
+- Inspect and modify `vendor/milkdown` directly when that is the correct layer.
+- Do not avoid vendor changes by adding workaround code in app-level editor plugins.
+- Keep vendor edits as surgical as any other code change, and verify them with the most relevant app and vendor-facing tests.
