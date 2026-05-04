@@ -26,6 +26,7 @@ interface FolderItemProps {
   showStarBadge?: boolean;
   dragEnabled?: boolean;
   showMenuButton?: boolean;
+  renderChildren?: boolean;
 }
 
 export function isCurrentNoteInsideFolder(currentNotePath: string | undefined, folderPath: string): boolean {
@@ -42,6 +43,7 @@ export const FolderItem = memo(function FolderItem({
   showStarBadge = false,
   dragEnabled = true,
   showMenuButton = true,
+  renderChildren = true,
 }: FolderItemProps) {
   const {
     showMenu,
@@ -202,7 +204,7 @@ export const FolderItem = memo(function FolderItem({
     >
       <TreeItemMenu isOpen={showMenu} onClose={() => setShowMenu(false)} position={menuPosition} entries={menuEntries} />
 
-      {node.expanded && shouldRenderChildren && node.children.length > 0 ? (
+      {renderChildren && node.expanded && shouldRenderChildren && node.children.length > 0 ? (
         <div>
           <div aria-hidden="true" className="h-2" />
           {node.children.map((child) =>
@@ -250,6 +252,7 @@ function areFolderItemPropsEqual(prevProps: FolderItemProps, nextProps: FolderIt
     prevProps.node.children === nextProps.node.children &&
     prevProps.depth === nextProps.depth &&
     prevProps.showStarBadge === nextProps.showStarBadge &&
-    prevProps.showMenuButton === nextProps.showMenuButton
+    prevProps.showMenuButton === nextProps.showMenuButton &&
+    prevProps.renderChildren === nextProps.renderChildren
   );
 }

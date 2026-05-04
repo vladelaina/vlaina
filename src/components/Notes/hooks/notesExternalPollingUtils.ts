@@ -35,44 +35,40 @@ function flattenTreeSnapshot(nodes: FileTreeNode[]): TreeSnapshot {
   const folders = new Set<string>();
   const subtreeSignatures = new Map<string, string>();
 
-  const visit = (entries: FileTreeNode[]) => {
+  const visit = (entries: FileTreeNode[], parentFolderPath: string | null): string[] => {
+    const descendants: string[] = [];
+
     for (const entry of entries) {
       if (entry.isFolder) {
         folders.add(entry.path);
-        visit(entry.children);
-      } else {
-        files.add(entry.path);
-      }
-    }
-  };
 
-  const buildFolderSignature = (folderPath: string) => {
-    const descendants: string[] = [];
+        const childDescendants = visit(entry.children, entry.path);
+        childDescendants.sort();
+        subtreeSignatures.set(entry.path, childDescendants.join('|'));
 
-    for (const nestedFolder of folders) {
-      if (nestedFolder === folderPath) {
+        if (parentFolderPath !== null) {
+          descendants.push(`d:${toRelativePath(entry.path, parentFolderPath)}`);
+          descendants.push(
+            ...childDescendants.map((descendant) => {
+              const kind = descendant.slice(0, 2);
+              const relativePath = descendant.slice(2);
+              return `${kind}${toRelativePath(`${entry.path}/${relativePath}`, parentFolderPath)}`;
+            })
+          );
+        }
         continue;
       }
-      if (isPathWithin(nestedFolder, folderPath)) {
-        descendants.push(`d:${toRelativePath(nestedFolder, folderPath)}`);
+
+      files.add(entry.path);
+      if (parentFolderPath !== null) {
+        descendants.push(`f:${toRelativePath(entry.path, parentFolderPath)}`);
       }
     }
 
-    for (const filePath of files) {
-      if (isPathWithin(filePath, folderPath)) {
-        descendants.push(`f:${toRelativePath(filePath, folderPath)}`);
-      }
-    }
-
-    descendants.sort();
-    subtreeSignatures.set(folderPath, descendants.join('|'));
+    return descendants;
   };
 
-  visit(nodes);
-
-  for (const folderPath of folders) {
-    buildFolderSignature(folderPath);
-  }
+  visit(nodes, null);
 
   return {
     files,

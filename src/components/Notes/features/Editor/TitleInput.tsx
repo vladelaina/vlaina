@@ -19,6 +19,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
   const inputRef = useRef<HTMLInputElement>(null);
   const skipNextBlurCommitRef = useRef(false);
   const isCommittingRef = useRef(false);
+  const titleActionFrameRef = useRef<number | null>(null);
   const commitTitleRef = useRef<() => Promise<void>>(async () => undefined);
   const renameNote = useNotesStore(s => s.renameNote);
   const renameAbsoluteNote = useNotesStore(s => s.renameAbsoluteNote);
@@ -28,7 +29,11 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
 
   useEffect(() => {
     if (autoFocus && inputRef.current) {
-      requestAnimationFrame(() => {
+      if (titleActionFrameRef.current !== null) {
+        cancelAnimationFrame(titleActionFrameRef.current);
+      }
+      titleActionFrameRef.current = requestAnimationFrame(() => {
+        titleActionFrameRef.current = null;
         if (inputRef.current) {
           inputRef.current.focus();
           inputRef.current.select();
@@ -112,7 +117,13 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
 
   const runAfterTitleCommit = useCallback((callback: () => void) => {
     skipNextBlurCommitRef.current = true;
-    requestAnimationFrame(callback);
+    if (titleActionFrameRef.current !== null) {
+      cancelAnimationFrame(titleActionFrameRef.current);
+    }
+    titleActionFrameRef.current = requestAnimationFrame(() => {
+      titleActionFrameRef.current = null;
+      callback();
+    });
   }, []);
 
   const handleKeyDown = useCallback(async (e: React.KeyboardEvent) => {
@@ -142,6 +153,10 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
 
   useEffect(() => {
     return () => {
+      if (titleActionFrameRef.current !== null) {
+        cancelAnimationFrame(titleActionFrameRef.current);
+        titleActionFrameRef.current = null;
+      }
       isCommittingRef.current = false;
       skipNextBlurCommitRef.current = false;
     };

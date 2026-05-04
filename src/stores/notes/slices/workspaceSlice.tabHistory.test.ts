@@ -216,6 +216,40 @@ describe('workspaceSlice tab history', () => {
     ]);
   });
 
+  it('ignores a stale note open that finishes after a newer open', async () => {
+    const alphaResolvers: Array<(content: string) => void> = [];
+    storageAdapter.readFile.mockImplementation(async (path: string) => {
+      if (path === '/vault/alpha.md') {
+        return new Promise<string>((resolve) => {
+          alphaResolvers.push(resolve);
+        });
+      }
+      if (path === '/vault/beta.md') {
+        return '# beta';
+      }
+      throw new Error(`unexpected path: ${path}`);
+    });
+    const store = createNotesStore();
+
+    const alphaOpen = store.getState().openNote('alpha.md');
+    const betaOpen = store.getState().openNote('beta.md');
+    await betaOpen;
+
+    expect(store.getState().currentNote).toEqual({
+      path: 'beta.md',
+      content: '# beta',
+    });
+
+    expect(alphaResolvers).toHaveLength(1);
+    alphaResolvers[0]?.('# alpha');
+    await alphaOpen;
+
+    expect(store.getState().currentNote).toEqual({
+      path: 'beta.md',
+      content: '# beta',
+    });
+  });
+
   it('opens an absolute note in a new tab without saving the dirty draft tab', async () => {
     const saveNote = vi.fn(async () => undefined);
     storageAdapter.readFile.mockResolvedValue('# starred');

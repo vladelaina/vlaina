@@ -23,6 +23,14 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
     isVisible
 }) => {
     const [copied, setCopied] = useState(false);
+    const mountedRef = React.useRef(true);
+
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => {
+            mountedRef.current = false;
+        };
+    }, []);
 
     useEffect(() => {
         if (copied) {
@@ -33,7 +41,7 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
 
     const handleCopy = () => {
         void Promise.resolve(onCopy()).then((didCopy) => {
-            if (didCopy !== false) {
+            if (mountedRef.current && didCopy !== false) {
                 setCopied(true);
             }
         }, () => undefined);

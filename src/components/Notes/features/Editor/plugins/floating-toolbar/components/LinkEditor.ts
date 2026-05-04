@@ -35,6 +35,9 @@ export function renderLinkEditor(
 
   if (shouldAutofocus) {
     requestAnimationFrame(() => {
+      if (!input.isConnected) {
+        return;
+      }
       input.focus();
       input.select();
     });
@@ -66,6 +69,9 @@ export function renderLinkEditor(
       line.classList.add('error-line');
       
       setTimeout(() => {
+        if (!input.isConnected) {
+          return;
+        }
         input.classList.remove('error-shake');
         line.classList.remove('error-line');
       }, 500);

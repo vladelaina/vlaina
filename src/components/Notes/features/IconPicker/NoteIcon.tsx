@@ -12,7 +12,8 @@ interface NoteIconProps extends Omit<UniversalIconProps, 'imageLoader'> {
 
 export function NoteIcon({ notePath, vaultPath: vaultPathOverride, ...props }: NoteIconProps) {
   const notesPath = useNotesStore(s => s.notesPath);
-  const { universalPreviewColor, universalPreviewTone } = useUIStore();
+  const universalPreviewColor = useUIStore((state) => state.universalPreviewColor);
+  const universalPreviewTone = useUIStore((state) => state.universalPreviewTone);
   const vaultPath = vaultPathOverride || notesPath;
 
   const imageLoader = useCallback(async (src: string) => {

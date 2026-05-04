@@ -10,6 +10,7 @@ import {
   setNoteEntry,
 } from '../storage';
 import {
+  limitCachedNoteContents,
   remapCachedNoteContents,
 } from '../document/noteContentCache';
 import { loadNoteDocument } from '../document/noteDocumentPersistence';
@@ -28,6 +29,18 @@ import type { WorkspaceSlice } from './workspaceSliceTypes';
 
 const pendingNotePrefetches = new Map<string, Promise<void>>();
 const notePrefetchQueue = createAsyncPrefetchQueue(2);
+const MAX_NOTE_CONTENT_CACHE_ENTRIES = 250;
+let latestOpenNoteRequestId = 0;
+
+function getProtectedCachePaths(state: NotesStore, extraPaths: string[] = []) {
+  const protectedPaths = new Set(extraPaths);
+  if (state.currentNote) {
+    protectedPaths.add(state.currentNote.path);
+  }
+  state.openTabs.forEach((tab) => protectedPaths.add(tab.path));
+  Object.keys(state.draftNotes).forEach((path) => protectedPaths.add(path));
+  return protectedPaths;
+}
 
 export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSlice> = (
   set,
@@ -46,6 +59,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   displayNames: new Map(),
 
   openNote: async (path: string, openInNewTab: boolean = false) => {
+    const openRequestId = ++latestOpenNoteRequestId;
     let { notesPath, isDirty, saveNote, recentNotes, openTabs, currentNote, noteContentsCache, draftNotes } = get();
     let shouldOpenInNewTab = openInNewTab;
     let existingTab = openTabs.find((t) => t.path === path);
@@ -66,6 +80,9 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         path,
         cache: noteContentsCache,
       });
+      if (openRequestId !== latestOpenNoteRequestId || get().notesPath !== notesPath) {
+        return;
+      }
       const nextMetadata = setNoteEntry(
         get().noteMetadata ?? createEmptyMetadataFile(),
         path,
@@ -99,7 +116,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         recentNotes: updatedRecent,
         openTabs: updatedTabs,
         isNewlyCreated: false,
-        noteContentsCache: nextCache,
+        noteContentsCache: limitCachedNoteContents(
+          nextCache,
+          getProtectedCachePaths({ ...get(), openTabs: updatedTabs, currentNote: { path, content } }),
+          MAX_NOTE_CONTENT_CACHE_ENTRIES,
+        ),
         noteMetadata: nextMetadata,
       });
 
@@ -110,11 +131,14 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         fileTreeSortMode,
       });
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : 'Failed to open note' });
+      if (openRequestId === latestOpenNoteRequestId) {
+        set({ error: error instanceof Error ? error.message : 'Failed to open note' });
+      }
     }
   },
 
   openNoteByAbsolutePath: async (absolutePath: string, openInNewTab: boolean = false) => {
+    const openRequestId = ++latestOpenNoteRequestId;
     let { notesPath, isDirty, saveNote, openTabs, currentNote, noteContentsCache, draftNotes } = get();
     let shouldOpenInNewTab = openInNewTab;
     let existingTab = openTabs.find((t) => t.path === absolutePath);
@@ -135,6 +159,9 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         path: absolutePath,
         cache: noteContentsCache,
       });
+      if (openRequestId !== latestOpenNoteRequestId || get().notesPath !== notesPath) {
+        return;
+      }
       const nextMetadata = setNoteEntry(
         get().noteMetadata ?? createEmptyMetadataFile(),
         absolutePath,
@@ -166,11 +193,17 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         error: null,
         openTabs: updatedTabs,
         isNewlyCreated: false,
-        noteContentsCache: nextCache,
+        noteContentsCache: limitCachedNoteContents(
+          nextCache,
+          getProtectedCachePaths({ ...get(), openTabs: updatedTabs, currentNote: { path: absolutePath, content } }),
+          MAX_NOTE_CONTENT_CACHE_ENTRIES,
+        ),
         noteMetadata: nextMetadata,
       });
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : 'Failed to open note' });
+      if (openRequestId === latestOpenNoteRequestId) {
+        set({ error: error instanceof Error ? error.message : 'Failed to open note' });
+      }
     }
   },
 
@@ -203,7 +236,13 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         }
         const mergedCache = new Map(state.noteContentsCache);
         mergedCache.set(path, prefetchedEntry);
-        return { noteContentsCache: mergedCache };
+        return {
+          noteContentsCache: limitCachedNoteContents(
+            mergedCache,
+            getProtectedCachePaths(state, [path]),
+            MAX_NOTE_CONTENT_CACHE_ENTRIES,
+          ),
+        };
       });
     });
 

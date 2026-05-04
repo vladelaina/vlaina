@@ -90,6 +90,10 @@ function scrollEditorFindMatchIntoView(
   behavior: EditorFindScrollBehavior = 'smooth',
 ) {
   requestAnimationFrame(() => {
+    if (!view.dom.isConnected) {
+      return;
+    }
+
     try {
       const startRect = view.coordsAtPos(match.from);
       const endRect = view.coordsAtPos(Math.max(match.to - 1, match.from));

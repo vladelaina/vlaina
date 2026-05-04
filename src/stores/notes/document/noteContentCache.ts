@@ -61,3 +61,26 @@ export function pruneCachedNoteContents(
 ): NoteContentCache {
   return remapCachedNoteContents(cache, (path) => (shouldRemove(path) ? null : path));
 }
+
+export function limitCachedNoteContents(
+  cache: NoteContentCache,
+  keepPaths: ReadonlySet<string>,
+  maxEntries: number
+): NoteContentCache {
+  if (cache.size <= maxEntries) {
+    return cache;
+  }
+
+  const nextCache = new Map(cache);
+  for (const path of nextCache.keys()) {
+    if (nextCache.size <= maxEntries) {
+      break;
+    }
+
+    if (!keepPaths.has(path)) {
+      nextCache.delete(path);
+    }
+  }
+
+  return nextCache.size === cache.size ? cache : nextCache;
+}

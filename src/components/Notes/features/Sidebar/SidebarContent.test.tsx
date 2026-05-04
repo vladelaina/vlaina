@@ -12,6 +12,7 @@ const hoisted = vi.hoisted(() => ({
   countNotesSidebarSearchEntries: vi.fn(() => 0),
   markSidebarSearchNavigationPending: vi.fn(),
   noteContentsCache: new Map<string, { content: string; modifiedAt: number | null }>(),
+  pruneNoteContentsCacheToOpenNotes: vi.fn(),
   queryNotesSidebarSearch: vi.fn(() => []),
   revealFolder: vi.fn(),
   scheduleSidebarItemIntoView: vi.fn(),
@@ -25,6 +26,7 @@ vi.mock('@/stores/useNotesStore', () => ({
     openNote: vi.fn(() => Promise.resolve()),
     getDisplayName: vi.fn((path: string) => path),
     noteContentsCache: hoisted.noteContentsCache,
+    pruneNoteContentsCacheToOpenNotes: hoisted.pruneNoteContentsCacheToOpenNotes,
     revealFolder: hoisted.revealFolder,
     scanAllNotes: hoisted.scanAllNotes,
     starredEntries: [],
@@ -133,6 +135,7 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.buildNotesSidebarSearchIndex.mockReturnValue([]);
     hoisted.countNotesSidebarSearchEntries.mockReturnValue(0);
     hoisted.noteContentsCache = new Map();
+    hoisted.pruneNoteContentsCacheToOpenNotes.mockClear();
     hoisted.scanAllNotes.mockResolvedValue(undefined);
     hoisted.shouldSearchNotesSidebarContents.mockReturnValue(false);
   });
@@ -311,5 +314,41 @@ describe('SidebarContent search highlight cleanup', () => {
     );
 
     expect(hoisted.scanAllNotes).not.toHaveBeenCalled();
+  });
+
+  it('prunes scanned note contents when sidebar search closes', () => {
+    hoisted.shouldShowSearchResults = true;
+    hoisted.shouldSearchNotesSidebarContents.mockReturnValue(true);
+    hoisted.countNotesSidebarSearchEntries.mockReturnValue(2);
+    hoisted.buildNotesSidebarSearchIndex.mockReturnValue(createSearchEntries());
+    hoisted.noteContentsCache = new Map([
+      ['docs/alpha.md', { content: 'alpha body', modifiedAt: 1 }],
+      ['docs/beta.md', { content: 'beta body', modifiedAt: 1 }],
+    ]);
+
+    const { rerender } = render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="docs/alpha.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: true, searchQuery: 'alpha' })}
+      />,
+    );
+
+    hoisted.pruneNoteContentsCacheToOpenNotes.mockClear();
+    rerender(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="docs/alpha.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(hoisted.pruneNoteContentsCacheToOpenNotes).toHaveBeenCalledTimes(1);
   });
 });

@@ -48,6 +48,7 @@ export function SidebarContent({
   const getDisplayName = useNotesStore((s) => s.getDisplayName);
   const noteContentsCache = useNotesStore((s) => s.noteContentsCache);
   const scanAllNotes = useNotesStore((s) => s.scanAllNotes);
+  const pruneNoteContentsCacheToOpenNotes = useNotesStore((s) => s.pruneNoteContentsCacheToOpenNotes);
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
   const rootBlankAreaRef = useRef<HTMLDivElement | null>(null);
   const [isSidebarHovered, setIsSidebarHovered] = useState(false);
@@ -78,6 +79,7 @@ export function SidebarContent({
     getDisplayName,
     noteContentsCache,
     scanAllNotes,
+    pruneNoteContentsCacheToOpenNotes,
     searchQuery: deferredSearchQuery,
     isSearchOpen: search.isSearchOpen,
   });
@@ -174,6 +176,7 @@ export function SidebarContent({
       query: pendingNavigation.query,
       contentMatchOrdinal: pendingNavigation.contentMatchOrdinal,
       previousView: pendingNavigation.previousView,
+      shouldContinue: () => !cancelled,
     }).finally(() => {
       if (!cancelled) {
         setPendingNavigation((current) =>
@@ -270,6 +273,7 @@ export function SidebarContent({
               onCreateNote={createNote}
               onCreateFolder={() => createFolder('')}
               blankContextMenuRef={rootBlankAreaRef}
+              scrollRootRef={scrollRootRef}
             />
             <div
               ref={rootFolder ? rootBlankAreaRef : undefined}

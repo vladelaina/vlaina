@@ -27,7 +27,7 @@ const sourceId = (() => {
 
 const listeners = new Set<(event: NotesExternalPathRenameEvent) => void>();
 let channel: BroadcastChannel | null = null;
-let storageListenerBound = false;
+let storageListener: ((event: StorageEvent) => void) | null = null;
 
 function parseRenameEvent(value: unknown): NotesExternalPathRenameEvent | null {
   if (!value || typeof value !== 'object') {
@@ -83,11 +83,11 @@ function ensureBroadcastChannel() {
 }
 
 function ensureStorageListener() {
-  if (storageListenerBound || typeof window === 'undefined') {
+  if (storageListener || typeof window === 'undefined') {
     return;
   }
 
-  window.addEventListener('storage', (event) => {
+  storageListener = (event) => {
     if (event.key !== STORAGE_KEY || !event.newValue) {
       return;
     }
@@ -99,8 +99,22 @@ function ensureStorageListener() {
       }
     } catch {
     }
-  });
-  storageListenerBound = true;
+  };
+  window.addEventListener('storage', storageListener);
+}
+
+function releaseExternalPathListenersIfIdle() {
+  if (listeners.size > 0) {
+    return;
+  }
+
+  channel?.close();
+  channel = null;
+
+  if (storageListener && typeof window !== 'undefined') {
+    window.removeEventListener('storage', storageListener);
+    storageListener = null;
+  }
 }
 
 export function emitNotesExternalPathRename(input: {
@@ -128,6 +142,7 @@ export function emitNotesExternalPathRename(input: {
 
   ensureBroadcastChannel();
   channel?.postMessage(event);
+  releaseExternalPathListenersIfIdle();
 
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(event));
@@ -165,6 +180,7 @@ export function subscribeNotesExternalPathRename(
 
   return () => {
     listeners.delete(wrappedListener);
+    releaseExternalPathListenersIfIdle();
   };
 }
 

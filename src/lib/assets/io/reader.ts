@@ -2,17 +2,42 @@ import { getStorageAdapter } from '@/lib/storage/adapter';
 import { getMimeType } from '../core/naming';
 
 const MAX_CACHE_SIZE = 500;
-const blobUrlCache = new Map<string, string>();
+
+interface BlobUrlCacheEntry {
+  url: string;
+  modifiedAt: number | null;
+  size: number | null;
+}
+
+const blobUrlCache = new Map<string, BlobUrlCacheEntry>();
+
+function touchBlobUrlCacheEntry(fullPath: string, entry: BlobUrlCacheEntry) {
+  blobUrlCache.delete(fullPath);
+  blobUrlCache.set(fullPath, entry);
+}
+
+function revokeBlobUrlCacheEntry(entry: BlobUrlCacheEntry | undefined) {
+  if (entry) {
+    URL.revokeObjectURL(entry.url);
+  }
+}
 
 export async function loadImageAsBlob(fullPath: string): Promise<string> {
+  const storage = getStorageAdapter();
+  const fileInfo = await storage.stat(fullPath).catch(() => null);
+  const modifiedAt = fileInfo?.modifiedAt ?? null;
+  const size = fileInfo?.size ?? null;
+  const canValidateCache = modifiedAt !== null || size !== null;
   const cached = blobUrlCache.get(fullPath);
-  if (cached) {
-    blobUrlCache.delete(fullPath);
-    blobUrlCache.set(fullPath, cached);
-    return cached;
+  if (cached && canValidateCache && cached.modifiedAt === modifiedAt && cached.size === size) {
+    touchBlobUrlCacheEntry(fullPath, cached);
+    return cached.url;
   }
 
-  const storage = getStorageAdapter();
+  if (cached) {
+    revokeBlobUrlCacheEntry(cached);
+    blobUrlCache.delete(fullPath);
+  }
 
   try {
     const data = await storage.readBinaryFile(fullPath);
@@ -24,13 +49,16 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
     if (blobUrlCache.size >= MAX_CACHE_SIZE) {
       const oldestKey = blobUrlCache.keys().next().value;
       if (oldestKey) {
-        const oldestUrl = blobUrlCache.get(oldestKey);
-        if (oldestUrl) URL.revokeObjectURL(oldestUrl);
+        revokeBlobUrlCacheEntry(blobUrlCache.get(oldestKey));
         blobUrlCache.delete(oldestKey);
       }
     }
 
-    blobUrlCache.set(fullPath, blobUrl);
+    blobUrlCache.set(fullPath, {
+      url: blobUrl,
+      modifiedAt,
+      size,
+    });
 
     return blobUrl;
   } catch (error) {
@@ -73,7 +101,7 @@ export async function loadImageAsBase64(fullPath: string): Promise<string> {
 export function revokeImageBlob(fullPath: string): void {
   const cached = blobUrlCache.get(fullPath);
   if (cached) {
-    URL.revokeObjectURL(cached);
+    revokeBlobUrlCacheEntry(cached);
     blobUrlCache.delete(fullPath);
   }
 }
@@ -83,8 +111,8 @@ export function invalidateImageCache(fullPath: string): void {
 }
 
 export function clearImageCache(): void {
-  for (const url of blobUrlCache.values()) {
-    URL.revokeObjectURL(url);
+  for (const entry of blobUrlCache.values()) {
+    revokeBlobUrlCacheEntry(entry);
   }
   blobUrlCache.clear();
 }
@@ -93,8 +121,7 @@ export function getCachedBlobUrl(fullPath: string): string | undefined {
   const cached = blobUrlCache.get(fullPath);
   
   if (cached) {
-    blobUrlCache.delete(fullPath);
-    blobUrlCache.set(fullPath, cached);
+    touchBlobUrlCacheEntry(fullPath, cached);
   }
-  return cached;
+  return cached?.url;
 }

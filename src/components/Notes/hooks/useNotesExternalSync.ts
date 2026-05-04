@@ -11,7 +11,10 @@ import {
   readNotesExternalPathEvents,
   subscribeNotesExternalPathRename,
 } from '@/stores/notes/document/externalPathBroadcast';
-import { type PendingRenameEntry } from './notesExternalRenameQueue';
+import {
+  rememberProcessedRenameEventNonce,
+  type PendingRenameEntry,
+} from './notesExternalRenameQueue';
 import { toVaultRelativePath } from './notesExternalSyncUtils';
 import {
   getExternalWatchErrorMessage,
@@ -91,10 +94,9 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
 
     async function applyRenameEvent(event: { nonce?: string; oldPath: string; newPath: string }) {
       if (event.nonce) {
-        if (processedRenameEventNoncesRef.current.has(event.nonce)) {
+        if (!rememberProcessedRenameEventNonce(processedRenameEventNoncesRef.current, event.nonce)) {
           return;
         }
-        processedRenameEventNoncesRef.current.add(event.nonce);
       }
 
       await applyExternalPathRename(event.oldPath, event.newPath);

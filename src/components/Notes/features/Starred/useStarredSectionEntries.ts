@@ -28,16 +28,14 @@ export interface StarredSectionEntryViewModel {
 }
 
 export function useStarredSectionEntries() {
-  const {
-    starredEntries,
-    starredLoaded,
-    currentNote,
-    rootFolder,
-    openNote,
-    openNoteByAbsolutePath,
-    removeStarredEntry,
-  } = useNotesStore();
-  const { currentVault } = useVaultStore();
+  const starredEntries = useNotesStore((state) => state.starredEntries);
+  const starredLoaded = useNotesStore((state) => state.starredLoaded);
+  const currentNotePath = useNotesStore((state) => state.currentNote?.path);
+  const rootFolder = useNotesStore((state) => state.rootFolder);
+  const openNote = useNotesStore((state) => state.openNote);
+  const openNoteByAbsolutePath = useNotesStore((state) => state.openNoteByAbsolutePath);
+  const removeStarredEntry = useNotesStore((state) => state.removeStarredEntry);
+  const currentVault = useVaultStore((state) => state.currentVault);
 
   const currentVaultPath = currentVault?.path ? normalizeStarredVaultPath(currentVault.path) : '';
   const sortedStarredEntries = useMemo(() => sortStarredEntries(starredEntries), [starredEntries]);
@@ -51,14 +49,14 @@ export function useStarredSectionEntries() {
         const treeNode = isCurrentVaultEntry
           ? nodeLookup.get(entry.relativePath) ?? null
           : null;
-        const currentNotePath = normalizeNotePathKey(currentNote?.path);
+        const normalizedCurrentNotePath = normalizeNotePathKey(currentNotePath);
         const entryRelativePath = normalizeNotePathKey(entry.relativePath);
         const isActive =
           entry.kind === 'note' &&
-          currentNotePath != null &&
+          normalizedCurrentNotePath != null &&
           (isCurrentVaultEntry
-            ? currentNotePath === entryRelativePath
-            : currentNotePath === getStarredAbsolutePath(entry));
+            ? normalizedCurrentNotePath === entryRelativePath
+            : normalizedCurrentNotePath === getStarredAbsolutePath(entry));
 
         return {
           entry,
@@ -95,7 +93,7 @@ export function useStarredSectionEntries() {
         };
       }),
     [
-      currentNote?.path,
+      currentNotePath,
       currentVaultPath,
       nodeLookup,
       openNote,

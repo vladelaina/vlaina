@@ -32,6 +32,10 @@ export const slashPlugin = $prose((ctx) => {
             canOpenSlashMenuFromSelection(view.state.selection)
           ) {
             setTimeout(() => {
+              if (!view.dom.isConnected) {
+                return;
+              }
+
               const slashRange = getSlashTextRange(view);
               if (!slashRange || slashRange.query !== '') {
                 return;

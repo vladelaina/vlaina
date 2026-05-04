@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -11,6 +11,8 @@ import { NotesSidebarList } from './NotesSidebarPrimitives';
 import { NotesSidebarRow } from './NotesSidebarRow';
 import { RootFolderMenu } from './RootFolderMenu';
 import { FileTreeItem } from '../FileTree';
+import { shouldVirtualizeFileTree, VirtualizedFileTree } from '../FileTree/VirtualizedFileTree';
+import { countVisibleFileTreeRows } from '../FileTree/virtualFileTree';
 import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
 import { getSidebarContextMenuPosition, getSidebarMenuPositionFromTriggerRect } from '../common/sidebarMenuPosition';
 import { useFileTreePointerDragState } from '../FileTree/hooks/fileTreePointerDragState';
@@ -31,6 +33,7 @@ interface RootFolderRowProps {
   onCreateNote: () => Promise<unknown>;
   onCreateFolder: () => Promise<string | null>;
   blankContextMenuRef?: RefObject<HTMLElement | null>;
+  scrollRootRef?: RefObject<HTMLElement | null>;
 }
 
 export function RootFolderRow({
@@ -39,6 +42,7 @@ export function RootFolderRow({
   onCreateNote,
   onCreateFolder,
   blankContextMenuRef,
+  scrollRootRef,
 }: RootFolderRowProps) {
   const currentVault = useVaultStore((state) => state.currentVault);
   const renameCurrentVault = useVaultStore((state) => state.renameCurrentVault);
@@ -69,6 +73,13 @@ export function RootFolderRow({
   const vaultPath = currentVault?.path ?? '';
   const hasChildren = rootFolder ? rootFolder.children.length > 0 : false;
   const expanded = rootFolder?.expanded ?? true;
+  const visibleFileTreeRowCount = useMemo(
+    () => rootFolder ? countVisibleFileTreeRows(rootFolder.children) : 0,
+    [rootFolder],
+  );
+  const useVirtualFileTree = Boolean(
+    scrollRootRef && shouldVirtualizeFileTree(visibleFileTreeRowCount),
+  );
   const setExpanded = (value: boolean | ((value: boolean) => boolean)) => {
     const nextValue = typeof value === 'function' ? value(expanded) : value;
     if (nextValue !== expanded) {
@@ -285,14 +296,23 @@ export function RootFolderRow({
 
       {expanded && shouldRenderChildren && rootFolder.children.length > 0 ? (
         <NotesSidebarList>
-          {rootFolder.children.map((node) => (
-            <FileTreeItem
-              key={node.id}
-              node={node}
-              depth={1}
+          {useVirtualFileTree && scrollRootRef ? (
+            <VirtualizedFileTree
+              nodes={rootFolder.children}
+              startDepth={1}
               parentFolderPath=""
+              scrollRootRef={scrollRootRef}
             />
-          ))}
+          ) : (
+            rootFolder.children.map((node) => (
+              <FileTreeItem
+                key={node.id}
+                node={node}
+                depth={1}
+                parentFolderPath=""
+              />
+            ))
+          )}
         </NotesSidebarList>
       ) : null}
     </div>

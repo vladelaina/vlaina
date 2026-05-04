@@ -13,6 +13,7 @@ const adapter = {
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
   mkdir: vi.fn<(path: string, recursive?: boolean) => Promise<void>>(),
   getBasePath: vi.fn<() => Promise<string>>(),
+  stat: vi.fn<(path: string) => Promise<{ modifiedAt?: number; size?: number } | null>>(),
   listDir: vi.fn<
     (path: string) => Promise<Array<{ name: string; isDirectory?: boolean; isFile?: boolean }>>
   >(),
@@ -28,6 +29,10 @@ describe('notes metadata storage', () => {
     vi.clearAllMocks();
     adapter.exists.mockResolvedValue(false);
     adapter.getBasePath.mockResolvedValue('/app');
+    adapter.stat.mockImplementation(async (path: string) => ({
+      modifiedAt: path.includes('alpha') ? 1 : 2,
+      size: path.includes('alpha') ? 100 : 200,
+    }));
   });
 
   it('scans markdown frontmatter into the runtime metadata index', async () => {
@@ -96,6 +101,38 @@ describe('notes metadata storage', () => {
         },
       },
     });
+  });
+
+  it('reuses cached metadata when file stats are unchanged', async () => {
+    adapter.listDir.mockResolvedValue([
+      { name: 'alpha.md', isFile: true },
+    ]);
+    adapter.readFile.mockResolvedValue([
+      '---',
+      'vlaina_updated: "2026-04-17T00:00:00.000Z"',
+      '---',
+      '',
+      '# Alpha',
+    ].join('\n'));
+    adapter.stat.mockResolvedValue({ modifiedAt: 7, size: 80 });
+
+    await loadNoteMetadata('/vault-cache');
+    await loadNoteMetadata('/vault-cache');
+
+    expect(adapter.readFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not cache metadata when file stats are unavailable', async () => {
+    adapter.listDir.mockResolvedValue([
+      { name: 'alpha.md', isFile: true },
+    ]);
+    adapter.readFile.mockResolvedValue('# Alpha');
+    adapter.stat.mockResolvedValue(null);
+
+    await loadNoteMetadata('/vault-no-stat');
+    await loadNoteMetadata('/vault-no-stat');
+
+    expect(adapter.readFile).toHaveBeenCalledTimes(2);
   });
 
   it('creates an empty metadata file shape when needed', () => {

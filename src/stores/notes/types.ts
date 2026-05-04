@@ -160,6 +160,7 @@ export interface NotesActions {
   switchTab: (path: string) => void;
   reorderTabs: (fromIndex: number, toIndex: number) => void;
   scanAllNotes: () => Promise<void>;
+  pruneNoteContentsCacheToOpenNotes: () => void;
   getBacklinks: (notePath: string) => { path: string; name: string; context: string }[];
   getAllTags: () => { tag: string; count: number }[];
   loadStarred: (vaultPath: string) => Promise<void>;

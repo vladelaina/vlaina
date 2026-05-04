@@ -18,6 +18,7 @@ import {
 } from '../starred';
 import {
   getCachedNoteModifiedAt,
+  pruneCachedNoteContents,
   setCachedNoteContent,
 } from '../document/noteContentCache';
 import { markExpectedExternalChange } from '../document/externalChangeRegistry';
@@ -46,6 +47,7 @@ export interface FeatureSlice {
   loadStarred: (vaultPath: string) => Promise<void>;
   loadMetadata: (vaultPath: string) => Promise<void>;
   scanAllNotes: () => Promise<void>;
+  pruneNoteContentsCacheToOpenNotes: () => void;
   getBacklinks: (notePath: string) => { path: string; name: string; context: string }[];
   getAllTags: () => { tag: string; count: number }[];
   toggleStarred: (path: string) => void;
@@ -183,7 +185,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     },
 
     scanAllNotes: async () => {
-      const { notesPath, rootFolder, currentNote, noteContentsCache } = get();
+      const { notesPath, rootFolder, currentNote, openTabs, draftNotes, noteContentsCache } = get();
       if (!rootFolder || !notesPath) return;
 
       const storage = getStorageAdapter();
@@ -259,8 +261,41 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
           modifiedAt: currentEntry?.modifiedAt ?? null,
         });
       }
+      openTabs.forEach((tab) => {
+        if (tab.path === currentNote?.path) {
+          return;
+        }
+
+        const cachedEntry = noteContentsCache.get(tab.path);
+        if (cachedEntry) {
+          cache.set(tab.path, cachedEntry);
+        }
+      });
+      Object.keys(draftNotes).forEach((path) => {
+        const cachedEntry = noteContentsCache.get(path);
+        if (cachedEntry) {
+          cache.set(path, cachedEntry);
+        }
+      });
 
       set({ noteContentsCache: cache });
+    },
+
+    pruneNoteContentsCacheToOpenNotes: () => {
+      const { currentNote, openTabs, draftNotes, noteContentsCache } = get();
+      const keepPaths = new Set(openTabs.map((tab) => tab.path));
+      if (currentNote) {
+        keepPaths.add(currentNote.path);
+      }
+      Object.keys(draftNotes).forEach((path) => keepPaths.add(path));
+
+      const nextCache = pruneCachedNoteContents(
+        noteContentsCache,
+        (path) => !keepPaths.has(path),
+      );
+      if (nextCache !== noteContentsCache) {
+        set({ noteContentsCache: nextCache });
+      }
     },
 
     getBacklinks: (notePath: string) => {

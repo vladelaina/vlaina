@@ -26,6 +26,8 @@ export function useNoteEditorFindPanelState({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const replaceInputRef = useRef<HTMLInputElement | null>(null);
   const lastNotePathRef = useRef<string | null | undefined>(notePath);
+  const inputFocusFrameRef = useRef<number | null>(null);
+  const replaceFocusFrameRef = useRef<number | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isReplaceOpen, setIsReplaceOpen] = useState(false);
   const [replaceValue, setReplaceValue] = useState('');
@@ -68,9 +70,21 @@ export function useNoteEditorFindPanelState({
       return;
     }
 
-    requestAnimationFrame(() => {
+    if (inputFocusFrameRef.current !== null) {
+      cancelAnimationFrame(inputFocusFrameRef.current);
+    }
+
+    inputFocusFrameRef.current = requestAnimationFrame(() => {
+      inputFocusFrameRef.current = null;
       focusInputElement(inputRef.current, true);
     });
+
+    return () => {
+      if (inputFocusFrameRef.current !== null) {
+        cancelAnimationFrame(inputFocusFrameRef.current);
+        inputFocusFrameRef.current = null;
+      }
+    };
   }, [focusToken, isOpen]);
 
   useEffect(() => {
@@ -78,9 +92,21 @@ export function useNoteEditorFindPanelState({
       return;
     }
 
-    requestAnimationFrame(() => {
+    if (replaceFocusFrameRef.current !== null) {
+      cancelAnimationFrame(replaceFocusFrameRef.current);
+    }
+
+    replaceFocusFrameRef.current = requestAnimationFrame(() => {
+      replaceFocusFrameRef.current = null;
       focusInputElement(replaceInputRef.current, false);
     });
+
+    return () => {
+      if (replaceFocusFrameRef.current !== null) {
+        cancelAnimationFrame(replaceFocusFrameRef.current);
+        replaceFocusFrameRef.current = null;
+      }
+    };
   }, [isReplaceOpen]);
 
   useEffect(() => {

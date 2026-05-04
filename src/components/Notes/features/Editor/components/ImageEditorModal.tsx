@@ -20,8 +20,9 @@ export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEdi
     const [zoom, setZoom] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
     const [isSaving, setIsSaving] = useState(false);
-    const { uploadAsset, currentNote } = useNotesStore();
-    const { addToast } = useToastStore();
+    const uploadAsset = useNotesStore((state) => state.uploadAsset);
+    const currentNotePath = useNotesStore((state) => state.currentNote?.path);
+    const addToast = useToastStore((state) => state.addToast);
 
 
     const onCropComplete = useCallback((_croppedArea: any, croppedAreaPixels: any) => {
@@ -42,7 +43,7 @@ export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEdi
 
             const fileToUpload = new File([croppedBlob], fileName, { type: 'image/png' });
 
-            const result = await uploadAsset(fileToUpload, currentNote?.path);
+            const result = await uploadAsset(fileToUpload, currentNotePath);
 
             if (result.success && result.path) {
                 onSave(result.path);
