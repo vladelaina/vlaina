@@ -2,6 +2,7 @@ import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Fragment, Slice } from '@milkdown/kit/prose/model';
 import { isStandaloneFencedCodeBlock } from '../../clipboard/fencedCodePaste';
+import { resolvePasteRange } from '../../clipboard/pasteCursorUtils';
 
 export const markdownLinkPluginKey = new PluginKey('markdown-link-paste');
 
@@ -177,9 +178,8 @@ export const markdownLinkPlugin = $prose(() => {
                 const fragment = Fragment.from(nodes);
                 const slice = new Slice(fragment, 0, 0);
 
-                const selFrom = view.state.selection.from;
-                const selTo = view.state.selection.to;
-                const tr = view.state.tr.replaceRange(selFrom, selTo, slice);
+                const { from, to } = resolvePasteRange(view.state, slice);
+                const tr = view.state.tr.replaceRange(from, to, slice);
                 view.dispatch(tr);
 
                 event.preventDefault();

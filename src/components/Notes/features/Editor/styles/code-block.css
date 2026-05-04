@@ -13,7 +13,8 @@
   font-size: 0.875rem !important;
   line-height: 1.7 !important;
   padding: 2.75rem 1rem 1rem !important;
-  white-space: pre-wrap !important;
+  overflow-x: auto !important;
+  white-space: pre !important;
 }
 
 .milkdown [data-preview-block-type="codeBlock"]::before {

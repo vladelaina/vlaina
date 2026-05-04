@@ -75,6 +75,22 @@ describe('serializeSliceToText', () => {
         expect(serializeSliceToText(slice)).toBe('```ts\nconst a = 1;\nconsole.log(a);\n```');
     });
 
+    it('preserves internal blank lines inside copied code blocks', () => {
+        const slice = createSlice([
+            createBlockNode('code_block', [createTextNode('const a = 1;\n\nconsole.log(a);')], { language: 'ts' }),
+        ]);
+
+        expect(serializeSliceToText(slice)).toBe('```ts\nconst a = 1;\n\nconsole.log(a);\n```');
+    });
+
+    it('preserves trailing blank lines inside copied code blocks', () => {
+        const slice = createSlice([
+            createBlockNode('code_block', [createTextNode('const a = 1;\n\n')], { language: 'ts' }),
+        ]);
+
+        expect(serializeSliceToText(slice)).toBe('```ts\nconst a = 1;\n\n\n```');
+    });
+
     it('keeps markdown link syntax for linked text', () => {
         const slice = createSlice([
             createInlineNode('paragraph', [

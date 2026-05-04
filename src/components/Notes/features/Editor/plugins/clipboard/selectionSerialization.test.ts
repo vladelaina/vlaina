@@ -308,6 +308,31 @@ describe('selectionSerialization', () => {
     await editor.destroy();
   });
 
+  it('preserves blank lines inside editor-created code blocks when copying a full selection', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '```ts\nconst a = 1;\n\nconsole.log(a);\n\n```');
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
+    view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
+
+    expect(serializeSelectionToClipboardText(view.state, serializer)).toBe(
+      '```ts\nconst a = 1;\n\nconsole.log(a);\n\n```'
+    );
+
+    await editor.destroy();
+  });
+
   it('copies a single task item without task markdown syntax', async () => {
     const editor = Editor.make()
       .config((ctx) => {

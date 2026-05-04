@@ -126,6 +126,8 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('background: var(--vlaina-code-block-background) !important;');
     expect(css).toContain('border-radius: 1rem !important;');
     expect(css).toContain('padding: 2.75rem 1rem 1rem !important;');
+    expect(css).toContain('overflow-x: auto !important;');
+    expect(css).toContain('white-space: pre !important;');
     expect(css).toContain('.milkdown [data-preview-block-type="codeBlock"]::before {');
     expect(css).toContain('content: attr(data-preview-code-language);');
     expect(css).toContain('.dark .milkdown [data-preview-block-type="codeBlock"] {');

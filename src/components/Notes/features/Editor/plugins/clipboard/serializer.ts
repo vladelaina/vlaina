@@ -1,3 +1,5 @@
+import { getCodeBlockSourceText } from '../code/codeBlockText';
+
 function escapeLinkText(text: string): string {
     return text.replace(/([[\]])/g, '\\$1');
 }
@@ -39,7 +41,7 @@ export function serializeSliceToText(slice: any): string {
 
         if (node.type.name === 'code_block') {
             const language = typeof node.attrs?.language === 'string' ? node.attrs.language : '';
-            const content = serializeNodeContent(node).replace(/\n+$/, '');
+            const content = getCodeBlockSourceText(node);
             return '```' + language + '\n' + content + '\n```\n';
         }
 

@@ -8,9 +8,8 @@ import {
 import { resolveOrderedListPreviewLabel } from './blockPreviewListLabel';
 import { clearInlineFormatPreview, showInlineFormatPreview } from './inlinePreviewPlugin';
 import { getFormattableTextRanges } from './selectionHelpers';
-import { normalizeCodeBlockLanguage } from '../code/codeBlockLanguage';
+import { getSelectedCodeBlockSourceText, inferCodeBlockLanguage } from './blockCommands';
 import { codeBlockLanguages } from '../code/codeBlockLanguageLoader';
-import { guessLanguage } from '../../utils/languageDetection';
 
 const FORMAT_SELECTORS: Record<string, string> = {
   bold: '.milkdown strong',
@@ -145,6 +144,7 @@ type StylePreviewEntry = {
   node: HTMLElement;
   originalStyles: Record<string, string>;
   originalAttributes: Record<string, string | null>;
+  originalInnerHTML?: string;
 };
 
 let previewNodes: StylePreviewEntry[] = [];
@@ -437,7 +437,8 @@ function getBlockPreviewStyles(
       display: 'block',
       position: 'relative',
       overflow: 'hidden',
-      whiteSpace: 'pre-wrap',
+      overflowX: 'auto',
+      whiteSpace: 'pre',
       fontFamily: 'var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace)',
       fontSize: '0.875rem',
       lineHeight: '1.7',
@@ -489,7 +490,7 @@ function getBlockPreviewAttributes(
       'data-preview-block-type': blockType,
     };
     if (blockType === 'codeBlock') {
-      attributes['data-preview-code-language'] = getCodeBlockPreviewLanguageLabel(target);
+      attributes['data-preview-code-language'] = getCodeBlockPreviewLanguageLabel(null);
     }
 
     return attributes;
@@ -498,13 +499,12 @@ function getBlockPreviewAttributes(
   return {};
 }
 
-function getCodeBlockPreviewLanguageLabel(target: HTMLElement): string {
-  const text = (target.textContent ?? '').trim();
-  const language = normalizeCodeBlockLanguage(guessLanguage(text)) ?? 'txt';
+function getCodeBlockPreviewLanguageLabel(language: string | null): string {
+  const resolvedLanguage = language ?? 'txt';
   const languageInfo = codeBlockLanguages.find(
-    (item) => item.id === language || item.aliases.includes(language)
+    (item) => item.id === resolvedLanguage || item.aliases.includes(resolvedLanguage)
   );
-  return languageInfo?.name ?? language;
+  return languageInfo?.name ?? resolvedLanguage;
 }
 
 function withDomObserverPaused<T>(view: EditorView, fn: () => T): T {
@@ -627,6 +627,11 @@ export function applyBlockPreview(view: EditorView, blockType: BlockType): void 
       const targets = collectSelectedBlockElements(view, blockType);
       const seenNodes = new Set<HTMLElement>();
 
+      if (blockType === 'codeBlock') {
+        applySingleCodeBlockPreview(view, targets, styles, seenNodes);
+        return;
+      }
+
       for (const [targetIndex, target] of targets.entries()) {
         const previewStyles = getBlockPreviewStyles(view, target, blockType, styles);
         const previewAttributes = getBlockPreviewAttributes(target, blockType, targetIndex);
@@ -646,11 +651,48 @@ export function applyBlockPreview(view: EditorView, blockType: BlockType): void 
   });
 }
 
+function applySingleCodeBlockPreview(
+  view: EditorView,
+  targets: HTMLElement[],
+  styles: Record<string, string>,
+  seenNodes: Set<HTMLElement>
+): void {
+  const [primaryTarget, ...secondaryTargets] = targets;
+  if (!primaryTarget) {
+    return;
+  }
+
+  const previewStyles = getBlockPreviewStyles(view, primaryTarget, 'codeBlock', styles);
+  const previewAttributes = {
+    'data-preview-block-type': 'codeBlock',
+    'data-preview-code-language': getCodeBlockPreviewLanguageLabel(inferCodeBlockLanguage(view)),
+  };
+  registerPreviewMutation(
+    primaryTarget,
+    previewStyles,
+    previewAttributes,
+    seenNodes,
+    getSelectedCodeBlockSourceText(view)
+  );
+
+  for (const target of secondaryTargets) {
+    registerPreviewMutation(target, { display: 'none' }, {}, seenNodes);
+    for (const adjustment of collectBlockPreviewDomAdjustments(target)) {
+      registerPreviewMutation(adjustment.node, {}, adjustment.attributes, seenNodes);
+    }
+  }
+
+  for (const adjustment of collectBlockPreviewDomAdjustments(primaryTarget)) {
+    registerPreviewMutation(adjustment.node, {}, adjustment.attributes, seenNodes);
+  }
+}
+
 function registerPreviewMutation(
   node: HTMLElement,
   previewStyles: Record<string, string>,
   previewAttributes: Record<string, string>,
-  seenNodes: Set<HTMLElement>
+  seenNodes: Set<HTMLElement>,
+  replacementText?: string
 ): void {
   if (seenNodes.has(node)) {
     Object.entries(previewStyles).forEach(([key, value]) => {
@@ -677,7 +719,17 @@ function registerPreviewMutation(
     originalAttributes[key] = node.getAttribute(key);
   });
 
-  previewNodes.push({ kind: 'style', node, originalStyles, originalAttributes });
+  previewNodes.push({
+    kind: 'style',
+    node,
+    originalStyles,
+    originalAttributes,
+    originalInnerHTML: replacementText === undefined ? undefined : node.innerHTML,
+  });
+
+  if (replacementText !== undefined) {
+    node.textContent = replacementText;
+  }
 
   Object.entries(previewStyles).forEach(([key, value]) => {
     const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
@@ -698,6 +750,10 @@ export function clearFormatPreview(view: EditorView): void {
       for (const entry of previewNodes) {
         const { node, originalStyles, originalAttributes } = entry;
         if (!document.body.contains(node)) continue;
+
+        if (entry.originalInnerHTML !== undefined) {
+          node.innerHTML = entry.originalInnerHTML;
+        }
 
         Object.entries(originalStyles).forEach(([key, value]) => {
           const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
