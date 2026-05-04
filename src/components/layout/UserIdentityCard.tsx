@@ -3,6 +3,7 @@ import { Icon } from '@/components/ui/icons';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { useUserAvatar } from '@/hooks/useUserAvatar';
 import { cn, iconButtonStyles } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { ManagedQuotaMeter } from './ManagedQuotaMeter';
 import { BillingPlansDialog } from './BillingPlansDialog';
@@ -14,6 +15,7 @@ interface UserIdentityCardProps {
 
 export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, onSwitchAccount }) => {
   const { username, primaryEmail, isConnected, membershipTier, membershipName } = useAccountSessionStore();
+  const { t } = useI18n();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isBillingDialogOpen, setIsBillingDialogOpen] = useState(false);
 
@@ -101,7 +103,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
                 )}
               >
                 <Icon size="md" name="user.switch" />
-                Switch Account
+                {t('account.switchAccount')}
               </button>
               <button
                 onClick={() => {
@@ -114,7 +116,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
                 )}
               >
                 <Icon size="md" name="misc.crown" />
-                Membership
+                {t('account.membership')}
               </button>
               <button
                 onClick={() => {
@@ -127,7 +129,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
                 )}
               >
                 <Icon size="md" name="user.logout" />
-                Log out
+                {t('account.logOut')}
               </button>
             </div>
           </>

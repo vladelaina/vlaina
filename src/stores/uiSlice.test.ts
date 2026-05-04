@@ -10,6 +10,7 @@ describe('uiSlice', () => {
       sidebarWidth: 280,
       sidebarHeaderHovered: false,
       notesSidebarView: 'workspace',
+      languagePreference: 'system',
       notesPreviewTitle: null,
       drawerOpen: false,
       universalPreviewTarget: null,
@@ -46,6 +47,13 @@ describe('uiSlice', () => {
     useUIStore.getState().setNotesSidebarView('outline');
     expect(useUIStore.getState().notesSidebarView).toBe('outline');
     expect(useUIStore.getState().appViewMode).toBe('notes');
+  });
+
+  it('persists the selected language preference', () => {
+    useUIStore.getState().setLanguagePreference('zh-CN');
+
+    expect(useUIStore.getState().languagePreference).toBe('zh-CN');
+    expect(localStorage.getItem('vlaina-language-preference')).toBe('zh-CN');
   });
 
   it('stores universal preview fields incrementally', () => {

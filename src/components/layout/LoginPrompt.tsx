@@ -1,5 +1,6 @@
 import React from 'react';
 import { Icon } from '@/components/ui/icons';
+import { useI18n } from '@/lib/i18n';
 import { useAccountSessionStore } from '@/stores/accountSession';
 
 interface LoginPromptProps {
@@ -8,6 +9,7 @@ interface LoginPromptProps {
 
 export const LoginPrompt: React.FC<LoginPromptProps> = ({ onOpenDialog }) => {
   const { isConnecting } = useAccountSessionStore();
+  const { t } = useI18n();
 
   return (
     <div className="p-2 pb-0">
@@ -16,7 +18,7 @@ export const LoginPrompt: React.FC<LoginPromptProps> = ({ onOpenDialog }) => {
         onClick={onOpenDialog}
         className="group inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-full border border-black/5 bg-[var(--vlaina-bg-primary)] px-4 text-[13px] font-medium text-[var(--vlaina-text-primary)] shadow-[0_10px_24px_rgba(15,23,42,0.08)] transition-[border-color] duration-150 hover:border-black/8 active:scale-[0.985] dark:border-white/5 dark:shadow-[0_12px_24px_rgba(0,0,0,0.22)] dark:hover:border-white/10"
       >
-        <span>{isConnecting ? 'Continue Sign In' : 'Sign In'}</span>
+        <span>{isConnecting ? t('account.continueSignIn') : t('account.signIn')}</span>
         <Icon
           name="nav.arrowRight"
           size="sm"

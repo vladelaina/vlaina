@@ -5,6 +5,7 @@ import { useAccountSessionStore } from '@/stores/accountSession';
 import { useUserAvatar } from '@/hooks/useUserAvatar';
 import { cn } from '@/lib/utils';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { useI18n } from '@/lib/i18n';
 import { LoginPrompt } from './LoginPrompt';
 import { AccountLoginDialog } from './AccountLoginDialog';
 import { UserIdentityCard } from './UserIdentityCard';
@@ -16,6 +17,7 @@ interface WorkspaceSwitcherProps {
 
 const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
   const { isConnected, username, primaryEmail, signOut } = useAccountSessionStore();
+  const { t } = useI18n();
 
   const [isOpen, setIsOpen] = React.useState(false);
   const [isLoginDialogOpen, setIsLoginDialogOpen] = React.useState(false);
@@ -116,10 +118,10 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
         onConfirm={() => {
           void handleConfirmLogout();
         }}
-        title="Log out?"
-        description="You will be signed out of your current vlaina account on this device."
-        confirmText="Log out"
-        cancelText="Stay signed in"
+        title={t('account.logOutTitle')}
+        description={t('account.logOutDescription')}
+        confirmText={t('account.logOut')}
+        cancelText={t('account.logOutCancel')}
         variant="danger"
       />
     </>
