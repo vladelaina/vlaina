@@ -71,6 +71,7 @@ function createSliceHarness(overrides: Record<string, unknown> = {}) {
     }),
     loadFileTree: vi.fn().mockResolvedValue(undefined),
     pendingDeletedItems: [],
+    discardDraftNote: vi.fn(),
     ...overrides,
   };
 
@@ -90,6 +91,24 @@ describe('createFileSystemSlice deletion flows', () => {
       nextDisplayNames: displayNames,
       nextNoteContentsCache: noteContentsCache,
     }));
+  });
+
+  it('discards in-memory draft notes without touching the filesystem', async () => {
+    const discardDraftNote = vi.fn();
+    const harness = createSliceHarness({
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: '' },
+      },
+      currentNote: { path: 'draft:blank', content: '' },
+      openTabs: [{ path: 'draft:blank', name: '', isDirty: false }],
+      discardDraftNote,
+    });
+
+    await harness.getState().deleteNote('draft:blank');
+
+    expect(discardDraftNote).toHaveBeenCalledWith('draft:blank');
+    expect(hoisted.deleteNoteImpl).not.toHaveBeenCalled();
+    expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
   });
 
   it('opens the resolved next note after deleting the current note', async () => {

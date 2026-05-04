@@ -1,10 +1,10 @@
-import { useDeferredValue, useEffect, useRef, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { SidebarSearchDrawer, useSidebarSearchDrawerState } from '@/components/layout/sidebar/SidebarSearchDrawer';
 import type { SidebarSearchState } from '@/components/layout/sidebar/useSidebarSearchState';
 import { cn } from '@/lib/utils';
 import { isAbsolutePath } from '@/lib/storage/adapter';
 import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
-import { isDraftNotePath } from '@/stores/notes/draftNote';
+import { isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
 import { StarredSection } from '../Starred';
 import { triggerHoveredSidebarRename } from '../common/sidebarHoverRename';
 import { NotesSidebarHoverEmptyHint, NotesSidebarScrollArea } from './NotesSidebarPrimitives';
@@ -44,6 +44,7 @@ export function SidebarContent({
   isPeeking = false,
 }: SidebarContentProps) {
   const openNote = useNotesStore((s) => s.openNote);
+  const draftNotes = useNotesStore((s) => s.draftNotes);
   const revealFolder = useNotesStore((s) => s.revealFolder);
   const getDisplayName = useNotesStore((s) => s.getDisplayName);
   const noteContentsCache = useNotesStore((s) => s.noteContentsCache);
@@ -59,6 +60,66 @@ export function SidebarContent({
     previousView: ReturnType<typeof getCurrentEditorView>;
   } | null>(null);
   const deferredSearchQuery = useDeferredValue(search.searchQuery);
+  const displayRootFolder = useMemo(() => {
+    if (!currentNotePath || !isDraftNotePath(currentNotePath)) {
+      return rootFolder;
+    }
+
+    const draftEntry = draftNotes[currentNotePath];
+    if (!draftEntry) {
+      return rootFolder;
+    }
+
+    const draftNode = {
+      id: currentNotePath,
+      name: resolveDraftNoteTitle(draftEntry.name),
+      path: currentNotePath,
+      isFolder: false as const,
+    };
+    const draftParentPath = draftEntry.parentPath ?? '';
+
+    if (!rootFolder) {
+      return rootFolder;
+    }
+
+    if (rootFolder.children.some((node) => node.path === currentNotePath)) {
+      return rootFolder;
+    }
+
+    if (draftParentPath !== '') {
+      let didInsert = false;
+      const injectDraftIntoFolder = (folder: FolderNode): FolderNode => {
+        if (folder.path === draftParentPath) {
+          didInsert = true;
+          return {
+            ...folder,
+            expanded: true,
+            children: folder.children.some((node) => node.path === currentNotePath)
+              ? folder.children
+              : [draftNode, ...folder.children],
+          };
+        }
+
+        const nextChildren = folder.children.map((node) => {
+          if (!node.isFolder) {
+            return node;
+          }
+
+          return injectDraftIntoFolder(node);
+        });
+
+        return didInsert ? { ...folder, children: nextChildren } : folder;
+      };
+
+      const nextRootFolder = injectDraftIntoFolder(rootFolder);
+      return didInsert ? nextRootFolder : rootFolder;
+    }
+
+    return {
+      ...rootFolder,
+      children: [draftNode, ...rootFolder.children],
+    };
+  }, [currentNotePath, draftNotes, rootFolder]);
   const {
     inputRef,
     scrollRootRef,
@@ -73,9 +134,9 @@ export function SidebarContent({
     scopeRef: sidebarRootRef,
   });
   const wasShowingSearchResultsRef = useRef(shouldShowSearchResults);
-  const shouldShowEmptyHint = !isLoading && !rootFolder;
+  const shouldShowEmptyHint = !isLoading && !displayRootFolder;
   const { isContentScanPending, searchResults } = useSidebarContentSearchResults({
-    rootFolder,
+    rootFolder: displayRootFolder,
     getDisplayName,
     noteContentsCache,
     scanAllNotes,
@@ -268,7 +329,7 @@ export function SidebarContent({
           <div className="relative flex min-h-full flex-col">
             <StarredSection showTitle={false} />
             <RootFolderRow
-              rootFolder={rootFolder}
+              rootFolder={displayRootFolder}
               isLoading={isLoading}
               onCreateNote={createNote}
               onCreateFolder={() => createFolder('')}
@@ -276,11 +337,11 @@ export function SidebarContent({
               scrollRootRef={scrollRootRef}
             />
             <div
-              ref={rootFolder ? rootBlankAreaRef : undefined}
-              data-notes-sidebar-blank-drag-root={!rootFolder ? 'true' : undefined}
+              ref={displayRootFolder ? rootBlankAreaRef : undefined}
+              data-notes-sidebar-blank-drag-root={!displayRootFolder ? 'true' : undefined}
               className={cn(
                 'flex flex-1 items-center justify-center',
-                rootFolder ? 'min-h-0' : 'min-h-[160px] pb-8',
+                displayRootFolder ? 'min-h-0' : 'min-h-[160px] pb-8',
               )}
             >
               {shouldShowEmptyHint ? (

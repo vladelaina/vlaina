@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { TitleInput } from './TitleInput';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
@@ -11,6 +11,8 @@ import { NotePathBreadcrumb } from './components/NotePathBreadcrumb';
 import { focusEditorAtTop } from './utils/focusEditor';
 import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
 import { getRandomHeaderEmoji } from '@/components/common/UniversalIconPicker/randomEmoji';
+import { isDraftNotePath } from '@/stores/notes/draftNote';
+import { logNotesDebug } from '@/stores/notes/debugLog';
 
 interface NoteHeaderProps {
     coverUrl: string | null;
@@ -19,10 +21,17 @@ interface NoteHeaderProps {
 
 export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
     const currentNotePath = useNotesStore(s => s.currentNote?.path);
+    const lastHeaderDebugRef = useRef<string | null>(null);
     const setNoteIcon = useNotesStore(s => s.setNoteIcon);
     const setGlobalIconSize = useNotesStore(s => s.setGlobalIconSize);
     const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
     const noteMetadata = useNotesStore(s => s.noteMetadata);
+    const draftTitle = useNotesStore(
+        useCallback((state) => {
+            if (!currentNotePath) return undefined;
+            return state.draftNotes[currentNotePath]?.name;
+        }, [currentNotePath])
+    );
 
     const noteIcon = useNotesStore(
         useCallback(state => {
@@ -104,6 +113,28 @@ export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
         return getRandomHeaderEmoji(scopedUsedIcons);
     }, [scopedUsedIcons]);
 
+    const isDraftNote = isDraftNotePath(currentNotePath);
+    const titleInitialValue = isNewlyCreated
+        ? ''
+        : isDraftNote && draftTitle !== undefined ? draftTitle : noteName;
+    const shouldAutoFocusTitle = Boolean(isNewlyCreated);
+
+    useEffect(() => {
+        const snapshot = JSON.stringify({
+            currentNotePath: currentNotePath ?? null,
+            isDraftNote,
+            noteName,
+            titleInitialValue,
+            isNewlyCreated,
+            shouldAutoFocusTitle,
+            hasIcon: Boolean(noteIcon),
+            hasCover: Boolean(coverUrl),
+        });
+        if (lastHeaderDebugRef.current === snapshot) return;
+        lastHeaderDebugRef.current = snapshot;
+        logNotesDebug('notes:header:state', JSON.parse(snapshot));
+    }, [coverUrl, currentNotePath, isDraftNote, isNewlyCreated, noteIcon, noteName, shouldAutoFocusTitle, titleInitialValue]);
+
     return (
         <HeroIconHeader
             id={currentNotePath || 'note-header'}
@@ -126,9 +157,9 @@ export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
                     <NotePathBreadcrumb notePath={currentNotePath} />
                     <TitleInput
                         notePath={currentNotePath}
-                        initialTitle={noteName}
+                        initialTitle={titleInitialValue}
                         onEnter={focusEditorAtTop}
-                        autoFocus={!!isNewlyCreated}
+                        autoFocus={shouldAutoFocusTitle}
                     />
                 </div>
             )}

@@ -10,6 +10,7 @@ const hoisted = vi.hoisted(() => ({
   clearSidebarSearchHighlights: vi.fn(),
   clearSidebarSearchNavigationPending: vi.fn(),
   countNotesSidebarSearchEntries: vi.fn(() => 0),
+  draftNotes: {} as Record<string, { name: string; parentPath: string | null }>,
   markSidebarSearchNavigationPending: vi.fn(),
   noteContentsCache: new Map<string, { content: string; modifiedAt: number | null }>(),
   pruneNoteContentsCacheToOpenNotes: vi.fn(),
@@ -24,6 +25,7 @@ const hoisted = vi.hoisted(() => ({
 vi.mock('@/stores/useNotesStore', () => ({
   useNotesStore: (selector: (state: any) => unknown) => selector({
     openNote: vi.fn(() => Promise.resolve()),
+    draftNotes: hoisted.draftNotes,
     getDisplayName: vi.fn((path: string) => path),
     noteContentsCache: hoisted.noteContentsCache,
     pruneNoteContentsCacheToOpenNotes: hoisted.pruneNoteContentsCacheToOpenNotes,
@@ -92,7 +94,13 @@ vi.mock('./NotesSidebarTopActions', () => ({
 }));
 
 vi.mock('./RootFolderRow', () => ({
-  RootFolderRow: () => null,
+  RootFolderRow: ({ rootFolder }: { rootFolder: { children: Array<{ name: string }> } | null }) => (
+    <div data-testid="root-folder-row">
+      {rootFolder?.children.map((node) => (
+        <div key={node.name}>{node.name}</div>
+      ))}
+    </div>
+  ),
 }));
 
 vi.mock('./notesSidebarSearchResults', () => ({
@@ -134,6 +142,7 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.shouldShowSearchResults = false;
     hoisted.buildNotesSidebarSearchIndex.mockReturnValue([]);
     hoisted.countNotesSidebarSearchEntries.mockReturnValue(0);
+    hoisted.draftNotes = {};
     hoisted.noteContentsCache = new Map();
     hoisted.pruneNoteContentsCacheToOpenNotes.mockClear();
     hoisted.scanAllNotes.mockResolvedValue(undefined);
@@ -235,6 +244,37 @@ describe('SidebarContent search highlight cleanup', () => {
     );
 
     expect(getByText('Open')).toBeTruthy();
+  });
+
+  it('shows the current in-memory draft in an empty root folder', () => {
+    hoisted.draftNotes = {
+      'draft:blank': {
+        name: '',
+        parentPath: null,
+      },
+    };
+    const rootFolder = {
+      id: 'root',
+      name: 'Notes',
+      path: '',
+      isFolder: true as const,
+      expanded: true,
+      children: [],
+    };
+
+    const { getByText, queryByText } = render(
+      <SidebarContent
+        rootFolder={rootFolder}
+        isLoading={false}
+        currentNotePath="draft:blank"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(getByText('Untitled')).toBeTruthy();
+    expect(queryByText('Open')).toBeNull();
   });
 
   it('opens files and folders from the empty hint actions', () => {

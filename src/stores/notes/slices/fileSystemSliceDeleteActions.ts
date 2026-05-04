@@ -38,6 +38,11 @@ export function createFileSystemDeleteActions(
     deleteNote: async (path: string) => {
       let operationNotesPath = get().notesPath;
       try {
+        if (get().draftNotes[path]) {
+          get().discardDraftNote(path);
+          return;
+        }
+
         if (get().currentNote?.path === path && get().isDirty) {
           await get().saveNote();
           if (get().isDirty) {

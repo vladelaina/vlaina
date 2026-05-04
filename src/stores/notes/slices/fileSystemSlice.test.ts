@@ -105,6 +105,22 @@ describe('createFileSystemSlice draft flows', () => {
       modifiedAt: null,
     });
   });
+
+  it('can create an in-memory draft even when a vault is selected', async () => {
+    const harness = createSliceHarness({
+      notesPath: '/vault',
+    });
+
+    const draftPath = await harness.getState().createNote(undefined, { asDraft: true });
+    const state = harness.getState();
+
+    expect(draftPath).toMatch(/^draft:/);
+    expect(state.notesPath).toBe('/vault');
+    expect(state.currentNote).toEqual({ path: draftPath, content: '' });
+    expect(state.openTabs).toEqual([{ path: draftPath, name: '', isDirty: false }]);
+    expect(state.draftNotes[draftPath]).toEqual({ parentPath: null, name: '' });
+    expect(state.saveNote).not.toHaveBeenCalled();
+  });
 });
 
 describe('createFileSystemSlice tree flows', () => {

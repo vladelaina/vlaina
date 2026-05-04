@@ -393,9 +393,10 @@ describe('NotesView', () => {
     await waitFor(() => {
       expect(notesState.createNote).toHaveBeenCalledTimes(1);
     });
+    expect(notesState.createNote).toHaveBeenCalledWith(undefined, { asDraft: true });
   });
 
-  it('binds the auto-created blank note to the current vault before creating it', async () => {
+  it('keeps the auto-created blank note as an in-memory draft', async () => {
     notesState.notesPath = '';
     mocks.vaultState.currentVault = { path: '/vault' };
 
@@ -404,7 +405,41 @@ describe('NotesView', () => {
     await waitFor(() => {
       expect(notesState.createNote).toHaveBeenCalledTimes(1);
     });
-    expect(notesState.notesPath).toBe('/vault');
+    expect(notesState.createNote).toHaveBeenCalledWith(undefined, { asDraft: true });
+    expect(notesState.notesPath).toBe('');
+  });
+
+  it('creates an editable draft when switching from a populated vault to an empty vault', async () => {
+    mocks.vaultState.currentVault = { path: '/vault-a' };
+    notesState.notesPath = '/vault-a';
+    notesState.currentNote = { path: 'alpha.md', content: '# alpha' };
+    notesState.openTabs = [{ path: 'alpha.md', name: 'alpha', isDirty: false }];
+
+    const { rerender } = render(<NotesView />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    notesState.createNote.mockClear();
+    mocks.vaultState.currentVault = { path: '/vault-b' };
+    notesState.notesPath = '/vault-b';
+    notesState.currentNote = null;
+    notesState.openTabs = [];
+    notesState.rootFolder = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      children: [],
+      expanded: true,
+    };
+    rerender(<NotesView />);
+
+    await waitFor(() => {
+      expect(notesState.createNote).toHaveBeenCalledTimes(1);
+    });
+    expect(notesState.createNote).toHaveBeenCalledWith(undefined, { asDraft: true });
   });
 
   it('creates a fresh editable note instead of opening an existing draft automatically', async () => {
@@ -486,7 +521,7 @@ describe('NotesView', () => {
     expect(notesState.createNote).not.toHaveBeenCalled();
   });
 
-  it('does not create an untitled note after the last tab was closed', async () => {
+  it('creates a draft when a blank workspace only has stale recently closed tabs', async () => {
     notesState.currentNote = null;
     notesState.openTabs = [];
     notesState.recentlyClosedTabs = [
@@ -502,7 +537,7 @@ describe('NotesView', () => {
       await new Promise((resolve) => window.setTimeout(resolve, 0));
     });
 
-    expect(notesState.createNote).not.toHaveBeenCalled();
+    expect(notesState.createNote).toHaveBeenCalledWith(undefined, { asDraft: true });
   });
 
   it('does not create an untitled note after an opened workspace becomes empty', async () => {

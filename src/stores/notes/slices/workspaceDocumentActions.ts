@@ -56,6 +56,15 @@ export function createWorkspaceDocumentActions(
       try {
         const draftNote = draftNotes[currentNote.path];
         if (draftNote) {
+          logNotesDebug('notes:save:draft:start', {
+            notePath: currentNote.path,
+            notesPath,
+            explicit: options?.explicit ?? false,
+            suppressOpenTarget: options?.suppressOpenTarget ?? false,
+            draftName: draftNote.name,
+            contentLength: currentNote.content.length,
+            isDirty: get().isDirty,
+          });
           if (!isCurrentSaveTarget(get, notesPath, notePathAtSaveStart)) return;
 
           const draftSaveLocation = notesPath
@@ -66,10 +75,24 @@ export function createWorkspaceDocumentActions(
                 false,
               )
             : null;
-          if (!draftSaveLocation && !options?.explicit) return;
+          if (!draftSaveLocation && !options?.explicit) {
+            logNotesDebug('notes:save:draft:skipped', {
+              reason: 'no-auto-save-location-for-implicit-save',
+              notePath: currentNote.path,
+              notesPath,
+            });
+            return;
+          }
 
           const selectedPath = draftSaveLocation?.fullPath ?? await chooseDraftSavePath(notesPath, draftNote);
-          if (!selectedPath) return;
+          if (!selectedPath) {
+            logNotesDebug('notes:save:draft:skipped', {
+              reason: 'no-selected-path',
+              notePath: currentNote.path,
+              notesPath,
+            });
+            return;
+          }
           if (!isCurrentSaveTarget(get, notesPath, notePathAtSaveStart)) return;
 
           const { absolutePath, relativePath } = draftSaveLocation
@@ -151,6 +174,15 @@ export function createWorkspaceDocumentActions(
             pendingDraftDiscardPath: pendingDraftDiscardPath === currentNote.path ? null : pendingDraftDiscardPath,
             error: null,
           });
+          logNotesDebug('notes:save:draft:completed', {
+            previousDraftPath: notePathAtSaveStart,
+            savedPath,
+            relativePath: relativePath ?? null,
+            absolutePath,
+            nextOpenTabsLength: nextTabs.length,
+            nextDraftNotesLength: Object.keys(nextDraftNotes).length,
+            contentLength: content.length,
+          });
 
           persistWorkspaceSnapshot(notesPath, {
             rootFolder: nextRootFolder,
@@ -230,7 +262,21 @@ export function createWorkspaceDocumentActions(
 
     updateContent: (content: string) => {
       const { currentNote, noteContentsCache, openTabs } = get();
-      if (!currentNote || currentNote.content === content) return;
+      if (!currentNote || currentNote.content === content) {
+        logNotesDebug('notes:update-content:skipped', {
+          reason: !currentNote ? 'missing-current-note' : 'unchanged-content',
+          currentNotePath: currentNote?.path ?? null,
+          nextLength: content.length,
+        });
+        return;
+      }
+      logNotesDebug('notes:update-content:apply', {
+        notePath: currentNote.path,
+        isDraftNote: Boolean(get().draftNotes[currentNote.path]),
+        previousLength: currentNote.content.length,
+        nextLength: content.length,
+        openTabsLength: openTabs.length,
+      });
       set({
         currentNote: { ...currentNote, content },
         currentNoteRevision: get().currentNoteRevision + 1,

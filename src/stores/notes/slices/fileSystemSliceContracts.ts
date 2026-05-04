@@ -11,7 +11,7 @@ export interface FileSystemSlice {
   loadFileTree: (skipRestore?: boolean) => Promise<void>;
   toggleFolder: (path: string) => void;
   revealFolder: (path: string) => void;
-  createNote: (folderPath?: string) => Promise<string>;
+  createNote: NotesStore['createNote'];
   createNoteWithContent: (
     folderPath: string | undefined,
     name: string,

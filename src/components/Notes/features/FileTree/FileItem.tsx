@@ -1,9 +1,11 @@
 import { memo, useCallback, useEffect } from 'react';
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
+import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { Icon } from '@/components/ui/icons';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import type { NoteFile } from '@/stores/useNotesStore';
 import { useNotesStore } from '@/stores/useNotesStore';
+import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { TreeItemDeleteDialog } from './components/TreeItemDeleteDialog';
 import { useFileItemState } from './hooks/useFileItemState';
 import { NoteIcon } from '../IconPicker/NoteIcon';
@@ -41,6 +43,8 @@ export const FileItem = memo(function FileItem({
   dragEnabled = true,
   showMenuButton = true,
 }: FileItemProps) {
+  const isDraftNote = isDraftNotePath(node.path);
+  const effectiveDragEnabled = dragEnabled && !isDraftNote;
   const {
     showMenu,
     setShowMenu,
@@ -60,7 +64,7 @@ export const FileItem = memo(function FileItem({
     openNote,
     deleteNote,
     toggleStarred,
-  } = useFileItemState(node, dragEnabled);
+  } = useFileItemState(node, effectiveDragEnabled);
   const isNewlyCreated = useNotesStore((state) => state.isNewlyCreated);
   const notesPath = useNotesStore((state) => state.notesPath);
   const prefetchNote = useNotesStore((state) => state.prefetchNote);
@@ -71,50 +75,63 @@ export const FileItem = memo(function FileItem({
   const isActive = useNotesStore((state) => state.currentNote?.path === node.path);
   const hoverPrefetch = useSidebarHoverPrefetch(
     useCallback(() => prefetchNote(node.path), [node.path, prefetchNote]),
-    { enabled: !isActive && !isRenaming },
+    { enabled: !isDraftNote && !isActive && !isRenaming },
   );
 
   const displayName = useDisplayName(node.path) || node.name;
   const noteIcon = useDisplayIcon(node.path);
-  const menuEntries: NotesSidebarMenuEntry[] = [
-    {
-      key: 'rename',
-      icon: <Icon name="common.compose" size="md" />,
-      label: 'Rename',
-      onClick: () => {
-        setIsRenaming(true);
-        setShowMenu(false);
-      },
-    },
-    {
-      key: 'open-new-tab',
-      icon: <Icon name="nav.external" size="md" />,
-      label: 'Open in new tab',
-      onClick: () => {
-        void openNote(node.path, true);
-        setShowMenu(false);
-      },
-    },
-    createTreeItemStarEntry(isItemStarred, () => {
-      toggleStarred(node.path);
-      setShowMenu(false);
-    }),
-    createTreeItemPathSubmenu({
-      onCopyPath: async () => {
-        setShowMenu(false);
-        await handleCopyPath();
-      },
-      onOpenLocation: async () => {
-        setShowMenu(false);
-        await handleOpenLocation();
-      },
-      openLocationLabel: 'Open File Location',
-    }),
-    ...createTreeItemDeleteEntries(() => {
-      setShowMenu(false);
-      setShowDeleteDialog(true);
-    }),
-  ];
+  const menuEntries: NotesSidebarMenuEntry[] = isDraftNote
+    ? [
+        {
+          key: 'delete-draft',
+          icon: <DeleteIcon />,
+          label: 'Delete',
+          onClick: () => {
+            setShowMenu(false);
+            setShowDeleteDialog(true);
+          },
+          danger: true,
+        },
+      ]
+    : [
+        {
+          key: 'rename',
+          icon: <Icon name="common.compose" size="md" />,
+          label: 'Rename',
+          onClick: () => {
+            setIsRenaming(true);
+            setShowMenu(false);
+          },
+        },
+        {
+          key: 'open-new-tab',
+          icon: <Icon name="nav.external" size="md" />,
+          label: 'Open in new tab',
+          onClick: () => {
+            void openNote(node.path, true);
+            setShowMenu(false);
+          },
+        },
+        createTreeItemStarEntry(isItemStarred, () => {
+          toggleStarred(node.path);
+          setShowMenu(false);
+        }),
+        createTreeItemPathSubmenu({
+          onCopyPath: async () => {
+            setShowMenu(false);
+            await handleCopyPath();
+          },
+          onOpenLocation: async () => {
+            setShowMenu(false);
+            await handleOpenLocation();
+          },
+          openLocationLabel: 'Open File Location',
+        }),
+        ...createTreeItemDeleteEntries(() => {
+          setShowMenu(false);
+          setShowDeleteDialog(true);
+        }),
+      ];
 
   useEffect(() => {
     if (!isNewlyCreated || !isActive) {
@@ -151,7 +168,7 @@ export const FileItem = memo(function FileItem({
       onMouseLeave={hoverPrefetch.onMouseLeave}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
-      dragHandlers={dragHandlers}
+      dragHandlers={effectiveDragEnabled ? dragHandlers : undefined}
       showActionsByDefault={showMenu}
       showMenuButton={showMenuButton}
       menuButtonLabel="Open file menu"
@@ -209,6 +226,7 @@ function areFileItemPropsEqual(prevProps: FileItemProps, nextProps: FileItemProp
     prevProps.depth === nextProps.depth &&
     prevProps.parentFolderPath === nextProps.parentFolderPath &&
     prevProps.showStarBadge === nextProps.showStarBadge &&
+    prevProps.dragEnabled === nextProps.dragEnabled &&
     prevProps.showMenuButton === nextProps.showMenuButton
   );
 }

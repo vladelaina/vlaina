@@ -150,7 +150,7 @@ function loadImageFilenameFormat(): ImageFilenameFormat {
 }
 
 function loadNotesChatPanelCollapsed(): boolean {
-  return loadBoolean(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, false);
+  return loadBoolean(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, true);
 }
 
 function loadLanguagePreference(): AppLanguagePreference {

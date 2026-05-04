@@ -6,6 +6,7 @@ import { NOTE_TITLE_INPUT_DATA_ATTR } from './utils/titleInputDom';
 import { registerCurrentTitleCommitter } from './utils/titleCommitRegistry';
 import { isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
 import { isAbsolutePath } from '@/lib/storage/adapter';
+import { logNotesDebug } from '@/stores/notes/debugLog';
 
 interface TitleInputProps {
   notePath: string;
@@ -21,6 +22,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
   const isCommittingRef = useRef(false);
   const titleActionFrameRef = useRef<number | null>(null);
   const commitTitleRef = useRef<() => Promise<void>>(async () => undefined);
+  const lastTitleDebugRef = useRef<string | null>(null);
   const renameNote = useNotesStore(s => s.renameNote);
   const renameAbsoluteNote = useNotesStore(s => s.renameAbsoluteNote);
   const updateDraftNoteName = useNotesStore(s => s.updateDraftNoteName);
@@ -29,7 +31,26 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
   const titleInputDataAttrs = { [NOTE_TITLE_INPUT_DATA_ATTR]: 'true' as const };
 
   useEffect(() => {
+    const snapshot = JSON.stringify({
+      notePath,
+      isDraftNote: isDraftNotePath(notePath),
+      initialTitle,
+      localTitle: title,
+      autoFocus: Boolean(autoFocus),
+      isActiveElement: inputRef.current === document.activeElement,
+    });
+    if (lastTitleDebugRef.current !== snapshot) {
+      lastTitleDebugRef.current = snapshot;
+      logNotesDebug('notes:title-input:state', JSON.parse(snapshot));
+    }
+  }, [autoFocus, initialTitle, notePath, title]);
+
+  useEffect(() => {
     if (autoFocus && inputRef.current) {
+      logNotesDebug('notes:title-input:autofocus-scheduled', {
+        notePath,
+        initialTitle,
+      });
       if (titleActionFrameRef.current !== null) {
         cancelAnimationFrame(titleActionFrameRef.current);
       }
@@ -37,11 +58,18 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
         titleActionFrameRef.current = null;
         if (inputRef.current) {
           inputRef.current.focus();
-          inputRef.current.select();
+          const titleLength = inputRef.current.value.length;
+          inputRef.current.setSelectionRange(titleLength, titleLength);
+          logNotesDebug('notes:title-input:autofocus-applied', {
+            notePath,
+            activeElementTag: document.activeElement?.tagName ?? null,
+            selectionStart: inputRef.current.selectionStart,
+            selectionEnd: inputRef.current.selectionEnd,
+          });
         }
       });
     }
-  }, [autoFocus]);
+  }, [autoFocus, initialTitle, notePath]);
 
   useEffect(() => {
     if (inputRef.current === document.activeElement || isCommittingRef.current) {
@@ -49,6 +77,10 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
     }
 
     setTitle(initialTitle);
+    logNotesDebug('notes:title-input:sync-initial-title', {
+      notePath,
+      initialTitle,
+    });
   }, [initialTitle]);
 
   useEffect(() => {
@@ -60,6 +92,12 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newTitle = e.target.value;
     setTitle(newTitle);
+    logNotesDebug('notes:title-input:change', {
+      notePath,
+      isDraftNote: isDraftNotePath(notePath),
+      rawLength: newTitle.length,
+      trimmedLength: newTitle.trim().length,
+    });
     if (newTitle.trim()) {
       setNotesPreviewTitle(notePath, newTitle.trim());
     } else {
@@ -71,12 +109,22 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
     if (isCommittingRef.current) return;
     const trimmed = title.trim();
     if (!trimmed) {
+      logNotesDebug('notes:title-input:commit-skipped', {
+        reason: 'empty-title',
+        notePath,
+        initialTitle,
+      });
       setTitle(initialTitle);
       setNotesPreviewTitle(null, null);
       return;
     }
 
     if (trimmed === initialTitle) {
+      logNotesDebug('notes:title-input:commit-skipped', {
+        reason: 'unchanged-title',
+        notePath,
+        title: trimmed,
+      });
       setNotesPreviewTitle(null, null);
       return;
     }
@@ -84,6 +132,11 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
     isCommittingRef.current = true;
     try {
       if (isDraftNotePath(notePath)) {
+        logNotesDebug('notes:title-input:commit-draft-title', {
+          notePath,
+          title: trimmed,
+          notesPath: useNotesStore.getState().notesPath,
+        });
         updateDraftNoteName(notePath, trimmed);
         if (useNotesStore.getState().notesPath) {
           await saveNote({ explicit: false });
@@ -93,8 +146,16 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
       }
 
       if (isAbsolutePath(notePath)) {
+        logNotesDebug('notes:title-input:commit-absolute-rename', {
+          notePath,
+          title: trimmed,
+        });
         await renameAbsoluteNote(notePath, trimmed);
       } else {
+        logNotesDebug('notes:title-input:commit-rename', {
+          notePath,
+          title: trimmed,
+        });
         await renameNote(notePath, trimmed);
       }
     } finally {

@@ -138,7 +138,7 @@ export interface NotesActions {
   invalidateNoteCache: (path: string) => void;
   applyExternalPathRename: (oldPath: string, newPath: string) => Promise<void>;
   applyExternalPathDeletion: (path: string) => Promise<void>;
-  createNote: (folderPath?: string) => Promise<string>;
+  createNote: (folderPath?: string, options?: { asDraft?: boolean }) => Promise<string>;
   createNoteWithContent: (folderPath: string | undefined, name: string, content: string) => Promise<string>;
   deleteNote: (path: string) => Promise<void>;
   restoreLastDeletedItem: () => Promise<string | null>;

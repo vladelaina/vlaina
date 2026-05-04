@@ -21,10 +21,13 @@ import {
   pruneCachedNoteContents,
   setCachedNoteContent,
 } from '../document/noteContentCache';
+import { setNoteTabDirtyState } from '../document/noteTabState';
+import { isDraftNotePath } from '../draftNote';
 import { markExpectedExternalChange } from '../document/externalChangeRegistry';
 import { updateNoteMetadataInMarkdown } from '../frontmatter';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { logNotesDebug } from '../debugLog';
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -94,7 +97,118 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
   ) => {
     const state = get();
     const vaultPathAtStart = state.notesPath;
+    const isDraftMetadataTarget = isDraftNotePath(path);
+    logNotesDebug('notes:metadata:update:start', {
+      path,
+      isDraftNote: isDraftMetadataTarget,
+      isCurrentNote: state.currentNote?.path === path,
+      vaultPathAtStart,
+      updateKeys: Object.keys(updates),
+      hasIconUpdate: Object.prototype.hasOwnProperty.call(updates, 'icon'),
+      hasCoverUpdate: Object.prototype.hasOwnProperty.call(updates, 'cover'),
+    });
     if (!vaultPathAtStart) {
+      if (isAbsolutePath(path)) {
+        const metadataBase = state.noteMetadata ?? createEmptyMetadataFile();
+        const isCurrentNote = state.currentNote?.path === path;
+        let sourceContent =
+          (isCurrentNote ? state.currentNote?.content : undefined) ??
+          state.noteContentsCache.get(path)?.content;
+
+        if (sourceContent === undefined) {
+          const storage = getStorageAdapter();
+          sourceContent = await storage.readFile(path);
+        }
+
+        const normalizedSourceContent = normalizeSerializedMarkdownDocument(sourceContent);
+        const { content, metadata } = updateNoteMetadataInMarkdown(normalizedSourceContent, {
+          ...updates,
+          updatedAt: Date.now(),
+        });
+        const nextMetadata = setNoteEntry(metadataBase, path, metadata);
+        const cachedModifiedAt = getCachedNoteModifiedAt(state.noteContentsCache, path);
+        let nextCache = setCachedNoteContent(state.noteContentsCache, path, content, cachedModifiedAt);
+
+        set({
+          noteMetadata: nextMetadata,
+          noteContentsCache: nextCache,
+          currentNote: isCurrentNote ? { path, content } : state.currentNote,
+          error: null,
+        });
+
+        if (isCurrentNote && state.isDirty) {
+          logNotesDebug('notes:metadata:update:absolute-memory-applied', {
+            path,
+            reason: 'current-note-dirty',
+            contentLength: content.length,
+            updateKeys: Object.keys(updates),
+          });
+          return;
+        }
+
+        try {
+          const modifiedAt = await writeNoteContent(path, content, '');
+          nextCache = setCachedNoteContent(nextCache, path, content, modifiedAt);
+          set({
+            noteContentsCache: nextCache,
+            currentNote: isCurrentNote ? { path, content } : get().currentNote,
+            error: null,
+          });
+          logNotesDebug('notes:metadata:update:absolute-saved', {
+            path,
+            isCurrentNote,
+            contentLength: content.length,
+            modifiedAt,
+            updateKeys: Object.keys(updates),
+          });
+        } catch (error) {
+          logNotesDebug('notes:metadata:update:absolute-save-failed', {
+            path,
+            message: error instanceof Error ? error.message : String(error),
+          });
+          set({ error: error instanceof Error ? error.message : 'Failed to update note metadata' });
+        }
+        return;
+      }
+
+      if (isDraftMetadataTarget) {
+        const metadataBase = state.noteMetadata ?? createEmptyMetadataFile();
+        const sourceContent =
+          (state.currentNote?.path === path ? state.currentNote?.content : undefined) ??
+          state.noteContentsCache.get(path)?.content ??
+          '';
+        const normalizedSourceContent = normalizeSerializedMarkdownDocument(sourceContent);
+        const { content, metadata } = updateNoteMetadataInMarkdown(normalizedSourceContent, {
+          ...updates,
+          updatedAt: Date.now(),
+        });
+        const nextMetadata = setNoteEntry(metadataBase, path, metadata);
+        const cachedModifiedAt = getCachedNoteModifiedAt(state.noteContentsCache, path);
+
+        set({
+          noteMetadata: nextMetadata,
+          noteContentsCache: setCachedNoteContent(state.noteContentsCache, path, content, cachedModifiedAt),
+          currentNote: state.currentNote?.path === path ? { path, content } : state.currentNote,
+          isDirty: state.currentNote?.path === path ? true : state.isDirty,
+          openTabs: state.currentNote?.path === path
+            ? setNoteTabDirtyState(state.openTabs, path, true)
+            : state.openTabs,
+          error: null,
+        });
+
+        logNotesDebug('notes:metadata:update:draft-memory-applied', {
+          path,
+          isCurrentNote: state.currentNote?.path === path,
+          contentLength: content.length,
+          updateKeys: Object.keys(updates),
+        });
+        return;
+      }
+
+      logNotesDebug('notes:metadata:update:skipped', {
+        reason: 'missing-vault-path',
+        path,
+      });
       return;
     }
 
@@ -112,12 +226,22 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
           : null;
 
       if (!fullPath) {
+        logNotesDebug('notes:metadata:update:skipped', {
+          reason: 'missing-full-path',
+          path,
+        });
         return;
       }
 
       const storage = getStorageAdapter();
       sourceContent = await storage.readFile(fullPath);
       if (!isActiveVaultRequest(vaultPathAtStart)) {
+        logNotesDebug('notes:metadata:update:skipped', {
+          reason: 'stale-vault-after-read',
+          path,
+          vaultPathAtStart,
+          currentNotesPath: get().notesPath,
+        });
         return;
       }
     }
@@ -128,6 +252,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       updatedAt: Date.now(),
     });
     const nextMetadata = setNoteEntry(metadataBase, path, metadata);
+    const isDraftNote = isDraftMetadataTarget;
     const nextRootFolder = buildSortedRootFolder(
       state.rootFolder,
       state.rootFolder?.children ?? [],
@@ -138,6 +263,12 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     let nextCache = setCachedNoteContent(state.noteContentsCache, path, content, cachedModifiedAt);
 
     if (!isActiveVaultRequest(vaultPathAtStart)) {
+      logNotesDebug('notes:metadata:update:skipped', {
+        reason: 'stale-vault-before-set',
+        path,
+        vaultPathAtStart,
+        currentNotesPath: get().notesPath,
+      });
       return;
     }
 
@@ -146,8 +277,26 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       rootFolder: nextRootFolder,
       noteContentsCache: nextCache,
       currentNote: isCurrentNote ? { path, content } : state.currentNote,
+      isDirty: isCurrentNote && isDraftNote ? true : state.isDirty,
+      openTabs: isCurrentNote && isDraftNote
+        ? setNoteTabDirtyState(state.openTabs, path, true)
+        : state.openTabs,
       error: null,
     });
+
+    if (isDraftNote) {
+      logNotesDebug('notes:metadata:update:draft-applied', {
+        path,
+        isCurrentNote,
+        vaultPathAtStart,
+        contentLength: content.length,
+        willImplicitSave: Boolean(isCurrentNote && vaultPathAtStart),
+      });
+      if (isCurrentNote && vaultPathAtStart) {
+        await get().saveNote({ explicit: false });
+      }
+      return;
+    }
 
     if (isCurrentNote && state.isDirty) {
       return;
@@ -163,6 +312,12 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         noteContentsCache: nextCache,
         currentNote: isCurrentNote ? { path, content } : get().currentNote,
         error: null,
+      });
+      logNotesDebug('notes:metadata:update:regular-saved', {
+        path,
+        isCurrentNote,
+        contentLength: content.length,
+        modifiedAt,
       });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Failed to update note metadata' });
