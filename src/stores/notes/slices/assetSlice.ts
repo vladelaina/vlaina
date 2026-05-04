@@ -35,7 +35,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
   isLoadingAssets: false,
   uploadProgress: null,
 
-  loadAssets: async (_vaultPath: string) => {
+  loadAssets: async (vaultPath: string) => {
     clearImageCache();
 
     set({ isLoadingAssets: true });
@@ -61,9 +61,16 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
         return b.filename.localeCompare(a.filename);
       });
 
+      if (get().notesPath !== vaultPath) {
+        return;
+      }
+
       set({ assetList: assets, isLoadingAssets: false });
     } catch (error) {
       console.error('Failed to load assets:', error);
+      if (get().notesPath !== vaultPath) {
+        return;
+      }
       set({ assetList: [], isLoadingAssets: false });
     }
   },
@@ -103,18 +110,30 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
         context,
         config,
         assetList,
-        (progress) => set({ uploadProgress: progress })
+        (progress) => {
+          if (get().notesPath === vaultPath) {
+            set({ uploadProgress: progress });
+          }
+        }
       );
+
+      if (get().notesPath !== vaultPath) {
+        return result;
+      }
 
       uploadProgressResetTimer = setTimeout(() => {
         uploadProgressResetTimer = null;
-        set({ uploadProgress: null });
+        if (get().notesPath === vaultPath) {
+          set({ uploadProgress: null });
+        }
       }, 500);
       return result;
 
     } catch (error) {
       clearUploadProgressResetTimer();
-      set({ uploadProgress: null });
+      if (get().notesPath === vaultPath) {
+        set({ uploadProgress: null });
+      }
       console.error('Failed to upload asset:', error);
       return {
         success: false,

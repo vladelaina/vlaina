@@ -19,6 +19,10 @@ import {
 import type { FileOperationNextAction } from '../utils/fs/operationTypes';
 import type { FileSystemSlice, FileSystemSliceGet, FileSystemSliceSet } from './fileSystemSliceContracts';
 
+function isActiveNotesPath(get: FileSystemSliceGet, notesPath: string) {
+  return get().notesPath === notesPath;
+}
+
 function resolveNextOpenPath(
   matchesDeletedTarget: boolean,
   nextAction: FileOperationNextAction,
@@ -32,6 +36,7 @@ export function createFileSystemDeleteActions(
 ): Pick<FileSystemSlice, 'deleteNote' | 'deleteFolder' | 'restoreLastDeletedItem'> {
   return {
     deleteNote: async (path: string) => {
+      let operationNotesPath = get().notesPath;
       try {
         if (get().currentNote?.path === path && get().isDirty) {
           await get().saveNote();
@@ -52,6 +57,7 @@ export function createFileSystemDeleteActions(
           noteContentsCache,
           displayNames,
         } = get();
+        operationNotesPath = notesPath;
 
         const result = await deleteNoteImpl(notesPath, path, {
           rootFolder,
@@ -60,6 +66,9 @@ export function createFileSystemDeleteActions(
           starredEntries,
           noteMetadata,
         });
+        if (!isActiveNotesPath(get, notesPath)) {
+          return;
+        }
         const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = applyPathDeletionState({
           path,
           recentNotes,
@@ -104,14 +113,21 @@ export function createFileSystemDeleteActions(
         });
 
         if (nextOpenPath) {
+          if (!isActiveNotesPath(get, notesPath)) {
+            return;
+          }
           await get().openNote(nextOpenPath);
         }
       } catch (error) {
+        if (operationNotesPath && !isActiveNotesPath(get, operationNotesPath)) {
+          return;
+        }
         set({ error: error instanceof Error ? error.message : 'Failed to delete note' });
       }
     },
 
     deleteFolder: async (path: string) => {
+      let operationNotesPath = get().notesPath;
       try {
         const initialCurrentNote = get().currentNote;
         if (initialCurrentNote && isPathWithinFolder(initialCurrentNote.path, path) && get().isDirty) {
@@ -133,6 +149,7 @@ export function createFileSystemDeleteActions(
           recentNotes,
           displayNames,
         } = get();
+        operationNotesPath = notesPath;
 
         const result = await deleteFolderImpl(notesPath, path, {
           rootFolder,
@@ -141,6 +158,9 @@ export function createFileSystemDeleteActions(
           starredEntries,
           noteMetadata,
         });
+        if (!isActiveNotesPath(get, notesPath)) {
+          return;
+        }
         const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = applyPathDeletionState({
           path,
           recentNotes,
@@ -186,9 +206,15 @@ export function createFileSystemDeleteActions(
         });
 
         if (nextOpenPath) {
+          if (!isActiveNotesPath(get, notesPath)) {
+            return;
+          }
           await get().openNote(nextOpenPath);
         }
       } catch (error) {
+        if (operationNotesPath && !isActiveNotesPath(get, operationNotesPath)) {
+          return;
+        }
         set({ error: error instanceof Error ? error.message : 'Failed to delete folder' });
       }
     },
@@ -202,11 +228,17 @@ export function createFileSystemDeleteActions(
 
       try {
         const result = await restoreNoteItemFromRecoverableLocation(notesPath, pendingDeletedItem);
+        if (!isActiveNotesPath(get, notesPath)) {
+          return result.restoredPath;
+        }
         const restoredNode = await createRestoredTreeNode(
           notesPath,
           result.restoredPath,
           pendingDeletedItem.kind,
         );
+        if (!isActiveNotesPath(get, notesPath)) {
+          return result.restoredPath;
+        }
         const {
           rootFolder,
           fileTreeSortMode,
@@ -252,6 +284,9 @@ export function createFileSystemDeleteActions(
         }
 
         if (!nextRootFolder) {
+          if (!isActiveNotesPath(get, notesPath)) {
+            return result.restoredPath;
+          }
           await get().loadFileTree(true);
         } else {
           persistWorkspaceSnapshot(notesPath, {
@@ -262,6 +297,9 @@ export function createFileSystemDeleteActions(
         }
 
         if (pendingDeletedItem.kind === 'file') {
+          if (!isActiveNotesPath(get, notesPath)) {
+            return result.restoredPath;
+          }
           await get().openNote(result.restoredPath);
         } else if (
           pendingDeletedItem.previousCurrentNote &&
@@ -271,11 +309,17 @@ export function createFileSystemDeleteActions(
           const restoredCurrentPath = pendingDeletedItem.previousCurrentNote.path === pendingDeletedItem.originalPath
             ? result.restoredPath
             : `${result.restoredPath}${pendingDeletedItem.previousCurrentNote.path.slice(pendingDeletedItem.originalPath.length)}`;
+          if (!isActiveNotesPath(get, notesPath)) {
+            return result.restoredPath;
+          }
           await get().openNote(restoredCurrentPath);
         }
 
         return result.restoredPath;
       } catch (error) {
+        if (notesPath && !isActiveNotesPath(get, notesPath)) {
+          return null;
+        }
         set({ error: error instanceof Error ? error.message : 'Failed to restore deleted item' });
         return null;
       }

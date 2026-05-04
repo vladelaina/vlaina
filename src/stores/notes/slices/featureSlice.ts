@@ -68,15 +68,16 @@ export interface FeatureSlice {
 }
 
 export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> = (set, get) => {
-  const writeNoteContent = async (path: string, content: string) => {
-    const { notesPath } = get();
+  const isActiveVaultRequest = (vaultPath: string) => get().notesPath === vaultPath;
+
+  const writeNoteContent = async (path: string, content: string, vaultPath: string) => {
     const fullPath = isAbsolutePath(path)
       ? path
-      : notesPath
-        ? await joinPath(notesPath, path)
+      : vaultPath
+        ? await joinPath(vaultPath, path)
         : null;
 
-    if (!fullPath) {
+    if (!fullPath || !isActiveVaultRequest(vaultPath)) {
       return getCachedNoteModifiedAt(get().noteContentsCache, path);
     }
 
@@ -92,6 +93,11 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     updates: Partial<NoteMetadataEntry>
   ) => {
     const state = get();
+    const vaultPathAtStart = state.notesPath;
+    if (!vaultPathAtStart) {
+      return;
+    }
+
     const metadataBase = state.noteMetadata ?? createEmptyMetadataFile();
     const isCurrentNote = state.currentNote?.path === path;
     let sourceContent =
@@ -99,11 +105,10 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       state.noteContentsCache.get(path)?.content;
 
     if (sourceContent === undefined) {
-      const { notesPath } = state;
       const fullPath = isAbsolutePath(path)
         ? path
-        : notesPath
-          ? await joinPath(notesPath, path)
+        : vaultPathAtStart
+          ? await joinPath(vaultPathAtStart, path)
           : null;
 
       if (!fullPath) {
@@ -112,6 +117,9 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
       const storage = getStorageAdapter();
       sourceContent = await storage.readFile(fullPath);
+      if (!isActiveVaultRequest(vaultPathAtStart)) {
+        return;
+      }
     }
 
     const normalizedSourceContent = normalizeSerializedMarkdownDocument(sourceContent);
@@ -129,6 +137,10 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     const cachedModifiedAt = getCachedNoteModifiedAt(state.noteContentsCache, path);
     let nextCache = setCachedNoteContent(state.noteContentsCache, path, content, cachedModifiedAt);
 
+    if (!isActiveVaultRequest(vaultPathAtStart)) {
+      return;
+    }
+
     set({
       noteMetadata: nextMetadata,
       rootFolder: nextRootFolder,
@@ -142,7 +154,10 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     }
 
     try {
-      const modifiedAt = await writeNoteContent(path, content);
+      const modifiedAt = await writeNoteContent(path, content, vaultPathAtStart);
+      if (!isActiveVaultRequest(vaultPathAtStart)) {
+        return;
+      }
       nextCache = setCachedNoteContent(nextCache, path, content, modifiedAt);
       set({
         noteContentsCache: nextCache,
@@ -179,6 +194,9 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
     loadMetadata: async (vaultPath: string) => {
       const metadata = await loadNoteMetadata(vaultPath);
+      if (!isActiveVaultRequest(vaultPath)) {
+        return;
+      }
       set({
         noteMetadata: metadata,
       });
@@ -277,6 +295,10 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
           cache.set(path, cachedEntry);
         }
       });
+
+      if (!isActiveVaultRequest(notesPath)) {
+        return;
+      }
 
       set({ noteContentsCache: cache });
     },

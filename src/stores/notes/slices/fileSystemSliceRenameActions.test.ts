@@ -115,4 +115,28 @@ describe('fileSystemSlice rename actions', () => {
     });
     expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith(state.starredEntries);
   });
+
+  it('does not write a stale absolute rename result after the active vault changes', async () => {
+    let resolveRename: () => void;
+    hoisted.storageAdapter.rename.mockImplementation(() => new Promise<undefined>((resolve) => {
+      resolveRename = () => resolve(undefined);
+    }));
+    const harness = createSliceHarness();
+    const oldPath = '/vault-b/docs/alpha.md';
+
+    harness.getState().notesPath = '/vault-a';
+    harness.getState().currentNote = { path: oldPath, content: '# alpha' };
+    harness.getState().openTabs = [{ path: oldPath, name: 'alpha', isDirty: false }];
+    harness.getState().noteContentsCache = new Map([[oldPath, { content: '# alpha', modifiedAt: 1 }]]);
+
+    const rename = harness.getState().renameAbsoluteNote(oldPath, 'beta');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    harness.getState().notesPath = '/vault-c';
+    resolveRename!();
+    await rename;
+
+    expect(harness.getState().notesPath).toBe('/vault-c');
+    expect(harness.getState().currentNote).toEqual({ path: oldPath, content: '# alpha' });
+    expect(harness.getState().openTabs).toEqual([{ path: oldPath, name: 'alpha', isDirty: false }]);
+  });
 });

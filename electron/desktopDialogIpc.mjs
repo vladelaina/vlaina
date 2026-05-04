@@ -28,17 +28,7 @@ export function registerDesktopDialogIpc({
       properties,
     };
 
-    logDesktopDialog(app, 'open:start', {
-      options: dialogOptions,
-      hasWindow: Boolean(window),
-      windowId: window?.id ?? null,
-      platform: process.platform,
-      sessionType: process.env.XDG_SESSION_TYPE ?? null,
-      desktop: process.env.XDG_CURRENT_DESKTOP ?? process.env.DESKTOP_SESSION ?? null,
-      portalDesktop: process.env.XDG_DESKTOP_PORTAL_DIR ?? null,
-    });
-
-    const result = await showLoggedOpenDialog(app, dialog, window, dialogOptions);
+    const result = await dialog.showOpenDialog(window ?? undefined, dialogOptions);
 
     if (result.canceled) {
       return null;
@@ -53,14 +43,7 @@ export function registerDesktopDialogIpc({
 
     const selectedPath = result.filePaths[0] ?? null;
     if (selectedPath) {
-      const authorization = await authorizeOpenDialogPath(selectedPath, options, authorizeFsPath);
-      if (authorization.parentPath && authorization.watchParentPath) {
-        logDesktopDialog(app, 'open:authorized_parent', {
-          selectedPath,
-          parentPath: authorization.parentPath,
-          watchParentPath: authorization.watchParentPath,
-        });
-      }
+      await authorizeOpenDialogPath(selectedPath, options, authorizeFsPath);
     }
 
     return selectedPath;
@@ -83,11 +66,6 @@ export function registerDesktopDialogIpc({
       const watchParentPath = path.dirname(parentPath);
       await authorizeFsPath(parentPath, 'root');
       await authorizeFsPath(watchParentPath, 'watch-root');
-      logDesktopDialog(app, 'save:authorized_parent', {
-        selectedPath: result.filePath,
-        parentPath,
-        watchParentPath,
-      });
     }
     return result.filePath;
   });
@@ -128,38 +106,7 @@ async function authorizeOpenDialogPath(filePath, options, authorizeFsPath) {
     const watchParentPath = path.dirname(parentPath);
     await authorizeFsPath(parentPath, 'root');
     await authorizeFsPath(watchParentPath, 'watch-root');
-    return { parentPath, watchParentPath };
   }
 
   return {};
-}
-
-async function showLoggedOpenDialog(app, dialog, window, dialogOptions) {
-  try {
-    const result = await dialog.showOpenDialog(window ?? undefined, dialogOptions);
-    logDesktopDialog(app, 'open:result', {
-      canceled: result.canceled,
-      filePathCount: result.filePaths.length,
-      filePaths: result.filePaths,
-    });
-    return result;
-  } catch (error) {
-    logDesktopDialog(app, 'open:error', {
-      message: getErrorMessage(error),
-      stack: error instanceof Error ? error.stack : null,
-    });
-    throw error;
-  }
-}
-
-function logDesktopDialog(app, event, details = {}) {
-  if (app.isPackaged && process.env.VLAINA_DESKTOP_DIALOG_DEBUG !== '1') {
-    return;
-  }
-
-  console.info(`[desktop dialog] ${event}`, details);
-}
-
-function getErrorMessage(error) {
-  return error instanceof Error ? error.message : String(error);
 }

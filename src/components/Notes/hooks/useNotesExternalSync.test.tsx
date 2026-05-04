@@ -15,6 +15,7 @@ const hoisted = vi.hoisted(() => {
     syncCurrentNoteFromDisk: vi.fn(async () => 'unchanged' as const),
     applyExternalPathRename: vi.fn(async () => undefined),
     applyExternalPathDeletion: vi.fn(async () => undefined),
+    notesPath: '/vault',
     currentNote: { path: 'docs/current.md' } as { path: string } | null,
     isDirty: false,
     rootFolder: { children: [] as unknown[] } as { children: unknown[] } | null,

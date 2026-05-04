@@ -24,6 +24,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
   const renameNote = useNotesStore(s => s.renameNote);
   const renameAbsoluteNote = useNotesStore(s => s.renameAbsoluteNote);
   const updateDraftNoteName = useNotesStore(s => s.updateDraftNoteName);
+  const saveNote = useNotesStore(s => s.saveNote);
   const setNotesPreviewTitle = useUIStore(s => s.setNotesPreviewTitle);
   const titleInputDataAttrs = { [NOTE_TITLE_INPUT_DATA_ATTR]: 'true' as const };
 
@@ -84,6 +85,9 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
     try {
       if (isDraftNotePath(notePath)) {
         updateDraftNoteName(notePath, trimmed);
+        if (useNotesStore.getState().notesPath) {
+          await saveNote({ explicit: false });
+        }
         setTitle(resolveDraftNoteTitle(trimmed));
         return;
       }
@@ -97,7 +101,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
       isCommittingRef.current = false;
       setNotesPreviewTitle(null, null);
     }
-  }, [title, initialTitle, notePath, renameAbsoluteNote, renameNote, setNotesPreviewTitle, updateDraftNoteName]);
+  }, [title, initialTitle, notePath, renameAbsoluteNote, renameNote, saveNote, setNotesPreviewTitle, updateDraftNoteName]);
 
   commitTitleRef.current = commitTitleIfNeeded;
 

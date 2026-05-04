@@ -67,10 +67,17 @@ function getSidebarDropState(event: DragEvent) {
   };
 }
 
-function ensureExternalDropStarredTargets(targets: ExternalMarkdownStarredTarget[]) {
+function isActiveVaultPath(vaultPath: string) {
+  return useNotesStore.getState().notesPath === vaultPath;
+}
+
+function ensureExternalDropStarredTargets(
+  vaultPath: string,
+  targets: ExternalMarkdownStarredTarget[]
+) {
   const state = useNotesStore.getState();
   const { notesPath, starredEntries } = state;
-  if (!notesPath || targets.length === 0) return;
+  if (!notesPath || notesPath !== vaultPath || targets.length === 0) return;
 
   let updatedEntries: StarredEntry[] = starredEntries;
 
@@ -180,7 +187,7 @@ export function useNotesSidebarExternalDropImport({
         if (isOverStarred) {
           const starredTargets = await resolveExternalMarkdownEntriesForStarred(vaultPath, paths);
 
-          if (cancelled) {
+          if (cancelled || !isActiveVaultPath(vaultPath)) {
             return;
           }
 
@@ -195,13 +202,13 @@ export function useNotesSidebarExternalDropImport({
             return;
           }
 
-          ensureExternalDropStarredTargets(starredTargets);
+          ensureExternalDropStarredTargets(vaultPath, starredTargets);
           return;
         }
 
         const result = await importExternalMarkdownEntries(vaultPath, importTargetPath, paths);
 
-        if (cancelled) {
+        if (cancelled || !isActiveVaultPath(vaultPath)) {
           return;
         }
 
@@ -218,7 +225,7 @@ export function useNotesSidebarExternalDropImport({
 
         if (result.didImport) {
           await loadFileTree(true);
-          if (cancelled) {
+          if (cancelled || !isActiveVaultPath(vaultPath)) {
             return;
           }
         }

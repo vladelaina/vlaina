@@ -18,6 +18,10 @@ import type { FileSystemSlice, FileSystemSliceGet, FileSystemSliceSet } from './
 
 type CreateNoteResult = Awaited<ReturnType<typeof createNoteImpl>>;
 
+function isActiveNotesPath(get: FileSystemSliceGet, notesPath: string) {
+  return get().notesPath === notesPath;
+}
+
 async function ensureCurrentNoteSaved(get: FileSystemSliceGet, options?: { skipDraft?: boolean }) {
   const state = get();
   if (!state.isDirty) {
@@ -148,6 +152,9 @@ export function createFileSystemCreateActions(
           recentNotes,
           noteMetadata,
         });
+        if (!isActiveNotesPath(get, notesPath)) {
+          return result.relativePath;
+        }
 
         return finalizeCreatedNote({
           set,
@@ -165,6 +172,9 @@ export function createFileSystemCreateActions(
           currentRootFolder,
         });
       } catch (error) {
+        if (notesPath && !isActiveNotesPath(get, notesPath)) {
+          throw error;
+        }
         set({ error: error instanceof Error ? error.message : 'Failed to create note' });
         throw error;
       }
@@ -203,6 +213,9 @@ export function createFileSystemCreateActions(
           recentNotes,
           noteMetadata,
         });
+        if (!isActiveNotesPath(get, notesPath)) {
+          return result.relativePath;
+        }
 
         return finalizeCreatedNote({
           set,
@@ -220,6 +233,9 @@ export function createFileSystemCreateActions(
           currentRootFolder,
         });
       } catch (error) {
+        if (notesPath && !isActiveNotesPath(get, notesPath)) {
+          throw error;
+        }
         set({ error: error instanceof Error ? error.message : 'Failed to create note' });
         throw error;
       }
@@ -254,6 +270,9 @@ export function createFileSystemCreateActions(
 
         markExpectedExternalChange(fullPath, true);
         await storage.mkdir(fullPath, true);
+        if (!isActiveNotesPath(get, notesPath)) {
+          return relativePath;
+        }
 
         const currentRootFolder = ensureRootFolderState(get().rootFolder);
         const nextRootFolder = buildSortedRootFolder(
@@ -281,6 +300,9 @@ export function createFileSystemCreateActions(
         });
         return relativePath;
       } catch (error) {
+        if (notesPath && !isActiveNotesPath(get, notesPath)) {
+          return null;
+        }
         set({ error: error instanceof Error ? error.message : 'Failed to create folder' });
         return null;
       }

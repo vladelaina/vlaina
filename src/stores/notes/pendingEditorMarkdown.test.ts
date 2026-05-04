@@ -91,4 +91,24 @@ describe('flushPendingEditorMarkdown', () => {
       modifiedAt: 2,
     });
   });
+
+  it('ignores a stale editor flush after the workspace has been reset', () => {
+    useNotesStore.setState({
+      notesPath: '/next-vault',
+      currentNote: null,
+      currentNoteRevision: 0,
+      isDirty: false,
+      openTabs: [],
+      noteContentsCache: new Map(),
+    });
+
+    const didFlush = flushPendingEditorMarkdown('alpha.md', 'Old vault draft');
+
+    const state = useNotesStore.getState();
+    expect(didFlush).toBe(false);
+    expect(state.currentNote).toBeNull();
+    expect(state.openTabs).toEqual([]);
+    expect(state.noteContentsCache.size).toBe(0);
+    expect(state.isDirty).toBe(false);
+  });
 });

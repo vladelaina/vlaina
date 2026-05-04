@@ -107,6 +107,31 @@ async function prepareNotesForVaultExit(): Promise<{ ok: true } | { ok: false; e
   return { ok: true };
 }
 
+function resetNotesWorkspaceForVaultTransition(notesPath = '') {
+  useNotesStore.getState().clearAssetUrlCache();
+  useNotesStore.setState({
+    currentNote: null,
+    currentNoteRevision: 0,
+    currentNoteDiskRevision: 0,
+    isDirty: false,
+    openTabs: [],
+    recentlyClosedTabs: [],
+    rootFolder: null,
+    notesPath,
+    draftNotes: {},
+    pendingDraftDiscardPath: null,
+    pendingDeletedItems: [],
+    noteMetadata: null,
+    displayNames: new Map(),
+    noteContentsCache: new Map(),
+    isNewlyCreated: false,
+    newlyCreatedFolderPath: null,
+    assetList: [],
+    isLoadingAssets: false,
+    uploadProgress: null,
+  });
+}
+
 export const useVaultStore = create<VaultStore>()((set, get) => ({
   currentVault: null,
   recentVaults: [],
@@ -215,6 +240,12 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
       saveToStorage(VAULTS_STORAGE_KEY, updatedRecent);
       saveToStorage(CURRENT_VAULT_KEY, vault.id);
 
+      const previousVault = get().currentVault;
+      const previousVaultPath = previousVault?.path ? normalizeVaultPath(previousVault.path) : '';
+      if (previousVaultPath !== vault.path) {
+        resetNotesWorkspaceForVaultTransition(vault.path);
+      }
+
       set({
         currentVault: vault,
         recentVaults: updatedRecent,
@@ -223,7 +254,9 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
       setWindowVaultPath(vault.path);
       setCurrentVaultPath(vault.path);
-      useNotesStore.setState({ notesPath: vault.path });
+      if (previousVaultPath === vault.path) {
+        useNotesStore.setState({ notesPath: vault.path });
+      }
 
       return true;
     } catch (error) {
@@ -300,18 +333,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
       try {
         set({ currentVault: null });
-        useNotesStore.getState().clearAssetUrlCache();
-        useNotesStore.setState({
-          currentNote: null,
-          openTabs: [],
-          recentlyClosedTabs: [],
-          rootFolder: null,
-          notesPath: '',
-          draftNotes: {},
-          pendingDraftDiscardPath: null,
-          displayNames: new Map(),
-          noteContentsCache: new Map(),
-        });
+        resetNotesWorkspaceForVaultTransition();
         await waitForUiRelease();
 
         markExpectedExternalChange(normalizedCurrentVault.path, true);
@@ -379,6 +401,9 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
   removeFromRecent: (id: string) => {
     const { recentVaults, currentVault } = get();
     removeRecentVaultAction({ id, recentVaults, currentVault, set });
+    if (currentVault?.id === id) {
+      resetNotesWorkspaceForVaultTransition();
+    }
   },
 
   closeVault: async () => {
@@ -389,6 +414,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
     }
 
     closeCurrentVaultAction(set);
+    resetNotesWorkspaceForVaultTransition();
     set({ error: null });
     return true;
   },

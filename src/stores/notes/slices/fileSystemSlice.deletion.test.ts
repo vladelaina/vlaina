@@ -135,6 +135,50 @@ describe('createFileSystemSlice deletion flows', () => {
     })]);
   });
 
+  it('does not write stale deletion state after the active vault changes', async () => {
+    let resolveDelete: (value: Record<string, unknown>) => void;
+    hoisted.deleteNoteImpl.mockImplementation(() => new Promise((resolve) => {
+      resolveDelete = resolve;
+    }));
+    const harness = createSliceHarness({
+      currentNote: { path: 'alpha.md', content: 'alpha' },
+      isDirty: false,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+    });
+
+    const deletion = harness.getState().deleteNote('alpha.md');
+    harness.setState({
+      notesPath: '/vault-next',
+      currentNote: null,
+      openTabs: [],
+      pendingDeletedItems: [],
+    });
+    resolveDelete!({
+      updatedTabs: [],
+      updatedStarredEntries: [],
+      updatedStarredNotes: [],
+      updatedStarredFolders: [],
+      nextAction: null,
+      updatedMetadata: null,
+      newChildren: [],
+      recoverableDelete: {
+        id: 'delete-1',
+        kind: 'file',
+        originalPath: 'alpha.md',
+        originalFullPath: '/vault/alpha.md',
+        trashPath: '/trash/alpha.md',
+        deletedAt: 1,
+      },
+    });
+    await deletion;
+
+    expect(harness.getState().notesPath).toBe('/vault-next');
+    expect(harness.getState().currentNote).toBeNull();
+    expect(harness.getState().openTabs).toEqual([]);
+    expect(harness.getState().pendingDeletedItems).toEqual([]);
+    expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
+  });
+
   it('does not delete the current dirty note when saving fails first', async () => {
     const saveNote = vi.fn().mockResolvedValue(undefined);
     const harness = createSliceHarness({

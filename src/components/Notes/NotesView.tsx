@@ -247,6 +247,10 @@ export function NotesView({ active = true }: { active?: boolean }) {
         return;
       }
 
+      if (currentVault?.path && !state.notesPath) {
+        useNotesStore.setState({ notesPath: currentVault.path });
+      }
+
       void state.createNote().catch(() => {
         autoCreateBlankNoteRef.current = false;
       });

@@ -11,6 +11,11 @@ import { logNotesDebug } from '../debugLog';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 
+function isCurrentDiskSyncTarget(get: NotesGet, notesPath: string, notePath: string) {
+  const state = get();
+  return state.notesPath === notesPath && state.currentNote?.path === notePath;
+}
+
 export function createWorkspaceDiskSyncAction(
   set: NotesSet,
   get: NotesGet
@@ -28,6 +33,10 @@ export function createWorkspaceDiskSyncAction(
         const exists = await storage.exists(fullPath);
         const fileInfo = await storage.stat(fullPath);
         const cachedModifiedAt = getCachedNoteModifiedAt(noteContentsCache, currentNote.path);
+
+        if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
+          return 'ignored';
+        }
 
         if (!exists || fileInfo?.isFile === false) {
           const updatedTabs = setNoteTabDirtyState(openTabs, currentNote.path, true);
@@ -54,9 +63,14 @@ export function createWorkspaceDiskSyncAction(
         }
 
         const nextModifiedAt = fileInfo?.modifiedAt ?? cachedModifiedAt ?? null;
-        if (!options?.force && nextModifiedAt === cachedModifiedAt) return 'unchanged';
+        if (!options?.force && nextModifiedAt === cachedModifiedAt) {
+          return isCurrentDiskSyncTarget(get, notesPath, currentNote.path) ? 'unchanged' : 'ignored';
+        }
 
         if (isDirty) {
+          if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
+            return 'ignored';
+          }
           logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:conflict', {
             notePath: currentNote.path,
             cachedModifiedAt,
@@ -67,6 +81,10 @@ export function createWorkspaceDiskSyncAction(
         }
 
         const nextContent = normalizeSerializedMarkdownDocument(await storage.readFile(fullPath));
+        if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
+          return 'ignored';
+        }
+
         if (nextContent === currentNote.content && nextModifiedAt === cachedModifiedAt) {
           return 'unchanged';
         }
@@ -95,6 +113,9 @@ export function createWorkspaceDiskSyncAction(
 
         return 'reloaded';
       } catch (error) {
+        if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
+          return 'ignored';
+        }
         logNotesDebug('workspaceSlice:syncCurrentNoteFromDisk:error', {
           notePath: currentNote.path,
           error,

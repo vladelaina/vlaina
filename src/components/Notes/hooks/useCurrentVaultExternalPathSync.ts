@@ -99,6 +99,9 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
       if (!(await looksLikeVaultRoot(newPath))) {
         return false;
       }
+      if (disposed) {
+        return false;
+      }
 
       syncCurrentVaultExternalPath(normalizeFsPath(newPath));
       return true;

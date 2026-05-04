@@ -351,4 +351,37 @@ describe('workspaceSlice external sync', () => {
     );
   });
 
+  it('ignores a stale disk sync after the workspace switches vaults', async () => {
+    storageAdapter.exists.mockResolvedValue(true);
+    let resolveStat: (info: { isFile: true; modifiedAt: number }) => void;
+    storageAdapter.stat.mockImplementation(() => new Promise((resolve) => {
+      resolveStat = resolve;
+    }));
+    storageAdapter.readFile.mockResolvedValue('# stale alpha');
+
+    const store = createNotesStore({
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+
+    const sync = store.getState().syncCurrentNoteFromDisk({ force: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    store.setState({
+      notesPath: '/vault-next',
+      currentNote: null,
+      openTabs: [],
+      noteContentsCache: new Map(),
+    });
+    resolveStat!({ isFile: true, modifiedAt: 2 });
+    const result = await sync;
+
+    expect(result).toBe('ignored');
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().notesPath).toBe('/vault-next');
+    expect(store.getState().currentNote).toBeNull();
+    expect(store.getState().openTabs).toEqual([]);
+    expect(store.getState().noteContentsCache.size).toBe(0);
+  });
+
 });

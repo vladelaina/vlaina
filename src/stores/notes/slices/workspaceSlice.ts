@@ -69,6 +69,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
     if (isDirty && !shouldOpenInNewTab && !existingTab) {
       await saveNote();
+      if (get().notesPath !== notesPath) return;
       if (get().isDirty) return;
       ({ notesPath, recentNotes, openTabs, currentNote, noteContentsCache } = get());
       existingTab = openTabs.find((t) => t.path === path);
@@ -131,7 +132,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         fileTreeSortMode,
       });
     } catch (error) {
-      if (openRequestId === latestOpenNoteRequestId) {
+      if (openRequestId === latestOpenNoteRequestId && get().notesPath === notesPath) {
         set({ error: error instanceof Error ? error.message : 'Failed to open note' });
       }
     }
@@ -148,6 +149,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
     if (isDirty && !shouldOpenInNewTab && !existingTab) {
       await saveNote();
+      if (get().notesPath !== notesPath) return;
       if (get().isDirty) return;
       ({ notesPath, openTabs, currentNote, noteContentsCache } = get());
       existingTab = openTabs.find((t) => t.path === absolutePath);
@@ -201,7 +203,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         noteMetadata: nextMetadata,
       });
     } catch (error) {
-      if (openRequestId === latestOpenNoteRequestId) {
+      if (openRequestId === latestOpenNoteRequestId && get().notesPath === notesPath) {
         set({ error: error instanceof Error ? error.message : 'Failed to open note' });
       }
     }

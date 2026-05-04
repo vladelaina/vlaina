@@ -15,12 +15,18 @@ import { dispatchOpenMarkdownTargetEvent } from '@/components/Notes/features/Ope
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { createWorkspaceDiskSyncAction } from './workspaceDiskSyncActions';
 import { logNotesDebug } from '../debugLog';
+import { resolveUniquePath } from '../utils/fs/pathOperations';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 
 type WorkspaceDocumentActions = Pick<
   WorkspaceSlice,
   'saveNote' | 'syncCurrentNoteFromDisk' | 'invalidateNoteCache' | 'updateContent'
 >;
+
+function isCurrentSaveTarget(get: NotesGet, notesPath: string, notePath: string) {
+  const state = get();
+  return state.notesPath === notesPath && state.currentNote?.path === notePath;
+}
 
 export function createWorkspaceDocumentActions(
   set: NotesSet,
@@ -50,18 +56,35 @@ export function createWorkspaceDocumentActions(
       try {
         const draftNote = draftNotes[currentNote.path];
         if (draftNote) {
-          if (!options?.explicit) return;
+          if (!isCurrentSaveTarget(get, notesPath, notePathAtSaveStart)) return;
 
-          const selectedPath = await chooseDraftSavePath(notesPath, draftNote);
+          const draftSaveLocation = notesPath
+            ? await resolveUniquePath(
+                notesPath,
+                draftNote.parentPath ?? undefined,
+                draftNote.name || 'Untitled',
+                false,
+              )
+            : null;
+          if (!draftSaveLocation && !options?.explicit) return;
+
+          const selectedPath = draftSaveLocation?.fullPath ?? await chooseDraftSavePath(notesPath, draftNote);
           if (!selectedPath) return;
+          if (!isCurrentSaveTarget(get, notesPath, notePathAtSaveStart)) return;
 
-          const { absolutePath, relativePath } = resolveDraftSaveLocation(selectedPath, notesPath);
+          const { absolutePath, relativePath } = draftSaveLocation
+            ? {
+                absolutePath: draftSaveLocation.fullPath,
+                relativePath: draftSaveLocation.relativePath,
+              }
+            : resolveDraftSaveLocation(selectedPath, notesPath);
           const savedPath = relativePath ?? absolutePath;
           const { content, metadata, nextCache } = await saveNoteDocument({
             notesPath,
             currentNote: { path: savedPath, content: currentNote.content },
             cache: noteContentsCache,
           });
+          if (!isCurrentSaveTarget(get, notesPath, notePathAtSaveStart)) return;
 
           const tabName = getNoteTitleFromPath(savedPath);
           const nextTabs = openTabs
@@ -147,6 +170,8 @@ export function createWorkspaceDocumentActions(
           currentNote,
           cache: noteContentsCache,
         });
+        if (!isCurrentSaveTarget(get, notesPath, notePathAtSaveStart)) return;
+
         const nextMetadata = setNoteEntry(
           noteMetadata ?? createEmptyMetadataFile(),
           currentNote.path,
@@ -170,6 +195,8 @@ export function createWorkspaceDocumentActions(
           error: null,
         });
       } catch (error) {
+        if (get().notesPath !== notesPath) return;
+
         logNotesDebug('workspaceSlice:saveNote:error', {
           notePath: currentNote.path,
           explicit: options?.explicit ?? false,

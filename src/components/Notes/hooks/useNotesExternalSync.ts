@@ -93,6 +93,10 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
     });
 
     async function applyRenameEvent(event: { nonce?: string; oldPath: string; newPath: string }) {
+      if (disposed || useNotesStore.getState().notesPath !== notesPath) {
+        return;
+      }
+
       if (event.nonce) {
         if (!rememberProcessedRenameEventNonce(processedRenameEventNoncesRef.current, event.nonce)) {
           return;
@@ -100,6 +104,9 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
       }
 
       await applyExternalPathRename(event.oldPath, event.newPath);
+      if (disposed || useNotesStore.getState().notesPath !== notesPath) {
+        return;
+      }
       await loadFileTree(true);
     }
 
@@ -107,6 +114,9 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
       const events = await readNotesExternalPathEvents(notesPath, {
         afterStamp: eventFileStartedAt,
       });
+      if (disposed || useNotesStore.getState().notesPath !== notesPath) {
+        return;
+      }
       for (const event of events) {
         await applyRenameEvent(event);
       }

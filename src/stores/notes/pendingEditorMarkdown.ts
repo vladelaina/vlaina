@@ -19,6 +19,14 @@ export function flushPendingEditorMarkdown(notePath: string | null | undefined, 
   }
 
   const state = useNotesStore.getState();
+  const isKnownWorkspaceNote =
+    state.currentNote?.path === notePath ||
+    state.openTabs.some((tab) => tab.path === notePath) ||
+    state.noteContentsCache.has(notePath);
+  if (!isKnownWorkspaceNote) {
+    return false;
+  }
+
   const currentContent =
     state.currentNote?.path === notePath
       ? state.currentNote.content

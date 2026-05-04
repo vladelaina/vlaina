@@ -27,6 +27,10 @@ import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { applyPathRenameState } from './fileSystemSliceHelpers';
 import type { FileSystemSlice, FileSystemSliceGet, FileSystemSliceSet } from './fileSystemSliceContracts';
 
+function isActiveNotesPath(get: FileSystemSliceGet, notesPath: string) {
+  return get().notesPath === notesPath;
+}
+
 export function createFileSystemRenameActions(
   set: FileSystemSliceSet,
   get: FileSystemSliceGet,
@@ -55,6 +59,9 @@ export function createFileSystemRenameActions(
           noteMetadata,
         });
         if (!result) {
+          return;
+        }
+        if (!isActiveNotesPath(get, notesPath)) {
           return;
         }
 
@@ -91,6 +98,9 @@ export function createFileSystemRenameActions(
           fileTreeSortMode,
         });
       } catch (error) {
+        if (notesPath && !isActiveNotesPath(get, notesPath)) {
+          return;
+        }
         set({ error: error instanceof Error ? error.message : 'Failed to rename note' });
       }
     },
@@ -132,6 +142,9 @@ export function createFileSystemRenameActions(
         markExpectedExternalChange(path);
         markExpectedExternalChange(newPath);
         await storage.rename(path, newPath);
+        if (!isActiveNotesPath(get, notesPath)) {
+          return;
+        }
         emitNotesExternalPathRename({ notesPath: parentPath, oldPath: path, newPath });
 
         let starredChanged = false;
@@ -187,6 +200,9 @@ export function createFileSystemRenameActions(
           noteContentsCache: nextNoteContentsCache,
         });
       } catch (error) {
+        if (notesPath && !isActiveNotesPath(get, notesPath)) {
+          return;
+        }
         set({ error: error instanceof Error ? error.message : 'Failed to rename note' });
       }
     },
@@ -220,6 +236,9 @@ export function createFileSystemRenameActions(
         markExpectedExternalChange(fullPath, true);
         markExpectedExternalChange(newFullPath, true);
         await storage.rename(fullPath, newFullPath);
+        if (!isActiveNotesPath(get, notesPath)) {
+          return;
+        }
         emitNotesExternalPathRename({ notesPath, oldPath: path, newPath });
 
         const result = await processFolderRename(notesPath, path, fileName, {
@@ -276,6 +295,9 @@ export function createFileSystemRenameActions(
           fileTreeSortMode,
         });
       } catch (error) {
+        if (notesPath && !isActiveNotesPath(get, notesPath)) {
+          return;
+        }
         set({ error: error instanceof Error ? error.message : 'Failed to rename folder' });
       }
     },
@@ -306,6 +328,9 @@ export function createFileSystemRenameActions(
           starredEntries,
           noteMetadata,
         });
+        if (!isActiveNotesPath(get, notesPath)) {
+          return;
+        }
         const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = applyPathRenameState({
           oldPath: result.sourcePath,
           newPath: result.newPath,
@@ -339,6 +364,9 @@ export function createFileSystemRenameActions(
           fileTreeSortMode,
         });
       } catch (error) {
+        if (notesPath && !isActiveNotesPath(get, notesPath)) {
+          return;
+        }
         set({ error: error instanceof Error ? error.message : 'Failed to move item' });
       }
     },

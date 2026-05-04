@@ -123,6 +123,9 @@ vi.mock('@/stores/notes/useNotesStore', () => ({
     (selector: (state: MockNotesState) => unknown) => selector(mocks.notesState),
     {
       getState: () => mocks.notesState,
+      setState: (partial: Partial<MockNotesState>) => {
+        Object.assign(mocks.notesState, partial);
+      },
     },
   ),
 }));
@@ -291,6 +294,7 @@ describe('NotesView', () => {
     notesState.openTabs = [];
     notesState.recentlyClosedTabs = [];
     notesState.draftNotes = {};
+    notesState.notesPath = '/vault';
     notesState.isLoading = false;
     notesState.rootFolder = {
       id: '',
@@ -389,6 +393,18 @@ describe('NotesView', () => {
     await waitFor(() => {
       expect(notesState.createNote).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('binds the auto-created blank note to the current vault before creating it', async () => {
+    notesState.notesPath = '';
+    mocks.vaultState.currentVault = { path: '/vault' };
+
+    render(<NotesView />);
+
+    await waitFor(() => {
+      expect(notesState.createNote).toHaveBeenCalledTimes(1);
+    });
+    expect(notesState.notesPath).toBe('/vault');
   });
 
   it('creates a fresh editable note instead of opening an existing draft automatically', async () => {

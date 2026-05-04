@@ -69,6 +69,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   const saveNote = useNotesStore(s => s.saveNote);
   const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
+  const notesPath = useNotesStore(s => s.notesPath);
   const isDraftNote = isDraftNotePath(currentNotePath);
 
   const hasAutoFocused = useRef(false);
@@ -150,7 +151,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
                 return;
               }
               updateContent(pendingMarkdown);
-              if (!isDraftNote) {
+              if (!isDraftNote || notesPath) {
                 debouncedSave();
               }
             });
@@ -163,7 +164,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       .use(configureTheme)
       .use(tableBlock)
       .use(customPlugins),
-    [currentNotePath, isDraftNote]
+    [currentNotePath, isDraftNote, notesPath]
   );
 
   useEffect(() => {

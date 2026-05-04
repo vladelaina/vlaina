@@ -33,6 +33,10 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
     const eventFileStartedAt = Date.now();
 
     async function applyRenameEvent(event: { nonce?: string; oldPath: string; newPath: string }) {
+      if (disposed) {
+        return;
+      }
+
       if (event.nonce) {
         if (!rememberProcessedRenameEventNonce(processedRenameEventNoncesRef.current, event.nonce)) {
           return;
@@ -53,6 +57,10 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
       const events = await readNotesExternalPathEvents(parentPath, {
         afterStamp: eventFileStartedAt,
       });
+      if (disposed) {
+        return;
+      }
+
       for (const event of events) {
         await applyRenameEvent(event);
       }

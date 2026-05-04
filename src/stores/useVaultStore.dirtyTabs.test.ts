@@ -77,6 +77,37 @@ describe('useVaultStore dirty note protection', () => {
     expect(useNotesStore.getState().notesPath).toBe('/vault/next');
   });
 
+  it('clears note workspace state before switching to another vault', async () => {
+    useNotesStore.setState({
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [{ id: 'current.md', name: 'current', path: 'current.md', isFolder: false }],
+      },
+      recentlyClosedTabs: [{ tab: { path: 'old.md', name: 'old', isDirty: false }, index: 0 }],
+      noteContentsCache: new Map([['current.md', { content: 'Current', modifiedAt: null }]]),
+      displayNames: new Map([['current.md', 'current']]),
+    });
+
+    const opened = await useVaultStore.getState().openVault('/vault/next');
+
+    expect(opened).toBe(true);
+    expect(useNotesStore.getState()).toMatchObject({
+      notesPath: '/vault/next',
+      currentNote: null,
+      isDirty: false,
+      openTabs: [],
+      recentlyClosedTabs: [],
+      rootFolder: null,
+      draftNotes: {},
+    });
+    expect(useNotesStore.getState().noteContentsCache.size).toBe(0);
+    expect(useNotesStore.getState().displayNames.size).toBe(0);
+  });
+
   it('does not open another vault if dirty regular tabs could not be saved', async () => {
     mocks.saveDirtyRegularOpenTabs.mockResolvedValue(false);
 
@@ -114,6 +145,13 @@ describe('useVaultStore dirty note protection', () => {
     expect(mocks.saveDirtyRegularOpenTabs).toHaveBeenCalledTimes(1);
     expect(useVaultStore.getState().currentVault).toBeNull();
     expect(useVaultStore.getState().error).toBeNull();
+    expect(useNotesStore.getState()).toMatchObject({
+      notesPath: '',
+      currentNote: null,
+      isDirty: false,
+      openTabs: [],
+      rootFolder: null,
+    });
   });
 
   it('does not create a vault folder while draft tabs still have unsaved content', async () => {
