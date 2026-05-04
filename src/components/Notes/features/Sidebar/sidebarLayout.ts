@@ -1,2 +1,1 @@
 export const NOTES_SIDEBAR_ICON_SIZE = 18;
-export const NOTES_SIDEBAR_ROW_HEIGHT = 30;

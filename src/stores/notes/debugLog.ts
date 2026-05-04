@@ -48,7 +48,6 @@ function registerDebugHelpers(win: NotesDebugWindow) {
         throw new Error('No clipboard writer is available');
       }
 
-      console.log(`[NotesDebug] copied ${text.length} chars`);
       return { ok: true, chars: text.length };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -71,13 +70,6 @@ export function logNotesDebug(scope: string, payload?: unknown) {
   }
 
   appendDebugLine(`[${new Date().toISOString()}] ${scope}${formatPayload(payload)}`);
-
-  if (payload === undefined) {
-    console.log(`[NotesDebug] ${scope}`);
-    return;
-  }
-
-  console.log(`[NotesDebug] ${scope}`, payload);
 }
 
 if (typeof window !== 'undefined') {

@@ -2,6 +2,7 @@ import { getBaseName, getParentPath, getStorageAdapter, joinPath } from '@/lib/s
 import { resolveUniqueName } from '@/lib/naming/uniqueName';
 import { desktopWindow } from '@/lib/desktop/window';
 import { sanitizeFileName } from '@/stores/notes/noteUtils';
+import { moveVaultSystemStore } from '@/stores/notes/systemStoragePaths';
 import {
   getVaultStarredPaths,
   normalizeStarredVaultPath,
@@ -205,6 +206,7 @@ export function syncCurrentVaultExternalPathAction({
   const normalizedCurrentVault = normalizeVaultInfo(currentVault);
   const normalizedCurrentVaultPath = normalizeVaultPath(normalizedCurrentVault.path);
   if (!normalizedPath || normalizedPath === normalizedCurrentVaultPath) return;
+  void moveVaultSystemStore(normalizedCurrentVaultPath, normalizedPath);
 
   const nextVault = normalizeVaultInfo({
     ...normalizedCurrentVault,

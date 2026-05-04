@@ -57,6 +57,31 @@ describe('frontmatterMarkdown', () => {
     ).toBe('---\ntitle: Demo\n---\n# Heading');
   });
 
+  it('removes serializer padding after the internal frontmatter block', () => {
+    expect(
+      serializeLeadingFrontmatterMarkdown(
+        `\`\`\`${getFrontmatterFenceLanguage()}\ntitle: Demo\n\`\`\`\n\n# Heading`,
+      ),
+    ).toBe('---\ntitle: Demo\n---\n# Heading');
+  });
+
+  it('preserves user-authored body blank lines after frontmatter', () => {
+    expect(
+      serializeLeadingFrontmatterMarkdown(
+        `\`\`\`${getFrontmatterFenceLanguage()}\ntitle: Demo\n\`\`\`\n\n\n# Heading`,
+      ),
+    ).toBe('---\ntitle: Demo\n---\n\n# Heading');
+  });
+
+  it('preserves body blank lines when hidden-only frontmatter is restored', () => {
+    expect(
+      serializeLeadingFrontmatterMarkdown(
+        '\n# Heading',
+        '---\nvlaina_cover: "@biva/1"\n---\n\n# Heading',
+      ),
+    ).toBe('---\nvlaina_cover: "@biva/1"\n---\n\n# Heading');
+  });
+
   it('merges hidden vlaina-managed frontmatter back during serialization', () => {
     expect(
       serializeLeadingFrontmatterMarkdown(
@@ -65,6 +90,17 @@ describe('frontmatterMarkdown', () => {
       ),
     ).toBe(
       '---\ntitle: Demo\n\nvlaina_cover: "@biva/1"\nvlaina_updated: "2026-04-16T00:00:00.000Z"\n---\n# Heading'
+    );
+  });
+
+  it('keeps visible frontmatter spacing stable when hidden metadata is merged back', () => {
+    expect(
+      serializeLeadingFrontmatterMarkdown(
+        `\`\`\`${getFrontmatterFenceLanguage()}\ntitle: Demo\nsummary: Test\n\`\`\`\n\n# Heading`,
+        '---\ntitle: Demo\nsummary: Test\n\nvlaina_cover: "@biva/1"\n---\n\n# Heading',
+      ),
+    ).toBe(
+      '---\ntitle: Demo\nsummary: Test\n\nvlaina_cover: "@biva/1"\n---\n# Heading'
     );
   });
 

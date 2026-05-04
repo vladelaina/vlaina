@@ -42,13 +42,13 @@ export function SidebarContextMenuItem({
       <span
         className={cn(
           'flex size-[20px] items-center justify-center',
-          danger ? 'text-red-500' : 'text-[var(--notes-sidebar-icon)]',
+          danger ? 'text-red-500' : 'text-[var(--notes-sidebar-text)]',
         )}
       >
         {icon}
       </span>
       <span className="min-w-0 flex-1 truncate text-left">{label}</span>
-      {trailing ? <span className="shrink-0 text-[var(--notes-sidebar-icon)]">{trailing}</span> : null}
+      {trailing ? <span className="shrink-0 text-[var(--notes-sidebar-text)]">{trailing}</span> : null}
     </button>
   );
 }

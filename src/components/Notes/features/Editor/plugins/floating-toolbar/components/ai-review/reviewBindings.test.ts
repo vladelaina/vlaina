@@ -6,6 +6,7 @@ import type { AiReviewElements } from './reviewDom';
 const applyAiSelectionSuggestion = vi.fn();
 const retryAiSelectionSuggestionResult = vi.fn();
 const syncReviewUi = vi.fn();
+const mockGetFloatingToolbarState = vi.fn();
 
 vi.mock('../../ai/selectionCommands', () => ({
   applyAiSelectionSuggestion: (...args: unknown[]) => applyAiSelectionSuggestion(...args),
@@ -20,6 +21,12 @@ vi.mock('./reviewUi', () => ({
   stopPassiveReviewMouseDown: vi.fn(),
   stopReviewMouseDown: vi.fn(),
   syncReviewUi: (...args: unknown[]) => syncReviewUi(...args),
+}));
+
+vi.mock('../../floatingToolbarKey', () => ({
+  floatingToolbarKey: {
+    getState: (...args: unknown[]) => mockGetFloatingToolbarState(...args),
+  },
 }));
 
 function createElements(): AiReviewElements {
@@ -52,8 +59,10 @@ describe('bindAiReviewActions', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     applyAiSelectionSuggestion.mockReset();
+    applyAiSelectionSuggestion.mockReturnValue(true);
     retryAiSelectionSuggestionResult.mockReset();
     syncReviewUi.mockReset();
+    mockGetFloatingToolbarState.mockReset();
   });
 
   it('focuses the panel and applies on Enter', async () => {
@@ -87,5 +96,66 @@ describe('bindAiReviewActions', () => {
 
     expect(applyAiSelectionSuggestion).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the panel open when applying the suggestion is rejected', async () => {
+    applyAiSelectionSuggestion.mockReturnValue(false);
+    const elements = createElements();
+    const onClose = vi.fn();
+
+    bindAiReviewActions({
+      elements,
+      onClose,
+      review: {
+        requestKey: 'review-1',
+        instruction: 'Polish',
+        commandId: 'polish',
+        toneId: null,
+        from: 1,
+        to: 4,
+        originalText: 'helo',
+        suggestedText: 'hello',
+        isLoading: false,
+        errorMessage: null,
+      },
+      updateReview: vi.fn(),
+      view: createView(),
+    });
+
+    elements.acceptButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(applyAiSelectionSuggestion).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('does not abort retry only because the panel binding is cleaned up during loading rerender', async () => {
+    const elements = createElements();
+    const cleanup = bindAiReviewActions({
+      elements,
+      onClose: vi.fn(),
+      review: {
+        requestKey: 'review-1',
+        instruction: 'Polish',
+        commandId: 'polish',
+        toneId: null,
+        from: 1,
+        to: 4,
+        originalText: 'helo',
+        suggestedText: 'hello',
+        isLoading: false,
+        errorMessage: null,
+      },
+      updateReview: vi.fn(),
+      view: createView(),
+    });
+
+    retryAiSelectionSuggestionResult.mockReturnValue(new Promise(() => {}));
+
+    elements.retryButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    cleanup();
+
+    expect(retryAiSelectionSuggestionResult).toHaveBeenCalledTimes(1);
+    const [, signal] = retryAiSelectionSuggestionResult.mock.calls[0];
+    expect(signal).toBeUndefined();
   });
 });

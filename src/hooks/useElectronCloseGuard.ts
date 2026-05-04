@@ -4,6 +4,7 @@ import { isElectronRuntime } from '@/lib/electron/bridge';
 import { flushPendingSessionJsonSaves } from '@/lib/storage/chatStorage';
 import { flushPendingSave } from '@/lib/storage/unifiedStorage';
 import { hasDraftUnsavedChanges, isDraftNotePath } from '@/stores/notes/draftNote';
+import { saveDirtyRegularOpenTabs } from '@/stores/notes/dirtyOpenTabs';
 import { openStoredNotePath } from '@/stores/notes/openNotePath';
 import { useNotesStore } from '@/stores/useNotesStore';
 
@@ -106,7 +107,13 @@ export function useElectronCloseGuard() {
     }
 
     const latestNotesState = useNotesStore.getState();
-    if (latestNotesState.isDirty && !isDraftNotePath(latestNotesState.currentNote?.path)) {
+    const hasDirtyRegularTabs = latestNotesState.openTabs.some(
+      (tab) => tab.isDirty && !isDraftNotePath(tab.path)
+    );
+    if (
+      hasDirtyRegularTabs ||
+      (latestNotesState.isDirty && !isDraftNotePath(latestNotesState.currentNote?.path))
+    ) {
       const flushed = await runFlushAllPendingWritesRef.current();
       if (!flushed) {
         await restorePathAfterCloseInterruption(restorePath);
@@ -139,11 +146,21 @@ export function useElectronCloseGuard() {
         ];
 
         const notesState = useNotesStore.getState();
-        if (notesState.isDirty && !isDraftNotePath(notesState.currentNote?.path)) {
+        const hasDirtyRegularTabs = notesState.openTabs.some(
+          (tab) => tab.isDirty && !isDraftNotePath(tab.path)
+        );
+        if (
+          hasDirtyRegularTabs ||
+          (notesState.isDirty && !isDraftNotePath(notesState.currentNote?.path))
+        ) {
           tasks.push({
             name: 'notes storage',
-            task: notesState.saveNote().then(() => {
-              if (useNotesStore.getState().isDirty) {
+            task: saveDirtyRegularOpenTabs().then((saved) => {
+              const nextNotesState = useNotesStore.getState();
+              const stillHasDirtyRegularTabs = nextNotesState.openTabs.some(
+                (tab) => tab.isDirty && !isDraftNotePath(tab.path)
+              );
+              if (!saved || nextNotesState.isDirty || stillHasDirtyRegularTabs) {
                 throw new Error('Notes still dirty after save attempt');
               }
             }),
@@ -160,7 +177,11 @@ export function useElectronCloseGuard() {
           }
         });
 
-        return !hasFailure && !useNotesStore.getState().isDirty;
+        const nextNotesState = useNotesStore.getState();
+        const stillHasDirtyRegularTabs = nextNotesState.openTabs.some(
+          (tab) => tab.isDirty && !isDraftNotePath(tab.path)
+        );
+        return !hasFailure && !nextNotesState.isDirty && !stillHasDirtyRegularTabs;
       })().finally(() => {
         activeFlush = null;
       });
@@ -189,7 +210,11 @@ export function useElectronCloseGuard() {
       const notesState = useNotesStore.getState();
       const hasUnsavedDrafts = hasDiscardableDrafts();
 
-      if (!notesState.isDirty && !hasUnsavedDrafts) {
+      const hasDirtyRegularTabs = notesState.openTabs.some(
+        (tab) => tab.isDirty && !isDraftNotePath(tab.path)
+      );
+
+      if (!notesState.isDirty && !hasDirtyRegularTabs && !hasUnsavedDrafts) {
         allowNextWindowCloseRef.current = true;
         void desktopWindow.confirmClose();
         return;

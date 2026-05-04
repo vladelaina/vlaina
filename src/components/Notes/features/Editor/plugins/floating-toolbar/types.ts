@@ -24,6 +24,8 @@ export interface AiReviewState {
   from: number;
   to: number;
   originalText: string;
+  beforeContext?: string;
+  afterContext?: string;
   suggestedText: string;
   isLoading: boolean;
   errorMessage: string | null;

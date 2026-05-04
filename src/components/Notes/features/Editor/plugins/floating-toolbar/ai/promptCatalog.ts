@@ -47,9 +47,9 @@ export const AI_REVIEW_TRANSLATE_COMMANDS: readonly AiPromptCommand[] = [
 export const AI_REVIEW_ACTION_COMMANDS: readonly AiPromptCommand[] = [
   { id: 'polish', label: '润色', instruction: 'Polish the selected text while preserving its meaning.' },
   { id: 'rewrite', label: '改写', instruction: 'Rewrite the selected text with different wording while preserving its meaning.' },
-  { id: 'clarify', label: '更清晰', instruction: 'Rewrite the selected text to improve clarity and readability without changing its meaning.' },
-  { id: 'simplify', label: '简化', instruction: 'Simplify the selected text so it is easier to understand while preserving its meaning.' },
   { id: 'fix-grammar', label: '修复语法', instruction: 'Fix grammar and awkward phrasing in the selected text.' },
+  { id: 'simplify', label: '简化', instruction: 'Simplify the selected text so it is easier to understand while preserving its meaning.' },
+  { id: 'clarify', label: '更清晰', instruction: 'Rewrite the selected text to improve clarity and readability without changing its meaning.' },
   { id: 'shorten', label: '缩短', instruction: 'Make the selected text shorter while preserving its meaning.' },
   { id: 'lengthen', label: '扩写', instruction: 'Expand the selected text with a bit more detail while preserving its meaning.' },
   {
@@ -75,14 +75,19 @@ export const AI_SIDEBAR_COMMANDS: readonly AiPromptCommand[] = [
 ];
 
 export const AI_REVIEW_TONE_COMMANDS: readonly AiPromptCommand[] = [
+  {
+    id: 'tone-context-fit',
+    label: '贴合上下文',
+    instruction: 'Rewrite the selected text so its tone fits the surrounding context while preserving its meaning.',
+  },
   { id: 'tone-professional', label: '专业', instruction: 'Rewrite the selected text in a professional tone.' },
-  { id: 'tone-casual', label: '随意', instruction: 'Rewrite the selected text in a casual tone.' },
   { id: 'tone-clear', label: '简单明了', instruction: 'Rewrite the selected text in a simple and straightforward tone.' },
-  { id: 'tone-confident', label: '自信', instruction: 'Rewrite the selected text in a confident tone.' },
   { id: 'tone-friendly', label: '友好', instruction: 'Rewrite the selected text in a friendly tone.' },
+  { id: 'tone-casual', label: '随意', instruction: 'Rewrite the selected text in a casual tone.' },
   { id: 'tone-direct', label: '直接', instruction: 'Rewrite the selected text in a direct tone.' },
-  { id: 'tone-empathetic', label: '共情', instruction: 'Rewrite the selected text in an empathetic tone.' },
+  { id: 'tone-confident', label: '自信', instruction: 'Rewrite the selected text in a confident tone.' },
   { id: 'tone-persuasive', label: '有说服力', instruction: 'Rewrite the selected text in a persuasive tone.' },
+  { id: 'tone-empathetic', label: '共情', instruction: 'Rewrite the selected text in an empathetic tone.' },
 ];
 
 export const AI_REVIEW_COMMANDS: readonly AiPromptCommand[] = [

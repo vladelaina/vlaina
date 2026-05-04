@@ -94,6 +94,7 @@ import { ReviewCloseIcon } from './custom/mit/ReviewCloseIcon';
 import { SidebarDockIcon } from './custom/mit/SidebarDockIcon';
 import { MagicWandIcon } from './custom/mit/MagicWandIcon';
 import { ShootingStarIcon } from './custom/mit/ShootingStarIcon';
+import { FileDirectoryIcon } from './custom/mit/FileDirectoryIcon';
 import { FileDirectoryFillIcon } from './custom/mit/FileDirectoryFillIcon';
 import { FileDirectoryOpenFillIcon } from './custom/mit/FileDirectoryOpenFillIcon';
 import { FileDirectoryOpenArrowIcon } from './custom/mit/FileDirectoryOpenArrowIcon';
@@ -182,6 +183,7 @@ export const icons: Record<string, IconSource> = {
   'theme.system': ComputerDesktopIcon,
   'theme.palette': SwatchIcon,
   'theme.sunny': SunIcon,
+  'file.folderOutline': FileDirectoryIcon,
   'file.folder': FileDirectoryFillIcon,
   'file.folderOpen': FileDirectoryOpenFillIcon,
   'file.folderOpenArrow': FileDirectoryOpenArrowIcon,

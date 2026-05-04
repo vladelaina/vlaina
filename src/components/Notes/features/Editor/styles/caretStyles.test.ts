@@ -13,9 +13,9 @@ function readEditorCoreStyles() {
   );
 }
 
-function readEditorThemeSource() {
+function readEditorThemeClassesSource() {
   return readFileSync(
-    resolve(process.cwd(), 'src/components/Notes/features/Editor/theme.ts'),
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/themeClasses.ts'),
     'utf8'
   );
 }
@@ -32,9 +32,9 @@ describe('caret styles', () => {
 
   it('keeps the editor caret sourced from the shared caret token', () => {
     const css = readEditorCoreStyles();
-    const theme = readEditorThemeSource();
+    const themeClasses = readEditorThemeClassesSource();
 
     expect(css).toContain('--vlaina-editor-caret-color: var(--vlaina-caret-color, #41ace2);');
-    expect(theme).toContain('caret-[var(--vlaina-caret-color)]');
+    expect(themeClasses).toContain('caret-[var(--vlaina-caret-color)]');
   });
 });

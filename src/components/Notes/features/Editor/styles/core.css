@@ -7,6 +7,7 @@
   outline: none;
   --vlaina-editor-caret-color: var(--vlaina-caret-color, #41ace2);
   --vlaina-editor-caret-width: 1px;
+  --vlaina-editor-block-selection-base: var(--vlaina-color-editor-block-selection, #71717a);
 }
 
 /* Reset potential focus outlines during interactions */
@@ -109,7 +110,7 @@ body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hide
 
 /* Notion-like drag block selection highlight */
 .milkdown .ProseMirror .vlaina-block-selected {
-  --vlaina-block-selection-color: color-mix(in srgb, var(--vlaina-text-tertiary, #71717a) 14%, transparent);
+  --vlaina-block-selection-color: color-mix(in srgb, var(--vlaina-editor-block-selection-base, #71717a) 14%, transparent);
   --vlaina-block-selection-bleed-y: 4px;
   --vlaina-block-selection-bleed-x-start: 0;
   background-color: var(--vlaina-block-selection-color);

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -15,6 +15,7 @@ import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive'
 import { getSidebarContextMenuPosition, getSidebarMenuPositionFromTriggerRect } from '../common/sidebarMenuPosition';
 import { useFileTreePointerDragState } from '../FileTree/hooks/fileTreePointerDragState';
 import { useExternalFileTreeDropState } from '../FileTree/hooks/externalFileTreeDropState';
+import { useRootBlankContextMenu } from './useRootBlankContextMenu';
 import {
   clearHoveredSidebarRenamePath,
   registerSidebarHoverRenameTarget,
@@ -29,6 +30,7 @@ interface RootFolderRowProps {
   isLoading: boolean;
   onCreateNote: () => Promise<unknown>;
   onCreateFolder: () => Promise<string | null>;
+  blankContextMenuRef?: RefObject<HTMLElement | null>;
 }
 
 export function RootFolderRow({
@@ -36,6 +38,7 @@ export function RootFolderRow({
   isLoading,
   onCreateNote,
   onCreateFolder,
+  blankContextMenuRef,
 }: RootFolderRowProps) {
   const currentVault = useVaultStore((state) => state.currentVault);
   const renameCurrentVault = useVaultStore((state) => state.renameCurrentVault);
@@ -47,6 +50,7 @@ export function RootFolderRow({
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [shouldRenderChildren, setShouldRenderChildren] = useState(rootFolder?.expanded ?? true);
+  const rootRowRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const isRenamingRef = useRef(false);
   const isInternalRootDragOver = useFileTreePointerDragState(
@@ -59,7 +63,6 @@ export function RootFolderRow({
   const autoExpandDelayMs = isInternalRootDragOver
     ? INTERNAL_ROOT_AUTO_EXPAND_DELAY_MS
     : EXTERNAL_ROOT_AUTO_EXPAND_DELAY_MS;
-  const isDragOver = isRootDragOver;
   const autoExpandTimeoutRef = useRef<number | null>(null);
 
   const title = currentVault?.name || rootFolder?.name || 'Notes';
@@ -116,6 +119,16 @@ export function RootFolderRow({
       isRenaming: () => isRenamingRef.current,
     });
   }, [rootFolder]);
+
+  useRootBlankContextMenu({
+    enabled: Boolean(rootFolder),
+    blankContextMenuRef,
+    rootRowRef,
+    onOpen: (position) => {
+      setMenuPosition(position);
+      setShowMenu(true);
+    },
+  });
 
   useEffect(() => {
     if (autoExpandTimeoutRef.current !== null) {
@@ -178,7 +191,7 @@ export function RootFolderRow({
   };
 
   return (
-    <div className="py-1">
+    <div ref={rootRowRef} className="py-1">
       <NotesSidebarRow
         data-file-tree-root-drop-target="true"
         onMouseEnter={() => setHoveredSidebarRenamePath(rootFolder.path)}
@@ -211,7 +224,7 @@ export function RootFolderRow({
         }
         onClick={() => toggleFolder('')}
         isHighlighted={showMenu}
-        isDragOver={isDragOver}
+        isDragOver={isRootDragOver}
         showActionsByDefault={showMenu}
         main={
           isRenaming ? (

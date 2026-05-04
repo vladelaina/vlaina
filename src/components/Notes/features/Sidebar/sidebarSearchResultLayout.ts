@@ -1,9 +1,8 @@
 import { measureTextBlockHeight } from '@/lib/text-layout';
+import { APP_SANS_FONT_FAMILY } from '@/lib/typography/fontFamilies';
 import type { NotesSidebarSearchResult } from './notesSidebarSearchResults';
 
-const TITLE_FONT = 'normal 400 16px Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif';
-const META_FONT = 'normal 400 16px Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif';
-const SNIPPET_FONT = 'normal 400 16px Inter, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif';
+const SIDEBAR_SEARCH_FONT = `normal 400 16px ${APP_SANS_FONT_FAMILY}`;
 const TITLE_LINE_HEIGHT = 22;
 const META_LINE_HEIGHT = 22;
 const SNIPPET_LINE_HEIGHT = 22;
@@ -68,13 +67,13 @@ export function estimateNotesSidebarSearchRowHeight(
   const width = resolveContentWidth(containerWidth);
   const locationLabel = item.result.preview.replace(/\/$/, '');
   const titleHeight = item.showFileHeader
-    ? estimateTextLineHeight(item.result.name, width, TITLE_FONT, TITLE_LINE_HEIGHT)
+    ? estimateTextLineHeight(item.result.name, width, SIDEBAR_SEARCH_FONT, TITLE_LINE_HEIGHT)
     : 0;
   const locationHeight = locationLabel
-    ? estimateTextLineHeight(locationLabel, width, META_FONT, META_LINE_HEIGHT)
+    ? estimateTextLineHeight(locationLabel, width, SIDEBAR_SEARCH_FONT, META_LINE_HEIGHT)
     : 0;
   const contentHeight = item.result.contentSnippet
-    ? estimateTextLineHeight(item.result.contentSnippet, width, SNIPPET_FONT, SNIPPET_LINE_HEIGHT)
+    ? estimateTextLineHeight(item.result.contentSnippet, width, SIDEBAR_SEARCH_FONT, SNIPPET_LINE_HEIGHT)
     : 0;
   const textHeight = titleHeight + locationHeight + contentHeight;
   const paddedHeight = textHeight + SIDEBAR_ROW_VERTICAL_PADDING * 2;

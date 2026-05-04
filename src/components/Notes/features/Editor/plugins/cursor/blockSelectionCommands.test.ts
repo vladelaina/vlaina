@@ -120,7 +120,7 @@ describe('serializeSelectedBlocksToText', () => {
       { markdownSerializer: markdownSerializer as unknown as Serializer },
     );
 
-    expect(result).toBe('---\ntitle: demo\n---\n\nBody');
+    expect(result).toBe('---\ntitle: demo\n---\nBody');
   });
 
   it('keeps a single blank line gap when copying actual paragraph blocks', async () => {

@@ -26,6 +26,7 @@ Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, sim
 
 When editing existing code:
 - Don't "improve" adjacent code, comments, or formatting.
+- Keep code, comments, and test fixture text in English unless user-facing copy requires another language.
 - Don't refactor things that aren't broken.
 - Match existing style, even if you'd do it differently.
 - If you notice unrelated dead code, mention it - don't delete it.
@@ -73,3 +74,14 @@ When creating commits:
 - Keep the subject short, imperative, and specific.
 - Match the type to the change, such as `fix`, `feat`, `refactor`, `test`, `docs`, `chore`.
 - Example: `🐛fix(shortcuts): block background shortcuts while dialogs are focused`
+
+## 7. Merge Conflicts
+
+**Prefer the latest side, but still reason through the merge.**
+
+When resolving conflicts:
+- Treat incoming/latest as the default baseline, not as a blind overwrite rule.
+- Compare both sides for behavior, imports, types, tests, and surrounding dependencies.
+- Preserve the latest intent unless it breaks the current main branch or drops a necessary existing fix.
+- If the latest side is stale against main, apply the smallest compatibility fix instead of keeping both versions.
+- After resolving, check for conflict markers, unmerged paths, compile or type issues, and run the most relevant tests when practical.

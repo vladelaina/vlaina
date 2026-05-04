@@ -7,7 +7,7 @@ import { FileItem } from './FileItem';
 import { TreeItemDeleteDialog } from './components/TreeItemDeleteDialog';
 import { useFolderItemState } from './hooks/useFolderItemState';
 import { cn } from '@/lib/utils';
-import { getSidebarTextClass } from '@/components/layout/sidebar/sidebarLabelStyles';
+import { getSidebarLabelClass, getSidebarTextClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
 import { SidebarStarBadge } from '../common/SidebarStarBadge';
 import { TreeItemShell } from './components/TreeItemShell';
@@ -26,6 +26,14 @@ interface FolderItemProps {
   showStarBadge?: boolean;
   dragEnabled?: boolean;
   showMenuButton?: boolean;
+}
+
+export function isCurrentNoteInsideFolder(currentNotePath: string | undefined, folderPath: string): boolean {
+  if (!currentNotePath || !folderPath) {
+    return false;
+  }
+
+  return currentNotePath.startsWith(`${folderPath}/`);
 }
 
 export const FolderItem = memo(function FolderItem({
@@ -59,6 +67,8 @@ export const FolderItem = memo(function FolderItem({
   const hasChildren = node.children.length > 0;
   const [shouldRenderChildren, setShouldRenderChildren] = useState(node.expanded);
   const notesPath = useNotesStore((state) => state.notesPath);
+  const currentNotePath = useNotesStore((state) => state.currentNote?.path);
+  const isCurrentNoteAncestor = isCurrentNoteInsideFolder(currentNotePath, node.path);
   const { handleCopyPath, handleOpenLocation } = useTreeItemPathActions({
     notesPath,
     itemPath: node.path,
@@ -177,7 +187,7 @@ export const FolderItem = memo(function FolderItem({
           />
         ) : (
           <div className={cn('relative min-w-0', showStarBadge && 'pr-5')}>
-            <span className={cn('block truncate', getSidebarTextClass('notes'))}>
+            <span className={cn('block truncate', getSidebarLabelClass('notes', { selected: isCurrentNoteAncestor }))}>
               {node.name}
             </span>
             {showStarBadge ? (

@@ -31,6 +31,14 @@ function trimTrailingBlankLines(lines: string[]): string[] {
   return lines.slice(0, end);
 }
 
+function removeSerializedFrontmatterPadding(lines: string[]): string[] {
+  if (lines[0]?.trim() !== '') {
+    return lines;
+  }
+
+  return lines.slice(1);
+}
+
 function splitLeadingFrontmatter(markdown: string): FrontmatterSections | null {
   const normalized = normalizeLineEndings(markdown);
   const lines = normalized.split('\n');
@@ -118,7 +126,11 @@ export function serializeLeadingFrontmatterMarkdown(markdown: string, referenceM
       ? [...visibleFrontmatterLines, '', ...hiddenFrontmatterLines]
       : [...visibleFrontmatterLines, ...hiddenFrontmatterLines];
 
-  return buildFrontmatterBlock(mergedFrontmatterLines, lines.slice(closingIndex + 1), false);
+  return buildFrontmatterBlock(
+    mergedFrontmatterLines,
+    removeSerializedFrontmatterPadding(lines.slice(closingIndex + 1)),
+    false
+  );
 }
 
 export function isFrontmatterShortcutText(text: string): boolean {

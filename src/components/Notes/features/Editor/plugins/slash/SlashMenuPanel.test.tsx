@@ -4,13 +4,13 @@ import { SlashMenuPanel } from './SlashMenuPanel';
 import { slashMenuItems } from './slashItems';
 
 describe('SlashMenuPanel', () => {
-  it('renders grouped options and selected state', () => {
+  it('renders options without groups or descriptions and selected state', () => {
     const items = slashMenuItems.slice(0, 3);
 
     render(
       <SlashMenuPanel
         items={items}
-        selectedIndex={2}
+        selectedIndex={0}
         onHoverItem={vi.fn()}
         onSelectItem={vi.fn()}
       />
@@ -18,7 +18,8 @@ describe('SlashMenuPanel', () => {
 
     expect(screen.getByRole('listbox', { name: 'Insert block' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /Heading 1/i })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByText('Basic')).toBeInTheDocument();
+    expect(screen.queryByText('Basic')).not.toBeInTheDocument();
+    expect(screen.queryByText('Plain text paragraph')).not.toBeInTheDocument();
   });
 
   it('notifies hover and select interactions', () => {
@@ -39,7 +40,7 @@ describe('SlashMenuPanel', () => {
     fireEvent.mouseEnter(option);
     fireEvent.mouseDown(option);
 
-    expect(onHoverItem).toHaveBeenCalledWith(2);
-    expect(onSelectItem).toHaveBeenCalledWith(2);
+    expect(onHoverItem).toHaveBeenCalledWith(0);
+    expect(onSelectItem).toHaveBeenCalledWith(0);
   });
 });

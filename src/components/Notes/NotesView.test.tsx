@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { dispatchDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEvents';
 import { matchesShortcutBinding } from '@/lib/shortcuts';
+import { messageDialog } from '@/lib/storage/dialog';
 import { NotesView } from './NotesView';
 
 type MockNotesState = {
@@ -324,6 +325,7 @@ describe('NotesView', () => {
     notesState.confirmPendingDraftDiscard.mockClear();
     notesState.getDisplayName.mockClear();
     mocks.vaultState.openVault.mockClear();
+    vi.mocked(messageDialog).mockReset();
 
     uiState.setNotesChatPanelCollapsed.mockClear();
     uiState.toggleNotesChatPanel.mockClear();
@@ -396,6 +398,29 @@ describe('NotesView', () => {
     await waitFor(() => {
       expect(notesState.createNote).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('does not create an untitled note while the previous workspace note is restoring', async () => {
+    notesState.isLoading = true;
+
+    const { rerender } = render(<NotesView />);
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
+
+    notesState.isLoading = false;
+    notesState.currentNote = { path: 'docs/restored.md', content: '# restored' };
+    notesState.openTabs = [{ path: 'docs/restored.md', name: 'restored', isDirty: false }];
+    rerender(<NotesView />);
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
   });
 
   it('does not recreate a blank note after the user closes the last tab', async () => {

@@ -1,5 +1,7 @@
 const FENCE_MARKER_PATTERN = /^(?: {0,3})(`{3,}|~{3,})(.*)$/;
-const HTML_RAW_BLOCK_OPEN_PATTERN = /^(?: {0,3})<(pre|script|style)(?:\s|>|$)/i;
+const HTML_RAW_BLOCK_OPEN_PATTERN = /^(?: {0,3})<(pre|script|style|textarea)(?:\s|>|$)/i;
+const HTML_BLOCK_TAG_OPEN_PATTERN =
+  /^(?: {0,3})<\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\s|\/?>|$)/i;
 const HTML_COMMENT_OPEN_PATTERN = /^(?: {0,3})<!--/;
 const HTML_PROCESSING_OPEN_PATTERN = /^(?: {0,3})<\?/;
 const HTML_DECLARATION_OPEN_PATTERN = /^(?: {0,3})<![A-Z]/i;
@@ -168,6 +170,7 @@ function getMarkdownRawHtmlBlockClosePattern(line: string): RegExp | null {
   if (HTML_PROCESSING_OPEN_PATTERN.test(line)) return /\?>/;
   if (HTML_DECLARATION_OPEN_PATTERN.test(line)) return />/;
   if (HTML_CDATA_OPEN_PATTERN.test(line)) return /\]\]>/;
+  if (HTML_BLOCK_TAG_OPEN_PATTERN.test(line)) return /^\s*$/;
   return null;
 }
 

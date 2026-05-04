@@ -1,7 +1,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { Parser } from '@milkdown/kit/transformer';
 import { normalizeLeadingFrontmatterMarkdown } from '../plugins/frontmatter/frontmatterMarkdown';
-import { preserveMarkdownBlankLinesForEditor } from '../plugins/clipboard/markdownSerializationUtils';
+import { preserveMarkdownBlankLinesForEditor } from '@/lib/notes/markdown/markdownSerializationUtils';
 
 let currentEditorView: EditorView | null = null;
 let currentMarkdownParser: Parser | null = null;

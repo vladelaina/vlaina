@@ -73,7 +73,6 @@ function ChatSidebarSessionRowInner({
   const isGenerating = useAIUIStore((state) => !!state.generatingSessions[session.id]);
   const isUnread = useAIUIStore((state) => !!state.unreadSessions[session.id]);
   const displayTitle = session.title || 'New Chat';
-  const showMenuByDefault = isActive && !session.isPinned;
   const hoverPrefetch = useSidebarHoverPrefetch(
     useCallback(() => aiActions.prefetchSession(session.id), [session.id]),
     { enabled: !isActive && !isRenaming },
@@ -129,7 +128,7 @@ function ChatSidebarSessionRowInner({
   return (
     <ChatSidebarRow
       isActive={isActive}
-      showActionsByDefault={showMenuByDefault}
+      showActionsByDefault={false}
       isHighlighted={showContextMenu}
       onMouseEnter={hoverPrefetch.onMouseEnter}
       onMouseLeave={hoverPrefetch.onMouseLeave}
@@ -159,7 +158,7 @@ function ChatSidebarSessionRowInner({
             onCancel={onCancelRename}
             className={cn(
               'w-full min-w-0 border-none bg-transparent p-0 text-[16px] leading-5 outline-none',
-              getSidebarLabelClass('chat', { emphasized: isGenerating || isUnread })
+              getSidebarLabelClass('chat', { selected: isActive, emphasized: isGenerating || isUnread })
             )}
           />
         ) : isGenerating && !isActive ? (
@@ -170,7 +169,7 @@ function ChatSidebarSessionRowInner({
           <span
             className={cn(
               'block truncate transition-opacity',
-              getSidebarLabelClass('chat', { emphasized: isGenerating || isUnread })
+              getSidebarLabelClass('chat', { selected: isActive, emphasized: isGenerating || isUnread })
             )}
           >
             {displayTitle}

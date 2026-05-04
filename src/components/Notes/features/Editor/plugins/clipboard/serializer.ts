@@ -3,6 +3,9 @@ function escapeLinkText(text: string): string {
 }
 
 function escapeLinkUrl(url: string): string {
+    if (/[\s<>]/.test(url)) {
+        return '<' + url.replace(/([\\<>])/g, '\\$1') + '>';
+    }
     return url.replace(/([()])/g, '\\$1');
 }
 
@@ -14,7 +17,7 @@ export function serializeSliceToText(slice: any): string {
                 if (node.text === linkMark.attrs.href) {
                     return node.text;
                 } else {
-                    return '[' + escapeLinkText(node.text) + '](' + escapeLinkUrl(linkMark.attrs.href) + ')';
+                    return '[' + escapeLinkText(node.text) + '](' + escapeLinkUrl(String(linkMark.attrs.href)) + ')';
                 }
             }
             return node.text;

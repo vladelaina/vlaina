@@ -33,6 +33,13 @@ function readPreviewStylesSource() {
   );
 }
 
+function readBlankAreaDragBoxSource() {
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/cursor', 'blankAreaDragBoxPlugin.ts'),
+    'utf8'
+  );
+}
+
 describe('editor embedded CodeMirror selection styles', () => {
   it('keeps nested list block selection overlays from stacking darker backgrounds', () => {
     const css = readStyleFile('core.css');
@@ -82,6 +89,15 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('cursor: grabbing !important;');
   });
 
+  it('keeps editor block selection color independent from global gray text tokens', () => {
+    const css = readStyleFile('core.css');
+    const source = readBlankAreaDragBoxSource();
+
+    expect(css).toContain('--vlaina-editor-block-selection-base: var(--vlaina-color-editor-block-selection, #71717a);');
+    expect(css).toContain('color-mix(in srgb, var(--vlaina-editor-block-selection-base, #71717a) 14%, transparent)');
+    expect(source).toContain('color-mix(in srgb, var(--vlaina-color-editor-block-selection, #71717a) 18%, transparent)');
+  });
+
   it('keeps code block selection rendering on the CodeMirror selection layer', () => {
     const css = readStyleFile('code-block.css');
 
@@ -100,6 +116,19 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('background: transparent !important;');
     expect(css).not.toContain('.cm-editor.cm-focused .cm-content ::selection');
     expect(css).not.toContain('.cm-editor.cm-focused .cm-line ::selection');
+  });
+
+  it('renders code block hover preview with the same container surface as real code blocks', () => {
+    const css = readStyleFile('code-block.css');
+    const source = readPreviewStylesSource();
+
+    expect(css).toContain('.milkdown [data-preview-block-type="codeBlock"] {');
+    expect(css).toContain('background: var(--vlaina-code-block-background) !important;');
+    expect(css).toContain('border-radius: 1rem !important;');
+    expect(css).toContain('padding: 0.25rem 1rem 1rem !important;');
+    expect(css).toContain('.dark .milkdown [data-preview-block-type="codeBlock"] {');
+    expect(source).toContain("'data-preview-block-type': blockType");
+    expect(source).toContain("container.className = 'code-block-container';");
   });
 
   it('keeps frontmatter selection rendering on the CodeMirror selection layer', () => {
@@ -125,6 +154,49 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('.toolbar-btn:hover {');
     expect(css).toContain('background-color: var(--vlaina-hover, #f4f4f5);');
     expect(css).not.toContain('transform: translateY(-1px);');
+  });
+
+  it('places floating toolbar shortcut tooltips below the hovered button', () => {
+    const css = readStyleFile('floating-toolbar.css');
+    const source = readFileSync(
+      resolve(
+        process.cwd(),
+        'src/components/Notes/features/Editor/plugins/floating-toolbar/toolbarInteractions.ts'
+      ),
+      'utf8'
+    );
+
+    expect(source).toContain("tooltip.dataset.side = 'bottom';");
+    expect(source).toContain('tooltip.style.top = `${rect.bottom + 8}px`;');
+    expect(source).toContain("tooltip.style.transform = 'translate(-50%, 0)';");
+    expect(css).toContain('transform-origin: center top;');
+    expect(css).toContain('transform: translate(-50%, -4px) scale(0.95);');
+    expect(css).toContain('transform: translate(-50%, 0) scale(1);');
+    expect(css).toContain('top: 0;');
+    expect(css).toContain('transform: translate(-50%, calc(-50% + 2px)) rotate(45deg);');
+  });
+
+  it('uses an opaque shortcut tooltip background', () => {
+    const css = readStyleFile('floating-toolbar.css');
+
+    expect(css).toContain('--toolbar-tooltip-bg: #ffffff;');
+    expect(css).toContain('--toolbar-tooltip-fg: #18181b;');
+    expect(css).toContain('background-color: var(--toolbar-tooltip-bg);');
+    expect(css).toContain('.dark .toolbar-tooltip {');
+    expect(css).toContain('--toolbar-tooltip-bg: #18181b;');
+    expect(css).toContain('--toolbar-tooltip-fg: #ffffff;');
+    expect(css).not.toContain('background-color: hsl(var(--foreground));');
+  });
+
+  it('keeps block dropdown icons neutral and selected items on the requested blue surface', () => {
+    const css = readStyleFile('floating-toolbar.css');
+
+    expect(css).toContain('--block-dropdown-active-bg: #ecf6ff;');
+    expect(css).toContain('--block-dropdown-active-fg: #41a8ea;');
+    expect(css).toContain('.block-dropdown-item-icon {');
+    expect(css).toContain('color: currentColor;');
+    expect(css).toContain('background-color: var(--block-dropdown-active-bg);');
+    expect(css).toContain('color: var(--block-dropdown-active-fg);');
   });
 
   it('hides original list and blockquote chrome during block preview remapping', () => {
@@ -156,6 +228,15 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(source).toContain("paddingBottom");
     expect(source).toContain("target.matches(':first-child')");
     expect(source).toContain("nextStyles.marginTop = '0px';");
+  });
+
+  it('samples inline hover preview styles from the active editor schema', () => {
+    const source = readPreviewStylesSource();
+
+    expect(source).toContain("DOMSerializer");
+    expect(source).toContain("const markType = markName ? view.state.schema.marks[markName] : null;");
+    expect(source).toContain(".fromSchema(view.state.schema)");
+    expect(source).toContain("serializeFragment(Fragment.from(textNode)");
   });
 
   it('keeps the code block theme aligned with the CSS padding model', () => {
