@@ -201,4 +201,57 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().currentNote?.content).toContain('vlaina_icon');
     expect(store.getState().isDirty).toBe(false);
   });
+
+  it('removes stale absolute-note icon and cover metadata after frontmatter deletion', async () => {
+    const notePath = '/notes/alpha.md';
+    const content = [
+      '---',
+      'vlaina_cover: "@monet/4"',
+      'vlaina_cover_x: 50',
+      'vlaina_cover_y: 50',
+      'vlaina_cover_height: 200',
+      'vlaina_cover_scale: 1',
+      'vlaina_icon: "sparkles"',
+      '---',
+      '# Alpha',
+    ].join('\n');
+    const store = createNotesStore({
+      notesPath: '',
+      rootFolder: null,
+      currentNote: { path: notePath, content },
+      openTabs: [{ path: notePath, name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([[notePath, { content, modifiedAt: 1 }]]),
+      noteMetadata: {
+        version: 2,
+        notes: {
+          [notePath]: {
+            icon: 'sparkles',
+            cover: {
+              assetPath: '@monet/4',
+              positionX: 50,
+              positionY: 50,
+              height: 200,
+              scale: 1,
+            },
+          },
+        },
+      },
+    });
+
+    store.getState().setNoteIcon(notePath, null);
+
+    await vi.waitFor(() => {
+      expect(store.getState().currentNote?.content).not.toContain('vlaina_icon');
+    });
+    expect(store.getState().noteMetadata?.notes[notePath]?.icon).toBeUndefined();
+    expect(store.getState().noteMetadata?.notes[notePath]?.cover?.assetPath).toBe('@monet/4');
+
+    store.getState().setNoteCover(notePath, null);
+
+    await vi.waitFor(() => {
+      expect(store.getState().currentNote?.content).not.toContain('vlaina_cover');
+    });
+    expect(store.getState().noteMetadata?.notes[notePath]?.icon).toBeUndefined();
+    expect(store.getState().noteMetadata?.notes[notePath]?.cover).toBeUndefined();
+  });
 });
