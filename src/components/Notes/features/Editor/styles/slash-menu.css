@@ -61,6 +61,11 @@
   flex-shrink: 0;
 }
 
+.slash-menu-item.selected .slash-menu-item-icon,
+.slash-menu-item.selected .slash-menu-item-name {
+  color: var(--notes-sidebar-file-icon);
+}
+
 .slash-menu-item-content {
   display: flex;
   align-items: center;

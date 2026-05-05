@@ -1,3 +1,4 @@
+import { Icon } from '@/components/ui/icons';
 import type { SlashMenuItem } from './types';
 
 type SlashMenuPanelProps = {
@@ -33,7 +34,7 @@ export function SlashMenuPanel({
             }}
           >
             <span className="slash-menu-item-icon" aria-hidden="true">
-              {item.icon}
+              <Icon name={item.icon} size={18} />
             </span>
             <span className="slash-menu-item-content">
               <span className="slash-menu-item-name">{item.name}</span>

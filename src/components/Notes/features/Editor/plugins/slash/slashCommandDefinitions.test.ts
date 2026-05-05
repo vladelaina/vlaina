@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { icons } from '@/components/ui/icons/registry';
 import {
   collectFootnoteIds,
   getNextFootnoteDefId,
@@ -26,6 +27,12 @@ describe('slashCommandDefinitions', () => {
 
     expect(new Set(ids).size).toBe(ids.length);
     expect(new Set(commandIds).size).toBe(commandIds.length);
+  });
+
+  it('uses registered icon names', () => {
+    for (const definition of slashCommandDefinitions) {
+      expect(icons[definition.icon], definition.id).toBeDefined();
+    }
   });
 
   it('keeps common writing commands before advanced inserts', () => {

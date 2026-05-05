@@ -3,6 +3,7 @@ import { commandsCtx, editorViewCtx } from '@milkdown/kit/core';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { insertHrCommand } from '@milkdown/kit/preset/commonmark';
 import { insertTableCommand } from '@milkdown/kit/preset/gfm';
+import type { IconName } from '@/components/ui/icons';
 import { convertBlockType } from '../floating-toolbar/blockCommands';
 import { insertImageFromFilePicker, insertFrontmatter } from './slashFileCommands';
 import { insertFootnoteDef, insertFootnoteRef } from './slashFootnoteCommands';
@@ -18,7 +19,7 @@ export {
 interface SlashCommandDefinition {
   id: string;
   name: string;
-  icon: string;
+  icon: IconName;
   searchTerms: string[];
   commandId: string;
   run: (ctx: Ctx) => boolean | void | Promise<void>;
@@ -65,7 +66,7 @@ export const slashCommandDefinitions = [
   {
     id: 'heading-1',
     name: 'Heading 1',
-    icon: 'H1',
+    icon: 'editor.heading1',
     searchTerms: ['h1', 'title', 'heading'],
     commandId: 'heading-1',
     run: (ctx) => convertCurrentBlock(ctx, 'heading1'),
@@ -73,7 +74,7 @@ export const slashCommandDefinitions = [
   {
     id: 'heading-2',
     name: 'Heading 2',
-    icon: 'H2',
+    icon: 'editor.heading2',
     searchTerms: ['h2', 'heading'],
     commandId: 'heading-2',
     run: (ctx) => convertCurrentBlock(ctx, 'heading2'),
@@ -81,7 +82,7 @@ export const slashCommandDefinitions = [
   {
     id: 'heading-3',
     name: 'Heading 3',
-    icon: 'H3',
+    icon: 'editor.heading3',
     searchTerms: ['h3', 'heading'],
     commandId: 'heading-3',
     run: (ctx) => convertCurrentBlock(ctx, 'heading3'),
@@ -89,7 +90,7 @@ export const slashCommandDefinitions = [
   {
     id: 'heading-4',
     name: 'Heading 4',
-    icon: 'H4',
+    icon: 'editor.heading4',
     searchTerms: ['h4', 'heading'],
     commandId: 'heading-4',
     run: (ctx) => convertCurrentBlock(ctx, 'heading4'),
@@ -97,7 +98,7 @@ export const slashCommandDefinitions = [
   {
     id: 'heading-5',
     name: 'Heading 5',
-    icon: 'H5',
+    icon: 'editor.heading5',
     searchTerms: ['h5', 'heading'],
     commandId: 'heading-5',
     run: (ctx) => convertCurrentBlock(ctx, 'heading5'),
@@ -105,7 +106,7 @@ export const slashCommandDefinitions = [
   {
     id: 'heading-6',
     name: 'Heading 6',
-    icon: 'H6',
+    icon: 'editor.heading6',
     searchTerms: ['h6', 'heading'],
     commandId: 'heading-6',
     run: (ctx) => convertCurrentBlock(ctx, 'heading6'),
@@ -113,7 +114,7 @@ export const slashCommandDefinitions = [
   {
     id: 'task-list',
     name: 'Task List',
-    icon: '☑',
+    icon: 'editor.taskList',
     searchTerms: ['todo', 'checkbox', 'checklist'],
     commandId: 'task-list',
     run: (ctx) => convertCurrentBlock(ctx, 'taskList'),
@@ -121,7 +122,7 @@ export const slashCommandDefinitions = [
   {
     id: 'ordered-list',
     name: 'Numbered List',
-    icon: '1.',
+    icon: 'editor.listOrdered',
     searchTerms: ['ol', 'ordered'],
     commandId: 'ordered-list',
     run: (ctx) => convertCurrentBlock(ctx, 'orderedList'),
@@ -129,7 +130,7 @@ export const slashCommandDefinitions = [
   {
     id: 'bullet-list',
     name: 'Bullet List',
-    icon: '•',
+    icon: 'editor.list',
     searchTerms: ['ul', 'unordered'],
     commandId: 'bullet-list',
     run: (ctx) => convertCurrentBlock(ctx, 'bulletList'),
@@ -137,7 +138,7 @@ export const slashCommandDefinitions = [
   {
     id: 'quote',
     name: 'Quote',
-    icon: '"',
+    icon: 'common.quote',
     searchTerms: ['blockquote', 'cite'],
     commandId: 'quote',
     run: (ctx) => convertCurrentBlock(ctx, 'blockquote'),
@@ -145,7 +146,7 @@ export const slashCommandDefinitions = [
   {
     id: 'callout',
     name: 'Callout',
-    icon: '💡',
+    icon: 'common.info',
     searchTerms: ['note', 'tip', 'warning', 'info'],
     commandId: 'callout',
     run: (ctx) =>
@@ -157,7 +158,7 @@ export const slashCommandDefinitions = [
   {
     id: 'divider',
     name: 'Divider',
-    icon: '—',
+    icon: 'editor.divider',
     searchTerms: ['hr', 'line', 'separator'],
     commandId: 'divider',
     run: (ctx) => ctx.get(commandsCtx).call(insertHrCommand.key),
@@ -165,7 +166,7 @@ export const slashCommandDefinitions = [
   {
     id: 'code-block',
     name: 'Code Block',
-    icon: '</>',
+    icon: 'editor.code',
     searchTerms: ['code', 'pre', 'snippet'],
     commandId: 'code-block',
     run: (ctx) => convertCurrentBlock(ctx, 'codeBlock'),
@@ -173,7 +174,7 @@ export const slashCommandDefinitions = [
   {
     id: 'table',
     name: 'Table',
-    icon: '▦',
+    icon: 'editor.table',
     searchTerms: ['grid'],
     commandId: 'table',
     run: (ctx) => ctx.get(commandsCtx).call(insertTableCommand.key),
@@ -181,7 +182,7 @@ export const slashCommandDefinitions = [
   {
     id: 'image',
     name: 'Image',
-    icon: '🖼',
+    icon: 'file.image',
     searchTerms: ['img', 'picture', 'photo'],
     commandId: 'image',
     run: insertImageFromFilePicker,
@@ -189,7 +190,7 @@ export const slashCommandDefinitions = [
   {
     id: 'frontmatter',
     name: 'Frontmatter',
-    icon: '---',
+    icon: 'editor.frontmatter',
     searchTerms: ['yaml', 'metadata', 'properties'],
     commandId: 'frontmatter',
     run: insertFrontmatter,
@@ -197,7 +198,7 @@ export const slashCommandDefinitions = [
   {
     id: 'equation',
     name: 'Equation',
-    icon: '∑',
+    icon: 'editor.equation',
     searchTerms: ['math', 'latex', 'formula'],
     commandId: 'equation',
     run: (ctx) => insertMathNodeAndOpenEditor(ctx, 'math_block'),
@@ -205,7 +206,7 @@ export const slashCommandDefinitions = [
   {
     id: 'inline-math',
     name: 'Inline Math',
-    icon: 'x²',
+    icon: 'editor.inlineMath',
     searchTerms: ['math inline', 'latex inline', 'formula inline'],
     commandId: 'inline-math',
     run: (ctx) => insertMathNodeAndOpenEditor(ctx, 'math_inline'),
@@ -213,7 +214,7 @@ export const slashCommandDefinitions = [
   {
     id: 'toc',
     name: 'Table of Contents',
-    icon: '📑',
+    icon: 'editor.toc',
     searchTerms: ['toc', 'contents', 'outline'],
     commandId: 'toc',
     run: (ctx) => insertNode(ctx, 'toc', { maxLevel: 6 }),
@@ -221,7 +222,7 @@ export const slashCommandDefinitions = [
   {
     id: 'mermaid',
     name: 'Mermaid Diagram',
-    icon: '📊',
+    icon: 'editor.diagram',
     searchTerms: ['diagram', 'flowchart', 'chart', 'graph'],
     commandId: 'mermaid',
     run: (ctx) => insertNode(ctx, 'mermaid', { code: 'graph TD\n    A[Start] --> B[End]' }),
@@ -229,7 +230,7 @@ export const slashCommandDefinitions = [
   {
     id: 'footnote',
     name: 'Footnote',
-    icon: '📝',
+    icon: 'editor.footnote',
     searchTerms: ['note', 'reference', 'citation'],
     commandId: 'footnote',
     run: insertFootnoteRef,
@@ -237,7 +238,7 @@ export const slashCommandDefinitions = [
   {
     id: 'footnote-definition',
     name: 'Footnote Definition',
-    icon: '[^:]',
+    icon: 'editor.footnote',
     searchTerms: ['footnote def', 'footnote definition', 'citation block'],
     commandId: 'footnote-definition',
     run: insertFootnoteDef,
@@ -245,7 +246,7 @@ export const slashCommandDefinitions = [
   {
     id: 'abbreviation',
     name: 'Abbreviation',
-    icon: 'Ab',
+    icon: 'editor.abbreviation',
     searchTerms: ['abbr', 'acronym', 'short form'],
     commandId: 'abbreviation',
     run: (ctx) => replaceCurrentTextBlockWithParagraphText(ctx, '*[ABBR]: Full phrase'),
@@ -253,7 +254,7 @@ export const slashCommandDefinitions = [
   {
     id: 'video',
     name: 'Video',
-    icon: '🎬',
+    icon: 'editor.video',
     searchTerms: ['vedio', 'youtube', 'bilibili', 'embed', 'movie'],
     commandId: 'video',
     run: openVideoPrompt,
