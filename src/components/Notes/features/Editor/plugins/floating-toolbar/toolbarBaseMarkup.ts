@@ -87,7 +87,7 @@ function renderAiButton(): string {
             data-action="ai"
             aria-label="Ask AI"
             data-tooltip="Ask AI">
-      <span class="toolbar-ai-btn-icon" aria-hidden="true">${EDITOR_ICONS.star}</span>
+      <span class="toolbar-ai-btn-icon" aria-hidden="true">${EDITOR_ICONS.shootingStar}</span>
     </button>
   `;
 }

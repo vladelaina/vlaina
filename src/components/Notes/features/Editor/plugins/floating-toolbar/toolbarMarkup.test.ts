@@ -150,8 +150,10 @@ describe('toolbar markup', () => {
     );
 
     expect(markup).toContain('ai-review-result-surface');
-    expect(markup).not.toContain('ai-review-diff-added');
-    expect(markup).not.toContain('Hello there');
+    expect(markup).toContain('ai-review-diff-added');
+    expect(markup).toContain('ai-review-diff-removed');
+    expect(markup).toContain('Hello there');
+    expect(markup).toContain('你好啊');
     expect(markup).toContain('ai-review-footer');
     expect(markup).toContain('ai-review-model-selector-slot');
     expect(markup).toContain('ai-review-controls-left');
@@ -186,6 +188,30 @@ describe('toolbar markup', () => {
 
     expect(markup).toContain('ai-review-loading-slot');
     expect(markup).not.toContain('ai-review-loading-line');
+  });
+
+  it('does not render a deletion diff before a review command starts', () => {
+    const markup = renderToolbarMarkup(
+      createState({
+        subMenu: 'aiReview',
+        aiReview: {
+          requestKey: 'review-empty',
+          instruction: null,
+          commandId: null,
+          toneId: null,
+          from: 1,
+          to: 4,
+          originalText: '你好啊',
+          suggestedText: '',
+          isLoading: false,
+          errorMessage: null,
+        },
+      })
+    );
+
+    expect(markup).toContain('ai-review-result-surface');
+    expect(markup).not.toContain('ai-review-diff-removed');
+    expect(markup).not.toContain('你好啊');
   });
 
   it('renders an inline error state without diff output', () => {

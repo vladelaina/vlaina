@@ -39,6 +39,38 @@ function upsertAiReview(
   return reviews.map((item, itemIndex) => itemIndex === index ? review : item);
 }
 
+function getExistingAiReview(
+  state: FloatingToolbarState,
+  requestKey: string
+): FloatingToolbarState['aiReview'] {
+  return state.aiReviews.find((item) => item.requestKey === requestKey)
+    ?? (state.aiReview?.requestKey === requestKey ? state.aiReview : null)
+    ?? null;
+}
+
+function preserveMappedReviewRange(
+  state: FloatingToolbarState,
+  review: FloatingToolbarState['aiReview']
+): FloatingToolbarState['aiReview'] {
+  if (!review) {
+    return null;
+  }
+
+  const existing = getExistingAiReview(state, review.requestKey);
+  if (!existing) {
+    return review;
+  }
+
+  return {
+    ...review,
+    from: existing.from,
+    to: existing.to,
+    originalText: existing.originalText,
+    beforeContext: existing.beforeContext,
+    afterContext: existing.afterContext,
+  };
+}
+
 export function applyToolbarMeta(
   prevState: FloatingToolbarState,
   meta: ToolbarMeta | undefined
@@ -78,15 +110,17 @@ export function applyToolbarMeta(
       return { ...prevState, subMenu: meta.payload?.subMenu ?? null };
     case TOOLBAR_ACTIONS.SET_COPIED:
       return { ...prevState, copied: meta.payload?.copied ?? false };
-    case TOOLBAR_ACTIONS.SET_AI_REVIEW:
+    case TOOLBAR_ACTIONS.SET_AI_REVIEW: {
+      const aiReview = preserveMappedReviewRange(prevState, meta.payload?.aiReview ?? null);
       return {
         ...prevState,
         isVisible: true,
         subMenu: 'aiReview',
         dragPosition: meta.payload?.dragPosition ?? prevState.dragPosition,
-        aiReview: meta.payload?.aiReview ?? null,
-        aiReviews: upsertAiReview(prevState.aiReviews, meta.payload?.aiReview ?? null),
+        aiReview,
+        aiReviews: upsertAiReview(prevState.aiReviews, aiReview),
       };
+    }
     case TOOLBAR_ACTIONS.CLOSE_AI_REVIEW: {
       const requestKey = meta.payload?.requestKey;
       if (!requestKey) {

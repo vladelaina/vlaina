@@ -1,5 +1,6 @@
 import type { FloatingToolbarState } from '../types';
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
+import { renderAiReviewDiffMarkup } from './reviewDiff';
 
 function escapeHtml(value: string): string {
   return value
@@ -17,11 +18,16 @@ export function renderAiReviewMarkup(state: FloatingToolbarState): string | null
 
   const review = state.aiReview;
   const showRetryAction = !review.isLoading && (!!review.errorMessage || review.suggestedText.trim().length > 0);
+  const canRenderDiff = Boolean(review.instruction) && review.suggestedText.trim().length > 0;
   const resultMarkup = review.isLoading
     ? '<div class="ai-review-loading-slot"></div>'
     : review.errorMessage
       ? `<div class="ai-review-error" role="alert">${escapeHtml(review.errorMessage)}</div>`
-    : '<div class="ai-review-result-surface"></div>';
+    : canRenderDiff
+      ? `
+      <div class="ai-review-result-surface">${renderAiReviewDiffMarkup(review.originalText, review.suggestedText)}</div>
+    `
+      : '<div class="ai-review-result-surface"></div>';
 
   return `
     <div class="floating-toolbar-inner floating-toolbar-ai-review-mode">

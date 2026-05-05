@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { copySelectionToClipboard, convertBlockType, setTextAlignment } from './commands';
+import { copySelectionToClipboard, convertBlockType, setBgColor, setTextAlignment, setTextColor } from './commands';
 
 const mockSetBlockType = vi.fn();
 const mockWrapIn = vi.fn();
@@ -750,6 +750,78 @@ describe('floating toolbar commands', () => {
     expect(tr.setNodeMarkup).toHaveBeenCalledWith(4, undefined, {
       align: 'right',
     });
+    expect(view.dispatch).toHaveBeenCalledWith(tr);
+    expect(view.focus).toHaveBeenCalled();
+  });
+
+  it('collapses the selection after applying a text color', () => {
+    const collapsedSelection = { type: 'collapsed-selection' };
+    const textColorMark = {
+      create: vi.fn(() => 'text-color-mark'),
+    };
+    const tr: any = {
+      doc: { content: { size: 30 } },
+      addMark: vi.fn(() => tr),
+      removeMark: vi.fn(() => tr),
+      setSelection: vi.fn(() => tr),
+    };
+    const view: any = {
+      state: {
+        selection: { from: 4, to: 12 },
+        schema: {
+          marks: {
+            textColor: textColorMark,
+          },
+        },
+        tr,
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    };
+    mockTextSelectionCreate.mockReturnValue(collapsedSelection);
+
+    setTextColor(view, '#ef4444');
+
+    expect(textColorMark.create).toHaveBeenCalledWith({ color: '#ef4444' });
+    expect(tr.addMark).toHaveBeenCalledWith(4, 12, 'text-color-mark');
+    expect(mockTextSelectionCreate).toHaveBeenCalledWith(tr.doc, 12);
+    expect(tr.setSelection).toHaveBeenCalledWith(collapsedSelection);
+    expect(view.dispatch).toHaveBeenCalledWith(tr);
+    expect(view.focus).toHaveBeenCalled();
+  });
+
+  it('collapses the selection after applying a background color', () => {
+    const collapsedSelection = { type: 'collapsed-selection' };
+    const bgColorMark = {
+      create: vi.fn(() => 'bg-color-mark'),
+    };
+    const tr: any = {
+      doc: { content: { size: 30 } },
+      addMark: vi.fn(() => tr),
+      removeMark: vi.fn(() => tr),
+      setSelection: vi.fn(() => tr),
+    };
+    const view: any = {
+      state: {
+        selection: { from: 4, to: 12 },
+        schema: {
+          marks: {
+            bgColor: bgColorMark,
+          },
+        },
+        tr,
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    };
+    mockTextSelectionCreate.mockReturnValue(collapsedSelection);
+
+    setBgColor(view, '#fde68a');
+
+    expect(bgColorMark.create).toHaveBeenCalledWith({ color: '#fde68a' });
+    expect(tr.addMark).toHaveBeenCalledWith(4, 12, 'bg-color-mark');
+    expect(mockTextSelectionCreate).toHaveBeenCalledWith(tr.doc, 12);
+    expect(tr.setSelection).toHaveBeenCalledWith(collapsedSelection);
     expect(view.dispatch).toHaveBeenCalledWith(tr);
     expect(view.focus).toHaveBeenCalled();
   });

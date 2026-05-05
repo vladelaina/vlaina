@@ -1,6 +1,6 @@
 import { TextSelection, type PluginKey } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { abortActiveAiSelectionReview } from './ai/reviewFlow';
+import { abortActiveAiSelectionReview, abortAllAiSelectionReviews } from './ai/reviewFlow';
 import { createToolbarRenderer } from './renderToolbar';
 import {
   calculateBottomPosition,
@@ -885,7 +885,7 @@ export function createFloatingToolbarPluginView(
     },
     destroy() {
       clearFormatPreview(editorView);
-      abortActiveAiSelectionReview(editorView);
+      abortAllAiSelectionReviews(editorView);
       if (pendingRaf !== null) {
         cancelAnimationFrame(pendingRaf);
       }
