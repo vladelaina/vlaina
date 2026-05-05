@@ -119,6 +119,114 @@ describe('createBlockDragPreview', () => {
     rectSpy.mockRestore();
   });
 
+  it('uses the editor width for short fit-content paragraphs', () => {
+    const editorRoot = document.createElement('div');
+    const block = document.createElement('p');
+    block.textContent = '1';
+    editorRoot.appendChild(block);
+    document.body.appendChild(editorRoot);
+
+    const view = {
+      dom: editorRoot,
+      state: {
+        doc: {
+          content: { size: 3 },
+          forEach(cb: (child: any, offset: number) => void) {
+            cb(createNode('paragraph', 3), 0);
+          },
+          resolve(pos: number) {
+            return {
+              pos,
+              depth: 0,
+              nodeAfter: createNode('paragraph', 3),
+              node() {
+                return createNode('doc', 3);
+              },
+              before() {
+                return 0;
+              },
+            };
+          },
+        },
+      },
+      nodeDOM() {
+        return block;
+      },
+      domAtPos() {
+        return { node: block.firstChild as Node };
+      },
+    } as any;
+
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        if (this === editorRoot) {
+          return {
+            left: 20,
+            top: 20,
+            width: 600,
+            height: 300,
+            right: 620,
+            bottom: 320,
+            x: 20,
+            y: 20,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        if (this === block) {
+          return {
+            left: 60,
+            top: 80,
+            width: 10,
+            height: 24,
+            right: 70,
+            bottom: 104,
+            x: 60,
+            y: 80,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        if (this.dataset.noEditorDragBox === 'true') {
+          const width = Number.parseFloat(this.style.width || '0');
+          return {
+            left: 0,
+            top: 0,
+            width,
+            height: 32,
+            right: width,
+            bottom: 32,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        return {
+          left: 0,
+          top: 0,
+          width: 0,
+          height: 0,
+          right: 0,
+          bottom: 0,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        } as DOMRect;
+      });
+
+    const preview = createBlockDragPreview({
+      view,
+      ranges: [{ from: 0, to: 3 }],
+      clientX: 88,
+      clientY: 96,
+    });
+
+    expect(preview).not.toBeNull();
+    expect(preview?.element.style.width).toBe('600px');
+
+    preview?.destroy();
+    rectSpy.mockRestore();
+  });
+
   it('does not duplicate nested list content when parent and child ranges are both selected', () => {
     const editorRoot = document.createElement('div');
     const list = document.createElement('ol');

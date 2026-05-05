@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { createInitialState } from './floatingToolbarState';
-import { resolveToolbarViewportPosition, type ContentLayoutContext } from './floatingToolbarLayout';
+import {
+  getAiReviewPanelWidth,
+  resolveToolbarViewportPosition,
+  type ContentLayoutContext,
+} from './floatingToolbarLayout';
 
 function createLayout(): ContentLayoutContext {
   return {
@@ -100,5 +104,15 @@ describe('floatingToolbarLayout', () => {
       y: 420,
       placement: 'bottom',
     });
+  });
+
+  it('sizes the ai review panel from the content area instead of the selected block', () => {
+    const layout = createLayout();
+    layout.viewportBounds = {
+      left: 120,
+      right: 680,
+    };
+
+    expect(getAiReviewPanelWidth(layout)).toBe(560);
   });
 });

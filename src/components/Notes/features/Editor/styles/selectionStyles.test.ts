@@ -40,6 +40,13 @@ function readBlankAreaDragBoxSource() {
   );
 }
 
+function readTextSelectionOverlaySource() {
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/selection', 'textSelectionOverlayPlugin.ts'),
+    'utf8'
+  );
+}
+
 describe('editor embedded CodeMirror selection styles', () => {
   it('keeps nested list block selection overlays from stacking darker backgrounds', () => {
     const css = readStyleFile('core.css');
@@ -102,11 +109,40 @@ describe('editor embedded CodeMirror selection styles', () => {
     const css = readStyleFile('selection-width.css');
 
     expect(css).toContain(
-      '.milkdown .ProseMirror > p:not([data-text-align]):not(.is-editor-empty):not(:has(> .image-block-container:only-child)) {'
+      '.milkdown .ProseMirror > p:not([data-text-align]):not(.is-editor-empty):not(.vlaina-block-selected):not(:has(> br.ProseMirror-trailingBreak:only-child)):not(:has(> .image-block-container:only-child)) {'
     );
     expect(css).toContain('width: fit-content;');
     expect(css).toContain('max-width: 100%;');
-    expect(css).not.toContain('font-variant-numeric');
+  });
+
+  it('keeps temporary tail empty paragraphs at the default block width for bottom typing', () => {
+    const css = readStyleFile('selection-width.css');
+
+    expect(css).toContain(':not(:has(> br.ProseMirror-trailingBreak:only-child))');
+  });
+
+  it('uses tabular numeric glyphs so digit-only line selections have equal width', () => {
+    const css = readStyleFile('selection-width.css');
+
+    expect(css).toContain('font-variant-numeric: tabular-nums;');
+    expect(css).toContain('font-feature-settings: "tnum";');
+  });
+
+  it('renders editor text selections with inline overlays instead of block line boxes', () => {
+    const css = readStyleFile('selection-width.css');
+    const source = readTextSelectionOverlaySource();
+
+    expect(css).toContain('.milkdown .ProseMirror.vlaina-text-selection-overlay-active *::selection {');
+    expect(css).toContain('background-color: transparent !important;');
+    expect(css).toContain('.milkdown .ProseMirror .vlaina-text-selection-overlay {');
+    expect(css).toContain('line-height: normal;');
+    expect(source).toContain('Decoration.inline(from, to, {');
+    expect(source).toContain("class: TEXT_SELECTION_OVERLAY_CLASS");
+    expect(source).toContain('node.isText');
+    expect(source).toContain('selection instanceof TextSelection');
+    expect(source).toContain('selection instanceof AllSelection');
+    expect(source).toContain('hasSelectedBlocks(state)');
+    expect(source).toContain('isTextSelectionOverlayEligible(view.state)');
   });
 
   it('keeps code block selection rendering on the CodeMirror selection layer', () => {

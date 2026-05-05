@@ -1,4 +1,30 @@
-.milkdown .ProseMirror > p:not([data-text-align]):not(.is-editor-empty):not(:has(> .image-block-container:only-child)) {
+.milkdown .ProseMirror {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+.milkdown .ProseMirror > p:not([data-text-align]):not(.is-editor-empty):not(.vlaina-block-selected):not(:has(> br.ProseMirror-trailingBreak:only-child)):not(:has(> .image-block-container:only-child)) {
   width: fit-content;
   max-width: 100%;
+}
+
+.milkdown .ProseMirror.vlaina-text-selection-overlay-active *::selection {
+  background-color: transparent !important;
+  color: inherit !important;
+  -webkit-text-fill-color: inherit !important;
+}
+
+.milkdown .ProseMirror .vlaina-text-selection-overlay {
+  background-color: var(--vlaina-selection-bg, #2781db);
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  line-height: normal;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.milkdown .ProseMirror .vlaina-text-selection-overlay::selection {
+  background-color: transparent !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
 }
