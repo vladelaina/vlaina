@@ -34,7 +34,7 @@ export function NoteDisambiguatedTitle({
   const { title, disambiguation } = useNoteLabelDescriptor(path, fallbackName);
 
   return (
-    <span className={cn('block truncate', className)}>
+    <span className={cn('block whitespace-normal break-all', className)}>
       <span className={titleClassName}>{title}</span>
       {disambiguation ? (
         <span className={cn('text-[11px]', hintClassName)}>{` · ${disambiguation}`}</span>

@@ -258,7 +258,11 @@ export function useCoverImageController({
     onClosePicker: handlePickerClose,
     onSelectCover: handleCoverSelect,
     onPreview: handlePreview,
-    onRemoveCover: () => onUpdate(null, DEFAULT_POSITION_PERCENT, DEFAULT_POSITION_PERCENT),
+    onRemoveCover: () => {
+      void handlePreview(null);
+      setIsImageReady(false);
+      onUpdate(null, DEFAULT_POSITION_PERCENT, DEFAULT_POSITION_PERCENT);
+    },
     onResizeMouseDown: handleResizeMouseDown,
     onResetHeight: () => {
       const goldenHeight = Math.round(window.innerHeight * 0.236);

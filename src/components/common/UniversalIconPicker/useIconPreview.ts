@@ -46,6 +46,22 @@ export function useIconPreview(targetId: string | undefined) {
       setUniversalPreview(targetId, { size });
   }, [targetId, setUniversalPreview]);
 
+  const clearPreview = useCallback(() => {
+    if (!targetId) return;
+
+    if (previewRafRef.current !== null) {
+      cancelAnimationFrame(previewRafRef.current);
+      previewRafRef.current = null;
+    }
+    if (clearPreviewTimerRef.current) {
+      clearTimeout(clearPreviewTimerRef.current);
+      clearPreviewTimerRef.current = null;
+    }
+    if (useUIStore.getState().universalPreviewTarget === targetId) {
+      setUniversalPreview(null, { icon: null, color: null, tone: null, size: null });
+    }
+  }, [targetId, setUniversalPreview]);
+
   useEffect(() => {
     return () => {
       if (previewRafRef.current !== null) {
@@ -64,6 +80,7 @@ export function useIconPreview(targetId: string | undefined) {
     handlePreview,
     handlePreviewColor,
     handlePreviewTone,
-    handlePreviewSize
+    handlePreviewSize,
+    clearPreview,
   };
 }

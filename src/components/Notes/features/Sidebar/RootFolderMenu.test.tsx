@@ -4,18 +4,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RootFolderMenu } from './RootFolderMenu';
 
 const hoisted = vi.hoisted(() => ({
-  closeTab: vi.fn(() => Promise.resolve()),
-  currentNote: { path: 'alpha.md', content: '' } as { path: string; content: string } | null,
-  openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+  closeVault: vi.fn(() => Promise.resolve(true)),
   handleCopyPath: vi.fn(() => Promise.resolve()),
   handleOpenLocation: vi.fn(() => Promise.resolve()),
 }));
 
-vi.mock('@/stores/useNotesStore', () => ({
-  useNotesStore: (selector: (state: any) => unknown) => selector({
-    closeTab: hoisted.closeTab,
-    currentNote: hoisted.currentNote,
-    openTabs: hoisted.openTabs,
+vi.mock('@/components/ui/icons', () => ({
+  Icon: ({ name }: { name: string }) => <span data-icon-name={name} />,
+}));
+
+vi.mock('@/stores/useVaultStore', () => ({
+  useVaultStore: (selector: (state: any) => unknown) => selector({
+    closeVault: hoisted.closeVault,
   }),
 }));
 
@@ -47,7 +47,10 @@ vi.mock('./context-menu/NotesSidebarContextMenuContent', () => {
         if (entry.kind === 'submenu') {
           return (
             <div key={entry.key} data-testid={`submenu-${entry.key}`} data-menu-depth={depth}>
-              <span>{entry.label}</span>
+              <span>
+                {entry.icon}
+                {entry.label}
+              </span>
               {renderEntries(entry.children, depth + 1)}
             </div>
           );
@@ -61,6 +64,7 @@ vi.mock('./context-menu/NotesSidebarContextMenuContent', () => {
             onClick={entry.onClick}
             data-menu-depth={depth}
           >
+            {entry.icon}
             {entry.label}
           </button>
         );
@@ -73,7 +77,13 @@ vi.mock('./context-menu/NotesSidebarContextMenuContent', () => {
   };
 });
 
-function renderMenu(onClose = vi.fn()) {
+function renderMenu({
+  onClose = vi.fn(),
+  vaultPath = '/vault',
+}: {
+  onClose?: () => void;
+  vaultPath?: string;
+} = {}) {
   return {
     onClose,
     ...render(
@@ -88,7 +98,7 @@ function renderMenu(onClose = vi.fn()) {
         onStartRename={vi.fn()}
         fileTreeSortMode="name-asc"
         onSelectSortMode={vi.fn()}
-        vaultPath="/vault"
+        vaultPath={vaultPath}
       />,
     ),
   };
@@ -97,15 +107,13 @@ function renderMenu(onClose = vi.fn()) {
 describe('RootFolderMenu', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hoisted.currentNote = { path: 'alpha.md', content: '' };
-    hoisted.openTabs = [{ path: 'alpha.md', name: 'alpha', isDirty: false }];
   });
 
-  it('renders close current note directly below More', () => {
+  it('renders close folder directly below More', () => {
     const { getByText, getByTestId } = renderMenu();
 
     const moreLabel = getByText('More');
-    const closeAction = getByText('Close Current Note');
+    const closeAction = getByText('Close Folder');
 
     expect(closeAction).toHaveAttribute('data-menu-depth', '0');
     expect(getByTestId('submenu-more')).toHaveAttribute('data-menu-depth', '0');
@@ -114,34 +122,29 @@ describe('RootFolderMenu', () => {
       .toBeTruthy();
   });
 
-  it('closes the current open note', async () => {
+  it('closes the current folder', async () => {
     const { getByText, onClose } = renderMenu();
 
-    fireEvent.click(getByText('Close Current Note'));
+    fireEvent.click(getByText('Close Folder'));
 
     await waitFor(() => {
-      expect(hoisted.closeTab).toHaveBeenCalledWith('alpha.md');
+      expect(hoisted.closeVault).toHaveBeenCalledTimes(1);
     });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('closes the current note even when it is not in the open tabs list', async () => {
-    hoisted.currentNote = { path: 'loose.md', content: '' };
-    hoisted.openTabs = [];
-    const { getByText, onClose } = renderMenu();
+  it('disables closing when no folder is open', () => {
+    const { getByText } = renderMenu({ vaultPath: '' });
 
-    fireEvent.click(getByText('Close Current Note'));
-
-    await waitFor(() => {
-      expect(hoisted.closeTab).toHaveBeenCalledWith('loose.md');
-    });
-    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(getByText('Close Folder')).toBeDisabled();
   });
 
-  it('disables closing when no current note is open', () => {
-    hoisted.currentNote = null;
+  it('uses the same open folder location icon as file tree folder menus', () => {
     const { getByText } = renderMenu();
 
-    expect(getByText('Close Current Note')).toBeDisabled();
+    const openLocationAction = getByText('Open Folder Location').closest('button');
+
+    expect(openLocationAction?.querySelector('[data-icon-name="file.folderOpenArrow"]'))
+      .not.toBeNull();
   });
 });
