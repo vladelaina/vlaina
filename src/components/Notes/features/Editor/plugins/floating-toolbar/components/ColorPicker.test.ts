@@ -16,6 +16,20 @@ const commandMocks = vi.hoisted(() => ({
   setTextColor: vi.fn(),
 }));
 
+const stateMocks = vi.hoisted(() => ({
+  selectionNear: vi.fn(),
+  textSelectionCreate: vi.fn(),
+}));
+
+vi.mock('@milkdown/kit/prose/state', () => ({
+  Selection: {
+    near: stateMocks.selectionNear,
+  },
+  TextSelection: {
+    create: stateMocks.textSelectionCreate,
+  },
+}));
+
 vi.mock('../previewStyles', () => ({
   applyColorPickerIdlePreview: previewMocks.applyColorPickerIdlePreview,
   applyBgColorPreview: previewMocks.applyBgColorPreview,
@@ -30,13 +44,37 @@ vi.mock('../commands', () => ({
   setTextColor: commandMocks.setTextColor,
 }));
 
-function createView(): EditorView {
-  return { focus: vi.fn() } as unknown as EditorView;
+function createView(selection = { empty: true, from: 0, to: 0 }): EditorView {
+  const doc = {
+    content: {
+      size: 100,
+    },
+    resolve: vi.fn((pos: number) => ({ pos })),
+  };
+  const tr = {
+    doc,
+    setMeta: vi.fn(() => tr),
+    setSelection: vi.fn(() => tr),
+  };
+
+  return {
+    dispatch: vi.fn(),
+    focus: vi.fn(),
+    state: {
+      doc,
+      selection,
+      tr,
+    },
+  } as unknown as EditorView;
 }
 
 describe('ColorPicker', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
+    stateMocks.selectionNear.mockReset();
+    stateMocks.textSelectionCreate.mockReset();
+    stateMocks.textSelectionCreate.mockReturnValue({ type: 'text-selection' });
+    stateMocks.selectionNear.mockReturnValue({ type: 'near-selection' });
     previewMocks.applyColorPickerIdlePreview.mockReset();
     previewMocks.applyBgColorPreview.mockReset();
     previewMocks.applyTextColorPreview.mockReset();
@@ -139,6 +177,50 @@ describe('ColorPicker', () => {
     expect(commandMocks.setBgColor).not.toHaveBeenCalled();
     expect(view.focus).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('collapses a restored editor selection after applying a text color', () => {
+    const container = document.createElement('div');
+    const view = createView();
+    const restoredSelection = { empty: false, from: 3, to: 14 };
+    const onClose = vi.fn(() => {
+      (view.state as any).selection = restoredSelection;
+    });
+    document.body.appendChild(container);
+
+    renderColorPicker(container, view, { textColor: null, bgColor: null } as never, onClose);
+
+    const textColorButton = container.querySelector<HTMLElement>('[data-type="text"] .color-picker-item:not(.color-picker-item-default)');
+
+    textColorButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(stateMocks.textSelectionCreate).toHaveBeenCalledWith(view.state.doc, restoredSelection.to);
+    expect(view.state.tr.setSelection).toHaveBeenCalledWith({ type: 'text-selection' });
+    expect(view.state.tr.setMeta).toHaveBeenCalledWith('addToHistory', false);
+    expect(view.dispatch).toHaveBeenCalledWith(view.state.tr);
+  });
+
+  it('collapses a restored editor selection after applying a background color', () => {
+    const container = document.createElement('div');
+    const view = createView();
+    const restoredSelection = { empty: false, from: 5, to: 18 };
+    const onClose = vi.fn(() => {
+      (view.state as any).selection = restoredSelection;
+    });
+    document.body.appendChild(container);
+
+    renderColorPicker(container, view, { textColor: null, bgColor: null } as never, onClose);
+
+    const bgColorButton = container.querySelector<HTMLElement>('[data-type="bg"] .color-picker-item:not(.color-picker-item-default)');
+
+    bgColorButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(stateMocks.textSelectionCreate).toHaveBeenCalledWith(view.state.doc, restoredSelection.to);
+    expect(view.state.tr.setSelection).toHaveBeenCalledWith({ type: 'text-selection' });
+    expect(view.state.tr.setMeta).toHaveBeenCalledWith('addToHistory', false);
+    expect(view.dispatch).toHaveBeenCalledWith(view.state.tr);
   });
 
   it('keeps selected color state without showing a blue active border', () => {

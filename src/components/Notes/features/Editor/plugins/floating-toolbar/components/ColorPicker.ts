@@ -1,3 +1,4 @@
+import { Selection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { FloatingToolbarState } from '../types';
 import { COLOR_PALETTE, COLOR_PALETTE_DARK } from '../utils';
@@ -10,6 +11,26 @@ import {
   commitBgColorPreview,
   commitTextColorPreview,
 } from '../previewStyles';
+
+function collapseSelectionAfterColorClose(view: EditorView): void {
+  const { selection } = view.state;
+  if (selection.empty) {
+    view.focus();
+    return;
+  }
+
+  const tr = view.state.tr;
+  const clampedPos = Math.max(0, Math.min(selection.to, tr.doc.content.size));
+
+  try {
+    tr.setSelection(TextSelection.create(tr.doc, clampedPos));
+  } catch {
+    tr.setSelection(Selection.near(tr.doc.resolve(clampedPos), -1));
+  }
+
+  view.dispatch(tr.setMeta('addToHistory', false));
+  view.focus();
+}
 
 export function renderColorPicker(
   container: HTMLElement,
@@ -93,6 +114,7 @@ export function renderColorPicker(
         view.focus();
       }
       onClose();
+      collapseSelectionAfterColorClose(view);
     });
   });
 
@@ -124,6 +146,7 @@ export function renderColorPicker(
         view.focus();
       }
       onClose();
+      collapseSelectionAfterColorClose(view);
     });
   });
 
