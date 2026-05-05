@@ -98,6 +98,17 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(source).toContain('color-mix(in srgb, var(--vlaina-color-editor-block-selection, #71717a) 18%, transparent)');
   });
 
+  it('shrinks plain top-level paragraph line boxes so multiline text selections fit content width', () => {
+    const css = readStyleFile('selection-width.css');
+
+    expect(css).toContain(
+      '.milkdown .ProseMirror > p:not([data-text-align]):not(.is-editor-empty):not(:has(> .image-block-container:only-child)) {'
+    );
+    expect(css).toContain('width: fit-content;');
+    expect(css).toContain('max-width: 100%;');
+    expect(css).not.toContain('font-variant-numeric');
+  });
+
   it('keeps code block selection rendering on the CodeMirror selection layer', () => {
     const css = readStyleFile('code-block.css');
 
