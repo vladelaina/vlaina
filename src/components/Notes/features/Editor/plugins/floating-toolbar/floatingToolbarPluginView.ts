@@ -31,6 +31,14 @@ import {
   resolveToolbarContainerPosition,
   resolveToolbarViewportPosition,
 } from './floatingToolbarLayout';
+import { clearFormatPreview, hasActiveAppliedPreview } from './previewStyles';
+
+export function shouldLockPreviewToolbarPosition(args: {
+  subMenu: FloatingToolbarState['subMenu'];
+  hasActivePreview: boolean;
+}): boolean {
+  return args.hasActivePreview || args.subMenu === 'block' || args.subMenu === 'alignment' || args.subMenu === 'color';
+}
 
 export interface FloatingToolbarInteractionState {
   isMouseDown: boolean;
@@ -454,8 +462,11 @@ export function createFloatingToolbarPluginView(
       lastToolbarX !== null &&
       lastSelectionSignature === selectionSignature &&
       lastContainerWidth === containerWidth;
-    const shouldFreezeBlockMenuPosition =
-      pluginState.subMenu === 'block' &&
+    const shouldFreezePreviewToolbarPosition =
+      shouldLockPreviewToolbarPosition({
+        subMenu: pluginState.subMenu,
+        hasActivePreview: hasActiveAppliedPreview(editorView),
+      }) &&
       lastToolbarX !== null &&
       lastToolbarY !== null &&
       lastToolbarPlacement !== null &&
@@ -463,15 +474,15 @@ export function createFloatingToolbarPluginView(
       lastScrollTop === currentScrollTop &&
       lastSelectionSignature === selectionSignature &&
       lastContainerWidth === containerWidth;
-    const finalX = shouldFreezeBlockMenuPosition && lastToolbarX !== null
+    const finalX = shouldFreezePreviewToolbarPosition && lastToolbarX !== null
       ? lastToolbarX
       : shouldFreezeX && lastToolbarX !== null
         ? lastToolbarX
         : clamped.clampedX;
-    const finalY = shouldFreezeBlockMenuPosition && lastToolbarY !== null
+    const finalY = shouldFreezePreviewToolbarPosition && lastToolbarY !== null
       ? lastToolbarY
       : containerPosition.y;
-    const finalPlacement = shouldFreezeBlockMenuPosition && lastToolbarPlacement !== null
+    const finalPlacement = shouldFreezePreviewToolbarPosition && lastToolbarPlacement !== null
       ? lastToolbarPlacement
       : nextPosition.placement;
 
@@ -873,6 +884,7 @@ export function createFloatingToolbarPluginView(
       updateToolbar();
     },
     destroy() {
+      clearFormatPreview(editorView);
       abortActiveAiSelectionReview(editorView);
       if (pendingRaf !== null) {
         cancelAnimationFrame(pendingRaf);

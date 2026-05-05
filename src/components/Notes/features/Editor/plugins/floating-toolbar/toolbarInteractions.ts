@@ -155,16 +155,25 @@ export function createToolbarEventDelegation(
   };
 
   const handleMouseOver = (e: Event) => {
+    const mouseEvent = e as MouseEvent;
     const target = e.target as HTMLElement;
     const button = target.closest('[data-action]') as HTMLElement | null;
     if (!button || !currentView) {
       return;
     }
 
+    const relatedTarget = mouseEvent.relatedTarget as HTMLElement | null;
+    if (relatedTarget && button.contains(relatedTarget)) {
+      return;
+    }
+
     const action = button.dataset.action;
+    const isPreviewableAction = Boolean(action && hasFormatPreview(action));
     const isActive = button.classList.contains('active');
-    if (action && hasFormatPreview(action) && (action !== 'link' || isActive)) {
+    if (action && isPreviewableAction && (action !== 'link' || isActive)) {
       applyFormatPreview(currentView, action, isActive);
+    } else if (action && !isPreviewableAction) {
+      clearFormatPreview(currentView);
     }
 
     if (button.dataset.shortcut) {
@@ -183,6 +192,11 @@ export function createToolbarEventDelegation(
 
     const relatedTarget = mouseEvent.relatedTarget as HTMLElement | null;
     if (relatedTarget && button.contains(relatedTarget)) {
+      return;
+    }
+
+    if (relatedTarget && toolbarElement.contains(relatedTarget)) {
+      hideTooltip();
       return;
     }
 

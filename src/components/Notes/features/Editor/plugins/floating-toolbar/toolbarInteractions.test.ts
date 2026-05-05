@@ -165,6 +165,82 @@ describe('toolbar interactions', () => {
     delegation.destroy();
   });
 
+  it('does not rebuild direct format previews while moving inside the same button', () => {
+    const toolbar = document.createElement('div');
+    const button = document.createElement('button');
+    const icon = document.createElement('span');
+    const view = {} as any;
+    button.dataset.action = 'bold';
+    button.appendChild(icon);
+    toolbar.appendChild(button);
+    document.body.appendChild(toolbar);
+
+    const delegation = createToolbarEventDelegation(toolbar);
+    delegation.update(view, {} as any);
+
+    button.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    icon.dispatchEvent(new MouseEvent('mouseover', {
+      bubbles: true,
+      relatedTarget: button,
+    }));
+
+    expect(previewMocks.applyFormatPreview).toHaveBeenCalledTimes(1);
+
+    delegation.destroy();
+  });
+
+  it('keeps the current preview while moving from a format button into toolbar gaps', () => {
+    const toolbar = document.createElement('div');
+    const button = document.createElement('button');
+    const gap = document.createElement('span');
+    const view = {} as any;
+    button.dataset.action = 'bold';
+    toolbar.append(button, gap);
+    document.body.appendChild(toolbar);
+
+    const delegation = createToolbarEventDelegation(toolbar);
+    delegation.update(view, {} as any);
+
+    button.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    button.dispatchEvent(new MouseEvent('mouseout', {
+      bubbles: true,
+      relatedTarget: gap,
+    }));
+
+    expect(previewMocks.applyFormatPreview).toHaveBeenCalledWith(view, 'bold', false);
+    expect(previewMocks.clearFormatPreview).not.toHaveBeenCalled();
+
+    delegation.destroy();
+  });
+
+  it('clears the current preview when moving from a format button to a non-preview action', () => {
+    const toolbar = document.createElement('div');
+    const boldButton = document.createElement('button');
+    const copyButton = document.createElement('button');
+    const view = {} as any;
+    boldButton.dataset.action = 'bold';
+    copyButton.dataset.action = 'copy';
+    toolbar.append(boldButton, copyButton);
+    document.body.appendChild(toolbar);
+
+    const delegation = createToolbarEventDelegation(toolbar);
+    delegation.update(view, {} as any);
+
+    boldButton.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    boldButton.dispatchEvent(new MouseEvent('mouseout', {
+      bubbles: true,
+      relatedTarget: copyButton,
+    }));
+    copyButton.dispatchEvent(new MouseEvent('mouseover', {
+      bubbles: true,
+      relatedTarget: boldButton,
+    }));
+
+    expect(previewMocks.clearFormatPreview).toHaveBeenCalledWith(view);
+
+    delegation.destroy();
+  });
+
   it('previews only active link buttons because inactive links open the editor instead', () => {
     const toolbar = document.createElement('div');
     const inactiveLink = document.createElement('button');
