@@ -25,6 +25,7 @@ export interface BlockDragPreviewHandle {
 interface CaptureJob {
   source: HTMLElement;
   target: HTMLElement;
+  imageClassName: string;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -88,10 +89,11 @@ function sanitizeCloneTree(root: HTMLElement): void {
   });
 }
 
-function captureElementPreview(element: HTMLElement, target: HTMLElement): Promise<boolean> {
+function captureElementPreview(job: CaptureJob): Promise<boolean> {
   const media = getElectronBridge()?.media;
   if (!media?.capturePage) return Promise.resolve(false);
 
+  const { source: element, target, imageClassName } = job;
   const rect = element.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return Promise.resolve(false);
 
@@ -103,7 +105,7 @@ function captureElementPreview(element: HTMLElement, target: HTMLElement): Promi
   }).then((dataUrl) => {
     if (!dataUrl || !target.isConnected) return false;
     const image = target.ownerDocument.createElement('img');
-    image.className = 'video-drag-preview-image';
+    image.className = imageClassName;
     image.alt = '';
     image.draggable = false;
     image.src = dataUrl;
@@ -131,10 +133,48 @@ function replaceVideoMediaForPreview(sourceRoot: HTMLElement, cloneRoot: HTMLEle
       placeholder.setAttribute('aria-hidden', 'true');
       node.replaceWith(placeholder);
       if (mediaIndex === 0 && sourceBlock) {
-        captureJobs.push({ source: sourceBlock, target: placeholder });
+        captureJobs.push({
+          source: sourceBlock,
+          target: placeholder,
+          imageClassName: 'video-drag-preview-image',
+        });
       }
     });
   });
+}
+
+function createMermaidPreviewSurface(sourceBlock: HTMLElement, doc: Document, captureJobs: CaptureJob[]) {
+  const placeholder = doc.createElement('div');
+  placeholder.className = 'mermaid-drag-preview-surface';
+  placeholder.setAttribute('aria-hidden', 'true');
+  captureJobs.push({
+    source: sourceBlock,
+    target: placeholder,
+    imageClassName: 'mermaid-drag-preview-image',
+  });
+  return placeholder;
+}
+
+function replaceMermaidBlocksForPreview(sourceRoot: HTMLElement, cloneRoot: HTMLElement, captureJobs: CaptureJob[]): HTMLElement {
+  if (!getElectronBridge()?.media?.capturePage) {
+    return cloneRoot;
+  }
+
+  if (sourceRoot.matches('.mermaid-block') && cloneRoot.matches('.mermaid-block')) {
+    return createMermaidPreviewSurface(sourceRoot, cloneRoot.ownerDocument, captureJobs);
+  }
+
+  const sourceBlocks = Array.from(sourceRoot.querySelectorAll<HTMLElement>('.mermaid-block'));
+  const cloneBlocks = Array.from(cloneRoot.querySelectorAll<HTMLElement>('.mermaid-block'));
+  cloneBlocks.forEach((mermaidBlock, index) => {
+    const sourceBlock = sourceBlocks[index];
+    if (!sourceBlock) return;
+    mermaidBlock.replaceWith(
+      createMermaidPreviewSurface(sourceBlock, cloneRoot.ownerDocument, captureJobs)
+    );
+  });
+
+  return cloneRoot;
 }
 
 function createContentLayer(doc: Document, elements: readonly HTMLElement[], captureJobs: CaptureJob[]): HTMLElement {
@@ -146,7 +186,7 @@ function createContentLayer(doc: Document, elements: readonly HTMLElement[], cap
     if (!(clone instanceof HTMLElement)) return;
     sanitizeCloneTree(clone);
     replaceVideoMediaForPreview(source, clone, captureJobs);
-    layer.appendChild(clone);
+    layer.appendChild(replaceMermaidBlocksForPreview(source, clone, captureJobs));
   });
   return layer;
 }
@@ -155,7 +195,7 @@ function revealAfterVideoCaptures(preview: HTMLElement, captureJobs: readonly Ca
   if (captureJobs.length === 0) return;
 
   preview.style.visibility = 'hidden';
-  void Promise.all(captureJobs.map((job) => captureElementPreview(job.source, job.target))).finally(() => {
+  void Promise.all(captureJobs.map((job) => captureElementPreview(job))).finally(() => {
     if (!preview.isConnected) return;
     preview.style.visibility = '';
   });

@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
+const blockSelectionMocks = vi.hoisted(() => ({
+  deleteSelectedBlocks: vi.fn(() => true),
+  getBlockSelectionPluginState: vi.fn(() => ({ selectedBlocks: [] })),
+  blankAreaDragBoxPluginKey: { key: 'blank-area-drag-box' },
+  clearBlocksAction: { type: 'clear-blocks' },
+}));
+
 vi.mock('@milkdown/kit/prose/state', () => ({
   TextSelection: {
     near: vi.fn(() => 'text-selection'),
@@ -9,9 +16,47 @@ vi.mock('@milkdown/kit/prose/state', () => ({
   },
 }));
 
+vi.mock('../../cursor/blockSelectionCommands', () => ({
+  deleteSelectedBlocks: blockSelectionMocks.deleteSelectedBlocks,
+}));
+
+vi.mock('../../cursor/blockSelectionPluginState', () => ({
+  blankAreaDragBoxPluginKey: blockSelectionMocks.blankAreaDragBoxPluginKey,
+  CLEAR_BLOCKS_ACTION: blockSelectionMocks.clearBlocksAction,
+  getBlockSelectionPluginState: blockSelectionMocks.getBlockSelectionPluginState,
+}));
+
 import { createCodeBlockEditorKeymap } from './codeBlockEditorKeymap';
 
 describe('createCodeBlockEditorKeymap', () => {
+  it('deletes the outer block selection before CodeMirror handles Backspace', () => {
+    const selectedBlocks = [{ from: 4, to: 10 }];
+    blockSelectionMocks.getBlockSelectionPluginState.mockReturnValueOnce({ selectedBlocks } as never);
+    const focus = vi.fn();
+    const view = {
+      state: { id: 'state' },
+      dom: document.createElement('div'),
+      focus,
+    };
+
+    const keymaps = createCodeBlockEditorKeymap({
+      getCodeMirror: () => ({}) as never,
+      view: view as never,
+      getNode: () => ({}) as never,
+      getPos: () => 0,
+    });
+
+    const backspace = keymaps.find((binding) => binding.key === 'Backspace');
+
+    expect(backspace?.run?.({} as never)).toBe(true);
+    expect(blockSelectionMocks.deleteSelectedBlocks).toHaveBeenCalledWith(
+      view,
+      selectedBlocks,
+      expect.any(Function)
+    );
+    expect(focus).not.toHaveBeenCalled();
+  });
+
   it('selects all content inside CodeMirror on Mod-a', () => {
     const dispatch = vi.fn();
     const focus = vi.fn();

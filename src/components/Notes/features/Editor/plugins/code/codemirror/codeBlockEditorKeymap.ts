@@ -4,6 +4,12 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import type { EditorView as CodeMirror, KeyBinding } from '@codemirror/view';
 import { exitCode } from '@milkdown/kit/prose/commands';
 import { redo, undo } from '@milkdown/kit/prose/history';
+import { deleteSelectedBlocks } from '../../cursor/blockSelectionCommands';
+import {
+  blankAreaDragBoxPluginKey,
+  CLEAR_BLOCKS_ACTION,
+  getBlockSelectionPluginState,
+} from '../../cursor/blockSelectionPluginState';
 
 const { TextSelection } = proseState;
 const AllSelection = (
@@ -32,6 +38,19 @@ function createAllSelection(doc: unknown) {
 function isEntireDocumentSelected(cm: CodeMirror): boolean {
   const selection = cm.state.selection.main;
   return selection.from === 0 && selection.to === cm.state.doc.length;
+}
+
+function deleteActiveBlockSelection(view: EditorView): boolean {
+  const { selectedBlocks } = getBlockSelectionPluginState(view.state);
+  if (selectedBlocks.length === 0) {
+    return false;
+  }
+
+  return deleteSelectedBlocks(
+    view,
+    selectedBlocks,
+    (tr) => tr.setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION)
+  );
 }
 
 function maybeEscape(
@@ -79,6 +98,14 @@ export function createCodeBlockEditorKeymap({
   getPos,
 }: CreateCodeBlockKeymapOptions): KeyBinding[] {
   return [
+    {
+      key: 'Backspace',
+      run: () => deleteActiveBlockSelection(view),
+    },
+    {
+      key: 'Delete',
+      run: () => deleteActiveBlockSelection(view),
+    },
     {
       key: 'Mod-a',
       run: () => {

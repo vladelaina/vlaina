@@ -1,37 +1,37 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { getScrollRoot } from '../floating-toolbar/floatingToolbarDom';
 import { createTextEditorPopupAnchorResizeTracker } from '../shared/textEditorPopupAnchorResize';
+import { resolveTextEditorPopupPlacement } from '../shared/textEditorPopupPlacement';
 import {
+  mountTextEditorPopup,
   resizeTextEditorPopupTextareaToContent,
   TEXT_EDITOR_POPUP_CARD_SELECTOR,
 } from '../shared/textEditorPopupDom';
-import { mountMathEditorCard } from './mathEditorPopupDom';
 import {
-  cancelMathEditorSession,
-  saveMathEditorSession,
-  type MathEditorSessionRefs,
-} from './mathEditorSessionActions';
-import { mathEditorPluginKey } from './mathEditorPluginKey';
-import { renderMathEditorLivePreview } from './mathEditorLivePreview';
+  cancelMermaidEditorSession,
+  saveMermaidEditorSession,
+  type MermaidEditorSessionRefs,
+} from './mermaidEditorSessionActions';
 import {
-  getMathAnchorViewportPosition,
-  resolveMathAnchorElement,
-  resolveMathEditorPlacement,
-} from './mathEditorPlacement';
-import type { MathEditorState } from './types';
+  getMermaidAnchorViewportPosition,
+  resolveMermaidAnchorElement,
+} from './mermaidEditorOpenInteraction';
+import { mermaidEditorPluginKey } from './mermaidEditorPluginKey';
+import { renderMermaidEditorLivePreview } from './mermaidDom';
+import type { MermaidEditorState } from './types';
 
-export function createMathEditorViewSession(args: {
+export function createMermaidEditorViewSession(args: {
   editorView: EditorView;
   onOutsideCloseIntent: () => void;
 }) {
   const { editorView, onOutsideCloseIntent } = args;
-  const refs: MathEditorSessionRefs = {
+  const refs: MermaidEditorSessionRefs = {
     textareaElement: null,
-    draftLatex: '',
-    initialLatex: '',
+    draftCode: '',
+    initialCode: '',
   };
   let editorElement: HTMLElement | null = null;
-  let renderedState: Pick<MathEditorState, 'nodePos' | 'displayMode'> | null = null;
+  let renderedState: Pick<MermaidEditorState, 'nodePos'> | null = null;
   let suppressOutsideMouseDown = false;
   let suppressOutsideMouseDownTimer: number | null = null;
   let focusTextareaTimer: number | null = null;
@@ -40,15 +40,15 @@ export function createMathEditorViewSession(args: {
   const positionRoot = contentRoot ?? scrollRoot;
 
   const getEditorState = () =>
-    mathEditorPluginKey.getState(editorView.state) as MathEditorState | undefined;
+    mermaidEditorPluginKey.getState(editorView.state) as MermaidEditorState | undefined;
 
-  const resolveCurrentAnchorElement = (state: MathEditorState | undefined) => {
+  const resolveCurrentAnchorElement = (state: MermaidEditorState | undefined) => {
     if (!state?.isOpen) {
       return null;
     }
 
     const nodeDom = typeof editorView.nodeDOM === 'function' ? editorView.nodeDOM(state.nodePos) : null;
-    return resolveMathAnchorElement(null, nodeDom);
+    return resolveMermaidAnchorElement(null, nodeDom);
   };
 
   const clearEditorElements = () => {
@@ -60,8 +60,8 @@ export function createMathEditorViewSession(args: {
   };
 
   const resetRenderedState = () => {
-    refs.draftLatex = '';
-    refs.initialLatex = '';
+    refs.draftCode = '';
+    refs.initialCode = '';
     renderedState = null;
   };
 
@@ -100,13 +100,13 @@ export function createMathEditorViewSession(args: {
 
     if (editorElement && !editorElement.contains(event.target as Node)) {
       onOutsideCloseIntent();
-      saveMathEditorSession(getSessionActionArgs());
+      saveMermaidEditorSession(getSessionActionArgs());
     }
   };
 
-  const resolveViewportPosition = (state: MathEditorState) => {
+  const resolveViewportPosition = (state: MermaidEditorState) => {
     const anchor = resolveCurrentAnchorElement(state);
-    return anchor ? getMathAnchorViewportPosition(anchor) : state.position;
+    return anchor ? getMermaidAnchorViewportPosition(anchor) : state.position;
   };
 
   const anchorResizeTracker = createTextEditorPopupAnchorResizeTracker({
@@ -139,57 +139,55 @@ export function createMathEditorViewSession(args: {
     }
 
     editorElement = document.createElement('div');
-    editorElement.className = 'text-editor-popup math-editor-popup';
+    editorElement.className = 'text-editor-popup math-editor-popup mermaid-editor-popup';
     editorElement.style.position = positionRoot ? 'absolute' : 'fixed';
     editorElement.style.zIndex = '80';
     (positionRoot ?? document.body).appendChild(editorElement);
     return editorElement;
   };
 
-  const renderEditor = (state: MathEditorState) => {
+  const renderEditor = (state: MermaidEditorState) => {
     const container = ensureEditorElement();
-    refs.initialLatex = state.latex;
-    refs.draftLatex = state.latex;
+    refs.initialCode = state.code;
+    refs.draftCode = state.code;
 
-    const { textarea } = mountMathEditorCard({
+    const { textarea } = mountTextEditorPopup({
       container,
-      latex: refs.draftLatex,
-      displayMode: state.displayMode,
-      onInput(nextDraftLatex) {
-        refs.draftLatex = nextDraftLatex;
-        renderMathEditorLivePreview({
+      value: refs.draftCode,
+      placeholder: 'Enter Mermaid diagram...',
+      onInput(nextDraftCode) {
+        refs.draftCode = nextDraftCode;
+        void renderMermaidEditorLivePreview({
           anchor: resolveCurrentAnchorElement(getEditorState()),
-          latex: nextDraftLatex,
-          displayMode: state.displayMode,
+          code: nextDraftCode,
+          onRendered: anchorResizeTracker.scheduleResize,
         });
-        anchorResizeTracker.scheduleResize();
       },
       onCancel() {
-        renderMathEditorLivePreview({
+        void renderMermaidEditorLivePreview({
           anchor: resolveCurrentAnchorElement(getEditorState()),
-          latex: refs.initialLatex,
-          displayMode: state.displayMode,
+          code: refs.initialCode,
+          onRendered: anchorResizeTracker.scheduleResize,
         });
-        anchorResizeTracker.scheduleResize();
-        cancelMathEditorSession(getSessionActionArgs());
+        cancelMermaidEditorSession(getSessionActionArgs());
       },
       onSave() {
-        saveMathEditorSession(getSessionActionArgs());
+        saveMermaidEditorSession(getSessionActionArgs());
       },
     });
 
     refs.textareaElement = textarea;
-    renderedState = { nodePos: state.nodePos, displayMode: state.displayMode };
+    renderedState = { nodePos: state.nodePos };
     scheduleOutsideMouseDownSuppression();
     focusTextareaAtEnd();
   };
 
-  const updateEditorPosition = (state: MathEditorState) => {
+  const updateEditorPosition = (state: MermaidEditorState) => {
     if (!editorElement) {
       return;
     }
 
-    const nextPosition = resolveMathEditorPlacement({
+    const nextPosition = resolveTextEditorPopupPlacement({
       editorView,
       positionRoot,
       viewportPosition: resolveViewportPosition(state),
@@ -223,12 +221,7 @@ export function createMathEditorViewSession(args: {
         return;
       }
 
-      if (
-        !renderedState ||
-        renderedState.nodePos !== state.nodePos ||
-        renderedState.displayMode !== state.displayMode ||
-        !refs.textareaElement
-      ) {
+      if (!renderedState || renderedState.nodePos !== state.nodePos || !refs.textareaElement) {
         renderEditor(state);
       }
 

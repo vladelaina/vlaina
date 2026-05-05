@@ -176,6 +176,23 @@ describe('CodeBlockNodeView', () => {
     expect(nodeView.stopEvent({ target: outsideTarget } as unknown as Event)).toBe(false);
   });
 
+  it('lets block-level delete shortcuts reach ProseMirror while the code block is selected', () => {
+    const nodeView = new CodeBlockNodeView(createMockNode(false), createMockView(), () => 1);
+    const insideTarget = nodeView.dom.querySelector('.code-block-editable') as HTMLElement;
+    nodeView.dom.classList.add('vlaina-block-selected');
+
+    const backspace = new KeyboardEvent('keydown', {
+      key: 'Backspace',
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.defineProperty(backspace, 'target', {
+      value: insideTarget,
+    });
+
+    expect(nodeView.stopEvent(backspace)).toBe(false);
+  });
+
   it('focuses and decorates the code block when selected, then removes the decoration when deselected', () => {
     const nodeView = new CodeBlockNodeView(createMockNode(false), createMockView(), () => 1);
     const cm = getCodeMirror(nodeView);

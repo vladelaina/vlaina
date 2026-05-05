@@ -8,6 +8,7 @@ import { convertBlockType } from '../floating-toolbar/blockCommands';
 import { insertImageFromFilePicker, insertFrontmatter } from './slashFileCommands';
 import { insertFootnoteDef, insertFootnoteRef } from './slashFootnoteCommands';
 import { insertMathNodeAndOpenEditor } from './slashMathCommands';
+import { insertMermaidNodeAndOpenEditor } from './slashMermaidCommands';
 import { openVideoPrompt } from './slashVideoCommand';
 
 export {
@@ -225,7 +226,7 @@ export const slashCommandDefinitions = [
     icon: 'editor.diagram',
     searchTerms: ['diagram', 'flowchart', 'chart', 'graph'],
     commandId: 'mermaid',
-    run: (ctx) => insertNode(ctx, 'mermaid', { code: 'graph TD\n    A[Start] --> B[End]' }),
+    run: insertMermaidNodeAndOpenEditor,
   },
   {
     id: 'footnote',

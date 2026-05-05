@@ -46,4 +46,15 @@ describe('math hover styles', () => {
     expect(css).toContain('border-color: var(--vlaina-accent-hover);');
     expect(css).toContain('background: var(--vlaina-accent-hover);');
   });
+
+  it('does not force a minimum or fixed textarea height in the shared editor popup', () => {
+    const css = readMathStyles();
+
+    const textareaRule = css.match(/\.math-editor-textarea \{(?<body>[\s\S]*?)\n\}/)?.groups?.body ?? '';
+
+    expect(textareaRule).toContain('box-sizing: border-box;');
+    expect(textareaRule).toContain('resize: vertical;');
+    expect(textareaRule).not.toMatch(/(^|\n)\s*min-height:/);
+    expect(textareaRule).not.toMatch(/(^|\n)\s*height:/);
+  });
 });

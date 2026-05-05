@@ -209,6 +209,17 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(source).toContain('isTextSelectionOverlayEligible(view.state)');
   });
 
+  it('keeps mermaid drag previews from inheriting generic preview text color', () => {
+    const css = readStyleFile('extended.css');
+
+    expect(css).toContain('.vlaina-block-drag-preview .mermaid-block,');
+    expect(css).toContain('.vlaina-block-drag-preview .mermaid-block * {');
+    expect(css).toContain('color: initial !important;');
+    expect(css).toContain('-webkit-text-fill-color: initial !important;');
+    expect(css).toContain('.vlaina-block-drag-preview .mermaid-drag-preview-surface {');
+    expect(css).toContain('.vlaina-block-drag-preview .mermaid-drag-preview-image {');
+  });
+
   it('keeps code block selection rendering on the CodeMirror selection layer', () => {
     const css = readStyleFile('code-block.css');
 
