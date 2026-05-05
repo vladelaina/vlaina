@@ -27,7 +27,14 @@ export { clipboardPlugin } from './clipboard';
 export { imageUploadPlugin } from './image-upload';
 export { selectAllPlugin } from './select-all';
 export { editorFindPlugin } from './find';
-export { blankAreaDragBoxPlugin, blockControlsPlugin, endBlankClickPlugin, nativeDragGuardPlugin, titleNavigationPlugin } from './cursor';
+export {
+  blankAreaDragBoxPlugin,
+  blockControlsPlugin,
+  containerBoundaryShiftSelectionPlugin,
+  endBlankClickPlugin,
+  nativeDragGuardPlugin,
+  titleNavigationPlugin,
+} from './cursor';
 export { hrAutoParagraphPlugin } from './hr';
 export { autoPairPlugin } from './pairs';
 export type { SlashMenuItem } from './slash/types';

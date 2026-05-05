@@ -1,10 +1,68 @@
-import { $node, $nodeAttr } from '@milkdown/kit/utils';
+import { $node, $nodeAttr, $prose } from '@milkdown/kit/utils';
+import type { Ctx } from '@milkdown/kit/ctx';
+import { blockquoteSchema } from '@milkdown/kit/preset/commonmark';
+import { Plugin, TextSelection } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import type { CalloutBlockAttrs, IconData } from './types';
 import { DEFAULT_CALLOUT_ICON } from './types';
+import { CalloutNodeView } from './CalloutNodeView';
+import {
+  decodeCalloutIconComment,
+  encodeCalloutIconComment,
+  getCalloutIconValue,
+  iconDataFromValue,
+} from './calloutIconUtils';
 import {
   getTextAlignmentComment,
   isTextAlignment,
 } from '../floating-toolbar/blockAlignmentMarkdown';
+import { updateSchemaFactory } from '../../themeSchemaUtils';
+
+type MdastChild = {
+  type: string;
+  value?: string;
+  children?: Array<{ type: string; value?: string }>;
+};
+
+type MdastBlockquote = {
+  type: string;
+  children?: MdastChild[];
+};
+
+function getCalloutIconFromMarkdownBlockquote(node: MdastBlockquote): IconData | null {
+  if (node.type !== 'blockquote') {
+    return null;
+  }
+
+  const firstChild = node.children?.[0];
+  const iconComment = firstChild?.type === 'html'
+    ? decodeCalloutIconComment(firstChild.value || '')
+    : null;
+  if (iconComment) {
+    return iconDataFromValue(iconComment);
+  }
+
+  if (!firstChild || firstChild.type !== 'paragraph') {
+    return null;
+  }
+
+  const text = firstChild.children?.[0];
+  if (!text || text.type !== 'text') {
+    return null;
+  }
+
+  const markerIcon = decodeCalloutIconComment(text.value || '');
+  if (markerIcon) {
+    return iconDataFromValue(markerIcon);
+  }
+
+  const emojiMatch = (text.value || '').match(/^([\p{Emoji}]+)\s*/u);
+  return emojiMatch ? iconDataFromValue(emojiMatch[1]) : null;
+}
+
+function isCalloutMarkdownBlockquote(node: MdastBlockquote): boolean {
+  return getCalloutIconFromMarkdownBlockquote(node) !== null;
+}
 
 export const calloutIdAttr = $nodeAttr('callout', () => ({
   icon: {
@@ -29,6 +87,7 @@ export const calloutSchema = $node('callout', () => ({
   content: 'block+',
   group: 'block',
   defining: true,
+  isolating: true,
   attrs: {
     icon: { default: DEFAULT_CALLOUT_ICON },
     backgroundColor: { default: 'yellow' }
@@ -49,6 +108,7 @@ export const calloutSchema = $node('callout', () => ({
   }],
   toDOM: (node) => {
     const attrs = node.attrs as CalloutBlockAttrs;
+    const iconValue = getCalloutIconValue(attrs.icon);
     return [
       'div',
       {
@@ -57,20 +117,13 @@ export const calloutSchema = $node('callout', () => ({
         'data-bg': attrs.backgroundColor,
         class: `callout callout-${attrs.backgroundColor}`
       },
-      ['div', { class: 'callout-icon', contenteditable: 'false' }, attrs.icon.value],
+      ['div', { class: 'callout-icon', contenteditable: 'false' }, iconValue],
       ['div', { class: 'callout-content' }, 0]
     ];
   },
   parseMarkdown: {
     match: (node) => {
-      if (node.type !== 'blockquote') return false;
-      const children = node.children as Array<{ type: string; children?: Array<{ type: string; value?: string }> }> | undefined;
-      const firstChild = children?.[0];
-      if (!firstChild || firstChild.type !== 'paragraph') return false;
-      const text = firstChild.children?.[0];
-      if (!text || text.type !== 'text') return false;
-      const emojiRegex = /^[\p{Emoji}]/u;
-      return emojiRegex.test(text.value || '');
+      return isCalloutMarkdownBlockquote(node as MdastBlockquote);
     },
     runner: (state, node, type) => {
       const children = (
@@ -78,13 +131,24 @@ export const calloutSchema = $node('callout', () => ({
       ) ?? [];
       const nextChildren = [...children];
       const firstPara = nextChildren[0];
-      const firstText = firstPara?.children?.[0];
+      const firstHtmlIcon =
+        firstPara?.type === 'html'
+          ? decodeCalloutIconComment((firstPara as { value?: string }).value || '')
+          : null;
+      const firstText = firstPara?.type === 'paragraph' ? firstPara.children?.[0] : null;
       const text = firstText?.value || '';
-      const emojiMatch = text.match(/^([\p{Emoji}]+)\s*/u);
-      const emoji = emojiMatch?.[1] || '💡';
+      const markerIcon = firstHtmlIcon ? null : decodeCalloutIconComment(text);
+      const emojiMatch = firstHtmlIcon || markerIcon ? null : text.match(/^([\p{Emoji}]+)\s*/u);
+      const icon = firstHtmlIcon || markerIcon
+        ? iconDataFromValue(firstHtmlIcon || markerIcon)
+        : iconDataFromValue(emojiMatch?.[1] || '💡');
 
-      if (firstPara?.type === 'paragraph' && firstPara.children?.length && firstText?.type === 'text') {
-        const remainingText = text.replace(/^[\p{Emoji}]+\s*/u, '');
+      if (firstHtmlIcon) {
+        nextChildren.shift();
+      } else if (firstPara?.type === 'paragraph' && firstPara.children?.length && firstText?.type === 'text') {
+        const remainingText = markerIcon
+          ? text.replace(/^\s*\[!callout-icon:[^\]]+\]\s*/u, '')
+          : text.replace(/^[\p{Emoji}]+\s*/u, '');
         const updatedChildren = [...firstPara.children];
         if (remainingText) {
           updatedChildren[0] = { ...firstText, value: remainingText };
@@ -99,8 +163,12 @@ export const calloutSchema = $node('callout', () => ({
         }
       }
 
+      if (nextChildren.length === 0) {
+        nextChildren.push({ type: 'paragraph', children: [] });
+      }
+
       state.openNode(type, {
-        icon: { type: 'emoji', value: emoji },
+        icon,
         backgroundColor: 'yellow'
       });
 
@@ -114,9 +182,125 @@ export const calloutSchema = $node('callout', () => ({
   }
 }));
 
+export const calloutBlockquoteSchemaOverride = (ctx: Ctx) => {
+  updateSchemaFactory(ctx, blockquoteSchema.key, (prev: any) => ({
+    ...prev,
+    parseMarkdown: {
+      ...prev.parseMarkdown,
+      match: (node: MdastBlockquote) => {
+        if (isCalloutMarkdownBlockquote(node)) {
+          return false;
+        }
+
+        return prev.parseMarkdown?.match?.(node) ?? node.type === 'blockquote';
+      },
+    },
+  }));
+};
+
+function findCalloutDepth(view: EditorView): number | null {
+  const { $from } = view.state.selection;
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    if ($from.node(depth).type.name === 'callout') {
+      return depth;
+    }
+  }
+
+  return null;
+}
+
+function isEmptySingleParagraphCallout(view: EditorView, calloutDepth: number): boolean {
+  const { $from } = view.state.selection;
+  const calloutNode = $from.node(calloutDepth);
+  return (
+    calloutNode.childCount === 1 &&
+    calloutNode.firstChild?.type === view.state.schema.nodes.paragraph &&
+    calloutNode.firstChild.content.size === 0
+  );
+}
+
+export function handleEmptyCalloutExit(view: EditorView): boolean {
+  const { state } = view;
+  const { selection } = state;
+  const paragraphType = state.schema.nodes.paragraph;
+  if (!selection.empty || !paragraphType) {
+    return false;
+  }
+
+  const calloutDepth = findCalloutDepth(view);
+  if (calloutDepth === null || !isEmptySingleParagraphCallout(view, calloutDepth)) {
+    return false;
+  }
+
+  const calloutPos = selection.$from.before(calloutDepth);
+  let tr = state.tr.replaceWith(calloutPos, calloutPos + selection.$from.node(calloutDepth).nodeSize, paragraphType.create());
+  tr = tr.setSelection(TextSelection.create(tr.doc, calloutPos + 1)).scrollIntoView();
+  view.dispatch(tr);
+  return true;
+}
+
+export function handleCalloutModEnterExit(view: EditorView): boolean {
+  const { state } = view;
+  const { selection } = state;
+  const paragraphType = state.schema.nodes.paragraph;
+  if (!selection.empty || !paragraphType) {
+    return false;
+  }
+
+  const calloutDepth = findCalloutDepth(view);
+  if (calloutDepth === null) {
+    return false;
+  }
+
+  const calloutPos = selection.$from.before(calloutDepth);
+  const calloutNode = selection.$from.node(calloutDepth);
+  const insertPos = calloutPos + calloutNode.nodeSize;
+  let tr = state.tr.insert(insertPos, paragraphType.create());
+  tr = tr.setSelection(TextSelection.create(tr.doc, insertPos + 1)).scrollIntoView();
+  view.dispatch(tr);
+  return true;
+}
+
+export const calloutKeymapPlugin = $prose(() => {
+  return new Plugin({
+    props: {
+      handleKeyDown(view, event) {
+        if (event.key === 'Enter' && (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && !event.isComposing) {
+          if (!handleCalloutModEnterExit(view)) {
+            return false;
+          }
+
+          event.preventDefault();
+          return true;
+        }
+
+        if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || event.isComposing) {
+          return false;
+        }
+
+        if (event.key !== 'Enter' && event.key !== 'Backspace' && event.key !== 'Delete') {
+          return false;
+        }
+
+        if (!handleEmptyCalloutExit(view)) {
+          return false;
+        }
+
+        event.preventDefault();
+        return true;
+      },
+      nodeViews: {
+        callout: (node, view, getPos) => new CalloutNodeView(node, view, getPos as () => number | undefined),
+      },
+    },
+  });
+});
+
 export const calloutPlugin = [
+  calloutBlockquoteSchemaOverride,
   calloutIdAttr,
-  calloutSchema
+  calloutSchema,
+  calloutKeymapPlugin
 ];
 
 function getCalloutParagraphAlignmentComment(node: { attrs?: { align?: unknown } }): string | null {
@@ -148,6 +332,7 @@ export function serializeCalloutToMarkdown(
   }
 ): void {
   const icon = (node.attrs.icon as IconData | undefined) ?? DEFAULT_CALLOUT_ICON;
+  const iconValue = getCalloutIconValue(icon);
   const firstChild = node.firstChild;
 
   state.openNode('blockquote');
@@ -158,7 +343,11 @@ export function serializeCalloutToMarkdown(
         ? ((firstChild.content as { size: number }).size > 0)
         : Boolean(firstChild.content);
     state.openNode('paragraph');
-    state.addNode('text', undefined, hasParagraphContent ? `${icon.value} ` : `${icon.value}`);
+    if (icon.type === 'emoji') {
+      state.addNode('text', undefined, hasParagraphContent ? `${iconValue} ` : `${iconValue}`);
+    } else {
+      state.addNode('text', undefined, hasParagraphContent ? `${encodeCalloutIconComment(iconValue)} ` : encodeCalloutIconComment(iconValue));
+    }
     state.next(firstChild.content);
     state.closeNode();
 
@@ -172,7 +361,11 @@ export function serializeCalloutToMarkdown(
     }
   } else {
     state.openNode('paragraph');
-    state.addNode('text', undefined, `${icon.value}`);
+    if (icon.type === 'emoji') {
+      state.addNode('text', undefined, `${iconValue}`);
+    } else {
+      state.addNode('text', undefined, encodeCalloutIconComment(iconValue));
+    }
     state.closeNode();
     state.next(node.content);
   }

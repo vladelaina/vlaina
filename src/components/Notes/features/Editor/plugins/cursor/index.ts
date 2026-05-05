@@ -3,3 +3,4 @@ export { blockControlsPlugin, blockControlsPluginKey } from './blockControlsPlug
 export { endBlankClickPlugin, endBlankClickPluginKey } from './endBlankClickPlugin';
 export { titleNavigationPlugin, titleNavigationPluginKey } from './titleNavigationPlugin';
 export { nativeDragGuardPlugin } from './nativeDragGuard';
+export { containerBoundaryShiftSelectionPlugin } from './containerBoundaryShiftSelectionPlugin';

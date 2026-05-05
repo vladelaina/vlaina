@@ -41,6 +41,7 @@ export class SlashMenuView {
     window.addEventListener('resize', this.handleViewportChange);
     this.scrollRoot?.addEventListener('scroll', this.handleViewportChange, { passive: true });
     document.addEventListener('mousedown', this.handleDocumentMouseDown, true);
+    document.addEventListener('keydown', this.handleDocumentKeyDown, true);
     this.resizeObserver?.observe(this.editorView.dom);
     if (this.scrollRoot) {
       this.resizeObserver?.observe(this.scrollRoot);
@@ -95,6 +96,7 @@ export class SlashMenuView {
     window.removeEventListener('resize', this.handleViewportChange);
     this.scrollRoot?.removeEventListener('scroll', this.handleViewportChange);
     document.removeEventListener('mousedown', this.handleDocumentMouseDown, true);
+    document.removeEventListener('keydown', this.handleDocumentKeyDown, true);
     this.resizeObserver?.disconnect();
     this.destroyMenu();
   }
@@ -238,6 +240,49 @@ export class SlashMenuView {
     if (this.menuElement?.contains(target)) return;
 
     this.editorView.dispatch(this.editorView.state.tr.setMeta(slashPluginKey, createSlashState()));
+  };
+
+  private handleDocumentKeyDown = (event: KeyboardEvent) => {
+    const state = slashPluginKey.getState(this.editorView.state);
+    if (!state?.isOpen || event.isComposing) return;
+
+    const filtered = filterSlashItems(state.query, slashMenuItems);
+    if (filtered.length === 0) return;
+
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        event.stopPropagation();
+        this.editorView.dispatch(
+          this.editorView.state.tr.setMeta(slashPluginKey, {
+            selectedIndex: (state.selectedIndex + 1) % filtered.length,
+          })
+        );
+        break;
+
+      case 'ArrowUp':
+        event.preventDefault();
+        event.stopPropagation();
+        this.editorView.dispatch(
+          this.editorView.state.tr.setMeta(slashPluginKey, {
+            selectedIndex: (state.selectedIndex - 1 + filtered.length) % filtered.length,
+          })
+        );
+        break;
+
+      case 'Enter':
+      case 'Tab':
+        event.preventDefault();
+        event.stopPropagation();
+        this.applySelectedItem(state.selectedIndex);
+        break;
+
+      case 'Escape':
+        event.preventDefault();
+        event.stopPropagation();
+        this.editorView.dispatch(this.editorView.state.tr.setMeta(slashPluginKey, createSlashState()));
+        break;
+    }
   };
 
   private handleHoverItem = (index: number) => {

@@ -322,6 +322,43 @@ body.vlaina-block-drag-active .milkdown .video-block video {
   flex-shrink: 0;
   font-size: 1.25em;
   line-height: 1.5;
+  position: relative;
+  z-index: 2;
+}
+
+.milkdown .callout-icon-control {
+  display: inline-flex;
+  position: relative;
+}
+
+.milkdown .callout-icon-button {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background-color 120ms ease, transform 120ms ease;
+}
+
+.milkdown .callout-icon-button:hover {
+  background: color-mix(in srgb, var(--vlaina-text-primary) 8%, transparent);
+}
+
+.milkdown .callout-icon-button:active {
+  transform: scale(0.96);
+}
+
+.milkdown .callout-icon-picker {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 0.5rem);
+  z-index: 10000;
 }
 
 .milkdown .callout-content {
