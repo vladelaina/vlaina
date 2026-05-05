@@ -16,7 +16,7 @@ export interface AssetConfig {
   filenameFormat: 'original' | 'timestamp' | 'sequence';
 }
 
-const MAX_ASSET_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_ASSET_SIZE = 50 * 1024 * 1024; // 50MB
 
 export class AssetService {
   static async upload(
@@ -32,7 +32,7 @@ export class AssetService {
         success: false, 
         path: null, 
         isDuplicate: false, 
-        error: `File is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Limit is 10MB.` 
+        error: `File is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Limit is 50MB.`
       };
     }
     

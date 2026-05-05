@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { getRandomBuiltinCover } from '@/lib/assets/builtinCovers';
+import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
 import type { NoteCoverController } from '../types';
 
 export function useNoteCoverController(currentNotePath?: string): NoteCoverController {
@@ -68,7 +69,7 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
 
   return {
     cover,
-    vaultPath: notesPath || '',
+    vaultPath: resolveEffectiveVaultPath({ notesPath, currentNotePath }),
     currentNotePath,
     isPickerOpen,
     setPickerOpen,

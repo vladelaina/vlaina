@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { TitleInput } from './TitleInput';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
-import { resolveVaultAssetPath } from '@/lib/assets/core/paths';
+import { resolveExistingVaultAssetPath } from '@/lib/assets/core/paths';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { getParentPath } from '@/lib/storage/adapter';
 import { HeroIconHeader } from '@/components/common/HeroIconHeader';
@@ -13,6 +13,7 @@ import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
 import { getRandomHeaderEmoji } from '@/components/common/UniversalIconPicker/randomEmoji';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { logNotesDebug } from '@/stores/notes/debugLog';
+import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
 
 interface NoteHeaderProps {
     coverUrl: string | null;
@@ -45,12 +46,13 @@ export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
         }, [])
     );
 
-    const vaultPath = useNotesStore(s => s.notesPath);
+    const notesPath = useNotesStore(s => s.notesPath);
+    const vaultPath = resolveEffectiveVaultPath({ notesPath, currentNotePath });
 
     const imageLoader = useCallback(async (src: string) => {
         if (!vaultPath) return src;
         const relativePath = src.substring(4);
-        const fullPath = await resolveVaultAssetPath(vaultPath, relativePath, currentNotePath);
+        const fullPath = await resolveExistingVaultAssetPath(vaultPath, relativePath, currentNotePath);
         return await loadImageAsBlob(fullPath);
     }, [currentNotePath, vaultPath]);
 

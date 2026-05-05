@@ -16,6 +16,7 @@ vi.mock('@/lib/assets/io/reader', () => ({
 
 vi.mock('@/lib/assets/core/paths', () => ({
   resolveVaultAssetPath: hoisted.resolveVaultAssetPath,
+  resolveExistingVaultAssetPath: hoisted.resolveVaultAssetPath,
 }));
 
 vi.mock('@/lib/assets/builtinCovers', () => ({
