@@ -16,6 +16,19 @@ import {
   replaceProviderModels,
 } from './providerStoreUtils'
 
+function isDefaultChannelLabel(name: string): boolean {
+  return /^channel\s+\d+$/i.test(name.trim());
+}
+
+function shouldDeleteIncompleteCustomProvider(provider: Provider): boolean {
+  return (
+    !isManagedProviderId(provider.id) &&
+    isDefaultChannelLabel(provider.name) &&
+    !provider.apiHost.trim() &&
+    !provider.apiKey.trim()
+  );
+}
+
 export const actions = {
   addProvider: (provider: Omit<Provider, 'id' | 'createdAt' | 'updatedAt'>) => {
     const id = generateId('provider-')
@@ -63,6 +76,45 @@ export const actions = {
         remainingModels
       )
     })
+  },
+
+  deleteIncompleteCustomProviders: () => {
+    const state = useUnifiedStore.getState();
+    const ai = state.data.ai!;
+    const providerIdsToDelete = new Set(
+      ai.providers
+        .filter(shouldDeleteIncompleteCustomProvider)
+        .map((provider) => provider.id)
+    );
+
+    if (providerIdsToDelete.size === 0) {
+      return;
+    }
+
+    const remainingModels = ai.models.filter((model) => !providerIdsToDelete.has(model.providerId));
+    const nextBenchmarkResults = { ...(ai.benchmarkResults || {}) };
+    const nextFetchedModels = { ...(ai.fetchedModels || {}) };
+    providerIdsToDelete.forEach((providerId) => {
+      delete nextBenchmarkResults[providerId];
+      delete nextFetchedModels[providerId];
+    });
+
+    const selectedModelProviderId = ai.selectedModelId
+      ? ai.models.find((model) => model.id === ai.selectedModelId)?.providerId
+      : undefined;
+
+    state.updateAIData({
+      providers: ai.providers.filter((provider) => !providerIdsToDelete.has(provider.id)),
+      models: remainingModels,
+      benchmarkResults: nextBenchmarkResults,
+      fetchedModels: nextFetchedModels,
+      selectedModelId: chooseFallbackSelectedModelId(
+        selectedModelProviderId && providerIdsToDelete.has(selectedModelProviderId)
+          ? null
+          : ai.selectedModelId,
+        remainingModels
+      ),
+    });
   },
 
   addModel: (model: Omit<AIModel, 'createdAt'>) => {

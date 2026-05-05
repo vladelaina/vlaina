@@ -108,6 +108,38 @@ const desktopApi = {
       return ipcRenderer.invoke('desktop:media:capture-page', rect);
     },
   },
+  aiProvider: {
+    startRequest(requestId, request) {
+      return ipcRenderer.invoke('desktop:ai-provider:request:start', requestId, request);
+    },
+    cancelRequest(requestId) {
+      return ipcRenderer.invoke('desktop:ai-provider:request:cancel', requestId);
+    },
+    onRequestChunk(requestId, callback) {
+      const channel = `desktop:ai-provider:request:${requestId}:chunk`;
+      const handler = (_event, chunk) => callback(chunk);
+      ipcRenderer.on(channel, handler);
+      return () => {
+        ipcRenderer.removeListener(channel, handler);
+      };
+    },
+    onRequestDone(requestId, callback) {
+      const channel = `desktop:ai-provider:request:${requestId}:done`;
+      const handler = () => callback();
+      ipcRenderer.on(channel, handler);
+      return () => {
+        ipcRenderer.removeListener(channel, handler);
+      };
+    },
+    onRequestError(requestId, callback) {
+      const channel = `desktop:ai-provider:request:${requestId}:error`;
+      const handler = (_event, payload) => callback(payload);
+      ipcRenderer.on(channel, handler);
+      return () => {
+        ipcRenderer.removeListener(channel, handler);
+      };
+    },
+  },
   dragDrop: {
     getPathForFile(file) {
       return webUtils.getPathForFile(file);

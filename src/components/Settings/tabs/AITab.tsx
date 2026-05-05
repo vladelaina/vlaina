@@ -225,22 +225,14 @@ export function AITab() {
     setSelectedProviderId(nextId);
   };
 
-  const handleDeleteCustomProvider = (id: string, name: string) => {
-    setPendingDelete({ id, name });
-  };
-
   const handleToggleProviderEnabled = (id: string, enabled: boolean) => {
     updateProvider(id, { enabled, updatedAt: Date.now() });
   };
 
-  const confirmDeleteCustomProvider = () => {
-    if (!pendingDelete) {
-      return;
-    }
-
-    if (selectedProviderId === pendingDelete.id) {
-      const currentIndex = customProviders.findIndex((provider) => provider.id === pendingDelete.id);
-      const remainingProviders = customProviders.filter((provider) => provider.id !== pendingDelete.id);
+  const deleteCustomProviderById = (providerId: string) => {
+    if (selectedProviderId === providerId) {
+      const currentIndex = customProviders.findIndex((provider) => provider.id === providerId);
+      const remainingProviders = customProviders.filter((provider) => provider.id !== providerId);
       const fallbackProvider =
         remainingProviders[currentIndex] ?? remainingProviders[currentIndex - 1] ?? null;
 
@@ -255,10 +247,32 @@ export function AITab() {
 
     setProviderDrafts((prev) => {
       const next = { ...prev };
-      delete next[pendingDelete.id];
+      delete next[providerId];
       return next;
     });
-    deleteProvider(pendingDelete.id);
+    deleteProvider(providerId);
+  };
+
+  const handleDeleteCustomProvider = (id: string, name: string) => {
+    const provider = customProviders.find((item) => item.id === id);
+    if (!provider) {
+      return;
+    }
+
+    if (!provider.apiKey.trim()) {
+      deleteCustomProviderById(id);
+      return;
+    }
+
+    setPendingDelete({ id, name });
+  };
+
+  const confirmDeleteCustomProvider = () => {
+    if (!pendingDelete) {
+      return;
+    }
+
+    deleteCustomProviderById(pendingDelete.id);
     setPendingDelete(null);
   };
 

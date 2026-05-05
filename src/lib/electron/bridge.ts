@@ -74,6 +74,26 @@ export interface ElectronMediaApi {
   }>;
 }
 
+export interface ElectronAIProviderHttpApi {
+  startRequest(
+    requestId: string,
+    request: {
+      url: string;
+      method: 'GET' | 'POST';
+      headers?: Record<string, string>;
+      body?: string;
+    }
+  ): Promise<{
+    status: number;
+    statusText: string;
+    headers: Array<[string, string]>;
+  }>;
+  cancelRequest(requestId: string): Promise<void>;
+  onRequestChunk(requestId: string, callback: (chunk: number[]) => void): () => void;
+  onRequestDone(requestId: string, callback: () => void): () => void;
+  onRequestError(requestId: string, callback: (payload: { message: string }) => void): () => void;
+}
+
 export interface ElectronDragDropApi {
   getPathForFile(file: File): string;
   authorizePath(filePath: string): Promise<{
@@ -211,6 +231,7 @@ export interface VlainaDesktopApi {
   shell: ElectronShellApi;
   clipboard: ElectronClipboardApi;
   media?: ElectronMediaApi;
+  aiProvider: ElectronAIProviderHttpApi;
   dragDrop: ElectronDragDropApi;
   dialog: ElectronDialogApi;
   fs: ElectronFsApi;

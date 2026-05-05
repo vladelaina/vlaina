@@ -107,7 +107,7 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
               />
             </div>
           ) : (
-            <div className="flex items-center justify-between gap-3 rounded-[22px] border border-zinc-200/80 bg-white px-4 py-3">
+            <div className="flex items-center justify-between gap-3">
               <div className="min-w-0 text-[14px] font-medium text-zinc-800">Models</div>
               <button
                 type="button"

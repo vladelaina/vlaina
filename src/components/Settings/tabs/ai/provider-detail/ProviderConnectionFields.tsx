@@ -1,11 +1,28 @@
+import { useEffect, useRef } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { SettingsTextInput } from '@/components/Settings/components/SettingsFields';
+
+const API_KEY_PREFIX_VISIBLE_CHARS = 7;
+const API_KEY_SUFFIX_VISIBLE_CHARS = 4;
+
+export function maskApiKey(apiKey: string): string {
+  if (!apiKey) {
+    return '';
+  }
+
+  if (apiKey.length <= API_KEY_PREFIX_VISIBLE_CHARS + API_KEY_SUFFIX_VISIBLE_CHARS) {
+    return apiKey.slice(-API_KEY_SUFFIX_VISIBLE_CHARS);
+  }
+
+  return `${apiKey.slice(0, API_KEY_PREFIX_VISIBLE_CHARS)}••••••${apiKey.slice(-API_KEY_SUFFIX_VISIBLE_CHARS)}`;
+}
 
 export function ProviderConnectionFields({
   providerId,
   name,
   apiHost,
   apiKey,
+  allowHiddenApiKeyEditing = false,
   showApiKey,
   apiKeyCopied,
   onNameChange,
@@ -18,6 +35,7 @@ export function ProviderConnectionFields({
   name: string;
   apiHost: string;
   apiKey: string;
+  allowHiddenApiKeyEditing?: boolean;
   showApiKey: boolean;
   apiKeyCopied: boolean;
   onNameChange: (value: string) => void;
@@ -26,6 +44,25 @@ export function ProviderConnectionFields({
   onToggleApiKey: () => void;
   onCopyApiKey: () => void;
 }) {
+  const shouldShowRawApiKey = showApiKey || allowHiddenApiKeyEditing;
+  const apiKeyInputRef = useRef<HTMLInputElement>(null);
+  const shouldSelectApiKeyOnRevealRef = useRef(false);
+
+  useEffect(() => {
+    if (!shouldShowRawApiKey || !shouldSelectApiKeyOnRevealRef.current) {
+      return;
+    }
+
+    shouldSelectApiKeyOnRevealRef.current = false;
+    const input = apiKeyInputRef.current;
+    if (!input) {
+      return;
+    }
+
+    input.focus();
+    input.select();
+  }, [apiKey.length, shouldShowRawApiKey]);
+
   return (
     <section className="p-1">
       <div className="grid grid-cols-1 gap-4">
@@ -59,9 +96,16 @@ export function ProviderConnectionFields({
         <div className="space-y-1.5">
           <label className="text-[11px] font-medium text-gray-500">API Key</label>
           <SettingsTextInput
-            type={showApiKey ? 'text' : 'password'}
-            value={apiKey}
+            ref={apiKeyInputRef}
+            type="text"
+            value={shouldShowRawApiKey ? apiKey : maskApiKey(apiKey)}
             onChange={(e) => onApiKeyChange(e.target.value)}
+            onFocus={() => {
+              if (!shouldShowRawApiKey && apiKey) {
+                shouldSelectApiKeyOnRevealRef.current = true;
+                onToggleApiKey();
+              }
+            }}
             placeholder="sk-..."
             name={`provider-api-key-${providerId}`}
             autoComplete="new-password"

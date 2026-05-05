@@ -3,6 +3,7 @@ export interface Provider {
   name: string
   icon?: string
   type: 'newapi'
+  endpointType?: 'openai' | 'anthropic'
   apiHost: string
   apiKey: string
   enabled: boolean

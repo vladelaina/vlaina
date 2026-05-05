@@ -75,6 +75,12 @@ vi.stubGlobal('ResizeObserver', ResizeObserverMock);
 vi.stubGlobal('OffscreenCanvas', OffscreenCanvasMock);
 
 if (typeof window !== 'undefined') {
+  if (typeof globalThis.addEventListener === 'undefined') {
+    vi.stubGlobal('addEventListener', window.addEventListener.bind(window));
+  }
+  if (typeof globalThis.removeEventListener === 'undefined') {
+    vi.stubGlobal('removeEventListener', window.removeEventListener.bind(window));
+  }
   if (typeof window.HTMLTableRowElement !== 'undefined') {
     vi.stubGlobal('HTMLTableRowElement', window.HTMLTableRowElement);
   }
