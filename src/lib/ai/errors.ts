@@ -321,12 +321,10 @@ export function parseAPIError(error: any): AIError {
   if (error instanceof Error) {
     const message = error.message;
     const lowerMsg = message.toLowerCase();
-    
-    let type = AIErrorType.UNKNOWN;
-    if (lowerMsg.includes('timeout') || lowerMsg.includes('abort')) {
-        type = AIErrorType.TIMEOUT;
-    } else if (error instanceof TypeError && lowerMsg.includes('fetch')) {
-        type = AIErrorType.NETWORK_ERROR;
+
+    let type = inferErrorTypeByMessage(message);
+    if (type === AIErrorType.UNKNOWN && (lowerMsg.includes('timeout') || lowerMsg.includes('abort'))) {
+      type = AIErrorType.TIMEOUT;
     }
 
     return createAIError(type, message);

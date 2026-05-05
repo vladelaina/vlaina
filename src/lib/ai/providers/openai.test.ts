@@ -175,6 +175,32 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     });
   });
 
+  it('wraps Anthropic thinking deltas in think tags', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      streamResponse([
+        'event: content_block_delta',
+        'data: {"type":"content_block_delta","delta":{"type":"thinking_delta","thinking":"plan"}}',
+        '',
+        'event: content_block_delta',
+        'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"answer"}}',
+        '',
+      ].join('\n')),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const chunks: string[] = [];
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'hi',
+      [],
+      buildModel(),
+      buildProvider({ endpointType: 'anthropic' }),
+      (chunk) => chunks.push(chunk),
+    );
+
+    expect(result).toBe('<think>plan</think>answer');
+    expect(chunks).toEqual(['<think>plan', '<think>plan</think>answer']);
+  });
+
   it('preserves direct provider transport details for chat failures', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('fetch failed')));
 

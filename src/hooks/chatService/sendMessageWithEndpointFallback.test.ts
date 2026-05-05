@@ -28,7 +28,7 @@ function buildModel(): AIModel {
 }
 
 describe('sendMessageWithEndpointFallback', () => {
-  it('uses the recorded endpoint type without trying fallback again', async () => {
+  it('uses the recorded OpenAI endpoint type without trying fallback again', async () => {
     const updateProvider = vi.fn();
     const onChunk = vi.fn();
     const client = {
@@ -39,7 +39,7 @@ describe('sendMessageWithEndpointFallback', () => {
       content: 'hi',
       history: [],
       model: buildModel(),
-      provider: buildProvider({ endpointType: 'openai' }),
+      provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
       onChunk,
       client,
       updateProvider,
@@ -48,6 +48,55 @@ describe('sendMessageWithEndpointFallback', () => {
     expect(result).toBe('openai ok');
     expect(client.sendMessage).toHaveBeenCalledTimes(1);
     expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
+    expect(updateProvider).not.toHaveBeenCalled();
+  });
+
+  it('rechecks OpenAI before using an unverified recorded Anthropic endpoint type', async () => {
+    const updateProvider = vi.fn();
+    const onChunk = vi.fn();
+    const client = {
+      sendMessage: vi.fn().mockResolvedValue('openai ok'),
+    };
+
+    const result = await sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildModel(),
+      provider: buildProvider({ endpointType: 'anthropic' }),
+      onChunk,
+      client,
+      updateProvider,
+    });
+
+    expect(result).toBe('openai ok');
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+    expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
+    expect(updateProvider).toHaveBeenCalledWith('provider-1', {
+      endpointType: 'openai',
+      endpointTypeCheckedAt: expect.any(Number),
+    });
+  });
+
+  it('uses a verified recorded Anthropic endpoint type without trying OpenAI again', async () => {
+    const updateProvider = vi.fn();
+    const onChunk = vi.fn();
+    const client = {
+      sendMessage: vi.fn().mockResolvedValue('anthropic ok'),
+    };
+
+    const result = await sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildModel(),
+      provider: buildProvider({ endpointType: 'anthropic', endpointTypeCheckedAt: 1 }),
+      onChunk,
+      client,
+      updateProvider,
+    });
+
+    expect(result).toBe('anthropic ok');
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+    expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'anthropic' });
     expect(updateProvider).not.toHaveBeenCalled();
   });
 
@@ -75,7 +124,10 @@ describe('sendMessageWithEndpointFallback', () => {
     expect(client.sendMessage).toHaveBeenCalledTimes(2);
     expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
     expect(client.sendMessage.mock.calls[1][3]).toMatchObject({ endpointType: 'anthropic' });
-    expect(updateProvider).toHaveBeenCalledWith('provider-1', { endpointType: 'anthropic' });
+    expect(updateProvider).toHaveBeenCalledWith('provider-1', {
+      endpointType: 'anthropic',
+      endpointTypeCheckedAt: expect.any(Number),
+    });
   });
 
   it('does not try Anthropic after OpenAI has already streamed output', async () => {

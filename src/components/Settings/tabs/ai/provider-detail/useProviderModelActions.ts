@@ -10,6 +10,7 @@ export function useProviderModelActions({
   addModel,
   addModels,
   deleteModel,
+  updateProvider,
   setFetchedModels,
   setProviderFetchedModels,
   resetBenchmarkState,
@@ -21,6 +22,7 @@ export function useProviderModelActions({
   addModel: (model: { id: string; apiModelId: string; name: string; providerId: string; enabled: boolean }) => void;
   addModels: (models: Array<{ id: string; apiModelId: string; name: string; providerId: string; enabled: boolean }>) => void;
   deleteModel: (modelId: string) => void;
+  updateProvider: (providerId: string, updates: Partial<Provider>) => void;
   setFetchedModels: (models: string[]) => void;
   setProviderFetchedModels: (providerId: string, models: string[]) => void;
   resetBenchmarkState: () => void;
@@ -60,6 +62,10 @@ export function useProviderModelActions({
       const modelsList = result.models;
       setFetchedModels(modelsList);
       setProviderFetchedModels(currentProviderId, modelsList);
+      updateProvider(currentProviderId, {
+        endpointType: result.endpointType,
+        endpointTypeCheckedAt: Date.now(),
+      });
       if (modelsList.length === 0) {
         setFetchError('Connected, but no models were returned.');
       }
