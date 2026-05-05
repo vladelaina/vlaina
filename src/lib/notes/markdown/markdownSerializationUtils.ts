@@ -7,21 +7,11 @@ import {
   collapseSyntheticBlankLinesBetweenAdjacentHeadings,
 } from './markdownHeadingSpacing';
 import { normalizeCanonicalMarkdownSpacing } from './markdownCanonicalSpacing';
-import {
-  isAlignmentCommentBoundaryBlankLine,
-  isFencedCodeBoundaryBlankLine,
-  isBetweenListItemsBlankLine,
-  isHtmlBlockBoundaryBlankLine,
-  isHtmlCommentBoundaryBlankLine,
-  isIndentedCodeBoundaryBlankLine,
-  isListBoundaryBlankLine,
-  isTableBoundaryBlankLine,
-  isThematicBreakBoundaryBlankLine,
-} from './markdownBlankLineBoundaries';
+import { preserveParagraphSoftBreaksAsHardBreaks } from './markdownSoftBreaks';
+export { preserveMarkdownBlankLinesForEditor } from './markdownEditorBlankLines';
 export { joinSerializedBlocks } from './markdownBlockJoin';
 
 const BR_ONLY_PATTERN = /^<br\s*\/?>$/i;
-const BLOCKQUOTE_BR_ONLY_PATTERN = /^(\s*(?:>\s*)+)<br\s*\/?>$/i;
 const VLAINA_EMPTY_LINE_ATTR_PATTERN = '\\bdat[ae]-vla(?:ina|ian)-?(?:empty|empt)-line';
 const VLAINA_LIST_GAP_ATTR_PATTERN = '\\bdat[ae]-vla(?:ina|ian)-?list-gap';
 const VLAINA_USER_BR_ATTR_PATTERN = '\\bdat[ae]-vla(?:ina|ian)-?user-br';
@@ -31,8 +21,6 @@ const DEPTH_ATTR_VALUE_PATTERN = '(?:"(\\d+)"|\'(\\d+)\'|(\\d+)\\b)';
 const MARKED_BR_ONLY_PATTERN =
   new RegExp(`^<br\\b(?=[^>]*${VLAINA_EMPTY_LINE_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>\\s*(?:<\\/br>)?$`, 'i');
 const MARKDOWN_ESCAPE_PATTERN = /\\([\\`*_{}[\]()#+\-.!])/g;
-const EMPTY_LINE_PLACEHOLDER = '\u200B';
-const LIST_GAP_PLACEHOLDER = '\u200B\u200C';
 const LIST_GAP_SENTINEL = '\u0000VLAINA_LIST_GAP_SENTINEL\u0000';
 const USER_BR_SENTINEL = '\u0000VLAINA_USER_BR_SENTINEL\u0000';
 const INVISIBLE_EMPTY_LINE_PLACEHOLDER_PATTERN = /^[\t ]*\\?\u200B[\t ]*$/;
@@ -91,76 +79,64 @@ export function normalizeSerializedMarkdownBlock(text: string): string {
 }
 
 export function normalizeSerializedMarkdownDocument(text: string): string {
-  return normalizeListItemBlankLines(
-    normalizeUserBreakSentinels(
-      stripEmptyMarkdownPlaceholders(
-        normalizeCanonicalMarkdownSpacing(
-          collapseSyntheticBlankLinesAroundEmptyPlaceholders(
-            collapseSyntheticBlankLinesBetweenAdjacentHeadings(text)
-          )
-        )
-      )
-    )
+  return runMarkdownDocumentNormalizationPipeline(text).output;
+}
+
+export function summarizeMarkdownNormalizationPipeline(text: string) {
+  const pipeline = runMarkdownDocumentNormalizationPipeline(text);
+  return Object.fromEntries(
+    Object.entries(pipeline).map(([key, value]) => [
+      key,
+      {
+        length: value.length,
+        lines: value.length === 0 ? 0 : value.split('\n').length,
+        preview: value.replace(/\r/g, '\\r').replace(/\n/g, '\\n').slice(0, 500),
+      },
+    ])
   );
 }
 
-export function preserveMarkdownBlankLinesForEditor(text: string): string {
-  if (text.length === 0) return text;
+function runMarkdownDocumentNormalizationPipeline(text: string) {
+  const afterHeadingSpacing = collapseSyntheticBlankLinesBetweenAdjacentHeadings(text);
+  const afterSyntheticBlankLines =
+    collapseSyntheticBlankLinesAroundEmptyPlaceholders(afterHeadingSpacing);
+  const afterCanonicalSpacing = normalizeCanonicalMarkdownSpacing(afterSyntheticBlankLines);
+  const afterStripPlaceholders = stripEmptyMarkdownPlaceholders(afterCanonicalSpacing);
+  const afterEmptyParagraphBreaks = normalizeEditorEmptyParagraphBreaks(afterStripPlaceholders);
+  const afterUserBreaks = normalizeUserBreakSentinels(afterEmptyParagraphBreaks);
+  const afterListItems = normalizeListItemBlankLines(afterUserBreaks);
+  const output = preserveParagraphSoftBreaksAsHardBreaks(afterListItems);
 
-  const preserved = mapMarkdownOutsideProtectedBlocks(text, (line, index, lines) => {
-    const blockquoteBrMatch = BLOCKQUOTE_BR_ONLY_PATTERN.exec(line);
-    if (blockquoteBrMatch) {
-      const prefix = blockquoteBrMatch[1] ?? '';
-      return `${prefix}${getBlockquoteUserBrPlaceholder(prefix)}`;
-    }
+  return {
+    input: text,
+    afterHeadingSpacing,
+    afterSyntheticBlankLines,
+    afterCanonicalSpacing,
+    afterStripPlaceholders,
+    afterEmptyParagraphBreaks,
+    afterUserBreaks,
+    afterListItems,
+    output,
+  };
+}
 
-    if (BR_ONLY_PATTERN.test(line.trim())) {
-      return USER_BR_SENTINEL;
-    }
+function normalizeEditorEmptyParagraphBreaks(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) => {
+    const lines = segment.split('\n');
+    return lines.filter((line, index) => {
+      if (!BR_ONLY_PATTERN.test(line.trim())) {
+        return true;
+      }
 
-    if (isBetweenListItemsBlankLine(lines, index)) {
-      return LIST_GAP_PLACEHOLDER;
-    }
+      if (index <= 0 || index >= lines.length - 1) {
+        return true;
+      }
 
-    if (isListBoundaryBlankLine(lines, index)) {
-      return line;
-    }
-
-    if (isTableBoundaryBlankLine(lines, index)) {
-      return line;
-    }
-
-    if (isThematicBreakBoundaryBlankLine(lines, index)) {
-      return line;
-    }
-
-    if (isIndentedCodeBoundaryBlankLine(lines, index)) {
-      return line;
-    }
-
-    if (isFencedCodeBoundaryBlankLine(lines, index)) {
-      return line;
-    }
-
-    if (isHtmlCommentBoundaryBlankLine(lines, index)) {
-      return line;
-    }
-
-    if (isHtmlBlockBoundaryBlankLine(lines, index)) {
-      return line;
-    }
-
-    if (isAlignmentCommentBoundaryBlankLine(lines, index)) {
-      return line;
-    }
-
-    if (line.trim() === '') {
-      return EMPTY_LINE_PLACEHOLDER;
-    }
-
-    return line;
+      const previousLine = index > 0 ? lines[index - 1] ?? '' : '';
+      const nextLine = index < lines.length - 1 ? lines[index + 1] ?? '' : '';
+      return previousLine.trim() !== '' && nextLine.trim() !== '';
+    }).join('\n');
   });
-  return normalizeUserBreakSentinels(preserved);
 }
 
 function normalizeEditorBreakPlaceholders(text: string): string {
@@ -250,10 +226,6 @@ function normalizeListItemBlankLines(text: string): string {
   return mapMarkdownOutsideProtectedSegments(text, (segment) => segment
     .replace(/((?:^|\n)(?: {0,3})(?:[-+*]|\d+[.)])[^\n]*)\n{2,}((?: {0,3})(?:[-+*]|\d+[.)])\s+)/g, '$1\n$2')
     .replace(new RegExp(`\\n*${LIST_GAP_SENTINEL}\\n*`, 'g'), '\n\n'));
-}
-
-function getBlockquoteUserBrPlaceholder(_prefix: string): string {
-  return USER_BR_SENTINEL;
 }
 
 function getBlockquotePrefix(depth: number): string {

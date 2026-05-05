@@ -118,7 +118,7 @@ describe('clipboardPlugin paste', () => {
 
         expect(view.state.doc.childCount).toBe(3);
         expect(view.state.doc.child(0).textContent).toBe('A');
-        expect(view.state.doc.child(1).textContent).toBe('\u200B\n\u200B');
+        expect(view.state.doc.child(1).textContent).toBe('');
         expect(view.state.doc.child(2).textContent).toBe('B');
 
         await editor.destroy();
