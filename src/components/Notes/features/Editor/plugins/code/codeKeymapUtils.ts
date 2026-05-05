@@ -1,6 +1,7 @@
 import { type EditorState, TextSelection, type Transaction } from '@milkdown/kit/prose/state';
 import { normalizeCodeBlockLanguage, parseCodeFenceLanguage } from './codeBlockLanguage';
 import { createCodeBlockAttrs } from './codeBlockSettings';
+import { isMermaidFenceLanguage } from '../mermaid/mermaidLanguage';
 import {
   isCursorAtCodeBlockEnd,
   moveSelectionAfterNode,
@@ -48,6 +49,9 @@ export function handleCodeBlockEnter(state: EditorState, dispatch: ProseDispatch
 
   const language = parseCodeFenceLanguage(parent.textContent);
   if (language === null) {
+    return false;
+  }
+  if (isMermaidFenceLanguage(language)) {
     return false;
   }
 

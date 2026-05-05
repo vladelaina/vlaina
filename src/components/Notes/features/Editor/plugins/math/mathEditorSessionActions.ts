@@ -49,16 +49,6 @@ function restoreOriginalLatex(args: MathEditorSessionActionArgs, state: MathEdit
   );
 }
 
-export function syncMathEditorDraftToNode(
-  args: MathEditorSessionActionArgs,
-  state: MathEditorState,
-  nextDraftLatex?: string
-) {
-  const draftLatex = resolveCurrentDraftLatex(args.refs, nextDraftLatex);
-  applyMathNodeLatex(args.editorView, state.nodePos, draftLatex);
-  return draftLatex;
-}
-
 export function cancelMathEditorSession(args: MathEditorSessionActionArgs) {
   const state = args.getEditorState();
   const draftLatex = resolveCurrentDraftLatex(args.refs);

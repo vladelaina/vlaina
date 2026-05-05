@@ -9,17 +9,27 @@ describe('mathEditorPopupDom', () => {
     const { card, content, textarea, actions, cancelButton, saveButton } =
       createMathEditorElements();
 
-    expect(card.className).toBe('math-editor-card');
+    expect(card.classList.contains('text-editor-card')).toBe(true);
+    expect(card.classList.contains('math-editor-card')).toBe(true);
     expect(card.querySelector('.math-editor-header')).toBeNull();
     expect(card.querySelector('.math-editor-rail')).toBeNull();
-    expect(content.className).toBe('math-editor-content');
-    expect(textarea.className).toBe('math-editor-textarea');
-    expect(actions.className).toBe('math-editor-footer');
+    expect(content.classList.contains('text-editor-content')).toBe(true);
+    expect(content.classList.contains('math-editor-content')).toBe(true);
+    expect(textarea.classList.contains('text-editor-textarea')).toBe(true);
+    expect(textarea.classList.contains('math-editor-textarea')).toBe(true);
+    expect(actions.classList.contains('text-editor-footer')).toBe(true);
+    expect(actions.classList.contains('math-editor-footer')).toBe(true);
     expect(cancelButton.getAttribute('aria-label')).toBe('Cancel');
     expect(saveButton.getAttribute('aria-label')).toBe('Save');
     expect(cancelButton.textContent).toBe('Cancel');
     expect(saveButton.textContent).toBe('Save');
     expect(content.contains(textarea)).toBe(true);
+  });
+
+  it('allows callers to customize the shared editor placeholder', () => {
+    const { textarea } = createMathEditorElements('Enter Mermaid diagram...');
+
+    expect(textarea.placeholder).toBe('Enter Mermaid diagram...');
   });
 
   it('lets Enter create textarea line breaks and uses Ctrl or Command Enter to save', () => {

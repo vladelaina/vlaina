@@ -12,7 +12,7 @@ export { dragPlugin } from './drag';
 export { tablePlugin } from './table';
 export { calloutPlugin } from './callout';
 export { tocPlugin } from './toc';
-export { mermaidPlugin } from './mermaid';
+export { mermaidPlugin, mermaidEditorPlugin } from './mermaid';
 export { videoPlugin } from './video';
 export { footnotePlugin } from './footnote';
 export { imageBlockPlugin } from './image-block';

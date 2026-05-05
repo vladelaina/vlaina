@@ -1,65 +1,10 @@
-import { $node } from '@milkdown/kit/utils';
+import { $node, $prose } from '@milkdown/kit/utils';
+import { Plugin } from '@milkdown/kit/prose/state';
 import type { MermaidAttrs } from './types';
-
-let mermaidInstance: any = null;
-let mermaidPromise: Promise<any> | null = null;
-let mermaidAvailable = true;
-
-const MERMAID_INIT_CONFIG = {
-  startOnLoad: false,
-  theme: 'default',
-  securityLevel: 'strict',
-  fontFamily: 'inherit',
-} as const;
-
-async function getMermaid() {
-  if (!mermaidAvailable) return null;
-  if (mermaidInstance) return mermaidInstance;
-  
-  if (!mermaidPromise) {
-    mermaidPromise = (async () => {
-      try {
-        const m = await import('mermaid');
-        mermaidInstance = m.default;
-        mermaidInstance.initialize(MERMAID_INIT_CONFIG);
-        return mermaidInstance;
-      } catch {
-        mermaidAvailable = false;
-        return null;
-      }
-    })();
-  }
-  
-  return mermaidPromise;
-}
-
-async function renderMermaid(code: string, id: string): Promise<string> {
-  const mermaid = await getMermaid();
-  
-  if (!mermaid) {
-    return `<div class="mermaid-error">Mermaid not available. Install with: pnpm add mermaid</div>`;
-  }
-  
-  try {
-    const { svg } = await mermaid.render(id, code);
-    return svg;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return `<div class="mermaid-error">Mermaid Error: ${escapeHtml(message)}</div>`;
-  }
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
-let mermaidCounter = 0;
-function generateMermaidId(): string {
-  return `mermaid-${Date.now()}-${mermaidCounter++}`;
-}
+import { isMermaidFenceLanguage } from './mermaidLanguage';
+import { mermaidEnterPlugin } from './mermaidEnterPlugin';
+import { createMermaidElement } from './mermaidDom';
+import { MermaidNodeView } from './MermaidNodeView';
 
 export const mermaidSchema = $node('mermaid', () => ({
   group: 'block',
@@ -77,35 +22,11 @@ export const mermaidSchema = $node('mermaid', () => ({
   }],
   toDOM: (node) => {
     const attrs = node.attrs as MermaidAttrs;
-    const id = generateMermaidId();
-    
-    const wrapper = document.createElement('div');
-    wrapper.setAttribute('data-type', 'mermaid');
-    wrapper.setAttribute('data-code', attrs.code);
-    wrapper.className = 'mermaid-block';
-
-    const placeholder = document.createElement('div');
-    placeholder.className = 'mermaid-placeholder';
-    placeholder.textContent = 'Loading diagram...';
-    wrapper.appendChild(placeholder);
-    
-    if (attrs.code) {
-      const codeSnapshot = attrs.code;
-      renderMermaid(codeSnapshot, id).then((svg) => {
-        if (!wrapper.isConnected || wrapper.dataset.code !== codeSnapshot) {
-          return;
-        }
-        wrapper.innerHTML = svg;
-      });
-    } else {
-      wrapper.innerHTML = '<div class="mermaid-empty">Empty diagram</div>';
-    }
-    
-    return wrapper;
+    return createMermaidElement(attrs.code);
   },
   parseMarkdown: {
     match: (node) => {
-      return node.type === 'code' && node.lang === 'mermaid';
+      return node.type === 'code' && isMermaidFenceLanguage(node.lang as string | null | undefined);
     },
     runner: (state, node, type) => {
       const code = (node.value as string) || '';
@@ -122,6 +43,19 @@ export const mermaidSchema = $node('mermaid', () => ({
   }
 }));
 
+export const mermaidNodeViewPlugin = $prose(() => {
+  return new Plugin({
+    props: {
+      nodeViews: {
+        mermaid: (node, view, getPos) =>
+          new MermaidNodeView(node, view, getPos as () => number | undefined),
+      },
+    },
+  });
+});
+
 export const mermaidPlugin = [
-  mermaidSchema
+  mermaidSchema,
+  mermaidNodeViewPlugin,
+  mermaidEnterPlugin,
 ];
