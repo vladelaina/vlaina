@@ -222,8 +222,8 @@ describe('useStarredSectionEntries', () => {
     expect(result.current.entries[0]?.isActive).toBe(true);
   });
 
-  it('opens a starred note in a new tab when the current note is dirty', async () => {
-    mocked.notesState.currentNote = { path: 'draft:blank', content: 'draft text' };
+  it('lets the workspace decide how to handle a dirty current note', async () => {
+    mocked.notesState.currentNote = { path: 'docs/alpha.md', content: 'dirty text' };
     mocked.notesState.isDirty = true;
     mocked.notesState.starredEntries = [
       {
@@ -243,7 +243,7 @@ describe('useStarredSectionEntries', () => {
 
     expect(mocked.notesState.openNoteByAbsolutePath).toHaveBeenCalledWith(
       '/vault-b/docs/gamma.md',
-      true,
+      false,
     );
   });
 

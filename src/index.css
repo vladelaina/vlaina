@@ -52,6 +52,12 @@ body {
   -webkit-app-region: no-drag;
 }
 
+.vlaina-title-bar-center:hover .notes-tab-row-new-note-button,
+.vlaina-title-bar-center:focus-within .notes-tab-row-new-note-button {
+  pointer-events: auto;
+  opacity: 1;
+}
+
 html, body, #root {
   height: 100%;
   overflow: hidden;
