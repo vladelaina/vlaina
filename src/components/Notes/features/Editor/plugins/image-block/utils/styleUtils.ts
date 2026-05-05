@@ -41,10 +41,11 @@ export function getNormalStyle({ width, height, isActive, isReady, computedAspec
         width: width,
         maxWidth: '100%',
         height: height ? height : 'auto',
+        minHeight: isReady || height ? undefined : 100,
         aspectRatio: computedAspectRatio,
         transition: (isActive || height) ? 'none' : 'width 0.1s ease-out, opacity 0.2s ease-out',
         display: 'block',
-        opacity: isReady ? 1 : 0,
+        opacity: 1,
     };
 }
 

@@ -52,30 +52,47 @@ export async function resolveImageSourcePath(
     options: ResolveImageSourcePathOptions,
     deps: ImageSourcePathDeps = defaultDeps,
 ): Promise<string | null> {
+    const candidates = await resolveImageSourcePathCandidates(options, deps);
+    return candidates[0] ?? null;
+}
+
+export async function resolveImageSourcePathCandidates(
+    options: ResolveImageSourcePathOptions,
+    deps: ImageSourcePathDeps = defaultDeps,
+): Promise<string[]> {
     const { rawSrc, notesPath, currentNotePath } = options;
     const baseSrc = getImageSourceBase(rawSrc);
-    if (!baseSrc) return null;
+    if (!baseSrc) return [];
 
     if (isVirtualImageSource(baseSrc)) {
-        return baseSrc;
+        return [baseSrc];
     }
 
     if (deps.isAbsolutePath(baseSrc)) {
-        return baseSrc;
+        return [baseSrc];
     }
 
     const currentNoteDir = await resolveCurrentNoteDirectory(notesPath, currentNotePath, deps);
 
     if (baseSrc.startsWith('./') || baseSrc.startsWith('../')) {
         if (currentNoteDir) {
-            return deps.joinPath(currentNoteDir, baseSrc);
+            return [await deps.joinPath(currentNoteDir, baseSrc)];
         }
-        return notesPath ? deps.joinPath(notesPath, baseSrc) : null;
+        return notesPath ? [await deps.joinPath(notesPath, baseSrc)] : [];
     }
+
+    const candidates: string[] = [];
 
     if (currentNoteDir) {
-        return deps.joinPath(currentNoteDir, baseSrc);
+        candidates.push(await deps.joinPath(currentNoteDir, baseSrc));
     }
 
-    return notesPath ? deps.joinPath(notesPath, baseSrc) : null;
+    if (notesPath) {
+        const vaultPath = await deps.joinPath(notesPath, baseSrc);
+        if (!candidates.includes(vaultPath)) {
+            candidates.push(vaultPath);
+        }
+    }
+
+    return candidates;
 }

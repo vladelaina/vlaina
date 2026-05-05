@@ -1,6 +1,6 @@
 import { moveDesktopItemToTrash } from '@/lib/desktop/trash';
 import { getStorageAdapter } from '@/lib/storage/adapter';
-import { getImageSourceBase, isVirtualImageSource, resolveImageSourcePath } from './imageSourcePath';
+import { getImageSourceBase, isVirtualImageSource, resolveImageSourcePathCandidates } from './imageSourcePath';
 
 const pendingDeletions = new Map<string, ReturnType<typeof setTimeout>>();
 const UNDO_GRACE_PERIOD_MS = 10000;
@@ -105,9 +105,22 @@ export function cancelAllPendingImageDeletions(): void {
 }
 
 async function resolveImagePath(src: string, notesPath: string, currentNotePath?: string): Promise<string> {
-    return (await resolveImageSourcePath({
+    const candidates = await resolveImageSourcePathCandidates({
         rawSrc: src,
         notesPath,
         currentNotePath,
-    })) || '';
+    });
+
+    if (candidates.length <= 1) {
+        return candidates[0] ?? '';
+    }
+
+    const storage = getStorageAdapter();
+    for (const candidate of candidates) {
+        if (await storage.exists(candidate).catch(() => false)) {
+            return candidate;
+        }
+    }
+
+    return candidates[0] ?? '';
 }

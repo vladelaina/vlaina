@@ -2,6 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
+import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
 import { applyImageNodeAttrsAtPos } from '../commands/imageNodeCommands';
 import { useLocalImage } from './useLocalImage';
 import { useImageNodeState } from './useImageNodeState';
@@ -21,7 +22,8 @@ export function useImageBlockState({ node, view, getPos }: UseImageBlockStatePro
 
     const notesPath = useNotesStore(s => s.notesPath);
     const currentNotePath = useNotesStore(s => s.currentNote?.path);
-    const { resolvedSrc, isLoading, error: loadError } = useLocalImage(nodeState.baseSrc, notesPath, currentNotePath);
+    const effectiveNotesPath = resolveEffectiveVaultPath({ notesPath, currentNotePath });
+    const { resolvedSrc, isLoading, error: loadError } = useLocalImage(nodeState.baseSrc, effectiveNotesPath, currentNotePath);
 
     useEffect(() => {
         if (loadError) {
@@ -41,7 +43,7 @@ export function useImageBlockState({ node, view, getPos }: UseImageBlockStatePro
         resolvedSrc,
         isLoading,
         loadError,
-        notesPath,
+        notesPath: effectiveNotesPath,
         currentNotePath,
         updateNodeAttrs,
     };

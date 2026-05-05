@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
-import { getImageSourceBase, isVirtualImageSource, resolveImageSourcePath } from '../utils/imageSourcePath';
+import { getStorageAdapter } from '@/lib/storage/adapter';
+import { getImageSourceBase, isVirtualImageSource, resolveImageSourcePathCandidates } from '../utils/imageSourcePath';
 
 interface UseLocalImageResult {
     resolvedSrc: string;
@@ -43,17 +44,45 @@ export function useLocalImage(
                     return;
                 }
 
-                const fullPath = await resolveImageSourcePath({
+                const candidatePaths = await resolveImageSourcePathCandidates({
                     rawSrc,
                     notesPath,
                     currentNotePath,
                 });
 
-                if (fullPath) {
-                    const blobUrl = await loadImageAsBlob(fullPath);
-                    if (isMounted) {
-                        setResolvedSrc(blobUrl);
+                if (candidatePaths.length > 0) {
+                    let pathsToTry = candidatePaths;
+
+                    if (candidatePaths.length > 1) {
+                        const storage = getStorageAdapter();
+                        const existingPaths: string[] = [];
+
+                        for (const candidatePath of candidatePaths) {
+                            if (await storage.exists(candidatePath).catch(() => false)) {
+                                existingPaths.push(candidatePath);
+                            }
+                        }
+
+                        if (existingPaths.length > 0) {
+                            pathsToTry = existingPaths;
+                        }
                     }
+
+                    let lastError: unknown = null;
+
+                    for (const fullPath of pathsToTry) {
+                        try {
+                            const blobUrl = await loadImageAsBlob(fullPath);
+                            if (isMounted) {
+                                setResolvedSrc(blobUrl);
+                            }
+                            return;
+                        } catch (err) {
+                            lastError = err;
+                        }
+                    }
+
+                    throw lastError ?? new Error(`Failed to load image: ${rawSrc}`);
                 } else {
                     if (isMounted) {
                         setResolvedSrc(baseSrc);

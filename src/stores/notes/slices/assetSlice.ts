@@ -5,6 +5,7 @@ import { AssetService } from '@/lib/assets/AssetService';
 import { getBuiltinCovers, toBuiltinAssetPath } from '@/lib/assets/builtinCovers';
 import { useUIStore } from '@/stores/uiSlice';
 import { clearImageCache } from '@/lib/assets';
+import { resolveEffectiveVaultPath } from '../effectiveVaultPath';
 
 let uploadProgressResetTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -15,6 +16,13 @@ function clearUploadProgressResetTimer() {
 
   clearTimeout(uploadProgressResetTimer);
   uploadProgressResetTimer = null;
+}
+
+function isActiveUploadVault(state: NotesStore, vaultPath: string) {
+  return resolveEffectiveVaultPath({
+    notesPath: state.notesPath,
+    currentNotePath: state.currentNote?.path,
+  }) === vaultPath;
 }
 
 export interface AssetSlice {
@@ -86,7 +94,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
       filenameFormat: uiState.imageFilenameFormat,
     };
 
-    const vaultPath = notesPath;
+    const vaultPath = resolveEffectiveVaultPath({ notesPath, currentNotePath });
     if (!vaultPath) {
       return {
         success: false,
@@ -111,19 +119,19 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
         config,
         assetList,
         (progress) => {
-          if (get().notesPath === vaultPath) {
+          if (isActiveUploadVault(get(), vaultPath)) {
             set({ uploadProgress: progress });
           }
         }
       );
 
-      if (get().notesPath !== vaultPath) {
+      if (!isActiveUploadVault(get(), vaultPath)) {
         return result;
       }
 
       uploadProgressResetTimer = setTimeout(() => {
         uploadProgressResetTimer = null;
-        if (get().notesPath === vaultPath) {
+        if (isActiveUploadVault(get(), vaultPath)) {
           set({ uploadProgress: null });
         }
       }, 500);
@@ -131,7 +139,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
 
     } catch (error) {
       clearUploadProgressResetTimer();
-      if (get().notesPath === vaultPath) {
+      if (isActiveUploadVault(get(), vaultPath)) {
         set({ uploadProgress: null });
       }
       console.error('Failed to upload asset:', error);

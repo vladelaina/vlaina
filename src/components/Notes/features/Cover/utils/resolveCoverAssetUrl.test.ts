@@ -3,7 +3,7 @@ import { resolveCoverAssetUrl } from './resolveCoverAssetUrl';
 
 const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
-  resolveVaultAssetPath: vi.fn(),
+  resolveExistingVaultAssetPath: vi.fn(),
   isBuiltinCover: vi.fn(),
   getBuiltinCoverUrl: vi.fn(),
 }));
@@ -13,7 +13,7 @@ vi.mock('@/lib/assets/io/reader', () => ({
 }));
 
 vi.mock('@/lib/assets/core/paths', () => ({
-  resolveVaultAssetPath: hoisted.resolveVaultAssetPath,
+  resolveExistingVaultAssetPath: hoisted.resolveExistingVaultAssetPath,
 }));
 
 vi.mock('@/lib/assets/builtinCovers', () => ({
@@ -24,7 +24,7 @@ vi.mock('@/lib/assets/builtinCovers', () => ({
 describe('resolveCoverAssetUrl', () => {
   beforeEach(() => {
     hoisted.loadImageAsBlob.mockReset();
-    hoisted.resolveVaultAssetPath.mockReset();
+    hoisted.resolveExistingVaultAssetPath.mockReset();
     hoisted.isBuiltinCover.mockReset();
     hoisted.getBuiltinCoverUrl.mockReset();
     hoisted.isBuiltinCover.mockReturnValue(false);
@@ -49,7 +49,7 @@ describe('resolveCoverAssetUrl', () => {
   });
 
   it('resolves local cover path against the vault', async () => {
-    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/a.webp');
+    hoisted.resolveExistingVaultAssetPath.mockResolvedValue('/vault/assets/a.webp');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:a');
 
     const url = await resolveCoverAssetUrl({
@@ -58,11 +58,11 @@ describe('resolveCoverAssetUrl', () => {
     });
 
     expect(url).toBe('blob:a');
-    expect(hoisted.resolveVaultAssetPath).toHaveBeenCalledWith('/vault-a', 'assets/a.webp', undefined);
+    expect(hoisted.resolveExistingVaultAssetPath).toHaveBeenCalledWith('/vault-a', 'assets/a.webp', undefined);
   });
 
   it('resolves note-relative cover paths against the current note', async () => {
-    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/notes/assets/cover.webp');
+    hoisted.resolveExistingVaultAssetPath.mockResolvedValue('/vault/notes/assets/cover.webp');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:relative');
 
     const url = await resolveCoverAssetUrl({
@@ -72,7 +72,7 @@ describe('resolveCoverAssetUrl', () => {
     });
 
     expect(url).toBe('blob:relative');
-    expect(hoisted.resolveVaultAssetPath).toHaveBeenCalledWith('/vault-a', './assets/cover.webp', 'notes/today.md');
+    expect(hoisted.resolveExistingVaultAssetPath).toHaveBeenCalledWith('/vault-a', './assets/cover.webp', 'notes/today.md');
   });
 
   it('throws when local asset requires vault path', async () => {

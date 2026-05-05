@@ -1,12 +1,41 @@
-import { getParentPath, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
+import { getParentPath, getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
 
 export async function resolveVaultAssetPath(
   vaultPath: string,
   assetPath: string,
   currentNotePath?: string,
 ): Promise<string> {
+  const candidates = await resolveVaultAssetPathCandidates(vaultPath, assetPath, currentNotePath);
+  return candidates[0] ?? '';
+}
+
+export async function resolveExistingVaultAssetPath(
+  vaultPath: string,
+  assetPath: string,
+  currentNotePath?: string,
+): Promise<string> {
+  const candidates = await resolveVaultAssetPathCandidates(vaultPath, assetPath, currentNotePath);
+  if (candidates.length <= 1) {
+    return candidates[0] ?? '';
+  }
+
+  const storage = getStorageAdapter();
+  for (const candidate of candidates) {
+    if (await storage.exists(candidate).catch(() => false)) {
+      return candidate;
+    }
+  }
+
+  return candidates[0] ?? '';
+}
+
+export async function resolveVaultAssetPathCandidates(
+  vaultPath: string,
+  assetPath: string,
+  currentNotePath?: string,
+): Promise<string[]> {
   if (isAbsolutePath(assetPath)) {
-    return assetPath;
+    return [assetPath];
   }
 
   const currentNoteDir = currentNotePath
@@ -18,12 +47,21 @@ export async function resolveVaultAssetPath(
     : null;
 
   if (assetPath.startsWith('./') || assetPath.startsWith('../')) {
-    return joinPath(currentNoteDir ?? vaultPath, assetPath);
+    return [await joinPath(currentNoteDir ?? vaultPath, assetPath)];
   }
 
-  return currentNoteDir
-    ? joinPath(currentNoteDir, assetPath)
-    : joinPath(vaultPath, assetPath);
+  const candidates: string[] = [];
+
+  if (currentNoteDir) {
+    candidates.push(await joinPath(currentNoteDir, assetPath));
+  }
+
+  const vaultAssetPath = await joinPath(vaultPath, assetPath);
+  if (!candidates.includes(vaultAssetPath)) {
+    candidates.push(vaultAssetPath);
+  }
+
+  return candidates;
 }
 
 export async function joinPaths(...paths: string[]): Promise<string> {

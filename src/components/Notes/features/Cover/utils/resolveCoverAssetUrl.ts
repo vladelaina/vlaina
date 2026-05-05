@@ -1,5 +1,5 @@
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
-import { resolveVaultAssetPath } from '@/lib/assets/core/paths';
+import { resolveExistingVaultAssetPath } from '@/lib/assets/core/paths';
 import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
 
 interface ResolveCoverAssetUrlOptions {
@@ -25,6 +25,6 @@ export async function resolveCoverAssetUrl({
     throw new Error('vault-path-required');
   }
 
-  const fullPath = await resolveVaultAssetPath(vaultPath, assetPath, currentNotePath);
+  const fullPath = await resolveExistingVaultAssetPath(vaultPath, assetPath, currentNotePath);
   return loadImageAsBlob(fullPath);
 }

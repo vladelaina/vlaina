@@ -20,6 +20,19 @@ vi.mock('@/stores/useNotesStore', () => ({
   useNotesStore: hoisted.useNotesStore,
 }));
 
+vi.mock('@/stores/notes/storage', () => ({
+  getCurrentVaultPath: () => '/active-vault',
+}));
+
+vi.mock('@/lib/storage/adapter', () => ({
+  getParentPath: (path: string) => {
+    const normalized = path.replace(/\\/g, '/');
+    const index = normalized.lastIndexOf('/');
+    return index <= 0 ? '' : normalized.slice(0, index);
+  },
+  isAbsolutePath: (path: string) => path.startsWith('/'),
+}));
+
 vi.mock('@/lib/assets/builtinCovers', () => ({
   getRandomBuiltinCover: () => hoisted.getRandomBuiltinCover(),
 }));
@@ -83,6 +96,14 @@ describe('useNoteCoverController', () => {
       height: undefined,
       scale: 1,
     });
+  });
+
+  it('falls back to the active vault while notesPath is temporarily empty', () => {
+    hoisted.storeRef.state.notesPath = '';
+
+    const { result } = renderHook(() => useNoteCoverController('empty.md'));
+
+    expect(result.current.vaultPath).toBe('/active-vault');
   });
 
   it('adds random cover from assets and opens picker', () => {

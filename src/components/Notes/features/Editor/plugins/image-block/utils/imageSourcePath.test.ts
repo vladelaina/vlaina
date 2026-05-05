@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { getImageSourceBase, isVirtualImageSource, resolveImageSourcePath } from './imageSourcePath';
+import {
+    getImageSourceBase,
+    isVirtualImageSource,
+    resolveImageSourcePath,
+    resolveImageSourcePathCandidates,
+} from './imageSourcePath';
 
 const deps = {
     getParentPath(path: string) {
@@ -39,6 +44,25 @@ describe('imageSourcePath', () => {
             notesPath: '/vault',
             currentNotePath: 'daily/2026-03-31.md',
         }, deps)).resolves.toBe('/vault/daily/assets/demo.png');
+    });
+
+    it('keeps a vault-root fallback for bare sources in nested notes', async () => {
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: 'assets/demo.png',
+            notesPath: '/vault',
+            currentNotePath: 'daily/2026-03-31.md',
+        }, deps)).resolves.toEqual([
+            '/vault/daily/assets/demo.png',
+            '/vault/assets/demo.png',
+        ]);
+    });
+
+    it('does not add a vault fallback for explicit relative segments', async () => {
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: './assets/demo.png',
+            notesPath: '/vault',
+            currentNotePath: 'daily/2026-03-31.md',
+        }, deps)).resolves.toEqual(['/vault/daily/./assets/demo.png']);
     });
 
     it('resolves explicit relative segments against the current note directory', async () => {
