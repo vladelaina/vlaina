@@ -199,7 +199,7 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('.milkdown .ProseMirror.vlaina-text-selection-overlay-active *::selection {');
     expect(css).toContain('background-color: transparent !important;');
     expect(css).toContain('.milkdown .ProseMirror .vlaina-text-selection-overlay {');
-    expect(css).toContain('line-height: normal;');
+    expect(css).toContain('line-height: inherit;');
     expect(source).toContain('Decoration.inline(from, to, {');
     expect(source).toContain("class: TEXT_SELECTION_OVERLAY_CLASS");
     expect(source).toContain('node.isText');
