@@ -1,5 +1,5 @@
 export interface IconData {
-  type: 'emoji' | 'icon';
+  type: 'emoji' | 'icon' | 'image';
   value: string;
   color?: string;
 }
