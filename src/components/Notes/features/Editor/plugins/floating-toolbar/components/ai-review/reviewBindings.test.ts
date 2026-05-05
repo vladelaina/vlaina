@@ -7,6 +7,7 @@ const applyAiSelectionSuggestion = vi.fn();
 const retryAiSelectionSuggestionResult = vi.fn();
 const syncReviewUi = vi.fn();
 const mockGetFloatingToolbarState = vi.fn();
+const mockCollapseSelectionAfterToolbarApply = vi.fn();
 
 vi.mock('../../ai/selectionCommands', () => ({
   applyAiSelectionSuggestion: (...args: unknown[]) => applyAiSelectionSuggestion(...args),
@@ -27,6 +28,10 @@ vi.mock('../../floatingToolbarKey', () => ({
   floatingToolbarKey: {
     getState: (...args: unknown[]) => mockGetFloatingToolbarState(...args),
   },
+}));
+
+vi.mock('../../selectionCollapse', () => ({
+  collapseSelectionAfterToolbarApply: (...args: unknown[]) => mockCollapseSelectionAfterToolbarApply(...args),
 }));
 
 function createElements(): AiReviewElements {
@@ -63,6 +68,7 @@ describe('bindAiReviewActions', () => {
     retryAiSelectionSuggestionResult.mockReset();
     syncReviewUi.mockReset();
     mockGetFloatingToolbarState.mockReset();
+    mockCollapseSelectionAfterToolbarApply.mockReset();
   });
 
   it('focuses the panel and applies on Enter', async () => {
@@ -96,6 +102,7 @@ describe('bindAiReviewActions', () => {
 
     expect(applyAiSelectionSuggestion).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
+    expect(mockCollapseSelectionAfterToolbarApply).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the panel open when applying the suggestion is rejected', async () => {
@@ -126,6 +133,67 @@ describe('bindAiReviewActions', () => {
 
     expect(applyAiSelectionSuggestion).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
+    expect(mockCollapseSelectionAfterToolbarApply).not.toHaveBeenCalled();
+  });
+
+  it('treats accept as close while the suggestion is still loading', () => {
+    const elements = createElements();
+    const onClose = vi.fn();
+
+    bindAiReviewActions({
+      elements,
+      onClose,
+      review: {
+        requestKey: 'review-1',
+        instruction: 'Polish',
+        commandId: 'polish',
+        toneId: null,
+        from: 1,
+        to: 4,
+        originalText: 'helo',
+        suggestedText: '',
+        isLoading: true,
+        errorMessage: null,
+      },
+      updateReview: vi.fn(),
+      view: createView(),
+    });
+
+    elements.acceptButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(applyAiSelectionSuggestion).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(mockCollapseSelectionAfterToolbarApply).not.toHaveBeenCalled();
+  });
+
+  it('treats accept as close when no suggestion has been rendered yet', () => {
+    const elements = createElements();
+    const onClose = vi.fn();
+
+    bindAiReviewActions({
+      elements,
+      onClose,
+      review: {
+        requestKey: 'review-1',
+        instruction: null,
+        commandId: null,
+        toneId: null,
+        from: 1,
+        to: 4,
+        originalText: 'helo',
+        suggestedText: '',
+        isLoading: false,
+        errorMessage: null,
+      },
+      updateReview: vi.fn(),
+      view: createView(),
+    });
+
+    elements.acceptButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(applyAiSelectionSuggestion).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(mockCollapseSelectionAfterToolbarApply).not.toHaveBeenCalled();
   });
 
   it('does not steal focus from another active editor control', async () => {

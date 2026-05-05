@@ -3,7 +3,7 @@ import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
 import { hasSelectedBlocks } from '../cursor/blockSelectionPluginState';
 
-const TEXT_SELECTION_OVERLAY_CLASS = 'vlaina-text-selection-overlay';
+export const TEXT_SELECTION_OVERLAY_CLASS = 'vlaina-text-selection-overlay';
 const TEXT_SELECTION_OVERLAY_ACTIVE_CLASS = 'vlaina-text-selection-overlay-active';
 const textSelectionOverlayPluginKey = new PluginKey<DecorationSet>('vlainaTextSelectionOverlay');
 

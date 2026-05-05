@@ -4,6 +4,7 @@ import {
   retryAiSelectionSuggestionResult,
 } from '../../ai/selectionCommands';
 import { floatingToolbarKey } from '../../floatingToolbarKey';
+import { collapseSelectionAfterToolbarApply } from '../../selectionCollapse';
 import type { FloatingToolbarState } from '../../types';
 import type { AiReviewElements } from './reviewDom';
 import { toAiSelectionSuggestion } from './reviewState';
@@ -44,13 +45,16 @@ export function bindAiReviewActions({
   const getLiveReview = (): typeof review => getAiReviewByRequestKey(view, review.requestKey) ?? review;
 
   const applySuggestion = () => {
-    const suggestion = toAiSelectionSuggestion(getLiveReview());
-    if (!suggestion) {
+    const liveReview = getLiveReview();
+    const suggestion = toAiSelectionSuggestion(liveReview);
+    if (liveReview.isLoading || !liveReview.suggestedText.trim() || !suggestion) {
+      onClose();
       return;
     }
 
     if (applyAiSelectionSuggestion(view, suggestion)) {
       onClose();
+      collapseSelectionAfterToolbarApply(view);
     }
   };
 
@@ -69,7 +73,7 @@ export function bindAiReviewActions({
       return;
     }
 
-    if (acceptButton.disabled || review.isLoading) {
+    if (acceptButton.disabled) {
       return;
     }
 

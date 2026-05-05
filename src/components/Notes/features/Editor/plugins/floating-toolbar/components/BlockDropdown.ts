@@ -1,32 +1,12 @@
-import { Selection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType, FloatingToolbarState } from '../types';
 import { BLOCK_TYPES } from '../utils';
 import { convertBlockType } from '../commands';
 import { applyBlockPreview, clearFormatPreview, commitBlockPreview, hasBlockPreview } from '../previewStyles';
+import { collapseSelectionAfterToolbarApply } from '../selectionCollapse';
 import { ICON_SIZES } from '@/components/ui/icons/sizes';
 
 const DROPDOWN_ICON_SIZE = ICON_SIZES.md;
-
-function collapseSelectionAfterBlockClose(view: EditorView): void {
-  const { selection } = view.state;
-  if (selection.empty) {
-    view.focus();
-    return;
-  }
-
-  const tr = view.state.tr;
-  const clampedPos = Math.max(0, Math.min(selection.to, tr.doc.content.size));
-
-  try {
-    tr.setSelection(TextSelection.create(tr.doc, clampedPos));
-  } catch {
-    tr.setSelection(Selection.near(tr.doc.resolve(clampedPos), -1));
-  }
-
-  view.dispatch(tr.setMeta('addToHistory', false));
-  view.focus();
-}
 
 const BLOCK_ICONS: Record<string, string> = {
   text: `<svg width="${DROPDOWN_ICON_SIZE}" height="${DROPDOWN_ICON_SIZE}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -162,7 +142,7 @@ export function renderBlockDropdown(
         }
       }
       onClose();
-      collapseSelectionAfterBlockClose(view);
+      collapseSelectionAfterToolbarApply(view);
     });
   });
 }

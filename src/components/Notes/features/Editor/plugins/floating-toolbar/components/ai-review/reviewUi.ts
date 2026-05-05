@@ -30,13 +30,9 @@ export function stopPassiveReviewMouseDown(event: MouseEvent) {
 export function syncReviewUi(
   panel: HTMLElement,
   review: NonNullable<FloatingToolbarState['aiReview']>,
-  acceptButton: HTMLButtonElement,
+  _acceptButton: HTMLButtonElement,
   _view: EditorView
 ) {
-  if (!review.isLoading) {
-    acceptButton.disabled = review.suggestedText.trim().length === 0;
-  }
-
   const resultSurface = panel.querySelector<HTMLElement>('.ai-review-result-surface');
   if (!resultSurface) {
     return;

@@ -2,6 +2,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import type { FloatingToolbarState, TextAlignment } from '../types';
 import { setTextAlignment } from '../commands';
 import { applyAlignmentPreview, clearFormatPreview, commitAlignmentPreview } from '../previewStyles';
+import { collapseSelectionAfterToolbarApply } from '../selectionCollapse';
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
 
 const ALIGNMENT_ITEMS: Array<{
@@ -68,6 +69,7 @@ export function renderAlignmentDropdown(
         }
       }
       onClose();
+      collapseSelectionAfterToolbarApply(view);
     });
   });
 

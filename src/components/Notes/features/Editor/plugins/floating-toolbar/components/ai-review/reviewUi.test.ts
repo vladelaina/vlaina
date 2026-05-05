@@ -44,4 +44,22 @@ describe('AI review UI sync', () => {
 
     expect(resultSurface.querySelector('.ai-review-diff-added')?.textContent).toBe('new');
   });
+
+  it('keeps the accept button clickable before a suggestion is rendered', () => {
+    const panel = document.createElement('div');
+    const resultSurface = document.createElement('div');
+    resultSurface.className = 'ai-review-result-surface';
+    panel.appendChild(resultSurface);
+    const acceptButton = document.createElement('button');
+    acceptButton.disabled = false;
+
+    syncReviewUi(
+      panel,
+      createReview({ suggestedText: '', isLoading: true }),
+      acceptButton,
+      { dom: document.createElement('div') } as never
+    );
+
+    expect(acceptButton.disabled).toBe(false);
+  });
 });

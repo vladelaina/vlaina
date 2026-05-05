@@ -4,6 +4,7 @@ const mockGetCurrentMarkdownParser = vi.fn();
 const mockNormalizeSerializedMarkdownSelection = vi.fn((value: string) => value);
 const mockSerializeSliceToText = vi.fn((_value?: unknown) => 'serialized');
 const mockAddToast = vi.fn();
+const mockCollapseSelectionAfterToolbarApply = vi.fn();
 
 vi.mock('../../../utils/editorViewRegistry', () => ({
   getCurrentMarkdownParser: () => mockGetCurrentMarkdownParser(),
@@ -24,6 +25,10 @@ vi.mock('@/stores/useToastStore', () => ({
       addToast: mockAddToast,
     }),
   },
+}));
+
+vi.mock('../selectionCollapse', () => ({
+  collapseSelectionAfterToolbarApply: (...args: unknown[]) => mockCollapseSelectionAfterToolbarApply(...args),
 }));
 
 import {
@@ -70,6 +75,7 @@ describe('selectionEditing', () => {
     mockNormalizeSerializedMarkdownSelection.mockClear();
     mockSerializeSliceToText.mockClear();
     mockAddToast.mockClear();
+    mockCollapseSelectionAfterToolbarApply.mockClear();
   });
 
   it('replaces the selection with parsed markdown when runtime is available', () => {
@@ -100,7 +106,7 @@ describe('selectionEditing', () => {
     });
     expect(view.state.tr.insertText).not.toHaveBeenCalled();
     expect(view.dispatch).toHaveBeenCalledTimes(1);
-    expect(view.focus).toHaveBeenCalledTimes(1);
+    expect(mockCollapseSelectionAfterToolbarApply).toHaveBeenCalledWith(view);
   });
 
   it('falls back to plain text insertion when markdown runtime is unavailable', () => {
@@ -123,7 +129,7 @@ describe('selectionEditing', () => {
     expect(view.state.tr.insertText).toHaveBeenCalledWith('Updated body', 8, 14);
     expect(view.state.tr.replaceRange).not.toHaveBeenCalled();
     expect(view.dispatch).toHaveBeenCalledTimes(1);
-    expect(view.focus).toHaveBeenCalledTimes(1);
+    expect(mockCollapseSelectionAfterToolbarApply).toHaveBeenCalledWith(view);
   });
 
   it('uses parsed inline content when replacing text inside one paragraph', () => {
