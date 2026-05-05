@@ -189,7 +189,7 @@ export const FolderItem = memo(function FolderItem({
           />
         ) : (
           <div className={cn('relative min-w-0', showStarBadge && 'pr-5')}>
-            <span className={cn('block truncate', getSidebarLabelClass('notes', { selected: isCurrentNoteAncestor }))}>
+            <span className={cn('block whitespace-normal break-all', getSidebarLabelClass('notes', { selected: isCurrentNoteAncestor }))}>
               {node.name}
             </span>
             {showStarBadge ? (

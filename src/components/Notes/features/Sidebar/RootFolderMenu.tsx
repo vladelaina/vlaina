@@ -1,5 +1,6 @@
 import { Icon } from '@/components/ui/icons';
 import { type FileTreeSortMode } from '@/stores/useNotesStore';
+import { useVaultStore } from '@/stores/useVaultStore';
 import { cn } from '@/lib/utils';
 import { NotesSidebarContextMenu } from './NotesSidebarContextMenu';
 import {
@@ -48,6 +49,7 @@ export function RootFolderMenu({
   vaultPath,
 }: RootFolderMenuProps) {
   const currentSortLabel = getFileTreeSortLabel(fileTreeSortMode);
+  const closeVault = useVaultStore((state) => state.closeVault);
   const { handleCopyPath, handleOpenLocation } = useTreeItemPathActions({
     notesPath: vaultPath,
     itemPath: vaultPath,
@@ -132,7 +134,7 @@ export function RootFolderMenu({
         },
         {
           key: 'open-folder-location',
-          icon: <Icon name="file.folderOpen" size="md" />,
+          icon: <Icon name="file.folderOpenArrow" size="md" />,
           label: 'Open Folder Location',
           onClick: async () => {
             onClose();
@@ -141,6 +143,17 @@ export function RootFolderMenu({
           disabled: !vaultPath,
         },
       ],
+    },
+    {
+      key: 'close-folder',
+      icon: <Icon name="common.close" size="md" />,
+      label: 'Close Folder',
+      onClick: async () => {
+        if (!vaultPath) return;
+        onClose();
+        await closeVault();
+      },
+      disabled: !vaultPath,
     },
   ];
 

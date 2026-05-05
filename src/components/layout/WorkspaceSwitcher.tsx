@@ -68,8 +68,9 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
       <Popover.Root open={isOpen} onOpenChange={setIsOpen}>
         <Popover.Trigger asChild>
           <button
+            type="button"
             className={cn(
-              'group relative flex h-8 max-w-[184px] cursor-pointer items-center gap-2 overflow-visible rounded-md px-1.5 py-1 text-[var(--vlaina-text-primary)] outline-none transition-colors select-none hover:bg-[var(--vlaina-hover)]',
+              'vlaina-no-drag group relative flex h-8 max-w-[184px] cursor-pointer items-center gap-2 overflow-visible rounded-md px-1.5 py-1 text-[var(--vlaina-text-primary)] outline-none transition-colors select-none hover:bg-[var(--vlaina-hover)]',
               isOpen && 'bg-[var(--vlaina-hover)]'
             )}
           >

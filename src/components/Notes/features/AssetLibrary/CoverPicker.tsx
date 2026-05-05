@@ -28,6 +28,7 @@ export function CoverPicker({
   const uploadingRef = useRef(false);
   const mountedRef = useRef(true);
   const isOpenRef = useRef(isOpen);
+  const removeTriggeredRef = useRef(false);
 
   const hasAssets = assetList.length > 0;
 
@@ -43,6 +44,7 @@ export function CoverPicker({
     isOpenRef.current = isOpen;
     if (!isOpen) {
       uploadingRef.current = false;
+      removeTriggeredRef.current = false;
     }
   }, [isOpen]);
 
@@ -73,6 +75,16 @@ export function CoverPicker({
   const handleSwitchToUpload = useCallback(() => {
     setActiveTab('upload');
   }, []);
+
+  const handleRemoveCover = useCallback((event: React.SyntheticEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (removeTriggeredRef.current) return;
+    removeTriggeredRef.current = true;
+    onPreview?.(null);
+    onRemove?.();
+    onClose();
+  }, [onClose, onPreview, onRemove]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -140,6 +152,7 @@ export function CoverPicker({
         <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--vlaina-border)] bg-[var(--vlaina-bg-primary)]">
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={() => setActiveTab('library')}
               className={cn(
                 "text-xs font-medium px-2 py-1 rounded transition-colors",
@@ -152,6 +165,7 @@ export function CoverPicker({
               Library
             </button>
             <button
+              type="button"
               onClick={() => setActiveTab('upload')}
               className={cn(
                 "text-xs font-medium px-2 py-1 rounded transition-colors",
@@ -166,10 +180,10 @@ export function CoverPicker({
           </div>
           {onRemove && (
             <button
-              onClick={() => {
-                onRemove();
-                onClose();
-              }}
+              type="button"
+              onPointerDown={handleRemoveCover}
+              onMouseDown={handleRemoveCover}
+              onClick={handleRemoveCover}
               className="text-xs text-[var(--vlaina-text-tertiary)] hover:text-[var(--vlaina-text-primary)] transition-colors"
             >
               Remove

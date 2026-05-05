@@ -18,7 +18,7 @@
   background-color: var(--vlaina-selection-bg, #2781db);
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
-  line-height: normal;
+  line-height: inherit;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
