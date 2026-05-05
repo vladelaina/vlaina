@@ -232,7 +232,7 @@ export function NotesTabRow() {
   const activeTab = activeTabId ? openTabs.find((tab) => tab.path === activeTabId) : null;
 
   return (
-    <div className="flex h-full min-w-0 items-center gap-1 px-2">
+    <div className="group/tab-row flex h-full min-w-0 items-center gap-1 px-2">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -266,7 +266,7 @@ export function NotesTabRow() {
           <button
             type="button"
             onClick={handleCreateNote}
-            className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            className="pointer-events-none flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 opacity-0 transition-all group-hover/tab-row:pointer-events-auto group-hover/tab-row:opacity-100 group-focus-within/tab-row:pointer-events-auto group-focus-within/tab-row:opacity-100 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
           >
             <Icon name="common.add" className="h-4 w-4" />
           </button>
