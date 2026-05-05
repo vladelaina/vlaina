@@ -80,6 +80,7 @@ export interface RecentlyClosedTabState {
 export interface DraftNoteEntry {
   parentPath: string | null;
   name: string;
+  originNotesPath?: string;
 }
 
 export interface PendingDeletedItemState extends RecoverableDeletedItem {

@@ -210,7 +210,7 @@ export const FileItem = memo(function FileItem({
       <TreeItemDeleteDialog
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
-        itemLabel={node.name}
+        itemLabel={displayName}
         itemType="Note"
         onConfirm={() => deleteNote(node.path)}
       />

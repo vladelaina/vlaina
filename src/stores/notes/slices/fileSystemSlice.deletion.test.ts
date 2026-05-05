@@ -154,6 +154,57 @@ describe('createFileSystemSlice deletion flows', () => {
     })]);
   });
 
+  it('clears the current note after deleting it when no tab remains, even if another file exists in the tree', async () => {
+    hoisted.deleteNoteImpl.mockResolvedValue({
+      updatedTabs: [],
+      updatedStarredEntries: [],
+      updatedStarredNotes: [],
+      updatedStarredFolders: [],
+      nextAction: null,
+      updatedMetadata: null,
+      newChildren: [{ id: 'Untitled.md', name: 'Untitled', path: 'Untitled.md', isFolder: false }],
+      recoverableDelete: {
+        id: 'delete-1',
+        kind: 'file',
+        originalPath: 'alpha.md',
+        originalFullPath: '/vault/alpha.md',
+        trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/alpha.md',
+        deletedAt: 1,
+      },
+    });
+
+    const harness = createSliceHarness({
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [
+          { id: 'alpha.md', name: 'alpha', path: 'alpha.md', isFolder: false },
+          { id: 'Untitled.md', name: 'Untitled', path: 'Untitled.md', isFolder: false },
+        ],
+      },
+      currentNote: { path: 'alpha.md', content: 'alpha' },
+      isDirty: false,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+    });
+
+    await harness.getState().deleteNote('alpha.md');
+
+    const state = harness.getState();
+    expect(state.openNote).not.toHaveBeenCalled();
+    expect(state.currentNote).toBeNull();
+    expect(state.isDirty).toBe(false);
+    expect(state.openTabs).toEqual([]);
+    expect(state.rootFolder.children).toEqual([
+      { id: 'Untitled.md', name: 'Untitled', path: 'Untitled.md', isFolder: false },
+    ]);
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
+      currentNotePath: null,
+    }));
+  });
+
   it('does not write stale deletion state after the active vault changes', async () => {
     let resolveDelete: (value: Record<string, unknown>) => void;
     hoisted.deleteNoteImpl.mockImplementation(() => new Promise((resolve) => {

@@ -78,6 +78,44 @@ describe('deleteOperations', () => {
     );
   });
 
+  it('does not auto-open an adjacent file when deleting the current note with no remaining tabs', async () => {
+    const result = await deleteNoteImpl('/vault', 'docs/remove.md', {
+      rootFolder: createFolder('', [
+        createFolder('docs', [
+          createFile('docs/remove.md'),
+          createFile('docs/Untitled.md'),
+        ]),
+      ]),
+      currentNote: { path: 'docs/remove.md', content: 'remove' },
+      openTabs: [{ path: 'docs/remove.md', name: 'remove', isDirty: false }],
+      starredEntries: [],
+      noteMetadata: null,
+    });
+
+    expect(result.nextAction).toBeNull();
+    expect(result.updatedTabs).toEqual([]);
+  });
+
+  it('opens the remaining tab after deleting the current note', async () => {
+    const result = await deleteNoteImpl('/vault', 'docs/remove.md', {
+      rootFolder: createFolder('', [
+        createFolder('docs', [
+          createFile('docs/remove.md'),
+          createFile('docs/Untitled.md'),
+        ]),
+      ]),
+      currentNote: { path: 'docs/remove.md', content: 'remove' },
+      openTabs: [
+        { path: 'docs/keep.md', name: 'keep', isDirty: false },
+        { path: 'docs/remove.md', name: 'remove', isDirty: false },
+      ],
+      starredEntries: [],
+      noteMetadata: null,
+    });
+
+    expect(result.nextAction).toEqual({ type: 'open', path: 'docs/keep.md' });
+  });
+
   it('moves deleted folders through the recoverable delete helper', async () => {
     await deleteFolderImpl('/vault', 'docs', {
       rootFolder: createFolder('', [createFolder('docs', [createFile('docs/remove.md')])]),
@@ -93,5 +131,30 @@ describe('deleteOperations', () => {
       'docs',
       'folder'
     );
+  });
+
+  it('does not auto-open an adjacent file when deleting the folder that contains the current note', async () => {
+    hoisted.deleteNoteItemToRecoverableLocation.mockResolvedValueOnce({
+      id: 'delete-1',
+      kind: 'folder',
+      originalPath: 'docs',
+      originalFullPath: '/vault/docs',
+      trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/docs',
+      deletedAt: 1,
+    });
+
+    const result = await deleteFolderImpl('/vault', 'docs', {
+      rootFolder: createFolder('', [
+        createFolder('docs', [createFile('docs/remove.md')]),
+        createFile('Untitled.md'),
+      ]),
+      currentNote: { path: 'docs/remove.md', content: 'remove' },
+      openTabs: [{ path: 'docs/remove.md', name: 'remove', isDirty: false }],
+      starredEntries: [],
+      noteMetadata: null,
+    });
+
+    expect(result.nextAction).toBeNull();
+    expect(result.updatedTabs).toEqual([]);
   });
 });

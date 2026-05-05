@@ -124,4 +124,49 @@ describe('createNoteImpl', () => {
 
     vi.useRealTimers();
   });
+
+  it('converts internal user break markers before creating a note', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    hoisted.resolveUniquePath.mockResolvedValue({
+      relativePath: 'alpha.md',
+      fullPath: '/vault/alpha.md',
+      fileName: 'alpha.md',
+    });
+
+    const result = await createNoteImpl(
+      '/vault',
+      undefined,
+      'alpha',
+      ['Line one', '<br data-vlaina-user-br="true" />', 'Line two'].join('\n'),
+      {
+        rootFolder: {
+          id: '',
+          name: 'Notes',
+          path: '',
+          isFolder: true,
+          children: [],
+          expanded: true,
+        },
+        recentNotes: [],
+        noteMetadata: null,
+      }
+    );
+
+    expect(adapter.writeFile).toHaveBeenCalledWith(
+      '/vault/alpha.md',
+      [
+        '---',
+        'vlaina_created: "2026-04-15T10:00:00.000Z"',
+        'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+        '---',
+        '',
+        'Line one\\',
+        'Line two',
+      ].join('\n')
+    );
+    expect(result.content).not.toContain('data-vlaina-user-br');
+
+    vi.useRealTimers();
+  });
 });

@@ -85,10 +85,6 @@ vi.mock('./notesExternalPollingUtils', () => ({
   })),
 }));
 
-vi.mock('@/stores/notes/debugLog', () => ({
-  logNotesDebug: vi.fn(),
-}));
-
 describe('useNotesExternalSync', () => {
   beforeEach(() => {
     vi.useFakeTimers();

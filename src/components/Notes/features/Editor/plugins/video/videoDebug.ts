@@ -1,4 +1,4 @@
-import { logNotesDebug } from '@/stores/notes/debugLog';
+import { logNotesDebug } from '@/stores/notes/lineBreakDebugLog';
 
 const VIDEO_DEBUG_URL_KEYS = new Set([
   'url',
@@ -77,7 +77,7 @@ export function sanitizeVideoDebugPayload(payload: unknown): unknown {
 
 export function logVideoDebug(event: string, payload: Record<string, unknown>) {
   const debugPayload = sanitizeVideoDebugPayload(payload);
-  logNotesDebug(`videoPlugin:${event}`, debugPayload);
+  logNotesDebug('NotesVideo', `videoPlugin:${event}`, debugPayload);
   console.info(`[videoPlugin:${event}]`, debugPayload);
 }
 

@@ -2,14 +2,18 @@ import { isAbsolutePath } from '@/lib/storage/adapter';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { updateDisplayName } from '../displayNameUtils';
 import { resolveDraftNoteTitle } from '../draftNote';
-import { logNotesDebug } from '../debugLog';
 import { openStoredNotePath } from '../openNotePath';
 import { removeCachedNoteContent, setCachedNoteContent } from '../document/noteContentCache';
+import { saveNoteDocument } from '../document/noteDocumentPersistence';
+import { setNoteTabDirtyState } from '../document/noteTabState';
 import {
   pushRecentlyClosedTab,
   restoreClosedTabOrder,
 } from '../document/recentlyClosedTabState';
+import { createEmptyMetadataFile, setNoteEntry } from '../storage';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
+import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
+import { logNotesDebug, summarizeLineBreakText } from '../lineBreakDebugLog';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 
 type WorkspaceTabActions = Pick<
@@ -32,19 +36,9 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
     updateDraftNoteName: (path: string, name: string) => {
       const draftEntry = get().draftNotes[path];
       if (!draftEntry) {
-        logNotesDebug('notes:draft-title:update-skipped', {
-          reason: 'missing-draft-entry',
-          path,
-          name,
-        });
         return;
       }
 
-      logNotesDebug('notes:draft-title:update', {
-        path,
-        previousName: draftEntry.name,
-        nextName: name,
-      });
       set({
         draftNotes: {
           ...get().draftNotes,
@@ -146,15 +140,23 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
         notesPath,
         rootFolder,
         fileTreeSortMode,
-        recentlyClosedTabs,
         draftNotes,
         noteContentsCache,
+        noteMetadata,
       } = get();
 
       const pathIsAbsolute = isAbsolutePath(path);
       const { isNewlyCreated } = get();
       const closingTab = openTabs.find((tab) => tab.path === path);
       const draftNote = draftNotes[path];
+      logNotesDebug('NotesTab', 'close:start', {
+        path,
+        currentNotePath: currentNote?.path ?? null,
+        isDirty,
+        closingTabDirty: closingTab?.isDirty ?? null,
+        isDraft: Boolean(draftNote),
+        openTabsLength: openTabs.length,
+      });
       if (draftNote) {
         const draftContent = currentNote?.path === path
           ? currentNote.content
@@ -165,8 +167,15 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
           Boolean(draftContent.trim());
 
         if (hasUnsavedDraftContent) {
+          logNotesDebug('NotesTab', 'close:draft-needs-discard-confirm', {
+            path,
+            hasTabDirty: Boolean(closingTab?.isDirty),
+            hasDraftName: Boolean(draftNote.name.trim()),
+            draftContent: summarizeLineBreakText(draftContent),
+          });
           set({ pendingDraftDiscardPath: path });
         } else {
+          logNotesDebug('NotesTab', 'close:draft-discard-empty', { path });
           get().discardDraftNote(path);
         }
         return;
@@ -182,29 +191,95 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
           currentNote.content.trim().length === 0);
 
       if (isEmptyNote) {
+        logNotesDebug('NotesTab', 'close:delete-empty-new-note', { path });
         await get().deleteNote(path);
         return;
       }
 
       if (currentNote?.path === path && isDirty) {
+        logNotesDebug('NotesTab', 'close:save-current-dirty-before-close', {
+          path,
+          current: summarizeLineBreakText(currentNote.content),
+        });
         await saveNote();
-        if (get().isDirty) return;
+        if (get().isDirty) {
+          logNotesDebug('NotesTab', 'close:blocked-current-still-dirty', {
+            path,
+            isDirtyAfterSave: get().isDirty,
+          });
+          return;
+        }
       }
 
       if (currentNote?.path !== path && closingTab?.isDirty) {
-        await openStoredNotePath(path, {
-          openNote: get().openNote,
-          openNoteByAbsolutePath: get().openNoteByAbsolutePath,
-        });
-        return;
+        const cachedContent = noteContentsCache.get(path)?.content;
+        if (cachedContent === undefined) {
+          logNotesDebug('NotesTab', 'close:background-dirty-missing-cache', { path });
+          set({ error: 'Failed to close dirty tab because its cached content is missing.' });
+          return;
+        }
+
+        try {
+          logNotesDebug('NotesTab', 'close:save-background-dirty-tab:start', {
+            path,
+            notesPath,
+            content: summarizeLineBreakText(cachedContent),
+          });
+          const { metadata, nextCache } = await saveNoteDocument({
+            notesPath,
+            currentNote: { path, content: cachedContent },
+            cache: noteContentsCache,
+          });
+          const latestState = get();
+          const nextMetadata = setNoteEntry(
+            latestState.noteMetadata ?? noteMetadata ?? createEmptyMetadataFile(),
+            path,
+            metadata,
+          );
+          const nextRootFolder = buildSortedRootFolder(
+            latestState.rootFolder,
+            latestState.rootFolder?.children ?? [],
+            latestState.fileTreeSortMode,
+            nextMetadata,
+          );
+
+          set({
+            noteMetadata: nextMetadata,
+            rootFolder: nextRootFolder,
+            noteContentsCache: nextCache,
+            openTabs: setNoteTabDirtyState(latestState.openTabs, path, false),
+            error: null,
+          });
+          logNotesDebug('NotesTab', 'close:save-background-dirty-tab:done', { path });
+        } catch (error) {
+          logNotesDebug('NotesTab', 'close:save-background-dirty-tab:failed', {
+            path,
+            message: error instanceof Error ? error.message : String(error),
+          });
+          set({ error: error instanceof Error ? error.message : 'Failed to save dirty tab before closing.' });
+          return;
+        }
       }
 
-      const updatedTabs = openTabs.filter((t) => t.path !== path);
+      const latestBeforeClose = get();
+      const tabsBeforeClose = latestBeforeClose.openTabs;
+      const tabBeforeClose = tabsBeforeClose.find((tab) => tab.path === path);
+      const updatedTabs = tabsBeforeClose.filter((t) => t.path !== path);
       set({
         openTabs: updatedTabs,
-        recentlyClosedTabs: closingTab
-          ? pushRecentlyClosedTab(recentlyClosedTabs, closingTab, openTabs.findIndex((tab) => tab.path === path))
-          : recentlyClosedTabs,
+        recentlyClosedTabs: tabBeforeClose
+          ? pushRecentlyClosedTab(
+              latestBeforeClose.recentlyClosedTabs,
+              tabBeforeClose,
+              tabsBeforeClose.findIndex((tab) => tab.path === path)
+            )
+          : latestBeforeClose.recentlyClosedTabs,
+      });
+      logNotesDebug('NotesTab', 'close:removed-tab', {
+        path,
+        closedCurrent: currentNote?.path === path,
+        nextOpenTabsLength: updatedTabs.length,
+        nextOpenTabPaths: updatedTabs.map((tab) => tab.path),
       });
 
       if (currentNote?.path === path) {
@@ -218,6 +293,7 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
           }
         } else {
           set({ currentNote: null, isDirty: false });
+          logNotesDebug('NotesTab', 'close:no-tabs-left', { path });
           persistWorkspaceSnapshot(notesPath, {
             rootFolder,
             currentNotePath: null,

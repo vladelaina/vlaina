@@ -495,6 +495,36 @@ describe('NotesView', () => {
     expect(notesState.createNote).not.toHaveBeenCalled();
   });
 
+  it('does not create an untitled draft while vault initialization restores over a stale root folder', async () => {
+    let resolveLoadFileTree: (() => void) | null = null;
+    notesState.loadFileTree.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      resolveLoadFileTree = resolve;
+    }));
+
+    const { rerender } = render(<NotesView />);
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
+
+    notesState.currentNote = { path: 'docs/restored.md', content: '# restored' };
+    notesState.openTabs = [{ path: 'docs/restored.md', name: 'restored', isDirty: false }];
+
+    await act(async () => {
+      resolveLoadFileTree?.();
+      await Promise.resolve();
+    });
+    rerender(<NotesView />);
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
+  });
+
   it('does not recreate a blank note after the user closes the last tab', async () => {
     notesState.currentNote = { path: 'draft:blank', content: '' };
     notesState.openTabs = [{ path: 'draft:blank', name: '', isDirty: false }];
@@ -533,11 +563,9 @@ describe('NotesView', () => {
 
     render(<NotesView />);
 
-    await act(async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    await waitFor(() => {
+      expect(notesState.createNote).toHaveBeenCalledWith(undefined, { asDraft: true });
     });
-
-    expect(notesState.createNote).toHaveBeenCalledWith(undefined, { asDraft: true });
   });
 
   it('does not create an untitled note after an opened workspace becomes empty', async () => {

@@ -1,5 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { logNotesDebug } from '@/stores/notes/debugLog';
+import { logNotesDebug } from '@/stores/notes/lineBreakDebugLog';
 import { getScrollRoot, getToolbarRoot, toContainerPosition } from '../floating-toolbar/floatingToolbarDom';
 import { getContentLayoutContext } from '../floating-toolbar/floatingToolbarLayout';
 import { renderUrlRailEditor } from '../floating-toolbar/components/UrlRailEditor';
@@ -9,7 +9,7 @@ const VIDEO_PROMPT_MARGIN_PX = 12;
 
 function logSlashVideoDebug(event: string, payload: Record<string, unknown>) {
   const debugPayload = sanitizeVideoDebugPayload(payload);
-  logNotesDebug(`slashVideoPrompt:${event}`, debugPayload);
+  logNotesDebug('NotesVideo', `slashVideoPrompt:${event}`, debugPayload);
   console.info(`[slashVideoPrompt:${event}]`, debugPayload);
 }
 

@@ -14,8 +14,15 @@ import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { dispatchOpenMarkdownTargetEvent } from '@/components/Notes/features/OpenTarget/openTargetEvents';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { createWorkspaceDiskSyncAction } from './workspaceDiskSyncActions';
-import { logNotesDebug } from '../debugLog';
 import { resolveUniquePath } from '../utils/fs/pathOperations';
+import { invalidatePendingFileTreeLoads } from './fileSystemSliceTreeActions';
+import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
+import {
+  compareLineBreakText,
+  logLineBreakDebug,
+  logNotesDebug,
+  summarizeLineBreakText,
+} from '../lineBreakDebugLog';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 
 type WorkspaceDocumentActions = Pick<
@@ -34,6 +41,19 @@ export function createWorkspaceDocumentActions(
 ): WorkspaceDocumentActions {
   return {
     saveNote: async (options) => {
+      logLineBreakDebug('save:start-before-flush', {
+        options: options ?? null,
+        currentNotePath: get().currentNote?.path ?? null,
+        isDirty: get().isDirty,
+        current: summarizeLineBreakText(get().currentNote?.content),
+      });
+      const flushed = flushCurrentPendingEditorMarkdown();
+      logLineBreakDebug('save:after-flush', {
+        flushed,
+        currentNotePath: get().currentNote?.path ?? null,
+        isDirty: get().isDirty,
+        current: summarizeLineBreakText(get().currentNote?.content),
+      });
       const {
         currentNote,
         notesPath,
@@ -48,26 +68,36 @@ export function createWorkspaceDocumentActions(
         pendingDraftDiscardPath,
       } = get();
       if (!currentNote) {
+        logNotesDebug('NotesDirty', 'save:skipped-no-current-note', {
+          options: options ?? null,
+          notesPath,
+          openTabsLength: openTabs.length,
+          isDirty: get().isDirty,
+        });
         return;
       }
       const notePathAtSaveStart = currentNote.path;
       const wasDirtyAtSaveStart = get().isDirty;
+      logNotesDebug('NotesDirty', 'save:resolved-current', {
+        notePathAtSaveStart,
+        wasDirtyAtSaveStart,
+        isDraft: Boolean(draftNotes[currentNote.path]),
+        openTabs: openTabs.map((tab) => ({
+          path: tab.path,
+          isDirty: tab.isDirty,
+        })),
+        content: summarizeLineBreakText(currentNote.content),
+      });
 
       try {
         const draftNote = draftNotes[currentNote.path];
         if (draftNote) {
-          logNotesDebug('notes:save:draft:start', {
-            notePath: currentNote.path,
-            notesPath,
-            explicit: options?.explicit ?? false,
-            suppressOpenTarget: options?.suppressOpenTarget ?? false,
-            draftName: draftNote.name,
-            contentLength: currentNote.content.length,
-            isDirty: get().isDirty,
-          });
           if (!isCurrentSaveTarget(get, notesPath, notePathAtSaveStart)) return;
 
-          const draftSaveLocation = notesPath
+          const canAutoSaveDraftIntoCurrentVault =
+            notesPath &&
+            (draftNote.originNotesPath === undefined || draftNote.originNotesPath === notesPath);
+          const draftSaveLocation = canAutoSaveDraftIntoCurrentVault
             ? await resolveUniquePath(
                 notesPath,
                 draftNote.parentPath ?? undefined,
@@ -76,21 +106,11 @@ export function createWorkspaceDocumentActions(
               )
             : null;
           if (!draftSaveLocation && !options?.explicit) {
-            logNotesDebug('notes:save:draft:skipped', {
-              reason: 'no-auto-save-location-for-implicit-save',
-              notePath: currentNote.path,
-              notesPath,
-            });
             return;
           }
 
           const selectedPath = draftSaveLocation?.fullPath ?? await chooseDraftSavePath(notesPath, draftNote);
           if (!selectedPath) {
-            logNotesDebug('notes:save:draft:skipped', {
-              reason: 'no-selected-path',
-              notePath: currentNote.path,
-              notesPath,
-            });
             return;
           }
           if (!isCurrentSaveTarget(get, notesPath, notePathAtSaveStart)) return;
@@ -160,6 +180,7 @@ export function createWorkspaceDocumentActions(
             );
           }
 
+          invalidatePendingFileTreeLoads();
           set({
             currentNote: { path: savedPath, content },
             currentNoteRevision: get().currentNoteRevision + 1,
@@ -173,15 +194,6 @@ export function createWorkspaceDocumentActions(
             draftNotes: nextDraftNotes,
             pendingDraftDiscardPath: pendingDraftDiscardPath === currentNote.path ? null : pendingDraftDiscardPath,
             error: null,
-          });
-          logNotesDebug('notes:save:draft:completed', {
-            previousDraftPath: notePathAtSaveStart,
-            savedPath,
-            relativePath: relativePath ?? null,
-            absolutePath,
-            nextOpenTabsLength: nextTabs.length,
-            nextDraftNotesLength: Object.keys(nextDraftNotes).length,
-            contentLength: content.length,
           });
 
           persistWorkspaceSnapshot(notesPath, {
@@ -201,6 +213,11 @@ export function createWorkspaceDocumentActions(
           notesPath,
           currentNote,
           cache: noteContentsCache,
+        });
+        logLineBreakDebug('save:regular-write-result', {
+          notePath: currentNote.path,
+          input: summarizeLineBreakText(currentNote.content),
+          saved: summarizeLineBreakText(content),
         });
         if (!isCurrentSaveTarget(get, notesPath, notePathAtSaveStart)) return;
 
@@ -226,16 +243,22 @@ export function createWorkspaceDocumentActions(
           openTabs: setNoteTabDirtyState(get().openTabs, currentNote.path, false),
           error: null,
         });
+        logLineBreakDebug('save:regular-set-complete', {
+          notePath: currentNote.path,
+          isDirty: false,
+          content: summarizeLineBreakText(content),
+        });
       } catch (error) {
         if (get().notesPath !== notesPath) return;
 
-        logNotesDebug('workspaceSlice:saveNote:error', {
-          notePath: currentNote.path,
-          explicit: options?.explicit ?? false,
-          error,
-        });
         const currentState = get();
         const dirtyPath = currentState.currentNote?.path ?? notePathAtSaveStart;
+        logNotesDebug('NotesDirty', 'save:failed', {
+          notePathAtSaveStart,
+          dirtyPath,
+          wasDirtyAtSaveStart,
+          message: error instanceof Error ? error.message : String(error),
+        });
         set({
           error: error instanceof Error ? error.message : 'Failed to save note',
           ...(wasDirtyAtSaveStart
@@ -256,26 +279,45 @@ export function createWorkspaceDocumentActions(
 
     invalidateNoteCache: (path: string) => {
       const { currentNote, noteContentsCache } = get();
-      if (currentNote?.path === path) return;
+      if (currentNote?.path === path) {
+        logNotesDebug('NotesDirty', 'invalidate-cache:skipped-current', {
+          path,
+        });
+        return;
+      }
+      logNotesDebug('NotesDirty', 'invalidate-cache', {
+        path,
+        cacheHasPath: noteContentsCache.has(path),
+      });
       set({ noteContentsCache: removeCachedNoteContent(noteContentsCache, path) });
     },
 
     updateContent: (content: string) => {
       const { currentNote, noteContentsCache, openTabs } = get();
-      if (!currentNote || currentNote.content === content) {
-        logNotesDebug('notes:update-content:skipped', {
-          reason: !currentNote ? 'missing-current-note' : 'unchanged-content',
-          currentNotePath: currentNote?.path ?? null,
-          nextLength: content.length,
+      if (!currentNote) {
+        logNotesDebug('NotesDirty', 'update-content:skipped-no-current-note', {
+          next: summarizeLineBreakText(content),
         });
         return;
       }
-      logNotesDebug('notes:update-content:apply', {
+      if (currentNote.content === content) {
+        logNotesDebug('NotesDirty', 'update-content:skipped-unchanged', {
+          notePath: currentNote.path,
+          current: summarizeLineBreakText(currentNote.content),
+          next: summarizeLineBreakText(content),
+        });
+        return;
+      }
+      logNotesDebug('NotesDirty', 'update-content:apply', {
         notePath: currentNote.path,
-        isDraftNote: Boolean(get().draftNotes[currentNote.path]),
-        previousLength: currentNote.content.length,
-        nextLength: content.length,
-        openTabsLength: openTabs.length,
+        previousDirty: get().isDirty,
+        previous: summarizeLineBreakText(currentNote.content),
+        next: summarizeLineBreakText(content),
+        diff: compareLineBreakText(currentNote.content, content),
+        openTabs: openTabs.map((tab) => ({
+          path: tab.path,
+          isDirty: tab.isDirty,
+        })),
       });
       set({
         currentNote: { ...currentNote, content },

@@ -14,6 +14,8 @@ import { useUnifiedExternalSync } from '@/hooks/useUnifiedExternalSync';
 import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
 import { desktopWindow } from '@/lib/desktop/window';
 import { isElectronRuntime } from '@/lib/electron/bridge';
+import { writeTextToClipboard } from '@/lib/clipboard';
+import { getNotesDebugLogText } from '@/stores/notes/lineBreakDebugLog';
 
 const SettingsModal = lazy(async () => {
   const mod = await import('@/components/Settings');
@@ -138,22 +140,11 @@ export function AppContent() {
       window.clearTimeout(debugCopyTimerRef.current);
     }
 
-    const copyDebugLog = (window as Window & {
-      __vlainaCopyNotesDebug?: () => Promise<{ ok: boolean; chars: number; error?: string }>;
-    }).__vlainaCopyNotesDebug;
+    const debugLogText = getNotesDebugLogText() || '[NotesDebug] No debug logs captured.';
 
-    if (!copyDebugLog) {
-      setDebugCopyState('failed');
-      debugCopyTimerRef.current = window.setTimeout(() => {
-        setDebugCopyState('idle');
-        debugCopyTimerRef.current = null;
-      }, 1200);
-      return;
-    }
-
-    void copyDebugLog()
-      .then((result) => {
-        setDebugCopyState(result?.ok ? 'copied' : 'failed');
+    void writeTextToClipboard(debugLogText)
+      .then((didCopy) => {
+        setDebugCopyState(didCopy ? 'copied' : 'failed');
       })
       .catch(() => {
         setDebugCopyState('failed');

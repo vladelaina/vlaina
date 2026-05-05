@@ -230,6 +230,30 @@ describe('selectionSerialization', () => {
     );
   });
 
+  it('does not expose internal user break markers when copying serialized selections', () => {
+    const slice = {
+      content: { size: 1 },
+    };
+    const serializer = vi.fn(() => ['Line one', '<br data-vlaina-user-br="true" />', 'Line two'].join('\n'));
+    const state: any = {
+      selection: {
+        from: 10,
+        to: 20,
+        content: () => slice,
+      },
+      doc: {
+        slice: vi.fn(),
+      },
+      schema: {
+        topNodeType: {
+          createAndFill: vi.fn(() => ({ type: 'doc' })),
+        },
+      },
+    };
+
+    expect(serializeSelectionToClipboardText(state, serializer)).toBe(['Line one\\', 'Line two'].join('\n'));
+  });
+
   it('falls back to plain-text slice serialization', () => {
     const slice = {
       content: {

@@ -38,6 +38,12 @@ describe('normalizeSerializedMarkdownBlock', () => {
   it('keeps normal markdown content', () => {
     expect(normalizeSerializedMarkdownBlock('# Title\n')).toBe('# Title');
   });
+
+  it('converts internal user br placeholders in copied blocks', () => {
+    expect(
+      normalizeSerializedMarkdownBlock(['Line one', '<br data-vlaina-user-br="true" />', 'Line two'].join('\n'))
+    ).toBe(['Line one\\', 'Line two'].join('\n'));
+  });
 });
 
 describe('normalizeSerializedMarkdownDocument', () => {
@@ -85,16 +91,55 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ).toBe('> > <br />');
   });
 
+  it('converts editor-created empty paragraph br lines into markdown blank lines', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(['1', '', '2', '', '<br />', '', '3'].join('\n'))
+    ).toBe(['1', '', '2', '', '', '3'].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument(['1', '', '2', '<br />', '', '3'].join('\n'))
+    ).toBe(['1', '', '2', '', '3'].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument(['1', '', '2', '', '<br />', '3'].join('\n'))
+    ).toBe(['1', '', '2', '', '3'].join('\n'));
+  });
+
   it('converts internal user br placeholders with serialized html variants', () => {
     expect(
       normalizeSerializedMarkdownDocument('1\n<br data-vlaina-user-br="true"/>\n2\n')
-    ).toBe('1\n<br />\n2\n');
+    ).toBe('1\\\n2\n');
     expect(
       normalizeSerializedMarkdownDocument('1\n<br class="x" data-vlaina-user-br=true></br>\n2\n')
-    ).toBe('1\n<br />\n2\n');
+    ).toBe('1\\\n2\n');
     expect(
       normalizeSerializedMarkdownDocument('1\n<br date-vlaina-user-br="true"/>\n2\n')
-    ).toBe('1\n<br />\n2\n');
+    ).toBe('1\\\n2\n');
+  });
+
+  it('preserves user-authored paragraph line breaks as markdown hard breaks', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(['1', '2', '', '3', '4'].join('\n'))
+    ).toBe(['1\\', '2', '', '3\\', '4'].join('\n'));
+  });
+
+  it('does not convert structural markdown boundaries into hard breaks', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(['# Title', 'Body', '', '- one', '- two'].join('\n'))
+    ).toBe(['# Title', 'Body', '', '- one', '- two'].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument(['| A | B |', '| --- | --- |', '| 1 | 2 |'].join('\n'))
+    ).toBe(['| A | B |', '| --- | --- |', '| 1 | 2 |'].join('\n'));
+  });
+
+  it('does not convert leading frontmatter line breaks into hard breaks', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(['---', 'title: Alpha', 'tags: test', '---', '', 'Line one', 'Line two'].join('\n'))
+    ).toBe(['---', 'title: Alpha', 'tags: test', '---', '', 'Line one\\', 'Line two'].join('\n'));
+  });
+
+  it('does not convert display math block line breaks into hard breaks', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(['Before', '', '$$', 'a = b', 'c = d', '$$', '', 'After'].join('\n'))
+    ).toBe(['Before', '', '$$', 'a = b', 'c = d', '$$', '', 'After'].join('\n'));
   });
 
   it('converts internal blockquote br placeholders with serialized html variants', () => {
@@ -266,6 +311,12 @@ describe('normalizeSerializedMarkdownSelection', () => {
   it('converts marked standalone br placeholders to single newline', () => {
     expect(normalizeSerializedMarkdownSelection('<br data-vlaina-empty-line="true" />')).toBe('\n');
     expect(normalizeSerializedMarkdownSelection('<br data-vlaina-empty-line="true"/>')).toBe('\n');
+  });
+
+  it('converts internal user br placeholders in copied selections', () => {
+    expect(
+      normalizeSerializedMarkdownSelection(['Line one', '<br data-vlaina-user-br="true" />', 'Line two'].join('\n'))
+    ).toBe(['Line one\\', 'Line two'].join('\n'));
   });
 
   it('keeps blockquote user br placeholders when normalizing selections', () => {

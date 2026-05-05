@@ -2,7 +2,7 @@ import type { Ctx } from '@milkdown/kit/ctx';
 import { editorViewCtx } from '@milkdown/kit/core';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { logNotesDebug } from '@/stores/notes/debugLog';
+import { logNotesDebug } from '@/stores/notes/lineBreakDebugLog';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { parseVideoUrl, sanitizeVideoDebugPayload } from '../video';
 import { findInsertedNodePos } from './slashInsertUtils';
@@ -10,7 +10,7 @@ import { openSlashVideoPrompt } from './slashVideoPrompt';
 
 function logSlashVideoDebug(event: string, payload: Record<string, unknown>) {
   const debugPayload = sanitizeVideoDebugPayload(payload);
-  logNotesDebug(`slashCommand:${event}`, debugPayload);
+  logNotesDebug('NotesVideo', `slashCommand:${event}`, debugPayload);
   console.info(`[slashCommand:${event}]`, debugPayload);
 }
 

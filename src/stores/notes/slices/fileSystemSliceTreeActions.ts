@@ -8,6 +8,7 @@ import {
 } from '../fileTreeUtils';
 import { ensureFileNodeInTree } from '../fileTreePreservation';
 import { DEFAULT_FILE_TREE_SORT_MODE, sortNestedFileTree } from '../fileTreeSorting';
+import { isDraftNotePath } from '../draftNote';
 import {
   ensureNotesFolder,
   getCurrentVaultPath,
@@ -22,6 +23,10 @@ import type { FileSystemSlice, FileSystemSliceGet, FileSystemSliceSet } from './
 let pendingWorkspaceSnapshotTimeout: ReturnType<typeof setTimeout> | null = null;
 let pendingWorkspaceSnapshotGet: FileSystemSliceGet | null = null;
 let latestLoadFileTreeRequestId = 0;
+
+export function invalidatePendingFileTreeLoads() {
+  latestLoadFileTreeRequestId += 1;
+}
 
 function scheduleWorkspaceSnapshotPersistence(get: FileSystemSliceGet) {
   pendingWorkspaceSnapshotGet = get;
@@ -76,7 +81,7 @@ export function createFileSystemTreeActions(
         }
 
         const currentNote = get().currentNote;
-        if (currentNote && !isAbsolutePath(currentNote.path)) {
+        if (currentNote && !isAbsolutePath(currentNote.path) && !isDraftNotePath(currentNote.path)) {
           children = sortNestedFileTree(ensureFileNodeInTree(children, currentNote.path), {
             mode: fileTreeSortMode,
             metadata,
@@ -97,6 +102,19 @@ export function createFileSystemTreeActions(
           return;
         }
 
+        const currentMetadata = get().noteMetadata;
+        const draftMetadataEntries = Object.entries(currentMetadata?.notes ?? {})
+          .filter(([path]) => isDraftNotePath(path));
+        const nextMetadata = draftMetadataEntries.length > 0
+          ? {
+              ...metadata,
+              notes: {
+                ...metadata.notes,
+                ...Object.fromEntries(draftMetadataEntries),
+              },
+            }
+          : metadata;
+
         set({
           notesPath: basePath,
           rootFolder: {
@@ -107,14 +125,15 @@ export function createFileSystemTreeActions(
             children: restoredChildren,
             expanded: true,
           },
-          noteMetadata: metadata,
+          noteMetadata: nextMetadata,
           starredNotes: starredPaths.notes,
           starredFolders: starredPaths.folders,
           fileTreeSortMode,
         });
 
         const currentNotePath = workspace?.currentNotePath;
-        if (!skipRestore && currentNotePath) {
+        const hasActiveNoteOrTabs = Boolean(get().currentNote) || get().openTabs.length > 0;
+        if (!skipRestore && currentNotePath && !hasActiveNoteOrTabs) {
           try {
             const fullPath = await joinPath(basePath, currentNotePath);
             if (
