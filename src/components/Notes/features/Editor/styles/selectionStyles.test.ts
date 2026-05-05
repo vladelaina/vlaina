@@ -296,6 +296,21 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).not.toContain('transform: translateY(-1px);');
   });
 
+  it('keeps the floating toolbar color button hover surface transparent', () => {
+    const css = readStyleFile('floating-toolbar.css');
+
+    expect(css).toContain('.toolbar-btn[data-action="color"]:hover {');
+    expect(css).toContain('background-color: transparent;');
+    expect(css).toContain('.dark .toolbar-btn[data-action="color"]:hover {');
+  });
+
+  it('keeps active color swatch borders transparent', () => {
+    const css = readStyleFile('floating-toolbar.css');
+
+    expect(css).toContain('.color-picker-item.active {');
+    expect(css).toContain('border-color: transparent !important;');
+  });
+
   it('places floating toolbar shortcut tooltips below the hovered button', () => {
     const css = readStyleFile('floating-toolbar.css');
     const source = readFileSync(

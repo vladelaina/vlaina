@@ -116,16 +116,29 @@ function renderAlignmentButton(state: FloatingToolbarState): string {
   `;
 }
 
+function renderColorIconContent(state: FloatingToolbarState, icon: string): string {
+  const styleParts: string[] = [];
+  if (state.textColor) {
+    styleParts.push(`color: ${state.textColor}`);
+  } else if (state.bgColor) {
+    styleParts.push(`background-color: ${state.bgColor}`);
+  }
+
+  const styleAttr = styleParts.length > 0 ? ` style="${styleParts.join('; ')}"` : '';
+  return `<span class="toolbar-color-icon"${styleAttr}>${icon}</span>`;
+}
+
 function renderLinkColorGroup(state: FloatingToolbarState): string {
   const linkButton = getExtraButton('link');
   const colorButtonConfig = getExtraButton('color');
   const colorButton = renderButton(
-    colorButtonConfig,
+    {
+      ...colorButtonConfig,
+      icon: renderColorIconContent(state, colorButtonConfig.icon),
+    },
     state.activeMarks,
-    state.textColor || state.bgColor
-      ? `<span class="color-indicator" style="background-color: ${state.textColor || state.bgColor}"></span>`
-      : '',
-    Boolean(state.textColor || state.bgColor)
+    '',
+    false
   );
 
   return `

@@ -3,6 +3,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { renderColorPicker } from './ColorPicker';
 
 const previewMocks = vi.hoisted(() => ({
+  applyColorPickerIdlePreview: vi.fn(),
   applyBgColorPreview: vi.fn(),
   applyTextColorPreview: vi.fn(),
   clearFormatPreview: vi.fn(),
@@ -16,6 +17,7 @@ const commandMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../previewStyles', () => ({
+  applyColorPickerIdlePreview: previewMocks.applyColorPickerIdlePreview,
   applyBgColorPreview: previewMocks.applyBgColorPreview,
   applyTextColorPreview: previewMocks.applyTextColorPreview,
   clearFormatPreview: previewMocks.clearFormatPreview,
@@ -35,6 +37,7 @@ function createView(): EditorView {
 describe('ColorPicker', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
+    previewMocks.applyColorPickerIdlePreview.mockReset();
     previewMocks.applyBgColorPreview.mockReset();
     previewMocks.applyTextColorPreview.mockReset();
     previewMocks.clearFormatPreview.mockReset();
@@ -63,6 +66,24 @@ describe('ColorPicker', () => {
     expect(previewMocks.applyBgColorPreview).toHaveBeenCalledWith(view, bgColorButton?.dataset.color);
   });
 
+  it('hides the editor selection while hovering picker chrome outside swatches', () => {
+    const container = document.createElement('div');
+    const view = createView();
+    document.body.appendChild(container);
+
+    renderColorPicker(container, view, { textColor: null, bgColor: null } as never, vi.fn());
+
+    const picker = container.querySelector<HTMLElement>('.color-picker');
+    const label = container.querySelector<HTMLElement>('.color-picker-label');
+    const textColorButton = container.querySelector<HTMLElement>('[data-type="text"] .color-picker-item:not(.color-picker-item-default)');
+
+    label?.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    textColorButton?.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+
+    expect(previewMocks.applyColorPickerIdlePreview).toHaveBeenCalledWith(view);
+    expect(previewMocks.applyColorPickerIdlePreview).toHaveBeenCalledTimes(1);
+  });
+
   it('clears the preview before applying a selected color and after leaving the picker', () => {
     const container = document.createElement('div');
     const view = createView();
@@ -80,5 +101,25 @@ describe('ColorPicker', () => {
     expect(previewMocks.clearFormatPreview).toHaveBeenCalledWith(view);
     expect(commandMocks.setTextColor).toHaveBeenCalledWith(view, textColorButton?.dataset.color);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps selected color state without showing a blue active border', () => {
+    const container = document.createElement('div');
+    const view = createView();
+    document.body.appendChild(container);
+
+    renderColorPicker(container, view, { textColor: null, bgColor: null } as never, vi.fn());
+
+    const firstColor = container.querySelector<HTMLElement>(
+      '[data-type="text"] .color-picker-item:not(.color-picker-item-default)'
+    )?.dataset.color;
+
+    container.innerHTML = '';
+    renderColorPicker(container, view, { textColor: firstColor, bgColor: null } as never, vi.fn());
+
+    const activeColorButton = container.querySelector<HTMLElement>('[data-type="text"] .color-picker-item.active');
+
+    expect(firstColor).toBeTruthy();
+    expect(activeColorButton).not.toBeNull();
   });
 });

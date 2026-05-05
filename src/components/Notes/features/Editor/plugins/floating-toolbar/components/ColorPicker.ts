@@ -3,6 +3,7 @@ import type { FloatingToolbarState } from '../types';
 import { COLOR_PALETTE, COLOR_PALETTE_DARK } from '../utils';
 import { setTextColor, setBgColor } from '../commands';
 import {
+  applyColorPickerIdlePreview,
   applyBgColorPreview,
   applyTextColorPreview,
   clearFormatPreview,
@@ -21,6 +22,16 @@ export function renderColorPicker(
 
   const isDark = document.documentElement.classList.contains('dark');
   const palette = isDark ? COLOR_PALETTE_DARK : COLOR_PALETTE;
+  const isSwatchTarget = (target: EventTarget | null) => (
+    target instanceof HTMLElement && target.closest('.color-picker-item') !== null
+  );
+  const applyIdlePreviewFromPanelEvent = (e: Event) => {
+    if (isSwatchTarget(e.target)) {
+      return;
+    }
+
+    applyColorPickerIdlePreview(view);
+  };
   
   picker.innerHTML = `
     <div class="color-picker-section">
@@ -41,7 +52,7 @@ export function renderColorPicker(
       <div class="color-picker-grid" data-type="bg">
         ${palette.map(color => `
           <button 
-            class="color-picker-item ${color.id === 'default' ? 'color-picker-item-default' : ''} ${state.bgColor === color.bgColor ? 'active' : ''}"
+            class="color-picker-item ${color.id === 'default' ? 'color-picker-item-default' : ''} ${!state.textColor && state.bgColor === color.bgColor ? 'active' : ''}"
             data-color-id="${color.id}"
             data-color="${color.bgColor || ''}"
             style="${color.bgColor ? `background-color: ${color.bgColor}` : ''}"
@@ -50,6 +61,9 @@ export function renderColorPicker(
       </div>
     </div>
   `;
+
+  picker.addEventListener('mouseenter', applyIdlePreviewFromPanelEvent);
+  picker.addEventListener('mouseover', applyIdlePreviewFromPanelEvent);
 
   picker.querySelector('[data-type="text"]')?.querySelectorAll('.color-picker-item').forEach((btn) => {
     btn.addEventListener('mousedown', (e) => {
@@ -122,14 +136,4 @@ export function renderColorPicker(
   });
   
   container.appendChild(picker);
-}
-
-export function getColorIndicatorStyle(textColor: string | null, bgColor: string | null): string {
-  if (textColor) {
-    return `background-color: ${textColor}`;
-  }
-  if (bgColor) {
-    return `background-color: ${bgColor}`;
-  }
-  return '';
 }

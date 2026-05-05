@@ -76,14 +76,21 @@ export function setTextColor(view: EditorView, color: string | null): void {
   const { state, dispatch } = view;
   const { from, to } = state.selection;
   const colorMark = state.schema.marks.textColor;
+  const bgColorMark = state.schema.marks.bgColor;
 
   if (!colorMark) {
     return;
   }
 
-  const tr = color
-    ? state.tr.addMark(from, to, colorMark.create({ color }))
-    : state.tr.removeMark(from, to, colorMark);
+  const tr = state.tr;
+  if (color && bgColorMark) {
+    tr.removeMark(from, to, bgColorMark);
+  }
+  if (color) {
+    tr.addMark(from, to, colorMark.create({ color }));
+  } else {
+    tr.removeMark(from, to, colorMark);
+  }
 
   collapseSelectionAfterInlineApply(tr, to);
   dispatch(tr);
@@ -94,14 +101,21 @@ export function setBgColor(view: EditorView, color: string | null): void {
   const { state, dispatch } = view;
   const { from, to } = state.selection;
   const colorMark = state.schema.marks.bgColor;
+  const textColorMark = state.schema.marks.textColor;
 
   if (!colorMark) {
     return;
   }
 
-  const tr = color
-    ? state.tr.addMark(from, to, colorMark.create({ color }))
-    : state.tr.removeMark(from, to, colorMark);
+  const tr = state.tr;
+  if (color && textColorMark) {
+    tr.removeMark(from, to, textColorMark);
+  }
+  if (color) {
+    tr.addMark(from, to, colorMark.create({ color }));
+  } else {
+    tr.removeMark(from, to, colorMark);
+  }
 
   collapseSelectionAfterInlineApply(tr, to);
   dispatch(tr);
