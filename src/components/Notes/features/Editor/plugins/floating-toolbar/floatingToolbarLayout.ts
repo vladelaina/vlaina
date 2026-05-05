@@ -57,6 +57,10 @@ export function getAiReviewAnchorX(layout: ContentLayoutContext): number {
   return layout.viewportBounds.left;
 }
 
+export function getAiReviewPanelWidth(layout: ContentLayoutContext): number {
+  return Math.max(0, layout.viewportBounds.right - layout.viewportBounds.left);
+}
+
 export function resolveToolbarViewportPosition(args: {
   aiPosition: { x: number; y: number; placement: 'top' | 'bottom' };
   layout: ContentLayoutContext;

@@ -22,13 +22,15 @@ export { collectSelectableBlockRanges } from './blockUnitResolver';
 function collectSelectableBlockRects(view: EditorView): BlockRect[] {
   const cachedTargets = getCachedEditorBlockTargets(view);
   const targets = cachedTargets ?? collectSelectableBlockTargets(view);
+  const editorRect = view.dom.getBoundingClientRect();
+  const useEditorHorizontalBounds = editorRect.width > 0;
 
   return targets.map(({ range, rect }) => ({
     from: range.from,
     to: range.to,
-    left: rect.left,
+    left: useEditorHorizontalBounds ? editorRect.left : rect.left,
     top: rect.top,
-    right: rect.right,
+    right: useEditorHorizontalBounds ? editorRect.right : rect.right,
     bottom: rect.bottom,
   }));
 }

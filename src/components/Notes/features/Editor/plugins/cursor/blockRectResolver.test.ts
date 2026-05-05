@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { collectSelectableBlockRanges } from './blockRectResolver';
+import { collectSelectableBlockRanges, createBlockRectResolver } from './blockRectResolver';
 
 interface MockNode {
   type: { name: string };
@@ -33,6 +33,24 @@ function createDoc(children: MockNode[]) {
       }
     },
   };
+}
+
+function withRect(element: HTMLElement, rect: { top: number; left: number; width: number; height: number }) {
+  const result = {
+    x: rect.left,
+    y: rect.top,
+    left: rect.left,
+    top: rect.top,
+    width: rect.width,
+    height: rect.height,
+    right: rect.left + rect.width,
+    bottom: rect.top + rect.height,
+    toJSON: () => ({}),
+  };
+  Object.defineProperty(element, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => result,
+  });
 }
 
 describe('collectSelectableBlockRanges', () => {
@@ -85,6 +103,41 @@ describe('collectSelectableBlockRanges', () => {
       { from: 0, to: 5 },
       { from: 5, to: 9 },
       { from: 9, to: 15 },
+    ]);
+  });
+});
+
+describe('createBlockRectResolver', () => {
+  it('uses editor horizontal bounds for block selection hit testing', () => {
+    const dom = document.createElement('div');
+    const paragraph = document.createElement('p');
+    paragraph.textContent = '1';
+    dom.append(paragraph);
+    withRect(dom, { left: 20, top: 10, width: 600, height: 300 });
+    withRect(paragraph, { left: 60, top: 40, width: 10, height: 24 });
+
+    const doc = createDoc([createNode('paragraph', 3)]);
+    const view = {
+      dom,
+      state: { doc },
+      nodeDOM: () => paragraph,
+      domAtPos: () => ({ node: paragraph.firstChild as Node }),
+    };
+
+    const resolver = createBlockRectResolver({
+      view: view as any,
+      scrollRootSelector: '[data-note-scroll-root="true"]',
+    });
+
+    expect(resolver.getTopLevelBlockRects()).toEqual([
+      {
+        from: 0,
+        to: 3,
+        left: 20,
+        top: 40,
+        right: 620,
+        bottom: 64,
+      },
     ]);
   });
 });

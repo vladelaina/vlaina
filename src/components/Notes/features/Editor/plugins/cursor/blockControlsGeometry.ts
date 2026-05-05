@@ -88,18 +88,20 @@ export function resolveDropTarget(view: EditorView, clientX: number, clientY: nu
 
   const rect = target.rect;
   const insertBefore = clientY < rect.top + rect.height / 2;
+  const lineLeft = editorRect.width > 0 ? editorRect.left : rect.left;
+  const lineRight = editorRect.width > 0 ? editorRect.right : rect.right;
 
   if (!insertBefore && target.element.tagName === 'LI') {
     const contentLeft = resolveListContentLeft(target.element, rect.left);
     const wantsChildPlacement = clientX > contentLeft;
     if (wantsChildPlacement) {
-      const lineLeft = Math.min(rect.right - MIN_DROP_LINE_WIDTH, contentLeft + LIST_CHILD_INDENT_PX);
+      const childLineLeft = Math.min(lineRight - MIN_DROP_LINE_WIDTH, contentLeft + LIST_CHILD_INDENT_PX);
       const insertPos = resolveListChildInsertPos(view, target.element, target.range.to);
       return {
         insertPos,
         lineY: rect.bottom,
-        lineLeft,
-        lineWidth: Math.max(MIN_DROP_LINE_WIDTH, rect.right - lineLeft),
+        lineLeft: childLineLeft,
+        lineWidth: Math.max(MIN_DROP_LINE_WIDTH, lineRight - childLineLeft),
       };
     }
   }
@@ -107,7 +109,7 @@ export function resolveDropTarget(view: EditorView, clientX: number, clientY: nu
   return {
     insertPos: insertBefore ? target.range.from : target.range.to,
     lineY: insertBefore ? rect.top : rect.bottom,
-    lineLeft: rect.left,
-    lineWidth: rect.width,
+    lineLeft,
+    lineWidth: Math.max(MIN_DROP_LINE_WIDTH, lineRight - lineLeft),
   };
 }

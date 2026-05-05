@@ -161,6 +161,12 @@ function revealAfterVideoCaptures(preview: HTMLElement, captureJobs: readonly Ca
   });
 }
 
+function resolvePreviewSourceWidth(view: EditorView, elements: readonly HTMLElement[]): number {
+  const sourceWidth = Math.max(...elements.map((element) => element.getBoundingClientRect().width));
+  const editorWidth = view.dom.getBoundingClientRect().width;
+  return Math.max(sourceWidth, editorWidth);
+}
+
 export function createBlockDragPreview({
   view,
   ranges,
@@ -190,7 +196,7 @@ export function createBlockDragPreview({
   preview.appendChild(contentLayer);
 
   const viewportWidth = doc.defaultView?.innerWidth ?? 1600;
-  const sourceWidth = Math.max(...elements.map((element) => element.getBoundingClientRect().width));
+  const sourceWidth = resolvePreviewSourceWidth(view, elements);
   const previewWidth = clamp(sourceWidth, MIN_PREVIEW_WIDTH, Math.max(MIN_PREVIEW_WIDTH, viewportWidth - 16));
   preview.style.width = `${Math.round(previewWidth)}px`;
 

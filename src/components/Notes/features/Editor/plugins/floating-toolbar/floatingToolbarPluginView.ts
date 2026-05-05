@@ -18,8 +18,6 @@ import { TOOLBAR_ACTIONS, type FloatingToolbarState } from './types';
 import {
   clampToolbarX,
   createToolbarElement,
-  getBlockElementAtPos,
-  getCurrentBlockElement,
   getScrollRoot,
   getToolbarRoot,
   hideToolbar,
@@ -28,6 +26,7 @@ import {
 } from './floatingToolbarDom';
 import {
   getContentLayoutContext,
+  getAiReviewPanelWidth,
   resolveToolbarContainerPosition,
   resolveToolbarViewportPosition,
 } from './floatingToolbarLayout';
@@ -51,7 +50,6 @@ export function createFloatingToolbarPluginView(
   toolbarKey: PluginKey<FloatingToolbarState>,
   interactionState: FloatingToolbarInteractionState
 ) {
-  let currentBlockElement: HTMLElement | null = null;
   let pendingRaf: number | null = null;
   let layoutRaf: number | null = null;
   let lastRenderState = '';
@@ -112,7 +110,6 @@ export function createFloatingToolbarPluginView(
 
   const resetToolbarTracking = () => {
     lastRenderState = '';
-    currentBlockElement = null;
     lastSelectionSignature = '';
     lastToolbarX = null;
     lastToolbarY = null;
@@ -263,16 +260,15 @@ export function createFloatingToolbarPluginView(
 
   const syncAiReviewWidth = (
     isReviewModeActive: boolean,
-    pluginState: FloatingToolbarState | undefined
+    _pluginState: FloatingToolbarState | undefined
   ) => {
-    currentBlockElement = isReviewModeActive && pluginState?.aiReview
-      ? getBlockElementAtPos(editorView, pluginState.aiReview.from)
-      : getCurrentBlockElement(editorView);
-
-    if (isReviewModeActive && currentBlockElement) {
+    const aiReviewWidth = getAiReviewPanelWidth(
+      getContentLayoutContext(editorView, positionRoot instanceof HTMLElement ? positionRoot : null)
+    );
+    if (isReviewModeActive && aiReviewWidth > 0) {
       toolbarElement.style.setProperty(
         '--ai-review-width',
-        `${Math.round(currentBlockElement.getBoundingClientRect().width)}px`
+        `${Math.round(aiReviewWidth)}px`
       );
       return;
     }
@@ -540,11 +536,11 @@ export function createFloatingToolbarPluginView(
 
     reviews.forEach((review) => {
       const entry = getReviewToolbar(review.requestKey);
-      const blockElement = getBlockElementAtPos(editorView, review.from);
-      const reviewWidth = blockElement
-        ? Math.round(blockElement.getBoundingClientRect().width)
-        : null;
-      if (blockElement) {
+      const aiReviewWidth = getAiReviewPanelWidth(
+        getContentLayoutContext(editorView, positionRoot instanceof HTMLElement ? positionRoot : null)
+      );
+      const reviewWidth = aiReviewWidth > 0 ? Math.round(aiReviewWidth) : null;
+      if (reviewWidth !== null) {
         entry.element.style.setProperty(
           '--ai-review-width',
           `${reviewWidth}px`

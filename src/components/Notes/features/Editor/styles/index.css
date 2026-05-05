@@ -5,6 +5,7 @@
  */
 
 @import './core.css';
+@import './selection-width.css';
 @import './typography.css';
 @import './markdown.css';
 @import './extended.css';
