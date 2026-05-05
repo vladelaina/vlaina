@@ -4,7 +4,11 @@ import {
   resolveSelectableBlockRange,
   type SelectableBlockTarget,
 } from '../plugins/cursor/blockUnitResolver';
-import { createOutlineHeadingId, normalizeHeadingText } from '../../Sidebar/Outline/outlineUtils';
+import {
+  createOutlineHeadingId,
+  getHeadingLevelFromTagName,
+  normalizeHeadingText,
+} from '../../Sidebar/Outline/outlineUtils';
 
 export interface EditorBlockPositionEntry {
   from: number;
@@ -50,6 +54,26 @@ interface EditorBlockPositionController {
 let currentSnapshot: EditorBlockPositionSnapshot | null = null;
 let currentVersion = 0;
 const listeners = new Set<(snapshot: EditorBlockPositionSnapshot | null) => void>();
+const TOOLBAR_PREVIEW_HIDDEN_ATTRIBUTE = 'data-toolbar-preview-hidden';
+const TOOLBAR_PREVIEW_OVERLAY_CLASS = 'toolbar-applied-preview-overlay';
+
+export function isEditorHiddenByToolbarPreview(view: Pick<EditorView, 'dom'>): boolean {
+  return view.dom instanceof HTMLElement && view.dom.getAttribute(TOOLBAR_PREVIEW_HIDDEN_ATTRIBUTE) === 'true';
+}
+
+export function resolveToolbarPreviewRoot(view: Pick<EditorView, 'dom'>): HTMLElement | null {
+  if (!isEditorHiddenByToolbarPreview(view)) {
+    return null;
+  }
+
+  const previous = view.dom.previousElementSibling;
+  if (previous instanceof HTMLElement && previous.classList.contains(TOOLBAR_PREVIEW_OVERLAY_CLASS)) {
+    return previous;
+  }
+
+  const parent = view.dom.parentElement;
+  return parent?.querySelector<HTMLElement>(`:scope > .${TOOLBAR_PREVIEW_OVERLAY_CLASS}`) ?? null;
+}
 
 function publishSnapshot(snapshot: EditorBlockPositionSnapshot | null): void {
   currentSnapshot = snapshot;
@@ -74,10 +98,107 @@ function resolveDocumentBottom(rect: DOMRect, scrollRoot: HTMLElement | null, sc
   return rect.bottom - scrollRoot.getBoundingClientRect().top + scrollTop;
 }
 
+function collectTopLevelBlockRanges(doc: EditorView['state']['doc']): Array<{ from: number; to: number }> {
+  const ranges: Array<{ from: number; to: number }> = [];
+  doc.forEach((node, offset) => {
+    ranges.push({
+      from: offset,
+      to: offset + node.nodeSize,
+    });
+  });
+  return ranges;
+}
+
+function createPreviewSnapshot(
+  view: EditorView,
+  previewRoot: HTMLElement,
+): EditorBlockPositionSnapshot | null {
+  if (!previewRoot.isConnected) {
+    return null;
+  }
+
+  const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
+  const scrollLeft = scrollRoot?.scrollLeft ?? 0;
+  const scrollTop = scrollRoot?.scrollTop ?? 0;
+  const topLevelRanges = collectTopLevelBlockRanges(view.state.doc);
+  const topLevelElements = Array.from(previewRoot.children).filter(
+    (element): element is HTMLElement => element instanceof HTMLElement,
+  );
+  const blocks: EditorBlockPositionEntry[] = [];
+  const headings: EditorHeadingPositionEntry[] = [];
+
+  topLevelElements.forEach((element, index) => {
+    const range = topLevelRanges[index];
+    if (!range) {
+      return;
+    }
+
+    const rect = element.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      return;
+    }
+
+    const tagName = element.tagName.toUpperCase();
+    const headingLevel = getHeadingLevelFromTagName(tagName);
+    const headingText = headingLevel ? normalizeHeadingText(element.textContent ?? '') : null;
+    const documentTop = resolveDocumentTop(rect, scrollRoot, scrollTop);
+    const documentBottom = resolveDocumentBottom(rect, scrollRoot, scrollTop);
+    const headingId = headingLevel
+      ? createOutlineHeadingId(headings.length, headingLevel, headingText ?? '')
+      : null;
+
+    blocks.push({
+      from: range.from,
+      to: range.to,
+      element,
+      rect,
+      documentTop,
+      documentBottom,
+      tagName,
+      headingLevel,
+      headingId,
+      headingText,
+    });
+
+    if (!headingLevel || !headingId || !headingText) {
+      return;
+    }
+
+    headings.push({
+      id: headingId,
+      level: headingLevel,
+      text: headingText,
+      from: range.from,
+      to: range.to,
+      element,
+      top: documentTop,
+      bottom: documentBottom,
+    });
+  });
+
+  currentVersion += 1;
+  return {
+    version: currentVersion,
+    view,
+    doc: view.state.doc,
+    editorRoot: view.dom,
+    scrollRoot,
+    scrollLeft,
+    scrollTop,
+    blocks,
+    headings,
+  };
+}
+
 function createSnapshot(view: EditorView): EditorBlockPositionSnapshot | null {
   const editorRoot = view.dom;
   if (!editorRoot.isConnected) {
     return null;
+  }
+
+  const previewRoot = resolveToolbarPreviewRoot(view);
+  if (previewRoot) {
+    return createPreviewSnapshot(view, previewRoot);
   }
 
   const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
@@ -249,6 +370,8 @@ export function createCurrentEditorBlockPositionController(
       scheduleRefresh();
     });
     mutationObserver.observe(view.dom, {
+      attributes: true,
+      attributeFilter: [TOOLBAR_PREVIEW_HIDDEN_ATTRIBUTE],
       childList: true,
       subtree: true,
       characterData: true,

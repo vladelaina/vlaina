@@ -111,7 +111,6 @@ describe('ColorPicker', () => {
 
     renderColorPicker(container, view, { textColor: null, bgColor: null } as never, vi.fn());
 
-    const picker = container.querySelector<HTMLElement>('.color-picker');
     const label = container.querySelector<HTMLElement>('.color-picker-label');
     const textColorButton = container.querySelector<HTMLElement>('[data-type="text"] .color-picker-item:not(.color-picker-item-default)');
 
