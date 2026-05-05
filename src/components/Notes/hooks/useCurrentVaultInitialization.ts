@@ -11,6 +11,7 @@ export function useCurrentVaultInitialization({
   loadFileTree,
   cleanupAssetTempFiles,
   clearAssetUrlCache,
+  onInitializingChange,
 }: {
   currentVaultPath: string | null;
   launchNotePath: string | null | undefined;
@@ -21,10 +22,15 @@ export function useCurrentVaultInitialization({
   loadFileTree: (skipWorkspaceRestore?: boolean) => Promise<void>;
   cleanupAssetTempFiles: () => Promise<void>;
   clearAssetUrlCache: () => void;
+  onInitializingChange?: (initializing: boolean) => void;
 }) {
   useEffect(() => {
-    if (!currentVaultPath) return;
+    if (!currentVaultPath) {
+      onInitializingChange?.(false);
+      return;
+    }
     let cancelled = false;
+    onInitializingChange?.(true);
 
     const unlockWindow = async () => {
       try {
@@ -52,9 +58,17 @@ export function useCurrentVaultInitialization({
       if (!cancelled) {
         await unlockWindow();
       }
+
+      if (!cancelled) {
+        onInitializingChange?.(false);
+      }
     };
 
-    void initializeVault();
+    void initializeVault().catch(() => {
+      if (!cancelled) {
+        onInitializingChange?.(false);
+      }
+    });
 
     return () => {
       cancelled = true;
@@ -70,5 +84,6 @@ export function useCurrentVaultInitialization({
     loadFileTree,
     cleanupAssetTempFiles,
     clearAssetUrlCache,
+    onInitializingChange,
   ]);
 }

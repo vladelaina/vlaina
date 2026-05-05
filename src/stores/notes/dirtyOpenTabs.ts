@@ -1,7 +1,7 @@
 import { useNotesStore } from '@/stores/useNotesStore';
 import { isDraftNotePath } from './draftNote';
 import { openStoredNotePath } from './openNotePath';
-import { flushCurrentPendingEditorMarkdown } from './pendingEditorMarkdown';
+import { flushCurrentPendingEditorMarkdown } from './pendingEditorMarkdownFlusher';
 
 export async function saveDirtyRegularOpenTabs(): Promise<boolean> {
   flushCurrentPendingEditorMarkdown();

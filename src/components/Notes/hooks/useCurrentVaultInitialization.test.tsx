@@ -47,4 +47,28 @@ describe('useCurrentVaultInitialization', () => {
       expect(baseProps.loadFileTree).toHaveBeenCalledWith(false);
     });
   });
+
+  it('reports initialization while vault loading is in flight', async () => {
+    let resolveLoadFileTree: () => void = () => undefined;
+    const onInitializingChange = vi.fn();
+    baseProps.loadFileTree.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      resolveLoadFileTree = resolve;
+    }));
+
+    renderHook(() => useCurrentVaultInitialization({
+      ...baseProps,
+      onInitializingChange,
+    }));
+
+    await waitFor(() => {
+      expect(onInitializingChange).toHaveBeenCalledWith(true);
+    });
+    expect(onInitializingChange).not.toHaveBeenCalledWith(false);
+
+    resolveLoadFileTree();
+
+    await waitFor(() => {
+      expect(onInitializingChange).toHaveBeenLastCalledWith(false);
+    });
+  });
 });

@@ -1,3 +1,5 @@
+import { getElectronBridge } from '@/lib/electron/bridge';
+
 function tryExecCommandCopy(text: string): boolean {
   if (typeof document === 'undefined' || typeof document.execCommand !== 'function') {
     return false;
@@ -25,6 +27,15 @@ function tryExecCommandCopy(text: string): boolean {
 export async function writeTextToClipboard(text: string): Promise<boolean> {
   if (tryExecCommandCopy(text)) {
     return true;
+  }
+
+  const desktopClipboard = getElectronBridge()?.clipboard;
+  if (desktopClipboard?.writeText) {
+    try {
+      await desktopClipboard.writeText(text);
+      return true;
+    } catch {
+    }
   }
 
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {

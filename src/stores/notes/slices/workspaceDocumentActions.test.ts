@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   persistWorkspaceSnapshot: vi.fn(),
   saveNoteDocument: vi.fn(),
   storageExists: vi.fn(),
+  flushCurrentPendingEditorMarkdown: vi.fn(),
 }));
 
 vi.mock('../draftNoteSave', async () => {
@@ -25,6 +26,10 @@ vi.mock('../document/noteDocumentPersistence', () => ({
 
 vi.mock('../workspacePersistence', () => ({
   persistWorkspaceSnapshot: mocks.persistWorkspaceSnapshot,
+}));
+
+vi.mock('../pendingEditorMarkdownFlusher', () => ({
+  flushCurrentPendingEditorMarkdown: mocks.flushCurrentPendingEditorMarkdown,
 }));
 
 vi.mock('@/components/Notes/features/OpenTarget/openTargetEvents', () => ({
@@ -103,6 +108,7 @@ describe('workspace document actions', () => {
     });
     mocks.storageExists.mockResolvedValue(false);
     mocks.persistWorkspaceSnapshot.mockReturnValue(undefined);
+    mocks.flushCurrentPendingEditorMarkdown.mockReturnValue(false);
   });
 
   it('keeps the active tab dirty when a draft save fails after the file write step', async () => {
@@ -125,6 +131,46 @@ describe('workspace document actions', () => {
     expect(store.getState().error).toBe('snapshot failed');
     expect(store.getState().isDirty).toBe(true);
     expect(store.getState().openTabs).toEqual([{ path: '/vault/Untitled.md', name: 'Untitled', isDirty: true }]);
+  });
+
+  it('flushes pending editor markdown before saving the current note snapshot', async () => {
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: 'old' },
+      isDirty: false,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['alpha.md', { content: 'old', modifiedAt: 1 }]]),
+    });
+    mocks.flushCurrentPendingEditorMarkdown.mockImplementation(() => {
+      store.setState((state) => ({
+        currentNote: { path: 'alpha.md', content: ['1', '', '2', '', '3'].join('\n') },
+        isDirty: true,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'alpha.md' ? { ...tab, isDirty: true } : tab
+        ),
+        noteContentsCache: new Map(state.noteContentsCache).set('alpha.md', {
+          content: ['1', '', '2', '', '3'].join('\n'),
+          modifiedAt: 1,
+        }),
+      }));
+      return true;
+    });
+    mocks.saveNoteDocument.mockResolvedValue({
+      content: ['1', '', '2', '', '3'].join('\n'),
+      metadata: { updatedAt: 2 },
+      modifiedAt: 2,
+      nextCache: new Map([['alpha.md', { content: ['1', '', '2', '', '3'].join('\n'), modifiedAt: 2 }]]),
+    });
+
+    await store.getState().saveNote();
+
+    expect(mocks.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
+    expect(mocks.saveNoteDocument).toHaveBeenCalledWith(expect.objectContaining({
+      currentNote: {
+        path: 'alpha.md',
+        content: ['1', '', '2', '', '3'].join('\n'),
+      },
+    }));
+    expect(store.getState().isDirty).toBe(false);
   });
 
   it('dispatches an open target after saving a draft outside the current vault', async () => {

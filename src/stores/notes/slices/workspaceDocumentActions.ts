@@ -16,6 +16,13 @@ import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { createWorkspaceDiskSyncAction } from './workspaceDiskSyncActions';
 import { resolveUniquePath } from '../utils/fs/pathOperations';
 import { invalidatePendingFileTreeLoads } from './fileSystemSliceTreeActions';
+import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
+import {
+  compareLineBreakText,
+  logLineBreakDebug,
+  logNotesDebug,
+  summarizeLineBreakText,
+} from '../lineBreakDebugLog';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 
 type WorkspaceDocumentActions = Pick<
@@ -34,6 +41,19 @@ export function createWorkspaceDocumentActions(
 ): WorkspaceDocumentActions {
   return {
     saveNote: async (options) => {
+      logLineBreakDebug('save:start-before-flush', {
+        options: options ?? null,
+        currentNotePath: get().currentNote?.path ?? null,
+        isDirty: get().isDirty,
+        current: summarizeLineBreakText(get().currentNote?.content),
+      });
+      const flushed = flushCurrentPendingEditorMarkdown();
+      logLineBreakDebug('save:after-flush', {
+        flushed,
+        currentNotePath: get().currentNote?.path ?? null,
+        isDirty: get().isDirty,
+        current: summarizeLineBreakText(get().currentNote?.content),
+      });
       const {
         currentNote,
         notesPath,
@@ -48,10 +68,26 @@ export function createWorkspaceDocumentActions(
         pendingDraftDiscardPath,
       } = get();
       if (!currentNote) {
+        logNotesDebug('NotesDirty', 'save:skipped-no-current-note', {
+          options: options ?? null,
+          notesPath,
+          openTabsLength: openTabs.length,
+          isDirty: get().isDirty,
+        });
         return;
       }
       const notePathAtSaveStart = currentNote.path;
       const wasDirtyAtSaveStart = get().isDirty;
+      logNotesDebug('NotesDirty', 'save:resolved-current', {
+        notePathAtSaveStart,
+        wasDirtyAtSaveStart,
+        isDraft: Boolean(draftNotes[currentNote.path]),
+        openTabs: openTabs.map((tab) => ({
+          path: tab.path,
+          isDirty: tab.isDirty,
+        })),
+        content: summarizeLineBreakText(currentNote.content),
+      });
 
       try {
         const draftNote = draftNotes[currentNote.path];
@@ -178,6 +214,11 @@ export function createWorkspaceDocumentActions(
           currentNote,
           cache: noteContentsCache,
         });
+        logLineBreakDebug('save:regular-write-result', {
+          notePath: currentNote.path,
+          input: summarizeLineBreakText(currentNote.content),
+          saved: summarizeLineBreakText(content),
+        });
         if (!isCurrentSaveTarget(get, notesPath, notePathAtSaveStart)) return;
 
         const nextMetadata = setNoteEntry(
@@ -202,11 +243,22 @@ export function createWorkspaceDocumentActions(
           openTabs: setNoteTabDirtyState(get().openTabs, currentNote.path, false),
           error: null,
         });
+        logLineBreakDebug('save:regular-set-complete', {
+          notePath: currentNote.path,
+          isDirty: false,
+          content: summarizeLineBreakText(content),
+        });
       } catch (error) {
         if (get().notesPath !== notesPath) return;
 
         const currentState = get();
         const dirtyPath = currentState.currentNote?.path ?? notePathAtSaveStart;
+        logNotesDebug('NotesDirty', 'save:failed', {
+          notePathAtSaveStart,
+          dirtyPath,
+          wasDirtyAtSaveStart,
+          message: error instanceof Error ? error.message : String(error),
+        });
         set({
           error: error instanceof Error ? error.message : 'Failed to save note',
           ...(wasDirtyAtSaveStart
@@ -227,15 +279,46 @@ export function createWorkspaceDocumentActions(
 
     invalidateNoteCache: (path: string) => {
       const { currentNote, noteContentsCache } = get();
-      if (currentNote?.path === path) return;
+      if (currentNote?.path === path) {
+        logNotesDebug('NotesDirty', 'invalidate-cache:skipped-current', {
+          path,
+        });
+        return;
+      }
+      logNotesDebug('NotesDirty', 'invalidate-cache', {
+        path,
+        cacheHasPath: noteContentsCache.has(path),
+      });
       set({ noteContentsCache: removeCachedNoteContent(noteContentsCache, path) });
     },
 
     updateContent: (content: string) => {
       const { currentNote, noteContentsCache, openTabs } = get();
-      if (!currentNote || currentNote.content === content) {
+      if (!currentNote) {
+        logNotesDebug('NotesDirty', 'update-content:skipped-no-current-note', {
+          next: summarizeLineBreakText(content),
+        });
         return;
       }
+      if (currentNote.content === content) {
+        logNotesDebug('NotesDirty', 'update-content:skipped-unchanged', {
+          notePath: currentNote.path,
+          current: summarizeLineBreakText(currentNote.content),
+          next: summarizeLineBreakText(content),
+        });
+        return;
+      }
+      logNotesDebug('NotesDirty', 'update-content:apply', {
+        notePath: currentNote.path,
+        previousDirty: get().isDirty,
+        previous: summarizeLineBreakText(currentNote.content),
+        next: summarizeLineBreakText(content),
+        diff: compareLineBreakText(currentNote.content, content),
+        openTabs: openTabs.map((tab) => ({
+          path: tab.path,
+          isDirty: tab.isDirty,
+        })),
+      });
       set({
         currentNote: { ...currentNote, content },
         currentNoteRevision: get().currentNoteRevision + 1,

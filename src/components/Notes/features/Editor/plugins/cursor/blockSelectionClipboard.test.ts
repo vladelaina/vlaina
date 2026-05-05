@@ -4,6 +4,11 @@ import { writeTextToClipboard } from './blockSelectionClipboard';
 describe('writeTextToClipboard', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    delete (window as any).vlainaDesktop;
+    Object.defineProperty(navigator, 'clipboard', {
+      value: undefined,
+      configurable: true,
+    });
   });
 
   it('uses execCommand when it can copy text', async () => {
@@ -31,6 +36,22 @@ describe('writeTextToClipboard', () => {
 
     await expect(writeTextToClipboard('navigator text')).resolves.toBe(true);
     expect(writeText).toHaveBeenCalledWith('navigator text');
+  });
+
+  it('uses electron clipboard when execCommand cannot copy', async () => {
+    const execCommand = vi.fn().mockReturnValue(false);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(document, 'execCommand', {
+      value: execCommand,
+      configurable: true,
+    });
+    (window as any).vlainaDesktop = {
+      platform: 'electron',
+      clipboard: { writeText },
+    };
+
+    await expect(writeTextToClipboard('electron text')).resolves.toBe(true);
+    expect(writeText).toHaveBeenCalledWith('electron text');
   });
 
   it('retries execCommand after navigator clipboard fails', async () => {

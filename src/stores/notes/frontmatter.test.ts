@@ -93,4 +93,28 @@ describe('note frontmatter metadata', () => {
       ].join('\n')
     );
   });
+
+  it('preserves an empty body separator after existing frontmatter', () => {
+    const markdown = [
+      '---',
+      'vlaina_icon: "😃"',
+      'vlaina_updated: "2026-04-15T00:00:00.000Z"',
+      '---',
+      '',
+    ].join('\n');
+
+    const result = updateNoteMetadataInMarkdown(markdown, {
+      updatedAt: Date.parse('2026-04-16T00:00:00.000Z'),
+    });
+
+    expect(result.content).toBe(
+      [
+        '---',
+        'vlaina_icon: "😃"',
+        'vlaina_updated: "2026-04-16T00:00:00.000Z"',
+        '---',
+        '',
+      ].join('\n')
+    );
+  });
 });

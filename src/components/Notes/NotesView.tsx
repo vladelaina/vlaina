@@ -25,6 +25,7 @@ import { useBlankWorkspaceDropOpen } from './hooks/useBlankWorkspaceDropOpen';
 import { useNotesSidebarExternalDropImport } from './hooks/useNotesSidebarExternalDropImport';
 import { collectNotePathsInTreeOrder } from './features/common/noteTreeNavigation';
 import { scheduleSidebarItemIntoView } from './features/common/sidebarScrollIntoView';
+import { logNotesDebug } from '@/stores/notes/lineBreakDebugLog';
 
 const EmbeddedChatView = lazy(async () => {
   const mod = await import('@/components/Chat/ChatView');
@@ -72,18 +73,25 @@ export function NotesView({ active = true }: { active?: boolean }) {
 
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [pendingDeleteCurrentNotePath, setPendingDeleteCurrentNotePath] = useState<string | null>(null);
+  const [isVaultInitializing, setIsVaultInitializing] = useState(false);
   const launchContextRef = useRef(readWindowLaunchContext());
   const hasHandledLaunchNoteRef = useRef(false);
   const autoCreateBlankNoteRef = useRef(false);
   const hasPresentedNoteRef = useRef(false);
   const autoCreateVaultPathRef = useRef<string | null>(currentVault?.path ?? null);
+  const vaultInitializingRef = useRef(false);
   const toggleShortcutsDialog = useCallback(() => setIsShortcutsOpen((prev) => !prev), []);
+  const handleVaultInitializingChange = useCallback((initializing: boolean) => {
+    vaultInitializingRef.current = initializing;
+    setIsVaultInitializing(initializing);
+  }, []);
   const handleChatPanelDragStateChange = useCallback((dragging: boolean) => {
     setLayoutPanelDragging(dragging);
   }, [setLayoutPanelDragging]);
   const notePathsInTreeOrder = useMemo(() => (
     rootFolder ? collectNotePathsInTreeOrder(rootFolder.children) : []
   ), [rootFolder]);
+  const draftNotesLength = useMemo(() => Object.keys(draftNotes).length, [draftNotes]);
 
   const focusSidebarPath = useCallback((path: string) => {
     revealFolder(path);
@@ -124,6 +132,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
     loadFileTree,
     cleanupAssetTempFiles,
     clearAssetUrlCache,
+    onInitializingChange: handleVaultInitializingChange,
   });
 
   useEffect(() => {
@@ -213,6 +222,12 @@ export function NotesView({ active = true }: { active?: boolean }) {
 
   useEffect(() => {
     if (currentNotePath || openTabs.length > 0) {
+      if (!hasPresentedNoteRef.current) {
+        logNotesDebug('NotesAutoDraft', 'presented-note-marked', {
+          currentNotePath: currentNotePath ?? null,
+          openTabsLength: openTabs.length,
+        });
+      }
       hasPresentedNoteRef.current = true;
     }
   }, [currentNotePath, openTabs.length]);
@@ -223,9 +238,17 @@ export function NotesView({ active = true }: { active?: boolean }) {
       return;
     }
 
+    const previousVaultPath = autoCreateVaultPathRef.current;
     autoCreateVaultPathRef.current = vaultPath;
     hasPresentedNoteRef.current = false;
     autoCreateBlankNoteRef.current = false;
+    logNotesDebug('NotesAutoDraft', 'vault-changed', {
+      previousVaultPath,
+      nextVaultPath: vaultPath,
+      currentNotePath: currentNotePath ?? null,
+      openTabsLength: openTabs.length,
+      rootFolderLoaded: Boolean(rootFolder),
+    });
   }, [currentNotePath, currentVault?.path, openTabs.length, rootFolder]);
 
   useEffect(() => {
@@ -235,6 +258,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
       openTabs.length > 0 ? 'has-open-tabs' : null,
       hasPresentedNoteRef.current ? 'already-presented-note' : null,
       isLoading ? 'loading' : null,
+      (isVaultInitializing || vaultInitializingRef.current) ? 'vault-initializing' : null,
       isOpenTargetBusy ? 'open-target-busy' : null,
       pendingStarredNavigation ? 'pending-starred-navigation' : null,
       autoCreateBlankNoteRef.current ? 'auto-create-in-flight' : null,
@@ -245,22 +269,73 @@ export function NotesView({ active = true }: { active?: boolean }) {
     if (launchNoteBlocked) blockedReasons.push('pending-launch-note');
     if (rootFolderBlocked) blockedReasons.push('vault-root-not-loaded');
 
+    logNotesDebug('NotesAutoDraft', 'evaluate', {
+      active,
+      currentVaultPath: currentVault?.path ?? null,
+      notesPath,
+      currentNotePath: currentNotePath ?? null,
+      openTabsLength: openTabs.length,
+      recentlyClosedTabsLength: recentlyClosedTabs.length,
+      draftNotesLength,
+      hasPresentedNote: hasPresentedNoteRef.current,
+      isLoading,
+      isVaultInitializing,
+      vaultInitializingRef: vaultInitializingRef.current,
+      isOpenTargetBusy,
+      pendingStarredNavigation: Boolean(pendingStarredNavigation),
+      autoCreateInFlight: autoCreateBlankNoteRef.current,
+      launchNotePath: launchContextRef.current.notePath ?? null,
+      hasHandledLaunchNote: hasHandledLaunchNoteRef.current,
+      rootFolderLoaded: Boolean(rootFolder),
+      rootChildrenLength: rootFolder?.children.length ?? null,
+      blockedReasons,
+    });
+
     if (blockedReasons.length > 0) {
       return;
     }
 
     autoCreateBlankNoteRef.current = true;
+    logNotesDebug('NotesAutoDraft', 'schedule-create', {
+      currentVaultPath: currentVault?.path ?? null,
+      notesPath,
+      rootChildrenLength: rootFolder?.children.length ?? null,
+    });
 
     const timeoutId = window.setTimeout(() => {
       const state = useNotesStore.getState();
+      logNotesDebug('NotesAutoDraft', 'timer-fired', {
+        currentVaultPath: currentVault?.path ?? null,
+        notesPathAtRender: notesPath,
+        notesPathAtTimer: state.notesPath,
+        currentNotePathAtTimer: state.currentNote?.path ?? null,
+        openTabsLengthAtTimer: state.openTabs.length,
+        recentlyClosedTabsLengthAtTimer: state.recentlyClosedTabs.length,
+        draftNotesLengthAtTimer: Object.keys(state.draftNotes).length,
+      });
       if (state.currentNote || state.openTabs.length > 0) {
         autoCreateBlankNoteRef.current = false;
+        logNotesDebug('NotesAutoDraft', 'timer-aborted', {
+          reason: state.currentNote ? 'has-current-note' : 'has-open-tabs',
+          currentNotePathAtTimer: state.currentNote?.path ?? null,
+          openTabsLengthAtTimer: state.openTabs.length,
+        });
         return;
       }
 
       void state.createNote(undefined, { asDraft: true })
+        .then((draftPath) => {
+          logNotesDebug('NotesAutoDraft', 'create-resolved', {
+            draftPath,
+            currentNotePathAfterCreate: useNotesStore.getState().currentNote?.path ?? null,
+            openTabsLengthAfterCreate: useNotesStore.getState().openTabs.length,
+          });
+        })
         .catch((error) => {
           console.error('[NotesView] Failed to create blank draft note:', error);
+          logNotesDebug('NotesAutoDraft', 'create-failed', {
+            message: error instanceof Error ? error.message : String(error),
+          });
           autoCreateBlankNoteRef.current = false;
         });
     }, 0);
@@ -268,12 +343,18 @@ export function NotesView({ active = true }: { active?: boolean }) {
     return () => {
       window.clearTimeout(timeoutId);
       autoCreateBlankNoteRef.current = false;
+      logNotesDebug('NotesAutoDraft', 'cleanup', {
+        currentVaultPath: currentVault?.path ?? null,
+        notesPath,
+      });
     };
   }, [
     active,
     currentNotePath,
     currentVault,
+    draftNotesLength,
     isLoading,
+    isVaultInitializing,
     isOpenTargetBusy,
     openTabs.length,
     pendingStarredNavigation,

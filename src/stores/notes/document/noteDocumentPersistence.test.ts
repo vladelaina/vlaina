@@ -120,6 +120,73 @@ describe('saveNoteDocument', () => {
     vi.useRealTimers();
   });
 
+  it('preserves user-authored line breaks before writing markdown', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    adapter.writeFile.mockResolvedValue();
+    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+
+    await saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: ['1', '2', '', '3', '4'].join('\n'),
+      },
+      cache: new Map(),
+    });
+
+    expect(adapter.writeFile).toHaveBeenCalledWith(
+      '/vault/alpha.md',
+      [
+        '---',
+        'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+        '---',
+        '',
+        '1\\',
+        '2',
+        '',
+        '3\\',
+        '4',
+      ].join('\n')
+    );
+
+    vi.useRealTimers();
+  });
+
+  it('keeps frontmatter body separator when saving an empty body', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    adapter.writeFile.mockResolvedValue();
+    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+
+    const result = await saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: [
+          '---',
+          'vlaina_icon: "😃"',
+          'vlaina_updated: "2026-04-14T10:00:00.000Z"',
+          '---',
+          '',
+        ].join('\n'),
+      },
+      cache: new Map(),
+    });
+
+    const expected = [
+      '---',
+      'vlaina_icon: "😃"',
+      'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+      '---',
+      '',
+    ].join('\n');
+    expect(adapter.writeFile).toHaveBeenCalledWith('/vault/alpha.md', expected);
+    expect(result.content).toBe(expected);
+
+    vi.useRealTimers();
+  });
+
   it('canonicalizes supported inline html text before writing markdown', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));

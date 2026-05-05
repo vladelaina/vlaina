@@ -7,12 +7,14 @@ const storageAdapter = vi.hoisted(() => ({
   exists: vi.fn<(path: string) => Promise<boolean>>(),
   stat: vi.fn<(path: string) => Promise<{ isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null } | null>>(),
   readFile: vi.fn<(path: string) => Promise<string>>(),
+  writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
 }));
 
 const hoisted = vi.hoisted(() => ({
   persistRecentNotes: vi.fn(),
   saveStarredRegistry: vi.fn(),
   persistWorkspaceSnapshot: vi.fn(),
+  flushCurrentPendingEditorMarkdown: vi.fn(),
 }));
 
 vi.mock('../storage', async () => {
@@ -33,6 +35,10 @@ vi.mock('../starred', async () => {
 
 vi.mock('../workspacePersistence', () => ({
   persistWorkspaceSnapshot: hoisted.persistWorkspaceSnapshot,
+}));
+
+vi.mock('../pendingEditorMarkdownFlusher', () => ({
+  flushCurrentPendingEditorMarkdown: hoisted.flushCurrentPendingEditorMarkdown,
 }));
 
 vi.mock('@/lib/storage/adapter', () => ({
@@ -90,7 +96,10 @@ describe('workspaceSlice tab history', () => {
     storageAdapter.exists.mockReset();
     storageAdapter.stat.mockReset();
     storageAdapter.readFile.mockReset();
+    storageAdapter.writeFile.mockReset();
     storageAdapter.stat.mockResolvedValue({ modifiedAt: 1, isFile: true });
+    storageAdapter.writeFile.mockResolvedValue(undefined);
+    hoisted.flushCurrentPendingEditorMarkdown.mockReset();
   });
 
   it('records a closed tab and restores it to its original position', async () => {
@@ -244,6 +253,51 @@ describe('workspaceSlice tab history', () => {
     alphaResolvers[0]?.('# alpha');
     await alphaOpen;
 
+    expect(store.getState().currentNote).toEqual({
+      path: 'beta.md',
+      content: '# beta',
+    });
+  });
+
+  it('flushes pending editor markdown before deciding whether to save while opening another note', async () => {
+    const saveNote = vi.fn(async () => {
+      store.setState((state) => ({
+        isDirty: false,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'alpha.md' ? { ...tab, isDirty: false } : tab
+        ),
+      }));
+    });
+    storageAdapter.readFile.mockResolvedValue('# beta');
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: 'old' },
+      isDirty: false,
+      saveNote,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'old', modifiedAt: 1 }],
+      ]),
+    });
+    hoisted.flushCurrentPendingEditorMarkdown.mockImplementation(() => {
+      store.setState((state) => ({
+        currentNote: { path: 'alpha.md', content: ['1\\', '2\\', '3'].join('\n') },
+        isDirty: true,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'alpha.md' ? { ...tab, isDirty: true } : tab
+        ),
+        noteContentsCache: new Map(state.noteContentsCache).set('alpha.md', {
+          content: ['1\\', '2\\', '3'].join('\n'),
+          modifiedAt: 1,
+        }),
+      }));
+      return true;
+    });
+
+    await store.getState().openNote('beta.md');
+
+    expect(hoisted.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
+    expect(saveNote).toHaveBeenCalledTimes(1);
+    expect(store.getState().noteContentsCache.get('alpha.md')?.content).toBe(['1\\', '2\\', '3'].join('\n'));
     expect(store.getState().currentNote).toEqual({
       path: 'beta.md',
       content: '# beta',
@@ -498,7 +552,7 @@ describe('workspaceSlice tab history', () => {
     expect(store.getState().currentNote?.path).toBe('/other-vault/starred.md');
   });
 
-  it('focuses a dirty background note instead of closing and losing its cached content', async () => {
+  it('saves and closes a dirty background regular tab instead of focusing it', async () => {
     const store = createNotesStore({
       currentNote: { path: 'beta.md', content: '# beta' },
       isDirty: false,
@@ -515,14 +569,20 @@ describe('workspaceSlice tab history', () => {
     await store.getState().closeTab('alpha.md');
 
     expect(store.getState().currentNote).toEqual({
-      path: 'alpha.md',
-      content: 'Unsaved alpha',
+      path: 'beta.md',
+      content: '# beta',
     });
-    expect(store.getState().isDirty).toBe(true);
-    expect(store.getState().openTabs).toEqual([
-      { path: 'alpha.md', name: 'alpha', isDirty: true },
-      { path: 'beta.md', name: 'beta', isDirty: false },
-    ]);
+    expect(store.getState().isDirty).toBe(false);
+    expect(store.getState().openTabs).toEqual([{ path: 'beta.md', name: 'beta', isDirty: false }]);
+    expect(storageAdapter.writeFile).toHaveBeenCalledWith(
+      '/vault/alpha.md',
+      expect.stringContaining('Unsaved alpha'),
+    );
+    expect(store.getState().recentlyClosedTabs[0]?.tab).toEqual({
+      path: 'alpha.md',
+      name: 'alpha',
+      isDirty: false,
+    });
   });
 
   it('restores a discarded dirty draft tab with its unsaved content', async () => {

@@ -265,12 +265,20 @@ export function writeNoteMetadataToMarkdown(
   ].join('\n');
 
   if (!body) {
-    return frontmatterBlock;
+    return normalizedMarkdownHasBodySeparator(markdown) ? `${frontmatterBlock}\n` : frontmatterBlock;
   }
 
   return hasFrontmatter
     ? `${frontmatterBlock}\n${body}`
     : `${frontmatterBlock}\n\n${body}`;
+}
+
+function normalizedMarkdownHasBodySeparator(markdown: string): boolean {
+  const normalized = normalizeLineEndings(markdown);
+  if (!normalized.endsWith('\n')) return false;
+
+  const { hasFrontmatter } = splitLeadingFrontmatter(normalized);
+  return hasFrontmatter;
 }
 
 export function updateNoteMetadataInMarkdown(
