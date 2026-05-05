@@ -4,6 +4,7 @@ import { normalizeSerializedMarkdownSelection } from '@/lib/notes/markdown/markd
 import { useToastStore } from '@/stores/useToastStore';
 import { serializeSliceToText } from '../../clipboard/serializer';
 import { getCurrentMarkdownParser } from '../../../utils/editorViewRegistry';
+import { collapseSelectionAfterToolbarApply } from '../selectionCollapse';
 import type { AiSelectionSuggestion } from './selectionCommandTypes';
 
 export function getSerializedSelectionText(view: EditorView): string {
@@ -184,7 +185,7 @@ function replaceSelectionWithText(view: EditorView, from: number, to: number, te
     ? view.state.tr.replaceRange(from, to, parsedSlice).scrollIntoView()
     : view.state.tr.insertText(text, from, to).scrollIntoView();
   view.dispatch(tr);
-  view.focus();
+  collapseSelectionAfterToolbarApply(view);
 }
 
 function isOriginalSelectionStillCurrent(

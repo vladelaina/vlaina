@@ -96,6 +96,20 @@ function readTextSelectionOverlaySource() {
   );
 }
 
+function readAiReviewSelectionSource() {
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar/ai', 'reviewSelection.ts'),
+    'utf8'
+  );
+}
+
+function readLinkTooltipSource() {
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/links/tooltip', 'linkTooltipPlugin.tsx'),
+    'utf8'
+  );
+}
+
 describe('editor embedded CodeMirror selection styles', () => {
   it('keeps nested list block selection overlays from stacking darker backgrounds', () => {
     const css = readStyleFile('core.css');
@@ -200,6 +214,9 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('background-color: transparent !important;');
     expect(css).toContain('.milkdown .ProseMirror .vlaina-text-selection-overlay {');
     expect(css).toContain('line-height: normal;');
+    expect(css).not.toContain('vlaina-ai-review-selection');
+    expect(css).not.toContain('vlaina-link-selection-visible');
+    expect(source).toContain("export const TEXT_SELECTION_OVERLAY_CLASS = 'vlaina-text-selection-overlay'");
     expect(source).toContain('Decoration.inline(from, to, {');
     expect(source).toContain("class: TEXT_SELECTION_OVERLAY_CLASS");
     expect(source).toContain('node.isText');
@@ -218,6 +235,27 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('-webkit-text-fill-color: initial !important;');
     expect(css).toContain('.vlaina-block-drag-preview .mermaid-drag-preview-surface {');
     expect(css).toContain('.vlaina-block-drag-preview .mermaid-drag-preview-image {');
+  });
+
+  it('reuses the standard text selection overlay for AI review ranges', () => {
+    const css = readStyleFile('core.css');
+    const source = readAiReviewSelectionSource();
+
+    expect(source).toContain("import { TEXT_SELECTION_OVERLAY_CLASS }");
+    expect(source).toContain("class: TEXT_SELECTION_OVERLAY_CLASS");
+    expect(source).toContain('node.isText');
+    expect(source).not.toContain('vlaina-ai-review-selection');
+    expect(css).not.toContain('vlaina-ai-review-selection');
+  });
+
+  it('reuses the standard text selection overlay for link tooltip ranges', () => {
+    const css = readStyleFile('core.css');
+    const source = readLinkTooltipSource();
+
+    expect(source).toContain("import { TEXT_SELECTION_OVERLAY_CLASS }");
+    expect(source).toContain("class: TEXT_SELECTION_OVERLAY_CLASS");
+    expect(source).not.toContain('vlaina-link-selection-visible');
+    expect(css).not.toContain('vlaina-link-selection-visible');
   });
 
   it('keeps code block selection rendering on the CodeMirror selection layer', () => {

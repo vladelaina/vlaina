@@ -226,6 +226,8 @@ describe('toolbar markup', () => {
     );
 
     expect(markup).toContain('ai-review-loading-slot');
+    expect(markup).toContain('data-review-action="accept"');
+    expect(markup).not.toContain('data-review-action="accept" aria-label="Apply" disabled');
     expect(markup).not.toContain('ai-review-loading-line');
   });
 

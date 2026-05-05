@@ -1,6 +1,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { FloatingToolbarState } from '../types';
 import { setLink } from '../commands';
+import { collapseSelectionAfterToolbarApply } from '../selectionCollapse';
 import { isValidUrl } from '../utils';
 import { renderUrlRailEditor } from './UrlRailEditor';
 
@@ -21,10 +22,12 @@ export function renderLinkEditor(
     onEmpty() {
       setLink(view, null);
       onClose();
+      collapseSelectionAfterToolbarApply(view);
     },
     onSubmit(value) {
       setLink(view, value);
       onClose();
+      collapseSelectionAfterToolbarApply(view);
     },
     onCancel: onClose,
   });

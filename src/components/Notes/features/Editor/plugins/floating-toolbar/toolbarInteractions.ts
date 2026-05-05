@@ -1,4 +1,3 @@
-import { Selection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { FloatingToolbarState } from './types';
 import { TOOLBAR_ACTIONS } from './types';
@@ -9,6 +8,7 @@ import {
   commitFormatPreview,
   hasFormatPreview,
 } from './previewStyles';
+import { collapseSelectionAfterToolbarApply } from './selectionCollapse';
 import { createToolbarActionController } from './toolbarActions';
 import type { ToolbarActionControllerOptions } from './toolbarActions';
 
@@ -24,34 +24,12 @@ const PREVIEWED_DIRECT_APPLY_ACTIONS = new Set([
   'link',
 ]);
 
-const COLLAPSE_SELECTION_AFTER_APPLY_ACTIONS = new Set([
-  'highlight',
-]);
+const COLLAPSE_SELECTION_AFTER_APPLY_ACTIONS = PREVIEWED_DIRECT_APPLY_ACTIONS;
 
 export interface ToolbarEventDelegationController {
   update: (view: EditorView, state: FloatingToolbarState) => void;
   clearTransientUi: () => void;
   destroy: () => void;
-}
-
-function collapseSelectionAfterToolbarApply(view: EditorView): void {
-  const { selection } = view.state;
-  if (selection.empty) {
-    view.focus();
-    return;
-  }
-
-  const tr = view.state.tr;
-  const clampedPos = Math.max(0, Math.min(selection.to, tr.doc.content.size));
-
-  try {
-    tr.setSelection(TextSelection.create(tr.doc, clampedPos));
-  } catch {
-    tr.setSelection(Selection.near(tr.doc.resolve(clampedPos), -1));
-  }
-
-  view.dispatch(tr.setMeta('addToHistory', false));
-  view.focus();
 }
 
 export function createToolbarEventDelegation(

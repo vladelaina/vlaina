@@ -12,10 +12,18 @@ const commandMocks = vi.hoisted(() => ({
   setTextAlignment: vi.fn(),
 }));
 
+const collapseMocks = vi.hoisted(() => ({
+  collapseSelectionAfterToolbarApply: vi.fn(),
+}));
+
 vi.mock('../previewStyles', () => ({
   applyAlignmentPreview: previewMocks.applyAlignmentPreview,
   clearFormatPreview: previewMocks.clearFormatPreview,
   commitAlignmentPreview: previewMocks.commitAlignmentPreview,
+}));
+
+vi.mock('../selectionCollapse', () => ({
+  collapseSelectionAfterToolbarApply: collapseMocks.collapseSelectionAfterToolbarApply,
 }));
 
 vi.mock('../commands', () => ({
@@ -34,6 +42,7 @@ describe('AlignmentDropdown', () => {
     previewMocks.commitAlignmentPreview.mockReset();
     previewMocks.commitAlignmentPreview.mockReturnValue(false);
     commandMocks.setTextAlignment.mockReset();
+    collapseMocks.collapseSelectionAfterToolbarApply.mockReset();
   });
 
   it('previews inactive alignment choices from the applied preview path on hover', () => {
@@ -70,5 +79,6 @@ describe('AlignmentDropdown', () => {
     expect(previewMocks.clearFormatPreview).toHaveBeenCalledWith(view);
     expect(commandMocks.setTextAlignment).toHaveBeenCalledWith(view, 'center');
     expect(onClose).toHaveBeenCalledTimes(1);
+    expect(collapseMocks.collapseSelectionAfterToolbarApply).toHaveBeenCalledWith(view);
   });
 });

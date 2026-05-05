@@ -149,10 +149,10 @@ describe('toolbar interactions', () => {
     delegation.destroy();
   });
 
-  it('collapses restored editor selection after applying highlight from a preview', () => {
+  it('collapses restored editor selection after applying a direct format preview', () => {
     const toolbar = document.createElement('div');
     const button = document.createElement('button');
-    button.dataset.action = 'highlight';
+    button.dataset.action = 'bold';
     toolbar.appendChild(button);
     document.body.appendChild(toolbar);
     previewMocks.commitFormatPreview.mockReturnValue(true);
@@ -190,7 +190,7 @@ describe('toolbar interactions', () => {
       cancelable: true,
     }));
 
-    expect(previewMocks.commitFormatPreview).toHaveBeenCalledWith(view, 'highlight', false);
+    expect(previewMocks.commitFormatPreview).toHaveBeenCalledWith(view, 'bold', false);
     expect(tr.setMeta).toHaveBeenCalledWith(floatingToolbarKey, {
       type: TOOLBAR_ACTIONS.HIDE,
     });

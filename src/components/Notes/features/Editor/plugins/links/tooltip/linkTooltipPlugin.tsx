@@ -5,6 +5,7 @@ import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { createRoot, Root } from 'react-dom/client';
 import LinkTooltip from './LinkTooltip';
 import { findLinkRange } from '../utils/helpers';
+import { TEXT_SELECTION_OVERLAY_CLASS } from '../../selection/textSelectionOverlayPlugin';
 import {
     getLinkTooltipPositionRoot,
     resolveLinkTooltipPosition,
@@ -722,7 +723,7 @@ export const linkTooltipPlugin = $prose(() => {
                     Decoration.inline(
                         pluginState.visibleSelectionFrom,
                         pluginState.visibleSelectionTo,
-                        { class: 'vlaina-link-selection-visible' }
+                        { class: TEXT_SELECTION_OVERLAY_CLASS }
                     ),
                 ]);
             },

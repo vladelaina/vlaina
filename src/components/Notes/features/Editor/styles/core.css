@@ -97,28 +97,6 @@ body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hide
   color: #ffffff !important;
 }
 
-.milkdown .ProseMirror .vlaina-link-selection-visible {
-  background-color: var(--vlaina-selection-bg, #2781db);
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-  box-shadow:
-    0 2px 0 var(--vlaina-selection-bg, #2781db),
-    0 -2px 0 var(--vlaina-selection-bg, #2781db);
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-}
-
-.milkdown .ProseMirror .vlaina-ai-review-selection {
-  background-color: var(--vlaina-selection-bg, #2781db);
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-  box-shadow:
-    0 2px 0 var(--vlaina-selection-bg, #2781db),
-    0 -2px 0 var(--vlaina-selection-bg, #2781db);
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-}
-
 /* Notion-like drag block selection highlight */
 .milkdown .ProseMirror .vlaina-block-selected {
   --vlaina-block-selection-color: color-mix(in srgb, var(--vlaina-editor-block-selection-base, #71717a) 14%, transparent);
