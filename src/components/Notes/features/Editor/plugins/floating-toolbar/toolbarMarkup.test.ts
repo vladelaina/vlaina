@@ -106,7 +106,46 @@ describe('toolbar markup', () => {
     expect(markup).toContain('data-action="link"');
     expect(markup).toContain('data-action="color"');
     expect(markup).toContain('background-color: #ffeeaa');
+    expect(markup).toContain('toolbar-color-icon');
+    expect(markup).not.toContain('color-indicator');
     expect(markup).toContain('class="toolbar-btn has-tooltip active"');
+  });
+
+  it('applies the selected text color directly to the color toolbar icon', () => {
+    const markup = renderToolbarMarkup(
+      createState({
+        textColor: '#dc2626',
+      })
+    );
+
+    expect(markup).toContain('toolbar-color-icon');
+    expect(markup).toContain('style="color: #dc2626"');
+    expect(markup).not.toContain('color-indicator');
+  });
+
+  it('shows text color without also painting the color icon background', () => {
+    const markup = renderToolbarMarkup(
+      createState({
+        textColor: '#dc2626',
+        bgColor: '#ffeeaa',
+      })
+    );
+
+    expect(markup).toContain('style="color: #dc2626"');
+    expect(markup).not.toContain('background-color: #ffeeaa');
+    expect(markup).not.toContain('class="toolbar-btn has-tooltip active"');
+  });
+
+  it('does not render the color toolbar button with active blue styling while its menu is open', () => {
+    const markup = renderToolbarMarkup(
+      createState({
+        subMenu: 'color',
+        bgColor: '#ffeeaa',
+      })
+    );
+
+    expect(markup).toContain('data-action="color"');
+    expect(markup).not.toMatch(/class="toolbar-btn has-tooltip active"[\s\S]*data-action="color"/);
   });
 
   it('renders the current block type button with an icon instead of an English label', () => {

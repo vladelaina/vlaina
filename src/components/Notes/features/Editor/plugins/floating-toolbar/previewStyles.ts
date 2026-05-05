@@ -128,6 +128,37 @@ function renderAppliedPreview(
   return true;
 }
 
+function renderSelectionHiddenPreview(view: EditorView, key: string): boolean {
+  if (!(view.dom instanceof HTMLElement) || !(view.dom.parentElement instanceof HTMLElement)) {
+    void key;
+    return false;
+  }
+
+  if (hasMatchingPreview(view, key)) {
+    return true;
+  }
+
+  clearPreviewOverlay();
+
+  const previewDom = renderAppliedPreviewDocument(view.state, view.dom, view.dom.ownerDocument);
+  previewDom.classList.add('toolbar-applied-preview-overlay', 'toolbar-selection-hidden-preview');
+  previewDom.style.pointerEvents = 'none';
+
+  previewOverlay = {
+    key,
+    node: previewDom,
+    originalDoc: view.state.doc,
+    originalViewDisplay: view.dom.style.display,
+    previewState: view.state,
+    viewDom: view.dom,
+  };
+
+  view.dom.parentElement.insertBefore(previewDom, view.dom);
+  view.dom.style.display = 'none';
+  view.dom.setAttribute('data-toolbar-preview-hidden', 'true');
+  return true;
+}
+
 function clearPreviewOverlay(): void {
   if (!previewOverlay) {
     return;
@@ -258,6 +289,10 @@ export function applyBgColorPreview(view: EditorView, color: string | null): voi
   renderAppliedPreview(view, key, (previewView) => {
     setBgColor(previewView, color);
   });
+}
+
+export function applyColorPickerIdlePreview(view: EditorView): void {
+  renderSelectionHiddenPreview(view, 'colorPicker:idle');
 }
 
 export function applyAlignmentPreview(view: EditorView, alignment: TextAlignment): void {

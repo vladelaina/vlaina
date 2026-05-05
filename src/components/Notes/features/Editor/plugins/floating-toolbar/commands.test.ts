@@ -826,6 +826,74 @@ describe('floating toolbar commands', () => {
     expect(view.focus).toHaveBeenCalled();
   });
 
+  it('removes background color when applying a text color', () => {
+    const collapsedSelection = { type: 'collapsed-selection' };
+    const textColorMark = {
+      create: vi.fn(() => 'text-color-mark'),
+    };
+    const bgColorMark = { name: 'bgColor' };
+    const tr: any = {
+      doc: { content: { size: 30 } },
+      addMark: vi.fn(() => tr),
+      removeMark: vi.fn(() => tr),
+      setSelection: vi.fn(() => tr),
+    };
+    const view: any = {
+      state: {
+        selection: { from: 4, to: 12 },
+        schema: {
+          marks: {
+            textColor: textColorMark,
+            bgColor: bgColorMark,
+          },
+        },
+        tr,
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    };
+    mockTextSelectionCreate.mockReturnValue(collapsedSelection);
+
+    setTextColor(view, '#ef4444');
+
+    expect(tr.removeMark).toHaveBeenCalledWith(4, 12, bgColorMark);
+    expect(tr.addMark).toHaveBeenCalledWith(4, 12, 'text-color-mark');
+  });
+
+  it('removes text color when applying a background color', () => {
+    const collapsedSelection = { type: 'collapsed-selection' };
+    const textColorMark = { name: 'textColor' };
+    const bgColorMark = {
+      create: vi.fn(() => 'bg-color-mark'),
+    };
+    const tr: any = {
+      doc: { content: { size: 30 } },
+      addMark: vi.fn(() => tr),
+      removeMark: vi.fn(() => tr),
+      setSelection: vi.fn(() => tr),
+    };
+    const view: any = {
+      state: {
+        selection: { from: 4, to: 12 },
+        schema: {
+          marks: {
+            textColor: textColorMark,
+            bgColor: bgColorMark,
+          },
+        },
+        tr,
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    };
+    mockTextSelectionCreate.mockReturnValue(collapsedSelection);
+
+    setBgColor(view, '#fde68a');
+
+    expect(tr.removeMark).toHaveBeenCalledWith(4, 12, textColorMark);
+    expect(tr.addMark).toHaveBeenCalledWith(4, 12, 'bg-color-mark');
+  });
+
   it('does not update table cell paragraphs', () => {
     const paragraphNode = {
       type: { name: 'paragraph' },
