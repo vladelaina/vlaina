@@ -1,7 +1,10 @@
-import { TextSelection } from '@milkdown/kit/prose/state';
+import { Selection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorState } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { createAppliedPreviewState, renderAppliedPreviewDocument } from './appliedPreviewState';
+import {
+  createAppliedPreviewState,
+  renderAppliedPreviewDocument,
+} from './appliedPreviewState';
 import {
   convertBlockType,
   setBgColor,
@@ -51,6 +54,19 @@ export function hasBlockPreview(blockType: BlockType): boolean {
   );
 }
 
+export function hasActiveAppliedPreview(view: EditorView): boolean {
+  return Boolean(previewOverlay && previewOverlay.viewDom === view.dom);
+}
+
+function hasMatchingPreview(view: EditorView, key: string): boolean {
+  return Boolean(
+    previewOverlay &&
+    previewOverlay.viewDom === view.dom &&
+    previewOverlay.key === key &&
+    view.state.doc.eq(previewOverlay.originalDoc)
+  );
+}
+
 function createAppliedPreviewDom(
   view: EditorView,
   apply: (previewView: EditorView) => void
@@ -79,6 +95,10 @@ function renderAppliedPreview(
   if (!(view.dom instanceof HTMLElement) || !(view.dom.parentElement instanceof HTMLElement)) {
     void key;
     return false;
+  }
+
+  if (hasMatchingPreview(view, key)) {
+    return true;
   }
 
   clearPreviewOverlay();
@@ -122,22 +142,30 @@ function clearPreviewOverlay(): void {
   previewOverlay = null;
 }
 
+function setCollapsedSelectionNear(tr: EditorState['tr'], pos: number): void {
+  const clampedPos = Math.max(0, Math.min(pos, tr.doc.content.size));
+
+  try {
+    tr.setSelection(TextSelection.create(tr.doc, clampedPos));
+    return;
+  } catch {
+    // Fall back to the nearest valid cursor when the mapped end lands on a block boundary.
+  }
+
+  tr.setSelection(Selection.near(tr.doc.resolve(clampedPos), -1));
+}
+
 function dispatchPreviewState(view: EditorView, previewState: EditorState): boolean {
   const currentDoc = view.state.doc;
   const nextDoc = previewState.doc;
   const diffStart = (currentDoc.content as any).findDiffStart(nextDoc.content);
 
   if (diffStart === null) {
-    if (!view.state.selection.eq(previewState.selection)) {
+    if (!view.state.selection.empty) {
+      const tr = view.state.tr;
       try {
-        view.dispatch(
-          view.state.tr
-            .setSelection(TextSelection.create(
-              view.state.doc,
-              previewState.selection.from,
-              previewState.selection.to
-            ))
-        );
+        setCollapsedSelectionNear(tr, view.state.selection.to);
+        view.dispatch(tr);
       } catch {
         return false;
       }
@@ -157,11 +185,7 @@ function dispatchPreviewState(view: EditorView, previewState: EditorState): bool
   );
 
   try {
-    tr.setSelection(TextSelection.create(
-      tr.doc,
-      previewState.selection.from,
-      previewState.selection.to
-    ));
+    setCollapsedSelectionNear(tr, previewState.selection.to);
   } catch {
     // Keep ProseMirror's mapped selection if the preview selection cannot be restored.
   }
@@ -184,6 +208,11 @@ function commitPreview(view: EditorView, key: string): boolean {
 }
 
 export function applyFormatPreview(view: EditorView, action: string, isActive: boolean = false): void {
+  const key = `format:${action}:${isActive}`;
+  if (hasMatchingPreview(view, key)) {
+    return;
+  }
+
   clearFormatPreview(view);
 
   const markName = FORMAT_MARKS[action];
@@ -192,7 +221,7 @@ export function applyFormatPreview(view: EditorView, action: string, isActive: b
       return;
     }
 
-    renderAppliedPreview(view, `format:${action}:${isActive}`, (previewView) => {
+    renderAppliedPreview(view, key, (previewView) => {
       setLink(previewView, null);
     });
     return;
@@ -202,35 +231,55 @@ export function applyFormatPreview(view: EditorView, action: string, isActive: b
     return;
   }
 
-  renderAppliedPreview(view, `format:${action}:${isActive}`, (previewView) => {
+  renderAppliedPreview(view, key, (previewView) => {
     toggleMark(previewView, markName);
   });
 }
 
 export function applyTextColorPreview(view: EditorView, color: string | null): void {
+  const key = `textColor:${color ?? 'default'}`;
+  if (hasMatchingPreview(view, key)) {
+    return;
+  }
+
   clearFormatPreview(view);
-  renderAppliedPreview(view, `textColor:${color ?? 'default'}`, (previewView) => {
+  renderAppliedPreview(view, key, (previewView) => {
     setTextColor(previewView, color);
   });
 }
 
 export function applyBgColorPreview(view: EditorView, color: string | null): void {
+  const key = `bgColor:${color ?? 'default'}`;
+  if (hasMatchingPreview(view, key)) {
+    return;
+  }
+
   clearFormatPreview(view);
-  renderAppliedPreview(view, `bgColor:${color ?? 'default'}`, (previewView) => {
+  renderAppliedPreview(view, key, (previewView) => {
     setBgColor(previewView, color);
   });
 }
 
 export function applyAlignmentPreview(view: EditorView, alignment: TextAlignment): void {
+  const key = `alignment:${alignment}`;
+  if (hasMatchingPreview(view, key)) {
+    return;
+  }
+
   clearFormatPreview(view);
-  renderAppliedPreview(view, `alignment:${alignment}`, (previewView) => {
+  renderAppliedPreview(view, key, (previewView) => {
     setTextAlignment(previewView, alignment);
   });
 }
 
 export function applyBlockPreview(view: EditorView, blockType: BlockType): void {
+  const key = `block:${blockType}`;
+  if (hasMatchingPreview(view, key)) {
+    return;
+  }
+
   clearFormatPreview(view);
-  renderAppliedPreview(view, `block:${blockType}`, (previewView) => {
+  renderAppliedPreview(view, key, (previewView) => {
     convertBlockType(previewView, blockType);
   });
 }

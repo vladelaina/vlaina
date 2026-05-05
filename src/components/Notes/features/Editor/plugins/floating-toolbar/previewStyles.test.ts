@@ -237,6 +237,7 @@ describe('previewStyles', () => {
 
     const range = findTextRange(view.state.doc, 'format');
     expect(view.state.doc.rangeHasMark(range.from, range.to, view.state.schema.marks.strong)).toBe(true);
+    expect(view.state.selection.empty).toBe(true);
     expect(host.querySelector('.toolbar-applied-preview-overlay')).toBeInstanceOf(HTMLElement);
 
     clearFormatPreview(view);
@@ -291,6 +292,43 @@ describe('previewStyles', () => {
     expect(overlay?.style.display).toBe('');
     expect(overlay?.style.lineHeight).toBe('33px');
     expect(view.dom.style.display).toBe('none');
+
+    clearFormatPreview(view);
+    await editor.destroy();
+    host.remove();
+  });
+
+  it('reuses the current applied preview when hovering the same action repeatedly', async () => {
+    const { editor, host, view } = await createEditor('target text');
+    selectText(view, 'target');
+
+    applyFormatPreview(view, 'bold');
+    const firstOverlay = host.querySelector('.toolbar-applied-preview-overlay');
+
+    applyFormatPreview(view, 'bold');
+
+    expect(host.querySelector('.toolbar-applied-preview-overlay')).toBe(firstOverlay);
+    expect(host.querySelectorAll('.toolbar-applied-preview-overlay')).toHaveLength(1);
+
+    clearFormatPreview(view);
+    await editor.destroy();
+    host.remove();
+  });
+
+  it('keeps root typography stable while rendering applied previews', async () => {
+    const { editor, host, view } = await createEditor('target text');
+    view.dom.style.fontSize = '18px';
+    view.dom.style.lineHeight = '32px';
+    view.dom.style.letterSpacing = '0px';
+    selectText(view, 'target');
+
+    applyFormatPreview(view, 'bold');
+
+    const overlay = host.querySelector<HTMLElement>('.toolbar-applied-preview-overlay');
+    expect(overlay).toBeInstanceOf(HTMLElement);
+    expect(overlay?.style.fontSize).toBe('18px');
+    expect(overlay?.style.lineHeight).toBe('32px');
+    expect(overlay?.style.letterSpacing).toBe('0px');
 
     clearFormatPreview(view);
     await editor.destroy();

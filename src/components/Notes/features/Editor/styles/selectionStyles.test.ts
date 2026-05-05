@@ -313,6 +313,14 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(source).toContain("serializeFragment(");
   });
 
+  it('keeps applied preview root typography pinned to the visible editor root', () => {
+    const source = readAppliedPreviewSource();
+
+    expect(source).toContain('stabilizePreviewRootTypography');
+    expect(source).toContain('window.getComputedStyle(sourceDom)');
+    expect(source).toContain("'lineHeight'");
+  });
+
   it('rerenders AI review previews when the review width changes', () => {
     const source = readFloatingToolbarPluginViewSource();
 
