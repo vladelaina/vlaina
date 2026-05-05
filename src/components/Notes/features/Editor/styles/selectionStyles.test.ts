@@ -371,6 +371,21 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(source).toContain('const renderState = getReviewRenderState(review, reviewWidth);');
   });
 
+  it('clears applied toolbar previews whenever the toolbar is hidden or reset', () => {
+    const source = readFloatingToolbarPluginViewSource();
+
+    expect(source).toContain('const hideToolbarAndReset = () => {');
+    expect(source).toContain('clearFormatPreview(editorView);');
+  });
+
+  it('self-heals stale applied toolbar previews on the next outside mouse down', () => {
+    const source = readFloatingToolbarPluginViewSource();
+
+    expect(source).toContain('const isToolbarEventTarget = (target: EventTarget | null) => {');
+    expect(source).toContain('if (hasActiveAppliedPreview(editorView) && !isToolbarEventTarget(event.target)) {');
+    expect(source).toContain('clearFormatPreview(editorView);');
+  });
+
   it('keeps the code block theme aligned with the CSS padding model', () => {
     const source = readCodeBlockThemeSource();
 
