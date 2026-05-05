@@ -98,6 +98,21 @@ describe('getUserFacingAIError', () => {
     });
   });
 
+  it('classifies Electron direct provider fetch failures as network errors', () => {
+    const result = getUserFacingAIError(
+      new Error(
+        "Error invoking remote method 'desktop:ai-provider:request:start': Error: AI provider request to https://api.example.com/v1/chat/completions failed before an HTTP response was received: TypeError: fetch failed"
+      )
+    );
+
+    expect(result).toEqual({
+      type: AIErrorType.NETWORK_ERROR,
+      code: '',
+      message:
+        "Error invoking remote method 'desktop:ai-provider:request:start': Error: AI provider request to https://api.example.com/v1/chat/completions failed before an HTTP response was received: TypeError: fetch failed",
+    });
+  });
+
   it('maps managed upstream 403 proxy failures to an actionable provider message', () => {
     const result = getUserFacingAIError(
       new Error(

@@ -35,7 +35,7 @@ export async function sendMessageWithEndpointFallback({
   client = openaiClient,
   updateProvider = aiActions.updateProvider,
 }: SendMessageWithEndpointFallbackOptions): Promise<string> {
-  if (isManagedProviderId(provider.id) || provider.endpointType) {
+  if (isManagedProviderId(provider.id) || (provider.endpointType && provider.endpointTypeCheckedAt)) {
     return client.sendMessage(content, history, model, provider, onChunk, signal);
   }
 
@@ -54,7 +54,7 @@ export async function sendMessageWithEndpointFallback({
       handleOpenAIChunk,
       signal,
     );
-    updateProvider(provider.id, { endpointType: 'openai' });
+    updateProvider(provider.id, { endpointType: 'openai', endpointTypeCheckedAt: Date.now() });
     return result;
   } catch (openAIError) {
     if (signal?.aborted || (openAIError instanceof Error && openAIError.name === 'AbortError')) {
@@ -73,7 +73,7 @@ export async function sendMessageWithEndpointFallback({
         onChunk,
         signal,
       );
-      updateProvider(provider.id, { endpointType: 'anthropic' });
+      updateProvider(provider.id, { endpointType: 'anthropic', endpointTypeCheckedAt: Date.now() });
       return result;
     } catch (anthropicError) {
       throw anthropicError;

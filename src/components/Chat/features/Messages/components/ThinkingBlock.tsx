@@ -5,6 +5,8 @@ import {
   CHAT_MARKDOWN_REHYPE_PLUGINS,
   CHAT_MARKDOWN_REMARK_PLUGINS,
 } from "@/components/Chat/features/Markdown/markdownPipeline";
+import { useChatStreamBlocks } from "@/components/Chat/features/Markdown/chatStreamTextAnimation";
+import { createChatStreamTextPlugin } from "@/components/Chat/features/Markdown/chatStreamTextPlugin";
 import { PrimerLightbulbIcon } from "@/components/ui/icons/custom/mit/PrimerLightbulbIcon";
 
 interface ThinkingBlockProps {
@@ -18,8 +20,7 @@ export function ThinkingBlock({
   content: thinking,
   isStreaming: activelyThinking,
 }: ThinkingBlockProps) {
-  const [isCollapsed, setIsCollapsed] = useState(true);
-  const [hasUserInteracted, setHasUserInteracted] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => !activelyThinking);
   const [contentHeight, setContentHeight] = useState<number>(0);
   const [hasOverflow, setHasOverflow] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -37,16 +38,7 @@ export function ThinkingBlock({
   };
 
   useEffect(() => {
-    if (!activelyThinking && !hasUserInteracted) {
-      setIsCollapsed(true);
-    }
-  }, [activelyThinking, hasUserInteracted]);
-
-  useEffect(() => {
-    if (activelyThinking) {
-      setHasUserInteracted(false);
-      setIsCollapsed(false);
-    }
+    setIsCollapsed(!activelyThinking);
   }, [activelyThinking]);
 
   useEffect(() => {
@@ -98,9 +90,23 @@ export function ThinkingBlock({
     }
   }, [thinking, activelyThinking, isCollapsed]);
 
+  const streamBlocks = useChatStreamBlocks(thinking, activelyThinking);
+  const markdownComponents = {
+    a({ href, children, ...props }: any) {
+      return (
+        <a
+          {...props}
+          {...getExternalLinkProps(typeof href === "string" ? href : null)}
+          data-no-focus-input="true"
+        >
+          {children}
+        </a>
+      );
+    },
+  };
+
   const handleToggle = () => {
     setIsCollapsed((collapsed) => !collapsed);
-    setHasUserInteracted(true);
   };
 
   useEffect(() => {
@@ -172,27 +178,40 @@ export function ThinkingBlock({
         <div
           ref={contentRef}
           data-chat-selection-surface="true"
-          className="transition-transform duration-300 opacity-90 select-text leading-relaxed prose prose-neutral dark:prose-invert max-w-none"
+          data-chat-markdown-live={activelyThinking ? "true" : undefined}
+          className={[
+            "transition-transform duration-300 opacity-90 select-text leading-relaxed prose prose-neutral dark:prose-invert max-w-none",
+            activelyThinking ? "chat-markdown-live" : "",
+          ].filter(Boolean).join(" ")}
         >
-          <ReactMarkdown
-            remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
-            rehypePlugins={CHAT_MARKDOWN_REHYPE_PLUGINS}
-            components={{
-              a({ href, children, ...props }: any) {
-                return (
-                  <a
-                    {...props}
-                    {...getExternalLinkProps(typeof href === "string" ? href : null)}
-                    data-no-focus-input="true"
-                  >
-                    {children}
-                  </a>
-                );
-              },
-            }}
-          >
-            {thinking}
-          </ReactMarkdown>
+          {activelyThinking ? (
+            streamBlocks.map((block) => (
+              <ReactMarkdown
+                key={block.key}
+                remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
+                rehypePlugins={[
+                  ...CHAT_MARKDOWN_REHYPE_PLUGINS,
+                  [createChatStreamTextPlugin, {
+                    births: block.births,
+                    charDelay: block.charDelay,
+                    nowMs: block.nowMs,
+                    revealed: block.revealed,
+                  }],
+                ]}
+                components={markdownComponents}
+              >
+                {block.content}
+              </ReactMarkdown>
+            ))
+          ) : (
+            <ReactMarkdown
+              remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
+              rehypePlugins={CHAT_MARKDOWN_REHYPE_PLUGINS}
+              components={markdownComponents}
+            >
+              {thinking}
+            </ReactMarkdown>
+          )}
         </div>
         {isCollapsed && hasOverflow && (
           <div className="absolute inset-x-0 -top-1 h-8 pointer-events-none bg-gradient-to-b from-white dark:from-neutral-900 to-transparent" />

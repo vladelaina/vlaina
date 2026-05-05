@@ -52,7 +52,7 @@ describe('ThinkingBlock', () => {
     expect(ResizeObserverMock.instances[0]!.disconnect).toHaveBeenCalledTimes(1);
   });
 
-  it('allows completed thinking to be expanded after auto-collapse', () => {
+  it('shows completed thinking collapsed by default and allows it to be expanded', () => {
     const { container } = render(
       <ThinkingBlock
         content="Finished thought"
@@ -62,10 +62,55 @@ describe('ThinkingBlock', () => {
 
     const wrapper = container.querySelector<HTMLElement>('[style*="opacity"]');
     expect(wrapper).toHaveStyle({ opacity: '0' });
+    const toggle = screen.getByRole('button', { name: 'Reasoning' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
 
-    fireEvent.click(screen.getByText('Reasoning'));
+    fireEvent.click(toggle);
 
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(wrapper).toHaveStyle({ opacity: '1' });
+  });
+
+  it('collapses live thinking after the answer starts streaming', () => {
+    const { rerender } = render(
+      <ThinkingBlock
+        content="Streaming thought"
+        isStreaming
+      />,
+    );
+
+    const toggle = screen.getByRole('button', { name: 'Thought...' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+    rerender(
+      <ThinkingBlock
+        content="Streaming thought"
+        isStreaming={false}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Reasoning' })).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('uses the live markdown animation layer while thinking is streaming', () => {
+    const { container, rerender } = render(
+      <ThinkingBlock
+        content="Streaming thought"
+        isStreaming
+      />,
+    );
+
+    const liveSurface = container.querySelector('[data-chat-markdown-live="true"]');
+    expect(liveSurface).toHaveClass('chat-markdown-live');
+
+    rerender(
+      <ThinkingBlock
+        content="Streaming thought"
+        isStreaming={false}
+      />,
+    );
+
+    expect(container.querySelector('[data-chat-markdown-live="true"]')).not.toBeInTheDocument();
   });
 
   it('allows active thinking to be collapsed while streaming', () => {

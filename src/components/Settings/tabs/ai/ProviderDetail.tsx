@@ -60,6 +60,7 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
     apiHost: initialProvider?.apiHost || '',
     apiKey: initialProvider?.apiKey || '',
     endpointType: initialProvider?.endpointType,
+    endpointTypeCheckedAt: initialProvider?.endpointTypeCheckedAt,
     persistedApiHost: initialProvider?.apiHost || '',
   });
   const updateProviderRef = useRef(updateProvider);
@@ -111,9 +112,18 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
       apiHost,
       apiKey,
       endpointType: initialProvider?.endpointType,
+      endpointTypeCheckedAt: initialProvider?.endpointTypeCheckedAt,
       persistedApiHost: initialProvider?.apiHost || '',
     };
-  }, [initialProvider?.id, initialProvider?.apiHost, initialProvider?.endpointType, name, apiHost, apiKey]);
+  }, [
+    initialProvider?.id,
+    initialProvider?.apiHost,
+    initialProvider?.endpointType,
+    initialProvider?.endpointTypeCheckedAt,
+    name,
+    apiHost,
+    apiKey,
+  ]);
 
   useEffect(() => {
     const flushConnectionDraft = () => {
@@ -121,12 +131,13 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
       if (!draft.providerId || draft.providerId === MANAGED_PROVIDER_ID) {
         return;
       }
-      const endpointType = draft.apiHost === draft.persistedApiHost ? draft.endpointType : undefined;
+      const sameApiHost = draft.apiHost === draft.persistedApiHost;
       updateProviderRef.current(draft.providerId, {
         name: draft.name,
         apiHost: draft.apiHost,
         apiKey: draft.apiKey,
-        endpointType,
+        endpointType: sameApiHost ? draft.endpointType : undefined,
+        endpointTypeCheckedAt: sameApiHost ? draft.endpointTypeCheckedAt : undefined,
         updatedAt: Date.now(),
       });
     };
@@ -152,6 +163,7 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
         apiKey,
         apiHost,
         endpointType: sameApiHost ? initialProvider.endpointType : undefined,
+        endpointTypeCheckedAt: sameApiHost ? initialProvider.endpointTypeCheckedAt : undefined,
         updatedAt: Date.now(),
       });
     }, 240);
@@ -189,6 +201,7 @@ export function ProviderDetail({ provider: initialProvider, onDraftChange, onDra
     addModel,
     addModels,
     deleteModel,
+    updateProvider,
     setFetchedModels,
     setProviderFetchedModels,
     resetBenchmarkState: benchmark.resetBenchmarkState,
