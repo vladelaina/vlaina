@@ -129,7 +129,7 @@ export function ThinkingBlock({
   return (
     <div
       className={`flex mb-4 flex-col w-full ${activelyThinking || !isCollapsed ? "text-neutral-800 dark:text-neutral-200" : "text-neutral-600 dark:text-neutral-400"}
-         hover:text-neutral-800 dark:hover:text-neutral-200 transition-colors select-none`}
+         hover:text-neutral-800 dark:hover:text-neutral-200 select-none`}
     >
       <button
         type="button"
@@ -141,12 +141,12 @@ export function ThinkingBlock({
       >
         <div className="relative w-4 h-4 mr-2">
           <PrimerLightbulbIcon
-            className={`h-4 w-4 absolute left-0 top-0 transition-opacity duration-300 ${
+            className={`h-4 w-4 absolute left-0 top-0 ${
               isCollapsed ? "opacity-100" : "opacity-0"
             } group-hover/thinking:opacity-0`}
           />
           <svg
-            className={`h-4 w-4 absolute top-0 left-0 transition-all duration-300 ${
+            className={`h-4 w-4 absolute top-0 left-0 ${
               isCollapsed
                 ? "-rotate-90 opacity-0 group-hover/thinking:opacity-100"
                 : "rotate-0 opacity-100"
@@ -168,7 +168,7 @@ export function ThinkingBlock({
       <div
         ref={wrapperRef}
         className={`text-[15px] text-neutral-500 dark:text-neutral-400 rounded-md
-          transition-[max-height,opacity] duration-300 ease-in-out relative mt-1 ml-6
+          relative mt-1 ml-6
           ${isCollapsed ? "overflow-hidden" : "overflow-y-auto"}`}
         style={{
           maxHeight: isCollapsed ? getMaxHeight() : undefined,
@@ -180,7 +180,7 @@ export function ThinkingBlock({
           data-chat-selection-surface="true"
           data-chat-markdown-live={activelyThinking ? "true" : undefined}
           className={[
-            "transition-transform duration-300 opacity-90 select-text leading-relaxed prose prose-neutral dark:prose-invert max-w-none",
+            "opacity-90 select-text leading-relaxed prose prose-neutral dark:prose-invert max-w-none",
             activelyThinking ? "chat-markdown-live" : "",
           ].filter(Boolean).join(" ")}
         >

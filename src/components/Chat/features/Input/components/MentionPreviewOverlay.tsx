@@ -52,13 +52,13 @@ function MentionPreviewToken({
 }) {
   return (
     <span
-      className="pointer-events-auto group relative inline rounded-md bg-blue-500/90 text-white dark:bg-blue-500/80"
+      className="pointer-events-auto group relative inline rounded-md bg-[#41a8ea]/90 text-white shadow-sm shadow-[#41a8ea]/20 dark:bg-[#41a8ea]/85"
       data-no-focus-input="true"
     >
       {part.text}
       <button
         type="button"
-        className="absolute -right-1 -top-1 z-10 rounded-full bg-blue-500/95 px-1 text-[10px] leading-4 text-white opacity-0 transition-opacity group-hover:opacity-100"
+        className="absolute -right-1 -top-1 z-10 rounded-full bg-[#41a8ea] px-1 text-[10px] leading-4 text-white opacity-0 shadow-sm shadow-[#41a8ea]/25 transition-opacity group-hover:opacity-100"
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => onRemoveMention(part.mention.path, part.start)}
       >
