@@ -1,4 +1,18 @@
+import { Selection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
+
+function collapseSelectionAfterInlineApply(tr: EditorView['state']['tr'], pos: number): void {
+  const clampedPos = Math.max(0, Math.min(pos, tr.doc.content.size));
+
+  try {
+    tr.setSelection(TextSelection.create(tr.doc, clampedPos));
+    return;
+  } catch {
+    // Some selected ranges can end at a block boundary; keep the cursor near the applied text.
+  }
+
+  tr.setSelection(Selection.near(tr.doc.resolve(clampedPos), -1));
+}
 
 export function toggleMark(view: EditorView, markName: string): void {
   const { state, dispatch } = view;
@@ -71,6 +85,7 @@ export function setTextColor(view: EditorView, color: string | null): void {
     ? state.tr.addMark(from, to, colorMark.create({ color }))
     : state.tr.removeMark(from, to, colorMark);
 
+  collapseSelectionAfterInlineApply(tr, to);
   dispatch(tr);
   view.focus();
 }
@@ -88,6 +103,7 @@ export function setBgColor(view: EditorView, color: string | null): void {
     ? state.tr.addMark(from, to, colorMark.create({ color }))
     : state.tr.removeMark(from, to, colorMark);
 
+  collapseSelectionAfterInlineApply(tr, to);
   dispatch(tr);
   view.focus();
 }

@@ -47,6 +47,7 @@ export function renderAppliedPreviewDocument(
     )
   );
   addProseMirrorTrailingBreaks(previewDom, state.doc, ownerDocument);
+  preserveSourceCodeBlockNodeViews(previewDom, sourceDom);
   stabilizePreviewRootTypography(previewDom, sourceDom);
   return previewDom;
 }
@@ -73,6 +74,57 @@ function stabilizePreviewRootTypography(previewDom: HTMLElement, sourceDom: HTML
     if (value) {
       previewDom.style[prop] = value;
     }
+  });
+}
+
+function getSerializedCodeBlockElements(previewDom: HTMLElement): HTMLElement[] {
+  return Array.from(previewDom.querySelectorAll<HTMLElement>('pre.code-block-wrapper, div[data-language]')).filter((child) => {
+    if (!(child instanceof HTMLElement)) {
+      return false;
+    }
+
+    if (child.matches('pre.code-block-wrapper')) {
+      return true;
+    }
+
+    return child.hasAttribute('data-language') && child.querySelector(':scope > pre > code') !== null;
+  });
+}
+
+function preserveSourceCodeBlockNodeViews(previewDom: HTMLElement, sourceDom: HTMLElement | null): void {
+  if (!sourceDom) {
+    return;
+  }
+
+  const sourceCodeBlocks = Array.from(sourceDom.querySelectorAll<HTMLElement>('.code-block-container'));
+  if (sourceCodeBlocks.length === 0) {
+    return;
+  }
+
+  const previewCodeBlocks = getSerializedCodeBlockElements(previewDom);
+  if (previewCodeBlocks.length !== sourceCodeBlocks.length) {
+    return;
+  }
+
+  previewCodeBlocks.forEach((previewCodeBlock, index) => {
+    const sourceCodeBlock = sourceCodeBlocks[index];
+    if (!sourceCodeBlock) {
+      return;
+    }
+
+    const clone = sourceCodeBlock.cloneNode(true) as HTMLElement;
+    makePreviewCloneNonInteractive(clone);
+    previewCodeBlock.replaceWith(clone);
+  });
+}
+
+function makePreviewCloneNonInteractive(clone: HTMLElement): void {
+  clone.setAttribute('aria-hidden', 'true');
+  clone.removeAttribute('contenteditable');
+  clone.removeAttribute('tabindex');
+  clone.querySelectorAll<HTMLElement>('[contenteditable], [tabindex]').forEach((element) => {
+    element.removeAttribute('contenteditable');
+    element.removeAttribute('tabindex');
   });
 }
 

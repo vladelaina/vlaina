@@ -93,7 +93,7 @@ export const bgColorMark = $mark('bgColor', () => ({
       'mark',
       {
         'data-bg-color': color,
-        style: `background-color: ${color}; padding: 0.125rem 0.25rem; border-radius: 0.125rem;`,
+        style: `background-color: ${color}; border-radius: 0.125rem; box-decoration-break: clone; -webkit-box-decoration-break: clone;`,
       },
       0,
     ];

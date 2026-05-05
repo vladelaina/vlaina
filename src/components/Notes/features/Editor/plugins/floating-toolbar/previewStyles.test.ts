@@ -4,6 +4,7 @@ import { TextSelection } from '@milkdown/kit/prose/state';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { configureTheme } from '../../theme';
+import { codePlugin } from '../code';
 import { colorMarksPlugin } from './colorMarks';
 import {
   applyAlignmentPreview,
@@ -12,6 +13,7 @@ import {
   applyFormatPreview,
   applyTextColorPreview,
   clearFormatPreview,
+  commitBgColorPreview,
   commitBlockPreview,
   commitFormatPreview,
   hasBlockPreview,
@@ -50,6 +52,29 @@ async function createEditor(markdown: string) {
     .use(gfm);
 
   colorMarksPlugin.forEach((plugin) => {
+    editor.use(plugin);
+  });
+
+  await editor.create();
+  return { editor, host, view: editor.ctx.get(editorViewCtx) };
+}
+
+async function createEditorWithCodeNodeViews(markdown: string) {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const editor = Editor.make()
+    .config((ctx) => {
+      configureTheme(ctx);
+      ctx.set(rootCtx, host);
+      ctx.set(defaultValueCtx, markdown);
+    })
+    .use(commonmark)
+    .use(gfm);
+
+  colorMarksPlugin.forEach((plugin) => {
+    editor.use(plugin);
+  });
+  codePlugin.forEach((plugin) => {
     editor.use(plugin);
   });
 
@@ -379,8 +404,56 @@ describe('previewStyles', () => {
 
     applyBgColorPreview(view, '#fde68a');
     overlay = host.querySelector('.toolbar-applied-preview-overlay');
-    expect(overlay?.querySelector('[style*="#fde68a"], [style*="253, 230, 138"]')).toBeInstanceOf(HTMLElement);
+    const bgPreviewMark = overlay?.querySelector<HTMLElement>('[style*="#fde68a"], [style*="253, 230, 138"]');
+    expect(bgPreviewMark).toBeInstanceOf(HTMLElement);
+    expect(bgPreviewMark?.style.padding).toBe('');
     expect(view.state.doc).toBe(originalDoc);
+
+    clearFormatPreview(view);
+    await editor.destroy();
+    host.remove();
+  });
+
+  it('keeps existing code block node views visible while previewing colors', async () => {
+    const { editor, host, view } = await createEditorWithCodeNodeViews([
+      'color me',
+      '',
+      '```ts',
+      'const answer = 42;',
+      '```',
+    ].join('\n'));
+    selectText(view, 'color');
+
+    const sourceCodeBlock = view.dom.querySelector('.code-block-container');
+    expect(sourceCodeBlock).toBeInstanceOf(HTMLElement);
+
+    applyTextColorPreview(view, '#3b82f6');
+
+    const overlay = host.querySelector('.toolbar-applied-preview-overlay');
+    const previewCodeBlock = overlay?.querySelector('.code-block-container');
+    expect(previewCodeBlock).toBeInstanceOf(HTMLElement);
+    expect(previewCodeBlock?.textContent).toContain('const answer = 42;');
+    expect(overlay?.querySelector('pre.code-block-wrapper')).toBeNull();
+    expect(previewCodeBlock?.querySelector('[contenteditable]')).toBeNull();
+    expect(previewCodeBlock?.querySelector('[tabindex]')).toBeNull();
+
+    clearFormatPreview(view);
+    await editor.destroy();
+    host.remove();
+  });
+
+  it('commits a background color preview without keeping the selected range highlighted', async () => {
+    const { editor, host, view } = await createEditor('color me');
+    selectText(view, 'color');
+
+    applyBgColorPreview(view, '#fde68a');
+
+    expect(commitBgColorPreview(view, '#fde68a')).toBe(true);
+    expect(view.state.selection.empty).toBe(true);
+
+    const bgMark = view.dom.querySelector<HTMLElement>('[style*="#fde68a"], [style*="253, 230, 138"]');
+    expect(bgMark).toBeInstanceOf(HTMLElement);
+    expect(bgMark?.style.padding).toBe('');
 
     clearFormatPreview(view);
     await editor.destroy();
