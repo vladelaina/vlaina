@@ -90,9 +90,7 @@ export function renderColorPicker(
         }
       } finally {
         clearFormatPreview(view);
-        if (!committedPreview) {
-          view.focus();
-        }
+        view.focus();
       }
       onClose();
     });
@@ -123,9 +121,7 @@ export function renderColorPicker(
         }
       } finally {
         clearFormatPreview(view);
-        if (!committedPreview) {
-          view.focus();
-        }
+        view.focus();
       }
       onClose();
     });

@@ -103,6 +103,44 @@ describe('ColorPicker', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('refocuses the editor after committing an active text color preview', () => {
+    const container = document.createElement('div');
+    const view = createView();
+    const onClose = vi.fn();
+    document.body.appendChild(container);
+    previewMocks.commitTextColorPreview.mockReturnValue(true);
+
+    renderColorPicker(container, view, { textColor: null, bgColor: null } as never, onClose);
+
+    const textColorButton = container.querySelector<HTMLElement>('[data-type="text"] .color-picker-item:not(.color-picker-item-default)');
+
+    textColorButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(previewMocks.commitTextColorPreview).toHaveBeenCalledWith(view, textColorButton?.dataset.color);
+    expect(commandMocks.setTextColor).not.toHaveBeenCalled();
+    expect(view.focus).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('refocuses the editor after committing an active background color preview', () => {
+    const container = document.createElement('div');
+    const view = createView();
+    const onClose = vi.fn();
+    document.body.appendChild(container);
+    previewMocks.commitBgColorPreview.mockReturnValue(true);
+
+    renderColorPicker(container, view, { textColor: null, bgColor: null } as never, onClose);
+
+    const bgColorButton = container.querySelector<HTMLElement>('[data-type="bg"] .color-picker-item:not(.color-picker-item-default)');
+
+    bgColorButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(previewMocks.commitBgColorPreview).toHaveBeenCalledWith(view, bgColorButton?.dataset.color);
+    expect(commandMocks.setBgColor).not.toHaveBeenCalled();
+    expect(view.focus).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps selected color state without showing a blue active border', () => {
     const container = document.createElement('div');
     const view = createView();
