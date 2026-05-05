@@ -71,7 +71,7 @@ export function mountMathEditorCard(args: MountMathEditorCardArgs): MathEditorEl
       return;
     }
 
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
       onSave();
       return;

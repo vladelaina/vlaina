@@ -35,4 +35,15 @@ describe('math hover styles', () => {
     expect(css).toContain(".milkdown [data-type='math-block'].math-block-wrapper .katex-display > .katex {");
     expect(css).toContain('min-width: max-content;');
   });
+
+  it('uses the app accent blue for the primary math editor action', () => {
+    const css = readMathStyles();
+
+    expect(css).toContain('.math-editor-action-button-primary {');
+    expect(css).toContain('border-color: var(--vlaina-accent);');
+    expect(css).toContain('background: var(--vlaina-accent);');
+    expect(css).toContain('.math-editor-action-button-primary:hover {');
+    expect(css).toContain('border-color: var(--vlaina-accent-hover);');
+    expect(css).toContain('background: var(--vlaina-accent-hover);');
+  });
 });

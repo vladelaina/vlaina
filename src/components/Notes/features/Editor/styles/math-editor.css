@@ -144,14 +144,14 @@
 }
 
 .math-editor-action-button-primary {
-  border-color: #2da44e;
-  background: #2da44e;
+  border-color: var(--vlaina-accent);
+  background: var(--vlaina-accent);
   color: #ffffff;
 }
 
 .math-editor-action-button-primary:hover {
-  border-color: #2c974b;
-  background: #2c974b;
+  border-color: var(--vlaina-accent-hover);
+  background: var(--vlaina-accent-hover);
 }
 
 .math-editor-action-button:disabled {
