@@ -1,5 +1,5 @@
 import { Icon } from '@/components/ui/icons';
-import { type FileTreeSortMode } from '@/stores/useNotesStore';
+import { useNotesStore, type FileTreeSortMode } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 import { NotesSidebarContextMenu } from './NotesSidebarContextMenu';
 import {
@@ -48,6 +48,9 @@ export function RootFolderMenu({
   vaultPath,
 }: RootFolderMenuProps) {
   const currentSortLabel = getFileTreeSortLabel(fileTreeSortMode);
+  const currentNotePath = useNotesStore((state) => state.currentNote?.path ?? null);
+  const closeTab = useNotesStore((state) => state.closeTab);
+  const hasCurrentNote = Boolean(currentNotePath);
   const { handleCopyPath, handleOpenLocation } = useTreeItemPathActions({
     notesPath: vaultPath,
     itemPath: vaultPath,
@@ -141,6 +144,17 @@ export function RootFolderMenu({
           disabled: !vaultPath,
         },
       ],
+    },
+    {
+      key: 'close-current-note',
+      icon: <Icon name="common.close" size="md" />,
+      label: 'Close Current Note',
+      onClick: async () => {
+        if (!currentNotePath) return;
+        onClose();
+        await closeTab(currentNotePath);
+      },
+      disabled: !hasCurrentNote,
     },
   ];
 

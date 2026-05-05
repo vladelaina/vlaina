@@ -82,7 +82,6 @@ export function AppContent() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [debugCopyState, setDebugCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
-  const [sidebarPointerInside, setSidebarPointerInside] = useState(false);
   const debugCopyTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -160,12 +159,9 @@ export function AppContent() {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const shouldRenderSidebar = appViewMode === 'chat' || appViewMode === 'notes';
-  useEffect(() => {
-    if (!shouldRenderSidebar || sidebarCollapsed) setSidebarPointerInside(false);
-  }, [shouldRenderSidebar, sidebarCollapsed]);
 
   const sidebarContent = shouldRenderSidebar ? (
-    <div className="h-full" onMouseEnter={() => setSidebarPointerInside(true)} onMouseLeave={() => setSidebarPointerInside(false)}>
+    <div className="h-full">
       <div className={cn('h-full', appViewMode !== 'chat' && 'hidden')}>
         <Suspense fallback={null}>
           <ChatSidebar isPeeking={false} />
@@ -285,7 +281,7 @@ export function AppContent() {
         onSidebarToggle={toggleSidebar}
         sidebarContent={sidebarContent}
         titleBarLeft={
-          <SidebarUserHeader toggleSidebar={toggleSidebar} forceShowCollapse={sidebarPointerInside} />
+          <SidebarUserHeader toggleSidebar={toggleSidebar} />
         }
         titleBarCenter={centerSlot}
         titleBarRight={rightSlot}
