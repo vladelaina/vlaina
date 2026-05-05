@@ -211,14 +211,10 @@ describe('editor embedded CodeMirror selection styles', () => {
       'inlinePreviewPlugin',
       'blockPreviewDomAdjustments',
       'blockPreviewListLabel',
-      'reviewDiff',
-      'renderReviewDiff',
       'renderResultSurfacePreview',
       'data-preview-block-type',
       'data-preview-hide',
       'data-preview-restore',
-      'ai-review-diff-added',
-      'ai-review-diff-removed',
     ];
 
     for (const file of [...readFloatingToolbarSourceFiles(), ...readEditorStyleSourceFiles()]) {

@@ -46,6 +46,22 @@ export function abortActiveAiSelectionReview(view: EditorView): void {
   abortAiSelectionReviewRequest(getActiveReviewRequestKey(view));
 }
 
+export function abortAllAiSelectionReviews(view: EditorView): void {
+  const toolbarState = floatingToolbarKey.getState(view.state);
+  const requestKeys = new Set<string>();
+  if (toolbarState?.aiReview) {
+    requestKeys.add(toolbarState.aiReview.requestKey);
+  }
+
+  toolbarState?.aiReviews.forEach((review) => {
+    requestKeys.add(review.requestKey);
+  });
+
+  requestKeys.forEach((requestKey) => {
+    abortAiSelectionReviewRequest(requestKey);
+  });
+}
+
 export function openAiSelectionReview(view: EditorView, requestKey?: string): boolean {
   const { from, to } = view.state.selection;
   if (from >= to) {

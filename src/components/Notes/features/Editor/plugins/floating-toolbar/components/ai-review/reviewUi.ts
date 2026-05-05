@@ -1,6 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { FloatingToolbarState } from '../../types';
-import { clearResultSurfacePredictedHeight, renderResultSurfaceAppliedPreview } from './resultSurface';
 import { toAiSelectionSuggestion } from './reviewState';
 
 export function stopReviewMouseDown(event: MouseEvent) {
@@ -32,7 +31,7 @@ export function syncReviewUi(
   panel: HTMLElement,
   review: NonNullable<FloatingToolbarState['aiReview']>,
   acceptButton: HTMLButtonElement,
-  view: EditorView
+  _view: EditorView
 ) {
   if (!review.isLoading) {
     acceptButton.disabled = review.suggestedText.trim().length === 0;
@@ -45,10 +44,6 @@ export function syncReviewUi(
 
   const suggestion = toAiSelectionSuggestion(review);
   if (!suggestion) {
-    clearResultSurfacePredictedHeight(resultSurface);
     resultSurface.replaceChildren();
-    return;
   }
-
-  renderResultSurfaceAppliedPreview(resultSurface, view, suggestion);
 }

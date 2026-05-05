@@ -87,4 +87,32 @@ describe('floatingToolbarState', () => {
     expect(hidden?.aiReviews.map((item) => item.requestKey)).toEqual(['review-1']);
     expect(hidden?.aiReview?.requestKey).toBe('review-1');
   });
+
+  it('keeps a mapped AI review range when an async result resolves with stale positions', () => {
+    const mappedReview = createReview('review-1', 15, 25);
+    const state = {
+      ...createInitialState(),
+      isVisible: true,
+      subMenu: 'aiReview' as const,
+      aiReview: mappedReview,
+      aiReviews: [mappedReview],
+    };
+
+    const next = applyToolbarMeta(state, {
+      type: TOOLBAR_ACTIONS.SET_AI_REVIEW,
+      payload: {
+        aiReview: {
+          ...createReview('review-1', 10, 20),
+          suggestedText: 'resolved',
+          isLoading: false,
+        },
+      },
+    });
+
+    expect(next?.aiReview?.from).toBe(15);
+    expect(next?.aiReview?.to).toBe(25);
+    expect(next?.aiReview?.suggestedText).toBe('resolved');
+    expect(next?.aiReviews[0]?.from).toBe(15);
+    expect(next?.aiReviews[0]?.to).toBe(25);
+  });
 });

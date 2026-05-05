@@ -1,16 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { syncReviewUi } from './reviewUi';
 import type { FloatingToolbarState } from '../../types';
-
-const resultSurfaceMocks = vi.hoisted(() => ({
-  clearResultSurfacePredictedHeight: vi.fn(),
-  renderResultSurfaceAppliedPreview: vi.fn(),
-}));
-
-vi.mock('./resultSurface', () => ({
-  clearResultSurfacePredictedHeight: resultSurfaceMocks.clearResultSurfacePredictedHeight,
-  renderResultSurfaceAppliedPreview: resultSurfaceMocks.renderResultSurfaceAppliedPreview,
-}));
 
 function createReview(overrides: Partial<NonNullable<FloatingToolbarState['aiReview']>> = {}) {
   return {
@@ -39,8 +29,19 @@ describe('AI review UI sync', () => {
 
     syncReviewUi(panel, createReview({ instruction: null }), acceptButton, { dom: document.createElement('div') } as never);
 
-    expect(resultSurfaceMocks.clearResultSurfacePredictedHeight).toHaveBeenCalledWith(resultSurface);
     expect(resultSurface.childElementCount).toBe(0);
-    expect(resultSurfaceMocks.renderResultSurfaceAppliedPreview).not.toHaveBeenCalled();
+  });
+
+  it('keeps rendered diff markup for a renderable suggestion', () => {
+    const panel = document.createElement('div');
+    const resultSurface = document.createElement('div');
+    resultSurface.className = 'ai-review-result-surface';
+    resultSurface.innerHTML = '<ins class="ai-review-diff-added">new</ins>';
+    panel.appendChild(resultSurface);
+    const acceptButton = document.createElement('button');
+
+    syncReviewUi(panel, createReview(), acceptButton, { dom: document.createElement('div') } as never);
+
+    expect(resultSurface.querySelector('.ai-review-diff-added')?.textContent).toBe('new');
   });
 });
