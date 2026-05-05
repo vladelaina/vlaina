@@ -13,6 +13,26 @@ const previewMocks = vi.hoisted(() => ({
   commitFormatPreview: vi.fn(),
 }));
 
+const stateMocks = vi.hoisted(() => ({
+  selectionNear: vi.fn(),
+  textSelectionCreate: vi.fn(),
+}));
+
+vi.mock('@milkdown/kit/prose/state', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@milkdown/kit/prose/state')>();
+  return {
+    ...actual,
+    Selection: {
+      ...actual.Selection,
+      near: stateMocks.selectionNear,
+    },
+    TextSelection: {
+      ...actual.TextSelection,
+      create: stateMocks.textSelectionCreate,
+    },
+  };
+});
+
 vi.mock('./previewStyles', () => ({
   applyFormatPreview: previewMocks.applyFormatPreview,
   clearFormatPreview: previewMocks.clearFormatPreview,
@@ -26,6 +46,10 @@ describe('toolbar interactions', () => {
     previewMocks.clearFormatPreview.mockReset();
     previewMocks.commitFormatPreview.mockReset();
     previewMocks.commitFormatPreview.mockReturnValue(false);
+    stateMocks.selectionNear.mockReset();
+    stateMocks.textSelectionCreate.mockReset();
+    stateMocks.selectionNear.mockReturnValue({ type: 'near-selection' });
+    stateMocks.textSelectionCreate.mockReturnValue({ type: 'text-selection' });
   });
 
   it('prevents default when pressing blank space inside the toolbar', () => {
@@ -121,6 +145,60 @@ describe('toolbar interactions', () => {
     });
     expect(dispatch).toHaveBeenCalledWith(tr);
     expect(focus).toHaveBeenCalled();
+
+    delegation.destroy();
+  });
+
+  it('collapses restored editor selection after applying highlight from a preview', () => {
+    const toolbar = document.createElement('div');
+    const button = document.createElement('button');
+    button.dataset.action = 'highlight';
+    toolbar.appendChild(button);
+    document.body.appendChild(toolbar);
+    previewMocks.commitFormatPreview.mockReturnValue(true);
+
+    const doc = {
+      content: {
+        size: 40,
+      },
+      resolve: vi.fn((pos: number) => ({ pos })),
+    };
+    const tr = {
+      doc,
+      setMeta: vi.fn(() => tr),
+      setSelection: vi.fn(() => tr),
+    };
+    const view = {
+      state: {
+        doc,
+        selection: {
+          from: 4,
+          to: 13,
+          empty: false,
+        },
+        tr,
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    } as any;
+
+    const delegation = createToolbarEventDelegation(toolbar);
+    delegation.update(view, {} as any);
+
+    button.dispatchEvent(new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+    }));
+
+    expect(previewMocks.commitFormatPreview).toHaveBeenCalledWith(view, 'highlight', false);
+    expect(tr.setMeta).toHaveBeenCalledWith(floatingToolbarKey, {
+      type: TOOLBAR_ACTIONS.HIDE,
+    });
+    expect(stateMocks.textSelectionCreate).toHaveBeenCalledWith(doc, 13);
+    expect(tr.setSelection).toHaveBeenCalledWith({ type: 'text-selection' });
+    expect(tr.setMeta).toHaveBeenCalledWith('addToHistory', false);
+    expect(view.dispatch).toHaveBeenCalledWith(tr);
+    expect(view.focus).toHaveBeenCalled();
 
     delegation.destroy();
   });

@@ -2,6 +2,9 @@ import { DOMSerializer } from '@milkdown/kit/prose/model';
 import type { Node as ProseMirrorNode } from '@milkdown/kit/prose/model';
 import type { EditorState, Transaction } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { CodeBlockNodeView } from '../code/CodeBlockNodeView';
+
+const previewCleanupCallbacks = new WeakMap<HTMLElement, () => void>();
 
 export function createAppliedPreviewState(
   view: EditorView,
@@ -28,7 +31,8 @@ export function renderAppliedPreviewDocument(
   state: EditorState,
   sourceDom: HTMLElement | null,
   ownerDocument: Document,
-  extraClassName?: string
+  extraClassName?: string,
+  view?: EditorView
 ): HTMLElement {
   const previewDom = sourceDom
     ? sourceDom.cloneNode(false) as HTMLElement
@@ -47,9 +51,20 @@ export function renderAppliedPreviewDocument(
     )
   );
   addProseMirrorTrailingBreaks(previewDom, state.doc, ownerDocument);
-  preserveSourceCodeBlockNodeViews(previewDom, sourceDom);
+  const didPreserveCodeBlocks = preserveSourceCodeBlockNodeViews(previewDom, sourceDom);
+  if (!didPreserveCodeBlocks && view) {
+    // Serialized ProseMirror output is not enough for custom-rendered blocks.
+    // Rehydrate preview-only code blocks with the same node view used by the
+    // live editor so hover previews stay equivalent to the committed result.
+    renderCodeBlockNodeViewPreviews(previewDom, state, view);
+  }
   stabilizePreviewRootTypography(previewDom, sourceDom);
   return previewDom;
+}
+
+export function cleanupAppliedPreviewDocument(previewDom: HTMLElement): void {
+  previewCleanupCallbacks.get(previewDom)?.();
+  previewCleanupCallbacks.delete(previewDom);
 }
 
 const ROOT_TYPOGRAPHY_STYLE_PROPS = [
@@ -78,7 +93,7 @@ function stabilizePreviewRootTypography(previewDom: HTMLElement, sourceDom: HTML
 }
 
 function getSerializedCodeBlockElements(previewDom: HTMLElement): HTMLElement[] {
-  return Array.from(previewDom.querySelectorAll<HTMLElement>('pre.code-block-wrapper, div[data-language]')).filter((child) => {
+  return Array.from(previewDom.querySelectorAll<HTMLElement>('pre.code-block-wrapper, div[data-language], div')).filter((child) => {
     if (!(child instanceof HTMLElement)) {
       return false;
     }
@@ -87,23 +102,72 @@ function getSerializedCodeBlockElements(previewDom: HTMLElement): HTMLElement[] 
       return true;
     }
 
-    return child.hasAttribute('data-language') && child.querySelector(':scope > pre > code') !== null;
+    return child.querySelector(':scope > pre > code') !== null;
   });
 }
 
-function preserveSourceCodeBlockNodeViews(previewDom: HTMLElement, sourceDom: HTMLElement | null): void {
-  if (!sourceDom) {
+function getPreviewCodeBlockNodes(state: EditorState): Array<{ node: ProseMirrorNode; pos: number }> {
+  const codeBlocks: Array<{ node: ProseMirrorNode; pos: number }> = [];
+
+  state.doc.descendants((node, pos) => {
+    if (node.type.name === 'code_block') {
+      codeBlocks.push({ node, pos });
+    }
+  });
+
+  return codeBlocks;
+}
+
+function renderCodeBlockNodeViewPreviews(
+  previewDom: HTMLElement,
+  state: EditorState,
+  view: EditorView
+): void {
+  const previewCodeBlocks = getSerializedCodeBlockElements(previewDom);
+  if (previewCodeBlocks.length === 0) {
     return;
+  }
+
+  const codeBlockNodes = getPreviewCodeBlockNodes(state);
+  if (previewCodeBlocks.length !== codeBlockNodes.length) {
+    return;
+  }
+
+  const nodeViews: CodeBlockNodeView[] = [];
+
+  previewCodeBlocks.forEach((previewCodeBlock, index) => {
+    const entry = codeBlockNodes[index];
+    if (!entry) {
+      return;
+    }
+
+    const nodeView = new CodeBlockNodeView(entry.node, view, () => undefined);
+    nodeView.dom.setAttribute('aria-hidden', 'true');
+    makePreviewCloneNonInteractive(nodeView.dom);
+    previewCodeBlock.replaceWith(nodeView.dom);
+    nodeViews.push(nodeView);
+  });
+
+  if (nodeViews.length > 0) {
+    previewCleanupCallbacks.set(previewDom, () => {
+      nodeViews.forEach((nodeView) => nodeView.destroy());
+    });
+  }
+}
+
+function preserveSourceCodeBlockNodeViews(previewDom: HTMLElement, sourceDom: HTMLElement | null): boolean {
+  if (!sourceDom) {
+    return false;
   }
 
   const sourceCodeBlocks = Array.from(sourceDom.querySelectorAll<HTMLElement>('.code-block-container'));
   if (sourceCodeBlocks.length === 0) {
-    return;
+    return false;
   }
 
   const previewCodeBlocks = getSerializedCodeBlockElements(previewDom);
   if (previewCodeBlocks.length !== sourceCodeBlocks.length) {
-    return;
+    return false;
   }
 
   previewCodeBlocks.forEach((previewCodeBlock, index) => {
@@ -116,6 +180,7 @@ function preserveSourceCodeBlockNodeViews(previewDom: HTMLElement, sourceDom: HT
     makePreviewCloneNonInteractive(clone);
     previewCodeBlock.replaceWith(clone);
   });
+  return true;
 }
 
 function makePreviewCloneNonInteractive(clone: HTMLElement): void {

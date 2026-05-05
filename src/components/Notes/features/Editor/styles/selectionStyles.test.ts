@@ -243,8 +243,10 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(source).toContain('setBgColor(previewView, color);');
     expect(source).toContain('setTextAlignment(previewView, alignment);');
     expect(source).toContain('createAppliedPreviewState(view, apply)');
-    expect(source).toContain('renderAppliedPreviewDocument(previewState, view.dom, view.dom.ownerDocument)');
+    expect(source).toContain('renderAppliedPreviewDocument(previewState, view.dom, view.dom.ownerDocument, undefined, view)');
     expect(appliedPreviewSource).toContain('DOMSerializer.fromSchema(state.schema)');
+    expect(appliedPreviewSource).toContain('new CodeBlockNodeView(entry.node, view, () => undefined)');
+    expect(source).toContain('cleanupAppliedPreviewDocument(node)');
     expect(source).not.toContain('data-preview-block-type');
     expect(codeBlockCss).not.toContain('data-preview-block-type');
     expect(markdownCss).not.toContain('data-preview-block-type');

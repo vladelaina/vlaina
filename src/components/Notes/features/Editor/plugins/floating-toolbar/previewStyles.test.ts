@@ -218,8 +218,9 @@ describe('previewStyles', () => {
     applyBlockPreview(view, 'codeBlock');
 
     const overlay = host.querySelector('.toolbar-applied-preview-overlay');
-    const codeBlock = overlay?.querySelector('pre, .code-block-container');
+    const codeBlock = overlay?.querySelector('.code-block-container');
     expect(codeBlock).toBeInstanceOf(HTMLElement);
+    expect(codeBlock?.querySelector('.cm-content')).toBeInstanceOf(HTMLElement);
     expect(codeBlock?.textContent).toContain('first paragraph');
     expect(codeBlock?.textContent).toContain('second paragraph');
     expect(overlay?.querySelectorAll('pre, .code-block-container')).toHaveLength(1);
