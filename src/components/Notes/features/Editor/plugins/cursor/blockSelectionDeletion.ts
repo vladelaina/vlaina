@@ -3,6 +3,19 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { buildDeleteRangesForBlockSelection } from './listBlockUtils';
 import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
 
+function refocusEditorAfterBlockDeletion(view: EditorView): void {
+  view.focus();
+
+  const ownerWindow = view.dom.ownerDocument.defaultView;
+  if (!ownerWindow) {
+    return;
+  }
+
+  ownerWindow.requestAnimationFrame(() => {
+    view.focus();
+  });
+}
+
 export function deleteSelectedBlocks(
   view: EditorView,
   blocks: readonly BlockRange[],
@@ -31,6 +44,6 @@ export function deleteSelectedBlocks(
   tr = tr.setSelection(Selection.near(tr.doc.resolve(targetPos), -1));
   tr = applyClearSelectionMeta(tr);
   view.dispatch(tr.scrollIntoView());
-  view.focus();
+  refocusEditorAfterBlockDeletion(view);
   return true;
 }

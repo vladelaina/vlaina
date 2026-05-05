@@ -105,11 +105,17 @@ export function UniversalIconPicker({
     onCloseRef.current();
   }, [onSelect]);
 
+  const removeTriggeredRef = useRef(false);
+
   const handleRemove = useCallback(() => {
+    if (removeTriggeredRef.current) return;
+    removeTriggeredRef.current = true;
     lastRandomIconRef.current = null;
+    onPreviewRef.current?.(null);
+    onPreviewSkinTone?.(null);
     onRemove?.();
     onCloseRef.current();
-  }, [onRemove]);
+  }, [onPreviewSkinTone, onRemove]);
 
   const handleClose = useCallback(() => {
     if (lastRandomIconRef.current) {
@@ -119,6 +125,12 @@ export function UniversalIconPicker({
     }
     onCloseRef.current();
   }, []);
+
+  const handleRemoveEvent = useCallback((event: React.SyntheticEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    handleRemove();
+  }, [handleRemove]);
 
   const handleRandom = useCallback(() => {
     if (activeTab === 'emoji') {
@@ -255,11 +267,9 @@ export function UniversalIconPicker({
           {hasIcon && onRemove && (
             <button
               type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleRemove();
-              }}
+              onPointerDown={handleRemoveEvent}
+              onMouseDown={handleRemoveEvent}
+              onClick={handleRemoveEvent}
               className="text-xs font-medium transition-all active:scale-95 text-[var(--vlaina-text-tertiary)] hover:text-red-500"
             >
               Remove

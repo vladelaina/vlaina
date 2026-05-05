@@ -69,6 +69,8 @@ If a non-test file exceeds 300 lines, or a test file exceeds 500 lines, propose 
 
 **Use emoji + conventional keyword + scope.**
 
+Commit only when explicitly requested. Wrap-up or verification requests are not commit permission.
+
 When creating commits:
 - Only commit when the user explicitly asks for a commit.
 - Format commit messages as `emoji type(scope): subject`.

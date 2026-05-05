@@ -31,12 +31,54 @@ const READABLE_CONTENT_SELECTOR = [
   'th'
 ].join(', ');
 
+function getClosestElement(target: EventTarget | null, selector: string): Element | null {
+  if (target instanceof Element) {
+    return target.closest(selector);
+  }
+  if (target instanceof Node && target.parentElement) {
+    return target.parentElement.closest(selector);
+  }
+  return null;
+}
+
 function shouldFocusComposer(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
   if (isComposerFocusTarget(target)) return false;
-  if (target.closest(NON_FOCUSABLE_SELECTOR)) return false;
-  if (target.closest(READABLE_CONTENT_SELECTOR)) return false;
+  if (getClosestElement(target, NON_FOCUSABLE_SELECTOR)) return false;
   return true;
+}
+
+function isPointInsideReadableText(element: Element, event: MouseEvent): boolean {
+  const doc = element.ownerDocument;
+  const walker = doc.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  let textNode = walker.nextNode();
+  let sawText = false;
+  let sawRect = false;
+
+  while (textNode) {
+    if (textNode.textContent?.trim()) {
+      sawText = true;
+      const range = doc.createRange();
+      range.selectNodeContents(textNode);
+      const rects = Array.from(range.getClientRects());
+      range.detach();
+
+      if (rects.length > 0) {
+        sawRect = true;
+      }
+      if (rects.some((rect) =>
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom
+      )) {
+        return true;
+      }
+    }
+    textNode = walker.nextNode();
+  }
+
+  return (sawText || !!element.textContent?.trim()) && !sawRect;
 }
 
 function isScrollbarTrackHit(target: EventTarget | null, event: MouseEvent): boolean {
@@ -77,6 +119,15 @@ export function useComposerClickFocus({ requestFocusFallback }: UseComposerClick
     }
     if (!shouldFocusComposer(event.target)) {
       return;
+    }
+    const readableContent = getClosestElement(event.target, READABLE_CONTENT_SELECTOR);
+    if (readableContent) {
+      if (!readableContent.closest('[data-chat-selection-surface="true"]')) {
+        return;
+      }
+      if (isPointInsideReadableText(readableContent, event)) {
+        return;
+      }
     }
     if (isScrollbarTrackHit(event.target, event)) {
       return;

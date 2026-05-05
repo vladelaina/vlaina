@@ -10,7 +10,7 @@ import {
   type NoteContentCache,
 } from './noteContentCache';
 import { markExpectedExternalChange } from './externalChangeRegistry';
-import { updateNoteMetadataInMarkdown } from '../frontmatter';
+import { readNoteMetadataFromMarkdown, updateNoteMetadataInMarkdown } from '../frontmatter';
 import {
   normalizeSerializedMarkdownDocument,
   summarizeMarkdownNormalizationPipeline,
@@ -131,18 +131,39 @@ export async function saveNoteDocument({
     diskModifiedAt,
     input: summarizeLineBreakText(currentNote.content),
   });
+  const normalizedCurrentContent = normalizeSerializedMarkdownDocument(currentNote.content);
   if (cachedModifiedAt != null && diskModifiedAt != null && diskModifiedAt !== cachedModifiedAt) {
+    const diskContent = await storage.readFile(fullPath);
+    const normalizedDiskContent = normalizeSerializedMarkdownDocument(diskContent);
+    if (normalizedDiskContent === normalizedCurrentContent) {
+      const metadata = readNoteMetadataFromMarkdown(normalizedDiskContent);
+      logNotesDebug('NotesPersistence', 'save:conflict-already-current', {
+        notesPath,
+        notePath: currentNote.path,
+        fullPath,
+        cachedModifiedAt,
+        diskModifiedAt,
+        disk: summarizeLineBreakText(normalizedDiskContent),
+      });
+      return {
+        content: normalizedDiskContent,
+        metadata,
+        modifiedAt: diskModifiedAt,
+        nextCache: setCachedNoteContent(cache, currentNote.path, normalizedDiskContent, diskModifiedAt),
+      };
+    }
     logNotesDebug('NotesPersistence', 'save:conflict', {
       notesPath,
       notePath: currentNote.path,
       fullPath,
       cachedModifiedAt,
       diskModifiedAt,
+      disk: summarizeLineBreakText(normalizedDiskContent),
+      input: summarizeLineBreakText(normalizedCurrentContent),
     });
     throw new NoteWriteConflictError();
   }
 
-  const normalizedCurrentContent = normalizeSerializedMarkdownDocument(currentNote.content);
   const { content, metadata } = updateNoteMetadataInMarkdown(normalizedCurrentContent, {
     updatedAt: Date.now(),
   });

@@ -24,6 +24,9 @@ function TestHarness() {
       <div data-message-item="true">
         <p data-testid="message-text">hello</p>
       </div>
+      <div data-message-item="true" data-chat-selection-surface="true">
+        <p data-testid="assistant-paragraph">assistant answer</p>
+      </div>
       <button data-testid="message-button" type="button">
         action
       </button>
@@ -64,6 +67,32 @@ describe("useComposerClickFocus", () => {
     });
 
     expect(mocked.focusComposerInput).not.toHaveBeenCalled();
+  });
+
+  it("focuses composer when clicking blank space inside assistant readable content", () => {
+    const createRangeSpy = vi.spyOn(document, "createRange").mockReturnValue({
+      selectNodeContents: vi.fn(),
+      getClientRects: () => [
+        {
+          left: 0,
+          right: 40,
+          top: 0,
+          bottom: 24,
+        },
+      ] as unknown as DOMRectList,
+      detach: vi.fn(),
+    } as unknown as Range);
+
+    render(<TestHarness />);
+
+    fireEvent.mouseDown(screen.getByTestId("assistant-paragraph"), {
+      button: 0,
+      clientX: 90,
+      clientY: 12,
+    });
+
+    expect(mocked.focusComposerInput).toHaveBeenCalledTimes(1);
+    createRangeSpy.mockRestore();
   });
 
   it("does not focus composer when clicking interactive elements", () => {

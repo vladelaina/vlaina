@@ -12,6 +12,8 @@ const IMAGE_NAME_REGEX = /\.(png|jpe?g|webp|gif|bmp|avif|svg)(?:$|[?#])/i;
 const MAX_NOTE_MENTION_COUNT = 3;
 const MAX_NOTE_MENTION_CHARS = 12000;
 const STREAM_CHUNK_FLUSH_MAX_DELAY_MS = 40;
+const FRONTMATTER_DELIMITER = '---';
+const VLAINA_FRONTMATTER_PREFIX = 'vlaina_';
 
 export function resolveAssistantContent(
   returnedContent: string,
@@ -85,8 +87,8 @@ async function resolveMentionedNoteContent(notePath: string): Promise<string> {
   }
 
   const cached = notesState.noteContentsCache.get(notePath);
-  if (typeof cached === 'string') {
-    return cached;
+  if (cached?.content.trim()) {
+    return cached.content;
   }
 
   const storage = getStorageAdapter();
@@ -104,6 +106,61 @@ async function resolveMentionedNoteContent(notePath: string): Promise<string> {
   }
 }
 
+function parseTopLevelFrontmatterKey(line: string): string | null {
+  const match = /^([A-Za-z0-9_-]+)\s*:/.exec(line);
+  return match?.[1] ?? null;
+}
+
+function trimTrailingBlankLines(lines: string[]): string[] {
+  let end = lines.length;
+  while (end > 0 && lines[end - 1]?.trim() === '') {
+    end -= 1;
+  }
+  return lines.slice(0, end);
+}
+
+function stripVlainaManagedFrontmatter(markdown: string): string {
+  const normalized = markdown.replace(/\r\n?/g, '\n');
+  const lines = normalized.split('\n');
+
+  if ((lines[0] ?? '').trim() !== FRONTMATTER_DELIMITER) {
+    return normalized;
+  }
+
+  let closingIndex = -1;
+  for (let index = 1; index < lines.length; index += 1) {
+    if ((lines[index] ?? '').trim() === FRONTMATTER_DELIMITER) {
+      closingIndex = index;
+      break;
+    }
+  }
+
+  if (closingIndex < 0) {
+    return normalized;
+  }
+
+  const visibleFrontmatterLines = trimTrailingBlankLines(
+    lines.slice(1, closingIndex).filter((line) => {
+      const key = parseTopLevelFrontmatterKey(line);
+      return !key || !key.startsWith(VLAINA_FRONTMATTER_PREFIX);
+    }),
+  );
+  const bodyLines = lines.slice(closingIndex + 1);
+
+  if (visibleFrontmatterLines.length === 0) {
+    return bodyLines[0]?.trim() === ''
+      ? bodyLines.slice(1).join('\n')
+      : bodyLines.join('\n');
+  }
+
+  return [
+    FRONTMATTER_DELIMITER,
+    ...visibleFrontmatterLines,
+    FRONTMATTER_DELIMITER,
+    ...bodyLines,
+  ].join('\n');
+}
+
 export async function loadMentionedNotes(
   noteMentions: NoteMentionReference[]
 ): Promise<Array<NoteMentionReference & { content: string }>> {
@@ -111,7 +168,9 @@ export async function loadMentionedNotes(
     await Promise.all(
       noteMentions.map(async (mention) => ({
         ...mention,
-        content: (await resolveMentionedNoteContent(mention.path)).trim(),
+        content: stripVlainaManagedFrontmatter(
+          await resolveMentionedNoteContent(mention.path),
+        ).trim(),
       }))
     )
   ).filter((note) => note.content.length > 0);

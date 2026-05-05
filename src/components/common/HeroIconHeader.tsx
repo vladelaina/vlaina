@@ -116,7 +116,7 @@ export function HeroIconHeader({
 
   const resolvedIconSize = resolvePixelSize(iconSize);
 
-  const { handlePreview, handlePreviewTone } = useIconPreview(id);
+  const { handlePreview, handlePreviewTone, clearPreview } = useIconPreview(id);
   
   const universalPreviewTarget = useUIStore(s => s.universalPreviewTarget);
   const universalPreviewIconSize = useUIStore(s => s.universalPreviewIconSize);
@@ -140,14 +140,15 @@ export function HeroIconHeader({
   }, [onIconChange]);
 
   const handleRemoveIcon = useCallback(() => {
+    clearPreview();
     onIconChange(null);
-  }, [onIconChange]);
+  }, [clearPreview, onIconChange]);
 
   const handlePickerClose = useCallback(() => {
     setShowIconPicker(false);
     setIsHoveringHeader(false);
-    handlePreview(null);
-  }, [handlePreview]);
+    clearPreview();
+  }, [clearPreview]);
 
   const handleLocalSizeChange = useCallback((newSize: number) => {
     if (sliderValue === undefined && headerRef.current) {

@@ -124,6 +124,7 @@ export const ChatInput = memo(function ChatInput({
     linkedPageCandidates,
     mentionPreviewParts,
     showMentionPicker,
+    mentionPickerStatus,
     activeCandidatePath,
     textareaScrollTop,
     handleCaretChange,
@@ -281,6 +282,7 @@ export const ChatInput = memo(function ChatInput({
               currentPageCandidates={currentPageCandidates}
               linkedPageCandidates={linkedPageCandidates}
               activeCandidatePath={activeCandidatePath}
+              status={mentionPickerStatus}
               onSelect={applyMentionCandidate}
             />
           )}

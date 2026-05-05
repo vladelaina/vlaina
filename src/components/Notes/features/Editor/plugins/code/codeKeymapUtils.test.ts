@@ -118,6 +118,32 @@ describe('codeKeymapUtils', () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
+  it('leaves mermaid fence aliases for the mermaid editor shortcut', () => {
+    const dispatch = vi.fn();
+    const state = {
+      selection: {
+        empty: true,
+        $from: {
+          depth: 1,
+          start: vi.fn(() => 5),
+          end: vi.fn(() => 15),
+          parent: { type: { name: 'paragraph' }, textContent: '```flow' },
+        },
+      },
+      schema: {
+        nodes: {
+          code_block: {
+            create: vi.fn(),
+          },
+        },
+      },
+      tr: createTransaction(),
+    };
+
+    expect(handleCodeBlockEnter(state as never, dispatch)).toBe(false);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
   it('allows cursor escape checks without dispatching when already at code block end', () => {
     const state = {
       selection: {

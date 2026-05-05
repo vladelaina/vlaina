@@ -5,10 +5,9 @@ import { cn, iconButtonStyles } from '@/lib/utils';
 
 interface SidebarUserHeaderProps {
     toggleSidebar: () => void;
-    forceShowCollapse?: boolean;
 }
 
-export function SidebarUserHeader({ toggleSidebar, forceShowCollapse = false }: SidebarUserHeaderProps) {
+export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
     const [showCollapse, setShowCollapse] = useState(false);
 
     return (
@@ -36,7 +35,7 @@ export function SidebarUserHeader({ toggleSidebar, forceShowCollapse = false }: 
                 <span
                     className={cn(
                         "flex h-7 w-7 items-center justify-center rounded-md opacity-0 transition-[background-color,opacity]",
-                        (showCollapse || forceShowCollapse) && "opacity-100",
+                        showCollapse && "opacity-100",
                         "hover:bg-[#f5f5f5] dark:hover:bg-white/10"
                     )}
                 >

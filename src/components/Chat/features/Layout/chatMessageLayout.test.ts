@@ -106,17 +106,30 @@ describe('estimateChatMessageHeight', () => {
     expect(richInlineHeight).toBeGreaterThanOrEqual(plainHeight);
   });
 
-  it('expands active thinking content while streaming', () => {
-    const idleHeight = estimateChatMessageHeight(
-      createMessage('assistant', '<think>first step\nsecond step</think>processing result'),
-      { containerWidth: 900, isStreaming: false },
+  it('accounts for active thinking content before streaming completes', () => {
+    const withoutThinkingHeight = estimateChatMessageHeight(
+      createMessage('assistant', 'processing result'),
+      { containerWidth: 900, isStreaming: true },
     );
-    const streamingHeight = estimateChatMessageHeight(
-      createMessage('assistant', '<think>first step\nsecond step</think>processing result'),
+    const withThinkingHeight = estimateChatMessageHeight(
+      createMessage('assistant', '<think>first step\nsecond step'),
       { containerWidth: 900, isStreaming: true },
     );
 
-    expect(streamingHeight).toBeGreaterThan(idleHeight);
+    expect(withThinkingHeight).toBeGreaterThan(withoutThinkingHeight);
+  });
+
+  it('keeps completed thinking collapsed in the height estimate', () => {
+    const withShortThinkingHeight = estimateChatMessageHeight(
+      createMessage('assistant', '<think>first step</think>processing result'),
+      { containerWidth: 900, isStreaming: false },
+    );
+    const withLongThinkingHeight = estimateChatMessageHeight(
+      createMessage('assistant', '<think>first step\nsecond step\nthird step</think>processing result'),
+      { containerWidth: 900, isStreaming: false },
+    );
+
+    expect(withLongThinkingHeight).toBe(withShortThinkingHeight);
   });
 
   it('keeps streaming assistant height monotonic as content is appended on the same message', () => {

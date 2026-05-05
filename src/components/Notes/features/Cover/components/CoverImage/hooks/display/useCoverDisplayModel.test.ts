@@ -255,6 +255,30 @@ describe('useCoverDisplayModel', () => {
     expect(result.current.suspendPositionSync).toBe(false);
   });
 
+  it('does not keep the previous cover frame once the flow is idle', () => {
+    hoisted.getCachedDimensions.mockReturnValue({ width: 1500, height: 969 });
+
+    const { result } = renderHook(() =>
+      useCoverDisplayModel({
+        phase: 'idle',
+        previewSrc: null,
+        resolvedSrc: '/covers/removed.webp',
+        isSourceStale: false,
+        prevSrcRef: createPrevSrcRef('/covers/previous.webp'),
+        crop: { x: 0, y: 0 },
+        zoom: 1,
+        positionX: 50,
+        positionY: 50,
+        isImageReady: true,
+        setIsImageReady: vi.fn(),
+      })
+    );
+
+    expect(result.current.mediaSrc).toBe('');
+    expect(result.current.placeholderSrc).toBe('');
+    expect(result.current.sourceIsReady).toBe(false);
+  });
+
   it('holds the previous stable geometry while a new source is not ready yet', async () => {
     hoisted.getCachedDimensions.mockReturnValue(null);
     const initialProps: DisplayModelProps = {

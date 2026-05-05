@@ -159,7 +159,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       });
     }
 
-    if (isDirty && !shouldOpenInNewTab && !existingTab) {
+    if (isDirty && !shouldOpenInNewTab && currentNote?.path !== path) {
       logNotesDebug('NotesWorkspace', 'open-note:save-before-open', {
         path,
         notesPath,
@@ -297,7 +297,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       });
     }
 
-    if (isDirty && !shouldOpenInNewTab && !existingTab) {
+    if (isDirty && !shouldOpenInNewTab && currentNote?.path !== absolutePath) {
       logNotesDebug('NotesWorkspace', 'open-absolute:save-before-open', {
         absolutePath,
         notesPath,

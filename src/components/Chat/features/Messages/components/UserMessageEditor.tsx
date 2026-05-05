@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import {
   chatComposerFrameClass,
-  chatComposerPrimaryButtonClass,
   chatComposerSecondaryButtonClass,
   chatComposerSurfaceClass,
 } from '../../Input/composerStyles';
@@ -54,6 +53,7 @@ export function UserMessageEditor({
     linkedPageCandidates,
     mentionPreviewParts,
     showMentionPicker,
+    mentionPickerStatus,
     activeCandidatePath,
     textareaScrollTop,
     handleValueChange,
@@ -151,6 +151,7 @@ export function UserMessageEditor({
             currentPageCandidates={currentPageCandidates}
             activeCandidatePath={activeCandidatePath}
             linkedPageCandidates={linkedPageCandidates}
+            status={mentionPickerStatus}
             className="left-0 right-0"
             onSelect={applyMentionCandidate}
           />
@@ -187,10 +188,8 @@ export function UserMessageEditor({
           </button>
           <button
             onClick={handleSave}
-            className={cn(
-              chatComposerPrimaryButtonClass,
-              'h-8 px-3.5 text-[13px] font-semibold hover:scale-100 active:scale-100'
-            )}
+            className="h-8 rounded-full bg-[#41a8ea] px-3.5 text-[13px] font-semibold text-white shadow-md shadow-[#41a8ea]/25 transition-all duration-200 hover:scale-105 active:scale-95"
+            style={{ boxShadow: '0 0 0 3px rgba(65, 168, 234, 0.12), 0 10px 24px rgba(65, 168, 234, 0.28)' }}
           >
             发送
           </button>

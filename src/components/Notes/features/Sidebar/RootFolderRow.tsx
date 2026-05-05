@@ -250,7 +250,7 @@ export function RootFolderRow({
               )}
             />
           ) : (
-            <span className={cn('block truncate', getSidebarTextClass('notes'))}>
+            <span className={cn('block whitespace-normal break-all', getSidebarTextClass('notes'))}>
               {title}
             </span>
           )

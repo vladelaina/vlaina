@@ -43,7 +43,7 @@ export function UnifiedTitleBar({
 
   return (
     <div
-      className="vlaina-drag-region h-10 dark:bg-zinc-900 flex items-center select-none relative z-50 flex-shrink-0"
+      className="vlaina-drag-region vlaina-title-bar h-10 dark:bg-zinc-900 flex items-center select-none relative z-50 flex-shrink-0"
       style={{ backgroundColor }}
       onMouseDownCapture={handleTitleBarMouseDownCapture}
     >
@@ -81,7 +81,7 @@ export function UnifiedTitleBar({
         style={{ left: sidebarCollapsed ? 0 : 'var(--vlaina-shell-sidebar-width)' }}
       />
 
-      <div className={`flex-1 flex items-center z-20 min-w-0 h-full relative vlaina-drag-region ${centerOverflowVisible ? 'overflow-visible' : 'overflow-hidden'}`}>
+      <div className={`vlaina-no-drag vlaina-title-bar-center flex-1 flex items-center z-20 min-w-0 h-full relative ${centerOverflowVisible ? 'overflow-visible' : 'overflow-hidden'}`}>
         {centerSlot}
       </div>
 

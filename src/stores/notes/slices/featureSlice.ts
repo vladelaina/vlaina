@@ -9,7 +9,6 @@ import {
   loadNoteMetadata,
   persistGlobalNoteIconSize,
   safeWriteTextFile,
-  setNoteEntry,
 } from '../storage';
 import {
   loadStarredForVault,
@@ -34,6 +33,25 @@ function escapeRegExp(value: string): string {
 
 const MAX_SEARCHABLE_NOTE_BYTES = 512 * 1024;
 const MAX_SCANNED_NOTE_CONTENT_CHARS = 8 * 1024 * 1024;
+
+function replaceNoteEntry(
+  metadata: MetadataFile,
+  path: string,
+  entry: NoteMetadataEntry
+): MetadataFile {
+  if (Object.keys(entry).length === 0) {
+    const { [path]: _, ...rest } = metadata.notes;
+    return { ...metadata, notes: rest };
+  }
+
+  return {
+    ...metadata,
+    notes: {
+      ...metadata.notes,
+      [path]: entry,
+    },
+  };
+}
 
 export interface FeatureSlice {
   recentNotes: NotesStore['recentNotes'];
@@ -115,7 +133,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
           ...updates,
           updatedAt: Date.now(),
         });
-        const nextMetadata = setNoteEntry(metadataBase, path, metadata);
+        const nextMetadata = replaceNoteEntry(metadataBase, path, metadata);
         const cachedModifiedAt = getCachedNoteModifiedAt(state.noteContentsCache, path);
         let nextCache = setCachedNoteContent(state.noteContentsCache, path, content, cachedModifiedAt);
 
@@ -155,7 +173,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
           ...updates,
           updatedAt: Date.now(),
         });
-        const nextMetadata = setNoteEntry(metadataBase, path, metadata);
+        const nextMetadata = replaceNoteEntry(metadataBase, path, metadata);
         const cachedModifiedAt = getCachedNoteModifiedAt(state.noteContentsCache, path);
 
         set({
@@ -204,7 +222,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       ...updates,
       updatedAt: Date.now(),
     });
-    const nextMetadata = setNoteEntry(metadataBase, path, metadata);
+    const nextMetadata = replaceNoteEntry(metadataBase, path, metadata);
     const isDraftNote = isDraftMetadataTarget;
     const nextRootFolder = buildSortedRootFolder(
       state.rootFolder,

@@ -213,7 +213,7 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('.milkdown .ProseMirror.vlaina-text-selection-overlay-active *::selection {');
     expect(css).toContain('background-color: transparent !important;');
     expect(css).toContain('.milkdown .ProseMirror .vlaina-text-selection-overlay {');
-    expect(css).toContain('line-height: normal;');
+    expect(css).toContain('line-height: inherit;');
     expect(css).not.toContain('vlaina-ai-review-selection');
     expect(css).not.toContain('vlaina-link-selection-visible');
     expect(source).toContain("export const TEXT_SELECTION_OVERLAY_CLASS = 'vlaina-text-selection-overlay'");
@@ -224,6 +224,17 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(source).toContain('selection instanceof AllSelection');
     expect(source).toContain('hasSelectedBlocks(state)');
     expect(source).toContain('isTextSelectionOverlayEligible(view.state)');
+  });
+
+  it('keeps mermaid drag previews from inheriting generic preview text color', () => {
+    const css = readStyleFile('extended.css');
+
+    expect(css).toContain('.vlaina-block-drag-preview .mermaid-block,');
+    expect(css).toContain('.vlaina-block-drag-preview .mermaid-block * {');
+    expect(css).toContain('color: initial !important;');
+    expect(css).toContain('-webkit-text-fill-color: initial !important;');
+    expect(css).toContain('.vlaina-block-drag-preview .mermaid-drag-preview-surface {');
+    expect(css).toContain('.vlaina-block-drag-preview .mermaid-drag-preview-image {');
   });
 
   it('reuses the standard text selection overlay for AI review ranges', () => {
@@ -424,6 +435,21 @@ describe('editor embedded CodeMirror selection styles', () => {
 
     expect(source).toContain('reviewWidth === null ?');
     expect(source).toContain('const renderState = getReviewRenderState(review, reviewWidth);');
+  });
+
+  it('clears applied toolbar previews whenever the toolbar is hidden or reset', () => {
+    const source = readFloatingToolbarPluginViewSource();
+
+    expect(source).toContain('const hideToolbarAndReset = () => {');
+    expect(source).toContain('clearFormatPreview(editorView);');
+  });
+
+  it('self-heals stale applied toolbar previews on the next outside mouse down', () => {
+    const source = readFloatingToolbarPluginViewSource();
+
+    expect(source).toContain('const isToolbarEventTarget = (target: EventTarget | null) => {');
+    expect(source).toContain('if (hasActiveAppliedPreview(editorView) && !isToolbarEventTarget(event.target)) {');
+    expect(source).toContain('clearFormatPreview(editorView);');
   });
 
   it('keeps the code block theme aligned with the CSS padding model', () => {

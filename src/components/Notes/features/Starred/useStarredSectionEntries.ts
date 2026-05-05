@@ -91,7 +91,7 @@ export function useStarredSectionEntries() {
                 return;
               }
 
-              const shouldOpenInNewTab = openInNewTab || notesState.isDirty;
+              const shouldOpenInNewTab = openInNewTab;
               const isLatestCurrentVaultEntry =
                 normalizeStarredVaultPath(latestEntry.vaultPath) === currentVaultPath;
               logNotesDebug('NotesStarred', 'entry-open:resolved', {

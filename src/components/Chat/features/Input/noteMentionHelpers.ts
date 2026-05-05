@@ -1,10 +1,14 @@
-import type { FileTreeNode } from '@/stores/notes/types';
+import type { FileTreeNode, StarredEntry } from '@/stores/notes/types';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 
 export interface NoteMentionCandidate {
   path: string;
   title: string;
   isCurrent: boolean;
+  icon?: string;
+  notePath?: string;
+  vaultPath?: string;
+  starredEntry?: StarredEntry;
 }
 
 export interface MentionTrigger {

@@ -2,9 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
+import { gfm } from '@milkdown/kit/preset/gfm';
 import { clipboardPlugin } from './clipboardPlugin';
 import { createStandaloneTocPasteNode } from './clipboardPlugin';
 import { dispatchTailBlankClickAction, endBlankClickPlugin } from '../cursor/endBlankClickPlugin';
+import { mermaidPlugin } from '../mermaid';
 
 function simulatePasteText(view: any, text: string): boolean {
     const event = {
@@ -143,6 +145,64 @@ describe('clipboardPlugin paste', () => {
         expect(view.state.doc.child(0).textContent).toBe('first');
         expect(view.state.doc.child(1).type.name).toBe('bullet_list');
         expect(view.state.doc.child(1).textContent).toBe('item');
+
+        await editor.destroy();
+    });
+
+    it('recognizes spreadsheet tab separated paste as a table', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, 'Name\tScore\nAda\t10\nLinus\t9')).toBe(true);
+
+        const table = view.state.doc.firstChild;
+        expect(table?.type.name).toBe('table');
+        expect(table?.childCount).toBe(3);
+        expect(table?.firstChild?.childCount).toBe(2);
+        expect(table?.firstChild?.firstChild?.textContent).toBe('Name');
+        expect(table?.firstChild?.child(1).textContent).toBe('Score');
+        expect(table?.child(1).firstChild?.textContent).toBe('Ada');
+        expect(table?.child(1).child(1).textContent).toBe('10');
+
+        await editor.destroy();
+    });
+
+    it('recognizes standalone mermaid alias fences before falling back to code block paste', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(clipboardPlugin)
+            .use(mermaidPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, [
+            '```sequence',
+            'Alice->Bob: Hello Bob, how are you?',
+            'Note right of Bob: Bob thinks',
+            'Bob-->Alice: I am good thanks!',
+            '```',
+        ].join('\n'))).toBe(true);
+
+        const mermaid = view.state.doc.firstChild;
+        expect(mermaid?.type.name).toBe('mermaid');
+        expect(mermaid?.attrs.code).toBe([
+            'sequenceDiagram',
+            'Alice->Bob: Hello Bob, how are you?',
+            'Note right of Bob: Bob thinks',
+            'Bob-->Alice: I am good thanks!',
+        ].join('\n'));
 
         await editor.destroy();
     });

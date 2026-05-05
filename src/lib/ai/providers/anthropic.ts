@@ -2,6 +2,7 @@ import { createAIError, parseAPIError, parseHTTPError } from '../errors'
 import { AIErrorType, type AIModel, type ChatMessage, type ChatMessageContent, type ChatSendOptions, type Provider } from '../types'
 import { buildAnthropicBaseUrl, resolveApiModelId } from '../utils'
 import { providerFetch } from '../providerHttp'
+import { createStreamAccumulator } from '@/lib/ai/streaming'
 
 export const ANTHROPIC_VERSION = '2023-06-01'
 
@@ -77,7 +78,7 @@ async function consumeAnthropicStream(
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ''
-  let fullContent = ''
+  const accumulator = createStreamAccumulator(onChunk)
 
   const consumeLine = (line: string) => {
     const trimmed = line.trim()
@@ -109,12 +110,18 @@ async function consumeAnthropicStream(
     }
 
     const delta = payload.delta
-    if (!delta || typeof delta !== 'object' || !('text' in delta) || typeof delta.text !== 'string') {
+    if (!delta || typeof delta !== 'object') {
       return
     }
 
-    fullContent += delta.text
-    onChunk(fullContent)
+    if ('thinking' in delta && typeof delta.thinking === 'string') {
+      accumulator.pushDelta({ reasoning: delta.thinking })
+      return
+    }
+
+    if ('text' in delta && typeof delta.text === 'string') {
+      accumulator.pushDelta({ content: delta.text })
+    }
   }
 
   while (true) {
@@ -130,7 +137,7 @@ async function consumeAnthropicStream(
     consumeLine(buffer)
   }
 
-  return fullContent
+  return accumulator.finish()
 }
 
 export async function sendAnthropicMessage({

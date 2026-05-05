@@ -30,13 +30,12 @@ function estimateThinkingHeight(
   body: string,
   isComplete: boolean,
   contentWidth: number,
-  isStreaming: boolean,
 ): number {
   if (!body) {
     return 0;
   }
 
-  if (!isStreaming && isComplete) {
+  if (isComplete) {
     return ASSISTANT_THINKING_HEADER_HEIGHT;
   }
 
@@ -67,7 +66,6 @@ export function estimateAssistantMessageHeight(
     thinking.body,
     thinking.isComplete,
     contentWidth,
-    isStreaming,
   );
   if (thinkingHeight > 0) {
     height += thinkingHeight;

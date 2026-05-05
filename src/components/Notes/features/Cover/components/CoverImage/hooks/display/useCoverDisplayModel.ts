@@ -39,7 +39,7 @@ export function useCoverDisplayModel({
     zoom: number;
   } | null>(null);
 
-  const mediaSrc = previewSrc || resolvedSrc || prevSrcRef.current || '';
+  const mediaSrc = phase === 'idle' ? '' : (previewSrc || resolvedSrc || prevSrcRef.current || '');
   const cachedMediaDimensions = mediaSrc ? (getCachedDimensions(mediaSrc) ?? null) : null;
   const cachedPreviewDimensions =
     previewSrc && mediaSrc === previewSrc
@@ -53,11 +53,13 @@ export function useCoverDisplayModel({
     currentMediaIsCached ||
     (!isSourceStale && readySrc === mediaSrc && isImageReady)
   );
-  const placeholderSrc = sourceIsReady
-    ? mediaSrc
-    : (preferCurrentPreviewFrame
-        ? (mediaSrc || readySrc || prevSrcRef.current)
-        : (readySrc || prevSrcRef.current || mediaSrc));
+  const placeholderSrc = phase === 'idle'
+    ? ''
+    : sourceIsReady
+      ? mediaSrc
+      : (preferCurrentPreviewFrame
+          ? (mediaSrc || readySrc || prevSrcRef.current)
+          : (readySrc || prevSrcRef.current || mediaSrc));
   const stableDisplayState = stableDisplayStateRef.current;
   const stableSrc = stableDisplayState?.src ?? null;
   const shouldHoldPreviousFrame =
@@ -133,6 +135,7 @@ export function useCoverDisplayModel({
   useEffect(() => {
     if (mediaSrc) return;
     setReadySrc(null);
+    stableDisplayStateRef.current = null;
   }, [mediaSrc]);
 
   const handleSourceReady = useCallback((src: string) => {

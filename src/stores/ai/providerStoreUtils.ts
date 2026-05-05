@@ -79,6 +79,7 @@ export function areProvidersEqual(left: Provider[], right: Provider[]): boolean 
       provider.icon === other.icon &&
       provider.type === other.type &&
       provider.endpointType === other.endpointType &&
+      provider.endpointTypeCheckedAt === other.endpointTypeCheckedAt &&
       provider.apiHost === other.apiHost &&
       provider.apiKey === other.apiKey &&
       provider.enabled === other.enabled &&

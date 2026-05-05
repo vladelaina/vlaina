@@ -1,13 +1,18 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { getScrollRoot } from '../floating-toolbar/floatingToolbarDom';
+import { createTextEditorPopupAnchorResizeTracker } from '../shared/textEditorPopupAnchorResize';
+import {
+  resizeTextEditorPopupTextareaToContent,
+  TEXT_EDITOR_POPUP_CARD_SELECTOR,
+} from '../shared/textEditorPopupDom';
 import { mountMathEditorCard } from './mathEditorPopupDom';
 import {
   cancelMathEditorSession,
   saveMathEditorSession,
-  syncMathEditorDraftToNode,
   type MathEditorSessionRefs,
 } from './mathEditorSessionActions';
 import { mathEditorPluginKey } from './mathEditorPluginKey';
+import { renderMathEditorLivePreview } from './mathEditorLivePreview';
 import {
   getMathAnchorViewportPosition,
   resolveMathAnchorElement,
@@ -36,6 +41,15 @@ export function createMathEditorViewSession(args: {
 
   const getEditorState = () =>
     mathEditorPluginKey.getState(editorView.state) as MathEditorState | undefined;
+
+  const resolveCurrentAnchorElement = (state: MathEditorState | undefined) => {
+    if (!state?.isOpen) {
+      return null;
+    }
+
+    const nodeDom = typeof editorView.nodeDOM === 'function' ? editorView.nodeDOM(state.nodePos) : null;
+    return resolveMathAnchorElement(null, nodeDom);
+  };
 
   const clearEditorElements = () => {
     if (editorElement) {
@@ -91,10 +105,19 @@ export function createMathEditorViewSession(args: {
   };
 
   const resolveViewportPosition = (state: MathEditorState) => {
-    const nodeDom = typeof editorView.nodeDOM === 'function' ? editorView.nodeDOM(state.nodePos) : null;
-    const anchor = resolveMathAnchorElement(null, nodeDom);
+    const anchor = resolveCurrentAnchorElement(state);
     return anchor ? getMathAnchorViewportPosition(anchor) : state.position;
   };
+
+  const anchorResizeTracker = createTextEditorPopupAnchorResizeTracker({
+    resolveAnchor: () => resolveCurrentAnchorElement(getEditorState()),
+    onAnchorResize() {
+      const state = getEditorState();
+      if (state?.isOpen) {
+        updateEditorPosition(state);
+      }
+    },
+  });
 
   const focusTextareaAtEnd = () => {
     if (focusTextareaTimer !== null && typeof window !== 'undefined') {
@@ -116,7 +139,7 @@ export function createMathEditorViewSession(args: {
     }
 
     editorElement = document.createElement('div');
-    editorElement.className = 'math-editor-popup';
+    editorElement.className = 'text-editor-popup math-editor-popup';
     editorElement.style.position = positionRoot ? 'absolute' : 'fixed';
     editorElement.style.zIndex = '80';
     (positionRoot ?? document.body).appendChild(editorElement);
@@ -133,9 +156,21 @@ export function createMathEditorViewSession(args: {
       latex: refs.draftLatex,
       displayMode: state.displayMode,
       onInput(nextDraftLatex) {
-        syncMathEditorDraftToNode(getSessionActionArgs(), state, nextDraftLatex);
+        refs.draftLatex = nextDraftLatex;
+        renderMathEditorLivePreview({
+          anchor: resolveCurrentAnchorElement(getEditorState()),
+          latex: nextDraftLatex,
+          displayMode: state.displayMode,
+        });
+        anchorResizeTracker.scheduleResize();
       },
       onCancel() {
+        renderMathEditorLivePreview({
+          anchor: resolveCurrentAnchorElement(getEditorState()),
+          latex: refs.initialLatex,
+          displayMode: state.displayMode,
+        });
+        anchorResizeTracker.scheduleResize();
         cancelMathEditorSession(getSessionActionArgs());
       },
       onSave() {
@@ -162,6 +197,18 @@ export function createMathEditorViewSession(args: {
     editorElement.style.setProperty('--math-editor-width', `${Math.round(nextPosition.width)}px`);
     editorElement.style.left = `${nextPosition.x}px`;
     editorElement.style.top = `${nextPosition.y}px`;
+
+    if (refs.textareaElement) {
+      const card = editorElement.querySelector(TEXT_EDITOR_POPUP_CARD_SELECTOR);
+      if (card instanceof HTMLElement) {
+        resizeTextEditorPopupTextareaToContent({
+          card,
+          textarea: refs.textareaElement,
+        });
+      }
+    }
+
+    anchorResizeTracker.update();
   };
 
   document.addEventListener('mousedown', handleClickOutside);
@@ -171,6 +218,7 @@ export function createMathEditorViewSession(args: {
       const state = getEditorState();
 
       if (!state?.isOpen) {
+        anchorResizeTracker.update();
         resetSessionDom();
         return;
       }
@@ -194,6 +242,7 @@ export function createMathEditorViewSession(args: {
       if (focusTextareaTimer !== null && typeof window !== 'undefined') {
         window.clearTimeout(focusTextareaTimer);
       }
+      anchorResizeTracker.destroy();
       resetSessionDom();
       suppressOutsideMouseDown = false;
       suppressOutsideMouseDownTimer = null;

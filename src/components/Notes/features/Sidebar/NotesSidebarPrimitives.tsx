@@ -1,4 +1,4 @@
-import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
+import { Fragment, forwardRef, type HTMLAttributes, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
 import {
@@ -226,18 +226,22 @@ export function NotesSidebarHoverEmptyHint({
                 {actionLabel}
               </span>
             ) : null}
-            {actionItems.map((action) => (
-              <button
-                key={action.label}
-                type="button"
-                className="pointer-events-auto h-7 cursor-pointer rounded-md px-3 text-[16px] text-[var(--notes-sidebar-text-soft)] hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)] focus:outline-none"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  action.onAction();
-                }}
-              >
-                {action.label}
-              </button>
+            {actionItems.map((action, index) => (
+              <Fragment key={action.label}>
+                {index > 0 ? (
+                  <span className="text-[16px] text-[var(--notes-sidebar-text-soft)]">/</span>
+                ) : null}
+                <button
+                  type="button"
+                  className="pointer-events-auto h-7 cursor-pointer rounded-md px-3 text-[16px] text-[var(--notes-sidebar-text-soft)] hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)] focus:outline-none"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    action.onAction();
+                  }}
+                >
+                  {action.label}
+                </button>
+              </Fragment>
             ))}
           </div>
         ) : null}

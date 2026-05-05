@@ -80,8 +80,7 @@
 
 .math-editor-textarea {
   width: 100%;
-  min-height: 152px;
-  height: 100%;
+  box-sizing: border-box;
   border: 1px solid #d0d7de;
   border-radius: 6px;
   background: #f8f8f8;

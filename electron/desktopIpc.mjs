@@ -27,6 +27,15 @@ import {
 const { app, clipboard, dialog, shell } = electron;
 const activeAiProviderRequests = new Map();
 
+function summarizeError(error) {
+  if (!(error instanceof Error)) {
+    return String(error || 'Unknown error');
+  }
+
+  const cause = error.cause instanceof Error ? `: ${error.cause.message}` : '';
+  return `${error.name}: ${error.message}${cause}`;
+}
+
 function safeSend(sender, channel, payload) {
   if (!sender || sender.isDestroyed()) {
     return false;
@@ -133,7 +142,7 @@ export function registerDesktopIpc({
       });
     } catch (error) {
       activeAiProviderRequests.delete(id);
-      throw error;
+      throw new Error(`AI provider request to ${request.url} failed before an HTTP response was received: ${summarizeError(error)}`);
     }
 
     void (async () => {

@@ -25,4 +25,13 @@ describe('areProvidersEqual', () => {
       ),
     ).toBe(false);
   });
+
+  it('compares endpoint type check timestamps', () => {
+    expect(
+      areProvidersEqual(
+        [buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 })],
+        [buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 2 })],
+      ),
+    ).toBe(false);
+  });
 });

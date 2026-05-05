@@ -185,6 +185,18 @@
   border: 1px solid var(--vlaina-border);
   border-radius: 0.5rem;
   overflow-x: auto;
+  cursor: pointer;
+  transition:
+    background-color 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.milkdown .mermaid-block:hover,
+.milkdown .mermaid-block:focus-visible {
+  background: var(--vlaina-hover-filled);
+  border-color: var(--vlaina-accent);
+  box-shadow: 0 0 0 2px var(--vlaina-accent-light);
 }
 
 .milkdown .mermaid-placeholder,
@@ -203,6 +215,30 @@
 
 .dark .milkdown .mermaid-error {
   background-color: #450a0a;
+}
+
+.vlaina-block-drag-preview .mermaid-block,
+.vlaina-block-drag-preview .mermaid-block * {
+  color: initial !important;
+  -webkit-text-fill-color: initial !important;
+}
+
+.milkdown .mermaid-drag-preview-surface,
+.vlaina-block-drag-preview .mermaid-drag-preview-surface {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  border: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+.milkdown .mermaid-drag-preview-image,
+.vlaina-block-drag-preview .mermaid-drag-preview-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
 }
 
 /* Video */

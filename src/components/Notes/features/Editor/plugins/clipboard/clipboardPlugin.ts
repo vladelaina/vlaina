@@ -11,6 +11,8 @@ import { serializeSelectionToClipboardText } from './selectionSerialization';
 import { writeTextToClipboard } from '../cursor/blockSelectionCommands';
 import { createCodeBlockAttrs } from '../code/codeBlockSettings';
 import { normalizeLeadingFrontmatterMarkdown } from '../frontmatter/frontmatterMarkdown';
+import { normalizeMermaidFenceCode } from '../mermaid/mermaidFenceCode';
+import { isMermaidFenceLanguage } from '../mermaid/mermaidLanguage';
 import { isTocShortcutText } from '../toc/tocShortcut';
 import {
     extractLargestMarkdownFenceContent,
@@ -21,6 +23,7 @@ import {
 } from './fencedCodePaste';
 import { findTailCursorPosInRange, isMarkdownStructuralResult, resolvePasteRange } from './pasteCursorUtils';
 import { createMarkdownPasteSlice, hasOnlyParagraphNodes } from './markdownPasteSlice';
+import { createMarkdownTableFromTabSeparatedText } from './tabSeparatedTablePaste';
 
 export const clipboardPluginKey = new PluginKey('vlaina-clipboard');
 
@@ -173,8 +176,34 @@ export const clipboardPlugin = $prose((ctx) => {
                     return true;
                 }
 
+                const tabSeparatedTableMarkdown = createMarkdownTableFromTabSeparatedText(text);
+                if (tabSeparatedTableMarkdown) {
+                    const tableNodes = parseMarkdownNodes(tabSeparatedTableMarkdown);
+                    if (tableNodes) {
+                        const tableSlice = createMarkdownPasteSlice(state, tableNodes);
+                        dispatchSliceAndKeepCursorAtTail(view, tableSlice);
+                        event.preventDefault();
+                        return true;
+                    }
+                }
+
                 if (fencedPayload) {
                     const fencedLanguage = fencedPayload.language?.toLowerCase() ?? null;
+                    if (isMermaidFenceLanguage(fencedLanguage)) {
+                        const mermaidType = state.schema.nodes.mermaid;
+                        if (mermaidType) {
+                            const mermaidNode = mermaidType.create({
+                                code: normalizeMermaidFenceCode(fencedLanguage, fencedPayload.code),
+                            });
+                            dispatchSliceAndKeepCursorAtTail(
+                                view,
+                                new Slice(Fragment.from(mermaidNode), 0, 0),
+                            );
+                            event.preventDefault();
+                            return true;
+                        }
+                    }
+
                     const fencedMarkdownCandidate = (
                         fencedLanguage === 'markdown'
                         || fencedLanguage === 'md'

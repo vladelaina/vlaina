@@ -387,6 +387,14 @@ export class CodeBlockNodeView implements NodeView {
 
   stopEvent(event: Event) {
     const target = event.target;
+    if (
+      (this.dom.dataset.pmSelected === 'true' || this.dom.classList.contains('vlaina-block-selected')) &&
+      event instanceof KeyboardEvent &&
+      (event.key === 'Delete' || event.key === 'Backspace' || event.key.toLowerCase() === 'x' || event.key.toLowerCase() === 'c')
+    ) {
+      return false;
+    }
+
     return target instanceof globalThis.Node && this.dom.contains(target);
   }
 

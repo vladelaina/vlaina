@@ -143,6 +143,16 @@ describe('markdown syntax persistence matrix', () => {
       markdown: ['```mermaid', 'graph TD', '', '  A --> B', '```'].join('\n'),
     },
     {
+      name: 'mermaid flow fence alias',
+      markdown: ['```flow', 'flowchart TD', '  A --> B', '```'].join('\n'),
+      expected: ['```mermaid', 'flowchart TD', '  A --> B', '```'].join('\n'),
+    },
+    {
+      name: 'mermaid detector fence alias',
+      markdown: ['```packet-beta', '0-7: "Source"', '```'].join('\n'),
+      expected: ['```mermaid', '0-7: "Source"', '```'].join('\n'),
+    },
+    {
       name: 'code block language alias',
       markdown: ['```JS', 'const value = 1;', '```'].join('\n'),
       expected: ['```ecmascript', 'const value = 1;', '```'].join('\n'),

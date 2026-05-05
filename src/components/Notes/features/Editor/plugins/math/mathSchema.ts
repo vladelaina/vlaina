@@ -9,7 +9,7 @@ export function parseMathAttrs(dom: HTMLElement) {
   };
 }
 
-function createMathNodeDOM(args: {
+export function createMathNodeDOM(args: {
   tagName: 'div' | 'span';
   dataType: 'math-block' | 'math-inline';
   className: 'math-block-wrapper' | 'math-inline-wrapper';

@@ -2,12 +2,15 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type RefObject,
 } from 'react';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
+import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
+import { normalizeStarredVaultPath } from '@/stores/notes/starred';
 import {
   buildMentionPreviewParts,
   collectNotePaths,
@@ -42,31 +45,66 @@ export function useNoteMentionState({
   const currentNotePath = useNotesStore((state) => state.currentNote?.path ?? null);
   const notesPath = useNotesStore((state) => state.notesPath);
   const notesLoading = useNotesStore((state) => state.isLoading);
+  const starredEntries = useNotesStore((state) => state.starredEntries);
   const loadFileTree = useNotesStore((state) => state.loadFileTree);
   const getDisplayName = useNotesStore((state) => state.getDisplayName);
+  const getNoteIcon = useNotesStore((state) => state.getNoteIcon);
 
   const [mentions, setMentions] = useState<NoteMentionReference[]>([]);
   const [caretIndex, setCaretIndex] = useState(0);
   const [activeMentionIndex, setActiveMentionIndex] = useState(0);
   const [textareaScrollTop, setTextareaScrollTop] = useState(0);
+  const requestedTreeLoadTriggerRef = useRef<string | null>(null);
 
   const allNoteCandidates = useMemo<NoteMentionCandidate[]>(() => {
-    if (!notesRootFolder) {
-      return [];
-    }
-
     const paths: string[] = [];
-    collectNotePaths(notesRootFolder.children, paths);
+    if (notesRootFolder) {
+      collectNotePaths(notesRootFolder.children, paths);
+    }
     const uniquePaths = Array.from(new Set(paths));
 
-    return uniquePaths
+    const currentVaultPath = notesPath ? normalizeStarredVaultPath(notesPath) : '';
+    const candidates: NoteMentionCandidate[] = uniquePaths
       .map((path) => ({
         path,
         title: getDisplayName(path),
         isCurrent: path === currentNotePath,
+        icon: getNoteIcon(path),
+        notePath: path,
       }))
       .sort((a, b) => a.title.localeCompare(b.title));
-  }, [currentNotePath, getDisplayName, notesRootFolder]);
+
+    const seenPaths = new Set(candidates.map((candidate) => candidate.path));
+    for (const entry of starredEntries) {
+      if (entry.kind !== 'note') {
+        continue;
+      }
+
+      const entryVaultPath = normalizeStarredVaultPath(entry.vaultPath);
+      const isCurrentVaultEntry = !!currentVaultPath && entryVaultPath === currentVaultPath;
+      const path = isCurrentVaultEntry
+        ? entry.relativePath
+        : `${entryVaultPath}/${entry.relativePath}`.replace(/\/+/g, '/');
+      if (seenPaths.has(path)) {
+        continue;
+      }
+
+      seenPaths.add(path);
+      candidates.push({
+        path,
+        title: isCurrentVaultEntry
+          ? getDisplayName(entry.relativePath)
+          : getNoteTitleFromPath(entry.relativePath),
+        isCurrent: path === currentNotePath,
+        icon: isCurrentVaultEntry ? getNoteIcon(entry.relativePath) : undefined,
+        notePath: entry.relativePath,
+        vaultPath: entryVaultPath,
+        starredEntry: isCurrentVaultEntry ? undefined : entry,
+      });
+    }
+
+    return candidates.sort((a, b) => a.title.localeCompare(b.title));
+  }, [currentNotePath, getDisplayName, getNoteIcon, notesPath, notesRootFolder, starredEntries]);
 
   const mentionTrigger = useMemo(
     () => getNoteMentionTrigger(value, caretIndex),
@@ -110,7 +148,15 @@ export function useNoteMentionState({
     [filteredCandidates],
   );
 
-  const showMentionPicker = !!mentionTrigger && filteredCandidates.length > 0;
+  const mentionTriggerKey = mentionTrigger
+    ? `${mentionTrigger.start}:${mentionTrigger.query}`
+    : null;
+  const mentionPickerStatus: 'loading' | 'empty' | null = mentionTrigger && filteredCandidates.length === 0
+    ? (notesRootFolder
+        ? 'empty'
+        : notesLoading || requestedTreeLoadTriggerRef.current !== mentionTriggerKey ? 'loading' : 'empty')
+    : null;
+  const showMentionPicker = !!mentionTrigger;
 
   useEffect(() => {
     setActiveMentionIndex(0);
@@ -118,13 +164,18 @@ export function useNoteMentionState({
 
   useEffect(() => {
     if (!mentionTrigger || mentionTrigger.start < 0) {
+      requestedTreeLoadTriggerRef.current = null;
       return;
     }
-    if (notesRootFolder || !notesPath || notesLoading) {
+    if (notesRootFolder || notesLoading) {
       return;
     }
+    if (!mentionTriggerKey || requestedTreeLoadTriggerRef.current === mentionTriggerKey) {
+      return;
+    }
+    requestedTreeLoadTriggerRef.current = mentionTriggerKey;
     void loadFileTree();
-  }, [loadFileTree, mentionTrigger, notesLoading, notesPath, notesRootFolder]);
+  }, [loadFileTree, mentionTrigger, mentionTriggerKey, notesLoading, notesRootFolder]);
 
   useEffect(() => {
     setMentions((prev) => syncMentions({
@@ -269,6 +320,16 @@ export function useNoteMentionState({
         return false;
       }
 
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setCaretIndex(-1);
+        return true;
+      }
+
+      if (filteredCandidates.length === 0) {
+        return false;
+      }
+
       if (event.key === 'ArrowDown') {
         event.preventDefault();
         setActiveMentionIndex((prev) => (prev + 1) % filteredCandidates.length);
@@ -292,12 +353,6 @@ export function useNoteMentionState({
         }
       }
 
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        setCaretIndex(-1);
-        return true;
-      }
-
       return false;
     },
     [
@@ -319,6 +374,7 @@ export function useNoteMentionState({
     linkedPageCandidates,
     mentionPreviewParts,
     showMentionPicker,
+    mentionPickerStatus,
     activeCandidatePath: filteredCandidates[activeMentionIndex]?.path ?? null,
     textareaScrollTop,
     handleValueChange,

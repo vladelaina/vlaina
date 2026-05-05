@@ -123,10 +123,23 @@ export function createFloatingToolbarPluginView(
   };
 
   const hideToolbarAndReset = () => {
+    clearFormatPreview(editorView);
     hideToolbar(toolbarElement);
     hideToolbar(selectionToolbarElement);
     reviewToolbars.forEach(({ element }) => hideToolbar(element));
     resetToolbarTracking();
+  };
+
+  const isToolbarEventTarget = (target: EventTarget | null) => {
+    if (!(target instanceof Node)) {
+      return false;
+    }
+
+    return (
+      toolbarElement.contains(target) ||
+      selectionToolbarElement.contains(target) ||
+      Array.from(reviewToolbars.values()).some(({ element }) => element.contains(target))
+    );
   };
 
   const destroyReviewToolbar = (requestKey: string) => {
@@ -742,7 +755,10 @@ export function createFloatingToolbarPluginView(
     resizeObserver?.disconnect();
   };
 
-  const handleMouseDown = () => {
+  const handleMouseDown = (event: MouseEvent) => {
+    if (hasActiveAppliedPreview(editorView) && !isToolbarEventTarget(event.target)) {
+      clearFormatPreview(editorView);
+    }
     interactionState.isMouseDown = true;
     interactionState.pendingShow = false;
   };
