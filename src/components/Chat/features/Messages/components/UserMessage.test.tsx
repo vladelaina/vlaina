@@ -2,7 +2,17 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChatMessage } from '@/lib/ai/types';
 
-const { useNotesStoreMock } = vi.hoisted(() => ({
+const { notesStoreState, useNotesStoreMock } = vi.hoisted(() => ({
+  notesStoreState: {
+    rootFolder: null,
+    currentNote: null,
+    notesPath: '',
+    isLoading: false,
+    starredEntries: [],
+    loadFileTree: vi.fn(),
+    getDisplayName: (path: string) => path,
+    getNoteIcon: () => undefined,
+  },
   useNotesStoreMock: vi.fn(),
 }));
 
@@ -15,14 +25,7 @@ vi.mock('framer-motion', () => ({
 }));
 
 vi.mock('@/stores/notes/useNotesStore', () => ({
-  useNotesStore: (selector: (state: any) => unknown) => useNotesStoreMock(selector({
-    rootFolder: null,
-    currentNote: null,
-    notesPath: '',
-    isLoading: false,
-    loadFileTree: vi.fn(),
-    getDisplayName: (path: string) => path,
-  })),
+  useNotesStore: (selector: (state: any) => unknown) => useNotesStoreMock(selector(notesStoreState)),
 }));
 
 vi.mock('@/components/Chat/common/LocalImage', () => ({
@@ -59,6 +62,7 @@ function createMessage(): ChatMessage {
 describe('UserMessage', () => {
   beforeEach(() => {
     useNotesStoreMock.mockClear();
+    useNotesStoreMock.mockImplementation((selectedValue: unknown) => selectedValue);
   });
 
   it('does not subscribe to notes state while only rendering display mode', () => {

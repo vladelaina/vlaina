@@ -5,6 +5,9 @@ import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { configureTheme } from '../../theme';
 import { codePlugin } from '../code';
+import { mathPlugin } from '../math';
+import { mermaidPlugin } from '../mermaid';
+import { videoPlugin } from '../video';
 import { colorMarksPlugin } from './colorMarks';
 import {
   applyAlignmentPreview,
@@ -75,6 +78,35 @@ async function createEditorWithCodeNodeViews(markdown: string) {
     editor.use(plugin);
   });
   codePlugin.forEach((plugin) => {
+    editor.use(plugin);
+  });
+
+  await editor.create();
+  return { editor, host, view: editor.ctx.get(editorViewCtx) };
+}
+
+async function createEditorWithRenderedAtomNodeViews(markdown: string) {
+  const host = document.createElement('div');
+  document.body.appendChild(host);
+  const editor = Editor.make()
+    .config((ctx) => {
+      configureTheme(ctx);
+      ctx.set(rootCtx, host);
+      ctx.set(defaultValueCtx, markdown);
+    })
+    .use(commonmark)
+    .use(gfm);
+
+  colorMarksPlugin.forEach((plugin) => {
+    editor.use(plugin);
+  });
+  mathPlugin.forEach((plugin) => {
+    editor.use(plugin);
+  });
+  mermaidPlugin.forEach((plugin) => {
+    editor.use(plugin);
+  });
+  videoPlugin.forEach((plugin) => {
     editor.use(plugin);
   });
 
@@ -437,6 +469,114 @@ describe('previewStyles', () => {
     expect(overlay?.querySelector('pre.code-block-wrapper')).toBeNull();
     expect(previewCodeBlock?.querySelector('[contenteditable]')).toBeNull();
     expect(previewCodeBlock?.querySelector('[tabindex]')).toBeNull();
+
+    clearFormatPreview(view);
+    await editor.destroy();
+    host.remove();
+  });
+
+  it('reuses existing math render nodes while previewing unrelated toolbar changes', async () => {
+    const { editor, host, view } = await createEditorWithRenderedAtomNodeViews([
+      '$$',
+      'x^2 + y^2',
+      '$$',
+      '',
+      'format me',
+    ].join('\n'));
+    const sourceMath = view.dom.querySelector<HTMLElement>('[data-type="math-block"]');
+    expect(sourceMath).toBeInstanceOf(HTMLElement);
+    sourceMath?.setAttribute('data-preserve-probe', 'math');
+    selectText(view, 'format');
+
+    applyFormatPreview(view, 'bold');
+
+    const overlay = host.querySelector('.toolbar-applied-preview-overlay');
+    const previewMath = overlay?.querySelector<HTMLElement>('[data-type="math-block"]');
+    expect(previewMath).toBeInstanceOf(HTMLElement);
+    expect(previewMath?.getAttribute('data-preserve-probe')).toBe('math');
+    expect(previewMath?.querySelector('.katex')).toBeInstanceOf(HTMLElement);
+
+    clearFormatPreview(view);
+    await editor.destroy();
+    host.remove();
+  });
+
+  it('reuses existing mermaid render nodes while previewing unrelated toolbar changes', async () => {
+    const { editor, host, view } = await createEditorWithRenderedAtomNodeViews('format me');
+    const mermaidNode = view.state.schema.nodes.mermaid?.create({
+      code: ['graph TD', '  A --> B'].join('\n'),
+    });
+    expect(mermaidNode).toBeTruthy();
+    view.dispatch(view.state.tr.insert(0, mermaidNode!));
+
+    const sourceMermaid = view.dom.querySelector<HTMLElement>('[data-type="mermaid"]');
+    expect(sourceMermaid).toBeInstanceOf(HTMLElement);
+    sourceMermaid?.setAttribute('data-preserve-probe', 'mermaid');
+    selectText(view, 'format');
+
+    applyFormatPreview(view, 'bold');
+
+    const overlay = host.querySelector('.toolbar-applied-preview-overlay');
+    const previewMermaid = overlay?.querySelector<HTMLElement>('[data-type="mermaid"]');
+    expect(previewMermaid).toBeInstanceOf(HTMLElement);
+    expect(previewMermaid?.getAttribute('data-preserve-probe')).toBe('mermaid');
+    expect(previewMermaid?.textContent).toContain('Loading diagram');
+
+    clearFormatPreview(view);
+    await editor.destroy();
+    host.remove();
+  });
+
+  it('reuses existing video render nodes while previewing unrelated toolbar changes', async () => {
+    const { editor, host, view } = await createEditorWithRenderedAtomNodeViews('format me');
+    const videoNode = view.state.schema.nodes.video?.create({
+      src: 'https://example.com/video.mp4',
+      title: 'Demo video',
+      width: 640,
+      height: 360,
+    });
+    expect(videoNode).toBeTruthy();
+    view.dispatch(view.state.tr.insert(0, videoNode!));
+
+    const sourceVideo = view.dom.querySelector<HTMLElement>('[data-type="video"]');
+    expect(sourceVideo).toBeInstanceOf(HTMLElement);
+    sourceVideo?.setAttribute('data-preserve-probe', 'video');
+    selectText(view, 'format');
+
+    applyFormatPreview(view, 'bold');
+
+    const overlay = host.querySelector('.toolbar-applied-preview-overlay');
+    const previewVideo = overlay?.querySelector<HTMLElement>('[data-type="video"]');
+    expect(previewVideo).toBeInstanceOf(HTMLElement);
+    expect(previewVideo?.getAttribute('data-preserve-probe')).toBe('video');
+    expect(previewVideo?.querySelector('video')).toBeInstanceOf(HTMLVideoElement);
+
+    clearFormatPreview(view);
+    await editor.destroy();
+    host.remove();
+  });
+
+  it('keeps cloned iframe videos inert during toolbar previews', async () => {
+    const { editor, host, view } = await createEditorWithRenderedAtomNodeViews('format me');
+    const videoNode = view.state.schema.nodes.video?.create({
+      src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      title: 'Demo iframe video',
+      width: 640,
+      height: 360,
+    });
+    expect(videoNode).toBeTruthy();
+    view.dispatch(view.state.tr.insert(0, videoNode!));
+
+    const sourceIframe = view.dom.querySelector<HTMLIFrameElement>('[data-type="video"] iframe');
+    expect(sourceIframe?.getAttribute('src')).toBeTruthy();
+    selectText(view, 'format');
+
+    applyFormatPreview(view, 'bold');
+
+    const previewIframe = host.querySelector<HTMLIFrameElement>('.toolbar-applied-preview-overlay [data-type="video"] iframe');
+    expect(previewIframe).toBeInstanceOf(HTMLIFrameElement);
+    expect(previewIframe?.getAttribute('src')).toBeNull();
+    expect(previewIframe?.dataset.previewSrc).toBe(sourceIframe?.getAttribute('src'));
 
     clearFormatPreview(view);
     await editor.destroy();
