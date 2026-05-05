@@ -264,6 +264,7 @@ describe('saveNoteDocument', () => {
 
   it('refuses to overwrite a note that changed on disk after it was loaded', async () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 200 });
+    adapter.readFile.mockResolvedValue('# External edit');
 
     await expect(saveNoteDocument({
       notesPath: '/vault',
@@ -275,5 +276,45 @@ describe('saveNoteDocument', () => {
     })).rejects.toBeInstanceOf(NoteWriteConflictError);
 
     expect(adapter.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('treats a modified timestamp with matching disk content as already saved', async () => {
+    adapter.stat.mockResolvedValue({ modifiedAt: 200 });
+    adapter.readFile.mockResolvedValue([
+      '---',
+      'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+      '---',
+      '',
+      '# Loaded',
+    ].join('\n'));
+
+    const result = await saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: [
+          '---',
+          'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+          '---',
+          '',
+          '# Loaded',
+        ].join('\n'),
+      },
+      cache: new Map([['alpha.md', { content: '# Loaded', modifiedAt: 100 }]]),
+    });
+
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+    expect(result.modifiedAt).toBe(200);
+    expect(result.content).toBe([
+      '---',
+      'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+      '---',
+      '',
+      '# Loaded',
+    ].join('\n'));
+    expect(result.nextCache.get('alpha.md')).toEqual({
+      content: result.content,
+      modifiedAt: 200,
+    });
   });
 });

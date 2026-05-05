@@ -232,7 +232,7 @@ export function NotesTabRow() {
   const activeTab = activeTabId ? openTabs.find((tab) => tab.path === activeTabId) : null;
 
   return (
-    <div className="group/tab-row flex h-full min-w-0 items-center gap-1 px-2">
+    <div className="group/tab-row flex h-full w-full min-w-0 items-center gap-1 px-2">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}

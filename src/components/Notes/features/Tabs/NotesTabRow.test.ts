@@ -10,7 +10,7 @@ describe('NotesTabRow', () => {
   it('keeps the new note button hidden until the tab row is hovered or focused', () => {
     const source = readNotesTabRowSource();
 
-    expect(source).toContain('group/tab-row flex h-full');
+    expect(source).toContain('group/tab-row flex h-full w-full');
     expect(source).toContain('pointer-events-none flex h-7 w-7');
     expect(source).toContain('opacity-0');
     expect(source).toContain('group-hover/tab-row:pointer-events-auto');
