@@ -1,7 +1,8 @@
 import { isValidElement, memo, useMemo } from 'react';
-import 'highlight.js/styles/github-dark.css';
-import CopyButton from '@/components/Chat/common/CopyButton';
+import { CodeBlockHeader } from '@/components/common/code-block';
 import { writeTextToClipboard } from '@/lib/clipboard';
+import { selectCodeBlockLineNumbersEnabled } from '@/stores/unified/settings/markdownSettings';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { chatHighlighter } from '../utils/chatHighlighter';
 
 interface CodeBlockProps {
@@ -50,6 +51,11 @@ function extractCodePayload(
 
 export const CodeBlock = memo(({ className, children, blockId, copied = false, onCopy }: CodeBlockProps) => {
   const { language, codeText } = extractCodePayload(className, children);
+  const showLineNumbers = useUnifiedStore(selectCodeBlockLineNumbersEnabled);
+  const lineNumbers = useMemo(() => {
+    const lineCount = codeText.length === 0 ? 1 : codeText.split('\n').length;
+    return Array.from({ length: lineCount }, (_, index) => index + 1);
+  }, [codeText]);
 
   const highlightedHTML = useMemo(() => {
     try {
@@ -73,13 +79,23 @@ export const CodeBlock = memo(({ className, children, blockId, copied = false, o
   };
 
   return (
-    <div className="relative bg-neutral-100 dark:bg-neutral-800 rounded-2xl overflow-hidden my-6 group">
-      <div className="flex select-none px-4 py-2 items-center justify-between">
-        <span className="text-[13px] text-neutral-500 dark:text-neutral-400 font-mono">
+    <div className="vlaina-code-block relative my-6 overflow-hidden rounded-2xl group">
+      <CodeBlockHeader
+        copied={copied}
+        getCopyText={() => codeText}
+        languageControl={(
+          <span className="vlaina-code-block-language-label">
             {language || 'text'}
-        </span>
-      </div>
-      <div className="overflow-x-auto p-4 pt-0 pb-12">
+          </span>
+        )}
+        onCopy={handleCopy}
+      />
+      <div className="vlaina-code-block-body overflow-x-auto p-4 pt-0">
+        {showLineNumbers && (
+          <pre className="vlaina-code-block-line-numbers" aria-hidden="true">
+            {lineNumbers.join('\n')}
+          </pre>
+        )}
         {highlightedHTML ? (
           <code
             className={`block whitespace-pre font-mono text-sm leading-relaxed hljs ${language} !bg-transparent !p-0`}
@@ -92,15 +108,6 @@ export const CodeBlock = memo(({ className, children, blockId, copied = false, o
             </code>
           </pre>
         )}
-      </div>
-      <div className="absolute bottom-2 right-2 z-10 opacity-0 transition-opacity duration-150 group-hover:opacity-100 focus-within:opacity-100">
-        <CopyButton
-          content={codeText}
-          copied={copied}
-          onCopy={handleCopy}
-          showLabels={false}
-          className="rounded-lg bg-white/85 px-2 py-1.5 text-neutral-500 shadow-sm ring-1 ring-black/5 backdrop-blur hover:text-neutral-900 dark:bg-zinc-900/85 dark:text-neutral-400 dark:ring-white/10 dark:hover:text-neutral-200"
-        />
       </div>
     </div>
   );

@@ -65,6 +65,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
   }) => {
     const [selectionLockedContent, setSelectionLockedContent] = useState<string | null>(null);
     const isPointerSelectingRef = useRef(false);
+    const pendingSelectionLockedContentRef = useRef<string | null>(null);
+    const freezeSelectionTimeoutRef = useRef<number | null>(null);
     const unlockTimeoutRef = useRef<number | null>(null);
     const renderedContent = selectionLockedContent ?? content;
     const shouldAnimateStream = isStreaming && selectionLockedContent === null;
@@ -83,6 +85,11 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
     useEffect(() => {
       if (!isStreaming) {
         isPointerSelectingRef.current = false;
+        pendingSelectionLockedContentRef.current = null;
+        if (freezeSelectionTimeoutRef.current !== null) {
+          window.clearTimeout(freezeSelectionTimeoutRef.current);
+          freezeSelectionTimeoutRef.current = null;
+        }
         setSelectionLockedContent(null);
       }
     }, [isStreaming]);
@@ -93,6 +100,26 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
           window.clearTimeout(unlockTimeoutRef.current);
           unlockTimeoutRef.current = null;
         }
+        if (freezeSelectionTimeoutRef.current !== null) {
+          window.clearTimeout(freezeSelectionTimeoutRef.current);
+          freezeSelectionTimeoutRef.current = null;
+        }
+      };
+    }, []);
+
+    useEffect(() => {
+      const handlePointerUp = () => {
+        isPointerSelectingRef.current = false;
+        pendingSelectionLockedContentRef.current = null;
+        if (freezeSelectionTimeoutRef.current !== null) {
+          window.clearTimeout(freezeSelectionTimeoutRef.current);
+          freezeSelectionTimeoutRef.current = null;
+        }
+      };
+
+      document.addEventListener('pointerup', handlePointerUp, true);
+      return () => {
+        document.removeEventListener('pointerup', handlePointerUp, true);
       };
     }, []);
 
@@ -129,8 +156,29 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       }
 
       isPointerSelectingRef.current = true;
-      setSelectionLockedContent((current) => current ?? content);
+      pendingSelectionLockedContentRef.current = content;
     }, [content, isStreaming]);
+
+    const handleSelectionPointerMove = useCallback(() => {
+      if (!isStreaming || !isPointerSelectingRef.current || pendingSelectionLockedContentRef.current === null) {
+        return;
+      }
+
+      if (freezeSelectionTimeoutRef.current !== null) {
+        return;
+      }
+
+      freezeSelectionTimeoutRef.current = window.setTimeout(() => {
+        freezeSelectionTimeoutRef.current = null;
+        if (!isPointerSelectingRef.current || pendingSelectionLockedContentRef.current === null) {
+          return;
+        }
+
+        const lockedContent = pendingSelectionLockedContentRef.current;
+        pendingSelectionLockedContentRef.current = null;
+        setSelectionLockedContent((current) => current ?? lockedContent);
+      }, 0);
+    }, [isStreaming]);
 
     const { body: thinking, isComplete: isThinkingDone, markdown } = useMemo(() => {
       const sections = extractThinkingSections(renderedContent || '');
@@ -152,7 +200,11 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
     const streamBlocks = useChatStreamBlocks(markdown, shouldAnimateStream);
 
     return (
-      <div className="flex flex-col" onPointerDownCapture={handleSelectionPointerDown}>
+      <div
+        className="flex flex-col"
+        onPointerDownCapture={handleSelectionPointerDown}
+        onPointerMoveCapture={handleSelectionPointerMove}
+      >
         {thinking !== null && (
           <ThinkingBlock
             content={thinking}

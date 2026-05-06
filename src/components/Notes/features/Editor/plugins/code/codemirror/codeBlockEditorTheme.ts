@@ -1,11 +1,12 @@
 import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
-import { oneDark, oneDarkHighlightStyle } from '@codemirror/theme-one-dark';
+import { oneDarkTheme } from '@codemirror/theme-one-dark';
 import { EditorView as CodeMirror } from '@codemirror/view';
+import { vlainaCodeBlockHighlightStyle } from './codeBlockHighlightStyle';
 
 export function createCodeBlockEditorTheme() {
   return [
-    oneDark,
-    syntaxHighlighting(oneDarkHighlightStyle),
+    oneDarkTheme,
+    syntaxHighlighting(vlainaCodeBlockHighlightStyle),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     CodeMirror.theme({
       '&': {

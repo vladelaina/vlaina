@@ -82,6 +82,7 @@ export class CodeBlockNodeView implements NodeView {
     this.dom = document.createElement('div');
     this.dom.classList.add(
       'code-block-container',
+      'vlaina-code-block',
       'my-4',
       'rounded-2xl',
       'overflow-hidden',

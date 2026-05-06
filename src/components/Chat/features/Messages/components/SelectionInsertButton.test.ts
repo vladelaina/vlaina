@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import React from "react";
+import { render, fireEvent } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import { SelectionInsertButton } from "./SelectionInsertButton";
 import {
   canStartChatSelection,
   isInsideAssistantMessageItem,
@@ -6,6 +9,10 @@ import {
   isInsideSelectionSurface,
   resolveOutsideMoveDecision,
 } from "./chatSelectionBehavior";
+
+afterEach(() => {
+  document.body.removeAttribute("data-chat-selection-lock");
+});
 
 describe("resolveOutsideMoveDecision", () => {
   it("does nothing when the drag did not start from chat content", () => {
@@ -42,6 +49,59 @@ describe("resolveOutsideMoveDecision", () => {
       shouldPreventDefault: true,
       shouldRestore: true,
     });
+  });
+});
+
+describe("SelectionInsertButton selection lock", () => {
+  it("does not enable the global selection lock while dragging inside assistant text", () => {
+    const { unmount } = render(React.createElement(SelectionInsertButton));
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <div data-chat-scrollable="true">
+        <div data-message-item="true" data-role="assistant">
+          <div data-testid="assistant-body" data-chat-selection-surface="true">Answer</div>
+        </div>
+        <div data-testid="gap"></div>
+      </div>
+    `;
+    document.body.appendChild(container);
+
+    const assistantBody = container.querySelector('[data-testid="assistant-body"]')!;
+
+    fireEvent.mouseDown(assistantBody, { button: 0 });
+    expect(document.body).not.toHaveAttribute("data-chat-selection-lock");
+
+    fireEvent.mouseMove(assistantBody);
+    expect(document.body).not.toHaveAttribute("data-chat-selection-lock");
+
+    container.remove();
+    unmount();
+  });
+
+  it("enables the global selection lock only after dragging outside the selection surface", () => {
+    const { unmount } = render(React.createElement(SelectionInsertButton));
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <div data-chat-scrollable="true">
+        <div data-message-item="true" data-role="assistant">
+          <div data-testid="assistant-body" data-chat-selection-surface="true">Answer</div>
+        </div>
+        <div data-testid="gap"></div>
+      </div>
+    `;
+    document.body.appendChild(container);
+
+    const assistantBody = container.querySelector('[data-testid="assistant-body"]')!;
+    const gap = container.querySelector('[data-testid="gap"]')!;
+
+    fireEvent.mouseDown(assistantBody, { button: 0 });
+    fireEvent.mouseMove(gap);
+
+    expect(document.body).toHaveAttribute("data-chat-selection-lock", "1");
+
+    container.remove();
+    unmount();
+    expect(document.body).not.toHaveAttribute("data-chat-selection-lock");
   });
 });
 

@@ -1,4 +1,3 @@
-import { useRef } from 'react';
 import type { AIModel } from '@/lib/ai/types';
 import { Icon } from '@/components/ui/icons';
 import { buildScopedModelId } from '@/lib/ai/utils';
@@ -49,8 +48,6 @@ interface ProviderModelsPanelProps {
 }
 
 export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
-  const selectedListScrollRef = useRef<HTMLDivElement | null>(null);
-  const availableListScrollRef = useRef<HTMLDivElement | null>(null);
   const hasFetchedModels = props.sortedFetchedModels.length > 0;
   const hasActiveQuery = props.modelQuery.trim().length > 0;
   const selectedModelsSource = hasActiveQuery
@@ -164,8 +161,6 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                 />
                 <VirtualModelList
                   items={selectedModels}
-                  resetKey={props.modelQuery}
-                  scrollRef={selectedListScrollRef}
                   getKey={(model) => model.id}
                   renderItem={(model) => (
                     <ModelRow
@@ -189,8 +184,6 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                 />
                 <VirtualModelList
                   items={availableModels}
-                  resetKey={props.modelQuery}
-                  scrollRef={availableListScrollRef}
                   getKey={(modelId) => modelId}
                   renderItem={(modelId) => (
                     <ModelRow

@@ -9,6 +9,14 @@ import { useModelSelectorScroll } from './hooks/useModelSelectorScroll'
 import type { AIModel } from '@/lib/ai/types';
 import { isManagedProviderId, MANAGED_PROVIDER_NAME } from '@/lib/ai/managedService'
 import { focusComposerInput as focusRegisteredComposerInput } from '@/lib/ui/composerFocusRegistry'
+import { SETTINGS_CLOSED_EVENT } from '@/components/Settings/settingsEvents'
+import {
+  MODEL_FAMILIES,
+  getModelCategoryId,
+  getModelDisplayName,
+  type ModelCategory,
+  type ModelCategoryId,
+} from './modelFamilyRegistry'
 
 type ModelSelectorTheme = 'chat' | 'notes'
 type ModelSelectorListRow =
@@ -62,9 +70,9 @@ const MODEL_SELECTOR_THEME_STYLES: Record<
     optionHover: 'hover:bg-[var(--chat-sidebar-row-hover)]',
     optionActive: 'bg-[var(--chat-sidebar-row-active)]',
     optionFocused: 'bg-[var(--chat-sidebar-row-hover)]',
-    optionText: 'text-[var(--chat-sidebar-text-muted)]',
-    optionTextActive: 'text-[var(--chat-sidebar-text)]',
-    checkIcon: 'text-[var(--chat-sidebar-text)]',
+    optionText: 'text-[var(--chat-sidebar-text)]',
+    optionTextActive: 'text-[var(--sidebar-row-selected-text)]',
+    checkIcon: 'text-[var(--sidebar-row-selected-text)]',
     emptyText: 'text-[var(--chat-sidebar-text-soft)]',
   },
   notes: {
@@ -81,9 +89,9 @@ const MODEL_SELECTOR_THEME_STYLES: Record<
     optionHover: 'hover:bg-[var(--notes-sidebar-row-hover)]',
     optionActive: 'bg-[var(--notes-sidebar-row-active)]',
     optionFocused: 'bg-[var(--notes-sidebar-row-hover)]',
-    optionText: 'text-[var(--notes-sidebar-text-muted)]',
-    optionTextActive: 'text-[var(--notes-sidebar-text)]',
-    checkIcon: 'text-[var(--notes-sidebar-text)]',
+    optionText: 'text-[var(--notes-sidebar-text)]',
+    optionTextActive: 'text-[var(--sidebar-row-selected-text)]',
+    checkIcon: 'text-[var(--sidebar-row-selected-text)]',
     emptyText: 'text-[var(--notes-sidebar-text-soft)]',
   },
 }
@@ -93,6 +101,7 @@ const ModelOption = memo(({
     isSelected, 
     isFocused, 
     onSelect, 
+    onTogglePinned,
     onHover,
     theme,
 }: { 
@@ -100,18 +109,23 @@ const ModelOption = memo(({
     isSelected: boolean; 
     isFocused: boolean; 
     onSelect: (id: string) => void; 
+    onTogglePinned: (id: string, pinned: boolean) => void;
     onHover: (id: string) => void;
     theme: ModelSelectorTheme;
 }) => {
     const styles = MODEL_SELECTOR_THEME_STYLES[theme]
+    const displayName = getModelDisplayName(model)
 
     return (
-        <button
+        <div
+            role="button"
+            tabIndex={-1}
             data-model-id={model.id}
             onClick={() => onSelect(model.id)}
             onMouseEnter={() => onHover(model.id)}
             className={cn(
-                "w-full flex cursor-pointer items-center justify-between px-3 py-2 rounded-md text-left transition-colors duration-75",
+                "flex w-max min-w-full cursor-pointer items-center justify-between px-3 py-2 rounded-md text-left transition-colors duration-75",
+                "group/model-option",
                 isSelected
                   ? styles.optionActive
                   : isFocused
@@ -120,18 +134,55 @@ const ModelOption = memo(({
             )}
         >
             <span className={cn(
-                "text-sm font-medium",
+                "whitespace-nowrap text-sm font-medium",
                 isSelected
                   ? styles.optionTextActive
                   : styles.optionText
             )}>
-                {model.name}
+                {displayName}
             </span>
 
-            {isSelected && (
-                <Icon name="common.check" size="md" className={cn("ml-4 flex-shrink-0", styles.checkIcon)} />
-            )}
-        </button>
+            <span className="ml-3 flex flex-shrink-0 items-center gap-1">
+                <button
+                    type="button"
+                    tabIndex={-1}
+                    aria-label={model.pinned ? 'Remove from favorites' : 'Add to favorites'}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        onTogglePinned(model.id, !model.pinned);
+                    }}
+                    onKeyDown={(event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') {
+                            return;
+                        }
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onTogglePinned(model.id, !model.pinned);
+                    }}
+                    className={cn(
+                        "flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-amber-500 transition-opacity",
+                        model.pinned
+                          ? "pointer-events-auto opacity-100"
+                          : "pointer-events-none opacity-0 text-amber-500/70 hover:text-amber-500 group-hover/model-option:pointer-events-auto group-hover/model-option:opacity-100"
+                    )}
+                >
+                    <Icon
+                        name="misc.star"
+                        size="sm"
+                        className={model.pinned ? "fill-current" : undefined}
+                    />
+                </button>
+
+                <Icon
+                    name="common.check"
+                    size="md"
+                    className={cn(
+                        "flex-shrink-0",
+                        isSelected ? styles.checkIcon : "opacity-0"
+                    )}
+                />
+            </span>
+        </div>
     );
 });
 
@@ -162,11 +213,13 @@ export function ModelSelector({
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [focusedModelId, setFocusedModelId] = useState<string | null>(null)
+  const [activeCategoryId, setActiveCategoryId] = useState<ModelCategoryId | null>(null)
   const deferredSearchQuery = useDeferredValue(searchQuery)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const isKeyboardNavigating = useRef(false)
+  const reopenAfterSettingsCloseRef = useRef(false)
   const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const selectedModel = useMemo(() => {
@@ -202,11 +255,82 @@ export function ModelSelector({
       );
   }, [deferredSearchQuery, enabledModels]);
 
+  const modelCategories = useMemo(() => {
+      const categoryCounts = new Map<ModelCategoryId, number>();
+
+      filteredModels.forEach((model) => {
+          const categoryId = getModelCategoryId(model);
+          categoryCounts.set(categoryId, (categoryCounts.get(categoryId) ?? 0) + 1);
+      });
+
+      const categories: ModelCategory[] = [];
+      const pinnedCount = filteredModels.filter((model) => model.pinned).length;
+      categories.push({
+          id: 'favorites',
+          name: 'Favorites',
+          icon: null,
+          kind: 'favorites',
+          count: pinnedCount,
+      });
+
+      MODEL_FAMILIES.forEach((family) => {
+          const count = categoryCounts.get(family.id) ?? 0;
+          if (count === 0) {
+              return;
+          }
+          categories.push({
+              id: family.id,
+              name: family.name,
+              icon: family.icon,
+              kind: 'family',
+              count,
+          });
+      });
+
+      const customCount = categoryCounts.get('custom') ?? 0;
+      if (customCount > 0) {
+          categories.push({
+              id: 'custom',
+              name: 'Custom',
+              icon: null,
+              kind: 'custom',
+              count: customCount,
+          });
+      }
+
+      return categories;
+  }, [filteredModels]);
+
+  const visibleActiveCategoryId = useMemo(() => {
+      if (activeCategoryId && modelCategories.some((category) => category.id === activeCategoryId)) {
+          return activeCategoryId;
+      }
+
+      const selectedCategoryId = selectedModel ? getModelCategoryId(selectedModel) : null;
+      if (selectedCategoryId && modelCategories.some((category) => category.id === selectedCategoryId)) {
+          return selectedCategoryId;
+      }
+
+      return modelCategories.find((category) => category.id !== 'favorites')?.id ?? modelCategories[0]?.id ?? null;
+  }, [activeCategoryId, modelCategories, selectedModel]);
+
+  const categoryFilteredModels = useMemo(() => {
+      if (!visibleActiveCategoryId) {
+          return [];
+      }
+
+      if (visibleActiveCategoryId === 'favorites') {
+          return filteredModels.filter((model) => model.pinned);
+      }
+
+      return filteredModels.filter((model) => getModelCategoryId(model) === visibleActiveCategoryId);
+  }, [filteredModels, visibleActiveCategoryId]);
+
   const groupedFilteredModels = useMemo(() => {
       const providerMap = new Map(providers.map((provider) => [provider.id, provider]));
       const modelsByProvider = new Map<string, AIModel[]>();
 
-      filteredModels.forEach((model) => {
+      categoryFilteredModels.forEach((model) => {
           const existing = modelsByProvider.get(model.providerId);
           if (existing) {
               existing.push(model);
@@ -236,9 +360,12 @@ export function ModelSelector({
                 : providerMap.get(providerId)?.name || 'Unknown Channel',
               models: providerModels,
           }));
-  }, [filteredModels, providers]);
+  }, [categoryFilteredModels, providers]);
 
-  const showGroupedSections = groupedFilteredModels.length > 1;
+  const showGroupedSections = visibleActiveCategoryId !== 'favorites' || groupedFilteredModels.length > 1;
+  const emptyStateText = visibleActiveCategoryId === 'favorites'
+      ? 'No favorite models'
+      : 'No models found';
   const listRows = useMemo<ModelSelectorListRow[]>(() => {
       return groupedFilteredModels.flatMap((group) => {
           const rows: ModelSelectorListRow[] = [];
@@ -329,17 +456,22 @@ export function ModelSelector({
   }, []);
 
   const openSelector = useCallback(() => {
+      const initialCategoryId = selectedModel
+          ? getModelCategoryId(selectedModel)
+          : modelCategories.find((category) => category.id !== 'favorites')?.id ?? modelCategories[0]?.id ?? null;
       const initialFocusedId = selectedModelId ?? null;
       requestCenterScroll();
+      setActiveCategoryId(initialCategoryId);
       setFocusedModelId(initialFocusedId);
       setIsOpen(true);
       if (focusSearchOnOpen) {
           focusSearchInput();
       }
-  }, [focusSearchOnOpen, focusSearchInput, requestCenterScroll, selectedModelId]);
+  }, [focusSearchOnOpen, focusSearchInput, modelCategories, requestCenterScroll, selectedModel, selectedModelId]);
 
   const closeSelector = useCallback((restoreComposerFocus = false) => {
       clearScrollMode();
+      setSearchQuery('');
       setIsOpen(false);
       if (restoreComposerFocus) {
           focusComposerInput();
@@ -355,6 +487,23 @@ export function ModelSelector({
   }, [closeSelector, isOpen, openSelector]);
 
   useEffect(() => {
+      const handleSettingsClosed = () => {
+          if (!reopenAfterSettingsCloseRef.current) {
+              return;
+          }
+          reopenAfterSettingsCloseRef.current = false;
+          window.requestAnimationFrame(() => {
+              openSelector();
+          });
+      };
+
+      window.addEventListener(SETTINGS_CLOSED_EVENT, handleSettingsClosed);
+      return () => {
+          window.removeEventListener(SETTINGS_CLOSED_EVENT, handleSettingsClosed);
+      };
+  }, [openSelector]);
+
+  useEffect(() => {
       const handleMouseMove = () => {
           isKeyboardNavigating.current = false;
       };
@@ -368,8 +517,11 @@ export function ModelSelector({
     aiActions.selectModel(modelId)
     onSelectModel?.(modelId)
     closeSelector(restoreComposerFocusOnClose)
-    setSearchQuery('')
   }, [closeSelector, onSelectModel, restoreComposerFocusOnClose]);
+
+  const handleTogglePinned = useCallback((modelId: string, pinned: boolean) => {
+      aiActions.updateModel(modelId, { pinned });
+  }, []);
 
   useModelSelectorKeyboard({
       isOpen,
@@ -407,6 +559,18 @@ export function ModelSelector({
       }
   }, [clearScrollMode]);
 
+  const handleSelectCategory = useCallback((categoryId: ModelCategoryId) => {
+      const firstModelId = categoryId === 'favorites'
+          ? filteredModels.find((model) => model.pinned)?.id ?? null
+          : filteredModels.find((model) => getModelCategoryId(model) === categoryId)?.id ?? null;
+      clearScrollMode();
+      setActiveCategoryId(categoryId);
+      setFocusedModelId(firstModelId);
+      requestAnimationFrame(() => {
+          virtualizer.scrollToIndex(0, { align: 'start' });
+      });
+  }, [clearScrollMode, filteredModels, virtualizer]);
+
   const handleListMouseLeave = useCallback(() => {
       if (isKeyboardNavigating.current) {
           return;
@@ -418,6 +582,21 @@ export function ModelSelector({
   useEffect(() => {
       virtualizer.measure();
   }, [listRows, virtualizer]);
+
+  useEffect(() => {
+      if (!isOpen) {
+          return;
+      }
+
+      if (focusedModelId && visibleModelIds.includes(focusedModelId)) {
+          return;
+      }
+
+      const nextFocusedId = selectedModelId && visibleModelIds.includes(selectedModelId)
+          ? selectedModelId
+          : visibleModelIds[0] ?? null;
+      setFocusedModelId(nextFocusedId);
+  }, [focusedModelId, isOpen, selectedModelId, visibleModelIds]);
 
   return (
     <div className="relative select-none w-fit" ref={dropdownRef}>
@@ -431,7 +610,7 @@ export function ModelSelector({
         )}
       >
         <span className="text-sm font-medium whitespace-nowrap">
-          {selectedModel ? selectedModel.name : 'Select Model'}
+          {selectedModel ? getModelDisplayName(selectedModel) : 'Select Model'}
         </span>
         <svg
           className={cn("h-5 w-5 opacity-70 transition-transform duration-200", isOpen && "rotate-180")}
@@ -451,7 +630,8 @@ export function ModelSelector({
               ? "absolute top-full mt-1"
               : "absolute bottom-full mb-1",
             dropdownAlign === 'left' ? "left-0" : "right-0",
-            isEmbedded ? "w-[15.5rem]" : "w-64",
+            isEmbedded ? "w-[23rem]" : "w-[27rem]",
+            "max-w-[calc(100vw-24px)]",
             "rounded-2xl shadow-xl",
             "border",
             styles.panelSurface,
@@ -459,7 +639,7 @@ export function ModelSelector({
             "backdrop-blur-lg z-50 overflow-hidden flex flex-col",
             "animate-in fade-in duration-75 zoom-in-95" 
           )}
-          style={{ maxHeight: '320px' }}
+          style={{ maxHeight: 'min(460px, calc(100vh - 96px))' }}
         >
           <div className={cn("flex items-center gap-1 border-b px-2 py-2", styles.divider)}>
               <input
@@ -479,6 +659,7 @@ export function ModelSelector({
               />
               <button
                   onClick={() => {
+                      reopenAfterSettingsCloseRef.current = true;
                       closeSelector(false);
                       const event = new CustomEvent('open-settings', { detail: { tab: 'ai' } });
                       window.dispatchEvent(event);
@@ -489,64 +670,117 @@ export function ModelSelector({
               </button>
           </div>
 
-          <div
-            ref={listRef}
-            onMouseLeave={handleListMouseLeave}
-            className="overflow-y-auto p-1 scrollbar-none flex-1"
-            style={{ height: '256px' }}
-          >
-            {listRows.length === 0 ? (
-              <div className={cn("py-8 text-center text-xs", styles.emptyText)}>
-                No models found
-              </div>
-            ) : (
-              <div
-                style={{
-                  height: `${virtualizer.getTotalSize()}px`,
-                  position: 'relative',
-                  width: '100%',
-                }}
-              >
-                {virtualizer.getVirtualItems().map((virtualRow) => {
-                  const row = listRows[virtualRow.index]
-                  if (!row) {
-                    return null
-                  }
+          <div className="flex min-h-0 flex-1" style={{ height: 'min(386px, calc(100vh - 170px))' }}>
+            <div className={cn("w-16 flex-shrink-0 overflow-y-auto overflow-x-hidden border-r p-1.5 vlaina-scrollbar", styles.divider)}>
+              <div className="flex w-full flex-col items-center gap-1">
+                {modelCategories.map((category, index) => {
+                  const isActive = visibleActiveCategoryId === category.id;
+                  const previousKind = modelCategories[index - 1]?.kind;
+                  const showDividerBefore =
+                    (category.kind === 'family' && previousKind === 'favorites') ||
+                    (category.kind === 'custom' && previousKind === 'favorites');
+                  const showDividerAfter = category.kind === 'family' && modelCategories[index + 1]?.kind === 'custom';
 
                   return (
-                    <div
-                      key={row.id}
-                      style={{
-                        height: `${virtualRow.size}px`,
-                        left: 0,
-                        position: 'absolute',
-                        top: 0,
-                        transform: `translateY(${virtualRow.start}px)`,
-                        width: '100%',
-                      }}
-                    >
-                      {row.type === 'label' ? (
-                        <div className="px-1">
-                          <div className={cn("px-2 pt-2 pb-1 text-[11px] font-medium", styles.sectionLabel)}>
-                            {row.providerName}
-                          </div>
-                          <div className={cn("border-t", styles.divider)} />
-                        </div>
-                      ) : (
-                        <ModelOption 
-                          model={row.model}
-                          isSelected={selectedModelId === row.model.id}
-                          isFocused={focusedModelId === row.model.id}
-                          onSelect={handleSelectModel}
-                          onHover={handleHover}
-                          theme={theme}
-                        />
-                      )}
+                    <div key={category.id} className="flex w-12 justify-center">
+                      {showDividerBefore && <div className={cn("my-1 border-t", styles.divider)} />}
+                      <button
+                        type="button"
+                        aria-label={category.name}
+                        onClick={() => handleSelectCategory(category.id)}
+                        className={cn(
+                          "relative flex cursor-pointer items-center justify-center transition-[background-color,box-shadow,width,height,border-radius] duration-150",
+                          isActive
+                            ? "h-12 w-12 rounded-2xl bg-[#fcfcfc] shadow-md"
+                            : cn("h-9 w-9 rounded-lg bg-transparent", styles.optionHover)
+                        )}
+                      >
+                        {category.kind === 'favorites' ? (
+                          <Icon
+                            name={category.count > 0 ? "misc.starSolid" : "misc.star"}
+                            size={isActive ? 32 : "md"}
+                            className="text-amber-500"
+                          />
+                        ) : category.icon ? (
+                          <img
+                            src={category.icon}
+                            alt=""
+                            className={cn(
+                              "rounded-[4px] object-contain",
+                              isActive ? "h-8 w-8" : "h-5 w-5"
+                            )}
+                            draggable={false}
+                          />
+                        ) : (
+                          <Icon name="misc.box" size={isActive ? 32 : "md"} className={styles.optionText} />
+                        )}
+                      </button>
+                      {showDividerAfter && <div className={cn("my-1 border-t", styles.divider)} />}
                     </div>
                   )
                 })}
               </div>
-            )}
+            </div>
+
+            <div
+              ref={listRef}
+              onMouseLeave={handleListMouseLeave}
+              className="min-w-0 flex-1 overflow-auto p-1 vlaina-scrollbar"
+            >
+              {listRows.length === 0 ? (
+                <div className={cn("py-8 text-center text-xs", styles.emptyText)}>
+                  {emptyStateText}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    height: `${virtualizer.getTotalSize()}px`,
+                    minWidth: '100%',
+                    position: 'relative',
+                  }}
+                >
+                  {virtualizer.getVirtualItems().map((virtualRow) => {
+                    const row = listRows[virtualRow.index]
+                    if (!row) {
+                      return null
+                    }
+
+                    return (
+                      <div
+                        key={row.id}
+                        style={{
+                          height: `${virtualRow.size}px`,
+                          left: 0,
+                          position: 'absolute',
+                          top: 0,
+                          transform: `translateY(${virtualRow.start}px)`,
+                          minWidth: '100%',
+                        }}
+                      >
+                        {row.type === 'label' ? (
+                          <div className="px-1">
+                            <div className={cn("px-2 pt-2 pb-1 text-[11px] font-medium", styles.sectionLabel)}>
+                              {row.providerName}
+                            </div>
+                            <div className={cn("border-t", styles.divider)} />
+                          </div>
+                        ) : (
+                          <ModelOption
+                            model={row.model}
+                            isSelected={selectedModelId === row.model.id}
+                            isFocused={focusedModelId === row.model.id}
+                            onSelect={handleSelectModel}
+                            onTogglePinned={handleTogglePinned}
+                            onHover={handleHover}
+                            theme={theme}
+                          />
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

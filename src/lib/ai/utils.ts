@@ -17,17 +17,19 @@ export function generateModelName(modelId: string): string {
 
 export function generateModelGroup(modelId: string): string {
   const lower = modelId.toLowerCase()
-  
+
   if (lower.includes('gpt') || lower.includes('o1-') || lower.includes('dall-e') || lower.includes('chatgpt')) return 'OpenAI'
   if (lower.includes('claude') || lower.includes('anthropic')) return 'Anthropic'
   if (lower.includes('gemini') || lower.includes('palm')) return 'Google Gemini'
   if (lower.includes('deepseek')) return 'DeepSeek'
   if (lower.includes('qwen') || lower.includes('dashscope') || lower.includes('wan-')) return 'Qwen'
-  if (lower.includes('llama')) return 'Llama'
-  if (lower.includes('mistral') || lower.includes('mixtral') || lower.includes('codestral')) return 'Mistral'
-  if (lower.includes('hunyuan')) return 'Hunyuan'
   if (lower.includes('doubao')) return 'Doubao'
   if (lower.includes('minimax') || lower.includes('abab')) return 'MiniMax'
+  if (lower.includes('gemma')) return 'Gemma'
+  if (/(^|[\s._:/-])(?:meta[\s._:/-])?l(?:l|i)ama(?:\d|[\s._:/-]|$)/.test(lower)) return 'Llama'
+  if (/long[\s._-]?cat/.test(lower)) return 'LongCat'
+  if (lower.includes('mistral') || lower.includes('mixtral') || lower.includes('codestral')) return 'Mistral'
+  if (lower.includes('hunyuan')) return 'Hunyuan'
   if (lower.includes('yi-') || lower.includes('01-ai')) return 'Yi (01.AI)'
   if (lower.includes('moonshot') || lower.includes('kimi')) return 'Moonshot'
   if (lower.includes('glm') || lower.includes('zhipu')) return 'Zhipu GLM'
@@ -40,7 +42,7 @@ export function generateModelGroup(modelId: string): string {
   if (lower.includes('grok')) return 'Grok'
   if (lower.includes('perplexity') || lower.includes('sonar')) return 'Perplexity'
   if (lower.includes('command')) return 'Cohere'
-  
+
   let group = modelId;
   if (modelId.includes('/')) {
     group = modelId.split('/')[0];
@@ -56,7 +58,7 @@ export function generateModelGroup(modelId: string): string {
   if (group && group.length > 0) {
       return group.charAt(0).toUpperCase() + group.slice(1);
   }
-  
+
   return 'Other'
 }
 

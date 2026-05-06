@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type {
   ChangeEventHandler,
@@ -9,21 +9,6 @@ import type {
 import { ProviderModelsPanel } from './ProviderModelsPanel';
 import type { AIModel } from '@/lib/ai/types';
 import type { HealthStatus } from '../components/ModelListItem';
-
-const measureMock = vi.fn();
-
-vi.mock('@tanstack/react-virtual', () => ({
-  useVirtualizer: ({ count }: { count: number }) => ({
-    getTotalSize: () => count * 58,
-    getVirtualItems: () =>
-      Array.from({ length: count }, (_, index) => ({
-        index,
-        size: 58,
-        start: index * 58,
-      })),
-    measure: measureMock,
-  }),
-}));
 
 vi.mock('@/components/ui/icons', () => ({
   Icon: ({ name }: { name: string }) => <span data-testid={`icon-${name}`} />,
@@ -106,14 +91,6 @@ function buildProps(overrides: Partial<ComponentProps<typeof ProviderModelsPanel
 }
 
 describe('ProviderModelsPanel', () => {
-  beforeEach(() => {
-    measureMock.mockClear();
-    Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
-      configurable: true,
-      value: vi.fn(),
-    });
-  });
-
   it('shows empty states when an active query matches nothing', () => {
     render(
       <ProviderModelsPanel
@@ -131,25 +108,24 @@ describe('ProviderModelsPanel', () => {
     expect(screen.queryByText('beta')).not.toBeInTheDocument();
   });
 
-  it('resets both virtual lists when the filter query changes', () => {
+  it('updates expanded model lists when the filter query changes', () => {
     const { rerender } = render(<ProviderModelsPanel {...buildProps()} />);
 
-    vi.mocked(HTMLElement.prototype.scrollTo).mockClear();
+    expect(screen.getByText('alpha')).toBeInTheDocument();
+    expect(screen.getByText('beta')).toBeInTheDocument();
 
     rerender(
       <ProviderModelsPanel
         {...buildProps({
-          modelQuery: 'a',
-          filteredProviderModels: [buildModel('model-alpha', 'alpha')],
-          filteredFetchedModels: ['alpha', 'beta'],
+          modelQuery: 'b',
+          filteredProviderModels: [],
+          filteredFetchedModels: ['beta'],
         })}
       />,
     );
 
-    const scrollToMock = vi.mocked(HTMLElement.prototype.scrollTo);
-    expect(scrollToMock).toHaveBeenCalledTimes(2);
-    expect(scrollToMock).toHaveBeenNthCalledWith(1, { top: 0, behavior: 'auto' });
-    expect(scrollToMock).toHaveBeenNthCalledWith(2, { top: 0, behavior: 'auto' });
+    expect(screen.queryByText('alpha')).not.toBeInTheDocument();
+    expect(screen.getByText('beta')).toBeInTheDocument();
   });
 
   it('adds an available model when its row is clicked', () => {

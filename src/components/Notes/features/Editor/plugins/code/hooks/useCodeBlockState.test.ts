@@ -166,7 +166,7 @@ describe('useCodeBlockState', () => {
     );
 
     await act(async () => {
-      result.current.handleCopy(createMockMouseEvent());
+      await result.current.handleCopy();
       await Promise.resolve();
     });
 
@@ -208,7 +208,7 @@ describe('useCodeBlockState', () => {
     );
 
     await act(async () => {
-      result.current.handleCopy(createMockMouseEvent());
+      await result.current.handleCopy();
       await Promise.resolve();
     });
 
@@ -242,7 +242,7 @@ describe('useCodeBlockState', () => {
     );
 
     await act(async () => {
-      result.current.handleCopy(createMockMouseEvent());
+      await result.current.handleCopy();
       await Promise.resolve();
     });
 
@@ -313,7 +313,7 @@ describe('useCodeBlockState', () => {
     currentNode.textContent = 'const latest = true;';
 
     await act(async () => {
-      result.current.handleCopy(createMockMouseEvent());
+      await result.current.handleCopy();
       await Promise.resolve();
     });
 
@@ -379,7 +379,7 @@ describe('useCodeBlockState', () => {
     );
 
     await act(async () => {
-      result.current.handleCopy(createMockMouseEvent());
+      await result.current.handleCopy();
       await Promise.resolve();
     });
 
