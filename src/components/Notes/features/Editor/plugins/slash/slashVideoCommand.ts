@@ -11,7 +11,6 @@ import { openSlashVideoPrompt } from './slashVideoPrompt';
 function logSlashVideoDebug(event: string, payload: Record<string, unknown>) {
   const debugPayload = sanitizeVideoDebugPayload(payload);
   logNotesDebug('NotesVideo', `slashCommand:${event}`, debugPayload);
-  console.info(`[slashCommand:${event}]`, debugPayload);
 }
 
 function insertVideoNode(ctx: Ctx, src: string) {
@@ -56,7 +55,6 @@ function insertVideoNode(ctx: Ctx, src: string) {
       message: error instanceof Error ? error.message : String(error),
       durationMs: Math.round((performance.now() - startedAt) * 100) / 100,
     });
-    console.warn('[SlashMenu] Failed to insert video:', error);
     return null;
   }
 }

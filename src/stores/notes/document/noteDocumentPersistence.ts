@@ -135,6 +135,9 @@ export async function saveNoteDocument({
   if (cachedModifiedAt != null && diskModifiedAt != null && diskModifiedAt !== cachedModifiedAt) {
     const diskContent = await storage.readFile(fullPath);
     const normalizedDiskContent = normalizeSerializedMarkdownDocument(diskContent);
+    const cachedContent = getCachedNoteContent(cache, currentNote.path);
+    const normalizedCachedContent =
+      cachedContent === undefined ? null : normalizeSerializedMarkdownDocument(cachedContent);
     if (normalizedDiskContent === normalizedCurrentContent) {
       const metadata = readNoteMetadataFromMarkdown(normalizedDiskContent);
       logNotesDebug('NotesPersistence', 'save:conflict-already-current', {
@@ -152,16 +155,29 @@ export async function saveNoteDocument({
         nextCache: setCachedNoteContent(cache, currentNote.path, normalizedDiskContent, diskModifiedAt),
       };
     }
-    logNotesDebug('NotesPersistence', 'save:conflict', {
-      notesPath,
-      notePath: currentNote.path,
-      fullPath,
-      cachedModifiedAt,
-      diskModifiedAt,
-      disk: summarizeLineBreakText(normalizedDiskContent),
-      input: summarizeLineBreakText(normalizedCurrentContent),
-    });
-    throw new NoteWriteConflictError();
+    if (normalizedCachedContent !== null && normalizedDiskContent === normalizedCachedContent) {
+      logNotesDebug('NotesPersistence', 'save:conflict-mtime-only', {
+        notesPath,
+        notePath: currentNote.path,
+        fullPath,
+        cachedModifiedAt,
+        diskModifiedAt,
+        cached: summarizeLineBreakText(normalizedCachedContent),
+        input: summarizeLineBreakText(normalizedCurrentContent),
+      });
+    } else {
+      logNotesDebug('NotesPersistence', 'save:conflict', {
+        notesPath,
+        notePath: currentNote.path,
+        fullPath,
+        cachedModifiedAt,
+        diskModifiedAt,
+        disk: summarizeLineBreakText(normalizedDiskContent),
+        input: summarizeLineBreakText(normalizedCurrentContent),
+        cached: summarizeLineBreakText(normalizedCachedContent),
+      });
+      throw new NoteWriteConflictError();
+    }
   }
 
   const { content, metadata } = updateNoteMetadataInMarkdown(normalizedCurrentContent, {
