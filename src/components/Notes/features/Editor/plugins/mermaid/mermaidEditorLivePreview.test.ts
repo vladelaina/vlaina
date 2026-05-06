@@ -53,4 +53,29 @@ describe('mermaidEditorLivePreview', () => {
     expect(anchor.querySelector('[data-rendered="current"]')).not.toBeNull();
     expect(onRendered).toHaveBeenCalledTimes(1);
   });
+
+  it('sanitizes rendered svg before attaching it to the document', async () => {
+    const anchor = document.createElement('div');
+    anchor.setAttribute('data-type', 'mermaid');
+    document.body.appendChild(anchor);
+
+    await renderMermaidEditorLivePreview({
+      anchor,
+      code: 'graph TD',
+      render: async () => [
+        '<svg onload="alert(1)">',
+        '<foreignObject><iframe src="javascript:alert(1)"></iframe></foreignObject>',
+        '<a href="javascript:alert(1)"><text>bad</text></a>',
+        '<text>safe</text>',
+        '</svg>',
+      ].join(''),
+    });
+
+    expect(anchor.querySelector('svg')).not.toBeNull();
+    expect(anchor.querySelector('foreignObject')).toBeNull();
+    expect(anchor.querySelector('iframe')).toBeNull();
+    expect(anchor.innerHTML).not.toContain('onload');
+    expect(anchor.innerHTML).not.toContain('javascript:');
+    expect(anchor.textContent).toContain('safe');
+  });
 });

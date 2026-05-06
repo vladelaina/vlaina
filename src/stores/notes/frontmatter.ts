@@ -1,4 +1,5 @@
 import type { NoteCoverMetadata, NoteMetadataEntry } from './types';
+import { normalizeNoteCoverMetadata } from './frontmatterCover';
 
 const LINE_ENDING_PATTERN = /\r\n?/g;
 const FRONTMATTER_DELIMITER = '---';
@@ -108,20 +109,7 @@ function quoteYamlString(value: string): string {
 }
 
 function normalizeCover(cover: NoteCoverMetadata | null | undefined): NoteCoverMetadata | undefined {
-  if (!cover?.assetPath) {
-    return undefined;
-  }
-
-  const normalized: NoteCoverMetadata = {
-    assetPath: cover.assetPath,
-  };
-
-  if (cover.positionX !== undefined) normalized.positionX = cover.positionX;
-  if (cover.positionY !== undefined) normalized.positionY = cover.positionY;
-  if (cover.height !== undefined) normalized.height = cover.height;
-  if (cover.scale !== undefined) normalized.scale = cover.scale;
-
-  return normalized;
+  return normalizeNoteCoverMetadata(cover);
 }
 
 export function normalizeNoteMetadataEntry(

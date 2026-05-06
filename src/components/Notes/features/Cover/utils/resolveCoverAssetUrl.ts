@@ -26,5 +26,8 @@ export async function resolveCoverAssetUrl({
   }
 
   const fullPath = await resolveExistingVaultAssetPath(vaultPath, assetPath, currentNotePath);
+  if (!fullPath) {
+    throw new Error('cover-path-unsupported');
+  }
   return loadImageAsBlob(fullPath);
 }

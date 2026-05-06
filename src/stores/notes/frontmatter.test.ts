@@ -68,6 +68,28 @@ describe('note frontmatter metadata', () => {
     );
   });
 
+  it('clamps managed cover numbers from untrusted frontmatter', () => {
+    const markdown = [
+      '---',
+      'vlaina_cover: "assets/monet.jpg"',
+      'vlaina_cover_x: -200',
+      'vlaina_cover_y: 900',
+      'vlaina_cover_height: 1000000',
+      'vlaina_cover_scale: 999',
+      '---',
+      '',
+      '# Title',
+    ].join('\n');
+
+    expect(readNoteMetadataFromMarkdown(markdown).cover).toEqual({
+      assetPath: 'assets/monet.jpg',
+      positionX: 0,
+      positionY: 100,
+      height: 500,
+      scale: 10,
+    });
+  });
+
   it('updates managed fields without dropping markdown body content', () => {
     const markdown = '# Title\n\nBody';
 

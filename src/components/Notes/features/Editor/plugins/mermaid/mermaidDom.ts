@@ -1,4 +1,12 @@
+import DOMPurify from 'dompurify';
 import { generateMermaidId, renderMermaid } from './mermaidRenderer';
+
+function sanitizeMermaidMarkup(markup: string) {
+  return DOMPurify.sanitize(markup, {
+    USE_PROFILES: { html: true, svg: true, svgFilters: true },
+    FORBID_TAGS: ['foreignObject', 'script', 'iframe', 'object', 'embed'],
+  });
+}
 
 export async function renderMermaidEditorLivePreview(args: {
   anchor: HTMLElement | null;
@@ -25,7 +33,7 @@ export async function renderMermaidEditorLivePreview(args: {
     anchor.innerHTML = '<div class="mermaid-placeholder">Rendering diagram...</div>';
   }
 
-  const svg = await render(codeSnapshot, generateMermaidId());
+  const svg = sanitizeMermaidMarkup(await render(codeSnapshot, generateMermaidId()));
   if (!anchor.isConnected || anchor.dataset.code !== codeSnapshot) {
     return false;
   }
@@ -52,7 +60,7 @@ export function createMermaidElement(code: string) {
       if (!wrapper.isConnected || wrapper.dataset.code !== codeSnapshot) {
         return;
       }
-      wrapper.innerHTML = svg;
+      wrapper.innerHTML = sanitizeMermaidMarkup(svg);
     });
   } else {
     wrapper.innerHTML = '<div class="mermaid-empty">Empty diagram</div>';

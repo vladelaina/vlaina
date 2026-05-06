@@ -59,6 +59,29 @@ describe('asset path resolution', () => {
 
   it('does not add a fallback for explicit note-relative paths', async () => {
     await expect(resolveVaultAssetPathCandidates('/vault', './assets/a.png', 'daily/note.md'))
-      .resolves.toEqual(['/vault/daily/./assets/a.png']);
+      .resolves.toEqual(['/vault/daily/assets/a.png']);
+  });
+
+  it('keeps parent traversal inside the vault root', async () => {
+    await expect(resolveVaultAssetPathCandidates('/vault', '../assets/a.png', 'daily/note.md'))
+      .resolves.toEqual(['/vault/assets/a.png']);
+  });
+
+  it('rejects parent traversal outside the vault root', async () => {
+    await expect(resolveVaultAssetPathCandidates('/vault', '../../secret.png', 'daily/note.md'))
+      .resolves.toEqual([]);
+  });
+
+  it('rejects absolute asset paths from note metadata', async () => {
+    await expect(resolveVaultAssetPathCandidates('/vault', '/etc/passwd', 'daily/note.md'))
+      .resolves.toEqual([]);
+
+    await expect(resolveVaultAssetPathCandidates('/vault', 'C:\\Users\\me\\secret.png', 'daily/note.md'))
+      .resolves.toEqual([]);
+  });
+
+  it('rejects windows parent traversal outside the vault root', async () => {
+    await expect(resolveVaultAssetPathCandidates('C:\\vault', '..\\..\\secret.png', 'daily\\note.md'))
+      .resolves.toEqual([]);
   });
 });

@@ -5,7 +5,6 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import type { EditorView } from '@milkdown/kit/prose/view';
 
 import { clipboardPlugin } from './clipboardPlugin';
-import { SANDBOXED_IFRAME_SANDBOX } from './sanitizer';
 
 type ClipboardEditor = ReturnType<typeof Editor.make>;
 
@@ -75,17 +74,16 @@ describe('clipboard integration', () => {
       `,
     );
 
-    expect(result).toContain('<h2>Title</h2>');
-    expect(result).toContain('<p>copy <a href="https://example.com/post" target="_blank" rel="noopener noreferrer">link</a></p>');
-    expect(result).toContain(`sandbox="${SANDBOXED_IFRAME_SANDBOX}"`);
+    expect(result).toContain('<h2 id="headline">Title</h2>');
+    expect(result).toContain('<p>copy <a href="https://example.com/post">link</a></p>');
+    expect(result).not.toContain('<iframe');
     expect(result).not.toContain('class=');
-    expect(result).not.toContain('id=');
     expect(result).not.toContain('data-');
     expect(result).not.toContain('style=');
     expect(result).not.toContain('allow-top-navigation');
   });
 
-  it('drops private-network iframe targets during editor paste sanitization', async () => {
+  it('drops iframe targets during editor paste sanitization', async () => {
     const editor = await createClipboardEditor();
     const view = editor.ctx.get(editorViewCtx) as EditorView;
 
@@ -98,8 +96,6 @@ describe('clipboard integration', () => {
       ].join(''),
     );
 
-    expect(result).toBe(
-      `<iframe src="https://example.com/embed" sandbox="${SANDBOXED_IFRAME_SANDBOX}" referrerpolicy="no-referrer" loading="lazy"></iframe>`,
-    );
+    expect(result).toBe('');
   });
 });

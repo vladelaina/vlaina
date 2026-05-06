@@ -7,6 +7,7 @@ import {
 } from './videoDebug';
 import { parseVideoUrl } from './videoUrl';
 import type { IframeVideoUrl } from './videoUrl';
+import { isPublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 
 let videoIframeIdCounter = 0;
 
@@ -132,6 +133,12 @@ export function createVideoDom(attrs: VideoAttrs): HTMLElement {
       src: attrs.src,
     });
     wrapper.appendChild(createVideoMessage('video-error', `Unsupported video URL: ${attrs.src}`));
+    return wrapper;
+  }
+
+  if (isPublicRemoteMediaUrl(parsed.embedUrl)) {
+    wrapper.appendChild(createVideoMessage('video-placeholder', 'Remote video blocked'));
+    wrapper.appendChild(createVideoExternalAction(attrs.src));
     return wrapper;
   }
 

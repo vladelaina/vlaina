@@ -7,6 +7,22 @@ import { $command, $markAttr, $markSchema } from '@milkdown/utils'
 
 import { withMeta } from '../__internal__'
 
+const controlOrBidiPattern = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/
+const schemePattern = /^([A-Za-z][A-Za-z0-9+.-]*):/
+const windowsAbsolutePathPattern = /^[A-Za-z]:[\\/]/
+const safeLinkSchemes = new Set(['http:', 'https:', 'mailto:'])
+
+function sanitizeLinkHref(value: unknown) {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (!trimmed || controlOrBidiPattern.test(trimmed) || windowsAbsolutePathPattern.test(trimmed)) return null
+
+  const scheme = schemePattern.exec(trimmed)?.[1]?.toLowerCase()
+  if (!scheme) return trimmed
+  const normalizedScheme = `${scheme}:`
+  return safeLinkSchemes.has(normalizedScheme) ? trimmed : null
+}
+
 /// HTML attributes for the link mark.
 export const linkAttr = $markAttr('link')
 
@@ -26,19 +42,28 @@ export const linkSchema = $markSchema('link', (ctx) => ({
       tag: 'a[href]',
       getAttrs: (dom) => {
         if (!(dom instanceof HTMLElement)) throw expectDomTypeError(dom)
+        const href = sanitizeLinkHref(dom.getAttribute('href'))
+        if (!href) return false
 
         return {
-          href: dom.getAttribute('href'),
+          href,
           title: dom.getAttribute('title'),
         }
       },
     },
   ],
-  toDOM: (mark) => ['a', { ...ctx.get(linkAttr.key)(mark), ...mark.attrs }],
+  toDOM: (mark) => {
+    const href = sanitizeLinkHref(mark.attrs.href)
+    return ['a', { ...ctx.get(linkAttr.key)(mark), ...mark.attrs, href: href ?? undefined }]
+  },
   parseMarkdown: {
     match: (node) => node.type === 'link',
     runner: (state, node, markType) => {
-      const url = node.url as string
+      const url = sanitizeLinkHref(node.url)
+      if (!url) {
+        state.next(node.children)
+        return
+      }
       const title = node.title as string
       state.openMark(markType, { href: url, title })
       state.next(node.children)
@@ -48,9 +73,11 @@ export const linkSchema = $markSchema('link', (ctx) => ({
   toMarkdown: {
     match: (mark) => mark.type.name === 'link',
     runner: (state, mark) => {
+      const href = sanitizeLinkHref(mark.attrs.href)
+      if (!href) return
       state.withMark(mark, 'link', undefined, {
         title: mark.attrs.title,
-        url: mark.attrs.href,
+        url: href,
       })
     },
   },
