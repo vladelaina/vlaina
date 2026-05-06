@@ -1,5 +1,5 @@
-import { describe, expect, it, beforeEach, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, beforeEach, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 
 const { reactMarkdownSpy, codeBlockSpy, thinkingBlockSpy } = vi.hoisted(() => ({
   reactMarkdownSpy: vi.fn(),
@@ -71,6 +71,10 @@ describe("MarkdownRenderer", () => {
     thinkingBlockSpy.mockClear();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("extracts completed think blocks and renders the remaining markdown", () => {
     render(<MarkdownRenderer content={"Answer<think>reasoning</think>Done"} />);
 
@@ -110,17 +114,24 @@ describe("MarkdownRenderer", () => {
     expect(surface).toHaveClass("chat-markdown-live");
   });
 
-  it("freezes streaming markdown while text is being selected", () => {
+  it("freezes streaming markdown after drag selection starts without freezing on pointer down", async () => {
+    vi.useFakeTimers();
     const { rerender } = render(<MarkdownRenderer content={"Visible"} isStreaming />);
 
     const surface = screen.getByTestId("react-markdown").parentElement!;
     fireEvent.pointerDown(surface, { button: 0 });
     rerender(<MarkdownRenderer content={"Visible plus more"} isStreaming />);
+    expect(screen.getByTestId("markdown-children")).toHaveTextContent("Visible plus more");
+
+    fireEvent.pointerMove(surface);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
 
     expect(screen.getByTestId("markdown-children")).toHaveTextContent("Visible");
     expect(screen.getByTestId("markdown-children")).not.toHaveTextContent("Visible plus more");
-    expect(surface).not.toHaveAttribute("data-chat-markdown-live");
-    expect(surface).not.toHaveClass("chat-markdown-live");
+    expect(screen.getByTestId("react-markdown").parentElement).not.toHaveAttribute("data-chat-markdown-live");
+    expect(screen.getByTestId("react-markdown").parentElement).not.toHaveClass("chat-markdown-live");
   });
 
   it("does not freeze streaming markdown when interactive content is clicked", () => {

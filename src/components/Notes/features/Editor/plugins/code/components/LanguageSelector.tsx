@@ -94,7 +94,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                     }}
                     onPointerDown={(e) => e.stopPropagation()}
                 >
-                    <span className="text-sm font-medium text-zinc-500 group-hover/lang:text-zinc-900 dark:group-hover/lang:text-zinc-100 transition-colors">
+                    <span className="vlaina-code-block-language-label">
                         {displayName}
                     </span>
                 </button>
@@ -102,18 +102,18 @@ export const LanguageSelector = React.memo(function LanguageSelector({
             <PopoverContent
                 align="start"
                 sideOffset={8}
-                className="w-[220px] p-0 overflow-hidden flex flex-col border border-gray-200 dark:border-zinc-800 shadow-xl rounded-xl"
+                className="w-[220px] overflow-hidden flex flex-col border border-[var(--notes-sidebar-menu-border)] bg-[var(--notes-sidebar-menu-bg)] p-0 shadow-[var(--notes-sidebar-menu-shadow)] rounded-xl"
                 onOpenAutoFocus={(e) => e.preventDefault()}
                 onClick={(e) => e.stopPropagation()}
                 onPointerDown={(e) => e.stopPropagation()}
             >
-                <div className="p-2 bg-gray-50/50 dark:bg-zinc-900/50 border-b border-gray-100 dark:border-zinc-800">
-                    <div className="relative flex items-center">
-                        <Icon size="md" name="common.search" className="absolute left-2.5 top-1/2 -translate-y-1/2  text-gray-400" />
+                <div className="px-2 pt-2 pb-1">
+                    <div className="relative flex h-[40px] items-center gap-2 rounded-md border border-transparent bg-[#f8f8f8] pl-3 pr-1 shadow-none">
+                        <Icon size={18} name="common.search" className="text-[var(--vlaina-color-text-soft)]" />
                         <input
                             autoFocus
                             spellCheck={false}
-                            className="w-full bg-white dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-lg pl-8 pr-10 py-1.5 text-xs outline-none ring-0 focus:ring-0 focus:border-gray-200 dark:focus:border-zinc-800 transition-all"
+                            className="min-w-0 flex-1 bg-transparent text-[16px] text-[var(--vlaina-color-text-soft)] outline-none placeholder:text-[var(--vlaina-color-text-soft)]"
                             placeholder="Search language..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
@@ -127,7 +127,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                                 handleAutoDetect();
                             }}
                             title="Auto Detect Language"
-                            className="absolute right-1.5 p-1 text-gray-400 hover:text-gray-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors"
+                            className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)]"
                         >
                             <Icon size="md" name="common.sparkle" />
                         </button>
@@ -148,10 +148,12 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                                         onOpenChange(false);
                                     }}
                                     className={cn(
-                                        "text-xs px-3 py-2 rounded-lg cursor-pointer transition-colors flex items-center gap-2",
-                                        "w-full text-left",
-                                        index === activeIndex ? "bg-gray-100 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100" : "text-gray-600 dark:text-zinc-400",
-                                        language === lang.id && index !== activeIndex && "text-blue-600 dark:text-blue-400 font-bold"
+                                        "flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-xs transition-colors",
+                                        language === lang.id
+                                            ? "bg-[var(--notes-sidebar-row-active)] text-[var(--sidebar-row-selected-text)] font-[550]"
+                                            : index === activeIndex
+                                                ? "bg-[var(--notes-sidebar-row-hover)] text-[var(--notes-sidebar-text)]"
+                                                : "text-[var(--notes-sidebar-text-muted)] hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)]"
                                     )}
                                 >
                                     <span>{lang.name}</span>

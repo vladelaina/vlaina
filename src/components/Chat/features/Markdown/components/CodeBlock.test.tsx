@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { DEFAULT_SETTINGS } from "@/lib/config";
+import { useUnifiedStore } from "@/stores/unified/useUnifiedStore";
 
 const mocks = vi.hoisted(() => ({
   getLanguage: vi.fn(),
@@ -15,19 +17,32 @@ vi.mock("../utils/chatHighlighter", () => ({
   },
 }));
 
-vi.mock("@/components/Chat/common/CopyButton", () => ({
-  default: ({ content }: { content: string }) => (
-    <button data-testid="copy-button" data-content={content}>
-      copy
-    </button>
-  ),
-}));
-
 import { CodeBlock } from "./CodeBlock";
+
+function setCodeBlockLineNumbers(showLineNumbers: boolean) {
+  useUnifiedStore.setState((state) => ({
+    data: {
+      ...state.data,
+      settings: {
+        ...state.data.settings,
+        markdown: {
+          ...DEFAULT_SETTINGS.markdown,
+          ...state.data.settings.markdown,
+          codeBlock: {
+            ...DEFAULT_SETTINGS.markdown.codeBlock,
+            ...state.data.settings.markdown?.codeBlock,
+            showLineNumbers,
+          },
+        },
+      },
+    },
+  }));
+}
 
 describe("CodeBlock", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setCodeBlockLineNumbers(true);
     mocks.getLanguage.mockReturnValue(true);
     mocks.highlight.mockReturnValue({ value: "<span>highlighted</span>" });
     mocks.highlightAuto.mockReturnValue({ value: "<span>auto</span>" });
@@ -44,7 +59,29 @@ describe("CodeBlock", () => {
       language: "ts",
     });
     expect(mocks.highlightAuto).not.toHaveBeenCalled();
-    expect(screen.getByTestId("copy-button")).toHaveAttribute("data-content", "const v = 1;");
+    expect(screen.getByTitle("Copy to clipboard")).toBeInTheDocument();
+  });
+
+  it("shows line numbers from the shared markdown code block setting", () => {
+    const { container } = render(
+      <CodeBlock className="language-ts">
+        {"const a = 1;\nconst b = 2;"}
+      </CodeBlock>,
+    );
+
+    expect(container.querySelector(".vlaina-code-block-line-numbers")?.textContent).toBe("1\n2");
+  });
+
+  it("hides line numbers when the shared markdown code block setting is disabled", () => {
+    setCodeBlockLineNumbers(false);
+
+    const { container } = render(
+      <CodeBlock className="language-ts">
+        {"const a = 1;\nconst b = 2;"}
+      </CodeBlock>,
+    );
+
+    expect(container.querySelector(".vlaina-code-block-line-numbers")).toBeNull();
   });
 
   it("uses language-specific highlighting when language is known", () => {

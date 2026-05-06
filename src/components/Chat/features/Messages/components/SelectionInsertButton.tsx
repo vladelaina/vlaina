@@ -28,6 +28,7 @@ export function SelectionInsertButton() {
   const lastValidSelectionRef = useRef<LastValidSelectionSnapshot | null>(null);
   const isRestoringRangeRef = useRef(false);
   const lastStateSignatureRef = useRef<string>("");
+  const isChatSelectionLockedRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
@@ -89,7 +90,17 @@ export function SelectionInsertButton() {
       isSelectionFrozenRef.current = false;
       lastValidSelectionRef.current = null;
       stopOutsideClamp();
-      setChatSelectionLock(false);
+      if (isChatSelectionLockedRef.current) {
+        isChatSelectionLockedRef.current = false;
+        setChatSelectionLock(false);
+      }
+    };
+    const setSelectionLockIfChanged = (active: boolean) => {
+      if (isChatSelectionLockedRef.current === active) {
+        return;
+      }
+      isChatSelectionLockedRef.current = active;
+      setChatSelectionLock(active);
     };
     const startOutsideClamp = () => {
       if (outsideClampRaf !== null) {
@@ -117,7 +128,7 @@ export function SelectionInsertButton() {
       isSelectionFrozenRef.current = false;
       lastValidSelectionRef.current = null;
       stopOutsideClamp();
-      setChatSelectionLock(isSelectingFromChatRef.current);
+      setSelectionLockIfChanged(false);
     };
 
     const handleMouseMove = (event: MouseEvent) => {
@@ -134,6 +145,7 @@ export function SelectionInsertButton() {
       });
       if (decision.nextFrozen !== isSelectionFrozenRef.current) {
         isSelectionFrozenRef.current = decision.nextFrozen;
+        setSelectionLockIfChanged(decision.nextFrozen);
         if (decision.nextFrozen) {
           startOutsideClamp();
         } else {

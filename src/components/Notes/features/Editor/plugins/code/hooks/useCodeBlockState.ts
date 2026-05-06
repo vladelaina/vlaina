@@ -33,23 +33,19 @@ export function useCodeBlockState({ node, view, getPos, getNode }: UseCodeBlockS
         updateCodeBlockLanguage(view, pos, newLang);
     }, [view, getPos]);
 
-    const handleCopy = useCallback((e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const code = getCodeBlockSourceText(getNode());
-        void writeTextToClipboard(code)
-            .then((didCopy) => {
-                if (!didCopy) return;
+    const handleCopy = useCallback(async () => {
+        const didCopy = await writeTextToClipboard(getCodeBlockSourceText(getNode()));
+        if (!didCopy) return false;
 
-                if (copyTimerRef.current !== null) {
-                    window.clearTimeout(copyTimerRef.current);
-                }
-                setCopied(true);
-                copyTimerRef.current = window.setTimeout(() => {
-                    setCopied(false);
-                    copyTimerRef.current = null;
-                }, 2000);
-            }, () => undefined);
+        if (copyTimerRef.current !== null) {
+            window.clearTimeout(copyTimerRef.current);
+        }
+        setCopied(true);
+        copyTimerRef.current = window.setTimeout(() => {
+            setCopied(false);
+            copyTimerRef.current = null;
+        }, 2000);
+        return true;
     }, [getNode]);
 
     const toggleCollapse = useCallback((e: React.MouseEvent) => {
