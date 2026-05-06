@@ -11,9 +11,9 @@ import {
   safeWriteTextFile,
 } from '../storage';
 import {
+  findStarredEntryByPath,
   loadStarredForVault,
   removeStarredEntryById,
-  resolveStarredRelativePathForVault,
   toggleStarredEntry,
 } from '../starred';
 import {
@@ -501,15 +501,13 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     },
 
     isStarred: (path: string) => {
-      const { notesPath, starredNotes } = get();
-      const relativePath = resolveStarredRelativePathForVault(path, notesPath);
-      return relativePath ? starredNotes.includes(relativePath) : false;
+      const { notesPath, starredEntries } = get();
+      return Boolean(findStarredEntryByPath(starredEntries, 'note', path, notesPath));
     },
 
     isFolderStarred: (path: string) => {
-      const { notesPath, starredFolders } = get();
-      const relativePath = resolveStarredRelativePathForVault(path, notesPath);
-      return relativePath ? starredFolders.includes(relativePath) : false;
+      const { notesPath, starredEntries } = get();
+      return Boolean(findStarredEntryByPath(starredEntries, 'folder', path, notesPath));
     },
 
     setPendingStarredNavigation: (pendingStarredNavigation) => set({ pendingStarredNavigation }),

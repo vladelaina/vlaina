@@ -42,6 +42,8 @@ export function EditorTopRightToolbar({
   textStats,
 }: EditorTopRightToolbarProps) {
   const canToggleStar = canStarNotePath(currentNotePath, notesPath);
+  const showStarButton = starred || canToggleStar;
+  const starButtonLabel = starred ? 'Remove from Starred' : 'Add to Starred';
 
   return (
     <div className="absolute top-3 right-3 z-30 flex items-start gap-2">
@@ -49,14 +51,16 @@ export function EditorTopRightToolbar({
 
       {!editorFind.isOpen ? (
         <>
-          {canToggleStar ? (
+          {showStarButton ? (
             <button
               onClick={(event) => {
                 event.stopPropagation();
-                if (canStarNotePath(currentNotePath, notesPath)) {
+                if (currentNotePath && (starred || canStarNotePath(currentNotePath, notesPath))) {
                   toggleStarred(currentNotePath);
                 }
               }}
+              aria-label={starButtonLabel}
+              title={starButtonLabel}
               className={cn(
                 'p-1.5 transition-colors',
                 starred ? 'text-yellow-500' : `${iconButtonStyles} hover:text-yellow-500`,

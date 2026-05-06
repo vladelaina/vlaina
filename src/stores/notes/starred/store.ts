@@ -1,7 +1,12 @@
 import type { NotesStore, StarredKind } from '../types';
+import { isAbsolutePath } from '@/lib/storage/adapter';
 import { createStarredEntry, getStarredEntryKey, getVaultStarredPaths } from './registry';
 import { loadStarredRegistry, saveStarredRegistry } from './persistence';
-import { resolveStarredRelativePathForVault } from './pathUtils';
+import {
+  normalizeStarredRelativePath,
+  normalizeStarredVaultPath,
+  resolveStarredRelativePathForVault,
+} from './pathUtils';
 
 let starredLoadRequestId = 0;
 
@@ -16,6 +21,55 @@ function applyStarredState(
     starredNotes: starredPaths.notes,
     starredFolders: starredPaths.folders,
   });
+}
+
+function getStarredEntryAbsolutePath(entry: NotesStore['starredEntries'][number]): string | null {
+  const vaultPath = normalizeStarredVaultPath(entry.vaultPath);
+  const relativePath = normalizeStarredRelativePath(entry.relativePath);
+  if (!relativePath) {
+    return null;
+  }
+
+  return vaultPath === '/'
+    ? `/${relativePath}`
+    : `${vaultPath}/${relativePath}`.replace(/\/+/g, '/');
+}
+
+function isStarredEntryForPath(
+  entry: NotesStore['starredEntries'][number],
+  kind: StarredKind,
+  path: string,
+  currentVaultPath: string
+): boolean {
+  if (entry.kind !== kind) {
+    return false;
+  }
+
+  const relativePath = currentVaultPath
+    ? resolveStarredRelativePathForVault(path, currentVaultPath)
+    : null;
+
+  if (relativePath) {
+    const key = getStarredEntryKey({ kind, vaultPath: currentVaultPath, relativePath });
+    if (getStarredEntryKey(entry) === key) {
+      return true;
+    }
+  }
+
+  if (!isAbsolutePath(path)) {
+    return false;
+  }
+
+  return getStarredEntryAbsolutePath(entry) === normalizeStarredVaultPath(path);
+}
+
+export function findStarredEntryByPath(
+  entries: NotesStore['starredEntries'],
+  kind: StarredKind,
+  path: string,
+  currentVaultPath: string
+) {
+  return entries.find((entry) => isStarredEntryForPath(entry, kind, path, currentVaultPath));
 }
 
 export async function loadStarredForVault(
@@ -42,6 +96,19 @@ export function toggleStarredEntry(
   path: string
 ): void {
   const { notesPath, starredEntries } = get();
+  if (findStarredEntryByPath(starredEntries, kind, path, notesPath)) {
+    const updatedEntries = starredEntries.filter(
+      (entry) => !isStarredEntryForPath(entry, kind, path, notesPath),
+    );
+    if (notesPath) {
+      applyStarredState(set, updatedEntries, notesPath);
+    } else {
+      set({ starredEntries: updatedEntries });
+    }
+    saveStarredRegistry(updatedEntries);
+    return;
+  }
+
   if (!notesPath) {
     return;
   }
@@ -51,11 +118,7 @@ export function toggleStarredEntry(
     return;
   }
 
-  const key = getStarredEntryKey({ kind, vaultPath: notesPath, relativePath });
-  const hasEntry = starredEntries.some((entry) => getStarredEntryKey(entry) === key);
-  const updatedEntries = hasEntry
-    ? starredEntries.filter((entry) => getStarredEntryKey(entry) !== key)
-    : [...starredEntries, createStarredEntry(kind, notesPath, relativePath)];
+  const updatedEntries = [...starredEntries, createStarredEntry(kind, notesPath, relativePath)];
 
   applyStarredState(set, updatedEntries, notesPath);
   saveStarredRegistry(updatedEntries);

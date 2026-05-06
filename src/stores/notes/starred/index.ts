@@ -14,5 +14,10 @@ export {
   resolveStarredRelativePathForVault,
 } from './pathUtils';
 export { flushStarredRegistry, loadStarredRegistry, saveStarredRegistry } from './persistence';
-export { loadStarredForVault, removeStarredEntryById, toggleStarredEntry } from './store';
+export {
+  findStarredEntryByPath,
+  loadStarredForVault,
+  removeStarredEntryById,
+  toggleStarredEntry,
+} from './store';
 export type { StarredEntry, StarredKind } from '../types';
