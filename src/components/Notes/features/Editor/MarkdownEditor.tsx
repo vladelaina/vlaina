@@ -601,6 +601,12 @@ export function MarkdownEditor({
 
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const notesPath = useNotesStore(s => s.notesPath);
+  const currentNoteTitle = useNotesStore(
+    useCallback((state) => {
+      if (!currentNotePath) return '';
+      return state.getDisplayName(currentNotePath);
+    }, [currentNotePath])
+  );
   const currentNoteDiskRevision = useNotesStore(s => s.currentNoteDiskRevision);
   const openTabPathsKey = useNotesStore(s => s.openTabs.map((tab) => tab.path).join('\0'));
   const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
@@ -768,6 +774,8 @@ export function MarkdownEditor({
         <EditorTopRightToolbar
           editorFind={editorFind}
           currentNotePath={currentNotePath}
+          currentNoteContent={currentNoteContent}
+          currentNoteTitle={currentNoteTitle}
           notesPath={notesPath}
           starred={starred}
           toggleStarred={toggleStarred}

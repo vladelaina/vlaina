@@ -7,7 +7,13 @@ import type { NoteEditorFindController } from './find';
 vi.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenu: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuContent: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuItem: ({ children, onSelect }: { children?: React.ReactNode; onSelect?: () => void }) => (
+    <button type="button" onClick={onSelect}>{children}</button>
+  ),
   DropdownMenuSeparator: () => <hr />,
+  DropdownMenuSub: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuSubContent: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuSubTrigger: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuTrigger: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 
@@ -55,6 +61,8 @@ describe('EditorTopRightToolbar', () => {
       <EditorTopRightToolbar
         editorFind={createEditorFindController()}
         currentNotePath="/other/docs/alpha.md"
+        currentNoteContent="# Alpha"
+        currentNoteTitle="Alpha"
         notesPath="/vault"
         starred
         toggleStarred={toggleStarred}
@@ -73,6 +81,8 @@ describe('EditorTopRightToolbar', () => {
       <EditorTopRightToolbar
         editorFind={createEditorFindController()}
         currentNotePath="/other/docs/alpha.md"
+        currentNoteContent="# Alpha"
+        currentNoteTitle="Alpha"
         notesPath="/vault"
         starred={false}
         toggleStarred={vi.fn()}
