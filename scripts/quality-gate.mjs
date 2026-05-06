@@ -1,28 +1,38 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { closeSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { checkBuildBudget } from './check-build-budget.mjs';
 import { assertNotWsl } from './ensure-not-wsl.mjs';
 
+let runSequence = 0;
+
 function runPnpm(args) {
   return new Promise((resolve) => {
+    mkdirSync('temp', { recursive: true });
+    const runId = runSequence += 1;
+    const stdoutPath = `temp/quality-gate-${runId}.stdout.log`;
+    const stderrPath = `temp/quality-gate-${runId}.stderr.log`;
+    const stdoutFd = openSync(stdoutPath, 'w');
+    const stderrFd = openSync(stderrPath, 'w');
+    let outputRead = false;
     const child =
       process.platform === 'win32'
-        ? spawn('cmd.exe', ['/c', 'pnpm', ...args], { stdio: ['ignore', 'pipe', 'pipe'] })
-        : spawn('pnpm', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+        ? spawn('cmd.exe', ['/c', 'pnpm', ...args], { stdio: ['ignore', stdoutFd, stderrFd] })
+        : spawn('pnpm', args, { stdio: ['ignore', stdoutFd, stderrFd] });
 
-    let stdout = '';
-    let stderr = '';
-
-    child.stdout?.setEncoding('utf8');
-    child.stderr?.setEncoding('utf8');
-    child.stdout?.on('data', (chunk) => {
-      stdout += chunk;
-    });
-    child.stderr?.on('data', (chunk) => {
-      stderr += chunk;
-    });
+    const readOutput = () => {
+      if (!outputRead) {
+        closeSync(stdoutFd);
+        closeSync(stderrFd);
+        outputRead = true;
+      }
+      return {
+        stdout: readFileSync(stdoutPath, 'utf8'),
+        stderr: readFileSync(stderrPath, 'utf8'),
+      };
+    };
 
     child.on('error', (error) => {
+      const { stdout, stderr } = readOutput();
       resolve({
         status: 1,
         stdout,
@@ -31,6 +41,7 @@ function runPnpm(args) {
     });
 
     child.on('close', (status) => {
+      const { stdout, stderr } = readOutput();
       resolve({
         status: status ?? 1,
         stdout,

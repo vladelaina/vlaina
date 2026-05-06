@@ -529,9 +529,11 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
 });
 
 export function MarkdownEditor({
+  active = true,
   isPeeking = false,
   peekOffset = 0,
 }: {
+  active?: boolean;
   isPeeking?: boolean;
   peekOffset?: number;
 }) {
@@ -542,6 +544,7 @@ export function MarkdownEditor({
   const restoreSessionRef = useRef<{ path: string; targetScrollTop: number } | null>(null);
 
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
+  const notesPath = useNotesStore(s => s.notesPath);
   const currentNoteDiskRevision = useNotesStore(s => s.currentNoteDiskRevision);
   const openTabPathsKey = useNotesStore(s => s.openTabs.map((tab) => tab.path).join('\0'));
   const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
@@ -566,8 +569,13 @@ export function MarkdownEditor({
   const coverUrl = coverController.cover.url;
   const editorFind = useNoteEditorFind(currentNotePath);
   useHeldPageScroll(scrollRootRef);
+  const hasActiveNote = active && Boolean(currentNotePath);
 
   const handleEditorClick = (e: React.MouseEvent) => {
+    if (!hasActiveNote) {
+      return;
+    }
+
     if (e.target === e.currentTarget) {
       const editor = document.querySelector('.milkdown .ProseMirror') as HTMLElement;
       editor?.focus();
@@ -617,7 +625,7 @@ export function MarkdownEditor({
 
     activePathRef.current = currentNotePath ?? null;
 
-    if (!currentNotePath) {
+    if (!hasActiveNote || !currentNotePath) {
       restoreSessionRef.current = null;
       scrollRoot.scrollTop = 0;
       return;
@@ -692,7 +700,7 @@ export function MarkdownEditor({
         restoreSessionRef.current = null;
       }
     };
-  }, [currentNotePath]);
+  }, [currentNotePath, hasActiveNote]);
 
   return (
     <div
@@ -700,14 +708,17 @@ export function MarkdownEditor({
       data-note-toolbar-root="true"
       onClick={handleEditorClick}
     >
-      <EditorTopRightToolbar
-        editorFind={editorFind}
-        currentNotePath={currentNotePath}
-        starred={starred}
-        toggleStarred={toggleStarred}
-        currentNoteMetadata={currentNoteMetadata}
-        textStats={textStats}
-      />
+      {hasActiveNote ? (
+        <EditorTopRightToolbar
+          editorFind={editorFind}
+          currentNotePath={currentNotePath}
+          notesPath={notesPath}
+          starred={starred}
+          toggleStarred={toggleStarred}
+          currentNoteMetadata={currentNoteMetadata}
+          textStats={textStats}
+        />
+      ) : null}
 
       <OverlayScrollArea
         ref={scrollRootRef}
@@ -720,10 +731,12 @@ export function MarkdownEditor({
         scrollbarVariant="compact"
         data-note-scroll-root="true"
       >
-        <NoteCoverCanvas
-          controller={coverController}
-          notePath={currentNotePath}
-        />
+        {hasActiveNote ? (
+          <NoteCoverCanvas
+            controller={coverController}
+            notePath={currentNotePath}
+          />
+        ) : null}
 
         <div
           className="w-full flex flex-col items-center"
@@ -732,14 +745,23 @@ export function MarkdownEditor({
             transition: 'margin-left 180ms cubic-bezier(0.25, 0.8, 0.25, 1)',
           }}
         >
-          <NoteHeader
-            coverUrl={coverUrl}
-            onAddCover={coverController.addRandomCoverAndOpenPicker}
-          />
+          {hasActiveNote ? (
+            <>
+              <NoteHeader
+                coverUrl={coverUrl}
+                onAddCover={coverController.addRandomCoverAndOpenPicker}
+              />
 
-          <MilkdownProvider key={`${currentNotePath ?? 'empty'}:${currentNoteDiskRevision}`}>
-            <MilkdownEditorInner />
-          </MilkdownProvider>
+              <MilkdownProvider key={`${currentNotePath ?? 'empty'}:${currentNoteDiskRevision}`}>
+                <MilkdownEditorInner />
+              </MilkdownProvider>
+            </>
+          ) : (
+            <div
+              className={cn('milkdown-editor min-h-[420px]', EDITOR_LAYOUT_CLASS)}
+              data-note-placeholder-root="true"
+            />
+          )}
         </div>
       </OverlayScrollArea>
     </div>

@@ -20,6 +20,7 @@ const hoisted = vi.hoisted(() => ({
   scanAllNotes: vi.fn(() => Promise.resolve()),
   shouldSearchNotesSidebarContents: vi.fn(() => false),
   shouldShowSearchResults: false,
+  currentVault: null as { path: string; name: string } | null,
 }));
 
 vi.mock('@/stores/useNotesStore', () => ({
@@ -32,6 +33,12 @@ vi.mock('@/stores/useNotesStore', () => ({
     revealFolder: hoisted.revealFolder,
     scanAllNotes: hoisted.scanAllNotes,
     starredEntries: [],
+  }),
+}));
+
+vi.mock('@/stores/useVaultStore', () => ({
+  useVaultStore: (selector: (state: any) => unknown) => selector({
+    currentVault: hoisted.currentVault,
   }),
 }));
 
@@ -144,6 +151,7 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.countNotesSidebarSearchEntries.mockReturnValue(0);
     hoisted.draftNotes = {};
     hoisted.noteContentsCache = new Map();
+    hoisted.currentVault = null;
     hoisted.pruneNoteContentsCacheToOpenNotes.mockClear();
     hoisted.scanAllNotes.mockResolvedValue(undefined);
     hoisted.shouldSearchNotesSidebarContents.mockReturnValue(false);
@@ -246,7 +254,25 @@ describe('SidebarContent search highlight cleanup', () => {
     expect(getByText('Open')).toBeTruthy();
   });
 
-  it('shows the current in-memory draft in an empty root folder', () => {
+  it('does not show the open hint while a vault root is still loading', () => {
+    hoisted.currentVault = { path: '/vault', name: 'Vault' };
+
+    const { queryByText, getByTestId } = render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="docs/alpha.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(queryByText('Open')).toBeNull();
+    expect(getByTestId('root-folder-row')).toBeTruthy();
+  });
+
+  it('does not inject a blank in-memory draft into an empty root folder', () => {
     hoisted.draftNotes = {
       'draft:blank': {
         name: '',
@@ -262,7 +288,41 @@ describe('SidebarContent search highlight cleanup', () => {
       children: [],
     };
 
-    const { getByText, queryByText } = render(
+    const { queryByText } = render(
+      <SidebarContent
+        rootFolder={rootFolder}
+        isLoading={false}
+        currentNotePath="draft:blank"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(queryByText('Untitled')).toBeNull();
+    expect(queryByText('Open')).toBeNull();
+  });
+
+  it('shows the current in-memory draft after it has content', () => {
+    hoisted.draftNotes = {
+      'draft:blank': {
+        name: '',
+        parentPath: null,
+      },
+    };
+    hoisted.noteContentsCache = new Map([
+      ['draft:blank', { content: 'Draft body', modifiedAt: null }],
+    ]);
+    const rootFolder = {
+      id: 'root',
+      name: 'Notes',
+      path: '',
+      isFolder: true as const,
+      expanded: true,
+      children: [],
+    };
+
+    const { getByText } = render(
       <SidebarContent
         rootFolder={rootFolder}
         isLoading={false}
@@ -274,7 +334,6 @@ describe('SidebarContent search highlight cleanup', () => {
     );
 
     expect(getByText('Untitled')).toBeTruthy();
-    expect(queryByText('Open')).toBeNull();
   });
 
   it('opens files and folders from the empty hint actions', () => {

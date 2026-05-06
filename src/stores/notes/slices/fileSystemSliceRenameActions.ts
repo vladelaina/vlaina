@@ -154,7 +154,10 @@ export function createFileSystemRenameActions(
             return entry;
           }
 
-          const entryAbsolutePath = `${normalizeStarredVaultPath(entry.vaultPath)}/${entry.relativePath}`.replace(/\\/g, '/');
+          const normalizedEntryVaultPath = normalizeStarredVaultPath(entry.vaultPath);
+          const entryAbsolutePath = normalizedEntryVaultPath === '/'
+            ? `/${entry.relativePath}`
+            : `${normalizedEntryVaultPath}/${entry.relativePath}`.replace(/\\/g, '/');
           if (entryAbsolutePath !== normalizedOldPath) {
             return entry;
           }

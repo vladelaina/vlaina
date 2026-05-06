@@ -48,6 +48,50 @@ describe('useCurrentVaultInitialization', () => {
     });
   });
 
+  it('does not reload the vault when a consumed starred navigation is cleared', async () => {
+    const { rerender } = renderHook(
+      ({ currentVaultPath, pendingStarredNavigation }) => useCurrentVaultInitialization({
+        ...baseProps,
+        currentVaultPath,
+        pendingStarredNavigation,
+      }),
+      {
+        initialProps: {
+          currentVaultPath: '/vault' as string | null,
+          pendingStarredNavigation: {
+            vaultPath: '/vault',
+            skipWorkspaceRestore: true,
+          },
+        } as {
+          currentVaultPath: string | null;
+          pendingStarredNavigation: {
+            vaultPath: string;
+            skipWorkspaceRestore?: boolean;
+          } | null;
+        },
+      },
+    );
+
+    await waitFor(() => {
+      expect(baseProps.loadFileTree).toHaveBeenCalledWith(true);
+    });
+    expect(baseProps.loadFileTree).toHaveBeenCalledTimes(1);
+
+    rerender({ currentVaultPath: '/vault', pendingStarredNavigation: null });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(baseProps.loadFileTree).toHaveBeenCalledTimes(1);
+    expect(baseProps.clearAssetUrlCache).not.toHaveBeenCalled();
+
+    rerender({ currentVaultPath: null, pendingStarredNavigation: null });
+    rerender({ currentVaultPath: '/vault', pendingStarredNavigation: null });
+
+    await waitFor(() => {
+      expect(baseProps.loadFileTree).toHaveBeenCalledTimes(2);
+    });
+    expect(baseProps.loadFileTree).toHaveBeenLastCalledWith(false);
+  });
+
   it('reports initialization while vault loading is in flight', async () => {
     let resolveLoadFileTree: () => void = () => undefined;
     const onInitializingChange = vi.fn();

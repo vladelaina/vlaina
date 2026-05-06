@@ -5,6 +5,8 @@ import { NotesSidebarPanel } from './NotesSidebarPanel';
 
 export function NotesSidebarWrapper({ isPeeking = false }: { isPeeking?: boolean }) {
   const rootFolder = useNotesStore(s => s.rootFolder);
+  const rootFolderPath = useNotesStore(s => s.rootFolderPath);
+  const notesPath = useNotesStore(s => s.notesPath);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const isLoading = useNotesStore(s => s.isLoading);
   const createNote = useNotesStore(s => s.createNote);
@@ -21,10 +23,16 @@ export function NotesSidebarWrapper({ isPeeking = false }: { isPeeking?: boolean
     void loadStarred('');
   }, [currentVault, loadStarred, starredLoaded]);
 
+  const isCurrentVaultRootPending = Boolean(
+    currentVault &&
+    notesPath === currentVault.path &&
+    (!rootFolder || rootFolderPath !== currentVault.path),
+  );
+
   return (
     <NotesSidebarPanel
       rootFolder={rootFolder}
-      isLoading={isLoading}
+      isLoading={isLoading || isCurrentVaultRootPending}
       currentNotePath={currentNotePath}
       createNote={() => createNote()}
       createFolder={(path: string) => createFolder(path)}

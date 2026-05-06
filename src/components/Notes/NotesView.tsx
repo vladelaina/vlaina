@@ -25,7 +25,6 @@ import { useBlankWorkspaceDropOpen } from './hooks/useBlankWorkspaceDropOpen';
 import { useNotesSidebarExternalDropImport } from './hooks/useNotesSidebarExternalDropImport';
 import { collectNotePathsInTreeOrder } from './features/common/noteTreeNavigation';
 import { scheduleSidebarItemIntoView } from './features/common/sidebarScrollIntoView';
-import { logNotesDebug } from '@/stores/notes/lineBreakDebugLog';
 
 const EmbeddedChatView = lazy(async () => {
   const mod = await import('@/components/Chat/ChatView');
@@ -37,7 +36,6 @@ export function NotesView({ active = true }: { active?: boolean }) {
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const loadFileTree = useNotesStore(s => s.loadFileTree);
   const openTabs = useNotesStore(s => s.openTabs);
-  const recentlyClosedTabs = useNotesStore(s => s.recentlyClosedTabs);
   const closeTab = useNotesStore(s => s.closeTab);
   const reopenClosedTab = useNotesStore(s => s.reopenClosedTab);
   const openNote = useNotesStore(s => s.openNote);
@@ -53,6 +51,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
   const setPendingStarredNavigation = useNotesStore(s => s.setPendingStarredNavigation);
   const notesPath = useNotesStore(s => s.notesPath);
   const rootFolder = useNotesStore(s => s.rootFolder);
+  const rootFolderPath = useNotesStore(s => s.rootFolderPath);
   const isLoading = useNotesStore(s => s.isLoading);
   const draftNotes = useNotesStore(s => s.draftNotes);
   const noteMetadata = useNotesStore(s => s.noteMetadata);
@@ -80,6 +79,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
   const hasPresentedNoteRef = useRef(false);
   const autoCreateVaultPathRef = useRef<string | null>(currentVault?.path ?? null);
   const vaultInitializingRef = useRef(false);
+  const consumedPendingStarredNavigationKeyRef = useRef<string | null>(null);
   const toggleShortcutsDialog = useCallback(() => setIsShortcutsOpen((prev) => !prev), []);
   const handleVaultInitializingChange = useCallback((initializing: boolean) => {
     vaultInitializingRef.current = initializing;
@@ -89,9 +89,8 @@ export function NotesView({ active = true }: { active?: boolean }) {
     setLayoutPanelDragging(dragging);
   }, [setLayoutPanelDragging]);
   const notePathsInTreeOrder = useMemo(() => (
-    rootFolder ? collectNotePathsInTreeOrder(rootFolder.children) : []
-  ), [rootFolder]);
-  const draftNotesLength = useMemo(() => Object.keys(draftNotes).length, [draftNotes]);
+    rootFolder && rootFolderPath === notesPath ? collectNotePathsInTreeOrder(rootFolder.children) : []
+  ), [notesPath, rootFolder, rootFolderPath]);
 
   const focusSidebarPath = useCallback((path: string) => {
     revealFolder(path);
@@ -151,41 +150,51 @@ export function NotesView({ active = true }: { active?: boolean }) {
   useEffect(() => {
     if (!currentVault || !pendingStarredNavigation) return;
     if (pendingStarredNavigation.vaultPath !== currentVault.path) return;
-    if (notesPath !== currentVault.path || !rootFolder) return;
-
-    let cancelled = false;
+    if (notesPath !== currentVault.path || !rootFolder || rootFolderPath !== currentVault.path) return;
+    const pendingNavigationKey = [
+      pendingStarredNavigation.vaultPath,
+      pendingStarredNavigation.kind,
+      pendingStarredNavigation.relativePath,
+      pendingStarredNavigation.openInNewTab ? 'new-tab' : 'same-tab',
+    ].join('\n');
+    if (consumedPendingStarredNavigationKeyRef.current === pendingNavigationKey) {
+      return;
+    }
+    consumedPendingStarredNavigationKeyRef.current = pendingNavigationKey;
 
     const navigateToStarredTarget = async () => {
+      setPendingStarredNavigation(null);
       if (pendingStarredNavigation.kind === 'folder') {
         revealFolder(pendingStarredNavigation.relativePath);
         scheduleSidebarItemIntoView(pendingStarredNavigation.relativePath, 2);
       } else {
+        revealFolder(pendingStarredNavigation.relativePath);
         await openNote(
           pendingStarredNavigation.relativePath,
           pendingStarredNavigation.openInNewTab ?? false
         );
         scheduleSidebarItemIntoView(pendingStarredNavigation.relativePath, 2);
       }
-
-      if (!cancelled) {
-        setPendingStarredNavigation(null);
-      }
     };
 
     void navigateToStarredTarget();
-
-    return () => {
-      cancelled = true;
-    };
   }, [
     currentVault,
     pendingStarredNavigation,
     notesPath,
     rootFolder,
+    rootFolderPath,
     revealFolder,
     openNote,
     setPendingStarredNavigation,
   ]);
+
+  useEffect(() => {
+    if (pendingStarredNavigation) {
+      return;
+    }
+    consumedPendingStarredNavigationKeyRef.current = null;
+  }, [pendingStarredNavigation]);
 
   const acceptsBlankWorkspaceDrop = (() => {
     if (!currentNotePath) {
@@ -222,12 +231,6 @@ export function NotesView({ active = true }: { active?: boolean }) {
 
   useEffect(() => {
     if (currentNotePath || openTabs.length > 0) {
-      if (!hasPresentedNoteRef.current) {
-        logNotesDebug('NotesAutoDraft', 'presented-note-marked', {
-          currentNotePath: currentNotePath ?? null,
-          openTabsLength: openTabs.length,
-        });
-      }
       hasPresentedNoteRef.current = true;
     }
   }, [currentNotePath, openTabs.length]);
@@ -238,18 +241,10 @@ export function NotesView({ active = true }: { active?: boolean }) {
       return;
     }
 
-    const previousVaultPath = autoCreateVaultPathRef.current;
     autoCreateVaultPathRef.current = vaultPath;
     hasPresentedNoteRef.current = false;
     autoCreateBlankNoteRef.current = false;
-    logNotesDebug('NotesAutoDraft', 'vault-changed', {
-      previousVaultPath,
-      nextVaultPath: vaultPath,
-      currentNotePath: currentNotePath ?? null,
-      openTabsLength: openTabs.length,
-      rootFolderLoaded: Boolean(rootFolder),
-    });
-  }, [currentNotePath, currentVault?.path, openTabs.length, rootFolder]);
+  }, [currentVault?.path]);
 
   useEffect(() => {
     const blockedReasons = [
@@ -265,77 +260,50 @@ export function NotesView({ active = true }: { active?: boolean }) {
     ].filter(Boolean);
 
     const launchNoteBlocked = Boolean(launchContextRef.current.notePath && !hasHandledLaunchNoteRef.current);
-    const rootFolderBlocked = Boolean(currentVault && !rootFolder);
+    const vaultPathMismatchBlocked = Boolean(currentVault && notesPath !== currentVault.path);
+    const rootFolderCurrent = Boolean(
+      currentVault &&
+      rootFolder &&
+      rootFolderPath === currentVault.path &&
+      notesPath === currentVault.path
+    );
+    const rootFolderBlocked = Boolean(currentVault && !rootFolderCurrent);
+    const vaultHasEntriesBlocked = Boolean(rootFolderCurrent && rootFolder && rootFolder.children.length > 0);
     if (launchNoteBlocked) blockedReasons.push('pending-launch-note');
+    if (vaultPathMismatchBlocked) blockedReasons.push('vault-path-mismatch');
     if (rootFolderBlocked) blockedReasons.push('vault-root-not-loaded');
-
-    logNotesDebug('NotesAutoDraft', 'evaluate', {
-      active,
-      currentVaultPath: currentVault?.path ?? null,
-      notesPath,
-      currentNotePath: currentNotePath ?? null,
-      openTabsLength: openTabs.length,
-      recentlyClosedTabsLength: recentlyClosedTabs.length,
-      draftNotesLength,
-      hasPresentedNote: hasPresentedNoteRef.current,
-      isLoading,
-      isVaultInitializing,
-      vaultInitializingRef: vaultInitializingRef.current,
-      isOpenTargetBusy,
-      pendingStarredNavigation: Boolean(pendingStarredNavigation),
-      autoCreateInFlight: autoCreateBlankNoteRef.current,
-      launchNotePath: launchContextRef.current.notePath ?? null,
-      hasHandledLaunchNote: hasHandledLaunchNoteRef.current,
-      rootFolderLoaded: Boolean(rootFolder),
-      rootChildrenLength: rootFolder?.children.length ?? null,
-      blockedReasons,
-    });
+    if (vaultHasEntriesBlocked) blockedReasons.push('vault-has-entries');
 
     if (blockedReasons.length > 0) {
       return;
     }
 
     autoCreateBlankNoteRef.current = true;
-    logNotesDebug('NotesAutoDraft', 'schedule-create', {
-      currentVaultPath: currentVault?.path ?? null,
-      notesPath,
-      rootChildrenLength: rootFolder?.children.length ?? null,
-    });
 
     const timeoutId = window.setTimeout(() => {
       const state = useNotesStore.getState();
-      logNotesDebug('NotesAutoDraft', 'timer-fired', {
-        currentVaultPath: currentVault?.path ?? null,
-        notesPathAtRender: notesPath,
-        notesPathAtTimer: state.notesPath,
-        currentNotePathAtTimer: state.currentNote?.path ?? null,
-        openTabsLengthAtTimer: state.openTabs.length,
-        recentlyClosedTabsLengthAtTimer: state.recentlyClosedTabs.length,
-        draftNotesLengthAtTimer: Object.keys(state.draftNotes).length,
-      });
+      const timerRootFolderCurrent = Boolean(
+        currentVault &&
+        state.rootFolder &&
+        state.rootFolderPath === currentVault.path &&
+        state.notesPath === currentVault.path
+      );
       if (state.currentNote || state.openTabs.length > 0) {
         autoCreateBlankNoteRef.current = false;
-        logNotesDebug('NotesAutoDraft', 'timer-aborted', {
-          reason: state.currentNote ? 'has-current-note' : 'has-open-tabs',
-          currentNotePathAtTimer: state.currentNote?.path ?? null,
-          openTabsLengthAtTimer: state.openTabs.length,
-        });
+        return;
+      }
+      if (currentVault && !timerRootFolderCurrent) {
+        autoCreateBlankNoteRef.current = false;
+        return;
+      }
+      if (currentVault && timerRootFolderCurrent && state.rootFolder && state.rootFolder.children.length > 0) {
+        autoCreateBlankNoteRef.current = false;
         return;
       }
 
       void state.createNote(undefined, { asDraft: true })
-        .then((draftPath) => {
-          logNotesDebug('NotesAutoDraft', 'create-resolved', {
-            draftPath,
-            currentNotePathAfterCreate: useNotesStore.getState().currentNote?.path ?? null,
-            openTabsLengthAfterCreate: useNotesStore.getState().openTabs.length,
-          });
-        })
         .catch((error) => {
           console.error('[NotesView] Failed to create blank draft note:', error);
-          logNotesDebug('NotesAutoDraft', 'create-failed', {
-            message: error instanceof Error ? error.message : String(error),
-          });
           autoCreateBlankNoteRef.current = false;
         });
     }, 0);
@@ -343,28 +311,28 @@ export function NotesView({ active = true }: { active?: boolean }) {
     return () => {
       window.clearTimeout(timeoutId);
       autoCreateBlankNoteRef.current = false;
-      logNotesDebug('NotesAutoDraft', 'cleanup', {
-        currentVaultPath: currentVault?.path ?? null,
-        notesPath,
-      });
     };
   }, [
     active,
     currentNotePath,
     currentVault,
-    draftNotesLength,
     isLoading,
     isVaultInitializing,
     isOpenTargetBusy,
     openTabs.length,
     pendingStarredNavigation,
-    recentlyClosedTabs.length,
     rootFolder,
+    rootFolderPath,
     notesPath,
   ]);
 
   useNotesSidebarExternalDropImport({
-    enabled: active && !acceptsBlankWorkspaceDrop && Boolean(currentVault?.path && rootFolder),
+    enabled: active && !acceptsBlankWorkspaceDrop && Boolean(
+      currentVault?.path &&
+      rootFolder &&
+      rootFolderPath === currentVault.path &&
+      notesPath === currentVault.path
+    ),
     vaultPath: currentVault?.path ?? '',
     loadFileTree,
     revealFolder,
@@ -409,11 +377,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
 
       <div data-notes-view-mode="true" className="h-full w-full relative flex min-w-0">
         <div className="flex-1 min-w-0">
-          {currentNotePath ? (
-            <MarkdownEditor peekOffset={sidebarWidth} />
-          ) : (
-            <div className="h-full w-full" />
-          )}
+          <MarkdownEditor active={Boolean(currentNotePath)} peekOffset={sidebarWidth} />
         </div>
 
         {active && !chatPanelCollapsed && (

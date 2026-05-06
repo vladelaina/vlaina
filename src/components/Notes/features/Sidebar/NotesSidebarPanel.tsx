@@ -4,6 +4,7 @@ import { NotesOutline } from './Outline';
 import { NotesSidebarSurface } from './NotesSidebarPrimitives';
 import { useNotesSidebarSearch } from './useNotesSidebarSearch';
 import type { FolderNode } from '@/stores/useNotesStore';
+import { isDraftNotePath } from '@/stores/notes/draftNote';
 
 interface NotesSidebarPanelProps {
   rootFolder: FolderNode | null;
@@ -25,7 +26,9 @@ export function NotesSidebarPanel({
   const appViewMode = useUIStore((s) => s.appViewMode);
   const sidebarView = useUIStore((s) => s.notesSidebarView);
   const search = useNotesSidebarSearch(appViewMode === 'notes');
-  const effectiveSidebarView = currentNotePath ? sidebarView : 'workspace';
+  const effectiveSidebarView = currentNotePath && !isDraftNotePath(currentNotePath)
+    ? sidebarView
+    : 'workspace';
 
   return (
     <NotesSidebarSurface isPeeking={isPeeking} className="min-h-0">

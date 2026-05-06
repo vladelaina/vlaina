@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { desktopWindow } from '@/lib/desktop/window';
 
 export function useCurrentVaultInitialization({
@@ -24,12 +24,55 @@ export function useCurrentVaultInitialization({
   clearAssetUrlCache: () => void;
   onInitializingChange?: (initializing: boolean) => void;
 }) {
+  const initializedVaultPathRef = useRef<string | null>(null);
+  const pendingStarredNavigationRef = useRef(pendingStarredNavigation);
+  const lastSeenPendingStarredNavigationRef = useRef(pendingStarredNavigation);
+  const pendingStarredNavigationTokenRef = useRef(0);
+  const pendingOpenMarkdownTargetVaultPathRef = useRef(pendingOpenMarkdownTargetVaultPath);
+  const lastSeenPendingOpenMarkdownTargetVaultPathRef = useRef(pendingOpenMarkdownTargetVaultPath);
+  const pendingOpenMarkdownTargetTokenRef = useRef(0);
+
+  if (pendingStarredNavigation !== lastSeenPendingStarredNavigationRef.current) {
+    pendingStarredNavigationRef.current = pendingStarredNavigation;
+    if (pendingStarredNavigation) {
+      pendingStarredNavigationTokenRef.current += 1;
+    }
+  }
+  lastSeenPendingStarredNavigationRef.current = pendingStarredNavigation;
+
+  if (pendingOpenMarkdownTargetVaultPath !== lastSeenPendingOpenMarkdownTargetVaultPathRef.current) {
+    pendingOpenMarkdownTargetVaultPathRef.current = pendingOpenMarkdownTargetVaultPath;
+    if (pendingOpenMarkdownTargetVaultPath) {
+      pendingOpenMarkdownTargetTokenRef.current += 1;
+    }
+  }
+  lastSeenPendingOpenMarkdownTargetVaultPathRef.current = pendingOpenMarkdownTargetVaultPath;
+
+  const pendingStarredNavigationToken = pendingStarredNavigationTokenRef.current;
+  const pendingOpenMarkdownTargetToken = pendingOpenMarkdownTargetTokenRef.current;
+
   useEffect(() => {
     if (!currentVaultPath) {
+      initializedVaultPathRef.current = null;
       onInitializingChange?.(false);
       return;
     }
+    const pendingStarredNavigationForInit = pendingStarredNavigationRef.current;
+    const pendingOpenMarkdownTargetVaultPathForInit = pendingOpenMarkdownTargetVaultPathRef.current;
+    const hasPendingStarredNavigation =
+      pendingStarredNavigationForInit?.vaultPath === currentVaultPath;
+    const hasPendingOpenMarkdownTarget =
+      pendingOpenMarkdownTargetVaultPathForInit === currentVaultPath;
+    if (
+      initializedVaultPathRef.current === currentVaultPath &&
+      !hasPendingStarredNavigation &&
+      !hasPendingOpenMarkdownTarget
+    ) {
+      return;
+    }
+
     let cancelled = false;
+    initializedVaultPathRef.current = currentVaultPath;
     onInitializingChange?.(true);
 
     const unlockWindow = async () => {
@@ -43,12 +86,10 @@ export function useCurrentVaultInitialization({
     const initializeVault = async () => {
       await loadStarred(currentVaultPath);
       const shouldSkipWorkspaceRestore =
-        pendingStarredNavigation?.vaultPath === currentVaultPath &&
-        pendingStarredNavigation.skipWorkspaceRestore === true;
-      const shouldSkipRestoreForOpenMarkdownTarget =
-        pendingOpenMarkdownTargetVaultPath === currentVaultPath;
+        hasPendingStarredNavigation &&
+        pendingStarredNavigationForInit?.skipWorkspaceRestore === true;
       const skipWorkspaceRestore =
-        Boolean(launchNotePath) || shouldSkipWorkspaceRestore || shouldSkipRestoreForOpenMarkdownTarget;
+        Boolean(launchNotePath) || shouldSkipWorkspaceRestore || hasPendingOpenMarkdownTarget;
       await Promise.all([
         loadAssets(currentVaultPath),
         loadFileTree(skipWorkspaceRestore),
@@ -77,8 +118,8 @@ export function useCurrentVaultInitialization({
   }, [
     currentVaultPath,
     launchNotePath,
-    pendingStarredNavigation,
-    pendingOpenMarkdownTargetVaultPath,
+    pendingStarredNavigationToken,
+    pendingOpenMarkdownTargetToken,
     loadStarred,
     loadAssets,
     loadFileTree,
