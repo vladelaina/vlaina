@@ -22,11 +22,25 @@ function normalizeAlign(value: string | null | undefined): Alignment | null {
     return null;
 }
 
-function normalizeWidth(value: string | null | undefined): string | null {
+function clampNumber(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
+}
+
+export function normalizeImageWidth(value: string | null | undefined): string | null {
     if (!value) return null;
     const trimmed = value.trim();
     if (!trimmed || trimmed === 'auto') return null;
-    return trimmed;
+    const percent = trimmed.match(/^(\d+(?:\.\d+)?)%$/);
+    if (percent) {
+        return `${clampNumber(Number(percent[1]), 10, 100)}%`;
+    }
+
+    const px = trimmed.match(/^(\d+(?:\.\d+)?)px$/);
+    if (px) {
+        return `${clampNumber(Number(px[1]), 50, 2000)}px`;
+    }
+
+    return null;
 }
 
 function safeDecode(value: string): string {
@@ -40,13 +54,13 @@ function safeDecode(value: string): string {
 function parseCropToken(token: string): CropParams | null {
     if (!token.startsWith('c=')) return null;
     const parts = token.substring(2).split(',').map(Number);
-    if (parts.length < 4 || parts.some(v => Number.isNaN(v))) return null;
+    if (parts.length < 4 || parts.some(v => !Number.isFinite(v))) return null;
     return {
-        x: parts[0],
-        y: parts[1],
-        width: parts[2],
-        height: parts[3],
-        ratio: parts.length >= 5 ? parts[4] : 1,
+        x: clampNumber(parts[0], 0, 100),
+        y: clampNumber(parts[1], 0, 100),
+        width: clampNumber(parts[2], 1, 100),
+        height: clampNumber(parts[3], 1, 100),
+        ratio: parts.length >= 5 ? clampNumber(parts[4], 0.05, 20) : 1,
     };
 }
 
@@ -87,7 +101,7 @@ export function parseImageSource(src: string): ParsedImageSource {
         }
 
         if (token.startsWith('w=')) {
-            width = normalizeWidth(safeDecode(token.substring(2)));
+            width = normalizeImageWidth(safeDecode(token.substring(2)));
             continue;
         }
 
@@ -104,7 +118,7 @@ export function buildImageSource(
     const parts: string[] = [];
     const crop = options.crop ?? null;
     const align = options.align ?? null;
-    const width = normalizeWidth(options.width ?? null);
+    const width = normalizeImageWidth(options.width ?? null);
     const extras = (options.extras ?? []).filter(Boolean);
 
     if (crop) {

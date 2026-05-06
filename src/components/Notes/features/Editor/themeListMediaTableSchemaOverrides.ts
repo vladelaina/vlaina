@@ -12,6 +12,8 @@ import {
     tableSchema,
 } from '@milkdown/kit/preset/gfm';
 import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
+import { isPublicRemoteMediaUrl, sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
+import { normalizeImageWidth } from './plugins/image-block/utils/imageSourceFragment';
 import { themeClasses } from './themeClasses';
 import { escapeHtmlAttr, updateSchemaFactory } from './themeSchemaUtils';
 
@@ -83,25 +85,34 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
             align: { default: 'center' },
             width: { default: null }
         },
-        toDOM: (node: any) => ['img', {
-            src: node.attrs.src,
-            alt: node.attrs.alt,
-            title: node.attrs.title,
-            align: node.attrs.align,
-            width: node.attrs.width,
-            class: themeClasses.image
-        }],
+        toDOM: (node: any) => {
+            const safeSrc = sanitizeNoteMediaSrc(node.attrs.src);
+            const renderSrc = safeSrc && !isPublicRemoteMediaUrl(safeSrc) ? safeSrc : undefined;
+            const width = normalizeImageWidth(node.attrs.width);
+            return ['img', {
+                src: renderSrc,
+                alt: node.attrs.alt,
+                title: node.attrs.title,
+                align: node.attrs.align,
+                width,
+                class: themeClasses.image
+            }];
+        },
         parseDOM: [
             ...(prev.parseDOM || []),
             {
                 tag: 'img[src]',
-                getAttrs: (dom: HTMLElement) => ({
-                    src: dom.getAttribute('src'),
-                    alt: dom.getAttribute('alt'),
-                    title: dom.getAttribute('title'),
-                    align: dom.getAttribute('align') || 'center',
-                    width: dom.getAttribute('width') || null
-                })
+                getAttrs: (dom: HTMLElement) => {
+                    const safeSrc = sanitizeNoteMediaSrc(dom.getAttribute('src'));
+                    if (!safeSrc) return false;
+                    return {
+                        src: safeSrc,
+                        alt: dom.getAttribute('alt'),
+                        title: dom.getAttribute('title'),
+                        align: dom.getAttribute('align') || 'center',
+                        width: normalizeImageWidth(dom.getAttribute('width'))
+                    };
+                }
             }
         ],
         parseMarkdown: {
@@ -121,19 +132,23 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
                     const titleMatch = html.match(/title=["']([^"']+)["']/);
 
                     if (srcMatch) {
+                        const safeSrc = sanitizeNoteMediaSrc(decodeMarkdownHtmlText(srcMatch[1]));
+                        if (!safeSrc) return;
                         state.addNode(type, {
-                            src: decodeMarkdownHtmlText(srcMatch[1]),
+                            src: safeSrc,
                             alt: altMatch ? decodeMarkdownHtmlText(altMatch[1]) : '',
                             title: titleMatch ? decodeMarkdownHtmlText(titleMatch[1]) : null,
-                            width: widthMatch ? widthMatch[1] : null,
+                            width: widthMatch ? normalizeImageWidth(widthMatch[1]) : null,
                             align: alignMatch ? alignMatch[1] : 'center',
                         });
                     }
                     return;
                 }
 
+                const safeSrc = sanitizeNoteMediaSrc(node.url);
+                if (!safeSrc) return;
                 state.addNode(type, {
-                    src: node.url,
+                    src: safeSrc,
                     alt: node.alt || '',
                     title: node.title || null,
                     align: 'center',
@@ -145,26 +160,29 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
             match: (node: any) => node.type.name === 'image',
             runner: (state: any, node: any) => {
                 const { src, alt, title, align, width } = node.attrs;
+                const safeSrc = sanitizeNoteMediaSrc(src);
+                if (!safeSrc) return;
+                const safeWidth = normalizeImageWidth(width);
 
                 const hasCustomAlign = align && align !== 'center';
-                const hasCustomWidth = width && width !== '';
+                const hasCustomWidth = safeWidth && safeWidth !== '';
 
                 if (!hasCustomAlign && !hasCustomWidth) {
                     state.addNode('image', undefined, undefined, {
                         title: title || undefined,
-                        url: src || '',
+                        url: safeSrc,
                         alt: alt || undefined,
                     });
                     return;
                 }
 
                 const attrs: string[] = [];
-                if (hasCustomWidth) attrs.push(`width="${escapeHtmlAttr(width)}"`);
+                if (hasCustomWidth) attrs.push(`width="${escapeHtmlAttr(safeWidth)}"`);
                 if (hasCustomAlign) attrs.push(`align="${escapeHtmlAttr(align)}"`);
                 if (title) attrs.push(`title="${escapeHtmlAttr(title)}"`);
 
                 const attrsStr = attrs.length > 0 ? ' ' + attrs.join(' ') : '';
-                const srcStr = escapeHtmlAttr(src || '');
+                const srcStr = escapeHtmlAttr(safeSrc);
                 const altStr = escapeHtmlAttr(alt || '');
 
                 state.addNode('html', undefined, `<img src="${srcStr}" alt="${altStr}"${attrsStr} />`);

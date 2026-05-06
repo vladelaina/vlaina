@@ -1,4 +1,5 @@
 import { getParentPath, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
+import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
 
 interface ImageSourcePathDeps {
     getParentPath: (path: string) => string | null;
@@ -27,8 +28,7 @@ export function isVirtualImageSource(src: string): boolean {
         src.startsWith('http://') ||
         src.startsWith('https://') ||
         src.startsWith('data:') ||
-        src.startsWith('blob:') ||
-        src.startsWith('asset:')
+        src.startsWith('blob:')
     );
 }
 
@@ -69,27 +69,33 @@ export async function resolveImageSourcePathCandidates(
     }
 
     if (deps.isAbsolutePath(baseSrc)) {
-        return [baseSrc];
+        return [];
     }
 
     const currentNoteDir = await resolveCurrentNoteDirectory(notesPath, currentNotePath, deps);
 
     if (baseSrc.startsWith('./') || baseSrc.startsWith('../')) {
         if (currentNoteDir) {
-            return [await deps.joinPath(currentNoteDir, baseSrc)];
+            const candidate = normalizeContainedAssetPath(await deps.joinPath(currentNoteDir, baseSrc), notesPath || currentNoteDir);
+            return candidate ? [candidate] : [];
         }
-        return notesPath ? [await deps.joinPath(notesPath, baseSrc)] : [];
+        if (!notesPath) return [];
+        const candidate = normalizeContainedAssetPath(await deps.joinPath(notesPath, baseSrc), notesPath);
+        return candidate ? [candidate] : [];
     }
 
     const candidates: string[] = [];
 
     if (currentNoteDir) {
-        candidates.push(await deps.joinPath(currentNoteDir, baseSrc));
+        const noteRelativeCandidate = normalizeContainedAssetPath(await deps.joinPath(currentNoteDir, baseSrc), notesPath || currentNoteDir);
+        if (noteRelativeCandidate) {
+            candidates.push(noteRelativeCandidate);
+        }
     }
 
     if (notesPath) {
-        const vaultPath = await deps.joinPath(notesPath, baseSrc);
-        if (!candidates.includes(vaultPath)) {
+        const vaultPath = normalizeContainedAssetPath(await deps.joinPath(notesPath, baseSrc), notesPath);
+        if (vaultPath && !candidates.includes(vaultPath)) {
             candidates.push(vaultPath);
         }
     }

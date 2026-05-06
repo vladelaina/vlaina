@@ -50,4 +50,20 @@ describe('imageNodeAttrs', () => {
         expect(parsed.align).toBe('left');
         expect(parsed.width).toBe('25%');
     });
+
+    it('clamps or drops note-controlled image layout values', () => {
+        const parsed = parseImageSource('image.png#c=-10,200,999,0,999&w=999999%25&x=1');
+
+        expect(parsed.crop).toEqual({
+            x: 0,
+            y: 100,
+            width: 100,
+            height: 1,
+            ratio: 20,
+        });
+        expect(parsed.width).toBe('100%');
+        expect(getImageWidth({ src: 'image.png#w=url(https%3A%2F%2Fexample.com%2Fx)' })).toBeNull();
+        expect(getImageWidth({ src: 'image.png', width: 'calc(999999px * 999999)' })).toBeNull();
+        expect(getImageWidth({ src: 'image.png', width: '999999px' })).toBe('2000px');
+    });
 });

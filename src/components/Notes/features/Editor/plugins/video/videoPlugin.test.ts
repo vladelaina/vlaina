@@ -5,6 +5,7 @@ import {
   parseVideoUrl,
   sanitizeVideoDebugPayload,
 } from './index';
+import { createVideoDom } from './videoDom';
 
 describe('videoPlugin URL support', () => {
   it('supports youtube, bilibili, and direct video URLs', () => {
@@ -42,6 +43,16 @@ describe('videoPlugin URL support', () => {
     expect(isSupportedVideoUrl('https://example.com/article')).toBe(false);
   });
 
+  it('rejects local file and private-network direct video URLs', () => {
+    expect(parseVideoUrl('file:///tmp/secret.mp4')).toBeNull();
+    expect(parseVideoUrl('data:video/mp4;base64,AAAA')).toBeNull();
+    expect(parseVideoUrl('http://localhost:3000/secret.mp4')).toBeNull();
+    expect(parseVideoUrl('http://127.0.0.1:3000/secret.mp4')).toBeNull();
+    expect(parseVideoUrl('http://192.168.1.8/secret.mp4')).toBeNull();
+    expect(parseVideoUrl('http://10.0.0.5/secret.webm')).toBeNull();
+    expect(parseVideoUrl('http://[::ffff:7f00:1]/secret.webm')).toBeNull();
+  });
+
   it('normalizes pasted URLs and rejects log blobs', () => {
     expect(normalizeVideoUrlInput('  https://www.bilibili.com/video/BV1xx411c7mD  ')).toBe(
       'https://www.bilibili.com/video/BV1xx411c7mD'
@@ -76,5 +87,27 @@ describe('videoPlugin URL support', () => {
         },
       },
     });
+  });
+
+  it('does not auto-load public remote video embeds when rendering a note', () => {
+    const youtube = createVideoDom({
+      src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      title: '',
+      width: 560,
+      height: 315,
+    });
+    const direct = createVideoDom({
+      src: 'https://example.com/video.mp4',
+      title: '',
+      width: 560,
+      height: 315,
+    });
+
+    expect(youtube.querySelector('iframe')).toBeNull();
+    expect(youtube.querySelector('video')).toBeNull();
+    expect(youtube.textContent).toContain('Remote video blocked');
+    expect(direct.querySelector('iframe')).toBeNull();
+    expect(direct.querySelector('video')).toBeNull();
+    expect(direct.textContent).toContain('Remote video blocked');
   });
 });

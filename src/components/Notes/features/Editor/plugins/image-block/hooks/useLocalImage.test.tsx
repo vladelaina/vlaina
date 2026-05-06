@@ -58,4 +58,32 @@ describe('useLocalImage', () => {
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(1);
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/vault/assets/demo.png');
   });
+
+  it('does not render note-controlled unsupported media schemes', async () => {
+    const { result } = renderHook(() =>
+      useLocalImage('asset://localhost/secret.png', '/vault', 'daily/demo.md')
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.resolvedSrc).toBe('');
+    expect(result.current.error).toBeNull();
+    expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+  });
+
+  it('does not auto-load public remote images when a note is opened', async () => {
+    const { result } = renderHook(() =>
+      useLocalImage('https://example.com/tracker.png', '/vault', 'daily/demo.md')
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.resolvedSrc).toBe('');
+    expect(result.current.error?.message).toBe('Remote image blocked');
+    expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+  });
 });

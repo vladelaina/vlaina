@@ -81,4 +81,15 @@ describe('resolveCoverAssetUrl', () => {
       vaultPath: '',
     })).rejects.toThrow('vault-path-required');
   });
+
+  it('rejects unsupported absolute cover paths', async () => {
+    hoisted.resolveExistingVaultAssetPath.mockResolvedValue('');
+
+    await expect(resolveCoverAssetUrl({
+      assetPath: '/etc/passwd',
+      vaultPath: '/vault-a',
+    })).rejects.toThrow('cover-path-unsupported');
+
+    expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+  });
 });
