@@ -6,13 +6,15 @@ import {
   remarkStringifyOptionsCtx,
   serializerCtx,
 } from '@milkdown/kit/core';
-import { AllSelection, TextSelection } from '@milkdown/kit/prose/state';
+import { AllSelection, NodeSelection, TextSelection } from '@milkdown/kit/prose/state';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import type { EditorView } from '@milkdown/kit/prose/view';
 
 import { getSelectionSlice, serializeSelectionToClipboardText } from './selectionSerialization';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+import { mermaidPlugin } from '../mermaid';
+import { codePlugin } from '../code';
 
 function pressEnter(view: EditorView): void {
   const event = new KeyboardEvent('keydown', {
@@ -353,6 +355,43 @@ describe('selectionSerialization', () => {
     expect(serializeSelectionToClipboardText(view.state, serializer)).toBe(
       '```ts\nconst a = 1;\n\nconsole.log(a);\n\n```'
     );
+
+    await editor.destroy();
+  });
+
+  it('copies selected diagram blocks as fenced Mermaid markdown text', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, [
+          '```sequence',
+          'Alice->Bob: Hello Bob',
+          'Bob-->Alice: Hi Alice',
+          '```',
+        ].join('\n'));
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(mermaidPlugin)
+      .use(codePlugin);
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
+    expect(view.state.doc.firstChild?.type.name).toBe('mermaid');
+
+    view.dispatch(view.state.tr.setSelection(NodeSelection.create(view.state.doc, 0)));
+
+    expect(serializeSelectionToClipboardText(view.state, serializer)).toBe([
+      '```mermaid',
+      'sequenceDiagram',
+      'Alice->Bob: Hello Bob',
+      'Bob-->Alice: Hi Alice',
+      '```',
+    ].join('\n'));
 
     await editor.destroy();
   });

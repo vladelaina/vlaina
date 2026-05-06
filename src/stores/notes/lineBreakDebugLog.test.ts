@@ -7,6 +7,7 @@ import {
   logLineBreakDebug,
   logNotesDebug,
   setNotesDebugLoggingEnabled,
+  summarizeLineBreakText,
 } from './lineBreakDebugLog';
 
 describe('lineBreakDebugLog', () => {
@@ -19,7 +20,7 @@ describe('lineBreakDebugLog', () => {
   it('skips debug logs by default', () => {
     const debug = vi.spyOn(console, 'debug').mockImplementation(() => {});
 
-    logLineBreakDebug('editor:test', { lines: 3, preview: '1\\n2\\n3' });
+    logLineBreakDebug('editor:test', { lines: 3 });
 
     expect(debug).not.toHaveBeenCalled();
     expect(getLineBreakDebugLogText()).toBe('');
@@ -29,11 +30,10 @@ describe('lineBreakDebugLog', () => {
     setNotesDebugLoggingEnabled(true);
     const debug = vi.spyOn(console, 'debug').mockImplementation(() => {});
 
-    logLineBreakDebug('editor:test', { lines: 3, preview: '1\\n2\\n3' });
+    logLineBreakDebug('editor:test', { lines: 3 });
 
     expect(debug).toHaveBeenCalledWith('[NotesLineBreak]', 'editor:test', {
       lines: 3,
-      preview: '1\\n2\\n3',
     });
     expect(getLineBreakDebugLogText()).toContain('[NotesLineBreak] editor:test');
     expect(getLineBreakDebugLogText()).toContain('"lines":3');
@@ -70,5 +70,10 @@ describe('lineBreakDebugLog', () => {
       lineDelta: -2,
       firstDiffIndex: 1,
     });
+  });
+
+  it('does not include document text in line break summaries or diffs', () => {
+    expect(JSON.stringify(summarizeLineBreakText('secret\nmarkdown'))).not.toContain('secret');
+    expect(JSON.stringify(compareLineBreakText('secret\nold', 'secret\nnew'))).not.toContain('secret');
   });
 });

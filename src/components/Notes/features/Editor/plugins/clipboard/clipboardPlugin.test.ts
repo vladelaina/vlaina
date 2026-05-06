@@ -206,4 +206,35 @@ describe('clipboardPlugin paste', () => {
 
         await editor.destroy();
     });
+
+    it.each([
+        ['flow', 'flowchart TD'],
+        ['flowchart-v2', 'flowchart TD'],
+    ])('normalizes pasted %s alias fences that omit the Mermaid directive', async (language, directive) => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(clipboardPlugin)
+            .use(mermaidPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, [
+            `\`\`\`${language}`,
+            'A --> B',
+            '```',
+        ].join('\n'))).toBe(true);
+
+        const mermaid = view.state.doc.firstChild;
+        expect(mermaid?.type.name).toBe('mermaid');
+        expect(mermaid?.attrs.code).toBe([
+            directive,
+            'A --> B',
+        ].join('\n'));
+
+        await editor.destroy();
+    });
 });

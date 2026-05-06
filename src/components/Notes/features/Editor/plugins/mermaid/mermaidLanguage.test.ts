@@ -20,6 +20,7 @@ describe('mermaidLanguage', () => {
       'C4Deployment',
       'flow',
       'flowchart',
+      'flowchart-v2',
       'flowchart-elk',
       'graph',
       'sequence',
@@ -86,6 +87,20 @@ describe('mermaidLanguage', () => {
     expect(isMermaidFenceLanguage('sequence data-extra')).toBe(true);
   });
 
+  it('keeps Mermaid core diagram ids covered by fence aliases', async () => {
+    const mermaid = (await import('mermaid')).default;
+    mermaid.initialize({ startOnLoad: false, securityLevel: 'strict' });
+
+    const nonUserDiagramIds = new Set(['---', 'error']);
+    for (const { id } of mermaid.getRegisteredDiagramsMetadata()) {
+      if (nonUserDiagramIds.has(id)) {
+        continue;
+      }
+
+      expect(isMermaidFenceLanguage(id), id).toBe(true);
+    }
+  });
+
   it('parses supported backtick fences and rejects normal code fences', () => {
     expect(parseMermaidFenceLanguage('```mermaid')).toBe('mermaid');
     expect(parseMermaidFenceLanguage('```mermaid title="Flow"')).toBe('mermaid');
@@ -95,6 +110,7 @@ describe('mermaidLanguage', () => {
     expect(parseMermaidFenceLanguage('~~~sequence title="A ~ B"')).toBe('sequence');
     expect(parseMermaidFenceLanguage('~~~ sequence title="Sequence"')).toBe('sequence');
     expect(parseMermaidFenceLanguage('```flow')).toBe('flow');
+    expect(parseMermaidFenceLanguage('```flowchart-v2')).toBe('flowchart-v2');
     expect(parseMermaidFenceLanguage('```zenuml')).toBe('zenuml');
     expect(parseMermaidFenceLanguage('```ts')).toBeNull();
     expect(parseMermaidFenceLanguage('```mermaid `bad`')).toBeNull();

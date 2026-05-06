@@ -3,6 +3,7 @@ import type { Node as ProseMirrorNode } from '@milkdown/kit/prose/model';
 import type { EditorState, Transaction } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { CodeBlockNodeView } from '../code/CodeBlockNodeView';
+import { getMermaidElementCode } from '../mermaid/mermaidDom';
 
 const previewCleanupCallbacks = new WeakMap<HTMLElement, () => void>();
 
@@ -191,7 +192,7 @@ function getRenderedAtomSignature(element: HTMLElement): string | null {
   }
 
   if (type === 'mermaid') {
-    return `${type}:${element.dataset.code ?? ''}`;
+    return `${type}:${getMermaidElementCode(element)}`;
   }
 
   if (type === 'video') {

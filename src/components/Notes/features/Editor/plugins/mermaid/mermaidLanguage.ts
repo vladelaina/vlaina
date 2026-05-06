@@ -10,6 +10,7 @@ export const MERMAID_FENCE_LANGUAGE_ALIAS_LIST = [
   'c4deployment',
   'flow',
   'flowchart',
+  'flowchartv2',
   'flowchartelk',
   'graph',
   'sequence',
