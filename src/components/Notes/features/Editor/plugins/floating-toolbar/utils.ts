@@ -1,32 +1,28 @@
 import type { ColorOption, BlockTypeConfig, BlockType } from './types';
-import { COLOR_DEFINITIONS, getEventInlineStyles } from '@/lib/colors/index';
 
-const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const TOOLBAR_COLOR_HEXES = [
+  '#f1fdf3', '#e6f4e7', '#d1e9d3', '#99cda9',
+  '#e7f0d3', '#d2ea9c', '#abcb88', '#84b271',
+  '#e3fdfc', '#cbf1f4', '#a6e3e8', '#71c9cd',
+  '#fff9f9', '#ffdfe0', '#ffc1d0', '#fca9bd',
+  '#f8ddfe', '#f2c0ff', '#c09fee', '#866ec6',
+] as const;
+
+const TOOLBAR_COLOR_OPTIONS: ColorOption[] = TOOLBAR_COLOR_HEXES.map((color, index) => ({
+  id: `custom-${index + 1}`,
+  label: `Color ${index + 1}`,
+  textColor: color,
+  bgColor: color,
+}));
 
 export const COLOR_PALETTE: ColorOption[] = [
   { id: 'default', label: 'Default' },
-  ...COLOR_DEFINITIONS.map(def => {
-    const styles = getEventInlineStyles(def.name);
-    return {
-      id: def.name === 'default' ? 'gray' : def.name,
-      label: capitalize(def.name === 'default' ? 'Gray' : def.name),
-      textColor: styles.text,
-      bgColor: styles.bg,
-    };
-  })
+  ...TOOLBAR_COLOR_OPTIONS,
 ];
 
 export const COLOR_PALETTE_DARK: ColorOption[] = [
   { id: 'default', label: 'Default' },
-  ...COLOR_DEFINITIONS.map(def => {
-    const styles = getEventInlineStyles(def.name);
-    return {
-      id: def.name === 'default' ? 'gray' : def.name,
-      label: capitalize(def.name === 'default' ? 'Gray' : def.name),
-      textColor: styles.textDark,
-      bgColor: styles.bgDark,
-    };
-  })
+  ...TOOLBAR_COLOR_OPTIONS,
 ];
 
 export const BLOCK_TYPES: BlockTypeConfig[] = [
