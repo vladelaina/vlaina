@@ -41,4 +41,52 @@ describe('resolveExportMarkdownAssetSources', () => {
       'docs/demo.md',
     );
   });
+
+  it('embeds markdown images with titles and angle-wrapped paths', async () => {
+    mocks.resolveExistingVaultAssetPath
+      .mockResolvedValueOnce('/vault/.vlaina/assets/demo one.jpg')
+      .mockResolvedValueOnce('/vault/.vlaina/assets/demo two.webp');
+    mocks.readBinaryFile
+      .mockResolvedValueOnce(new Uint8Array([1, 2]))
+      .mockResolvedValueOnce(new Uint8Array([3, 4]));
+
+    const markdown = await resolveExportMarkdownAssetSources(
+      [
+        '![one](img:demo-one.jpg "One")',
+        '![two](<img:demo two.webp>)',
+      ].join('\n'),
+      '/vault',
+      'docs/demo.md',
+    );
+
+    expect(markdown).toBe([
+      '![one](data:image/jpeg;base64,AQI= "One")',
+      '![two](<data:image/webp;base64,AwQ=>)',
+    ].join('\n'));
+    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenNthCalledWith(
+      1,
+      '/vault',
+      'demo-one.jpg',
+      'docs/demo.md',
+    );
+    expect(mocks.resolveExistingVaultAssetPath).toHaveBeenNthCalledWith(
+      2,
+      '/vault',
+      'demo two.webp',
+      'docs/demo.md',
+    );
+  });
+
+  it('keeps unresolved local note images instead of failing the export', async () => {
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('');
+
+    const markdown = await resolveExportMarkdownAssetSources(
+      '![missing](img:missing.png)',
+      '/vault',
+      'docs/demo.md',
+    );
+
+    expect(markdown).toBe('![missing](img:missing.png)');
+    expect(mocks.readBinaryFile).not.toHaveBeenCalled();
+  });
 });

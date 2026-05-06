@@ -69,7 +69,7 @@ export function EditorTopRightToolbar({
       await exportNote({
         format,
         markdown: latestNote?.path === currentNotePath ? latestNote.content : currentNoteContent,
-        notePath: latestNote?.path ?? currentNotePath,
+        notePath: currentNotePath,
         notesPath,
         title: currentNoteTitle,
       });

@@ -10,6 +10,9 @@ const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
   webp: 'image/webp',
 };
 
+const MARKDOWN_IMAGE_PATTERN = /(!\[[^\]]*]\()(\s*)(<([^>\n]+)>|([^\s)]+))([^)]*)(\))/g;
+const HTML_IMAGE_SRC_PATTERN = /(<img\b[^>]*\bsrc=["'])(img:[^"']+)(["'][^>]*>)/gi;
+
 function getImageMimeType(path: string): string {
   const extension = path.split('.').pop()?.toLowerCase() ?? '';
   return IMAGE_MIME_BY_EXTENSION[extension] ?? 'application/octet-stream';
@@ -40,9 +43,17 @@ async function resolveAssetUrl(
   }
 
   const assetPath = src.slice(4);
-  const absolutePath = await resolveExistingVaultAssetPath(notesPath, assetPath, notePath);
-  const bytes = await bridge.fs.readBinaryFile(absolutePath);
-  return `data:${getImageMimeType(absolutePath)};base64,${bytesToBase64(bytes)}`;
+  try {
+    const absolutePath = await resolveExistingVaultAssetPath(notesPath, assetPath, notePath);
+    if (!absolutePath) {
+      return src;
+    }
+
+    const bytes = await bridge.fs.readBinaryFile(absolutePath);
+    return `data:${getImageMimeType(absolutePath)};base64,${bytesToBase64(bytes)}`;
+  } catch {
+    return src;
+  }
 }
 
 async function replaceAsync(
@@ -76,16 +87,18 @@ export async function resolveExportMarkdownAssetSources(
 ): Promise<string> {
   const withMarkdownImages = await replaceAsync(
     markdown,
-    /(!\[[^\]]*]\()([^)\s]+)(\))/g,
-    async (_full, prefix, src, suffix) => {
+    MARKDOWN_IMAGE_PATTERN,
+    async (_full, prefix, leadingSpace, wrappedSrc, angleSrc, bareSrc, rest, suffix) => {
+      const src = angleSrc || bareSrc || wrappedSrc;
       const resolvedSrc = await resolveAssetUrl(src, notesPath, notePath);
-      return `${prefix}${resolvedSrc}${suffix}`;
+      const destination = angleSrc ? `<${resolvedSrc}>` : resolvedSrc;
+      return `${prefix}${leadingSpace}${destination}${rest}${suffix}`;
     },
   );
 
   return replaceAsync(
     withMarkdownImages,
-    /(<img\b[^>]*\bsrc=["'])(img:[^"']+)(["'][^>]*>)/gi,
+    HTML_IMAGE_SRC_PATTERN,
     async (_full, prefix, src, suffix) => {
       const resolvedSrc = await resolveAssetUrl(src, notesPath, notePath);
       return `${prefix}${resolvedSrc}${suffix}`;

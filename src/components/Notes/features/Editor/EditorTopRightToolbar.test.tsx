@@ -1,8 +1,15 @@
 import { createRef } from 'react';
-import { fireEvent, render } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EditorTopRightToolbar } from './EditorTopRightToolbar';
 import type { NoteEditorFindController } from './find';
+
+const mocks = vi.hoisted(() => ({
+  addToast: vi.fn(),
+  currentNote: null as { path: string; content: string } | null,
+  exportNote: vi.fn(),
+  flushCurrentPendingEditorMarkdown: vi.fn(),
+}));
 
 vi.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenu: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
@@ -19,6 +26,27 @@ vi.mock('@/components/ui/dropdown-menu', () => ({
 
 vi.mock('@/components/ui/icons', () => ({
   Icon: ({ name }: { name: string }) => <span data-icon={name} />,
+}));
+
+vi.mock('@/stores/useNotesStore', () => ({
+  useNotesStore: {
+    getState: () => ({
+      currentNote: mocks.currentNote,
+    }),
+  },
+}));
+
+vi.mock('@/stores/useToastStore', () => ({
+  useToastStore: (selector: (state: { addToast: typeof mocks.addToast }) => unknown) =>
+    selector({ addToast: mocks.addToast }),
+}));
+
+vi.mock('@/stores/notes/pendingEditorMarkdownFlusher', () => ({
+  flushCurrentPendingEditorMarkdown: mocks.flushCurrentPendingEditorMarkdown,
+}));
+
+vi.mock('../Export', () => ({
+  exportNote: mocks.exportNote,
 }));
 
 vi.mock('./find', () => ({
@@ -55,6 +83,13 @@ function createEditorFindController(
 }
 
 describe('EditorTopRightToolbar', () => {
+  beforeEach(() => {
+    mocks.addToast.mockReset();
+    mocks.currentNote = null;
+    mocks.exportNote.mockReset();
+    mocks.flushCurrentPendingEditorMarkdown.mockReset();
+  });
+
   it('shows the remove-star button for starred external notes outside the current vault', () => {
     const toggleStarred = vi.fn();
     const { getByRole } = render(
@@ -92,5 +127,40 @@ describe('EditorTopRightToolbar', () => {
     );
 
     expect(queryByRole('button', { name: 'Add to Starred' })).toBeNull();
+  });
+
+  it('exports the current toolbar note path when the store note is stale', async () => {
+    mocks.currentNote = {
+      path: 'old.md',
+      content: '# Old',
+    };
+    mocks.exportNote.mockResolvedValue({ canceled: false });
+
+    const { getByRole } = render(
+      <EditorTopRightToolbar
+        editorFind={createEditorFindController()}
+        currentNotePath="docs/current.md"
+        currentNoteContent="# Current"
+        currentNoteTitle="Current"
+        notesPath="/vault"
+        starred={false}
+        toggleStarred={vi.fn()}
+        currentNoteMetadata={undefined}
+        textStats={{ lineCount: 1, wordCount: 2, characterCount: 3 }}
+      />,
+    );
+
+    fireEvent.click(getByRole('button', { name: 'HTML' }));
+
+    await waitFor(() => {
+      expect(mocks.exportNote).toHaveBeenCalledWith({
+        format: 'html',
+        markdown: '# Current',
+        notePath: 'docs/current.md',
+        notesPath: '/vault',
+        title: 'Current',
+      });
+    });
+    expect(mocks.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,6 +1,7 @@
 import electron from 'electron';
 import {
   copyFile,
+  mkdtemp,
   mkdir,
   readdir,
   readFile,
@@ -70,6 +71,9 @@ async function renderHtmlToPdf(html, options) {
     throw new Error('HTML content is required for PDF export.');
   }
 
+  const tempDir = await mkdtemp(path.join(app.getPath('temp'), 'vlaina-export-'));
+  const tempHtmlPath = path.join(tempDir, 'export.html');
+
   const win = new BrowserWindow({
     show: false,
     width: 900,
@@ -83,14 +87,15 @@ async function renderHtmlToPdf(html, options) {
   });
 
   try {
-    const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
-    await win.loadURL(dataUrl);
+    await writeFile(tempHtmlPath, html, 'utf8');
+    await win.loadFile(tempHtmlPath);
     await new Promise((resolve) => setTimeout(resolve, 80));
     return await win.webContents.printToPDF(normalizeExportPdfOptions(options));
   } finally {
     if (!win.isDestroyed()) {
       win.destroy();
     }
+    await rm(tempDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
