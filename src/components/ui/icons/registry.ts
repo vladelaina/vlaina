@@ -100,6 +100,9 @@ import {
   EyeIcon,
   EyeSlashIcon
 } from '@heroicons/react/24/outline';
+import {
+  StarIcon as StarSolidIcon,
+} from '@heroicons/react/24/solid';
 
 import { NewChatIcon } from './custom/mit/NewChatIcon';
 import { CropIcon } from './custom/mit/CropIcon';
@@ -255,6 +258,7 @@ export const icons: Record<string, IconSource> = {
   'misc.clock': ClockIcon,
   'misc.crown': Crown,
   'misc.star': StarIcon,
+  'misc.starSolid': StarSolidIcon,
   'misc.heart': HeartIcon,
   'misc.shuffle': ArrowsRightLeftIcon,
   'misc.activity': ActivityIcon,

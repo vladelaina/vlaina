@@ -10,7 +10,7 @@ import { AITab } from './tabs/AITab';
 import { cn } from '@/lib/utils';
 import { useWindowDragGesture } from '@/hooks/useWindowDragGesture';
 import { actions as aiActions } from '@/stores/ai/providerActions';
-import { SETTINGS_BEFORE_CLOSE_EVENT } from './settingsEvents';
+import { SETTINGS_BEFORE_CLOSE_EVENT, SETTINGS_CLOSED_EVENT } from './settingsEvents';
 
 interface SettingsModalProps {
   open: boolean;
@@ -49,6 +49,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     window.dispatchEvent(new Event(SETTINGS_BEFORE_CLOSE_EVENT));
     aiActions.deleteIncompleteCustomProviders();
     onClose();
+    window.dispatchEvent(new Event(SETTINGS_CLOSED_EVENT));
   }, [onClose]);
 
   useEffect(() => {
