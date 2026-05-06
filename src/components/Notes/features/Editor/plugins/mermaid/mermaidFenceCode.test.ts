@@ -44,6 +44,33 @@ describe('normalizeMermaidFenceCode', () => {
     )).toBe(['---', 'title: Skills', '---', 'radar-beta', 'axis A, B'].join('\n'));
   });
 
+  it('normalizes short directives after Mermaid init directives', () => {
+    expect(normalizeMermaidFenceCode(
+      'mermaid',
+      ['%%{init: {"theme": "default"}}%%', 'sequence', 'Alice->Bob: Hi'].join('\n')
+    )).toBe(
+      ['%%{init: {"theme": "default"}}%%', 'sequenceDiagram', 'Alice->Bob: Hi'].join('\n')
+    );
+  });
+
+  it('normalizes short directives after Mermaid comments', () => {
+    expect(normalizeMermaidFenceCode(
+      'mermaid',
+      ['%% keep this comment', 'flow LR', 'A --> B'].join('\n')
+    )).toBe(
+      ['%% keep this comment', 'flowchart LR', 'A --> B'].join('\n')
+    );
+  });
+
+  it('does not duplicate directives after Mermaid init directives', () => {
+    expect(normalizeMermaidFenceCode(
+      'flow',
+      ['%%{init: {"theme": "default"}}%%', 'flowchart LR', 'A --> B'].join('\n')
+    )).toBe(
+      ['%%{init: {"theme": "default"}}%%', 'flowchart LR', 'A --> B'].join('\n')
+    );
+  });
+
   it('leaves other Mermaid aliases unchanged', () => {
     expect(normalizeMermaidFenceCode('flowchart', 'flowchart TD\nA --> B')).toBe(
       'flowchart TD\nA --> B'
@@ -64,6 +91,9 @@ describe('normalizeMermaidFenceCode', () => {
 
   it('adds standard directives for supported alias fences without directives', () => {
     expect(normalizeMermaidFenceCode('flow', 'A --> B')).toBe('flowchart TD\nA --> B');
+    expect(normalizeMermaidFenceCode('flowchart-v2', 'A --> B')).toBe(
+      'flowchart TD\nA --> B'
+    );
     expect(normalizeMermaidFenceCode('state', '[*] --> Still')).toBe(
       'stateDiagram-v2\n[*] --> Still'
     );
@@ -78,6 +108,36 @@ describe('normalizeMermaidFenceCode', () => {
     expect(normalizeMermaidFenceCode('wardley', 'title Value Chain')).toBe(
       'wardley-beta\ntitle Value Chain'
     );
+  });
+
+  it('adds standard directives after frontmatter and Mermaid prefix lines', () => {
+    expect(normalizeMermaidFenceCode(
+      'flow',
+      ['---', 'title: Flow', '---', 'A --> B'].join('\n')
+    )).toBe(['---', 'title: Flow', '---', 'flowchart TD', 'A --> B'].join('\n'));
+
+    expect(normalizeMermaidFenceCode(
+      'flow',
+      ['%% keep this comment', 'A --> B'].join('\n')
+    )).toBe(['%% keep this comment', 'flowchart TD', 'A --> B'].join('\n'));
+
+    expect(normalizeMermaidFenceCode(
+      'sequence',
+      ['%%{init: {"theme": "default"}}%%', 'Alice->Bob: Hi'].join('\n')
+    )).toBe(
+      ['%%{init: {"theme": "default"}}%%', 'sequenceDiagram', 'Alice->Bob: Hi'].join('\n')
+    );
+  });
+
+  it('keeps every Mermaid-specific alias wired to no-directive content normalization', () => {
+    for (const alias of MERMAID_FENCE_LANGUAGE_ALIAS_LIST) {
+      if (alias === 'mermaid' || alias === 'mmd') {
+        continue;
+      }
+
+      const starter = createMermaidFenceStarterCode(alias);
+      expect(normalizeMermaidFenceCode(alias, 'payload'), alias).toBe(`${starter}payload`);
+    }
   });
 });
 
@@ -110,6 +170,15 @@ describe('normalizeMermaidEditorCodeInput', () => {
     expect(normalizeMermaidEditorCodeInput('sequence\nAlice->Bob: Hello')).toBe(
       'sequenceDiagram\nAlice->Bob: Hello'
     );
+    expect(normalizeMermaidEditorCodeInput('flow LR\nA --> B')).toBe(
+      'flowchart LR\nA --> B'
+    );
+    expect(normalizeMermaidEditorCodeInput('flowchart-v2 RL\nA --> B')).toBe(
+      'flowchart RL\nA --> B'
+    );
+    expect(normalizeMermaidEditorCodeInput('flowchartelk BT\nA --> B')).toBe(
+      'flowchart-elk BT\nA --> B'
+    );
     expect(normalizeMermaidEditorCodeInput('flowchart LR\nA --> B')).toBe(
       'flowchart LR\nA --> B'
     );
@@ -137,6 +206,42 @@ describe('normalizeMermaidEditorCodeInput', () => {
     expect(normalizeMermaidEditorCodeInput(
       ['```mermaid title="Flow"', 'flow', 'A --> B', '```'].join('\n')
     )).toBe(['flowchart TD', 'A --> B'].join('\n'));
+  });
+
+  it('strips pasted Mermaid fences and normalizes aliases after init directives', () => {
+    expect(normalizeMermaidEditorCodeInput(
+      [
+        '```mermaid',
+        '%%{init: {"theme": "default"}}%%',
+        'sequence',
+        'Alice->Bob: Hi',
+        '```',
+      ].join('\n')
+    )).toBe(
+      [
+        '%%{init: {"theme": "default"}}%%',
+        'sequenceDiagram',
+        'Alice->Bob: Hi',
+      ].join('\n')
+    );
+  });
+
+  it('strips pasted Mermaid fences and normalizes aliases after comments', () => {
+    expect(normalizeMermaidEditorCodeInput(
+      [
+        '```mermaid',
+        '%% keep this comment',
+        'flow',
+        'A --> B',
+        '```',
+      ].join('\n')
+    )).toBe(
+      [
+        '%% keep this comment',
+        'flowchart TD',
+        'A --> B',
+      ].join('\n')
+    );
   });
 
   it('keeps ZenUML pasted into the diagram editor as Mermaid diagram code', () => {

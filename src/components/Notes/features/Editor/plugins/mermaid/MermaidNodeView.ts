@@ -1,10 +1,10 @@
 import type { Node } from '@milkdown/kit/prose/model';
 import type { EditorView, NodeView } from '@milkdown/kit/prose/view';
-import { createMermaidElement, renderMermaidEditorLivePreview } from './mermaidDom';
+import { createMermaidElement, getMermaidElementCode, renderMermaidEditorLivePreview } from './mermaidDom';
 import { normalizeMermaidEditorCodeInput } from './mermaidFenceCode';
 
 export function shouldRefreshMermaidElementCode(element: HTMLElement, code: string) {
-  return element.dataset.code !== normalizeMermaidEditorCodeInput(code);
+  return getMermaidElementCode(element) !== normalizeMermaidEditorCodeInput(code);
 }
 
 export class MermaidNodeView implements NodeView {

@@ -62,13 +62,6 @@ async function withoutThirdPartyConsoleOutput<T>(action: () => Promise<T>): Prom
   }
 }
 
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
 export function generateMermaidId(): string {
   return `mermaid-${Date.now()}-${mermaidCounter++}`;
 }
@@ -85,8 +78,7 @@ export async function renderMermaid(code: string, id: string): Promise<string> {
       mermaid.render(id, code)
     );
     return svg;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return `<div class="mermaid-error">Mermaid Error: ${escapeHtml(message)}</div>`;
+  } catch {
+    return '<div class="mermaid-error">Mermaid Error: Unable to render diagram. Check the diagram syntax.</div>';
   }
 }

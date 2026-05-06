@@ -4,7 +4,7 @@ import type { MermaidAttrs } from './types';
 import { isMermaidFenceLanguage } from './mermaidLanguage';
 import { normalizeMermaidFenceCode } from './mermaidFenceCode';
 import { mermaidEnterPlugin } from './mermaidEnterPlugin';
-import { createMermaidElement } from './mermaidDom';
+import { createMermaidElement, getMermaidElementCode } from './mermaidDom';
 import { MermaidNodeView } from './MermaidNodeView';
 
 export const mermaidSchema = $node('mermaid', () => ({
@@ -18,7 +18,7 @@ export const mermaidSchema = $node('mermaid', () => ({
   parseDOM: [{
     tag: 'div[data-type="mermaid"]',
     getAttrs: (dom) => ({
-      code: (dom as HTMLElement).dataset.code || ''
+      code: getMermaidElementCode(dom as HTMLElement)
     })
   }],
   toDOM: (node) => {

@@ -11,13 +11,12 @@ const notesDebugEntries: NotesDebugEntry[] = [];
 
 export function summarizeLineBreakText(text: string | null | undefined) {
   if (text == null) {
-    return { length: null, lines: null, preview: null };
+    return { length: null, lines: null };
   }
 
   return {
     length: text.length,
     lines: text.length === 0 ? 0 : text.split('\n').length,
-    preview: text.replace(/\r/g, '\\r').replace(/\n/g, '\\n').slice(0, 500),
   };
 }
 
@@ -33,8 +32,6 @@ export function compareLineBreakText(
       previousLines: previous == null ? null : previous.length === 0 ? 0 : previous.split('\n').length,
       nextLines: next == null ? null : next.length === 0 ? 0 : next.split('\n').length,
       firstDiffIndex: null,
-      previousAroundDiff: null,
-      nextAroundDiff: null,
     };
   }
 
@@ -49,8 +46,6 @@ export function compareLineBreakText(
 
   const previousLines = previous.length === 0 ? 0 : previous.split('\n').length;
   const nextLines = next.length === 0 ? 0 : next.split('\n').length;
-  const start = firstDiffIndex === null ? 0 : Math.max(0, firstDiffIndex - 80);
-  const end = firstDiffIndex === null ? 0 : firstDiffIndex + 160;
 
   return {
     equal: firstDiffIndex === null,
@@ -61,12 +56,6 @@ export function compareLineBreakText(
     nextLines,
     lineDelta: nextLines - previousLines,
     firstDiffIndex,
-    previousAroundDiff: firstDiffIndex === null
-      ? null
-      : previous.slice(start, end).replace(/\r/g, '\\r').replace(/\n/g, '\\n'),
-    nextAroundDiff: firstDiffIndex === null
-      ? null
-      : next.slice(start, end).replace(/\r/g, '\\r').replace(/\n/g, '\\n'),
   };
 }
 

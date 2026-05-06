@@ -6,6 +6,7 @@ import {
   getNotesDebugLogText,
   logLineBreakDebug,
   logNotesDebug,
+  summarizeLineBreakText,
 } from './lineBreakDebugLog';
 
 describe('lineBreakDebugLog', () => {
@@ -17,11 +18,10 @@ describe('lineBreakDebugLog', () => {
   it('prints directly and keeps a copyable log buffer', () => {
     const info = vi.spyOn(console, 'info').mockImplementation(() => {});
 
-    logLineBreakDebug('editor:test', { lines: 3, preview: '1\\n2\\n3' });
+    logLineBreakDebug('editor:test', { lines: 3 });
 
     expect(info).toHaveBeenCalledWith('[NotesLineBreak]', 'editor:test', {
       lines: 3,
-      preview: '1\\n2\\n3',
     });
     expect(getLineBreakDebugLogText()).toContain('[NotesLineBreak] editor:test');
     expect(getLineBreakDebugLogText()).toContain('"lines":3');
@@ -56,5 +56,10 @@ describe('lineBreakDebugLog', () => {
       lineDelta: -2,
       firstDiffIndex: 1,
     });
+  });
+
+  it('does not include document text in line break summaries or diffs', () => {
+    expect(JSON.stringify(summarizeLineBreakText('secret\nmarkdown'))).not.toContain('secret');
+    expect(JSON.stringify(compareLineBreakText('secret\nold', 'secret\nnew'))).not.toContain('secret');
   });
 });

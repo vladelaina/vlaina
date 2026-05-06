@@ -46,12 +46,27 @@ describe('mermaidRenderer', () => {
 
   it('suppresses third-party renderer console output so diagram source is not leaked', async () => {
     const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const { renderMermaid } = await import('./mermaidRenderer');
 
     await renderMermaid('zenuml\nAlice->Bob: Hi', 'diagram-1');
 
     expect(consoleLog).not.toHaveBeenCalled();
+    expect(consoleWarn).not.toHaveBeenCalled();
+    expect(consoleError).not.toHaveBeenCalled();
     console.log('after render');
     expect(consoleLog).toHaveBeenCalledWith('after render');
+  });
+
+  it('does not expose diagram source in rendered error messages', async () => {
+    render.mockRejectedValueOnce(new Error('No diagram type detected for text: zenuml\nAlice->Bob: secret'));
+    const { renderMermaid } = await import('./mermaidRenderer');
+
+    const html = await renderMermaid('zenuml\nAlice->Bob: secret', 'diagram-1');
+
+    expect(html).toContain('Mermaid Error: Unable to render diagram.');
+    expect(html).not.toContain('Alice->Bob');
+    expect(html).not.toContain('secret');
   });
 });

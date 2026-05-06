@@ -7,6 +7,7 @@ const MERMAID_DIAGRAM_DIRECTIVE_PATTERN = new RegExp(
   [
     '^\\s*',
     '(?:---\\r?\\n[\\s\\S]*?\\r?\\n---\\s*)?',
+    '(?:(?:%%\\{[\\s\\S]*?\\}%%|%%[^\\r\\n]*)\\s*)*',
     '(?:architecture(?:-beta)?|block(?:-beta)?|c4(?:context|container|component|dynamic|deployment)?|classDiagram(?:-v2)?|erDiagram|flowchart(?:-elk)?|gantt|gitGraph|graph|info|ishikawa(?:-beta)?|journey|kanban|mindmap|packet(?:-beta)?|pie|quadrantChart|radar(?:-beta)?|requirementDiagram|sankey(?:-beta)?|sequenceDiagram|stateDiagram(?:-v2)?|timeline|treeView(?:-beta)?|treemap(?:-beta)?|venn(?:-beta)?|wardley(?:-beta)?|xychart(?:-beta)?|zenuml)\\b',
   ].join(''),
   'i'
@@ -22,6 +23,7 @@ const STANDARD_DIRECTIVE_BY_LANGUAGE = new Map<string, string>([
   ['c4deployment', 'C4Deployment'],
   ['flow', 'flowchart TD'],
   ['flowchart', 'flowchart TD'],
+  ['flowchartv2', 'flowchart TD'],
   ['flowchartelk', 'flowchart-elk TD'],
   ['graph', 'graph TD'],
   ['sequence', 'sequenceDiagram'],
@@ -75,8 +77,11 @@ const MERMAID_FENCED_INPUT_CLOSING_PATTERN = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
 
 const YAML_FRONTMATTER_PREFIX_PATTERN =
   /^(\s*---\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$))/;
+const MERMAID_PREFIX_LINE_PATTERN =
+  /^(\s*(?:%%\{[\s\S]*?\}%%|%%[^\r\n]*)[ \t]*(?:\r?\n|$))/;
 
 const FIRST_LINE_PATTERN = /^([ \t]*)([^\r\n]*?)([ \t]*)(\r?\n|$)/;
+const FLOW_DIRECTION_TOKENS = new Set(['BT', 'LR', 'RL', 'TB', 'TD']);
 
 function normalizeMermaidDirectiveAlias(directive: string) {
   return directive.trim().toLowerCase().replace(/[\s_-]+/g, '');
@@ -97,10 +102,23 @@ function trimBlankEdgeLines(lines: string[]) {
   return lines.slice(start, end);
 }
 
-function normalizeLeadingDirectiveAlias(code: string) {
+function splitLeadingMermaidPrefix(code: string) {
   const frontmatterMatch = YAML_FRONTMATTER_PREFIX_PATTERN.exec(code);
-  const prefix = frontmatterMatch?.[1] ?? '';
-  const body = prefix ? code.slice(prefix.length) : code;
+  let prefix = frontmatterMatch?.[1] ?? '';
+  let body = prefix ? code.slice(prefix.length) : code;
+
+  let mermaidPrefixLineMatch = MERMAID_PREFIX_LINE_PATTERN.exec(body);
+  while (mermaidPrefixLineMatch?.[1]) {
+    prefix += mermaidPrefixLineMatch[1];
+    body = body.slice(mermaidPrefixLineMatch[1].length);
+    mermaidPrefixLineMatch = MERMAID_PREFIX_LINE_PATTERN.exec(body);
+  }
+
+  return { prefix, body };
+}
+
+function normalizeLeadingDirectiveAlias(code: string) {
+  const { prefix, body } = splitLeadingMermaidPrefix(code);
   const firstLineMatch = FIRST_LINE_PATTERN.exec(body);
   if (!firstLineMatch) {
     return code;
@@ -108,7 +126,30 @@ function normalizeLeadingDirectiveAlias(code: string) {
 
   const [, indent = '', directive = '', trailingSpace = '', newline = ''] = firstLineMatch;
   const trimmedDirective = directive.trim();
-  if (!trimmedDirective || /\s/.test(trimmedDirective)) {
+  if (!trimmedDirective) {
+    return code;
+  }
+
+  const directiveTokens = trimmedDirective.split(/\s+/);
+  if (directiveTokens.length > 1) {
+    const [aliasToken = '', directionToken = ''] = directiveTokens;
+    const normalizedAlias = normalizeMermaidDirectiveAlias(aliasToken);
+    const normalizedDirection = directionToken.toUpperCase();
+    if (
+      directiveTokens.length === 2
+      && FLOW_DIRECTION_TOKENS.has(normalizedDirection)
+      && (
+        normalizedAlias === 'flow'
+        || normalizedAlias === 'flowchartv2'
+        || normalizedAlias === 'flowchartelk'
+      )
+    ) {
+      const standardDirective =
+        normalizedAlias === 'flow' || normalizedAlias === 'flowchartv2'
+          ? `flowchart ${normalizedDirection}`
+          : `flowchart-elk ${normalizedDirection}`;
+      return `${prefix}${indent}${standardDirective}${trailingSpace}${newline}${body.slice(firstLineMatch[0].length)}`;
+    }
     return code;
   }
 
@@ -139,7 +180,8 @@ export function normalizeMermaidFenceCode(language: string | null | undefined, c
 
   const standardDirective = STANDARD_DIRECTIVE_BY_LANGUAGE.get(normalizedLanguage);
   if (standardDirective) {
-    return `${standardDirective}\n${normalizedCode}`;
+    const { prefix, body } = splitLeadingMermaidPrefix(normalizedCode);
+    return `${prefix}${standardDirective}\n${body}`;
   }
 
   return normalizedCode;
