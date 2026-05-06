@@ -13,6 +13,7 @@ import {
 import {
   loadStarredForVault,
   removeStarredEntryById,
+  resolveStarredRelativePathForVault,
   toggleStarredEntry,
 } from '../starred';
 import {
@@ -499,9 +500,17 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       removeStarredEntryById(set, get, id);
     },
 
-    isStarred: (path: string) => get().starredNotes.includes(path),
+    isStarred: (path: string) => {
+      const { notesPath, starredNotes } = get();
+      const relativePath = resolveStarredRelativePathForVault(path, notesPath);
+      return relativePath ? starredNotes.includes(relativePath) : false;
+    },
 
-    isFolderStarred: (path: string) => get().starredFolders.includes(path),
+    isFolderStarred: (path: string) => {
+      const { notesPath, starredFolders } = get();
+      const relativePath = resolveStarredRelativePathForVault(path, notesPath);
+      return relativePath ? starredFolders.includes(relativePath) : false;
+    },
 
     setPendingStarredNavigation: (pendingStarredNavigation) => set({ pendingStarredNavigation }),
 

@@ -542,6 +542,7 @@ export function MarkdownEditor({
   const restoreSessionRef = useRef<{ path: string; targetScrollTop: number } | null>(null);
 
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
+  const notesPath = useNotesStore(s => s.notesPath);
   const currentNoteDiskRevision = useNotesStore(s => s.currentNoteDiskRevision);
   const openTabPathsKey = useNotesStore(s => s.openTabs.map((tab) => tab.path).join('\0'));
   const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
@@ -703,6 +704,7 @@ export function MarkdownEditor({
       <EditorTopRightToolbar
         editorFind={editorFind}
         currentNotePath={currentNotePath}
+        notesPath={notesPath}
         starred={starred}
         toggleStarred={toggleStarred}
         currentNoteMetadata={currentNoteMetadata}

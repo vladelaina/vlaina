@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { getStorageAdapter } from '@/lib/storage/adapter';
+import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import { normalizeStarredVaultPath, saveStarredRegistry } from '@/stores/notes/starred';
 import { moveVaultSystemStore } from '@/stores/notes/systemStoragePaths';
 import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
@@ -68,6 +68,17 @@ type PreservedDraftWorkspace = Pick<
   | 'pendingDraftDiscardPath'
   | 'noteContentsCache'
   | 'noteMetadata'
+> | null;
+
+type PreservedExternalWorkspace = Pick<
+  NotesStore,
+  | 'currentNote'
+  | 'currentNoteRevision'
+  | 'isDirty'
+  | 'openTabs'
+  | 'noteContentsCache'
+  | 'noteMetadata'
+  | 'displayNames'
 > | null;
 
 function hasUnsavedDraftTabs(): boolean {
@@ -176,30 +187,92 @@ function collectDraftWorkspaceForVaultTransition(): PreservedDraftWorkspace {
   return preservedWorkspace;
 }
 
+function isExternalAbsoluteNotePath(path: string | null | undefined, notesPath: string) {
+  if (!path || !isAbsolutePath(path)) {
+    return false;
+  }
+
+  const normalizedPath = normalizeVaultPath(path);
+  const normalizedNotesPath = normalizeVaultPath(notesPath);
+  if (normalizedNotesPath === '/') {
+    return false;
+  }
+
+  const normalizedNotesPathPrefix = normalizedNotesPath.replace(/\/+$/, '');
+  return !normalizedNotesPath || (
+    normalizedPath !== normalizedNotesPathPrefix &&
+    !normalizedPath.startsWith(`${normalizedNotesPathPrefix}/`)
+  );
+}
+
+function collectExternalWorkspaceForVaultClose(): PreservedExternalWorkspace {
+  const state = useNotesStore.getState();
+  const externalPaths = new Set(
+    state.openTabs
+      .filter((tab) => isExternalAbsoluteNotePath(tab.path, state.notesPath))
+      .map((tab) => tab.path),
+  );
+
+  const currentNotePath = state.currentNote?.path;
+  if (currentNotePath && isExternalAbsoluteNotePath(currentNotePath, state.notesPath)) {
+    externalPaths.add(currentNotePath);
+  }
+
+  if (externalPaths.size === 0) {
+    return null;
+  }
+
+  const currentNote = state.currentNote && externalPaths.has(state.currentNote.path)
+    ? state.currentNote
+    : null;
+  const noteMetadataEntries = Object.entries(state.noteMetadata?.notes ?? {})
+    .filter(([path]) => externalPaths.has(path));
+
+  return {
+    currentNote,
+    currentNoteRevision: currentNote ? state.currentNoteRevision : 0,
+    isDirty: currentNote ? state.isDirty : false,
+    openTabs: state.openTabs.filter((tab) => externalPaths.has(tab.path)),
+    noteContentsCache: new Map(
+      [...state.noteContentsCache.entries()].filter(([path]) => externalPaths.has(path)),
+    ),
+    noteMetadata: noteMetadataEntries.length > 0
+      ? { version: 1, notes: Object.fromEntries(noteMetadataEntries) }
+      : null,
+    displayNames: new Map(
+      [...state.displayNames.entries()].filter(([path]) => externalPaths.has(path)),
+    ),
+  };
+}
+
 function resetNotesWorkspaceForVaultTransition(
   notesPath = '',
-  options: { preserveDrafts?: boolean } = {},
+  options: { preserveDrafts?: boolean; preserveExternalNotes?: boolean } = {},
 ) {
   const preservedDraftWorkspace = options.preserveDrafts
     ? collectDraftWorkspaceForVaultTransition()
     : null;
+  const preservedExternalWorkspace = !preservedDraftWorkspace && options.preserveExternalNotes
+    ? collectExternalWorkspaceForVaultClose()
+    : null;
+  const preservedWorkspace = preservedDraftWorkspace ?? preservedExternalWorkspace;
 
   useNotesStore.getState().clearAssetUrlCache();
   useNotesStore.setState({
-    currentNote: preservedDraftWorkspace?.currentNote ?? null,
-    currentNoteRevision: preservedDraftWorkspace?.currentNoteRevision ?? 0,
+    currentNote: preservedWorkspace?.currentNote ?? null,
+    currentNoteRevision: preservedWorkspace?.currentNoteRevision ?? 0,
     currentNoteDiskRevision: 0,
-    isDirty: preservedDraftWorkspace?.isDirty ?? false,
-    openTabs: preservedDraftWorkspace?.openTabs ?? [],
+    isDirty: preservedWorkspace?.isDirty ?? false,
+    openTabs: preservedWorkspace?.openTabs ?? [],
     recentlyClosedTabs: [],
     rootFolder: null,
     notesPath,
     draftNotes: preservedDraftWorkspace?.draftNotes ?? {},
     pendingDraftDiscardPath: preservedDraftWorkspace?.pendingDraftDiscardPath ?? null,
     pendingDeletedItems: [],
-    noteMetadata: preservedDraftWorkspace?.noteMetadata ?? null,
-    displayNames: new Map(),
-    noteContentsCache: preservedDraftWorkspace?.noteContentsCache ?? new Map(),
+    noteMetadata: preservedWorkspace?.noteMetadata ?? null,
+    displayNames: preservedExternalWorkspace?.displayNames ?? new Map(),
+    noteContentsCache: preservedWorkspace?.noteContentsCache ?? new Map(),
     isNewlyCreated: false,
     newlyCreatedFolderPath: null,
     assetList: [],
@@ -490,7 +563,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
     }
 
     closeCurrentVaultAction(set);
-    resetNotesWorkspaceForVaultTransition();
+    resetNotesWorkspaceForVaultTransition('', { preserveExternalNotes: true });
     set({ error: null });
     return true;
   },

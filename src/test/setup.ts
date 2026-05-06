@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { vi } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
@@ -74,13 +74,44 @@ class OffscreenCanvasMock {
 vi.stubGlobal('ResizeObserver', ResizeObserverMock);
 vi.stubGlobal('OffscreenCanvas', OffscreenCanvasMock);
 
-if (typeof window !== 'undefined') {
+function ensureGlobalEventListeners() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
   if (typeof globalThis.addEventListener === 'undefined') {
-    vi.stubGlobal('addEventListener', window.addEventListener.bind(window));
+    Object.defineProperty(globalThis, 'addEventListener', {
+      configurable: true,
+      writable: true,
+      value: window.addEventListener.bind(window),
+    });
   }
   if (typeof globalThis.removeEventListener === 'undefined') {
-    vi.stubGlobal('removeEventListener', window.removeEventListener.bind(window));
+    Object.defineProperty(globalThis, 'removeEventListener', {
+      configurable: true,
+      writable: true,
+      value: window.removeEventListener.bind(window),
+    });
   }
+}
+
+ensureGlobalEventListeners();
+const unstubAllGlobals = vi.unstubAllGlobals.bind(vi);
+vi.unstubAllGlobals = () => {
+  const result = unstubAllGlobals();
+  ensureGlobalEventListeners();
+  return result;
+};
+
+beforeEach(() => {
+  ensureGlobalEventListeners();
+});
+
+afterEach(() => {
+  ensureGlobalEventListeners();
+});
+
+if (typeof window !== 'undefined') {
   if (typeof window.HTMLTableRowElement !== 'undefined') {
     vi.stubGlobal('HTMLTableRowElement', window.HTMLTableRowElement);
   }

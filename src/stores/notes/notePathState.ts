@@ -1,5 +1,6 @@
 import { isAbsolutePath } from '@/lib/storage/adapter';
 import { getDraftNoteEntry, isDraftNotePath } from './draftNote';
+import { resolveStarredRelativePathForVault } from './starred';
 import type { DraftNoteEntry } from './types';
 
 export type NotePathKind = 'draft' | 'vault' | 'external' | 'none';
@@ -20,8 +21,15 @@ export function isVaultNotePath(path: string | null | undefined): path is string
   return getNotePathKind(path) === 'vault';
 }
 
-export function canStarNotePath(path: string | null | undefined): path is string {
-  return isVaultNotePath(path);
+export function canStarNotePath(
+  path: string | null | undefined,
+  notesPath?: string,
+): path is string {
+  if (isVaultNotePath(path)) {
+    return true;
+  }
+
+  return Boolean(path && notesPath && resolveStarredRelativePathForVault(path, notesPath));
 }
 
 export function getVaultNoteParentPath(path: string | null | undefined): string | undefined {

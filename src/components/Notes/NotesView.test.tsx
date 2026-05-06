@@ -31,7 +31,13 @@ type MockNotesState = {
   clearAssetUrlCache: ReturnType<typeof vi.fn>;
   revealFolder: ReturnType<typeof vi.fn>;
   isDirty: boolean;
-  pendingStarredNavigation: null;
+  pendingStarredNavigation: {
+    vaultPath: string;
+    kind: 'note' | 'folder';
+    relativePath: string;
+    openInNewTab?: boolean;
+    skipWorkspaceRestore?: boolean;
+  } | null;
   setPendingStarredNavigation: ReturnType<typeof vi.fn>;
   notesPath: string;
   rootFolder: {
@@ -296,6 +302,7 @@ describe('NotesView', () => {
     notesState.draftNotes = {};
     notesState.notesPath = '/vault';
     notesState.isLoading = false;
+    notesState.pendingStarredNavigation = null;
     notesState.rootFolder = {
       id: '',
       name: 'Notes',
@@ -396,17 +403,131 @@ describe('NotesView', () => {
     expect(notesState.createNote).toHaveBeenCalledWith(undefined, { asDraft: true });
   });
 
-  it('keeps the auto-created blank note as an in-memory draft', async () => {
+  it('does not create an untitled draft when the opened vault already has files', async () => {
+    notesState.rootFolder = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      children: [
+        {
+          id: 'docs/alpha.md',
+          name: 'alpha.md',
+          path: 'docs/alpha.md',
+          isFolder: false,
+        },
+      ],
+      expanded: true,
+    };
+
+    render(<NotesView />);
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
+  });
+
+  it('does not create an untitled draft while opening a populated vault from no vault', async () => {
+    mocks.vaultState.currentVault = null;
+    notesState.notesPath = '';
+    notesState.rootFolder = null;
+
+    const { rerender } = render(<NotesView />);
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
+
+    mocks.vaultState.currentVault = { path: '/vault' };
+    notesState.notesPath = '/vault';
+    notesState.isLoading = true;
+    notesState.rootFolder = null;
+    rerender(<NotesView />);
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
+
+    notesState.isLoading = false;
+    notesState.rootFolder = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      children: [
+        {
+          id: 'dfds.md',
+          name: 'dfds',
+          path: 'dfds.md',
+          isFolder: false,
+        },
+      ],
+      expanded: true,
+    };
+    rerender(<NotesView />);
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
+  });
+
+  it('does not create an untitled draft while the vault path has not reached the notes store', async () => {
     notesState.notesPath = '';
     mocks.vaultState.currentVault = { path: '/vault' };
 
     render(<NotesView />);
 
-    await waitFor(() => {
-      expect(notesState.createNote).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
     });
-    expect(notesState.createNote).toHaveBeenCalledWith(undefined, { asDraft: true });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
     expect(notesState.notesPath).toBe('');
+  });
+
+  it('reveals the pending starred note path before opening it in the workspace', async () => {
+    notesState.currentNote = { path: '/external/vault/docs/alpha.md', content: '# alpha' };
+    notesState.openTabs = [
+      { path: '/external/vault/docs/alpha.md', name: 'alpha', isDirty: false },
+    ];
+    notesState.pendingStarredNavigation = {
+      vaultPath: '/vault',
+      kind: 'note',
+      relativePath: 'docs/alpha.md',
+      skipWorkspaceRestore: true,
+    };
+
+    const { rerender } = render(<NotesView />);
+
+    await waitFor(() => {
+      expect(notesState.setPendingStarredNavigation).toHaveBeenCalledWith(null);
+      expect(notesState.revealFolder).toHaveBeenCalledWith('docs/alpha.md');
+      expect(notesState.openNote).toHaveBeenCalledWith('docs/alpha.md', false);
+    });
+    expect(notesState.setPendingStarredNavigation.mock.invocationCallOrder[0]).toBeLessThan(
+      notesState.revealFolder.mock.invocationCallOrder[0]
+    );
+    expect(notesState.revealFolder.mock.invocationCallOrder[0]).toBeLessThan(
+      notesState.openNote.mock.invocationCallOrder[0]
+    );
+
+    notesState.rootFolder = {
+      ...notesState.rootFolder!,
+      children: [...notesState.rootFolder!.children],
+    };
+    rerender(<NotesView />);
+
+    expect(notesState.setPendingStarredNavigation).toHaveBeenCalledTimes(1);
+    expect(notesState.revealFolder).toHaveBeenCalledTimes(1);
+    expect(notesState.openNote).toHaveBeenCalledTimes(1);
   });
 
   it('creates an editable draft when switching from a populated vault to an empty vault', async () => {
@@ -459,7 +580,7 @@ describe('NotesView', () => {
     });
   });
 
-  it('creates a draft when the workspace starts blank without an open vault', async () => {
+  it('does not create a draft when the workspace starts blank without an open vault', async () => {
     mocks.vaultState.currentVault = null;
 
     render(<NotesView />);
@@ -467,9 +588,11 @@ describe('NotesView', () => {
     expect(screen.queryByTestId('markdown-editor')).toBeNull();
     expect(notesState.createNote).not.toHaveBeenCalled();
 
-    await waitFor(() => {
-      expect(notesState.createNote).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
     });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
   });
 
   it('does not create an untitled note while the previous workspace note is restoring', async () => {

@@ -4,11 +4,10 @@ import {
   getParentPath,
   getStorageAdapter,
   joinPath,
-  relativePath,
 } from '@/lib/storage/adapter';
 import type { StarredKind } from '@/stores/notes/types';
 import { markExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
-import { normalizeStarredRelativePath, normalizeStarredVaultPath } from '@/stores/notes/starred';
+import { resolveStarredRelativePathForVault } from '@/stores/notes/starred';
 import { resolveUniquePath } from '@/stores/notes/utils/fs/pathOperations';
 import { isSupportedMarkdownSelection } from '../features/OpenTarget/openTargetSelection';
 
@@ -34,13 +33,7 @@ async function statExternalMarkdownPath(absolutePath: string) {
 }
 
 function getExistingVaultRelativePath(vaultPath: string, absolutePath: string) {
-  const normalizedVaultPath = normalizeStarredVaultPath(vaultPath);
-  const normalizedPath = normalizeStarredVaultPath(absolutePath);
-  if (!normalizedPath.startsWith(`${normalizedVaultPath}/`)) {
-    return null;
-  }
-
-  return normalizeStarredRelativePath(relativePath(normalizedVaultPath, normalizedPath));
+  return resolveStarredRelativePathForVault(absolutePath, vaultPath);
 }
 
 async function importExternalMarkdownFile(

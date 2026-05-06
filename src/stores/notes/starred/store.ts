@@ -1,6 +1,7 @@
 import type { NotesStore, StarredKind } from '../types';
 import { createStarredEntry, getStarredEntryKey, getVaultStarredPaths } from './registry';
 import { loadStarredRegistry, saveStarredRegistry } from './persistence';
+import { resolveStarredRelativePathForVault } from './pathUtils';
 import { logNotesDebug } from '../lineBreakDebugLog';
 
 let starredLoadRequestId = 0;
@@ -60,11 +61,17 @@ export function toggleStarredEntry(
   set: (partial: Partial<NotesStore>) => void,
   get: () => NotesStore,
   kind: StarredKind,
-  relativePath: string
+  path: string
 ): void {
   const { notesPath, starredEntries } = get();
   if (!notesPath) {
-    logNotesDebug('NotesStarred', 'toggle:skipped-no-vault', { kind, relativePath });
+    logNotesDebug('NotesStarred', 'toggle:skipped-no-vault', { kind, path });
+    return;
+  }
+
+  const relativePath = resolveStarredRelativePathForVault(path, notesPath);
+  if (!relativePath) {
+    logNotesDebug('NotesStarred', 'toggle:skipped-outside-vault', { kind, path, notesPath });
     return;
   }
 

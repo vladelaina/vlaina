@@ -32,6 +32,27 @@ const EmbeddedChatView = lazy(async () => {
   return { default: mod.ChatView };
 });
 
+function summarizeRootFolder(rootFolder: ReturnType<typeof useNotesStore.getState>['rootFolder']) {
+  if (!rootFolder) {
+    return {
+      loaded: false,
+      childrenLength: null,
+      childPreview: null,
+    };
+  }
+
+  return {
+    loaded: true,
+    childrenLength: rootFolder.children.length,
+    childPreview: rootFolder.children.slice(0, 8).map((node) => ({
+      path: node.path,
+      name: node.name,
+      isFolder: node.isFolder,
+      childCount: node.isFolder ? node.children.length : null,
+    })),
+  };
+}
+
 export function NotesView({ active = true }: { active?: boolean }) {
   const currentNote = useNotesStore(s => s.currentNote);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
@@ -80,6 +101,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
   const hasPresentedNoteRef = useRef(false);
   const autoCreateVaultPathRef = useRef<string | null>(currentVault?.path ?? null);
   const vaultInitializingRef = useRef(false);
+  const consumedPendingStarredNavigationKeyRef = useRef<string | null>(null);
   const toggleShortcutsDialog = useCallback(() => setIsShortcutsOpen((prev) => !prev), []);
   const handleVaultInitializingChange = useCallback((initializing: boolean) => {
     vaultInitializingRef.current = initializing;
@@ -152,31 +174,33 @@ export function NotesView({ active = true }: { active?: boolean }) {
     if (!currentVault || !pendingStarredNavigation) return;
     if (pendingStarredNavigation.vaultPath !== currentVault.path) return;
     if (notesPath !== currentVault.path || !rootFolder) return;
-
-    let cancelled = false;
+    const pendingNavigationKey = [
+      pendingStarredNavigation.vaultPath,
+      pendingStarredNavigation.kind,
+      pendingStarredNavigation.relativePath,
+      pendingStarredNavigation.openInNewTab ? 'new-tab' : 'same-tab',
+    ].join('\n');
+    if (consumedPendingStarredNavigationKeyRef.current === pendingNavigationKey) {
+      return;
+    }
+    consumedPendingStarredNavigationKeyRef.current = pendingNavigationKey;
 
     const navigateToStarredTarget = async () => {
+      setPendingStarredNavigation(null);
       if (pendingStarredNavigation.kind === 'folder') {
         revealFolder(pendingStarredNavigation.relativePath);
         scheduleSidebarItemIntoView(pendingStarredNavigation.relativePath, 2);
       } else {
+        revealFolder(pendingStarredNavigation.relativePath);
         await openNote(
           pendingStarredNavigation.relativePath,
           pendingStarredNavigation.openInNewTab ?? false
         );
         scheduleSidebarItemIntoView(pendingStarredNavigation.relativePath, 2);
       }
-
-      if (!cancelled) {
-        setPendingStarredNavigation(null);
-      }
     };
 
     void navigateToStarredTarget();
-
-    return () => {
-      cancelled = true;
-    };
   }, [
     currentVault,
     pendingStarredNavigation,
@@ -186,6 +210,13 @@ export function NotesView({ active = true }: { active?: boolean }) {
     openNote,
     setPendingStarredNavigation,
   ]);
+
+  useEffect(() => {
+    if (pendingStarredNavigation) {
+      return;
+    }
+    consumedPendingStarredNavigationKeyRef.current = null;
+  }, [pendingStarredNavigation]);
 
   const acceptsBlankWorkspaceDrop = (() => {
     if (!currentNotePath) {
@@ -265,9 +296,15 @@ export function NotesView({ active = true }: { active?: boolean }) {
     ].filter(Boolean);
 
     const launchNoteBlocked = Boolean(launchContextRef.current.notePath && !hasHandledLaunchNoteRef.current);
+    const noVaultBlocked = !currentVault;
+    const vaultPathMismatchBlocked = Boolean(currentVault && notesPath !== currentVault.path);
     const rootFolderBlocked = Boolean(currentVault && !rootFolder);
+    const vaultHasEntriesBlocked = Boolean(currentVault && rootFolder && rootFolder.children.length > 0);
     if (launchNoteBlocked) blockedReasons.push('pending-launch-note');
+    if (noVaultBlocked) blockedReasons.push('no-vault');
+    if (vaultPathMismatchBlocked) blockedReasons.push('vault-path-mismatch');
     if (rootFolderBlocked) blockedReasons.push('vault-root-not-loaded');
+    if (vaultHasEntriesBlocked) blockedReasons.push('vault-has-entries');
 
     logNotesDebug('NotesAutoDraft', 'evaluate', {
       active,
@@ -288,6 +325,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
       hasHandledLaunchNote: hasHandledLaunchNoteRef.current,
       rootFolderLoaded: Boolean(rootFolder),
       rootChildrenLength: rootFolder?.children.length ?? null,
+      rootFolderSummary: summarizeRootFolder(rootFolder),
       blockedReasons,
     });
 
@@ -312,6 +350,8 @@ export function NotesView({ active = true }: { active?: boolean }) {
         openTabsLengthAtTimer: state.openTabs.length,
         recentlyClosedTabsLengthAtTimer: state.recentlyClosedTabs.length,
         draftNotesLengthAtTimer: Object.keys(state.draftNotes).length,
+        rootFolderAtRender: summarizeRootFolder(rootFolder),
+        rootFolderAtTimer: summarizeRootFolder(state.rootFolder),
       });
       if (state.currentNote || state.openTabs.length > 0) {
         autoCreateBlankNoteRef.current = false;
@@ -319,6 +359,26 @@ export function NotesView({ active = true }: { active?: boolean }) {
           reason: state.currentNote ? 'has-current-note' : 'has-open-tabs',
           currentNotePathAtTimer: state.currentNote?.path ?? null,
           openTabsLengthAtTimer: state.openTabs.length,
+        });
+        return;
+      }
+      if (currentVault && !state.rootFolder) {
+        autoCreateBlankNoteRef.current = false;
+        logNotesDebug('NotesAutoDraft', 'timer-aborted', {
+          reason: 'vault-root-not-loaded',
+          currentVaultPath: currentVault.path,
+          notesPathAtTimer: state.notesPath,
+          rootFolderAtTimer: summarizeRootFolder(state.rootFolder),
+        });
+        return;
+      }
+      if (currentVault && state.rootFolder && state.rootFolder.children.length > 0) {
+        autoCreateBlankNoteRef.current = false;
+        logNotesDebug('NotesAutoDraft', 'timer-aborted', {
+          reason: 'vault-has-entries',
+          currentVaultPath: currentVault.path,
+          notesPathAtTimer: state.notesPath,
+          rootFolderAtTimer: summarizeRootFolder(state.rootFolder),
         });
         return;
       }

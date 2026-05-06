@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   getAbsoluteRenameWatchPaths,
   getRelativeRenameWatchPaths,
+  isInsideVault,
   isCreateWatchEvent,
   isRemoveWatchEvent,
+  toVaultRelativePath,
 } from './notesExternalSyncUtils';
 
 describe('notesExternalSyncUtils', () => {
@@ -29,6 +31,12 @@ describe('notesExternalSyncUtils', () => {
       oldPath: 'docs',
       newPath: 'archive',
     });
+  });
+
+  it('converts root-vault absolute paths to relative paths', () => {
+    expect(isInsideVault('/', '/docs/alpha.md')).toBe(true);
+    expect(toVaultRelativePath('/', '/docs/alpha.md')).toBe('docs/alpha.md');
+    expect(toVaultRelativePath('/', '/')).toBe('');
   });
 
   it('detects create and remove watch events', () => {
