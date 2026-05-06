@@ -4,6 +4,7 @@ import { saveDialog } from '@/lib/storage/dialog';
 import { useToastStore } from '@/stores/useToastStore';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { writeDesktopBinaryFile } from '@/lib/desktop/fs';
+import { stripVlainaManagedFrontmatter } from '@/stores/notes/frontmatter';
 import { createDocxExportBytes } from './noteExportDocx';
 import { renderNoteExportElement, renderNoteExportHtml } from './noteExportHtml';
 import { resolveExportMarkdownAssetSources } from './noteExportMarkdown';
@@ -124,7 +125,7 @@ async function createPdfBytes(html: string): Promise<Uint8Array> {
 export async function exportNote(request: NoteExportRequest): Promise<NoteExportResult> {
   const title = getExportTitle(request);
   const markdown = await resolveExportMarkdownAssetSources(
-    request.markdown,
+    stripVlainaManagedFrontmatter(request.markdown),
     request.notesPath,
     request.notePath,
   );

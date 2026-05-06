@@ -1,6 +1,30 @@
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { resolveExistingVaultAssetPath } from '@/lib/assets/core/paths';
 
+const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
+  gif: 'image/gif',
+  jpeg: 'image/jpeg',
+  jpg: 'image/jpeg',
+  png: 'image/png',
+  svg: 'image/svg+xml',
+  webp: 'image/webp',
+};
+
+function getImageMimeType(path: string): string {
+  const extension = path.split('.').pop()?.toLowerCase() ?? '';
+  return IMAGE_MIME_BY_EXTENSION[extension] ?? 'application/octet-stream';
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    const chunk = bytes.subarray(index, index + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
 async function resolveAssetUrl(
   src: string,
   notesPath: string,
@@ -17,7 +41,8 @@ async function resolveAssetUrl(
 
   const assetPath = src.slice(4);
   const absolutePath = await resolveExistingVaultAssetPath(notesPath, assetPath, notePath);
-  return bridge.path.toFileUrl(absolutePath);
+  const bytes = await bridge.fs.readBinaryFile(absolutePath);
+  return `data:${getImageMimeType(absolutePath)};base64,${bytesToBase64(bytes)}`;
 }
 
 async function replaceAsync(

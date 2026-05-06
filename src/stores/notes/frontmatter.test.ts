@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   readNoteMetadataFromMarkdown,
+  stripVlainaManagedFrontmatter,
   updateNoteMetadataInMarkdown,
   writeNoteMetadataToMarkdown,
 } from './frontmatter';
@@ -116,5 +117,49 @@ describe('note frontmatter metadata', () => {
         '',
       ].join('\n')
     );
+  });
+
+  it('strips hidden-only vlaina frontmatter from public markdown', () => {
+    const markdown = [
+      '---',
+      'vlaina_cover: "@biva/1"',
+      'vlaina_cover_x: 50',
+      'vlaina_cover_y: 44.95904771244643',
+      'vlaina_cover_height: 204',
+      'vlaina_cover_scale: 1',
+      'vlaina_created: "2026-04-19T16:30:35.881Z"',
+      'vlaina_updated: "2026-04-22T13:18:03.350Z"',
+      '---',
+      '',
+      '# Exported',
+      'Visible body',
+    ].join('\n');
+
+    expect(stripVlainaManagedFrontmatter(markdown)).toBe('# Exported\nVisible body');
+  });
+
+  it('preserves user frontmatter while stripping only top-level vlaina fields', () => {
+    const markdown = [
+      '---',
+      'title: User title',
+      'tags:',
+      '  - project',
+      'vlaina_cover: "@biva/1"',
+      'nested:',
+      '  vlaina_note: user nested value',
+      '---',
+      '# Exported',
+    ].join('\n');
+
+    expect(stripVlainaManagedFrontmatter(markdown)).toBe([
+      '---',
+      'title: User title',
+      'tags:',
+      '  - project',
+      'nested:',
+      '  vlaina_note: user nested value',
+      '---',
+      '# Exported',
+    ].join('\n'));
   });
 });
