@@ -49,6 +49,7 @@
     "@fontsource/inter": "^5.2.8",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "@heroicons/react": "^2.2.0",
+    "@mermaid-js/mermaid-zenuml": "^0.2.2",
     "@milkdown/kit": "workspace:*",
     "@milkdown/plugin-block": "workspace:*",
     "@milkdown/plugin-slash": "workspace:*",

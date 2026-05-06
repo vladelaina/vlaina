@@ -4,3 +4,7 @@ export { endBlankClickPlugin, endBlankClickPluginKey } from './endBlankClickPlug
 export { titleNavigationPlugin, titleNavigationPluginKey } from './titleNavigationPlugin';
 export { nativeDragGuardPlugin } from './nativeDragGuard';
 export { containerBoundaryShiftSelectionPlugin } from './containerBoundaryShiftSelectionPlugin';
+export {
+  atomicBlockKeyboardNavigationPlugin,
+  atomicBlockKeyboardNavigationPluginKey,
+} from './atomicBlockKeyboardNavigationPlugin';

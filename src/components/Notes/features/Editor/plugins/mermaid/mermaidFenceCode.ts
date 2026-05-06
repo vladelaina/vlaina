@@ -7,7 +7,7 @@ const MERMAID_DIAGRAM_DIRECTIVE_PATTERN = new RegExp(
   [
     '^\\s*',
     '(?:---\\r?\\n[\\s\\S]*?\\r?\\n---\\s*)?',
-    '(?:architecture(?:-beta)?|block(?:-beta)?|c4(?:context|container|component|dynamic|deployment)?|classDiagram(?:-v2)?|erDiagram|flowchart(?:-elk)?|gantt|gitGraph|graph|info|ishikawa(?:-beta)?|journey|kanban|mindmap|packet(?:-beta)?|pie|quadrantChart|radar(?:-beta)?|requirementDiagram|sankey(?:-beta)?|sequenceDiagram|stateDiagram(?:-v2)?|timeline|treeView(?:-beta)?|treemap(?:-beta)?|venn(?:-beta)?|wardley(?:-beta)?|xychart(?:-beta)?)\\b',
+    '(?:architecture(?:-beta)?|block(?:-beta)?|c4(?:context|container|component|dynamic|deployment)?|classDiagram(?:-v2)?|erDiagram|flowchart(?:-elk)?|gantt|gitGraph|graph|info|ishikawa(?:-beta)?|journey|kanban|mindmap|packet(?:-beta)?|pie|quadrantChart|radar(?:-beta)?|requirementDiagram|sankey(?:-beta)?|sequenceDiagram|stateDiagram(?:-v2)?|timeline|treeView(?:-beta)?|treemap(?:-beta)?|venn(?:-beta)?|wardley(?:-beta)?|xychart(?:-beta)?|zenuml)\\b',
   ].join(''),
   'i'
 );
@@ -67,6 +67,7 @@ const STANDARD_DIRECTIVE_BY_LANGUAGE = new Map<string, string>([
   ['treemapbeta', 'treemap-beta'],
   ['wardley', 'wardley-beta'],
   ['wardleybeta', 'wardley-beta'],
+  ['zenuml', 'zenuml'],
 ]);
 
 const MERMAID_FENCED_INPUT_OPENING_PATTERN = /^ {0,3}(`{3,}|~{3,})([^\r\n]*)$/;

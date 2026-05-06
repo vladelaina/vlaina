@@ -55,6 +55,7 @@ export const MERMAID_FENCE_LANGUAGE_ALIAS_LIST = [
   'treemapbeta',
   'wardley',
   'wardleybeta',
+  'zenuml',
 ] as const;
 
 const MERMAID_FENCE_LANGUAGE_ALIASES: ReadonlySet<string> = new Set(

@@ -21,6 +21,10 @@ describe('math hover styles', () => {
     expect(css).toContain('box-decoration-break: clone;');
     expect(css).toContain(".milkdown [data-type='math-inline']:hover,");
     expect(css).toContain(".milkdown .mermaid-block:hover,");
+    expect(css).toContain(".milkdown [data-type='math-block'].ProseMirror-selectednode,");
+    expect(css).toContain(".milkdown .mermaid-block.ProseMirror-selectednode {");
+    expect(css).toContain('.milkdown .ProseMirror.vlaina-atomic-block-keyboard-selected,');
+    expect(css).toContain('caret-color: transparent;');
     expect(css).toContain('background: var(--vlaina-math-hover-color);');
     expect(css).toContain('inset 0 0 0 1px var(--vlaina-math-hover-color),');
     expect(css).toContain('border-radius: 0;');

@@ -32,6 +32,9 @@ describe('normalizeMermaidFenceCode', () => {
     expect(normalizeMermaidFenceCode('mermaid', 'wardley\ntitle Value Chain')).toBe(
       'wardley-beta\ntitle Value Chain'
     );
+    expect(normalizeMermaidFenceCode('mermaid', 'zenuml\nAlice->Bob: Hi')).toBe(
+      'zenuml\nAlice->Bob: Hi'
+    );
   });
 
   it('normalizes short directives after Mermaid YAML frontmatter', () => {
@@ -83,6 +86,7 @@ describe('createMermaidFenceStarterCode', () => {
     expect(createMermaidFenceStarterCode('sequence')).toBe('sequenceDiagram\n');
     expect(createMermaidFenceStarterCode('flow')).toBe('flowchart TD\n');
     expect(createMermaidFenceStarterCode('radar')).toBe('radar-beta\n');
+    expect(createMermaidFenceStarterCode('zenuml')).toBe('zenuml\n');
   });
 
   it('does not add starter text for generic Mermaid fences', () => {
@@ -133,6 +137,26 @@ describe('normalizeMermaidEditorCodeInput', () => {
     expect(normalizeMermaidEditorCodeInput(
       ['```mermaid title="Flow"', 'flow', 'A --> B', '```'].join('\n')
     )).toBe(['flowchart TD', 'A --> B'].join('\n'));
+  });
+
+  it('keeps ZenUML pasted into the diagram editor as Mermaid diagram code', () => {
+    expect(normalizeMermaidEditorCodeInput(
+      [
+        'zenuml',
+        '    title Declare participant (optional)',
+        '    Bob',
+        '    Alice',
+        '    Alice->Bob: Hi Bob',
+        '    Bob->Alice: Hi Alice',
+      ].join('\n')
+    )).toBe([
+      'zenuml',
+      '    title Declare participant (optional)',
+      '    Bob',
+      '    Alice',
+      '    Alice->Bob: Hi Bob',
+      '    Bob->Alice: Hi Alice',
+    ].join('\n'));
   });
 
   it('strips pasted Mermaid fences surrounded by blank edge lines without trimming code whitespace', () => {
