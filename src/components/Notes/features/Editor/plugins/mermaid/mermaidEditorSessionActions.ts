@@ -1,9 +1,11 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { applyMermaidNodeCode, removeMermaidNode } from './mermaidEditorEditing';
+import { normalizeMermaidEditorCodeInput } from './mermaidFenceCode';
 import { mermaidEditorPluginKey } from './mermaidEditorPluginKey';
 import {
   createClosedMermaidEditorState,
   shouldDiscardEmptyMermaidNodeOnCancel,
+  shouldRemoveMermaidNodeOnSave,
 } from './mermaidEditorState';
 import type { MermaidEditorState } from './types';
 
@@ -73,8 +75,8 @@ export function saveMermaidEditorSession(args: MermaidEditorSessionActionArgs) {
     return;
   }
 
-  const draftCode = resolveCurrentDraftCode(args.refs);
-  if (!draftCode.trim()) {
+  const draftCode = normalizeMermaidEditorCodeInput(resolveCurrentDraftCode(args.refs));
+  if (shouldRemoveMermaidNodeOnSave(state, draftCode)) {
     removeMermaidNode(args.editorView as never, state.nodePos);
   } else {
     applyMermaidNodeCode(args.editorView, state.nodePos, draftCode);

@@ -17,10 +17,53 @@ describe('isStandaloneFencedCodeBlock', () => {
         expect(isStandaloneFencedCodeBlock('```ts\r\nconst a = 1;\r\n```')).toBe(true);
     });
 
+    it('matches fenced code blocks surrounded by blank lines without dropping code whitespace', () => {
+        expect(parseStandaloneFencedCodeBlock('\n```txt\n  indented\n```\n')).toEqual({
+            language: 'txt',
+            code: '  indented',
+        });
+    });
+
+    it('does not treat four-space-indented text as a standalone fenced code block', () => {
+        expect(parseStandaloneFencedCodeBlock('    ```ts\nconst a = 1;\n    ```')).toBeNull();
+    });
+
+    it('matches tilde fenced code blocks', () => {
+        expect(parseStandaloneFencedCodeBlock('~~~sequence\nAlice->Bob: Hi\n~~~')).toEqual({
+            language: 'sequence',
+            code: 'Alice->Bob: Hi',
+        });
+    });
+
+    it('matches fences when the closing fence is longer than the opening fence', () => {
+        expect(parseStandaloneFencedCodeBlock('```ts\nconst a = 1;\n````')).toEqual({
+            language: 'ts',
+            code: 'const a = 1;',
+        });
+    });
+
     it('extracts code content and language', () => {
         expect(parseStandaloneFencedCodeBlock('```md\n# ni \n```')).toEqual({
             language: 'md',
             code: '# ni ',
+        });
+    });
+
+    it('uses the first info-string token as the fenced code language', () => {
+        expect(parseStandaloneFencedCodeBlock('```ts title="Example"\nconst a = 1;\n```')).toEqual({
+            language: 'ts',
+            code: 'const a = 1;',
+        });
+    });
+
+    it('rejects backtick fences with backticks in the info string', () => {
+        expect(parseStandaloneFencedCodeBlock('```ts`\nconst a = 1;\n```')).toBeNull();
+    });
+
+    it('allows backticks in tilde fence info strings', () => {
+        expect(parseStandaloneFencedCodeBlock('~~~lang`meta\nvalue\n~~~')).toEqual({
+            language: 'lang`meta',
+            code: 'value',
         });
     });
 
@@ -34,6 +77,11 @@ describe('isStandaloneFencedCodeBlock', () => {
 
     it('returns null for invalid fenced text', () => {
         expect(parseStandaloneFencedCodeBlock('before\n```ts\nconst a = 1;\n```')).toBeNull();
+    });
+
+    it('returns null when the closing fence is shorter or uses the wrong marker', () => {
+        expect(parseStandaloneFencedCodeBlock('````ts\nconst a = 1;\n```')).toBeNull();
+        expect(parseStandaloneFencedCodeBlock('```ts\nconst a = 1;\n~~~')).toBeNull();
     });
 });
 

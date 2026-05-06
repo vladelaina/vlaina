@@ -97,7 +97,20 @@ describe('mermaidEnterPlugin', () => {
     const { view, mermaidType } = createView({ text: '```flow' });
 
     expect(handleMermaidFenceEnter(view as never)).toBe(true);
-    expect(mermaidType.create).toHaveBeenCalledWith({ code: '' });
+    expect(mermaidType.create).toHaveBeenCalledWith({ code: 'flowchart TD\n' });
+  });
+
+  it('supports tilde Mermaid fences', () => {
+    const { view, tr, mermaidType } = createView({ text: '~~~sequence' });
+
+    expect(handleMermaidFenceEnter(view as never)).toBe(true);
+    expect(mermaidType.create).toHaveBeenCalledWith({ code: 'sequenceDiagram\n' });
+    expect(tr.setMeta).toHaveBeenCalledWith(
+      mermaidEditorPluginKey,
+      expect.objectContaining({
+        code: 'sequenceDiagram\n',
+      })
+    );
   });
 
   it('supports Mermaid detector aliases beyond flowcharts', () => {
@@ -105,7 +118,9 @@ describe('mermaidEnterPlugin', () => {
       const { view, mermaidType } = createView({ text });
 
       expect(handleMermaidFenceEnter(view as never), text).toBe(true);
-      expect(mermaidType.create).toHaveBeenCalledWith({ code: '' });
+      expect(mermaidType.create).toHaveBeenCalledWith({
+        code: expect.any(String),
+      });
     }
   });
 
@@ -125,6 +140,14 @@ describe('mermaidEnterPlugin', () => {
     const { view, dispatch } = createView({ text: '```ts' });
 
     expect(handleMermaidFenceEnter(view as never)).toBe(false);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('does not convert four-space indented Mermaid fences', () => {
+    const { view, dispatch, mermaidType } = createView({ text: '    ```mermaid' });
+
+    expect(handleMermaidFenceEnter(view as never)).toBe(false);
+    expect(mermaidType.create).not.toHaveBeenCalled();
     expect(dispatch).not.toHaveBeenCalled();
   });
 

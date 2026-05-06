@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createTextEditorPopupElements,
+  mountTextEditorPopup,
   resizeTextEditorPopupTextareaToContent,
 } from './textEditorPopupDom';
 
@@ -82,5 +83,43 @@ describe('textEditorPopupDom', () => {
 
     expect(textarea.style.height).toBe('298px');
     expect(textarea.style.overflowY).toBe('auto');
+  });
+
+  it('keeps handled popup keyboard shortcuts from bubbling to the editor', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const onCancel = vi.fn();
+    const onSave = vi.fn();
+    const outerKeydown = vi.fn();
+    container.addEventListener('keydown', outerKeydown);
+
+    const { textarea } = mountTextEditorPopup({
+      container,
+      value: 'draft',
+      onInput: vi.fn(),
+      onCancel,
+      onSave,
+    });
+
+    const escapeEvent = new KeyboardEvent('keydown', {
+      key: 'Escape',
+      bubbles: true,
+      cancelable: true,
+    });
+    textarea.dispatchEvent(escapeEvent);
+
+    const saveEvent = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    textarea.dispatchEvent(saveEvent);
+
+    expect(escapeEvent.defaultPrevented).toBe(true);
+    expect(saveEvent.defaultPrevented).toBe(true);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(outerKeydown).not.toHaveBeenCalled();
   });
 });

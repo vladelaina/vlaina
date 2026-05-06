@@ -69,7 +69,12 @@ export class Timer {
 
   /// @internal
   #removeListener = () => {
-    if (this.#listener) removeEventListener(this.type.name, this.#listener)
+    if (!this.#listener) return
+
+    if (typeof removeEventListener === 'function')
+      removeEventListener(this.type.name, this.#listener)
+
+    this.#listener = null
   }
 
   /// @internal

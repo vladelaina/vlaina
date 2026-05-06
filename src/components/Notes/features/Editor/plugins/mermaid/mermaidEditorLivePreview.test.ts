@@ -1,7 +1,20 @@
 import { describe, expect, it, vi } from 'vitest';
-import { renderMermaidEditorLivePreview } from './mermaidDom';
+import { createMermaidElement, renderMermaidEditorLivePreview } from './mermaidDom';
 
 describe('mermaidEditorLivePreview', () => {
+  it('normalizes code before the first Mermaid element render', () => {
+    const element = createMermaidElement('sequence\nAlice->Bob: Hello');
+
+    expect(element.dataset.code).toBe('sequenceDiagram\nAlice->Bob: Hello');
+  });
+
+  it('renders whitespace-only Mermaid elements as empty diagrams', () => {
+    const element = createMermaidElement('   \n\t');
+
+    expect(element.dataset.code).toBe('   \n\t');
+    expect(element.querySelector('.mermaid-empty')?.textContent).toBe('Empty diagram');
+  });
+
   it('updates empty previews immediately without dispatching through the editor', async () => {
     const anchor = document.createElement('div');
     anchor.setAttribute('data-type', 'mermaid');
@@ -52,5 +65,40 @@ describe('mermaidEditorLivePreview', () => {
     expect(anchor.dataset.code).toBe('graph TD');
     expect(anchor.querySelector('[data-rendered="current"]')).not.toBeNull();
     expect(onRendered).toHaveBeenCalledTimes(1);
+  });
+
+  it('previews pasted fenced Mermaid input as normalized diagram code', async () => {
+    const anchor = document.createElement('div');
+    anchor.setAttribute('data-type', 'mermaid');
+    document.body.appendChild(anchor);
+    const render = vi.fn(async () => '<svg data-rendered="sequence"></svg>');
+
+    await renderMermaidEditorLivePreview({
+      anchor,
+      code: [
+        '```sequence',
+        'Alice->Bob: Hello Bob, how are you?',
+        'Note right of Bob: Bob thinks',
+        'Bob-->Alice: I am good thanks!',
+        '```',
+      ].join('\n'),
+      render,
+    });
+
+    expect(render).toHaveBeenCalledWith(
+      [
+        'sequenceDiagram',
+        'Alice->Bob: Hello Bob, how are you?',
+        'Note right of Bob: Bob thinks',
+        'Bob-->Alice: I am good thanks!',
+      ].join('\n'),
+      expect.stringMatching(/^mermaid-/)
+    );
+    expect(anchor.dataset.code).toBe([
+      'sequenceDiagram',
+      'Alice->Bob: Hello Bob, how are you?',
+      'Note right of Bob: Bob thinks',
+      'Bob-->Alice: I am good thanks!',
+    ].join('\n'));
   });
 });
