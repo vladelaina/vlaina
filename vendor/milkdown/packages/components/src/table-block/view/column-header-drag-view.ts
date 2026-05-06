@@ -72,11 +72,15 @@ export function useColumnHeaderDragViewState({
   const getHeaderCells = () => {
     const content = contentWrapperRef.value
     const firstRow = content?.querySelector('tr')
-    if (!(firstRow instanceof HTMLTableRowElement)) return []
+    const view = firstRow?.ownerDocument.defaultView
+    const TableRowElement = view?.HTMLTableRowElement
+    const TableCellElement = view?.HTMLTableCellElement
+    if (!TableRowElement || !TableCellElement) return []
+    if (!(firstRow instanceof TableRowElement)) return []
 
     return Array.from(firstRow.children).filter(
       (cell): cell is HTMLTableCellElement =>
-        cell instanceof HTMLTableCellElement
+        cell instanceof TableCellElement
     )
   }
 

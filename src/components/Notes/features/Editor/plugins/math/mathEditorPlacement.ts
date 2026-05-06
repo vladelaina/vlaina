@@ -1,5 +1,3 @@
-import { resolveTextEditorPopupPlacement } from '../shared/textEditorPopupPlacement';
-
 const MATH_NODE_SELECTOR = '[data-type="math-block"], [data-type="math-inline"]';
 
 export function resolveMathAnchorElement(target: EventTarget | null, fallback: Node | null) {
@@ -28,12 +26,4 @@ export function getMathAnchorViewportPosition(anchorElement: HTMLElement | null)
     x: rect.left,
     y: rect.bottom + 8,
   };
-}
-
-export function resolveMathEditorPlacement(args: {
-  editorView: { dom: HTMLElement };
-  positionRoot: HTMLElement | null;
-  viewportPosition: { x: number; y: number };
-}) {
-  return resolveTextEditorPopupPlacement(args);
 }

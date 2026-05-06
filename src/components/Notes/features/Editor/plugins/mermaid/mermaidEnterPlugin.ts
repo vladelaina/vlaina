@@ -3,6 +3,7 @@ import { Plugin } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { createOpenMermaidEditorState } from './mermaidEditorState';
 import { mermaidEditorPluginKey } from './mermaidEditorPluginKey';
+import { createMermaidFenceStarterCode } from './mermaidFenceCode';
 import { parseMermaidFenceLanguage } from './mermaidLanguage';
 
 function getMermaidEnterViewportPosition(view: EditorView) {
@@ -42,9 +43,11 @@ export function handleMermaidFenceEnter(view: EditorView): boolean {
     return false;
   }
 
-  if (parseMermaidFenceLanguage($from.parent.textContent) === null) {
+  const fenceLanguage = parseMermaidFenceLanguage($from.parent.textContent);
+  if (fenceLanguage === null) {
     return false;
   }
+  const starterCode = createMermaidFenceStarterCode(fenceLanguage);
 
   const parentDepth = $from.depth - 1;
   if (parentDepth < 0) {
@@ -60,11 +63,11 @@ export function handleMermaidFenceEnter(view: EditorView): boolean {
   const paragraphPos = $from.before();
   const paragraphEnd = paragraphPos + $from.parent.nodeSize;
   const tr = state.tr
-    .replaceWith(paragraphPos, paragraphEnd, mermaidType.create({ code: '' }))
+    .replaceWith(paragraphPos, paragraphEnd, mermaidType.create({ code: starterCode }))
     .setMeta(
       mermaidEditorPluginKey,
       createOpenMermaidEditorState({
-        code: '',
+        code: starterCode,
         position: getMermaidEnterViewportPosition(view),
         nodePos: paragraphPos,
         openSource: 'new-empty-block',

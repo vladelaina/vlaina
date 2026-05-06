@@ -1,11 +1,26 @@
 import { isTocShortcutText } from '../toc/tocShortcut';
 
-const OPENING_FENCE_PATTERN = /^```[^`]*$/;
-const CLOSING_FENCE_PATTERN = /^```+$/;
+const STANDALONE_OPENING_FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})([^\r\n]*)$/;
+const STANDALONE_CLOSING_FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
 const THEMATIC_BREAK_PATTERN = /^(\s*)([-*_])(?:\s*\2){2,}\s*$/;
 const GENERIC_FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})(.*)$/;
 
 const normalizeLineEnding = (value: string) => value.replace(/\r\n?/g, '\n');
+
+function trimBlankEdgeLines(lines: string[]) {
+    let start = 0;
+    let end = lines.length;
+
+    while (start < end && lines[start].trim().length === 0) {
+        start += 1;
+    }
+
+    while (end > start && lines[end - 1].trim().length === 0) {
+        end -= 1;
+    }
+
+    return lines.slice(start, end);
+}
 
 export interface FencedCodePayload {
     language: string | null;
@@ -47,19 +62,30 @@ function isNonBlankContentLine(line: string | undefined): boolean {
 }
 
 export const parseStandaloneFencedCodeBlock = (value: string): FencedCodePayload | null => {
-    const normalized = normalizeLineEnding(value).trim();
-    if (!normalized) return null;
-
-    const lines = normalized.split('\n');
+    const normalized = normalizeLineEnding(value);
+    const lines = trimBlankEdgeLines(normalized.split('\n'));
     if (lines.length < 2) return null;
 
-    const openingFence = lines[0].trim();
-    const closingFence = lines[lines.length - 1].trim();
-    if (!OPENING_FENCE_PATTERN.test(openingFence) || !CLOSING_FENCE_PATTERN.test(closingFence)) {
+    const openingFence = lines[0];
+    const closingFence = lines[lines.length - 1];
+    const openingMatch = openingFence.match(STANDALONE_OPENING_FENCE_PATTERN);
+    const closingMatch = closingFence.match(STANDALONE_CLOSING_FENCE_PATTERN);
+    if (!openingMatch || !closingMatch) {
         return null;
     }
 
-    const language = openingFence.slice(3).trim() || null;
+    const openingMarker = openingMatch[1];
+    const closingMarker = closingMatch[1];
+    if (closingMarker[0] !== openingMarker[0] || closingMarker.length < openingMarker.length) {
+        return null;
+    }
+
+    const infoString = openingMatch[2].trim();
+    if (openingMarker[0] === '`' && infoString.includes('`')) {
+        return null;
+    }
+
+    const language = infoString.split(/\s+/)[0] || null;
     const code = lines.slice(1, -1).join('\n');
 
     return {

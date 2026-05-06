@@ -14,15 +14,35 @@ describe('math hover styles', () => {
     const css = readMathStyles();
 
     expect(css).toContain(".milkdown [data-type='math-inline'],");
-    expect(css).toContain(".milkdown [data-type='math-block'] {");
+    expect(css).toContain(".milkdown [data-type='math-block'],");
+    expect(css).toContain(".milkdown .mermaid-block {");
     expect(css).toContain('--vlaina-math-hover-color: var(--vlaina-hover-filled);');
     expect(css).toContain('--vlaina-math-hover-bleed-y: 4px;');
     expect(css).toContain('box-decoration-break: clone;');
     expect(css).toContain(".milkdown [data-type='math-inline']:hover,");
+    expect(css).toContain(".milkdown .mermaid-block:hover,");
     expect(css).toContain('background: var(--vlaina-math-hover-color);');
     expect(css).toContain('inset 0 0 0 1px var(--vlaina-math-hover-color),');
     expect(css).toContain('border-radius: 0;');
     expect(css).toContain('cursor: pointer !important;');
+  });
+
+  it('keeps mermaid blocks on the shared math hover treatment without a standalone frame', () => {
+    const mathCss = readMathStyles();
+    const extendedCss = readFileSync(
+      resolve(process.cwd(), 'src/components/Notes/features/Editor/styles/extended.css'),
+      'utf8'
+    );
+
+    expect(mathCss).toContain(".milkdown .mermaid-block:hover,");
+    const mermaidRule = extendedCss.match(/\.milkdown \.mermaid-block \{(?<body>[\s\S]*?)\n\}/)?.groups?.body ?? '';
+
+    expect(mermaidRule).toContain('background: transparent;');
+    expect(mermaidRule).toContain('border: 0;');
+    expect(mermaidRule).toContain('border-radius: 0;');
+    expect(extendedCss).not.toContain('.milkdown .mermaid-block:hover,\n.milkdown .mermaid-block:focus-visible {');
+    expect(extendedCss).not.toContain('border-color: var(--vlaina-accent);');
+    expect(extendedCss).not.toContain('box-shadow: 0 0 0 2px var(--vlaina-accent-light);');
   });
 
   it('keeps oversized block formulas inside a horizontal scroll container', () => {

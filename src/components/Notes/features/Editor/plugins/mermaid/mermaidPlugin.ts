@@ -2,6 +2,7 @@ import { $node, $prose } from '@milkdown/kit/utils';
 import { Plugin } from '@milkdown/kit/prose/state';
 import type { MermaidAttrs } from './types';
 import { isMermaidFenceLanguage } from './mermaidLanguage';
+import { normalizeMermaidFenceCode } from './mermaidFenceCode';
 import { mermaidEnterPlugin } from './mermaidEnterPlugin';
 import { createMermaidElement } from './mermaidDom';
 import { MermaidNodeView } from './MermaidNodeView';
@@ -29,7 +30,10 @@ export const mermaidSchema = $node('mermaid', () => ({
       return node.type === 'code' && isMermaidFenceLanguage(node.lang as string | null | undefined);
     },
     runner: (state, node, type) => {
-      const code = (node.value as string) || '';
+      const code = normalizeMermaidFenceCode(
+        node.lang as string | null | undefined,
+        (node.value as string) || ''
+      );
       state.addNode(type, { code });
     }
   },

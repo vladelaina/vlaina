@@ -15,8 +15,14 @@ describe('codeBlockLanguage', () => {
   it('parses fenced code languages with plus and dash markers', () => {
     expect(parseCodeFenceLanguage('```c++')).toBe('c++');
     expect(parseCodeFenceLanguage('```shell-session')).toBe('shell-session');
+    expect(parseCodeFenceLanguage('``` shell-session title="Example"')).toBe('shell-session');
+    expect(parseCodeFenceLanguage('~~~shell-session')).toBe('shell-session');
+    expect(parseCodeFenceLanguage('~~~ shell-session title="A ~ B"')).toBe('shell-session');
+    expect(parseCodeFenceLanguage('   ```shell-session')).toBe('shell-session');
     expect(parseCodeFenceLanguage('```')).toBe('');
     expect(parseCodeFenceLanguage('``')).toBeNull();
+    expect(parseCodeFenceLanguage('``` shell-session `bad`')).toBeNull();
+    expect(parseCodeFenceLanguage('    ```shell-session')).toBeNull();
   });
 
   it('normalizes catalog aliases before falling back to lowercase ids', () => {

@@ -150,7 +150,7 @@ describe('markdown syntax persistence matrix', () => {
     {
       name: 'mermaid detector fence alias',
       markdown: ['```packet-beta', '0-7: "Source"', '```'].join('\n'),
-      expected: ['```mermaid', '0-7: "Source"', '```'].join('\n'),
+      expected: ['```mermaid', 'packet-beta', '0-7: "Source"', '```'].join('\n'),
     },
     {
       name: 'code block language alias',

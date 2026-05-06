@@ -37,5 +37,20 @@ export function shouldDiscardEmptyMermaidNodeOnCancel(
     return false;
   }
 
-  return !state.code.trim() && !draftCode.trim();
+  return !draftCode.trim() || draftCode.trim() === state.code.trim();
+}
+
+export function shouldRemoveMermaidNodeOnSave(
+  state: MermaidEditorState | null | undefined,
+  draftCode: string
+) {
+  if (!draftCode.trim()) {
+    return true;
+  }
+
+  if (!state?.isOpen || state.openSource !== 'new-empty-block' || state.nodePos < 0) {
+    return false;
+  }
+
+  return Boolean(state.code.trim()) && draftCode.trim() === state.code.trim();
 }
