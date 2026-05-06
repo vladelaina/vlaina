@@ -2,33 +2,19 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChatMessage } from '@/lib/ai/types';
 
-const {
-  getDisplayNameMock,
-  getNoteIconMock,
-  loadFileTreeMock,
-  notesStoreState,
-  useNotesStoreMock,
-} = vi.hoisted(() => {
-  const getDisplayNameMock = vi.fn((path: string) => path);
-  const getNoteIconMock = vi.fn(() => null);
-  const loadFileTreeMock = vi.fn();
-  return {
-    getDisplayNameMock,
-    getNoteIconMock,
-    loadFileTreeMock,
-    notesStoreState: {
-      rootFolder: null,
-      currentNote: null,
-      notesPath: '',
-      isLoading: false,
-      starredEntries: [],
-      loadFileTree: loadFileTreeMock,
-      getDisplayName: getDisplayNameMock,
-      getNoteIcon: getNoteIconMock,
-    },
-    useNotesStoreMock: vi.fn(),
-  };
-});
+const { notesStoreState, useNotesStoreMock } = vi.hoisted(() => ({
+  notesStoreState: {
+    rootFolder: null,
+    currentNote: null,
+    notesPath: '',
+    isLoading: false,
+    starredEntries: [],
+    loadFileTree: vi.fn(),
+    getDisplayName: (path: string) => path,
+    getNoteIcon: () => undefined,
+  },
+  useNotesStoreMock: vi.fn(),
+}));
 
 vi.mock('framer-motion', () => ({
   motion: {
@@ -39,11 +25,7 @@ vi.mock('framer-motion', () => ({
 }));
 
 vi.mock('@/stores/notes/useNotesStore', () => ({
-  useNotesStore: (selector: (state: any) => unknown) => {
-    const selected = selector(notesStoreState);
-    useNotesStoreMock(selected);
-    return selected;
-  },
+  useNotesStore: (selector: (state: any) => unknown) => useNotesStoreMock(selector(notesStoreState)),
 }));
 
 vi.mock('@/components/Chat/common/LocalImage', () => ({
@@ -80,9 +62,7 @@ function createMessage(): ChatMessage {
 describe('UserMessage', () => {
   beforeEach(() => {
     useNotesStoreMock.mockClear();
-    getDisplayNameMock.mockClear();
-    getNoteIconMock.mockClear();
-    loadFileTreeMock.mockClear();
+    useNotesStoreMock.mockImplementation((selectedValue: unknown) => selectedValue);
   });
 
   it('does not subscribe to notes state while only rendering display mode', () => {

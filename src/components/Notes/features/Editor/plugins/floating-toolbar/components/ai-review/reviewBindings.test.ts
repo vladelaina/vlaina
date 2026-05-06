@@ -139,6 +139,7 @@ describe('bindAiReviewActions', () => {
   it('treats accept as close while the suggestion is still loading', () => {
     const elements = createElements();
     const onClose = vi.fn();
+    const view = createView();
 
     bindAiReviewActions({
       elements,
@@ -156,19 +157,21 @@ describe('bindAiReviewActions', () => {
         errorMessage: null,
       },
       updateReview: vi.fn(),
-      view: createView(),
+      view,
     });
 
     elements.acceptButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
     expect(applyAiSelectionSuggestion).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
-    expect(mockCollapseSelectionAfterToolbarApply).not.toHaveBeenCalled();
+    expect(mockCollapseSelectionAfterToolbarApply).toHaveBeenCalledTimes(1);
+    expect(mockCollapseSelectionAfterToolbarApply).toHaveBeenCalledWith(view);
   });
 
   it('treats accept as close when no suggestion has been rendered yet', () => {
     const elements = createElements();
     const onClose = vi.fn();
+    const view = createView();
 
     bindAiReviewActions({
       elements,
@@ -186,14 +189,46 @@ describe('bindAiReviewActions', () => {
         errorMessage: null,
       },
       updateReview: vi.fn(),
-      view: createView(),
+      view,
     });
 
     elements.acceptButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
     expect(applyAiSelectionSuggestion).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalledTimes(1);
-    expect(mockCollapseSelectionAfterToolbarApply).not.toHaveBeenCalled();
+    expect(mockCollapseSelectionAfterToolbarApply).toHaveBeenCalledTimes(1);
+    expect(mockCollapseSelectionAfterToolbarApply).toHaveBeenCalledWith(view);
+  });
+
+  it('collapses the editor selection when the review is canceled', () => {
+    const elements = createElements();
+    const onClose = vi.fn();
+    const view = createView();
+
+    bindAiReviewActions({
+      elements,
+      onClose,
+      review: {
+        requestKey: 'review-1',
+        instruction: 'Translate to English',
+        commandId: 'translate-en',
+        toneId: null,
+        from: 1,
+        to: 4,
+        originalText: '你好',
+        suggestedText: 'Hello',
+        isLoading: false,
+        errorMessage: null,
+      },
+      updateReview: vi.fn(),
+      view,
+    });
+
+    elements.cancelButton.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(mockCollapseSelectionAfterToolbarApply).toHaveBeenCalledTimes(1);
+    expect(mockCollapseSelectionAfterToolbarApply).toHaveBeenCalledWith(view);
   });
 
   it('does not steal focus from another active editor control', async () => {

@@ -58,6 +58,7 @@ export function renderAppliedPreviewDocument(
     // live editor so hover previews stay equivalent to the committed result.
     renderCodeBlockNodeViewPreviews(previewDom, state, view);
   }
+  preserveSourceRenderedAtomNodes(previewDom, sourceDom);
   stabilizePreviewRootTypography(previewDom, sourceDom);
   return previewDom;
 }
@@ -183,10 +184,76 @@ function preserveSourceCodeBlockNodeViews(previewDom: HTMLElement, sourceDom: HT
   return true;
 }
 
+function getRenderedAtomSignature(element: HTMLElement): string | null {
+  const type = element.dataset.type;
+  if (type === 'math-inline' || type === 'math-block') {
+    return `${type}:${element.dataset.latex ?? ''}`;
+  }
+
+  if (type === 'mermaid') {
+    return `${type}:${element.dataset.code ?? ''}`;
+  }
+
+  if (type === 'video') {
+    return JSON.stringify([
+      type,
+      element.dataset.src ?? '',
+      element.dataset.title ?? '',
+      element.dataset.width ?? '',
+      element.dataset.height ?? '',
+    ]);
+  }
+
+  return null;
+}
+
+function getRenderedAtomElements(root: HTMLElement): HTMLElement[] {
+  return Array.from(
+    root.querySelectorAll<HTMLElement>(
+      '[data-type="math-inline"], [data-type="math-block"], [data-type="mermaid"], [data-type="video"]'
+    )
+  );
+}
+
+function preserveSourceRenderedAtomNodes(previewDom: HTMLElement, sourceDom: HTMLElement | null): void {
+  if (!sourceDom) {
+    return;
+  }
+
+  const previewAtoms = getRenderedAtomElements(previewDom);
+  if (previewAtoms.length === 0) {
+    return;
+  }
+
+  const sourceAtoms = getRenderedAtomElements(sourceDom);
+  if (sourceAtoms.length !== previewAtoms.length) {
+    return;
+  }
+
+  previewAtoms.forEach((previewAtom, index) => {
+    const sourceAtom = sourceAtoms[index];
+    if (!sourceAtom) {
+      return;
+    }
+
+    if (getRenderedAtomSignature(sourceAtom) !== getRenderedAtomSignature(previewAtom)) {
+      return;
+    }
+
+    const clone = sourceAtom.cloneNode(true) as HTMLElement;
+    makePreviewCloneNonInteractive(clone);
+    previewAtom.replaceWith(clone);
+  });
+}
+
 function makePreviewCloneNonInteractive(clone: HTMLElement): void {
   clone.setAttribute('aria-hidden', 'true');
   clone.removeAttribute('contenteditable');
   clone.removeAttribute('tabindex');
+  clone.querySelectorAll<HTMLIFrameElement>('iframe[src]').forEach((iframe) => {
+    iframe.dataset.previewSrc = iframe.getAttribute('src') ?? '';
+    iframe.removeAttribute('src');
+  });
   clone.querySelectorAll<HTMLElement>('[contenteditable], [tabindex]').forEach((element) => {
     element.removeAttribute('contenteditable');
     element.removeAttribute('tabindex');
