@@ -278,6 +278,43 @@ describe('saveNoteDocument', () => {
     expect(adapter.writeFile).not.toHaveBeenCalled();
   });
 
+  it('saves local edits when only the disk modified timestamp changed', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    adapter.stat
+      .mockResolvedValueOnce({ modifiedAt: 200 })
+      .mockResolvedValueOnce({ modifiedAt: 201 });
+    adapter.readFile.mockResolvedValue('# Loaded');
+    adapter.writeFile.mockResolvedValue();
+
+    const result = await saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: '# Local edit',
+      },
+      cache: new Map([['alpha.md', { content: '# Loaded', modifiedAt: 100 }]]),
+    });
+
+    expect(adapter.writeFile).toHaveBeenCalledWith(
+      '/vault/alpha.md',
+      [
+        '---',
+        'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+        '---',
+        '',
+        '# Local edit',
+      ].join('\n')
+    );
+    expect(result.modifiedAt).toBe(201);
+    expect(result.nextCache.get('alpha.md')).toEqual({
+      content: result.content,
+      modifiedAt: 201,
+    });
+
+    vi.useRealTimers();
+  });
+
   it('treats a modified timestamp with matching disk content as already saved', async () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 200 });
     adapter.readFile.mockResolvedValue([

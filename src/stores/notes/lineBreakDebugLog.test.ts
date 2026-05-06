@@ -6,20 +6,32 @@ import {
   getNotesDebugLogText,
   logLineBreakDebug,
   logNotesDebug,
+  setNotesDebugLoggingEnabled,
 } from './lineBreakDebugLog';
 
 describe('lineBreakDebugLog', () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    setNotesDebugLoggingEnabled(null);
     clearLineBreakDebugLog();
   });
 
-  it('prints directly and keeps a copyable log buffer', () => {
-    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+  it('skips debug logs by default', () => {
+    const debug = vi.spyOn(console, 'debug').mockImplementation(() => {});
 
     logLineBreakDebug('editor:test', { lines: 3, preview: '1\\n2\\n3' });
 
-    expect(info).toHaveBeenCalledWith('[NotesLineBreak]', 'editor:test', {
+    expect(debug).not.toHaveBeenCalled();
+    expect(getLineBreakDebugLogText()).toBe('');
+  });
+
+  it('prints directly and keeps a copyable log buffer when enabled', () => {
+    setNotesDebugLoggingEnabled(true);
+    const debug = vi.spyOn(console, 'debug').mockImplementation(() => {});
+
+    logLineBreakDebug('editor:test', { lines: 3, preview: '1\\n2\\n3' });
+
+    expect(debug).toHaveBeenCalledWith('[NotesLineBreak]', 'editor:test', {
       lines: 3,
       preview: '1\\n2\\n3',
     });
@@ -28,11 +40,12 @@ describe('lineBreakDebugLog', () => {
   });
 
   it('keeps generic notes debug logs in the same copyable buffer', () => {
-    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+    setNotesDebugLoggingEnabled(true);
+    const debug = vi.spyOn(console, 'debug').mockImplementation(() => {});
 
     logNotesDebug('NotesAutoDraft', 'evaluate', { blockedReasons: ['has-current-note'] });
 
-    expect(info).toHaveBeenCalledWith('[NotesAutoDraft]', 'evaluate', {
+    expect(debug).toHaveBeenCalledWith('[NotesAutoDraft]', 'evaluate', {
       blockedReasons: ['has-current-note'],
     });
     expect(getNotesDebugLogText()).toContain('[NotesAutoDraft] evaluate');
@@ -40,7 +53,8 @@ describe('lineBreakDebugLog', () => {
   });
 
   it('clears buffered log text', () => {
-    vi.spyOn(console, 'info').mockImplementation(() => {});
+    setNotesDebugLoggingEnabled(true);
+    vi.spyOn(console, 'debug').mockImplementation(() => {});
 
     logLineBreakDebug('editor:test');
     clearLineBreakDebugLog();

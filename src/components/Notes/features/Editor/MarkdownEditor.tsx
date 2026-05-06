@@ -66,9 +66,11 @@ import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
 import {
   compareLineBreakText,
+  isNotesDebugLoggingEnabled,
   logLineBreakDebug,
   summarizeLineBreakText,
 } from '@/stores/notes/lineBreakDebugLog';
+import { resolvePendingMarkdownUpdate } from './utils/pendingMarkdownUpdate';
 import './styles/index.css';
 
 function summarizeEditorState(view: EditorView, serializer: (doc: unknown) => string) {
@@ -134,11 +136,13 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
         const defaultValue = preserveMarkdownBlankLinesForEditor(
           normalizeLeadingFrontmatterMarkdown(initialContent)
         );
-        logLineBreakDebug('editor:init-default-value', {
-          currentNotePath: currentNotePath ?? null,
-          initialContent: summarizeLineBreakText(initialContent),
-          defaultValue: summarizeLineBreakText(defaultValue),
-        });
+        if (isNotesDebugLoggingEnabled()) {
+          logLineBreakDebug('editor:init-default-value', {
+            currentNotePath: currentNotePath ?? null,
+            initialContent: summarizeLineBreakText(initialContent),
+            defaultValue: summarizeLineBreakText(defaultValue),
+          });
+        }
 
         ctx.set(rootCtx, root);
         ctx.set(defaultValueCtx, defaultValue);
@@ -152,16 +156,19 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
 
         ctx.get(listenerCtx)
           .markdownUpdated((ctx, markdown) => {
+            const debugEnabled = isNotesDebugLoggingEnabled();
             const editorView = getCurrentEditorView();
-            const liveDoc = editorView
+            const liveDoc = debugEnabled && editorView
               ? summarizeEditorState(editorView, ctx.get(serializerCtx))
               : null;
             if (editorView && hasTemporaryTailParagraph(editorView.state)) {
-              logLineBreakDebug('editor:markdown-update-skipped-temporary-tail', {
-                currentNotePath: currentNotePath ?? null,
-                raw: summarizeLineBreakText(markdown),
-                liveDoc,
-              });
+              if (debugEnabled) {
+                logLineBreakDebug('editor:markdown-update-skipped-temporary-tail', {
+                  currentNotePath: currentNotePath ?? null,
+                  raw: summarizeLineBreakText(markdown),
+                  liveDoc,
+                });
+              }
               return;
             }
 
@@ -180,9 +187,24 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
             const normalizedMarkdown = normalizeSerializedMarkdownDocument(markdown);
             const nextMarkdown = serializeLeadingFrontmatterMarkdown(normalizedMarkdown, currentContent);
             if (!hasEditorUserInput.current) {
-              logLineBreakDebug('editor:non-user-markdown-echo-skipped', {
+              if (debugEnabled) {
+                logLineBreakDebug('editor:non-user-markdown-echo-skipped', {
+                  currentNotePath: currentNotePath ?? null,
+                  isInitializing,
+                  raw: summarizeLineBreakText(markdown),
+                  normalized: summarizeLineBreakText(normalizedMarkdown),
+                  normalizationPipeline: summarizeMarkdownNormalizationPipeline(markdown),
+                  next: summarizeLineBreakText(nextMarkdown),
+                  current: summarizeLineBreakText(currentContent),
+                  diffCurrentToNext: compareLineBreakText(currentContent, nextMarkdown),
+                  liveDoc,
+                });
+              }
+              return;
+            }
+            if (debugEnabled) {
+              logLineBreakDebug('editor:markdown-updated', {
                 currentNotePath: currentNotePath ?? null,
-                isInitializing,
                 raw: summarizeLineBreakText(markdown),
                 normalized: summarizeLineBreakText(normalizedMarkdown),
                 normalizationPipeline: summarizeMarkdownNormalizationPipeline(markdown),
@@ -191,18 +213,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
                 diffCurrentToNext: compareLineBreakText(currentContent, nextMarkdown),
                 liveDoc,
               });
-              return;
             }
-            logLineBreakDebug('editor:markdown-updated', {
-              currentNotePath: currentNotePath ?? null,
-              raw: summarizeLineBreakText(markdown),
-              normalized: summarizeLineBreakText(normalizedMarkdown),
-              normalizationPipeline: summarizeMarkdownNormalizationPipeline(markdown),
-              next: summarizeLineBreakText(nextMarkdown),
-              current: summarizeLineBreakText(currentContent),
-              diffCurrentToNext: compareLineBreakText(currentContent, nextMarkdown),
-              liveDoc,
-            });
             if (currentContent === nextMarkdown) {
               return;
             }
@@ -221,7 +232,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
               }
 
               const latestNote = useNotesStore.getState().currentNote;
-              if (!latestNote || latestNote.path !== currentNotePath || latestNote.content === pendingMarkdown) {
+              if (!latestNote || latestNote.path !== currentNotePath) {
                 logLineBreakDebug('editor:raf-skip-update', {
                   currentNotePath: currentNotePath ?? null,
                   latestNotePath: latestNote?.path ?? null,
@@ -230,6 +241,36 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
                 });
                 return;
               }
+
+              let liveSerializedMarkdown: string | null = null;
+              try {
+                const latestEditorView = getCurrentEditorView();
+                if (latestEditorView) {
+                  const serializer = ctx.get(serializerCtx);
+                  liveSerializedMarkdown = serializer(latestEditorView.state.doc);
+                }
+              } catch (error) {
+                logLineBreakDebug('editor:raf-live-doc-read-failed', {
+                  currentNotePath: currentNotePath ?? null,
+                  message: error instanceof Error ? error.message : String(error),
+                });
+              }
+
+              const resolvedUpdate = resolvePendingMarkdownUpdate({
+                pendingMarkdown,
+                latestNoteContent: latestNote.content,
+                liveSerializedMarkdown,
+              });
+              const markdownToApply = resolvedUpdate.markdownToApply;
+              if (latestNote.content === markdownToApply) {
+                logLineBreakDebug('editor:raf-skip-update', {
+                  currentNotePath: currentNotePath ?? null,
+                  latestNotePath: latestNote.path,
+                  latest: summarizeLineBreakText(latestNote.content),
+                });
+                return;
+              }
+
               const latestNotesPath = useNotesStore.getState().notesPath;
               const latestIsDraftNote = isDraftNotePath(latestNote.path);
               logLineBreakDebug('editor:raf-apply-update', {
@@ -237,12 +278,9 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
                 notesPath: latestNotesPath,
                 isDraftNote: latestIsDraftNote,
                 previous: summarizeLineBreakText(latestNote.content),
-                next: summarizeLineBreakText(pendingMarkdown),
-                liveDoc: editorView
-                  ? summarizeEditorState(editorView, ctx.get(serializerCtx))
-                  : null,
+                next: summarizeLineBreakText(markdownToApply),
               });
-              updateContent(pendingMarkdown);
+              updateContent(markdownToApply);
               if (!latestIsDraftNote || latestNotesPath) {
                 debouncedSave();
               }
@@ -273,6 +311,7 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
 
   useEffect(() => {
     const flushPendingMarkdown = () => {
+      const debugEnabled = isNotesDebugLoggingEnabled();
       const hadFrame = pendingMarkdownUpdateFrameRef.current !== null;
       if (pendingMarkdownUpdateFrameRef.current !== null) {
         cancelAnimationFrame(pendingMarkdownUpdateFrameRef.current);
@@ -283,12 +322,14 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       pendingMarkdownRef.current = null;
       if (pendingMarkdown === null) {
         if (!hasEditorUserInput.current) {
-          logLineBreakDebug('editor:flush-fallback-skipped-no-user-input', {
-            editorNotePath: currentNotePath ?? null,
-            latestStorePath: useNotesStore.getState().currentNote?.path ?? null,
-            capturedPath: currentNotePathRef.current ?? null,
-            captured: summarizeLineBreakText(currentNoteContentRef.current),
-          });
+          if (debugEnabled) {
+            logLineBreakDebug('editor:flush-fallback-skipped-no-user-input', {
+              editorNotePath: currentNotePath ?? null,
+              latestStorePath: useNotesStore.getState().currentNote?.path ?? null,
+              capturedPath: currentNotePathRef.current ?? null,
+              captured: summarizeLineBreakText(currentNoteContentRef.current),
+            });
+          }
         } else {
           try {
             const editor = get?.();
@@ -308,46 +349,54 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
                 normalizedSerialized,
                 currentContent,
               );
-              logLineBreakDebug('editor:flush-fallback-serialized-view', {
-                editorNotePath: currentNotePath ?? null,
-                latestStorePath: state.currentNote?.path ?? null,
-                capturedPath: currentNotePathRef.current ?? null,
-                serialized: summarizeLineBreakText(serialized),
-                normalizedSerialized: summarizeLineBreakText(normalizedSerialized),
-                normalizationPipeline: summarizeMarkdownNormalizationPipeline(serialized),
-                pending: summarizeLineBreakText(pendingMarkdown),
-                current: summarizeLineBreakText(currentContent),
-                diffCurrentToPending: compareLineBreakText(currentContent, pendingMarkdown),
-                diffSerializedToPending: compareLineBreakText(serialized, pendingMarkdown),
-                usedStoreCurrent: state.currentNote?.path === currentNotePath,
-                usedCache: Boolean(currentNotePath && state.noteContentsCache.has(currentNotePath)),
-              });
+              if (debugEnabled) {
+                logLineBreakDebug('editor:flush-fallback-serialized-view', {
+                  editorNotePath: currentNotePath ?? null,
+                  latestStorePath: state.currentNote?.path ?? null,
+                  capturedPath: currentNotePathRef.current ?? null,
+                  serialized: summarizeLineBreakText(serialized),
+                  normalizedSerialized: summarizeLineBreakText(normalizedSerialized),
+                  normalizationPipeline: summarizeMarkdownNormalizationPipeline(serialized),
+                  pending: summarizeLineBreakText(pendingMarkdown),
+                  current: summarizeLineBreakText(currentContent),
+                  diffCurrentToPending: compareLineBreakText(currentContent, pendingMarkdown),
+                  diffSerializedToPending: compareLineBreakText(serialized, pendingMarkdown),
+                  usedStoreCurrent: state.currentNote?.path === currentNotePath,
+                  usedCache: Boolean(currentNotePath && state.noteContentsCache.has(currentNotePath)),
+                });
+              }
             }
           } catch (error) {
-            logLineBreakDebug('editor:flush-fallback-failed', {
-              editorNotePath: currentNotePath ?? null,
-              latestStorePath: useNotesStore.getState().currentNote?.path ?? null,
-              message: error instanceof Error ? error.message : String(error),
-            });
+            if (debugEnabled) {
+              logLineBreakDebug('editor:flush-fallback-failed', {
+                editorNotePath: currentNotePath ?? null,
+                latestStorePath: useNotesStore.getState().currentNote?.path ?? null,
+                message: error instanceof Error ? error.message : String(error),
+              });
+            }
             pendingMarkdown = null;
           }
         }
       }
-      logLineBreakDebug('editor:flush-before-store', {
-        editorNotePath: currentNotePath ?? null,
-        latestStorePath: useNotesStore.getState().currentNote?.path ?? null,
-        hadFrame,
-        hadPendingRef,
-        hadUserInput: hasEditorUserInput.current,
-        pending: summarizeLineBreakText(pendingMarkdown),
-      });
+      if (debugEnabled) {
+        logLineBreakDebug('editor:flush-before-store', {
+          editorNotePath: currentNotePath ?? null,
+          latestStorePath: useNotesStore.getState().currentNote?.path ?? null,
+          hadFrame,
+          hadPendingRef,
+          hadUserInput: hasEditorUserInput.current,
+          pending: summarizeLineBreakText(pendingMarkdown),
+        });
+      }
       const flushed = flushPendingEditorMarkdown(currentNotePath, pendingMarkdown);
-      logLineBreakDebug('editor:flush-after-store', {
-        editorNotePath: currentNotePath ?? null,
-        flushed,
-        storeCurrentPath: useNotesStore.getState().currentNote?.path ?? null,
-        storeCurrent: summarizeLineBreakText(useNotesStore.getState().currentNote?.content),
-      });
+      if (debugEnabled) {
+        logLineBreakDebug('editor:flush-after-store', {
+          editorNotePath: currentNotePath ?? null,
+          flushed,
+          storeCurrentPath: useNotesStore.getState().currentNote?.path ?? null,
+          storeCurrent: summarizeLineBreakText(useNotesStore.getState().currentNote?.content),
+        });
+      }
       return flushed;
     };
 
@@ -385,13 +434,15 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
         serializedDoc = null;
         liveSerializer = null;
       }
-      logLineBreakDebug('editor:runtime-ready', {
-        currentNotePath: currentNotePath ?? null,
-        storeContent: summarizeLineBreakText(useNotesStore.getState().currentNote?.content),
-        serializedDoc: summarizeLineBreakText(serializedDoc),
-        childCount: view.state.doc.childCount,
-        docText: summarizeLineBreakText(view.state.doc.textBetween(0, view.state.doc.content.size, '\n', '\n')),
-      });
+      if (isNotesDebugLoggingEnabled()) {
+        logLineBreakDebug('editor:runtime-ready', {
+          currentNotePath: currentNotePath ?? null,
+          storeContent: summarizeLineBreakText(useNotesStore.getState().currentNote?.content),
+          serializedDoc: summarizeLineBreakText(serializedDoc),
+          childCount: view.state.doc.childCount,
+          docText: summarizeLineBreakText(view.state.doc.textBetween(0, view.state.doc.content.size, '\n', '\n')),
+        });
+      }
       setCurrentEditorView(view as EditorView);
       const markUserInput = (event: Event) => {
         const wasAlreadyMarked = hasEditorUserInput.current;
@@ -399,30 +450,35 @@ const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
         const eventType = event.type;
         const inputType = event instanceof InputEvent ? event.inputType : null;
         const key = event instanceof KeyboardEvent ? event.key : null;
-        logLineBreakDebug('editor:user-input-marked', {
-          currentNotePath: currentNotePath ?? null,
-          eventType,
-          wasAlreadyMarked,
-          inputType,
-          key,
-          isComposing: event instanceof KeyboardEvent || event instanceof InputEvent
-            ? event.isComposing
-            : null,
-          storeCurrentPath: useNotesStore.getState().currentNote?.path ?? null,
-          isDirty: useNotesStore.getState().isDirty,
-          beforeDoc: liveSerializer ? summarizeEditorState(view as EditorView, liveSerializer) : null,
-        });
-        requestAnimationFrame(() => {
-          logLineBreakDebug('editor:user-input-after-frame', {
+        if (isNotesDebugLoggingEnabled()) {
+          logLineBreakDebug('editor:user-input-marked', {
             currentNotePath: currentNotePath ?? null,
             eventType,
+            wasAlreadyMarked,
             inputType,
             key,
+            isComposing: event instanceof KeyboardEvent || event instanceof InputEvent
+              ? event.isComposing
+              : null,
             storeCurrentPath: useNotesStore.getState().currentNote?.path ?? null,
             isDirty: useNotesStore.getState().isDirty,
-            afterDoc: liveSerializer ? summarizeEditorState(view as EditorView, liveSerializer) : null,
+            beforeDoc: liveSerializer ? summarizeEditorState(view as EditorView, liveSerializer) : null,
           });
-        });
+          requestAnimationFrame(() => {
+            if (!isNotesDebugLoggingEnabled()) {
+              return;
+            }
+            logLineBreakDebug('editor:user-input-after-frame', {
+              currentNotePath: currentNotePath ?? null,
+              eventType,
+              inputType,
+              key,
+              storeCurrentPath: useNotesStore.getState().currentNote?.path ?? null,
+              isDirty: useNotesStore.getState().isDirty,
+              afterDoc: liveSerializer ? summarizeEditorState(view as EditorView, liveSerializer) : null,
+            });
+          });
+        }
       };
       view.dom.addEventListener('beforeinput', markUserInput);
       view.dom.addEventListener('keydown', markUserInput);

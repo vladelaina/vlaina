@@ -10,7 +10,6 @@ const VIDEO_PROMPT_MARGIN_PX = 12;
 function logSlashVideoDebug(event: string, payload: Record<string, unknown>) {
   const debugPayload = sanitizeVideoDebugPayload(payload);
   logNotesDebug('NotesVideo', `slashVideoPrompt:${event}`, debugPayload);
-  console.info(`[slashVideoPrompt:${event}]`, debugPayload);
 }
 
 function getPromptPosition(view: EditorView) {
