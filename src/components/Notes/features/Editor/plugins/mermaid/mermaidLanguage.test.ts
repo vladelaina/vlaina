@@ -65,6 +65,7 @@ describe('mermaidLanguage', () => {
       'treemap-beta',
       'wardley',
       'wardley-beta',
+      'zenuml',
     ];
 
     expect(new Set(MERMAID_FENCE_LANGUAGE_ALIAS_LIST).size).toBe(
@@ -94,6 +95,7 @@ describe('mermaidLanguage', () => {
     expect(parseMermaidFenceLanguage('~~~sequence title="A ~ B"')).toBe('sequence');
     expect(parseMermaidFenceLanguage('~~~ sequence title="Sequence"')).toBe('sequence');
     expect(parseMermaidFenceLanguage('```flow')).toBe('flow');
+    expect(parseMermaidFenceLanguage('```zenuml')).toBe('zenuml');
     expect(parseMermaidFenceLanguage('```ts')).toBeNull();
     expect(parseMermaidFenceLanguage('```mermaid `bad`')).toBeNull();
     expect(parseMermaidFenceLanguage('``mermaid')).toBeNull();

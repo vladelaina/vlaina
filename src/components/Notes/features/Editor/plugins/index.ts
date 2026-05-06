@@ -31,6 +31,7 @@ export { editorFindPlugin } from './find';
 export {
   blankAreaDragBoxPlugin,
   blockControlsPlugin,
+  atomicBlockKeyboardNavigationPlugin,
   containerBoundaryShiftSelectionPlugin,
   endBlankClickPlugin,
   nativeDragGuardPlugin,
