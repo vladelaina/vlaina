@@ -116,6 +116,34 @@ describe('fileSystemSlice rename actions', () => {
     expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith(state.starredEntries);
   });
 
+  it('renames a root-vault absolute starred note and keeps the starred entry relative', async () => {
+    const harness = createSliceHarness();
+    const oldPath = '/docs/alpha.md';
+    const newPath = '/docs/beta.md';
+
+    harness.getState().notesPath = '/vault-a';
+    harness.getState().currentNote = { path: oldPath, content: '# alpha' };
+    harness.getState().openTabs = [{ path: oldPath, name: 'alpha', isDirty: false }];
+    harness.getState().noteContentsCache = new Map([[oldPath, { content: '# alpha', modifiedAt: 1 }]]);
+    harness.getState().starredEntries = [{
+      id: 'starred-root',
+      kind: 'note',
+      vaultPath: '/',
+      relativePath: 'docs/alpha.md',
+      addedAt: 1,
+    }];
+
+    await harness.getState().renameAbsoluteNote(oldPath, 'beta');
+    const state = harness.getState();
+
+    expect(hoisted.storageAdapter.rename).toHaveBeenCalledWith(oldPath, newPath);
+    expect(state.starredEntries[0]).toMatchObject({
+      vaultPath: '/',
+      relativePath: 'docs/beta.md',
+    });
+    expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith(state.starredEntries);
+  });
+
   it('does not write a stale absolute rename result after the active vault changes', async () => {
     let resolveRename: () => void;
     hoisted.storageAdapter.rename.mockImplementation(() => new Promise<undefined>((resolve) => {

@@ -1,0 +1,308 @@
+import type { EditorView } from '@milkdown/kit/prose/view';
+import { getScrollRoot } from '../floating-toolbar/floatingToolbarDom';
+import { createTextEditorPopupAnchorResizeTracker } from './textEditorPopupAnchorResize';
+import {
+  mountTextEditorPopup,
+  resizeTextEditorPopupTextareaToContent,
+  TEXT_EDITOR_POPUP_CARD_SELECTOR,
+} from './textEditorPopupDom';
+import { resolveTextEditorPopupPlacement } from './textEditorPopupPlacement';
+
+export interface TextEditorSessionState {
+  isOpen: boolean;
+  nodePos: number;
+  position: { x: number; y: number };
+}
+
+export interface TextEditorSessionRefs {
+  textareaElement: HTMLTextAreaElement | null;
+}
+
+export interface TextEditorSessionActionArgs<
+  TState extends TextEditorSessionState,
+  TRefs extends TextEditorSessionRefs,
+> {
+  editorView: EditorView;
+  refs: TRefs;
+  getEditorState: () => TState | undefined;
+  resetSessionDom: () => void;
+}
+
+export interface TextEditorPreviewArgs<
+  TState extends TextEditorSessionState,
+  TRefs extends TextEditorSessionRefs,
+> {
+  state: TState;
+  refs: TRefs;
+  value: string;
+  resolveAnchor: () => HTMLElement | null;
+  scheduleResize: () => void;
+}
+
+export interface CreateTextEditorViewSessionArgs<
+  TState extends TextEditorSessionState,
+  TRefs extends TextEditorSessionRefs,
+> {
+  editorView: EditorView;
+  onOutsideCloseIntent: () => void;
+  refs: TRefs;
+  popupClassName: string;
+  placeholder: string;
+  getEditorState: () => TState | undefined;
+  getStateRenderKey: (state: TState) => string;
+  getValue: (state: TState) => string;
+  setInitialValue: (refs: TRefs, value: string) => void;
+  setDraftValue: (refs: TRefs, value: string) => void;
+  getInitialValue: (refs: TRefs) => string;
+  resetRefs: (refs: TRefs) => void;
+  resolveAnchorElement: (state: TState | undefined, nodeDom: Node | null) => HTMLElement | null;
+  getAnchorViewportPosition: (anchorElement: HTMLElement | null) => { x: number; y: number };
+  previewInput: (args: TextEditorPreviewArgs<TState, TRefs>) => void;
+  previewCancel: (args: TextEditorPreviewArgs<TState, TRefs>) => void;
+  cancelSession: (args: TextEditorSessionActionArgs<TState, TRefs>) => void;
+  saveSession: (args: TextEditorSessionActionArgs<TState, TRefs>) => void;
+}
+
+export function createTextEditorViewSession<
+  TState extends TextEditorSessionState,
+  TRefs extends TextEditorSessionRefs,
+>(args: CreateTextEditorViewSessionArgs<TState, TRefs>) {
+  const {
+    editorView,
+    onOutsideCloseIntent,
+    refs,
+    popupClassName,
+    placeholder,
+    getEditorState,
+    getStateRenderKey,
+    getValue,
+    setInitialValue,
+    setDraftValue,
+    getInitialValue,
+    resetRefs,
+    resolveAnchorElement,
+    getAnchorViewportPosition,
+    previewInput,
+    previewCancel,
+    cancelSession,
+    saveSession,
+  } = args;
+  let editorElement: HTMLElement | null = null;
+  let renderedKey: string | null = null;
+  let suppressOutsideMouseDown = false;
+  let suppressOutsideMouseDownTimer: number | null = null;
+  let focusTextareaTimer: number | null = null;
+  const scrollRoot = getScrollRoot(editorView);
+  const contentRoot = editorView.dom.closest('[data-note-content-root="true"]') as HTMLElement | null;
+  const positionRoot = contentRoot ?? scrollRoot;
+
+  const resolveCurrentAnchorElement = (state: TState | undefined) => {
+    if (!state?.isOpen) {
+      return null;
+    }
+
+    const nodeDom = typeof editorView.nodeDOM === 'function' ? editorView.nodeDOM(state.nodePos) : null;
+    return resolveAnchorElement(state, nodeDom);
+  };
+
+  const clearEditorElements = () => {
+    if (editorElement) {
+      editorElement.remove();
+    }
+    editorElement = null;
+    refs.textareaElement = null;
+  };
+
+  const resetSessionDom = () => {
+    clearEditorElements();
+    resetRefs(refs);
+    renderedKey = null;
+  };
+
+  const getSessionActionArgs = (): TextEditorSessionActionArgs<TState, TRefs> => ({
+    editorView,
+    refs,
+    getEditorState,
+    resetSessionDom,
+  });
+
+  const scheduleOutsideMouseDownSuppression = () => {
+    suppressOutsideMouseDown = true;
+    if (suppressOutsideMouseDownTimer !== null && typeof window !== 'undefined') {
+      window.clearTimeout(suppressOutsideMouseDownTimer);
+    }
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    suppressOutsideMouseDownTimer = window.setTimeout(() => {
+      suppressOutsideMouseDown = false;
+      suppressOutsideMouseDownTimer = null;
+    }, 0);
+  };
+
+  const handleClickOutside = (event: MouseEvent) => {
+    if (suppressOutsideMouseDown) {
+      return;
+    }
+
+    if (editorElement && !editorElement.contains(event.target as Node)) {
+      onOutsideCloseIntent();
+      saveSession(getSessionActionArgs());
+    }
+  };
+
+  const resolveViewportPosition = (state: TState) => {
+    const anchor = resolveCurrentAnchorElement(state);
+    return anchor ? getAnchorViewportPosition(anchor) : state.position;
+  };
+
+  const updateEditorPosition = (state: TState) => {
+    if (!editorElement) {
+      return;
+    }
+
+    const nextPosition = resolveTextEditorPopupPlacement({
+      editorView,
+      positionRoot,
+      viewportPosition: resolveViewportPosition(state),
+    });
+    editorElement.style.setProperty('--math-editor-width', `${Math.round(nextPosition.width)}px`);
+    editorElement.style.left = `${nextPosition.x}px`;
+    editorElement.style.top = `${nextPosition.y}px`;
+
+    if (refs.textareaElement) {
+      const card = editorElement.querySelector(TEXT_EDITOR_POPUP_CARD_SELECTOR);
+      if (card instanceof HTMLElement) {
+        resizeTextEditorPopupTextareaToContent({
+          card,
+          textarea: refs.textareaElement,
+        });
+      }
+    }
+
+    anchorResizeTracker.update();
+  };
+
+  const anchorResizeTracker = createTextEditorPopupAnchorResizeTracker({
+    resolveAnchor: () => resolveCurrentAnchorElement(getEditorState()),
+    onAnchorResize() {
+      const state = getEditorState();
+      if (state?.isOpen) {
+        updateEditorPosition(state);
+      }
+    },
+  });
+
+  const focusTextareaAtEnd = () => {
+    if (focusTextareaTimer !== null && typeof window !== 'undefined') {
+      window.clearTimeout(focusTextareaTimer);
+    }
+
+    if (typeof window === 'undefined') {
+      const nextTextarea = refs.textareaElement;
+      nextTextarea?.focus();
+      const length = nextTextarea?.value.length ?? 0;
+      nextTextarea?.setSelectionRange(length, length);
+      return;
+    }
+
+    focusTextareaTimer = window.setTimeout(() => {
+      focusTextareaTimer = null;
+      const nextTextarea = refs.textareaElement;
+      nextTextarea?.focus();
+      const length = nextTextarea?.value.length ?? 0;
+      nextTextarea?.setSelectionRange(length, length);
+    }, 0);
+  };
+
+  const ensureEditorElement = () => {
+    if (editorElement) {
+      return editorElement;
+    }
+
+    editorElement = document.createElement('div');
+    editorElement.className = popupClassName;
+    editorElement.style.position = positionRoot ? 'absolute' : 'fixed';
+    editorElement.style.zIndex = '80';
+    (positionRoot ?? document.body).appendChild(editorElement);
+    return editorElement;
+  };
+
+  const renderEditor = (state: TState) => {
+    const container = ensureEditorElement();
+    const value = getValue(state);
+    setInitialValue(refs, value);
+    setDraftValue(refs, value);
+
+    const { textarea } = mountTextEditorPopup({
+      container,
+      value,
+      placeholder,
+      onInput(nextValue) {
+        setDraftValue(refs, nextValue);
+        previewInput({
+          state,
+          refs,
+          value: nextValue,
+          resolveAnchor: () => resolveCurrentAnchorElement(getEditorState()),
+          scheduleResize: anchorResizeTracker.scheduleResize,
+        });
+      },
+      onCancel() {
+        previewCancel({
+          state,
+          refs,
+          value: getInitialValue(refs),
+          resolveAnchor: () => resolveCurrentAnchorElement(getEditorState()),
+          scheduleResize: anchorResizeTracker.scheduleResize,
+        });
+        cancelSession(getSessionActionArgs());
+      },
+      onSave() {
+        saveSession(getSessionActionArgs());
+      },
+    });
+
+    refs.textareaElement = textarea;
+    renderedKey = getStateRenderKey(state);
+    scheduleOutsideMouseDownSuppression();
+    focusTextareaAtEnd();
+  };
+
+  document.addEventListener('mousedown', handleClickOutside);
+
+  return {
+    update() {
+      const state = getEditorState();
+
+      if (!state?.isOpen) {
+        anchorResizeTracker.update();
+        resetSessionDom();
+        return;
+      }
+
+      const nextRenderedKey = getStateRenderKey(state);
+      if (renderedKey !== nextRenderedKey || !refs.textareaElement) {
+        renderEditor(state);
+      }
+
+      updateEditorPosition(state);
+    },
+    destroy() {
+      document.removeEventListener('mousedown', handleClickOutside);
+      if (suppressOutsideMouseDownTimer !== null && typeof window !== 'undefined') {
+        window.clearTimeout(suppressOutsideMouseDownTimer);
+      }
+      if (focusTextareaTimer !== null && typeof window !== 'undefined') {
+        window.clearTimeout(focusTextareaTimer);
+      }
+      anchorResizeTracker.destroy();
+      resetSessionDom();
+      suppressOutsideMouseDown = false;
+      suppressOutsideMouseDownTimer = null;
+      focusTextareaTimer = null;
+    },
+  };
+}

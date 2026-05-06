@@ -4,7 +4,8 @@ import type { SidebarSearchState } from '@/components/layout/sidebar/useSidebarS
 import { cn } from '@/lib/utils';
 import { isAbsolutePath } from '@/lib/storage/adapter';
 import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
-import { isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
+import { useVaultStore } from '@/stores/useVaultStore';
+import { isDraftNoteEmpty, isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
 import { StarredSection } from '../Starred';
 import { triggerHoveredSidebarRename } from '../common/sidebarHoverRename';
 import { NotesSidebarHoverEmptyHint, NotesSidebarScrollArea } from './NotesSidebarPrimitives';
@@ -50,6 +51,7 @@ export function SidebarContent({
   const noteContentsCache = useNotesStore((s) => s.noteContentsCache);
   const scanAllNotes = useNotesStore((s) => s.scanAllNotes);
   const pruneNoteContentsCacheToOpenNotes = useNotesStore((s) => s.pruneNoteContentsCacheToOpenNotes);
+  const currentVault = useVaultStore((s) => s.currentVault);
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
   const rootBlankAreaRef = useRef<HTMLDivElement | null>(null);
   const [isSidebarHovered, setIsSidebarHovered] = useState(false);
@@ -67,6 +69,16 @@ export function SidebarContent({
 
     const draftEntry = draftNotes[currentNotePath];
     if (!draftEntry) {
+      return rootFolder;
+    }
+
+    const draftContent = noteContentsCache.get(currentNotePath)?.content ?? '';
+    if (
+      rootFolder &&
+      rootFolder.children.length === 0 &&
+      !draftEntry.name.trim() &&
+      isDraftNoteEmpty(draftContent)
+    ) {
       return rootFolder;
     }
 
@@ -119,7 +131,7 @@ export function SidebarContent({
       ...rootFolder,
       children: [draftNode, ...rootFolder.children],
     };
-  }, [currentNotePath, draftNotes, rootFolder]);
+  }, [currentNotePath, draftNotes, noteContentsCache, rootFolder]);
   const {
     inputRef,
     scrollRootRef,
@@ -134,7 +146,8 @@ export function SidebarContent({
     scopeRef: sidebarRootRef,
   });
   const wasShowingSearchResultsRef = useRef(shouldShowSearchResults);
-  const shouldShowEmptyHint = !isLoading && !displayRootFolder;
+  const hasVaultPendingRoot = Boolean(currentVault && !displayRootFolder);
+  const shouldShowEmptyHint = !isLoading && !hasVaultPendingRoot && !displayRootFolder;
   const { isContentScanPending, searchResults } = useSidebarContentSearchResults({
     rootFolder: displayRootFolder,
     getDisplayName,

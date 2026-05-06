@@ -8,7 +8,11 @@ export {
   remapStarredEntriesForVault,
   type StarredRegistry,
 } from './registry';
-export { normalizeStarredRelativePath, normalizeStarredVaultPath } from './pathUtils';
+export {
+  normalizeStarredRelativePath,
+  normalizeStarredVaultPath,
+  resolveStarredRelativePathForVault,
+} from './pathUtils';
 export { flushStarredRegistry, loadStarredRegistry, saveStarredRegistry } from './persistence';
 export { loadStarredForVault, removeStarredEntryById, toggleStarredEntry } from './store';
 export type { StarredEntry, StarredKind } from '../types';

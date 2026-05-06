@@ -44,8 +44,8 @@ function scheduleWorkspaceSnapshotPersistence(get: FileSystemSliceGet) {
       return;
     }
 
-    const { notesPath, rootFolder, currentNote, fileTreeSortMode } = getSnapshotState();
-    if (rootFolder) {
+    const { notesPath, rootFolder, rootFolderPath, currentNote, fileTreeSortMode } = getSnapshotState();
+    if (rootFolder && rootFolderPath === notesPath) {
       persistWorkspaceSnapshot(notesPath, {
         rootFolder,
         currentNotePath: currentNote?.path ?? null,
@@ -89,7 +89,7 @@ export function createFileSystemTreeActions(
         }
         const starredPaths = getVaultStarredPaths(get().starredEntries, basePath);
 
-        const currentExpandedPaths = get().rootFolder
+        const currentExpandedPaths = get().rootFolder && get().rootFolderPath === basePath
           ? collectExpandedPaths(get().rootFolder?.children ?? [])
           : null;
         const restoredChildren = skipRestore
@@ -117,6 +117,7 @@ export function createFileSystemTreeActions(
 
         set({
           notesPath: basePath,
+          rootFolderPath: basePath,
           rootFolder: {
             id: '',
             name: 'Notes',
@@ -144,6 +145,7 @@ export function createFileSystemTreeActions(
               await get().openNote(currentNotePath);
             }
           } catch {
+            // Ignore stale persisted current-note entries.
           }
         }
 
@@ -163,6 +165,13 @@ export function createFileSystemTreeActions(
     toggleFolder: (path: string) => {
       const { rootFolder } = get();
       if (!rootFolder) {
+        return;
+      }
+
+      if (path === '' && rootFolder.children.length === 0) {
+        if (!rootFolder.expanded) {
+          set({ rootFolder: { ...rootFolder, expanded: true } });
+        }
         return;
       }
 

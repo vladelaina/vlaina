@@ -49,6 +49,7 @@ export function bindAiReviewActions({
     const suggestion = toAiSelectionSuggestion(liveReview);
     if (liveReview.isLoading || !liveReview.suggestedText.trim() || !suggestion) {
       onClose();
+      collapseSelectionAfterToolbarApply(view);
       return;
     }
 
@@ -99,6 +100,7 @@ export function bindAiReviewActions({
     event.preventDefault();
     event.stopPropagation();
     onClose();
+    collapseSelectionAfterToolbarApply(view);
   }, { signal });
 
   retryButton?.addEventListener('click', (event) => {

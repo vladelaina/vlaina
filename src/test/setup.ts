@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { vi } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
@@ -74,13 +74,159 @@ class OffscreenCanvasMock {
 vi.stubGlobal('ResizeObserver', ResizeObserverMock);
 vi.stubGlobal('OffscreenCanvas', OffscreenCanvasMock);
 
-if (typeof window !== 'undefined') {
+const indexedDbObjectStores = new Map<string, Map<string, unknown>>();
+const indexedDbKeyPaths = new Map<string, string>();
+
+function dispatchIndexedDbSuccess<T>(request: IDBRequest<T>, result: T) {
+  queueMicrotask(() => {
+    Object.defineProperty(request, 'result', {
+      configurable: true,
+      value: result,
+    });
+    request.onsuccess?.(new Event('success') as Event & { target: IDBRequest<T> });
+  });
+}
+
+function dispatchIndexedDbError<T>(request: IDBRequest<T>, error: Error) {
+  queueMicrotask(() => {
+    Object.defineProperty(request, 'error', {
+      configurable: true,
+      value: error,
+    });
+    request.onerror?.(new Event('error') as Event & { target: IDBRequest<T> });
+  });
+}
+
+function createIndexedDbRequest<T>(operation: () => T): IDBRequest<T> {
+  const request = {
+    result: undefined,
+    error: null,
+    onsuccess: null,
+    onerror: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  } as unknown as IDBRequest<T>;
+
+  queueMicrotask(() => {
+    try {
+      dispatchIndexedDbSuccess(request, operation());
+    } catch (error) {
+      dispatchIndexedDbError(request, error instanceof Error ? error : new Error(String(error)));
+    }
+  });
+
+  return request;
+}
+
+function createIndexedDbStore(name: string): IDBObjectStore {
+  const entries = () => {
+    let store = indexedDbObjectStores.get(name);
+    if (!store) {
+      store = new Map();
+      indexedDbObjectStores.set(name, store);
+    }
+    return store;
+  };
+
+  return {
+    get: (key: IDBValidKey) => createIndexedDbRequest(() => entries().get(String(key))),
+    getAll: () => createIndexedDbRequest(() => [...entries().values()]),
+    put: (value: unknown) => createIndexedDbRequest(() => {
+      const keyPath = indexedDbKeyPaths.get(name);
+      if (!keyPath || typeof value !== 'object' || value === null || !(keyPath in value)) {
+        throw new Error(`Missing IndexedDB keyPath "${keyPath ?? ''}" for store "${name}"`);
+      }
+      entries().set(String((value as Record<string, unknown>)[keyPath]), value);
+      return undefined;
+    }),
+    delete: (key: IDBValidKey) => createIndexedDbRequest(() => {
+      entries().delete(String(key));
+      return undefined;
+    }),
+  } as unknown as IDBObjectStore;
+}
+
+function createIndexedDbDatabase(): IDBDatabase {
+  return {
+    objectStoreNames: {
+      contains: (name: string) => indexedDbKeyPaths.has(name),
+    },
+    createObjectStore: (name: string, options?: IDBObjectStoreParameters) => {
+      indexedDbKeyPaths.set(name, String(options?.keyPath ?? 'id'));
+      if (!indexedDbObjectStores.has(name)) {
+        indexedDbObjectStores.set(name, new Map());
+      }
+      return createIndexedDbStore(name);
+    },
+    transaction: (storeName: string) => ({
+      objectStore: (name: string) => {
+        if (name !== storeName || !indexedDbKeyPaths.has(name)) {
+          throw new Error(`IndexedDB object store not found: ${name}`);
+        }
+        return createIndexedDbStore(name);
+      },
+    }),
+  } as unknown as IDBDatabase;
+}
+
+const indexedDbDatabase = createIndexedDbDatabase();
+
+vi.stubGlobal('indexedDB', {
+  open: () => {
+    const needsUpgrade = !indexedDbKeyPaths.has('files') || !indexedDbKeyPaths.has('directories');
+    const request = {
+      result: indexedDbDatabase,
+      error: null,
+      onsuccess: null,
+      onerror: null,
+      onupgradeneeded: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    } as unknown as IDBOpenDBRequest;
+
+    queueMicrotask(() => {
+      if (needsUpgrade) {
+        request.onupgradeneeded?.({ target: request } as unknown as IDBVersionChangeEvent);
+      }
+      request.onsuccess?.(new Event('success') as Event & { target: IDBOpenDBRequest });
+    });
+
+    return request;
+  },
+} as unknown as IDBFactory);
+
+function clearIndexedDbMockData() {
+  indexedDbObjectStores.forEach((store) => store.clear());
+}
+
+function ensureGlobalEventListeners() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
   if (typeof globalThis.addEventListener === 'undefined') {
-    vi.stubGlobal('addEventListener', window.addEventListener.bind(window));
+    Object.defineProperty(globalThis, 'addEventListener', {
+      configurable: true,
+      writable: true,
+      value: window.addEventListener.bind(window),
+    });
   }
   if (typeof globalThis.removeEventListener === 'undefined') {
-    vi.stubGlobal('removeEventListener', window.removeEventListener.bind(window));
+    Object.defineProperty(globalThis, 'removeEventListener', {
+      configurable: true,
+      writable: true,
+      value: window.removeEventListener.bind(window),
+    });
   }
+}
+
+function ensureDomConstructors() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
   if (typeof window.HTMLTableRowElement !== 'undefined') {
     vi.stubGlobal('HTMLTableRowElement', window.HTMLTableRowElement);
   }
@@ -88,6 +234,27 @@ if (typeof window !== 'undefined') {
     vi.stubGlobal('HTMLTableCellElement', window.HTMLTableCellElement);
   }
 }
+
+ensureGlobalEventListeners();
+ensureDomConstructors();
+const unstubAllGlobals = vi.unstubAllGlobals.bind(vi);
+vi.unstubAllGlobals = () => {
+  const result = unstubAllGlobals();
+  ensureGlobalEventListeners();
+  ensureDomConstructors();
+  return result;
+};
+
+beforeEach(() => {
+  clearIndexedDbMockData();
+  ensureGlobalEventListeners();
+  ensureDomConstructors();
+});
+
+afterEach(() => {
+  ensureGlobalEventListeners();
+  ensureDomConstructors();
+});
 
 if (typeof HTMLCanvasElement !== 'undefined') {
   Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {

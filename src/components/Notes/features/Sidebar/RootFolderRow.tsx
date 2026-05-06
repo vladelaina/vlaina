@@ -73,6 +73,7 @@ export function RootFolderRow({
   const vaultPath = currentVault?.path ?? '';
   const hasChildren = rootFolder ? rootFolder.children.length > 0 : false;
   const expanded = rootFolder?.expanded ?? true;
+  const displayExpanded = !hasChildren || expanded;
   const visibleFileTreeRowCount = useMemo(
     () => rootFolder ? countVisibleFileTreeRows(rootFolder.children) : 0,
     [rootFolder],
@@ -80,7 +81,13 @@ export function RootFolderRow({
   const useVirtualFileTree = Boolean(
     scrollRootRef && shouldVirtualizeFileTree(visibleFileTreeRowCount),
   );
+  const isRootTreePending = Boolean(currentVault && !rootFolder);
+  const isRootBusy = isLoading || isRootTreePending;
   const setExpanded = (value: boolean | ((value: boolean) => boolean)) => {
+    if (!hasChildren) {
+      return;
+    }
+
     const nextValue = typeof value === 'function' ? value(expanded) : value;
     if (nextValue !== expanded) {
       toggleFolder('');
@@ -164,13 +171,31 @@ export function RootFolderRow({
     };
   }, [autoExpandDelayMs, expanded, isInternalRootDragOver, isRootDragOver]);
 
-  if (isLoading) {
+  if (!rootFolder && currentVault) {
     return (
-      <div className="py-1">
-        <div className="flex h-[36px] items-center gap-2 rounded-xl px-3 py-1">
-          <div className="h-[18px] w-[18px] rounded bg-[var(--vlaina-bg-tertiary)] animate-pulse" />
-          <div className="h-[18px] flex-1 rounded bg-[var(--vlaina-bg-tertiary)] animate-pulse" />
-        </div>
+      <div
+        ref={rootRowRef}
+        className="py-1 pointer-events-none"
+        aria-busy={isRootBusy || undefined}
+        data-notes-sidebar-root-loading-shell="true"
+      >
+        <NotesSidebarRow
+          data-file-tree-root-drop-target="true"
+          leading={
+            <span className="relative flex size-[20px] items-center justify-center">
+              <Icon
+                name="file.folderOpen"
+                size={16}
+                className="text-[var(--notes-sidebar-folder-icon)]"
+              />
+            </span>
+          }
+          main={
+            <span className={cn('block whitespace-normal break-all', getSidebarTextClass('notes'))}>
+              {title}
+            </span>
+          }
+        />
       </div>
     );
   }
@@ -202,7 +227,11 @@ export function RootFolderRow({
   };
 
   return (
-    <div ref={rootRowRef} className="py-1">
+    <div
+      ref={rootRowRef}
+      className={cn('py-1', isRootBusy && 'pointer-events-none')}
+      aria-busy={isRootBusy || undefined}
+    >
       <NotesSidebarRow
         data-file-tree-root-drop-target="true"
         onMouseEnter={() => setHoveredSidebarRenamePath(rootFolder.path)}
@@ -217,7 +246,7 @@ export function RootFolderRow({
               )}
             >
               <Icon
-                name={expanded ? 'file.folderOpen' : 'file.folder'}
+                name={displayExpanded ? 'file.folderOpen' : 'file.folder'}
                 size={16}
                 className="text-[var(--notes-sidebar-folder-icon)]"
               />
@@ -233,7 +262,7 @@ export function RootFolderRow({
             ) : null}
           </span>
         }
-        onClick={() => toggleFolder('')}
+        onClick={hasChildren ? () => toggleFolder('') : undefined}
         isHighlighted={showMenu}
         isDragOver={isRootDragOver}
         showActionsByDefault={showMenu}
@@ -281,6 +310,10 @@ export function RootFolderRow({
         position={menuPosition}
         expanded={expanded}
         setExpanded={(value) => {
+          if (!hasChildren) {
+            return;
+          }
+
           const nextExpanded = typeof value === 'function' ? value(expanded) : value;
           if (nextExpanded !== expanded) {
             toggleFolder('');

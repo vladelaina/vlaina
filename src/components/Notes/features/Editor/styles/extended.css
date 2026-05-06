@@ -181,22 +181,11 @@
   justify-content: center;
   padding: 1.5rem;
   margin: 1rem 0;
-  background-color: var(--vlaina-bg-secondary);
-  border: 1px solid var(--vlaina-border);
-  border-radius: 0.5rem;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   overflow-x: auto;
   cursor: pointer;
-  transition:
-    background-color 0.16s ease,
-    border-color 0.16s ease,
-    box-shadow 0.16s ease;
-}
-
-.milkdown .mermaid-block:hover,
-.milkdown .mermaid-block:focus-visible {
-  background: var(--vlaina-hover-filled);
-  border-color: var(--vlaina-accent);
-  box-shadow: 0 0 0 2px var(--vlaina-accent-light);
 }
 
 .milkdown .mermaid-placeholder,

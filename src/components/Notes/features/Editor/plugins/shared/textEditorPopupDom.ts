@@ -104,12 +104,14 @@ export function mountTextEditorPopup(args: MountTextEditorPopupArgs): TextEditor
 
     if (event.key === 'Escape') {
       event.preventDefault();
+      event.stopPropagation();
       onCancel();
       return;
     }
 
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
+      event.stopPropagation();
       onSave();
       return;
     }

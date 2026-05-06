@@ -23,6 +23,8 @@ export function renderColorPicker(
 
   const isDark = document.documentElement.classList.contains('dark');
   const palette = isDark ? COLOR_PALETTE_DARK : COLOR_PALETTE;
+  const defaultColor = palette.find(color => color.id === 'default');
+  const colors = palette.filter(color => color.id !== 'default');
   const isSwatchTarget = (target: EventTarget | null) => (
     target instanceof HTMLElement && target.closest('.color-picker-item') !== null
   );
@@ -37,28 +39,46 @@ export function renderColorPicker(
   picker.innerHTML = `
     <div class="color-picker-section">
       <div class="color-picker-label">Text Color</div>
-      <div class="color-picker-grid" data-type="text">
-        ${palette.map(color => `
+      <div data-type="text">
+        ${defaultColor ? `
           <button 
-            class="color-picker-item ${color.id === 'default' ? 'color-picker-item-default' : ''} ${state.textColor === color.textColor ? 'active' : ''}"
-            data-color-id="${color.id}"
-            data-color="${color.textColor || ''}"
-            style="${color.textColor ? `background-color: ${color.textColor}` : ''}"
+            class="color-picker-item color-picker-item-default ${state.textColor === null ? 'active' : ''}"
+            data-color-id="${defaultColor.id}"
+            data-color=""
           ></button>
-        `).join('')}
+        ` : ''}
+        <div class="color-picker-grid">
+          ${colors.map(color => `
+            <button 
+              class="color-picker-item ${state.textColor === color.textColor ? 'active' : ''}"
+              data-color-id="${color.id}"
+              data-color="${color.textColor || ''}"
+              style="${color.textColor ? `background-color: ${color.textColor}` : ''}"
+            ></button>
+          `).join('')}
+        </div>
       </div>
     </div>
     <div class="color-picker-section">
       <div class="color-picker-label">Background</div>
-      <div class="color-picker-grid" data-type="bg">
-        ${palette.map(color => `
+      <div data-type="bg">
+        ${defaultColor ? `
           <button 
-            class="color-picker-item ${color.id === 'default' ? 'color-picker-item-default' : ''} ${!state.textColor && state.bgColor === color.bgColor ? 'active' : ''}"
-            data-color-id="${color.id}"
-            data-color="${color.bgColor || ''}"
-            style="${color.bgColor ? `background-color: ${color.bgColor}` : ''}"
+            class="color-picker-item color-picker-item-default ${!state.textColor && state.bgColor === null ? 'active' : ''}"
+            data-color-id="${defaultColor.id}"
+            data-color=""
           ></button>
-        `).join('')}
+        ` : ''}
+        <div class="color-picker-grid">
+          ${colors.map(color => `
+            <button 
+              class="color-picker-item ${!state.textColor && state.bgColor === color.bgColor ? 'active' : ''}"
+              data-color-id="${color.id}"
+              data-color="${color.bgColor || ''}"
+              style="${color.bgColor ? `background-color: ${color.bgColor}` : ''}"
+            ></button>
+          `).join('')}
+        </div>
       </div>
     </div>
   `;

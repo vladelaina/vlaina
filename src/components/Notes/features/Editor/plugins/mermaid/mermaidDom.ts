@@ -1,4 +1,5 @@
 import { generateMermaidId, renderMermaid } from './mermaidRenderer';
+import { normalizeMermaidEditorCodeInput } from './mermaidFenceCode';
 
 export async function renderMermaidEditorLivePreview(args: {
   anchor: HTMLElement | null;
@@ -11,14 +12,16 @@ export async function renderMermaidEditorLivePreview(args: {
     return false;
   }
 
-  if (!code.trim()) {
-    anchor.dataset.code = code;
+  const normalizedCode = normalizeMermaidEditorCodeInput(code);
+
+  if (!normalizedCode.trim()) {
+    anchor.dataset.code = normalizedCode;
     anchor.innerHTML = '<div class="mermaid-empty">Empty diagram</div>';
     onRendered?.();
     return true;
   }
 
-  const codeSnapshot = code;
+  const codeSnapshot = normalizedCode;
   anchor.dataset.code = codeSnapshot;
 
   if (!anchor.querySelector('svg, .mermaid-error')) {
@@ -36,9 +39,10 @@ export async function renderMermaidEditorLivePreview(args: {
 }
 
 export function createMermaidElement(code: string) {
+  const normalizedCode = normalizeMermaidEditorCodeInput(code);
   const wrapper = document.createElement('div');
   wrapper.setAttribute('data-type', 'mermaid');
-  wrapper.setAttribute('data-code', code);
+  wrapper.setAttribute('data-code', normalizedCode);
   wrapper.className = 'mermaid-block';
 
   const placeholder = document.createElement('div');
@@ -46,8 +50,8 @@ export function createMermaidElement(code: string) {
   placeholder.textContent = 'Loading diagram...';
   wrapper.appendChild(placeholder);
 
-  if (code) {
-    const codeSnapshot = code;
+  if (normalizedCode.trim()) {
+    const codeSnapshot = normalizedCode;
     renderMermaid(codeSnapshot, generateMermaidId()).then((svg) => {
       if (!wrapper.isConnected || wrapper.dataset.code !== codeSnapshot) {
         return;

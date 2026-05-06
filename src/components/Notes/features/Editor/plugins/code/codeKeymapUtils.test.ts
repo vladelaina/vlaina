@@ -144,6 +144,213 @@ describe('codeKeymapUtils', () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
+  it('leaves tilde mermaid fence aliases for the mermaid editor shortcut', () => {
+    const dispatch = vi.fn();
+    const state = {
+      selection: {
+        empty: true,
+        $from: {
+          depth: 1,
+          start: vi.fn(() => 5),
+          end: vi.fn(() => 18),
+          parent: { type: { name: 'paragraph' }, textContent: '~~~sequence' },
+        },
+      },
+      schema: {
+        nodes: {
+          code_block: {
+            create: vi.fn(),
+          },
+        },
+      },
+      tr: createTransaction(),
+    };
+
+    expect(handleCodeBlockEnter(state as never, dispatch)).toBe(false);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('converts tilde fenced paragraphs to code blocks', () => {
+    const selectionCreateSpy = vi
+      .spyOn(TextSelection, 'create')
+      .mockReturnValue({ type: 'selection' } as never);
+    const tr = createTransaction();
+    const codeBlockType = {
+      create: vi.fn((attrs: unknown) => ({ attrs })),
+    };
+    const dispatch = vi.fn();
+    const state = {
+      selection: {
+        empty: true,
+        $from: {
+          depth: 1,
+          start: vi.fn(() => 5),
+          end: vi.fn(() => 12),
+          parent: { type: { name: 'paragraph' }, textContent: '~~~TS' },
+        },
+      },
+      schema: {
+        nodes: {
+          code_block: codeBlockType,
+        },
+      },
+      tr,
+    };
+
+    expect(handleCodeBlockEnter(state as never, dispatch)).toBe(true);
+    expect(codeBlockType.create).toHaveBeenCalledWith({
+      language: 'ts',
+      lineNumbers: false,
+      wrap: false,
+      collapsed: false,
+    });
+    expect(selectionCreateSpy).toHaveBeenCalledWith(tr.doc, 5);
+    expect(dispatch).toHaveBeenCalledWith(tr);
+  });
+
+  it('converts spaced fenced paragraphs to code blocks', () => {
+    const selectionCreateSpy = vi
+      .spyOn(TextSelection, 'create')
+      .mockReturnValue({ type: 'selection' } as never);
+    const tr = createTransaction();
+    const codeBlockType = {
+      create: vi.fn((attrs: unknown) => ({ attrs })),
+    };
+    const dispatch = vi.fn();
+    const state = {
+      selection: {
+        empty: true,
+        $from: {
+          depth: 1,
+          start: vi.fn(() => 5),
+          end: vi.fn(() => 12),
+          parent: { type: { name: 'paragraph' }, textContent: '``` TS ' },
+        },
+      },
+      schema: {
+        nodes: {
+          code_block: codeBlockType,
+        },
+      },
+      tr,
+    };
+
+    expect(handleCodeBlockEnter(state as never, dispatch)).toBe(true);
+    expect(codeBlockType.create).toHaveBeenCalledWith({
+      language: 'ts',
+      lineNumbers: false,
+      wrap: false,
+      collapsed: false,
+    });
+    expect(selectionCreateSpy).toHaveBeenCalledWith(tr.doc, 5);
+    expect(dispatch).toHaveBeenCalledWith(tr);
+  });
+
+  it('converts indented fenced paragraphs to code blocks', () => {
+    const selectionCreateSpy = vi
+      .spyOn(TextSelection, 'create')
+      .mockReturnValue({ type: 'selection' } as never);
+    const tr = createTransaction();
+    const codeBlockType = {
+      create: vi.fn((attrs: unknown) => ({ attrs })),
+    };
+    const dispatch = vi.fn();
+    const state = {
+      selection: {
+        empty: true,
+        $from: {
+          depth: 1,
+          start: vi.fn(() => 5),
+          end: vi.fn(() => 12),
+          parent: { type: { name: 'paragraph' }, textContent: '  ```TS' },
+        },
+      },
+      schema: {
+        nodes: {
+          code_block: codeBlockType,
+        },
+      },
+      tr,
+    };
+
+    expect(handleCodeBlockEnter(state as never, dispatch)).toBe(true);
+    expect(codeBlockType.create).toHaveBeenCalledWith({
+      language: 'ts',
+      lineNumbers: false,
+      wrap: false,
+      collapsed: false,
+    });
+    expect(selectionCreateSpy).toHaveBeenCalledWith(tr.doc, 5);
+    expect(dispatch).toHaveBeenCalledWith(tr);
+  });
+
+  it('does not convert four-space indented fenced paragraphs to code blocks', () => {
+    const tr = createTransaction();
+    const codeBlockType = {
+      create: vi.fn((attrs: unknown) => ({ attrs })),
+    };
+    const dispatch = vi.fn();
+    const state = {
+      selection: {
+        empty: true,
+        $from: {
+          depth: 1,
+          start: vi.fn(() => 5),
+          end: vi.fn(() => 12),
+          parent: { type: { name: 'paragraph' }, textContent: '    ```TS' },
+        },
+      },
+      schema: {
+        nodes: {
+          code_block: codeBlockType,
+        },
+      },
+      tr,
+    };
+
+    expect(handleCodeBlockEnter(state as never, dispatch)).toBe(false);
+    expect(codeBlockType.create).not.toHaveBeenCalled();
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it('uses the first info-string token as the code block language', () => {
+    const selectionCreateSpy = vi
+      .spyOn(TextSelection, 'create')
+      .mockReturnValue({ type: 'selection' } as never);
+    const tr = createTransaction();
+    const codeBlockType = {
+      create: vi.fn((attrs: unknown) => ({ attrs })),
+    };
+    const dispatch = vi.fn();
+    const state = {
+      selection: {
+        empty: true,
+        $from: {
+          depth: 1,
+          start: vi.fn(() => 5),
+          end: vi.fn(() => 12),
+          parent: { type: { name: 'paragraph' }, textContent: '``` TS title="Example"' },
+        },
+      },
+      schema: {
+        nodes: {
+          code_block: codeBlockType,
+        },
+      },
+      tr,
+    };
+
+    expect(handleCodeBlockEnter(state as never, dispatch)).toBe(true);
+    expect(codeBlockType.create).toHaveBeenCalledWith({
+      language: 'ts',
+      lineNumbers: false,
+      wrap: false,
+      collapsed: false,
+    });
+    expect(selectionCreateSpy).toHaveBeenCalledWith(tr.doc, 5);
+    expect(dispatch).toHaveBeenCalledWith(tr);
+  });
+
   it('allows cursor escape checks without dispatching when already at code block end', () => {
     const state = {
       selection: {

@@ -1,0 +1,57 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const zenumlDiagram = { id: 'zenuml' };
+const registerExternalDiagrams = vi.fn(async () => undefined);
+const initialize = vi.fn();
+const render = vi.fn(async (_id: string, code: string) => {
+  console.log('core rendering', code);
+  return { svg: '<svg data-testid="diagram"></svg>' };
+});
+
+vi.mock('@mermaid-js/mermaid-zenuml', () => ({
+  default: zenumlDiagram,
+}));
+
+vi.mock('mermaid', () => ({
+  default: {
+    initialize,
+    registerExternalDiagrams,
+    render,
+  },
+}));
+
+describe('mermaidRenderer', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('registers the ZenUML external diagram before rendering', async () => {
+    const { renderMermaid } = await import('./mermaidRenderer');
+
+    const svg = await renderMermaid('zenuml\nAlice->Bob: Hi', 'diagram-1');
+
+    expect(svg).toBe('<svg data-testid="diagram"></svg>');
+    expect(initialize).toHaveBeenCalledOnce();
+    expect(registerExternalDiagrams).toHaveBeenCalledWith([zenumlDiagram]);
+    expect(render).toHaveBeenCalledWith('diagram-1', 'zenuml\nAlice->Bob: Hi');
+    expect(registerExternalDiagrams.mock.invocationCallOrder[0]).toBeLessThan(
+      render.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('suppresses third-party renderer console output so diagram source is not leaked', async () => {
+    const consoleLog = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const { renderMermaid } = await import('./mermaidRenderer');
+
+    await renderMermaid('zenuml\nAlice->Bob: Hi', 'diagram-1');
+
+    expect(consoleLog).not.toHaveBeenCalled();
+    console.log('after render');
+    expect(consoleLog).toHaveBeenCalledWith('after render');
+  });
+});

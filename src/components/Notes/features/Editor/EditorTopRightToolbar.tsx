@@ -12,6 +12,7 @@ import { canStarNotePath } from '@/stores/notes/notePathState';
 interface EditorTopRightToolbarProps {
   editorFind: NoteEditorFindController;
   currentNotePath: string | null | undefined;
+  notesPath: string;
   starred: boolean;
   toggleStarred: (path: string) => void;
   currentNoteMetadata:
@@ -34,12 +35,13 @@ function formatMetadataDate(value: string | number | Date | null | undefined) {
 export function EditorTopRightToolbar({
   editorFind,
   currentNotePath,
+  notesPath,
   starred,
   toggleStarred,
   currentNoteMetadata,
   textStats,
 }: EditorTopRightToolbarProps) {
-  const canToggleStar = canStarNotePath(currentNotePath);
+  const canToggleStar = canStarNotePath(currentNotePath, notesPath);
 
   return (
     <div className="absolute top-3 right-3 z-30 flex items-start gap-2">
@@ -51,7 +53,7 @@ export function EditorTopRightToolbar({
             <button
               onClick={(event) => {
                 event.stopPropagation();
-                if (canStarNotePath(currentNotePath)) {
+                if (canStarNotePath(currentNotePath, notesPath)) {
                   toggleStarred(currentNotePath);
                 }
               }}

@@ -7,7 +7,6 @@ import type { FileTreeNode, StarredEntry } from '@/stores/notes/types';
 import { normalizeStarredVaultPath } from '@/stores/notes/starred';
 import { flushCurrentTitleCommit } from '../Editor/utils/titleCommitRegistry';
 import { buildNodeLookup, sortStarredEntries } from './starredSectionUtils';
-import { logNotesDebug } from '@/stores/notes/lineBreakDebugLog';
 
 function getStarredAbsolutePath(entry: StarredEntry) {
   const vaultPath = normalizeStarredVaultPath(entry.vaultPath);
@@ -33,6 +32,7 @@ export function useStarredSectionEntries() {
   const starredLoaded = useNotesStore((state) => state.starredLoaded);
   const currentNotePath = useNotesStore((state) => state.currentNote?.path);
   const rootFolder = useNotesStore((state) => state.rootFolder);
+  const rootFolderPath = useNotesStore((state) => state.rootFolderPath);
   const openNote = useNotesStore((state) => state.openNote);
   const openNoteByAbsolutePath = useNotesStore((state) => state.openNoteByAbsolutePath);
   const removeStarredEntry = useNotesStore((state) => state.removeStarredEntry);
@@ -40,7 +40,8 @@ export function useStarredSectionEntries() {
 
   const currentVaultPath = currentVault?.path ? normalizeStarredVaultPath(currentVault.path) : '';
   const sortedStarredEntries = useMemo(() => sortStarredEntries(starredEntries), [starredEntries]);
-  const nodeLookup = useMemo(() => buildNodeLookup(rootFolder), [rootFolder]);
+  const currentVaultRootFolder = rootFolderPath === currentVaultPath ? rootFolder : null;
+  const nodeLookup = useMemo(() => buildNodeLookup(currentVaultRootFolder), [currentVaultRootFolder]);
 
   const entries = useMemo<StarredSectionEntryViewModel[]>(
     () =>
@@ -66,74 +67,26 @@ export function useStarredSectionEntries() {
           treeNode,
           onOpen: (openInNewTab = false) => {
             void (async () => {
-              const stateAtStart = useNotesStore.getState();
-              logNotesDebug('NotesStarred', 'entry-open:start', {
-                entryId: entry.id,
-                entryKind: entry.kind,
-                entryVaultPath: entry.vaultPath,
-                entryRelativePath: entry.relativePath,
-                openInNewTab,
-                currentVaultPath,
-                currentNotePath: stateAtStart.currentNote?.path ?? null,
-                isDirty: stateAtStart.isDirty,
-                openTabsLength: stateAtStart.openTabs?.length ?? null,
-              });
               await flushCurrentTitleCommit();
 
               const notesState = useNotesStore.getState();
               const latestEntry =
                 notesState.starredEntries.find((candidate) => candidate.id === entry.id) ?? entry;
               if (latestEntry.kind === 'folder') {
-                logNotesDebug('NotesStarred', 'entry-open:folder-skipped', {
-                  entryId: latestEntry.id,
-                  relativePath: latestEntry.relativePath,
-                });
                 return;
               }
 
               const shouldOpenInNewTab = openInNewTab;
               const isLatestCurrentVaultEntry =
                 normalizeStarredVaultPath(latestEntry.vaultPath) === currentVaultPath;
-              logNotesDebug('NotesStarred', 'entry-open:resolved', {
-                entryId: latestEntry.id,
-                latestVaultPath: latestEntry.vaultPath,
-                latestRelativePath: latestEntry.relativePath,
-                shouldOpenInNewTab,
-                isLatestCurrentVaultEntry,
-                isDirty: notesState.isDirty,
-              });
 
               if (!isLatestCurrentVaultEntry) {
                 const absolutePath = await joinPath(latestEntry.vaultPath, latestEntry.relativePath);
-                logNotesDebug('NotesStarred', 'entry-open:absolute', {
-                  entryId: latestEntry.id,
-                  absolutePath,
-                  shouldOpenInNewTab,
-                });
                 await openNoteByAbsolutePath(absolutePath, shouldOpenInNewTab);
-                const stateAfterOpen = useNotesStore.getState();
-                logNotesDebug('NotesStarred', 'entry-open:absolute:done', {
-                  entryId: latestEntry.id,
-                  currentNotePath: stateAfterOpen.currentNote?.path ?? null,
-                  isDirty: stateAfterOpen.isDirty,
-                  openTabsLength: stateAfterOpen.openTabs?.length ?? null,
-                });
                 return;
               }
 
-              logNotesDebug('NotesStarred', 'entry-open:relative', {
-                entryId: latestEntry.id,
-                relativePath: latestEntry.relativePath,
-                shouldOpenInNewTab,
-              });
               await openNote(latestEntry.relativePath, shouldOpenInNewTab);
-              const stateAfterOpen = useNotesStore.getState();
-              logNotesDebug('NotesStarred', 'entry-open:relative:done', {
-                entryId: latestEntry.id,
-                currentNotePath: stateAfterOpen.currentNote?.path ?? null,
-                isDirty: stateAfterOpen.isDirty,
-                openTabsLength: stateAfterOpen.openTabs?.length ?? null,
-              });
             })();
           },
           onRemove: () => {

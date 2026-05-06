@@ -3,6 +3,7 @@ import {
   createClosedMermaidEditorState,
   createOpenMermaidEditorState,
   shouldDiscardEmptyMermaidNodeOnCancel,
+  shouldRemoveMermaidNodeOnSave,
 } from './mermaidEditorState';
 
 describe('mermaidEditorState', () => {
@@ -51,5 +52,37 @@ describe('mermaidEditorState', () => {
     expect(shouldDiscardEmptyMermaidNodeOnCancel(freshState, 'graph TD')).toBe(false);
     expect(shouldDiscardEmptyMermaidNodeOnCancel(existingState, '')).toBe(false);
     expect(shouldDiscardEmptyMermaidNodeOnCancel(createClosedMermaidEditorState(), '')).toBe(false);
+  });
+
+  it('discards untouched starter directives created from diagram alias fences', () => {
+    const starterState = createOpenMermaidEditorState({
+      code: 'sequenceDiagram\n',
+      position: { x: 0, y: 0 },
+      nodePos: 4,
+      openSource: 'new-empty-block',
+    });
+
+    expect(shouldDiscardEmptyMermaidNodeOnCancel(starterState, 'sequenceDiagram\n')).toBe(true);
+    expect(shouldDiscardEmptyMermaidNodeOnCancel(starterState, 'sequenceDiagram\nAlice->Bob: Hi')).toBe(false);
+  });
+
+  it('removes empty or untouched starter-only nodes on save', () => {
+    const starterState = createOpenMermaidEditorState({
+      code: 'sequenceDiagram\n',
+      position: { x: 0, y: 0 },
+      nodePos: 4,
+      openSource: 'new-empty-block',
+    });
+    const existingState = createOpenMermaidEditorState({
+      code: 'sequenceDiagram\n',
+      position: { x: 0, y: 0 },
+      nodePos: 4,
+      openSource: 'existing-node',
+    });
+
+    expect(shouldRemoveMermaidNodeOnSave(starterState, '')).toBe(true);
+    expect(shouldRemoveMermaidNodeOnSave(starterState, 'sequenceDiagram\n')).toBe(true);
+    expect(shouldRemoveMermaidNodeOnSave(starterState, 'sequenceDiagram\nAlice->Bob: Hi')).toBe(false);
+    expect(shouldRemoveMermaidNodeOnSave(existingState, 'sequenceDiagram\n')).toBe(false);
   });
 });

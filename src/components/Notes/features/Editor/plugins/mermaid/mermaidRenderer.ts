@@ -1,7 +1,11 @@
+import zenumlDiagram from '@mermaid-js/mermaid-zenuml';
+
 let mermaidInstance: any = null;
 let mermaidPromise: Promise<any> | null = null;
 let mermaidAvailable = true;
 let mermaidCounter = 0;
+
+type ConsoleMethodName = 'debug' | 'error' | 'info' | 'log' | 'warn';
 
 const MERMAID_INIT_CONFIG = {
   startOnLoad: false,
@@ -9,6 +13,10 @@ const MERMAID_INIT_CONFIG = {
   securityLevel: 'strict',
   fontFamily: 'inherit',
 } as const;
+
+const CONSOLE_METHODS_TO_SUPPRESS: ConsoleMethodName[] = ['debug', 'error', 'info', 'log', 'warn'];
+const suppressedConsoleMethods = new Map<ConsoleMethodName, typeof console[ConsoleMethodName]>();
+let consoleSuppressionDepth = 0;
 
 async function getMermaid() {
   if (!mermaidAvailable) return null;
@@ -20,6 +28,7 @@ async function getMermaid() {
         const m = await import('mermaid');
         mermaidInstance = m.default;
         mermaidInstance.initialize(MERMAID_INIT_CONFIG);
+        await mermaidInstance.registerExternalDiagrams([zenumlDiagram]);
         return mermaidInstance;
       } catch {
         mermaidAvailable = false;
@@ -29,6 +38,28 @@ async function getMermaid() {
   }
 
   return mermaidPromise;
+}
+
+async function withoutThirdPartyConsoleOutput<T>(action: () => Promise<T>): Promise<T> {
+  if (consoleSuppressionDepth === 0) {
+    for (const method of CONSOLE_METHODS_TO_SUPPRESS) {
+      suppressedConsoleMethods.set(method, console[method]);
+      console[method] = () => undefined;
+    }
+  }
+  consoleSuppressionDepth += 1;
+
+  try {
+    return await action();
+  } finally {
+    consoleSuppressionDepth -= 1;
+    if (consoleSuppressionDepth === 0) {
+      for (const [method, originalMethod] of suppressedConsoleMethods) {
+        console[method] = originalMethod;
+      }
+      suppressedConsoleMethods.clear();
+    }
+  }
 }
 
 function escapeHtml(text: string): string {
@@ -50,7 +81,9 @@ export async function renderMermaid(code: string, id: string): Promise<string> {
   }
 
   try {
-    const { svg } = await mermaid.render(id, code);
+    const { svg } = await withoutThirdPartyConsoleOutput<{ svg: string }>(() =>
+      mermaid.render(id, code)
+    );
     return svg;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

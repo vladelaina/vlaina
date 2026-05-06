@@ -255,3 +255,99 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().noteMetadata?.notes[notePath]?.cover).toBeUndefined();
   });
 });
+
+describe('featureSlice starred path resolution', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.safeWriteTextFile.mockResolvedValue(undefined);
+  });
+
+  it('matches current-vault absolute note paths against relative starred notes', () => {
+    const store = createNotesStore({
+      notesPath: '/vault',
+      starredEntries: [
+        {
+          id: 'starred-alpha',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: 'docs/alpha.md',
+          addedAt: 1,
+        },
+      ],
+      starredNotes: ['docs/alpha.md'],
+    });
+
+    expect(store.getState().isStarred('/vault/docs/alpha.md')).toBe(true);
+    expect(store.getState().isStarred('/other/docs/alpha.md')).toBe(false);
+  });
+
+  it('matches root-vault absolute note paths against relative starred notes', () => {
+    const store = createNotesStore({
+      notesPath: '/',
+      starredEntries: [
+        {
+          id: 'starred-alpha',
+          kind: 'note',
+          vaultPath: '/',
+          relativePath: 'docs/alpha.md',
+          addedAt: 1,
+        },
+      ],
+      starredNotes: ['docs/alpha.md'],
+    });
+
+    expect(store.getState().isStarred('/docs/alpha.md')).toBe(true);
+  });
+
+  it('toggles root-vault absolute note paths as relative starred entries', () => {
+    const store = createNotesStore({
+      notesPath: '/',
+      starredEntries: [],
+      starredNotes: [],
+    });
+
+    store.getState().toggleStarred('/docs/alpha.md');
+
+    expect(store.getState().starredEntries[0]).toMatchObject({
+      kind: 'note',
+      vaultPath: '/',
+      relativePath: 'docs/alpha.md',
+    });
+    expect(store.getState().starredNotes).toEqual(['docs/alpha.md']);
+  });
+
+  it('toggles current-vault absolute note paths as relative starred entries', () => {
+    const store = createNotesStore({
+      notesPath: '/vault',
+      starredEntries: [],
+      starredNotes: [],
+    });
+
+    store.getState().toggleStarred('/vault/docs/alpha.md');
+
+    expect(store.getState().starredEntries[0]).toMatchObject({
+      kind: 'note',
+      vaultPath: '/vault',
+      relativePath: 'docs/alpha.md',
+    });
+    expect(store.getState().starredNotes).toEqual(['docs/alpha.md']);
+
+    store.getState().toggleStarred('/vault/docs/alpha.md');
+
+    expect(store.getState().starredEntries).toEqual([]);
+    expect(store.getState().starredNotes).toEqual([]);
+  });
+
+  it('does not create starred entries for absolute notes outside the current vault', () => {
+    const store = createNotesStore({
+      notesPath: '/vault',
+      starredEntries: [],
+      starredNotes: [],
+    });
+
+    store.getState().toggleStarred('/other/docs/alpha.md');
+
+    expect(store.getState().starredEntries).toEqual([]);
+    expect(store.getState().starredNotes).toEqual([]);
+  });
+});

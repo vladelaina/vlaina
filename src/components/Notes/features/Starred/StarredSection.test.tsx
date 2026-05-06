@@ -78,6 +78,16 @@ describe('StarredSection', () => {
     expect(target?.className).not.toContain('absolute');
   });
 
+  it('keeps existing embedded entries visible while starred data reloads', () => {
+    mocked.starredState.starredLoaded = false;
+    mocked.starredState.hasEntries = true;
+
+    const { container } = render(<StarredSection showTitle={false} />);
+
+    expect(container.querySelector('[data-file-tree-starred-drop-target="true"]')).not.toBeNull();
+    expect(container).not.toBeEmptyDOMElement();
+  });
+
   it('opens the empty starred section while a file tree item is being dragged', () => {
     mocked.dragSnapshot.activeSourcePath = 'Source.md';
 

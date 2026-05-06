@@ -8,6 +8,7 @@ import {
 
 type TestNode = {
   type: { name: string };
+  nodeSize: number;
   childCount: number;
   child: (index: number) => TestNode;
   isLeaf: boolean;
@@ -18,6 +19,7 @@ type TestNode = {
 function createLeafNode(name: string, text?: string | null): TestNode {
   return {
     type: { name },
+    nodeSize: 1,
     childCount: 0,
     child: () => {
       throw new Error('leaf has no children');
@@ -31,6 +33,7 @@ function createLeafNode(name: string, text?: string | null): TestNode {
 function createBranchNode(name: string, children: TestNode[] = []): TestNode {
   return {
     type: { name },
+    nodeSize: Math.max(2, children.reduce((sum, child) => sum + child.nodeSize, 2)),
     childCount: children.length,
     child: (index: number) => children[index],
     isLeaf: false,
@@ -74,6 +77,10 @@ function createState({
         after: (depth?: number) => {
           if (depth == null) return 0;
           return afterValues[depth] ?? 0;
+        },
+        posAtIndex: (index: number, depth?: number) => {
+          if (depth === 0) return index === 0 ? 0 : 18;
+          return 0;
         },
         node: (depth: number) =>
           overrides[depth] ??
@@ -212,7 +219,7 @@ describe('shouldDeleteTableOnLeadingBackspace', () => {
         }),
         -1
       )
-    ).toEqual({ from: 18, to: 20, searchDir: -1 });
+    ).toEqual({ from: 18, to: 20, searchDir: -1, blockFrom: 0, blockTo: table.nodeSize, blockName: 'table' });
   });
 
   it('returns a delete range for an empty paragraph immediately before a table', () => {
@@ -236,6 +243,6 @@ describe('shouldDeleteTableOnLeadingBackspace', () => {
         }),
         1
       )
-    ).toEqual({ from: 5, to: 7, searchDir: 1 });
+    ).toEqual({ from: 5, to: 7, searchDir: 1, blockFrom: 18, blockTo: 18 + table.nodeSize, blockName: 'table' });
   });
 });

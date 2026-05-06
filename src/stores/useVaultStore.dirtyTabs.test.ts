@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => mocks.storage,
+  isAbsolutePath: (path: string) => path.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(path),
 }));
 
 vi.mock('./vaultConfig', () => ({
@@ -59,6 +60,8 @@ describe('useVaultStore dirty note protection', () => {
       currentNote: { path: 'current.md', content: 'Current' },
       isDirty: false,
       openTabs: [{ path: 'current.md', name: 'current', isDirty: false }],
+      rootFolder: null,
+      rootFolderPath: null,
       noteContentsCache: new Map(),
       draftNotes: {},
       noteMetadata: { version: 1, notes: {} },
@@ -87,6 +90,7 @@ describe('useVaultStore dirty note protection', () => {
         expanded: true,
         children: [{ id: 'current.md', name: 'current', path: 'current.md', isFolder: false }],
       },
+      rootFolderPath: '/vault/old',
       recentlyClosedTabs: [{ tab: { path: 'old.md', name: 'old', isDirty: false }, index: 0 }],
       noteContentsCache: new Map([['current.md', { content: 'Current', modifiedAt: null }]]),
       displayNames: new Map([['current.md', 'current']]),
@@ -101,11 +105,71 @@ describe('useVaultStore dirty note protection', () => {
       isDirty: false,
       openTabs: [],
       recentlyClosedTabs: [],
-      rootFolder: null,
+      rootFolder: expect.objectContaining({
+        children: [{ id: 'current.md', name: 'current', path: 'current.md', isFolder: false }],
+      }),
+      rootFolderPath: '/vault/old',
       draftNotes: {},
     });
     expect(useNotesStore.getState().noteContentsCache.size).toBe(0);
     expect(useNotesStore.getState().displayNames.size).toBe(0);
+  });
+
+  it('keeps a placeholder sidebar root while switching from a blank workspace', async () => {
+    useNotesStore.setState({
+      notesPath: '',
+      currentNote: null,
+      isDirty: false,
+      openTabs: [],
+      rootFolder: null,
+      rootFolderPath: null,
+    });
+    useVaultStore.setState({
+      currentVault: null,
+      recentVaults: [],
+    });
+
+    const opened = await useVaultStore.getState().openVault('/vault/next');
+
+    expect(opened).toBe(true);
+    expect(useNotesStore.getState()).toMatchObject({
+      notesPath: '/vault/next',
+      rootFolder: expect.objectContaining({
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [],
+      }),
+      rootFolderPath: null,
+    });
+  });
+
+  it('can skip the placeholder sidebar root for direct markdown navigation', async () => {
+    useNotesStore.setState({
+      notesPath: '',
+      currentNote: null,
+      isDirty: false,
+      openTabs: [],
+      rootFolder: null,
+      rootFolderPath: null,
+    });
+    useVaultStore.setState({
+      currentVault: null,
+      recentVaults: [],
+    });
+
+    const opened = await useVaultStore.getState().openVault('/vault/next', undefined, {
+      preserveSidebarTree: false,
+    });
+
+    expect(opened).toBe(true);
+    expect(useNotesStore.getState()).toMatchObject({
+      notesPath: '/vault/next',
+      rootFolder: null,
+      rootFolderPath: null,
+    });
   });
 
   it('does not open another vault if dirty regular tabs could not be saved', async () => {
@@ -219,7 +283,159 @@ describe('useVaultStore dirty note protection', () => {
       isDirty: false,
       openTabs: [],
       rootFolder: null,
+      rootFolderPath: null,
     });
+  });
+
+  it('closes the vault sidebar without replacing the active external starred note', async () => {
+    useNotesStore.setState({
+      notesPath: '/vault/old',
+      currentNote: { path: '/vault/starred/external.md', content: 'External starred' },
+      currentNoteRevision: 9,
+      isDirty: false,
+      openTabs: [
+        { path: 'current.md', name: 'current', isDirty: false },
+        { path: '/vault/starred/external.md', name: 'external', isDirty: false },
+      ],
+      rootFolder: {
+        id: '',
+        name: 'old',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [{ id: 'current.md', name: 'current', path: 'current.md', isFolder: false }],
+      },
+      rootFolderPath: '/vault/old',
+      noteContentsCache: new Map([
+        ['current.md', { content: 'Current', modifiedAt: 1 }],
+        ['/vault/starred/external.md', { content: 'External starred', modifiedAt: 2 }],
+      ]),
+      noteMetadata: {
+        version: 1,
+        notes: {
+          'current.md': { icon: 'emoji.file' },
+          '/vault/starred/external.md': { icon: 'emoji.star' },
+        },
+      },
+      displayNames: new Map([
+        ['current.md', 'current'],
+        ['/vault/starred/external.md', 'external'],
+      ]),
+    });
+
+    const closed = await useVaultStore.getState().closeVault();
+
+    expect(closed).toBe(true);
+    expect(useVaultStore.getState().currentVault).toBeNull();
+    expect(useNotesStore.getState()).toMatchObject({
+      notesPath: '',
+      currentNote: { path: '/vault/starred/external.md', content: 'External starred' },
+      currentNoteRevision: 9,
+      isDirty: false,
+      openTabs: [{ path: '/vault/starred/external.md', name: 'external', isDirty: false }],
+      rootFolder: null,
+      rootFolderPath: null,
+      draftNotes: {},
+    });
+    expect(Array.from(useNotesStore.getState().noteContentsCache.keys())).toEqual([
+      '/vault/starred/external.md',
+    ]);
+    expect(useNotesStore.getState().noteMetadata?.notes).toEqual({
+      '/vault/starred/external.md': { icon: 'emoji.star' },
+    });
+    expect(useNotesStore.getState().displayNames.get('/vault/starred/external.md')).toBe('external');
+  });
+
+  it('preserves the active external note even if it is not present in the tab list', async () => {
+    useNotesStore.setState({
+      notesPath: '/vault/old',
+      currentNote: { path: '/vault/starred/external.md', content: 'External starred' },
+      currentNoteRevision: 12,
+      isDirty: false,
+      openTabs: [{ path: 'current.md', name: 'current', isDirty: false }],
+      noteContentsCache: new Map([
+        ['current.md', { content: 'Current', modifiedAt: 1 }],
+        ['/vault/starred/external.md', { content: 'External starred', modifiedAt: 2 }],
+      ]),
+      noteMetadata: {
+        version: 1,
+        notes: {
+          'current.md': { icon: 'emoji.file' },
+          '/vault/starred/external.md': { icon: 'emoji.star' },
+        },
+      },
+      displayNames: new Map([
+        ['current.md', 'current'],
+        ['/vault/starred/external.md', 'external'],
+      ]),
+    });
+
+    const closed = await useVaultStore.getState().closeVault();
+
+    expect(closed).toBe(true);
+    expect(useNotesStore.getState()).toMatchObject({
+      notesPath: '',
+      currentNote: { path: '/vault/starred/external.md', content: 'External starred' },
+      currentNoteRevision: 12,
+      openTabs: [],
+      rootFolder: null,
+      rootFolderPath: null,
+    });
+    expect(Array.from(useNotesStore.getState().noteContentsCache.keys())).toEqual([
+      '/vault/starred/external.md',
+    ]);
+    expect(useNotesStore.getState().noteMetadata?.notes).toEqual({
+      '/vault/starred/external.md': { icon: 'emoji.star' },
+    });
+    expect(useNotesStore.getState().displayNames.get('/vault/starred/external.md')).toBe('external');
+  });
+
+  it('does not preserve root-vault absolute notes as external notes when closing the vault', async () => {
+    useVaultStore.setState({
+      currentVault: {
+        id: 'root-vault',
+        name: 'root',
+        path: '/',
+        lastOpened: 1,
+      },
+      recentVaults: [
+        {
+          id: 'root-vault',
+          name: 'root',
+          path: '/',
+          lastOpened: 1,
+        },
+      ],
+    });
+    useNotesStore.setState({
+      notesPath: '/',
+      currentNote: { path: '/docs/alpha.md', content: 'Alpha' },
+      currentNoteRevision: 3,
+      isDirty: false,
+      openTabs: [{ path: '/docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['/docs/alpha.md', { content: 'Alpha', modifiedAt: 1 }]]),
+      noteMetadata: {
+        version: 1,
+        notes: {
+          '/docs/alpha.md': { icon: 'emoji.file' },
+        },
+      },
+      displayNames: new Map([['/docs/alpha.md', 'alpha']]),
+    });
+
+    const closed = await useVaultStore.getState().closeVault();
+
+    expect(closed).toBe(true);
+    expect(useNotesStore.getState()).toMatchObject({
+      notesPath: '',
+      currentNote: null,
+      currentNoteRevision: 0,
+      isDirty: false,
+      openTabs: [],
+    });
+    expect(useNotesStore.getState().noteContentsCache.size).toBe(0);
+    expect(useNotesStore.getState().displayNames.size).toBe(0);
+    expect(useNotesStore.getState().noteMetadata).toBeNull();
   });
 
   it('does not create a vault folder while draft tabs still have unsaved content', async () => {

@@ -1,4 +1,5 @@
 const MAX_NOTES_DEBUG_ENTRIES = 5000;
+const NOTES_DEBUG_STORAGE_KEY = 'vlaina.notes.debug';
 
 interface NotesDebugEntry {
   timestamp: string;
@@ -8,6 +9,23 @@ interface NotesDebugEntry {
 }
 
 const notesDebugEntries: NotesDebugEntry[] = [];
+let notesDebugLoggingOverride: boolean | null = null;
+
+function readStoredNotesDebugLoggingEnabled() {
+  try {
+    return globalThis.localStorage?.getItem(NOTES_DEBUG_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function isNotesDebugLoggingEnabled() {
+  return notesDebugLoggingOverride ?? readStoredNotesDebugLoggingEnabled();
+}
+
+export function setNotesDebugLoggingEnabled(enabled: boolean | null) {
+  notesDebugLoggingOverride = enabled;
+}
 
 export function summarizeLineBreakText(text: string | null | undefined) {
   if (text == null) {
@@ -110,6 +128,10 @@ export function clearLineBreakDebugLog() {
 }
 
 export function logNotesDebug(label: string, scope: string, payload?: unknown) {
+  if (!isNotesDebugLoggingEnabled()) {
+    return;
+  }
+
   notesDebugEntries.push({
     timestamp: new Date().toISOString(),
     label,
@@ -121,7 +143,7 @@ export function logNotesDebug(label: string, scope: string, payload?: unknown) {
     notesDebugEntries.splice(0, notesDebugEntries.length - MAX_NOTES_DEBUG_ENTRIES);
   }
 
-  console.info(`[${label}]`, scope, payload ?? '');
+  console.debug(`[${label}]`, scope, payload ?? '');
 }
 
 export function logLineBreakDebug(scope: string, payload?: unknown) {

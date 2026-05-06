@@ -3,6 +3,7 @@ import {
   createStarredEntry,
   getVaultStarredPaths,
   remapStarredEntriesForVault,
+  resolveStarredRelativePathForVault,
   type StarredEntry,
 } from './starred';
 
@@ -64,5 +65,13 @@ describe('notes starred storage helpers', () => {
     expect(entry.vaultPath).toBe('C:/vault-a');
     expect(entry.relativePath).toBe('docs/alpha.md');
     expect(entry.id.startsWith('starred-')).toBe(true);
+  });
+
+  it('resolves only current-vault absolute starred paths to relative paths', () => {
+    expect(resolveStarredRelativePathForVault('/vault/docs/alpha.md', '/vault')).toBe('docs/alpha.md');
+    expect(resolveStarredRelativePathForVault('docs/alpha.md', '/vault')).toBe('docs/alpha.md');
+    expect(resolveStarredRelativePathForVault('/other/docs/alpha.md', '/vault')).toBeNull();
+    expect(resolveStarredRelativePathForVault('C:\\vault\\docs\\alpha.md', 'C:/vault')).toBe('docs/alpha.md');
+    expect(resolveStarredRelativePathForVault('/docs/alpha.md', '/')).toBe('docs/alpha.md');
   });
 });

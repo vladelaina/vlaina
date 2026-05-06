@@ -9,6 +9,10 @@ export function normalizeFsPath(path: string): string {
 export function isInsideVault(vaultPath: string, absolutePath: string): boolean {
   const normalizedVaultPath = normalizeFsPath(vaultPath);
   const normalizedAbsolutePath = normalizeFsPath(absolutePath);
+  if (normalizedVaultPath === '/') {
+    return normalizedAbsolutePath === '/' || normalizedAbsolutePath.startsWith('/');
+  }
+
   return (
     normalizedAbsolutePath === normalizedVaultPath ||
     normalizedAbsolutePath.startsWith(`${normalizedVaultPath}/`)
@@ -25,6 +29,10 @@ export function toVaultRelativePath(vaultPath: string, absolutePath: string): st
 
   if (normalizedAbsolutePath === normalizedVaultPath) {
     return '';
+  }
+
+  if (normalizedVaultPath === '/') {
+    return normalizedAbsolutePath.replace(/^\/+/, '');
   }
 
   return normalizedAbsolutePath.slice(normalizedVaultPath.length + 1);

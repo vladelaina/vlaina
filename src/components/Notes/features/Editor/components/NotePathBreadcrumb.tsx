@@ -7,6 +7,8 @@ import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { getCachedDesktopHomePath, getDesktopHomePath } from '@/lib/desktop/homePath';
 import { getParentPath, isAbsolutePath, normalizePath, relativePath } from '@/lib/storage/adapter';
 import { getDraftNoteEntry, isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
+import { normalizeStarredVaultPath } from '@/stores/notes/starred';
+import type { StarredEntry } from '@/stores/notes/types';
 import { cn } from '@/lib/utils';
 import { scheduleSidebarItemIntoView } from '@/components/Notes/features/common/sidebarScrollIntoView';
 
@@ -24,6 +26,11 @@ interface BreadcrumbDisplayPath {
   rootPath: string;
   displayPath: string;
   isAbsolute: boolean;
+}
+
+interface StarredNoteContext {
+  vaultPath: string;
+  relativePath: string;
 }
 
 function toRelativePath(path: string): string {
@@ -124,7 +131,10 @@ function expandDisplayPath(displayPath: string, homePath: string | null): string
 
 function resolveNotePathWithinDirectory(notePath: string, directoryPath: string): string | null {
   const normalizedNote = normalizePath(notePath, true);
-  const normalizedDirectory = normalizePath(directoryPath, true).replace(/\/+$/, '');
+  const normalizedRawDirectory = normalizePath(directoryPath, true);
+  const normalizedDirectory = normalizedRawDirectory === '/'
+    ? '/'
+    : normalizedRawDirectory.replace(/\/+$/, '');
 
   if (!normalizedDirectory || normalizedNote === normalizedDirectory) {
     return null;
@@ -136,6 +146,37 @@ function resolveNotePathWithinDirectory(notePath: string, directoryPath: string)
   }
 
   return relativePath(normalizedDirectory, normalizedNote);
+}
+
+function resolveStarredNoteContext(
+  notePath: string,
+  starredEntries: StarredEntry[]
+): StarredNoteContext | null {
+  const normalizedNote = normalizePath(notePath, true);
+
+  for (const entry of starredEntries) {
+    if (entry.kind !== 'note') {
+      continue;
+    }
+
+    const vaultPath = normalizeStarredVaultPath(entry.vaultPath);
+    const relativeNotePath = toRelativePath(entry.relativePath).replace(/^\/+/, '');
+    if (!vaultPath || !relativeNotePath) {
+      continue;
+    }
+
+    const absoluteNotePath = vaultPath === '/'
+      ? `/${relativeNotePath}`
+      : `${vaultPath}/${relativeNotePath}`;
+    if (normalizePath(absoluteNotePath, true) === normalizedNote) {
+      return {
+        vaultPath,
+        relativePath: relativeNotePath,
+      };
+    }
+  }
+
+  return null;
 }
 
 function buildFolderSegments(
@@ -159,6 +200,7 @@ function buildFolderSegments(
 export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
   const notesPath = useNotesStore((s) => s.notesPath);
   const draftNotes = useNotesStore((s) => s.draftNotes);
+  const starredEntries = useNotesStore((s) => s.starredEntries);
   const revealFolder = useNotesStore((s) => s.revealFolder);
   const setPendingStarredNavigation = useNotesStore((s) => s.setPendingStarredNavigation);
   const vaultName = useVaultStore((s) => s.currentVault?.name ?? 'Root');
@@ -197,6 +239,10 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
     () => buildFolderSegments(displayPath, displayInfo.isAbsolute, displayInfo.rootPath, homePath),
     [displayInfo.isAbsolute, displayInfo.rootPath, displayPath, homePath]
   );
+  const starredNoteContext = useMemo(
+    () => displayInfo.isAbsolute ? resolveStarredNoteContext(notePath, starredEntries) : null,
+    [displayInfo.isAbsolute, notePath, starredEntries]
+  );
   const noteLabel = useMemo(() => {
     if (displayName?.trim()) return displayName.trim();
     return getNoteTitleFromPath(displayPath);
@@ -208,17 +254,18 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
   const openAbsoluteDirectoryInSidebar = async (targetPath: string) => {
     setNotesSidebarView('workspace');
 
-    const relativeNotePath = resolveNotePathWithinDirectory(notePath, targetPath);
+    const navigationVaultPath = starredNoteContext?.vaultPath ?? targetPath;
+    const relativeNotePath = starredNoteContext?.relativePath ?? resolveNotePathWithinDirectory(notePath, targetPath);
     if (relativeNotePath) {
       setPendingStarredNavigation({
-        vaultPath: targetPath,
+        vaultPath: navigationVaultPath,
         kind: 'note',
         relativePath: relativeNotePath,
         skipWorkspaceRestore: true,
       });
     }
 
-    const opened = await openVault(targetPath);
+    const opened = await openVault(navigationVaultPath);
     if (!opened && relativeNotePath) {
       setPendingStarredNavigation(null);
     }

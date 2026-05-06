@@ -78,7 +78,6 @@ export function sanitizeVideoDebugPayload(payload: unknown): unknown {
 export function logVideoDebug(event: string, payload: Record<string, unknown>) {
   const debugPayload = sanitizeVideoDebugPayload(payload);
   logNotesDebug('NotesVideo', `videoPlugin:${event}`, debugPayload);
-  console.info(`[videoPlugin:${event}]`, debugPayload);
 }
 
 export function getEventTargetDebug(target: EventTarget | null) {

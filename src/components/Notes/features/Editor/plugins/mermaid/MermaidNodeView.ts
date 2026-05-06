@@ -1,6 +1,11 @@
 import type { Node } from '@milkdown/kit/prose/model';
 import type { EditorView, NodeView } from '@milkdown/kit/prose/view';
 import { createMermaidElement, renderMermaidEditorLivePreview } from './mermaidDom';
+import { normalizeMermaidEditorCodeInput } from './mermaidFenceCode';
+
+export function shouldRefreshMermaidElementCode(element: HTMLElement, code: string) {
+  return element.dataset.code !== normalizeMermaidEditorCodeInput(code);
+}
 
 export class MermaidNodeView implements NodeView {
   dom: HTMLElement;
@@ -18,7 +23,7 @@ export class MermaidNodeView implements NodeView {
 
     this.node = node;
     const code = String(node.attrs.code || '');
-    if (this.dom.dataset.code !== code) {
+    if (shouldRefreshMermaidElementCode(this.dom, code)) {
       void renderMermaidEditorLivePreview({
         anchor: this.dom,
         code,

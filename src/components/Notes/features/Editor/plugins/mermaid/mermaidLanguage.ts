@@ -1,6 +1,7 @@
 export const MERMAID_FENCE_LANGUAGE_ALIAS_LIST = [
   'mermaid',
   'mmd',
+  'info',
   'c4',
   'c4context',
   'c4container',
@@ -27,6 +28,8 @@ export const MERMAID_FENCE_LANGUAGE_ALIAS_LIST = [
   'gitgraph',
   'mindmap',
   'timeline',
+  'treeview',
+  'treeviewbeta',
   'quadrant',
   'quadrantchart',
   'xychart',
@@ -50,16 +53,20 @@ export const MERMAID_FENCE_LANGUAGE_ALIAS_LIST = [
   'vennbeta',
   'treemap',
   'treemapbeta',
+  'wardley',
+  'wardleybeta',
+  'zenuml',
 ] as const;
 
 const MERMAID_FENCE_LANGUAGE_ALIASES: ReadonlySet<string> = new Set(
   MERMAID_FENCE_LANGUAGE_ALIAS_LIST
 );
 
-const MERMAID_FENCE_PATTERN = /^```([\w+-]*)$/;
+const MERMAID_FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})[ \t]*([^\r\n]*)$/;
 
 export function normalizeMermaidFenceLanguage(language: string | null | undefined) {
-  return language?.trim().toLowerCase().replace(/[\s_-]+/g, '') ?? '';
+  const languageToken = language?.trim().split(/\s+/)[0] ?? '';
+  return languageToken.toLowerCase().replace(/[\s_-]+/g, '');
 }
 
 export function isMermaidFenceLanguage(language: string | null | undefined) {
@@ -67,11 +74,17 @@ export function isMermaidFenceLanguage(language: string | null | undefined) {
 }
 
 export function parseMermaidFenceLanguage(text: string) {
-  const match = MERMAID_FENCE_PATTERN.exec(text.trim());
+  const match = MERMAID_FENCE_PATTERN.exec(text.replace(/[ \t]+$/g, ''));
   if (!match) {
     return null;
   }
 
-  const language = match[1] ?? '';
+  const openingMarker = match[1] ?? '';
+  const infoString = match[2]?.trim() ?? '';
+  if (openingMarker[0] === '`' && infoString.includes('`')) {
+    return null;
+  }
+
+  const language = infoString.split(/\s+/)[0] ?? '';
   return isMermaidFenceLanguage(language) ? language : null;
 }

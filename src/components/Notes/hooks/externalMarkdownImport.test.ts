@@ -32,6 +32,7 @@ vi.mock('@/lib/storage/adapter', () => ({
     const lastDot = name.lastIndexOf('.');
     return lastDot === -1 ? '' : name.slice(lastDot + 1);
   },
+  isAbsolutePath: (path: string) => path.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(path),
   relativePath: (from: string, to: string) => {
     const normalizedFrom = from.replace(/\\/g, '/').replace(/\/+$/, '');
     const normalizedTo = to.replace(/\\/g, '/');
@@ -161,6 +162,34 @@ describe('importExternalMarkdownEntries', () => {
       {
         kind: 'folder',
         vaultPath: '/vault',
+        relativePath: 'docs',
+      },
+    ]);
+    expect(mocks.resolveUniquePath).not.toHaveBeenCalled();
+    expect(mocks.storage.copyFile).not.toHaveBeenCalled();
+    expect(mocks.storage.mkdir).not.toHaveBeenCalled();
+  });
+
+  it('stars existing root-vault markdown files without copying them', async () => {
+    mocks.storage.stat.mockImplementation(async (path: string) => ({
+      isDirectory: path === '/docs',
+      isFile: path === '/docs/alpha.md',
+    }));
+
+    const result = await resolveExternalMarkdownEntriesForStarred('/', [
+      '/docs/alpha.md',
+      '/docs',
+    ]);
+
+    expect(result).toEqual([
+      {
+        kind: 'note',
+        vaultPath: '/',
+        relativePath: 'docs/alpha.md',
+      },
+      {
+        kind: 'folder',
+        vaultPath: '/',
         relativePath: 'docs',
       },
     ]);
