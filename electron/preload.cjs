@@ -108,6 +108,11 @@ const desktopApi = {
       return ipcRenderer.invoke('desktop:media:capture-page', rect);
     },
   },
+  export: {
+    htmlToPdf(html, options) {
+      return ipcRenderer.invoke('desktop:export:html-to-pdf', html, options);
+    },
+  },
   aiProvider: {
     startRequest(requestId, request) {
       return ipcRenderer.invoke('desktop:ai-provider:request:start', requestId, request);

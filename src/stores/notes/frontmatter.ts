@@ -69,6 +69,14 @@ function parseTopLevelKey(line: string): string | null {
   return match?.[1] ?? null;
 }
 
+function trimTrailingBlankLines(lines: string[]): string[] {
+  let end = lines.length;
+  while (end > 0 && lines[end - 1]?.trim() === '') {
+    end -= 1;
+  }
+  return lines.slice(0, end);
+}
+
 function parseYamlScalar(rawValue: string): string | number | null {
   const trimmed = rawValue.trim();
   if (!trimmed) {
@@ -212,6 +220,34 @@ export function readNoteMetadataFromMarkdown(markdown: string): NoteMetadataEntr
   }
 
   return normalizeNoteMetadataEntry(normalized);
+}
+
+export function stripVlainaManagedFrontmatter(markdown: string): string {
+  const { lines, body, hasFrontmatter } = splitLeadingFrontmatter(markdown);
+  if (!hasFrontmatter) {
+    return normalizeLineEndings(markdown);
+  }
+
+  const visibleFrontmatterLines = trimTrailingBlankLines(
+    lines.filter((line) => {
+      const key = parseTopLevelKey(line);
+      return !key || !key.startsWith(VLAINA_PREFIX);
+    }),
+  );
+
+  if (visibleFrontmatterLines.length === 0) {
+    const bodyLines = body.split('\n');
+    return bodyLines[0]?.trim() === ''
+      ? bodyLines.slice(1).join('\n')
+      : body;
+  }
+
+  return [
+    FRONTMATTER_DELIMITER,
+    ...visibleFrontmatterLines,
+    FRONTMATTER_DELIMITER,
+    body,
+  ].join('\n');
 }
 
 export function writeNoteMetadataToMarkdown(

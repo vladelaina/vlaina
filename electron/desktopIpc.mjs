@@ -1,6 +1,7 @@
 import electron from 'electron';
 import {
   copyFile,
+  mkdtemp,
   mkdir,
   readdir,
   readFile,
@@ -24,7 +25,7 @@ import {
   updateAuthorizedRootRename,
 } from './fsAccess.mjs';
 
-const { app, clipboard, dialog, shell } = electron;
+const { app, BrowserWindow, clipboard, dialog, shell } = electron;
 const activeAiProviderRequests = new Map();
 
 function summarizeError(error) {
@@ -46,6 +47,55 @@ function safeSend(sender, channel, payload) {
     return true;
   } catch {
     return false;
+  }
+}
+
+function normalizeExportPdfOptions(options) {
+  const pageSize = options?.pageSize === 'Letter' ? 'Letter' : 'A4';
+  return {
+    landscape: Boolean(options?.landscape),
+    pageSize,
+    printBackground: true,
+    margins: {
+      marginType: 'custom',
+      top: 0.4,
+      bottom: 0.45,
+      left: 0.45,
+      right: 0.45,
+    },
+  };
+}
+
+async function renderHtmlToPdf(html, options) {
+  if (typeof html !== 'string' || !html.trim()) {
+    throw new Error('HTML content is required for PDF export.');
+  }
+
+  const tempDir = await mkdtemp(path.join(app.getPath('temp'), 'vlaina-export-'));
+  const tempHtmlPath = path.join(tempDir, 'export.html');
+
+  const win = new BrowserWindow({
+    show: false,
+    width: 900,
+    height: 1200,
+    webPreferences: {
+      contextIsolation: true,
+      javascript: false,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+
+  try {
+    await writeFile(tempHtmlPath, html, 'utf8');
+    await win.loadFile(tempHtmlPath);
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    return await win.webContents.printToPDF(normalizeExportPdfOptions(options));
+  } finally {
+    if (!win.isDestroyed()) {
+      win.destroy();
+    }
+    await rm(tempDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
@@ -119,6 +169,10 @@ export function registerDesktopIpc({
 
   handleIpc('desktop:clipboard:write-text', async (_event, text) => {
     clipboard.writeText(String(text ?? ''));
+  });
+
+  handleIpc('desktop:export:html-to-pdf', async (_event, html, options) => {
+    return new Uint8Array(await renderHtmlToPdf(html, options));
   });
 
   handleIpc('desktop:ai-provider:request:start', async (event, requestId, rawRequest) => {

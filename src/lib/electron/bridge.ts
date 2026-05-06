@@ -74,6 +74,14 @@ export interface ElectronMediaApi {
   }>;
 }
 
+export interface ElectronExportApi {
+  htmlToPdf(html: string, options?: {
+    title?: string;
+    pageSize?: 'A4' | 'Letter';
+    landscape?: boolean;
+  }): Promise<Uint8Array>;
+}
+
 export interface ElectronAIProviderHttpApi {
   startRequest(
     requestId: string,
@@ -231,6 +239,7 @@ export interface VlainaDesktopApi {
   shell: ElectronShellApi;
   clipboard: ElectronClipboardApi;
   media?: ElectronMediaApi;
+  export: ElectronExportApi;
   aiProvider: ElectronAIProviderHttpApi;
   dragDrop: ElectronDragDropApi;
   dialog: ElectronDialogApi;
