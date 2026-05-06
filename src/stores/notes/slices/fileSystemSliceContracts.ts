@@ -2,6 +2,7 @@ import type { NotesStore } from '../types';
 
 export interface FileSystemSlice {
   rootFolder: NotesStore['rootFolder'];
+  rootFolderPath: NotesStore['rootFolderPath'];
   notesPath: NotesStore['notesPath'];
   isNewlyCreated: NotesStore['isNewlyCreated'];
   newlyCreatedFolderPath: NotesStore['newlyCreatedFolderPath'];
@@ -31,6 +32,7 @@ export interface FileSystemSlice {
 
 export const fileSystemSliceInitialState = {
   rootFolder: null,
+  rootFolderPath: null,
   notesPath: '',
   isNewlyCreated: false,
   newlyCreatedFolderPath: null,

@@ -38,6 +38,7 @@ type MockNotesState = {
     children: Array<MockFileNode | MockFolderNode>;
     expanded: boolean;
   } | null;
+  rootFolderPath: string | null;
   openNote: ReturnType<typeof vi.fn>;
   openNoteByAbsolutePath: ReturnType<typeof vi.fn>;
   toggleFolder: ReturnType<typeof vi.fn>;
@@ -53,6 +54,7 @@ const mocked = vi.hoisted(() => {
     currentNote: null,
     isDirty: false,
     rootFolder: null,
+    rootFolderPath: null,
     openNote: vi.fn(async () => undefined),
     openNoteByAbsolutePath: vi.fn(async () => undefined),
     toggleFolder: vi.fn(),
@@ -100,6 +102,7 @@ describe('useStarredSectionEntries', () => {
     mocked.notesState.currentNote = null;
     mocked.notesState.isDirty = false;
     mocked.notesState.rootFolder = null;
+    mocked.notesState.rootFolderPath = null;
     mocked.notesState.openNote.mockReset();
     mocked.notesState.openNote.mockResolvedValue(undefined);
     mocked.notesState.openNoteByAbsolutePath.mockReset();
@@ -166,6 +169,7 @@ describe('useStarredSectionEntries', () => {
         },
       ],
     };
+    mocked.notesState.rootFolderPath = '/vault-a';
 
     const { result } = renderHook(() => useStarredSectionEntries());
 
@@ -203,6 +207,38 @@ describe('useStarredSectionEntries', () => {
     expect(mocked.notesState.setPendingStarredNavigation).not.toHaveBeenCalled();
     expect(mocked.vaultState.openVault).not.toHaveBeenCalled();
     expect(mocked.notesState.openNote).not.toHaveBeenCalled();
+  });
+
+  it('does not resolve current-vault tree nodes from a preserved previous-vault tree', () => {
+    mocked.notesState.starredEntries = [
+      {
+        id: 'note-1',
+        kind: 'note',
+        vaultPath: '/vault-a',
+        relativePath: 'docs/alpha.md',
+        addedAt: 1,
+      },
+    ];
+    mocked.notesState.rootFolderPath = '/vault-old';
+    mocked.notesState.rootFolder = {
+      id: '',
+      name: 'Old notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [
+        {
+          id: 'docs/alpha.md',
+          name: 'alpha',
+          path: 'docs/alpha.md',
+          isFolder: false,
+        },
+      ],
+    };
+
+    const { result } = renderHook(() => useStarredSectionEntries());
+
+    expect(result.current.entries[0]?.treeNode).toBeNull();
   });
 
   it('marks an opened cross-vault starred note as active', () => {

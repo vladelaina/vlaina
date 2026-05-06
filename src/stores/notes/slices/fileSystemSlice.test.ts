@@ -137,6 +137,7 @@ describe('createFileSystemSlice tree flows', () => {
   it('expands folders immediately and defers workspace persistence', () => {
     const harness = createSliceHarness({
       notesPath: '/vault',
+      rootFolderPath: '/vault',
       currentNote: { path: 'alpha.md', content: '# alpha' },
       rootFolder: {
         id: '',
@@ -180,6 +181,7 @@ describe('createFileSystemSlice tree flows', () => {
   it('uses the latest current note when deferred folder persistence flushes', () => {
     const harness = createSliceHarness({
       notesPath: '/vault',
+      rootFolderPath: '/vault',
       currentNote: { path: 'alpha.md', content: '# alpha' },
       rootFolder: {
         id: '',
@@ -208,6 +210,78 @@ describe('createFileSystemSlice tree flows', () => {
     expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
       currentNotePath: 'beta.md',
     }));
+  });
+
+  it('does not persist a preserved previous-vault tree as the current workspace', () => {
+    const harness = createSliceHarness({
+      notesPath: '/vault-next',
+      rootFolderPath: '/vault-old',
+      currentNote: { path: 'alpha.md', content: '# alpha' },
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [
+          {
+            id: 'docs',
+            name: 'docs',
+            path: 'docs',
+            isFolder: true,
+            expanded: false,
+            children: [],
+          },
+        ],
+      },
+    });
+
+    harness.getState().toggleFolder('docs');
+    vi.runOnlyPendingTimers();
+
+    expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('does not collapse an empty root folder', () => {
+    const harness = createSliceHarness({
+      notesPath: '/vault',
+      rootFolderPath: '/vault',
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [],
+      },
+    });
+
+    harness.getState().toggleFolder('');
+    vi.runOnlyPendingTimers();
+
+    expect(harness.getState().rootFolder.expanded).toBe(true);
+    expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('reopens an empty root folder if a stale collapsed state tries to toggle', () => {
+    const harness = createSliceHarness({
+      notesPath: '/vault',
+      rootFolderPath: '/vault',
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: false,
+        children: [],
+      },
+    });
+
+    harness.getState().toggleFolder('');
+    vi.runOnlyPendingTimers();
+
+    expect(harness.getState().rootFolder.expanded).toBe(true);
+    expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
   });
 });
 

@@ -53,7 +53,9 @@ export class Timer {
       })
 
       this.#status = 'pending'
-      addEventListener(this.type.name, this.#listener)
+      if (typeof addEventListener === 'function') {
+        addEventListener(this.type.name, this.#listener)
+      }
     })
 
     return this.#promise
@@ -61,6 +63,8 @@ export class Timer {
 
   /// Resolve the timer.
   done = () => {
+    if (typeof dispatchEvent !== 'function') return
+
     const event = new CustomEvent(this.type.name, {
       detail: { id: this.#eventUniqId },
     })
@@ -69,7 +73,10 @@ export class Timer {
 
   /// @internal
   #removeListener = () => {
-    if (this.#listener) removeEventListener(this.type.name, this.#listener)
+    if (this.#listener && typeof removeEventListener === 'function') {
+      removeEventListener(this.type.name, this.#listener)
+    }
+    this.#listener = null
   }
 
   /// @internal

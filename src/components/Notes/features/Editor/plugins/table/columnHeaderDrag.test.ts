@@ -223,12 +223,16 @@ afterEach(() => {
     cleanup();
   }
 
+  vi.clearAllTimers();
+  vi.useRealTimers();
+
   document.body.innerHTML = '';
   document.body.style.removeProperty('user-select');
   document.body.style.removeProperty('cursor');
 });
 
 beforeEach(() => {
+  vi.useFakeTimers();
   warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 

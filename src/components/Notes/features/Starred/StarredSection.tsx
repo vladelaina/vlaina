@@ -43,7 +43,7 @@ export function StarredSection({
     }
   }, [activeDragSourcePath, hasEntries, isExpanded]);
 
-  if (!starredLoaded) {
+  if (!starredLoaded && !hasEntries) {
     return null;
   }
 

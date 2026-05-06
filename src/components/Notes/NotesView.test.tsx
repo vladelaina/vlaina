@@ -48,6 +48,7 @@ type MockNotesState = {
     children: unknown[];
     expanded: boolean;
   } | null;
+  rootFolderPath: string | null;
   draftNotes: Record<string, { parentPath: string | null; name: string }>;
   isLoading: boolean;
   openNoteByAbsolutePath: ReturnType<typeof vi.fn>;
@@ -89,6 +90,7 @@ const mocks = vi.hoisted(() => {
       children: [],
       expanded: true,
     },
+    rootFolderPath: '/vault',
     draftNotes: {},
     isLoading: false,
     openNoteByAbsolutePath: vi.fn().mockResolvedValue(undefined),
@@ -213,7 +215,11 @@ vi.mock('@/lib/desktop/launchContext', () => ({
 }));
 
 vi.mock('./features/Editor', () => ({
-  MarkdownEditor: () => <div data-testid="markdown-editor" />,
+  MarkdownEditor: ({ active }: { active?: boolean }) => (
+    active
+      ? <div data-testid="markdown-editor" />
+      : <div data-testid="markdown-editor-shell" />
+  ),
 }));
 
 vi.mock('@/hooks/useModuleShortcutsDialog', () => ({
@@ -291,6 +297,15 @@ function dispatchWindowDragEvent(
   dispatchWindowDragEventWithFiles(type, paths.map((path) => createDropFile(path)), types);
 }
 
+async function waitForVaultInitializationEffects() {
+  await waitFor(() => {
+    expect(notesState.loadFileTree).toHaveBeenCalled();
+  });
+  await act(async () => {
+    await Promise.resolve();
+  });
+}
+
 describe('NotesView', () => {
   beforeEach(() => {
     delete (window as Window & { vlainaDesktop?: unknown }).vlainaDesktop;
@@ -311,6 +326,7 @@ describe('NotesView', () => {
       children: [],
       expanded: true,
     };
+    notesState.rootFolderPath = '/vault';
     notesState.openNote.mockImplementation(async (path: string) => {
       notesState.currentNote = { path, content: '' };
     });
@@ -353,11 +369,12 @@ describe('NotesView', () => {
     uiState.setLayoutPanelDragging.mockClear();
   });
 
-  it('disables external note sync hooks while inactive', () => {
+  it('disables external note sync hooks while inactive', async () => {
     notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
     notesState.openTabs = [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }];
 
     render(<NotesView active={false} />);
+    await waitForVaultInitializationEffects();
 
     expect(useCurrentVaultExternalPathSync).toHaveBeenCalledWith(null);
     expect(useNotesExternalSync).toHaveBeenCalledWith(null, '');
@@ -433,6 +450,7 @@ describe('NotesView', () => {
     mocks.vaultState.currentVault = null;
     notesState.notesPath = '';
     notesState.rootFolder = null;
+    notesState.rootFolderPath = null;
 
     const { rerender } = render(<NotesView />);
 
@@ -440,12 +458,14 @@ describe('NotesView', () => {
       await new Promise((resolve) => window.setTimeout(resolve, 0));
     });
 
-    expect(notesState.createNote).not.toHaveBeenCalled();
+    expect(notesState.createNote).toHaveBeenCalledWith(undefined, { asDraft: true });
+    notesState.createNote.mockClear();
 
     mocks.vaultState.currentVault = { path: '/vault' };
     notesState.notesPath = '/vault';
     notesState.isLoading = true;
     notesState.rootFolder = null;
+    notesState.rootFolderPath = null;
     rerender(<NotesView />);
 
     await act(async () => {
@@ -465,6 +485,53 @@ describe('NotesView', () => {
           id: 'dfds.md',
           name: 'dfds',
           path: 'dfds.md',
+          isFolder: false,
+        },
+      ],
+      expanded: true,
+    };
+    notesState.rootFolderPath = '/vault';
+    rerender(<NotesView />);
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
+  });
+
+  it('does not create an untitled draft from a preserved previous-vault sidebar tree', async () => {
+    mocks.vaultState.currentVault = { path: '/vault-next' };
+    notesState.notesPath = '/vault-next';
+    notesState.rootFolderPath = '/vault-old';
+    notesState.rootFolder = {
+      id: '',
+      name: 'Old notes',
+      path: '',
+      isFolder: true,
+      children: [],
+      expanded: true,
+    };
+
+    const { rerender } = render(<NotesView />);
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    expect(notesState.createNote).not.toHaveBeenCalled();
+
+    notesState.rootFolderPath = '/vault-next';
+    notesState.rootFolder = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      children: [
+        {
+          id: 'existing.md',
+          name: 'existing',
+          path: 'existing.md',
           isFolder: false,
         },
       ],
@@ -530,9 +597,45 @@ describe('NotesView', () => {
     expect(notesState.openNote).toHaveBeenCalledTimes(1);
   });
 
+  it('waits for the current vault tree before consuming pending starred navigation', async () => {
+    notesState.currentNote = { path: '/external/vault/docs/alpha.md', content: '# alpha' };
+    notesState.openTabs = [
+      { path: '/external/vault/docs/alpha.md', name: 'alpha', isDirty: false },
+    ];
+    notesState.pendingStarredNavigation = {
+      vaultPath: '/vault',
+      kind: 'note',
+      relativePath: 'docs/alpha.md',
+      skipWorkspaceRestore: true,
+    };
+    notesState.rootFolderPath = '/old-vault';
+
+    const { rerender } = render(<NotesView />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(notesState.setPendingStarredNavigation).not.toHaveBeenCalled();
+    expect(notesState.openNote).not.toHaveBeenCalled();
+
+    notesState.rootFolderPath = '/vault';
+    notesState.rootFolder = {
+      ...notesState.rootFolder!,
+      children: [...notesState.rootFolder!.children],
+    };
+    rerender(<NotesView />);
+
+    await waitFor(() => {
+      expect(notesState.setPendingStarredNavigation).toHaveBeenCalledWith(null);
+      expect(notesState.openNote).toHaveBeenCalledWith('docs/alpha.md', false);
+    });
+  });
+
   it('creates an editable draft when switching from a populated vault to an empty vault', async () => {
     mocks.vaultState.currentVault = { path: '/vault-a' };
     notesState.notesPath = '/vault-a';
+    notesState.rootFolderPath = '/vault-a';
     notesState.currentNote = { path: 'alpha.md', content: '# alpha' };
     notesState.openTabs = [{ path: 'alpha.md', name: 'alpha', isDirty: false }];
 
@@ -555,6 +658,7 @@ describe('NotesView', () => {
       children: [],
       expanded: true,
     };
+    notesState.rootFolderPath = '/vault-b';
     rerender(<NotesView />);
 
     await waitFor(() => {
@@ -580,19 +684,17 @@ describe('NotesView', () => {
     });
   });
 
-  it('does not create a draft when the workspace starts blank without an open vault', async () => {
+  it('creates an in-memory draft when the workspace starts blank without an open vault', async () => {
     mocks.vaultState.currentVault = null;
 
     render(<NotesView />);
 
     expect(screen.queryByTestId('markdown-editor')).toBeNull();
-    expect(notesState.createNote).not.toHaveBeenCalled();
 
-    await act(async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    await waitFor(() => {
+      expect(notesState.createNote).toHaveBeenCalledTimes(1);
     });
-
-    expect(notesState.createNote).not.toHaveBeenCalled();
+    expect(notesState.createNote).toHaveBeenCalledWith(undefined, { asDraft: true });
   });
 
   it('does not create an untitled note while the previous workspace note is restoring', async () => {
@@ -761,6 +863,7 @@ describe('NotesView', () => {
     mocks.vaultState.currentVault = null;
     notesState.notesPath = '';
     notesState.rootFolder = null;
+    notesState.rootFolderPath = null;
     mocks.storageState.stat.mockResolvedValue({
       name: 'alpha.md',
       path: '/vault/alpha.md',
@@ -780,7 +883,9 @@ describe('NotesView', () => {
     });
 
     await waitFor(() => {
-      expect(mocks.vaultState.openVault).toHaveBeenCalledWith('/vault');
+      expect(mocks.vaultState.openVault).toHaveBeenCalledWith('/vault', undefined, {
+        preserveSidebarTree: false,
+      });
     });
 
     rerender(<NotesView />);
@@ -920,7 +1025,7 @@ describe('NotesView', () => {
     });
   });
 
-  it('does not cycle notes on Ctrl+Tab from inside a dialog', () => {
+  it('does not cycle notes on Ctrl+Tab from inside a dialog', async () => {
     notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
     notesState.openTabs = [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }];
     notesState.rootFolder = {
@@ -946,6 +1051,7 @@ describe('NotesView', () => {
     shortcutMatchesMock.mockImplementation((event, binding) => binding === 'nextNoteTab' && event.key === 'Tab' && event.ctrlKey && !event.shiftKey);
 
     render(<NotesView />);
+    await waitForVaultInitializationEffects();
     notesState.openNote.mockClear();
     notesState.revealFolder.mockClear();
 

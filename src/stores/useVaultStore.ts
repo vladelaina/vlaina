@@ -46,7 +46,7 @@ interface VaultState {
 
 interface VaultActions {
   initialize: () => Promise<void>;
-  openVault: (path: string, name?: string) => Promise<boolean>;
+  openVault: (path: string, name?: string, options?: { preserveSidebarTree?: boolean }) => Promise<boolean>;
   createVault: (name: string, path: string) => Promise<boolean>;
   renameCurrentVault: (name: string) => Promise<boolean>;
   syncCurrentVaultExternalPath: (path: string) => void;
@@ -247,7 +247,11 @@ function collectExternalWorkspaceForVaultClose(): PreservedExternalWorkspace {
 
 function resetNotesWorkspaceForVaultTransition(
   notesPath = '',
-  options: { preserveDrafts?: boolean; preserveExternalNotes?: boolean } = {},
+  options: {
+    preserveDrafts?: boolean;
+    preserveExternalNotes?: boolean;
+    preserveSidebarTree?: boolean;
+  } = {},
 ) {
   const preservedDraftWorkspace = options.preserveDrafts
     ? collectDraftWorkspaceForVaultTransition()
@@ -258,6 +262,20 @@ function resetNotesWorkspaceForVaultTransition(
   const preservedWorkspace = preservedDraftWorkspace ?? preservedExternalWorkspace;
 
   useNotesStore.getState().clearAssetUrlCache();
+  const currentNotesState = useNotesStore.getState();
+  const transitionRootFolder: NotesStore['rootFolder'] = options.preserveSidebarTree
+    ? currentNotesState.rootFolder ?? {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        children: [],
+        expanded: true,
+      }
+    : null;
+  const transitionRootFolderPath = options.preserveSidebarTree && currentNotesState.rootFolder
+    ? currentNotesState.rootFolderPath
+    : null;
   useNotesStore.setState({
     currentNote: preservedWorkspace?.currentNote ?? null,
     currentNoteRevision: preservedWorkspace?.currentNoteRevision ?? 0,
@@ -265,7 +283,8 @@ function resetNotesWorkspaceForVaultTransition(
     isDirty: preservedWorkspace?.isDirty ?? false,
     openTabs: preservedWorkspace?.openTabs ?? [],
     recentlyClosedTabs: [],
-    rootFolder: null,
+    rootFolder: transitionRootFolder,
+    rootFolderPath: transitionRootFolderPath,
     notesPath,
     draftNotes: preservedDraftWorkspace?.draftNotes ?? {},
     pendingDraftDiscardPath: preservedDraftWorkspace?.pendingDraftDiscardPath ?? null,
@@ -352,7 +371,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
     return queryVaultOpenInOtherWindow(path);
   },
 
-  openVault: async (path: string, name?: string) => {
+  openVault: async (path: string, name?: string, options: { preserveSidebarTree?: boolean } = {}) => {
     set({ isLoading: true, error: null });
 
     try {
@@ -392,7 +411,10 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
       const previousVault = get().currentVault;
       const previousVaultPath = previousVault?.path ? normalizeVaultPath(previousVault.path) : '';
       if (previousVaultPath !== vault.path) {
-        resetNotesWorkspaceForVaultTransition(vault.path, { preserveDrafts: true });
+        resetNotesWorkspaceForVaultTransition(vault.path, {
+          preserveDrafts: true,
+          preserveSidebarTree: options.preserveSidebarTree ?? true,
+        });
       }
 
       set({

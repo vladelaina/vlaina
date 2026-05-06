@@ -97,6 +97,7 @@ export interface NoteContentCacheEntry {
 
 export interface NotesState {
   rootFolder: FolderNode | null;
+  rootFolderPath: string | null;
   currentNote: CurrentNoteState | null;
   currentNoteRevision: number;
   currentNoteDiskRevision: number;
