@@ -47,6 +47,7 @@ const MARKED_LIST_GAP_TOKEN_PATTERN = new RegExp(`[ \\t]*<br\\b(?=[^>]*${VLAINA_
 const EMPTY_LIST_ITEM_PLACEHOLDER_PATTERN =
   /^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+(?:\[(?: |x|X)\]\s+)?)<br\s*\/?>$/gim;
 const EMPTY_TABLE_CELL_PLACEHOLDER_PATTERN = /(\|\s*)<br\s*\/?>(\s*\|)/g;
+const EMPTY_ATX_HEADING_MARKER_PATTERN = /^( {0,3})(#{1,6})[ \t]*$/gm;
 
 function unescapeMarkdownPunctuation(text: string): string {
   return mapMarkdownOutsideProtectedBlocks(text, (line) => line.replace(MARKDOWN_ESCAPE_PATTERN, '$1'));
@@ -105,7 +106,8 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
   const afterEmptyParagraphBreaks = normalizeEditorEmptyParagraphBreaks(afterStripPlaceholders);
   const afterUserBreaks = normalizeUserBreakSentinels(afterEmptyParagraphBreaks);
   const afterListItems = normalizeListItemBlankLines(afterUserBreaks);
-  const output = preserveParagraphSoftBreaksAsHardBreaks(afterListItems);
+  const afterEmptyAtxHeadings = normalizeEmptyAtxHeadingMarkers(afterListItems);
+  const output = preserveParagraphSoftBreaksAsHardBreaks(afterEmptyAtxHeadings);
 
   return {
     input: text,
@@ -116,8 +118,17 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
     afterEmptyParagraphBreaks,
     afterUserBreaks,
     afterListItems,
+    afterEmptyAtxHeadings,
     output,
   };
+}
+
+function normalizeEmptyAtxHeadingMarkers(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
+    segment.replace(EMPTY_ATX_HEADING_MARKER_PATTERN, (_match, indent: string, marker: string) =>
+      `${indent}${marker} ${marker}`
+    )
+  );
 }
 
 function normalizeEditorEmptyParagraphBreaks(text: string): string {

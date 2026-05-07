@@ -1,7 +1,6 @@
 export { listCollapsePlugin } from './listCollapse';
 export {
-    collapsedState,
     createCollapseToggleButton,
     COLLAPSED_CONTENT_CLASS,
-    COLLAPSE_TOGGLE_EVENT
+    COLLAPSE_TOGGLE_BUTTON_CLASS,
 } from './collapseUtils';
