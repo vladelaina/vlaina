@@ -5,11 +5,11 @@ export const githubAllowedHtmlTags = new Set([
   'dl', 'dt', 'dd', 'kbd', 'q', 'samp', 'var', 'hr', 'ruby', 'rt', 'rp',
   'li', 'tr', 'td', 'th', 's', 'strike', 'summary', 'details', 'caption',
   'figure', 'figcaption', 'abbr', 'bdo', 'cite', 'dfn', 'mark', 'small',
-  'source', 'span', 'time', 'wbr',
+  'source', 'span', 'time', 'wbr', 'video', 'audio', 'iframe', 'track',
 ])
 
 const dropWithContentTags = new Set([
-  'script', 'style', 'title', 'textarea', 'xmp', 'iframe', 'noembed',
+  'script', 'style', 'title', 'textarea', 'xmp', 'noembed',
   'noframes', 'plaintext', 'math', 'noscript', 'svg',
 ])
 const wrapContentWithWhitespaceTags = new Set([
@@ -18,22 +18,22 @@ const wrapContentWithWhitespaceTags = new Set([
   'li', 'nav', 'ol', 'p', 'pre', 'section', 'ul',
 ])
 const gfmDisallowedRawHtmlTags = new Set([
-  'title', 'textarea', 'style', 'xmp', 'iframe', 'noembed', 'noframes',
+  'title', 'textarea', 'style', 'xmp', 'noembed', 'noframes',
   'script', 'plaintext',
 ])
 const gfmDisallowedRawHtmlPattern =
-  /<\/?(?:title|textarea|style|xmp|iframe|noembed|noframes|script|plaintext)(?=[\s>/]|$)/gi
+  /<\/?(?:title|textarea|style|xmp|noembed|noframes|script|plaintext)(?=[\s>/]|$)/gi
 
 const allowedGlobalAttributes = new Set([
   'abbr', 'accept', 'accept-charset', 'accesskey', 'action', 'align', 'alt',
   'aria-describedby', 'aria-hidden', 'aria-label', 'aria-labelledby', 'axis',
   'border', 'char', 'charoff', 'charset', 'checked', 'clear', 'cols',
   'colspan', 'compact', 'coords', 'datetime', 'dir', 'disabled', 'enctype',
-  'for', 'frame', 'headers', 'height', 'hreflang', 'hspace', 'id', 'ismap',
+  'for', 'frame', 'headers', 'height', 'hreflang', 'hspace', 'ismap',
   'label', 'lang', 'maxlength', 'media', 'method', 'multiple', 'name',
   'nohref', 'noshade', 'nowrap', 'open', 'progress', 'prompt', 'readonly',
   'rel', 'rev', 'role', 'rows', 'rowspan', 'rules', 'scope', 'selected',
-  'shape', 'size', 'span', 'start', 'summary', 'tabindex', 'title', 'type',
+  'shape', 'size', 'span', 'start', 'style', 'summary', 'tabindex', 'title', 'type',
   'usemap', 'valign', 'value', 'width', 'itemprop',
 ])
 
@@ -45,7 +45,14 @@ const allowedAttributesByTag: Record<string, ReadonlySet<string>> = {
   del: new Set(['cite']),
   ins: new Set(['cite']),
   q: new Set(['cite']),
-  source: new Set(['srcset']),
+  source: new Set(['src', 'srcset', 'type', 'media']),
+  video: new Set(['src', 'poster', 'controls', 'autoplay', 'loop', 'muted', 'preload', 'playsinline']),
+  audio: new Set(['src', 'controls', 'autoplay', 'loop', 'muted', 'preload']),
+  track: new Set(['src', 'kind', 'srclang', 'label', 'default']),
+  iframe: new Set([
+    'src', 'sandbox', 'allow', 'allowfullscreen', 'allowtransparency',
+    'frameborder', 'scrolling', 'referrerpolicy', 'loading',
+  ]),
 }
 
 const urlAttributesByTag: Record<string, ReadonlySet<string>> = {
@@ -55,6 +62,11 @@ const urlAttributesByTag: Record<string, ReadonlySet<string>> = {
   del: new Set(['cite']),
   ins: new Set(['cite']),
   q: new Set(['cite']),
+  source: new Set(['src']),
+  video: new Set(['src', 'poster']),
+  audio: new Set(['src']),
+  track: new Set(['src']),
+  iframe: new Set(['src']),
 }
 
 const srcsetAttributesByTag: Record<string, ReadonlySet<string>> = {
@@ -71,6 +83,43 @@ const linkProtocols = new Set(['http:', 'https:', 'mailto:'])
 const mediaProtocols = new Set(['http:', 'https:'])
 const controlOrBidiPattern = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/
 const rawHtmlTagPattern = /^<\/?([A-Za-z][A-Za-z0-9-]*)(?:\s|\/?>|$)/
+const forcedIframeSandbox = 'allow-scripts'
+const allowedIframeSandboxTokens = new Set(['allow-scripts', 'allow-forms', 'allow-popups', 'allow-presentation'])
+const allowedStyleProperties = new Set([
+  'background',
+  'background-color',
+  'border',
+  'border-color',
+  'border-radius',
+  'border-style',
+  'border-width',
+  'color',
+  'display',
+  'font-size',
+  'font-style',
+  'font-weight',
+  'height',
+  'line-height',
+  'margin',
+  'margin-bottom',
+  'margin-left',
+  'margin-right',
+  'margin-top',
+  'max-height',
+  'max-width',
+  'min-height',
+  'min-width',
+  'opacity',
+  'padding',
+  'padding-bottom',
+  'padding-left',
+  'padding-right',
+  'padding-top',
+  'text-align',
+  'text-decoration',
+  'vertical-align',
+  'width',
+])
 
 function parseIPv4(hostname: string) {
   const parts = hostname.split('.')
@@ -127,9 +176,34 @@ function isLocalNetworkHttpUrl(value: string) {
 
 function isAllowedAttribute(tagName: string, attributeName: string) {
   if (attributeName.startsWith('on')) return false
-  if (attributeName === 'class' || attributeName === 'style') return false
+  if (attributeName === 'class' || attributeName === 'id') return false
   if (attributeName.startsWith('data-')) return false
   return allowedGlobalAttributes.has(attributeName) || Boolean(allowedAttributesByTag[tagName]?.has(attributeName))
+}
+
+function sanitizeStyle(value: string) {
+  const declarations: string[] = []
+  for (const rawDeclaration of value.split(';')) {
+    const separatorIndex = rawDeclaration.indexOf(':')
+    if (separatorIndex <= 0) continue
+    const property = rawDeclaration.slice(0, separatorIndex).trim().toLowerCase()
+    const propertyValue = rawDeclaration.slice(separatorIndex + 1).trim()
+    if (!allowedStyleProperties.has(property)) continue
+    if (!propertyValue || /[\u0000-\u001F\u007F]/.test(propertyValue)) continue
+    if (/url\s*\(|expression\s*\(|@import|javascript:/i.test(propertyValue)) continue
+    declarations.push(`${property}: ${propertyValue}`)
+  }
+  return declarations.length > 0 ? declarations.join('; ') : null
+}
+
+function sanitizeIframeSandbox(value: string | null) {
+  const tokens = new Set(forcedIframeSandbox.split(/\s+/).filter(Boolean))
+  for (const token of (value ?? '').split(/\s+/)) {
+    const normalized = token.trim().toLowerCase()
+    if (allowedIframeSandboxTokens.has(normalized))
+      tokens.add(normalized)
+  }
+  return Array.from(tokens).join(' ')
 }
 
 function hasProtocol(value: string) {
@@ -152,7 +226,17 @@ function getProtocolMarker(value: string) {
   return `${value.slice(0, position).toLowerCase()}:`
 }
 
-function normalizeUrl(value: string, protocols: ReadonlySet<string>, options: { blockLocalNetwork?: boolean } = {}) {
+function isSafePlainRelativeMediaUrl(value: string) {
+  return (
+    !hasProtocol(value)
+    && !value.startsWith('//')
+    && !/^[A-Za-z]:[\\/]/.test(value)
+    && !value.startsWith('/')
+    && !controlOrBidiPattern.test(value)
+  )
+}
+
+function normalizeUrl(value: string, protocols: ReadonlySet<string>, options: { blockLocalNetwork?: boolean; allowPlainRelative?: boolean } = {}) {
   const trimmed = value.trimStart()
   if (!trimmed || controlOrBidiPattern.test(trimmed))
     return null
@@ -162,6 +246,8 @@ function normalizeUrl(value: string, protocols: ReadonlySet<string>, options: { 
       return null
     return trimmed
   }
+  if (options.allowPlainRelative && isSafePlainRelativeMediaUrl(trimmed))
+    return trimmed
   if (!protocols.has(marker)) return null
   if (options.blockLocalNetwork && isLocalNetworkHttpUrl(trimmed)) return null
   return trimmed
@@ -223,9 +309,19 @@ function sanitizeElement(element: Element): Node | null {
     const value = element.getAttribute(name)
     if (value === null) continue
 
+    if (attributeName === 'style') {
+      const sanitizedStyle = sanitizeStyle(value)
+      if (sanitizedStyle)
+        sanitized.setAttribute('style', sanitizedStyle)
+      continue
+    }
+
     if (urlAttributesByTag[tagName]?.has(attributeName)) {
       const protocols = tagName === 'a' ? linkProtocols : mediaProtocols
-      const normalizedUrl = normalizeUrl(value, protocols, { blockLocalNetwork: tagName !== 'a' })
+      const normalizedUrl = normalizeUrl(value, protocols, {
+        allowPlainRelative: tagName !== 'a',
+        blockLocalNetwork: tagName !== 'a',
+      })
       if (normalizedUrl && !(tagName === 'img' && isPublicRemoteMediaUrl(normalizedUrl)))
         sanitized.setAttribute(attributeName, normalizedUrl)
       continue
@@ -238,7 +334,16 @@ function sanitizeElement(element: Element): Node | null {
     if (hasProtocol(value)) continue
     sanitized.setAttribute(attributeName, value)
   }
+  if (tagName === 'iframe') {
+    if (!sanitized.hasAttribute('src'))
+      return null
+    sanitized.setAttribute('sandbox', sanitizeIframeSandbox(element.getAttribute('sandbox')))
+    if (!sanitized.hasAttribute('referrerpolicy'))
+      sanitized.setAttribute('referrerpolicy', 'no-referrer')
+  }
   sanitizeChildren(element, sanitized)
+  if ((tagName === 'video' || tagName === 'audio') && !sanitized.hasAttribute('src') && !sanitized.querySelector('source[src]'))
+    return null
   return sanitized
 }
 

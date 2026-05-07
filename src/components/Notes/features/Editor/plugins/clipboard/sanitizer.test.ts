@@ -16,25 +16,27 @@ describe('sanitizeHtml', () => {
     expect(result).not.toContain('alert(1)');
   });
 
-  it('keeps GitHub attributes while removing class style and data attributes', () => {
+  it('keeps safe attributes while removing id class and data attributes', () => {
     const result = sanitizeHtml(
       '<p class="x" id="y" role="note" data-test="z">safe</p><div itemscope itemtype="schema/Thing" data-token="1">thing</div>',
     );
 
-    expect(result).toContain('<p id="y" role="note">safe</p>');
+    expect(result).toContain('<p role="note">safe</p>');
     expect(result).toContain('<div itemscope="" itemtype="schema/Thing">thing</div>');
+    expect(result).not.toContain('id=');
     expect(result).not.toContain('class=');
     expect(result).not.toContain('data-test');
     expect(result).not.toContain('data-token');
   });
 
-  it('drops iframe embeds because GitHub README raw HTML disallows them', () => {
+  it('keeps iframe embeds in a forced sandbox', () => {
     const result = sanitizeHtml(
       '<iframe src="https://example.com/embed" srcdoc="<script>alert(1)</script>" allowfullscreen></iframe>',
     );
 
-    expect(result).toBe('');
+    expect(result).toBe('<iframe src="https://example.com/embed" allowfullscreen="" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>');
     expect(result).not.toContain('srcdoc');
+    expect(result).not.toContain('alert(1)');
   });
 
   it('rejects dangerous iframe sources including javascript and localhost', () => {
@@ -52,6 +54,34 @@ describe('sanitizeHtml', () => {
     expect(result).toContain('<img>');
     expect(result).toContain('<a href="#anchor">anchor</a>');
     expect(result).not.toContain('javascript:');
+  });
+
+  it('keeps constrained Typora-style inline styles while dropping executable CSS', () => {
+    const result = sanitizeHtml(
+      '<span style="color:red; font-size:2rem; background:yellow; background-image:url(javascript:alert(1)); position:fixed">x</span>',
+    );
+
+    expect(result).toBe('<span style="color: red; font-size: 2rem; background: yellow">x</span>');
+    expect(result).not.toContain('javascript:');
+    expect(result).not.toContain('position');
+  });
+
+  it('keeps video and audio media tags with safe sources', () => {
+    const result = sanitizeHtml(
+      '<video src="xxx.mp4" controls poster="poster.png"></video><audio src="xxx.mp3" controls></audio>',
+    );
+
+    expect(result).toBe('<video src="xxx.mp4" controls="" poster="poster.png"></video><audio src="xxx.mp3" controls=""></audio>');
+  });
+
+  it('drops media tags that only contain unsafe sources after sanitizing', () => {
+    const result = sanitizeHtml(
+      '<video><source src="javascript:alert(1)" type="video/mp4"></video><audio><source src="http://127.0.0.1:3000/a.mp3"></audio>',
+    );
+
+    expect(result).toBe('');
+    expect(result).not.toContain('javascript:');
+    expect(result).not.toContain('127.0.0.1');
   });
 
   it('keeps safe links while stripping unsupported target attributes', () => {
@@ -72,7 +102,7 @@ describe('sanitizeHtml', () => {
 
     expect(result).toContain('<a>mixed-case</a>');
     expect(result).toContain('<a>entity</a>');
-    expect(result).not.toContain('<iframe');
+    expect(result).toContain('<iframe src="HTTPS://example.com/embed" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>');
     expect(result).not.toContain('javascript:');
   });
 
@@ -119,12 +149,12 @@ describe('sanitizeHtml', () => {
     expect(result).toBe(' <div><p>text <strong>bold</strong></p></div> ');
   });
 
-  it('drops pasted iframe sandbox escalation attempts', () => {
+  it('keeps iframe embeds while dropping sandbox escalation attempts', () => {
     const result = sanitizeHtml(
       '<iframe src="https://example.com/embed" sandbox="allow-same-origin allow-top-navigation" class="x"></iframe>',
     );
 
-    expect(result).toBe('');
+    expect(result).toBe('<iframe src="https://example.com/embed" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>');
     expect(result).not.toContain('allow-same-origin');
     expect(result).not.toContain('allow-top-navigation');
     expect(result).not.toContain('class=');
@@ -167,8 +197,7 @@ describe('sanitizeHtml', () => {
       '<td width="80" height="40" colspan="2" rowspan="3" class="x" style="color:red" onclick="evil()">cell</td>',
     );
 
-    expect(result).toBe('<td width="80" height="40" colspan="2" rowspan="3">cell</td>');
-    expect(result).not.toContain('style=');
+    expect(result).toBe('<td width="80" height="40" colspan="2" rowspan="3" style="color: red">cell</td>');
     expect(result).not.toContain('onclick');
   });
 
@@ -185,14 +214,14 @@ describe('sanitizeHtml', () => {
       </div>
     `);
 
-    expect(result).toContain('<h2 id="headline">Title</h2>');
-    expect(result).toContain('<p>copy <strong>this</strong> <a href="https://example.com/post">link</a></p>');
+    expect(result).toContain('<h2>Title</h2>');
+    expect(result).toContain('<p style="color: red">copy <strong>this</strong> <a href="https://example.com/post">link</a></p>');
     expect(result).toContain('<img src="https://example.com/a.png" alt="cover" width="1200">');
+    expect(result).toContain('<iframe src="https://example.com/embed" sandbox="allow-scripts" style="border: 0" referrerpolicy="no-referrer"></iframe>');
     expect(result).toContain('caption');
-    expect(result).not.toContain('<iframe');
     expect(result).not.toContain('class=');
     expect(result).not.toContain('data-');
-    expect(result).not.toContain('style=');
+    expect(result).not.toContain('id=');
     expect(result).not.toContain('onclick');
     expect(result).not.toContain('onerror');
   });
@@ -210,11 +239,10 @@ describe('sanitizeHtml', () => {
       </html>
     `);
 
-    expect(result).toContain('<p>Hello <span>world</span></p>');
+    expect(result).toContain('<p>Hello <span style="font-weight: bold">world</span></p>');
     expect(result).toContain('meta wrapper');
     expect(result).not.toContain('script');
     expect(result).not.toContain('class=');
-    expect(result).not.toContain('style=');
     expect(result).not.toContain('xml');
   });
 
@@ -225,8 +253,9 @@ describe('sanitizeHtml', () => {
 
     const result = sanitizeHtml(payload);
 
-    expect(result).toContain('<p id="target">deep</p>');
+    expect(result).toContain('<p>deep</p>');
     expect(result).not.toContain('<section');
+    expect(result).not.toContain('id=');
     expect(result).not.toContain('onclick');
     expect(result).not.toContain('data-x');
   });

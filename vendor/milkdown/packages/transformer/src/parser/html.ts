@@ -8,7 +8,7 @@ const GFM_TYPE_1_HTML_BLOCK_PATTERN = /^<(?:script|pre|style)(?:\s|>|$)/i
 const GFM_TYPE_7_HTML_TAG_LINE_PATTERN = /^<\/?([A-Za-z][A-Za-z0-9-]*)(?:\s[^>]*)?\/?>\s*$/
 const GFM_TYPE_7_EXCLUDED_TAGS = new Set(['script', 'style', 'pre'])
 const LOCALLY_PARSED_HTML_BLOCK_EXCLUDED_TAGS = new Set(['img'])
-const LOCALLY_PARSED_HTML_TAGS = new Set(['sup', 'sub', 'span', 'mark', 'u'])
+const LOCALLY_PARSED_HTML_TAGS = new Set(['sup', 'sub', 'mark', 'u'])
 
 function escapeHtmlText(value: string): string {
   return value
@@ -28,6 +28,22 @@ function markdownInlineNodeToHtml(node: MarkdownNode): string | null {
     return `<${tag}>${children.join('')}</${tag}>`
   }
   return null
+}
+
+function hasMarkdownInlineSyntax(nodes: MarkdownNode[]): boolean {
+  return nodes.some((node) => {
+    if (node.type !== 'text' && node.type !== 'html')
+      return true
+    return Array.isArray(node.children) && hasMarkdownInlineSyntax(node.children)
+  })
+}
+
+function hasStrongInlineSyntax(nodes: MarkdownNode[]): boolean {
+  return nodes.some((node) => {
+    if (node.type === 'strong')
+      return true
+    return Array.isArray(node.children) && hasStrongInlineSyntax(node.children)
+  })
 }
 
 function isGfmHtmlBlock(value: string): boolean {
@@ -90,7 +106,17 @@ export function mergePairedInlineHtml(node: MarkdownNode): MarkdownNode {
       continue
     }
 
-    const innerHtmlParts = node.children.slice(index + 1, closeIndex).map(markdownInlineNodeToHtml)
+    const innerNodes = node.children.slice(index + 1, closeIndex)
+    if (tagName === 'span') {
+      const hasStyle = /\sstyle\s*=|^<span\s+style\s*=/i.test(value)
+      const hasMarkdown = hasMarkdownInlineSyntax(innerNodes)
+      if ((!hasStyle && !hasMarkdown) || (hasStyle && hasMarkdown && !hasStrongInlineSyntax(innerNodes))) {
+        mergedChildren.push(child)
+        continue
+      }
+    }
+
+    const innerHtmlParts = innerNodes.map(markdownInlineNodeToHtml)
     if (innerHtmlParts.some((part) => part === null)) {
       mergedChildren.push(child)
       continue

@@ -33,6 +33,9 @@ const GITHUB_ALLOWED_TAG_FIXTURE = [
   '<pre><code>code</code></pre><img src="https://example.com/a.png" alt="img"><hr>',
   '<div><blockquote cite="https://example.com/bq">blockquote</blockquote></div>',
   '<picture><source srcset="https://example.com/a.webp 1x"><img src="https://example.com/a.png" alt="picture"></picture>',
+  '<video src="xxx.mp4" controls><source src="demo.webm" type="video/webm"><track src="captions.vtt" kind="captions"></video>',
+  '<audio src="xxx.mp3" controls></audio>',
+  '<iframe src="https://example.com/embed" title="embed"></iframe>',
   '<ol><li>ol li</li></ol><ul><li>ul li</li></ul>',
   '<table><caption>caption</caption><thead><tr><th scope="col">th</th></tr></thead><tbody><tr><td>td</td></tr></tbody><tfoot><tr><td>tfoot</td></tr></tfoot></table>',
   '<dl><dt>dt</dt><dd>dd</dd></dl>',
@@ -84,7 +87,7 @@ function getSanitizedTagNames(html: string): Set<string> {
 }
 
 describe('GitHub README HTML compatibility', () => {
-  it('matches the current GitHub html-pipeline sanitizer element allowlist exactly', () => {
+  it('matches the current note HTML sanitizer element allowlist exactly', () => {
     expect(Array.from(GITHUB_ALLOWED_HTML_TAGS)).toEqual([
       'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
       'br', 'b', 'i', 'strong', 'em', 'a', 'pre', 'code', 'img', 'tt',
@@ -93,21 +96,21 @@ describe('GitHub README HTML compatibility', () => {
       'dl', 'dt', 'dd', 'kbd', 'q', 'samp', 'var', 'hr', 'ruby', 'rt', 'rp',
       'li', 'tr', 'td', 'th', 's', 'strike', 'summary', 'details', 'caption',
       'figure', 'figcaption', 'abbr', 'bdo', 'cite', 'dfn', 'mark', 'small',
-      'source', 'span', 'time', 'wbr',
+      'source', 'span', 'time', 'wbr', 'video', 'audio', 'iframe', 'track',
     ]);
   });
 
-  it('matches the current GitHub html-pipeline sanitizer attribute allowlist exactly', () => {
+  it('matches the current note HTML sanitizer attribute allowlist exactly', () => {
     expect(Array.from(GITHUB_ALLOWED_GLOBAL_ATTRIBUTES)).toEqual([
       'abbr', 'accept', 'accept-charset', 'accesskey', 'action', 'align', 'alt',
       'aria-describedby', 'aria-hidden', 'aria-label', 'aria-labelledby', 'axis',
       'border', 'char', 'charoff', 'charset', 'checked', 'clear', 'cols', 'colspan',
       'compact', 'coords', 'datetime', 'dir', 'disabled', 'enctype', 'for', 'frame',
-      'headers', 'height', 'hreflang', 'hspace', 'id', 'ismap', 'label', 'lang',
+      'headers', 'height', 'hreflang', 'hspace', 'ismap', 'label', 'lang',
       'maxlength', 'media', 'method', 'multiple', 'name', 'nohref', 'noshade',
       'nowrap', 'open', 'progress', 'prompt', 'readonly', 'rel', 'rev', 'role',
       'rows', 'rowspan', 'rules', 'scope', 'selected', 'shape', 'size', 'span',
-      'start', 'summary', 'tabindex', 'title', 'type', 'usemap', 'valign', 'value',
+      'start', 'style', 'summary', 'tabindex', 'title', 'type', 'usemap', 'valign', 'value',
       'width', 'itemprop',
     ]);
     expect(Object.fromEntries(
@@ -123,7 +126,11 @@ describe('GitHub README HTML compatibility', () => {
       del: ['cite'],
       ins: ['cite'],
       q: ['cite'],
-      source: ['srcset'],
+      source: ['src', 'srcset', 'type', 'media'],
+      video: ['src', 'poster', 'controls', 'autoplay', 'loop', 'muted', 'preload', 'playsinline'],
+      audio: ['src', 'controls', 'autoplay', 'loop', 'muted', 'preload'],
+      track: ['src', 'kind', 'srclang', 'label', 'default'],
+      iframe: ['src', 'sandbox', 'allow', 'allowfullscreen', 'allowtransparency', 'frameborder', 'scrolling', 'referrerpolicy', 'loading'],
     });
   });
 
@@ -197,7 +204,7 @@ describe('GitHub README HTML compatibility', () => {
 
   it('drops only GFM-disallowed raw HTML plus Selma remove-content extras', () => {
     expect(Array.from(GITHUB_DROP_WITH_CONTENT_TAGS)).toEqual([
-      'script', 'style', 'title', 'textarea', 'xmp', 'iframe', 'noembed',
+      'script', 'style', 'title', 'textarea', 'xmp', 'noembed',
       'noframes', 'plaintext', 'math', 'noscript', 'svg',
     ]);
   });
@@ -263,7 +270,8 @@ describe('GitHub README HTML compatibility', () => {
 
   it('preserves every GitHub-supported global attribute through the sanitizer', () => {
     for (const attributeName of GITHUB_ALLOWED_GLOBAL_ATTRIBUTES) {
-      const result = sanitizeHtml(`<div ${attributeName}="github-value">x</div>`);
+      const value = attributeName === 'style' ? 'color: red' : 'github-value';
+      const result = sanitizeHtml(`<div ${attributeName}="${value}">x</div>`);
       const template = document.createElement('template');
       template.innerHTML = result;
 
@@ -288,7 +296,48 @@ describe('GitHub README HTML compatibility', () => {
       del: { cite: '<del cite="https://example.com/q">x</del>' },
       ins: { cite: '<ins cite="https://example.com/q">x</ins>' },
       q: { cite: '<q cite="https://example.com/q">x</q>' },
-      source: { srcset: '<picture><source srcset="images/a.webp 1x"><img src="https://example.com/a.png" alt="x"></picture>' },
+      source: {
+        src: '<video><source src="a.webm"></video>',
+        srcset: '<picture><source srcset="images/a.webp 1x"><img src="https://example.com/a.png" alt="x"></picture>',
+        type: '<video><source src="a.webm" type="video/webm"></video>',
+        media: '<picture><source srcset="images/a.webp 1x" media="(min-width: 800px)"><img src="https://example.com/a.png" alt="x"></picture>',
+      },
+      video: {
+        src: '<video src="a.mp4"></video>',
+        poster: '<video src="a.mp4" poster="poster.png"></video>',
+        controls: '<video src="a.mp4" controls></video>',
+        autoplay: '<video src="a.mp4" autoplay></video>',
+        loop: '<video src="a.mp4" loop></video>',
+        muted: '<video src="a.mp4" muted></video>',
+        preload: '<video src="a.mp4" preload="metadata"></video>',
+        playsinline: '<video src="a.mp4" playsinline></video>',
+      },
+      audio: {
+        src: '<audio src="a.mp3"></audio>',
+        controls: '<audio src="a.mp3" controls></audio>',
+        autoplay: '<audio src="a.mp3" autoplay></audio>',
+        loop: '<audio src="a.mp3" loop></audio>',
+        muted: '<audio src="a.mp3" muted></audio>',
+        preload: '<audio src="a.mp3" preload="metadata"></audio>',
+      },
+      track: {
+        src: '<video src="a.mp4"><track src="a.vtt"></video>',
+        kind: '<video src="a.mp4"><track src="a.vtt" kind="captions"></video>',
+        srclang: '<video src="a.mp4"><track src="a.vtt" srclang="en"></video>',
+        label: '<video src="a.mp4"><track src="a.vtt" label="English"></video>',
+        default: '<video src="a.mp4"><track src="a.vtt" default></video>',
+      },
+      iframe: {
+        src: '<iframe src="https://example.com/embed"></iframe>',
+        sandbox: '<iframe src="https://example.com/embed" sandbox="allow-forms"></iframe>',
+        allow: '<iframe src="https://example.com/embed" allow="fullscreen"></iframe>',
+        allowfullscreen: '<iframe src="https://example.com/embed" allowfullscreen></iframe>',
+        allowtransparency: '<iframe src="https://example.com/embed" allowtransparency></iframe>',
+        frameborder: '<iframe src="https://example.com/embed" frameborder="0"></iframe>',
+        scrolling: '<iframe src="https://example.com/embed" scrolling="no"></iframe>',
+        referrerpolicy: '<iframe src="https://example.com/embed" referrerpolicy="no-referrer"></iframe>',
+        loading: '<iframe src="https://example.com/embed" loading="lazy"></iframe>',
+      },
     };
 
     for (const [tagName, attributes] of Object.entries(GITHUB_ALLOWED_ATTRIBUTES_BY_TAG)) {
@@ -323,6 +372,23 @@ describe('GitHub README HTML compatibility', () => {
     expect(result.dom.innerHTML).toContain('<kbd>Ctrl</kbd>');
     expect(result.dom.querySelector('abbr')?.getAttribute('title')).toBe('HyperText Markup Language');
     expect(result.persisted).toBe(markdown);
+  });
+
+  it('renders Typora-style inline HTML examples from markdown notes', async () => {
+    const markdown = [
+      '<span style="color:red">This is red</span>',
+      '<ruby>漢<rt>ㄏㄢˋ</rt></ruby>',
+      '<kbd>Ctrl</kbd>+<kbd>F9</kbd>',
+      '<span style="font-size:2rem; background:yellow;">**Bigger**</span>',
+    ].join('\n\n');
+
+    const result = await openGithubHtmlMarkdown(markdown);
+
+    expect(result.dom.querySelector('span[style]')?.getAttribute('style')).toBe('color: red');
+    expect(result.dom.querySelector('ruby rt')?.textContent).toBe('ㄏㄢˋ');
+    expect(Array.from(result.dom.querySelectorAll('kbd')).map((node) => node.textContent)).toEqual(['Ctrl', 'F9']);
+    expect(result.dom.innerHTML).toContain('<strong>Bigger</strong>');
+    expect(result.persisted).toBe(markdown.replace('**Bigger**', '<strong>Bigger</strong>'));
   });
 
   it('renders and preserves supported block raw HTML from markdown notes', async () => {
@@ -470,13 +536,28 @@ describe('GitHub README HTML compatibility', () => {
     expect(result.persisted).toBe(markdown);
   });
 
-  it('escapes GitHub-disallowed raw HTML when rendering notes', async () => {
+  it('renders iframe raw HTML in a sandbox when opening notes', async () => {
     const markdown = '<iframe src="https://example.com/embed"></iframe>';
 
     const result = await openGithubHtmlMarkdown(markdown);
 
-    expect(result.dom.querySelector('iframe')).toBeNull();
-    expect(result.dom.textContent).toContain(markdown);
+    expect(result.dom.querySelector('iframe')?.getAttribute('src')).toBe('https://example.com/embed');
+    expect(result.dom.querySelector('iframe')?.getAttribute('sandbox')).toBe('allow-scripts');
+    expect(result.persisted).toBe(markdown);
+  });
+
+  it('renders video and audio raw HTML from markdown notes', async () => {
+    const markdown = [
+      '<video src="xxx.mp4" controls />',
+      '<audio src="xxx.mp3" controls />',
+    ].join('\n\n');
+
+    const result = await openGithubHtmlMarkdown(markdown);
+
+    expect(result.dom.querySelector('video')?.getAttribute('src')).toBe('xxx.mp4');
+    expect(result.dom.querySelector('video')?.hasAttribute('controls')).toBe(true);
+    expect(result.dom.querySelector('audio')?.getAttribute('src')).toBe('xxx.mp3');
+    expect(result.dom.querySelector('audio')?.hasAttribute('controls')).toBe(true);
     expect(result.persisted).toBe(markdown);
   });
 });

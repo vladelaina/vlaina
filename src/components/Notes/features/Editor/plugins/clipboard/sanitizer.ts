@@ -10,6 +10,8 @@ import {
   isGithubUrlAttribute,
   normalizeGithubSrcset,
   normalizeGithubUrl,
+  sanitizeGithubIframeSandbox,
+  sanitizeGithubStyle,
 } from '@/lib/notes/markdown/githubHtmlPolicy';
 
 function sanitizeChildren(source: Element | DocumentFragment, target: Element | DocumentFragment): void {
@@ -57,9 +59,20 @@ function sanitizeElement(element: Element): Node | null {
       continue;
     }
 
+    if (normalizedAttribute === 'style') {
+      const sanitizedStyle = sanitizeGithubStyle(value);
+      if (sanitizedStyle) {
+        sanitized.setAttribute('style', sanitizedStyle);
+      }
+      continue;
+    }
+
     if (isGithubUrlAttribute(tagName, normalizedAttribute)) {
       const protocols = tagName === 'a' ? GITHUB_ALLOWED_LINK_PROTOCOLS : GITHUB_ALLOWED_MEDIA_PROTOCOLS;
-      const normalizedUrl = normalizeGithubUrl(value, protocols, { blockLocalNetwork: tagName !== 'a' });
+      const normalizedUrl = normalizeGithubUrl(value, protocols, {
+        allowPlainRelative: tagName !== 'a',
+        blockLocalNetwork: tagName !== 'a',
+      });
       if (normalizedUrl) {
         sanitized.setAttribute(normalizedAttribute, normalizedUrl);
       }
@@ -81,7 +94,19 @@ function sanitizeElement(element: Element): Node | null {
     sanitized.setAttribute(normalizedAttribute, value);
   }
 
+  if (tagName === 'iframe') {
+    if (!sanitized.hasAttribute('src')) {
+      return null;
+    }
+    sanitized.setAttribute('sandbox', sanitizeGithubIframeSandbox(element.getAttribute('sandbox')));
+    if (!sanitized.hasAttribute('referrerpolicy')) {
+      sanitized.setAttribute('referrerpolicy', 'no-referrer');
+    }
+  }
   sanitizeChildren(element, sanitized);
+  if ((tagName === 'video' || tagName === 'audio') && !sanitized.hasAttribute('src') && !sanitized.querySelector('source[src]')) {
+    return null;
+  }
   return sanitized;
 }
 

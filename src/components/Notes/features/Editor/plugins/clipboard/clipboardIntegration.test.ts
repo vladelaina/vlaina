@@ -74,16 +74,16 @@ describe('clipboard integration', () => {
       `,
     );
 
-    expect(result).toContain('<h2 id="headline">Title</h2>');
-    expect(result).toContain('<p>copy <a href="https://example.com/post">link</a></p>');
-    expect(result).not.toContain('<iframe');
+    expect(result).toContain('<h2>Title</h2>');
+    expect(result).toContain('<p style="color: red">copy <a href="https://example.com/post">link</a></p>');
+    expect(result).toContain('<iframe src="https://example.com/embed" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>');
     expect(result).not.toContain('class=');
     expect(result).not.toContain('data-');
-    expect(result).not.toContain('style=');
+    expect(result).not.toContain('id=');
     expect(result).not.toContain('allow-top-navigation');
   });
 
-  it('drops iframe targets during editor paste sanitization', async () => {
+  it('drops local iframe targets while keeping public sandboxed embeds during editor paste sanitization', async () => {
     const editor = await createClipboardEditor();
     const view = editor.ctx.get(editorViewCtx) as EditorView;
 
@@ -96,6 +96,6 @@ describe('clipboard integration', () => {
       ].join(''),
     );
 
-    expect(result).toBe('');
+    expect(result).toBe('<iframe src="https://example.com/embed" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>');
   });
 });

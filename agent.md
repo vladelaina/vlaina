@@ -25,6 +25,7 @@ Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, sim
 **Touch only what you must. Clean up only your own mess.**
 
 When editing existing code:
+- Do not create audit, TODO, plan, or summary files unless the user explicitly asks for a file.
 - Don't "improve" adjacent code, comments, or formatting.
 - Keep code, comments, and test fixture text in English unless user-facing copy requires another language.
 - Don't refactor things that aren't broken.
