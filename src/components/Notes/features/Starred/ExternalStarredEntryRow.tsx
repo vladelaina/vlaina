@@ -3,6 +3,7 @@ import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { Icon } from '@/components/ui/icons';
 import { getSidebarLabelClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 import type { StarredEntry } from '@/stores/notes/types';
+import { getStarredNoteDisplayPath } from '@/stores/notes/starred';
 import { NoteIcon } from '../IconPicker/NoteIcon';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
 import { NotesSidebarContextMenu } from '../Sidebar/NotesSidebarContextMenu';
@@ -16,16 +17,6 @@ import { createTreeItemPathSubmenu } from '../FileTree/components/TreeItemMenu';
 import { useTreeItemPathActions } from '../FileTree/hooks/useTreeItemPathActions';
 import { getEntryTitle } from './starredSectionUtils';
 import { useStarredEntryIcon } from './useStarredEntryIcon';
-
-function getStarredNoteDisplayPath(entry: StarredEntry, isCurrentVaultEntry: boolean) {
-  if (entry.kind !== 'note') {
-    return undefined;
-  }
-
-  return isCurrentVaultEntry
-    ? entry.relativePath
-    : `${entry.vaultPath.replace(/\/+$/, '')}/${entry.relativePath}`;
-}
 
 interface ExternalStarredEntryRowProps {
   entry: StarredEntry;

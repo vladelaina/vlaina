@@ -29,6 +29,10 @@ export function canStarNotePath(
     return true;
   }
 
+  if (path && isAbsolutePath(path)) {
+    return true;
+  }
+
   return Boolean(path && notesPath && resolveStarredRelativePathForVault(path, notesPath));
 }
 

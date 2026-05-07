@@ -4,19 +4,9 @@ import { normalizeNotePathKey } from '@/lib/notes/displayName';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import type { FileTreeNode, StarredEntry } from '@/stores/notes/types';
-import { normalizeStarredVaultPath } from '@/stores/notes/starred';
+import { getStarredEntryAbsolutePath, normalizeStarredVaultPath } from '@/stores/notes/starred';
 import { flushCurrentTitleCommit } from '../Editor/utils/titleCommitRegistry';
 import { buildNodeLookup, sortStarredEntries } from './starredSectionUtils';
-
-function getStarredAbsolutePath(entry: StarredEntry) {
-  const vaultPath = normalizeStarredVaultPath(entry.vaultPath);
-  const relativePath = normalizeNotePathKey(entry.relativePath);
-  if (!relativePath) {
-    return vaultPath;
-  }
-
-  return `${vaultPath}/${relativePath}`.replace(/\/+/g, '/');
-}
 
 export interface StarredSectionEntryViewModel {
   entry: StarredEntry;
@@ -58,7 +48,7 @@ export function useStarredSectionEntries() {
           normalizedCurrentNotePath != null &&
           (isCurrentVaultEntry
             ? normalizedCurrentNotePath === entryRelativePath
-            : normalizedCurrentNotePath === getStarredAbsolutePath(entry));
+            : normalizedCurrentNotePath === getStarredEntryAbsolutePath(entry));
 
         return {
           entry,

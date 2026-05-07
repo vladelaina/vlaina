@@ -7,8 +7,7 @@ import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { getCachedDesktopHomePath, getDesktopHomePath } from '@/lib/desktop/homePath';
 import { getParentPath, isAbsolutePath, normalizePath, relativePath } from '@/lib/storage/adapter';
 import { getDraftNoteEntry, isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
-import { normalizeStarredVaultPath } from '@/stores/notes/starred';
-import type { StarredEntry } from '@/stores/notes/types';
+import { resolveStarredNoteContext } from '@/stores/notes/starred';
 import { cn } from '@/lib/utils';
 import { scheduleSidebarItemIntoView } from '@/components/Notes/features/common/sidebarScrollIntoView';
 
@@ -26,11 +25,6 @@ interface BreadcrumbDisplayPath {
   rootPath: string;
   displayPath: string;
   isAbsolute: boolean;
-}
-
-interface StarredNoteContext {
-  vaultPath: string;
-  relativePath: string;
 }
 
 function toRelativePath(path: string): string {
@@ -146,37 +140,6 @@ function resolveNotePathWithinDirectory(notePath: string, directoryPath: string)
   }
 
   return relativePath(normalizedDirectory, normalizedNote);
-}
-
-function resolveStarredNoteContext(
-  notePath: string,
-  starredEntries: StarredEntry[]
-): StarredNoteContext | null {
-  const normalizedNote = normalizePath(notePath, true);
-
-  for (const entry of starredEntries) {
-    if (entry.kind !== 'note') {
-      continue;
-    }
-
-    const vaultPath = normalizeStarredVaultPath(entry.vaultPath);
-    const relativeNotePath = toRelativePath(entry.relativePath).replace(/^\/+/, '');
-    if (!vaultPath || !relativeNotePath) {
-      continue;
-    }
-
-    const absoluteNotePath = vaultPath === '/'
-      ? `/${relativeNotePath}`
-      : `${vaultPath}/${relativeNotePath}`;
-    if (normalizePath(absoluteNotePath, true) === normalizedNote) {
-      return {
-        vaultPath,
-        relativePath: relativeNotePath,
-      };
-    }
-  }
-
-  return null;
 }
 
 function buildFolderSegments(
