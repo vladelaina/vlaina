@@ -1,7 +1,9 @@
+import DOMPurify from 'dompurify';
 import { getStorageAdapter } from '@/lib/storage/adapter';
-import { getMimeType } from '../core/naming';
+import { getMimeType, isImageFilename } from '../core/naming';
 
 const MAX_CACHE_SIZE = 500;
+const MAX_LOCAL_IMAGE_BYTES = 50 * 1024 * 1024;
 
 interface BlobUrlCacheEntry {
   url: string;
@@ -22,11 +24,44 @@ function revokeBlobUrlCacheEntry(entry: BlobUrlCacheEntry | undefined) {
   }
 }
 
+function assertPreviewableImagePath(fullPath: string): void {
+  if (!isImageFilename(fullPath)) {
+    throw new Error('Only image files can be loaded as note assets.');
+  }
+}
+
+function assertPreviewableImageSize(size: number | null | undefined): void {
+  if (typeof size === 'number' && size > MAX_LOCAL_IMAGE_BYTES) {
+    throw new Error('Image asset is too large to preview.');
+  }
+}
+
+function isSvgImagePath(fullPath: string): boolean {
+  return fullPath.toLowerCase().split(/[\\/]/).pop()?.endsWith('.svg') === true;
+}
+
+function sanitizeSvgBytes(data: Uint8Array): Uint8Array {
+  const svgText = new TextDecoder().decode(data);
+  const sanitized = DOMPurify.sanitize(svgText, {
+    USE_PROFILES: { svg: true, svgFilters: true },
+    FORBID_TAGS: ['foreignObject', 'script', 'iframe', 'object', 'embed'],
+  });
+  return new TextEncoder().encode(sanitized);
+}
+
+function prepareImageBytes(fullPath: string, data: Uint8Array): Uint8Array {
+  const copy = new Uint8Array(data);
+  return isSvgImagePath(fullPath) ? sanitizeSvgBytes(copy) : copy;
+}
+
 export async function loadImageAsBlob(fullPath: string): Promise<string> {
+  assertPreviewableImagePath(fullPath);
+
   const storage = getStorageAdapter();
   const fileInfo = await storage.stat(fullPath).catch(() => null);
   const modifiedAt = fileInfo?.modifiedAt ?? null;
   const size = fileInfo?.size ?? null;
+  assertPreviewableImageSize(size);
   const canValidateCache = modifiedAt !== null || size !== null;
   const cached = blobUrlCache.get(fullPath);
   if (cached && canValidateCache && cached.modifiedAt === modifiedAt && cached.size === size) {
@@ -41,9 +76,11 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
 
   try {
     const data = await storage.readBinaryFile(fullPath);
+    assertPreviewableImageSize(data.byteLength);
     const mimeType = getMimeType(fullPath);
-    const copy = new Uint8Array(data);
-    const blob = new Blob([copy], { type: mimeType });
+    const bytes = prepareImageBytes(fullPath, data);
+    assertPreviewableImageSize(bytes.byteLength);
+    const blob = new Blob([bytes], { type: mimeType });
     const blobUrl = URL.createObjectURL(blob);
 
     if (blobUrlCache.size >= MAX_CACHE_SIZE) {
@@ -68,14 +105,20 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
 }
 
 export async function loadImageAsBase64(fullPath: string): Promise<string> {
+  assertPreviewableImagePath(fullPath);
+
   const storage = getStorageAdapter();
 
   try {
+    const fileInfo = await storage.stat(fullPath).catch(() => null);
+    assertPreviewableImageSize(fileInfo?.size ?? null);
     const data = await storage.readBinaryFile(fullPath);
+    assertPreviewableImageSize(data.byteLength);
     const mimeType = getMimeType(fullPath);
 
-    const copy = new Uint8Array(data);
-    const blob = new Blob([copy], { type: mimeType });
+    const bytes = prepareImageBytes(fullPath, data);
+    assertPreviewableImageSize(bytes.byteLength);
+    const blob = new Blob([bytes], { type: mimeType });
 
     return new Promise((resolve, reject) => {
       const reader = new FileReader();

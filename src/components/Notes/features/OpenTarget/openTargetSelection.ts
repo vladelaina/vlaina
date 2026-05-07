@@ -1,6 +1,5 @@
-import { getBaseName, getParentPath, getExtension } from '@/lib/storage/adapter';
-
-const MARKDOWN_EXTENSIONS = new Set(['md', 'markdown', 'mdown', 'mkd']);
+import { getBaseName, getParentPath } from '@/lib/storage/adapter';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 
 export interface ResolvedOpenNoteTarget {
   vaultPath: string;
@@ -13,8 +12,7 @@ export function getSingleOpenSelection(selection: string | string[] | null): str
 }
 
 export function isSupportedMarkdownSelection(path: string): boolean {
-  const extension = getExtension(path).toLowerCase();
-  return MARKDOWN_EXTENSIONS.has(extension);
+  return isSupportedMarkdownPath(path);
 }
 
 export function resolveOpenNoteTarget(absoluteFilePath: string): ResolvedOpenNoteTarget {

@@ -3,7 +3,6 @@ import {
   getParentPath,
   getStorageAdapter,
   isAbsolutePath,
-  joinPath,
   relativePath,
 } from '@/lib/storage/adapter';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
@@ -11,6 +10,7 @@ import { updateFolderNode } from '../fileTreeUtils';
 import { processFolderRename } from '../utils/fs/batchOperations';
 import { isInvalidMoveTarget } from '../utils/fs/moveValidation';
 import { resolveUniqueRenamedPath } from '../utils/fs/pathOperations';
+import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import { moveItemImpl, renameNoteImpl } from '../utils/fs/renameOperations';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { markExpectedExternalChange } from '../document/externalChangeRegistry';
@@ -226,13 +226,13 @@ export function createFileSystemRenameActions(
       const storage = getStorageAdapter();
 
       try {
-        const fullPath = await joinPath(notesPath, path);
+        const { relativePath: safePath, fullPath } = await resolveVaultRelativeFullPath(notesPath, path);
         const {
           relativePath: newPath,
           fullPath: newFullPath,
           fileName,
-        } = await resolveUniqueRenamedPath(notesPath, path, newName, true);
-        if (newPath === path) {
+        } = await resolveUniqueRenamedPath(notesPath, safePath, newName, true);
+        if (newPath === safePath) {
           return;
         }
 
@@ -242,9 +242,9 @@ export function createFileSystemRenameActions(
         if (!isActiveNotesPath(get, notesPath)) {
           return;
         }
-        emitNotesExternalPathRename({ notesPath, oldPath: path, newPath });
+        emitNotesExternalPathRename({ notesPath, oldPath: safePath, newPath });
 
-        const result = await processFolderRename(notesPath, path, fileName, {
+        const result = await processFolderRename(notesPath, safePath, fileName, {
           rootFolder,
           currentNote,
           openTabs,
@@ -273,8 +273,8 @@ export function createFileSystemRenameActions(
         }
 
         const nextRootFolder = buildSortedRootFolder(
-          rootFolder,
-          updateFolderNode(rootFolder.children, path, fileName, newPath),
+            rootFolder,
+            updateFolderNode(rootFolder.children, safePath, fileName, newPath),
           fileTreeSortMode,
           result.updatedMetadata ?? noteMetadata,
         );

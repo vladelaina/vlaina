@@ -1,5 +1,5 @@
 import { StateCreator } from 'zustand';
-import { getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
+import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { NotesStore, FileTreeNode, MetadataFile, NoteCoverMetadata, NoteMetadataEntry } from '../types';
 import {
@@ -26,6 +26,7 @@ import { isDraftNotePath } from '../draftNote';
 import { markExpectedExternalChange } from '../document/externalChangeRegistry';
 import { updateNoteMetadataInMarkdown } from '../frontmatter';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
+import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 
 function escapeRegExp(value: string): string {
@@ -34,6 +35,7 @@ function escapeRegExp(value: string): string {
 
 const MAX_SEARCHABLE_NOTE_BYTES = 512 * 1024;
 const MAX_SCANNED_NOTE_CONTENT_CHARS = 8 * 1024 * 1024;
+const MAX_METADATA_UPDATE_NOTE_BYTES = 50 * 1024 * 1024;
 
 function replaceNoteEntry(
   metadata: MetadataFile,
@@ -95,7 +97,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     const fullPath = isAbsolutePath(path)
       ? path
       : vaultPath
-        ? await joinPath(vaultPath, path)
+        ? (await resolveVaultRelativeFullPath(vaultPath, path)).fullPath
         : null;
 
     if (!fullPath || !isActiveVaultRequest(vaultPath)) {
@@ -126,6 +128,11 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
 
         if (sourceContent === undefined) {
           const storage = getStorageAdapter();
+          const fileInfo = await storage.stat(path).catch(() => null);
+          if (fileInfo?.size && fileInfo.size > MAX_METADATA_UPDATE_NOTE_BYTES) {
+            set({ error: 'Note file is too large to update metadata.' });
+            return;
+          }
           sourceContent = await storage.readFile(path);
         }
 
@@ -201,17 +208,28 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       state.noteContentsCache.get(path)?.content;
 
     if (sourceContent === undefined) {
-      const fullPath = isAbsolutePath(path)
-        ? path
-        : vaultPathAtStart
-          ? await joinPath(vaultPathAtStart, path)
-          : null;
+      let fullPath: string | null = null;
+      try {
+        fullPath = isAbsolutePath(path)
+          ? path
+          : vaultPathAtStart
+            ? (await resolveVaultRelativeFullPath(vaultPathAtStart, path)).fullPath
+            : null;
+      } catch (error) {
+        set({ error: error instanceof Error ? error.message : 'Failed to update note metadata' });
+        return;
+      }
 
       if (!fullPath) {
         return;
       }
 
       const storage = getStorageAdapter();
+      const fileInfo = await storage.stat(fullPath).catch(() => null);
+      if (fileInfo?.size && fileInfo.size > MAX_METADATA_UPDATE_NOTE_BYTES) {
+        set({ error: 'Note file is too large to update metadata.' });
+        return;
+      }
       sourceContent = await storage.readFile(fullPath);
       if (!isActiveVaultRequest(vaultPathAtStart)) {
         return;
@@ -328,8 +346,11 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
           if (node.isFolder) {
             await collectPaths(node.children);
           } else {
-            const fullPath = await joinPath(notesPath, node.path);
-            filePaths.push({ path: node.path, fullPath });
+            try {
+              const { relativePath, fullPath } = await resolveVaultRelativeFullPath(notesPath, node.path);
+              filePaths.push({ path: relativePath, fullPath });
+            } catch {
+            }
           }
         }
       };

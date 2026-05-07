@@ -1,5 +1,6 @@
 import { StateCreator } from 'zustand';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { createAsyncPrefetchQueue } from '@/lib/asyncPrefetchQueue';
 import { NotesStore } from '../types';
 import { updateDisplayName } from '../displayNameUtils';
@@ -147,6 +148,10 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       });
       return;
     }
+    if (!isSupportedMarkdownPath(path)) {
+      set({ error: 'Only Markdown files can be opened as notes.' });
+      return;
+    }
 
     let { notesPath, isDirty, saveNote, recentNotes, openTabs, currentNote, noteContentsCache, draftNotes } = get();
     let shouldOpenInNewTab = openInNewTab;
@@ -270,6 +275,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   },
 
   openNoteByAbsolutePath: async (absolutePath: string, openInNewTab: boolean = false) => {
+    if (!isSupportedMarkdownPath(absolutePath)) {
+      set({ error: 'Only Markdown files can be opened as notes.' });
+      return;
+    }
+
     logLineBreakDebug('open-absolute:start-before-flush', {
       absolutePath,
       openInNewTab,
@@ -400,6 +410,9 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
 
   prefetchNote: async (path: string) => {
     const { notesPath, noteContentsCache } = get();
+    if (!isSupportedMarkdownPath(path)) {
+      return;
+    }
     if (noteContentsCache.has(path)) {
       return;
     }

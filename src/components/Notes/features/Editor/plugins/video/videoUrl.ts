@@ -2,6 +2,7 @@ import { logVideoDebug } from './videoDebug';
 import { isLocalNetworkHttpUrl } from '@/lib/notes/markdown/urlSecurity';
 
 const MAX_VIDEO_URL_LENGTH = 2048;
+const UNSAFE_VIDEO_URL_CHARS_REGEX = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 export type ParsedVideoUrl =
   | { type: 'youtube' | 'bilibili'; embedUrl: string }
@@ -11,7 +12,7 @@ export type IframeVideoUrl = Extract<ParsedVideoUrl, { type: 'youtube' | 'bilibi
 
 export function normalizeVideoUrlInput(input: string) {
   const url = input.trim();
-  if (!url || url.length > MAX_VIDEO_URL_LENGTH || /[\r\n]/.test(url)) {
+  if (!url || url.length > MAX_VIDEO_URL_LENGTH || UNSAFE_VIDEO_URL_CHARS_REGEX.test(url)) {
     return null;
   }
   return url;

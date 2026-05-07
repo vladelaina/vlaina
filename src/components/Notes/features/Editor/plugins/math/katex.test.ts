@@ -38,10 +38,18 @@ describe('katex utils', () => {
     expect(result.errorDetails?.rawMessage).toBeTruthy();
   });
 
+  it('rejects oversized latex before rendering', () => {
+    const result = renderLatex('x'.repeat(10001), false);
+
+    expect(result.error).toBe('Equation is too large to render');
+    expect(result.html).toContain('math-error');
+  });
+
   it('validates latex strings consistently with the renderer expectations', () => {
     expect(isValidLatex('')).toBe(true);
     expect(isValidLatex('\\sqrt{x}')).toBe(true);
     expect(isValidLatex('\\frac{1}{')).toBe(false);
+    expect(isValidLatex('x'.repeat(10001))).toBe(false);
   });
 
   it('extracts a structured position, context, and pointer from KaTeX parse errors', () => {

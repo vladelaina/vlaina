@@ -1,9 +1,9 @@
-import { joinPath } from '@/lib/storage/adapter';
 import { getVaultStarredPaths, remapStarredEntriesForVault, saveStarredRegistry } from '../../starred';
 import { removeNodeFromTree } from '../../fileTreeUtils';
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
 import { remapMetadataEntries } from '../../storage';
 import { deleteNoteItemToRecoverableLocation } from './trashOperations';
+import { resolveVaultRelativeFullPath } from './vaultPathContainment';
 import type {
   DeleteOperationResult,
   FileOperationContext,
@@ -16,28 +16,28 @@ export async function deleteNoteImpl(
   path: string,
   currentStore: FileOperationContext,
 ): Promise<DeleteOperationResult> {
-  const fullPath = await joinPath(notesPath, path);
+  const { relativePath: safePath, fullPath } = await resolveVaultRelativeFullPath(notesPath, path);
   markExpectedExternalChange(fullPath);
-  const recoverableDelete = await deleteNoteItemToRecoverableLocation(notesPath, path, 'file');
+  const recoverableDelete = await deleteNoteItemToRecoverableLocation(notesPath, safePath, 'file');
 
   const { openTabs, starredEntries, currentNote, rootFolder, noteMetadata } = currentStore;
 
-  const updatedTabs = openTabs.filter((tab) => tab.path !== path);
+  const updatedTabs = openTabs.filter((tab) => tab.path !== safePath);
   const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath, kind) => {
     if (kind !== 'note') {
       return relativePath;
     }
-    return relativePath === path ? null : relativePath;
+    return relativePath === safePath ? null : relativePath;
   });
   const starredPaths = getVaultStarredPaths(starredResult.entries, notesPath);
   if (starredResult.changed) {
     void saveStarredRegistry(starredResult.entries);
   }
 
-  const newChildren = rootFolder ? removeNodeFromTree(rootFolder.children, path) : [];
+  const newChildren = rootFolder ? removeNodeFromTree(rootFolder.children, safePath) : [];
   let nextAction: FileOperationNextAction = null;
 
-  if (currentNote?.path === path) {
+  if (currentNote?.path === safePath) {
     const lastTab = updatedTabs[updatedTabs.length - 1] as NoteTabState | undefined;
     if (lastTab) {
       nextAction = { type: 'open', path: lastTab.path };
@@ -45,7 +45,7 @@ export async function deleteNoteImpl(
   }
 
   const updatedMetadata = remapMetadataEntries(noteMetadata ?? null, (relativePath) =>
-    relativePath === path ? null : relativePath,
+    relativePath === safePath ? null : relativePath,
   );
 
   return {
@@ -65,14 +65,14 @@ export async function deleteFolderImpl(
   path: string,
   currentStore: FileOperationContext,
 ): Promise<DeleteOperationResult> {
-  const fullPath = await joinPath(notesPath, path);
+  const { relativePath: safePath, fullPath } = await resolveVaultRelativeFullPath(notesPath, path);
   markExpectedExternalChange(fullPath, true);
-  const recoverableDelete = await deleteNoteItemToRecoverableLocation(notesPath, path, 'folder');
+  const recoverableDelete = await deleteNoteItemToRecoverableLocation(notesPath, safePath, 'folder');
 
   const { openTabs, starredEntries, currentNote, rootFolder, noteMetadata } = currentStore;
 
   const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath) => {
-    if (relativePath === path || relativePath.startsWith(path + '/')) {
+    if (relativePath === safePath || relativePath.startsWith(safePath + '/')) {
       return null;
     }
     return relativePath;
@@ -82,10 +82,10 @@ export async function deleteFolderImpl(
     void saveStarredRegistry(starredResult.entries);
   }
 
-  const updatedTabs = openTabs.filter((tab) => !tab.path.startsWith(path + '/') && tab.path !== path);
+  const updatedTabs = openTabs.filter((tab) => !tab.path.startsWith(safePath + '/') && tab.path !== safePath);
 
   let nextAction: FileOperationNextAction = null;
-  if (currentNote && (currentNote.path === path || currentNote.path.startsWith(path + '/'))) {
+  if (currentNote && (currentNote.path === safePath || currentNote.path.startsWith(safePath + '/'))) {
     const lastTab = updatedTabs[updatedTabs.length - 1] as NoteTabState | undefined;
     if (lastTab) {
       nextAction = { type: 'open', path: lastTab.path };
@@ -93,13 +93,13 @@ export async function deleteFolderImpl(
   }
 
   const updatedMetadata = remapMetadataEntries(noteMetadata ?? null, (relativePath) => {
-    if (relativePath === path || relativePath.startsWith(path + '/')) {
+    if (relativePath === safePath || relativePath.startsWith(safePath + '/')) {
       return null;
     }
     return relativePath;
   });
 
-  const newChildren = rootFolder ? removeNodeFromTree(rootFolder.children, path) : [];
+  const newChildren = rootFolder ? removeNodeFromTree(rootFolder.children, safePath) : [];
 
   return {
     updatedStarredEntries: starredResult.entries,

@@ -1,5 +1,5 @@
-import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
+import { getStorageAdapter } from '@/lib/storage/adapter';
 import type { NotesStore } from '../types';
 import { addNodeToTree } from '../fileTreeUtils';
 import { ensureNotesFolder, getCurrentVaultPath, getNotesBasePath } from '../storage';
@@ -205,7 +205,6 @@ export function createFileSystemCreateActions(
         noteContentsCache,
         noteMetadata,
       } = await ensureCurrentNoteSaved(get);
-      const storage = getStorageAdapter();
 
       try {
         if (!notesPath) {
@@ -215,13 +214,6 @@ export function createFileSystemCreateActions(
         }
 
         const currentRootFolder = ensureRootFolderState(rootFolder);
-        if (folderPath) {
-          const folderFullPath = await joinPath(notesPath, folderPath);
-          if (!await storage.exists(folderFullPath)) {
-            await storage.mkdir(folderFullPath, true);
-          }
-        }
-
         const result = await createNoteImpl(notesPath, folderPath, name, content, {
           rootFolder: currentRootFolder,
           recentNotes,

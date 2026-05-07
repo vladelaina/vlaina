@@ -3,6 +3,7 @@ import { resolveExportMarkdownAssetSources } from './noteExportMarkdown';
 
 const mocks = vi.hoisted(() => ({
   readBinaryFile: vi.fn(),
+  stat: vi.fn(),
   resolveExistingVaultAssetPath: vi.fn(),
 }));
 
@@ -10,6 +11,7 @@ vi.mock('@/lib/electron/bridge', () => ({
   getElectronBridge: () => ({
     fs: {
       readBinaryFile: mocks.readBinaryFile,
+      stat: mocks.stat,
     },
   }),
 }));
@@ -21,6 +23,8 @@ vi.mock('@/lib/assets/core/paths', () => ({
 describe('resolveExportMarkdownAssetSources', () => {
   beforeEach(() => {
     mocks.readBinaryFile.mockReset();
+    mocks.stat.mockReset();
+    mocks.stat.mockResolvedValue(null);
     mocks.resolveExistingVaultAssetPath.mockReset();
   });
 
@@ -87,6 +91,33 @@ describe('resolveExportMarkdownAssetSources', () => {
     );
 
     expect(markdown).toBe('![missing](img:missing.png)');
+    expect(mocks.readBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('does not inline oversized local note images', async () => {
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/huge.png');
+    mocks.stat.mockResolvedValue({ size: 51 * 1024 * 1024 });
+
+    const markdown = await resolveExportMarkdownAssetSources(
+      '![huge](img:huge.png)',
+      '/vault',
+      'docs/demo.md',
+    );
+
+    expect(markdown).toBe('![huge](img:huge.png)');
+    expect(mocks.readBinaryFile).not.toHaveBeenCalled();
+  });
+
+  it('does not inline non-image local note assets', async () => {
+    mocks.resolveExistingVaultAssetPath.mockResolvedValue('/vault/.vlaina/assets/secret.md');
+
+    const markdown = await resolveExportMarkdownAssetSources(
+      '![secret](img:secret.md)',
+      '/vault',
+      'docs/demo.md',
+    );
+
+    expect(markdown).toBe('![secret](img:secret.md)');
     expect(mocks.readBinaryFile).not.toHaveBeenCalled();
   });
 });

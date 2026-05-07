@@ -1,4 +1,4 @@
-import { getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
+import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import {
   buildFileTree,
   collectExpandedPaths,
@@ -17,6 +17,7 @@ import {
   loadWorkspaceState,
 } from '../storage';
 import { getVaultStarredPaths } from '../starred';
+import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import type { FileSystemSlice, FileSystemSliceGet, FileSystemSliceSet } from './fileSystemSliceContracts';
 
@@ -136,13 +137,13 @@ export function createFileSystemTreeActions(
         const hasActiveNoteOrTabs = Boolean(get().currentNote) || get().openTabs.length > 0;
         if (!skipRestore && currentNotePath && !hasActiveNoteOrTabs) {
           try {
-            const fullPath = await joinPath(basePath, currentNotePath);
+            const { relativePath, fullPath } = await resolveVaultRelativeFullPath(basePath, currentNotePath);
             if (
               requestId === latestLoadFileTreeRequestId &&
               getCurrentVaultPath() === basePath &&
               await storage.exists(fullPath)
             ) {
-              await get().openNote(currentNotePath);
+              await get().openNote(relativePath);
             }
           } catch {
             // Ignore stale persisted current-note entries.

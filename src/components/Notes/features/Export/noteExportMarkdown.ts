@@ -9,6 +9,7 @@ const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
   svg: 'image/svg+xml',
   webp: 'image/webp',
 };
+const MAX_EXPORT_IMAGE_BYTES = 50 * 1024 * 1024;
 
 const MARKDOWN_IMAGE_PATTERN = /(!\[[^\]]*]\()(\s*)(<([^>\n]+)>|([^\s)]+))([^)]*)(\))/g;
 const HTML_IMAGE_SRC_PATTERN = /(<img\b[^>]*\bsrc=["'])(img:[^"']+)(["'][^>]*>)/gi;
@@ -16,6 +17,14 @@ const HTML_IMAGE_SRC_PATTERN = /(<img\b[^>]*\bsrc=["'])(img:[^"']+)(["'][^>]*>)/
 function getImageMimeType(path: string): string {
   const extension = path.split('.').pop()?.toLowerCase() ?? '';
   return IMAGE_MIME_BY_EXTENSION[extension] ?? 'application/octet-stream';
+}
+
+function isExportableImagePath(path: string): boolean {
+  return Object.prototype.hasOwnProperty.call(IMAGE_MIME_BY_EXTENSION, path.split('.').pop()?.toLowerCase() ?? '');
+}
+
+function isExportableImageSize(size: number | null | undefined): boolean {
+  return typeof size !== 'number' || size <= MAX_EXPORT_IMAGE_BYTES;
 }
 
 function bytesToBase64(bytes: Uint8Array): string {
@@ -49,7 +58,20 @@ async function resolveAssetUrl(
       return src;
     }
 
+    if (!isExportableImagePath(absolutePath)) {
+      return src;
+    }
+
+    const fileInfo = await bridge.fs.stat(absolutePath).catch(() => null);
+    if (!isExportableImageSize(fileInfo?.size ?? null)) {
+      return src;
+    }
+
     const bytes = await bridge.fs.readBinaryFile(absolutePath);
+    if (!isExportableImageSize(bytes.byteLength)) {
+      return src;
+    }
+
     return `data:${getImageMimeType(absolutePath)};base64,${bytesToBase64(bytes)}`;
   } catch {
     return src;

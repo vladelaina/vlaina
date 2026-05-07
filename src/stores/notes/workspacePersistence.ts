@@ -1,5 +1,6 @@
 import { isAbsolutePath } from '@/lib/storage/adapter';
 import { collectExpandedPaths } from './fileTreeUtils';
+import { normalizeWorkspaceState } from './persistenceValidation';
 import { saveWorkspaceState, type WorkspaceState } from './storage';
 import type { NotesStore } from './types';
 
@@ -19,10 +20,14 @@ export function createWorkspaceSnapshot({
   const nextExpandedFolders =
     expandedFolders ?? (rootFolder ? Array.from(collectExpandedPaths(rootFolder.children)) : []);
 
-  return {
+  return normalizeWorkspaceState({
     currentNotePath:
       currentNotePath && !isAbsolutePath(currentNotePath) ? currentNotePath : null,
     expandedFolders: nextExpandedFolders,
+    fileTreeSortMode,
+  }) ?? {
+    currentNotePath: null,
+    expandedFolders: [],
     fileTreeSortMode,
   };
 }

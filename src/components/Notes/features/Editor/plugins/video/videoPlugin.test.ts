@@ -63,6 +63,8 @@ describe('videoPlugin URL support', () => {
     });
     expect(isSupportedVideoUrl('[2026-05-03T12:41:17.327Z] chatScroll:programmatic-scroll {\n  "scrollTop": 1012\n}')).toBe(false);
     expect(isSupportedVideoUrl(`https://example.com/${'a'.repeat(2050)}.mp4`)).toBe(false);
+    expect(isSupportedVideoUrl('https://example.com/\u202Ecod.mp4')).toBe(false);
+    expect(isSupportedVideoUrl('https://example.com/\u0000video.mp4')).toBe(false);
   });
 
   it('redacts video URL debug payloads', () => {

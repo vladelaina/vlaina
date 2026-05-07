@@ -1,5 +1,9 @@
 import type { StarredEntry, StarredKind } from '../types';
-import { normalizeStarredRelativePath, normalizeStarredVaultPath } from './pathUtils';
+import {
+  isValidStarredVaultPath,
+  normalizeStarredRelativePath,
+  normalizeStarredVaultPath,
+} from './pathUtils';
 
 export const CURRENT_STARRED_VERSION = 1;
 
@@ -24,6 +28,10 @@ export function normalizeStarredEntry(value: unknown): StarredEntry | null {
     return null;
   }
 
+  if (!isValidStarredVaultPath(candidate.vaultPath)) {
+    return null;
+  }
+
   const relativePath = normalizeStarredRelativePath(candidate.relativePath);
   if (!relativePath) return null;
 
@@ -44,6 +52,10 @@ export function createStarredEntry(
   vaultPath: string,
   relativePath: string
 ): StarredEntry {
+  if (!isValidStarredVaultPath(vaultPath)) {
+    throw new Error('Starred entry vault path must be an absolute path');
+  }
+
   const normalizedPath = normalizeStarredRelativePath(relativePath);
   if (!normalizedPath) {
     throw new Error('Starred entry path must be a valid note or folder path');

@@ -1,4 +1,4 @@
-import { getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
+import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import { createEmptyMetadataFile, setNoteEntry } from '../storage';
 import {
   getCachedNoteModifiedAt,
@@ -8,6 +8,7 @@ import { setNoteTabDirtyState } from '../document/noteTabState';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { readNoteMetadataFromMarkdown } from '../frontmatter';
 import { isDraftNotePath } from '../draftNote';
+import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 import {
@@ -15,6 +16,8 @@ import {
   logNotesDebug,
   summarizeLineBreakText,
 } from '../lineBreakDebugLog';
+
+const MAX_NOTE_DISK_SYNC_BYTES = 50 * 1024 * 1024;
 
 function isCurrentDiskSyncTarget(get: NotesGet, notesPath: string, notePath: string) {
   const state = get();
@@ -49,7 +52,7 @@ export function createWorkspaceDiskSyncAction(
         const storage = getStorageAdapter();
         const fullPath = isAbsolutePath(currentNote.path)
           ? currentNote.path
-          : await joinPath(notesPath, currentNote.path);
+          : (await resolveVaultRelativeFullPath(notesPath, currentNote.path)).fullPath;
         const exists = await storage.exists(fullPath);
         const fileInfo = await storage.stat(fullPath);
         const cachedModifiedAt = getCachedNoteModifiedAt(noteContentsCache, currentNote.path);
@@ -93,6 +96,16 @@ export function createWorkspaceDiskSyncAction(
             current: summarizeLineBreakText(currentNote.content),
           });
           return 'deleted-conflict';
+        }
+
+        if (fileInfo?.size && fileInfo.size > MAX_NOTE_DISK_SYNC_BYTES) {
+          set({ error: 'Current note is too large to reload from disk.' });
+          logNotesDebug('NotesDiskSync', 'sync:ignored-too-large', {
+            notePath: currentNote.path,
+            fullPath,
+            size: fileInfo.size,
+          });
+          return 'ignored';
         }
 
         const nextModifiedAt = fileInfo?.modifiedAt ?? cachedModifiedAt ?? null;

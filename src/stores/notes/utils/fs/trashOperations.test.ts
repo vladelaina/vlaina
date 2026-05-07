@@ -16,6 +16,7 @@ const hoisted = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/storage/adapter', () => ({
+  isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
   joinPath: (...segments: string[]) => Promise.resolve(segments.join('/').replace(/\/+/g, '/')),
   getStorageAdapter: () => ({
     mkdir: hoisted.mkdir,

@@ -6,6 +6,7 @@ import {
   remarkStringifyOptionsCtx,
   serializerCtx,
 } from '@milkdown/kit/core';
+import { TextSelection } from '@milkdown/kit/prose/state';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 
@@ -43,6 +44,7 @@ async function openMarkdown(markdown: string) {
   const view = editor.ctx.get(editorViewCtx);
   const serializer = editor.ctx.get(serializerCtx);
   return {
+    view,
     dom: view.dom,
     persisted: stripTrailingNewlines(normalizeSerializedMarkdownDocument(serializer(view.state.doc))),
   };
@@ -109,5 +111,20 @@ describe('markdown security when opening notes', () => {
     expect(srcs.some((src) => src?.includes('192.168.'))).toBe(false);
     expect(srcsets.some((srcset) => srcset?.includes('data:image') || srcset?.includes('127.0.0.1'))).toBe(false);
     expect(result.persisted).toContain('![safe](https://example.com/safe.png)');
+  });
+
+  it('sanitizes unsafe link marks before rendering DOM anchors', async () => {
+    const result = await openMarkdown('unsafe link');
+    const { state, dispatch } = result.view;
+    const linkMark = state.schema.marks.link;
+    const tr = state.tr
+      .setSelection(TextSelection.create(state.doc, 1, state.doc.content.size - 1))
+      .addMark(1, state.doc.content.size - 1, linkMark.create({ href: 'javascript:alert(1)' }));
+
+    dispatch(tr);
+
+    const anchor = result.dom.querySelector('a');
+    expect(anchor?.getAttribute('href')).toBeNull();
+    expect(result.dom.innerHTML).not.toContain('javascript:');
   });
 });

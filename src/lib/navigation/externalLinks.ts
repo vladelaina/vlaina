@@ -3,10 +3,14 @@ import { openExternalUrl } from "@/lib/desktop/shell";
 
 const EXTERNAL_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 const ALLOWED_LINK_PREFIX_REGEX = /^(https?:\/\/|mailto:)/i;
+const UNSAFE_URL_CHARS_REGEX = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 export function normalizeExternalHref(href: string | null | undefined): string | null {
   if (!href) return null;
   const trimmed = href.trim();
+  if (UNSAFE_URL_CHARS_REGEX.test(trimmed)) {
+    return null;
+  }
   if (!ALLOWED_LINK_PREFIX_REGEX.test(trimmed)) {
     return null;
   }
