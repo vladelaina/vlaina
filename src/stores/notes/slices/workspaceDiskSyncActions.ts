@@ -16,6 +16,7 @@ import {
   logNotesDebug,
   summarizeLineBreakText,
 } from '../lineBreakDebugLog';
+import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 
 const MAX_NOTE_DISK_SYNC_BYTES = 50 * 1024 * 1024;
 
@@ -30,7 +31,8 @@ export function createWorkspaceDiskSyncAction(
 ): Pick<WorkspaceSlice, 'syncCurrentNoteFromDisk'> {
   return {
     syncCurrentNoteFromDisk: async (options) => {
-      const { currentNote, notesPath, isDirty, noteContentsCache, openTabs, noteMetadata, rootFolder, fileTreeSortMode } = get();
+      flushCurrentPendingEditorMarkdown();
+      const { currentNote, notesPath, isDirty, noteContentsCache, noteMetadata, rootFolder, fileTreeSortMode } = get();
       logNotesDebug('NotesDiskSync', 'sync:start', {
         options: options ?? null,
         currentNotePath: currentNote?.path ?? null,
@@ -74,16 +76,27 @@ export function createWorkspaceDiskSyncAction(
         }
 
         if (!exists || fileInfo?.isFile === false) {
-          const updatedTabs = setNoteTabDirtyState(openTabs, currentNote.path, true);
+          const latestState = get();
+          const latestCurrentNote = latestState.currentNote;
+          const latestContent = latestCurrentNote?.path === currentNote.path
+            ? latestCurrentNote.content
+            : currentNote.content;
+          const latestCachedModifiedAt = getCachedNoteModifiedAt(
+            latestState.noteContentsCache,
+            currentNote.path,
+          ) ?? cachedModifiedAt;
+          const updatedTabs = setNoteTabDirtyState(latestState.openTabs, currentNote.path, true);
           set({
-            currentNote,
+            currentNote: latestCurrentNote?.path === currentNote.path
+              ? { path: currentNote.path, content: latestContent }
+              : latestCurrentNote,
             isDirty: true,
             openTabs: updatedTabs,
             noteContentsCache: setCachedNoteContent(
-              noteContentsCache,
+              latestState.noteContentsCache,
               currentNote.path,
-              currentNote.content,
-              cachedModifiedAt
+              latestContent,
+              latestCachedModifiedAt
             ),
             error: isDirty
               ? 'Current note was deleted outside vlaina while you still have unsaved changes.'
@@ -93,7 +106,7 @@ export function createWorkspaceDiskSyncAction(
           logNotesDebug('NotesDiskSync', 'sync:deleted-conflict', {
             notePath: currentNote.path,
             wasDirty: isDirty,
-            current: summarizeLineBreakText(currentNote.content),
+            current: summarizeLineBreakText(latestContent),
           });
           return 'deleted-conflict';
         }
@@ -153,7 +166,37 @@ export function createWorkspaceDiskSyncAction(
           return 'ignored';
         }
 
-        if (nextContent === currentNote.content && nextModifiedAt === cachedModifiedAt) {
+        const latestState = get();
+        const latestCurrentNote = latestState.currentNote;
+        const latestCachedModifiedAt = getCachedNoteModifiedAt(latestState.noteContentsCache, currentNote.path);
+        const hasLocalEditDuringSync =
+          Boolean(latestState.isDirty) ||
+          latestCurrentNote?.content !== currentNote.content;
+        if (hasLocalEditDuringSync) {
+          const latestContent = latestCurrentNote?.content ?? currentNote.content;
+          set({
+            isDirty: true,
+            openTabs: setNoteTabDirtyState(latestState.openTabs, currentNote.path, true),
+            noteContentsCache: setCachedNoteContent(
+              latestState.noteContentsCache,
+              currentNote.path,
+              latestContent,
+              latestCachedModifiedAt ?? cachedModifiedAt,
+            ),
+            error: 'Current note changed outside vlaina while you still have unsaved changes.',
+          });
+          logNotesDebug('NotesDiskSync', 'sync:conflict-local-edit-during-read', {
+            notePath: currentNote.path,
+            previous: summarizeLineBreakText(currentNote.content),
+            latest: summarizeLineBreakText(latestContent),
+            disk: summarizeLineBreakText(nextContent),
+            nextModifiedAt,
+            cachedModifiedAt,
+          });
+          return 'conflict';
+        }
+
+        if (nextContent === latestCurrentNote?.content && nextModifiedAt === latestCachedModifiedAt) {
           logNotesDebug('NotesDiskSync', 'sync:unchanged-content-and-modified-at', {
             notePath: currentNote.path,
             nextModifiedAt,
@@ -162,20 +205,27 @@ export function createWorkspaceDiskSyncAction(
         }
 
         const nextMetadata = setNoteEntry(
-          noteMetadata ?? createEmptyMetadataFile(),
+          latestState.noteMetadata ?? noteMetadata ?? createEmptyMetadataFile(),
           currentNote.path,
           readNoteMetadataFromMarkdown(nextContent)
         );
-        const nextRootFolder = buildSortedRootFolder(rootFolder, rootFolder?.children ?? [], fileTreeSortMode, nextMetadata);
+        const latestRootFolder = latestState.rootFolder ?? rootFolder;
+        const latestSortMode = latestState.fileTreeSortMode ?? fileTreeSortMode;
+        const nextRootFolder = buildSortedRootFolder(
+          latestRootFolder,
+          latestRootFolder?.children ?? [],
+          latestSortMode,
+          nextMetadata,
+        );
         set({
           currentNote: { path: currentNote.path, content: nextContent },
-          currentNoteDiskRevision: get().currentNoteDiskRevision + 1,
+          currentNoteDiskRevision: latestState.currentNoteDiskRevision + 1,
           isDirty: false,
-          openTabs: setNoteTabDirtyState(openTabs, currentNote.path, false),
+          openTabs: setNoteTabDirtyState(latestState.openTabs, currentNote.path, false),
           noteMetadata: nextMetadata,
           rootFolder: nextRootFolder,
           noteContentsCache: setCachedNoteContent(
-            noteContentsCache,
+            latestState.noteContentsCache,
             currentNote.path,
             nextContent,
             nextModifiedAt

@@ -585,6 +585,95 @@ describe('workspaceSlice tab history', () => {
     });
   });
 
+  it('flushes and saves a dirty current note before closing the current note view', async () => {
+    const saveNote = vi.fn(async () => {
+      store.setState((state) => ({
+        isDirty: false,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'alpha.md' ? { ...tab, isDirty: false } : tab
+        ),
+      }));
+    });
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: 'old' },
+      isDirty: false,
+      saveNote,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'old', modifiedAt: 1 }],
+      ]),
+    });
+    hoisted.flushCurrentPendingEditorMarkdown.mockImplementation(() => {
+      store.setState((state) => ({
+        currentNote: { path: 'alpha.md', content: 'pending edit' },
+        isDirty: true,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'alpha.md' ? { ...tab, isDirty: true } : tab
+        ),
+        noteContentsCache: new Map(state.noteContentsCache).set('alpha.md', {
+          content: 'pending edit',
+          modifiedAt: 1,
+        }),
+      }));
+      return true;
+    });
+
+    await store.getState().closeNote();
+
+    expect(hoisted.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
+    expect(saveNote).toHaveBeenCalledTimes(1);
+    expect(store.getState().currentNote).toBeNull();
+    expect(store.getState().isDirty).toBe(false);
+    expect(store.getState().noteContentsCache.get('alpha.md')?.content).toBe('pending edit');
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
+      currentNotePath: null,
+    }));
+  });
+
+  it('does not close the current note view when saving still leaves it dirty', async () => {
+    const saveNote = vi.fn(async () => undefined);
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: 'unsaved' },
+      isDirty: true,
+      saveNote,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: true }],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'unsaved', modifiedAt: 1 }],
+      ]),
+    });
+
+    await store.getState().closeNote();
+
+    expect(saveNote).toHaveBeenCalledTimes(1);
+    expect(store.getState().currentNote).toEqual({ path: 'alpha.md', content: 'unsaved' });
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().openTabs).toEqual([{ path: 'alpha.md', name: 'alpha', isDirty: true }]);
+    expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('prompts instead of closing a dirty draft current note view', async () => {
+    const saveNote = vi.fn(async () => undefined);
+    const store = createNotesStore({
+      currentNote: { path: 'draft:blank', content: 'draft text' },
+      isDirty: true,
+      saveNote,
+      openTabs: [{ path: 'draft:blank', name: '', isDirty: true }],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: '' },
+      },
+      noteContentsCache: new Map([
+        ['draft:blank', { content: 'draft text', modifiedAt: null }],
+      ]),
+    });
+
+    await store.getState().closeNote();
+
+    expect(saveNote).not.toHaveBeenCalled();
+    expect(store.getState().pendingDraftDiscardPath).toBe('draft:blank');
+    expect(store.getState().currentNote).toEqual({ path: 'draft:blank', content: 'draft text' });
+    expect(store.getState().isDirty).toBe(true);
+  });
+
   it('prompts instead of closing a dirty draft tab', async () => {
     const saveNote = vi.fn(async () => undefined);
     const store = createNotesStore({
@@ -690,6 +779,136 @@ describe('workspaceSlice tab history', () => {
       path: 'alpha.md',
       name: 'alpha',
       isDirty: false,
+    });
+  });
+
+  it('flushes pending editor markdown before closing the current tab', async () => {
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: 'Old alpha' },
+      isDirty: false,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['alpha.md', { content: 'Old alpha', modifiedAt: 1 }]]),
+    });
+    hoisted.flushCurrentPendingEditorMarkdown.mockImplementation(() => {
+      store.setState((state) => ({
+        currentNote: { path: 'alpha.md', content: 'New alpha' },
+        currentNoteRevision: state.currentNoteRevision + 1,
+        isDirty: true,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'alpha.md' ? { ...tab, isDirty: true } : tab
+        ),
+        noteContentsCache: new Map(state.noteContentsCache).set('alpha.md', {
+          content: 'New alpha',
+          modifiedAt: 1,
+        }),
+      }));
+      return true;
+    });
+
+    await store.getState().closeTab('alpha.md');
+
+    expect(hoisted.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(2);
+    expect(storageAdapter.writeFile).toHaveBeenCalledWith(
+      '/vault/alpha.md',
+      expect.stringContaining('New alpha'),
+    );
+    expect(store.getState().currentNote).toBeNull();
+    expect(store.getState().openTabs).toEqual([]);
+    expect(store.getState().isDirty).toBe(false);
+  });
+
+  it('does not close a background dirty tab if it becomes active and changes during the close save', async () => {
+    let resolveWrite: (() => void) | undefined;
+    storageAdapter.writeFile.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      resolveWrite = resolve;
+    }));
+    const store = createNotesStore({
+      currentNote: { path: 'beta.md', content: '# beta' },
+      isDirty: false,
+      openTabs: [
+        { path: 'alpha.md', name: 'alpha', isDirty: true },
+        { path: 'beta.md', name: 'beta', isDirty: false },
+      ],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'First alpha', modifiedAt: 1 }],
+        ['beta.md', { content: '# beta', modifiedAt: 2 }],
+      ]),
+    });
+
+    const close = store.getState().closeTab('alpha.md');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(storageAdapter.writeFile).toHaveBeenCalledTimes(1);
+
+    store.setState((state) => ({
+      currentNote: { path: 'alpha.md', content: 'Second alpha' },
+      currentNoteRevision: state.currentNoteRevision + 1,
+      isDirty: true,
+      openTabs: state.openTabs.map((tab) =>
+        tab.path === 'alpha.md' ? { ...tab, isDirty: true } : tab
+      ),
+      noteContentsCache: new Map(state.noteContentsCache).set('alpha.md', {
+        content: 'Second alpha',
+        modifiedAt: 1,
+      }),
+    }));
+
+    resolveWrite?.();
+    await close;
+
+    expect(store.getState().currentNote).toEqual({
+      path: 'alpha.md',
+      content: 'Second alpha',
+    });
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().openTabs).toEqual([
+      { path: 'alpha.md', name: 'alpha', isDirty: true },
+      { path: 'beta.md', name: 'beta', isDirty: false },
+    ]);
+    expect(store.getState().recentlyClosedTabs).toEqual([]);
+    expect(store.getState().noteContentsCache.get('alpha.md')).toEqual({
+      content: 'Second alpha',
+      modifiedAt: 1,
+    });
+  });
+
+  it('keeps edits made to the previous note while opening another note is in flight', async () => {
+    let resolveRead: (content: string) => void;
+    storageAdapter.readFile.mockImplementation(() => new Promise((resolve) => {
+      resolveRead = resolve;
+    }));
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: '# alpha' },
+      isDirty: false,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+
+    const open = store.getState().openNote('beta.md');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    store.setState((state) => ({
+      currentNote: { path: 'alpha.md', content: '# edited while opening beta' },
+      currentNoteRevision: state.currentNoteRevision + 1,
+      isDirty: true,
+      openTabs: state.openTabs.map((tab) =>
+        tab.path === 'alpha.md' ? { ...tab, isDirty: true } : tab
+      ),
+      noteContentsCache: new Map(state.noteContentsCache).set('alpha.md', {
+        content: '# edited while opening beta',
+        modifiedAt: 1,
+      }),
+    }));
+    resolveRead!('# beta');
+    await open;
+
+    expect(store.getState().currentNote).toEqual({ path: 'beta.md', content: '# beta' });
+    expect(store.getState().isDirty).toBe(false);
+    expect(store.getState().openTabs).toEqual([
+      { path: 'alpha.md', name: 'alpha', isDirty: true },
+      { path: 'beta.md', name: 'beta', isDirty: false },
+    ]);
+    expect(store.getState().noteContentsCache.get('alpha.md')).toEqual({
+      content: '# edited while opening beta',
+      modifiedAt: 1,
     });
   });
 

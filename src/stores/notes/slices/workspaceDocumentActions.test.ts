@@ -133,6 +133,51 @@ describe('workspace document actions', () => {
     expect(store.getState().openTabs).toEqual([{ path: '/vault/Untitled.md', name: 'Untitled', isDirty: true }]);
   });
 
+  it('does not invalidate cached content for a dirty background tab', () => {
+    const store = createNotesStore({
+      currentNote: { path: 'beta.md', content: '# beta' },
+      isDirty: false,
+      openTabs: [
+        { path: 'alpha.md', name: 'alpha', isDirty: true },
+        { path: 'beta.md', name: 'beta', isDirty: false },
+      ],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
+        ['beta.md', { content: '# beta', modifiedAt: 2 }],
+      ]),
+    });
+
+    store.getState().invalidateNoteCache('alpha.md');
+
+    expect(store.getState().noteContentsCache.get('alpha.md')).toEqual({
+      content: 'Unsaved alpha',
+      modifiedAt: 1,
+    });
+  });
+
+  it('invalidates cached content for a clean background tab', () => {
+    const store = createNotesStore({
+      currentNote: { path: 'beta.md', content: '# beta' },
+      isDirty: false,
+      openTabs: [
+        { path: 'alpha.md', name: 'alpha', isDirty: false },
+        { path: 'beta.md', name: 'beta', isDirty: false },
+      ],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: '# alpha', modifiedAt: 1 }],
+        ['beta.md', { content: '# beta', modifiedAt: 2 }],
+      ]),
+    });
+
+    store.getState().invalidateNoteCache('alpha.md');
+
+    expect(store.getState().noteContentsCache.has('alpha.md')).toBe(false);
+    expect(store.getState().noteContentsCache.get('beta.md')).toEqual({
+      content: '# beta',
+      modifiedAt: 2,
+    });
+  });
+
   it('flushes pending editor markdown before saving the current note snapshot', async () => {
     const store = createNotesStore({
       currentNote: { path: 'alpha.md', content: 'old' },
@@ -171,6 +216,89 @@ describe('workspace document actions', () => {
       },
     }));
     expect(store.getState().isDirty).toBe(false);
+  });
+
+  it('serializes overlapping saves for an edited external starred note', async () => {
+    const saveResults: Array<{
+      content: string;
+      metadata: Record<string, unknown>;
+      modifiedAt: number;
+      nextCache: Map<string, { content: string; modifiedAt: number | null }>;
+    }> = [];
+    mocks.saveNoteDocument.mockImplementation(async () => {
+      const next = saveResults.shift();
+      if (!next) {
+        throw new Error('Missing save result');
+      }
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      return next;
+    });
+    saveResults.push(
+      {
+        content: 'First saved',
+        metadata: { updatedAt: 2 },
+        modifiedAt: 2,
+        nextCache: new Map([['/external/starred.md', { content: 'First saved', modifiedAt: 2 }]]),
+      },
+      {
+        content: 'Second saved',
+        metadata: { updatedAt: 3 },
+        modifiedAt: 3,
+        nextCache: new Map([['/external/starred.md', { content: 'Second saved', modifiedAt: 3 }]]),
+      },
+    );
+
+    const store = createNotesStore({
+      currentNote: { path: '/external/starred.md', content: 'First edit' },
+      currentNoteRevision: 1,
+      isDirty: true,
+      openTabs: [{ path: '/external/starred.md', name: 'starred', isDirty: true }],
+      noteContentsCache: new Map([['/external/starred.md', { content: 'First edit', modifiedAt: 1 }]]),
+    });
+
+    const firstSave = store.getState().saveNote({ explicit: false });
+    expect(mocks.saveNoteDocument).toHaveBeenCalledTimes(1);
+
+    store.setState((state) => ({
+      currentNote: { path: '/external/starred.md', content: 'Second edit' },
+      currentNoteRevision: state.currentNoteRevision + 1,
+      isDirty: true,
+      openTabs: state.openTabs.map((tab) => ({ ...tab, isDirty: true })),
+      noteContentsCache: new Map(state.noteContentsCache).set('/external/starred.md', {
+        content: 'Second edit',
+        modifiedAt: 1,
+      }),
+    }));
+
+    const secondSave = store.getState().saveNote({ explicit: false });
+    await firstSave;
+
+    expect(store.getState().currentNote).toEqual({
+      path: '/external/starred.md',
+      content: 'Second edit',
+    });
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().noteContentsCache.get('/external/starred.md')).toEqual({
+      content: 'Second edit',
+      modifiedAt: 2,
+    });
+
+    await secondSave;
+
+    expect(mocks.saveNoteDocument).toHaveBeenCalledTimes(2);
+    expect(mocks.saveNoteDocument).toHaveBeenNthCalledWith(2, {
+      notesPath: '/vault',
+      currentNote: { path: '/external/starred.md', content: 'Second edit' },
+      cache: expect.any(Map),
+    });
+    expect(store.getState().currentNote).toEqual({
+      path: '/external/starred.md',
+      content: 'Second saved',
+    });
+    expect(store.getState().isDirty).toBe(false);
+    expect(store.getState().openTabs).toEqual([
+      { path: '/external/starred.md', name: 'starred', isDirty: false },
+    ]);
   });
 
   it('dispatches an open target after saving a draft outside the current vault', async () => {
@@ -232,6 +360,159 @@ describe('workspace document actions', () => {
     });
     expect(store.getState().currentNote?.path).toBe('Draft title.md');
     expect(store.getState().openTabs).toEqual([{ path: 'Draft title.md', name: 'Draft title', isDirty: false }]);
+  });
+
+  it('keeps newer draft edits dirty after materializing while a save is in flight', async () => {
+    type SaveResult = {
+      content: string;
+      metadata: Record<string, unknown>;
+      modifiedAt: number;
+      nextCache: Map<string, { content: string; modifiedAt: number | null }>;
+    };
+    let resolveFirstSave: ((value: SaveResult) => void) | undefined;
+    mocks.saveNoteDocument
+      .mockImplementationOnce(() => new Promise<SaveResult>((resolve) => {
+        resolveFirstSave = resolve;
+      }))
+      .mockResolvedValueOnce({
+        content: 'Second saved',
+        metadata: { updatedAt: 3 },
+        modifiedAt: 3,
+        nextCache: new Map([['Draft title.md', { content: 'Second saved', modifiedAt: 3 }]]),
+      });
+    const store = createNotesStore({
+      currentNote: { path: 'draft:blank', content: 'First edit' },
+      isDirty: true,
+      openTabs: [{ path: 'draft:blank', name: '', isDirty: true }],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: 'Draft title' },
+      },
+      noteContentsCache: new Map([['draft:blank', { content: 'First edit', modifiedAt: null }]]),
+    });
+
+    const firstSave = store.getState().saveNote({ explicit: false });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(mocks.saveNoteDocument).toHaveBeenCalledWith({
+      notesPath: '/vault',
+      currentNote: { path: 'Draft title.md', content: 'First edit' },
+      cache: expect.any(Map),
+    });
+
+    store.setState((state) => ({
+      currentNote: { path: 'draft:blank', content: 'Second edit' },
+      currentNoteRevision: state.currentNoteRevision + 1,
+      isDirty: true,
+      openTabs: state.openTabs.map((tab) =>
+        tab.path === 'draft:blank' ? { ...tab, isDirty: true } : tab
+      ),
+      noteContentsCache: new Map(state.noteContentsCache).set('draft:blank', {
+        content: 'Second edit',
+        modifiedAt: null,
+      }),
+    }));
+
+    const secondSave = store.getState().saveNote({ explicit: false });
+    resolveFirstSave?.({
+      content: 'First saved',
+      metadata: { updatedAt: 2 },
+      modifiedAt: 2,
+      nextCache: new Map([['Draft title.md', { content: 'First saved', modifiedAt: 2 }]]),
+    });
+    await firstSave;
+
+    expect(store.getState().currentNote).toEqual({
+      path: 'Draft title.md',
+      content: 'Second edit',
+    });
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().openTabs).toEqual([
+      { path: 'Draft title.md', name: 'Draft title', isDirty: true },
+    ]);
+    expect(store.getState().draftNotes).toEqual({});
+    expect(store.getState().noteContentsCache.has('draft:blank')).toBe(false);
+    expect(store.getState().noteContentsCache.get('Draft title.md')).toEqual({
+      content: 'Second edit',
+      modifiedAt: 2,
+    });
+
+    await secondSave;
+
+    expect(mocks.saveNoteDocument).toHaveBeenCalledTimes(2);
+    expect(mocks.saveNoteDocument).toHaveBeenNthCalledWith(2, {
+      notesPath: '/vault',
+      currentNote: { path: 'Draft title.md', content: 'Second edit' },
+      cache: expect.any(Map),
+    });
+    expect(store.getState().currentNote).toEqual({
+      path: 'Draft title.md',
+      content: 'Second saved',
+    });
+    expect(store.getState().isDirty).toBe(false);
+    expect(store.getState().openTabs).toEqual([
+      { path: 'Draft title.md', name: 'Draft title', isDirty: false },
+    ]);
+  });
+
+  it('materializes a draft tab when the user switches away before the draft save finishes', async () => {
+    type SaveResult = {
+      content: string;
+      metadata: Record<string, unknown>;
+      modifiedAt: number;
+      nextCache: Map<string, { content: string; modifiedAt: number | null }>;
+    };
+    let resolveSave: ((value: SaveResult) => void) | undefined;
+    mocks.saveNoteDocument.mockImplementationOnce(() => new Promise<SaveResult>((resolve) => {
+      resolveSave = resolve;
+    }));
+    const store = createNotesStore({
+      currentNote: { path: 'draft:blank', content: 'Draft body' },
+      isDirty: true,
+      openTabs: [
+        { path: 'draft:blank', name: '', isDirty: true },
+        { path: 'beta.md', name: 'beta', isDirty: false },
+      ],
+      draftNotes: {
+        'draft:blank': { parentPath: null, name: 'Draft title' },
+      },
+      noteContentsCache: new Map([
+        ['draft:blank', { content: 'Draft body', modifiedAt: null }],
+        ['beta.md', { content: '# beta', modifiedAt: 1 }],
+      ]),
+    });
+
+    const save = store.getState().saveNote({ explicit: false });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    store.setState((state) => ({
+      currentNote: { path: 'beta.md', content: '# beta' },
+      currentNoteRevision: state.currentNoteRevision + 1,
+      isDirty: false,
+      openTabs: state.openTabs,
+    }));
+
+    resolveSave?.({
+      content: 'Draft saved',
+      metadata: { updatedAt: 2 },
+      modifiedAt: 2,
+      nextCache: new Map([['Draft title.md', { content: 'Draft saved', modifiedAt: 2 }]]),
+    });
+    await save;
+
+    expect(store.getState().currentNote).toEqual({
+      path: 'beta.md',
+      content: '# beta',
+    });
+    expect(store.getState().isDirty).toBe(false);
+    expect(store.getState().openTabs).toEqual([
+      { path: 'Draft title.md', name: 'Draft title', isDirty: false },
+      { path: 'beta.md', name: 'beta', isDirty: false },
+    ]);
+    expect(store.getState().draftNotes).toEqual({});
+    expect(store.getState().noteContentsCache.has('draft:blank')).toBe(false);
+    expect(store.getState().noteContentsCache.get('Draft title.md')).toEqual({
+      content: 'Draft saved',
+      modifiedAt: 2,
+    });
   });
 
   it('prompts for a save location when a preserved draft came from another workspace', async () => {

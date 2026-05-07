@@ -14,6 +14,7 @@ import {
 import {
   limitCachedNoteContents,
   remapCachedNoteContents,
+  setCachedNoteContent,
 } from '../document/noteContentCache';
 import { loadNoteDocument } from '../document/noteDocumentPersistence';
 import {
@@ -107,6 +108,33 @@ function openDraftNoteFromMemory(
   return true;
 }
 
+function mergeOpenedTab(
+  openTabs: NotesStore['openTabs'],
+  currentNote: NotesStore['currentNote'],
+  path: string,
+  tabName: string,
+  openInNewTab: boolean,
+) {
+  const existingTab = openTabs.find((tab) => tab.path === path);
+  if (existingTab) {
+    return openTabs.map((tab) => (tab.path === path ? { ...tab, name: tabName } : tab));
+  }
+
+  if (openInNewTab || openTabs.length === 0) {
+    return [...openTabs, { path, name: tabName, isDirty: false }];
+  }
+
+  const currentTabIndex = openTabs.findIndex((tab) => tab.path === currentNote?.path);
+  const currentTab = currentTabIndex === -1 ? null : openTabs[currentTabIndex];
+  if (currentTabIndex !== -1 && currentTab && !currentTab.isDirty) {
+    const updatedTabs = [...openTabs];
+    updatedTabs[currentTabIndex] = { path, name: tabName, isDirty: false };
+    return updatedTabs;
+  }
+
+  return [...openTabs, { path, name: tabName, isDirty: false }];
+}
+
 export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSlice> = (
   set,
   get
@@ -153,9 +181,8 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       return;
     }
 
-    let { notesPath, isDirty, saveNote, recentNotes, openTabs, currentNote, noteContentsCache, draftNotes } = get();
+    let { notesPath, isDirty, saveNote, recentNotes, currentNote, noteContentsCache, draftNotes } = get();
     let shouldOpenInNewTab = openInNewTab;
-    let existingTab = openTabs.find((t) => t.path === path);
     if (isDirty && currentNote && draftNotes[currentNote.path]) {
       shouldOpenInNewTab = true;
       logNotesDebug('NotesWorkspace', 'open-note:dirty-draft-forces-new-tab', {
@@ -187,12 +214,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         });
         return;
       }
-      ({ notesPath, recentNotes, openTabs, currentNote, noteContentsCache } = get());
-      existingTab = openTabs.find((t) => t.path === path);
+      ({ notesPath, recentNotes, currentNote, noteContentsCache } = get());
     }
 
     try {
-      const { content, nextCache } = await loadNoteDocument({
+      const { content, modifiedAt } = await loadNoteDocument({
         notesPath,
         path,
         cache: noteContentsCache,
@@ -211,35 +237,32 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         });
         return;
       }
+      const latestState = get();
+      const latestOpenTabs = latestState.openTabs;
+      const latestCurrentNote = latestState.currentNote;
+      const latestExistingTab = latestOpenTabs.find((tab) => tab.path === path);
       const nextMetadata = setNoteEntry(
-        get().noteMetadata ?? createEmptyMetadataFile(),
+        latestState.noteMetadata ?? createEmptyMetadataFile(),
         path,
         readNoteMetadataFromMarkdown(content)
       );
       const fileName = getNoteTitleFromPath(path);
       const tabName = fileName;
-      const updatedRecent = addToRecentNotes(path, recentNotes);
-
-      let updatedTabs = openTabs;
-      if (existingTab) {
-        updatedTabs = openTabs.map((t) => (t.path === path ? { ...t, name: tabName } : t));
-      } else if (shouldOpenInNewTab || openTabs.length === 0) {
-        updatedTabs = [...openTabs, { path, name: tabName, isDirty: false }];
-      } else {
-        const currentTabIndex = openTabs.findIndex((t) => t.path === currentNote?.path);
-        if (currentTabIndex !== -1) {
-          updatedTabs = [...openTabs];
-          updatedTabs[currentTabIndex] = { path, name: tabName, isDirty: false };
-        } else {
-          updatedTabs = [...openTabs, { path, name: tabName, isDirty: false }];
-        }
-      }
+      const updatedRecent = addToRecentNotes(path, latestState.recentNotes ?? recentNotes);
+      const updatedTabs = mergeOpenedTab(
+        latestOpenTabs,
+        latestCurrentNote,
+        path,
+        tabName,
+        shouldOpenInNewTab,
+      );
+      const nextCache = setCachedNoteContent(latestState.noteContentsCache, path, content, modifiedAt);
 
       updateDisplayName(set, path, tabName);
       set({
         currentNote: { path, content },
-        currentNoteRevision: get().currentNoteRevision + 1,
-        isDirty: existingTab?.isDirty ?? false,
+        currentNoteRevision: latestState.currentNoteRevision + 1,
+        isDirty: latestExistingTab?.isDirty ?? false,
         error: null,
         recentNotes: updatedRecent,
         openTabs: updatedTabs,
@@ -253,7 +276,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       });
       logLineBreakDebug('open-note:set-target', {
         path,
-        isDirty: existingTab?.isDirty ?? false,
+        isDirty: latestExistingTab?.isDirty ?? false,
         content: summarizeLineBreakText(content),
       });
 
@@ -296,9 +319,8 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       current: summarizeLineBreakText(get().currentNote?.content),
     });
     const openRequestId = ++latestOpenNoteRequestId;
-    let { notesPath, isDirty, saveNote, openTabs, currentNote, noteContentsCache, draftNotes } = get();
+    let { notesPath, isDirty, saveNote, currentNote, noteContentsCache, draftNotes } = get();
     let shouldOpenInNewTab = openInNewTab;
-    let existingTab = openTabs.find((t) => t.path === absolutePath);
     if (isDirty && currentNote && draftNotes[currentNote.path]) {
       shouldOpenInNewTab = true;
       logNotesDebug('NotesWorkspace', 'open-absolute:dirty-draft-forces-new-tab', {
@@ -330,12 +352,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         });
         return;
       }
-      ({ notesPath, openTabs, currentNote, noteContentsCache } = get());
-      existingTab = openTabs.find((t) => t.path === absolutePath);
+      ({ notesPath, currentNote, noteContentsCache } = get());
     }
 
     try {
-      const { content, nextCache } = await loadNoteDocument({
+      const { content, modifiedAt } = await loadNoteDocument({
         notesPath,
         path: absolutePath,
         cache: noteContentsCache,
@@ -354,34 +375,31 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         });
         return;
       }
+      const latestState = get();
+      const latestOpenTabs = latestState.openTabs;
+      const latestCurrentNote = latestState.currentNote;
+      const latestExistingTab = latestOpenTabs.find((tab) => tab.path === absolutePath);
       const nextMetadata = setNoteEntry(
-        get().noteMetadata ?? createEmptyMetadataFile(),
+        latestState.noteMetadata ?? createEmptyMetadataFile(),
         absolutePath,
         readNoteMetadataFromMarkdown(content)
       );
       const fileName = getNoteTitleFromPath(absolutePath);
       const tabName = fileName;
-
-      let updatedTabs = openTabs;
-      if (existingTab) {
-        updatedTabs = openTabs.map((t) => (t.path === absolutePath ? { ...t, name: tabName } : t));
-      } else if (shouldOpenInNewTab || openTabs.length === 0) {
-        updatedTabs = [...openTabs, { path: absolutePath, name: tabName, isDirty: false }];
-      } else {
-        const currentTabIndex = openTabs.findIndex((t) => t.path === currentNote?.path);
-        if (currentTabIndex !== -1) {
-          updatedTabs = [...openTabs];
-          updatedTabs[currentTabIndex] = { path: absolutePath, name: tabName, isDirty: false };
-        } else {
-          updatedTabs = [...openTabs, { path: absolutePath, name: tabName, isDirty: false }];
-        }
-      }
+      const updatedTabs = mergeOpenedTab(
+        latestOpenTabs,
+        latestCurrentNote,
+        absolutePath,
+        tabName,
+        shouldOpenInNewTab,
+      );
+      const nextCache = setCachedNoteContent(latestState.noteContentsCache, absolutePath, content, modifiedAt);
 
       updateDisplayName(set, absolutePath, tabName);
       set({
         currentNote: { path: absolutePath, content },
-        currentNoteRevision: get().currentNoteRevision + 1,
-        isDirty: existingTab?.isDirty ?? false,
+        currentNoteRevision: latestState.currentNoteRevision + 1,
+        isDirty: latestExistingTab?.isDirty ?? false,
         error: null,
         openTabs: updatedTabs,
         isNewlyCreated: false,
@@ -394,7 +412,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       });
       logLineBreakDebug('open-absolute:set-target', {
         absolutePath,
-        isDirty: existingTab?.isDirty ?? false,
+        isDirty: latestExistingTab?.isDirty ?? false,
         content: summarizeLineBreakText(content),
       });
     } catch (error) {

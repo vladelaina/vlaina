@@ -93,6 +93,40 @@ export interface FeatureSlice {
 export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> = (set, get) => {
   const isActiveVaultRequest = (vaultPath: string) => get().notesPath === vaultPath;
 
+  const applyCompletedMetadataWrite = (
+    path: string,
+    content: string,
+    modifiedAt: number | null,
+  ) => {
+    const latestState = get();
+    const latestCurrentNote = latestState.currentNote;
+    const isCurrentNote = latestCurrentNote?.path === path;
+    const latestContent = isCurrentNote
+      ? latestCurrentNote.content
+      : latestState.noteContentsCache.get(path)?.content;
+    const hasNewerContent =
+      latestContent !== undefined &&
+      latestContent !== content;
+    const nextContent = hasNewerContent ? latestContent : content;
+
+    set({
+      noteContentsCache: setCachedNoteContent(
+        latestState.noteContentsCache,
+        path,
+        nextContent,
+        modifiedAt,
+      ),
+      currentNote: isCurrentNote
+        ? { path, content: nextContent }
+        : latestState.currentNote,
+      isDirty: isCurrentNote
+        ? hasNewerContent
+        : latestState.isDirty,
+      openTabs: setNoteTabDirtyState(latestState.openTabs, path, hasNewerContent),
+      error: null,
+    });
+  };
+
   const writeNoteContent = async (path: string, content: string, vaultPath: string) => {
     const fullPath = isAbsolutePath(path)
       ? path
@@ -111,6 +145,20 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     return fileInfo?.modifiedAt ?? getCachedNoteModifiedAt(get().noteContentsCache, path);
   };
 
+  const markMetadataWriteFailedDirty = (path: string, error: unknown) => {
+    const latestState = get();
+    const isCurrentNote = latestState.currentNote?.path === path;
+    const tabExists = latestState.openTabs.some((tab) => tab.path === path);
+
+    set({
+      error: error instanceof Error ? error.message : 'Failed to update note metadata',
+      isDirty: isCurrentNote ? true : latestState.isDirty,
+      openTabs: tabExists
+        ? setNoteTabDirtyState(latestState.openTabs, path, true)
+        : latestState.openTabs,
+    });
+  };
+
   const updateSingleNoteMetadata = async (
     path: string,
     updates: Partial<NoteMetadataEntry>
@@ -120,11 +168,12 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     const isDraftMetadataTarget = isDraftNotePath(path);
     if (!vaultPathAtStart) {
       if (isAbsolutePath(path)) {
-        const metadataBase = state.noteMetadata ?? createEmptyMetadataFile();
-        const isCurrentNote = state.currentNote?.path === path;
+        let latestState = state;
+        let metadataBase = latestState.noteMetadata ?? createEmptyMetadataFile();
+        let isCurrentNote = latestState.currentNote?.path === path;
         let sourceContent =
-          (isCurrentNote ? state.currentNote?.content : undefined) ??
-          state.noteContentsCache.get(path)?.content;
+          (isCurrentNote ? latestState.currentNote?.content : undefined) ??
+          latestState.noteContentsCache.get(path)?.content;
 
         if (sourceContent === undefined) {
           const storage = getStorageAdapter();
@@ -134,6 +183,13 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
             return;
           }
           sourceContent = await storage.readFile(path);
+          latestState = get();
+          metadataBase = latestState.noteMetadata ?? createEmptyMetadataFile();
+          isCurrentNote = latestState.currentNote?.path === path;
+          sourceContent =
+            (isCurrentNote ? latestState.currentNote?.content : undefined) ??
+            latestState.noteContentsCache.get(path)?.content ??
+            sourceContent;
         }
 
         const normalizedSourceContent = normalizeSerializedMarkdownDocument(sourceContent);
@@ -142,30 +198,25 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
           updatedAt: Date.now(),
         });
         const nextMetadata = replaceNoteEntry(metadataBase, path, metadata);
-        const cachedModifiedAt = getCachedNoteModifiedAt(state.noteContentsCache, path);
-        let nextCache = setCachedNoteContent(state.noteContentsCache, path, content, cachedModifiedAt);
+        const cachedModifiedAt = getCachedNoteModifiedAt(latestState.noteContentsCache, path);
+        const nextCache = setCachedNoteContent(latestState.noteContentsCache, path, content, cachedModifiedAt);
 
         set({
           noteMetadata: nextMetadata,
           noteContentsCache: nextCache,
-          currentNote: isCurrentNote ? { path, content } : state.currentNote,
+          currentNote: isCurrentNote ? { path, content } : latestState.currentNote,
           error: null,
         });
 
-        if (isCurrentNote && state.isDirty) {
+        if (isCurrentNote && latestState.isDirty) {
           return;
         }
 
         try {
           const modifiedAt = await writeNoteContent(path, content, '');
-          nextCache = setCachedNoteContent(nextCache, path, content, modifiedAt);
-          set({
-            noteContentsCache: nextCache,
-            currentNote: isCurrentNote ? { path, content } : get().currentNote,
-            error: null,
-          });
+          applyCompletedMetadataWrite(path, content, modifiedAt);
         } catch (error) {
-          set({ error: error instanceof Error ? error.message : 'Failed to update note metadata' });
+          markMetadataWriteFailedDirty(path, error);
         }
         return;
       }
@@ -201,11 +252,12 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       return;
     }
 
-    const metadataBase = state.noteMetadata ?? createEmptyMetadataFile();
-    const isCurrentNote = state.currentNote?.path === path;
+    let latestState = state;
+    let metadataBase = latestState.noteMetadata ?? createEmptyMetadataFile();
+    let isCurrentNote = latestState.currentNote?.path === path;
     let sourceContent =
-      (isCurrentNote ? state.currentNote?.content : undefined) ??
-      state.noteContentsCache.get(path)?.content;
+      (isCurrentNote ? latestState.currentNote?.content : undefined) ??
+      latestState.noteContentsCache.get(path)?.content;
 
     if (sourceContent === undefined) {
       let fullPath: string | null = null;
@@ -234,6 +286,13 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       if (!isActiveVaultRequest(vaultPathAtStart)) {
         return;
       }
+      latestState = get();
+      metadataBase = latestState.noteMetadata ?? createEmptyMetadataFile();
+      isCurrentNote = latestState.currentNote?.path === path;
+      sourceContent =
+        (isCurrentNote ? latestState.currentNote?.content : undefined) ??
+        latestState.noteContentsCache.get(path)?.content ??
+        sourceContent;
     }
 
     const normalizedSourceContent = normalizeSerializedMarkdownDocument(sourceContent);
@@ -244,13 +303,13 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     const nextMetadata = replaceNoteEntry(metadataBase, path, metadata);
     const isDraftNote = isDraftMetadataTarget;
     const nextRootFolder = buildSortedRootFolder(
-      state.rootFolder,
-      state.rootFolder?.children ?? [],
-      state.fileTreeSortMode,
+      latestState.rootFolder,
+      latestState.rootFolder?.children ?? [],
+      latestState.fileTreeSortMode,
       nextMetadata
     );
-    const cachedModifiedAt = getCachedNoteModifiedAt(state.noteContentsCache, path);
-    let nextCache = setCachedNoteContent(state.noteContentsCache, path, content, cachedModifiedAt);
+    const cachedModifiedAt = getCachedNoteModifiedAt(latestState.noteContentsCache, path);
+    const nextCache = setCachedNoteContent(latestState.noteContentsCache, path, content, cachedModifiedAt);
 
     if (!isActiveVaultRequest(vaultPathAtStart)) {
       return;
@@ -260,16 +319,16 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       noteMetadata: nextMetadata,
       rootFolder: nextRootFolder,
       noteContentsCache: nextCache,
-      currentNote: isCurrentNote ? { path, content } : state.currentNote,
-      isDirty: isCurrentNote && isDraftNote ? true : state.isDirty,
+      currentNote: isCurrentNote ? { path, content } : latestState.currentNote,
+      isDirty: isCurrentNote && isDraftNote ? true : latestState.isDirty,
       openTabs: isCurrentNote && isDraftNote
-        ? setNoteTabDirtyState(state.openTabs, path, true)
-        : state.openTabs,
+        ? setNoteTabDirtyState(latestState.openTabs, path, true)
+        : latestState.openTabs,
       error: null,
     });
 
     if (isDraftNote) {
-      const draftNote = state.draftNotes[path];
+      const draftNote = latestState.draftNotes[path];
       const canImplicitlySaveDraft =
         Boolean(isCurrentNote && vaultPathAtStart) &&
         Boolean(draftNote) &&
@@ -280,7 +339,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       return;
     }
 
-    if (isCurrentNote && state.isDirty) {
+    if (isCurrentNote && latestState.isDirty) {
       return;
     }
 
@@ -289,14 +348,9 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       if (!isActiveVaultRequest(vaultPathAtStart)) {
         return;
       }
-      nextCache = setCachedNoteContent(nextCache, path, content, modifiedAt);
-      set({
-        noteContentsCache: nextCache,
-        currentNote: isCurrentNote ? { path, content } : get().currentNote,
-        error: null,
-      });
+      applyCompletedMetadataWrite(path, content, modifiedAt);
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : 'Failed to update note metadata' });
+      markMetadataWriteFailedDirty(path, error);
     }
   };
 
@@ -334,11 +388,11 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     },
 
     scanAllNotes: async () => {
-      const { notesPath, rootFolder, currentNote, openTabs, draftNotes, noteContentsCache } = get();
+      const { notesPath, rootFolder } = get();
       if (!rootFolder || !notesPath) return;
 
       const storage = getStorageAdapter();
-      const cache: NotesStore['noteContentsCache'] = new Map();
+      const scannedCache: NotesStore['noteContentsCache'] = new Map();
       const filePaths: { path: string; fullPath: string }[] = [];
 
       const collectPaths = async (nodes: FileTreeNode[]) => {
@@ -363,7 +417,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         const batch = filePaths.slice(i, i + BATCH_SIZE);
         if (scannedContentChars >= MAX_SCANNED_NOTE_CONTENT_CHARS) {
           batch.forEach(({ path }) => {
-            cache.set(path, { content: '', modifiedAt: null });
+            scannedCache.set(path, { content: '', modifiedAt: null });
           });
           continue;
         }
@@ -398,7 +452,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
                 : '';
 
             scannedContentChars += content.length;
-            cache.set(result.value.path, {
+            scannedCache.set(result.value.path, {
               content,
               modifiedAt: result.value.modifiedAt,
             });
@@ -406,33 +460,35 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         });
       }
 
-      if (currentNote) {
-        const currentEntry = noteContentsCache.get(currentNote.path);
-        cache.set(currentNote.path, {
-          content: currentNote.content,
+      if (!isActiveVaultRequest(notesPath)) {
+        return;
+      }
+
+      const latestState = get();
+      const cache = new Map(scannedCache);
+      if (latestState.currentNote) {
+        const currentEntry = latestState.noteContentsCache.get(latestState.currentNote.path);
+        cache.set(latestState.currentNote.path, {
+          content: latestState.currentNote.content,
           modifiedAt: currentEntry?.modifiedAt ?? null,
         });
       }
-      openTabs.forEach((tab) => {
-        if (tab.path === currentNote?.path) {
+      latestState.openTabs.forEach((tab) => {
+        if (tab.path === latestState.currentNote?.path) {
           return;
         }
 
-        const cachedEntry = noteContentsCache.get(tab.path);
+        const cachedEntry = latestState.noteContentsCache.get(tab.path);
         if (cachedEntry) {
           cache.set(tab.path, cachedEntry);
         }
       });
-      Object.keys(draftNotes).forEach((path) => {
-        const cachedEntry = noteContentsCache.get(path);
+      Object.keys(latestState.draftNotes).forEach((path) => {
+        const cachedEntry = latestState.noteContentsCache.get(path);
         if (cachedEntry) {
           cache.set(path, cachedEntry);
         }
       });
-
-      if (!isActiveVaultRequest(notesPath)) {
-        return;
-      }
 
       set({ noteContentsCache: cache });
     },

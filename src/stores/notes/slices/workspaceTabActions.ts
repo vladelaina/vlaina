@@ -14,6 +14,7 @@ import { createEmptyMetadataFile, setNoteEntry } from '../storage';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { logNotesDebug, summarizeLineBreakText } from '../lineBreakDebugLog';
+import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 
 type WorkspaceTabActions = Pick<
@@ -117,8 +118,50 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
       get().discardDraftNote(pendingPath);
     },
 
-    closeNote: () => {
+    closeNote: async () => {
+      flushCurrentPendingEditorMarkdown();
+
+      const noteBeforeClose = get().currentNote;
+      if (!noteBeforeClose) {
+        return;
+      }
+
+      const path = noteBeforeClose.path;
+      const stateAfterFlush = get();
+      const draftNote = stateAfterFlush.draftNotes[path];
+      const currentTab = stateAfterFlush.openTabs.find((tab) => tab.path === path);
+
+      if (draftNote) {
+        const draftContent =
+          stateAfterFlush.currentNote?.path === path
+            ? stateAfterFlush.currentNote.content
+            : stateAfterFlush.noteContentsCache.get(path)?.content ?? '';
+        const hasUnsavedDraftContent =
+          Boolean(stateAfterFlush.isDirty) ||
+          Boolean(currentTab?.isDirty) ||
+          Boolean(draftNote.name.trim()) ||
+          Boolean(draftContent.trim());
+
+        if (hasUnsavedDraftContent) {
+          set({ pendingDraftDiscardPath: path });
+          return;
+        }
+      } else if (stateAfterFlush.isDirty || currentTab?.isDirty) {
+        await stateAfterFlush.saveNote();
+        const stateAfterSave = get();
+        const latestTab = stateAfterSave.openTabs.find((tab) => tab.path === path);
+        if (
+          (stateAfterSave.currentNote?.path === path && stateAfterSave.isDirty) ||
+          latestTab?.isDirty
+        ) {
+          return;
+        }
+      }
+
       const { notesPath, rootFolder, fileTreeSortMode } = get();
+      if (get().currentNote?.path !== path) {
+        return;
+      }
       set({
         currentNote: null,
         currentNoteRevision: get().currentNoteRevision + 1,
@@ -132,6 +175,7 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
     },
 
     closeTab: async (path: string) => {
+      flushCurrentPendingEditorMarkdown();
       const {
         openTabs,
         currentNote,
@@ -225,12 +269,21 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
             notesPath,
             content: summarizeLineBreakText(cachedContent),
           });
-          const { metadata, nextCache } = await saveNoteDocument({
+          const { content, metadata, modifiedAt } = await saveNoteDocument({
             notesPath,
             currentNote: { path, content: cachedContent },
             cache: noteContentsCache,
           });
           const latestState = get();
+          if (latestState.notesPath !== notesPath) {
+            return;
+          }
+          const latestCachedContent = latestState.currentNote?.path === path
+            ? latestState.currentNote.content
+            : latestState.noteContentsCache.get(path)?.content;
+          const hasNewerEdit =
+            latestCachedContent !== undefined &&
+            latestCachedContent !== cachedContent;
           const nextMetadata = setNoteEntry(
             latestState.noteMetadata ?? noteMetadata ?? createEmptyMetadataFile(),
             path,
@@ -246,11 +299,22 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
           set({
             noteMetadata: nextMetadata,
             rootFolder: nextRootFolder,
-            noteContentsCache: nextCache,
-            openTabs: setNoteTabDirtyState(latestState.openTabs, path, false),
+            noteContentsCache: setCachedNoteContent(
+              latestState.noteContentsCache,
+              path,
+              hasNewerEdit ? latestCachedContent : content,
+              modifiedAt,
+            ),
+            isDirty: latestState.currentNote?.path === path && hasNewerEdit
+              ? true
+              : latestState.isDirty,
+            openTabs: setNoteTabDirtyState(latestState.openTabs, path, hasNewerEdit),
             error: null,
           });
-          logNotesDebug('NotesTab', 'close:save-background-dirty-tab:done', { path });
+          logNotesDebug('NotesTab', 'close:save-background-dirty-tab:done', {
+            path,
+            hasNewerEdit,
+          });
         } catch (error) {
           logNotesDebug('NotesTab', 'close:save-background-dirty-tab:failed', {
             path,
@@ -264,6 +328,14 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
       const latestBeforeClose = get();
       const tabsBeforeClose = latestBeforeClose.openTabs;
       const tabBeforeClose = tabsBeforeClose.find((tab) => tab.path === path);
+      if (tabBeforeClose?.isDirty) {
+        logNotesDebug('NotesTab', 'close:blocked-tab-still-dirty', {
+          path,
+          currentNotePath: latestBeforeClose.currentNote?.path ?? null,
+          isDirty: latestBeforeClose.isDirty,
+        });
+        return;
+      }
       const updatedTabs = tabsBeforeClose.filter((t) => t.path !== path);
       set({
         openTabs: updatedTabs,
@@ -277,12 +349,12 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
       });
       logNotesDebug('NotesTab', 'close:removed-tab', {
         path,
-        closedCurrent: currentNote?.path === path,
+        closedCurrent: latestBeforeClose.currentNote?.path === path,
         nextOpenTabsLength: updatedTabs.length,
         nextOpenTabPaths: updatedTabs.map((tab) => tab.path),
       });
 
-      if (currentNote?.path === path) {
+      if (latestBeforeClose.currentNote?.path === path) {
         if (updatedTabs.length > 0) {
           const lastTab = updatedTabs[updatedTabs.length - 1];
           if (lastTab) {
@@ -294,10 +366,11 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
         } else {
           set({ currentNote: null, isDirty: false });
           logNotesDebug('NotesTab', 'close:no-tabs-left', { path });
+          const latestAfterClose = get();
           persistWorkspaceSnapshot(notesPath, {
-            rootFolder,
+            rootFolder: latestAfterClose.rootFolder ?? rootFolder,
             currentNotePath: null,
-            fileTreeSortMode,
+            fileTreeSortMode: latestAfterClose.fileTreeSortMode ?? fileTreeSortMode,
           });
         }
       }

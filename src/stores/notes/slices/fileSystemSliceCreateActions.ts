@@ -2,13 +2,20 @@ import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import type { NotesStore } from '../types';
 import { addNodeToTree } from '../fileTreeUtils';
-import { ensureNotesFolder, getCurrentVaultPath, getNotesBasePath } from '../storage';
+import {
+  createEmptyMetadataFile,
+  ensureNotesFolder,
+  getCurrentVaultPath,
+  getNotesBasePath,
+  setNoteEntry,
+} from '../storage';
 import { createNoteImpl } from '../utils/fs/crudOperations';
 import { resolveUniquePath } from '../utils/fs/pathOperations';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { setCachedNoteContent } from '../document/noteContentCache';
 import { markExpectedExternalChange } from '../document/externalChangeRegistry';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
+import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 import {
   createBlankDraftState,
   ensureRootFolderState,
@@ -23,6 +30,7 @@ function isActiveNotesPath(get: FileSystemSliceGet, notesPath: string) {
 }
 
 async function ensureCurrentNoteSaved(get: FileSystemSliceGet, options?: { skipDraft?: boolean }) {
+  flushCurrentPendingEditorMarkdown();
   const state = get();
   if (!state.isDirty) {
     return state;
@@ -47,8 +55,9 @@ function finalizeCreatedNote({
   content,
   fileName,
   updatedMetadata,
-  newChildren,
+  folderPath,
   updatedRecent,
+  modifiedAt,
   fileTreeSortMode,
   noteContentsCache,
   openTabs,
@@ -61,8 +70,9 @@ function finalizeCreatedNote({
   content: CreateNoteResult['content'];
   fileName: CreateNoteResult['fileName'];
   updatedMetadata: CreateNoteResult['updatedMetadata'];
-  newChildren: CreateNoteResult['newChildren'];
+  folderPath?: string;
   updatedRecent: CreateNoteResult['updatedRecent'];
+  modifiedAt: CreateNoteResult['modifiedAt'];
   fileTreeSortMode: NotesStore['fileTreeSortMode'];
   noteContentsCache: NotesStore['noteContentsCache'];
   openTabs: NotesStore['openTabs'];
@@ -71,7 +81,12 @@ function finalizeCreatedNote({
 }) {
   const nextRootFolder = buildSortedRootFolder(
     currentRootFolder,
-    newChildren,
+    addNodeToTree(currentRootFolder.children, folderPath, {
+      id: relativePath,
+      name: getNoteTitleFromPath(fileName),
+      path: relativePath,
+      isFolder: false,
+    }),
     fileTreeSortMode,
     updatedMetadata,
   );
@@ -89,7 +104,7 @@ function finalizeCreatedNote({
     openTabs: updatedTabs,
     recentNotes: updatedRecent,
     isNewlyCreated: true,
-    noteContentsCache: setCachedNoteContent(noteContentsCache, relativePath, content, null),
+    noteContentsCache: setCachedNoteContent(noteContentsCache, relativePath, content, modifiedAt),
   });
 
   persistWorkspaceSnapshot(notesPath, {
@@ -169,6 +184,13 @@ export function createFileSystemCreateActions(
         if (!isActiveNotesPath(get, notesPath)) {
           return result.relativePath;
         }
+        const latestState = get();
+        const latestRootFolder = ensureRootFolderState(latestState.rootFolder);
+        const latestMetadata = setNoteEntry(
+          latestState.noteMetadata ?? createEmptyMetadataFile(),
+          result.relativePath,
+          result.updatedMetadata.notes[result.relativePath] ?? {},
+        );
 
         return finalizeCreatedNote({
           set,
@@ -176,14 +198,15 @@ export function createFileSystemCreateActions(
           relativePath: result.relativePath,
           content: result.content,
           fileName: result.fileName,
-          updatedMetadata: result.updatedMetadata,
-          newChildren: result.newChildren,
+          updatedMetadata: latestMetadata,
+          folderPath,
           updatedRecent: result.updatedRecent,
-          fileTreeSortMode,
-          noteContentsCache,
-          openTabs,
-          currentNote,
-          currentRootFolder,
+          modifiedAt: result.modifiedAt,
+          fileTreeSortMode: latestState.fileTreeSortMode ?? fileTreeSortMode,
+          noteContentsCache: latestState.noteContentsCache,
+          openTabs: latestState.openTabs,
+          currentNote: latestState.currentNote,
+          currentRootFolder: latestRootFolder,
         });
       } catch (error) {
         if (notesPath && !isActiveNotesPath(get, notesPath)) {
@@ -199,10 +222,7 @@ export function createFileSystemCreateActions(
         notesPath,
         rootFolder,
         recentNotes,
-        openTabs,
-        currentNote,
         fileTreeSortMode,
-        noteContentsCache,
         noteMetadata,
       } = await ensureCurrentNoteSaved(get);
 
@@ -222,6 +242,13 @@ export function createFileSystemCreateActions(
         if (!isActiveNotesPath(get, notesPath)) {
           return result.relativePath;
         }
+        const latestState = get();
+        const latestRootFolder = ensureRootFolderState(latestState.rootFolder);
+        const latestMetadata = setNoteEntry(
+          latestState.noteMetadata ?? createEmptyMetadataFile(),
+          result.relativePath,
+          result.updatedMetadata.notes[result.relativePath] ?? {},
+        );
 
         return finalizeCreatedNote({
           set,
@@ -229,14 +256,15 @@ export function createFileSystemCreateActions(
           relativePath: result.relativePath,
           content: result.content,
           fileName: result.fileName,
-          updatedMetadata: result.updatedMetadata,
-          newChildren: result.newChildren,
+          updatedMetadata: latestMetadata,
+          folderPath,
           updatedRecent: result.updatedRecent,
-          fileTreeSortMode,
-          noteContentsCache,
-          openTabs,
-          currentNote,
-          currentRootFolder,
+          modifiedAt: result.modifiedAt,
+          fileTreeSortMode: latestState.fileTreeSortMode ?? fileTreeSortMode,
+          noteContentsCache: latestState.noteContentsCache,
+          openTabs: latestState.openTabs,
+          currentNote: latestState.currentNote,
+          currentRootFolder: latestRootFolder,
         });
       } catch (error) {
         if (notesPath && !isActiveNotesPath(get, notesPath)) {
