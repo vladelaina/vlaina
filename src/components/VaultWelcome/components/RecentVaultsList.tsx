@@ -27,7 +27,7 @@ export function RecentVaultsList({ vaults, onOpen }: RecentVaultsListProps) {
 
   const handleRemove = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    removeFromRecent(id);
+    void removeFromRecent(id);
   };
 
   return (

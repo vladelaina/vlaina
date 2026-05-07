@@ -373,4 +373,51 @@ describe('App close flow', () => {
       expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
     });
   });
+
+  it('opens the unsaved draft confirm dialog for a current draft missing from tabs', async () => {
+    mocks.notesState.currentNote = { path: 'draft:orphan', content: 'current draft body' };
+    mocks.notesState.openTabs = [];
+    mocks.notesState.draftNotes = {
+      'draft:orphan': { name: '' },
+    };
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(mocks.desktopWindow.onCloseRequested).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      mocks.closeRequestedHandler?.();
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByText('Unsaved Drafts')).toBeInTheDocument();
+    expect(mocks.desktopWindow.confirmClose).not.toHaveBeenCalled();
+  });
+
+  it('opens the unsaved draft confirm dialog for a cached draft missing from tabs', async () => {
+    mocks.notesState.currentNote = { path: 'docs/a.md' };
+    mocks.notesState.openTabs = [{ path: 'docs/a.md', isDirty: false }];
+    mocks.notesState.draftNotes = {
+      'draft:cached': { name: '' },
+    };
+    mocks.notesState.noteContentsCache = new Map([
+      ['draft:cached', { content: 'cached draft body' }],
+    ]);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(mocks.desktopWindow.onCloseRequested).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      mocks.closeRequestedHandler?.();
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByText('Unsaved Drafts')).toBeInTheDocument();
+    expect(mocks.desktopWindow.confirmClose).not.toHaveBeenCalled();
+  });
 });

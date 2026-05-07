@@ -14,6 +14,7 @@ const hoisted = vi.hoisted(() => ({
   saveStarredRegistry: vi.fn(),
   persistWorkspaceSnapshot: vi.fn(),
   openStoredNotePath: vi.fn(),
+  flushCurrentPendingEditorMarkdown: vi.fn(),
 }));
 
 vi.mock('../storage', async () => {
@@ -38,6 +39,10 @@ vi.mock('../workspacePersistence', () => ({
 
 vi.mock('../openNotePath', () => ({
   openStoredNotePath: hoisted.openStoredNotePath,
+}));
+
+vi.mock('../pendingEditorMarkdownFlusher', () => ({
+  flushCurrentPendingEditorMarkdown: hoisted.flushCurrentPendingEditorMarkdown,
 }));
 
 vi.mock('@/lib/storage/adapter', () => ({
@@ -107,6 +112,8 @@ describe('workspaceSlice external sync', () => {
     storageAdapter.exists.mockReset();
     storageAdapter.stat.mockReset();
     storageAdapter.readFile.mockReset();
+    hoisted.flushCurrentPendingEditorMarkdown.mockReset();
+    hoisted.flushCurrentPendingEditorMarkdown.mockReturnValue(false);
   });
 
   it('updates the in-memory tree immediately when the current file is renamed externally', async () => {
@@ -158,6 +165,50 @@ describe('workspaceSlice external sync', () => {
         ]),
       ]),
     );
+  });
+
+  it('flushes pending editor markdown before remapping an externally renamed current file', async () => {
+    const initialFile = createFile('docs/alpha.md', 'alpha');
+    const store = createNotesStore({
+      rootFolder: createFolder('', 'Notes', [
+        createFolder('docs', 'docs', [initialFile]),
+      ]),
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+    hoisted.flushCurrentPendingEditorMarkdown.mockImplementation(() => {
+      store.setState((state) => ({
+        currentNote: { path: 'docs/alpha.md', content: '# pending alpha' },
+        currentNoteRevision: state.currentNoteRevision + 1,
+        isDirty: true,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'docs/alpha.md' ? { ...tab, isDirty: true } : tab
+        ),
+        noteContentsCache: new Map(state.noteContentsCache).set('docs/alpha.md', {
+          content: '# pending alpha',
+          modifiedAt: 1,
+        }),
+      }));
+      return true;
+    });
+
+    await store.getState().applyExternalPathRename('docs/alpha.md', 'docs/beta.md');
+
+    expect(hoisted.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
+    expect(store.getState().currentNote).toEqual({
+      path: 'docs/beta.md',
+      content: '# pending alpha',
+    });
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().openTabs).toEqual([
+      { path: 'docs/beta.md', name: 'beta', isDirty: true },
+    ]);
+    expect(store.getState().noteContentsCache.get('docs/beta.md')).toEqual({
+      content: '# pending alpha',
+      modifiedAt: 1,
+    });
+    expect(store.getState().noteContentsCache.has('docs/alpha.md')).toBe(false);
   });
 
   it('remaps starred notes when a file is renamed externally', async () => {
@@ -269,6 +320,51 @@ describe('workspaceSlice external sync', () => {
     expect(hoisted.openStoredNotePath).not.toHaveBeenCalled();
   });
 
+  it('flushes pending editor markdown before preserving an externally deleted current file', async () => {
+    const removeFile = createFile('docs/remove.md', 'remove');
+    const store = createNotesStore({
+      rootFolder: createFolder('', 'Notes', [
+        createFolder('docs', 'docs', [removeFile]),
+      ]),
+      currentNote: { path: 'docs/remove.md', content: '# remove' },
+      isDirty: false,
+      openTabs: [{ path: 'docs/remove.md', name: 'remove', isDirty: false }],
+      noteContentsCache: new Map([['docs/remove.md', { content: '# remove', modifiedAt: 1 }]]),
+    });
+    hoisted.flushCurrentPendingEditorMarkdown.mockImplementation(() => {
+      store.setState((state) => ({
+        currentNote: { path: 'docs/remove.md', content: '# pending remove' },
+        currentNoteRevision: state.currentNoteRevision + 1,
+        isDirty: true,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'docs/remove.md' ? { ...tab, isDirty: true } : tab
+        ),
+        noteContentsCache: new Map(state.noteContentsCache).set('docs/remove.md', {
+          content: '# pending remove',
+          modifiedAt: 1,
+        }),
+      }));
+      return true;
+    });
+
+    await store.getState().applyExternalPathDeletion('docs/remove.md');
+
+    expect(hoisted.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
+    expect(store.getState().currentNote).toEqual({
+      path: 'docs/remove.md',
+      content: '# pending remove',
+    });
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().openTabs).toEqual([
+      { path: 'docs/remove.md', name: 'remove', isDirty: true },
+    ]);
+    expect(store.getState().noteContentsCache.get('docs/remove.md')).toEqual({
+      content: '# pending remove',
+      modifiedAt: 1,
+    });
+    expect(hoisted.openStoredNotePath).not.toHaveBeenCalled();
+  });
+
   it('keeps current note content editable when disk sync cannot find the file', async () => {
     storageAdapter.exists.mockResolvedValue(false);
     storageAdapter.stat.mockResolvedValue(null);
@@ -350,6 +446,92 @@ describe('workspaceSlice external sync', () => {
     expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# updated' });
     expect(store.getState().currentNoteDiskRevision).toBe(4);
     expect(store.getState().isDirty).toBe(false);
+  });
+
+  it('flushes pending editor markdown before deciding whether disk sync can reload', async () => {
+    storageAdapter.exists.mockResolvedValue(true);
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2 });
+    storageAdapter.readFile.mockResolvedValue('# disk update');
+
+    const store = createNotesStore({
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+    hoisted.flushCurrentPendingEditorMarkdown.mockImplementation(() => {
+      store.setState((state) => ({
+        currentNote: { path: 'docs/alpha.md', content: '# pending edit' },
+        currentNoteRevision: state.currentNoteRevision + 1,
+        isDirty: true,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'docs/alpha.md' ? { ...tab, isDirty: true } : tab
+        ),
+        noteContentsCache: new Map(state.noteContentsCache).set('docs/alpha.md', {
+          content: '# pending edit',
+          modifiedAt: 1,
+        }),
+      }));
+      return true;
+    });
+
+    const result = await store.getState().syncCurrentNoteFromDisk({ force: true });
+
+    expect(result).toBe('conflict');
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toEqual({
+      path: 'docs/alpha.md',
+      content: '# pending edit',
+    });
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().openTabs).toEqual([
+      { path: 'docs/alpha.md', name: 'alpha', isDirty: true },
+    ]);
+  });
+
+  it('preserves local edits made while disk sync is reading the file', async () => {
+    storageAdapter.exists.mockResolvedValue(true);
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2 });
+    let resolveRead: (content: string) => void;
+    storageAdapter.readFile.mockImplementation(() => new Promise((resolve) => {
+      resolveRead = resolve;
+    }));
+
+    const store = createNotesStore({
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+
+    const sync = store.getState().syncCurrentNoteFromDisk({ force: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    store.setState((state) => ({
+      currentNote: { path: 'docs/alpha.md', content: '# local edit during sync' },
+      currentNoteRevision: state.currentNoteRevision + 1,
+      isDirty: true,
+      openTabs: state.openTabs.map((tab) =>
+        tab.path === 'docs/alpha.md' ? { ...tab, isDirty: true } : tab
+      ),
+      noteContentsCache: new Map(state.noteContentsCache).set('docs/alpha.md', {
+        content: '# local edit during sync',
+        modifiedAt: 1,
+      }),
+    }));
+    resolveRead!('# disk update');
+    const result = await sync;
+
+    expect(result).toBe('conflict');
+    expect(store.getState().currentNote).toEqual({
+      path: 'docs/alpha.md',
+      content: '# local edit during sync',
+    });
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().openTabs).toEqual([
+      { path: 'docs/alpha.md', name: 'alpha', isDirty: true },
+    ]);
+    expect(store.getState().noteContentsCache.get('docs/alpha.md')).toEqual({
+      content: '# local edit during sync',
+      modifiedAt: 1,
+    });
   });
 
   it('cleans internal editor break markers when disk sync reloads the current note', async () => {

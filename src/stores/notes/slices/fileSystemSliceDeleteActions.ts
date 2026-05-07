@@ -1,4 +1,4 @@
-import { addNodeToTree } from '../fileTreeUtils';
+import { addNodeToTree, removeNodeFromTree } from '../fileTreeUtils';
 import { saveStarredRegistry } from '../starred';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { deleteFolderImpl, deleteNoteImpl } from '../utils/fs/deleteOperations';
@@ -16,6 +16,13 @@ import {
   applyPathDeletionState,
   isPathWithinFolder,
 } from './fileSystemSliceHelpers';
+import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
+import { setCachedNoteContent } from '../document/noteContentCache';
+import { setNoteTabDirtyState } from '../document/noteTabState';
+import {
+  pruneOpenTabsForExternalDeletion,
+  shouldRemoveForExternalDeletion,
+} from '../document/externalPathSync';
 import type { FileOperationNextAction } from '../utils/fs/operationTypes';
 import type { FileSystemSlice, FileSystemSliceGet, FileSystemSliceSet } from './fileSystemSliceContracts';
 
@@ -30,6 +37,20 @@ function resolveNextOpenPath(
   return matchesDeletedTarget && nextAction?.type === 'open' ? nextAction.path : null;
 }
 
+function shouldPreserveDirtyDeletedCurrentNote(
+  latestCurrentNote: ReturnType<FileSystemSliceGet>['currentNote'],
+  originalCurrentNote: ReturnType<FileSystemSliceGet>['currentNote'],
+  isDirty: boolean,
+  deletedPath: string,
+) {
+  return Boolean(
+    latestCurrentNote &&
+      isDirty &&
+      shouldRemoveForExternalDeletion(latestCurrentNote.path, deletedPath) &&
+      latestCurrentNote.content !== originalCurrentNote?.content
+  );
+}
+
 export function createFileSystemDeleteActions(
   set: FileSystemSliceSet,
   get: FileSystemSliceGet,
@@ -38,6 +59,7 @@ export function createFileSystemDeleteActions(
     deleteNote: async (path: string) => {
       let operationNotesPath = get().notesPath;
       try {
+        flushCurrentPendingEditorMarkdown();
         if (get().draftNotes[path]) {
           get().discardDraftNote(path);
           return;
@@ -55,12 +77,9 @@ export function createFileSystemDeleteActions(
           rootFolder,
           currentNote,
           openTabs,
-          recentNotes,
           starredEntries,
           fileTreeSortMode,
           noteMetadata,
-          noteContentsCache,
-          displayNames,
         } = get();
         operationNotesPath = notesPath;
 
@@ -74,47 +93,92 @@ export function createFileSystemDeleteActions(
         if (!isActiveNotesPath(get, notesPath)) {
           return;
         }
-        const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = applyPathDeletionState({
+        const latestState = get();
+        const {
+          nextRecentNotes,
+          nextDisplayNames,
+          nextNoteContentsCache: prunedNoteContentsCache,
+        } = applyPathDeletionState({
           path,
-          recentNotes,
-          displayNames,
-          noteContentsCache,
+          recentNotes: latestState.recentNotes,
+          displayNames: latestState.displayNames,
+          noteContentsCache: latestState.noteContentsCache,
         });
-        const nextOpenPath = resolveNextOpenPath(currentNote?.path === path, result.nextAction);
-        const nextRootFolder = buildSortedRootFolder(
-          rootFolder,
-          result.newChildren,
-          fileTreeSortMode,
-          result.updatedMetadata ?? noteMetadata,
+        const latestCurrentNote = latestState.currentNote;
+        const isDeletingCurrentNote = Boolean(latestCurrentNote && shouldRemoveForExternalDeletion(latestCurrentNote.path, path));
+        const preserveDirtyDeletedCurrentNote = shouldPreserveDirtyDeletedCurrentNote(
+          latestCurrentNote,
+          currentNote,
+          latestState.isDirty,
+          path,
         );
+        const nextOpenPath = preserveDirtyDeletedCurrentNote
+          ? null
+          : resolveNextOpenPath(isDeletingCurrentNote, result.nextAction);
+        const latestRootFolder = latestState.rootFolder ?? rootFolder;
+        const latestMetadata = result.updatedMetadata ?? latestState.noteMetadata ?? noteMetadata;
+        const latestSortMode = latestState.fileTreeSortMode ?? fileTreeSortMode;
+        const nextRootFolder = buildSortedRootFolder(
+          latestRootFolder,
+          latestRootFolder ? removeNodeFromTree(latestRootFolder.children, path) : result.newChildren,
+          latestSortMode,
+          latestMetadata,
+        );
+        const nextOpenTabs = preserveDirtyDeletedCurrentNote && latestCurrentNote
+          ? setNoteTabDirtyState(
+              latestState.openTabs.filter(
+                (tab) => !shouldRemoveForExternalDeletion(tab.path, path) || tab.path === latestCurrentNote.path
+              ),
+              latestCurrentNote.path,
+              true,
+            )
+          : pruneOpenTabsForExternalDeletion(latestState.openTabs, path);
+        const nextNoteContentsCache = preserveDirtyDeletedCurrentNote && latestCurrentNote
+          ? setCachedNoteContent(
+              prunedNoteContentsCache,
+              latestCurrentNote.path,
+              latestCurrentNote.content,
+              latestState.noteContentsCache.get(latestCurrentNote.path)?.modifiedAt ?? null,
+            )
+          : prunedNoteContentsCache;
 
         set({
-          openTabs: result.updatedTabs,
+          openTabs: nextOpenTabs,
           starredEntries: result.updatedStarredEntries,
           starredNotes: result.updatedStarredNotes,
           starredFolders: result.updatedStarredFolders,
           recentNotes: nextRecentNotes,
           displayNames: nextDisplayNames,
-          noteMetadata: result.updatedMetadata ?? noteMetadata,
+          noteMetadata: latestMetadata,
           noteContentsCache: nextNoteContentsCache,
-          rootFolder: nextRootFolder ?? rootFolder,
+          rootFolder: nextRootFolder ?? latestRootFolder,
           pendingDeletedItems: [
-            ...get().pendingDeletedItems,
+            ...latestState.pendingDeletedItems,
             {
               ...result.recoverableDelete,
               previousCurrentNote: currentNote,
-              previousIsDirty: get().isDirty,
+              previousIsDirty: latestState.isDirty,
               deletedStarredEntries: collectDeletedStarredEntries(starredEntries, path, 'file'),
               deletedMetadata: collectDeletedMetadata(noteMetadata, path, 'file'),
             },
           ],
-          ...(currentNote?.path === path && !nextOpenPath ? { currentNote: null, isDirty: false } : {}),
+          ...(preserveDirtyDeletedCurrentNote
+            ? {
+                currentNote: latestCurrentNote,
+                isDirty: true,
+                error: 'Current note changed while deletion was in progress. Its latest content is preserved; save to restore it.',
+              }
+            : isDeletingCurrentNote && !nextOpenPath
+              ? { currentNote: null, isDirty: false }
+              : {}),
         });
 
         persistWorkspaceSnapshot(notesPath, {
-          rootFolder: nextRootFolder ?? rootFolder,
-          currentNotePath: nextOpenPath ?? (currentNote?.path === path ? null : currentNote?.path ?? null),
-          fileTreeSortMode,
+          rootFolder: nextRootFolder ?? latestRootFolder,
+          currentNotePath: preserveDirtyDeletedCurrentNote
+            ? latestCurrentNote?.path ?? null
+            : nextOpenPath ?? (isDeletingCurrentNote ? null : latestCurrentNote?.path ?? null),
+          fileTreeSortMode: latestSortMode,
         });
 
         if (nextOpenPath) {
@@ -134,6 +198,7 @@ export function createFileSystemDeleteActions(
     deleteFolder: async (path: string) => {
       let operationNotesPath = get().notesPath;
       try {
+        flushCurrentPendingEditorMarkdown();
         const initialCurrentNote = get().currentNote;
         if (initialCurrentNote && isPathWithinFolder(initialCurrentNote.path, path) && get().isDirty) {
           await get().saveNote();
@@ -150,9 +215,6 @@ export function createFileSystemDeleteActions(
           starredEntries,
           fileTreeSortMode,
           noteMetadata,
-          noteContentsCache,
-          recentNotes,
-          displayNames,
         } = get();
         operationNotesPath = notesPath;
 
@@ -166,48 +228,94 @@ export function createFileSystemDeleteActions(
         if (!isActiveNotesPath(get, notesPath)) {
           return;
         }
-        const { nextRecentNotes, nextDisplayNames, nextNoteContentsCache } = applyPathDeletionState({
+        const latestState = get();
+        const {
+          nextRecentNotes,
+          nextDisplayNames,
+          nextNoteContentsCache: prunedNoteContentsCache,
+        } = applyPathDeletionState({
           path,
-          recentNotes,
-          displayNames,
-          noteContentsCache,
+          recentNotes: latestState.recentNotes,
+          displayNames: latestState.displayNames,
+          noteContentsCache: latestState.noteContentsCache,
         });
-        const isDeletingCurrentNote = Boolean(currentNote && isPathWithinFolder(currentNote.path, path));
-        const nextOpenPath = resolveNextOpenPath(isDeletingCurrentNote, result.nextAction);
-        const nextRootFolder = buildSortedRootFolder(
-          rootFolder,
-          result.newChildren,
-          fileTreeSortMode,
-          result.updatedMetadata ?? noteMetadata,
+        const latestCurrentNote = latestState.currentNote;
+        const isDeletingCurrentNote = Boolean(
+          latestCurrentNote && shouldRemoveForExternalDeletion(latestCurrentNote.path, path),
         );
+        const preserveDirtyDeletedCurrentNote = shouldPreserveDirtyDeletedCurrentNote(
+          latestCurrentNote,
+          currentNote,
+          latestState.isDirty,
+          path,
+        );
+        const nextOpenPath = preserveDirtyDeletedCurrentNote
+          ? null
+          : resolveNextOpenPath(isDeletingCurrentNote, result.nextAction);
+        const latestRootFolder = latestState.rootFolder ?? rootFolder;
+        const latestMetadata = result.updatedMetadata ?? latestState.noteMetadata ?? noteMetadata;
+        const latestSortMode = latestState.fileTreeSortMode ?? fileTreeSortMode;
+        const nextRootFolder = buildSortedRootFolder(
+          latestRootFolder,
+          latestRootFolder ? removeNodeFromTree(latestRootFolder.children, path) : result.newChildren,
+          latestSortMode,
+          latestMetadata,
+        );
+        const nextOpenTabs = preserveDirtyDeletedCurrentNote && latestCurrentNote
+          ? setNoteTabDirtyState(
+              latestState.openTabs.filter(
+                (tab) => !shouldRemoveForExternalDeletion(tab.path, path) || tab.path === latestCurrentNote.path
+              ),
+              latestCurrentNote.path,
+              true,
+            )
+          : pruneOpenTabsForExternalDeletion(latestState.openTabs, path);
+        const nextNoteContentsCache = preserveDirtyDeletedCurrentNote && latestCurrentNote
+          ? setCachedNoteContent(
+              prunedNoteContentsCache,
+              latestCurrentNote.path,
+              latestCurrentNote.content,
+              latestState.noteContentsCache.get(latestCurrentNote.path)?.modifiedAt ?? null,
+            )
+          : prunedNoteContentsCache;
 
         set({
           starredEntries: result.updatedStarredEntries,
           starredFolders: result.updatedStarredFolders,
           starredNotes: result.updatedStarredNotes,
-          openTabs: result.updatedTabs,
+          openTabs: nextOpenTabs,
           recentNotes: nextRecentNotes,
           displayNames: nextDisplayNames,
-          noteMetadata: result.updatedMetadata ?? noteMetadata,
+          noteMetadata: latestMetadata,
           noteContentsCache: nextNoteContentsCache,
-          rootFolder: nextRootFolder ?? rootFolder,
+          rootFolder: nextRootFolder ?? latestRootFolder,
           pendingDeletedItems: [
-            ...get().pendingDeletedItems,
+            ...latestState.pendingDeletedItems,
             {
               ...result.recoverableDelete,
               previousCurrentNote: currentNote,
-              previousIsDirty: get().isDirty,
+              previousIsDirty: latestState.isDirty,
               deletedStarredEntries: collectDeletedStarredEntries(starredEntries, path, 'folder'),
               deletedMetadata: collectDeletedMetadata(noteMetadata, path, 'folder'),
             },
           ],
-          ...(isDeletingCurrentNote && !nextOpenPath ? { currentNote: null, isDirty: false } : {}),
+          ...(preserveDirtyDeletedCurrentNote
+            ? {
+                currentNote: latestCurrentNote,
+                isDirty: true,
+                error: 'Current note changed while deletion was in progress. Its latest content is preserved; save to restore it.',
+              }
+            : isDeletingCurrentNote && !nextOpenPath
+              ? { currentNote: null, isDirty: false }
+              : {}),
         });
 
         persistWorkspaceSnapshot(notesPath, {
-          rootFolder: nextRootFolder ?? rootFolder,
-          currentNotePath: nextOpenPath ?? (isDeletingCurrentNote ? null : currentNote?.path ?? null),
-          fileTreeSortMode,
+          rootFolder: nextRootFolder ?? latestRootFolder,
+          currentNotePath: preserveDirtyDeletedCurrentNote
+            ? latestCurrentNote?.path ?? null
+            : nextOpenPath ?? (isDeletingCurrentNote ? null : latestCurrentNote?.path ?? null),
+          fileTreeSortMode: latestSortMode,
         });
 
         if (nextOpenPath) {
