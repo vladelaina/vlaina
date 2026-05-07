@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createClosedMathEditorState } from './mathEditorState';
 import { getMathAnchorViewportPosition, resolveMathAnchorElement } from './mathEditorPlacement';
+import { findMathEditorTargetElement } from './mathEditorOpenInteraction';
 import { resolveMathEditorOpenState } from './mathEditorOpenResolver';
 
 describe('mathEditorPlugin', () => {
@@ -60,6 +61,17 @@ describe('mathEditorPlugin', () => {
       x: 16,
       y: 16,
     });
+  });
+
+  it('does not treat a nearby non-math click target as a math editor target', () => {
+    const editor = document.createElement('div');
+    const mermaid = document.createElement('div');
+    mermaid.setAttribute('data-type', 'mermaid');
+    const math = document.createElement('span');
+    math.setAttribute('data-type', 'math-inline');
+    editor.append(mermaid, math);
+
+    expect(findMathEditorTargetElement({ dom: editor }, mermaid)).toBeNull();
   });
 
   it('resolves an open state for a math node so the editor can open on the first pointer interaction', () => {

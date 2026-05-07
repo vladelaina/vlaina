@@ -1,5 +1,6 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin } from '@milkdown/kit/prose/state';
+import { shouldSuppressPreviewEditorOpen } from '../shared/previewContextMenuSuppression';
 import {
   findMermaidEditorTargetElement,
   isMermaidScrollbarPointerDown,
@@ -42,6 +43,11 @@ export const mermaidEditorPlugin = $prose(() => {
     props: {
       handleDOMEvents: {
         mousedown(view, event) {
+          if (shouldSuppressPreviewEditorOpen() && findMermaidEditorTargetElement(view, event.target)) {
+            event.preventDefault();
+            return true;
+          }
+
           if (shouldIgnoreOpen(mermaidEditorPluginKey.getState(view.state) as MermaidEditorState | undefined)) {
             return false;
           }
@@ -68,12 +74,21 @@ export const mermaidEditorPlugin = $prose(() => {
         },
       },
       handleClick(view, pos, event) {
+        const mermaidElement = findMermaidEditorTargetElement(view, event.target);
+        if (!mermaidElement) {
+          return false;
+        }
+
+        if (shouldSuppressPreviewEditorOpen()) {
+          event.preventDefault();
+          return true;
+        }
+
         if (shouldIgnoreOpen(mermaidEditorPluginKey.getState(view.state) as MermaidEditorState | undefined)) {
           return false;
         }
 
-        const mermaidElement = findMermaidEditorTargetElement(view, event.target);
-        if (mermaidElement && isMermaidScrollbarPointerDown({ event, mermaidElement })) {
+        if (isMermaidScrollbarPointerDown({ event, mermaidElement })) {
           return false;
         }
 

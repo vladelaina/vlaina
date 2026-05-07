@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createClosedMermaidEditorState } from './mermaidEditorState';
 import {
+  findMermaidEditorTargetElement,
   getMermaidAnchorViewportPosition,
   resolveMermaidAnchorElement,
 } from './mermaidEditorOpenInteraction';
@@ -48,6 +49,17 @@ describe('mermaidEditorPlugin', () => {
       x: 120,
       y: 180,
     });
+  });
+
+  it('does not treat a nearby non-mermaid click target as a mermaid editor target', () => {
+    const editor = document.createElement('div');
+    const mermaid = document.createElement('div');
+    mermaid.setAttribute('data-type', 'mermaid');
+    const math = document.createElement('span');
+    math.setAttribute('data-type', 'math-inline');
+    editor.append(mermaid, math);
+
+    expect(findMermaidEditorTargetElement({ dom: editor }, math)).toBeNull();
   });
 
   it('resolves an open state for an existing mermaid node', () => {

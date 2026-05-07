@@ -19,12 +19,15 @@
 .milkdown [data-type='math-inline']:hover,
 .milkdown [data-type='math-inline']:focus-visible,
 .milkdown [data-type='math-inline'].ProseMirror-selectednode,
+.milkdown [data-type='math-inline'].vlaina-preview-context-menu-active,
 .milkdown [data-type='math-block']:hover,
 .milkdown [data-type='math-block']:focus-visible,
 .milkdown [data-type='math-block'].ProseMirror-selectednode,
+.milkdown [data-type='math-block'].vlaina-preview-context-menu-active,
 .milkdown .mermaid-block:hover,
 .milkdown .mermaid-block:focus-visible,
-.milkdown .mermaid-block.ProseMirror-selectednode {
+.milkdown .mermaid-block.ProseMirror-selectednode,
+.milkdown .mermaid-block.vlaina-preview-context-menu-active {
   background: var(--vlaina-math-hover-color);
   box-shadow:
     inset 0 0 0 1px var(--vlaina-math-hover-color),
@@ -40,18 +43,24 @@
 .milkdown [data-type='math-inline']:focus-visible *,
 .milkdown [data-type='math-inline'].ProseMirror-selectednode,
 .milkdown [data-type='math-inline'].ProseMirror-selectednode *,
+.milkdown [data-type='math-inline'].vlaina-preview-context-menu-active,
+.milkdown [data-type='math-inline'].vlaina-preview-context-menu-active *,
 .milkdown [data-type='math-block']:hover,
 .milkdown [data-type='math-block']:hover *,
 .milkdown [data-type='math-block']:focus-visible,
 .milkdown [data-type='math-block']:focus-visible *,
 .milkdown [data-type='math-block'].ProseMirror-selectednode,
 .milkdown [data-type='math-block'].ProseMirror-selectednode *,
+.milkdown [data-type='math-block'].vlaina-preview-context-menu-active,
+.milkdown [data-type='math-block'].vlaina-preview-context-menu-active *,
 .milkdown .mermaid-block:hover,
 .milkdown .mermaid-block:hover *,
 .milkdown .mermaid-block:focus-visible,
 .milkdown .mermaid-block:focus-visible *,
 .milkdown .mermaid-block.ProseMirror-selectednode,
-.milkdown .mermaid-block.ProseMirror-selectednode * {
+.milkdown .mermaid-block.ProseMirror-selectednode *,
+.milkdown .mermaid-block.vlaina-preview-context-menu-active,
+.milkdown .mermaid-block.vlaina-preview-context-menu-active * {
   cursor: pointer !important;
 }
 

@@ -1,5 +1,6 @@
 import type { Node } from '@milkdown/kit/prose/model';
 import type { EditorView, NodeView } from '@milkdown/kit/prose/view';
+import { attachPreviewContextMenu, type PreviewContextMenuSession } from '../shared/previewContextMenu';
 import { createMermaidElement, getMermaidElementCode, renderMermaidEditorLivePreview } from './mermaidDom';
 import { normalizeMermaidEditorCodeInput } from './mermaidFenceCode';
 
@@ -10,10 +11,18 @@ export function shouldRefreshMermaidElementCode(element: HTMLElement, code: stri
 export class MermaidNodeView implements NodeView {
   dom: HTMLElement;
   private node: Node;
+  private contextMenu: PreviewContextMenuSession;
 
-  constructor(node: Node, _view: EditorView, _getPos: () => number | undefined) {
+  constructor(node: Node, view: EditorView, getPos: () => number | undefined) {
     this.node = node;
     this.dom = createMermaidElement(String(node.attrs.code || ''));
+    this.contextMenu = attachPreviewContextMenu({
+      element: this.dom,
+      fileBaseName: 'mermaid-diagram',
+      getPos,
+      node,
+      view,
+    });
   }
 
   update(node: Node) {
@@ -22,6 +31,7 @@ export class MermaidNodeView implements NodeView {
     }
 
     this.node = node;
+    this.contextMenu.updateNode(node);
     const code = String(node.attrs.code || '');
     if (shouldRefreshMermaidElementCode(this.dom, code)) {
       void renderMermaidEditorLivePreview({
@@ -35,5 +45,9 @@ export class MermaidNodeView implements NodeView {
 
   ignoreMutation() {
     return true;
+  }
+
+  destroy() {
+    this.contextMenu.destroy();
   }
 }
