@@ -85,6 +85,15 @@ function createTableNode(view: EditorView): ProseNode {
   return table;
 }
 
+function createCodeBlockNode(view: EditorView, text = 'const value = 1;'): ProseNode {
+  const { schema } = view.state;
+  const codeBlockType = schema.nodes.code_block;
+  if (!codeBlockType) {
+    throw new Error('Expected code block schema');
+  }
+  return codeBlockType.create({ language: 'ts' }, schema.text(text));
+}
+
 function selectionAncestorNames(view: EditorView): string[] {
   const { $from } = view.state.selection;
   const names: string[] = [];
@@ -537,6 +546,84 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     expect(view.state.doc.child(1).textContent).toBe('after');
     expect(view.state.selection).toBeInstanceOf(NodeSelection);
     expect(view.state.selection.from).toBe(0);
+
+    await editor.destroy();
+  });
+
+  it('deletes an empty paragraph immediately below a code block without moving the cursor into code', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      createCodeBlockNode(view),
+      schema.nodes.paragraph.create(),
+      schema.nodes.paragraph.create(null, schema.text('after')),
+    ]);
+
+    const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+    const event = pressKey(view, 'Delete');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('code_block');
+    expect(view.state.doc.child(1).textContent).toBe('after');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(selectionAncestorNames(view)).not.toContain('code_block');
+    expect(view.state.selection.from).toBe(topLevelNodePos(view, 'paragraph') + 1);
+
+    await editor.destroy();
+  });
+
+  it('backspaces an empty paragraph immediately below a code block without moving the cursor into code', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      createCodeBlockNode(view),
+      schema.nodes.paragraph.create(),
+      schema.nodes.paragraph.create(null, schema.text('after')),
+    ]);
+
+    const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+    const event = pressKey(view, 'Backspace');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('code_block');
+    expect(view.state.doc.child(1).textContent).toBe('after');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(selectionAncestorNames(view)).not.toContain('code_block');
+    expect(view.state.selection.from).toBe(topLevelNodePos(view, 'paragraph') + 1);
+
+    await editor.destroy();
+  });
+
+  it('deletes the only empty paragraph below a code block and keeps an outside cursor target', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      createCodeBlockNode(view),
+      schema.nodes.paragraph.create(),
+    ]);
+
+    const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+    const event = pressKey(view, 'Delete');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('code_block');
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+    expect(view.state.doc.child(1).textContent).toBe('');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(selectionAncestorNames(view)).not.toContain('code_block');
+    expect(view.state.selection.from).toBe(topLevelNodePos(view, 'paragraph') + 1);
 
     await editor.destroy();
   });
