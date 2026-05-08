@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { collectSelectableBlockRanges, createBlockRectResolver } from './blockRectResolver';
+import { resolveTypewriterScrollTop } from './typewriterModePlugin';
 
 interface MockNode {
   type: { name: string };
@@ -139,5 +140,27 @@ describe('createBlockRectResolver', () => {
         bottom: 64,
       },
     ]);
+  });
+});
+
+describe('resolveTypewriterScrollTop', () => {
+  it('centers the cursor in the scroll root', () => {
+    expect(resolveTypewriterScrollTop({
+      scrollTop: 100,
+      scrollHeight: 1000,
+      clientHeight: 400,
+      rootRect: { top: 0, bottom: 400 },
+      cursorRect: { top: 280, bottom: 300 },
+    })).toBe(190);
+  });
+
+  it('clamps the target scroll range', () => {
+    expect(resolveTypewriterScrollTop({
+      scrollTop: 20,
+      scrollHeight: 500,
+      clientHeight: 400,
+      rootRect: { top: 0, bottom: 400 },
+      cursorRect: { top: 800, bottom: 820 },
+    })).toBe(100);
   });
 });

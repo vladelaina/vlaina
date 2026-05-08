@@ -2,6 +2,7 @@ export { blankAreaDragBoxPlugin, blankAreaDragBoxPluginKey } from './blankAreaDr
 export { blockControlsPlugin, blockControlsPluginKey } from './blockControlsPlugin';
 export { endBlankClickPlugin, endBlankClickPluginKey } from './endBlankClickPlugin';
 export { titleNavigationPlugin, titleNavigationPluginKey } from './titleNavigationPlugin';
+export { typewriterModePlugin, typewriterModePluginKey } from './typewriterModePlugin';
 export { nativeDragGuardPlugin } from './nativeDragGuard';
 export { containerBoundaryShiftSelectionPlugin } from './containerBoundaryShiftSelectionPlugin';
 export {

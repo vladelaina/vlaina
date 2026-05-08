@@ -66,7 +66,7 @@ function resetStores() {
     data: {
       settings: {
         timezone: { offset: 0, city: 'UTC' },
-        markdown: { codeBlock: { showLineNumbers: true } },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
       },
       customIcons: [],
       ai: createAIData({

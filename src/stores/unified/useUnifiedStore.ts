@@ -35,6 +35,7 @@ interface UnifiedStoreActions {
 
   setTimezone: (offset: number, city: string) => void;
   setMarkdownCodeBlockLineNumbers: (showLineNumbers: boolean) => void;
+  setMarkdownTypewriterMode: (typewriterMode: boolean) => void;
   
   addCustomIcon: (icon: CustomIcon) => void;
   removeCustomIcon: (id: string) => void;

@@ -82,7 +82,7 @@ describe('unifiedStorage electron save', () => {
     const data: UnifiedData = {
       settings: {
         timezone: { offset: 480, city: 'Beijing' },
-        markdown: { codeBlock: { showLineNumbers: true } },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
       },
       customIcons: [],
       ai: {
@@ -155,7 +155,7 @@ describe('unifiedStorage electron save', () => {
     const data: UnifiedData = {
       settings: {
         timezone: { offset: 480, city: 'Beijing' },
-        markdown: { codeBlock: { showLineNumbers: true } },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
       },
       customIcons: [],
       ai: {
