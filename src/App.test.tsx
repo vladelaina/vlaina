@@ -4,10 +4,11 @@ import App from './App';
 
 type NotesState = {
   openTabs: Array<{ path: string; isDirty?: boolean }>;
-  draftNotes: Record<string, { name: string }>;
+  draftNotes: Record<string, { name: string; parentPath?: string | null; originNotesPath?: string }>;
   noteContentsCache: Map<string, { content: string }>;
   noteMetadata: { notes: Record<string, unknown> } | null;
   currentNote: { path: string; content?: string } | null;
+  notesPath: string;
   isDirty: boolean;
   openNote: ReturnType<typeof vi.fn>;
   openNoteByAbsolutePath: ReturnType<typeof vi.fn>;
@@ -21,6 +22,7 @@ const mocks = vi.hoisted(() => {
     noteContentsCache: new Map(),
     noteMetadata: null,
     currentNote: null,
+    notesPath: '',
     isDirty: false,
     openNote: vi.fn().mockResolvedValue(undefined),
     openNoteByAbsolutePath: vi.fn().mockResolvedValue(undefined),
@@ -45,6 +47,7 @@ const mocks = vi.hoisted(() => {
     },
     flushPendingSave: vi.fn().mockResolvedValue(undefined),
     flushPendingSessionJsonSaves: vi.fn().mockResolvedValue(undefined),
+    flushCurrentPendingEditorMarkdown: vi.fn(() => false),
     openStoredNotePath: vi.fn().mockResolvedValue(undefined),
     addToast: vi.fn(),
     checkStatus: vi.fn().mockResolvedValue(undefined),
@@ -138,8 +141,17 @@ vi.mock('@/components/Chat/features/Temporary/useTemporaryTogglePresentation', (
 
 vi.mock('@/stores/notes/draftNote', () => ({
   isDraftNotePath: (path?: string | null) => typeof path === 'string' && path.startsWith('draft:'),
+  canAutoSaveDraftNote: (notesPath: string, draftNote?: { originNotesPath?: string }) => Boolean(
+    notesPath &&
+    draftNote &&
+    (draftNote.originNotesPath === undefined || draftNote.originNotesPath === notesPath)
+  ),
   hasDraftUnsavedChanges: ({ draftName, content }: { draftName?: string; content?: string }) =>
     Boolean((draftName ?? '').trim() || (content ?? '').trim()),
+}));
+
+vi.mock('@/stores/notes/pendingEditorMarkdownFlusher', () => ({
+  flushCurrentPendingEditorMarkdown: mocks.flushCurrentPendingEditorMarkdown,
 }));
 
 vi.mock('@/stores/notes/openNotePath', () => ({
@@ -222,10 +234,12 @@ describe('App close flow', () => {
     mocks.notesState.noteContentsCache = new Map();
     mocks.notesState.noteMetadata = null;
     mocks.notesState.currentNote = null;
+    mocks.notesState.notesPath = '';
     mocks.notesState.isDirty = false;
     mocks.notesState.openNote.mockClear();
     mocks.notesState.openNoteByAbsolutePath.mockClear();
     mocks.notesState.saveNote.mockClear();
+    mocks.flushCurrentPendingEditorMarkdown.mockClear();
     mocks.openStoredNotePath.mockReset();
     mocks.openStoredNotePath.mockImplementation(async (path: string) => {
       const tab = mocks.notesState.openTabs.find((item) => item.path === path);
@@ -245,20 +259,24 @@ describe('App close flow', () => {
     mocks.desktopWindow.onCloseRequested.mockClear();
     mocks.flushPendingSave.mockClear();
     mocks.flushPendingSessionJsonSaves.mockClear();
+    mocks.flushCurrentPendingEditorMarkdown.mockClear();
     mocks.closeRequestedHandler = null;
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
   });
 
-  it('confirms close immediately when nothing is dirty', async () => {
+  async function renderAndRequestClose() {
     render(<App />);
-
     await waitFor(() => {
       expect(mocks.desktopWindow.onCloseRequested).toHaveBeenCalledTimes(1);
     });
-
     await act(async () => {
       mocks.closeRequestedHandler?.();
       await Promise.resolve();
     });
+  }
+
+  it('confirms close immediately when nothing is dirty', async () => {
+    await renderAndRequestClose();
 
     await waitFor(() => {
       expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
@@ -280,16 +298,7 @@ describe('App close flow', () => {
       );
     });
 
-    render(<App />);
-
-    await waitFor(() => {
-      expect(mocks.desktopWindow.onCloseRequested).toHaveBeenCalledTimes(1);
-    });
-
-    await act(async () => {
-      mocks.closeRequestedHandler?.();
-      await Promise.resolve();
-    });
+    await renderAndRequestClose();
 
     await waitFor(() => {
       expect(mocks.flushPendingSave).toHaveBeenCalledTimes(1);
@@ -297,6 +306,27 @@ describe('App close flow', () => {
       expect(mocks.notesState.saveNote).toHaveBeenCalledTimes(1);
       expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('flushes auto-saveable drafts when the app is hidden', async () => {
+    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.currentNote = { path: 'draft:alpha', content: 'draft body' };
+    mocks.notesState.isDirty = true;
+    mocks.notesState.openTabs = [{ path: 'draft:alpha', isDirty: true }];
+    mocks.notesState.draftNotes = { 'draft:alpha': { parentPath: null, name: 'Alpha' } };
+    mocks.notesState.saveNote.mockImplementation(async () => {
+      delete mocks.notesState.draftNotes['draft:alpha'];
+      mocks.notesState.currentNote = { path: 'Alpha.md', content: 'draft body' };
+      mocks.notesState.isDirty = false;
+      mocks.notesState.openTabs = [{ path: 'Alpha.md', isDirty: false }];
+    });
+    render(<App />);
+    await waitFor(() => expect(mocks.desktopWindow.onCloseRequested).toHaveBeenCalledTimes(1));
+
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    fireEvent(document, new Event('visibilitychange'));
+
+    await waitFor(() => expect(mocks.notesState.saveNote).toHaveBeenCalledWith({ suppressOpenTarget: true }));
   });
 
   it('flushes dirty regular background tabs before closing', async () => {
@@ -317,16 +347,7 @@ describe('App close flow', () => {
       );
     });
 
-    render(<App />);
-
-    await waitFor(() => {
-      expect(mocks.desktopWindow.onCloseRequested).toHaveBeenCalledTimes(1);
-    });
-
-    await act(async () => {
-      mocks.closeRequestedHandler?.();
-      await Promise.resolve();
-    });
+    await renderAndRequestClose();
 
     await waitFor(() => {
       expect(mocks.openStoredNotePath).toHaveBeenCalledWith(
@@ -341,6 +362,81 @@ describe('App close flow', () => {
     });
   });
 
+  it('saves auto-saveable drafts before closing without showing the discard dialog', async () => {
+    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.currentNote = { path: 'draft:alpha', content: 'unsaved content' };
+    mocks.notesState.openTabs = [{ path: 'draft:alpha', isDirty: true }];
+    mocks.notesState.isDirty = true;
+    mocks.notesState.draftNotes = { 'draft:alpha': { parentPath: null, name: 'Draft Alpha' } };
+    mocks.notesState.noteContentsCache = new Map([['draft:alpha', { content: 'unsaved content' }]]);
+    mocks.notesState.saveNote.mockImplementation(async () => {
+      delete mocks.notesState.draftNotes['draft:alpha'];
+      mocks.notesState.currentNote = { path: 'Draft Alpha.md', content: 'unsaved content' };
+      mocks.notesState.isDirty = false;
+      mocks.notesState.openTabs = [{ path: 'Draft Alpha.md', isDirty: false }];
+    });
+
+    await renderAndRequestClose();
+
+    await waitFor(() => {
+      expect(mocks.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
+      expect(mocks.notesState.saveNote).toHaveBeenCalledWith({ suppressOpenTarget: true });
+      expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.queryByText('Unsaved Drafts')).toBeNull();
+  });
+
+  it('saves cached auto-saveable drafts before the clean-window fast close path', async () => {
+    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.currentNote = { path: 'docs/a.md', content: 'clean note' };
+    mocks.notesState.openTabs = [{ path: 'docs/a.md', isDirty: false }];
+    mocks.notesState.isDirty = false;
+    mocks.notesState.draftNotes = { 'draft:cached': { parentPath: null, name: 'Cached Draft' } };
+    mocks.notesState.noteContentsCache = new Map([['draft:cached', { content: 'cached draft body' }]]);
+    mocks.notesState.openNote.mockImplementation(async (path: string) => {
+      mocks.notesState.currentNote = {
+        path,
+        content: mocks.notesState.noteContentsCache.get(path)?.content ?? '',
+      };
+      mocks.notesState.isDirty = Boolean(mocks.notesState.openTabs.find((tab) => tab.path === path)?.isDirty);
+    });
+    mocks.notesState.saveNote.mockImplementation(async () => {
+      delete mocks.notesState.draftNotes['draft:cached'];
+      mocks.notesState.currentNote = { path: 'Cached Draft.md', content: 'cached draft body' };
+      mocks.notesState.isDirty = false;
+      mocks.notesState.openTabs = [
+        { path: 'docs/a.md', isDirty: false },
+        { path: 'Cached Draft.md', isDirty: false },
+      ];
+    });
+
+    await renderAndRequestClose();
+
+    await waitFor(() => {
+      expect(mocks.notesState.openNote).toHaveBeenCalledWith('draft:cached');
+      expect(mocks.notesState.saveNote).toHaveBeenCalledWith({ suppressOpenTarget: true });
+      expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('blocks closing when an auto-saveable draft fails to save', async () => {
+    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.currentNote = { path: 'draft:alpha', content: 'unsaved content' };
+    mocks.notesState.openTabs = [{ path: 'draft:alpha', isDirty: true }];
+    mocks.notesState.isDirty = true;
+    mocks.notesState.draftNotes = { 'draft:alpha': { parentPath: null, name: 'Draft Alpha' } };
+    mocks.notesState.noteContentsCache = new Map([['draft:alpha', { content: 'unsaved content' }]]);
+    mocks.notesState.saveNote.mockResolvedValue(undefined);
+
+    await renderAndRequestClose();
+
+    await waitFor(() => {
+      expect(mocks.notesState.saveNote).toHaveBeenCalledTimes(1);
+    });
+    expect(mocks.desktopWindow.confirmClose).not.toHaveBeenCalled();
+    expect(screen.queryByText('Unsaved Drafts')).toBeNull();
+  });
+
   it('opens the unsaved draft confirm dialog before closing draft notes', async () => {
     mocks.notesState.currentNote = { path: 'draft:alpha' };
     mocks.notesState.openTabs = [{ path: 'draft:alpha' }];
@@ -351,16 +447,7 @@ describe('App close flow', () => {
       ['draft:alpha', { content: 'unsaved content' }],
     ]);
 
-    render(<App />);
-
-    await waitFor(() => {
-      expect(mocks.desktopWindow.onCloseRequested).toHaveBeenCalledTimes(1);
-    });
-
-    await act(async () => {
-      mocks.closeRequestedHandler?.();
-      await Promise.resolve();
-    });
+    await renderAndRequestClose();
 
     expect(await screen.findByText('Unsaved Drafts')).toBeInTheDocument();
     expect(mocks.desktopWindow.confirmClose).not.toHaveBeenCalled();
@@ -381,16 +468,7 @@ describe('App close flow', () => {
       'draft:orphan': { name: '' },
     };
 
-    render(<App />);
-
-    await waitFor(() => {
-      expect(mocks.desktopWindow.onCloseRequested).toHaveBeenCalledTimes(1);
-    });
-
-    await act(async () => {
-      mocks.closeRequestedHandler?.();
-      await Promise.resolve();
-    });
+    await renderAndRequestClose();
 
     expect(await screen.findByText('Unsaved Drafts')).toBeInTheDocument();
     expect(mocks.desktopWindow.confirmClose).not.toHaveBeenCalled();
@@ -406,16 +484,7 @@ describe('App close flow', () => {
       ['draft:cached', { content: 'cached draft body' }],
     ]);
 
-    render(<App />);
-
-    await waitFor(() => {
-      expect(mocks.desktopWindow.onCloseRequested).toHaveBeenCalledTimes(1);
-    });
-
-    await act(async () => {
-      mocks.closeRequestedHandler?.();
-      await Promise.resolve();
-    });
+    await renderAndRequestClose();
 
     expect(await screen.findByText('Unsaved Drafts')).toBeInTheDocument();
     expect(mocks.desktopWindow.confirmClose).not.toHaveBeenCalled();

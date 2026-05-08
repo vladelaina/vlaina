@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
     rename: vi.fn(),
   },
   ensureVaultConfig: vi.fn(),
+  saveAutoSaveableDrafts: vi.fn(),
   saveDirtyRegularOpenTabs: vi.fn(),
 }));
 
@@ -25,6 +26,10 @@ vi.mock('@/stores/notes/dirtyOpenTabs', () => ({
   saveDirtyRegularOpenTabs: mocks.saveDirtyRegularOpenTabs,
 }));
 
+vi.mock('@/stores/notes/autoSaveableDrafts', () => ({
+  saveAutoSaveableDrafts: mocks.saveAutoSaveableDrafts,
+}));
+
 import { useNotesStore } from './useNotesStore';
 import { useVaultStore } from './useVaultStore';
 
@@ -34,6 +39,7 @@ describe('useVaultStore dirty note protection', () => {
     vi.clearAllMocks();
     mocks.storage.exists.mockResolvedValue(true);
     mocks.ensureVaultConfig.mockResolvedValue(undefined);
+    mocks.saveAutoSaveableDrafts.mockResolvedValue(true);
     mocks.saveDirtyRegularOpenTabs.mockResolvedValue(true);
 
     useVaultStore.setState({
@@ -72,6 +78,7 @@ describe('useVaultStore dirty note protection', () => {
     const opened = await useVaultStore.getState().openVault('/vault/next');
 
     expect(opened).toBe(true);
+    expect(mocks.saveAutoSaveableDrafts).toHaveBeenCalledTimes(1);
     expect(mocks.saveDirtyRegularOpenTabs).toHaveBeenCalledTimes(1);
     expect(useVaultStore.getState().currentVault).toMatchObject({
       name: 'next',
@@ -181,6 +188,18 @@ describe('useVaultStore dirty note protection', () => {
     expect(mocks.storage.exists).not.toHaveBeenCalled();
     expect(useVaultStore.getState().currentVault?.path).toBe('/vault/old');
     expect(useVaultStore.getState().error).toBe('Failed to save pending note changes');
+  });
+
+  it('does not open another vault if auto-saveable drafts could not be saved', async () => {
+    mocks.saveAutoSaveableDrafts.mockResolvedValue(false);
+
+    const opened = await useVaultStore.getState().openVault('/vault/next');
+
+    expect(opened).toBe(false);
+    expect(mocks.saveDirtyRegularOpenTabs).not.toHaveBeenCalled();
+    expect(mocks.storage.exists).not.toHaveBeenCalled();
+    expect(useVaultStore.getState().currentVault?.path).toBe('/vault/old');
+    expect(useVaultStore.getState().error).toBe('Failed to save pending draft changes');
   });
 
   it('opens another vault while preserving unsaved draft tabs', async () => {

@@ -4,6 +4,8 @@ import { cn } from '@/lib/utils';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { NoteIcon } from '../IconPicker/NoteIcon';
 import { useNoteLabelDescriptor } from '../common/noteDisambiguation';
+import { useNotesStore } from '@/stores/useNotesStore';
+import { shouldShowDirtyTabIndicator } from './dirtyTabIndicator';
 
 export interface NoteTab {
   path: string;
@@ -22,6 +24,17 @@ interface SingleTabProps {
 const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClose, onTabMiddleClick }: SingleTabProps) {
   const icon = useDisplayIcon(tab.path);
   const { title, disambiguation } = useNoteLabelDescriptor(tab.path, tab.name);
+  const notesPath = useNotesStore((s) => s.notesPath);
+  const draftNote = useNotesStore((s) => s.draftNotes[tab.path]);
+  const hasSaveError = useNotesStore((s) => Boolean(s.error));
+  const showDirtyIndicator = shouldShowDirtyTabIndicator({
+    path: tab.path,
+    isDirty: tab.isDirty,
+    isActive,
+    notesPath,
+    draftNote,
+    hasSaveError,
+  });
 
   return (
     <div
@@ -70,7 +83,7 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
         ) : null}
       </span>
 
-      {tab.isDirty && (
+      {showDirtyIndicator && (
         <span className="w-1.5 h-1.5 rounded-full bg-[var(--vlaina-accent)] flex-shrink-0" />
       )}
 
