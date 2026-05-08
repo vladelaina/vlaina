@@ -205,14 +205,14 @@ function ChatSidebarSessionRowInner({
             }}
             className={cn(
               MENU_PANEL_CLASS_NAME,
-              'w-44 !rounded-2xl !shadow-[var(--notes-sidebar-menu-shadow)] backdrop-blur-lg',
+              'w-44 backdrop-blur-lg',
               'animate-in fade-in-0 zoom-in-95 duration-75'
             )}
           >
             <DropdownMenuItem
               onSelect={handleStartRename}
               className={cn(
-                'text-[16px] font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none',
+                'text-[16px] font-medium px-2.5 py-2 rounded-xl cursor-pointer outline-none',
                 'text-[var(--chat-sidebar-text)]',
                 'hover:bg-[var(--chat-sidebar-row-hover)] focus:bg-[var(--chat-sidebar-row-hover)] data-[highlighted]:bg-[var(--chat-sidebar-row-hover)]',
                 'focus:text-[var(--chat-sidebar-text)] data-[highlighted]:text-[var(--chat-sidebar-text)]'
@@ -227,7 +227,7 @@ function ChatSidebarSessionRowInner({
                 handleTogglePin();
               }}
               className={cn(
-                'text-[16px] font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none',
+                'text-[16px] font-medium px-2.5 py-2 rounded-xl cursor-pointer outline-none',
                 'text-[var(--chat-sidebar-text)]',
                 'hover:bg-[var(--chat-sidebar-row-hover)] focus:bg-[var(--chat-sidebar-row-hover)] data-[highlighted]:bg-[var(--chat-sidebar-row-hover)]',
                 'focus:text-[var(--chat-sidebar-text)] data-[highlighted]:text-[var(--chat-sidebar-text)]'
@@ -247,7 +247,7 @@ function ChatSidebarSessionRowInner({
                 handleRequestDelete();
               }}
               className={cn(
-                'text-[16px] font-medium px-2.5 py-2 rounded-md cursor-pointer outline-none',
+                'text-[16px] font-medium px-2.5 py-2 rounded-xl cursor-pointer outline-none',
                 'text-red-600 dark:text-red-400',
                 'hover:bg-[var(--chat-sidebar-row-hover)] focus:bg-[var(--chat-sidebar-row-hover)] data-[highlighted]:bg-[var(--chat-sidebar-row-hover)]',
                 'focus:text-red-600 dark:focus:text-red-400 data-[highlighted]:text-red-600 dark:data-[highlighted]:text-red-400'

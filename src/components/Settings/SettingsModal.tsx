@@ -11,6 +11,10 @@ import { cn } from '@/lib/utils';
 import { useWindowDragGesture } from '@/hooks/useWindowDragGesture';
 import { actions as aiActions } from '@/stores/ai/providerActions';
 import { SETTINGS_BEFORE_CLOSE_EVENT, SETTINGS_CLOSED_EVENT } from './settingsEvents';
+import {
+  getSidebarIdleRowSurfaceClass,
+  getSidebarSelectedRowSurfaceClass,
+} from '@/components/layout/sidebar/sidebarLabelStyles';
 
 interface SettingsModalProps {
   open: boolean;
@@ -127,10 +131,10 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                               <button
                                 onClick={() => setActiveTab(item.id)}
                                 className={cn(
-                                  "mx-1 flex min-h-9 w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-150 ease-out",
+                                  "mx-1 flex min-h-9 w-full items-center gap-3 px-3 py-2 text-sm font-medium transition-all duration-150 ease-out",
                                   isActive
-                                    ? "bg-[var(--chat-sidebar-row-active)] text-[var(--sidebar-row-selected-text)]"
-                                    : "text-[var(--chat-sidebar-text-muted)] hover:bg-[var(--chat-sidebar-row-hover)] hover:text-[var(--chat-sidebar-text)]"
+                                    ? getSidebarSelectedRowSurfaceClass('chat')
+                                    : getSidebarIdleRowSurfaceClass('chat')
                                 )}
                               >
                                 <span className="flex items-center justify-center">

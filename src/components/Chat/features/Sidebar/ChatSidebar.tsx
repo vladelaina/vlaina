@@ -136,7 +136,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
             handleSwitch(session.id, !!useAIUIStore.getState().unreadSessions[session.id]);
             hideSearch();
           }}
-          placeholder="Search conversations..."
+          placeholder="Search"
           closeLabel="Close chat search"
           topActions={(
             <ChatSidebarTopActions

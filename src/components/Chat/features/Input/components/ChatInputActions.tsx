@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn, iconButtonStyles } from '@/lib/utils';
+import { chatComposerPillSurfaceClass } from '../composerStyles';
+import { getSidebarIdleRowSurfaceClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 
 interface ChatInputActionsProps {
   onTriggerFileSelect: () => void;
@@ -59,23 +61,32 @@ export function ChatInputActions({
             align="start"
             side="top"
             sideOffset={8}
-            className="w-52 rounded-xl border-black/10 bg-white p-1.5 text-gray-900 shadow-lg"
+            className={cn(
+              "w-52 rounded-[22px] border-transparent p-1.5 text-gray-900",
+              chatComposerPillSurfaceClass
+            )}
           >
             <button
               type="button"
               onClick={handleTriggerFileSelect}
-              className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-[14px] transition-colors hover:bg-gray-100"
+              className={cn(
+                "group/chat-action flex h-10 w-full items-center gap-3 px-3 text-left text-[14px] transition-colors",
+                getSidebarIdleRowSurfaceClass('chat')
+              )}
             >
-              <Icon name="common.upload" size="md" className="text-gray-500" />
+              <Icon name="common.upload" size="md" className="text-[var(--chat-sidebar-icon)] group-hover/chat-action:text-[var(--chat-sidebar-icon-hover)]" />
               <span>Upload file</span>
             </button>
             {!webSearchEnabled && (
               <button
                 type="button"
                 onClick={handleEnableWebSearch}
-                className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-[14px] transition-colors hover:bg-gray-100"
+                className={cn(
+                  "group/chat-action flex h-10 w-full items-center gap-3 px-3 text-left text-[14px] transition-colors",
+                  getSidebarIdleRowSurfaceClass('chat')
+                )}
               >
-                <Icon name="file.public" size="md" className="text-gray-500" />
+                <Icon name="file.public" size="md" className="text-[var(--chat-sidebar-icon)] group-hover/chat-action:text-[var(--chat-sidebar-icon-hover)]" />
                 <span>Web search</span>
               </button>
             )}
@@ -86,9 +97,8 @@ export function ChatInputActions({
             type="button"
             aria-pressed="true"
             aria-label="Disable web search"
-            title="Web search on"
             onClick={onToggleWebSearch}
-            className="w-9 h-9 flex items-center justify-center rounded-full bg-[#e7f3ff] text-[#1677c8] transition-all duration-200 hover:bg-[#d9ecff] active:scale-95"
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-[var(--chat-sidebar-row-active)] text-[var(--sidebar-row-selected-text)] transition-all duration-200 hover:bg-[var(--chat-sidebar-row-active)] hover:text-[var(--sidebar-row-selected-text)] active:scale-95"
           >
             <Icon name="file.public" size="md" />
           </button>

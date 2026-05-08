@@ -8,6 +8,7 @@ import {
 import { Icon } from '@/components/ui/icons';
 import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area';
 import { cn } from '@/lib/utils';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import {
   getSidebarActionButtonClass,
   type SidebarTone,
@@ -127,7 +128,8 @@ export const SidebarSearchField = forwardRef<HTMLInputElement, SidebarSearchFiel
       <div className={cn('px-2 pt-2', className)}>
         <div
           className={cn(
-            'flex h-[40px] items-center gap-2 rounded-md border border-transparent bg-[#f8f8f8] pl-3 pr-1 shadow-none',
+            'flex h-[40px] items-center gap-2 rounded-full pl-3 pr-1',
+            chatComposerPillSurfaceClass,
             containerClassName,
           )}
         >
@@ -150,7 +152,7 @@ export const SidebarSearchField = forwardRef<HTMLInputElement, SidebarSearchFiel
             onClick={onClose}
             aria-label={closeLabel}
             className={cn(
-              'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)]',
+              'inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)]',
               closeButtonClassName,
             )}
           >

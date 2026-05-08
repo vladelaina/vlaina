@@ -6,6 +6,7 @@ import { useUserAvatar } from '@/hooks/useUserAvatar';
 import { cn } from '@/lib/utils';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { useI18n } from '@/lib/i18n';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { LoginPrompt } from './LoginPrompt';
 import { AccountLoginDialog } from './AccountLoginDialog';
 import { UserIdentityCard } from './UserIdentityCard';
@@ -92,7 +93,8 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
         <Popover.Portal>
           <Popover.Content
             className={cn(
-              'z-50 w-[260px] rounded-xl border border-[var(--vlaina-border)] bg-[var(--vlaina-bg-primary)] p-1.5 shadow-xl select-none animate-in fade-in-0 zoom-in-95 duration-200 data-[side=bottom]:slide-in-from-top-2 dark:bg-zinc-900'
+              'z-50 w-[260px] rounded-[26px] p-1.5 text-[var(--chat-sidebar-text)] select-none animate-in fade-in-0 zoom-in-95 duration-200 data-[side=bottom]:slide-in-from-top-2',
+              chatComposerPillSurfaceClass
             )}
             sideOffset={8}
             align="start"

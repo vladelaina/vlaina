@@ -32,6 +32,7 @@ const SIDEBAR_TONE_STYLES = {
 export const SIDEBAR_SELECTED_LABEL_WEIGHT_CLASS = 'font-[550]';
 export const SIDEBAR_EMPHASIZED_LABEL_WEIGHT_CLASS = 'font-medium';
 export const SIDEBAR_ACTION_BUTTON_WEIGHT_CLASS = 'font-normal';
+export const SIDEBAR_ROW_RADIUS_CLASS = 'rounded-xl';
 
 export function getSidebarToneStyles(tone: SidebarTone) {
   return SIDEBAR_TONE_STYLES[tone];
@@ -81,4 +82,23 @@ export function getSidebarLabelClass(
 export function getSidebarActionButtonClass(tone: SidebarTone) {
   const styles = SIDEBAR_TONE_STYLES[tone];
   return cn(styles.text, styles.rowHover, SIDEBAR_ACTION_BUTTON_WEIGHT_CLASS);
+}
+
+export function getSidebarSelectedRowSurfaceClass(tone: SidebarTone) {
+  const styles = SIDEBAR_TONE_STYLES[tone];
+  return cn(
+    SIDEBAR_ROW_RADIUS_CLASS,
+    styles.activeRow,
+    'text-[var(--sidebar-row-selected-text)]',
+  );
+}
+
+export function getSidebarPreviewRowSurfaceClass(tone: SidebarTone) {
+  const styles = SIDEBAR_TONE_STYLES[tone];
+  return cn(SIDEBAR_ROW_RADIUS_CLASS, styles.highlightRow);
+}
+
+export function getSidebarIdleRowSurfaceClass(tone: SidebarTone) {
+  const styles = SIDEBAR_TONE_STYLES[tone];
+  return cn(SIDEBAR_ROW_RADIUS_CLASS, 'bg-transparent', styles.inactiveRow);
 }

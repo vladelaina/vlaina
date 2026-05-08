@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { useUserAvatar } from '@/hooks/useUserAvatar';
-import { cn, iconButtonStyles } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { ManagedQuotaMeter } from './ManagedQuotaMeter';
 import { BillingPlansDialog } from './BillingPlansDialog';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { getSidebarIdleRowSurfaceClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 
 interface UserIdentityCardProps {
   onLogout: () => void | Promise<void>;
@@ -91,15 +93,20 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
         {isMenuOpen && (
           <>
             <div className="fixed inset-0 z-[60]" onClick={() => setIsMenuOpen(false)} />
-            <div className="absolute left-[calc(100%-10px)] top-8 z-[70] w-44 rounded-lg border border-[var(--vlaina-border)] bg-[var(--vlaina-bg-primary)] p-1 shadow-xl animate-in fade-in-0 zoom-in-95 slide-in-from-top-1">
+            <div
+              className={cn(
+                "absolute left-[calc(100%-10px)] top-8 z-[70] w-44 rounded-[22px] border-transparent p-1 animate-in fade-in-0 zoom-in-95 slide-in-from-top-1",
+                chatComposerPillSurfaceClass
+              )}
+            >
               <button
                 onClick={() => {
                   setIsMenuOpen(false);
                   onSwitchAccount();
                 }}
                 className={cn(
-                  'flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] font-medium transition-colors',
-                  iconButtonStyles
+                  'flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-left text-[12px] font-medium transition-colors',
+                  getSidebarIdleRowSurfaceClass('chat')
                 )}
               >
                 <Icon size="md" name="user.switch" />
@@ -111,8 +118,8 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
                   setIsBillingDialogOpen(true);
                 }}
                 className={cn(
-                  'flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] font-medium transition-colors',
-                  iconButtonStyles
+                  'flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-left text-[12px] font-medium transition-colors',
+                  getSidebarIdleRowSurfaceClass('chat')
                 )}
               >
                 <Icon size="md" name="misc.crown" />
@@ -124,8 +131,8 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
                   void onLogout();
                 }}
                 className={cn(
-                  'flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12px] font-medium transition-colors',
-                  iconButtonStyles
+                  'flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-left text-[12px] font-medium transition-colors',
+                  getSidebarIdleRowSurfaceClass('chat')
                 )}
               >
                 <Icon size="md" name="user.logout" />

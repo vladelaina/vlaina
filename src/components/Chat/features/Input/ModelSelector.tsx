@@ -1,6 +1,7 @@
 import { Fragment, useDeferredValue, useState, useRef, useEffect, useMemo, memo, useCallback, type RefObject } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Icon } from '@/components/ui/icons'
+import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area'
 import { actions as aiActions } from '@/stores/useAIStore'
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore'
 import { cn } from '@/lib/utils'
@@ -10,6 +11,12 @@ import type { AIModel } from '@/lib/ai/types';
 import { isManagedProviderId, MANAGED_PROVIDER_NAME } from '@/lib/ai/managedService'
 import { focusComposerInput as focusRegisteredComposerInput } from '@/lib/ui/composerFocusRegistry'
 import { SETTINGS_CLOSED_EVENT } from '@/components/Settings/settingsEvents'
+import {
+  getSidebarIdleRowSurfaceClass,
+  getSidebarPreviewRowSurfaceClass,
+  getSidebarSelectedRowSurfaceClass,
+  type SidebarTone,
+} from '@/components/layout/sidebar/sidebarLabelStyles'
 import {
   MODEL_FAMILIES,
   getModelCategoryId,
@@ -43,19 +50,14 @@ const MODEL_SELECTOR_THEME_STYLES: Record<
     triggerHover: string
     triggerText: string
     triggerTextActive: string
-    panelSurface: string
-    panelBorder: string
     sectionLabel: string
     divider: string
     inputText: string
     inputPlaceholder: string
     settingsButton: string
-    optionHover: string
-    optionActive: string
-    optionFocused: string
+    categoryHover: string
     optionText: string
     optionTextActive: string
-    checkIcon: string
     emptyText: string
   }
 > = {
@@ -63,38 +65,28 @@ const MODEL_SELECTOR_THEME_STYLES: Record<
     triggerHover: 'hover:bg-[var(--chat-sidebar-row-hover)]',
     triggerText: 'text-[var(--chat-sidebar-text-muted)]',
     triggerTextActive: 'text-[var(--chat-sidebar-text)]',
-    panelSurface: 'bg-[var(--chat-sidebar-surface)]',
-    panelBorder: 'border-neutral-100 dark:border-neutral-600/40',
     sectionLabel: 'text-[var(--chat-sidebar-text-soft)]',
     divider: 'border-neutral-100 dark:border-neutral-700',
     inputText: 'text-[var(--chat-sidebar-text)]',
     inputPlaceholder: 'placeholder:text-[var(--chat-sidebar-text-soft)]',
     settingsButton: 'text-[var(--chat-sidebar-icon)] hover:text-[var(--chat-sidebar-icon-hover)]',
-    optionHover: 'hover:bg-[var(--chat-sidebar-row-hover)]',
-    optionActive: 'bg-[var(--chat-sidebar-row-active)]',
-    optionFocused: 'bg-[var(--chat-sidebar-row-hover)]',
+    categoryHover: 'hover:bg-[var(--chat-sidebar-row-hover)]',
     optionText: 'text-[var(--chat-sidebar-text)]',
     optionTextActive: 'text-[var(--sidebar-row-selected-text)]',
-    checkIcon: 'text-[var(--sidebar-row-selected-text)]',
     emptyText: 'text-[var(--chat-sidebar-text-soft)]',
   },
   notes: {
     triggerHover: 'hover:bg-[var(--notes-sidebar-row-hover)]',
     triggerText: 'text-[var(--notes-sidebar-text-muted)]',
     triggerTextActive: 'text-[var(--notes-sidebar-text)]',
-    panelSurface: 'bg-[var(--notes-sidebar-surface)]',
-    panelBorder: 'border-[var(--notes-sidebar-menu-border)]',
     sectionLabel: 'text-[var(--notes-sidebar-text-soft)]',
     divider: 'border-[var(--notes-sidebar-menu-border)]',
     inputText: 'text-[var(--notes-sidebar-text)]',
     inputPlaceholder: 'placeholder:text-[var(--notes-sidebar-text-soft)]',
     settingsButton: 'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]',
-    optionHover: 'hover:bg-[var(--notes-sidebar-row-hover)]',
-    optionActive: 'bg-[var(--notes-sidebar-row-active)]',
-    optionFocused: 'bg-[var(--notes-sidebar-row-hover)]',
+    categoryHover: 'hover:bg-[var(--notes-sidebar-row-hover)]',
     optionText: 'text-[var(--notes-sidebar-text)]',
     optionTextActive: 'text-[var(--sidebar-row-selected-text)]',
-    checkIcon: 'text-[var(--sidebar-row-selected-text)]',
     emptyText: 'text-[var(--notes-sidebar-text-soft)]',
   },
 }
@@ -119,6 +111,7 @@ const ModelOption = memo(({
     showFamilyIcon: boolean;
 }) => {
     const styles = MODEL_SELECTOR_THEME_STYLES[theme]
+    const sidebarTone: SidebarTone = theme
     const displayName = getModelDisplayName(model)
     const family = getModelFamily(model)
 
@@ -130,13 +123,13 @@ const ModelOption = memo(({
             onClick={() => onSelect(model.id)}
             onMouseEnter={() => onHover(model.id)}
             className={cn(
-                "flex w-max min-w-full cursor-pointer items-center justify-between px-3 py-2 rounded-md text-left transition-colors duration-75",
+                "flex w-max min-w-full cursor-pointer items-center justify-between px-3 py-2 text-left transition-colors duration-75",
                 "group/model-option",
                 isSelected
-                  ? styles.optionActive
+                  ? getSidebarSelectedRowSurfaceClass(sidebarTone)
                   : isFocused
-                    ? styles.optionFocused
-                    : cn("bg-transparent", styles.optionHover)
+                    ? getSidebarPreviewRowSurfaceClass(sidebarTone)
+                    : getSidebarIdleRowSurfaceClass(sidebarTone)
             )}
         >
             <span className="flex min-w-0 items-center text-left">
@@ -188,15 +181,6 @@ const ModelOption = memo(({
                         className={model.pinned ? "fill-current" : undefined}
                     />
                 </button>
-
-                <Icon
-                    name="common.check"
-                    size="md"
-                    className={cn(
-                        "flex-shrink-0",
-                        isSelected ? styles.checkIcon : "opacity-0"
-                    )}
-                />
             </span>
         </div>
     );
@@ -663,10 +647,8 @@ export function ModelSelector({
             dropdownAlign === 'left' ? "left-0" : "right-0",
             isEmbedded ? "w-[23rem]" : "w-[27rem]",
             "max-w-[calc(100vw-24px)]",
-            "rounded-2xl shadow-xl",
-            "border",
-            styles.panelSurface,
-            styles.panelBorder,
+            "rounded-[26px]",
+            chatComposerPillSurfaceClass,
             "backdrop-blur-lg z-50 overflow-hidden flex flex-col",
             "animate-in fade-in duration-75 zoom-in-95" 
           )}
@@ -702,7 +684,11 @@ export function ModelSelector({
           </div>
 
           <div className="flex min-h-0 flex-1" style={{ height: 'min(386px, calc(100vh - 170px))' }}>
-            <div className={cn("w-16 flex-shrink-0 overflow-y-auto overflow-x-hidden border-r p-1.5 vlaina-scrollbar", styles.divider)}>
+            <OverlayScrollArea
+              scrollbarVariant="compact"
+              className={cn("w-16 flex-none border-r", styles.divider)}
+              viewportClassName="p-1.5"
+            >
               <div className="flex w-full flex-col items-center gap-1">
                 {modelCategories.map((category, index) => {
                   const isActive = visibleActiveCategoryId === category.id;
@@ -724,7 +710,7 @@ export function ModelSelector({
                           "relative flex h-12 w-12 cursor-pointer items-center justify-center transition-[background-color,box-shadow] duration-150",
                           isActive
                             ? "rounded-2xl bg-[#fcfcfc] shadow-md"
-                            : cn("rounded-2xl bg-transparent", styles.optionHover)
+                            : cn("rounded-2xl bg-transparent", styles.categoryHover)
                         )}
                       >
                         {category.kind === 'favorites' ? (
@@ -753,12 +739,14 @@ export function ModelSelector({
                   )
                 })}
               </div>
-            </div>
+            </OverlayScrollArea>
 
-            <div
+            <OverlayScrollArea
               ref={listRef}
               onMouseLeave={handleListMouseLeave}
-              className="min-w-0 flex-1 overflow-auto p-1 vlaina-scrollbar"
+              scrollbarVariant="compact"
+              className="min-w-0 flex-1"
+              viewportClassName="p-1"
             >
               {listRows.length === 0 ? (
                 <div className={cn("py-8 text-center text-xs", styles.emptyText)}>
@@ -814,7 +802,7 @@ export function ModelSelector({
                   })}
                 </div>
               )}
-            </div>
+            </OverlayScrollArea>
           </div>
         </div>
       )}

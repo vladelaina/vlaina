@@ -7,6 +7,7 @@ import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { hasUserMessage } from '@/lib/ai/temporaryChat';
 import { useAutoTitle } from '@/hooks/useAutoTitle';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 interface TemporaryChatToggleProps {
   readOnly?: boolean;
@@ -97,12 +98,13 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
           className={cn(
             'relative flex items-center justify-center w-7 h-7 rounded-md transition-colors',
             iconButtonStyles,
+            !isPromoteMode && cn(chatComposerPillSurfaceClass, 'rounded-full'),
             isPromoteMode
-              ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-200 dark:hover:bg-emerald-500/20 dark:hover:text-emerald-200'
+              ? 'bg-transparent text-[#41a8ea] hover:bg-transparent hover:text-[#41a8ea] dark:bg-transparent dark:text-[#41a8ea] dark:hover:bg-transparent dark:hover:text-[#41a8ea]'
               :
             temporaryChatEnabled
-              ? 'bg-[#ecf6ff] text-[#41a8ea] hover:bg-[#e1f1ff] hover:text-[#41a8ea] dark:bg-[#ecf6ff] dark:text-[#41a8ea] dark:hover:bg-[#e1f1ff]'
-              : 'text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)] hover:text-[var(--chat-sidebar-text)] dark:hover:bg-white/10',
+              ? 'text-[#41a8ea] hover:text-[#41a8ea] dark:text-[#41a8ea]'
+              : 'text-[var(--chat-sidebar-text)] hover:bg-transparent hover:text-[#41a8ea] dark:hover:bg-transparent',
             isDisabled && 'cursor-default pointer-events-none opacity-95'
           )}
         >
@@ -112,11 +114,22 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
           />
         </button>
       </TooltipTrigger>
-      <TooltipContent side="bottom" sideOffset={2} className="flex items-center gap-1.5 text-xs">
+      <TooltipContent
+        side="bottom"
+        sideOffset={6}
+        showArrow={false}
+        className={cn(
+          "flex items-center gap-1.5 rounded-[18px] px-3 py-2 text-xs text-[var(--chat-sidebar-text)]",
+          chatComposerPillSurfaceClass
+        )}
+      >
         {isPromoteMode ? (
           <span>Save as regular chat</span>
         ) : (
-          <ShortcutKeys keys={['Ctrl', 'Shift', 'J']} />
+          <ShortcutKeys
+            keys={['Ctrl', 'Shift', 'J']}
+            keyClassName="rounded-md bg-[var(--chat-sidebar-row-hover)] text-[var(--chat-sidebar-text)]"
+          />
         )}
       </TooltipContent>
     </Tooltip>

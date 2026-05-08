@@ -1,3 +1,5 @@
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+
 export interface SidebarMenuPosition {
   top: number;
   left: number;
@@ -10,7 +12,7 @@ export const SIDEBAR_SCROLL_ROOT_SELECTOR =
 export const MENU_LAYER_SELECTOR =
   '[data-sidebar-context-menu-layer="true"], [data-notes-sidebar-context-menu-layer="true"]';
 export const MENU_PANEL_CLASS_NAME =
-  'min-w-[180px] overflow-y-auto rounded-2xl border border-[var(--notes-sidebar-menu-border)] bg-[var(--notes-sidebar-menu-bg)] p-1.5 shadow-[var(--notes-sidebar-menu-shadow)]';
+  `min-w-[180px] overflow-y-auto rounded-[22px] p-1.5 ${chatComposerPillSurfaceClass}`;
 
 export function clampToViewport(
   position: SidebarMenuPosition,
