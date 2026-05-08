@@ -12,6 +12,7 @@ export interface AssetGridProps {
   onSelect: (assetPath: string) => void;
   onHover?: (assetPath: string | null) => void;
   vaultPath: string;
+  currentNotePath?: string;
   compact?: boolean;
   itemSize?: number;
   category?: 'builtinCovers';

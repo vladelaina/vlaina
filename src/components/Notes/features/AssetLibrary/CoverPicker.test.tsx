@@ -1,12 +1,12 @@
 import type { ReactNode } from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CoverPicker } from './CoverPicker';
 
 const hoisted = vi.hoisted(() => ({
   loadAssets: vi.fn(),
   uploadAsset: vi.fn(),
-  assetList: [],
+  assetList: [] as Array<{ filename: string }>,
 }));
 
 vi.mock('@/stores/notes/useNotesStore', () => ({
@@ -41,7 +41,16 @@ vi.mock('@/components/ui/popover', () => ({
 }));
 
 vi.mock('./AssetGrid', () => ({
-  AssetGrid: () => <div data-testid="asset-grid" />,
+  AssetGrid: ({ onHover }: { onHover?: (assetPath: string | null) => void }) => (
+    <div data-testid="asset-grid">
+      <button type="button" onMouseEnter={() => onHover?.('a.png')}>
+        hover a
+      </button>
+      <button type="button" onMouseEnter={() => onHover?.('b.png')}>
+        hover b
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock('./UploadZone', () => ({
@@ -89,5 +98,63 @@ describe('CoverPicker', () => {
     expect(onPreview).toHaveBeenCalledWith(null);
     expect(onRemove).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('debounces cover previews while moving across library items', () => {
+    vi.useFakeTimers();
+    hoisted.assetList = [{ filename: 'a.png' }];
+    const onPreview = vi.fn();
+
+    render(
+      <CoverPicker
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        onPreview={onPreview}
+        vaultPath="/vault"
+        currentNotePath="note.md"
+      />,
+    );
+
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'hover a' }));
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'hover b' }));
+    act(() => {
+      vi.advanceTimersByTime(180);
+    });
+
+    expect(onPreview).toHaveBeenCalledTimes(1);
+    expect(onPreview).toHaveBeenCalledWith('b.png');
+    vi.useRealTimers();
+  });
+
+  it('reloads assets when the current note changes while the picker is open', () => {
+    hoisted.assetList = [{ filename: 'a.png' }];
+
+    const { rerender } = render(
+      <CoverPicker
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        vaultPath="/vault"
+        currentNotePath="one.md"
+      />,
+    );
+
+    rerender(
+      <CoverPicker
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        vaultPath="/vault"
+        currentNotePath="nested/two.md"
+      />,
+    );
+
+    expect(hoisted.loadAssets).toHaveBeenCalledTimes(2);
+    expect(hoisted.loadAssets).toHaveBeenNthCalledWith(1, '/vault');
+    expect(hoisted.loadAssets).toHaveBeenNthCalledWith(2, '/vault');
   });
 });

@@ -3,7 +3,9 @@ import { getStorageAdapter } from '@/lib/storage/adapter';
 import { getMimeType, isImageFilename } from '../core/naming';
 
 const MAX_CACHE_SIZE = 500;
+const MAX_THUMBNAIL_CACHE_SIZE = 300;
 const MAX_LOCAL_IMAGE_BYTES = 50 * 1024 * 1024;
+const THUMBNAIL_MAX_EDGE_PX = 160;
 
 interface BlobUrlCacheEntry {
   url: string;
@@ -12,16 +14,27 @@ interface BlobUrlCacheEntry {
 }
 
 const blobUrlCache = new Map<string, BlobUrlCacheEntry>();
+const thumbnailBlobUrlCache = new Map<string, BlobUrlCacheEntry>();
+const blobUrlLoadPromises = new Map<string, Promise<string>>();
+const thumbnailBlobUrlLoadPromises = new Map<string, Promise<string>>();
 
-function touchBlobUrlCacheEntry(fullPath: string, entry: BlobUrlCacheEntry) {
-  blobUrlCache.delete(fullPath);
-  blobUrlCache.set(fullPath, entry);
+function touchBlobUrlCacheEntry(cache: Map<string, BlobUrlCacheEntry>, key: string, entry: BlobUrlCacheEntry) {
+  cache.delete(key);
+  cache.set(key, entry);
 }
 
 function revokeBlobUrlCacheEntry(entry: BlobUrlCacheEntry | undefined) {
   if (entry) {
     URL.revokeObjectURL(entry.url);
   }
+}
+
+function getImageCacheKey(fullPath: string, modifiedAt: number | null, size: number | null) {
+  return `${fullPath}::${modifiedAt ?? 'm'}::${size ?? 's'}`;
+}
+
+function getUnvalidatedImageCacheKey(fullPath: string) {
+  return `${fullPath}::unvalidated`;
 }
 
 function assertPreviewableImagePath(fullPath: string): void {
@@ -54,6 +67,57 @@ function prepareImageBytes(fullPath: string, data: Uint8Array): Uint8Array {
   return isSvgImagePath(fullPath) ? sanitizeSvgBytes(copy) : copy;
 }
 
+function loadImageElement(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Failed to decode image'));
+    image.src = src;
+  });
+}
+
+async function createThumbnailBlobUrl(fullPath: string, bytes: Uint8Array, mimeType: string): Promise<string> {
+  if (isSvgImagePath(fullPath)) {
+    const blob = new Blob([prepareImageBytes(fullPath, bytes)], { type: mimeType });
+    return URL.createObjectURL(blob);
+  }
+
+  const sourceBlob = new Blob([bytes], { type: mimeType });
+  const sourceUrl = URL.createObjectURL(sourceBlob);
+
+  try {
+    const image = await loadImageElement(sourceUrl);
+    const scale = Math.min(
+      1,
+      THUMBNAIL_MAX_EDGE_PX / Math.max(image.naturalWidth || 1, image.naturalHeight || 1),
+    );
+    const width = Math.max(1, Math.round((image.naturalWidth || 1) * scale));
+    const height = Math.max(1, Math.round((image.naturalHeight || 1) * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d', { alpha: true });
+    if (!context) {
+      throw new Error('Canvas is unavailable');
+    }
+    context.drawImage(image, 0, 0, width, height);
+
+    const thumbnailBlob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error('Failed to create thumbnail'));
+        }
+      }, 'image/webp', 0.82);
+    });
+
+    return URL.createObjectURL(thumbnailBlob);
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
+}
+
 export async function loadImageAsBlob(fullPath: string): Promise<string> {
   assertPreviewableImagePath(fullPath);
 
@@ -64,8 +128,8 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
   assertPreviewableImageSize(size);
   const canValidateCache = modifiedAt !== null || size !== null;
   const cached = blobUrlCache.get(fullPath);
-  if (cached && canValidateCache && cached.modifiedAt === modifiedAt && cached.size === size) {
-    touchBlobUrlCacheEntry(fullPath, cached);
+  if (cached && (!canValidateCache || (cached.modifiedAt === modifiedAt && cached.size === size))) {
+    touchBlobUrlCacheEntry(blobUrlCache, fullPath, cached);
     return cached.url;
   }
 
@@ -74,7 +138,15 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
     blobUrlCache.delete(fullPath);
   }
 
-  try {
+  const loadKey = canValidateCache
+    ? getImageCacheKey(fullPath, modifiedAt, size)
+    : getUnvalidatedImageCacheKey(fullPath);
+  const existingLoad = blobUrlLoadPromises.get(loadKey);
+  if (existingLoad) {
+    return existingLoad;
+  }
+
+  const loadPromise = (async () => {
     const data = await storage.readBinaryFile(fullPath);
     assertPreviewableImageSize(data.byteLength);
     const mimeType = getMimeType(fullPath);
@@ -98,9 +170,77 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
     });
 
     return blobUrl;
+  })();
+
+  blobUrlLoadPromises.set(loadKey, loadPromise);
+  try {
+    return await loadPromise;
   } catch (error) {
     console.error('Failed to load image:', fullPath, error);
     throw error;
+  } finally {
+    if (blobUrlLoadPromises.get(loadKey) === loadPromise) {
+      blobUrlLoadPromises.delete(loadKey);
+    }
+  }
+}
+
+export async function loadImageThumbnailAsBlob(fullPath: string): Promise<string> {
+  assertPreviewableImagePath(fullPath);
+
+  const storage = getStorageAdapter();
+  const fileInfo = await storage.stat(fullPath).catch(() => null);
+  const modifiedAt = fileInfo?.modifiedAt ?? null;
+  const size = fileInfo?.size ?? null;
+  assertPreviewableImageSize(size);
+  const canValidateCache = modifiedAt !== null || size !== null;
+  const cacheKey = canValidateCache
+    ? getImageCacheKey(fullPath, modifiedAt, size)
+    : getUnvalidatedImageCacheKey(fullPath);
+  const cached = thumbnailBlobUrlCache.get(cacheKey);
+  if (cached) {
+    touchBlobUrlCacheEntry(thumbnailBlobUrlCache, cacheKey, cached);
+    return cached.url;
+  }
+
+  const existingLoad = thumbnailBlobUrlLoadPromises.get(cacheKey);
+  if (existingLoad) {
+    return existingLoad;
+  }
+
+  const loadPromise = (async () => {
+    const data = await storage.readBinaryFile(fullPath);
+    assertPreviewableImageSize(data.byteLength);
+    const mimeType = getMimeType(fullPath);
+    const blobUrl = await createThumbnailBlobUrl(fullPath, prepareImageBytes(fullPath, data), mimeType);
+
+    if (thumbnailBlobUrlCache.size >= MAX_THUMBNAIL_CACHE_SIZE) {
+      const oldestKey = thumbnailBlobUrlCache.keys().next().value;
+      if (oldestKey) {
+        revokeBlobUrlCacheEntry(thumbnailBlobUrlCache.get(oldestKey));
+        thumbnailBlobUrlCache.delete(oldestKey);
+      }
+    }
+
+    thumbnailBlobUrlCache.set(cacheKey, {
+      url: blobUrl,
+      modifiedAt,
+      size,
+    });
+
+    return blobUrl;
+  })();
+
+  thumbnailBlobUrlLoadPromises.set(cacheKey, loadPromise);
+  try {
+    return await loadPromise;
+  } catch (error) {
+    console.error('Failed to load image thumbnail:', fullPath, error);
+    return loadImageAsBlob(fullPath);
+  } finally {
+    if (thumbnailBlobUrlLoadPromises.get(cacheKey) === loadPromise) {
+      thumbnailBlobUrlLoadPromises.delete(cacheKey);
+    }
   }
 }
 
@@ -147,6 +287,13 @@ export function revokeImageBlob(fullPath: string): void {
     revokeBlobUrlCacheEntry(cached);
     blobUrlCache.delete(fullPath);
   }
+
+  for (const [cacheKey, entry] of thumbnailBlobUrlCache.entries()) {
+    if (cacheKey === fullPath || cacheKey.startsWith(`${fullPath}::`)) {
+      revokeBlobUrlCacheEntry(entry);
+      thumbnailBlobUrlCache.delete(cacheKey);
+    }
+  }
 }
 
 export function invalidateImageCache(fullPath: string): void {
@@ -158,13 +305,19 @@ export function clearImageCache(): void {
     revokeBlobUrlCacheEntry(entry);
   }
   blobUrlCache.clear();
+  for (const entry of thumbnailBlobUrlCache.values()) {
+    revokeBlobUrlCacheEntry(entry);
+  }
+  thumbnailBlobUrlCache.clear();
+  blobUrlLoadPromises.clear();
+  thumbnailBlobUrlLoadPromises.clear();
 }
 
 export function getCachedBlobUrl(fullPath: string): string | undefined {
   const cached = blobUrlCache.get(fullPath);
   
   if (cached) {
-    touchBlobUrlCacheEntry(fullPath, cached);
+    touchBlobUrlCacheEntry(blobUrlCache, fullPath, cached);
   }
   return cached?.url;
 }

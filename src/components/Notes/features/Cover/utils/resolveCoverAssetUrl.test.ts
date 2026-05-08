@@ -3,6 +3,7 @@ import { resolveCoverAssetUrl } from './resolveCoverAssetUrl';
 
 const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
+  loadImageThumbnailAsBlob: vi.fn(),
   resolveExistingVaultAssetPath: vi.fn(),
   isBuiltinCover: vi.fn(),
   getBuiltinCoverUrl: vi.fn(),
@@ -10,6 +11,7 @@ const hoisted = vi.hoisted(() => ({
 
 vi.mock('@/lib/assets/io/reader', () => ({
   loadImageAsBlob: hoisted.loadImageAsBlob,
+  loadImageThumbnailAsBlob: hoisted.loadImageThumbnailAsBlob,
 }));
 
 vi.mock('@/lib/assets/core/paths', () => ({
@@ -24,6 +26,7 @@ vi.mock('@/lib/assets/builtinCovers', () => ({
 describe('resolveCoverAssetUrl', () => {
   beforeEach(() => {
     hoisted.loadImageAsBlob.mockReset();
+    hoisted.loadImageThumbnailAsBlob.mockReset();
     hoisted.resolveExistingVaultAssetPath.mockReset();
     hoisted.isBuiltinCover.mockReset();
     hoisted.getBuiltinCoverUrl.mockReset();
@@ -104,6 +107,21 @@ describe('resolveCoverAssetUrl', () => {
     expect(hoisted.resolveExistingVaultAssetPath).toHaveBeenCalledWith('/vault-a', './assets/cover.webp', 'notes/today.md');
   });
 
+  it('resolves local cover thumbnails without loading the full image blob', async () => {
+    hoisted.resolveExistingVaultAssetPath.mockResolvedValue('/vault/assets/a.webp');
+    hoisted.loadImageThumbnailAsBlob.mockResolvedValue('blob:thumb-a');
+
+    const url = await resolveCoverAssetUrl({
+      assetPath: 'assets/a.webp',
+      vaultPath: '/vault-a',
+      thumbnail: true,
+    });
+
+    expect(url).toBe('blob:thumb-a');
+    expect(hoisted.loadImageThumbnailAsBlob).toHaveBeenCalledWith('/vault/assets/a.webp');
+    expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+  });
+
   it('throws when local asset requires vault path', async () => {
     await expect(resolveCoverAssetUrl({
       assetPath: 'assets/a.webp',
@@ -120,5 +138,6 @@ describe('resolveCoverAssetUrl', () => {
     })).rejects.toThrow('cover-path-unsupported');
 
     expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+    expect(hoisted.loadImageThumbnailAsBlob).not.toHaveBeenCalled();
   });
 });

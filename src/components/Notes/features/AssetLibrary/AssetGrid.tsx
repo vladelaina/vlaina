@@ -1,10 +1,8 @@
-import { useEffect, useCallback, useMemo, useState } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { cn } from '@/lib/utils';
-import { DeletableItem } from '@/components/ui/deletable-item';
 import { AssetGridProps } from './types';
-import { isBuiltinCover } from '@/lib/assets/builtinCovers';
 import { AssetThumbnail } from './components/AssetThumbnail';
 import { useAssetHover } from './hooks/useAssetHover';
 
@@ -14,10 +12,8 @@ const COMPACT_ITEM_SIZE_PX = 60;
 const REGULAR_ITEM_SIZE_PX = 104;
 const GRID_MAX_HEIGHT_PX = 280;
 
-export function AssetGrid({ onSelect, onHover, vaultPath, compact, itemSize, category }: AssetGridProps) {
+export function AssetGrid({ onSelect, onHover, vaultPath, currentNotePath, compact, itemSize, category }: AssetGridProps) {
   const getAssetList = useNotesStore((state) => state.getAssetList);
-  const deleteAsset = useNotesStore((state) => state.deleteAsset);
-  const loadAssets = useNotesStore((state) => state.loadAssets);
   const { hoveredFilename, gridRef } = useAssetHover(onHover);
   const [containerWidth, setContainerWidth] = useState(0);
 
@@ -42,15 +38,9 @@ export function AssetGrid({ onSelect, onHover, vaultPath, compact, itemSize, cat
     count: rowCount,
     getScrollElement: () => gridRef.current,
     estimateSize: () => resolvedItemSize + GRID_GAP_PX,
-    overscan: 3,
+    overscan: 1,
   });
   const virtualRows = virtualizer.getVirtualItems();
-
-  useEffect(() => {
-    if (vaultPath) {
-      loadAssets(vaultPath);
-    }
-  }, [vaultPath, loadAssets]);
 
   useEffect(() => {
     const grid = gridRef.current;
@@ -87,15 +77,6 @@ export function AssetGrid({ onSelect, onHover, vaultPath, compact, itemSize, cat
     onSelect(filename);
   }, [onSelect]);
 
-  const rows = useMemo(
-    () =>
-      Array.from({ length: rowCount }, (_, rowIndex) => {
-        const start = rowIndex * columnCount;
-        return assets.slice(start, start + columnCount);
-      }),
-    [assets, columnCount, rowCount],
-  );
-
   if (assets.length === 0 || rowCount === 0) {
     return null;
   }
@@ -114,7 +95,8 @@ export function AssetGrid({ onSelect, onHover, vaultPath, compact, itemSize, cat
         }}
       >
         {virtualRows.map((virtualRow) => {
-          const rowAssets = rows[virtualRow.index];
+          const start = virtualRow.index * columnCount;
+          const rowAssets = assets.slice(start, start + columnCount);
           if (!rowAssets || rowAssets.length === 0) {
             return null;
           }
@@ -134,21 +116,15 @@ export function AssetGrid({ onSelect, onHover, vaultPath, compact, itemSize, cat
                   width: `${resolvedItemSize}px`,
                 }}
               >
-                <DeletableItem
-                  id={asset.filename}
-                  onDelete={(id) => deleteAsset(id)}
-                  className="relative h-full w-full rounded-lg overflow-hidden"
-                  disabled={isBuiltinCover(asset.filename)}
-                >
-                  <AssetThumbnail
-                    filename={asset.filename}
-                    size={asset.size}
-                    vaultPath={vaultPath}
-                    onSelect={() => handleSelect(asset.filename)}
-                    isHovered={hoveredFilename === asset.filename}
-                    compact={compact}
-                  />
-                </DeletableItem>
+                <AssetThumbnail
+                  filename={asset.filename}
+                  size={asset.size}
+                  vaultPath={vaultPath}
+                  currentNotePath={currentNotePath}
+                  onSelect={() => handleSelect(asset.filename)}
+                  isHovered={hoveredFilename === asset.filename}
+                  compact={compact}
+                />
               </div>
             );
           });

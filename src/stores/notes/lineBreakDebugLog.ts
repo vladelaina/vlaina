@@ -121,6 +121,14 @@ export function logNotesDebug(label: string, scope: string, payload?: unknown) {
     return;
   }
 
+  appendNotesDebugEntry(label, scope, payload);
+}
+
+export function logNotesDebugAlways(label: string, scope: string, payload?: unknown) {
+  appendNotesDebugEntry(label, scope, payload);
+}
+
+function appendNotesDebugEntry(label: string, scope: string, payload?: unknown) {
   notesDebugEntries.push({
     timestamp: new Date().toISOString(),
     label,
@@ -132,7 +140,9 @@ export function logNotesDebug(label: string, scope: string, payload?: unknown) {
     notesDebugEntries.splice(0, notesDebugEntries.length - MAX_NOTES_DEBUG_ENTRIES);
   }
 
-  console.debug(`[${label}]`, scope, payload ?? '');
+  if (isNotesDebugLoggingEnabled()) {
+    console.debug(`[${label}]`, scope, payload ?? '');
+  }
 }
 
 export function logLineBreakDebug(scope: string, payload?: unknown) {
