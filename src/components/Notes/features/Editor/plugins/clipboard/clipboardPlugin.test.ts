@@ -240,6 +240,113 @@ describe('clipboardPlugin paste', () => {
         await editor.destroy();
     });
 
+    it('keeps a pasted ordered list separate after an inline-code paragraph', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, [
+            '`mindmap支持是否完整`',
+            '3. 表格看看是否需要调整大小',
+            '4. ',
+            '5. 斜杠工具栏',
+            '6. 文件的拖入star',
+        ].join('\n'))).toBe(true);
+
+        expect(view.state.doc.childCount).toBe(2);
+        expect(view.state.doc.child(0).type.name).toBe('paragraph');
+        expect(view.state.doc.child(0).textContent).toBe('mindmap支持是否完整');
+
+        const list = view.state.doc.child(1);
+        expect(list.type.name).toBe('ordered_list');
+        expect(list.attrs).toMatchObject({ order: 3 });
+        expect(list.childCount).toBe(4);
+        expect(list.child(0).textContent).toBe('表格看看是否需要调整大小');
+        expect(list.child(1).textContent).toBe('');
+        expect(list.child(2).textContent).toBe('斜杠工具栏');
+        expect(list.child(3).textContent).toBe('文件的拖入star');
+
+        await editor.destroy();
+    });
+
+    it('keeps the ordered-list tail separate in a realistic pasted Chinese task note', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, [
+            '# 3',
+            '',
+            '1输入不要固定的高度，',
+            '',
+            ' 测试yt那些',
+            '',
+            '1. 输入反斜杠东西出来的有点慢',
+            '',
+            '1. 右键单击图表，将其另存为本地磁盘上的 SVG、PNG 或 JPG 文件。',
+            '2. 不同的主题',
+            '',
+            '1. 表格的渲染太慢了，打开的时候可以看到loadign',
+            '2. 检查对',
+            '',
+            '`mindmap支持是否完整`',
+            '3. 表格看看是否需要调整大小',
+            '4. ',
+            '5. 斜杠工具栏',
+            '6. 文件的拖入star',
+            '7. todo之后就是会换行',
+            '8. 从外部拖动文件进来，就是变成和我们一样的拖动文件的样式',
+            '9. 给所有的换图标',
+            '10. 这个md的解析和使用直接诶是乱套了',
+            '11. 这个merger表格根本用不了',
+            '    1. 在他下面弄个反斜杠直接消失了',
+            '12. 自动生成的目录部分的高度需要调整',
+            '13. 角注需要处理',
+            '14. 链接到其他文件',
+            '15. 少了直接创建mermed',
+            '16. html语法的支持情况',
+            '17. 那个图表的话就是记得有主题的lobchat有',
+            '18. 在两个公式或图标中怎么插入空行',
+            '    1. 然后箭头的移动应该选中',
+        ].join('\n'))).toBe(true);
+
+        let mindmapIndex = -1;
+        for (let index = 0; index < view.state.doc.childCount; index += 1) {
+            if (view.state.doc.child(index).textContent === 'mindmap支持是否完整') {
+                mindmapIndex = index;
+                break;
+            }
+        }
+
+        expect(mindmapIndex).toBeGreaterThanOrEqual(0);
+        expect(view.state.doc.child(mindmapIndex).type.name).toBe('paragraph');
+
+        const list = view.state.doc.child(mindmapIndex + 1);
+        expect(list.type.name).toBe('ordered_list');
+        expect(list.attrs).toMatchObject({ order: 3 });
+        expect(list.childCount).toBe(16);
+        expect(list.textContent).toContain('表格看看是否需要调整大小');
+        expect(list.textContent).toContain('然后箭头的移动应该选中');
+        expect(list.child(8).textContent).toContain('在他下面弄个反斜杠直接消失了');
+        expect(list.child(9).textContent).toBe('自动生成的目录部分的高度需要调整');
+
+        await editor.destroy();
+    });
+
     it('replaces a temporary tail empty line with structural markdown paste', async () => {
         const editor = Editor.make()
             .config((ctx) => {

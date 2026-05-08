@@ -16,6 +16,7 @@ import { isTocShortcutText } from '../toc/tocShortcut';
 import {
     extractLargestMarkdownFenceContent,
     looksLikeMarkdownForPaste,
+    normalizeInterruptedOrderedListsForPaste,
     normalizeStandaloneThematicBreaksForPaste,
     parseStandaloneAtxHeading,
     parseStandaloneFencedCodeBlock,
@@ -100,14 +101,12 @@ export const clipboardPlugin = $prose((ctx) => {
         if (!parser) return null;
 
         let parsedDoc: ProseNode;
+        const withFrontmatter = normalizeLeadingFrontmatterMarkdown(text);
+        const withInterruptedLists = normalizeInterruptedOrderedListsForPaste(withFrontmatter);
+        const withThematicBreaks = normalizeStandaloneThematicBreaksForPaste(withInterruptedLists);
+        const editorInput = preserveMarkdownBlankLinesForEditor(withThematicBreaks);
         try {
-            parsedDoc = parser(
-                preserveMarkdownBlankLinesForEditor(
-                    normalizeStandaloneThematicBreaksForPaste(
-                        normalizeLeadingFrontmatterMarkdown(text)
-                    )
-                )
-            );
+            parsedDoc = parser(editorInput);
         } catch {
             return null;
         }

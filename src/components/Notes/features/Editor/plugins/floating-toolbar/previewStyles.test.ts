@@ -541,6 +541,9 @@ describe('previewStyles', () => {
     const sourceVideo = view.dom.querySelector<HTMLElement>('[data-type="video"]');
     expect(sourceVideo).toBeInstanceOf(HTMLElement);
     sourceVideo?.setAttribute('data-preserve-probe', 'video');
+    const sourceVideoElement = document.createElement('video');
+    sourceVideoElement.src = 'https://example.com/video.mp4';
+    sourceVideo?.appendChild(sourceVideoElement);
     selectText(view, 'format');
 
     applyFormatPreview(view, 'bold');
@@ -567,7 +570,11 @@ describe('previewStyles', () => {
     expect(videoNode).toBeTruthy();
     view.dispatch(view.state.tr.insert(0, videoNode!));
 
-    const sourceIframe = view.dom.querySelector<HTMLIFrameElement>('[data-type="video"] iframe');
+    const sourceVideo = view.dom.querySelector<HTMLElement>('[data-type="video"]');
+    expect(sourceVideo).toBeInstanceOf(HTMLElement);
+    const sourceIframe = document.createElement('iframe');
+    sourceIframe.src = 'https://www.youtube.com/embed/dQw4w9WgXcQ';
+    sourceVideo?.appendChild(sourceIframe);
     expect(sourceIframe?.getAttribute('src')).toBeTruthy();
     selectText(view, 'format');
 
