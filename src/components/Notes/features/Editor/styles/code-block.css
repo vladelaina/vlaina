@@ -127,3 +127,9 @@
   border-radius: 1rem;
   box-shadow: none;
 }
+
+.milkdown .ProseMirror li.vlaina-block-selected .code-block-container {
+  background: color-mix(in srgb, var(--vlaina-code-block-background, #f5f5f5) 86%, transparent);
+  background-color: color-mix(in srgb, var(--vlaina-code-block-background, #f5f5f5) 86%, transparent);
+  transition: none;
+}
