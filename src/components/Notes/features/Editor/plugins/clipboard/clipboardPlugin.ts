@@ -8,6 +8,7 @@ import { preserveMarkdownBlankLinesForEditor } from '@/lib/notes/markdown/markdo
 import { collapseSelectionAndHideFloatingToolbar } from './copyCleanup';
 import { sanitizeHtml } from './sanitizer';
 import { serializeSelectionToClipboardText } from './selectionSerialization';
+import { normalizeCodeBlockLanguage } from '../code/codeBlockLanguage';
 import { createCodeBlockAttrs } from '../code/codeBlockSettings';
 import { normalizeLeadingFrontmatterMarkdown } from '../frontmatter/frontmatterMarkdown';
 import { normalizeMermaidFenceCode } from '../mermaid/mermaidFenceCode';
@@ -206,7 +207,9 @@ export const clipboardPlugin = $prose((ctx) => {
                     if (!codeBlockType) return false;
 
                     const attrs = createCodeBlockAttrs({
-                        language: codeBlockType.spec.attrs?.language ? fencedPayload.language : null,
+                        language: codeBlockType.spec.attrs?.language
+                            ? normalizeCodeBlockLanguage(fencedPayload.language)
+                            : null,
                     });
 
                     const codeTextNode = fencedPayload.code ? state.schema.text(fencedPayload.code) : null;
