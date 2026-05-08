@@ -93,14 +93,14 @@ function ChannelObject({
     >
       <div className="block w-full px-4 pb-3 pt-4 text-left">
         <div className="min-w-0 pr-7">
-          <div className="truncate text-[14px] font-semibold text-zinc-950 dark:text-zinc-100">{name}</div>
+          <div className="truncate text-[14px] font-semibold text-[var(--chat-sidebar-text)]">{name}</div>
         </div>
-        <div className="mt-1 line-clamp-1 pr-7 text-[12px] text-zinc-500 dark:text-zinc-400">
+        <div className="mt-1 line-clamp-1 pr-7 text-[12px] text-[var(--chat-sidebar-text-soft)]">
           {baseUrl ? formatChannelBaseUrl(baseUrl) : 'Not configured yet'}
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-4 pb-4 text-[11px] text-zinc-400 dark:text-zinc-500">
+      <div className="flex items-center justify-between px-4 pb-4 text-[11px] text-[var(--chat-sidebar-text-soft)]">
         <span>{modelCount} model{modelCount === 1 ? '' : 's'}</span>
         <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
           <SettingsSwitch
@@ -118,7 +118,7 @@ function ChannelObject({
           onDelete?.();
         }}
         aria-label={`Delete ${name}`}
-        className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full text-[15px] leading-none text-zinc-400 transition-colors hover:text-red-500"
+        className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full text-[15px] leading-none text-[var(--chat-sidebar-text-soft)] transition-colors hover:text-red-500"
       >
         ×
       </button>
@@ -132,7 +132,7 @@ function CreateChannelObject({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       aria-label="Create channel"
-      className="flex min-h-[112px] items-center justify-center rounded-[24px] border border-zinc-200/80 bg-white text-zinc-400 transition-colors hover:border-zinc-300 hover:bg-white dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-500 dark:hover:border-white/20 dark:hover:bg-white/[0.06]"
+      className="flex min-h-[112px] items-center justify-center rounded-[24px] border border-zinc-200/80 bg-white text-[var(--chat-sidebar-text-soft)] transition-colors hover:border-zinc-300 hover:bg-white dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-white/20 dark:hover:bg-white/[0.06]"
     >
       <div className="flex flex-col items-center">
         <div className="text-[28px] font-light leading-none">+</div>
@@ -300,7 +300,7 @@ export function AITab() {
   const hasCustomProviders = customProviders.length > 0;
 
   return (
-    <div className="h-full bg-white dark:bg-[#1E1E1E]">
+    <div className="h-full bg-[#fcfcfc] dark:bg-[#1E1E1E] text-[var(--chat-sidebar-text)]">
       <ConfirmDialog
         isOpen={!!pendingDelete}
         title={`Delete ${pendingDelete?.name || 'this channel'}?`}
@@ -317,7 +317,7 @@ export function AITab() {
 
         <section className="mx-auto max-w-5xl">
           <div className="mb-3 px-1">
-            <h3 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">
+            <h3 className="text-[15px] font-semibold text-[var(--chat-sidebar-text)]">
               Custom Channels
             </h3>
           </div>
@@ -375,7 +375,7 @@ export function AITab() {
                   onClick={handleAddCustomProvider}
                   aria-label="Create channel"
                   transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                  className="w-full rounded-[26px] border border-zinc-200/90 bg-zinc-50/40 px-6 py-8 text-left transition-colors duration-200 hover:border-zinc-300 hover:bg-zinc-50/60 dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-white/20 dark:hover:bg-white/[0.06]"
+                  className="w-full rounded-[26px] border border-zinc-200/90 bg-white/70 px-6 py-8 text-left transition-colors duration-200 hover:border-zinc-300 hover:bg-white dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-white/20 dark:hover:bg-white/[0.06]"
                 >
                   <div className="mx-auto flex w-fit flex-col items-center gap-3">
                     <div className="h-[10px] w-[128px] rounded-full bg-zinc-200/80 dark:bg-white/12" />

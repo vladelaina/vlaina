@@ -59,7 +59,7 @@ export function AppearanceTab() {
         description="Adjust the base font size for the application"
       >
         <div className="flex items-center gap-4">
- <Icon size="md" name="editor.type" className="text-zinc-400" />
+ <Icon size="md" name="editor.type" className="text-[var(--chat-sidebar-icon)]" />
           <input
             type="range"
             spellCheck={false}
@@ -70,14 +70,14 @@ export function AppearanceTab() {
             onChange={handleFontSizeChange}
             className="w-32 h-1 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[var(--sidebar-row-selected-text)]"
           />
-          <span className="w-8 text-sm font-medium text-right tabular-nums text-zinc-700 dark:text-zinc-300">
+          <span className="w-8 text-sm font-medium text-right tabular-nums text-[var(--chat-sidebar-text)]">
             {fontSize}px
           </span>
           <button
             type="button"
             onClick={resetFontSize}
             disabled={fontSize === DEFAULT_FONT_SIZE}
-            className="rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--sidebar-row-selected-text)] transition-colors hover:bg-[var(--sidebar-row-selected-bg)] disabled:pointer-events-none disabled:text-zinc-300 dark:hover:bg-[rgba(65,168,234,0.14)] dark:disabled:text-zinc-600"
+            className="rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--sidebar-row-selected-text)] transition-colors hover:bg-[var(--sidebar-row-selected-bg)] disabled:pointer-events-none disabled:text-[var(--chat-sidebar-text-soft)] disabled:opacity-45 dark:hover:bg-[rgba(65,168,234,0.14)]"
           >
             Reset
           </button>

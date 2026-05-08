@@ -51,10 +51,10 @@ export function ImagesTab() {
             <div className="space-y-3">
                 <SettingsSectionHeader>Images</SettingsSectionHeader>
                 <div className="flex items-baseline gap-2">
-                    <label className="text-[14px] font-medium text-[#111] dark:text-zinc-100">
+                    <label className="text-[14px] font-medium text-[var(--chat-sidebar-text)]">
                         Storage Location
                     </label>
-                    <code className="text-[12px] text-zinc-400 dark:text-zinc-500">
+                    <code className="text-[12px] text-[var(--chat-sidebar-text-soft)]">
                         {imageStorageMode === 'vault' && 'vault/image.png'}
                         {imageStorageMode === 'vaultSubfolder' && `vault/${imageVaultSubfolderName || 'assets'}/image.png`}
                         {imageStorageMode === 'currentFolder' && 'vault/notes/image.png'}
@@ -91,17 +91,17 @@ export function ImagesTab() {
 
                                 <Icon name={option.icon} className={cn(
                                     "size-[18px] flex-shrink-0 mt-0.5",
-                                    isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-zinc-400"
+                                    isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--chat-sidebar-icon)]"
                                 )} />
 
                                 <div className="flex-1 min-w-0">
                                     <div className={cn(
                                         "text-sm font-medium",
-                                        isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-zinc-700 dark:text-zinc-300"
+                                        isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--chat-sidebar-text)]"
                                     )}>
                                         {option.label}
                                     </div>
-                                    <div className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                    <div className="text-xs text-[var(--chat-sidebar-text-soft)] mt-0.5">
                                         {option.description}
                                     </div>
                                 </div>
@@ -113,7 +113,7 @@ export function ImagesTab() {
 
             {imageStorageMode === 'vaultSubfolder' && (
                 <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    <label className="text-sm font-medium text-[var(--chat-sidebar-text)]">
                         Folder Name
                     </label>
                     <SettingsTextInput
@@ -122,7 +122,7 @@ export function ImagesTab() {
                         onChange={(e) => setImageVaultSubfolderName(e.target.value)}
                         placeholder="assets"
                     />
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    <p className="text-xs text-[var(--chat-sidebar-text-soft)]">
                         Images will be saved to <code className="px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800">{imageVaultSubfolderName || 'assets'}/</code> in the vault root
                     </p>
                 </div>
@@ -130,7 +130,7 @@ export function ImagesTab() {
 
             {imageStorageMode === 'subfolder' && (
                 <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                    <label className="text-sm font-medium text-[var(--chat-sidebar-text)]">
                         Subfolder Name
                     </label>
                     <SettingsTextInput
@@ -139,13 +139,13 @@ export function ImagesTab() {
                         onChange={(e) => setImageSubfolderName(e.target.value)}
                         placeholder="assets"
                     />
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    <p className="text-xs text-[var(--chat-sidebar-text-soft)]">
                         Images will be saved to <code className="px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800">{imageSubfolderName || 'assets'}/</code> inside the current note's folder
                     </p>
                 </div>
             )}
             <div className="space-y-3 pt-5 border-t border-zinc-100 dark:border-white/5">
-                <label className="text-[14px] font-medium text-[#111] dark:text-zinc-100">
+                <label className="text-[14px] font-medium text-[var(--chat-sidebar-text)]">
                     Filename Format
                 </label>
                 <div className="space-y-2">
@@ -201,16 +201,16 @@ function FilenameFormatOption({ id, label, description, icon }: { id: 'original'
             </div>
             <Icon name={icon} className={cn(
                 "size-[18px] flex-shrink-0",
-                isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-zinc-400"
+                isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--chat-sidebar-icon)]"
             )} />
             <div className="flex-1 min-w-0">
                 <div className={cn(
                     "text-sm font-medium",
-                    isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-zinc-700 dark:text-zinc-300"
+                    isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--chat-sidebar-text)]"
                 )}>
                     {label}
                 </div>
-                <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                <div className="text-xs text-[var(--chat-sidebar-text-soft)]">
                     {description}
                 </div>
             </div>

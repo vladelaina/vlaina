@@ -25,7 +25,7 @@ export const SettingsTextInput = forwardRef<HTMLInputElement, SettingsTextInputP
           ref={ref}
           spellCheck={false}
           className={cn(
-            'block h-11 w-full rounded-2xl border-0 bg-transparent px-4 text-[14px] text-zinc-900 outline-none placeholder:text-zinc-400 focus:ring-0 dark:text-zinc-100 dark:placeholder:text-zinc-500',
+            'block h-11 w-full rounded-2xl border-0 bg-transparent px-4 text-[14px] text-[var(--chat-sidebar-text)] outline-none placeholder:text-[var(--chat-sidebar-text-soft)] focus:ring-0',
             leading && 'pl-11',
             trailing && 'pr-20',
             inputClassName
@@ -79,7 +79,7 @@ export const SettingsTextarea = forwardRef<HTMLTextAreaElement, SettingsTextarea
           onChange={onChange}
           spellCheck={false}
           className={cn(
-            'block w-full rounded-2xl border-0 bg-transparent px-4 py-3 text-[14px] leading-6 text-zinc-900 outline-none placeholder:text-zinc-400 focus:ring-0 dark:text-zinc-100 dark:placeholder:text-zinc-500',
+            'block w-full rounded-2xl border-0 bg-transparent px-4 py-3 text-[14px] leading-6 text-[var(--chat-sidebar-text)] outline-none placeholder:text-[var(--chat-sidebar-text-soft)] focus:ring-0',
             autoGrow && 'min-h-0 resize-none overflow-y-auto',
             textareaClassName
           )}

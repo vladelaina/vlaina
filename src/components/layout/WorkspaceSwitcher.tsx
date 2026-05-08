@@ -1,5 +1,4 @@
 import React, { useCallback } from 'react';
-import { Icon } from '@/components/ui/icons';
 import * as Popover from '@radix-ui/react-popover';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { useUserAvatar } from '@/hooks/useUserAvatar';
@@ -71,8 +70,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
           <button
             type="button"
             className={cn(
-              'vlaina-no-drag group relative flex size-8 cursor-pointer items-center justify-center overflow-visible rounded-[10px] bg-transparent text-[var(--vlaina-text-primary)] outline-none transition-opacity select-none hover:opacity-75',
-              isOpen && 'opacity-75'
+              'vlaina-no-drag group relative flex size-8 cursor-pointer items-center justify-center overflow-visible rounded-[10px] bg-transparent text-[var(--vlaina-text-primary)] outline-none select-none'
             )}
           >
             <span className="relative flex size-[26px] shrink-0 overflow-hidden rounded-[8px]">

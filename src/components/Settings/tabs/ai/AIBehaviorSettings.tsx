@@ -49,7 +49,7 @@ export function AIBehaviorSettings() {
   return (
     <section className="mx-auto mb-7 max-w-5xl">
       <div className="mb-3 px-1">
-        <h3 className="text-[15px] font-semibold text-zinc-900 dark:text-zinc-100">System Prompt</h3>
+        <h3 className="text-[15px] font-semibold text-[var(--chat-sidebar-text)]">System Prompt</h3>
       </div>
 
       <SettingsTextarea

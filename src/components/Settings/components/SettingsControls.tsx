@@ -20,8 +20,8 @@ export function SegmentedControl({ options, value, onChange }: SegmentedControlP
                         className={cn(
                             "relative flex items-center justify-center gap-2 px-3 py-1.5 text-[13px] font-medium rounded-[6px] transition-all z-10 flex-1",
                             isActive
-                                ? "text-black dark:text-white"
-                                : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
+                                ? "text-[var(--sidebar-row-selected-text)]"
+                                : "text-[var(--chat-sidebar-text)] hover:text-[var(--chat-sidebar-text)]"
                         )}
                     >
                         {isActive && (
@@ -79,11 +79,11 @@ export function SettingsItem({ title, description, children }: SettingsItemProps
     return (
         <div className="flex items-start justify-between py-5 border-b border-zinc-100 dark:border-white/5 last:border-0">
             <div className="flex-1 pr-8">
-                <div className="text-[14px] font-medium text-[#111] dark:text-zinc-100 mb-1 leading-snug">
+                <div className="text-[14px] font-medium text-[var(--chat-sidebar-text)] mb-1 leading-snug">
                     {title}
                 </div>
                 {description && (
-                    <div className="text-[13px] text-zinc-500 dark:text-zinc-400 leading-relaxed max-w-[420px]">
+                    <div className="text-[13px] text-[var(--chat-sidebar-text-soft)] leading-relaxed max-w-[420px]">
                         {description}
                     </div>
                 )}
@@ -98,7 +98,7 @@ export function SettingsItem({ title, description, children }: SettingsItemProps
 export function SettingsSectionHeader({ children }: { children: ReactNode }) {
     return (
         <div className="mt-8 mb-2 pb-2">
-            <h3 className="text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
+            <h3 className="text-[11px] font-bold text-[var(--chat-sidebar-text-soft)] uppercase tracking-widest">
                 {children}
             </h3>
         </div>

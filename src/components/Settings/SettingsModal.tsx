@@ -7,7 +7,9 @@ import { AboutTab } from './tabs/AboutTab';
 import { MarkdownTab } from './tabs/MarkdownTab';
 import { AppearanceTab } from './tabs/AppearanceTab';
 import { AITab } from './tabs/AITab';
+import { LanguageTab } from './tabs/LanguageTab';
 import { cn } from '@/lib/utils';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { useWindowDragGesture } from '@/hooks/useWindowDragGesture';
 import { actions as aiActions } from '@/stores/ai/providerActions';
 import { SETTINGS_BEFORE_CLOSE_EVENT, SETTINGS_CLOSED_EVENT } from './settingsEvents';
@@ -21,7 +23,7 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-type SettingsTab = 'markdown' | 'appearance' | 'ai' | 'about';
+type SettingsTab = 'markdown' | 'appearance' | 'language' | 'ai' | 'about';
 
 interface SidebarItem {
   id: SettingsTab;
@@ -41,6 +43,7 @@ const sidebarGroups: SidebarGroup[] = [
       { id: 'markdown', label: 'Markdown', icon: 'editor.code' },
       { id: 'ai', label: 'Spark', icon: 'common.shootingStar' },
       { id: 'appearance', label: 'Appearance', icon: 'theme.palette' },
+      { id: 'language', label: 'Language', icon: 'common.language' },
       { id: 'about', label: 'about', icon: 'common.info' },
     ]
   }
@@ -103,7 +106,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 10 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="w-[1080px] h-[720px] max-w-full max-h-[90vh] bg-white dark:bg-[#1C1C1C] rounded-[16px] shadow-2xl flex overflow-hidden pointer-events-auto ring-1 ring-black/5 dark:ring-white/5 select-none"
+              className="w-[1080px] h-[720px] max-w-full max-h-[90vh] bg-[#fcfcfc] dark:bg-[#1C1C1C] rounded-[16px] shadow-2xl flex overflow-hidden pointer-events-auto ring-1 ring-black/5 dark:ring-white/5 select-none"
               onMouseDownCapture={(e) => {
                 if (e.button === 1) {
                   e.preventDefault();
@@ -119,47 +122,51 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               aria-modal="true"
               tabIndex={-1}
             >
-              <div className="w-[260px] flex-shrink-0 bg-[var(--vlaina-sidebar-bg)] flex flex-col">
-                <div className="flex-1 overflow-y-auto px-3 pt-6 pb-4 space-y-7">
-                  {sidebarGroups.map((group) => (
-                    <div key={group.title}>
-                      <div className="space-y-[2px]">
-                        {group.items.map((item) => {
-                          const isActive = activeTab === item.id;
-                          return (
-                            <div key={item.id} className="group/chat-sidebar-row flex items-center py-[1px]">
-                              <button
-                                onClick={() => setActiveTab(item.id)}
-                                className={cn(
-                                  "mx-1 flex min-h-9 w-full items-center gap-3 px-3 py-2 text-sm font-medium transition-all duration-150 ease-out",
-                                  isActive
-                                    ? getSidebarSelectedRowSurfaceClass('chat')
-                                    : getSidebarIdleRowSurfaceClass('chat')
-                                )}
-                              >
-                                <span className="flex items-center justify-center">
-                                  <Icon
-                                    size="md"
-                                    name={item.icon}
+              <div className="w-[260px] flex-shrink-0 bg-[var(--vlaina-sidebar-bg)] flex flex-col text-[var(--chat-sidebar-text)]">
+                <div className="flex min-h-0 flex-1 px-3 pb-4 pt-6">
+                  <div className={cn('flex min-h-0 flex-1 flex-col rounded-[22px] p-1.5', chatComposerPillSurfaceClass)}>
+                    <div className="flex-1 overflow-y-auto vlaina-scrollbar">
+                      {sidebarGroups.map((group) => (
+                        <div key={group.title}>
+                          <div className="space-y-[2px]">
+                            {group.items.map((item) => {
+                              const isActive = activeTab === item.id;
+                              return (
+                                <div key={item.id} className="group/chat-sidebar-row flex items-center py-[1px]">
+                                  <button
+                                    onClick={() => setActiveTab(item.id)}
                                     className={cn(
+                                      "mx-1 flex min-h-9 w-full items-center gap-3 px-3 py-2 text-sm font-medium transition-all duration-150 ease-out",
                                       isActive
-                                        ? "text-[var(--sidebar-row-selected-text)]"
-                                        : "text-[var(--chat-sidebar-icon)] group-hover/chat-sidebar-row:text-[var(--chat-sidebar-icon-hover)]"
+                                        ? getSidebarSelectedRowSurfaceClass('chat')
+                                        : getSidebarIdleRowSurfaceClass('chat')
                                     )}
-                                  />
-                                </span>
-                                <span className="truncate">{item.label}</span>
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
+                                  >
+                                    <span className="flex items-center justify-center">
+                                      <Icon
+                                        size="md"
+                                        name={item.icon}
+                                        className={cn(
+                                          isActive
+                                            ? "text-[var(--sidebar-row-selected-text)]"
+                                            : "text-[var(--chat-sidebar-icon)] group-hover/chat-sidebar-row:text-[var(--chat-sidebar-icon-hover)]"
+                                        )}
+                                      />
+                                    </span>
+                                    <span className="truncate text-[var(--chat-sidebar-text)]">{item.label}</span>
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex-1 flex flex-col min-w-0 bg-white dark:bg-[#1E1E1E] relative">
+              <div className="flex-1 flex flex-col min-w-0 bg-[#fcfcfc] dark:bg-[#1E1E1E] relative text-[var(--chat-sidebar-text)]">
                 <div className="absolute top-3.5 right-5 z-20">
                   <button
                     onClick={handleClose}
@@ -183,6 +190,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       {activeTab === 'about' && <AboutTab />}
                       {activeTab === 'markdown' && <MarkdownTab />}
                       {activeTab === 'appearance' && <AppearanceTab />}
+                      {activeTab === 'language' && <LanguageTab />}
                       {activeTab === 'ai' && <AITab />}
                     </div>
                   </div>
