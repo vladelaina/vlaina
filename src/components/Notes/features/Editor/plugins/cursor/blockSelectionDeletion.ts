@@ -1,4 +1,5 @@
 import { Selection, TextSelection, type Transaction } from '@milkdown/kit/prose/state';
+import type { ResolvedPos } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { buildDeleteRangesForBlockSelection } from './listBlockUtils';
 import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
@@ -20,6 +21,19 @@ function isListContainerName(name: string): boolean {
   return name === 'bullet_list' || name === 'ordered_list';
 }
 
+function findSelectionInsideAdjacentList($pos: ResolvedPos): Selection | null {
+  if ($pos.nodeAfter && isListContainerName($pos.nodeAfter.type.name)) {
+    const selection = Selection.findFrom($pos, 1, true);
+    if (selection) return selection;
+  }
+
+  if ($pos.nodeBefore && isListContainerName($pos.nodeBefore.type.name)) {
+    return Selection.findFrom($pos, -1, true);
+  }
+
+  return null;
+}
+
 function setSelectionAfterBlockDeletion(tr: Transaction, targetPos: number): Transaction {
   const docSize = tr.doc.content.size;
   const safePos = Math.max(0, Math.min(targetPos, docSize));
@@ -36,6 +50,11 @@ function setSelectionAfterBlockDeletion(tr: Transaction, targetPos: number): Tra
 
   if ($pos.nodeBefore?.isTextblock) {
     return tr.setSelection(Selection.near($pos, -1));
+  }
+
+  const adjacentListSelection = findSelectionInsideAdjacentList($pos);
+  if (adjacentListSelection) {
+    return tr.setSelection(adjacentListSelection);
   }
 
   if (isListContainerName($pos.parent.type.name)) {
