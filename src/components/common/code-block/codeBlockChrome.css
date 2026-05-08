@@ -41,7 +41,17 @@ button:hover .vlaina-code-block-language-label {
   border-radius: 0.375rem;
   color: var(--vlaina-code-block-copy-color, rgb(115, 115, 115));
   background: transparent;
-  transition: color 150ms ease, background-color 150ms ease, transform 150ms ease;
+  opacity: 0;
+  pointer-events: none;
+  transition: color 150ms ease, background-color 150ms ease, opacity 150ms ease, transform 150ms ease;
+}
+
+.vlaina-code-block:hover .vlaina-code-block-copy-button,
+.vlaina-code-block:focus-within .vlaina-code-block-copy-button,
+.vlaina-code-block-copy-button:focus-visible,
+.vlaina-code-block-copy-button[data-copied="true"] {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .vlaina-code-block-copy-button:hover {
