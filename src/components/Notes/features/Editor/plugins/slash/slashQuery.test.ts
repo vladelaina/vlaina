@@ -32,6 +32,22 @@ describe('filterSlashItems', () => {
     expect(filterSlashItems('vedio')[0]?.name).toBe('Video');
   });
 
+  it('matches short typo queries against compact search terms', () => {
+    expect(filterSlashItems('j3')[0]?.name).toBe('Heading 3');
+  });
+
+  it('matches noisy queries that keep a numeric command alias suffix', () => {
+    expect(filterSlashItems('ssssss3')[0]?.name).toBe('Heading 3');
+  });
+
+  it('does not match pure numeric noise as a heading alias typo', () => {
+    expect(filterSlashItems('2023')).toEqual([]);
+  });
+
+  it('does not make single-character typo queries overly broad', () => {
+    expect(filterSlashItems('j')).toEqual([]);
+  });
+
   it('keeps stronger matches before fuzzy subsequence matches', () => {
     const names = filterSlashItems('im').map((item) => item.name);
 

@@ -91,22 +91,23 @@ export function deriveSlashState(tr: Transaction, state: SlashMenuState) {
     return { ...state, ...meta };
   }
 
-  if (!state.isOpen || (!tr.docChanged && !tr.selectionSet)) {
+  if (!tr.docChanged && !tr.selectionSet) {
     return state;
   }
 
   const slashRange = getSlashTextRangeFromSelection(tr.selection);
   if (!slashRange) {
-    return createSlashState();
+    return state.isOpen ? createSlashState() : state;
   }
 
   const filtered = filterSlashItems(slashRange.query, slashMenuItems);
   if (filtered.length === 0) {
-    return createSlashState();
+    return state.isOpen ? createSlashState() : state;
   }
 
   return {
     ...state,
+    isOpen: true,
     query: slashRange.query,
     selectedIndex: slashRange.query === state.query
       ? Math.min(state.selectedIndex, filtered.length - 1)
