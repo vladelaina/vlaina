@@ -163,9 +163,9 @@ describe('editor embedded CodeMirror selection styles', () => {
     const css = readStyleFile('core.css');
     const source = readBlankAreaDragBoxSource();
 
-    expect(css).toContain('--vlaina-editor-block-selection-base: var(--vlaina-color-editor-block-selection, #71717a);');
-    expect(css).toContain('color-mix(in srgb, var(--vlaina-editor-block-selection-base, #71717a) 14%, transparent)');
-    expect(source).toContain('color-mix(in srgb, var(--vlaina-color-editor-block-selection, #71717a) 18%, transparent)');
+    expect(css).toContain('--vlaina-editor-block-selection-base: var(--vlaina-color-editor-block-selection, var(--vlaina-color-accent, #1e96eb));');
+    expect(css).toContain('color-mix(in srgb, var(--vlaina-editor-block-selection-base, #1e96eb) 14%, transparent)');
+    expect(source).toContain('color-mix(in srgb, var(--vlaina-color-editor-block-selection, var(--vlaina-color-accent, #1e96eb)) 18%, transparent)');
   });
 
   it('lets block selection and drag gestures pass over video embeds', () => {
@@ -290,6 +290,8 @@ describe('editor embedded CodeMirror selection styles', () => {
 
     expect(css).toContain('.milkdown .code-block-container .code-block-editable {');
     expect(css).toContain('padding: 0.25rem 0 1rem;');
+    expect(css).toContain('.milkdown .code-block-container .cm-editor {');
+    expect(css).toContain('background: transparent !important;');
     expect(css).toContain('.milkdown .code-block-container .cm-content {');
     expect(css).toContain('padding: 0 !important;');
     expect(css).toContain('.milkdown .code-block-container .cm-line {');
@@ -300,6 +302,19 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain(
       ".milkdown .code-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {"
     );
+    expect(css).toContain('.milkdown .code-block-container.ProseMirror-selectednode .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,');
+    expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,');
+    expect(css).toContain(".milkdown .code-block-container[data-pm-selected='true'] .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {");
+    expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected .cm-editor,');
+    expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected .cm-scroller,');
+    expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected .cm-content,');
+    expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected .cm-line,');
+    expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected .cm-activeLine,');
+    expect(css).toContain(".milkdown .code-block-container[data-pm-selected='true'] .cm-gutter-filler {");
+    expect(css).toContain('--vlaina-block-selection-color: color-mix(in srgb, var(--vlaina-editor-block-selection-base, #1e96eb) 14%, transparent);');
+    expect(css).toContain('background-color: var(--vlaina-block-selection-color);');
+    expect(css).toContain('border-radius: 1rem;');
+    expect(css).toContain('box-shadow: none;');
     expect(css).toContain('background: transparent !important;');
     expect(css).not.toContain('.cm-editor.cm-focused .cm-content ::selection');
     expect(css).not.toContain('.cm-editor.cm-focused .cm-line ::selection');

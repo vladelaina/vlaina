@@ -8,7 +8,7 @@
 }
 
 .milkdown .code-block-container .cm-editor {
-  background: var(--vlaina-code-block-background) !important;
+  background: transparent !important;
 }
 
 .milkdown .code-block-container .cm-gutters,
@@ -16,7 +16,8 @@
 .milkdown .code-block-container .cm-gutterElement,
 .milkdown .code-block-container .cm-lineNumbers,
 .milkdown .code-block-container .cm-gutter-filler {
-  background: var(--vlaina-code-block-background) !important;
+  background: transparent !important;
+  background-color: transparent !important;
   border: none !important;
 }
 
@@ -71,10 +72,58 @@
   background: var(--vlaina-selection-bg, #2781db) !important;
 }
 
+.milkdown .code-block-container.ProseMirror-selectednode .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
+.milkdown .code-block-container.vlaina-block-selected .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
+.milkdown .code-block-container[data-pm-selected='true'] .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+  background: transparent !important;
+}
+
+.milkdown .code-block-container.ProseMirror-selectednode .cm-editor,
+.milkdown .code-block-container.ProseMirror-selectednode .cm-scroller,
+.milkdown .code-block-container.ProseMirror-selectednode .cm-content,
+.milkdown .code-block-container.ProseMirror-selectednode .cm-line,
+.milkdown .code-block-container.ProseMirror-selectednode .cm-activeLine,
+.milkdown .code-block-container.ProseMirror-selectednode .cm-activeLineGutter,
+.milkdown .code-block-container.ProseMirror-selectednode .cm-gutters,
+.milkdown .code-block-container.ProseMirror-selectednode .cm-gutter,
+.milkdown .code-block-container.ProseMirror-selectednode .cm-gutterElement,
+.milkdown .code-block-container.ProseMirror-selectednode .cm-lineNumbers,
+.milkdown .code-block-container.ProseMirror-selectednode .cm-gutter-filler,
+.milkdown .code-block-container.vlaina-block-selected .cm-editor,
+.milkdown .code-block-container.vlaina-block-selected .cm-scroller,
+.milkdown .code-block-container.vlaina-block-selected .cm-content,
+.milkdown .code-block-container.vlaina-block-selected .cm-line,
+.milkdown .code-block-container.vlaina-block-selected .cm-activeLine,
+.milkdown .code-block-container.vlaina-block-selected .cm-activeLineGutter,
+.milkdown .code-block-container.vlaina-block-selected .cm-gutters,
+.milkdown .code-block-container.vlaina-block-selected .cm-gutter,
+.milkdown .code-block-container.vlaina-block-selected .cm-gutterElement,
+.milkdown .code-block-container.vlaina-block-selected .cm-lineNumbers,
+.milkdown .code-block-container.vlaina-block-selected .cm-gutter-filler,
+.milkdown .code-block-container[data-pm-selected='true'] .cm-editor,
+.milkdown .code-block-container[data-pm-selected='true'] .cm-scroller,
+.milkdown .code-block-container[data-pm-selected='true'] .cm-content,
+.milkdown .code-block-container[data-pm-selected='true'] .cm-line,
+.milkdown .code-block-container[data-pm-selected='true'] .cm-activeLine,
+.milkdown .code-block-container[data-pm-selected='true'] .cm-activeLineGutter,
+.milkdown .code-block-container[data-pm-selected='true'] .cm-gutters,
+.milkdown .code-block-container[data-pm-selected='true'] .cm-gutter,
+.milkdown .code-block-container[data-pm-selected='true'] .cm-gutterElement,
+.milkdown .code-block-container[data-pm-selected='true'] .cm-lineNumbers,
+.milkdown .code-block-container[data-pm-selected='true'] .cm-gutter-filler {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
 .milkdown .code-block-container .cm-focused {
   outline: none;
 }
 
-.milkdown .code-block-container.ProseMirror-selectednode {
-  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.45);
+.milkdown .code-block-container.ProseMirror-selectednode,
+.milkdown .code-block-container.vlaina-block-selected,
+.milkdown .code-block-container[data-pm-selected='true'] {
+  --vlaina-block-selection-color: color-mix(in srgb, var(--vlaina-editor-block-selection-base, #1e96eb) 14%, transparent);
+  background-color: var(--vlaina-block-selection-color);
+  border-radius: 1rem;
+  box-shadow: none;
 }

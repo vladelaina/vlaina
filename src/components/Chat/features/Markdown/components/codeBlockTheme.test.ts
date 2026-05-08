@@ -27,6 +27,14 @@ describe('shared code block theme', () => {
     expect(chatCodeBlock).not.toContain('highlight.js/styles');
     expect(chatCodeBlock).toContain('@/components/common/code-block');
     expect(sharedChrome).toContain('--vlaina-code-block-background');
+    expect(sharedChrome).toContain('.vlaina-code-block-copy-button {');
+    expect(sharedChrome).toContain('opacity: 0;');
+    expect(sharedChrome).toContain('pointer-events: none;');
+    expect(sharedChrome).toContain('.vlaina-code-block:hover .vlaina-code-block-copy-button,');
+    expect(sharedChrome).toContain('.vlaina-code-block:focus-within .vlaina-code-block-copy-button,');
+    expect(sharedChrome).toContain('.vlaina-code-block-copy-button[data-copied="true"] {');
+    expect(sharedChrome).toContain('opacity: 1;');
+    expect(sharedChrome).toContain('pointer-events: auto;');
 
     for (const variable of syntaxVariables) {
       expect(sharedChrome).toContain(variable);

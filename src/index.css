@@ -130,7 +130,7 @@ html, body, #root {
   --vlaina-color-text-soft: #636363;
   --vlaina-color-text-tertiary: #636363;
   --vlaina-color-text-disabled: #636363;
-  --vlaina-color-editor-block-selection: #b9b9bc;
+  --vlaina-color-editor-block-selection: var(--vlaina-color-accent);
   --vlaina-color-sidebar-pin: #636363;
   --vlaina-color-border: #e3e2e4;
   --vlaina-color-border-shell: #eff3f4;
@@ -207,7 +207,7 @@ html, body, #root {
   --vlaina-color-text-soft: #636363;
   --vlaina-color-text-tertiary: #636363;
   --vlaina-color-text-disabled: #636363;
-  --vlaina-color-editor-block-selection: #5d5d5f;
+  --vlaina-color-editor-block-selection: var(--vlaina-color-accent);
   --vlaina-color-sidebar-pin: #636363;
   --vlaina-color-border: #333333;
   --vlaina-color-border-shell: #333333;
