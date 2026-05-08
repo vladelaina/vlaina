@@ -11,6 +11,10 @@ interface NotesSidebarSurfaceProps extends HTMLAttributes<HTMLDivElement> {
   isPeeking?: boolean;
 }
 
+interface NotesSidebarScrollAreaProps extends HTMLAttributes<HTMLDivElement> {
+  scrollbarInsetRight?: number;
+}
+
 interface NotesSidebarSectionProps extends HTMLAttributes<HTMLDivElement> {
   title: string;
   expanded?: boolean;
@@ -40,15 +44,17 @@ export function NotesSidebarSurface({
   );
 }
 
-export const NotesSidebarScrollArea = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(function NotesSidebarScrollArea({
+export const NotesSidebarScrollArea = forwardRef<HTMLDivElement, NotesSidebarScrollAreaProps>(function NotesSidebarScrollArea({
   onMouseEnter,
   className,
+  scrollbarInsetRight,
   ...props
 }, ref) {
   return (
     <SidebarScrollArea
       ref={ref}
       onMouseEnter={onMouseEnter}
+      scrollbarInsetRight={scrollbarInsetRight}
       viewportClassName={className}
       {...props}
     />

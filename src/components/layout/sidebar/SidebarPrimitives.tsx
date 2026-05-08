@@ -20,6 +20,7 @@ interface SidebarSurfaceProps extends HTMLAttributes<HTMLDivElement> {
 
 interface SidebarScrollAreaProps extends HTMLAttributes<HTMLDivElement> {
   viewportClassName?: string;
+  scrollbarInsetRight?: number;
 }
 
 interface SidebarActionButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -38,6 +39,8 @@ interface SidebarSearchFieldProps
   closeButtonClassName?: string;
 }
 
+export const SIDEBAR_CAPSULE_SCROLLBAR_INSET_RIGHT = 0;
+
 export const SidebarSurface = forwardRef<HTMLDivElement, SidebarSurfaceProps>(
   function SidebarSurface({ className, isPeeking = false, ...props }, ref) {
     return (
@@ -51,11 +54,12 @@ export const SidebarSurface = forwardRef<HTMLDivElement, SidebarSurfaceProps>(
 );
 
 export const SidebarScrollArea = forwardRef<HTMLDivElement, SidebarScrollAreaProps>(
-  function SidebarScrollArea({ onMouseEnter, className, viewportClassName, ...props }, ref) {
+  function SidebarScrollArea({ onMouseEnter, className, viewportClassName, scrollbarInsetRight, ...props }, ref) {
     return (
       <OverlayScrollArea
         ref={ref}
         scrollbarVariant="compact"
+        scrollbarInsetRight={scrollbarInsetRight}
         data-sidebar-scroll-root="true"
         viewportClassName={cn('px-2 py-2', viewportClassName, className)}
         onMouseEnter={onMouseEnter}

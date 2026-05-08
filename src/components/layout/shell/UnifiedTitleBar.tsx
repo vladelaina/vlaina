@@ -69,13 +69,6 @@ export function UnifiedTitleBar({
         </div>
       )}
 
-      {!sidebarCollapsed ? (
-        <div
-          className="absolute top-0 bottom-0 z-30 w-px"
-          style={{ left: 'var(--vlaina-shell-sidebar-width)', backgroundColor: 'var(--vlaina-shell-divider)' }}
-        />
-      ) : null}
-
       <div
         className="absolute top-0 bottom-0 right-0 bg-[var(--vlaina-bg-primary)] dark:bg-zinc-800"
         style={{ left: sidebarCollapsed ? 0 : 'var(--vlaina-shell-sidebar-width)' }}

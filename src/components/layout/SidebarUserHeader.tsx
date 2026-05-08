@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import { cn, iconButtonStyles } from '@/lib/utils';
@@ -8,40 +7,32 @@ interface SidebarUserHeaderProps {
 }
 
 export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
-    const [showCollapse, setShowCollapse] = useState(false);
-
     return (
         <div
-            className="vlaina-drag-region flex items-center px-3 h-10 w-full gap-1"
-            onMouseEnter={() => setShowCollapse(true)}
-            onMouseLeave={() => setShowCollapse(false)}
-            onFocus={() => setShowCollapse(true)}
-            onBlur={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget)) {
-                    setShowCollapse(false);
-                }
-            }}
+            className="vlaina-drag-region group/sidebar-user-header relative flex h-10 w-full items-center px-3"
         >
-            <WorkspaceSwitcher />
-            <button
-                type="button"
-                onClick={toggleSidebar}
-                aria-label="Collapse sidebar"
+            <div
                 className={cn(
-                    "vlaina-no-drag flex h-full min-w-0 flex-1 items-center justify-end bg-transparent",
-                    iconButtonStyles
+                    'vlaina-no-drag flex h-8 w-full items-center justify-between rounded-full border border-transparent bg-transparent px-1 transition-[background-color,box-shadow]',
+                    'group-hover/sidebar-user-header:bg-white group-hover/sidebar-user-header:shadow-[0_4px_16px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.7)]',
+                    'group-focus-within/sidebar-user-header:bg-white group-focus-within/sidebar-user-header:shadow-[0_4px_16px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.7)]'
                 )}
             >
-                <span
+                <WorkspaceSwitcher />
+                <button
+                    type="button"
+                    onClick={toggleSidebar}
+                    aria-label="Collapse sidebar"
                     className={cn(
-                        "flex h-7 w-7 items-center justify-center rounded-md opacity-0 transition-[background-color,opacity]",
-                        showCollapse && "opacity-100",
-                        "hover:bg-[#f5f5f5] dark:hover:bg-white/10"
+                        'pointer-events-none flex h-7 w-7 items-center justify-center rounded-full bg-transparent opacity-0 transition-opacity',
+                        'group-hover/sidebar-user-header:pointer-events-auto group-hover/sidebar-user-header:opacity-100',
+                        'group-focus-within/sidebar-user-header:pointer-events-auto group-focus-within/sidebar-user-header:opacity-100',
+                        iconButtonStyles
                     )}
                 >
                     <Icon name="nav.collapse" size="md" />
-                </span>
-            </button>
+                </button>
+            </div>
         </div>
     );
 }

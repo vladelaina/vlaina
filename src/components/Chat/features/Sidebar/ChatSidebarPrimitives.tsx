@@ -12,6 +12,10 @@ interface ChatSidebarSurfaceProps extends HTMLAttributes<HTMLDivElement> {
   isPeeking?: boolean;
 }
 
+interface ChatSidebarScrollAreaProps extends HTMLAttributes<HTMLDivElement> {
+  scrollbarInsetRight?: number;
+}
+
 interface ChatSidebarRowProps extends HTMLAttributes<HTMLDivElement> {
   main: ReactNode;
   trailing?: ReactNode;
@@ -39,15 +43,17 @@ export const ChatSidebarSurface = forwardRef<HTMLDivElement, ChatSidebarSurfaceP
   );
 });
 
-export const ChatSidebarScrollArea = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(function ChatSidebarScrollArea({
+export const ChatSidebarScrollArea = forwardRef<HTMLDivElement, ChatSidebarScrollAreaProps>(function ChatSidebarScrollArea({
   onMouseEnter,
   className,
+  scrollbarInsetRight,
   ...props
 }, ref) {
   return (
     <SidebarScrollArea
       ref={ref}
       onMouseEnter={onMouseEnter}
+      scrollbarInsetRight={scrollbarInsetRight}
       viewportClassName={className}
       {...props}
     />

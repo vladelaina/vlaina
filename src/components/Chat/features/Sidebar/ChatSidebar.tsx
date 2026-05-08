@@ -13,8 +13,11 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
 import { ChatSidebarTopActions } from './ChatSidebarTopActions';
 import { SidebarSearchDrawer } from '@/components/layout/sidebar/SidebarSearchDrawer';
+import { SIDEBAR_CAPSULE_SCROLLBAR_INSET_RIGHT } from '@/components/layout/sidebar/SidebarPrimitives';
 import { ChatSidebarVirtualList } from './ChatSidebarVirtualList';
 import { useChatSidebarSearch } from './useChatSidebarSearch';
+import { cn } from '@/lib/utils';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 interface ChatSidebarProps {
   isPeeking?: boolean;
@@ -122,7 +125,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
       <ChatSidebarSurface ref={sidebarRootRef} isPeeking={isPeeking}>
         <SidebarSearchDrawer
           isSearchOpen={isSearchOpen}
-          shouldShowTopActions={!shouldShowSearchResults}
+          shouldShowTopActions={false}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           inputRef={searchInputRef}
@@ -138,42 +141,50 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
           }}
           placeholder="Search"
           closeLabel="Close chat search"
-          topActions={(
+          topActions={null}
+        />
+
+        <div className={cn('mx-2 mb-2 flex min-h-0 flex-1 flex-col rounded-[22px] p-1', chatComposerPillSurfaceClass)}>
+          {!shouldShowSearchResults ? (
             <ChatSidebarTopActions
               onOpenNewChat={handleOpenNewChat}
               onOpenNotes={() => setAppViewMode('notes')}
             />
-          )}
-        />
+          ) : null}
 
-        <ChatSidebarScrollArea ref={scrollRootRef} onScroll={handleScroll}>
-          <div className="relative min-h-full">
-            {shouldShowSearchResults && filteredSessions.length === 0 ? null : !shouldShowSearchResults && !hasSessions ? null : (
-              <ChatSidebarList>
-                <ChatSidebarVirtualList
-                  sessions={sessionsToRender}
-                  currentSessionId={currentSessionId}
-                  renamingSessionId={renamingSessionId}
-                  renameDraft={renameDraft}
-                  shouldHideSearchResults={shouldShowSearchResults}
-                  scrollRootRef={scrollRootRef}
-                  onRenameDraftChange={handleRenameDraftChange}
-                  onStartRename={handleRename}
-                  onCommitRename={commitRename}
-                  onCancelRename={cancelRename}
-                  onSwitch={handleSwitch}
-                  onRequestDelete={handleRequestDelete}
-                  onTogglePin={handleTogglePin}
-                  onHideSearch={hideSearch}
-                  resetKey={shouldShowSearchResults ? deferredSearchQuery.trim() : ''}
-                />
-              </ChatSidebarList>
-            )}
-            {!shouldShowSearchResults && !hasSessions ? (
-              <ChatSidebarHoverEmptyHint title="No conversations yet" />
-            ) : null}
-          </div>
-        </ChatSidebarScrollArea>
+          <ChatSidebarScrollArea
+            ref={scrollRootRef}
+            onScroll={handleScroll}
+            scrollbarInsetRight={SIDEBAR_CAPSULE_SCROLLBAR_INSET_RIGHT}
+          >
+            <div className="relative min-h-full">
+              {shouldShowSearchResults && filteredSessions.length === 0 ? null : !shouldShowSearchResults && !hasSessions ? null : (
+                <ChatSidebarList>
+                  <ChatSidebarVirtualList
+                    sessions={sessionsToRender}
+                    currentSessionId={currentSessionId}
+                    renamingSessionId={renamingSessionId}
+                    renameDraft={renameDraft}
+                    shouldHideSearchResults={shouldShowSearchResults}
+                    scrollRootRef={scrollRootRef}
+                    onRenameDraftChange={handleRenameDraftChange}
+                    onStartRename={handleRename}
+                    onCommitRename={commitRename}
+                    onCancelRename={cancelRename}
+                    onSwitch={handleSwitch}
+                    onRequestDelete={handleRequestDelete}
+                    onTogglePin={handleTogglePin}
+                    onHideSearch={hideSearch}
+                    resetKey={shouldShowSearchResults ? deferredSearchQuery.trim() : ''}
+                  />
+                </ChatSidebarList>
+              )}
+              {!shouldShowSearchResults && !hasSessions ? (
+                <ChatSidebarHoverEmptyHint title="No conversations yet" />
+              ) : null}
+            </div>
+          </ChatSidebarScrollArea>
+        </div>
       </ChatSidebarSurface>
 
       <ConfirmDialog

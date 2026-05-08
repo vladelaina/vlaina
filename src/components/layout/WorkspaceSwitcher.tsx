@@ -71,21 +71,12 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
           <button
             type="button"
             className={cn(
-              'vlaina-no-drag group relative flex h-8 max-w-[184px] cursor-pointer items-center gap-2 overflow-visible rounded-md px-1.5 py-1 text-[var(--vlaina-text-primary)] outline-none transition-colors select-none hover:bg-[var(--vlaina-hover)]',
-              isOpen && 'bg-[var(--vlaina-hover)]'
+              'vlaina-no-drag group relative flex size-8 cursor-pointer items-center justify-center overflow-visible rounded-[10px] bg-transparent text-[var(--vlaina-text-primary)] outline-none transition-opacity select-none hover:opacity-75',
+              isOpen && 'opacity-75'
             )}
           >
-            <span className="flex h-5 w-5 shrink-0">
-              <img src={displayAvatar} alt={displayName} className="h-5 w-5 rounded-sm object-cover shadow-sm" />
-            </span>
-            <span className="min-w-0 flex-1 truncate text-[12px] font-medium leading-none text-[var(--vlaina-text-primary)]">
-              {displayName}
-            </span>
-            <span className="pointer-events-none flex h-3 w-3 shrink-0 items-center justify-center transition-transform duration-200 group-hover:scale-105">
-              <Icon
-                name="nav.chevronDown"
-                className="h-3 w-3 text-[var(--vlaina-text-tertiary)] opacity-80 transition-opacity duration-200 group-hover:opacity-100"
-              />
+            <span className="relative flex size-[26px] shrink-0 overflow-hidden rounded-[8px]">
+              <img src={displayAvatar} alt={displayName} className="h-full w-full object-cover shadow-sm" />
             </span>
           </button>
         </Popover.Trigger>

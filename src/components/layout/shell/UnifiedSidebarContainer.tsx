@@ -48,10 +48,6 @@ export function UnifiedSidebarContainer({
 
       {!collapsed && (
         <>
-          <div
-            className="w-px flex-shrink-0 z-20"
-            style={{ backgroundColor: 'var(--vlaina-shell-divider)' }}
-          />
           <ResizeHandle
             onMouseDown={handleDragStart}
             isDragging={isDragging}
