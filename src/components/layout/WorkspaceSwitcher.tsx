@@ -13,9 +13,10 @@ import { AppMenu } from './AppMenu';
 
 interface WorkspaceSwitcherProps {
   onOpenSettings?: () => void;
+  className?: string;
 }
 
-const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
+const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherProps) => {
   const { isConnected, username, primaryEmail, signOut } = useAccountSessionStore();
   const { t } = useI18n();
 
@@ -70,7 +71,8 @@ const WorkspaceSwitcherBase = ({ onOpenSettings }: WorkspaceSwitcherProps) => {
           <button
             type="button"
             className={cn(
-              'vlaina-no-drag group relative flex size-8 cursor-pointer items-center justify-center overflow-visible rounded-[10px] bg-transparent text-[var(--vlaina-text-primary)] outline-none select-none'
+              'vlaina-no-drag group relative flex size-8 cursor-pointer items-center justify-center overflow-visible rounded-[10px] bg-transparent text-[var(--vlaina-text-primary)] outline-none select-none',
+              className
             )}
           >
             <span className="relative flex size-[26px] shrink-0 overflow-hidden rounded-[8px]">
