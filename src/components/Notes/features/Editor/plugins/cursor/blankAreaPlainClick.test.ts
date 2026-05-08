@@ -1,4 +1,4 @@
-import { NodeSelection, Selection } from '@milkdown/kit/prose/state';
+import { Selection, TextSelection } from '@milkdown/kit/prose/state';
 import { describe, expect, it, vi } from 'vitest';
 import {
   applyBlankAreaPlainClickSelection,
@@ -93,18 +93,21 @@ describe('applyBlankAreaPlainClickSelection', () => {
     nearSpy.mockRestore();
   });
 
-  it('selects an atomic diagram block directly instead of resolving through its content edge', () => {
-    const selection = { from: 5, to: 6, empty: false };
+  it('moves atomic diagram side clicks to nearby text instead of selecting the diagram node', () => {
+    const textSelection = Object.create(TextSelection.prototype);
     const setSelection = vi.fn().mockImplementation(() => tr);
-    const nodeSelectionCreate = vi
-      .spyOn(NodeSelection, 'create')
-      .mockReturnValue(selection as any);
-    const resolve = vi.fn();
+    const blockStart = { pos: 5 };
+    const blockEnd = { pos: 6 };
+    const findFromSpy = vi.spyOn(Selection, 'findFrom')
+      .mockReturnValueOnce(textSelection)
+      .mockReturnValueOnce(null);
     const tr = {
       doc: {
         content: { size: 10 },
-        nodeAt: vi.fn().mockReturnValue({ type: { name: 'mermaid' } }),
-        resolve,
+        nodeAt: vi.fn().mockReturnValue({ type: { name: 'mermaid' }, nodeSize: 1 }),
+        resolve: vi.fn()
+          .mockReturnValueOnce(blockStart)
+          .mockReturnValueOnce(blockEnd),
       },
       setSelection,
     } as any;
@@ -115,9 +118,31 @@ describe('applyBlankAreaPlainClickSelection', () => {
       blockFrom: 5,
     });
 
-    expect(nodeSelectionCreate).toHaveBeenCalledWith(tr.doc, 5);
-    expect(resolve).not.toHaveBeenCalled();
-    expect(setSelection).toHaveBeenCalledWith(selection);
-    nodeSelectionCreate.mockRestore();
+    expect(findFromSpy).toHaveBeenCalledWith(blockStart, -1, true);
+    expect(setSelection).toHaveBeenCalledWith(textSelection);
+    findFromSpy.mockRestore();
+  });
+
+  it('does not create a node selection for atomic diagram side clicks when no text cursor is nearby', () => {
+    const setSelection = vi.fn().mockImplementation(() => tr);
+    const findFromSpy = vi.spyOn(Selection, 'findFrom').mockReturnValue(null);
+    const tr = {
+      doc: {
+        content: { size: 10 },
+        nodeAt: vi.fn().mockReturnValue({ type: { name: 'math_block' }, nodeSize: 1 }),
+        resolve: vi.fn().mockReturnValue({}),
+      },
+      setSelection,
+    } as any;
+
+    expect(applyBlankAreaPlainClickSelection(tr, {
+      targetPos: 6,
+      bias: 1,
+      blockFrom: 5,
+    })).toBe(tr);
+
+    expect(findFromSpy).toHaveBeenCalledTimes(2);
+    expect(setSelection).not.toHaveBeenCalled();
+    findFromSpy.mockRestore();
   });
 });

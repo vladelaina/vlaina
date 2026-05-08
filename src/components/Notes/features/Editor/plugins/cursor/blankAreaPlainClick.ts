@@ -1,4 +1,4 @@
-import { NodeSelection, Selection, type Transaction } from '@milkdown/kit/prose/state';
+import { Selection, TextSelection, type Transaction } from '@milkdown/kit/prose/state';
 import type { BlockRect } from './blockSelectionUtils';
 
 export interface BlankAreaPlainClickAction {
@@ -7,7 +7,7 @@ export interface BlankAreaPlainClickAction {
   blockFrom: number;
 }
 
-const NODE_SELECTION_BLOCKS = new Set(['math_block', 'mermaid']);
+const TEXT_ONLY_BLOCK_EDGE_NAMES = new Set(['math_block', 'mermaid']);
 
 function resolveVerticalDistance(block: BlockRect, clientY: number): number {
   if (clientY < block.top) return block.top - clientY;
@@ -60,8 +60,24 @@ export function applyBlankAreaPlainClickSelection(
   const docEnd = tr.doc.content.size;
   const safeBlockFrom = Math.max(0, Math.min(action.blockFrom, docEnd));
   const block = tr.doc.nodeAt(safeBlockFrom);
-  if (block && NODE_SELECTION_BLOCKS.has(block.type.name)) {
-    return tr.setSelection(NodeSelection.create(tr.doc, safeBlockFrom));
+  if (block && TEXT_ONLY_BLOCK_EDGE_NAMES.has(block.type.name)) {
+    const blockEnd = Math.max(0, Math.min(safeBlockFrom + block.nodeSize, docEnd));
+    const primaryPos = action.bias === 1 ? safeBlockFrom : blockEnd;
+    const fallbackPos = action.bias === 1 ? blockEnd : safeBlockFrom;
+    const primaryDirection = action.bias === 1 ? -1 : 1;
+    const fallbackDirection = primaryDirection === 1 ? -1 : 1;
+    const primarySelection = Selection.findFrom(
+      tr.doc.resolve(primaryPos),
+      primaryDirection,
+      true
+    );
+    const fallbackSelection = Selection.findFrom(
+      tr.doc.resolve(fallbackPos),
+      fallbackDirection,
+      true
+    );
+    const selection = primarySelection ?? fallbackSelection;
+    return selection instanceof TextSelection ? tr.setSelection(selection) : tr;
   }
 
   const safePos = Math.max(0, Math.min(action.targetPos, docEnd));
