@@ -35,6 +35,35 @@ describe('resolveCoverAssetUrl', () => {
       assetPath: 'https://example.com/cover.jpg',
       vaultPath: '',
     })).rejects.toThrow('remote-cover-unsupported');
+
+    await expect(resolveCoverAssetUrl({
+      assetPath: 'HTTPS://example.com/cover.jpg',
+      vaultPath: '',
+    })).rejects.toThrow('remote-cover-unsupported');
+
+    await expect(resolveCoverAssetUrl({
+      assetPath: '//example.com/cover.jpg',
+      vaultPath: '',
+    })).rejects.toThrow('remote-cover-unsupported');
+  });
+
+  it('rejects unsafe persisted cover sources', async () => {
+    await expect(resolveCoverAssetUrl({
+      assetPath: 'blob:http://localhost/cover',
+      vaultPath: '/vault-a',
+    })).rejects.toThrow('cover-path-unsupported');
+
+    await expect(resolveCoverAssetUrl({
+      assetPath: 'javascript:alert(1)',
+      vaultPath: '/vault-a',
+    })).rejects.toThrow('cover-path-unsupported');
+
+    await expect(resolveCoverAssetUrl({
+      assetPath: '/etc/passwd',
+      vaultPath: '/vault-a',
+    })).rejects.toThrow('cover-path-unsupported');
+
+    expect(hoisted.resolveExistingVaultAssetPath).not.toHaveBeenCalled();
   });
 
   it('returns builtin url', async () => {
@@ -80,5 +109,16 @@ describe('resolveCoverAssetUrl', () => {
       assetPath: 'assets/a.webp',
       vaultPath: '',
     })).rejects.toThrow('vault-path-required');
+  });
+
+  it('rejects unsupported absolute cover paths', async () => {
+    hoisted.resolveExistingVaultAssetPath.mockResolvedValue('');
+
+    await expect(resolveCoverAssetUrl({
+      assetPath: '/etc/passwd',
+      vaultPath: '/vault-a',
+    })).rejects.toThrow('cover-path-unsupported');
+
+    expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
   });
 });

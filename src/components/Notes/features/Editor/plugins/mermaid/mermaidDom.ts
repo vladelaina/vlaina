@@ -1,3 +1,4 @@
+import DOMPurify from 'dompurify';
 import { generateMermaidId, renderMermaid } from './mermaidRenderer';
 import { normalizeMermaidEditorCodeInput } from './mermaidFenceCode';
 
@@ -26,6 +27,13 @@ async function renderMermaidHtml(
   } catch {
     return MERMAID_RENDER_ERROR_HTML;
   }
+}
+
+function sanitizeMermaidMarkup(markup: string) {
+  return DOMPurify.sanitize(markup, {
+    USE_PROFILES: { html: true, svg: true, svgFilters: true },
+    FORBID_TAGS: ['foreignObject', 'script', 'iframe', 'object', 'embed'],
+  });
 }
 
 export async function renderMermaidEditorLivePreview(args: {
@@ -60,7 +68,7 @@ export async function renderMermaidEditorLivePreview(args: {
     return false;
   }
 
-  anchor.innerHTML = svg;
+  anchor.innerHTML = sanitizeMermaidMarkup(svg);
   onRendered?.();
   return true;
 }
@@ -84,7 +92,7 @@ export function createMermaidElement(code: string) {
       if (getMermaidElementCode(wrapper) !== codeSnapshot || wrapper.dataset.renderKey !== renderKey) {
         return;
       }
-      wrapper.innerHTML = svg;
+      wrapper.innerHTML = sanitizeMermaidMarkup(svg);
     });
   } else {
     wrapper.innerHTML = '<div class="mermaid-empty">Empty diagram</div>';

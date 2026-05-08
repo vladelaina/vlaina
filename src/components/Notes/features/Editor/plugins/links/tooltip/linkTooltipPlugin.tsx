@@ -2,6 +2,7 @@ import { Plugin, PluginKey, EditorState, TextSelection } from '@milkdown/kit/pro
 import { Decoration, DecorationSet, EditorView } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
+import { sanitizeNoteLinkHref } from '@/lib/notes/markdown/urlSecurity';
 import { createRoot, Root } from 'react-dom/client';
 import LinkTooltip from './LinkTooltip';
 import { findLinkRange } from '../utils/helpers';
@@ -342,9 +343,11 @@ class LinkTooltipView {
             tr = tr.removeMark(absoluteStart, absoluteEnd, linkMarkType);
         }
 
-        tr = tr
-            .insertText(text, absoluteStart, absoluteEnd)
-            .addMark(absoluteStart, absoluteStart + text.length, linkMarkType.create({ href: url }));
+        const safeUrl = sanitizeNoteLinkHref(url);
+        tr = tr.insertText(text, absoluteStart, absoluteEnd);
+        if (safeUrl) {
+            tr = tr.addMark(absoluteStart, absoluteStart + text.length, linkMarkType.create({ href: safeUrl }));
+        }
 
         // Ensure cursor is placed at the end of the link
         const newLinkEnd = absoluteStart + text.length;
@@ -575,7 +578,8 @@ class LinkTooltipView {
         const linkMarkType = state.schema.marks.link;
         if (!linkMarkType) return;
 
-        if (!url || url.trim() === '') {
+        const safeUrl = sanitizeNoteLinkHref(url);
+        if (!safeUrl) {
             const tr = state.tr.removeMark(from, to, linkMarkType);
             dispatch(tr);
             this.hide();
@@ -584,7 +588,7 @@ class LinkTooltipView {
 
         const tr = state.tr
             .insertText(text, from, to)
-            .addMark(from, from + text.length, linkMarkType.create({ href: url }));
+            .addMark(from, from + text.length, linkMarkType.create({ href: safeUrl }));
 
         const newLinkEnd = from + text.length;
         tr.setSelection(TextSelection.create(tr.doc, newLinkEnd));

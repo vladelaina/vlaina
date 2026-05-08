@@ -35,6 +35,7 @@ describe('imageSourcePath', () => {
     it('detects virtual image sources', () => {
         expect(isVirtualImageSource('https://example.com/demo.png')).toBe(true);
         expect(isVirtualImageSource('blob:http://localhost/demo')).toBe(true);
+        expect(isVirtualImageSource('asset://localhost/demo.png')).toBe(false);
         expect(isVirtualImageSource('./assets/demo.png')).toBe(false);
     });
 
@@ -62,7 +63,7 @@ describe('imageSourcePath', () => {
             rawSrc: './assets/demo.png',
             notesPath: '/vault',
             currentNotePath: 'daily/2026-03-31.md',
-        }, deps)).resolves.toEqual(['/vault/daily/./assets/demo.png']);
+        }, deps)).resolves.toEqual(['/vault/daily/assets/demo.png']);
     });
 
     it('resolves explicit relative segments against the current note directory', async () => {
@@ -70,7 +71,23 @@ describe('imageSourcePath', () => {
             rawSrc: '../assets/demo.png#c=1,2,3,4,1',
             notesPath: '/vault',
             currentNotePath: 'daily/2026-03-31.md',
-        }, deps)).resolves.toBe('/vault/daily/../assets/demo.png');
+        }, deps)).resolves.toBe('/vault/assets/demo.png');
+    });
+
+    it('rejects relative segments that escape the vault path', async () => {
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: '../../secret.png',
+            notesPath: '/vault',
+            currentNotePath: 'daily/2026-03-31.md',
+        }, deps)).resolves.toEqual([]);
+    });
+
+    it('rejects relative segments that escape an external note directory', async () => {
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: '../secret.png',
+            notesPath: '',
+            currentNotePath: '/tmp/shared/note.md',
+        }, deps)).resolves.toEqual([]);
     });
 
     it('falls back to the vault path when no current note path is available', async () => {
@@ -80,7 +97,7 @@ describe('imageSourcePath', () => {
         }, deps)).resolves.toBe('/vault/assets/demo.png');
     });
 
-    it('keeps virtual and absolute sources untouched', async () => {
+    it('keeps virtual sources untouched and rejects absolute file paths from note content', async () => {
         await expect(resolveImageSourcePath({
             rawSrc: 'https://example.com/demo.png',
             notesPath: '/vault',
@@ -91,6 +108,12 @@ describe('imageSourcePath', () => {
             rawSrc: '/vault/assets/demo.png',
             notesPath: '/vault',
             currentNotePath: 'note.md',
-        }, deps)).resolves.toBe('/vault/assets/demo.png');
+        }, deps)).resolves.toBeNull();
+
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: 'C:\\Users\\me\\secret.png',
+            notesPath: '/vault',
+            currentNotePath: 'note.md',
+        }, deps)).resolves.toEqual([]);
     });
 });

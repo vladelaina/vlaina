@@ -3,6 +3,7 @@ import { getStorageAdapter, getParentPath, isAbsolutePath, joinPath } from '@/li
 import { computeFileHash } from './core/hashing';
 import { getMimeType, generateFilename } from './core/naming';
 import { writeAssetAtomic } from './io/writer';
+import { normalizeContainedAssetPath } from './core/pathContainment';
 
 export interface AssetContext {
   vaultPath: string;
@@ -17,6 +18,38 @@ export interface AssetConfig {
 }
 
 const MAX_ASSET_SIZE = 50 * 1024 * 1024; // 50MB
+
+function normalizeSafeSubfolderName(name: string | undefined, fallback: string): string {
+  const normalized = (name || fallback).replace(/\\/g, '/').replace(/\/{2,}/g, '/');
+  const parts = normalized.split('/').filter(Boolean);
+  if (parts.length === 0 || parts.some((part) => part === '.' || part === '..' || part.includes('\0'))) {
+    return fallback;
+  }
+
+  return parts.join('/');
+}
+
+async function resolveContainedTargetDir(rootPath: string, subfolderName: string): Promise<string> {
+  const candidate = normalizeContainedAssetPath(await joinPath(rootPath, subfolderName), rootPath);
+  if (!candidate) {
+    throw new Error('Asset target folder must stay inside the current note location.');
+  }
+
+  return candidate;
+}
+
+async function resolveCurrentNoteDir(vaultPath: string, currentNotePath: string): Promise<string> {
+  if (isAbsolutePath(currentNotePath)) {
+    return getParentPath(currentNotePath) || vaultPath;
+  }
+
+  const absoluteNotePath = normalizeContainedAssetPath(await joinPath(vaultPath, currentNotePath), vaultPath);
+  if (!absoluteNotePath) {
+    throw new Error('Current note path must stay inside the current vault.');
+  }
+
+  return getParentPath(absoluteNotePath) || vaultPath;
+}
 
 export class AssetService {
   static async upload(
@@ -136,18 +169,15 @@ export class AssetService {
         };
 
       case 'vaultSubfolder':
-        const vaultSubfolderName = config.imageVaultSubfolderName || 'assets';
+        const vaultSubfolderName = normalizeSafeSubfolderName(config.imageVaultSubfolderName, 'assets');
         return {
-          targetDir: await joinPath(vaultPath, vaultSubfolderName),
+          targetDir: await resolveContainedTargetDir(vaultPath, vaultSubfolderName),
           storedPathPrefix: `${vaultSubfolderName}/`
         };
 
       case 'currentFolder':
         if (currentNotePath) {
-          const absoluteNotePath = isAbsolutePath(currentNotePath)
-            ? currentNotePath
-            : await joinPath(vaultPath, currentNotePath);
-          const currentDir = getParentPath(absoluteNotePath) || vaultPath;
+          const currentDir = await resolveCurrentNoteDir(vaultPath, currentNotePath);
 
           return {
             targetDir: currentDir,
@@ -162,14 +192,11 @@ export class AssetService {
 
       case 'subfolder':
         if (currentNotePath) {
-          const absoluteNotePath = isAbsolutePath(currentNotePath)
-            ? currentNotePath
-            : await joinPath(vaultPath, currentNotePath);
-          const noteDir = getParentPath(absoluteNotePath) || vaultPath;
-          const subfolderName = config.subfolderName || 'assets';
-          
+          const noteDir = await resolveCurrentNoteDir(vaultPath, currentNotePath);
+          const subfolderName = normalizeSafeSubfolderName(config.subfolderName, 'assets');
+
           return {
-            targetDir: await joinPath(noteDir, subfolderName),
+            targetDir: await resolveContainedTargetDir(noteDir, subfolderName),
             storedPathPrefix: `./${subfolderName}/`
           };
         } else {

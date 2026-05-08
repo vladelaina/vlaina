@@ -1,9 +1,11 @@
 import { moveDesktopItemToTrash } from '@/lib/desktop/trash';
+import { isImageFilename } from '@/lib/assets/core/naming';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { getImageSourceBase, isVirtualImageSource, resolveImageSourcePathCandidates } from './imageSourcePath';
 
 const pendingDeletions = new Map<string, ReturnType<typeof setTimeout>>();
 const UNDO_GRACE_PERIOD_MS = 10000;
+const MAX_RESTORED_IMAGE_BYTES = 50 * 1024 * 1024;
 
 export async function ensureImageFileExists(
     src: string,
@@ -17,6 +19,7 @@ export async function ensureImageFileExists(
     try {
         const fullPath = await resolveImagePath(src, notesPath, currentNotePath);
         if (!fullPath) return;
+        if (!isImageFilename(fullPath)) return;
 
         if (pendingDeletions.has(fullPath)) {
             clearTimeout(pendingDeletions.get(fullPath)!);
@@ -31,8 +34,11 @@ export async function ensureImageFileExists(
 
         const response = await fetch(blobUrl);
         const blob = await response.blob();
+        if (blob.size > MAX_RESTORED_IMAGE_BYTES) return;
+
         const arrayBuffer = await blob.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
+        if (uint8Array.byteLength > MAX_RESTORED_IMAGE_BYTES) return;
 
         await storage.writeBinaryFile(fullPath, uint8Array);
 
@@ -54,6 +60,7 @@ export async function moveImageToTrash(
     try {
         const fullPath = await resolveImagePath(src, notesPath, currentNotePath);
         if (!fullPath) return false;
+        if (!isImageFilename(fullPath)) return false;
 
         if (pendingDeletions.has(fullPath)) {
             clearTimeout(pendingDeletions.get(fullPath)!);
@@ -88,6 +95,7 @@ export async function restoreImageFromTrash(
 
     try {
         const fullPath = await resolveImagePath(src, notesPath, currentNotePath);
+        if (fullPath && !isImageFilename(fullPath)) return;
         if (fullPath && pendingDeletions.has(fullPath)) {
             clearTimeout(pendingDeletions.get(fullPath)!);
             pendingDeletions.delete(fullPath);
@@ -112,15 +120,17 @@ async function resolveImagePath(src: string, notesPath: string, currentNotePath?
     });
 
     if (candidates.length <= 1) {
-        return candidates[0] ?? '';
+        const candidate = candidates[0] ?? '';
+        return candidate && isImageFilename(candidate) ? candidate : '';
     }
 
     const storage = getStorageAdapter();
-    for (const candidate of candidates) {
+    const imageCandidates = candidates.filter(isImageFilename);
+    for (const candidate of imageCandidates) {
         if (await storage.exists(candidate).catch(() => false)) {
             return candidate;
         }
     }
 
-    return candidates[0] ?? '';
+    return imageCandidates[0] ?? '';
 }

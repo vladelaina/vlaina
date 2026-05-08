@@ -1,6 +1,8 @@
 import { logVideoDebug } from './videoDebug';
+import { isLocalNetworkHttpUrl } from '@/lib/notes/markdown/urlSecurity';
 
 const MAX_VIDEO_URL_LENGTH = 2048;
+const UNSAFE_VIDEO_URL_CHARS_REGEX = /[\u0000-\u001F\u007F\u202A-\u202E\u2066-\u2069\uFFFD]/;
 
 export type ParsedVideoUrl =
   | { type: 'youtube' | 'bilibili'; embedUrl: string }
@@ -10,7 +12,7 @@ export type IframeVideoUrl = Extract<ParsedVideoUrl, { type: 'youtube' | 'bilibi
 
 export function normalizeVideoUrlInput(input: string) {
   const url = input.trim();
-  if (!url || url.length > MAX_VIDEO_URL_LENGTH || /[\r\n]/.test(url)) {
+  if (!url || url.length > MAX_VIDEO_URL_LENGTH || UNSAFE_VIDEO_URL_CHARS_REGEX.test(url)) {
     return null;
   }
   return url;
@@ -50,6 +52,18 @@ function extractBilibiliBvid(url: string) {
 function parsePositiveNumber(value: unknown) {
   const parsed = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function isPublicHttpVideoUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    return (
+      (parsed.protocol === 'http:' || parsed.protocol === 'https:')
+      && !isLocalNetworkHttpUrl(url)
+    );
+  } catch {
+    return false;
+  }
 }
 
 function extractYouTubeVideoId(rawUrl: string) {
@@ -115,7 +129,7 @@ export function parseVideoUrl(url: string): ParsedVideoUrl | null {
     };
   }
 
-  if (url.match(/\.(mp4|webm|ogg)(\?.*)?$/i)) {
+  if (url.match(/\.(mp4|webm|ogg)(\?.*)?$/i) && isPublicHttpVideoUrl(url)) {
     return {
       type: 'direct',
       embedUrl: url,

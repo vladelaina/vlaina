@@ -1,5 +1,7 @@
 import katex from 'katex';
 
+const MAX_LATEX_CHARS = 10000;
+
 export interface MathRenderErrorDetails {
   rawMessage: string;
   summary: string;
@@ -162,6 +164,23 @@ export function renderLatex(latex: string, displayMode: boolean): RenderResult {
     };
   }
 
+  if (latex.length > MAX_LATEX_CHARS) {
+    return {
+      html: '<span class="math-error">Error equation</span>',
+      error: 'Equation is too large to render',
+      errorDetails: {
+        rawMessage: 'Equation is too large to render',
+        summary: 'Equation is too large to render',
+        position: null,
+        line: null,
+        column: null,
+        locationLabel: null,
+        context: null,
+        pointer: null,
+      },
+    };
+  }
+
   try {
     const html = katex.renderToString(latex, {
       displayMode,
@@ -191,6 +210,9 @@ export function renderLatex(latex: string, displayMode: boolean): RenderResult {
 export function isValidLatex(latex: string): boolean {
   if (!latex.trim()) {
     return true;
+  }
+  if (latex.length > MAX_LATEX_CHARS) {
+    return false;
   }
 
   try {

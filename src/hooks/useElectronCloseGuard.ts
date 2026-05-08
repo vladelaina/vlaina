@@ -15,20 +15,37 @@ export function useElectronCloseGuard() {
 
   const getDiscardableDraftPaths = useCallback(() => {
     const notesState = useNotesStore.getState();
+    const draftPaths = new Set<string>();
 
-    return notesState.openTabs.flatMap((tab) => {
-      if (!isDraftNotePath(tab.path)) return [];
+    notesState.openTabs.forEach((tab) => {
+      if (isDraftNotePath(tab.path)) {
+        draftPaths.add(tab.path);
+      }
+    });
 
-      const draftEntry = notesState.draftNotes[tab.path];
+    if (isDraftNotePath(notesState.currentNote?.path)) {
+      draftPaths.add(notesState.currentNote.path);
+    }
+
+    Object.keys(notesState.draftNotes).forEach((path) => {
+      if (isDraftNotePath(path)) {
+        draftPaths.add(path);
+      }
+    });
+
+    return Array.from(draftPaths).flatMap((draftPath) => {
+      const draftEntry = notesState.draftNotes[draftPath];
       const hasDraftTitle = Boolean(draftEntry?.name.trim());
-      const draftContent = notesState.noteContentsCache.get(tab.path)?.content ?? '';
-      const draftMetadata = notesState.noteMetadata?.notes[tab.path];
+      const draftContent = notesState.currentNote?.path === draftPath
+        ? notesState.currentNote.content ?? notesState.noteContentsCache.get(draftPath)?.content ?? ''
+        : notesState.noteContentsCache.get(draftPath)?.content ?? '';
+      const draftMetadata = notesState.noteMetadata?.notes[draftPath];
 
       return hasDraftUnsavedChanges({
         draftName: hasDraftTitle ? draftEntry?.name : draftEntry?.name,
         content: draftContent,
         metadata: draftMetadata,
-      }) ? [tab.path] : [];
+      }) ? [draftPath] : [];
     });
   }, []);
 

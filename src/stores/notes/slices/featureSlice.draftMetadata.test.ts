@@ -202,6 +202,269 @@ describe('featureSlice draft metadata', () => {
     expect(store.getState().isDirty).toBe(false);
   });
 
+  it('keeps a failed absolute metadata write dirty so the change is not silently lost', async () => {
+    mocks.safeWriteTextFile.mockRejectedValueOnce(new Error('disk unavailable'));
+    const notePath = '/notes/alpha.md';
+    const store = createNotesStore({
+      notesPath: '',
+      rootFolder: null,
+      currentNote: { path: notePath, content: '# Alpha' },
+      openTabs: [{ path: notePath, name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([[notePath, { content: '# Alpha', modifiedAt: 1 }]]),
+    });
+
+    store.getState().setNoteIcon(notePath, 'sparkles');
+
+    await vi.waitFor(() => {
+      expect(store.getState().error).toBe('disk unavailable');
+    });
+
+    expect(store.getState().currentNote?.content).toContain('vlaina_icon');
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().openTabs).toEqual([
+      { path: notePath, name: 'alpha', isDirty: true },
+    ]);
+    expect(store.getState().noteContentsCache.get(notePath)?.content).toContain('vlaina_icon');
+  });
+
+  it('keeps a failed vault metadata write dirty so the change is not silently lost', async () => {
+    mocks.safeWriteTextFile.mockRejectedValueOnce(new Error('disk unavailable'));
+    const notePath = 'docs/alpha.md';
+    const store = createNotesStore({
+      notesPath: '/vault',
+      currentNote: { path: notePath, content: '# Alpha' },
+      openTabs: [{ path: notePath, name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([[notePath, { content: '# Alpha', modifiedAt: 1 }]]),
+    });
+
+    store.getState().setNoteCover(notePath, {
+      assetPath: '@monet/1',
+      positionX: 50,
+      positionY: 50,
+      height: 200,
+      scale: 1,
+    });
+
+    await vi.waitFor(() => {
+      expect(store.getState().error).toBe('disk unavailable');
+    });
+
+    expect(store.getState().currentNote?.content).toContain('vlaina_cover');
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().openTabs).toEqual([
+      { path: notePath, name: 'alpha', isDirty: true },
+    ]);
+    expect(store.getState().noteContentsCache.get(notePath)?.content).toContain('vlaina_cover');
+  });
+
+  it('does not overwrite newer edits when absolute metadata write finishes later', async () => {
+    let resolveWrite: (() => void) | undefined;
+    mocks.safeWriteTextFile.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      resolveWrite = resolve;
+    }));
+    const notePath = '/notes/alpha.md';
+    const store = createNotesStore({
+      notesPath: '',
+      rootFolder: null,
+      currentNote: { path: notePath, content: '# Alpha' },
+      openTabs: [{ path: notePath, name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([[notePath, { content: '# Alpha', modifiedAt: 1 }]]),
+    });
+
+    store.getState().setNoteIcon(notePath, 'sparkles');
+
+    await vi.waitFor(() => {
+      expect(mocks.safeWriteTextFile).toHaveBeenCalled();
+    });
+    const contentWithMetadata = store.getState().currentNote?.content ?? '';
+    const newerContent = `${contentWithMetadata}\n\nUser edit`;
+    store.setState((state) => ({
+      currentNote: { path: notePath, content: newerContent },
+      currentNoteRevision: state.currentNoteRevision + 1,
+      isDirty: true,
+      openTabs: state.openTabs.map((tab) =>
+        tab.path === notePath ? { ...tab, isDirty: true } : tab
+      ),
+      noteContentsCache: new Map(state.noteContentsCache).set(notePath, {
+        content: newerContent,
+        modifiedAt: 1,
+      }),
+    }));
+
+    resolveWrite?.();
+
+    await vi.waitFor(() => {
+      expect(store.getState().noteContentsCache.get(notePath)?.modifiedAt).toBe(1);
+    });
+    expect(store.getState().currentNote).toEqual({ path: notePath, content: newerContent });
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().openTabs).toEqual([
+      { path: notePath, name: 'alpha', isDirty: true },
+    ]);
+    expect(store.getState().noteContentsCache.get(notePath)).toEqual({
+      content: newerContent,
+      modifiedAt: 1,
+    });
+  });
+
+  it('does not overwrite newer edits when vault metadata write finishes later', async () => {
+    let resolveWrite: (() => void) | undefined;
+    mocks.safeWriteTextFile.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      resolveWrite = resolve;
+    }));
+    const notePath = 'docs/alpha.md';
+    const store = createNotesStore({
+      notesPath: '/vault',
+      currentNote: { path: notePath, content: '# Alpha' },
+      openTabs: [{ path: notePath, name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([[notePath, { content: '# Alpha', modifiedAt: 1 }]]),
+    });
+
+    store.getState().setNoteIcon(notePath, 'sparkles');
+
+    await vi.waitFor(() => {
+      expect(mocks.safeWriteTextFile).toHaveBeenCalled();
+    });
+    const contentWithMetadata = store.getState().currentNote?.content ?? '';
+    const newerContent = `${contentWithMetadata}\n\nUser edit`;
+    store.setState((state) => ({
+      currentNote: { path: notePath, content: newerContent },
+      currentNoteRevision: state.currentNoteRevision + 1,
+      isDirty: true,
+      openTabs: state.openTabs.map((tab) =>
+        tab.path === notePath ? { ...tab, isDirty: true } : tab
+      ),
+      noteContentsCache: new Map(state.noteContentsCache).set(notePath, {
+        content: newerContent,
+        modifiedAt: 1,
+      }),
+    }));
+
+    resolveWrite?.();
+
+    await vi.waitFor(() => {
+      expect(store.getState().noteContentsCache.get(notePath)?.modifiedAt).toBe(1);
+    });
+    expect(store.getState().currentNote).toEqual({ path: notePath, content: newerContent });
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().openTabs).toEqual([
+      { path: notePath, name: 'alpha', isDirty: true },
+    ]);
+    expect(store.getState().noteContentsCache.get(notePath)).toEqual({
+      content: newerContent,
+      modifiedAt: 1,
+    });
+  });
+
+  it('does not overwrite edits made while metadata source content is being read', async () => {
+    let resolveRead: (content: string) => void;
+    mocks.readFile.mockImplementationOnce(() => new Promise<string>((resolve) => {
+      resolveRead = resolve;
+    }));
+    const notePath = 'docs/alpha.md';
+    const store = createNotesStore({
+      notesPath: '/vault',
+      currentNote: { path: 'docs/beta.md', content: '# Beta' },
+      openTabs: [{ path: 'docs/beta.md', name: 'beta', isDirty: false }],
+      noteContentsCache: new Map([['docs/beta.md', { content: '# Beta', modifiedAt: 1 }]]),
+    });
+
+    store.getState().setNoteIcon(notePath, 'sparkles');
+
+    await vi.waitFor(() => {
+      expect(mocks.readFile).toHaveBeenCalled();
+    });
+    store.setState((state) => ({
+      currentNote: { path: notePath, content: '# Local edit' },
+      currentNoteRevision: state.currentNoteRevision + 1,
+      isDirty: true,
+      openTabs: [
+        { path: 'docs/beta.md', name: 'beta', isDirty: false },
+        { path: notePath, name: 'alpha', isDirty: true },
+      ],
+      noteContentsCache: new Map(state.noteContentsCache).set(notePath, {
+        content: '# Local edit',
+        modifiedAt: 1,
+      }),
+    }));
+    resolveRead!('# Disk content');
+
+    await vi.waitFor(() => {
+      expect(store.getState().noteMetadata?.notes[notePath]?.icon).toBe('sparkles');
+    });
+
+    expect(store.getState().currentNote?.path).toBe(notePath);
+    expect(store.getState().currentNote?.content).toContain('# Local edit');
+    expect(store.getState().currentNote?.content).not.toContain('# Disk content');
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().openTabs).toEqual([
+      { path: 'docs/beta.md', name: 'beta', isDirty: false },
+      { path: notePath, name: 'alpha', isDirty: true },
+    ]);
+    expect(mocks.safeWriteTextFile).not.toHaveBeenCalled();
+  });
+
+  it('does not overwrite current note cache when scanAllNotes finishes after a local edit', async () => {
+    let resolveRead: (content: string) => void;
+    mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true });
+    mocks.readFile.mockImplementationOnce(() => new Promise<string>((resolve) => {
+      resolveRead = resolve;
+    }));
+    const notePath = 'docs/alpha.md';
+    const store = createNotesStore({
+      notesPath: '/vault',
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [
+          {
+            id: 'docs',
+            name: 'docs',
+            path: 'docs',
+            isFolder: true,
+            expanded: true,
+            children: [{ id: notePath, name: 'alpha', path: notePath, isFolder: false }],
+          },
+        ],
+      },
+      currentNote: { path: notePath, content: '# Old alpha' },
+      openTabs: [{ path: notePath, name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([[notePath, { content: '# Old alpha', modifiedAt: 1 }]]),
+    });
+
+    const scan = store.getState().scanAllNotes();
+    await vi.waitFor(() => {
+      expect(mocks.readFile).toHaveBeenCalled();
+    });
+    store.setState((state) => ({
+      currentNote: { path: notePath, content: '# Local edit during scan' },
+      currentNoteRevision: state.currentNoteRevision + 1,
+      isDirty: true,
+      openTabs: state.openTabs.map((tab) =>
+        tab.path === notePath ? { ...tab, isDirty: true } : tab
+      ),
+      noteContentsCache: new Map(state.noteContentsCache).set(notePath, {
+        content: '# Local edit during scan',
+        modifiedAt: 1,
+      }),
+    }));
+    resolveRead!('# Scanned disk content');
+    await scan;
+
+    expect(store.getState().currentNote).toEqual({
+      path: notePath,
+      content: '# Local edit during scan',
+    });
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().noteContentsCache.get(notePath)).toEqual({
+      content: '# Local edit during scan',
+      modifiedAt: 1,
+    });
+  });
+
   it('removes stale absolute-note icon and cover metadata after frontmatter deletion', async () => {
     const notePath = '/notes/alpha.md';
     const content = [

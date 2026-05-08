@@ -1,7 +1,7 @@
 import { $mark, $remark, $inputRule } from '@milkdown/kit/utils';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
 import { escapeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
-import { remarkInlineColorHtmlPlugin, type MdastNode } from './colorMarkdownHtml';
+import { remarkInlineColorHtmlPlugin, sanitizeCssColorValue, type MdastNode } from './colorMarkdownHtml';
 export const textColorMark = $mark('textColor', () => ({
   attrs: {
     color: { default: null },
@@ -10,8 +10,9 @@ export const textColorMark = $mark('textColor', () => ({
     {
       style: 'color',
       getAttrs: (value) => {
-        if (typeof value === 'string' && value) {
-          return { color: value };
+        const color = sanitizeCssColorValue(value);
+        if (color) {
+          return { color };
         }
         return false;
       },
@@ -20,19 +21,19 @@ export const textColorMark = $mark('textColor', () => ({
       tag: 'span[data-text-color]',
       getAttrs: (dom) => {
         if (dom instanceof HTMLElement) {
-          return { color: dom.getAttribute('data-text-color') };
+          const color = sanitizeCssColorValue(dom.getAttribute('data-text-color'));
+          return color ? { color } : false;
         }
         return false;
       },
     },
   ],
   toDOM: (mark) => {
-    const color = mark.attrs.color as string;
+    const color = sanitizeCssColorValue(mark.attrs.color);
     return [
       'span',
       {
-        'data-text-color': color,
-        style: `color: ${color}`,
+        ...(color ? { 'data-text-color': color, style: `color: ${color}` } : {}),
       },
       0,
     ];
@@ -48,7 +49,8 @@ export const textColorMark = $mark('textColor', () => ({
   toMarkdown: {
     match: (mark) => mark.type.name === 'textColor',
     runner: (state, mark, node) => {
-      const color = mark.attrs.color as string;
+      const color = sanitizeCssColorValue(mark.attrs.color);
+      if (!color) return;
       state.addNode('html', undefined, `<span style="color: ${color}">${escapeMarkdownHtmlText(node.text || '')}</span>`);
       return true;
     },
@@ -62,8 +64,9 @@ export const bgColorMark = $mark('bgColor', () => ({
     {
       style: 'background-color',
       getAttrs: (value) => {
-        if (typeof value === 'string' && value && value !== 'transparent') {
-          return { color: value };
+        const color = sanitizeCssColorValue(value);
+        if (color && color !== 'transparent') {
+          return { color };
         }
         return false;
       },
@@ -72,7 +75,8 @@ export const bgColorMark = $mark('bgColor', () => ({
       tag: 'span[data-bg-color]',
       getAttrs: (dom) => {
         if (dom instanceof HTMLElement) {
-          return { color: dom.getAttribute('data-bg-color') };
+          const color = sanitizeCssColorValue(dom.getAttribute('data-bg-color'));
+          return color ? { color } : false;
         }
         return false;
       },
@@ -81,19 +85,24 @@ export const bgColorMark = $mark('bgColor', () => ({
       tag: 'mark[data-bg-color]',
       getAttrs: (dom) => {
         if (dom instanceof HTMLElement) {
-          return { color: dom.getAttribute('data-bg-color') };
+          const color = sanitizeCssColorValue(dom.getAttribute('data-bg-color'));
+          return color ? { color } : false;
         }
         return false;
       },
     },
   ],
   toDOM: (mark) => {
-    const color = mark.attrs.color as string;
+    const color = sanitizeCssColorValue(mark.attrs.color);
     return [
       'mark',
       {
-        'data-bg-color': color,
-        style: `background-color: ${color}; border-radius: 0.125rem; box-decoration-break: clone; -webkit-box-decoration-break: clone;`,
+        ...(color
+          ? {
+              'data-bg-color': color,
+              style: `background-color: ${color}; border-radius: 0.125rem; box-decoration-break: clone; -webkit-box-decoration-break: clone;`,
+            }
+          : {}),
       },
       0,
     ];
@@ -109,7 +118,8 @@ export const bgColorMark = $mark('bgColor', () => ({
   toMarkdown: {
     match: (mark) => mark.type.name === 'bgColor',
     runner: (state, mark, node) => {
-      const color = mark.attrs.color as string;
+      const color = sanitizeCssColorValue(mark.attrs.color);
+      if (!color) return;
       state.addNode('html', undefined, `<mark style="background-color: ${color}">${escapeMarkdownHtmlText(node.text || '')}</mark>`);
       return true;
     },

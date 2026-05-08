@@ -1,4 +1,4 @@
-import { getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
+import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import {
   safeWriteTextFile,
 } from '../storage';
@@ -11,6 +11,7 @@ import {
 } from './noteContentCache';
 import { markExpectedExternalChange } from './externalChangeRegistry';
 import { readNoteMetadataFromMarkdown, updateNoteMetadataInMarkdown } from '../frontmatter';
+import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import {
   normalizeSerializedMarkdownDocument,
   summarizeMarkdownNormalizationPipeline,
@@ -46,6 +47,8 @@ export interface SavedNoteDocument {
   metadata: NoteMetadataEntry;
 }
 
+const MAX_NOTE_DOCUMENT_BYTES = 50 * 1024 * 1024;
+
 export class NoteWriteConflictError extends Error {
   constructor() {
     super('Current note changed on disk. Reload or resolve the conflict before saving.');
@@ -58,7 +61,13 @@ async function resolveStoredPath(notesPath: string, path: string): Promise<strin
     return path;
   }
 
-  return joinPath(notesPath, path);
+  return (await resolveVaultRelativeFullPath(notesPath, path)).fullPath;
+}
+
+function assertReadableNoteSize(size: number | null | undefined): void {
+  if (typeof size === 'number' && size > MAX_NOTE_DOCUMENT_BYTES) {
+    throw new Error('Note file is too large to open.');
+  }
 }
 
 export async function loadNoteDocument({
@@ -89,10 +98,9 @@ export async function loadNoteDocument({
 
   const storage = getStorageAdapter();
   const fullPath = await resolveStoredPath(notesPath, path);
-  const [content, fileInfo] = await Promise.all([
-    storage.readFile(fullPath),
-    storage.stat(fullPath),
-  ]);
+  const fileInfo = await storage.stat(fullPath);
+  assertReadableNoteSize(fileInfo?.size ?? null);
+  const content = await storage.readFile(fullPath);
   const normalizedContent = normalizeSerializedMarkdownDocument(content);
   const modifiedAt = fileInfo?.modifiedAt ?? null;
   logNotesDebug('NotesPersistence', 'load:disk-read', {
@@ -122,6 +130,7 @@ export async function saveNoteDocument({
   const fullPath = await resolveStoredPath(notesPath, currentNote.path);
   const cachedModifiedAt = getCachedNoteModifiedAt(cache, currentNote.path);
   const fileInfoBeforeWrite = await storage.stat(fullPath);
+  assertReadableNoteSize(fileInfoBeforeWrite?.size ?? null);
   const diskModifiedAt = fileInfoBeforeWrite?.modifiedAt ?? null;
   logNotesDebug('NotesPersistence', 'save:start', {
     notesPath,

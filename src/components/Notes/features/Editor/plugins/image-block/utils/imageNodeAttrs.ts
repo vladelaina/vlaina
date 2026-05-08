@@ -1,5 +1,5 @@
 import type { Alignment } from '../types';
-import { buildImageSource, parseImageSource } from './imageSourceFragment';
+import { buildImageSource, normalizeImageWidth, parseImageSource } from './imageSourceFragment';
 
 type NodeAttrs = Record<string, unknown>;
 
@@ -16,9 +16,7 @@ function normalizeAlignment(value: unknown): Alignment | null {
 
 function normalizeWidth(value: unknown): string | null {
     if (typeof value !== 'string') return null;
-    const trimmed = value.trim();
-    if (!trimmed || trimmed === 'auto') return null;
-    return trimmed;
+    return normalizeImageWidth(value);
 }
 
 function dedupeTokens(tokens: string[]): string[] {

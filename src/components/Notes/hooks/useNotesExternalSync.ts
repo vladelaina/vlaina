@@ -11,6 +11,7 @@ import {
   readNotesExternalPathEvents,
   subscribeNotesExternalPathRename,
 } from '@/stores/notes/document/externalPathBroadcast';
+import { normalizeVaultRelativePath } from '@/stores/notes/utils/fs/vaultPathContainment';
 import {
   rememberProcessedRenameEventNonce,
   type PendingRenameEntry,
@@ -102,7 +103,13 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
         }
       }
 
-      await applyExternalPathRename(event.oldPath, event.newPath);
+      const oldPath = normalizeVaultRelativePath(event.oldPath);
+      const newPath = normalizeVaultRelativePath(event.newPath);
+      if (!oldPath || !newPath) {
+        return;
+      }
+
+      await applyExternalPathRename(oldPath, newPath);
       if (disposed || useNotesStore.getState().notesPath !== notesPath) {
         return;
       }

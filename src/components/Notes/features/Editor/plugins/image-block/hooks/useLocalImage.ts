@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { getStorageAdapter } from '@/lib/storage/adapter';
+import { isPublicRemoteMediaUrl, sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 import { getImageSourceBase, isVirtualImageSource, resolveImageSourcePathCandidates } from '../utils/imageSourcePath';
 
 interface UseLocalImageResult {
@@ -35,6 +36,22 @@ export function useLocalImage(
 
             try {
                 const baseSrc = getImageSourceBase(rawSrc);
+                if (sanitizeNoteMediaSrc(baseSrc) !== baseSrc) {
+                    if (isMounted) {
+                        setResolvedSrc('');
+                        setIsLoading(false);
+                    }
+                    return;
+                }
+
+                if (isPublicRemoteMediaUrl(baseSrc)) {
+                    if (isMounted) {
+                        setError(new Error('Remote image blocked'));
+                        setResolvedSrc('');
+                        setIsLoading(false);
+                    }
+                    return;
+                }
 
                 if (isVirtualImageSource(baseSrc)) {
                     if (isMounted) {

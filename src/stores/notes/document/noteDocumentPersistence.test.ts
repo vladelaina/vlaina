@@ -5,7 +5,7 @@ const adapter = {
   readFile: vi.fn<(path: string) => Promise<string>>(),
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
   stat: vi.fn<
-    (path: string) => Promise<{ isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null } | null>
+    (path: string) => Promise<{ isFile?: boolean; isDirectory?: boolean; modifiedAt?: number | null; size?: number | null } | null>
   >(),
 };
 
@@ -230,6 +230,28 @@ describe('saveNoteDocument', () => {
     expect(result.nextCache.get('alpha.md')?.content).toBe(['# Alpha', '', 'Body'].join('\n'));
   });
 
+  it('rejects loading relative paths that escape the vault', async () => {
+    await expect(loadNoteDocument({
+      notesPath: '/vault',
+      path: '../secret.md',
+      cache: new Map(),
+    })).rejects.toThrow('Path must stay inside the current vault.');
+
+    expect(adapter.readFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects loading oversized markdown files before reading content', async () => {
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 51 * 1024 * 1024 });
+
+    await expect(loadNoteDocument({
+      notesPath: '/vault',
+      path: 'huge.md',
+      cache: new Map(),
+    })).rejects.toThrow('Note file is too large to open.');
+
+    expect(adapter.readFile).not.toHaveBeenCalled();
+  });
+
   it('cleans internal user break markers when loading markdown', async () => {
     adapter.readFile.mockResolvedValue(['Line one', '<br data-vlaina-user-br="true" />', 'Line two'].join('\n'));
     adapter.stat.mockResolvedValue({ modifiedAt: 123 });
@@ -274,6 +296,19 @@ describe('saveNoteDocument', () => {
       },
       cache: new Map([['alpha.md', { content: '# Loaded', modifiedAt: 100 }]]),
     })).rejects.toBeInstanceOf(NoteWriteConflictError);
+
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects saving relative paths that escape the vault', async () => {
+    await expect(saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: '../secret.md',
+        content: '# Secret',
+      },
+      cache: new Map(),
+    })).rejects.toThrow('Path must stay inside the current vault.');
 
     expect(adapter.writeFile).not.toHaveBeenCalled();
   });

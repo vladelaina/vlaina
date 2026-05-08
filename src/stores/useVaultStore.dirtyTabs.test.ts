@@ -438,6 +438,160 @@ describe('useVaultStore dirty note protection', () => {
     expect(useNotesStore.getState().noteMetadata).toBeNull();
   });
 
+  it('saves dirty regular tabs before removing the current vault from recent vaults', async () => {
+    const removed = await useVaultStore.getState().removeFromRecent('vault-old');
+
+    expect(removed).toBe(true);
+    expect(mocks.saveDirtyRegularOpenTabs).toHaveBeenCalledTimes(1);
+    expect(useVaultStore.getState().currentVault).toBeNull();
+    expect(useVaultStore.getState().error).toBeNull();
+    expect(useNotesStore.getState()).toMatchObject({
+      notesPath: '',
+      currentNote: null,
+      isDirty: false,
+      openTabs: [],
+    });
+  });
+
+  it('does not remove the current vault from recent vaults when dirty regular tabs cannot be saved', async () => {
+    mocks.saveDirtyRegularOpenTabs.mockResolvedValue(false);
+    useNotesStore.setState({
+      currentNote: { path: 'current.md', content: 'Dirty current' },
+      isDirty: true,
+      openTabs: [{ path: 'current.md', name: 'current', isDirty: true }],
+      noteContentsCache: new Map([['current.md', { content: 'Dirty current', modifiedAt: 1 }]]),
+    });
+
+    const removed = await useVaultStore.getState().removeFromRecent('vault-old');
+
+    expect(removed).toBe(false);
+    expect(useVaultStore.getState().currentVault?.path).toBe('/vault/old');
+    expect(useVaultStore.getState().recentVaults).toEqual([
+      {
+        id: 'vault-old',
+        name: 'old',
+        path: '/vault/old',
+        lastOpened: 1,
+      },
+    ]);
+    expect(useVaultStore.getState().error).toBe('Failed to save pending note changes');
+    expect(useNotesStore.getState().currentNote).toEqual({
+      path: 'current.md',
+      content: 'Dirty current',
+    });
+    expect(useNotesStore.getState().isDirty).toBe(true);
+  });
+
+  it('does not remove the current vault from recent vaults while draft tabs still have unsaved content', async () => {
+    useNotesStore.setState({
+      currentNote: { path: 'draft:alpha', content: 'Draft body' },
+      isDirty: true,
+      openTabs: [{ path: 'draft:alpha', name: '', isDirty: true }],
+      draftNotes: { 'draft:alpha': { parentPath: null, name: 'Draft title' } },
+      noteContentsCache: new Map([['draft:alpha', { content: 'Draft body', modifiedAt: null }]]),
+    });
+
+    const removed = await useVaultStore.getState().removeFromRecent('vault-old');
+
+    expect(removed).toBe(false);
+    expect(useVaultStore.getState().currentVault?.path).toBe('/vault/old');
+    expect(useVaultStore.getState().error).toBe(
+      'Save or discard draft notes before switching vaults'
+    );
+    expect(useNotesStore.getState().currentNote).toEqual({
+      path: 'draft:alpha',
+      content: 'Draft body',
+    });
+    expect(useNotesStore.getState().draftNotes).toEqual({
+      'draft:alpha': { parentPath: null, name: 'Draft title' },
+    });
+  });
+
+  it('does not remove the current vault while a cached draft is missing from tabs', async () => {
+    useNotesStore.setState({
+      currentNote: { path: 'current.md', content: 'Current' },
+      isDirty: false,
+      openTabs: [{ path: 'current.md', name: 'current', isDirty: false }],
+      draftNotes: { 'draft:cached': { parentPath: null, name: '' } },
+      noteContentsCache: new Map([['draft:cached', { content: 'Cached draft body', modifiedAt: null }]]),
+    });
+
+    const removed = await useVaultStore.getState().removeFromRecent('vault-old');
+
+    expect(removed).toBe(false);
+    expect(useVaultStore.getState().currentVault?.path).toBe('/vault/old');
+    expect(useVaultStore.getState().error).toBe(
+      'Save or discard draft notes before switching vaults'
+    );
+    expect(useNotesStore.getState().draftNotes).toEqual({
+      'draft:cached': { parentPath: null, name: '' },
+    });
+    expect(useNotesStore.getState().noteContentsCache.get('draft:cached')).toEqual({
+      content: 'Cached draft body',
+      modifiedAt: null,
+    });
+  });
+
+  it('does not create a vault folder while a current draft is missing from tabs', async () => {
+    useNotesStore.setState({
+      currentNote: { path: 'draft:orphan', content: 'Current draft body' },
+      isDirty: true,
+      openTabs: [],
+      draftNotes: { 'draft:orphan': { parentPath: null, name: '' } },
+      noteContentsCache: new Map(),
+    });
+
+    const created = await useVaultStore.getState().createVault('next', '/vault/next');
+
+    expect(created).toBe(false);
+    expect(mocks.storage.mkdir).not.toHaveBeenCalled();
+    expect(useVaultStore.getState().currentVault?.path).toBe('/vault/old');
+    expect(useVaultStore.getState().error).toBe(
+      'Save or discard draft notes before switching vaults'
+    );
+    expect(useNotesStore.getState().currentNote).toEqual({
+      path: 'draft:orphan',
+      content: 'Current draft body',
+    });
+  });
+
+  it('removes a non-current recent vault without touching the note workspace', async () => {
+    useVaultStore.setState({
+      recentVaults: [
+        {
+          id: 'vault-old',
+          name: 'old',
+          path: '/vault/old',
+          lastOpened: 1,
+        },
+        {
+          id: 'vault-next',
+          name: 'next',
+          path: '/vault/next',
+          lastOpened: 2,
+        },
+      ],
+    });
+
+    const removed = await useVaultStore.getState().removeFromRecent('vault-next');
+
+    expect(removed).toBe(true);
+    expect(mocks.saveDirtyRegularOpenTabs).not.toHaveBeenCalled();
+    expect(useVaultStore.getState().currentVault?.path).toBe('/vault/old');
+    expect(useVaultStore.getState().recentVaults).toEqual([
+      {
+        id: 'vault-old',
+        name: 'old',
+        path: '/vault/old',
+        lastOpened: 1,
+      },
+    ]);
+    expect(useNotesStore.getState().currentNote).toEqual({
+      path: 'current.md',
+      content: 'Current',
+    });
+  });
+
   it('does not create a vault folder while draft tabs still have unsaved content', async () => {
     useNotesStore.setState({
       currentNote: { path: 'draft:alpha', content: 'Draft body' },

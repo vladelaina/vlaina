@@ -50,7 +50,7 @@ interface VaultActions {
   createVault: (name: string, path: string) => Promise<boolean>;
   renameCurrentVault: (name: string) => Promise<boolean>;
   syncCurrentVaultExternalPath: (path: string) => void;
-  removeFromRecent: (id: string) => void;
+  removeFromRecent: (id: string) => Promise<boolean>;
   closeVault: () => Promise<boolean>;
   clearError: () => void;
   checkVaultOpenInOtherWindow: (path: string) => Promise<string | null>;
@@ -93,9 +93,17 @@ function hasUnsavedDraftTabs(): boolean {
     draftPaths.add(notesState.currentNote.path);
   }
 
+  Object.keys(notesState.draftNotes).forEach((path) => {
+    if (isDraftNotePath(path)) {
+      draftPaths.add(path);
+    }
+  });
+
   for (const draftPath of draftPaths) {
     const draftEntry = notesState.draftNotes[draftPath];
-    const draftContent = notesState.noteContentsCache.get(draftPath)?.content ?? '';
+    const draftContent = notesState.currentNote?.path === draftPath
+      ? notesState.currentNote.content
+      : notesState.noteContentsCache.get(draftPath)?.content ?? '';
     const draftMetadata = notesState.noteMetadata?.notes[draftPath];
     if (
       hasDraftUnsavedChanges({
@@ -569,12 +577,22 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
     syncCurrentVaultExternalPathAction({ path, currentVault, recentVaults, set });
   },
 
-  removeFromRecent: (id: string) => {
+  removeFromRecent: async (id: string) => {
     const { recentVaults, currentVault } = get();
+    if (currentVault?.id === id) {
+      const prepared = await prepareNotesForVaultExit();
+      if (!prepared.ok) {
+        set({ error: prepared.error });
+        return false;
+      }
+    }
+
     removeRecentVaultAction({ id, recentVaults, currentVault, set });
     if (currentVault?.id === id) {
-      resetNotesWorkspaceForVaultTransition();
+      resetNotesWorkspaceForVaultTransition('', { preserveExternalNotes: true });
     }
+    set({ error: null });
+    return true;
   },
 
   closeVault: async () => {

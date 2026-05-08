@@ -6,6 +6,7 @@ import { getStorageAdapter } from '@/lib/storage/adapter';
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
 import { readNoteMetadataFromMarkdown, updateNoteMetadataInMarkdown } from '../../frontmatter';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { resolveVaultRelativeFullPath } from './vaultPathContainment';
 
 export async function createNoteImpl(
     notesPath: string,
@@ -23,6 +24,11 @@ export async function createNoteImpl(
     );
 
     if (folderPath) {
+        const { fullPath: folderFullPath } = await resolveVaultRelativeFullPath(notesPath, folderPath, {
+            allowEmpty: true,
+            errorMessage: 'Target folder must stay inside the current vault.',
+        });
+        await adapter.mkdir(folderFullPath, true);
     }
 
     const normalizedContent = normalizeSerializedMarkdownDocument(content);

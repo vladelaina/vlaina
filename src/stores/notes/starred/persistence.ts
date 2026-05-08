@@ -10,6 +10,9 @@ import {
   type StarredRegistry,
 } from './registry';
 
+const MAX_STARRED_ENTRIES = 5000;
+const MAX_STARRED_REGISTRY_BYTES = 5 * 1024 * 1024;
+
 async function getStarredRegistryPath(): Promise<string> {
   await ensureDirectories();
   const { store } = await getPaths();
@@ -21,7 +24,7 @@ async function writeStarredRegistry(entries: StarredEntry[]): Promise<void> {
   const starredPath = await getStarredRegistryPath();
   const registry: StarredRegistry = {
     version: CURRENT_STARRED_VERSION,
-    entries: dedupeStarredEntries(entries),
+    entries: dedupeStarredEntries(entries).slice(0, MAX_STARRED_ENTRIES),
   };
   await storage.writeFile(starredPath, JSON.stringify(registry, null, 2));
 }
@@ -134,10 +137,17 @@ export async function loadStarredRegistry(): Promise<StarredRegistry> {
       return { version: CURRENT_STARRED_VERSION, entries: [] };
     }
 
+    const starredInfo = await storage.stat(starredPath).catch(() => null);
+    if (starredInfo?.size && starredInfo.size > MAX_STARRED_REGISTRY_BYTES) {
+      console.error('[NotesStorage] Starred registry is too large to load');
+      return { version: CURRENT_STARRED_VERSION, entries: [] };
+    }
+
     const content = await storage.readFile(starredPath);
     const data = JSON.parse(content);
     const entries = Array.isArray(data.entries)
       ? data.entries
+          .slice(0, MAX_STARRED_ENTRIES)
           .map((entry: unknown) => normalizeStarredEntry(entry))
           .filter((entry: StarredEntry | null): entry is StarredEntry => entry !== null)
       : [];
@@ -159,7 +169,7 @@ export async function loadStarredRegistry(): Promise<StarredRegistry> {
 }
 
 export function saveStarredRegistry(entries: StarredEntry[]): void {
-  starredPersistenceQueue.schedule(dedupeStarredEntries(entries));
+  starredPersistenceQueue.schedule(dedupeStarredEntries(entries).slice(0, MAX_STARRED_ENTRIES));
 }
 
 export async function flushStarredRegistry(): Promise<void> {

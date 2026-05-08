@@ -4,12 +4,15 @@ import type { StarredEntry } from '../types';
 const adapter = {
   exists: vi.fn<(path: string) => Promise<boolean>>(),
   readFile: vi.fn<(path: string) => Promise<string>>(),
-  stat: vi.fn<(path: string) => Promise<{ isDirectory: boolean; isFile: boolean } | null>>(),
+  stat: vi.fn<
+    (path: string) => Promise<{ isDirectory: boolean; isFile: boolean; size?: number } | null>
+  >(),
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
 };
 
 vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => adapter,
+  isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
   joinPath: (...segments: string[]) => Promise.resolve(segments.join('/')),
 }));
 
@@ -93,6 +96,38 @@ describe('starred persistence', () => {
     expect(adapter.writeFile).toHaveBeenCalledTimes(1);
     const [, content] = adapter.writeFile.mock.calls[0];
     expect(JSON.parse(content)).toMatchObject({ entries: [validEntry] });
+  });
+
+  it('drops traversal entries before checking targets on disk', async () => {
+    adapter.exists.mockImplementation(async (path: string) => path === '/store/notes-starred.json');
+    adapter.stat.mockResolvedValue(null);
+    adapter.readFile.mockResolvedValue(
+      JSON.stringify({
+        version: 1,
+        entries: [createEntry('1', 'note', 'C:/vault-a', '../secret.md')],
+      })
+    );
+
+    const persistence = await import('./persistence');
+    const result = await persistence.loadStarredRegistry();
+
+    expect(result.entries).toEqual([]);
+    expect(adapter.exists).not.toHaveBeenCalledWith('C:/vault-a/../secret.md');
+  });
+
+  it('does not parse oversized starred registries', async () => {
+    adapter.exists.mockResolvedValue(true);
+    adapter.stat.mockImplementation(async (path: string) => (
+      path === '/store/notes-starred.json'
+        ? { isDirectory: false, isFile: true, size: 6 * 1024 * 1024 }
+        : null
+    ));
+
+    const persistence = await import('./persistence');
+    const result = await persistence.loadStarredRegistry();
+
+    expect(result.entries).toEqual([]);
+    expect(adapter.readFile).not.toHaveBeenCalled();
   });
 
 

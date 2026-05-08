@@ -156,7 +156,7 @@ export interface NotesActions {
   discardDraftNote: (path: string) => void;
   cancelPendingDraftDiscard: () => void;
   confirmPendingDraftDiscard: () => Promise<void>;
-  closeNote: () => void;
+  closeNote: () => Promise<void>;
   closeTab: (path: string) => Promise<void>;
   reopenClosedTab: () => Promise<void>;
   switchTab: (path: string) => void;

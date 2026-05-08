@@ -14,8 +14,27 @@ function extractCssDeclaration(style: string, property: string): string | null {
     if (separatorIndex < 0) continue;
     const name = declaration.slice(0, separatorIndex).trim().toLowerCase();
     const value = declaration.slice(separatorIndex + 1).trim();
-    if (name === property && value) return value;
+    if (name === property && value) return sanitizeCssColorValue(value);
   }
+  return null;
+}
+
+export function sanitizeCssColorValue(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (
+    !trimmed ||
+    trimmed.length > 80 ||
+    /[\u0000-\u001F\u007F;{}<>"'\\]/.test(trimmed) ||
+    /\b(?:url|expression|import)\s*\(/i.test(trimmed)
+  ) {
+    return null;
+  }
+
+  if (/^#[0-9a-f]{3,8}$/i.test(trimmed)) return trimmed;
+  if (/^(?:rgb|rgba|hsl|hsla)\(\s*[-+.\d%]+\s*(?:,\s*[-+.\d%]+\s*){2,3}\)$/i.test(trimmed)) return trimmed;
+  if (/^var\(--[A-Za-z0-9_-]+\)$/.test(trimmed)) return trimmed;
+  if (/^[A-Za-z]+$/.test(trimmed)) return trimmed;
   return null;
 }
 

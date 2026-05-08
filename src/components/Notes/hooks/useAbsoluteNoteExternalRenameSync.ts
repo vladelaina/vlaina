@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { watchDesktopPath } from '@/lib/desktop/watch';
+import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
 import { getParentPath, isAbsolutePath } from '@/lib/storage/adapter';
 import {
   getNotesExternalPathEventsRelativePath,
@@ -14,6 +15,10 @@ import {
 } from './notesExternalSyncUtils';
 import { rememberProcessedRenameEventNonce } from './notesExternalRenameQueue';
 
+function isAbsoluteRenamePathInsideParent(parentPath: string, path: string) {
+  return isAbsolutePath(path) && normalizeContainedAssetPath(path, parentPath) !== null;
+}
+
 export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | undefined) {
   const applyExternalPathRename = useNotesStore((state) => state.applyExternalPathRename);
   const processedRenameEventNoncesRef = useRef<Set<string>>(new Set());
@@ -27,6 +32,7 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
     if (!parentPath) {
       return;
     }
+    const watchedParentPath = parentPath;
 
     let disposed = false;
     let unwatch: (() => Promise<void>) | null = null;
@@ -43,18 +49,25 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
         }
       }
 
+      if (
+        !isAbsoluteRenamePathInsideParent(watchedParentPath, event.oldPath) ||
+        !isAbsoluteRenamePathInsideParent(watchedParentPath, event.newPath)
+      ) {
+        return;
+      }
+
       await applyExternalPathRename(event.oldPath, event.newPath);
     }
 
     const unsubscribeRenameBroadcast = subscribeNotesExternalPathRename(
-      parentPath,
+      watchedParentPath,
       (event) => {
         void applyRenameEvent(event);
       }
     );
 
     const reconcileExternalPathEventFile = async () => {
-      const events = await readNotesExternalPathEvents(parentPath, {
+      const events = await readNotesExternalPathEvents(watchedParentPath, {
         afterStamp: eventFileStartedAt,
       });
       if (disposed) {
@@ -68,13 +81,13 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
 
     const isExternalPathEventFileWatchEvent = (paths: string[]) => {
       const eventRelativePath = getNotesExternalPathEventsRelativePath();
-      return paths.some((path) => toVaultRelativePath(parentPath, path) === eventRelativePath);
+      return paths.some((path) => toVaultRelativePath(watchedParentPath, path) === eventRelativePath);
     };
 
     const run = async () => {
       try {
         const stopWatching = await watchDesktopPath(
-          parentPath,
+          watchedParentPath,
           async (event) => {
             if (disposed) {
               return;

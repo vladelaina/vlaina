@@ -1,6 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { sanitizeHtml, SANDBOXED_IFRAME_SANDBOX } from './sanitizer';
+import { sanitizeHtml } from './sanitizer';
 
 describe('sanitizeHtml', () => {
   it('removes script tags and inline event handlers', () => {
@@ -16,30 +16,27 @@ describe('sanitizeHtml', () => {
     expect(result).not.toContain('alert(1)');
   });
 
-  it('removes class id and data attributes', () => {
+  it('keeps safe attributes while removing id class and data attributes', () => {
     const result = sanitizeHtml(
-      '<p class="x" id="y" data-test="z">safe</p><iframe src="https://example.com/embed" data-token="1"></iframe>',
+      '<p class="x" id="y" role="note" data-test="z">safe</p><div itemscope itemtype="schema/Thing" data-token="1">thing</div>',
     );
 
-    expect(result).toContain('<p>safe</p>');
-    expect(result).toContain('<iframe');
-    expect(result).not.toContain('class=');
+    expect(result).toContain('<p role="note">safe</p>');
+    expect(result).toContain('<div itemscope="" itemtype="schema/Thing">thing</div>');
     expect(result).not.toContain('id=');
+    expect(result).not.toContain('class=');
     expect(result).not.toContain('data-test');
     expect(result).not.toContain('data-token');
   });
 
-  it('hardens iframe embeds with sandbox and strips srcdoc', () => {
+  it('keeps iframe embeds in a forced sandbox', () => {
     const result = sanitizeHtml(
       '<iframe src="https://example.com/embed" srcdoc="<script>alert(1)</script>" allowfullscreen></iframe>',
     );
 
-    expect(result).toContain('<iframe');
-    expect(result).toContain(`sandbox="${SANDBOXED_IFRAME_SANDBOX}"`);
-    expect(result).toContain('referrerpolicy="no-referrer"');
-    expect(result).toContain('loading="lazy"');
-    expect(result).toContain('allowfullscreen=""');
+    expect(result).toBe('<iframe src="https://example.com/embed" allowfullscreen="" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>');
     expect(result).not.toContain('srcdoc');
+    expect(result).not.toContain('alert(1)');
   });
 
   it('rejects dangerous iframe sources including javascript and localhost', () => {
@@ -54,17 +51,45 @@ describe('sanitizeHtml', () => {
     );
 
     expect(result).toContain('<a>bad</a>');
+    expect(result).toContain('<img>');
     expect(result).toContain('<a href="#anchor">anchor</a>');
-    expect(result).not.toContain('<img');
     expect(result).not.toContain('javascript:');
   });
 
-  it('adds noopener metadata to external blank links', () => {
-    const result = sanitizeHtml('<a href="https://example.com" target="_blank">safe</a>');
+  it('keeps constrained Typora-style inline styles while dropping executable CSS', () => {
+    const result = sanitizeHtml(
+      '<span style="color:red; font-size:2rem; background:yellow; background-image:url(javascript:alert(1)); position:fixed">x</span>',
+    );
 
-    expect(result).toContain('href="https://example.com/"');
-    expect(result).toContain('target="_blank"');
-    expect(result).toContain('rel="noopener noreferrer"');
+    expect(result).toBe('<span style="color: red; font-size: 2rem; background: yellow">x</span>');
+    expect(result).not.toContain('javascript:');
+    expect(result).not.toContain('position');
+  });
+
+  it('keeps video and audio media tags with safe sources', () => {
+    const result = sanitizeHtml(
+      '<video src="xxx.mp4" controls poster="poster.png"></video><audio src="xxx.mp3" controls></audio>',
+    );
+
+    expect(result).toBe('<video src="xxx.mp4" controls="" poster="poster.png"></video><audio src="xxx.mp3" controls=""></audio>');
+  });
+
+  it('drops media tags that only contain unsafe sources after sanitizing', () => {
+    const result = sanitizeHtml(
+      '<video><source src="javascript:alert(1)" type="video/mp4"></video><audio><source src="http://127.0.0.1:3000/a.mp3"></audio>',
+    );
+
+    expect(result).toBe('');
+    expect(result).not.toContain('javascript:');
+    expect(result).not.toContain('127.0.0.1');
+  });
+
+  it('keeps safe links while stripping unsupported target attributes', () => {
+    const result = sanitizeHtml('<a href="https://example.com" target="_blank" rel="nofollow">safe</a>');
+
+    expect(result).toContain('href="https://example.com"');
+    expect(result).toContain('rel="nofollow"');
+    expect(result).not.toContain('target=');
   });
 
   it('blocks protocol obfuscation attempts in links and iframes', () => {
@@ -77,34 +102,59 @@ describe('sanitizeHtml', () => {
 
     expect(result).toContain('<a>mixed-case</a>');
     expect(result).toContain('<a>entity</a>');
-    expect(result).toContain('<iframe src="https://example.com/embed"');
+    expect(result).toContain('<iframe src="HTTPS://example.com/embed" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>');
     expect(result).not.toContain('javascript:');
   });
 
-  it('drops unsafe data urls and svg payloads from images', () => {
+  it('strips data urls and svg payloads from image src attributes', () => {
     const result = sanitizeHtml([
       '<img src="data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==">',
       '<img src="data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+PC9zdmc+">',
       '<img src="data:image/png;base64,QUJDRA==">',
     ].join(''));
 
-    expect(result).toContain('<img src="data:image/png;base64,QUJDRA==">');
+    expect(result).toBe('<img><img><img>');
     expect(result).not.toContain('data:text/html');
     expect(result).not.toContain('image/svg+xml');
   });
 
-  it('keeps safe structure while stripping unsupported wrapper tags', () => {
-    const result = sanitizeHtml('<section><div><p>text <strong>bold</strong></p></div></section>');
+  it('blocks local-network image sources that would be auto-loaded on open', () => {
+    const result = sanitizeHtml([
+      '<img src="http://localhost:3000/secret.png">',
+      '<img src="http://127.0.0.1:3000/secret.png">',
+      '<img src="//127.0.0.1:3000/secret.png">',
+      '<img src="http://192.168.1.8/secret.png">',
+      '<img src="http://[::ffff:7f00:1]/secret.png">',
+      '<img src="https://example.com/safe.png">',
+    ].join(''));
 
-    expect(result).toBe('<p>text <strong>bold</strong></p>');
+    expect(result).toBe('<img><img><img><img><img><img src="https://example.com/safe.png">');
   });
 
-  it('strips sandbox escalation attributes from pasted iframes', () => {
+  it('blocks executable and network source srcset values that would be auto-loaded on open', () => {
+    const result = sanitizeHtml([
+      '<picture><source srcset="data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+ 1x"><img src="https://example.com/safe.png"></picture>',
+      '<picture><source srcset="//127.0.0.1:3000/secret.png 1x"><img src="https://example.com/safe.png"></picture>',
+      '<picture><source srcset="images/safe.webp 1x, ../images/safe@2x.webp 2x"><img src="https://example.com/safe.png"></picture>',
+    ].join(''));
+
+    expect(result).not.toContain('data:image');
+    expect(result).not.toContain('127.0.0.1');
+    expect(result).toContain('srcset="images/safe.webp 1x, ../images/safe@2x.webp 2x"');
+  });
+
+  it('keeps GitHub-supported wrappers while stripping unsupported wrapper tags', () => {
+    const result = sanitizeHtml('<section><div><p>text <strong>bold</strong></p></div></section>');
+
+    expect(result).toBe(' <div><p>text <strong>bold</strong></p></div> ');
+  });
+
+  it('keeps iframe embeds while dropping sandbox escalation attempts', () => {
     const result = sanitizeHtml(
       '<iframe src="https://example.com/embed" sandbox="allow-same-origin allow-top-navigation" class="x"></iframe>',
     );
 
-    expect(result).toContain(`sandbox="${SANDBOXED_IFRAME_SANDBOX}"`);
+    expect(result).toBe('<iframe src="https://example.com/embed" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>');
     expect(result).not.toContain('allow-same-origin');
     expect(result).not.toContain('allow-top-navigation');
     expect(result).not.toContain('class=');
@@ -142,18 +192,13 @@ describe('sanitizeHtml', () => {
     expect(result).toBe('<p>safe</p>');
   });
 
-  it('keeps safe iframe attributes while discarding forbidden ones', () => {
+  it('keeps GitHub table attributes while discarding forbidden ones', () => {
     const result = sanitizeHtml(
-      '<iframe src="https://example.com/embed" width="800" height="600" frameborder="0" allow="fullscreen" scrolling="no" data-x="1" style="border:0"></iframe>',
+      '<td width="80" height="40" colspan="2" rowspan="3" class="x" style="color:red" onclick="evil()">cell</td>',
     );
 
-    expect(result).toContain('width="800"');
-    expect(result).toContain('height="600"');
-    expect(result).toContain('frameborder="0"');
-    expect(result).toContain('allow="fullscreen"');
-    expect(result).toContain('scrolling="no"');
-    expect(result).not.toContain('data-x');
-    expect(result).not.toContain('style=');
+    expect(result).toBe('<td width="80" height="40" colspan="2" rowspan="3" style="color: red">cell</td>');
+    expect(result).not.toContain('onclick');
   });
 
   it('sanitizes realistic rich-html clipboard fragments from web pages', () => {
@@ -170,14 +215,13 @@ describe('sanitizeHtml', () => {
     `);
 
     expect(result).toContain('<h2>Title</h2>');
-    expect(result).toContain('<p>copy <strong>this</strong> <a href="https://example.com/post" target="_blank" rel="noopener noreferrer">link</a></p>');
-    expect(result).toContain('<img src="https://example.com/a.png" alt="cover">');
+    expect(result).toContain('<p style="color: red">copy <strong>this</strong> <a href="https://example.com/post">link</a></p>');
+    expect(result).toContain('<img src="https://example.com/a.png" alt="cover" width="1200">');
+    expect(result).toContain('<iframe src="https://example.com/embed" sandbox="allow-scripts" style="border: 0" referrerpolicy="no-referrer"></iframe>');
     expect(result).toContain('caption');
-    expect(result).toContain(`sandbox="${SANDBOXED_IFRAME_SANDBOX}"`);
     expect(result).not.toContain('class=');
-    expect(result).not.toContain('id=');
     expect(result).not.toContain('data-');
-    expect(result).not.toContain('style=');
+    expect(result).not.toContain('id=');
     expect(result).not.toContain('onclick');
     expect(result).not.toContain('onerror');
   });
@@ -195,22 +239,25 @@ describe('sanitizeHtml', () => {
       </html>
     `);
 
-    expect(result).toContain('<p>Hello world</p>');
+    expect(result).toContain('<p>Hello <span style="font-weight: bold">world</span></p>');
     expect(result).toContain('meta wrapper');
     expect(result).not.toContain('script');
     expect(result).not.toContain('class=');
-    expect(result).not.toContain('style=');
     expect(result).not.toContain('xml');
   });
 
   it('remains safe under deep nested wrappers with repeated dangerous attributes', () => {
     const payload = Array.from({ length: 80 }, (_, index) =>
-      `<div class="x${index}" data-x="${index}" onclick="evil(${index})">`
-    ).join('') + '<p id="target">deep</p>' + '</div>'.repeat(80);
+      `<section class="x${index}" data-x="${index}" onclick="evil(${index})">`
+    ).join('') + '<p id="target">deep</p>' + '</section>'.repeat(80);
 
     const result = sanitizeHtml(payload);
 
-    expect(result).toBe('<p>deep</p>');
+    expect(result).toContain('<p>deep</p>');
+    expect(result).not.toContain('<section');
+    expect(result).not.toContain('id=');
+    expect(result).not.toContain('onclick');
+    expect(result).not.toContain('data-x');
   });
 
   it('never leaves inline event attributes in sanitized output for generated attribute names', () => {
