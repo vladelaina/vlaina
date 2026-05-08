@@ -101,4 +101,45 @@ describe('deleteSelectedBlocks', () => {
 
     await editor.destroy();
   });
+
+  it('removes a selected ordered list item without leaving an empty paragraph', async () => {
+    const editor = await createEditor(['1. 1', '2. 2', '3. 3'].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(blocks).toHaveLength(3);
+    expect(deleteSelectedBlocks(view, [blocks[1]], (tr) => tr)).toBe(true);
+
+    expect(view.state.doc.childCount).toBe(1);
+    const list = view.state.doc.child(0);
+    expect(list.type.name).toBe('ordered_list');
+    expect(list.childCount).toBe(2);
+    expect(list.child(0).textContent).toBe('1');
+    expect(list.child(1).textContent).toBe('3');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+
+    await editor.destroy();
+  });
+
+  it('removes a selected task list item without leaving an empty paragraph', async () => {
+    const editor = await createEditor(['- [ ] 1', '- [ ] 2', '- [ ] 3'].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(blocks).toHaveLength(3);
+    expect(deleteSelectedBlocks(view, [blocks[1]], (tr) => tr)).toBe(true);
+
+    expect(view.state.doc.childCount).toBe(1);
+    const list = view.state.doc.child(0);
+    expect(list.type.name).toBe('bullet_list');
+    expect(list.childCount).toBe(2);
+    expect(list.child(0).type.name).toBe('list_item');
+    expect(list.child(0).attrs.checked).toBe(false);
+    expect(list.child(0).textContent).toBe('1');
+    expect(list.child(1).attrs.checked).toBe(false);
+    expect(list.child(1).textContent).toBe('3');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+
+    await editor.destroy();
+  });
 });

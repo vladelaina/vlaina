@@ -16,6 +16,10 @@ function refocusEditorAfterBlockDeletion(view: EditorView): void {
   });
 }
 
+function isListContainerName(name: string): boolean {
+  return name === 'bullet_list' || name === 'ordered_list';
+}
+
 function setSelectionAfterBlockDeletion(tr: Transaction, targetPos: number): Transaction {
   const docSize = tr.doc.content.size;
   const safePos = Math.max(0, Math.min(targetPos, docSize));
@@ -32,6 +36,14 @@ function setSelectionAfterBlockDeletion(tr: Transaction, targetPos: number): Tra
 
   if ($pos.nodeBefore?.isTextblock) {
     return tr.setSelection(Selection.near($pos, -1));
+  }
+
+  if (isListContainerName($pos.parent.type.name)) {
+    const listItemSelection = Selection.findFrom($pos, 1, true)
+      ?? Selection.findFrom($pos, -1, true);
+    if (listItemSelection) {
+      return tr.setSelection(listItemSelection);
+    }
   }
 
   if (paragraphType) {
