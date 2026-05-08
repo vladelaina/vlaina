@@ -10,6 +10,14 @@ export function isDraftNotePath(path: string | null | undefined): path is string
   return Boolean(path && path.startsWith(DRAFT_NOTE_PATH_PREFIX));
 }
 
+export function canAutoSaveDraftNote(notesPath: string, draftNote: DraftNoteEntry | undefined) {
+  return Boolean(
+    notesPath &&
+    draftNote &&
+    (draftNote.originNotesPath === undefined || draftNote.originNotesPath === notesPath)
+  );
+}
+
 export function resolveDraftNoteTitle(name: string | null | undefined): string {
   const trimmedName = name?.trim();
   return trimmedName || 'Untitled';

@@ -1,5 +1,58 @@
 import type { LanguageDetector } from '../types';
 
+const shellCommandNames = [
+  'apt',
+  'az',
+  'bundle',
+  'bun',
+  'cargo',
+  'composer',
+  'corepack',
+  'aws',
+  'cmake',
+  'curl',
+  'deno',
+  'docker',
+  'docker-compose',
+  'find',
+  'gcloud',
+  'gh',
+  'git',
+  'go',
+  'gradle',
+  'helm',
+  'kubectl',
+  'make',
+  'mvn',
+  'netlify',
+  'node',
+  'npm',
+  'npx',
+  'pip',
+  'pipx',
+  'pnpm',
+  'poetry',
+  'python',
+  'python3',
+  'rails',
+  'rake',
+  'rustup',
+  'terraform',
+  'uv',
+  'vercel',
+  'vite',
+  'vitest',
+  'wget',
+  'wrangler',
+  'yarn',
+  'yum',
+] as const;
+
+const shellCommandPattern = new RegExp(
+  `^\\s*(?:${shellCommandNames.map((command) => command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?:\\s+(?!\\{)|$)`,
+  'm',
+);
+
 export const detectShell: LanguageDetector = (ctx) => {
   const { first100Lines, firstLine, lines, code } = ctx;
 
@@ -65,13 +118,7 @@ export const detectShell: LanguageDetector = (ctx) => {
     }
   }
 
-  if (/\b(find|docker|curl|wget|git|npm|yarn|pip|apt|yum)\s+/.test(code)) {
-    if (lines.length <= 3) {
-      return 'bash';
-    }
-  }
-
-  if (/^(find|docker|curl|wget|git|npm|yarn)\s+/.test(firstLine)) {
+  if (lines.length <= 3 && shellCommandPattern.test(firstLine)) {
     return 'bash';
   }
 

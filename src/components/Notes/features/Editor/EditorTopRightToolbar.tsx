@@ -13,9 +13,11 @@ import { cn, iconButtonStyles } from '@/lib/utils';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useToastStore } from '@/stores/useToastStore';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
+import { useI18n } from '@/lib/i18n';
 import { NoteEditorFindBar, type NoteEditorFindController } from './find';
 import { canStarNotePath } from '@/stores/notes/notePathState';
 import type { NoteExportFormat } from '../Export/noteExportTypes';
+import type { AppLanguage } from '@/lib/i18n/languages';
 
 interface EditorTopRightToolbarProps {
   editorFind: NoteEditorFindController;
@@ -38,9 +40,24 @@ interface EditorTopRightToolbarProps {
   };
 }
 
-function formatMetadataDate(value: string | number | Date | null | undefined) {
-  return value ? new Date(value).toLocaleString() : '-';
+function formatMetadataDate(value: string | number | Date | null | undefined, language: AppLanguage) {
+  if (!value) {
+    return '-';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '-';
+  }
+
+  return new Intl.DateTimeFormat(language, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
 }
+
+const exportMenuItemClassName =
+  'text-[var(--notes-sidebar-text)] transition-colors focus:bg-[var(--notes-sidebar-row-active)] focus:text-[var(--sidebar-row-selected-text)] data-[highlighted]:bg-[var(--notes-sidebar-row-active)] data-[highlighted]:text-[var(--sidebar-row-selected-text)] data-[state=open]:bg-[var(--notes-sidebar-row-active)] data-[state=open]:text-[var(--sidebar-row-selected-text)] [&>svg]:text-current';
 
 export function EditorTopRightToolbar({
   editorFind,
@@ -53,6 +70,7 @@ export function EditorTopRightToolbar({
   currentNoteMetadata,
   textStats,
 }: EditorTopRightToolbarProps) {
+  const { language } = useI18n();
   const canToggleStar = canStarNotePath(currentNotePath, notesPath);
   const showStarButton = starred || canToggleStar;
   const starButtonLabel = starred ? 'Remove from Starred' : 'Add to Starred';
@@ -115,33 +133,45 @@ export function EditorTopRightToolbar({
                 <Icon size="md" name="common.more" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuContent align="end" className="w-max min-w-56 max-w-[calc(100vw-1rem)]">
               <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
+                <DropdownMenuSubTrigger className={exportMenuItemClassName}>
                   <Icon size="md" name="common.download" className="mr-2" />
                   Export
                 </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-44">
-                  <DropdownMenuItem onSelect={() => void exportCurrentNote('docx')}>
+                <DropdownMenuSubContent className="w-44 border-[var(--notes-sidebar-menu-border)] bg-[var(--notes-sidebar-menu-bg)] shadow-[var(--notes-sidebar-menu-shadow)]">
+                  <DropdownMenuItem
+                    className={exportMenuItemClassName}
+                    onSelect={() => void exportCurrentNote('docx')}
+                  >
                     <Icon size="md" name="file.text" className="mr-2" />
                     Word (.docx)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => void exportCurrentNote('pdf')}>
+                  <DropdownMenuItem
+                    className={exportMenuItemClassName}
+                    onSelect={() => void exportCurrentNote('pdf')}
+                  >
                     <Icon size="md" name="file.text" className="mr-2" />
                     PDF
                   </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => void exportCurrentNote('png')}>
+                  <DropdownMenuItem
+                    className={exportMenuItemClassName}
+                    onSelect={() => void exportCurrentNote('png')}
+                  >
                     <Icon size="md" name="file.image" className="mr-2" />
                     Image (.png)
                   </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => void exportCurrentNote('html')}>
+                  <DropdownMenuItem
+                    className={exportMenuItemClassName}
+                    onSelect={() => void exportCurrentNote('html')}
+                  >
                     <Icon size="md" name="file.public" className="mr-2" />
                     HTML
                   </DropdownMenuItem>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
               <DropdownMenuSeparator />
-              <div className="grid grid-cols-[78px_1fr] gap-1 px-2 py-1.5 text-xs text-muted-foreground">
+              <div className="grid grid-cols-[78px_max-content] gap-1 px-2 py-1.5 text-xs text-[var(--notes-sidebar-text)]">
                 <span className="font-medium">Lines:</span>
                 <span className="tabular-nums">{textStats.lineCount}</span>
 
@@ -152,12 +182,12 @@ export function EditorTopRightToolbar({
                 <span className="tabular-nums">{textStats.characterCount}</span>
               </div>
               <DropdownMenuSeparator />
-              <div className="grid grid-cols-[78px_1fr] gap-1 px-2 py-1.5 text-xs text-muted-foreground">
+              <div className="grid grid-cols-[78px_max-content] gap-1 px-2 py-1.5 text-xs text-[var(--notes-sidebar-text)]">
                 <span className="font-medium">Created:</span>
-                <span>{formatMetadataDate(currentNoteMetadata?.createdAt)}</span>
+                <span className="whitespace-nowrap">{formatMetadataDate(currentNoteMetadata?.createdAt, language)}</span>
 
                 <span className="font-medium">Updated:</span>
-                <span>{formatMetadataDate(currentNoteMetadata?.updatedAt)}</span>
+                <span className="whitespace-nowrap">{formatMetadataDate(currentNoteMetadata?.updatedAt, language)}</span>
               </div>
             </DropdownMenuContent>
           </DropdownMenu>

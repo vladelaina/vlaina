@@ -3,114 +3,35 @@ import { desktopWindow } from '@/lib/desktop/window';
 import { isElectronRuntime } from '@/lib/electron/bridge';
 import { flushPendingSessionJsonSaves } from '@/lib/storage/chatStorage';
 import { flushPendingSave } from '@/lib/storage/unifiedStorage';
-import { hasDraftUnsavedChanges, isDraftNotePath } from '@/stores/notes/draftNote';
+import { getAutoSaveableDraftPaths, saveAutoSaveableDrafts } from '@/stores/notes/autoSaveableDrafts';
+import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { saveDirtyRegularOpenTabs } from '@/stores/notes/dirtyOpenTabs';
-import { openStoredNotePath } from '@/stores/notes/openNotePath';
 import { useNotesStore } from '@/stores/useNotesStore';
+import { useCloseDraftPersistence } from './useCloseDraftPersistence';
 
 export function useElectronCloseGuard() {
   const [isCloseDraftConfirmOpen, setIsCloseDraftConfirmOpen] = useState(false);
   const allowNextWindowCloseRef = useRef(false);
   const runFlushAllPendingWritesRef = useRef<() => Promise<boolean>>(async () => true);
-
-  const getDiscardableDraftPaths = useCallback(() => {
-    const notesState = useNotesStore.getState();
-    const draftPaths = new Set<string>();
-
-    notesState.openTabs.forEach((tab) => {
-      if (isDraftNotePath(tab.path)) {
-        draftPaths.add(tab.path);
-      }
-    });
-
-    if (isDraftNotePath(notesState.currentNote?.path)) {
-      draftPaths.add(notesState.currentNote.path);
-    }
-
-    Object.keys(notesState.draftNotes).forEach((path) => {
-      if (isDraftNotePath(path)) {
-        draftPaths.add(path);
-      }
-    });
-
-    return Array.from(draftPaths).flatMap((draftPath) => {
-      const draftEntry = notesState.draftNotes[draftPath];
-      const hasDraftTitle = Boolean(draftEntry?.name.trim());
-      const draftContent = notesState.currentNote?.path === draftPath
-        ? notesState.currentNote.content ?? notesState.noteContentsCache.get(draftPath)?.content ?? ''
-        : notesState.noteContentsCache.get(draftPath)?.content ?? '';
-      const draftMetadata = notesState.noteMetadata?.notes[draftPath];
-
-      return hasDraftUnsavedChanges({
-        draftName: hasDraftTitle ? draftEntry?.name : draftEntry?.name,
-        content: draftContent,
-        metadata: draftMetadata,
-      }) ? [draftPath] : [];
-    });
-  }, []);
-
-  const restorePathAfterCloseInterruption = useCallback(async (path: string | null) => {
-    if (!path) return;
-
-    const notesState = useNotesStore.getState();
-    if (!notesState.openTabs.some((tab) => tab.path === path) && notesState.currentNote?.path !== path) {
-      return;
-    }
-
-    await openStoredNotePath(path, {
-      openNote: notesState.openNote,
-      openNoteByAbsolutePath: notesState.openNoteByAbsolutePath,
-    });
-  }, []);
-
-  const hasDiscardableDrafts = useCallback(() => {
-    return getDiscardableDraftPaths().length > 0;
-  }, [getDiscardableDraftPaths]);
-
-  const saveDraftsBeforeClose = useCallback(async () => {
-    const draftPaths = getDiscardableDraftPaths();
-    if (draftPaths.length === 0) {
-      return {
-        saved: true,
-        restorePath: useNotesStore.getState().currentNote?.path ?? null,
-      };
-    }
-
-    let restorePath = useNotesStore.getState().currentNote?.path ?? null;
-
-    for (const draftPath of draftPaths) {
-      const latestState = useNotesStore.getState();
-      if (latestState.currentNote?.path !== draftPath) {
-        await latestState.openNote(draftPath);
-      }
-
-      const currentState = useNotesStore.getState();
-      if (currentState.currentNote?.path !== draftPath || !currentState.draftNotes[draftPath]) {
-        await restorePathAfterCloseInterruption(restorePath);
-        return { saved: false, restorePath };
-      }
-
-      await currentState.saveNote({ explicit: true, suppressOpenTarget: true });
-
-      const afterSaveState = useNotesStore.getState();
-      if (restorePath === draftPath) {
-        restorePath = afterSaveState.currentNote?.path ?? restorePath;
-      }
-
-      if (afterSaveState.draftNotes[draftPath]) {
-        await restorePathAfterCloseInterruption(restorePath);
-        return { saved: false, restorePath };
-      }
-    }
-
-    return { saved: true, restorePath };
-  }, [getDiscardableDraftPaths, restorePathAfterCloseInterruption]);
+  const {
+    hasAutoSaveableDrafts,
+    hasDiscardableDrafts,
+    restorePathAfterCloseInterruption,
+    saveAutoSaveableDraftsBeforeClose,
+    saveDraftsBeforeClose,
+  } = useCloseDraftPersistence();
 
   const continueWindowClose = useCallback(async (options?: { skipDraftConfirm?: boolean; saveDrafts?: boolean }) => {
     const skipDraftConfirm = options?.skipDraftConfirm ?? false;
     const saveDrafts = options?.saveDrafts ?? false;
+    const autoSaveResult = await saveAutoSaveableDraftsBeforeClose();
+    let restorePath: string | null = autoSaveResult.restorePath;
+
+    if (!autoSaveResult.saved) {
+      return;
+    }
+
     const hasUnsavedDrafts = hasDiscardableDrafts();
-    let restorePath: string | null = null;
 
     if (hasUnsavedDrafts && !skipDraftConfirm) {
       setIsCloseDraftConfirmOpen(true);
@@ -145,7 +66,12 @@ export function useElectronCloseGuard() {
       allowNextWindowCloseRef.current = false;
       await restorePathAfterCloseInterruption(restorePath);
     }
-  }, [hasDiscardableDrafts, restorePathAfterCloseInterruption, saveDraftsBeforeClose]);
+  }, [
+    hasDiscardableDrafts,
+    restorePathAfterCloseInterruption,
+    saveAutoSaveableDraftsBeforeClose,
+    saveDraftsBeforeClose,
+  ]);
 
   useEffect(() => {
     if (!isElectronRuntime()) return;
@@ -163,6 +89,17 @@ export function useElectronCloseGuard() {
         ];
 
         const notesState = useNotesStore.getState();
+        if (getAutoSaveableDraftPaths().length > 0) {
+          tasks.push({
+            name: 'draft notes storage',
+            task: saveAutoSaveableDrafts().then((saved) => {
+              if (!saved) {
+                throw new Error('Auto-saveable drafts still pending after save attempt');
+              }
+            }),
+          });
+        }
+
         const hasDirtyRegularTabs = notesState.openTabs.some(
           (tab) => tab.isDirty && !isDraftNotePath(tab.path)
         );
@@ -225,13 +162,14 @@ export function useElectronCloseGuard() {
       }
 
       const notesState = useNotesStore.getState();
+      const hasAutoSaveableUnsavedDrafts = hasAutoSaveableDrafts();
       const hasUnsavedDrafts = hasDiscardableDrafts();
 
       const hasDirtyRegularTabs = notesState.openTabs.some(
         (tab) => tab.isDirty && !isDraftNotePath(tab.path)
       );
 
-      if (!notesState.isDirty && !hasDirtyRegularTabs && !hasUnsavedDrafts) {
+      if (!notesState.isDirty && !hasDirtyRegularTabs && !hasUnsavedDrafts && !hasAutoSaveableUnsavedDrafts) {
         allowNextWindowCloseRef.current = true;
         void desktopWindow.confirmClose();
         return;
@@ -251,7 +189,7 @@ export function useElectronCloseGuard() {
       window.removeEventListener('beforeunload', flushAllPendingWrites);
       runFlushAllPendingWritesRef.current = async () => true;
     };
-  }, [continueWindowClose, hasDiscardableDrafts]);
+  }, [continueWindowClose, hasAutoSaveableDrafts, hasDiscardableDrafts]);
 
   return {
     isCloseDraftConfirmOpen,
