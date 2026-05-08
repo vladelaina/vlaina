@@ -57,6 +57,7 @@ type MockNotesState = {
   cancelPendingDraftDiscard: ReturnType<typeof vi.fn>;
   confirmPendingDraftDiscard: ReturnType<typeof vi.fn>;
   getDisplayName: ReturnType<typeof vi.fn>;
+  error: string | null;
 };
 
 const mocks = vi.hoisted(() => {
@@ -99,6 +100,7 @@ const mocks = vi.hoisted(() => {
     cancelPendingDraftDiscard: vi.fn(),
     confirmPendingDraftDiscard: vi.fn(),
     getDisplayName: vi.fn((path: string) => path.split('/').pop() || path),
+    error: null,
   };
 
   const vaultState = {
@@ -118,11 +120,16 @@ const mocks = vi.hoisted(() => {
     stat: vi.fn(),
   };
 
+  const toastState = {
+    addToast: vi.fn(),
+  };
+
   return {
     notesState,
     vaultState,
     uiState,
     storageState,
+    toastState,
   };
 });
 
@@ -150,6 +157,10 @@ vi.mock('@/stores/useVaultStore', () => ({
 
 vi.mock('@/stores/uiSlice', () => ({
   useUIStore: (selector: (state: typeof mocks.uiState) => unknown) => selector(mocks.uiState),
+}));
+
+vi.mock('@/stores/useToastStore', () => ({
+  useToastStore: (selector: (state: typeof mocks.toastState) => unknown) => selector(mocks.toastState),
 }));
 
 vi.mock('@/lib/desktop/window', () => ({
@@ -318,6 +329,7 @@ describe('NotesView', () => {
     notesState.notesPath = '/vault';
     notesState.isLoading = false;
     notesState.pendingStarredNavigation = null;
+    notesState.error = null;
     notesState.rootFolder = {
       id: '',
       name: 'Notes',
@@ -358,6 +370,7 @@ describe('NotesView', () => {
     notesState.cancelPendingDraftDiscard.mockClear();
     notesState.confirmPendingDraftDiscard.mockClear();
     notesState.getDisplayName.mockClear();
+    mocks.toastState.addToast.mockClear();
     mocks.vaultState.openVault.mockClear();
     vi.mocked(messageDialog).mockReset();
     vi.mocked(useAbsoluteNoteExternalRenameSync).mockClear();
@@ -367,6 +380,20 @@ describe('NotesView', () => {
     uiState.setNotesChatPanelCollapsed.mockClear();
     uiState.toggleNotesChatPanel.mockClear();
     uiState.setLayoutPanelDragging.mockClear();
+  });
+
+  it('shows notes store errors as toast messages', async () => {
+    notesState.error = 'Save the note before closing it.';
+
+    render(<NotesView />);
+
+    await waitFor(() => {
+      expect(mocks.toastState.addToast).toHaveBeenCalledWith(
+        'Save the note before closing it.',
+        'error',
+        4500,
+      );
+    });
   });
 
   it('disables external note sync hooks while inactive', async () => {

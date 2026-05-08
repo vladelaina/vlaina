@@ -207,12 +207,12 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         return;
       }
       if (get().isDirty) {
-        logNotesDebug('NotesWorkspace', 'open-note:aborted-still-dirty-after-save', {
+        logNotesDebug('NotesWorkspace', 'open-note:preserve-dirty-tab-after-save', {
           path,
           currentNotePath: get().currentNote?.path ?? null,
           isDirty: get().isDirty,
         });
-        return;
+        shouldOpenInNewTab = true;
       }
       ({ notesPath, recentNotes, currentNote, noteContentsCache } = get());
     }
@@ -345,12 +345,12 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         return;
       }
       if (get().isDirty) {
-        logNotesDebug('NotesWorkspace', 'open-absolute:aborted-still-dirty-after-save', {
+        logNotesDebug('NotesWorkspace', 'open-absolute:preserve-dirty-tab-after-save', {
           absolutePath,
           currentNotePath: get().currentNote?.path ?? null,
           isDirty: get().isDirty,
         });
-        return;
+        shouldOpenInNewTab = true;
       }
       ({ notesPath, currentNote, noteContentsCache } = get());
     }

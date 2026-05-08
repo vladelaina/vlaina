@@ -1,3 +1,4 @@
+import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { setCachedNoteContent } from './document/noteContentCache';
@@ -43,6 +44,19 @@ export function flushPendingEditorMarkdown(notePath: string | null | undefined, 
       notePath,
       current: summarizeLineBreakText(currentContent),
       markdown: summarizeLineBreakText(markdown),
+    });
+    return false;
+  }
+
+  if (
+    currentContent !== undefined &&
+    normalizeSerializedMarkdownDocument(currentContent) === normalizeSerializedMarkdownDocument(markdown)
+  ) {
+    logLineBreakDebug('pending:skip-normalized-unchanged', {
+      notePath,
+      current: summarizeLineBreakText(currentContent),
+      markdown: summarizeLineBreakText(markdown),
+      diff: compareLineBreakText(currentContent, markdown),
     });
     return false;
   }

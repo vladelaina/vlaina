@@ -1,5 +1,4 @@
 const MAX_NOTES_DEBUG_ENTRIES = 5000;
-const NOTES_DEBUG_STORAGE_KEY = 'vlaina.notes.debug';
 
 interface NotesDebugEntry {
   timestamp: string;
@@ -9,22 +8,10 @@ interface NotesDebugEntry {
 }
 
 const notesDebugEntries: NotesDebugEntry[] = [];
-let notesDebugLoggingOverride: boolean | null = null;
-
-function readStoredNotesDebugLoggingEnabled() {
-  try {
-    return globalThis.localStorage?.getItem(NOTES_DEBUG_STORAGE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
+let didInstallGlobalNotesDebugHelpers = false;
 
 export function isNotesDebugLoggingEnabled() {
-  return notesDebugLoggingOverride ?? readStoredNotesDebugLoggingEnabled();
-}
-
-export function setNotesDebugLoggingEnabled(enabled: boolean | null) {
-  notesDebugLoggingOverride = enabled;
+  return true;
 }
 
 export function summarizeLineBreakText(text: string | null | undefined) {
@@ -117,10 +104,6 @@ export function clearLineBreakDebugLog() {
 }
 
 export function logNotesDebug(label: string, scope: string, payload?: unknown) {
-  if (!isNotesDebugLoggingEnabled()) {
-    return;
-  }
-
   appendNotesDebugEntry(label, scope, payload);
 }
 
@@ -139,12 +122,29 @@ function appendNotesDebugEntry(label: string, scope: string, payload?: unknown) 
   if (notesDebugEntries.length > MAX_NOTES_DEBUG_ENTRIES) {
     notesDebugEntries.splice(0, notesDebugEntries.length - MAX_NOTES_DEBUG_ENTRIES);
   }
-
-  if (isNotesDebugLoggingEnabled()) {
-    console.debug(`[${label}]`, scope, payload ?? '');
-  }
 }
 
 export function logLineBreakDebug(scope: string, payload?: unknown) {
   logNotesDebug('NotesLineBreak', scope, payload);
 }
+
+export function installGlobalNotesDebugHelpers() {
+  if (didInstallGlobalNotesDebugHelpers || typeof window === 'undefined') {
+    return;
+  }
+
+  didInstallGlobalNotesDebugHelpers = true;
+  const target = window as Window & {
+    vlainaNotesDebug?: {
+      clear: () => void;
+      text: () => string;
+    };
+  };
+
+  target.vlainaNotesDebug = {
+    clear: clearNotesDebugLog,
+    text: getNotesDebugLogText,
+  };
+}
+
+installGlobalNotesDebugHelpers();

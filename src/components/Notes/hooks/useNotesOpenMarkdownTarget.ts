@@ -101,8 +101,7 @@ export function useNotesOpenMarkdownTarget({
     if (!isDirty) return true;
     if (isDraftNotePath(currentNotePath)) return true;
     await saveNote();
-    const cleanAfterSave = !useNotesStore.getState().isDirty;
-    return cleanAfterSave;
+    return true;
   }, [currentNotePath, isDirty, saveNote]);
 
   const openMarkdownTarget = useCallback(async (selected: string) => {
