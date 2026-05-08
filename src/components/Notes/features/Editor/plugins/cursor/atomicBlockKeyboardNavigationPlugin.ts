@@ -36,7 +36,7 @@ export const atomicBlockKeyboardNavigationPluginKey =
 
 const EMPTY_TRANSIENT_GAP_STATE: TransientGapState = { pos: null };
 const ATOMIC_NAV_BLOCK_NODE_NAMES = new Set(['math_block', 'mermaid']);
-const STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES = new Set(['table', 'math_block', 'mermaid']);
+const STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES = new Set(['table', 'math_block', 'mermaid', 'code_block']);
 export const ATOMIC_BLOCK_KEYBOARD_SELECTION_CLASS = 'vlaina-atomic-block-keyboard-selected';
 
 function getPlainVerticalDirection(event: KeyboardEvent): Direction | null {
@@ -163,6 +163,30 @@ function dispatchDeleteEmptyParagraphNearStructuralBlock(
   const tr = view.state.tr.delete(range.from, range.to);
   const mappedBlockFrom = tr.mapping.map(range.blockFrom, -1);
   const nextNode = tr.doc.nodeAt(mappedBlockFrom);
+  if (range.blockName === 'code_block' && nextNode?.type.name === 'code_block') {
+    const blockTo = mappedBlockFrom + nextNode.nodeSize;
+    const adjacentSelection = range.searchDir < 0
+      ? Selection.findFrom(tr.doc.resolve(blockTo), 1, true)
+      : Selection.findFrom(tr.doc.resolve(mappedBlockFrom), -1, true);
+
+    if (adjacentSelection) {
+      view.dispatch(tr.setSelection(adjacentSelection).scrollIntoView());
+      view.focus();
+      return;
+    }
+
+    const paragraphType = tr.doc.type.schema.nodes.paragraph;
+    if (paragraphType) {
+      const insertPos = range.searchDir < 0 ? blockTo : mappedBlockFrom;
+      tr.insert(insertPos, paragraphType.create());
+      tr.setSelection(TextSelection.create(tr.doc, insertPos + 1));
+    }
+
+    view.dispatch(tr.scrollIntoView());
+    view.focus();
+    return;
+  }
+
   const nextSelection = nextNode?.type.name === range.blockName
     ? NodeSelection.create(tr.doc, mappedBlockFrom)
     : Selection.findFrom(tr.doc.resolve(Math.max(0, Math.min(mappedBlockFrom, tr.doc.content.size))), range.searchDir, true);
