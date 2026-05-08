@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
+import { Editor, defaultValueCtx, editorViewCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
@@ -9,6 +9,61 @@ import { dispatchTailBlankClickAction, endBlankClickPlugin } from '../cursor/end
 import { mermaidPlugin } from '../mermaid';
 import { mathPlugin } from '../math';
 import { codePlugin } from '../code';
+import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+
+function findTextRange(doc: any, text: string): { from: number; to: number } {
+    let resolved: { from: number; to: number } | null = null;
+
+    doc.descendants((node: any, pos: number) => {
+        if (resolved) return false;
+        if (!node.isText || node.text !== text) return;
+
+        resolved = {
+            from: pos,
+            to: pos + text.length,
+        };
+        return false;
+    });
+
+    if (!resolved) {
+        throw new Error(`Unable to resolve text range for "${text}"`);
+    }
+
+    return resolved;
+}
+
+function simulateCopyKeydown(view: any): { handled: boolean; event: KeyboardEvent } {
+    const event = new KeyboardEvent('keydown', {
+        key: 'c',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+    });
+
+    let handled = false;
+    view.someProp('handleKeyDown', (handleKeyDown: any) => {
+        handled = handleKeyDown(view, event) || handled;
+    });
+
+    return { handled, event };
+}
+
+function simulateCopyEvent(view: any) {
+    const clipboardData = {
+        setData: vi.fn(),
+    };
+    const event = {
+        clipboardData,
+        preventDefault: vi.fn(),
+    };
+
+    let handled = false;
+    view.someProp('handleDOMEvents', (handleDOMEvents: any) => {
+        handled = handleDOMEvents.copy?.(view, event) || handled;
+    });
+
+    return { handled, event, clipboardData };
+}
 
 function simulatePasteText(view: any, text: string): boolean {
     const event = {
@@ -82,6 +137,63 @@ describe('createStandaloneTocPasteNode', () => {
         }, '[toc]');
 
         expect(result).toBeNull();
+    });
+});
+
+describe('clipboardPlugin copy', () => {
+    it('lets Ctrl+C reach the native copy event', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '- first bullet\n- second bullet');
+                ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+                    ...prev,
+                    ...notesRemarkStringifyOptions,
+                }));
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+        const firstRange = findTextRange(view.state.doc, 'first bullet');
+        const secondRange = findTextRange(view.state.doc, 'second bullet');
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, firstRange.from, secondRange.to)));
+
+        const { handled, event } = simulateCopyKeydown(view);
+
+        expect(handled).toBe(false);
+        expect(event.defaultPrevented).toBe(false);
+
+        await editor.destroy();
+    });
+
+    it('copies two selected list lines in the copy event', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '- first bullet\n- second bullet');
+                ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+                    ...prev,
+                    ...notesRemarkStringifyOptions,
+                }));
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+        const firstRange = findTextRange(view.state.doc, 'first bullet');
+        const secondRange = findTextRange(view.state.doc, 'second bullet');
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, firstRange.from, secondRange.to)));
+
+        const { handled, event, clipboardData } = simulateCopyEvent(view);
+
+        expect(handled).toBe(true);
+        expect(event.preventDefault).toHaveBeenCalled();
+        expect(clipboardData.setData).toHaveBeenCalledWith('text/plain', '- first bullet\n- second bullet');
+
+        await editor.destroy();
     });
 });
 

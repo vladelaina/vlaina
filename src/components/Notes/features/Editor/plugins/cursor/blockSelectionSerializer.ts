@@ -9,7 +9,8 @@ interface SerializeSelectedBlocksOptions {
   markdownSerializer?: Serializer | null;
 }
 
-const LIST_ITEM_MARKER_PATTERN = /^\s*(?:[-+*]|\d+\.)\s+(?:\[(?: |x|X)\]\s+)?/;
+const LIST_ITEM_MARKER_PATTERN = /^\s*(?:[-+*]|\d+[.)])\s+(?:\[(?: |x|X)\]\s+)?/;
+const ORDERED_LIST_ITEM_MARKER_PATTERN = /^(\s*)(\d+)([.)])(\s+(?:\[(?: |x|X)\]\s+)?)/;
 
 function resolveTopLevelBlockInfo(
   doc: EditorState['doc'],
@@ -30,6 +31,20 @@ function resolveTopLevelBlockInfo(
 
 function isListContainerName(name: string): boolean {
   return name === 'bullet_list' || name === 'ordered_list';
+}
+
+function getOrderedListMarkerNumber(text: string): number | null {
+  const match = ORDERED_LIST_ITEM_MARKER_PATTERN.exec(text);
+  if (!match) return null;
+  return Number(match[2]);
+}
+
+function renumberOrderedListMarker(text: string, number: number): string {
+  return text.replace(
+    ORDERED_LIST_ITEM_MARKER_PATTERN,
+    (_match, indent: string, _oldNumber: string, delimiter: string, suffix: string) =>
+      `${indent}${number}${delimiter}${suffix}`
+  );
 }
 
 function resolveListItemAtRange(
@@ -62,28 +77,39 @@ function resolveListItemAtRange(
   }
 }
 
-function serializeSingleTaskBlockWithoutMarker(
+function stripSingleListBlockMarker(text: string): string {
+  const lines = text.split('\n');
+  let firstLine = lines[0] ?? '';
+  let previous = '';
+  while (firstLine !== previous) {
+    previous = firstLine;
+    firstLine = firstLine.replace(LIST_ITEM_MARKER_PATTERN, '');
+  }
+  lines[0] = firstLine;
+  return lines.join('\n');
+}
+
+function serializeSingleListBlockWithoutMarker(
   state: EditorState,
   range: BlockRange,
+  markdownSerializer?: Serializer | null,
 ): string | null {
   const listItem = resolveListItemAtRange(state, range);
-  if (!listItem || listItem.type.name !== 'list_item' || listItem.attrs?.checked == null) {
+  if (!listItem || listItem.type.name !== 'list_item') {
     return null;
   }
 
-  const firstChild = listItem.firstChild;
-  if (!firstChild || firstChild.type.name !== 'paragraph' || listItem.childCount !== 1) {
-    return null;
+  if (markdownSerializer) {
+    try {
+      return stripSingleListBlockMarker(
+        normalizeSerializedMarkdownBlock(markdownSerializer(state.doc.cut(range.from, range.to)))
+      );
+    } catch {
+    }
   }
 
-  return normalizeSerializedMarkdownBlock(
-    serializeSliceToText({
-      content: {
-        forEach(callback: (node: any) => void) {
-          callback(firstChild);
-        },
-      },
-    })
+  return stripSingleListBlockMarker(
+    normalizeSerializedMarkdownBlock(serializeSliceToText(state.doc.slice(range.from, range.to)))
   );
 }
 
@@ -114,6 +140,13 @@ function joinSerializedBlockRanges(
         && previousTopLevel.from === nextTopLevel.from
         && previousTopLevel.to === nextTopLevel.to;
       separator = sameListContainer ? '\n' : '\n\n';
+      if (sameListContainer && previousTopLevel.name === 'ordered_list') {
+        const previousNumber = getOrderedListMarkerNumber(previous);
+        if (previousNumber !== null) {
+          joined += separator + renumberOrderedListMarker(next, previousNumber + 1);
+          continue;
+        }
+      }
     }
 
     joined += separator + next;
@@ -131,9 +164,13 @@ export function serializeSelectedBlocksToText(
   if (normalized.length === 0) return '';
 
   if (normalized.length === 1) {
-    const singleTaskText = serializeSingleTaskBlockWithoutMarker(state, normalized[0]);
-    if (singleTaskText !== null) {
-      return serializeLeadingFrontmatterMarkdown(singleTaskText);
+    const singleListText = serializeSingleListBlockWithoutMarker(
+      state,
+      normalized[0],
+      options.markdownSerializer,
+    );
+    if (singleListText !== null) {
+      return serializeLeadingFrontmatterMarkdown(singleListText);
     }
   }
 

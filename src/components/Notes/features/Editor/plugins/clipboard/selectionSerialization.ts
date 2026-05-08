@@ -26,102 +26,57 @@ function isListContainerNode(node: any): boolean {
   return node?.type?.name === 'bullet_list' || node?.type?.name === 'ordered_list';
 }
 
-function resolveListItemNode(node: any): any | null {
-  if (!node) {
-    return null;
+function isParagraphOnlyListItem(node: any): boolean {
+  if (node?.type?.name !== 'list_item') {
+    return false;
   }
 
-  if (node.type?.name === 'list_item') {
-    return node;
-  }
-
-  if (!isListContainerNode(node)) {
-    return null;
-  }
-
-  const listItems = getNodeChildren(node);
-  if (listItems.length !== 1) {
-    return null;
-  }
-
-  return listItems[0]?.type?.name === 'list_item' ? listItems[0] : null;
-}
-
-function getEdgeChild(node: any, edge: 'first' | 'last'): any | null {
   const children = getNodeChildren(node);
-  if (children.length === 0) {
-    return null;
-  }
-
-  return edge === 'first' ? children[0] : children[children.length - 1];
+  return children.length === 1 && children[0]?.type?.name === 'paragraph';
 }
 
-function descendOpenEdgeNode(slice: Slice, depth: number, edge: 'first' | 'last'): any | null {
-  let current: any = { content: slice.content };
+function resolveSingleParagraphListItemDescendant(node: any): any | null {
+  let resolved: any | null = null;
+  let hasMultipleListItemContent = false;
 
-  for (let level = 0; level < depth; level += 1) {
-    current = getEdgeChild(current, edge);
+  const visit = (current: any): boolean => {
     if (!current) {
-      return null;
-    }
-  }
-
-  return current;
-}
-
-function resolveDeepestListItemAlongEdge(
-  slice: Slice,
-  depth: number,
-  edge: 'first' | 'last'
-): any | null {
-  let current: any = { content: slice.content };
-  let deepestListItem: any | null = null;
-
-  for (let level = 0; level < depth; level += 1) {
-    current = getEdgeChild(current, edge);
-    if (!current) {
-      break;
+      return true;
     }
 
-    if (current.type?.name === 'list_item') {
-      deepestListItem = current;
+    if (isParagraphOnlyListItem(current)) {
+      if (resolved) {
+        resolved = null;
+        return false;
+      }
+      resolved = current;
+      return true;
     }
-  }
 
-  return deepestListItem;
-}
+    const children = getNodeChildren(current);
+    if (
+      current.type?.name === 'list_item' &&
+      children.some((child) => child.type?.name === 'paragraph' && child.content?.size > 0)
+    ) {
+      hasMultipleListItemContent = true;
+      return false;
+    }
 
-function resolveSingleListItemNode(slice: Slice): any | null {
-  const startNode = resolveDeepestListItemAlongEdge(slice, slice.openStart, 'first');
-  const endNode = resolveDeepestListItemAlongEdge(slice, slice.openEnd, 'last');
-  if (startNode && startNode === endNode) {
-    return startNode;
-  }
+    for (const child of children) {
+      if (!visit(child)) {
+        return false;
+      }
+    }
 
-  const topLevelNodes = getNodeChildren({ content: slice.content });
-  if (topLevelNodes.length !== 1) {
-    const edgeStartNode = resolveListItemNode(descendOpenEdgeNode(slice, slice.openStart, 'first'));
-    const edgeEndNode = resolveListItemNode(descendOpenEdgeNode(slice, slice.openEnd, 'last'));
-    return edgeStartNode && edgeStartNode === edgeEndNode ? edgeStartNode : null;
-  }
+    return true;
+  };
 
-  const topLevelNode = topLevelNodes[0];
-  if (!topLevelNode) {
-    return null;
-  }
-
-  const directListItem = resolveListItemNode(topLevelNode);
-  if (directListItem) {
-    return directListItem;
-  }
-
-  const edgeStartNode = resolveListItemNode(descendOpenEdgeNode(slice, slice.openStart, 'first'));
-  const edgeEndNode = resolveListItemNode(descendOpenEdgeNode(slice, slice.openEnd, 'last'));
-  return edgeStartNode && edgeStartNode === edgeEndNode ? edgeStartNode : null;
+  visit(node);
+  return hasMultipleListItemContent ? null : resolved;
 }
 
 function serializeSingleListItemWithoutMarker(slice: Slice): string | null {
-  const listItem = resolveSingleListItemNode(slice);
+  const listItem = resolveSingleParagraphListItemDescendant({ content: slice.content });
   if (!listItem) {
     return null;
   }
@@ -172,6 +127,109 @@ function serializeSliceTopLevelBlocks(
   }
 }
 
+function findCommonListContainerDepth(state: EditorState): number | null {
+  const { $from, $to } = state.selection;
+  if (!$from || !$to) {
+    return null;
+  }
+
+  let sharedDepth = Math.min($from.depth, $to.depth);
+  while (sharedDepth > 0 && $from.node(sharedDepth) !== $to.node(sharedDepth)) {
+    sharedDepth -= 1;
+  }
+
+  for (let depth = sharedDepth; depth > 0; depth -= 1) {
+    if (isListContainerNode($from.node(depth))) {
+      return depth;
+    }
+  }
+
+  return null;
+}
+
+function serializeBoundarySelectedListItemsWithMarkdown(
+  state: EditorState,
+  markdownSerializer: Serializer
+): string | null {
+  const listDepth = findCommonListContainerDepth(state);
+  if (listDepth === null) {
+    return null;
+  }
+
+  const listNode = state.selection.$from.node(listDepth);
+  const listStart = state.selection.$from.before(listDepth);
+  const { selectedItems, startsAtSelectedItemBoundary } =
+    collectListItemsWithSelectedOwnContent(state, listNode, listStart);
+
+  if (selectedItems.length === 0 || (selectedItems.length === 1 && !startsAtSelectedItemBoundary)) {
+    return null;
+  }
+
+  const selectedList = listNode.type.create(
+    { ...listNode.attrs, spread: false },
+    selectedItems
+  );
+  const doc = state.schema.topNodeType.createAndFill(undefined, selectedList);
+  if (!doc) {
+    return null;
+  }
+
+  return normalizeSerializedMarkdownSelection(markdownSerializer(doc));
+}
+
+function collectListItemsWithSelectedOwnContent(
+  state: EditorState,
+  listNode: any,
+  listStart: number
+): { selectedItems: any[]; startsAtSelectedItemBoundary: boolean } {
+  const selectedItems: any[] = [];
+  let startsAtSelectedItemBoundary = false;
+
+  const visit = (node: any, nodeStart: number): void => {
+    if (!node) {
+      return;
+    }
+
+    if (node.type?.name === 'list_item') {
+      const firstChild = node.firstChild;
+      if (firstChild?.type?.name === 'paragraph') {
+        const paragraphStart = nodeStart + 1;
+        const paragraphEnd = paragraphStart + firstChild.nodeSize;
+        if (paragraphEnd > state.selection.from && paragraphStart < state.selection.to) {
+          if (nodeStart === state.selection.from) {
+            startsAtSelectedItemBoundary = true;
+          }
+          selectedItems.push(cloneListNodeForClipboard(node));
+          return;
+        }
+      }
+    }
+
+    node.content?.forEach?.((child: any, offset: number) => {
+      visit(child, nodeStart + 1 + offset);
+    });
+  };
+
+  listNode.forEach((child: any, offset: number) => {
+    visit(child, listStart + 1 + offset);
+  });
+
+  return { selectedItems, startsAtSelectedItemBoundary };
+}
+
+function cloneListNodeForClipboard(node: any): any {
+  if (!node?.content?.size) {
+    return node;
+  }
+
+  const children = getNodeChildren(node).map(cloneListNodeForClipboard);
+  const attrs = (node.type?.name === 'list_item' || isListContainerNode(node))
+    ? { ...node.attrs, spread: false }
+    : node.attrs;
+
+  return node.type.create(attrs, children, node.marks);
+}
+
 export function getSelectionSlice(state: EditorState): Slice {
   const selection = state.selection as SelectionWithContent;
 
@@ -200,6 +258,11 @@ export function serializeSelectionToClipboardText(
   }
 
   if (markdownSerializer) {
+    const selectedListText = serializeBoundarySelectedListItemsWithMarkdown(state, markdownSerializer);
+    if (selectedListText !== null) {
+      return serializeLeadingFrontmatterMarkdown(selectedListText);
+    }
+
     const topLevelBlockText = serializeSliceTopLevelBlocks(state, slice, markdownSerializer);
     if (topLevelBlockText !== null) {
       return serializeLeadingFrontmatterMarkdown(topLevelBlockText);

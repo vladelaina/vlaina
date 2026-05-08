@@ -53,6 +53,70 @@ function findTaskItemRange(doc: any, text: string): { from: number; to: number }
   return resolved;
 }
 
+function findListItemRange(doc: any, text: string): { from: number; to: number } {
+  let resolved: { from: number; to: number } | null = null;
+
+  doc.descendants((node: any, pos: number) => {
+    if (resolved) return false;
+    if (node.type?.name !== 'list_item') return;
+    if (node.textContent !== text) return;
+
+    resolved = {
+      from: pos,
+      to: pos + node.nodeSize,
+    };
+    return false;
+  });
+
+  if (!resolved) {
+    throw new Error(`Unable to resolve list item range for "${text}"`);
+  }
+
+  return resolved;
+}
+
+function findListItemRangeContaining(doc: any, text: string): { from: number; to: number } {
+  let resolved: { from: number; to: number } | null = null;
+
+  doc.descendants((node: any, pos: number) => {
+    if (resolved) return false;
+    if (node.type?.name !== 'list_item') return;
+    if (!String(node.textContent ?? '').startsWith(text)) return;
+
+    resolved = {
+      from: pos,
+      to: pos + node.nodeSize,
+    };
+    return false;
+  });
+
+  if (!resolved) {
+    throw new Error(`Unable to resolve list item range containing "${text}"`);
+  }
+
+  return resolved;
+}
+
+function findListItemRangesByText(doc: any, text: string): Array<{ from: number; to: number }> {
+  const ranges: Array<{ from: number; to: number }> = [];
+
+  doc.descendants((node: any, pos: number) => {
+    if (node.type?.name !== 'list_item') return;
+    if (node.textContent !== text) return;
+
+    ranges.push({
+      from: pos,
+      to: pos + node.nodeSize,
+    });
+  });
+
+  if (ranges.length === 0) {
+    throw new Error(`Unable to resolve list item ranges for "${text}"`);
+  }
+
+  return ranges;
+}
+
 function findTextRange(doc: any, text: string): { from: number; to: number } {
   let resolved: { from: number; to: number } | null = null;
 
@@ -72,6 +136,69 @@ function findTextRange(doc: any, text: string): { from: number; to: number } {
   }
 
   return resolved;
+}
+
+function findTextSubstringRange(doc: any, text: string): { from: number; to: number } {
+  let resolved: { from: number; to: number } | null = null;
+
+  doc.descendants((node: any, pos: number) => {
+    if (resolved) return false;
+    if (!node.isText || typeof node.text !== 'string') return;
+
+    const index = node.text.indexOf(text);
+    if (index < 0) return;
+
+    resolved = {
+      from: pos + index,
+      to: pos + index + text.length,
+    };
+    return false;
+  });
+
+  if (!resolved) {
+    throw new Error(`Unable to resolve text substring range for "${text}"`);
+  }
+
+  return resolved;
+}
+
+function findTextRanges(doc: any, text: string): Array<{ from: number; to: number }> {
+  const ranges: Array<{ from: number; to: number }> = [];
+
+  doc.descendants((node: any, pos: number) => {
+    if (!node.isText || node.text !== text) return;
+
+    ranges.push({
+      from: pos,
+      to: pos + text.length,
+    });
+  });
+
+  if (ranges.length === 0) {
+    throw new Error(`Unable to resolve text ranges for "${text}"`);
+  }
+
+  return ranges;
+}
+
+async function createMarkdownEditor(markdown: string) {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, markdown);
+      ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+        ...prev,
+        ...notesRemarkStringifyOptions,
+      }));
+    })
+    .use(commonmark)
+    .use(gfm);
+
+  await editor.create();
+  return {
+    editor,
+    view: editor.ctx.get(editorViewCtx),
+    serializer: editor.ctx.get(serializerCtx),
+  };
 }
 
 describe('selectionSerialization', () => {
@@ -419,6 +546,57 @@ describe('selectionSerialization', () => {
     await editor.destroy();
   });
 
+  it.each([
+    {
+      name: 'ordered',
+      markdown: '1. only ordered',
+      expected: 'only ordered',
+    },
+    {
+      name: 'bullet',
+      markdown: '- only bullet',
+      expected: 'only bullet',
+    },
+    {
+      name: 'task',
+      markdown: '- [ ] only task',
+      expected: 'only task',
+    },
+  ])('copies a single editor-created $name list item without list syntax', async ({ markdown, expected }) => {
+    const { editor, view, serializer } = await createMarkdownEditor(markdown);
+    view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
+
+    expect(serializeSelectionToClipboardText(view.state, serializer)).toBe(expected);
+
+    await editor.destroy();
+  });
+
+  it.each([
+    {
+      name: 'ordered',
+      markdown: '1. alpha beta',
+      selected: 'alpha',
+    },
+    {
+      name: 'bullet',
+      markdown: '- alpha beta',
+      selected: 'alpha',
+    },
+    {
+      name: 'task',
+      markdown: '- [ ] alpha beta',
+      selected: 'alpha',
+    },
+  ])('copies partial text inside a top-level $name list item without list syntax', async ({ markdown, selected }) => {
+    const { editor, view, serializer } = await createMarkdownEditor(markdown);
+    const range = findTextSubstringRange(view.state.doc, selected);
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, range.from, range.to)));
+
+    expect(serializeSelectionToClipboardText(view.state, serializer)).toBe(selected);
+
+    await editor.destroy();
+  });
+
   it('copies a single nested task item without markdown syntax', () => {
     const slice = {
       content: {
@@ -504,25 +682,272 @@ describe('selectionSerialization', () => {
   });
 
   it('copies text selected inside a nested task item without markdown syntax', async () => {
-    const editor = Editor.make()
-      .config((ctx) => {
-        ctx.set(defaultValueCtx, '- [ ] 1\n  - [ ] nested');
-        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
-          ...prev,
-          ...notesRemarkStringifyOptions,
-        }));
-      })
-      .use(commonmark)
-      .use(gfm);
-
-    await editor.create();
-
-    const view = editor.ctx.get(editorViewCtx);
-    const serializer = editor.ctx.get(serializerCtx);
+    const { editor, view, serializer } = await createMarkdownEditor('- [ ] 1\n  - [ ] nested');
     const range = findTextRange(view.state.doc, 'nested');
     view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, range.from, range.to)));
 
     expect(serializeSelectionToClipboardText(view.state, serializer)).toBe('nested');
+
+    await editor.destroy();
+  });
+
+  it.each([
+    {
+      name: 'ordered',
+      markdown: '1. parent\n   1. nested ordered',
+      selected: 'nested ordered',
+    },
+    {
+      name: 'bullet',
+      markdown: '- parent\n  - nested bullet',
+      selected: 'nested bullet',
+    },
+    {
+      name: 'task',
+      markdown: '- [ ] parent\n  - [ ] nested task',
+      selected: 'nested task',
+    },
+  ])('copies text selected inside a nested $name list item without ancestor list syntax', async ({ markdown, selected }) => {
+    const { editor, view, serializer } = await createMarkdownEditor(markdown);
+    const range = findTextRange(view.state.doc, selected);
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, range.from, range.to)));
+
+    expect(serializeSelectionToClipboardText(view.state, serializer)).toBe(selected);
+
+    await editor.destroy();
+  });
+
+  it.each([
+    {
+      name: 'ordered',
+      markdown: ['2. s', '   1. 1', '', '      1. 2', '   2. 3'].join('\n'),
+      expected: ['1. 2', '2. 3'].join('\n'),
+    },
+    {
+      name: 'bullet',
+      markdown: ['- s', '  - 1', '', '    - 2', '  - 3'].join('\n'),
+      expected: ['- 2', '- 3'].join('\n'),
+    },
+    {
+      name: 'task',
+      markdown: ['- [ ] s', '  - [ ] 1', '', '    - [ ] 2', '  - [ ] 3'].join('\n'),
+      expected: ['- [ ] 2', '- [ ] 3'].join('\n'),
+    },
+  ])('does not include an unselected parent item when copying a nested $name item and the next sibling item', async ({ markdown, expected }) => {
+    const { editor, view, serializer } = await createMarkdownEditor(markdown);
+    const nestedTextRange = findTextRange(view.state.doc, '2');
+    const siblingTextRange = findTextRange(view.state.doc, '3');
+    const slice = view.state.doc.slice(nestedTextRange.from, siblingTextRange.to);
+    const state: any = {
+      ...view.state,
+      schema: view.state.schema,
+      selection: {
+        $from: view.state.doc.resolve(nestedTextRange.from),
+        $to: view.state.doc.resolve(siblingTextRange.to),
+        from: nestedTextRange.from,
+        to: siblingTextRange.to,
+        content: () => slice,
+      },
+    };
+
+    expect(serializeSelectionToClipboardText(state, serializer)).toBe(expected);
+
+    await editor.destroy();
+  });
+
+  it.each([
+    {
+      name: 'ordered',
+      markdown: ['##', '', '1. 1', '   1. 2', '2. 3', '3. s', '   1. 1', '', '      1. 2', '   2. 3'].join('\n'),
+      expected: ['1. 1', '   1. 2', '2. 3'].join('\n'),
+    },
+    {
+      name: 'bullet',
+      markdown: ['##', '', '- 1', '  - 2', '- 3', '- s', '  - 1', '', '    - 2', '  - 3'].join('\n'),
+      expected: ['- 1', '  - 2', '- 3'].join('\n'),
+    },
+    {
+      name: 'task',
+      markdown: ['##', '', '- [ ] 1', '  - [ ] 2', '- [ ] 3', '- [ ] s', '  - [ ] 1', '', '    - [ ] 2', '  - [ ] 3'].join('\n'),
+      expected: ['- [ ] 1', '  - [ ] 2', '- [ ] 3'].join('\n'),
+    },
+  ])('does not keep an internal blank gap when copying a selected parent $name item with its nested item and next sibling', async ({ markdown, expected }) => {
+    const { editor, view, serializer } = await createMarkdownEditor(markdown);
+    const bottomOneItemRange = findListItemRangesByText(view.state.doc, '12').at(-1);
+    const bottomThreeTextRange = findTextRanges(view.state.doc, '3').at(-1);
+    if (!bottomOneItemRange || !bottomThreeTextRange) {
+      throw new Error('Unable to resolve bottom list text ranges');
+    }
+
+    const slice = view.state.doc.slice(bottomOneItemRange.from, bottomThreeTextRange.to);
+    const state: any = {
+      ...view.state,
+      schema: view.state.schema,
+      selection: {
+        $from: view.state.doc.resolve(bottomOneItemRange.from),
+        $to: view.state.doc.resolve(bottomThreeTextRange.to),
+        from: bottomOneItemRange.from,
+        to: bottomThreeTextRange.to,
+        content: () => slice,
+      },
+    };
+
+    expect(serializeSelectionToClipboardText(state, serializer)).toBe(expected);
+
+    await editor.destroy();
+  });
+
+  it('normalizes the real editor selection when copying a selected parent ordered item with its nested item and next sibling', async () => {
+    const { editor, view, serializer } = await createMarkdownEditor([
+      '##',
+      '',
+      '1. 1',
+      '   1. 2',
+      '2. 3',
+      '3. s',
+      '   1. 1',
+      '',
+      '      1. 2',
+      '   2. 3',
+    ].join('\n'));
+    const bottomOneTextRange = findTextRanges(view.state.doc, '1').at(-1);
+    const bottomThreeTextRange = findTextRanges(view.state.doc, '3').at(-1);
+    if (!bottomOneTextRange || !bottomThreeTextRange) {
+      throw new Error('Unable to resolve bottom list text ranges');
+    }
+
+    view.dispatch(view.state.tr.setSelection(
+      TextSelection.create(view.state.doc, bottomOneTextRange.from, bottomThreeTextRange.to)
+    ));
+
+    expect(serializeSelectionToClipboardText(view.state, serializer)).toBe([
+      '1. 1',
+      '   1. 2',
+      '2. 3',
+    ].join('\n'));
+
+    await editor.destroy();
+  });
+
+  it.each([
+    {
+      name: 'ordered',
+      markdown: '1. parent\n   1. nested ordered',
+      selected: 'nested ordered',
+    },
+    {
+      name: 'bullet',
+      markdown: '- parent\n  - nested bullet',
+      selected: 'nested bullet',
+    },
+    {
+      name: 'task',
+      markdown: '- [ ] parent\n  - [ ] nested task',
+      selected: 'nested task',
+    },
+  ])('copies a nested $name list item from its item boundary without ancestor list syntax', async ({ markdown, selected }) => {
+    const { editor, view, serializer } = await createMarkdownEditor(markdown);
+    const itemRange = findListItemRange(view.state.doc, selected);
+    const textRange = findTextRange(view.state.doc, selected);
+    const slice = view.state.doc.slice(itemRange.from, textRange.to);
+    const state: any = {
+      ...view.state,
+      selection: {
+        from: itemRange.from,
+        to: textRange.to,
+        content: () => slice,
+      },
+    };
+
+    expect(serializeSelectionToClipboardText(state, serializer)).toBe(selected);
+
+    await editor.destroy();
+  });
+
+  it.each([
+    {
+      name: 'ordered',
+      markdown: '1. first ordered\n2. second ordered',
+      first: 'first ordered',
+      second: 'second ordered',
+      expected: '1. first ordered\n2. second ordered',
+    },
+    {
+      name: 'bullet',
+      markdown: '- first bullet\n- second bullet',
+      first: 'first bullet',
+      second: 'second bullet',
+      expected: '- first bullet\n- second bullet',
+    },
+    {
+      name: 'task',
+      markdown: '- [ ] first task\n- [ ] second task',
+      first: 'first task',
+      second: 'second task',
+      expected: '- [ ] first task\n- [ ] second task',
+    },
+  ])('keeps markdown syntax when copying two $name list items', async ({ markdown, first, second, expected }) => {
+    const { editor, view, serializer } = await createMarkdownEditor(markdown);
+    const firstItemRange = findListItemRange(view.state.doc, first);
+    const secondTextRange = findTextRange(view.state.doc, second);
+    const slice = view.state.doc.slice(firstItemRange.from, secondTextRange.to);
+    const state: any = {
+      ...view.state,
+      schema: view.state.schema,
+      selection: {
+        $from: view.state.doc.resolve(firstItemRange.from),
+        $to: view.state.doc.resolve(secondTextRange.to),
+        from: firstItemRange.from,
+        to: secondTextRange.to,
+        content: () => slice,
+      },
+    };
+
+    expect(serializeSelectionToClipboardText(state, serializer)).toBe(expected);
+
+    await editor.destroy();
+  });
+
+  it.each([
+    {
+      name: 'ordered',
+      markdown: '1. parent\n   1. nested ordered',
+      first: 'parent',
+      second: 'nested ordered',
+      expected: '1. parent\n   1. nested ordered',
+    },
+    {
+      name: 'bullet',
+      markdown: '- parent\n  - nested bullet',
+      first: 'parent',
+      second: 'nested bullet',
+      expected: '- parent\n  - nested bullet',
+    },
+    {
+      name: 'task',
+      markdown: '- [ ] parent\n  - [ ] nested task',
+      first: 'parent',
+      second: 'nested task',
+      expected: '- [ ] parent\n  - [ ] nested task',
+    },
+  ])('keeps markdown syntax when copying parent and nested $name list items', async ({ markdown, first, second, expected }) => {
+    const { editor, view, serializer } = await createMarkdownEditor(markdown);
+    const parentItemRange = findListItemRangeContaining(view.state.doc, first);
+    const nestedTextRange = findTextRange(view.state.doc, second);
+    const slice = view.state.doc.slice(parentItemRange.from, nestedTextRange.to);
+    const state: any = {
+      ...view.state,
+      schema: view.state.schema,
+      selection: {
+        $from: view.state.doc.resolve(parentItemRange.from),
+        $to: view.state.doc.resolve(nestedTextRange.to),
+        from: parentItemRange.from,
+        to: nestedTextRange.to,
+        content: () => slice,
+      },
+    };
+
+    expect(serializeSelectionToClipboardText(state, serializer)).toBe(expected);
 
     await editor.destroy();
   });
