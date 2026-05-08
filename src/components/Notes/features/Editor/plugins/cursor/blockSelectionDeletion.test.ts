@@ -1,9 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
+import { TextSelection } from '@milkdown/kit/prose/state';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { collectSelectableBlockRanges } from './blockUnitResolver';
 import { deleteSelectedBlocks } from './blockSelectionDeletion';
+import { codePlugin } from '../code';
+import { mathPlugin } from '../math';
+import { mermaidPlugin } from '../mermaid';
 
 async function createEditor(markdown: string) {
   const editor = Editor.make()
@@ -11,7 +15,10 @@ async function createEditor(markdown: string) {
       ctx.set(defaultValueCtx, markdown);
     })
     .use(commonmark)
-    .use(gfm);
+    .use(gfm)
+    .use(mathPlugin)
+    .use(mermaidPlugin)
+    .use(codePlugin);
 
   await editor.create();
   return editor;
@@ -41,6 +48,57 @@ describe('deleteSelectedBlocks', () => {
     expect(view.state.doc.textContent).toBe('B');
 
     requestAnimationFrameSpy.mockRestore();
+    await editor.destroy();
+  });
+
+  it('places the cursor on the deleted line after cutting the last adjacent formula block', async () => {
+    const editor = await createEditor(['$$', 'a', '$$', '', '$$', 'b', '$$', '', '$$', 'c', '$$'].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(blocks).toHaveLength(3);
+    expect(deleteSelectedBlocks(view, [blocks[2]], (tr) => tr)).toBe(true);
+
+    expect(view.state.doc.childCount).toBe(3);
+    expect(view.state.doc.child(0).type.name).toBe('math_block');
+    expect(view.state.doc.child(1).type.name).toBe('math_block');
+    expect(view.state.doc.child(2).type.name).toBe('paragraph');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.from).toBe(view.state.doc.content.size - 1);
+
+    await editor.destroy();
+  });
+
+  it('places the cursor on the deleted line after cutting the last adjacent diagram block', async () => {
+    const editor = await createEditor([
+      '```mermaid',
+      'graph TD',
+      'A',
+      '```',
+      '',
+      '```mermaid',
+      'graph TD',
+      'B',
+      '```',
+      '',
+      '```mermaid',
+      'graph TD',
+      'C',
+      '```',
+    ].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(blocks).toHaveLength(3);
+    expect(deleteSelectedBlocks(view, [blocks[2]], (tr) => tr)).toBe(true);
+
+    expect(view.state.doc.childCount).toBe(3);
+    expect(view.state.doc.child(0).type.name).toBe('mermaid');
+    expect(view.state.doc.child(1).type.name).toBe('mermaid');
+    expect(view.state.doc.child(2).type.name).toBe('paragraph');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.from).toBe(view.state.doc.content.size - 1);
+
     await editor.destroy();
   });
 });

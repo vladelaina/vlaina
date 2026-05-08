@@ -218,12 +218,39 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).not.toContain('vlaina-link-selection-visible');
     expect(source).toContain("export const TEXT_SELECTION_OVERLAY_CLASS = 'vlaina-text-selection-overlay'");
     expect(source).toContain('Decoration.inline(from, to, {');
+    expect(source).toContain("const ATOMIC_SELECTION_NODE_TYPES = new Set(['math_block', 'math_inline', 'mermaid', 'table'])");
+    expect(source).toContain('Decoration.node(pos, pos + node.nodeSize, {');
+    expect(source).toContain("class: 'vlaina-block-selected vlaina-atomic-selected'");
     expect(source).toContain("class: TEXT_SELECTION_OVERLAY_CLASS");
     expect(source).toContain('node.isText');
     expect(source).toContain('selection instanceof TextSelection');
     expect(source).toContain('selection instanceof AllSelection');
     expect(source).toContain('hasSelectedBlocks(state)');
     expect(source).toContain('isTextSelectionOverlayEligible(view.state)');
+  });
+
+  it('keeps atomic select-all overlays visible when native selections are hidden', () => {
+    const coreCss = readStyleFile('core.css');
+    const selectionCss = readStyleFile('selection-width.css');
+
+    expect(coreCss).toContain('.milkdown .ProseMirror .vlaina-block-selected,');
+    expect(coreCss).toContain('.milkdown .ProseMirror .vlaina-block-selected * {');
+    expect(coreCss).toContain('-webkit-text-fill-color: currentColor;');
+    expect(selectionCss).toContain(
+      '.milkdown .ProseMirror.vlaina-text-selection-overlay-active .vlaina-atomic-selected,'
+    );
+    expect(selectionCss).toContain(
+      '.milkdown .ProseMirror.vlaina-text-selection-overlay-active .vlaina-atomic-selected * {'
+    );
+    expect(selectionCss).toContain('user-select: none;');
+    expect(selectionCss).toContain('-webkit-user-select: none;');
+    expect(selectionCss).toContain('-webkit-text-fill-color: currentColor !important;');
+    expect(selectionCss).toContain(
+      '.milkdown .ProseMirror.vlaina-text-selection-overlay-active .vlaina-atomic-selected::selection,'
+    );
+    expect(selectionCss).toContain(
+      '.milkdown .ProseMirror.vlaina-text-selection-overlay-active .vlaina-atomic-selected *::selection {'
+    );
   });
 
   it('keeps mermaid drag previews from inheriting generic preview text color', () => {

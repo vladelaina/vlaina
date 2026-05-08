@@ -13,6 +13,9 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import { serializeSelectedBlocksToText } from './blockSelectionCommands';
 import { collectSelectableBlockRanges } from './blockUnitResolver';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+import { mathPlugin } from '../math';
+import { mermaidPlugin } from '../mermaid';
+import { codePlugin } from '../code';
 
 function createMockState(): EditorState {
   const doc = {
@@ -244,6 +247,107 @@ describe('serializeSelectedBlocksToText', () => {
     expect(blocks).toHaveLength(2);
     expect(serializeSelectedBlocksToText(view.state, [blocks[1]], { markdownSerializer: serializer })).toBe(
       '2'
+    );
+
+    await editor.destroy();
+  });
+
+  it('copies selected code blocks as fenced markdown', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, ['```ts', 'const a = 1;', '', 'console.log(a);', '```'].join('\n'));
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(serializeSelectedBlocksToText(view.state, blocks, { markdownSerializer: serializer })).toBe(
+      ['```ts', 'const a = 1;', '', 'console.log(a);', '```'].join('\n')
+    );
+
+    await editor.destroy();
+  });
+
+  it('copies selected diagram blocks as fenced Mermaid markdown', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, ['```sequence', 'Alice->Bob: Hello', '```'].join('\n'));
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(mermaidPlugin)
+      .use(codePlugin);
+
+    await editor.create();
+
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(serializeSelectedBlocksToText(view.state, blocks, { markdownSerializer: serializer })).toBe(
+      ['```mermaid', 'sequenceDiagram', 'Alice->Bob: Hello', '```'].join('\n')
+    );
+
+    await editor.destroy();
+  });
+
+  it('copies selected formula blocks as math markdown', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, ['$$', 'x^2', '$$'].join('\n'));
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(mathPlugin);
+
+    await editor.create();
+
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(serializeSelectedBlocksToText(view.state, blocks, { markdownSerializer: serializer })).toBe(
+      ['$$', 'x^2', '$$'].join('\n')
+    );
+
+    await editor.destroy();
+  });
+
+  it('copies selected table blocks as table markdown', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, ['| A | B |', '| --- | --- |', '| 1 | 2 |'].join('\n'));
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(serializeSelectedBlocksToText(view.state, blocks, { markdownSerializer: serializer })).toBe(
+      ['| A | B |', '| - | - |', '| 1 | 2 |'].join('\n')
     );
 
     await editor.destroy();

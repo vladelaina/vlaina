@@ -134,6 +134,28 @@ describe('looksLikeMarkdownForPaste', () => {
         expect(looksLikeMarkdownForPaste('| a | b |')).toBe(true);
     });
 
+    it('detects display math blocks', () => {
+        expect(looksLikeMarkdownForPaste('$$\ndfsdf\n$$')).toBe(true);
+    });
+
+    it('detects inline math', () => {
+        expect(looksLikeMarkdownForPaste('$x^2$')).toBe(true);
+    });
+
+    it('detects footnote markdown', () => {
+        expect(looksLikeMarkdownForPaste('Footnote ref[^1].')).toBe(true);
+        expect(looksLikeMarkdownForPaste('[^1]: Footnote body')).toBe(true);
+    });
+
+    it('detects custom inline markdown marks', () => {
+        expect(looksLikeMarkdownForPaste('==highlight==')).toBe(true);
+        expect(looksLikeMarkdownForPaste('++underline++')).toBe(true);
+        expect(looksLikeMarkdownForPaste('<sup>up</sup>')).toBe(true);
+        expect(looksLikeMarkdownForPaste('<sub>down</sub>')).toBe(true);
+        expect(looksLikeMarkdownForPaste('<mark>marked</mark>')).toBe(true);
+        expect(looksLikeMarkdownForPaste('<span style="color: #123456">red</span>')).toBe(true);
+    });
+
     it('detects inline markdown', () => {
         expect(looksLikeMarkdownForPaste('**bold** text')).toBe(true);
     });

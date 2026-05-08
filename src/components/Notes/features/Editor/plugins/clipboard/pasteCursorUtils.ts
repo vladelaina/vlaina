@@ -93,6 +93,10 @@ export const isMarkdownStructuralResult = (nodes: ProseNode[]): boolean => {
             break;
         }
         node.descendants((child) => {
+            if (!child.isText) {
+                hasStructure = true;
+                return false;
+            }
             if (child.isText && child.marks.length > 0) {
                 hasStructure = true;
                 return false;

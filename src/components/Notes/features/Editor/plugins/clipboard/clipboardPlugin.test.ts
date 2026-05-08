@@ -7,6 +7,8 @@ import { clipboardPlugin } from './clipboardPlugin';
 import { createStandaloneTocPasteNode } from './clipboardPlugin';
 import { dispatchTailBlankClickAction, endBlankClickPlugin } from '../cursor/endBlankClickPlugin';
 import { mermaidPlugin } from '../mermaid';
+import { mathPlugin } from '../math';
+import { codePlugin } from '../code';
 
 function simulatePasteText(view: any, text: string): boolean {
     const event = {
@@ -149,6 +151,29 @@ describe('clipboardPlugin paste', () => {
         await editor.destroy();
     });
 
+    it('recognizes pasted markdown tables as table blocks', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, ['| A | B |', '| --- | --- |', '| 1 | 2 |'].join('\n'))).toBe(true);
+
+        const table = view.state.doc.firstChild;
+        expect(table?.type.name).toBe('table');
+        expect(table?.childCount).toBe(2);
+        expect(table?.firstChild?.firstChild?.textContent).toBe('A');
+        expect(table?.child(1).child(1).textContent).toBe('2');
+
+        await editor.destroy();
+    });
+
     it('recognizes spreadsheet tab separated paste as a table', async () => {
         const editor = Editor.make()
             .config((ctx) => {
@@ -171,6 +196,49 @@ describe('clipboardPlugin paste', () => {
         expect(table?.firstChild?.child(1).textContent).toBe('Score');
         expect(table?.child(1).firstChild?.textContent).toBe('Ada');
         expect(table?.child(1).child(1).textContent).toBe('10');
+
+        await editor.destroy();
+    });
+
+    it('recognizes pasted inline math markdown as an inline formula', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(clipboardPlugin)
+            .use(mathPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, '$x^2$')).toBe(true);
+
+        const paragraph = view.state.doc.firstChild;
+        expect(paragraph?.type.name).toBe('paragraph');
+        expect(paragraph?.firstChild?.type.name).toBe('math_inline');
+        expect(paragraph?.firstChild?.attrs.latex).toBe('x^2');
+
+        await editor.destroy();
+    });
+
+    it('recognizes pasted display math markdown as a formula block', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(clipboardPlugin)
+            .use(mathPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, '$$\ndfsdf\n$$')).toBe(true);
+
+        const formula = view.state.doc.firstChild;
+        expect(formula?.type.name).toBe('math_block');
+        expect(formula?.attrs.latex).toBe('dfsdf');
 
         await editor.destroy();
     });
@@ -203,6 +271,66 @@ describe('clipboardPlugin paste', () => {
             'Note right of Bob: Bob thinks',
             'Bob-->Alice: I am good thanks!',
         ].join('\n'));
+
+        await editor.destroy();
+    });
+
+    it('recognizes pasted fenced code as a code block', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(clipboardPlugin)
+            .use(codePlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, ['```ts', 'const value = 1;', '```'].join('\n'))).toBe(true);
+
+        const code = view.state.doc.firstChild;
+        expect(code?.type.name).toBe('code_block');
+        expect(code?.attrs.language).toBe('ts');
+        expect(code?.textContent).toBe('const value = 1;');
+
+        await editor.destroy();
+    });
+
+    it('recognizes pasted markdown fences as editable markdown content', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, ['```md', '# Title', '- item', '```'].join('\n'))).toBe(true);
+
+        expect(view.state.doc.childCount).toBe(2);
+        expect(view.state.doc.child(0).type.name).toBe('heading');
+        expect(view.state.doc.child(0).textContent).toBe('Title');
+        expect(view.state.doc.child(1).type.name).toBe('bullet_list');
+        expect(view.state.doc.child(1).textContent).toBe('item');
+
+        await editor.destroy();
+    });
+
+    it('leaves plain text paste to the browser default path', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, 'hello world')).toBe(false);
 
         await editor.destroy();
     });
