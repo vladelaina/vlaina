@@ -41,10 +41,11 @@ describe('toolbar markup', () => {
   it('renders a reduced toolbar for code blocks', () => {
     const markup = renderToolbarMarkup(createState({ currentBlockType: 'codeBlock' }));
 
-    expect(markup).toContain('data-action="ai"');
     expect(markup).toContain('data-action="block"');
     expect(markup).toContain('data-action="copy"');
     expect(markup).toContain('data-action="delete"');
+    expect(markup).not.toContain('data-action="ai"');
+    expect(markup).not.toContain('toolbar-ai-group');
     expect(markup).not.toContain('data-action="alignment"');
     expect(markup).not.toContain('data-action="bold"');
     expect(markup).not.toContain('data-action="italic"');

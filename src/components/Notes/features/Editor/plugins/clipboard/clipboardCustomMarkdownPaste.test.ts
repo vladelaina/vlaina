@@ -146,8 +146,8 @@ describe('clipboard custom markdown paste', () => {
         [
           '==highlight==',
           '++underlined++',
-          '<sup>up</sup>',
-          '<sub>down</sub>',
+          'X^2^',
+          'H~2~O',
           '<span style="color: #123456">red</span>',
           '<mark style="background-color: #ecf6ff">bg</mark>',
         ].join(' ')

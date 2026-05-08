@@ -2,12 +2,54 @@ import { $mark, $inputRule } from '@milkdown/kit/utils';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
 import { toggleMark } from '@milkdown/kit/prose/commands';
 import { $command, $remark } from '@milkdown/kit/utils';
+import { remarkStringifyOptionsCtx } from '@milkdown/kit/core';
+import type { MilkdownPlugin } from '@milkdown/kit/ctx';
 import {
   escapeMarkdownHtmlText,
 } from '@/lib/notes/markdown/markdownHtmlText';
 import { remarkHighlight } from './highlightMarkdownTransforms';
 
 export const remarkHighlightPlugin = $remark('remarkHighlight', () => remarkHighlight);
+
+function shouldUseHtmlFallback(text: string, delimiter: string): boolean {
+  return text.includes(delimiter) || /[<>&]/.test(text);
+}
+
+function createDelimitedMarkHandler(delimiter: string) {
+  return (node: any, _: unknown, state: any, info: any) => {
+    const exit = state.enter(node.type);
+    const tracker = state.createTracker(info);
+    let value = tracker.move(delimiter);
+    value += tracker.move(
+      state.containerPhrasing(node, {
+        before: value,
+        after: delimiter,
+        ...tracker.current(),
+      })
+    );
+    value += tracker.move(delimiter);
+    exit();
+    return value;
+  };
+}
+
+export const highlightStringifyPlugin: MilkdownPlugin = (ctx) => {
+  return () => {
+    ctx.update(remarkStringifyOptionsCtx, (options) => {
+      const handlers =
+        options.handlers && typeof options.handlers === 'object' ? options.handlers : {};
+
+      return {
+        ...options,
+        handlers: {
+          ...handlers,
+          superscript: createDelimitedMarkHandler('^'),
+          subscript: createDelimitedMarkHandler('~'),
+        },
+      };
+    });
+  };
+};
 
 export const highlightMark = $mark('highlight', () => ({
   parseDOM: [
@@ -82,8 +124,13 @@ export const superscriptMark = $mark('superscript', () => ({
   toMarkdown: {
     match: (mark) => mark.type.name === 'superscript',
     runner: (state, _mark, node) => {
-      state.addNode('html', undefined, `<sup>${escapeMarkdownHtmlText(node.text || '')}</sup>`);
-      return true;
+      const text = node.text || '';
+      if (shouldUseHtmlFallback(text, '^')) {
+        state.addNode('html', undefined, `<sup>${escapeMarkdownHtmlText(text)}</sup>`);
+        return true;
+      } else {
+        state.withMark(_mark, 'superscript');
+      }
     }
   }
 }));
@@ -132,8 +179,13 @@ export const subscriptMark = $mark('subscript', () => ({
   toMarkdown: {
     match: (mark) => mark.type.name === 'subscript',
     runner: (state, _mark, node) => {
-      state.addNode('html', undefined, `<sub>${escapeMarkdownHtmlText(node.text || '')}</sub>`);
-      return true;
+      const text = node.text || '';
+      if (shouldUseHtmlFallback(text, '~')) {
+        state.addNode('html', undefined, `<sub>${escapeMarkdownHtmlText(text)}</sub>`);
+        return true;
+      } else {
+        state.withMark(_mark, 'subscript');
+      }
     }
   }
 }));
@@ -167,6 +219,7 @@ export const toggleSubscriptCommand = $command('toggleSubscript', () => () => {
 
 export const highlightPlugin = [
   remarkHighlightPlugin,
+  highlightStringifyPlugin,
   highlightMark,
   highlightInputRule,
   toggleHighlightCommand,

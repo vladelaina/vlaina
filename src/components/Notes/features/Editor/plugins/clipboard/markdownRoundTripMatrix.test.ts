@@ -34,6 +34,20 @@ describe('markdown syntax persistence matrix', () => {
       markdown: ['Before math.', '', '$$', 'a = b', '', 'c = d', '$$', '', 'After math.'].join('\n'),
     },
     {
+      name: 'advanced math structures and chemistry syntax',
+      markdown: [
+        '$$',
+        '\\begin{align}a&=b\\\\c&=d\\end{align}',
+        '$$',
+        '',
+        '$$',
+        '\\begin{gather}x=y\\\\u=v\\end{gather}',
+        '$$',
+        '',
+        'Chemistry $\\ce{H2O}$ and units $\\pu{123 kJ mol-1}$.',
+      ].join('\n'),
+    },
+    {
       name: 'callout blockquote',
       markdown: ['> 💡 Callout title', '>', '> Callout body'].join('\n'),
     },
@@ -83,7 +97,12 @@ describe('markdown syntax persistence matrix', () => {
     },
     {
       name: 'highlight superscript and subscript',
-      markdown: 'Use ==highlight==, <sup>up</sup>, and <sub>down</sub>.',
+      markdown: 'Use ==highlight==, X^2^, and H~2~O.',
+    },
+    {
+      name: 'html superscript and subscript serialize to markdown syntax',
+      markdown: 'Use <sup>up</sup>, and <sub>down</sub>.',
+      expected: 'Use ^up^, and ~down~.',
     },
     {
       name: 'escaped html text inside custom inline marks',

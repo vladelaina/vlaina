@@ -29,6 +29,57 @@ describe('katex utils', () => {
     expect(result.html).toContain('mathbb');
   });
 
+  it('renders display math line breaks written with double backslashes or newline commands', () => {
+    const doubleBackslash = renderLatex('a \\\\ b', true);
+    const newlineCommand = renderLatex('a \\newline b', true);
+
+    expect(doubleBackslash.error).toBeNull();
+    expect(doubleBackslash.html).toContain('mspace linebreak');
+    expect(newlineCommand.error).toBeNull();
+    expect(newlineCommand.html).toContain('mspace linebreak');
+  });
+
+  it('renders aligned display math with double backslash row breaks', () => {
+    const result = renderLatex('\\begin{aligned}a&=b\\\\c&=d\\end{aligned}', true);
+
+    expect(result.error).toBeNull();
+    expect(result.html).toContain('mtable');
+    expect(result.html).toContain('mtr');
+  });
+
+  it('renders common display math structures used in notes', () => {
+    const cases = renderLatex('\\begin{cases}x+1,&x>0\\\\0,&x=0\\end{cases}', true);
+    const matrix = renderLatex('\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}', true);
+    const align = renderLatex('\\begin{align}a&=b\\\\c&=d\\end{align}', true);
+    const gather = renderLatex('\\begin{gather}a=b\\\\c=d\\end{gather}', true);
+    const equation = renderLatex('\\begin{equation}x+y\\end{equation}', true);
+    const tagged = renderLatex('\\tag{1} x+y', true);
+
+    expect(cases.error).toBeNull();
+    expect(cases.html).toContain('mtable');
+    expect(matrix.error).toBeNull();
+    expect(matrix.html).toContain('mtable');
+    expect(align.error).toBeNull();
+    expect(align.html).toContain('mtable');
+    expect(gather.error).toBeNull();
+    expect(gather.html).toContain('mtable');
+    expect(equation.error).toBeNull();
+    expect(equation.html).toContain('katex');
+    expect(tagged.error).toBeNull();
+    expect(tagged.html).toContain('tag');
+  });
+
+  it('renders mhchem chemical formula and unit syntax', () => {
+    const equation = renderLatex('\\ce{SO4^2- + Ba^2+ -> BaSO4 v}', true);
+    const unit = renderLatex('\\pu{123 kJ mol-1}', false);
+
+    expect(equation.error).toBeNull();
+    expect(equation.html).toContain('SO');
+    expect(equation.html).toContain('Ba');
+    expect(unit.error).toBeNull();
+    expect(unit.html).toContain('kJ');
+  });
+
   it('returns an explicit error payload for invalid latex', () => {
     const result = renderLatex('\\frac{1}{', true);
 
@@ -48,6 +99,8 @@ describe('katex utils', () => {
   it('validates latex strings consistently with the renderer expectations', () => {
     expect(isValidLatex('')).toBe(true);
     expect(isValidLatex('\\sqrt{x}')).toBe(true);
+    expect(isValidLatex('\\R')).toBe(true);
+    expect(isValidLatex('\\ce{H2O}')).toBe(true);
     expect(isValidLatex('\\frac{1}{')).toBe(false);
     expect(isValidLatex('x'.repeat(10001))).toBe(false);
   });

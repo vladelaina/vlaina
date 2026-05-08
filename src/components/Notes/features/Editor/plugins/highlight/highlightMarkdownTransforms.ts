@@ -4,6 +4,10 @@ export interface MdastNode {
   type: string;
   value?: string;
   children?: MdastNode[];
+  position?: {
+    start?: { offset?: number };
+    end?: { offset?: number };
+  };
 }
 
 function replaceDelimitedTextMark(tree: MdastNode, type: string, regex: RegExp) {
@@ -123,9 +127,43 @@ function replaceInlineHtmlContainerMark(
   visit(tree);
 }
 
+function replaceSingleTildeDeleteMark(tree: MdastNode, markdown: string) {
+  function visit(node: MdastNode, parent?: MdastNode, index?: number): void {
+    if (node.children) {
+      for (let i = node.children.length - 1; i >= 0; i -= 1) {
+        visit(node.children[i], node, i);
+      }
+    }
+
+    if (node.type !== 'delete' || !parent || index === undefined) return;
+
+    const start = node.position?.start?.offset;
+    const end = node.position?.end?.offset;
+    if (typeof start !== 'number' || typeof end !== 'number') return;
+
+    const source = markdown.slice(start, end);
+    if (!source.startsWith('~') || source.startsWith('~~') || !source.endsWith('~') || source.endsWith('~~')) {
+      return;
+    }
+
+    parent.children?.splice(index, 1, {
+      type: 'subscript',
+      children: node.children,
+    });
+  }
+
+  visit(tree);
+}
+
 export function remarkHighlight() {
-  return (tree: MdastNode) => {
+  return (tree: MdastNode, file?: { value?: unknown }) => {
+    const markdown = typeof file?.value === 'string' ? file.value : '';
     replaceDelimitedTextMark(tree, 'highlight', /==([^=]+)==/g);
+    replaceDelimitedTextMark(tree, 'superscript', /(?<!\^)\^([^^\s](?:[^^]*?[^^\s])?)\^(?!\^)/g);
+    replaceDelimitedTextMark(tree, 'subscript', /(?<!~)~([^~\s](?:[^~]*?[^~\s])?)~(?!~)/g);
+    if (markdown) {
+      replaceSingleTildeDeleteMark(tree, markdown);
+    }
     replaceInlineHtmlMark(tree, 'highlight', /^<mark>([\s\S]*?)<\/mark>$/i);
     replaceInlineHtmlMark(tree, 'superscript', /^<sup>([\s\S]*?)<\/sup>$/i);
     replaceInlineHtmlMark(tree, 'subscript', /^<sub>([\s\S]*?)<\/sub>$/i);
