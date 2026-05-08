@@ -311,6 +311,10 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected .cm-line,');
     expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected .cm-activeLine,');
     expect(css).toContain(".milkdown .code-block-container[data-pm-selected='true'] .cm-gutter-filler {");
+    expect(css).toContain('.milkdown .ProseMirror li.vlaina-block-selected .code-block-container {');
+    expect(css).toContain('background: color-mix(in srgb, var(--vlaina-code-block-background, #f5f5f5) 86%, transparent);');
+    expect(css).toContain('background-color: color-mix(in srgb, var(--vlaina-code-block-background, #f5f5f5) 86%, transparent);');
+    expect(css).toContain('transition: none;');
     expect(css).toContain('--vlaina-block-selection-color: color-mix(in srgb, var(--vlaina-editor-block-selection-base, #1e96eb) 14%, transparent);');
     expect(css).toContain('background-color: var(--vlaina-block-selection-color);');
     expect(css).toContain('border-radius: 1rem;');
