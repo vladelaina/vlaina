@@ -23,6 +23,12 @@ const MARKED_BR_ONLY_PATTERN =
 const MARKDOWN_ESCAPE_PATTERN = /\\([\\`*_{}[\]()#+\-.!])/g;
 const LIST_GAP_SENTINEL = '\u0000VLAINA_LIST_GAP_SENTINEL\u0000';
 const USER_BR_SENTINEL = '\u0000VLAINA_USER_BR_SENTINEL\u0000';
+const LEAKED_LIST_GAP_SENTINEL_PATTERN =
+  /(?:�+VLAINA_LIST_GAP_SENTINEL�*|�*VLAINA_LIST_GAP_SENTINEL�+)/g;
+const LEAKED_USER_BR_SENTINEL_PATTERN =
+  /(?:�+VLAINA_USER_BR_SENTINEL�*|�*VLAINA_USER_BR_SENTINEL�+)/g;
+const LEAKED_LIST_GAP_SENTINEL_WITH_NEWLINES_PATTERN =
+  new RegExp(`\\n*${LEAKED_LIST_GAP_SENTINEL_PATTERN.source}\\n*`, 'g');
 const INVISIBLE_EMPTY_LINE_PLACEHOLDER_PATTERN = /^[\t ]*\\?\u200B[\t ]*$/;
 const INVISIBLE_LIST_GAP_PLACEHOLDER_PATTERN = /^[\t ]*\\?\u200B\\?\u200C[\t ]*$/;
 const USER_BR_SENTINEL_LINE_PATTERN =
@@ -47,6 +53,7 @@ const MARKED_LIST_GAP_TOKEN_PATTERN = new RegExp(`[ \\t]*<br\\b(?=[^>]*${VLAINA_
 const EMPTY_LIST_ITEM_PLACEHOLDER_PATTERN =
   /^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+(?:\[(?: |x|X)\]\s+)?)<br\s*\/?>$/gim;
 const EMPTY_TABLE_CELL_PLACEHOLDER_PATTERN = /(\|\s*)<br\s*\/?>(\s*\|)/g;
+const EMPTY_ATX_HEADING_MARKER_PATTERN = /^( {0,3})(#{1,6})[ \t]*$/gm;
 
 function unescapeMarkdownPunctuation(text: string): string {
   return mapMarkdownOutsideProtectedBlocks(text, (line) => line.replace(MARKDOWN_ESCAPE_PATTERN, '$1'));
@@ -71,8 +78,9 @@ export function stripTrailingNewlines(text: string): string {
 }
 
 export function normalizeSerializedMarkdownBlock(text: string): string {
+  const normalizedPlaceholders = normalizeInternalClipboardArtifacts(text);
   const withoutTrailingNewlines = stripTrailingNewlines(
-    normalizeUserBreakSentinels(stripEmptyMarkdownPlaceholders(text))
+    normalizeUserBreakSentinels(stripEmptyMarkdownPlaceholders(normalizedPlaceholders))
   );
   if (BR_ONLY_PATTERN.test(withoutTrailingNewlines.trim())) return '';
   return unescapeMarkdownPunctuation(withoutTrailingNewlines);
@@ -105,7 +113,11 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
   const afterEmptyParagraphBreaks = normalizeEditorEmptyParagraphBreaks(afterStripPlaceholders);
   const afterUserBreaks = normalizeUserBreakSentinels(afterEmptyParagraphBreaks);
   const afterListItems = normalizeListItemBlankLines(afterUserBreaks);
-  const output = preserveParagraphSoftBreaksAsHardBreaks(afterListItems);
+  const afterLeakedInternalArtifacts = normalizeUserBreakSentinels(
+    normalizeLeakedInternalArtifacts(afterListItems)
+  );
+  const afterEmptyAtxHeadings = normalizeEmptyAtxHeadingMarkers(afterLeakedInternalArtifacts);
+  const output = preserveParagraphSoftBreaksAsHardBreaks(afterEmptyAtxHeadings);
 
   return {
     input: text,
@@ -116,8 +128,18 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
     afterEmptyParagraphBreaks,
     afterUserBreaks,
     afterListItems,
+    afterLeakedInternalArtifacts,
+    afterEmptyAtxHeadings,
     output,
   };
+}
+
+function normalizeEmptyAtxHeadingMarkers(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
+    segment.replace(EMPTY_ATX_HEADING_MARKER_PATTERN, (_match, indent: string, marker: string) =>
+      `${indent}${marker} ${marker}`
+    )
+  );
 }
 
 function normalizeEditorEmptyParagraphBreaks(text: string): string {
@@ -228,6 +250,17 @@ function normalizeListItemBlankLines(text: string): string {
     .replace(new RegExp(`\\n*${LIST_GAP_SENTINEL}\\n*`, 'g'), '\n\n'));
 }
 
+function normalizeInternalClipboardArtifacts(text: string): string {
+  return normalizeLeakedInternalArtifacts(normalizeListItemBlankLines(normalizeEditorBreakPlaceholders(text)))
+    .replace(/\n{3,}/g, '\n\n');
+}
+
+function normalizeLeakedInternalArtifacts(text: string): string {
+  return text
+    .replace(LEAKED_LIST_GAP_SENTINEL_WITH_NEWLINES_PATTERN, '\n\n')
+    .replace(LEAKED_USER_BR_SENTINEL_PATTERN, USER_BR_SENTINEL);
+}
+
 function getBlockquotePrefix(depth: number): string {
   return Array.from({ length: Math.max(0, depth) }, () => '>').join(' ') + (depth > 0 ? ' ' : '');
 }
@@ -236,8 +269,9 @@ export function normalizeSerializedMarkdownSelection(text: string): string {
   const trimmedText = stripTrailingNewlines(text).trim();
   const isStandaloneBreak =
     BR_ONLY_PATTERN.test(trimmedText) || MARKED_BR_ONLY_PATTERN.test(trimmedText);
+  const normalizedPlaceholders = normalizeInternalClipboardArtifacts(text);
   const withoutTrailingNewlines = stripTrailingNewlines(
-    normalizeUserBreakSentinels(stripEmptyMarkdownPlaceholders(text))
+    normalizeUserBreakSentinels(stripEmptyMarkdownPlaceholders(normalizedPlaceholders))
   );
   if (
     isStandaloneBreak

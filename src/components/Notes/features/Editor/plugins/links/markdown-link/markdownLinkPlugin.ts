@@ -1,6 +1,7 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Fragment, Slice } from '@milkdown/kit/prose/model';
+import { sanitizeNoteLinkHref } from '@/lib/notes/markdown/urlSecurity';
 import { isStandaloneFencedCodeBlock } from '../../clipboard/fencedCodePaste';
 import { resolvePasteRange } from '../../clipboard/pasteCursorUtils';
 
@@ -76,10 +77,11 @@ export const markdownLinkPlugin = $prose(() => {
                             // Verify checking range validity after mapping
                             // (Simple check: ensure mappedEnd > mappedStart)
                             if (mappedEnd > mappedStart) {
-                                const linkMark = linkMarkType.create({ href: linkUrl });
+                                const safeLinkUrl = sanitizeNoteLinkHref(linkUrl);
+                                const marks = safeLinkUrl ? [linkMarkType.create({ href: safeLinkUrl })] : [];
                                 tr = tr
                                     .delete(mappedStart, mappedEnd)
-                                    .insert(mappedStart, schema.text(linkText, [linkMark]));
+                                    .insert(mappedStart, schema.text(linkText, marks));
 
                                 hasChanges = true;
                             }
@@ -119,8 +121,10 @@ export const markdownLinkPlugin = $prose(() => {
                 const linkStart = from - fullMatch.length;
 
                 // Create transaction
-                const linkMark = linkMarkType.create({ href: linkUrl });
-                const linkedText = state.schema.text(linkText, [linkMark]);
+                const safeLinkUrl = sanitizeNoteLinkHref(linkUrl);
+                const linkedText = safeLinkUrl
+                    ? state.schema.text(linkText, [linkMarkType.create({ href: safeLinkUrl })])
+                    : state.schema.text(linkText);
                 const spaceText = state.schema.text(inputText);
 
                 const tr = state.tr
@@ -162,8 +166,12 @@ export const markdownLinkPlugin = $prose(() => {
                         nodes.push(view.state.schema.text(beforeText));
                     }
 
-                    const linkMark = linkMarkType.create({ href: linkUrl });
-                    nodes.push(view.state.schema.text(linkText, [linkMark]));
+                    const safeLinkUrl = sanitizeNoteLinkHref(linkUrl);
+                    nodes.push(
+                        safeLinkUrl
+                            ? view.state.schema.text(linkText, [linkMarkType.create({ href: safeLinkUrl })])
+                            : view.state.schema.text(linkText)
+                    );
 
                     lastIndex = matchStart + fullMatch.length;
                 }

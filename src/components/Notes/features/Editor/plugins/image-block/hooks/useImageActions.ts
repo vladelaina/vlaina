@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useToastStore } from '@/stores/useToastStore';
+import { sanitizeFilename } from '@/lib/assets/core/naming';
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { writeDesktopBinaryFile } from '@/lib/desktop/fs';
 import { saveDialog } from '@/lib/storage/dialog';
@@ -10,6 +11,19 @@ import { Node } from '@milkdown/kit/prose/model';
 import { deleteImageNodeAtPos } from '../commands/imageNodeCommands';
 import type { CropArea, ImageNodeAttrs } from '../types';
 import type { CropParams } from '../utils/imageSourceFragment';
+
+const DOWNLOAD_IMAGE_EXTENSIONS = new Set(['gif', 'jpeg', 'jpg', 'png', 'webp']);
+
+function getSafeDownloadExtension(src: string) {
+    const extension = src.split('#')[0]?.split('?')[0]?.split('.').pop()?.toLowerCase() ?? '';
+    return DOWNLOAD_IMAGE_EXTENSIONS.has(extension) ? extension : 'png';
+}
+
+export function createImageDownloadDefaultName(alt: string, src: string) {
+    const sanitizedBase = sanitizeFilename(alt.replace(/[\u0000-\u001f\u007f]/g, ''))
+        .replace(/^\.+|\.+$/g, '') || 'image';
+    return `${sanitizedBase}.${getSafeDownloadExtension(src)}`;
+}
 
 interface UseImageActionsProps {
     node: Node;
@@ -85,8 +99,7 @@ export function useImageActions({
         if (!resolvedSrc) return;
         try {
             await restoreIfNeeded();
-            const ext = baseSrc.split('.').pop()?.split('?')[0] || 'png';
-            const defaultName = (nodeAlt || 'image') + '.' + ext;
+            const defaultName = createImageDownloadDefaultName(nodeAlt || 'image', baseSrc);
             const filePath = await saveDialog({ defaultPath: defaultName, filters: [{ name: 'Images', extensions: ['png', 'jpg', 'webp'] }] });
             if (!filePath) return;
             const response = await fetch(resolvedSrc);

@@ -52,7 +52,7 @@ export function RootFolderMenu({
   const closeVault = useVaultStore((state) => state.closeVault);
   const { handleCopyPath, handleOpenLocation } = useTreeItemPathActions({
     notesPath: vaultPath,
-    itemPath: vaultPath,
+    itemPath: '',
     openLocationErrorMessage: 'Failed to open folder location.',
   });
 

@@ -1,4 +1,4 @@
-import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { getStorageAdapter } from '@/lib/storage/adapter';
 import { getNoteTitleFromPath, normalizeNotePathKey } from '@/lib/notes/displayName';
 import { sanitizeFileName } from '../../noteUtils';
 import { remapMetadataEntries } from '../../storage';
@@ -8,6 +8,7 @@ import { resolveUniqueMovedPath, resolveUniqueRenamedPath } from './pathOperatio
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
 import { emitNotesExternalPathRename } from '../../document/externalPathBroadcast';
 import { remapOpenTabsForExternalRename } from '../../document/externalPathSync';
+import { normalizeVaultRelativePath, resolveVaultRelativeFullPath } from './vaultPathContainment';
 import type { FileOperationContext, MoveItemResult, RenameNoteResult } from './operationTypes';
 
 export async function renameNoteImpl(
@@ -17,26 +18,26 @@ export async function renameNoteImpl(
     currentStore: FileOperationContext
 ): Promise<RenameNoteResult | null> {
     const storage = getStorageAdapter();
-    const fullPath = await joinPath(notesPath, path);
+    const { relativePath: safePath, fullPath } = await resolveVaultRelativeFullPath(notesPath, path);
     const sanitizedName = sanitizeFileName(newName);
     const {
         relativePath: newPath,
         fullPath: newFullPath,
         fileName: newFileName,
-    } = await resolveUniqueRenamedPath(notesPath, path, sanitizedName, false);
+    } = await resolveUniqueRenamedPath(notesPath, safePath, sanitizedName, false);
     const nextTitle = getNoteTitleFromPath(newFileName);
 
-    if (newPath === path) return null;
+    if (newPath === safePath) return null;
 
     markExpectedExternalChange(fullPath);
     markExpectedExternalChange(newFullPath);
     await storage.rename(fullPath, newFullPath);
-    emitNotesExternalPathRename({ notesPath, oldPath: path, newPath });
+    emitNotesExternalPathRename({ notesPath, oldPath: safePath, newPath });
 
     const { starredEntries, noteMetadata, openTabs, rootFolder, currentNote } = currentStore;
     const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath, kind) => {
         if (kind !== 'note') return relativePath;
-        return relativePath === path ? newPath : relativePath;
+        return relativePath === safePath ? newPath : relativePath;
     });
     const starredPaths = getVaultStarredPaths(starredResult.entries, notesPath);
     if (starredResult.changed) {
@@ -44,20 +45,20 @@ export async function renameNoteImpl(
     }
 
     const updatedMetadata = remapMetadataEntries(noteMetadata, (relativePath) => {
-        if (relativePath !== path) {
+        if (relativePath !== safePath) {
             return relativePath;
         }
         return newPath;
     });
 
-    const updatedTabs = remapOpenTabsForExternalRename(openTabs, path, newPath);
+    const updatedTabs = remapOpenTabsForExternalRename(openTabs, safePath, newPath);
 
-    const updatedChildren = rootFolder 
-        ? updateFileNodePath(rootFolder.children, path, newPath, nextTitle) 
+    const updatedChildren = rootFolder
+        ? updateFileNodePath(rootFolder.children, safePath, newPath, nextTitle)
         : [];
 
     let nextCurrentNote = currentNote;
-    if (currentNote?.path === path) {
+    if (currentNote?.path === safePath) {
         nextCurrentNote = { ...currentNote, path: newPath };
     }
 
@@ -80,10 +81,16 @@ export async function moveItemImpl(
     currentStore: FileOperationContext
 ): Promise<MoveItemResult> {
     const storage = getStorageAdapter();
-    const normalizedSourcePath = normalizeNotePathKey(sourcePath) ?? sourcePath;
-    const normalizedTargetFolderPath = normalizeNotePathKey(targetFolderPath) ?? targetFolderPath;
+    const normalizedSourcePath = normalizeVaultRelativePath(normalizeNotePathKey(sourcePath) ?? sourcePath);
+    const normalizedTargetFolderPath = normalizeVaultRelativePath(
+        normalizeNotePathKey(targetFolderPath) ?? targetFolderPath,
+        { allowEmpty: true },
+    );
+    if (!normalizedSourcePath || normalizedTargetFolderPath == null) {
+        throw new Error('Path must stay inside the current vault.');
+    }
     const sourcePathPrefix = `${normalizedSourcePath}/`;
-    const sourceFullPath = await joinPath(notesPath, normalizedSourcePath);
+    const sourceFullPath = (await resolveVaultRelativeFullPath(notesPath, normalizedSourcePath)).fullPath;
     const nodeToMove = currentStore.rootFolder
         ? findNode(currentStore.rootFolder.children, normalizedSourcePath)
         : null;

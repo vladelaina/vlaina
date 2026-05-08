@@ -1,9 +1,16 @@
 import { createRoot } from 'react-dom/client';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
+import { defaultSchema } from 'rehype-sanitize';
 import {
-  CHAT_MARKDOWN_REHYPE_PLUGINS,
   CHAT_MARKDOWN_REMARK_PLUGINS,
 } from '@/components/Chat/features/Markdown/markdownPipeline';
+import {
+  isPublicRemoteMediaUrl,
+  sanitizeNoteLinkHref,
+  sanitizeNoteMediaSrc,
+} from '@/lib/notes/markdown/urlSecurity';
 import { cn } from '@/lib/utils';
 
 const EXPORT_WIDTH_PX = 840;
@@ -101,6 +108,22 @@ const EXPORT_CSS = `
   }
 `;
 
+const NOTE_EXPORT_MARKDOWN_SANITIZE_SCHEMA = {
+  ...defaultSchema,
+  protocols: {
+    ...(defaultSchema.protocols || {}),
+    href: ['http', 'https', 'mailto'],
+    src: ['http', 'https', 'data'],
+  },
+};
+
+const NOTE_EXPORT_REHYPE_PLUGINS = [
+  rehypeRaw,
+  [rehypeSanitize, NOTE_EXPORT_MARKDOWN_SANITIZE_SCHEMA],
+] as any[];
+
+const SAFE_EXPORT_DATA_IMAGE_PATTERN = /^data:image\/(?:gif|jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/i;
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -108,6 +131,52 @@ function escapeHtml(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function renderExportLink(props: any) {
+  const safeHref = sanitizeNoteLinkHref(props.href);
+  if (!safeHref) {
+    return <>{props.children}</>;
+  }
+
+  return (
+    <a href={safeHref}>
+      {props.children}
+    </a>
+  );
+}
+
+function renderExportImage(props: any) {
+  const rawSrc = typeof props.src === 'string' ? props.src.trim() : '';
+  if (SAFE_EXPORT_DATA_IMAGE_PATTERN.test(rawSrc)) {
+    return (
+      <img
+        src={rawSrc}
+        alt={props.alt ?? ''}
+        title={props.title}
+      />
+    );
+  }
+
+  const safeSrc = sanitizeNoteMediaSrc(rawSrc);
+  if (!safeSrc || safeSrc.startsWith('blob:') || isPublicRemoteMediaUrl(safeSrc)) {
+    return null;
+  }
+
+  return (
+    <img
+      src={safeSrc}
+      alt={props.alt ?? ''}
+      title={props.title}
+    />
+  );
+}
+
+function transformExportUrl(value: string, key: string): string {
+  if (key === 'href') {
+    return sanitizeNoteLinkHref(value) ?? '';
+  }
+  return value;
 }
 
 async function waitForExportRender(container: HTMLElement): Promise<void> {
@@ -142,7 +211,13 @@ export function NoteExportDocument({
       <div className="vlaina-note-export-body">
         <ReactMarkdown
           remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
-          rehypePlugins={CHAT_MARKDOWN_REHYPE_PLUGINS}
+          rehypePlugins={NOTE_EXPORT_REHYPE_PLUGINS}
+          urlTransform={transformExportUrl}
+          components={{
+            a: renderExportLink,
+            img: renderExportImage,
+            source: () => null,
+          }}
         >
           {markdown}
         </ReactMarkdown>

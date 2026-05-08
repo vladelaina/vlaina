@@ -1,5 +1,5 @@
 import { useRef, useMemo, useCallback, useState, useEffect } from 'react';
-import { Icon } from '@/components/ui/icons';
+import { SidebarSearchField } from '@/components/layout/sidebar/SidebarPrimitives';
 import { cn } from '@/lib/utils';
 import { VirtualEmojiGrid, VirtualSearchResults } from './VirtualEmojiGrid';
 import {
@@ -146,33 +146,23 @@ export function EmojiTab({
 
   return (
     <div>
-      <div className="px-3 pt-3 pb-2 flex items-center gap-2">
-        <div className="flex-1 relative">
-          <Icon size="md" name="common.search" className="absolute left-2.5 top-1/2 -translate-y-1/2  text-[var(--vlaina-text-tertiary)]" />
-          <input
-            ref={searchInputRef}
-            type="text"
-            spellCheck={false}
-            placeholder="Filter..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className={cn(
-              "w-full pl-8 py-1 h-8 text-sm rounded-md",
-              searchQuery ? "pr-8" : "pr-3",
-              "bg-white dark:bg-zinc-900",
-              "border border-zinc-200 dark:border-zinc-700 focus:border-[#1e96eb]",
-              "outline-none transition-all"
-            )}
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--vlaina-text-tertiary)] hover:text-[var(--vlaina-text-primary)] transition-colors"
-            >
-              <Icon size="md" name="common.close" />
-            </button>
+      <div className="flex items-center gap-2 px-1 pt-1 pb-2">
+        <SidebarSearchField
+          ref={searchInputRef}
+          type="text"
+          placeholder="Search emojis..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onClose={() => setSearchQuery('')}
+          closeLabel="Clear emoji search"
+          className="min-w-0 flex-1 px-2 pt-2"
+          containerClassName="h-8 gap-1.5 pl-2 pr-1"
+          inputClassName="text-sm"
+          closeButtonClassName={cn(
+            'h-5 w-5',
+            searchQuery ? undefined : 'invisible pointer-events-none',
           )}
-        </div>
+        />
 
         <div className="relative">
           <button

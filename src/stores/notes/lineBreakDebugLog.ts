@@ -1,5 +1,4 @@
 const MAX_NOTES_DEBUG_ENTRIES = 5000;
-const NOTES_DEBUG_STORAGE_KEY = 'vlaina.notes.debug';
 
 interface NotesDebugEntry {
   timestamp: string;
@@ -9,22 +8,24 @@ interface NotesDebugEntry {
 }
 
 const notesDebugEntries: NotesDebugEntry[] = [];
-let notesDebugLoggingOverride: boolean | null = null;
+let didInstallGlobalNotesDebugHelpers = false;
 
-function readStoredNotesDebugLoggingEnabled() {
+const NOTES_DEBUG_STORAGE_KEY = 'vlaina.notes.debug';
+
+export function isNotesDebugLoggingEnabled() {
+  if (import.meta.env.MODE === 'test') {
+    return true;
+  }
+
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
   try {
-    return globalThis.localStorage?.getItem(NOTES_DEBUG_STORAGE_KEY) === '1';
+    return window.localStorage.getItem(NOTES_DEBUG_STORAGE_KEY) === '1';
   } catch {
     return false;
   }
-}
-
-export function isNotesDebugLoggingEnabled() {
-  return notesDebugLoggingOverride ?? readStoredNotesDebugLoggingEnabled();
-}
-
-export function setNotesDebugLoggingEnabled(enabled: boolean | null) {
-  notesDebugLoggingOverride = enabled;
 }
 
 export function summarizeLineBreakText(text: string | null | undefined) {
@@ -117,6 +118,14 @@ export function clearLineBreakDebugLog() {
 }
 
 export function logNotesDebug(label: string, scope: string, payload?: unknown) {
+  appendNotesDebugEntry(label, scope, payload);
+}
+
+export function logNotesDebugAlways(label: string, scope: string, payload?: unknown) {
+  appendNotesDebugEntry(label, scope, payload);
+}
+
+function appendNotesDebugEntry(label: string, scope: string, payload?: unknown) {
   if (!isNotesDebugLoggingEnabled()) {
     return;
   }
@@ -131,10 +140,29 @@ export function logNotesDebug(label: string, scope: string, payload?: unknown) {
   if (notesDebugEntries.length > MAX_NOTES_DEBUG_ENTRIES) {
     notesDebugEntries.splice(0, notesDebugEntries.length - MAX_NOTES_DEBUG_ENTRIES);
   }
-
-  console.debug(`[${label}]`, scope, payload ?? '');
 }
 
 export function logLineBreakDebug(scope: string, payload?: unknown) {
   logNotesDebug('NotesLineBreak', scope, payload);
 }
+
+export function installGlobalNotesDebugHelpers() {
+  if (didInstallGlobalNotesDebugHelpers || typeof window === 'undefined') {
+    return;
+  }
+
+  didInstallGlobalNotesDebugHelpers = true;
+  const target = window as Window & {
+    vlainaNotesDebug?: {
+      clear: () => void;
+      text: () => string;
+    };
+  };
+
+  target.vlainaNotesDebug = {
+    clear: clearNotesDebugLog,
+    text: getNotesDebugLogText,
+  };
+}
+
+installGlobalNotesDebugHelpers();

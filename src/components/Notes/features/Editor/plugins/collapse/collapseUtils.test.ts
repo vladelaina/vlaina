@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-  COLLAPSE_TOGGLE_EVENT,
+  blurActiveElement,
   createCollapseToggleButton,
   isCollapseToggleTarget,
 } from './collapseUtils';
@@ -19,7 +19,11 @@ describe('collapseUtils', () => {
   });
 
   it('detects collapse toggle targets from nested button content', () => {
-    const button = createCollapseToggleButton('list-item', 5, false, true);
+    const button = createCollapseToggleButton({
+      collapsed: false,
+      hasContent: true,
+      onToggle: vi.fn(),
+    });
     const icon = button.querySelector('svg');
 
     expect(isCollapseToggleTarget(icon)).toBe(true);
@@ -27,7 +31,11 @@ describe('collapseUtils', () => {
   });
 
   it('stops toggle pointer interactions from bubbling to parent content', () => {
-    const button = createCollapseToggleButton('list-item', 7, false, true);
+    const button = createCollapseToggleButton({
+      collapsed: false,
+      hasContent: true,
+      onToggle: vi.fn(),
+    });
     const parent = document.createElement('div');
     const parentPointerSpy = vi.fn();
     parent.appendChild(button);
@@ -44,27 +52,69 @@ describe('collapseUtils', () => {
     expect(parentPointerSpy).not.toHaveBeenCalled();
   });
 
-  it('dispatches the collapse toggle event and suppresses click bubbling', () => {
-    const button = createCollapseToggleButton('list-item', 11, false, true);
+  it('calls the toggle handler and suppresses click bubbling', () => {
+    const toggleSpy = vi.fn();
+    const button = createCollapseToggleButton({
+      collapseType: 'list-item',
+      collapsed: false,
+      hasContent: true,
+      onToggle: toggleSpy,
+    });
     const parent = document.createElement('div');
     const parentClickSpy = vi.fn();
-    const toggleSpy = vi.fn();
     parent.appendChild(button);
     parent.addEventListener('click', parentClickSpy);
-    document.addEventListener(COLLAPSE_TOGGLE_EVENT, toggleSpy);
 
-    try {
-      dispatchTogglePointer(button);
-      const clickResult = button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+    dispatchTogglePointer(button);
+    const clickResult = button.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 
-      expect(toggleSpy).toHaveBeenCalledTimes(1);
-      expect(toggleSpy.mock.calls[0][0]).toMatchObject({
-        detail: { type: 'list-item', pos: 11 },
-      });
-      expect(clickResult).toBe(false);
-      expect(parentClickSpy).not.toHaveBeenCalled();
-    } finally {
-      document.removeEventListener(COLLAPSE_TOGGLE_EVENT, toggleSpy);
-    }
+    expect(toggleSpy).toHaveBeenCalledTimes(1);
+    expect(button.getAttribute('data-collapse-type')).toBe('list-item');
+    expect(clickResult).toBe(false);
+    expect(parentClickSpy).not.toHaveBeenCalled();
+  });
+
+  it('blurs the current active element before toggling', () => {
+    const input = document.createElement('input');
+    const toggleSpy = vi.fn(() => {
+      expect(document.activeElement).not.toBe(input);
+    });
+    const button = createCollapseToggleButton({
+      collapsed: false,
+      hasContent: true,
+      onToggle: toggleSpy,
+    });
+    document.body.append(input, button);
+    input.focus();
+
+    expect(document.activeElement).toBe(input);
+
+    dispatchTogglePointer(button);
+
+    expect(toggleSpy).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).not.toBe(input);
+  });
+
+  it('blurs active elements directly', () => {
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    input.focus();
+
+    blurActiveElement(document);
+
+    expect(document.activeElement).not.toBe(input);
+  });
+
+  it('does not call the toggle handler when there is no collapsible content', () => {
+    const toggleSpy = vi.fn();
+    const button = createCollapseToggleButton({
+      collapsed: false,
+      hasContent: false,
+      onToggle: toggleSpy,
+    });
+
+    dispatchTogglePointer(button);
+
+    expect(toggleSpy).not.toHaveBeenCalled();
   });
 });

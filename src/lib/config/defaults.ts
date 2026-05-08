@@ -14,6 +14,7 @@ export const DEFAULT_SETTINGS = {
     city: 'Beijing',
   },
   markdown: {
+    typewriterMode: false,
     codeBlock: {
       showLineNumbers: true,
     },

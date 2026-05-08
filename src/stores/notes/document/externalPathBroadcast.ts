@@ -16,6 +16,8 @@ const CHANNEL_NAME = 'vlaina-notes-external-path';
 const STORAGE_KEY = 'vlaina-notes-external-path-event';
 const EVENT_FILE_NAME = 'external-path-events.json';
 const MAX_STORED_EVENTS = 20;
+const MAX_EVENT_FILE_BYTES = 256 * 1024;
+const MAX_EVENT_STRING_LENGTH = 4096;
 
 const sourceId = (() => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -40,9 +42,20 @@ function parseRenameEvent(value: unknown): NotesExternalPathRenameEvent | null {
     typeof event.sourceId !== 'string' ||
     typeof event.nonce !== 'string' ||
     typeof event.stamp !== 'number' ||
+    !Number.isFinite(event.stamp) ||
     typeof event.notesPath !== 'string' ||
     typeof event.oldPath !== 'string' ||
     typeof event.newPath !== 'string'
+  ) {
+    return null;
+  }
+
+  if (
+    event.sourceId.length > MAX_EVENT_STRING_LENGTH ||
+    event.nonce.length > MAX_EVENT_STRING_LENGTH ||
+    event.notesPath.length > MAX_EVENT_STRING_LENGTH ||
+    event.oldPath.length > MAX_EVENT_STRING_LENGTH ||
+    event.newPath.length > MAX_EVENT_STRING_LENGTH
   ) {
     return null;
   }
@@ -89,6 +102,9 @@ function ensureStorageListener() {
 
   storageListener = (event) => {
     if (event.key !== STORAGE_KEY || !event.newValue) {
+      return;
+    }
+    if (event.newValue.length > MAX_EVENT_FILE_BYTES) {
       return;
     }
 
@@ -197,9 +213,8 @@ export async function readNotesExternalPathEvents(
     return [];
   }
 
-  const storage = getStorageAdapter();
   const eventPath = await getNotesExternalPathEventsPath(normalizedNotesPath);
-  const content = await storage.readFile(eventPath).catch(() => null);
+  const content = await readEventFileContent(eventPath);
   if (!content) {
     return [];
   }
@@ -216,6 +231,7 @@ export async function readNotesExternalPathEvents(
   }
 
   return parsed
+    .slice(-MAX_STORED_EVENTS)
     .map((entry) => parseRenameEvent(entry))
     .filter((event): event is NotesExternalPathRenameEvent => {
       if (!event) {
@@ -251,8 +267,7 @@ async function appendNotesExternalPathEvent(event: NotesExternalPathRenameEvent)
 }
 
 async function readStoredEvents(eventPath: string) {
-  const storage = getStorageAdapter();
-  const content = await storage.readFile(eventPath).catch(() => null);
+  const content = await readEventFileContent(eventPath);
   if (!content) {
     return [];
   }
@@ -261,10 +276,21 @@ async function readStoredEvents(eventPath: string) {
     const parsed = JSON.parse(content);
     return Array.isArray(parsed)
       ? parsed
+          .slice(-MAX_STORED_EVENTS)
           .map((entry) => parseRenameEvent(entry))
           .filter((event): event is NotesExternalPathRenameEvent => Boolean(event))
       : [];
   } catch {
     return [];
   }
+}
+
+async function readEventFileContent(eventPath: string) {
+  const storage = getStorageAdapter();
+  const fileInfo = await storage.stat(eventPath).catch(() => null);
+  if (fileInfo?.size && fileInfo.size > MAX_EVENT_FILE_BYTES) {
+    return null;
+  }
+
+  return storage.readFile(eventPath).catch(() => null);
 }

@@ -8,7 +8,7 @@ import { preserveMarkdownBlankLinesForEditor } from '@/lib/notes/markdown/markdo
 import { collapseSelectionAndHideFloatingToolbar } from './copyCleanup';
 import { sanitizeHtml } from './sanitizer';
 import { serializeSelectionToClipboardText } from './selectionSerialization';
-import { writeTextToClipboard } from '../cursor/blockSelectionCommands';
+import { normalizeCodeBlockLanguage } from '../code/codeBlockLanguage';
 import { createCodeBlockAttrs } from '../code/codeBlockSettings';
 import { normalizeLeadingFrontmatterMarkdown } from '../frontmatter/frontmatterMarkdown';
 import { normalizeMermaidFenceCode } from '../mermaid/mermaidFenceCode';
@@ -17,6 +17,7 @@ import { isTocShortcutText } from '../toc/tocShortcut';
 import {
     extractLargestMarkdownFenceContent,
     looksLikeMarkdownForPaste,
+    normalizeInterruptedOrderedListsForPaste,
     normalizeStandaloneThematicBreaksForPaste,
     parseStandaloneAtxHeading,
     parseStandaloneFencedCodeBlock,
@@ -101,14 +102,12 @@ export const clipboardPlugin = $prose((ctx) => {
         if (!parser) return null;
 
         let parsedDoc: ProseNode;
+        const withFrontmatter = normalizeLeadingFrontmatterMarkdown(text);
+        const withInterruptedLists = normalizeInterruptedOrderedListsForPaste(withFrontmatter);
+        const withThematicBreaks = normalizeStandaloneThematicBreaksForPaste(withInterruptedLists);
+        const editorInput = preserveMarkdownBlankLinesForEditor(withThematicBreaks);
         try {
-            parsedDoc = parser(
-                preserveMarkdownBlankLinesForEditor(
-                    normalizeStandaloneThematicBreaksForPaste(
-                        normalizeLeadingFrontmatterMarkdown(text)
-                    )
-                )
-            );
+            parsedDoc = parser(editorInput);
         } catch {
             return null;
         }
@@ -124,26 +123,6 @@ export const clipboardPlugin = $prose((ctx) => {
     return new Plugin({
         key: clipboardPluginKey,
         props: {
-            handleKeyDown(view, event) {
-                const key = event.key.toLowerCase();
-                const hasPrimaryModifier = (event.metaKey || event.ctrlKey) && !event.altKey;
-
-                if (!hasPrimaryModifier || event.shiftKey || key !== 'c') return false;
-
-                const text = serializeSelectionToClipboardText(
-                    view.state,
-                    getMarkdownSerializer(),
-                );
-                if (text.length === 0) return false;
-
-                event.preventDefault();
-                void writeTextToClipboard(text).then((didCopy) => {
-                    if (didCopy) {
-                        collapseSelectionAndHideFloatingToolbar(view);
-                    }
-                });
-                return true;
-            },
             handleDOMEvents: {
                 copy(view, event) {
                     const text = serializeSelectionToClipboardText(
@@ -228,7 +207,9 @@ export const clipboardPlugin = $prose((ctx) => {
                     if (!codeBlockType) return false;
 
                     const attrs = createCodeBlockAttrs({
-                        language: codeBlockType.spec.attrs?.language ? fencedPayload.language : null,
+                        language: codeBlockType.spec.attrs?.language
+                            ? normalizeCodeBlockLanguage(fencedPayload.language)
+                            : null,
                     });
 
                     const codeTextNode = fencedPayload.code ? state.schema.text(fencedPayload.code) : null;

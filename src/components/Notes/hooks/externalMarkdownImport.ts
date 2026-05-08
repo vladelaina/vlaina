@@ -11,6 +11,10 @@ import { resolveStarredRelativePathForVault } from '@/stores/notes/starred';
 import { resolveUniquePath } from '@/stores/notes/utils/fs/pathOperations';
 import { isSupportedMarkdownSelection } from '../features/OpenTarget/openTargetSelection';
 
+const MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES = 2000;
+const MAX_EXTERNAL_MARKDOWN_IMPORT_DEPTH = 24;
+const MAX_EXTERNAL_MARKDOWN_FILE_SIZE = 50 * 1024 * 1024;
+
 interface ExternalMarkdownImportResult {
   importedNotePaths: string[];
   importedFolderPaths: string[];
@@ -21,6 +25,10 @@ export interface ExternalMarkdownStarredTarget {
   kind: StarredKind;
   vaultPath: string;
   relativePath: string;
+}
+
+interface ExternalMarkdownImportBudget {
+  visitedEntries: number;
 }
 
 async function statExternalMarkdownPath(absolutePath: string) {
@@ -60,7 +68,16 @@ async function importExternalMarkdownDirectory(
   targetFolderPath: string | undefined,
   importedNotePaths: string[],
   importedFolderPaths: string[],
+  budget: ExternalMarkdownImportBudget,
+  depth = 0,
 ) {
+  if (
+    depth >= MAX_EXTERNAL_MARKDOWN_IMPORT_DEPTH ||
+    budget.visitedEntries >= MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES
+  ) {
+    return 0;
+  }
+
   const storage = getStorageAdapter();
   const { relativePath, fullPath } = await resolveUniquePath(
     vaultPath,
@@ -76,6 +93,11 @@ async function importExternalMarkdownDirectory(
   const entries = await storage.listDir(sourcePath);
 
   for (const entry of entries) {
+    if (budget.visitedEntries >= MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES) {
+      break;
+    }
+    budget.visitedEntries += 1;
+
     if (entry.name.startsWith('.')) {
       continue;
     }
@@ -89,11 +111,16 @@ async function importExternalMarkdownDirectory(
         relativePath,
         importedNotePaths,
         importedFolderPaths,
+        budget,
+        depth + 1,
       );
       continue;
     }
 
     if (!entry.isFile || !isSupportedMarkdownSelection(sourceEntryPath)) {
+      continue;
+    }
+    if (typeof entry.size === 'number' && entry.size > MAX_EXTERNAL_MARKDOWN_FILE_SIZE) {
       continue;
     }
 
@@ -118,8 +145,14 @@ export async function importExternalMarkdownEntries(
 ): Promise<ExternalMarkdownImportResult> {
   const importedNotePaths: string[] = [];
   const importedFolderPaths: string[] = [];
+  const budget: ExternalMarkdownImportBudget = { visitedEntries: 0 };
 
   for (const absolutePath of absolutePaths) {
+    if (budget.visitedEntries >= MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES) {
+      break;
+    }
+    budget.visitedEntries += 1;
+
     const info = await statExternalMarkdownPath(absolutePath);
     if (info?.isDirectory) {
       await importExternalMarkdownDirectory(
@@ -128,11 +161,15 @@ export async function importExternalMarkdownEntries(
         targetFolderPath || undefined,
         importedNotePaths,
         importedFolderPaths,
+        budget,
       );
       continue;
     }
 
     if (!info?.isFile || !isSupportedMarkdownSelection(absolutePath)) {
+      continue;
+    }
+    if (typeof info.size === 'number' && info.size > MAX_EXTERNAL_MARKDOWN_FILE_SIZE) {
       continue;
     }
 

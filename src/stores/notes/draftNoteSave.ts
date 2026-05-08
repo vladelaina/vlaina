@@ -1,13 +1,11 @@
 import { ensureMarkdownFileName } from '@/lib/notes/displayName';
-import { getBaseName, getExtension, getParentPath, joinPath, normalizePath, relativePath } from '@/lib/storage/adapter';
+import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
+import { getBaseName, getParentPath, joinPath, normalizePath, relativePath } from '@/lib/storage/adapter';
 import { saveDialog } from '@/lib/storage/dialog';
 import type { DraftNoteEntry } from './types';
 
-const MARKDOWN_EXTENSIONS = new Set(['md', 'markdown', 'mdown', 'mkd']);
-
 function ensureMarkdownSavePath(path: string): string {
-  const extension = getExtension(path).toLowerCase();
-  if (MARKDOWN_EXTENSIONS.has(extension)) {
+  if (isSupportedMarkdownPath(path)) {
     return path;
   }
 

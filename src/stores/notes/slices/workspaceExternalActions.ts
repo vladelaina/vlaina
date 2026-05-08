@@ -35,6 +35,7 @@ import {
 } from '../document/externalPathSync';
 import { persistRecentNotes, remapMetadataEntries } from '../storage';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
+import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 
 export function createWorkspaceExternalActions(
@@ -43,6 +44,7 @@ export function createWorkspaceExternalActions(
 ): Pick<WorkspaceSlice, 'applyExternalPathRename' | 'applyExternalPathDeletion'> {
   return {
     applyExternalPathRename: async (oldPath: string, newPath: string) => {
+      flushCurrentPendingEditorMarkdown();
       const {
         currentNote,
         openTabs,
@@ -129,6 +131,7 @@ export function createWorkspaceExternalActions(
     },
 
     applyExternalPathDeletion: async (path: string) => {
+      flushCurrentPendingEditorMarkdown();
       const {
         currentNote,
         openTabs,

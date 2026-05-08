@@ -40,6 +40,7 @@ import {
   hrAutoParagraphPlugin,
   autoPairPlugin,
   titleNavigationPlugin,
+  typewriterModePlugin,
 } from '../plugins';
 
 export const customPlugins = [
@@ -84,4 +85,5 @@ export const customPlugins = [
   hrAutoParagraphPlugin,
   endBlankClickPlugin,
   titleNavigationPlugin,
+  typewriterModePlugin,
 ];

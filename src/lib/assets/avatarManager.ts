@@ -10,8 +10,15 @@ const pendingDownloads = new Map<string, Promise<string | null>>();
 const failedDownloads = new Map<string, number>();
 
 function logAvatarCacheStep(event: string, details: Record<string, unknown> = {}): void {
-    if (import.meta.env.DEV) {
-        console.info(`[account:avatar-cache] ${event}`, details);
+    if (!import.meta.env.DEV || typeof window === 'undefined') {
+        return;
+    }
+
+    try {
+        if (window.localStorage.getItem('vlaina:debug:account') === '1') {
+            console.info(`[account:avatar-cache] ${event}`, details);
+        }
+    } catch {
     }
 }
 

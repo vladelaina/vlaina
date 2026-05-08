@@ -80,6 +80,10 @@ describe('standard markdown structure persistence', () => {
       markdown: ['# Level 1 #', '### Level 3 ###'].join('\n'),
     },
     {
+      name: 'empty atx headings',
+      markdown: ['# #', '## ##', '', 'Paragraph text.'].join('\n'),
+    },
+    {
       name: 'setext headings',
       markdown: ['Level 1', '=======', '', 'Level 2', '-------'].join('\n'),
     },

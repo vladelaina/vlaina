@@ -1,5 +1,8 @@
 import type { UnifiedData } from '@/lib/storage/unifiedStorage';
-import { updateMarkdownCodeBlockLineNumbers } from '../settings/markdownSettings';
+import {
+  updateMarkdownCodeBlockLineNumbers,
+  updateMarkdownTypewriterMode,
+} from '../settings/markdownSettings';
 
 type SetState = (fn: (state: {
   data: UnifiedData;
@@ -14,6 +17,13 @@ export function createMarkdownSettingsActions(set: SetState, persist: Persist) {
     setMarkdownCodeBlockLineNumbers: (showLineNumbers: boolean) => {
       set((state) => {
         const newData = updateMarkdownCodeBlockLineNumbers(state.data, showLineNumbers);
+        persist(newData);
+        return { data: newData };
+      });
+    },
+    setMarkdownTypewriterMode: (typewriterMode: boolean) => {
+      set((state) => {
+        const newData = updateMarkdownTypewriterMode(state.data, typewriterMode);
         persist(newData);
         return { data: newData };
       });

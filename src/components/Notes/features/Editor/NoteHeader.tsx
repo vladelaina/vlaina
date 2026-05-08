@@ -4,8 +4,10 @@ import { TitleInput } from './TitleInput';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { resolveExistingVaultAssetPath } from '@/lib/assets/core/paths';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
-import { getParentPath } from '@/lib/storage/adapter';
+import { getParentPath, isAbsolutePath } from '@/lib/storage/adapter';
+import { loadAppIconImageSrc } from '@/components/common/AppIcon';
 import { HeroIconHeader } from '@/components/common/HeroIconHeader';
+import { useGlobalIconUpload } from '@/components/common/UniversalIconPicker/hooks/useGlobalIconUpload';
 import { CoverAddOverlay } from '../Cover';
 import { NotePathBreadcrumb } from './components/NotePathBreadcrumb';
 import { focusEditorAtTop } from './utils/focusEditor';
@@ -48,22 +50,22 @@ export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
 
     const notesPath = useNotesStore(s => s.notesPath);
     const vaultPath = resolveEffectiveVaultPath({ notesPath, currentNotePath });
+    const {
+        customIcons,
+        onUploadFile: uploadGlobalIcon,
+        onDeleteCustomIcon,
+    } = useGlobalIconUpload();
 
     const imageLoader = useCallback(async (src: string) => {
-        if (!vaultPath) return src;
+        if (!src.startsWith('img:')) return src;
         const relativePath = src.substring(4);
+        if (isAbsolutePath(relativePath)) {
+            return (await loadAppIconImageSrc(src)) ?? '';
+        }
+        if (!vaultPath) return src;
         const fullPath = await resolveExistingVaultAssetPath(vaultPath, relativePath, currentNotePath);
         return await loadImageAsBlob(fullPath);
     }, [currentNotePath, vaultPath]);
-
-    const handleUploadFile = useCallback(async (file: File) => {
-        const uploadAsset = useNotesStore.getState().uploadAsset;
-
-        const result = await uploadAsset(file, currentNotePath);
-        if (!result.success || !result.path) return { success: false, error: result.error };
-
-        return { success: true, url: `img:${result.path}` };
-    }, [currentNotePath]);
 
 
     const noteName = useNotesStore(
@@ -150,7 +152,9 @@ export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
             
             coverUrl={coverUrl}
             
-            onUploadFile={handleUploadFile}
+            customIcons={customIcons}
+            onUploadFile={uploadGlobalIcon}
+            onDeleteCustomIcon={onDeleteCustomIcon}
             imageLoader={imageLoader}
             onRequestRandomIcon={handleRequestRandomIcon}
             

@@ -2,7 +2,22 @@ import { getPaths } from './paths';
 import { getStorageAdapter, joinPath } from './adapter';
 import type { CustomIcon } from '@/lib/storage/unifiedStorage';
 
+const MAX_GLOBAL_ASSET_BYTES = 10 * 1024 * 1024;
+const GLOBAL_ICON_FILENAME_PATTERN = /\.(png|jpg|jpeg|gif|webp|svg)$/i;
+
+function assertGlobalAssetFile(file: File): void {
+  if (!GLOBAL_ICON_FILENAME_PATTERN.test(file.name)) {
+    throw new Error('Only image files can be saved as custom icons.');
+  }
+
+  if (file.size > MAX_GLOBAL_ASSET_BYTES) {
+    throw new Error('Custom icon image is too large.');
+  }
+}
+
 export async function saveGlobalAsset(file: File, folder: 'icons'): Promise<string> {
+  assertGlobalAssetFile(file);
+
   const adapter = getStorageAdapter();
   const { metadata } = await getPaths();
   const assetsDir = await joinPath(metadata, 'assets', folder);
@@ -17,7 +32,10 @@ export async function saveGlobalAsset(file: File, folder: 'icons'): Promise<stri
   const filePath = await joinPath(assetsDir, filename);
   
   const buffer = await file.arrayBuffer();
-  
+  if (buffer.byteLength > MAX_GLOBAL_ASSET_BYTES) {
+    throw new Error('Custom icon image is too large.');
+  }
+
   await adapter.writeBinaryFile(filePath, new Uint8Array(buffer));
   
   return filePath;
@@ -35,10 +53,11 @@ export async function scanGlobalIcons(): Promise<CustomIcon[]> {
   try {
     const files = await adapter.listDir(iconsDir);
     
-    const imageFiles = files.filter(f => 
-      f.isFile && 
+    const imageFiles = files.filter(f =>
+      f.isFile &&
       !f.name.startsWith('.') &&
-      /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f.name)
+      GLOBAL_ICON_FILENAME_PATTERN.test(f.name) &&
+      (typeof f.size !== 'number' || f.size <= MAX_GLOBAL_ASSET_BYTES)
     );
     
     return imageFiles.map(f => ({

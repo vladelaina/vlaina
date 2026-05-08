@@ -76,4 +76,24 @@ describe('shouldHandleMarkdownLinkPaste', () => {
 
     await editor.destroy();
   });
+
+  it('pastes unsafe markdown links as plain text', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(markdownLinkPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, '[Bad](javascript:alert)')).toBe(true);
+
+    expect(view.state.doc.textContent).toBe('Bad');
+    const linkMark = view.state.schema.marks.link;
+    expect(view.state.doc.rangeHasMark(0, view.state.doc.content.size, linkMark)).toBe(false);
+
+    await editor.destroy();
+  });
 });

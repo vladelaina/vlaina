@@ -17,6 +17,10 @@ This repository is open-source under the GNU AGPLv3.
 
 See [LICENSE](/mnt/d/code/vlaina/LICENSE).
 
+## Third-Party Notices
+
+- The Mermaid diagram default theme is adapted from `beautiful-mermaid`, which is licensed under the MIT License.
+
 ## Development
 
 Use Windows PowerShell or `cmd` for install, dev, test, and build.

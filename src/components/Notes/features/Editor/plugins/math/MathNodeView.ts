@@ -1,15 +1,24 @@
 import type { Node } from '@milkdown/kit/prose/model';
 import type { EditorView, NodeView } from '@milkdown/kit/prose/view';
+import { attachPreviewContextMenu, type PreviewContextMenuSession } from '../shared/previewContextMenu';
 import { renderMathEditorLivePreview } from './mathEditorLivePreview';
 import { createMathNodeDOM } from './mathSchema';
 
 export class MathNodeView implements NodeView {
   dom: HTMLElement;
   private node: Node;
+  private contextMenu: PreviewContextMenuSession;
 
-  constructor(node: Node, _view: EditorView, _getPos: () => number | undefined) {
+  constructor(node: Node, view: EditorView, getPos: () => number | undefined) {
     this.node = node;
     this.dom = this.createDom(node);
+    this.contextMenu = attachPreviewContextMenu({
+      element: this.dom,
+      fileBaseName: 'math-formula',
+      getPos,
+      node,
+      view,
+    });
   }
 
   private createDom(node: Node) {
@@ -29,6 +38,7 @@ export class MathNodeView implements NodeView {
     }
 
     this.node = node;
+    this.contextMenu.updateNode(node);
     const latex = String(node.attrs.latex || '');
     const displayMode = node.type.name === 'math_block';
 
@@ -45,5 +55,9 @@ export class MathNodeView implements NodeView {
 
   ignoreMutation() {
     return true;
+  }
+
+  destroy() {
+    this.contextMenu.destroy();
   }
 }

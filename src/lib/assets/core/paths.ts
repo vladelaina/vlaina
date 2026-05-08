@@ -1,4 +1,5 @@
 import { getParentPath, getStorageAdapter, isAbsolutePath, joinPath } from '@/lib/storage/adapter';
+import { normalizeContainedAssetPath } from './pathContainment';
 
 export async function resolveVaultAssetPath(
   vaultPath: string,
@@ -35,7 +36,7 @@ export async function resolveVaultAssetPathCandidates(
   currentNotePath?: string,
 ): Promise<string[]> {
   if (isAbsolutePath(assetPath)) {
-    return [assetPath];
+    return [];
   }
 
   const currentNoteDir = currentNotePath
@@ -47,17 +48,21 @@ export async function resolveVaultAssetPathCandidates(
     : null;
 
   if (assetPath.startsWith('./') || assetPath.startsWith('../')) {
-    return [await joinPath(currentNoteDir ?? vaultPath, assetPath)];
+    const candidate = normalizeContainedAssetPath(await joinPath(currentNoteDir ?? vaultPath, assetPath), vaultPath);
+    return candidate ? [candidate] : [];
   }
 
   const candidates: string[] = [];
 
   if (currentNoteDir) {
-    candidates.push(await joinPath(currentNoteDir, assetPath));
+    const noteRelativeCandidate = normalizeContainedAssetPath(await joinPath(currentNoteDir, assetPath), vaultPath);
+    if (noteRelativeCandidate) {
+      candidates.push(noteRelativeCandidate);
+    }
   }
 
-  const vaultAssetPath = await joinPath(vaultPath, assetPath);
-  if (!candidates.includes(vaultAssetPath)) {
+  const vaultAssetPath = normalizeContainedAssetPath(await joinPath(vaultPath, assetPath), vaultPath);
+  if (vaultAssetPath && !candidates.includes(vaultAssetPath)) {
     candidates.push(vaultAssetPath);
   }
 

@@ -15,6 +15,13 @@ describe('stripTrailingNewlines', () => {
 });
 
 describe('normalizeSerializedMarkdownBlock', () => {
+  function expectNoInternalClipboardArtifacts(text: string) {
+    expect(text).not.toContain('\u0000');
+    expect(text).not.toContain('�');
+    expect(text).not.toMatch(/VLAINA_(?:LIST_GAP|USER_BR)_SENTINEL/);
+    expect(text).not.toMatch(/data-vlaina-/);
+  }
+
   it('converts standalone br tags to empty block text', () => {
     expect(normalizeSerializedMarkdownBlock('<br />')).toBe('');
     expect(normalizeSerializedMarkdownBlock('<br/>\n')).toBe('');
@@ -43,6 +50,31 @@ describe('normalizeSerializedMarkdownBlock', () => {
     expect(
       normalizeSerializedMarkdownBlock(['Line one', '<br data-vlaina-user-br="true" />', 'Line two'].join('\n'))
     ).toBe(['Line one\\', 'Line two'].join('\n'));
+  });
+
+  it('does not expose internal list gap sentinels in copied blocks', () => {
+    const nulNormalized = normalizeSerializedMarkdownBlock('A\n\u0000VLAINA_LIST_GAP_SENTINEL\u0000\nB');
+    const leakedNormalized = normalizeSerializedMarkdownBlock('A\n��VLAINA_LIST_GAP_SENTINEL��\nB');
+
+    expect(nulNormalized).toBe('A\n\nB');
+    expect(leakedNormalized).toBe('A\n\nB');
+    expectNoInternalClipboardArtifacts(nulNormalized);
+    expectNoInternalClipboardArtifacts(leakedNormalized);
+  });
+
+  it('does not expose internal user break sentinels in copied blocks', () => {
+    const nulNormalized = normalizeSerializedMarkdownBlock('A\n\u0000VLAINA_USER_BR_SENTINEL\u0000\nB');
+    const leakedNormalized = normalizeSerializedMarkdownBlock('A\n��VLAINA_USER_BR_SENTINEL��\nB');
+
+    expect(nulNormalized).toBe('A\\\nB');
+    expect(leakedNormalized).toBe('A\\\nB');
+    expectNoInternalClipboardArtifacts(nulNormalized);
+    expectNoInternalClipboardArtifacts(leakedNormalized);
+  });
+
+  it('does not treat user-authored sentinel-like block text as internal clipboard state', () => {
+    expect(normalizeSerializedMarkdownBlock('VLAINA_LIST_GAP_SENTINEL')).toBe('VLAINA_LIST_GAP_SENTINEL');
+    expect(normalizeSerializedMarkdownBlock('VLAINA_USER_BR_SENTINEL')).toBe('VLAINA_USER_BR_SENTINEL');
   });
 });
 
@@ -130,6 +162,21 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ).toBe(['| A | B |', '| --- | --- |', '| 1 | 2 |'].join('\n'));
   });
 
+  it('canonicalizes empty atx headings so they reopen as headings', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(['#', '##', '', 'Body'].join('\n'))
+    ).toBe(['# #', '## ##', '', 'Body'].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument(['   ###   ', '', 'Body'].join('\n'))
+    ).toBe(['   ### ###', '', 'Body'].join('\n'));
+  });
+
+  it('does not canonicalize empty atx-like markers inside fenced code', () => {
+    const markdown = ['```md', '#', '##', '```'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
   it('does not convert leading frontmatter line breaks into hard breaks', () => {
     expect(
       normalizeSerializedMarkdownDocument(['---', 'title: Alpha', 'tags: test', '---', '', 'Line one', 'Line two'].join('\n'))
@@ -159,6 +206,21 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(normalizeSerializedMarkdownDocument('VLAINA_LIST_GAP_SENTINEL')).toBe(
       'VLAINA_LIST_GAP_SENTINEL'
     );
+    expect(normalizeSerializedMarkdownDocument('VLAINA_USER_BR_SENTINEL')).toBe(
+      'VLAINA_USER_BR_SENTINEL'
+    );
+  });
+
+  it('does not persist leaked internal sentinel artifacts', () => {
+    const listGapNormalized = normalizeSerializedMarkdownDocument('A\n��VLAINA_LIST_GAP_SENTINEL��\nB');
+    const userBreakNormalized = normalizeSerializedMarkdownDocument('A\n��VLAINA_USER_BR_SENTINEL��\nB');
+
+    expect(listGapNormalized).toBe('A\n\nB');
+    expect(userBreakNormalized).toBe('A\\\nB');
+    expect(listGapNormalized).not.toContain('�');
+    expect(userBreakNormalized).not.toContain('�');
+    expect(listGapNormalized).not.toMatch(/VLAINA_(?:LIST_GAP|USER_BR)_SENTINEL/);
+    expect(userBreakNormalized).not.toMatch(/VLAINA_(?:LIST_GAP|USER_BR)_SENTINEL/);
   });
 
   it('converts internal list gap placeholders back to markdown blank lines', () => {
@@ -300,6 +362,13 @@ describe('normalizeSerializedMarkdownDocument', () => {
 });
 
 describe('normalizeSerializedMarkdownSelection', () => {
+  function expectNoInternalClipboardArtifacts(text: string) {
+    expect(text).not.toContain('\u0000');
+    expect(text).not.toContain('�');
+    expect(text).not.toMatch(/VLAINA_(?:LIST_GAP|USER_BR)_SENTINEL/);
+    expect(text).not.toMatch(/data-vlaina-/);
+  }
+
   it('converts standalone br tags to single newline', () => {
     expect(normalizeSerializedMarkdownSelection('<br />')).toBe('\n');
   });
@@ -341,6 +410,31 @@ describe('normalizeSerializedMarkdownSelection', () => {
 
   it('keeps normal markdown content', () => {
     expect(normalizeSerializedMarkdownSelection('- [ ] task\n')).toBe('- [ ] task');
+  });
+
+  it('does not expose internal list gap sentinels in copied selections', () => {
+    const nulNormalized = normalizeSerializedMarkdownSelection('A\n\u0000VLAINA_LIST_GAP_SENTINEL\u0000\nB');
+    const leakedNormalized = normalizeSerializedMarkdownSelection('A\n��VLAINA_LIST_GAP_SENTINEL��\nB');
+
+    expect(nulNormalized).toBe('A\n\nB');
+    expect(leakedNormalized).toBe('A\n\nB');
+    expectNoInternalClipboardArtifacts(nulNormalized);
+    expectNoInternalClipboardArtifacts(leakedNormalized);
+  });
+
+  it('does not expose internal user break sentinels in copied selections', () => {
+    const nulNormalized = normalizeSerializedMarkdownSelection('A\n\u0000VLAINA_USER_BR_SENTINEL\u0000\nB');
+    const leakedNormalized = normalizeSerializedMarkdownSelection('A\n��VLAINA_USER_BR_SENTINEL��\nB');
+
+    expect(nulNormalized).toBe('A\\\nB');
+    expect(leakedNormalized).toBe('A\\\nB');
+    expectNoInternalClipboardArtifacts(nulNormalized);
+    expectNoInternalClipboardArtifacts(leakedNormalized);
+  });
+
+  it('does not treat user-authored sentinel-like text as internal clipboard state', () => {
+    expect(normalizeSerializedMarkdownSelection('VLAINA_LIST_GAP_SENTINEL')).toBe('VLAINA_LIST_GAP_SENTINEL');
+    expect(normalizeSerializedMarkdownSelection('VLAINA_USER_BR_SENTINEL')).toBe('VLAINA_USER_BR_SENTINEL');
   });
 });
 

@@ -1,14 +1,23 @@
 import { useCallback } from 'react';
 import { UniversalIcon, type UniversalIconProps } from '@/components/common/UniversalIconPicker/UniversalIcon';
 import { loadImageAsBlob } from '@/lib/assets/io/reader';
+import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
+import { getPaths } from '@/lib/storage/paths';
+import { joinPath } from '@/lib/storage/adapter';
+
+export async function loadAppIconImageSrc(src: string): Promise<string | null> {
+  if (!src.startsWith('img:')) return src;
+
+  const path = src.substring(4);
+  const { metadata } = await getPaths();
+  const iconsRoot = await joinPath(metadata, 'assets', 'icons');
+  const safePath = normalizeContainedAssetPath(path, iconsRoot);
+  return safePath ? loadImageAsBlob(safePath) : null;
+}
 
 export function AppIcon(props: UniversalIconProps) {
   const defaultImageLoader = useCallback(async (src: string) => {
-    if (src.startsWith('img:')) {
-        const path = src.substring(4);
-        return await loadImageAsBlob(path);
-    }
-    return src;
+    return (await loadAppIconImageSrc(src)) ?? '';
   }, []);
 
   return (

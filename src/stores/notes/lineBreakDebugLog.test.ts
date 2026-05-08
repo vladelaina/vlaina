@@ -6,54 +6,36 @@ import {
   getNotesDebugLogText,
   logLineBreakDebug,
   logNotesDebug,
-  setNotesDebugLoggingEnabled,
   summarizeLineBreakText,
 } from './lineBreakDebugLog';
 
 describe('lineBreakDebugLog', () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    setNotesDebugLoggingEnabled(null);
     clearLineBreakDebugLog();
   });
 
-  it('skips debug logs by default', () => {
+  it('keeps a copyable log buffer by default without printing during tests', () => {
     const debug = vi.spyOn(console, 'debug').mockImplementation(() => {});
 
     logLineBreakDebug('editor:test', { lines: 3 });
 
     expect(debug).not.toHaveBeenCalled();
-    expect(getLineBreakDebugLogText()).toBe('');
-  });
-
-  it('prints directly and keeps a copyable log buffer when enabled', () => {
-    setNotesDebugLoggingEnabled(true);
-    const debug = vi.spyOn(console, 'debug').mockImplementation(() => {});
-
-    logLineBreakDebug('editor:test', { lines: 3 });
-
-    expect(debug).toHaveBeenCalledWith('[NotesLineBreak]', 'editor:test', {
-      lines: 3,
-    });
     expect(getLineBreakDebugLogText()).toContain('[NotesLineBreak] editor:test');
     expect(getLineBreakDebugLogText()).toContain('"lines":3');
   });
 
   it('keeps generic notes debug logs in the same copyable buffer', () => {
-    setNotesDebugLoggingEnabled(true);
     const debug = vi.spyOn(console, 'debug').mockImplementation(() => {});
 
     logNotesDebug('NotesAutoDraft', 'evaluate', { blockedReasons: ['has-current-note'] });
 
-    expect(debug).toHaveBeenCalledWith('[NotesAutoDraft]', 'evaluate', {
-      blockedReasons: ['has-current-note'],
-    });
+    expect(debug).not.toHaveBeenCalled();
     expect(getNotesDebugLogText()).toContain('[NotesAutoDraft] evaluate');
     expect(getLineBreakDebugLogText()).toContain('[NotesAutoDraft] evaluate');
   });
 
   it('clears buffered log text', () => {
-    setNotesDebugLoggingEnabled(true);
     vi.spyOn(console, 'debug').mockImplementation(() => {});
 
     logLineBreakDebug('editor:test');

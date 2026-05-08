@@ -3,6 +3,7 @@ import {
     extractLargestMarkdownFenceContent,
     isStandaloneFencedCodeBlock,
     looksLikeMarkdownForPaste,
+    normalizeInterruptedOrderedListsForPaste,
     normalizeStandaloneThematicBreaksForPaste,
     parseStandaloneAtxHeading,
     parseStandaloneFencedCodeBlock,
@@ -134,6 +135,28 @@ describe('looksLikeMarkdownForPaste', () => {
         expect(looksLikeMarkdownForPaste('| a | b |')).toBe(true);
     });
 
+    it('detects display math blocks', () => {
+        expect(looksLikeMarkdownForPaste('$$\ndfsdf\n$$')).toBe(true);
+    });
+
+    it('detects inline math', () => {
+        expect(looksLikeMarkdownForPaste('$x^2$')).toBe(true);
+    });
+
+    it('detects footnote markdown', () => {
+        expect(looksLikeMarkdownForPaste('Footnote ref[^1].')).toBe(true);
+        expect(looksLikeMarkdownForPaste('[^1]: Footnote body')).toBe(true);
+    });
+
+    it('detects custom inline markdown marks', () => {
+        expect(looksLikeMarkdownForPaste('==highlight==')).toBe(true);
+        expect(looksLikeMarkdownForPaste('++underline++')).toBe(true);
+        expect(looksLikeMarkdownForPaste('<sup>up</sup>')).toBe(true);
+        expect(looksLikeMarkdownForPaste('<sub>down</sub>')).toBe(true);
+        expect(looksLikeMarkdownForPaste('<mark>marked</mark>')).toBe(true);
+        expect(looksLikeMarkdownForPaste('<span style="color: #123456">red</span>')).toBe(true);
+    });
+
     it('detects inline markdown', () => {
         expect(looksLikeMarkdownForPaste('**bold** text')).toBe(true);
     });
@@ -165,6 +188,58 @@ describe('extractLargestMarkdownFenceContent', () => {
 
     it('returns null when markdown fence is missing', () => {
         expect(extractLargestMarkdownFenceContent('```ts\nconst a = 1;\n```')).toBeNull();
+    });
+});
+
+describe('normalizeInterruptedOrderedListsForPaste', () => {
+    it('separates a paragraph from a following ordered list that starts after 1', () => {
+        expect(normalizeInterruptedOrderedListsForPaste([
+            '`mindmap支持是否完整`',
+            '3. 表格看看是否需要调整大小',
+            '4. ',
+            '5. 斜杠工具栏',
+        ].join('\n'))).toBe([
+            '`mindmap支持是否完整`',
+            '',
+            '3. 表格看看是否需要调整大小',
+            '4. ',
+            '5. 斜杠工具栏',
+        ].join('\n'));
+    });
+
+    it('does not split an existing ordered list after an indented child item', () => {
+        expect(normalizeInterruptedOrderedListsForPaste([
+            '`mindmap支持是否完整`',
+            '3. 表格看看是否需要调整大小',
+            '11. 这个merger表格根本用不了',
+            '    1. 在他下面弄个反斜杠直接消失了',
+            '12. 自动生成的目录部分的高度需要调整',
+        ].join('\n'))).toBe([
+            '`mindmap支持是否完整`',
+            '',
+            '3. 表格看看是否需要调整大小',
+            '11. 这个merger表格根本用不了',
+            '    1. 在他下面弄个反斜杠直接消失了',
+            '12. 自动生成的目录部分的高度需要调整',
+        ].join('\n'));
+    });
+
+    it('recognizes an indented child item as part of an interrupted ordered list', () => {
+        expect(normalizeInterruptedOrderedListsForPaste([
+            '`mindmap支持是否完整`',
+            '3. 这个merger表格根本用不了',
+            '    1. 在他下面弄个反斜杠直接消失了',
+        ].join('\n'))).toBe([
+            '`mindmap支持是否完整`',
+            '',
+            '3. 这个merger表格根本用不了',
+            '    1. 在他下面弄个反斜杠直接消失了',
+        ].join('\n'));
+    });
+
+    it('does not rewrite ordered-list-looking lines inside fenced code', () => {
+        const value = ['```md', '`mindmap`', '3. inside code', '4. still code', '```'].join('\n');
+        expect(normalizeInterruptedOrderedListsForPaste(value)).toBe(value);
     });
 });
 

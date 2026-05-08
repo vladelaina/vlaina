@@ -4,6 +4,7 @@ import { useCoverSelectionFlow } from './useCoverSelectionFlow';
 
 const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
+  loadImageThumbnailAsBlob: vi.fn(),
   resolveVaultAssetPath: vi.fn(),
   isBuiltinCover: vi.fn(),
   getBuiltinCoverUrl: vi.fn(),
@@ -12,6 +13,7 @@ const hoisted = vi.hoisted(() => ({
 
 vi.mock('@/lib/assets/io/reader', () => ({
   loadImageAsBlob: hoisted.loadImageAsBlob,
+  loadImageThumbnailAsBlob: hoisted.loadImageThumbnailAsBlob,
 }));
 
 vi.mock('@/lib/assets/core/paths', () => ({
@@ -36,6 +38,7 @@ vi.mock('../../../../utils/coverDimensionCache', () => ({
 describe('useCoverSelectionFlow', () => {
   beforeEach(() => {
     hoisted.loadImageAsBlob.mockReset();
+    hoisted.loadImageThumbnailAsBlob.mockReset();
     hoisted.resolveVaultAssetPath.mockReset();
     hoisted.isBuiltinCover.mockReset();
     hoisted.getBuiltinCoverUrl.mockReset();
@@ -214,6 +217,7 @@ describe('useCoverSelectionFlow', () => {
 
     expect(hoisted.resolveVaultAssetPath).toHaveBeenCalledTimes(1);
     expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(1);
+    expect(hoisted.loadImageThumbnailAsBlob).not.toHaveBeenCalled();
     expect(hoisted.loadImageWithDimensions).toHaveBeenCalledTimes(1);
   });
 

@@ -1,4 +1,19 @@
 import katex from 'katex';
+import 'katex/contrib/mhchem';
+
+const MAX_LATEX_CHARS = 10000;
+const KATEX_RENDER_OPTIONS = {
+  throwOnError: true,
+  strict: false,
+  trust: false,
+  macros: {
+    '\\R': '\\mathbb{R}',
+    '\\N': '\\mathbb{N}',
+    '\\Z': '\\mathbb{Z}',
+    '\\Q': '\\mathbb{Q}',
+    '\\C': '\\mathbb{C}',
+  },
+} as const;
 
 export interface MathRenderErrorDetails {
   rawMessage: string;
@@ -162,19 +177,27 @@ export function renderLatex(latex: string, displayMode: boolean): RenderResult {
     };
   }
 
+  if (latex.length > MAX_LATEX_CHARS) {
+    return {
+      html: '<span class="math-error">Error equation</span>',
+      error: 'Equation is too large to render',
+      errorDetails: {
+        rawMessage: 'Equation is too large to render',
+        summary: 'Equation is too large to render',
+        position: null,
+        line: null,
+        column: null,
+        locationLabel: null,
+        context: null,
+        pointer: null,
+      },
+    };
+  }
+
   try {
     const html = katex.renderToString(latex, {
+      ...KATEX_RENDER_OPTIONS,
       displayMode,
-      throwOnError: true,
-      strict: false,
-      trust: false,
-      macros: {
-        '\\R': '\\mathbb{R}',
-        '\\N': '\\mathbb{N}',
-        '\\Z': '\\mathbb{Z}',
-        '\\Q': '\\mathbb{Q}',
-        '\\C': '\\mathbb{C}',
-      },
     });
     return { html, error: null, errorDetails: null };
   } catch (err) {
@@ -192,9 +215,15 @@ export function isValidLatex(latex: string): boolean {
   if (!latex.trim()) {
     return true;
   }
+  if (latex.length > MAX_LATEX_CHARS) {
+    return false;
+  }
 
   try {
-    katex.renderToString(latex, { throwOnError: true });
+    katex.renderToString(latex, {
+      ...KATEX_RENDER_OPTIONS,
+      displayMode: true,
+    });
     return true;
   } catch {
     return false;

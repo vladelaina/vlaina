@@ -68,8 +68,15 @@ function isRelevantElectronAuthEvent(event: string): boolean {
 }
 
 function logAccountAuthStep(event: string, details: Record<string, unknown> = {}): void {
-  if (import.meta.env.DEV) {
-    console.info(`[account:auth] ${event}`, details);
+  if (!import.meta.env.DEV || typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    if (window.localStorage.getItem('vlaina:debug:account') === '1') {
+      console.info(`[account:auth] ${event}`, details);
+    }
+  } catch {
   }
 }
 

@@ -36,6 +36,7 @@ export {
   endBlankClickPlugin,
   nativeDragGuardPlugin,
   titleNavigationPlugin,
+  typewriterModePlugin,
 } from './cursor';
 export { hrAutoParagraphPlugin } from './hr';
 export { autoPairPlugin } from './pairs';

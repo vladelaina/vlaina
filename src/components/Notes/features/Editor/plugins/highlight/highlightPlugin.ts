@@ -2,100 +2,54 @@ import { $mark, $inputRule } from '@milkdown/kit/utils';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
 import { toggleMark } from '@milkdown/kit/prose/commands';
 import { $command, $remark } from '@milkdown/kit/utils';
+import { remarkStringifyOptionsCtx } from '@milkdown/kit/core';
+import type { MilkdownPlugin } from '@milkdown/kit/ctx';
 import {
-  decodeMarkdownHtmlText,
   escapeMarkdownHtmlText,
 } from '@/lib/notes/markdown/markdownHtmlText';
+import { remarkHighlight } from './highlightMarkdownTransforms';
 
-interface MdastNode {
-  type: string;
-  value?: string;
-  children?: MdastNode[];
+export const remarkHighlightPlugin = $remark('remarkHighlight', () => remarkHighlight);
+
+function shouldUseHtmlFallback(text: string, delimiter: string): boolean {
+  return text.includes(delimiter) || /[<>&]/.test(text);
 }
 
-function replaceDelimitedTextMark(tree: MdastNode, type: string, regex: RegExp) {
-  function visit(node: MdastNode, parent?: MdastNode, index?: number): void {
-    if (node.children) {
-      for (let i = node.children.length - 1; i >= 0; i -= 1) {
-        visit(node.children[i], node, i);
-      }
-    }
-
-    if (node.type !== 'text' || !node.value || !parent || index === undefined) return;
-
-    const matches: Array<{ start: number; end: number; content: string }> = [];
-    let match: RegExpExecArray | null;
-    regex.lastIndex = 0;
-
-    while ((match = regex.exec(node.value)) !== null) {
-      matches.push({
-        start: match.index,
-        end: match.index + match[0].length,
-        content: match[1],
-      });
-    }
-
-    if (matches.length === 0) return;
-
-    const nextChildren: MdastNode[] = [];
-    let lastEnd = 0;
-
-    for (const item of matches) {
-      if (item.start > lastEnd) {
-        nextChildren.push({ type: 'text', value: node.value.slice(lastEnd, item.start) });
-      }
-
-      nextChildren.push({
-        type,
-        children: [{ type: 'text', value: item.content }],
-      });
-      lastEnd = item.end;
-    }
-
-    if (lastEnd < node.value.length) {
-      nextChildren.push({ type: 'text', value: node.value.slice(lastEnd) });
-    }
-
-    parent.children?.splice(index, 1, ...nextChildren);
-  }
-
-  visit(tree);
-}
-
-function replaceInlineHtmlMark(tree: MdastNode, type: string, pattern: RegExp) {
-  function visit(node: MdastNode): void {
-    if (!node.children?.length) return;
-
-    for (let index = 0; index < node.children.length; index += 1) {
-      const child = node.children[index];
-      if (child.type === 'html' && typeof child.value === 'string') {
-        const match = child.value.trim().match(pattern);
-        if (match) {
-          node.children.splice(index, 1, {
-            type,
-            children: [{ type: 'text', value: decodeMarkdownHtmlText(match[1]) }],
-          });
-          continue;
-        }
-      }
-
-      visit(child);
-    }
-  }
-
-  visit(tree);
-}
-
-function remarkHighlight() {
-  return (tree: MdastNode) => {
-    replaceDelimitedTextMark(tree, 'highlight', /==([^=]+)==/g);
-    replaceInlineHtmlMark(tree, 'highlight', /^<mark>([\s\S]*?)<\/mark>$/i);
-    replaceInlineHtmlMark(tree, 'superscript', /^<sup>([\s\S]*?)<\/sup>$/i);
-    replaceInlineHtmlMark(tree, 'subscript', /^<sub>([\s\S]*?)<\/sub>$/i);
+function createDelimitedMarkHandler(delimiter: string) {
+  return (node: any, _: unknown, state: any, info: any) => {
+    const exit = state.enter(node.type);
+    const tracker = state.createTracker(info);
+    let value = tracker.move(delimiter);
+    value += tracker.move(
+      state.containerPhrasing(node, {
+        before: value,
+        after: delimiter,
+        ...tracker.current(),
+      })
+    );
+    value += tracker.move(delimiter);
+    exit();
+    return value;
   };
 }
 
-export const remarkHighlightPlugin = $remark('remarkHighlight', () => remarkHighlight);
+export const highlightStringifyPlugin: MilkdownPlugin = (ctx) => {
+  return () => {
+    ctx.update(remarkStringifyOptionsCtx, (options) => {
+      const handlers =
+        options.handlers && typeof options.handlers === 'object' ? options.handlers : {};
+
+      return {
+        ...options,
+        handlers: {
+          ...handlers,
+          superscript: createDelimitedMarkHandler('^'),
+          subscript: createDelimitedMarkHandler('~'),
+        },
+      };
+    });
+  };
+};
 
 export const highlightMark = $mark('highlight', () => ({
   parseDOM: [
@@ -170,8 +124,13 @@ export const superscriptMark = $mark('superscript', () => ({
   toMarkdown: {
     match: (mark) => mark.type.name === 'superscript',
     runner: (state, _mark, node) => {
-      state.addNode('html', undefined, `<sup>${escapeMarkdownHtmlText(node.text || '')}</sup>`);
-      return true;
+      const text = node.text || '';
+      if (shouldUseHtmlFallback(text, '^')) {
+        state.addNode('html', undefined, `<sup>${escapeMarkdownHtmlText(text)}</sup>`);
+        return true;
+      } else {
+        state.withMark(_mark, 'superscript');
+      }
     }
   }
 }));
@@ -220,8 +179,13 @@ export const subscriptMark = $mark('subscript', () => ({
   toMarkdown: {
     match: (mark) => mark.type.name === 'subscript',
     runner: (state, _mark, node) => {
-      state.addNode('html', undefined, `<sub>${escapeMarkdownHtmlText(node.text || '')}</sub>`);
-      return true;
+      const text = node.text || '';
+      if (shouldUseHtmlFallback(text, '~')) {
+        state.addNode('html', undefined, `<sub>${escapeMarkdownHtmlText(text)}</sub>`);
+        return true;
+      } else {
+        state.withMark(_mark, 'subscript');
+      }
     }
   }
 }));
@@ -255,6 +219,7 @@ export const toggleSubscriptCommand = $command('toggleSubscript', () => () => {
 
 export const highlightPlugin = [
   remarkHighlightPlugin,
+  highlightStringifyPlugin,
   highlightMark,
   highlightInputRule,
   toggleHighlightCommand,

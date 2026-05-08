@@ -5,6 +5,7 @@ import { readNoteMetadataFromMarkdown } from '@/stores/notes/frontmatter';
 import type { StarredEntry } from '@/stores/notes/types';
 
 const MAX_STARRED_ICON_CACHE_ENTRIES = 300;
+const MAX_STARRED_ICON_METADATA_BYTES = 512 * 1024;
 
 interface StarredIconCacheEntry {
   modifiedAt: number | null;
@@ -56,6 +57,10 @@ function getFreshStarredIconCacheEntry(
   return cached;
 }
 
+function canReadStarredIconMetadata(size: number | null | undefined) {
+  return typeof size !== 'number' || size <= MAX_STARRED_ICON_METADATA_BYTES;
+}
+
 export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
   const cacheKey = useMemo(
     () => getStarredIconCacheKey(entry),
@@ -79,6 +84,18 @@ export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
         const fileInfo = await storage.stat(fullPath).catch(() => null);
         const modifiedAt = fileInfo?.modifiedAt ?? null;
         const size = fileInfo?.size ?? null;
+        if (!canReadStarredIconMetadata(size)) {
+          setStarredIconCacheEntry(cacheKey, {
+            modifiedAt,
+            size,
+            icon: null,
+          });
+          if (!cancelled) {
+            setIcon(undefined);
+          }
+          return;
+        }
+
         const freshCached = getFreshStarredIconCacheEntry(cacheKey, modifiedAt, size);
         if (freshCached) {
           if (!cancelled) {

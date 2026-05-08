@@ -14,6 +14,7 @@ import {
     getTextAlignmentComment,
     readMarkdownNodeAlignment,
 } from './plugins/floating-toolbar/blockAlignmentMarkdown';
+import { sanitizeNoteLinkHref } from '@/lib/notes/markdown/urlSecurity';
 import { themeClasses } from './themeClasses';
 import {
     getAlignedBlockDomAttrs,
@@ -136,7 +137,10 @@ export function applyTextSchemaOverrides(ctx: Ctx) {
 
     updateSchemaFactory(ctx, linkSchema.key, (prev: any) => ({
         ...prev,
-        toDOM: (node: any) => ['a', { ...node.attrs, class: themeClasses.link }, 0]
+        toDOM: (node: any) => {
+            const safeHref = sanitizeNoteLinkHref(node.attrs.href);
+            return ['a', { ...node.attrs, href: safeHref ?? undefined, class: themeClasses.link }, 0];
+        }
     }));
 
     updateSchemaFactory(ctx, codeBlockSchema.key, (prev: any) => ({

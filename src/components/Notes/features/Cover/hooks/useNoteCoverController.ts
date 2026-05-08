@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { getRandomBuiltinCover } from '@/lib/assets/builtinCovers';
 import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
+import { logNotesDebugAlways } from '@/stores/notes/lineBreakDebugLog';
 import type { NoteCoverController } from '../types';
 
 export function useNoteCoverController(currentNotePath?: string): NoteCoverController {
@@ -32,7 +33,18 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
 
   const updateCover = useCallback(
     (url: string | null, positionX: number, positionY: number, height?: number, scale?: number) => {
-      if (!currentNotePath) return;
+      logNotesDebugAlways('NotesCoverController', 'update-cover:start', {
+        currentNotePath,
+        url,
+        positionX,
+        positionY,
+        height,
+        scale,
+      });
+      if (!currentNotePath) {
+        logNotesDebugAlways('NotesCoverController', 'update-cover:missing-note', { url });
+        return;
+      }
       setNoteCover(
         currentNotePath,
         url
@@ -45,6 +57,10 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
             }
           : null
       );
+      logNotesDebugAlways('NotesCoverController', 'update-cover:dispatched', {
+        currentNotePath,
+        url,
+      });
     },
     [currentNotePath, setNoteCover]
   );

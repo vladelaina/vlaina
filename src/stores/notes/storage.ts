@@ -8,17 +8,27 @@ import {
 import type { FileTreeSortMode, MetadataFile, NoteCoverMetadata, NoteMetadataEntry } from './types';
 import { normalizeNoteMetadataEntry, readNoteMetadataFromMarkdown } from './frontmatter';
 import { ensureSystemDirectory, getVaultSystemStorePath } from './systemStoragePaths';
+import { normalizeRecentNotePaths, normalizeWorkspaceState } from './persistenceValidation';
 
 export type { MetadataFile, NoteMetadataEntry };
 
 const CURRENT_METADATA_VERSION = 2;
 const DEFAULT_NOTE_ICON_SIZE = 60;
 const MAX_METADATA_CACHE_VAULTS = 8;
+const MAX_METADATA_SCAN_ENTRIES = 5000;
+const MAX_METADATA_SCAN_DEPTH = 24;
+const MAX_METADATA_READ_BYTES = 5 * 1024 * 1024;
+const MAX_RECENT_NOTES_STORAGE_CHARS = 64 * 1024;
+const MAX_WORKSPACE_STATE_BYTES = 256 * 1024;
 
 interface CachedMetadataEntry {
   modifiedAt: number | null;
   size: number | null;
   metadata: NoteMetadataEntry;
+}
+
+interface MetadataScanBudget {
+  visitedEntries: number;
 }
 
 const metadataCacheByVault = new Map<string, Map<string, CachedMetadataEntry>>();
@@ -39,7 +49,10 @@ function setMetadataVaultCache(vaultPath: string, cache: Map<string, CachedMetad
 export function loadRecentNotes(): string[] {
   try {
     const saved = localStorage.getItem(RECENT_NOTES_KEY);
-    return saved ? JSON.parse(saved) : [];
+    if (saved && saved.length > MAX_RECENT_NOTES_STORAGE_CHARS) {
+      return [];
+    }
+    return saved ? normalizeRecentNotePaths(JSON.parse(saved)) : [];
   } catch {
     console.error('[NotesStorage] Failed to load recent notes from localStorage');
     return [];
@@ -48,7 +61,7 @@ export function loadRecentNotes(): string[] {
 
 function saveRecentNotes(paths: string[]): void {
   try {
-    localStorage.setItem(RECENT_NOTES_KEY, JSON.stringify(paths));
+    localStorage.setItem(RECENT_NOTES_KEY, JSON.stringify(normalizeRecentNotePaths(paths)));
   } catch (error) {
     console.error('[NotesStorage] Failed to save recent notes to localStorage:', error);
   }
@@ -82,8 +95,13 @@ export function persistGlobalNoteIconSize(size: number): number {
 }
 
 export function addToRecentNotes(path: string, current: string[]): string[] {
-  const filtered = current.filter(p => p !== path);
-  const updated = [path, ...filtered].slice(0, MAX_RECENT_NOTES);
+  const normalizedPath = normalizeRecentNotePaths([path])[0];
+  if (!normalizedPath) {
+    return normalizeRecentNotePaths(current);
+  }
+
+  const filtered = normalizeRecentNotePaths(current).filter(p => p !== normalizedPath);
+  const updated = [normalizedPath, ...filtered].slice(0, MAX_RECENT_NOTES);
   saveRecentNotes(updated);
   return updated;
 }
@@ -126,14 +144,25 @@ export function createEmptyMetadataFile(): MetadataFile {
 
 async function collectMarkdownPaths(
   basePath: string,
-  relativePath: string = ''
+  relativePath: string = '',
+  budget: MetadataScanBudget = { visitedEntries: 0 },
+  depth = 0,
 ): Promise<string[]> {
+  if (budget.visitedEntries >= MAX_METADATA_SCAN_ENTRIES || depth >= MAX_METADATA_SCAN_DEPTH) {
+    return [];
+  }
+
   const storage = getStorageAdapter();
   const currentPath = relativePath ? await joinPath(basePath, relativePath) : basePath;
   const entries = await storage.listDir(currentPath);
   const collected: string[] = [];
 
   for (const entry of entries) {
+    if (budget.visitedEntries >= MAX_METADATA_SCAN_ENTRIES) {
+      break;
+    }
+    budget.visitedEntries += 1;
+
     if (entry.name.startsWith('.')) {
       continue;
     }
@@ -141,7 +170,7 @@ async function collectMarkdownPaths(
     const entryPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
 
     if (entry.isDirectory === true) {
-      collected.push(...await collectMarkdownPaths(basePath, entryPath));
+      collected.push(...await collectMarkdownPaths(basePath, entryPath, budget, depth + 1));
       continue;
     }
 
@@ -171,6 +200,13 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
           const fileInfo = await storage.stat(fullPath).catch(() => null);
           const modifiedAt = fileInfo?.modifiedAt ?? null;
           const size = fileInfo?.size ?? null;
+          if (typeof size === 'number' && size > MAX_METADATA_READ_BYTES) {
+            return {
+              relativePath,
+              metadata: {},
+            };
+          }
+
           const canUseCache = modifiedAt !== null || size !== null;
           const cached = vaultCache.get(relativePath);
           if (canUseCache && cached && cached.modifiedAt === modifiedAt && cached.size === size) {
@@ -321,8 +357,13 @@ export async function loadWorkspaceState(vaultPath: string): Promise<WorkspaceSt
       return null;
     }
 
+    const fileInfo = await storage.stat(wsPath).catch(() => null);
+    if (fileInfo?.size && fileInfo.size > MAX_WORKSPACE_STATE_BYTES) {
+      return null;
+    }
+
     const content = await storage.readFile(wsPath);
-    return JSON.parse(content);
+    return normalizeWorkspaceState(JSON.parse(content));
   } catch (error) {
     console.error('[NotesStorage] Failed to load workspace state:', error);
     return null;
@@ -335,7 +376,7 @@ export async function saveWorkspaceState(vaultPath: string, state: WorkspaceStat
     await ensureSystemDirectory(storePath);
 
     const wsPath = await joinPath(storePath, WORKSPACE_FILE);
-    await safeWriteTextFile(wsPath, JSON.stringify(state, null, 2));
+    await safeWriteTextFile(wsPath, JSON.stringify(normalizeWorkspaceState(state), null, 2));
   } catch (error) {
     console.error('[NotesStorage] Failed to save workspace state:', error);
   }

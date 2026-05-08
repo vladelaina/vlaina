@@ -18,10 +18,10 @@ import {
   atomicBlockKeyboardNavigationPlugin,
 } from './atomicBlockKeyboardNavigationPlugin';
 
-function createEditor() {
+function createEditor(markdown = '') {
   return Editor.make()
     .config((ctx) => {
-      ctx.set(defaultValueCtx, '');
+      ctx.set(defaultValueCtx, markdown);
     })
     .use(commonmark)
     .use(gfm)
@@ -83,6 +83,32 @@ function createTableNode(view: EditorView): ProseNode {
     throw new Error('Expected table schema');
   }
   return table;
+}
+
+function createCodeBlockNode(view: EditorView, text = 'const value = 1;'): ProseNode {
+  const { schema } = view.state;
+  const codeBlockType = schema.nodes.code_block;
+  if (!codeBlockType) {
+    throw new Error('Expected code block schema');
+  }
+  return codeBlockType.create({ language: 'ts' }, schema.text(text));
+}
+
+function replaceWithOrderedListGapAndTaskList(view: EditorView): void {
+  const { schema } = view.state;
+  replaceDocument(view, [
+    schema.nodes.ordered_list.create(null, [
+      schema.nodes.list_item.create(null, [
+        schema.nodes.paragraph.create(null, schema.text('1')),
+      ]),
+    ]),
+    schema.nodes.paragraph.create(),
+    schema.nodes.bullet_list.create(null, [
+      schema.nodes.list_item.create({ checked: false }, [
+        schema.nodes.paragraph.create(null, schema.text('1')),
+      ]),
+    ]),
+  ]);
 }
 
 function selectionAncestorNames(view: EditorView): string[] {
@@ -541,6 +567,111 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     await editor.destroy();
   });
 
+  it('deletes an empty paragraph immediately below a code block without moving the cursor into code', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      createCodeBlockNode(view),
+      schema.nodes.paragraph.create(),
+      schema.nodes.paragraph.create(null, schema.text('after')),
+    ]);
+
+    const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+    const event = pressKey(view, 'Delete');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('code_block');
+    expect(view.state.doc.child(1).textContent).toBe('after');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(selectionAncestorNames(view)).not.toContain('code_block');
+    expect(view.state.selection.from).toBe(topLevelNodePos(view, 'paragraph') + 1);
+
+    await editor.destroy();
+  });
+
+  it('does not join the following paragraph into a code block on Backspace at its start', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      createCodeBlockNode(view),
+      schema.nodes.paragraph.create(null, schema.text('after')),
+    ]);
+
+    const paragraphPos = topLevelNodePos(view, 'paragraph');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, paragraphPos + 1)));
+    const event = pressKey(view, 'Backspace');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('code_block');
+    expect(view.state.doc.child(0).textContent).toBe('const value = 1;');
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+    expect(view.state.doc.child(1).textContent).toBe('after');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(selectionAncestorNames(view)).not.toContain('code_block');
+    expect(view.state.selection.from).toBe(topLevelNodePos(view, 'paragraph') + 1);
+
+    await editor.destroy();
+  });
+
+  it('backspaces an empty paragraph immediately below a code block without moving the cursor into code', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      createCodeBlockNode(view),
+      schema.nodes.paragraph.create(),
+      schema.nodes.paragraph.create(null, schema.text('after')),
+    ]);
+
+    const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+    const event = pressKey(view, 'Backspace');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('code_block');
+    expect(view.state.doc.child(1).textContent).toBe('after');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(selectionAncestorNames(view)).not.toContain('code_block');
+    expect(view.state.selection.from).toBe(topLevelNodePos(view, 'paragraph') + 1);
+
+    await editor.destroy();
+  });
+
+  it('deletes the only empty paragraph below a code block and keeps an outside cursor target', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      createCodeBlockNode(view),
+      schema.nodes.paragraph.create(),
+    ]);
+
+    const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+    const event = pressKey(view, 'Delete');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('code_block');
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+    expect(view.state.doc.child(1).textContent).toBe('');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(selectionAncestorNames(view)).not.toContain('code_block');
+    expect(view.state.selection.from).toBe(topLevelNodePos(view, 'paragraph') + 1);
+
+    await editor.destroy();
+  });
+
   it('deletes an empty paragraph immediately above a diagram with the same structural block logic', async () => {
     const editor = createEditor();
     await editor.create();
@@ -562,6 +693,50 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     expect(view.state.doc.child(1).type.name).toBe('mermaid');
     expect(view.state.selection).toBeInstanceOf(NodeSelection);
     expect(view.state.selection.from).toBe(topLevelNodePos(view, 'mermaid'));
+
+    await editor.destroy();
+  });
+
+  it('deletes an empty paragraph between ordered and task lists on Delete', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    replaceWithOrderedListGapAndTaskList(view);
+
+    const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+    const event = pressKey(view, 'Delete');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('ordered_list');
+    expect(view.state.doc.child(1).type.name).toBe('bullet_list');
+    expect(view.state.doc.child(0).textContent).toBe('1');
+    expect(view.state.doc.child(1).textContent).toBe('1');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(selectionAncestorNames(view)).toContain('list_item');
+
+    await editor.destroy();
+  });
+
+  it('deletes an empty paragraph between ordered and task lists on Backspace', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    replaceWithOrderedListGapAndTaskList(view);
+
+    const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+    const event = pressKey(view, 'Backspace');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('ordered_list');
+    expect(view.state.doc.child(1).type.name).toBe('bullet_list');
+    expect(view.state.doc.child(0).textContent).toBe('1');
+    expect(view.state.doc.child(1).textContent).toBe('1');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(selectionAncestorNames(view)).toContain('list_item');
 
     await editor.destroy();
   });

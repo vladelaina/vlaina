@@ -79,4 +79,24 @@ describe('useStarredEntryIcon', () => {
     });
     expect(mocked.readFile).toHaveBeenCalledTimes(2);
   });
+
+  it('skips oversized starred note metadata reads', async () => {
+    mocked.stat.mockResolvedValue({ modifiedAt: 1, size: 600 * 1024 });
+
+    const { result } = renderHook(() =>
+      useStarredEntryIcon({
+        id: 'starred-large',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: 'docs/large.md',
+        addedAt: 1,
+      }, true),
+    );
+
+    await waitFor(() => {
+      expect(mocked.stat).toHaveBeenCalledWith('/vault-b/docs/large.md');
+    });
+    expect(result.current).toBeUndefined();
+    expect(mocked.readFile).not.toHaveBeenCalled();
+  });
 });

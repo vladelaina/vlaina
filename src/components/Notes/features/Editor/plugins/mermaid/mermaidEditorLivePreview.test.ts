@@ -177,4 +177,134 @@ describe('mermaidEditorLivePreview', () => {
       'Bob-->Alice: I am good thanks!',
     ].join('\n'));
   });
+
+  it('sanitizes rendered svg before attaching it to the document', async () => {
+    const anchor = document.createElement('div');
+    anchor.setAttribute('data-type', 'mermaid');
+    document.body.appendChild(anchor);
+
+    await renderMermaidEditorLivePreview({
+      anchor,
+      code: 'graph TD',
+      render: async () => [
+        '<svg onload="alert(1)">',
+        '<foreignObject><iframe src="javascript:alert(1)"></iframe></foreignObject>',
+        '<a href="javascript:alert(1)"><text>bad</text></a>',
+        '<text>safe</text>',
+        '</svg>',
+      ].join(''),
+    });
+
+    expect(anchor.querySelector('svg')).not.toBeNull();
+    expect(anchor.querySelector('foreignObject')).toBeNull();
+    expect(anchor.querySelector('iframe')).toBeNull();
+    expect(anchor.innerHTML).not.toContain('onload');
+    expect(anchor.innerHTML).not.toContain('javascript:');
+    expect(anchor.textContent).toContain('safe');
+  });
+
+  it('keeps Mermaid foreignObject labels visible as sanitized svg text', async () => {
+    const anchor = document.createElement('div');
+    anchor.setAttribute('data-type', 'mermaid');
+    document.body.appendChild(anchor);
+
+    await renderMermaidEditorLivePreview({
+      anchor,
+      code: 'graph LR\nA[[Subroutine]]',
+      render: async () => [
+        '<svg>',
+        '<g class="node" transform="translate(18, 16)">',
+        '<polygon></polygon>',
+        '<g class="label" transform="translate(0, 0)">',
+        '<foreignObject x="-40" y="-12" width="80" height="24">',
+        '<div xmlns="http://www.w3.org/1999/xhtml">',
+        '<span class="nodeLabel"><p>Subroutine</p><script>alert(1)</script></span>',
+        '</div>',
+        '</foreignObject>',
+        '</g>',
+        '</g>',
+        '</svg>',
+      ].join(''),
+    });
+
+    expect(anchor.querySelector('foreignObject')).toBeNull();
+    expect(anchor.querySelector('script')).toBeNull();
+    const label = anchor.querySelector('text.nodeLabel');
+    expect(label?.textContent).toBe('Subroutine');
+    expect(label?.getAttribute('x')).toBe('0');
+    expect(label?.getAttribute('y')).toBe('0');
+    expect(label?.getAttribute('fill')).toBe('#27272A');
+    expect(label?.querySelector('tspan')?.getAttribute('dy')).toBe('0.35em');
+  });
+
+  it('drops non-label foreignObject content instead of converting it to visible text', async () => {
+    const anchor = document.createElement('div');
+    anchor.setAttribute('data-type', 'mermaid');
+    document.body.appendChild(anchor);
+
+    await renderMermaidEditorLivePreview({
+      anchor,
+      code: 'graph LR\nA-->B',
+      render: async () => [
+        '<svg>',
+        '<foreignObject width="100" height="20">',
+        '<div xmlns="http://www.w3.org/1999/xhtml">unsafe fallback</div>',
+        '</foreignObject>',
+        '<text>safe</text>',
+        '</svg>',
+      ].join(''),
+    });
+
+    expect(anchor.querySelector('foreignObject')).toBeNull();
+    expect(anchor.textContent).toBe('safe');
+  });
+
+  it('preserves multi-line Mermaid foreignObject labels as separate svg tspans', async () => {
+    const anchor = document.createElement('div');
+    anchor.setAttribute('data-type', 'mermaid');
+    document.body.appendChild(anchor);
+
+    await renderMermaidEditorLivePreview({
+      anchor,
+      code: 'graph LR\nA["First<br/>Second"]',
+      render: async () => [
+        '<svg>',
+        '<foreignObject x="-50" y="-20" width="100" height="40">',
+        '<div xmlns="http://www.w3.org/1999/xhtml">',
+        '<span class="nodeLabel"><p>First</p><p>Second</p></span>',
+        '</div>',
+        '</foreignObject>',
+        '</svg>',
+      ].join(''),
+    });
+
+    const lines = Array.from(anchor.querySelectorAll('text.nodeLabel tspan'));
+    expect(lines.map((line) => line.textContent)).toEqual(['First', 'Second']);
+    expect(lines[0]?.getAttribute('dy')).toBe('-0.25em');
+    expect(lines[1]?.getAttribute('dy')).toBe('1.2em');
+  });
+
+  it('splits line breaks inside Mermaid label paragraphs', async () => {
+    const anchor = document.createElement('div');
+    anchor.setAttribute('data-type', 'mermaid');
+    document.body.appendChild(anchor);
+
+    await renderMermaidEditorLivePreview({
+      anchor,
+      code: 'graph LR\nA["First<br/>Second"]',
+      render: async () => [
+        '<svg>',
+        '<foreignObject width="0" height="0">',
+        '<div xmlns="http://www.w3.org/1999/xhtml">',
+        '<span class="nodeLabel"><p>First<br/>Second</p></span>',
+        '</div>',
+        '</foreignObject>',
+        '</svg>',
+      ].join(''),
+    });
+
+    expect(
+      Array.from(anchor.querySelectorAll('text.nodeLabel tspan')).map((line) => line.textContent)
+    ).toEqual(['First', 'Second']);
+  });
 });

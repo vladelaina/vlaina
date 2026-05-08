@@ -22,6 +22,7 @@ import type {
 import type { Parser } from './types'
 
 import { Stack } from '../utility'
+import { mergePairedInlineHtml } from './html'
 import { ParserStackElement } from './stack-element'
 
 const TASK_LIST_MARKER_PATTERN =
@@ -217,10 +218,10 @@ export class ParserState extends Stack<Node, ParserStackElement> {
   /// Transform a markdown string into prosemirror state.
   run = (remark: RemarkParser, markdown: string) => {
     const normalizedMarkdown = normalizeTaskListMarkers(markdown)
-    const tree = remark.runSync(
+    const tree = mergePairedInlineHtml(remark.runSync(
       remark.parse(normalizedMarkdown),
       normalizedMarkdown
-    ) as MarkdownNode
+    ) as MarkdownNode)
     this.next(tree)
 
     return this

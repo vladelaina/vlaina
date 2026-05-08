@@ -5,6 +5,7 @@ import { resolveBlankAreaDragStartZone } from './blankAreaDragTargets';
 function createMouseDown(target: HTMLElement) {
   const event = new MouseEvent('mousedown', {
     bubbles: true,
+    cancelable: true,
     clientY: 0,
   });
 
@@ -31,6 +32,28 @@ function createView() {
 }
 
 describe('blankAreaDragTargets', () => {
+  it('allows horizontal blank space inside the editor root to start blank-area selection', () => {
+    const { view, cleanup } = createView();
+
+    try {
+      expect(resolveBlankAreaDragStartZone(view, createMouseDown(view.dom))).toBe('outside-editor');
+    } finally {
+      cleanup();
+    }
+  });
+
+  it('does not treat content inside the editor as blank editor root space', () => {
+    const { view, cleanup } = createView();
+    const paragraph = document.createElement('p');
+    view.dom.append(paragraph);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(view, createMouseDown(paragraph))).toBeNull();
+    } finally {
+      cleanup();
+    }
+  });
+
   it('allows the normal notes sidebar blank scroll root to start block selection', () => {
     const { view, cleanup } = createView();
     const sidebarScrollRoot = document.createElement('div');

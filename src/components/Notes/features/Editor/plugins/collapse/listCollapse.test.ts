@@ -1,0 +1,84 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
+import { commonmark } from '@milkdown/kit/preset/commonmark';
+import { gfm } from '@milkdown/kit/preset/gfm';
+import { listCollapsePlugin } from './listCollapse';
+
+async function createEditor(markdown: string, options: { gfm?: boolean } = {}) {
+  let editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, markdown);
+    })
+    .use(commonmark);
+
+  if (options.gfm) {
+    editor = editor.use(gfm);
+  }
+
+  editor = editor.use(listCollapsePlugin);
+
+  await editor.create();
+  return editor;
+}
+
+function dispatchTogglePointer(button: HTMLElement) {
+  if (typeof PointerEvent !== 'undefined') {
+    button.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true }));
+    return;
+  }
+
+  button.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+}
+
+afterEach(() => {
+  document.body.innerHTML = '';
+});
+
+describe('listCollapsePlugin', () => {
+  it('collapses nested list content from a list item toggle', async () => {
+    const editor = await createEditor('- Parent\n  - Child');
+    const view = editor.ctx.get(editorViewCtx);
+    const toggle = view.dom.querySelector<HTMLElement>('.vlaina-collapse-btn[data-has-content="true"]');
+
+    expect(toggle).not.toBeNull();
+    dispatchTogglePointer(toggle!);
+
+    expect(view.dom.querySelector('.vlaina-collapsed-content')).not.toBeNull();
+
+    await editor.destroy();
+  });
+
+  it('collapses nested task list content through the list item path', async () => {
+    const editor = await createEditor('- [ ] Parent\n  - [ ] Child', { gfm: true });
+    const view = editor.ctx.get(editorViewCtx);
+    const taskItem = view.dom.querySelector('li[data-item-type="task"]');
+    const toggle = view.dom.querySelector<HTMLElement>('.vlaina-collapse-btn[data-has-content="true"]');
+
+    expect(taskItem).not.toBeNull();
+    expect(toggle).not.toBeNull();
+    dispatchTogglePointer(toggle!);
+
+    expect(view.dom.querySelector('.vlaina-collapsed-content')).not.toBeNull();
+
+    await editor.destroy();
+  });
+
+  it('keeps collapsed list items mapped after document edits above them', async () => {
+    const editor = await createEditor('- Parent\n  - Child');
+    const view = editor.ctx.get(editorViewCtx);
+    const toggle = view.dom.querySelector<HTMLElement>('.vlaina-collapse-btn[data-has-content="true"]');
+
+    expect(toggle).not.toBeNull();
+    dispatchTogglePointer(toggle!);
+
+    const paragraph = view.state.schema.nodes.paragraph.create(
+      null,
+      view.state.schema.text('Intro'),
+    );
+    view.dispatch(view.state.tr.insert(0, paragraph));
+
+    expect(view.dom.querySelector('.vlaina-collapsed-content')).not.toBeNull();
+
+    await editor.destroy();
+  });
+});

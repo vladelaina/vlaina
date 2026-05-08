@@ -25,6 +25,7 @@ vi.mock('../../starred', async () => {
 });
 
 vi.mock('@/lib/storage/adapter', () => ({
+  isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
   joinPath: (...segments: string[]) => Promise.resolve(segments.join('/').replace(/\/+/g, '/')),
 }));
 
@@ -76,6 +77,18 @@ describe('deleteOperations', () => {
       'docs/remove.md',
       'file'
     );
+  });
+
+  it('rejects note delete paths that escape the vault', async () => {
+    await expect(deleteNoteImpl('/vault', '../secret.md', {
+      rootFolder: null,
+      currentNote: null,
+      openTabs: [],
+      starredEntries: [],
+      noteMetadata: null,
+    })).rejects.toThrow('Path must stay inside the current vault.');
+
+    expect(hoisted.deleteNoteItemToRecoverableLocation).not.toHaveBeenCalled();
   });
 
   it('does not auto-open an adjacent file when deleting the current note with no remaining tabs', async () => {
@@ -131,6 +144,18 @@ describe('deleteOperations', () => {
       'docs',
       'folder'
     );
+  });
+
+  it('rejects folder delete paths that escape the vault', async () => {
+    await expect(deleteFolderImpl('/vault', '../docs', {
+      rootFolder: null,
+      currentNote: null,
+      openTabs: [],
+      starredEntries: [],
+      noteMetadata: null,
+    })).rejects.toThrow('Path must stay inside the current vault.');
+
+    expect(hoisted.deleteNoteItemToRecoverableLocation).not.toHaveBeenCalled();
   });
 
   it('does not auto-open an adjacent file when deleting the folder that contains the current note', async () => {

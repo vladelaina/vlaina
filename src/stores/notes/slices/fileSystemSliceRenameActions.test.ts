@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFileSystemSlice } from './fileSystemSlice';
+import { setPendingEditorMarkdownFlusher } from '../pendingEditorMarkdownFlusher';
 
 const hoisted = vi.hoisted(() => ({
   storageAdapter: {
@@ -70,6 +71,11 @@ describe('fileSystemSlice rename actions', () => {
     hoisted.storageAdapter.rename.mockReset();
     hoisted.storageAdapter.rename.mockResolvedValue(undefined);
     hoisted.saveStarredRegistry.mockReset();
+    setPendingEditorMarkdownFlusher(null);
+  });
+
+  afterEach(() => {
+    setPendingEditorMarkdownFlusher(null);
   });
 
   it('renames an absolute starred note and keeps the open editor state in sync', async () => {
@@ -166,5 +172,83 @@ describe('fileSystemSlice rename actions', () => {
     expect(harness.getState().notesPath).toBe('/vault-c');
     expect(harness.getState().currentNote).toEqual({ path: oldPath, content: '# alpha' });
     expect(harness.getState().openTabs).toEqual([{ path: oldPath, name: 'alpha', isDirty: false }]);
+  });
+
+  it('keeps edits made while an absolute rename is in flight', async () => {
+    let resolveRename: () => void;
+    hoisted.storageAdapter.rename.mockImplementation(() => new Promise<undefined>((resolve) => {
+      resolveRename = () => resolve(undefined);
+    }));
+    const harness = createSliceHarness();
+    const oldPath = '/vault-b/docs/alpha.md';
+    const newPath = '/vault-b/docs/beta.md';
+
+    harness.getState().notesPath = '/vault-a';
+    harness.getState().currentNote = { path: oldPath, content: '# alpha' };
+    harness.getState().currentNoteRevision = 4;
+    harness.getState().isDirty = false;
+    harness.getState().openTabs = [{ path: oldPath, name: 'alpha', isDirty: false }];
+    harness.getState().noteContentsCache = new Map([[oldPath, { content: '# alpha', modifiedAt: 1 }]]);
+
+    const rename = harness.getState().renameAbsoluteNote(oldPath, 'beta');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    harness.getState().currentNote = { path: oldPath, content: '# edited while renaming' };
+    harness.getState().currentNoteRevision = 8;
+    harness.getState().isDirty = true;
+    harness.getState().openTabs = [{ path: oldPath, name: 'alpha', isDirty: true }];
+    harness.getState().noteContentsCache = new Map([
+      [oldPath, { content: '# edited while renaming', modifiedAt: 2 }],
+    ]);
+
+    resolveRename!();
+    await rename;
+
+    const state = harness.getState();
+    expect(state.currentNote).toEqual({ path: newPath, content: '# edited while renaming' });
+    expect(state.currentNoteRevision).toBe(9);
+    expect(state.isDirty).toBe(true);
+    expect(state.openTabs).toEqual([{ path: newPath, name: 'beta', isDirty: true }]);
+    expect(state.noteContentsCache.has(oldPath)).toBe(false);
+    expect(state.noteContentsCache.get(newPath)).toEqual({
+      content: '# edited while renaming',
+      modifiedAt: 2,
+    });
+  });
+
+  it('flushes pending editor markdown before an absolute rename reads state', async () => {
+    const harness = createSliceHarness();
+    const oldPath = '/vault-b/docs/alpha.md';
+    const newPath = '/vault-b/docs/beta.md';
+
+    harness.getState().notesPath = '/vault-a';
+    harness.getState().currentNote = { path: oldPath, content: '# alpha' };
+    harness.getState().currentNoteRevision = 4;
+    harness.getState().isDirty = false;
+    harness.getState().openTabs = [{ path: oldPath, name: 'alpha', isDirty: false }];
+    harness.getState().noteContentsCache = new Map([[oldPath, { content: '# alpha', modifiedAt: 1 }]]);
+    setPendingEditorMarkdownFlusher(() => {
+      harness.getState().currentNote = { path: oldPath, content: '# pending editor text' };
+      harness.getState().currentNoteRevision = 5;
+      harness.getState().isDirty = true;
+      harness.getState().openTabs = [{ path: oldPath, name: 'alpha', isDirty: true }];
+      harness.getState().noteContentsCache = new Map([
+        [oldPath, { content: '# pending editor text', modifiedAt: 1 }],
+      ]);
+      return true;
+    });
+
+    await harness.getState().renameAbsoluteNote(oldPath, 'beta');
+
+    const state = harness.getState();
+    expect(hoisted.storageAdapter.rename).toHaveBeenCalledWith(oldPath, newPath);
+    expect(state.currentNote).toEqual({ path: newPath, content: '# pending editor text' });
+    expect(state.currentNoteRevision).toBe(6);
+    expect(state.isDirty).toBe(true);
+    expect(state.openTabs).toEqual([{ path: newPath, name: 'beta', isDirty: true }]);
+    expect(state.noteContentsCache.get(newPath)).toEqual({
+      content: '# pending editor text',
+      modifiedAt: 1,
+    });
   });
 });

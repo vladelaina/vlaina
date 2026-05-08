@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createEmptyMetadataFile,
+  loadRecentNotes,
+  loadWorkspaceState,
   loadNoteMetadata,
   saveWorkspaceState,
   setNoteEntry,
@@ -21,12 +23,14 @@ const adapter = {
 
 vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => adapter,
+  isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
   joinPath: (...segments: string[]) => Promise.resolve(segments.join('/')),
 }));
 
 describe('notes metadata storage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     adapter.exists.mockResolvedValue(false);
     adapter.getBasePath.mockResolvedValue('/app');
     adapter.stat.mockImplementation(async (path: string) => ({
@@ -135,6 +139,19 @@ describe('notes metadata storage', () => {
     expect(adapter.readFile).toHaveBeenCalledTimes(2);
   });
 
+  it('does not read oversized markdown files during metadata scans', async () => {
+    adapter.listDir.mockResolvedValue([
+      { name: 'huge.md', isFile: true },
+    ]);
+    adapter.stat.mockResolvedValue({ modifiedAt: 7, size: 6 * 1024 * 1024 });
+
+    await expect(loadNoteMetadata('/vault-huge')).resolves.toEqual({
+      version: 2,
+      notes: {},
+    });
+    expect(adapter.readFile).not.toHaveBeenCalled();
+  });
+
   it('creates an empty metadata file shape when needed', () => {
     expect(createEmptyMetadataFile()).toEqual({
       version: 2,
@@ -161,6 +178,41 @@ describe('notes metadata storage', () => {
         fileTreeSortMode: 'updated-desc',
       }, null, 2)
     );
+  });
+
+  it('sanitizes recent note paths loaded from localStorage', () => {
+    localStorage.setItem(
+      'vlaina-recent-notes',
+      JSON.stringify(['docs/alpha.md', '../secret.md', '/etc/passwd.md', 'docs/alpha.md', 'image.png'])
+    );
+
+    expect(loadRecentNotes()).toEqual(['docs/alpha.md']);
+  });
+
+  it('sanitizes workspace state loaded from disk', async () => {
+    adapter.exists.mockResolvedValue(true);
+    adapter.stat.mockResolvedValue(null);
+    adapter.readFile.mockResolvedValue(
+      JSON.stringify({
+        currentNotePath: '../secret.md',
+        expandedFolders: ['docs', '../escape', 'docs', '/tmp'],
+        fileTreeSortMode: 'unexpected',
+      })
+    );
+
+    await expect(loadWorkspaceState('/vault-a')).resolves.toEqual({
+      currentNotePath: null,
+      expandedFolders: ['docs'],
+      fileTreeSortMode: undefined,
+    });
+  });
+
+  it('does not read oversized workspace state files', async () => {
+    adapter.exists.mockResolvedValue(true);
+    adapter.stat.mockResolvedValue({ size: 300 * 1024 });
+
+    await expect(loadWorkspaceState('/vault-a')).resolves.toBeNull();
+    expect(adapter.readFile).not.toHaveBeenCalled();
   });
 
   it('drops empty cover payloads when updating metadata', () => {

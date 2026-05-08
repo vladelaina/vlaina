@@ -78,6 +78,17 @@ describe('isMarkdownStructuralResult', () => {
         expect(isMarkdownStructuralResult(nodes)).toBe(true);
     });
 
+    it('returns true when paragraph has inline atomic nodes', () => {
+        const nodes = [
+            {
+                type: { name: 'paragraph' },
+                descendants: (cb: (child: any) => unknown) => cb({ isText: false, type: { name: 'math_inline' } }),
+            },
+        ] as any;
+
+        expect(isMarkdownStructuralResult(nodes)).toBe(true);
+    });
+
     it('returns false for plain paragraphs without marks', () => {
         const nodes = [
             {

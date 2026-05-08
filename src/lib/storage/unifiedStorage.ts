@@ -32,6 +32,7 @@ function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
   const settings = data.settings;
   const timezoneOffset = settings?.timezone?.offset;
   const timezoneCity = settings?.timezone?.city;
+  const typewriterMode = settings?.markdown?.typewriterMode;
   const showLineNumbers = settings?.markdown?.codeBlock?.showLineNumbers;
 
   return {
@@ -43,6 +44,7 @@ function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
           : defaults.settings.timezone.city,
       },
       markdown: {
+        typewriterMode: typewriterMode === true,
         codeBlock: {
           showLineNumbers: showLineNumbers !== false,
         },

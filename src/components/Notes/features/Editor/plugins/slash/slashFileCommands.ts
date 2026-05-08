@@ -1,10 +1,20 @@
 import type { Ctx } from '@milkdown/kit/ctx';
 import { editorViewCtx } from '@milkdown/kit/core';
 import { TextSelection } from '@milkdown/kit/prose/state';
-import { getMimeType } from '@/lib/assets/core/naming';
+import { getMimeType, isImageFilename } from '@/lib/assets/core/naming';
 import { getBaseName, getStorageAdapter } from '@/lib/storage/adapter';
 import { openDialog } from '@/lib/storage/dialog';
 import { handleEditorImageFiles } from '../image-upload/handleEditorImageFiles';
+
+const MAX_PICKED_IMAGE_BYTES = 50 * 1024 * 1024;
+
+function isInsertableImagePath(path: string) {
+  return isImageFilename(path);
+}
+
+function isInsertableImageSize(size: number | null | undefined) {
+  return typeof size !== 'number' || size <= MAX_PICKED_IMAGE_BYTES;
+}
 
 export async function insertImageFromFilePicker(ctx: Ctx) {
   const view = ctx.get(editorViewCtx);
@@ -23,8 +33,14 @@ export async function insertImageFromFilePicker(ctx: Ctx) {
     });
     const selectedPath = Array.isArray(selected) ? selected[0] : selected;
     if (!selectedPath) return;
+    if (!isInsertableImagePath(selectedPath)) return;
 
-    const bytes = await getStorageAdapter().readBinaryFile(selectedPath);
+    const storage = getStorageAdapter();
+    const fileInfo = await storage.stat(selectedPath).catch(() => null);
+    if (!isInsertableImageSize(fileInfo?.size ?? null)) return;
+
+    const bytes = await storage.readBinaryFile(selectedPath);
+    if (!isInsertableImageSize(bytes.byteLength)) return;
     const fileName = getBaseName(selectedPath) || 'image';
     const file = new File([new Uint8Array(bytes)], fileName, {
       type: getMimeType(fileName),
@@ -40,6 +56,11 @@ export async function insertImageFromFilePicker(ctx: Ctx) {
     console.warn('[SlashMenu] Failed to insert image:', error);
   }
 }
+
+export const __testing__ = {
+  isInsertableImagePath,
+  isInsertableImageSize,
+};
 
 export function insertFrontmatter(ctx: Ctx) {
   const view = ctx.get(editorViewCtx);

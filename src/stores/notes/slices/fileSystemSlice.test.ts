@@ -2,10 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const hoisted = vi.hoisted(() => ({
   persistWorkspaceSnapshot: vi.fn(),
+  flushCurrentPendingEditorMarkdown: vi.fn(),
 }));
 
 vi.mock('../workspacePersistence', () => ({
   persistWorkspaceSnapshot: hoisted.persistWorkspaceSnapshot,
+}));
+
+vi.mock('../pendingEditorMarkdownFlusher', () => ({
+  flushCurrentPendingEditorMarkdown: hoisted.flushCurrentPendingEditorMarkdown,
 }));
 
 import { createFileSystemSlice } from './fileSystemSlice';
@@ -48,6 +53,7 @@ describe('createFileSystemSlice draft flows', () => {
   beforeEach(() => {
     setCurrentVaultPath(null);
     vi.clearAllMocks();
+    hoisted.flushCurrentPendingEditorMarkdown.mockReturnValue(false);
   });
 
   it('creates an unsaved draft note when no vault is selected', async () => {
@@ -106,6 +112,34 @@ describe('createFileSystemSlice draft flows', () => {
     });
   });
 
+  it('flushes pending editor markdown before deciding whether to save on create', async () => {
+    const harness = createSliceHarness({
+      notesPath: '/vault',
+      currentNote: { path: 'alpha.md', content: 'Old alpha' },
+      isDirty: false,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['alpha.md', { content: 'Old alpha', modifiedAt: 1 }]]),
+      saveNote: vi.fn(async () => {
+        harness.getState().isDirty = false;
+        harness.getState().openTabs = harness.getState().openTabs.map((tab: { path: string; isDirty: boolean }) =>
+          tab.path === 'alpha.md' ? { ...tab, isDirty: false } : tab
+        );
+      }),
+    });
+    hoisted.flushCurrentPendingEditorMarkdown.mockImplementation(() => {
+      harness.getState().currentNote = { path: 'alpha.md', content: 'New alpha' };
+      harness.getState().isDirty = true;
+      harness.getState().openTabs = [{ path: 'alpha.md', name: 'alpha', isDirty: true }];
+      harness.getState().noteContentsCache = new Map([['alpha.md', { content: 'New alpha', modifiedAt: 1 }]]);
+      return true;
+    });
+
+    await harness.getState().createNote(undefined, { asDraft: true });
+
+    expect(hoisted.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
+    expect(harness.getState().saveNote).toHaveBeenCalledTimes(1);
+  });
+
   it('can create an in-memory draft even when a vault is selected', async () => {
     const harness = createSliceHarness({
       notesPath: '/vault',
@@ -120,6 +154,35 @@ describe('createFileSystemSlice draft flows', () => {
     expect(state.openTabs).toEqual([{ path: draftPath, name: '', isDirty: false }]);
     expect(state.draftNotes[draftPath]).toEqual({ parentPath: null, name: '' });
     expect(state.saveNote).not.toHaveBeenCalled();
+  });
+
+  it('creates an in-memory draft without replacing the dirty current tab when saving does not clear dirty state', async () => {
+    const harness = createSliceHarness({
+      notesPath: '/vault',
+      currentNote: { path: 'alpha.md', content: 'Unsaved alpha' },
+      isDirty: true,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: true }],
+      noteContentsCache: new Map([['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }]]),
+      saveNote: vi.fn(async () => {
+        harness.getState().isDirty = true;
+        harness.getState().openTabs = [{ path: 'alpha.md', name: 'alpha', isDirty: true }];
+      }),
+    });
+
+    const draftPath = await harness.getState().createNote(undefined, { asDraft: true });
+    const state = harness.getState();
+
+    expect(state.saveNote).toHaveBeenCalledTimes(1);
+    expect(draftPath).toMatch(/^draft:/);
+    expect(state.currentNote).toEqual({ path: draftPath, content: '' });
+    expect(state.openTabs).toEqual([
+      { path: 'alpha.md', name: 'alpha', isDirty: true },
+      { path: draftPath, name: '', isDirty: false },
+    ]);
+    expect(state.noteContentsCache.get('alpha.md')).toEqual({
+      content: 'Unsaved alpha',
+      modifiedAt: 1,
+    });
   });
 });
 

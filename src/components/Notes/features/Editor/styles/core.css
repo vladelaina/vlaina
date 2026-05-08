@@ -110,6 +110,11 @@ body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hide
   border-radius: 0;
 }
 
+.milkdown .ProseMirror .vlaina-block-selected,
+.milkdown .ProseMirror .vlaina-block-selected * {
+  -webkit-text-fill-color: currentColor;
+}
+
 /* List selection compatibility:
    decoration class may be on LI itself or on a child block (e.g. LI > P). */
 .milkdown .ProseMirror li.vlaina-block-selected,

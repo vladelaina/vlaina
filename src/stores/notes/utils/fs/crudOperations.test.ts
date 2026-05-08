@@ -26,6 +26,7 @@ vi.mock('../../document/externalChangeRegistry', () => ({
 
 vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => adapter,
+  isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
   joinPath: (...segments: string[]) => Promise.resolve(segments.join('/')),
 }));
 

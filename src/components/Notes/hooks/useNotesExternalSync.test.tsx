@@ -283,6 +283,25 @@ describe('useNotesExternalSync', () => {
     expect(hoisted.unsubscribeRenameBroadcast).toHaveBeenCalled();
   });
 
+  it('ignores semantic rename broadcasts with paths outside the vault', async () => {
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      hoisted.renameBroadcastHandler?.({
+        nonce: 'rename-event-escape',
+        oldPath: 'docs/alpha.md',
+        newPath: '../secret.md',
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(hoisted.notesState.applyExternalPathRename).not.toHaveBeenCalled();
+    expect(hoisted.notesState.loadFileTree).not.toHaveBeenCalled();
+
+    hook.unmount();
+  });
+
   it('applies rename events written to the vault event file', async () => {
     hoisted.readNotesExternalPathEvents.mockResolvedValueOnce([
       {

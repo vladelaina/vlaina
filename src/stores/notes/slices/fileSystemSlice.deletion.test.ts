@@ -8,6 +8,7 @@ const hoisted = vi.hoisted(() => ({
   getStateForPathRename: vi.fn(),
   persistWorkspaceSnapshot: vi.fn(),
   saveStarredRegistry: vi.fn(),
+  flushCurrentPendingEditorMarkdown: vi.fn(),
 }));
 
 vi.mock('../utils/fs/deleteOperations', () => ({
@@ -26,6 +27,10 @@ vi.mock('../utils/fs/pathStateEffects', () => ({
 
 vi.mock('../workspacePersistence', () => ({
   persistWorkspaceSnapshot: hoisted.persistWorkspaceSnapshot,
+}));
+
+vi.mock('../pendingEditorMarkdownFlusher', () => ({
+  flushCurrentPendingEditorMarkdown: hoisted.flushCurrentPendingEditorMarkdown,
 }));
 
 vi.mock('../starred', async () => {
@@ -86,6 +91,7 @@ function createSliceHarness(overrides: Record<string, unknown> = {}) {
 describe('createFileSystemSlice deletion flows', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    hoisted.flushCurrentPendingEditorMarkdown.mockReturnValue(false);
     hoisted.getStateForPathDeletion.mockImplementation(({ recentNotes, displayNames, noteContentsCache }) => ({
       nextRecentNotes: recentNotes,
       nextDisplayNames: displayNames,
@@ -152,6 +158,46 @@ describe('createFileSystemSlice deletion flows', () => {
       originalPath: 'alpha.md',
       trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/alpha.md',
     })]);
+  });
+
+  it('flushes pending editor markdown before deciding whether to save on delete', async () => {
+    hoisted.deleteNoteImpl.mockResolvedValue({
+      updatedTabs: [],
+      updatedStarredEntries: [],
+      updatedStarredNotes: [],
+      updatedStarredFolders: [],
+      nextAction: null,
+      updatedMetadata: null,
+      newChildren: [],
+      recoverableDelete: {
+        id: 'delete-1',
+        kind: 'file',
+        originalPath: 'alpha.md',
+        originalFullPath: '/vault/alpha.md',
+        trashPath: '/app/.vlaina/store/notes/vaults/vault-test/trash/delete-1/alpha.md',
+        deletedAt: 1,
+      },
+    });
+    const harness = createSliceHarness({
+      currentNote: { path: 'alpha.md', content: 'Old alpha' },
+      isDirty: false,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['alpha.md', { content: 'Old alpha', modifiedAt: 1 }]]),
+    });
+    hoisted.flushCurrentPendingEditorMarkdown.mockImplementation(() => {
+      harness.setState({
+        currentNote: { path: 'alpha.md', content: 'New alpha' },
+        isDirty: true,
+        openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: true }],
+        noteContentsCache: new Map([['alpha.md', { content: 'New alpha', modifiedAt: 1 }]]),
+      });
+      return true;
+    });
+
+    await harness.getState().deleteNote('alpha.md');
+
+    expect(hoisted.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
+    expect(harness.getState().saveNote).toHaveBeenCalledTimes(1);
   });
 
   it('clears the current note after deleting it when no tab remains, even if another file exists in the tree', async () => {
@@ -249,6 +295,120 @@ describe('createFileSystemSlice deletion flows', () => {
     expect(hoisted.persistWorkspaceSnapshot).not.toHaveBeenCalled();
   });
 
+  it('keeps edits made to another open note while deleting a background note', async () => {
+    let resolveDelete: (value: Record<string, unknown>) => void;
+    hoisted.deleteNoteImpl.mockImplementation(() => new Promise((resolve) => {
+      resolveDelete = resolve;
+    }));
+    const harness = createSliceHarness({
+      currentNote: { path: 'alpha.md', content: 'Old alpha' },
+      isDirty: false,
+      openTabs: [
+        { path: 'alpha.md', name: 'alpha', isDirty: false },
+        { path: 'beta.md', name: 'beta', isDirty: false },
+      ],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'Old alpha', modifiedAt: 1 }],
+        ['beta.md', { content: 'Beta', modifiedAt: 1 }],
+      ]),
+    });
+
+    const deletion = harness.getState().deleteNote('beta.md');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    harness.setState({
+      currentNote: { path: 'alpha.md', content: 'New alpha' },
+      isDirty: true,
+      openTabs: [
+        { path: 'alpha.md', name: 'alpha', isDirty: true },
+        { path: 'beta.md', name: 'beta', isDirty: false },
+      ],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'New alpha', modifiedAt: 2 }],
+        ['beta.md', { content: 'Beta', modifiedAt: 1 }],
+      ]),
+    });
+    resolveDelete!({
+      updatedTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      updatedStarredEntries: [],
+      updatedStarredNotes: [],
+      updatedStarredFolders: [],
+      nextAction: null,
+      updatedMetadata: null,
+      newChildren: [],
+      recoverableDelete: {
+        id: 'delete-1',
+        kind: 'file',
+        originalPath: 'beta.md',
+        originalFullPath: '/vault/beta.md',
+        trashPath: '/trash/beta.md',
+        deletedAt: 1,
+      },
+    });
+    await deletion;
+
+    const state = harness.getState();
+    expect(state.currentNote).toEqual({ path: 'alpha.md', content: 'New alpha' });
+    expect(state.isDirty).toBe(true);
+    expect(state.openTabs).toEqual([{ path: 'alpha.md', name: 'alpha', isDirty: true }]);
+    expect(state.noteContentsCache.get('alpha.md')).toEqual({
+      content: 'New alpha',
+      modifiedAt: 2,
+    });
+  });
+
+  it('keeps newer edits made to the current note while deletion is in flight', async () => {
+    let resolveDelete: (value: Record<string, unknown>) => void;
+    hoisted.deleteNoteImpl.mockImplementation(() => new Promise((resolve) => {
+      resolveDelete = resolve;
+    }));
+    const harness = createSliceHarness({
+      currentNote: { path: 'alpha.md', content: 'Old alpha' },
+      isDirty: false,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['alpha.md', { content: 'Old alpha', modifiedAt: 1 }]]),
+    });
+
+    const deletion = harness.getState().deleteNote('alpha.md');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    harness.setState({
+      currentNote: { path: 'alpha.md', content: 'New alpha' },
+      isDirty: true,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: true }],
+      noteContentsCache: new Map([['alpha.md', { content: 'New alpha', modifiedAt: 2 }]]),
+    });
+    resolveDelete!({
+      updatedTabs: [],
+      updatedStarredEntries: [],
+      updatedStarredNotes: [],
+      updatedStarredFolders: [],
+      nextAction: null,
+      updatedMetadata: null,
+      newChildren: [],
+      recoverableDelete: {
+        id: 'delete-1',
+        kind: 'file',
+        originalPath: 'alpha.md',
+        originalFullPath: '/vault/alpha.md',
+        trashPath: '/trash/alpha.md',
+        deletedAt: 1,
+      },
+    });
+    await deletion;
+
+    const state = harness.getState();
+    expect(state.currentNote).toEqual({ path: 'alpha.md', content: 'New alpha' });
+    expect(state.isDirty).toBe(true);
+    expect(state.openTabs).toEqual([{ path: 'alpha.md', name: 'alpha', isDirty: true }]);
+    expect(state.noteContentsCache.get('alpha.md')).toEqual({
+      content: 'New alpha',
+      modifiedAt: 2,
+    });
+    expect(state.openNote).not.toHaveBeenCalled();
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
+      currentNotePath: 'alpha.md',
+    }));
+  });
+
   it('does not delete the current dirty note when saving fails first', async () => {
     const saveNote = vi.fn().mockResolvedValue(undefined);
     const harness = createSliceHarness({
@@ -299,6 +459,59 @@ describe('createFileSystemSlice deletion flows', () => {
     expect(state.isDirty).toBe(false);
     expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
       currentNotePath: null,
+    }));
+  });
+
+  it('keeps newer edits made to the current note while folder deletion is in flight', async () => {
+    let resolveDelete: (value: Record<string, unknown>) => void;
+    hoisted.deleteFolderImpl.mockImplementation(() => new Promise((resolve) => {
+      resolveDelete = resolve;
+    }));
+    const harness = createSliceHarness({
+      currentNote: { path: 'docs/alpha.md', content: 'Old alpha' },
+      isDirty: false,
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: 'Old alpha', modifiedAt: 1 }]]),
+    });
+
+    const deletion = harness.getState().deleteFolder('docs');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    harness.setState({
+      currentNote: { path: 'docs/alpha.md', content: 'New alpha' },
+      isDirty: true,
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: true }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: 'New alpha', modifiedAt: 2 }]]),
+    });
+    resolveDelete!({
+      updatedTabs: [],
+      updatedStarredEntries: [],
+      updatedStarredNotes: [],
+      updatedStarredFolders: [],
+      nextAction: null,
+      updatedMetadata: null,
+      newChildren: [],
+      recoverableDelete: {
+        id: 'delete-1',
+        kind: 'folder',
+        originalPath: 'docs',
+        originalFullPath: '/vault/docs',
+        trashPath: '/trash/docs',
+        deletedAt: 1,
+      },
+    });
+    await deletion;
+
+    const state = harness.getState();
+    expect(state.currentNote).toEqual({ path: 'docs/alpha.md', content: 'New alpha' });
+    expect(state.isDirty).toBe(true);
+    expect(state.openTabs).toEqual([{ path: 'docs/alpha.md', name: 'alpha', isDirty: true }]);
+    expect(state.noteContentsCache.get('docs/alpha.md')).toEqual({
+      content: 'New alpha',
+      modifiedAt: 2,
+    });
+    expect(state.openNote).not.toHaveBeenCalled();
+    expect(hoisted.persistWorkspaceSnapshot).toHaveBeenCalledWith('/vault', expect.objectContaining({
+      currentNotePath: 'docs/alpha.md',
     }));
   });
 

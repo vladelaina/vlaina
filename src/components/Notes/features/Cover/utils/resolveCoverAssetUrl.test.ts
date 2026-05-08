@@ -3,6 +3,7 @@ import { resolveCoverAssetUrl } from './resolveCoverAssetUrl';
 
 const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
+  loadImageThumbnailAsBlob: vi.fn(),
   resolveExistingVaultAssetPath: vi.fn(),
   isBuiltinCover: vi.fn(),
   getBuiltinCoverUrl: vi.fn(),
@@ -10,6 +11,7 @@ const hoisted = vi.hoisted(() => ({
 
 vi.mock('@/lib/assets/io/reader', () => ({
   loadImageAsBlob: hoisted.loadImageAsBlob,
+  loadImageThumbnailAsBlob: hoisted.loadImageThumbnailAsBlob,
 }));
 
 vi.mock('@/lib/assets/core/paths', () => ({
@@ -24,6 +26,7 @@ vi.mock('@/lib/assets/builtinCovers', () => ({
 describe('resolveCoverAssetUrl', () => {
   beforeEach(() => {
     hoisted.loadImageAsBlob.mockReset();
+    hoisted.loadImageThumbnailAsBlob.mockReset();
     hoisted.resolveExistingVaultAssetPath.mockReset();
     hoisted.isBuiltinCover.mockReset();
     hoisted.getBuiltinCoverUrl.mockReset();
@@ -35,6 +38,35 @@ describe('resolveCoverAssetUrl', () => {
       assetPath: 'https://example.com/cover.jpg',
       vaultPath: '',
     })).rejects.toThrow('remote-cover-unsupported');
+
+    await expect(resolveCoverAssetUrl({
+      assetPath: 'HTTPS://example.com/cover.jpg',
+      vaultPath: '',
+    })).rejects.toThrow('remote-cover-unsupported');
+
+    await expect(resolveCoverAssetUrl({
+      assetPath: '//example.com/cover.jpg',
+      vaultPath: '',
+    })).rejects.toThrow('remote-cover-unsupported');
+  });
+
+  it('rejects unsafe persisted cover sources', async () => {
+    await expect(resolveCoverAssetUrl({
+      assetPath: 'blob:http://localhost/cover',
+      vaultPath: '/vault-a',
+    })).rejects.toThrow('cover-path-unsupported');
+
+    await expect(resolveCoverAssetUrl({
+      assetPath: 'javascript:alert(1)',
+      vaultPath: '/vault-a',
+    })).rejects.toThrow('cover-path-unsupported');
+
+    await expect(resolveCoverAssetUrl({
+      assetPath: '/etc/passwd',
+      vaultPath: '/vault-a',
+    })).rejects.toThrow('cover-path-unsupported');
+
+    expect(hoisted.resolveExistingVaultAssetPath).not.toHaveBeenCalled();
   });
 
   it('returns builtin url', async () => {
@@ -75,10 +107,37 @@ describe('resolveCoverAssetUrl', () => {
     expect(hoisted.resolveExistingVaultAssetPath).toHaveBeenCalledWith('/vault-a', './assets/cover.webp', 'notes/today.md');
   });
 
+  it('resolves local cover thumbnails without loading the full image blob', async () => {
+    hoisted.resolveExistingVaultAssetPath.mockResolvedValue('/vault/assets/a.webp');
+    hoisted.loadImageThumbnailAsBlob.mockResolvedValue('blob:thumb-a');
+
+    const url = await resolveCoverAssetUrl({
+      assetPath: 'assets/a.webp',
+      vaultPath: '/vault-a',
+      thumbnail: true,
+    });
+
+    expect(url).toBe('blob:thumb-a');
+    expect(hoisted.loadImageThumbnailAsBlob).toHaveBeenCalledWith('/vault/assets/a.webp');
+    expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+  });
+
   it('throws when local asset requires vault path', async () => {
     await expect(resolveCoverAssetUrl({
       assetPath: 'assets/a.webp',
       vaultPath: '',
     })).rejects.toThrow('vault-path-required');
+  });
+
+  it('rejects unsupported absolute cover paths', async () => {
+    hoisted.resolveExistingVaultAssetPath.mockResolvedValue('');
+
+    await expect(resolveCoverAssetUrl({
+      assetPath: '/etc/passwd',
+      vaultPath: '/vault-a',
+    })).rejects.toThrow('cover-path-unsupported');
+
+    expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+    expect(hoisted.loadImageThumbnailAsBlob).not.toHaveBeenCalled();
   });
 });

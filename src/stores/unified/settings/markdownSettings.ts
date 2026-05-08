@@ -36,6 +36,10 @@ export function selectCodeBlockLineNumbersEnabled(state: { data: UnifiedData }):
   return selectMarkdownSettings(state).codeBlock.showLineNumbers;
 }
 
+export function selectMarkdownTypewriterModeEnabled(state: { data: UnifiedData }): boolean {
+  return selectMarkdownSettings(state).typewriterMode;
+}
+
 export function updateMarkdownCodeBlockLineNumbers(
   data: UnifiedData,
   showLineNumbers: boolean
@@ -52,6 +56,24 @@ export function updateMarkdownCodeBlockLineNumbers(
           ...markdown.codeBlock,
           showLineNumbers,
         },
+      },
+    },
+  };
+}
+
+export function updateMarkdownTypewriterMode(
+  data: UnifiedData,
+  typewriterMode: boolean
+): UnifiedData {
+  const markdown = resolveMarkdownSettings(data.settings.markdown);
+
+  return {
+    ...data,
+    settings: {
+      ...data.settings,
+      markdown: {
+        ...markdown,
+        typewriterMode,
       },
     },
   };

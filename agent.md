@@ -25,6 +25,7 @@ Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, sim
 **Touch only what you must. Clean up only your own mess.**
 
 When editing existing code:
+- Do not create audit, TODO, plan, or summary files unless the user explicitly asks for a file.
 - Don't "improve" adjacent code, comments, or formatting.
 - Keep code, comments, test names, test fixture text, and non-user-facing strings in English.
 - User-facing copy may use the product's target language, but internal diagnostics and tests stay English.
@@ -55,6 +56,11 @@ For multi-step tasks, state a brief plan:
 ```
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+When debugging with logs:
+- Do not add enable/disable switches unless explicitly requested.
+- When the user says the issue is fixed, do a broader check for similar failure paths before closing.
+- After the fix is verified, remove temporary diagnostic logs and test noise.
 
 ---
 

@@ -41,6 +41,12 @@ describe("externalLinks", () => {
       expect(normalizeExternalHref("   ")).toBeNull();
     });
 
+    it("rejects control and bidi characters before opening external links", () => {
+      expect(normalizeExternalHref("https://example.com/\u202Ecod.exe")).toBeNull();
+      expect(normalizeExternalHref("https://example.com/\u0000path")).toBeNull();
+      expect(normalizeExternalHref("mailto:user@example.com\r\nbcc:evil@example.com")).toBeNull();
+    });
+
     it("never accepts non-http(s)/mailto prefixes for random strings", () => {
       fc.assert(
         fc.property(fc.string(), (input) => {

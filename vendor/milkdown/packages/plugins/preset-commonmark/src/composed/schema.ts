@@ -26,6 +26,7 @@ import {
   hrAttr,
   hrSchema,
   htmlAttr,
+  htmlBlockSchema,
   htmlSchema,
   imageAttr,
   imageSchema,
@@ -86,6 +87,7 @@ export const schema: MilkdownPlugin[] = [
   linkSchema,
 
   htmlAttr,
+  htmlBlockSchema,
   htmlSchema,
 
   textSchema,

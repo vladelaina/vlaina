@@ -133,3 +133,26 @@ export async function expectStableMarkdownRoundTrip(
   expect(secondOpen.docJson).toEqual(firstOpen.docJson);
   expect(secondPersisted).toBe(firstPersisted);
 }
+
+export async function expectConvergentPersistedMarkdownRoundTrip(
+  markdown: string,
+  expectedFirstPersisted = markdown,
+  expectedText?: string,
+): Promise<void> {
+  const firstOpen = await openMarkdownThroughSyntaxEditor(markdown);
+  const firstPersisted = stripTrailingNewlines(firstOpen.persisted);
+  expectPersistedMarkdownToBeClean(firstPersisted);
+  expect(firstPersisted).toBe(expectedFirstPersisted);
+  if (expectedText) {
+    expect(collectDocText(firstOpen.docJson)).toContain(expectedText);
+  }
+
+  const secondOpen = await openMarkdownThroughSyntaxEditor(firstPersisted);
+  const secondPersisted = stripTrailingNewlines(secondOpen.persisted);
+  expectPersistedMarkdownToBeClean(secondPersisted);
+
+  const thirdOpen = await openMarkdownThroughSyntaxEditor(secondPersisted);
+  const thirdPersisted = stripTrailingNewlines(thirdOpen.persisted);
+  expectPersistedMarkdownToBeClean(thirdPersisted);
+  expect(thirdPersisted).toBe(secondPersisted);
+}

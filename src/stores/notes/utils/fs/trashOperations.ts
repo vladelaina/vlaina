@@ -2,6 +2,7 @@ import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { resolveUniqueName } from '@/lib/naming/uniqueName';
 import { markExpectedExternalChange } from '../../document/externalChangeRegistry';
 import { ensureSystemDirectory, getVaultSystemStorePath } from '../../systemStoragePaths';
+import { normalizeVaultRelativePath, resolveVaultRelativeFullPath } from './vaultPathContainment';
 
 const RECOVERABLE_TRASH_ROOT = 'trash';
 
@@ -76,9 +77,10 @@ export async function deleteNoteItemToRecoverableLocation(
   kind: 'file' | 'folder'
 ): Promise<RecoverableDeletedItem> {
   const id = createDeleteId();
-  const originalFullPath = await joinPath(notesPath, relativePath);
+  const { relativePath: safeRelativePath, fullPath: originalFullPath } =
+    await resolveVaultRelativeFullPath(notesPath, relativePath);
   const trashDir = await getVaultSystemStorePath(notesPath, RECOVERABLE_TRASH_ROOT, id);
-  const trashPath = await joinPath(trashDir, getBaseName(relativePath));
+  const trashPath = await joinPath(trashDir, getBaseName(safeRelativePath));
 
   await ensureSystemDirectory(trashDir);
   await moveRecoverableItem(originalFullPath, trashPath, kind);
@@ -86,7 +88,7 @@ export async function deleteNoteItemToRecoverableLocation(
   return {
     id,
     kind,
-    originalPath: relativePath,
+    originalPath: safeRelativePath,
     originalFullPath,
     trashPath,
     deletedAt: Date.now(),
@@ -98,8 +100,13 @@ export async function restoreNoteItemFromRecoverableLocation(
   item: RecoverableDeletedItem,
 ): Promise<RestoreRecoverableDeleteResult> {
   const storage = getStorageAdapter();
-  const parentPath = getParentPath(item.originalPath);
-  const originalName = getBaseName(item.originalPath);
+  const safeOriginalPath = normalizeVaultRelativePath(item.originalPath);
+  if (!safeOriginalPath) {
+    throw new Error('Restore target must stay inside the current vault.');
+  }
+
+  const parentPath = getParentPath(safeOriginalPath);
+  const originalName = getBaseName(safeOriginalPath);
   const restoredName = await resolveUniqueName(
     originalName,
     async (candidateName) => {

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { retainLoadedSessionMessages } from './useUnifiedStore';
+import {
+  resolveMarkdownSettings,
+  updateMarkdownTypewriterMode,
+} from './settings/markdownSettings';
 import type { UnifiedData } from '@/lib/storage/unifiedStorage';
 
 function createData(overrides?: Partial<NonNullable<UnifiedData['ai']>>): UnifiedData {
@@ -59,6 +63,36 @@ describe('retainLoadedSessionMessages', () => {
 
     expect(retainLoadedSessionMessages(previous, next).ai?.messages).toEqual({
       'session-1': session1Messages,
+    });
+  });
+});
+
+describe('markdownSettings', () => {
+  it('defaults typewriter mode off for older settings objects', () => {
+    expect(resolveMarkdownSettings({
+      codeBlock: { showLineNumbers: false },
+    } as Partial<UnifiedData['settings']['markdown']>)).toEqual({
+      typewriterMode: false,
+      codeBlock: { showLineNumbers: false },
+    });
+  });
+
+  it('updates typewriter mode without changing code block settings', () => {
+    const data: UnifiedData = {
+      settings: {
+        timezone: { offset: 0, city: 'UTC' },
+        markdown: {
+          typewriterMode: false,
+          codeBlock: { showLineNumbers: false },
+        },
+      },
+      customIcons: [],
+      ai: undefined,
+    };
+
+    expect(updateMarkdownTypewriterMode(data, true).settings.markdown).toEqual({
+      typewriterMode: true,
+      codeBlock: { showLineNumbers: false },
     });
   });
 });
