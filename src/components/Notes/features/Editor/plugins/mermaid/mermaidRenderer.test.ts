@@ -36,12 +36,35 @@ describe('mermaidRenderer', () => {
     const svg = await renderMermaid('zenuml\nAlice->Bob: Hi', 'diagram-1');
 
     expect(svg).toBe('<svg data-testid="diagram"></svg>');
-    expect(initialize).toHaveBeenCalledOnce();
+    expect(initialize).toHaveBeenLastCalledWith(expect.objectContaining({
+      flowchart: {
+        htmlLabels: false,
+      },
+      theme: 'base',
+      themeVariables: expect.objectContaining({
+        background: '#FFFFFF',
+        primaryTextColor: '#27272A',
+      }),
+    }));
     expect(registerExternalDiagrams).toHaveBeenCalledWith([zenumlDiagram]);
     expect(render).toHaveBeenCalledWith('diagram-1', 'zenuml\nAlice->Bob: Hi');
     expect(registerExternalDiagrams.mock.invocationCallOrder[0]).toBeLessThan(
       render.mock.invocationCallOrder[0]
     );
+  });
+
+  it('uses the built-in beautiful Mermaid default render theme', async () => {
+    const { renderMermaid } = await import('./mermaidRenderer');
+
+    await renderMermaid('graph TD\nA-->B', 'diagram-1');
+
+    expect(initialize).toHaveBeenLastCalledWith(expect.objectContaining({
+      theme: 'base',
+      themeVariables: expect.objectContaining({
+        background: '#FFFFFF',
+        primaryTextColor: '#27272A',
+      }),
+    }));
   });
 
   it('suppresses third-party renderer console output so diagram source is not leaked', async () => {

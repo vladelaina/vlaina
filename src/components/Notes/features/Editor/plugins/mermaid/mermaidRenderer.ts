@@ -1,4 +1,5 @@
 import zenumlDiagram from '@mermaid-js/mermaid-zenuml';
+import { createDefaultMermaidThemeConfig } from '@/lib/notes/mermaid/mermaidTheme';
 
 let mermaidInstance: any = null;
 let mermaidPromise: Promise<any> | null = null;
@@ -9,9 +10,11 @@ type ConsoleMethodName = 'debug' | 'error' | 'info' | 'log' | 'warn';
 
 const MERMAID_INIT_CONFIG = {
   startOnLoad: false,
-  theme: 'default',
   securityLevel: 'strict',
   fontFamily: 'inherit',
+  flowchart: {
+    htmlLabels: false,
+  },
 } as const;
 
 const CONSOLE_METHODS_TO_SUPPRESS: ConsoleMethodName[] = ['debug', 'error', 'info', 'log', 'warn'];
@@ -27,7 +30,7 @@ async function getMermaid() {
       try {
         const m = await import('mermaid');
         mermaidInstance = m.default;
-        mermaidInstance.initialize(MERMAID_INIT_CONFIG);
+        mermaidInstance.initialize(createMermaidRenderConfig());
         await mermaidInstance.registerExternalDiagrams([zenumlDiagram]);
         return mermaidInstance;
       } catch {
@@ -38,6 +41,13 @@ async function getMermaid() {
   }
 
   return mermaidPromise;
+}
+
+function createMermaidRenderConfig() {
+  return {
+    ...MERMAID_INIT_CONFIG,
+    ...createDefaultMermaidThemeConfig(),
+  };
 }
 
 async function withoutThirdPartyConsoleOutput<T>(action: () => Promise<T>): Promise<T> {
@@ -74,6 +84,7 @@ export async function renderMermaid(code: string, id: string): Promise<string> {
   }
 
   try {
+    mermaid.initialize(createMermaidRenderConfig());
     const { svg } = await withoutThirdPartyConsoleOutput<{ svg: string }>(() =>
       mermaid.render(id, code)
     );
