@@ -1,4 +1,4 @@
-import { Selection } from '@milkdown/kit/prose/state';
+import { NodeSelection, Selection } from '@milkdown/kit/prose/state';
 import { describe, expect, it, vi } from 'vitest';
 import {
   applyBlankAreaPlainClickSelection,
@@ -22,6 +22,7 @@ describe('resolveBlankAreaPlainClickAction', () => {
     ).toEqual({
       targetPos: 7,
       bias: 1,
+      blockFrom: 6,
     });
   });
 
@@ -35,6 +36,7 @@ describe('resolveBlankAreaPlainClickAction', () => {
     ).toEqual({
       targetPos: 13,
       bias: -1,
+      blockFrom: 6,
     });
   });
 
@@ -48,6 +50,7 @@ describe('resolveBlankAreaPlainClickAction', () => {
     ).toEqual({
       targetPos: 1,
       bias: 1,
+      blockFrom: 0,
     });
   });
 
@@ -72,6 +75,7 @@ describe('applyBlankAreaPlainClickSelection', () => {
     const tr = {
       doc: {
         content: { size: 10 },
+        nodeAt: vi.fn().mockReturnValue({ type: { name: 'paragraph' } }),
         resolve,
       },
       setSelection,
@@ -80,11 +84,40 @@ describe('applyBlankAreaPlainClickSelection', () => {
     applyBlankAreaPlainClickSelection(tr, {
       targetPos: 99,
       bias: -1,
+      blockFrom: 0,
     });
 
     expect(resolve).toHaveBeenCalledWith(10);
     expect(nearSpy).toHaveBeenCalledWith(resolved, -1);
     expect(setSelection).toHaveBeenCalledWith(selection);
     nearSpy.mockRestore();
+  });
+
+  it('selects an atomic diagram block directly instead of resolving through its content edge', () => {
+    const selection = { from: 5, to: 6, empty: false };
+    const setSelection = vi.fn().mockImplementation(() => tr);
+    const nodeSelectionCreate = vi
+      .spyOn(NodeSelection, 'create')
+      .mockReturnValue(selection as any);
+    const resolve = vi.fn();
+    const tr = {
+      doc: {
+        content: { size: 10 },
+        nodeAt: vi.fn().mockReturnValue({ type: { name: 'mermaid' } }),
+        resolve,
+      },
+      setSelection,
+    } as any;
+
+    applyBlankAreaPlainClickSelection(tr, {
+      targetPos: 6,
+      bias: 1,
+      blockFrom: 5,
+    });
+
+    expect(nodeSelectionCreate).toHaveBeenCalledWith(tr.doc, 5);
+    expect(resolve).not.toHaveBeenCalled();
+    expect(setSelection).toHaveBeenCalledWith(selection);
+    nodeSelectionCreate.mockRestore();
   });
 });

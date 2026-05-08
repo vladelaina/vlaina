@@ -30,10 +30,91 @@ async function renderMermaidHtml(
 }
 
 function sanitizeMermaidMarkup(markup: string) {
-  return DOMPurify.sanitize(markup, {
+  return DOMPurify.sanitize(replaceMermaidForeignObjectLabels(markup), {
     USE_PROFILES: { html: true, svg: true, svgFilters: true },
     FORBID_TAGS: ['foreignObject', 'script', 'iframe', 'object', 'embed'],
   });
+}
+
+function replaceMermaidForeignObjectLabels(markup: string) {
+  if (!markup.includes('<foreignObject')) {
+    return markup;
+  }
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(markup, 'image/svg+xml');
+  if (doc.querySelector('parsererror')) {
+    return markup;
+  }
+
+  doc.querySelectorAll('foreignObject').forEach((foreignObject) => {
+    foreignObject.querySelectorAll('script, style').forEach((node) => node.remove());
+    const labelElement = foreignObject.querySelector('.nodeLabel');
+    const lines = extractMermaidLabelLines(labelElement);
+    if (lines.length === 0) {
+      foreignObject.remove();
+      return;
+    }
+
+    const text = doc.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('class', 'nodeLabel');
+    text.setAttribute('x', resolveForeignObjectCenterCoord(foreignObject, 'x', 'width'));
+    text.setAttribute('y', resolveForeignObjectCenterCoord(foreignObject, 'y', 'height'));
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('fill', '#27272A');
+
+    const firstLineDy = lines.length > 1
+      ? `${0.35 - ((lines.length - 1) * 0.6)}em`
+      : '0.35em';
+    lines.forEach((line, index) => {
+      const tspan = doc.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+      tspan.setAttribute('x', text.getAttribute('x') || '0');
+      tspan.setAttribute('dy', index === 0 ? firstLineDy : '1.2em');
+      tspan.textContent = line;
+      text.appendChild(tspan);
+    });
+
+    foreignObject.replaceWith(text);
+  });
+
+  return new XMLSerializer().serializeToString(doc.documentElement);
+}
+
+function extractMermaidLabelLines(labelElement: Element | null) {
+  if (!labelElement) {
+    return [];
+  }
+
+  const paragraphs = Array.from(labelElement.querySelectorAll('p'))
+    .flatMap(extractElementTextLines)
+    .filter((line) => line.length > 0);
+  if (paragraphs.length > 0) {
+    return paragraphs;
+  }
+
+  return extractElementTextLines(labelElement);
+}
+
+function extractElementTextLines(element: Element) {
+  const clone = element.cloneNode(true) as Element;
+  clone.querySelectorAll('br').forEach((br) => {
+    br.replaceWith(clone.ownerDocument.createTextNode('\n'));
+  });
+  return (clone.textContent || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+function resolveForeignObjectCenterCoord(
+  foreignObject: Element,
+  startAttr: 'x' | 'y',
+  sizeAttr: 'width' | 'height'
+) {
+  const start = Number.parseFloat(foreignObject.getAttribute(startAttr) || '0');
+  const size = Number.parseFloat(foreignObject.getAttribute(sizeAttr) || '0');
+  const center = start + (Number.isFinite(size) ? size / 2 : 0);
+  return Number.isFinite(center) ? String(center) : '0';
 }
 
 export async function renderMermaidEditorLivePreview(args: {

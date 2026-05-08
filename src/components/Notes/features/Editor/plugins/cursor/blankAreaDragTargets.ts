@@ -52,6 +52,9 @@ export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEven
     if (target === view.dom && isClickBelowLastBlock(view.dom, event.clientY)) {
       return 'below-last-block';
     }
+    if (target === view.dom) {
+      return 'outside-editor';
+    }
     return null;
   }
 

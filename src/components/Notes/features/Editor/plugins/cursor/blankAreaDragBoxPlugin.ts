@@ -1,6 +1,6 @@
 import { $prose } from '@milkdown/kit/utils';
 import { serializerCtx } from '@milkdown/kit/core';
-import { Plugin, Selection, type EditorState } from '@milkdown/kit/prose/state';
+import { NodeSelection, Plugin, Selection, type EditorState } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { Serializer } from '@milkdown/kit/transformer';
 import { dispatchTailBlankClickAction } from './endBlankClickPlugin';
@@ -20,6 +20,7 @@ import { startBlankAreaSelectionSession } from './blankAreaSelectionSession';
 import { type BlockDragStartZone } from './blockDragSession';
 import {
   applyBlankAreaPlainClickSelection,
+  type BlankAreaPlainClickAction,
 } from './blankAreaPlainClick';
 import {
   blankAreaDragBoxPluginKey,
@@ -46,10 +47,7 @@ const DRAG_BOX_COLOR = 'color-mix(in srgb, var(--vlaina-color-editor-block-selec
 const DRAG_SESSION_CURSOR = 'crosshair';
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 
-function dispatchBlankAreaPlainClick(view: EditorView, action: {
-  targetPos: number;
-  bias: 1 | -1;
-}): void {
+function dispatchBlankAreaPlainClick(view: EditorView, action: BlankAreaPlainClickAction): void {
   let tr = applyBlankAreaPlainClickSelection(view.state.tr, action);
   tr = tr.setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION);
   view.dispatch(tr.scrollIntoView());
@@ -58,7 +56,7 @@ function dispatchBlankAreaPlainClick(view: EditorView, action: {
 
 function clearTextSelectionForDragSession(view: EditorView): void {
   const { state } = view;
-  if (!state.selection.empty) {
+  if (!state.selection.empty && !(state.selection instanceof NodeSelection)) {
     const docSize = state.doc.content.size;
     const collapsePos = Math.max(0, Math.min(state.selection.from, docSize));
     const tr = state.tr.setSelection(Selection.near(state.doc.resolve(collapsePos), -1));
@@ -247,7 +245,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           // `below-last-block` starts drag-or-click behavior here.
           // `outside-editor` is handled by document-level listener below.
           const startZone = tryStartSession(view, event);
-          return startZone === 'below-last-block';
+          return startZone !== null;
         },
       },
     },

@@ -4,7 +4,6 @@ import { shouldSuppressPreviewEditorOpen } from '../shared/previewContextMenuSup
 import {
   findMermaidEditorTargetElement,
   isMermaidScrollbarPointerDown,
-  resolveMermaidEditorOpenMeta,
   resolveMermaidEditorPointerOpen,
 } from './mermaidEditorOpenInteraction';
 import { mermaidEditorPluginKey } from './mermaidEditorPluginKey';
@@ -16,8 +15,11 @@ function getSuppressDeadline() {
   return typeof performance !== 'undefined' ? performance.now() : Date.now();
 }
 
+const SUPPRESS_CLICK_AFTER_POINTER_OPEN_MS = 250;
+
 export const mermaidEditorPlugin = $prose(() => {
   let suppressOpenUntil = 0;
+  let suppressClickUntil = 0;
 
   const shouldIgnoreOpen = (state: MermaidEditorState | null | undefined) => {
     if (state?.isOpen) {
@@ -43,8 +45,11 @@ export const mermaidEditorPlugin = $prose(() => {
     props: {
       handleDOMEvents: {
         mousedown(view, event) {
-          if (shouldSuppressPreviewEditorOpen() && findMermaidEditorTargetElement(view, event.target)) {
+          const mermaidElement = findMermaidEditorTargetElement(view, event.target);
+
+          if (shouldSuppressPreviewEditorOpen() && mermaidElement) {
             event.preventDefault();
+            suppressClickUntil = getSuppressDeadline() + SUPPRESS_CLICK_AFTER_POINTER_OPEN_MS;
             return true;
           }
 
@@ -69,12 +74,19 @@ export const mermaidEditorPlugin = $prose(() => {
           }
 
           event.preventDefault();
+          suppressClickUntil = getSuppressDeadline() + SUPPRESS_CLICK_AFTER_POINTER_OPEN_MS;
           view.dispatch(view.state.tr.setMeta(mermaidEditorPluginKey, openRequest.meta));
           return true;
         },
       },
-      handleClick(view, pos, event) {
+      handleClick(view, _pos, event) {
         const mermaidElement = findMermaidEditorTargetElement(view, event.target);
+
+        if (getSuppressDeadline() < suppressClickUntil) {
+          event.preventDefault();
+          return true;
+        }
+
         if (!mermaidElement) {
           return false;
         }
@@ -92,16 +104,15 @@ export const mermaidEditorPlugin = $prose(() => {
           return false;
         }
 
-        const meta = resolveMermaidEditorOpenMeta({
+        const openRequest = resolveMermaidEditorPointerOpen({
           view: view as never,
-          pos,
           target: event.target,
         });
-        if (!meta) {
+        if (!openRequest) {
           return false;
         }
 
-        view.dispatch(view.state.tr.setMeta(mermaidEditorPluginKey, meta));
+        view.dispatch(view.state.tr.setMeta(mermaidEditorPluginKey, openRequest.meta));
         return true;
       },
     },
