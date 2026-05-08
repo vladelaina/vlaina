@@ -145,13 +145,25 @@ export function measureTextareaContentHeight(
   width: number,
   options: TextBlockMeasureOptions,
 ): number {
-  return measureTextBlockHeight(text, width, {
+  const hasTrailingEmptyLine = text.endsWith('\n');
+  const measuredHeight = measureTextBlockHeight(text, width, {
     ...options,
     prepareOptions: {
       whiteSpace: 'pre-wrap',
       ...options.prepareOptions,
     },
   });
+
+  if (!hasTrailingEmptyLine) {
+    return measuredHeight;
+  }
+
+  const lineHeight = Math.max(1, options.lineHeight);
+  return clampHeight(
+    measuredHeight + lineHeight,
+    options.minHeight,
+    options.maxHeight,
+  );
 }
 
 export function measureTextBlockHeight(

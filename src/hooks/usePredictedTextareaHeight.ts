@@ -11,6 +11,10 @@ interface UsePredictedTextareaHeightOptions {
   value: string;
 }
 
+export interface TextareaHeightController {
+  syncHeight: (value?: string) => void;
+}
+
 function applyFallbackHeight(
   textarea: HTMLTextAreaElement,
   minHeight: number,
@@ -24,16 +28,16 @@ function applyFallbackHeight(
 export function usePredictedTextareaHeight(
   textareaRef: RefObject<HTMLTextAreaElement | null>,
   { maxHeight, minHeight, value }: UsePredictedTextareaHeightOptions,
-): void {
+): TextareaHeightController {
   const latestOptionsRef = useRef({ maxHeight, minHeight, value });
-  const applyHeightRef = useRef<() => void>(() => {});
+  const applyHeightRef = useRef<(value?: string) => void>(() => {});
   const observerRef = useRef<ResizeObserver | null>(null);
   const observedTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useLayoutEffect(() => {
     latestOptionsRef.current = { maxHeight, minHeight, value };
 
-    const applyHeight = () => {
+    const applyHeight = (overrideValue?: string) => {
       const current = textareaRef.current;
       if (!current) {
         return;
@@ -42,8 +46,9 @@ export function usePredictedTextareaHeight(
       const {
         maxHeight: nextMaxHeight,
         minHeight: nextMinHeight,
-        value: nextValue,
+        value: measuredValue,
       } = latestOptionsRef.current;
+      const nextValue = overrideValue ?? measuredValue;
 
       if (nextMaxHeight <= 0) {
         return;
@@ -97,4 +102,8 @@ export function usePredictedTextareaHeight(
       observedTextareaRef.current = null;
     };
   }, []);
+
+  return {
+    syncHeight: (nextValue) => applyHeightRef.current(nextValue),
+  };
 }

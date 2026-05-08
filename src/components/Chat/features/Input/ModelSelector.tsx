@@ -1,4 +1,4 @@
-import { useDeferredValue, useState, useRef, useEffect, useMemo, memo, useCallback, type RefObject } from 'react'
+import { Fragment, useDeferredValue, useState, useRef, useEffect, useMemo, memo, useCallback, type RefObject } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Icon } from '@/components/ui/icons'
 import { actions as aiActions } from '@/stores/useAIStore'
@@ -13,10 +13,13 @@ import { SETTINGS_CLOSED_EVENT } from '@/components/Settings/settingsEvents'
 import {
   MODEL_FAMILIES,
   getModelCategoryId,
+  getModelFamily,
   getModelDisplayName,
   type ModelCategory,
   type ModelCategoryId,
 } from './modelFamilyRegistry'
+import { sortModelsForDisplay } from './modelSort'
+import { chatComposerPillSurfaceClass } from './composerStyles'
 
 type ModelSelectorTheme = 'chat' | 'notes'
 type ModelSelectorListRow =
@@ -104,6 +107,7 @@ const ModelOption = memo(({
     onTogglePinned,
     onHover,
     theme,
+    showFamilyIcon,
 }: { 
     model: AIModel; 
     isSelected: boolean; 
@@ -112,9 +116,11 @@ const ModelOption = memo(({
     onTogglePinned: (id: string, pinned: boolean) => void;
     onHover: (id: string) => void;
     theme: ModelSelectorTheme;
+    showFamilyIcon: boolean;
 }) => {
     const styles = MODEL_SELECTOR_THEME_STYLES[theme]
     const displayName = getModelDisplayName(model)
+    const family = getModelFamily(model)
 
     return (
         <div
@@ -133,13 +139,23 @@ const ModelOption = memo(({
                     : cn("bg-transparent", styles.optionHover)
             )}
         >
-            <span className={cn(
-                "whitespace-nowrap text-sm font-medium",
-                isSelected
-                  ? styles.optionTextActive
-                  : styles.optionText
-            )}>
-                {displayName}
+            <span className="flex min-w-0 items-center text-left">
+                {showFamilyIcon && family && (
+                    <img
+                        src={family.icon}
+                        alt=""
+                        className="mr-2 h-4 w-4 flex-shrink-0 rounded-[3px] object-contain"
+                        draggable={false}
+                    />
+                )}
+                <span className={cn(
+                    "whitespace-nowrap text-sm font-medium",
+                    isSelected
+                      ? styles.optionTextActive
+                      : styles.optionText
+                )}>
+                    {displayName}
+                </span>
             </span>
 
             <span className="ml-3 flex flex-shrink-0 items-center gap-1">
@@ -236,6 +252,7 @@ export function ModelSelector({
     return provider?.enabled === false ? undefined : model
   }, [models, providers, selectedModelId])
   const styles = MODEL_SELECTOR_THEME_STYLES[theme]
+  const selectedModelFamily = selectedModel ? getModelFamily(selectedModel) : null
 
   const enabledProviderIds = useMemo(
     () => new Set(providers.filter((provider) => provider.enabled !== false).map((provider) => provider.id)),
@@ -254,6 +271,11 @@ export function ModelSelector({
           model.apiModelId.toLowerCase().includes(term)
       );
   }, [deferredSearchQuery, enabledModels]);
+
+  const sortedFilteredModels = useMemo(
+      () => sortModelsForDisplay(filteredModels),
+      [filteredModels],
+  );
 
   const modelCategories = useMemo(() => {
       const categoryCounts = new Map<ModelCategoryId, number>();
@@ -320,11 +342,11 @@ export function ModelSelector({
       }
 
       if (visibleActiveCategoryId === 'favorites') {
-          return filteredModels.filter((model) => model.pinned);
+          return sortedFilteredModels.filter((model) => model.pinned);
       }
 
-      return filteredModels.filter((model) => getModelCategoryId(model) === visibleActiveCategoryId);
-  }, [filteredModels, visibleActiveCategoryId]);
+      return sortedFilteredModels.filter((model) => getModelCategoryId(model) === visibleActiveCategoryId);
+  }, [sortedFilteredModels, visibleActiveCategoryId]);
 
   const groupedFilteredModels = useMemo(() => {
       const providerMap = new Map(providers.map((provider) => [provider.id, provider]));
@@ -561,15 +583,15 @@ export function ModelSelector({
 
   const handleSelectCategory = useCallback((categoryId: ModelCategoryId) => {
       const firstModelId = categoryId === 'favorites'
-          ? filteredModels.find((model) => model.pinned)?.id ?? null
-          : filteredModels.find((model) => getModelCategoryId(model) === categoryId)?.id ?? null;
+          ? sortedFilteredModels.find((model) => model.pinned)?.id ?? null
+          : sortedFilteredModels.find((model) => getModelCategoryId(model) === categoryId)?.id ?? null;
       clearScrollMode();
       setActiveCategoryId(categoryId);
       setFocusedModelId(firstModelId);
       requestAnimationFrame(() => {
           virtualizer.scrollToIndex(0, { align: 'start' });
       });
-  }, [clearScrollMode, filteredModels, virtualizer]);
+  }, [clearScrollMode, sortedFilteredModels, virtualizer]);
 
   const handleListMouseLeave = useCallback(() => {
       if (isKeyboardNavigating.current) {
@@ -603,17 +625,26 @@ export function ModelSelector({
       <button
         onClick={toggleSelector}
         className={cn(
-          "flex h-9 cursor-pointer items-center gap-1.5 rounded-full px-3 transition-all group",
-          "bg-transparent border-none",
-          styles.triggerHover,
+          "flex h-8 cursor-pointer items-center gap-2 rounded-full px-2.5 transition-all duration-200 group",
+          chatComposerPillSurfaceClass,
           selectedModel ? styles.triggerTextActive : styles.triggerText
         )}
       >
-        <span className="text-sm font-medium whitespace-nowrap">
+        {selectedModelFamily ? (
+          <img
+            src={selectedModelFamily.icon}
+            alt=""
+            className="h-4 w-4 flex-shrink-0 rounded-[3px] object-contain"
+            draggable={false}
+          />
+        ) : (
+          <Icon name="misc.box" size="sm" className="flex-shrink-0 text-[var(--chat-sidebar-icon)]" />
+        )}
+        <span className="whitespace-nowrap text-sm font-medium">
           {selectedModel ? getModelDisplayName(selectedModel) : 'Select Model'}
         </span>
         <svg
-          className={cn("h-5 w-5 opacity-70 transition-transform duration-200", isOpen && "rotate-180")}
+          className={cn("h-4 w-4 flex-shrink-0 opacity-60 transition-transform duration-200", isOpen && "rotate-180")}
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
@@ -682,17 +713,18 @@ export function ModelSelector({
                   const showDividerAfter = category.kind === 'family' && modelCategories[index + 1]?.kind === 'custom';
 
                   return (
-                    <div key={category.id} className="flex w-12 justify-center">
-                      {showDividerBefore && <div className={cn("my-1 border-t", styles.divider)} />}
+                    <Fragment key={category.id}>
+                      {showDividerBefore && <div className={cn("my-1 w-10 border-t", styles.divider)} />}
+                      <div className="flex h-12 w-12 items-center justify-center">
                       <button
                         type="button"
                         aria-label={category.name}
                         onClick={() => handleSelectCategory(category.id)}
                         className={cn(
-                          "relative flex cursor-pointer items-center justify-center transition-[background-color,box-shadow,width,height,border-radius] duration-150",
+                          "relative flex h-12 w-12 cursor-pointer items-center justify-center transition-[background-color,box-shadow] duration-150",
                           isActive
-                            ? "h-12 w-12 rounded-2xl bg-[#fcfcfc] shadow-md"
-                            : cn("h-9 w-9 rounded-lg bg-transparent", styles.optionHover)
+                            ? "rounded-2xl bg-[#fcfcfc] shadow-md"
+                            : cn("rounded-2xl bg-transparent", styles.optionHover)
                         )}
                       >
                         {category.kind === 'favorites' ? (
@@ -715,8 +747,9 @@ export function ModelSelector({
                           <Icon name="misc.box" size={isActive ? 32 : "md"} className={styles.optionText} />
                         )}
                       </button>
-                      {showDividerAfter && <div className={cn("my-1 border-t", styles.divider)} />}
-                    </div>
+                      </div>
+                      {showDividerAfter && <div className={cn("my-1 w-10 border-t", styles.divider)} />}
+                    </Fragment>
                   )
                 })}
               </div>
@@ -773,6 +806,7 @@ export function ModelSelector({
                             onTogglePinned={handleTogglePinned}
                             onHover={handleHover}
                             theme={theme}
+                            showFamilyIcon={visibleActiveCategoryId === 'favorites'}
                           />
                         )}
                       </div>

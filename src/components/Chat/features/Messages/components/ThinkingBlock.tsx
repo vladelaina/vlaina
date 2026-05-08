@@ -29,8 +29,6 @@ export function ThinkingBlock({
   const observedContentRef = useRef<HTMLDivElement | null>(null);
   const syncContentHeightRef = useRef<() => void>(() => {});
 
-  const finishedThinking = !activelyThinking;
-
   syncContentHeightRef.current = () => {
     if (contentRef.current) {
       setContentHeight(contentRef.current.scrollHeight);

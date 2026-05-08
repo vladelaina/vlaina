@@ -303,7 +303,7 @@ export const ChatInput = memo(function ChatInput({
             onBlur={handleCaretBlur}
             onPaste={handleTextareaPaste}
             onScroll={(e) => setTextareaScrollTop(e.currentTarget.scrollTop)}
-            placeholder={!hasSelectedModel ? 'Select a model...' : isLoading ? 'Type to interrupt...' : 'Message...'}
+            placeholder={!hasSelectedModel ? 'Select a model...' : isLoading ? 'Type to interrupt...' : 'Tell me something...'}
             mentionPreviewParts={mentionPreviewParts}
             textareaScrollTop={textareaScrollTop}
             onRemoveMention={removeNoteMention}

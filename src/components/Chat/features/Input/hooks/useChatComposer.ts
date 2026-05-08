@@ -32,6 +32,7 @@ export function useChatComposer({
   const hasExplicitMultilineRef = useRef(false);
   const focusRafRef = useRef<number | null>(null);
   const submitRafRef = useRef<number | null>(null);
+  const heightSyncRafRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (focusTrigger && textareaRef.current) {
@@ -106,10 +107,14 @@ export function useChatComposer({
         cancelAnimationFrame(submitRafRef.current);
         submitRafRef.current = null;
       }
+      if (heightSyncRafRef.current !== null) {
+        cancelAnimationFrame(heightSyncRafRef.current);
+        heightSyncRafRef.current = null;
+      }
     };
   }, []);
 
-  usePredictedTextareaHeight(textareaRef, {
+  const textareaHeight = usePredictedTextareaHeight(textareaRef, {
     value: message,
     minHeight: 24,
     maxHeight: 320,
@@ -176,6 +181,13 @@ export function useChatComposer({
 
       if (e.key === 'Enter' && e.shiftKey) {
         hasExplicitMultilineRef.current = true;
+        if (heightSyncRafRef.current !== null) {
+          cancelAnimationFrame(heightSyncRafRef.current);
+        }
+        heightSyncRafRef.current = requestAnimationFrame(() => {
+          heightSyncRafRef.current = null;
+          textareaHeight.syncHeight(textareaRef.current?.value);
+        });
         return;
       }
 
@@ -189,7 +201,7 @@ export function useChatComposer({
         handleSend();
       }
     },
-    [handleSend, isComposing]
+    [handleSend, isComposing, textareaHeight]
   );
 
   return {

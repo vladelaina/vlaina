@@ -79,7 +79,7 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
     }
 
     if (canDisableTemporaryChat) {
-      aiActions.toggleTemporaryChat(false);
+      aiActions.openNewChat();
       return;
     }
   };
