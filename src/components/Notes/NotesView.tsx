@@ -3,6 +3,7 @@ import { AnimatePresence } from 'framer-motion';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useUIStore } from '@/stores/uiSlice';
+import { useToastStore } from '@/stores/useToastStore';
 import { ResizablePanel } from '@/components/layout/ResizablePanel';
 import { ModuleShortcutsDialog } from '@/components/common/ModuleShortcutsDialog';
 import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
@@ -61,6 +62,8 @@ export function NotesView({ active = true }: { active?: boolean }) {
   const cancelPendingDraftDiscard = useNotesStore(s => s.cancelPendingDraftDiscard);
   const confirmPendingDraftDiscard = useNotesStore(s => s.confirmPendingDraftDiscard);
   const getDisplayName = useNotesStore(s => s.getDisplayName);
+  const notesError = useNotesStore(s => s.error);
+  const addToast = useToastStore(s => s.addToast);
 
   const currentVault = useVaultStore((state) => state.currentVault);
   const openVault = useVaultStore((state) => state.openVault);
@@ -77,6 +80,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
   const hasHandledLaunchNoteRef = useRef(false);
   const autoCreateBlankNoteRef = useRef(false);
   const hasPresentedNoteRef = useRef(false);
+  const lastPresentedNotesErrorRef = useRef<string | null>(null);
   const autoCreateVaultPathRef = useRef<string | null>(currentVault?.path ?? null);
   const vaultInitializingRef = useRef(false);
   const consumedPendingStarredNavigationKeyRef = useRef<string | null>(null);
@@ -117,6 +121,21 @@ export function NotesView({ active = true }: { active?: boolean }) {
   });
 
   useModuleShortcutsDialog({ enabled: active, onToggle: toggleShortcutsDialog });
+
+  useEffect(() => {
+    if (!notesError) {
+      lastPresentedNotesErrorRef.current = null;
+      return;
+    }
+
+    if (!active || lastPresentedNotesErrorRef.current === notesError) {
+      return;
+    }
+
+    lastPresentedNotesErrorRef.current = notesError;
+    addToast(notesError, 'error', 4500);
+  }, [active, addToast, notesError]);
+
   const activeVaultPath = active ? currentVault?.path ?? null : null;
   useCurrentVaultExternalPathSync(activeVaultPath);
   useNotesExternalSync(activeVaultPath, active ? notesPath : '');

@@ -18,7 +18,6 @@ import { resolveUniquePath } from '../utils/fs/pathOperations';
 import { invalidatePendingFileTreeLoads } from './fileSystemSliceTreeActions';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 import {
-  compareLineBreakText,
   logLineBreakDebug,
   logNotesDebug,
   summarizeLineBreakText,

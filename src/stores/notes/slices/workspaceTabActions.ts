@@ -154,6 +154,7 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
           (stateAfterSave.currentNote?.path === path && stateAfterSave.isDirty) ||
           latestTab?.isDirty
         ) {
+          set({ error: 'Save the note before closing it.' });
           return;
         }
       }
@@ -251,6 +252,7 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
             path,
             isDirtyAfterSave: get().isDirty,
           });
+          set({ error: 'Save the note before closing it.' });
           return;
         }
       }
@@ -334,6 +336,7 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
           currentNotePath: latestBeforeClose.currentNote?.path ?? null,
           isDirty: latestBeforeClose.isDirty,
         });
+        set({ error: 'Save the note before closing it.' });
         return;
       }
       const updatedTabs = tabsBeforeClose.filter((t) => t.path !== path);

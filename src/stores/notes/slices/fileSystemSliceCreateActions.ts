@@ -41,9 +41,6 @@ async function ensureCurrentNoteSaved(get: FileSystemSliceGet, options?: { skipD
   }
 
   await state.saveNote();
-  if (get().isDirty) {
-    throw new Error('Failed to save current note before creating a new note');
-  }
 
   return get();
 }
