@@ -29,5 +29,5 @@ export const EXTRA_BUTTONS: ToolbarButtonConfig[] = [
 
 export const TOOLBAR_LAYOUTS: Record<ToolbarLayout, ToolbarGroupKey[]> = {
   default: ['ai', 'block', 'alignment', 'format', 'linkColor', 'copyDelete'],
-  codeBlock: ['ai', 'block', 'copyDelete'],
+  codeBlock: ['block', 'copyDelete'],
 };

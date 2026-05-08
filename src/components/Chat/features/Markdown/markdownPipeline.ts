@@ -1,6 +1,7 @@
 import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
+import 'katex/contrib/mhchem';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import remarkCitationParser from '@/lib/ai/plugins/remarkCitationParser';

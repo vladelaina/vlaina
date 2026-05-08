@@ -1,6 +1,19 @@
 import katex from 'katex';
+import 'katex/contrib/mhchem';
 
 const MAX_LATEX_CHARS = 10000;
+const KATEX_RENDER_OPTIONS = {
+  throwOnError: true,
+  strict: false,
+  trust: false,
+  macros: {
+    '\\R': '\\mathbb{R}',
+    '\\N': '\\mathbb{N}',
+    '\\Z': '\\mathbb{Z}',
+    '\\Q': '\\mathbb{Q}',
+    '\\C': '\\mathbb{C}',
+  },
+} as const;
 
 export interface MathRenderErrorDetails {
   rawMessage: string;
@@ -183,17 +196,8 @@ export function renderLatex(latex: string, displayMode: boolean): RenderResult {
 
   try {
     const html = katex.renderToString(latex, {
+      ...KATEX_RENDER_OPTIONS,
       displayMode,
-      throwOnError: true,
-      strict: false,
-      trust: false,
-      macros: {
-        '\\R': '\\mathbb{R}',
-        '\\N': '\\mathbb{N}',
-        '\\Z': '\\mathbb{Z}',
-        '\\Q': '\\mathbb{Q}',
-        '\\C': '\\mathbb{C}',
-      },
     });
     return { html, error: null, errorDetails: null };
   } catch (err) {
@@ -216,7 +220,10 @@ export function isValidLatex(latex: string): boolean {
   }
 
   try {
-    katex.renderToString(latex, { throwOnError: true });
+    katex.renderToString(latex, {
+      ...KATEX_RENDER_OPTIONS,
+      displayMode: true,
+    });
     return true;
   } catch {
     return false;
