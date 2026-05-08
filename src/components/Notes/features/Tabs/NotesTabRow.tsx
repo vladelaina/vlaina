@@ -5,7 +5,6 @@ import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ShortcutKeys } from '@/components/ui/shortcut-keys';
-import { NoteIcon } from '@/components/Notes/features/IconPicker/NoteIcon';
 import { useNoteLabelDescriptor } from '../common/noteDisambiguation';
 import {
   DndContext,
@@ -24,42 +23,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { resolveSiblingNoteParentPath } from '@/stores/notes/notePathState';
 import { NotesDragOverlay } from '../common/NotesDragOverlay';
-
-interface TabContentProps {
-  tab: { path: string; name: string; isDirty: boolean };
-  isActive: boolean;
-  icon?: string;
-  title: string;
-  disambiguation?: string | null;
-}
-
-function TabContent({ tab, isActive, icon, title, disambiguation }: TabContentProps) {
-  return (
-    <>
-      {icon ? (
-        <span className="pointer-events-none flex-shrink-0">
-          <NoteIcon icon={icon} notePath={tab.path} size="md" />
-        </span>
-      ) : (
-        <Icon
-          name="file.text"
-          className="pointer-events-none h-[18px] w-[18px] flex-shrink-0 text-[var(--notes-sidebar-file-icon)]"
-        />
-      )}
-
-      <span className={cn('pointer-events-none truncate text-[13px] text-current', isActive && 'font-medium')}>
-        {title}
-        {disambiguation ? (
-          <span className="text-[11px] text-current/65">{` · ${disambiguation}`}</span>
-        ) : null}
-      </span>
-
-      {tab.isDirty && (
-        <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[var(--vlaina-accent)] pointer-events-none" />
-      )}
-    </>
-  );
-}
+import { NoteTabContent } from './NoteTabContent';
 
 interface SortableTabProps {
   tab: { path: string; name: string; isDirty: boolean };
@@ -135,7 +99,13 @@ const SortableTab = memo(function SortableTab({
           {showSeparator && (
             <div className="absolute left-0 top-1/2 h-[18px] w-px -translate-y-1/2 bg-zinc-200 dark:bg-zinc-700" />
           )}
-          <TabContent tab={tab} isActive={isActive} icon={icon} title={title} disambiguation={disambiguation} />
+          <NoteTabContent
+            tab={tab}
+            isActive={isActive}
+            icon={icon}
+            title={title}
+            disambiguation={disambiguation}
+          />
 
           <button
             type="button"
@@ -184,7 +154,13 @@ function TabOverlay({ tab, isActive }: TabOverlayProps) {
         isActive ? 'text-zinc-800 dark:text-zinc-100' : 'text-zinc-500 dark:text-zinc-400'
       )}
     >
-      <TabContent tab={tab} isActive={isActive} icon={icon} title={title} disambiguation={disambiguation} />
+      <NoteTabContent
+        tab={tab}
+        isActive={isActive}
+        icon={icon}
+        title={title}
+        disambiguation={disambiguation}
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { moveVaultSystemStore } from '@/stores/notes/systemStoragePaths';
 import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
 import { markExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
 import { suspendExternalSync } from '@/stores/notes/document/externalSyncControl';
+import { saveAutoSaveableDrafts } from '@/stores/notes/autoSaveableDrafts';
 import { saveDirtyRegularOpenTabs } from '@/stores/notes/dirtyOpenTabs';
 import { hasDraftUnsavedChanges, isDraftNotePath } from '@/stores/notes/draftNote';
 import type { MetadataFile, NotesStore } from '@/stores/notes/types';
@@ -122,6 +123,11 @@ function hasUnsavedDraftTabs(): boolean {
 async function prepareNotesForVaultExit(
   options: { blockUnsavedDrafts?: boolean } = {},
 ): Promise<{ ok: true } | { ok: false; error: string }> {
+  const savedAutoSaveableDrafts = await saveAutoSaveableDrafts();
+  if (!savedAutoSaveableDrafts) {
+    return { ok: false, error: 'Failed to save pending draft changes' };
+  }
+
   const savedDirtyTabs = await saveDirtyRegularOpenTabs();
   const notesState = useNotesStore.getState();
   const hasDirtyRegularTabs = notesState.openTabs.some(
