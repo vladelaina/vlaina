@@ -111,8 +111,9 @@ describe('EditorTopRightToolbar', () => {
     expect(toggleStarred).toHaveBeenCalledWith('/other/docs/alpha.md');
   });
 
-  it('hides the star button for unstarred external notes outside the current vault', () => {
-    const { queryByRole } = render(
+  it('shows the add-star button for unstarred external notes outside the current vault', () => {
+    const toggleStarred = vi.fn();
+    const { getByRole } = render(
       <EditorTopRightToolbar
         editorFind={createEditorFindController()}
         currentNotePath="/other/docs/alpha.md"
@@ -120,13 +121,15 @@ describe('EditorTopRightToolbar', () => {
         currentNoteTitle="Alpha"
         notesPath="/vault"
         starred={false}
-        toggleStarred={vi.fn()}
+        toggleStarred={toggleStarred}
         currentNoteMetadata={undefined}
         textStats={{ lineCount: 1, wordCount: 2, characterCount: 3 }}
       />,
     );
 
-    expect(queryByRole('button', { name: 'Add to Starred' })).toBeNull();
+    fireEvent.click(getByRole('button', { name: 'Add to Starred' }));
+
+    expect(toggleStarred).toHaveBeenCalledWith('/other/docs/alpha.md');
   });
 
   it('exports the current toolbar note path when the store note is stale', async () => {

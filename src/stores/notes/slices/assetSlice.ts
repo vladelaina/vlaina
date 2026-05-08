@@ -6,8 +6,10 @@ import { getBuiltinCovers, toBuiltinAssetPath } from '@/lib/assets/builtinCovers
 import { useUIStore } from '@/stores/uiSlice';
 import { clearImageCache } from '@/lib/assets';
 import { resolveEffectiveVaultPath } from '../effectiveVaultPath';
+import { logNotesDebugAlways } from '../lineBreakDebugLog';
 
 let uploadProgressResetTimer: ReturnType<typeof setTimeout> | null = null;
+const loadAssetsInFlight = new Map<string, Promise<void>>();
 
 function clearUploadProgressResetTimer() {
   if (uploadProgressResetTimer === null) {
@@ -23,6 +25,40 @@ function isActiveUploadVault(state: NotesStore, vaultPath: string) {
     notesPath: state.notesPath,
     currentNotePath: state.currentNote?.path,
   }) === vaultPath;
+}
+
+function logCoverAsset(scope: string, payload?: unknown) {
+  logNotesDebugAlways('NotesCoverAsset', scope, payload);
+}
+
+function summarizeAssetFilenames(assets: AssetEntry[]) {
+  const filenames = assets.map((asset) => asset.filename);
+  return {
+    count: filenames.length,
+    first: filenames.slice(0, 12),
+    remaining: Math.max(0, filenames.length - 12),
+  };
+}
+
+function getAssetConfig() {
+  const uiState = useUIStore.getState();
+  return {
+    storageMode: uiState.imageStorageMode,
+    subfolderName: uiState.imageSubfolderName,
+    imageVaultSubfolderName: uiState.imageVaultSubfolderName,
+    filenameFormat: uiState.imageFilenameFormat,
+  };
+}
+
+function getLoadAssetsKey(vaultPath: string, currentNotePath: string | undefined, config: ReturnType<typeof getAssetConfig>) {
+  return JSON.stringify({
+    vaultPath,
+    currentNotePath: currentNotePath ?? '',
+    storageMode: config.storageMode,
+    subfolderName: config.subfolderName,
+    imageVaultSubfolderName: config.imageVaultSubfolderName,
+    filenameFormat: config.filenameFormat,
+  });
 }
 
 export interface AssetSlice {
@@ -44,12 +80,37 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
   uploadProgress: null,
 
   loadAssets: async (vaultPath: string) => {
-    clearImageCache();
+    const currentNotePath = get().currentNote?.path;
+    const config = getAssetConfig();
+    const loadKey = getLoadAssetsKey(vaultPath, currentNotePath, config);
+    const existingLoad = loadAssetsInFlight.get(loadKey);
+    if (existingLoad) {
+      logCoverAsset('load-assets:coalesced', { vaultPath, currentNotePath });
+      await existingLoad;
+      return;
+    }
 
-    set({ isLoadingAssets: true });
+    const loadPromise = (async () => {
+      logCoverAsset('load-assets:start', { vaultPath, currentNotePath });
 
-    try {
-      const assets: AssetEntry[] = [];
+      set({ isLoadingAssets: true });
+
+      try {
+      const context = {
+        vaultPath,
+        currentNotePath,
+      };
+
+      let assets: AssetEntry[] = [];
+      try {
+        assets = await AssetService.list(context, config);
+      } catch (error) {
+        logCoverAsset('load-assets:user-assets-error', {
+          vaultPath,
+          currentNotePath,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
 
       const builtinCovers = getBuiltinCovers();
       for (const cover of builtinCovers) {
@@ -69,33 +130,45 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
         return b.filename.localeCompare(a.filename);
       });
 
-      if (get().notesPath !== vaultPath) {
-        return;
-      }
-
       set({ assetList: assets, isLoadingAssets: false });
+      logCoverAsset('load-assets:done', {
+        ...summarizeAssetFilenames(assets),
+      });
     } catch (error) {
       console.error('Failed to load assets:', error);
-      if (get().notesPath !== vaultPath) {
-        return;
-      }
+      logCoverAsset('load-assets:error', {
+        message: error instanceof Error ? error.message : String(error),
+      });
       set({ assetList: [], isLoadingAssets: false });
+    }
+    })();
+
+    loadAssetsInFlight.set(loadKey, loadPromise);
+    try {
+      await loadPromise;
+    } finally {
+      if (loadAssetsInFlight.get(loadKey) === loadPromise) {
+        loadAssetsInFlight.delete(loadKey);
+      }
     }
   },
 
   uploadAsset: async (file: File, currentNotePath?: string): Promise<UploadResult> => {
     const { notesPath, assetList } = get();
-    const uiState = useUIStore.getState();
-
-    const config = {
-      storageMode: uiState.imageStorageMode,
-      subfolderName: uiState.imageSubfolderName,
-      imageVaultSubfolderName: uiState.imageVaultSubfolderName,
-      filenameFormat: uiState.imageFilenameFormat,
-    };
+    const config = getAssetConfig();
 
     const vaultPath = resolveEffectiveVaultPath({ notesPath, currentNotePath });
+    logCoverAsset('upload:start', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      notesPath,
+      currentNotePath,
+      resolvedVaultPath: vaultPath,
+      config,
+    });
     if (!vaultPath) {
+      logCoverAsset('upload:missing-vault');
       return {
         success: false,
         path: null,
@@ -124,9 +197,24 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
           }
         }
       );
+      logCoverAsset('upload:result', result);
 
       if (!isActiveUploadVault(get(), vaultPath)) {
+        logCoverAsset('upload:stale-vault', {
+          uploadVaultPath: vaultPath,
+          activeNotesPath: get().notesPath,
+          activeCurrentNotePath: get().currentNote?.path,
+        });
         return result;
+      }
+
+      if (result.success && result.entry) {
+        set((state) => ({
+          assetList: [
+            result.entry!,
+            ...state.assetList.filter((asset) => asset.filename !== result.entry!.filename),
+          ],
+        }));
       }
 
       uploadProgressResetTimer = setTimeout(() => {
@@ -143,6 +231,9 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
         set({ uploadProgress: null });
       }
       console.error('Failed to upload asset:', error);
+      logCoverAsset('upload:error', {
+        message: error instanceof Error ? error.message : String(error),
+      });
       return {
         success: false,
         path: null,

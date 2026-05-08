@@ -662,6 +662,23 @@ describe('featureSlice starred path resolution', () => {
     expect(store.getState().starredEntries).toEqual([]);
   });
 
+  it('creates external starred entries for absolute notes when no vault is open', () => {
+    const store = createNotesStore({
+      notesPath: '',
+      starredEntries: [],
+      starredNotes: [],
+    });
+
+    store.getState().toggleStarred('/other/docs/alpha.md');
+
+    expect(store.getState().starredEntries[0]).toMatchObject({
+      kind: 'note',
+      vaultPath: '/other/docs',
+      relativePath: 'alpha.md',
+    });
+    expect(store.getState().starredNotes).toEqual([]);
+  });
+
   it('removes duplicate starred entries for the same external absolute note path', () => {
     const store = createNotesStore({
       notesPath: '/vault',
@@ -689,7 +706,7 @@ describe('featureSlice starred path resolution', () => {
     expect(store.getState().starredEntries).toEqual([]);
   });
 
-  it('does not create starred entries for absolute notes outside the current vault', () => {
+  it('creates external starred entries for absolute notes outside the current vault', () => {
     const store = createNotesStore({
       notesPath: '/vault',
       starredEntries: [],
@@ -698,7 +715,11 @@ describe('featureSlice starred path resolution', () => {
 
     store.getState().toggleStarred('/other/docs/alpha.md');
 
-    expect(store.getState().starredEntries).toEqual([]);
+    expect(store.getState().starredEntries[0]).toMatchObject({
+      kind: 'note',
+      vaultPath: '/other/docs',
+      relativePath: 'alpha.md',
+    });
     expect(store.getState().starredNotes).toEqual([]);
   });
 });

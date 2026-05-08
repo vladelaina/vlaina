@@ -1,21 +1,60 @@
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
-import { loadImageAsBlob } from '@/lib/assets/io/reader';
+import { loadImageThumbnailAsBlob } from '@/lib/assets/io/reader';
 import { resolveVaultAssetPath } from '@/lib/assets/core/paths';
 import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
+
+const MAX_CONCURRENT_THUMBNAIL_LOADS = 3;
+
+interface ThumbnailLoadJob {
+  cancelled: boolean;
+  run: () => Promise<void>;
+}
+
+const thumbnailLoadQueue: ThumbnailLoadJob[] = [];
+let activeThumbnailLoads = 0;
+
+function drainThumbnailLoadQueue() {
+  while (activeThumbnailLoads < MAX_CONCURRENT_THUMBNAIL_LOADS) {
+    const job = thumbnailLoadQueue.shift();
+    if (!job) return;
+    if (job.cancelled) continue;
+
+    activeThumbnailLoads += 1;
+    void job.run()
+      .catch(() => undefined)
+      .finally(() => {
+        activeThumbnailLoads = Math.max(0, activeThumbnailLoads - 1);
+        drainThumbnailLoadQueue();
+      });
+  }
+}
+
+function enqueueThumbnailLoad(run: () => Promise<void>) {
+  const job: ThumbnailLoadJob = {
+    cancelled: false,
+    run,
+  };
+  thumbnailLoadQueue.push(job);
+  drainThumbnailLoadQueue();
+  return () => {
+    job.cancelled = true;
+  };
+}
 
 interface AssetThumbnailProps {
   filename: string;
   size: number;
   vaultPath: string;
+  currentNotePath?: string;
   onSelect: () => void;
   isHovered: boolean;
   compact?: boolean;
 }
 
 export const AssetThumbnail = memo(function AssetThumbnail({
-  filename, size, vaultPath, onSelect, isHovered, compact
+  filename, size, vaultPath, currentNotePath, onSelect, isHovered, compact
 }: AssetThumbnailProps) {
   const [src, setSrc] = useState<string | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -25,6 +64,7 @@ export const AssetThumbnail = memo(function AssetThumbnail({
 
   useEffect(() => {
     const currentMountId = ++mountIdRef.current;
+    let cancelQueuedLoad: (() => void) | null = null;
 
     setSrc(null);
     setIsLoaded(false);
@@ -32,37 +72,52 @@ export const AssetThumbnail = memo(function AssetThumbnail({
 
     if (!imgRef.current) return;
 
-    const observer = new IntersectionObserver(
-      async (entries) => {
-        if (entries[0].isIntersecting) {
-          try {
-            if (isBuiltinCover(filename)) {
-              if (mountIdRef.current === currentMountId) {
-                setSrc(getBuiltinCoverUrl(filename));
-              }
-            } else if (vaultPath) {
-              const fullPath = await resolveVaultAssetPath(vaultPath, filename);
-              const blobUrl = await loadImageAsBlob(fullPath);
-
-              if (mountIdRef.current === currentMountId) {
-                setSrc(blobUrl);
-              }
-            }
-          } catch (error) {
-            console.error('Failed to load thumbnail:', filename, error);
+    const loadThumbnail = async () => {
+      try {
+        if (isBuiltinCover(filename)) {
+          if (mountIdRef.current === currentMountId) {
+            setSrc(getBuiltinCoverUrl(filename));
           }
+        } else if (vaultPath) {
+          const fullPath = await resolveVaultAssetPath(vaultPath, filename, currentNotePath);
+          const blobUrl = await loadImageThumbnailAsBlob(fullPath);
+
+          if (mountIdRef.current === currentMountId) {
+            setSrc(blobUrl);
+          }
+        }
+      } catch (error) {
+        if (mountIdRef.current === currentMountId) {
+          setHasError(true);
+        }
+        console.error('Failed to load thumbnail:', filename, error);
+      }
+    };
+
+    if (typeof IntersectionObserver === 'undefined') {
+      cancelQueuedLoad = enqueueThumbnailLoad(loadThumbnail);
+      return () => {
+        cancelQueuedLoad?.();
+      };
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          cancelQueuedLoad = enqueueThumbnailLoad(loadThumbnail);
           observer.disconnect();
         }
       },
-      { threshold: 0.1 }
+      { rootMargin: '80px', threshold: 0.01 }
     );
 
     observer.observe(imgRef.current);
 
     return () => {
+      cancelQueuedLoad?.();
       observer.disconnect();
     };
-  }, [filename, vaultPath]);
+  }, [currentNotePath, filename, vaultPath]);
 
   const handleImageError = useCallback(() => {
     setHasError(true);

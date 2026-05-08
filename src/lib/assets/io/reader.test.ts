@@ -5,6 +5,7 @@ import {
   invalidateImageCache,
   loadImageAsBase64,
   loadImageAsBlob,
+  loadImageThumbnailAsBlob,
 } from './reader';
 
 const hoisted = vi.hoisted(() => ({
@@ -47,6 +48,15 @@ describe('asset image reader cache', () => {
 
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test-url');
     expect(getCachedBlobUrl('/vault/assets/cover.png')).toBeUndefined();
+  });
+
+  it('reuses cached full image blobs even when file metadata is unavailable', async () => {
+    vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:unvalidated-url');
+
+    await expect(loadImageAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:unvalidated-url');
+    await expect(loadImageAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:unvalidated-url');
+
+    expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(1);
   });
 
   it('reloads and revokes a cached blob URL when file metadata changes', async () => {
@@ -129,5 +139,76 @@ describe('asset image reader cache', () => {
     expect(decoded).toContain('<svg');
     expect(decoded).toContain('<text>ok</text>');
     expect(decoded).not.toContain('<script');
+  });
+
+  it('caches generated thumbnails by file metadata without rereading the image', async () => {
+    hoisted.stat.mockResolvedValue({ modifiedAt: 1, size: 3 });
+    vi.mocked(URL.createObjectURL)
+      .mockReturnValueOnce('blob:source-url')
+      .mockReturnValueOnce('blob:thumb-url');
+    const originalImage = globalThis.Image;
+    const originalCreateElement = document.createElement.bind(document);
+    vi.stubGlobal('Image', class {
+      naturalWidth = 640;
+      naturalHeight = 320;
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      set src(_value: string) {
+        queueMicrotask(() => this.onload?.());
+      }
+    });
+    vi.spyOn(document, 'createElement').mockImplementation((tagName, options) => {
+      if (tagName === 'canvas') {
+        return {
+          width: 0,
+          height: 0,
+          getContext: () => ({ drawImage: vi.fn() }),
+          toBlob: (callback: (blob: Blob | null) => void) => callback(new Blob(['thumb'], { type: 'image/webp' })),
+        } as unknown as HTMLCanvasElement;
+      }
+      return originalCreateElement(tagName, options);
+    });
+
+    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:thumb-url');
+    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:thumb-url');
+
+    expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(1);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:source-url');
+    vi.stubGlobal('Image', originalImage);
+  });
+
+  it('reuses cached thumbnails when file metadata is unavailable', async () => {
+    hoisted.readBinaryFile.mockResolvedValueOnce(encodeTextBytes('<svg xmlns="http://www.w3.org/2000/svg" />'));
+    vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:thumb-svg-url');
+
+    await expect(loadImageThumbnailAsBlob('/vault/assets/icon.svg')).resolves.toBe('blob:thumb-svg-url');
+    await expect(loadImageThumbnailAsBlob('/vault/assets/icon.svg')).resolves.toBe('blob:thumb-svg-url');
+
+    expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(1);
+  });
+
+  it('coalesces concurrent thumbnail reads for the same file metadata', async () => {
+    hoisted.stat.mockResolvedValue({ modifiedAt: 1, size: 48 });
+    let resolveRead: ((bytes: Uint8Array<ArrayBuffer>) => void) | undefined;
+    hoisted.readBinaryFile.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveRead = resolve;
+    }));
+    vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:coalesced-svg-url');
+
+    const firstLoad = loadImageThumbnailAsBlob('/vault/assets/icon.svg');
+    const secondLoad = loadImageThumbnailAsBlob('/vault/assets/icon.svg');
+
+    await Promise.resolve();
+    await Promise.resolve();
+    if (!resolveRead) {
+      throw new Error('thumbnail read did not start');
+    }
+    resolveRead(encodeTextBytes('<svg xmlns="http://www.w3.org/2000/svg" />'));
+
+    await expect(Promise.all([firstLoad, secondLoad])).resolves.toEqual([
+      'blob:coalesced-svg-url',
+      'blob:coalesced-svg-url',
+    ]);
+    expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(1);
   });
 });

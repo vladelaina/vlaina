@@ -9,13 +9,21 @@ export {
   type StarredRegistry,
 } from './registry';
 export {
+  createStarredEntryFromAbsoluteNotePath,
+  findStarredEntryByPath,
+  getStarredEntryAbsolutePath,
+  getStarredNoteDisplayPath,
+  isStarredEntryForPath,
+  resolveStarredNoteContext,
+  type StarredNoteContext,
+} from './entryPaths';
+export {
   normalizeStarredRelativePath,
   normalizeStarredVaultPath,
   resolveStarredRelativePathForVault,
 } from './pathUtils';
 export { flushStarredRegistry, loadStarredRegistry, saveStarredRegistry } from './persistence';
 export {
-  findStarredEntryByPath,
   loadStarredForVault,
   removeStarredEntryById,
   toggleStarredEntry,

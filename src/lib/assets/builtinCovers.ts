@@ -11,9 +11,6 @@ const BUILTIN_COVERS: BuiltinCover[] = [
   { id: 'monet/5', path: 'Claude Monet/5.webp' },
   { id: 'biva/1', path: 'Henri Biva/1.webp' },
   { id: 'biva/2', path: 'Henri Biva/2.webp' },
-  { id: 'biva/3', path: 'Henri Biva/3.webp' },
-  { id: 'biva/4', path: 'Henri Biva/4.webp' },
-  { id: 'biva/5', path: 'Henri Biva/5.webp' },
 ];
 
 const COVER_BY_ID = new Map(BUILTIN_COVERS.map(c => [c.id, c]));

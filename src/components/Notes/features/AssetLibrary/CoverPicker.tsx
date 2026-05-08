@@ -7,7 +7,13 @@ import { UploadZone } from './UploadZone';
 import { EmptyState } from './EmptyState';
 import { CoverPickerProps, CoverPickerTab } from './types';
 import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover';
+import { logNotesDebugAlways } from '@/stores/notes/lineBreakDebugLog';
 
+function logCoverPicker(scope: string, payload?: unknown) {
+  logNotesDebugAlways('NotesCoverPicker', scope, payload);
+}
+
+const COVER_PREVIEW_DELAY_MS = 180;
 
 export function CoverPicker({
   isOpen,
@@ -29,6 +35,8 @@ export function CoverPicker({
   const mountedRef = useRef(true);
   const isOpenRef = useRef(isOpen);
   const removeTriggeredRef = useRef(false);
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestPreviewAssetRef = useRef<string | null>(null);
 
   const hasAssets = assetList.length > 0;
 
@@ -37,6 +45,10 @@ export function CoverPicker({
     return () => {
       mountedRef.current = false;
       uploadingRef.current = false;
+      if (previewTimerRef.current) {
+        clearTimeout(previewTimerRef.current);
+        previewTimerRef.current = null;
+      }
     };
   }, []);
 
@@ -45,11 +57,17 @@ export function CoverPicker({
     if (!isOpen) {
       uploadingRef.current = false;
       removeTriggeredRef.current = false;
+      latestPreviewAssetRef.current = null;
+      if (previewTimerRef.current) {
+        clearTimeout(previewTimerRef.current);
+        previewTimerRef.current = null;
+      }
     }
   }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && vaultPath) {
+      logCoverPicker('load-assets', { vaultPath, currentNotePath });
       loadAssets(vaultPath);
     } else if (!isOpen) {
       const timer = setTimeout(() => {
@@ -58,19 +76,43 @@ export function CoverPicker({
       }, 200);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, vaultPath, loadAssets]);
+  }, [currentNotePath, isOpen, vaultPath, loadAssets]);
 
   const handleAssetSelect = useCallback((assetPath: string) => {
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+    latestPreviewAssetRef.current = null;
+    logCoverPicker('asset-select', { assetPath, currentNotePath, vaultPath });
     onSelect(assetPath);
-  }, [onSelect]);
+  }, [currentNotePath, onSelect, vaultPath]);
 
   const handleAssetHover = useCallback((assetPath: string | null) => {
-    onPreview?.(assetPath);
+    latestPreviewAssetRef.current = assetPath;
+    if (previewTimerRef.current) {
+      clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = null;
+    }
+
+    if (!assetPath) {
+      onPreview?.(null);
+      return;
+    }
+
+    previewTimerRef.current = setTimeout(() => {
+      previewTimerRef.current = null;
+      if (latestPreviewAssetRef.current === assetPath) {
+        onPreview?.(assetPath);
+      }
+    }, COVER_PREVIEW_DELAY_MS);
   }, [onPreview]);
 
   const handleUploadComplete = useCallback((assetPath: string) => {
+    logCoverPicker('upload-complete', { assetPath, currentNotePath, vaultPath });
     onSelect(assetPath);
-  }, [onSelect]);
+    logCoverPicker('upload-complete:selected', { assetPath, currentNotePath, vaultPath });
+  }, [currentNotePath, onSelect, vaultPath]);
 
   const handleSwitchToUpload = useCallback(() => {
     setActiveTab('upload');
@@ -109,18 +151,37 @@ export function CoverPicker({
           if (file) {
             uploadingRef.current = true;
             setIsUploading(true);
+            logCoverPicker('paste-upload:start', {
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              currentNotePath,
+              vaultPath,
+            });
 
-            const result = await uploadAsset(file, currentNotePath);
+            try {
+              const result = await uploadAsset(file, currentNotePath);
+              logCoverPicker('paste-upload:result', result);
 
-            if (!mountedRef.current || !isOpenRef.current) {
-              return;
-            }
-
-            uploadingRef.current = false;
-            setIsUploading(false);
-
-            if (result.success && result.path) {
-              onSelect(result.path);
+              if (mountedRef.current && isOpenRef.current && result.success && result.path) {
+                logCoverPicker('paste-upload:select', {
+                  assetPath: result.path,
+                  currentNotePath,
+                  vaultPath,
+                });
+                onSelect(result.path);
+                logCoverPicker('paste-upload:selected', {
+                  assetPath: result.path,
+                  currentNotePath,
+                  vaultPath,
+                });
+              }
+            } finally {
+              logCoverPicker('paste-upload:cleanup');
+              uploadingRef.current = false;
+              if (mountedRef.current && isOpenRef.current) {
+                setIsUploading(false);
+              }
             }
           }
           break;
@@ -198,6 +259,7 @@ export function CoverPicker({
                 onSelect={handleAssetSelect}
                 onHover={handleAssetHover}
                 vaultPath={vaultPath}
+                currentNotePath={currentNotePath}
                 compact
                 category="builtinCovers"
               />

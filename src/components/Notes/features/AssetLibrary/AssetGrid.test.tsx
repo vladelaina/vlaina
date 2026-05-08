@@ -1,18 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import type { ReactNode } from 'react';
 import { AssetGrid } from './AssetGrid';
 
+let virtualRowsLimit: number | null = null;
 const measureMock = vi.fn();
 const mockGridRef = { current: null as HTMLDivElement | null };
 const getAssetListMock = vi.fn();
 const loadAssetsMock = vi.fn();
-const deleteAssetMock = vi.fn();
 
 vi.mock('@tanstack/react-virtual', () => ({
   useVirtualizer: ({ count, estimateSize }: { count: number; estimateSize: () => number }) => ({
     getVirtualItems: () =>
-      Array.from({ length: count }, (_, index) => ({
+      Array.from({ length: virtualRowsLimit ?? count }, (_, index) => ({
         index,
         size: estimateSize(),
         start: index * estimateSize(),
@@ -25,12 +24,10 @@ vi.mock('@/stores/notes/useNotesStore', () => ({
   useNotesStore: (selector: (state: {
     getAssetList: typeof getAssetListMock;
     loadAssets: typeof loadAssetsMock;
-    deleteAsset: typeof deleteAssetMock;
   }) => unknown) =>
     selector({
       getAssetList: getAssetListMock,
       loadAssets: loadAssetsMock,
-      deleteAsset: deleteAssetMock,
     }),
 }));
 
@@ -39,25 +36,6 @@ vi.mock('./hooks/useAssetHover', () => ({
     hoveredFilename: 'cover-a.png',
     gridRef: mockGridRef,
   }),
-}));
-
-vi.mock('@/components/ui/deletable-item', () => ({
-  DeletableItem: ({
-    id,
-    onDelete,
-    children,
-  }: {
-    id: string;
-    onDelete?: (id: string) => void;
-    children: ReactNode;
-  }) => (
-    <div>
-      <button type="button" data-testid={`delete-${id}`} onClick={() => onDelete?.(id)}>
-        delete
-      </button>
-      {children}
-    </div>
-  ),
 }));
 
 vi.mock('./components/AssetThumbnail', () => ({
@@ -76,20 +54,16 @@ vi.mock('./components/AssetThumbnail', () => ({
   ),
 }));
 
-vi.mock('@/lib/assets/builtinCovers', () => ({
-  isBuiltinCover: () => false,
-}));
-
 describe('AssetGrid', () => {
   beforeEach(() => {
     measureMock.mockClear();
     getAssetListMock.mockReset();
     loadAssetsMock.mockReset();
-    deleteAssetMock.mockReset();
     mockGridRef.current = null;
+    virtualRowsLimit = null;
   });
 
-  it('loads assets for the current vault and renders selectable items', () => {
+  it('renders selectable items from the loaded asset list', () => {
     getAssetListMock.mockReturnValue([
       { filename: 'cover-a.png', size: 10 },
       { filename: 'cover-b.png', size: 20 },
@@ -106,7 +80,7 @@ describe('AssetGrid', () => {
       />,
     );
 
-    expect(loadAssetsMock).toHaveBeenCalledWith('/vault');
+    expect(loadAssetsMock).not.toHaveBeenCalled();
     expect(screen.getByText('cover-a.png')).toBeInTheDocument();
     expect(screen.getByText('cover-a.png')).toHaveAttribute('data-hovered', 'true');
     expect(measureMock).toHaveBeenCalled();
@@ -115,7 +89,7 @@ describe('AssetGrid', () => {
     expect(onSelect).toHaveBeenCalledWith('cover-b.png');
   });
 
-  it('deletes the selected asset from the grid', () => {
+  it('does not render per-cover delete controls', () => {
     getAssetListMock.mockReturnValue([
       { filename: 'cover-a.png', size: 10 },
     ]);
@@ -129,8 +103,7 @@ describe('AssetGrid', () => {
       />,
     );
 
-    fireEvent.click(screen.getByTestId('delete-cover-a.png'));
-    expect(deleteAssetMock).toHaveBeenCalledWith('cover-a.png');
+    expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
   });
 
   it('renders nothing when there are no assets', () => {
@@ -146,5 +119,27 @@ describe('AssetGrid', () => {
     );
 
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it('only renders virtualized visible rows for large asset lists', () => {
+    virtualRowsLimit = 2;
+    getAssetListMock.mockReturnValue(
+      Array.from({ length: 1000 }, (_, index) => ({
+        filename: `cover-${index}.png`,
+        size: index,
+      })),
+    );
+
+    render(
+      <AssetGrid
+        onSelect={() => {}}
+        onHover={() => {}}
+        vaultPath="/vault"
+        category="builtinCovers"
+      />,
+    );
+
+    expect(screen.getByText('cover-0.png')).toBeInTheDocument();
+    expect(screen.queryByText('cover-999.png')).not.toBeInTheDocument();
   });
 });
