@@ -125,6 +125,46 @@ describe('deriveSlashState', () => {
     expect(next).toEqual(createSlashState());
   });
 
+  it('stays closed while a slash query has no matches', () => {
+    const next = deriveSlashState(
+      createTransaction({
+        selectionText: '/j',
+        docChanged: true,
+      }),
+      createSlashState()
+    );
+
+    expect(next).toEqual(createSlashState());
+  });
+
+  it('reopens when a previously unmatched slash query becomes fuzzy-matchable', () => {
+    const next = deriveSlashState(
+      createTransaction({
+        selectionText: '/j3',
+        docChanged: true,
+      }),
+      createSlashState()
+    );
+
+    expect(next.isOpen).toBe(true);
+    expect(next.query).toBe('j3');
+    expect(next.selectedIndex).toBe(0);
+  });
+
+  it('reopens when a noisy slash query keeps a numeric command alias suffix', () => {
+    const next = deriveSlashState(
+      createTransaction({
+        selectionText: '/ssssss3',
+        docChanged: true,
+      }),
+      createSlashState()
+    );
+
+    expect(next.isOpen).toBe(true);
+    expect(next.query).toBe('ssssss3');
+    expect(next.selectedIndex).toBe(0);
+  });
+
   it('closes after whitespace in the slash query', () => {
     const next = deriveSlashState(
       createTransaction({
