@@ -175,6 +175,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
         temporaryChatEnabled: false,
         customSystemPrompt: '',
         includeTimeContext: true,
+        webSearchEnabled: false,
         messages: {}
     };
 
@@ -200,6 +201,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
             aiData.temporaryChatEnabled = false;
             aiData.customSystemPrompt = typeof sessionsData.customSystemPrompt === 'string' ? sessionsData.customSystemPrompt : '';
             aiData.includeTimeContext = sessionsData.includeTimeContext !== false;
+            aiData.webSearchEnabled = sessionsData.webSearchEnabled === true;
             providerIds = sessionsData.providerIds || [];
         } catch (e) { console.error('Failed to load sessions.json', e); }
     }
@@ -300,6 +302,7 @@ async function performSplitSave(data: UnifiedData) {
             temporaryChatEnabled: false,
             customSystemPrompt: ai.customSystemPrompt || '',
             includeTimeContext: ai.includeTimeContext !== false,
+            webSearchEnabled: ai.webSearchEnabled === true,
             providerIds: ai.providers.map(p => p.id),
         };
         await storage.writeFile(sessionsPath, JSON.stringify(sessionsData, null, 2));

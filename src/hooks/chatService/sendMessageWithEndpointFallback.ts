@@ -1,6 +1,6 @@
 import { actions as aiActions } from '@/stores/useAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
-import type { AIModel, ChatMessage, ChatMessageContent, Provider } from '@/lib/ai/types';
+import type { AIModel, ChatMessage, ChatMessageContent, ChatSendOptions, Provider } from '@/lib/ai/types';
 import { isManagedProviderId } from '@/lib/ai/managedService';
 
 interface EndpointFallbackClient {
@@ -10,7 +10,8 @@ interface EndpointFallbackClient {
     model: AIModel,
     provider: Provider,
     onChunk?: (chunk: string) => void,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    options?: ChatSendOptions
   ): Promise<string>;
 }
 
@@ -21,6 +22,7 @@ interface SendMessageWithEndpointFallbackOptions {
   provider: Provider;
   onChunk: (chunk: string) => void;
   signal?: AbortSignal;
+  options?: ChatSendOptions;
   client?: EndpointFallbackClient;
   updateProvider?: (providerId: string, updates: Partial<Provider>) => void;
 }
@@ -32,11 +34,12 @@ export async function sendMessageWithEndpointFallback({
   provider,
   onChunk,
   signal,
+  options,
   client = openaiClient,
   updateProvider = aiActions.updateProvider,
 }: SendMessageWithEndpointFallbackOptions): Promise<string> {
   if (isManagedProviderId(provider.id) || (provider.endpointType && provider.endpointTypeCheckedAt)) {
-    return client.sendMessage(content, history, model, provider, onChunk, signal);
+    return client.sendMessage(content, history, model, provider, onChunk, signal, options);
   }
 
   let didReceiveOpenAIChunk = false;
@@ -53,6 +56,7 @@ export async function sendMessageWithEndpointFallback({
       { ...provider, endpointType: 'openai' },
       handleOpenAIChunk,
       signal,
+      options,
     );
     updateProvider(provider.id, { endpointType: 'openai', endpointTypeCheckedAt: Date.now() });
     return result;
@@ -61,6 +65,9 @@ export async function sendMessageWithEndpointFallback({
       throw openAIError;
     }
     if (didReceiveOpenAIChunk) {
+      throw openAIError;
+    }
+    if (options?.webSearchEnabled) {
       throw openAIError;
     }
 
@@ -72,6 +79,7 @@ export async function sendMessageWithEndpointFallback({
         { ...provider, endpointType: 'anthropic' },
         onChunk,
         signal,
+        options,
       );
       updateProvider(provider.id, { endpointType: 'anthropic', endpointTypeCheckedAt: Date.now() });
       return result;

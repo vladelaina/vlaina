@@ -1,5 +1,6 @@
 import type { ChatMessage } from './types';
 import { TIME_SYSTEM_PROMPT, IMAGE_PLACEHOLDER } from './prompts';
+import { extractWebSearchStatuses } from './webSearch/statusMarkup';
 
 const IMAGE_MARKDOWN_REGEX = /!\[.*?\]\(.*?\)/g;
 const REQUEST_HISTORY_MESSAGE_OVERHEAD = 48;
@@ -29,7 +30,9 @@ export function sanitizeHistory(messages: ChatMessage[]): ChatMessage[] {
     if (typeof msg.content !== 'string') return msg;
     return {
       ...msg,
-      content: msg.content.replace(IMAGE_MARKDOWN_REGEX, IMAGE_PLACEHOLDER),
+      content: extractWebSearchStatuses(
+        msg.content.replace(IMAGE_MARKDOWN_REGEX, IMAGE_PLACEHOLDER)
+      ).content,
     };
   });
 }

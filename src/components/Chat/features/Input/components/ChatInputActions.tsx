@@ -6,6 +6,8 @@ interface ChatInputActionsProps {
   isLoading: boolean;
   canSend: boolean;
   canSubmit: boolean;
+  webSearchEnabled: boolean;
+  onToggleWebSearch: () => void;
   onStop: () => void;
   onSend: () => void;
 }
@@ -15,6 +17,8 @@ export function ChatInputActions({
   isLoading,
   canSend,
   canSubmit,
+  webSearchEnabled,
+  onToggleWebSearch,
   onStop,
   onSend,
 }: ChatInputActionsProps) {
@@ -30,6 +34,22 @@ export function ChatInputActions({
           )}
         >
           <Icon name="common.add" size="md" />
+        </button>
+        <button
+          type="button"
+          aria-pressed={webSearchEnabled}
+          aria-label={webSearchEnabled ? 'Disable web search' : 'Enable web search'}
+          title={webSearchEnabled ? 'Web search on' : 'Web search off'}
+          onClick={onToggleWebSearch}
+          className={cn(
+            'w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200',
+            webSearchEnabled
+              ? 'bg-[#e7f3ff] text-[#1677c8] dark:bg-[#14324b] dark:text-[#7cc7ff]'
+              : cn(iconButtonStyles, 'hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-200'),
+            'active:scale-95'
+          )}
+        >
+          <Icon name="file.public" size="md" />
         </button>
       </div>
 

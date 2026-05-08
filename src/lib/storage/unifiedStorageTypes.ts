@@ -36,6 +36,7 @@ export interface UnifiedData {
     temporaryChatEnabled?: boolean;
     customSystemPrompt?: string;
     includeTimeContext?: boolean;
+    webSearchEnabled?: boolean;
   };
 }
 

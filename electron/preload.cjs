@@ -145,6 +145,17 @@ const desktopApi = {
       };
     },
   },
+  webSearch: {
+    search(query, options) {
+      return ipcRenderer.invoke('desktop:web-search:search', query, options);
+    },
+    read(url, options) {
+      return ipcRenderer.invoke('desktop:web-search:read', url, options);
+    },
+    readBatch(urls, options) {
+      return ipcRenderer.invoke('desktop:web-search:read-batch', urls, options);
+    },
+  },
   dragDrop: {
     getPathForFile(file) {
       return webUtils.getPathForFile(file);
