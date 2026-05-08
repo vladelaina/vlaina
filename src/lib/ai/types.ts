@@ -1,3 +1,5 @@
+import type { WebSearchStatus } from '@/lib/ai/webSearch/types'
+
 export interface Provider {
   id: string
   name: string
@@ -86,6 +88,8 @@ export interface ChatCompletionRequest {
 export interface ChatSendOptions {
   max_tokens?: number
   max_completion_tokens?: number
+  webSearchEnabled?: boolean
+  onWebSearchStatus?: (status: WebSearchStatus) => void
 }
 
 export interface ChatCompletionResponse {

@@ -13,9 +13,17 @@ import {
   requestManagedChatCompletionStream,
 } from '@/lib/ai/managedService'
 import { consumeOpenAIStream } from '@/lib/ai/streaming'
+import {
+  runOpenAIWebSearchJsonToolLoop,
+  runOpenAIWebSearchToolLoop,
+} from '@/lib/ai/webSearch/openAIToolLoop'
 
 function summarizeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error || 'Unknown error')
+}
+
+function createUnsupportedWebSearchError(): Error {
+  return new Error('Web search is unavailable for this model.')
 }
 
 export class OpenAICompatibleClient implements AIClient {
@@ -95,10 +103,25 @@ export class OpenAICompatibleClient implements AIClient {
     const body = this.buildChatRequest(message, history, model, options)
 
     if (provider.id === MANAGED_PROVIDER_ID) {
+      if (options?.webSearchEnabled) {
+        return runOpenAIWebSearchJsonToolLoop({
+          body,
+          onChunk: onChunk || (() => {}),
+          onStatus: options.onWebSearchStatus,
+          requestJson: (nextBody) =>
+            requestManagedChatCompletion({
+              ...nextBody,
+              stream: false,
+            } as unknown as Record<string, unknown>),
+        })
+      }
       return this.sendManagedMessage(body, onChunk, signal)
     }
 
     if (provider.endpointType === 'anthropic') {
+      if (options?.webSearchEnabled) {
+        throw createUnsupportedWebSearchError()
+      }
       const apiKey = await this.resolveApiKey(provider)
       return sendAnthropicMessage({
         message,
@@ -119,6 +142,33 @@ export class OpenAICompatibleClient implements AIClient {
     const headers = {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
+    }
+
+    if (options?.webSearchEnabled) {
+      return runOpenAIWebSearchToolLoop({
+        body,
+        onChunk: onChunk || (() => {}),
+        onStatus: options.onWebSearchStatus,
+        request: async (nextBody) => {
+          const response = await providerFetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(nextBody),
+            signal,
+          })
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Unknown error')
+            let errorBody
+            try {
+              errorBody = JSON.parse(errorText)
+            } catch {
+              errorBody = { message: errorText }
+            }
+            throw parseHTTPError(response.status, errorBody)
+          }
+          return response
+        },
+      })
     }
 
     return this.streamResponse(url, headers, body, onChunk || (() => {}), signal)

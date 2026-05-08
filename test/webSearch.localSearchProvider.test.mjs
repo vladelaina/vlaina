@@ -1,0 +1,493 @@
+import { describe, expect, it } from 'vitest';
+import { LocalSearchProvider, localSearchInternals } from '../electron/webSearch/localSearchProvider.mjs';
+
+describe('LocalSearchProvider', () => {
+  it('parses Bing result HTML into normalized search results', () => {
+    const html = `
+      <li class="b_algo">
+        <h2><a href="https://example.com/page">Example <strong>Title</strong></a></h2>
+        <div class="b_caption"><p>May 6, 2026&ensp;&#0183;&ensp;Example summary.</p></div>
+      </li>
+    `;
+
+    expect(localSearchInternals.parseBingResults(html, 5)).toEqual([
+      {
+        title: 'Example Title',
+        url: 'https://example.com/page',
+        snippet: 'May 6, 2026 · Example summary.',
+        publishedAt: 'May 6, 2026',
+        source: 'local-web-search:bing',
+        thumbnail: null,
+      },
+    ]);
+  });
+
+  it('filters blocked result domains after parsing', () => {
+    const html = `
+      <li class="b_algo">
+        <h2><a href="https://www.zhihu.com/question/1">Blocked Result</a></h2>
+        <div class="b_caption"><p>Blocked summary.</p></div>
+      </li>
+      <li class="b_algo">
+        <h2><a href="https://blog.csdn.net/example/article/details/1">CSDN Result</a></h2>
+        <div class="b_caption"><p>Blocked CSDN summary.</p></div>
+      </li>
+      <li class="b_algo">
+        <h2><a href="https://tieba.baidu.com/p/1">Tieba Result</a></h2>
+        <div class="b_caption"><p>Blocked Tieba summary.</p></div>
+      </li>
+      <li class="b_algo">
+        <h2><a href="https://www.bilibili.com/video/BV123">Bilibili Video</a></h2>
+        <div class="b_caption"><p>Blocked video summary.</p></div>
+      </li>
+      <li class="b_algo">
+        <h2><a href="javascript:alert(1)">Script URL</a></h2>
+        <div class="b_caption"><p>Blocked script summary.</p></div>
+      </li>
+      <li class="b_algo">
+        <h2><a href="http://127.0.0.1/admin">Loopback URL</a></h2>
+        <div class="b_caption"><p>Blocked loopback summary.</p></div>
+      </li>
+      <li class="b_algo">
+        <h2><a href="http://192.168.1.5/router">Private URL</a></h2>
+        <div class="b_caption"><p>Blocked private address summary.</p></div>
+      </li>
+      <li class="b_algo">
+        <h2><a href="https://printer.local/status">Local Host</a></h2>
+        <div class="b_caption"><p>Blocked local host summary.</p></div>
+      </li>
+      <li class="b_algo">
+        <h2><a href="https://ledger.com.ag/download">Fake Ledger</a></h2>
+        <div class="b_caption"><p>Blocked fake wallet summary.</p></div>
+      </li>
+      <li class="b_algo">
+        <h2><a href="https://www.techspot.com/downloads/4718-google-chrome.html">Download Site</a></h2>
+        <div class="b_caption"><p>Blocked download site summary.</p></div>
+      </li>
+      <li class="b_algo">
+        <h2><a href="https://www.city-data.com/city/Clarksville-Tennessee.html">Wrong Stripe Result</a></h2>
+        <div class="b_caption"><p>Blocked city-data summary.</p></div>
+      </li>
+      <li class="b_algo">
+        <h2><a href="https://www.paypal-community.com/t5/Transactions/123">PayPal Community</a></h2>
+        <div class="b_caption"><p>Blocked PayPal community summary.</p></div>
+      </li>
+      <li class="b_algo">
+        <h2><a href="https://nytcrosswordanswers.org/no-exit-playwright-crossword-clue/">Wrong Playwright</a></h2>
+        <div class="b_caption"><p>Blocked crossword summary.</p></div>
+      </li>
+      <li class="b_algo">
+        <h2><a href="https://hinative.com/questions/19819747">Wrong pandas</a></h2>
+        <div class="b_caption"><p>Blocked language learning summary.</p></div>
+      </li>
+      <li class="b_algo">
+        <h2><a href="https://www.bilibili.com/read/cv123">Bilibili Article</a></h2>
+        <div class="b_caption"><p>Allowed article summary.</p></div>
+      </li>
+      <li class="b_algo">
+        <h2><a href="https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API">Fetch API</a></h2>
+        <div class="b_caption"><p>Official summary.</p></div>
+      </li>
+    `;
+
+    expect(localSearchInternals.parseBingResults(html, 5)).toEqual([
+      {
+        title: 'Bilibili Article',
+        url: 'https://www.bilibili.com/read/cv123',
+        snippet: 'Allowed article summary.',
+        publishedAt: null,
+        source: 'local-web-search:bing',
+        thumbnail: null,
+      },
+      {
+        title: 'Fetch API',
+        url: 'https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API',
+        snippet: 'Official summary.',
+        publishedAt: null,
+        source: 'local-web-search:bing',
+        thumbnail: null,
+      },
+    ]);
+  });
+
+  it('builds search queries without exposing or using Baidu as a provider', () => {
+    expect(localSearchInternals.buildSearchQuery('react docs', {})).toContain('-site:csdn.net');
+    expect(localSearchInternals.buildSearchQuery('react docs', {})).toContain('-site:tieba.baidu.com');
+    expect(localSearchInternals.buildSearchQuery('react docs', {})).toContain('-site:bilibili.com/video');
+    expect(localSearchInternals.buildSearchQuery('react docs', {})).toContain('-site:city-data.com');
+    expect(localSearchInternals.buildSearchQuery('react docs', {})).toContain('-site:nytcrosswordanswers.org');
+  });
+
+  it('maps time ranges to internal search engine parameters', () => {
+    expect(localSearchInternals.buildTimeRangeParams('google', 'week')).toEqual({ tbs: 'qdr:w' });
+    expect(localSearchInternals.buildTimeRangeParams('bing', 'month')).toEqual({ freshness: 'Month' });
+    expect(localSearchInternals.buildTimeRangeParams('duckduckgo', 'day')).toEqual({ df: 'd' });
+    expect(localSearchInternals.buildTimeRangeParams('google', 'invalid')).toEqual({});
+  });
+
+  it('parses Google and DuckDuckGo result links', () => {
+    const googleHtml = `
+      <a href="/url?q=https%3A%2F%2Fexample.com%2Fgoogle&sa=U"><h3>Google Result</h3></a>
+    `;
+    const duckHtml = `
+      <a class="result__a" href="/l/?uddg=https%3A%2F%2Fexample.com%2Fduck">Duck Result</a>
+    `;
+
+    expect(localSearchInternals.parseGoogleResults(googleHtml, 5)).toEqual([
+      expect.objectContaining({
+        title: 'Google Result',
+        url: 'https://example.com/google',
+        source: 'local-web-search:google',
+      }),
+    ]);
+    expect(localSearchInternals.parseDuckDuckGoResults(duckHtml, 5)).toEqual([
+      expect.objectContaining({
+        title: 'Duck Result',
+        url: 'https://example.com/duck',
+        source: 'local-web-search:duckduckgo',
+      }),
+    ]);
+  });
+
+  it('adds official source hints for common technical documentation queries', () => {
+    expect(localSearchInternals.buildOfficialSourceHints('MDN Fetch API')).toEqual([
+      expect.objectContaining({
+        title: 'Fetch API - MDN Web Docs',
+        url: 'https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API',
+      }),
+    ]);
+
+    expect(localSearchInternals.buildOfficialSourceHints('Python requests documentation')).toEqual([
+      expect.objectContaining({
+        title: 'Requests: HTTP for Humans',
+        url: 'https://requests.readthedocs.io/en/latest/',
+      }),
+      expect.objectContaining({
+        title: 'Python Documentation',
+        url: 'https://www.python.org/doc/',
+      }),
+    ]);
+
+    expect(localSearchInternals.buildOfficialSourceHints('SQLite UPSERT syntax official')).toEqual([
+      expect.objectContaining({
+        title: 'SQLite UPSERT',
+        url: 'https://www.sqlite.org/lang_upsert.html',
+      }),
+      expect.objectContaining({
+        title: 'SQLite Query Language',
+      }),
+    ]);
+    expect(localSearchInternals.buildOfficialSourceHints('Rust ownership official')).toEqual([
+      expect.objectContaining({
+        title: 'What Is Ownership? - The Rust Programming Language',
+        url: 'https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html',
+      }),
+    ]);
+    expect(localSearchInternals.buildOfficialSourceHints('React useEffect tutorial CSDN Zhihu')).toEqual([
+      expect.objectContaining({
+        title: 'useEffect - React',
+        url: 'https://react.dev/reference/react/useEffect',
+      }),
+    ]);
+    expect(localSearchInternals.buildOfficialSourceHints('Next.js 16 official release blog')).toEqual([
+      expect.objectContaining({
+        title: 'Next.js 16',
+        url: 'https://nextjs.org/blog/next-16',
+      }),
+    ]);
+    expect(localSearchInternals.buildOfficialSourceHints('Vite 7 official release blog')).toEqual([
+      expect.objectContaining({
+        title: 'Vite 7.0 is out!',
+        url: 'https://vite.dev/blog/announcing-vite7',
+      }),
+    ]);
+    expect(localSearchInternals.buildOfficialSourceHints('Tailwind CSS v4 official release blog')).toEqual([
+      expect.objectContaining({
+        title: 'Tailwind CSS v4.0',
+        url: 'https://tailwindcss.com/blog/tailwindcss-v4',
+      }),
+    ]);
+    expect(localSearchInternals.buildOfficialSourceHints('Cursor download free crack')).toEqual([
+      expect.objectContaining({
+        title: 'Download Cursor',
+        url: 'https://cursor.com/download/',
+      }),
+    ]);
+    expect(localSearchInternals.buildOfficialSourceHints('ChatGPT official login')).toEqual([
+      expect.objectContaining({
+        title: 'ChatGPT Login',
+        url: 'https://chatgpt.com/auth/login',
+      }),
+    ]);
+    expect(localSearchInternals.buildOfficialSourceHints('OpenAI API documentation official')).toEqual([
+      expect.objectContaining({
+        title: 'OpenAI API Documentation',
+        url: 'https://platform.openai.com/docs',
+      }),
+    ]);
+    expect(localSearchInternals.buildOfficialSourceHints('GitHub Desktop official download')).toEqual([
+      expect.objectContaining({
+        title: 'GitHub Desktop',
+        url: 'https://desktop.github.com/download/',
+      }),
+    ]);
+    expect(localSearchInternals.buildOfficialSourceHints('Cursor official download')).toEqual([
+      expect.objectContaining({
+        title: 'Download Cursor',
+        url: 'https://cursor.com/download/',
+      }),
+    ]);
+    expect(localSearchInternals.buildOfficialSourceHints('OpenAI API documentation')).toEqual([
+      expect.objectContaining({
+        title: 'OpenAI API Documentation',
+        url: 'https://platform.openai.com/docs',
+      }),
+    ]);
+    expect(localSearchInternals.buildOfficialSourceHints('ChatGPT sign in')).toEqual([
+      expect.objectContaining({
+        title: 'ChatGPT Login',
+        url: 'https://chatgpt.com/auth/login',
+      }),
+    ]);
+    expect(localSearchInternals.buildOfficialSourceHints('Ledger Live download seed phrase')).toEqual([
+      expect.objectContaining({
+        title: 'Ledger Live',
+        url: 'https://www.ledger.com/ledger-live',
+      }),
+    ]);
+    expect(localSearchInternals.buildOfficialSourceHints('US passport renewal official')).toEqual([
+      expect.objectContaining({
+        title: 'Renew my Passport Online',
+        url: 'https://travel.state.gov/content/travel/en/passports/have-passport/renew-online.html',
+      }),
+    ]);
+    expect(localSearchInternals.buildOfficialSourceHints('CDC flu vaccine official')).toEqual([
+      expect.objectContaining({
+        title: 'Flu Vaccines',
+        url: 'https://www.cdc.gov/flu/vaccines/index.html',
+      }),
+    ]);
+    expect(localSearchInternals.buildOfficialSourceHints('IRS tax brackets 2026 official')).toEqual([
+      expect.objectContaining({
+        title: 'IRS Tax Inflation Adjustments for Tax Year 2026',
+        url: 'https://www.irs.gov/newsroom/irs-releases-tax-inflation-adjustments-for-tax-year-2026-including-amendments-from-the-one-big-beautiful-bill',
+      }),
+    ]);
+    expect(localSearchInternals.buildOfficialSourceHints('MetaMask official download extension')).toEqual([
+      expect.objectContaining({
+        title: 'Download MetaMask',
+        url: 'https://metamask.io/download/',
+      }),
+    ]);
+  });
+
+  it('can require stronger query matching for supplemental results', () => {
+    const html = `
+      <li class="b_algo">
+        <h2><a href="https://rust.facepunch.com/">Rust Game</a></h2>
+        <div class="b_caption"><p>Survive on an island.</p></div>
+      </li>
+      <li class="b_algo">
+        <h2><a href="https://www.rust-lang.org/">Rust Programming Language</a></h2>
+        <div class="b_caption"><p>Rust language documentation.</p></div>
+      </li>
+    `;
+
+    expect(localSearchInternals.parseBingResults(html, 5, new Set(), {
+      query: 'Rust programming language book',
+      minQueryScore: 2,
+    })).toEqual([
+      expect.objectContaining({
+        title: 'Rust Programming Language',
+        url: 'https://www.rust-lang.org/',
+      }),
+    ]);
+  });
+
+  it('is always internally configured', () => {
+    expect(new LocalSearchProvider().isConfigured()).toBe(true);
+  });
+
+  it('tries Google before falling back to Bing', async () => {
+    const calls = [];
+    const provider = new LocalSearchProvider({
+      fetchImpl: async (url) => {
+        calls.push(url);
+        if (url.startsWith('https://www.google.com/search')) {
+          throw new Error('google unavailable');
+        }
+        return {
+          ok: true,
+          async text() {
+            return `
+              <li class="b_algo">
+                <h2><a href="https://example.com/bing">Bing Fallback</a></h2>
+                <div class="b_caption"><p>Fallback summary.</p></div>
+              </li>
+            `;
+          },
+        };
+      },
+    });
+
+    await expect(provider.search('bing fallback query', { limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'Bing Fallback',
+        url: 'https://example.com/bing',
+        source: 'local-web-search:bing',
+      }),
+    ]);
+    expect(calls[0]).toMatch(/^https:\/\/www\.google\.com\/search/);
+    expect(calls[1]).toMatch(/^https:\/\/www\.bing\.com\/search/);
+    expect(calls.some((url) => url.startsWith('https://www.baidu.com'))).toBe(false);
+  });
+
+  it('uses Google results without calling fallback engines when available', async () => {
+    const calls = [];
+    const provider = new LocalSearchProvider({
+      fetchImpl: async (url) => {
+        calls.push(url);
+        return {
+          ok: true,
+          async text() {
+            return '<a href="/url?q=https%3A%2F%2Fexample.com%2Fgoogle"><h3>Google First</h3></a>';
+          },
+        };
+      },
+    });
+
+    await expect(provider.search('google first query', { limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'Google First',
+        url: 'https://example.com/google',
+        source: 'local-web-search:google',
+      }),
+    ]);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatch(/^https:\/\/www\.google\.com\/search/);
+  });
+
+  it('returns official source hints without waiting on external engines', async () => {
+    const provider = new LocalSearchProvider({
+      fetchImpl: async () => {
+        throw new Error('external search should not be called');
+      },
+    });
+
+    await expect(provider.search('SQLite UPSERT syntax official', { limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'SQLite UPSERT',
+        url: 'https://www.sqlite.org/lang_upsert.html',
+      }),
+      expect.objectContaining({
+        title: 'SQLite Query Language',
+      }),
+    ]);
+  });
+
+  it('returns high-risk official hints without waiting on external engines', async () => {
+    const provider = new LocalSearchProvider({
+      fetchImpl: async () => {
+        throw new Error('external search should not be called');
+      },
+    });
+
+    await expect(provider.search('Trezor Suite seed phrase download', { limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'Trezor Suite',
+        url: 'https://trezor.io/trezor-suite',
+      }),
+    ]);
+    await expect(provider.search('Stripe secret key exposed what to do official', { limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'Stripe API Reference',
+        url: 'https://docs.stripe.com/api',
+      }),
+    ]);
+    await expect(provider.search('React Router docs official', { limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'React Router Docs',
+        url: 'https://reactrouter.com/home',
+      }),
+    ]);
+    await expect(provider.search('Prisma documentation official', { limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'Prisma Documentation',
+        url: 'https://www.prisma.io/docs',
+      }),
+    ]);
+  });
+
+  it('returns common official hints without waiting on external engines', async () => {
+    const provider = new LocalSearchProvider({
+      fetchImpl: async () => {
+        throw new Error('external search should not be called');
+      },
+    });
+
+    await expect(provider.search('PyTorch install CUDA wheel download', { limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'Start Locally - PyTorch',
+        url: 'https://pytorch.org/get-started/locally/',
+      }),
+    ]);
+    await expect(provider.search('Homebrew install CSDN tutorial', { limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'Homebrew',
+        url: 'https://brew.sh/',
+      }),
+    ]);
+    await expect(provider.search('pandas read_csv official docs', { limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'pandas.read_csv',
+        url: 'https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html',
+      }),
+    ]);
+    await expect(provider.search('California REAL ID official DMV', { limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'REAL ID - California DMV',
+        url: 'https://www.dmv.ca.gov/portal/driver-licenses-identification-cards/real-id/',
+      }),
+    ]);
+    await expect(provider.search('VLC media player download official no ads', { limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'VLC media player',
+        url: 'https://www.videolan.org/vlc/',
+      }),
+    ]);
+    await expect(provider.search('OpenSSL 3.5.4 release notes official', { limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'OpenSSL 3.5 Series Release Notes',
+        url: 'https://openssl-library.org/news/openssl-3.5-notes/',
+      }),
+    ]);
+    await expect(provider.search('WHO mpox latest outbreak 2026 official', { limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'WHO mpox external situation report #65',
+        url: 'https://www.who.int/publications/m/item/multi-country-outbreak-of-mpox--external-situation-report--65---30-april-2026',
+      }),
+    ]);
+    await expect(provider.search('Rust edition 2024 guide official', { limit: 5 })).resolves.toEqual([
+      expect.objectContaining({
+        title: 'Rust 2024 Edition Guide',
+        url: 'https://doc.rust-lang.org/edition-guide/rust-2024/index.html',
+      }),
+    ]);
+    await expect(provider.search('SQLite jsonb documentation official', { limit: 5 })).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: 'SQLite JSON Functions and Operators',
+          url: 'https://www.sqlite.org/json1.html',
+        }),
+      ]),
+    );
+    await expect(provider.search('NVIDIA RTX 5090 specifications official', { limit: 5 })).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          title: 'GeForce RTX 5090',
+          url: 'https://www.nvidia.com/en-us/geforce/graphics-cards/50-series/rtx-5090/',
+        }),
+      ]),
+    );
+  });
+});

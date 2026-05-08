@@ -14,6 +14,7 @@ import { ChatInputActions } from './components/ChatInputActions';
 import { NoteMentionPicker } from './components/NoteMentionPicker';
 import { useChatHistoryNavigation } from './hooks/useChatHistoryNavigation';
 import { useNoteMentions } from './hooks/useNoteMentions';
+import { useAIStore } from '@/stores/useAIStore';
 
 interface ChatInputProps {
   onSend: (message: string, attachments: Attachment[], noteMentions: NoteMentionReference[]) => void;
@@ -36,6 +37,7 @@ export const ChatInput = memo(function ChatInput({
 }: ChatInputProps) {
   const focusRafRef = useRef<number | null>(null);
   const restoreFocusListenerRef = useRef<(() => void) | null>(null);
+  const { webSearchEnabled, setWebSearchEnabled } = useAIStore();
   const {
     attachments,
     isDragging,
@@ -301,7 +303,7 @@ export const ChatInput = memo(function ChatInput({
             onBlur={handleCaretBlur}
             onPaste={handleTextareaPaste}
             onScroll={(e) => setTextareaScrollTop(e.currentTarget.scrollTop)}
-            placeholder={!hasSelectedModel ? 'Select a model...' : isLoading ? 'Type to interrupt...' : 'Message...'}
+            placeholder={!hasSelectedModel ? 'Select a model...' : isLoading ? 'Type to interrupt...' : 'Tell me something...'}
             mentionPreviewParts={mentionPreviewParts}
             textareaScrollTop={textareaScrollTop}
             onRemoveMention={removeNoteMention}
@@ -312,6 +314,8 @@ export const ChatInput = memo(function ChatInput({
             isLoading={isLoading}
             canSend={canSend}
             canSubmit={canSubmit}
+            webSearchEnabled={webSearchEnabled}
+            onToggleWebSearch={() => setWebSearchEnabled(!webSearchEnabled)}
             onStop={onStop}
             onSend={() => handleSend()}
           />

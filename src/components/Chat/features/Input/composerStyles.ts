@@ -1,10 +1,13 @@
+export const chatComposerPillSurfaceClass = [
+  "border border-transparent bg-white dark:bg-white",
+  "shadow-[0_4px_16px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.7)]",
+  "hover:shadow-[0_6px_20px_rgba(0,0,0,0.055),inset_0_1px_0_rgba(255,255,255,0.7)]"
+].join(" ");
+
 export const chatComposerSurfaceClass = [
-  "bg-[var(--vlaina-bg-primary)] dark:bg-[#18181b]",
-  "border border-black/5 dark:border-white/10",
+  chatComposerPillSurfaceClass,
   "rounded-[26px]",
-  "shadow-[0_4px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.2)]",
   "transition-all duration-300 ease-out",
-  "hover:shadow-[0_8px_32px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)]",
   "focus-within:ring-1 focus-within:ring-black/5 dark:focus-within:ring-white/10"
 ].join(" ");
 

@@ -65,6 +65,7 @@ export function useChatService() {
   const selectedModelId = useUnifiedStore((state) => state.data.ai?.selectedModelId || null);
   const customSystemPrompt = useUnifiedStore((state) => state.data.ai?.customSystemPrompt || '');
   const includeTimeContext = useUnifiedStore((state) => state.data.ai?.includeTimeContext !== false);
+  const webSearchEnabled = useUnifiedStore((state) => state.data.ai?.webSearchEnabled === true);
   const setSessionLoading = useAIUIStore((state) => state.setSessionLoading);
   const markSessionUnread = useAIUIStore((state) => state.markSessionUnread);
   const setError = useAIUIStore((state) => state.setError);
@@ -229,6 +230,7 @@ export function useChatService() {
                 provider,
                 onChunk,
                 signal,
+                options: { webSearchEnabled },
               }),
             updateMessage: aiActions.updateMessage,
             completeMessage: aiActions.completeMessage,
@@ -260,6 +262,7 @@ export function useChatService() {
       providers,
       customSystemPrompt,
       includeTimeContext,
+      webSearchEnabled,
       setSessionLoading,
       setError,
       maybeGenerateAutoTitle,
@@ -332,6 +335,7 @@ export function useChatService() {
                 provider,
                 onChunk,
                 signal,
+                options: { webSearchEnabled },
               }),
             updateMessage: aiActions.updateMessage,
             completeMessage: aiActions.completeMessage,
@@ -356,6 +360,7 @@ export function useChatService() {
       providers,
       customSystemPrompt,
       includeTimeContext,
+      webSearchEnabled,
       setError,
       setSessionLoading,
       maybeGenerateAutoTitle,
@@ -414,6 +419,7 @@ export function useChatService() {
                 provider,
                 onChunk,
                 signal,
+                options: { webSearchEnabled },
               }),
             updateMessage: aiActions.updateMessage,
             completeMessage: aiActions.completeMessage,
@@ -438,6 +444,7 @@ export function useChatService() {
       providers,
       customSystemPrompt,
       includeTimeContext,
+      webSearchEnabled,
       setSessionLoading,
       setError,
       maybeGenerateAutoTitle,

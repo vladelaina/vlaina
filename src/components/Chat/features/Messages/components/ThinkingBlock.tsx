@@ -29,8 +29,6 @@ export function ThinkingBlock({
   const observedContentRef = useRef<HTMLDivElement | null>(null);
   const syncContentHeightRef = useRef<() => void>(() => {});
 
-  const finishedThinking = !activelyThinking;
-
   syncContentHeightRef.current = () => {
     if (contentRef.current) {
       setContentHeight(contentRef.current.scrollHeight);
@@ -119,7 +117,7 @@ export function ThinkingBlock({
 
   const getMaxHeight = () => {
     if (isCollapsed) {
-      return finishedThinking ? "0px" : "12rem";
+      return "0px";
     }
     return contentHeight ? `${contentHeight}px` : "none";
   };
@@ -172,7 +170,7 @@ export function ThinkingBlock({
           ${isCollapsed ? "overflow-hidden" : "overflow-y-auto"}`}
         style={{
           maxHeight: isCollapsed ? getMaxHeight() : undefined,
-          opacity: isCollapsed && finishedThinking ? 0 : 1,
+          opacity: isCollapsed ? 0 : 1,
         }}
       >
         <div

@@ -239,6 +239,7 @@ export const useAIStore = () => {
     selectedModelId: aiData?.selectedModelId || null,
     customSystemPrompt: aiData?.customSystemPrompt || '',
     includeTimeContext: aiData?.includeTimeContext !== false,
+    webSearchEnabled: aiData?.webSearchEnabled === true,
     
     ...uiState,
     ...actions,

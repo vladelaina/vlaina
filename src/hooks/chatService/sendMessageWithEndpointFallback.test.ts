@@ -130,6 +130,31 @@ describe('sendMessageWithEndpointFallback', () => {
     });
   });
 
+  it('does not fall back to a non-tool endpoint when web search is enabled', async () => {
+    const updateProvider = vi.fn();
+    const openAIError = new Error('OpenAI-compatible chat failed');
+    const client = {
+      sendMessage: vi.fn().mockRejectedValue(openAIError),
+    };
+
+    await expect(
+      sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildModel(),
+        provider: buildProvider(),
+        onChunk: vi.fn(),
+        client,
+        updateProvider,
+        options: { webSearchEnabled: true },
+      }),
+    ).rejects.toBe(openAIError);
+
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+    expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
+    expect(updateProvider).not.toHaveBeenCalled();
+  });
+
   it('does not try Anthropic after OpenAI has already streamed output', async () => {
     const updateProvider = vi.fn();
     const client = {

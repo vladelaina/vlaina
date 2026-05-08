@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   useAIUIStore: vi.fn(),
   promoteTemporarySession: vi.fn(),
   toggleTemporaryChat: vi.fn(),
+  openNewChat: vi.fn(),
   generateAutoTitle: vi.fn(),
 }));
 
@@ -15,6 +16,7 @@ vi.mock("@/stores/useAIStore", () => ({
   actions: {
     promoteTemporarySession: (...args: unknown[]) => mocks.promoteTemporarySession(...args),
     toggleTemporaryChat: (...args: unknown[]) => mocks.toggleTemporaryChat(...args),
+    openNewChat: (...args: unknown[]) => mocks.openNewChat(...args),
   },
 }));
 
@@ -176,7 +178,7 @@ describe("TemporaryChatToggle", () => {
     expect(mocks.toggleTemporaryChat).toHaveBeenCalledWith(true);
   });
 
-  it("toggle mode disables temporary chat when no user message exists", () => {
+  it("toggle mode exits to a blank regular chat when no user message exists", () => {
     const store = createStore({
       data: {
         ai: {
@@ -193,7 +195,8 @@ describe("TemporaryChatToggle", () => {
     render(<TemporaryChatToggle mode="toggle" />);
     fireEvent.click(screen.getByRole("button", { name: "Temporary Chat is On" }));
 
-    expect(mocks.toggleTemporaryChat).toHaveBeenCalledWith(false);
+    expect(mocks.openNewChat).toHaveBeenCalledTimes(1);
+    expect(mocks.toggleTemporaryChat).not.toHaveBeenCalled();
   });
 
   it("uses UI selection state when persisted chat selection is stale", () => {
@@ -226,7 +229,8 @@ describe("TemporaryChatToggle", () => {
     render(<TemporaryChatToggle mode="toggle" />);
     fireEvent.click(screen.getByRole("button", { name: "Temporary Chat is On" }));
 
-    expect(mocks.toggleTemporaryChat).toHaveBeenCalledWith(false);
+    expect(mocks.openNewChat).toHaveBeenCalledTimes(1);
+    expect(mocks.toggleTemporaryChat).not.toHaveBeenCalled();
   });
 
   it("toggle mode does not disable temporary chat when current temporary session already has user messages", () => {
@@ -239,6 +243,7 @@ describe("TemporaryChatToggle", () => {
     fireEvent.click(screen.getByRole("button", { name: "Temporary Chat is On" }));
 
     expect(mocks.toggleTemporaryChat).not.toHaveBeenCalled();
+    expect(mocks.openNewChat).not.toHaveBeenCalled();
   });
 
   it("promote button is disabled while session is generating", () => {

@@ -8,6 +8,7 @@ import { registerDesktopIpc } from './desktopIpc.mjs';
 import { registerManagedIpc } from './managedIpc.mjs';
 import { isTrustedRendererUrl as isTrustedRendererUrlForConfig } from './rendererTrust.mjs';
 import { createWindowManager } from './windowManager.mjs';
+import { registerWebSearchIpc } from './webSearch/ipc.mjs';
 
 const { app, BrowserWindow, ipcMain, session, shell } = electron;
 
@@ -389,6 +390,8 @@ registerDesktopIpc({
   requireNonEmptyString,
   requireStringArray,
 });
+
+registerWebSearchIpc({ handleIpc });
 
 handleIpc('desktop:secrets:get-ai-provider-secrets', async (_event, providerIds) => {
   const { data } = await readSecretsStore();

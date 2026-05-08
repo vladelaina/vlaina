@@ -1,0 +1,103 @@
+import { describe, expect, it, vi } from 'vitest';
+import { SearchService } from '../electron/webSearch/searchService.mjs';
+
+describe('SearchService', () => {
+  it('falls back from full options to plain keyword search', async () => {
+    const provider = {
+      isConfigured: () => true,
+      search: vi
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([
+          {
+            title: 'Result',
+            url: 'https://example.com',
+            snippet: '',
+            publishedAt: null,
+            source: null,
+            thumbnail: null,
+          },
+        ]),
+    };
+    const service = new SearchService({ providers: [provider] });
+
+    const response = await service.webSearch('query', {
+      category: 'news',
+      timeRange: 'week',
+      engines: 'google',
+    });
+
+    expect(response.results).toHaveLength(1);
+    expect(provider.search).toHaveBeenNthCalledWith(1, 'query', {
+      category: 'news',
+      timeRange: 'week',
+      engines: 'google',
+      limit: 5,
+    });
+    expect(provider.search).toHaveBeenNthCalledWith(2, 'query', {
+      category: 'news',
+      timeRange: 'week',
+      engines: undefined,
+      limit: 5,
+    });
+    expect(provider.search).toHaveBeenNthCalledWith(3, 'query', { limit: 5 });
+  });
+
+  it('does not repeat identical fallback attempts', async () => {
+    const provider = {
+      isConfigured: () => true,
+      search: vi.fn().mockResolvedValue([]),
+    };
+    const service = new SearchService({ providers: [provider] });
+
+    await service.webSearch('query', { limit: 5 });
+
+    expect(provider.search).toHaveBeenCalledTimes(1);
+    expect(provider.search).toHaveBeenCalledWith('query', { limit: 5 });
+  });
+
+  it('skips engine-only fallback when no engine restriction exists', async () => {
+    const provider = {
+      isConfigured: () => true,
+      search: vi.fn().mockResolvedValue([]),
+    };
+    const service = new SearchService({ providers: [provider] });
+
+    await service.webSearch('query', { category: 'news', timeRange: 'week' });
+
+    expect(provider.search).toHaveBeenCalledTimes(2);
+    expect(provider.search).toHaveBeenNthCalledWith(1, 'query', {
+      category: 'news',
+      timeRange: 'week',
+      limit: 5,
+    });
+    expect(provider.search).toHaveBeenNthCalledWith(2, 'query', { limit: 5 });
+  });
+
+  it('throws unavailable when every provider attempt fails', async () => {
+    const provider = {
+      isConfigured: () => true,
+      search: vi.fn().mockRejectedValue(Object.assign(new Error('network down'), { code: 'search_unavailable' })),
+    };
+    const service = new SearchService({ providers: [provider] });
+
+    await expect(service.webSearch('query', { limit: 5 })).rejects.toMatchObject({
+      code: 'search_unavailable',
+      message: 'Web search is temporarily unavailable.',
+    });
+  });
+
+  it('keeps empty search results distinct from provider failures', async () => {
+    const provider = {
+      isConfigured: () => true,
+      search: vi.fn().mockResolvedValue([]),
+    };
+    const service = new SearchService({ providers: [provider] });
+
+    await expect(service.webSearch('query', { limit: 5 })).resolves.toEqual({
+      query: 'query',
+      results: [],
+    });
+  });
+});

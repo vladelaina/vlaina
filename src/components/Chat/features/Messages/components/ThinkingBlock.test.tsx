@@ -128,6 +128,6 @@ describe('ThinkingBlock', () => {
 
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     const wrapper = container.querySelector<HTMLElement>('[style*="max-height"]');
-    expect(wrapper).toHaveStyle({ maxHeight: '12rem' });
+    expect(wrapper).toHaveStyle({ maxHeight: '0px', opacity: '0' });
   });
 });

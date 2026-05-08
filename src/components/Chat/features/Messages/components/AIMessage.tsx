@@ -5,6 +5,8 @@ import { ErrorBlock } from './ErrorBlock';
 import type { ChatMessage } from '@/lib/ai/types';
 import { parseErrorTag } from '@/lib/ai/errorTag';
 import { useAssistantOutputText } from './useAssistantOutputText';
+import { extractWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup';
+import { WebSearchStatusBlock } from '@/components/Chat/features/WebSearch/WebSearchStatusBlock';
 
 interface ChatImageGalleryItem {
   id: string;
@@ -43,18 +45,22 @@ export function AIMessage({
     errorType,
     errorCode,
     errorContent,
+    webSearchStatuses,
     contentWithoutError,
   } = useMemo(() => {
     const parsedError = parseErrorTag(msg.content);
     const nextErrorContent = parsedError?.content ?? null;
+    const withoutError = nextErrorContent
+      ? msg.content.replace(/<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/i, '')
+      : msg.content;
+    const webSearch = extractWebSearchStatuses(withoutError);
 
     return {
       errorType: parsedError?.type,
       errorCode: parsedError?.code,
       errorContent: nextErrorContent,
-      contentWithoutError: nextErrorContent
-        ? msg.content.replace(/<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/i, '')
-        : msg.content,
+      webSearchStatuses: webSearch.statuses,
+      contentWithoutError: webSearch.content,
     };
   }, [msg.content]);
   const isStreamingContentVisible = isLoading && contentWithoutError.trim().length > 0;
@@ -94,6 +100,7 @@ export function AIMessage({
   return (
     <div className="w-full pl-[15px]">
         <div className="[&>*:last-child]:mb-0">
+            <WebSearchStatusBlock statuses={webSearchStatuses} />
             <MarkdownRenderer
                 content={visibleContent}
                 imageGallery={imageGallery}

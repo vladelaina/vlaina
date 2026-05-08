@@ -243,6 +243,10 @@ export const actions = {
     useUnifiedStore.getState().updateAIData({ includeTimeContext: enabled });
   },
 
+  setWebSearchEnabled: (enabled: boolean) => {
+    useUnifiedStore.getState().updateAIData({ webSearchEnabled: enabled });
+  },
+
   refreshManagedProvider: async () => {
     const models = await fetchManagedModels()
     const store = useUnifiedStore.getState()

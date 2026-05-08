@@ -158,6 +158,34 @@ describe("AIMessage", () => {
     expect(screen.getByTestId("error")).toHaveTextContent("Request failed");
   });
 
+  it("keeps web search results visible after sources are read", () => {
+    const content = [
+      '<web-search-status>{"phase":"results","query":"react","results":[{"title":"React Docs","url":"https://react.dev","snippet":"Official docs","publishedAt":null}]}</web-search-status>',
+      '<web-search-status>{"phase":"complete","urls":["https://react.dev"],"failedSources":[{"url":"https://fail.example","message":"Unable to read this page."}],"metrics":{"successCount":1,"failureCount":1,"durationMs":12}}</web-search-status>',
+      "Answer with source.",
+    ].join("\n");
+
+    render(
+      <AIMessage
+        msg={createMessage(content)}
+        imageGallery={[]}
+        isLoading={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.getByText("Sources read")).toBeInTheDocument();
+    expect(screen.getByText("1 read · 1 skipped · 12 ms")).toBeInTheDocument();
+    expect(screen.getByText("React Docs")).toBeInTheDocument();
+    expect(screen.getByText("https://react.dev")).toBeInTheDocument();
+    expect(screen.getByText("Skipped sources")).toBeInTheDocument();
+    expect(screen.getByText("Unable to read this page.")).toBeInTheDocument();
+    expect(screen.getByText("https://fail.example")).toBeInTheDocument();
+    expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Answer with source.");
+  });
+
   it("stores copied code block feedback above the markdown renderer", () => {
     render(
       <AIMessage

@@ -66,4 +66,15 @@ describe('requestContext', () => {
     expect(sanitized[0].content).toBe('[Image]\n\ndescribe it');
   });
 
+  it('removes web search status markup from model history', () => {
+    const history = [
+      createMessage({
+        role: 'assistant',
+        content: '<web-search-status>{"phase":"results","query":"x"}</web-search-status>\n\nFinal answer',
+      }),
+    ];
+
+    const sanitized = sanitizeHistory(history);
+    expect(sanitized[0].content).toBe('Final answer');
+  });
 });

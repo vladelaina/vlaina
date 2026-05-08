@@ -175,6 +175,25 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     });
   });
 
+  it('does not silently ignore web search on Anthropic endpoints', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      new OpenAICompatibleClient().sendMessage(
+        'hi',
+        [],
+        buildModel(),
+        buildProvider({ endpointType: 'anthropic' }),
+        vi.fn(),
+        undefined,
+        { webSearchEnabled: true },
+      ),
+    ).rejects.toThrow('Web search is unavailable for this model.');
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('wraps Anthropic thinking deltas in think tags', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       streamResponse([
