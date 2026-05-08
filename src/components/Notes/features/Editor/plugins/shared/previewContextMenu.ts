@@ -10,6 +10,7 @@ import { suppressPreviewEditorOpen } from './previewContextMenuSuppression';
 
 type InsertDirection = 'above' | 'below';
 type PreviewContextMenuIcon = 'image' | 'paragraph' | 'arrow-up' | 'arrow-down';
+const PREVIEW_EXPORT_MENU_ORDER: PreviewExportFormat[] = ['png', 'jpg', 'svg'];
 
 interface PreviewContextMenuOptions {
   element: HTMLElement;
@@ -177,7 +178,7 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
     menu.appendChild(
       createSubmenu(
         'Save as image',
-        (Object.keys(PREVIEW_EXPORT_LABELS) as PreviewExportFormat[]).map((format) =>
+        PREVIEW_EXPORT_MENU_ORDER.map((format) =>
           createMenuButton(PREVIEW_EXPORT_LABELS[format], () => runSave(format))
         )
       )

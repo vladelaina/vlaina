@@ -273,7 +273,7 @@ describe('previewContextMenu', () => {
     expect(document.querySelector('.vlaina-preview-context-menu')).not.toBeNull();
     expect(document.querySelector('.vlaina-preview-context-menu')?.classList.contains('slash-menu')).toBe(true);
     expect(document.querySelectorAll('.vlaina-preview-context-submenu')).toHaveLength(2);
-    expect(menuLabels()).toEqual(['Save as image', 'SVG', 'PNG', 'JPG', 'Insert paragraph', 'Above', 'Below']);
+    expect(menuLabels()).toEqual(['Save as image', 'PNG', 'JPG', 'SVG', 'Insert paragraph', 'Above', 'Below']);
 
     session.destroy();
   });
