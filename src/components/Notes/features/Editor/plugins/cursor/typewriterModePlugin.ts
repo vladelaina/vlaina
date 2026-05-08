@@ -34,6 +34,14 @@ export function resolveTypewriterScrollTop({
     return Math.max(0, Math.min(maxScrollTop, scrollTop + cursorCenter - rootCenter));
 }
 
+export function shouldCenterTypewriterSelection(selection: { empty: boolean }): boolean {
+    return selection.empty;
+}
+
+export function isTypewriterInputEvent(event: InputEvent): boolean {
+    return event.inputType.startsWith('insert') || event.inputType.startsWith('delete');
+}
+
 function getScrollRoot(view: EditorView): HTMLElement | null {
     return view.dom.closest(SCROLL_ROOT_SELECTOR)
         ?? view.dom.ownerDocument.querySelector<HTMLElement>(SCROLL_ROOT_SELECTOR);
@@ -43,22 +51,28 @@ class TypewriterModeView {
     private enabled = selectMarkdownTypewriterModeEnabled(useUnifiedStore.getState());
     private frameId: number | null = null;
     private unsubscribe: (() => void) | null = null;
+    private pointerDown = false;
+    private pendingInputCenter = false;
 
     constructor(private readonly view: EditorView) {
         this.unsubscribe = useUnifiedStore.subscribe((state) => {
             const nextEnabled = selectMarkdownTypewriterModeEnabled(state);
             if (this.enabled === nextEnabled) return;
             this.enabled = nextEnabled;
-            if (nextEnabled && this.view.hasFocus()) {
-                this.scheduleCenter();
-            }
         });
+        this.view.dom.addEventListener('pointerdown', this.handlePointerDown);
+        this.view.dom.addEventListener('beforeinput', this.handleBeforeInput);
     }
 
     update(view: EditorView, prevState: EditorView['state']): void {
+        if (!this.pendingInputCenter) return;
+
+        this.pendingInputCenter = false;
         if (!this.enabled) return;
         if (!view.hasFocus()) return;
-        if (!view.state.selection.eq(prevState.selection) || view.state.doc !== prevState.doc) {
+        if (this.pointerDown) return;
+        if (!shouldCenterTypewriterSelection(view.state.selection)) return;
+        if (view.state.doc !== prevState.doc) {
             this.scheduleCenter();
         }
     }
@@ -70,7 +84,37 @@ class TypewriterModeView {
         }
         this.unsubscribe?.();
         this.unsubscribe = null;
+        this.view.dom.removeEventListener('pointerdown', this.handlePointerDown);
+        this.view.dom.removeEventListener('beforeinput', this.handleBeforeInput);
+        this.view.dom.ownerDocument.defaultView?.removeEventListener('pointerup', this.handlePointerUp);
+        this.view.dom.ownerDocument.defaultView?.removeEventListener('pointercancel', this.handlePointerUp);
     }
+
+    private handleBeforeInput = (event: Event): void => {
+        if (!(event instanceof InputEvent)) return;
+        if (!isTypewriterInputEvent(event)) return;
+        this.pendingInputCenter = true;
+    };
+
+    private handlePointerDown = (): void => {
+        this.pointerDown = true;
+        this.pendingInputCenter = false;
+        if (this.frameId !== null) {
+            this.view.dom.ownerDocument.defaultView?.cancelAnimationFrame(this.frameId);
+            this.frameId = null;
+        }
+
+        const ownerWindow = this.view.dom.ownerDocument.defaultView;
+        ownerWindow?.addEventListener('pointerup', this.handlePointerUp, { once: true });
+        ownerWindow?.addEventListener('pointercancel', this.handlePointerUp, { once: true });
+    };
+
+    private handlePointerUp = (): void => {
+        this.pointerDown = false;
+        const ownerWindow = this.view.dom.ownerDocument.defaultView;
+        ownerWindow?.removeEventListener('pointerup', this.handlePointerUp);
+        ownerWindow?.removeEventListener('pointercancel', this.handlePointerUp);
+    };
 
     private scheduleCenter(): void {
         if (this.frameId !== null) return;
@@ -86,6 +130,8 @@ class TypewriterModeView {
 
     private centerCursor(): void {
         if (!this.enabled) return;
+        if (this.pointerDown) return;
+        if (!shouldCenterTypewriterSelection(this.view.state.selection)) return;
 
         const scrollRoot = getScrollRoot(this.view);
         if (!scrollRoot) return;

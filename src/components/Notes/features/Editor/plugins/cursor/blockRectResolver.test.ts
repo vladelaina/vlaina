@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { collectSelectableBlockRanges, createBlockRectResolver } from './blockRectResolver';
-import { resolveTypewriterScrollTop } from './typewriterModePlugin';
+import {
+  isTypewriterInputEvent,
+  resolveTypewriterScrollTop,
+  shouldCenterTypewriterSelection,
+} from './typewriterModePlugin';
 
 interface MockNode {
   type: { name: string };
@@ -162,5 +166,25 @@ describe('resolveTypewriterScrollTop', () => {
       rootRect: { top: 0, bottom: 400 },
       cursorRect: { top: 800, bottom: 820 },
     })).toBe(100);
+  });
+});
+
+describe('shouldCenterTypewriterSelection', () => {
+  it('centers only collapsed cursor selections', () => {
+    expect(shouldCenterTypewriterSelection({ empty: true })).toBe(true);
+    expect(shouldCenterTypewriterSelection({ empty: false })).toBe(false);
+  });
+});
+
+describe('isTypewriterInputEvent', () => {
+  it('centers after text insertion and deletion input events', () => {
+    expect(isTypewriterInputEvent(new InputEvent('beforeinput', { inputType: 'insertText' }))).toBe(true);
+    expect(isTypewriterInputEvent(new InputEvent('beforeinput', { inputType: 'insertParagraph' }))).toBe(true);
+    expect(isTypewriterInputEvent(new InputEvent('beforeinput', { inputType: 'deleteContentBackward' }))).toBe(true);
+  });
+
+  it('does not center for non-editing input events', () => {
+    expect(isTypewriterInputEvent(new InputEvent('beforeinput', { inputType: 'historyUndo' }))).toBe(false);
+    expect(isTypewriterInputEvent(new InputEvent('beforeinput', { inputType: 'formatBold' }))).toBe(false);
   });
 });
