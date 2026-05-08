@@ -44,7 +44,7 @@ export function NoteTabContent({
         />
       )}
 
-      <span className={cn('pointer-events-none truncate text-[13px] text-current', isActive && 'font-medium')}>
+      <span className={cn('pointer-events-none truncate text-[13px] text-current', isActive && 'font-semibold')}>
         {title}
         {disambiguation ? (
           <span className="text-[11px] text-current/65">{` · ${disambiguation}`}</span>
