@@ -176,3 +176,45 @@ describe('deleteIncompleteCustomProviders', () => {
     expect(useUnifiedStore.getState().data.ai?.providers).toEqual([provider]);
   });
 });
+
+describe('addModels', () => {
+  beforeEach(() => {
+    seedAI([buildProvider({ id: 'provider-1' })], [
+      buildModel({
+        id: 'provider-1::gpt-existing',
+        apiModelId: 'gpt-existing',
+      }),
+    ]);
+  });
+
+  it('adds only models that are not already present or duplicated in the batch', () => {
+    actions.addModels([
+      {
+        id: 'ignored',
+        apiModelId: 'gpt-existing',
+        name: 'Existing',
+        providerId: 'provider-1',
+        enabled: true,
+      },
+      {
+        id: 'ignored',
+        apiModelId: 'gpt-new',
+        name: 'New',
+        providerId: 'provider-1',
+        enabled: true,
+      },
+      {
+        id: 'ignored',
+        apiModelId: 'gpt-new',
+        name: 'New Duplicate',
+        providerId: 'provider-1',
+        enabled: true,
+      },
+    ]);
+
+    expect(useUnifiedStore.getState().data.ai?.models.map((model) => model.apiModelId)).toEqual([
+      'gpt-existing',
+      'gpt-new',
+    ]);
+  });
+});

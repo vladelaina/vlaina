@@ -137,4 +137,56 @@ describe('ProviderModelsPanel', () => {
 
     expect(onAddModel).toHaveBeenCalledWith('beta');
   });
+
+  it('adds all visible available models from the available header', () => {
+    const onAddAllVisible = vi.fn();
+
+    render(
+      <ProviderModelsPanel
+        {...buildProps({
+          sortedFetchedModels: ['alpha', 'beta', 'gamma'],
+          filteredFetchedModels: ['alpha', 'beta', 'gamma'],
+          onAddAllVisible,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add all' }));
+
+    expect(onAddAllVisible).toHaveBeenCalledWith(['beta', 'gamma']);
+  });
+
+  it('removes all selected models from the selected header', () => {
+    const onClearAllModels = vi.fn();
+
+    render(<ProviderModelsPanel {...buildProps({ onClearAllModels })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove all' }));
+
+    expect(onClearAllModels).toHaveBeenCalledTimes(1);
+  });
+
+  it('removes only visible selected models while filtering', () => {
+    const onDeleteModel = vi.fn();
+    const alpha = buildModel('model-alpha', 'alpha');
+    const beta = buildModel('model-beta', 'beta');
+
+    render(
+      <ProviderModelsPanel
+        {...buildProps({
+          modelQuery: 'b',
+          providerModels: [alpha, beta],
+          filteredProviderModels: [beta],
+          filteredFetchedModels: ['beta'],
+          providerModelIdSet: new Set(['alpha', 'beta']),
+          onDeleteModel,
+        })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove visible' }));
+
+    expect(onDeleteModel).toHaveBeenCalledWith('model-beta');
+    expect(onDeleteModel).toHaveBeenCalledTimes(1);
+  });
 });

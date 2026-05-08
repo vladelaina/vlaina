@@ -7,8 +7,7 @@ export const chatComposerPillSurfaceClass = [
 export const chatComposerSurfaceClass = [
   chatComposerPillSurfaceClass,
   "rounded-[26px]",
-  "transition-all duration-300 ease-out",
-  "focus-within:ring-1 focus-within:ring-black/5 dark:focus-within:ring-white/10"
+  "transition-all duration-300 ease-out"
 ].join(" ");
 
 export const chatComposerFrameClass = [

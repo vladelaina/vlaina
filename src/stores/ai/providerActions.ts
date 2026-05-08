@@ -140,15 +140,29 @@ export const actions = {
     const state = useUnifiedStore.getState();
     const ai = state.data.ai!;
     const now = Date.now()
+    const existingIds = new Set(ai.models.map((model) => model.id.toLowerCase()))
+    const queuedIds = new Set<string>()
     const newModels: AIModel[] = models
       .filter((model) => model.apiModelId.trim().length > 0)
-      .map((model) => ({
-        ...model,
-        id: buildScopedModelId(model.providerId, model.apiModelId),
-        name: model.name || generateModelName(model.apiModelId),
-        group: model.group || generateModelGroup(model.apiModelId),
-        createdAt: now
-      }))
+      .flatMap((model) => {
+        const id = buildScopedModelId(model.providerId, model.apiModelId)
+        const normalizedId = id.toLowerCase()
+        if (existingIds.has(normalizedId) || queuedIds.has(normalizedId)) {
+          return []
+        }
+        queuedIds.add(normalizedId)
+        return [{
+          ...model,
+          id,
+          name: model.name || generateModelName(model.apiModelId),
+          group: model.group || generateModelGroup(model.apiModelId),
+          createdAt: now
+        }]
+      })
+
+    if (newModels.length === 0) {
+      return
+    }
 
     const updates: { models: AIModel[]; selectedModelId?: string } = { models: [...ai.models, ...newModels] };
     if (!ai.selectedModelId && newModels.length > 0) {

@@ -78,6 +78,18 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
       }
       return left.localeCompare(right);
     });
+  const handleRemoveVisibleSelectedModels = () => {
+    if (selectedModels.length === 0) return;
+    if (hasActiveQuery) {
+      selectedModels.forEach((model) => props.onDeleteModel(model.id));
+      return;
+    }
+    props.onClearAllModels();
+  };
+  const handleAddVisibleAvailableModels = () => {
+    if (availableModels.length === 0) return;
+    props.onAddAllVisible(availableModels);
+  };
   return (
     <section className="p-1">
       <div className="overflow-hidden rounded-[28px] border border-zinc-200/85 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.04)]">
@@ -158,6 +170,9 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                   disabled={!props.canBenchmarkSelected}
                   busy={props.selectedBenchmarkActive}
                   onBenchmark={props.onBenchmarkSelected}
+                  actionLabel={hasActiveQuery ? 'Remove visible' : 'Remove all'}
+                  actionDisabled={selectedModels.length === 0}
+                  onAction={handleRemoveVisibleSelectedModels}
                 />
                 <VirtualModelList
                   items={selectedModels}
@@ -181,6 +196,9 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                   disabled={!props.canBenchmarkAvailable}
                   busy={props.availableBenchmarkActive}
                   onBenchmark={props.onBenchmarkAvailable}
+                  actionLabel={hasActiveQuery ? 'Add visible' : 'Add all'}
+                  actionDisabled={availableModels.length === 0}
+                  onAction={handleAddVisibleAvailableModels}
                 />
                 <VirtualModelList
                   items={availableModels}

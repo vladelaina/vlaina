@@ -95,14 +95,21 @@ export function SectionHeader({
   disabled,
   busy,
   onBenchmark,
+  actionLabel,
+  actionDisabled = false,
+  onAction,
 }: {
   label: string;
   disabled: boolean;
   busy: boolean;
   onBenchmark: () => void | Promise<void>;
+  actionLabel?: string;
+  actionDisabled?: boolean;
+  onAction?: () => void;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2">
       <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
         {label}
       </div>
@@ -120,6 +127,17 @@ export function SectionHeader({
           <Icon name="misc.activity" size="xs" />
         )}
       </button>
+      </div>
+      {actionLabel && onAction ? (
+        <button
+          type="button"
+          disabled={actionDisabled}
+          onClick={onAction}
+          className="h-6 rounded-full px-2.5 text-[11px] font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 disabled:cursor-not-allowed disabled:opacity-35"
+        >
+          {actionLabel}
+        </button>
+      ) : null}
     </div>
   );
 }
