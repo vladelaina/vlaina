@@ -5,6 +5,7 @@ import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import { collectSelectableBlockRanges } from './blockUnitResolver';
 import { deleteSelectedBlocks } from './blockSelectionDeletion';
 import { codePlugin } from '../code';
@@ -51,23 +52,36 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
+function replaceWithOrderedListGapAndTaskList(view: EditorView): void {
+  const { schema } = view.state;
+  const orderedItem = schema.nodes.list_item.create(null, [
+    schema.nodes.paragraph.create(null, schema.text('1')),
+  ]);
+  const taskItem = schema.nodes.list_item.create({ checked: false }, [
+    schema.nodes.paragraph.create(null, schema.text('1')),
+  ]);
+
+  view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, [
+    schema.nodes.ordered_list.create(null, [orderedItem]),
+    schema.nodes.paragraph.create(),
+    schema.nodes.bullet_list.create(null, [taskItem]),
+  ]));
+}
+
 describe('deleteSelectedBlocks', () => {
-  it('restores text input focus after deletion', async () => {
+  it('removes editor DOM focus after deletion', async () => {
     const editor = await createEditor('A\n\nB');
     const view = editor.ctx.get(editorViewCtx);
     const blocks = collectSelectableBlockRanges(view.state.doc);
 
     const focusSpy = vi.spyOn(view, 'focus');
     const blurSpy = vi.spyOn(view.dom, 'blur');
-    const requestAnimationFrameSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {
-      callback(0);
-      return 1;
-    });
+    const requestAnimationFrameSpy = vi.spyOn(window, 'requestAnimationFrame');
 
     expect(deleteSelectedBlocks(view, [blocks[0]], (tr) => tr)).toBe(true);
-    expect(focusSpy).toHaveBeenCalledTimes(2);
-    expect(requestAnimationFrameSpy).toHaveBeenCalledTimes(1);
-    expect(blurSpy).not.toHaveBeenCalled();
+    expect(focusSpy).not.toHaveBeenCalled();
+    expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+    expect(blurSpy).toHaveBeenCalledTimes(1);
     expect(view.state.doc.textContent).toBe('B');
 
     requestAnimationFrameSpy.mockRestore();
@@ -150,6 +164,66 @@ describe('deleteSelectedBlocks', () => {
     expect(view.state.doc.child(2).type.name).toBe('paragraph');
     expect(view.state.selection).toBeInstanceOf(TextSelection);
     expect(view.state.selection.from).toBe(view.state.doc.content.size - 1);
+
+    await editor.destroy();
+  });
+
+  it('removes a selected ordered list item without leaving an empty paragraph', async () => {
+    const editor = await createEditor(['1. 1', '2. 2', '3. 3'].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(blocks).toHaveLength(3);
+    expect(deleteSelectedBlocks(view, [blocks[1]], (tr) => tr)).toBe(true);
+
+    expect(view.state.doc.childCount).toBe(1);
+    const list = view.state.doc.child(0);
+    expect(list.type.name).toBe('ordered_list');
+    expect(list.childCount).toBe(2);
+    expect(list.child(0).textContent).toBe('1');
+    expect(list.child(1).textContent).toBe('3');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+
+    await editor.destroy();
+  });
+
+  it('removes a selected task list item without leaving an empty paragraph', async () => {
+    const editor = await createEditor(['- [ ] 1', '- [ ] 2', '- [ ] 3'].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(blocks).toHaveLength(3);
+    expect(deleteSelectedBlocks(view, [blocks[1]], (tr) => tr)).toBe(true);
+
+    expect(view.state.doc.childCount).toBe(1);
+    const list = view.state.doc.child(0);
+    expect(list.type.name).toBe('bullet_list');
+    expect(list.childCount).toBe(2);
+    expect(list.child(0).type.name).toBe('list_item');
+    expect(list.child(0).attrs.checked).toBe(false);
+    expect(list.child(0).textContent).toBe('1');
+    expect(list.child(1).attrs.checked).toBe(false);
+    expect(list.child(1).textContent).toBe('3');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+
+    await editor.destroy();
+  });
+
+  it('removes a selected empty paragraph between ordered and task lists', async () => {
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx);
+    replaceWithOrderedListGapAndTaskList(view);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(blocks).toHaveLength(3);
+    expect(deleteSelectedBlocks(view, [blocks[1]], (tr) => tr)).toBe(true);
+
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('ordered_list');
+    expect(view.state.doc.child(1).type.name).toBe('bullet_list');
+    expect(view.state.doc.child(0).textContent).toBe('1');
+    expect(view.state.doc.child(1).textContent).toBe('1');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
 
     await editor.destroy();
   });

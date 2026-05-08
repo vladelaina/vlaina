@@ -18,10 +18,10 @@ import {
   atomicBlockKeyboardNavigationPlugin,
 } from './atomicBlockKeyboardNavigationPlugin';
 
-function createEditor() {
+function createEditor(markdown = '') {
   return Editor.make()
     .config((ctx) => {
-      ctx.set(defaultValueCtx, '');
+      ctx.set(defaultValueCtx, markdown);
     })
     .use(commonmark)
     .use(gfm)
@@ -92,6 +92,23 @@ function createCodeBlockNode(view: EditorView, text = 'const value = 1;'): Prose
     throw new Error('Expected code block schema');
   }
   return codeBlockType.create({ language: 'ts' }, schema.text(text));
+}
+
+function replaceWithOrderedListGapAndTaskList(view: EditorView): void {
+  const { schema } = view.state;
+  replaceDocument(view, [
+    schema.nodes.ordered_list.create(null, [
+      schema.nodes.list_item.create(null, [
+        schema.nodes.paragraph.create(null, schema.text('1')),
+      ]),
+    ]),
+    schema.nodes.paragraph.create(),
+    schema.nodes.bullet_list.create(null, [
+      schema.nodes.list_item.create({ checked: false }, [
+        schema.nodes.paragraph.create(null, schema.text('1')),
+      ]),
+    ]),
+  ]);
 }
 
 function selectionAncestorNames(view: EditorView): string[] {
@@ -676,6 +693,50 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     expect(view.state.doc.child(1).type.name).toBe('mermaid');
     expect(view.state.selection).toBeInstanceOf(NodeSelection);
     expect(view.state.selection.from).toBe(topLevelNodePos(view, 'mermaid'));
+
+    await editor.destroy();
+  });
+
+  it('deletes an empty paragraph between ordered and task lists on Delete', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    replaceWithOrderedListGapAndTaskList(view);
+
+    const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+    const event = pressKey(view, 'Delete');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('ordered_list');
+    expect(view.state.doc.child(1).type.name).toBe('bullet_list');
+    expect(view.state.doc.child(0).textContent).toBe('1');
+    expect(view.state.doc.child(1).textContent).toBe('1');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(selectionAncestorNames(view)).toContain('list_item');
+
+    await editor.destroy();
+  });
+
+  it('deletes an empty paragraph between ordered and task lists on Backspace', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    replaceWithOrderedListGapAndTaskList(view);
+
+    const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+    const event = pressKey(view, 'Backspace');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('ordered_list');
+    expect(view.state.doc.child(1).type.name).toBe('bullet_list');
+    expect(view.state.doc.child(0).textContent).toBe('1');
+    expect(view.state.doc.child(1).textContent).toBe('1');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(selectionAncestorNames(view)).toContain('list_item');
 
     await editor.destroy();
   });

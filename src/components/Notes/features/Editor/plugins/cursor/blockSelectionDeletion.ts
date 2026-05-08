@@ -1,19 +1,34 @@
 import { Selection, TextSelection, type Transaction } from '@milkdown/kit/prose/state';
+import type { ResolvedPos } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { buildDeleteRangesForBlockSelection } from './listBlockUtils';
 import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
 
-function refocusEditorAfterBlockDeletion(view: EditorView): void {
-  view.focus();
-
-  const ownerWindow = view.dom.ownerDocument.defaultView;
-  if (!ownerWindow) {
+function blurEditorAfterBlockDeletion(view: EditorView): void {
+  const activeElement = view.dom.ownerDocument.activeElement;
+  if (activeElement instanceof HTMLElement && view.dom.contains(activeElement)) {
+    activeElement.blur();
     return;
   }
 
-  ownerWindow.requestAnimationFrame(() => {
-    view.focus();
-  });
+  view.dom.blur();
+}
+
+function isListContainerName(name: string): boolean {
+  return name === 'bullet_list' || name === 'ordered_list';
+}
+
+function findSelectionInsideAdjacentList($pos: ResolvedPos): Selection | null {
+  if ($pos.nodeAfter && isListContainerName($pos.nodeAfter.type.name)) {
+    const selection = Selection.findFrom($pos, 1, true);
+    if (selection) return selection;
+  }
+
+  if ($pos.nodeBefore && isListContainerName($pos.nodeBefore.type.name)) {
+    return Selection.findFrom($pos, -1, true);
+  }
+
+  return null;
 }
 
 function isCursorTextblock(node: { isTextblock: boolean; type: { name: string } } | null | undefined): boolean {
@@ -36,6 +51,19 @@ function setSelectionAfterBlockDeletion(tr: Transaction, targetPos: number): Tra
 
   if (isCursorTextblock($pos.nodeBefore)) {
     return tr.setSelection(Selection.near($pos, -1));
+  }
+
+  const adjacentListSelection = findSelectionInsideAdjacentList($pos);
+  if (adjacentListSelection) {
+    return tr.setSelection(adjacentListSelection);
+  }
+
+  if (isListContainerName($pos.parent.type.name)) {
+    const listItemSelection = Selection.findFrom($pos, 1, true)
+      ?? Selection.findFrom($pos, -1, true);
+    if (listItemSelection) {
+      return tr.setSelection(listItemSelection);
+    }
   }
 
   if (paragraphType) {
@@ -74,6 +102,6 @@ export function deleteSelectedBlocks(
   tr = setSelectionAfterBlockDeletion(tr, targetPos);
   tr = applyClearSelectionMeta(tr);
   view.dispatch(tr.scrollIntoView());
-  refocusEditorAfterBlockDeletion(view);
+  blurEditorAfterBlockDeletion(view);
   return true;
 }

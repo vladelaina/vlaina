@@ -36,7 +36,14 @@ export const atomicBlockKeyboardNavigationPluginKey =
 
 const EMPTY_TRANSIENT_GAP_STATE: TransientGapState = { pos: null };
 const ATOMIC_NAV_BLOCK_NODE_NAMES = new Set(['math_block', 'mermaid']);
-const STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES = new Set(['table', 'math_block', 'mermaid', 'code_block']);
+const STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES = new Set([
+  'table',
+  'math_block',
+  'mermaid',
+  'code_block',
+  'ordered_list',
+  'bullet_list',
+]);
 export const ATOMIC_BLOCK_KEYBOARD_SELECTION_CLASS = 'vlaina-atomic-block-keyboard-selected';
 
 function getPlainVerticalDirection(event: KeyboardEvent): Direction | null {
@@ -51,6 +58,10 @@ function getPlainVerticalDirection(event: KeyboardEvent): Direction | null {
 
 function isNavigableAtomicBlock(node: ProseNode | null | undefined): boolean {
   return Boolean(node && ATOMIC_NAV_BLOCK_NODE_NAMES.has(node.type.name));
+}
+
+function isListContainerNode(node: ProseNode | null | undefined): node is ProseNode {
+  return Boolean(node && (node.type.name === 'ordered_list' || node.type.name === 'bullet_list'));
 }
 
 function hasAtomicBlockNodeSelection(state: EditorState): boolean {
@@ -208,6 +219,17 @@ function dispatchDeleteEmptyParagraphNearStructuralBlock(
     }
 
     view.dispatch(tr.scrollIntoView());
+    view.focus();
+    return;
+  }
+
+  if (isListContainerNode(nextNode)) {
+    const blockTo = mappedBlockFrom + nextNode.nodeSize;
+    const adjacentSelection = range.searchDir < 0
+      ? Selection.findFrom(tr.doc.resolve(blockTo), -1, true)
+      : Selection.findFrom(tr.doc.resolve(mappedBlockFrom), 1, true);
+
+    view.dispatch((adjacentSelection ? tr.setSelection(adjacentSelection) : tr).scrollIntoView());
     view.focus();
     return;
   }
