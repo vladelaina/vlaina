@@ -8,7 +8,6 @@ import { preserveMarkdownBlankLinesForEditor } from '@/lib/notes/markdown/markdo
 import { collapseSelectionAndHideFloatingToolbar } from './copyCleanup';
 import { sanitizeHtml } from './sanitizer';
 import { serializeSelectionToClipboardText } from './selectionSerialization';
-import { writeTextToClipboard } from '../cursor/blockSelectionCommands';
 import { createCodeBlockAttrs } from '../code/codeBlockSettings';
 import { normalizeLeadingFrontmatterMarkdown } from '../frontmatter/frontmatterMarkdown';
 import { normalizeMermaidFenceCode } from '../mermaid/mermaidFenceCode';
@@ -124,26 +123,6 @@ export const clipboardPlugin = $prose((ctx) => {
     return new Plugin({
         key: clipboardPluginKey,
         props: {
-            handleKeyDown(view, event) {
-                const key = event.key.toLowerCase();
-                const hasPrimaryModifier = (event.metaKey || event.ctrlKey) && !event.altKey;
-
-                if (!hasPrimaryModifier || event.shiftKey || key !== 'c') return false;
-
-                const text = serializeSelectionToClipboardText(
-                    view.state,
-                    getMarkdownSerializer(),
-                );
-                if (text.length === 0) return false;
-
-                event.preventDefault();
-                void writeTextToClipboard(text).then((didCopy) => {
-                    if (didCopy) {
-                        collapseSelectionAndHideFloatingToolbar(view);
-                    }
-                });
-                return true;
-            },
             handleDOMEvents: {
                 copy(view, event) {
                     const text = serializeSelectionToClipboardText(

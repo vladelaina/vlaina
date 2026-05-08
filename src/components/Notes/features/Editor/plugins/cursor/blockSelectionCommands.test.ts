@@ -104,6 +104,28 @@ describe('serializeSelectedBlocksToText', () => {
     expect(result).toBe('# Title\n\n- item');
   });
 
+  it('does not expose internal clipboard artifacts from serialized blocks', () => {
+    const state = createMockState();
+    const markdownSerializer = vi.fn((doc: any) => {
+      if (doc.range === '1-2') return 'A\n\u0000VLAINA_LIST_GAP_SENTINEL\u0000\nB';
+      return 'C\n��VLAINA_USER_BR_SENTINEL��\nD';
+    });
+
+    const result = serializeSelectedBlocksToText(
+      state,
+      [
+        { from: 1, to: 2 },
+        { from: 3, to: 4 },
+      ],
+      { markdownSerializer: markdownSerializer as unknown as Serializer },
+    );
+
+    expect(result).toBe('A\n\nB\n\nC\\\nD');
+    expect(result).not.toContain('\u0000');
+    expect(result).not.toContain('�');
+    expect(result).not.toMatch(/VLAINA_(?:LIST_GAP|USER_BR)_SENTINEL/);
+  });
+
   it('serializes leading frontmatter block selections back to markdown fences', () => {
     const state = createMockState();
     const markdownSerializer = vi.fn((doc: any) => {
@@ -173,6 +195,31 @@ describe('serializeSelectedBlocksToText', () => {
     await editor.destroy();
   });
 
+  it('keeps markdown semantics for ordered lists separated by a single blank line', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '1. A\n\n2. B');
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(serializeSelectedBlocksToText(view.state, blocks, { markdownSerializer: serializer })).toBe(
+      '1. A\n2. B'
+    );
+
+    await editor.destroy();
+  });
+
   it('keeps markdown semantics for task lists separated by a single blank line', async () => {
     const editor = Editor.make()
       .config((ctx) => {
@@ -223,6 +270,48 @@ describe('serializeSelectedBlocksToText', () => {
     await editor.destroy();
   });
 
+  it.each([
+    {
+      name: 'ordered',
+      markdown: '1. only ordered',
+      expected: 'only ordered',
+    },
+    {
+      name: 'bullet',
+      markdown: '- only bullet',
+      expected: 'only bullet',
+    },
+    {
+      name: 'task',
+      markdown: '- [ ] only task',
+      expected: 'only task',
+    },
+  ])('copies a single $name block without list markdown syntax', async ({ markdown, expected }) => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, markdown);
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(blocks).toHaveLength(1);
+    expect(serializeSelectedBlocksToText(view.state, blocks, { markdownSerializer: serializer })).toBe(
+      expected
+    );
+
+    await editor.destroy();
+  });
+
   it('copies a single nested task block without markdown syntax', async () => {
     const editor = Editor.make()
       .config((ctx) => {
@@ -244,6 +333,48 @@ describe('serializeSelectedBlocksToText', () => {
     expect(blocks).toHaveLength(2);
     expect(serializeSelectedBlocksToText(view.state, [blocks[1]], { markdownSerializer: serializer })).toBe(
       '2'
+    );
+
+    await editor.destroy();
+  });
+
+  it.each([
+    {
+      name: 'ordered',
+      markdown: '1. parent\n   1. nested ordered',
+      expected: 'nested ordered',
+    },
+    {
+      name: 'bullet',
+      markdown: '- parent\n  - nested bullet',
+      expected: 'nested bullet',
+    },
+    {
+      name: 'task',
+      markdown: '- [ ] parent\n  - [ ] nested task',
+      expected: 'nested task',
+    },
+  ])('copies a single nested $name block without markdown syntax', async ({ markdown, expected }) => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, markdown);
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(blocks).toHaveLength(2);
+    expect(serializeSelectedBlocksToText(view.state, [blocks[1]], { markdownSerializer: serializer })).toBe(
+      expected
     );
 
     await editor.destroy();
