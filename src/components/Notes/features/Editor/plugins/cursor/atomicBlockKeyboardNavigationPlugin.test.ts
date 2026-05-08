@@ -576,6 +576,33 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     await editor.destroy();
   });
 
+  it('does not join the following paragraph into a code block on Backspace at its start', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      createCodeBlockNode(view),
+      schema.nodes.paragraph.create(null, schema.text('after')),
+    ]);
+
+    const paragraphPos = topLevelNodePos(view, 'paragraph');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, paragraphPos + 1)));
+    const event = pressKey(view, 'Backspace');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('code_block');
+    expect(view.state.doc.child(0).textContent).toBe('const value = 1;');
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+    expect(view.state.doc.child(1).textContent).toBe('after');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(selectionAncestorNames(view)).not.toContain('code_block');
+    expect(view.state.selection.from).toBe(topLevelNodePos(view, 'paragraph') + 1);
+
+    await editor.destroy();
+  });
+
   it('backspaces an empty paragraph immediately below a code block without moving the cursor into code', async () => {
     const editor = createEditor();
     await editor.create();

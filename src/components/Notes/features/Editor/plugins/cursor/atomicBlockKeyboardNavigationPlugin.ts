@@ -156,6 +156,30 @@ function getPlainDeleteDirection(event: KeyboardEvent): -1 | 1 | null {
   return null;
 }
 
+function shouldPreserveParagraphAfterCodeBlockOnBackspace(view: EditorView, event: KeyboardEvent): boolean {
+  if (event.key !== 'Backspace') {
+    return false;
+  }
+
+  const { selection } = view.state;
+  if (!(selection instanceof TextSelection) || !selection.empty) {
+    return false;
+  }
+
+  const { $from } = selection;
+  if ($from.depth !== 1 || $from.parent.type.name !== 'paragraph' || $from.parentOffset !== 0) {
+    return false;
+  }
+
+  const paragraphIndex = $from.index(0);
+  if (paragraphIndex <= 0) {
+    return false;
+  }
+
+  const previousNode = $from.node(0).child(paragraphIndex - 1);
+  return previousNode.type.name === 'code_block' && $from.parent.content.size > 0;
+}
+
 function dispatchDeleteEmptyParagraphNearStructuralBlock(
   view: EditorView,
   range: AdjacentEmptyParagraphDeleteRange
@@ -163,6 +187,7 @@ function dispatchDeleteEmptyParagraphNearStructuralBlock(
   const tr = view.state.tr.delete(range.from, range.to);
   const mappedBlockFrom = tr.mapping.map(range.blockFrom, -1);
   const nextNode = tr.doc.nodeAt(mappedBlockFrom);
+
   if (range.blockName === 'code_block' && nextNode?.type.name === 'code_block') {
     const blockTo = mappedBlockFrom + nextNode.nodeSize;
     const adjacentSelection = range.searchDir < 0
@@ -218,6 +243,7 @@ function handleEmptyParagraphNearStructuralBlockDelete(
       STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES
     );
   const range = primaryRange ?? fallbackRange;
+
   if (!range) {
     return false;
   }
@@ -422,6 +448,11 @@ export const atomicBlockKeyboardNavigationPlugin = $prose(() => {
     },
     props: {
       handleKeyDown(view, event) {
+        if (shouldPreserveParagraphAfterCodeBlockOnBackspace(view, event)) {
+          event.preventDefault();
+          return true;
+        }
+
         if (handleEmptyParagraphNearStructuralBlockDelete(view, event)) {
           return true;
         }

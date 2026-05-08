@@ -60,8 +60,8 @@ export function SearchDesignLab() {
     totalMatches,
     onNext: () => setActiveMatch(prev => (prev % totalMatches) + 1),
     onPrev: () => setActiveMatch(prev => (prev === 1 ? totalMatches : prev - 1)),
-    onReplace: () => console.log('Replace'),
-    onReplaceAll: () => console.log('Replace All'),
+    onReplace: () => {},
+    onReplaceAll: () => {},
     onClose: () => setQuery(''),
   };
 

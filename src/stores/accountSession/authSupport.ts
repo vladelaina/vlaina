@@ -10,8 +10,15 @@ export const AUTH_STATE_STORAGE_KEY = 'vlaina_auth_state';
 export const AUTH_PROVIDER_STORAGE_KEY = 'vlaina_auth_provider';
 
 function logAvatarStep(event: string, details: Record<string, unknown> = {}): void {
-  if (import.meta.env.DEV) {
-    console.info(`[account:avatar] ${event}`, details);
+  if (!import.meta.env.DEV || typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    if (window.localStorage.getItem('vlaina:debug:account') === '1') {
+      console.info(`[account:avatar] ${event}`, details);
+    }
+  } catch {
   }
 }
 

@@ -10,8 +10,22 @@ interface NotesDebugEntry {
 const notesDebugEntries: NotesDebugEntry[] = [];
 let didInstallGlobalNotesDebugHelpers = false;
 
+const NOTES_DEBUG_STORAGE_KEY = 'vlaina.notes.debug';
+
 export function isNotesDebugLoggingEnabled() {
-  return true;
+  if (import.meta.env.MODE === 'test') {
+    return true;
+  }
+
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  try {
+    return window.localStorage.getItem(NOTES_DEBUG_STORAGE_KEY) === '1';
+  } catch {
+    return false;
+  }
 }
 
 export function summarizeLineBreakText(text: string | null | undefined) {
@@ -112,6 +126,10 @@ export function logNotesDebugAlways(label: string, scope: string, payload?: unkn
 }
 
 function appendNotesDebugEntry(label: string, scope: string, payload?: unknown) {
+  if (!isNotesDebugLoggingEnabled()) {
+    return;
+  }
+
   notesDebugEntries.push({
     timestamp: new Date().toISOString(),
     label,

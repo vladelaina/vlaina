@@ -16,21 +16,25 @@ function refocusEditorAfterBlockDeletion(view: EditorView): void {
   });
 }
 
+function isCursorTextblock(node: { isTextblock: boolean; type: { name: string } } | null | undefined): boolean {
+  return Boolean(node?.isTextblock && node.type.name !== 'code_block');
+}
+
 function setSelectionAfterBlockDeletion(tr: Transaction, targetPos: number): Transaction {
   const docSize = tr.doc.content.size;
   const safePos = Math.max(0, Math.min(targetPos, docSize));
   const $pos = tr.doc.resolve(safePos);
   const paragraphType = tr.doc.type.schema.nodes.paragraph;
 
-  if ($pos.parent.isTextblock) {
+  if (isCursorTextblock($pos.parent)) {
     return tr.setSelection(TextSelection.create(tr.doc, safePos));
   }
 
-  if ($pos.nodeAfter?.isTextblock) {
+  if (isCursorTextblock($pos.nodeAfter)) {
     return tr.setSelection(TextSelection.create(tr.doc, safePos + 1));
   }
 
-  if ($pos.nodeBefore?.isTextblock) {
+  if (isCursorTextblock($pos.nodeBefore)) {
     return tr.setSelection(Selection.near($pos, -1));
   }
 
