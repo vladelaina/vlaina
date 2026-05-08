@@ -46,22 +46,19 @@ function replaceWithOrderedListGapAndTaskList(view: EditorView): void {
 }
 
 describe('deleteSelectedBlocks', () => {
-  it('restores text input focus after deletion', async () => {
+  it('removes editor DOM focus after deletion', async () => {
     const editor = await createEditor('A\n\nB');
     const view = editor.ctx.get(editorViewCtx);
     const blocks = collectSelectableBlockRanges(view.state.doc);
 
     const focusSpy = vi.spyOn(view, 'focus');
     const blurSpy = vi.spyOn(view.dom, 'blur');
-    const requestAnimationFrameSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {
-      callback(0);
-      return 1;
-    });
+    const requestAnimationFrameSpy = vi.spyOn(window, 'requestAnimationFrame');
 
     expect(deleteSelectedBlocks(view, [blocks[0]], (tr) => tr)).toBe(true);
-    expect(focusSpy).toHaveBeenCalledTimes(2);
-    expect(requestAnimationFrameSpy).toHaveBeenCalledTimes(1);
-    expect(blurSpy).not.toHaveBeenCalled();
+    expect(focusSpy).not.toHaveBeenCalled();
+    expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
+    expect(blurSpy).toHaveBeenCalledTimes(1);
     expect(view.state.doc.textContent).toBe('B');
 
     requestAnimationFrameSpy.mockRestore();

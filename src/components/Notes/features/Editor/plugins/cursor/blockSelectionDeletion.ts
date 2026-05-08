@@ -4,17 +4,14 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { buildDeleteRangesForBlockSelection } from './listBlockUtils';
 import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
 
-function refocusEditorAfterBlockDeletion(view: EditorView): void {
-  view.focus();
-
-  const ownerWindow = view.dom.ownerDocument.defaultView;
-  if (!ownerWindow) {
+function blurEditorAfterBlockDeletion(view: EditorView): void {
+  const activeElement = view.dom.ownerDocument.activeElement;
+  if (activeElement instanceof HTMLElement && view.dom.contains(activeElement)) {
+    activeElement.blur();
     return;
   }
 
-  ownerWindow.requestAnimationFrame(() => {
-    view.focus();
-  });
+  view.dom.blur();
 }
 
 function isListContainerName(name: string): boolean {
@@ -101,6 +98,6 @@ export function deleteSelectedBlocks(
   tr = setSelectionAfterBlockDeletion(tr, targetPos);
   tr = applyClearSelectionMeta(tr);
   view.dispatch(tr.scrollIntoView());
-  refocusEditorAfterBlockDeletion(view);
+  blurEditorAfterBlockDeletion(view);
   return true;
 }
