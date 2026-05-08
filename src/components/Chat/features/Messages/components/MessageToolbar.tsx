@@ -7,6 +7,8 @@ import { subscribeChatMessageCopied } from '@/components/Chat/common/copyFeedbac
 
 const COPY_FEEDBACK_DURATION_MS = 1200;
 const COPY_FEEDBACK_CLOSING_MS = 160;
+const sidebarTextIconButtonClass =
+  "text-[var(--chat-sidebar-text)] hover:text-[var(--chat-sidebar-text)]";
 
 type CopyFeedbackSource = 'manual' | 'shortcut' | null;
 
@@ -122,13 +124,13 @@ export const MessageToolbar = memo(function MessageToolbar({
             
             <button 
                 onClick={handleCopy} 
-                className={cn("p-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/5", iconButtonStyles)} 
+                className={cn("p-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/5", iconButtonStyles, sidebarTextIconButtonClass)}
             >
                 {isCopyFeedbackVisible ? <Icon name="common.check" size="md" /> : <Icon name="common.copy" size="md" />}
             </button>
 
             {!isCopyClosing && (
-              <button onClick={onRegenerate} className={cn("p-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/5", iconButtonStyles, secondaryActionClass)}>
+              <button onClick={onRegenerate} className={cn("p-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/5", iconButtonStyles, secondaryActionClass, sidebarTextIconButtonClass)}>
                 <Icon name="common.refresh" size="md" />
               </button>
             )}

@@ -96,14 +96,14 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
           disabled={isDisabled}
           className={cn(
             'relative flex items-center justify-center w-7 h-7 rounded-md transition-colors',
+            iconButtonStyles,
             isPromoteMode
-              ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-500/30'
+              ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-200 dark:hover:bg-emerald-500/20 dark:hover:text-emerald-200'
               :
             temporaryChatEnabled
-              ? 'bg-[#f0f4ff] dark:bg-white/15 text-[#1e4fd6] dark:text-white'
-              : 'hover:bg-[#f5f5f5] dark:hover:bg-white/10',
-            isDisabled && 'cursor-default pointer-events-none opacity-95',
-            iconButtonStyles
+              ? 'bg-[#ecf6ff] text-[#41a8ea] hover:bg-[#e1f1ff] hover:text-[#41a8ea] dark:bg-[#ecf6ff] dark:text-[#41a8ea] dark:hover:bg-[#e1f1ff]'
+              : 'text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)] hover:text-[var(--chat-sidebar-text)] dark:hover:bg-white/10',
+            isDisabled && 'cursor-default pointer-events-none opacity-95'
           )}
         >
           <Icon

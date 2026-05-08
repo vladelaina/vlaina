@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { Icon } from '@/components/ui/icons';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn, iconButtonStyles } from '@/lib/utils';
 
 interface ChatInputActionsProps {
@@ -22,35 +24,75 @@ export function ChatInputActions({
   onStop,
   onSend,
 }: ChatInputActionsProps) {
+  const [actionsOpen, setActionsOpen] = useState(false);
+
+  const handleTriggerFileSelect = () => {
+    setActionsOpen(false);
+    onTriggerFileSelect();
+  };
+
+  const handleEnableWebSearch = () => {
+    setActionsOpen(false);
+    if (!webSearchEnabled) {
+      onToggleWebSearch();
+    }
+  };
+
   return (
     <div className="flex items-center justify-between px-2 pb-2 pl-3">
       <div className="flex items-center gap-2">
-        <button
-          onClick={onTriggerFileSelect}
-          className={cn(
-            'w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200',
-            iconButtonStyles,
-            'hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-200 active:scale-95'
-          )}
-        >
-          <Icon name="common.add" size="md" />
-        </button>
-        <button
-          type="button"
-          aria-pressed={webSearchEnabled}
-          aria-label={webSearchEnabled ? 'Disable web search' : 'Enable web search'}
-          title={webSearchEnabled ? 'Web search on' : 'Web search off'}
-          onClick={onToggleWebSearch}
-          className={cn(
-            'w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200',
-            webSearchEnabled
-              ? 'bg-[#e7f3ff] text-[#1677c8] dark:bg-[#14324b] dark:text-[#7cc7ff]'
-              : cn(iconButtonStyles, 'hover:bg-black/5 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-200'),
-            'active:scale-95'
-          )}
-        >
-          <Icon name="file.public" size="md" />
-        </button>
+        <Popover open={actionsOpen} onOpenChange={setActionsOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              aria-label="Open chat actions"
+              className={cn(
+                'w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200',
+                iconButtonStyles,
+                'text-[var(--chat-sidebar-text)] hover:bg-black/5 dark:hover:bg-black/5 hover:text-[var(--chat-sidebar-text)] active:scale-95'
+              )}
+            >
+              <Icon name="common.add" size="md" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            align="start"
+            side="top"
+            sideOffset={8}
+            className="w-52 rounded-xl border-black/10 bg-white p-1.5 text-gray-900 shadow-lg"
+          >
+            <button
+              type="button"
+              onClick={handleTriggerFileSelect}
+              className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-[14px] transition-colors hover:bg-gray-100"
+            >
+              <Icon name="common.upload" size="md" className="text-gray-500" />
+              <span>Upload file</span>
+            </button>
+            {!webSearchEnabled && (
+              <button
+                type="button"
+                onClick={handleEnableWebSearch}
+                className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-[14px] transition-colors hover:bg-gray-100"
+              >
+                <Icon name="file.public" size="md" className="text-gray-500" />
+                <span>Web search</span>
+              </button>
+            )}
+          </PopoverContent>
+        </Popover>
+        {webSearchEnabled && (
+          <button
+            type="button"
+            aria-pressed="true"
+            aria-label="Disable web search"
+            title="Web search on"
+            onClick={onToggleWebSearch}
+            className="w-9 h-9 flex items-center justify-center rounded-full bg-[#e7f3ff] text-[#1677c8] transition-all duration-200 hover:bg-[#d9ecff] active:scale-95"
+          >
+            <Icon name="file.public" size="md" />
+          </button>
+        )}
       </div>
 
       <div className="flex items-center gap-2">
@@ -72,7 +114,7 @@ export function ChatInputActions({
                 ? 'bg-[#41a8ea] text-white shadow-md shadow-[#41a8ea]/25 hover:scale-105 active:scale-95'
                 : canSend
                   ? 'bg-[#41a8ea] text-white opacity-60 shadow-sm shadow-[#41a8ea]/15 cursor-default'
-                : 'bg-gray-50 dark:bg-gray-800 text-gray-300 dark:text-gray-600 cursor-default'
+                : 'bg-[#e7f3ff] text-[#9acff3] cursor-default'
             )}
             style={canSubmit ? { boxShadow: '0 0 0 3px rgba(65, 168, 234, 0.12), 0 10px 24px rgba(65, 168, 234, 0.28)' } : undefined}
           >
