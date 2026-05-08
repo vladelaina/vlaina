@@ -55,8 +55,8 @@ export function UnifiedTitleBar({
             className="vlaina-no-drag group flex h-8 w-8 items-center justify-center rounded-md text-[var(--vlaina-text-tertiary)] transition-colors hover:bg-[var(--vlaina-bg-primary)] hover:text-[var(--vlaina-text-primary)] dark:hover:bg-white/10"
           >
             <>
-              <Icon name="common.menu" size="md" className="group-hover:hidden" />
-              <Icon name="nav.expand" size="md" className="hidden group-hover:block" />
+              <Icon name="common.menu" size="titlebarToggle" className="group-hover:hidden" />
+              <Icon name="nav.expand" size="titlebarToggle" className="hidden group-hover:block" />
             </>
           </button>
         </div>

@@ -3,6 +3,7 @@ export const ICON_SIZES = {
   sm: 14,
   sidebar: 15,
   md: 20,
+  titlebarToggle: 25,
   lg: 24,
   xl: 32,
 } as const;
