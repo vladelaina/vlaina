@@ -1,5 +1,5 @@
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/kit/prose/view';
-import { createCollapseTriangleSvgMarkup } from '../../../common/collapseTriangle';
+import { createCollapseToggleButton, isCollapseToggleTarget } from '../collapse/collapseUtils';
 import { getCollapsedNodePositions, type PositionedNode, type TopLevelNodeLike } from './headingCollapseUtils';
 
 interface BuildHeadingCollapseDecorationsOptions<TNode extends TopLevelNodeLike> {
@@ -18,37 +18,21 @@ const createToggleWidgetDecoration = (
     return Decoration.widget(
         headingPos + 1,
         (view) => {
-            const button = document.createElement('span');
-            button.className = 'heading-toggle-btn';
-            button.setAttribute('data-collapsed', String(isCollapsed));
-            button.setAttribute('data-has-content', String(hasContent));
-            button.setAttribute('contenteditable', 'false');
-            button.innerHTML = createCollapseTriangleSvgMarkup(16);
-
-            const handleTogglePointer = (event: Event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                if (!hasContent) {
-                    return;
-                }
-
-                dispatchToggle(view, headingPos, isCollapsed);
-                view.dom.blur();
-            };
-
-            if (typeof PointerEvent !== 'undefined') {
-                button.addEventListener('pointerdown', handleTogglePointer);
-            } else {
-                button.addEventListener('mousedown', handleTogglePointer);
-            }
-
-            return button;
+            return createCollapseToggleButton({
+                className: 'heading-toggle-btn',
+                collapsed: isCollapsed,
+                hasContent,
+                onToggle: () => {
+                    dispatchToggle(view, headingPos, isCollapsed);
+                    view.dom.blur();
+                },
+            });
         },
         {
             side: -1,
             key: `toggle-${headingPos}-${isCollapsed ? '1' : '0'}-${hasContent ? '1' : '0'}`,
             stopEvent(event) {
-                return event.target instanceof Element && !!event.target.closest('.heading-toggle-btn');
+                return isCollapseToggleTarget(event.target, 'heading-toggle-btn');
             },
         },
     );

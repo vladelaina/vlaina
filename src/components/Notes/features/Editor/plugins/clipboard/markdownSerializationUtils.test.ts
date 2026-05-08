@@ -130,6 +130,21 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ).toBe(['| A | B |', '| --- | --- |', '| 1 | 2 |'].join('\n'));
   });
 
+  it('canonicalizes empty atx headings so they reopen as headings', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(['#', '##', '', 'Body'].join('\n'))
+    ).toBe(['# #', '## ##', '', 'Body'].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument(['   ###   ', '', 'Body'].join('\n'))
+    ).toBe(['   ### ###', '', 'Body'].join('\n'));
+  });
+
+  it('does not canonicalize empty atx-like markers inside fenced code', () => {
+    const markdown = ['```md', '#', '##', '```'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
   it('does not convert leading frontmatter line breaks into hard breaks', () => {
     expect(
       normalizeSerializedMarkdownDocument(['---', 'title: Alpha', 'tags: test', '---', '', 'Line one', 'Line two'].join('\n'))

@@ -2,60 +2,43 @@ import { createCollapseTriangleSvgMarkup } from '../../../common/collapseTriangl
 
 export const COLLAPSED_CONTENT_CLASS = 'vlaina-collapsed-content';
 
-export const COLLAPSE_TOGGLE_EVENT = 'vlaina-collapse-toggle';
+export const COLLAPSE_TOGGLE_BUTTON_CLASS = 'vlaina-collapse-btn';
 
-class CollapsedStateManager {
-    private states: Map<string, Set<number>> = new Map();
+interface CollapseToggleButtonOptions {
+    className?: string;
+    collapseType?: string;
+    collapsed: boolean;
+    hasContent: boolean;
+    onToggle: (event: Event) => void;
+}
 
-    getSet(type: string): Set<number> {
-        if (!this.states.has(type)) {
-            this.states.set(type, new Set());
-        }
-        return this.states.get(type)!;
-    }
+export function isCollapseToggleTarget(
+    target: EventTarget | null,
+    className = COLLAPSE_TOGGLE_BUTTON_CLASS,
+): boolean {
+    return target instanceof Element && !!target.closest(`.${className}`);
+}
 
-    isCollapsed(type: string, pos: number): boolean {
-        return this.getSet(type).has(pos);
-    }
-
-    toggle(type: string, pos: number): boolean {
-        const set = this.getSet(type);
-        const wasCollapsed = set.has(pos);
-        if (wasCollapsed) {
-            set.delete(pos);
-        } else {
-            set.add(pos);
-        }
-        return !wasCollapsed; // Return new state
-    }
-
-    setCollapsed(type: string, pos: number, collapsed: boolean): void {
-        const set = this.getSet(type);
-        if (collapsed) {
-            set.add(pos);
-        } else {
-            set.delete(pos);
-        }
+export function blurActiveElement(ownerDocument: Document): void {
+    const activeElement = ownerDocument.activeElement;
+    if (activeElement instanceof HTMLElement || activeElement instanceof SVGElement) {
+        activeElement.blur();
     }
 }
 
-export const collapsedState = new CollapsedStateManager();
-
-export function isCollapseToggleTarget(target: EventTarget | null): boolean {
-    return target instanceof Element && !!target.closest('.vlaina-collapse-btn');
-}
-
-export function createCollapseToggleButton(
-    type: string,
-    pos: number,
-    isCollapsed: boolean,
-    hasContent: boolean
-): HTMLElement {
-
+export function createCollapseToggleButton({
+    className = COLLAPSE_TOGGLE_BUTTON_CLASS,
+    collapseType,
+    collapsed,
+    hasContent,
+    onToggle,
+}: CollapseToggleButtonOptions): HTMLElement {
     const button = document.createElement('span');
-    button.className = 'vlaina-collapse-btn';
-    button.setAttribute('data-collapse-type', type);
-    button.setAttribute('data-collapsed', String(isCollapsed));
+    button.className = className;
+    if (collapseType) {
+        button.setAttribute('data-collapse-type', collapseType);
+    }
+    button.setAttribute('data-collapsed', String(collapsed));
     button.setAttribute('data-has-content', String(hasContent));
     button.setAttribute('contenteditable', 'false');
 
@@ -65,13 +48,9 @@ export function createCollapseToggleButton(
         e.preventDefault();
         e.stopPropagation();
 
-        const newState = collapsedState.toggle(type, pos);
-        button.setAttribute('data-collapsed', String(newState));
-
-        const event = new CustomEvent(COLLAPSE_TOGGLE_EVENT, {
-            detail: { type, pos }
-        });
-        document.dispatchEvent(event);
+        if (!hasContent) return;
+        blurActiveElement(button.ownerDocument);
+        onToggle(e);
     };
 
     const stopClick = (e: Event) => {
@@ -87,11 +66,4 @@ export function createCollapseToggleButton(
     button.addEventListener('click', stopClick);
 
     return button;
-}
-
-export function dispatchCollapseToggle(type: string, pos: number): void {
-    const event = new CustomEvent(COLLAPSE_TOGGLE_EVENT, {
-        detail: { type, pos }
-    });
-    document.dispatchEvent(event);
 }

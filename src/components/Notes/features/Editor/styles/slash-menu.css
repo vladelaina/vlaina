@@ -61,6 +61,11 @@
   flex-shrink: 0;
 }
 
+.slash-menu-item-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
 .slash-menu-item.selected .slash-menu-item-icon,
 .slash-menu-item.selected .slash-menu-item-name {
   color: var(--notes-sidebar-file-icon);
@@ -103,6 +108,76 @@
 
 .slash-menu::-webkit-scrollbar-track {
   background: transparent;
+}
+
+.vlaina-preview-context-menu {
+  overflow: visible;
+}
+
+.vlaina-preview-context-menu-group {
+  position: relative;
+}
+
+.vlaina-preview-context-menu-parent {
+  grid-template-columns: 20px minmax(0, 1fr) 16px;
+}
+
+.vlaina-preview-context-menu-parent::after {
+  content: '›';
+  color: var(--vlaina-text-secondary);
+  font-size: 18px;
+  line-height: 1;
+  justify-self: end;
+}
+
+.vlaina-preview-context-submenu {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: 0;
+  min-width: 180px;
+}
+
+.vlaina-preview-context-menu-submenu-left .vlaina-preview-context-submenu {
+  left: auto;
+  right: 100%;
+}
+
+.vlaina-preview-context-menu-group:hover > .vlaina-preview-context-submenu,
+.vlaina-preview-context-menu-group:focus-within > .vlaina-preview-context-submenu {
+  display: block;
+}
+
+.vlaina-preview-context-menu-group:hover > .slash-menu-item,
+.vlaina-preview-context-menu-group:focus-within > .slash-menu-item {
+  background-color: var(--notes-sidebar-row-active, #f2f2f2);
+}
+
+.vlaina-preview-context-menu .slash-menu-item:hover,
+.vlaina-preview-context-menu .slash-menu-item:focus-visible,
+.vlaina-preview-context-submenu .slash-menu-item:hover,
+.vlaina-preview-context-submenu .slash-menu-item:focus-visible {
+  background-color: var(--notes-sidebar-row-active, #f2f2f2);
+}
+
+.vlaina-preview-context-menu-group:hover > .slash-menu-item .slash-menu-item-icon,
+.vlaina-preview-context-menu-group:hover > .slash-menu-item .slash-menu-item-name,
+.vlaina-preview-context-menu-group:focus-within > .slash-menu-item .slash-menu-item-icon,
+.vlaina-preview-context-menu-group:focus-within > .slash-menu-item .slash-menu-item-name,
+.vlaina-preview-context-menu .slash-menu-item:hover .slash-menu-item-icon,
+.vlaina-preview-context-menu .slash-menu-item:hover .slash-menu-item-name,
+.vlaina-preview-context-menu .slash-menu-item:focus-visible .slash-menu-item-icon,
+.vlaina-preview-context-menu .slash-menu-item:focus-visible .slash-menu-item-name,
+.vlaina-preview-context-submenu .slash-menu-item:hover .slash-menu-item-icon,
+.vlaina-preview-context-submenu .slash-menu-item:hover .slash-menu-item-name,
+.vlaina-preview-context-submenu .slash-menu-item:focus-visible .slash-menu-item-icon,
+.vlaina-preview-context-submenu .slash-menu-item:focus-visible .slash-menu-item-name {
+  color: var(--notes-sidebar-file-icon);
+}
+
+.vlaina-preview-context-menu-group:hover > .vlaina-preview-context-menu-parent::after,
+.vlaina-preview-context-menu-group:focus-within > .vlaina-preview-context-menu-parent::after {
+  color: var(--notes-sidebar-file-icon);
 }
 
 .slash-video-prompt {

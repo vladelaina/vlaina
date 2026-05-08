@@ -1,5 +1,6 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin } from '@milkdown/kit/prose/state';
+import { shouldSuppressPreviewEditorOpen } from '../shared/previewContextMenuSuppression';
 import {
   findMathEditorTargetElement,
   isHorizontalScrollbarPointerDown,
@@ -42,6 +43,11 @@ export const mathEditorPlugin = $prose(() => {
     props: {
       handleDOMEvents: {
         mousedown(view, event) {
+          if (shouldSuppressPreviewEditorOpen() && findMathEditorTargetElement(view, event.target)) {
+            event.preventDefault();
+            return true;
+          }
+
           if (shouldIgnoreOpen(mathEditorPluginKey.getState(view.state) as MathEditorState | undefined)) {
             return false;
           }
@@ -68,12 +74,21 @@ export const mathEditorPlugin = $prose(() => {
         },
       },
       handleClick(view, pos, event) {
+        const mathElement = findMathEditorTargetElement(view, event.target);
+        if (!mathElement) {
+          return false;
+        }
+
+        if (shouldSuppressPreviewEditorOpen()) {
+          event.preventDefault();
+          return true;
+        }
+
         if (shouldIgnoreOpen(mathEditorPluginKey.getState(view.state) as MathEditorState | undefined)) {
           return false;
         }
 
-        const mathElement = findMathEditorTargetElement(view, event.target);
-        if (mathElement && isHorizontalScrollbarPointerDown({ event, mathElement })) {
+        if (isHorizontalScrollbarPointerDown({ event, mathElement })) {
           return false;
         }
 

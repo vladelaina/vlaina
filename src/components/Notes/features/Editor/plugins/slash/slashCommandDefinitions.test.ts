@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import {
+  Editor,
+  defaultValueCtx,
+  editorViewCtx,
+  remarkStringifyOptionsCtx,
+  serializerCtx,
+} from '@milkdown/kit/core';
+import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { icons } from '@/components/ui/icons/registry';
+import { normalizeSerializedMarkdownDocument, stripTrailingNewlines } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+import { applySlashCommand } from './slashCommands';
 import {
   collectFootnoteIds,
   getNextFootnoteDefId,
@@ -33,6 +44,32 @@ describe('slashCommandDefinitions', () => {
     for (const definition of slashCommandDefinitions) {
       expect(icons[definition.icon], definition.id).toBeDefined();
     }
+  });
+
+  it('persists an empty slash-created heading as unambiguous markdown', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark);
+
+    await editor.create();
+    applySlashCommand(editor.ctx, 'heading-1');
+
+    const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
+    const normalized = stripTrailingNewlines(
+      normalizeSerializedMarkdownDocument(serializer(view.state.doc))
+    );
+
+    expect(view.state.doc.firstChild?.type.name).toBe('heading');
+    expect(normalized).toBe('# #');
+
+    await editor.destroy();
   });
 
   it('keeps common writing commands before advanced inserts', () => {
