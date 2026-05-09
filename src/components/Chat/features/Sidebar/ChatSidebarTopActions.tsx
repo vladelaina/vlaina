@@ -7,7 +7,7 @@ import {
 
 interface ChatSidebarTopActionsProps {
   onOpenNewChat: () => void;
-  onOpenNotes: () => void;
+  onOpenNotes?: () => void;
 }
 
 interface ChatSidebarTopAction {
@@ -28,7 +28,10 @@ export function ChatSidebarTopActions({
       icon: <Icon name="common.compose" size="md" />,
       onClick: onOpenNewChat,
     },
-    {
+  ];
+
+  if (onOpenNotes) {
+    actions.push({
       key: 'notes',
       label: 'Grimoire',
       icon: (
@@ -50,8 +53,8 @@ export function ChatSidebarTopActions({
         </svg>
       ),
       onClick: onOpenNotes,
-    },
-  ];
+    });
+  }
 
   return (
     <SidebarActionGroup>

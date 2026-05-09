@@ -401,10 +401,10 @@ export function NotesView({ active = true }: { active?: boolean }) {
 
         {active && !chatPanelCollapsed && (
           <ResizablePanel
-            defaultWidth={420}
+            defaultWidth={320}
             minWidth={320}
             maxWidth={760}
-            storageKey="vlaina_notes_chat_panel_width"
+            storageKey="vlaina_notes_chat_panel_width_v2"
             onDragStateChange={handleChatPanelDragStateChange}
             className="h-full border-l border-[#eff3f4] bg-[var(--vlaina-bg-primary)]"
           >
