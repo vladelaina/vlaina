@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   applyBlankAreaPlainClickSelection,
   resolveBlankAreaPlainClickAction,
+  resolveInsideBlockTrailingPlainClickAction,
 } from './blankAreaPlainClick';
 
 describe('resolveBlankAreaPlainClickAction', () => {
@@ -40,6 +41,31 @@ describe('resolveBlankAreaPlainClickAction', () => {
     });
   });
 
+  it('uses content bounds instead of the full block hit area for right-side blank clicks', () => {
+    expect(
+      resolveBlankAreaPlainClickAction({
+        blockRects: [
+          {
+            from: 0,
+            to: 8,
+            left: 20,
+            right: 620,
+            contentLeft: 100,
+            contentRight: 180,
+            top: 40,
+            bottom: 64,
+          },
+        ],
+        clientX: 260,
+        clientY: 52,
+      })
+    ).toEqual({
+      targetPos: 7,
+      bias: -1,
+      blockFrom: 0,
+    });
+  });
+
   it('falls back to the first block when clicking above all blocks', () => {
     expect(
       resolveBlankAreaPlainClickAction({
@@ -60,6 +86,147 @@ describe('resolveBlankAreaPlainClickAction', () => {
         blockRects: [],
         clientX: 0,
         clientY: 0,
+      })
+    ).toBeNull();
+  });
+});
+
+describe('resolveInsideBlockTrailingPlainClickAction', () => {
+  it('focuses the block end when clicking inside a wide list item after its text content', () => {
+    expect(
+      resolveInsideBlockTrailingPlainClickAction({
+        blockRects: [
+          {
+            from: 4,
+            to: 12,
+            left: 40,
+            right: 620,
+            contentLeft: 96,
+            contentRight: 180,
+            top: 80,
+            bottom: 104,
+            allowInsideTrailingClick: true,
+          },
+        ],
+        clientX: 320,
+        clientY: 92,
+      })
+    ).toEqual({
+      targetPos: 11,
+      bias: -1,
+      blockFrom: 4,
+    });
+  });
+
+  it('leaves normal text clicks to the editor native handler', () => {
+    expect(
+      resolveInsideBlockTrailingPlainClickAction({
+        blockRects: [
+          {
+            from: 4,
+            to: 12,
+            left: 40,
+            right: 620,
+            contentLeft: 96,
+            contentRight: 180,
+            top: 80,
+            bottom: 104,
+            allowInsideTrailingClick: true,
+          },
+        ],
+        clientX: 160,
+        clientY: 92,
+      })
+    ).toBeNull();
+  });
+
+  it('focuses the previous list item end when clicking the right-side gap before the next item', () => {
+    expect(
+      resolveInsideBlockTrailingPlainClickAction({
+        blockRects: [
+          {
+            from: 4,
+            to: 12,
+            left: 40,
+            right: 620,
+            contentLeft: 96,
+            contentRight: 180,
+            top: 80,
+            bottom: 104,
+            allowInsideTrailingClick: true,
+          },
+          {
+            from: 12,
+            to: 20,
+            left: 40,
+            right: 620,
+            contentLeft: 96,
+            contentRight: 220,
+            top: 116,
+            bottom: 140,
+            allowInsideTrailingClick: true,
+          },
+        ],
+        clientX: 320,
+        clientY: 110,
+      })
+    ).toEqual({
+      targetPos: 11,
+      bias: -1,
+      blockFrom: 4,
+    });
+  });
+
+  it('leaves left-side list item gaps to the editor native handler', () => {
+    expect(
+      resolveInsideBlockTrailingPlainClickAction({
+        blockRects: [
+          {
+            from: 4,
+            to: 12,
+            left: 40,
+            right: 620,
+            contentLeft: 96,
+            contentRight: 180,
+            top: 80,
+            bottom: 104,
+            allowInsideTrailingClick: true,
+          },
+          {
+            from: 12,
+            to: 20,
+            left: 40,
+            right: 620,
+            contentLeft: 96,
+            contentRight: 220,
+            top: 116,
+            bottom: 140,
+            allowInsideTrailingClick: true,
+          },
+        ],
+        clientX: 120,
+        clientY: 110,
+      })
+    ).toBeNull();
+  });
+
+  it('does not override native clicks for non-list blocks', () => {
+    expect(
+      resolveInsideBlockTrailingPlainClickAction({
+        blockRects: [
+          {
+            from: 4,
+            to: 12,
+            left: 40,
+            right: 620,
+            contentLeft: 96,
+            contentRight: 180,
+            top: 80,
+            bottom: 104,
+          },
+        ],
+        clientX: 320,
+        clientY: 92,
       })
     ).toBeNull();
   });

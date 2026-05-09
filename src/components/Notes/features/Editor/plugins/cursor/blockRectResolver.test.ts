@@ -142,8 +142,84 @@ describe('createBlockRectResolver', () => {
         top: 40,
         right: 620,
         bottom: 64,
+        contentLeft: 60,
+        contentRight: 70,
       },
     ]);
+  });
+
+  it('uses list item text bounds for plain click edge detection', () => {
+    const dom = document.createElement('div');
+    const list = document.createElement('ul');
+    const item = document.createElement('li');
+    const paragraph = document.createElement('p');
+    const text = document.createTextNode('short');
+    paragraph.append(text);
+    item.append(paragraph);
+    list.append(item);
+    dom.append(list);
+
+    withRect(dom, { left: 20, top: 10, width: 600, height: 300 });
+    withRect(item, { left: 60, top: 40, width: 560, height: 24 });
+    withRect(paragraph, { left: 100, top: 40, width: 520, height: 24 });
+
+    const paragraphNode = createNode('paragraph', 5);
+    const listItemNode = createNode('list_item', 7, [paragraphNode]);
+    const listNode = createNode('bullet_list', 9, [listItemNode]);
+    const doc = {
+      ...createDoc([listNode]),
+      resolve(pos: number) {
+        return {
+          nodeAfter: pos === 1 ? listItemNode : null,
+        };
+      },
+    };
+    const originalCreateRange = document.createRange;
+    document.createRange = () => ({
+      selectNodeContents: () => undefined,
+      getClientRects: () => [{
+        x: 140,
+        y: 44,
+        left: 140,
+        top: 44,
+        width: 50,
+        height: 16,
+        right: 190,
+        bottom: 60,
+        toJSON: () => ({}),
+      }],
+      detach: () => undefined,
+    }) as any;
+
+    try {
+      const view = {
+        dom,
+        state: { doc },
+        nodeDOM: () => item,
+        domAtPos: () => ({ node: text }),
+      };
+
+      const resolver = createBlockRectResolver({
+        view: view as any,
+        scrollRootSelector: '[data-note-scroll-root="true"]',
+      });
+
+      expect(resolver.getTopLevelBlockRects()).toEqual([
+        {
+          from: 1,
+          to: 8,
+          left: 20,
+          top: 40,
+          right: 620,
+          bottom: 64,
+          contentLeft: 140,
+          contentRight: 190,
+          allowInsideTrailingClick: true,
+        },
+      ]);
+    } finally {
+      document.createRange = originalCreateRange;
+    }
   });
 });
 

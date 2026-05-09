@@ -20,8 +20,10 @@ import { startBlankAreaSelectionSession } from './blankAreaSelectionSession';
 import { type BlockDragStartZone } from './blockDragSession';
 import {
   applyBlankAreaPlainClickSelection,
+  resolveInsideBlockTrailingPlainClickAction,
   type BlankAreaPlainClickAction,
 } from './blankAreaPlainClick';
+import { createBlockRectResolver } from './blockRectResolver';
 import {
   blankAreaDragBoxPluginKey,
   CLEAR_BLOCKS_ACTION,
@@ -52,6 +54,28 @@ function dispatchBlankAreaPlainClick(view: EditorView, action: BlankAreaPlainCli
   tr = tr.setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION);
   view.dispatch(tr.scrollIntoView());
   view.focus();
+}
+
+function tryDispatchInsideBlockTrailingPlainClick(view: EditorView, event: MouseEvent): boolean {
+  if (!(event.target instanceof Node) || !view.dom.contains(event.target)) return false;
+  if (event.button !== 0) return false;
+  if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false;
+
+  const resolver = createBlockRectResolver({
+    view,
+    scrollRootSelector: SCROLL_ROOT_SELECTOR,
+  });
+  const action = resolveInsideBlockTrailingPlainClickAction({
+    blockRects: resolver.getTopLevelBlockRects(),
+    clientX: event.clientX,
+    clientY: event.clientY,
+  });
+  resolver.invalidate();
+  if (!action) return false;
+
+  event.preventDefault();
+  dispatchBlankAreaPlainClick(view, action);
+  return true;
 }
 
 function clearTextSelectionForDragSession(view: EditorView): void {
@@ -240,6 +264,9 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           const target = event.target;
           if (target instanceof Node && view.dom.contains(target) && hasSelectedBlocks(view.state)) {
             clearBlockSelection(view);
+          }
+          if (tryDispatchInsideBlockTrailingPlainClick(view, event)) {
+            return true;
           }
 
           // `below-last-block` starts drag-or-click behavior here.

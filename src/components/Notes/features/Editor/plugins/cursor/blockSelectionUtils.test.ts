@@ -158,6 +158,32 @@ describe('blockSelectionUtils', () => {
     expect(
       convertBlockRectsToDocumentSpace([{ from: 1, to: 2, left: 10, top: 20, right: 30, bottom: 40 }], 5, 7),
     ).toEqual([{ from: 1, to: 2, left: 15, top: 27, right: 35, bottom: 47 }]);
+
+    expect(
+      convertBlockRectsToDocumentSpace([
+        {
+          from: 1,
+          to: 2,
+          left: 10,
+          top: 20,
+          right: 80,
+          bottom: 40,
+          contentLeft: 30,
+          contentRight: 50,
+        },
+      ], 5, 7),
+    ).toEqual([
+      {
+        from: 1,
+        to: 2,
+        left: 15,
+        top: 27,
+        right: 85,
+        bottom: 47,
+        contentLeft: 35,
+        contentRight: 55,
+      },
+    ]);
   });
 
   it('selects only intersected blocks and returns ordered ranges', () => {

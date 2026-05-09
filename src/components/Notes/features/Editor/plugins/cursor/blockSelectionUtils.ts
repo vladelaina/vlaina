@@ -11,6 +11,9 @@ export interface RectBounds {
 export interface BlockRect extends RectBounds {
   from: number;
   to: number;
+  contentLeft?: number;
+  contentRight?: number;
+  allowInsideTrailingClick?: boolean;
 }
 
 export interface BlockRange {
@@ -268,6 +271,8 @@ export function convertBlockRectsToDocumentSpace(
     ...block,
     left: block.left + scrollLeft,
     right: block.right + scrollLeft,
+    ...(block.contentLeft === undefined ? {} : { contentLeft: block.contentLeft + scrollLeft }),
+    ...(block.contentRight === undefined ? {} : { contentRight: block.contentRight + scrollLeft }),
     top: block.top + scrollTop,
     bottom: block.bottom + scrollTop,
   }));

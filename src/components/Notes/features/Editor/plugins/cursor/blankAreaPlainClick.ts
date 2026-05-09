@@ -16,9 +16,11 @@ function resolveVerticalDistance(block: BlockRect, clientY: number): number {
 }
 
 function resolveHorizontalBias(block: BlockRect, clientX: number): 1 | -1 {
-  if (clientX <= block.left) return 1;
-  if (clientX >= block.right) return -1;
-  return clientX <= (block.left + block.right) / 2 ? 1 : -1;
+  const left = block.contentLeft ?? block.left;
+  const right = block.contentRight ?? block.right;
+  if (clientX <= left) return 1;
+  if (clientX >= right) return -1;
+  return clientX <= (left + right) / 2 ? 1 : -1;
 }
 
 export function resolveBlankAreaPlainClickAction(args: {
@@ -51,6 +53,32 @@ export function resolveBlankAreaPlainClickAction(args: {
     bias,
     blockFrom: nearestBlock.from,
   };
+}
+
+export function resolveInsideBlockTrailingPlainClickAction(args: {
+  blockRects: readonly BlockRect[];
+  clientX: number;
+  clientY: number;
+}): BlankAreaPlainClickAction | null {
+  const { blockRects, clientX, clientY } = args;
+  for (let index = 0; index < blockRects.length; index += 1) {
+    const block = blockRects[index];
+    if (!block.allowInsideTrailingClick) continue;
+    const contentRight = block.contentRight;
+    if (contentRight === undefined || clientX <= contentRight) continue;
+
+    const nextBlock = blockRects[index + 1];
+    const bottomBoundary = nextBlock ? nextBlock.top : block.bottom;
+    const isInsideBlockOrGap = clientY >= block.top && clientY <= bottomBoundary;
+    if (!isInsideBlockOrGap) continue;
+
+    return {
+      targetPos: Math.max(block.from + 1, block.to - 1),
+      bias: -1,
+      blockFrom: block.from,
+    };
+  }
+  return null;
 }
 
 export function applyBlankAreaPlainClickSelection(
