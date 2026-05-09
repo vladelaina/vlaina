@@ -440,11 +440,13 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).not.toContain('background-color: hsl(var(--foreground));');
   });
 
-  it('keeps block dropdown icons neutral and selected items on the requested blue surface', () => {
+  it('keeps block dropdown icons neutral and selected items on the shared sidebar row surface', () => {
     const css = readStyleFile('floating-toolbar.css');
 
-    expect(css).toContain('--block-dropdown-active-bg: #ecf6ff;');
-    expect(css).toContain('--block-dropdown-active-fg: #41a8ea;');
+    expect(css).toContain('--block-dropdown-active-bg: var(--notes-sidebar-row-active');
+    expect(css).toContain('--block-dropdown-active-fg: var(--sidebar-row-selected-text');
+    expect(css).toContain('border-radius: 0.5rem;');
+    expect(css).toContain('background-color: var(--notes-sidebar-row-hover');
     expect(css).toContain('.block-dropdown-item-icon {');
     expect(css).toContain('color: currentColor;');
     expect(css).toContain('background-color: var(--block-dropdown-active-bg);');

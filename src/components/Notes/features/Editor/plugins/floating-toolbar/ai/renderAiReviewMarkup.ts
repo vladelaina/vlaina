@@ -1,6 +1,7 @@
 import type { FloatingToolbarState } from '../types';
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
 import { renderAiReviewDiffMarkup } from './reviewDiff';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 function escapeHtml(value: string): string {
   return value
@@ -30,11 +31,11 @@ export function renderAiReviewMarkup(state: FloatingToolbarState): string | null
       : '<div class="ai-review-result-surface"></div>';
 
   return `
-    <div class="floating-toolbar-inner floating-toolbar-ai-review-mode">
+    <div class="floating-toolbar-inner floating-toolbar-ai-review-mode !rounded-[26px] ${chatComposerPillSurfaceClass}">
       <div class="ai-review-panel" tabindex="-1">
         <div class="ai-review-body">
           <section class="ai-review-merge-panel">
-            <div class="ai-review-content ai-review-content-after ai-review-content-glass">
+            <div class="ai-review-content ai-review-content-after ai-review-content-glass !rounded-[26px] ${chatComposerPillSurfaceClass}">
               ${resultMarkup}
               <div class="ai-review-footer">
                 <div class="ai-review-controls-left">

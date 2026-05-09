@@ -62,7 +62,6 @@ describe('toolbar markup', () => {
       'components/BlockDropdown.ts',
       'components/AlignmentDropdown.ts',
       'components/ColorPicker.ts',
-      'components/AiDropdown.ts',
       'components/ai-dropdown/markup.ts',
     ];
 
@@ -73,6 +72,13 @@ describe('toolbar markup', () => {
       );
       expect(source).toContain('chatComposerPillSurfaceClass');
     });
+
+    const aiDropdownSource = readFileSync(
+      resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar/components/AiDropdown.ts'),
+      'utf8',
+    );
+    expect(aiDropdownSource).toContain("dropdown.className = 'toolbar-submenu ai-dropdown ai-dropdown-nested'");
+    expect(aiDropdownSource).not.toContain('dropdown.className = `toolbar-submenu ai-dropdown ai-dropdown-nested ${chatComposerPillSurfaceClass}`');
   });
 
   it('hides AI tools when no account or custom provider is available', () => {
@@ -212,6 +218,9 @@ describe('toolbar markup', () => {
     );
 
     expect(markup).toContain('ai-review-result-surface');
+    expect(markup).toContain(chatComposerPillSurfaceClass);
+    expect(markup).toContain('!rounded-[26px]');
+    expect(markup).toContain(`ai-review-content ai-review-content-after ai-review-content-glass !rounded-[26px] ${chatComposerPillSurfaceClass}`);
     expect(markup).toContain('ai-review-diff-added');
     expect(markup).toContain('ai-review-diff-removed');
     expect(markup).toContain('Hello there');
