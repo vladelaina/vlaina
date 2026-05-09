@@ -374,6 +374,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
     openNote,
     closeTab,
     reopenClosedTab,
+    chatPanelCollapsed,
     toggleChatPanel,
     focusNotesChatComposer,
     focusSidebarPath,

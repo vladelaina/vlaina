@@ -1131,6 +1131,37 @@ describe('NotesView', () => {
     expect(mocks.sidebarDiscussion.openSidebarDiscussionForSelection).not.toHaveBeenCalled();
   });
 
+  it('closes embedded chat on Ctrl+L when the panel is already open', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    uiState.notesChatPanelCollapsed = false;
+    const editorView = {
+      state: {
+        selection: {
+          empty: false,
+        },
+      },
+    };
+    mocks.editorViewRegistry.getCurrentEditorView.mockReturnValue(editorView);
+    shortcutMatchesMock.mockImplementation((event, binding) => (
+      binding === 'toggleEmbeddedChat' && event.key.toLowerCase() === 'l' && event.ctrlKey
+    ));
+
+    render(<NotesView />);
+    await waitForVaultInitializationEffects();
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'l',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    document.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(uiState.toggleNotesChatPanel).toHaveBeenCalledTimes(1);
+    expect(mocks.sidebarDiscussion.openSidebarDiscussionForSelection).not.toHaveBeenCalled();
+  });
+
   it('does not cycle notes on Ctrl+Tab from inside a dialog', async () => {
     notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
     notesState.openTabs = [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }];

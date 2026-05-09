@@ -17,6 +17,7 @@ interface UseNotesViewShortcutsOptions {
   openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
   closeTab: (path: string) => Promise<void>;
   reopenClosedTab: () => Promise<void>;
+  chatPanelCollapsed: boolean;
   toggleChatPanel: () => void;
   focusNotesChatComposer: () => void;
   focusSidebarPath: (path: string) => void;
@@ -30,6 +31,7 @@ export function useNotesViewShortcuts({
   openNote,
   closeTab,
   reopenClosedTab,
+  chatPanelCollapsed,
   toggleChatPanel,
   focusNotesChatComposer,
   focusSidebarPath,
@@ -46,6 +48,11 @@ export function useNotesViewShortcuts({
 
       if (matchesShortcutBinding(event, 'toggleEmbeddedChat')) {
         event.preventDefault();
+        if (!chatPanelCollapsed) {
+          toggleChatPanel();
+          return;
+        }
+
         const currentEditorView = getCurrentEditorView();
         if (currentEditorView && !currentEditorView.state.selection.empty) {
           openSidebarDiscussionForSelection(currentEditorView);
@@ -145,6 +152,7 @@ export function useNotesViewShortcuts({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [
     active,
+    chatPanelCollapsed,
     closeTab,
     reopenClosedTab,
     currentNotePath,
