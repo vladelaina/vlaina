@@ -13,11 +13,12 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { focusComposerInput } from '@/lib/ui/composerFocusRegistry';
 import { ChatSidebarTopActions } from './ChatSidebarTopActions';
 import { SidebarSearchDrawer } from '@/components/layout/sidebar/SidebarSearchDrawer';
-import { SIDEBAR_CAPSULE_SCROLLBAR_INSET_RIGHT } from '@/components/layout/sidebar/SidebarPrimitives';
+import {
+  SidebarCapsulePanel,
+  SIDEBAR_CAPSULE_SCROLLBAR_INSET_RIGHT,
+} from '@/components/layout/sidebar/SidebarPrimitives';
 import { ChatSidebarVirtualList } from './ChatSidebarVirtualList';
 import { useChatSidebarSearch } from './useChatSidebarSearch';
-import { cn } from '@/lib/utils';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 interface ChatSidebarProps {
   isPeeking?: boolean;
@@ -144,7 +145,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
           topActions={null}
         />
 
-        <div className={cn('mx-2 mb-2 flex min-h-0 flex-1 flex-col rounded-[22px] p-1', chatComposerPillSurfaceClass)}>
+        <SidebarCapsulePanel>
           {!shouldShowSearchResults ? (
             <ChatSidebarTopActions
               onOpenNewChat={handleOpenNewChat}
@@ -184,7 +185,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
               ) : null}
             </div>
           </ChatSidebarScrollArea>
-        </div>
+        </SidebarCapsulePanel>
       </ChatSidebarSurface>
 
       <ConfirmDialog

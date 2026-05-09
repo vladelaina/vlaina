@@ -23,6 +23,8 @@ interface SidebarScrollAreaProps extends HTMLAttributes<HTMLDivElement> {
   scrollbarInsetRight?: number;
 }
 
+type SidebarCapsulePanelProps = HTMLAttributes<HTMLDivElement>;
+
 interface SidebarActionButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   icon: ReactNode;
   label: ReactNode;
@@ -40,6 +42,22 @@ interface SidebarSearchFieldProps
 }
 
 export const SIDEBAR_CAPSULE_SCROLLBAR_INSET_RIGHT = 0;
+
+export function SidebarCapsulePanel({
+  className,
+  ...props
+}: SidebarCapsulePanelProps) {
+  return (
+    <div
+      className={cn(
+        'mx-2 mb-2 flex min-h-0 flex-1 flex-col rounded-[22px] p-1',
+        chatComposerPillSurfaceClass,
+        className,
+      )}
+      {...props}
+    />
+  );
+}
 
 export const SidebarSurface = forwardRef<HTMLDivElement, SidebarSurfaceProps>(
   function SidebarSurface({ className, isPeeking = false, ...props }, ref) {

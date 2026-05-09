@@ -1,4 +1,7 @@
 import { Icon } from '@/components/ui/icons';
+import { ShortcutKeys } from '@/components/ui/shortcut-keys';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import { cn, iconButtonStyles } from '@/lib/utils';
 
@@ -19,19 +22,37 @@ export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
                 )}
             >
                 <WorkspaceSwitcher className="h-full w-auto min-w-0 flex-1 justify-start" />
-                <button
-                    type="button"
-                    onClick={toggleSidebar}
-                    aria-label="Collapse sidebar"
-                    className={cn(
-                        'pointer-events-none flex h-7 w-7 items-center justify-center rounded-full bg-transparent opacity-0 transition-opacity',
-                        'group-hover/sidebar-user-header:pointer-events-auto group-hover/sidebar-user-header:opacity-100',
-                        'group-focus-within/sidebar-user-header:pointer-events-auto group-focus-within/sidebar-user-header:opacity-100',
-                        iconButtonStyles
-                    )}
-                >
-                    <Icon name="nav.collapse" size="md" />
-                </button>
+                <Tooltip delayDuration={700}>
+                    <TooltipTrigger asChild>
+                        <button
+                            type="button"
+                            onClick={toggleSidebar}
+                            aria-label="Collapse sidebar"
+                            className={cn(
+                                'pointer-events-none flex h-7 w-7 items-center justify-center rounded-full bg-transparent opacity-0 transition-opacity',
+                                'group-hover/sidebar-user-header:pointer-events-auto group-hover/sidebar-user-header:opacity-100',
+                                'group-focus-within/sidebar-user-header:pointer-events-auto group-focus-within/sidebar-user-header:opacity-100',
+                                iconButtonStyles
+                            )}
+                        >
+                            <Icon name="nav.collapse" size="md" />
+                        </button>
+                    </TooltipTrigger>
+                    <TooltipContent
+                        side="bottom"
+                        sideOffset={6}
+                        showArrow={false}
+                        className={cn(
+                            'flex items-center gap-1.5 rounded-[18px] px-3 py-2 text-xs text-[var(--chat-sidebar-text)]',
+                            chatComposerPillSurfaceClass
+                        )}
+                    >
+                        <ShortcutKeys
+                            keys={['Ctrl', '\\']}
+                            keyClassName="rounded-md bg-[var(--chat-sidebar-row-hover)] text-[var(--chat-sidebar-text)]"
+                        />
+                    </TooltipContent>
+                </Tooltip>
             </div>
         </div>
     );

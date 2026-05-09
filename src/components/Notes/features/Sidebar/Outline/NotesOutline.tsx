@@ -14,6 +14,10 @@ import { NotesSidebarRow } from '../NotesSidebarRow';
 import { NotesSidebarTopActions } from '../NotesSidebarTopActions';
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
 import {
+  SidebarCapsulePanel,
+  SIDEBAR_CAPSULE_SCROLLBAR_INSET_RIGHT,
+} from '@/components/layout/sidebar/SidebarPrimitives';
+import {
   buildOutlineTree,
   cleanupCollapsedHeadingIds,
   toggleCollapsedHeadingId,
@@ -116,31 +120,34 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
 
   return (
     <div ref={sidebarRootRef} className={cn('flex h-full flex-col', className)}>
-      <NotesSidebarTopActions />
-      <NotesSidebarScrollArea
-        ref={scrollRootRef}
-        className={cn(isPeeking ? 'vlaina-scrollbar-rounded pt-4 pb-4' : 'pt-2')}
-        data-notes-sidebar-scroll-root="true"
-      >
-        <div className="relative flex min-h-full flex-col">
-          {headings.length > 0 ? (
-            <nav aria-label="Document outline" className="space-y-0.5">
-              {renderTreeNodes(headingTree)}
-            </nav>
-          ) : null}
-          <div
-            data-notes-sidebar-blank-drag-root="true"
-            className={cn('flex flex-1 items-center justify-center', headings.length === 0 && 'min-h-[160px] pb-8')}
-          >
-            {headings.length === 0 ? (
-              <NotesSidebarHoverEmptyHint
-                title="Outline is empty"
-                placement="inline"
-              />
+      <SidebarCapsulePanel>
+        <NotesSidebarTopActions />
+        <NotesSidebarScrollArea
+          ref={scrollRootRef}
+          className={cn(isPeeking ? 'vlaina-scrollbar-rounded pt-4 pb-4' : 'pt-2')}
+          scrollbarInsetRight={SIDEBAR_CAPSULE_SCROLLBAR_INSET_RIGHT}
+          data-notes-sidebar-scroll-root="true"
+        >
+          <div className="relative flex min-h-full flex-col">
+            {headings.length > 0 ? (
+              <nav aria-label="Document outline" className="space-y-0.5">
+                {renderTreeNodes(headingTree)}
+              </nav>
             ) : null}
+            <div
+              data-notes-sidebar-blank-drag-root="true"
+              className={cn('flex flex-1 items-center justify-center', headings.length === 0 && 'min-h-[160px] pb-8')}
+            >
+              {headings.length === 0 ? (
+                <NotesSidebarHoverEmptyHint
+                  title="Outline is empty"
+                  placement="inline"
+                />
+              ) : null}
+            </div>
           </div>
-        </div>
-      </NotesSidebarScrollArea>
+        </NotesSidebarScrollArea>
+      </SidebarCapsulePanel>
     </div>
   );
 }

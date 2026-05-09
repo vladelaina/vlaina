@@ -52,10 +52,25 @@ export function UnifiedTitleBar({
           <button
             type="button"
             onClick={onToggleSidebar}
-            className="vlaina-no-drag group flex h-8 w-8 items-center justify-center rounded-md text-[var(--vlaina-text-tertiary)] transition-colors hover:bg-[var(--vlaina-bg-primary)] hover:text-[var(--vlaina-text-primary)] dark:hover:bg-white/10"
+            className="vlaina-no-drag group flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[var(--chat-sidebar-text)] transition-colors hover:bg-[var(--vlaina-bg-primary)] hover:text-[var(--chat-sidebar-text)] dark:hover:bg-white/10"
           >
             <>
-              <Icon name="common.menu" size="titlebarToggle" className="group-hover:hidden" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="lucide lucide-text-align-start-icon lucide-text-align-start size-5 group-hover:hidden"
+              >
+                <path d="M21 5H3" />
+                <path d="M15 12H3" />
+                <path d="M17 19H3" />
+              </svg>
               <Icon name="nav.expand" size="titlebarToggle" className="hidden group-hover:block" />
             </>
           </button>

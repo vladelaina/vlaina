@@ -1,9 +1,11 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { SidebarSearchDrawer, useSidebarSearchDrawerState } from '@/components/layout/sidebar/SidebarSearchDrawer';
-import { SIDEBAR_CAPSULE_SCROLLBAR_INSET_RIGHT } from '@/components/layout/sidebar/SidebarPrimitives';
+import {
+  SidebarCapsulePanel,
+  SIDEBAR_CAPSULE_SCROLLBAR_INSET_RIGHT,
+} from '@/components/layout/sidebar/SidebarPrimitives';
 import type { SidebarSearchState } from '@/components/layout/sidebar/useSidebarSearchState';
 import { cn } from '@/lib/utils';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { isAbsolutePath } from '@/lib/storage/adapter';
 import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
@@ -325,7 +327,7 @@ export function SidebarContent({
         topActions={null}
       />
 
-      <div className={cn('mx-2 mb-2 flex min-h-0 flex-1 flex-col rounded-[22px] p-1', chatComposerPillSurfaceClass)}>
+      <SidebarCapsulePanel>
         {!shouldShowSearchResults ? <NotesSidebarTopActions /> : null}
 
         <NotesSidebarScrollArea
@@ -378,7 +380,7 @@ export function SidebarContent({
             </div>
           )}
         </NotesSidebarScrollArea>
-      </div>
+      </SidebarCapsulePanel>
     </div>
   );
 }
