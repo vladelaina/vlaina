@@ -72,7 +72,7 @@ function ChatSidebarSessionRowInner({
   const [contextMenuPosition, setContextMenuPosition] = useState({ top: 0, left: 0 });
   const isGenerating = useAIUIStore((state) => !!state.generatingSessions[session.id]);
   const isUnread = useAIUIStore((state) => !!state.unreadSessions[session.id]);
-  const displayTitle = session.title || 'New Chat';
+  const displayTitle = session.title || 'New';
   const hoverPrefetch = useSidebarHoverPrefetch(
     useCallback(() => aiActions.prefetchSession(session.id), [session.id]),
     { enabled: !isActive && !isRenaming },

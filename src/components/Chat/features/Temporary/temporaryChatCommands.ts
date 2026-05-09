@@ -25,5 +25,5 @@ export function runTemporaryChatWelcomeShortcut() {
     return;
   }
 
-  aiActions.createSession('New Chat');
+  aiActions.createSession('New');
 }

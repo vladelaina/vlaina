@@ -109,7 +109,7 @@ describe("temporaryChatCommands", () => {
 
     runTemporaryChatWelcomeShortcut();
 
-    expect(mocked.createSession).toHaveBeenCalledWith("New Chat");
+    expect(mocked.createSession).toHaveBeenCalledWith("New");
     expect(mocked.toggleTemporaryChat).not.toHaveBeenCalled();
     expect(mocked.openNewChat).not.toHaveBeenCalled();
   });

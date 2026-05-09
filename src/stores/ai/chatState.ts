@@ -162,7 +162,7 @@ export function buildTemporarySessionState(
   }
 }
 
-export function createAIChatSession(title = 'New Chat'): string {
+export function createAIChatSession(title = 'New'): string {
   const state = useUnifiedStore.getState()
   const ai = state.data.ai! as TemporaryMutationState
   const uiState = useAIUIStore.getState()

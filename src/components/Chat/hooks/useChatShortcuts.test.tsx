@@ -260,7 +260,7 @@ describe("useChatShortcuts", () => {
 
     fireKeydown({ key: "j", ctrlKey: true, shiftKey: true });
 
-    expect(mocked.createSession).toHaveBeenCalledWith("New Chat");
+    expect(mocked.createSession).toHaveBeenCalledWith("New");
     expect(mocked.toggleTemporaryChat).not.toHaveBeenCalled();
     expect(onFocusInput).toHaveBeenCalledTimes(1);
   });

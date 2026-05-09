@@ -115,7 +115,7 @@ export function createSessionActions() {
       const promotedSessionId = generateId('session-')
       const promotedSession: ChatSession = {
         id: promotedSessionId,
-        title: 'New Chat',
+        title: 'New',
         modelId: temporarySession.modelId || ai.selectedModelId || '',
         isPinned: temporarySession.isPinned,
         createdAt: temporarySession.createdAt || now,
@@ -162,7 +162,7 @@ export function createSessionActions() {
       return promotedSessionId
     },
 
-    createSession: (title = 'New Chat') => createAIChatSession(title),
+    createSession: (title = 'New') => createAIChatSession(title),
 
     switchSession: async (sessionId: string) => {
       switchSessionGeneration += 1

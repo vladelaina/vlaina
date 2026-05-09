@@ -70,7 +70,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
 
   const handleRename = useCallback((sessionId: string, currentTitle: string) => {
     setRenamingSessionId(sessionId);
-    setRenameDraft(currentTitle || 'New Chat');
+    setRenameDraft(currentTitle || 'New');
   }, []);
 
   const cancelRename = useCallback(() => {

@@ -28,7 +28,7 @@ export function getNavigableChatSidebarSessions(sessions: ChatSession[]) {
 export function buildChatSidebarSearchEntries(sessions: ChatSession[]): ChatSidebarSearchEntry[] {
   return sessions.map((session) => ({
     session,
-    searchText: (session.title || 'New Chat').toLowerCase(),
+    searchText: (session.title || 'New').toLowerCase(),
   }));
 }
 

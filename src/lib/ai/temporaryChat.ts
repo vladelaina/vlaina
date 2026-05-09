@@ -68,7 +68,7 @@ export function hasUserMessage(messages: ChatMessage[]): boolean {
 
 const IMAGE_MARKDOWN_REGEX = /!\[.*?\]\(.*?\)/g;
 const TITLE_SOURCE_MAX_LENGTH = 1200;
-const AUTO_TITLE_PLACEHOLDERS = new Set(['New Chat']);
+const AUTO_TITLE_PLACEHOLDERS = new Set(['New', 'New Chat']);
 
 export function needsAutoTitle(title: string | null | undefined): boolean {
   const normalizedTitle = title?.trim() ?? '';
