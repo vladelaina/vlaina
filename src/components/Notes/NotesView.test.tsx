@@ -129,6 +129,7 @@ const mocks = vi.hoisted(() => {
   };
 
   const sidebarDiscussion = {
+    canOpenSidebarDiscussionForSelection: vi.fn(),
     openSidebarDiscussionForSelection: vi.fn(),
   };
 
@@ -257,6 +258,7 @@ vi.mock('@/components/Notes/features/Editor/utils/editorViewRegistry', () => ({
 }));
 
 vi.mock('@/components/Notes/features/Editor/plugins/floating-toolbar/ai/sidebarDiscussion', () => ({
+  canOpenSidebarDiscussionForSelection: mocks.sidebarDiscussion.canOpenSidebarDiscussionForSelection,
   openSidebarDiscussionForSelection: mocks.sidebarDiscussion.openSidebarDiscussionForSelection,
 }));
 
@@ -390,6 +392,7 @@ describe('NotesView', () => {
     notesState.getDisplayName.mockClear();
     mocks.toastState.addToast.mockClear();
     mocks.editorViewRegistry.getCurrentEditorView.mockReset();
+    mocks.sidebarDiscussion.canOpenSidebarDiscussionForSelection.mockReset();
     mocks.sidebarDiscussion.openSidebarDiscussionForSelection.mockReset();
     mocks.vaultState.openVault.mockClear();
     vi.mocked(messageDialog).mockReset();
@@ -1082,6 +1085,7 @@ describe('NotesView', () => {
       },
     };
     mocks.editorViewRegistry.getCurrentEditorView.mockReturnValue(editorView);
+    mocks.sidebarDiscussion.canOpenSidebarDiscussionForSelection.mockReturnValue(true);
     shortcutMatchesMock.mockImplementation((event, binding) => (
       binding === 'toggleEmbeddedChat' && event.key.toLowerCase() === 'l' && event.ctrlKey
     ));
@@ -1129,6 +1133,37 @@ describe('NotesView', () => {
     expect(event.defaultPrevented).toBe(true);
     expect(uiState.toggleNotesChatPanel).toHaveBeenCalledTimes(1);
     expect(mocks.sidebarDiscussion.openSidebarDiscussionForSelection).not.toHaveBeenCalled();
+  });
+
+  it('quotes the current block selection to chat on Ctrl+L', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    const editorView = {
+      state: {
+        selection: {
+          empty: true,
+        },
+      },
+    };
+    mocks.editorViewRegistry.getCurrentEditorView.mockReturnValue(editorView);
+    mocks.sidebarDiscussion.canOpenSidebarDiscussionForSelection.mockReturnValue(true);
+    shortcutMatchesMock.mockImplementation((event, binding) => (
+      binding === 'toggleEmbeddedChat' && event.key.toLowerCase() === 'l' && event.ctrlKey
+    ));
+
+    render(<NotesView />);
+    await waitForVaultInitializationEffects();
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'l',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    document.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(mocks.sidebarDiscussion.openSidebarDiscussionForSelection).toHaveBeenCalledWith(editorView);
+    expect(uiState.toggleNotesChatPanel).not.toHaveBeenCalled();
   });
 
   it('closes embedded chat on Ctrl+L when the panel is already open', async () => {

@@ -6,7 +6,10 @@ import {
   runTemporaryChatWelcomeShortcut,
 } from '@/components/Chat/features/Temporary/temporaryChatCommands';
 import { getAdjacentTreeNotePath } from '@/components/Notes/features/common/noteTreeNavigation';
-import { openSidebarDiscussionForSelection } from '@/components/Notes/features/Editor/plugins/floating-toolbar/ai/sidebarDiscussion';
+import {
+  canOpenSidebarDiscussionForSelection,
+  openSidebarDiscussionForSelection,
+} from '@/components/Notes/features/Editor/plugins/floating-toolbar/ai/sidebarDiscussion';
 import { getCurrentEditorView } from '@/components/Notes/features/Editor/utils/editorViewRegistry';
 
 interface UseNotesViewShortcutsOptions {
@@ -54,7 +57,7 @@ export function useNotesViewShortcuts({
         }
 
         const currentEditorView = getCurrentEditorView();
-        if (currentEditorView && !currentEditorView.state.selection.empty) {
+        if (currentEditorView && canOpenSidebarDiscussionForSelection(currentEditorView)) {
           openSidebarDiscussionForSelection(currentEditorView);
           return;
         }

@@ -142,7 +142,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       view.dom.addEventListener('cut', markUserInput);
       view.dom.addEventListener('drop', markUserInput);
       const blockPositionController = createCurrentEditorBlockPositionController(view as EditorView);
-      setCurrentMarkdownRuntime({ parser });
+      setCurrentMarkdownRuntime({ parser, serializer: liveSerializer });
       return () => {
         view.dom.removeEventListener('beforeinput', markUserInput);
         view.dom.removeEventListener('keydown', markUserInput);

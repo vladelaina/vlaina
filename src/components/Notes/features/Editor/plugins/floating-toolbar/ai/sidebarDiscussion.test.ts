@@ -10,12 +10,29 @@ vi.mock('./selectionCommands', () => ({
   getSerializedSelectionText: vi.fn(),
 }));
 
+vi.mock('../../cursor/blockSelectionCommands', () => ({
+  serializeSelectedBlocksToText: vi.fn(),
+}));
+
+vi.mock('../../cursor/blockSelectionPluginState', () => ({
+  getBlockSelectionPluginState: vi.fn(() => ({ selectedBlocks: [] })),
+  hasSelectedBlocks: vi.fn(() => false),
+}));
+
+vi.mock('../../../utils/editorViewRegistry', () => ({
+  getCurrentMarkdownSerializer: vi.fn(() => null),
+}));
+
 vi.mock('@/stores/useAIStore', () => ({
   createAIChatSession: vi.fn(),
 }));
 
 import { createAIChatSession } from '@/stores/useAIStore';
+import { serializeSelectedBlocksToText } from '../../cursor/blockSelectionCommands';
+import { getBlockSelectionPluginState, hasSelectedBlocks } from '../../cursor/blockSelectionPluginState';
+import { getCurrentMarkdownSerializer } from '../../../utils/editorViewRegistry';
 import { getSerializedSelectionText } from './selectionCommands';
+import { canOpenSidebarDiscussionForSelection } from './sidebarDiscussion';
 
 function createView(): EditorView {
   return {
@@ -43,6 +60,13 @@ describe('openSidebarDiscussionForSelection', () => {
     });
     vi.mocked(createAIChatSession).mockReset();
     vi.mocked(getSerializedSelectionText).mockReset();
+    vi.mocked(serializeSelectedBlocksToText).mockReset();
+    vi.mocked(getBlockSelectionPluginState).mockReset();
+    vi.mocked(getBlockSelectionPluginState).mockReturnValue({ selectedBlocks: [] } as never);
+    vi.mocked(hasSelectedBlocks).mockReset();
+    vi.mocked(hasSelectedBlocks).mockReturnValue(false);
+    vi.mocked(getCurrentMarkdownSerializer).mockReset();
+    vi.mocked(getCurrentMarkdownSerializer).mockReturnValue(null);
   });
 
   it('queues the normalized selection into the current side chat and hides the toolbar', () => {
@@ -87,6 +111,37 @@ describe('openSidebarDiscussionForSelection', () => {
 
     expect(createAIChatSession).toHaveBeenCalledWith('');
     expect(useUIStore.getState().pendingNotesChatComposerInsert?.text).toBe('Selected line 1');
+  });
+
+  it('queues serialized block selections into the side chat', () => {
+    const selectedBlocks = [{ from: 2, to: 8 }];
+    const markdownSerializer = vi.fn();
+    vi.mocked(getBlockSelectionPluginState).mockReturnValue({ selectedBlocks } as never);
+    vi.mocked(getCurrentMarkdownSerializer).mockReturnValue(markdownSerializer as never);
+    vi.mocked(serializeSelectedBlocksToText).mockReturnValue('## Selected block');
+
+    openSidebarDiscussionForSelection(createView());
+
+    expect(serializeSelectedBlocksToText).toHaveBeenCalledWith(
+      expect.anything(),
+      selectedBlocks,
+      { markdownSerializer },
+    );
+    expect(getSerializedSelectionText).not.toHaveBeenCalled();
+    expect(useUIStore.getState().pendingNotesChatComposerInsert?.text).toBe('## Selected block');
+  });
+
+  it('allows sidebar discussion when only block selection is active', () => {
+    vi.mocked(hasSelectedBlocks).mockReturnValue(true);
+    const view = {
+      state: {
+        selection: {
+          empty: true,
+        },
+      },
+    } as unknown as EditorView;
+
+    expect(canOpenSidebarDiscussionForSelection(view)).toBe(true);
   });
 
   it('shows a warning and does not queue a draft for an empty selection', () => {
