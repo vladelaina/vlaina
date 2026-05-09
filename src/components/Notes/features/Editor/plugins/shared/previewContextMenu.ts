@@ -7,6 +7,7 @@ import {
   type PreviewExportFormat,
 } from './previewExport';
 import { suppressPreviewEditorOpen } from './previewContextMenuSuppression';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 type InsertDirection = 'above' | 'below';
 type PreviewContextMenuIcon = 'image' | 'paragraph' | 'arrow-up' | 'arrow-down';
@@ -122,7 +123,7 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
   const createMenu = () => {
     closeMenu();
     menu = document.createElement('div');
-    menu.className = 'slash-menu vlaina-preview-context-menu';
+    menu.className = `slash-menu vlaina-preview-context-menu !rounded-[26px] ${chatComposerPillSurfaceClass}`;
     element.classList.add('vlaina-preview-context-menu-active');
 
     document.body.appendChild(menu);
@@ -160,7 +161,7 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
     parentButton.setAttribute('aria-haspopup', 'menu');
 
     const submenu = document.createElement('div');
-    submenu.className = 'slash-menu vlaina-preview-context-submenu';
+    submenu.className = `slash-menu vlaina-preview-context-submenu !rounded-[26px] ${chatComposerPillSurfaceClass}`;
     submenu.setAttribute('role', 'menu');
     items.forEach((item) => submenu.appendChild(item));
 

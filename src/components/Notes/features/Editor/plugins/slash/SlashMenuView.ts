@@ -10,6 +10,7 @@ import { filterSlashItems } from './slashQuery';
 import { createSlashState, getSlashMenuPosition, getSlashTextRange } from './slashState';
 import { getContentLayoutContext } from '../floating-toolbar/floatingToolbarLayout';
 import { getScrollRoot, getToolbarRoot, toContainerPosition } from '../floating-toolbar/floatingToolbarDom';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 const SLASH_MENU_MARGIN_PX = 12;
 const SLASH_MENU_MAX_HEIGHT_PX = 360;
@@ -123,7 +124,7 @@ export class SlashMenuView {
     }
 
     const menu = document.createElement('div');
-    menu.className = 'slash-menu';
+    menu.className = `slash-menu !rounded-[26px] ${chatComposerPillSurfaceClass}`;
     menu.style.position = this.positionRoot ? 'absolute' : 'fixed';
     (this.positionRoot ?? document.body).appendChild(menu);
     this.root = createRoot(menu);

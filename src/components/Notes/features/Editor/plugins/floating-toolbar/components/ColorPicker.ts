@@ -11,6 +11,7 @@ import {
   commitBgColorPreview,
   commitTextColorPreview,
 } from '../previewStyles';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 export function renderColorPicker(
   container: HTMLElement,
@@ -19,7 +20,7 @@ export function renderColorPicker(
   onClose: () => void
 ): void {
   const picker = document.createElement('div');
-  picker.className = 'toolbar-submenu color-picker';
+  picker.className = `toolbar-submenu color-picker !rounded-[26px] ${chatComposerPillSurfaceClass}`;
 
   const isDark = document.documentElement.classList.contains('dark');
   const palette = isDark ? COLOR_PALETTE_DARK : COLOR_PALETTE;

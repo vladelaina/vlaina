@@ -18,6 +18,7 @@ import { NoteEditorFindBar, type NoteEditorFindController } from './find';
 import { canStarNotePath } from '@/stores/notes/notePathState';
 import type { NoteExportFormat } from '../Export/noteExportTypes';
 import type { AppLanguage } from '@/lib/i18n/languages';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 interface EditorTopRightToolbarProps {
   editorFind: NoteEditorFindController;
@@ -58,6 +59,11 @@ function formatMetadataDate(value: string | number | Date | null | undefined, la
 
 const exportMenuItemClassName =
   'text-[var(--notes-sidebar-text)] transition-colors focus:bg-[var(--notes-sidebar-row-active)] focus:text-[var(--sidebar-row-selected-text)] data-[highlighted]:bg-[var(--notes-sidebar-row-active)] data-[highlighted]:text-[var(--sidebar-row-selected-text)] data-[state=open]:bg-[var(--notes-sidebar-row-active)] data-[state=open]:text-[var(--sidebar-row-selected-text)] [&>svg]:text-current';
+
+const noteMenuSurfaceClassName = cn(
+  'max-w-[calc(100vw-1rem)] !rounded-[26px] p-1.5 backdrop-blur-lg',
+  chatComposerPillSurfaceClass,
+);
 
 export function EditorTopRightToolbar({
   editorFind,
@@ -133,13 +139,13 @@ export function EditorTopRightToolbar({
                 <Icon size="md" name="common.more" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-max min-w-56 max-w-[calc(100vw-1rem)]">
+            <DropdownMenuContent align="end" className={cn('w-max min-w-56', noteMenuSurfaceClassName)}>
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger className={exportMenuItemClassName}>
                   <Icon size="md" name="common.download" className="mr-2" />
                   Export
                 </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-44 border-[var(--notes-sidebar-menu-border)] bg-[var(--notes-sidebar-menu-bg)] shadow-[var(--notes-sidebar-menu-shadow)]">
+                <DropdownMenuSubContent className={cn('w-44', noteMenuSurfaceClassName)}>
                   <DropdownMenuItem
                     className={exportMenuItemClassName}
                     onSelect={() => void exportCurrentNote('docx')}

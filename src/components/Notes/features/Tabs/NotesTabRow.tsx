@@ -3,6 +3,7 @@ import { Icon } from '@/components/ui/icons';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn } from '@/lib/utils';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 import { useNoteLabelDescriptor } from '../common/noteDisambiguation';
@@ -208,50 +209,57 @@ export function NotesTabRow() {
   const activeTab = activeTabId ? openTabs.find((tab) => tab.path === activeTabId) : null;
 
   return (
-    <div className="group/tab-row flex h-full w-full min-w-0 items-center gap-1 px-2">
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
+    <div className="group/tab-row flex h-full w-full min-w-0 items-center px-2">
+      <div
+        className={cn(
+          'flex h-8 max-w-full min-w-0 items-center gap-1 rounded-full px-1.5 transition-all duration-200',
+          chatComposerPillSurfaceClass,
+        )}
       >
-        <SortableContext items={openTabs.map((tab) => tab.path)} strategy={horizontalListSortingStrategy}>
-          <div className="flex min-w-0 max-w-[calc(100%-2rem)] items-center overflow-x-auto">
-            {openTabs.map((tab, index) => (
-              <SortableTab
-                key={tab.path}
-                tab={tab}
-                isActive={currentNote?.path === tab.path}
-                onClose={closeTab}
-                onClick={(path) => void openNote(path)}
-                showSeparator={index > 0}
-              />
-            ))}
-          </div>
-        </SortableContext>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={openTabs.map((tab) => tab.path)} strategy={horizontalListSortingStrategy}>
+            <div className="flex min-w-0 max-w-[calc(100%-2rem)] items-center overflow-x-auto">
+              {openTabs.map((tab, index) => (
+                <SortableTab
+                  key={tab.path}
+                  tab={tab}
+                  isActive={currentNote?.path === tab.path}
+                  onClose={closeTab}
+                  onClick={(path) => void openNote(path)}
+                  showSeparator={index > 0}
+                />
+              ))}
+            </div>
+          </SortableContext>
 
-        <NotesDragOverlay>
-          {activeTab ? (
-            <TabOverlay tab={activeTab} isActive={currentNote?.path === activeTab.path} />
-          ) : null}
-        </NotesDragOverlay>
-      </DndContext>
+          <NotesDragOverlay>
+            {activeTab ? (
+              <TabOverlay tab={activeTab} isActive={currentNote?.path === activeTab.path} />
+            ) : null}
+          </NotesDragOverlay>
+        </DndContext>
 
-      <Tooltip delayDuration={500}>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={handleCreateNote}
-            className="notes-tab-row-new-note-button pointer-events-none flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-400 opacity-0 transition-all group-hover/tab-row:pointer-events-auto group-hover/tab-row:opacity-100 group-focus-within/tab-row:pointer-events-auto group-focus-within/tab-row:opacity-100 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-          >
-            <Icon name="common.add" className="h-4 w-4" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" sideOffset={5} className="flex items-center gap-1.5 text-xs">
-          <span>New Note</span>
-          <ShortcutKeys keys={['Ctrl', 'T']} />
-        </TooltipContent>
-      </Tooltip>
+        <Tooltip delayDuration={500}>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={handleCreateNote}
+              className="notes-tab-row-new-note-button pointer-events-none flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-400 opacity-0 transition-all group-hover/tab-row:pointer-events-auto group-hover/tab-row:opacity-100 group-focus-within/tab-row:pointer-events-auto group-focus-within/tab-row:opacity-100 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            >
+              <Icon name="common.add" className="h-4 w-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" sideOffset={5} className="flex items-center gap-1.5 text-xs">
+            <span>New Note</span>
+            <ShortcutKeys keys={['Ctrl', 'T']} />
+          </TooltipContent>
+        </Tooltip>
+      </div>
     </div>
   );
 }

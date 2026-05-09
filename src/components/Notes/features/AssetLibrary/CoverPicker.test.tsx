@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CoverPicker } from './CoverPicker';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 const hoisted = vi.hoisted(() => ({
   loadAssets: vi.fn(),
@@ -65,6 +66,23 @@ describe('CoverPicker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hoisted.assetList = [];
+  });
+
+  it('uses the shared composer pill surface for the picker shell', () => {
+    const { container } = render(
+      <CoverPicker
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        vaultPath="/vault"
+        currentNotePath="note.md"
+      />,
+    );
+
+    const pickerShell = Array.from(container.querySelectorAll('div'))
+      .find((element) => element.className.includes('w-[340px]'));
+    expect(pickerShell?.className).toContain(chatComposerPillSurfaceClass);
+    expect(pickerShell?.className).toContain('!rounded-[26px]');
   });
 
   it('removes the current cover without bubbling pointer events to cover interactions', () => {

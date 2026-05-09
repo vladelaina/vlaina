@@ -1,6 +1,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { bindAiDropdownInteractions } from './ai-dropdown/actions';
 import { createAiDropdownMarkup } from './ai-dropdown/markup';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 export interface AiDropdownController {
   render: (container: HTMLElement, view: EditorView, onClose: () => void) => void;
@@ -107,7 +108,7 @@ export function createAiDropdownController(): AiDropdownController {
     cleanup();
 
     const dropdown = document.createElement('div');
-    dropdown.className = 'toolbar-submenu ai-dropdown ai-dropdown-nested';
+    dropdown.className = `toolbar-submenu ai-dropdown ai-dropdown-nested ${chatComposerPillSurfaceClass}`;
     dropdown.innerHTML = createAiDropdownMarkup();
 
     container.appendChild(dropdown);

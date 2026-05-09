@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { attachPreviewContextMenu, resolvePreviewParagraphInsertPos } from './previewContextMenu';
 import { shouldSuppressPreviewEditorOpen, suppressPreviewEditorOpen } from './previewContextMenuSuppression';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 const mocks = vi.hoisted(() => ({
   getElectronBridge: vi.fn(),
@@ -272,6 +273,7 @@ describe('previewContextMenu', () => {
 
     expect(document.querySelector('.vlaina-preview-context-menu')).not.toBeNull();
     expect(document.querySelector('.vlaina-preview-context-menu')?.classList.contains('slash-menu')).toBe(true);
+    expect(document.querySelector('.vlaina-preview-context-menu')?.className).toContain(chatComposerPillSurfaceClass);
     expect(document.querySelectorAll('.vlaina-preview-context-submenu')).toHaveLength(2);
     expect(menuLabels()).toEqual(['Save as image', 'PNG', 'JPG', 'SVG', 'Insert paragraph', 'Above', 'Below']);
 

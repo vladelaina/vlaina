@@ -8,6 +8,7 @@ import { EmptyState } from './EmptyState';
 import { CoverPickerProps, CoverPickerTab } from './types';
 import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover';
 import { logNotesDebugAlways } from '@/stores/notes/lineBreakDebugLog';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 function logCoverPicker(scope: string, payload?: unknown) {
   logNotesDebugAlways('NotesCoverPicker', scope, payload);
@@ -202,7 +203,10 @@ export function CoverPicker({
       <PopoverAnchor className="absolute bottom-4 right-4 w-1 h-1 pointer-events-none" />
 
       <PopoverContent
-        className="w-[340px] p-0 flex flex-col overflow-hidden bg-[var(--vlaina-bg-primary)] border-[var(--vlaina-border)] shadow-xl z-50 pointer-events-auto select-none"
+        className={cn(
+          "w-[340px] !rounded-[26px] p-0 flex flex-col overflow-hidden z-50 pointer-events-auto select-none backdrop-blur-lg",
+          chatComposerPillSurfaceClass,
+        )}
         align="end"
         side="bottom"
         sideOffset={8}
@@ -210,7 +214,7 @@ export function CoverPicker({
         onMouseDown={(e) => e.stopPropagation()}
       >
 
-        <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--vlaina-border)] bg-[var(--vlaina-bg-primary)]">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--vlaina-border)]">
           <div className="flex items-center gap-2">
             <button
               type="button"

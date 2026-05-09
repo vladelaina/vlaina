@@ -5,6 +5,7 @@ import { convertBlockType } from '../commands';
 import { applyBlockPreview, clearFormatPreview, commitBlockPreview, hasBlockPreview } from '../previewStyles';
 import { collapseSelectionAfterToolbarApply } from '../selectionCollapse';
 import { ICON_SIZES } from '@/components/ui/icons/sizes';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 const DROPDOWN_ICON_SIZE = ICON_SIZES.md;
 
@@ -82,7 +83,7 @@ export function renderBlockDropdown(
   onClose: () => void
 ): void {
   const dropdown = document.createElement('div');
-  dropdown.className = 'toolbar-submenu block-dropdown';
+  dropdown.className = `toolbar-submenu block-dropdown !rounded-[26px] ${chatComposerPillSurfaceClass}`;
   
   let html = '';
   
