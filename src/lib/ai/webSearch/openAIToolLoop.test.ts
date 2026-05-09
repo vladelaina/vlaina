@@ -301,6 +301,57 @@ describe('OpenAI web search JSON tool loop', () => {
     expect(chunks[chunks.length - 1]).toBe(final);
   });
 
+  it('passes reasoning_content back on streaming assistant tool-call messages', async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(streamResponse([{
+        choices: [{
+          delta: {
+            reasoning_content: 'Need to search first.',
+            tool_calls: [{
+              index: 0,
+              id: 'call-1',
+              type: 'function',
+              function: {
+                name: 'web_search',
+                arguments: JSON.stringify({ query: 'vlaina' }),
+              },
+            }],
+          },
+        }],
+      }]))
+      .mockResolvedValueOnce(streamResponse([{
+        choices: [{ delta: { content: 'Final answer.' } }],
+      }]));
+    const client = {
+      webSearch: vi.fn(async () => ({
+        query: 'vlaina',
+        results: [],
+      })),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(),
+    };
+
+    await runOpenAIWebSearchToolLoop({
+      body: {
+        model: 'test',
+        stream: true,
+        messages: [{ role: 'user', content: 'search vlaina' }],
+      },
+      client,
+      request,
+      onChunk: vi.fn(),
+    });
+
+    const nextMessages = request.mock.calls[1][0].messages;
+    expect(nextMessages[nextMessages.length - 2]).toMatchObject({
+      role: 'assistant',
+      content: null,
+      reasoning_content: 'Need to search first.',
+      tool_calls: expect.any(Array),
+    });
+  });
+
   it('does not treat a failed page read as a successful source read', async () => {
     const requestJson = vi
       .fn()

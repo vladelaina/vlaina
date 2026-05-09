@@ -90,6 +90,23 @@ function buildForcedReadToolCall(status: WebSearchStatus, loopIndex: number): Op
   };
 }
 
+function buildAssistantToolMessage(result: {
+  content: string;
+  assistantContent?: string;
+  reasoningContent?: string;
+  toolCalls: OpenAIToolCall[];
+}): OpenAIWireMessage {
+  const message: OpenAIWireMessage = {
+    role: 'assistant',
+    content: (result.assistantContent ?? result.content) || null,
+    tool_calls: result.toolCalls,
+  };
+  if (result.reasoningContent) {
+    message.reasoning_content = result.reasoningContent;
+  }
+  return message;
+}
+
 async function appendForcedReadMessages(
   messages: OpenAIWireMessage[],
   status: WebSearchStatus,
@@ -183,11 +200,7 @@ export async function runOpenAIWebSearchToolLoop({
 
     messages = [
       ...messages,
-      {
-        role: 'assistant',
-        content: result.content || null,
-        tool_calls: result.toolCalls,
-      },
+      buildAssistantToolMessage(result),
     ];
 
     for (const toolCall of result.toolCalls) {
@@ -264,11 +277,7 @@ export async function runOpenAIWebSearchJsonToolLoop({
 
     messages = [
       ...messages,
-      {
-        role: 'assistant',
-        content: result.content || null,
-        tool_calls: result.toolCalls,
-      },
+      buildAssistantToolMessage(result),
     ];
 
     for (const toolCall of result.toolCalls) {

@@ -3,6 +3,7 @@ import type { ChatMessageContent } from '@/lib/ai/types';
 export interface OpenAIWireMessage {
   role: string;
   content: ChatMessageContent | null;
+  reasoning_content?: string;
   tool_calls?: OpenAIToolCall[];
   tool_call_id?: string;
   name?: string;
@@ -19,5 +20,7 @@ export interface OpenAIToolCall {
 
 export interface OpenAIStreamToolResult {
   content: string;
+  assistantContent: string;
+  reasoningContent: string;
   toolCalls: OpenAIToolCall[];
 }

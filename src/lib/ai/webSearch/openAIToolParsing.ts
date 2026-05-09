@@ -76,6 +76,7 @@ export function appendWebSearchSystemInstruction(messages: OpenAIWireMessage[]):
 
 export function extractOpenAIMessageFromJson(payload: Record<string, unknown>): {
   content: string;
+  reasoningContent: string;
   toolCalls: OpenAIToolCall[];
 } {
   const choice = Array.isArray(payload.choices) ? payload.choices[0] : null;
@@ -84,6 +85,7 @@ export function extractOpenAIMessageFromJson(payload: Record<string, unknown>): 
 
   return {
     content: extractOpenAIText(message.content),
+    reasoningContent: extractOpenAIText(message.reasoning_content ?? message.reasoning),
     toolCalls: rawToolCalls
       .map((rawCall): OpenAIToolCall | null => {
         if (!isRecord(rawCall) || !isRecord(rawCall.function)) return null;
