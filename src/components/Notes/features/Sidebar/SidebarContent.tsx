@@ -53,12 +53,12 @@ export function SidebarContent({
   const revealFolder = useNotesStore((s) => s.revealFolder);
   const getDisplayName = useNotesStore((s) => s.getDisplayName);
   const noteContentsCache = useNotesStore((s) => s.noteContentsCache);
+  const notesPath = useNotesStore((s) => s.notesPath);
   const scanAllNotes = useNotesStore((s) => s.scanAllNotes);
   const pruneNoteContentsCacheToOpenNotes = useNotesStore((s) => s.pruneNoteContentsCacheToOpenNotes);
   const currentVault = useVaultStore((s) => s.currentVault);
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
   const rootBlankAreaRef = useRef<HTMLDivElement | null>(null);
-  const [isSidebarHovered, setIsSidebarHovered] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<{
     path: string;
     query: string;
@@ -150,8 +150,9 @@ export function SidebarContent({
     scopeRef: sidebarRootRef,
   });
   const wasShowingSearchResultsRef = useRef(shouldShowSearchResults);
-  const hasVaultPendingRoot = Boolean(currentVault && !displayRootFolder);
-  const shouldShowEmptyHint = !isLoading && !hasVaultPendingRoot && !displayRootFolder;
+  const hasVaultPendingRoot = Boolean(currentVault && notesPath === currentVault.path && !displayRootFolder);
+  const hasFileTreeEntries = Boolean(displayRootFolder && displayRootFolder.children.length > 0);
+  const shouldShowEmptyHint = !isLoading && !hasVaultPendingRoot && !hasFileTreeEntries;
   const { isContentScanPending, searchResults } = useSidebarContentSearchResults({
     rootFolder: displayRootFolder,
     getDisplayName,
@@ -304,8 +305,6 @@ export function SidebarContent({
     <div
       ref={sidebarRootRef}
       className={cn('group/sidebar-content relative flex h-full flex-col', className)}
-      onMouseEnter={() => setIsSidebarHovered(true)}
-      onMouseLeave={() => setIsSidebarHovered(false)}
     >
       <SidebarSearchDrawer
         isSearchOpen={search.isSearchOpen}
@@ -358,29 +357,31 @@ export function SidebarContent({
                 scrollRootRef={scrollRootRef}
               />
               <div
-                ref={displayRootFolder ? rootBlankAreaRef : undefined}
-                data-notes-sidebar-blank-drag-root={!displayRootFolder ? 'true' : undefined}
+                ref={rootBlankAreaRef}
+                data-notes-sidebar-blank-drag-root="true"
                 className={cn(
-                  'flex flex-1 items-center justify-center',
-                  displayRootFolder ? 'min-h-0' : 'min-h-[160px] pb-8',
+                  'flex flex-1 justify-center',
+                  hasFileTreeEntries ? 'min-h-0 items-center' : 'min-h-[160px] items-end',
                 )}
               >
-                {shouldShowEmptyHint ? (
-                  <NotesSidebarHoverEmptyHint
-                    title="Open"
-                    actions={[
-                      { label: 'File', onAction: handleOpenMarkdownFile },
-                      { label: 'Folder', onAction: handleOpenFolder },
-                    ]}
-                    placement="inline"
-                    visible={isSidebarHovered}
-                  />
-                ) : null}
               </div>
             </div>
           )}
         </NotesSidebarScrollArea>
       </SidebarCapsulePanel>
+      {shouldShowEmptyHint ? (
+        <div className="pointer-events-none fixed bottom-5 left-4 z-50 flex w-[calc(var(--vlaina-shell-sidebar-width)-32px)] justify-center">
+          <NotesSidebarHoverEmptyHint
+            title=""
+            actions={[
+              { label: 'File', onAction: handleOpenMarkdownFile },
+              { label: 'Folder', onAction: handleOpenFolder },
+            ]}
+            placement="inline"
+            visible
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

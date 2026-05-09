@@ -1,6 +1,7 @@
 import { Fragment, forwardRef, type HTMLAttributes, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import {
   SidebarList,
   SidebarScrollArea,
@@ -221,25 +222,27 @@ export function NotesSidebarHoverEmptyHint({
       )}
       {...props}
     >
-      <div className="flex max-w-[180px] flex-col items-center gap-1.5 px-4 text-center">
-        <span className="text-[16px] text-[var(--notes-sidebar-text)]">
-          {title}
-        </span>
+      <div className="flex w-full max-w-[240px] flex-col items-center gap-2 text-center">
+        {title ? (
+          <span className="text-[15px] font-medium text-[var(--notes-sidebar-text)]">
+            {title}
+          </span>
+        ) : null}
         {actionItems.length > 0 ? (
-          <div className="flex items-center justify-center gap-1">
+          <div className={cn('flex w-full items-center justify-center gap-1 rounded-full px-1.5 py-1', chatComposerPillSurfaceClass)}>
             {actions && actionLabel && actionLabel !== title ? (
-              <span className="text-[16px] text-[var(--notes-sidebar-text)]">
+              <span className="px-2 text-[15px] text-[var(--notes-sidebar-text)]">
                 {actionLabel}
               </span>
             ) : null}
             {actionItems.map((action, index) => (
               <Fragment key={action.label}>
                 {index > 0 ? (
-                  <span className="text-[16px] text-[var(--notes-sidebar-text-soft)]">/</span>
+                  <span className="px-0.5 text-[14px] text-[var(--notes-sidebar-text-soft)]">/</span>
                 ) : null}
                 <button
                   type="button"
-                  className="pointer-events-auto h-7 cursor-pointer rounded-md px-3 text-[16px] text-[var(--notes-sidebar-text-soft)] hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)] focus:outline-none"
+                  className="pointer-events-auto h-7 flex-1 cursor-pointer rounded-full px-3 text-[15px] text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-accent)]/25"
                   onClick={(event) => {
                     event.stopPropagation();
                     action.onAction();

@@ -3,6 +3,7 @@ import { useNotesStore } from '@/stores/useNotesStore';
 import { getRandomBuiltinCover } from '@/lib/assets/builtinCovers';
 import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
 import { logNotesDebugAlways } from '@/stores/notes/lineBreakDebugLog';
+import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
 import type { NoteCoverController } from '../types';
 
 export function useNoteCoverController(currentNotePath?: string): NoteCoverController {
@@ -16,6 +17,21 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
   );
 
   const [isPickerOpen, setPickerOpen] = useState(false);
+
+  useEffect(() => {
+    return onNotesOverlayOpen(({ source }) => {
+      if (source !== 'cover-picker') {
+        setPickerOpen(false);
+      }
+    });
+  }, []);
+
+  const setExclusivePickerOpen = useCallback((open: boolean) => {
+    if (open) {
+      notifyNotesOverlayOpen('cover-picker');
+    }
+    setPickerOpen(open);
+  }, []);
 
   useEffect(() => {
     setPickerOpen(false);
@@ -80,15 +96,15 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
       height: 200,
       scale: 1,
     });
-    setPickerOpen(true);
-  }, [currentNotePath, setNoteCover]);
+    setExclusivePickerOpen(true);
+  }, [currentNotePath, setExclusivePickerOpen, setNoteCover]);
 
   return {
     cover,
     vaultPath: resolveEffectiveVaultPath({ notesPath, currentNotePath }),
     currentNotePath,
     isPickerOpen,
-    setPickerOpen,
+    setPickerOpen: setExclusivePickerOpen,
     updateCover,
     addRandomCoverAndOpenPicker,
   };

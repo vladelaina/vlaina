@@ -46,6 +46,7 @@ export function RootFolderRow({
 }: RootFolderRowProps) {
   const currentVault = useVaultStore((state) => state.currentVault);
   const renameCurrentVault = useVaultStore((state) => state.renameCurrentVault);
+  const notesPath = useNotesStore((state) => state.notesPath);
   const fileTreeSortMode = useNotesStore((state) => state.fileTreeSortMode);
   const setFileTreeSortMode = useNotesStore((state) => state.setFileTreeSortMode);
   const toggleFolder = useNotesStore((state) => state.toggleFolder);
@@ -81,7 +82,7 @@ export function RootFolderRow({
   const useVirtualFileTree = Boolean(
     scrollRootRef && shouldVirtualizeFileTree(visibleFileTreeRowCount),
   );
-  const isRootTreePending = Boolean(currentVault && !rootFolder);
+  const isRootTreePending = Boolean(currentVault && notesPath === currentVault.path && !rootFolder);
   const isRootBusy = isLoading || isRootTreePending;
   const setExpanded = (value: boolean | ((value: boolean) => boolean)) => {
     if (!hasChildren) {
@@ -171,7 +172,7 @@ export function RootFolderRow({
     };
   }, [autoExpandDelayMs, expanded, isInternalRootDragOver, isRootDragOver]);
 
-  if (!rootFolder && currentVault) {
+  if (!rootFolder && isRootTreePending) {
     return (
       <div
         ref={rootRowRef}

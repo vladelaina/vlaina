@@ -13,6 +13,7 @@ const hoisted = vi.hoisted(() => ({
   draftNotes: {} as Record<string, { name: string; parentPath: string | null }>,
   markSidebarSearchNavigationPending: vi.fn(),
   noteContentsCache: new Map<string, { content: string; modifiedAt: number | null }>(),
+  notesPath: '',
   pruneNoteContentsCacheToOpenNotes: vi.fn(),
   queryNotesSidebarSearch: vi.fn(() => []),
   revealFolder: vi.fn(),
@@ -29,6 +30,7 @@ vi.mock('@/stores/useNotesStore', () => ({
     draftNotes: hoisted.draftNotes,
     getDisplayName: vi.fn((path: string) => path),
     noteContentsCache: hoisted.noteContentsCache,
+    notesPath: hoisted.notesPath,
     pruneNoteContentsCacheToOpenNotes: hoisted.pruneNoteContentsCacheToOpenNotes,
     revealFolder: hoisted.revealFolder,
     scanAllNotes: hoisted.scanAllNotes,
@@ -151,6 +153,7 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.countNotesSidebarSearchEntries.mockReturnValue(0);
     hoisted.draftNotes = {};
     hoisted.noteContentsCache = new Map();
+    hoisted.notesPath = '';
     hoisted.currentVault = null;
     hoisted.pruneNoteContentsCacheToOpenNotes.mockClear();
     hoisted.scanAllNotes.mockResolvedValue(undefined);
@@ -215,7 +218,7 @@ describe('SidebarContent search highlight cleanup', () => {
     expect(hoisted.scheduleSidebarItemIntoView).toHaveBeenCalledWith('docs/alpha.md', 2);
   });
 
-  it('does not show the open hint after an empty notes directory is open', () => {
+  it('shows the open hint when the notes tree has no entries', () => {
     const rootFolder = {
       id: 'root',
       name: 'Notes',
@@ -225,7 +228,7 @@ describe('SidebarContent search highlight cleanup', () => {
       children: [],
     };
 
-    const { queryByText } = render(
+    const { getByText } = render(
       <SidebarContent
         rootFolder={rootFolder}
         isLoading={false}
@@ -236,7 +239,8 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(queryByText('Open')).toBeNull();
+    expect(getByText('File')).toBeTruthy();
+    expect(getByText('Folder')).toBeTruthy();
   });
 
   it('shows the hover empty hint before a root folder exists', () => {
@@ -251,11 +255,13 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(getByText('Open')).toBeTruthy();
+    expect(getByText('File')).toBeTruthy();
+    expect(getByText('Folder')).toBeTruthy();
   });
 
   it('does not show the open hint while a vault root is still loading', () => {
     hoisted.currentVault = { path: '/vault', name: 'Vault' };
+    hoisted.notesPath = '/vault';
 
     const { queryByText, getByTestId } = render(
       <SidebarContent
@@ -268,8 +274,28 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(queryByText('Open')).toBeNull();
+    expect(queryByText('File')).toBeNull();
+    expect(queryByText('Folder')).toBeNull();
     expect(getByTestId('root-folder-row')).toBeTruthy();
+  });
+
+  it('shows the open hint when a remembered vault exists but no notes target is open', () => {
+    hoisted.currentVault = { path: '/vault', name: 'Vault' };
+    hoisted.notesPath = '';
+
+    const { getByText } = render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath={null}
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(getByText('File')).toBeTruthy();
+    expect(getByText('Folder')).toBeTruthy();
   });
 
   it('does not inject a blank in-memory draft into an empty root folder', () => {
@@ -288,7 +314,7 @@ describe('SidebarContent search highlight cleanup', () => {
       children: [],
     };
 
-    const { queryByText } = render(
+    const { getByText, queryByText } = render(
       <SidebarContent
         rootFolder={rootFolder}
         isLoading={false}
@@ -300,7 +326,8 @@ describe('SidebarContent search highlight cleanup', () => {
     );
 
     expect(queryByText('Untitled')).toBeNull();
-    expect(queryByText('Open')).toBeNull();
+    expect(getByText('File')).toBeTruthy();
+    expect(getByText('Folder')).toBeTruthy();
   });
 
   it('shows the current in-memory draft after it has content', () => {
@@ -354,7 +381,8 @@ describe('SidebarContent search highlight cleanup', () => {
         />,
       );
 
-      expect(getByText('Open')).toBeTruthy();
+      expect(getByText('File')).toBeTruthy();
+      expect(getByText('Folder')).toBeTruthy();
       fireEvent.click(getByText('File'));
       fireEvent.click(getByText('Folder'));
 

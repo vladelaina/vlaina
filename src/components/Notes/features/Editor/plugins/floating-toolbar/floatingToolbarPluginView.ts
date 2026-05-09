@@ -31,6 +31,7 @@ import {
   resolveToolbarViewportPosition,
 } from './floatingToolbarLayout';
 import { clearFormatPreview, hasActiveAppliedPreview } from './previewStyles';
+import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
 
 export function shouldLockPreviewToolbarPosition(args: {
   subMenu: FloatingToolbarState['subMenu'];
@@ -63,6 +64,7 @@ export function createFloatingToolbarPluginView(
   let lastTextSelection: { from: number; to: number } | null = null;
   let lastSelectionToolbarRenderState = '';
   let selectionToolbarSubMenu: FloatingToolbarState['subMenu'] = null;
+  let lastExclusiveToolbarSignature = '';
 
   const toolbarElement = createToolbarElement();
   const toolbarRenderer = createToolbarRenderer(toolbarElement);
@@ -875,6 +877,20 @@ export function createFloatingToolbarPluginView(
     );
   };
 
+  const unlistenOverlayOpen = onNotesOverlayOpen(({ source }) => {
+    if (source === 'selection-toolbar') return;
+
+    const pluginState = toolbarKey.getState(editorView.state);
+    if (!pluginState?.isVisible) return;
+    if (pluginState.subMenu === 'aiReview' && pluginState.aiReview) return;
+
+    editorView.dispatch(
+      editorView.state.tr.setMeta(toolbarKey, {
+        type: TOOLBAR_ACTIONS.HIDE,
+      })
+    );
+  });
+
   const resizeObserver = typeof ResizeObserver !== 'undefined'
     ? new ResizeObserver(() => {
         scheduleToolbarUpdate();
@@ -891,6 +907,15 @@ export function createFloatingToolbarPluginView(
           from: selection.from,
           to: selection.to,
         };
+
+        const pluginState = toolbarKey.getState(view.state);
+        if (pluginState?.isVisible) {
+          const signature = `${selection.from}:${selection.to}`;
+          if (signature !== lastExclusiveToolbarSignature) {
+            lastExclusiveToolbarSignature = signature;
+            notifyNotesOverlayOpen('selection-toolbar');
+          }
+        }
       }
 
       updateToolbar();
@@ -906,6 +931,7 @@ export function createFloatingToolbarPluginView(
       }
 
       unbindGlobalListeners(resizeObserver);
+      unlistenOverlayOpen();
       toolbarRenderer.destroy();
       selectionToolbarRenderer.destroy();
       reviewToolbars.forEach(({ renderer, element }) => {

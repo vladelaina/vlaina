@@ -8,6 +8,7 @@ import { useUIStore } from '@/stores/uiSlice';
 import { getRandomHeaderEmoji, preloadRandomEmojiData } from '@/components/common/UniversalIconPicker/randomEmoji';
 import { type ItemColor, COLOR_HEX } from '@/lib/colors';
 import { ICON_SIZES, IconSize } from '@/components/ui/icons/sizes';
+import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
 
 const IconPicker = lazy(async () => {
   const mod = await import('@/components/common/UniversalIconPicker/index');
@@ -135,6 +136,15 @@ export function HeroIconHeader({
     void preloadRandomEmojiData();
   }, []);
 
+  useEffect(() => {
+    return onNotesOverlayOpen(({ source }) => {
+      if (source === 'header-icon-picker') return;
+      setShowIconPicker(false);
+      setIsHoveringHeader(false);
+      clearPreview();
+    });
+  }, [clearPreview]);
+
   const handleIconSelect = useCallback((newIcon: string) => {
     onIconChange(newIcon);
   }, [onIconChange]);
@@ -204,6 +214,7 @@ export function HeroIconHeader({
                   <button
                       ref={iconButtonRef}
                       onClick={() => {
+                        notifyNotesOverlayOpen('header-icon-picker');
                         setShowIconPicker(true);
                       }}
                       className="hover:scale-105 transition-transform cursor-pointer flex items-center group"
@@ -233,6 +244,7 @@ export function HeroIconHeader({
                           if (!randomIcon) {
                             return;
                           }
+                          notifyNotesOverlayOpen('header-icon-picker');
                           onIconChange(randomIcon);
                           setShowIconPicker(true);
                       }}

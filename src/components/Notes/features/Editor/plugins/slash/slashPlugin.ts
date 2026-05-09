@@ -10,6 +10,7 @@ import {
   deriveSlashState,
   getSlashTextRange,
 } from './slashState';
+import { notifyNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
 
 export const slashPlugin = $prose((ctx) => {
   return new Plugin({
@@ -41,6 +42,7 @@ export const slashPlugin = $prose((ctx) => {
                 return;
               }
 
+              notifyNotesOverlayOpen('slash-menu');
               view.dispatch(
                 view.state.tr.setMeta(slashPluginKey, {
                   isOpen: true,

@@ -11,6 +11,7 @@ import { createSlashState, getSlashMenuPosition, getSlashTextRange } from './sla
 import { getContentLayoutContext } from '../floating-toolbar/floatingToolbarLayout';
 import { getScrollRoot, getToolbarRoot, toContainerPosition } from '../floating-toolbar/floatingToolbarDom';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
 
 const SLASH_MENU_MARGIN_PX = 12;
 const SLASH_MENU_MAX_HEIGHT_PX = 360;
@@ -26,6 +27,7 @@ export class SlashMenuView {
   private layoutRaf = 0;
   private selectedScrollRaf = 0;
   private skipNextSelectedScroll = false;
+  private readonly unlistenOverlayOpen: () => void;
 
   constructor(
     private readonly editorView: EditorView,
@@ -43,6 +45,11 @@ export class SlashMenuView {
     this.scrollRoot?.addEventListener('scroll', this.handleViewportChange, { passive: true });
     document.addEventListener('mousedown', this.handleDocumentMouseDown, true);
     document.addEventListener('keydown', this.handleDocumentKeyDown, true);
+    this.unlistenOverlayOpen = onNotesOverlayOpen(({ source }) => {
+      if (source === 'slash-menu') return;
+      if (!slashPluginKey.getState(this.editorView.state)?.isOpen) return;
+      this.editorView.dispatch(this.editorView.state.tr.setMeta(slashPluginKey, createSlashState()));
+    });
     this.resizeObserver?.observe(this.editorView.dom);
     if (this.scrollRoot) {
       this.resizeObserver?.observe(this.scrollRoot);
@@ -98,6 +105,7 @@ export class SlashMenuView {
     this.scrollRoot?.removeEventListener('scroll', this.handleViewportChange);
     document.removeEventListener('mousedown', this.handleDocumentMouseDown, true);
     document.removeEventListener('keydown', this.handleDocumentKeyDown, true);
+    this.unlistenOverlayOpen();
     this.resizeObserver?.disconnect();
     this.destroyMenu();
   }
