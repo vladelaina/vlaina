@@ -40,6 +40,13 @@ export function useCoverDisplayModel({
   } | null>(null);
 
   const mediaSrc = phase === 'idle' ? '' : (previewSrc || resolvedSrc || prevSrcRef.current || '');
+  const isUsingPreviousFallback = Boolean(
+    phase !== 'idle' &&
+    !previewSrc &&
+    !resolvedSrc &&
+    prevSrcRef.current &&
+    mediaSrc === prevSrcRef.current
+  );
   const cachedMediaDimensions = mediaSrc ? (getCachedDimensions(mediaSrc) ?? null) : null;
   const cachedPreviewDimensions =
     previewSrc && mediaSrc === previewSrc
@@ -49,7 +56,12 @@ export function useCoverDisplayModel({
   const preferCurrentPreviewFrame = shouldPreferPreviewFrame && Boolean(previewSrc);
   const previewIsPreloaded = preferCurrentPreviewFrame && Boolean(cachedPreviewDimensions);
   const currentMediaIsCached = Boolean(cachedMediaDimensions);
-  const sourceIsReady = Boolean(mediaSrc) && (
+  const hasKnownFreshResolvedSource = Boolean(
+    resolvedSrc &&
+    mediaSrc === resolvedSrc &&
+    !isSourceStale
+  );
+  const sourceIsReady = Boolean(mediaSrc) && !isUsingPreviousFallback && (
     currentMediaIsCached ||
     (!isSourceStale && readySrc === mediaSrc && isImageReady)
   );
@@ -59,7 +71,7 @@ export function useCoverDisplayModel({
       ? mediaSrc
       : (preferCurrentPreviewFrame
           ? (mediaSrc || readySrc || prevSrcRef.current)
-          : (readySrc || prevSrcRef.current || mediaSrc));
+          : (hasKnownFreshResolvedSource ? mediaSrc : (readySrc || prevSrcRef.current || mediaSrc)));
   const stableDisplayState = stableDisplayStateRef.current;
   const stableSrc = stableDisplayState?.src ?? null;
   const shouldHoldPreviousFrame =
@@ -128,9 +140,9 @@ export function useCoverDisplayModel({
   ]);
 
   useEffect(() => {
-    if (!mediaSrc || readySrc !== mediaSrc || isImageReady) return;
+    if (!mediaSrc || isUsingPreviousFallback || readySrc !== mediaSrc || isImageReady) return;
     setIsImageReady(true);
-  }, [mediaSrc, readySrc, isImageReady, setIsImageReady]);
+  }, [mediaSrc, isUsingPreviousFallback, readySrc, isImageReady, setIsImageReady]);
 
   useEffect(() => {
     if (mediaSrc) return;

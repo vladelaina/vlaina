@@ -168,6 +168,34 @@ describe('useCoverSource', () => {
     expect(result.current.prevSrcRef.current).toBe('blob:cover-a');
   });
 
+  it('switches builtin cover sources immediately when the next url is known', async () => {
+    hoisted.isBuiltinCover.mockReturnValue(true);
+    hoisted.getBuiltinCoverUrl.mockImplementation((assetPath: string) => {
+      if (assetPath === '@monet/1') return '/builtin/monet-1.webp';
+      if (assetPath === '@monet/2') return '/builtin/monet-2.webp';
+      return '';
+    });
+
+    const { result, rerender } = renderHook(
+      ({ url }) => useCoverSource({ url, vaultPath: '/vault-a' }),
+      { initialProps: { url: '@monet/1' as string | null } }
+    );
+
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBe('/builtin/monet-1.webp');
+    });
+
+    act(() => {
+      rerender({ url: '@monet/2' });
+    });
+
+    expect(result.current.resolvedSrc).toBe('/builtin/monet-2.webp');
+    expect(result.current.isResolvedSourceStale).toBe(false);
+    await waitFor(() => {
+      expect(hoisted.loadImageWithDimensions).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it('clears committing state when preview starts', async () => {
     hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/a.png');
     hoisted.loadImageAsBlob.mockResolvedValue('blob:cover-a');

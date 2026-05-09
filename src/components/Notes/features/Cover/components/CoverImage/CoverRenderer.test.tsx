@@ -209,13 +209,17 @@ describe('CoverRenderer', () => {
 
     expect(onMediaLoaded).toHaveBeenCalledTimes(1);
 
-    Object.defineProperty(image, 'complete', { value: true, configurable: true });
-    Object.defineProperty(image, 'naturalWidth', { value: 1500, configurable: true });
-    Object.defineProperty(image, 'naturalHeight', { value: 969, configurable: true });
-    Object.defineProperty(image, 'clientWidth', { value: 699, configurable: true });
-    Object.defineProperty(image, 'clientHeight', { value: 452, configurable: true });
+    const switchedImage = container.querySelector('img[alt="Cover Cropper"]') as HTMLImageElement | null;
+    expect(switchedImage).not.toBe(image);
+    if (!switchedImage) return;
 
-    fireEvent.load(image);
+    Object.defineProperty(switchedImage, 'complete', { value: true, configurable: true });
+    Object.defineProperty(switchedImage, 'naturalWidth', { value: 1500, configurable: true });
+    Object.defineProperty(switchedImage, 'naturalHeight', { value: 969, configurable: true });
+    Object.defineProperty(switchedImage, 'clientWidth', { value: 699, configurable: true });
+    Object.defineProperty(switchedImage, 'clientHeight', { value: 452, configurable: true });
+
+    fireEvent.load(switchedImage);
 
     expect(onMediaLoaded).toHaveBeenCalledTimes(2);
     expect(onMediaLoaded).toHaveBeenLastCalledWith({

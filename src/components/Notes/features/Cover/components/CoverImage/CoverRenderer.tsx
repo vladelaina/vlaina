@@ -51,6 +51,7 @@ export const CoverRenderer = React.memo(({
     <>
       {layoutBackdropVisible ? (
         <img
+          key={placeholderDisplaySrc}
           src={placeholderDisplaySrc}
           alt=""
           aria-hidden="true"

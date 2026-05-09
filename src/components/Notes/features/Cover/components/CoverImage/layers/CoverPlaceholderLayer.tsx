@@ -76,6 +76,7 @@ export function CoverPlaceholderLayer({
 
   return (
     <img
+      key={displaySrc}
       src={displaySrc}
       alt="Cover"
       className={cn(

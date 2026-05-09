@@ -34,7 +34,7 @@ export function CoverImageShell({
   if (!url) {
     return (
       <div
-        className="relative w-full animate-in fade-in-0 slide-in-from-top-1 duration-150 ease-out motion-reduce:animate-none"
+        className="relative w-full animate-in fade-in-0 duration-150 ease-out motion-reduce:animate-none"
         data-note-cover-region="true"
       >
         {previewSrc && (
@@ -58,7 +58,7 @@ export function CoverImageShell({
     <div
       className={cn(
         'relative w-full bg-[var(--vlaina-bg-primary)] shrink-0 select-none overflow-hidden group',
-        'animate-in fade-in-0 slide-in-from-top-1 duration-150 ease-out motion-reduce:animate-none'
+        'animate-in fade-in-0 duration-150 ease-out motion-reduce:animate-none'
       )}
       style={{ height: coverHeight, overflowAnchor: 'none' }}
       ref={containerRef}
