@@ -4,6 +4,7 @@ import { setTextAlignment } from '../commands';
 import { applyAlignmentPreview, clearFormatPreview, commitAlignmentPreview } from '../previewStyles';
 import { collapseSelectionAfterToolbarApply } from '../selectionCollapse';
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 const ALIGNMENT_ITEMS: Array<{
   type: TextAlignment;
@@ -22,7 +23,7 @@ export function renderAlignmentDropdown(
   onClose: () => void
 ): void {
   const dropdown = document.createElement('div');
-  dropdown.className = 'toolbar-submenu alignment-dropdown';
+  dropdown.className = `toolbar-submenu alignment-dropdown !rounded-[26px] ${chatComposerPillSurfaceClass}`;
 
   dropdown.innerHTML = ALIGNMENT_ITEMS.map((item) => {
     const isActive = state.currentAlignment === item.type;

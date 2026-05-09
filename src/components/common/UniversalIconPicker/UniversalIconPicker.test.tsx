@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { UniversalIconPicker } from './index';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 vi.mock('./EmojiTab', () => ({
   EmojiTab: () => <div data-testid="emoji-tab" />,
@@ -18,6 +19,19 @@ describe('UniversalIconPicker', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.clearAllMocks();
+  });
+
+  it('uses the shared composer pill surface for the icon picker shell', () => {
+    const { container } = render(
+      <UniversalIconPicker
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+
+    const pickerShell = Array.from(container.querySelectorAll('div'))
+      .find((element) => element.className.includes('!rounded-[26px]'));
+    expect(pickerShell?.className).toContain(chatComposerPillSurfaceClass);
   });
 
   it('removes the current icon on pointer down without waiting for click', () => {

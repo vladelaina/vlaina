@@ -3,6 +3,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EditorTopRightToolbar } from './EditorTopRightToolbar';
 import type { NoteEditorFindController } from './find';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 const mocks = vi.hoisted(() => ({
   addToast: vi.fn(),
@@ -13,13 +14,17 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenu: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuContent: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuContent: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
+    <div data-testid="note-menu-content" className={className}>{children}</div>
+  ),
   DropdownMenuItem: ({ children, onSelect }: { children?: React.ReactNode; onSelect?: () => void }) => (
     <button type="button" onClick={onSelect}>{children}</button>
   ),
   DropdownMenuSeparator: () => <hr />,
   DropdownMenuSub: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
-  DropdownMenuSubContent: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuSubContent: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
+    <div data-testid="note-export-menu-content" className={className}>{children}</div>
+  ),
   DropdownMenuSubTrigger: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
   DropdownMenuTrigger: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
@@ -165,5 +170,26 @@ describe('EditorTopRightToolbar', () => {
       });
     });
     expect(mocks.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
+  });
+
+  it('uses the shared composer pill surface for note info and export menus', () => {
+    const { getByTestId } = render(
+      <EditorTopRightToolbar
+        editorFind={createEditorFindController()}
+        currentNotePath="docs/current.md"
+        currentNoteContent="# Current"
+        currentNoteTitle="Current"
+        notesPath="/vault"
+        starred={false}
+        toggleStarred={vi.fn()}
+        currentNoteMetadata={undefined}
+        textStats={{ lineCount: 1, wordCount: 2, characterCount: 3 }}
+      />,
+    );
+
+    expect(getByTestId('note-menu-content').className).toContain(chatComposerPillSurfaceClass);
+    expect(getByTestId('note-menu-content').className).toContain('!rounded-[26px]');
+    expect(getByTestId('note-export-menu-content').className).toContain(chatComposerPillSurfaceClass);
+    expect(getByTestId('note-export-menu-content').className).toContain('!rounded-[26px]');
   });
 });

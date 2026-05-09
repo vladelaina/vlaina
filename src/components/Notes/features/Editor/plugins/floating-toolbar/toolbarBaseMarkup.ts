@@ -4,6 +4,7 @@ import { EXTRA_BUTTONS, FORMAT_BUTTONS, TOOLBAR_LAYOUTS } from './toolbarConfig'
 import { canShowSelectionAiTools } from './aiAvailability';
 import { getBlockTypeIconMarkup } from './components/BlockDropdown';
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 const IS_MAC =
   typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
@@ -205,7 +206,7 @@ export function renderToolbarBodyMarkup(state: FloatingToolbarState): string {
   });
 
   return `
-    <div class="floating-toolbar-inner">
+    <div class="floating-toolbar-inner !rounded-[26px] ${chatComposerPillSurfaceClass}">
       ${parts.join('')}
     </div>
   `;

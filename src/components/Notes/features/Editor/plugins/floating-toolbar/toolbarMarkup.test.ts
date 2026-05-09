@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { renderToolbarMarkup } from './toolbarMarkup';
 import type { FloatingToolbarState } from './types';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 function createState(overrides?: Partial<FloatingToolbarState>): FloatingToolbarState {
   return {
@@ -41,6 +44,7 @@ describe('toolbar markup', () => {
   it('renders a reduced toolbar for code blocks', () => {
     const markup = renderToolbarMarkup(createState({ currentBlockType: 'codeBlock' }));
 
+    expect(markup).toContain(chatComposerPillSurfaceClass);
     expect(markup).toContain('data-action="block"');
     expect(markup).toContain('data-action="copy"');
     expect(markup).toContain('data-action="delete"');
@@ -51,6 +55,30 @@ describe('toolbar markup', () => {
     expect(markup).not.toContain('data-action="italic"');
     expect(markup).not.toContain('data-action="link"');
     expect(markup).not.toContain('data-action="color"');
+  });
+
+  it('uses the shared composer pill surface for toolbar dropdown panels', () => {
+    const dropdownFiles = [
+      'components/BlockDropdown.ts',
+      'components/AlignmentDropdown.ts',
+      'components/ColorPicker.ts',
+      'components/ai-dropdown/markup.ts',
+    ];
+
+    dropdownFiles.forEach((file) => {
+      const source = readFileSync(
+        resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar', file),
+        'utf8',
+      );
+      expect(source).toContain('chatComposerPillSurfaceClass');
+    });
+
+    const aiDropdownSource = readFileSync(
+      resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar/components/AiDropdown.ts'),
+      'utf8',
+    );
+    expect(aiDropdownSource).toContain("dropdown.className = 'toolbar-submenu ai-dropdown ai-dropdown-nested'");
+    expect(aiDropdownSource).not.toContain('dropdown.className = `toolbar-submenu ai-dropdown ai-dropdown-nested ${chatComposerPillSurfaceClass}`');
   });
 
   it('hides AI tools when no account or custom provider is available', () => {
@@ -190,6 +218,9 @@ describe('toolbar markup', () => {
     );
 
     expect(markup).toContain('ai-review-result-surface');
+    expect(markup).toContain(chatComposerPillSurfaceClass);
+    expect(markup).toContain('!rounded-[26px]');
+    expect(markup).toContain(`ai-review-content ai-review-content-after ai-review-content-glass !rounded-[26px] ${chatComposerPillSurfaceClass}`);
     expect(markup).toContain('ai-review-diff-added');
     expect(markup).toContain('ai-review-diff-removed');
     expect(markup).toContain('Hello there');

@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { PremiumSlider } from '@/components/ui/premium-slider';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { EmojiTab } from './EmojiTab';
 import { UploadTab, type CustomIcon } from './UploadTab';
 import {
@@ -215,8 +216,8 @@ export function UniversalIconPicker({
       )}
 
       <div className={cn(
-        "flex flex-col bg-[var(--vlaina-bg-primary)] overflow-hidden",
-        !embedded && "rounded-xl border border-[var(--vlaina-border)] shadow-xl"
+        "flex flex-col overflow-hidden",
+        !embedded && cn("!rounded-[26px] backdrop-blur-lg", chatComposerPillSurfaceClass)
       )}>
         <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-[var(--vlaina-border)] overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-4">

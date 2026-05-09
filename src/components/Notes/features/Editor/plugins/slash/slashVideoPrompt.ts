@@ -4,6 +4,7 @@ import { getScrollRoot, getToolbarRoot, toContainerPosition } from '../floating-
 import { getContentLayoutContext } from '../floating-toolbar/floatingToolbarLayout';
 import { renderUrlRailEditor } from '../floating-toolbar/components/UrlRailEditor';
 import { isSupportedVideoUrl, normalizeVideoUrlInput, sanitizeVideoDebugPayload } from '../video';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 const VIDEO_PROMPT_MARGIN_PX = 12;
 
@@ -45,7 +46,7 @@ export function openSlashVideoPrompt(args: {
     view.focus();
   };
 
-  prompt.className = 'slash-video-prompt';
+  prompt.className = `slash-video-prompt !rounded-[26px] ${chatComposerPillSurfaceClass}`;
   prompt.style.position = positionRoot ? 'absolute' : 'fixed';
   (positionRoot ?? document.body).append(prompt);
   renderUrlRailEditor(prompt, {

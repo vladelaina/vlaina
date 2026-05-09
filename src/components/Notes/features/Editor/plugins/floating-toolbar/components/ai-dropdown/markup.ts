@@ -1,4 +1,5 @@
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { getAiMenuGroups } from './menuConfig';
 import type { AiMenuGroup } from './types';
 
@@ -12,7 +13,7 @@ function buildItemIcon(icon?: 'quote'): string {
 
 function buildRootMarkup(groups: readonly AiMenuGroup[]): string {
   return `
-    <div class="ai-dropdown-root">
+    <div class="ai-dropdown-root !rounded-[26px] ${chatComposerPillSurfaceClass}">
       ${groups.map((group, index) => `
         ${group.rootAction ? `
           <button
@@ -45,7 +46,7 @@ function buildRootMarkup(groups: readonly AiMenuGroup[]): string {
 
 function buildItemsMarkup(group: AiMenuGroup): string {
   return `
-    <div class="ai-dropdown-children" data-ai-category-panel="${group.id}">
+    <div class="ai-dropdown-children !rounded-[26px] ${chatComposerPillSurfaceClass}" data-ai-category-panel="${group.id}">
       ${group.items.map((item) => `
         <button
           class="ai-dropdown-item"
