@@ -410,7 +410,11 @@ export function NotesView({ active = true }: { active?: boolean }) {
           >
             <div data-notes-chat-panel="true" className="h-full min-h-0 relative">
               <Suspense fallback={null}>
-                <EmbeddedChatView mode="embedded" active={active} />
+                <EmbeddedChatView
+                  mode="embedded"
+                  active={active}
+                  onCloseEmbeddedPanel={() => setChatPanelCollapsed(true)}
+                />
               </Suspense>
             </div>
           </ResizablePanel>

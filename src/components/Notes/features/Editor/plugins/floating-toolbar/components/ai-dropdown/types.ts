@@ -4,6 +4,7 @@ export type AiMenuItem = {
   instruction: string;
   behavior?: 'review' | 'sidebar-chat';
   icon?: 'quote';
+  shortcut?: string;
 };
 
 export type AiMenuGroup = {

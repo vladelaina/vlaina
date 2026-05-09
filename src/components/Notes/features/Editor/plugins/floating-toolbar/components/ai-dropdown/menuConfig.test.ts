@@ -40,6 +40,7 @@ describe('ai dropdown menu config', () => {
       label: '引用到聊天',
       icon: 'quote',
       behavior: 'sidebar-chat',
+      shortcut: 'Ctrl+L',
     });
   });
 

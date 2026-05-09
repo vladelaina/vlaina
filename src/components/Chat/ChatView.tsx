@@ -28,15 +28,17 @@ import { estimateChatLoadingHeight } from '@/components/Chat/features/Layout/cha
 import { ChatSidebar } from '@/components/Chat/features/Sidebar/ChatSidebar';
 import { ModelSelector } from '@/components/Chat/features/Input/ModelSelector';
 import { Icon } from '@/components/ui/icons';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 interface ChatViewProps {
   mode?: 'full' | 'embedded';
   active?: boolean;
+  onCloseEmbeddedPanel?: () => void;
 }
 
 const EMPTY_MESSAGES: never[] = [];
 
-export function ChatView({ mode = 'full', active = true }: ChatViewProps) {
+export function ChatView({ mode = 'full', active = true, onCloseEmbeddedPanel }: ChatViewProps) {
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isEmbeddedSidebarOpen, setIsEmbeddedSidebarOpen] = useState(false);
   const [focusInputTrigger, setFocusInputTrigger] = useState(0); 
@@ -381,6 +383,23 @@ export function ChatView({ mode = 'full', active = true }: ChatViewProps) {
             )}
           </div>
         </div>
+      )}
+
+      {isEmbedded && onCloseEmbeddedPanel && (
+        <button
+          type="button"
+          aria-label="Close Spark panel"
+          onPointerDown={(event) => {
+            event.preventDefault();
+            onCloseEmbeddedPanel();
+          }}
+          className={cn(
+            "absolute bottom-3 left-3 z-30 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-[var(--chat-sidebar-text)] transition-colors hover:text-[var(--sidebar-row-selected-text)]",
+            chatComposerPillSurfaceClass
+          )}
+        >
+          <Icon name="nav.chevronRight" size="md" />
+        </button>
       )}
 
       <AnimatePresence>

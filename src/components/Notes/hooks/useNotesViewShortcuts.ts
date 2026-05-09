@@ -6,6 +6,8 @@ import {
   runTemporaryChatWelcomeShortcut,
 } from '@/components/Chat/features/Temporary/temporaryChatCommands';
 import { getAdjacentTreeNotePath } from '@/components/Notes/features/common/noteTreeNavigation';
+import { openSidebarDiscussionForSelection } from '@/components/Notes/features/Editor/plugins/floating-toolbar/ai/sidebarDiscussion';
+import { getCurrentEditorView } from '@/components/Notes/features/Editor/utils/editorViewRegistry';
 
 interface UseNotesViewShortcutsOptions {
   active: boolean;
@@ -44,6 +46,12 @@ export function useNotesViewShortcuts({
 
       if (matchesShortcutBinding(event, 'toggleEmbeddedChat')) {
         event.preventDefault();
+        const currentEditorView = getCurrentEditorView();
+        if (currentEditorView && !currentEditorView.state.selection.empty) {
+          openSidebarDiscussionForSelection(currentEditorView);
+          return;
+        }
+
         toggleChatPanel();
         return;
       }

@@ -1,6 +1,21 @@
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
 import { getAiMenuGroups } from './menuConfig';
-import type { AiMenuGroup } from './types';
+import type { AiMenuGroup, AiMenuItem } from './types';
+
+const IS_MAC =
+  typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+
+function toPlatformShortcutLabel(shortcut: string): string {
+  if (!IS_MAC) {
+    return shortcut;
+  }
+
+  return shortcut
+    .replace(/\bCtrl\b/g, '⌘')
+    .replace(/\bControl\b/g, '⌘')
+    .replace(/\bAlt\b/g, '⌥')
+    .replace(/\bOption\b/g, '⌥');
+}
 
 function buildItemIcon(icon?: 'quote'): string {
   if (icon === 'quote') {
@@ -8,6 +23,14 @@ function buildItemIcon(icon?: 'quote'): string {
   }
 
   return '';
+}
+
+function buildShortcutHint(item: AiMenuItem): string {
+  if (!item.shortcut) {
+    return '';
+  }
+
+  return `<span class="ai-dropdown-item-shortcut" aria-hidden="true">${toPlatformShortcutLabel(item.shortcut)}</span>`;
 }
 
 function buildRootMarkup(groups: readonly AiMenuGroup[]): string {
@@ -27,6 +50,7 @@ function buildRootMarkup(groups: readonly AiMenuGroup[]): string {
           >
             ${buildItemIcon(group.rootAction.icon)}
             <span class="ai-dropdown-category-label">${group.rootAction.label}</span>
+            ${buildShortcutHint(group.rootAction)}
           </button>
         ` : `
           <button
@@ -59,6 +83,7 @@ function buildItemsMarkup(group: AiMenuGroup): string {
         >
           ${buildItemIcon(item.icon)}
           <span class="ai-dropdown-item-label">${item.label}</span>
+          ${buildShortcutHint(item)}
         </button>
       `).join('')}
     </div>

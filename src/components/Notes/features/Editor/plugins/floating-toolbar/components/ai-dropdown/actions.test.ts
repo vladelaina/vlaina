@@ -68,4 +68,12 @@ describe('ai dropdown actions', () => {
     expect(translateCategory?.classList.contains('active')).toBe(false);
     expect(translatePanel?.classList.contains('active')).toBe(false);
   });
+
+  it('shows the shortcut hint on the sidebar quote action', () => {
+    const dropdown = document.createElement('div');
+    dropdown.innerHTML = createAiDropdownMarkup();
+
+    const rootAction = dropdown.querySelector<HTMLElement>('.ai-dropdown-category-action[data-ai-command-id="discuss-in-sidebar"]');
+    expect(rootAction?.querySelector('.ai-dropdown-item-shortcut')?.textContent).toBe('Ctrl+L');
+  });
 });

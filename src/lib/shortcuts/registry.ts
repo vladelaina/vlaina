@@ -142,8 +142,8 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   },
   {
     id: 'toggleEmbeddedChat',
-    action: 'Toggle embedded chat',
-    description: 'Toggle embedded chat',
+    action: 'Quote selection / toggle embedded chat',
+    description: 'Quote selected text to chat, or toggle embedded chat',
     keys: ['Ctrl', 'L'],
     scope: 'notes',
     modules: ['notes'],

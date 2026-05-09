@@ -6,6 +6,7 @@ export interface AiPromptCommand {
   instruction: string;
   behavior?: 'review' | 'sidebar-chat';
   icon?: 'quote';
+  shortcut?: string;
 }
 
 export interface AiPromptGroup {
@@ -71,6 +72,7 @@ export const AI_SIDEBAR_COMMANDS: readonly AiPromptCommand[] = [
     instruction: 'Quote the selected text into the side AI chat input.',
     behavior: 'sidebar-chat',
     icon: 'quote',
+    shortcut: 'Ctrl+L',
   },
 ];
 
