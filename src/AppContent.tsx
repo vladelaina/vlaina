@@ -161,13 +161,25 @@ export function AppContent() {
   const shouldRenderSidebar = appViewMode === 'chat' || appViewMode === 'notes';
 
   const sidebarContent = shouldRenderSidebar ? (
-    <div className="h-full">
-      <div className={cn('h-full', appViewMode !== 'chat' && 'hidden')}>
+    <div className="grid h-full">
+      <div
+        className={cn(
+          'col-start-1 row-start-1 h-full',
+          appViewMode !== 'chat' && 'pointer-events-none invisible',
+        )}
+        aria-hidden={appViewMode !== 'chat'}
+      >
         <Suspense fallback={null}>
           <ChatSidebar isPeeking={false} />
         </Suspense>
       </div>
-      <div className={cn('h-full', appViewMode !== 'notes' && 'hidden')}>
+      <div
+        className={cn(
+          'col-start-1 row-start-1 h-full',
+          appViewMode !== 'notes' && 'pointer-events-none invisible',
+        )}
+        aria-hidden={appViewMode !== 'notes'}
+      >
         <Suspense fallback={null}>
           <NotesSidebarWrapper isPeeking={false} />
         </Suspense>
