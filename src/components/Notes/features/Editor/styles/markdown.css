@@ -1,69 +1,120 @@
-/**
- * Markdown Element Styles
- * Lists, Links, Blockquotes, Tables, etc.
- */
-
-/* Links */
-.milkdown a {
-  color: var(--vlaina-accent);
-  text-decoration: none;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.15s;
-  cursor: pointer;
-  /* User Preference: Direct click mode */
+.milkdown p:has(> .image-block-container:only-child) {
+  font-size: 0;
+  line-height: 0;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
 }
 
-.milkdown a:hover {
-  border-bottom-color: var(--vlaina-accent);
+.milkdown p:has(> .image-block-container:only-child):first-child {
+  margin-top: 0;
+}
+
+.milkdown p:has(> .image-block-container:only-child) > .image-block-container {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.milkdown :is([data-type="math-inline"], [data-type="math-block"], [data-type="math-inline"] *, [data-type="math-block"] *) {
+  cursor: default;
+}
+
+.milkdown .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--vlaina-text-disabled);
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.milkdown .ProseMirror p.is-editor-empty:first-child {
+  position: relative;
+}
+
+.milkdown .ProseMirror h1.is-editor-empty::before,
+.milkdown .ProseMirror h2.is-editor-empty::before,
+.milkdown .ProseMirror h3.is-editor-empty::before,
+.milkdown .ProseMirror h4.is-editor-empty::before,
+.milkdown .ProseMirror h5.is-editor-empty::before,
+.milkdown .ProseMirror h6.is-editor-empty::before {
+  content: attr(data-placeholder);
+  color: var(--vlaina-text-disabled);
+  pointer-events: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.milkdown .ProseMirror h1.is-editor-empty,
+.milkdown .ProseMirror h2.is-editor-empty,
+.milkdown .ProseMirror h3.is-editor-empty,
+.milkdown .ProseMirror h4.is-editor-empty,
+.milkdown .ProseMirror h5.is-editor-empty,
+.milkdown .ProseMirror h6.is-editor-empty {
+  position: relative;
+}
+
+.milkdown h1,
+.milkdown h2,
+.milkdown h3,
+.milkdown h4,
+.milkdown h5,
+.milkdown h6 {
+  position: relative;
+}
+
+.heading-toggle-btn {
+  position: absolute;
+  left: var(--collapse-pos-heading);
+  top: calc((1em + var(--heading-line-extra, 8px)) / 2);
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, background-color 0.15s;
+  border-radius: 4px;
+  color: var(--vlaina-text-tertiary);
+  user-select: none;
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.heading-toggle-btn:hover {
+  color: var(--vlaina-text-secondary);
+}
+
+.milkdown h1:hover .heading-toggle-btn,
+.milkdown h2:hover .heading-toggle-btn,
+.milkdown h3:hover .heading-toggle-btn,
+.milkdown h4:hover .heading-toggle-btn,
+.milkdown h5:hover .heading-toggle-btn,
+.milkdown h6:hover .heading-toggle-btn {
+  opacity: 1;
+}
+
+.heading-toggle-btn[data-collapsed="true"] {
+  opacity: 1 !important;
+}
+
+.heading-toggle-btn[data-collapsed="true"] svg {
+  transform: rotate(-90deg);
+}
+
+.heading-toggle-btn svg {
+  transition: transform 0.15s ease;
+}
+
+.heading-collapsed-content {
+  display: none !important;
 }
 
 /* Active state when tooltip is open */
 .milkdown a.link-active-state {
   border-bottom-color: var(--vlaina-accent);
-}
-
-/* Blockquote */
-.milkdown blockquote {
-  line-height: 26px;
-  padding-left: 17px;
-  margin-top: 8px;
-  padding-top: 10px;
-  padding-bottom: 10px;
-  position: relative;
-  color: var(--vlaina-text-secondary);
-  font-style: normal;
-}
-
-.milkdown-theme-nord blockquote,
-.milkdown.milkdown-theme-nord blockquote {
-  border-left: none;
-  padding-left: 17px;
-  font-family: inherit;
-  font-style: normal;
-}
-
-.milkdown blockquote::before {
-  content: '';
-  width: 2px;
-  height: calc(100% - 20px);
-  position: absolute;
-  left: 0;
-  top: 10px;
-  background: var(--vlaina-text-tertiary);
-  border-radius: 18px;
-}
-
-/* Lists */
-.milkdown ul,
-.milkdown ol {
-  padding-left: 1.5rem;
-  margin: 8px 0;
-}
-
-.milkdown li {
-  margin: 6px 0;
-  /* Increase breathing room */
-  line-height: calc(1em + 8px);
 }
 
 .milkdown li:has(> [data-text-align="center"]) {
@@ -91,69 +142,6 @@
 .milkdown li:has(> [data-text-align="right"]) > ul,
 .milkdown li:has(> [data-text-align="right"]) > ol {
   text-align: left;
-}
-
-.milkdown ul>li:not(.task-list-item) {
-  list-style-type: disc;
-}
-
-.milkdown ul ul>li:not(.task-list-item) {
-  list-style-type: circle;
-}
-
-.milkdown ul ul ul>li:not(.task-list-item) {
-  list-style-type: square;
-}
-
-.milkdown ul ul ul ul>li:not(.task-list-item) {
-  list-style-type: disc;
-}
-
-.milkdown ul ul ul ul ul>li:not(.task-list-item) {
-  list-style-type: circle;
-}
-
-.milkdown ul ul ul ul ul ul>li:not(.task-list-item) {
-  list-style-type: square;
-}
-
-.milkdown ul ul ul ul ul ul ul>li:not(.task-list-item) {
-  list-style-type: disc;
-}
-
-.milkdown ol>li:not([data-item-type="task"]) {
-  display: list-item;
-  list-style-type: decimal;
-}
-
-.milkdown ol ol>li:not([data-item-type="task"]) {
-  display: list-item;
-  list-style-type: lower-alpha;
-}
-
-.milkdown ol ol ol>li:not([data-item-type="task"]) {
-  display: list-item;
-  list-style-type: lower-roman;
-}
-
-.milkdown ol ol ol ol>li:not([data-item-type="task"]) {
-  display: list-item;
-  list-style-type: decimal;
-}
-
-.milkdown ol ol ol ol ol>li:not([data-item-type="task"]) {
-  display: list-item;
-  list-style-type: lower-alpha;
-}
-
-.milkdown ol ol ol ol ol ol>li:not([data-item-type="task"]) {
-  display: list-item;
-  list-style-type: lower-roman;
-}
-
-.milkdown li>ul,
-.milkdown li>ol {
-  margin: 4px 0;
 }
 
 /* Task List - Milkdown uses data-item-type="task" and data-checked attributes */
@@ -246,101 +234,14 @@
   max-width: calc(100% - 24px);
 }
 
-/* Horizontal Rule */
-.milkdown hr {
-  border: none;
-  margin: 0.625rem 0;
-  height: 10px;
-  position: relative;
-  cursor: default;
-}
-
-.milkdown hr::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  border-top: 1px solid var(--vlaina-border);
-  transform: translateY(-0.5px);
-  pointer-events: none;
-}
-
 .milkdown .ProseMirror hr.ProseMirror-selectednode::before {
   border-top-color: var(--vlaina-accent);
   box-shadow: 0 0 0 2px var(--vlaina-accent-light);
 }
-
-/* Inline Code */
-.milkdown code:not(pre code) {
-  display: inline-block;
-  vertical-align: baseline;
-  font-size: 0.875rem;
-  line-height: 1.25rem;
-  padding: 0.125rem 0.25rem;
-  margin: 0;
-  background-color: rgb(245 245 245);
-  color: rgb(38 38 38);
-  caret-color: var(--vlaina-caret-color);
-  border: none;
-  border-radius: 0.25rem;
-  font-family: var(--font-mono);
-  font-weight: 500;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-}
-
-.dark .milkdown code:not(pre code) {
-  background-color: rgb(38 38 38);
-  color: rgb(245 245 245);
-}
-
-/* Images */
-.milkdown img,
+/* Editor image node containers add block-editor interaction affordances. */
 .milkdown .image-block-container {
-  max-width: 100%;
-  height: auto;
-  border-radius: 0.5rem;
   margin: 1rem 0;
   cursor: default;
-}
-
-/* Tables */
-.milkdown table {
-  width: max-content;
-  max-width: 100%;
-  border-collapse: separate;
-  /* Required for border-radius */
-  border-spacing: 0;
-  margin: 1rem 0;
-  font-size: 14px;
-  border: 1px solid var(--vlaina-border);
-  border-radius: 0.5rem;
-  /* Unified 8px radius */
-  overflow: hidden;
-}
-
-.milkdown th,
-.milkdown td {
-  border-bottom: 1px solid var(--vlaina-border);
-  border-right: 1px solid var(--vlaina-border);
-  min-width: 150px;
-  padding: 0.5rem 0.75rem;
-  text-align: left;
-}
-
-.milkdown th:last-child,
-.milkdown td:last-child {
-  border-right: none;
-}
-
-.milkdown tr:last-child td {
-  border-bottom: none;
-}
-
-.milkdown th {
-  background-color: var(--vlaina-bg-secondary);
-  font-weight: 600;
 }
 
 .milkdown table tr:hover {
@@ -353,22 +254,6 @@
 
 .milkdown table tr:hover > th {
   background-color: var(--vlaina-bg-secondary) !important;
-}
-
-/* Strong & Emphasis */
-.milkdown strong {
-  font-weight: 600;
-}
-
-.milkdown em {
-  font-style: italic;
-}
-
-/* Strikethrough */
-.milkdown del,
-.milkdown s {
-  text-decoration: line-through;
-  color: var(--vlaina-text-secondary);
 }
 
 /* Tooltip Animation */

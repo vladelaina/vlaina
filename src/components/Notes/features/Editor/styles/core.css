@@ -69,7 +69,6 @@ body.vlaina-block-drag-active * {
 
 .milkdown .ProseMirror {
   caret-color: var(--vlaina-editor-caret-color);
-  line-height: calc(1em + 8px);
 }
 
 /* Selection */

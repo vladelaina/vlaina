@@ -79,7 +79,7 @@ export const CodeBlock = memo(({ className, children, blockId, copied = false, o
   };
 
   return (
-    <div className="vlaina-code-block relative my-6 overflow-hidden rounded-2xl group">
+    <div className="vlaina-code-block relative my-4 overflow-hidden rounded-2xl group">
       <CodeBlockHeader
         copied={copied}
         getCopyText={() => codeText}

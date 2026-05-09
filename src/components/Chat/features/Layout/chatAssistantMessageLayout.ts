@@ -1,11 +1,12 @@
 import type { ChatMessage } from '@/lib/ai/types';
 import { parseErrorTag, stripErrorTags } from '@/lib/ai/errorTag';
 import { measureTextBlockHeight } from '@/lib/text-layout';
-import { getChatContentWidth } from './chatWidthBuckets';
 import {
-  BODY_FONT,
-  BODY_LINE_HEIGHT,
-} from './chatAssistantMarkdownTheme';
+  MARKDOWN_BODY_FONT,
+  MARKDOWN_BODY_LINE_HEIGHT,
+  MARKDOWN_BLOCK_GAP,
+} from '@/components/common/markdown/markdownMetrics';
+import { getChatContentWidth } from './chatWidthBuckets';
 import {
   measureErrorHeight,
 } from './chatAssistantMarkdownTypography';
@@ -19,7 +20,6 @@ const ASSISTANT_LEFT_PADDING = 15;
 const ASSISTANT_TOOLBAR_HEIGHT = 30;
 const ASSISTANT_IMAGE_HEIGHT = 220;
 const ASSISTANT_IMAGE_GAP = 12;
-const ASSISTANT_BLOCK_GAP = 20;
 const ASSISTANT_THINKING_HEADER_HEIGHT = 28;
 const ASSISTANT_THINKING_BODY_GAP = 8;
 const ASSISTANT_THINKING_MARGIN_BOTTOM = 16;
@@ -40,9 +40,9 @@ function estimateThinkingHeight(
   }
 
   const bodyHeight = measureTextBlockHeight(body, contentWidth, {
-    font: BODY_FONT,
-    lineHeight: BODY_LINE_HEIGHT,
-    minHeight: BODY_LINE_HEIGHT,
+    font: MARKDOWN_BODY_FONT,
+    lineHeight: MARKDOWN_BODY_LINE_HEIGHT,
+    minHeight: MARKDOWN_BODY_LINE_HEIGHT,
     prepareOptions: { whiteSpace: 'pre-wrap' },
   });
 
@@ -77,13 +77,13 @@ export function estimateAssistantMessageHeight(
   if (parsedMarkdown.blocks.length > 0) {
     height += getMarkdownBlocksHeight(parsedMarkdown, contentWidth);
     if (thinkingHeight > 0) {
-      height += ASSISTANT_BLOCK_GAP;
+      height += MARKDOWN_BLOCK_GAP;
     }
   }
 
   if (parsedMarkdown.imageCount > 0) {
     if (height > 0) {
-      height += ASSISTANT_BLOCK_GAP;
+      height += MARKDOWN_BLOCK_GAP;
     }
     height += parsedMarkdown.imageCount * ASSISTANT_IMAGE_HEIGHT
       + Math.max(0, parsedMarkdown.imageCount - 1) * ASSISTANT_IMAGE_GAP;
@@ -100,7 +100,7 @@ export function estimateAssistantMessageHeight(
     height += ASSISTANT_TOOLBAR_HEIGHT;
   }
 
-  return Math.max(height, BODY_LINE_HEIGHT);
+  return Math.max(height, MARKDOWN_BODY_LINE_HEIGHT);
 }
 
 export function estimateChatLoadingHeight(): number {

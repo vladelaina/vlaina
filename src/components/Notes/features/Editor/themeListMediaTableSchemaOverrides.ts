@@ -1,6 +1,5 @@
 import type { Ctx } from '@milkdown/kit/ctx';
 import {
-    bulletListSchema,
     imageSchema,
     listItemSchema,
     orderedListSchema,
@@ -8,21 +7,13 @@ import {
 import {
     tableCellSchema,
     tableHeaderSchema,
-    tableRowSchema,
-    tableSchema,
 } from '@milkdown/kit/preset/gfm';
 import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
 import { isPublicRemoteMediaUrl, sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 import { normalizeImageWidth } from './plugins/image-block/utils/imageSourceFragment';
-import { themeClasses } from './themeClasses';
-import { escapeHtmlAttr, updateSchemaFactory } from './themeSchemaUtils';
+import { escapeHtmlAttr, getDomAttrs, updateSchemaFactory } from './themeSchemaUtils';
 
 export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
-    updateSchemaFactory(ctx, bulletListSchema.key, (prev: any) => ({
-        ...prev,
-        toDOM: (_node: any) => ['ul', { class: themeClasses.lists.ul }, 0]
-    }));
-
     updateSchemaFactory(ctx, orderedListSchema.key, (prev: any) => ({
         ...prev,
         parseMarkdown: {
@@ -49,10 +40,9 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
             const order = typeof node.attrs?.order === 'number' ? node.attrs.order : 1;
             return [
                 'ol',
-                {
-                    class: themeClasses.lists.ol,
+                getDomAttrs({
                     ...(order !== 1 ? { start: String(order) } : {}),
-                },
+                }),
                 0,
             ];
         }
@@ -67,7 +57,6 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
                 : Number.NaN;
 
             return ['li', {
-                class: themeClasses.lists.li,
                 'data-label': node.attrs.label,
                 'data-list-type': node.attrs.listType,
                 'data-spread': node.attrs.spread,
@@ -95,7 +84,6 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
                 title: node.attrs.title,
                 align: node.attrs.align,
                 width,
-                class: themeClasses.image
             }];
         },
         parseDOM: [
@@ -190,23 +178,13 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
         }
     }));
 
-    updateSchemaFactory(ctx, tableRowSchema.key, (prev: any) => ({
-        ...prev,
-        toDOM: (_node: any) => ['tr', { class: themeClasses.tr }, 0]
-    }));
-
     updateSchemaFactory(ctx, tableHeaderSchema.key, (prev: any) => ({
         ...prev,
-        toDOM: (_node: any) => ['th', { ..._node.attrs, class: themeClasses.th }, 0]
+        toDOM: (_node: any) => ['th', getDomAttrs(_node.attrs), 0]
     }));
 
     updateSchemaFactory(ctx, tableCellSchema.key, (prev: any) => ({
         ...prev,
-        toDOM: (_node: any) => ['td', { ..._node.attrs, class: themeClasses.td }, 0]
-    }));
-
-    updateSchemaFactory(ctx, tableSchema.key, (prev: any) => ({
-        ...prev,
-        toDOM: (_node: any) => ['table', { class: themeClasses.table }, ['tbody', 0]]
+        toDOM: (_node: any) => ['td', getDomAttrs(_node.attrs), 0]
     }));
 }

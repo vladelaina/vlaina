@@ -2,11 +2,11 @@ import {
   measureTextLineCount,
   measureTextWrapStats,
 } from '@/lib/text-layout';
-import { getChatContentWidth, normalizeChatContainerWidth } from './chatWidthBuckets';
 import {
-  BODY_FONT,
-  BODY_LINE_HEIGHT,
-} from './chatAssistantMarkdownTheme';
+  MARKDOWN_BODY_FONT,
+  MARKDOWN_BODY_LINE_HEIGHT,
+} from '@/components/common/markdown/markdownMetrics';
+import { getChatContentWidth, normalizeChatContainerWidth } from './chatWidthBuckets';
 
 const USER_BUBBLE_MAX_RATIO = 0.9;
 const USER_BUBBLE_PADDING_X = 32;
@@ -43,8 +43,8 @@ export function resolveUserMessageBubbleWidth(text: string, containerWidth: numb
   const maxBubbleWidth = Math.max(1, Math.floor(getChatContentWidth(normalizedWidth) * USER_BUBBLE_MAX_RATIO));
   const maxTextWidth = Math.max(1, maxBubbleWidth - USER_BUBBLE_PADDING_X);
   const measurementOptions = {
-    font: BODY_FONT,
-    lineHeight: BODY_LINE_HEIGHT,
+    font: MARKDOWN_BODY_FONT,
+    lineHeight: MARKDOWN_BODY_LINE_HEIGHT,
     prepareOptions: { whiteSpace: 'pre-wrap' as const },
   };
   const initialMetrics = measureTextWrapStats(text, maxTextWidth, measurementOptions);

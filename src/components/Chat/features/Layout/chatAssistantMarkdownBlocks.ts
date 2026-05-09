@@ -3,11 +3,10 @@ import {
   type MarkdownMeasurementBlock,
 } from './chatAssistantMarkdownTypography';
 import { extractMessageImageSources, stripMarkdownImageTokens } from '@/components/Chat/common/messageClipboard';
+import { MARKDOWN_BLOCK_GAP } from '@/components/common/markdown/markdownMetrics';
 import { parseMarkdownMeasurementBlocks } from './chatAssistantMarkdownBlockParser';
 const HTML_IMAGE_RE = /<img\b[^>]*>/gi;
 const FENCE_START_RE = /^\s*```/;
-
-const ASSISTANT_BLOCK_GAP = 20;
 
 export type ParsedAssistantMarkdown = {
   blocks: MarkdownMeasurementBlock[];
@@ -63,7 +62,7 @@ function estimateMarkdownBlocksHeight(
 
   blocks.forEach((block, index) => {
     if (hasLeadingGap || index > 0) {
-      height += ASSISTANT_BLOCK_GAP;
+      height += MARKDOWN_BLOCK_GAP;
     }
     height += estimateMarkdownBlockHeight(block, contentWidth);
   });

@@ -44,18 +44,6 @@
   line-height: 0;
 }
 
-/* Autolink - 自动识别的链接（与普通链接样式一致） */
-.milkdown .autolink {
-  color: var(--vlaina-accent);
-  text-decoration: underline;
-  text-underline-offset: 4px;
-  cursor: pointer;
-}
-
-.milkdown .autolink:hover {
-  opacity: 0.8;
-}
-
 /* Footnotes */
 .milkdown .footnote-ref {
   font-size: 0.75em;
@@ -447,7 +435,7 @@ body.vlaina-block-drag-active .milkdown .video-block video {
   background-color: rgba(107, 114, 128, 0.2);
 }
 
-/* === Collapse Toggle Button (shared by heading and list collapse) === */
+/* === List Collapse Toggle Button === */
 
 /* List items need position:relative for absolute positioning of toggle */
 .milkdown li {
@@ -481,16 +469,6 @@ body.vlaina-block-drag-active .milkdown .video-block video {
 .milkdown .vlaina-collapse-btn:hover {
   opacity: 1;
   color: var(--vlaina-text-secondary);
-}
-
-/* Heading hover alignment */
-.milkdown h1:hover .vlaina-collapse-btn,
-.milkdown h2:hover .vlaina-collapse-btn,
-.milkdown h3:hover .vlaina-collapse-btn,
-.milkdown h4:hover .vlaina-collapse-btn,
-.milkdown h5:hover .vlaina-collapse-btn,
-.milkdown h6:hover .vlaina-collapse-btn {
-  opacity: 1;
 }
 
 /* List Item Hover Logic:

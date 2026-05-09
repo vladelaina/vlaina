@@ -102,6 +102,7 @@ describe('ThinkingBlock', () => {
 
     const liveSurface = container.querySelector('[data-chat-markdown-live="true"]');
     expect(liveSurface).toHaveClass('chat-markdown-live');
+    expect(liveSurface).toHaveClass('vlaina-markdown-surface');
 
     rerender(
       <ThinkingBlock
@@ -111,6 +112,20 @@ describe('ThinkingBlock', () => {
     );
 
     expect(container.querySelector('[data-chat-markdown-live="true"]')).not.toBeInTheDocument();
+  });
+
+  it('renders thinking code blocks through the shared markdown components', () => {
+    const { container } = render(
+      <ThinkingBlock
+        content={"```ts\nconst value = 1;\n```"}
+        isStreaming={false}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reasoning' }));
+
+    expect(container.querySelector('.vlaina-code-block')).not.toBeNull();
+    expect(container.querySelector('.vlaina-code-block-language-label')).toHaveTextContent('ts');
   });
 
   it('allows active thinking to be collapsed while streaming', () => {
