@@ -158,8 +158,8 @@ function MarkdownImage({
   const gallery = getImageGallery ? getImageGallery() : imageGallery;
 
   return (
-    <span className="not-prose my-3 block max-w-full" data-no-focus-input="true">
-      <span className="group relative inline-block max-w-full overflow-hidden rounded-xl align-top">
+    <span className="block max-w-full" data-no-focus-input="true">
+      <span className="group relative inline-block max-w-full align-top">
         <LocalImage
           src={src}
           alt={alt || 'image'}
@@ -239,13 +239,7 @@ export function createMarkdownComponents({
     },
     code({ className, children, ...props }: MarkdownCodeProps) {
       return (
-        <code
-          className={cn(
-            'rounded bg-neutral-100 px-1 py-0.5 text-sm dark:bg-neutral-800',
-            className,
-          )}
-          {...props}
-        >
+        <code className={className} {...props}>
           {children}
         </code>
       );

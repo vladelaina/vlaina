@@ -1,23 +1,18 @@
 import type { Ctx } from '@milkdown/kit/ctx';
 import {
-    blockquoteSchema,
     codeBlockSchema,
-    emphasisSchema,
     headingSchema,
-    hrSchema,
-    inlineCodeSchema,
     linkSchema,
     paragraphSchema,
-    strongSchema,
 } from '@milkdown/kit/preset/commonmark';
 import {
     getTextAlignmentComment,
     readMarkdownNodeAlignment,
 } from './plugins/floating-toolbar/blockAlignmentMarkdown';
 import { sanitizeNoteLinkHref } from '@/lib/notes/markdown/urlSecurity';
-import { themeClasses } from './themeClasses';
 import {
     getAlignedBlockDomAttrs,
+    getDomAttrs,
     getDomTextAlignment,
     normalizeTextAlignment,
     updateSchemaFactory,
@@ -32,7 +27,7 @@ export function applyTextSchemaOverrides(ctx: Ctx) {
         },
         toDOM: (node: any) => [
             'p',
-            getAlignedBlockDomAttrs(themeClasses.paragraph, node.attrs.align),
+            getAlignedBlockDomAttrs(node.attrs.align),
             0
         ],
         parseDOM: [
@@ -73,8 +68,7 @@ export function applyTextSchemaOverrides(ctx: Ctx) {
         },
         toDOM: (node: any) => {
             const level = node.attrs.level;
-            const className = themeClasses.heading[`h${level}` as keyof typeof themeClasses.heading];
-            return [`h${level}`, getAlignedBlockDomAttrs(className, node.attrs.align), 0];
+            return [`h${level}`, getAlignedBlockDomAttrs(node.attrs.align), 0];
         },
         parseDOM: [
             ...Array.from({ length: 6 }, (_, index) => ({
@@ -110,36 +104,11 @@ export function applyTextSchemaOverrides(ctx: Ctx) {
         },
     }));
 
-    updateSchemaFactory(ctx, blockquoteSchema.key, (prev: any) => ({
-        ...prev,
-        toDOM: (_node: any) => ['blockquote', { class: themeClasses.blockquote }, 0]
-    }));
-
-    updateSchemaFactory(ctx, hrSchema.key, (prev: any) => ({
-        ...prev,
-        toDOM: (_node: any) => ['hr', { class: themeClasses.hr }]
-    }));
-
-    updateSchemaFactory(ctx, strongSchema.key, (prev: any) => ({
-        ...prev,
-        toDOM: (_node: any) => ['strong', { class: themeClasses.strong }, 0]
-    }));
-
-    updateSchemaFactory(ctx, emphasisSchema.key, (prev: any) => ({
-        ...prev,
-        toDOM: (_node: any) => ['em', { class: themeClasses.em }, 0]
-    }));
-
-    updateSchemaFactory(ctx, inlineCodeSchema.key, (prev: any) => ({
-        ...prev,
-        toDOM: (_node: any) => ['code', { class: themeClasses.code }, 0]
-    }));
-
     updateSchemaFactory(ctx, linkSchema.key, (prev: any) => ({
         ...prev,
         toDOM: (node: any) => {
             const safeHref = sanitizeNoteLinkHref(node.attrs.href);
-            return ['a', { ...node.attrs, href: safeHref ?? undefined, class: themeClasses.link }, 0];
+            return ['a', getDomAttrs({ ...node.attrs, href: safeHref ?? undefined }), 0];
         }
     }));
 
@@ -147,7 +116,7 @@ export function applyTextSchemaOverrides(ctx: Ctx) {
         ...prev,
         toDOM: (node: any) => [
             'div',
-            { class: themeClasses.fence, 'data-language': node.attrs.language },
+            getDomAttrs({ 'data-language': node.attrs.language }),
             ['pre', ['code', { spellcheck: 'false' }, 0]]
         ]
     }));

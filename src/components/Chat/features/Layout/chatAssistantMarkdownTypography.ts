@@ -4,13 +4,17 @@ import {
   type PreparedRichInline,
 } from '@/lib/text-layout';
 import {
-  ASSISTANT_CODE_HEADER_HEIGHT,
-  ASSISTANT_CODE_PADDING_Y,
-  ASSISTANT_RULE_HEIGHT,
-  CODE_LINE_HEIGHT,
-  ERROR_FONT,
-  ERROR_LINE_HEIGHT,
-} from './chatAssistantMarkdownTheme';
+  MARKDOWN_BODY_FONT,
+  MARKDOWN_CODE_BLOCK_HEADER_HEIGHT,
+  MARKDOWN_CODE_BLOCK_PADDING_Y,
+  MARKDOWN_CODE_LINE_HEIGHT,
+  MARKDOWN_TABLE_BORDER_Y,
+  MARKDOWN_TABLE_CELL_PADDING_Y,
+  MARKDOWN_TABLE_LINE_HEIGHT,
+  MARKDOWN_TABLE_MARGIN_Y,
+  MARKDOWN_TABLE_ROW_BORDER_Y,
+  MARKDOWN_RULE_HEIGHT,
+} from '@/components/common/markdown/markdownMetrics';
 import {
   getPreparedMarkdownTextBlock,
   normalizeInlineMarkdownForMeasurement,
@@ -20,6 +24,7 @@ import type { TextBlockVariant } from './chatAssistantMarkdownTypes';
 export type MarkdownMeasurementBlock =
   | {
       kind: 'text';
+      extraHeight: number;
       lineHeight: number;
       prepared: PreparedRichInline;
       widthInset: number;
@@ -32,15 +37,23 @@ export type MarkdownMeasurementBlock =
   | {
       kind: 'rule';
       widthInset: number;
+    }
+  | {
+      kind: 'table';
+      rowCount: number;
+      widthInset: number;
     };
 
 export type { TextBlockVariant } from './chatAssistantMarkdownTypes';
+
+const ASSISTANT_ERROR_LINE_HEIGHT = 22;
 
 export function buildMarkdownTextBlock(
   text: string,
   variant: TextBlockVariant,
   lineHeight: number,
   widthInset: number = 0,
+  extraHeight: number = 0,
 ): MarkdownMeasurementBlock | null {
   const normalized = normalizeInlineMarkdownForMeasurement(text);
   if (!normalized) {
@@ -49,6 +62,7 @@ export function buildMarkdownTextBlock(
 
   return {
     kind: 'text',
+    extraHeight,
     prepared: getPreparedMarkdownTextBlock(text, variant),
     lineHeight,
     widthInset,
@@ -61,24 +75,28 @@ export function estimateMarkdownBlockHeight(block: MarkdownMeasurementBlock, con
       return Math.max(
         measureRichInlineStats(block.prepared, Math.max(1, contentWidth - block.widthInset)).lineCount,
         1,
-      ) * block.lineHeight;
+      ) * block.lineHeight + block.extraHeight;
     case 'code':
       return estimateCodeBlockHeight(block.code);
     case 'rule':
-      return ASSISTANT_RULE_HEIGHT;
+      return MARKDOWN_RULE_HEIGHT;
+    case 'table':
+      return MARKDOWN_TABLE_MARGIN_Y
+        + MARKDOWN_TABLE_BORDER_Y
+        + block.rowCount * (MARKDOWN_TABLE_LINE_HEIGHT + MARKDOWN_TABLE_CELL_PADDING_Y + MARKDOWN_TABLE_ROW_BORDER_Y);
   }
 }
 
 export function estimateCodeBlockHeight(code: string): number {
   const lineCount = Math.max(code.replace(/\n$/, '').split('\n').length, 1);
-  return ASSISTANT_CODE_HEADER_HEIGHT + ASSISTANT_CODE_PADDING_Y + lineCount * CODE_LINE_HEIGHT;
+  return MARKDOWN_CODE_BLOCK_HEADER_HEIGHT + MARKDOWN_CODE_BLOCK_PADDING_Y + lineCount * MARKDOWN_CODE_LINE_HEIGHT;
 }
 
 export function measureErrorHeight(text: string, width: number): number {
   return measureTextBlockHeight(text, width, {
-    font: ERROR_FONT,
-    lineHeight: ERROR_LINE_HEIGHT,
-    minHeight: ERROR_LINE_HEIGHT,
+    font: MARKDOWN_BODY_FONT,
+    lineHeight: ASSISTANT_ERROR_LINE_HEIGHT,
+    minHeight: ASSISTANT_ERROR_LINE_HEIGHT,
     prepareOptions: { whiteSpace: 'pre-wrap' },
   });
 }

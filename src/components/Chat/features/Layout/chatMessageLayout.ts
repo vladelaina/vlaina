@@ -1,14 +1,14 @@
 import type { ChatMessage } from '@/lib/ai/types';
 import { measureTextBlockHeight } from '@/lib/text-layout';
+import {
+  MARKDOWN_BODY_FONT,
+  MARKDOWN_BODY_LINE_HEIGHT,
+} from '@/components/common/markdown/markdownMetrics';
 import { getChatContentWidth, normalizeChatContainerWidth } from './chatWidthBuckets';
 import {
   estimateAssistantMessageHeight,
   estimateChatLoadingHeight,
 } from './chatAssistantMessageLayout';
-import {
-  BODY_FONT,
-  BODY_LINE_HEIGHT,
-} from './chatAssistantMarkdownTheme';
 
 const USER_BUBBLE_MAX_RATIO = 0.9;
 const USER_BUBBLE_PADDING_X = 32;
@@ -56,15 +56,15 @@ function estimateUserMessageHeight(
       height += USER_STACK_GAP;
     }
     height += measureTextBlockHeight(text, textWidth, {
-      font: BODY_FONT,
-      lineHeight: BODY_LINE_HEIGHT,
-      minHeight: BODY_LINE_HEIGHT,
+      font: MARKDOWN_BODY_FONT,
+      lineHeight: MARKDOWN_BODY_LINE_HEIGHT,
+      minHeight: MARKDOWN_BODY_LINE_HEIGHT,
       prepareOptions: { whiteSpace: 'pre-wrap' },
     }) + USER_BUBBLE_PADDING_Y;
   }
 
   if (height === 0) {
-    height = BODY_LINE_HEIGHT + USER_BUBBLE_PADDING_Y;
+    height = MARKDOWN_BODY_LINE_HEIGHT + USER_BUBBLE_PADDING_Y;
   }
 
   return height + (isStreaming ? 0 : USER_TOOLBAR_HEIGHT);

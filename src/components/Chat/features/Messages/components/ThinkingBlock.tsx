@@ -1,13 +1,14 @@
 import { useEffect, useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
-import { getExternalLinkProps } from "@/lib/navigation/externalLinks";
 import {
   CHAT_MARKDOWN_REHYPE_PLUGINS,
   CHAT_MARKDOWN_REMARK_PLUGINS,
 } from "@/components/Chat/features/Markdown/markdownPipeline";
+import { createMarkdownComponents } from "@/components/Chat/features/Markdown/markdownRendererComponents";
 import { useChatStreamBlocks } from "@/components/Chat/features/Markdown/chatStreamTextAnimation";
 import { createChatStreamTextPlugin } from "@/components/Chat/features/Markdown/chatStreamTextPlugin";
 import { PrimerLightbulbIcon } from "@/components/ui/icons/custom/mit/PrimerLightbulbIcon";
+import "@/components/common/markdown/markdownSurface.css";
 
 interface ThinkingBlockProps {
   content: string;
@@ -89,19 +90,7 @@ export function ThinkingBlock({
   }, [thinking, activelyThinking, isCollapsed]);
 
   const streamBlocks = useChatStreamBlocks(thinking, activelyThinking);
-  const markdownComponents = {
-    a({ href, children, ...props }: any) {
-      return (
-        <a
-          {...props}
-          {...getExternalLinkProps(typeof href === "string" ? href : null)}
-          data-no-focus-input="true"
-        >
-          {children}
-        </a>
-      );
-    },
-  };
+  const markdownComponents = createMarkdownComponents({ codeBlockIdBase: "thinking-code" });
 
   const handleToggle = () => {
     setIsCollapsed((collapsed) => !collapsed);
@@ -178,7 +167,7 @@ export function ThinkingBlock({
           data-chat-selection-surface="true"
           data-chat-markdown-live={activelyThinking ? "true" : undefined}
           className={[
-            "opacity-90 select-text leading-relaxed prose prose-neutral dark:prose-invert max-w-none",
+            "vlaina-markdown-surface opacity-90 select-text max-w-none",
             activelyThinking ? "chat-markdown-live" : "",
           ].filter(Boolean).join(" ")}
         >

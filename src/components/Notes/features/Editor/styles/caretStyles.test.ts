@@ -13,13 +13,6 @@ function readEditorCoreStyles() {
   );
 }
 
-function readEditorThemeClassesSource() {
-  return readFileSync(
-    resolve(process.cwd(), 'src/components/Notes/features/Editor/themeClasses.ts'),
-    'utf8'
-  );
-}
-
 describe('caret styles', () => {
   it('uses a shared global caret color token', () => {
     const css = readIndexStyles();
@@ -32,9 +25,8 @@ describe('caret styles', () => {
 
   it('keeps the editor caret sourced from the shared caret token', () => {
     const css = readEditorCoreStyles();
-    const themeClasses = readEditorThemeClassesSource();
 
     expect(css).toContain('--vlaina-editor-caret-color: var(--vlaina-caret-color, #41ace2);');
-    expect(themeClasses).toContain('caret-[var(--vlaina-caret-color)]');
+    expect(css).toContain('caret-color: var(--vlaina-editor-caret-color);');
   });
 });

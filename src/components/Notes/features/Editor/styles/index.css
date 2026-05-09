@@ -4,9 +4,9 @@
  * Modern block-editor styling for the WYSIWYG Markdown editor
  */
 
+@import '../../../../common/markdown/markdownSurface.css';
 @import './core.css';
 @import './selection-width.css';
-@import './typography.css';
 @import './markdown.css';
 @import './extended.css';
 @import './code-block.css';

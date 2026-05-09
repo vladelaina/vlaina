@@ -19,13 +19,6 @@ function readCodeBlockThemeSource() {
   );
 }
 
-function readTypographySource() {
-  return readFileSync(
-    resolve(process.cwd(), 'src/components/Notes/features/Editor/styles', 'typography.css'),
-    'utf8'
-  );
-}
-
 function readPreviewStylesSource() {
   return readFileSync(
     resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar', 'previewStyles.ts'),
@@ -128,7 +121,7 @@ describe('editor embedded CodeMirror selection styles', () => {
   });
 
   it('collapses paragraph line box around standalone image blocks', () => {
-    const css = readTypographySource();
+    const css = readStyleFile('markdown.css');
 
     expect(css).toContain('.milkdown p:has(> .image-block-container:only-child) {');
     expect(css).toContain('font-size: 0;');
@@ -138,6 +131,13 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('.milkdown p:has(> .image-block-container:only-child) > .image-block-container {');
     expect(css).toContain('margin-top: 0;');
     expect(css).toContain('margin-bottom: 0;');
+  });
+
+  it('lets autolinks inherit the shared markdown link appearance', () => {
+    const css = readStyleFile('extended.css');
+
+    expect(css).not.toContain('.milkdown .autolink {');
+    expect(css).not.toContain('text-underline-offset: 4px;');
   });
 
   it('keeps block drag previews transparent and lightens preview text', () => {

@@ -9,6 +9,7 @@ import {
 } from './markdownPipeline';
 import { useChatStreamBlocks } from './chatStreamTextAnimation';
 import { createChatStreamTextPlugin } from './chatStreamTextPlugin';
+import '@/components/common/markdown/markdownSurface.css';
 
 interface MarkdownRendererProps {
   content: string;
@@ -18,16 +19,9 @@ interface MarkdownRendererProps {
   codeBlockIdBase?: string;
   copiedCodeBlockId?: string | null;
   onCopyCodeBlock?: (blockId: string) => void;
-  size?: 'sm' | 'md' | 'lg';
   startTime?: Date;
   isStreaming?: boolean;
 }
-
-const PROSE_SIZE_CLASS: Record<NonNullable<MarkdownRendererProps['size']>, string> = {
-  lg: 'prose-lg',
-  md: '',
-  sm: 'prose-sm',
-};
 
 const SELECTION_EXCLUDED_SELECTOR = [
   '[data-chat-selection-excluded="true"]',
@@ -59,7 +53,6 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
     codeBlockIdBase,
     copiedCodeBlockId,
     onCopyCodeBlock,
-    size,
     startTime,
     isStreaming = false,
   }) => {
@@ -218,9 +211,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
             data-chat-selection-surface="true"
             data-chat-markdown-live={shouldAnimateStream ? 'true' : undefined}
             className={[
-              'max-w-full break-words prose prose-neutral prose-headings:font-semibold prose-pre:m-0 prose-pre:bg-transparent prose-pre:p-0 dark:prose-invert',
+              'vlaina-markdown-surface max-w-full break-words',
               shouldAnimateStream ? 'chat-markdown-live' : '',
-              PROSE_SIZE_CLASS[size ?? 'md'],
             ]
               .filter(Boolean)
               .join(' ')}

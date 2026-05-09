@@ -61,6 +61,20 @@ describe('estimateChatMessageHeight', () => {
     expect(richHeight).toBeGreaterThan(plainHeight);
   });
 
+  it('uses the shared code block chrome height in assistant estimates', () => {
+    const oneLineCodeHeight = estimateChatMessageHeight(
+      createMessage('assistant', '```ts\nconst value = 1;\n```'),
+      { containerWidth: 900, isStreaming: false },
+    );
+    const twoLineCodeHeight = estimateChatMessageHeight(
+      createMessage('assistant', '```ts\nconst value = 1;\nconst next = 2;\n```'),
+      { containerWidth: 900, isStreaming: false },
+    );
+
+    expect(twoLineCodeHeight - oneLineCodeHeight).toBe(23);
+    expect(oneLineCodeHeight).toBeGreaterThanOrEqual(79);
+  });
+
   it('accounts for headings, lists, and blockquotes as separate blocks', () => {
     const plainHeight = estimateChatMessageHeight(
       createMessage('assistant', 'hello world'),
@@ -77,7 +91,33 @@ describe('estimateChatMessageHeight', () => {
     expect(structuredHeight).toBeGreaterThan(plainHeight);
   });
 
-  it('treats markdown tables as code-like blocks for measurement', () => {
+  it('includes shared list margins in assistant markdown height estimates', () => {
+    const paragraphHeight = estimateChatMessageHeight(
+      createMessage('assistant', 'first item\nsecond item'),
+      { containerWidth: 900, isStreaming: false },
+    );
+    const listHeight = estimateChatMessageHeight(
+      createMessage('assistant', '- first item\n- second item'),
+      { containerWidth: 900, isStreaming: false },
+    );
+
+    expect(listHeight - paragraphHeight).toBeGreaterThanOrEqual(40);
+  });
+
+  it('includes shared blockquote padding in assistant markdown height estimates', () => {
+    const paragraphHeight = estimateChatMessageHeight(
+      createMessage('assistant', 'quoted line'),
+      { containerWidth: 900, isStreaming: false },
+    );
+    const blockquoteHeight = estimateChatMessageHeight(
+      createMessage('assistant', '> quoted line'),
+      { containerWidth: 900, isStreaming: false },
+    );
+
+    expect(blockquoteHeight - paragraphHeight).toBeGreaterThanOrEqual(20);
+  });
+
+  it('accounts for markdown tables as structured blocks', () => {
     const plainHeight = estimateChatMessageHeight(
       createMessage('assistant', 'alpha beta'),
       { containerWidth: 900, isStreaming: false },
@@ -91,6 +131,32 @@ describe('estimateChatMessageHeight', () => {
     );
 
     expect(tableHeight).toBeGreaterThan(plainHeight);
+  });
+
+  it('estimates markdown tables from shared table metrics instead of code block chrome', () => {
+    const oneRowTableHeight = estimateChatMessageHeight(
+      createMessage('assistant', '| a | b |\n| --- | --- |\n| 1 | 2 |'),
+      { containerWidth: 900, isStreaming: false },
+    );
+    const twoRowTableHeight = estimateChatMessageHeight(
+      createMessage('assistant', '| a | b |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |'),
+      { containerWidth: 900, isStreaming: false },
+    );
+
+    expect(twoRowTableHeight - oneRowTableHeight).toBe(39);
+  });
+
+  it('uses the shared horizontal rule height in assistant estimates', () => {
+    const paragraphHeight = estimateChatMessageHeight(
+      createMessage('assistant', 'alpha beta'),
+      { containerWidth: 900, isStreaming: false },
+    );
+    const ruleHeight = estimateChatMessageHeight(
+      createMessage('assistant', '---'),
+      { containerWidth: 900, isStreaming: false },
+    );
+
+    expect(ruleHeight - paragraphHeight).toBeGreaterThanOrEqual(7);
   });
 
   it('accounts for inline links and code spans in narrow assistant layouts', () => {

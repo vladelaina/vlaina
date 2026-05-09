@@ -3,11 +3,20 @@ import {
   type MarkdownMeasurementBlock,
 } from './chatAssistantMarkdownTypography';
 import {
-  BODY_LINE_HEIGHT,
-  HEADING_ONE_LINE_HEIGHT,
-  HEADING_THREE_LINE_HEIGHT,
-  HEADING_TWO_LINE_HEIGHT,
-} from './chatAssistantMarkdownTheme';
+  MARKDOWN_BODY_LINE_HEIGHT,
+  MARKDOWN_BLOCKQUOTE_CONTENT_INSET,
+  MARKDOWN_BLOCKQUOTE_LINE_HEIGHT,
+  MARKDOWN_BLOCKQUOTE_PADDING_Y,
+  MARKDOWN_HEADING_FIVE_LINE_HEIGHT,
+  MARKDOWN_HEADING_FOUR_LINE_HEIGHT,
+  MARKDOWN_HEADING_ONE_LINE_HEIGHT,
+  MARKDOWN_HEADING_SIX_LINE_HEIGHT,
+  MARKDOWN_HEADING_THREE_LINE_HEIGHT,
+  MARKDOWN_HEADING_TWO_LINE_HEIGHT,
+  MARKDOWN_LIST_CONTENT_INSET,
+  MARKDOWN_LIST_ITEM_MARGIN_Y,
+  MARKDOWN_LIST_MARGIN_Y,
+} from '@/components/common/markdown/markdownMetrics';
 import {
   setCacheEntry,
   touchCacheEntry,
@@ -21,11 +30,29 @@ const LIST_MARKER_RE = /^\s{0,3}(?:[-+*]|\d+\.)\s+/;
 const TASK_MARKER_RE = /^\s{0,3}(?:[-+*]|\d+\.)\s+\[(?: |x|X)\]\s+/;
 const TABLE_ROW_RE = /^\s*\|.*\|\s*$/;
 
-const ASSISTANT_LIST_INDENT = 26;
-const ASSISTANT_BLOCKQUOTE_INDENT = 18;
 const PARSED_ASSISTANT_MARKDOWN_CACHE_LIMIT = 200;
 
 const parsedMarkdownBlocksCache = new Map<string, MarkdownMeasurementBlock[]>();
+
+function getHeadingMeasurement(depth: number): {
+  lineHeight: number;
+  variant: 'heading-1' | 'heading-2' | 'heading-3' | 'heading-4' | 'heading-5' | 'heading-6';
+} {
+  switch (depth) {
+    case 1:
+      return { lineHeight: MARKDOWN_HEADING_ONE_LINE_HEIGHT, variant: 'heading-1' };
+    case 2:
+      return { lineHeight: MARKDOWN_HEADING_TWO_LINE_HEIGHT, variant: 'heading-2' };
+    case 3:
+      return { lineHeight: MARKDOWN_HEADING_THREE_LINE_HEIGHT, variant: 'heading-3' };
+    case 4:
+      return { lineHeight: MARKDOWN_HEADING_FOUR_LINE_HEIGHT, variant: 'heading-4' };
+    case 5:
+      return { lineHeight: MARKDOWN_HEADING_FIVE_LINE_HEIGHT, variant: 'heading-5' };
+    default:
+      return { lineHeight: MARKDOWN_HEADING_SIX_LINE_HEIGHT, variant: 'heading-6' };
+  }
+}
 
 function collectSectionLines(lines: string[], start: number): { end: number; lines: string[] } {
   const sectionLines: string[] = [];
@@ -94,11 +121,8 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
     if (headingMatch) {
       const depth = headingMatch[1]!.length;
       const text = headingMatch[2] ?? '';
-      const block = buildMarkdownTextBlock(
-        text,
-        depth <= 1 ? 'heading-1' : depth === 2 ? 'heading-2' : 'heading-3',
-        depth <= 1 ? HEADING_ONE_LINE_HEIGHT : depth === 2 ? HEADING_TWO_LINE_HEIGHT : HEADING_THREE_LINE_HEIGHT,
-      );
+      const heading = getHeadingMeasurement(depth);
+      const block = buildMarkdownTextBlock(text, heading.variant, heading.lineHeight);
       if (block) {
         blocks.push(block);
       }
@@ -116,7 +140,13 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
       const text = sectionLines
         .map((sectionLine) => sectionLine.replace(BLOCKQUOTE_RE, ''))
         .join('\n');
-      const block = buildMarkdownTextBlock(text, 'body', BODY_LINE_HEIGHT, ASSISTANT_BLOCKQUOTE_INDENT);
+      const block = buildMarkdownTextBlock(
+        text,
+        'body',
+        MARKDOWN_BLOCKQUOTE_LINE_HEIGHT,
+        MARKDOWN_BLOCKQUOTE_CONTENT_INSET,
+        MARKDOWN_BLOCKQUOTE_PADDING_Y,
+      );
       if (block) {
         blocks.push(block);
       }
@@ -130,8 +160,8 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
       /^\s*\|?[:\- ]+\|[:\-| ]+\s*$/.test(sectionLines[1]!)
     ) {
       blocks.push({
-        kind: 'code',
-        code: sectionLines.join('\n'),
+        kind: 'table',
+        rowCount: Math.max(1, sectionLines.length - 1),
         widthInset: 0,
       });
       index = end;
@@ -139,6 +169,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
     }
 
     if (sectionLines.some((sectionLine) => LIST_MARKER_RE.test(sectionLine))) {
+      const itemCount = sectionLines.filter((sectionLine) => LIST_MARKER_RE.test(sectionLine)).length;
       const text = sectionLines
         .map((sectionLine) =>
           sectionLine
@@ -147,7 +178,13 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
             .trimEnd(),
         )
         .join('\n');
-      const block = buildMarkdownTextBlock(text, 'body', BODY_LINE_HEIGHT, ASSISTANT_LIST_INDENT);
+      const block = buildMarkdownTextBlock(
+        text,
+        'body',
+        MARKDOWN_BODY_LINE_HEIGHT,
+        MARKDOWN_LIST_CONTENT_INSET,
+        MARKDOWN_LIST_MARGIN_Y + itemCount * MARKDOWN_LIST_ITEM_MARGIN_Y,
+      );
       if (block) {
         blocks.push(block);
       }
@@ -155,7 +192,7 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
       continue;
     }
 
-    const paragraph = buildMarkdownTextBlock(sectionLines.join(' '), 'body', BODY_LINE_HEIGHT);
+    const paragraph = buildMarkdownTextBlock(sectionLines.join(' '), 'body', MARKDOWN_BODY_LINE_HEIGHT);
     if (paragraph) {
       blocks.push(paragraph);
     }

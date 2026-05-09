@@ -6,9 +6,9 @@ export function normalizeTextAlignment(value: unknown): TextAlignment {
     return isTextAlignment(value) ? value : 'left';
 }
 
-export function getAlignedBlockDomAttrs(className: string, align: unknown) {
+export function getAlignedBlockDomAttrs(align: unknown) {
     const normalizedAlign = normalizeTextAlignment(align);
-    const attrs: Record<string, string> = { class: className };
+    const attrs: Record<string, string> = {};
 
     if (normalizedAlign !== 'left') {
         attrs['data-text-align'] = normalizedAlign;
@@ -16,6 +16,18 @@ export function getAlignedBlockDomAttrs(className: string, align: unknown) {
     }
 
     return attrs;
+}
+
+export function getDomAttrs(attrs: Record<string, string | undefined> = {}) {
+    const result: Record<string, string> = {};
+
+    for (const [key, value] of Object.entries(attrs)) {
+        if (value !== undefined) {
+            result[key] = value;
+        }
+    }
+
+    return result;
 }
 
 export function getDomTextAlignment(dom: HTMLElement): TextAlignment {
