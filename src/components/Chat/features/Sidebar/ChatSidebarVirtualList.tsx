@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useMemo, type RefObject } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { ChatSession } from '@/lib/ai/types';
 import { ChatSidebarSessionRow } from './ChatSidebarSessionRow';
@@ -56,7 +56,7 @@ export function ChatSidebarVirtualList({
     scrollRootRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }, [resetKey, scrollRootRef]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     virtualizer.measure();
   }, [sessionIds, virtualizer]);
 
