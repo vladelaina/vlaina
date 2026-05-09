@@ -1,4 +1,7 @@
-import { mapMarkdownOutsideProtectedBlocks } from './markdownProtectedBlocks';
+import {
+  mapMarkdownOutsideProtectedBlocks,
+  mapMarkdownOutsideProtectedSegments,
+} from './markdownProtectedBlocks';
 import {
   isAlignmentCommentBoundaryBlankLine,
   isFencedCodeBoundaryBlankLine,
@@ -16,6 +19,7 @@ const BLOCKQUOTE_BR_ONLY_PATTERN = /^(\s*(?:>\s*)+)<br\s*\/?>$/i;
 const EDITOR_EMPTY_PARAGRAPH_PLACEHOLDER = '<br />';
 const LIST_GAP_PLACEHOLDER = '\u200B\u200C';
 const USER_BR_SENTINEL = '\u0000VLAINA_USER_BR_SENTINEL\u0000';
+const MAX_CONSECUTIVE_EDITOR_BLANK_LINES = 8;
 const USER_BR_SENTINEL_LINE_PATTERN =
   new RegExp(`^(\\s*(?:>\\s*)*)${USER_BR_SENTINEL}$`);
 const MARKDOWN_HEADING_LINE_PATTERN = /^\s{0,3}#{1,6}\s+/;
@@ -23,7 +27,8 @@ const MARKDOWN_HEADING_LINE_PATTERN = /^\s{0,3}#{1,6}\s+/;
 export function preserveMarkdownBlankLinesForEditor(text: string): string {
   if (text.length === 0) return text;
 
-  const preserved = mapMarkdownOutsideProtectedBlocks(text, (line, index, lines) => {
+  const collapsedText = collapseExcessiveBlankLineRunsForEditor(text);
+  const preserved = mapMarkdownOutsideProtectedBlocks(collapsedText, (line, index, lines) => {
     const blockquoteBrMatch = BLOCKQUOTE_BR_ONLY_PATTERN.exec(line);
     if (blockquoteBrMatch) {
       const prefix = blockquoteBrMatch[1] ?? '';
@@ -81,6 +86,29 @@ export function preserveMarkdownBlankLinesForEditor(text: string): string {
     return line;
   });
   return normalizeUserBreakSentinels(preserved);
+}
+
+function collapseExcessiveBlankLineRunsForEditor(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) => {
+    const lines = segment.split('\n');
+    const output: string[] = [];
+    let blankRunLength = 0;
+
+    for (const line of lines) {
+      if (line.trim() === '') {
+        blankRunLength += 1;
+        if (blankRunLength <= MAX_CONSECUTIVE_EDITOR_BLANK_LINES) {
+          output.push(line);
+        }
+        continue;
+      }
+
+      blankRunLength = 0;
+      output.push(line);
+    }
+
+    return output.join('\n');
+  });
 }
 
 function getEditorBlankLinePlaceholder(

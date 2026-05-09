@@ -30,6 +30,30 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
     expect(preserveMarkdownBlankLinesForEditor(markdown)).toBe(markdown);
   });
 
+  it('caps pathological body blank line runs before they become editor nodes', () => {
+    const blankRun = Array.from({ length: 200 }, () => '').join('\n');
+    const markdown = ['before', blankRun, 'after'].join('\n');
+    const editorInput = preserveMarkdownBlankLinesForEditor(markdown);
+
+    expect(editorInput.split('\n').length).toBeLessThan(40);
+    expect(editorInput).toContain('before');
+    expect(editorInput).toContain('after');
+  });
+
+  it('does not cap long blank line runs inside fenced code blocks', () => {
+    const blankRun = Array.from({ length: 20 }, () => '').join('\n');
+    const markdown = ['```', 'before', blankRun, 'after', '```'].join('\n');
+
+    expect(preserveMarkdownBlankLinesForEditor(markdown)).toBe(markdown);
+  });
+
+  it('handles long blank line runs inside indented code blocks within the default test timeout', () => {
+    const blankRun = Array.from({ length: 8_000 }, () => '').join('\n');
+    const markdown = ['    before', blankRun, '    after', '', 'body'].join('\n');
+
+    expect(preserveMarkdownBlankLinesForEditor(markdown)).toBe(markdown);
+  });
+
   it('does not expose internal user break markers in editor input', () => {
     expect(preserveMarkdownBlankLinesForEditor(['1', '<br />', '2'].join('\n'))).toBe(
       ['1\\', '2'].join('\n')

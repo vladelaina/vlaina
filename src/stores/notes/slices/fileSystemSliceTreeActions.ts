@@ -1,6 +1,7 @@
 import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import {
   buildFileTree,
+  countFileTreeNodes,
   collectExpandedPaths,
   expandFoldersForPath,
   restoreExpandedState,
@@ -16,6 +17,7 @@ import {
   loadNoteMetadata,
   loadWorkspaceState,
 } from '../storage';
+import { logNotesDebugAlways } from '../lineBreakDebugLog';
 import { getVaultStarredPaths } from '../starred';
 import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
@@ -24,6 +26,14 @@ import type { FileSystemSlice, FileSystemSliceGet, FileSystemSliceSet } from './
 let pendingWorkspaceSnapshotTimeout: ReturnType<typeof setTimeout> | null = null;
 let pendingWorkspaceSnapshotGet: FileSystemSliceGet | null = null;
 let latestLoadFileTreeRequestId = 0;
+
+function getFileTreeLoadPerfNow() {
+  return typeof performance !== 'undefined' ? performance.now() : Date.now();
+}
+
+function roundFileTreeLoadPerfMs(value: number) {
+  return Math.round(value * 100) / 100;
+}
 
 export function invalidatePendingFileTreeLoads() {
   latestLoadFileTreeRequestId += 1;
@@ -63,33 +73,79 @@ export function createFileSystemTreeActions(
   return {
     loadFileTree: async (skipRestore = false) => {
       const requestId = ++latestLoadFileTreeRequestId;
+      const startedAt = getFileTreeLoadPerfNow();
+      const timings: Array<{ step: string; durationMs: number }> = [];
+      const markStep = (step: string, stepStartedAt: number) => {
+        timings.push({
+          step,
+          durationMs: roundFileTreeLoadPerfMs(getFileTreeLoadPerfNow() - stepStartedAt),
+        });
+      };
       const shouldShowLoading = !get().rootFolder;
+      logNotesDebugAlways('NotesLoad', 'file-tree:start', {
+        requestId,
+        skipRestore,
+        shouldShowLoading,
+        currentNotesPath: get().notesPath,
+        hasRootFolder: Boolean(get().rootFolder),
+      });
       set(shouldShowLoading ? { isLoading: true, error: null } : { error: null });
       try {
+        let stepStartedAt = getFileTreeLoadPerfNow();
         const storage = getStorageAdapter();
         const basePath = await getNotesBasePath();
+        markStep('resolve-base-path', stepStartedAt);
 
+        stepStartedAt = getFileTreeLoadPerfNow();
         await ensureNotesFolder(basePath);
+        markStep('ensure-folder', stepStartedAt);
+
+        stepStartedAt = getFileTreeLoadPerfNow();
         const metadata = await loadNoteMetadata(basePath);
+        markStep('metadata', stepStartedAt);
+
+        stepStartedAt = getFileTreeLoadPerfNow();
         const workspace = await loadWorkspaceState(basePath);
+        markStep('workspace-state', stepStartedAt);
+
+        stepStartedAt = getFileTreeLoadPerfNow();
         const fileTreeSortMode = workspace?.fileTreeSortMode ?? DEFAULT_FILE_TREE_SORT_MODE;
-        let children = sortNestedFileTree(await buildFileTree(basePath), {
+        const builtChildren = await buildFileTree(basePath);
+        markStep('build-tree', stepStartedAt);
+
+        stepStartedAt = getFileTreeLoadPerfNow();
+        let children = sortNestedFileTree(builtChildren, {
           mode: fileTreeSortMode,
           metadata,
         });
+        markStep('sort-tree', stepStartedAt);
         if (requestId !== latestLoadFileTreeRequestId || getCurrentVaultPath() !== basePath) {
+          logNotesDebugAlways('NotesLoad', 'file-tree:stale-after-build', {
+            requestId,
+            latestLoadFileTreeRequestId,
+            basePath,
+            activeVaultPath: getCurrentVaultPath(),
+            totalDurationMs: roundFileTreeLoadPerfMs(getFileTreeLoadPerfNow() - startedAt),
+            timings,
+          });
           return;
         }
 
         const currentNote = get().currentNote;
         if (currentNote && !isAbsolutePath(currentNote.path) && !isDraftNotePath(currentNote.path)) {
+          stepStartedAt = getFileTreeLoadPerfNow();
           children = sortNestedFileTree(ensureFileNodeInTree(children, currentNote.path), {
             mode: fileTreeSortMode,
             metadata,
           });
+          markStep('ensure-current-note', stepStartedAt);
         }
-        const starredPaths = getVaultStarredPaths(get().starredEntries, basePath);
 
+        stepStartedAt = getFileTreeLoadPerfNow();
+        const starredPaths = getVaultStarredPaths(get().starredEntries, basePath);
+        markStep('starred-paths', stepStartedAt);
+
+        stepStartedAt = getFileTreeLoadPerfNow();
         const currentExpandedPaths = get().rootFolder && get().rootFolderPath === basePath
           ? collectExpandedPaths(get().rootFolder?.children ?? [])
           : null;
@@ -98,8 +154,17 @@ export function createFileSystemTreeActions(
           : (workspace?.expandedFolders?.length
               ? restoreExpandedState(children, new Set(workspace.expandedFolders))
               : children);
+        markStep('restore-expanded', stepStartedAt);
 
         if (requestId !== latestLoadFileTreeRequestId || getCurrentVaultPath() !== basePath) {
+          logNotesDebugAlways('NotesLoad', 'file-tree:stale-before-set', {
+            requestId,
+            latestLoadFileTreeRequestId,
+            basePath,
+            activeVaultPath: getCurrentVaultPath(),
+            totalDurationMs: roundFileTreeLoadPerfMs(getFileTreeLoadPerfNow() - startedAt),
+            timings,
+          });
           return;
         }
 
@@ -116,6 +181,7 @@ export function createFileSystemTreeActions(
             }
           : metadata;
 
+        stepStartedAt = getFileTreeLoadPerfNow();
         set({
           notesPath: basePath,
           rootFolderPath: basePath,
@@ -132,6 +198,26 @@ export function createFileSystemTreeActions(
           starredFolders: starredPaths.folders,
           fileTreeSortMode,
         });
+        markStep('set-state', stepStartedAt);
+        const restoredCounts = countFileTreeNodes(restoredChildren);
+        logNotesDebugAlways('NotesLoad', 'file-tree:ready', {
+          requestId,
+          basePath,
+          skipRestore,
+          fileTreeSortMode,
+          totalDurationMs: roundFileTreeLoadPerfMs(getFileTreeLoadPerfNow() - startedAt),
+          timings,
+          rootNodeCount: restoredChildren.length,
+          nodeCount: restoredCounts.nodes,
+          folderCount: restoredCounts.folders,
+          fileCount: restoredCounts.files,
+          metadataEntryCount: Object.keys(nextMetadata.notes).length,
+          workspaceHadCurrentNote: Boolean(workspace?.currentNotePath),
+          workspaceExpandedFolderCount: workspace?.expandedFolders?.length ?? 0,
+          restoredFromCurrentExpanded: Boolean(skipRestore && currentExpandedPaths),
+          starredNoteCount: starredPaths.notes.length,
+          starredFolderCount: starredPaths.folders.length,
+        });
 
         const currentNotePath = workspace?.currentNotePath;
         const hasActiveNoteOrTabs = Boolean(get().currentNote) || get().openTabs.length > 0;
@@ -144,6 +230,12 @@ export function createFileSystemTreeActions(
               await storage.exists(fullPath)
             ) {
               await get().openNote(relativePath);
+              logNotesDebugAlways('NotesLoad', 'file-tree:restored-current-note', {
+                requestId,
+                basePath,
+                relativePath,
+                totalDurationMs: roundFileTreeLoadPerfMs(getFileTreeLoadPerfNow() - startedAt),
+              });
             }
           } catch {
             // Ignore stale persisted current-note entries.
@@ -152,9 +244,22 @@ export function createFileSystemTreeActions(
 
         if (requestId === latestLoadFileTreeRequestId && getCurrentVaultPath() === basePath) {
           set({ isLoading: false });
+          logNotesDebugAlways('NotesLoad', 'file-tree:done', {
+            requestId,
+            basePath,
+            totalDurationMs: roundFileTreeLoadPerfMs(getFileTreeLoadPerfNow() - startedAt),
+            restoredCurrentNote: Boolean(!skipRestore && currentNotePath && !hasActiveNoteOrTabs),
+          });
         }
       } catch (error) {
         if (requestId === latestLoadFileTreeRequestId) {
+          logNotesDebugAlways('NotesLoad', 'file-tree:failed', {
+            requestId,
+            skipRestore,
+            totalDurationMs: roundFileTreeLoadPerfMs(getFileTreeLoadPerfNow() - startedAt),
+            timings,
+            message: error instanceof Error ? error.message : String(error),
+          });
           set({
             error: error instanceof Error ? error.message : 'Failed to load notes',
             isLoading: false,

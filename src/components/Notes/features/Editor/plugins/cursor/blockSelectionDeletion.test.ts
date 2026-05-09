@@ -5,7 +5,6 @@ import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
-import type { EditorView } from '@milkdown/kit/prose/view';
 import { collectSelectableBlockRanges } from './blockUnitResolver';
 import { deleteSelectedBlocks } from './blockSelectionDeletion';
 import { codePlugin } from '../code';

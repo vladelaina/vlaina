@@ -21,11 +21,6 @@ import { cn } from '@/lib/utils';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import {
-  isNotesDebugLoggingEnabled,
-  logLineBreakDebug,
-  summarizeLineBreakText,
-} from '@/stores/notes/lineBreakDebugLog';
-import {
   normalizeSerializedMarkdownDocument,
   preserveMarkdownBlankLinesForEditor,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
@@ -85,13 +80,6 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
         const defaultValue = preserveMarkdownBlankLinesForEditor(
           normalizeLeadingFrontmatterMarkdown(initialContent)
         );
-        if (isNotesDebugLoggingEnabled()) {
-          logLineBreakDebug('editor:init-default-value', {
-            currentNotePath: currentNotePath ?? null,
-            initialContent: summarizeLineBreakText(initialContent),
-            defaultValue: summarizeLineBreakText(defaultValue),
-          });
-        }
 
         ctx.set(rootCtx, root);
         ctx.set(defaultValueCtx, defaultValue);
@@ -134,7 +122,6 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       }
       const view = editor.ctx.get(editorViewCtx);
       let parser: Parser | null = null;
-      let serializedDoc: string | null = null;
       let liveSerializer: ((doc: unknown) => string) | null = null;
       try {
         parser = editor.ctx.get(parserCtx);
@@ -144,19 +131,8 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       try {
         const serializer = editor.ctx.get(serializerCtx);
         liveSerializer = serializer;
-        serializedDoc = serializer(view.state.doc);
       } catch {
-        serializedDoc = null;
         liveSerializer = null;
-      }
-      if (isNotesDebugLoggingEnabled()) {
-        logLineBreakDebug('editor:runtime-ready', {
-          currentNotePath: currentNotePath ?? null,
-          storeContent: summarizeLineBreakText(useNotesStore.getState().currentNote?.content),
-          serializedDoc: summarizeLineBreakText(serializedDoc),
-          childCount: view.state.doc.childCount,
-          docText: summarizeLineBreakText(view.state.doc.textBetween(0, view.state.doc.content.size, '\n', '\n')),
-        });
       }
       setCurrentEditorView(view as EditorView);
       const markUserInput = createUserInputMarker(view as EditorView, liveSerializer);
