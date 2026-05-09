@@ -61,6 +61,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 When debugging with logs:
 - Do not add enable/disable switches unless explicitly requested.
 - When the user says the issue is fixed, do a broader check for similar failure paths before closing.
+- If a fix took several attempts, review the full diff and revert any leftover workaround that no longer belongs.
 - After the fix is verified, remove temporary diagnostic logs and test noise.
 
 ---

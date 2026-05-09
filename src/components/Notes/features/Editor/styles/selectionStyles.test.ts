@@ -253,6 +253,14 @@ describe('editor embedded CodeMirror selection styles', () => {
     );
   });
 
+  it('hides carets inside inline content while block selection is active', () => {
+    const coreCss = readStyleFile('core.css');
+
+    expect(coreCss).toContain('.milkdown .ProseMirror.vlaina-block-selection-active,');
+    expect(coreCss).toContain('.milkdown .ProseMirror.vlaina-block-selection-active * {');
+    expect(coreCss).toContain('caret-color: transparent !important;');
+  });
+
   it('keeps mermaid drag previews from inheriting generic preview text color', () => {
     const css = readStyleFile('extended.css');
 

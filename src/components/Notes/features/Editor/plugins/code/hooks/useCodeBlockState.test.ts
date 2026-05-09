@@ -387,7 +387,7 @@ describe('useCodeBlockState', () => {
 
     expect(clearTimeoutSpy).toHaveBeenCalled();
   });
-  it('defaults unlabeled blocks to txt and resolves the display label from the catalog', () => {
+  it('defaults unlabeled blocks to txt and lowercases the catalog display label', () => {
     const node = {
       attrs: { collapsed: false },
       textContent: 'plain text',
@@ -411,6 +411,6 @@ describe('useCodeBlockState', () => {
     );
 
     expect(result.current.language).toBe('txt');
-    expect(result.current.displayName).toBe('TXT');
+    expect(result.current.displayName).toBe('txt');
   });
 });

@@ -24,7 +24,7 @@ export function useCodeBlockState({ node, view, getPos, getNode }: UseCodeBlockS
         () => codeBlockLanguages.find((item) => item.id === language || item.aliases.includes(language)),
         [language],
     );
-    const displayName = langInfo ? langInfo.name : language;
+    const displayName = (langInfo ? langInfo.name : language).toLowerCase();
 
     const updateLanguage = useCallback((newLang: string) => {
         const pos = getPos();

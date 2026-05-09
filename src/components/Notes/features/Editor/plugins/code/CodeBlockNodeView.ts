@@ -238,10 +238,11 @@ export class CodeBlockNodeView implements NodeView {
     const selectionFrom = Math.max(this.view.state.selection.from, contentFrom);
     const selectionTo = Math.min(this.view.state.selection.to, contentTo);
     const hasSelection = selectionTo > selectionFrom;
+    const shouldMirrorOuterSelection = hasSelection && !this.cm.hasFocus;
 
-    this.dom.dataset.pmSelected = hasSelection ? 'true' : 'false';
+    this.dom.dataset.pmSelected = shouldMirrorOuterSelection ? 'true' : 'false';
 
-    if (!hasSelection || this.cm.hasFocus || this.node.attrs.collapsed) {
+    if (!shouldMirrorOuterSelection || this.node.attrs.collapsed) {
       return;
     }
 

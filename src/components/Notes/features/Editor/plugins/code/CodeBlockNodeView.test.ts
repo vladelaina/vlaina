@@ -84,6 +84,10 @@ function getCodeMirror(nodeView: CodeBlockNodeView) {
   }).cm;
 }
 
+function syncProseMirrorSelection(nodeView: CodeBlockNodeView) {
+  (nodeView as unknown as { syncProseMirrorSelection: () => void }).syncProseMirrorSelection();
+}
+
 describe('CodeBlockNodeView', () => {
   beforeEach(() => {
     renderMock.mockClear();
@@ -255,6 +259,22 @@ describe('CodeBlockNodeView', () => {
     expect(nodeView.dom.dataset.pmSelected).toBe('true');
     expect(cm.state.selection.main.anchor).toBe(0);
     expect(cm.state.selection.main.head).toBe(node.textContent.length);
+
+    nodeView.destroy();
+  });
+
+  it('does not mark the whole code block selected while selecting text inside focused CodeMirror', () => {
+    const node = createMockNodeWithText('const a = 1;');
+    const view = createMockView();
+    view.state.selection = createMockSelection(1, node.textContent.length + 1) as never;
+    const nodeView = new CodeBlockNodeView(node, view, () => 0);
+    const cm = getCodeMirror(nodeView);
+    document.body.appendChild(nodeView.dom);
+
+    cm.focus();
+    syncProseMirrorSelection(nodeView);
+
+    expect(nodeView.dom.dataset.pmSelected).toBe('false');
 
     nodeView.destroy();
   });

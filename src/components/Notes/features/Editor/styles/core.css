@@ -136,7 +136,8 @@ body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hide
 }
 
 /* Hide text caret while drag block selection is active */
-.milkdown .ProseMirror.vlaina-block-selection-active {
+.milkdown .ProseMirror.vlaina-block-selection-active,
+.milkdown .ProseMirror.vlaina-block-selection-active * {
   caret-color: transparent !important;
 }
 

@@ -1,6 +1,13 @@
 import { $prose } from '@milkdown/kit/utils';
 import { serializerCtx } from '@milkdown/kit/core';
-import { NodeSelection, Plugin, Selection, type EditorState } from '@milkdown/kit/prose/state';
+import {
+  NodeSelection,
+  Plugin,
+  Selection,
+  TextSelection,
+  type EditorState,
+  type Transaction,
+} from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { Serializer } from '@milkdown/kit/transformer';
 import { dispatchTailBlankClickAction } from './endBlankClickPlugin';
@@ -102,6 +109,15 @@ function deleteSelectedBlocks(view: EditorView, blocks: readonly BlockRange[]): 
   );
 }
 
+export function shouldClearBlockSelectionForTransaction(
+  tr: Pick<Transaction, 'selection'> & { selectionSet?: boolean },
+  pluginState: Pick<BlankAreaDragBoxState, 'selectedBlocks'>,
+): boolean {
+  return pluginState.selectedBlocks.length > 0
+    && Boolean(tr.selectionSet)
+    && tr.selection instanceof TextSelection;
+}
+
 export const blankAreaDragBoxPlugin = $prose((ctx) => {
   let stopSession: (() => void) | null = null;
   let markdownSerializer: Serializer | null = null;
@@ -194,7 +210,15 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           };
         }
 
-        if (!tr.docChanged || pluginState.selectedBlocks.length === 0) {
+        if (pluginState.selectedBlocks.length === 0) {
+          return pluginState;
+        }
+
+        if (shouldClearBlockSelectionForTransaction(tr, pluginState)) {
+          return EMPTY_BLOCK_SELECTION_PLUGIN_STATE;
+        }
+
+        if (!tr.docChanged) {
           return pluginState;
         }
 

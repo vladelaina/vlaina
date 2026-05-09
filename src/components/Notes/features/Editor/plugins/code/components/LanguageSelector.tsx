@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { guessLanguage } from '../../../utils/languageGuesser';
@@ -102,7 +103,10 @@ export const LanguageSelector = React.memo(function LanguageSelector({
             <PopoverContent
                 align="start"
                 sideOffset={8}
-                className="w-[220px] overflow-hidden flex flex-col border border-[var(--notes-sidebar-menu-border)] bg-[var(--notes-sidebar-menu-bg)] p-0 shadow-[var(--notes-sidebar-menu-shadow)] rounded-xl"
+                className={cn(
+                    "w-[220px] overflow-hidden flex flex-col p-0 !rounded-[26px]",
+                    chatComposerPillSurfaceClass,
+                )}
                 onOpenAutoFocus={(e) => e.preventDefault()}
                 onClick={(e) => e.stopPropagation()}
                 onPointerDown={(e) => e.stopPropagation()}
@@ -148,7 +152,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                                         onOpenChange(false);
                                     }}
                                     className={cn(
-                                        "flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-xs transition-colors",
+                                        "flex w-full cursor-pointer items-center gap-2 rounded-full px-3 py-2 text-left text-xs transition-colors",
                                         language === lang.id
                                             ? "bg-[var(--notes-sidebar-row-active)] text-[var(--sidebar-row-selected-text)] font-[550]"
                                             : index === activeIndex
@@ -156,7 +160,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                                                 : "text-[var(--notes-sidebar-text-muted)] hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)]"
                                     )}
                                 >
-                                    <span>{lang.name}</span>
+                                    <span>{lang.name.toLowerCase()}</span>
                                 </button>
                             );
                         })
