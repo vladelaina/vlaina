@@ -37,7 +37,16 @@ export const atomicBlockKeyboardNavigationPluginKey =
 const EMPTY_TRANSIENT_GAP_STATE: TransientGapState = { pos: null };
 const ATOMIC_NAV_BLOCK_NODE_NAMES = new Set(['math_block', 'mermaid']);
 const STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES = new Set([
+  'heading',
+  'blockquote',
+  'callout',
+  'frontmatter',
+  'footnote_def',
+  'hr',
+  'html_block',
   'table',
+  'toc',
+  'video',
   'math_block',
   'mermaid',
   'code_block',
@@ -201,12 +210,29 @@ function dispatchDeleteEmptyParagraphNearStructuralBlock(
 
   if (range.blockName === 'code_block' && nextNode?.type.name === 'code_block') {
     const blockTo = mappedBlockFrom + nextNode.nodeSize;
+    const siblingBeforeCode = findTopLevelBlockBefore(tr.doc, mappedBlockFrom)?.node;
+    const siblingAfterCode = tr.doc.nodeAt(blockTo);
+    const hasListAcrossCode = range.searchDir < 0
+      ? isListContainerNode(siblingAfterCode)
+      : isListContainerNode(siblingBeforeCode);
+    if (hasListAcrossCode) {
+      view.dispatch(tr.setSelection(NodeSelection.create(tr.doc, mappedBlockFrom)).scrollIntoView());
+      view.focus();
+      return;
+    }
+
     const adjacentSelection = range.searchDir < 0
       ? Selection.findFrom(tr.doc.resolve(blockTo), 1, true)
       : Selection.findFrom(tr.doc.resolve(mappedBlockFrom), -1, true);
 
     if (adjacentSelection) {
       view.dispatch(tr.setSelection(adjacentSelection).scrollIntoView());
+      view.focus();
+      return;
+    }
+
+    if (siblingBeforeCode || siblingAfterCode) {
+      view.dispatch(tr.setSelection(NodeSelection.create(tr.doc, mappedBlockFrom)).scrollIntoView());
       view.focus();
       return;
     }
@@ -264,7 +290,16 @@ function handleEmptyParagraphNearStructuralBlockDelete(
       fallbackSearchDir,
       STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES
     );
-  const range = primaryRange ?? fallbackRange;
+  const oppositeRange = primaryRange
+    ? findAdjacentEmptyParagraphNearBlockDeleteRange(
+      view.state,
+      fallbackSearchDir,
+      STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES
+    )
+    : null;
+  const range = primaryRange && oppositeRange && isListContainerNodeName(primaryRange.blockName) && !isListContainerNodeName(oppositeRange.blockName)
+    ? oppositeRange
+    : primaryRange ?? fallbackRange;
 
   if (!range) {
     return false;
@@ -273,6 +308,10 @@ function handleEmptyParagraphNearStructuralBlockDelete(
   event.preventDefault();
   dispatchDeleteEmptyParagraphNearStructuralBlock(view, range);
   return true;
+}
+
+function isListContainerNodeName(nodeName: string): boolean {
+  return nodeName === 'ordered_list' || nodeName === 'bullet_list';
 }
 
 function selectAtomicBlock(view: EditorView, pos: number): boolean {

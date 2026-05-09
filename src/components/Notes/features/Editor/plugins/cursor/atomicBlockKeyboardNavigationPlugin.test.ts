@@ -10,8 +10,13 @@ import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
+import { calloutPlugin } from '../callout';
+import { footnotePlugin } from '../footnote';
+import { frontmatterPlugin } from '../frontmatter';
 import { mathPlugin } from '../math';
 import { mermaidPlugin } from '../mermaid';
+import { tocPlugin } from '../toc';
+import { videoPlugin } from '../video';
 import { createTableNodeFromPipeCells } from '../table/pipeTableShortcut';
 import {
   ATOMIC_BLOCK_KEYBOARD_SELECTION_CLASS,
@@ -25,8 +30,13 @@ function createEditor(markdown = '') {
     })
     .use(commonmark)
     .use(gfm)
+    .use(calloutPlugin)
+    .use(footnotePlugin)
+    .use(frontmatterPlugin)
     .use(mathPlugin)
     .use(mermaidPlugin)
+    .use(tocPlugin)
+    .use(videoPlugin)
     .use(atomicBlockKeyboardNavigationPlugin);
 }
 
@@ -94,6 +104,124 @@ function createCodeBlockNode(view: EditorView, text = 'const value = 1;'): Prose
   return codeBlockType.create({ language: 'ts' }, schema.text(text));
 }
 
+function createTaskListNode(view: EditorView, text = '1'): ProseNode {
+  const { schema } = view.state;
+  return schema.nodes.bullet_list.create(null, [
+    schema.nodes.list_item.create({ checked: false }, [
+      schema.nodes.paragraph.create(null, schema.text(text)),
+    ]),
+  ]);
+}
+
+function createBulletListNode(view: EditorView, text = '1'): ProseNode {
+  const { schema } = view.state;
+  return schema.nodes.bullet_list.create(null, [
+    schema.nodes.list_item.create(null, [
+      schema.nodes.paragraph.create(null, schema.text(text)),
+    ]),
+  ]);
+}
+
+function createOrderedListNode(view: EditorView, text = '1'): ProseNode {
+  const { schema } = view.state;
+  return schema.nodes.ordered_list.create(null, [
+    schema.nodes.list_item.create(null, [
+      schema.nodes.paragraph.create(null, schema.text(text)),
+    ]),
+  ]);
+}
+
+function createStructuralBlockCases(view: EditorView): Array<{
+  label: string;
+  typeName: string;
+  node: ProseNode;
+}> {
+  const { schema } = view.state;
+  return [
+    {
+      label: 'heading',
+      typeName: 'heading',
+      node: schema.nodes.heading.create({ level: 2 }, schema.text('Heading')),
+    },
+    {
+      label: 'blockquote',
+      typeName: 'blockquote',
+      node: schema.nodes.blockquote.create(null, [
+        schema.nodes.paragraph.create(null, schema.text('Quote')),
+      ]),
+    },
+    {
+      label: 'callout',
+      typeName: 'callout',
+      node: schema.nodes.callout.create(null, [
+        schema.nodes.paragraph.create(null, schema.text('Callout')),
+      ]),
+    },
+    {
+      label: 'frontmatter',
+      typeName: 'frontmatter',
+      node: schema.nodes.frontmatter.create(null, schema.text('title: Demo')),
+    },
+    {
+      label: 'footnote_def',
+      typeName: 'footnote_def',
+      node: schema.nodes.footnote_def.create({ id: '1' }, [
+        schema.nodes.paragraph.create(null, schema.text('Footnote')),
+      ]),
+    },
+    {
+      label: 'html_block',
+      typeName: 'html_block',
+      node: schema.nodes.html_block.create({ value: '<div>HTML</div>' }),
+    },
+    {
+      label: 'code_block',
+      typeName: 'code_block',
+      node: createCodeBlockNode(view),
+    },
+    {
+      label: 'table',
+      typeName: 'table',
+      node: createTableNode(view),
+    },
+    {
+      label: 'toc',
+      typeName: 'toc',
+      node: schema.nodes.toc.create({ maxLevel: 6 }),
+    },
+    {
+      label: 'video',
+      typeName: 'video',
+      node: schema.nodes.video.create({ src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }),
+    },
+    {
+      label: 'math_block',
+      typeName: 'math_block',
+      node: createAtomicNode(view, 'math_block'),
+    },
+    {
+      label: 'mermaid',
+      typeName: 'mermaid',
+      node: createAtomicNode(view, 'mermaid'),
+    },
+    {
+      label: 'bullet_list',
+      typeName: 'bullet_list',
+      node: createBulletListNode(view),
+    },
+    {
+      label: 'task_list',
+      typeName: 'bullet_list',
+      node: createTaskListNode(view),
+    },
+    {
+      label: 'ordered_list',
+      typeName: 'ordered_list',
+      node: createOrderedListNode(view),
+    },
+  ];
+}
+
 function replaceWithOrderedListGapAndTaskList(view: EditorView): void {
   const { schema } = view.state;
   replaceDocument(view, [
@@ -103,11 +231,7 @@ function replaceWithOrderedListGapAndTaskList(view: EditorView): void {
       ]),
     ]),
     schema.nodes.paragraph.create(),
-    schema.nodes.bullet_list.create(null, [
-      schema.nodes.list_item.create({ checked: false }, [
-        schema.nodes.paragraph.create(null, schema.text('1')),
-      ]),
-    ]),
+    createTaskListNode(view),
   ]);
 }
 
@@ -740,6 +864,237 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
 
     await editor.destroy();
   });
+
+  it('deletes an empty paragraph between a horizontal rule and task list without moving into the task', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      schema.nodes.hr.create(),
+      schema.nodes.paragraph.create(),
+      createTaskListNode(view),
+    ]);
+
+    const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+    const event = pressKey(view, 'Delete');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('hr');
+    expect(view.state.doc.child(1).type.name).toBe('bullet_list');
+    expect(view.state.selection).toBeInstanceOf(NodeSelection);
+    expect(view.state.selection.from).toBe(topLevelNodePos(view, 'hr'));
+    expect(selectionAncestorNames(view)).not.toContain('list_item');
+
+    await editor.destroy();
+  });
+
+  it('uses the non-list markdown block as the deletion anchor across representative block syntaxes, list types, and directions', async () => {
+    const cases: Array<{
+      name: string;
+      node: (view: EditorView) => ProseNode;
+      expectedNodeSelection?: boolean;
+    }> = [
+      {
+        name: 'heading',
+        node: (view) => view.state.schema.nodes.heading.create({ level: 2 }, view.state.schema.text('Heading')),
+        expectedNodeSelection: true,
+      },
+      {
+        name: 'blockquote',
+        node: (view) => view.state.schema.nodes.blockquote.create(null, [
+          view.state.schema.nodes.paragraph.create(null, view.state.schema.text('Quote')),
+        ]),
+        expectedNodeSelection: true,
+      },
+      {
+        name: 'callout',
+        node: (view) => view.state.schema.nodes.callout.create(null, [
+          view.state.schema.nodes.paragraph.create(null, view.state.schema.text('Callout')),
+        ]),
+        expectedNodeSelection: true,
+      },
+      {
+        name: 'frontmatter',
+        node: (view) => view.state.schema.nodes.frontmatter.create(null, view.state.schema.text('title: Demo')),
+        expectedNodeSelection: true,
+      },
+      {
+        name: 'footnote_def',
+        node: (view) => view.state.schema.nodes.footnote_def.create({ id: '1' }, [
+          view.state.schema.nodes.paragraph.create(null, view.state.schema.text('Footnote')),
+        ]),
+        expectedNodeSelection: true,
+      },
+      {
+        name: 'html_block',
+        node: (view) => view.state.schema.nodes.html_block.create({ value: '<div>HTML</div>' }),
+        expectedNodeSelection: true,
+      },
+      {
+        name: 'code_block',
+        node: (view) => createCodeBlockNode(view),
+        expectedNodeSelection: true,
+      },
+      {
+        name: 'table',
+        node: (view) => createTableNode(view),
+      },
+      {
+        name: 'toc',
+        node: (view) => view.state.schema.nodes.toc.create({ maxLevel: 6 }),
+        expectedNodeSelection: true,
+      },
+      {
+        name: 'video',
+        node: (view) => view.state.schema.nodes.video.create({ src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }),
+        expectedNodeSelection: true,
+      },
+      {
+        name: 'math_block',
+        node: (view) => createAtomicNode(view, 'math_block'),
+        expectedNodeSelection: true,
+      },
+      {
+        name: 'mermaid',
+        node: (view) => createAtomicNode(view, 'mermaid'),
+        expectedNodeSelection: true,
+      },
+    ];
+    const layouts: Array<{
+      name: string;
+      key: 'Backspace' | 'Delete';
+      buildNodes: (view: EditorView, markdownBlock: ProseNode, emptyParagraph: ProseNode, list: ProseNode) => ProseNode[];
+    }> = [
+      {
+        name: 'block above, Delete',
+        key: 'Delete',
+        buildNodes: (_view, markdownBlock, emptyParagraph, taskList) => [markdownBlock, emptyParagraph, taskList],
+      },
+      {
+        name: 'block above, Backspace',
+        key: 'Backspace',
+        buildNodes: (_view, markdownBlock, emptyParagraph, taskList) => [markdownBlock, emptyParagraph, taskList],
+      },
+      {
+        name: 'block below, Delete',
+        key: 'Delete',
+        buildNodes: (_view, markdownBlock, emptyParagraph, taskList) => [taskList, emptyParagraph, markdownBlock],
+      },
+      {
+        name: 'block below, Backspace',
+        key: 'Backspace',
+        buildNodes: (_view, markdownBlock, emptyParagraph, taskList) => [taskList, emptyParagraph, markdownBlock],
+      },
+    ];
+    const listCases: Array<{
+      name: string;
+      node: (view: EditorView) => ProseNode;
+      typeName: string;
+    }> = [
+      {
+        name: 'bullet list',
+        node: (view) => createBulletListNode(view),
+        typeName: 'bullet_list',
+      },
+      {
+        name: 'task list',
+        node: (view) => createTaskListNode(view),
+        typeName: 'bullet_list',
+      },
+      {
+        name: 'ordered list',
+        node: (view) => createOrderedListNode(view),
+        typeName: 'ordered_list',
+      },
+    ];
+
+    for (const testCase of cases) {
+      for (const listCase of listCases) {
+        for (const layout of layouts) {
+          const editor = createEditor();
+          await editor.create();
+          const view = editor.ctx.get(editorViewCtx);
+          const { schema } = view.state;
+          const markdownBlock = testCase.node(view);
+          replaceDocument(view, layout.buildNodes(
+            view,
+            markdownBlock,
+            schema.nodes.paragraph.create(),
+            listCase.node(view),
+          ));
+
+          const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+          view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+          const event = pressKey(view, layout.key);
+
+          const label = `${testCase.name}, ${listCase.name}, ${layout.name}`;
+          const remainingNodeNames = Array.from({ length: view.state.doc.childCount }, (_, index) =>
+            view.state.doc.child(index).type.name
+          );
+          expect(event.defaultPrevented, label).toBe(true);
+          expect(remainingNodeNames, label).toHaveLength(2);
+          expect(remainingNodeNames, label).toContain(testCase.name);
+          expect(remainingNodeNames, label).toContain(listCase.typeName);
+          expect(selectionAncestorNames(view), label).not.toContain('list_item');
+          if (testCase.expectedNodeSelection) {
+            expect(view.state.selection, label).toBeInstanceOf(NodeSelection);
+          }
+
+          await editor.destroy();
+        }
+      }
+    }
+  });
+
+  it('deletes the empty paragraph between every supported structural block pair', async () => {
+    const keys: Array<'Backspace' | 'Delete'> = ['Backspace', 'Delete'];
+
+    for (const key of keys) {
+      const caseLabelsEditor = createEditor();
+      await caseLabelsEditor.create();
+      const caseLabelsView = caseLabelsEditor.ctx.get(editorViewCtx);
+      const caseLabels = createStructuralBlockCases(caseLabelsView).map(({ label }) => label);
+      await caseLabelsEditor.destroy();
+
+      for (const previousLabel of caseLabels) {
+        for (const nextLabel of caseLabels) {
+          const editor = createEditor();
+          await editor.create();
+          const view = editor.ctx.get(editorViewCtx);
+          const { schema } = view.state;
+          const previous = createStructuralBlockCases(view).find((testCase) => testCase.label === previousLabel);
+          const next = createStructuralBlockCases(view).find((testCase) => testCase.label === nextLabel);
+          if (!previous || !next) {
+            throw new Error(`Missing structural block test case: ${previousLabel} -> ${nextLabel}`);
+          }
+
+          replaceDocument(view, [
+            previous.node,
+            schema.nodes.paragraph.create(),
+            next.node,
+          ]);
+
+          const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+          view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+          const event = pressKey(view, key);
+
+          const label = `${previous.label} -> ${next.label} on ${key}`;
+          const remainingNodeNames = Array.from({ length: view.state.doc.childCount }, (_, index) =>
+            view.state.doc.child(index).type.name
+          );
+          expect(event.defaultPrevented, label).toBe(true);
+          expect(remainingNodeNames, label).toHaveLength(2);
+          expect(remainingNodeNames, label).toContain(previous.typeName);
+          expect(remainingNodeNames, label).toContain(next.typeName);
+
+          await editor.destroy();
+        }
+      }
+    }
+  }, 20_000);
 
   it('removes the transient paragraph when selection moves elsewhere without input', async () => {
     const editor = createEditor();
