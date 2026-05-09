@@ -87,7 +87,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
             <PopoverAnchor asChild>
                 <button
                     type="button"
-                    className="flex items-center group/lang cursor-pointer transition-colors select-none"
+                    className="flex size-7 cursor-pointer items-center justify-center overflow-hidden rounded-full transition-colors duration-150 select-none"
                     onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -95,7 +95,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                     }}
                     onPointerDown={(e) => e.stopPropagation()}
                 >
-                    <span className="vlaina-code-block-language-label">
+                    <span className="vlaina-code-block-language-label max-w-full truncate">
                         {displayName}
                     </span>
                 </button>
@@ -112,7 +112,12 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                 onPointerDown={(e) => e.stopPropagation()}
             >
                 <div className="px-2 pt-2 pb-1">
-                    <div className="relative flex h-[40px] items-center gap-2 rounded-md border border-transparent bg-[#f8f8f8] pl-3 pr-1 shadow-none">
+                    <div
+                        className={cn(
+                            "relative flex h-[40px] items-center gap-2 rounded-full pl-3 pr-1",
+                            chatComposerPillSurfaceClass,
+                        )}
+                    >
                         <Icon size={18} name="common.search" className="text-[var(--vlaina-color-text-soft)]" />
                         <input
                             autoFocus
@@ -131,7 +136,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                                 handleAutoDetect();
                             }}
                             title="Auto Detect Language"
-                            className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-md text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)]"
+                            className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-blue-500/10 hover:text-blue-500"
                         >
                             <Icon size="md" name="common.sparkle" />
                         </button>

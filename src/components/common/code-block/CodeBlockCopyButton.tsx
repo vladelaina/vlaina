@@ -91,7 +91,7 @@ export function CodeBlockCopyButton({
       }}
       className={cn('vlaina-code-block-copy-button', className)}
       data-copied={isCopied ? 'true' : undefined}
-      title={isCopied ? 'Copied!' : 'Copy to clipboard'}
+      aria-label={isCopied ? 'Copied' : 'Copy code'}
     >
       <Icon
         name={isCopied ? 'common.check' : 'common.copy'}
