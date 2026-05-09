@@ -12,6 +12,18 @@ const LINK_PATTERN_BEFORE = /(?:\[|【)([^】\]]+)(?:\]|】)(?:\(|（)([^)）]+)
 const LINK_PATTERN_GLOBAL = /(?:\[|【)([^】\]]+)(?:\]|】)(?:\(|（)([^)）]+)(?:\)|）)/g;
 const MULTI_LINE_PATTERN = /[\r\n]/;
 const STRUCTURAL_MARKDOWN_PREFIX_PATTERN = /^\s{0,3}([#＃]{1,6}\s+|[-+*－＋＊]\s+|[0-9０-９]+[.)．]\s+|[>》]\s+|```|~~~|···|～～～|[-*_－＿＊]{3,}\s*$|[|｜].+[|｜])/;
+const LINK_DESTINATION_WITH_TITLE_PATTERN = /^(<[^>\r\n]+>|[^\s"'()]+)(?:\s+(?:"[^"\r\n]*"|'[^'\r\n]*'|\([^)\r\n]*\)))?\s*$/;
+
+function getMarkdownLinkHref(rawDestination: string): string {
+    const destination = rawDestination.trim();
+    const match = LINK_DESTINATION_WITH_TITLE_PATTERN.exec(destination);
+    if (!match) return destination;
+
+    const href = match[1];
+    return href.startsWith('<') && href.endsWith('>')
+        ? href.slice(1, -1)
+        : href;
+}
 
 export const shouldHandleMarkdownLinkPaste = (text: string): boolean => {
     if (!text) return false;
@@ -77,7 +89,7 @@ export const markdownLinkPlugin = $prose(() => {
                             // Verify checking range validity after mapping
                             // (Simple check: ensure mappedEnd > mappedStart)
                             if (mappedEnd > mappedStart) {
-                                const safeLinkUrl = sanitizeNoteLinkHref(linkUrl);
+                                const safeLinkUrl = sanitizeNoteLinkHref(getMarkdownLinkHref(linkUrl));
                                 const marks = safeLinkUrl ? [linkMarkType.create({ href: safeLinkUrl })] : [];
                                 tr = tr
                                     .delete(mappedStart, mappedEnd)
@@ -121,7 +133,7 @@ export const markdownLinkPlugin = $prose(() => {
                 const linkStart = from - fullMatch.length;
 
                 // Create transaction
-                const safeLinkUrl = sanitizeNoteLinkHref(linkUrl);
+                const safeLinkUrl = sanitizeNoteLinkHref(getMarkdownLinkHref(linkUrl));
                 const linkedText = safeLinkUrl
                     ? state.schema.text(linkText, [linkMarkType.create({ href: safeLinkUrl })])
                     : state.schema.text(linkText);
@@ -166,7 +178,7 @@ export const markdownLinkPlugin = $prose(() => {
                         nodes.push(view.state.schema.text(beforeText));
                     }
 
-                    const safeLinkUrl = sanitizeNoteLinkHref(linkUrl);
+                    const safeLinkUrl = sanitizeNoteLinkHref(getMarkdownLinkHref(linkUrl));
                     nodes.push(
                         safeLinkUrl
                             ? view.state.schema.text(linkText, [linkMarkType.create({ href: safeLinkUrl })])

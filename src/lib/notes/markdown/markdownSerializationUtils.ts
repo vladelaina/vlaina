@@ -52,8 +52,12 @@ const MARKED_USER_BR_TOKEN_PATTERN =
 const MARKED_LIST_GAP_TOKEN_PATTERN = new RegExp(`[ \\t]*<br\\b(?=[^>]*${VLAINA_LIST_GAP_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>[ \\t]*(?:<\\/br>)?`, 'gi');
 const EMPTY_LIST_ITEM_PLACEHOLDER_PATTERN =
   /^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+(?:\[(?: |x|X)\]\s+)?)<br\s*\/?>$/gim;
+const EMPTY_FOOTNOTE_DEFINITION_PLACEHOLDER_PATTERN =
+  /^(\s*\[\^[^\]]+\]:)\s*<br\s*\/?>$/gim;
 const EMPTY_TABLE_CELL_PLACEHOLDER_PATTERN = /(\|\s*)<br\s*\/?>(\s*\|)/g;
 const EMPTY_ATX_HEADING_MARKER_PATTERN = /^( {0,3})(#{1,6})[ \t]*$/gm;
+const ESCAPED_ABBR_DEFINITION_PATTERN = /^([ \t]*)\\\*(?:\\)?\[([^\]]+)]:/gm;
+const ESCAPED_HIGHLIGHT_PATTERN = /\\==([^=\n]+)==/g;
 
 function unescapeMarkdownPunctuation(text: string): string {
   return mapMarkdownOutsideProtectedBlocks(text, (line) => line.replace(MARKDOWN_ESCAPE_PATTERN, '$1'));
@@ -67,6 +71,9 @@ function stripEmptyMarkdownPlaceholders(text: string): string {
         prefix.trimEnd()
       )
       .replace(EMPTY_LIST_ITEM_PLACEHOLDER_PATTERN, (_match, prefix: string) =>
+        prefix.trimEnd()
+      )
+      .replace(EMPTY_FOOTNOTE_DEFINITION_PLACEHOLDER_PATTERN, (_match, prefix: string) =>
         prefix.trimEnd()
       )
       .replace(EMPTY_TABLE_CELL_PLACEHOLDER_PATTERN, '$1 $2')
@@ -83,7 +90,7 @@ export function normalizeSerializedMarkdownBlock(text: string): string {
     normalizeUserBreakSentinels(stripEmptyMarkdownPlaceholders(normalizedPlaceholders))
   );
   if (BR_ONLY_PATTERN.test(withoutTrailingNewlines.trim())) return '';
-  return unescapeMarkdownPunctuation(withoutTrailingNewlines);
+  return normalizeEscapedHighlightSyntax(unescapeMarkdownPunctuation(withoutTrailingNewlines));
 }
 
 export function normalizeSerializedMarkdownDocument(text: string): string {
@@ -117,7 +124,10 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
     normalizeLeakedInternalArtifacts(afterListItems)
   );
   const afterEmptyAtxHeadings = normalizeEmptyAtxHeadingMarkers(afterLeakedInternalArtifacts);
-  const output = preserveParagraphSoftBreaksAsHardBreaks(afterEmptyAtxHeadings);
+  const afterEscapedHighlight = normalizeEscapedHighlightSyntax(afterEmptyAtxHeadings);
+  const afterAbbreviationDefinitions = normalizeEscapedAbbreviationDefinitions(afterEscapedHighlight);
+  const afterTableCellBreaks = normalizeTableCellBreakPlaceholders(afterAbbreviationDefinitions);
+  const output = preserveParagraphSoftBreaksAsHardBreaks(afterTableCellBreaks);
 
   return {
     input: text,
@@ -130,6 +140,9 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
     afterListItems,
     afterLeakedInternalArtifacts,
     afterEmptyAtxHeadings,
+    afterEscapedHighlight,
+    afterAbbreviationDefinitions,
+    afterTableCellBreaks,
     output,
   };
 }
@@ -139,6 +152,24 @@ function normalizeEmptyAtxHeadingMarkers(text: string): string {
     segment.replace(EMPTY_ATX_HEADING_MARKER_PATTERN, (_match, indent: string, marker: string) =>
       `${indent}${marker} ${marker}`
     )
+  );
+}
+
+function normalizeEscapedAbbreviationDefinitions(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
+    segment.replace(ESCAPED_ABBR_DEFINITION_PATTERN, '$1*[$2]:')
+  );
+}
+
+function normalizeEscapedHighlightSyntax(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
+    segment.replace(ESCAPED_HIGHLIGHT_PATTERN, '==$1==')
+  );
+}
+
+function normalizeTableCellBreakPlaceholders(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
+    segment.replace(EMPTY_TABLE_CELL_PLACEHOLDER_PATTERN, '$1 $2')
   );
 }
 
@@ -278,5 +309,5 @@ export function normalizeSerializedMarkdownSelection(text: string): string {
     || (text.length > 0 && withoutTrailingNewlines.length === 0)
     || BR_ONLY_PATTERN.test(withoutTrailingNewlines.trim())
   ) return '\n';
-  return unescapeMarkdownPunctuation(withoutTrailingNewlines);
+  return normalizeEscapedHighlightSyntax(unescapeMarkdownPunctuation(withoutTrailingNewlines));
 }

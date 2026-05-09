@@ -16,17 +16,32 @@ function insertNode(ctx: Ctx, nodeType: string, attrs?: object) {
   }
 }
 
+function getFootnoteRefNodeSpec(ctx: Ctx, id: string) {
+  const nodes = ctx.get(editorViewCtx).state.schema.nodes;
+  return nodes.footnote_reference
+    ? { nodeType: 'footnote_reference', attrs: { label: id } }
+    : { nodeType: 'footnote_ref', attrs: { id } };
+}
+
+function getFootnoteDefNodeSpec(ctx: Ctx, id: string) {
+  const nodes = ctx.get(editorViewCtx).state.schema.nodes;
+  return nodes.footnote_definition
+    ? { nodeType: 'footnote_definition', attrs: { label: id } }
+    : { nodeType: 'footnote_def', attrs: { id } };
+}
+
 export function collectFootnoteIds(doc: { descendants?: (callback: (node: any) => void) => void }) {
   const refs = new Set<string>();
   const defs = new Set<string>();
 
   doc.descendants?.((node: any) => {
-    const id = typeof node.attrs?.id === 'string' ? node.attrs.id.trim() : '';
+    const rawId = typeof node.attrs?.id === 'string' ? node.attrs.id : node.attrs?.label;
+    const id = typeof rawId === 'string' ? rawId.trim() : '';
     if (!id) return;
 
-    if (node.type?.name === 'footnote_ref') {
+    if (node.type?.name === 'footnote_ref' || node.type?.name === 'footnote_reference') {
       refs.add(id);
-    } else if (node.type?.name === 'footnote_def') {
+    } else if (node.type?.name === 'footnote_def' || node.type?.name === 'footnote_definition') {
       defs.add(id);
     }
   });
@@ -78,10 +93,12 @@ export function getNextFootnoteDefId(doc: { descendants?: (callback: (node: any)
 
 export function insertFootnoteRef(ctx: Ctx) {
   const view = ctx.get(editorViewCtx);
-  insertNode(ctx, 'footnote_ref', { id: getNextFootnoteRefId(view.state.doc) });
+  const spec = getFootnoteRefNodeSpec(ctx, getNextFootnoteRefId(view.state.doc));
+  insertNode(ctx, spec.nodeType, spec.attrs);
 }
 
 export function insertFootnoteDef(ctx: Ctx) {
   const view = ctx.get(editorViewCtx);
-  insertNode(ctx, 'footnote_def', { id: getNextFootnoteDefId(view.state.doc) });
+  const spec = getFootnoteDefNodeSpec(ctx, getNextFootnoteDefId(view.state.doc));
+  insertNode(ctx, spec.nodeType, spec.attrs);
 }

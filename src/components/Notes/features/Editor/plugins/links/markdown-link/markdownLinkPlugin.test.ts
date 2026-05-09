@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
+import { Editor, defaultValueCtx, editorViewCtx, serializerCtx } from '@milkdown/kit/core';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { markdownLinkPlugin, shouldHandleMarkdownLinkPaste } from './markdownLinkPlugin';
@@ -93,6 +93,44 @@ describe('shouldHandleMarkdownLinkPaste', () => {
     expect(view.state.doc.textContent).toBe('Bad');
     const linkMark = view.state.schema.marks.link;
     expect(view.state.doc.rangeHasMark(0, view.state.doc.content.size, linkMark)).toBe(false);
+
+    await editor.destroy();
+  });
+
+  it('pastes markdown links with titles using only the href for the link mark', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(markdownLinkPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, '[Docs](https://example.com "Docs title")')).toBe(true);
+
+    const serializer = editor.ctx.get(serializerCtx);
+    expect(serializer(view.state.doc).trim()).toBe('[Docs](https://example.com)');
+
+    await editor.destroy();
+  });
+
+  it('pastes angle-bracket markdown link destinations without persisting brackets in href', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(markdownLinkPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, '[Docs](<https://example.com/path>)')).toBe(true);
+
+    const serializer = editor.ctx.get(serializerCtx);
+    expect(serializer(view.state.doc).trim()).toBe('[Docs](https://example.com/path)');
 
     await editor.destroy();
   });

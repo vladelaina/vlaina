@@ -108,4 +108,51 @@ describe('resolvePendingMarkdownUpdate', () => {
       liveMarkdown: latestNoteContent,
     });
   });
+
+  it('uses live normalized markdown for custom syntax before saving', () => {
+    const latestNoteContent = [
+      '---',
+      'vlaina_cover: "@biva/2"',
+      '---',
+      'old body',
+    ].join('\n');
+    const liveSerializedMarkdown = [
+      '\\==highlight==',
+      '',
+      '\\*[ABBR]: Full phrase',
+      '',
+      '[^1]: <br />',
+      '',
+      '| A | B |',
+      '| - | - |',
+      '| <br /> | <br /> |',
+    ].join('\n');
+
+    const expected = [
+      '---',
+      'vlaina_cover: "@biva/2"',
+      '---',
+      '==highlight==',
+      '',
+      '*[ABBR]: Full phrase',
+      '',
+      '[^1]:',
+      '',
+      '| A | B |',
+      '| - | - |',
+      '|   |   |',
+    ].join('\n');
+
+    expect(
+      resolvePendingMarkdownUpdate({
+        pendingMarkdown: latestNoteContent,
+        latestNoteContent,
+        liveSerializedMarkdown,
+      }),
+    ).toEqual({
+      markdownToApply: expected,
+      source: 'live-editor',
+      liveMarkdown: expected,
+    });
+  });
 });

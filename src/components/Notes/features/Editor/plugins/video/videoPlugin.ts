@@ -4,7 +4,7 @@ import type { VideoAttrs } from './types';
 import { createVideoDom } from './videoDom';
 import { logVideoDebug } from './videoDebug';
 import { VideoNodeView } from './videoNodeView';
-import { isSupportedVideoUrl, parseVideoUrl } from './videoUrl';
+import { isSupportedVideoUrl, normalizeVideoUrlInput, parseVideoUrl } from './videoUrl';
 
 export const videoSchema = $node('video', () => ({
   group: 'block',
@@ -48,8 +48,14 @@ export const videoSchema = $node('video', () => ({
   toMarkdown: {
     match: (node) => node.type.name === 'video',
     runner: (state, node) => {
+      const src = normalizeVideoUrlInput(String(node.attrs.src || ''));
+      if (!src || !parseVideoUrl(src)) {
+        state.addNode('paragraph', []);
+        return;
+      }
+
       state.addNode('image', undefined, undefined, {
-        url: node.attrs.src,
+        url: src,
         title: node.attrs.title || undefined,
         alt: 'video',
       });
