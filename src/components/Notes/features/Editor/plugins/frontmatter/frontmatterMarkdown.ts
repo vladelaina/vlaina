@@ -64,8 +64,13 @@ function splitLeadingFrontmatter(markdown: string): FrontmatterSections | null {
   };
 }
 
-function buildFrontmatterBlock(frontmatterLines: string[], bodyLines: string[], fenced: boolean): string {
-  if (frontmatterLines.length === 0) {
+function buildFrontmatterBlock(
+  frontmatterLines: string[],
+  bodyLines: string[],
+  fenced: boolean,
+  options?: { preserveEmpty?: boolean }
+): string {
+  if (frontmatterLines.length === 0 && !options?.preserveEmpty) {
     return bodyLines.join('\n');
   }
 
@@ -129,7 +134,8 @@ export function serializeLeadingFrontmatterMarkdown(markdown: string, referenceM
   return buildFrontmatterBlock(
     mergedFrontmatterLines,
     removeSerializedFrontmatterPadding(lines.slice(closingIndex + 1)),
-    false
+    false,
+    { preserveEmpty: true }
   );
 }
 

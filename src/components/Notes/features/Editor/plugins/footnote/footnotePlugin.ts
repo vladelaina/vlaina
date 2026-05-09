@@ -97,12 +97,13 @@ export const footnoteRefInputRule = $inputRule(() => {
       if (textBefore.trim() === '') return null;
 
       const { tr, schema } = state;
-      const nodeType = schema.nodes.footnote_ref;
+      const nodeType = schema.nodes.footnote_reference ?? schema.nodes.footnote_ref;
       if (!nodeType) return null;
+      const attrs = nodeType.name === 'footnote_reference' ? { label: id } : { id };
 
       return tr
         .delete(start, end)
-        .replaceSelectionWith(nodeType.create({ id }));
+        .replaceSelectionWith(nodeType.create(attrs));
     }
   );
 });

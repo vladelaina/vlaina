@@ -46,6 +46,13 @@ describe('normalizeSerializedMarkdownBlock', () => {
     expect(normalizeSerializedMarkdownBlock('# Title\n')).toBe('# Title');
   });
 
+  it('restores escaped highlight syntax in copied blocks outside protected content', () => {
+    expect(normalizeSerializedMarkdownBlock('\\==highlight==\n')).toBe('==highlight==');
+    expect(
+      normalizeSerializedMarkdownBlock(['```md', '\\==literal==', '```'].join('\n'))
+    ).toBe(['```md', '\\==literal==', '```'].join('\n'));
+  });
+
   it('converts internal user br placeholders in copied blocks', () => {
     expect(
       normalizeSerializedMarkdownBlock(['Line one', '<br data-vlaina-user-br="true" />', 'Line two'].join('\n'))
@@ -373,6 +380,32 @@ describe('normalizeSerializedMarkdownDocument', () => {
       normalizeSerializedMarkdownDocument('| a | b |\n| --- | --- |\n| <br /> | 2 |\n')
     ).toBe('| a | b |\n| --- | --- |\n|   | 2 |\n');
   });
+
+  it('removes placeholder br tags from persisted empty footnote definitions and all table cells', () => {
+    expect(normalizeSerializedMarkdownDocument('[^1]: <br />\n')).toBe('[^1]:\n');
+    expect(
+      normalizeSerializedMarkdownDocument('| <br /> | <br /> |\n| --- | --- |\n| <br /> | 2 |\n')
+    ).toBe('|   |   |\n| --- | --- |\n|   | 2 |\n');
+  });
+
+  it('restores escaped abbreviation definition syntax outside protected blocks', () => {
+    expect(normalizeSerializedMarkdownDocument('\\*\\[HTML]: HyperText Markup Language\n')).toBe(
+      '*[HTML]: HyperText Markup Language\n'
+    );
+    expect(normalizeSerializedMarkdownDocument('\\*[HTML]: HyperText Markup Language\n')).toBe(
+      '*[HTML]: HyperText Markup Language\n'
+    );
+    expect(
+      normalizeSerializedMarkdownDocument(['```md', '\\*\\[HTML]: literal', '```'].join('\n'))
+    ).toBe(['```md', '\\*\\[HTML]: literal', '```'].join('\n'));
+  });
+
+  it('restores escaped highlight syntax outside protected blocks', () => {
+    expect(normalizeSerializedMarkdownDocument('\\==highlight==\n')).toBe('==highlight==\n');
+    expect(
+      normalizeSerializedMarkdownDocument(['```md', '\\==literal==', '```'].join('\n'))
+    ).toBe(['```md', '\\==literal==', '```'].join('\n'));
+  });
 });
 
 describe('normalizeSerializedMarkdownSelection', () => {
@@ -424,6 +457,10 @@ describe('normalizeSerializedMarkdownSelection', () => {
 
   it('keeps normal markdown content', () => {
     expect(normalizeSerializedMarkdownSelection('- [ ] task\n')).toBe('- [ ] task');
+  });
+
+  it('restores escaped highlight syntax in copied selections', () => {
+    expect(normalizeSerializedMarkdownSelection('\\==highlight==\n')).toBe('==highlight==');
   });
 
   it('does not expose internal list gap sentinels in copied selections', () => {

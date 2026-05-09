@@ -1,0 +1,127 @@
+import { describe, expect, it, vi } from 'vitest';
+import {
+  Editor,
+  defaultValueCtx,
+  editorViewCtx,
+  remarkStringifyOptionsCtx,
+  serializerCtx,
+} from '@milkdown/kit/core';
+import { commonmark } from '@milkdown/kit/preset/commonmark';
+import { gfm } from '@milkdown/kit/preset/gfm';
+import {
+  normalizeSerializedMarkdownDocument,
+  stripTrailingNewlines,
+} from '@/lib/notes/markdown/markdownSerializationUtils';
+import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+import { configureTheme } from '../../theme';
+import {
+  serializeLeadingFrontmatterMarkdown,
+} from '../frontmatter/frontmatterMarkdown';
+import { clipboardPlugin } from './clipboardPlugin';
+import { frontmatterPlugin } from '../frontmatter';
+import { calloutPlugin } from '../callout';
+import { footnotePlugin } from '../footnote';
+import { mathPlugin } from '../math';
+import { mermaidPlugin } from '../mermaid';
+import { codePlugin } from '../code';
+import { highlightPlugin } from '../highlight';
+import { colorMarksPlugin } from '../floating-toolbar';
+import { videoPlugin } from '../video';
+import { tocPlugin } from '../toc';
+import { blockAlignmentPlugin } from '../floating-toolbar';
+
+function simulatePasteText(view: any, text: string): boolean {
+  const event = {
+    clipboardData: {
+      getData(type: string) {
+        return type === 'text/plain' ? text : '';
+      },
+    },
+    preventDefault: vi.fn(),
+  };
+
+  let handled = false;
+  view.someProp('handlePaste', (handlePaste: any) => {
+    handled = handlePaste(view, event, null) || handled;
+  });
+  return handled;
+}
+
+async function createPasteEditor() {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, '');
+      ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+        ...prev,
+        ...notesRemarkStringifyOptions,
+      }));
+    })
+    .use(commonmark)
+    .use(gfm)
+    .use(configureTheme)
+    .use(clipboardPlugin);
+
+  for (const plugin of [
+    ...frontmatterPlugin,
+    ...calloutPlugin,
+    ...footnotePlugin,
+    ...mathPlugin,
+    ...mermaidPlugin,
+    ...codePlugin,
+    ...highlightPlugin,
+    ...colorMarksPlugin,
+    ...videoPlugin,
+    ...tocPlugin,
+    ...blockAlignmentPlugin,
+  ]) {
+    editor.use(plugin);
+  }
+
+  await editor.create();
+  return editor;
+}
+
+async function pasteAndPersist(markdown: string) {
+  const editor = await createPasteEditor();
+  const view = editor.ctx.get(editorViewCtx);
+  expect(simulatePasteText(view, markdown)).toBe(true);
+
+  const serializer = editor.ctx.get(serializerCtx);
+  const persisted = stripTrailingNewlines(
+    serializeLeadingFrontmatterMarkdown(
+      normalizeSerializedMarkdownDocument(serializer(view.state.doc)),
+      markdown
+    )
+  );
+
+  await editor.destroy();
+  return persisted;
+}
+
+describe('clipboard paste markdown persistence', () => {
+  it.each([
+    ['frontmatter', ['---', 'title: Demo', '---', '# Heading'].join('\n')],
+    ['footnote', ['Footnote ref[^1].', '', '[^1]: Footnote body'].join('\n')],
+    ['math', ['Inline $x + y$.', '', '$$', 'x^2', '$$'].join('\n')],
+    ['mermaid', ['```mermaid', 'flowchart TD', 'A --> B', '```'].join('\n')],
+    ['image', '![A < B](image.png "Title & More")'],
+    ['video', '![video](https://example.com/video.mp4 "Demo video")'],
+    ['custom inline marks', '==highlight== ++underlined++ X^2^ H~2~O'],
+    ['color html', '<span style="color: #123456">red</span> <mark style="background-color: #ecf6ff">bg</mark>'],
+    ['toc', '[TOC]'],
+  ] as const)('preserves pasted %s markdown on save', async (_name, markdown) => {
+    await expect(pasteAndPersist(markdown)).resolves.toBe(markdown);
+  });
+
+  it('persists pasted TSV as a standard GFM table', async () => {
+    await expect(pasteAndPersist(['A\tB', '1\t2'].join('\n'))).resolves.toBe(
+      ['| A | B |', '| - | - |', '| 1 | 2 |'].join('\n')
+    );
+  });
+
+  it('normalizes pasted mermaid aliases to canonical mermaid fenced code', async () => {
+    await expect(pasteAndPersist(['```sequence', 'Alice->Bob: Hi', '```'].join('\n'))).resolves.toBe(
+      ['```mermaid', 'sequenceDiagram', 'Alice->Bob: Hi', '```'].join('\n')
+    );
+  });
+});

@@ -1,11 +1,46 @@
 import { describe, expect, it } from 'vitest';
 import {
+  Editor,
+  defaultValueCtx,
+  editorViewCtx,
+  remarkStringifyOptionsCtx,
+  serializerCtx,
+} from '@milkdown/kit/core';
+import { commonmark } from '@milkdown/kit/preset/commonmark';
+import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+import {
   isSupportedVideoUrl,
   normalizeVideoUrlInput,
   parseVideoUrl,
   sanitizeVideoDebugPayload,
 } from './index';
 import { createVideoDom } from './videoDom';
+import { videoPlugin } from './videoPlugin';
+
+async function serializeVideoNode(src: string, title = '') {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, '');
+      ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+        ...prev,
+        ...notesRemarkStringifyOptions,
+      }));
+    })
+    .use(commonmark);
+
+  for (const plugin of videoPlugin) {
+    editor.use(plugin);
+  }
+
+  await editor.create();
+  const schema = editor.ctx.get(editorViewCtx).state.schema;
+  const doc = schema.nodes.doc.create(null, [
+    schema.nodes.video.create({ src, title }),
+  ]);
+  const markdown = editor.ctx.get(serializerCtx)(doc).trim();
+  await editor.destroy();
+  return markdown;
+}
 
 describe('videoPlugin URL support', () => {
   it('supports youtube, bilibili, and direct video URLs', () => {
@@ -111,5 +146,17 @@ describe('videoPlugin URL support', () => {
     expect(direct.querySelector('iframe')).toBeNull();
     expect(direct.querySelector('video')).toBeNull();
     expect(direct.textContent).toContain('Remote video blocked');
+  });
+
+  it('serializes supported video nodes as markdown image syntax', async () => {
+    await expect(serializeVideoNode(' https://example.com/video.mp4 ', 'Demo video')).resolves.toBe(
+      '![video](https://example.com/video.mp4 "Demo video")'
+    );
+  });
+
+  it('drops unsupported video node URLs during markdown serialization', async () => {
+    await expect(serializeVideoNode('javascript:alert(1)')).resolves.toBe('');
+    await expect(serializeVideoNode('http://127.0.0.1:3000/secret.mp4')).resolves.toBe('');
+    await expect(serializeVideoNode('https://example.com/article')).resolves.toBe('');
   });
 });
