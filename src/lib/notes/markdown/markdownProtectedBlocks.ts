@@ -29,6 +29,7 @@ export function mapMarkdownOutsideProtectedSegments(
   transformSegment: (segment: string, startIndex: number, lines: readonly string[]) => string,
 ): string {
   const lines = text.replace(/\r\n?/g, '\n').split('\n');
+  const nextNonBlankContentByIndex = getNextNonBlankMarkdownBlockContentByIndex(lines);
   const output: string[] = [];
   let segment: string[] = [];
   let segmentStartIndex = 0;
@@ -49,7 +50,7 @@ export function mapMarkdownOutsideProtectedSegments(
   lines.forEach((line, index) => {
     if (activeIndentedCode) {
       const content = getMarkdownBlockContent(line);
-      if (isIndentedCodeBlockLine(content) || keepsIndentedCodeBlockOpen(lines, index)) {
+      if (isIndentedCodeBlockLine(content) || keepsIndentedCodeBlockOpen(content, nextNonBlankContentByIndex[index])) {
         flushSegment(index + 1);
         output.push(line);
         return;
@@ -144,21 +145,23 @@ function canStartIndentedCodeBlock(lines: readonly string[], index: number): boo
   return index === 0 || previousLine.trim() === '';
 }
 
-function keepsIndentedCodeBlockOpen(lines: readonly string[], index: number): boolean {
-  const content = getMarkdownBlockContent(lines[index] ?? '');
-  const next = findNextNonBlankMarkdownBlockContent(lines, index);
-  return content.trim() === '' && next !== null && INDENTED_CODE_LINE_PATTERN.test(next);
+function keepsIndentedCodeBlockOpen(content: string, next: string | null | undefined): boolean {
+  return content.trim() === '' && next != null && INDENTED_CODE_LINE_PATTERN.test(next);
 }
 
-function findNextNonBlankMarkdownBlockContent(
-  lines: readonly string[],
-  index: number,
-): string | null {
-  for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
-    const content = getMarkdownBlockContent(lines[cursor] ?? '');
-    if (content.trim() !== '') return content;
+function getNextNonBlankMarkdownBlockContentByIndex(lines: readonly string[]): Array<string | null> {
+  const nextNonBlankContentByIndex = Array<string | null>(lines.length).fill(null);
+  let nextNonBlankContent: string | null = null;
+
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    nextNonBlankContentByIndex[index] = nextNonBlankContent;
+    const content = getMarkdownBlockContent(lines[index] ?? '');
+    if (content.trim() !== '') {
+      nextNonBlankContent = content;
+    }
   }
-  return null;
+
+  return nextNonBlankContentByIndex;
 }
 
 function getMarkdownRawHtmlBlockClosePattern(line: string): RegExp | null {

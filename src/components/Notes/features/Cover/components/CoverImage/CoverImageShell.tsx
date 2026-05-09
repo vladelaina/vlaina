@@ -33,7 +33,10 @@ export function CoverImageShell({
 
   if (!url) {
     return (
-      <div className="relative w-full" data-note-cover-region="true">
+      <div
+        className="relative w-full animate-in fade-in-0 duration-150 ease-out motion-reduce:animate-none"
+        data-note-cover-region="true"
+      >
         {previewSrc && (
           <div className="relative w-full h-[200px] shrink-0 overflow-hidden">
             <img src={previewSrc} alt="Preview" className="w-full h-full object-cover" />
@@ -53,7 +56,10 @@ export function CoverImageShell({
 
   return (
     <div
-      className={cn('relative w-full bg-[var(--vlaina-bg-primary)] shrink-0 select-none overflow-hidden group')}
+      className={cn(
+        'relative w-full bg-[var(--vlaina-bg-primary)] shrink-0 select-none overflow-hidden group',
+        'animate-in fade-in-0 duration-150 ease-out motion-reduce:animate-none'
+      )}
       style={{ height: coverHeight, overflowAnchor: 'none' }}
       ref={containerRef}
       data-note-cover-region="true"

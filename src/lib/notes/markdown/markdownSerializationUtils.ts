@@ -54,6 +54,11 @@ const EMPTY_LIST_ITEM_PLACEHOLDER_PATTERN =
   /^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+(?:\[(?: |x|X)\]\s+)?)<br\s*\/?>$/gim;
 const EMPTY_TABLE_CELL_PLACEHOLDER_PATTERN = /(\|\s*)<br\s*\/?>(\s*\|)/g;
 const EMPTY_ATX_HEADING_MARKER_PATTERN = /^( {0,3})(#{1,6})[ \t]*$/gm;
+const LIST_ITEM_LINE_PATTERN = /^(?: {0,3})(?:[-+*]|\d+[.)])\s+/;
+const MAX_CACHED_MARKDOWN_NORMALIZATION_LENGTH = 1_000_000;
+
+let lastNormalizedMarkdownInput: string | null = null;
+let lastNormalizedMarkdownOutput: string | null = null;
 
 function unescapeMarkdownPunctuation(text: string): string {
   return mapMarkdownOutsideProtectedBlocks(text, (line) => line.replace(MARKDOWN_ESCAPE_PATTERN, '$1'));
@@ -87,7 +92,19 @@ export function normalizeSerializedMarkdownBlock(text: string): string {
 }
 
 export function normalizeSerializedMarkdownDocument(text: string): string {
-  return runMarkdownDocumentNormalizationPipeline(text).output;
+  if (text === lastNormalizedMarkdownInput && lastNormalizedMarkdownOutput !== null) {
+    return lastNormalizedMarkdownOutput;
+  }
+
+  const output = runMarkdownDocumentNormalizationPipeline(text).output;
+  if (text.length <= MAX_CACHED_MARKDOWN_NORMALIZATION_LENGTH) {
+    lastNormalizedMarkdownInput = text;
+    lastNormalizedMarkdownOutput = output;
+  } else {
+    lastNormalizedMarkdownInput = null;
+    lastNormalizedMarkdownOutput = null;
+  }
+  return output;
 }
 
 export function summarizeMarkdownNormalizationPipeline(text: string) {
@@ -245,9 +262,41 @@ function isEditorPlaceholderBlankLine(line: string): boolean {
 }
 
 function normalizeListItemBlankLines(text: string): string {
-  return mapMarkdownOutsideProtectedSegments(text, (segment) => segment
-    .replace(/((?:^|\n)(?: {0,3})(?:[-+*]|\d+[.)])[^\n]*)\n{2,}((?: {0,3})(?:[-+*]|\d+[.)])\s+)/g, '$1\n$2')
-    .replace(new RegExp(`\\n*${LIST_GAP_SENTINEL}\\n*`, 'g'), '\n\n'));
+  const normalizedListSpacing = mapMarkdownOutsideProtectedSegments(
+    text,
+    collapseBlankLinesBetweenListItems,
+  );
+
+  if (!normalizedListSpacing.includes(LIST_GAP_SENTINEL)) {
+    return normalizedListSpacing;
+  }
+
+  return normalizedListSpacing.replace(new RegExp(`\\n*${LIST_GAP_SENTINEL}\\n*`, 'g'), '\n\n');
+}
+
+function collapseBlankLinesBetweenListItems(segment: string): string {
+  const lines = segment.split('\n');
+  const output: string[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? '';
+    output.push(line);
+
+    if (!LIST_ITEM_LINE_PATTERN.test(line)) {
+      continue;
+    }
+
+    let cursor = index + 1;
+    while (cursor < lines.length && (lines[cursor] ?? '').trim() === '') {
+      cursor += 1;
+    }
+
+    if (cursor > index + 1 && LIST_ITEM_LINE_PATTERN.test(lines[cursor] ?? '')) {
+      index = cursor - 1;
+    }
+  }
+
+  return output.join('\n');
 }
 
 function normalizeInternalClipboardArtifacts(text: string): string {
@@ -256,6 +305,10 @@ function normalizeInternalClipboardArtifacts(text: string): string {
 }
 
 function normalizeLeakedInternalArtifacts(text: string): string {
+  if (!text.includes('VLAINA_') || !text.includes('�')) {
+    return text;
+  }
+
   return text
     .replace(LEAKED_LIST_GAP_SENTINEL_WITH_NEWLINES_PATTERN, '\n\n')
     .replace(LEAKED_USER_BR_SENTINEL_PATTERN, USER_BR_SENTINEL);

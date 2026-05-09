@@ -279,6 +279,30 @@ describe('useCoverDisplayModel', () => {
     expect(result.current.sourceIsReady).toBe(false);
   });
 
+  it('uses a freshly resolved source as the placeholder instead of holding the old cover', () => {
+    hoisted.getCachedDimensions.mockReturnValue(null);
+
+    const { result } = renderHook(() =>
+      useCoverDisplayModel({
+        phase: 'ready',
+        previewSrc: null,
+        resolvedSrc: '/covers/next.webp',
+        isSourceStale: false,
+        prevSrcRef: createPrevSrcRef('/covers/previous.webp'),
+        crop: { x: 0, y: 0 },
+        zoom: 1,
+        positionX: 50,
+        positionY: 50,
+        isImageReady: false,
+        setIsImageReady: vi.fn(),
+      })
+    );
+
+    expect(result.current.mediaSrc).toBe('/covers/next.webp');
+    expect(result.current.placeholderSrc).toBe('/covers/next.webp');
+    expect(result.current.sourceIsReady).toBe(false);
+  });
+
   it('holds the previous stable geometry while a new source is not ready yet', async () => {
     hoisted.getCachedDimensions.mockReturnValue(null);
     const initialProps: DisplayModelProps = {
@@ -352,6 +376,7 @@ describe('useCoverDisplayModel', () => {
 
     expect(result.current.mediaSrc).toBe('/covers/current.webp');
     expect(result.current.placeholderSrc).toBe('/covers/current.webp');
+    expect(result.current.sourceIsReady).toBe(false);
     expect(result.current.displayPositionX).toBe(22);
     expect(result.current.displayPositionY).toBe(76);
     expect(result.current.effectiveCrop).toEqual({ x: 18, y: -12 });

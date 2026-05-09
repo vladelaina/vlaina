@@ -6,12 +6,11 @@ interface NoteCoverCanvasProps {
   notePath?: string;
 }
 
-export function NoteCoverCanvas({ controller, notePath }: NoteCoverCanvasProps) {
+export function NoteCoverCanvas({ controller }: NoteCoverCanvasProps) {
   const { cover, vaultPath, isPickerOpen, setPickerOpen, updateCover } = controller;
 
   return (
     <CoverImage
-      key={notePath ?? controller.currentNotePath ?? 'empty-note-cover'}
       url={cover.url}
       positionX={cover.positionX}
       positionY={cover.positionY}

@@ -161,6 +161,7 @@ export function CoverCropperLayer({
     >
       {displaySrc ? (
         <img
+          key={displaySrc}
           ref={imageRef}
           src={displaySrc}
           alt="Cover Cropper"

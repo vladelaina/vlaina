@@ -9,6 +9,7 @@ import type { FileTreeSortMode, MetadataFile, NoteCoverMetadata, NoteMetadataEnt
 import { normalizeNoteMetadataEntry, readNoteMetadataFromMarkdown } from './frontmatter';
 import { ensureSystemDirectory, getVaultSystemStorePath } from './systemStoragePaths';
 import { normalizeRecentNotePaths, normalizeWorkspaceState } from './persistenceValidation';
+import { logNotesDebugAlways } from './lineBreakDebugLog';
 
 export type { MetadataFile, NoteMetadataEntry };
 
@@ -44,6 +45,14 @@ function setMetadataVaultCache(vaultPath: string, cache: Map<string, CachedMetad
     }
     metadataCacheByVault.delete(oldestVaultPath);
   }
+}
+
+function getNotesLoadPerfNow() {
+  return typeof performance !== 'undefined' ? performance.now() : Date.now();
+}
+
+function roundNotesLoadPerfMs(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 export function loadRecentNotes(): string[] {
@@ -183,9 +192,17 @@ async function collectMarkdownPaths(
 }
 
 export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile> {
+  const startedAt = getNotesLoadPerfNow();
+  let collectDurationMs: number | null = null;
+  let statCount = 0;
+  let readCount = 0;
+  let cacheHitCount = 0;
+  let skippedLargeCount = 0;
+  let failedCount = 0;
   try {
     const storage = getStorageAdapter();
     const notePaths = await collectMarkdownPaths(vaultPath);
+    collectDurationMs = roundNotesLoadPerfMs(getNotesLoadPerfNow() - startedAt);
     const notes: MetadataFile['notes'] = {};
     const vaultCache = metadataCacheByVault.get(vaultPath) ?? new Map<string, CachedMetadataEntry>();
     setMetadataVaultCache(vaultPath, vaultCache);
@@ -197,10 +214,12 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
       const results = await Promise.allSettled(
         batch.map(async (relativePath) => {
           const fullPath = await joinPath(vaultPath, relativePath);
+          statCount += 1;
           const fileInfo = await storage.stat(fullPath).catch(() => null);
           const modifiedAt = fileInfo?.modifiedAt ?? null;
           const size = fileInfo?.size ?? null;
           if (typeof size === 'number' && size > MAX_METADATA_READ_BYTES) {
+            skippedLargeCount += 1;
             return {
               relativePath,
               metadata: {},
@@ -210,6 +229,7 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
           const canUseCache = modifiedAt !== null || size !== null;
           const cached = vaultCache.get(relativePath);
           if (canUseCache && cached && cached.modifiedAt === modifiedAt && cached.size === size) {
+            cacheHitCount += 1;
             nextCache.set(relativePath, cached);
             return {
               relativePath,
@@ -217,6 +237,7 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
             };
           }
 
+          readCount += 1;
           const content = await storage.readFile(fullPath);
           const metadata = normalizeLoadedEntry(readNoteMetadataFromMarkdown(content));
           if (canUseCache) {
@@ -235,6 +256,7 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
 
       for (const result of results) {
         if (result.status !== 'fulfilled') {
+          failedCount += 1;
           continue;
         }
 
@@ -246,12 +268,37 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
     }
 
     setMetadataVaultCache(vaultPath, nextCache);
+    logNotesDebugAlways('NotesLoad', 'metadata:loaded', {
+      vaultPath,
+      totalDurationMs: roundNotesLoadPerfMs(getNotesLoadPerfNow() - startedAt),
+      collectDurationMs,
+      notePathCount: notePaths.length,
+      metadataEntryCount: Object.keys(notes).length,
+      statCount,
+      readCount,
+      cacheHitCount,
+      skippedLargeCount,
+      failedCount,
+      cacheBeforeCount: vaultCache.size,
+      cacheAfterCount: nextCache.size,
+    });
 
     return {
       version: CURRENT_METADATA_VERSION,
       notes,
     };
   } catch (error) {
+    logNotesDebugAlways('NotesLoad', 'metadata:failed', {
+      vaultPath,
+      totalDurationMs: roundNotesLoadPerfMs(getNotesLoadPerfNow() - startedAt),
+      collectDurationMs,
+      statCount,
+      readCount,
+      cacheHitCount,
+      skippedLargeCount,
+      failedCount,
+      message: error instanceof Error ? error.message : String(error),
+    });
     console.error('[NotesStorage] Failed to load note metadata:', error);
     return createEmptyMetadataFile();
   }

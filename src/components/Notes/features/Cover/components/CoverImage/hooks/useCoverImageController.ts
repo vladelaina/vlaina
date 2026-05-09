@@ -33,6 +33,10 @@ export function useCoverImageController({
     src: string;
     size: { width: number; height: number };
   } | null>(null);
+  const stableCoverHeightRef = useRef<{
+    src: string;
+    height: number;
+  } | null>(null);
   const [mediaSizeSrc, setMediaSizeSrc] = useState<string | null>(null);
   const layoutPanelDragging = useUIStore((state) => state.layoutPanelDragging);
   const windowResizeActive = useUIStore((state) => state.windowResizeActive);
@@ -76,12 +80,6 @@ export function useCoverImageController({
     setIsImageReady,
   });
 
-  const effectiveContainerSize = useMemo(() => {
-    if (!containerSize) return null;
-    if (containerSize.width <= 0 || coverHeight <= 0) return null;
-    return { width: containerSize.width, height: coverHeight };
-  }, [containerSize, coverHeight]);
-
   const {
     mediaSrc,
     sourceIsReady,
@@ -109,6 +107,35 @@ export function useCoverImageController({
     isImageReady,
     setIsImageReady,
   });
+
+  useEffect(() => {
+    if (!sourceIsReady || !mediaSrc) {
+      return;
+    }
+
+    stableCoverHeightRef.current = {
+      src: mediaSrc,
+      height: coverHeight,
+    };
+  }, [coverHeight, mediaSrc, sourceIsReady]);
+
+  const displayCoverHeight = useMemo(() => {
+    if (
+      isHoldingPreviousFrame &&
+      placeholderSrc &&
+      stableCoverHeightRef.current?.src === placeholderSrc
+    ) {
+      return stableCoverHeightRef.current.height;
+    }
+
+    return coverHeight;
+  }, [coverHeight, isHoldingPreviousFrame, placeholderSrc]);
+
+  const effectiveContainerSize = useMemo(() => {
+    if (!containerSize) return null;
+    if (containerSize.width <= 0 || displayCoverHeight <= 0) return null;
+    return { width: containerSize.width, height: displayCoverHeight };
+  }, [containerSize, displayCoverHeight]);
 
   const cachedMediaSize = useMemo(() => {
     if (!mediaSrc) {
@@ -250,7 +277,7 @@ export function useCoverImageController({
     previewSrc,
     isError,
     displaySrc: mediaSrc,
-    coverHeight,
+    coverHeight: displayCoverHeight,
     positionX: displayPositionX,
     positionY: displayPositionY,
     containerRef,

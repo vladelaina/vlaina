@@ -6,6 +6,7 @@ import {
   getNotesDebugLogText,
   logLineBreakDebug,
   logNotesDebug,
+  logNotesDebugAlways,
   summarizeLineBreakText,
 } from './lineBreakDebugLog';
 
@@ -33,6 +34,15 @@ describe('lineBreakDebugLog', () => {
     expect(debug).not.toHaveBeenCalled();
     expect(getNotesDebugLogText()).toContain('[NotesAutoDraft] evaluate');
     expect(getLineBreakDebugLogText()).toContain('[NotesAutoDraft] evaluate');
+  });
+
+  it('keeps forced load logs buffered without printing during tests', () => {
+    const debug = vi.spyOn(console, 'debug').mockImplementation(() => {});
+
+    logNotesDebugAlways('NotesLoad', 'file-tree:start', { durationMs: 1 });
+
+    expect(debug).not.toHaveBeenCalled();
+    expect(getNotesDebugLogText()).toContain('[NotesLoad] file-tree:start');
   });
 
   it('clears buffered log text', () => {

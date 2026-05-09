@@ -79,6 +79,20 @@ describe('normalizeSerializedMarkdownBlock', () => {
 });
 
 describe('normalizeSerializedMarkdownDocument', () => {
+  it('normalizes documents with pathological blank line runs within the default test timeout', () => {
+    const blankRun = Array.from({ length: 12_000 }, () => '').join('\n');
+    const markdown = ['---', 'title: Slow', '---', 'before', blankRun, 'after'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toContain('after');
+  });
+
+  it('normalizes repeated empty placeholders within the default test timeout', () => {
+    const placeholders = Array.from({ length: 12_000 }, () => '\u200B').join('\n');
+    const markdown = ['before', placeholders, 'after'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toContain('after');
+  });
+
   it('converts invisible editor blank-line placeholders into markdown blank lines', () => {
     expect(normalizeSerializedMarkdownDocument('1\n\u200B\n2\n')).toBe('1\n\n2\n');
     expect(normalizeSerializedMarkdownDocument('- one\n\u200B\u200C\n- two\n')).toBe('- one\n\n- two\n');

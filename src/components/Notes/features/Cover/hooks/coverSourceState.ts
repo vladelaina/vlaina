@@ -13,6 +13,7 @@ export type CoverSourceAction =
   | { type: 'selection-commit-end' }
   | { type: 'image-ready-set'; ready: boolean }
   | { type: 'url-switch-reset' }
+  | { type: 'url-switch-resolved'; imageUrl: string; assetPath: string }
   | { type: 'source-clear' }
   | { type: 'resolve-error' }
   | { type: 'resolve-success'; imageUrl: string; assetPath: string };
@@ -54,6 +55,14 @@ export function coverSourceReducer(state: CoverSourceState, action: CoverSourceA
         ...state,
         resolvedSrc: null,
         resolvedAssetPath: null,
+        isImageReady: false,
+        isError: false,
+      };
+    case 'url-switch-resolved':
+      return {
+        ...state,
+        resolvedSrc: action.imageUrl,
+        resolvedAssetPath: action.assetPath,
         isImageReady: false,
         isError: false,
       };
