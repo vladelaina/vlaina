@@ -124,12 +124,23 @@ const mocks = vi.hoisted(() => {
     addToast: vi.fn(),
   };
 
+  const editorViewRegistry = {
+    getCurrentEditorView: vi.fn(),
+  };
+
+  const sidebarDiscussion = {
+    canOpenSidebarDiscussionForSelection: vi.fn(),
+    openSidebarDiscussionForSelection: vi.fn(),
+  };
+
   return {
     notesState,
     vaultState,
     uiState,
     storageState,
     toastState,
+    editorViewRegistry,
+    sidebarDiscussion,
   };
 });
 
@@ -240,6 +251,15 @@ vi.mock('@/hooks/useModuleShortcutsDialog', () => ({
 vi.mock('@/components/Chat/features/Temporary/temporaryChatCommands', () => ({
   runOpenNewChatShortcut: vi.fn(),
   runTemporaryChatWelcomeShortcut: vi.fn(),
+}));
+
+vi.mock('@/components/Notes/features/Editor/utils/editorViewRegistry', () => ({
+  getCurrentEditorView: mocks.editorViewRegistry.getCurrentEditorView,
+}));
+
+vi.mock('@/components/Notes/features/Editor/plugins/floating-toolbar/ai/sidebarDiscussion', () => ({
+  canOpenSidebarDiscussionForSelection: mocks.sidebarDiscussion.canOpenSidebarDiscussionForSelection,
+  openSidebarDiscussionForSelection: mocks.sidebarDiscussion.openSidebarDiscussionForSelection,
 }));
 
 vi.mock('./hooks/useCurrentVaultExternalPathSync', () => ({
@@ -371,6 +391,9 @@ describe('NotesView', () => {
     notesState.confirmPendingDraftDiscard.mockClear();
     notesState.getDisplayName.mockClear();
     mocks.toastState.addToast.mockClear();
+    mocks.editorViewRegistry.getCurrentEditorView.mockReset();
+    mocks.sidebarDiscussion.canOpenSidebarDiscussionForSelection.mockReset();
+    mocks.sidebarDiscussion.openSidebarDiscussionForSelection.mockReset();
     mocks.vaultState.openVault.mockClear();
     vi.mocked(messageDialog).mockReset();
     vi.mocked(useAbsoluteNoteExternalRenameSync).mockClear();
@@ -1050,6 +1073,128 @@ describe('NotesView', () => {
       expect(notesState.revealFolder).toHaveBeenCalledWith('docs/alpha.md');
       expect(notesState.openNote).toHaveBeenCalledWith('docs/alpha.md');
     });
+  });
+
+  it('quotes the current editor selection to chat on Ctrl+L', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    const editorView = {
+      state: {
+        selection: {
+          empty: false,
+        },
+      },
+    };
+    mocks.editorViewRegistry.getCurrentEditorView.mockReturnValue(editorView);
+    mocks.sidebarDiscussion.canOpenSidebarDiscussionForSelection.mockReturnValue(true);
+    shortcutMatchesMock.mockImplementation((event, binding) => (
+      binding === 'toggleEmbeddedChat' && event.key.toLowerCase() === 'l' && event.ctrlKey
+    ));
+
+    render(<NotesView />);
+    await waitForVaultInitializationEffects();
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'l',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    document.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(mocks.sidebarDiscussion.openSidebarDiscussionForSelection).toHaveBeenCalledWith(editorView);
+    expect(uiState.toggleNotesChatPanel).not.toHaveBeenCalled();
+  });
+
+  it('toggles embedded chat on Ctrl+L when there is no editor selection', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    mocks.editorViewRegistry.getCurrentEditorView.mockReturnValue({
+      state: {
+        selection: {
+          empty: true,
+        },
+      },
+    });
+    shortcutMatchesMock.mockImplementation((event, binding) => (
+      binding === 'toggleEmbeddedChat' && event.key.toLowerCase() === 'l' && event.ctrlKey
+    ));
+
+    render(<NotesView />);
+    await waitForVaultInitializationEffects();
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'l',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    document.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(uiState.toggleNotesChatPanel).toHaveBeenCalledTimes(1);
+    expect(mocks.sidebarDiscussion.openSidebarDiscussionForSelection).not.toHaveBeenCalled();
+  });
+
+  it('quotes the current block selection to chat on Ctrl+L', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    const editorView = {
+      state: {
+        selection: {
+          empty: true,
+        },
+      },
+    };
+    mocks.editorViewRegistry.getCurrentEditorView.mockReturnValue(editorView);
+    mocks.sidebarDiscussion.canOpenSidebarDiscussionForSelection.mockReturnValue(true);
+    shortcutMatchesMock.mockImplementation((event, binding) => (
+      binding === 'toggleEmbeddedChat' && event.key.toLowerCase() === 'l' && event.ctrlKey
+    ));
+
+    render(<NotesView />);
+    await waitForVaultInitializationEffects();
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'l',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    document.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(mocks.sidebarDiscussion.openSidebarDiscussionForSelection).toHaveBeenCalledWith(editorView);
+    expect(uiState.toggleNotesChatPanel).not.toHaveBeenCalled();
+  });
+
+  it('closes embedded chat on Ctrl+L when the panel is already open', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    uiState.notesChatPanelCollapsed = false;
+    const editorView = {
+      state: {
+        selection: {
+          empty: false,
+        },
+      },
+    };
+    mocks.editorViewRegistry.getCurrentEditorView.mockReturnValue(editorView);
+    shortcutMatchesMock.mockImplementation((event, binding) => (
+      binding === 'toggleEmbeddedChat' && event.key.toLowerCase() === 'l' && event.ctrlKey
+    ));
+
+    render(<NotesView />);
+    await waitForVaultInitializationEffects();
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'l',
+      ctrlKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    document.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(uiState.toggleNotesChatPanel).toHaveBeenCalledTimes(1);
+    expect(mocks.sidebarDiscussion.openSidebarDiscussionForSelection).not.toHaveBeenCalled();
   });
 
   it('does not cycle notes on Ctrl+Tab from inside a dialog', async () => {

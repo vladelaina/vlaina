@@ -40,6 +40,17 @@ export function useChatComposer({
     }
   }, [focusTrigger]);
 
+  const textareaHeight = usePredictedTextareaHeight(textareaRef, {
+    value: message,
+    minHeight: 24,
+    maxHeight: 320,
+  });
+  const textareaHeightRef = useRef(textareaHeight);
+
+  useEffect(() => {
+    textareaHeightRef.current = textareaHeight;
+  }, [textareaHeight]);
+
   useEffect(() => {
     const unregister = registerComposerFocusAdapter({
       focus: () => {
@@ -89,6 +100,8 @@ export function useChatComposer({
           input.focus({ preventScroll: true });
           const pos = input.value.length;
           input.setSelectionRange(pos, pos);
+          input.scrollTop = input.scrollHeight;
+          textareaHeightRef.current.syncHeight(input.value);
         });
         return true;
       },
@@ -113,12 +126,6 @@ export function useChatComposer({
       }
     };
   }, []);
-
-  const textareaHeight = usePredictedTextareaHeight(textareaRef, {
-    value: message,
-    minHeight: 24,
-    maxHeight: 320,
-  });
 
   const markExplicitMultiline = useCallback(() => {
     hasExplicitMultilineRef.current = true;

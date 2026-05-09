@@ -69,16 +69,15 @@ export function AppContent() {
     appViewMode,
     sidebarCollapsed,
     sidebarWidth,
-    notesChatPanelCollapsed,
     setSidebarWidth,
     toggleSidebar,
     setAppViewMode,
   } = useUIStore();
-  const { currentVault, initialize } = useVaultStore();
+  const { initialize } = useVaultStore();
   const { showInTitleBar } = useTemporaryTogglePresentation();
   const shouldShowTemporaryToggleInTitleBar =
     showInTitleBar &&
-    (appViewMode === 'chat' || (appViewMode === 'notes' && currentVault && !notesChatPanelCollapsed));
+    appViewMode === 'chat';
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [debugCopyState, setDebugCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');

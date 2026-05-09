@@ -21,6 +21,7 @@ vi.mock('@/hooks/usePredictedTextareaHeight', () => ({
 
 describe('useChatComposer', () => {
   beforeEach(() => {
+    registerComposerFocusAdapterMock.mockClear();
     syncHeightMock.mockClear();
     usePredictedTextareaHeightMock.mockClear();
   });
@@ -135,6 +136,55 @@ describe('useChatComposer', () => {
       });
 
       expect(syncHeightMock).toHaveBeenCalledTimes(1);
+    } finally {
+      requestAnimationFrameSpy.mockRestore();
+      cancelAnimationFrameSpy.mockRestore();
+    }
+  });
+
+  it('scrolls the composer textarea to the bottom after inserting long text', () => {
+    const rafCallbacks: FrameRequestCallback[] = [];
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback) => {
+        rafCallbacks.push(callback);
+        return rafCallbacks.length;
+      });
+    const cancelAnimationFrameSpy = vi
+      .spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => {});
+
+    try {
+      const { result } = renderHook(() =>
+        useChatComposer({
+          onSend: vi.fn(),
+          attachments: [],
+          getNoteMentions: () => [],
+          onAfterSend: vi.fn(),
+        }),
+      );
+      const textarea = document.createElement('textarea');
+      Object.defineProperty(textarea, 'scrollHeight', {
+        value: 960,
+        configurable: true,
+      });
+      result.current.textareaRef.current = textarea;
+      const adapter = registerComposerFocusAdapterMock.mock.calls[0]?.[0] as {
+        insertText: (text: string) => boolean;
+      };
+
+      act(() => {
+        expect(adapter.insertText('first\nsecond\nthird')).toBe(true);
+      });
+      textarea.value = result.current.message;
+
+      act(() => {
+        rafCallbacks[0]?.(0);
+      });
+
+      expect(textarea.selectionStart).toBe(textarea.value.length);
+      expect(textarea.scrollTop).toBe(960);
+      expect(syncHeightMock).toHaveBeenCalledWith(textarea.value);
     } finally {
       requestAnimationFrameSpy.mockRestore();
       cancelAnimationFrameSpy.mockRestore();

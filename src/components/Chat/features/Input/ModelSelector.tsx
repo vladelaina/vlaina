@@ -1,4 +1,5 @@
-import { Fragment, useDeferredValue, useState, useRef, useEffect, useMemo, memo, useCallback, type RefObject } from 'react'
+import { Fragment, useDeferredValue, useState, useRef, useEffect, useMemo, memo, useCallback, type CSSProperties, type RefObject } from 'react'
+import { createPortal } from 'react-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Icon } from '@/components/ui/icons'
 import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area'
@@ -216,11 +217,13 @@ export function ModelSelector({
   const [activeCategoryId, setActiveCategoryId] = useState<ModelCategoryId | null>(null)
   const deferredSearchQuery = useDeferredValue(searchQuery)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const dropdownContentRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const isKeyboardNavigating = useRef(false)
   const reopenAfterSettingsCloseRef = useRef(false)
   const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [embeddedDropdownStyle, setEmbeddedDropdownStyle] = useState<CSSProperties | null>(null)
 
   const selectedModel = useMemo(() => {
     if (!selectedModelId) {
@@ -457,6 +460,45 @@ export function ModelSelector({
       }
   }, [])
 
+  const updateEmbeddedDropdownPosition = useCallback(() => {
+      if (!isEmbedded || !dropdownRef.current || typeof window === 'undefined') {
+          return;
+      }
+
+      const triggerRect = dropdownRef.current.getBoundingClientRect();
+      const dropdownWidth = 288;
+      const viewportPadding = 12;
+      const left = Math.max(
+          viewportPadding,
+          Math.min(triggerRect.right - dropdownWidth, window.innerWidth - dropdownWidth - viewportPadding),
+      );
+      const top = dropdownPlacement === 'bottom'
+          ? triggerRect.bottom + 4
+          : triggerRect.top - 4;
+
+      setEmbeddedDropdownStyle({
+          left,
+          top,
+          width: dropdownWidth,
+          maxHeight: 'min(460px, calc(100vh - 96px))',
+      });
+  }, [dropdownPlacement, isEmbedded]);
+
+  useEffect(() => {
+      if (!isOpen || !isEmbedded) {
+          setEmbeddedDropdownStyle(null);
+          return;
+      }
+
+      updateEmbeddedDropdownPosition();
+      window.addEventListener('resize', updateEmbeddedDropdownPosition);
+      window.addEventListener('scroll', updateEmbeddedDropdownPosition, true);
+      return () => {
+          window.removeEventListener('resize', updateEmbeddedDropdownPosition);
+          window.removeEventListener('scroll', updateEmbeddedDropdownPosition, true);
+      };
+  }, [isEmbedded, isOpen, updateEmbeddedDropdownPosition]);
+
   const setKeyboardNavigating = useCallback((value: boolean) => {
       isKeyboardNavigating.current = value;
   }, []);
@@ -544,7 +586,12 @@ export function ModelSelector({
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(target) &&
+        !dropdownContentRef.current?.contains(target)
+      ) {
         closeSelector(false)
       }
     }
@@ -604,55 +651,26 @@ export function ModelSelector({
       setFocusedModelId(nextFocusedId);
   }, [focusedModelId, isOpen, selectedModelId, visibleModelIds]);
 
-  return (
-    <div className="relative select-none w-fit" ref={dropdownRef}>
-      <button
-        onClick={toggleSelector}
-        className={cn(
-          "flex h-8 cursor-pointer items-center gap-2 rounded-full px-2.5 transition-all duration-200 group",
-          chatComposerPillSurfaceClass,
-          selectedModel ? styles.triggerTextActive : styles.triggerText
-        )}
-      >
-        {selectedModelFamily ? (
-          <img
-            src={selectedModelFamily.icon}
-            alt=""
-            className="h-4 w-4 flex-shrink-0 rounded-[3px] object-contain"
-            draggable={false}
-          />
-        ) : (
-          <Icon name="misc.box" size="sm" className="flex-shrink-0 text-[var(--chat-sidebar-icon)]" />
-        )}
-        <span className="whitespace-nowrap text-sm font-medium">
-          {selectedModel ? getModelDisplayName(selectedModel) : 'Select Model'}
-        </span>
-        <svg
-          className={cn("h-4 w-4 flex-shrink-0 opacity-60 transition-transform duration-200", isOpen && "rotate-180")}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {isOpen && (
+  const dropdownContent = isOpen ? (
         <div 
+          ref={dropdownContentRef}
           className={cn(
-            dropdownPlacement === 'bottom'
-              ? "absolute top-full mt-1"
-              : "absolute bottom-full mb-1",
-            dropdownAlign === 'left' ? "left-0" : "right-0",
-            isEmbedded ? "w-[23rem]" : "w-[27rem]",
+            isEmbedded
+              ? "fixed"
+              : dropdownPlacement === 'bottom'
+                ? "absolute top-full mt-1"
+                : "absolute bottom-full mb-1",
+            !isEmbedded && (dropdownAlign === 'left' ? "left-0" : "right-0"),
+            isEmbedded ? "w-[18rem]" : "w-[27rem]",
             "max-w-[calc(100vw-24px)]",
             "rounded-[26px]",
             chatComposerPillSurfaceClass,
             "backdrop-blur-lg z-50 overflow-hidden flex flex-col",
             "animate-in fade-in duration-75 zoom-in-95" 
           )}
-          style={{ maxHeight: 'min(460px, calc(100vh - 96px))' }}
+          style={isEmbedded
+            ? embeddedDropdownStyle ?? { width: 288, maxHeight: 'min(460px, calc(100vh - 96px))' }
+            : { maxHeight: 'min(460px, calc(100vh - 96px))' }}
         >
           <div className={cn("flex items-center gap-1 border-b px-2 py-2", styles.divider)}>
               <input
@@ -805,7 +823,45 @@ export function ModelSelector({
             </OverlayScrollArea>
           </div>
         </div>
-      )}
+      ) : null;
+
+  return (
+    <div className="relative select-none w-fit" ref={dropdownRef}>
+      <button
+        onClick={toggleSelector}
+        className={cn(
+          "flex h-8 cursor-pointer items-center gap-2 rounded-full px-2.5 transition-all duration-200 group",
+          chatComposerPillSurfaceClass,
+          selectedModel ? styles.triggerTextActive : styles.triggerText
+        )}
+      >
+        {selectedModelFamily ? (
+          <img
+            src={selectedModelFamily.icon}
+            alt=""
+            className="h-4 w-4 flex-shrink-0 rounded-[3px] object-contain"
+            draggable={false}
+          />
+        ) : (
+          <Icon name="misc.box" size="sm" className="flex-shrink-0 text-[var(--chat-sidebar-icon)]" />
+        )}
+        <span className="whitespace-nowrap text-sm font-medium">
+          {selectedModel ? getModelDisplayName(selectedModel) : 'Select Model'}
+        </span>
+        <svg
+          className={cn("h-4 w-4 flex-shrink-0 opacity-60 transition-transform duration-200", isOpen && "rotate-180")}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isEmbedded && typeof document !== 'undefined'
+        ? createPortal(dropdownContent, document.body)
+        : dropdownContent}
     </div>
   )
 }

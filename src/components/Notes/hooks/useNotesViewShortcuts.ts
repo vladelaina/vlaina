@@ -6,6 +6,11 @@ import {
   runTemporaryChatWelcomeShortcut,
 } from '@/components/Chat/features/Temporary/temporaryChatCommands';
 import { getAdjacentTreeNotePath } from '@/components/Notes/features/common/noteTreeNavigation';
+import {
+  canOpenSidebarDiscussionForSelection,
+  openSidebarDiscussionForSelection,
+} from '@/components/Notes/features/Editor/plugins/floating-toolbar/ai/sidebarDiscussion';
+import { getCurrentEditorView } from '@/components/Notes/features/Editor/utils/editorViewRegistry';
 
 interface UseNotesViewShortcutsOptions {
   active: boolean;
@@ -15,6 +20,7 @@ interface UseNotesViewShortcutsOptions {
   openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
   closeTab: (path: string) => Promise<void>;
   reopenClosedTab: () => Promise<void>;
+  chatPanelCollapsed: boolean;
   toggleChatPanel: () => void;
   focusNotesChatComposer: () => void;
   focusSidebarPath: (path: string) => void;
@@ -28,6 +34,7 @@ export function useNotesViewShortcuts({
   openNote,
   closeTab,
   reopenClosedTab,
+  chatPanelCollapsed,
   toggleChatPanel,
   focusNotesChatComposer,
   focusSidebarPath,
@@ -44,6 +51,17 @@ export function useNotesViewShortcuts({
 
       if (matchesShortcutBinding(event, 'toggleEmbeddedChat')) {
         event.preventDefault();
+        if (!chatPanelCollapsed) {
+          toggleChatPanel();
+          return;
+        }
+
+        const currentEditorView = getCurrentEditorView();
+        if (currentEditorView && canOpenSidebarDiscussionForSelection(currentEditorView)) {
+          openSidebarDiscussionForSelection(currentEditorView);
+          return;
+        }
+
         toggleChatPanel();
         return;
       }
@@ -137,6 +155,7 @@ export function useNotesViewShortcuts({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [
     active,
+    chatPanelCollapsed,
     closeTab,
     reopenClosedTab,
     currentNotePath,

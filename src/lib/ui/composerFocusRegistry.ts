@@ -80,6 +80,7 @@ export function insertTextIntoComposer(text: string): boolean {
   input.dispatchEvent(new Event('input', { bubbles: true }));
   const pos = next.length;
   input.setSelectionRange(pos, pos);
+  input.scrollTop = input.scrollHeight;
   return true;
 }
 

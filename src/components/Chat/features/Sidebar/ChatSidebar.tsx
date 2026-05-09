@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { actions as aiActions } from '@/stores/useAIStore';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
@@ -22,9 +22,11 @@ import { useChatSidebarSearch } from './useChatSidebarSearch';
 
 interface ChatSidebarProps {
   isPeeking?: boolean;
+  embedded?: boolean;
+  onRequestClose?: () => void;
 }
 
-export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
+export const ChatSidebar = memo(function ChatSidebar({ isPeeking = false, embedded = false, onRequestClose }: ChatSidebarProps) {
   const appViewMode = useUIStore((state) => state.appViewMode);
   const setAppViewMode = useUIStore((state) => state.setAppViewMode);
   const sessions = useUnifiedStore((state) => state.data.ai?.sessions || []);
@@ -49,7 +51,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
     hasSessions,
     sessionsToRender,
   } = useChatSidebarSearch({
-    enabled: appViewMode === 'chat',
+    enabled: embedded || appViewMode === 'chat',
     scopeRef: sidebarRootRef,
     sessions,
   });
@@ -99,10 +101,12 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
       markSessionRead(sessionId);
     }
     void aiActions.switchSession(sessionId);
-  }, [markSessionRead]);
+    onRequestClose?.();
+  }, [markSessionRead, onRequestClose]);
 
   const handleOpenNewChat = useCallback(() => {
     aiActions.openNewChat();
+    onRequestClose?.();
     requestAnimationFrame(() => {
       if (focusComposerInput()) {
         return;
@@ -111,7 +115,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
         focusComposerInput();
       });
     });
-  }, []);
+  }, [onRequestClose]);
 
   const handleRenameDraftChange = useCallback((value: string) => {
     setRenameDraft(value);
@@ -149,7 +153,7 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
           {!shouldShowSearchResults ? (
             <ChatSidebarTopActions
               onOpenNewChat={handleOpenNewChat}
-              onOpenNotes={() => setAppViewMode('notes')}
+              onOpenNotes={embedded ? undefined : () => setAppViewMode('notes')}
             />
           ) : null}
 
@@ -203,4 +207,4 @@ export function ChatSidebar({ isPeeking = false }: ChatSidebarProps) {
       />
     </>
   );
-}
+});

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { actions as aiActions } from '@/stores/useAIStore';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
@@ -24,16 +25,22 @@ import { ChatShortcutsDialog } from '@/components/Chat/common/ChatShortcutsDialo
 import { TemporaryChatToggle } from '@/components/Chat/features/Temporary/TemporaryChatToggle';
 import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
 import { estimateChatLoadingHeight } from '@/components/Chat/features/Layout/chatMessageLayout';
+import { ChatSidebar } from '@/components/Chat/features/Sidebar/ChatSidebar';
+import { ModelSelector } from '@/components/Chat/features/Input/ModelSelector';
+import { Icon } from '@/components/ui/icons';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 interface ChatViewProps {
   mode?: 'full' | 'embedded';
   active?: boolean;
+  onCloseEmbeddedPanel?: () => void;
 }
 
 const EMPTY_MESSAGES: never[] = [];
 
-export function ChatView({ mode = 'full', active = true }: ChatViewProps) {
+export function ChatView({ mode = 'full', active = true, onCloseEmbeddedPanel }: ChatViewProps) {
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [isEmbeddedSidebarOpen, setIsEmbeddedSidebarOpen] = useState(false);
   const [focusInputTrigger, setFocusInputTrigger] = useState(0); 
   const isEmbedded = mode === 'embedded';
   const currentSessionId = useAIUIStore((state) => state.currentSessionId);
@@ -105,7 +112,8 @@ export function ChatView({ mode = 'full', active = true }: ChatViewProps) {
   );
   
   const isEmpty = !currentSessionId || (isMessagesLoaded && messages.length === 0);
-  const { showInChatArea } = useTemporaryTogglePresentation();
+  const { showInChatArea, showInTitleBar } = useTemporaryTogglePresentation();
+  const showEmbeddedTemporaryToggle = isEmbedded && (showInChatArea || showInTitleBar);
 
   const { containerRef, handleNewUserMessage, spacerHeight } = useMessageAutoscroll({
       messages,
@@ -211,6 +219,34 @@ export function ChatView({ mode = 'full', active = true }: ChatViewProps) {
   }, [isEmbedded, isSessionActive, stop]);
 
   useEffect(() => {
+    if (!isEmbedded || !isEmbeddedSidebarOpen) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key !== 'Escape' ||
+        event.shiftKey ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey
+      ) {
+        return;
+      }
+
+      if (isEventInsideDialog(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+      setIsEmbeddedSidebarOpen(false);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isEmbedded, isEmbeddedSidebarOpen]);
+
+  useEffect(() => {
     if (!isEmbedded || !pendingComposerInsert) {
       return;
     }
@@ -287,6 +323,14 @@ export function ChatView({ mode = 'full', active = true }: ChatViewProps) {
     }
   });
 
+  const openEmbeddedSidebar = useCallback(() => {
+    setIsEmbeddedSidebarOpen(true);
+  }, []);
+
+  const closeEmbeddedSidebar = useCallback(() => {
+    setIsEmbeddedSidebarOpen(false);
+  }, []);
+
   if (!loaded) return null;
 
   return (
@@ -295,8 +339,113 @@ export function ChatView({ mode = 'full', active = true }: ChatViewProps) {
       className="h-full w-full flex flex-col bg-[var(--vlaina-bg-primary)] relative overflow-hidden"
       onMouseDownCapture={handleChatAreaMouseDownCapture}
     >
-      {showInChatArea && (
-        <div className="absolute top-3 right-4 z-30 pointer-events-auto">
+      {isEmbedded && (
+        <div className="relative z-20 flex h-10 flex-none items-center gap-2 bg-[var(--vlaina-bg-primary)] px-3">
+          <button
+            type="button"
+            aria-label="Open Spark sidebar"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              openEmbeddedSidebar();
+            }}
+            className="group flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[var(--chat-sidebar-text)] transition-colors hover:bg-[var(--vlaina-bg-primary)] hover:text-[var(--chat-sidebar-text)] dark:hover:bg-white/10"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="lucide lucide-text-align-start-icon lucide-text-align-start size-5 group-hover:hidden"
+            >
+              <path d="M21 5H3" />
+              <path d="M15 12H3" />
+              <path d="M17 19H3" />
+            </svg>
+            <Icon name="nav.expand" size="titlebarToggle" className="hidden group-hover:block" />
+          </button>
+
+          <div className="min-w-0">
+            <ModelSelector
+              dropdownPlacement="bottom"
+              dropdownAlign="right"
+              isEmbedded
+            />
+          </div>
+
+          <div className="ml-auto flex h-8 items-center">
+            {showEmbeddedTemporaryToggle && (
+              <TemporaryChatToggle mode={showInTitleBar ? 'promote' : 'toggle'} />
+            )}
+          </div>
+        </div>
+      )}
+
+      {isEmbedded && onCloseEmbeddedPanel && (
+        <button
+          type="button"
+          aria-label="Close Spark panel"
+          onPointerDown={(event) => {
+            event.preventDefault();
+            onCloseEmbeddedPanel();
+          }}
+          className={cn(
+            "absolute bottom-3 left-3 z-30 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-[var(--chat-sidebar-text)] transition-colors hover:text-[var(--sidebar-row-selected-text)]",
+            chatComposerPillSurfaceClass
+          )}
+        >
+          <Icon name="nav.chevronRight" size="md" />
+        </button>
+      )}
+
+      <AnimatePresence>
+        {isEmbedded && isEmbeddedSidebarOpen && (
+          <div
+            className="absolute inset-0 z-40"
+            aria-hidden={!isEmbeddedSidebarOpen}
+            onMouseDownCapture={(event) => event.stopPropagation()}
+          >
+            <motion.button
+              type="button"
+              aria-label="Close Spark sidebar"
+              className="absolute inset-0 h-full w-full bg-black/[0.035]"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                closeEmbeddedSidebar();
+              }}
+            />
+            <motion.div
+              className="relative h-full transform-gpu overflow-hidden rounded-r-[48px] shadow-none will-change-transform"
+              style={{ width: 'min(clamp(16rem, 80%, 21rem), 86vw)' }}
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{
+                type: 'spring',
+                stiffness: 520,
+                damping: 44,
+                mass: 0.82,
+              }}
+            >
+              <ChatSidebar embedded onRequestClose={closeEmbeddedSidebar} />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {!isEmbedded && showInChatArea && (
+        <div className={cn(
+          "absolute right-4 z-30 pointer-events-auto",
+          "top-3"
+        )}>
           <TemporaryChatToggle />
         </div>
       )}
