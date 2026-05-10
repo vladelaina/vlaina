@@ -6,6 +6,7 @@ import { RootFolderMenu } from './RootFolderMenu';
 const hoisted = vi.hoisted(() => ({
   closeVault: vi.fn(() => Promise.resolve(true)),
   handleCopyPath: vi.fn(() => Promise.resolve()),
+  handleOpenInNewWindow: vi.fn(() => Promise.resolve()),
   handleOpenLocation: vi.fn(() => Promise.resolve()),
 }));
 
@@ -22,6 +23,7 @@ vi.mock('@/stores/useVaultStore', () => ({
 vi.mock('../FileTree/hooks/useTreeItemPathActions', () => ({
   useTreeItemPathActions: () => ({
     handleCopyPath: hoisted.handleCopyPath,
+    handleOpenInNewWindow: hoisted.handleOpenInNewWindow,
     handleOpenLocation: hoisted.handleOpenLocation,
   }),
 }));

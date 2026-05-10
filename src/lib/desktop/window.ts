@@ -71,6 +71,8 @@ export const desktopWindow = {
   create(options?: {
     vaultPath?: string | null;
     notePath?: string | null;
+    folderPath?: string | null;
+    chatSessionId?: string | null;
     viewMode?: WindowLaunchViewMode | null;
   }) {
     return getWindowApi()?.create(options) ?? Promise.resolve();

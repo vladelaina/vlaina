@@ -4,12 +4,16 @@ export interface WindowLaunchContext {
   isNewWindow: boolean;
   vaultPath: string | null;
   notePath: string | null;
+  folderPath: string | null;
+  chatSessionId: string | null;
   viewMode: WindowLaunchViewMode | null;
 }
 
 interface WindowLaunchTarget {
   vaultPath?: string | null;
   notePath?: string | null;
+  folderPath?: string | null;
+  chatSessionId?: string | null;
   viewMode?: WindowLaunchViewMode | null;
 }
 
@@ -33,6 +37,8 @@ export function readWindowLaunchContext(search: string = window.location.search)
     isNewWindow: params.get('newWindow') === 'true',
     vaultPath: normalizeLaunchValue(params.get('vaultPath')),
     notePath: normalizeLaunchValue(params.get('notePath')),
+    folderPath: normalizeLaunchValue(params.get('folderPath')),
+    chatSessionId: normalizeLaunchValue(params.get('chatSessionId')),
     viewMode: normalizeLaunchViewMode(params.get('viewMode')),
   };
 }
@@ -49,6 +55,16 @@ export function buildWindowLaunchSearch(target: WindowLaunchTarget = {}) {
   const notePath = normalizeLaunchValue(target.notePath);
   if (notePath) {
     params.set('notePath', notePath);
+  }
+
+  const folderPath = normalizeLaunchValue(target.folderPath);
+  if (folderPath) {
+    params.set('folderPath', folderPath);
+  }
+
+  const chatSessionId = normalizeLaunchValue(target.chatSessionId);
+  if (chatSessionId) {
+    params.set('chatSessionId', chatSessionId);
   }
 
   const viewMode = normalizeLaunchViewMode(target.viewMode);

@@ -4,6 +4,25 @@ import type { ChatSession } from '@/lib/ai/types';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { ChatSidebarSessionRow } from './ChatSidebarSessionRow';
 
+const mocked = vi.hoisted(() => ({
+  createWindow: vi.fn(() => Promise.resolve()),
+  openNewChat: vi.fn(),
+  prefetchSession: vi.fn(),
+}));
+
+vi.mock('@/lib/desktop/window', () => ({
+  desktopWindow: {
+    create: mocked.createWindow,
+  },
+}));
+
+vi.mock('@/stores/useAIStore', () => ({
+  actions: {
+    openNewChat: mocked.openNewChat,
+    prefetchSession: mocked.prefetchSession,
+  },
+}));
+
 function buildSession(overrides: Partial<ChatSession> = {}): ChatSession {
   return {
     id: 'session-1',
@@ -38,6 +57,7 @@ function renderRow(overrides: Partial<Parameters<typeof ChatSidebarSessionRow>[0
 
 describe('ChatSidebarSessionRow', () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     useAIUIStore.setState({
       generatingSessions: {},
       unreadSessions: {},
@@ -58,6 +78,44 @@ describe('ChatSidebarSessionRow', () => {
     fireEvent.click(screen.getByLabelText('Open chat session menu'));
 
     expect(props.onSwitch).not.toHaveBeenCalled();
+  });
+
+  it('opens a chat session in a new window and clears the current window', () => {
+    renderRow({ isActive: true });
+
+    fireEvent.contextMenu(screen.getByText('Alpha chat'));
+    fireEvent.click(screen.getByText('Open in New Window'));
+
+    expect(mocked.createWindow).toHaveBeenCalledWith({
+      viewMode: 'chat',
+      chatSessionId: 'session-1',
+    });
+    expect(mocked.openNewChat).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the current window unchanged when opening an inactive session in a new window', () => {
+    renderRow({ isActive: false });
+
+    fireEvent.contextMenu(screen.getByText('Alpha chat'));
+    fireEvent.click(screen.getByText('Open in New Window'));
+
+    expect(mocked.createWindow).toHaveBeenCalledWith({
+      viewMode: 'chat',
+      chatSessionId: 'session-1',
+    });
+    expect(mocked.openNewChat).not.toHaveBeenCalled();
+  });
+
+  it('places open in new window below pin in the context menu', () => {
+    renderRow();
+
+    fireEvent.contextMenu(screen.getByText('Alpha chat'));
+
+    const pin = screen.getByText('Pin');
+    const openInNewWindow = screen.getByText('Open in New Window');
+
+    expect(pin.compareDocumentPosition(openInNewWindow) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
   });
 
   it('opens the session menu from right click without switching sessions', () => {

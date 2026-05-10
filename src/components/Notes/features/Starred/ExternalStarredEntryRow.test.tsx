@@ -6,6 +6,7 @@ const mocked = vi.hoisted(() => ({
   starredIcon: undefined as string | undefined,
   contextMenuEntries: [] as Array<{ key?: string; kind?: string; label?: string; children?: Array<{ key?: string; label?: string }> }>,
   handleCopyPath: vi.fn(),
+  handleOpenInNewWindow: vi.fn(),
   handleOpenLocation: vi.fn(),
 }));
 
@@ -56,6 +57,7 @@ vi.mock('./useStarredEntryIcon', () => ({
 vi.mock('../FileTree/hooks/useTreeItemPathActions', () => ({
   useTreeItemPathActions: () => ({
     handleCopyPath: mocked.handleCopyPath,
+    handleOpenInNewWindow: mocked.handleOpenInNewWindow,
     handleOpenLocation: mocked.handleOpenLocation,
   }),
 }));
@@ -65,6 +67,7 @@ describe('ExternalStarredEntryRow', () => {
     mocked.starredIcon = undefined;
     mocked.contextMenuEntries = [];
     mocked.handleCopyPath.mockReset();
+    mocked.handleOpenInNewWindow.mockReset();
     mocked.handleOpenLocation.mockReset();
   });
 
@@ -136,7 +139,13 @@ describe('ExternalStarredEntryRow', () => {
     expect(moreEntry?.children).toEqual(expect.arrayContaining([
       expect.objectContaining({ key: 'copy-path', label: 'Copy Path' }),
       expect.objectContaining({ key: 'open-location', label: 'Open File Location' }),
+      expect.objectContaining({ key: 'open-new-window', label: 'Open in New Window' }),
     ]));
+    expect(moreEntry?.children?.map((entry) => entry.key)).toEqual([
+      'copy-path',
+      'open-new-window',
+      'open-location',
+    ]);
   });
 
   it('uses the folder location label for starred folders', () => {

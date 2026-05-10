@@ -34,8 +34,10 @@ const mocked = vi.hoisted(() => {
     flushPendingSessionJsonSaves: vi.fn(async () => {}),
     readWindowLaunchContext: vi.fn(() => ({
       isNewWindow: false,
-      vaultPath: null,
-      notePath: null,
+      vaultPath: null as string | null,
+      notePath: null as string | null,
+      folderPath: null as string | null,
+      chatSessionId: null as string | null,
       viewMode: null as 'notes' | 'chat' | 'lab' | null,
     })),
     requestAbort: vi.fn(),
@@ -179,6 +181,8 @@ describe('spark window selection isolation', () => {
       isNewWindow: false,
       vaultPath: null,
       notePath: null,
+      folderPath: null,
+      chatSessionId: null,
       viewMode: null,
     });
     seedStores();
@@ -223,6 +227,8 @@ describe('spark window selection isolation', () => {
       isNewWindow: true,
       vaultPath: null,
       notePath: null,
+      folderPath: null,
+      chatSessionId: null,
       viewMode: 'chat',
     });
 
@@ -242,6 +248,37 @@ describe('spark window selection isolation', () => {
     const { result, unmount } = hook!;
 
     expect(result.current.currentSessionId).toBe(null);
+    expect(result.current.temporaryChatEnabled).toBe(false);
+    expect(useUnifiedStore.getState().data.ai?.currentSessionId).toBe('session-1');
+    unmount();
+  });
+
+  it('initializes a new spark window with the requested chat session locally', async () => {
+    mocked.readWindowLaunchContext.mockReturnValue({
+      isNewWindow: true,
+      vaultPath: null,
+      notePath: null,
+      folderPath: null,
+      chatSessionId: 'session-2',
+      viewMode: 'chat',
+    });
+
+    let hook:
+      | {
+          result: { current: ReturnType<typeof useAIStore> };
+          unmount: () => void;
+        }
+      | undefined;
+    await act(async () => {
+      hook = renderHook(() => {
+        useAIStoreRuntimeEffects();
+        return useAIStore();
+      });
+    });
+
+    const { result, unmount } = hook!;
+
+    expect(result.current.currentSessionId).toBe('session-2');
     expect(result.current.temporaryChatEnabled).toBe(false);
     expect(useUnifiedStore.getState().data.ai?.currentSessionId).toBe('session-1');
     unmount();

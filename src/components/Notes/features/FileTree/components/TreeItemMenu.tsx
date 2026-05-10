@@ -16,6 +16,7 @@ interface TreeItemMenuProps {
 
 interface TreeItemPathSubmenuOptions {
   onCopyPath: () => void | Promise<unknown>;
+  onOpenInNewWindow: () => void | Promise<unknown>;
   onOpenLocation: () => void | Promise<unknown>;
   openLocationLabel: string;
 }
@@ -40,6 +41,7 @@ export function createTreeItemStarEntry(
 
 export function createTreeItemPathSubmenu({
   onCopyPath,
+  onOpenInNewWindow,
   onOpenLocation,
   openLocationLabel,
 }: TreeItemPathSubmenuOptions): NotesSidebarMenuEntry {
@@ -54,6 +56,12 @@ export function createTreeItemPathSubmenu({
         icon: <Icon name="common.copy" size="md" />,
         label: 'Copy Path',
         onClick: onCopyPath,
+      },
+      {
+        key: 'open-new-window',
+        icon: <Icon name="file.folderOutput" size="md" />,
+        label: 'Open in New Window',
+        onClick: onOpenInNewWindow,
       },
       {
         key: 'open-location',

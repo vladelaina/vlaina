@@ -71,7 +71,7 @@ export const FolderItem = memo(function FolderItem({
   const notesPath = useNotesStore((state) => state.notesPath);
   const currentNotePath = useNotesStore((state) => state.currentNote?.path);
   const isCurrentNoteAncestor = isCurrentNoteInsideFolder(currentNotePath, node.path);
-  const { handleCopyPath, handleOpenLocation } = useTreeItemPathActions({
+  const { handleCopyPath, handleOpenInNewWindow, handleOpenLocation } = useTreeItemPathActions({
     notesPath,
     itemPath: node.path,
     openLocationErrorMessage: 'Failed to open folder location.',
@@ -109,6 +109,10 @@ export const FolderItem = memo(function FolderItem({
       onCopyPath: async () => {
         setShowMenu(false);
         await handleCopyPath();
+      },
+      onOpenInNewWindow: async () => {
+        setShowMenu(false);
+        await handleOpenInNewWindow('folder');
       },
       onOpenLocation: async () => {
         setShowMenu(false);

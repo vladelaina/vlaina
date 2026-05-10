@@ -124,6 +124,7 @@ import { FileDirectoryIcon } from './custom/mit/FileDirectoryIcon';
 import { FileDirectoryFillIcon } from './custom/mit/FileDirectoryFillIcon';
 import { FileDirectoryOpenFillIcon } from './custom/mit/FileDirectoryOpenFillIcon';
 import { FileDirectoryOpenArrowIcon } from './custom/mit/FileDirectoryOpenArrowIcon';
+import { FolderOutputIcon } from './custom/mit/FolderOutputIcon';
 
 export type IconSource = ComponentType<SVGProps<SVGSVGElement> & { size?: number | string }>;
 
@@ -213,6 +214,7 @@ export const icons: Record<string, IconSource> = {
   'file.folder': FileDirectoryFillIcon,
   'file.folderOpen': FileDirectoryOpenFillIcon,
   'file.folderOpenArrow': FileDirectoryOpenArrowIcon,
+  'file.folderOutput': FolderOutputIcon,
   'file.add': DocumentPlusIcon,
   'file.text': DocumentTextIcon,
   'file.image': PhotoIcon,

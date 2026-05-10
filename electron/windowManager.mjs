@@ -33,6 +33,14 @@ export function createWindowManager({
       params.set('notePath', windowOptions.notePath);
     }
 
+    if (windowOptions.folderPath) {
+      params.set('folderPath', windowOptions.folderPath);
+    }
+
+    if (windowOptions.chatSessionId) {
+      params.set('chatSessionId', windowOptions.chatSessionId);
+    }
+
     if (windowOptions.viewMode) {
       params.set('viewMode', windowOptions.viewMode);
     }
@@ -94,6 +102,8 @@ export function createWindowManager({
           newWindow: 'true',
           ...(windowOptions.vaultPath ? { vaultPath: windowOptions.vaultPath } : {}),
           ...(windowOptions.notePath ? { notePath: windowOptions.notePath } : {}),
+          ...(windowOptions.folderPath ? { folderPath: windowOptions.folderPath } : {}),
+          ...(windowOptions.chatSessionId ? { chatSessionId: windowOptions.chatSessionId } : {}),
           ...(windowOptions.viewMode ? { viewMode: windowOptions.viewMode } : {}),
         }).toString(),
       });

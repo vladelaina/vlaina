@@ -68,7 +68,7 @@ export const FileItem = memo(function FileItem({
   const isNewlyCreated = useNotesStore((state) => state.isNewlyCreated);
   const notesPath = useNotesStore((state) => state.notesPath);
   const prefetchNote = useNotesStore((state) => state.prefetchNote);
-  const { handleCopyPath, handleOpenLocation } = useTreeItemPathActions({
+  const { handleCopyPath, handleOpenInNewWindow, handleOpenLocation } = useTreeItemPathActions({
     notesPath,
     itemPath: node.path,
   });
@@ -120,6 +120,10 @@ export const FileItem = memo(function FileItem({
           onCopyPath: async () => {
             setShowMenu(false);
             await handleCopyPath();
+          },
+          onOpenInNewWindow: async () => {
+            setShowMenu(false);
+            await handleOpenInNewWindow('file');
           },
           onOpenLocation: async () => {
             setShowMenu(false);
