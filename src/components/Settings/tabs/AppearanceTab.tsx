@@ -35,31 +35,18 @@ export function AppearanceTab() {
 
   return (
     <div className="max-w-3xl pb-10">
-      <SettingsSectionHeader>Theme</SettingsSectionHeader>
+      <div className="mb-4 flex items-center justify-between px-2">
+        <span className="text-[13px] font-medium text-[var(--notes-sidebar-text-soft)]">
+          Font Size
+        </span>
+      </div>
 
       <SettingsItem
-        title="Color mode"
-        description="Choose your preferred color appearance"
-      >
-        <div className="w-64">
-          <SegmentedControl
-            options={[
- { value: 'light', label: 'Light', icon: <Icon size="md" name="theme.light" /> },
-            ]}
-            value={theme === 'light' ? theme : 'light'}
-            onChange={setTheme}
-          />
-        </div>
-      </SettingsItem>
-
-      <SettingsSectionHeader>Editor</SettingsSectionHeader>
-
-      <SettingsItem
-        title="Font size"
+        title="Base font size"
         description="Adjust the base font size for the application"
       >
         <div className="flex items-center gap-4">
- <Icon size="md" name="editor.type" className="text-[var(--chat-sidebar-icon)]" />
+          <Icon size="md" name="editor.type" className="text-[var(--notes-sidebar-text-soft)]" />
           <input
             type="range"
             spellCheck={false}
@@ -70,14 +57,14 @@ export function AppearanceTab() {
             onChange={handleFontSizeChange}
             className="w-32 h-1 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[var(--sidebar-row-selected-text)]"
           />
-          <span className="w-8 text-sm font-medium text-right tabular-nums text-[var(--chat-sidebar-text)]">
+          <span className="w-8 text-sm font-medium text-right tabular-nums text-[var(--notes-sidebar-text)]">
             {fontSize}px
           </span>
           <button
             type="button"
             onClick={resetFontSize}
             disabled={fontSize === DEFAULT_FONT_SIZE}
-            className="rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--sidebar-row-selected-text)] transition-colors hover:bg-[var(--sidebar-row-selected-bg)] disabled:pointer-events-none disabled:text-[var(--chat-sidebar-text-soft)] disabled:opacity-45 dark:hover:bg-[rgba(65,168,234,0.14)]"
+            className="rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--sidebar-row-selected-text)] transition-colors hover:bg-[var(--sidebar-row-selected-bg)] disabled:pointer-events-none disabled:text-[var(--notes-sidebar-text-soft)] disabled:opacity-45 dark:hover:bg-[rgba(65,168,234,0.14)]"
           >
             Reset
           </button>

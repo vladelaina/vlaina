@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { SettingsTextInput } from '@/components/Settings/components/SettingsFields';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { cn } from '@/lib/utils';
 
 const API_KEY_PREFIX_VISIBLE_CHARS = 7;
 const API_KEY_SUFFIX_VISIBLE_CHARS = 4;
@@ -64,79 +66,108 @@ export function ProviderConnectionFields({
   }, [apiKey.length, shouldShowRawApiKey]);
 
   return (
-    <section className="p-1">
-      <div className="grid grid-cols-1 gap-4">
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-medium text-gray-500">Channel Label</label>
-          <SettingsTextInput
-            type="text"
-            value={name}
-            onChange={(e) => onNameChange(e.target.value)}
-            placeholder="New Channel"
-          />
+    <section className={cn("overflow-hidden rounded-[26px] p-1 mb-2", chatComposerPillSurfaceClass)}>
+      <div className="flex flex-col">
+        {/* Channel Label */}
+        <div className="flex items-center gap-4 px-7 py-5 border-b border-transparent">
+          <div className="w-32 shrink-0">
+            <div className="text-[14px] font-semibold text-[var(--notes-sidebar-text)]">
+              Channel Name
+            </div>
+          </div>
+          <div className="flex-1">
+            <SettingsTextInput
+              type="text"
+              value={name}
+              onChange={(e) => onNameChange(e.target.value)}
+              placeholder="New Channel"
+              className="w-full max-w-[520px]"
+              inputClassName="h-10 px-5 rounded-xl text-[14px]"
+              shellClassName="rounded-xl shadow-none bg-zinc-100/50 dark:bg-white/5 border-transparent"
+            />
+          </div>
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-medium text-gray-500">Base URL</label>
-          <SettingsTextInput
-            type="text"
-            value={apiHost}
-            onChange={(e) => onApiHostChange(e.target.value)}
-            placeholder="https://api.openai.com"
-            name={`provider-api-host-${providerId}`}
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="none"
-            spellCheck={false}
-            data-lpignore="true"
-            data-1p-ignore="true"
-          />
+        {/* Base URL */}
+        <div className="flex items-center gap-4 px-7 py-5 border-b border-transparent">
+          <div className="w-32 shrink-0">
+            <div className="text-[14px] font-semibold text-[var(--notes-sidebar-text)]">
+              Base URL
+            </div>
+          </div>
+          <div className="flex-1">
+            <SettingsTextInput
+              type="text"
+              value={apiHost}
+              onChange={(e) => onApiHostChange(e.target.value)}
+              placeholder="https://api.openai.com"
+              name={`provider-api-host-${providerId}`}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              data-lpignore="true"
+              data-1p-ignore="true"
+              className="w-full max-w-[520px]"
+              inputClassName="h-10 px-5 rounded-xl text-[14px]"
+              shellClassName="rounded-xl shadow-none bg-zinc-100/50 dark:bg-white/5 border-transparent"
+            />
+          </div>
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-medium text-gray-500">API Key</label>
-          <SettingsTextInput
-            ref={apiKeyInputRef}
-            type="text"
-            value={shouldShowRawApiKey ? apiKey : maskApiKey(apiKey)}
-            onChange={(e) => onApiKeyChange(e.target.value)}
-            onFocus={() => {
-              if (!shouldShowRawApiKey && apiKey) {
-                shouldSelectApiKeyOnRevealRef.current = true;
-                onToggleApiKey();
+        {/* API Key */}
+        <div className="flex items-center gap-4 px-7 py-5">
+          <div className="w-32 shrink-0">
+            <div className="text-[14px] font-semibold text-[var(--notes-sidebar-text)]">
+              API Key
+            </div>
+          </div>
+          <div className="flex-1">
+            <SettingsTextInput
+              ref={apiKeyInputRef}
+              type="text"
+              value={shouldShowRawApiKey ? apiKey : maskApiKey(apiKey)}
+              onChange={(e) => onApiKeyChange(e.target.value)}
+              onFocus={() => {
+                if (!shouldShowRawApiKey && apiKey) {
+                  shouldSelectApiKeyOnRevealRef.current = true;
+                  onToggleApiKey();
+                }
+              }}
+              placeholder="sk-..."
+              name={`provider-api-key-${providerId}`}
+              autoComplete="new-password"
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              data-lpignore="true"
+              data-1p-ignore="true"
+              className="w-full max-w-[520px]"
+              inputClassName="h-10 px-5 rounded-xl text-[14px] font-mono"
+              shellClassName="rounded-xl shadow-none bg-zinc-100/50 dark:bg-white/5 border-transparent"
+              trailing={
+                <div className="flex items-center gap-1 pr-1">
+                  <button
+                    type="button"
+                    onClick={onToggleApiKey}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-zinc-200/50 hover:text-[var(--notes-sidebar-text)] dark:hover:bg-white/10"
+                    title={showApiKey ? 'Hide API Key' : 'Show API Key'}
+                  >
+                    <Icon name={showApiKey ? 'common.eyeOff' : 'common.eye'} size="sm" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onCopyApiKey}
+                    disabled={!apiKey}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-zinc-200/50 hover:text-[var(--notes-sidebar-text)] disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/10"
+                    title={apiKeyCopied ? 'Copied' : 'Copy API Key'}
+                  >
+                    <Icon name={apiKeyCopied ? 'common.check' : 'common.copy'} size="sm" />
+                  </button>
+                </div>
               }
-            }}
-            placeholder="sk-..."
-            name={`provider-api-key-${providerId}`}
-            autoComplete="new-password"
-            autoCorrect="off"
-            autoCapitalize="none"
-            spellCheck={false}
-            data-lpignore="true"
-            data-1p-ignore="true"
-            inputClassName="font-mono"
-            trailing={
-              <>
-                <button
-                  type="button"
-                  onClick={onToggleApiKey}
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-gray-200"
-                  title={showApiKey ? 'Hide API Key' : 'Show API Key'}
-                >
-                  <Icon name={showApiKey ? 'common.eyeOff' : 'common.eye'} size="sm" />
-                </button>
-                <button
-                  type="button"
-                  onClick={onCopyApiKey}
-                  disabled={!apiKey}
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/10 dark:hover:text-gray-200"
-                  title={apiKeyCopied ? 'Copied' : 'Copy API Key'}
-                >
-                  <Icon name={apiKeyCopied ? 'common.check' : 'common.copy'} size="sm" />
-                </button>
-              </>
-            }
-          />
+            />
+          </div>
         </div>
       </div>
     </section>

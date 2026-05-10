@@ -73,11 +73,11 @@ export function ActionButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'inline-flex items-center justify-center gap-1.5 rounded-full border text-[12px] font-medium transition-colors',
-        compact ? 'h-8 px-3' : 'h-9 px-3.5',
+        'inline-flex items-center justify-center gap-1.5 rounded-full border border-transparent text-[12px] font-semibold transition-all duration-200',
+        compact ? 'h-8 px-3' : 'h-9 px-4',
         muted
-          ? 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50'
-          : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50'
+          ? 'bg-white text-[var(--notes-sidebar-text-soft)] hover:bg-zinc-50 hover:text-[var(--notes-sidebar-text)] disabled:cursor-not-allowed disabled:opacity-50'
+          : 'bg-[var(--sidebar-row-selected-bg)] text-[var(--sidebar-row-selected-text)] hover:bg-[var(--sidebar-row-selected-bg)]/80 disabled:cursor-not-allowed disabled:opacity-50'
       )}
     >
       {busy ? (
@@ -108,9 +108,9 @@ export function SectionHeader({
   onAction?: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-2">
+    <div className="flex items-center justify-between gap-2 px-1">
       <div className="flex items-center gap-2">
-      <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+      <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--notes-sidebar-text-soft)]">
         {label}
       </div>
       <button
@@ -119,7 +119,7 @@ export function SectionHeader({
         onClick={() => {
           void onBenchmark();
         }}
-        className="flex h-5 w-5 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-35"
+        className="flex h-5 w-5 items-center justify-center rounded-full text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-zinc-100 hover:text-[var(--notes-sidebar-text)] disabled:cursor-not-allowed disabled:opacity-35"
       >
         {busy ? (
           <div className="h-3 w-3 rounded-full border-2 border-zinc-300 border-t-emerald-500 animate-spin" />
@@ -133,7 +133,7 @@ export function SectionHeader({
           type="button"
           disabled={actionDisabled}
           onClick={onAction}
-          className="h-6 rounded-full px-2.5 text-[11px] font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 disabled:cursor-not-allowed disabled:opacity-35"
+          className="h-6 rounded-full px-2.5 text-[11px] font-bold text-[var(--sidebar-row-selected-text)] transition-colors hover:bg-[var(--sidebar-row-selected-bg)] disabled:cursor-not-allowed disabled:opacity-35"
         >
           {actionLabel}
         </button>
@@ -159,23 +159,23 @@ export function ModelRow({
 }) {
   const tone = getHealthTone(health);
   const className = cn(
-    'flex items-center gap-3 rounded-[18px] border px-3.5 py-3 text-left',
-    selected && tone === 'neutral' && 'border-zinc-200 bg-zinc-50/90 text-zinc-900',
-    selected && tone === 'success' && 'border-emerald-300 bg-emerald-100 text-zinc-900',
-    selected && tone === 'warning' && 'border-amber-300 bg-amber-100 text-zinc-900',
-    selected && tone === 'error' && 'border-red-300 bg-red-100 text-zinc-900',
-    selected && tone === 'loading' && 'border-zinc-200 bg-zinc-50/90 text-zinc-900',
-    !selected && tone === 'neutral' && 'border-zinc-200/80 bg-white text-zinc-900',
-    !selected && tone === 'success' && 'border-emerald-300 bg-emerald-100/75 text-zinc-900',
-    !selected && tone === 'warning' && 'border-amber-300 bg-amber-100/75 text-zinc-900',
-    !selected && tone === 'error' && 'border-red-300 bg-red-100/75 text-zinc-900',
-    !selected && tone === 'loading' && 'border-zinc-200/80 bg-white text-zinc-900',
+    'flex items-center gap-3 rounded-[20px] border border-transparent px-4 py-3 text-left transition-all duration-200',
+    selected && tone === 'neutral' && 'bg-zinc-50/70 text-[var(--notes-sidebar-text)]',
+    selected && tone === 'success' && 'bg-emerald-50 text-[var(--notes-sidebar-text)]',
+    selected && tone === 'warning' && 'bg-amber-50 text-[var(--notes-sidebar-text)]',
+    selected && tone === 'error' && 'bg-red-50 text-[var(--notes-sidebar-text)]',
+    selected && tone === 'loading' && 'bg-zinc-50/70 text-[var(--notes-sidebar-text)]',
+    !selected && tone === 'neutral' && 'bg-zinc-100/40 text-[var(--notes-sidebar-text)] hover:bg-zinc-100/60',
+    !selected && tone === 'success' && 'bg-emerald-50/40 text-[var(--notes-sidebar-text)] hover:bg-emerald-50/60',
+    !selected && tone === 'warning' && 'bg-amber-50/40 text-[var(--notes-sidebar-text)] hover:bg-amber-50/60',
+    !selected && tone === 'error' && 'bg-red-50/40 text-[var(--notes-sidebar-text)] hover:bg-red-50/60',
+    !selected && tone === 'loading' && 'bg-zinc-100/40 text-[var(--notes-sidebar-text)]',
     onClick && 'cursor-pointer'
   );
 
   const content = (
     <>
-      <div className="min-w-0 flex-1 truncate text-[13px] font-medium">{model}</div>
+      <div className="min-w-0 flex-1 truncate text-[13px] font-semibold">{model}</div>
       <HealthBadge health={health} />
       <div className={cn('shrink-0', decorativeTrailing && 'pointer-events-none')}>{trailing}</div>
     </>

@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ReactNode } from 'react';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 interface SegmentedControlProps {
     options: { value: string; label: string; icon?: ReactNode }[];
@@ -77,18 +78,18 @@ interface SettingsItemProps {
 
 export function SettingsItem({ title, description, children }: SettingsItemProps) {
     return (
-        <div className="flex items-start justify-between py-5 border-b border-zinc-100 dark:border-white/5 last:border-0">
+        <div className={cn("flex items-center justify-between px-6 py-4 mb-3 rounded-[22px]", chatComposerPillSurfaceClass)}>
             <div className="flex-1 pr-8">
-                <div className="text-[14px] font-medium text-[var(--chat-sidebar-text)] mb-1 leading-snug">
+                <div className="text-[14px] font-semibold text-[var(--notes-sidebar-text)] mb-0.5">
                     {title}
                 </div>
                 {description && (
-                    <div className="text-[13px] text-[var(--chat-sidebar-text-soft)] leading-relaxed max-w-[420px]">
+                    <div className="text-[12px] text-[var(--notes-sidebar-text-soft)] leading-normal max-w-[420px]">
                         {description}
                     </div>
                 )}
             </div>
-            <div className="flex-shrink-0 pt-0.5">
+            <div className="flex-shrink-0">
                 {children}
             </div>
         </div>
@@ -97,8 +98,8 @@ export function SettingsItem({ title, description, children }: SettingsItemProps
 
 export function SettingsSectionHeader({ children }: { children: ReactNode }) {
     return (
-        <div className="mt-8 mb-2 pb-2">
-            <h3 className="text-[11px] font-bold text-[var(--chat-sidebar-text-soft)] uppercase tracking-widest">
+        <div className="mt-10 mb-4 px-2">
+            <h3 className="text-[14px] font-bold text-[var(--notes-sidebar-text-soft)] tracking-tight opacity-80">
                 {children}
             </h3>
         </div>

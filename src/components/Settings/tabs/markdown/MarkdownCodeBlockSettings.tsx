@@ -14,12 +14,15 @@ export function MarkdownCodeBlockSettings({
     <>
       <SettingsSectionHeader>Code Block</SettingsSectionHeader>
 
-      <SettingsItem title="Show line numbers">
-        <SettingsSwitch
-          checked={showLineNumbers}
-          onChange={onShowLineNumbersChange}
-        />
-      </SettingsItem>
+      <div className="space-y-1">
+        <SettingsItem title="Show line numbers">
+          <SettingsSwitch
+            checked={showLineNumbers}
+            onChange={onShowLineNumbersChange}
+            activeColor="bg-[var(--sidebar-row-selected-text)]"
+          />
+        </SettingsItem>
+      </div>
     </>
   );
 }
