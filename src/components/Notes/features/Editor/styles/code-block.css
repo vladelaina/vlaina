@@ -16,66 +16,38 @@
 .milkdown .code-block-container .cm-gutterElement,
 .milkdown .code-block-container .cm-lineNumbers,
 .milkdown .code-block-container .cm-gutter-filler {
-  background: transparent !important;
-  background-color: transparent !important;
+  background-color: var(--vlaina-code-block-background) !important;
   border: none !important;
+  border-right: none !important;
+  box-shadow: none !important;
 }
 
-.milkdown .code-block-container .cm-scroller {
-  overflow-x: auto;
-  cursor: default;
+/* CodeBlock Selection Styles */
+.milkdown .code-block-container.ProseMirror-selectednode,
+.milkdown .code-block-container.vlaina-block-selected,
+.milkdown .code-block-container[data-pm-selected='true'] {
+  --vlaina-block-selection-color: color-mix(in srgb, var(--vlaina-editor-block-selection-base, #1e96eb) 14%, transparent);
+  background-color: var(--vlaina-block-selection-color);
+  border-radius: 1rem;
+  box-shadow: none;
 }
 
-.milkdown .code-block-container .cm-content,
-.milkdown .code-block-container .cm-line {
-  cursor: text;
-}
-
-.milkdown .code-block-container .code-block-editable {
-  padding: 0.25rem 0 1rem;
-}
-
-.milkdown .code-block-container .cm-content {
-  padding: 0 !important;
-}
-
-.milkdown .code-block-container .cm-line {
-  padding: 0 1rem !important;
-}
-
-.milkdown .code-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
-  background: var(--vlaina-selection-bg, #2781db) !important;
-}
-
-.milkdown .code-block-container .cm-content::selection,
-.milkdown .code-block-container .cm-content *::selection,
-.milkdown .code-block-container .cm-line::selection,
-.milkdown .code-block-container .cm-line *::selection {
-  background: transparent !important;
-  color: inherit !important;
-  -webkit-text-fill-color: currentColor !important;
-}
-
-.milkdown .code-block-container .cm-content::-moz-selection,
-.milkdown .code-block-container .cm-content *::-moz-selection,
-.milkdown .code-block-container .cm-line::-moz-selection,
-.milkdown .code-block-container .cm-line *::-moz-selection {
-  background: transparent !important;
-  color: inherit !important;
-}
-
-.milkdown .code-block-container .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
-  background: transparent !important;
-}
-
-.milkdown .code-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
-  background: var(--vlaina-selection-bg, #2781db) !important;
-}
-
-.milkdown .code-block-container.ProseMirror-selectednode .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
-.milkdown .code-block-container.vlaina-block-selected .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
-.milkdown .code-block-container[data-pm-selected='true'] .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
-  background: transparent !important;
+.milkdown .code-block-container.ProseMirror-selectednode .cm-gutters,
+.milkdown .code-block-container.ProseMirror-selectednode .cm-gutter,
+.milkdown .code-block-container.ProseMirror-selectednode .cm-gutterElement,
+.milkdown .code-block-container.ProseMirror-selectednode .cm-lineNumbers,
+.milkdown .code-block-container.ProseMirror-selectednode .cm-gutter-filler,
+.milkdown .code-block-container.vlaina-block-selected .cm-gutters,
+.milkdown .code-block-container.vlaina-block-selected .cm-gutter,
+.milkdown .code-block-container.vlaina-block-selected .cm-gutterElement,
+.milkdown .code-block-container.vlaina-block-selected .cm-lineNumbers,
+.milkdown .code-block-container.vlaina-block-selected .cm-gutter-filler,
+.milkdown .code-block-container[data-pm-selected='true'] .cm-gutters,
+.milkdown .code-block-container[data-pm-selected='true'] .cm-gutter,
+.milkdown .code-block-container[data-pm-selected='true'] .cm-gutterElement,
+.milkdown .code-block-container[data-pm-selected='true'] .cm-lineNumbers,
+.milkdown .code-block-container[data-pm-selected='true'] .cm-gutter-filler {
+  background-color: color-mix(in srgb, var(--vlaina-code-block-background), var(--vlaina-block-selection-color)) !important;
 }
 
 .milkdown .code-block-container.ProseMirror-selectednode .cm-editor,
@@ -84,48 +56,20 @@
 .milkdown .code-block-container.ProseMirror-selectednode .cm-line,
 .milkdown .code-block-container.ProseMirror-selectednode .cm-activeLine,
 .milkdown .code-block-container.ProseMirror-selectednode .cm-activeLineGutter,
-.milkdown .code-block-container.ProseMirror-selectednode .cm-gutters,
-.milkdown .code-block-container.ProseMirror-selectednode .cm-gutter,
-.milkdown .code-block-container.ProseMirror-selectednode .cm-gutterElement,
-.milkdown .code-block-container.ProseMirror-selectednode .cm-lineNumbers,
-.milkdown .code-block-container.ProseMirror-selectednode .cm-gutter-filler,
 .milkdown .code-block-container.vlaina-block-selected .cm-editor,
 .milkdown .code-block-container.vlaina-block-selected .cm-scroller,
 .milkdown .code-block-container.vlaina-block-selected .cm-content,
 .milkdown .code-block-container.vlaina-block-selected .cm-line,
 .milkdown .code-block-container.vlaina-block-selected .cm-activeLine,
 .milkdown .code-block-container.vlaina-block-selected .cm-activeLineGutter,
-.milkdown .code-block-container.vlaina-block-selected .cm-gutters,
-.milkdown .code-block-container.vlaina-block-selected .cm-gutter,
-.milkdown .code-block-container.vlaina-block-selected .cm-gutterElement,
-.milkdown .code-block-container.vlaina-block-selected .cm-lineNumbers,
-.milkdown .code-block-container.vlaina-block-selected .cm-gutter-filler,
 .milkdown .code-block-container[data-pm-selected='true'] .cm-editor,
 .milkdown .code-block-container[data-pm-selected='true'] .cm-scroller,
 .milkdown .code-block-container[data-pm-selected='true'] .cm-content,
 .milkdown .code-block-container[data-pm-selected='true'] .cm-line,
 .milkdown .code-block-container[data-pm-selected='true'] .cm-activeLine,
-.milkdown .code-block-container[data-pm-selected='true'] .cm-activeLineGutter,
-.milkdown .code-block-container[data-pm-selected='true'] .cm-gutters,
-.milkdown .code-block-container[data-pm-selected='true'] .cm-gutter,
-.milkdown .code-block-container[data-pm-selected='true'] .cm-gutterElement,
-.milkdown .code-block-container[data-pm-selected='true'] .cm-lineNumbers,
-.milkdown .code-block-container[data-pm-selected='true'] .cm-gutter-filler {
+.milkdown .code-block-container[data-pm-selected='true'] .cm-activeLineGutter {
   background: transparent !important;
   background-color: transparent !important;
-}
-
-.milkdown .code-block-container .cm-focused {
-  outline: none;
-}
-
-.milkdown .code-block-container.ProseMirror-selectednode,
-.milkdown .code-block-container.vlaina-block-selected,
-.milkdown .code-block-container[data-pm-selected='true'] {
-  --vlaina-block-selection-color: color-mix(in srgb, var(--vlaina-editor-block-selection-base, #1e96eb) 14%, transparent);
-  background-color: var(--vlaina-block-selection-color);
-  border-radius: 1rem;
-  box-shadow: none;
 }
 
 .milkdown .ProseMirror li.vlaina-block-selected .code-block-container {
