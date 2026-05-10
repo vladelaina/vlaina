@@ -1,8 +1,9 @@
 import { useUIStore, type ImageStorageMode } from '@/stores/uiSlice';
 import { Icon, IconName } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
-import { SettingsSectionHeader } from '../components/SettingsControls';
+import { SettingsSectionHeader, SettingsItem } from '../components/SettingsControls';
 import { SettingsTextInput } from '../components/SettingsFields';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 interface StorageOption {
     id: ImageStorageMode;
@@ -47,127 +48,124 @@ export function ImagesTab() {
     const setImageVaultSubfolderName = useUIStore((s) => s.setImageVaultSubfolderName);
 
     return (
-        <div className="space-y-6">
-            <div className="space-y-3">
-                <SettingsSectionHeader>Images</SettingsSectionHeader>
-                <div className="flex items-baseline gap-2">
-                    <label className="text-[14px] font-medium text-[var(--chat-sidebar-text)]">
-                        Storage Location
-                    </label>
-                    <code className="text-[12px] text-[var(--chat-sidebar-text-soft)]">
-                        {imageStorageMode === 'vault' && 'vault/image.png'}
-                        {imageStorageMode === 'vaultSubfolder' && `vault/${imageVaultSubfolderName || 'assets'}/image.png`}
-                        {imageStorageMode === 'currentFolder' && 'vault/notes/image.png'}
-                        {imageStorageMode === 'subfolder' && `vault/notes/${imageSubfolderName || 'assets'}/image.png`}
-                    </code>
-                </div>
+        <div className="w-full">
+            <SettingsSectionHeader>Images</SettingsSectionHeader>
 
-                <div className="space-y-2">
-                    {storageOptions.map((option) => {
-                        const isSelected = imageStorageMode === option.id;
-
-                        return (
-                            <button
-                                type="button"
-                                key={option.id}
-                                onClick={() => setImageStorageMode(option.id)}
-                                className={cn(
-                                    "w-full flex items-start gap-3 rounded-xl border px-3 py-3 text-left transition-colors",
-                                    isSelected
-                                        ? "border-[var(--sidebar-row-selected-text)] bg-[var(--sidebar-row-selected-bg)] dark:bg-[rgba(65,168,234,0.14)]"
-                                        : "border-zinc-200/90 bg-white hover:border-zinc-300 dark:border-white/10 dark:bg-[#202020] dark:hover:border-white/15"
-                                )}
-                            >
-                                <div className={cn(
-                                    "mt-0.5 w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center flex-shrink-0",
-                                    isSelected
-                                        ? "border-[var(--sidebar-row-selected-text)] bg-[var(--sidebar-row-selected-text)]"
-                                        : "border-zinc-300 dark:border-zinc-600"
-                                )}>
-                                    {isSelected && (
-                                        <div className="w-1.5 h-1.5 rounded-full bg-white" />
-                                    )}
-                                </div>
-
-                                <Icon name={option.icon} className={cn(
-                                    "size-[18px] flex-shrink-0 mt-0.5",
-                                    isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--chat-sidebar-icon)]"
-                                )} />
-
-                                <div className="flex-1 min-w-0">
-                                    <div className={cn(
-                                        "text-sm font-medium",
-                                        isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--chat-sidebar-text)]"
-                                    )}>
-                                        {option.label}
-                                    </div>
-                                    <div className="text-xs text-[var(--chat-sidebar-text-soft)] mt-0.5">
-                                        {option.description}
-                                    </div>
-                                </div>
-                            </button>
-                        );
-                    })}
-                </div>
+            <div className="mb-4 flex items-center justify-between px-2">
+                <span className="text-[13px] font-medium text-[var(--notes-sidebar-text-soft)]">
+                    Storage Location
+                </span>
+                <code className="rounded-full bg-zinc-100 dark:bg-white/5 px-3 py-1 text-[11px] text-[var(--notes-sidebar-text-soft)]">
+                    {imageStorageMode === 'vault' && './image.png'}
+                    {imageStorageMode === 'vaultSubfolder' && `./${imageVaultSubfolderName || 'assets'}/image.png`}
+                    {imageStorageMode === 'currentFolder' && './image.png'}
+                    {imageStorageMode === 'subfolder' && `./${imageSubfolderName || 'assets'}/image.png`}
+                </code>
             </div>
 
-            {imageStorageMode === 'vaultSubfolder' && (
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <label className="text-sm font-medium text-[var(--chat-sidebar-text)]">
-                        Folder Name
-                    </label>
-                    <SettingsTextInput
-                        type="text"
-                        value={imageVaultSubfolderName}
-                        onChange={(e) => setImageVaultSubfolderName(e.target.value)}
-                        placeholder="assets"
-                    />
-                    <p className="text-xs text-[var(--chat-sidebar-text-soft)]">
-                        Images will be saved to <code className="px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800">{imageVaultSubfolderName || 'assets'}/</code> in the vault root
-                    </p>
+            <div className="space-y-2">
+                {storageOptions.map((option) => {
+                    const isSelected = imageStorageMode === option.id;
+
+                    return (
+                        <button
+                            type="button"
+                            key={option.id}
+                            onClick={() => setImageStorageMode(option.id)}
+                            className={cn(
+                                "group relative flex w-full items-center gap-4 rounded-[22px] px-6 py-4 text-left transition-all duration-200 border border-transparent",
+                                isSelected
+                                    ? "bg-[var(--sidebar-row-selected-bg)] dark:bg-[rgba(65,168,234,0.12)]"
+                                    : chatComposerPillSurfaceClass
+                            )}
+                        >
+                            <div className="flex-1 min-w-0">
+                                <div className={cn(
+                                    "text-[14px] font-semibold",
+                                    isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--notes-sidebar-text)]"
+                                )}>
+                                    {option.label}
+                                </div>
+                                <div className={cn(
+                                    "text-[12px] mt-0.5",
+                                    isSelected ? "text-[var(--sidebar-row-selected-text)]/80" : "text-[var(--notes-sidebar-text-soft)]"
+                                )}>
+                                    {option.description}
+                                </div>
+                            </div>
+                            
+                            <Icon name={option.icon} className={cn(
+                                "size-5 flex-shrink-0 transition-colors",
+                                isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--notes-sidebar-text-soft)]"
+                            )} />
+                        </button>
+                    );
+                })}
+            </div>
+
+            {(imageStorageMode === 'vaultSubfolder' || imageStorageMode === 'subfolder') && (
+                <div className="mt-6 space-y-4">
+                    {imageStorageMode === 'vaultSubfolder' && (
+                        <SettingsItem
+                            title="Folder Name"
+                            description={`Images will be saved to ${imageVaultSubfolderName || 'assets'}/ in the vault root.`}
+                        >
+                            <SettingsTextInput
+                                type="text"
+                                value={imageVaultSubfolderName}
+                                onChange={(e) => setImageVaultSubfolderName(e.target.value)}
+                                placeholder="assets"
+                                className="w-48"
+                                inputClassName="h-9 px-4 rounded-xl text-[13px]"
+                                shellClassName="rounded-xl shadow-none"
+                            />
+                        </SettingsItem>
+                    )}
+
+                    {imageStorageMode === 'subfolder' && (
+                        <SettingsItem
+                            title="Subfolder Name"
+                            description={`Images will be saved to ${imageSubfolderName || 'assets'}/ inside the current note's folder.`}
+                        >
+                            <SettingsTextInput
+                                type="text"
+                                value={imageSubfolderName}
+                                onChange={(e) => setImageSubfolderName(e.target.value)}
+                                placeholder="assets"
+                                className="w-48"
+                                inputClassName="h-9 px-4 rounded-xl text-[13px]"
+                                shellClassName="rounded-xl shadow-none"
+                            />
+                        </SettingsItem>
+                    )}
                 </div>
             )}
 
-            {imageStorageMode === 'subfolder' && (
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <label className="text-sm font-medium text-[var(--chat-sidebar-text)]">
-                        Subfolder Name
-                    </label>
-                    <SettingsTextInput
-                        type="text"
-                        value={imageSubfolderName}
-                        onChange={(e) => setImageSubfolderName(e.target.value)}
-                        placeholder="assets"
-                    />
-                    <p className="text-xs text-[var(--chat-sidebar-text-soft)]">
-                        Images will be saved to <code className="px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800">{imageSubfolderName || 'assets'}/</code> inside the current note's folder
-                    </p>
-                </div>
-            )}
-            <div className="space-y-3 pt-5 border-t border-zinc-100 dark:border-white/5">
-                <label className="text-[14px] font-medium text-[var(--chat-sidebar-text)]">
+            <div className="mt-8 mb-4 px-2">
+                <h3 className="text-[13px] font-medium text-[var(--notes-sidebar-text-soft)]">
                     Filename Format
-                </label>
-                <div className="space-y-2">
-                    <FilenameFormatOption
-                        id="original"
-                        label="Original Name"
-                        description="Keep the original filename"
-                        icon="common.tag"
-                    />
-                    <FilenameFormatOption
-                        id="sequence"
-                        label="Numeric Sequence"
-                        description="Use sequential numbers (e.g., 1.png, 2.png)"
-                        icon="editor.listOrdered"
-                    />
-                    <FilenameFormatOption
-                        id="timestamp"
-                        label="Timestamp"
-                        description="Use date and time (e.g., 2024-01-21_14-30-52.png)"
-                        icon="misc.clock"
-                    />
-                </div>
+                </h3>
+            </div>
+            
+            <div className="space-y-2">
+                <FilenameFormatOption
+                    id="original"
+                    label="Original Name"
+                    description="Keep the original filename"
+                    icon="common.tag"
+                />
+                <FilenameFormatOption
+                    id="sequence"
+                    label="Numeric Sequence"
+                    description="Use sequential numbers (e.g., 1.png, 2.png)"
+                    icon="editor.listOrdered"
+                />
+                <FilenameFormatOption
+                    id="timestamp"
+                    label="Timestamp"
+                    description="Use date and time (e.g., 2026-01-21_14-30-52.png)"
+                    icon="misc.clock"
+                />
             </div>
         </div>
     );
@@ -183,37 +181,31 @@ function FilenameFormatOption({ id, label, description, icon }: { id: 'original'
             type="button"
             onClick={() => setImageFilenameFormat(id)}
             className={cn(
-                "w-full flex items-center gap-3 p-2.5 rounded-lg border transition-all text-left",
+                "group relative flex w-full items-center gap-4 rounded-[22px] px-6 py-4 text-left transition-all duration-200 border border-transparent",
                 isSelected
-                    ? "border-[var(--sidebar-row-selected-text)] bg-[var(--sidebar-row-selected-bg)] dark:bg-[rgba(65,168,234,0.14)]"
-                    : "border-zinc-200/90 bg-white hover:border-zinc-300 dark:border-white/10 dark:bg-[#202020] dark:hover:border-white/15"
+                    ? "bg-[var(--sidebar-row-selected-bg)] dark:bg-[rgba(65,168,234,0.12)]"
+                    : chatComposerPillSurfaceClass
             )}
         >
-            <div className={cn(
-                "w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center flex-shrink-0",
-                isSelected
-                    ? "border-[var(--sidebar-row-selected-text)] bg-[var(--sidebar-row-selected-text)]"
-                    : "border-zinc-300 dark:border-zinc-600"
-            )}>
-                {isSelected && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-white" />
-                )}
-            </div>
-            <Icon name={icon} className={cn(
-                "size-[18px] flex-shrink-0",
-                isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--chat-sidebar-icon)]"
-            )} />
             <div className="flex-1 min-w-0">
                 <div className={cn(
-                    "text-sm font-medium",
-                    isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--chat-sidebar-text)]"
+                    "text-[14px] font-semibold",
+                    isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--notes-sidebar-text)]"
                 )}>
                     {label}
                 </div>
-                <div className="text-xs text-[var(--chat-sidebar-text-soft)]">
+                <div className={cn(
+                    "text-[12px] mt-0.5",
+                    isSelected ? "text-[var(--sidebar-row-selected-text)]/80" : "text-[var(--notes-sidebar-text-soft)]"
+                )}>
                     {description}
                 </div>
             </div>
+
+            <Icon name={icon} className={cn(
+                "size-5 flex-shrink-0 transition-colors",
+                isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--notes-sidebar-text-soft)]"
+            )} />
         </button>
     );
 }

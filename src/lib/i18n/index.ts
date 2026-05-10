@@ -3,6 +3,7 @@ export {
   DEFAULT_APP_LANGUAGE,
   SYSTEM_LANGUAGE_PREFERENCE,
   getEffectiveAppLanguage,
+  getBrowserLanguages,
   isAppLanguage,
   isAppLanguagePreference,
   normalizeAppLanguagePreference,

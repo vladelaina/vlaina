@@ -12,6 +12,7 @@ export const messageKeys = [
   'account.settings',
   'account.signIn',
   'account.switchAccount',
+  'common.system',
   'language.current',
 ] as const;
 
@@ -31,6 +32,7 @@ const englishMessages: Messages = {
   'account.settings': 'Settings',
   'account.signIn': 'Sign In',
   'account.switchAccount': 'Switch Account',
+  'common.system': 'System',
   'language.current': 'Current',
 };
 
@@ -47,6 +49,7 @@ const localizedMessages = {
     'account.settings': '设置',
     'account.signIn': '登录',
     'account.switchAccount': '切换账号',
+    'common.system': '系统默认',
     'language.current': '当前',
   },
   'zh-Hant': {
@@ -61,6 +64,7 @@ const localizedMessages = {
     'account.settings': '設定',
     'account.signIn': '登入',
     'account.switchAccount': '切換帳號',
+    'common.system': '系統默認',
     'language.current': '目前',
   },
   ja: {
@@ -75,6 +79,7 @@ const localizedMessages = {
     'account.settings': '設定',
     'account.signIn': 'サインイン',
     'account.switchAccount': 'アカウントを切り替え',
+    'common.system': 'システム',
     'language.current': '現在',
   },
   ko: {
@@ -89,6 +94,7 @@ const localizedMessages = {
     'account.settings': '설정',
     'account.signIn': '로그인',
     'account.switchAccount': '계정 전환',
+    'common.system': '시스템',
     'language.current': '현재',
   },
   fr: {
@@ -103,6 +109,7 @@ const localizedMessages = {
     'account.settings': 'Paramètres',
     'account.signIn': 'Se connecter',
     'account.switchAccount': 'Changer de compte',
+    'common.system': 'Système',
     'language.current': 'Actuel',
   },
   de: {
@@ -117,6 +124,7 @@ const localizedMessages = {
     'account.settings': 'Einstellungen',
     'account.signIn': 'Anmelden',
     'account.switchAccount': 'Konto wechseln',
+    'common.system': 'System',
     'language.current': 'Aktuell',
   },
   es: {
@@ -131,6 +139,7 @@ const localizedMessages = {
     'account.settings': 'Ajustes',
     'account.signIn': 'Iniciar sesión',
     'account.switchAccount': 'Cambiar cuenta',
+    'common.system': 'Sistema',
     'language.current': 'Actual',
   },
   'pt-BR': {
@@ -145,6 +154,7 @@ const localizedMessages = {
     'account.settings': 'Configurações',
     'account.signIn': 'Entrar',
     'account.switchAccount': 'Trocar conta',
+    'common.system': 'Sistema',
     'language.current': 'Atual',
   },
   it: {
@@ -159,6 +169,7 @@ const localizedMessages = {
     'account.settings': 'Impostazioni',
     'account.signIn': 'Accedi',
     'account.switchAccount': 'Cambia account',
+    'common.system': 'Sistema',
     'language.current': 'Attuale',
   },
   ru: {
@@ -173,6 +184,7 @@ const localizedMessages = {
     'account.settings': 'Настройки',
     'account.signIn': 'Войти',
     'account.switchAccount': 'Сменить аккаунт',
+    'common.system': 'Системный',
     'language.current': 'Текущий',
   },
   tr: {
@@ -187,6 +199,7 @@ const localizedMessages = {
     'account.settings': 'Ayarlar',
     'account.signIn': 'Oturum aç',
     'account.switchAccount': 'Hesap değiştir',
+    'common.system': 'Sistem',
     'language.current': 'Geçerli',
   },
   vi: {
@@ -201,6 +214,7 @@ const localizedMessages = {
     'account.settings': 'Cài đặt',
     'account.signIn': 'Đăng nhập',
     'account.switchAccount': 'Đổi tài khoản',
+    'common.system': 'Hệ thống',
     'language.current': 'Hiện tại',
   },
   id: {
@@ -215,6 +229,7 @@ const localizedMessages = {
     'account.settings': 'Pengaturan',
     'account.signIn': 'Masuk',
     'account.switchAccount': 'Ganti akun',
+    'common.system': 'Sistem',
     'language.current': 'Saat ini',
   },
   th: {
@@ -229,6 +244,7 @@ const localizedMessages = {
     'account.settings': 'การตั้งค่า',
     'account.signIn': 'ลงชื่อเข้าใช้',
     'account.switchAccount': 'สลับบัญชี',
+    'common.system': 'ระบบ',
     'language.current': 'ปัจจุบัน',
   },
 } satisfies Record<LocalizedAppLanguage, Messages>;

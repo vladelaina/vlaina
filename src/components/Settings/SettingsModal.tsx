@@ -16,6 +16,7 @@ import { SETTINGS_BEFORE_CLOSE_EVENT, SETTINGS_CLOSED_EVENT } from './settingsEv
 import {
   getSidebarIdleRowSurfaceClass,
   getSidebarSelectedRowSurfaceClass,
+  getSidebarLabelClass,
 } from '@/components/layout/sidebar/sidebarLabelStyles';
 
 interface SettingsModalProps {
@@ -106,7 +107,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 10 }}
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-              className="w-[1080px] h-[720px] max-w-full max-h-[90vh] bg-[#fcfcfc] dark:bg-[#1C1C1C] rounded-[16px] shadow-2xl flex overflow-hidden pointer-events-auto ring-1 ring-black/5 dark:ring-white/5 select-none"
+              className="w-[1080px] h-[720px] max-w-full max-h-[90vh] bg-[#fcfcfc] dark:bg-[#1C1C1C] rounded-[32px] shadow-2xl flex overflow-hidden pointer-events-auto ring-1 ring-black/5 dark:ring-white/5 select-none"
               onMouseDownCapture={(e) => {
                 if (e.button === 1) {
                   e.preventDefault();
@@ -122,24 +123,25 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               aria-modal="true"
               tabIndex={-1}
             >
-              <div className="w-[260px] flex-shrink-0 bg-[var(--vlaina-sidebar-bg)] flex flex-col text-[var(--chat-sidebar-text)]">
-                <div className="flex min-h-0 flex-1 px-3 pb-4 pt-6">
-                  <div className={cn('flex min-h-0 flex-1 flex-col rounded-[22px] p-1.5', chatComposerPillSurfaceClass)}>
+              {/* Sidebar Section */}
+              <div className="w-[260px] flex-shrink-0 bg-transparent flex flex-col border-r border-zinc-100/50 dark:border-white/5">
+                <div className="flex min-h-0 flex-1 px-4 pb-6 pt-10">
+                  <div className="flex min-h-0 flex-1 flex-col">
                     <div className="flex-1 overflow-y-auto vlaina-scrollbar">
                       {sidebarGroups.map((group) => (
-                        <div key={group.title}>
-                          <div className="space-y-[2px]">
+                        <div key={group.title} className="mb-8 last:mb-0">
+                          <div className="space-y-[6px]">
                             {group.items.map((item) => {
                               const isActive = activeTab === item.id;
                               return (
-                                <div key={item.id} className="group/chat-sidebar-row flex items-center py-[1px]">
+                                <div key={item.id} className="group/chat-sidebar-row flex items-center">
                                   <button
                                     onClick={() => setActiveTab(item.id)}
                                     className={cn(
-                                      "mx-1 flex min-h-9 w-full items-center gap-3 px-3 py-2 text-sm font-medium transition-all duration-150 ease-out",
+                                      "flex min-h-[44px] w-full items-center gap-3.5 px-4 py-3 text-sm transition-all duration-300 ease-out rounded-[18px]",
                                       isActive
-                                        ? getSidebarSelectedRowSurfaceClass('chat')
-                                        : getSidebarIdleRowSurfaceClass('chat')
+                                        ? "bg-[var(--sidebar-row-selected-bg)] text-[var(--sidebar-row-selected-text)] font-[550] shadow-[0_2px_8px_rgba(30,150,235,0.06)]"
+                                        : "text-[var(--notes-sidebar-text)] hover:bg-[var(--notes-sidebar-row-hover)] font-medium"
                                     )}
                                   >
                                     <span className="flex items-center justify-center">
@@ -147,13 +149,14 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                                         size="md"
                                         name={item.icon}
                                         className={cn(
+                                          "transition-all duration-300",
                                           isActive
-                                            ? "text-[var(--sidebar-row-selected-text)]"
-                                            : "text-[var(--chat-sidebar-icon)] group-hover/chat-sidebar-row:text-[var(--chat-sidebar-icon-hover)]"
+                                            ? "text-[var(--sidebar-row-selected-text)] scale-110"
+                                            : "text-[var(--notes-sidebar-text)]"
                                         )}
                                       />
                                     </span>
-                                    <span className="truncate text-[var(--chat-sidebar-text)]">{item.label}</span>
+                                    <span className="truncate tracking-tight">{item.label}</span>
                                   </button>
                                 </div>
                               );
@@ -166,26 +169,18 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 </div>
               </div>
 
-              <div className="flex-1 flex flex-col min-w-0 bg-[#fcfcfc] dark:bg-[#1E1E1E] relative text-[var(--chat-sidebar-text)]">
-                <div className="absolute top-3.5 right-5 z-20">
-                  <button
-                    onClick={handleClose}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-white/5 transition-colors duration-200"
-                  >
-                    <Icon name="common.close" className="w-5 h-5" />
-                  </button>
-                </div>
-
+              {/* Main Content Section */}
+              <div className="flex-1 flex flex-col min-w-0 bg-white/50 dark:bg-[#1E1E1E]/50 backdrop-blur-sm relative">
                 <div className="flex-1 overflow-y-auto w-full vlaina-scrollbar">
                   <div className={cn(
                     "w-full mx-auto",
                     activeTab === 'ai' 
                       ? "h-full" 
-                      : "px-12 py-10 max-w-[800px]"
+                      : "px-16 py-14 max-w-[860px]"
                   )}>
                     <div className={cn(
-                      "animate-in fade-in slide-in-from-bottom-2 duration-500",
-                      activeTab === 'ai' ? "h-full" : "space-y-8"
+                      "animate-in fade-in slide-in-from-bottom-3 duration-700 ease-out",
+                      activeTab === 'ai' ? "h-full" : "space-y-10"
                     )}>
                       {activeTab === 'about' && <AboutTab />}
                       {activeTab === 'markdown' && <MarkdownTab />}
