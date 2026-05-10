@@ -1,5 +1,9 @@
 import type { EditorState, Transaction } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
+import {
+  formatDebugBlockRanges,
+  logBlockSelectionDebug,
+} from './blockSelectionDebugLog';
 
 export interface RectBounds {
   left: number;
@@ -108,6 +112,51 @@ export function resolveIntersectedBlockRanges(
   return normalizeBlockRanges(selected);
 }
 
+export function preferNestedBlockRanges(ranges: readonly BlockRange[]): BlockRange[] {
+  const normalized = normalizeBlockRanges(ranges);
+  if (normalized.length <= 1) return normalized;
+
+  return normalized.filter((range) => !normalized.some((candidate) => (
+    candidate !== range
+    && candidate.from >= range.from
+    && candidate.to <= range.to
+    && (candidate.from > range.from || candidate.to < range.to)
+  )));
+}
+
+export function preferNestedBlockRangesUnlessHeaderIntersects(
+  ranges: readonly BlockRange[],
+  blocks: readonly BlockRect[],
+  selectionRect: RectBounds,
+): BlockRange[] {
+  const normalized = normalizeBlockRanges(ranges);
+  const nestedPreferred = preferNestedBlockRanges(normalized);
+  if (nestedPreferred.length === normalized.length) return nestedPreferred;
+
+  const shouldPreserveParent = normalized.some((parent) => {
+    const parentHasSelectedChild = nestedPreferred.some((child) => (
+      child.from >= parent.from
+      && child.to <= parent.to
+      && (child.from > parent.from || child.to < parent.to)
+    ));
+    if (!parentHasSelectedChild) return false;
+
+    const firstChildTop = blocks
+      .filter((block) => (
+        block.from >= parent.from
+        && block.to <= parent.to
+        && (block.from > parent.from || block.to < parent.to)
+      ))
+      .reduce<number | null>((top, block) => (
+        top === null ? block.top : Math.min(top, block.top)
+      ), null);
+
+    return firstChildTop !== null && selectionRect.top < firstChildTop;
+  });
+
+  return shouldPreserveParent ? pruneContainedBlockRanges(normalized) : nestedPreferred;
+}
+
 export function getBlockRangesKey(ranges: readonly BlockRange[]): string {
   if (ranges.length === 0) return '';
   return ranges.map((range) => `${range.from}:${range.to}`).join('|');
@@ -141,7 +190,10 @@ export function getDisplayBlockRangesForDecorations(
   doc: EditorState['doc'],
   blocks: readonly BlockRange[],
 ): BlockRange[] {
-  return normalizeBlockRanges(blocks.map((block) => {
+  logBlockSelectionDebug('decorations:input', {
+    blocks: formatDebugBlockRanges(blocks),
+  });
+  const result = normalizeBlockRanges(blocks.map((block) => {
     const safeFrom = Math.max(0, Math.min(block.from, doc.content.size));
     let from = block.from;
     let to = block.to;
@@ -149,9 +201,15 @@ export function getDisplayBlockRangesForDecorations(
     try {
       const $from = doc.resolve(safeFrom);
       const nodeAfter = $from.nodeAfter;
-      if (nodeAfter?.type.name === 'list_item') {
+      if (nodeAfter?.type.name === 'list_item' && to > from) {
         from = safeFrom;
         to = safeFrom + nodeAfter.nodeSize;
+        logBlockSelectionDebug('decorations:expand-list-item', {
+          block: `[${block.from},${block.to}]`,
+          expanded: `[${from},${to}]`,
+          nodeAfter: nodeAfter.type.name,
+          nodeAfterSize: nodeAfter.nodeSize,
+        });
       } else {
         const imageRange = resolveStandaloneImageBlockRange(doc, block);
         if (imageRange) {
@@ -164,6 +222,10 @@ export function getDisplayBlockRangesForDecorations(
 
     return { from, to };
   }));
+  logBlockSelectionDebug('decorations:result', {
+    result: formatDebugBlockRanges(result),
+  });
+  return result;
 }
 
 export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks: readonly BlockRange[]): DecorationSet {

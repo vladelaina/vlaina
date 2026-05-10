@@ -11,6 +11,7 @@ interface SerializeSelectedBlocksOptions {
 
 const LIST_ITEM_MARKER_PATTERN = /^\s*(?:[-+*]|\d+[.)])\s+(?:\[(?: |x|X)\]\s+)?/;
 const ORDERED_LIST_ITEM_MARKER_PATTERN = /^(\s*)(\d+)([.)])(\s+(?:\[(?: |x|X)\]\s+)?)/;
+const FENCED_CODE_MARKER_PATTERN = /^([ \t]*)(`{3,}|~{3,})/;
 
 function resolveTopLevelBlockInfo(
   doc: EditorState['doc'],
@@ -89,6 +90,52 @@ function stripSingleListBlockMarker(text: string): string {
   return lines.join('\n');
 }
 
+function stripLineIndent(line: string, indent: string): string {
+  return indent.length > 0 && line.startsWith(indent)
+    ? line.slice(indent.length)
+    : line;
+}
+
+function normalizeSelectedFencedCodeIndent(text: string): string {
+  const lines = text.split('\n');
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const opening = FENCED_CODE_MARKER_PATTERN.exec(lines[index] ?? '');
+    if (!opening) continue;
+
+    const openingIndent = opening[1] ?? '';
+    const marker = opening[2] ?? '';
+    const markerChar = marker[0];
+    if (!markerChar) continue;
+
+    let closingIndex = -1;
+    let closingIndent = '';
+    for (let candidate = index + 1; candidate < lines.length; candidate += 1) {
+      const closingLine = lines[candidate] ?? '';
+      const closing = FENCED_CODE_MARKER_PATTERN.exec(closingLine);
+      if (!closing) continue;
+      const closingMarker = closing[2] ?? '';
+      if (closingMarker[0] !== markerChar || closingMarker.length < marker.length) continue;
+      closingIndex = candidate;
+      closingIndent = closing[1] ?? '';
+      break;
+    }
+
+    if (closingIndex === -1) continue;
+
+    const indentToStrip = openingIndent || closingIndent;
+    if (indentToStrip.length > 0) {
+      for (let lineIndex = index; lineIndex <= closingIndex; lineIndex += 1) {
+        lines[lineIndex] = stripLineIndent(lines[lineIndex] ?? '', indentToStrip);
+      }
+    }
+
+    index = closingIndex;
+  }
+
+  return lines.join('\n');
+}
+
 function serializeSingleListBlockWithoutMarker(
   state: EditorState,
   range: BlockRange,
@@ -101,15 +148,19 @@ function serializeSingleListBlockWithoutMarker(
 
   if (markdownSerializer) {
     try {
-      return stripSingleListBlockMarker(
-        normalizeSerializedMarkdownBlock(markdownSerializer(state.doc.cut(range.from, range.to)))
+      return normalizeSelectedFencedCodeIndent(
+        stripSingleListBlockMarker(
+          normalizeSerializedMarkdownBlock(markdownSerializer(state.doc.cut(range.from, range.to)))
+        )
       );
     } catch {
     }
   }
 
-  return stripSingleListBlockMarker(
-    normalizeSerializedMarkdownBlock(serializeSliceToText(state.doc.slice(range.from, range.to)))
+  return normalizeSelectedFencedCodeIndent(
+    stripSingleListBlockMarker(
+      normalizeSerializedMarkdownBlock(serializeSliceToText(state.doc.slice(range.from, range.to)))
+    )
   );
 }
 
@@ -178,7 +229,9 @@ export function serializeSelectedBlocksToText(
   if (markdownSerializer) {
     try {
       const markdownPieces = normalized
-        .map((block) => normalizeSerializedMarkdownBlock(markdownSerializer(state.doc.cut(block.from, block.to))));
+        .map((block) => normalizeSelectedFencedCodeIndent(
+          normalizeSerializedMarkdownBlock(markdownSerializer(state.doc.cut(block.from, block.to)))
+        ));
       return serializeLeadingFrontmatterMarkdown(
         joinSerializedBlockRanges(state.doc, normalized, markdownPieces)
       );
@@ -187,7 +240,9 @@ export function serializeSelectedBlocksToText(
   }
 
   const pieces = normalized
-    .map((block) => normalizeSerializedMarkdownBlock(serializeSliceToText(state.doc.slice(block.from, block.to))));
+    .map((block) => normalizeSelectedFencedCodeIndent(
+      normalizeSerializedMarkdownBlock(serializeSliceToText(state.doc.slice(block.from, block.to)))
+    ));
 
   return serializeLeadingFrontmatterMarkdown(
     joinSerializedBlockRanges(state.doc, normalized, pieces)

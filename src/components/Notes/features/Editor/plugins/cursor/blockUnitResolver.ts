@@ -10,6 +10,7 @@ import { resolveBlockElementAtPos, resolveTopLevelBlockElement } from './topLeve
 export interface SelectableBlockTarget {
   range: BlockRange;
   element: HTMLElement;
+  subElement?: HTMLElement;
   rect: DOMRect;
 }
 
@@ -40,26 +41,44 @@ function resolveTopLevelNodeAtPos(
 
 function collectListItemRanges(node: EditorState['doc'], itemFrom: number, ranges: BlockRange[]): void {
   const contentFrom = itemFrom + 1;
-  let headTo = itemFrom + node.nodeSize;
+  let firstChild = true;
+  let headerRangeTo: number | null = null;
 
   node.forEach((child, childOffset) => {
-    if (!isListContainerNode(child.type.name)) return;
-    const candidateHeadTo = contentFrom + childOffset;
-    if (candidateHeadTo > itemFrom && candidateHeadTo < headTo) {
-      headTo = candidateHeadTo;
+    const childFrom = contentFrom + childOffset;
+    const isList = isListContainerNode(child.type.name);
+
+    if (isList) {
+      if (headerRangeTo !== null) {
+        ranges.push({ from: itemFrom, to: headerRangeTo });
+        headerRangeTo = null;
+      }
+      collectListContainerRanges(child, childFrom, ranges);
+    } else {
+      const isComplexBlock = child.type.name === 'code_block' || child.type.name === 'image';
+
+      if (firstChild) {
+        if (isComplexBlock) {
+          ranges.push({ from: itemFrom, to: childFrom });
+          ranges.push({ from: childFrom, to: childFrom + child.nodeSize });
+        } else {
+          headerRangeTo = childFrom + child.nodeSize;
+        }
+        firstChild = false;
+      } else if (headerRangeTo !== null && isComplexBlock) {
+        ranges.push({ from: childFrom, to: childFrom + child.nodeSize });
+        headerRangeTo = childFrom + child.nodeSize;
+      } else {
+        ranges.push({ from: childFrom, to: childFrom + child.nodeSize });
+      }
     }
   });
 
-  ranges.push({
-    from: itemFrom,
-    to: headTo,
-  });
-
-  node.forEach((child, childOffset) => {
-    if (!isListContainerNode(child.type.name)) return;
-    const listFrom = contentFrom + childOffset;
-    collectListContainerRanges(child, listFrom, ranges);
-  });
+  if (headerRangeTo !== null) {
+    ranges.push({ from: itemFrom, to: itemFrom + node.nodeSize });
+  } else if (firstChild) {
+    ranges.push({ from: itemFrom, to: itemFrom + node.nodeSize });
+  }
 }
 
 function collectListContainerRanges(node: EditorState['doc'], listFrom: number, ranges: BlockRange[]): void {
@@ -155,12 +174,28 @@ function resolveStandaloneImageElement(view: EditorView, range: BlockRange): HTM
   return null;
 }
 
+function resolveInListItemChildElement(view: EditorView, range: BlockRange): HTMLElement | null {
+  const safeFrom = Math.max(0, Math.min(range.from, view.state.doc.content.size));
+  try {
+    const $from = view.state.doc.resolve(safeFrom);
+    if ($from.parent.type.name !== 'list_item') return null;
+    const nodeDom = view.nodeDOM(range.from);
+    if (nodeDom instanceof HTMLElement && view.dom.contains(nodeDom)) return nodeDom;
+    if (nodeDom?.parentElement && view.dom.contains(nodeDom.parentElement)) return nodeDom.parentElement;
+  } catch {
+  }
+  return null;
+}
+
 function resolveRangeElement(view: EditorView, range: BlockRange): HTMLElement | null {
   const listItemTo = getListItemRangeEnd(view.state.doc, range.from);
   if (listItemTo !== null) {
     const element = resolveListItemElement(view, range.from, range.to);
     if (element) return element;
   }
+
+  const inListItemChild = resolveInListItemChildElement(view, range);
+  if (inListItemChild) return inListItemChild;
 
   const imageElement = resolveStandaloneImageElement(view, range);
   if (imageElement) return imageElement;
@@ -171,8 +206,18 @@ function resolveRangeElement(view: EditorView, range: BlockRange): HTMLElement |
   return resolveBlockElementAtPos(view, range.from);
 }
 
-function resolveTargetRect(element: HTMLElement): DOMRect {
+function resolveTargetRect(element: HTMLElement, range?: BlockRange, view?: EditorView): DOMRect {
   if (element.tagName !== 'LI') return element.getBoundingClientRect();
+
+  if (range && view) {
+    try {
+      const nodeDom = view.nodeDOM(range.from);
+      if (nodeDom instanceof HTMLElement && element.contains(nodeDom) && nodeDom !== element) {
+        return nodeDom.getBoundingClientRect();
+      }
+    } catch {
+    }
+  }
 
   const baseRect = element.getBoundingClientRect();
   const headElement = element.firstElementChild instanceof HTMLElement ? element.firstElementChild : null;
@@ -219,11 +264,30 @@ export function resolveSelectableBlockRange(doc: EditorState['doc'], pos: number
   const ranges = collectSelectableBlockRanges(doc);
   if (ranges.length === 0) return null;
 
+  let bestRange: BlockRange | null = null;
+  let minSize = Number.POSITIVE_INFINITY;
+
   for (const range of ranges) {
-    if (safePos >= range.from && safePos < range.to) return range;
-    if (safePos < range.from) return range;
+    if (safePos >= range.from && safePos < range.to) {
+      const size = range.to - range.from;
+      if (size < minSize) {
+        minSize = size;
+        bestRange = range;
+      }
+    }
   }
-  return ranges[ranges.length - 1];
+
+  if (bestRange) {
+    return bestRange;
+  }
+
+  for (const range of ranges) {
+    if (safePos < range.from) {
+      return range;
+    }
+  }
+  const last = ranges[ranges.length - 1];
+  return last;
 }
 
 export function mapRangesToSelectableBlocks(
@@ -272,9 +336,20 @@ export function resolveSelectableBlockTargetByPos(view: EditorView, blockPos: nu
   const element = resolveRangeElement(view, range);
   if (!element) return null;
 
-  const rect = resolveTargetRect(element);
+  let subElement: HTMLElement | undefined;
+  if (element.tagName === 'LI') {
+    try {
+      const nodeDom = view.nodeDOM(range.from);
+      if (nodeDom instanceof HTMLElement && element.contains(nodeDom) && nodeDom !== element) {
+        subElement = nodeDom;
+      }
+    } catch {
+    }
+  }
+
+  const rect = resolveTargetRect(element, range, view);
   if (rect.width <= 0 || rect.height <= 0) return null;
-  return { range, element, rect };
+  return { range, element, subElement, rect };
 }
 
 export function collectSelectableBlockTargets(
@@ -291,10 +366,21 @@ export function collectSelectableBlockTargets(
     const element = resolveRangeElement(view, range);
     if (!element) continue;
 
-    const rect = resolveTargetRect(element);
+    let subElement: HTMLElement | undefined;
+    if (element.tagName === 'LI') {
+      try {
+        const nodeDom = view.nodeDOM(range.from);
+        if (nodeDom instanceof HTMLElement && element.contains(nodeDom) && nodeDom !== element) {
+          subElement = nodeDom;
+        }
+      } catch {
+      }
+    }
+
+    const rect = resolveTargetRect(element, range, view);
     if (rect.width <= 0 || rect.height <= 0) continue;
 
-    targets.push({ range, element, rect });
+    targets.push({ range, element, subElement, rect });
   }
   return targets;
 }

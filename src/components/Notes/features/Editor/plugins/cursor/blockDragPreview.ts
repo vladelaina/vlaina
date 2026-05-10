@@ -44,7 +44,7 @@ function collectBlockElements(view: EditorView, ranges: readonly BlockRange[]): 
   const elements: HTMLElement[] = [];
   for (const range of ranges) {
     const target = resolveSelectableBlockTargetByPos(view, range.from);
-    const element = target?.element;
+    const element = target?.subElement ?? target?.element;
     if (!element) continue;
 
     const existingAncestorIndex = elements.findIndex((existing) => existing.contains(element));

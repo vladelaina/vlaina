@@ -5,6 +5,8 @@ import {
   convertBlockRectsToDocumentSpace,
   convertViewportDragRectToDocumentRect,
   getBlockRangesKey,
+  preferNestedBlockRanges,
+  preferNestedBlockRangesUnlessHeaderIntersects,
   resolveDisplayedDragViewportRect,
   resolveIntersectedBlockRanges,
   type BlockRange,
@@ -16,6 +18,11 @@ import {
 } from './blankAreaPlainClick';
 import { startBlockDragSession, type BlockDragSessionHandle, type BlockDragStartZone } from './blockDragSession';
 import { expandListItemHeaderRanges } from './blockUnitResolver';
+import {
+  formatDebugBlockRanges,
+  formatDebugRect,
+  logBlockSelectionDebug,
+} from './blockSelectionDebugLog';
 
 interface BlankAreaSelectionPlainClickResult {
   zone: BlockDragStartZone;
@@ -93,12 +100,22 @@ export function startBlankAreaSelectionSession(
     view,
     scrollRootSelector,
   });
+  logBlockSelectionDebug('select-session:start', {
+    startZone,
+    clientX: event.clientX,
+    clientY: event.clientY,
+    startScrollLeft,
+    startScrollTop,
+    initialSelectedBlocks: formatDebugBlockRanges(initialSelectedBlocks),
+  });
 
   let dragBox: HTMLDivElement | null = null;
   let selectedBlocksKey = getBlockRangesKey(initialSelectedBlocks);
   let pendingDragRect: RectBounds | null = null;
   let lastViewportDragRect: RectBounds | null = null;
   let dragMoveRafId = 0;
+  let preserveContainingBlocksForSession = false;
+  let didResolveFirstNonEmptySelection = false;
 
   const applyDragRectSelection = (viewportDragRect: RectBounds) => {
     const currentScrollLeft = scrollRoot?.scrollLeft ?? 0;
@@ -118,9 +135,30 @@ export function startBlankAreaSelectionSession(
       currentScrollTop,
     );
     const selectedBlocks = resolveIntersectedBlockRanges(docSpaceBlockRects, docSpaceDragRect);
-    const expandedBlocks = expandListItemHeaderRanges(view.state.doc, selectedBlocks);
+    if (!didResolveFirstNonEmptySelection && selectedBlocks.length > 0) {
+      didResolveFirstNonEmptySelection = true;
+      preserveContainingBlocksForSession = preferNestedBlockRanges(selectedBlocks).length === selectedBlocks.length;
+    }
+    const nestedPreferredBlocks = preserveContainingBlocksForSession
+      ? selectedBlocks
+      : preferNestedBlockRangesUnlessHeaderIntersects(selectedBlocks, docSpaceBlockRects, docSpaceDragRect);
+    const expandedBlocks = expandListItemHeaderRanges(view.state.doc, nestedPreferredBlocks);
+    logBlockSelectionDebug('select-session:apply-drag-rect', {
+      viewportRect: formatDebugRect(viewportDragRect),
+      docRect: formatDebugRect(docSpaceDragRect),
+      currentScrollLeft,
+      currentScrollTop,
+      blockRects: docSpaceBlockRects.map((rect) => `[${rect.from},${rect.to}] ${formatDebugRect(rect)}`).join(' | '),
+      selectedBlocks: formatDebugBlockRanges(selectedBlocks),
+      nestedPreferredBlocks: formatDebugBlockRanges(nestedPreferredBlocks),
+      expandedBlocks: formatDebugBlockRanges(expandedBlocks),
+      preserveContainingBlocksForSession,
+    });
     const nextKey = getBlockRangesKey(expandedBlocks);
-    if (nextKey === selectedBlocksKey) return;
+    if (nextKey === selectedBlocksKey) {
+      logBlockSelectionDebug('select-session:selection-unchanged', { key: nextKey });
+      return;
+    }
 
     selectedBlocksKey = nextKey;
     onSelectionChange(expandedBlocks);
@@ -178,6 +216,7 @@ export function startBlankAreaSelectionSession(
     dragThreshold,
     cursor,
     onActivate() {
+      logBlockSelectionDebug('select-session:activate');
       dragBox = createDragBox(doc, dragBoxColor);
       doc.body.appendChild(dragBox);
       window.getSelection()?.removeAllRanges();
@@ -185,6 +224,9 @@ export function startBlankAreaSelectionSession(
       view.focus();
     },
     onDragMove(dragRect) {
+      logBlockSelectionDebug('select-session:drag-move', {
+        viewportRect: formatDebugRect(dragRect),
+      });
       lastViewportDragRect = dragRect;
       const currentScrollLeft = scrollRoot?.scrollLeft ?? 0;
       const currentScrollTop = scrollRoot?.scrollTop ?? 0;
@@ -211,9 +253,14 @@ export function startBlankAreaSelectionSession(
           clientY: event.clientY,
         });
 
+      logBlockSelectionDebug('select-session:plain-click-resolved', {
+        zone,
+        action,
+      });
       onPlainClick({ zone, action });
     },
     onTeardown() {
+      logBlockSelectionDebug('select-session:teardown');
       flushPendingDragSelection();
       if (dragBox) {
         dragBox.remove();

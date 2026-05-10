@@ -208,6 +208,42 @@ describe('deleteSelectedBlocks', () => {
     await editor.destroy();
   });
 
+  it('removes only a selected code block inside a list item', async () => {
+    const editor = await createEditor(['- Item', '  ```ts', '  console.log(1)', '  ```', '- Next'].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+    const codeBlock = blocks.find((range) => view.state.doc.resolve(range.from).nodeAfter?.type.name === 'code_block');
+
+    expect(codeBlock).toBeDefined();
+    expect(deleteSelectedBlocks(view, [codeBlock!], (tr) => tr)).toBe(true);
+
+    expect(view.state.doc.textContent).toContain('Item');
+    expect(view.state.doc.textContent).toContain('Next');
+    expect(view.state.doc.textContent).not.toContain('console.log');
+    expect(view.state.doc.child(0).type.name).toBe('bullet_list');
+    expect(view.state.doc.child(0).childCount).toBe(2);
+
+    await editor.destroy();
+  });
+
+  it('removes a whole list item with its inner code block when the list item range is selected', async () => {
+    const editor = await createEditor(['- Item', '  ```ts', '  console.log(1)', '  ```', '- Next'].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+    const listItem = blocks.find((range) => view.state.doc.resolve(range.from).nodeAfter?.type.name === 'list_item');
+
+    expect(listItem).toBeDefined();
+    expect(deleteSelectedBlocks(view, [listItem!], (tr) => tr)).toBe(true);
+
+    expect(view.state.doc.textContent).not.toContain('Item');
+    expect(view.state.doc.textContent).not.toContain('console.log');
+    expect(view.state.doc.textContent).toContain('Next');
+    expect(view.state.doc.child(0).type.name).toBe('bullet_list');
+    expect(view.state.doc.child(0).childCount).toBe(1);
+
+    await editor.destroy();
+  });
+
   it('removes a selected empty paragraph between ordered and task lists', async () => {
     const editor = await createEditor('');
     const view = editor.ctx.get(editorViewCtx);

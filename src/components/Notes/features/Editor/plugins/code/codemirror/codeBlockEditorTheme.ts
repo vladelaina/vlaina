@@ -41,12 +41,18 @@ export function createCodeBlockEditorTheme() {
         padding: '0 1rem',
       },
       '.cm-gutters': {
-        backgroundColor: 'var(--vlaina-code-block-background, #f5f5f5)',
-        border: 'none',
+        position: 'sticky',
+        left: 0,
+        zIndex: 10,
         paddingLeft: '0.5rem',
+        backgroundColor: 'var(--vlaina-code-block-background, #f5f5f5) !important',
+        borderRight: 'none !important',
+        border: 'none !important',
       },
-      '.cm-gutters, .cm-gutter, .cm-gutterElement, .cm-lineNumbers, .cm-gutter-filler': {
-        backgroundColor: 'var(--vlaina-code-block-background, #f5f5f5)',
+      '.cm-gutter, .cm-lineNumbers, .cm-gutterElement, .cm-gutter-filler': {
+        backgroundColor: 'var(--vlaina-code-block-background, #f5f5f5) !important',
+        borderRight: 'none !important',
+        border: 'none !important',
       },
       '.cm-activeLine, .cm-activeLineGutter': {
         backgroundColor: 'transparent',

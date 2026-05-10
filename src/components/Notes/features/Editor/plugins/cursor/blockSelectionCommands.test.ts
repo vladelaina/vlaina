@@ -408,6 +408,94 @@ describe('serializeSelectedBlocksToText', () => {
     await editor.destroy();
   });
 
+  it('copies a code block inside a list item without including the list marker', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, ['- Item', '  ```ts', '  console.log(1)', '  ```'].join('\n'));
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+    const codeBlock = blocks.find((range) => view.state.doc.resolve(range.from).nodeAfter?.type.name === 'code_block');
+
+    expect(codeBlock).toBeDefined();
+    expect(serializeSelectedBlocksToText(view.state, [codeBlock!], { markdownSerializer: serializer })).toBe(
+      ['```ts', 'console.log(1)', '```'].join('\n')
+    );
+
+    await editor.destroy();
+  });
+
+  it('preserves intentional code indentation when copying a code block inside a list item', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, [
+          '- Item',
+          '  ```ts',
+          '  if (ok) {',
+          '    console.log(1)',
+          '  }',
+          '  ```',
+        ].join('\n'));
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+    const codeBlock = blocks.find((range) => view.state.doc.resolve(range.from).nodeAfter?.type.name === 'code_block');
+
+    expect(codeBlock).toBeDefined();
+    expect(serializeSelectedBlocksToText(view.state, [codeBlock!], { markdownSerializer: serializer })).toBe(
+      ['```ts', 'if (ok) {', '  console.log(1)', '}', '```'].join('\n')
+    );
+
+    await editor.destroy();
+  });
+
+  it('copies a whole list item with an inner code block as one list item body', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, ['- Item', '  ```ts', '  console.log(1)', '  ```'].join('\n'));
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+    const listItem = blocks.find((range) => view.state.doc.resolve(range.from).nodeAfter?.type.name === 'list_item');
+
+    expect(listItem).toBeDefined();
+    expect(serializeSelectedBlocksToText(view.state, [listItem!], { markdownSerializer: serializer })).toBe(
+      ['Item', '', '```ts', 'console.log(1)', '```'].join('\n')
+    );
+
+    await editor.destroy();
+  });
+
   it('copies selected diagram blocks as fenced Mermaid markdown', async () => {
     const editor = Editor.make()
       .config((ctx) => {

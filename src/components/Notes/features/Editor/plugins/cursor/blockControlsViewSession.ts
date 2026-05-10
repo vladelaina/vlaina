@@ -15,6 +15,10 @@ import {
   type DropTarget,
   type HandleBlockTarget,
 } from './blockControlsInteractions';
+import {
+  formatDebugBlockRanges,
+  logBlockSelectionDebug,
+} from './blockSelectionDebugLog';
 
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const CONTROLS_LEFT_OFFSET = 44;
@@ -118,14 +122,31 @@ export class BlockControlsViewSession {
   private updateDropTargetByPointer(clientX: number, clientY: number): boolean {
     const target = resolveDropTarget(this.view, clientX, clientY);
     if (!target) {
+      logBlockSelectionDebug('drag-handle:no-drop-target', {
+        clientX,
+        clientY,
+        draggedRanges: formatDebugBlockRanges(this.draggedRanges ?? []),
+      });
       this.hideDropIndicator();
       return false;
     }
     if (!this.draggedRanges || !canApplyBlockMove(this.view, this.draggedRanges, target.insertPos)) {
+      logBlockSelectionDebug('drag-handle:drop-target-rejected', {
+        clientX,
+        clientY,
+        target,
+        draggedRanges: formatDebugBlockRanges(this.draggedRanges ?? []),
+      });
       this.hideDropIndicator();
       return false;
     }
 
+    logBlockSelectionDebug('drag-handle:drop-target-accepted', {
+      clientX,
+      clientY,
+      target,
+      draggedRanges: formatDebugBlockRanges(this.draggedRanges),
+    });
     this.pendingDrop = target;
     this.dropIndicator.style.left = `${Math.round(target.lineLeft)}px`;
     this.dropIndicator.style.top = `${Math.round(target.lineY - 1)}px`;
@@ -143,7 +164,14 @@ export class BlockControlsViewSession {
   }
 
   private getCachedHandleTargets(): HandleBlockTarget[] {
-    const draggableRanges = getDraggableBlockRanges(this.view, this.getSelectedBlockRanges());
+    const selectedRanges = this.getSelectedBlockRanges();
+    logBlockSelectionDebug('drag-handle:resolve-targets', {
+      selectedRanges: formatDebugBlockRanges(selectedRanges),
+    });
+    const draggableRanges = getDraggableBlockRanges(this.view, selectedRanges);
+    logBlockSelectionDebug('drag-handle:draggable-ranges', {
+      draggableRanges: formatDebugBlockRanges(draggableRanges),
+    });
     if (draggableRanges.length === 0) return [];
 
     const selectionKey = getBlockRangesKey(draggableRanges);
@@ -165,6 +193,14 @@ export class BlockControlsViewSession {
     this.cachedTargets = draggableRanges
       .map((range) => resolveBlockTargetByPos(this.view, range.from))
       .filter((target): target is HandleBlockTarget => target !== null);
+    logBlockSelectionDebug('drag-handle:targets', {
+      targets: this.cachedTargets.map((target) => ({
+        pos: target.pos,
+        isListItem: target.isListItem,
+        top: Math.round(target.rect.top),
+        bottom: Math.round(target.rect.bottom),
+      })),
+    });
     return this.cachedTargets;
   }
 
@@ -206,7 +242,15 @@ export class BlockControlsViewSession {
 
   private readonly handleHandleMouseDown = (event: MouseEvent): void => {
     if (event.button !== 0) return;
-    const draggableRanges = getDraggableBlockRanges(this.view, this.getSelectedBlockRanges());
+    const selected = this.getSelectedBlockRanges();
+    const draggableRanges = getDraggableBlockRanges(this.view, selected);
+    logBlockSelectionDebug('drag-handle:mouse-down', {
+      selected: formatDebugBlockRanges(selected),
+      draggableRanges: formatDebugBlockRanges(draggableRanges),
+      clientX: event.clientX,
+      clientY: event.clientY,
+    });
+
     if (draggableRanges.length === 0) return;
 
     event.preventDefault();
@@ -298,8 +342,18 @@ export class BlockControlsViewSession {
       ? 0
       : Math.hypot(event.clientX - this.dragStartClientX, event.clientY - this.dragStartClientY);
     if (!this.pendingDrop || draggedDistance < MIN_DROP_DISTANCE_PX) {
+      logBlockSelectionDebug('drag-handle:mouse-up-cancelled', {
+        draggedRanges: formatDebugBlockRanges(this.draggedRanges),
+        pendingDrop: this.pendingDrop,
+        draggedDistance,
+      });
       this.finishDrag();
     } else {
+      logBlockSelectionDebug('drag-handle:apply-move', {
+        draggedRanges: formatDebugBlockRanges(this.draggedRanges),
+        pendingDrop: this.pendingDrop,
+        draggedDistance,
+      });
       applyBlockMove(this.view, this.draggedRanges, this.pendingDrop.insertPos);
       this.finishDrag();
     }
