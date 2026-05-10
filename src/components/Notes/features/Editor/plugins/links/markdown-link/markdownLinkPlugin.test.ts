@@ -33,6 +33,11 @@ describe('shouldHandleMarkdownLinkPaste', () => {
     expect(shouldHandleMarkdownLinkPaste('Read [Docs](https://example.com)')).toBe(true);
   });
 
+  it('does not handle standalone URLs as markdown links', () => {
+    expect(shouldHandleMarkdownLinkPaste('https://example.com')).toBe(false);
+    expect(shouldHandleMarkdownLinkPaste('http://example.test:8317')).toBe(false);
+  });
+
   it('handles localized markdown link text', () => {
     expect(shouldHandleMarkdownLinkPaste('阅读【文档】（https://example.com）')).toBe(true);
     expect(shouldHandleMarkdownLinkPaste('阅读[文档】（https://example.com)')).toBe(true);

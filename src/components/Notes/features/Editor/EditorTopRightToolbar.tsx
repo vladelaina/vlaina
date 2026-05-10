@@ -18,7 +18,7 @@ import { NoteEditorFindBar, type NoteEditorFindController } from './find';
 import { canStarNotePath } from '@/stores/notes/notePathState';
 import type { NoteExportFormat } from '../Export/noteExportTypes';
 import type { AppLanguage } from '@/lib/i18n/languages';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { MENU_PANEL_CLASS_NAME } from '@/components/layout/sidebar/context-menu/shared';
 
 interface EditorTopRightToolbarProps {
   editorFind: NoteEditorFindController;
@@ -61,8 +61,8 @@ const exportMenuItemClassName =
   'text-[var(--notes-sidebar-text)] transition-colors focus:bg-[var(--notes-sidebar-row-active)] focus:text-[var(--sidebar-row-selected-text)] data-[highlighted]:bg-[var(--notes-sidebar-row-active)] data-[highlighted]:text-[var(--sidebar-row-selected-text)] data-[state=open]:bg-[var(--notes-sidebar-row-active)] data-[state=open]:text-[var(--sidebar-row-selected-text)] [&>svg]:text-current';
 
 const noteMenuSurfaceClassName = cn(
-  'max-w-[calc(100vw-1rem)] !rounded-[26px] p-1.5 backdrop-blur-lg',
-  chatComposerPillSurfaceClass,
+  'vlaina-sidebar-menu-surface max-w-[calc(100vw-1rem)] backdrop-blur-lg',
+  MENU_PANEL_CLASS_NAME,
 );
 
 export function EditorTopRightToolbar({

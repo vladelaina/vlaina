@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { writeTextToClipboard } from '@/lib/clipboard';
+import { normalizeEscapedUrlSchemes } from '@/lib/notes/markdown/markdownSerializationUtils';
 
 export interface UseLinkStateProps {
     href: string;
@@ -91,10 +92,11 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
 
     const handleCopy = useCallback(() => {
         let copyText: string;
+        const normalizedHref = normalizeEscapedUrlSchemes(href);
         if (isAutolink) {
-            copyText = href;
+            copyText = normalizedHref;
         } else {
-            copyText = `[${initialText}](${href})`;
+            copyText = `[${initialText}](${normalizedHref})`;
         }
         void writeTextToClipboard(copyText).then((didCopy) => {
             if (!didCopy) return;

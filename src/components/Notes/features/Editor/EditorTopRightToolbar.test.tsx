@@ -3,7 +3,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EditorTopRightToolbar } from './EditorTopRightToolbar';
 import type { NoteEditorFindController } from './find';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { MENU_PANEL_CLASS_NAME } from '@/components/layout/sidebar/context-menu/shared';
 
 const mocks = vi.hoisted(() => ({
   addToast: vi.fn(),
@@ -25,7 +25,9 @@ vi.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenuSubContent: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
     <div data-testid="note-export-menu-content" className={className}>{children}</div>
   ),
-  DropdownMenuSubTrigger: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  DropdownMenuSubTrigger: ({ children, className }: { children?: React.ReactNode; className?: string }) => (
+    <div className={className}>{children}</div>
+  ),
   DropdownMenuTrigger: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
 }));
 
@@ -172,7 +174,7 @@ describe('EditorTopRightToolbar', () => {
     expect(mocks.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
   });
 
-  it('uses the shared composer pill surface for note info and export menus', () => {
+  it('uses the sidebar context menu surface for note info and export menus', () => {
     const { getByTestId } = render(
       <EditorTopRightToolbar
         editorFind={createEditorFindController()}
@@ -187,9 +189,28 @@ describe('EditorTopRightToolbar', () => {
       />,
     );
 
-    expect(getByTestId('note-menu-content').className).toContain(chatComposerPillSurfaceClass);
-    expect(getByTestId('note-menu-content').className).toContain('!rounded-[26px]');
-    expect(getByTestId('note-export-menu-content').className).toContain(chatComposerPillSurfaceClass);
-    expect(getByTestId('note-export-menu-content').className).toContain('!rounded-[26px]');
+    expect(getByTestId('note-menu-content').className).toContain(MENU_PANEL_CLASS_NAME);
+    expect(getByTestId('note-export-menu-content').className).toContain(MENU_PANEL_CLASS_NAME);
+    expect(getByTestId('note-menu-content').className).toContain('vlaina-sidebar-menu-surface');
+    expect(getByTestId('note-export-menu-content').className).toContain('vlaina-sidebar-menu-surface');
+  });
+
+  it('uses the sidebar selected surface for export previews', () => {
+    const { getByText } = render(
+      <EditorTopRightToolbar
+        editorFind={createEditorFindController()}
+        currentNotePath="docs/current.md"
+        currentNoteContent="# Current"
+        currentNoteTitle="Current"
+        notesPath="/vault"
+        starred={false}
+        toggleStarred={vi.fn()}
+        currentNoteMetadata={undefined}
+        textStats={{ lineCount: 1, wordCount: 2, characterCount: 3 }}
+      />,
+    );
+
+    expect(getByText('Export').className).toContain('data-[state=open]:bg-[var(--notes-sidebar-row-active)]');
+    expect(getByText('Export').className).toContain('data-[state=open]:text-[var(--sidebar-row-selected-text)]');
   });
 });

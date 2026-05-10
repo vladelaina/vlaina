@@ -60,12 +60,31 @@ const LIST_ITEM_LINE_PATTERN = /^(?: {0,3})(?:[-+*]|\d+[.)])\s+/;
 const MAX_CACHED_MARKDOWN_NORMALIZATION_LENGTH = 1_000_000;
 const ESCAPED_ABBR_DEFINITION_PATTERN = /^([ \t]*)\\\*(?:\\)?\[([^\]]+)]:/gm;
 const ESCAPED_HIGHLIGHT_PATTERN = /\\==([^=\n]+)==/g;
+const ESCAPED_URL_SCHEME_PATTERN = /\b([A-Za-z][A-Za-z0-9+.-]*)\\:(?=\/\/)/g;
+const MARKDOWN_AUTOLINK_LITERAL_PATTERN =
+  /<((?:https?:\/\/|mailto:)[^\s<>"']+|[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+)>/g;
 
 let lastNormalizedMarkdownInput: string | null = null;
 let lastNormalizedMarkdownOutput: string | null = null;
 
 function unescapeMarkdownPunctuation(text: string): string {
   return mapMarkdownOutsideProtectedBlocks(text, (line) => line.replace(MARKDOWN_ESCAPE_PATTERN, '$1'));
+}
+
+export function normalizeEscapedUrlSchemes(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
+    segment.replace(ESCAPED_URL_SCHEME_PATTERN, '$1:')
+  );
+}
+
+export function normalizeMarkdownAutolinkLiterals(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
+    segment.replace(MARKDOWN_AUTOLINK_LITERAL_PATTERN, '$1')
+  );
+}
+
+function normalizeUrlSerializationArtifacts(text: string): string {
+  return normalizeMarkdownAutolinkLiterals(normalizeEscapedUrlSchemes(text));
 }
 
 function stripEmptyMarkdownPlaceholders(text: string): string {
@@ -95,7 +114,9 @@ export function normalizeSerializedMarkdownBlock(text: string): string {
     normalizeUserBreakSentinels(stripEmptyMarkdownPlaceholders(normalizedPlaceholders))
   );
   if (BR_ONLY_PATTERN.test(withoutTrailingNewlines.trim())) return '';
-  return normalizeEscapedHighlightSyntax(unescapeMarkdownPunctuation(withoutTrailingNewlines));
+  return normalizeUrlSerializationArtifacts(
+    normalizeEscapedHighlightSyntax(unescapeMarkdownPunctuation(withoutTrailingNewlines))
+  );
 }
 
 export function normalizeSerializedMarkdownDocument(text: string): string {
@@ -144,7 +165,9 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
   const afterEscapedHighlight = normalizeEscapedHighlightSyntax(afterEmptyAtxHeadings);
   const afterAbbreviationDefinitions = normalizeEscapedAbbreviationDefinitions(afterEscapedHighlight);
   const afterTableCellBreaks = normalizeTableCellBreakPlaceholders(afterAbbreviationDefinitions);
-  const output = preserveParagraphSoftBreaksAsHardBreaks(afterTableCellBreaks);
+  const output = normalizeUrlSerializationArtifacts(
+    preserveParagraphSoftBreaksAsHardBreaks(afterTableCellBreaks)
+  );
 
   return {
     input: text,
@@ -362,5 +385,7 @@ export function normalizeSerializedMarkdownSelection(text: string): string {
     || (text.length > 0 && withoutTrailingNewlines.length === 0)
     || BR_ONLY_PATTERN.test(withoutTrailingNewlines.trim())
   ) return '\n';
-  return normalizeEscapedHighlightSyntax(unescapeMarkdownPunctuation(withoutTrailingNewlines));
+  return normalizeUrlSerializationArtifacts(
+    normalizeEscapedHighlightSyntax(unescapeMarkdownPunctuation(withoutTrailingNewlines))
+  );
 }

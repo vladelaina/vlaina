@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   joinSerializedBlocks,
+  normalizeEscapedUrlSchemes,
+  normalizeMarkdownAutolinkLiterals,
   normalizeSerializedMarkdownBlock,
   normalizeSerializedMarkdownDocument,
   normalizeSerializedMarkdownSelection,
@@ -11,6 +13,35 @@ describe('stripTrailingNewlines', () => {
   it('removes trailing newlines only', () => {
     expect(stripTrailingNewlines('abc\n\n')).toBe('abc');
     expect(stripTrailingNewlines('abc\nxyz')).toBe('abc\nxyz');
+  });
+});
+
+describe('normalizeEscapedUrlSchemes', () => {
+  it('removes markdown escaping from URL scheme separators', () => {
+    expect(normalizeEscapedUrlSchemes('http\\://example.test:8317')).toBe(
+      'http://example.test:8317'
+    );
+    expect(normalizeEscapedUrlSchemes('[site](https\\://example.com/a)')).toBe(
+      '[site](https://example.com/a)'
+    );
+  });
+
+  it('does not remove escaped colons from ordinary text', () => {
+    expect(normalizeEscapedUrlSchemes('label\\: value')).toBe('label\\: value');
+  });
+});
+
+describe('normalizeMarkdownAutolinkLiterals', () => {
+  it('unwraps markdown autolink URL literals outside protected content', () => {
+    expect(
+      normalizeMarkdownAutolinkLiterals('export GOOGLE_GEMINI_BASE_URL="<http://example.test:8317>"')
+    ).toBe('export GOOGLE_GEMINI_BASE_URL="http://example.test:8317"');
+  });
+
+  it('keeps angle-bracket URLs inside fenced code', () => {
+    const markdown = ['```sh', 'curl <http://example.test:8317>', '```'].join('\n');
+
+    expect(normalizeMarkdownAutolinkLiterals(markdown)).toBe(markdown);
   });
 });
 
@@ -44,6 +75,12 @@ describe('normalizeSerializedMarkdownBlock', () => {
 
   it('keeps normal markdown content', () => {
     expect(normalizeSerializedMarkdownBlock('# Title\n')).toBe('# Title');
+  });
+
+  it('restores escaped URL scheme separators in copied blocks', () => {
+    expect(normalizeSerializedMarkdownBlock('http\\://example.test:8317\n')).toBe(
+      'http://example.test:8317'
+    );
   });
 
   it('restores escaped highlight syntax in copied blocks outside protected content', () => {
@@ -208,6 +245,28 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(
       normalizeSerializedMarkdownDocument(['Before', '', '$$', 'a = b', 'c = d', '$$', '', 'After'].join('\n'))
     ).toBe(['Before', '', '$$', 'a = b', 'c = d', '$$', '', 'After'].join('\n'));
+  });
+
+  it('restores escaped URL scheme separators in persisted markdown', () => {
+    expect(normalizeSerializedMarkdownDocument('http\\://example.test:8317')).toBe(
+      'http://example.test:8317'
+    );
+  });
+
+  it('unwraps markdown autolink URL literals in persisted markdown', () => {
+    expect(
+      normalizeSerializedMarkdownDocument('export GOOGLE_GEMINI_BASE_URL="<http://example.test:8317>"')
+    ).toBe('export GOOGLE_GEMINI_BASE_URL="http://example.test:8317"');
+    expect(normalizeSerializedMarkdownDocument('<http://example.test:8317>')).toBe(
+      'http://example.test:8317'
+    );
+  });
+
+  it('does not rewrite escaped URL scheme separators inside fenced code', () => {
+    const markdown = ['```txt', 'http\\://example.test:8317', '```'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+    expect(normalizeEscapedUrlSchemes(markdown)).toBe(markdown);
   });
 
   it('converts internal blockquote br placeholders with serialized html variants', () => {
@@ -461,6 +520,18 @@ describe('normalizeSerializedMarkdownSelection', () => {
 
   it('restores escaped highlight syntax in copied selections', () => {
     expect(normalizeSerializedMarkdownSelection('\\==highlight==\n')).toBe('==highlight==');
+  });
+
+  it('restores escaped URL scheme separators in copied selections', () => {
+    expect(normalizeSerializedMarkdownSelection('http\\://example.test:8317\n')).toBe(
+      'http://example.test:8317'
+    );
+  });
+
+  it('unwraps markdown autolink URL literals in copied selections', () => {
+    expect(
+      normalizeSerializedMarkdownSelection('export GOOGLE_GEMINI_BASE_URL="<http://example.test:8317>"')
+    ).toBe('export GOOGLE_GEMINI_BASE_URL="http://example.test:8317"');
   });
 
   it('does not expose internal list gap sentinels in copied selections', () => {
