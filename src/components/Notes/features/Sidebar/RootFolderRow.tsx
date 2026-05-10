@@ -6,7 +6,10 @@ import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInl
 import { SidebarRowActionButton } from '@/components/layout/sidebar/SidebarRow';
 import { type FolderNode } from '@/stores/useNotesStore';
 import { cn, iconButtonStyles } from '@/lib/utils';
-import { getSidebarTextClass } from '@/components/layout/sidebar/sidebarLabelStyles';
+import {
+  getSidebarTextClass,
+  SIDEBAR_LABEL_TEXT_METRICS_CLASS,
+} from '@/components/layout/sidebar/sidebarLabelStyles';
 import { NotesSidebarList } from './NotesSidebarPrimitives';
 import { NotesSidebarRow } from './NotesSidebarRow';
 import { RootFolderMenu } from './RootFolderMenu';
@@ -275,7 +278,8 @@ export function RootFolderRow({
               onSubmit={handleRenameSubmit}
               onCancel={() => setIsRenaming(false)}
               className={cn(
-                'w-full min-w-0 border-none bg-transparent p-0 text-[16px] leading-5 outline-none',
+                'w-full min-w-0 border-none bg-transparent p-0 outline-none',
+                SIDEBAR_LABEL_TEXT_METRICS_CLASS,
                 getSidebarTextClass('notes')
               )}
             />

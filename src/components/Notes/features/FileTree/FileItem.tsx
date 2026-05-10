@@ -10,7 +10,11 @@ import { TreeItemDeleteDialog } from './components/TreeItemDeleteDialog';
 import { useFileItemState } from './hooks/useFileItemState';
 import { NoteIcon } from '../IconPicker/NoteIcon';
 import { cn } from '@/lib/utils';
-import { getSidebarLabelClass, getSidebarTextClass } from '@/components/layout/sidebar/sidebarLabelStyles';
+import {
+  getSidebarLabelClass,
+  getSidebarTextClass,
+  SIDEBAR_LABEL_TEXT_METRICS_CLASS,
+} from '@/components/layout/sidebar/sidebarLabelStyles';
 import { useSidebarHoverPrefetch } from '@/components/layout/sidebar/useSidebarHoverPrefetch';
 import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
 import { NoteDisambiguatedTitle } from '../common/noteDisambiguation';
@@ -186,7 +190,8 @@ export const FileItem = memo(function FileItem({
             onSubmit={handleRenameSubmit}
             onCancel={() => setIsRenaming(false)}
             className={cn(
-              'w-full min-w-0 border-none bg-transparent p-0 text-[16px] leading-5 outline-none',
+              'w-full min-w-0 border-none bg-transparent p-0 outline-none',
+              SIDEBAR_LABEL_TEXT_METRICS_CLASS,
               getSidebarLabelClass('notes', { selected: isActive || showMenu })
             )}
           />

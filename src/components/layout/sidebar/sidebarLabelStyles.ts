@@ -33,6 +33,7 @@ export const SIDEBAR_SELECTED_LABEL_WEIGHT_CLASS = 'font-[550]';
 export const SIDEBAR_EMPHASIZED_LABEL_WEIGHT_CLASS = 'font-medium';
 export const SIDEBAR_ACTION_BUTTON_WEIGHT_CLASS = 'font-normal';
 export const SIDEBAR_ROW_RADIUS_CLASS = 'rounded-xl';
+export const SIDEBAR_LABEL_TEXT_METRICS_CLASS = 'text-[16px] leading-5';
 
 export function getSidebarToneStyles(tone: SidebarTone) {
   return SIDEBAR_TONE_STYLES[tone];

@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import {
   getSidebarLabelClass,
   getSidebarSoftTextClass,
+  SIDEBAR_LABEL_TEXT_METRICS_CLASS,
 } from '@/components/layout/sidebar/sidebarLabelStyles';
 import { useNotesOutline } from './useNotesOutline';
 import { CollapseTriangleAffordance } from '../../common/collapseTrianglePrimitive';
@@ -104,7 +105,8 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
                   jumpToHeading(node.id);
                 }}
                 className={cn(
-                  'block w-full min-w-0 cursor-pointer truncate text-left',
+                  'block w-full min-w-0 cursor-pointer whitespace-normal break-words py-1 text-left [overflow-wrap:anywhere]',
+                  SIDEBAR_LABEL_TEXT_METRICS_CLASS,
                   getSidebarLabelClass('notes', { selected: isActive }),
                 )}
               >

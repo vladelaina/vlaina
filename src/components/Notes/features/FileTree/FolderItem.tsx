@@ -7,7 +7,11 @@ import { FileItem } from './FileItem';
 import { TreeItemDeleteDialog } from './components/TreeItemDeleteDialog';
 import { useFolderItemState } from './hooks/useFolderItemState';
 import { cn } from '@/lib/utils';
-import { getSidebarLabelClass, getSidebarTextClass } from '@/components/layout/sidebar/sidebarLabelStyles';
+import {
+  getSidebarLabelClass,
+  getSidebarTextClass,
+  SIDEBAR_LABEL_TEXT_METRICS_CLASS,
+} from '@/components/layout/sidebar/sidebarLabelStyles';
 import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
 import { SidebarStarBadge } from '../common/SidebarStarBadge';
 import { TreeItemShell } from './components/TreeItemShell';
@@ -187,7 +191,8 @@ export const FolderItem = memo(function FolderItem({
             onSubmit={handleRenameSubmit}
             onCancel={() => setIsRenaming(false)}
             className={cn(
-              'w-full min-w-0 border-none bg-transparent p-0 text-[16px] leading-5 outline-none',
+              'w-full min-w-0 border-none bg-transparent p-0 outline-none',
+              SIDEBAR_LABEL_TEXT_METRICS_CLASS,
               getSidebarTextClass('notes')
             )}
           />

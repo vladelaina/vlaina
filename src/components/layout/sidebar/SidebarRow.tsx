@@ -1,5 +1,6 @@
 import { forwardRef, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { SIDEBAR_LABEL_TEXT_METRICS_CLASS } from './sidebarLabelStyles';
 
 interface SidebarRowProps extends HTMLAttributes<HTMLDivElement> {
   indentWidth?: number;
@@ -100,7 +101,8 @@ export function SidebarRow({
       <div
         style={rowStyle}
         className={cn(
-          'relative flex min-h-[36px] flex-1 items-center gap-2 rounded-xl px-3 py-1 text-[16px]',
+          'relative flex min-h-[36px] flex-1 items-center gap-2 rounded-xl px-3 py-1',
+          SIDEBAR_LABEL_TEXT_METRICS_CLASS,
           rowClassName,
           props.onClick && 'cursor-pointer',
           isHighlighted
