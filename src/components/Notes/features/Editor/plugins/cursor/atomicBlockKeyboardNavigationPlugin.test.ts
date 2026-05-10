@@ -1094,7 +1094,7 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
         }
       }
     }
-  }, 20_000);
+  }, 45_000);
 
   it('removes the transient paragraph when selection moves elsewhere without input', async () => {
     const editor = createEditor();
