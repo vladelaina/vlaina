@@ -56,10 +56,10 @@ export function ImagesTab() {
                     Storage Location
                 </span>
                 <code className="rounded-full bg-zinc-100 dark:bg-white/5 px-3 py-1 text-[11px] text-[var(--notes-sidebar-text-soft)]">
-                    {imageStorageMode === 'vault' && 'vault/image.png'}
-                    {imageStorageMode === 'vaultSubfolder' && `vault/${imageVaultSubfolderName || 'assets'}/image.png`}
-                    {imageStorageMode === 'currentFolder' && 'vault/notes/image.png'}
-                    {imageStorageMode === 'subfolder' && `vault/notes/${imageSubfolderName || 'assets'}/image.png`}
+                    {imageStorageMode === 'vault' && './image.png'}
+                    {imageStorageMode === 'vaultSubfolder' && `./${imageVaultSubfolderName || 'assets'}/image.png`}
+                    {imageStorageMode === 'currentFolder' && './image.png'}
+                    {imageStorageMode === 'subfolder' && `./${imageSubfolderName || 'assets'}/image.png`}
                 </code>
             </div>
 
@@ -103,43 +103,50 @@ export function ImagesTab() {
                 })}
             </div>
 
-            <div className="mt-6 space-y-4">
-                {imageStorageMode === 'vaultSubfolder' && (
-                    <SettingsItem
-                        title="Folder Name"
-                        description={`Images will be saved to ${imageVaultSubfolderName || 'assets'}/ in the vault root.`}
-                    >
-                        <SettingsTextInput
-                            type="text"
-                            value={imageVaultSubfolderName}
-                            onChange={(e) => setImageVaultSubfolderName(e.target.value)}
-                            placeholder="assets"
-                            className="w-48"
-                            inputClassName="h-9 px-4 rounded-xl text-[13px]"
-                            shellClassName="rounded-xl shadow-none"
-                        />
-                    </SettingsItem>
-                )}
+            {(imageStorageMode === 'vaultSubfolder' || imageStorageMode === 'subfolder') && (
+                <div className="mt-6 space-y-4">
+                    {imageStorageMode === 'vaultSubfolder' && (
+                        <SettingsItem
+                            title="Folder Name"
+                            description={`Images will be saved to ${imageVaultSubfolderName || 'assets'}/ in the vault root.`}
+                        >
+                            <SettingsTextInput
+                                type="text"
+                                value={imageVaultSubfolderName}
+                                onChange={(e) => setImageVaultSubfolderName(e.target.value)}
+                                placeholder="assets"
+                                className="w-48"
+                                inputClassName="h-9 px-4 rounded-xl text-[13px]"
+                                shellClassName="rounded-xl shadow-none"
+                            />
+                        </SettingsItem>
+                    )}
 
-                {imageStorageMode === 'subfolder' && (
-                    <SettingsItem
-                        title="Subfolder Name"
-                        description={`Images will be saved to ${imageSubfolderName || 'assets'}/ inside the current note's folder.`}
-                    >
-                        <SettingsTextInput
-                            type="text"
-                            value={imageSubfolderName}
-                            onChange={(e) => setImageSubfolderName(e.target.value)}
-                            placeholder="assets"
-                            className="w-48"
-                            inputClassName="h-9 px-4 rounded-xl text-[13px]"
-                            shellClassName="rounded-xl shadow-none"
-                        />
-                    </SettingsItem>
-                )}
+                    {imageStorageMode === 'subfolder' && (
+                        <SettingsItem
+                            title="Subfolder Name"
+                            description={`Images will be saved to ${imageSubfolderName || 'assets'}/ inside the current note's folder.`}
+                        >
+                            <SettingsTextInput
+                                type="text"
+                                value={imageSubfolderName}
+                                onChange={(e) => setImageSubfolderName(e.target.value)}
+                                placeholder="assets"
+                                className="w-48"
+                                inputClassName="h-9 px-4 rounded-xl text-[13px]"
+                                shellClassName="rounded-xl shadow-none"
+                            />
+                        </SettingsItem>
+                    )}
+                </div>
+            )}
+
+            <div className="mt-8 mb-4 px-2">
+                <h3 className="text-[13px] font-medium text-[var(--notes-sidebar-text-soft)]">
+                    Filename Format
+                </h3>
             </div>
-
-            <SettingsSectionHeader>Filename Format</SettingsSectionHeader>
+            
             <div className="space-y-2">
                 <FilenameFormatOption
                     id="original"
@@ -156,7 +163,7 @@ export function ImagesTab() {
                 <FilenameFormatOption
                     id="timestamp"
                     label="Timestamp"
-                    description="Use date and time (e.g., 2024-01-21_14-30-52.png)"
+                    description="Use date and time (e.g., 2026-01-21_14-30-52.png)"
                     icon="misc.clock"
                 />
             </div>

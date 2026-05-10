@@ -98,8 +98,8 @@ export function SettingsItem({ title, description, children }: SettingsItemProps
 
 export function SettingsSectionHeader({ children }: { children: ReactNode }) {
     return (
-        <div className="mt-10 mb-3 px-2">
-            <h3 className="text-[13px] font-bold text-[var(--notes-sidebar-text)] tracking-tight">
+        <div className="mt-10 mb-4 px-2">
+            <h3 className="text-[14px] font-bold text-[var(--notes-sidebar-text-soft)] tracking-tight opacity-80">
                 {children}
             </h3>
         </div>

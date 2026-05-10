@@ -43,6 +43,7 @@ export function MarkdownTab() {
           <SettingsSwitch
             checked={typewriterMode}
             onChange={setMarkdownTypewriterMode}
+            activeColor="bg-[var(--sidebar-row-selected-text)]"
           />
         </SettingsItem>
       </div>

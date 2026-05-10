@@ -333,8 +333,8 @@ export function AITab() {
         <AIBehaviorSettings />
 
         <section className="mx-auto max-w-5xl">
-          <div className="mb-4 px-1">
-            <h3 className="text-[14px] font-bold text-[var(--notes-sidebar-text)] tracking-tight">
+          <div className="mb-4 px-2">
+            <h3 className="text-[13px] font-medium text-[var(--notes-sidebar-text-soft)]">
               Custom Channels
             </h3>
           </div>
@@ -406,25 +406,14 @@ export function AITab() {
             )}
           </AnimatePresence>
 
-          <AnimatePresence initial={false} mode="wait" custom={detailTransitionDirection}>
-            {currentProvider ? (
-              <motion.div
-                key={currentProvider.id}
-                custom={detailTransitionDirection}
-                variants={detailTransitionVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <ProviderDetail
-                  provider={currentProvider}
-                  onDraftChange={(draft) => handleProviderDraftChange(currentProvider.id, draft)}
-                  onDraftClear={() => handleProviderDraftClear(currentProvider.id)}
-                />
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
+          {currentProvider ? (
+            <ProviderDetail
+              key={currentProvider.id}
+              provider={currentProvider}
+              onDraftChange={(draft) => handleProviderDraftChange(currentProvider.id, draft)}
+              onDraftClear={() => handleProviderDraftClear(currentProvider.id)}
+            />
+          ) : null}
         </section>
       </div>
     </div>

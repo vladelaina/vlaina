@@ -35,28 +35,14 @@ export function AppearanceTab() {
 
   return (
     <div className="max-w-3xl pb-10">
-      <SettingsSectionHeader>Theme</SettingsSectionHeader>
+      <div className="mb-4 flex items-center justify-between px-2">
+        <span className="text-[13px] font-medium text-[var(--notes-sidebar-text-soft)]">
+          Font Size
+        </span>
+      </div>
 
       <SettingsItem
-        title="Color mode"
-        description="Choose your preferred color appearance"
-      >
-        <div className="w-64">
-          <SegmentedControl
-            options={[
-              { value: 'light', label: 'Light', icon: <Icon size="md" name="theme.light" /> },
-              { value: 'dark', label: 'Dark', icon: <Icon size="md" name="theme.dark" /> },
-            ]}
-            value={theme === 'dark' ? 'dark' : 'light'}
-            onChange={setTheme}
-          />
-        </div>
-      </SettingsItem>
-
-      <SettingsSectionHeader>Editor</SettingsSectionHeader>
-
-      <SettingsItem
-        title="Font size"
+        title="Base font size"
         description="Adjust the base font size for the application"
       >
         <div className="flex items-center gap-4">

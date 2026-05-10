@@ -19,6 +19,7 @@ export function MarkdownCodeBlockSettings({
           <SettingsSwitch
             checked={showLineNumbers}
             onChange={onShowLineNumbersChange}
+            activeColor="bg-[var(--sidebar-row-selected-text)]"
           />
         </SettingsItem>
       </div>

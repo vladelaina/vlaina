@@ -47,8 +47,8 @@ export function AIBehaviorSettings() {
 
   return (
     <section className="mx-auto mb-10 max-w-5xl">
-      <div className="mb-4 px-1">
-        <h3 className="text-[14px] font-bold text-[var(--notes-sidebar-text)] tracking-tight">System Prompt</h3>
+      <div className="mb-4 px-2">
+        <h3 className="text-[13px] font-medium text-[var(--notes-sidebar-text-soft)]">System Prompt</h3>
       </div>
 
       <div className={cn("overflow-hidden rounded-[26px] p-2", chatComposerPillSurfaceClass)}>
