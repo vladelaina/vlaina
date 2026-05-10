@@ -80,6 +80,10 @@ export function buildWebSearchStatusMarkup(status: WebSearchStatus): string {
   return `<web-search-status>${escapeStatusJson(JSON.stringify(status))}</web-search-status>`;
 }
 
+export function stripWebSearchStatusMarkup(content: string): string {
+  return content.replace(WEB_SEARCH_STATUS_REGEX, '').trimStart();
+}
+
 export function extractWebSearchStatuses(content: string): {
   statuses: WebSearchStatus[];
   content: string;

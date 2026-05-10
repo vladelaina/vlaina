@@ -57,27 +57,36 @@ export class WebAdapter implements StorageAdapter {
   }
 
   async readFile(path: string): Promise<string> {
+    const file = await this.readStoredFile(path);
+    if (!file) {
+      throw new Error(`File not found: ${path}`);
+    }
+
+    if (file.isBinary) {
+      const decoder = new TextDecoder();
+      return decoder.decode(file.content as Uint8Array);
+    }
+
+    return file.content as string;
+  }
+
+  private async readStoredFile(path: string): Promise<StoredFile | undefined> {
     const db = await this.getDB();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_FILES, 'readonly');
       const store = tx.objectStore(STORE_FILES);
       const request = store.get(this.normalizePath(path));
-      request.onsuccess = () => {
-        const file = request.result as StoredFile | undefined;
-        if (!file) {
-          reject(new Error(`File not found: ${path}`));
-          return;
-        }
-        if (file.isBinary) {
-          const decoder = new TextDecoder();
-          resolve(decoder.decode(file.content as Uint8Array));
-        } else {
-          resolve(file.content as string);
-        }
-      };
-      
+      request.onsuccess = () => resolve(request.result as StoredFile | undefined);
       request.onerror = () => reject(request.error);
     });
+  }
+
+  private async writeStoredFile(path: string, file: StoredFile): Promise<void> {
+    if (file.isBinary) {
+      await this.writeBinaryFile(path, new Uint8Array(file.content as Uint8Array));
+    } else {
+      await this.writeFile(path, file.content as string);
+    }
   }
 
   async readBinaryFile(path: string): Promise<Uint8Array> {
@@ -86,7 +95,7 @@ export class WebAdapter implements StorageAdapter {
       const tx = db.transaction(STORE_FILES, 'readonly');
       const store = tx.objectStore(STORE_FILES);
       const request = store.get(this.normalizePath(path));
-      
+
       request.onsuccess = () => {
         const file = request.result as StoredFile | undefined;
         if (!file) {
@@ -94,13 +103,13 @@ export class WebAdapter implements StorageAdapter {
           return;
         }
         if (file.isBinary) {
-          resolve(file.content as Uint8Array);
+          resolve(new Uint8Array(file.content as Uint8Array));
         } else {
           const encoder = new TextEncoder();
           resolve(encoder.encode(file.content as string));
         }
       };
-      
+
       request.onerror = () => reject(request.error);
     });
   }
@@ -154,7 +163,7 @@ export class WebAdapter implements StorageAdapter {
       }
     }
 
-    let finalContent = content;
+    let finalContent = new Uint8Array(content);
     if (options?.append) {
       try {
         const existing = await this.readBinaryFile(normalizedPath);
@@ -213,6 +222,11 @@ export class WebAdapter implements StorageAdapter {
         if (file.isDirectory) {
           await this.deleteDirEntry(file.path);
         }
+      }
+    } else {
+      const entries = await this.listDir(normalizedPath, { includeHidden: true });
+      if (entries.length > 0) {
+        throw new Error(`Directory not empty: ${path}`);
       }
     }
 
@@ -369,7 +383,10 @@ export class WebAdapter implements StorageAdapter {
   async rename(oldPath: string, newPath: string): Promise<void> {
     const normalizedOld = this.normalizePath(oldPath);
     const normalizedNew = this.normalizePath(newPath);
-    
+    if (normalizedOld === normalizedNew) {
+      return;
+    }
+
     const sourceExists = await this.exists(normalizedOld);
     if (!sourceExists) {
       throw new Error(`Path not found: ${oldPath}`);
@@ -377,6 +394,10 @@ export class WebAdapter implements StorageAdapter {
 
     const stat = await this.stat(normalizedOld);
     if (stat?.isDirectory) {
+      if (normalizedNew.startsWith(`${normalizedOld}/`)) {
+        throw new Error(`Cannot move a directory into itself: ${oldPath}`);
+      }
+
       const db = await this.getDB();
       
       const files = await new Promise<StoredFile[]>((resolve, reject) => {
@@ -400,7 +421,7 @@ export class WebAdapter implements StorageAdapter {
         if (file.path.startsWith(prefix)) {
           const newFilePath = normalizedNew + file.path.slice(normalizedOld.length);
           if (file.isBinary) {
-            await this.writeBinaryFile(newFilePath, file.content as Uint8Array);
+            await this.writeBinaryFile(newFilePath, new Uint8Array(file.content as Uint8Array));
           } else {
             await this.writeFile(newFilePath, file.content as string);
           }
@@ -418,26 +439,21 @@ export class WebAdapter implements StorageAdapter {
         }
       }
     } else {
-      try {
-        const content = await this.readFile(normalizedOld);
-        await this.writeFile(normalizedNew, content);
-        await this.deleteFile(normalizedOld);
-      } catch {
-        const content = await this.readBinaryFile(normalizedOld);
-        await this.writeBinaryFile(normalizedNew, content);
-        await this.deleteFile(normalizedOld);
+      const file = await this.readStoredFile(normalizedOld);
+      if (!file) {
+        throw new Error(`File not found: ${oldPath}`);
       }
+      await this.writeStoredFile(normalizedNew, file);
+      await this.deleteFile(normalizedOld);
     }
   }
 
   async copyFile(src: string, dest: string): Promise<void> {
-    try {
-      const content = await this.readFile(src);
-      await this.writeFile(dest, content);
-    } catch {
-      const content = await this.readBinaryFile(src);
-      await this.writeBinaryFile(dest, content);
+    const file = await this.readStoredFile(src);
+    if (!file) {
+      throw new Error(`File not found: ${src}`);
     }
+    await this.writeStoredFile(dest, file);
   }
 
   async stat(path: string): Promise<FileInfo | null> {
@@ -490,15 +506,23 @@ export class WebAdapter implements StorageAdapter {
   }
 
   private normalizePath(path: string): string {
-    let normalized = path.replace(/\\/g, '/');
-    if (!normalized.startsWith('/')) {
-      normalized = '/' + normalized;
+    const normalized = path.replace(/\\/g, '/');
+    const parts: string[] = [];
+
+    for (const part of normalized.split('/')) {
+      if (!part || part === '.') {
+        continue;
+      }
+      if (part === '..') {
+        if (parts.length > 0) {
+          parts.pop();
+        }
+        continue;
+      }
+      parts.push(part);
     }
-    if (normalized.length > 1 && normalized.endsWith('/')) {
-      normalized = normalized.slice(0, -1);
-    }
-    normalized = normalized.replace(/\/+/g, '/');
-    return normalized;
+
+    return parts.length > 0 ? `/${parts.join('/')}` : '/';
   }
 
   private getParentDir(path: string): string | null {

@@ -6,6 +6,21 @@ function elapsedSince(startedAt) {
   return Math.max(0, Math.round(performance.now() - startedAt));
 }
 
+function summarizeStoredCredentials(credentials) {
+  if (!credentials || typeof credentials !== 'object') {
+    return null;
+  }
+
+  return {
+    provider: credentials.provider ?? null,
+    username: credentials.username ?? null,
+    primaryEmail: credentials.primaryEmail ?? null,
+    avatarUrl: credentials.avatarUrl ?? null,
+    authenticatedAt: credentials.authenticatedAt ?? null,
+    hasAppSessionToken: typeof credentials.appSessionToken === 'string' && credentials.appSessionToken.trim().length > 0,
+  };
+}
+
 export function createDesktopAuthPersistence({
   logDesktopAuth,
   readDesktopSessionIdentity,
@@ -29,7 +44,10 @@ export function createDesktopAuthPersistence({
       typeof result?.avatarUrl === 'string' && result.avatarUrl.trim() ? result.avatarUrl.trim() : null;
 
     if (!appSessionToken) {
-      logDesktopAuth('persist_auth_result:missing_token', { provider, result });
+      logDesktopAuth('persist_auth_result:missing_token', {
+        provider,
+        result: summarizeAuthResultShape(result),
+      });
       throw new Error('Account sign-in result missing session token');
     }
 
@@ -65,7 +83,7 @@ export function createDesktopAuthPersistence({
       if (!resolvedUsername) {
         logDesktopAuth('persist_auth_result:missing_identity', {
           provider,
-          result,
+          result: summarizeAuthResultShape(result),
           sessionIdentity,
           resolvedProvider,
           resolvedPrimaryEmail,
@@ -93,7 +111,7 @@ export function createDesktopAuthPersistence({
           username: credentials.username,
           primaryEmail: credentials.primaryEmail,
           avatarUrl: credentials.avatarUrl,
-          appSessionToken: credentials.appSessionToken,
+          hasAppSessionToken: true,
           authenticatedAt: credentials.authenticatedAt,
         },
         durationMs: elapsedSince(startedAt),
@@ -125,7 +143,7 @@ export function createDesktopAuthPersistence({
         if (!sessionIdentity) {
           logDesktopAuth('persist_auth_result:session_identity_deferred_unavailable', {
             provider,
-            appSessionToken,
+            hasAppSessionToken: true,
             durationMs: elapsedSince(deferredStartedAt),
           });
           return;
@@ -135,7 +153,7 @@ export function createDesktopAuthPersistence({
         if (!currentCredentials || currentCredentials.appSessionToken !== appSessionToken) {
           logDesktopAuth('persist_auth_result:session_identity_deferred_skipped', {
             provider,
-            appSessionToken,
+            hasAppSessionToken: true,
             durationMs: elapsedSince(deferredStartedAt),
           });
           return;
@@ -152,7 +170,7 @@ export function createDesktopAuthPersistence({
         logDesktopAuth('persist_auth_result:session_identity_deferred_applied', {
           provider,
           sessionIdentity,
-          credentials: nextCredentials,
+          credentials: summarizeStoredCredentials(nextCredentials),
           hasAvatarUrl: typeof nextCredentials.avatarUrl === 'string' && nextCredentials.avatarUrl.trim().length > 0,
           durationMs: elapsedSince(deferredStartedAt),
         });
@@ -173,7 +191,7 @@ export function createDesktopAuthPersistence({
         username: credentials.username,
         primaryEmail: credentials.primaryEmail,
         avatarUrl: credentials.avatarUrl,
-        appSessionToken: credentials.appSessionToken,
+        hasAppSessionToken: true,
         authenticatedAt: credentials.authenticatedAt,
       },
       hasAvatarUrl: typeof credentials.avatarUrl === 'string' && credentials.avatarUrl.trim().length > 0,

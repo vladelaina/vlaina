@@ -1,4 +1,5 @@
 import type { ChatMessage, ChatSession } from '@/lib/ai/types';
+import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 
 export const TEMP_SESSION_PREFIX = 'temp-session-';
 
@@ -79,7 +80,7 @@ export function buildTitleSourceFromMessages(messages: ChatMessage[]): string {
   const userSnippets = messages
     .filter((message) => message.role === 'user')
     .map((message) =>
-      message.content
+      stripThinkingContent(message.content)
         .replace(IMAGE_MARKDOWN_REGEX, ' ')
         .replace(/\s+/g, ' ')
         .trim()

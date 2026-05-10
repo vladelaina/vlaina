@@ -120,6 +120,32 @@ describe('web search tool runner', () => {
     expect(text).not.toContain('INTERNAL_SEARCH_BACKEND_URL');
   });
 
+  it('reports safe read failure reasons without leaking raw errors', async () => {
+    const statuses: unknown[] = [];
+    const client: WebSearchClient = {
+      webSearch: vi.fn(),
+      readWebPage: vi.fn(async () => {
+        throw Object.assign(new Error('internal policy stack'), { code: 'blocked_source' });
+      }),
+      readWebPages: vi.fn(),
+    };
+
+    const text = await runWebSearchToolCall(
+      {
+        name: WEB_SEARCH_TOOL_NAMES.read,
+        arguments: JSON.stringify({ url: 'https://news.qq.com/rain/a/20260509A029BH00?adChannelId=news' }),
+      },
+      { client, onStatus: (status) => statuses.push(status) },
+    );
+
+    expect(text).toBe('Tool error: This source is blocked by the web search source policy. The source was skipped.');
+    expect(statuses).toEqual([
+      { phase: 'reading', urls: ['https://news.qq.com/rain/a/20260509A029BH00?adChannelId=news'] },
+      { phase: 'error', message: 'This source is blocked by the web search source policy. The source was skipped.' },
+    ]);
+    expect(text).not.toContain('internal policy stack');
+  });
+
   it('emits read metrics and safe skipped source details for batch reads', async () => {
     const statuses: unknown[] = [];
     const client: WebSearchClient = {
@@ -142,6 +168,7 @@ describe('web search tool runner', () => {
           url: 'https://fail.example',
           ok: false,
           error: 'HTTP 500 from provider',
+          code: 'http_error',
         },
       ]),
     };
@@ -161,7 +188,7 @@ describe('web search tool runner', () => {
         urls: ['https://ok.example'],
         failedSources: [{
           url: 'https://fail.example',
-          message: 'Unable to read this page.',
+          message: 'The page returned an HTTP error.',
         }],
         metrics: {
           durationMs: expect.any(Number),
@@ -170,7 +197,7 @@ describe('web search tool runner', () => {
         },
       },
     ]);
-    expect(text).toContain('Unable to read this page.');
+    expect(text).toContain('The page returned an HTTP error.');
     expect(text).not.toContain('HTTP 500 from provider');
   });
 });

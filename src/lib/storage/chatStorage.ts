@@ -1,7 +1,9 @@
 import { getStorageAdapter, joinPath } from './adapter';
 import type { ChatMessage } from '@/lib/ai/types';
+import { normalizeApiTranscriptMessages } from '@/lib/ai/apiTranscript';
 import { createPersistenceQueue, type PersistenceQueue } from './persistenceEngine';
 import { getStorageBasePath } from './basePath';
+import { isSafeChatSessionId } from './unifiedStorageAI';
 
 const sessionQueues = new Map<string, PersistenceQueue<ChatMessage[]>>();
 const DEFAULT_DEBOUNCE_MS = 180;
@@ -17,7 +19,107 @@ function serializeSessionMessages(messages: ChatMessage[]): string {
   return JSON.stringify(messages);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function normalizeMessageVersion(
+  value: unknown,
+  fallbackContent: string,
+): ChatMessage['versions'][number] {
+  if (!isRecord(value)) {
+    return {
+      content: fallbackContent,
+      createdAt: Date.now(),
+      subsequentMessages: [],
+    };
+  }
+
+  const content = typeof value.content === 'string' ? value.content : fallbackContent;
+  const createdAt = typeof value.createdAt === 'number' ? value.createdAt : Date.now();
+  const subsequentMessages = Array.isArray(value.subsequentMessages)
+    ? normalizeSessionMessages(value.subsequentMessages)
+    : [];
+  const apiTranscript = normalizeApiTranscriptMessages(value.apiTranscript);
+  return {
+    content,
+    createdAt,
+    subsequentMessages,
+    ...(apiTranscript ? { apiTranscript } : {}),
+  };
+}
+
+function normalizeSessionMessage(value: unknown): ChatMessage | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const role = value.role;
+  if (role !== 'user' && role !== 'assistant' && role !== 'system') {
+    return null;
+  }
+
+  const now = Date.now();
+  const content = typeof value.content === 'string' ? value.content : '';
+  const timestamp = typeof value.timestamp === 'number' ? value.timestamp : now;
+  const versions = Array.isArray(value.versions)
+    ? value.versions.map((version) => normalizeMessageVersion(version, content))
+    : [];
+  const normalizedVersions = versions.length > 0
+    ? versions
+    : [{
+        content,
+        createdAt: timestamp,
+        subsequentMessages: [],
+      }];
+  const rawCurrentVersionIndex = typeof value.currentVersionIndex === 'number'
+    ? Math.floor(value.currentVersionIndex)
+    : 0;
+  const currentVersionIndex =
+    rawCurrentVersionIndex >= 0 && rawCurrentVersionIndex < normalizedVersions.length
+      ? rawCurrentVersionIndex
+      : 0;
+  const apiTranscript = normalizeApiTranscriptMessages(value.apiTranscript)
+    ?? normalizedVersions[currentVersionIndex]?.apiTranscript;
+
+  if (apiTranscript && !normalizedVersions[currentVersionIndex]?.apiTranscript) {
+    normalizedVersions[currentVersionIndex] = {
+      ...normalizedVersions[currentVersionIndex],
+      apiTranscript,
+    };
+  }
+
+  return {
+    id: typeof value.id === 'string' && value.id ? value.id : `msg-${crypto.randomUUID()}`,
+    role,
+    content,
+    ...(apiTranscript ? { apiTranscript } : {}),
+    ...(Array.isArray(value.imageSources) ? { imageSources: value.imageSources.filter((item): item is string => typeof item === 'string') } : {}),
+    modelId: typeof value.modelId === 'string' ? value.modelId : '',
+    timestamp,
+    versions: normalizedVersions,
+    currentVersionIndex,
+  };
+}
+
+export function normalizeSessionMessages(value: unknown): ChatMessage[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map(normalizeSessionMessage)
+    .filter((message): message is ChatMessage => message !== null);
+}
+
+function assertSafeChatSessionId(sessionId: string): void {
+  if (!isSafeChatSessionId(sessionId)) {
+    throw new Error(`Unsafe chat session id: ${sessionId}`);
+  }
+}
+
 function getSessionQueue(sessionId: string): PersistenceQueue<ChatMessage[]> {
+  assertSafeChatSessionId(sessionId);
   const existing = sessionQueues.get(sessionId);
   if (existing) return existing;
 
@@ -42,6 +144,7 @@ function getSessionQueue(sessionId: string): PersistenceQueue<ChatMessage[]> {
 }
 
 async function writeSessionJsonRaw(sessionId: string, payload: string) {
+  assertSafeChatSessionId(sessionId);
   const storage = getStorageAdapter();
   const base = await getStorageBasePath();
   const chatRoot = await joinPath(base, '.vlaina', 'chat');
@@ -60,6 +163,7 @@ async function writeSessionJsonRaw(sessionId: string, payload: string) {
 }
 
 export async function saveSessionJson(sessionId: string, messages: ChatMessage[]) {
+  assertSafeChatSessionId(sessionId);
   await getSessionQueue(sessionId).saveNow(messages);
 }
 
@@ -68,10 +172,12 @@ export function scheduleSessionJsonSave(
   messages: ChatMessage[],
   debounceMs = DEFAULT_DEBOUNCE_MS
 ) {
+  assertSafeChatSessionId(sessionId);
   getSessionQueue(sessionId).schedule(messages, { debounceMs });
 }
 
 export function cancelSessionJsonSave(sessionId: string) {
+  assertSafeChatSessionId(sessionId);
   const queue = sessionQueues.get(sessionId);
   if (!queue) return;
   queue.cancel();
@@ -98,6 +204,7 @@ export async function flushPendingSessionJsonSaves(): Promise<void> {
 }
 
 export async function deleteSessionJson(sessionId: string): Promise<void> {
+  assertSafeChatSessionId(sessionId);
   const queue = sessionQueues.get(sessionId);
   if (queue) {
     queue.cancel();
@@ -115,6 +222,7 @@ export async function deleteSessionJson(sessionId: string): Promise<void> {
 }
 
 export async function loadSessionJson(sessionId: string): Promise<ChatMessage[] | null> {
+  assertSafeChatSessionId(sessionId);
   const storage = getStorageAdapter();
   const base = await getStorageBasePath();
   const path = await joinPath(base, '.vlaina', 'chat', 'sessions', `${sessionId}.json`);
@@ -124,7 +232,7 @@ export async function loadSessionJson(sessionId: string): Promise<ChatMessage[] 
           const content = await storage.readFile(path);
           const parsed: unknown = JSON.parse(content);
           if (!Array.isArray(parsed)) return null;
-          return parsed as ChatMessage[];
+          return normalizeSessionMessages(parsed);
       } catch (error) {
           console.error('[chatStorage] Failed to load session file:', path, error);
           return null;

@@ -97,6 +97,13 @@ function loadBoolean(key: string, defaultValue: boolean): boolean {
   return defaultValue;
 }
 
+function saveString(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+  }
+}
+
 function loadNumber(key: string, defaultValue: number): number {
   try {
     const saved = localStorage.getItem(key);
@@ -180,12 +187,12 @@ export const useUIStore = create<UIStore>()((set) => ({
   sidebarCollapsed: loadBoolean(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, false),
   toggleSidebar: () => set((state) => {
     const next = !state.sidebarCollapsed;
-    localStorage.setItem(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, String(next));
+    saveString(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, String(next));
     return { sidebarCollapsed: next };
   }),
   sidebarWidth: loadNumber(STORAGE_KEY_SIDEBAR_WIDTH, getDefaultSidebarWidth()),
   setSidebarWidth: (width) => {
-    localStorage.setItem(STORAGE_KEY_SIDEBAR_WIDTH, String(width));
+    saveString(STORAGE_KEY_SIDEBAR_WIDTH, String(width));
     set({ sidebarWidth: width });
   },
   layoutPanelDragging: false,
@@ -198,7 +205,7 @@ export const useUIStore = create<UIStore>()((set) => ({
   setNotesSidebarView: (view) => set({ notesSidebarView: view }),
   languagePreference: loadLanguagePreference(),
   setLanguagePreference: (language) => {
-    localStorage.setItem(STORAGE_KEY_LANGUAGE_PREFERENCE, language);
+    saveString(STORAGE_KEY_LANGUAGE_PREFERENCE, language);
     set({ languagePreference: language });
   },
 
@@ -232,41 +239,41 @@ export const useUIStore = create<UIStore>()((set) => ({
   imageStorageMode: loadImageStorageMode(),
   imageSubfolderName: loadImageSubfolderName(),
   setImageStorageMode: (mode) => {
-    localStorage.setItem(STORAGE_KEY_IMAGE_STORAGE_MODE, mode);
+    saveString(STORAGE_KEY_IMAGE_STORAGE_MODE, mode);
     set({ imageStorageMode: mode });
   },
   setImageSubfolderName: (name) => {
     const sanitized = name.replace(/[<>:"/\\|?*]/g, '').trim();
-    localStorage.setItem(STORAGE_KEY_IMAGE_SUBFOLDER_NAME, sanitized);
+    saveString(STORAGE_KEY_IMAGE_SUBFOLDER_NAME, sanitized);
     set({ imageSubfolderName: sanitized });
   },
   imageVaultSubfolderName: loadImageVaultSubfolderName(),
   setImageVaultSubfolderName: (name) => {
     const sanitized = name.replace(/[<>:"/\\|?*]/g, '').trim();
-    localStorage.setItem(STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME, sanitized);
+    saveString(STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME, sanitized);
     set({ imageVaultSubfolderName: sanitized });
   },
   imageFilenameFormat: loadImageFilenameFormat(),
   setImageFilenameFormat: (format) => {
-    localStorage.setItem(STORAGE_KEY_IMAGE_FILENAME_FORMAT, format);
+    saveString(STORAGE_KEY_IMAGE_FILENAME_FORMAT, format);
     set({ imageFilenameFormat: format });
   },
 
   notesChatPanelCollapsed: loadNotesChatPanelCollapsed(),
   setNotesChatPanelCollapsed: (collapsed) => {
-    localStorage.setItem(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, String(collapsed));
+    saveString(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, String(collapsed));
     set({ notesChatPanelCollapsed: collapsed });
   },
   toggleNotesChatPanel: () =>
     set((state) => {
       const next = !state.notesChatPanelCollapsed;
-      localStorage.setItem(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, String(next));
+      saveString(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, String(next));
       return { notesChatPanelCollapsed: next };
     }),
   pendingNotesChatComposerInsert: null,
   queueNotesChatComposerInsert: (text) =>
     {
-      localStorage.setItem(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, 'false');
+      saveString(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, 'false');
       set({
         pendingNotesChatComposerInsert: {
           id: Date.now(),

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   clearWebAccountCredentials,
   getCachedWebAccountStatus,
@@ -8,6 +8,10 @@ import {
 import { ACCOUNT_AUTH_INVALIDATED_EVENT } from './sessionEvent';
 
 describe('web account session helpers', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('saves and reloads web account credentials from session storage', () => {
     sessionStorage.clear();
 
@@ -28,6 +32,17 @@ describe('web account session helpers', () => {
       membershipTier: 'pro',
       membershipName: 'Pro',
     });
+  });
+
+  it('ignores unavailable session storage when saving credentials', () => {
+    vi.spyOn(sessionStorage, 'setItem').mockImplementation(() => {
+      throw new Error('storage unavailable');
+    });
+
+    expect(() => saveWebAccountCredentials({
+      provider: 'github',
+      username: 'vla',
+    })).not.toThrow();
   });
 
   it('clears persisted credentials and dispatches invalidation events', () => {

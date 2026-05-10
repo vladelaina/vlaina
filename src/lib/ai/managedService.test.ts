@@ -85,6 +85,21 @@ describe('managedService', () => {
     expect(clearClientSessionMock).toHaveBeenCalledTimes(1);
   });
 
+  it('extracts nested managed web error messages', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: async () => JSON.stringify({ error: { message: 'upstream overloaded' } }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { fetchManagedModels } = await import('./managedService');
+
+    await expect(fetchManagedModels()).rejects.toThrow('upstream overloaded');
+    expect(clearClientSessionMock).not.toHaveBeenCalled();
+  });
+
   it('treats auth and network failures as recoverable managed service errors', async () => {
     const { isManagedServiceRecoverableError, MANAGED_AUTH_REQUIRED_ERROR } = await import('./managedService');
 
@@ -165,12 +180,133 @@ describe('managedService', () => {
         Accept: 'text/event-stream',
         'Content-Type': 'application/json',
       },
+      signal: expect.any(AbortSignal),
       body: JSON.stringify({
         model: 'gpt-5.4',
         messages: [{ role: 'user', content: 'hello' }],
         stream: true,
       }),
     });
+  });
+
+  it('keeps resumed managed reasoning hidden after visible content has started', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const encoder = new TextEncoder();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(
+            encoder.encode(
+              [
+                'data: {"choices":[{"delta":{"reasoning_content":"first"}}]}',
+                'data: {"choices":[{"delta":{"content":"visible"}}]}',
+                'data: {"choices":[{"delta":{"reasoning_content":"second"}}]}',
+                'data: {"choices":[{"delta":{"content":" answer"}}]}',
+                'data: [DONE]',
+                '',
+              ].join('\n')
+            )
+          );
+          controller.close();
+        },
+      }),
+    }));
+
+    const { requestManagedChatCompletionStream } = await import('./managedService');
+    const chunks: string[] = [];
+    const content = await requestManagedChatCompletionStream(
+      {
+        model: 'gpt-5.4',
+        messages: [{ role: 'user', content: 'hello' }],
+        stream: true,
+      },
+      (chunk) => chunks.push(chunk)
+    );
+
+    expect(content).toBe('<think>first</think>visible<think>second</think> answer');
+    expect(chunks[chunks.length - 1]).toBe('<think>first</think>visible<think>second</think> answer');
+  });
+
+  it('consumes the final managed SSE data line even without a trailing newline', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const encoder = new TextEncoder();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(
+            encoder.encode('data: {"choices":[{"delta":{"content":"final token"}}]}')
+          );
+          controller.close();
+        },
+      }),
+    }));
+
+    const { requestManagedChatCompletionStream } = await import('./managedService');
+    const chunks: string[] = [];
+    const content = await requestManagedChatCompletionStream(
+      {
+        model: 'gpt-5.4',
+        messages: [{ role: 'user', content: 'hello' }],
+        stream: true,
+      },
+      (chunk) => chunks.push(chunk)
+    );
+
+    expect(content).toBe('final token');
+    expect(chunks).toEqual(['final token']);
+  });
+
+  it('surfaces managed web stream error payloads', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const encoder = new TextEncoder();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(
+            encoder.encode('data: {"error":{"message":"managed stream failed"}}\n\n')
+          );
+          controller.close();
+        },
+      }),
+    }));
+
+    const { requestManagedChatCompletionStream } = await import('./managedService');
+
+    await expect(requestManagedChatCompletionStream(
+      {
+        model: 'gpt-5.4',
+        messages: [{ role: 'user', content: 'hello' }],
+        stream: true,
+      },
+      vi.fn()
+    )).rejects.toThrow('managed stream failed');
+  });
+
+  it('passes abort signals through managed web streams', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const controller = new AbortController();
+    const fetchMock = vi.fn((_url, init) => {
+      expect(init.signal).toBeInstanceOf(AbortSignal);
+      return Promise.reject(Object.assign(new Error('aborted'), { name: 'AbortError' }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { requestManagedChatCompletionStream } = await import('./managedService');
+    const request = requestManagedChatCompletionStream(
+      {
+        model: 'gpt-5.4',
+        messages: [{ role: 'user', content: 'hello' }],
+        stream: true,
+      },
+      vi.fn(),
+      controller.signal,
+    );
+    controller.abort();
+
+    await expect(request).rejects.toMatchObject({ name: 'AbortError' });
   });
 
   it('passes the managed diagnostic request id into the desktop stream bridge', async () => {

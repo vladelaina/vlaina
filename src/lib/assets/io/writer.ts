@@ -7,7 +7,7 @@ export async function writeAssetAtomic(
   data: Uint8Array
 ): Promise<void> {
   const storage = getStorageAdapter();
-  const tempPath = targetPath + TEMP_EXTENSION;
+  const tempPath = `${targetPath}.${crypto.randomUUID()}${TEMP_EXTENSION}`;
   
   try {
     await storage.writeBinaryFile(tempPath, data);

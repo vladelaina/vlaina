@@ -10,7 +10,7 @@ import {
   touchCacheEntry,
 } from './chatLayoutCache';
 
-const THINK_TAG_RE = /<think>([\s\S]*?)(?:<\/think>|$)/i;
+const THINK_TAG_RE = /<think>([\s\S]*?)(<\/think>|$)/gi;
 const PARSED_ASSISTANT_MARKDOWN_CACHE_LIMIT = 200;
 const STREAMING_ASSISTANT_MARKDOWN_CACHE_LIMIT = 80;
 
@@ -28,8 +28,24 @@ function getStreamingAssistantMarkdownCacheKey(message: ChatMessage): string {
 }
 
 export function extractThinkingSections(content: string): ThinkingSections {
-  const match = THINK_TAG_RE.exec(content);
-  if (!match) {
+  const thinkingParts: string[] = [];
+  let markdown = '';
+  let cursor = 0;
+  let isComplete = true;
+  THINK_TAG_RE.lastIndex = 0;
+
+  for (const match of content.matchAll(THINK_TAG_RE)) {
+    const start = match.index ?? 0;
+    markdown += content.slice(cursor, start);
+    thinkingParts.push(match[1] ?? '');
+    cursor = start + match[0].length;
+    if (match[2] !== '</think>') {
+      isComplete = false;
+      break;
+    }
+  }
+
+  if (thinkingParts.length === 0) {
     return {
       body: '',
       isComplete: true,
@@ -37,10 +53,15 @@ export function extractThinkingSections(content: string): ThinkingSections {
     };
   }
 
-  const body = match[1] ?? '';
-  const isComplete = content.includes('</think>');
-  const markdown = content.replace(match[0], '');
-  return { body, isComplete, markdown };
+  if (isComplete) {
+    markdown += content.slice(cursor);
+  }
+
+  return {
+    body: thinkingParts.join('\n\n'),
+    isComplete,
+    markdown,
+  };
 }
 
 export function getParsedAssistantMarkdown(

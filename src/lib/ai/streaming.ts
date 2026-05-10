@@ -1,3 +1,5 @@
+import type { ApiTranscriptMessage } from './types'
+
 export interface StreamDeltaPayload {
   reasoning?: string | null
   content?: string | null
@@ -6,10 +8,17 @@ export interface StreamDeltaPayload {
 export interface StreamAccumulator {
   pushDelta: (delta: StreamDeltaPayload) => void
   finish: () => string
+  getAssistantTranscriptMessage: () => ApiTranscriptMessage | null
+}
+
+interface ConsumeOpenAIStreamOptions {
+  onAssistantTranscriptMessage?: (message: ApiTranscriptMessage) => void
 }
 
 export function createStreamAccumulator(onChunk: (chunk: string) => void): StreamAccumulator {
   let fullContent = ''
+  let reasoningContent = ''
+  let assistantContent = ''
   let hasStartedReasoning = false
   let hasFinishedReasoning = false
 
@@ -23,10 +32,12 @@ export function createStreamAccumulator(onChunk: (chunk: string) => void): Strea
       }
 
       if (reasoning) {
-        if (!hasStartedReasoning) {
+        if (!hasStartedReasoning || hasFinishedReasoning) {
           fullContent += '<think>'
           hasStartedReasoning = true
+          hasFinishedReasoning = false
         }
+        reasoningContent += reasoning
         fullContent += reasoning
       }
 
@@ -35,6 +46,7 @@ export function createStreamAccumulator(onChunk: (chunk: string) => void): Strea
           fullContent += '</think>'
           hasFinishedReasoning = true
         }
+        assistantContent += content
         fullContent += content
       }
 
@@ -45,6 +57,17 @@ export function createStreamAccumulator(onChunk: (chunk: string) => void): Strea
         fullContent += '</think>'
       }
       return fullContent
+    },
+    getAssistantTranscriptMessage() {
+      if (!reasoningContent) {
+        return null
+      }
+
+      return {
+        role: 'assistant',
+        content: assistantContent,
+        reasoning_content: reasoningContent,
+      }
     },
   }
 }
@@ -153,7 +176,8 @@ function extractStreamDelta(payload: Record<string, unknown>): StreamDeltaPayloa
 
 export async function consumeOpenAIStream(
   response: Response,
-  onChunk: (chunk: string) => void
+  onChunk: (chunk: string) => void,
+  options?: ConsumeOpenAIStreamOptions
 ): Promise<string> {
   if (!response.body) {
     throw new Error('Response body is null')
@@ -201,5 +225,10 @@ export async function consumeOpenAIStream(
     consumeLine(buffer)
   }
 
-  return accumulator.finish()
+  const finalContent = accumulator.finish()
+  const transcriptMessage = accumulator.getAssistantTranscriptMessage()
+  if (transcriptMessage) {
+    options?.onAssistantTranscriptMessage?.(transcriptMessage)
+  }
+  return finalContent
 }

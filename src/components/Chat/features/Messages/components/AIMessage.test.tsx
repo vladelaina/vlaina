@@ -177,7 +177,7 @@ describe("AIMessage", () => {
     );
 
     expect(screen.getByText("Sources read")).toBeInTheDocument();
-    expect(screen.getByText("1 read · 1 skipped · 12 ms")).toBeInTheDocument();
+    expect(screen.getByText("1 read · 1 skipped")).toBeInTheDocument();
     expect(screen.getByText("React Docs")).toBeInTheDocument();
     expect(screen.getByText("https://react.dev")).toBeInTheDocument();
     expect(screen.getByText("Skipped sources")).toBeInTheDocument();

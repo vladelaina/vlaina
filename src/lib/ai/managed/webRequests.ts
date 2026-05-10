@@ -1,7 +1,9 @@
 import { MANAGED_API_BASE } from './constants';
 import { parseManagedError } from './errors';
+import { createStreamAccumulator } from '@/lib/ai/streaming';
 
 const MANAGED_JSON_TIMEOUT_MS = 30_000;
+const MANAGED_STREAM_TIMEOUT_MS = 300_000;
 
 export async function requestManagedWebJson<T>(path: string, init?: RequestInit): Promise<T> {
   const timeoutController = new AbortController();
@@ -40,97 +42,110 @@ export async function requestManagedWebStream(
   onChunk: (chunk: string) => void,
   signal?: AbortSignal
 ): Promise<string> {
-  const response = await fetch(`${MANAGED_API_BASE}${path}`, {
-    method: 'POST',
-    cache: 'no-store',
-    credentials: 'include',
-    signal,
-    headers: {
-      Accept: 'text/event-stream',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+  const timeoutController = new AbortController();
+  const timer = setTimeout(() => timeoutController.abort(), MANAGED_STREAM_TIMEOUT_MS);
+  const combinedSignal = signal
+    ? AbortSignal.any([signal, timeoutController.signal])
+    : timeoutController.signal;
 
-  if (!response.ok) {
-    throw await parseManagedError(response);
-  }
+  try {
+    const response = await fetch(`${MANAGED_API_BASE}${path}`, {
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'include',
+      signal: combinedSignal,
+      headers: {
+        Accept: 'text/event-stream',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
 
-  if (!response.body) {
-    throw new Error('Managed API response body is null');
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let fullContent = '';
-  let buffer = '';
-  let hasStartedReasoning = false;
-  let hasFinishedReasoning = false;
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) {
-      break;
+    if (!response.ok) {
+      throw await parseManagedError(response);
     }
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
+    if (!response.body) {
+      throw new Error('Managed API response body is null');
+    }
 
-    for (const line of lines) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    const accumulator = createStreamAccumulator(onChunk);
+
+    const consumeLine = (line: string) => {
       const trimmed = line.trim();
-      if (!trimmed || trimmed === 'data: [DONE]') {
-        continue;
+      if (!trimmed || trimmed === 'data: [DONE]' || trimmed === 'data:[DONE]') {
+        return;
       }
 
-      if (!trimmed.startsWith('data: ')) {
-        continue;
+      if (!trimmed.startsWith('data:')) {
+        return;
       }
 
-      try {
-        const jsonStr = trimmed.slice(6);
-        const payload = JSON.parse(jsonStr) as {
-          choices?: Array<{
-            delta?: {
-              content?: string;
-              reasoning_content?: string;
-            };
-          }>;
+      const jsonStr = trimmed.slice(5).trim();
+      let payload: {
+        error?: {
+          message?: string;
         };
-        const delta = payload.choices?.[0]?.delta;
-        const reasoning = delta?.reasoning_content;
-        const content = delta?.content;
-
-        if (reasoning) {
-          if (!hasStartedReasoning) {
-            fullContent += '<think>';
-            hasStartedReasoning = true;
-          }
-          fullContent += reasoning;
-        }
-
-        if (content) {
-          if (hasStartedReasoning && !hasFinishedReasoning) {
-            fullContent += '</think>';
-            hasFinishedReasoning = true;
-          }
-          fullContent += content;
-        }
-
-        if (reasoning || content) {
-          onChunk(fullContent);
-        }
+        choices?: Array<{
+          delta?: {
+            content?: string;
+            reasoning_content?: string;
+          };
+        }>;
+      };
+      try {
+        payload = JSON.parse(jsonStr) as typeof payload;
       } catch (parseError) {
         if (import.meta.env.DEV) {
           console.warn('[managedService] SSE line parse failed:', parseError);
         }
+        return;
       }
+
+      if (payload.error?.message) {
+        throw new Error(payload.error.message);
+      }
+
+      const delta = payload.choices?.[0]?.delta;
+      const reasoning = delta?.reasoning_content;
+      const content = delta?.content;
+
+      if (reasoning || content) {
+        accumulator.pushDelta({ reasoning, content });
+      }
+    };
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          consumeLine(line);
+        }
+      }
+
+      if (buffer.trim()) {
+        consumeLine(buffer);
+      }
+
+      return accumulator.finish();
+    } catch (error) {
+      await reader.cancel().catch(() => undefined);
+      throw error;
+    } finally {
+      reader.releaseLock();
     }
+  } finally {
+    clearTimeout(timer);
   }
-
-  if (hasStartedReasoning && !hasFinishedReasoning) {
-    fullContent += '</think>';
-  }
-
-  return fullContent;
 }

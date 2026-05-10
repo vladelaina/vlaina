@@ -62,6 +62,20 @@ describe("messageClipboard", () => {
     expect(formatMessageCopyText(content)).toBe("Hello https://a.com/1.png world [image]");
   });
 
+  it("formats copy text without web search status metadata", () => {
+    const content = [
+      '<web-search-status>{"phase":"searching","query":"catime"}</web-search-status>',
+      '<web-search-status>{"phase":"results","query":"catime","metrics":{"resultCount":1,"durationMs":25}}</web-search-status>',
+      'Catime is a timer app.',
+    ].join('');
+
+    expect(formatMessageCopyText(content)).toBe("Catime is a timer app.");
+  });
+
+  it("formats copy text without rendered thinking content", () => {
+    expect(formatMessageCopyText("<think>private plan</think>Final answer")).toBe("Final answer");
+  });
+
   it("copies image blob when clipboard image write is available", async () => {
     const writeMock = vi.spyOn(navigator.clipboard, "write");
     vi.stubGlobal(

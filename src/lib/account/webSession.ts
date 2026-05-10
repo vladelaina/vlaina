@@ -63,7 +63,10 @@ export function loadWebAccountCredentials(): WebAccountCredentials | null {
 }
 
 export function saveWebAccountCredentials(creds: WebAccountCredentials): void {
-  sessionStorage.setItem(WEB_ACCOUNT_CREDS_KEY, JSON.stringify(creds));
+  try {
+    sessionStorage.setItem(WEB_ACCOUNT_CREDS_KEY, JSON.stringify(creds));
+  } catch {
+  }
 }
 
 export function clearWebAccountCredentials(): void {

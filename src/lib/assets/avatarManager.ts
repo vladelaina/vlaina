@@ -52,8 +52,9 @@ export async function downloadAndSaveAvatar(url: string, username: string): Prom
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), AVATAR_FETCH_TIMEOUT_MS);
-            const response = await fetch(url, { signal: controller.signal });
-            clearTimeout(timeoutId);
+            const response = await fetch(url, { signal: controller.signal }).finally(() => {
+                clearTimeout(timeoutId);
+            });
 
             if (!response.ok) {
                 throw new Error(`Failed to fetch avatar: ${response.statusText}`);

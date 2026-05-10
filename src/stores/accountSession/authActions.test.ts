@@ -100,6 +100,7 @@ describe('accountSession auth actions', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it('checkStatus persists connected desktop identities and refreshes avatar', async () => {
@@ -179,6 +180,35 @@ describe('accountSession auth actions', () => {
     expect(window.location.hash).toBe('#auth-callback-test');
     expect(set).toHaveBeenCalledWith({ isConnecting: true, error: null });
     expect(setTimeoutSpy).toHaveBeenCalled();
+  });
+
+  it('signIn does not redirect when web auth intent cannot be stored', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.webAccountCommands.startAuth.mockResolvedValue({
+      authUrl: '#auth-callback-storage-fail',
+      state: 'state-123',
+    });
+    vi.stubGlobal('sessionStorage', {
+      getItem: vi.fn(),
+      setItem: vi.fn(() => {
+        throw new Error('storage unavailable');
+      }),
+      removeItem: vi.fn(),
+      clear: vi.fn(),
+    });
+
+    const set = vi.fn();
+    const get = vi.fn(() => ({ isConnecting: true }));
+    const initialHash = window.location.hash;
+
+    const result = await createSignIn(set as never, get as never)('google');
+
+    expect(result).toBe(false);
+    expect(window.location.hash).toBe(initialHash);
+    expect(set).toHaveBeenLastCalledWith({
+      error: 'Unable to store sign-in state in this browser session',
+      isConnecting: false,
+    });
   });
 
   it('signIn normalizes electron auth failures without checking status', async () => {

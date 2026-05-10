@@ -101,6 +101,7 @@ export function createPersistenceQueue<T>(options: PersistenceQueueOptions<T>): 
     }).finally(() => {
         writing = null;
         if (pendingPayload !== null) {
+          clearTimers();
           const delayMs =
             consecutiveFailureCount > 0
               ? getRetryDelayMs()

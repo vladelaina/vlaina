@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAIStore } from '@/stores/useAIStore';
 import { SettingsTextarea } from '@/components/Settings/components/SettingsFields';
-import { SettingsItem, SettingsToggle } from '@/components/Settings/components/SettingsControls';
 
 const SYSTEM_PROMPT_MAX_LENGTH = 4000;
 
@@ -9,8 +8,6 @@ export function AIBehaviorSettings() {
   const {
     customSystemPrompt,
     setCustomSystemPrompt,
-    webSearchEnabled,
-    setWebSearchEnabled,
   } = useAIStore();
   const [draftSystemPrompt, setDraftSystemPrompt] = useState(customSystemPrompt);
   const isEditingPromptRef = useRef(false);
@@ -65,15 +62,6 @@ export function AIBehaviorSettings() {
         placeholder="Style, tone, or other response preferences"
         textareaClassName="max-h-[320px]"
       />
-
-      <div className="mt-4 rounded-lg border border-zinc-100 px-4 dark:border-white/5">
-        <SettingsItem
-          title="Web Search"
-          description="Allow chat models to search the web and read selected pages through the built-in search service."
-        >
-          <SettingsToggle checked={webSearchEnabled} onChange={setWebSearchEnabled} />
-        </SettingsItem>
-      </div>
     </section>
   );
 }

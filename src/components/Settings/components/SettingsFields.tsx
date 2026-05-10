@@ -94,14 +94,16 @@ interface SettingsSwitchProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
   className?: string;
+  'aria-label'?: string;
 }
 
-export function SettingsSwitch({ checked, onChange, className }: SettingsSwitchProps) {
+export function SettingsSwitch({ checked, onChange, className, 'aria-label': ariaLabel }: SettingsSwitchProps) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={ariaLabel}
       onClick={() => onChange(!checked)}
       className={cn(
         'relative inline-flex h-7 w-11 items-center rounded-full p-0.5 transition-colors duration-200',

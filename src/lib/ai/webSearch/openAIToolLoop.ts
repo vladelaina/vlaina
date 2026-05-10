@@ -10,15 +10,19 @@ import {
 } from './openAIToolParsing';
 import type { OpenAIToolCall, OpenAIWireMessage } from './openAIToolTypes';
 
+const MAX_WEB_SEARCH_TOOL_LOOPS = 6;
+
 interface ToolLoopOptions extends WebSearchToolRunnerOptions {
   body: ChatCompletionRequest;
   onChunk: (chunk: string) => void;
+  onApiTranscript?: (messages: OpenAIWireMessage[]) => void;
   request: (body: ChatCompletionRequest) => Promise<Response>;
 }
 
 interface JsonToolLoopOptions extends WebSearchToolRunnerOptions {
   body: ChatCompletionRequest;
   onChunk: (chunk: string) => void;
+  onApiTranscript?: (messages: OpenAIWireMessage[]) => void;
   requestJson: (body: ChatCompletionRequest) => Promise<Record<string, unknown>>;
 }
 
@@ -43,6 +47,24 @@ function withSourceLinks(content: string, sourceUrls: string[]): string {
   return `${content.trimEnd()}\n\nSources:\n${missingUrls.map((url) => `- ${url}`).join('\n')}`;
 }
 
+function buildFinalAssistantTranscriptMessage(content: string, reasoningContent?: string): OpenAIWireMessage {
+  const message: OpenAIWireMessage = {
+    role: 'assistant',
+    content,
+  };
+  if (reasoningContent) {
+    message.reasoning_content = reasoningContent;
+  }
+  return message;
+}
+
+function resolveFinalAssistantApiContent(result: {
+  content: string;
+  assistantContent?: string;
+}, sourceUrls: string[]): string {
+  return withSourceLinks(result.assistantContent ?? result.content, sourceUrls);
+}
+
 function hasSuccessfulRead(status: WebSearchStatus): boolean {
   if (status.phase !== 'complete') return false;
   if (typeof status.metrics?.successCount === 'number') {
@@ -53,11 +75,11 @@ function hasSuccessfulRead(status: WebSearchStatus): boolean {
 
 function shouldRequirePageRead(
   status: WebSearchStatus | null,
-  hasSuccessfulPageRead: boolean,
+  latestResultsHaveSuccessfulRead: boolean,
   forcedReadAttempted: boolean,
 ): boolean {
   return status?.phase === 'results'
-    && !hasSuccessfulPageRead
+    && !latestResultsHaveSuccessfulRead
     && !forcedReadAttempted
     && (status.results?.length ?? 0) > 0;
 }
@@ -107,36 +129,61 @@ function buildAssistantToolMessage(result: {
   return message;
 }
 
+async function runToolCallsInParallel(
+  toolCalls: OpenAIToolCall[],
+  options: WebSearchToolRunnerOptions,
+): Promise<OpenAIWireMessage[]> {
+  const toolResults = await Promise.all(
+    toolCalls.map(async (toolCall) => ({
+      toolCall,
+      content: await runWebSearchToolCall(toolCall.function, options),
+    })),
+  );
+
+  return toolResults.map(({ toolCall, content }) => ({
+    role: 'tool',
+    tool_call_id: toolCall.id,
+    name: toolCall.function.name,
+    content,
+  }));
+}
+
 async function appendForcedReadMessages(
   messages: OpenAIWireMessage[],
   status: WebSearchStatus,
   loopIndex: number,
   options: WebSearchToolRunnerOptions,
-): Promise<{ messages: OpenAIWireMessage[] }> {
+): Promise<{ messages: OpenAIWireMessage[]; addedMessages: OpenAIWireMessage[] }> {
   const toolCall = buildForcedReadToolCall(status, loopIndex);
 
   if (!toolCall) {
+    const addedMessages = [buildReadReminderMessage()];
     return {
-      messages: [...messages, buildReadReminderMessage()],
+      messages: [...messages, ...addedMessages],
+      addedMessages,
     };
   }
 
   const toolResult = await runWebSearchToolCall(toolCall.function, options);
+  const addedMessages: OpenAIWireMessage[] = [
+    {
+      role: 'assistant',
+      content: null,
+      tool_calls: [toolCall],
+    },
+    {
+      role: 'tool',
+      tool_call_id: toolCall.id,
+      name: toolCall.function.name,
+      content: toolResult,
+    },
+  ];
   return {
     messages: [
       ...messages,
-      {
-        role: 'assistant',
-        content: null,
-        tool_calls: [toolCall],
-      },
-      {
-        role: 'tool',
-        tool_call_id: toolCall.id,
-        name: toolCall.function.name,
-        content: toolResult,
-      },
+      ...addedMessages,
     ],
+    addedMessages,
   };
 }
 
@@ -146,21 +193,26 @@ export async function runOpenAIWebSearchToolLoop({
   request,
   client,
   onStatus,
+  onApiTranscript,
 }: ToolLoopOptions): Promise<string> {
   let latestResultsStatus: WebSearchStatus | null = null;
   const statusHistory: WebSearchStatus[] = [];
   const sourceUrls: string[] = [];
   let latestContent = '';
-  let hasSuccessfulPageRead = false;
+  let latestAssistantApiContent = '';
+  let latestReasoningContent = '';
+  let latestResultsHaveSuccessfulRead = false;
   let forcedReadAttempted = false;
   let messages = appendWebSearchSystemInstruction(body.messages as OpenAIWireMessage[]);
+  const responseTranscript: OpenAIWireMessage[] = [];
   const emitStatus = (status: WebSearchStatus) => {
     if (status.phase === 'results' && (status.results?.length ?? 0) > 0) {
       latestResultsStatus = status;
+      latestResultsHaveSuccessfulRead = false;
       forcedReadAttempted = false;
     }
     if (hasSuccessfulRead(status)) {
-      hasSuccessfulPageRead = true;
+      latestResultsHaveSuccessfulRead = true;
     }
     statusHistory.push(status);
     appendSuccessfulReadSources(sourceUrls, status);
@@ -172,7 +224,7 @@ export async function runOpenAIWebSearchToolLoop({
     onChunk(withStatusPrefix(statusHistory, latestContent));
   };
 
-  for (let loopIndex = 0; loopIndex < 4; loopIndex += 1) {
+  for (let loopIndex = 0; loopIndex < MAX_WEB_SEARCH_TOOL_LOOPS; loopIndex += 1) {
     const response = await request({
       ...body,
       messages: messages as ChatCompletionRequest['messages'],
@@ -180,9 +232,11 @@ export async function runOpenAIWebSearchToolLoop({
       tool_choice: 'auto',
     });
     const result = await consumeOpenAIStreamWithTools(response, emitContent);
+    latestAssistantApiContent = result.assistantContent;
+    latestReasoningContent = result.reasoningContent;
 
     if (result.toolCalls.length === 0) {
-      if (latestResultsStatus && shouldRequirePageRead(latestResultsStatus, hasSuccessfulPageRead, forcedReadAttempted)) {
+      if (latestResultsStatus && shouldRequirePageRead(latestResultsStatus, latestResultsHaveSuccessfulRead, forcedReadAttempted)) {
         forcedReadAttempted = true;
         const forcedRead = await appendForcedReadMessages(
           messages,
@@ -191,30 +245,33 @@ export async function runOpenAIWebSearchToolLoop({
           { client, onStatus: emitStatus },
         );
         messages = forcedRead.messages;
+        responseTranscript.push(...forcedRead.addedMessages);
         latestContent = '';
         onChunk(withStatusPrefix(statusHistory, latestContent));
         continue;
       }
-      return withStatusPrefix(statusHistory, withSourceLinks(result.content, sourceUrls));
+      const finalContent = withSourceLinks(result.content, sourceUrls);
+      const finalApiContent = resolveFinalAssistantApiContent(result, sourceUrls);
+      responseTranscript.push(buildFinalAssistantTranscriptMessage(finalApiContent, result.reasoningContent));
+      onApiTranscript?.(responseTranscript);
+      return withStatusPrefix(statusHistory, finalContent);
     }
 
+    const assistantToolMessage = buildAssistantToolMessage(result);
+    const toolMessages = await runToolCallsInParallel(result.toolCalls, { client, onStatus: emitStatus });
     messages = [
       ...messages,
-      buildAssistantToolMessage(result),
+      assistantToolMessage,
+      ...toolMessages,
     ];
-
-    for (const toolCall of result.toolCalls) {
-      const toolResult = await runWebSearchToolCall(toolCall.function, { client, onStatus: emitStatus });
-      messages.push({
-        role: 'tool',
-        tool_call_id: toolCall.id,
-        name: toolCall.function.name,
-        content: toolResult,
-      });
-    }
+    responseTranscript.push(assistantToolMessage, ...toolMessages);
   }
 
-  return withStatusPrefix(statusHistory, withSourceLinks(latestContent, sourceUrls));
+  const fallbackContent = withSourceLinks(latestContent, sourceUrls);
+  const fallbackApiContent = withSourceLinks(latestAssistantApiContent, sourceUrls);
+  responseTranscript.push(buildFinalAssistantTranscriptMessage(fallbackApiContent, latestReasoningContent));
+  onApiTranscript?.(responseTranscript);
+  return withStatusPrefix(statusHistory, fallbackContent);
 }
 
 export async function runOpenAIWebSearchJsonToolLoop({
@@ -223,21 +280,25 @@ export async function runOpenAIWebSearchJsonToolLoop({
   requestJson,
   client,
   onStatus,
+  onApiTranscript,
 }: JsonToolLoopOptions): Promise<string> {
   let latestResultsStatus: WebSearchStatus | null = null;
   const statusHistory: WebSearchStatus[] = [];
   const sourceUrls: string[] = [];
   let latestContent = '';
-  let hasSuccessfulPageRead = false;
+  let latestReasoningContent = '';
+  let latestResultsHaveSuccessfulRead = false;
   let forcedReadAttempted = false;
   let messages = appendWebSearchSystemInstruction(body.messages as OpenAIWireMessage[]);
+  const responseTranscript: OpenAIWireMessage[] = [];
   const emitStatus = (status: WebSearchStatus) => {
     if (status.phase === 'results' && (status.results?.length ?? 0) > 0) {
       latestResultsStatus = status;
+      latestResultsHaveSuccessfulRead = false;
       forcedReadAttempted = false;
     }
     if (hasSuccessfulRead(status)) {
-      hasSuccessfulPageRead = true;
+      latestResultsHaveSuccessfulRead = true;
     }
     statusHistory.push(status);
     appendSuccessfulReadSources(sourceUrls, status);
@@ -245,7 +306,7 @@ export async function runOpenAIWebSearchJsonToolLoop({
     onChunk(withStatusPrefix(statusHistory, latestContent));
   };
 
-  for (let loopIndex = 0; loopIndex < 4; loopIndex += 1) {
+  for (let loopIndex = 0; loopIndex < MAX_WEB_SEARCH_TOOL_LOOPS; loopIndex += 1) {
     const payload = await requestJson({
       ...body,
       stream: false,
@@ -255,9 +316,10 @@ export async function runOpenAIWebSearchJsonToolLoop({
     });
     const result = extractOpenAIMessageFromJson(payload);
     latestContent = result.content;
+    latestReasoningContent = result.reasoningContent;
 
     if (result.toolCalls.length === 0) {
-      if (latestResultsStatus && shouldRequirePageRead(latestResultsStatus, hasSuccessfulPageRead, forcedReadAttempted)) {
+      if (latestResultsStatus && shouldRequirePageRead(latestResultsStatus, latestResultsHaveSuccessfulRead, forcedReadAttempted)) {
         forcedReadAttempted = true;
         const forcedRead = await appendForcedReadMessages(
           messages,
@@ -266,32 +328,34 @@ export async function runOpenAIWebSearchJsonToolLoop({
           { client, onStatus: emitStatus },
         );
         messages = forcedRead.messages;
+        responseTranscript.push(...forcedRead.addedMessages);
         latestContent = '';
         onChunk(withStatusPrefix(statusHistory, latestContent));
         continue;
       }
-      const finalContent = withStatusPrefix(statusHistory, withSourceLinks(latestContent, sourceUrls));
+      const finalAnswerContent = withSourceLinks(latestContent, sourceUrls);
+      const finalContent = withStatusPrefix(statusHistory, finalAnswerContent);
+      const finalApiContent = resolveFinalAssistantApiContent(result, sourceUrls);
+      responseTranscript.push(buildFinalAssistantTranscriptMessage(finalApiContent, result.reasoningContent));
+      onApiTranscript?.(responseTranscript);
       onChunk(finalContent);
       return finalContent;
     }
 
+    const assistantToolMessage = buildAssistantToolMessage(result);
+    const toolMessages = await runToolCallsInParallel(result.toolCalls, { client, onStatus: emitStatus });
     messages = [
       ...messages,
-      buildAssistantToolMessage(result),
+      assistantToolMessage,
+      ...toolMessages,
     ];
-
-    for (const toolCall of result.toolCalls) {
-      const toolResult = await runWebSearchToolCall(toolCall.function, { client, onStatus: emitStatus });
-      messages.push({
-        role: 'tool',
-        tool_call_id: toolCall.id,
-        name: toolCall.function.name,
-        content: toolResult,
-      });
-    }
+    responseTranscript.push(assistantToolMessage, ...toolMessages);
   }
 
-  const fallbackContent = withStatusPrefix(statusHistory, withSourceLinks(latestContent, sourceUrls));
+  const fallbackAnswerContent = withSourceLinks(latestContent, sourceUrls);
+  responseTranscript.push(buildFinalAssistantTranscriptMessage(fallbackAnswerContent, latestReasoningContent));
+  onApiTranscript?.(responseTranscript);
+  const fallbackContent = withStatusPrefix(statusHistory, fallbackAnswerContent);
   onChunk(fallbackContent);
   return fallbackContent;
 }

@@ -332,6 +332,69 @@ describe('spark window selection isolation', () => {
     expect(useUnifiedStore.getState().data.ai?.currentSessionId).toBe('session-1');
   });
 
+  it('preserves hidden API transcript when promoting a temporary session', () => {
+    const apiTranscript = [{
+      role: 'assistant',
+      content: 'temporary answer',
+      reasoning_content: 'temporary hidden reasoning',
+    }];
+
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              sessions: [
+                ...state.data.ai.sessions,
+                {
+                  id: 'temp-session-1',
+                  title: 'Temporary Chat',
+                  modelId: managedModel.id,
+                  createdAt: 5,
+                  updatedAt: 5,
+                },
+              ],
+              messages: {
+                ...state.data.ai.messages,
+                'temp-session-1': [{
+                  id: 'a1',
+                  role: 'assistant',
+                  content: 'temporary answer',
+                  apiTranscript,
+                  modelId: managedModel.id,
+                  timestamp: 5,
+                  versions: [{
+                    content: 'temporary answer',
+                    createdAt: 5,
+                    subsequentMessages: [],
+                    apiTranscript,
+                  }],
+                  currentVersionIndex: 0,
+                }],
+              },
+            }
+          : state.data.ai,
+      },
+    }));
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: 'temp-session-1',
+      temporaryChatEnabled: true,
+    });
+
+    let promotedSessionId: string | null = null;
+    act(() => {
+      promotedSessionId = actions.promoteTemporarySession();
+    });
+
+    expect(promotedSessionId).toMatch(/^session-/);
+    const promotedMessages = useUnifiedStore.getState().data.ai?.messages[promotedSessionId!];
+    expect(promotedMessages?.[0]?.apiTranscript?.[0].reasoning_content).toBe('temporary hidden reasoning');
+    expect(promotedMessages?.[0]?.versions[0]?.apiTranscript?.[0].reasoning_content).toBe('temporary hidden reasoning');
+    expect(mocked.saveSessionJson).toHaveBeenCalledWith(promotedSessionId, promotedMessages);
+  });
+
   it('creates and selects a new session locally without rewriting shared selection fields', () => {
     useAIUIStore.getState().setChatSelection({
       currentSessionId: null,

@@ -38,6 +38,7 @@ function parseStorageAutoSyncEvent(value: unknown): StorageAutoSyncEvent | null 
     !isStorageAutoSyncKind(kind) ||
     typeof event.sourceId !== 'string' ||
     typeof event.stamp !== 'number' ||
+    !Number.isFinite(event.stamp) ||
     typeof event.nonce !== 'string'
   ) {
     return null;
@@ -58,7 +59,10 @@ function notifyListeners(event: StorageAutoSyncEvent) {
   }
 
   listeners.forEach((listener) => {
-    listener(event);
+    try {
+      listener(event);
+    } catch {
+    }
   });
 }
 
@@ -67,15 +71,19 @@ function ensureBroadcastChannel() {
     return;
   }
 
-  broadcastChannel = new BroadcastChannel(CHANNEL_NAME);
-  broadcastChannel.onmessage = (message) => {
-    const event = parseStorageAutoSyncEvent(message.data);
-    if (!event) {
-      return;
-    }
+  try {
+    broadcastChannel = new BroadcastChannel(CHANNEL_NAME);
+    broadcastChannel.onmessage = (message) => {
+      const event = parseStorageAutoSyncEvent(message.data);
+      if (!event) {
+        return;
+      }
 
-    notifyListeners(event);
-  };
+      notifyListeners(event);
+    };
+  } catch {
+    broadcastChannel = null;
+  }
 }
 
 function ensureStorageListener() {
@@ -117,7 +125,10 @@ export function emitStorageAutoSyncEvent(input: {
   };
 
   ensureBroadcastChannel();
-  broadcastChannel?.postMessage(event);
+  try {
+    broadcastChannel?.postMessage(event);
+  } catch {
+  }
 
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(event));

@@ -14,6 +14,24 @@ export interface Provider {
   updatedAt: number
 }
 
+export interface ApiTranscriptToolCall {
+  id: string
+  type: 'function'
+  function: {
+    name: string
+    arguments: string
+  }
+}
+
+export interface ApiTranscriptMessage {
+  role: string
+  content?: ChatMessageContent | null
+  reasoning_content?: string
+  tool_calls?: ApiTranscriptToolCall[]
+  tool_call_id?: string
+  name?: string
+}
+
 export interface AIModel {
   id: string
   apiModelId: string
@@ -51,12 +69,14 @@ export interface MessageVersion {
     content: string;
     createdAt: number;
     subsequentMessages: ChatMessage[]; 
+    apiTranscript?: ApiTranscriptMessage[];
 }
 
 export interface ChatMessage {
   id: string
   role: 'user' | 'assistant' | 'system'
   content: string
+  apiTranscript?: ApiTranscriptMessage[]
   imageSources?: string[]
   modelId: string
   timestamp: number
@@ -73,10 +93,7 @@ export type ChatMessageContent = string | ChatMessageContentPart[];
 
 export interface ChatCompletionRequest {
   model: string
-  messages: Array<{
-    role: string
-    content: ChatMessageContent
-  }>
+  messages: ApiTranscriptMessage[]
   stream: boolean
   temperature?: number
   max_tokens?: number
@@ -90,6 +107,7 @@ export interface ChatSendOptions {
   max_completion_tokens?: number
   webSearchEnabled?: boolean
   onWebSearchStatus?: (status: WebSearchStatus) => void
+  onApiTranscript?: (messages: ApiTranscriptMessage[]) => void
 }
 
 export interface ChatCompletionResponse {

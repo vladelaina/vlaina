@@ -160,4 +160,16 @@ describe('checkModelHealth', () => {
       max_tokens: 16,
     });
   });
+
+  it('classifies DOM-style abort errors as aborted benchmark requests', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue({ name: 'AbortError', message: 'Aborted' });
+
+    const result = await checkModelHealth(provider, createModel('gpt-4o-mini'));
+
+    expect(result).toMatchObject({
+      status: 'error',
+      error: 'Request aborted',
+      endpoint: 'chat',
+    });
+  });
 });

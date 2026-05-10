@@ -58,7 +58,11 @@ export function decodeSecretRecord(rawRecord, safeStorage) {
   for (const [key, value] of Object.entries(rawRecord)) {
     const envelope = fromEncryptionEnvelope(value);
     if (envelope) {
-      decoded[key] = safeStorage.decryptString(envelope);
+      try {
+        decoded[key] = safeStorage.decryptString(envelope);
+      } catch {
+        needsMigration = true;
+      }
       continue;
     }
 

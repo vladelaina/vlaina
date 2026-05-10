@@ -10,6 +10,22 @@ export interface ModelFetchResult {
   endpointType: ProviderEndpointType
 }
 
+function normalizeModelIds(values: unknown[]): string[] {
+  const seen = new Set<string>()
+  const ids: string[] = []
+
+  for (const value of values) {
+    const id = typeof value === 'string' ? value.trim() : ''
+    if (!id) continue
+    const key = id.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    ids.push(id)
+  }
+
+  return ids
+}
+
 export async function detectProviderEndpointModels(provider: Provider, apiKey: string): Promise<ModelFetchResult> {
   const orderedEndpointTypes: ProviderEndpointType[] = provider.endpointType === 'anthropic'
     ? ['anthropic', 'openai']
@@ -43,10 +59,10 @@ async function getOpenAIModels(provider: Provider, apiKey: string): Promise<stri
 
   const data = await response.json()
   if (data.data && Array.isArray(data.data)) {
-    return data.data.map((model: any) => model.id)
+    return normalizeModelIds(data.data.map((model: any) => model?.id))
   }
   if (data.models && Array.isArray(data.models)) {
-    return data.models.map((model: any) => model.name || model.model)
+    return normalizeModelIds(data.models.map((model: any) => model?.name || model?.model))
   }
 
   return []
@@ -62,7 +78,7 @@ async function getAnthropicModels(provider: Provider, apiKey: string): Promise<s
 
   const data = await response.json()
   if (data.data && Array.isArray(data.data)) {
-    return data.data.map((model: any) => model.id).filter((id: unknown): id is string => typeof id === 'string')
+    return normalizeModelIds(data.data.map((model: any) => model?.id))
   }
 
   return []

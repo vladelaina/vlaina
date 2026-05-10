@@ -1,4 +1,5 @@
-import type { ChatMessage, MessageVersion } from '@/lib/ai/types'
+import type { ApiTranscriptMessage, ChatMessage, MessageVersion } from '@/lib/ai/types'
+import { normalizeApiTranscriptMessages } from '@/lib/ai/apiTranscript'
 import { generateId } from '@/lib/id'
 import {
   saveSessionJson,
@@ -9,12 +10,27 @@ import { extractMessageImageSources } from '@/components/Chat/common/messageClip
 import { useUnifiedStore } from '../unified/useUnifiedStore'
 import { useAIUIStore } from './chatState'
 
-function createMessageVersion(content: string, createdAt: number): MessageVersion {
+function createMessageVersion(content: string, createdAt: number, apiTranscript?: ApiTranscriptMessage[]): MessageVersion {
+  const normalizedApiTranscript = normalizeApiTranscriptMessages(apiTranscript)
   return {
     content,
     createdAt,
-    subsequentMessages: []
+    subsequentMessages: [],
+    ...(normalizedApiTranscript ? { apiTranscript: normalizedApiTranscript } : {})
   }
+}
+
+function getSafeMessageVersions(message: ChatMessage): MessageVersion[] {
+  if (Array.isArray(message.versions) && message.versions.length > 0) {
+    return [...message.versions]
+  }
+
+  return [createMessageVersion(message.content || '', message.timestamp || Date.now(), message.apiTranscript)]
+}
+
+function getSafeCurrentVersionIndex(message: ChatMessage, versions: MessageVersion[]): number {
+  const index = Number.isInteger(message.currentVersionIndex) ? message.currentVersionIndex : 0
+  return index >= 0 && index < versions.length ? index : 0
 }
 
 interface AddMessageOptions {
@@ -47,7 +63,7 @@ export function createMessageActions() {
             : message.imageSources,
         id: message.id || generateId('msg-'),
         timestamp: createdAt,
-        versions: [createMessageVersion(message.content || '', createdAt)],
+        versions: [createMessageVersion(message.content || '', createdAt, message.apiTranscript)],
         currentVersionIndex: 0
       }
 
@@ -79,8 +95,8 @@ export function createMessageActions() {
       const newMessages = sessionMessages.map((message) => {
         if (message.id !== id) return message
 
-        const currentVersionIndex = message.currentVersionIndex
-        const versions = [...message.versions]
+        const versions = getSafeMessageVersions(message)
+        const currentVersionIndex = getSafeCurrentVersionIndex(message, versions)
 
         if (versions[currentVersionIndex]) {
           versions[currentVersionIndex] = { ...versions[currentVersionIndex], content }
@@ -90,6 +106,46 @@ export function createMessageActions() {
           ...message,
           content,
           imageSources: extractMessageImageSources(content),
+          versions,
+          currentVersionIndex
+        }
+      })
+
+      state.updateAIData({
+        messages: {
+          ...ai.messages,
+          [sessionId]: newMessages
+        }
+      }, true)
+
+      if (shouldPersistSession(ai, sessionId)) {
+        scheduleSessionJsonSave(sessionId, newMessages)
+      }
+    },
+
+    updateMessageApiTranscript: (sessionId: string, id: string, apiTranscript: ApiTranscriptMessage[]) => {
+      const normalizedApiTranscript = normalizeApiTranscriptMessages(apiTranscript)
+      if (!normalizedApiTranscript) return
+
+      const state = useUnifiedStore.getState()
+      const ai = state.data.ai!
+      const sessionMessages = ai.messages[sessionId] || []
+
+      if (sessionMessages.length === 0) return
+
+      const newMessages = sessionMessages.map((message) => {
+        if (message.id !== id) return message
+
+        const versions = getSafeMessageVersions(message)
+        const currentVersionIndex = getSafeCurrentVersionIndex(message, versions)
+
+        if (versions[currentVersionIndex]) {
+          versions[currentVersionIndex] = { ...versions[currentVersionIndex], apiTranscript: normalizedApiTranscript }
+        }
+
+        return {
+          ...message,
+          apiTranscript: normalizedApiTranscript,
           versions,
           currentVersionIndex
         }
@@ -126,12 +182,13 @@ export function createMessageActions() {
       const newMessages = sessionMessages.map((message) => {
         if (message.id !== id) return message
 
-        const versions = [...message.versions]
+        const versions = getSafeMessageVersions(message)
         versions.push(createMessageVersion('', Date.now()))
 
         return {
           ...message,
           content: '',
+          apiTranscript: undefined,
           versions,
           currentVersionIndex: versions.length - 1
         }
@@ -159,8 +216,8 @@ export function createMessageActions() {
       const targetMessage = messages[index]
       const futureMessages = messages.slice(index + 1)
 
-      const currentVersionIndex = targetMessage.currentVersionIndex
-      const versions = [...targetMessage.versions]
+      const versions = getSafeMessageVersions(targetMessage)
+      const currentVersionIndex = getSafeCurrentVersionIndex(targetMessage, versions)
 
       versions[currentVersionIndex] = {
         ...versions[currentVersionIndex],
@@ -172,6 +229,7 @@ export function createMessageActions() {
       newMessages[index] = {
         ...targetMessage,
         content: newContent,
+        apiTranscript: undefined,
         imageSources: extractMessageImageSources(newContent),
         versions,
         currentVersionIndex: versions.length - 1
@@ -194,13 +252,13 @@ export function createMessageActions() {
       if (index === -1) return
 
       const targetMessage = messages[index]
-      if (!targetMessage.versions[targetIndex]) return
+      const versions = getSafeMessageVersions(targetMessage)
+      if (!versions[targetIndex]) return
 
-      const currentVersionIndex = targetMessage.currentVersionIndex
+      const currentVersionIndex = getSafeCurrentVersionIndex(targetMessage, versions)
       if (currentVersionIndex === targetIndex) return
 
       const futureMessages = messages.slice(index + 1)
-      const versions = [...targetMessage.versions]
       versions[currentVersionIndex] = {
         ...versions[currentVersionIndex],
         subsequentMessages: futureMessages
@@ -211,6 +269,7 @@ export function createMessageActions() {
       newMessages[index] = {
         ...targetMessage,
         content: versions[targetIndex].content,
+        apiTranscript: versions[targetIndex].apiTranscript,
         imageSources: extractMessageImageSources(versions[targetIndex].content),
         currentVersionIndex: targetIndex,
         versions

@@ -143,10 +143,24 @@ describe('desktop account commands', () => {
     );
 
     controller.abort();
-    listeners.error?.({ message: 'Aborted' });
 
-    await expect(streamPromise).rejects.toThrow('Aborted');
+    await expect(streamPromise).rejects.toMatchObject({ name: 'AbortError' });
     expect(mocks.account.cancelManagedChatCompletionStream).toHaveBeenCalledWith('req-abort');
+  });
+
+  it('does not start managed streams when the signal is already aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(accountCommands.managedChatCompletionStream(
+      { model: 'vlaina-managed/test' },
+      vi.fn(),
+      controller.signal,
+      'req-already-aborted',
+    )).rejects.toMatchObject({ name: 'AbortError' });
+
+    expect(mocks.account.cancelManagedChatCompletionStream).toHaveBeenCalledWith('req-already-aborted');
+    expect(mocks.account.startManagedChatCompletionStream).not.toHaveBeenCalled();
   });
 
   it('throws a clear error when the electron bridge is unavailable', async () => {

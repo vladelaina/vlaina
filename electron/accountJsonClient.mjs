@@ -1,5 +1,49 @@
-import { redactToken, summarizeAuthResultShape } from './accountAuthDebug.mjs';
+import { redactToken, summarizeAuthPayload, summarizeAuthResultShape } from './accountAuthDebug.mjs';
 import { desktopLegacySessionHeader } from './accountSessionAuth.mjs';
+
+function summarizeRequestBody(body) {
+  if (typeof body !== 'string') {
+    return null;
+  }
+
+  if (!body.trim()) {
+    return { type: 'empty', length: 0 };
+  }
+
+  try {
+    return {
+      type: 'json',
+      value: summarizeAuthPayload(JSON.parse(body)),
+      length: body.length,
+    };
+  } catch {
+    return {
+      type: 'text',
+      length: body.length,
+    };
+  }
+}
+
+function summarizeJsonPayload(payload) {
+  if (!payload || typeof payload !== 'object') {
+    return {
+      type: payload === null ? 'null' : typeof payload,
+    };
+  }
+
+  if (Array.isArray(payload)) {
+    return {
+      type: 'array',
+      length: payload.length,
+    };
+  }
+
+  return {
+    type: 'object',
+    keys: Object.keys(payload).sort(),
+    authResult: summarizeAuthResultShape(payload),
+  };
+}
 
 export function createDesktopAccountJsonClient({ logDesktopAuth }) {
   async function readJsonResponse(response, fallbackMessage) {
@@ -42,7 +86,7 @@ export function createDesktopAccountJsonClient({ logDesktopAuth }) {
     logDesktopAuth(`${eventPrefix}:request`, {
       url,
       method: init.method ?? 'GET',
-      body: typeof init.body === 'string' ? init.body : null,
+      bodySummary: summarizeRequestBody(init.body),
     });
 
     const response = await fetch(url, init);
@@ -67,8 +111,8 @@ export function createDesktopAccountJsonClient({ logDesktopAuth }) {
         ),
         'content-type': response.headers.get('content-type'),
       },
-      text,
-      payload,
+      textLength: text.length,
+      payloadSummary: summarizeJsonPayload(payload),
       durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
     });
 
@@ -80,7 +124,7 @@ export function createDesktopAccountJsonClient({ logDesktopAuth }) {
     logDesktopAuth('fetch_json:start', {
       url,
       method: init.method ?? 'GET',
-      body: typeof init.body === 'string' ? init.body : null,
+      bodySummary: summarizeRequestBody(init.body),
     });
     let response;
     let data;
@@ -110,8 +154,8 @@ export function createDesktopAccountJsonClient({ logDesktopAuth }) {
     logDesktopAuth('fetch_json:done', {
       url,
       status: response.status,
-      headerAppSessionToken,
-      data: nextData,
+      headerAppSessionToken: redactToken(headerAppSessionToken),
+      dataSummary: summarizeJsonPayload(nextData),
       summary:
         url.includes('/desktop/result')
           ? summarizeAuthResultShape(nextData)

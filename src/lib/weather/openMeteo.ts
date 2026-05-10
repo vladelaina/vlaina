@@ -39,8 +39,9 @@ export async function searchCity(name: string): Promise<GeoLocation[]> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
+    const res = await fetch(url, { signal: controller.signal }).finally(() => {
+      clearTimeout(timeoutId);
+    });
 
     if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
@@ -67,8 +68,9 @@ export async function getWeather(lat: number, lon: number): Promise<WeatherData 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout for larger payload
 
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeoutId);
+    const res = await fetch(url, { signal: controller.signal }).finally(() => {
+      clearTimeout(timeoutId);
+    });
     
     if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 

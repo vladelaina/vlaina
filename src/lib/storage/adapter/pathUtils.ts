@@ -87,7 +87,15 @@ export function isAbsolutePath(path: string): boolean {
 export function relativePath(from: string, to: string): string {
   const fromNorm = normalizePath(from, true).replace(/\/$/, '');
   const toNorm = normalizePath(to, true);
-  
+
+  if (toNorm === fromNorm) {
+    return '';
+  }
+
+  if (fromNorm === '') {
+    return toNorm.replace(/^\/+/, '');
+  }
+
   if (toNorm.startsWith(fromNorm + '/')) {
     return toNorm.slice(fromNorm.length + 1);
   }

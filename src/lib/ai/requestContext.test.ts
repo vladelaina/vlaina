@@ -11,6 +11,7 @@ function createMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
     content,
     modelId: overrides.modelId ?? 'model-1',
     timestamp,
+    ...(overrides.apiTranscript !== undefined ? { apiTranscript: overrides.apiTranscript } : {}),
     ...(overrides.imageSources !== undefined ? { imageSources: overrides.imageSources } : {}),
     versions:
       overrides.versions ?? [{ content, createdAt: timestamp, subsequentMessages: [] }],
@@ -76,5 +77,74 @@ describe('requestContext', () => {
 
     const sanitized = sanitizeHistory(history);
     expect(sanitized[0].content).toBe('Final answer');
+  });
+
+  it('removes rendered thinking markup from fallback model history', () => {
+    const history = [
+      createMessage({
+        role: 'assistant',
+        content: '<think>private reasoning</think>Final answer',
+      }),
+    ];
+
+    const sanitized = sanitizeHistory(history);
+    expect(sanitized[0].content).toBe('Final answer');
+  });
+
+  it('compacts oversized hidden API transcripts instead of dropping reasoning content', () => {
+    const result = buildRequestHistory({
+      history: [
+        createMessage({
+          role: 'assistant',
+          content: 'Visible answer',
+          apiTranscript: [
+            {
+              role: 'assistant',
+              content: null,
+              reasoning_content: 'hidden plan',
+              tool_calls: [{
+                id: 'call-1',
+                type: 'function',
+                function: { name: 'web_search', arguments: '{"query":"x"}' },
+              }],
+            },
+            {
+              role: 'tool',
+              tool_call_id: 'call-1',
+              name: 'web_search',
+              content: 'x'.repeat(30000),
+            },
+            {
+              role: 'assistant',
+              content: 'Final answer',
+              reasoning_content: 'final hidden reasoning',
+            },
+          ],
+        }),
+      ],
+      modelId: 'model-1',
+      timezoneOffset: 8,
+      includeTimeContext: false,
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].content).toBe('Visible answer');
+    expect(result[0].apiTranscript).toHaveLength(3);
+    expect(result[0].apiTranscript?.[0]).toMatchObject({
+      role: 'assistant',
+      reasoning_content: 'hidden plan',
+      tool_calls: expect.any(Array),
+    });
+    expect(result[0].apiTranscript?.[1]).toMatchObject({
+      role: 'tool',
+      tool_call_id: 'call-1',
+      content: expect.stringContaining('[Earlier content omitted]'),
+    });
+    expect(result[0].apiTranscript?.[2]).toMatchObject({
+      role: 'assistant',
+      content: 'Final answer',
+      reasoning_content: 'final hidden reasoning',
+    });
+    expect(JSON.stringify(result[0].apiTranscript).length).toBeLessThanOrEqual(6000);
   });
 });

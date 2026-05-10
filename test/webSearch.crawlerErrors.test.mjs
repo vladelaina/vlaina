@@ -29,6 +29,25 @@ describe('crawler error classification', () => {
     });
   });
 
+  it('does not fetch when the crawler signal is already aborted', async () => {
+    let fetchCalled = false;
+    const controller = new AbortController();
+    controller.abort();
+    const crawler = new Crawler({
+      fetchImpl: async () => {
+        fetchCalled = true;
+        return new Response('not used');
+      },
+    });
+
+    await expect(crawler.readUrl('http://93.184.216.34', {
+      signal: controller.signal,
+    })).rejects.toMatchObject({
+      code: 'timeout',
+    });
+    expect(fetchCalled).toBe(false);
+  });
+
   it('blocks low quality sources before fetching', async () => {
     let fetchCalled = false;
     const crawler = new Crawler({

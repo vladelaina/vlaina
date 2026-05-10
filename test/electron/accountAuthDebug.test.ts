@@ -15,8 +15,14 @@ describe('desktop auth debug redaction', () => {
         authStart: {
           resultToken: 'rat_0123456789abcdef',
           verifier: ['verifier_0123456789abcdef'],
+          authUrl: 'https://accounts.example/auth?state=oauth-state&code_challenge=secret#frag',
         },
-        state: 'oauth-state',
+        email: {
+          code: '123456',
+          verificationCode: '987654',
+          statusCode: 200,
+        },
+        state: 'oauth-state-0123456789',
       }),
     ).toEqual({
       username: 'alice',
@@ -26,11 +32,17 @@ describe('desktop auth debug redaction', () => {
           clientSecret: 'secret…6789',
         },
       },
-      authStart: {
-        resultToken: 'rat_01…cdef',
-        verifier: ['verifi…cdef'],
-      },
-      state: 'oauth-state',
-    });
+        authStart: {
+          resultToken: 'rat_01…cdef',
+          verifier: ['verifi…cdef'],
+          authUrl: 'https://accounts.example/auth',
+        },
+        email: {
+          code: '12…56',
+          verificationCode: '98…54',
+          statusCode: 200,
+        },
+        state: 'oauth-…6789',
+      });
   });
 });

@@ -63,4 +63,9 @@ describe('desktop watch ipc payload mapping', () => {
     expect(isPathCoveredByWatchPath('/vault/docs', '/vault/docs/a.md', false)).toBe(true);
     expect(isPathCoveredByWatchPath('/vault/docs', '/vault/other/a.md', true)).toBe(false);
   });
+
+  it('treats a recursive root watcher as covering absolute descendants', () => {
+    expect(isPathCoveredByWatchPath('/', '/vault/docs/a.md', true)).toBe(true);
+    expect(isPathCoveredByWatchPath('/', '/vault/docs/a.md', false)).toBe(false);
+  });
 });

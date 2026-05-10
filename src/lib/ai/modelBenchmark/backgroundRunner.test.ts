@@ -113,4 +113,27 @@ describe('backgroundBenchmarkRunner', () => {
     expect(aborted).toBe(true);
     expect(backgroundBenchmarkRunner.getSnapshot(provider.id)).toBeNull();
   });
+
+  it('isolates snapshot listener failures from other subscribers', async () => {
+    const mockedBenchmarkModels = vi.mocked(benchmarkModels);
+    mockedBenchmarkModels.mockResolvedValue({
+      'm-1': { status: 'success', latency: 10, endpoint: 'chat' },
+    });
+    const throwingListener = vi.fn(() => {
+      throw new Error('listener failed');
+    });
+    const healthyListener = vi.fn();
+
+    const unsubscribeThrowing = backgroundBenchmarkRunner.subscribe(provider.id, throwingListener);
+    const unsubscribeHealthy = backgroundBenchmarkRunner.subscribe(provider.id, healthyListener);
+
+    expect(() => backgroundBenchmarkRunner.start(provider, [createModel('m-1')])).not.toThrow();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(throwingListener).toHaveBeenCalled();
+    expect(healthyListener).toHaveBeenCalled();
+    unsubscribeThrowing();
+    unsubscribeHealthy();
+  });
 });

@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => {
     getBasePath: vi.fn().mockResolvedValue('/appdata'),
     exists: vi.fn().mockResolvedValue(true),
     mkdir: vi.fn().mockResolvedValue(undefined),
+    readFile: vi.fn(),
     writeFile: vi.fn().mockResolvedValue(undefined),
     listDir: vi.fn(),
     deleteFile: vi.fn().mockResolvedValue(undefined),
@@ -45,12 +46,14 @@ vi.mock('@/stores/useToastStore', () => ({
 }));
 
 import { saveUnifiedDataImmediate } from './unifiedStorage';
+import { loadUnifiedData } from './unifiedStorage';
 
 describe('unifiedStorage electron save', () => {
   beforeEach(() => {
     mocks.storage.getBasePath.mockClear();
     mocks.storage.exists.mockClear();
     mocks.storage.mkdir.mockClear();
+    mocks.storage.readFile.mockReset();
     mocks.storage.writeFile.mockClear();
     mocks.storage.listDir.mockReset();
     mocks.storage.deleteFile.mockClear();
@@ -107,6 +110,16 @@ describe('unifiedStorage electron save', () => {
             createdAt: 1,
             updatedAt: 1,
           },
+          {
+            id: '../outside',
+            name: 'Unsafe',
+            type: 'newapi',
+            apiHost: 'https://example.com',
+            apiKey: 'sk-unsafe',
+            enabled: true,
+            createdAt: 1,
+            updatedAt: 1,
+          },
         ],
         models: [
           {
@@ -135,6 +148,7 @@ describe('unifiedStorage electron save', () => {
     await saveUnifiedDataImmediate(data);
 
     expect(mocks.setProviderSecret).toHaveBeenCalledWith('active-provider', 'sk-live');
+    expect(mocks.setProviderSecret).not.toHaveBeenCalledWith('../outside', 'sk-unsafe');
     expect(mocks.deleteProviderSecret).toHaveBeenCalledWith('empty-provider');
     expect(mocks.deleteProviderSecret).toHaveBeenCalledWith('stale-provider');
     expect(mocks.deleteProviderSecret).toHaveBeenCalledWith('legacy-tts');
@@ -147,6 +161,15 @@ describe('unifiedStorage electron save', () => {
     expect(providerWrite).toBeTruthy();
     expect(String(providerWrite?.[1])).not.toContain('sk-live');
     expect(String(providerWrite?.[1])).toContain('"apiKey": ""');
+    expect(mocks.storage.writeFile).not.toHaveBeenCalledWith(
+      expect.stringContaining('../outside.json'),
+      expect.anything(),
+    );
+
+    const sessionsWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
+      String(path).endsWith('/chat/sessions.json'),
+    );
+    expect(JSON.parse(String(sessionsWrite?.[1])).providerIds).toEqual(['active-provider', 'empty-provider']);
   });
 
   it('skips keychain cleanup work outside electron runtime', async () => {
@@ -175,5 +198,91 @@ describe('unifiedStorage electron save', () => {
 
     expect(mocks.setProviderSecret).not.toHaveBeenCalled();
     expect(mocks.deleteProviderSecret).not.toHaveBeenCalled();
+  });
+
+  it('trusts provider channel filenames over mismatched provider ids when loading split storage', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/.vlaina/data.json')) {
+        return JSON.stringify({
+          version: 2,
+          lastModified: 1,
+          data: {
+            settings: {
+              timezone: { offset: 480, city: 'Beijing' },
+              markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+            },
+            customIcons: [],
+          },
+        });
+      }
+
+      if (path.endsWith('/chat/sessions.json')) {
+        return JSON.stringify({
+          sessions: [],
+          providerIds: ['good-provider', 'evil-provider'],
+        });
+      }
+
+      if (path.endsWith('/chat/channels/good-provider.json')) {
+        return JSON.stringify({
+          provider: {
+            id: 'good-provider',
+            name: 'Good',
+            type: 'newapi',
+            apiHost: 'https://good.example',
+            apiKey: '',
+            enabled: true,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+          models: [
+            {
+              apiModelId: 'model-a',
+              providerId: 'good-provider',
+              enabled: true,
+              createdAt: 1,
+            },
+          ],
+          benchmarkResults: { items: {} },
+          fetchedModels: ['model-a', 123],
+        });
+      }
+
+      if (path.endsWith('/chat/channels/evil-provider.json')) {
+        return JSON.stringify({
+          provider: {
+            id: '__proto__',
+            name: 'Evil',
+            type: 'newapi',
+            apiHost: 'https://evil.example',
+            apiKey: '',
+            enabled: true,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+          models: [
+            {
+              apiModelId: 'model-b',
+              providerId: '__proto__',
+              enabled: true,
+              createdAt: 1,
+            },
+          ],
+          benchmarkResults: { polluted: true },
+          fetchedModels: ['model-b'],
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    const data = await loadUnifiedData();
+
+    expect(data.ai?.providers.map((provider) => provider.id)).toEqual(['good-provider']);
+    expect(data.ai?.models.map((model) => model.providerId)).toEqual(['good-provider']);
+    expect(data.ai?.benchmarkResults).toEqual({ 'good-provider': { items: {} } });
+    expect(data.ai?.fetchedModels).toEqual({ 'good-provider': ['model-a'] });
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 });

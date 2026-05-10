@@ -155,6 +155,10 @@ async function fetchWithVerifiedAddress(resolvedUrl, signal) {
 }
 
 async function fetchWithTimeout(fetchImpl, resolvedUrl, timeoutMs, signal) {
+  if (signal?.aborted) {
+    throw new WebSearchError('timeout', 'The page request timed out.');
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const combinedSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;

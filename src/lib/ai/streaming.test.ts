@@ -16,6 +16,7 @@ function streamResponse(lines: string[]): Response {
 describe('consumeOpenAIStream', () => {
   it('wraps OpenAI-compatible reasoning_content deltas in think tags', async () => {
     const chunks: string[] = [];
+    const transcriptMessages: unknown[] = [];
     const result = await consumeOpenAIStream(
       streamResponse([
         'data: {"choices":[{"delta":{"role":"assistant","content":"","reasoning_content":"\\n"}}]}',
@@ -30,10 +31,49 @@ describe('consumeOpenAIStream', () => {
         '',
       ]),
       (chunk) => chunks.push(chunk),
+      {
+        onAssistantTranscriptMessage: (message) => transcriptMessages.push(message),
+      },
     );
 
     expect(result).toBe('<think>\nGot it</think>pong');
     expect(chunks).toContain('<think>\nGot it');
     expect(chunks[chunks.length - 1]).toBe('<think>\nGot it</think>pong');
+    expect(transcriptMessages).toEqual([{
+      role: 'assistant',
+      content: 'pong',
+      reasoning_content: '\nGot it',
+    }]);
+  });
+
+  it('keeps resumed reasoning hidden after visible content has started', async () => {
+    const chunks: string[] = [];
+    const transcriptMessages: unknown[] = [];
+    const result = await consumeOpenAIStream(
+      streamResponse([
+        'data: {"choices":[{"delta":{"reasoning_content":"first"}}]}',
+        '',
+        'data: {"choices":[{"delta":{"content":"visible"}}]}',
+        '',
+        'data: {"choices":[{"delta":{"reasoning_content":"second"}}]}',
+        '',
+        'data: {"choices":[{"delta":{"content":" answer"}}]}',
+        '',
+        'data: [DONE]',
+        '',
+      ]),
+      (chunk) => chunks.push(chunk),
+      {
+        onAssistantTranscriptMessage: (message) => transcriptMessages.push(message),
+      },
+    );
+
+    expect(result).toBe('<think>first</think>visible<think>second</think> answer');
+    expect(chunks[chunks.length - 1]).toBe('<think>first</think>visible<think>second</think> answer');
+    expect(transcriptMessages).toEqual([{
+      role: 'assistant',
+      content: 'visible answer',
+      reasoning_content: 'firstsecond',
+    }]);
   });
 });

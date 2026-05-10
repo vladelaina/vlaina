@@ -59,7 +59,10 @@ export function persistUser(data: {
   membershipTier: MembershipTier | null;
   membershipName: string | null;
 }) {
-  localStorage.setItem(ACCOUNT_USER_PERSIST_KEY, JSON.stringify(data));
+  try {
+    localStorage.setItem(ACCOUNT_USER_PERSIST_KEY, JSON.stringify(data));
+  } catch {
+  }
 }
 
 export function loadPersistedUser(): Partial<AccountSessionState> {
@@ -96,8 +99,11 @@ export function loadPersistedUser(): Partial<AccountSessionState> {
 }
 
 export function clearAuthIntent(): void {
-  sessionStorage.removeItem(AUTH_STATE_STORAGE_KEY);
-  sessionStorage.removeItem(AUTH_PROVIDER_STORAGE_KEY);
+  try {
+    sessionStorage.removeItem(AUTH_STATE_STORAGE_KEY);
+    sessionStorage.removeItem(AUTH_PROVIDER_STORAGE_KEY);
+  } catch {
+  }
 }
 
 export async function refreshAvatar(

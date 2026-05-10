@@ -116,7 +116,7 @@ export function ThinkingBlock({
   return (
     <div
       className={`flex mb-4 flex-col w-full ${activelyThinking || !isCollapsed ? "text-neutral-800 dark:text-neutral-200" : "text-neutral-600 dark:text-neutral-400"}
-         hover:text-neutral-800 dark:hover:text-neutral-200 select-none`}
+         hover:text-neutral-800 dark:hover:text-neutral-200`}
     >
       <button
         type="button"

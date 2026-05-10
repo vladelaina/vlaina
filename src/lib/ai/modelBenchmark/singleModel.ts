@@ -29,6 +29,11 @@ function buildBenchmarkUrl(provider: Provider, endpoint: BenchmarkEndpoint): str
   return `${baseUrl}/chat/completions`;
 }
 
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError'
+    || !!error && typeof error === 'object' && (error as { name?: unknown }).name === 'AbortError';
+}
+
 function buildBenchmarkBody(
   modelId: string,
   endpoint: BenchmarkEndpoint,
@@ -356,7 +361,7 @@ export async function checkModelHealth(
       endpoint,
     };
   } catch (error: unknown) {
-    if (error instanceof Error && error.name === 'AbortError') {
+    if (isAbortError(error)) {
       return {
         status: 'error',
         error: didTimeout
