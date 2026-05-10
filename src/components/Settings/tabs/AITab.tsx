@@ -93,14 +93,14 @@ function ChannelObject({
     >
       <div className="block w-full px-4 pb-3 pt-4 text-left">
         <div className="min-w-0 pr-7">
-          <div className="truncate text-[14px] font-semibold text-[var(--chat-sidebar-text)]">{name}</div>
+          <div className="truncate text-[14px] font-semibold text-[var(--notes-sidebar-text)]">{name}</div>
         </div>
-        <div className="mt-1 line-clamp-1 pr-7 text-[12px] text-[var(--chat-sidebar-text-soft)]">
+        <div className="mt-1 line-clamp-1 pr-7 text-[12px] text-[var(--notes-sidebar-text-soft)]">
           {baseUrl ? formatChannelBaseUrl(baseUrl) : 'Not configured yet'}
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-4 pb-4 text-[11px] text-[var(--chat-sidebar-text-soft)]">
+      <div className="flex items-center justify-between px-4 pb-4 text-[11px] text-[var(--notes-sidebar-text-soft)]">
         <span>{modelCount} model{modelCount === 1 ? '' : 's'}</span>
         <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
           <SettingsSwitch
@@ -300,7 +300,7 @@ export function AITab() {
   const hasCustomProviders = customProviders.length > 0;
 
   return (
-    <div className="h-full bg-[#fcfcfc] dark:bg-[#1E1E1E] text-[var(--chat-sidebar-text)]">
+    <div className="h-full bg-[#fcfcfc] dark:bg-[#1E1E1E] text-[var(--notes-sidebar-text)]">
       <ConfirmDialog
         isOpen={!!pendingDelete}
         title={`Delete ${pendingDelete?.name || 'this channel'}?`}
@@ -316,8 +316,8 @@ export function AITab() {
         <AIBehaviorSettings />
 
         <section className="mx-auto max-w-5xl">
-          <div className="mb-3 px-1">
-            <h3 className="text-[15px] font-semibold text-[var(--chat-sidebar-text)]">
+          <div className="mb-4 px-1">
+            <h3 className="text-[14px] font-bold text-[var(--notes-sidebar-text)] tracking-tight">
               Custom Channels
             </h3>
           </div>

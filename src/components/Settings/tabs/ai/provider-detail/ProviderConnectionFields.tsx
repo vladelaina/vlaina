@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { SettingsTextInput } from '@/components/Settings/components/SettingsFields';
+import { SettingsItem } from '@/components/Settings/components/SettingsControls';
 
 const API_KEY_PREFIX_VISIBLE_CHARS = 7;
 const API_KEY_SUFFIX_VISIBLE_CHARS = 4;
@@ -64,81 +65,93 @@ export function ProviderConnectionFields({
   }, [apiKey.length, shouldShowRawApiKey]);
 
   return (
-    <section className="p-1">
-      <div className="grid grid-cols-1 gap-4">
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-medium text-gray-500">Channel Label</label>
-          <SettingsTextInput
-            type="text"
-            value={name}
-            onChange={(e) => onNameChange(e.target.value)}
-            placeholder="New Channel"
-          />
-        </div>
+    <section className="space-y-1">
+      <SettingsItem
+        title="Channel Label"
+        description="A friendly name for this connection."
+      >
+        <SettingsTextInput
+          type="text"
+          value={name}
+          onChange={(e) => onNameChange(e.target.value)}
+          placeholder="New Channel"
+          className="w-64"
+          inputClassName="h-9 px-4 rounded-xl text-[13px]"
+          shellClassName="rounded-xl shadow-none"
+        />
+      </SettingsItem>
 
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-medium text-gray-500">Base URL</label>
-          <SettingsTextInput
-            type="text"
-            value={apiHost}
-            onChange={(e) => onApiHostChange(e.target.value)}
-            placeholder="https://api.openai.com"
-            name={`provider-api-host-${providerId}`}
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="none"
-            spellCheck={false}
-            data-lpignore="true"
-            data-1p-ignore="true"
-          />
-        </div>
+      <SettingsItem
+        title="Base URL"
+        description="The API endpoint for the provider."
+      >
+        <SettingsTextInput
+          type="text"
+          value={apiHost}
+          onChange={(e) => onApiHostChange(e.target.value)}
+          placeholder="https://api.openai.com"
+          name={`provider-api-host-${providerId}`}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          data-lpignore="true"
+          data-1p-ignore="true"
+          className="w-64"
+          inputClassName="h-9 px-4 rounded-xl text-[13px]"
+          shellClassName="rounded-xl shadow-none"
+        />
+      </SettingsItem>
 
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-medium text-gray-500">API Key</label>
-          <SettingsTextInput
-            ref={apiKeyInputRef}
-            type="text"
-            value={shouldShowRawApiKey ? apiKey : maskApiKey(apiKey)}
-            onChange={(e) => onApiKeyChange(e.target.value)}
-            onFocus={() => {
-              if (!shouldShowRawApiKey && apiKey) {
-                shouldSelectApiKeyOnRevealRef.current = true;
-                onToggleApiKey();
-              }
-            }}
-            placeholder="sk-..."
-            name={`provider-api-key-${providerId}`}
-            autoComplete="new-password"
-            autoCorrect="off"
-            autoCapitalize="none"
-            spellCheck={false}
-            data-lpignore="true"
-            data-1p-ignore="true"
-            inputClassName="font-mono"
-            trailing={
-              <>
-                <button
-                  type="button"
-                  onClick={onToggleApiKey}
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10 dark:hover:text-gray-200"
-                  title={showApiKey ? 'Hide API Key' : 'Show API Key'}
-                >
-                  <Icon name={showApiKey ? 'common.eyeOff' : 'common.eye'} size="sm" />
-                </button>
-                <button
-                  type="button"
-                  onClick={onCopyApiKey}
-                  disabled={!apiKey}
-                  className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/10 dark:hover:text-gray-200"
-                  title={apiKeyCopied ? 'Copied' : 'Copy API Key'}
-                >
-                  <Icon name={apiKeyCopied ? 'common.check' : 'common.copy'} size="sm" />
-                </button>
-              </>
+      <SettingsItem
+        title="API Key"
+        description="Your secret key for authentication."
+      >
+        <SettingsTextInput
+          ref={apiKeyInputRef}
+          type="text"
+          value={shouldShowRawApiKey ? apiKey : maskApiKey(apiKey)}
+          onChange={(e) => onApiKeyChange(e.target.value)}
+          onFocus={() => {
+            if (!shouldShowRawApiKey && apiKey) {
+              shouldSelectApiKeyOnRevealRef.current = true;
+              onToggleApiKey();
             }
-          />
-        </div>
-      </div>
+          }}
+          placeholder="sk-..."
+          name={`provider-api-key-${providerId}`}
+          autoComplete="new-password"
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          data-lpignore="true"
+          data-1p-ignore="true"
+          className="w-64"
+          inputClassName="h-9 px-4 rounded-xl text-[13px] font-mono"
+          shellClassName="rounded-xl shadow-none"
+          trailing={
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={onToggleApiKey}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-zinc-100 hover:text-[var(--notes-sidebar-text)] dark:hover:bg-white/10"
+                title={showApiKey ? 'Hide API Key' : 'Show API Key'}
+              >
+                <Icon name={showApiKey ? 'common.eyeOff' : 'common.eye'} size="sm" />
+              </button>
+              <button
+                type="button"
+                onClick={onCopyApiKey}
+                disabled={!apiKey}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-zinc-100 hover:text-[var(--notes-sidebar-text)] disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/10"
+                title={apiKeyCopied ? 'Copied' : 'Copy API Key'}
+              >
+                <Icon name={apiKeyCopied ? 'common.check' : 'common.copy'} size="sm" />
+              </button>
+            </div>
+          }
+        />
+      </SettingsItem>
     </section>
   );
 }

@@ -106,15 +106,15 @@ export function SettingsSwitch({ checked, onChange, className, 'aria-label': ari
       aria-label={ariaLabel}
       onClick={() => onChange(!checked)}
       className={cn(
-        'relative inline-flex h-7 w-11 items-center rounded-full p-0.5 transition-colors duration-200',
-        checked ? 'bg-[#d1fae5]' : 'bg-zinc-200 dark:bg-zinc-700',
+        'relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none',
+        checked ? 'bg-[#10B981]' : 'bg-zinc-200 dark:bg-zinc-700',
         className
       )}
     >
       <span
         className={cn(
-          'h-6 w-6 rounded-full shadow-[0_1px_4px_rgba(16,185,129,0.2)] transition-transform duration-200',
-          checked ? 'translate-x-4 bg-[#10b981]' : 'translate-x-0 bg-white'
+          'inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200',
+          checked ? 'translate-x-[22px]' : 'translate-x-[2px]'
         )}
       />
     </button>

@@ -16,6 +16,7 @@ import { SETTINGS_BEFORE_CLOSE_EVENT, SETTINGS_CLOSED_EVENT } from './settingsEv
 import {
   getSidebarIdleRowSurfaceClass,
   getSidebarSelectedRowSurfaceClass,
+  getSidebarLabelClass,
 } from '@/components/layout/sidebar/sidebarLabelStyles';
 
 interface SettingsModalProps {
@@ -122,7 +123,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               aria-modal="true"
               tabIndex={-1}
             >
-              <div className="w-[260px] flex-shrink-0 bg-[var(--vlaina-sidebar-bg)] flex flex-col text-[var(--chat-sidebar-text)]">
+              <div className="w-[260px] flex-shrink-0 bg-[var(--vlaina-sidebar-bg)] flex flex-col text-[var(--notes-sidebar-text)]">
                 <div className="flex min-h-0 flex-1 px-3 pb-4 pt-6">
                   <div className={cn('flex min-h-0 flex-1 flex-col rounded-[22px] p-1.5', chatComposerPillSurfaceClass)}>
                     <div className="flex-1 overflow-y-auto vlaina-scrollbar">
@@ -138,7 +139,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                                     className={cn(
                                       "mx-1 flex min-h-9 w-full items-center gap-3 px-3 py-2 text-sm font-medium transition-all duration-150 ease-out",
                                       isActive
-                                        ? getSidebarSelectedRowSurfaceClass('chat')
+                                        ? getSidebarSelectedRowSurfaceClass('notes')
                                         : getSidebarIdleRowSurfaceClass('chat')
                                     )}
                                   >
@@ -149,11 +150,13 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                                         className={cn(
                                           isActive
                                             ? "text-[var(--sidebar-row-selected-text)]"
-                                            : "text-[var(--chat-sidebar-icon)] group-hover/chat-sidebar-row:text-[var(--chat-sidebar-icon-hover)]"
+                                            : "text-[var(--notes-sidebar-text-soft)] group-hover/chat-sidebar-row:text-[var(--notes-sidebar-text)]"
                                         )}
                                       />
                                     </span>
-                                    <span className="truncate text-[var(--chat-sidebar-text)]">{item.label}</span>
+                                    <span className={cn('truncate', getSidebarLabelClass('notes', { selected: isActive }))}>
+                                      {item.label}
+                                    </span>
                                   </button>
                                 </div>
                               );
