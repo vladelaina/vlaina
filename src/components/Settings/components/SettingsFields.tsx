@@ -95,9 +95,10 @@ interface SettingsSwitchProps {
   onChange: (checked: boolean) => void;
   className?: string;
   'aria-label'?: string;
+  activeColor?: string;
 }
 
-export function SettingsSwitch({ checked, onChange, className, 'aria-label': ariaLabel }: SettingsSwitchProps) {
+export function SettingsSwitch({ checked, onChange, className, 'aria-label': ariaLabel, activeColor }: SettingsSwitchProps) {
   return (
     <button
       type="button"
@@ -107,7 +108,7 @@ export function SettingsSwitch({ checked, onChange, className, 'aria-label': ari
       onClick={() => onChange(!checked)}
       className={cn(
         'relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none',
-        checked ? 'bg-[#10B981]' : 'bg-zinc-200 dark:bg-zinc-700',
+        checked ? (activeColor || 'bg-[#10B981]') : 'bg-zinc-200 dark:bg-zinc-700',
         className
       )}
     >

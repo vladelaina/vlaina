@@ -11,6 +11,8 @@ import {
 } from './ProviderModelListParts';
 import { ProviderQuickAdd } from './ProviderQuickAdd';
 import { VirtualModelList } from './VirtualModelList';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { cn } from '@/lib/utils';
 
 interface ProviderModelsPanelProps {
   providerId: string;
@@ -91,9 +93,9 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
     props.onAddAllVisible(availableModels);
   };
   return (
-    <section className="p-1">
-      <div className="overflow-hidden rounded-[28px] border border-zinc-200/85 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.04)]">
-        <div className="space-y-4 px-5 py-5">
+    <section className="space-y-4">
+      <div className={cn("overflow-hidden rounded-[26px] p-1", chatComposerPillSurfaceClass)}>
+        <div className="space-y-5 px-6 py-6">
           {hasFetchedModels ? (
             <div className="flex flex-wrap items-center gap-2">
               <ActionButton
@@ -117,17 +119,17 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
             </div>
           ) : (
             <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0 text-[14px] font-medium text-zinc-800">Models</div>
+              <div className="min-w-0 text-[14px] font-bold text-[var(--notes-sidebar-text)]">Models</div>
               <button
                 type="button"
                 disabled={!props.canUseConnectionActions || props.isFetchingModels}
                 onClick={() => {
                   void props.onFetchModels();
                 }}
-                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3.5 text-[12px] font-medium text-emerald-700 shadow-[0_8px_18px_rgba(16,185,129,0.08)] transition-colors hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-transparent bg-[var(--sidebar-row-selected-bg)] px-3.5 text-[12px] font-medium text-[var(--sidebar-row-selected-text)] shadow-none transition-colors hover:bg-[var(--sidebar-row-selected-bg)]/80 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {props.isFetchingModels ? (
-                  <span className="h-3 w-3 rounded-full border-2 border-zinc-300 border-t-emerald-500 animate-spin" />
+                  <span className="h-3 w-3 rounded-full border-2 border-zinc-300 border-t-[var(--sidebar-row-selected-text)] animate-spin" />
                 ) : (
                   <Icon name="common.download" size="xs" />
                 )}
@@ -156,15 +158,15 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
           ) : null}
 
           {props.quickAddError ? (
-            <div className="text-[12px] text-red-500">{props.quickAddError}</div>
+            <div className="text-[12px] text-red-500 px-1">{props.quickAddError}</div>
           ) : null}
           {props.fetchError ? (
-            <div className="text-[12px] text-red-500">{props.fetchError}</div>
+            <div className="text-[12px] text-red-500 px-1">{props.fetchError}</div>
           ) : null}
 
           {hasFetchedModels ? (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
                 <SectionHeader
                   label="Selected"
                   disabled={!props.canBenchmarkSelected}
@@ -190,7 +192,7 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <SectionHeader
                   label="Available"
                   disabled={!props.canBenchmarkAvailable}

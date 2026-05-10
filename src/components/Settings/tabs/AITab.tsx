@@ -7,6 +7,8 @@ import { AIBehaviorSettings } from './ai/AIBehaviorSettings';
 import { cn } from '@/lib/utils';
 import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { Icon } from '@/components/ui/icons';
 
 interface ProviderCardDraft {
   name?: string;
@@ -85,43 +87,54 @@ function ChannelObject({
         onMiddleClick?.();
       }}
       className={cn(
-        'relative min-h-[112px] rounded-[22px] border transition-colors cursor-pointer',
+        'group/channel relative min-h-[112px] rounded-[26px] border transition-all duration-200 cursor-pointer border-transparent',
         active
-          ? 'border-emerald-200 bg-emerald-50/75 dark:border-emerald-500/20 dark:bg-emerald-500/10'
-          : 'border-zinc-200/80 bg-white hover:border-zinc-300 dark:border-white/10 dark:bg-white/[0.03] dark:hover:border-white/20'
+          ? 'bg-[var(--sidebar-row-selected-bg)] dark:bg-[rgba(65,168,234,0.12)]'
+          : chatComposerPillSurfaceClass
       )}
     >
-      <div className="block w-full px-4 pb-3 pt-4 text-left">
+      <div className="block w-full px-5 pb-3 pt-5 text-left">
         <div className="min-w-0 pr-7">
-          <div className="truncate text-[14px] font-semibold text-[var(--notes-sidebar-text)]">{name}</div>
+          <div className={cn(
+            "truncate text-[14px] font-bold",
+            active ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--notes-sidebar-text)]"
+          )}>
+            {name}
+          </div>
         </div>
-        <div className="mt-1 line-clamp-1 pr-7 text-[12px] text-[var(--notes-sidebar-text-soft)]">
+        <div className={cn(
+          "mt-1 line-clamp-1 pr-7 text-[12px]",
+          active ? "text-[var(--sidebar-row-selected-text)]/80" : "text-[var(--notes-sidebar-text-soft)]"
+        )}>
           {baseUrl ? formatChannelBaseUrl(baseUrl) : 'Not configured yet'}
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-4 pb-4 text-[11px] text-[var(--notes-sidebar-text-soft)]">
+      <div className={cn(
+        "flex items-center justify-between px-5 pb-5 text-[11px] font-bold",
+        active ? "text-[var(--sidebar-row-selected-text)]/70" : "text-[var(--notes-sidebar-text-soft)]"
+      )}>
         <span>{modelCount} model{modelCount === 1 ? '' : 's'}</span>
-        <div onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+        <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onDelete?.();
+            }}
+            aria-label={`Delete ${name}`}
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] opacity-0 group-hover/channel:opacity-100 transition-all duration-200 hover:bg-zinc-200 dark:hover:bg-white/10 hover:text-red-500"
+          >
+            <Icon name="common.trash" size="xs" />
+          </button>
           <SettingsSwitch
             checked={enabled}
             onChange={(nextEnabled) => onToggleEnabled?.(nextEnabled)}
             className="origin-right scale-[0.84]"
+            activeColor="bg-[var(--sidebar-row-selected-text)]"
           />
         </div>
       </div>
-
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          onDelete?.();
-        }}
-        aria-label={`Delete ${name}`}
-        className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full text-[15px] leading-none text-[var(--chat-sidebar-text-soft)] transition-colors hover:text-red-500"
-      >
-        ×
-      </button>
     </div>
   );
 }
@@ -132,10 +145,14 @@ function CreateChannelObject({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       aria-label="Create channel"
-      className="flex min-h-[112px] items-center justify-center rounded-[24px] border border-zinc-200/80 bg-white text-[var(--chat-sidebar-text-soft)] transition-colors hover:border-zinc-300 hover:bg-white dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-white/20 dark:hover:bg-white/[0.06]"
+      className={cn(
+        "flex min-h-[112px] items-center justify-center rounded-[26px] border border-transparent transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.98]",
+        chatComposerPillSurfaceClass
+      )}
     >
-      <div className="flex flex-col items-center">
-        <div className="text-[28px] font-light leading-none">+</div>
+      <div className="flex flex-col items-center gap-1">
+        <div className="text-[24px] font-light leading-none text-[var(--notes-sidebar-text-soft)]">+</div>
+        <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--notes-sidebar-text-soft)]">New Channel</div>
       </div>
     </button>
   );
@@ -375,7 +392,10 @@ export function AITab() {
                   onClick={handleAddCustomProvider}
                   aria-label="Create channel"
                   transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-                  className="w-full rounded-[26px] border border-zinc-200/90 bg-white/70 px-6 py-8 text-left transition-colors duration-200 hover:border-zinc-300 hover:bg-white dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-white/20 dark:hover:bg-white/[0.06]"
+                  className={cn(
+                    "w-full rounded-[26px] border border-transparent px-6 py-8 text-left transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.98]",
+                    chatComposerPillSurfaceClass
+                  )}
                 >
                   <div className="mx-auto flex w-fit flex-col items-center gap-3">
                     <div className="h-[10px] w-[128px] rounded-full bg-zinc-200/80 dark:bg-white/12" />
