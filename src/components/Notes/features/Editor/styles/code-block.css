@@ -22,7 +22,6 @@
   box-shadow: none !important;
 }
 
-/* CodeBlock Selection Styles */
 .milkdown .code-block-container.ProseMirror-selectednode,
 .milkdown .code-block-container.vlaina-block-selected,
 .milkdown .code-block-container[data-pm-selected='true'] {
@@ -70,6 +69,76 @@
 .milkdown .code-block-container[data-pm-selected='true'] .cm-activeLineGutter {
   background: transparent !important;
   background-color: transparent !important;
+}
+
+.milkdown .code-block-container .cm-scroller {
+  overflow-x: auto;
+  cursor: default;
+}
+
+.milkdown .code-block-container .cm-content,
+.milkdown .code-block-container .cm-line {
+  cursor: text;
+}
+
+.milkdown .code-block-container .code-block-editable {
+  padding: 0.25rem 0 1rem;
+}
+
+.milkdown .code-block-container .cm-content {
+  padding: 0 !important;
+}
+
+.milkdown .code-block-container .cm-line {
+  padding: 0 1rem !important;
+}
+
+.milkdown .code-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+  background: var(--vlaina-selection-bg, #2781db) !important;
+}
+
+.milkdown .code-block-container .cm-content::selection,
+.milkdown .code-block-container .cm-content *::selection,
+.milkdown .code-block-container .cm-line::selection,
+.milkdown .code-block-container .cm-line *::selection {
+  background: transparent !important;
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.milkdown .code-block-container .cm-content::-moz-selection,
+.milkdown .code-block-container .cm-content *::-moz-selection,
+.milkdown .code-block-container .cm-line::-moz-selection,
+.milkdown .code-block-container .cm-line *::-moz-selection {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+.milkdown .code-block-container .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+  background: transparent !important;
+}
+
+.milkdown .code-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+  background: var(--vlaina-selection-bg, #2781db) !important;
+}
+
+.milkdown .code-block-container.ProseMirror-selectednode .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
+.milkdown .code-block-container.vlaina-block-selected .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
+.milkdown .code-block-container[data-pm-selected='true'] .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+  background: transparent !important;
+}
+
+.milkdown .code-block-container .cm-focused {
+  outline: none;
+}
+
+.milkdown .code-block-container.ProseMirror-selectednode,
+.milkdown .code-block-container.vlaina-block-selected,
+.milkdown .code-block-container[data-pm-selected='true'] {
+  --vlaina-block-selection-color: color-mix(in srgb, var(--vlaina-editor-block-selection-base, #1e96eb) 14%, transparent);
+  background-color: var(--vlaina-block-selection-color);
+  border-radius: 1rem;
+  box-shadow: none;
 }
 
 .milkdown .ProseMirror li.vlaina-block-selected .code-block-container {

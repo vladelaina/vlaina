@@ -3,6 +3,7 @@ import {
   collectSelectableBlockRanges,
   mapRangesToSelectableBlocks,
   resolveSelectableBlockRange,
+  expandListItemHeaderRanges,
 } from './blockUnitResolver';
 
 interface MockNode {
@@ -130,5 +131,80 @@ describe('mapRangesToSelectableBlocks', () => {
       { from: 6, to: 14 },
       { from: 14, to: 18 },
     ]);
+  });
+});
+
+// doc: bullet_list(14)[ list_item(12)[ paragraph(4), code_block(6) ] ]
+// positions:
+//   listFrom=0, listContentFrom=1, itemFrom=1
+//   paragraph: from=2, to=6
+//   code_block: from=6, to=12
+//   itemEnd=13 (itemFrom+nodeSize=1+12)
+// Expected ranges:
+//   Range A (whole list item): { from:1, to:13 }  — to = itemFrom + node.nodeSize
+//   Range B (code block alone): { from:6, to:12 }
+function createListItemWithCodeBlockDoc() {
+  const codeBlock = createNode('code_block', 6);
+  const para = createNode('paragraph', 4);
+  const listItem = createNode('list_item', 12, [para, codeBlock]);
+  const list = createNode('bullet_list', 14, [listItem]);
+  return createDoc([list]);
+}
+
+describe('collectSelectableBlockRanges — list_item with paragraph then code_block', () => {
+  it('produces both the whole-item range and the code-block-only range', () => {
+    const doc = createListItemWithCodeBlockDoc();
+    const ranges = collectSelectableBlockRanges(doc as any);
+    expect(ranges).toContainEqual({ from: 1, to: 13 });
+    expect(ranges).toContainEqual({ from: 6, to: 12 });
+  });
+
+  it('does not produce a paragraph-only range that excludes the code block', () => {
+    const doc = createListItemWithCodeBlockDoc();
+    const ranges = collectSelectableBlockRanges(doc as any);
+    // para-only range { from:2, to:6 } should NOT exist — hovering the para should select whole item
+    expect(ranges).not.toContainEqual({ from: 2, to: 6 });
+  });
+
+  it('does not produce more than two ranges for a single list item', () => {
+    const doc = createListItemWithCodeBlockDoc();
+    const ranges = collectSelectableBlockRanges(doc as any);
+    expect(ranges).toHaveLength(2);
+  });
+});
+
+describe('resolveSelectableBlockRange — list_item with paragraph then code_block', () => {
+  it('returns the code-block-only range when pos is inside the code block', () => {
+    const doc = createListItemWithCodeBlockDoc() as any;
+    // pos=8 is inside code_block [6,12)
+    const range = resolveSelectableBlockRange(doc, 8);
+    expect(range).toEqual({ from: 6, to: 12 });
+  });
+
+  it('returns the whole-item range when pos is inside the paragraph', () => {
+    const doc = createListItemWithCodeBlockDoc() as any;
+    // pos=3 is inside paragraph [2,6)
+    const range = resolveSelectableBlockRange(doc, 3);
+    expect(range).toEqual({ from: 1, to: 13 });
+  });
+
+  it('returns the smaller (code-block) range because resolveSelectableBlockRange picks smallest', () => {
+    const doc = createListItemWithCodeBlockDoc() as any;
+    // pos=6 is the start of code_block — both Range A [1,12) and Range B [6,12) match
+    const range = resolveSelectableBlockRange(doc, 6);
+    // smallest range wins: [6,12) size=6 < [1,12) size=11
+    expect(range).toEqual({ from: 6, to: 12 });
+  });
+});
+
+describe('expandListItemHeaderRanges — list_item with paragraph then code_block', () => {
+  it('does not further expand the code-block range (expansion is handled by getDraggableBlockRanges)', () => {
+    const doc = createListItemWithCodeBlockDoc() as any;
+    // expandListItemHeaderRanges is for expanding a list_item header to include
+    // sibling children in the same list_item, not for expanding a code_block range.
+    // Range B (code_block) from=6: getListItemRangeEnd checks if nodeAfter at pos=6 is list_item,
+    // but it's a code_block, so returns null → no expansion → returns unchanged Range B.
+    const expanded = expandListItemHeaderRanges(doc, [{ from: 6, to: 12 }]);
+    expect(expanded).toEqual([{ from: 6, to: 12 }]);
   });
 });

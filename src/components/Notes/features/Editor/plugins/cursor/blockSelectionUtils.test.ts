@@ -11,6 +11,8 @@ import {
   getBlockRangesKey,
   isRectIntersecting,
   normalizeBlockRanges,
+  preferNestedBlockRanges,
+  preferNestedBlockRangesUnlessHeaderIntersects,
   pruneContainedBlockRanges,
   resolveDisplayedDragViewportRect,
   resolveIntersectedBlockRanges,
@@ -114,6 +116,45 @@ describe('blockSelectionUtils', () => {
       { from: 0, to: 30 },
       { from: 30, to: 37 },
     ]);
+  });
+
+  it('prefers nested ranges when a child block and containing list item are both selected', () => {
+    expect(preferNestedBlockRanges([
+      { from: 22, to: 29 },
+      { from: 26, to: 28 },
+    ])).toEqual([{ from: 26, to: 28 }]);
+  });
+
+  it('keeps nested preference when a drag rect stays inside a selected child block', () => {
+    const blocks: BlockRect[] = [
+      { from: 26, to: 28, left: 0, top: 120, right: 100, bottom: 180 },
+      { from: 22, to: 29, left: 0, top: 80, right: 100, bottom: 180 },
+    ];
+
+    expect(preferNestedBlockRangesUnlessHeaderIntersects(
+      [
+        { from: 22, to: 29 },
+        { from: 26, to: 28 },
+      ],
+      blocks,
+      { left: 0, top: 130, right: 100, bottom: 170 },
+    )).toEqual([{ from: 26, to: 28 }]);
+  });
+
+  it('preserves a containing list item when dragging from a child block into its header area', () => {
+    const blocks: BlockRect[] = [
+      { from: 26, to: 28, left: 0, top: 120, right: 100, bottom: 180 },
+      { from: 22, to: 29, left: 0, top: 80, right: 100, bottom: 180 },
+    ];
+
+    expect(preferNestedBlockRangesUnlessHeaderIntersects(
+      [
+        { from: 22, to: 29 },
+        { from: 26, to: 28 },
+      ],
+      blocks,
+      { left: 0, top: 90, right: 100, bottom: 170 },
+    )).toEqual([{ from: 22, to: 29 }]);
   });
 
   it('converts drag rectangles into document space across scroll changes', () => {
@@ -267,5 +308,34 @@ describe('blockSelectionUtils', () => {
     expect(displayRanges).toEqual([{ from: 1, to: 2 }]);
 
     await editor.destroy();
+  });
+
+  // doc: bullet_list(14)[ list_item(12)[ paragraph(4), code_block(6) ] ]
+  // Range A: { from:1, to:13 } — whole list item; pos=1 resolves to list_item
+  // Range B: { from:6, to:12 } — code block alone; pos=6 resolves to code_block (not list_item)
+  it('expands whole-item range (Range A) to full list_item decoration', () => {
+    const listItemNode = { type: { name: 'list_item' }, nodeSize: 12 };
+    const codeBlockNode = { type: { name: 'code_block' }, nodeSize: 6 };
+
+    function makeDoc(resolveResult: { nodeAfter: typeof listItemNode | typeof codeBlockNode | null }) {
+      return {
+        content: { size: 14 },
+        resolve(_pos: number) {
+          return {
+            nodeAfter: resolveResult.nodeAfter,
+          };
+        },
+      } as any;
+    }
+
+    // Range A: from=1, to=13; nodeAfter at pos=1 is list_item → should expand to [1, 1+12=13]
+    const docA = makeDoc({ nodeAfter: listItemNode });
+    const rangesA = getDisplayBlockRangesForDecorations(docA, [{ from: 1, to: 13 }]);
+    expect(rangesA).toEqual([{ from: 1, to: 13 }]);
+
+    // Range B: from=6, to=12; nodeAfter at pos=6 is code_block (not list_item) → no expansion
+    const docB = makeDoc({ nodeAfter: codeBlockNode });
+    const rangesB = getDisplayBlockRangesForDecorations(docB, [{ from: 6, to: 12 }]);
+    expect(rangesB).toEqual([{ from: 6, to: 12 }]);
   });
 });

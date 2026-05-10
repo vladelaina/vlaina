@@ -86,7 +86,7 @@ function collectSelectableBlockRects(view: EditorView): BlockRect[] {
 
   return targets.map(({ range, element, rect }) => {
     const contentBounds = resolveContentHorizontalBounds(element, rect);
-    return {
+    const blockRect = {
       from: range.from,
       to: range.to,
       left: useEditorHorizontalBounds ? editorRect.left : rect.left,
@@ -97,6 +97,7 @@ function collectSelectableBlockRects(view: EditorView): BlockRect[] {
       contentRight: contentBounds.right,
       ...(element.tagName === 'LI' ? { allowInsideTrailingClick: true } : {}),
     };
+    return blockRect;
   });
 }
 

@@ -48,6 +48,11 @@ import {
   isIgnoredBlankAreaDragBoxTarget,
   resolveBlankAreaDragStartZone,
 } from './blankAreaDragTargets';
+import {
+  describeDebugTarget,
+  formatDebugBlockRanges,
+  logBlockSelectionDebug,
+} from './blockSelectionDebugLog';
 
 export { blankAreaDragBoxPluginKey } from './blockSelectionPluginState';
 
@@ -146,9 +151,27 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
   };
 
   const tryStartSession = (view: EditorView, event: MouseEvent): BlockDragStartZone | null => {
-    if (event.button !== 0) return null;
-    if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return null;
+    if (event.button !== 0) {
+      logBlockSelectionDebug('select:skip-start:button', { button: event.button });
+      return null;
+    }
+    if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+      logBlockSelectionDebug('select:skip-start:modifier', {
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        altKey: event.altKey,
+        shiftKey: event.shiftKey,
+      });
+      return null;
+    }
     const startZone = resolveBlankAreaDragStartZone(view, event);
+    logBlockSelectionDebug('select:mousedown-candidate', {
+      target: describeDebugTarget(event.target),
+      clientX: event.clientX,
+      clientY: event.clientY,
+      startZone,
+      currentSelection: formatDebugBlockRanges(getBlockSelectionPluginState(view.state).selectedBlocks),
+    });
     if (!startZone) return null;
 
     clearTextSelectionForDragSession(view);
@@ -164,11 +187,18 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
       scrollRootSelector: SCROLL_ROOT_SELECTOR,
       initialSelectedBlocks: getBlockSelectionPluginState(view.state).selectedBlocks,
       onSelectionChange(blocks) {
+        logBlockSelectionDebug('select:dispatch-selection', {
+          blocks: formatDebugBlockRanges(blocks),
+        });
         dispatchBlockSelectionAction(view, blocks.length > 0
           ? { type: 'set-blocks', blocks }
           : CLEAR_BLOCKS_ACTION);
       },
       onPlainClick({ zone, action }) {
+        logBlockSelectionDebug('select:plain-click', {
+          zone,
+          action,
+        });
         if (zone === 'below-last-block') {
           dispatchTailBlankClickAction(view);
           return;
@@ -204,6 +234,10 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         }
         if (action?.type === 'set-blocks') {
           const selectedBlocks = normalizeBlockRanges(action.blocks);
+          logBlockSelectionDebug('select:state:set-blocks', {
+            raw: formatDebugBlockRanges(action.blocks),
+            normalized: formatDebugBlockRanges(selectedBlocks),
+          });
           return {
             selectedBlocks,
             decorations: createBlockSelectionDecorations(tr.doc, selectedBlocks),
@@ -215,6 +249,11 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         }
 
         if (shouldClearBlockSelectionForTransaction(tr, pluginState)) {
+          logBlockSelectionDebug('select:state:clear-text-selection', {
+            previous: formatDebugBlockRanges(pluginState.selectedBlocks),
+            selectionFrom: tr.selection.from,
+            selectionTo: tr.selection.to,
+          });
           return EMPTY_BLOCK_SELECTION_PLUGIN_STATE;
         }
 
@@ -223,6 +262,10 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         }
 
         const selectedBlocks = mapBlockRangesThroughTransaction(pluginState.selectedBlocks, tr);
+        logBlockSelectionDebug('select:state:map-transaction', {
+          previous: formatDebugBlockRanges(pluginState.selectedBlocks),
+          mapped: formatDebugBlockRanges(selectedBlocks),
+        });
         if (selectedBlocks.length === 0) return EMPTY_BLOCK_SELECTION_PLUGIN_STATE;
         return {
           selectedBlocks,
@@ -284,7 +327,18 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         },
         mousedown(view, event) {
           if (!(event instanceof MouseEvent)) return false;
-          if (isIgnoredBlankAreaDragBoxTarget(event.target)) return false;
+          logBlockSelectionDebug('select:editor-mousedown', {
+            target: describeDebugTarget(event.target),
+            clientX: event.clientX,
+            clientY: event.clientY,
+            selectedBlocks: formatDebugBlockRanges(getBlockSelectionPluginState(view.state).selectedBlocks),
+          });
+          if (isIgnoredBlankAreaDragBoxTarget(event.target)) {
+            logBlockSelectionDebug('select:editor-mousedown:ignored-target', {
+              target: describeDebugTarget(event.target),
+            });
+            return false;
+          }
           const target = event.target;
           if (target instanceof Node && view.dom.contains(target) && hasSelectedBlocks(view.state)) {
             clearBlockSelection(view);
@@ -304,7 +358,19 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
       const doc = view.dom.ownerDocument;
       syncBlockSelectionVisualState(view);
       const handleDocumentMouseDown = (event: MouseEvent) => {
-        if (isIgnoredBlankAreaDragBoxTarget(event.target)) return;
+        logBlockSelectionDebug('select:document-mousedown', {
+          target: describeDebugTarget(event.target),
+          insideEditor: event.target instanceof Node && view.dom.contains(event.target),
+          clientX: event.clientX,
+          clientY: event.clientY,
+          selectedBlocks: formatDebugBlockRanges(getBlockSelectionPluginState(view.state).selectedBlocks),
+        });
+        if (isIgnoredBlankAreaDragBoxTarget(event.target)) {
+          logBlockSelectionDebug('select:document-mousedown:ignored-target', {
+            target: describeDebugTarget(event.target),
+          });
+          return;
+        }
         const target = event.target;
         if (target instanceof Node && view.dom.contains(target)) {
           if (hasSelectedBlocks(view.state)) {

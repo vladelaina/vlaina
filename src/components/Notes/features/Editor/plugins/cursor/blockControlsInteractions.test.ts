@@ -249,6 +249,61 @@ describe('getDraggableBlockRanges', () => {
       { from: 5, to: 11 },
     ]);
   });
+
+  // doc: bullet_list(14)[ list_item(12)[ paragraph(4), code_block(6) ] ]
+  // Range A (hover para): { from:1, to:12 }
+  // Range B (hover code): { from:6, to:12 }
+  // When Range B is selected alone, getDraggableBlockRanges should keep it draggable by itself.
+  it('keeps a code-block-inside-list-item range draggable by itself', () => {
+    const codeBlock = createNode('code_block', 6);
+    const para = createNode('paragraph', 4);
+    const listItem = createNode('list_item', 12, [para, codeBlock]);
+    const list = createNode('bullet_list', 14, [listItem]);
+    const children = [list];
+    const docSize = 14;
+
+    // pos=6 is at the boundary: inside list_item, nodeAfter=code_block, parent=list_item
+    const resolveResult = {
+      nodeAfter: codeBlock,  // not a list_item
+      parent: listItem,       // is a list_item
+      depth: 2,
+      before: (_depth: number) => 1,  // itemFrom = 1
+    };
+
+    const doc = {
+      content: { size: docSize },
+      forEach(cb: (child: MockNode, offset: number) => void) {
+        let offset = 0;
+        for (const child of children) {
+          cb(child, offset);
+          offset += child.nodeSize;
+        }
+      },
+      resolve(_pos: number) {
+        return resolveResult;
+      },
+    };
+
+    const dom = document.createElement('div');
+    const liEl = document.createElement('li');
+    const codeEl = document.createElement('pre');
+    liEl.appendChild(codeEl);
+    dom.appendChild(liEl);
+    withRect(dom, { left: 20, top: 20, width: 600, height: 200 });
+    withRect(liEl, { left: 60, top: 40, width: 400, height: 80 });
+    withRect(codeEl, { left: 60, top: 60, width: 400, height: 60 });
+
+    const view = {
+      dom,
+      state: { doc },
+      nodeDOM(_pos: number) { return liEl; },
+      domAtPos(_pos: number) { return { node: liEl.firstChild as Node }; },
+    };
+
+    // Range B selected (user hovered over code block)
+    const ranges = getDraggableBlockRanges(view as any, [{ from: 6, to: 12 }]);
+    expect(ranges).toEqual([{ from: 6, to: 12 }]);
+  });
 });
 
 describe('resolveBlockTargetByPos', () => {

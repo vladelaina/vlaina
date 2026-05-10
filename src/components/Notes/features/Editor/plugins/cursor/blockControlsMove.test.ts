@@ -6,6 +6,7 @@ import {
   remarkStringifyOptionsCtx,
   serializerCtx,
 } from '@milkdown/kit/core';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { applyBlockMove } from './blockControlsMove';
@@ -53,6 +54,14 @@ function expectSemanticContentPreserved(before: string, after: string): void {
 
 function expectSingleOccurrence(markdown: string, text: string): void {
   expect(markdown.match(new RegExp(text, 'g'))).toHaveLength(1);
+}
+
+function isCodeBlockRange(view: EditorView, range: { from: number }): boolean {
+  try {
+    return view.state.doc.resolve(range.from).nodeAfter?.type.name === 'code_block';
+  } catch {
+    return false;
+  }
 }
 
 describe('applyBlockMove content integrity', () => {
@@ -160,6 +169,59 @@ describe('applyBlockMove content integrity', () => {
     expectSingleOccurrence(nextMarkdown, 'Child');
     expectSingleOccurrence(nextMarkdown, 'Intro');
     expectSingleOccurrence(nextMarkdown, 'Outro');
+
+    await editor.destroy();
+  });
+
+  it('drags a code block out of a list item without moving the list item', async () => {
+    const markdown = '- Item\n  ```ts\n  console.log(1)\n  ```\n\nTail';
+    const editor = await createEditor(markdown);
+    const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+    const codeBlock = blocks.find((range) => isCodeBlockRange(view, range));
+
+    expect(codeBlock).toBeDefined();
+    const draggedRanges = getDraggableBlockRanges(view, [codeBlock!]);
+    expect(draggedRanges).toEqual([codeBlock]);
+
+    expect(applyBlockMove(view, draggedRanges, view.state.doc.content.size)).toBe(true);
+    const nextMarkdown = normalizeMarkdown(serializer(view.state.doc));
+    expect(nextMarkdown).toContain('- Item');
+    expect(nextMarkdown).toContain('Tail');
+    expect(nextMarkdown).toContain('```ts\nconsole.log(1)\n```');
+    expect(nextMarkdown.indexOf('- Item')).toBeLessThan(nextMarkdown.indexOf('Tail'));
+    expect(nextMarkdown.indexOf('Tail')).toBeLessThan(nextMarkdown.indexOf('```ts'));
+
+    await editor.destroy();
+  });
+
+  it('drags a whole list item with its code block when the list item range is selected', async () => {
+    const markdown = '- Item\n  ```ts\n  console.log(1)\n  ```\n\nTail';
+    const editor = await createEditor(markdown);
+    const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+    const listItem = blocks.find((range) => {
+      try {
+        return view.state.doc.resolve(range.from).nodeAfter?.type.name === 'list_item';
+      } catch {
+        return false;
+      }
+    });
+
+    expect(listItem).toBeDefined();
+    const draggedRanges = getDraggableBlockRanges(view, [listItem!]);
+    expect(draggedRanges).toEqual([listItem]);
+
+    expect(applyBlockMove(view, draggedRanges, view.state.doc.content.size)).toBe(true);
+    const nextMarkdown = normalizeMarkdown(serializer(view.state.doc));
+    expect(nextMarkdown).toContain('Tail');
+    expect(nextMarkdown).toContain('- Item');
+    expect(nextMarkdown).toContain('```ts');
+    expect(nextMarkdown).toContain('console.log(1)');
+    expect(nextMarkdown.indexOf('Tail')).toBeLessThan(nextMarkdown.indexOf('- Item'));
+    expect(nextMarkdown.indexOf('- Item')).toBeLessThan(nextMarkdown.indexOf('```ts'));
 
     await editor.destroy();
   });
