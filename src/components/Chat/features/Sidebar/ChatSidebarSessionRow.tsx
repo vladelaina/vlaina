@@ -6,6 +6,7 @@ import { getSidebarLabelClass } from '@/components/layout/sidebar/sidebarLabelSt
 import { SidebarRowActionButton } from '@/components/layout/sidebar/SidebarRow';
 import { SidebarContextMenu } from '@/components/layout/sidebar/SidebarContextMenu';
 import { useSidebarHoverPrefetch } from '@/components/layout/sidebar/useSidebarHoverPrefetch';
+import { desktopWindow } from '@/lib/desktop/window';
 import {
   SidebarContextMenuContent,
   type SidebarMenuEntry,
@@ -90,6 +91,16 @@ function ChatSidebarSessionRowInner({
     onRequestDelete(session.id);
     setShowContextMenu(false);
   };
+  const handleOpenInNewWindow = () => {
+    void desktopWindow.create({
+      viewMode: 'chat',
+      chatSessionId: session.id,
+    });
+    if (isActive) {
+      aiActions.openNewChat();
+    }
+    setShowContextMenu(false);
+  };
   const contextMenuEntries: SidebarMenuEntry[] = [
     {
       key: 'rename',
@@ -107,6 +118,12 @@ function ChatSidebarSessionRowInner({
       ),
       label: session.isPinned ? 'Unpin' : 'Pin',
       onClick: handleTogglePin,
+    },
+    {
+      key: 'open-new-window',
+      icon: <Icon name="file.folderOutput" size="md" />,
+      label: 'Open in New Window',
+      onClick: handleOpenInNewWindow,
     },
     { kind: 'divider', key: 'delete-divider' },
     {
@@ -239,6 +256,21 @@ function ChatSidebarSessionRowInner({
                 <Icon name="common.pinPrimer" size={16} className="mr-2 text-[var(--chat-sidebar-icon)]" />
               )}
               <span>{session.isPinned ? 'Unpin' : 'Pin'}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(event) => {
+                event.stopPropagation();
+                handleOpenInNewWindow();
+              }}
+              className={cn(
+                'text-[16px] font-medium px-2.5 py-2 rounded-xl cursor-pointer outline-none',
+                'text-[var(--chat-sidebar-text)]',
+                'hover:bg-[var(--chat-sidebar-row-hover)] focus:bg-[var(--chat-sidebar-row-hover)] data-[highlighted]:bg-[var(--chat-sidebar-row-hover)]',
+                'focus:text-[var(--chat-sidebar-text)] data-[highlighted]:text-[var(--chat-sidebar-text)]'
+              )}
+            >
+              <Icon name="file.folderOutput" size="md" className="mr-2 text-[var(--chat-sidebar-icon)]" />
+              <span>Open in New Window</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-neutral-200 dark:bg-neutral-700 my-1 opacity-70" />
             <DropdownMenuItem

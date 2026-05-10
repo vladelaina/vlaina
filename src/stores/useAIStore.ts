@@ -43,7 +43,14 @@ export function useAIStoreRuntimeEffects(): void {
 
     const launchContext = launchContextRef.current;
     if (launchContext.isNewWindow && launchContext.viewMode === 'chat') {
-      uiState.initializeSelection({ currentSessionId: null, temporaryChatEnabled: false });
+      const requestedSessionId = launchContext.chatSessionId;
+      const currentSessionId = requestedSessionId && aiData?.sessions.some((session) => session.id === requestedSessionId)
+        ? requestedSessionId
+        : null;
+      uiState.initializeSelection({ currentSessionId, temporaryChatEnabled: false });
+      if (currentSessionId) {
+        void actions.switchSession(currentSessionId);
+      }
       return;
     }
 

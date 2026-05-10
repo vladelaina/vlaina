@@ -156,15 +156,22 @@ export function NotesView({ active = true }: { active?: boolean }) {
   useEffect(() => {
     if (hasHandledLaunchNoteRef.current) return;
 
-    const launchNotePath = launchContextRef.current.notePath;
-    if (!launchNotePath || !currentVault || notesPath !== currentVault.path) return;
+    const { folderPath: launchFolderPath, notePath: launchNotePath } = launchContextRef.current;
+    if ((!launchFolderPath && !launchNotePath) || !currentVault || notesPath !== currentVault.path) return;
 
     hasHandledLaunchNoteRef.current = true;
+    if (launchFolderPath) {
+      focusSidebarPath(launchFolderPath);
+      return;
+    }
+
+    if (!launchNotePath) return;
+
     void openStoredNotePath(launchNotePath, {
       openNote,
       openNoteByAbsolutePath,
     });
-  }, [currentVault, notesPath, openNote, openNoteByAbsolutePath]);
+  }, [currentVault, focusSidebarPath, notesPath, openNote, openNoteByAbsolutePath]);
 
   useEffect(() => {
     if (!currentVault || !pendingStarredNavigation) return;

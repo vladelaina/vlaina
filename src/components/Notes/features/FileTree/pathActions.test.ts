@@ -1,9 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { copyTreeItemPath, openTreeItemLocation } from './pathActions';
+import { copyTreeItemPath, openTreeItemInNewWindow, openTreeItemLocation } from './pathActions';
 
 const mocks = vi.hoisted(() => ({
+  createWindow: vi.fn(),
   revealItemInFolder: vi.fn(),
   writeTextToClipboard: vi.fn(),
+}));
+
+vi.mock('@/lib/desktop/window', () => ({
+  desktopWindow: {
+    create: mocks.createWindow,
+  },
 }));
 
 vi.mock('@/lib/desktop/shell', () => ({
@@ -21,8 +28,10 @@ vi.mock('@/lib/storage/adapter', () => ({
 
 describe('file tree path actions', () => {
   beforeEach(() => {
+    mocks.createWindow.mockReset();
     mocks.revealItemInFolder.mockReset();
     mocks.writeTextToClipboard.mockReset();
+    mocks.createWindow.mockResolvedValue(undefined);
     mocks.revealItemInFolder.mockResolvedValue(undefined);
     mocks.writeTextToClipboard.mockResolvedValue(true);
   });
@@ -43,11 +52,31 @@ describe('file tree path actions', () => {
     expect(mocks.revealItemInFolder).toHaveBeenCalledWith('/vault');
   });
 
+  it('opens files and folders in a new notes window', async () => {
+    await openTreeItemInNewWindow('/vault', 'docs/readme.md', 'file');
+    await openTreeItemInNewWindow('/vault', 'docs', 'folder');
+
+    expect(mocks.createWindow).toHaveBeenNthCalledWith(1, {
+      vaultPath: '/vault',
+      notePath: 'docs/readme.md',
+      folderPath: null,
+      viewMode: 'notes',
+    });
+    expect(mocks.createWindow).toHaveBeenNthCalledWith(2, {
+      vaultPath: '/vault',
+      notePath: null,
+      folderPath: 'docs',
+      viewMode: 'notes',
+    });
+  });
+
   it('rejects absolute and traversing item paths', async () => {
     await expect(copyTreeItemPath('/vault', '/etc/passwd')).rejects.toThrow('Path must stay inside the current vault.');
     await expect(openTreeItemLocation('/vault', '../secret.md')).rejects.toThrow('Path must stay inside the current vault.');
+    await expect(openTreeItemInNewWindow('/vault', '../secret.md', 'file')).rejects.toThrow('Path must stay inside the current vault.');
 
     expect(mocks.writeTextToClipboard).not.toHaveBeenCalled();
     expect(mocks.revealItemInFolder).not.toHaveBeenCalled();
+    expect(mocks.createWindow).not.toHaveBeenCalled();
   });
 });

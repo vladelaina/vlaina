@@ -1,5 +1,6 @@
 import { revealItemInFolder } from '@/lib/desktop/shell';
 import { writeTextToClipboard } from '@/lib/clipboard';
+import { desktopWindow } from '@/lib/desktop/window';
 import { resolveVaultRelativeFullPath } from '@/stores/notes/utils/fs/vaultPathContainment';
 
 async function resolveAbsoluteTreeItemPath(notesPath: string, itemPath: string) {
@@ -19,4 +20,18 @@ export async function copyTreeItemPath(notesPath: string, itemPath: string) {
 export async function openTreeItemLocation(notesPath: string, itemPath: string) {
   const absolutePath = await resolveAbsoluteTreeItemPath(notesPath, itemPath);
   await revealItemInFolder(absolutePath);
+}
+
+export async function openTreeItemInNewWindow(
+  notesPath: string,
+  itemPath: string,
+  itemKind: 'file' | 'folder',
+) {
+  await resolveAbsoluteTreeItemPath(notesPath, itemPath);
+  await desktopWindow.create({
+    vaultPath: notesPath,
+    notePath: itemKind === 'file' ? itemPath : null,
+    folderPath: itemKind === 'folder' ? itemPath : null,
+    viewMode: 'notes',
+  });
 }

@@ -42,7 +42,7 @@ export function ExternalStarredEntryRow({
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const title = liveTitle || getEntryTitle(entry);
   const canOpen = entry.kind === 'note';
-  const { handleCopyPath, handleOpenLocation } = useTreeItemPathActions({
+  const { handleCopyPath, handleOpenInNewWindow, handleOpenLocation } = useTreeItemPathActions({
     notesPath: entry.vaultPath,
     itemPath: entry.relativePath,
     openLocationErrorMessage: entry.kind === 'folder'
@@ -82,6 +82,10 @@ export function ExternalStarredEntryRow({
       onCopyPath: async () => {
         setShowMenu(false);
         await handleCopyPath();
+      },
+      onOpenInNewWindow: async () => {
+        setShowMenu(false);
+        await handleOpenInNewWindow(entry.kind === 'folder' ? 'folder' : 'file');
       },
       onOpenLocation: async () => {
         setShowMenu(false);

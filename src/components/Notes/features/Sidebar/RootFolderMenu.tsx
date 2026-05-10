@@ -50,7 +50,7 @@ export function RootFolderMenu({
 }: RootFolderMenuProps) {
   const currentSortLabel = getFileTreeSortLabel(fileTreeSortMode);
   const closeVault = useVaultStore((state) => state.closeVault);
-  const { handleCopyPath, handleOpenLocation } = useTreeItemPathActions({
+  const { handleCopyPath, handleOpenInNewWindow, handleOpenLocation } = useTreeItemPathActions({
     notesPath: vaultPath,
     itemPath: '',
     openLocationErrorMessage: 'Failed to open folder location.',
@@ -129,6 +129,16 @@ export function RootFolderMenu({
           onClick: async () => {
             onClose();
             await handleCopyPath();
+          },
+          disabled: !vaultPath,
+        },
+        {
+          key: 'open-new-window',
+          icon: <Icon name="file.folderOutput" size="md" />,
+          label: 'Open in New Window',
+          onClick: async () => {
+            onClose();
+            await handleOpenInNewWindow('folder');
           },
           disabled: !vaultPath,
         },

@@ -129,6 +129,14 @@ export function registerWindowIpc({
       typeof windowOptions?.notePath === 'string' && windowOptions.notePath.trim()
         ? windowOptions.notePath
         : null;
+    const folderPath =
+      typeof windowOptions?.folderPath === 'string' && windowOptions.folderPath.trim()
+        ? windowOptions.folderPath
+        : null;
+    const chatSessionId =
+      typeof windowOptions?.chatSessionId === 'string' && windowOptions.chatSessionId.trim()
+        ? windowOptions.chatSessionId
+        : null;
     const viewMode =
       typeof windowOptions?.viewMode === 'string' && windowOptions.viewMode.trim()
         ? windowOptions.viewMode
@@ -138,6 +146,8 @@ export function registerWindowIpc({
       newWindow: true,
       vaultPath,
       notePath,
+      folderPath,
+      chatSessionId,
       viewMode,
     });
   });
