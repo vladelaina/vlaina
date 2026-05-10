@@ -3,7 +3,7 @@ import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createDesktopAccountService } from './accountAuthFlow.mjs';
-import { readSecretsStore, writeSecretsStore } from './aiProviderSecretStore.mjs';
+import { readSecretsStore, updateSecretsStore } from './aiProviderSecretStore.mjs';
 import { registerDesktopIpc } from './desktopIpc.mjs';
 import { registerManagedIpc } from './managedIpc.mjs';
 import { isTrustedRendererUrl as isTrustedRendererUrlForConfig } from './rendererTrust.mjs';
@@ -37,12 +37,38 @@ function normalizeProxyConfig(rawProxy, source) {
       ? `http=${hostPort};https=${hostPort}`
       : `${parsed.protocol}//${hostPort}`;
     return {
-      proxyServer: parsed.toString(),
+      proxyServer: redactUrlCredentials(parsed),
       proxyRules,
       source,
     };
   } catch {
     return null;
+  }
+}
+
+function redactUrlCredentials(rawUrl) {
+  try {
+    const parsed = rawUrl instanceof URL ? new URL(rawUrl.toString()) : new URL(String(rawUrl));
+    if (parsed.username || parsed.password) {
+      parsed.username = parsed.username ? 'redacted' : '';
+      parsed.password = parsed.password ? 'redacted' : '';
+    }
+    return parsed.toString();
+  } catch {
+    return '';
+  }
+}
+
+function summarizeUrlForLog(rawUrl) {
+  try {
+    const parsed = new URL(String(rawUrl));
+    parsed.search = '';
+    parsed.hash = '';
+    parsed.username = '';
+    parsed.password = '';
+    return parsed.toString();
+  } catch {
+    return '';
   }
 }
 
@@ -194,6 +220,21 @@ function requireStringArray(values, label) {
   return values.map((value, index) => requireNonEmptyString(value, `${label} value at index ${index}`));
 }
 
+function isSafeProviderId(value) {
+  return (
+    typeof value === 'string' &&
+    /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(value)
+  );
+}
+
+function requireSafeProviderId(value) {
+  const providerId = requireNonEmptyString(value, 'provider id').trim();
+  if (!isSafeProviderId(providerId)) {
+    throw new Error('Provider id contains unsupported characters.');
+  }
+  return providerId;
+}
+
 function tryNormalizeExternalUrl(rawUrl) {
   try {
     return normalizeExternalUrl(rawUrl);
@@ -273,7 +314,7 @@ async function resolveVideoUrl(rawUrl) {
       timeoutFired = true;
       stage = 'timeout';
       console.info('[electron:media:resolve-video-url:timeout]', {
-        inputUrl,
+        inputUrl: summarizeUrlForLog(inputUrl),
         bvid,
         timeoutMs,
         durationMs: Date.now() - startedAt,
@@ -300,7 +341,7 @@ async function resolveVideoUrl(rawUrl) {
 
     if (!response.ok || payload?.code !== 0 || !cid) {
       console.info('[electron:media:resolve-video-url:fallback]', {
-        inputUrl,
+        inputUrl: summarizeUrlForLog(inputUrl),
         bvid,
         httpStatus: response.status,
         code: payload?.code ?? null,
@@ -339,7 +380,7 @@ async function resolveVideoUrl(rawUrl) {
     };
   } catch (error) {
     console.info('[electron:media:resolve-video-url:error]', {
-      inputUrl,
+      inputUrl: summarizeUrlForLog(inputUrl),
       bvid,
       message: error instanceof Error ? error.message : String(error),
       name: error instanceof Error ? error.name : null,
@@ -397,9 +438,10 @@ handleIpc('desktop:secrets:get-ai-provider-secrets', async (_event, providerIds)
   const { data } = await readSecretsStore();
   const result = {};
 
-  for (const providerId of providerIds ?? []) {
-    if (typeof providerId === 'string' && typeof data[providerId] === 'string') {
-      result[providerId] = data[providerId];
+  for (const providerId of requireStringArray(providerIds, 'provider id')) {
+    const normalizedProviderId = requireSafeProviderId(providerId);
+    if (typeof data[normalizedProviderId] === 'string') {
+      result[normalizedProviderId] = data[normalizedProviderId];
     }
   }
 
@@ -407,19 +449,17 @@ handleIpc('desktop:secrets:get-ai-provider-secrets', async (_event, providerIds)
 });
 
 handleIpc('desktop:secrets:set-ai-provider-secret', async (_event, providerId, apiKey) => {
-  const normalizedProviderId = requireNonEmptyString(providerId, 'provider id');
-
-  const store = await readSecretsStore();
-  store.data[normalizedProviderId] = String(apiKey ?? '');
-  await writeSecretsStore(store.data);
+  const normalizedProviderId = requireSafeProviderId(providerId);
+  await updateSecretsStore((data) => {
+    data[normalizedProviderId] = String(apiKey ?? '');
+  });
 });
 
 handleIpc('desktop:secrets:delete-ai-provider-secret', async (_event, providerId) => {
-  const normalizedProviderId = requireNonEmptyString(providerId, 'provider id');
-
-  const store = await readSecretsStore();
-  delete store.data[normalizedProviderId];
-  await writeSecretsStore(store.data);
+  const normalizedProviderId = requireSafeProviderId(providerId);
+  await updateSecretsStore((data) => {
+    delete data[normalizedProviderId];
+  });
 });
 
 handleIpc('desktop:media:resolve-video-url', async (_event, url) => {

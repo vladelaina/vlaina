@@ -230,7 +230,12 @@ export function useChatService() {
                 provider,
                 onChunk,
                 signal,
-                options: { webSearchEnabled },
+                options: {
+                  webSearchEnabled,
+                  onApiTranscript: (apiTranscript) => {
+                    aiActions.updateMessageApiTranscript(targetSessionId, assistantMessageId, apiTranscript);
+                  },
+                },
               }),
             updateMessage: aiActions.updateMessage,
             completeMessage: aiActions.completeMessage,
@@ -335,7 +340,12 @@ export function useChatService() {
                 provider,
                 onChunk,
                 signal,
-                options: { webSearchEnabled },
+                options: {
+                  webSearchEnabled,
+                  onApiTranscript: (apiTranscript) => {
+                    aiActions.updateMessageApiTranscript(sessionId, assistantMessageId, apiTranscript);
+                  },
+                },
               }),
             updateMessage: aiActions.updateMessage,
             completeMessage: aiActions.completeMessage,
@@ -419,7 +429,12 @@ export function useChatService() {
                 provider,
                 onChunk,
                 signal,
-                options: { webSearchEnabled },
+                options: {
+                  webSearchEnabled,
+                  onApiTranscript: (apiTranscript) => {
+                    aiActions.updateMessageApiTranscript(sessionId, messageId, apiTranscript);
+                  },
+                },
               }),
             updateMessage: aiActions.updateMessage,
             completeMessage: aiActions.completeMessage,

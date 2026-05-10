@@ -38,4 +38,10 @@ describe('createAsyncPrefetchQueue', () => {
     await Promise.all(tasks);
     expect(activeCount).toBe(0);
   });
+
+  it('normalizes invalid concurrency limits so queued tasks still run', async () => {
+    const queue = createAsyncPrefetchQueue(0);
+
+    await expect(queue.run(async () => 'ok')).resolves.toBe('ok');
+  });
 });

@@ -94,4 +94,31 @@ describe('secure secret record codec', () => {
       needsMigration: false,
     });
   });
+
+  it('drops corrupted encrypted entries and marks the record for migration', () => {
+    const throwingSafeStorage = {
+      ...availableSafeStorage,
+      decryptString() {
+        throw new Error('decrypt failed');
+      },
+    };
+
+    expect(
+      decodeSecretRecord(
+        {
+          appSessionToken: {
+            __secure: 'electron.safeStorage.v1',
+            ciphertext: Buffer.from('not decryptable', 'utf8').toString('base64'),
+          },
+          openai: 'sk-live',
+        },
+        throwingSafeStorage,
+      ),
+    ).toEqual({
+      record: {
+        openai: 'sk-live',
+      },
+      needsMigration: true,
+    });
+  });
 });

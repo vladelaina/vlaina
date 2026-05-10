@@ -53,6 +53,9 @@ function isPathCoveredByWatchPath(watchPath, watchedPath, recursive) {
   }
 
   if (recursive) {
+    if (normalizedWatchPath === '/') {
+      return normalizedWatchedPath.startsWith('/');
+    }
     return normalizedWatchedPath.startsWith(`${normalizedWatchPath}/`);
   }
 

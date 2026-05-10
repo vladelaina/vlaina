@@ -336,8 +336,43 @@ export function parseAPIError(error: any): AIError {
   );
 }
 
+function extractHTTPErrorMessage(body: any): string | undefined {
+  if (typeof body === 'string' && body.trim()) {
+    return body.trim()
+  }
+
+  if (!isRecord(body)) {
+    return undefined
+  }
+
+  const nestedError = body.error
+  if (typeof nestedError === 'string' && nestedError.trim()) {
+    return nestedError.trim()
+  }
+  if (isRecord(nestedError)) {
+    const nestedMessage =
+      typeof nestedError.message === 'string' && nestedError.message.trim()
+        ? nestedError.message.trim()
+        : typeof nestedError.error === 'string' && nestedError.error.trim()
+          ? nestedError.error.trim()
+          : ''
+    if (nestedMessage) {
+      return nestedMessage
+    }
+  }
+
+  for (const key of ['message', 'msg', 'detail', 'error_description'] as const) {
+    const value = body[key]
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim()
+    }
+  }
+
+  return undefined
+}
+
 export function parseHTTPError(status: number, body?: any): AIError {
-  const apiMessage = body?.error?.message || body?.message;
+  const apiMessage = extractHTTPErrorMessage(body);
 
   switch (status) {
     case 401:

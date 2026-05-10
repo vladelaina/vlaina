@@ -164,6 +164,26 @@ function parseResults(engine, html, limit, existingUrls = new Set(), options = {
   return parseBingResults(html, limit, existingUrls, options);
 }
 
+function selectSearchEngines(rawEngines) {
+  const requested = Array.isArray(rawEngines)
+    ? rawEngines
+    : typeof rawEngines === 'string'
+      ? rawEngines.split(',')
+      : [];
+  const requestedIds = new Set(
+    requested
+      .map((engine) => String(engine).trim().toLowerCase())
+      .filter(Boolean)
+  );
+
+  if (requestedIds.size === 0) {
+    return SEARCH_ENGINES;
+  }
+
+  const selected = SEARCH_ENGINES.filter((engine) => requestedIds.has(engine.id));
+  return selected.length > 0 ? selected : SEARCH_ENGINES;
+}
+
 export class LocalSearchProvider {
   constructor({ fetchImpl = fetch, timeoutMs = SEARCH_TIMEOUT_MS } = {}) {
     this.fetchImpl = fetchImpl;
@@ -182,9 +202,9 @@ export class LocalSearchProvider {
     }
     const existingUrls = new Set(officialResults.map((result) => result.url));
     const searchQuery = buildSearchQuery(query, options);
-    let lastError = null;
+    const engines = selectSearchEngines(options.engines);
 
-    for (const engine of SEARCH_ENGINES) {
+    const engineAttempts = engines.map(async (engine) => {
       const params = new URLSearchParams(engine.params(searchQuery, limit, options));
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -208,15 +228,48 @@ export class LocalSearchProvider {
           query,
           minQueryScore: officialResults.length > 0 ? 2 : 0,
         });
-        const relevantResults = filterLowRelevanceResults(query, parsedResults);
-        if (relevantResults.length > 0 || officialResults.length > 0) {
-          return [...officialResults, ...relevantResults].slice(0, limit);
-        }
+        return {
+          engineId: engine.id,
+          results: filterLowRelevanceResults(query, parsedResults),
+        };
       } catch (error) {
-        lastError = error;
+        return {
+          engineId: engine.id,
+          error,
+        };
       } finally {
         clearTimeout(timeout);
       }
+    });
+
+    const settledAttempts = await Promise.all(engineAttempts);
+    const byEngine = new Map(settledAttempts.map((attempt) => [attempt.engineId, attempt]));
+    const relevantResults = [];
+    const seenUrls = new Set(existingUrls);
+    let lastError = null;
+
+    for (const engine of engines) {
+      const attempt = byEngine.get(engine.id);
+      if (!attempt) continue;
+      if (attempt.error) {
+        lastError = attempt.error;
+        continue;
+      }
+      for (const result of attempt.results || []) {
+        if (seenUrls.has(result.url)) continue;
+        seenUrls.add(result.url);
+        relevantResults.push(result);
+        if (officialResults.length + relevantResults.length >= limit) {
+          break;
+        }
+      }
+      if (officialResults.length + relevantResults.length >= limit) {
+        break;
+      }
+    }
+
+    if (relevantResults.length > 0 || officialResults.length > 0) {
+      return [...officialResults, ...relevantResults].slice(0, limit);
     }
 
     if (officialResults.length > 0) return officialResults;
@@ -236,4 +289,5 @@ export const localSearchInternals = {
   parseDuckDuckGoResults,
   parseGoogleResults,
   parseResults,
+  selectSearchEngines,
 };

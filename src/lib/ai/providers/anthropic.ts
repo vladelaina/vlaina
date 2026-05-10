@@ -3,6 +3,7 @@ import { AIErrorType, type AIModel, type ChatMessage, type ChatMessageContent, t
 import { buildAnthropicBaseUrl, resolveApiModelId } from '../utils'
 import { providerFetch } from '../providerHttp'
 import { createStreamAccumulator } from '@/lib/ai/streaming'
+import { stripThinkingContent } from '@/lib/ai/stripThinkingContent'
 
 export const ANTHROPIC_VERSION = '2023-06-01'
 
@@ -38,7 +39,7 @@ function buildAnthropicMessages(
   const systemParts: string[] = []
 
   history.forEach((entry) => {
-    const content = extractTextContent(entry.content)
+    const content = stripThinkingContent(extractTextContent(entry.content))
     if (!content) return
 
     if (entry.role === 'system') {
@@ -65,6 +66,11 @@ function buildAnthropicMessages(
 
 function summarizeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error || 'Unknown error')
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError'
+    || !!error && typeof error === 'object' && (error as { name?: unknown }).name === 'AbortError'
 }
 
 async function consumeAnthropicStream(
@@ -202,7 +208,7 @@ export async function sendAnthropicMessage({
 
     return consumeAnthropicStream(response, onChunk)
   } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
+    if (isAbortError(error)) {
       if (timedOut) {
         throw new Error('The AI request timed out.')
       }

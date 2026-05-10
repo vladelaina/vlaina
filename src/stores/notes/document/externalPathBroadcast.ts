@@ -77,7 +77,10 @@ function notifyListeners(event: NotesExternalPathRenameEvent) {
   }
 
   listeners.forEach((listener) => {
-    listener(event);
+    try {
+      listener(event);
+    } catch {
+    }
   });
 }
 
@@ -86,7 +89,13 @@ function ensureBroadcastChannel() {
     return;
   }
 
-  channel = new BroadcastChannel(CHANNEL_NAME);
+  try {
+    channel = new BroadcastChannel(CHANNEL_NAME);
+  } catch {
+    channel = null;
+    return;
+  }
+
   channel.onmessage = (message) => {
     const event = parseRenameEvent(message.data);
     if (event) {
@@ -157,7 +166,10 @@ export function emitNotesExternalPathRename(input: {
   };
 
   ensureBroadcastChannel();
-  channel?.postMessage(event);
+  try {
+    channel?.postMessage(event);
+  } catch {
+  }
   releaseExternalPathListenersIfIdle();
 
   try {
@@ -185,11 +197,14 @@ export function subscribeNotesExternalPathRename(
       return;
     }
 
-    listener({
-      nonce: event.nonce,
-      oldPath: event.oldPath,
-      newPath: event.newPath,
-    });
+    try {
+      listener({
+        nonce: event.nonce,
+        oldPath: event.oldPath,
+        newPath: event.newPath,
+      });
+    } catch {
+    }
   };
 
   listeners.add(wrappedListener);

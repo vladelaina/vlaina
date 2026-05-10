@@ -83,6 +83,16 @@ describe("MarkdownRenderer", () => {
     expect(screen.getByTestId("markdown-children")).toHaveTextContent("AnswerDone");
   });
 
+  it("extracts multiple completed think blocks without leaking them into markdown", () => {
+    render(<MarkdownRenderer content={"A<think>first</think>B<think>second</think>C"} />);
+
+    expect(screen.getByTestId("thinking-block")).toHaveTextContent("first");
+    expect(screen.getByTestId("thinking-block")).toHaveTextContent("second");
+    expect(screen.getByTestId("markdown-children")).toHaveTextContent("ABC");
+    expect(screen.getByTestId("markdown-children")).not.toHaveTextContent("second");
+    expect(screen.getByTestId("markdown-children")).not.toHaveTextContent("<think>");
+  });
+
   it("keeps incomplete think blocks streaming and skips markdown output", () => {
     render(<MarkdownRenderer content={"<think>working"} />);
 

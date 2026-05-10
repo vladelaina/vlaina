@@ -2,6 +2,21 @@ import electron from 'electron';
 
 const { BrowserWindow } = electron;
 
+const MIN_WINDOW_DIMENSION = 1;
+const MAX_WINDOW_DIMENSION = 8192;
+
+export function normalizeWindowDimension(value, label) {
+  const dimension = Number(value);
+  if (!Number.isFinite(dimension)) {
+    throw new Error(`A finite ${label} is required.`);
+  }
+
+  return Math.min(
+    MAX_WINDOW_DIMENSION,
+    Math.max(MIN_WINDOW_DIMENSION, Math.round(dimension)),
+  );
+}
+
 export function registerWindowIpc({
   closeApprovedWebContents,
   createWindow,
@@ -53,11 +68,17 @@ export function registerWindowIpc({
   });
 
   handleIpc('desktop:window:set-min-size', (event, width, height) => {
-    resolveTargetWindow(event)?.setMinimumSize(width, height);
+    resolveTargetWindow(event)?.setMinimumSize(
+      normalizeWindowDimension(width, 'minimum window width'),
+      normalizeWindowDimension(height, 'minimum window height'),
+    );
   });
 
   handleIpc('desktop:window:set-size', (event, width, height) => {
-    resolveTargetWindow(event)?.setSize(width, height);
+    resolveTargetWindow(event)?.setSize(
+      normalizeWindowDimension(width, 'window width'),
+      normalizeWindowDimension(height, 'window height'),
+    );
   });
 
   handleIpc('desktop:window:center', (event) => {

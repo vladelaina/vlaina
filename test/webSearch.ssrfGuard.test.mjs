@@ -11,6 +11,11 @@ describe('web search SSRF guard', () => {
     expect(isBlockedIp('10.0.0.1')).toBe(true);
     expect(isBlockedIp('192.168.1.1')).toBe(true);
     expect(isBlockedIp('172.16.0.1')).toBe(true);
+    expect(isBlockedIp('100.64.0.1')).toBe(true);
+    expect(isBlockedIp('198.18.0.1')).toBe(true);
+    expect(isBlockedIp('192.0.2.1')).toBe(true);
+    expect(isBlockedIp('198.51.100.1')).toBe(true);
+    expect(isBlockedIp('203.0.113.1')).toBe(true);
     expect(isBlockedIp('::1')).toBe(true);
     expect(isBlockedIp('::ffff:172.16.0.1')).toBe(true);
     expect(isBlockedIp('[::ffff:7f00:1]')).toBe(true);

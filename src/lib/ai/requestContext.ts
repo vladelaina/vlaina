@@ -1,12 +1,14 @@
-import type { ChatMessage } from './types';
+import type { ApiTranscriptMessage, ChatMessage, ChatMessageContent } from './types';
 import { TIME_SYSTEM_PROMPT, IMAGE_PLACEHOLDER } from './prompts';
 import { extractWebSearchStatuses } from './webSearch/statusMarkup';
+import { stripThinkingContent } from './stripThinkingContent';
 
 const IMAGE_MARKDOWN_REGEX = /!\[.*?\]\(.*?\)/g;
 const REQUEST_HISTORY_MESSAGE_OVERHEAD = 48;
 const MAX_REQUEST_HISTORY_MESSAGES = 32;
 const MAX_REQUEST_HISTORY_CHARS = 24000;
 const MAX_REQUEST_MESSAGE_CHARS = 6000;
+const MAX_TRANSCRIPT_FIELD_CHARS = 1200;
 const CONTENT_TRUNCATION_MARKER = '\n[Earlier content omitted]\n';
 
 export function formatTimeByOffset(offset: number, now = new Date()): string {
@@ -31,8 +33,9 @@ export function sanitizeHistory(messages: ChatMessage[]): ChatMessage[] {
     return {
       ...msg,
       content: extractWebSearchStatuses(
-        msg.content.replace(IMAGE_MARKDOWN_REGEX, IMAGE_PLACEHOLDER)
+        stripThinkingContent(msg.content).replace(IMAGE_MARKDOWN_REGEX, IMAGE_PLACEHOLDER)
       ).content,
+      apiTranscript: msg.apiTranscript ?? msg.versions?.[msg.currentVersionIndex]?.apiTranscript,
     };
   });
 }
@@ -70,9 +73,79 @@ function clipContentToBudget(content: string, maxChars: number): string {
   return `${content.slice(0, prefixChars)}${CONTENT_TRUNCATION_MARKER}${suffix}`;
 }
 
+function clipTranscriptContent(content: ChatMessageContent | null | undefined): ChatMessageContent | null | undefined {
+  if (typeof content !== 'string') {
+    return content;
+  }
+
+  return clipContentToBudget(content, MAX_TRANSCRIPT_FIELD_CHARS);
+}
+
+function compactTranscriptMessage(message: ApiTranscriptMessage): ApiTranscriptMessage {
+  return {
+    ...message,
+    content: clipTranscriptContent(message.content),
+    ...(typeof message.reasoning_content === 'string'
+      ? { reasoning_content: clipContentToBudget(message.reasoning_content, MAX_TRANSCRIPT_FIELD_CHARS) }
+      : {}),
+  };
+}
+
+function compactApiTranscriptToBudget(
+  transcript: ApiTranscriptMessage[],
+  maxChars: number
+): ApiTranscriptMessage[] | undefined {
+  if (JSON.stringify(transcript).length <= maxChars) {
+    return transcript;
+  }
+
+  const compacted = transcript.map(compactTranscriptMessage);
+  if (JSON.stringify(compacted).length <= maxChars) {
+    return compacted;
+  }
+
+  const finalAssistant = [...compacted].reverse().find((message) =>
+    message.role === 'assistant' && (message.content != null || message.reasoning_content)
+  );
+  if (!finalAssistant) {
+    return undefined;
+  }
+
+  const minimal: ApiTranscriptMessage = {
+    role: 'assistant',
+    content: clipTranscriptContent(finalAssistant.content) ?? null,
+    ...(finalAssistant.reasoning_content
+      ? { reasoning_content: clipContentToBudget(finalAssistant.reasoning_content, MAX_TRANSCRIPT_FIELD_CHARS) }
+      : {}),
+  };
+
+  return JSON.stringify([minimal]).length <= maxChars ? [minimal] : undefined;
+}
+
+function clipTranscriptToBudget<T extends ChatMessage>(message: T, maxChars: number): T {
+  if (!message.apiTranscript) {
+    return message;
+  }
+
+  const apiTranscript = compactApiTranscriptToBudget(message.apiTranscript, maxChars);
+  if (apiTranscript) {
+    return {
+      ...message,
+      apiTranscript,
+    };
+  }
+
+  const { apiTranscript: _apiTranscript, ...rest } = message;
+  return rest as T;
+}
+
 function estimateHistorySize(messages: ChatMessage[]): number {
   return messages.reduce(
-    (total, message) => total + message.content.length + REQUEST_HISTORY_MESSAGE_OVERHEAD,
+    (total, message) =>
+      total +
+      message.content.length +
+      (message.apiTranscript ? JSON.stringify(message.apiTranscript).length : 0) +
+      REQUEST_HISTORY_MESSAGE_OVERHEAD,
     0
   );
 }
@@ -87,6 +160,7 @@ function trimHistoryToBudget(history: ChatMessage[], maxChars: number): ChatMess
       ...message,
       content: clipContentToBudget(message.content, MAX_REQUEST_MESSAGE_CHARS),
     }))
+    .map((message) => clipTranscriptToBudget(message, MAX_REQUEST_MESSAGE_CHARS))
     .slice(-MAX_REQUEST_HISTORY_MESSAGES);
 
   while (boundedHistory.length > 1 && estimateHistorySize(boundedHistory) > maxChars) {
@@ -106,10 +180,10 @@ function trimHistoryToBudget(history: ChatMessage[], maxChars: number): ChatMess
   }
 
   return [
-    {
+    clipTranscriptToBudget({
       ...latestMessage,
       content: trimmedLatestContent,
-    },
+    }, availableChars),
   ];
 }
 

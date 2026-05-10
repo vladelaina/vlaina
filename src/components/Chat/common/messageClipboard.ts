@@ -1,4 +1,6 @@
 import { stripErrorTags } from '@/lib/ai/errorTag';
+import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
+import { stripWebSearchStatusMarkup } from '@/lib/ai/webSearch/statusMarkup';
 import { writeTextToClipboard } from '@/lib/clipboard';
 
 function normalizeImageMarkdownTarget(rawTarget: string): string | null {
@@ -173,7 +175,7 @@ export function stripMarkdownImageTokens(content: string): string {
 }
 
 export function formatMessageCopyText(content: string): string {
-  const normalizedContent = stripErrorTags(content);
+  const normalizedContent = stripThinkingContent(stripWebSearchStatusMarkup(stripErrorTags(content)));
   const tokens = parseMarkdownImageTokens(normalizedContent);
   if (tokens.length === 0) {
     return normalizedContent;

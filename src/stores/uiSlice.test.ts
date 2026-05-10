@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useUIStore } from './uiSlice';
 
 describe('uiSlice', () => {
@@ -25,6 +25,10 @@ describe('uiSlice', () => {
       notesChatPanelCollapsed: false,
       pendingNotesChatComposerInsert: null,
     });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('sets app view mode within the supported module set', () => {
@@ -54,6 +58,27 @@ describe('uiSlice', () => {
 
     expect(useUIStore.getState().languagePreference).toBe('zh-CN');
     expect(localStorage.getItem('vlaina-language-preference')).toBe('zh-CN');
+  });
+
+  it('updates UI state even when localStorage writes fail', () => {
+    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      throw new Error('quota exceeded');
+    });
+
+    expect(() => {
+      useUIStore.getState().toggleSidebar();
+      useUIStore.getState().setLanguagePreference('zh-CN');
+      useUIStore.getState().setImageStorageMode('vault');
+      useUIStore.getState().queueNotesChatComposerInsert('Selected text');
+    }).not.toThrow();
+
+    expect(useUIStore.getState()).toMatchObject({
+      sidebarCollapsed: true,
+      languagePreference: 'zh-CN',
+      imageStorageMode: 'vault',
+      notesChatPanelCollapsed: false,
+    });
+    expect(useUIStore.getState().pendingNotesChatComposerInsert?.text).toBe('Selected text');
   });
 
   it('stores universal preview fields incrementally', () => {

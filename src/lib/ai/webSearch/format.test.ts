@@ -38,13 +38,14 @@ describe('web search model formatting', () => {
         url: 'https://fail.example',
         ok: false,
         error: 'HTTP 404',
+        code: 'http_error',
       },
     ]);
 
     expect(text).toContain('Page 1: success');
     expect(text).toContain('Readable content');
     expect(text).toContain('Page 2: failed');
-    expect(text).toContain('Unable to read this page.');
+    expect(text).toContain('The page returned an HTTP error.');
     expect(text).not.toContain('HTTP 404');
   });
 });

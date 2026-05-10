@@ -22,17 +22,12 @@ function metricsLabel(status: WebSearchStatus): string {
     const failureCount = metrics.failureCount ?? 0;
     const parts = [`${successCount} read`];
     if (failureCount > 0) parts.push(`${failureCount} skipped`);
-    if (typeof metrics.durationMs === 'number') parts.push(`${metrics.durationMs} ms`);
     return parts.join(' · ');
   }
 
-  if (typeof metrics.resultCount === 'number') {
-    const parts = [`${metrics.resultCount} results`];
-    if (typeof metrics.durationMs === 'number') parts.push(`${metrics.durationMs} ms`);
-    return parts.join(' · ');
-  }
+  if (typeof metrics.resultCount === 'number') return '';
 
-  return typeof metrics.durationMs === 'number' ? `${metrics.durationMs} ms` : '';
+  return '';
 }
 
 export function WebSearchStatusBlock({ statuses }: WebSearchStatusBlockProps) {
@@ -42,7 +37,10 @@ export function WebSearchStatusBlock({ statuses }: WebSearchStatusBlockProps) {
   const metricsText = metricsLabel(status);
 
   return (
-    <div className="mb-3 max-w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-[12px] text-zinc-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-300">
+    <div
+      data-chat-selection-excluded="true"
+      className="mb-3 max-w-full select-none rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-[12px] text-zinc-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-300"
+    >
       <div className="flex items-center gap-2 font-medium text-zinc-900 dark:text-zinc-100">
         <Icon name="file.public" size="sm" />
         <span>{phaseLabel(status)}</span>

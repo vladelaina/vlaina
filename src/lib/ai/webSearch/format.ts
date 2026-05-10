@@ -7,6 +7,28 @@ function clip(value: string, limit: number): string {
   return value.length > limit ? `${value.slice(0, limit)}\n[truncated]` : value;
 }
 
+export function formatSafeReadFailure(code?: string): string {
+  if (code === 'blocked_source') {
+    return 'This source is blocked by the web search source policy.';
+  }
+  if (code === 'blocked_page') {
+    return 'The page blocked automated reading.';
+  }
+  if (code === 'content_too_short') {
+    return 'The page did not expose enough readable content.';
+  }
+  if (code === 'timeout') {
+    return 'The page request timed out.';
+  }
+  if (code === 'network_error') {
+    return 'The page could not be reached.';
+  }
+  if (code === 'http_error') {
+    return 'The page returned an HTTP error.';
+  }
+  return 'Unable to read this page.';
+}
+
 export function formatSearchResultsForModel(response: WebSearchResponse): string {
   if (response.results.length === 0) {
     return `No search results found for: ${response.query}`;
@@ -49,7 +71,7 @@ export function formatBatchPagesForModel(results: WebPageReadResult[]): string {
         return [
           `Page ${index + 1}: failed`,
           `URL: ${result.url}`,
-          'Error: Unable to read this page.',
+          `Error: ${formatSafeReadFailure(result.code)}`,
         ].join('\n');
       }
 

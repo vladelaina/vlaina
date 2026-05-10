@@ -22,8 +22,25 @@ function normalizeBatchDelay(value?: number): number {
   return Math.max(0, Math.floor(value));
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (ms <= 0 || signal?.aborted) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', handleAbort);
+      resolve();
+    }, ms);
+
+    const handleAbort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', handleAbort);
+      resolve();
+    };
+
+    signal?.addEventListener('abort', handleAbort, { once: true });
+  });
 }
 
 function createAbortedResult(): HealthCheckResult {
@@ -63,10 +80,10 @@ export async function benchmarkModels(
           if (options.signal?.aborted) {
             result = createAbortedResult();
           } else {
-          result = await checkModelHealth(provider, model, {
-            timeoutMs: options.timeoutMs,
-            signal: options.signal,
-          });
+            result = await checkModelHealth(provider, model, {
+              timeoutMs: options.timeoutMs,
+              signal: options.signal,
+            });
           }
         } catch (error: unknown) {
           result = {
@@ -93,7 +110,7 @@ export async function benchmarkModels(
 
     const hasMore = index + concurrency < models.length;
     if (hasMore && batchDelayMs > 0) {
-      await sleep(batchDelayMs);
+      await sleep(batchDelayMs, options.signal);
     }
   }
 

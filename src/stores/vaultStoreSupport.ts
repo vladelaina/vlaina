@@ -146,19 +146,27 @@ export async function initializeWindowLabel(): Promise<void> {
 }
 
 export function setupBroadcastChannel() {
-  if (vaultChannel) return;
+  if (vaultChannel || typeof BroadcastChannel === 'undefined') return;
 
-  vaultChannel = new BroadcastChannel('vlaina-vault');
+  try {
+    vaultChannel = new BroadcastChannel('vlaina-vault');
+  } catch {
+    vaultChannel = null;
+    return;
+  }
 
   vaultChannel.onmessage = (event) => {
     const { type, requestId, vaultPath, responseLabel } = event.data;
 
     if (type === 'query' && windowVaultPath === vaultPath && windowLabel) {
-      vaultChannel?.postMessage({
-        type: 'response',
-        requestId,
-        responseLabel: windowLabel,
-      });
+      try {
+        vaultChannel?.postMessage({
+          type: 'response',
+          requestId,
+          responseLabel: windowLabel,
+        });
+      } catch {
+      }
     } else if (type === 'response' && pendingQueries.has(requestId)) {
       const resolve = pendingQueries.get(requestId);
       pendingQueries.delete(requestId);
@@ -170,15 +178,19 @@ export function setupBroadcastChannel() {
 export async function queryVaultOpenInOtherWindow(path: string): Promise<string | null> {
   const normalizedPath = normalizeVaultPath(path);
   const requestId = `req-${crypto.randomUUID()}`;
+  setupBroadcastChannel();
 
   return new Promise((resolve) => {
     pendingQueries.set(requestId, resolve);
 
-    vaultChannel?.postMessage({
-      type: 'query',
-      requestId,
-      vaultPath: normalizedPath,
-    });
+    try {
+      vaultChannel?.postMessage({
+        type: 'query',
+        requestId,
+        vaultPath: normalizedPath,
+      });
+    } catch {
+    }
 
     setTimeout(() => {
       if (pendingQueries.has(requestId)) {

@@ -7,7 +7,12 @@ const listeners = new Set<Listener>();
 const idleWaiters = new Set<() => void>();
 
 function emitChange() {
-  listeners.forEach((listener) => listener());
+  listeners.forEach((listener) => {
+    try {
+      listener();
+    } catch {
+    }
+  });
   if (activeWatcherCount === 0) {
     idleWaiters.forEach((resolve) => resolve());
     idleWaiters.clear();

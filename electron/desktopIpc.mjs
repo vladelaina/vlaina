@@ -27,6 +27,14 @@ import {
 
 const { app, BrowserWindow, clipboard, dialog, shell } = electron;
 const activeAiProviderRequests = new Map();
+const HTTP_HEADER_NAME_PATTERN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+const IPC_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
+
+function deleteActiveAiProviderRequest(requestId, controller) {
+  if (activeAiProviderRequests.get(requestId) === controller) {
+    activeAiProviderRequests.delete(requestId);
+  }
+}
 
 function summarizeError(error) {
   if (!(error instanceof Error)) {
@@ -48,6 +56,19 @@ function safeSend(sender, channel, payload) {
   } catch {
     return false;
   }
+}
+
+export function isPathInsideDirectory(parentPath, candidatePath) {
+  const relative = path.relative(path.resolve(parentPath), path.resolve(candidatePath));
+  return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+function requireSafeIpcRequestId(value, label) {
+  const id = String(value ?? '').trim();
+  if (!IPC_REQUEST_ID_PATTERN.test(id)) {
+    throw new Error(`${label} must contain only safe channel characters.`);
+  }
+  return id;
 }
 
 function normalizeExportPdfOptions(options) {
@@ -135,13 +156,21 @@ function normalizeAiProviderHeaders(rawHeaders) {
   }
 
   for (const [key, value] of Object.entries(rawHeaders)) {
-    if (typeof key !== 'string' || !key.trim()) {
+    const normalizedKey = String(key).trim();
+    if (!normalizedKey) {
       continue;
     }
     if (value == null) {
       continue;
     }
-    headers[key] = String(value);
+    if (!HTTP_HEADER_NAME_PATTERN.test(normalizedKey)) {
+      throw new Error(`Invalid AI provider request header: ${normalizedKey}`);
+    }
+    const normalizedValue = String(value);
+    if (/[\u0000\r\n]/.test(normalizedValue)) {
+      throw new Error(`Invalid AI provider request header value: ${normalizedKey}`);
+    }
+    headers[normalizedKey] = normalizedValue;
   }
 
   return headers;
@@ -176,7 +205,7 @@ export function registerDesktopIpc({
   });
 
   handleIpc('desktop:ai-provider:request:start', async (event, requestId, rawRequest) => {
-    const id = requireNonEmptyString(requestId, 'AI provider request id');
+    const id = requireSafeIpcRequestId(requestId, 'AI provider request id');
     const previous = activeAiProviderRequests.get(id);
     previous?.abort();
 
@@ -195,7 +224,7 @@ export function registerDesktopIpc({
         cache: 'no-store',
       });
     } catch (error) {
-      activeAiProviderRequests.delete(id);
+      deleteActiveAiProviderRequest(id, controller);
       throw new Error(`AI provider request to ${request.url} failed before an HTTP response was received: ${summarizeError(error)}`);
     }
 
@@ -225,7 +254,7 @@ export function registerDesktopIpc({
           message: error instanceof Error ? error.message : String(error),
         });
       } finally {
-        activeAiProviderRequests.delete(id);
+        deleteActiveAiProviderRequest(id, controller);
       }
     })();
 
@@ -237,11 +266,11 @@ export function registerDesktopIpc({
   });
 
   handleIpc('desktop:ai-provider:request:cancel', async (_event, requestId) => {
-    const id = requireNonEmptyString(requestId, 'AI provider request id');
+    const id = requireSafeIpcRequestId(requestId, 'AI provider request id');
     const controller = activeAiProviderRequests.get(id);
     if (controller) {
       controller.abort();
-      activeAiProviderRequests.delete(id);
+      deleteActiveAiProviderRequest(id, controller);
     }
   });
 
@@ -347,6 +376,10 @@ export function registerDesktopIpc({
     const resolvedNewPath = normalizeFsPathForAccess(newPath);
     if (!isAuthorizedFsPathKey(normalizeFsPathKey(resolvedNewPath)) && !canRenameAuthorizedRoot(resolvedOldPath, resolvedNewPath)) {
       throw new Error(`File path is not authorized for desktop access: ${resolvedNewPath}`);
+    }
+    const oldInfo = await stat(resolvedOldPath);
+    if (oldInfo.isDirectory() && isPathInsideDirectory(resolvedOldPath, resolvedNewPath)) {
+      throw new Error(`Cannot move a directory into itself: ${resolvedOldPath}`);
     }
 
     await rename(resolvedOldPath, resolvedNewPath);

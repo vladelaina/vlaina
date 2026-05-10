@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { LocalSearchProvider, localSearchInternals } from '../electron/webSearch/localSearchProvider.mjs';
 
 describe('LocalSearchProvider', () => {
@@ -123,6 +123,53 @@ describe('LocalSearchProvider', () => {
     expect(localSearchInternals.buildTimeRangeParams('bing', 'month')).toEqual({ freshness: 'Month' });
     expect(localSearchInternals.buildTimeRangeParams('duckduckgo', 'day')).toEqual({ df: 'd' });
     expect(localSearchInternals.buildTimeRangeParams('google', 'invalid')).toEqual({});
+  });
+
+  it('selects requested search engines while falling back from invalid input', () => {
+    expect(localSearchInternals.selectSearchEngines('bing,duckduckgo').map((engine) => engine.id))
+      .toEqual(['bing', 'duckduckgo']);
+    expect(localSearchInternals.selectSearchEngines(['duckduckgo']).map((engine) => engine.id))
+      .toEqual(['duckduckgo']);
+    expect(localSearchInternals.selectSearchEngines('unknown').map((engine) => engine.id))
+      .toEqual(['google', 'bing', 'duckduckgo']);
+  });
+
+  it('runs selected search engines concurrently and merges results by engine priority', async () => {
+    const pending = [];
+    const fetchImpl = vi.fn((url) => new Promise((resolve) => {
+      pending.push({ url, resolve });
+    }));
+    const provider = new LocalSearchProvider({ fetchImpl, timeoutMs: 5000 });
+
+    const searchPromise = provider.search('needle query', {
+      engines: ['bing', 'duckduckgo'],
+      limit: 5,
+    });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(pending[0].url).toContain('bing.com');
+    expect(pending[1].url).toContain('duckduckgo.com');
+
+    pending[1].resolve(new Response(`
+      <a class="result__a" href="https://example.com/duck">Needle Query Duck</a>
+    `, { status: 200 }));
+    pending[0].resolve(new Response(`
+      <li class="b_algo">
+        <h2><a href="https://example.com/bing">Needle Query Bing</a></h2>
+        <div class="b_caption"><p>Needle query summary.</p></div>
+      </li>
+    `, { status: 200 }));
+
+    await expect(searchPromise).resolves.toEqual([
+      expect.objectContaining({
+        title: 'Needle Query Bing',
+        source: 'local-web-search:bing',
+      }),
+      expect.objectContaining({
+        title: 'Needle Query Duck',
+        source: 'local-web-search:duckduckgo',
+      }),
+    ]);
   });
 
   it('parses Google and DuckDuckGo result links', () => {
@@ -342,7 +389,7 @@ describe('LocalSearchProvider', () => {
     expect(calls.some((url) => url.startsWith('https://www.baidu.com'))).toBe(false);
   });
 
-  it('uses Google results without calling fallback engines when available', async () => {
+  it('keeps Google priority when concurrent fallback engines are also queried', async () => {
     const calls = [];
     const provider = new LocalSearchProvider({
       fetchImpl: async (url) => {
@@ -363,8 +410,10 @@ describe('LocalSearchProvider', () => {
         source: 'local-web-search:google',
       }),
     ]);
-    expect(calls).toHaveLength(1);
+    expect(calls).toHaveLength(3);
     expect(calls[0]).toMatch(/^https:\/\/www\.google\.com\/search/);
+    expect(calls[1]).toMatch(/^https:\/\/www\.bing\.com\/search/);
+    expect(calls[2]).toMatch(/^https:\/\/html\.duckduckgo\.com\/html\//);
   });
 
   it('returns official source hints without waiting on external engines', async () => {

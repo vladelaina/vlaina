@@ -1,8 +1,9 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { openaiClient } from '@/lib/ai/providers/openai';
+import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import type { AIModel, ChatMessage, Provider } from '@/lib/ai/types';
 import { useToastStore } from '@/stores/useToastStore';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
+import { sendMessageWithEndpointFallback } from '@/hooks/chatService/sendMessageWithEndpointFallback';
 import { buildEditorAiUserMessage } from './promptBuilder';
 import { EDITOR_AI_SYSTEM_PROMPT } from './promptCatalog';
 import { assertEnglishPromptText } from './promptValidation';
@@ -35,10 +36,6 @@ function createSystemMessage(content: string, modelId: string): ChatMessage {
   };
 }
 
-function stripThinkBlocks(text: string): string {
-  return text.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-}
-
 function unwrapSingleCodeFence(text: string): string {
   const match = text.trim().match(/^```[\w-]*\n([\s\S]*?)\n```$/);
   if (!match) {
@@ -48,7 +45,7 @@ function unwrapSingleCodeFence(text: string): string {
 }
 
 function normalizeAiEditedText(text: string): string {
-  return unwrapSingleCodeFence(stripThinkBlocks(text)).trim();
+  return unwrapSingleCodeFence(stripThinkingContent(text)).trim();
 }
 
 function getSelectedModelAndProvider(): { model: AIModel; provider: Provider } | null {
@@ -133,14 +130,14 @@ async function requestAiEdit(
   const message = buildEditorAiUserMessage(trimmedInstruction, selectedText, context);
 
   try {
-    const result = await openaiClient.sendMessage(
-      message,
+    const result = await sendMessageWithEndpointFallback({
+      content: message,
       history,
       model,
       provider,
-      undefined,
-      signal
-    );
+      onChunk: () => {},
+      signal,
+    });
     const normalized = normalizeAiEditedText(result);
 
     if (normalized.length === 0) {

@@ -38,7 +38,7 @@ class BackgroundBenchmarkRunner {
 
     const snapshot = this.snapshots.get(providerId);
     if (snapshot) {
-      listener(snapshot);
+      this.notifyListener(listener, snapshot);
     }
 
     return () => {
@@ -73,9 +73,7 @@ class BackgroundBenchmarkRunner {
       finishedAt: Date.now(),
       runId: this.nextRunId++,
     };
-    for (const listener of listeners) {
-      listener(emptySnapshot);
-    }
+    this.notifyListeners(providerId, emptySnapshot);
   }
 
   stop(providerId: string): void {
@@ -119,12 +117,23 @@ class BackgroundBenchmarkRunner {
 
   private setSnapshot(providerId: string, snapshot: ProviderBenchmarkSnapshot): void {
     this.snapshots.set(providerId, snapshot);
+    this.notifyListeners(providerId, snapshot);
+  }
+
+  private notifyListener(listener: SnapshotListener, snapshot: ProviderBenchmarkSnapshot): void {
+    try {
+      listener(snapshot);
+    } catch {
+    }
+  }
+
+  private notifyListeners(providerId: string, snapshot: ProviderBenchmarkSnapshot): void {
     const listeners = this.listeners.get(providerId);
     if (!listeners || listeners.size === 0) {
       return;
     }
     for (const listener of listeners) {
-      listener(snapshot);
+      this.notifyListener(listener, snapshot);
     }
   }
 

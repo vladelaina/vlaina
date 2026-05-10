@@ -44,6 +44,21 @@ describe("buildTitleSourceFromMessages", () => {
     expect(buildTitleSourceFromMessages(messages)).toBe("Plan trip to Tokyo");
   });
 
+  it("removes rendered thinking content from title source messages", () => {
+    const messages: ChatMessage[] = [
+      createMessage({
+        role: "user",
+        content: "<think>private draft</think>Plan trip to Tokyo",
+      }),
+      createMessage({
+        role: "user",
+        content: "<think>unfinished private draft",
+      }),
+    ];
+
+    expect(buildTitleSourceFromMessages(messages)).toBe("Plan trip to Tokyo");
+  });
+
   it("joins multiple user messages in order", () => {
     const messages: ChatMessage[] = [
       createMessage({ role: "user", content: "first user prompt" }),

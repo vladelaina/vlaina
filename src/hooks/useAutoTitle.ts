@@ -1,8 +1,9 @@
 import { useCallback, useRef } from 'react';
 import { actions as aiActions } from '@/stores/useAIStore';
-import { openaiClient } from '@/lib/ai/providers/openai';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { buildTitleSourceFromMessages, needsAutoTitle } from '@/lib/ai/temporaryChat';
+import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
+import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
 
 export function useAutoTitle() {
   const providers = useUnifiedStore((state) => state.data.ai?.providers || []);
@@ -35,15 +36,15 @@ Rules:
 
 Conversation Content: ${titleSource}`;
           
-          const title = await openaiClient.sendMessage(
-              prompt,
-              [], 
+          const title = await sendMessageWithEndpointFallback({
+              content: prompt,
+              history: [],
               model,
-              provider
-          );
+              provider,
+              onChunk: () => {},
+          });
           
-          const cleanTitle = title
-              .replace(/<think>[\s\S]*?<\/think>/gi, '') 
+          const cleanTitle = stripThinkingContent(title)
               .replace(/^["']|["']$/g, '') 
               .trim();
 

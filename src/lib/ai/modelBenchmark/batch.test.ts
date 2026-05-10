@@ -31,6 +31,8 @@ function createModel(id: string): AIModel {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.clearAllMocks();
+  vi.useRealTimers();
 });
 
 describe('benchmarkModels', () => {
@@ -84,5 +86,38 @@ describe('benchmarkModels', () => {
       expect.objectContaining({ id: 'm-1' }),
       expect.objectContaining({ signal: controller.signal })
     );
+  });
+
+  it('stops waiting between batches when aborted during the batch delay', async () => {
+    vi.useFakeTimers();
+    const mockedCheckModelHealth = vi.mocked(checkModelHealth);
+    mockedCheckModelHealth.mockClear();
+    const controller = new AbortController();
+    mockedCheckModelHealth.mockResolvedValue({
+      status: 'success',
+      latency: 10,
+      endpoint: 'chat',
+    });
+
+    const pending = benchmarkModels(provider, [createModel('m-1'), createModel('m-2')], {
+      concurrency: 1,
+      batchDelayMs: 60_000,
+      signal: controller.signal,
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(mockedCheckModelHealth).toHaveBeenCalledTimes(1);
+    controller.abort();
+
+    await expect(pending).resolves.toEqual({
+      'm-1': {
+        status: 'success',
+        latency: 10,
+        endpoint: 'chat',
+      },
+    });
+    expect(mockedCheckModelHealth).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
   });
 });

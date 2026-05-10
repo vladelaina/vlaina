@@ -25,6 +25,15 @@ export async function consumeOpenAIStreamWithTools(
   const consumeLine = (line: string) => {
     const payload = parseOpenAIPayloadText(line);
     if (!payload) return;
+    const nestedError = payload.error;
+    if (
+      nestedError &&
+      typeof nestedError === 'object' &&
+      'message' in nestedError &&
+      typeof nestedError.message === 'string'
+    ) {
+      throw new Error(nestedError.message);
+    }
     extractOpenAIToolCalls(payload, toolCalls);
     const delta = extractOpenAIContentDelta(payload);
     if (delta.content) assistantContent += delta.content;

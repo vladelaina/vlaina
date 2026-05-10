@@ -71,7 +71,7 @@ async function readAuthorizedFsPaths() {
 }
 
 async function writeAuthorizedFsPaths() {
-  authorizedFsPathsSavePromise = authorizedFsPathsSavePromise.then(async () => {
+  authorizedFsPathsSavePromise = authorizedFsPathsSavePromise.catch(() => undefined).then(async () => {
     const storePath = getAuthorizedFsPathsPath();
     await mkdir(path.dirname(storePath), { recursive: true });
     await writeFile(
@@ -219,4 +219,17 @@ export async function updateAuthorizedRootRename(sourcePath, targetPath) {
   authorizedFsRootPaths.delete(sourceKey);
   authorizedFsRootPaths.add(normalizeFsPathKey(targetPath));
   await writeAuthorizedFsPaths();
+}
+
+export function resetAuthorizedFsPathsForTests() {
+  if (process.env.NODE_ENV !== 'test' && process.env.VITEST !== 'true') {
+    throw new Error('resetAuthorizedFsPathsForTests is only available in tests.');
+  }
+
+  authorizedFsRootPaths.clear();
+  authorizedFsFilePaths.clear();
+  authorizedFsWatchRootPaths.clear();
+  authorizedFsPathsLoaded = false;
+  authorizedFsPathsLoadPromise = null;
+  authorizedFsPathsSavePromise = Promise.resolve();
 }

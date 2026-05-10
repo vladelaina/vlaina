@@ -25,6 +25,7 @@ async function desktopProviderFetch(
   const cleanupCallbacks: Array<() => void> = [];
   let didSettle = false;
   let streamController: ReadableStreamDefaultController<Uint8Array> | null = null;
+  let rejectStartOnAbort: ((error: DOMException) => void) | null = null;
 
   const cleanup = () => {
     cleanupCallbacks.splice(0).forEach((cleanupCallback) => cleanupCallback());
@@ -32,8 +33,14 @@ async function desktopProviderFetch(
 
   const abortRequest = () => {
     if (didSettle) return;
+    didSettle = true;
     void aiProvider.cancelRequest(requestId).catch(() => {});
-    streamController?.error(new DOMException('Aborted', 'AbortError'));
+    const abortError = new DOMException('Aborted', 'AbortError');
+    try {
+      streamController?.error(abortError);
+    } catch {
+    }
+    rejectStartOnAbort?.(abortError);
     cleanup();
   };
 
@@ -70,12 +77,20 @@ async function desktopProviderFetch(
   });
 
   try {
-    const metadata = await aiProvider.startRequest(requestId, {
+    const startRequestPromise = aiProvider.startRequest(requestId, {
       url,
       method: init.method,
       headers: init.headers,
       body: init.body,
     });
+    startRequestPromise.catch(() => undefined);
+
+    const abortPromise = new Promise<never>((_, reject) => {
+      rejectStartOnAbort = reject;
+    });
+
+    const metadata = await Promise.race([startRequestPromise, abortPromise]);
+    rejectStartOnAbort = null;
 
     return new Response(body, {
       status: metadata.status,

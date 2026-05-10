@@ -23,6 +23,42 @@ function elapsedSince(startedAt) {
   return Math.max(0, Math.round(performance.now() - startedAt));
 }
 
+function summarizeStoredCredentials(credentials) {
+  if (!credentials || typeof credentials !== 'object') {
+    return null;
+  }
+
+  return {
+    provider: credentials.provider ?? null,
+    username: credentials.username ?? null,
+    primaryEmail: credentials.primaryEmail ?? null,
+    avatarUrl: credentials.avatarUrl ?? null,
+    authenticatedAt: credentials.authenticatedAt ?? null,
+    hasAppSessionToken: typeof credentials.appSessionToken === 'string' && credentials.appSessionToken.trim().length > 0,
+  };
+}
+
+function summarizeSessionPayload(payload, text) {
+  const summary = {
+    textLength: typeof text === 'string' ? text.length : 0,
+    payloadType: payload === null ? 'null' : Array.isArray(payload) ? 'array' : typeof payload,
+  };
+
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return summary;
+  }
+
+  return {
+    ...summary,
+    payloadKeys: Object.keys(payload).sort(),
+    connected: payload.connected ?? null,
+    provider: typeof payload.provider === 'string' ? payload.provider : null,
+    username: typeof payload.username === 'string' ? payload.username : null,
+    hasAvatarUrl: typeof payload.avatarUrl === 'string' && payload.avatarUrl.trim().length > 0,
+    error: typeof payload.error === 'string' ? payload.error : null,
+  };
+}
+
 export function createDesktopAccountSessionClient({
   apiBaseUrl,
   clearStoredAccountCredentials,
@@ -48,8 +84,10 @@ export function createDesktopAccountSessionClient({
     logDesktopAuth(`${eventPrefix}:request`, {
       url,
       method: init.method ?? 'GET',
-      body: typeof init.body === 'string' ? init.body : null,
-      credentials,
+      bodySummary: typeof init.body === 'string'
+        ? { type: 'text', length: init.body.length }
+        : null,
+      credentials: summarizeStoredCredentials(credentials),
     });
 
     const response = await fetch(url, {
@@ -72,7 +110,7 @@ export function createDesktopAccountSessionClient({
         ),
         'content-type': response.headers.get('content-type'),
       },
-      credentials,
+      credentials: summarizeStoredCredentials(credentials),
       durationMs: elapsedSince(startedAt),
     });
 
@@ -99,7 +137,7 @@ export function createDesktopAccountSessionClient({
         delayMs,
         status: response.status,
         url,
-        credentials,
+        credentials: summarizeStoredCredentials(credentials),
       });
       await delay(delayMs);
 
@@ -117,7 +155,7 @@ export function createDesktopAccountSessionClient({
         logDesktopAuth('stored_session:http:grace_period', {
           status: response.status,
           url,
-          credentials,
+          credentials: summarizeStoredCredentials(credentials),
         });
         throw new Error('vlaina session is still activating');
       }
@@ -181,7 +219,7 @@ export function createDesktopAccountSessionClient({
   async function getDesktopAccountSessionStatus() {
     const startedAt = performance.now();
     const credentials = await readStoredAccountCredentials();
-    logDesktopAuth('session_status:start', { credentials });
+    logDesktopAuth('session_status:start', { credentials: summarizeStoredCredentials(credentials) });
     if (!credentials) {
       logDesktopAuth('session_status:no_credentials');
       return buildDisconnectedDesktopStatus();
@@ -196,9 +234,9 @@ export function createDesktopAccountSessionClient({
       if (response.status === 401 || response.status === 403) {
         if (shouldGraceDesktopSession(credentials)) {
           logDesktopAuth('session_status:unauthorized_grace', {
-            status: response.status,
-            credentials,
-          });
+          status: response.status,
+          credentials: summarizeStoredCredentials(credentials),
+        });
           return buildCachedDesktopStatus(credentials);
         }
 
@@ -213,9 +251,8 @@ export function createDesktopAccountSessionClient({
       if (!response.ok) {
         logDesktopAuth('session_status:non_ok_fallback', {
           status: response.status,
-          text,
-          payload,
-          credentials,
+          responseSummary: summarizeSessionPayload(payload, text),
+          credentials: summarizeStoredCredentials(credentials),
         });
         return resolveDesktopSessionProbe(credentials, { kind: 'non_ok' }).status;
       }
@@ -225,15 +262,7 @@ export function createDesktopAccountSessionClient({
         (await readStoredAccountCredentials())?.appSessionToken ?? credentials.appSessionToken;
       logDesktopAuth('session_status:payload', {
         status: response.status,
-        payload,
-        text,
-        summary: {
-          connected: payload?.connected ?? null,
-          provider: typeof payload?.provider === 'string' ? payload.provider : null,
-          username: typeof payload?.username === 'string' ? payload.username : null,
-          hasAvatarUrl: typeof payload?.avatarUrl === 'string' && payload.avatarUrl.trim().length > 0,
-          error: typeof payload?.error === 'string' ? payload.error : null,
-        },
+        summary: summarizeSessionPayload(payload, text),
         durationMs: elapsedSince(startedAt),
       });
       const resolved = resolveDesktopSessionProbe(credentials, {
@@ -242,7 +271,9 @@ export function createDesktopAccountSessionClient({
         rotatedAppSessionToken,
       });
       if (resolved.clearStoredCredentials) {
-        logDesktopAuth('session_status:disconnected_payload', { payload });
+        logDesktopAuth('session_status:disconnected_payload', {
+          summary: summarizeSessionPayload(payload, text),
+        });
         await clearStoredAccountCredentials();
         return resolved.status;
       }
@@ -252,7 +283,7 @@ export function createDesktopAccountSessionClient({
       }
 
       logDesktopAuth('session_status:resolved_connected', {
-        nextCredentials: resolved.nextCredentials,
+        nextCredentials: summarizeStoredCredentials(resolved.nextCredentials),
         membershipTier: resolved.status.membershipTier,
         membershipName: resolved.status.membershipName,
         hasAvatarUrl: typeof resolved.status.avatarUrl === 'string' && resolved.status.avatarUrl.trim().length > 0,
@@ -263,7 +294,7 @@ export function createDesktopAccountSessionClient({
     } catch (error) {
       logDesktopAuth('session_status:error_fallback', {
         error: error instanceof Error ? error.message : String(error),
-        credentials,
+        credentials: summarizeStoredCredentials(credentials),
         durationMs: elapsedSince(startedAt),
       });
       return resolveDesktopSessionProbe(credentials, { kind: 'error' }).status;
@@ -272,7 +303,7 @@ export function createDesktopAccountSessionClient({
 
   async function readDesktopSessionIdentity(appSessionToken) {
     const startedAt = performance.now();
-    logDesktopAuth('session_identity:start', { appSessionToken });
+    logDesktopAuth('session_identity:start', { hasAppSessionToken: typeof appSessionToken === 'string' && appSessionToken.trim().length > 0 });
     const { response, payload, text } = await probeDesktopSessionWithRetry(
       appSessionToken,
       'session_identity:http',
@@ -284,13 +315,24 @@ export function createDesktopAccountSessionClient({
     }
 
     if (!response.ok) {
-      logDesktopAuth('session_identity:non_ok', { status: response.status, text, payload, durationMs: elapsedSince(startedAt) });
+      logDesktopAuth('session_identity:non_ok', {
+        status: response.status,
+        responseSummary: summarizeSessionPayload(payload, text),
+        durationMs: elapsedSince(startedAt),
+      });
       throw new Error(`Failed to verify desktop session: HTTP ${response.status}`);
     }
 
-    logDesktopAuth('session_identity:payload', { status: response.status, payload, text, durationMs: elapsedSince(startedAt) });
+    logDesktopAuth('session_identity:payload', {
+      status: response.status,
+      summary: summarizeSessionPayload(payload, text),
+      durationMs: elapsedSince(startedAt),
+    });
     if (payload?.connected !== true) {
-      logDesktopAuth('session_identity:disconnected_payload', { payload, durationMs: elapsedSince(startedAt) });
+      logDesktopAuth('session_identity:disconnected_payload', {
+        summary: summarizeSessionPayload(payload, text),
+        durationMs: elapsedSince(startedAt),
+      });
       return null;
     }
 

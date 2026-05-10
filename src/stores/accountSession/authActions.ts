@@ -216,8 +216,13 @@ export function createSignIn(
         return false;
       }
 
-      sessionStorage.setItem(AUTH_STATE_STORAGE_KEY, authData.state);
-      sessionStorage.setItem(AUTH_PROVIDER_STORAGE_KEY, provider);
+      try {
+        sessionStorage.setItem(AUTH_STATE_STORAGE_KEY, authData.state);
+        sessionStorage.setItem(AUTH_PROVIDER_STORAGE_KEY, provider);
+      } catch {
+        set({ error: 'Unable to store sign-in state in this browser session', isConnecting: false });
+        return false;
+      }
       window.location.href = authData.authUrl;
       return true;
     } catch (error) {

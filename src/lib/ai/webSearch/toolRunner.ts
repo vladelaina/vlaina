@@ -2,6 +2,7 @@ import { createWebSearchClient, type WebSearchClient } from './client';
 import {
   formatBatchPagesForModel,
   formatPageForModel,
+  formatSafeReadFailure,
   formatSearchResultsForModel,
 } from './format';
 import { WEB_SEARCH_TOOL_NAMES } from './toolDefinitions';
@@ -52,12 +53,18 @@ function normalizeToolName(name: string): string {
   return name;
 }
 
-function friendlyToolErrorMessage(toolName: string): string {
+function errorCode(error: unknown): string | undefined {
+  return error && typeof error === 'object' && typeof (error as { code?: unknown }).code === 'string'
+    ? (error as { code: string }).code
+    : undefined;
+}
+
+function friendlyToolErrorMessage(toolName: string, error?: unknown): string {
   if (toolName === WEB_SEARCH_TOOL_NAMES.search) {
     return 'Web search is temporarily unavailable.';
   }
   if (toolName === WEB_SEARCH_TOOL_NAMES.read || toolName === WEB_SEARCH_TOOL_NAMES.readBatch) {
-    return 'Unable to read this page. The source was skipped.';
+    return `${formatSafeReadFailure(errorCode(error))} The source was skipped.`;
   }
   return 'Tool call failed.';
 }
@@ -66,8 +73,8 @@ function elapsedSince(startedAt: number): number {
   return Math.max(0, Math.round(performance.now() - startedAt));
 }
 
-function safeFailedSourceMessage(): string {
-  return 'Unable to read this page.';
+function safeFailedSourceMessage(code?: string): string {
+  return formatSafeReadFailure(code);
 }
 
 export async function runWebSearchToolCall(
@@ -130,7 +137,7 @@ export async function runWebSearchToolCall(
         urls: successfulPages.map((page) => page.page?.finalUrl || page.url),
         failedSources: failedPages.map((page) => ({
           url: page.url,
-          message: safeFailedSourceMessage(),
+          message: safeFailedSourceMessage(page.code),
         })),
         metrics: {
           durationMs: elapsedSince(startedAt),
@@ -142,8 +149,8 @@ export async function runWebSearchToolCall(
     }
 
     return `Unsupported web search tool: ${toolCall.name}`;
-  } catch {
-    const message = friendlyToolErrorMessage(toolName);
+  } catch (error) {
+    const message = friendlyToolErrorMessage(toolName, error);
     options.onStatus?.({ phase: 'error', message });
     return `Tool error: ${message}`;
   }

@@ -1,11 +1,11 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
 import { createPersistenceQueue } from './persistenceEngine';
-import type { Provider } from '@/lib/ai/types';
+import type { Provider, ProviderBenchmarkRecord } from '@/lib/ai/types';
 import type { ChatSession } from '@/lib/ai/types';
 import { isTemporarySession } from '@/lib/ai/temporaryChat';
 import { getStorageBasePath } from './basePath';
-import { normalizeLoadedAIModels } from './unifiedStorageAI';
+import { isSafeProviderId, normalizeLoadedAIModels, normalizeLoadedAIProviders } from './unifiedStorageAI';
 import { aiProviderSecretCommands } from '@/lib/desktop/secretsCommands';
 import { useToastStore } from '@/stores/useToastStore';
 import {
@@ -26,6 +26,10 @@ const MAIN_DATA_BACKUP_FILE = 'data.backup.json';
 let autoSyncTrigger: (() => void) | null = null;
 let hasShownPersistenceFailureToast = false;
 let hasShownSecretLoadFailureToast = false;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
   const defaults = createDefaultUnifiedData();
@@ -184,12 +188,13 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
     let providerIds: string[] = [];
     if (await storage.exists(sessionsPath)) {
         try {
-            const sessionsData = JSON.parse(await storage.readFile(sessionsPath));
+            const parsedSessionsData: unknown = JSON.parse(await storage.readFile(sessionsPath));
+            const sessionsData = isRecord(parsedSessionsData) ? parsedSessionsData : {};
             const loadedSessions = Array.isArray(sessionsData.sessions) ? sessionsData.sessions : [];
             const aiData = combinedData.ai;
             aiData.sessions = loadedSessions.filter((session: ChatSession) => !isTemporarySession(session));
-            aiData.selectedModelId = sessionsData.selectedModelId || null;
-            const currentSessionId = sessionsData.currentSessionId || null;
+            aiData.selectedModelId = typeof sessionsData.selectedModelId === 'string' ? sessionsData.selectedModelId : null;
+            const currentSessionId = typeof sessionsData.currentSessionId === 'string' ? sessionsData.currentSessionId : null;
             const hasCurrentSession = currentSessionId
               ? aiData.sessions.some((session) => session.id === currentSessionId)
               : false;
@@ -204,7 +209,9 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
             aiData.customSystemPrompt = typeof sessionsData.customSystemPrompt === 'string' ? sessionsData.customSystemPrompt : '';
             aiData.includeTimeContext = sessionsData.includeTimeContext !== false;
             aiData.webSearchEnabled = sessionsData.webSearchEnabled === true;
-            providerIds = sessionsData.providerIds || [];
+            providerIds = Array.isArray(sessionsData.providerIds)
+              ? sessionsData.providerIds.filter(isSafeProviderId)
+              : [];
         } catch (e) { console.error('Failed to load sessions.json', e); }
     }
 
@@ -213,7 +220,8 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
             const pPath = await joinPath(channelsDir, `${id}.json`);
             if (await storage.exists(pPath)) {
                 try {
-                    const pData = JSON.parse(await storage.readFile(pPath));
+                    const parsedProviderData: unknown = JSON.parse(await storage.readFile(pPath));
+                    const pData = isRecord(parsedProviderData) ? parsedProviderData : null;
                     return pData;
                 } catch (error) {
                     console.error('[Storage] Failed to parse provider channel file:', pPath, error);
@@ -224,22 +232,24 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
         });
 
         const loadedProviders = await Promise.all(providerPromises);
-        loadedProviders.forEach(p => {
-            if (p && p.provider) {
-                combinedData.ai!.providers.push(p.provider);
-                if (p.models) {
+        loadedProviders.forEach((p, index) => {
+            const providerId = providerIds[index];
+            if (p && isRecord(p.provider) && p.provider.id === providerId) {
+                combinedData.ai!.providers.push(p.provider as unknown as Provider);
+                if (Array.isArray(p.models)) {
                     combinedData.ai!.models.push(...p.models);
                 }
-                if (p.benchmarkResults) {
-                    combinedData.ai!.benchmarkResults![p.provider.id] = p.benchmarkResults;
+                if (isRecord(p.benchmarkResults)) {
+                    combinedData.ai!.benchmarkResults![providerId] = p.benchmarkResults as unknown as ProviderBenchmarkRecord;
                 }
                 if (Array.isArray(p.fetchedModels)) {
-                    combinedData.ai!.fetchedModels![p.provider.id] = p.fetchedModels;
+                    combinedData.ai!.fetchedModels![providerId] = p.fetchedModels.filter((model): model is string => typeof model === 'string');
                 }
             }
         });
     }
 
+    combinedData.ai.providers = normalizeLoadedAIProviders(combinedData.ai.providers);
     combinedData.ai.providers = await hydrateProvidersWithSecrets(combinedData.ai.providers);
 
     const normalizedAI = normalizeLoadedAIModels(
@@ -288,11 +298,13 @@ async function performSplitSave(data: UnifiedData) {
     await storage.writeFile(mainBackupPath, mainPayload);
 
     if (ai) {
-        await syncProviderSecrets(ai.providers || []);
+        const persistedProviders = (ai.providers || []).filter((provider) => isSafeProviderId(provider.id));
+
+        await syncProviderSecrets(persistedProviders);
 
         const persistedSessions = ai.sessions.filter((session) => !isTemporarySession(session));
         const persistedSessionIds = new Set(persistedSessions.map((session) => session.id));
-        const activeProviderIds = new Set(ai.providers.map((provider) => provider.id));
+        const activeProviderIds = new Set(persistedProviders.map((provider) => provider.id));
 
         const sessionsData = {
             sessions: persistedSessions,
@@ -305,11 +317,11 @@ async function performSplitSave(data: UnifiedData) {
             customSystemPrompt: ai.customSystemPrompt || '',
             includeTimeContext: ai.includeTimeContext !== false,
             webSearchEnabled: ai.webSearchEnabled === true,
-            providerIds: ai.providers.map(p => p.id),
+            providerIds: persistedProviders.map(p => p.id),
         };
         await storage.writeFile(sessionsPath, JSON.stringify(sessionsData, null, 2));
 
-        for (const provider of ai.providers) {
+        for (const provider of persistedProviders) {
             const pModels = ai.models.filter(m => m.providerId === provider.id);
             const pData = {
                 provider: sanitizeProviderForDisk(provider),
@@ -331,7 +343,7 @@ async function performSplitSave(data: UnifiedData) {
                 continue;
             }
             try {
-                if (hasElectronDesktopBridge()) {
+                if (hasElectronDesktopBridge() && isSafeProviderId(providerId)) {
                     await aiProviderSecretCommands.deleteProviderSecret(providerId);
                 }
                 await storage.deleteFile(entry.path);
@@ -348,7 +360,7 @@ async function performSplitSave(data: UnifiedData) {
             }
             const providerId = entry.name.slice(0, -5);
             try {
-                if (hasElectronDesktopBridge()) {
+                if (hasElectronDesktopBridge() && isSafeProviderId(providerId)) {
                     await aiProviderSecretCommands.deleteProviderSecret(providerId);
                 }
                 await storage.deleteFile(entry.path);

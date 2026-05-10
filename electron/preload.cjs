@@ -1,5 +1,15 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
+const IPC_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
+
+function requireSafeIpcRequestId(value, label) {
+  const id = String(value ?? '').trim();
+  if (!IPC_REQUEST_ID_PATTERN.test(id)) {
+    throw new Error(`${label} must contain only safe channel characters.`);
+  }
+  return id;
+}
+
 function deepFreeze(value) {
   if (!value || typeof value !== 'object' || Object.isFrozen(value)) {
     return value;
@@ -115,13 +125,14 @@ const desktopApi = {
   },
   aiProvider: {
     startRequest(requestId, request) {
-      return ipcRenderer.invoke('desktop:ai-provider:request:start', requestId, request);
+      return ipcRenderer.invoke('desktop:ai-provider:request:start', requireSafeIpcRequestId(requestId, 'AI provider request id'), request);
     },
     cancelRequest(requestId) {
-      return ipcRenderer.invoke('desktop:ai-provider:request:cancel', requestId);
+      return ipcRenderer.invoke('desktop:ai-provider:request:cancel', requireSafeIpcRequestId(requestId, 'AI provider request id'));
     },
     onRequestChunk(requestId, callback) {
-      const channel = `desktop:ai-provider:request:${requestId}:chunk`;
+      const id = requireSafeIpcRequestId(requestId, 'AI provider request id');
+      const channel = `desktop:ai-provider:request:${id}:chunk`;
       const handler = (_event, chunk) => callback(chunk);
       ipcRenderer.on(channel, handler);
       return () => {
@@ -129,7 +140,8 @@ const desktopApi = {
       };
     },
     onRequestDone(requestId, callback) {
-      const channel = `desktop:ai-provider:request:${requestId}:done`;
+      const id = requireSafeIpcRequestId(requestId, 'AI provider request id');
+      const channel = `desktop:ai-provider:request:${id}:done`;
       const handler = () => callback();
       ipcRenderer.on(channel, handler);
       return () => {
@@ -137,7 +149,8 @@ const desktopApi = {
       };
     },
     onRequestError(requestId, callback) {
-      const channel = `desktop:ai-provider:request:${requestId}:error`;
+      const id = requireSafeIpcRequestId(requestId, 'AI provider request id');
+      const channel = `desktop:ai-provider:request:${id}:error`;
       const handler = (_event, payload) => callback(payload);
       ipcRenderer.on(channel, handler);
       return () => {
@@ -217,13 +230,14 @@ const desktopApi = {
     },
     watch(filePath, callback, options) {
       return ipcRenderer.invoke('desktop:fs:watch', filePath, options).then((watchId) => {
-        const channel = `desktop:fs:watch:${watchId}`;
+        const id = requireSafeIpcRequestId(watchId, 'file watch id');
+        const channel = `desktop:fs:watch:${id}`;
         const handler = (_event, payload) => callback(payload);
         ipcRenderer.on(channel, handler);
 
         return async () => {
           ipcRenderer.removeListener(channel, handler);
-          await ipcRenderer.invoke('desktop:fs:unwatch', watchId);
+          await ipcRenderer.invoke('desktop:fs:unwatch', id);
         };
       });
     },
@@ -296,13 +310,14 @@ const desktopApi = {
       return ipcRenderer.invoke('desktop:managed:chat-completion', body);
     },
     startManagedChatCompletionStream(requestId, body) {
-      return ipcRenderer.invoke('desktop:managed:chat-completion-stream:start', requestId, body);
+      return ipcRenderer.invoke('desktop:managed:chat-completion-stream:start', requireSafeIpcRequestId(requestId, 'managed stream request id'), body);
     },
     cancelManagedChatCompletionStream(requestId) {
-      return ipcRenderer.invoke('desktop:managed:chat-completion-stream:cancel', requestId);
+      return ipcRenderer.invoke('desktop:managed:chat-completion-stream:cancel', requireSafeIpcRequestId(requestId, 'managed stream request id'));
     },
     onManagedStreamChunk(requestId, callback) {
-      const channel = `desktop:managed:stream:${requestId}:chunk`;
+      const id = requireSafeIpcRequestId(requestId, 'managed stream request id');
+      const channel = `desktop:managed:stream:${id}:chunk`;
       const handler = (_event, content) => callback(content);
       ipcRenderer.on(channel, handler);
       return () => {
@@ -310,7 +325,8 @@ const desktopApi = {
       };
     },
     onManagedStreamDone(requestId, callback) {
-      const channel = `desktop:managed:stream:${requestId}:done`;
+      const id = requireSafeIpcRequestId(requestId, 'managed stream request id');
+      const channel = `desktop:managed:stream:${id}:done`;
       const handler = (_event, payload) => callback(payload);
       ipcRenderer.on(channel, handler);
       return () => {
@@ -318,7 +334,8 @@ const desktopApi = {
       };
     },
     onManagedStreamError(requestId, callback) {
-      const channel = `desktop:managed:stream:${requestId}:error`;
+      const id = requireSafeIpcRequestId(requestId, 'managed stream request id');
+      const channel = `desktop:managed:stream:${id}:error`;
       const handler = (_event, payload) => callback(payload);
       ipcRenderer.on(channel, handler);
       return () => {

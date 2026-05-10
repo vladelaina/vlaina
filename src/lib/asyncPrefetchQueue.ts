@@ -1,9 +1,10 @@
 export function createAsyncPrefetchQueue(limit: number) {
+  const concurrency = Number.isFinite(limit) ? Math.max(1, Math.floor(limit)) : 1;
   let activeCount = 0;
   const queue: Array<() => void> = [];
 
   const runNext = () => {
-    if (activeCount >= limit) {
+    if (activeCount >= concurrency) {
       return;
     }
 
@@ -24,7 +25,7 @@ export function createAsyncPrefetchQueue(limit: number) {
             });
         };
 
-        if (activeCount < limit) {
+        if (activeCount < concurrency) {
           start();
           return;
         }

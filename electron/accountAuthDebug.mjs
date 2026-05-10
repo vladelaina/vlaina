@@ -24,13 +24,37 @@ export function redactToken(value) {
 }
 
 function shouldRedactKey(key) {
-  return /token|secret|verifier/i.test(String(key));
+  const normalized = String(key);
+  return /token|secret|verifier|password|authorization|api[-_]?key/i.test(normalized) ||
+    /^(code|otp|pin|state)$/i.test(normalized) ||
+    /verification[-_]?code/i.test(normalized);
+}
+
+function shouldSummarizeUrlKey(key) {
+  return /url$/i.test(String(key));
+}
+
+function summarizeUrl(value) {
+  try {
+    const parsed = new URL(value);
+    parsed.username = '';
+    parsed.password = '';
+    parsed.search = '';
+    parsed.hash = '';
+    return parsed.toString();
+  } catch {
+    return value;
+  }
 }
 
 function redactAuthPayload(value, key = '') {
   const sensitiveKey = shouldRedactKey(key);
+  const urlKey = shouldSummarizeUrlKey(key);
 
   if (typeof value === 'string') {
+    if (urlKey) {
+      return summarizeUrl(value);
+    }
     return sensitiveKey ? redactToken(value) : value;
   }
 

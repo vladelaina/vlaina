@@ -34,5 +34,9 @@ export function saveShortcuts(shortcuts: ShortcutConfig[]): void {
 }
 
 export function resetShortcuts(): void {
-  localStorage.removeItem(STORAGE_KEY);
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (e) {
+    console.error('Failed to reset shortcuts:', e);
+  }
 }

@@ -32,4 +32,12 @@ describe('ai selection commands', () => {
 
     expect(normalized).toBe('Hello world');
   });
+
+  it('normalizes unfinished thinking-tagged model output', () => {
+    const normalized = __testing__.normalizeAiEditedText(
+      '<think>drafting privately'
+    );
+
+    expect(normalized).toBe('');
+  });
 });

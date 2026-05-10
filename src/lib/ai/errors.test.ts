@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getUserFacingAIError } from './errors';
+import { getUserFacingAIError, parseHTTPError } from './errors';
 import { AIErrorType } from './types';
 
 describe('getUserFacingAIError', () => {
@@ -160,6 +160,31 @@ describe('getUserFacingAIError', () => {
       type: AIErrorType.SERVER_ERROR,
       code: '403',
       message: 'No active points balance',
+    });
+  });
+});
+
+describe('parseHTTPError', () => {
+  it('extracts provider messages from common HTTP error body shapes', () => {
+    expect(parseHTTPError(400, { error: 'bad tool call' })).toMatchObject({
+      type: AIErrorType.INVALID_REQUEST,
+      message: 'bad tool call',
+      statusCode: 400,
+    });
+    expect(parseHTTPError(429, { msg: 'quota reached' })).toMatchObject({
+      type: AIErrorType.RATE_LIMIT,
+      message: 'quota reached',
+      statusCode: 429,
+    });
+    expect(parseHTTPError(503, { detail: 'maintenance window' })).toMatchObject({
+      type: AIErrorType.SERVER_ERROR,
+      message: 'maintenance window',
+      statusCode: 503,
+    });
+    expect(parseHTTPError(500, 'raw upstream failure')).toMatchObject({
+      type: AIErrorType.SERVER_ERROR,
+      message: 'raw upstream failure',
+      statusCode: 500,
     });
   });
 });

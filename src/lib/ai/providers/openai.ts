@@ -1,5 +1,5 @@
 import type { AIClient } from '../client'
-import type { Provider, AIModel, ChatCompletionRequest, ChatMessage, ChatMessageContent, ChatSendOptions } from '../types'
+import type { ApiTranscriptMessage, Provider, AIModel, ChatCompletionRequest, ChatMessage, ChatMessageContent, ChatSendOptions } from '../types'
 import { createAIError, parseAPIError, parseHTTPError } from '../errors'
 import { AIErrorType } from '../types'
 import { buildOpenAIBaseUrl, resolveApiModelId } from '../utils'
@@ -13,6 +13,8 @@ import {
   requestManagedChatCompletionStream,
 } from '@/lib/ai/managedService'
 import { consumeOpenAIStream } from '@/lib/ai/streaming'
+import { normalizeApiTranscriptMessage } from '@/lib/ai/apiTranscript'
+import { stripThinkingContent } from '@/lib/ai/stripThinkingContent'
 import {
   runOpenAIWebSearchJsonToolLoop,
   runOpenAIWebSearchToolLoop,
@@ -22,8 +24,67 @@ function summarizeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error || 'Unknown error')
 }
 
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError'
+    || !!error && typeof error === 'object' && (error as { name?: unknown }).name === 'AbortError'
+}
+
 function createUnsupportedWebSearchError(): Error {
   return new Error('Web search is unavailable for this model.')
+}
+
+function isDeepSeekOpenAICompatible(provider: Provider, model: AIModel): boolean {
+  const haystack = [
+    provider.name,
+    provider.apiHost,
+    model.name,
+    model.apiModelId,
+  ].join(' ').toLowerCase()
+  return haystack.includes('deepseek')
+}
+
+function shouldReplayApiTranscript(provider: Provider, model: AIModel): boolean {
+  return provider.endpointType !== 'anthropic' && isDeepSeekOpenAICompatible(provider, model)
+}
+
+function buildChatCompletionOptions(options?: ChatSendOptions): Partial<ChatCompletionRequest> {
+  return {
+    ...(typeof options?.max_tokens === 'number' ? { max_tokens: options.max_tokens } : {}),
+    ...(typeof options?.max_completion_tokens === 'number' ? { max_completion_tokens: options.max_completion_tokens } : {}),
+  }
+}
+
+function buildAssistantApiTranscriptFromRenderedContent(content: string): ApiTranscriptMessage[] {
+  const reasoningParts = Array.from(content.matchAll(/<think>([\s\S]*?)(?:<\/think>|$)/gi))
+    .map((match) => match[1] ?? '')
+    .filter(Boolean)
+
+  if (reasoningParts.length === 0) {
+    return []
+  }
+
+  const assistantContent = content.replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, '')
+  return [{
+    role: 'assistant',
+    content: assistantContent,
+    reasoning_content: reasoningParts.join('\n\n'),
+  }]
+}
+
+function stripRenderedThinkingFromAssistantContent(content: ChatMessageContent): ChatMessageContent {
+  if (typeof content === 'string') {
+    return stripThinkingContent(content)
+  }
+
+  return content.map((part) => {
+    if (part.type !== 'text') {
+      return part
+    }
+    return {
+      ...part,
+      text: stripThinkingContent(part.text),
+    }
+  })
 }
 
 export class OpenAICompatibleClient implements AIClient {
@@ -45,26 +106,42 @@ export class OpenAICompatibleClient implements AIClient {
     message: ChatMessageContent,
     history: ChatMessage[],
     model: AIModel,
+    provider: Provider,
     options?: ChatSendOptions
   ): ChatCompletionRequest {
-    const apiMessages: { role: string; content: ChatMessageContent }[] = history.map((entry) => ({
-      role: entry.role,
-      content: entry.content,
-    }))
+    const replayApiTranscript = shouldReplayApiTranscript(provider, model)
+    const apiMessages: ApiTranscriptMessage[] = history.flatMap((entry) => {
+      const transcript = entry.apiTranscript ?? entry.versions?.[entry.currentVersionIndex]?.apiTranscript
+      if (replayApiTranscript && entry.role === 'assistant' && transcript?.length) {
+        const normalizedTranscript = transcript
+          .map(normalizeApiTranscriptMessage)
+          .filter((message): message is ApiTranscriptMessage => message !== null)
+        if (normalizedTranscript.length > 0) {
+          return normalizedTranscript
+        }
+      }
+      return [{
+        role: entry.role,
+        content: entry.role === 'assistant'
+          ? stripRenderedThinkingFromAssistantContent(entry.content)
+          : entry.content,
+      }]
+    })
     apiMessages.push({ role: 'user', content: message })
 
     return {
       model: resolveApiModelId(model),
       messages: apiMessages,
       stream: true,
-      ...(options || {}),
+      ...buildChatCompletionOptions(options),
     }
   }
 
   private async sendManagedMessage(
     body: ChatCompletionRequest,
     onChunk?: (chunk: string) => void,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    options?: ChatSendOptions
   ): Promise<string> {
     if (body.stream === false) {
       const payload = await requestManagedChatCompletion({
@@ -73,14 +150,23 @@ export class OpenAICompatibleClient implements AIClient {
       } as unknown as Record<string, unknown>)
       const content = this.extractManagedResponseContent(payload)
       ;(onChunk || (() => {}))(content)
+      const apiTranscript = buildAssistantApiTranscriptFromRenderedContent(content)
+      if (apiTranscript.length) {
+        options?.onApiTranscript?.(apiTranscript)
+      }
       return content
     }
 
-    return requestManagedChatCompletionStream(
+    const content = await requestManagedChatCompletionStream(
       body as unknown as Record<string, unknown>,
       onChunk || (() => {}),
       signal
     )
+    const apiTranscript = buildAssistantApiTranscriptFromRenderedContent(content)
+    if (apiTranscript.length) {
+      options?.onApiTranscript?.(apiTranscript)
+    }
+    return content
   }
 
   private async resolveApiKey(provider: Provider): Promise<string> {
@@ -100,7 +186,7 @@ export class OpenAICompatibleClient implements AIClient {
     signal?: AbortSignal,
     options?: ChatSendOptions
   ): Promise<string> {
-    const body = this.buildChatRequest(message, history, model, options)
+    const body = this.buildChatRequest(message, history, model, provider, options)
 
     if (provider.id === MANAGED_PROVIDER_ID) {
       if (options?.webSearchEnabled) {
@@ -108,6 +194,7 @@ export class OpenAICompatibleClient implements AIClient {
           body,
           onChunk: onChunk || (() => {}),
           onStatus: options.onWebSearchStatus,
+          onApiTranscript: options.onApiTranscript,
           requestJson: (nextBody) =>
             requestManagedChatCompletion({
               ...nextBody,
@@ -115,7 +202,7 @@ export class OpenAICompatibleClient implements AIClient {
             } as unknown as Record<string, unknown>),
         })
       }
-      return this.sendManagedMessage(body, onChunk, signal)
+      return this.sendManagedMessage(body, onChunk, signal, options)
     }
 
     if (provider.endpointType === 'anthropic') {
@@ -149,6 +236,7 @@ export class OpenAICompatibleClient implements AIClient {
         body,
         onChunk: onChunk || (() => {}),
         onStatus: options.onWebSearchStatus,
+        onApiTranscript: options.onApiTranscript,
         request: async (nextBody) => {
           const response = await providerFetch(url, {
             method: 'POST',
@@ -171,7 +259,7 @@ export class OpenAICompatibleClient implements AIClient {
       })
     }
 
-    return this.streamResponse(url, headers, body, onChunk || (() => {}), signal)
+    return this.streamResponse(url, headers, body, onChunk || (() => {}), signal, options)
   }
 
   private async streamResponse(
@@ -179,7 +267,8 @@ export class OpenAICompatibleClient implements AIClient {
     headers: Record<string, string>,
     body: ChatCompletionRequest,
     onChunk: (chunk: string) => void,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    options?: ChatSendOptions
   ): Promise<string> {
     const controller = new AbortController()
     let timedOut = false
@@ -188,9 +277,8 @@ export class OpenAICompatibleClient implements AIClient {
       controller.abort()
     }, this.timeout)
 
-    if (signal) {
-      signal.addEventListener('abort', () => controller.abort())
-    }
+    const forwardAbort = () => controller.abort()
+    signal?.addEventListener('abort', forwardAbort)
 
     try {
       const response = await providerFetch(url, {
@@ -199,8 +287,6 @@ export class OpenAICompatibleClient implements AIClient {
         body: JSON.stringify(body),
         signal: controller.signal,
       })
-
-      clearTimeout(timeoutId)
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => 'Unknown error')
@@ -213,11 +299,14 @@ export class OpenAICompatibleClient implements AIClient {
         throw parseHTTPError(response.status, errorBody)
       }
 
-      const result = await consumeOpenAIStream(response, onChunk)
+      const result = await consumeOpenAIStream(response, onChunk, {
+        onAssistantTranscriptMessage: (message) => {
+          options?.onApiTranscript?.([message])
+        },
+      })
       return result
     } catch (error) {
-      clearTimeout(timeoutId)
-      if (error instanceof Error && error.name === 'AbortError') {
+      if (isAbortError(error)) {
         if (timedOut) {
           throw new Error('The AI request timed out.')
         }
@@ -229,6 +318,9 @@ export class OpenAICompatibleClient implements AIClient {
         throw createAIError(parsedError.type, parsedError.message, detail, parsedError.statusCode)
       }
       throw parsedError
+    } finally {
+      clearTimeout(timeoutId)
+      signal?.removeEventListener('abort', forwardAbort)
     }
   }
 

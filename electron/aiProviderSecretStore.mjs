@@ -4,6 +4,24 @@ import path from 'node:path';
 import { decodeSecretRecord, encodeSecretRecord } from './secureSecretRecord.mjs';
 
 const { app, safeStorage } = electron;
+let secretsStoreUpdatePromise = Promise.resolve();
+
+function isSafeProviderId(value) {
+  return (
+    typeof value === 'string' &&
+    /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(value)
+  );
+}
+
+function sanitizeSecretsData(data) {
+  const sanitized = {};
+  for (const [key, value] of Object.entries(data ?? {})) {
+    if (isSafeProviderId(key) && typeof value === 'string') {
+      sanitized[key] = value;
+    }
+  }
+  return sanitized;
+}
 
 export async function readSecretsStore() {
   const secretsDir = path.join(app.getPath('userData'), '.vlaina', 'secrets');
@@ -15,10 +33,11 @@ export async function readSecretsStore() {
     const content = await readFile(secretsPath, 'utf8');
     const parsed = JSON.parse(content);
     const { record, needsMigration } = decodeSecretRecord(parsed, safeStorage);
-    if (needsMigration) {
-      await writeFile(secretsPath, JSON.stringify(encodeSecretRecord(record, safeStorage), null, 2));
+    const data = sanitizeSecretsData(record);
+    if (needsMigration || Object.keys(data).length !== Object.keys(record).length) {
+      await writeFile(secretsPath, JSON.stringify(encodeSecretRecord(data, safeStorage), null, 2));
     }
-    return { secretsDir, secretsPath, data: record };
+    return { secretsDir, secretsPath, data };
   } catch {
     return { secretsDir, secretsPath, data: {} };
   }
@@ -26,5 +45,19 @@ export async function readSecretsStore() {
 
 export async function writeSecretsStore(data) {
   const { secretsPath } = await readSecretsStore();
-  await writeFile(secretsPath, JSON.stringify(encodeSecretRecord(data, safeStorage), null, 2));
+  await writeFile(secretsPath, JSON.stringify(encodeSecretRecord(sanitizeSecretsData(data), safeStorage), null, 2));
+}
+
+export async function updateSecretsStore(mutator) {
+  const runUpdate = async () => {
+    const store = await readSecretsStore();
+    const nextData = { ...store.data };
+    await mutator(nextData);
+    await writeSecretsStore(nextData);
+    return nextData;
+  };
+
+  const updatePromise = secretsStoreUpdatePromise.catch(() => undefined).then(runUpdate);
+  secretsStoreUpdatePromise = updatePromise.then(() => undefined, () => undefined);
+  return updatePromise;
 }

@@ -18,6 +18,15 @@ export function normalizeDesktopAccountProvider(provider, fallback = null) {
   return isSupportedAccountProvider(normalized) ? normalized : fallback;
 }
 
+function summarizeCredentialState({ meta, provider, username, appSessionToken }) {
+  return {
+    hasMeta: !!meta && typeof meta === 'object',
+    provider,
+    hasUsername: Boolean(username),
+    hasAppSessionToken: Boolean(appSessionToken),
+  };
+}
+
 async function readJsonFile(filePath, fallbackValue) {
   try {
     return JSON.parse(await readFile(filePath, 'utf8'));
@@ -58,11 +67,7 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader, logDe
       logDesktopAuth('read_stored_credentials:empty_or_invalid', {
         metaPath,
         secretsPath,
-        meta,
-        secrets,
-        provider,
-        username,
-        appSessionToken,
+        ...summarizeCredentialState({ meta, provider, username, appSessionToken }),
         durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
       });
       return null;
@@ -82,9 +87,15 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader, logDe
     logDesktopAuth('read_stored_credentials:resolved', {
       metaPath,
       secretsPath,
-      credentials,
-      meta,
-      secrets,
+      credentials: {
+        provider: credentials.provider,
+        username: credentials.username,
+        primaryEmail: credentials.primaryEmail,
+        avatarUrl: credentials.avatarUrl,
+        authenticatedAt: credentials.authenticatedAt,
+        hasAppSessionToken: true,
+      },
+      ...summarizeCredentialState({ meta, provider, username, appSessionToken }),
       durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
     });
     return credentials;
@@ -97,7 +108,7 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader, logDe
       username: credentials.username,
       primaryEmail: credentials.primaryEmail,
       avatarUrl: credentials.avatarUrl,
-      appSessionToken: credentials.appSessionToken,
+      hasAppSessionToken: Boolean(credentials.appSessionToken),
     });
 
     const { metaPath, secretsPath } = await getAccountStorePaths();
@@ -163,7 +174,7 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader, logDe
     }
 
     logDesktopAuth('rotate_session_token:received', {
-      appSessionToken: rotatedToken,
+      hasAppSessionToken: true,
     });
 
     const current = await readStoredAccountCredentials();

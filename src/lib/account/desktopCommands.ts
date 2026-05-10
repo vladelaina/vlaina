@@ -165,6 +165,19 @@ export const accountCommands = {
           cleanupCallbacks.pop()?.();
         }
       };
+      const settleRejected = (error: unknown) => {
+        if (isSettled) return;
+        isSettled = true;
+        cleanup();
+        if (shouldInvalidateDesktopSession(error)) {
+          dispatchAccountInvalidatedEvent();
+        }
+        reject(error);
+      };
+      const settleAborted = () => {
+        void bridge.cancelManagedChatCompletionStream(requestId);
+        settleRejected(new DOMException('Aborted', 'AbortError'));
+      };
 
       cleanupCallbacks.push(
         bridge.onManagedStreamChunk(requestId, (content) => {
@@ -203,19 +216,18 @@ export const accountCommands = {
 
       cleanupCallbacks.push(
         bridge.onManagedStreamError(requestId, ({ message }) => {
-          if (isSettled) return;
-          isSettled = true;
-          cleanup();
-          if (shouldInvalidateDesktopSession(message)) {
-            dispatchAccountInvalidatedEvent();
-          }
-          reject(new Error(message || 'Managed stream failed'));
+          settleRejected(new Error(message || 'Managed stream failed'));
         })
       );
 
+      if (signal?.aborted) {
+        settleAborted();
+        return;
+      }
+
       if (signal) {
         const abortHandler = () => {
-          void bridge.cancelManagedChatCompletionStream(requestId);
+          settleAborted();
         };
         signal.addEventListener('abort', abortHandler, { once: true });
         cleanupCallbacks.push(() => {
@@ -226,13 +238,7 @@ export const accountCommands = {
       try {
         await bridge.startManagedChatCompletionStream(requestId, body);
       } catch (error) {
-        if (isSettled) return;
-        isSettled = true;
-        cleanup();
-        if (shouldInvalidateDesktopSession(error)) {
-          dispatchAccountInvalidatedEvent();
-        }
-        reject(error);
+        settleRejected(error);
       }
     });
   },

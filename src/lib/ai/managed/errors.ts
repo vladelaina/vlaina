@@ -39,6 +39,31 @@ export function isManagedServiceRecoverableError(error: unknown): boolean {
   );
 }
 
+function extractManagedErrorPayloadMessage(payload: Record<string, unknown>): string {
+  const nestedError = payload.error;
+  if (typeof nestedError === 'string') {
+    return nestedError;
+  }
+  if (nestedError && typeof nestedError === 'object') {
+    const nested = nestedError as Record<string, unknown>;
+    if (typeof nested.message === 'string') {
+      return nested.message;
+    }
+    if (typeof nested.error === 'string') {
+      return nested.error;
+    }
+  }
+
+  for (const key of ['message', 'msg', 'detail', 'error_description'] as const) {
+    const value = payload[key];
+    if (typeof value === 'string') {
+      return value;
+    }
+  }
+
+  return '';
+}
+
 export async function parseManagedError(response: Response): Promise<Error> {
   const raw = await response.text().catch(() => '');
   if (response.status === 401 || response.status === 403) {
@@ -52,11 +77,7 @@ export async function parseManagedError(response: Response): Promise<Error> {
 
   try {
     const payload = JSON.parse(raw) as Record<string, unknown>;
-    const message = typeof payload.error === 'string'
-      ? payload.error
-      : typeof payload.message === 'string'
-        ? payload.message
-        : '';
+    const message = extractManagedErrorPayloadMessage(payload).trim();
     if (message) {
       return new Error(message);
     }

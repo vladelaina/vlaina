@@ -37,7 +37,10 @@ function getLockKey(sessionId: string) {
 
 function notifyListeners(sessionId: string) {
   listeners.forEach((listener) => {
-    listener(sessionId);
+    try {
+      listener(sessionId);
+    } catch {
+    }
   });
 }
 
@@ -46,18 +49,22 @@ function ensureBroadcastChannel() {
     return;
   }
 
-  broadcastChannel = new BroadcastChannel(CHANNEL_NAME);
-  broadcastChannel.onmessage = (message) => {
-    const sessionId =
-      message.data && typeof message.data === 'object' && typeof message.data.sessionId === 'string'
-        ? message.data.sessionId
-        : null;
-    if (!sessionId) {
-      return;
-    }
+  try {
+    broadcastChannel = new BroadcastChannel(CHANNEL_NAME);
+    broadcastChannel.onmessage = (message) => {
+      const sessionId =
+        message.data && typeof message.data === 'object' && typeof message.data.sessionId === 'string'
+          ? message.data.sessionId
+          : null;
+      if (!sessionId) {
+        return;
+      }
 
-    notifyListeners(sessionId);
-  };
+      notifyListeners(sessionId);
+    };
+  } catch {
+    broadcastChannel = null;
+  }
 }
 
 function ensureStorageListener() {
@@ -83,7 +90,10 @@ function ensureStorageListener() {
 
 function emitLockChange(sessionId: string) {
   ensureBroadcastChannel();
-  broadcastChannel?.postMessage({ sessionId, sourceId, nonce: createToken() });
+  try {
+    broadcastChannel?.postMessage({ sessionId, sourceId, nonce: createToken() });
+  } catch {
+  }
 }
 
 function parseLockRecord(value: string | null): SessionMutationLockRecord | null {
@@ -116,7 +126,11 @@ function readLockRecord(sessionId: string): SessionMutationLockRecord | null {
     return null;
   }
 
-  return parseLockRecord(localStorage.getItem(getLockKey(sessionId)));
+  try {
+    return parseLockRecord(localStorage.getItem(getLockKey(sessionId)));
+  } catch {
+    return null;
+  }
 }
 
 function isLockActive(record: SessionMutationLockRecord | null) {
@@ -125,10 +139,15 @@ function isLockActive(record: SessionMutationLockRecord | null) {
 
 function writeLockRecord(sessionId: string, record: SessionMutationLockRecord) {
   if (typeof localStorage === 'undefined') {
-    return;
+    return false;
   }
 
-  localStorage.setItem(getLockKey(sessionId), JSON.stringify(record));
+  try {
+    localStorage.setItem(getLockKey(sessionId), JSON.stringify(record));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function removeLockRecord(sessionId: string, token: string) {
@@ -141,7 +160,10 @@ function removeLockRecord(sessionId: string, token: string) {
     return;
   }
 
-  localStorage.removeItem(getLockKey(sessionId));
+  try {
+    localStorage.removeItem(getLockKey(sessionId));
+  } catch {
+  }
 }
 
 function tryAcquireLock(sessionId: string, token: string): boolean {
@@ -160,7 +182,9 @@ function tryAcquireLock(sessionId: string, token: string): boolean {
     expiresAt: Date.now() + LOCK_TTL_MS,
   };
 
-  writeLockRecord(sessionId, nextRecord);
+  if (!writeLockRecord(sessionId, nextRecord)) {
+    return true;
+  }
 
   const verified = readLockRecord(sessionId);
   if (!verified) {
@@ -211,10 +235,13 @@ async function acquireSessionMutationLock(sessionId: string): Promise<() => void
           return;
         }
 
-        writeLockRecord(sessionId, {
+        const renewed = writeLockRecord(sessionId, {
           ...current,
           expiresAt: Date.now() + LOCK_TTL_MS,
         });
+        if (!renewed) {
+          window.clearInterval(renewTimer);
+        }
       }, LOCK_RENEW_MS);
 
       return () => {
@@ -244,7 +271,7 @@ export async function runWithSessionMutationLocks<T>(
   sessionIds: string[],
   task: () => Promise<T> | T,
 ): Promise<T> {
-  const normalizedSessionIds = [...new Set(sessionIds)].sort();
+  const normalizedSessionIds = [...new Set(sessionIds.map((sessionId) => sessionId.trim()).filter(Boolean))].sort();
   if (normalizedSessionIds.length === 0) {
     return await task();
   }
