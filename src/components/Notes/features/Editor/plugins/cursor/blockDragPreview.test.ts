@@ -18,6 +18,7 @@ function createNode(typeName: string, nodeSize: number, children: any[] = []) {
 
 afterEach(() => {
   document.body.innerHTML = '';
+  delete (window as any).vlainaDesktop;
 });
 
 describe('createBlockDragPreview', () => {
@@ -424,6 +425,115 @@ describe('createBlockDragPreview', () => {
     expect(preview?.element.querySelector('iframe')).toBeNull();
     expect(preview?.element.querySelector('video')).toBeNull();
     expect(preview?.element.querySelector('.video-drag-preview-surface')?.textContent).toBe('');
+
+    preview?.destroy();
+    rectSpy.mockRestore();
+  });
+
+  it('replaces mermaid blocks with a stable preview surface when capture is available', async () => {
+    (window as any).vlainaDesktop = {
+      media: {
+        capturePage: vi.fn().mockResolvedValue('data:image/png;base64,preview'),
+      },
+    };
+
+    const editorRoot = document.createElement('div');
+    const mermaidBlock = document.createElement('div');
+    mermaidBlock.className = 'mermaid-block';
+    mermaidBlock.dataset.type = 'mermaid';
+    mermaidBlock.innerHTML = '<svg><text>graph TD</text></svg>';
+    editorRoot.appendChild(mermaidBlock);
+    document.body.appendChild(editorRoot);
+
+    const mermaidNode = createNode('mermaid', 1);
+    const view = {
+      dom: editorRoot,
+      state: {
+        doc: {
+          content: { size: 2 },
+          forEach(cb: (child: any, offset: number) => void) {
+            cb(mermaidNode, 0);
+          },
+          resolve(pos: number) {
+            return {
+              pos,
+              depth: 0,
+              nodeAfter: mermaidNode,
+              node() {
+                return createNode('doc', 2);
+              },
+              before() {
+                return 0;
+              },
+            };
+          },
+        },
+      },
+      nodeDOM() {
+        return mermaidBlock;
+      },
+      domAtPos() {
+        return { node: mermaidBlock };
+      },
+    } as any;
+
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        if (this === mermaidBlock) {
+          return {
+            left: 120,
+            top: 80,
+            width: 420,
+            height: 240,
+            right: 540,
+            bottom: 320,
+            x: 120,
+            y: 80,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        if (this.dataset.noEditorDragBox === 'true') {
+          return {
+            left: 0,
+            top: 0,
+            width: 420,
+            height: 240,
+            right: 420,
+            bottom: 240,
+            x: 0,
+            y: 0,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        return {
+          left: 0,
+          top: 0,
+          width: 0,
+          height: 0,
+          right: 0,
+          bottom: 0,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        } as DOMRect;
+      });
+
+    const preview = createBlockDragPreview({
+      view,
+      ranges: [{ from: 0, to: 1 }],
+      clientX: 140,
+      clientY: 96,
+    });
+
+    expect(preview).not.toBeNull();
+    expect(preview?.element.querySelector('.mermaid-block')).toBeNull();
+    expect(preview?.element.querySelector('.mermaid-drag-preview-surface')).not.toBeNull();
+
+    await vi.waitFor(() => {
+      const image = preview?.element.querySelector<HTMLImageElement>('.mermaid-drag-preview-image');
+      expect(image?.src).toBe('data:image/png;base64,preview');
+    });
 
     preview?.destroy();
     rectSpy.mockRestore();

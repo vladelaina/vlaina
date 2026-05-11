@@ -7,6 +7,8 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import type { MilkdownPlugin } from '@milkdown/kit/ctx';
 import { textSelectionOverlayPlugin } from './textSelectionOverlayPlugin';
 import { mathPlugin } from '../math';
+import { tocPlugin } from '../toc';
+import { videoPlugin } from '../video';
 
 const OVERLAY_ACTIVE_CLASS = 'vlaina-text-selection-overlay-active';
 
@@ -80,6 +82,35 @@ describe('textSelectionOverlayPlugin', () => {
       true
     );
     expect(view.dom.querySelector('table')?.classList.contains('vlaina-atomic-selected')).toBe(
+      true
+    );
+  });
+
+  it.each([
+    {
+      typeName: 'video',
+      plugins: videoPlugin,
+      attrs: { src: '', title: '', width: 560, height: 315 },
+      selector: '[data-type="video"]',
+    },
+    {
+      typeName: 'toc',
+      plugins: tocPlugin,
+      attrs: { maxLevel: 6 },
+      selector: '[data-type="toc"]',
+    },
+  ])('adds block selection styling to $typeName blocks covered by editor select-all', async ({ typeName, plugins, attrs, selector }) => {
+    const view = await createEditor('placeholder', plugins);
+    const nodeType = view.state.schema.nodes[typeName];
+    expect(nodeType).toBeDefined();
+
+    view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, nodeType.create(attrs)));
+    view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
+
+    expect(view.dom.querySelector(selector)?.classList.contains('vlaina-block-selected')).toBe(
+      true
+    );
+    expect(view.dom.querySelector(selector)?.classList.contains('vlaina-atomic-selected')).toBe(
       true
     );
   });

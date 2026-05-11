@@ -304,6 +304,58 @@ describe('getDraggableBlockRanges', () => {
     const ranges = getDraggableBlockRanges(view as any, [{ from: 6, to: 12 }]);
     expect(ranges).toEqual([{ from: 6, to: 12 }]);
   });
+
+  it.each([
+    ['math_block', 1],
+    ['mermaid', 1],
+    ['table', 6],
+    ['video', 1],
+    ['toc', 1],
+  ])('keeps a leading %s inside a list item draggable by itself', (typeName, nodeSize) => {
+    const previewBlock = createNode(typeName, nodeSize);
+    const listItem = createNode('list_item', nodeSize + 2, [previewBlock]);
+    const list = createNode('bullet_list', nodeSize + 4, [listItem]);
+    const children = [list];
+    const docSize = nodeSize + 4;
+
+    const doc = {
+      content: { size: docSize },
+      forEach(cb: (child: MockNode, offset: number) => void) {
+        let offset = 0;
+        for (const child of children) {
+          cb(child, offset);
+          offset += child.nodeSize;
+        }
+      },
+      resolve(_pos: number) {
+        return {
+          nodeAfter: previewBlock,
+          parent: listItem,
+          depth: 2,
+          before: (_depth: number) => 1,
+        };
+      },
+    };
+
+    const dom = document.createElement('div');
+    const liEl = document.createElement('li');
+    const blockEl = document.createElement('div');
+    liEl.appendChild(blockEl);
+    dom.appendChild(liEl);
+    withRect(dom, { left: 20, top: 20, width: 600, height: 200 });
+    withRect(liEl, { left: 60, top: 40, width: 400, height: 80 });
+    withRect(blockEl, { left: 60, top: 60, width: 400, height: 60 });
+
+    const view = {
+      dom,
+      state: { doc },
+      nodeDOM(_pos: number) { return blockEl; },
+      domAtPos(_pos: number) { return { node: blockEl }; },
+    };
+
+    const ranges = getDraggableBlockRanges(view as any, [{ from: 2, to: 2 + nodeSize }]);
+    expect(ranges).toEqual([{ from: 2, to: 2 + nodeSize }]);
+  });
 });
 
 describe('resolveBlockTargetByPos', () => {

@@ -1,13 +1,12 @@
 import { Selection, TextSelection, type Transaction } from '@milkdown/kit/prose/state';
 import type { BlockRect } from './blockSelectionUtils';
+import { TEXT_ONLY_BLOCK_EDGE_NODE_NAMES } from '../shared/blockNodeTypes';
 
 export interface BlankAreaPlainClickAction {
   targetPos: number;
   bias: 1 | -1;
   blockFrom: number;
 }
-
-const TEXT_ONLY_BLOCK_EDGE_NAMES = new Set(['math_block', 'mermaid']);
 
 function resolveVerticalDistance(block: BlockRect, clientY: number): number {
   if (clientY < block.top) return block.top - clientY;
@@ -88,7 +87,7 @@ export function applyBlankAreaPlainClickSelection(
   const docEnd = tr.doc.content.size;
   const safeBlockFrom = Math.max(0, Math.min(action.blockFrom, docEnd));
   const block = tr.doc.nodeAt(safeBlockFrom);
-  if (block && TEXT_ONLY_BLOCK_EDGE_NAMES.has(block.type.name)) {
+  if (block && TEXT_ONLY_BLOCK_EDGE_NODE_NAMES.has(block.type.name)) {
     const blockEnd = Math.max(0, Math.min(safeBlockFrom + block.nodeSize, docEnd));
     const primaryPos = action.bias === 1 ? safeBlockFrom : blockEnd;
     const fallbackPos = action.bias === 1 ? blockEnd : safeBlockFrom;

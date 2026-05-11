@@ -2,11 +2,11 @@ import { AllSelection, Plugin, PluginKey, TextSelection, type EditorState } from
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
 import { hasSelectedBlocks } from '../cursor/blockSelectionPluginState';
+import { ATOMIC_TEXT_SELECTION_OVERLAY_NODE_NAMES } from '../shared/blockNodeTypes';
 
 export const TEXT_SELECTION_OVERLAY_CLASS = 'vlaina-text-selection-overlay';
 const TEXT_SELECTION_OVERLAY_ACTIVE_CLASS = 'vlaina-text-selection-overlay-active';
 const textSelectionOverlayPluginKey = new PluginKey<DecorationSet>('vlainaTextSelectionOverlay');
-const ATOMIC_SELECTION_NODE_TYPES = new Set(['math_block', 'math_inline', 'mermaid', 'table']);
 
 function isTextSelectionOverlayEligible(state: EditorState): boolean {
   const { selection } = state;
@@ -24,7 +24,7 @@ function createTextSelectionDecorations(state: EditorState): DecorationSet {
   doc.nodesBetween(selection.from, selection.to, (node, pos) => {
     if (
       selection instanceof AllSelection &&
-      ATOMIC_SELECTION_NODE_TYPES.has(node.type.name) &&
+      ATOMIC_TEXT_SELECTION_OVERLAY_NODE_NAMES.has(node.type.name) &&
       selection.from <= pos &&
       pos + node.nodeSize <= selection.to
     ) {

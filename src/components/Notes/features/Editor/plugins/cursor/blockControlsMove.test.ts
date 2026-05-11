@@ -7,6 +7,7 @@ import {
   serializerCtx,
 } from '@milkdown/kit/core';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { applyBlockMove } from './blockControlsMove';
@@ -14,6 +15,9 @@ import { getDraggableBlockRanges } from './blockControlsInteractions';
 import { resolveBlockMoveContext } from './blockControlsMoveCore';
 import { collectSelectableBlockRanges } from './blockUnitResolver';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+import { mathPlugin } from '../math';
+import { mermaidPlugin } from '../mermaid';
+import { createTableNodeFromPipeCells } from '../table/pipeTableShortcut';
 
 async function createEditor(markdown: string) {
   const editor = Editor.make()
@@ -25,7 +29,9 @@ async function createEditor(markdown: string) {
       }));
     })
     .use(commonmark)
-    .use(gfm);
+    .use(gfm)
+    .use(mathPlugin)
+    .use(mermaidPlugin);
 
   await editor.create();
   return editor;
@@ -62,6 +68,41 @@ function isCodeBlockRange(view: EditorView, range: { from: number }): boolean {
   } catch {
     return false;
   }
+}
+
+function replaceDocument(view: EditorView, nodes: ProseNode[]): void {
+  view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, nodes));
+}
+
+function createPreviewBlockNode(view: EditorView, typeName: 'math_block' | 'mermaid' | 'table'): ProseNode {
+  if (typeName === 'table') {
+    const table = createTableNodeFromPipeCells(view.state.schema, ['A', 'B']);
+    if (!table) {
+      throw new Error('Expected table schema');
+    }
+    return table;
+  }
+
+  const nodeType = view.state.schema.nodes[typeName];
+  if (!nodeType) {
+    throw new Error(`Expected ${typeName} schema`);
+  }
+
+  return typeName === 'math_block'
+    ? nodeType.create({ latex: 'x^2' })
+    : nodeType.create({ code: 'graph TD\nA --> B' });
+}
+
+function hasDescendantOfType(node: ProseNode, typeName: string): boolean {
+  let found = false;
+  node.descendants((descendant) => {
+    if (descendant.type.name === typeName) {
+      found = true;
+      return false;
+    }
+    return true;
+  });
+  return found;
 }
 
 describe('applyBlockMove content integrity', () => {
@@ -192,6 +233,41 @@ describe('applyBlockMove content integrity', () => {
     expect(nextMarkdown).toContain('```ts\nconsole.log(1)\n```');
     expect(nextMarkdown.indexOf('- Item')).toBeLessThan(nextMarkdown.indexOf('Tail'));
     expect(nextMarkdown.indexOf('Tail')).toBeLessThan(nextMarkdown.indexOf('```ts'));
+
+    await editor.destroy();
+  });
+
+  it.each([
+    'math_block',
+    'mermaid',
+    'table',
+  ] as const)('drags a %s block out of a list item without moving the list item', async (typeName) => {
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      schema.nodes.bullet_list.create(null, [
+        schema.nodes.list_item.create(null, [
+          schema.nodes.paragraph.create(null, schema.text('Item')),
+          createPreviewBlockNode(view, typeName),
+        ]),
+      ]),
+      schema.nodes.paragraph.create(null, schema.text('Tail')),
+    ]);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+    const previewBlock = blocks.find((range) => view.state.doc.resolve(range.from).nodeAfter?.type.name === typeName);
+
+    expect(previewBlock).toBeDefined();
+    const draggedRanges = getDraggableBlockRanges(view, [previewBlock!]);
+    expect(draggedRanges).toEqual([previewBlock]);
+
+    expect(applyBlockMove(view, draggedRanges, view.state.doc.content.size)).toBe(true);
+    expect(view.state.doc.child(0).type.name).toBe('bullet_list');
+    expect(view.state.doc.child(0).textContent).toContain('Item');
+    expect(hasDescendantOfType(view.state.doc.child(0), typeName)).toBe(false);
+    expect(view.state.doc.child(1).type.name).toBe('paragraph');
+    expect(view.state.doc.child(1).textContent).toBe('Tail');
+    expect(view.state.doc.child(2).type.name).toBe(typeName);
 
     await editor.destroy();
   });
