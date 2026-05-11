@@ -1,6 +1,11 @@
 import type { EditorState } from '@milkdown/kit/prose/state';
 import type { Serializer } from '@milkdown/kit/transformer';
 import { serializeSliceToText } from '../clipboard/serializer';
+import {
+  isVisiblePlainTextNode,
+  isVisiblePlainTextSlice,
+  serializeSliceAsVisiblePlainText,
+} from '../clipboard/visibleTextSerialization';
 import { normalizeSerializedMarkdownBlock } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { serializeLeadingFrontmatterMarkdown } from '../frontmatter/frontmatterMarkdown';
 import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
@@ -13,6 +18,14 @@ interface SerializeSelectedBlocksOptions {
 const LIST_ITEM_MARKER_PATTERN = /^\s*(?:[-+*]|\d+[.)])\s+(?:\[(?: |x|X)\]\s+)?/;
 const ORDERED_LIST_ITEM_MARKER_PATTERN = /^(\s*)(\d+)([.)])(\s+(?:\[(?: |x|X)\]\s+)?)/;
 const FENCED_CODE_MARKER_PATTERN = /^([ \t]*)(`{3,}|~{3,})/;
+
+function getNodeChildren(node: any): any[] {
+  const children: any[] = [];
+  node?.content?.forEach?.((child: any) => {
+    children.push(child);
+  });
+  return children;
+}
 
 function resolveTopLevelBlockInfo(
   doc: EditorState['doc'],
@@ -49,7 +62,20 @@ function renumberOrderedListMarker(text: string, number: number): string {
   );
 }
 
-function resolveListItemAtRange(
+function resolveListItemNodeAtRangeStart(
+  state: EditorState,
+  range: BlockRange,
+): any | null {
+  try {
+    const safeFrom = Math.max(0, Math.min(range.from, state.doc.content.size));
+    const node = state.doc.resolve(safeFrom).nodeAfter;
+    return node?.type?.name === 'list_item' ? node : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveContainingListItemAtRange(
   state: EditorState,
   range: BlockRange,
 ): any | null {
@@ -142,9 +168,23 @@ function serializeSingleListBlockWithoutMarker(
   range: BlockRange,
   markdownSerializer?: Serializer | null,
 ): string | null {
-  const listItem = resolveListItemAtRange(state, range);
+  const directListItem = resolveListItemNodeAtRangeStart(state, range);
+  const listItem = directListItem ?? resolveContainingListItemAtRange(state, range);
   if (!listItem || listItem.type.name !== 'list_item') {
     return null;
+  }
+
+  const directListItemChildren = getNodeChildren(directListItem);
+  if (
+    directListItem
+    && directListItemChildren.length > 0
+    && directListItemChildren.every((child) => child?.type?.name === 'paragraph' && isVisiblePlainTextNode(child))
+  ) {
+    return normalizeSelectedFencedCodeIndent(
+      stripSingleListBlockMarker(
+        normalizeSerializedMarkdownBlock(serializeSliceAsVisiblePlainText({ content: directListItem.content }))
+      )
+    );
   }
 
   if (markdownSerializer) {
@@ -207,6 +247,29 @@ function joinSerializedBlockRanges(
   return joined.length === 0 ? '\n' : joined;
 }
 
+function serializePlainParagraphBlock(
+  state: EditorState,
+  block: BlockRange,
+): string | null {
+  let blockInfo: { from: number; to: number; name: string } | null = null;
+  try {
+    blockInfo = resolveTopLevelBlockInfo(state.doc, block.from);
+  } catch {
+    return null;
+  }
+
+  if (!blockInfo || blockInfo.from !== block.from || blockInfo.to !== block.to || blockInfo.name !== 'paragraph') {
+    return null;
+  }
+
+  const slice = state.doc.slice(block.from, block.to);
+  if (!isVisiblePlainTextSlice(slice)) {
+    return null;
+  }
+
+  return normalizeSerializedMarkdownBlock(serializeSliceAsVisiblePlainText(slice));
+}
+
 export function serializeSelectedBlocksToText(
   state: EditorState,
   blocks: readonly BlockRange[],
@@ -230,9 +293,16 @@ export function serializeSelectedBlocksToText(
   if (markdownSerializer) {
     try {
       const markdownPieces = normalized
-        .map((block) => normalizeSelectedFencedCodeIndent(
-          normalizeSerializedMarkdownBlock(markdownSerializer(state.doc.cut(block.from, block.to)))
-        ));
+        .map((block) => {
+          const plainParagraphText = serializePlainParagraphBlock(state, block);
+          if (plainParagraphText !== null) {
+            return plainParagraphText;
+          }
+
+          return normalizeSelectedFencedCodeIndent(
+            normalizeSerializedMarkdownBlock(markdownSerializer(state.doc.cut(block.from, block.to)))
+          );
+        });
       return serializeLeadingFrontmatterMarkdown(
         joinSerializedBlockRanges(state.doc, normalized, markdownPieces)
       );

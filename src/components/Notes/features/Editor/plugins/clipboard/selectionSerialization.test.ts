@@ -717,6 +717,117 @@ describe('selectionSerialization', () => {
     await editor.destroy();
   });
 
+  it('copies ordinary selected paragraph text as visible plain text instead of escaped markdown', async () => {
+    const expected = [
+      '  Pro:   $76.80 / year',
+      '  Max:   $191.90 / year',
+      '  Ultra: $575.90 / year',
+    ].join('\n');
+    const slice = {
+      content: {
+        size: expected.length,
+        forEach(callback: (node: unknown) => void) {
+          expected.split('\n').forEach((line) => {
+            callback({
+              type: { name: 'paragraph' },
+              isBlock: true,
+              content: {
+                size: line.length,
+                forEach(textCallback: (node: unknown) => void) {
+                  textCallback({
+                    isText: true,
+                    text: line,
+                    marks: [],
+                    type: { name: 'text' },
+                  });
+                },
+              },
+            });
+          });
+        },
+      },
+    };
+    const selection = Object.create(TextSelection.prototype);
+    Object.defineProperties(selection, {
+      from: { value: 1 },
+      to: { value: expected.length + 1 },
+      empty: { value: false },
+      content: { value: () => slice },
+    });
+    const serializer = vi.fn(() => [
+      '&#x20; Pro:   \\$76.80 / year',
+      '',
+      '&#x20; Max:   \\$191.90 / year',
+      '',
+      '&#x20; Ultra: \\$575.90 / year',
+    ].join('\n'));
+    const state: any = {
+      selection,
+      doc: {
+        slice: vi.fn(() => slice),
+      },
+      schema: {
+        topNodeType: {
+          createAndFill: vi.fn(() => ({ type: 'doc' })),
+        },
+      },
+    };
+
+    const copied = serializeSelectionToClipboardText(state, serializer);
+
+    expect(copied).not.toContain('&#x20;');
+    expect(copied).not.toContain('\\$');
+    expect(copied).toBe(expected);
+    expect(serializer).not.toHaveBeenCalled();
+  });
+
+  it('copies ordinary selected link text as visible text instead of markdown link syntax', async () => {
+    const { editor, view, serializer } = await createMarkdownEditor('[Example](https://example.com) costs $5');
+    const from = findTextRange(view.state.doc, 'Example').from;
+    const to = findTextRange(view.state.doc, ' costs $5').to;
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, from, to)));
+
+    const copied = serializeSelectionToClipboardText(view.state, serializer);
+
+    expect(copied).toBe('Example costs $5');
+    expect(copied).not.toContain('[Example]');
+    expect(copied).not.toContain('(https://example.com)');
+    expect(copied).not.toContain('\\$');
+
+    await editor.destroy();
+  });
+
+  it('copies ordinary selected marked text without markdown escape artifacts', async () => {
+    const { editor, view, serializer } = await createMarkdownEditor('**Bold $5** and `code \\ value` and angle < tag');
+    const from = findTextRange(view.state.doc, 'Bold $5').from;
+    const to = findTextRange(view.state.doc, ' and angle < tag').to;
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, from, to)));
+
+    const copied = serializeSelectionToClipboardText(view.state, serializer);
+
+    expect(copied).toBe('Bold $5 and code \\ value and angle < tag');
+    expect(copied).not.toContain('**');
+    expect(copied).not.toContain('`');
+    expect(copied).not.toContain('\\$');
+    expect(copied).not.toContain('&lt;');
+
+    await editor.destroy();
+  });
+
+  it('copies ordinary selected heading text without heading markdown syntax', async () => {
+    const { editor, view, serializer } = await createMarkdownEditor('## Revenue $5');
+    const range = findTextRange(view.state.doc, 'Revenue $5');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, range.from, range.to)));
+
+    const copied = serializeSelectionToClipboardText(view.state, serializer);
+
+    expect(copied).toBe('Revenue $5');
+    expect(copied).not.toContain('##');
+    expect(copied).not.toContain('\\$');
+
+    await editor.destroy();
+  });
+
   it.each([
     {
       name: 'ordered',
