@@ -20,24 +20,6 @@ interface PendingDeleteProvider {
   name: string;
 }
 
-const detailTransitionVariants = {
-  initial: (direction: number) => ({
-    opacity: 0,
-    x: direction < 0 ? -34 : 34,
-    scale: 0.992,
-  }),
-  animate: {
-    opacity: 1,
-    x: 0,
-    scale: 1,
-  },
-  exit: (direction: number) => ({
-    opacity: 0,
-    x: direction < 0 ? 28 : -28,
-    scale: 0.992,
-  }),
-};
-
 function formatChannelBaseUrl(baseUrl: string) {
   return baseUrl.replace(/^https?:\/\//i, '');
 }
@@ -174,7 +156,6 @@ export function AITab() {
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [providerDrafts, setProviderDrafts] = useState<Record<string, ProviderCardDraft>>({});
   const [pendingDelete, setPendingDelete] = useState<PendingDeleteProvider | null>(null);
-  const [detailTransitionDirection, setDetailTransitionDirection] = useState(1);
 
   useEffect(() => {
     if (customProviders.length === 0) {
@@ -185,12 +166,10 @@ export function AITab() {
     const preferredId = customProviders[0].id;
 
     if (!selectedProviderId) {
-      setDetailTransitionDirection(1);
       setSelectedProviderId(preferredId);
     } else {
       const exists = customProviders.some((provider) => provider.id === selectedProviderId);
       if (!exists) {
-        setDetailTransitionDirection(1);
         setSelectedProviderId(preferredId);
       }
     }
@@ -215,23 +194,11 @@ export function AITab() {
       return;
     }
 
-    const currentIndex = selectedProviderId
-      ? customProviders.findIndex((provider) => provider.id === selectedProviderId)
-      : -1;
-    const nextIndex = customProviders.findIndex((provider) => provider.id === id);
-
-    if (currentIndex !== -1 && nextIndex !== -1) {
-      setDetailTransitionDirection(nextIndex < currentIndex ? -1 : 1);
-    } else {
-      setDetailTransitionDirection(1);
-    }
-
     setSelectedProviderId(id);
   };
 
   const handleAddCustomProvider = () => {
     const customIndex = customProviders.length + 1;
-    setDetailTransitionDirection(1);
     const nextId = addProvider({
       name: `Channel ${customIndex}`,
       type: 'newapi',
@@ -254,8 +221,6 @@ export function AITab() {
         remainingProviders[currentIndex] ?? remainingProviders[currentIndex - 1] ?? null;
 
       if (fallbackProvider) {
-        const fallbackIndex = customProviders.findIndex((provider) => provider.id === fallbackProvider.id);
-        setDetailTransitionDirection(fallbackIndex < currentIndex ? -1 : 1);
         setSelectedProviderId(fallbackProvider.id);
       } else {
         setSelectedProviderId(null);

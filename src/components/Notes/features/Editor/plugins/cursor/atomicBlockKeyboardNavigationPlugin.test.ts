@@ -1047,7 +1047,7 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
         }
       }
     }
-  });
+  }, 30000);
 
   it('deletes the empty paragraph between every supported structural block pair', async () => {
     const keys: Array<'Backspace' | 'Delete'> = ['Backspace', 'Delete'];

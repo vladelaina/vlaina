@@ -1,5 +1,3 @@
-import { useMemo } from 'react';
-import { Icon } from '@/components/ui/icons';
 import {
   APP_LANGUAGES,
   SYSTEM_LANGUAGE_PREFERENCE,

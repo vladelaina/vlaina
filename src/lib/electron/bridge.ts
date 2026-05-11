@@ -74,6 +74,24 @@ export interface ElectronMediaApi {
   }>;
 }
 
+export interface ElectronAppApi {
+  getVersion(): Promise<string>;
+}
+
+export interface ElectronUpdateApi {
+  check(): Promise<{
+    currentVersion: string;
+    latestVersion: string;
+    updateAvailable: boolean;
+    downloadUrl: string;
+    releaseUrl: string;
+    platformAssetName: string;
+    hasPlatformAsset: boolean;
+    releaseNotes: string;
+    publishedAt: string;
+  }>;
+}
+
 export interface ElectronExportApi {
   htmlToPdf(html: string, options?: {
     title?: string;
@@ -279,6 +297,8 @@ export interface VlainaDesktopApi {
   shell: ElectronShellApi;
   clipboard: ElectronClipboardApi;
   media?: ElectronMediaApi;
+  app?: ElectronAppApi;
+  update?: ElectronUpdateApi;
   export: ElectronExportApi;
   aiProvider: ElectronAIProviderHttpApi;
   webSearch?: ElectronWebSearchApi;

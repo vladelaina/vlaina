@@ -13,9 +13,10 @@ import { useSyncInit } from '@/hooks/useSyncInit';
 import { useUnifiedExternalSync } from '@/hooks/useUnifiedExternalSync';
 import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
 import { desktopWindow } from '@/lib/desktop/window';
-import { isElectronRuntime } from '@/lib/electron/bridge';
+import { getElectronBridge, isElectronRuntime } from '@/lib/electron/bridge';
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { getNotesDebugLogText } from '@/stores/notes/lineBreakDebugLog';
+import { useToastStore } from '@/stores/useToastStore';
 
 const SettingsModal = lazy(async () => {
   const mod = await import('@/components/Settings');
@@ -98,6 +99,31 @@ export function AppContent() {
   useEffect(() => {
     initialize();
   }, [initialize]);
+
+  useEffect(() => {
+    const bridge = getElectronBridge();
+    if (!bridge?.update) return;
+
+    let cancelled = false;
+    const timeoutId = window.setTimeout(() => {
+      void bridge.update?.check()
+        .then((updateInfo) => {
+          if (cancelled || !updateInfo.updateAvailable) return;
+          useToastStore.getState().addToast(
+            `vlaina ${updateInfo.latestVersion} is available. Open Settings > About to download.`,
+            'info',
+            8000,
+          );
+        })
+        .catch(() => {
+        });
+    }, 2500);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
 
   useEffect(() => {
     if (appViewMode === 'chat' || typeof document === 'undefined') return;

@@ -17,6 +17,14 @@ const __dirname = path.dirname(__filename);
 const rendererDevUrl = process.env.VITE_DEV_SERVER_URL ?? 'http://127.0.0.1:3000';
 const apiBaseUrl = (process.env.APP_API_BASE_URL ?? 'https://api.vlaina.com').trim().replace(/\/+$/, '');
 const managedApiBaseUrl = `${apiBaseUrl}/v1`;
+const updateManifestUrl = (
+  process.env.APP_UPDATE_MANIFEST_URL
+  ?? 'https://api.github.com/repos/vladelaina/vlaina/releases/latest'
+).trim();
+const defaultDownloadUrl = (
+  process.env.APP_DOWNLOAD_URL
+  ?? 'https://github.com/vladelaina/vlaina/releases/latest'
+).trim();
 const appIconPath = path.join(__dirname, '..', 'public', 'logo.png');
 const rendererFile = path.join(__dirname, '..', 'dist', 'index.html');
 const desktopAccountService = createDesktopAccountService({ apiBaseUrl });
@@ -167,6 +175,181 @@ function normalizeExternalUrl(rawUrl) {
   }
 
   return parsed.toString();
+}
+
+function normalizeHttpUrl(rawUrl, label) {
+  const normalized = normalizeExternalUrl(rawUrl);
+  const parsed = new URL(normalized);
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(`${label} must be an HTTP or HTTPS URL.`);
+  }
+  return parsed.toString();
+}
+
+function parseVersionParts(version) {
+  return String(version ?? '')
+    .trim()
+    .replace(/^v/i, '')
+    .split(/[.-]/)
+    .map((part) => {
+      const numeric = Number.parseInt(part, 10);
+      return Number.isFinite(numeric) ? numeric : 0;
+    });
+}
+
+function compareVersions(left, right) {
+  const leftParts = parseVersionParts(left);
+  const rightParts = parseVersionParts(right);
+  const length = Math.max(leftParts.length, rightParts.length, 3);
+
+  for (let index = 0; index < length; index += 1) {
+    const leftPart = leftParts[index] ?? 0;
+    const rightPart = rightParts[index] ?? 0;
+    if (leftPart > rightPart) return 1;
+    if (leftPart < rightPart) return -1;
+  }
+
+  return 0;
+}
+
+function normalizeReleaseAssets(rawAssets) {
+  if (!Array.isArray(rawAssets)) {
+    return [];
+  }
+
+  return rawAssets
+    .map((asset) => {
+      if (!asset || typeof asset !== 'object') {
+        return null;
+      }
+
+      const name = typeof asset.name === 'string' ? asset.name : '';
+      const downloadUrl = typeof asset.browser_download_url === 'string'
+        ? asset.browser_download_url
+        : typeof asset.downloadUrl === 'string'
+          ? asset.downloadUrl
+          : '';
+
+      if (!name || !downloadUrl) {
+        return null;
+      }
+
+      try {
+        return {
+          name,
+          downloadUrl: normalizeHttpUrl(downloadUrl, 'Release asset URL'),
+        };
+      } catch {
+        return null;
+      }
+    })
+    .filter(Boolean);
+}
+
+function getCurrentPlatformAssetPriority() {
+  if (process.platform === 'win32') {
+    return [
+      (name) => name.endsWith('.exe'),
+    ];
+  }
+
+  if (process.platform === 'darwin') {
+    return [
+      (name) => name.endsWith('.dmg'),
+      (name) => name.endsWith('.zip'),
+    ];
+  }
+
+  if (process.platform === 'linux') {
+    return [
+      (name) => name.endsWith('.appimage'),
+      (name) => name.endsWith('.deb'),
+      (name) => name.endsWith('.tar.gz'),
+    ];
+  }
+
+  return [];
+}
+
+function selectCurrentPlatformAsset(assets) {
+  const normalizedAssets = assets.map((asset) => ({
+    ...asset,
+    normalizedName: asset.name.toLowerCase(),
+  }));
+
+  for (const matchesAsset of getCurrentPlatformAssetPriority()) {
+    const match = normalizedAssets.find((asset) => matchesAsset(asset.normalizedName));
+    if (match) {
+      return {
+        name: match.name,
+        downloadUrl: match.downloadUrl,
+      };
+    }
+  }
+
+  return null;
+}
+
+function normalizeUpdateManifest(payload) {
+  if (!payload || typeof payload !== 'object') {
+    throw new Error('Update manifest must be a JSON object.');
+  }
+
+  const latestVersion = requireNonEmptyString(
+    payload.version ?? payload.tag_name,
+    'latest version'
+  ).trim();
+  const releaseUrl = normalizeHttpUrl(
+    payload.downloadUrl ?? payload.html_url ?? defaultDownloadUrl,
+    'Download URL'
+  );
+  const assets = normalizeReleaseAssets(payload.assets);
+  const platformAsset = selectCurrentPlatformAsset(assets);
+  const releaseNotes = typeof payload.releaseNotes === 'string'
+    ? payload.releaseNotes
+    : typeof payload.body === 'string'
+      ? payload.body
+      : '';
+  const publishedAt = typeof payload.publishedAt === 'string'
+    ? payload.publishedAt
+    : typeof payload.published_at === 'string'
+      ? payload.published_at
+      : '';
+
+  return {
+    latestVersion,
+    downloadUrl: platformAsset?.downloadUrl ?? releaseUrl,
+    releaseUrl,
+    platformAssetName: platformAsset?.name ?? '',
+    hasPlatformAsset: Boolean(platformAsset),
+    releaseNotes,
+    publishedAt,
+  };
+}
+
+async function fetchUpdateManifest() {
+  const manifestUrl = normalizeHttpUrl(updateManifestUrl, 'Update manifest URL');
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const response = await fetch(manifestUrl, {
+      cache: 'no-store',
+      signal: controller.signal,
+      headers: {
+        accept: 'application/json',
+        'user-agent': `vlaina/${app.getVersion()} desktop-updater`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Update manifest request failed: HTTP ${response.status}`);
+    }
+
+    return normalizeUpdateManifest(await response.json());
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function isTrustedRendererUrl(rawUrl) {
@@ -480,6 +663,21 @@ handleIpc('desktop:media:diagnose-url', async (_event, url) => {
 handleIpc('desktop:media:capture-page', async (event, rect) => {
   const image = await event.sender.capturePage(normalizeCaptureRect(rect));
   return image.toDataURL();
+});
+
+handleIpc('desktop:get-version', async () => {
+  return app.getVersion();
+});
+
+handleIpc('desktop:update:check', async () => {
+  const currentVersion = app.getVersion();
+  const manifest = await fetchUpdateManifest();
+
+  return {
+    currentVersion,
+    ...manifest,
+    updateAvailable: compareVersions(manifest.latestVersion, currentVersion) > 0,
+  };
 });
 
 desktopAccountService.registerAccountIpc({ handleIpc });
