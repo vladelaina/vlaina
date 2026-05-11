@@ -729,6 +729,8 @@ declare module '@milkdown/kit/preset/gfm' {
   export const tableRowSchema: any;
   export const tableHeaderSchema: any;
   export const tableCellSchema: any;
+  export const footnoteReferenceSchema: any;
+  export const footnoteDefinitionSchema: any;
   export const insertTableCommand: CommandKeyLike;
 }
 
