@@ -1,6 +1,7 @@
 import { Icon } from '@/components/ui/icons';
 import { useVaultStore, type VaultInfo } from '@/stores/useVaultStore';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useI18n } from '@/lib/i18n';
 
 function formatPath(path: string): string {
   const normalized = path.replace(/\\/g, '/');
@@ -23,6 +24,7 @@ interface RecentVaultsListProps {
 }
 
 export function RecentVaultsList({ vaults, onOpen }: RecentVaultsListProps) {
+  const { t } = useI18n();
   const { removeFromRecent } = useVaultStore();
 
   const handleRemove = (e: React.MouseEvent, id: string) => {
@@ -32,7 +34,7 @@ export function RecentVaultsList({ vaults, onOpen }: RecentVaultsListProps) {
 
   return (
     <div className="vault-recent">
-      <h2 className="vault-recent__title">Recent</h2>
+      <h2 className="vault-recent__title">{t('vault.recent')}</h2>
       <div className="vault-recent__list">
         {vaults.map((vault) => (
           <Tooltip key={vault.id}>

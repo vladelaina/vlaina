@@ -3,6 +3,7 @@ import { Icon } from '@/components/ui/icons';
 import { SettingsTextInput } from '@/components/Settings/components/SettingsFields';
 import { cn } from '@/lib/utils';
 import { formatBenchmarkLatency, type HealthStatus } from '../components/ModelListItem';
+import { useI18n } from '@/lib/i18n';
 
 const SLOW_BENCHMARK_LATENCY_MS = 5000;
 
@@ -204,12 +205,14 @@ export function ModelSearchInput({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <SettingsTextInput
       type="text"
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      placeholder="Filter models..."
+      placeholder={t('settings.ai.filterModels')}
       leading={<Icon name="common.search" size="sm" className="text-zinc-400" />}
       trailing={value ? (
         <button

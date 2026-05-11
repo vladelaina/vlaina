@@ -1,4 +1,5 @@
 import katex from 'katex';
+import { translate } from '@/lib/i18n';
 import 'katex/contrib/mhchem';
 
 const MAX_LATEX_CHARS = 10000;
@@ -179,7 +180,7 @@ export function renderLatex(latex: string, displayMode: boolean): RenderResult {
 
   if (latex.length > MAX_LATEX_CHARS) {
     return {
-      html: '<span class="math-error">Error equation</span>',
+      html: `<span class="math-error">${translate('editor.errorEquation')}</span>`,
       error: 'Equation is too large to render',
       errorDetails: {
         rawMessage: 'Equation is too large to render',
@@ -204,7 +205,7 @@ export function renderLatex(latex: string, displayMode: boolean): RenderResult {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
     const errorDetails = parseMathRenderError(errorMessage, latex);
     return {
-      html: '<span class="math-error">Error equation</span>',
+      html: `<span class="math-error">${translate('editor.errorEquation')}</span>`,
       error: errorDetails.summary,
       errorDetails,
     };

@@ -4,42 +4,44 @@ import { cn } from '@/lib/utils';
 import { SettingsSectionHeader, SettingsItem } from '../components/SettingsControls';
 import { SettingsTextInput } from '../components/SettingsFields';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { useI18n, type MessageKey } from '@/lib/i18n';
 
 interface StorageOption {
     id: ImageStorageMode;
-    label: string;
-    description: string;
+    labelKey: MessageKey;
+    descriptionKey: MessageKey;
     icon: IconName;
 }
 
 const storageOptions: StorageOption[] = [
     {
         id: 'vaultSubfolder',
-        label: 'Vault Subfolder',
-        description: 'Save to a specific folder in the vault root (e.g., assets/)',
+        labelKey: 'settings.images.vaultSubfolder',
+        descriptionKey: 'settings.images.vaultSubfolderDescription',
         icon: 'file.folder',
     },
     {
         id: 'subfolder',
-        label: 'Note Subfolder',
-        description: 'Save to a subfolder in the current note\'s directory',
+        labelKey: 'settings.images.noteSubfolder',
+        descriptionKey: 'settings.images.noteSubfolderDescription',
         icon: 'file.folderOpen',
     },
     {
         id: 'vault',
-        label: 'Vault Root',
-        description: 'Save images directly to the vault root directory',
+        labelKey: 'settings.images.vaultRoot',
+        descriptionKey: 'settings.images.vaultRootDescription',
         icon: 'common.home',
     },
     {
         id: 'currentFolder',
-        label: 'Current Folder',
-        description: 'Save to the same folder as the current note',
+        labelKey: 'settings.images.currentFolder',
+        descriptionKey: 'settings.images.currentFolderDescription',
         icon: 'file.folderOpen',
     },
 ];
 
 export function ImagesTab() {
+    const { t } = useI18n();
     const imageStorageMode = useUIStore((s) => s.imageStorageMode);
     const imageSubfolderName = useUIStore((s) => s.imageSubfolderName);
     const imageVaultSubfolderName = useUIStore((s) => s.imageVaultSubfolderName);
@@ -49,11 +51,11 @@ export function ImagesTab() {
 
     return (
         <div className="w-full">
-            <SettingsSectionHeader>Images</SettingsSectionHeader>
+            <SettingsSectionHeader>{t('settings.images.images')}</SettingsSectionHeader>
 
             <div className="mb-4 flex items-center justify-between px-2">
                 <span className="text-[13px] font-medium text-[var(--notes-sidebar-text-soft)]">
-                    Storage Location
+                    {t('settings.images.storageLocation')}
                 </span>
                 <code className="rounded-full bg-zinc-100 dark:bg-white/5 px-3 py-1 text-[11px] text-[var(--notes-sidebar-text-soft)]">
                     {imageStorageMode === 'vault' && './image.png'}
@@ -84,13 +86,13 @@ export function ImagesTab() {
                                     "text-[14px] font-semibold",
                                     isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--notes-sidebar-text)]"
                                 )}>
-                                    {option.label}
+                                    {t(option.labelKey)}
                                 </div>
                                 <div className={cn(
                                     "text-[12px] mt-0.5",
                                     isSelected ? "text-[var(--sidebar-row-selected-text)]/80" : "text-[var(--notes-sidebar-text-soft)]"
                                 )}>
-                                    {option.description}
+                                    {t(option.descriptionKey)}
                                 </div>
                             </div>
                             
@@ -107,8 +109,8 @@ export function ImagesTab() {
                 <div className="mt-6 space-y-4">
                     {imageStorageMode === 'vaultSubfolder' && (
                         <SettingsItem
-                            title="Folder Name"
-                            description={`Images will be saved to ${imageVaultSubfolderName || 'assets'}/ in the vault root.`}
+                            title={t('settings.images.folderName')}
+                            description={t('settings.images.folderNameDescription', { folder: imageVaultSubfolderName || 'assets' })}
                         >
                             <SettingsTextInput
                                 type="text"
@@ -124,8 +126,8 @@ export function ImagesTab() {
 
                     {imageStorageMode === 'subfolder' && (
                         <SettingsItem
-                            title="Subfolder Name"
-                            description={`Images will be saved to ${imageSubfolderName || 'assets'}/ inside the current note's folder.`}
+                            title={t('settings.images.subfolderName')}
+                            description={t('settings.images.subfolderNameDescription', { folder: imageSubfolderName || 'assets' })}
                         >
                             <SettingsTextInput
                                 type="text"
@@ -143,27 +145,27 @@ export function ImagesTab() {
 
             <div className="mt-8 mb-4 px-2">
                 <h3 className="text-[13px] font-medium text-[var(--notes-sidebar-text-soft)]">
-                    Filename Format
+                    {t('settings.images.filenameFormat')}
                 </h3>
             </div>
             
             <div className="space-y-2">
                 <FilenameFormatOption
                     id="original"
-                    label="Original Name"
-                    description="Keep the original filename"
+                    label={t('settings.images.originalName')}
+                    description={t('settings.images.originalNameDescription')}
                     icon="common.tag"
                 />
                 <FilenameFormatOption
                     id="sequence"
-                    label="Numeric Sequence"
-                    description="Use sequential numbers (e.g., 1.png, 2.png)"
+                    label={t('settings.images.numericSequence')}
+                    description={t('settings.images.numericSequenceDescription')}
                     icon="editor.listOrdered"
                 />
                 <FilenameFormatOption
                     id="timestamp"
-                    label="Timestamp"
-                    description="Use date and time (e.g., 2026-01-21_14-30-52.png)"
+                    label={t('settings.images.timestamp')}
+                    description={t('settings.images.timestampDescription')}
                     icon="misc.clock"
                 />
             </div>

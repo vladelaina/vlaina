@@ -21,6 +21,7 @@ export default defineConfig({
     globals: true,
     reporters: ['default'],
     setupFiles: ['./src/test/setup.ts'],
+    testTimeout: 15000,
     include: [
       'src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
       'test/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',

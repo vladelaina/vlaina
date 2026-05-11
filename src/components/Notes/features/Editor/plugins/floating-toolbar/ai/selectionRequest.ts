@@ -2,6 +2,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import type { AIModel, ChatMessage, Provider } from '@/lib/ai/types';
 import { useToastStore } from '@/stores/useToastStore';
+import { translate } from '@/lib/i18n';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { sendMessageWithEndpointFallback } from '@/hooks/chatService/sendMessageWithEndpointFallback';
 import { buildEditorAiUserMessage } from './promptBuilder';
@@ -176,20 +177,20 @@ export async function createAiSelectionSuggestionResult(
   const sourceTo = selectionSource?.to ?? view.state.selection.to;
 
   if (trimmedInstruction.length === 0) {
-    useToastStore.getState().addToast('Please enter an AI instruction first.', 'warning');
+    useToastStore.getState().addToast(translate('editor.ai.instructionRequired'), 'warning');
     return { suggestion: null, errorMessage: null };
   }
 
   const from = sourceFrom;
   const to = sourceTo;
   if (from >= to) {
-    useToastStore.getState().addToast('Please select some text first.', 'warning');
+    useToastStore.getState().addToast(translate('editor.ai.selectTextFirst'), 'warning');
     return { suggestion: null, errorMessage: null };
   }
 
   const selectedText = selectionSource?.originalText ?? getSerializedSelectionText(view);
   if (selectedText.trim().length === 0) {
-    useToastStore.getState().addToast('The current selection cannot be edited by AI.', 'warning');
+    useToastStore.getState().addToast(translate('editor.ai.cannotEditSelection'), 'warning');
     return { suggestion: null, errorMessage: null };
   }
   const context = selectionSource

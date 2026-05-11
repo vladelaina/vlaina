@@ -13,6 +13,7 @@ import {
   getFileTreeSortLabel,
 } from '@/stores/notes/fileTreeSorting';
 import { useTreeItemPathActions } from '../FileTree/hooks/useTreeItemPathActions';
+import { useI18n } from '@/lib/i18n';
 
 interface RootFolderMenuProps {
   isOpen: boolean;
@@ -48,7 +49,14 @@ export function RootFolderMenu({
   onSelectSortMode,
   vaultPath,
 }: RootFolderMenuProps) {
-  const currentSortLabel = getFileTreeSortLabel(fileTreeSortMode);
+  const { t } = useI18n();
+  const sortLabelByMode: Record<FileTreeSortMode, string> = {
+    'name-asc': t('sidebar.nameAsc'),
+    'name-desc': t('sidebar.nameDesc'),
+    'updated-desc': t('sidebar.recentlyUpdated'),
+    'created-desc': t('sidebar.recentlyCreated'),
+  };
+  const currentSortLabel = sortLabelByMode[fileTreeSortMode] ?? getFileTreeSortLabel(fileTreeSortMode);
   const closeVault = useVaultStore((state) => state.closeVault);
   const { handleCopyPath, handleOpenInNewWindow, handleOpenLocation } = useTreeItemPathActions({
     notesPath: vaultPath,
@@ -60,7 +68,7 @@ export function RootFolderMenu({
     {
       key: 'new-note',
       icon: <Icon name="file.add" size="md" />,
-      label: 'New Note',
+      label: t('sidebar.newNote'),
       onClick: async () => {
         if (!expanded) {
           setExpanded(true);
@@ -72,7 +80,7 @@ export function RootFolderMenu({
     {
       key: 'new-folder',
       icon: <Icon name="file.folderOutline" size="md" />,
-      label: 'New Folder',
+      label: t('sidebar.newFolder'),
       onClick: async () => {
         if (!expanded) {
           setExpanded(true);
@@ -87,7 +95,7 @@ export function RootFolderMenu({
     {
       key: 'rename',
       icon: <Icon name="common.rename" size="md" />,
-      label: 'Rename',
+      label: t('sidebar.rename'),
       onClick: () => {
         onStartRename();
         onClose();
@@ -105,7 +113,7 @@ export function RootFolderMenu({
       children: FILE_TREE_SORT_OPTIONS.map((option) => ({
         key: option.value,
         icon: <Icon name={sortOptionIconNameByMode[option.value]} size="md" />,
-        label: option.label,
+        label: sortLabelByMode[option.value] ?? option.label,
         onClick: () => {
           onSelectSortMode(option.value);
           onClose();
@@ -120,12 +128,12 @@ export function RootFolderMenu({
       kind: 'submenu',
       key: 'more',
       icon: <Icon name="common.more" size="md" />,
-      label: 'More',
+      label: t('sidebar.more'),
       children: [
         {
           key: 'copy-path',
           icon: <Icon name="common.copy" size="md" />,
-          label: 'Copy Path',
+          label: t('sidebar.copyPath'),
           onClick: async () => {
             onClose();
             await handleCopyPath();
@@ -135,7 +143,7 @@ export function RootFolderMenu({
         {
           key: 'open-new-window',
           icon: <Icon name="file.folderOutput" size="md" />,
-          label: 'Open in New Window',
+          label: t('sidebar.openInNewWindow'),
           onClick: async () => {
             onClose();
             await handleOpenInNewWindow('folder');
@@ -145,7 +153,7 @@ export function RootFolderMenu({
         {
           key: 'open-folder-location',
           icon: <Icon name="file.folderOpenArrow" size="md" />,
-          label: 'Open Folder Location',
+          label: t('sidebar.openFolderLocation'),
           onClick: async () => {
             onClose();
             await handleOpenLocation();
@@ -157,7 +165,7 @@ export function RootFolderMenu({
     {
       key: 'close-folder',
       icon: <Icon name="common.close" size="md" />,
-      label: 'Close Folder',
+      label: t('sidebar.closeFolder'),
       onClick: async () => {
         if (!vaultPath) return;
         onClose();

@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useI18n } from '@/lib/i18n';
 import { useToastStore } from '@/stores/useToastStore';
 import { sanitizeFilename } from '@/lib/assets/core/naming';
 import { writeTextToClipboard } from '@/lib/clipboard';
@@ -55,6 +56,7 @@ export function useImageActions({
     notesPath, currentNotePath,
     updateNodeAttrs, markImageUserInput, setCropParams, setIsActive, setHeight
 }: UseImageActionsProps) {
+    const { t } = useI18n();
     const { addToast } = useToastStore();
     const [isSaving, setIsSaving] = useState(false);
     const nodeSrc = typeof node.attrs.src === 'string' ? node.attrs.src : '';
@@ -69,7 +71,7 @@ export function useImageActions({
     const handleSave = async (percentageCrop: CropArea, ratio: number) => {
         try {
             if (!isValidCropArea(percentageCrop) || !Number.isFinite(ratio) || ratio <= 0) {
-                addToast('Invalid crop state. Please try again.', 'error');
+                addToast(t('editor.invalidCropState'), 'error');
                 return;
             }
 
@@ -90,7 +92,7 @@ export function useImageActions({
             setHeight(undefined);
         } catch (error) {
             console.error('Save failed:', error);
-            addToast('Failed to update view', 'error');
+            addToast(t('editor.updateViewFailed'), 'error');
         } finally {
             setIsSaving(false);
         }

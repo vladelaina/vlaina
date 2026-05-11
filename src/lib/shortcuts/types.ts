@@ -1,3 +1,5 @@
+import type { MessageKey } from '@/lib/i18n';
+
 export type ShortcutScope = 'global' | 'notes' | 'chat';
 export type ShortcutModule = 'notes' | 'chat';
 export type ShortcutSection = 'General' | 'Notes' | 'Chat';
@@ -12,6 +14,7 @@ export interface ShortcutConfig {
 
 export interface ShortcutDefinition extends ShortcutConfig {
   action: string;
+  actionKey?: MessageKey;
   modules: ShortcutModule[];
   section: ShortcutSection;
 }

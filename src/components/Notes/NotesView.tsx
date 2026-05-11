@@ -26,6 +26,7 @@ import { useBlankWorkspaceDropOpen } from './hooks/useBlankWorkspaceDropOpen';
 import { useNotesSidebarExternalDropImport } from './hooks/useNotesSidebarExternalDropImport';
 import { collectNotePathsInTreeOrder } from './features/common/noteTreeNavigation';
 import { scheduleSidebarItemIntoView } from './features/common/sidebarScrollIntoView';
+import { useI18n } from '@/lib/i18n';
 
 const EmbeddedChatView = lazy(async () => {
   const mod = await import('@/components/Chat/ChatView');
@@ -33,6 +34,7 @@ const EmbeddedChatView = lazy(async () => {
 });
 
 export function NotesView({ active = true }: { active?: boolean }) {
+  const { t } = useI18n();
   const currentNote = useNotesStore(s => s.currentNote);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const loadFileTree = useNotesStore(s => s.loadFileTree);
@@ -452,10 +454,10 @@ export function NotesView({ active = true }: { active?: boolean }) {
         isOpen={Boolean(pendingDraftDiscardPath)}
         onClose={cancelPendingDraftDiscard}
         onConfirm={confirmPendingDraftDiscard}
-        title="Discard Draft"
-        description="Are you sure you want to discard this unsaved draft? Any content that was not saved with Ctrl+S will be lost."
-        confirmText="Discard"
-        cancelText="Cancel"
+        title={t('notes.discardDraftTitle')}
+        description={t('notes.discardDraftDescription')}
+        confirmText={t('notes.discard')}
+        cancelText={t('common.cancel')}
         variant="danger"
       />
 

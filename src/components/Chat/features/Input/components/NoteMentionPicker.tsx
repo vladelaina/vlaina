@@ -4,6 +4,7 @@ import { useStarredEntryIcon } from '@/components/Notes/features/Starred/useStar
 import { cn } from '@/lib/utils';
 import type { StarredEntry } from '@/stores/notes/types';
 import type { NoteMentionCandidate } from '../noteMentionHelpers';
+import { useI18n } from '@/lib/i18n';
 
 interface NoteMentionPickerProps {
   currentPageCandidates: NoteMentionCandidate[];
@@ -113,6 +114,7 @@ export function NoteMentionPicker({
   className,
   onSelect,
 }: NoteMentionPickerProps) {
+  const { t } = useI18n();
   const hasCandidates = currentPageCandidates.length > 0 || linkedPageCandidates.length > 0;
 
   return (
@@ -127,13 +129,13 @@ export function NoteMentionPicker({
         {hasCandidates ? (
           <>
             <NoteMentionSection
-              title="Current page"
+              title={t('chat.currentPage')}
               candidates={currentPageCandidates}
               activeCandidatePath={activeCandidatePath}
               onSelect={onSelect}
             />
             <NoteMentionSection
-              title="Link to page"
+              title={t('chat.linkToPage')}
               candidates={linkedPageCandidates}
               activeCandidatePath={activeCandidatePath}
               onSelect={onSelect}

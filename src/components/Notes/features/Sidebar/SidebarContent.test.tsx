@@ -271,7 +271,7 @@ describe('SidebarContent search highlight cleanup', () => {
     );
 
     expect(getByText('File')).toBeTruthy();
-    expect(getByText('Folder')).toBeTruthy();
+    expect(getByText('New Folder')).toBeTruthy();
   });
 
   it('shows the hover empty hint before a root folder exists', () => {
@@ -287,7 +287,7 @@ describe('SidebarContent search highlight cleanup', () => {
     );
 
     expect(getByText('File')).toBeTruthy();
-    expect(getByText('Folder')).toBeTruthy();
+    expect(getByText('New Folder')).toBeTruthy();
   });
 
   it('does not show the open hint while a vault root is still loading', () => {
@@ -306,7 +306,7 @@ describe('SidebarContent search highlight cleanup', () => {
     );
 
     expect(queryByText('File')).toBeNull();
-    expect(queryByText('Folder')).toBeNull();
+    expect(queryByText('New Folder')).toBeNull();
     expect(getByTestId('root-folder-row')).toBeTruthy();
   });
 
@@ -326,7 +326,7 @@ describe('SidebarContent search highlight cleanup', () => {
     );
 
     expect(getByText('File')).toBeTruthy();
-    expect(getByText('Folder')).toBeTruthy();
+    expect(getByText('New Folder')).toBeTruthy();
   });
 
   it('does not inject a blank in-memory draft into an empty root folder', () => {
@@ -358,7 +358,7 @@ describe('SidebarContent search highlight cleanup', () => {
 
     expect(queryByText('Untitled')).toBeNull();
     expect(getByText('File')).toBeTruthy();
-    expect(getByText('Folder')).toBeTruthy();
+    expect(getByText('New Folder')).toBeTruthy();
   });
 
   it('shows the current in-memory draft after it has content', () => {
@@ -413,9 +413,9 @@ describe('SidebarContent search highlight cleanup', () => {
       );
 
       expect(getByText('File')).toBeTruthy();
-      expect(getByText('Folder')).toBeTruthy();
+      expect(getByText('New Folder')).toBeTruthy();
       fireEvent.click(getByText('File'));
-      fireEvent.click(getByText('Folder'));
+      fireEvent.click(getByText('New Folder'));
 
       expect(openFileHandler).toHaveBeenCalledTimes(1);
       expect(openFolderHandler).toHaveBeenCalledTimes(1);

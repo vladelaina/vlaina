@@ -1,4 +1,5 @@
 import { Icon } from '@/components/ui/icons';
+import { useI18n } from '@/lib/i18n';
 
 interface ActionButtonsProps {
   onCreateNew: () => void;
@@ -6,6 +7,8 @@ interface ActionButtonsProps {
 }
 
 export function ActionButtons({ onCreateNew, onOpenLocal }: ActionButtonsProps) {
+  const { t } = useI18n();
+
   return (
     <div className="vault-actions">
       <button 
@@ -13,14 +16,14 @@ export function ActionButtons({ onCreateNew, onOpenLocal }: ActionButtonsProps) 
         onClick={onCreateNew}
       >
         <Icon name="common.add" size="md" />
-        Create New
+        {t('vault.createNew')}
       </button>
       <button 
         className="vault-action-btn vault-action-btn--secondary"
         onClick={onOpenLocal}
       >
         <Icon name="file.folderOpen" size="md" />
-        Open Local
+        {t('vault.openLocal')}
       </button>
     </div>
   );

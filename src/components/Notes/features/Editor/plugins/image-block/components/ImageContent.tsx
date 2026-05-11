@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
+import { useI18n } from '@/lib/i18n';
 import { isPublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 import { ImageCropper } from './ImageCropper';
 import { getCropViewStyles } from '../utils/cropGeometry';
@@ -37,6 +38,7 @@ export const ImageContent = ({
     onMediaLoaded,
     onStateChange
 }: ImageContentProps) => {
+    const { t } = useI18n();
     const [mediaError, setMediaError] = useState(false);
 
     useEffect(() => {
@@ -60,7 +62,7 @@ export const ImageContent = ({
         return (
             <div className="w-full h-full min-h-[100px] flex flex-col items-center justify-center bg-gray-50 dark:bg-zinc-900 border border-dashed border-gray-200 dark:border-zinc-700 rounded-md text-gray-400 dark:text-zinc-500">
                 <Icon name="file.brokenImage" className="size-8 mb-2 opacity-50" />
-                <span className="text-xs font-medium">Image not found</span>
+                <span className="text-xs font-medium">{t('editor.imageNotFound')}</span>
             </div>
         );
     }

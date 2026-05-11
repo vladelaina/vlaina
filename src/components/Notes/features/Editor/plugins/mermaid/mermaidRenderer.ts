@@ -1,4 +1,5 @@
 import zenumlDiagram from '@mermaid-js/mermaid-zenuml';
+import { translate } from '@/lib/i18n';
 import { createDefaultMermaidThemeConfig } from '@/lib/notes/mermaid/mermaidTheme';
 
 let mermaidInstance: any = null;
@@ -89,7 +90,7 @@ export async function renderMermaid(code: string, id: string): Promise<string> {
   const mermaid = await getMermaid();
 
   if (!mermaid) {
-    return `<div class="mermaid-error">Mermaid not available. Install with: pnpm add mermaid</div>`;
+    return `<div class="mermaid-error">${translate('editor.mermaidNotAvailable')}</div>`;
   }
 
   try {
@@ -99,6 +100,6 @@ export async function renderMermaid(code: string, id: string): Promise<string> {
     );
     return svg;
   } catch {
-    return '<div class="mermaid-error">Mermaid Error: Unable to render diagram. Check the diagram syntax.</div>';
+    return `<div class="mermaid-error">${translate('editor.mermaidRenderError')}</div>`;
   }
 }

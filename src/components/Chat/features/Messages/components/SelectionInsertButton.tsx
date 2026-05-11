@@ -21,8 +21,10 @@ import {
 import {
   dispatchChatSelectionStreamFreeze,
 } from "./chatSelectionStreamFreeze";
+import { useI18n } from "@/lib/i18n";
 
 export function SelectionInsertButton() {
+  const { t } = useI18n();
   const [state, setState] = useState<SelectionInsertState | null>(null);
   const [mounted, setMounted] = useState(false);
   const isSelectingFromChatRef = useRef(false);
@@ -276,7 +278,7 @@ export function SelectionInsertButton() {
     <div className="pointer-events-none fixed inset-0 z-[115]">
       <button
         type="button"
-        aria-label="Insert selection to input"
+        aria-label={t('chat.insertSelection')}
         data-no-focus-input="true"
         className={cn(
           "pointer-events-auto absolute h-8 w-8 rounded-full border border-black/10 bg-white shadow-md dark:border-white/10 dark:bg-zinc-900",

@@ -1,6 +1,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType, FloatingToolbarState } from '../types';
-import { BLOCK_TYPES } from '../utils';
+import { BLOCK_TYPES, getLocalizedBlockTypeLabel } from '../utils';
+import { translate } from '@/lib/i18n';
 import { convertBlockType } from '../commands';
 import { applyBlockPreview, clearFormatPreview, commitBlockPreview, hasBlockPreview } from '../previewStyles';
 import { collapseSelectionAfterToolbarApply } from '../selectionCollapse';
@@ -95,7 +96,7 @@ export function renderBlockDropdown(
       <button
         class="block-dropdown-item ${isActive ? 'active' : ''}"
         data-block-type="${config.type}"
-        aria-label="${config.label}"
+        aria-label="${getLocalizedBlockTypeLabel(config.type)}"
       >
         <span class="block-dropdown-item-icon">${icon}</span>
       </button>
@@ -150,23 +151,23 @@ export function renderBlockDropdown(
 
 export function getBlockTypeDisplayLabel(blockType: BlockType): string {
   const config = BLOCK_TYPES.find(b => b.type === blockType);
-  return config?.label || 'Text';
+  return config ? getLocalizedBlockTypeLabel(config.type) : translate('editor.blockType.text');
 }
 
 export function getBlockTypeShortLabel(blockType: BlockType): string {
   const shortLabels: Record<BlockType, string> = {
-    paragraph: 'Text',
+    paragraph: translate('editor.blockType.text'),
     heading1: 'H1',
     heading2: 'H2',
     heading3: 'H3',
     heading4: 'H4',
     heading5: 'H5',
     heading6: 'H6',
-    blockquote: 'Quote',
-    bulletList: 'Bullet',
-    orderedList: 'Number',
-    taskList: 'Task',
-    codeBlock: 'Code',
+    blockquote: translate('editor.blockType.blockquote'),
+    bulletList: translate('editor.blockType.bulletList'),
+    orderedList: translate('editor.blockType.orderedList'),
+    taskList: translate('editor.blockType.taskList'),
+    codeBlock: translate('editor.blockType.codeBlock'),
   };
-  return shortLabels[blockType] || 'Text';
+  return shortLabels[blockType] || translate('editor.blockType.text');
 }

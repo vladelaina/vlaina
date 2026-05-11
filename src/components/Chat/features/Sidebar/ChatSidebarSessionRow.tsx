@@ -17,6 +17,7 @@ import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { Icon } from '@/components/ui/icons';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import type { ChatSession } from '@/lib/ai/types';
+import { useI18n } from '@/lib/i18n';
 
 interface ChatSidebarSessionRowProps {
   session: ChatSession;
@@ -60,6 +61,7 @@ function ChatSidebarSessionRowInner({
   onHideSearch,
   shouldHideSearchResults,
 }: ChatSidebarSessionRowProps) {
+  const { t } = useI18n();
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ top: 0, left: 0 });
   const isGenerating = useAIUIStore((state) => !!state.generatingSessions[session.id]);
@@ -95,7 +97,7 @@ function ChatSidebarSessionRowInner({
     {
       key: 'rename',
       icon: <Icon name="common.rename" size="md" />,
-      label: 'Rename',
+      label: t('sidebar.rename'),
       onClick: handleStartRename,
     },
     {
@@ -106,20 +108,20 @@ function ChatSidebarSessionRowInner({
           size={16}
         />
       ),
-      label: session.isPinned ? 'Unpin' : 'Pin',
+      label: session.isPinned ? t('sidebar.unpin') : t('sidebar.pin'),
       onClick: handleTogglePin,
     },
     {
       key: 'open-new-window',
       icon: <Icon name="file.folderOutput" size="md" />,
-      label: 'Open in New Window',
+      label: t('sidebar.openInNewWindow'),
       onClick: handleOpenInNewWindow,
     },
     { kind: 'divider', key: 'delete-divider' },
     {
       key: 'delete',
       icon: <DeleteIcon className="text-current" />,
-      label: 'Delete',
+      label: t('sidebar.delete'),
       onClick: handleRequestDelete,
       danger: true,
     },
@@ -187,7 +189,7 @@ function ChatSidebarSessionRowInner({
       trailing={statusIndicator}
       actions={
         <SidebarRowActionButton
-          aria-label="Open chat session menu"
+          aria-label={t('sidebar.openChatSessionMenu')}
           onClick={(event) => {
             const rowElement = event.currentTarget.closest('[data-chat-sidebar-session-row="true"]');
             const rowRect = (rowElement ?? event.currentTarget).getBoundingClientRect();

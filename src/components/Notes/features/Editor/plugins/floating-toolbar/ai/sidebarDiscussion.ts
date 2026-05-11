@@ -1,4 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { translate } from '@/lib/i18n';
 import { createAIChatSession } from '@/stores/useAIStore';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { useToastStore } from '@/stores/useToastStore';
@@ -29,7 +30,7 @@ function getSerializedSidebarDiscussionText(view: EditorView): string {
 export function openSidebarDiscussionForSelection(view: EditorView): boolean {
   const selectedText = normalizeSelectedTextForComposer(getSerializedSidebarDiscussionText(view));
   if (selectedText.length === 0) {
-    useToastStore.getState().addToast('The current selection cannot be quoted to the AI chat.', 'warning');
+    useToastStore.getState().addToast(translate('editor.ai.cannotQuoteSelection'), 'warning');
     return false;
   }
 

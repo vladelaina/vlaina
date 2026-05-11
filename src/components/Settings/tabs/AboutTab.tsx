@@ -4,6 +4,7 @@ import { getElectronBridge } from '@/lib/electron/bridge';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { cn } from '@/lib/utils';
 import { SettingsSectionHeader } from '../components/SettingsControls';
+import { useI18n } from '@/lib/i18n';
 
 type UpdateStatus = 'idle' | 'checking' | 'current' | 'available' | 'error';
 
@@ -23,6 +24,7 @@ const fallbackDownloadUrl = 'https://github.com/vladelaina/vlaina/releases/lates
 const privacyPolicyUrl = 'https://github.com/vladelaina/vlaina/blob/main/PRIVACY.md';
 
 export function AboutTab() {
+  const { t } = useI18n();
   const [status, setStatus] = useState<UpdateStatus>('idle');
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [currentVersion, setCurrentVersion] = useState('');
@@ -45,7 +47,7 @@ export function AboutTab() {
     const bridge = getElectronBridge();
     if (!bridge?.update) {
       setStatus('error');
-      setErrorMessage('Update checks are only available in the desktop app.');
+      setErrorMessage(t('settings.about.updateDesktopOnly'));
       return;
     }
 
@@ -58,19 +60,19 @@ export function AboutTab() {
       setStatus(nextInfo.updateAvailable ? 'available' : 'current');
     } catch (error) {
       setStatus('error');
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to check for updates.');
+      setErrorMessage(error instanceof Error ? error.message : t('settings.about.updateFailed'));
     }
-  }, []);
+  }, [t]);
 
   const openDownloadPage = useCallback(() => {
     void openExternalHref(updateInfo?.downloadUrl || fallbackDownloadUrl);
   }, [updateInfo?.downloadUrl]);
 
   const statusLabel = (() => {
-    if (status === 'checking') return 'Checking';
-    if (status === 'available' && updateInfo) return `v${updateInfo.latestVersion} available`;
-    if (status === 'current') return 'Up to date';
-    if (status === 'error') return 'Check failed';
+    if (status === 'checking') return t('common.checking');
+    if (status === 'available' && updateInfo) return t('settings.about.updateAvailable', { version: updateInfo.latestVersion });
+    if (status === 'current') return t('settings.about.upToDate');
+    if (status === 'error') return t('common.checkFailed');
     return '';
   })();
 
@@ -81,23 +83,23 @@ export function AboutTab() {
           vlaina
         </h2>
         <div className="mt-2 flex items-center gap-2 text-[12px] text-[var(--notes-sidebar-text-soft)]">
-          <span>Version</span>
+          <span>{t('settings.about.version')}</span>
           <span className="rounded-full bg-zinc-100 px-2 py-0.5 font-medium text-[var(--notes-sidebar-text)] dark:bg-white/10">
             {currentVersion || '0.1.0'}
           </span>
         </div>
         <p className="mt-2 max-w-[560px] text-[13px] leading-6 text-[var(--notes-sidebar-text-soft)]">
-          Desktop app updates are delivered as downloads. The app will not install updates in the background.
+          {t('settings.about.versionDescription')}
         </p>
       </div>
 
       <div>
-        <SettingsSectionHeader>Updates</SettingsSectionHeader>
+        <SettingsSectionHeader>{t('settings.about.updates')}</SettingsSectionHeader>
         <div className="rounded-[22px] border border-zinc-200/70 bg-white px-6 py-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:border-white/10 dark:bg-[#202020]">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 text-[14px] font-semibold text-[var(--notes-sidebar-text)]">
-                <span>Download updates</span>
+                <span>{t('settings.about.downloadUpdates')}</span>
                 {statusLabel ? (
                   <span
                     title={status === 'error' ? errorMessage || undefined : undefined}
@@ -122,7 +124,7 @@ export function AboutTab() {
                 className="inline-flex h-10 items-center gap-2 rounded-2xl border border-zinc-200 bg-white px-4 text-[13px] font-medium text-[var(--notes-sidebar-text)] transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-[#242424] dark:hover:bg-white/10"
               >
                 <RefreshCw size={15} className={cn(status === 'checking' && 'animate-spin')} />
-                Check
+                {t('common.check')}
               </button>
               <button
                 type="button"
@@ -130,7 +132,7 @@ export function AboutTab() {
                 className="inline-flex h-10 items-center gap-2 rounded-2xl bg-[#1E96EB] px-4 text-[13px] font-semibold text-white transition-colors hover:bg-[#167fd0]"
               >
                 {status === 'available' ? <Download size={15} /> : <ExternalLink size={15} />}
-                Download
+                {t('common.download')}
               </button>
             </div>
           </div>
@@ -138,12 +140,12 @@ export function AboutTab() {
       </div>
 
       <div>
-        <SettingsSectionHeader>Privacy</SettingsSectionHeader>
+        <SettingsSectionHeader>{t('settings.about.privacy')}</SettingsSectionHeader>
         <div className="rounded-[22px] border border-zinc-200/70 bg-white px-6 py-5 shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:border-white/10 dark:bg-[#202020]">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <div className="text-[14px] font-semibold text-[var(--notes-sidebar-text)]">
-                Privacy policy
+                {t('settings.about.openPrivacyPolicy')}
               </div>
             </div>
             <button
@@ -152,7 +154,7 @@ export function AboutTab() {
               className="inline-flex h-10 items-center gap-2 rounded-2xl border border-zinc-200 bg-white px-4 text-[13px] font-medium text-[var(--notes-sidebar-text)] transition-colors hover:bg-zinc-50 dark:border-white/10 dark:bg-[#242424] dark:hover:bg-white/10"
             >
               <ExternalLink size={15} />
-              Open
+              {t('common.open')}
             </button>
           </div>
         </div>

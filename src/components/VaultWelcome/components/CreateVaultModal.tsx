@@ -4,6 +4,7 @@ import { useVaultStore } from '@/stores/useVaultStore';
 import { openDialog, hasNativeDialogs } from '@/lib/storage/dialog';
 import { joinPath, isWeb } from '@/lib/storage/adapter';
 import { BlurBackdrop } from '@/components/common/BlurBackdrop';
+import { useI18n } from '@/lib/i18n';
 
 interface CreateVaultModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface CreateVaultModalProps {
 }
 
 export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
+  const { t } = useI18n();
   const { createVault, isLoading, error, clearError } = useVaultStore();
   const [name, setName] = useState('');
   const [parentPath, setParentPath] = useState('');
@@ -40,7 +42,7 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
     const selected = await openDialog({
       directory: true,
       multiple: false,
-      title: 'Select Parent Folder for New Vault',
+      title: t('vault.selectParentFolderTitle'),
     });
 
     if (selected && typeof selected === 'string') {
@@ -96,15 +98,15 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
               exit={{ opacity: 0, scale: 0.96, y: 12 }}
               transition={{ duration: 0.4, ease: [0.19, 1, 0.22, 1] }}
             >
-              <h2 className="vault-modal__title">Create New Vault</h2>
+              <h2 className="vault-modal__title">{t('vault.createNewVault')}</h2>
 
               <div className="vault-modal__field">
-                <label className="vault-modal__label">Vault Name</label>
+                <label className="vault-modal__label">{t('vault.name')}</label>
                 <input
                   type="text"
                   spellCheck={false}
                   className="vault-modal__input"
-                  placeholder="My Notes"
+                  placeholder={t('vault.myNotesPlaceholder')}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   onKeyDown={(e) => {
@@ -120,7 +122,7 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
 
               <div className="vault-modal__field">
                 <label className="vault-modal__label">
-                  {isWebPlatform ? 'Vault Path' : 'Parent Folder'}
+                  {isWebPlatform ? t('vault.path') : t('vault.parentFolder')}
                 </label>
                 <div className="vault-modal__path-input">
                   <input
@@ -128,7 +130,7 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
                     type="text"
                     spellCheck={false}
                     className="vault-modal__input"
-                    placeholder={isWebPlatform ? '/vaults/my-notes' : 'Select a folder...'}
+                    placeholder={isWebPlatform ? t('vault.pathPlaceholder') : t('vault.selectFolderPlaceholder')}
                     value={parentPath}
                     onChange={(e) => setParentPath(e.target.value)}
                     onBlur={(e) => {
@@ -144,13 +146,13 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
                   />
                   {hasNativeDialogs() && (
                     <button className="vault-modal__browse-btn" onClick={handleBrowse}>
-                      Browse
+                      {t('common.browse')}
                     </button>
                   )}
                 </div>
                 {isWebPlatform && (
                   <p className="vault-modal__hint">
-                    Data is stored in your browser's local storage
+                    {t('vault.localStorageHint')}
                   </p>
                 )}
               </div>
@@ -159,7 +161,7 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
 
               <div className="vault-modal__actions">
                 <button className="vault-modal__btn vault-modal__btn--cancel" onClick={onClose}>
-                  Cancel
+                  {t('common.cancel')}
                 </button>
 
                 <button
@@ -167,7 +169,7 @@ export function CreateVaultModal({ isOpen, onClose }: CreateVaultModalProps) {
                   onClick={handleCreate}
                   disabled={!canCreate}
                 >
-                  {isLoading ? 'Creating...' : 'Create Vault'}
+                  {isLoading ? t('common.creating') : t('vault.createVault')}
                 </button>
               </div>
             </motion.div>

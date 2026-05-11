@@ -4,6 +4,7 @@ import {
   SidebarActionButton,
   SidebarActionGroup,
 } from '@/components/layout/sidebar/SidebarPrimitives';
+import { useI18n } from '@/lib/i18n';
 
 interface ChatSidebarTopActionsProps {
   onOpenNewChat: () => void;
@@ -21,10 +22,11 @@ export function ChatSidebarTopActions({
   onOpenNewChat,
   onOpenNotes,
 }: ChatSidebarTopActionsProps) {
+  const { t } = useI18n();
   const actions: ChatSidebarTopAction[] = [
     {
       key: 'new-chat',
-      label: 'New Spark',
+      label: t('sidebar.newChat'),
       icon: <Icon name="common.compose" size="md" />,
       onClick: onOpenNewChat,
     },
@@ -33,7 +35,7 @@ export function ChatSidebarTopActions({
   if (onOpenNotes) {
     actions.push({
       key: 'notes',
-      label: 'Grimoire',
+      label: t('sidebar.grimoire'),
       icon: (
         <svg
           xmlns="http://www.w3.org/2000/svg"

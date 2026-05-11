@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils';
 import type { OauthAccountProvider } from '@/lib/account/provider';
 import { AccountOauthButtons } from './AccountOauthButtons';
 import { AccountEmailCodeCard } from './AccountEmailCodeCard';
+import { useI18n } from '@/lib/i18n';
 
 interface AccountSignInOptionsProps {
   isConnecting: boolean;
@@ -22,6 +23,7 @@ export function AccountSignInOptions({
   variant = 'panel',
   className,
 }: AccountSignInOptionsProps) {
+  const { t } = useI18n();
   const isCompact = variant === 'compact';
   const disabled = isConnecting;
 
@@ -31,7 +33,7 @@ export function AccountSignInOptions({
 
       <div className="flex items-center gap-4 px-4">
         <div className="h-px flex-1 bg-zinc-100 dark:bg-white/5" />
-        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300 dark:text-zinc-600">or</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-300 dark:text-zinc-600">{t('account.or')}</span>
         <div className="h-px flex-1 bg-zinc-100 dark:bg-white/5" />
       </div>
 
@@ -55,7 +57,7 @@ export function AccountSignInOptions({
         ) : null}
 
         <p className="px-8 text-[11px] text-center leading-relaxed text-zinc-400 dark:text-zinc-500 font-medium opacity-80">
-          By continuing, you agree to vlaina&apos;s <span className="underline cursor-pointer opacity-80 hover:opacity-100 transition-opacity">Privacy Policy</span>.
+          {t('account.privacyAgreement')} <span className="underline cursor-pointer opacity-80 hover:opacity-100 transition-opacity">{t('account.privacyPolicy')}</span>.
         </p>
       </div>
     </div>

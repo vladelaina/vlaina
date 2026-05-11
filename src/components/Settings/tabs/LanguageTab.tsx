@@ -28,7 +28,7 @@ export function LanguageTab() {
   }> = [
     {
       value: SYSTEM_LANGUAGE_PREFERENCE,
-      label: 'System',
+      label: t('common.system'),
       description: ACTUAL_SYSTEM_LANG_NATIVE_NAME,
     },
     ...APP_LANGUAGES.map((option) => ({

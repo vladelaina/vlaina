@@ -9,6 +9,7 @@ import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { Icon } from '@/components/ui/icons';
+import { useI18n } from '@/lib/i18n';
 
 interface ProviderCardDraft {
   name?: string;
@@ -122,11 +123,13 @@ function ChannelObject({
 }
 
 function CreateChannelObject({ onClick }: { onClick: () => void }) {
+  const { t } = useI18n();
+
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label="Create channel"
+      aria-label={t('settings.ai.newChannel')}
       className={cn(
         "flex min-h-[112px] items-center justify-center rounded-[26px] border border-transparent transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.98]",
         chatComposerPillSurfaceClass
@@ -134,13 +137,14 @@ function CreateChannelObject({ onClick }: { onClick: () => void }) {
     >
       <div className="flex flex-col items-center gap-1">
         <div className="text-[24px] font-light leading-none text-[var(--notes-sidebar-text-soft)]">+</div>
-        <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--notes-sidebar-text-soft)]">New Channel</div>
+        <div className="text-[10px] font-bold uppercase tracking-widest text-[var(--notes-sidebar-text-soft)]">{t('settings.ai.newChannel')}</div>
       </div>
     </button>
   );
 }
 
 export function AITab() {
+  const { t } = useI18n();
   const { providers, models, addProvider, updateProvider, deleteProvider } = useAIStore();
   const customProviders = useMemo(
     () => providers.filter((provider) => provider.id !== MANAGED_PROVIDER_ID),
@@ -355,7 +359,7 @@ export function AITab() {
                 <motion.button
                   type="button"
                   onClick={handleAddCustomProvider}
-                  aria-label="Create channel"
+                  aria-label={t('settings.ai.newChannel')}
                   transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                   className={cn(
                     "w-full rounded-[26px] border border-transparent px-6 py-8 text-left transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.98]",

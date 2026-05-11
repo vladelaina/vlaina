@@ -1,5 +1,6 @@
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 
 export interface HealthStatus {
     status: 'loading' | 'success' | 'error';
@@ -27,6 +28,7 @@ interface ModelListItemProps {
 }
 
 export function ModelListItem({ modelId, isAdded, onAdd, onRemove, health }: ModelListItemProps) {
+  const { t } = useI18n();
   const showAddAction = !isAdded && !!onAdd;
 
   return (
@@ -70,21 +72,21 @@ export function ModelListItem({ modelId, isAdded, onAdd, onRemove, health }: Mod
                 <button 
                     onClick={onRemove} 
                     className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors" 
-                    title="Remove"
+                    title={t('common.remove')}
                 >
                     <Icon name="common.delete" className="w-4 h-4" />
                 </button>
             ) : (
                 <div className="text-green-600 dark:text-green-500 px-1.5 flex items-center gap-1.5">
                     <Icon name="common.check" className="w-4 h-4" />
-                    <span className="text-[11px] font-medium">Added</span>
+                    <span className="text-[11px] font-medium">{t('common.added')}</span>
                 </div>
             )
         ) : showAddAction ? (
             <button 
                 onClick={onAdd} 
                 className="p-1 rounded-md text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
-                title="Add"
+                title={t('common.add')}
             >
                 <Icon name="common.add" className="w-4 h-4" />
             </button>

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import type { NoteEditorFindController } from './types';
+import { useI18n } from '@/lib/i18n';
 
 interface NoteEditorFindBarProps {
   controller: NoteEditorFindController;
@@ -46,6 +47,7 @@ function FindToolbarButton({
 }
 
 export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
+  const { t } = useI18n();
   const containerRef = React.useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
@@ -105,7 +107,7 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
           value={controller.query}
           onChange={(event) => controller.setQuery(event.target.value)}
           onKeyDown={controller.handleQueryKeyDown}
-          placeholder="Find"
+          placeholder={t('notes.find')}
           spellCheck={false}
           autoFocus
           className="min-w-0 flex-1 bg-transparent text-[15px] font-medium text-zinc-900 dark:text-zinc-100 outline-none placeholder:text-zinc-400/60 tracking-tight"
@@ -123,13 +125,13 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
             </span>
             <div className="flex items-center gap-0.5 border-l border-black/[0.05] pl-1 dark:border-white/[0.05]">
               <FindToolbarButton
-                label="Previous"
+                label={t('notes.previous')}
                 icon="nav.chevronUp"
                 onClick={controller.goToPrevious}
                 disabled={!controller.canNavigate}
               />
               <FindToolbarButton
-                label="Next"
+                label={t('notes.next')}
                 icon="nav.chevronDown"
                 onClick={controller.goToNext}
                 disabled={!controller.canNavigate}
@@ -138,13 +140,13 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
           </div>
           <div className="flex items-center gap-0.5">
             <FindToolbarButton
-              label={controller.isReplaceOpen ? 'Hide replace' : 'Show replace'}
+              label={controller.isReplaceOpen ? t('notes.hideReplace') : t('notes.showReplace')}
               icon="common.refresh"
               onClick={controller.toggleReplace}
               active={controller.isReplaceOpen}
             />
             <FindToolbarButton
-              label="Close"
+              label={t('common.close')}
               icon="common.close"
               onClick={() => controller.close()}
               className="hover:text-red-500 hover:bg-red-500/5"
@@ -167,7 +169,7 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
                 value={controller.replaceValue}
                 onChange={(event) => controller.setReplaceValue(event.target.value)}
                 onKeyDown={controller.handleReplaceKeyDown}
-                placeholder="Replace with"
+                placeholder={t('notes.replaceWith')}
                 spellCheck={false}
                 className="min-w-0 flex-1 bg-transparent px-3 text-[14px] text-zinc-700 dark:text-zinc-300 outline-none placeholder:text-zinc-400/60 font-medium tracking-tight"
               />
@@ -183,7 +185,7 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
                     !controller.canReplace && 'opacity-20 cursor-not-allowed',
                   )}
                 >
-                  All
+                  {t('notes.replaceAll')}
                 </button>
                 <button
                   type="button"
@@ -195,7 +197,7 @@ export function NoteEditorFindBar({ controller }: NoteEditorFindBarProps) {
                     !controller.canReplace && 'opacity-50 grayscale cursor-not-allowed',
                   )}
                 >
-                  Replace
+                  {t('notes.replace')}
                 </button>
               </div>
             </div>

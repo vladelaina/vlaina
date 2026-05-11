@@ -13,4 +13,5 @@ export {
   type LanguageOption,
 } from './languages';
 export { getMessages, type MessageKey, type Messages } from './messages';
+export { translate } from './runtime';
 export { useDocumentLanguage, useI18n } from './useI18n';

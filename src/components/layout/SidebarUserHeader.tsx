@@ -4,12 +4,15 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import { cn, iconButtonStyles } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 
 interface SidebarUserHeaderProps {
     toggleSidebar: () => void;
 }
 
 export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
+    const { t } = useI18n();
+
     return (
         <div
             className="vlaina-drag-region group/sidebar-user-header relative flex h-10 w-full items-center px-3"
@@ -27,7 +30,7 @@ export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
                         <button
                             type="button"
                             onClick={toggleSidebar}
-                            aria-label="Collapse sidebar"
+                            aria-label={t('common.collapseSidebar')}
                             className={cn(
                                 'pointer-events-none flex h-7 w-7 items-center justify-center rounded-full bg-transparent opacity-0 transition-opacity',
                                 'group-hover/sidebar-user-header:pointer-events-auto group-hover/sidebar-user-header:opacity-100',

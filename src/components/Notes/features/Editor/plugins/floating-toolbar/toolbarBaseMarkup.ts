@@ -5,6 +5,7 @@ import { canShowSelectionAiTools } from './aiAvailability';
 import { getBlockTypeIconMarkup } from './components/BlockDropdown';
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { translate } from '@/lib/i18n';
 
 const IS_MAC =
   typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
@@ -83,11 +84,12 @@ function getAlignmentIcon(alignment: TextAlignment | null): string {
 }
 
 function renderAiButton(): string {
+  const label = translate('editor.ai.askAi');
   return `
     <button class="toolbar-btn toolbar-ai-btn has-tooltip"
             data-action="ai"
-            aria-label="Ask AI"
-            data-tooltip="Ask AI">
+            aria-label="${label}"
+            data-tooltip="${label}">
       <span class="toolbar-ai-btn-icon" aria-hidden="true">${EDITOR_ICONS.shootingStar}</span>
     </button>
   `;
@@ -98,7 +100,7 @@ function renderBlockButton(state: FloatingToolbarState): string {
   return `
     <button class="toolbar-btn toolbar-dropdown-btn has-tooltip ${blockButtonActive}" 
             data-action="block" 
-            data-tooltip="Text Type">
+            data-tooltip="${translate('editor.textType')}">
       ${renderBlockTypeContent(state.currentBlockType)}
       ${EDITOR_ICONS.chevronDown}
     </button>

@@ -5,6 +5,7 @@ import { useVaultStore } from '@/stores/useVaultStore';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import { SidebarRowActionButton } from '@/components/layout/sidebar/SidebarRow';
 import { type FolderNode } from '@/stores/useNotesStore';
+import { useI18n } from '@/lib/i18n';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import {
   getSidebarTextClass,
@@ -47,6 +48,7 @@ export function RootFolderRow({
   blankContextMenuRef,
   scrollRootRef,
 }: RootFolderRowProps) {
+  const { t } = useI18n();
   const currentVault = useVaultStore((state) => state.currentVault);
   const renameCurrentVault = useVaultStore((state) => state.renameCurrentVault);
   const notesPath = useNotesStore((state) => state.notesPath);
@@ -293,7 +295,7 @@ export function RootFolderRow({
         actions={
           <SidebarRowActionButton
             ref={menuButtonRef}
-            aria-label="Open root folder menu"
+            aria-label={t('notes.openRootFolderMenu')}
             onClick={(event) => {
               handleMenuOpen(event);
             }}

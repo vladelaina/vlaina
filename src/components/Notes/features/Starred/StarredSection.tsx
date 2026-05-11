@@ -11,6 +11,7 @@ import { useExternalFileTreeDropState } from '../FileTree/hooks/externalFileTree
 import { NotesSidebarSection } from '../Sidebar/NotesSidebarPrimitives';
 import { ExternalStarredEntryRow } from './ExternalStarredEntryRow';
 import { useStarredSectionEntries } from './useStarredSectionEntries';
+import { useI18n } from '@/lib/i18n';
 
 interface StarredSectionProps {
   nested?: boolean;
@@ -21,6 +22,7 @@ export function StarredSection({
   nested = false,
   showTitle = true,
 }: StarredSectionProps = {}) {
+  const { t } = useI18n();
   const { starredLoaded, hasEntries, entries: entryViewModels } = useStarredSectionEntries();
   const activeDragSourcePath = useFileTreePointerDragState((state) => state.activeSourcePath);
   const isInternalDragOver = useFileTreePointerDragState((state) => state.dropTargetKind === 'starred');
@@ -70,7 +72,7 @@ export function StarredSection({
           className="flex min-h-8 w-full items-center gap-2 rounded-md px-2 text-[12px] text-[var(--notes-sidebar-text-soft)]"
         >
           <Icon name="misc.star" size="sm" className="fill-amber-500 text-amber-500" />
-          <span>Starred</span>
+          <span>{t('notes.starred')}</span>
         </div>
       ) : (
         entryViewModels.map(({ entry, isCurrentVaultEntry, isActive, treeNode, onOpen, onRemove }) => {
@@ -117,7 +119,7 @@ export function StarredSection({
 
   return (
     <NotesSidebarSection
-      title="Starred"
+      title={t('notes.starred')}
       expanded={isExpanded}
       onToggle={() => setExpanded((value) => !value)}
       animated={false}

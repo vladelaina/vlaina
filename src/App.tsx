@@ -11,7 +11,7 @@ import { useToastStore } from '@/stores/useToastStore';
 import { useDocumentLanguage, useI18n } from '@/lib/i18n';
 
 function App() {
-  const { language } = useI18n();
+  const { language, t } = useI18n();
   const {
     isCloseDraftConfirmOpen,
     setIsCloseDraftConfirmOpen,
@@ -45,7 +45,7 @@ function App() {
 
     const addToast = useToastStore.getState().addToast;
     if (billingResult === 'success') {
-      addToast('Checkout completed. Membership will refresh shortly.', 'success', 5000);
+      addToast(t('app.checkoutCompleted'), 'success', 5000);
       void useAccountSessionStore.getState().checkStatus();
       void useManagedAIStore.getState().refreshBudget();
 
@@ -59,8 +59,8 @@ function App() {
       };
     }
 
-    addToast('Checkout was canceled.', 'info', 3500);
-  }, []);
+    addToast(t('app.checkoutCanceled'), 'info', 3500);
+  }, [t]);
 
   return (
     <ThemeProvider>
@@ -78,10 +78,10 @@ function App() {
             saveDrafts: true,
           });
         }}
-        title="Unsaved Drafts"
-        description="Close vlaina and discard all unsaved drafts? Drafts are only saved when you press Ctrl+S."
-        confirmText="Discard and Close"
-        cancelText="Save"
+        title={t('app.unsavedDraftsTitle')}
+        description={t('app.unsavedDraftsDescription')}
+        confirmText={t('app.unsavedDraftsConfirm')}
+        cancelText={t('app.unsavedDraftsCancel')}
         variant="danger"
         initialFocus="cancel"
       />

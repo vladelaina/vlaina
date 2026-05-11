@@ -2,6 +2,7 @@ import type { FloatingToolbarState } from '../types';
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
 import { renderAiReviewDiffMarkup } from './reviewDiff';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { translate } from '@/lib/i18n';
 
 function escapeHtml(value: string): string {
   return value
@@ -18,6 +19,9 @@ export function renderAiReviewMarkup(state: FloatingToolbarState): string | null
   }
 
   const review = state.aiReview;
+  const retryLabel = translate('common.retry');
+  const cancelLabel = translate('common.cancel');
+  const applyLabel = translate('common.apply');
   const showRetryAction = !review.isLoading && (!!review.errorMessage || review.suggestedText.trim().length > 0);
   const canRenderDiff = Boolean(review.instruction) && review.suggestedText.trim().length > 0;
   const resultMarkup = review.isLoading
@@ -40,11 +44,11 @@ export function renderAiReviewMarkup(state: FloatingToolbarState): string | null
               <div class="ai-review-footer">
                 <div class="ai-review-controls-left">
                   <div class="ai-review-model-selector-slot"></div>
-                  ${showRetryAction ? `<button class="ai-review-action tertiary ai-review-icon-action vlaina-icon-shadow-button" type="button" data-review-action="retry" aria-label="Retry">${EDITOR_ICONS.reviewRetry}</button>` : ''}
+                  ${showRetryAction ? `<button class="ai-review-action tertiary ai-review-icon-action vlaina-icon-shadow-button" type="button" data-review-action="retry" aria-label="${retryLabel}">${EDITOR_ICONS.reviewRetry}</button>` : ''}
                 </div>
                 <div class="ai-review-controls-right">
-                  <button class="ai-review-action tertiary ai-review-icon-action vlaina-icon-shadow-button" type="button" data-review-action="cancel" aria-label="Cancel">${EDITOR_ICONS.reviewClose}</button>
-                  <button class="ai-review-action primary ai-review-icon-action vlaina-icon-shadow-button" type="button" data-review-action="accept" aria-label="Apply">${EDITOR_ICONS.reviewApply}</button>
+                  <button class="ai-review-action tertiary ai-review-icon-action vlaina-icon-shadow-button" type="button" data-review-action="cancel" aria-label="${cancelLabel}">${EDITOR_ICONS.reviewClose}</button>
+                  <button class="ai-review-action primary ai-review-icon-action vlaina-icon-shadow-button" type="button" data-review-action="accept" aria-label="${applyLabel}">${EDITOR_ICONS.reviewApply}</button>
                 </div>
               </div>
             </div>

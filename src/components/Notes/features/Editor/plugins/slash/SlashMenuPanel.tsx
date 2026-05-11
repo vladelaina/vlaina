@@ -1,4 +1,5 @@
 import { Icon } from '@/components/ui/icons';
+import { useI18n } from '@/lib/i18n';
 import type { SlashMenuItem } from './types';
 
 type SlashMenuPanelProps = {
@@ -14,8 +15,10 @@ export function SlashMenuPanel({
   onHoverItem,
   onSelectItem,
 }: SlashMenuPanelProps) {
+  const { t } = useI18n();
+
   return (
-    <div className="slash-menu-panel" role="listbox" aria-label="Insert block">
+    <div className="slash-menu-panel" role="listbox" aria-label={t('editor.insertBlock')}>
       {items.map((item, index) => {
         const isSelected = index === selectedIndex;
 

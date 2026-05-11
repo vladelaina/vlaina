@@ -5,6 +5,7 @@ import {
     resolveElementTextLayoutMetrics,
 } from '@/lib/text-layout';
 import { usePredictedTextareaHeight } from '@/hooks/usePredictedTextareaHeight';
+import { useI18n } from '@/lib/i18n';
 
 interface LinkEditorProps {
     editUrl: string;
@@ -26,6 +27,7 @@ export const LinkEditor = ({
     isNewLink,
     autoFocus,
 }: LinkEditorProps) => {
+    const { t } = useI18n();
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const [isFocused, setIsFocused] = useState(false);
@@ -136,7 +138,7 @@ export const LinkEditor = ({
                     onBlur={() => setIsFocused(false)}
                     rows={1}
                     className="block w-full resize-none overflow-hidden bg-transparent border-none outline-none text-sm font-mono text-zinc-800 dark:text-zinc-100 placeholder:text-zinc-400 placeholder:font-light leading-6 py-1.5"
-                    placeholder="Paste or type a URL..."
+                    placeholder={t('editor.linkPlaceholder')}
                     spellCheck={false}
                     autoComplete="off"
                     style={{ overflowWrap: 'anywhere' }}

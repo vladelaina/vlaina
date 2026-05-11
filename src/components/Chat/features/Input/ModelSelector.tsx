@@ -12,6 +12,7 @@ import type { AIModel } from '@/lib/ai/types';
 import { isManagedProviderId, MANAGED_PROVIDER_NAME } from '@/lib/ai/managedService'
 import { focusComposerInput as focusRegisteredComposerInput } from '@/lib/ui/composerFocusRegistry'
 import { SETTINGS_CLOSED_EVENT } from '@/components/Settings/settingsEvents'
+import { useI18n } from '@/lib/i18n'
 import {
   getSidebarIdleRowSurfaceClass,
   getSidebarPreviewRowSurfaceClass,
@@ -208,6 +209,7 @@ export function ModelSelector({
   focusSearchOnOpen = true,
   restoreComposerFocusOnClose = true,
 }: ModelSelectorProps) {
+  const { t } = useI18n()
   const models = useUnifiedStore((state) => state.data.ai?.models || [])
   const providers = useUnifiedStore((state) => state.data.ai?.providers || [])
   const selectedModelId = useUnifiedStore((state) => state.data.ai?.selectedModelId || null)
@@ -679,7 +681,7 @@ export function ModelSelector({
                 spellCheck={false}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Find model..."
+                placeholder={t('chat.findModel')}
                 autoCorrect="off"
                 className={cn(
                   "min-w-0 flex-1 bg-transparent px-2 py-0.5 text-sm outline-none border-none",

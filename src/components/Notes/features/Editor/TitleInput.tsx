@@ -6,6 +6,7 @@ import { NOTE_TITLE_INPUT_DATA_ATTR } from './utils/titleInputDom';
 import { registerCurrentTitleCommitter } from './utils/titleCommitRegistry';
 import { isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
 import { isAbsolutePath } from '@/lib/storage/adapter';
+import { useI18n } from '@/lib/i18n';
 
 interface TitleInputProps {
   notePath: string;
@@ -15,6 +16,7 @@ interface TitleInputProps {
 }
 
 export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: TitleInputProps) {
+  const { t } = useI18n();
   const [title, setTitle] = useState(initialTitle);
   const inputRef = useRef<HTMLInputElement>(null);
   const skipNextBlurCommitRef = useRef(false);
@@ -178,7 +180,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
       className="w-full bg-transparent border-none outline-none text-[42px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--vlaina-text-primary)] placeholder:text-[var(--vlaina-text-disabled)] selection:bg-[var(--vlaina-selection-bg)] selection:text-white"
-      placeholder="Untitled"
+      placeholder={t('notes.untitled')}
     />
   );
 }

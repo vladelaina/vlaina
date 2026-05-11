@@ -4,6 +4,7 @@ import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 import { cn } from '@/lib/utils';
 import { ModuleShortcutId, ModuleShortcutSection, getModuleShortcutPreset } from '@/lib/shortcuts/moduleShortcuts';
 import { useDialogWindowDrag } from '@/hooks/useDialogWindowDrag';
+import { useI18n } from '@/lib/i18n';
 
 interface ModuleShortcutsDialogProps {
   module: ModuleShortcutId;
@@ -22,8 +23,9 @@ export function ModuleShortcutsDialog({
   description,
   sections,
 }: ModuleShortcutsDialogProps) {
+  const { t } = useI18n();
   const isMac = typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
-  const preset = getModuleShortcutPreset(module, { isMac });
+  const preset = getModuleShortcutPreset(module, { isMac, t });
   const resolvedTitle = title ?? preset.title;
   const resolvedDescription = description ?? preset.description;
   const resolvedSections = sections ?? preset.sections;
@@ -77,7 +79,7 @@ export function ModuleShortcutsDialog({
             className="vlaina-no-drag inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-white/5 dark:hover:text-zinc-200"
           >
             <Icon name="common.close" size="md" />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">{t('common.close')}</span>
           </DialogClose>
         </div>
 

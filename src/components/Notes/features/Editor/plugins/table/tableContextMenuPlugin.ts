@@ -8,6 +8,7 @@ import {
   runTableMenuAction,
 } from './tableMenuActions';
 import { shouldIgnoreTableContextMenuTarget } from './tableContextMenuTarget';
+import { translate } from '@/lib/i18n';
 
 export const tablePluginKey = new PluginKey<TableMenuState>('tableMenu');
 
@@ -116,14 +117,14 @@ export const tableContextMenuPlugin = $prose(() => {
           menuElement.style.left = `${state.position.x}px`;
           menuElement.style.top = `${state.position.y}px`;
           menuElement.innerHTML = `
-            <button class="table-menu-item" data-action="insert-row-above">Insert row above</button>
-            <button class="table-menu-item" data-action="insert-row-below">Insert row below</button>
-            <button class="table-menu-item" data-action="insert-col-left">Insert column left</button>
-            <button class="table-menu-item" data-action="insert-col-right">Insert column right</button>
+            <button class="table-menu-item" data-action="insert-row-above">${translate('editor.table.insertRowAbove')}</button>
+            <button class="table-menu-item" data-action="insert-row-below">${translate('editor.table.insertRowBelow')}</button>
+            <button class="table-menu-item" data-action="insert-col-left">${translate('editor.table.insertColumnLeft')}</button>
+            <button class="table-menu-item" data-action="insert-col-right">${translate('editor.table.insertColumnRight')}</button>
             <div class="table-menu-divider"></div>
-            <button class="table-menu-item danger" data-action="delete-row">Delete row</button>
-            <button class="table-menu-item danger" data-action="delete-col">Delete column</button>
-            <button class="table-menu-item danger" data-action="delete-table">Delete table</button>
+            <button class="table-menu-item danger" data-action="delete-row">${translate('editor.table.deleteRow')}</button>
+            <button class="table-menu-item danger" data-action="delete-col">${translate('editor.table.deleteColumn')}</button>
+            <button class="table-menu-item danger" data-action="delete-table">${translate('editor.table.deleteTable')}</button>
           `;
 
           menuElement.querySelectorAll('.table-menu-item').forEach((button) => {

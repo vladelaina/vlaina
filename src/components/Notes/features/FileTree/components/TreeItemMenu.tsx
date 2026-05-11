@@ -19,11 +19,20 @@ interface TreeItemPathSubmenuOptions {
   onOpenInNewWindow: () => void | Promise<unknown>;
   onOpenLocation: () => void | Promise<unknown>;
   openLocationLabel: string;
+  labels: {
+    addToStarred: string;
+    copyPath: string;
+    more: string;
+    moveToTrash: string;
+    openInNewWindow: string;
+    removeFromStarred: string;
+  };
 }
 
 export function createTreeItemStarEntry(
   isStarred: boolean,
   onToggleStar: () => void | Promise<unknown>,
+  labels: Pick<TreeItemPathSubmenuOptions['labels'], 'addToStarred' | 'removeFromStarred'>,
 ): NotesSidebarMenuEntry {
   return {
     key: 'toggle-star',
@@ -34,7 +43,7 @@ export function createTreeItemStarEntry(
         className={isStarred ? 'fill-amber-500 text-amber-500' : undefined}
       />
     ),
-    label: isStarred ? 'Remove from Starred' : 'Add to Starred',
+    label: isStarred ? labels.removeFromStarred : labels.addToStarred,
     onClick: onToggleStar,
   };
 }
@@ -44,23 +53,24 @@ export function createTreeItemPathSubmenu({
   onOpenInNewWindow,
   onOpenLocation,
   openLocationLabel,
+  labels,
 }: TreeItemPathSubmenuOptions): NotesSidebarMenuEntry {
   return {
     kind: 'submenu',
     key: 'more',
     icon: <Icon name="common.more" size="md" />,
-    label: 'More',
+    label: labels.more,
     children: [
       {
         key: 'copy-path',
         icon: <Icon name="common.copy" size="md" />,
-        label: 'Copy Path',
+        label: labels.copyPath,
         onClick: onCopyPath,
       },
       {
         key: 'open-new-window',
         icon: <Icon name="file.folderOutput" size="md" />,
-        label: 'Open in New Window',
+        label: labels.openInNewWindow,
         onClick: onOpenInNewWindow,
       },
       {
@@ -75,6 +85,7 @@ export function createTreeItemPathSubmenu({
 
 export function createTreeItemDeleteEntries(
   onDelete: () => void | Promise<unknown>,
+  label: string,
 ): NotesSidebarMenuEntry[] {
   return [
     {
@@ -84,7 +95,7 @@ export function createTreeItemDeleteEntries(
     {
       key: 'delete',
       icon: <DeleteIcon />,
-      label: 'Move to Trash',
+      label,
       onClick: onDelete,
       danger: true,
     },

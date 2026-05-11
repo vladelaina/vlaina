@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Icon } from '@/components/ui/icons';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 interface ImageCaptionProps {
@@ -23,6 +24,7 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
     onCancel,
     onEditStart
 }) => {
+    const { t } = useI18n();
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -87,7 +89,7 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
                     onDragStart={preventDrag}
                     draggable={false}
                     className="bg-transparent text-[var(--vlaina-text-primary)] text-xs font-medium px-2 h-6 outline-none min-w-[120px] w-auto select-text cursor-text"
-                    placeholder="Caption..."
+                    placeholder={t('editor.captionPlaceholder')}
                 />
             ) : (
                 <div
@@ -102,7 +104,7 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
                     }}
                 >
                     {!originalAlt && <Icon name="common.compose" size="md" className="opacity-70" />}
-                    {originalAlt || "Caption"}
+                    {originalAlt || t('editor.caption')}
                 </div>
             )}
         </div>

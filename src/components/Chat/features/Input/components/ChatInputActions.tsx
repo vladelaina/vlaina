@@ -4,6 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { chatComposerPillSurfaceClass } from '../composerStyles';
 import { getSidebarIdleRowSurfaceClass } from '@/components/layout/sidebar/sidebarLabelStyles';
+import { useI18n } from '@/lib/i18n';
 
 interface ChatInputActionsProps {
   onTriggerFileSelect: () => void;
@@ -26,6 +27,7 @@ export function ChatInputActions({
   onStop,
   onSend,
 }: ChatInputActionsProps) {
+  const { t } = useI18n();
   const [actionsOpen, setActionsOpen] = useState(false);
 
   const handleTriggerFileSelect = () => {
@@ -47,7 +49,7 @@ export function ChatInputActions({
           <PopoverTrigger asChild>
             <button
               type="button"
-              aria-label="Open chat actions"
+              aria-label={t('chat.openActions')}
               className={cn(
                 'w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200',
                 iconButtonStyles,
@@ -76,7 +78,7 @@ export function ChatInputActions({
               )}
             >
               <Icon name="common.upload" size="md" className="text-[var(--chat-sidebar-text)]" />
-              <span>Upload file</span>
+              <span>{t('chat.uploadFile')}</span>
             </button>
             {!webSearchEnabled && (
               <button
@@ -89,7 +91,7 @@ export function ChatInputActions({
                 )}
               >
                 <Icon name="file.public" size="md" className="text-[var(--chat-sidebar-text)]" />
-                <span>Web search</span>
+                <span>{t('chat.webSearch')}</span>
               </button>
             )}
           </PopoverContent>
@@ -98,7 +100,7 @@ export function ChatInputActions({
           <button
             type="button"
             aria-pressed="true"
-            aria-label="Disable web search"
+            aria-label={t('chat.disableWebSearch')}
             onClick={onToggleWebSearch}
             className="w-9 h-9 flex items-center justify-center rounded-full bg-[var(--chat-sidebar-row-active)] text-[var(--sidebar-row-selected-text)] transition-all duration-200 hover:bg-[var(--chat-sidebar-row-active)] hover:text-[var(--sidebar-row-selected-text)] active:scale-95"
           >

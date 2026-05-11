@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ReactNode } from 'react';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { useI18n } from '@/lib/i18n';
 
 interface SegmentedControlProps {
     options: { value: string; label: string; icon?: ReactNode }[];
@@ -50,6 +51,8 @@ interface SettingsToggleProps {
 }
 
 export function SettingsToggle({ checked, onChange }: SettingsToggleProps) {
+    const { t } = useI18n();
+
     return (
         <button
             onClick={() => onChange(!checked)}
@@ -58,7 +61,7 @@ export function SettingsToggle({ checked, onChange }: SettingsToggleProps) {
                 checked ? "bg-[#1E96EB]" : "bg-zinc-200 dark:bg-zinc-600"
             )}
         >
-            <span className="sr-only">Toggle setting</span>
+            <span className="sr-only">{t('common.toggleSetting')}</span>
             <span
                 className={cn(
                     "inline-block w-[18px] h-[18px] bg-white rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.1)] transform transition-transform duration-200 ease-in-out",

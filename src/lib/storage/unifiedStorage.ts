@@ -7,6 +7,7 @@ import { isTemporarySession } from '@/lib/ai/temporaryChat';
 import { getStorageBasePath } from './basePath';
 import { isSafeProviderId, normalizeLoadedAIModels, normalizeLoadedAIProviders } from './unifiedStorageAI';
 import { aiProviderSecretCommands } from '@/lib/desktop/secretsCommands';
+import { translate } from '@/lib/i18n';
 import { useToastStore } from '@/stores/useToastStore';
 import {
   createDefaultUnifiedData,
@@ -84,7 +85,7 @@ async function hydrateProvidersWithSecrets(
       hasShownSecretLoadFailureToast = true;
       useToastStore
         .getState()
-        .addToast('Could not access your system keychain. Custom channel API keys may need to be re-entered.', 'error', 6000);
+        .addToast(translate('storage.keychainUnavailable'), 'error', 6000);
     }
   }
 
@@ -384,7 +385,7 @@ const unifiedSaveQueue = createPersistenceQueue<UnifiedData>({
       hasShownPersistenceFailureToast = true;
       useToastStore
         .getState()
-        .addToast('Failed to save changes securely. Please try again.', 'error', 5000);
+        .addToast(translate('storage.saveFailed'), 'error', 5000);
     }
   },
 });

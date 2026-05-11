@@ -1,15 +1,11 @@
 import type { ShortcutConfig, ShortcutDefinition, ShortcutModule } from './types';
-import {
-  OPEN_MARKDOWN_FILE_ACTION,
-  OPEN_MARKDOWN_FILE_DESCRIPTION,
-} from '@/lib/notes/openMarkdownFileText';
-
 const ALL_MODULES: ShortcutModule[] = ['notes', 'chat'];
 
 export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'toggleAppViewMode',
     action: 'Toggle notes / chat',
+    actionKey: 'shortcut.action.toggleAppViewMode',
     description: 'Toggle Notes and Chat',
     keys: ['Ctrl', "'"],
     scope: 'global',
@@ -20,6 +16,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'toggleSidebar',
     action: 'Toggle sidebar',
+    actionKey: 'shortcut.action.toggleSidebar',
     description: 'Toggle sidebar',
     keys: ['Ctrl', '\\'],
     scope: 'global',
@@ -30,6 +27,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'sidebarSearch',
     action: 'Open sidebar search',
+    actionKey: 'shortcut.action.sidebarSearch',
     description: 'Open sidebar search',
     keys: ['Ctrl', 'Shift', 'F'],
     scope: 'global',
@@ -40,6 +38,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'toggleDrawer',
     action: 'Toggle drawer',
+    actionKey: 'shortcut.action.toggleDrawer',
     description: 'Toggle drawer',
     keys: ['Ctrl', 'D'],
     scope: 'global',
@@ -49,6 +48,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'open-settings',
     action: 'Open settings',
+    actionKey: 'shortcut.action.openSettings',
     description: 'Open settings',
     keys: ['Ctrl', ','],
     scope: 'global',
@@ -59,6 +59,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'newWindow',
     action: 'New window',
+    actionKey: 'shortcut.action.newWindow',
     description: 'New Window',
     keys: ['Ctrl', 'N'],
     scope: 'global',
@@ -69,6 +70,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'newTab',
     action: 'New note tab',
+    actionKey: 'shortcut.action.newTab',
     description: 'New tab',
     keys: ['Ctrl', 'T'],
     scope: 'notes',
@@ -77,8 +79,9 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   },
   {
     id: 'openMarkdownFile',
-    action: OPEN_MARKDOWN_FILE_ACTION,
-    description: OPEN_MARKDOWN_FILE_DESCRIPTION,
+    action: 'Open Markdown File and switch to its parent folder',
+    actionKey: 'shortcut.action.openMarkdownFile',
+    description: 'Open Markdown File and switch to its parent folder',
     keys: ['Ctrl', 'O'],
     scope: 'notes',
     isSystem: true,
@@ -88,6 +91,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'toggleNotesSidebarView',
     action: 'Toggle files / outline',
+    actionKey: 'shortcut.action.toggleNotesSidebarView',
     description: 'Toggle notes sidebar view',
     keys: ['Ctrl', 'Shift', '\\'],
     scope: 'notes',
@@ -98,6 +102,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'closeCurrentTab',
     action: 'Close current tab',
+    actionKey: 'shortcut.action.closeCurrentTab',
     description: 'Close current tab',
     keys: ['Ctrl', 'W'],
     scope: 'notes',
@@ -107,6 +112,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'reopenClosedTab',
     action: 'Reopen closed tab',
+    actionKey: 'shortcut.action.reopenClosedTab',
     description: 'Reopen closed note tab',
     keys: ['Ctrl', 'Shift', 'T'],
     scope: 'notes',
@@ -116,6 +122,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'nextNoteTab',
     action: 'Next tab',
+    actionKey: 'shortcut.action.nextNoteTab',
     description: 'Next note tab',
     keys: ['Ctrl', 'Tab'],
     scope: 'notes',
@@ -125,6 +132,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'previousNoteTab',
     action: 'Previous tab',
+    actionKey: 'shortcut.action.previousNoteTab',
     description: 'Previous note tab',
     keys: ['Ctrl', 'Shift', 'Tab'],
     scope: 'notes',
@@ -134,6 +142,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'saveNote',
     action: 'Save note',
+    actionKey: 'shortcut.action.saveNote',
     description: 'Save note',
     keys: ['Ctrl', 'S'],
     scope: 'notes',
@@ -143,6 +152,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'toggleEmbeddedChat',
     action: 'Quote selection / toggle embedded chat',
+    actionKey: 'shortcut.action.toggleEmbeddedChat',
     description: 'Quote selected text to chat, or toggle embedded chat',
     keys: ['Ctrl', 'L'],
     scope: 'notes',
@@ -152,6 +162,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'editorFind',
     action: 'Find in note',
+    actionKey: 'shortcut.action.editorFind',
     description: 'Find in note',
     keys: ['Ctrl', 'F'],
     scope: 'notes',
@@ -162,6 +173,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'deleteCurrentNote',
     action: 'Delete current note',
+    actionKey: 'shortcut.action.deleteCurrentNote',
     description: 'Delete current note',
     keys: ['Ctrl', 'Shift', 'Backspace'],
     scope: 'notes',
@@ -171,6 +183,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'openNewChat',
     action: 'Open new chat',
+    actionKey: 'shortcut.action.openNewChat',
     description: 'Open new chat',
     keys: ['Ctrl', 'Shift', 'O'],
     scope: 'chat',
@@ -180,6 +193,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'toggleTemporaryChatWelcome',
     action: 'Open temporary chat (toggle if empty)',
+    actionKey: 'shortcut.action.toggleTemporaryChatWelcome',
     description: 'Open temporary chat (toggle if empty)',
     keys: ['Ctrl', 'Shift', 'J'],
     scope: 'chat',
@@ -190,6 +204,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'stopResponse',
     action: 'Stop response',
+    actionKey: 'shortcut.action.stopResponse',
     description: 'Stop response',
     keys: ['Esc'],
     scope: 'chat',
@@ -199,6 +214,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'focusChatInput',
     action: 'Focus chat input',
+    actionKey: 'shortcut.action.focusChatInput',
     description: 'Focus chat input',
     keys: ['Shift', 'Esc'],
     scope: 'chat',
@@ -208,6 +224,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'previousChatSession',
     action: 'Previous chat',
+    actionKey: 'shortcut.action.previousChatSession',
     description: 'Previous chat',
     keys: ['Ctrl', 'Shift', 'Tab'],
     scope: 'chat',
@@ -217,6 +234,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'nextChatSession',
     action: 'Next chat',
+    actionKey: 'shortcut.action.nextChatSession',
     description: 'Next chat',
     keys: ['Ctrl', 'Tab'],
     scope: 'chat',
@@ -226,6 +244,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'copyLastCodeBlock',
     action: 'Copy last code block',
+    actionKey: 'shortcut.action.copyLastCodeBlock',
     description: 'Copy last code block',
     keys: ['Ctrl', 'Shift', ';'],
     scope: 'chat',
@@ -235,6 +254,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'copyLastResponse',
     action: 'Copy last response',
+    actionKey: 'shortcut.action.copyLastResponse',
     description: 'Copy last response',
     keys: ['Ctrl', 'Shift', 'C'],
     scope: 'chat',
@@ -244,6 +264,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'previousMessage',
     action: 'Previous message',
+    actionKey: 'shortcut.action.previousMessage',
     description: 'Previous message',
     keys: ['Shift', 'ArrowUp'],
     scope: 'chat',
@@ -253,6 +274,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'nextMessage',
     action: 'Next message',
+    actionKey: 'shortcut.action.nextMessage',
     description: 'Next message',
     keys: ['Shift', 'ArrowDown'],
     scope: 'chat',
@@ -262,6 +284,7 @@ export const SHORTCUT_DEFINITIONS: ShortcutDefinition[] = [
   {
     id: 'deleteChat',
     action: 'Delete chat',
+    actionKey: 'shortcut.action.deleteChat',
     description: 'Delete chat',
     keys: ['Ctrl', 'Shift', 'Backspace'],
     scope: 'chat',

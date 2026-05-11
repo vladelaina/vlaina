@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 
 interface AccountEmailCodeCardProps {
   isCompact?: boolean;
@@ -13,6 +14,7 @@ export function AccountEmailCodeCard({
   onEmailCodeRequest,
   onEmailCodeVerify,
 }: AccountEmailCodeCardProps) {
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'email' | 'code'>('email');
@@ -58,7 +60,7 @@ export function AccountEmailCodeCard({
           spellCheck={false}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email Address"
+          placeholder={t('account.emailAddress')}
           disabled={disabled || isLoading}
           className={cn(
             "w-full h-12 px-5 py-3 text-[14px] font-medium transition-all duration-500 outline-none sm:h-[52px] sm:px-6 sm:py-3.5 sm:text-[15px] md:h-14 md:py-4",
@@ -78,7 +80,7 @@ export function AccountEmailCodeCard({
             "disabled:opacity-50 disabled:active:scale-100"
           )}
         >
-          {isLoading ? 'Sending...' : 'Continue with Email'}
+          {isLoading ? t('account.sending') : t('account.continueWithEmail')}
         </button>
       </form>
     );
@@ -87,7 +89,7 @@ export function AccountEmailCodeCard({
   return (
     <form noValidate onSubmit={handleVerifyCode} className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-500">
       <div className="space-y-2">
-        <p className="text-[11px] font-black uppercase tracking-widest text-zinc-400 text-center">Enter the code sent to your inbox</p>
+        <p className="text-[11px] font-black uppercase tracking-widest text-zinc-400 text-center">{t('account.enterEmailCode')}</p>
         <input
           ref={codeInputRef}
           type="text"
@@ -120,14 +122,14 @@ export function AccountEmailCodeCard({
             "active:scale-[0.97] disabled:opacity-50"
           )}
         >
-          {isLoading ? 'Verifying...' : 'Verify Code'}
+          {isLoading ? t('account.verifying') : t('account.verifyCode')}
         </button>
         <button
           type="button"
           onClick={() => setStep('email')}
           className="text-[11px] font-bold text-zinc-400 hover:text-zinc-950 dark:hover:text-white transition-colors"
         >
-          Change email address
+          {t('account.changeEmailAddress')}
         </button>
       </div>
     </form>

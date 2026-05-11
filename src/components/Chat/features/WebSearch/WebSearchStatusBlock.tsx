@@ -1,5 +1,6 @@
 import { Icon } from '@/components/ui/icons';
 import type { WebSearchStatus } from '@/lib/ai/webSearch/types';
+import { useI18n } from '@/lib/i18n';
 
 interface WebSearchStatusBlockProps {
   statuses: WebSearchStatus[];
@@ -31,6 +32,7 @@ function metricsLabel(status: WebSearchStatus): string {
 }
 
 export function WebSearchStatusBlock({ statuses }: WebSearchStatusBlockProps) {
+  const { t } = useI18n();
   const status = statuses[statuses.length - 1];
   if (!status) return null;
   const latestResults = [...statuses].reverse().find((item) => item.results?.length)?.results ?? [];
@@ -83,7 +85,7 @@ export function WebSearchStatusBlock({ statuses }: WebSearchStatusBlockProps) {
 
       {status.failedSources && status.failedSources.length > 0 && (
         <div className="mt-2 space-y-1 text-zinc-500 dark:text-zinc-400">
-          <div className="font-medium text-zinc-600 dark:text-zinc-300">Skipped sources</div>
+          <div className="font-medium text-zinc-600 dark:text-zinc-300">{t('chat.skippedSources')}</div>
           {status.failedSources.slice(0, 4).map((source) => (
             <div key={source.url} className="flex min-w-0 gap-2">
               <span className="shrink-0">{source.message}</span>

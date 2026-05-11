@@ -26,6 +26,7 @@ import {
 import { getCurrentEditorView } from '../Editor/utils/editorViewRegistry';
 import { scheduleSidebarItemIntoView } from '../common/sidebarScrollIntoView';
 import { useSidebarContentSearchResults } from './useSidebarContentSearchResults';
+import { useI18n } from '@/lib/i18n';
 
 interface SidebarContentProps {
   rootFolder: FolderNode | null;
@@ -48,6 +49,7 @@ export function SidebarContent({
   className,
   isPeeking = false,
 }: SidebarContentProps) {
+  const { t } = useI18n();
   const openNote = useNotesStore((s) => s.openNote);
   const openNoteByAbsolutePath = useNotesStore((s) => s.openNoteByAbsolutePath);
   const draftNotes = useNotesStore((s) => s.draftNotes);
@@ -353,8 +355,8 @@ export function SidebarContent({
           }
           handleOpenSearchResult(result);
         }}
-        placeholder="Search"
-        closeLabel="Close sidebar search"
+        placeholder={t('sidebar.search')}
+        closeLabel={t('notes.closeSidebarSearch')}
         topActions={null}
       />
 
@@ -407,8 +409,8 @@ export function SidebarContent({
           <NotesSidebarHoverEmptyHint
             title=""
             actions={[
-              { label: 'File', onAction: handleOpenMarkdownFile },
-              { label: 'Folder', onAction: handleOpenFolder },
+              { label: t('notes.file'), onAction: handleOpenMarkdownFile },
+              { label: t('sidebar.newFolder'), onAction: handleOpenFolder },
             ]}
             placement="inline"
             visible

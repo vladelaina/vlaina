@@ -1,4 +1,5 @@
 import type { ColorOption, BlockTypeConfig, BlockType } from './types';
+import { translate, type MessageKey } from '@/lib/i18n';
 
 const TOOLBAR_COLOR_HEXES = [
   '#f1fdf3', '#e6f4e7', '#d1e9d3', '#99cda9',
@@ -69,7 +70,26 @@ export function isValidUrl(input: string): boolean {
 
 export function getBlockTypeLabel(blockType: BlockType): string {
   const config = BLOCK_TYPES.find(b => b.type === blockType);
-  return config?.label || 'Paragraph';
+  if (!config) return translate('editor.blockType.paragraph');
+  return getLocalizedBlockTypeLabel(config.type);
+}
+
+export function getLocalizedBlockTypeLabel(blockType: BlockType): string {
+  const labels: Record<BlockType, MessageKey> = {
+    paragraph: 'editor.blockType.paragraph',
+    heading1: 'editor.blockType.heading1',
+    heading2: 'editor.blockType.heading2',
+    heading3: 'editor.blockType.heading3',
+    heading4: 'editor.blockType.heading4',
+    heading5: 'editor.blockType.heading5',
+    heading6: 'editor.blockType.heading6',
+    bulletList: 'editor.blockType.bulletList',
+    orderedList: 'editor.blockType.orderedList',
+    taskList: 'editor.blockType.taskList',
+    blockquote: 'editor.blockType.blockquote',
+    codeBlock: 'editor.blockType.codeBlock',
+  };
+  return translate(labels[blockType]);
 }
 
 export function isMarkActive(activeMarks: Set<string>, markName: string): boolean {

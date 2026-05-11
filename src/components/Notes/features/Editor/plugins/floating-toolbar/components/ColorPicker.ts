@@ -12,6 +12,7 @@ import {
   commitTextColorPreview,
 } from '../previewStyles';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { translate } from '@/lib/i18n';
 
 export function renderColorPicker(
   container: HTMLElement,
@@ -39,7 +40,7 @@ export function renderColorPicker(
   
   picker.innerHTML = `
     <div class="color-picker-section">
-      <div class="color-picker-label">Text Color</div>
+      <div class="color-picker-label">${translate('editor.textColor')}</div>
       <div data-type="text">
         ${defaultColor ? `
           <button 
@@ -61,7 +62,7 @@ export function renderColorPicker(
       </div>
     </div>
     <div class="color-picker-section">
-      <div class="color-picker-label">Background</div>
+      <div class="color-picker-label">${translate('editor.backgroundColor')}</div>
       <div data-type="bg">
         ${defaultColor ? `
           <button 
