@@ -175,4 +175,21 @@ describe('CoverPicker', () => {
     expect(hoisted.loadAssets).toHaveBeenNthCalledWith(1, '/vault');
     expect(hoisted.loadAssets).toHaveBeenNthCalledWith(2, '/vault');
   });
+
+  it('does not show paste instructions in the upload tab', () => {
+    render(
+      <CoverPicker
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        vaultPath="/vault"
+        currentNotePath="one.md"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Upload/ }));
+
+    expect(screen.getByTestId('upload-zone')).toBeInTheDocument();
+    expect(screen.queryByText(/to paste/i)).not.toBeInTheDocument();
+  });
 });

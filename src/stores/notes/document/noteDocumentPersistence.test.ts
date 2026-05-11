@@ -36,7 +36,7 @@ describe('saveNoteDocument', () => {
         path: 'alpha.md',
         content: [
           '---',
-          'vlaina_created: "2026-04-14T10:00:00.000Z"',
+          'vlaina_created: 2026-04-14 18:00:00 +08:00',
           '---',
           '',
           '# Alpha',
@@ -49,8 +49,8 @@ describe('saveNoteDocument', () => {
       '/vault/alpha.md',
       [
         '---',
-        'vlaina_created: "2026-04-14T10:00:00.000Z"',
-        'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+        'vlaina_created: 2026-04-14 18:00:00 +08:00',
+        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
         '---',
         '',
         '# Alpha',
@@ -82,7 +82,7 @@ describe('saveNoteDocument', () => {
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/vault/alpha.md',
-      ['---', 'vlaina_updated: "2026-04-15T10:00:00.000Z"', '---', '', '# Alpha', '', 'Body'].join('\n')
+      ['---', 'vlaina_updated: 2026-04-15 18:00:00 +08:00', '---', '', '# Alpha', '', 'Body'].join('\n')
     );
     expect(result.content).not.toContain('vlaian');
 
@@ -108,7 +108,7 @@ describe('saveNoteDocument', () => {
       '/vault/alpha.md',
       [
         '---',
-        'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
         '---',
         '',
         'Line one\\',
@@ -139,7 +139,7 @@ describe('saveNoteDocument', () => {
       '/vault/alpha.md',
       [
         '---',
-        'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
         '---',
         '',
         '1\\',
@@ -166,7 +166,7 @@ describe('saveNoteDocument', () => {
         content: [
           '---',
           'vlaina_icon: "😃"',
-          'vlaina_updated: "2026-04-14T10:00:00.000Z"',
+          'vlaina_updated: 2026-04-14 18:00:00 +08:00',
           '---',
           '',
         ].join('\n'),
@@ -177,7 +177,7 @@ describe('saveNoteDocument', () => {
     const expected = [
       '---',
       'vlaina_icon: "😃"',
-      'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+      'vlaina_updated: 2026-04-15 18:00:00 +08:00',
       '---',
       '',
     ].join('\n');
@@ -206,7 +206,7 @@ describe('saveNoteDocument', () => {
       '/vault/alpha.md',
       [
         '---',
-        'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
         '---',
         '',
         '<sup>a &lt; b &amp; c</sup>',
@@ -245,7 +245,7 @@ describe('saveNoteDocument', () => {
       '/vault/alpha.md',
       [
         '---',
-        'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
         '---',
         '',
         '==highlight==',
@@ -382,7 +382,7 @@ describe('saveNoteDocument', () => {
       '/vault/alpha.md',
       [
         '---',
-        'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
         '---',
         '',
         '# Local edit',
@@ -401,7 +401,7 @@ describe('saveNoteDocument', () => {
     adapter.stat.mockResolvedValue({ modifiedAt: 200 });
     adapter.readFile.mockResolvedValue([
       '---',
-      'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+      'vlaina_updated: 2026-04-15 18:00:00 +08:00',
       '---',
       '',
       '# Loaded',
@@ -413,7 +413,7 @@ describe('saveNoteDocument', () => {
         path: 'alpha.md',
         content: [
           '---',
-          'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+          'vlaina_updated: 2026-04-15 18:00:00 +08:00',
           '---',
           '',
           '# Loaded',
@@ -426,7 +426,7 @@ describe('saveNoteDocument', () => {
     expect(result.modifiedAt).toBe(200);
     expect(result.content).toBe([
       '---',
-      'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+      'vlaina_updated: 2026-04-15 18:00:00 +08:00',
       '---',
       '',
       '# Loaded',

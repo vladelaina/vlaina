@@ -19,7 +19,9 @@ vi.mock('@/stores/notes/useNotesStore', () => ({
 }));
 
 vi.mock('@/components/ui/icons', () => ({
-  Icon: ({ name }: { name: string }) => <span data-testid={`icon-${name}`} />,
+  Icon: ({ name, className }: { name: string; className?: string }) => (
+    <span data-testid={`icon-${name}`} className={className} />
+  ),
 }));
 
 describe('UploadZone', () => {
@@ -49,6 +51,21 @@ describe('UploadZone', () => {
     await waitFor(() => {
       expect(screen.getByText('Disk write failed')).toBeInTheDocument();
     });
+  });
+
+  it('keeps compact idle upload zones icon-only with themed border styling', () => {
+    const { container } = render(
+      <UploadZone
+        onUploadComplete={vi.fn()}
+        currentNotePath="note.md"
+        compact
+      />,
+    );
+
+    expect(screen.queryByText('Drop or click to upload')).not.toBeInTheDocument();
+    expect(screen.getByTestId('icon-common.upload')).toHaveClass('text-[var(--vlaina-accent)]');
+    expect(container.firstElementChild).toHaveClass('border-[var(--vlaina-accent)]/40');
+    expect(container.firstElementChild).toHaveClass('bg-[var(--vlaina-accent)]/5');
   });
 
   it('completes the upload callback even if the zone unmounts during upload', async () => {

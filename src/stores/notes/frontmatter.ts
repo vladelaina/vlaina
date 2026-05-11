@@ -116,6 +116,25 @@ function quoteYamlString(value: string): string {
   return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 }
 
+function padDatePart(value: number): string {
+  return String(value).padStart(2, '0');
+}
+
+export function formatNoteFrontmatterTimestamp(timestamp: number): string {
+  const date = new Date(timestamp);
+  const timezoneOffsetMinutes = -date.getTimezoneOffset();
+  const offsetSign = timezoneOffsetMinutes >= 0 ? '+' : '-';
+  const absoluteOffsetMinutes = Math.abs(timezoneOffsetMinutes);
+  const offsetHours = Math.floor(absoluteOffsetMinutes / 60);
+  const offsetMinutes = absoluteOffsetMinutes % 60;
+
+  return [
+    `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`,
+    `${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}:${padDatePart(date.getSeconds())}`,
+    `${offsetSign}${padDatePart(offsetHours)}:${padDatePart(offsetMinutes)}`,
+  ].join(' ');
+}
+
 function normalizeCover(cover: NoteCoverMetadata | null | undefined): NoteCoverMetadata | undefined {
   return normalizeNoteCoverMetadata(cover);
 }
@@ -265,11 +284,11 @@ export function writeNoteMetadataToMarkdown(
   }
 
   if (normalizedEntry.createdAt !== undefined) {
-    managedLines.push(`${KEY_CREATED}: ${quoteYamlString(new Date(normalizedEntry.createdAt).toISOString())}`);
+    managedLines.push(`${KEY_CREATED}: ${formatNoteFrontmatterTimestamp(normalizedEntry.createdAt)}`);
   }
 
   if (normalizedEntry.updatedAt !== undefined) {
-    managedLines.push(`${KEY_UPDATED}: ${quoteYamlString(new Date(normalizedEntry.updatedAt).toISOString())}`);
+    managedLines.push(`${KEY_UPDATED}: ${formatNoteFrontmatterTimestamp(normalizedEntry.updatedAt)}`);
   }
 
   const nextFrontmatterLines = [...preservedLines];
