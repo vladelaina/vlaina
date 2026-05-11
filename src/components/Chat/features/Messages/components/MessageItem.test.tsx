@@ -130,6 +130,25 @@ describe("MessageItem", () => {
     expect(userMessageSpy).not.toHaveBeenCalled();
   });
 
+  it("passes assistant stream animation suspension through", () => {
+    const msg = createMessage("assistant", "a-scroll");
+
+    render(
+      <MessageItem
+        msg={msg}
+        isLoading
+        suspendStreamAnimation
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(aiMessageSpy.mock.calls[0][0]).toMatchObject({
+      suspendStreamAnimation: true,
+    });
+  });
+
   it("rerenders user messages when loading state changes", () => {
     const onEdit = vi.fn();
     const onSwitchVersion = vi.fn();

@@ -30,6 +30,7 @@ interface MessageAutoscrollBehavior {
 }
 
 const NEAR_BOTTOM_THRESHOLD = 96;
+const STREAMING_REATTACH_BOTTOM_THRESHOLD = 8;
 const STREAMING_EXTRA_SPACER_RATIO = 0.08;
 const CURRENT_TURN_ANCHOR_MAX_ATTEMPTS = 8;
 const ACTIVE_OUTPUT_OVERFLOW_THRESHOLD = 1;
@@ -39,10 +40,34 @@ function hasUsableScrollContainer(container: HTMLElement | null): container is H
   return !!container && container.clientHeight > 0 && container.clientWidth > 0;
 }
 
-function isNearBottom(container: HTMLElement): boolean {
-  const distanceToBottom =
-    container.scrollHeight - (container.scrollTop + container.clientHeight);
-  return distanceToBottom <= NEAR_BOTTOM_THRESHOLD;
+function isEventWithinRoot(root: HTMLElement, target: EventTarget | null): boolean {
+  return target instanceof Node && root.contains(target);
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target as HTMLElement).isContentEditable ||
+    !!target.closest('[contenteditable="true"]')
+  );
+}
+
+function isUpwardKeyboardScrollIntent(event: KeyboardEvent): boolean {
+  if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) {
+    return false;
+  }
+
+  return (
+    event.key === 'PageUp' ||
+    event.key === 'Home' ||
+    event.key === 'ArrowUp' ||
+    (event.key === ' ' && event.shiftKey)
+  );
 }
 
 function computeSpacerHeight(
@@ -88,6 +113,9 @@ export const useMessageAutoscroll = ({
   const userDetachedFromCurrentTurnRef = useRef(false);
   const isAutoFollowRef = useRef(true);
   const programmaticScrollTopRef = useRef<number | null>(null);
+  const lastObservedScrollTopRef = useRef<number | null>(null);
+  const lastTouchYRef = useRef<number | null>(null);
+  const isPointerInsideScrollRootRef = useRef(false);
   const lastContainerHeightRef = useRef(0);
   const prevChatIdRef = useRef<string | null>(chatId);
   const initialScrollPendingRef = useRef(!!chatId);
@@ -104,12 +132,31 @@ export const useMessageAutoscroll = ({
     return -1;
   }, [messages]);
 
+  const cancelActiveOutputFollow = useCallback(() => {
+    if (activeOutputFollowRafRef.current !== null && activeOutputFollowRafRef.current !== 0) {
+      cancelAnimationFrame(activeOutputFollowRafRef.current);
+    }
+    activeOutputFollowRafRef.current = null;
+  }, []);
+
+  const detachFromStreamingFollow = useCallback(() => {
+    if (!isAutoFollowRef.current && userDetachedFromCurrentTurnRef.current) {
+      return;
+    }
+    if (isCurrentTurnAnchoredRef.current) {
+      userDetachedFromCurrentTurnRef.current = true;
+    }
+    isAutoFollowRef.current = false;
+    cancelActiveOutputFollow();
+  }, [cancelActiveOutputFollow]);
+
   const setProgrammaticScrollTop = useCallback((container: HTMLElement, nextScrollTop: number) => {
     if (container.clientHeight > 0) {
       lastContainerHeightRef.current = container.clientHeight;
     }
     container.scrollTop = nextScrollTop;
     programmaticScrollTopRef.current = container.scrollTop;
+    lastObservedScrollTopRef.current = container.scrollTop;
     container.dispatchEvent(new Event("chat-programmatic-scroll"));
     return container.scrollTop;
   }, []);
@@ -600,15 +647,31 @@ export const useMessageAutoscroll = ({
       lastContainerHeightRef.current = container.clientHeight;
     }
     const handleScroll = () => {
+      const currentScrollTop = container.scrollTop;
+      const previousScrollTop = lastObservedScrollTopRef.current;
       if (
         programmaticScrollTopRef.current !== null &&
-        Math.abs(container.scrollTop - programmaticScrollTopRef.current) <= 1
+        Math.abs(currentScrollTop - programmaticScrollTopRef.current) <= 1
       ) {
         programmaticScrollTopRef.current = null;
+        lastObservedScrollTopRef.current = currentScrollTop;
         return;
       }
 
-      if (isCurrentTurnAnchoredRef.current) {
+      const userScrolledUp =
+        previousScrollTop !== null && currentScrollTop < previousScrollTop - 1;
+      lastObservedScrollTopRef.current = currentScrollTop;
+
+      if (isStreamingRef.current && userScrolledUp) {
+        detachFromStreamingFollow();
+        return;
+      }
+
+      if (
+        isCurrentTurnAnchoredRef.current &&
+        isAutoFollowRef.current &&
+        !userDetachedFromCurrentTurnRef.current
+      ) {
         const activeMessages = messagesRef.current;
         let lastUserIndex = -1;
         for (let i = activeMessages.length - 1; i >= 0; i -= 1) {
@@ -633,11 +696,11 @@ export const useMessageAutoscroll = ({
           const currentUserTopOffset = userRect.top - containerRect.top;
           const currentUserBottomOffset = userRect.bottom - containerRect.top;
           const outputBottomOffset = lastRect.bottom - containerRect.top;
-          const currentUserTop = currentUserTopOffset + container.scrollTop;
-          const currentUserBottom = currentUserBottomOffset + container.scrollTop;
+          const currentUserTop = currentUserTopOffset + currentScrollTop;
+          const currentUserBottom = currentUserBottomOffset + currentScrollTop;
           const userTailScrollTop = currentUserBottom - LONG_USER_MESSAGE_VISIBLE_HEIGHT;
           const currentUserAnchor = isLongUserMessage ? userTailScrollTop : currentUserTop;
-          const outputBottom = outputBottomOffset + container.scrollTop;
+          const outputBottom = outputBottomOffset + currentScrollTop;
           const outputBottomScrollTop = outputBottom - container.clientHeight;
           if (
             isLongUserMessage &&
@@ -652,34 +715,105 @@ export const useMessageAutoscroll = ({
             outputBottomScrollTop,
           );
 
-          if (container.scrollTop > maxUsefulScrollTop + 1) {
+          if (currentScrollTop > maxUsefulScrollTop + 1) {
             setProgrammaticScrollTop(container, maxUsefulScrollTop);
             return;
           }
         }
       }
 
-      if (isNearBottom(container)) {
+      const distanceToBottom = container.scrollHeight - (currentScrollTop + container.clientHeight);
+      const shouldReattach = isStreamingRef.current
+        ? distanceToBottom <= STREAMING_REATTACH_BOTTOM_THRESHOLD
+        : distanceToBottom <= NEAR_BOTTOM_THRESHOLD;
+
+      if (shouldReattach) {
         isAutoFollowRef.current = true;
         userDetachedFromCurrentTurnRef.current = false;
         return;
       }
 
       if (isStreamingRef.current) {
-        if (isCurrentTurnAnchoredRef.current) {
-          userDetachedFromCurrentTurnRef.current = true;
-        }
-        isAutoFollowRef.current = false;
+        detachFromStreamingFollow();
+      }
+    };
+
+    const handleWheel = (event: WheelEvent) => {
+      if (!isStreamingRef.current || event.deltaY >= 0) {
+        return;
+      }
+
+      detachFromStreamingFollow();
+    };
+
+    const handleTouchStart = (event: TouchEvent) => {
+      lastTouchYRef.current = event.touches[0]?.clientY ?? null;
+    };
+
+    const handleTouchMove = (event: TouchEvent) => {
+      if (!isStreamingRef.current) {
+        return;
+      }
+
+      const nextTouchY = event.touches[0]?.clientY ?? null;
+      const previousTouchY = lastTouchYRef.current;
+      lastTouchYRef.current = nextTouchY;
+
+      if (nextTouchY === null || previousTouchY === null) {
+        return;
+      }
+
+      if (nextTouchY > previousTouchY + 2) {
+        detachFromStreamingFollow();
+      }
+    };
+
+    const handlePointerEnter = () => {
+      isPointerInsideScrollRootRef.current = true;
+    };
+
+    const handlePointerLeave = () => {
+      isPointerInsideScrollRootRef.current = false;
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        !isStreamingRef.current ||
+        !isUpwardKeyboardScrollIntent(event) ||
+        isEditableTarget(event.target)
+      ) {
+        return;
+      }
+
+      if (
+        isEventWithinRoot(container, event.target) ||
+        isPointerInsideScrollRootRef.current
+      ) {
+        detachFromStreamingFollow();
       }
     };
 
     container.addEventListener("scroll", handleScroll, { passive: true });
+    container.addEventListener("wheel", handleWheel, { passive: true });
+    container.addEventListener("touchstart", handleTouchStart, { passive: true });
+    container.addEventListener("touchmove", handleTouchMove, { passive: true });
+    container.addEventListener("pointerenter", handlePointerEnter);
+    container.addEventListener("pointerleave", handlePointerLeave);
+    document.addEventListener("keydown", handleKeyDown, true);
     handleScroll();
 
     return () => {
       container.removeEventListener("scroll", handleScroll);
+      container.removeEventListener("wheel", handleWheel);
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("pointerenter", handlePointerEnter);
+      container.removeEventListener("pointerleave", handlePointerLeave);
+      document.removeEventListener("keydown", handleKeyDown, true);
+      lastTouchYRef.current = null;
+      isPointerInsideScrollRootRef.current = false;
     };
-  }, []);
+  }, [detachFromStreamingFollow, setProgrammaticScrollTop]);
 
   useEffect(() => {
     if (typeof ResizeObserver !== "undefined") {

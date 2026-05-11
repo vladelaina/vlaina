@@ -1,6 +1,5 @@
 import { requestManager } from '@/lib/ai/requestManager';
 import { createChunkScheduler, resolveAssistantContent } from './helpers';
-import { logChatStreamDebug } from '@/stores/notes/lineBreakDebugLog';
 
 export interface ChatErrorPayload {
   message: string;
@@ -35,18 +34,8 @@ export async function runStreamedAssistantMessage({
   const controller = requestManager.start(sessionId);
   setSessionLoading(sessionId, true);
   setError(null);
-  logChatStreamDebug('message:start', {
-    sessionId,
-    assistantMessageId,
-  });
 
   const streamScheduler = createChunkScheduler((nextContent) => {
-    logChatStreamDebug('message:flush', {
-      sessionId,
-      assistantMessageId,
-      length: nextContent.length,
-      preview: nextContent.slice(0, 120),
-    });
     updateMessage(sessionId, assistantMessageId, nextContent);
   });
 
@@ -56,33 +45,15 @@ export async function runStreamedAssistantMessage({
   try {
     const returnedContent = await execute((chunk) => {
       lastStreamedContent = chunk;
-      logChatStreamDebug('message:chunk', {
-        sessionId,
-        assistantMessageId,
-        length: chunk.length,
-        preview: chunk.slice(0, 120),
-      });
       streamScheduler.push(chunk);
     }, controller.signal);
 
     streamScheduler.flushNow();
     resolveAssistantContent(returnedContent, lastStreamedContent, (content) => {
       lastStreamedContent = content;
-      logChatStreamDebug('message:resolve', {
-        sessionId,
-        assistantMessageId,
-        length: content.length,
-        preview: content.slice(0, 120),
-      });
       updateMessage(sessionId, assistantMessageId, content);
     });
     completeMessage(sessionId, assistantMessageId);
-    logChatStreamDebug('message:complete', {
-      sessionId,
-      assistantMessageId,
-      status: 'completed',
-      length: lastStreamedContent.length,
-    });
   } catch (error) {
     streamScheduler.flushNow();
 
@@ -99,32 +70,16 @@ export async function runStreamedAssistantMessage({
       }
       completeMessage(sessionId, assistantMessageId);
       status = 'aborted';
-      logChatStreamDebug('message:aborted', {
-        sessionId,
-        assistantMessageId,
-        length: lastStreamedContent.length,
-      });
     } else {
       const { message, xml } = buildErrorPayload(error);
       setError(message);
       updateMessage(sessionId, assistantMessageId, xml);
       status = 'failed';
-      logChatStreamDebug('message:error', {
-        sessionId,
-        assistantMessageId,
-        error: message,
-      });
     }
   } finally {
     streamScheduler.cancel();
     requestManager.finish(sessionId, controller);
     setSessionLoading(sessionId, false);
-    logChatStreamDebug('message:finish', {
-      sessionId,
-      assistantMessageId,
-      status,
-      length: lastStreamedContent.length,
-    });
   }
 
   if (status === 'completed' && onSuccess) {

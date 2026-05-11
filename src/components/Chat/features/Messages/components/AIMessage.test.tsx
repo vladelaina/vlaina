@@ -9,17 +9,23 @@ vi.mock("@/components/Chat/features/Markdown/MarkdownRenderer", () => ({
     copiedCodeBlockId,
     onCopyCodeBlock,
     isStreaming,
+    startTime,
+    suspendStreamAnimation,
   }: {
     content: string;
     copiedCodeBlockId?: string | null;
     onCopyCodeBlock?: (blockId: string) => void;
     isStreaming?: boolean;
+    startTime?: Date;
+    suspendStreamAnimation?: boolean;
   }) => (
     <div
       data-testid="markdown"
       data-content={content}
       data-copied-code-block-id={copiedCodeBlockId ?? ""}
       data-streaming={String(Boolean(isStreaming))}
+      data-start-time={startTime?.toISOString() ?? ""}
+      data-suspend-stream-animation={String(Boolean(suspendStreamAnimation))}
     >
       {content}
       <button onClick={() => onCopyCodeBlock?.("m1:0")}>copy-code-block</button>
@@ -123,6 +129,84 @@ describe("AIMessage", () => {
     );
 
     expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Hello world");
+  });
+
+  it("starts visible stream animation when content first appears instead of at message creation", () => {
+    const timestamp = Date.UTC(2026, 4, 11, 6, 0, 0);
+    vi.setSystemTime(new Date("2026-05-11T06:00:03.000Z"));
+
+    render(
+      <AIMessage
+        msg={{ ...createMessage("Hello world"), id: "m-first-visible", timestamp }}
+        imageGallery={[]}
+        isLoading
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId("markdown")).toHaveAttribute(
+      "data-start-time",
+      "2026-05-11T06:00:03.000Z",
+    );
+  });
+
+  it("preserves the visible stream animation start time across remounts", () => {
+    const timestamp = Date.UTC(2026, 4, 11, 6, 0, 0);
+    const msg = { ...createMessage("Hello world"), id: "m-remount", timestamp };
+    vi.setSystemTime(new Date("2026-05-11T06:00:03.000Z"));
+
+    const view = render(
+      <AIMessage
+        msg={msg}
+        imageGallery={[]}
+        isLoading
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId("markdown")).toHaveAttribute(
+      "data-start-time",
+      "2026-05-11T06:00:03.000Z",
+    );
+
+    view.unmount();
+    vi.setSystemTime(new Date("2026-05-11T06:00:06.000Z"));
+
+    render(
+      <AIMessage
+        msg={msg}
+        imageGallery={[]}
+        isLoading
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId("markdown")).toHaveAttribute(
+      "data-start-time",
+      "2026-05-11T06:00:03.000Z",
+    );
+  });
+
+  it("passes stream animation suspension to the markdown renderer", () => {
+    render(
+      <AIMessage
+        msg={createMessage("Hello world")}
+        imageGallery={[]}
+        isLoading
+        suspendStreamAnimation
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId("markdown")).toHaveAttribute("data-suspend-stream-animation", "true");
   });
 
   it("strips error tags from markdown content and renders the parsed error block", () => {

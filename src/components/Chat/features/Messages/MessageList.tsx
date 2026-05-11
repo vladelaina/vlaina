@@ -28,7 +28,8 @@ interface ChatImageGalleryItem {
 }
 
 type ChatImageGalleryGetter = () => ChatImageGalleryItem[];
-const TAIL_ANCHOR_THRESHOLD = 128;
+const TAIL_ANCHOR_THRESHOLD = 2;
+const STREAM_SCROLL_IDLE_MS = 180;
 
 interface MessageListProps {
   chatId?: string | null;
@@ -82,12 +83,16 @@ export const MessageList = memo(function MessageList({
   const [viewportHeight, setViewportHeight] = useState(0);
   const [viewportWidth, setViewportWidth] = useState(0);
   const [scrollTop, setScrollTop] = useState(0);
+  const [isScrollActive, setIsScrollActive] = useState(false);
+  const [isTailDetached, setIsTailDetached] = useState(false);
   const [measuredHeights, setMeasuredHeights] = useState<Map<string, number>>(new Map());
   const observedRowsRef = useRef(new Map<string, HTMLDivElement>());
   const visibleRowRefCallbacksRef = useRef(new Map<string, (node: HTMLDivElement | null) => void>());
   const rowResizeObserverRef = useRef<ResizeObserver | null>(null);
   const viewportMetricsRafRef = useRef<number | null>(null);
   const measuredHeightsRafRef = useRef<number | null>(null);
+  const scrollIdleTimeoutRef = useRef<number | null>(null);
+  const lastObservedScrollTopRef = useRef<number | null>(null);
   const pendingMeasuredHeightsRef = useRef(new Map<string, number>());
   const measuredHeightsRef = useRef(measuredHeights);
   const lastStreamingMessageIdRef = useRef<string | null>(null);
@@ -164,8 +169,33 @@ export const MessageList = memo(function MessageList({
       return;
     }
 
-    const handleScroll = () => {
+    const handleScroll = (event: Event) => {
+      const currentScrollTop = viewport.scrollTop;
+      const previousScrollTop = lastObservedScrollTopRef.current;
+      lastObservedScrollTopRef.current = currentScrollTop;
       scheduleViewportMetrics();
+      if (event.type !== 'scroll' || !isSessionActive) {
+        return;
+      }
+
+      const userScrolledUp =
+        previousScrollTop !== null && currentScrollTop < previousScrollTop - 1;
+      const distanceToBottom =
+        viewport.scrollHeight - (currentScrollTop + viewport.clientHeight);
+      if (userScrolledUp) {
+        setIsTailDetached(true);
+      } else if (distanceToBottom <= TAIL_ANCHOR_THRESHOLD) {
+        setIsTailDetached(false);
+      }
+
+      setIsScrollActive(true);
+      if (scrollIdleTimeoutRef.current !== null) {
+        window.clearTimeout(scrollIdleTimeoutRef.current);
+      }
+      scrollIdleTimeoutRef.current = window.setTimeout(() => {
+        scrollIdleTimeoutRef.current = null;
+        setIsScrollActive(false);
+      }, STREAM_SCROLL_IDLE_MS);
     };
 
     commitViewportMetrics();
@@ -188,8 +218,25 @@ export const MessageList = memo(function MessageList({
         cancelAnimationFrame(viewportMetricsRafRef.current);
         viewportMetricsRafRef.current = null;
       }
+      if (scrollIdleTimeoutRef.current !== null) {
+        window.clearTimeout(scrollIdleTimeoutRef.current);
+        scrollIdleTimeoutRef.current = null;
+      }
     };
-  }, [commitViewportMetrics, containerRef, scheduleViewportMetrics, useOverlayScrollbar]);
+  }, [commitViewportMetrics, containerRef, isSessionActive, scheduleViewportMetrics, useOverlayScrollbar]);
+
+  useEffect(() => {
+    if (isSessionActive) {
+      return;
+    }
+
+    if (scrollIdleTimeoutRef.current !== null) {
+      window.clearTimeout(scrollIdleTimeoutRef.current);
+      scrollIdleTimeoutRef.current = null;
+    }
+    setIsScrollActive(false);
+    setIsTailDetached(false);
+  }, [isSessionActive]);
 
   useEffect(() => {
     if (layoutWidth <= 0) {
@@ -406,6 +453,8 @@ export const MessageList = memo(function MessageList({
   const visibleRange = useMemo(() => {
     const shouldAnchorTail =
       (isSessionActive || showLoading || spacerHeight > 0) &&
+      !isScrollActive &&
+      !isTailDetached &&
       trailingLayout.totalHeight - (scrollTop + viewportHeight) <= TAIL_ANCHOR_THRESHOLD;
     const overscan = resolveChatMessageListOverscan({
       anchorTail: shouldAnchorTail,
@@ -422,6 +471,8 @@ export const MessageList = memo(function MessageList({
   }, [
     frameLayout.items,
     isSessionActive,
+    isScrollActive,
+    isTailDetached,
     scrollTop,
     showLoading,
     spacerHeight,
@@ -456,6 +507,11 @@ export const MessageList = memo(function MessageList({
                   userBubbleContainerWidth={layoutWidth}
                   getImageGallery={getImageGallery}
                   isLoading={isSessionActive && frame.index === messages.length - 1}
+                  suspendStreamAnimation={
+                    isScrollActive &&
+                    isSessionActive &&
+                    frame.index === messages.length - 1
+                  }
                   onCopy={onCopy}
                   onRegenerate={onRegenerate}
                   onEdit={onEdit}

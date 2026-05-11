@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   materializeRichInlineLineRange,
   measureRichInlineStats,
@@ -9,11 +9,11 @@ import { getPreparedMarkdownTextBlock } from '@/components/Chat/features/Layout/
 import { parseMarkdownMeasurementBlocks } from '@/components/Chat/features/Layout/chatAssistantMarkdownBlockParser';
 import { CHAT_STREAM_FADE_MS } from './chatStreamTextPlugin';
 import { MARKDOWN_BLOCK_GAP } from '@/components/common/markdown/markdownMetrics';
-import { logChatStreamDebug } from '@/stores/notes/lineBreakDebugLog';
 
 const BASE_CHAR_DELAY_MS = 20;
 const MIN_CHAR_DELAY_MS = 20;
-const CLOCK_TICK_MS = 16;
+const CLOCK_TICK_MS = 48;
+const FALLBACK_CONTENT_WIDTH = 640;
 
 export interface ChatStreamBlock {
   births: number[];
@@ -28,6 +28,16 @@ function now(): number {
   return typeof performance === 'undefined' ? Date.now() : performance.now();
 }
 
+function resolveStreamStartMs(streamStartTime?: Date): number | null {
+  const streamStartTimestamp = streamStartTime?.getTime();
+  if (streamStartTimestamp == null || !Number.isFinite(streamStartTimestamp)) {
+    return null;
+  }
+
+  const elapsedWallTime = Math.max(0, Date.now() - streamStartTimestamp);
+  return now() - elapsedWallTime;
+}
+
 function computeCharDelay(queueLength: number): number {
   const accelerated = BASE_CHAR_DELAY_MS / (1 + queueLength * 0.3);
   return Math.max(MIN_CHAR_DELAY_MS, accelerated);
@@ -39,6 +49,7 @@ export function buildChatStreamSchedule(
   startMs: number,
   renderNow: number = startMs,
 ): ChatStreamBlock {
+  const scheduleWidth = contentWidth > 0 ? contentWidth : FALLBACK_CONTENT_WIDTH;
   const parsedBlocks = parseMarkdownMeasurementBlocks(content);
   const blocks = parsedBlocks.some((block) => block.kind === 'text')
     ? parsedBlocks
@@ -60,7 +71,7 @@ export function buildChatStreamSchedule(
       continue;
     }
 
-    const availableWidth = Math.max(1, Math.floor(contentWidth - block.widthInset));
+    const availableWidth = Math.max(1, Math.floor(scheduleWidth - block.widthInset));
     const lineCount = Math.max(1, measureRichInlineStats(block.prepared, availableWidth).lineCount);
     let lineIndex = 0;
 
@@ -100,19 +111,45 @@ export function useChatStreamBlocks(
   content: string,
   enabled: boolean,
   contentWidth: number = 0,
-  _streamStartTime?: Date,
+  streamStartTime?: Date,
+  suspendClock: boolean = false,
+  pauseClockRef?: { readonly current: boolean },
 ): ChatStreamBlock[] {
   const [renderNow, setRenderNow] = useState(() => now());
-  const [startMs] = useState(() => now());
+  const fallbackStartMsRef = useRef<number | null>(null);
+  const resolvedStartMsRef = useRef<{ timestamp: number; startMs: number } | null>(null);
+  if (fallbackStartMsRef.current === null) {
+    fallbackStartMsRef.current = now();
+  }
+
+  const streamStartTimestamp = streamStartTime?.getTime();
+  if (streamStartTimestamp != null && Number.isFinite(streamStartTimestamp)) {
+    if (resolvedStartMsRef.current?.timestamp !== streamStartTimestamp) {
+      resolvedStartMsRef.current = {
+        timestamp: streamStartTimestamp,
+        startMs: resolveStreamStartMs(streamStartTime) ?? fallbackStartMsRef.current,
+      };
+    }
+  } else {
+    resolvedStartMsRef.current = null;
+  }
+
+  const resolvedStartMs = resolvedStartMsRef.current?.startMs ?? null;
+  const startMs = resolvedStartMs ?? fallbackStartMsRef.current;
 
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || suspendClock) {
       return;
     }
 
-    const intervalId = window.setInterval(() => setRenderNow(now()), CLOCK_TICK_MS);
+    const intervalId = window.setInterval(() => {
+      if (pauseClockRef?.current) {
+        return;
+      }
+      setRenderNow(now());
+    }, CLOCK_TICK_MS);
     return () => window.clearInterval(intervalId);
-  }, [enabled]);
+  }, [enabled, pauseClockRef, suspendClock]);
 
   return useMemo(() => {
     if (!enabled) {
@@ -124,28 +161,10 @@ export function useChatStreamBlocks(
         nowMs: renderNow,
         revealed: true,
       }] : [];
-      logChatStreamDebug('schedule:static', {
-        enabled,
-        contentLength: content.length,
-        contentWidth,
-        blockCount: blocks.length,
-      });
       return blocks;
     }
 
     const schedule = buildChatStreamSchedule(content, contentWidth, startMs, renderNow);
-    logChatStreamDebug('schedule:active', {
-      contentLength: content.length,
-      contentWidth,
-      startMs,
-      renderNow,
-      blockCount: 1,
-      birthCount: schedule.births.length,
-      firstBirth: schedule.births[0] ?? null,
-      lastBirth: schedule.births.at(-1) ?? null,
-      revealed: schedule.revealed,
-      charDelay: schedule.charDelay,
-    });
     return [{
       ...schedule,
       nowMs: renderNow,

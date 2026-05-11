@@ -1,6 +1,6 @@
-import { createRef } from "react";
+import { act, createRef } from "react";
 import { afterEach, describe, expect, it, beforeEach, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { ChatMessage } from "@/lib/ai/types";
 
 const { messageItemSpy } = vi.hoisted(() => ({
@@ -44,6 +44,7 @@ describe("MessageList", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -247,5 +248,47 @@ describe("MessageList", () => {
     view.unmount();
 
     expect(ResizeObserverMock.instances.every((observer) => observer.disconnect.mock.calls.length === 1)).toBe(true);
+  });
+
+  it("suspends the active assistant stream animation while the user is scrolling", () => {
+    vi.useFakeTimers();
+    const messages = [createMessage("u1", "user"), createMessage("a1", "assistant")];
+    const containerRef = createRef<HTMLDivElement>();
+
+    render(
+      <MessageList
+        messages={messages}
+        getImageGallery={() => []}
+        isSessionActive
+        showLoading={false}
+        spacerHeight={0}
+        containerRef={containerRef}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(messageItemSpy.mock.calls.at(-1)?.[0]).toMatchObject({
+      msg: messages[1],
+      suspendStreamAnimation: false,
+    });
+
+    const scrollable = document.querySelector('[data-chat-scrollable="true"]')!;
+    fireEvent.scroll(scrollable);
+
+    expect(messageItemSpy.mock.calls.at(-1)?.[0]).toMatchObject({
+      msg: messages[1],
+      suspendStreamAnimation: true,
+    });
+
+    act(() => {
+      vi.advanceTimersByTime(181);
+    });
+
+    expect(messageItemSpy.mock.calls.at(-1)?.[0]).toMatchObject({
+      msg: messages[1],
+      suspendStreamAnimation: false,
+    });
   });
 });

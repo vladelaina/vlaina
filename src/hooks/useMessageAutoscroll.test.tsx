@@ -1,4 +1,4 @@
-import { act, render, renderHook, screen as rtlScreen } from '@testing-library/react';
+import { act, fireEvent, render, renderHook, screen as rtlScreen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChatMessage } from '@/lib/ai/types';
 import { useMessageAutoscroll } from './useMessageAutoscroll';
@@ -2053,6 +2053,361 @@ describe('useMessageAutoscroll', () => {
     });
 
     expect(scrollTop).toBe(1800);
+    requestAnimationFrameSpy.mockRestore();
+  });
+
+  it('stops following output after the user scrolls upward near the bottom', () => {
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+
+    class ResizeObserverMock {
+      static instances: ResizeObserverMock[] = [];
+
+      callback: ResizeObserverCallback;
+      observed: Element | null = null;
+      observe = vi.fn((target: Element) => {
+        this.observed = target;
+      });
+      disconnect = vi.fn();
+
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback;
+        ResizeObserverMock.instances.push(this);
+      }
+    }
+
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+
+    function TestHarness({ messages }: { messages: ChatMessage[] }) {
+      const { containerRef } = useMessageAutoscroll({
+        messages,
+        isStreaming: true,
+        chatId: 'chat-1',
+        showLoading: false,
+      });
+
+      return (
+        <div data-testid="scrollable-user-detach" ref={containerRef}>
+          <div data-testid="content-user-detach" />
+        </div>
+      );
+    }
+
+    render(
+      <TestHarness messages={[createMessage('u1', 'user'), createMessage('a1', 'assistant')]} />,
+    );
+    const scrollable = rtlScreen.getByTestId('scrollable-user-detach');
+    let scrollTop = 1180;
+
+    Object.defineProperty(scrollable, 'clientHeight', {
+      configurable: true,
+      get: () => 600,
+    });
+    Object.defineProperty(scrollable, 'clientWidth', {
+      configurable: true,
+      get: () => 900,
+    });
+    Object.defineProperty(scrollable, 'scrollHeight', {
+      configurable: true,
+      get: () => 1800,
+    });
+    Object.defineProperty(scrollable, 'scrollTop', {
+      configurable: true,
+      get: () => scrollTop,
+      set: (value: number) => {
+        scrollTop = value;
+      },
+    });
+
+    act(() => {
+      scrollable.dispatchEvent(new Event('scroll'));
+    });
+    act(() => {
+      scrollTop = 1120;
+      scrollable.dispatchEvent(new Event('scroll'));
+    });
+
+    const contentObserver = ResizeObserverMock.instances.find(
+      (instance) => instance.observed === rtlScreen.getByTestId('content-user-detach'),
+    );
+    expect(contentObserver).toBeTruthy();
+
+    act(() => {
+      contentObserver!.callback([], contentObserver! as unknown as ResizeObserver);
+    });
+
+    expect(scrollTop).toBe(1120);
+    requestAnimationFrameSpy.mockRestore();
+  });
+
+  it('stops following output as soon as the user wheels upward', () => {
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+
+    class ResizeObserverMock {
+      static instances: ResizeObserverMock[] = [];
+
+      callback: ResizeObserverCallback;
+      observed: Element | null = null;
+      observe = vi.fn((target: Element) => {
+        this.observed = target;
+      });
+      disconnect = vi.fn();
+
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback;
+        ResizeObserverMock.instances.push(this);
+      }
+    }
+
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+
+    function TestHarness({ messages }: { messages: ChatMessage[] }) {
+      const { containerRef } = useMessageAutoscroll({
+        messages,
+        isStreaming: true,
+        chatId: 'chat-1',
+        showLoading: false,
+      });
+
+      return (
+        <div data-testid="scrollable-wheel-detach" ref={containerRef}>
+          <div data-testid="content-wheel-detach" />
+        </div>
+      );
+    }
+
+    render(
+      <TestHarness messages={[createMessage('u1', 'user'), createMessage('a1', 'assistant')]} />,
+    );
+    const scrollable = rtlScreen.getByTestId('scrollable-wheel-detach');
+    let scrollTop = 1180;
+
+    Object.defineProperty(scrollable, 'clientHeight', {
+      configurable: true,
+      get: () => 600,
+    });
+    Object.defineProperty(scrollable, 'clientWidth', {
+      configurable: true,
+      get: () => 900,
+    });
+    Object.defineProperty(scrollable, 'scrollHeight', {
+      configurable: true,
+      get: () => 1800,
+    });
+    Object.defineProperty(scrollable, 'scrollTop', {
+      configurable: true,
+      get: () => scrollTop,
+      set: (value: number) => {
+        scrollTop = value;
+      },
+    });
+
+    act(() => {
+      scrollable.dispatchEvent(new Event('scroll'));
+    });
+    act(() => {
+      scrollable.dispatchEvent(new WheelEvent('wheel', { deltaY: -80 }));
+    });
+
+    const contentObserver = ResizeObserverMock.instances.find(
+      (instance) => instance.observed === rtlScreen.getByTestId('content-wheel-detach'),
+    );
+    expect(contentObserver).toBeTruthy();
+
+    act(() => {
+      contentObserver!.callback([], contentObserver! as unknown as ResizeObserver);
+    });
+
+    expect(scrollTop).toBe(1180);
+    requestAnimationFrameSpy.mockRestore();
+  });
+
+  it('stops following output as soon as the user swipes toward older messages', () => {
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+
+    class ResizeObserverMock {
+      static instances: ResizeObserverMock[] = [];
+
+      callback: ResizeObserverCallback;
+      observed: Element | null = null;
+      observe = vi.fn((target: Element) => {
+        this.observed = target;
+      });
+      disconnect = vi.fn();
+
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback;
+        ResizeObserverMock.instances.push(this);
+      }
+    }
+
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+
+    function TestHarness({ messages }: { messages: ChatMessage[] }) {
+      const { containerRef } = useMessageAutoscroll({
+        messages,
+        isStreaming: true,
+        chatId: 'chat-1',
+        showLoading: false,
+      });
+
+      return (
+        <div data-testid="scrollable-touch-detach" ref={containerRef}>
+          <div data-testid="content-touch-detach" />
+        </div>
+      );
+    }
+
+    render(
+      <TestHarness messages={[createMessage('u1', 'user'), createMessage('a1', 'assistant')]} />,
+    );
+    const scrollable = rtlScreen.getByTestId('scrollable-touch-detach');
+    let scrollTop = 1180;
+
+    Object.defineProperty(scrollable, 'clientHeight', {
+      configurable: true,
+      get: () => 600,
+    });
+    Object.defineProperty(scrollable, 'clientWidth', {
+      configurable: true,
+      get: () => 900,
+    });
+    Object.defineProperty(scrollable, 'scrollHeight', {
+      configurable: true,
+      get: () => 1800,
+    });
+    Object.defineProperty(scrollable, 'scrollTop', {
+      configurable: true,
+      get: () => scrollTop,
+      set: (value: number) => {
+        scrollTop = value;
+      },
+    });
+
+    act(() => {
+      scrollable.dispatchEvent(new Event('scroll'));
+    });
+    act(() => {
+      fireEvent.touchStart(scrollable, { touches: [{ clientY: 100 }] });
+      fireEvent.touchMove(scrollable, { touches: [{ clientY: 160 }] });
+    });
+
+    const contentObserver = ResizeObserverMock.instances.find(
+      (instance) => instance.observed === rtlScreen.getByTestId('content-touch-detach'),
+    );
+    expect(contentObserver).toBeTruthy();
+
+    act(() => {
+      contentObserver!.callback([], contentObserver! as unknown as ResizeObserver);
+    });
+
+    expect(scrollTop).toBe(1180);
+    requestAnimationFrameSpy.mockRestore();
+  });
+
+  it('stops following output as soon as the user presses an upward scroll key over the chat', () => {
+    const requestAnimationFrameSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((callback: FrameRequestCallback) => {
+        callback(0);
+        return 1;
+      });
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+
+    class ResizeObserverMock {
+      static instances: ResizeObserverMock[] = [];
+
+      callback: ResizeObserverCallback;
+      observed: Element | null = null;
+      observe = vi.fn((target: Element) => {
+        this.observed = target;
+      });
+      disconnect = vi.fn();
+
+      constructor(callback: ResizeObserverCallback) {
+        this.callback = callback;
+        ResizeObserverMock.instances.push(this);
+      }
+    }
+
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+
+    function TestHarness({ messages }: { messages: ChatMessage[] }) {
+      const { containerRef } = useMessageAutoscroll({
+        messages,
+        isStreaming: true,
+        chatId: 'chat-1',
+        showLoading: false,
+      });
+
+      return (
+        <div data-testid="scrollable-key-detach" ref={containerRef}>
+          <div data-testid="content-key-detach" />
+        </div>
+      );
+    }
+
+    render(
+      <TestHarness messages={[createMessage('u1', 'user'), createMessage('a1', 'assistant')]} />,
+    );
+    const scrollable = rtlScreen.getByTestId('scrollable-key-detach');
+    let scrollTop = 1180;
+
+    Object.defineProperty(scrollable, 'clientHeight', {
+      configurable: true,
+      get: () => 600,
+    });
+    Object.defineProperty(scrollable, 'clientWidth', {
+      configurable: true,
+      get: () => 900,
+    });
+    Object.defineProperty(scrollable, 'scrollHeight', {
+      configurable: true,
+      get: () => 1800,
+    });
+    Object.defineProperty(scrollable, 'scrollTop', {
+      configurable: true,
+      get: () => scrollTop,
+      set: (value: number) => {
+        scrollTop = value;
+      },
+    });
+
+    act(() => {
+      scrollable.dispatchEvent(new Event('scroll'));
+    });
+    act(() => {
+      fireEvent.pointerEnter(scrollable);
+      fireEvent.keyDown(document, { key: 'PageUp' });
+    });
+
+    const contentObserver = ResizeObserverMock.instances.find(
+      (instance) => instance.observed === rtlScreen.getByTestId('content-key-detach'),
+    );
+    expect(contentObserver).toBeTruthy();
+
+    act(() => {
+      contentObserver!.callback([], contentObserver! as unknown as ResizeObserver);
+    });
+
+    expect(scrollTop).toBe(1180);
     requestAnimationFrameSpy.mockRestore();
   });
 });

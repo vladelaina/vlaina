@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ThinkingBlock } from './ThinkingBlock';
+import { dispatchChatSelectionStreamFreeze } from './chatSelectionStreamFreeze';
 
 class ResizeObserverMock {
   static instances: ResizeObserverMock[] = [];
@@ -20,6 +21,7 @@ describe('ThinkingBlock', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
   });
 
@@ -144,5 +146,177 @@ describe('ThinkingBlock', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     const wrapper = container.querySelector<HTMLElement>('[style*="max-height"]');
     expect(wrapper).toHaveStyle({ maxHeight: '0px', opacity: '0' });
+  });
+
+  it('freezes live thinking content while stream animation is suspended', () => {
+    const { container, rerender } = render(
+      <ThinkingBlock
+        content="First thought"
+        isStreaming
+      />,
+    );
+
+    rerender(
+      <ThinkingBlock
+        content="First thought plus more"
+        isStreaming
+        suspendStreamAnimation
+      />,
+    );
+
+    expect(container).toHaveTextContent('First thought plus more');
+
+    rerender(
+      <ThinkingBlock
+        content="First thought plus more and more"
+        isStreaming
+        suspendStreamAnimation
+      />,
+    );
+
+    expect(container).toHaveTextContent('First thought plus more');
+    expect(container).not.toHaveTextContent('First thought plus more and more');
+
+    rerender(
+      <ThinkingBlock
+        content="First thought plus more and more"
+        isStreaming
+      />,
+    );
+
+    expect(container).toHaveTextContent('First thought plus more and more');
+  });
+
+  it('freezes live thinking content after mouse down selection starts', () => {
+    const { container, rerender } = render(
+      <ThinkingBlock
+        content="First thought"
+        isStreaming
+      />,
+    );
+
+    const surface = container.querySelector('[data-chat-selection-surface="true"]')!;
+    fireEvent.mouseDown(surface, { button: 0 });
+
+    rerender(
+      <ThinkingBlock
+        content="First thought plus more"
+        isStreaming
+      />,
+    );
+
+    expect(container).toHaveTextContent('First thought');
+    expect(container).not.toHaveTextContent('First thought plus more');
+  });
+
+  it('freezes live thinking content from the global selection start signal', () => {
+    const { container, rerender } = render(
+      <ThinkingBlock
+        content="First thought"
+        isStreaming
+      />,
+    );
+
+    const surface = container.querySelector('[data-chat-selection-surface="true"]')!;
+    act(() => {
+      dispatchChatSelectionStreamFreeze({
+        button: 0,
+        source: 'mousedown',
+        target: surface,
+      });
+    });
+
+    rerender(
+      <ThinkingBlock
+        content="First thought plus more"
+        isStreaming
+      />,
+    );
+
+    expect(container).toHaveTextContent('First thought');
+    expect(container).not.toHaveTextContent('First thought plus more');
+  });
+
+  it('freezes completed thinking while the parent message is still streaming', () => {
+    const { container, rerender } = render(
+      <ThinkingBlock
+        content="Completed thought"
+        isStreaming={false}
+        isMessageStreaming
+      />,
+    );
+
+    const surface = container.querySelector('[data-chat-selection-surface="true"]')!;
+    fireEvent.mouseDown(surface, { button: 0 });
+
+    rerender(
+      <ThinkingBlock
+        content="Completed thought plus more"
+        isStreaming={false}
+        isMessageStreaming
+      />,
+    );
+
+    expect(container).toHaveTextContent('Completed thought');
+    expect(container).not.toHaveTextContent('Completed thought plus more');
+  });
+
+  it('keeps live thinking frozen while a completed selection remains active', () => {
+    vi.useFakeTimers();
+    let selectedText = 'First';
+    const selectionSpy = vi.spyOn(window, 'getSelection').mockReturnValue({
+      get isCollapsed() {
+        return selectedText.length === 0;
+      },
+      rangeCount: 1,
+      toString: () => selectedText,
+    } as Selection);
+    const { container, rerender } = render(
+      <ThinkingBlock
+        content="First thought"
+        isStreaming
+      />,
+    );
+
+    const surface = container.querySelector('[data-chat-selection-surface="true"]')!;
+    fireEvent.mouseDown(surface, { button: 0 });
+    rerender(
+      <ThinkingBlock
+        content="First thought plus more"
+        isStreaming
+      />,
+    );
+    fireEvent.pointerUp(document);
+
+    expect(container).toHaveTextContent('First thought');
+    expect(container).not.toHaveTextContent('First thought plus more');
+
+    act(() => {
+      vi.advanceTimersByTime(701);
+    });
+    rerender(
+      <ThinkingBlock
+        content="First thought plus more and more"
+        isStreaming
+      />,
+    );
+
+    expect(container).toHaveTextContent('First thought');
+    expect(container).not.toHaveTextContent('First thought plus more and more');
+
+    selectedText = '';
+    fireEvent(document, new Event('selectionchange'));
+    act(() => {
+      vi.advanceTimersByTime(121);
+    });
+    rerender(
+      <ThinkingBlock
+        content="First thought plus more and more"
+        isStreaming
+      />,
+    );
+
+    expect(container).toHaveTextContent('First thought plus more and more');
+    selectionSpy.mockRestore();
   });
 });

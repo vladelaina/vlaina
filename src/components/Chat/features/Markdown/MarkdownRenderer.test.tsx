@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, beforeEach, vi } from "vitest";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { measureRichInlineStats } from "@/lib/text-layout";
 import {
   getPreparedMarkdownTextBlock,
   normalizeInlineMarkdownForMeasurement,
 } from "@/components/Chat/features/Layout/chatAssistantInlineMarkdown";
-import { buildChatStreamSchedule } from "./chatStreamTextAnimation";
+import { buildChatStreamSchedule, useChatStreamBlocks } from "./chatStreamTextAnimation";
 
 const { reactMarkdownSpy, codeBlockSpy, thinkingBlockSpy } = vi.hoisted(() => ({
   reactMarkdownSpy: vi.fn(),
@@ -118,6 +118,33 @@ describe("MarkdownRenderer", () => {
     expect(screen.queryByTestId("react-markdown")).not.toBeInTheDocument();
   });
 
+  it("passes the stream start time into live thinking blocks", () => {
+    const startTime = new Date("2026-05-11T06:00:00.000Z");
+
+    render(<MarkdownRenderer content={"<think>working"} isStreaming startTime={startTime} />);
+
+    expect(thinkingBlockSpy.mock.calls[0][0]).toMatchObject({
+      startTime,
+    });
+  });
+
+  it("does not leak a partial opening think tag into streaming markdown", () => {
+    render(<MarkdownRenderer content={"Visible<thi"} isStreaming />);
+
+    expect(screen.getByTestId("markdown-children")).toHaveTextContent("Visible");
+    expect(screen.getByTestId("markdown-children")).not.toHaveTextContent("<thi");
+    expect(screen.queryByTestId("thinking-block")).not.toBeInTheDocument();
+  });
+
+  it("does not show a partial closing think tag inside live thinking", () => {
+    render(<MarkdownRenderer content={"<think>working</thi"} isStreaming />);
+
+    expect(screen.getByTestId("thinking-block")).toHaveTextContent("working");
+    expect(screen.getByTestId("thinking-block")).not.toHaveTextContent("</thi");
+    expect(screen.getByTestId("thinking-block")).toHaveAttribute("data-streaming", "true");
+    expect(screen.queryByTestId("react-markdown")).not.toBeInTheDocument();
+  });
+
   it("renders markdown through the local react-markdown pipeline", () => {
     render(<MarkdownRenderer content={"Visible"} />);
 
@@ -164,24 +191,92 @@ describe("MarkdownRenderer", () => {
     expect(blocks.births.slice(1).every((birth: number, index: number) => birth >= blocks.births[index]!)).toBe(true);
   });
 
-  it("freezes streaming markdown after drag selection starts without freezing on pointer down", async () => {
+  it("builds a fallback stream schedule before measurement", () => {
+    const blocks = buildChatStreamSchedule("Visible", 0, 1000);
+
+    expect(blocks.births).toHaveLength(Array.from("Visible").length);
+    expect(blocks.revealed).toBe(false);
+  });
+
+  it("anchors streaming animation to the message start time across remounts", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-11T06:00:02.000Z"));
+    const performanceNowSpy = vi.spyOn(performance, "now").mockReturnValue(2000);
+    const streamStartTime = new Date("2026-05-11T06:00:00.000Z");
+
+    const firstRender = renderHook(() =>
+      useChatStreamBlocks("Visible", true, 0, streamStartTime, true),
+    );
+    const firstBlock = firstRender.result.current[0]!;
+    expect(firstBlock.revealed).toBe(true);
+    firstRender.unmount();
+
+    performanceNowSpy.mockReturnValue(3500);
+    vi.setSystemTime(new Date("2026-05-11T06:00:03.500Z"));
+    const secondRender = renderHook(() =>
+      useChatStreamBlocks("Visible", true, 0, streamStartTime, true),
+    );
+    const secondBlock = secondRender.result.current[0]!;
+    expect(secondBlock.revealed).toBe(true);
+    expect(secondBlock.births[0]).toBeCloseTo(firstBlock.births[0]!);
+    secondRender.unmount();
+    performanceNowSpy.mockRestore();
+  });
+
+  it("schedules heading text before following paragraph text", () => {
+    const blocks = buildChatStreamSchedule("# Title\n\nBody", 0, 1000);
+    const titleLength = Array.from("Title").length;
+
+    expect(blocks.births).toHaveLength(titleLength + Array.from("Body").length);
+    expect(blocks.births[0]).toBeLessThan(blocks.births[titleLength]!);
+    expect(blocks.births[titleLength - 1]).toBeLessThan(blocks.births[titleLength]!);
+  });
+
+  it("freezes streaming markdown on pointer down while preserving the live selection DOM", () => {
+    const { rerender } = render(<MarkdownRenderer content={"Visible"} isStreaming />);
+
+    const surface = screen.getByTestId("react-markdown").parentElement!;
+    fireEvent.pointerDown(surface, { button: 0 });
+    rerender(<MarkdownRenderer content={"Visible plus more"} isStreaming />);
+
+    expect(screen.getByTestId("markdown-children")).toHaveTextContent("Visible");
+    expect(screen.getByTestId("markdown-children")).not.toHaveTextContent("Visible plus more");
+    expect(screen.getByTestId("react-markdown").parentElement).toHaveAttribute("data-chat-markdown-live", "true");
+    expect(screen.getByTestId("react-markdown").parentElement).toHaveClass("chat-markdown-live");
+  });
+
+  it("pauses the streaming animation clock while markdown selection is frozen", () => {
     vi.useFakeTimers();
     const { rerender } = render(<MarkdownRenderer content={"Visible"} isStreaming />);
 
     const surface = screen.getByTestId("react-markdown").parentElement!;
     fireEvent.pointerDown(surface, { button: 0 });
     rerender(<MarkdownRenderer content={"Visible plus more"} isStreaming />);
-    expect(screen.getByTestId("markdown-children")).toHaveTextContent("Visible plus more");
 
-    fireEvent.pointerMove(surface);
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(0);
+    reactMarkdownSpy.mockClear();
+    act(() => {
+      vi.advanceTimersByTime(160);
     });
 
-    expect(screen.getByTestId("markdown-children")).toHaveTextContent("Visible");
-    expect(screen.getByTestId("markdown-children")).not.toHaveTextContent("Visible plus more");
-    expect(screen.getByTestId("react-markdown").parentElement).not.toHaveAttribute("data-chat-markdown-live");
-    expect(screen.getByTestId("react-markdown").parentElement).not.toHaveClass("chat-markdown-live");
+    expect(reactMarkdownSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not rerender markdown on pointer down selection start", () => {
+    render(<MarkdownRenderer content={"Visible"} isStreaming />);
+
+    reactMarkdownSpy.mockClear();
+    fireEvent.pointerDown(screen.getByTestId("react-markdown").parentElement!, { button: 0 });
+
+    expect(reactMarkdownSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not rerender markdown on mouse down selection start", () => {
+    render(<MarkdownRenderer content={"Visible"} isStreaming />);
+
+    reactMarkdownSpy.mockClear();
+    fireEvent.mouseDown(screen.getByTestId("react-markdown").parentElement!, { button: 0 });
+
+    expect(reactMarkdownSpy).not.toHaveBeenCalled();
   });
 
   it("does not freeze streaming markdown when interactive content is clicked", () => {
@@ -192,6 +287,74 @@ describe("MarkdownRenderer", () => {
 
     expect(screen.getByTestId("markdown-children")).toHaveTextContent("Visible plus more");
     expect(screen.getByTestId("react-markdown").parentElement).toHaveAttribute("data-chat-markdown-live", "true");
+  });
+
+  it("keeps streaming markdown frozen while a completed selection remains active", () => {
+    vi.useFakeTimers();
+    let selectedText = "Visible";
+    const selectionSpy = vi.spyOn(window, "getSelection").mockReturnValue({
+      get isCollapsed() {
+        return selectedText.length === 0;
+      },
+      rangeCount: 1,
+      toString: () => selectedText,
+    } as Selection);
+    const { rerender } = render(<MarkdownRenderer content={"Visible"} isStreaming />);
+
+    const surface = screen.getByTestId("react-markdown").parentElement!;
+    fireEvent.mouseDown(surface, { button: 0 });
+    rerender(<MarkdownRenderer content={"Visible plus more"} isStreaming />);
+    fireEvent.pointerUp(document);
+
+    expect(screen.getByTestId("markdown-children")).toHaveTextContent("Visible");
+    expect(screen.getByTestId("markdown-children")).not.toHaveTextContent("Visible plus more");
+
+    act(() => {
+      vi.advanceTimersByTime(701);
+    });
+    rerender(<MarkdownRenderer content={"Visible plus more and more"} isStreaming />);
+
+    expect(screen.getByTestId("markdown-children")).toHaveTextContent("Visible");
+    expect(screen.getByTestId("markdown-children")).not.toHaveTextContent("Visible plus more and more");
+
+    selectedText = "";
+    fireEvent(document, new Event("selectionchange"));
+    act(() => {
+      vi.advanceTimersByTime(121);
+    });
+    rerender(<MarkdownRenderer content={"Visible plus more and more"} isStreaming />);
+
+    expect(screen.getByTestId("markdown-children")).toHaveTextContent("Visible plus more and more");
+    selectionSpy.mockRestore();
+  });
+
+  it("freezes streaming markdown content while stream animation is suspended", () => {
+    const { rerender } = render(<MarkdownRenderer content={"Visible"} isStreaming />);
+
+    rerender(
+      <MarkdownRenderer
+        content={"Visible plus more"}
+        isStreaming
+        suspendStreamAnimation
+      />,
+    );
+
+    expect(screen.getByTestId("markdown-children")).toHaveTextContent("Visible plus more");
+
+    rerender(
+      <MarkdownRenderer
+        content={"Visible plus more and more"}
+        isStreaming
+        suspendStreamAnimation
+      />,
+    );
+
+    expect(screen.getByTestId("markdown-children")).toHaveTextContent("Visible plus more");
+    expect(screen.getByTestId("markdown-children")).not.toHaveTextContent("Visible plus more and more");
+
+    rerender(<MarkdownRenderer content={"Visible plus more and more"} isStreaming />);
+
+    expect(screen.getByTestId("markdown-children")).toHaveTextContent("Visible plus more and more");
   });
 
   it("assigns stable code block ids and controlled copied state", () => {
