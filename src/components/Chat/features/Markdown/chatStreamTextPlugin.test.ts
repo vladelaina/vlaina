@@ -11,7 +11,7 @@ describe('createChatStreamTextPlugin', () => {
     clearNotesDebugLog();
   });
 
-  it('wraps visible paragraph text directly as a rehype transformer', () => {
+  it('leaves completed paragraph text as a plain text node', () => {
     const tree: any = {
       children: [
         {
@@ -33,23 +33,42 @@ describe('createChatStreamTextPlugin', () => {
 
     transform(tree);
 
-    expect(tree.children[0].children).toMatchObject([
-      {
-        children: [{ type: 'text', value: 'H' }],
-        properties: { className: 'chat-stream-char chat-stream-char-done' },
-        tagName: 'span',
-        type: 'element',
-      },
-      {
-        children: [{ type: 'text', value: 'i' }],
-        properties: { className: 'chat-stream-char chat-stream-char-done' },
-        tagName: 'span',
-        type: 'element',
-      },
-    ]);
+    expect(tree.children[0].children).toEqual([{ type: 'text', value: 'Hi' }]);
   });
 
-  it('marks active characters with progress and future characters as pending', () => {
+  it('keeps completed text before an active tail as one merged text node', () => {
+    const tree: any = {
+      children: [
+        {
+          children: [{ type: 'text', value: 'Stable tail' }],
+          properties: {},
+          tagName: 'p',
+          type: 'element',
+        },
+      ],
+      type: 'root',
+    };
+
+    createChatStreamTextPlugin({
+      births: [-200, -200, -200, -200, -200, -200, -200, 100, 120, 140, 160],
+      charDelay: 20,
+      nowMs: 100,
+      revealed: false,
+    })(tree);
+
+    expect(tree.children[0].children[0]).toEqual({ type: 'text', value: 'Stable ' });
+    expect(tree.children[0].children[1]).toMatchObject({
+      children: [{ type: 'text', value: 't' }],
+      properties: {
+        className: 'chat-stream-char',
+        style: 'animation-name:chat-stream-char-fade;animation-duration:90ms;animation-timing-function:ease-out;animation-delay:0ms;animation-fill-mode:both',
+      },
+      tagName: 'span',
+      type: 'element',
+    });
+  });
+
+  it('marks active and future characters with browser-driven animation delays', () => {
     const tree: any = {
       children: [
         {
@@ -71,10 +90,11 @@ describe('createChatStreamTextPlugin', () => {
 
     expect(tree.children[0].children[0].properties).toEqual({
       className: 'chat-stream-char',
-      style: 'opacity:0.556',
+      style: 'animation-name:chat-stream-char-fade;animation-duration:90ms;animation-timing-function:ease-out;animation-delay:-50ms;animation-fill-mode:both',
     });
     expect(tree.children[0].children[1].properties).toEqual({
-      className: 'chat-stream-char chat-stream-char-pending',
+      className: 'chat-stream-char',
+      style: 'animation-name:chat-stream-char-fade;animation-duration:90ms;animation-timing-function:ease-out;animation-delay:50ms;animation-fill-mode:both',
     });
   });
 
@@ -100,7 +120,7 @@ describe('createChatStreamTextPlugin', () => {
 
     expect(tree.children[0].children[0].properties).toEqual({
       className: 'chat-stream-char',
-      style: 'opacity:0',
+      style: 'animation-name:chat-stream-char-fade;animation-duration:90ms;animation-timing-function:ease-out;animation-delay:0ms;animation-fill-mode:both',
     });
   });
 
@@ -121,7 +141,7 @@ describe('createChatStreamTextPlugin', () => {
     expect(tree.children[0].children[0]).toBe(codeNode);
   });
 
-  it('wraps inline code text and hides the code container until the stream reaches it', () => {
+  it('wraps inline code text and schedules the code container with the same animation clock', () => {
     const inlineCodeNode = {
       children: [{ type: 'text', value: 'xy' }],
       properties: {},
@@ -155,17 +175,23 @@ describe('createChatStreamTextPlugin', () => {
     const code = paragraph.children[2];
 
     expect(code.tagName).toBe('code');
-    expect(code.properties.className).toBe('chat-stream-inline-code-pending');
+    expect(code.properties.style).toBe('animation-name:chat-stream-char-fade;animation-duration:90ms;animation-timing-function:ease-out;animation-delay:50ms;animation-fill-mode:both');
     expect(code.children).toMatchObject([
       {
         children: [{ type: 'text', value: 'x' }],
-        properties: { className: 'chat-stream-char chat-stream-char-pending' },
+        properties: {
+          className: 'chat-stream-char',
+          style: 'animation-name:chat-stream-char-fade;animation-duration:90ms;animation-timing-function:ease-out;animation-delay:50ms;animation-fill-mode:both',
+        },
         tagName: 'span',
         type: 'element',
       },
       {
         children: [{ type: 'text', value: 'y' }],
-        properties: { className: 'chat-stream-char chat-stream-char-pending' },
+        properties: {
+          className: 'chat-stream-char',
+          style: 'animation-name:chat-stream-char-fade;animation-duration:90ms;animation-timing-function:ease-out;animation-delay:70ms;animation-fill-mode:both',
+        },
         tagName: 'span',
         type: 'element',
       },
@@ -205,14 +231,15 @@ describe('createChatStreamTextPlugin', () => {
     expect(code.properties.className).toBeUndefined();
     expect(code.children[0].properties).toEqual({
       className: 'chat-stream-char',
-      style: 'opacity:0',
+      style: 'animation-name:chat-stream-char-fade;animation-duration:90ms;animation-timing-function:ease-out;animation-delay:0ms;animation-fill-mode:both',
     });
     expect(code.children[1].properties).toEqual({
-      className: 'chat-stream-char chat-stream-char-pending',
+      className: 'chat-stream-char',
+      style: 'animation-name:chat-stream-char-fade;animation-duration:90ms;animation-timing-function:ease-out;animation-delay:20ms;animation-fill-mode:both',
     });
   });
 
-  it('keeps following paragraph characters pending while a heading is still animating', () => {
+  it('schedules following paragraph characters while a heading is still animating', () => {
     const tree: any = {
       children: [
         {
@@ -240,14 +267,15 @@ describe('createChatStreamTextPlugin', () => {
 
     expect(tree.children[0].children[0].properties).toEqual({
       className: 'chat-stream-char',
-      style: 'opacity:0.556',
+      style: 'animation-name:chat-stream-char-fade;animation-duration:90ms;animation-timing-function:ease-out;animation-delay:-50ms;animation-fill-mode:both',
     });
     expect(tree.children[1].children[0].properties).toEqual({
-      className: 'chat-stream-char chat-stream-char-pending',
+      className: 'chat-stream-char',
+      style: 'animation-name:chat-stream-char-fade;animation-duration:90ms;animation-timing-function:ease-out;animation-delay:150ms;animation-fill-mode:both',
     });
   });
 
-  it('keeps inline images pending until their markdown position is reached', () => {
+  it('schedules inline images on the stream animation clock', () => {
     const tree: any = {
       children: [
         {
@@ -277,8 +305,9 @@ describe('createChatStreamTextPlugin', () => {
     })(tree);
 
     const paragraph = tree.children[0];
-    expect(paragraph.children[2].properties.className).toBe('chat-stream-element-pending');
+    expect(paragraph.children[2].properties.style).toBe('animation-name:chat-stream-char-fade;animation-duration:90ms;animation-timing-function:ease-out;animation-delay:50ms;animation-fill-mode:both');
     expect(paragraph.children[3].children[0].value).toBe(' ');
-    expect(paragraph.children[3].properties.className).toBe('chat-stream-char chat-stream-char-pending');
+    expect(paragraph.children[3].properties.className).toBe('chat-stream-char');
+    expect(paragraph.children[3].properties.style).toBe('animation-name:chat-stream-char-fade;animation-duration:90ms;animation-timing-function:ease-out;animation-delay:130ms;animation-fill-mode:both');
   });
 });

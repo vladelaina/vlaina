@@ -13,9 +13,11 @@ import { normalizeRenderableImageSrc } from './imagePolicy';
 type ImageGalleryItem = { id: string; src: string };
 
 type CreateMarkdownComponentsOptions = {
+  codeBlockIndexOffset?: number;
   codeBlockIdBase?: string;
   copiedCodeBlockId?: string | null;
   getImageGallery?: () => ImageGalleryItem[];
+  imageIndexOffset?: number;
   imageGallery?: ImageGalleryItem[];
   imageIdBase?: string;
   onCopyCodeBlock?: (blockId: string) => void;
@@ -215,15 +217,17 @@ function MarkdownImage({
 }
 
 export function createMarkdownComponents({
+  codeBlockIndexOffset = 0,
   codeBlockIdBase,
   copiedCodeBlockId,
   getImageGallery,
+  imageIndexOffset = 0,
   imageGallery,
   imageIdBase,
   onCopyCodeBlock,
 }: CreateMarkdownComponentsOptions) {
-  let imageRenderIndex = 0;
-  let codeBlockRenderIndex = 0;
+  let imageRenderIndex = imageIndexOffset;
+  let codeBlockRenderIndex = codeBlockIndexOffset;
 
   return {
     a({ href, children, ...props }: MarkdownAnchorProps) {
