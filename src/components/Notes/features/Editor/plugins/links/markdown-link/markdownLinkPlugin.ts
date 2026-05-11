@@ -10,6 +10,7 @@ export const markdownLinkPluginKey = new PluginKey('markdown-link-paste');
 const LINK_REGEX = /(?:\[|【)([^】\]]+)(?:\]|】)(?:\(|（)([^)）]+)(?:\)|）)/g;
 const LINK_PATTERN_BEFORE = /(?:\[|【)([^】\]]+)(?:\]|】)(?:\(|（)([^)）]+)(?:\)|）)$/;
 const LINK_PATTERN_GLOBAL = /(?:\[|【)([^】\]]+)(?:\]|】)(?:\(|（)([^)）]+)(?:\)|）)/g;
+const IMAGE_LINK_PATTERN = /!(?:\[|【)[^】\]\r\n]+(?:\]|】)(?:\(|（)[^)）\r\n]+(?:\)|）)/;
 const MULTI_LINE_PATTERN = /[\r\n]/;
 const STRUCTURAL_MARKDOWN_PREFIX_PATTERN = /^\s{0,3}([#＃]{1,6}\s+|[-+*－＋＊]\s+|[0-9０-９]+[.)．]\s+|[>》]\s+|```|~~~|···|～～～|[-*_－＿＊]{3,}\s*$|[|｜].+[|｜])/;
 const LINK_DESTINATION_WITH_TITLE_PATTERN = /^(<[^>\r\n]+>|[^\s"'()]+)(?:\s+(?:"[^"\r\n]*"|'[^'\r\n]*'|\([^)\r\n]*\)))?\s*$/;
@@ -28,6 +29,7 @@ function getMarkdownLinkHref(rawDestination: string): string {
 export const shouldHandleMarkdownLinkPaste = (text: string): boolean => {
     if (!text) return false;
     if (MULTI_LINE_PATTERN.test(text)) return false;
+    if (IMAGE_LINK_PATTERN.test(text)) return false;
     if (STRUCTURAL_MARKDOWN_PREFIX_PATTERN.test(text)) return false;
     if (isStandaloneFencedCodeBlock(text)) return false;
     LINK_REGEX.lastIndex = 0;
@@ -62,6 +64,9 @@ export const markdownLinkPlugin = $prose(() => {
                     const linkUrl = match[2];
                     const matchStart = pos + match.index;
                     const matchEnd = matchStart + fullMatch.length;
+                    if (match.index > 0 && text[match.index - 1] === '!') {
+                        continue;
+                    }
 
                     // 1. SANITIZE STYLES: Remove ALL marks from the raw syntax [text](url)
                     // This "Nuclear Option" strips any background/color/bold/code styles
@@ -131,6 +136,9 @@ export const markdownLinkPlugin = $prose(() => {
 
                 // Calculate positions
                 const linkStart = from - fullMatch.length;
+                if (linkStart > 0 && textBefore[linkStart - 1] === '!') {
+                    return false;
+                }
 
                 // Create transaction
                 const safeLinkUrl = sanitizeNoteLinkHref(getMarkdownLinkHref(linkUrl));

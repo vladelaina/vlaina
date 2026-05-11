@@ -27,4 +27,19 @@ describe('image block style utils', () => {
             minHeight: undefined,
         });
     });
+
+    it('uses locked pixel dimensions while the image cropper is active', () => {
+        expect(getNormalStyle({
+            width: '72%',
+            height: undefined,
+            isActive: true,
+            isReady: true,
+            computedAspectRatio: '2',
+            activeSize: { width: 347.75, height: 166.14 },
+        })).toMatchObject({
+            width: '347.75px',
+            height: '166.14px',
+            aspectRatio: 'auto',
+        });
+    });
 });

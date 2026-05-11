@@ -73,7 +73,7 @@ describe('useLocalImage', () => {
     expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
   });
 
-  it('does not auto-load public remote images when a note is opened', async () => {
+  it('renders sanitized public remote images without resolving them through local storage', async () => {
     const { result } = renderHook(() =>
       useLocalImage('https://example.com/tracker.png', '/vault', 'daily/demo.md')
     );
@@ -82,8 +82,8 @@ describe('useLocalImage', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.resolvedSrc).toBe('');
-    expect(result.current.error?.message).toBe('Remote image blocked');
+    expect(result.current.resolvedSrc).toBe('https://example.com/tracker.png');
+    expect(result.current.error).toBeNull();
     expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
   });
 });

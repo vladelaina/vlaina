@@ -2,9 +2,21 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import type { Area } from 'react-easy-crop';
 import type { CropParams } from '../utils/imageSourceFragment';
 import type { CropArea } from '../types';
+import { resolveCropperMaxZoom } from '../utils/cropperViewport';
 
 const AUTO_SAVE_DELAY_MS = 500;
-const MAX_ZOOM = 5;
+
+function isValidCropArea(value: CropArea | null): value is CropArea {
+    return Boolean(
+        value
+        && Number.isFinite(value.x)
+        && Number.isFinite(value.y)
+        && Number.isFinite(value.width)
+        && Number.isFinite(value.height)
+        && value.width > 0
+        && value.height > 0
+    );
+}
 
 interface UseCropperInteractionProps {
     isActive: boolean;
@@ -59,7 +71,7 @@ export function useCropperInteraction({
     }, []);
 
     const performSave = useCallback(() => {
-        if (lastPercentageCrop.current) {
+        if (isValidCropArea(lastPercentageCrop.current)) {
             const pc = lastPercentageCrop.current;
             let currentRatio = initialCropParams?.ratio;
 
@@ -87,7 +99,8 @@ export function useCropperInteraction({
                 e.stopPropagation();
 
                 const delta = -e.deltaY / 200;
-                setZoom(prevZoom => Math.min(MAX_ZOOM, Math.max(minZoomLimit, prevZoom + delta)));
+                const maxZoomLimit = resolveCropperMaxZoom(minZoomLimit);
+                setZoom(prevZoom => Math.min(maxZoomLimit, Math.max(minZoomLimit, prevZoom + delta)));
 
                 if (autoSaveTimeoutRef.current) {
                     clearTimeout(autoSaveTimeoutRef.current);
@@ -116,6 +129,10 @@ export function useCropperInteraction({
     };
 
     const onCropChangeComplete = useCallback((percentageCrop: Area) => {
+        if (!isValidCropArea(percentageCrop)) {
+            return;
+        }
+
         lastPercentageCrop.current = percentageCrop;
     }, []);
 
@@ -137,7 +154,9 @@ export function useCropperInteraction({
         e?.preventDefault();
         e?.stopPropagation();
 
-        const pc = lastPercentageCrop.current || { x: 0, y: 0, width: 100, height: 100 };
+        const pc = isValidCropArea(lastPercentageCrop.current)
+            ? lastPercentageCrop.current
+            : { x: 0, y: 0, width: 100, height: 100 };
         const cropRatio = (pc.width / pc.height) * originalAspectRatioRef.current;
         onSave(pc, cropRatio);
     };

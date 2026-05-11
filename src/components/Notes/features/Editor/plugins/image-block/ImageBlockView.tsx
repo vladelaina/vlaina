@@ -1,6 +1,7 @@
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect, useState } from 'react';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
+import { NodeSelection } from '@milkdown/kit/prose/state';
 import { cn } from '@/lib/utils';
 import { getContainerStyle, computeAspectRatio } from './utils/styleUtils';
 import { ImageContent } from './components/ImageContent';
@@ -27,8 +28,15 @@ interface ImageBlockProps {
     getPos: () => number | undefined;
 }
 
+interface LockedEditFrame {
+    width: number;
+    height: number;
+    left: number;
+}
+
 export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const latestStateRef = useRef<CropperViewportState | null>(null);
+    const [lockedEditFrame, setLockedEditFrame] = useState<LockedEditFrame | null>(null);
     const isBlockDragging = useBlockDragState();
 
     const handleStateChange = useCallback((state: CropperViewportState) => {
@@ -140,13 +148,24 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     });
 
     const computedAspectRatio = computeAspectRatio(height, cropParams, naturalRatio);
+    const lockedEditSize = lockedEditFrame
+        ? { width: lockedEditFrame.width, height: lockedEditFrame.height }
+        : null;
+    const activeContainerSize = isActive && lockedEditSize ? lockedEditSize : finalContainerSize;
     const containerStyle = getContainerStyle(isDragging, dragPosition, dragSize, {
         width,
         height,
         isActive,
         isReady,
         computedAspectRatio,
+        activeSize: lockedEditSize,
     });
+    const positionedContainerStyle = isActive && lockedEditFrame && !isDragging
+        ? {
+            ...containerStyle,
+            marginLeft: `${lockedEditFrame.left}px`,
+        }
+        : containerStyle;
 
     const handleCaptionSubmit = useCallback(async () => {
         setIsEditingCaption(false);
@@ -169,14 +188,58 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
 
     const handleEdit = useCallback(async () => {
         await restoreIfNeeded();
+        if (finalContainerSize.width > 0 && finalContainerSize.height > 0) {
+            const elementRect = containerRef.current?.getBoundingClientRect();
+            const parentRect = containerRef.current?.parentElement?.getBoundingClientRect();
+            const left = elementRect && parentRect
+                ? Math.max(0, elementRect.left - parentRect.left)
+                : 0;
+            const nextSize = {
+                width: finalContainerSize.width,
+                height: finalContainerSize.height,
+                left,
+            };
+            setLockedEditFrame(nextSize);
+            setHeight(nextSize.height);
+        }
         setIsActive(true);
-    }, [restoreIfNeeded, setIsActive]);
+    }, [
+        finalContainerSize,
+        restoreIfNeeded,
+        setIsActive,
+        setHeight,
+    ]);
+
+    const handleSelect = useCallback((event: React.MouseEvent) => {
+        const target = event.target as HTMLElement;
+        if (
+            target.closest('button')
+            || target.closest('input')
+            || target.closest('[data-resize-handle]')
+            || isActive
+        ) {
+            return;
+        }
+
+        const pos = getPos();
+        if (pos === undefined) return;
+
+        const selection = NodeSelection.create(view.state.doc, pos);
+        view.dispatch(view.state.tr.setSelection(selection));
+        view.focus();
+    }, [getPos, isActive, view]);
 
     useEffect(() => {
         if (!isBlockDragging) return;
         setIsHovered(false);
         setIsEditingCaption(false);
     }, [isBlockDragging, setIsHovered, setIsEditingCaption]);
+
+    useEffect(() => {
+        if (!isActive && lockedEditFrame) {
+            setLockedEditFrame(null);
+        }
+    }, [isActive, lockedEditFrame]);
 
     return (
         <>
@@ -192,7 +255,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
             <div
                 className={cn(
                     'w-full flex group/image',
-                    WRAPPER_ALIGNMENT_CLASSES[alignment],
+                    isActive && lockedEditFrame ? 'justify-start' : WRAPPER_ALIGNMENT_CLASSES[alignment],
                     isDragging && 'hidden',
                 )}
             >
@@ -204,10 +267,11 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                         'relative flex flex-col leading-none text-[0px] select-none',
                         (isHovered || isEditingCaption || isActive) && !isBlockDragging ? 'z-10' : '',
                     )}
-                    style={containerStyle}
+                    style={positionedContainerStyle}
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={handleMouseLeave}
                     onPointerDown={handlePointerDown}
+                    onClick={handleSelect}
                     onDragStart={(e) => e.preventDefault()}
                 >
                     <ImageContent
@@ -216,7 +280,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                         resolvedSrc={resolvedSrc}
                         isReady={isReady}
                         cropParams={cropParams}
-                        containerSize={finalContainerSize}
+                        containerSize={activeContainerSize}
                         isSaving={isSaving}
                         isActive={isActive}
                         onSave={handleSave}

@@ -29,6 +29,7 @@ import { colorMarksPlugin } from '../floating-toolbar';
 import { videoPlugin } from '../video';
 import { tocPlugin } from '../toc';
 import { blockAlignmentPlugin } from '../floating-toolbar';
+import { markdownLinkPlugin } from '../links/markdown-link/markdownLinkPlugin';
 
 function simulatePasteText(view: any, text: string): boolean {
   const event = {
@@ -47,7 +48,7 @@ function simulatePasteText(view: any, text: string): boolean {
   return handled;
 }
 
-async function createPasteEditor() {
+async function createPasteEditor(options: { includeMarkdownLinkPlugin?: boolean } = {}) {
   const editor = Editor.make()
     .config((ctx) => {
       ctx.set(defaultValueCtx, '');
@@ -58,8 +59,13 @@ async function createPasteEditor() {
     })
     .use(commonmark)
     .use(gfm)
-    .use(configureTheme)
-    .use(clipboardPlugin);
+    .use(configureTheme);
+
+  if (options.includeMarkdownLinkPlugin) {
+    editor.use(markdownLinkPlugin);
+  }
+
+  editor.use(clipboardPlugin);
 
   for (const plugin of [
     ...frontmatterPlugin,
@@ -83,6 +89,10 @@ async function createPasteEditor() {
 
 async function pasteAndPersist(markdown: string) {
   const editor = await createPasteEditor();
+  return pasteAndPersistWithEditor(editor, markdown);
+}
+
+async function pasteAndPersistWithEditor(editor: any, markdown: string) {
   const view = editor.ctx.get(editorViewCtx);
   expect(simulatePasteText(view, markdown)).toBe(true);
 
@@ -123,5 +133,12 @@ describe('clipboard paste markdown persistence', () => {
     await expect(pasteAndPersist(['```sequence', 'Alice->Bob: Hi', '```'].join('\n'))).resolves.toBe(
       ['```mermaid', 'sequenceDiagram', 'Alice->Bob: Hi', '```'].join('\n')
     );
+  });
+
+  it('parses single-line markdown images before markdown link paste handling', async () => {
+    const editor = await createPasteEditor({ includeMarkdownLinkPlugin: true });
+    const markdown = '![百度](https://www.baidu.com/img/PCfb_5bf082d29588c07f842ccde3f97243ea.png "百度一下，你就知道")';
+
+    await expect(pasteAndPersistWithEditor(editor, markdown)).resolves.toBe(markdown);
   });
 });

@@ -14,6 +14,15 @@ import type { CropParams } from '../utils/imageSourceFragment';
 
 const DOWNLOAD_IMAGE_EXTENSIONS = new Set(['gif', 'jpeg', 'jpg', 'png', 'webp']);
 
+function isValidCropArea(value: CropArea): boolean {
+    return Number.isFinite(value.x)
+        && Number.isFinite(value.y)
+        && Number.isFinite(value.width)
+        && Number.isFinite(value.height)
+        && value.width > 0
+        && value.height > 0;
+}
+
 function getSafeDownloadExtension(src: string) {
     const extension = src.split('#')[0]?.split('?')[0]?.split('.').pop()?.toLowerCase() ?? '';
     return DOWNLOAD_IMAGE_EXTENSIONS.has(extension) ? extension : 'png';
@@ -58,9 +67,15 @@ export function useImageActions({
 
     const handleSave = async (percentageCrop: CropArea, ratio: number) => {
         try {
+            if (!isValidCropArea(percentageCrop) || !Number.isFinite(ratio) || ratio <= 0) {
+                addToast('Invalid crop state. Please try again.', 'error');
+                return;
+            }
+
             setIsSaving(true);
             await restoreIfNeeded();
             const fragment = generateCropFragment(percentageCrop, ratio);
+            const nextSrc = `${baseSrc}#${fragment}`;
             setCropParams({ 
                 x: percentageCrop.x, 
                 y: percentageCrop.y, 
@@ -68,7 +83,7 @@ export function useImageActions({
                 height: percentageCrop.height, 
                 ratio 
             });
-            updateNodeAttrs({ src: `${baseSrc}#${fragment}` });
+            updateNodeAttrs({ src: nextSrc });
             setIsActive(false);
             setHeight(undefined);
         } catch (error) {

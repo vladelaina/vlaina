@@ -131,7 +131,7 @@ body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hide
   --vlaina-block-selection-bleed-y: 0px;
 }
 
-.milkdown .ProseMirror p.vlaina-block-selected:has(> .image-block-container:only-child) {
+.milkdown .ProseMirror p.vlaina-block-selected:has(> .image-block-container) {
   --vlaina-block-selection-bleed-y: 0px;
 }
 

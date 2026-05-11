@@ -46,8 +46,7 @@ export function useLocalImage(
 
                 if (isPublicRemoteMediaUrl(baseSrc)) {
                     if (isMounted) {
-                        setError(new Error('Remote image blocked'));
-                        setResolvedSrc('');
+                        setResolvedSrc(baseSrc);
                         setIsLoading(false);
                     }
                     return;

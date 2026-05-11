@@ -1,4 +1,6 @@
 const ZOOM_COVER_MULTIPLIER = 1.001;
+const DEFAULT_MAX_ZOOM = 5;
+const MIN_ZOOM_RANGE_MULTIPLIER = 3;
 
 interface Size {
     width: number;
@@ -56,4 +58,12 @@ export function resolveDisplayedMediaSizeAtZoom1(containerSize: Size, mediaSize:
         width: mediaSize.width * fitRatio,
         height: mediaSize.height * fitRatio,
     };
+}
+
+export function resolveCropperMaxZoom(minZoom: number): number {
+    if (!Number.isFinite(minZoom) || minZoom <= 0) {
+        return DEFAULT_MAX_ZOOM;
+    }
+
+    return Math.max(DEFAULT_MAX_ZOOM, minZoom * MIN_ZOOM_RANGE_MULTIPLIER);
 }

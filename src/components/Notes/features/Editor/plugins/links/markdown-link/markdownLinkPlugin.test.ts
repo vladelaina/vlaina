@@ -33,6 +33,13 @@ describe('shouldHandleMarkdownLinkPaste', () => {
     expect(shouldHandleMarkdownLinkPaste('Read [Docs](https://example.com)')).toBe(true);
   });
 
+  it('does not handle markdown image syntax as a link paste', () => {
+    expect(
+      shouldHandleMarkdownLinkPaste('![百度](https://www.baidu.com/img/PCfb_5bf082d29588c07f842ccde3f97243ea.png "百度一下，你就知道")'),
+    ).toBe(false);
+    expect(shouldHandleMarkdownLinkPaste('before ![Alt](image.png) after')).toBe(false);
+  });
+
   it('does not handle standalone URLs as markdown links', () => {
     expect(shouldHandleMarkdownLinkPaste('https://example.com')).toBe(false);
     expect(shouldHandleMarkdownLinkPaste('http://example.test:8317')).toBe(false);
