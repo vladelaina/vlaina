@@ -1,10 +1,9 @@
 import { visit } from 'unist-util-visit';
-import { logChatStreamDebug } from '@/stores/notes/lineBreakDebugLog';
 
 export const CHAT_STREAM_FADE_MS = 90;
 
 const ANIMATED_TAGS = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li']);
-const STATIC_TAGS = new Set(['pre', 'code', 'table', 'svg']);
+const STATIC_TAGS = new Set(['pre', 'table', 'svg']);
 
 interface ChatStreamTextPluginOptions {
   births: number[];
@@ -25,9 +24,65 @@ function shouldSkip(node: any): boolean {
   return STATIC_TAGS.has(node.tagName) || hasClass(node, 'katex');
 }
 
+function getTimingTextLength(node: any): number {
+  if (node.tagName === 'img' && typeof node.properties?.alt === 'string') {
+    return Array.from(node.properties.alt).length;
+  }
+
+  let length = 0;
+  for (const child of node.children ?? []) {
+    if (child.type === 'text' && typeof child.value === 'string') {
+      length += Array.from(child.value).length;
+    } else if (child.type === 'element') {
+      length += getTimingTextLength(child);
+    }
+  }
+  return length;
+}
+
 function formatOpacity(elapsed: number): string {
   const progress = Math.max(0, Math.min(1, elapsed / CHAT_STREAM_FADE_MS));
   return progress.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+}
+
+function appendClassName(node: any, className: string): void {
+  const current = node.properties?.className;
+  node.properties ??= {};
+
+  if (Array.isArray(current)) {
+    if (!current.includes(className)) {
+      node.properties.className = [...current, className];
+    }
+    return;
+  }
+
+  if (typeof current === 'string' && current.trim()) {
+    node.properties.className = current.includes(className)
+      ? current
+      : `${current} ${className}`;
+    return;
+  }
+
+  node.properties.className = className;
+}
+
+function markPendingElementIfNeeded(
+  node: any,
+  className: string,
+  firstCharIndex: number,
+  lastCharIndex: number,
+  births: number[],
+  nowMs: number,
+  revealed: boolean,
+): void {
+  if (revealed || lastCharIndex < firstCharIndex) {
+    return;
+  }
+
+  const firstBirth = births[firstCharIndex];
+  if (firstBirth != null && nowMs - firstBirth < 0) {
+    appendClassName(node, className);
+  }
 }
 
 export function createChatStreamTextPlugin({
@@ -38,29 +93,17 @@ export function createChatStreamTextPlugin({
 }: ChatStreamTextPluginOptions) {
   return (tree: any) => {
     let charIndex = 0;
-    let pendingCount = 0;
-    let activeCount = 0;
-    let doneCount = 0;
-    let wrappedTextNodes = 0;
 
     const wrapText = (node: any) => {
       const nextChildren: any[] = [];
 
       for (const child of node.children ?? []) {
         if (child.type === 'text') {
-          wrappedTextNodes += 1;
           for (const char of child.value) {
             const birth = births[charIndex] ?? nowMs + charDelay * charIndex;
             const elapsed = nowMs - birth;
             const isPending = !revealed && elapsed < 0;
             const isDone = revealed || elapsed >= CHAT_STREAM_FADE_MS;
-            if (isPending) {
-              pendingCount += 1;
-            } else if (isDone) {
-              doneCount += 1;
-            } else {
-              activeCount += 1;
-            }
             const properties: Record<string, string> = {
               className: isPending
                 ? 'chat-stream-char chat-stream-char-pending'
@@ -82,8 +125,50 @@ export function createChatStreamTextPlugin({
             charIndex += 1;
           }
         } else if (child.type === 'element') {
-          if (!shouldSkip(child)) {
+          const childStartCharIndex = charIndex;
+          if (shouldSkip(child)) {
+            const timingTextLength = getTimingTextLength(child);
+            if (timingTextLength > 0) {
+              markPendingElementIfNeeded(
+                child,
+                'chat-stream-element-pending',
+                childStartCharIndex,
+                childStartCharIndex + timingTextLength - 1,
+                births,
+                nowMs,
+                revealed,
+              );
+              charIndex += timingTextLength;
+            }
+          } else {
             wrapText(child);
+            if (childStartCharIndex < charIndex) {
+              markPendingElementIfNeeded(
+                child,
+                child.tagName === 'code'
+                  ? 'chat-stream-inline-code-pending'
+                  : 'chat-stream-element-pending',
+                childStartCharIndex,
+                charIndex - 1,
+                births,
+                nowMs,
+                revealed,
+              );
+            } else {
+              const timingTextLength = getTimingTextLength(child);
+              if (timingTextLength > 0) {
+                markPendingElementIfNeeded(
+                  child,
+                  'chat-stream-element-pending',
+                  childStartCharIndex,
+                  childStartCharIndex + timingTextLength - 1,
+                  births,
+                  nowMs,
+                  revealed,
+                );
+                charIndex += timingTextLength;
+              }
+            }
           }
           nextChildren.push(child);
         } else {
@@ -103,17 +188,6 @@ export function createChatStreamTextPlugin({
         wrapText(node);
         return 'skip';
       }
-    });
-
-    logChatStreamDebug('plugin:wrap', {
-      births: births.length,
-      nowMs,
-      revealed,
-      wrappedChars: charIndex,
-      wrappedTextNodes,
-      pendingCount,
-      activeCount,
-      doneCount,
     });
   };
 }

@@ -11,6 +11,8 @@ import {
 } from './chatLayoutCache';
 
 const THINK_TAG_RE = /<think>([\s\S]*?)(<\/think>|$)/gi;
+const THINK_OPEN_TAG = '<think>';
+const THINK_CLOSE_TAG = '</think>';
 const PARSED_ASSISTANT_MARKDOWN_CACHE_LIMIT = 200;
 const STREAMING_ASSISTANT_MARKDOWN_CACHE_LIMIT = 80;
 
@@ -19,6 +21,22 @@ export type ThinkingSections = {
   isComplete: boolean;
   markdown: string;
 };
+
+function stripTrailingTagPrefix(content: string, tag: string): { content: string; stripped: boolean } {
+  const lowerContent = content.toLowerCase();
+  const lowerTag = tag.toLowerCase();
+
+  for (let length = lowerTag.length - 1; length > 0; length -= 1) {
+    if (lowerContent.endsWith(lowerTag.slice(0, length))) {
+      return {
+        content: content.slice(0, -length),
+        stripped: true,
+      };
+    }
+  }
+
+  return { content, stripped: false };
+}
 
 const parsedAssistantMarkdownCache = new Map<string, ParsedAssistantMarkdown>();
 const streamingAssistantMarkdownCache = new Map<string, ParsedAssistantMarkdown>();
@@ -37,7 +55,11 @@ export function extractThinkingSections(content: string): ThinkingSections {
   for (const match of content.matchAll(THINK_TAG_RE)) {
     const start = match.index ?? 0;
     markdown += content.slice(cursor, start);
-    thinkingParts.push(match[1] ?? '');
+    const rawThinking = match[1] ?? '';
+    const thinking = match[2] === '</think>'
+      ? rawThinking
+      : stripTrailingTagPrefix(rawThinking, THINK_CLOSE_TAG).content;
+    thinkingParts.push(thinking);
     cursor = start + match[0].length;
     if (match[2] !== '</think>') {
       isComplete = false;
@@ -46,6 +68,15 @@ export function extractThinkingSections(content: string): ThinkingSections {
   }
 
   if (thinkingParts.length === 0) {
+    const stripped = stripTrailingTagPrefix(content, THINK_OPEN_TAG);
+    if (stripped.stripped) {
+      return {
+        body: '',
+        isComplete: false,
+        markdown: stripped.content,
+      };
+    }
+
     return {
       body: '',
       isComplete: true,

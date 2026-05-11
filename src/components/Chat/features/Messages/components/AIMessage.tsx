@@ -6,7 +6,6 @@ import type { ChatMessage } from '@/lib/ai/types';
 import { parseErrorTag } from '@/lib/ai/errorTag';
 import { extractWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup';
 import { WebSearchStatusBlock } from '@/components/Chat/features/WebSearch/WebSearchStatusBlock';
-import { logChatStreamDebug } from '@/stores/notes/lineBreakDebugLog';
 
 interface ChatImageGalleryItem {
   id: string;
@@ -15,11 +14,34 @@ interface ChatImageGalleryItem {
 
 type ChatImageGalleryGetter = () => ChatImageGalleryItem[];
 
+const STREAM_START_CACHE_LIMIT = 200;
+const visibleStreamStartTimeByMessageId = new Map<string, number>();
+
+function rememberVisibleStreamStartTime(messageId: string): Date {
+  const cached = visibleStreamStartTimeByMessageId.get(messageId);
+  if (cached !== undefined) {
+    visibleStreamStartTimeByMessageId.delete(messageId);
+    visibleStreamStartTimeByMessageId.set(messageId, cached);
+    return new Date(cached);
+  }
+
+  const startedAt = Date.now();
+  if (visibleStreamStartTimeByMessageId.size >= STREAM_START_CACHE_LIMIT) {
+    const oldestMessageId = visibleStreamStartTimeByMessageId.keys().next().value;
+    if (oldestMessageId !== undefined) {
+      visibleStreamStartTimeByMessageId.delete(oldestMessageId);
+    }
+  }
+  visibleStreamStartTimeByMessageId.set(messageId, startedAt);
+  return new Date(startedAt);
+}
+
 interface AIMessageProps {
   msg: ChatMessage;
   imageGallery?: ChatImageGalleryItem[];
   getImageGallery?: ChatImageGalleryGetter;
   isLoading: boolean;
+  suspendStreamAnimation?: boolean;
   onCopy: (text: string) => Promise<boolean | void> | boolean | void;
   onRegenerate: () => void;
   onSwitchVersion: (targetIndex: number) => void;
@@ -30,17 +52,13 @@ export function AIMessage({
   imageGallery,
   getImageGallery,
   isLoading,
+  suspendStreamAnimation = false,
   onCopy,
   onRegenerate,
   onSwitchVersion
 }: AIMessageProps) {
   const [copiedCodeBlockId, setCopiedCodeBlockId] = useState<string | null>(null);
   const copiedCodeBlockTimerRef = useRef<number | null>(null);
-  const startTime = useMemo(
-    () => (msg.timestamp ? new Date(msg.timestamp) : undefined),
-    [msg.timestamp],
-  );
-
   const {
     errorType,
     errorCode,
@@ -65,17 +83,13 @@ export function AIMessage({
   }, [msg.content]);
   const isStreamingContentVisible = isLoading && contentWithoutError.trim().length > 0;
   const visibleContent = contentWithoutError || ' ';
+  const startTime = useMemo(() => {
+    if (isStreamingContentVisible) {
+      return rememberVisibleStreamStartTime(msg.id);
+    }
 
-  useEffect(() => {
-    logChatStreamDebug('message:view', {
-      messageId: msg.id,
-      loading: isLoading,
-      streamingVisible: isStreamingContentVisible,
-      contentLength: contentWithoutError.length,
-      error: Boolean(errorContent),
-      webSearchStatuses: webSearchStatuses.length,
-    });
-  }, [contentWithoutError.length, errorContent, isLoading, isStreamingContentVisible, msg.id, webSearchStatuses.length]);
+    return msg.timestamp ? new Date(msg.timestamp) : undefined;
+  }, [isStreamingContentVisible, msg.id, msg.timestamp]);
 
   useEffect(() => {
     setCopiedCodeBlockId(null);
@@ -118,6 +132,7 @@ export function AIMessage({
                 onCopyCodeBlock={handleCodeBlockCopy}
                 startTime={startTime}
                 isStreaming={isStreamingContentVisible}
+                suspendStreamAnimation={suspendStreamAnimation}
             />
         </div>
 

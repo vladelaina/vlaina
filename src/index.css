@@ -431,6 +431,14 @@ textarea,
   will-change: auto;
 }
 
+.chat-stream-inline-code-pending {
+  opacity: 0;
+}
+
+.chat-stream-element-pending {
+  opacity: 0;
+}
+
 .chat-stream-char-done {
   opacity: 1;
   animation: none;

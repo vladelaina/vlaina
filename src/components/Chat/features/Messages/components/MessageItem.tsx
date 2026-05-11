@@ -17,6 +17,7 @@ interface MessageItemProps {
   imageGallery?: ChatImageGalleryItem[];
   getImageGallery?: ChatImageGalleryGetter;
   isLoading: boolean;
+  suspendStreamAnimation?: boolean;
   onCopy: (text: string) => Promise<boolean | void> | boolean | void;
   onRegenerate: (id: string) => void;
   onEdit?: (id: string, newContent: string) => void;
@@ -29,6 +30,7 @@ function MessageItemInner({
   imageGallery,
   getImageGallery,
   isLoading,
+  suspendStreamAnimation,
   onCopy,
   onRegenerate,
   onEdit,
@@ -65,6 +67,7 @@ function MessageItemInner({
                   imageGallery={imageGallery}
                   getImageGallery={getImageGallery}
                   isLoading={isLoading}
+                  suspendStreamAnimation={suspendStreamAnimation}
                   onCopy={onCopy}
                   onRegenerate={() => onRegenerate(msg.id)}
                   onSwitchVersion={(idx) => onSwitchVersion(msg.id, idx)}
@@ -99,6 +102,7 @@ function areMessageItemPropsEqual(prevProps: MessageItemProps, nextProps: Messag
     prevProps.imageGallery === nextProps.imageGallery &&
     prevProps.getImageGallery === nextProps.getImageGallery &&
     prevProps.isLoading === nextProps.isLoading &&
+    prevProps.suspendStreamAnimation === nextProps.suspendStreamAnimation &&
     prevProps.onCopy === nextProps.onCopy &&
     prevProps.onRegenerate === nextProps.onRegenerate
   );

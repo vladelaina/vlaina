@@ -18,6 +18,9 @@ import {
   type LastValidSelectionSnapshot,
   type SelectionInsertState,
 } from "./chatSelectionBehavior";
+import {
+  dispatchChatSelectionStreamFreeze,
+} from "./chatSelectionStreamFreeze";
 
 export function SelectionInsertButton() {
   const [state, setState] = useState<SelectionInsertState | null>(null);
@@ -123,6 +126,15 @@ export function SelectionInsertButton() {
       }
       const target = event.target;
       isSelectingFromChatRef.current = target instanceof Element && canStartChatSelection(target);
+      if (isSelectingFromChatRef.current && target instanceof Element) {
+        dispatchChatSelectionStreamFreeze({
+          button: event.button,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          source: "mousedown",
+          target,
+        });
+      }
       isPointerInsideSelectionSurfaceRef.current =
         target instanceof Element && isInsideSelectionSurface(target);
       isSelectionFrozenRef.current = false;

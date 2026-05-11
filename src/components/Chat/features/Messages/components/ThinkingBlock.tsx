@@ -1,4 +1,11 @@
-import { useEffect, useState, useRef } from "react";
+import {
+  memo,
+  useEffect,
+  useState,
+  useRef,
+  type MouseEvent as ReactMouseEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import {
   CHAT_MARKDOWN_REHYPE_PLUGINS,
@@ -8,34 +15,161 @@ import { createMarkdownComponents } from "@/components/Chat/features/Markdown/ma
 import { useChatStreamBlocks } from "@/components/Chat/features/Markdown/chatStreamTextAnimation";
 import { createChatStreamTextPlugin } from "@/components/Chat/features/Markdown/chatStreamTextPlugin";
 import { getChatContentWidth } from "@/components/Chat/features/Layout/chatWidthBuckets";
-import { logChatStreamDebug } from "@/stores/notes/lineBreakDebugLog";
 import { PrimerLightbulbIcon } from "@/components/ui/icons/custom/mit/PrimerLightbulbIcon";
+import {
+  addChatSelectionStreamFreezeListener,
+} from "./chatSelectionStreamFreeze";
 import "@/components/common/markdown/markdownSurface.css";
+
+const STREAM_SELECTION_RELEASE_DELAY_MS = 250;
+const STREAM_SELECTION_SETTLE_DELAY_MS = 120;
+
+function getActiveSelectionTextLength(): number {
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+    return 0;
+  }
+  return selection.toString().length;
+}
+
+function selectionIntersectsElement(element: Element | null): boolean {
+  const selection = window.getSelection();
+  if (!element || !selection || selection.rangeCount === 0 || selection.isCollapsed) {
+    return false;
+  }
+
+  for (let index = 0; index < selection.rangeCount; index += 1) {
+    try {
+      if (selection.getRangeAt(index).intersectsNode(element)) {
+        return true;
+      }
+    } catch {
+      return true;
+    }
+  }
+  return false;
+}
 
 interface ThinkingBlockProps {
   content: string;
   isStreaming: boolean;
+  isMessageStreaming?: boolean;
   startTime?: Date;
   endTime?: Date;
+  suspendStreamAnimation?: boolean;
 }
+
+interface ThinkingMarkdownContentProps {
+  components: ReturnType<typeof createMarkdownComponents>;
+  freezeRef: React.RefObject<boolean>;
+  isStreaming: boolean;
+  renderedThinking: string;
+  streamBlocks: ReturnType<typeof useChatStreamBlocks>;
+}
+
+const ThinkingMarkdownContent = memo(function ThinkingMarkdownContent({
+  components,
+  isStreaming,
+  renderedThinking,
+  streamBlocks,
+}: ThinkingMarkdownContentProps) {
+  if (!isStreaming) {
+    return (
+      <ReactMarkdown
+        remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
+        rehypePlugins={CHAT_MARKDOWN_REHYPE_PLUGINS}
+        components={components}
+      >
+        {renderedThinking}
+      </ReactMarkdown>
+    );
+  }
+
+  return (
+    <>
+      {streamBlocks.map((block) => (
+        <ReactMarkdown
+          key={block.key}
+          remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
+          rehypePlugins={[
+            ...CHAT_MARKDOWN_REHYPE_PLUGINS,
+            [createChatStreamTextPlugin, {
+              births: block.births,
+              charDelay: block.charDelay,
+              nowMs: block.nowMs,
+              revealed: block.revealed,
+            }],
+          ]}
+          components={components}
+        >
+          {block.content}
+        </ReactMarkdown>
+      ))}
+    </>
+  );
+}, (prevProps, nextProps) => {
+  if (nextProps.freezeRef.current) {
+    return true;
+  }
+  return (
+    prevProps.components === nextProps.components &&
+    prevProps.isStreaming === nextProps.isStreaming &&
+    prevProps.renderedThinking === nextProps.renderedThinking &&
+    prevProps.streamBlocks === nextProps.streamBlocks
+  );
+});
 
 export function ThinkingBlock({
   content: thinking,
   isStreaming: activelyThinking,
+  isMessageStreaming = activelyThinking,
+  startTime,
+  suspendStreamAnimation = false,
 }: ThinkingBlockProps) {
   const [isCollapsed, setIsCollapsed] = useState(() => !activelyThinking);
   const [contentHeight, setContentHeight] = useState<number>(0);
   const [hasOverflow, setHasOverflow] = useState(false);
+  const [, bumpSelectionFreezeRevision] = useState(0);
   const contentRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [contentWidth, setContentWidth] = useState(0);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const observedContentRef = useRef<HTMLDivElement | null>(null);
+  const suspendedThinkingRef = useRef<string | null>(null);
+  const selectionFrozenThinkingRef = useRef<string | null>(null);
+  const isPointerSelectingRef = useRef(false);
+  const selectionRenderFrozenRef = useRef(false);
+  const selectionStreamClockPausedRef = useRef(false);
+  const unlockTimeoutRef = useRef<number | null>(null);
+  const releaseSelectionFreezeTimeoutRef = useRef<number | null>(null);
+  const messageStreamingRef = useRef(isMessageStreaming);
   const syncContentHeightRef = useRef<() => void>(() => {});
+  const syncContentWidthRef = useRef<() => void>(() => {});
+  messageStreamingRef.current = isMessageStreaming;
+  if (!isMessageStreaming) {
+    selectionFrozenThinkingRef.current = null;
+    isPointerSelectingRef.current = false;
+    selectionRenderFrozenRef.current = false;
+    selectionStreamClockPausedRef.current = false;
+  }
+  if (activelyThinking && suspendStreamAnimation) {
+    suspendedThinkingRef.current ??= thinking;
+  } else {
+    suspendedThinkingRef.current = null;
+  }
+  const renderedThinking =
+    selectionFrozenThinkingRef.current ?? suspendedThinkingRef.current ?? thinking;
 
   syncContentHeightRef.current = () => {
     if (contentRef.current) {
-      setContentHeight(contentRef.current.scrollHeight);
+      const nextHeight = contentRef.current.scrollHeight;
+      setContentHeight((current) => (current === nextHeight ? current : nextHeight));
+    }
+  };
+  syncContentWidthRef.current = () => {
+    if (contentRef.current) {
+      const nextWidth = getChatContentWidth(contentRef.current.clientWidth);
+      setContentWidth((current) => (current === nextWidth ? current : nextWidth));
     }
   };
 
@@ -46,25 +180,34 @@ export function ThinkingBlock({
   useEffect(() => {
     if (typeof ResizeObserver === "undefined") {
       syncContentHeightRef.current();
+      syncContentWidthRef.current();
       return;
     }
 
     const content = contentRef.current;
     if (!content || observedContentRef.current === content) {
       syncContentHeightRef.current();
+      syncContentWidthRef.current();
       return;
     }
 
     resizeObserverRef.current?.disconnect();
     const resizeObserver = new ResizeObserver(() => {
       syncContentHeightRef.current();
+      syncContentWidthRef.current();
     });
     resizeObserver.observe(content);
     resizeObserverRef.current = resizeObserver;
     observedContentRef.current = content;
     syncContentHeightRef.current();
-    setContentWidth(getChatContentWidth(content.clientWidth));
-  }, [thinking]);
+    syncContentWidthRef.current();
+  }, []);
+
+  useEffect(() => {
+    if (isCollapsed || !activelyThinking) {
+      syncContentHeightRef.current();
+    }
+  }, [activelyThinking, isCollapsed, renderedThinking]);
 
   useEffect(() => {
     if (isCollapsed && contentRef.current && wrapperRef.current) {
@@ -85,41 +228,153 @@ export function ThinkingBlock({
       contentRef.current.style.transform = "translateY(0)";
       setHasOverflow(false);
     }
-  }, [thinking, isCollapsed]);
+  }, [renderedThinking, isCollapsed]);
 
   useEffect(() => {
     if (activelyThinking && wrapperRef.current && !isCollapsed) {
       wrapperRef.current.scrollTop = wrapperRef.current.scrollHeight;
     }
-  }, [thinking, activelyThinking, isCollapsed]);
+  }, [renderedThinking, activelyThinking, isCollapsed]);
 
-  const streamBlocks = useChatStreamBlocks(thinking, activelyThinking, contentWidth);
+  const streamBlocks = useChatStreamBlocks(
+    renderedThinking,
+    activelyThinking,
+    contentWidth,
+    startTime,
+    suspendStreamAnimation,
+    selectionStreamClockPausedRef,
+  );
   const markdownComponents = createMarkdownComponents({ codeBlockIdBase: "thinking-code" });
-
-  useEffect(() => {
-    logChatStreamDebug('thinking:view', {
-      streaming: activelyThinking,
-      collapsed: isCollapsed,
-      contentLength: thinking.length,
-      contentWidth,
-      blockCount: streamBlocks.length,
-      firstBlock: streamBlocks[0]
-        ? {
-            key: streamBlocks[0].key,
-            births: streamBlocks[0].births.length,
-            revealed: streamBlocks[0].revealed,
-            nowMs: streamBlocks[0].nowMs,
-          }
-        : null,
-    });
-  }, [activelyThinking, contentWidth, isCollapsed, streamBlocks, thinking.length]);
 
   const handleToggle = () => {
     setIsCollapsed((collapsed) => !collapsed);
   };
 
+  const clearReleaseSelectionFreezeTimeout = () => {
+    if (releaseSelectionFreezeTimeoutRef.current === null) {
+      return;
+    }
+    window.clearTimeout(releaseSelectionFreezeTimeoutRef.current);
+    releaseSelectionFreezeTimeoutRef.current = null;
+  };
+
+  const clearUnlockTimeout = () => {
+    if (unlockTimeoutRef.current === null) {
+      return;
+    }
+    window.clearTimeout(unlockTimeoutRef.current);
+    unlockTimeoutRef.current = null;
+  };
+
+  const releaseSelectionFreeze = (_reason: string) => {
+    if (selectionFrozenThinkingRef.current === null) {
+      return;
+    }
+    selectionFrozenThinkingRef.current = null;
+    selectionRenderFrozenRef.current = false;
+    selectionStreamClockPausedRef.current = false;
+    bumpSelectionFreezeRevision((revision) => revision + 1);
+  };
+
+  const scheduleSelectionFreezeRelease = () => {
+    clearReleaseSelectionFreezeTimeout();
+    if (!messageStreamingRef.current) {
+      releaseSelectionFreeze('not-streaming');
+      return;
+    }
+    if (getActiveSelectionTextLength() > 0) {
+      return;
+    }
+    releaseSelectionFreezeTimeoutRef.current = window.setTimeout(() => {
+      releaseSelectionFreezeTimeoutRef.current = null;
+      if (isPointerSelectingRef.current) {
+        return;
+      }
+      releaseSelectionFreeze('selection-grace');
+    }, STREAM_SELECTION_RELEASE_DELAY_MS);
+  };
+
+  const beginSelectionFreeze = (target: EventTarget | null, button: number) => {
+    const isThinkingTarget =
+      target instanceof Element &&
+      !!contentRef.current?.contains(target);
+    if (!isMessageStreaming || button !== 0 || !isThinkingTarget) {
+      return;
+    }
+
+    clearReleaseSelectionFreezeTimeout();
+    isPointerSelectingRef.current = true;
+    selectionRenderFrozenRef.current = true;
+    selectionStreamClockPausedRef.current = activelyThinking;
+    if (selectionFrozenThinkingRef.current !== thinking) {
+      selectionFrozenThinkingRef.current = thinking;
+    }
+  };
+
+  const handleSelectionPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    beginSelectionFreeze(event.target, event.button);
+  };
+
+  const handleSelectionMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
+    beginSelectionFreeze(event.target, event.button);
+  };
+
   useEffect(() => {
+    return addChatSelectionStreamFreezeListener(({ button, target }) => {
+      beginSelectionFreeze(target, button);
+    });
+  });
+
+  const clearSelectionFreezeIfIdle = () => {
+    if (isPointerSelectingRef.current) {
+      return;
+    }
+    if (!selectionFrozenThinkingRef.current) {
+      return;
+    }
+
+    const selection = window.getSelection();
+    const selectedTextLength = selection?.toString().length ?? 0;
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0 || selectedTextLength === 0) {
+      clearReleaseSelectionFreezeTimeout();
+      releaseSelectionFreeze('collapsed');
+      return;
+    }
+    if (!selectionIntersectsElement(contentRef.current)) {
+      clearReleaseSelectionFreezeTimeout();
+      releaseSelectionFreeze('selection-outside');
+      return;
+    }
+
+    scheduleSelectionFreezeRelease();
+  };
+
+  const scheduleClearSelectionFreezeIfIdle = () => {
+    clearUnlockTimeout();
+    unlockTimeoutRef.current = window.setTimeout(() => {
+      unlockTimeoutRef.current = null;
+      clearSelectionFreezeIfIdle();
+    }, STREAM_SELECTION_SETTLE_DELAY_MS);
+  };
+
+  useEffect(() => {
+    const handlePointerUp = () => {
+      isPointerSelectingRef.current = false;
+      scheduleClearSelectionFreezeIfIdle();
+    };
+    const handleSelectionChange = () => {
+      if (isPointerSelectingRef.current) {
+        return;
+      }
+      scheduleClearSelectionFreezeIfIdle();
+    };
+    document.addEventListener("pointerup", handlePointerUp, true);
+    document.addEventListener("selectionchange", handleSelectionChange);
     return () => {
+      document.removeEventListener("pointerup", handlePointerUp, true);
+      document.removeEventListener("selectionchange", handleSelectionChange);
+      clearUnlockTimeout();
+      clearReleaseSelectionFreezeTimeout();
       resizeObserverRef.current?.disconnect();
       resizeObserverRef.current = null;
       observedContentRef.current = null;
@@ -137,6 +392,7 @@ export function ThinkingBlock({
 
   return (
     <div
+      data-chat-thinking-block="true"
       className={`flex mb-4 flex-col w-full ${activelyThinking || !isCollapsed ? "text-neutral-800 dark:text-neutral-200" : "text-neutral-600 dark:text-neutral-400"}
          hover:text-neutral-800 dark:hover:text-neutral-200`}
     >
@@ -188,39 +444,21 @@ export function ThinkingBlock({
           ref={contentRef}
           data-chat-selection-surface="true"
           data-chat-markdown-live={activelyThinking ? "true" : undefined}
+          data-chat-thinking-content="true"
+          onPointerDownCapture={handleSelectionPointerDown}
+          onMouseDownCapture={handleSelectionMouseDown}
           className={[
             "vlaina-markdown-surface opacity-90 select-text max-w-none",
             activelyThinking ? "chat-markdown-live" : "",
           ].filter(Boolean).join(" ")}
         >
-          {activelyThinking ? (
-            streamBlocks.map((block) => (
-              <ReactMarkdown
-                key={block.key}
-                remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
-                rehypePlugins={[
-                  ...CHAT_MARKDOWN_REHYPE_PLUGINS,
-                  [createChatStreamTextPlugin, {
-                    births: block.births,
-                    charDelay: block.charDelay,
-                    nowMs: block.nowMs,
-                    revealed: block.revealed,
-                  }],
-                ]}
-                components={markdownComponents}
-              >
-                {block.content}
-              </ReactMarkdown>
-            ))
-          ) : (
-            <ReactMarkdown
-              remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
-              rehypePlugins={CHAT_MARKDOWN_REHYPE_PLUGINS}
-              components={markdownComponents}
-            >
-              {thinking}
-            </ReactMarkdown>
-          )}
+          <ThinkingMarkdownContent
+            components={markdownComponents}
+            freezeRef={selectionRenderFrozenRef}
+            isStreaming={activelyThinking}
+            renderedThinking={renderedThinking}
+            streamBlocks={streamBlocks}
+          />
         </div>
         {isCollapsed && hasOverflow && (
           <div className="absolute inset-x-0 -top-1 h-8 pointer-events-none bg-gradient-to-b from-white dark:from-neutral-900 to-transparent" />
