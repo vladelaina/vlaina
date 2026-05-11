@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useAIUIStore } from '@/stores/ai/chatState';
+import { useUIStore } from '@/stores/uiSlice';
 import { reloadSessionMessagesFromDisk } from '@/stores/ai/sessionConsistency';
 import { setUnifiedStorageAutoSyncTrigger } from '@/lib/storage/unifiedStorage';
 import { setChatStorageAutoSyncTrigger } from '@/lib/storage/chatStorage';
@@ -131,6 +132,11 @@ export function useUnifiedExternalSync() {
     };
 
     const queueReload = (event: StorageAutoSyncEvent) => {
+      if (event.kind === 'ui-preferences') {
+        useUIStore.getState().reloadPreferencesFromStorage();
+        return;
+      }
+
       if (event.kind === 'chat-session' && event.sessionId) {
         if (!shouldReloadSession(event.sessionId)) {
           invalidateCachedSession(event.sessionId);

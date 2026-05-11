@@ -1,29 +1,15 @@
-import { useState, useEffect } from 'react';
+import type { ChangeEvent } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { SettingsItem } from '../components/SettingsControls';
-import { STORAGE_KEY_FONT_SIZE } from '@/lib/config';
-
-const DEFAULT_FONT_SIZE = 16;
+import { useUIStore } from '@/stores/uiSlice';
 
 export function AppearanceTab() {
-  const [fontSize, setFontSize] = useState<number>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_FONT_SIZE);
-    return saved !== null ? parseInt(saved) : DEFAULT_FONT_SIZE;
-  });
+  const fontSize = useUIStore((state) => state.fontSize);
+  const setFontSize = useUIStore((state) => state.setFontSize);
+  const resetFontSize = useUIStore((state) => state.resetFontSize);
 
-  useEffect(() => {
-    document.documentElement.style.fontSize = `${fontSize}px`;
-  }, [fontSize]);
-
-  const handleFontSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newSize = parseInt(e.target.value);
-    setFontSize(newSize);
-    localStorage.setItem(STORAGE_KEY_FONT_SIZE, newSize.toString());
-  };
-
-  const resetFontSize = () => {
-    setFontSize(DEFAULT_FONT_SIZE);
-    localStorage.removeItem(STORAGE_KEY_FONT_SIZE);
+  const handleFontSizeChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setFontSize(parseInt(e.target.value));
   };
 
   return (
@@ -56,7 +42,7 @@ export function AppearanceTab() {
           <button
             type="button"
             onClick={resetFontSize}
-            disabled={fontSize === DEFAULT_FONT_SIZE}
+            disabled={fontSize === 16}
             className="rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--sidebar-row-selected-text)] transition-colors hover:bg-[var(--sidebar-row-selected-bg)] disabled:pointer-events-none disabled:text-[var(--notes-sidebar-text-soft)] disabled:opacity-45 dark:hover:bg-[rgba(65,168,234,0.14)]"
           >
             Reset

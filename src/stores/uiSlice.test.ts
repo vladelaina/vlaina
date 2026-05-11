@@ -10,6 +10,7 @@ describe('uiSlice', () => {
       sidebarWidth: 280,
       sidebarHeaderHovered: false,
       notesSidebarView: 'workspace',
+      fontSize: 16,
       languagePreference: 'system',
       notesPreviewTitle: null,
       drawerOpen: false,
@@ -58,6 +59,26 @@ describe('uiSlice', () => {
 
     expect(useUIStore.getState().languagePreference).toBe('zh-CN');
     expect(localStorage.getItem('vlaina-language-preference')).toBe('zh-CN');
+  });
+
+  it('reloads local settings preferences from storage for external window sync', () => {
+    localStorage.setItem('fontSize', '18');
+    localStorage.setItem('vlaina-language-preference', 'zh-CN');
+    localStorage.setItem('vlaina_image_storage_mode', 'vaultSubfolder');
+    localStorage.setItem('vlaina_image_subfolder_name', 'inline-assets');
+    localStorage.setItem('vlaina_image_vault_subfolder_name', 'vault-assets');
+    localStorage.setItem('vlaina_image_filename_format', 'sequence');
+
+    useUIStore.getState().reloadPreferencesFromStorage();
+
+    expect(useUIStore.getState()).toMatchObject({
+      fontSize: 18,
+      languagePreference: 'zh-CN',
+      imageStorageMode: 'vaultSubfolder',
+      imageSubfolderName: 'inline-assets',
+      imageVaultSubfolderName: 'vault-assets',
+      imageFilenameFormat: 'sequence',
+    });
   });
 
   it('updates UI state even when localStorage writes fail', () => {

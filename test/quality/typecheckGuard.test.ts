@@ -1,8 +1,20 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readText(path: string) {
   return readFileSync(path, 'utf8');
+}
+
+function listSourceFiles(dir: string): string[] {
+  return readdirSync(dir).flatMap((entry) => {
+    const path = join(dir, entry);
+    const stat = statSync(path);
+    if (stat.isDirectory()) {
+      return listSourceFiles(path);
+    }
+    return /\.(ts|tsx)$/.test(entry) ? [path] : [];
+  });
 }
 
 describe('typecheck quality gate', () => {
@@ -25,5 +37,14 @@ describe('typecheck quality gate', () => {
     const workflow = readText('.github/workflows/build.yml');
 
     expect(workflow).toMatch(/run:\s*pnpm typecheck/);
+  });
+
+  it('keeps Settings UI storage access behind store synchronization', () => {
+    const offenders = listSourceFiles('src/components/Settings').filter((path) => {
+      const source = readText(path);
+      return /\b(?:localStorage|sessionStorage)\s*\./.test(source);
+    });
+
+    expect(offenders).toEqual([]);
   });
 });
