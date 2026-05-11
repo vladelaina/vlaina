@@ -19,6 +19,7 @@ import {
 } from '@/components/layout/sidebar/SidebarPrimitives';
 import { ChatSidebarVirtualList } from './ChatSidebarVirtualList';
 import { useChatSidebarSearch } from './useChatSidebarSearch';
+import { useI18n } from '@/lib/i18n';
 
 interface ChatSidebarProps {
   isPeeking?: boolean;
@@ -27,6 +28,7 @@ interface ChatSidebarProps {
 }
 
 export const ChatSidebar = memo(function ChatSidebar({ isPeeking = false, embedded = false, onRequestClose }: ChatSidebarProps) {
+  const { t } = useI18n();
   const appViewMode = useUIStore((state) => state.appViewMode);
   const setAppViewMode = useUIStore((state) => state.setAppViewMode);
   const sessions = useUnifiedStore((state) => state.data.ai?.sessions || []);
@@ -144,8 +146,8 @@ export const ChatSidebar = memo(function ChatSidebar({ isPeeking = false, embedd
             handleSwitch(session.id, !!useAIUIStore.getState().unreadSessions[session.id]);
             hideSearch();
           }}
-          placeholder="Search"
-          closeLabel="Close chat search"
+          placeholder={t('sidebar.search')}
+          closeLabel={t('sidebar.closeChatSearch')}
           topActions={null}
         />
 
@@ -185,7 +187,7 @@ export const ChatSidebar = memo(function ChatSidebar({ isPeeking = false, embedd
                 </ChatSidebarList>
               )}
               {!shouldShowSearchResults && !hasSessions ? (
-                <ChatSidebarHoverEmptyHint title="No conversations yet" />
+                <ChatSidebarHoverEmptyHint title={t('sidebar.noConversations')} />
               ) : null}
             </div>
           </ChatSidebarScrollArea>
@@ -200,9 +202,9 @@ export const ChatSidebar = memo(function ChatSidebar({ isPeeking = false, embedd
             void aiActions.deleteSession(deleteId);
           }
         }}
-        title="Delete Chat?"
-        description="Are you sure you want to delete this chat session? This action cannot be undone."
-        confirmText="Delete Chat"
+        title={t('sidebar.deleteChatTitle')}
+        description={t('sidebar.deleteChatDescription')}
+        confirmText={t('sidebar.deleteChat')}
         variant="danger"
       />
     </>

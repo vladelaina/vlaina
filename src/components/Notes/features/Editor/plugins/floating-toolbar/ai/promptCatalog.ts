@@ -1,4 +1,5 @@
 import { assertEnglishPromptText } from './promptValidation';
+import { translate } from '@/lib/i18n';
 
 export interface AiPromptCommand {
   id: string;
@@ -127,7 +128,9 @@ export const AI_PROMPT_GROUPS: readonly AiPromptGroup[] = [
 
 export const AI_QUICK_ACTIONS = [
   {
-    label: 'Translate to English',
+    get label() {
+      return translate('editor.ai.translateToEnglish');
+    },
     id: 'translate-english',
     prompt: TRANSLATE_TO_ENGLISH_PROMPT,
     submit: true,

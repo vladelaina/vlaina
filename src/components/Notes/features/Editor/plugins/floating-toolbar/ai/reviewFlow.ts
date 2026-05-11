@@ -1,4 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { translate } from '@/lib/i18n';
 import { useToastStore } from '@/stores/useToastStore';
 import { floatingToolbarKey } from '../floatingToolbarKey';
 import { TOOLBAR_ACTIONS, type AiReviewState } from '../types';
@@ -65,13 +66,13 @@ export function abortAllAiSelectionReviews(view: EditorView): void {
 export function openAiSelectionReview(view: EditorView, requestKey?: string): boolean {
   const { from, to } = view.state.selection;
   if (from >= to) {
-    useToastStore.getState().addToast('Please select some text first.', 'warning');
+    useToastStore.getState().addToast(translate('editor.ai.selectTextFirst'), 'warning');
     return false;
   }
 
   const originalText = getSerializedSelectionText(view);
   if (originalText.trim().length === 0) {
-    useToastStore.getState().addToast('The current selection cannot be edited by AI.', 'warning');
+    useToastStore.getState().addToast(translate('editor.ai.cannotEditSelection'), 'warning');
     return false;
   }
   const context = getSerializedSelectionContext(view, from, to, originalText);

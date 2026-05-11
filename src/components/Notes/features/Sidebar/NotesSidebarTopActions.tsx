@@ -3,6 +3,7 @@ import { Icon } from '@/components/ui/icons';
 import { SidebarActionButton, SidebarActionGroup } from '@/components/layout/sidebar/SidebarPrimitives';
 import { useUIStore } from '@/stores/uiSlice';
 import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
+import { useI18n } from '@/lib/i18n';
 
 interface NotesSidebarTopAction {
   key: string;
@@ -13,6 +14,7 @@ interface NotesSidebarTopAction {
 }
 
 export function NotesSidebarTopActions() {
+  const { t } = useI18n();
   const notesSidebarView = useUIStore((state) => state.notesSidebarView);
   const setNotesSidebarView = useUIStore((state) => state.setNotesSidebarView);
   const setAppViewMode = useUIStore((state) => state.setAppViewMode);
@@ -21,7 +23,7 @@ export function NotesSidebarTopActions() {
   const actions: NotesSidebarTopAction[] = [
     {
       key: 'toggle-view',
-      label: notesSidebarView === 'workspace' ? 'Outline' : 'Files',
+      label: notesSidebarView === 'workspace' ? t('sidebar.outline') : t('sidebar.files'),
       icon: (
         <Icon
           name={notesSidebarView === 'workspace' ? 'common.list' : 'file.folderOpen'}
@@ -33,7 +35,7 @@ export function NotesSidebarTopActions() {
     },
     {
       key: 'spark',
-      label: 'Spark',
+      label: t('settings.tabs.ai'),
       icon: <Icon name="common.shootingStar" size={NOTES_SIDEBAR_ICON_SIZE} />,
       iconClassName: 'text-[var(--notes-sidebar-spark-icon)]',
       onClick: () => setAppViewMode('chat'),

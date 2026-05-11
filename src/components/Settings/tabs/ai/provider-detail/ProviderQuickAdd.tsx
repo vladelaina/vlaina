@@ -6,6 +6,7 @@ import {
   parseQuickAddModelIds,
   replaceTrailingQuickAddSegment,
 } from './ProviderModelListParts';
+import { useI18n } from '@/lib/i18n';
 
 interface ProviderQuickAddProps {
   value: string;
@@ -26,6 +27,7 @@ export function ProviderQuickAdd({
   onAddAllVisible,
   onSetError,
 }: ProviderQuickAddProps) {
+  const { t } = useI18n();
   const [isFocused, setIsFocused] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -127,7 +129,7 @@ export function ProviderQuickAdd({
               submit();
             }
           }}
-          placeholder="Add a model ID"
+          placeholder={t('settings.ai.addModelId')}
         />
         {showSuggestions ? (
           <div className="absolute left-0 right-0 top-[calc(100%+8px)] z-20 overflow-hidden rounded-[22px] border border-zinc-200/90 bg-white shadow-[0_18px_40px_rgba(15,23,42,0.08)]">
@@ -159,7 +161,7 @@ export function ProviderQuickAdd({
 
       <button
         type="button"
-        aria-label="Add models"
+        aria-label={t('settings.ai.addModels')}
         onClick={() => submit()}
         className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-transparent bg-transparent text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
       >

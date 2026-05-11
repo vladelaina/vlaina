@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { Icon } from '@/components/ui/icons';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { guessLanguage } from '../../../utils/languageGuesser';
 import { codeBlockLanguages } from '../codeBlockLanguageLoader';
@@ -23,6 +24,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
     isOpen,
     onOpenChange
 }: LanguageSelectorProps) {
+    const { t } = useI18n();
     const [searchTerm, setSearchTerm] = useState('');
     const [activeIndex, setActiveIndex] = useState(0);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -123,7 +125,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                             autoFocus
                             spellCheck={false}
                             className="min-w-0 flex-1 bg-transparent text-[16px] text-[var(--vlaina-color-text-soft)] outline-none placeholder:text-[var(--vlaina-color-text-soft)]"
-                            placeholder="Search language..."
+                            placeholder={t('editor.searchLanguage')}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             onClick={(e) => e.stopPropagation()}
@@ -135,7 +137,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                                 e.stopPropagation();
                                 handleAutoDetect();
                             }}
-                            title="Auto Detect Language"
+                            title={t('editor.autoDetectLanguage')}
                             className="inline-flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-[var(--vlaina-color-text-soft)] transition-colors hover:bg-blue-500/10 hover:text-blue-500"
                         >
                             <Icon size="md" name="common.sparkle" />

@@ -3,6 +3,7 @@ import { Icon } from '@/components/ui/icons';
 import { SettingsTextInput } from '@/components/Settings/components/SettingsFields';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 
 const API_KEY_PREFIX_VISIBLE_CHARS = 7;
 const API_KEY_SUFFIX_VISIBLE_CHARS = 4;
@@ -46,6 +47,7 @@ export function ProviderConnectionFields({
   onToggleApiKey: () => void;
   onCopyApiKey: () => void;
 }) {
+  const { t } = useI18n();
   const shouldShowRawApiKey = showApiKey || allowHiddenApiKeyEditing;
   const apiKeyInputRef = useRef<HTMLInputElement>(null);
   const shouldSelectApiKeyOnRevealRef = useRef(false);
@@ -72,7 +74,7 @@ export function ProviderConnectionFields({
         <div className="flex items-center gap-4 px-7 py-5 border-b border-transparent">
           <div className="w-32 shrink-0">
             <div className="text-[14px] font-semibold text-[var(--notes-sidebar-text)]">
-              Channel Name
+              {t('settings.ai.channelName')}
             </div>
           </div>
           <div className="flex-1">
@@ -80,7 +82,7 @@ export function ProviderConnectionFields({
               type="text"
               value={name}
               onChange={(e) => onNameChange(e.target.value)}
-              placeholder="New Channel"
+              placeholder={t('settings.ai.newChannel')}
               className="w-full max-w-[520px]"
               inputClassName="h-10 px-5 rounded-xl text-[14px]"
               shellClassName="rounded-xl shadow-none bg-zinc-100/50 dark:bg-white/5 border-transparent"
@@ -92,7 +94,7 @@ export function ProviderConnectionFields({
         <div className="flex items-center gap-4 px-7 py-5 border-b border-transparent">
           <div className="w-32 shrink-0">
             <div className="text-[14px] font-semibold text-[var(--notes-sidebar-text)]">
-              Base URL
+              {t('settings.ai.baseUrl', { url: '' }).replace(/[:：]\s*$/, '')}
             </div>
           </div>
           <div className="flex-1">
@@ -119,7 +121,7 @@ export function ProviderConnectionFields({
         <div className="flex items-center gap-4 px-7 py-5">
           <div className="w-32 shrink-0">
             <div className="text-[14px] font-semibold text-[var(--notes-sidebar-text)]">
-              API Key
+              {t('settings.ai.apiKey')}
             </div>
           </div>
           <div className="flex-1">
@@ -151,7 +153,7 @@ export function ProviderConnectionFields({
                     type="button"
                     onClick={onToggleApiKey}
                     className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-zinc-200/50 hover:text-[var(--notes-sidebar-text)] dark:hover:bg-white/10"
-                    title={showApiKey ? 'Hide API Key' : 'Show API Key'}
+                    title={showApiKey ? t('settings.ai.hideApiKey') : t('settings.ai.showApiKey')}
                   >
                     <Icon name={showApiKey ? 'common.eyeOff' : 'common.eye'} size="sm" />
                   </button>
@@ -160,7 +162,7 @@ export function ProviderConnectionFields({
                     onClick={onCopyApiKey}
                     disabled={!apiKey}
                     className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-zinc-200/50 hover:text-[var(--notes-sidebar-text)] disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/10"
-                    title={apiKeyCopied ? 'Copied' : 'Copy API Key'}
+                    title={apiKeyCopied ? t('common.copied') : t('common.copy')}
                   >
                     <Icon name={apiKeyCopied ? 'common.check' : 'common.copy'} size="sm" />
                   </button>

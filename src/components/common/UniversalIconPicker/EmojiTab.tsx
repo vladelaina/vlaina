@@ -10,6 +10,18 @@ import {
   saveSkinTone,
   type EmojiItem,
 } from './constants';
+import { useI18n, type MessageKey } from '@/lib/i18n';
+
+const EMOJI_CATEGORY_LABEL_KEYS: Record<string, MessageKey> = {
+  frequent: 'icon.categoryRecent',
+  people: 'icon.categorySmileysPeople',
+  foods: 'icon.categoryFoodDrink',
+  activity: 'icon.categoryActivity',
+  places: 'icon.categoryTravelPlaces',
+  objects: 'icon.categoryObjects',
+  symbols: 'icon.categorySymbols',
+  flags: 'icon.categoryFlags',
+};
 
 interface EmojiTabProps {
   skinTone: number;
@@ -38,6 +50,7 @@ export function EmojiTab({
   activeCategory,
   onCategoryChange,
 }: EmojiTabProps) {
+  const { t } = useI18n();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const skinTonePickerRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -150,7 +163,7 @@ export function EmojiTab({
         <SidebarSearchField
           ref={searchInputRef}
           type="text"
-          placeholder="Search emojis..."
+          placeholder={t('icon.searchEmojis')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onClose={() => setSearchQuery('')}
@@ -209,7 +222,8 @@ export function EmojiTab({
           onSelect={onSelect}
           onPreview={handlePreview}
           recentEmojis={recentEmojis}
-          categoryName={currentCategory.name}
+          categoryId={currentCategory.id}
+          categoryName={t(EMOJI_CATEGORY_LABEL_KEYS[currentCategory.id] ?? 'icon.categorySmileysPeople')}
         />
       )}
 

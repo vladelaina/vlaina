@@ -9,6 +9,7 @@ import { useToastStore } from '@/stores/useToastStore';
 import { PremiumSlider } from '@/components/ui/premium-slider';
 import { DeletableItem } from '@/components/ui/deletable-item';
 import { UniversalIcon } from './UniversalIcon';
+import { useI18n } from '@/lib/i18n';
 
 export interface CustomIcon {
     id: string;
@@ -35,6 +36,7 @@ export function UploadTab({
     onDeleteCustomIcon,
     imageLoader
 }: UploadTabProps) {
+    const { t } = useI18n();
     const [imageSrc, setImageSrc] = useState<string | null>(null);
     const [originalFile, setOriginalFile] = useState<File | null>(null);
     const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -72,7 +74,7 @@ export function UploadTab({
     const handleSave = async () => {
         if (!imageSrc || (!croppedAreaPixels && !shouldPreserve)) return;
         if (!onUploadFile) {
-            useToastStore.getState().addToast('Upload not supported in this context', 'error');
+            useToastStore.getState().addToast(t('icon.uploadUnsupported'), 'error');
             return;
         }
 
@@ -105,7 +107,7 @@ export function UploadTab({
 
         } catch (e) {
             console.error(e);
-            useToastStore.getState().addToast('Failed to save icon. Please try again.', 'error');
+            useToastStore.getState().addToast(t('icon.failedSave'), 'error');
         } finally {
             setIsUploading(false);
         }
@@ -177,7 +179,7 @@ export function UploadTab({
                     <div className="flex flex-col gap-6">
                         {!isGif && (
                             <div className="flex items-center gap-4">
-                                <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--vlaina-text-tertiary)] w-10">Zoom</span>
+                                <span className="text-[11px] font-medium uppercase tracking-wider text-[var(--vlaina-text-tertiary)] w-10">{t('icon.zoom')}</span>
                                 <PremiumSlider
                                     min={1}
                                     max={3}
@@ -194,7 +196,7 @@ export function UploadTab({
                                 onClick={() => setImageSrc(null)}
                                 className="text-sm font-medium text-[var(--vlaina-text-secondary)] hover:text-[var(--vlaina-text-primary)] transition-colors"
                             >
-                                Back
+                                {t('common.cancel')}
                             </button>
                             <Button
                                 size="sm"
@@ -223,7 +225,7 @@ export function UploadTab({
                                             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                                         />
                                     </svg>
-                                ) : "Save"}
+                                ) : t('app.unsavedDraftsCancel')}
                             </Button>
                         </div>
                     </div>
@@ -245,7 +247,7 @@ export function UploadTab({
                             </div>
 
                             <span className="text-[10px] text-[var(--vlaina-text-tertiary)] leading-none">
-                                Supports <span className="font-medium text-[var(--vlaina-text-secondary)]">PNG</span>, <span className="font-medium text-[#1e96eb]">GIF</span> & <span className="font-medium text-[#1e96eb]">WebP</span>
+                                {t('icon.supports')} <span className="font-medium text-[var(--vlaina-text-secondary)]">PNG</span>, <span className="font-medium text-[#1e96eb]">GIF</span> & <span className="font-medium text-[#1e96eb]">WebP</span>
                             </span>
                         </div>
                     </div>

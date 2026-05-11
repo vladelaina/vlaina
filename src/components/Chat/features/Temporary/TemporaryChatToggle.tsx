@@ -8,6 +8,7 @@ import { cn, iconButtonStyles } from '@/lib/utils';
 import { hasUserMessage } from '@/lib/ai/temporaryChat';
 import { useAutoTitle } from '@/hooks/useAutoTitle';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { useI18n } from '@/lib/i18n';
 
 interface TemporaryChatToggleProps {
   readOnly?: boolean;
@@ -17,6 +18,7 @@ interface TemporaryChatToggleProps {
 const EMPTY_MESSAGES: never[] = [];
 
 export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: TemporaryChatToggleProps) {
+  const { t } = useI18n();
   const temporaryChatEnabled = useAIUIStore((state) => state.temporaryChatEnabled);
   const currentSessionId = useAIUIStore((state) => state.currentSessionId);
   const currentMessages = useUnifiedStore((state) => {
@@ -124,7 +126,7 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
         )}
       >
         {isPromoteMode ? (
-          <span>Save as regular chat</span>
+          <span>{t('chat.saveAsRegular')}</span>
         ) : (
           <ShortcutKeys
             keys={['Ctrl', 'Shift', 'J']}

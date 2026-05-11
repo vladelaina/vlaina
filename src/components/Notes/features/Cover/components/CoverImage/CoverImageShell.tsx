@@ -1,4 +1,5 @@
 import { Icon } from '@/components/ui/icons';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { CoverPicker } from '../../../AssetLibrary';
 import { CoverRenderer } from './CoverRenderer';
@@ -27,6 +28,8 @@ export function CoverImageShell({
   onResetHeight,
   rendererProps,
 }: CoverImageControllerModel) {
+  const { t } = useI18n();
+
   if (phase === 'idle' && !showPicker) {
     return null;
   }
@@ -80,8 +83,8 @@ export function CoverImageShell({
           onMouseDown={() => !readOnly && onOpenPicker()}
         >
           <Icon name="file.brokenImage" className="w-8 h-8 mb-2 opacity-50" />
-          <span className="text-xs font-medium opacity-70">Image failed to load</span>
-          {!readOnly && <span className="text-[10px] opacity-50 mt-1">Click to replace</span>}
+          <span className="text-xs font-medium opacity-70">{t('editor.imageFailedToLoad')}</span>
+          {!readOnly && <span className="text-[10px] opacity-50 mt-1">{t('notes.clickToReplace')}</span>}
         </div>
       )}
 
@@ -90,7 +93,7 @@ export function CoverImageShell({
           className="absolute inset-0 flex items-center justify-center text-muted-foreground cursor-pointer z-10"
           onMouseDown={() => !readOnly && onOpenPicker()}
         >
-          {!readOnly && <span className="text-xs">Click to change cover</span>}
+          {!readOnly && <span className="text-xs">{t('notes.clickToChangeCover')}</span>}
         </div>
       )}
 

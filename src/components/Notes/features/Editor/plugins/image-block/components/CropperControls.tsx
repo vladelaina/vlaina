@@ -1,4 +1,5 @@
 import { Icon } from '@/components/ui/icons';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { PremiumSlider } from '@/components/ui/premium-slider';
 
@@ -23,6 +24,8 @@ export const CropperControls = ({
     onSave,
     onCancel
 }: CropperControlsProps) => {
+    const { t } = useI18n();
+
     return (
         <div
             className={cn(
@@ -53,8 +56,8 @@ export const CropperControls = ({
                 <button
                     onClick={onCancel}
                     className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-zinc-500 dark:text-zinc-400 transition-colors"
-                    title="Cancel"
-                    aria-label="Cancel crop"
+                    title={t('common.cancel')}
+                    aria-label={t('common.cancel')}
                 >
                     <Icon name="common.close" size="md" />
                 </button>
@@ -62,8 +65,8 @@ export const CropperControls = ({
                     onClick={onSave}
                     disabled={isSaving}
                     className="p-1 rounded-lg bg-[var(--vlaina-accent)] hover:bg-[var(--vlaina-accent-hover)] text-white shadow-sm transition-all active:scale-95 disabled:opacity-50"
-                    title="Save"
-                    aria-label="Save crop"
+                    title={t('common.saveChanges')}
+                    aria-label={t('common.saveChanges')}
                 >
                     <Icon name="common.check" size="md" />
                 </button>

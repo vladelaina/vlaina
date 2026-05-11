@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { PremiumSlider } from '@/components/ui/premium-slider';
 import { getCroppedImg } from '@/lib/assets/processing/crop';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useToastStore } from '@/stores/useToastStore';
@@ -16,6 +17,7 @@ interface ImageEditorModalProps {
 }
 
 export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEditorModalProps) {
+    const { t } = useI18n();
     const [crop, setCrop] = useState({ x: 0, y: 0 });
     const [zoom, setZoom] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
@@ -48,13 +50,13 @@ export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEdi
             if (result.success && result.path) {
                 onSave(result.path);
                 onClose();
-                addToast('Image updated successfully', 'success');
+                addToast(t('editor.imageUpdated'), 'success');
             } else {
                 throw new Error(result.error || 'Upload failed');
             }
         } catch (error) {
             console.error('Failed to save edited image:', error);
-            addToast('Failed to save image. Please try again.', 'error');
+            addToast(t('notes.saveImageFailed'), 'error');
         } finally {
             setIsSaving(false);
         }
@@ -64,7 +66,7 @@ export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEdi
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="sm:max-w-[600px] p-0 overflow-hidden bg-[var(--vlaina-bg-primary)] border-[var(--vlaina-border)]">
                 <DialogHeader className="p-4 border-b border-[var(--vlaina-border)]">
-                    <DialogTitle className="text-sm font-medium">Edit Image</DialogTitle>
+                    <DialogTitle className="text-sm font-medium">{t('notes.editImage')}</DialogTitle>
                 </DialogHeader>
 
                 <div className="p-0">
@@ -106,7 +108,7 @@ export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEdi
                         onClick={onClose}
                         className="text-[var(--vlaina-text-secondary)] hover:text-[var(--vlaina-text-primary)]"
                     >
-                        Cancel
+                        {t('common.cancel')}
                     </Button>
                     <Button
                         size="sm"
@@ -117,7 +119,7 @@ export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEdi
                             isSaving && "opacity-70 cursor-not-allowed"
                         )}
                     >
-                        {isSaving ? "Saving..." : "Save Changes"}
+                        {isSaving ? t('common.saving') : t('common.saveChanges')}
                     </Button>
                 </DialogFooter>
             </DialogContent>

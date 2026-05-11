@@ -1,6 +1,7 @@
 import { getShortcutDefinitionsForModule } from './registry';
 import { getShortcutKeys } from './storage';
 import type { ShortcutDefinition, ShortcutModule, ShortcutSection } from './types';
+import type { MessageKey } from '@/lib/i18n';
 
 export type ModuleShortcutId = 'notes' | 'chat';
 
@@ -22,6 +23,7 @@ export interface ModuleShortcutPreset {
 
 interface ModuleShortcutPresetOptions {
   isMac?: boolean;
+  t?: (key: MessageKey) => string;
 }
 
 const SECTION_ORDER: Record<ShortcutModule, ShortcutSection[]> = {
@@ -38,13 +40,23 @@ function getResolvedKeys(shortcut: ShortcutDefinition, isMac: boolean): string[]
   return resolvedKeys.map((key) => (shortcut.id === 'deleteChat' && key === 'Backspace' ? '⌫' : key));
 }
 
-function buildSections(module: ShortcutModule, isMac: boolean): ModuleShortcutSection[] {
+const SECTION_MESSAGE_KEYS: Record<ShortcutSection, MessageKey> = {
+  General: 'shortcut.section.general',
+  Notes: 'shortcut.section.notes',
+  Chat: 'shortcut.section.chat',
+};
+
+function buildSections(
+  module: ShortcutModule,
+  isMac: boolean,
+  t: ((key: MessageKey) => string) | undefined
+): ModuleShortcutSection[] {
   const buckets = new Map<ShortcutSection, ModuleShortcutItem[]>();
 
   for (const shortcut of getShortcutDefinitionsForModule(module)) {
     const sectionItems = buckets.get(shortcut.section) ?? [];
     sectionItems.push({
-      action: shortcut.action,
+      action: shortcut.actionKey && t ? t(shortcut.actionKey) : shortcut.action,
       keys: getResolvedKeys(shortcut, isMac),
     });
     buckets.set(shortcut.section, sectionItems);
@@ -52,7 +64,7 @@ function buildSections(module: ShortcutModule, isMac: boolean): ModuleShortcutSe
 
   return SECTION_ORDER[module]
     .map((section) => ({
-      title: section,
+      title: t ? t(SECTION_MESSAGE_KEYS[section]) : section,
       shortcuts: buckets.get(section) ?? [],
     }))
     .filter((section) => section.shortcuts.length > 0);
@@ -63,20 +75,21 @@ export function getModuleShortcutPreset(
   options: ModuleShortcutPresetOptions = {},
 ): ModuleShortcutPreset {
   const isMac = options.isMac === true;
+  const { t } = options;
 
   switch (module) {
     case 'notes':
       return {
-        title: 'Keyboard shortcuts',
-        description: 'Available keyboard shortcuts for Notes.',
-        sections: buildSections('notes', isMac),
+        title: t ? t('shortcut.title') : 'Keyboard shortcuts',
+        description: t ? t('shortcut.description.notes') : 'Available keyboard shortcuts for Notes.',
+        sections: buildSections('notes', isMac, t),
       };
     case 'chat':
     default:
       return {
-        title: 'Keyboard shortcuts',
-        description: 'Available keyboard shortcuts for Chat.',
-        sections: buildSections('chat', isMac),
+        title: t ? t('shortcut.title') : 'Keyboard shortcuts',
+        description: t ? t('shortcut.description.chat') : 'Available keyboard shortcuts for Chat.',
+        sections: buildSections('chat', isMac, t),
       };
   }
 }

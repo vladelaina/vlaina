@@ -29,6 +29,7 @@ import { ChatSidebar } from '@/components/Chat/features/Sidebar/ChatSidebar';
 import { ModelSelector } from '@/components/Chat/features/Input/ModelSelector';
 import { Icon } from '@/components/ui/icons';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { useI18n } from '@/lib/i18n';
 
 interface ChatViewProps {
   mode?: 'full' | 'embedded';
@@ -39,6 +40,7 @@ interface ChatViewProps {
 const EMPTY_MESSAGES: never[] = [];
 
 export function ChatView({ mode = 'full', active = true, onCloseEmbeddedPanel }: ChatViewProps) {
+  const { t } = useI18n();
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isEmbeddedSidebarOpen, setIsEmbeddedSidebarOpen] = useState(false);
   const [focusInputTrigger, setFocusInputTrigger] = useState(0); 
@@ -343,7 +345,7 @@ export function ChatView({ mode = 'full', active = true, onCloseEmbeddedPanel }:
         <div className="relative z-20 flex h-10 flex-none items-center gap-2 bg-[var(--vlaina-bg-primary)] px-3">
           <button
             type="button"
-            aria-label="Open Spark sidebar"
+            aria-label={t('chat.openSparkSidebar')}
             onPointerDown={(event) => {
               event.preventDefault();
               openEmbeddedSidebar();
@@ -388,7 +390,7 @@ export function ChatView({ mode = 'full', active = true, onCloseEmbeddedPanel }:
       {isEmbedded && onCloseEmbeddedPanel && (
         <button
           type="button"
-          aria-label="Close Spark panel"
+          aria-label={t('chat.closeSparkPanel')}
           onPointerDown={(event) => {
             event.preventDefault();
             onCloseEmbeddedPanel();
@@ -411,7 +413,7 @@ export function ChatView({ mode = 'full', active = true, onCloseEmbeddedPanel }:
           >
             <motion.button
               type="button"
-              aria-label="Close Spark sidebar"
+              aria-label={t('chat.closeSparkSidebar')}
               className="absolute inset-0 h-full w-full bg-black/[0.035]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

@@ -1,3 +1,5 @@
+import { translate } from '@/lib/i18n';
+
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const TOOLBAR_ROOT_SELECTOR = '[data-note-toolbar-root="true"]';
 export const TABLE_RESIZE_TOOLBAR_SUPPRESS_ATTR = 'data-table-resize-toolbar-suppress';
@@ -127,7 +129,7 @@ export function createToolbarElement(): HTMLElement {
   const toolbar = document.createElement('div');
   toolbar.className = 'floating-toolbar hidden';
   toolbar.setAttribute('role', 'toolbar');
-  toolbar.setAttribute('aria-label', 'Text formatting');
+  toolbar.setAttribute('aria-label', translate('editor.textFormatting'));
   return toolbar;
 }
 

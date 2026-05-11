@@ -5,15 +5,16 @@ import { applyAlignmentPreview, clearFormatPreview, commitAlignmentPreview } fro
 import { collapseSelectionAfterToolbarApply } from '../selectionCollapse';
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { translate, type MessageKey } from '@/lib/i18n';
 
 const ALIGNMENT_ITEMS: Array<{
   type: TextAlignment;
-  label: string;
+  labelKey: MessageKey;
   icon: string;
 }> = [
-  { type: 'left', label: 'Align Left', icon: EDITOR_ICONS.alignLeft },
-  { type: 'center', label: 'Align Center', icon: EDITOR_ICONS.alignCenter },
-  { type: 'right', label: 'Align Right', icon: EDITOR_ICONS.alignRight },
+  { type: 'left', labelKey: 'editor.textAlignment.left', icon: EDITOR_ICONS.alignLeft },
+  { type: 'center', labelKey: 'editor.textAlignment.center', icon: EDITOR_ICONS.alignCenter },
+  { type: 'right', labelKey: 'editor.textAlignment.right', icon: EDITOR_ICONS.alignRight },
 ];
 
 export function renderAlignmentDropdown(
@@ -32,7 +33,7 @@ export function renderAlignmentDropdown(
       <button
         class="block-dropdown-item ${isActive ? 'active' : ''}"
         data-alignment="${item.type}"
-        aria-label="${item.label}"
+        aria-label="${translate(item.labelKey)}"
       >
         <span class="block-dropdown-item-icon">${item.icon}</span>
       </button>

@@ -76,7 +76,7 @@ export function EditorTopRightToolbar({
   currentNoteMetadata,
   textStats,
 }: EditorTopRightToolbarProps) {
-  const { language } = useI18n();
+  const { language, t } = useI18n();
   const canToggleStar = canStarNotePath(currentNotePath, notesPath);
   const showStarButton = starred || canToggleStar;
   const starButtonLabel = starred ? 'Remove from Starred' : 'Add to Starred';
@@ -165,7 +165,7 @@ export function EditorTopRightToolbar({
                     onSelect={() => void exportCurrentNote('png')}
                   >
                     <Icon size="md" name="file.image" className="mr-2" />
-                    Image (.png)
+                    {t('notes.imageExport')}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className={exportMenuItemClassName}
@@ -178,21 +178,21 @@ export function EditorTopRightToolbar({
               </DropdownMenuSub>
               <DropdownMenuSeparator />
               <div className="grid grid-cols-[78px_max-content] gap-1 px-2 py-1.5 text-xs text-[var(--notes-sidebar-text)]">
-                <span className="font-medium">Lines:</span>
+                <span className="font-medium">{t('notes.lines')}</span>
                 <span className="tabular-nums">{textStats.lineCount}</span>
 
-                <span className="font-medium">Words:</span>
+                <span className="font-medium">{t('notes.words')}</span>
                 <span className="tabular-nums">{textStats.wordCount}</span>
 
-                <span className="font-medium">Characters:</span>
+                <span className="font-medium">{t('notes.characters')}</span>
                 <span className="tabular-nums">{textStats.characterCount}</span>
               </div>
               <DropdownMenuSeparator />
               <div className="grid grid-cols-[78px_max-content] gap-1 px-2 py-1.5 text-xs text-[var(--notes-sidebar-text)]">
-                <span className="font-medium">Created:</span>
+                <span className="font-medium">{t('notes.created')}</span>
                 <span className="whitespace-nowrap">{formatMetadataDate(currentNoteMetadata?.createdAt, language)}</span>
 
-                <span className="font-medium">Updated:</span>
+                <span className="font-medium">{t('notes.updated')}</span>
                 <span className="whitespace-nowrap">{formatMetadataDate(currentNoteMetadata?.updatedAt, language)}</span>
               </div>
             </DropdownMenuContent>

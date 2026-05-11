@@ -9,6 +9,7 @@ import { getRandomHeaderEmoji, preloadRandomEmojiData } from '@/components/commo
 import { type ItemColor, COLOR_HEX } from '@/lib/colors';
 import { ICON_SIZES, IconSize } from '@/components/ui/icons/sizes';
 import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
+import { useI18n } from '@/lib/i18n';
 
 const IconPicker = lazy(async () => {
   const mod = await import('@/components/common/UniversalIconPicker/index');
@@ -110,6 +111,7 @@ export function HeroIconHeader({
   children,
   compact = false,
 }: HeroIconHeaderProps) {
+  const { t } = useI18n();
   const headerRef = useRef<HTMLDivElement>(null);
   const iconButtonRef = useRef<HTMLButtonElement>(null);
   const [showIconPicker, setShowIconPicker] = useState(false);
@@ -251,7 +253,7 @@ export function HeroIconHeader({
                       className={cn("flex items-center gap-1.5 py-1 rounded-md text-sm text-[var(--vlaina-text-secondary)] hover:text-[var(--vlaina-text-primary)] transition-colors")}
                   >
                       <Icon size="md" name="misc.activity" />
-                      {!compact && <span>Add icon</span>}
+                      {!compact && <span>{t('icon.addIcon')}</span>}
                   </button>
               </div>
           )}

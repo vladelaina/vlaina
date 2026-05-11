@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 import {
   getSidebarLabelClass,
   getSidebarSoftTextClass,
@@ -32,6 +33,7 @@ interface NotesOutlineProps {
 }
 
 export function NotesOutline({ enabled, className, isPeeking = false }: NotesOutlineProps) {
+  const { t } = useI18n();
   const { headings, activeId, jumpToHeading } = useNotesOutline(enabled);
   const [collapsedHeadingIds, setCollapsedHeadingIds] = useState<Set<string>>(() => new Set());
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
@@ -132,7 +134,7 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
         >
           <div className="relative flex min-h-full flex-col">
             {headings.length > 0 ? (
-              <nav aria-label="Document outline" className="space-y-0.5">
+              <nav aria-label={t('notes.documentOutline')} className="space-y-0.5">
                 {renderTreeNodes(headingTree)}
               </nav>
             ) : null}
@@ -142,7 +144,7 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
             >
               {headings.length === 0 ? (
                 <NotesSidebarHoverEmptyHint
-                  title="Outline is empty"
+                  title={t('notes.outlineEmpty')}
                   placement="inline"
                 />
               ) : null}

@@ -13,6 +13,7 @@ import { ProviderQuickAdd } from './ProviderQuickAdd';
 import { VirtualModelList } from './VirtualModelList';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 
 interface ProviderModelsPanelProps {
   providerId: string;
@@ -50,6 +51,7 @@ interface ProviderModelsPanelProps {
 }
 
 export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
+  const { t } = useI18n();
   const hasFetchedModels = props.sortedFetchedModels.length > 0;
   const hasActiveQuery = props.modelQuery.trim().length > 0;
   const selectedModelsSource = hasActiveQuery
@@ -119,7 +121,7 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
             </div>
           ) : (
             <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0 text-[14px] font-bold text-[var(--notes-sidebar-text)]">Models</div>
+              <div className="min-w-0 text-[14px] font-bold text-[var(--notes-sidebar-text)]">{t('settings.ai.models')}</div>
               <button
                 type="button"
                 disabled={!props.canUseConnectionActions || props.isFetchingModels}

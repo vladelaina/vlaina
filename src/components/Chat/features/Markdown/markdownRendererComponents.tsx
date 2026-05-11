@@ -9,6 +9,7 @@ import { downloadImageWithPrompt } from '@/components/Chat/common/imageDownload'
 import { ChatImageViewer } from './components/ChatImageViewer';
 import { CodeBlock } from './components/CodeBlock';
 import { normalizeRenderableImageSrc } from './imagePolicy';
+import { useI18n } from '@/lib/i18n';
 
 type ImageGalleryItem = { id: string; src: string };
 
@@ -135,6 +136,7 @@ function MarkdownImage({
   imageGallery?: ImageGalleryItem[];
   src: string;
 }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
 
@@ -175,7 +177,7 @@ function MarkdownImage({
           <button
             type="button"
             data-no-focus-input="true"
-            aria-label="Copy image"
+            aria-label={t('chat.copyImage')}
             onClick={(event) => {
               event.stopPropagation();
               void handleCopy();
@@ -191,7 +193,7 @@ function MarkdownImage({
           <button
             type="button"
             data-no-focus-input="true"
-            aria-label="Download image"
+            aria-label={t('chat.downloadImage')}
             onClick={(event) => {
               event.stopPropagation();
               void downloadImageWithPrompt(src, alt);

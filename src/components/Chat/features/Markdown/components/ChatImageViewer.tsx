@@ -7,6 +7,7 @@ import { writeTextToClipboard } from "@/lib/clipboard";
 import { cn, iconButtonStyles } from "@/lib/utils";
 import { copyImageSourceToClipboard } from "@/components/Chat/common/messageClipboard";
 import { downloadImageWithPrompt } from "@/components/Chat/common/imageDownload";
+import { useI18n } from "@/lib/i18n";
 
 interface ChatImageViewerProps {
   open: boolean;
@@ -56,6 +57,7 @@ export function ChatImageViewer({
   currentImageId,
   onOpenChange,
 }: ChatImageViewerProps) {
+  const { t } = useI18n();
   const [isMounted, setIsMounted] = useState(false);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -278,7 +280,7 @@ export function ChatImageViewer({
       >
         <button
           type="button"
-          aria-label="Close preview"
+          aria-label={t('chat.closePreview')}
           data-no-focus-input="true"
           className={cn(
             "absolute right-4 top-4 z-10 rounded-full bg-black/45 p-1.5 text-white/90 backdrop-blur-sm hover:bg-black/55 hover:text-white",
@@ -297,7 +299,7 @@ export function ChatImageViewer({
           <div className="absolute inset-y-0 left-4 z-10 flex items-center">
             <button
               type="button"
-              aria-label="Previous image"
+              aria-label={t('chat.previousImage')}
               data-no-focus-input="true"
               className={cn(
                 "inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/78 text-slate-700 shadow-[0_18px_54px_rgba(84,121,160,0.16)] transition-colors hover:bg-white",
@@ -317,7 +319,7 @@ export function ChatImageViewer({
           <div className="absolute inset-y-0 right-4 z-10 flex items-center">
             <button
               type="button"
-              aria-label="Next image"
+              aria-label={t('chat.nextImage')}
               data-no-focus-input="true"
               className={cn(
                 "inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/80 bg-white/78 text-slate-700 shadow-[0_18px_54px_rgba(84,121,160,0.16)] transition-colors hover:bg-white",
@@ -372,7 +374,7 @@ export function ChatImageViewer({
             >
               <button
                 type="button"
-                aria-label="Zoom out"
+                aria-label={t('chat.zoomOut')}
                 data-no-focus-input="true"
                 className={cn(
                   "inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-700 transition-colors hover:bg-zinc-100",
@@ -387,7 +389,7 @@ export function ChatImageViewer({
               </span>
               <button
                 type="button"
-                aria-label="Zoom in"
+                aria-label={t('chat.zoomIn')}
                 data-no-focus-input="true"
                 className={cn(
                   "inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-700 transition-colors hover:bg-zinc-100",
@@ -406,7 +408,7 @@ export function ChatImageViewer({
               <div className="mx-1 h-6 w-px bg-zinc-200" />
               <button
                 type="button"
-                aria-label="Copy image"
+                aria-label={t('chat.copyImage')}
                 data-no-focus-input="true"
                 className={cn(
                   "inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-700 transition-colors hover:bg-zinc-100",
@@ -420,7 +422,7 @@ export function ChatImageViewer({
               </button>
               <button
                 type="button"
-                aria-label="Download image"
+                aria-label={t('chat.downloadImage')}
                 data-no-focus-input="true"
                 className={cn(
                   "inline-flex h-9 w-9 items-center justify-center rounded-full bg-white text-slate-700 transition-colors hover:bg-zinc-100",

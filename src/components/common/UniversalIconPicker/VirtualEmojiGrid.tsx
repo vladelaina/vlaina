@@ -8,6 +8,9 @@ import {
   SCROLLBAR_CLASSNAME,
   type EmojiItem,
 } from './constants';
+import { useI18n } from '@/lib/i18n';
+
+const DEFAULT_EMOJI_CATEGORY_ID = 'people';
 
 interface EmojiRowProps {
   emojis: string[];
@@ -44,6 +47,7 @@ interface VirtualEmojiGridProps {
   onSelect: (emoji: string) => void;
   onPreview?: (emoji: string | null) => void;
   recentEmojis: string[];
+  categoryId: string;
   categoryName: string;
 }
 
@@ -53,8 +57,10 @@ export function VirtualEmojiGrid({
   onSelect,
   onPreview,
   recentEmojis,
+  categoryId,
   categoryName,
 }: VirtualEmojiGridProps) {
+  const { t } = useI18n();
   const parentRef = useRef<HTMLDivElement>(null);
 
   const onPreviewRef = useRef(onPreview);
@@ -86,7 +92,7 @@ export function VirtualEmojiGrid({
     const result: { type: 'title' | 'emojis'; content: string | string[] }[] = [];
 
     if (recentWithSkin.length > 0) {
-      result.push({ type: 'title', content: 'Recent' });
+      result.push({ type: 'title', content: t('icon.categoryRecent') });
       for (let i = 0; i < recentWithSkin.length; i += EMOJI_PER_ROW) {
         result.push({ type: 'emojis', content: recentWithSkin.slice(i, i + EMOJI_PER_ROW) });
       }
@@ -98,7 +104,7 @@ export function VirtualEmojiGrid({
     }
 
     return result;
-  }, [emojisWithSkin, recentWithSkin, categoryName]);
+  }, [emojisWithSkin, recentWithSkin, categoryName, t]);
 
   const rowSizeGetter = useMemo(() => {
     return (index: number) => rows[index].type === 'title' ? 28 : EMOJI_SIZE + ROW_GAP;
@@ -112,7 +118,7 @@ export function VirtualEmojiGrid({
   });
 
   useEffect(() => {
-    if (categoryName === 'Smileys & People') {
+    if (categoryId === DEFAULT_EMOJI_CATEGORY_ID) {
       virtualizer.scrollToIndex(0, { align: 'start' });
     } else if (recentWithSkin.length > 0) {
       const recentRows = Math.ceil(recentWithSkin.length / EMOJI_PER_ROW) + 1;
@@ -120,7 +126,7 @@ export function VirtualEmojiGrid({
     } else {
       virtualizer.scrollToIndex(0, { align: 'start' });
     }
-  }, [categoryName]);
+  }, [categoryId]);
 
   const lastPreviewRef = useRef<string | null>(null);
 
@@ -219,6 +225,7 @@ export function VirtualSearchResults({
   onSelect,
   onPreview,
 }: VirtualSearchResultsProps) {
+  const { t } = useI18n();
   const parentRef = useRef<HTMLDivElement>(null);
   const lastPreviewRef = useRef<string | null>(null);
 
@@ -299,7 +306,7 @@ export function VirtualSearchResults({
   if (results.length === 0) {
     return (
       <div className="h-[280px] flex items-center justify-center">
-        <div className="text-[var(--vlaina-text-tertiary)] text-sm">No emoji found</div>
+        <div className="text-[var(--vlaina-text-tertiary)] text-sm">{t('icon.noEmojiFound')}</div>
       </div>
     );
   }

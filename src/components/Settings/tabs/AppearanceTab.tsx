@@ -2,8 +2,10 @@ import type { ChangeEvent } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { SettingsItem } from '../components/SettingsControls';
 import { useUIStore } from '@/stores/uiSlice';
+import { useI18n } from '@/lib/i18n';
 
 export function AppearanceTab() {
+  const { t } = useI18n();
   const fontSize = useUIStore((state) => state.fontSize);
   const setFontSize = useUIStore((state) => state.setFontSize);
   const resetFontSize = useUIStore((state) => state.resetFontSize);
@@ -16,13 +18,13 @@ export function AppearanceTab() {
     <div className="max-w-3xl pb-10">
       <div className="mb-4 flex items-center justify-between px-2">
         <span className="text-[13px] font-medium text-[var(--notes-sidebar-text-soft)]">
-          Font Size
+          {t('settings.appearance.fontSize')}
         </span>
       </div>
 
       <SettingsItem
-        title="Base font size"
-        description="Adjust the base font size for the application"
+        title={t('settings.appearance.baseFontSize')}
+        description={t('settings.appearance.baseFontSizeDescription')}
       >
         <div className="flex items-center gap-4">
           <Icon size="md" name="editor.type" className="text-[var(--notes-sidebar-text-soft)]" />
@@ -45,7 +47,7 @@ export function AppearanceTab() {
             disabled={fontSize === 16}
             className="rounded-full px-3 py-1.5 text-[12px] font-medium text-[var(--sidebar-row-selected-text)] transition-colors hover:bg-[var(--sidebar-row-selected-bg)] disabled:pointer-events-none disabled:text-[var(--notes-sidebar-text-soft)] disabled:opacity-45 dark:hover:bg-[rgba(65,168,234,0.14)]"
           >
-            Reset
+            {t('common.reset')}
           </button>
         </div>
       </SettingsItem>

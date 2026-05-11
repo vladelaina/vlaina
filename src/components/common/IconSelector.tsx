@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { type CustomIcon } from '@/lib/storage/unifiedStorage';
 import { type ItemColor, getColorHex } from '@/lib/colors';
+import { useI18n } from '@/lib/i18n';
 
 const UniversalIconPicker = lazy(async () => {
   const mod = await import('@/components/common/UniversalIconPicker/index');
@@ -45,6 +46,7 @@ export function IconSelector({
   onDeleteCustomIcon,
   imageLoader
 }: IconSelectorProps) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
 
   const handleSelect = (icon: string | undefined) => {
@@ -67,7 +69,7 @@ export function IconSelector({
               {trigger ? trigger : (
                 <button
                   className="w-[18px] h-[18px] flex items-center justify-center rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-                  title="Change icon"
+                  title={t('icon.changeIcon')}
                   onMouseEnter={() => handlePreview(value || null)}
                   onMouseLeave={() => handlePreview(null)}
                 >
@@ -116,7 +118,7 @@ export function IconSelector({
               ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400" 
               : "text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"
           )}
-          title="Clear icon"
+          title={t('icon.clearIcon')}
         >
           <Icon size="md" name="common.block" />
         </button>
@@ -144,7 +146,7 @@ export function IconSelector({
                     "w-6 h-6 rounded-md flex items-center justify-center transition-all text-zinc-400 dark:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800",
                     isOpen && "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300"
                   )}
-                  title="More icons"
+                  title={t('icon.moreIcons')}
                 >
                     <Icon size="md" name="common.more" />
                 </button>

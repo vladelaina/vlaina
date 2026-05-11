@@ -17,6 +17,7 @@ import { createTreeItemPathSubmenu } from '../FileTree/components/TreeItemMenu';
 import { useTreeItemPathActions } from '../FileTree/hooks/useTreeItemPathActions';
 import { getEntryTitle } from './starredSectionUtils';
 import { useStarredEntryIcon } from './useStarredEntryIcon';
+import { useI18n } from '@/lib/i18n';
 
 interface ExternalStarredEntryRowProps {
   entry: StarredEntry;
@@ -33,6 +34,7 @@ export function ExternalStarredEntryRow({
   onOpen,
   onRemove,
 }: ExternalStarredEntryRowProps) {
+  const { t } = useI18n();
   const displayPath = getStarredNoteDisplayPath(entry, isCurrentVaultEntry);
   const liveTitle = useDisplayName(displayPath);
   const liveIcon = useDisplayIcon(displayPath);
@@ -62,7 +64,7 @@ export function ExternalStarredEntryRow({
       ? [{
           key: 'open-new-tab',
           icon: <Icon name="nav.external" size="md" />,
-          label: 'Open in new tab',
+          label: t('sidebar.openInNewTab'),
           onClick: () => {
             onOpen(true);
             setShowMenu(false);
@@ -72,7 +74,7 @@ export function ExternalStarredEntryRow({
     {
       key: 'remove-starred',
       icon: <Icon name="misc.star" size="md" className="fill-amber-500 text-amber-500" />,
-      label: 'Remove from Starred',
+      label: t('sidebar.removeFromStarred'),
       onClick: () => {
         onRemove();
         setShowMenu(false);
@@ -91,7 +93,15 @@ export function ExternalStarredEntryRow({
         setShowMenu(false);
         await handleOpenLocation();
       },
-      openLocationLabel: entry.kind === 'folder' ? 'Open Folder Location' : 'Open File Location',
+      openLocationLabel: entry.kind === 'folder' ? t('sidebar.openFolderLocation') : t('sidebar.openFileLocation'),
+      labels: {
+        addToStarred: t('sidebar.addToStarred'),
+        copyPath: t('sidebar.copyPath'),
+        more: t('sidebar.more'),
+        moveToTrash: t('sidebar.moveToTrash'),
+        openInNewWindow: t('sidebar.openInNewWindow'),
+        removeFromStarred: t('sidebar.removeFromStarred'),
+      },
     }),
   ];
 

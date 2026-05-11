@@ -5,7 +5,7 @@ import {
   SYSTEM_LANGUAGE_PREFERENCE,
   type AppLanguage,
 } from './languages';
-import { getMessages, type MessageKey } from './messages';
+import { formatMessage, getMessages, type MessageKey, type MessageValues } from './messages';
 
 export function useI18n() {
   const languagePreference = useUIStore((state) => state.languagePreference);
@@ -13,7 +13,10 @@ export function useI18n() {
   const [, setSystemLanguageVersion] = useState(0);
   const language = getEffectiveAppLanguage(languagePreference);
   const messages = useMemo(() => getMessages(language), [language]);
-  const t = useCallback((key: MessageKey) => messages[key], [messages]);
+  const t = useCallback(
+    (key: MessageKey, values?: MessageValues) => formatMessage(messages[key], values),
+    [messages]
+  );
 
   useEffect(() => {
     if (languagePreference !== SYSTEM_LANGUAGE_PREFERENCE || typeof window === 'undefined') return;

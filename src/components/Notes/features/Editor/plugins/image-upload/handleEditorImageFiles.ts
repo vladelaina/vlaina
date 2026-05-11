@@ -1,4 +1,5 @@
 import type { UploadResult } from '@/lib/assets/types';
+import { translate } from '@/lib/i18n';
 import type { NotesStore } from '@/stores/notes/useNotesStore';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useToastStore } from '@/stores/useToastStore';
@@ -20,7 +21,7 @@ export async function uploadImageFileAndInsert(
     getStoreState: () => ImageUploadStoreState = useNotesStore.getState,
 ): Promise<boolean> {
     if (!canInsertImageNodeAtSelection(view)) {
-        useToastStore.getState().addToast('Cannot insert image here', 'error');
+        useToastStore.getState().addToast(translate('editor.imageCannotInsertHere'), 'error');
         return false;
     }
 
@@ -28,19 +29,19 @@ export async function uploadImageFileAndInsert(
         const result = await uploadImageFile(file, getStoreState());
         if (!result.success || !result.path) {
             console.error('[ImageUpload] Upload failed:', result.error);
-            useToastStore.getState().addToast(result.error || 'Image upload failed', 'error');
+            useToastStore.getState().addToast(result.error || translate('editor.imageUploadFailed'), 'error');
             return false;
         }
 
         const inserted = insertImageNodeAtSelection(view, result.path);
         if (!inserted) {
-            useToastStore.getState().addToast('Image uploaded, but could not be inserted here', 'error');
+            useToastStore.getState().addToast(translate('editor.imageUploadedCannotInsert'), 'error');
         }
         return inserted;
     } catch (error) {
         console.error('[ImageUpload] Error during upload:', error);
         useToastStore.getState().addToast(
-            error instanceof Error ? error.message : 'Image upload failed',
+            error instanceof Error ? error.message : translate('editor.imageUploadFailed'),
             'error',
         );
         return false;
@@ -57,7 +58,7 @@ export async function handleEditorImageFiles(
     }
 
     if (!canInsertImageNodeAtSelection(view)) {
-        useToastStore.getState().addToast('Cannot insert image here', 'error');
+        useToastStore.getState().addToast(translate('editor.imageCannotInsertHere'), 'error');
         return false;
     }
 

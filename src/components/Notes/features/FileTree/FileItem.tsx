@@ -29,6 +29,7 @@ import {
 } from './components/TreeItemMenu';
 import { useTreeItemPathActions } from './hooks/useTreeItemPathActions';
 import type { NotesSidebarMenuEntry } from '../Sidebar/context-menu/NotesSidebarContextMenuContent';
+import { useI18n } from '@/lib/i18n';
 
 interface FileItemProps {
   node: NoteFile;
@@ -47,6 +48,7 @@ export const FileItem = memo(function FileItem({
   dragEnabled = true,
   showMenuButton = true,
 }: FileItemProps) {
+  const { t } = useI18n();
   const isDraftNote = isDraftNotePath(node.path);
   const effectiveDragEnabled = dragEnabled && !isDraftNote;
   const {
@@ -89,7 +91,7 @@ export const FileItem = memo(function FileItem({
         {
           key: 'delete-draft',
           icon: <DeleteIcon />,
-          label: 'Delete',
+          label: t('sidebar.delete'),
           onClick: () => {
             setShowMenu(false);
             setShowDeleteDialog(true);
@@ -101,7 +103,7 @@ export const FileItem = memo(function FileItem({
         {
           key: 'rename',
           icon: <Icon name="common.compose" size="md" />,
-          label: 'Rename',
+          label: t('sidebar.rename'),
           onClick: () => {
             setIsRenaming(true);
             setShowMenu(false);
@@ -110,7 +112,7 @@ export const FileItem = memo(function FileItem({
         {
           key: 'open-new-tab',
           icon: <Icon name="nav.external" size="md" />,
-          label: 'Open in new tab',
+          label: t('sidebar.openInNewTab'),
           onClick: () => {
             void openNote(node.path, true);
             setShowMenu(false);
@@ -119,7 +121,7 @@ export const FileItem = memo(function FileItem({
         createTreeItemStarEntry(isItemStarred, () => {
           toggleStarred(node.path);
           setShowMenu(false);
-        }),
+        }, { addToStarred: t('sidebar.addToStarred'), removeFromStarred: t('sidebar.removeFromStarred') }),
         createTreeItemPathSubmenu({
           onCopyPath: async () => {
             setShowMenu(false);
@@ -133,12 +135,20 @@ export const FileItem = memo(function FileItem({
             setShowMenu(false);
             await handleOpenLocation();
           },
-          openLocationLabel: 'Open File Location',
+          openLocationLabel: t('sidebar.openFileLocation'),
+          labels: {
+            addToStarred: t('sidebar.addToStarred'),
+            copyPath: t('sidebar.copyPath'),
+            more: t('sidebar.more'),
+            moveToTrash: t('sidebar.moveToTrash'),
+            openInNewWindow: t('sidebar.openInNewWindow'),
+            removeFromStarred: t('sidebar.removeFromStarred'),
+          },
         }),
         ...createTreeItemDeleteEntries(() => {
           setShowMenu(false);
           setShowDeleteDialog(true);
-        }),
+        }, t('sidebar.moveToTrash')),
       ];
 
   useEffect(() => {

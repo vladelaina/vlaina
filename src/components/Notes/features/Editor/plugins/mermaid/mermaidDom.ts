@@ -1,12 +1,14 @@
 import DOMPurify from 'dompurify';
+import { translate } from '@/lib/i18n';
 import { generateMermaidId, renderMermaid } from './mermaidRenderer';
 import { normalizeMermaidEditorCodeInput } from './mermaidFenceCode';
 
 const mermaidElementCode = new WeakMap<HTMLElement, string>();
 let mermaidRenderKeyCounter = 0;
 const MERMAID_RENDER_CACHE_LIMIT = 80;
-const MERMAID_RENDER_ERROR_HTML =
-  '<div class="mermaid-error">Mermaid Error: Unable to render diagram. Check the diagram syntax.</div>';
+function mermaidRenderErrorHtml() {
+  return `<div class="mermaid-error">${translate('editor.mermaidRenderError')}</div>`;
+}
 const mermaidMarkupCache = new Map<string, string>();
 const mermaidRenderPromiseCache = new Map<string, Promise<string>>();
 
@@ -28,7 +30,7 @@ async function renderMermaidHtml(
   try {
     return await render(code, generateMermaidId());
   } catch {
-    return MERMAID_RENDER_ERROR_HTML;
+    return mermaidRenderErrorHtml();
   }
 }
 
@@ -190,7 +192,7 @@ export async function renderMermaidEditorLivePreview(args: {
 
   if (!normalizedCode.trim()) {
     setMermaidElementCode(anchor, normalizedCode);
-    anchor.innerHTML = '<div class="mermaid-empty">Empty diagram</div>';
+    anchor.innerHTML = `<div class="mermaid-empty">${translate('editor.emptyDiagram')}</div>`;
     onRendered?.();
     return true;
   }
@@ -240,7 +242,7 @@ export function createMermaidElement(code: string) {
       wrapper.innerHTML = markup;
     });
   } else {
-    wrapper.innerHTML = '<div class="mermaid-empty">Empty diagram</div>';
+    wrapper.innerHTML = `<div class="mermaid-empty">${translate('editor.emptyDiagram')}</div>`;
   }
 
   return wrapper;

@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { useWindowDragGesture } from '@/hooks/useWindowDragGesture';
 import { actions as aiActions } from '@/stores/ai/providerActions';
 import { SETTINGS_BEFORE_CLOSE_EVENT, SETTINGS_CLOSED_EVENT } from './settingsEvents';
+import { useI18n, type MessageKey } from '@/lib/i18n';
 
 interface SettingsModalProps {
   open: boolean;
@@ -22,7 +23,7 @@ type SettingsTab = 'markdown' | 'appearance' | 'language' | 'ai' | 'about';
 
 interface SidebarItem {
   id: SettingsTab;
-  label: string;
+  labelKey: MessageKey;
   icon: IconName;
 }
 
@@ -35,17 +36,18 @@ const sidebarGroups: SidebarGroup[] = [
   {
     title: 'General',
     items: [
-      { id: 'markdown', label: 'Markdown', icon: 'editor.code' },
-      { id: 'ai', label: 'Spark', icon: 'common.shootingStar' },
-      { id: 'appearance', label: 'Appearance', icon: 'theme.palette' },
-      { id: 'language', label: 'Language', icon: 'common.language' },
-      { id: 'about', label: 'about', icon: 'common.info' },
+      { id: 'markdown', labelKey: 'settings.tabs.markdown', icon: 'editor.code' },
+      { id: 'ai', labelKey: 'settings.tabs.ai', icon: 'common.shootingStar' },
+      { id: 'appearance', labelKey: 'settings.tabs.appearance', icon: 'theme.palette' },
+      { id: 'language', labelKey: 'settings.tabs.language', icon: 'common.language' },
+      { id: 'about', labelKey: 'settings.tabs.about', icon: 'common.info' },
     ]
   }
 ];
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('markdown');
+  const { t } = useI18n();
 
   const handleClose = useCallback(() => {
     window.dispatchEvent(new Event(SETTINGS_BEFORE_CLOSE_EVENT));
@@ -150,7 +152,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                                         )}
                                       />
                                     </span>
-                                    <span className="truncate tracking-tight">{item.label}</span>
+                                    <span className="truncate tracking-tight">{t(item.labelKey)}</span>
                                   </button>
                                 </div>
                               );

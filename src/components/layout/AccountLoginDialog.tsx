@@ -4,6 +4,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } fr
 import { Icon } from '@/components/ui/icons';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 
 interface AccountLoginDialogProps {
   open: boolean;
@@ -13,6 +14,7 @@ interface AccountLoginDialogProps {
 export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogProps) {
   const { isConnecting, error, signIn, requestEmailCode, verifyEmailCode, cancelConnect, clearError } =
     useAccountSessionStore();
+  const { t } = useI18n();
   const closeButtonRef = React.useRef<HTMLButtonElement | null>(null);
 
   const handleOpenChange = React.useCallback(
@@ -44,9 +46,9 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
           "transition-all duration-75 ease-in-out"
         )}
       >
-        <DialogTitle className="sr-only">Sign in to vlaina</DialogTitle>
+        <DialogTitle className="sr-only">{t('account.signInTitle')}</DialogTitle>
         <DialogDescription className="sr-only">
-          Choose Google sign-in or use an email verification code to access your account.
+          {t('account.signInDescription')}
         </DialogDescription>
         <div className={cn(
           "relative w-full rounded-[36px] px-5 py-6 sm:rounded-[48px] sm:px-8 sm:py-9 md:rounded-[64px] md:p-14",
@@ -62,8 +64,8 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
           </DialogClose>
 
           <div className="mb-7 flex flex-col items-center gap-1.5 text-center sm:mb-10 sm:gap-2 md:mb-14">
-             <h2 className="text-[24px] leading-none font-black tracking-tight text-zinc-950 sm:text-[26px] md:text-[28px] dark:text-white">Sign In</h2>
-             <p className="text-[13px] font-medium text-zinc-400 sm:text-[14px]">Continue to vlaina</p>
+             <h2 className="text-[24px] leading-none font-black tracking-tight text-zinc-950 sm:text-[26px] md:text-[28px] dark:text-white">{t('account.signIn')}</h2>
+             <p className="text-[13px] font-medium text-zinc-400 sm:text-[14px]">{t('account.continueToVlaina')}</p>
           </div>
 
           <div className="w-full">
@@ -84,7 +86,7 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
                 onClick={() => cancelConnect()}
                 className="text-[11px] font-black uppercase tracking-widest text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
               >
-                Cancel Authentication
+                {t('account.cancelAuthentication')}
               </button>
             </div>
           )}

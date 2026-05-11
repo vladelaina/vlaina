@@ -23,6 +23,7 @@ import {
 } from './components/TreeItemMenu';
 import { useTreeItemPathActions } from './hooks/useTreeItemPathActions';
 import type { NotesSidebarMenuEntry } from '../Sidebar/context-menu/NotesSidebarContextMenuContent';
+import { useI18n } from '@/lib/i18n';
 
 interface FolderItemProps {
   node: FolderNode;
@@ -49,6 +50,7 @@ export const FolderItem = memo(function FolderItem({
   showMenuButton = true,
   renderChildren = true,
 }: FolderItemProps) {
+  const { t } = useI18n();
   const {
     showMenu,
     setShowMenu,
@@ -90,7 +92,7 @@ export const FolderItem = memo(function FolderItem({
     {
       key: 'rename',
       icon: <Icon name="common.compose" size="md" />,
-      label: 'Rename',
+      label: t('sidebar.rename'),
       onClick: () => {
         setIsRenaming(true);
         setShowMenu(false);
@@ -99,7 +101,7 @@ export const FolderItem = memo(function FolderItem({
     {
       key: 'new-note',
       icon: <Icon name="file.add" size="md" />,
-      label: 'New Note',
+      label: t('sidebar.newNote'),
       onClick: async () => {
         await createNote(node.path);
         setShowMenu(false);
@@ -108,7 +110,7 @@ export const FolderItem = memo(function FolderItem({
     createTreeItemStarEntry(isItemStarred, () => {
       toggleFolderStarred(node.path);
       setShowMenu(false);
-    }),
+    }, { addToStarred: t('sidebar.addToStarred'), removeFromStarred: t('sidebar.removeFromStarred') }),
     createTreeItemPathSubmenu({
       onCopyPath: async () => {
         setShowMenu(false);
@@ -122,12 +124,20 @@ export const FolderItem = memo(function FolderItem({
         setShowMenu(false);
         await handleOpenLocation();
       },
-      openLocationLabel: 'Open Folder Location',
+      openLocationLabel: t('sidebar.openFolderLocation'),
+      labels: {
+        addToStarred: t('sidebar.addToStarred'),
+        copyPath: t('sidebar.copyPath'),
+        more: t('sidebar.more'),
+        moveToTrash: t('sidebar.moveToTrash'),
+        openInNewWindow: t('sidebar.openInNewWindow'),
+        removeFromStarred: t('sidebar.removeFromStarred'),
+      },
     }),
     ...createTreeItemDeleteEntries(() => {
       setShowMenu(false);
       setShowDeleteDialog(true);
-    }),
+    }, t('sidebar.moveToTrash')),
   ];
 
   useEffect(() => {

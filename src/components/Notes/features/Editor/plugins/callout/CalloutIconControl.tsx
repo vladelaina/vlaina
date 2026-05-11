@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useState } from 'react';
 import { AppIcon } from '@/components/common/AppIcon';
 import { useGlobalIconUpload } from '@/components/common/UniversalIconPicker/hooks/useGlobalIconUpload';
+import { useI18n } from '@/lib/i18n';
 import type { IconData } from './types';
 import { DEFAULT_CALLOUT_ICON } from './types';
 import { getCalloutIconValue } from './calloutIconUtils';
@@ -48,6 +49,7 @@ function CalloutIconPicker({
 }
 
 export function CalloutIconControl({ icon, onChange }: CalloutIconControlProps) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const [previewIcon, setPreviewIcon] = useState<string | null>(null);
   const iconValue = getCalloutIconValue(icon);
@@ -70,7 +72,7 @@ export function CalloutIconControl({ icon, onChange }: CalloutIconControlProps) 
       <button
         type="button"
         className="callout-icon-button"
-        aria-label="Change callout icon"
+        aria-label={t('editor.changeCalloutIcon')}
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();

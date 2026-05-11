@@ -1,5 +1,6 @@
 import React, { memo, useCallback } from 'react';
 import { Icon } from '@/components/ui/icons';
+import { useI18n } from '@/lib/i18n';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn } from '@/lib/utils';
@@ -167,6 +168,7 @@ function TabOverlay({ tab, isActive }: TabOverlayProps) {
 }
 
 export function NotesTabRow() {
+  const { t } = useI18n();
   const currentNote = useNotesStore((s) => s.currentNote);
   const openTabs = useNotesStore((s) => s.openTabs);
   const closeTab = useNotesStore((s) => s.closeTab);
@@ -255,7 +257,7 @@ export function NotesTabRow() {
             </button>
           </TooltipTrigger>
           <TooltipContent side="bottom" sideOffset={5} className="flex items-center gap-1.5 text-xs">
-            <span>New Note</span>
+            <span>{t('sidebar.newNote')}</span>
             <ShortcutKeys keys={['Ctrl', 'T']} />
           </TooltipContent>
         </Tooltip>

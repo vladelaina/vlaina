@@ -7,6 +7,7 @@ import { hasElectronDesktopBridge } from '@/lib/desktop/backend'
 import { cn } from '@/lib/utils'
 import { useAccountSessionStore } from '@/stores/accountSession'
 import { useToastStore } from '@/stores/useToastStore'
+import { useI18n } from '@/lib/i18n'
 
 interface BillingPlansDialogProps {
   open: boolean
@@ -42,6 +43,7 @@ function planButtonClass(tier: BillingPlan['tier']): string {
 }
 
 export function BillingPlansDialog({ open, onOpenChange }: BillingPlansDialogProps) {
+  const { t } = useI18n()
   const membershipTier = useAccountSessionStore((state) => state.membershipTier)
   const membershipName = useAccountSessionStore((state) => state.membershipName)
   const addToast = useToastStore((state) => state.addToast)
@@ -76,7 +78,7 @@ export function BillingPlansDialog({ open, onOpenChange }: BillingPlansDialogPro
         }
 
         const message = error instanceof Error ? error.message : String(error)
-        setLoadError(message || 'Failed to load membership plans')
+        setLoadError(message || t('billing.failedLoadPlans'))
       })
       .finally(() => {
         if (!cancelled) {
@@ -87,10 +89,10 @@ export function BillingPlansDialog({ open, onOpenChange }: BillingPlansDialogPro
     return () => {
       cancelled = true
     }
-  }, [open])
+  }, [open, t])
 
   const currentPlanLabel = membershipName || (membershipTier === 'free' ? 'Free' : null)
-  const checkoutButtonLabel = hasElectronDesktopBridge() ? 'Open in Browser' : 'Continue to Checkout'
+  const checkoutButtonLabel = hasElectronDesktopBridge() ? t('billing.openInBrowser') : t('billing.continueCheckout')
 
   const handleCheckout = async (plan: BillingPlan) => {
     if (isStartingTier) {
@@ -103,7 +105,7 @@ export function BillingPlansDialog({ open, onOpenChange }: BillingPlansDialogPro
 
       if (hasElectronDesktopBridge()) {
         await openExternalHref(checkoutUrl)
-        addToast('Stripe checkout opened in your browser.', 'info', 4500)
+        addToast(t('billing.stripeOpened'), 'info', 4500)
         onOpenChange(false)
         return
       }
@@ -111,7 +113,7 @@ export function BillingPlansDialog({ open, onOpenChange }: BillingPlansDialogPro
       window.location.assign(checkoutUrl)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      addToast(message || 'Failed to open checkout', 'error', 4500)
+      addToast(message || t('billing.failedOpenCheckout'), 'error', 4500)
     } finally {
       setIsStartingTier(null)
     }
@@ -132,15 +134,15 @@ export function BillingPlansDialog({ open, onOpenChange }: BillingPlansDialogPro
           <DialogHeader className="gap-3 text-left">
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/70 bg-white/75 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-700 shadow-sm dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
               <Icon name="misc.crown" size="sm" />
-              Membership
+              {t('billing.membership')}
             </div>
             <DialogTitle className="text-[30px] font-semibold tracking-[-0.04em] text-zinc-950 dark:text-zinc-50">
-              {currentPlanLabel ? `${currentPlanLabel} is active on this account` : 'Choose a membership plan'}
+              {currentPlanLabel ? t('billing.activePlan', { plan: currentPlanLabel }) : t('billing.choosePlan')}
             </DialogTitle>
             <DialogDescription className="max-w-[620px] text-[14px] leading-6 text-zinc-600 dark:text-zinc-400">
               {hasElectronDesktopBridge()
-                ? 'Checkout opens in your default browser. After payment, your membership syncs back to the app automatically.'
-                : 'Choose a plan and continue to Stripe checkout.'}
+                ? t('billing.checkoutBrowserDescription')
+                : t('billing.checkoutStripeDescription')}
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -148,7 +150,7 @@ export function BillingPlansDialog({ open, onOpenChange }: BillingPlansDialogPro
         <div className="px-7 py-7">
           {isLoadingPlans ? (
             <div className="flex min-h-[260px] items-center justify-center rounded-[24px] border border-dashed border-zinc-200 bg-zinc-50/80 text-[14px] text-zinc-500 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-400">
-              Loading membership plans...
+              {t('billing.loadingPlans')}
             </div>
           ) : loadError ? (
             <div className="flex min-h-[260px] flex-col items-center justify-center gap-4 rounded-[24px] border border-rose-200/80 bg-rose-50/70 px-6 text-center dark:border-rose-400/20 dark:bg-rose-500/10">
@@ -161,12 +163,12 @@ export function BillingPlansDialog({ open, onOpenChange }: BillingPlansDialogPro
                 onClick={() => onOpenChange(false)}
                 className="inline-flex h-11 items-center justify-center rounded-2xl border border-rose-200 bg-white px-4 text-[13px] font-medium text-rose-700 transition-colors hover:bg-rose-50 dark:border-rose-300/20 dark:bg-white/5 dark:text-rose-100 dark:hover:bg-white/10"
               >
-                Close
+                {t('common.close')}
               </button>
             </div>
           ) : plans.length === 0 ? (
             <div className="flex min-h-[260px] items-center justify-center rounded-[24px] border border-dashed border-zinc-200 bg-zinc-50/80 text-[14px] text-zinc-500 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-400">
-              No paid plans are available yet.
+              {t('billing.noPaidPlans')}
             </div>
           ) : (
             <div className="grid gap-4 lg:grid-cols-3">
@@ -189,16 +191,16 @@ export function BillingPlansDialog({ open, onOpenChange }: BillingPlansDialogPro
                         <div className="text-[22px] font-semibold tracking-[-0.03em] text-zinc-950 dark:text-zinc-50">{plan.displayName}</div>
                         <div className="mt-2 flex items-end gap-1 text-zinc-950 dark:text-zinc-50">
                           <span className="text-[34px] font-semibold tracking-[-0.05em]">{formatUsdPrice(plan.priceUsd)}</span>
-                          <span className="pb-1 text-[13px] text-zinc-500 dark:text-zinc-400">/ month</span>
+                          <span className="pb-1 text-[13px] text-zinc-500 dark:text-zinc-400">{t('billing.month')}</span>
                         </div>
                       </div>
                       <div className={cn('rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]', planAccentClass(plan.tier))}>
-                        {isCurrentPlan ? 'Current' : plan.tier}
+                        {isCurrentPlan ? t('billing.current') : plan.tier}
                       </div>
                     </div>
 
                     <div className="mt-5 rounded-[22px] border border-zinc-200/80 bg-zinc-50/80 px-4 py-4 dark:border-white/10 dark:bg-white/[0.03]">
-                      <div className="text-[12px] uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">Monthly points</div>
+                      <div className="text-[12px] uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">{t('billing.monthlyPoints')}</div>
                       <div className="mt-2 text-[28px] font-semibold tracking-[-0.04em] text-zinc-950 dark:text-zinc-50">
                         {plan.monthlyPoints.toLocaleString()}
                       </div>
@@ -206,8 +208,8 @@ export function BillingPlansDialog({ open, onOpenChange }: BillingPlansDialogPro
 
                     <div className="mt-4 flex-1 text-[13px] leading-6 text-zinc-600 dark:text-zinc-400">
                       {isCurrentPlan
-                        ? 'You are already using this membership tier on the current account.'
-                        : `Switch this account to ${plan.displayName} through Stripe checkout.`}
+                        ? t('billing.currentPlanDescription')
+                        : t('billing.switchPlan', { plan: plan.displayName })}
                     </div>
 
                     <button
@@ -219,7 +221,7 @@ export function BillingPlansDialog({ open, onOpenChange }: BillingPlansDialogPro
                         planButtonClass(plan.tier)
                       )}
                     >
-                      {isStarting ? 'Opening...' : checkoutEnabled ? checkoutButtonLabel : 'Unavailable'}
+                      {isStarting ? t('billing.opening') : checkoutEnabled ? checkoutButtonLabel : t('billing.unavailable')}
                     </button>
                   </div>
                 )
