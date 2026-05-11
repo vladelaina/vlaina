@@ -17,7 +17,7 @@ import { FileTreeItem } from '../FileTree';
 import { shouldVirtualizeFileTree, VirtualizedFileTree } from '../FileTree/VirtualizedFileTree';
 import { countVisibleFileTreeRows } from '../FileTree/virtualFileTree';
 import { CollapseTriangleAffordance } from '../common/collapseTrianglePrimitive';
-import { getSidebarContextMenuPosition, getSidebarMenuPositionFromTriggerRect } from '../common/sidebarMenuPosition';
+import { getSidebarContextMenuPosition } from '../common/sidebarMenuPosition';
 import { useFileTreePointerDragState } from '../FileTree/hooks/fileTreePointerDragState';
 import { useExternalFileTreeDropState } from '../FileTree/hooks/externalFileTreeDropState';
 import { useRootBlankContextMenu } from './useRootBlankContextMenu';
@@ -208,10 +208,10 @@ export function RootFolderRow({
     return null;
   }
 
-  const handleMenuOpen = () => {
-    const button = menuButtonRef.current;
-    if (!button) return;
-    setMenuPosition(getSidebarMenuPositionFromTriggerRect(button.getBoundingClientRect()));
+  const handleMenuOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const rowElement = event.currentTarget.closest('[data-notes-root-folder-row="true"]');
+    const rowRect = (rowElement ?? event.currentTarget).getBoundingClientRect();
+    setMenuPosition(getSidebarContextMenuPosition(rowRect, event.clientY));
     setShowMenu(true);
   };
 
@@ -270,6 +270,7 @@ export function RootFolderRow({
         isHighlighted={showMenu}
         isDragOver={isRootDragOver}
         showActionsByDefault={showMenu}
+        data-notes-root-folder-row="true"
         main={
           isRenaming ? (
             <SidebarInlineRenameInput
@@ -293,15 +294,13 @@ export function RootFolderRow({
           <SidebarRowActionButton
             ref={menuButtonRef}
             aria-label="Open root folder menu"
-            onClick={() => {
-              handleMenuOpen();
+            onClick={(event) => {
+              handleMenuOpen(event);
             }}
             className={cn(
               'rounded-md p-1 focus:outline-none',
               iconButtonStyles,
-              showMenu
-                ? 'text-[var(--notes-sidebar-icon-hover)] hover:text-[var(--notes-sidebar-text)]'
-                : 'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]',
+              'text-[var(--notes-sidebar-text)] hover:text-[var(--notes-sidebar-text)]',
             )}
           >
             <Icon name="common.more" size="md" />

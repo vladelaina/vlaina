@@ -181,7 +181,6 @@ export const FileItem = memo(function FileItem({
       showMenuButton={showMenuButton}
       menuButtonLabel="Open file menu"
       onMenuClick={handleMenuTrigger}
-      isMenuButtonActive={showMenu || isActive}
       main={
         isRenaming ? (
           <SidebarInlineRenameInput

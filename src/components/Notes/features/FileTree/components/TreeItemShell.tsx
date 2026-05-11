@@ -26,7 +26,6 @@ interface TreeItemShellProps {
   showMenuButton?: boolean;
   dragHandlers?: NotesSidebarRowDragHandlers;
   menuButtonLabel: string;
-  isMenuButtonActive?: boolean;
   onMouseEnter?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onMouseLeave?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
@@ -51,7 +50,6 @@ export function TreeItemShell({
   showMenuButton = true,
   dragHandlers,
   menuButtonLabel,
-  isMenuButtonActive = false,
   onMouseEnter,
   onMouseLeave,
   onClick,
@@ -93,19 +91,17 @@ export function TreeItemShell({
             ref={menuButtonRef}
             aria-label={menuButtonLabel}
             onClick={(event) => {
-              const button = menuButtonRef.current;
-              if (!button) {
+              const rowElement = event.currentTarget.closest('[data-file-tree-path]');
+              if (!rowElement) {
                 return;
               }
 
-              onMenuClick(event, button.getBoundingClientRect());
+              onMenuClick(event, rowElement.getBoundingClientRect());
             }}
             className={cn(
               'rounded-md p-1 focus:outline-none',
               iconButtonStyles,
-              isMenuButtonActive
-                ? 'text-[var(--notes-sidebar-icon-hover)] hover:text-[var(--notes-sidebar-text)]'
-                : 'text-[var(--notes-sidebar-icon)] hover:text-[var(--notes-sidebar-icon-hover)]',
+              'text-[var(--notes-sidebar-text)] hover:text-[var(--notes-sidebar-text)]',
             )}
           >
             <Icon name="common.more" size="md" />

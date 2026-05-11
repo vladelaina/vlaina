@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type React from 'react';
-import { getSidebarContextMenuPosition, getSidebarMenuPositionFromTriggerRect } from '../../common/sidebarMenuPosition';
+import { getSidebarContextMenuPosition } from '../../common/sidebarMenuPosition';
 import { registerSidebarHoverRenameTarget } from '../../common/sidebarHoverRename';
 
 interface UseTreeItemUiStateOptions {
@@ -48,8 +48,8 @@ export function useTreeItemUiState({ path, name }: UseTreeItemUiStateOptions) {
     setShowMenu(true);
   }, []);
 
-  const handleMenuTrigger = useCallback((_event: React.MouseEvent, rect: DOMRect) => {
-    setMenuPosition(getSidebarMenuPositionFromTriggerRect(rect));
+  const handleMenuTrigger = useCallback((event: React.MouseEvent, rect: DOMRect) => {
+    setMenuPosition(getSidebarContextMenuPosition(rect, event.clientY));
     setShowMenu((prev) => !prev);
   }, []);
 

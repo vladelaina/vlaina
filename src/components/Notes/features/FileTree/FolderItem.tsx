@@ -182,7 +182,6 @@ export const FolderItem = memo(function FolderItem({
       showMenuButton={showMenuButton}
       menuButtonLabel="Open folder menu"
       onMenuClick={handleMenuTrigger}
-      isMenuButtonActive={showMenu}
       main={
         isRenaming ? (
           <SidebarInlineRenameInput
