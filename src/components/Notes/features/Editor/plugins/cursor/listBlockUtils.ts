@@ -1,6 +1,7 @@
 import type { Node as ProseNode, NodeType } from '@milkdown/kit/prose/model';
 import type { EditorState } from '@milkdown/kit/prose/state';
 import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
+import { LIST_CONTAINER_NODE_NAMES } from '../shared/blockNodeTypes';
 
 const LIST_ITEM_NODE_NAME = 'list_item';
 
@@ -39,7 +40,7 @@ export function getRangeKey(range: BlockRange): string {
 }
 
 export function isListContainerName(name: string): boolean {
-  return name === 'bullet_list' || name === 'ordered_list';
+  return LIST_CONTAINER_NODE_NAMES.has(name);
 }
 
 function collectLiftedListGroups(itemNode: ProseNode, itemFrom: number, selectedTo: number): LiftedListGroup[] {

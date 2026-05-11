@@ -3,6 +3,7 @@ import type { ResolvedPos } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { buildDeleteRangesForBlockSelection } from './listBlockUtils';
 import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
+import { LIST_CONTAINER_NODE_NAMES } from '../shared/blockNodeTypes';
 
 function blurEditorAfterBlockDeletion(view: EditorView): void {
   const activeElement = view.dom.ownerDocument.activeElement;
@@ -15,7 +16,7 @@ function blurEditorAfterBlockDeletion(view: EditorView): void {
 }
 
 function isListContainerName(name: string): boolean {
-  return name === 'bullet_list' || name === 'ordered_list';
+  return LIST_CONTAINER_NODE_NAMES.has(name);
 }
 
 function findSelectionInsideAdjacentList($pos: ResolvedPos): Selection | null {

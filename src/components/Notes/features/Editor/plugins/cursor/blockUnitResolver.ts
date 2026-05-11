@@ -6,6 +6,10 @@ import {
   type BlockRange,
 } from './blockSelectionUtils';
 import { resolveBlockElementAtPos, resolveTopLevelBlockElement } from './topLevelBlockDom';
+import {
+  COMPLEX_LIST_ITEM_CHILD_NODE_NAMES,
+  LIST_CONTAINER_NODE_NAMES,
+} from '../shared/blockNodeTypes';
 
 export interface SelectableBlockTarget {
   range: BlockRange;
@@ -19,7 +23,7 @@ function isNonDraggableBlockNode(name: string): boolean {
 }
 
 function isListContainerNode(name: string): boolean {
-  return name === 'bullet_list' || name === 'ordered_list';
+  return LIST_CONTAINER_NODE_NAMES.has(name);
 }
 
 function resolveTopLevelNodeAtPos(
@@ -55,7 +59,7 @@ function collectListItemRanges(node: EditorState['doc'], itemFrom: number, range
       }
       collectListContainerRanges(child, childFrom, ranges);
     } else {
-      const isComplexBlock = child.type.name === 'code_block' || child.type.name === 'image';
+      const isComplexBlock = COMPLEX_LIST_ITEM_CHILD_NODE_NAMES.has(child.type.name);
 
       if (firstChild) {
         if (isComplexBlock) {

@@ -173,6 +173,60 @@ describe('collectSelectableBlockRanges — list_item with paragraph then code_bl
   });
 });
 
+describe('collectSelectableBlockRanges — list_item with paragraph then atomic preview blocks', () => {
+  it.each([
+    ['math_block', 6],
+    ['mermaid', 6],
+  ])('produces both the whole-item range and the %s-only range', (typeName, nodeSize) => {
+    const previewBlock = createNode(typeName, nodeSize);
+    const para = createNode('paragraph', 4);
+    const listItem = createNode('list_item', 12, [para, previewBlock]);
+    const list = createNode('bullet_list', 14, [listItem]);
+    const doc = createDoc([list]);
+
+    const ranges = collectSelectableBlockRanges(doc as any);
+
+    expect(ranges).toContainEqual({ from: 1, to: 13 });
+    expect(ranges).toContainEqual({ from: 6, to: 12 });
+    expect(ranges).not.toContainEqual({ from: 2, to: 6 });
+  });
+
+  it.each([
+    ['math_block', 6],
+    ['mermaid', 6],
+  ])('returns the %s-only range when resolving a position inside the block', (typeName, nodeSize) => {
+    const previewBlock = createNode(typeName, nodeSize);
+    const para = createNode('paragraph', 4);
+    const listItem = createNode('list_item', 12, [para, previewBlock]);
+    const list = createNode('bullet_list', 14, [listItem]);
+    const doc = createDoc([list]);
+
+    expect(resolveSelectableBlockRange(doc as any, 8)).toEqual({ from: 6, to: 12 });
+  });
+});
+
+describe('collectSelectableBlockRanges — list_item starting with complex preview blocks', () => {
+  it.each([
+    ['code_block', 6],
+    ['image', 1],
+    ['math_block', 1],
+    ['mermaid', 1],
+    ['table', 6],
+    ['video', 1],
+    ['toc', 1],
+  ])('keeps a leading %s block independently selectable inside a list item', (typeName, nodeSize) => {
+    const previewBlock = createNode(typeName, nodeSize);
+    const listItem = createNode('list_item', nodeSize + 2, [previewBlock]);
+    const list = createNode('bullet_list', nodeSize + 4, [listItem]);
+    const doc = createDoc([list]);
+
+    const ranges = collectSelectableBlockRanges(doc as any);
+
+    expect(ranges).toContainEqual({ from: 2, to: 2 + nodeSize });
+    expect(resolveSelectableBlockRange(doc as any, 2)).toEqual({ from: 2, to: 2 + nodeSize });
+  });
+});
+
 describe('resolveSelectableBlockRange — list_item with paragraph then code_block', () => {
   it('returns the code-block-only range when pos is inside the code block', () => {
     const doc = createListItemWithCodeBlockDoc() as any;

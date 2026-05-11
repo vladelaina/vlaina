@@ -47,6 +47,21 @@ function createCodeBlockNode(view: EditorView, text = 'const value = 1;'): Prose
   return codeBlockType.create({ language: 'ts' }, view.state.schema.text(text));
 }
 
+function createPreviewBlockNode(view: EditorView, typeName: 'math_block' | 'mermaid' | 'table'): ProseNode {
+  if (typeName === 'table') {
+    return createTableNode(view);
+  }
+
+  const nodeType = view.state.schema.nodes[typeName];
+  if (!nodeType) {
+    throw new Error(`Expected ${typeName} schema`);
+  }
+
+  return typeName === 'math_block'
+    ? nodeType.create({ latex: 'x^2' })
+    : nodeType.create({ code: 'graph TD\nA --> B' });
+}
+
 afterEach(() => {
   document.body.innerHTML = '';
 });
@@ -220,6 +235,49 @@ describe('deleteSelectedBlocks', () => {
     expect(view.state.doc.textContent).toContain('Item');
     expect(view.state.doc.textContent).toContain('Next');
     expect(view.state.doc.textContent).not.toContain('console.log');
+    expect(view.state.doc.child(0).type.name).toBe('bullet_list');
+    expect(view.state.doc.child(0).childCount).toBe(2);
+
+    await editor.destroy();
+  });
+
+  it.each([
+    'math_block',
+    'mermaid',
+    'table',
+  ] as const)('removes only a selected %s block inside a list item', async (typeName) => {
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      schema.nodes.bullet_list.create(null, [
+        schema.nodes.list_item.create(null, [
+          schema.nodes.paragraph.create(null, schema.text('Item')),
+          createPreviewBlockNode(view, typeName),
+        ]),
+        schema.nodes.list_item.create(null, [
+          schema.nodes.paragraph.create(null, schema.text('Next')),
+        ]),
+      ]),
+    ]);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+    const previewBlock = blocks.find((range) => view.state.doc.resolve(range.from).nodeAfter?.type.name === typeName);
+
+    expect(previewBlock).toBeDefined();
+    expect(deleteSelectedBlocks(view, [previewBlock!], (tr) => tr)).toBe(true);
+
+    let hasDeletedType = false;
+    view.state.doc.descendants((node) => {
+      if (node.type.name === typeName) {
+        hasDeletedType = true;
+        return false;
+      }
+      return true;
+    });
+
+    expect(view.state.doc.textContent).toContain('Item');
+    expect(view.state.doc.textContent).toContain('Next');
+    expect(hasDeletedType).toBe(false);
     expect(view.state.doc.child(0).type.name).toBe('bullet_list');
     expect(view.state.doc.child(0).childCount).toBe(2);
 

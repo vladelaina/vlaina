@@ -14,6 +14,11 @@ import {
   findAdjacentEmptyParagraphNearBlockDeleteRange,
   type AdjacentEmptyParagraphDeleteRange,
 } from '../shared/emptyParagraphNearBlockDeletion';
+import {
+  LIST_CONTAINER_NODE_NAMES,
+  NAVIGABLE_ATOMIC_BLOCK_NODE_NAMES,
+  STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES,
+} from '../shared/blockNodeTypes';
 
 type Direction = 'up' | 'down';
 
@@ -35,24 +40,6 @@ export const atomicBlockKeyboardNavigationPluginKey =
   new PluginKey<TransientGapState>('atomicBlockKeyboardNavigation');
 
 const EMPTY_TRANSIENT_GAP_STATE: TransientGapState = { pos: null };
-const ATOMIC_NAV_BLOCK_NODE_NAMES = new Set(['math_block', 'mermaid']);
-const STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES = new Set([
-  'heading',
-  'blockquote',
-  'callout',
-  'frontmatter',
-  'footnote_def',
-  'hr',
-  'html_block',
-  'table',
-  'toc',
-  'video',
-  'math_block',
-  'mermaid',
-  'code_block',
-  'ordered_list',
-  'bullet_list',
-]);
 export const ATOMIC_BLOCK_KEYBOARD_SELECTION_CLASS = 'vlaina-atomic-block-keyboard-selected';
 
 function getPlainVerticalDirection(event: KeyboardEvent): Direction | null {
@@ -66,11 +53,11 @@ function getPlainVerticalDirection(event: KeyboardEvent): Direction | null {
 }
 
 function isNavigableAtomicBlock(node: ProseNode | null | undefined): boolean {
-  return Boolean(node && ATOMIC_NAV_BLOCK_NODE_NAMES.has(node.type.name));
+  return Boolean(node && NAVIGABLE_ATOMIC_BLOCK_NODE_NAMES.has(node.type.name));
 }
 
 function isListContainerNode(node: ProseNode | null | undefined): node is ProseNode {
-  return Boolean(node && (node.type.name === 'ordered_list' || node.type.name === 'bullet_list'));
+  return Boolean(node && LIST_CONTAINER_NODE_NAMES.has(node.type.name));
 }
 
 function hasAtomicBlockNodeSelection(state: EditorState): boolean {
@@ -311,7 +298,7 @@ function handleEmptyParagraphNearStructuralBlockDelete(
 }
 
 function isListContainerNodeName(nodeName: string): boolean {
-  return nodeName === 'ordered_list' || nodeName === 'bullet_list';
+  return LIST_CONTAINER_NODE_NAMES.has(nodeName);
 }
 
 function selectAtomicBlock(view: EditorView, pos: number): boolean {

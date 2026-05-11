@@ -4,6 +4,7 @@ import { serializeSliceToText } from '../clipboard/serializer';
 import { normalizeSerializedMarkdownBlock } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { serializeLeadingFrontmatterMarkdown } from '../frontmatter/frontmatterMarkdown';
 import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
+import { LIST_CONTAINER_NODE_NAMES } from '../shared/blockNodeTypes';
 
 interface SerializeSelectedBlocksOptions {
   markdownSerializer?: Serializer | null;
@@ -31,7 +32,7 @@ function resolveTopLevelBlockInfo(
 }
 
 function isListContainerName(name: string): boolean {
-  return name === 'bullet_list' || name === 'ordered_list';
+  return LIST_CONTAINER_NODE_NAMES.has(name);
 }
 
 function getOrderedListMarkerNumber(text: string): number | null {

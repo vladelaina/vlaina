@@ -89,6 +89,13 @@ function readTextSelectionOverlaySource() {
   );
 }
 
+function readSharedBlockNodeTypesSource() {
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/shared', 'blockNodeTypes.ts'),
+    'utf8'
+  );
+}
+
 function readAiReviewSelectionSource() {
   return readFileSync(
     resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar/ai', 'reviewSelection.ts'),
@@ -209,6 +216,7 @@ describe('editor embedded CodeMirror selection styles', () => {
   it('renders editor text selections with inline overlays instead of block line boxes', () => {
     const css = readStyleFile('selection-width.css');
     const source = readTextSelectionOverlaySource();
+    const sharedSource = readSharedBlockNodeTypesSource();
 
     expect(css).toContain('.milkdown .ProseMirror.vlaina-text-selection-overlay-active *::selection {');
     expect(css).toContain('background-color: transparent !important;');
@@ -218,7 +226,10 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).not.toContain('vlaina-link-selection-visible');
     expect(source).toContain("export const TEXT_SELECTION_OVERLAY_CLASS = 'vlaina-text-selection-overlay'");
     expect(source).toContain('Decoration.inline(from, to, {');
-    expect(source).toContain("const ATOMIC_SELECTION_NODE_TYPES = new Set(['math_block', 'math_inline', 'mermaid', 'table'])");
+    expect(source).toContain('ATOMIC_TEXT_SELECTION_OVERLAY_NODE_NAMES.has(node.type.name)');
+    expect(sharedSource).toContain('ATOMIC_TEXT_SELECTION_OVERLAY_NODE_NAMES');
+    expect(sharedSource).toContain("'video'");
+    expect(sharedSource).toContain("'toc'");
     expect(source).toContain('Decoration.node(pos, pos + node.nodeSize, {');
     expect(source).toContain("class: 'vlaina-block-selected vlaina-atomic-selected'");
     expect(source).toContain("class: TEXT_SELECTION_OVERLAY_CLASS");
