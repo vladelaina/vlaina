@@ -10,6 +10,7 @@ import { isEventInsideDialog } from '@/lib/shortcuts/dialogGuards';
 import { dispatchSidebarOpenSearchEvent } from '@/components/layout/sidebar/sidebarEvents';
 import { resolveSiblingNoteParentPath } from '@/stores/notes/notePathState';
 import { dispatchDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEvents';
+import { isOpenSettingsBinding } from '@/lib/shortcuts';
 
 interface UseShortcutsOptions {
   scope?: ShortcutScope;
@@ -54,7 +55,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       dispatchEditorFindOpenEvent();
     },
     'open-settings': () => {
-      window.dispatchEvent(new Event('open-settings'));
+      window.dispatchEvent(new Event('toggle-settings'));
     },
     newWindow: async () => {
       await desktopWindow.create({ viewMode: appViewMode });
@@ -103,6 +104,10 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
       }
 
       if (isEventInsideDialog(e.target)) {
+        if (isOpenSettingsBinding(e)) {
+          e.preventDefault();
+          await handlers['open-settings']?.();
+        }
         return;
       }
 
@@ -130,6 +135,7 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
         if (scope !== 'global' && shortcutScope !== 'global' && shortcutScope !== scope) continue;
         if (shortcutScope === 'notes' && appViewMode !== 'notes') continue;
         if (shortcutScope === 'chat' && appViewMode !== 'chat') continue;
+        if (shortcut.id === 'open-settings' && !isOpenSettingsBinding(e)) continue;
         
         if (matchShortcut(pressedKeys, shortcut)) {
           const handler = handlers[shortcut.id];

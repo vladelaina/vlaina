@@ -42,13 +42,13 @@ export function ModuleShortcutsDialog({
       <DialogContent
         showCloseButton={false}
         useBlurBackdrop
-        blurBackdropProps={{ overlayClassName: 'bg-white/20 dark:bg-white/5', blurPx: 6, duration: 0.2 }}
+        blurBackdropProps={{ overlayClassName: 'bg-white/20 dark:bg-white/5', blurPx: 6, duration: 0.05 }}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
         }}
         onPointerDownOutside={handlePointerDownOutside}
         onInteractOutside={handleInteractOutside}
-        className="sm:max-w-lg rounded-[20px] border border-black/5 bg-white p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)] overflow-hidden dark:border-white/5 dark:bg-[#1E1E1E] dark:shadow-[0_24px_60px_rgba(0,0,0,0.35)]"
+        className="sm:max-w-lg rounded-[20px] border border-black/5 bg-white p-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)] overflow-hidden duration-75 dark:border-white/5 dark:bg-[#1E1E1E] dark:shadow-[0_24px_60px_rgba(0,0,0,0.35)]"
       >
         <div
           className="vlaina-drag-region flex min-w-0 items-start justify-between gap-3 px-1 pb-4 cursor-grab active:cursor-grabbing select-none"
