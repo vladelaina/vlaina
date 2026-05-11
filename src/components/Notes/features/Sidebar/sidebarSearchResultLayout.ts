@@ -3,9 +3,11 @@ import { APP_SANS_FONT_FAMILY } from '@/lib/typography/fontFamilies';
 import type { NotesSidebarSearchResult } from './notesSidebarSearchResults';
 
 const SIDEBAR_SEARCH_FONT = `normal 400 16px ${APP_SANS_FONT_FAMILY}`;
+const SIDEBAR_SEARCH_LOCATION_FONT = `normal 400 11px ${APP_SANS_FONT_FAMILY}`;
+const SIDEBAR_SEARCH_SNIPPET_FONT = `normal 400 12px ${APP_SANS_FONT_FAMILY}`;
 const TITLE_LINE_HEIGHT = 22;
-const META_LINE_HEIGHT = 22;
-const SNIPPET_LINE_HEIGHT = 22;
+const META_LINE_HEIGHT = 12;
+const SNIPPET_LINE_HEIGHT = 12;
 const SIDEBAR_ROW_HORIZONTAL_PADDING = 12;
 const SIDEBAR_ROW_VERTICAL_PADDING = 8;
 const SIDEBAR_ROW_ICON_WIDTH = 20;
@@ -70,10 +72,10 @@ export function estimateNotesSidebarSearchRowHeight(
     ? estimateTextLineHeight(item.result.name, width, SIDEBAR_SEARCH_FONT, TITLE_LINE_HEIGHT)
     : 0;
   const locationHeight = locationLabel
-    ? estimateTextLineHeight(locationLabel, width, SIDEBAR_SEARCH_FONT, META_LINE_HEIGHT)
+    ? estimateTextLineHeight(locationLabel, width, SIDEBAR_SEARCH_LOCATION_FONT, META_LINE_HEIGHT)
     : 0;
   const contentHeight = item.result.contentSnippet
-    ? estimateTextLineHeight(item.result.contentSnippet, width, SIDEBAR_SEARCH_FONT, SNIPPET_LINE_HEIGHT)
+    ? estimateTextLineHeight(item.result.contentSnippet, width, SIDEBAR_SEARCH_SNIPPET_FONT, SNIPPET_LINE_HEIGHT)
     : 0;
   const textHeight = titleHeight + locationHeight + contentHeight;
   const paddedHeight = textHeight + SIDEBAR_ROW_VERTICAL_PADDING * 2;

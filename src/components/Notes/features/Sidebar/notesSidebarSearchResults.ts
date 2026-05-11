@@ -1,9 +1,18 @@
+import { getNoteTitleFromPath } from '@/lib/notes/displayName';
+import {
+  getStarredEntryAbsolutePath,
+  normalizeStarredVaultPath,
+} from '@/stores/notes/starred';
+import type { StarredEntry } from '@/stores/notes/types';
 import type { FileTreeNode, FolderNode } from '@/stores/useNotesStore';
 
 export interface NotesSidebarSearchEntry {
   path: string;
+  openPath?: string;
   name: string;
   preview: string;
+  isExternal?: boolean;
+  contentSearchable?: boolean;
 }
 
 export interface NotesSidebarSearchResult extends NotesSidebarSearchEntry {
@@ -12,6 +21,11 @@ export interface NotesSidebarSearchResult extends NotesSidebarSearchEntry {
   matchKind: 'name' | 'path' | 'content';
   contentSnippet: string | null;
   contentMatchOrdinal: number | null;
+}
+
+export interface NotesSidebarSearchIndexOptions {
+  starredEntries?: StarredEntry[];
+  currentVaultPath?: string | null;
 }
 
 const CONTENT_SEARCH_MIN_QUERY_LENGTH = 1;
@@ -41,15 +55,79 @@ function collectNotesSidebarSearchEntries(
   return bucket;
 }
 
+function getParentPreview(path: string): string {
+  const normalizedPath = path.replace(/\\/g, '/').replace(/\/+$/, '');
+  const parts = normalizedPath.split('/').filter(Boolean);
+  parts.pop();
+
+  return parts.length > 0 ? `${parts.join('/')}/` : '';
+}
+
+function collectStarredSearchEntries(
+  starredEntries: StarredEntry[],
+  currentVaultPath: string | null | undefined,
+  existingTreePaths: Set<string>,
+): NotesSidebarSearchEntry[] {
+  const normalizedCurrentVaultPath = currentVaultPath
+    ? normalizeStarredVaultPath(currentVaultPath)
+    : '';
+  const entries: NotesSidebarSearchEntry[] = [];
+  const seenOpenPaths = new Set<string>();
+
+  for (const entry of starredEntries) {
+    if (entry.kind !== 'note') {
+      continue;
+    }
+
+    const isCurrentVaultEntry =
+      normalizedCurrentVaultPath !== '' &&
+      normalizeStarredVaultPath(entry.vaultPath) === normalizedCurrentVaultPath;
+    if (isCurrentVaultEntry && existingTreePaths.has(entry.relativePath)) {
+      continue;
+    }
+
+    const entryPath = isCurrentVaultEntry
+      ? entry.relativePath
+      : getStarredEntryAbsolutePath(entry);
+    if (!entryPath || seenOpenPaths.has(entryPath)) {
+      continue;
+    }
+
+    seenOpenPaths.add(entryPath);
+    entries.push({
+      path: entryPath,
+      openPath: entryPath,
+      name: getNoteTitleFromPath(entry.relativePath),
+      preview: getParentPreview(entryPath),
+      isExternal: !isCurrentVaultEntry,
+      contentSearchable: false,
+    });
+  }
+
+  return entries;
+}
+
 export function buildNotesSidebarSearchIndex(
   rootFolder: FolderNode | null,
   getDisplayName: (path: string) => string,
+  options: NotesSidebarSearchIndexOptions = {},
 ): NotesSidebarSearchEntry[] {
-  if (!rootFolder) {
-    return [];
+  const treeEntries = rootFolder
+    ? collectNotesSidebarSearchEntries(rootFolder.children, getDisplayName)
+    : [];
+
+  if (!options.starredEntries?.length) {
+    return treeEntries;
   }
 
-  return collectNotesSidebarSearchEntries(rootFolder.children, getDisplayName);
+  return [
+    ...treeEntries,
+    ...collectStarredSearchEntries(
+      options.starredEntries,
+      options.currentVaultPath,
+      new Set(treeEntries.map((entry) => entry.path)),
+    ),
+  ];
 }
 
 export function countNotesSidebarSearchEntries(rootFolder: FolderNode | null): number {
@@ -174,7 +252,7 @@ export function queryNotesSidebarSearch(
     .flatMap((entry) => {
       const nameMatchIndex = entry.name.toLowerCase().indexOf(lowerQuery);
       const pathMatchIndex = entry.preview.toLowerCase().indexOf(lowerQuery);
-      const contentMatches = includeContentMatches
+      const contentMatches = includeContentMatches && entry.contentSearchable !== false
         ? getContentMatches(getNoteContent?.(entry.path), lowerQuery)
         : [];
       const results: NotesSidebarSearchResult[] = [];

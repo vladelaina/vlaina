@@ -104,6 +104,46 @@ describe('SidebarSearchResultsList', () => {
     );
   });
 
+  it('only marks the clicked match active when one file has multiple results', () => {
+    render(
+      <SidebarSearchResultsList
+        results={[
+          buildResult({
+            id: 'folder/alpha.md::content::0',
+            matchKind: 'content',
+            contentSnippet: 'First alpha match.',
+            contentMatchOrdinal: 0,
+          }),
+          buildResult({
+            id: 'folder/alpha.md::content::1',
+            matchKind: 'content',
+            contentSnippet: 'Second alpha match.',
+            contentMatchOrdinal: 1,
+          }),
+        ]}
+        query="alpha"
+        currentNotePath="folder/alpha.md"
+        activeResultId="folder/alpha.md::content::1"
+        onOpen={() => {}}
+        scrollRootRef={createRef<HTMLDivElement>()}
+        isContentScanPending={false}
+      />,
+    );
+
+    const rows = screen.getAllByRole('button');
+    const firstRow = rows.find((row) => row.textContent?.includes('First alpha match.'));
+    const secondRow = rows.find((row) => row.textContent?.includes('Second alpha match.'));
+
+    expect(firstRow).toHaveAttribute(
+      'data-active',
+      'false',
+    );
+    expect(secondRow).toHaveAttribute(
+      'data-active',
+      'true',
+    );
+  });
+
   it('resets scroll position when the deferred query changes', () => {
     const scrollRoot = document.createElement('div');
     const scrollToMock = vi.fn();
