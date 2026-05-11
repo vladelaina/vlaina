@@ -4,9 +4,9 @@ import { MessageToolbar } from './MessageToolbar';
 import { ErrorBlock } from './ErrorBlock';
 import type { ChatMessage } from '@/lib/ai/types';
 import { parseErrorTag } from '@/lib/ai/errorTag';
-import { useAssistantOutputText } from './useAssistantOutputText';
 import { extractWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup';
 import { WebSearchStatusBlock } from '@/components/Chat/features/WebSearch/WebSearchStatusBlock';
+import { logChatStreamDebug } from '@/stores/notes/lineBreakDebugLog';
 
 interface ChatImageGalleryItem {
   id: string;
@@ -64,11 +64,18 @@ export function AIMessage({
     };
   }, [msg.content]);
   const isStreamingContentVisible = isLoading && contentWithoutError.trim().length > 0;
-  const visibleContent = useAssistantOutputText(
-    contentWithoutError || ' ',
-    isStreamingContentVisible,
-    msg.id,
-  );
+  const visibleContent = contentWithoutError || ' ';
+
+  useEffect(() => {
+    logChatStreamDebug('message:view', {
+      messageId: msg.id,
+      loading: isLoading,
+      streamingVisible: isStreamingContentVisible,
+      contentLength: contentWithoutError.length,
+      error: Boolean(errorContent),
+      webSearchStatuses: webSearchStatuses.length,
+    });
+  }, [contentWithoutError.length, errorContent, isLoading, isStreamingContentVisible, msg.id, webSearchStatuses.length]);
 
   useEffect(() => {
     setCopiedCodeBlockId(null);

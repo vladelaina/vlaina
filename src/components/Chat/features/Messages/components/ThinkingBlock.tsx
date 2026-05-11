@@ -7,6 +7,8 @@ import {
 import { createMarkdownComponents } from "@/components/Chat/features/Markdown/markdownRendererComponents";
 import { useChatStreamBlocks } from "@/components/Chat/features/Markdown/chatStreamTextAnimation";
 import { createChatStreamTextPlugin } from "@/components/Chat/features/Markdown/chatStreamTextPlugin";
+import { getChatContentWidth } from "@/components/Chat/features/Layout/chatWidthBuckets";
+import { logChatStreamDebug } from "@/stores/notes/lineBreakDebugLog";
 import { PrimerLightbulbIcon } from "@/components/ui/icons/custom/mit/PrimerLightbulbIcon";
 import "@/components/common/markdown/markdownSurface.css";
 
@@ -26,6 +28,7 @@ export function ThinkingBlock({
   const [hasOverflow, setHasOverflow] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const [contentWidth, setContentWidth] = useState(0);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const observedContentRef = useRef<HTMLDivElement | null>(null);
   const syncContentHeightRef = useRef<() => void>(() => {});
@@ -60,6 +63,7 @@ export function ThinkingBlock({
     resizeObserverRef.current = resizeObserver;
     observedContentRef.current = content;
     syncContentHeightRef.current();
+    setContentWidth(getChatContentWidth(content.clientWidth));
   }, [thinking]);
 
   useEffect(() => {
@@ -89,8 +93,26 @@ export function ThinkingBlock({
     }
   }, [thinking, activelyThinking, isCollapsed]);
 
-  const streamBlocks = useChatStreamBlocks(thinking, activelyThinking);
+  const streamBlocks = useChatStreamBlocks(thinking, activelyThinking, contentWidth);
   const markdownComponents = createMarkdownComponents({ codeBlockIdBase: "thinking-code" });
+
+  useEffect(() => {
+    logChatStreamDebug('thinking:view', {
+      streaming: activelyThinking,
+      collapsed: isCollapsed,
+      contentLength: thinking.length,
+      contentWidth,
+      blockCount: streamBlocks.length,
+      firstBlock: streamBlocks[0]
+        ? {
+            key: streamBlocks[0].key,
+            births: streamBlocks[0].births.length,
+            revealed: streamBlocks[0].revealed,
+            nowMs: streamBlocks[0].nowMs,
+          }
+        : null,
+    });
+  }, [activelyThinking, contentWidth, isCollapsed, streamBlocks, thinking.length]);
 
   const handleToggle = () => {
     setIsCollapsed((collapsed) => !collapsed);

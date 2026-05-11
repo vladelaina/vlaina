@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, beforeEach, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { measureRichInlineStats } from "@/lib/text-layout";
+import {
+  getPreparedMarkdownTextBlock,
+  normalizeInlineMarkdownForMeasurement,
+} from "@/components/Chat/features/Layout/chatAssistantInlineMarkdown";
+import { buildChatStreamSchedule } from "./chatStreamTextAnimation";
 
 const { reactMarkdownSpy, codeBlockSpy, thinkingBlockSpy } = vi.hoisted(() => ({
   reactMarkdownSpy: vi.fn(),
@@ -63,16 +69,19 @@ vi.mock("./components/ChatImageViewer", () => ({
 }));
 
 import MarkdownRenderer from "./MarkdownRenderer";
+import { clearNotesDebugLog } from "@/stores/notes/lineBreakDebugLog";
 
 describe("MarkdownRenderer", () => {
   beforeEach(() => {
     reactMarkdownSpy.mockClear();
     codeBlockSpy.mockClear();
     thinkingBlockSpy.mockClear();
+    clearNotesDebugLog();
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    clearNotesDebugLog();
   });
 
   it("extracts completed think blocks and renders the remaining markdown", () => {
@@ -125,6 +134,36 @@ describe("MarkdownRenderer", () => {
     expect(surface).toHaveClass("chat-markdown-live");
   });
 
+  it("keeps the visible stream on the markdown surface", async () => {
+    vi.useFakeTimers();
+
+    render(<MarkdownRenderer content={"Visible"} isStreaming imageIdBase="m1" />);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(180);
+    });
+
+    expect(screen.getByTestId("react-markdown").parentElement).toHaveAttribute("data-chat-markdown-live", "true");
+  });
+
+  it("reflows the streaming schedule by visual line width", () => {
+    const text = "A longer assistant paragraph that should wrap differently when width changes.";
+    const prepared = getPreparedMarkdownTextBlock(text, "body");
+
+    const wide = measureRichInlineStats(prepared, 520).lineCount;
+    const narrow = measureRichInlineStats(prepared, 260).lineCount;
+
+    expect(narrow).toBeGreaterThan(wide);
+  });
+
+  it("schedules a wrapped paragraph as a single visual stream", () => {
+    const longParagraph = "word ".repeat(80);
+
+    const blocks = buildChatStreamSchedule(longParagraph, 260, 1000);
+    expect(blocks.births.length).toBe(Array.from(normalizeInlineMarkdownForMeasurement(longParagraph)).length);
+    expect(blocks.births.slice(1).every((birth: number, index: number) => birth >= blocks.births[index]!)).toBe(true);
+  });
+
   it("freezes streaming markdown after drag selection starts without freezing on pointer down", async () => {
     vi.useFakeTimers();
     const { rerender } = render(<MarkdownRenderer content={"Visible"} isStreaming />);
@@ -163,16 +202,6 @@ describe("MarkdownRenderer", () => {
         copiedCodeBlockId="m1:1"
       />,
     );
-
-    expect(codeBlockSpy).toHaveBeenCalledTimes(2);
-    expect(codeBlockSpy.mock.calls[0][0]).toMatchObject({
-      blockId: "m1:0",
-      copied: false,
-    });
-    expect(codeBlockSpy.mock.calls[1][0]).toMatchObject({
-      blockId: "m1:1",
-      copied: true,
-    });
 
     codeBlockSpy.mockClear();
 

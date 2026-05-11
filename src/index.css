@@ -422,11 +422,13 @@ textarea,
 
 .chat-stream-char {
   opacity: 0;
-  animation-name: chat-stream-char-fade;
-  animation-duration: 360ms;
-  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  animation-fill-mode: forwards;
   will-change: opacity;
+}
+
+.chat-stream-char-pending {
+  opacity: 0;
+  animation: none;
+  will-change: auto;
 }
 
 .chat-stream-char-done {
