@@ -1,6 +1,97 @@
-import { $node, $inputRule } from '@milkdown/kit/utils';
+import { $node, $inputRule, $prose } from '@milkdown/kit/utils';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
+import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import type { FootnoteDefAttrs, FootnoteRefAttrs } from './types';
+
+export const footnoteInteractionPluginKey = new PluginKey('footnoteInteraction');
+
+function resolveFootnoteRef(target: EventTarget | null): HTMLElement | null {
+  if (!(target instanceof Element)) return null;
+  const ref = target.closest('.footnote-ref[data-id], .footnote-ref[data-label]');
+  return ref instanceof HTMLElement ? ref : null;
+}
+
+function findFootnoteDefinition(editorDom: HTMLElement, id: string): HTMLElement | null {
+  const definitions = editorDom.querySelectorAll<HTMLElement>('.footnote-def[data-id], .footnote-def[data-label]');
+  for (const definition of definitions) {
+    if (definition.dataset.id === id || definition.dataset.label === id) {
+      return definition;
+    }
+  }
+  return null;
+}
+
+function findFootnoteDefinitionDepth(view: EditorView): number | null {
+  const { selection } = view.state;
+  const { $from } = selection;
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    const nodeName = $from.node(depth).type.name;
+    if (nodeName === 'footnote_definition' || nodeName === 'footnote_def') {
+      return depth;
+    }
+  }
+  return null;
+}
+
+export function handleFootnoteModEnterExit(view: EditorView): boolean {
+  const { state } = view;
+  const { selection } = state;
+  const paragraphType = state.schema.nodes.paragraph;
+  if (!selection.empty || !paragraphType) {
+    return false;
+  }
+
+  const footnoteDepth = findFootnoteDefinitionDepth(view);
+  if (footnoteDepth === null) {
+    return false;
+  }
+
+  const footnotePos = selection.$from.before(footnoteDepth);
+  const footnoteNode = selection.$from.node(footnoteDepth);
+  const insertPos = footnotePos + footnoteNode.nodeSize;
+  let tr = state.tr.insert(insertPos, paragraphType.create());
+  tr = tr.setSelection(TextSelection.create(tr.doc, insertPos + 1)).scrollIntoView();
+  view.dispatch(tr);
+  return true;
+}
+
+export const footnoteInteractionPlugin = $prose(() => {
+  return new Plugin({
+    key: footnoteInteractionPluginKey,
+    props: {
+      handleKeyDown(view, event) {
+        if (event.key !== 'Enter' || (!event.ctrlKey && !event.metaKey) || event.altKey || event.shiftKey || event.isComposing) {
+          return false;
+        }
+
+        if (!handleFootnoteModEnterExit(view)) {
+          return false;
+        }
+
+        event.preventDefault();
+        return true;
+      },
+      handleDOMEvents: {
+        click(view, event) {
+          const ref = resolveFootnoteRef(event.target);
+          if (!ref) return false;
+
+          const id = ref.dataset.id || ref.dataset.label;
+          if (!id) return false;
+
+          const definition = findFootnoteDefinition(view.dom, id);
+          if (!definition) return false;
+
+          event.preventDefault();
+          event.stopPropagation();
+          definition.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          return true;
+        },
+      },
+    },
+  });
+});
 
 export const footnoteRefSchema = $node('footnote_ref', () => ({
   group: 'inline',
@@ -17,14 +108,16 @@ export const footnoteRefSchema = $node('footnote_ref', () => ({
   }],
   toDOM: (node) => {
     const attrs = node.attrs as FootnoteRefAttrs;
+    const label = `[${attrs.id}]`;
     return [
       'sup',
       {
         class: 'footnote-ref',
         'data-id': attrs.id,
-        title: `Footnote ${attrs.id}`
+        'data-footnote-value': label,
+        'aria-label': `Footnote ${attrs.id}`
       },
-      ['a', { href: `#fn-${attrs.id}` }, `[${attrs.id}]`]
+      ['span', { class: 'footnote-ref-label' }, label]
     ];
   },
   parseMarkdown: {
@@ -111,7 +204,8 @@ export const footnoteRefInputRule = $inputRule(() => {
 export const footnotePlugin = [
   footnoteRefSchema,
   footnoteDefSchema,
-  footnoteRefInputRule
+  footnoteRefInputRule,
+  footnoteInteractionPlugin
 ];
 
 export function serializeFootnoteDefinitionToMarkdown(

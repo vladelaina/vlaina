@@ -271,6 +271,70 @@ describe('clipboardPlugin paste', () => {
         await editor.destroy();
     });
 
+    it('pastes a standalone inline footnote reference as a footnote node', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, '这是第二个脚注的例子[^note2]。')).toBe(true);
+
+        const inlineNodes: string[] = [];
+        let footnoteLabel: string | null = null;
+        view.state.doc.child(0).descendants((node) => {
+            inlineNodes.push(node.type.name);
+            if (node.type.name === 'footnote_reference') {
+                footnoteLabel = node.attrs.label;
+            }
+        });
+
+        expect(view.state.doc.child(0).textContent).toBe('这是第二个脚注的例子。');
+        expect(inlineNodes).toContain('footnote_reference');
+        expect(footnoteLabel).toBe('note2');
+
+        await editor.destroy();
+    });
+
+    it('keeps inline footnote references when mixed with other inline markdown', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, '**加粗** 和 [链接](https://example.com)[^note2]。')).toBe(true);
+
+        const inlineNodes: string[] = [];
+        const markNames: string[] = [];
+        let footnoteLabel: string | null = null;
+        view.state.doc.child(0).descendants((node) => {
+            inlineNodes.push(node.type.name);
+            markNames.push(...node.marks.map((mark: any) => mark.type.name));
+            if (node.type.name === 'footnote_reference') {
+                footnoteLabel = node.attrs.label;
+            }
+        });
+
+        expect(view.state.doc.child(0).textContent).toBe('加粗 和 链接。');
+        expect(markNames).toContain('strong');
+        expect(markNames).toContain('link');
+        expect(inlineNodes).toContain('footnote_reference');
+        expect(footnoteLabel).toBe('note2');
+
+        await editor.destroy();
+    });
+
     it('preserves intentional blank lines inside structural markdown paste', async () => {
         const editor = Editor.make()
             .config((ctx) => {

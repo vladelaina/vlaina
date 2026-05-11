@@ -150,6 +150,27 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).not.toContain('text-underline-offset: 4px;');
   });
 
+  it('renders footnote references as smaller inline-code chips with a capsule hover value', () => {
+    const css = readStyleFile('extended.css');
+
+    expect(css).toContain('.milkdown .footnote-ref {');
+    expect(css).toContain('vertical-align: super;');
+    expect(css).toContain('font-size: 0.68em;');
+    expect(css).toContain('cursor: pointer;');
+    expect(css).toContain('.milkdown .footnote-ref-label {');
+    expect(css).toContain('var(--crepe-color-inline-area, var(--vlaina-code-block-background, #f5f5f5))');
+    expect(css).toContain('color: var(--sidebar-row-selected-text, var(--vlaina-accent));');
+    expect(css).toContain('font-family: var(--crepe-font-code');
+    expect(css).toContain('.milkdown .footnote-ref::after {');
+    expect(css).toContain('content: attr(data-footnote-value);');
+    expect(css).toContain('border-radius: 9999px;');
+    expect(css).toContain('box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.7);');
+    expect(css).toContain('transition: none;');
+    expect(css).toContain('.milkdown .footnote-ref:hover::after,');
+    expect(css).toContain('.milkdown .footnote-ref:focus-within::after {');
+    expect(css).toContain('visibility: visible;');
+  });
+
   it('keeps block drag previews transparent and lightens preview text', () => {
     const css = readStyleFile('core.css');
 

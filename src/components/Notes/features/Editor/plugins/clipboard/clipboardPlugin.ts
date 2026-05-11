@@ -2,6 +2,7 @@ import { $prose } from '@milkdown/kit/utils';
 import { parserCtx, serializerCtx } from '@milkdown/kit/core';
 import { Plugin, PluginKey, Selection, TextSelection } from '@milkdown/kit/prose/state';
 import { Fragment, Slice, type Node as ProseNode } from '@milkdown/kit/prose/model';
+import type { Mark } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { Parser, Serializer } from '@milkdown/kit/transformer';
 import { preserveMarkdownBlankLinesForEditor } from '@/lib/notes/markdown/markdownSerializationUtils';
@@ -29,6 +30,7 @@ import { createMarkdownTableFromTabSeparatedText } from './tabSeparatedTablePast
 export const clipboardPluginKey = new PluginKey('vlaina-clipboard');
 const MAX_MARKDOWN_PASTE_CHARS = 1024 * 1024;
 const MAX_HTML_PASTE_CHARS = 2 * 1024 * 1024;
+const INLINE_FOOTNOTE_REFERENCE_PATTERN = /\[\^([^\]\r\n]+)\]/g;
 
 export function createStandaloneTocPasteNode(schema: {
     nodes: {
@@ -43,6 +45,101 @@ export function createStandaloneTocPasteNode(schema: {
     if (!tocType) return null;
 
     return tocType.create({ maxLevel: 6 });
+}
+
+type FootnoteReferenceState = {
+    schema: {
+        text: (text: string, marks?: readonly Mark[]) => ProseNode;
+        nodes: {
+            footnote_reference?: { create: (attrs: { label: string }) => ProseNode };
+            footnote_ref?: { create: (attrs: { id: string }) => ProseNode };
+        };
+    };
+};
+
+function createFootnoteReferenceNode(state: FootnoteReferenceState, id: string): ProseNode | null {
+    const footnoteReferenceType = state.schema.nodes.footnote_reference;
+    if (footnoteReferenceType) {
+        return footnoteReferenceType.create({ label: id });
+    }
+
+    const legacyFootnoteRefType = state.schema.nodes.footnote_ref;
+    if (legacyFootnoteRefType) {
+        return legacyFootnoteRefType.create({ id });
+    }
+
+    return null;
+}
+
+function splitTextNodeWithInlineFootnotes(state: FootnoteReferenceState, node: ProseNode): ProseNode[] | null {
+    const text = node.text ?? '';
+    if (!text || !text.includes('[^') || node.marks.some((mark) => mark.type.name === 'inlineCode')) {
+        return null;
+    }
+
+    const nodes: ProseNode[] = [];
+    let lastIndex = 0;
+    let hasFootnote = false;
+
+    for (const match of text.matchAll(INLINE_FOOTNOTE_REFERENCE_PATTERN)) {
+        const rawId = match[1]?.trim();
+        if (!rawId) continue;
+
+        const index = match.index ?? 0;
+        if (index > lastIndex) {
+            nodes.push(state.schema.text(text.slice(lastIndex, index), node.marks));
+        }
+
+        const footnoteNode = createFootnoteReferenceNode(state, rawId);
+        if (!footnoteNode) return null;
+        nodes.push(footnoteNode);
+        lastIndex = index + match[0].length;
+        hasFootnote = true;
+    }
+
+    if (!hasFootnote) return null;
+
+    if (lastIndex < text.length) {
+        nodes.push(state.schema.text(text.slice(lastIndex), node.marks));
+    }
+
+    return nodes;
+}
+
+function replaceInlineFootnoteReferencesInNode(state: FootnoteReferenceState, node: ProseNode): ProseNode[] {
+    if (node.isText) {
+        return splitTextNodeWithInlineFootnotes(state, node) ?? [node];
+    }
+
+    if (node.type.spec.code || node.isLeaf || node.content.childCount === 0) {
+        return [node];
+    }
+
+    let changed = false;
+    const children: ProseNode[] = [];
+    node.content.forEach((child) => {
+        const replacement = replaceInlineFootnoteReferencesInNode(state, child);
+        children.push(...replacement);
+        if (replacement.length !== 1 || replacement[0] !== child) {
+            changed = true;
+        }
+    });
+
+    return changed ? [node.copy(Fragment.fromArray(children))] : [node];
+}
+
+function replaceInlineFootnoteReferencesInNodes(state: FootnoteReferenceState, nodes: ProseNode[]): ProseNode[] {
+    return nodes.flatMap((node) => replaceInlineFootnoteReferencesInNode(state, node));
+}
+
+function createInlineFootnoteReferenceSlice(state: FootnoteReferenceState, text: string): Slice | null {
+    if (!text || /[\r\n]/.test(text)) return null;
+
+    const textNode = state.schema.text(text);
+    const nodes = splitTextNodeWithInlineFootnotes(state, textNode);
+    if (!nodes) return null;
+
+    return new Slice(Fragment.fromArray(nodes), 0, 0);
 }
 
 export const clipboardPlugin = $prose((ctx) => {
@@ -249,13 +346,25 @@ export const clipboardPlugin = $prose((ctx) => {
                 const markdownNodes = parseMarkdownNodes(text) ?? (
                     markdownFenceCandidate ? parseMarkdownNodes(markdownFenceCandidate) : null
                 );
-                if (!markdownNodes) return false;
+                if (!markdownNodes) {
+                    const inlineFootnoteSlice = createInlineFootnoteReferenceSlice(state, text);
+                    if (!inlineFootnoteSlice) return false;
 
-                const markdownSlice = createMarkdownPasteSlice(state, markdownNodes);
+                    dispatchSliceAndKeepCursorAtTail(
+                        view,
+                        inlineFootnoteSlice,
+                        { preferRangeEnd: true },
+                    );
+                    event.preventDefault();
+                    return true;
+                }
+
+                const normalizedMarkdownNodes = replaceInlineFootnoteReferencesInNodes(state, markdownNodes);
+                const markdownSlice = createMarkdownPasteSlice(state, normalizedMarkdownNodes);
                 dispatchSliceAndKeepCursorAtTail(
                     view,
                     markdownSlice,
-                    { preferRangeEnd: hasOnlyParagraphNodes(markdownNodes) },
+                    { preferRangeEnd: hasOnlyParagraphNodes(normalizedMarkdownNodes) },
                 );
                 event.preventDefault();
                 return true;
