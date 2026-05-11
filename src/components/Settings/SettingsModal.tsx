@@ -82,7 +82,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
     <AnimatePresence>
       {open && (
         <>
-          <BlurBackdrop onClick={handleClose} />
+          <BlurBackdrop onClick={handleClose} duration={0.05} />
 
           <div className="fixed inset-0 flex items-center justify-center z-[100] pointer-events-none p-4">
             <div
@@ -100,7 +100,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               initial={{ opacity: 0, scale: 0.96, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 10 }}
-              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.05, ease: [0.16, 1, 0.3, 1] }}
               className="w-[1080px] h-[720px] max-w-full max-h-[90vh] bg-[#fcfcfc] dark:bg-[#1C1C1C] rounded-[32px] shadow-2xl flex overflow-hidden pointer-events-auto ring-1 ring-black/5 dark:ring-white/5 select-none"
               onMouseDownCapture={(e) => {
                 if (e.button === 1) {
@@ -173,7 +173,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       : "px-16 py-14 max-w-[860px]"
                   )}>
                     <div className={cn(
-                      "animate-in fade-in slide-in-from-bottom-3 duration-700 ease-out",
+                      "animate-in fade-in slide-in-from-bottom-3 duration-75 ease-out",
                       activeTab === 'ai' ? "h-full" : "space-y-10"
                     )}>
                       {activeTab === 'about' && <AboutTab />}

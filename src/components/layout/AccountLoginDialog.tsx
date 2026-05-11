@@ -33,7 +33,7 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
         blurBackdropProps={{ 
           overlayClassName: 'bg-zinc-950/20 backdrop-blur-sm', 
           blurPx: 8, 
-          duration: 0.4 
+          duration: 0.05 
         }}
         onOpenAutoFocus={(event) => {
           event.preventDefault();
@@ -41,7 +41,7 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
         }}
         className={cn(
           "w-full max-w-[min(460px,calc(100vw-1.5rem))] border-none p-0 overflow-visible bg-transparent shadow-none select-none",
-          "transition-all duration-700 ease-in-out"
+          "transition-all duration-75 ease-in-out"
         )}
       >
         <DialogTitle className="sr-only">Sign in to vlaina</DialogTitle>

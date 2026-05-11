@@ -18,8 +18,10 @@ import { writeTextToClipboard } from '@/lib/clipboard';
 import { getNotesDebugLogText } from '@/stores/notes/lineBreakDebugLog';
 import { useToastStore } from '@/stores/useToastStore';
 
+const preloadSettingsModule = () => import('@/components/Settings');
+
 const SettingsModal = lazy(async () => {
-  const mod = await import('@/components/Settings');
+  const mod = await preloadSettingsModule();
   return { default: mod.SettingsModal };
 });
 
@@ -87,10 +89,27 @@ export function AppContent() {
 
   useEffect(() => {
     const handleOpenSettings = () => setSettingsOpen(true);
+    const handleToggleSettings = () => setSettingsOpen((open) => !open);
     window.addEventListener('open-settings', handleOpenSettings);
+    window.addEventListener('toggle-settings', handleToggleSettings);
     return () => {
       window.removeEventListener('open-settings', handleOpenSettings);
+      window.removeEventListener('toggle-settings', handleToggleSettings);
     };
+  }, []);
+
+  useEffect(() => {
+    const preload = () => {
+      void preloadSettingsModule();
+    };
+
+    if ('requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(preload, { timeout: 1500 });
+      return () => window.cancelIdleCallback(idleId);
+    }
+
+    const timeoutId = globalThis.setTimeout(preload, 600);
+    return () => globalThis.clearTimeout(timeoutId);
   }, []);
 
   useShortcuts();

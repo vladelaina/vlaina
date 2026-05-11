@@ -127,6 +127,58 @@ describe('useShortcuts', () => {
     }
   });
 
+  it('toggles settings from inside a dialog on Ctrl+,', () => {
+    const toggleSettingsListener = vi.fn();
+    window.addEventListener('toggle-settings', toggleSettingsListener);
+
+    try {
+      renderHook(() => useShortcuts());
+
+      const dialog = document.createElement('div');
+      dialog.setAttribute('role', 'dialog');
+      const button = document.createElement('button');
+      dialog.appendChild(button);
+      document.body.appendChild(dialog);
+
+      const event = new KeyboardEvent('keydown', {
+        key: ',',
+        code: 'Comma',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      button.dispatchEvent(event);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(toggleSettingsListener).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener('toggle-settings', toggleSettingsListener);
+      document.querySelector('[role="dialog"]')?.remove();
+    }
+  });
+
+  it('does not open settings for Ctrl+/ on layouts where slash is emitted by the comma key', () => {
+    const toggleSettingsListener = vi.fn();
+    window.addEventListener('toggle-settings', toggleSettingsListener);
+
+    try {
+      renderHook(() => useShortcuts());
+
+      const event = new KeyboardEvent('keydown', {
+        key: '/',
+        code: 'Comma',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      window.dispatchEvent(event);
+
+      expect(toggleSettingsListener).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener('toggle-settings', toggleSettingsListener);
+    }
+  });
+
 
   it('dispatches delete current note for Ctrl+Shift+Backspace in notes mode', () => {
     const deleteListener = vi.fn();

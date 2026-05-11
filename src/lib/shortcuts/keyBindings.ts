@@ -7,6 +7,11 @@ export function isToggleShortcutsBinding(event: ShortcutKeyboardEventLike): bool
   return isMod && !event.altKey && !event.shiftKey && event.key === '/';
 }
 
+export function isOpenSettingsBinding(event: ShortcutKeyboardEventLike): boolean {
+  const isMod = event.ctrlKey || event.metaKey;
+  return isMod && !event.altKey && !event.shiftKey && event.key === ',';
+}
+
 export function matchesShortcutBinding(event: ShortcutKeyboardEventLike, id: string): boolean {
   const keys = getShortcutKeys(id);
   if (!keys || keys.length === 0) {
