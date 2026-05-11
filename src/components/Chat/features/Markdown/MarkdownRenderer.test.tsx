@@ -6,6 +6,7 @@ import {
   normalizeInlineMarkdownForMeasurement,
 } from "@/components/Chat/features/Layout/chatAssistantInlineMarkdown";
 import { buildChatStreamSchedule, useChatStreamBlocks } from "./chatStreamTextAnimation";
+import { CHAT_STREAM_FADE_MS } from "./chatStreamTextPlugin";
 
 const { reactMarkdownSpy, codeBlockSpy, thinkingBlockSpy } = vi.hoisted(() => ({
   reactMarkdownSpy: vi.fn(),
@@ -198,7 +199,7 @@ describe("MarkdownRenderer", () => {
     expect(blocks.revealed).toBe(false);
   });
 
-  it("anchors streaming animation to the message start time across remounts", () => {
+  it("reveals already streamed content immediately across remounts", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-11T06:00:02.000Z"));
     const performanceNowSpy = vi.spyOn(performance, "now").mockReturnValue(2000);
@@ -209,6 +210,7 @@ describe("MarkdownRenderer", () => {
     );
     const firstBlock = firstRender.result.current[0]!;
     expect(firstBlock.revealed).toBe(true);
+    expect(firstBlock.births[0]).toBeCloseTo(2000 - CHAT_STREAM_FADE_MS);
     firstRender.unmount();
 
     performanceNowSpy.mockReturnValue(3500);
@@ -218,9 +220,122 @@ describe("MarkdownRenderer", () => {
     );
     const secondBlock = secondRender.result.current[0]!;
     expect(secondBlock.revealed).toBe(true);
-    expect(secondBlock.births[0]).toBeCloseTo(firstBlock.births[0]!);
+    expect(secondBlock.births[0]).toBeCloseTo(3500 - CHAT_STREAM_FADE_MS);
     secondRender.unmount();
     performanceNowSpy.mockRestore();
+  });
+
+  it("adapts live stream reveal speed to chunk arrival cadence", () => {
+    vi.useFakeTimers();
+    let currentNow = 1000;
+    const performanceNowSpy = vi.spyOn(performance, "now").mockImplementation(() => currentNow);
+
+    const view = renderHook(({ content }) =>
+      useChatStreamBlocks(content, true),
+    { initialProps: { content: "A" } });
+
+    currentNow = 1040;
+    act(() => {
+      vi.advanceTimersByTime(32);
+    });
+    view.rerender({ content: "ABCDEFG" });
+    const fastChunkDelay = view.result.current[0]!.charDelay;
+
+    currentNow = 1200;
+    act(() => {
+      vi.advanceTimersByTime(32);
+    });
+    view.rerender({ content: "ABCDEFGHIJKLM" });
+    const slowChunkDelay = view.result.current[0]!.charDelay;
+
+    expect(fastChunkDelay).toBeGreaterThan(0);
+    expect(slowChunkDelay).toBeGreaterThan(fastChunkDelay);
+    view.unmount();
+    performanceNowSpy.mockRestore();
+  });
+
+  it("splits long streaming markdown into a stable prefix and an active tail", () => {
+    const stable = `${"Stable paragraph. ".repeat(14)}\n\n`;
+    const active = "Active tail";
+    const blocks = renderHook(() => useChatStreamBlocks(`${stable}${active}`, true)).result.current;
+
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0]).toMatchObject({
+      content: stable,
+      key: `stable:${Array.from(stable).length}`,
+      revealed: true,
+    });
+    expect(blocks[0]!.births).toHaveLength(0);
+    expect(blocks[1]).toMatchObject({
+      content: active,
+      key: "stream",
+    });
+  });
+
+  it("treats a non-streamed one-shot answer as revealed static markdown", () => {
+    const content = `${"Complete answer. ".repeat(20)}\n\nNo animation needed.`;
+    const blocks = renderHook(() => useChatStreamBlocks(content, false)).result.current;
+
+    expect(blocks).toEqual([
+      expect.objectContaining({
+        births: [],
+        charDelay: 20,
+        codeBlockIndexOffset: 0,
+        content,
+        imageIndexOffset: 0,
+        key: "static",
+        revealed: true,
+      }),
+    ]);
+  });
+
+  it("smooths a large burst chunk over a bounded short window", () => {
+    vi.useFakeTimers();
+    let currentNow = 1000;
+    const performanceNowSpy = vi.spyOn(performance, "now").mockImplementation(() => currentNow);
+    const view = renderHook(({ content }) => useChatStreamBlocks(content, true), {
+      initialProps: { content: "A" },
+    });
+
+    currentNow = 1400;
+    view.rerender({ content: `A${"burst ".repeat(80)}` });
+    const block = view.result.current.at(-1)!;
+    const firstBirth = block.births[1]!;
+    const lastBirth = block.births.at(-1)!;
+
+    expect(block.charDelay).toBeGreaterThanOrEqual(1);
+    expect(lastBirth - firstBirth).toBeLessThanOrEqual(520);
+    expect(block.revealed).toBe(false);
+    view.unmount();
+    performanceNowSpy.mockRestore();
+  });
+
+  it("keeps stable prefix block identity while only the active tail changes", () => {
+    let currentNow = 1000;
+    const performanceNowSpy = vi.spyOn(performance, "now").mockImplementation(() => currentNow);
+    const stable = `${"Stable paragraph. ".repeat(14)}\n\n`;
+    const view = renderHook(({ content }) => useChatStreamBlocks(content, true), {
+      initialProps: { content: `${stable}Active` },
+    });
+    const firstStableBlock = view.result.current[0]!;
+
+    currentNow = 1040;
+    view.rerender({ content: `${stable}Active tail grows` });
+
+    expect(view.result.current).toHaveLength(2);
+    expect(view.result.current[0]).toBe(firstStableBlock);
+    expect(view.result.current[1]!.content).toBe("Active tail grows");
+    view.unmount();
+    performanceNowSpy.mockRestore();
+  });
+
+  it("does not split while a fenced code block is still the active tail", () => {
+    const content = `${"Stable paragraph. ".repeat(14)}\n\n\`\`\`ts\nconst a = 1;`;
+    const blocks = renderHook(() => useChatStreamBlocks(content, true)).result.current;
+
+    expect(blocks).toHaveLength(2);
+    expect(blocks[1]!.content).toBe("```ts\nconst a = 1;");
+    expect(blocks[1]!.codeBlockIndexOffset).toBe(0);
   });
 
   it("schedules heading text before following paragraph text", () => {

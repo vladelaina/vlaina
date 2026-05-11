@@ -425,20 +425,6 @@ textarea,
   will-change: opacity;
 }
 
-.chat-stream-char-pending {
-  opacity: 0;
-  animation: none;
-  will-change: auto;
-}
-
-.chat-stream-inline-code-pending {
-  opacity: 0;
-}
-
-.chat-stream-element-pending {
-  opacity: 0;
-}
-
 .chat-stream-char-done {
   opacity: 1;
   animation: none;

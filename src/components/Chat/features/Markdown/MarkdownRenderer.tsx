@@ -78,19 +78,62 @@ function isSelectionSurfaceTarget(target: EventTarget | null): boolean {
 }
 
 interface MarkdownContentProps {
-  components: ReturnType<typeof createMarkdownComponents>;
+  componentOptions: Parameters<typeof createMarkdownComponents>[0];
   freezeRef: React.RefObject<boolean>;
   markdown: string;
   shouldAnimateStream: boolean;
   streamBlocks: ReturnType<typeof useChatStreamBlocks>;
 }
 
+interface StreamingMarkdownBlockProps {
+  block: ReturnType<typeof useChatStreamBlocks>[number];
+  componentOptions: Parameters<typeof createMarkdownComponents>[0];
+}
+
+const StreamingMarkdownBlock = memo(function StreamingMarkdownBlock({
+  block,
+  componentOptions,
+}: StreamingMarkdownBlockProps) {
+  const components = useMemo(() => createMarkdownComponents({
+    ...componentOptions,
+    codeBlockIndexOffset: block.codeBlockIndexOffset,
+    imageIndexOffset: block.imageIndexOffset,
+  }), [block.codeBlockIndexOffset, block.content, block.imageIndexOffset, componentOptions]);
+  const rehypePlugins = useMemo(() => [
+    ...CHAT_MARKDOWN_REHYPE_PLUGINS,
+    [createChatStreamTextPlugin, {
+      births: block.births,
+      charDelay: block.charDelay,
+      nowMs: block.nowMs,
+      revealed: block.revealed,
+    }],
+  ], [block.births, block.charDelay, block.nowMs, block.revealed]);
+
+  return (
+    <ReactMarkdown
+      remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
+      rehypePlugins={rehypePlugins}
+      components={components}
+    >
+      {block.content}
+    </ReactMarkdown>
+  );
+}, (prevProps, nextProps) => (
+  prevProps.block === nextProps.block &&
+  prevProps.componentOptions === nextProps.componentOptions
+));
+
 const MarkdownContent = memo(function MarkdownContent({
-  components,
+  componentOptions,
   markdown,
   shouldAnimateStream,
   streamBlocks,
 }: MarkdownContentProps) {
+  const components = useMemo(
+    () => createMarkdownComponents(componentOptions),
+    [componentOptions, markdown],
+  );
+
   if (!shouldAnimateStream) {
     return (
       <ReactMarkdown
@@ -106,22 +149,11 @@ const MarkdownContent = memo(function MarkdownContent({
   return (
     <>
       {streamBlocks.map((block) => (
-        <ReactMarkdown
+        <StreamingMarkdownBlock
           key={block.key}
-          remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
-          rehypePlugins={[
-            ...CHAT_MARKDOWN_REHYPE_PLUGINS,
-            [createChatStreamTextPlugin, {
-              births: block.births,
-              charDelay: block.charDelay,
-              nowMs: block.nowMs,
-              revealed: block.revealed,
-            }],
-          ]}
-          components={components}
-        >
-          {block.content}
-        </ReactMarkdown>
+          block={block}
+          componentOptions={componentOptions}
+        />
       ))}
     </>
   );
@@ -130,7 +162,7 @@ const MarkdownContent = memo(function MarkdownContent({
     return true;
   }
   return (
-    prevProps.components === nextProps.components &&
+    prevProps.componentOptions === nextProps.componentOptions &&
     prevProps.markdown === nextProps.markdown &&
     prevProps.shouldAnimateStream === nextProps.shouldAnimateStream &&
     prevProps.streamBlocks === nextProps.streamBlocks
@@ -332,14 +364,21 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       };
     }, [renderedContent]);
 
-    const components = createMarkdownComponents({
+    const componentOptions = useMemo<Parameters<typeof createMarkdownComponents>[0]>(() => ({
       codeBlockIdBase,
       copiedCodeBlockId,
       getImageGallery,
       imageGallery,
       imageIdBase,
       onCopyCodeBlock,
-    });
+    }), [
+      codeBlockIdBase,
+      copiedCodeBlockId,
+      getImageGallery,
+      imageGallery,
+      imageIdBase,
+      onCopyCodeBlock,
+    ]);
 
     const hasMarkdownSurface = markdown.length > 0;
 
@@ -406,7 +445,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
               .join(' ')}
           >
             <MarkdownContent
-              components={components}
+              componentOptions={componentOptions}
               freezeRef={selectionStreamClockPausedRef}
               markdown={markdown}
               shouldAnimateStream={shouldAnimateStream}

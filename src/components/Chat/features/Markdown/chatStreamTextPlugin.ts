@@ -40,35 +40,32 @@ function getTimingTextLength(node: any): number {
   return length;
 }
 
-function formatOpacity(elapsed: number): string {
-  const progress = Math.max(0, Math.min(1, elapsed / CHAT_STREAM_FADE_MS));
-  return progress.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+function getBirthElapsed(
+  births: number[],
+  charDelay: number,
+  nowMs: number,
+  charIndex: number,
+): number {
+  const birth = births[charIndex] ?? nowMs + charDelay * charIndex;
+  return nowMs - birth;
 }
 
-function appendClassName(node: any, className: string): void {
-  const current = node.properties?.className;
-  node.properties ??= {};
-
-  if (Array.isArray(current)) {
-    if (!current.includes(className)) {
-      node.properties.className = [...current, className];
-    }
-    return;
-  }
-
-  if (typeof current === 'string' && current.trim()) {
-    node.properties.className = current.includes(className)
-      ? current
-      : `${current} ${className}`;
-    return;
-  }
-
-  node.properties.className = className;
+function formatMs(value: number): string {
+  return `${Math.round(value * 1000) / 1000}ms`;
 }
 
-function markPendingElementIfNeeded(
+function buildFadeAnimationStyle(birth: number, nowMs: number): string {
+  return [
+    'animation-name:chat-stream-char-fade',
+    `animation-duration:${CHAT_STREAM_FADE_MS}ms`,
+    'animation-timing-function:ease-out',
+    `animation-delay:${formatMs(birth - nowMs)}`,
+    'animation-fill-mode:both',
+  ].join(';');
+}
+
+function animateElementIfNeeded(
   node: any,
-  className: string,
   firstCharIndex: number,
   lastCharIndex: number,
   births: number[],
@@ -80,9 +77,15 @@ function markPendingElementIfNeeded(
   }
 
   const firstBirth = births[firstCharIndex];
-  if (firstBirth != null && nowMs - firstBirth < 0) {
-    appendClassName(node, className);
+  if (firstBirth == null || nowMs - firstBirth >= CHAT_STREAM_FADE_MS) {
+    return;
   }
+
+  node.properties ??= {};
+  const existingStyle = typeof node.properties.style === 'string' && node.properties.style.trim()
+    ? `${node.properties.style};`
+    : '';
+  node.properties.style = `${existingStyle}${buildFadeAnimationStyle(firstBirth, nowMs)}`;
 }
 
 export function createChatStreamTextPlugin({
@@ -96,25 +99,52 @@ export function createChatStreamTextPlugin({
 
     const wrapText = (node: any) => {
       const nextChildren: any[] = [];
+      const pushDoneText = (value: string) => {
+        if (!value) {
+          return;
+        }
+
+        const previous = nextChildren[nextChildren.length - 1];
+        if (previous?.type === 'text' && typeof previous.value === 'string') {
+          previous.value += value;
+          return;
+        }
+
+        nextChildren.push({ type: 'text', value });
+      };
 
       for (const child of node.children ?? []) {
         if (child.type === 'text') {
-          for (const char of child.value) {
+          const textChars = Array.from(child.value);
+          if (textChars.length === 0) {
+            continue;
+          }
+
+          const lastCharIndex = charIndex + textChars.length - 1;
+          if (revealed || getBirthElapsed(births, charDelay, nowMs, lastCharIndex) >= CHAT_STREAM_FADE_MS) {
+            pushDoneText(child.value);
+            charIndex += textChars.length;
+            continue;
+          }
+
+          let doneBuffer = '';
+
+          for (const char of textChars) {
             const birth = births[charIndex] ?? nowMs + charDelay * charIndex;
             const elapsed = nowMs - birth;
-            const isPending = !revealed && elapsed < 0;
             const isDone = revealed || elapsed >= CHAT_STREAM_FADE_MS;
-            const properties: Record<string, string> = {
-              className: isPending
-                ? 'chat-stream-char chat-stream-char-pending'
-                : isDone
-                ? 'chat-stream-char chat-stream-char-done'
-                : 'chat-stream-char',
-            };
-
-            if (!isDone && !isPending) {
-              properties.style = `opacity:${formatOpacity(elapsed)}`;
+            if (isDone) {
+              doneBuffer += char;
+              charIndex += 1;
+              continue;
             }
+
+            pushDoneText(doneBuffer);
+            doneBuffer = '';
+            const properties: Record<string, string> = {
+              className: 'chat-stream-char',
+              style: buildFadeAnimationStyle(birth, nowMs),
+            };
 
             nextChildren.push({
               children: [{ type: 'text', value: char }],
@@ -124,14 +154,15 @@ export function createChatStreamTextPlugin({
             });
             charIndex += 1;
           }
+
+          pushDoneText(doneBuffer);
         } else if (child.type === 'element') {
           const childStartCharIndex = charIndex;
           if (shouldSkip(child)) {
             const timingTextLength = getTimingTextLength(child);
             if (timingTextLength > 0) {
-              markPendingElementIfNeeded(
+              animateElementIfNeeded(
                 child,
-                'chat-stream-element-pending',
                 childStartCharIndex,
                 childStartCharIndex + timingTextLength - 1,
                 births,
@@ -143,11 +174,8 @@ export function createChatStreamTextPlugin({
           } else {
             wrapText(child);
             if (childStartCharIndex < charIndex) {
-              markPendingElementIfNeeded(
+              animateElementIfNeeded(
                 child,
-                child.tagName === 'code'
-                  ? 'chat-stream-inline-code-pending'
-                  : 'chat-stream-element-pending',
                 childStartCharIndex,
                 charIndex - 1,
                 births,
@@ -157,9 +185,8 @@ export function createChatStreamTextPlugin({
             } else {
               const timingTextLength = getTimingTextLength(child);
               if (timingTextLength > 0) {
-                markPendingElementIfNeeded(
+                animateElementIfNeeded(
                   child,
-                  'chat-stream-element-pending',
                   childStartCharIndex,
                   childStartCharIndex + timingTextLength - 1,
                   births,
