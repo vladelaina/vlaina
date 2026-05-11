@@ -4,8 +4,11 @@ import { normalizeMermaidEditorCodeInput } from './mermaidFenceCode';
 
 const mermaidElementCode = new WeakMap<HTMLElement, string>();
 let mermaidRenderKeyCounter = 0;
+const MERMAID_RENDER_CACHE_LIMIT = 80;
 const MERMAID_RENDER_ERROR_HTML =
   '<div class="mermaid-error">Mermaid Error: Unable to render diagram. Check the diagram syntax.</div>';
+const mermaidMarkupCache = new Map<string, string>();
+const mermaidRenderPromiseCache = new Map<string, Promise<string>>();
 
 function setMermaidElementCode(element: HTMLElement, code: string) {
   mermaidElementCode.set(element, code);
@@ -27,6 +30,61 @@ async function renderMermaidHtml(
   } catch {
     return MERMAID_RENDER_ERROR_HTML;
   }
+}
+
+function readCachedMermaidMarkup(code: string) {
+  const cached = mermaidMarkupCache.get(code);
+  if (cached == null) {
+    return null;
+  }
+
+  mermaidMarkupCache.delete(code);
+  mermaidMarkupCache.set(code, cached);
+  return cached;
+}
+
+function cacheMermaidMarkup(code: string, markup: string) {
+  mermaidMarkupCache.set(code, markup);
+  while (mermaidMarkupCache.size > MERMAID_RENDER_CACHE_LIMIT) {
+    const oldestKey = mermaidMarkupCache.keys().next().value;
+    if (typeof oldestKey !== 'string') {
+      break;
+    }
+    mermaidMarkupCache.delete(oldestKey);
+  }
+  return markup;
+}
+
+function shouldUseDefaultMermaidRender(render: (code: string, id: string) => Promise<string>) {
+  return render === renderMermaid;
+}
+
+async function resolveMermaidMarkup(
+  code: string,
+  render: (code: string, id: string) => Promise<string>
+) {
+  if (!shouldUseDefaultMermaidRender(render)) {
+    return sanitizeMermaidMarkup(await renderMermaidHtml(code, render));
+  }
+
+  const cached = readCachedMermaidMarkup(code);
+  if (cached != null) {
+    return cached;
+  }
+
+  const existingPromise = mermaidRenderPromiseCache.get(code);
+  if (existingPromise) {
+    return existingPromise;
+  }
+
+  const promise = renderMermaidHtml(code, render)
+    .then(sanitizeMermaidMarkup)
+    .then((markup) => cacheMermaidMarkup(code, markup))
+    .finally(() => {
+      mermaidRenderPromiseCache.delete(code);
+    });
+  mermaidRenderPromiseCache.set(code, promise);
+  return promise;
 }
 
 function sanitizeMermaidMarkup(markup: string) {
@@ -140,16 +198,21 @@ export async function renderMermaidEditorLivePreview(args: {
   const codeSnapshot = normalizedCode;
   const renderKey = setMermaidElementCode(anchor, codeSnapshot);
 
-  if (!anchor.querySelector('svg, .mermaid-error')) {
-    anchor.innerHTML = '<div class="mermaid-placeholder">Rendering diagram...</div>';
+  const cachedMarkup = shouldUseDefaultMermaidRender(render)
+    ? readCachedMermaidMarkup(codeSnapshot)
+    : null;
+  if (cachedMarkup != null) {
+    anchor.innerHTML = cachedMarkup;
+    onRendered?.();
+    return true;
   }
 
-  const svg = await renderMermaidHtml(codeSnapshot, render);
+  const markup = await resolveMermaidMarkup(codeSnapshot, render);
   if (!anchor.isConnected || getMermaidElementCode(anchor) !== codeSnapshot || anchor.dataset.renderKey !== renderKey) {
     return false;
   }
 
-  anchor.innerHTML = sanitizeMermaidMarkup(svg);
+  anchor.innerHTML = markup;
   onRendered?.();
   return true;
 }
@@ -161,19 +224,20 @@ export function createMermaidElement(code: string) {
   setMermaidElementCode(wrapper, normalizedCode);
   wrapper.className = 'mermaid-block';
 
-  const placeholder = document.createElement('div');
-  placeholder.className = 'mermaid-placeholder';
-  placeholder.textContent = 'Loading diagram...';
-  wrapper.appendChild(placeholder);
-
   if (normalizedCode.trim()) {
+    const cachedMarkup = readCachedMermaidMarkup(normalizedCode);
+    if (cachedMarkup != null) {
+      wrapper.innerHTML = cachedMarkup;
+      return wrapper;
+    }
+
     const codeSnapshot = normalizedCode;
     const renderKey = wrapper.dataset.renderKey;
-    renderMermaidHtml(codeSnapshot, renderMermaid).then((svg) => {
+    resolveMermaidMarkup(codeSnapshot, renderMermaid).then((markup) => {
       if (getMermaidElementCode(wrapper) !== codeSnapshot || wrapper.dataset.renderKey !== renderKey) {
         return;
       }
-      wrapper.innerHTML = sanitizeMermaidMarkup(svg);
+      wrapper.innerHTML = markup;
     });
   } else {
     wrapper.innerHTML = '<div class="mermaid-empty">Empty diagram</div>';

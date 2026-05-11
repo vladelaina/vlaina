@@ -22,6 +22,7 @@ import {
 } from '../Sidebar/sidebarSearchNavigation';
 import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
 import { MilkdownEditorInner } from './MilkdownEditorInner';
+import { prewarmMermaidRenderer } from './plugins/mermaid/mermaidRenderer';
 import './styles/index.css';
 
 export function MarkdownEditor({
@@ -72,6 +73,21 @@ export function MarkdownEditor({
   const editorFind = useNoteEditorFind(currentNotePath);
   useHeldPageScroll(scrollRootRef);
   const hasActiveNote = active && Boolean(currentNotePath);
+
+  useEffect(() => {
+    if (!hasActiveNote) {
+      return;
+    }
+
+    const requestIdleCallback = window.requestIdleCallback;
+    if (typeof requestIdleCallback === 'function') {
+      const idleId = requestIdleCallback(() => prewarmMermaidRenderer(), { timeout: 1500 });
+      return () => window.cancelIdleCallback?.(idleId);
+    }
+
+    const timeoutId = window.setTimeout(() => prewarmMermaidRenderer(), 250);
+    return () => window.clearTimeout(timeoutId);
+  }, [hasActiveNote]);
 
   const handleEditorClick = (e: React.MouseEvent) => {
     if (!hasActiveNote) {
