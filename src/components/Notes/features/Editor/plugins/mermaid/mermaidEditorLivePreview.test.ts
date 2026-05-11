@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { waitFor } from '@testing-library/react';
 
 vi.mock('./mermaidRenderer', () => ({
   generateMermaidId: () => 'mermaid-test',
@@ -43,12 +44,11 @@ describe('mermaidEditorLivePreview', () => {
 
     const element = createMermaidElement('sequenceDiagram\nAlice->Bob: secret source');
 
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(element.querySelector('.mermaid-error')?.textContent).toContain(
-      'Mermaid Error: Unable to render diagram.'
-    );
+    await waitFor(() => {
+      expect(element.querySelector('.mermaid-error')?.textContent).toContain(
+        'Mermaid Error: Unable to render diagram.'
+      );
+    });
     expect(element.outerHTML).not.toContain('secret source');
   });
 

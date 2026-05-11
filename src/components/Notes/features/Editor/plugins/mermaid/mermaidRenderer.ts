@@ -43,6 +43,10 @@ async function getMermaid() {
   return mermaidPromise;
 }
 
+export function prewarmMermaidRenderer() {
+  void getMermaid();
+}
+
 function createMermaidRenderConfig() {
   return {
     ...MERMAID_INIT_CONFIG,

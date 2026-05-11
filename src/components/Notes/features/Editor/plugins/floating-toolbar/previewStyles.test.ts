@@ -520,7 +520,7 @@ describe('previewStyles', () => {
     const previewMermaid = overlay?.querySelector<HTMLElement>('[data-type="mermaid"]');
     expect(previewMermaid).toBeInstanceOf(HTMLElement);
     expect(previewMermaid?.getAttribute('data-preserve-probe')).toBe('mermaid');
-    expect(previewMermaid?.textContent).toContain('Loading diagram');
+    expect(previewMermaid?.textContent).not.toContain('Loading diagram');
 
     clearFormatPreview(view);
     await editor.destroy();
