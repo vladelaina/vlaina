@@ -1,0 +1,24 @@
+import { fireEvent, render } from '@testing-library/react';
+import { describe, expect, it, vi } from 'vitest';
+import { CoverAddOverlay } from './CoverAddOverlay';
+
+describe('CoverAddOverlay', () => {
+  it('renders below editor toolbar controls while staying clickable', () => {
+    const onAddCover = vi.fn();
+    const { container } = render(<CoverAddOverlay visible onAddCover={onAddCover} />);
+    const overlay = container.firstElementChild;
+
+    expect(overlay).toHaveClass('z-20');
+    expect(overlay).not.toHaveClass('z-30');
+
+    fireEvent.mouseDown(overlay!);
+
+    expect(onAddCover).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not render when hidden', () => {
+    const { container } = render(<CoverAddOverlay visible={false} onAddCover={vi.fn()} />);
+
+    expect(container.firstChild).toBeNull();
+  });
+});
