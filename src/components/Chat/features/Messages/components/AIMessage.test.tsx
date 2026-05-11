@@ -110,19 +110,8 @@ describe("AIMessage", () => {
     expect(screen.getByTestId("markdown")).toHaveAttribute("data-streaming", "false");
   });
 
-  it("reveals appended streaming text in small steps", () => {
-    const { rerender } = render(
-      <AIMessage
-        msg={createMessage("Hel")}
-        imageGallery={[]}
-        isLoading
-        onCopy={() => {}}
-        onRegenerate={() => {}}
-        onSwitchVersion={() => {}}
-      />,
-    );
-
-    rerender(
+  it("passes through visible streaming text immediately", () => {
+    render(
       <AIMessage
         msg={createMessage("Hello world")}
         imageGallery={[]}
@@ -133,13 +122,7 @@ describe("AIMessage", () => {
       />,
     );
 
-    expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Hel");
-
-    act(() => {
-      vi.advanceTimersByTime(320);
-    });
-
-    expect(screen.getByTestId("markdown").getAttribute("data-content")!.length).toBeGreaterThan(3);
+    expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Hello world");
   });
 
   it("strips error tags from markdown content and renders the parsed error block", () => {

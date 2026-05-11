@@ -125,6 +125,10 @@ export function logNotesDebugAlways(label: string, scope: string, payload?: unkn
   appendNotesDebugEntry(label, scope, payload, { force: true });
 }
 
+export function logChatStreamDebug(scope: string, payload?: unknown) {
+  logNotesDebugAlways('ChatStream', scope, payload);
+}
+
 function appendNotesDebugEntry(
   label: string,
   scope: string,
@@ -157,8 +161,13 @@ function mirrorNotesDebugEntryToConsole(
     import.meta.env.MODE === 'test'
     || typeof console === 'undefined'
     || !options.force
-    || entry.label !== 'NotesLoad'
+    || (entry.label !== 'NotesLoad' && entry.label !== 'ChatStream')
   ) {
+    return;
+  }
+
+  if (entry.label === 'ChatStream') {
+    console.log(formatNotesDebugEntry(entry));
     return;
   }
 

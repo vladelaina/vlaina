@@ -1,6 +1,7 @@
 import { visit } from 'unist-util-visit';
+import { logChatStreamDebug } from '@/stores/notes/lineBreakDebugLog';
 
-export const CHAT_STREAM_FADE_MS = 360;
+export const CHAT_STREAM_FADE_MS = 90;
 
 const ANIMATED_TAGS = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li']);
 const STATIC_TAGS = new Set(['pre', 'code', 'table', 'svg']);
@@ -24,6 +25,11 @@ function shouldSkip(node: any): boolean {
   return STATIC_TAGS.has(node.tagName) || hasClass(node, 'katex');
 }
 
+function formatOpacity(elapsed: number): string {
+  const progress = Math.max(0, Math.min(1, elapsed / CHAT_STREAM_FADE_MS));
+  return progress.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+}
+
 export function createChatStreamTextPlugin({
   births,
   charDelay,
@@ -32,24 +38,39 @@ export function createChatStreamTextPlugin({
 }: ChatStreamTextPluginOptions) {
   return (tree: any) => {
     let charIndex = 0;
+    let pendingCount = 0;
+    let activeCount = 0;
+    let doneCount = 0;
+    let wrappedTextNodes = 0;
 
     const wrapText = (node: any) => {
       const nextChildren: any[] = [];
 
       for (const child of node.children ?? []) {
         if (child.type === 'text') {
+          wrappedTextNodes += 1;
           for (const char of child.value) {
             const birth = births[charIndex] ?? nowMs + charDelay * charIndex;
             const elapsed = nowMs - birth;
+            const isPending = !revealed && elapsed < 0;
             const isDone = revealed || elapsed >= CHAT_STREAM_FADE_MS;
+            if (isPending) {
+              pendingCount += 1;
+            } else if (isDone) {
+              doneCount += 1;
+            } else {
+              activeCount += 1;
+            }
             const properties: Record<string, string> = {
-              className: isDone
+              className: isPending
+                ? 'chat-stream-char chat-stream-char-pending'
+                : isDone
                 ? 'chat-stream-char chat-stream-char-done'
                 : 'chat-stream-char',
             };
 
-            if (!isDone) {
-              properties.style = `animation-delay:${-elapsed}ms`;
+            if (!isDone && !isPending) {
+              properties.style = `opacity:${formatOpacity(elapsed)}`;
             }
 
             nextChildren.push({
@@ -82,6 +103,17 @@ export function createChatStreamTextPlugin({
         wrapText(node);
         return 'skip';
       }
+    });
+
+    logChatStreamDebug('plugin:wrap', {
+      births: births.length,
+      nowMs,
+      revealed,
+      wrappedChars: charIndex,
+      wrappedTextNodes,
+      pendingCount,
+      activeCount,
+      doneCount,
     });
   };
 }

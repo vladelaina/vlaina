@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { ThinkingBlock } from '@/components/Chat/features/Messages/components/ThinkingBlock';
 import { extractThinkingSections } from '@/components/Chat/features/Layout/chatAssistantMarkdownParsing';
@@ -9,6 +9,8 @@ import {
 } from './markdownPipeline';
 import { useChatStreamBlocks } from './chatStreamTextAnimation';
 import { createChatStreamTextPlugin } from './chatStreamTextPlugin';
+import { getChatContentWidth } from '@/components/Chat/features/Layout/chatWidthBuckets';
+import { logChatStreamDebug } from '@/stores/notes/lineBreakDebugLog';
 import '@/components/common/markdown/markdownSurface.css';
 
 interface MarkdownRendererProps {
@@ -61,6 +63,8 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
     const pendingSelectionLockedContentRef = useRef<string | null>(null);
     const freezeSelectionTimeoutRef = useRef<number | null>(null);
     const unlockTimeoutRef = useRef<number | null>(null);
+    const markdownSurfaceRef = useRef<HTMLDivElement | null>(null);
+    const [contentWidth, setContentWidth] = useState(0);
     const renderedContent = selectionLockedContent ?? content;
     const shouldAnimateStream = isStreaming && selectionLockedContent === null;
 
@@ -190,7 +194,58 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       imageIdBase,
       onCopyCodeBlock,
     });
-    const streamBlocks = useChatStreamBlocks(markdown, shouldAnimateStream);
+
+    useLayoutEffect(() => {
+      const surface = markdownSurfaceRef.current;
+      if (!surface) {
+        return;
+      }
+
+      const measure = () => {
+        setContentWidth(getChatContentWidth(surface.clientWidth));
+      };
+
+      measure();
+
+      if (typeof ResizeObserver === 'undefined') {
+        return;
+      }
+
+      const observer = new ResizeObserver(() => {
+        measure();
+      });
+      observer.observe(surface);
+
+      return () => observer.disconnect();
+    }, [contentWidth, markdown, shouldAnimateStream]);
+
+    const streamBlocks = useChatStreamBlocks(markdown, shouldAnimateStream, contentWidth, startTime);
+
+    useEffect(() => {
+      logChatStreamDebug('markdown:render', {
+        streaming: shouldAnimateStream,
+        contentLength: markdown.length,
+        renderedLength: renderedContent.length,
+        contentWidth,
+        selectionLocked: selectionLockedContent !== null,
+        blockCount: streamBlocks.length,
+        firstBlock: streamBlocks[0]
+          ? {
+              key: streamBlocks[0].key,
+              births: streamBlocks[0].births.length,
+              revealed: streamBlocks[0].revealed,
+              nowMs: streamBlocks[0].nowMs,
+            }
+          : null,
+      });
+    }, [
+      contentWidth,
+      markdown,
+      renderedContent.length,
+      selectionLockedContent,
+      shouldAnimateStream,
+      streamBlocks,
+    ]);
 
     return (
       <div
@@ -208,6 +263,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
 
         {markdown && (
           <div
+            ref={markdownSurfaceRef}
             data-chat-selection-surface="true"
             data-chat-markdown-live={shouldAnimateStream ? 'true' : undefined}
             className={[

@@ -1,7 +1,16 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { clearNotesDebugLog } from '@/stores/notes/lineBreakDebugLog';
 import { createChatStreamTextPlugin } from './chatStreamTextPlugin';
 
 describe('createChatStreamTextPlugin', () => {
+  beforeEach(() => {
+    clearNotesDebugLog();
+  });
+
+  afterEach(() => {
+    clearNotesDebugLog();
+  });
+
   it('wraps visible paragraph text directly as a rehype transformer', () => {
     const tree: any = {
       children: [
@@ -38,6 +47,61 @@ describe('createChatStreamTextPlugin', () => {
         type: 'element',
       },
     ]);
+  });
+
+  it('marks active characters with progress and future characters as pending', () => {
+    const tree: any = {
+      children: [
+        {
+          children: [{ type: 'text', value: 'Hi' }],
+          properties: {},
+          tagName: 'p',
+          type: 'element',
+        },
+      ],
+      type: 'root',
+    };
+
+    createChatStreamTextPlugin({
+      births: [0, 100],
+      charDelay: 18,
+      nowMs: 50,
+      revealed: false,
+    })(tree);
+
+    expect(tree.children[0].children[0].properties).toEqual({
+      className: 'chat-stream-char',
+      style: 'opacity:0.556',
+    });
+    expect(tree.children[0].children[1].properties).toEqual({
+      className: 'chat-stream-char chat-stream-char-pending',
+    });
+  });
+
+  it('keeps the first streamed character visible on the initial paint', () => {
+    const tree: any = {
+      children: [
+        {
+          children: [{ type: 'text', value: 'Hi' }],
+          properties: {},
+          tagName: 'p',
+          type: 'element',
+        },
+      ],
+      type: 'root',
+    };
+
+    createChatStreamTextPlugin({
+      births: [0, 100],
+      charDelay: 18,
+      nowMs: 0,
+      revealed: false,
+    })(tree);
+
+    expect(tree.children[0].children[0].properties).toEqual({
+      className: 'chat-stream-char',
+      style: 'opacity:0',
+    });
   });
 
   it('does not wrap code blocks', () => {
