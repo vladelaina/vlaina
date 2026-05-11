@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { collectSelectableBlockRanges, createBlockRectResolver } from './blockRectResolver';
 import {
+  clearCurrentEditorBlockPositionSnapshot,
+  setCurrentEditorBlockPositionSnapshot,
+} from '../../utils/editorBlockPositionCache';
+import {
   isTypewriterInputEvent,
   resolveTypewriterScrollTop,
   shouldCenterTypewriterSelection,
@@ -146,6 +150,74 @@ describe('createBlockRectResolver', () => {
         contentRight: 70,
       },
     ]);
+  });
+
+  it('uses live DOM rects even when the global block position snapshot is stale', () => {
+    const dom = document.createElement('div');
+    const paragraph = document.createElement('p');
+    paragraph.textContent = '1';
+    dom.append(paragraph);
+    withRect(dom, { left: 20, top: 10, width: 600, height: 300 });
+    withRect(paragraph, { left: 60, top: 40, width: 10, height: 24 });
+
+    const doc = createDoc([createNode('paragraph', 3)]);
+    const view = {
+      dom,
+      state: { doc },
+      nodeDOM: () => paragraph,
+      domAtPos: () => ({ node: paragraph.firstChild as Node }),
+    };
+
+    const staleRect = {
+      x: 60,
+      y: 120,
+      left: 60,
+      top: 120,
+      width: 10,
+      height: 24,
+      right: 70,
+      bottom: 144,
+      toJSON: () => ({}),
+    } as DOMRect;
+
+    setCurrentEditorBlockPositionSnapshot({
+      version: 1,
+      view: view as any,
+      doc: doc as any,
+      editorRoot: dom,
+      scrollRoot: null,
+      scrollLeft: 0,
+      scrollTop: 0,
+      blocks: [{
+        from: 0,
+        to: 3,
+        element: paragraph,
+        rect: staleRect,
+        documentTop: 120,
+        documentBottom: 144,
+        tagName: 'P',
+        headingLevel: null,
+        headingId: null,
+        headingText: null,
+      }],
+      headings: [],
+    });
+
+    try {
+      const resolver = createBlockRectResolver({
+        view: view as any,
+        scrollRootSelector: '[data-note-scroll-root="true"]',
+      });
+
+      expect(resolver.getTopLevelBlockRects()[0]).toMatchObject({
+        from: 0,
+        to: 3,
+        top: 40,
+        bottom: 64,
+      });
+    } finally {
+      clearCurrentEditorBlockPositionSnapshot();
+    }
   });
 
   it('uses list item text bounds for plain click edge detection', () => {
