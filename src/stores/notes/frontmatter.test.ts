@@ -61,7 +61,7 @@ describe('note frontmatter metadata', () => {
         'icon: "old"',
         '',
         'vlaina_icon: "🐱"',
-        'vlaina_updated: "2026-04-16T00:00:00.000Z"',
+        'vlaina_updated: 2026-04-16 08:00:00 +08:00',
         '---',
         '',
         '# Title',
@@ -106,8 +106,8 @@ describe('note frontmatter metadata', () => {
     expect(result.content).toBe(
       [
         '---',
-        'vlaina_created: "2026-04-15T00:00:00.000Z"',
-        'vlaina_updated: "2026-04-16T00:00:00.000Z"',
+        'vlaina_created: 2026-04-15 08:00:00 +08:00',
+        'vlaina_updated: 2026-04-16 08:00:00 +08:00',
         '---',
         '',
         '# Title',
@@ -134,7 +134,7 @@ describe('note frontmatter metadata', () => {
       [
         '---',
         'vlaina_icon: "😃"',
-        'vlaina_updated: "2026-04-16T00:00:00.000Z"',
+        'vlaina_updated: 2026-04-16 08:00:00 +08:00',
         '---',
         '',
       ].join('\n')

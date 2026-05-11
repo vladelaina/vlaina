@@ -173,6 +173,65 @@ describe('serializeSelectedBlocksToText', () => {
     await editor.destroy();
   });
 
+  it('copies selected plain paragraph blocks as visible text without markdown escape artifacts', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, [
+          '  Pro:   $76.80 / year',
+          '',
+          'Example $5 and < tag',
+        ].join('\n'));
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+    const copied = serializeSelectedBlocksToText(view.state, blocks, { markdownSerializer: serializer });
+
+    expect(copied).toBe('Pro:   $76.80 / year\n\nExample $5 and < tag');
+    expect(copied).not.toContain('&#x20;');
+    expect(copied).not.toContain('\\$');
+    expect(copied).not.toContain('&lt;');
+
+    await editor.destroy();
+  });
+
+  it('copies a single plain list item as visible text without markdown escape artifacts', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '- Pro: $76.80 and [Example](https://example.com)');
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+    const copied = serializeSelectedBlocksToText(view.state, blocks, { markdownSerializer: serializer });
+
+    expect(copied).toBe('Pro: $76.80 and Example');
+    expect(copied).not.toContain('- ');
+    expect(copied).not.toContain('[Example]');
+    expect(copied).not.toContain('(https://example.com)');
+    expect(copied).not.toContain('\\$');
+
+    await editor.destroy();
+  });
+
   it('keeps markdown semantics for bullet lists separated by a single blank line', async () => {
     const editor = Editor.make()
       .config((ctx) => {

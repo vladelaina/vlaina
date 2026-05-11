@@ -25,7 +25,6 @@ export function CoverPicker({
   vaultPath,
   currentNotePath,
 }: CoverPickerProps) {
-  const isMac = typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
   const [activeTab, setActiveTab] = useState<CoverPickerTab>('library');
   const [isUploading, setIsUploading] = useState(false);
 
@@ -273,9 +272,6 @@ export function CoverPicker({
           ) : (
             <div className="p-3">
               <UploadZone onUploadComplete={handleUploadComplete} compact currentNotePath={currentNotePath} />
-              <p className="mt-2 text-xs text-center text-[var(--vlaina-text-tertiary)]">
-                {isMac ? '⌘' : 'Ctrl'}+V to paste
-              </p>
               {isUploading && (
                 <p className="mt-1 text-xs text-center text-[var(--vlaina-accent)]">
                   Uploading...

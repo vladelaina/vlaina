@@ -1,4 +1,4 @@
-import type { EditorState } from '@milkdown/kit/prose/state';
+import { TextSelection, type EditorState } from '@milkdown/kit/prose/state';
 import { Fragment, type Slice } from '@milkdown/kit/prose/model';
 import type { Serializer } from '@milkdown/kit/transformer';
 
@@ -8,6 +8,10 @@ import {
   normalizeSerializedMarkdownSelection,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { serializeSliceToText } from './serializer';
+import {
+  isVisiblePlainTextSlice,
+  serializeSliceAsVisiblePlainText,
+} from './visibleTextSerialization';
 import { serializeLeadingFrontmatterMarkdown } from '../frontmatter/frontmatterMarkdown';
 
 type SelectionWithContent = EditorState['selection'] & {
@@ -24,6 +28,21 @@ function getNodeChildren(node: any): any[] {
 
 function isListContainerNode(node: any): boolean {
   return node?.type?.name === 'bullet_list' || node?.type?.name === 'ordered_list';
+}
+
+function isTextSelectionLike(selection: EditorState['selection']): boolean {
+  if (typeof TextSelection === 'function' && selection instanceof TextSelection) {
+    return true;
+  }
+
+  return selection.constructor?.name === 'TextSelection';
+}
+
+function shouldCopyTextSelectionAsPlainText(state: EditorState, slice: Slice): boolean {
+  if (!isTextSelectionLike(state.selection)) return false;
+  if (state.selection.empty) return false;
+
+  return isVisiblePlainTextSlice(slice);
 }
 
 function isParagraphOnlyListItem(node: any): boolean {
@@ -251,6 +270,10 @@ export function serializeSelectionToClipboardText(
 
   const slice = getSelectionSlice(state);
   if (slice.content.size === 0) return '';
+
+  if (shouldCopyTextSelectionAsPlainText(state, slice)) {
+    return serializeSliceAsVisiblePlainText(slice);
+  }
 
   const singleListItemText = serializeSingleListItemWithoutMarker(slice);
   if (singleListItemText !== null) {

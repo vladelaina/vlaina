@@ -187,15 +187,18 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
       case 'error':
         return <Icon name="common.error" className={cn(iconSize, "text-red-500")} />;
       default:
-        return <Icon name="common.upload" className={cn(iconSize, "text-[var(--vlaina-text-tertiary)]")} />;
+        return <Icon name="common.upload" className={cn(iconSize, "text-[var(--vlaina-accent)]")} />;
     }
   };
 
   const getStatusText = () => {
     if (message) return message;
     if (status === 'dragging') return 'Drop image here';
-    return compact ? 'Drop or click to upload' : 'Drag and drop an image, or click to browse';
+    if (compact) return null;
+    return 'Drag and drop an image, or click to browse';
   };
+
+  const statusText = getStatusText();
 
   return (
     <div
@@ -212,18 +215,20 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
         status === 'success' && "border-green-500 bg-green-500/5",
         status === 'duplicate' && "border-blue-500 bg-blue-500/5",
         status === 'error' && "border-red-500 bg-red-500/5",
-        status === 'idle' && "border-[var(--vlaina-border)] hover:border-[var(--vlaina-accent)] hover:bg-[var(--vlaina-hover)]"
+        status === 'idle' && "border-[var(--vlaina-accent)]/40 bg-[var(--vlaina-accent)]/5 hover:border-[var(--vlaina-accent)] hover:bg-[var(--vlaina-accent)]/10"
       )}
     >
       {getStatusIcon()}
 
-      <p className={cn(
-        "text-center",
-        compact ? "mt-2 text-xs" : "mt-4 text-sm",
-        status === 'error' ? "text-red-500" : "text-[var(--vlaina-text-secondary)]"
-      )}>
-        {getStatusText()}
-      </p>
+      {statusText && (
+        <p className={cn(
+          "text-center",
+          compact ? "mt-2 text-xs" : "mt-4 text-sm",
+          status === 'error' ? "text-red-500" : "text-[var(--vlaina-text-secondary)]"
+        )}>
+          {statusText}
+        </p>
+      )}
 
       {status === 'idle' && !compact && (
         <p className="mt-1 text-xs text-[var(--vlaina-text-tertiary)]">

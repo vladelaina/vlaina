@@ -70,8 +70,8 @@ describe('createNoteImpl', () => {
       '---',
       'vlaina_cover: "assets/alpha.webp"',
       'vlaina_icon: "🐱"',
-      'vlaina_created: "2026-04-15T10:00:00.000Z"',
-      'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+      'vlaina_created: 2026-04-15 18:00:00 +08:00',
+      'vlaina_updated: 2026-04-15 18:00:00 +08:00',
       '---',
       '',
       '# Alpha',
@@ -119,7 +119,7 @@ describe('createNoteImpl', () => {
 
     expect(adapter.writeFile).toHaveBeenCalledWith(
       '/vault/alpha.md',
-      ['---', 'vlaina_created: "2026-04-15T10:00:00.000Z"', 'vlaina_updated: "2026-04-15T10:00:00.000Z"', '---', '', '# Alpha', '', 'Body'].join('\n')
+      ['---', 'vlaina_created: 2026-04-15 18:00:00 +08:00', 'vlaina_updated: 2026-04-15 18:00:00 +08:00', '---', '', '# Alpha', '', 'Body'].join('\n')
     );
     expect(result.content).not.toContain('vlaian');
 
@@ -158,8 +158,8 @@ describe('createNoteImpl', () => {
       '/vault/alpha.md',
       [
         '---',
-        'vlaina_created: "2026-04-15T10:00:00.000Z"',
-        'vlaina_updated: "2026-04-15T10:00:00.000Z"',
+        'vlaina_created: 2026-04-15 18:00:00 +08:00',
+        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
         '---',
         '',
         'Line one\\',

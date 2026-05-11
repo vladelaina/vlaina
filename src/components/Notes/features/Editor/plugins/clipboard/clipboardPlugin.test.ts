@@ -195,6 +195,41 @@ describe('clipboardPlugin copy', () => {
 
         await editor.destroy();
     });
+
+    it('copies ordinary marked text in the copy event as visible plain text', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '[Example](https://example.com) **Pro $76.80** and `code \\ value`');
+                ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+                    ...prev,
+                    ...notesRemarkStringifyOptions,
+                }));
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+        const from = findTextRange(view.state.doc, 'Example').from;
+        const to = findTextRange(view.state.doc, 'code \\ value').to;
+        view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, from, to)));
+
+        const { handled, event, clipboardData } = simulateCopyEvent(view);
+
+        expect(handled).toBe(true);
+        expect(event.preventDefault).toHaveBeenCalled();
+        expect(clipboardData.setData).toHaveBeenCalledWith('text/plain', 'Example Pro $76.80 and code \\ value');
+        const copied = clipboardData.setData.mock.calls[0]?.[1] ?? '';
+        expect(copied).not.toContain('[Example]');
+        expect(copied).not.toContain('(https://example.com)');
+        expect(copied).not.toContain('**');
+        expect(copied).not.toContain('`');
+        expect(copied).not.toContain('\\$');
+        expect(copied).not.toContain('&#x20;');
+
+        await editor.destroy();
+    });
 });
 
 describe('clipboardPlugin paste', () => {

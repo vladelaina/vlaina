@@ -1,12 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { resolveBlankAreaDragStartZone } from './blankAreaDragTargets';
+import {
+  isPointInTrailingTextSelectionGutter,
+  resolveBlankAreaDragStartZone,
+} from './blankAreaDragTargets';
 
-function createMouseDown(target: HTMLElement) {
+function createMouseDown(
+  target: HTMLElement,
+  init: Pick<MouseEventInit, 'clientX' | 'clientY'> = {},
+) {
   const event = new MouseEvent('mousedown', {
     bubbles: true,
     cancelable: true,
-    clientY: 0,
+    clientX: init.clientX ?? 0,
+    clientY: init.clientY ?? 0,
   });
 
   Object.defineProperty(event, 'target', {
@@ -21,17 +28,159 @@ function createView() {
   const scrollRoot = document.createElement('div');
   scrollRoot.setAttribute('data-note-scroll-root', 'true');
 
+  const editorWrapper = document.createElement('div');
+  editorWrapper.className = 'milkdown-editor';
+  scrollRoot.append(editorWrapper);
+
   const editor = document.createElement('div');
-  scrollRoot.append(editor);
+  editorWrapper.append(editor);
   document.body.append(scrollRoot);
 
   return {
     view: { dom: editor } as unknown as EditorView,
+    editorWrapper,
     cleanup: () => scrollRoot.remove(),
   };
 }
 
 describe('blankAreaDragTargets', () => {
+  it('treats the small area after line text as text-selection space', () => {
+    const lineRect = {
+      left: 100,
+      right: 240,
+      top: 40,
+      bottom: 60,
+      width: 140,
+      height: 20,
+    };
+
+    expect(isPointInTrailingTextSelectionGutter(lineRect, 250, 50)).toBe(true);
+    expect(isPointInTrailingTextSelectionGutter(lineRect, 225, 50)).toBe(true);
+    expect(isPointInTrailingTextSelectionGutter(lineRect, 210, 50)).toBe(false);
+    expect(isPointInTrailingTextSelectionGutter(lineRect, 310, 50)).toBe(false);
+    expect(isPointInTrailingTextSelectionGutter(lineRect, 250, 90)).toBe(false);
+  });
+
+  it('does not start block selection from the editor root near a text line end', () => {
+    const { view, cleanup } = createView();
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'Selectable text';
+    paragraph.getBoundingClientRect = () => ({
+      left: 100,
+      right: 240,
+      top: 40,
+      bottom: 60,
+      width: 140,
+      height: 20,
+      x: 100,
+      y: 40,
+      toJSON: () => {},
+    });
+    view.dom.append(paragraph);
+
+    const originalCreateRange = document.createRange;
+    document.createRange = () => ({
+      selectNodeContents: () => {},
+      getClientRects: () => [{
+        left: 100,
+        right: 240,
+        top: 40,
+        bottom: 60,
+        width: 140,
+        height: 20,
+      }],
+      detach: () => {},
+    } as unknown as Range);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(
+        view,
+        createMouseDown(view.dom, { clientX: 250, clientY: 50 }),
+      )).toBeNull();
+
+      expect(resolveBlankAreaDragStartZone(
+        view,
+        createMouseDown(view.dom, { clientX: 330, clientY: 50 }),
+      )).toBe('outside-editor');
+    } finally {
+      document.createRange = originalCreateRange;
+      cleanup();
+    }
+  });
+
+  it('does not start block selection from the editor root near a text line start', () => {
+    const { view, cleanup } = createView();
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'Selectable text';
+    view.dom.append(paragraph);
+
+    const originalCreateRange = document.createRange;
+    document.createRange = () => ({
+      selectNodeContents: () => {},
+      getClientRects: () => [{
+        left: 100,
+        right: 240,
+        top: 40,
+        bottom: 60,
+        width: 140,
+        height: 20,
+      }],
+      detach: () => {},
+    } as unknown as Range);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(
+        view,
+        createMouseDown(view.dom, { clientX: 90, clientY: 50 }),
+      )).toBeNull();
+    } finally {
+      document.createRange = originalCreateRange;
+      cleanup();
+    }
+  });
+
+  it('does not start block selection from the editor wrapper near a text line end', () => {
+    const { view, editorWrapper, cleanup } = createView();
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'Selectable text';
+    paragraph.getBoundingClientRect = () => ({
+      left: 100,
+      right: 240,
+      top: 40,
+      bottom: 60,
+      width: 140,
+      height: 20,
+      x: 100,
+      y: 40,
+      toJSON: () => {},
+    });
+    view.dom.append(paragraph);
+
+    const originalCreateRange = document.createRange;
+    document.createRange = () => ({
+      selectNodeContents: () => {},
+      getClientRects: () => [{
+        left: 100,
+        right: 240,
+        top: 40,
+        bottom: 60,
+        width: 140,
+        height: 20,
+      }],
+      detach: () => {},
+    } as unknown as Range);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(
+        view,
+        createMouseDown(editorWrapper, { clientX: 250, clientY: 50 }),
+      )).toBeNull();
+    } finally {
+      document.createRange = originalCreateRange;
+      cleanup();
+    }
+  });
+
   it('allows horizontal blank space inside the editor root to start blank-area selection', () => {
     const { view, cleanup } = createView();
 

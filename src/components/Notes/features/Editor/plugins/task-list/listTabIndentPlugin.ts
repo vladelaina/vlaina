@@ -34,12 +34,13 @@ export const listTabIndentPlugin = $prose(() => {
             handleKeyDown(view, event) {
                 if (event.key !== 'Tab') return false;
                 if (event.metaKey || event.ctrlKey || event.altKey) return false;
-                if (!isSelectionInsideListItem(view)) return false;
-
-                const listItemType = view.state.schema.nodes.list_item;
-                if (!listItemType) return false;
 
                 event.preventDefault();
+
+                if (!isSelectionInsideListItem(view)) return true;
+
+                const listItemType = view.state.schema.nodes.list_item;
+                if (!listItemType) return true;
 
                 const command = event.shiftKey
                     ? liftListItem(listItemType)
