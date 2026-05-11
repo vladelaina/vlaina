@@ -43,6 +43,7 @@ interface UseImageActionsProps {
     notesPath: string;
     currentNotePath?: string;
     updateNodeAttrs: (attrs: ImageNodeAttrs) => void;
+    markImageUserInput: () => void;
     setCropParams: (params: CropParams | null) => void;
     setIsActive: (active: boolean) => void;
     setHeight: (h: number | undefined) => void;
@@ -52,7 +53,7 @@ export function useImageActions({
     node, view, getPos,
     baseSrc, resolvedSrc,
     notesPath, currentNotePath,
-    updateNodeAttrs, setCropParams, setIsActive, setHeight
+    updateNodeAttrs, markImageUserInput, setCropParams, setIsActive, setHeight
 }: UseImageActionsProps) {
     const { addToast } = useToastStore();
     const [isSaving, setIsSaving] = useState(false);
@@ -73,6 +74,7 @@ export function useImageActions({
             }
 
             setIsSaving(true);
+            markImageUserInput();
             await restoreIfNeeded();
             const fragment = generateCropFragment(percentageCrop, ratio);
             const nextSrc = `${baseSrc}#${fragment}`;
@@ -133,6 +135,7 @@ export function useImageActions({
     const handleDelete = () => {
         const pos = getPos();
         if (pos !== undefined) {
+            markImageUserInput();
             deleteImageNodeAtPos(view, pos);
         }
     };

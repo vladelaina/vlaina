@@ -73,6 +73,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         notesPath,
         currentNotePath,
         updateNodeAttrs,
+        markImageUserInput,
     } = useImageBlockState({ node, view, getPos });
 
     const {
@@ -91,6 +92,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         notesPath,
         currentNotePath,
         updateNodeAttrs,
+        markImageUserInput,
         setCropParams,
         setIsActive,
         setHeight,
@@ -118,6 +120,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         setHeight,
         setDragDimensions,
         updateNodeAttrs,
+        markImageUserInput,
         restoreIfNeeded,
     });
 
@@ -170,10 +173,11 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const handleCaptionSubmit = useCallback(async () => {
         setIsEditingCaption(false);
         if (captionInput !== nodeAlt) {
+            markImageUserInput();
             await restoreIfNeeded();
             updateNodeAttrs({ alt: captionInput });
         }
-    }, [captionInput, nodeAlt, restoreIfNeeded, setIsEditingCaption, updateNodeAttrs]);
+    }, [captionInput, markImageUserInput, nodeAlt, restoreIfNeeded, setIsEditingCaption, updateNodeAttrs]);
 
     const handleCaptionCancel = useCallback(() => {
         setIsEditingCaption(false);
@@ -181,13 +185,15 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     }, [nodeAlt, setCaptionInput, setIsEditingCaption]);
 
     const handleAlign = useCallback(async (align: 'left' | 'center' | 'right') => {
+        markImageUserInput();
         await restoreIfNeeded();
         setAlignment(align);
         updateNodeAttrs({ align });
-    }, [restoreIfNeeded, setAlignment, updateNodeAttrs]);
+    }, [markImageUserInput, restoreIfNeeded, setAlignment, updateNodeAttrs]);
 
     const handleEdit = useCallback(async () => {
         await restoreIfNeeded();
+        markImageUserInput();
         if (finalContainerSize.width > 0 && finalContainerSize.height > 0) {
             const elementRect = containerRef.current?.getBoundingClientRect();
             const parentRect = containerRef.current?.parentElement?.getBoundingClientRect();
@@ -205,6 +211,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         setIsActive(true);
     }, [
         finalContainerSize,
+        markImageUserInput,
         restoreIfNeeded,
         setIsActive,
         setHeight,

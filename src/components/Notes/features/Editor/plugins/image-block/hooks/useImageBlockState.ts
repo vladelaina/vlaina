@@ -37,6 +37,10 @@ export function useImageBlockState({ node, view, getPos }: UseImageBlockStatePro
         applyImageNodeAttrsAtPos(view, pos, attrs);
     }, [view, getPos]);
 
+    const markImageUserInput = useCallback(() => {
+        view.dom.dispatchEvent(new CustomEvent('vlaina:image-user-input', { bubbles: true }));
+    }, [view]);
+
     return {
         ...nodeState,
         ...uiState,
@@ -46,5 +50,6 @@ export function useImageBlockState({ node, view, getPos }: UseImageBlockStatePro
         notesPath: effectiveNotesPath,
         currentNotePath,
         updateNodeAttrs,
+        markImageUserInput,
     };
 }

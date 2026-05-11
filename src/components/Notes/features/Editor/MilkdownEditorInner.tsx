@@ -138,6 +138,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       const markUserInput = createUserInputMarker(view as EditorView, liveSerializer);
       view.dom.addEventListener('beforeinput', markUserInput);
       view.dom.addEventListener('keydown', markUserInput);
+      view.dom.addEventListener('vlaina:image-user-input', markUserInput);
       view.dom.addEventListener('paste', markUserInput);
       view.dom.addEventListener('cut', markUserInput);
       view.dom.addEventListener('drop', markUserInput);
@@ -146,6 +147,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       return () => {
         view.dom.removeEventListener('beforeinput', markUserInput);
         view.dom.removeEventListener('keydown', markUserInput);
+        view.dom.removeEventListener('vlaina:image-user-input', markUserInput);
         view.dom.removeEventListener('paste', markUserInput);
         view.dom.removeEventListener('cut', markUserInput);
         view.dom.removeEventListener('drop', markUserInput);

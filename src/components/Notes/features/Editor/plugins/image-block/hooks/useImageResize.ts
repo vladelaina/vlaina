@@ -9,6 +9,7 @@ interface UseImageResizeOptions {
     setHeight: (height: number | undefined) => void;
     setDragDimensions: (dims: { width: number; height: number } | null) => void;
     updateNodeAttrs: (attrs: ImageNodeAttrs) => void;
+    markImageUserInput: () => void;
     restoreIfNeeded: () => Promise<void>;
 }
 
@@ -20,6 +21,7 @@ export function useImageResize({
     setHeight,
     setDragDimensions,
     updateNodeAttrs,
+    markImageUserInput,
     restoreIfNeeded,
 }: UseImageResizeOptions) {
     const cleanupRef = useRef<(() => void) | null>(null);
@@ -35,6 +37,7 @@ export function useImageResize({
     const handleResizeStart = useCallback((direction: ResizeDirection) => (e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        markImageUserInput();
 
         const isProportional = direction === 'left' || direction === 'right' || direction === 'bottom-left' || direction === 'bottom-right';
 
@@ -91,7 +94,7 @@ export function useImageResize({
 
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);
-    }, [containerRef, width, height, setWidth, setHeight, setDragDimensions, updateNodeAttrs, restoreIfNeeded]);
+    }, [containerRef, width, height, setWidth, setHeight, setDragDimensions, updateNodeAttrs, markImageUserInput, restoreIfNeeded]);
 
     return { handleResizeStart };
 }

@@ -18,6 +18,10 @@ import {
 } from './imageDragSession';
 import { useImageDragPreview } from './useImageDragPreview';
 
+function markImageUserInput(view: EditorView): void {
+    view.dom.dispatchEvent(new CustomEvent('vlaina:image-user-input', { bubbles: true }));
+}
+
 interface UseImageDragOptions {
     view: EditorView;
     getPos: () => number | undefined;
@@ -133,6 +137,7 @@ export function useImageDrag({
 
         const sourcePos = getPos();
         if (sourcePos === undefined) return;
+        markImageUserInput(view);
 
         const containerRect = containerRef.current?.getBoundingClientRect();
         const sourceWidth = containerRef.current?.offsetWidth || 200;

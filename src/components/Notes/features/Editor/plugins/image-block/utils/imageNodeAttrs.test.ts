@@ -42,6 +42,49 @@ describe('imageNodeAttrs', () => {
         expect(parsed.extras).toContain('foo=bar');
     });
 
+    it('keeps crop and alignment when resizing an existing image', () => {
+        const latest = {
+            src: 'image.png#c=5.000000,6.000000,70.000000,80.000000,1.250000&a=left',
+            alt: 'cover',
+        };
+        const next = mergeImageNodeAttrs(latest, { width: '33%' });
+        const parsed = parseImageSource(next.src as string);
+
+        expect(parsed.crop).toMatchObject({ x: 5, y: 6, width: 70, height: 80, ratio: 1.25 });
+        expect(parsed.align).toBe('left');
+        expect(parsed.width).toBe('33%');
+        expect(next.alt).toBe('cover');
+    });
+
+    it('keeps crop and width when changing alignment', () => {
+        const latest = {
+            src: 'image.png#c=5.000000,6.000000,70.000000,80.000000,1.250000&w=33%25',
+            alt: 'cover',
+        };
+        const next = mergeImageNodeAttrs(latest, { align: 'right' });
+        const parsed = parseImageSource(next.src as string);
+
+        expect(parsed.crop).toMatchObject({ x: 5, y: 6, width: 70, height: 80, ratio: 1.25 });
+        expect(parsed.align).toBe('right');
+        expect(parsed.width).toBe('33%');
+        expect(next.alt).toBe('cover');
+    });
+
+    it('updates caption without changing persisted layout fragments', () => {
+        const latest = {
+            src: 'image.png#c=5.000000,6.000000,70.000000,80.000000,1.250000&a=left&w=33%25&foo=bar',
+            alt: 'old',
+        };
+        const next = mergeImageNodeAttrs(latest, { alt: 'new' });
+        const parsed = parseImageSource(next.src as string);
+
+        expect(parsed.crop).toMatchObject({ x: 5, y: 6, width: 70, height: 80, ratio: 1.25 });
+        expect(parsed.align).toBe('left');
+        expect(parsed.width).toBe('33%');
+        expect(parsed.extras).toContain('foo=bar');
+        expect(next.alt).toBe('new');
+    });
+
     it('handles non-string src values safely', () => {
         expect(getImageAlignment({ src: 123 })).toBe('center');
         expect(getImageWidth({ src: 123, width: '40%' })).toBe('40%');
