@@ -62,7 +62,7 @@ export function ChatInputActions({
             side="top"
             sideOffset={8}
             className={cn(
-              "w-52 rounded-[22px] border-transparent p-1.5 text-gray-900",
+              "w-52 rounded-[22px] border-transparent p-1.5 text-[var(--chat-sidebar-text)]",
               chatComposerPillSurfaceClass
             )}
           >
@@ -70,11 +70,12 @@ export function ChatInputActions({
               type="button"
               onClick={handleTriggerFileSelect}
               className={cn(
-                "group/chat-action flex h-10 w-full items-center gap-3 px-3 text-left text-[14px] transition-colors",
+                "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[16px] font-medium transition-colors",
+                "text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)]",
                 getSidebarIdleRowSurfaceClass('chat')
               )}
             >
-              <Icon name="common.upload" size="md" className="text-[var(--chat-sidebar-icon)] group-hover/chat-action:text-[var(--chat-sidebar-icon-hover)]" />
+              <Icon name="common.upload" size="md" className="text-[var(--chat-sidebar-text)]" />
               <span>Upload file</span>
             </button>
             {!webSearchEnabled && (
@@ -82,11 +83,12 @@ export function ChatInputActions({
                 type="button"
                 onClick={handleEnableWebSearch}
                 className={cn(
-                  "group/chat-action flex h-10 w-full items-center gap-3 px-3 text-left text-[14px] transition-colors",
+                  "group/chat-action flex h-10 w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[16px] font-medium transition-colors",
+                  "text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)]",
                   getSidebarIdleRowSurfaceClass('chat')
                 )}
               >
-                <Icon name="file.public" size="md" className="text-[var(--chat-sidebar-icon)] group-hover/chat-action:text-[var(--chat-sidebar-icon-hover)]" />
+                <Icon name="file.public" size="md" className="text-[var(--chat-sidebar-text)]" />
                 <span>Web search</span>
               </button>
             )}
