@@ -69,7 +69,7 @@ describe('storageAutoSync', () => {
     window.dispatchEvent(new StorageEvent('storage', {
       key: 'vlaina-storage-sync-event',
       newValue: JSON.stringify({
-        kind: 'unified',
+        kind: 'ui-preferences',
         sourceId: 'other-window',
         stamp: Date.now(),
         nonce: 'ok',

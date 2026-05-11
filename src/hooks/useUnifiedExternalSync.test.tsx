@@ -3,11 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useUnifiedExternalSync } from './useUnifiedExternalSync';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useAIUIStore } from '@/stores/ai/chatState';
+import { useUIStore } from '@/stores/uiSlice';
 import type { ChatMessage } from '@/lib/ai/types';
 
 const hoisted = vi.hoisted(() => ({
   listener: null as ((event: {
-    kind: 'unified' | 'chat-session';
+    kind: 'unified' | 'chat-session' | 'ui-preferences';
     sourceId: string;
     stamp: number;
     nonce: string;
@@ -62,6 +63,8 @@ function createAIData(messages: Record<string, ChatMessage[]> = {}) {
 }
 
 function resetStores() {
+  localStorage.clear();
+
   useUnifiedStore.setState({
     data: {
       settings: {
@@ -86,6 +89,15 @@ function resetStores() {
     temporaryChatEnabled: false,
     selectionInitialized: true,
     temporaryReturnSessionId: null,
+  });
+
+  useUIStore.setState({
+    fontSize: 16,
+    languagePreference: 'system',
+    imageStorageMode: 'subfolder',
+    imageSubfolderName: 'assets',
+    imageVaultSubfolderName: 'assets',
+    imageFilenameFormat: 'original',
   });
 }
 
@@ -179,6 +191,35 @@ describe('useUnifiedExternalSync', () => {
 
     expect(reloadFromDisk).toHaveBeenCalledTimes(1);
     expect(hoisted.reloadSessionMessagesFromDisk).toHaveBeenCalledWith('session-1');
+
+    hook.unmount();
+  });
+
+  it('reloads local UI preferences after an external ui-preferences sync event', async () => {
+    const reloadFromDisk = vi.fn(async () => undefined);
+    useUnifiedStore.setState({ reloadFromDisk });
+
+    const hook = renderHook(() => useUnifiedExternalSync());
+
+    localStorage.setItem('fontSize', '19');
+    localStorage.setItem('vlaina-language-preference', 'zh-CN');
+
+    await act(async () => {
+      hoisted.listener?.({
+        kind: 'ui-preferences',
+        sourceId: 'other-window',
+        stamp: 4,
+        nonce: 'n4',
+      });
+      await Promise.resolve();
+    });
+
+    expect(useUnifiedStore.getState().reloadFromDisk).not.toHaveBeenCalled();
+    expect(hoisted.reloadSessionMessagesFromDisk).not.toHaveBeenCalled();
+    expect(useUIStore.getState()).toMatchObject({
+      fontSize: 19,
+      languagePreference: 'zh-CN',
+    });
 
     hook.unmount();
   });

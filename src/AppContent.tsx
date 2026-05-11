@@ -70,6 +70,7 @@ export function AppContent() {
     appViewMode,
     sidebarCollapsed,
     sidebarWidth,
+    fontSize,
     setSidebarWidth,
     toggleSidebar,
     setAppViewMode,
@@ -135,6 +136,11 @@ export function AppContent() {
     document.documentElement.setAttribute('spellcheck', 'false');
     document.body.setAttribute('spellcheck', 'false');
   }, []);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.documentElement.style.fontSize = `${fontSize}px`;
+  }, [fontSize]);
 
   useEffect(() => {
     if (!isElectronRuntime()) return;

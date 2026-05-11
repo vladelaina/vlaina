@@ -1,12 +1,17 @@
 import { create } from 'zustand';
-import { STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED } from '@/lib/config';
+import {
+  STORAGE_KEY_FONT_SIZE,
+  STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED,
+} from '@/lib/config';
 import { getDefaultSidebarWidth } from '@/lib/layout/sidebarWidth';
 import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
+import { emitStorageAutoSyncEvent } from '@/lib/storage/storageAutoSync';
 import {
   SYSTEM_LANGUAGE_PREFERENCE,
   normalizeAppLanguagePreference,
   type AppLanguagePreference,
 } from '@/lib/i18n/languages';
+const DEFAULT_FONT_SIZE = 16;
 const STORAGE_KEY_SIDEBAR_WIDTH = 'vlaina_sidebar_width';
 const STORAGE_KEY_IMAGE_STORAGE_MODE = 'vlaina_image_storage_mode';
 const STORAGE_KEY_IMAGE_SUBFOLDER_NAME = 'vlaina_image_subfolder_name';
@@ -46,8 +51,12 @@ interface UIStore {
   setSidebarHeaderHovered: (hovered: boolean) => void;
   notesSidebarView: NotesSidebarView;
   setNotesSidebarView: (view: NotesSidebarView) => void;
+  fontSize: number;
+  setFontSize: (fontSize: number) => void;
+  resetFontSize: () => void;
   languagePreference: AppLanguagePreference;
   setLanguagePreference: (language: AppLanguagePreference) => void;
+  reloadPreferencesFromStorage: () => void;
 
   notesPreviewTitle: { path: string; title: string } | null;
   setNotesPreviewTitle: (path: string | null, title: string | null) => void;
@@ -86,6 +95,16 @@ interface UIStore {
   consumePendingNotesChatComposerInsert: (id: number) => void;
 }
 
+type UIPreferenceState = Pick<
+  UIStore,
+  | 'fontSize'
+  | 'languagePreference'
+  | 'imageStorageMode'
+  | 'imageSubfolderName'
+  | 'imageVaultSubfolderName'
+  | 'imageFilenameFormat'
+>;
+
 function loadBoolean(key: string, defaultValue: boolean): boolean {
   try {
     const saved = localStorage.getItem(key);
@@ -104,6 +123,27 @@ function saveString(key: string, value: string): void {
   }
 }
 
+function removeStorageItem(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+  }
+}
+
+function emitUIPreferencesSync(): void {
+  emitStorageAutoSyncEvent({ kind: 'ui-preferences' });
+}
+
+function savePreferenceString(key: string, value: string): void {
+  saveString(key, value);
+  emitUIPreferencesSync();
+}
+
+function removePreferenceString(key: string): void {
+  removeStorageItem(key);
+  emitUIPreferencesSync();
+}
+
 function loadNumber(key: string, defaultValue: number): number {
   try {
     const saved = localStorage.getItem(key);
@@ -114,6 +154,14 @@ function loadNumber(key: string, defaultValue: number): number {
   } catch {
   }
   return defaultValue;
+}
+
+function loadFontSize(): number {
+  const value = loadNumber(STORAGE_KEY_FONT_SIZE, DEFAULT_FONT_SIZE);
+  if (!Number.isFinite(value)) {
+    return DEFAULT_FONT_SIZE;
+  }
+  return Math.max(12, Math.min(20, Math.round(value)));
 }
 
 function loadImageStorageMode(): ImageStorageMode {
@@ -177,6 +225,17 @@ function getInitialAppViewMode(): AppViewMode {
   return launchViewMode ?? 'notes';
 }
 
+function loadUIPreferencesFromStorage(): UIPreferenceState {
+  return {
+    fontSize: loadFontSize(),
+    languagePreference: loadLanguagePreference(),
+    imageStorageMode: loadImageStorageMode(),
+    imageSubfolderName: loadImageSubfolderName(),
+    imageVaultSubfolderName: loadImageVaultSubfolderName(),
+    imageFilenameFormat: loadImageFilenameFormat(),
+  };
+}
+
 export const useUIStore = create<UIStore>()((set) => ({
   appViewMode: getInitialAppViewMode(),
   setAppViewMode: (mode) => set({ appViewMode: mode }),
@@ -203,11 +262,21 @@ export const useUIStore = create<UIStore>()((set) => ({
   setSidebarHeaderHovered: (hovered) => set({ sidebarHeaderHovered: hovered }),
   notesSidebarView: 'workspace',
   setNotesSidebarView: (view) => set({ notesSidebarView: view }),
-  languagePreference: loadLanguagePreference(),
+  ...loadUIPreferencesFromStorage(),
+  setFontSize: (fontSize) => {
+    const next = Math.max(12, Math.min(20, Math.round(fontSize)));
+    savePreferenceString(STORAGE_KEY_FONT_SIZE, String(next));
+    set({ fontSize: next });
+  },
+  resetFontSize: () => {
+    removePreferenceString(STORAGE_KEY_FONT_SIZE);
+    set({ fontSize: DEFAULT_FONT_SIZE });
+  },
   setLanguagePreference: (language) => {
-    saveString(STORAGE_KEY_LANGUAGE_PREFERENCE, language);
+    savePreferenceString(STORAGE_KEY_LANGUAGE_PREFERENCE, language);
     set({ languagePreference: language });
   },
+  reloadPreferencesFromStorage: () => set(loadUIPreferencesFromStorage()),
 
   notesPreviewTitle: null,
   setNotesPreviewTitle: (path, title) => {
@@ -236,26 +305,22 @@ export const useUIStore = create<UIStore>()((set) => ({
     universalPreviewIconSize: size !== undefined ? size : state.universalPreviewIconSize,
   })),
 
-  imageStorageMode: loadImageStorageMode(),
-  imageSubfolderName: loadImageSubfolderName(),
   setImageStorageMode: (mode) => {
-    saveString(STORAGE_KEY_IMAGE_STORAGE_MODE, mode);
+    savePreferenceString(STORAGE_KEY_IMAGE_STORAGE_MODE, mode);
     set({ imageStorageMode: mode });
   },
   setImageSubfolderName: (name) => {
     const sanitized = name.replace(/[<>:"/\\|?*]/g, '').trim();
-    saveString(STORAGE_KEY_IMAGE_SUBFOLDER_NAME, sanitized);
+    savePreferenceString(STORAGE_KEY_IMAGE_SUBFOLDER_NAME, sanitized);
     set({ imageSubfolderName: sanitized });
   },
-  imageVaultSubfolderName: loadImageVaultSubfolderName(),
   setImageVaultSubfolderName: (name) => {
     const sanitized = name.replace(/[<>:"/\\|?*]/g, '').trim();
-    saveString(STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME, sanitized);
+    savePreferenceString(STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME, sanitized);
     set({ imageVaultSubfolderName: sanitized });
   },
-  imageFilenameFormat: loadImageFilenameFormat(),
   setImageFilenameFormat: (format) => {
-    saveString(STORAGE_KEY_IMAGE_FILENAME_FORMAT, format);
+    savePreferenceString(STORAGE_KEY_IMAGE_FILENAME_FORMAT, format);
     set({ imageFilenameFormat: format });
   },
 
