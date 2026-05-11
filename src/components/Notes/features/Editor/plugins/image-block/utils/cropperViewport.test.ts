@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveCoverZoom, resolveDisplayedMediaSizeAtZoom1 } from './cropperViewport';
+import { resolveCoverZoom, resolveCropperMaxZoom, resolveDisplayedMediaSizeAtZoom1 } from './cropperViewport';
 
 describe('cropperViewport', () => {
     it('resolves cover zoom for a container that is taller than the image ratio', () => {
@@ -28,5 +28,10 @@ describe('cropperViewport', () => {
             { width: 500, height: 500 },
             { width: 0, height: 141 },
         )).toBeNull();
+    });
+
+    it('keeps max zoom above large cover zoom minimums', () => {
+        expect(resolveCropperMaxZoom(1)).toBe(5);
+        expect(resolveCropperMaxZoom(8)).toBe(24);
     });
 });

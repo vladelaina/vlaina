@@ -74,7 +74,7 @@ describe('markdown security when opening notes', () => {
     expect(result.persisted).not.toContain('file:///etc/passwd');
   });
 
-  it('does not auto-load executable, local, private-network, or public remote image sources', async () => {
+  it('only auto-loads sanitized relative and public remote image sources', async () => {
     const result = await openMarkdown([
       '![javascript](javascript:alert(1))',
       '![data](data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+)',
@@ -99,7 +99,7 @@ describe('markdown security when opening notes', () => {
     const srcs = Array.from(result.dom.querySelectorAll('img')).map((image) => image.getAttribute('src'));
     const srcsets = Array.from(result.dom.querySelectorAll('source')).map((source) => source.getAttribute('srcset'));
 
-    expect(srcs).not.toContain('https://example.com/safe.png');
+    expect(srcs).toContain('https://example.com/safe.png');
     expect(srcs).toContain('images/safe.png');
     expect(srcs.some((src) => src?.startsWith('javascript:'))).toBe(false);
     expect(srcs.some((src) => src?.startsWith('data:'))).toBe(false);

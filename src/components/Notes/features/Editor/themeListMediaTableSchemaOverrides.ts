@@ -9,7 +9,7 @@ import {
     tableHeaderSchema,
 } from '@milkdown/kit/preset/gfm';
 import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
-import { isPublicRemoteMediaUrl, sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
+import { sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 import { normalizeImageWidth } from './plugins/image-block/utils/imageSourceFragment';
 import { escapeHtmlAttr, getDomAttrs, updateSchemaFactory } from './themeSchemaUtils';
 
@@ -76,10 +76,9 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
         },
         toDOM: (node: any) => {
             const safeSrc = sanitizeNoteMediaSrc(node.attrs.src);
-            const renderSrc = safeSrc && !isPublicRemoteMediaUrl(safeSrc) ? safeSrc : undefined;
             const width = normalizeImageWidth(node.attrs.width);
             return ['img', {
-                src: renderSrc,
+                src: safeSrc || undefined,
                 alt: node.attrs.alt,
                 title: node.attrs.title,
                 align: node.attrs.align,

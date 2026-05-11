@@ -2,6 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const HOVER_HIDE_DELAY_MS = 300;
 
+function isUsableSize(size: { width: number; height: number }) {
+    return Number.isFinite(size.width)
+        && Number.isFinite(size.height)
+        && size.width > 0.5
+        && size.height > 0.5;
+}
+
 interface UseImageBlockFrameOptions {
     height: number | undefined;
     isEditingCaption: boolean;
@@ -19,6 +26,7 @@ export function useImageBlockFrame({
 }: UseImageBlockFrameOptions) {
     const containerRef = useRef<HTMLDivElement>(null);
     const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+    const lastUsableSizeRef = useRef({ width: 0, height: 0 });
     const [dragDimensions, setDragDimensions] = useState<{ width: number; height: number } | null>(null);
     const [observedSize, setObservedSize] = useState({ width: 0, height: 0 });
 
@@ -28,9 +36,17 @@ export function useImageBlockFrame({
         const resizeObserver = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 const { width, height: nextHeight } = entry.contentRect;
+                const nextSize = { width, height: nextHeight };
+
+                if (isUsableSize(nextSize)) {
+                    lastUsableSizeRef.current = nextSize;
+                } else if (isActive && isUsableSize(lastUsableSizeRef.current)) {
+                    return;
+                }
+
                 setObservedSize((prev) => {
                     if (Math.abs(prev.width - width) > 0.5 || Math.abs(prev.height - nextHeight) > 0.5) {
-                        return { width, height: nextHeight };
+                        return nextSize;
                     }
                     return prev;
                 });
@@ -39,7 +55,7 @@ export function useImageBlockFrame({
 
         resizeObserver.observe(containerRef.current);
         return () => resizeObserver.disconnect();
-    }, []);
+    }, [isActive]);
 
     useEffect(() => {
         return () => {
@@ -77,11 +93,24 @@ export function useImageBlockFrame({
     }, [isHoverDisabled, isEditingCaption, isActive, setIsHovered]);
 
     const finalContainerSize = useMemo(() => {
-        return dragDimensions || {
+        if (dragDimensions) return dragDimensions;
+
+        const currentSize = {
             width: observedSize.width || containerRef.current?.offsetWidth || 0,
             height: height || observedSize.height || containerRef.current?.offsetHeight || 0,
         };
-    }, [dragDimensions, observedSize.width, observedSize.height, height]);
+
+        if (isUsableSize(currentSize)) {
+            lastUsableSizeRef.current = currentSize;
+            return currentSize;
+        }
+
+        if (isActive && isUsableSize(lastUsableSizeRef.current)) {
+            return lastUsableSizeRef.current;
+        }
+
+        return currentSize;
+    }, [dragDimensions, observedSize.width, observedSize.height, height, isActive]);
 
     return {
         containerRef,

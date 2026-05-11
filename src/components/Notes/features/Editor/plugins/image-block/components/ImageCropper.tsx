@@ -6,9 +6,8 @@ import { InvisibleResizeHandles } from './InvisibleResizeHandles';
 import { CropperControls } from './CropperControls';
 import { useCropperState } from '../hooks/useCropperState';
 import { useCropperInteraction } from '../hooks/useCropperInteraction';
+import { resolveCropperMaxZoom } from '../utils/cropperViewport';
 import type { CropArea, CropperViewportState, LoadedMediaSize, ResizeDirection } from '../types';
-
-const MAX_ZOOM = 5;
 
 interface ImageCropperProps {
     imageSrc: string;
@@ -52,6 +51,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
         overrideState,
         onStateChange
     });
+    const maxZoomLimit = resolveCropperMaxZoom(minZoomLimit);
 
     const {
         isCtrlPressed,
@@ -73,7 +73,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
     });
 
     return (
-        <>
+        <div className="relative h-full w-full">
             <div
                 ref={containerRef}
                 className={cn(
@@ -97,7 +97,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                         zoomWithScroll={isActive}
                         zoomSpeed={0.5}
                         minZoom={minZoomLimit}
-                        maxZoom={MAX_ZOOM}
+                        maxZoom={maxZoomLimit}
                         restrictPosition={true}
                         objectFit="cover"
                         style={{
@@ -130,12 +130,12 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
                 zoom={zoom}
                 setZoom={setZoom}
                 minZoom={minZoomLimit}
-                maxZoom={MAX_ZOOM}
+                maxZoom={maxZoomLimit}
                 isActive={isActive}
                 isSaving={isSaving}
                 onSave={handleSaveClick}
                 onCancel={handleCancelClick}
             />
-        </>
+        </div>
     );
 };

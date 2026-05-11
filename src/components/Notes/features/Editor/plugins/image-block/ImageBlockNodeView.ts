@@ -22,6 +22,9 @@ export class ImageBlockNodeView implements NodeView {
         this.dom.classList.add('image-block-container');
         this.dom.contentEditable = 'false';
         this.dom.draggable = false;
+        this.dom.style.display = 'block';
+        this.dom.style.width = '100%';
+        this.dom.style.maxWidth = '100%';
 
         this.dragStartHandler = (e: DragEvent) => {
             e.preventDefault();

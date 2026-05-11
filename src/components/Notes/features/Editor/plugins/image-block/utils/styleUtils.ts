@@ -18,6 +18,7 @@ interface NormalStyleParams {
     isActive: boolean;
     isReady: boolean;
     computedAspectRatio: string;
+    activeSize?: { width: number; height: number } | null;
 }
 
 export function getDraggingStyle({ dragPosition, dragSize }: DraggingStyleParams): React.CSSProperties {
@@ -36,13 +37,22 @@ export function getDraggingStyle({ dragPosition, dragSize }: DraggingStyleParams
     };
 }
 
-export function getNormalStyle({ width, height, isActive, isReady, computedAspectRatio }: NormalStyleParams): React.CSSProperties {
+export function getNormalStyle({ width, height, isActive, isReady, computedAspectRatio, activeSize }: NormalStyleParams): React.CSSProperties {
+    const hasActiveSize = Boolean(
+        isActive
+        && activeSize
+        && Number.isFinite(activeSize.width)
+        && Number.isFinite(activeSize.height)
+        && activeSize.width > 0
+        && activeSize.height > 0
+    );
+
     return {
-        width: width,
+        width: hasActiveSize ? `${activeSize!.width}px` : width,
         maxWidth: '100%',
-        height: height ? height : 'auto',
+        height: hasActiveSize ? `${activeSize!.height}px` : height ? height : 'auto',
         minHeight: isReady || height ? undefined : 100,
-        aspectRatio: computedAspectRatio,
+        aspectRatio: hasActiveSize ? 'auto' : computedAspectRatio,
         transition: (isActive || height) ? 'none' : 'width 0.1s ease-out, opacity 0.2s ease-out',
         display: 'block',
         opacity: 1,

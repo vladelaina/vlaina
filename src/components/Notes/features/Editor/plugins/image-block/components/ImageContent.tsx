@@ -1,5 +1,8 @@
+import { useEffect, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
+import { isPublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 import { ImageCropper } from './ImageCropper';
+import { getCropViewStyles } from '../utils/cropGeometry';
 import type { CropParams } from '../utils/imageSourceFragment';
 import type { CropArea, LoadedMediaSize, CropperViewportState, ResizeDirection } from '../types';
 
@@ -34,6 +37,16 @@ export const ImageContent = ({
     onMediaLoaded,
     onStateChange
 }: ImageContentProps) => {
+    const [mediaError, setMediaError] = useState(false);
+
+    useEffect(() => {
+        setMediaError(false);
+    }, [resolvedSrc]);
+
+    const isRemoteImage = isPublicRemoteMediaUrl(resolvedSrc);
+    const shouldRenderPlainRemoteImage = isRemoteImage && !isActive && !cropParams;
+    const shouldRenderCropPreview = !isActive && !!cropParams;
+    const cropPreviewStyles = cropParams ? getCropViewStyles(cropParams) : null;
 
     if ((isLoading || !resolvedSrc) && !isReady) {
         return (
@@ -43,11 +56,63 @@ export const ImageContent = ({
         );
     }
 
-    if (loadError) {
+    if (loadError || mediaError) {
         return (
             <div className="w-full h-full min-h-[100px] flex flex-col items-center justify-center bg-gray-50 dark:bg-zinc-900 border border-dashed border-gray-200 dark:border-zinc-700 rounded-md text-gray-400 dark:text-zinc-500">
                 <Icon name="file.brokenImage" className="size-8 mb-2 opacity-50" />
                 <span className="text-xs font-medium">Image not found</span>
+            </div>
+        );
+    }
+
+    if (shouldRenderPlainRemoteImage) {
+        return (
+            <img
+                src={resolvedSrc}
+                alt=""
+                draggable={false}
+                className="block h-auto max-w-full select-none object-contain"
+                onLoad={(event) => {
+                    const image = event.currentTarget;
+                    onMediaLoaded({
+                        width: image.width,
+                        height: image.height,
+                        naturalWidth: image.naturalWidth,
+                        naturalHeight: image.naturalHeight,
+                    });
+                }}
+                onError={() => {
+                    setMediaError(true);
+                }}
+            />
+        );
+    }
+
+    if (shouldRenderCropPreview && cropPreviewStyles) {
+        return (
+            <div
+                className="relative h-full w-full overflow-hidden"
+                style={cropPreviewStyles.container}
+            >
+                <img
+                    src={resolvedSrc}
+                    alt=""
+                    draggable={false}
+                    className="select-none"
+                    style={cropPreviewStyles.image}
+                    onLoad={(event) => {
+                        const image = event.currentTarget;
+                        onMediaLoaded({
+                            width: image.width,
+                            height: image.height,
+                            naturalWidth: image.naturalWidth,
+                            naturalHeight: image.naturalHeight,
+                        });
+                    }}
+                    onError={() => {
+                        setMediaError(true);
+                    }}
+                />
             </div>
         );
     }

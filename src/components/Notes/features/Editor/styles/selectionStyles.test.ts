@@ -124,20 +124,23 @@ describe('editor embedded CodeMirror selection styles', () => {
 
     expect(css).toContain('.milkdown .ProseMirror .image-block-container.vlaina-block-selected {');
     expect(css).toContain('--vlaina-block-selection-bleed-y: 0px;');
-    expect(css).toContain('.milkdown .ProseMirror p.vlaina-block-selected:has(> .image-block-container:only-child) {');
+    expect(css).toContain('.milkdown .ProseMirror p.vlaina-block-selected:has(> .image-block-container) {');
   });
 
   it('collapses paragraph line box around standalone image blocks', () => {
     const css = readStyleFile('markdown.css');
 
-    expect(css).toContain('.milkdown p:has(> .image-block-container:only-child) {');
+    expect(css).toContain('.milkdown p:has(> .image-block-container) {');
     expect(css).toContain('font-size: 0;');
     expect(css).toContain('line-height: 0;');
     expect(css).toContain('margin-top: 1rem;');
     expect(css).toContain('margin-bottom: 1rem;');
-    expect(css).toContain('.milkdown p:has(> .image-block-container:only-child) > .image-block-container {');
+    expect(css).toContain('.milkdown p:has(> .image-block-container) > .image-block-container {');
+    expect(css).toContain('display: block;');
+    expect(css).toContain('width: 100%;');
     expect(css).toContain('margin-top: 0;');
     expect(css).toContain('margin-bottom: 0;');
+    expect(css).toContain('.milkdown .image-block-container {');
   });
 
   it('lets autolinks inherit the shared markdown link appearance', () => {
@@ -194,7 +197,7 @@ describe('editor embedded CodeMirror selection styles', () => {
     const css = readStyleFile('selection-width.css');
 
     expect(css).toContain(
-      '.milkdown .ProseMirror > p:not([data-text-align]):not(.is-editor-empty):not(.vlaina-block-selected):not(:has(> br.ProseMirror-trailingBreak:only-child)):not(:has(> .image-block-container:only-child)) {'
+      '.milkdown .ProseMirror > p:not([data-text-align]):not(.is-editor-empty):not(.vlaina-block-selected):not(:has(> br.ProseMirror-trailingBreak:only-child)):not(:has(> .image-block-container)) {'
     );
     expect(css).toContain('width: fit-content;');
     expect(css).toContain('max-width: 100%;');

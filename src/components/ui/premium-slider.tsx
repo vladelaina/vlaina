@@ -24,6 +24,15 @@ export function PremiumSlider({
     const inputRef = useRef<HTMLInputElement>(null);
     const rafRef = useRef<number | undefined>(undefined);
     const latestValueRef = useRef(value);
+    const range = max - min;
+
+    const resolvePercentage = useCallback((currentValue: number) => {
+        if (!Number.isFinite(currentValue) || !Number.isFinite(range) || range <= 0) {
+            return 0;
+        }
+
+        return Math.min(100, Math.max(0, ((currentValue - min) / range) * 100));
+    }, [min, range]);
 
     useEffect(() => {
         latestValueRef.current = value;
@@ -35,9 +44,9 @@ export function PremiumSlider({
 
     const updateVisuals = useCallback((currentValue: number) => {
         if (!containerRef.current) return;
-        const percentage = ((currentValue - min) / (max - min)) * 100;
+        const percentage = resolvePercentage(currentValue);
         containerRef.current.style.setProperty('--slider-percentage', `${percentage}%`);
-    }, [min, max]);
+    }, [resolvePercentage]);
 
     const handleInput = useCallback((e: React.FormEvent<HTMLInputElement>) => {
         const newValue = parseFloat(e.currentTarget.value);
@@ -66,7 +75,7 @@ export function PremiumSlider({
         };
     }, []);
 
-    const initialPercentage = ((value - min) / (max - min)) * 100;
+    const initialPercentage = resolvePercentage(value);
 
     return (
         <div

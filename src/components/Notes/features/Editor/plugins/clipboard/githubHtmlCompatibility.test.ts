@@ -402,14 +402,14 @@ describe('GitHub README HTML compatibility', () => {
     expect(result.persisted).toBe(markdown);
   });
 
-  it('does not auto-load public remote media from raw HTML when opening notes', async () => {
+  it('renders and preserves public remote image sources from raw HTML', async () => {
     const markdown = '<img src="https://example.com/tracker.png" alt="tracker">';
 
     const result = await openGithubHtmlMarkdown(markdown);
     const image = result.dom.querySelector('img');
 
     expect(image).not.toBeNull();
-    expect(image?.hasAttribute('src')).toBe(false);
+    expect(image?.getAttribute('src')).toBe('https://example.com/tracker.png');
     expect(image?.getAttribute('alt')).toBe('tracker');
     expect(result.persisted).toContain('https://example.com/tracker.png');
   });
