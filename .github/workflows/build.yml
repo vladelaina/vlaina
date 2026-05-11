@@ -8,9 +8,15 @@ on:
     tags:
       - "v*"
   pull_request:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing tag to build and publish, for example v0.1.0"
+        required: true
+        type: string
 
 concurrency:
-  group: build-${{ github.workflow }}-${{ github.ref }}
+  group: build-${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
   cancel-in-progress: true
 
 env:
@@ -28,6 +34,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v5
@@ -88,6 +96,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v5
@@ -104,8 +114,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Sync package version from tag
-        if: startsWith(github.ref, 'refs/tags/')
-        run: node scripts/sync-version-from-tag.mjs
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        run: node scripts/sync-version-from-tag.mjs "${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}"
 
       - name: Build renderer
         run: pnpm build
@@ -125,7 +135,7 @@ jobs:
           if-no-files-found: error
 
   publish:
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: build
@@ -143,7 +153,8 @@ jobs:
       - name: Publish GitHub release assets
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ contains(github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name, '-') }}
           generate_release_notes: true
           files: release-artifacts/*
