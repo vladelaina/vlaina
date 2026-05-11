@@ -39,17 +39,22 @@ describe('desktop filesystem authorization persistence', () => {
   it('recovers future authorization saves after one persistence write fails', async () => {
     const {
       authorizeFsPath,
+      normalizeFsPathForAccess,
+      normalizeFsPathKey,
       resetAuthorizedFsPathsForTests,
     } = await import('../../electron/fsAccess.mjs');
     resetAuthorizedFsPathsForTests();
+    const expectedProjectTwoPath = normalizeFsPathForAccess('/tmp/project-two');
+    const expectedProjectTwoKey = normalizeFsPathKey(expectedProjectTwoPath);
     mocks.writeFile
       .mockRejectedValueOnce(new Error('disk full'))
       .mockResolvedValueOnce(undefined);
 
     await expect(authorizeFsPath('/tmp/project-one', 'root')).rejects.toThrow('disk full');
-    await expect(authorizeFsPath('/tmp/project-two', 'root')).resolves.toBe('/tmp/project-two');
+    await expect(authorizeFsPath('/tmp/project-two', 'root')).resolves.toBe(expectedProjectTwoPath);
 
     expect(mocks.writeFile).toHaveBeenCalledTimes(2);
-    expect(String(mocks.writeFile.mock.calls[1]?.[1])).toContain('/tmp/project-two');
+    const persistedPayload = JSON.parse(String(mocks.writeFile.mock.calls[1]?.[1]));
+    expect(persistedPayload.roots).toContain(expectedProjectTwoKey);
   });
 });

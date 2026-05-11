@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
+import path from 'node:path';
 import { isPathInsideDirectory, registerDesktopIpc } from '../../electron/desktopIpc.mjs';
 
 const hoisted = vi.hoisted(() => {
   const windows: any[] = [];
+  const tempRoot = process.env.RUNNER_TEMP ?? process.env.TEMP ?? process.env.TMPDIR ?? '/tmp';
 
   class MockBrowserWindow {
     options: Record<string, unknown>;
@@ -27,13 +29,13 @@ const hoisted = vi.hoisted(() => {
     }
   }
 
-  return { MockBrowserWindow, windows };
+  return { MockBrowserWindow, tempRoot, windows };
 });
 
 vi.mock('electron', () => ({
   default: {
     app: {
-      getPath: vi.fn(() => '/tmp'),
+      getPath: vi.fn(() => hoisted.tempRoot),
     },
     BrowserWindow: hoisted.MockBrowserWindow,
     clipboard: {
@@ -186,7 +188,10 @@ describe('desktop export ipc', () => {
 
     const win = hoisted.windows[0];
     expect(win.loadFile).toHaveBeenCalledTimes(1);
-    expect(win.loadFile.mock.calls[0]?.[0]).toMatch(/\/tmp\/vlaina-export-.*\/export\.html$/);
+    const loadedFilePath = String(win.loadFile.mock.calls[0]?.[0]);
+    expect(path.basename(loadedFilePath)).toBe('export.html');
+    expect(path.basename(path.dirname(loadedFilePath))).toMatch(/^vlaina-export-/);
+    expect(path.dirname(path.dirname(loadedFilePath))).toBe(path.resolve(hoisted.tempRoot));
     expect(win.loadURL).not.toHaveBeenCalled();
     expect(win.webContents.printToPDF).toHaveBeenCalledWith({
       landscape: false,
