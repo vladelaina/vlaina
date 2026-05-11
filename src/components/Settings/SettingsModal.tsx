@@ -9,15 +9,9 @@ import { AppearanceTab } from './tabs/AppearanceTab';
 import { AITab } from './tabs/AITab';
 import { LanguageTab } from './tabs/LanguageTab';
 import { cn } from '@/lib/utils';
-import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { useWindowDragGesture } from '@/hooks/useWindowDragGesture';
 import { actions as aiActions } from '@/stores/ai/providerActions';
 import { SETTINGS_BEFORE_CLOSE_EVENT, SETTINGS_CLOSED_EVENT } from './settingsEvents';
-import {
-  getSidebarIdleRowSurfaceClass,
-  getSidebarSelectedRowSurfaceClass,
-  getSidebarLabelClass,
-} from '@/components/layout/sidebar/sidebarLabelStyles';
 
 interface SettingsModalProps {
   open: boolean;

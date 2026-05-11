@@ -1,18 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useTheme } from 'next-themes';
 import { Icon } from '@/components/ui/icons';
 import {
   SettingsItem,
-  SettingsSectionHeader,
-  SegmentedControl,
 } from '../components/SettingsControls';
 import { STORAGE_KEY_FONT_SIZE } from '@/lib/config';
 
 const DEFAULT_FONT_SIZE = 16;
 
 export function AppearanceTab() {
-  const { theme, setTheme } = useTheme();
-
   const [fontSize, setFontSize] = useState<number>(() => {
     const saved = localStorage.getItem(STORAGE_KEY_FONT_SIZE);
     return saved !== null ? parseInt(saved) : DEFAULT_FONT_SIZE;

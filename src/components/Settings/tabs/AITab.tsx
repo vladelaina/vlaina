@@ -20,24 +20,6 @@ interface PendingDeleteProvider {
   name: string;
 }
 
-const detailTransitionVariants = {
-  initial: (direction: number) => ({
-    opacity: 0,
-    x: direction < 0 ? -34 : 34,
-    scale: 0.992,
-  }),
-  animate: {
-    opacity: 1,
-    x: 0,
-    scale: 1,
-  },
-  exit: (direction: number) => ({
-    opacity: 0,
-    x: direction < 0 ? 28 : -28,
-    scale: 0.992,
-  }),
-};
-
 function formatChannelBaseUrl(baseUrl: string) {
   return baseUrl.replace(/^https?:\/\//i, '');
 }
@@ -174,7 +156,7 @@ export function AITab() {
   const [selectedProviderId, setSelectedProviderId] = useState<string | null>(null);
   const [providerDrafts, setProviderDrafts] = useState<Record<string, ProviderCardDraft>>({});
   const [pendingDelete, setPendingDelete] = useState<PendingDeleteProvider | null>(null);
-  const [detailTransitionDirection, setDetailTransitionDirection] = useState(1);
+  const [, setDetailTransitionDirection] = useState(1);
 
   useEffect(() => {
     if (customProviders.length === 0) {
