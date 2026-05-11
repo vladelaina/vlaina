@@ -14,6 +14,8 @@ const IMAGE_LINK_PATTERN = /!(?:\[|【)[^】\]\r\n]+(?:\]|】)(?:\(|（)[^)）\r
 const MULTI_LINE_PATTERN = /[\r\n]/;
 const STRUCTURAL_MARKDOWN_PREFIX_PATTERN = /^\s{0,3}([#＃]{1,6}\s+|[-+*－＋＊]\s+|[0-9０-９]+[.)．]\s+|[>》]\s+|```|~~~|···|～～～|[-*_－＿＊]{3,}\s*$|[|｜].+[|｜])/;
 const LINK_DESTINATION_WITH_TITLE_PATTERN = /^(<[^>\r\n]+>|[^\s"'()]+)(?:\s+(?:"[^"\r\n]*"|'[^'\r\n]*'|\([^)\r\n]*\)))?\s*$/;
+const MAX_MARKDOWN_LINK_DOC_SCAN_SIZE = 1024 * 1024;
+const MAX_MARKDOWN_LINK_PASTE_CHARS = 1024 * 1024;
 
 function getMarkdownLinkHref(rawDestination: string): string {
     const destination = rawDestination.trim();
@@ -43,6 +45,10 @@ export const markdownLinkPlugin = $prose(() => {
         // Auto-collapse when selection moves away from a markdown link pattern
         // AND cleanup unwanted styles (code, strong) from raw markdown link syntax
         appendTransaction(_transactions, oldState, newState) {
+            if (newState.doc.content.size > MAX_MARKDOWN_LINK_DOC_SCAN_SIZE) {
+                return null;
+            }
+
             let tr = newState.tr;
             let hasChanges = false;
             const schema = newState.schema;
@@ -163,6 +169,10 @@ export const markdownLinkPlugin = $prose(() => {
                 if (!clipboardData) return false;
 
                 const text = clipboardData.getData('text/plain');
+                if (text.length > MAX_MARKDOWN_LINK_PASTE_CHARS) {
+                    event.preventDefault();
+                    return true;
+                }
                 if (!shouldHandleMarkdownLinkPaste(text)) {
                     return false;
                 }

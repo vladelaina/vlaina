@@ -288,7 +288,7 @@ describe('saveNoteDocument', () => {
   });
 
   it('rejects loading oversized markdown files before reading content', async () => {
-    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 51 * 1024 * 1024 });
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 11 * 1024 * 1024 });
 
     await expect(loadNoteDocument({
       notesPath: '/vault',
@@ -297,6 +297,32 @@ describe('saveNoteDocument', () => {
     })).rejects.toThrow('Note file is too large to open.');
 
     expect(adapter.readFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects cached markdown that is too complex for the editor', async () => {
+    await expect(loadNoteDocument({
+      notesPath: '/vault',
+      path: 'many-lines.md',
+      cache: new Map([
+        ['many-lines.md', {
+          content: `${'x\n'.repeat(120_001)}x`,
+          modifiedAt: 123,
+        }],
+      ]),
+    })).rejects.toThrow('Note file is too complex to open safely.');
+
+    expect(adapter.readFile).not.toHaveBeenCalled();
+  });
+
+  it('rejects markdown with an extreme single line before normalization', async () => {
+    adapter.stat.mockResolvedValue({ modifiedAt: 123, size: 600 * 1024 });
+    adapter.readFile.mockResolvedValue('x'.repeat(512 * 1024 + 1));
+
+    await expect(loadNoteDocument({
+      notesPath: '/vault',
+      path: 'long-line.md',
+      cache: new Map(),
+    })).rejects.toThrow('Note file is too complex to open safely.');
   });
 
   it('cleans internal user break markers when loading markdown', async () => {

@@ -56,6 +56,7 @@ let currentVersion = 0;
 const listeners = new Set<(snapshot: EditorBlockPositionSnapshot | null) => void>();
 const TOOLBAR_PREVIEW_HIDDEN_ATTRIBUTE = 'data-toolbar-preview-hidden';
 const TOOLBAR_PREVIEW_OVERLAY_CLASS = 'toolbar-applied-preview-overlay';
+const MAX_BLOCK_POSITION_SNAPSHOT_BLOCKS = 5000;
 
 export function isEditorHiddenByToolbarPreview(view: Pick<EditorView, 'dom'>): boolean {
   return view.dom instanceof HTMLElement && view.dom.getAttribute(TOOLBAR_PREVIEW_HIDDEN_ATTRIBUTE) === 'true';
@@ -107,6 +108,32 @@ function collectTopLevelBlockRanges(doc: EditorView['state']['doc']): Array<{ fr
     });
   });
   return ranges;
+}
+
+function isTooLargeForBlockPositionSnapshot(doc: EditorView['state']['doc']): boolean {
+  const childCount = (doc as { childCount?: unknown }).childCount;
+  return typeof childCount === 'number' && childCount > MAX_BLOCK_POSITION_SNAPSHOT_BLOCKS;
+}
+
+function createEmptySnapshot(view: EditorView): EditorBlockPositionSnapshot | null {
+  const editorRoot = view.dom;
+  if (!editorRoot.isConnected) {
+    return null;
+  }
+
+  const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
+  currentVersion += 1;
+  return {
+    version: currentVersion,
+    view,
+    doc: view.state.doc,
+    editorRoot,
+    scrollRoot,
+    scrollLeft: scrollRoot?.scrollLeft ?? 0,
+    scrollTop: scrollRoot?.scrollTop ?? 0,
+    blocks: [],
+    headings: [],
+  };
 }
 
 function createPreviewSnapshot(
@@ -194,6 +221,10 @@ function createSnapshot(view: EditorView): EditorBlockPositionSnapshot | null {
   const editorRoot = view.dom;
   if (!editorRoot.isConnected) {
     return null;
+  }
+
+  if (isTooLargeForBlockPositionSnapshot(view.state.doc)) {
+    return createEmptySnapshot(view);
   }
 
   const previewRoot = resolveToolbarPreviewRoot(view);

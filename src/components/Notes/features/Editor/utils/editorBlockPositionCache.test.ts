@@ -95,4 +95,30 @@ describe('editorBlockPositionCache', () => {
     controller.destroy();
     scrollRoot.remove();
   });
+
+  it('skips expensive block snapshots for very large documents', () => {
+    const dom = document.createElement('div');
+    document.body.appendChild(dom);
+
+    const doc = {
+      childCount: 5001,
+      content: { size: 5001 },
+      forEach() {
+        throw new Error('large documents should not be scanned');
+      },
+    };
+    const view = {
+      dom,
+      state: { doc },
+    };
+
+    const controller = createCurrentEditorBlockPositionController(view as any);
+    const snapshot = getCurrentEditorBlockPositionSnapshot();
+
+    expect(snapshot?.blocks).toEqual([]);
+    expect(snapshot?.headings).toEqual([]);
+
+    controller.destroy();
+    dom.remove();
+  });
 });

@@ -6,6 +6,7 @@ import {
 
 const hoisted = vi.hoisted(() => {
   const readFile = vi.fn();
+  const stat = vi.fn();
   const storeRef: { state: any } = { state: null };
 
   const useNotesStore = {
@@ -14,6 +15,7 @@ const hoisted = vi.hoisted(() => {
 
   return {
     readFile,
+    stat,
     storeRef,
     useNotesStore,
   };
@@ -26,6 +28,7 @@ vi.mock('@/stores/notes/useNotesStore', () => ({
 vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => ({
     readFile: hoisted.readFile,
+    stat: hoisted.stat,
   }),
   joinPath: async (...segments: string[]) => segments.filter(Boolean).join('/'),
 }));
@@ -33,6 +36,8 @@ vi.mock('@/lib/storage/adapter', () => ({
 describe('chatService helpers', () => {
   beforeEach(() => {
     hoisted.readFile.mockReset();
+    hoisted.stat.mockReset();
+    hoisted.stat.mockResolvedValue({ size: 100 });
     hoisted.storeRef.state = {
       currentNote: null,
       noteContentsCache: new Map(),
@@ -69,6 +74,18 @@ describe('chatService helpers', () => {
 
     expect(hoisted.readFile).toHaveBeenCalledWith('/vault/Disk.md');
     expect(notes[0]?.content).toBe('# Disk\nDisk note body');
+  });
+
+  it('does not read oversized mentioned notes from disk', async () => {
+    hoisted.stat.mockResolvedValue({ size: 600 * 1024 });
+
+    const notes = await loadMentionedNotes([
+      { path: 'Huge.md', title: 'Huge' },
+    ]);
+
+    expect(hoisted.stat).toHaveBeenCalledWith('/vault/Huge.md');
+    expect(hoisted.readFile).not.toHaveBeenCalled();
+    expect(notes).toEqual([]);
   });
 
   it('falls back to disk when the cached note content is empty', async () => {

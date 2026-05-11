@@ -82,6 +82,23 @@ function simulatePasteText(view: any, text: string): boolean {
     return handled;
 }
 
+function simulatePasteTextWithEvent(view: any, text: string): { handled: boolean; event: { preventDefault: ReturnType<typeof vi.fn> } } {
+    const event = {
+        clipboardData: {
+            getData(type: string) {
+                return type === 'text/plain' ? text : '';
+            },
+        },
+        preventDefault: vi.fn(),
+    };
+
+    let handled = false;
+    view.someProp('handlePaste', (handlePaste: any) => {
+        handled = handlePaste(view, event, null) || handled;
+    });
+    return { handled, event };
+}
+
 function insertEmptyParagraphAfterDocumentEnd(view: any): void {
     const paragraphType = view.state.schema.nodes.paragraph;
     const tr = view.state.tr.insert(view.state.doc.content.size, paragraphType.create());
@@ -585,6 +602,26 @@ describe('clipboardPlugin paste', () => {
         const view = editor.ctx.get(editorViewCtx);
 
         expect(simulatePasteText(view, 'hello world')).toBe(false);
+
+        await editor.destroy();
+    });
+
+    it('blocks oversized plain text paste before native insertion', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        const { handled, event } = simulatePasteTextWithEvent(view, 'x'.repeat(1024 * 1024 + 1));
+
+        expect(handled).toBe(true);
+        expect(event.preventDefault).toHaveBeenCalledTimes(1);
+        expect(view.state.doc.textContent).toBe('');
 
         await editor.destroy();
     });

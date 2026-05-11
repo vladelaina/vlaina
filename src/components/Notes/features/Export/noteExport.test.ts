@@ -92,4 +92,18 @@ describe('exportNote', () => {
     expect(writtenHtml).not.toContain('vlaina_updated');
     expect(writtenHtml).toContain('# Exported');
   });
+
+  it('rejects oversized markdown before rendering export output', async () => {
+    await expect(exportNote({
+      format: 'html',
+      markdown: 'x'.repeat(2 * 1024 * 1024 + 1),
+      notePath: 'Huge.md',
+      notesPath: '/vault',
+      title: 'Huge',
+    })).rejects.toThrow('Note is too large to export safely.');
+
+    expect(mocks.resolveExportMarkdownAssetSources).not.toHaveBeenCalled();
+    expect(mocks.renderNoteExportHtml).not.toHaveBeenCalled();
+    expect(mocks.writeDesktopBinaryFile).not.toHaveBeenCalled();
+  });
 });

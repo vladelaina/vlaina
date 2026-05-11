@@ -27,6 +27,8 @@ import { createMarkdownPasteSlice, hasOnlyParagraphNodes } from './markdownPaste
 import { createMarkdownTableFromTabSeparatedText } from './tabSeparatedTablePaste';
 
 export const clipboardPluginKey = new PluginKey('vlaina-clipboard');
+const MAX_MARKDOWN_PASTE_CHARS = 1024 * 1024;
+const MAX_HTML_PASTE_CHARS = 2 * 1024 * 1024;
 
 export function createStandaloneTocPasteNode(schema: {
     nodes: {
@@ -141,6 +143,10 @@ export const clipboardPlugin = $prose((ctx) => {
             handlePaste(view, event) {
                 const text = event.clipboardData?.getData('text/plain');
                 if (!text) return false;
+                if (text.length > MAX_MARKDOWN_PASTE_CHARS) {
+                    event.preventDefault();
+                    return true;
+                }
 
                 const fencedPayload = parseStandaloneFencedCodeBlock(text);
                 const state = view.state;
@@ -256,6 +262,9 @@ export const clipboardPlugin = $prose((ctx) => {
             },
             // Intercept paste and sanitize HTML using our strict policy
             transformPastedHTML(html) {
+                if (html.length > MAX_HTML_PASTE_CHARS) {
+                    return '';
+                }
                 return sanitizeHtml(html);
             }
         }

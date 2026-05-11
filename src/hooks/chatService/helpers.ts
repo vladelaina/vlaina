@@ -12,6 +12,7 @@ const SVG_DATA_URL_REGEX = /^data:image\/svg\+xml/i;
 const IMAGE_NAME_REGEX = /\.(png|jpe?g|webp|gif|bmp|avif|svg)(?:$|[?#])/i;
 const MAX_NOTE_MENTION_COUNT = 3;
 const MAX_NOTE_MENTION_CHARS = 12000;
+const MAX_NOTE_MENTION_READ_BYTES = 512 * 1024;
 const STREAM_CHUNK_FLUSH_MAX_DELAY_MS = 40;
 
 export function resolveAssistantContent(
@@ -93,12 +94,20 @@ async function resolveMentionedNoteContent(notePath: string): Promise<string> {
   const storage = getStorageAdapter();
   try {
     if (isAbsolutePath(notePath)) {
+      const fileInfo = await storage.stat(notePath).catch(() => null);
+      if (typeof fileInfo?.size === 'number' && fileInfo.size > MAX_NOTE_MENTION_READ_BYTES) {
+        return '';
+      }
       return await storage.readFile(notePath);
     }
     if (!notesState.notesPath) {
       return '';
     }
     const fullPath = await joinPath(notesState.notesPath, notePath);
+    const fileInfo = await storage.stat(fullPath).catch(() => null);
+    if (typeof fileInfo?.size === 'number' && fileInfo.size > MAX_NOTE_MENTION_READ_BYTES) {
+      return '';
+    }
     return await storage.readFile(fullPath);
   } catch {
     return '';

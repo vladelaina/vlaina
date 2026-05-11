@@ -8,6 +8,7 @@ let mermaidCounter = 0;
 
 type ConsoleMethodName = 'debug' | 'error' | 'info' | 'log' | 'warn';
 
+const MAX_MERMAID_CODE_CHARS = 20_000;
 const MERMAID_INIT_CONFIG = {
   startOnLoad: false,
   securityLevel: 'strict',
@@ -81,6 +82,10 @@ export function generateMermaidId(): string {
 }
 
 export async function renderMermaid(code: string, id: string): Promise<string> {
+  if (code.length > MAX_MERMAID_CODE_CHARS) {
+    return '<div class="mermaid-error">Mermaid Error: Diagram is too large to render.</div>';
+  }
+
   const mermaid = await getMermaid();
 
   if (!mermaid) {

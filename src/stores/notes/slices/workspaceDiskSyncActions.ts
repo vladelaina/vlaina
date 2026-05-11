@@ -18,7 +18,7 @@ import {
 } from '../lineBreakDebugLog';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 
-const MAX_NOTE_DISK_SYNC_BYTES = 50 * 1024 * 1024;
+const MAX_NOTE_DISK_SYNC_BYTES = 10 * 1024 * 1024;
 
 function isCurrentDiskSyncTarget(get: NotesGet, notesPath: string, notePath: string) {
   const state = get();

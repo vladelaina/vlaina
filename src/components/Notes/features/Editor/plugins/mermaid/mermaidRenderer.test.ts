@@ -92,4 +92,13 @@ describe('mermaidRenderer', () => {
     expect(html).not.toContain('Alice->Bob');
     expect(html).not.toContain('secret');
   });
+
+  it('rejects oversized diagrams before loading mermaid', async () => {
+    const { renderMermaid } = await import('./mermaidRenderer');
+
+    const html = await renderMermaid('x'.repeat(20_001), 'diagram-1');
+
+    expect(html).toContain('Diagram is too large to render.');
+    expect(render).not.toHaveBeenCalled();
+  });
 });

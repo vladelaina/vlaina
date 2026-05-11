@@ -23,6 +23,7 @@ const EXPORT_FILTERS: Record<NoteExportFormat, { name: string; extensions: strin
   pdf: [{ name: 'PDF Document', extensions: ['pdf'] }],
   png: [{ name: 'PNG Image', extensions: ['png'] }],
 };
+const MAX_EXPORT_MARKDOWN_CHARS = 2 * 1024 * 1024;
 
 function sanitizeFileName(value: string): string {
   return value
@@ -124,8 +125,13 @@ async function createPdfBytes(html: string): Promise<Uint8Array> {
 
 export async function exportNote(request: NoteExportRequest): Promise<NoteExportResult> {
   const title = getExportTitle(request);
+  const rawMarkdown = stripVlainaManagedFrontmatter(request.markdown);
+  if (rawMarkdown.length > MAX_EXPORT_MARKDOWN_CHARS) {
+    throw new Error('Note is too large to export safely.');
+  }
+
   const markdown = await resolveExportMarkdownAssetSources(
-    stripVlainaManagedFrontmatter(request.markdown),
+    rawMarkdown,
     request.notesPath,
     request.notePath,
   );

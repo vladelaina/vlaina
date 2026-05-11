@@ -3,6 +3,7 @@ import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import {
   buildEditorFindMatches,
+  MAX_EDITOR_FIND_MATCHES,
   normalizeEditorFindActiveIndex,
   resolveEditorFindIndexAfterDocChange,
   resolveEditorFindStartIndex,
@@ -168,5 +169,16 @@ describe('editorFindMatches', () => {
     } finally {
       await editor.destroy();
     }
+  });
+
+  it('caps match collection for extremely common queries', () => {
+    const matches = buildEditorFindMatches(
+      doc(
+        paragraph(text('a'.repeat(MAX_EDITOR_FIND_MATCHES + 100))),
+      ) as never,
+      'a',
+    );
+
+    expect(matches).toHaveLength(MAX_EDITOR_FIND_MATCHES);
   });
 });

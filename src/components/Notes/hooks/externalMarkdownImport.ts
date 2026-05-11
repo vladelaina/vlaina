@@ -13,7 +13,7 @@ import { isSupportedMarkdownSelection } from '../features/OpenTarget/openTargetS
 
 const MAX_EXTERNAL_MARKDOWN_IMPORT_ENTRIES = 2000;
 const MAX_EXTERNAL_MARKDOWN_IMPORT_DEPTH = 24;
-const MAX_EXTERNAL_MARKDOWN_FILE_SIZE = 50 * 1024 * 1024;
+const MAX_EXTERNAL_MARKDOWN_FILE_SIZE = 10 * 1024 * 1024;
 
 interface ExternalMarkdownImportResult {
   importedNotePaths: string[];

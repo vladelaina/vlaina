@@ -85,6 +85,23 @@ describe('importExternalMarkdownEntries', () => {
     expect(mocks.storage.copyFile).toHaveBeenCalledWith('/outside/alpha.markdown', '/vault/imports/alpha.md');
   });
 
+  it('skips external markdown files that are too large to open later', async () => {
+    mocks.storage.stat.mockResolvedValue({
+      isFile: true,
+      isDirectory: false,
+      size: 11 * 1024 * 1024,
+    });
+
+    const result = await importExternalMarkdownEntries('/vault', 'imports', ['/outside/huge.md']);
+
+    expect(result).toEqual({
+      importedNotePaths: [],
+      importedFolderPaths: [],
+      didImport: false,
+    });
+    expect(mocks.storage.copyFile).not.toHaveBeenCalled();
+  });
+
   it('imports markdown files from folders and ignores non-markdown files', async () => {
     mocks.storage.stat.mockImplementation(async (path: string) => ({
       isDirectory: path === '/outside/docs' || path === '/outside/docs/guides',

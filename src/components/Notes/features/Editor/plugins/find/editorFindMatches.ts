@@ -19,6 +19,8 @@ interface SearchableBlock {
   segments: BlockSegment[];
 }
 
+export const MAX_EDITOR_FIND_MATCHES = 20_000;
+
 function appendInlineSegments(
   node: ProseNode,
   pos: number,
@@ -131,6 +133,9 @@ export function buildEditorFindMatches(doc: ProseNode, query: string): EditorFin
       matches.push(
         createMatchFromOffsets(block.segments, matchIndex, matchIndex + normalizedQuery.length),
       );
+      if (matches.length >= MAX_EDITOR_FIND_MATCHES) {
+        return matches;
+      }
       searchFrom = matchIndex + Math.max(1, normalizedQuery.length);
     }
   }

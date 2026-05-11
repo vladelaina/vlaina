@@ -48,7 +48,10 @@ export interface SavedNoteDocument {
   metadata: NoteMetadataEntry;
 }
 
-const MAX_NOTE_DOCUMENT_BYTES = 50 * 1024 * 1024;
+const MAX_NOTE_DOCUMENT_BYTES = 10 * 1024 * 1024;
+const MAX_NOTE_DOCUMENT_CHARS = 10 * 1024 * 1024;
+const MAX_NOTE_DOCUMENT_LINES = 120_000;
+const MAX_NOTE_DOCUMENT_LINE_CHARS = 512 * 1024;
 
 export class NoteWriteConflictError extends Error {
   constructor() {
@@ -71,6 +74,35 @@ function assertReadableNoteSize(size: number | null | undefined): void {
   }
 }
 
+function assertEditorSafeMarkdownContent(content: string): void {
+  if (content.length > MAX_NOTE_DOCUMENT_CHARS) {
+    throw new Error('Note file is too large to open.');
+  }
+
+  let lineCount = content.length === 0 ? 0 : 1;
+  let lineLength = 0;
+  for (let index = 0; index < content.length; index += 1) {
+    const charCode = content.charCodeAt(index);
+    if (charCode === 10) {
+      lineCount += 1;
+      lineLength = 0;
+      if (lineCount > MAX_NOTE_DOCUMENT_LINES) {
+        throw new Error('Note file is too complex to open safely.');
+      }
+      continue;
+    }
+
+    if (charCode === 13) {
+      continue;
+    }
+
+    lineLength += 1;
+    if (lineLength > MAX_NOTE_DOCUMENT_LINE_CHARS) {
+      throw new Error('Note file is too complex to open safely.');
+    }
+  }
+}
+
 export async function loadNoteDocument({
   notesPath,
   path,
@@ -78,6 +110,7 @@ export async function loadNoteDocument({
 }: LoadNoteDocumentOptions): Promise<LoadedNoteDocument> {
   const cachedContent = getCachedNoteContent(cache, path);
   if (cachedContent !== undefined) {
+    assertEditorSafeMarkdownContent(cachedContent);
     const normalizedCachedContent = normalizeSerializedMarkdownDocument(cachedContent);
     if (isNotesDebugLoggingEnabled()) {
       logNotesDebug('NotesPersistence', 'load:cache-hit', {
@@ -104,6 +137,7 @@ export async function loadNoteDocument({
   const fileInfo = await storage.stat(fullPath);
   assertReadableNoteSize(fileInfo?.size ?? null);
   const content = await storage.readFile(fullPath);
+  assertEditorSafeMarkdownContent(content);
   const normalizedContent = normalizeSerializedMarkdownDocument(content);
   const modifiedAt = fileInfo?.modifiedAt ?? null;
   if (isNotesDebugLoggingEnabled()) {
@@ -136,6 +170,7 @@ export async function saveNoteDocument({
   const cachedModifiedAt = getCachedNoteModifiedAt(cache, currentNote.path);
   const fileInfoBeforeWrite = await storage.stat(fullPath);
   assertReadableNoteSize(fileInfoBeforeWrite?.size ?? null);
+  assertEditorSafeMarkdownContent(currentNote.content);
   const diskModifiedAt = fileInfoBeforeWrite?.modifiedAt ?? null;
   logNotesDebug('NotesPersistence', 'save:start', {
     notesPath,

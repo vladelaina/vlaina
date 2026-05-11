@@ -36,7 +36,7 @@ function escapeRegExp(value: string): string {
 
 const MAX_SEARCHABLE_NOTE_BYTES = 512 * 1024;
 const MAX_SCANNED_NOTE_CONTENT_CHARS = 8 * 1024 * 1024;
-const MAX_METADATA_UPDATE_NOTE_BYTES = 50 * 1024 * 1024;
+const MAX_METADATA_UPDATE_NOTE_BYTES = 10 * 1024 * 1024;
 
 function replaceNoteEntry(
   metadata: MetadataFile,

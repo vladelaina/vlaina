@@ -75,7 +75,7 @@ describe('workspaceSlice security guards', () => {
   });
 
   it('does not read oversized markdown files into the editor', async () => {
-    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 1, size: 51 * 1024 * 1024 });
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 1, size: 11 * 1024 * 1024 });
     const store = createNotesStore();
 
     await store.getState().openNote('huge.md');
