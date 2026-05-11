@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Icon } from '@/components/ui/icons';
-import {
-  SettingsItem,
-} from '../components/SettingsControls';
+import { SettingsItem } from '../components/SettingsControls';
 import { STORAGE_KEY_FONT_SIZE } from '@/lib/config';
 
 const DEFAULT_FONT_SIZE = 16;

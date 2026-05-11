@@ -15,7 +15,11 @@ The current desktop host is Electron only. This repository does not keep a Tauri
 
 This repository is open-source under the GNU AGPLv3.
 
-See [LICENSE](/mnt/d/code/vlaina/LICENSE).
+See [LICENSE](LICENSE).
+
+## Privacy
+
+See [PRIVACY.md](PRIVACY.md) for a summary of how vlaina handles local data, AI provider requests, account features, web access, and update checks.
 
 ## Third-Party Notices
 
@@ -70,12 +74,14 @@ pnpm quality:verify
 
 ## CI
 
-GitHub Actions runs the Windows build pipeline from [.github/workflows/build.yml](/mnt/d/code/vlaina/.github/workflows/build.yml):
+GitHub Actions runs the build pipeline from [.github/workflows/build.yml](.github/workflows/build.yml):
 
 - `pnpm install --frozen-lockfile`
 - `pnpm typecheck`
 - `pnpm test`
 - `pnpm build`
+
+Tagged releases matching `v*` build Windows, macOS, and Linux desktop installers and publish them to GitHub Releases.
 
 ## Notes
 
