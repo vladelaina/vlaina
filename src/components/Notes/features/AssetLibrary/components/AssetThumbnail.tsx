@@ -5,17 +5,22 @@ import { loadImageThumbnailAsBlob } from '@/lib/assets/io/reader';
 import { resolveVaultAssetPath } from '@/lib/assets/core/paths';
 import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
 
-const MAX_CONCURRENT_THUMBNAIL_LOADS = 3;
+const MAX_CONCURRENT_THUMBNAIL_LOADS = 2;
 
 interface ThumbnailLoadJob {
   cancelled: boolean;
+  priority: number;
+  sequence: number;
   run: () => Promise<void>;
 }
 
 const thumbnailLoadQueue: ThumbnailLoadJob[] = [];
 let activeThumbnailLoads = 0;
+let thumbnailLoadSequence = 0;
 
 function drainThumbnailLoadQueue() {
+  thumbnailLoadQueue.sort((a, b) => a.priority - b.priority || a.sequence - b.sequence);
+
   while (activeThumbnailLoads < MAX_CONCURRENT_THUMBNAIL_LOADS) {
     const job = thumbnailLoadQueue.shift();
     if (!job) return;
@@ -31,9 +36,11 @@ function drainThumbnailLoadQueue() {
   }
 }
 
-function enqueueThumbnailLoad(run: () => Promise<void>) {
+function enqueueThumbnailLoad(run: () => Promise<void>, priority: number) {
   const job: ThumbnailLoadJob = {
     cancelled: false,
+    priority,
+    sequence: thumbnailLoadSequence++,
     run,
   };
   thumbnailLoadQueue.push(job);
@@ -51,13 +58,15 @@ interface AssetThumbnailProps {
   onSelect: () => void;
   isHovered: boolean;
   compact?: boolean;
+  loadPriority?: number;
 }
 
 export const AssetThumbnail = memo(function AssetThumbnail({
-  filename, size, vaultPath, currentNotePath, onSelect, isHovered, compact
+  filename, size, vaultPath, currentNotePath, onSelect, isHovered, compact, loadPriority = Number.MAX_SAFE_INTEGER
 }: AssetThumbnailProps) {
-  const [src, setSrc] = useState<string | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const builtinSrc = isBuiltinCover(filename) ? getBuiltinCoverUrl(filename) : null;
+  const [src, setSrc] = useState<string | null>(() => builtinSrc);
+  const [isLoaded, setIsLoaded] = useState(() => Boolean(builtinSrc));
   const [hasError, setHasError] = useState(false);
   const imgRef = useRef<HTMLDivElement>(null);
   const mountIdRef = useRef(0);
@@ -66,19 +75,22 @@ export const AssetThumbnail = memo(function AssetThumbnail({
     const currentMountId = ++mountIdRef.current;
     let cancelQueuedLoad: (() => void) | null = null;
 
+    setHasError(false);
+
+    if (builtinSrc) {
+      setSrc(builtinSrc);
+      setIsLoaded(true);
+      return;
+    }
+
     setSrc(null);
     setIsLoaded(false);
-    setHasError(false);
 
     if (!imgRef.current) return;
 
     const loadThumbnail = async () => {
       try {
-        if (isBuiltinCover(filename)) {
-          if (mountIdRef.current === currentMountId) {
-            setSrc(getBuiltinCoverUrl(filename));
-          }
-        } else if (vaultPath) {
+        if (vaultPath) {
           const fullPath = await resolveVaultAssetPath(vaultPath, filename, currentNotePath);
           const blobUrl = await loadImageThumbnailAsBlob(fullPath);
 
@@ -95,7 +107,7 @@ export const AssetThumbnail = memo(function AssetThumbnail({
     };
 
     if (typeof IntersectionObserver === 'undefined') {
-      cancelQueuedLoad = enqueueThumbnailLoad(loadThumbnail);
+      cancelQueuedLoad = enqueueThumbnailLoad(loadThumbnail, loadPriority);
       return () => {
         cancelQueuedLoad?.();
       };
@@ -104,7 +116,7 @@ export const AssetThumbnail = memo(function AssetThumbnail({
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          cancelQueuedLoad = enqueueThumbnailLoad(loadThumbnail);
+          cancelQueuedLoad = enqueueThumbnailLoad(loadThumbnail, loadPriority);
           observer.disconnect();
         }
       },
@@ -117,7 +129,7 @@ export const AssetThumbnail = memo(function AssetThumbnail({
       cancelQueuedLoad?.();
       observer.disconnect();
     };
-  }, [currentNotePath, filename, vaultPath]);
+  }, [builtinSrc, currentNotePath, filename, loadPriority, vaultPath]);
 
   const handleImageError = useCallback(() => {
     setHasError(true);
@@ -150,6 +162,8 @@ export const AssetThumbnail = memo(function AssetThumbnail({
           <img
             src={src}
             alt={displayName}
+            loading={builtinSrc ? 'eager' : 'lazy'}
+            decoding="async"
             className={cn(
               "w-full h-full object-cover transition-opacity duration-200",
               isLoaded ? "opacity-100" : "opacity-0"

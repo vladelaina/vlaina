@@ -124,6 +124,7 @@ export function AssetGrid({ onSelect, onHover, vaultPath, currentNotePath, compa
                   onSelect={() => handleSelect(asset.filename)}
                   isHovered={hoveredFilename === asset.filename}
                   compact={compact}
+                  loadPriority={start + columnIndex}
                 />
               </div>
             );

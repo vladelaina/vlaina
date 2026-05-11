@@ -15,6 +15,7 @@ function logCoverPicker(scope: string, payload?: unknown) {
 }
 
 const COVER_PREVIEW_DELAY_MS = 180;
+const ASSET_LOAD_AFTER_OPEN_DELAY_MS = 120;
 
 export function CoverPicker({
   isOpen,
@@ -67,8 +68,34 @@ export function CoverPicker({
 
   useEffect(() => {
     if (isOpen && vaultPath) {
-      logCoverPicker('load-assets', { vaultPath, currentNotePath });
-      loadAssets(vaultPath);
+      let cancelled = false;
+      let idleId: number | null = null;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+      const runLoad = () => {
+        if (cancelled) return;
+        logCoverPicker('load-assets', { vaultPath, currentNotePath });
+        void loadAssets(vaultPath);
+      };
+
+      timeoutId = setTimeout(() => {
+        timeoutId = null;
+        if ('requestIdleCallback' in window) {
+          idleId = window.requestIdleCallback(runLoad, { timeout: 600 });
+        } else {
+          runLoad();
+        }
+      }, ASSET_LOAD_AFTER_OPEN_DELAY_MS);
+
+      return () => {
+        cancelled = true;
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+        }
+        if (idleId !== null && 'cancelIdleCallback' in window) {
+          window.cancelIdleCallback(idleId);
+        }
+      };
     } else if (!isOpen) {
       const timer = setTimeout(() => {
         setActiveTab('library');
