@@ -16,6 +16,7 @@ interface SidebarSearchResultsListProps {
   results: NotesSidebarSearchResult[];
   query: string;
   currentNotePath?: string | null;
+  activeResultId?: string | null;
   onOpen: (result: NotesSidebarSearchResult) => void;
   scrollRootRef: RefObject<HTMLDivElement | null>;
   isContentScanPending: boolean;
@@ -77,12 +78,14 @@ function SidebarSearchResultRow({
   result,
   query,
   currentNotePath,
+  isActive,
   onOpen,
   showFileHeader,
 }: {
   result: NotesSidebarSearchResult;
   query: string;
   currentNotePath?: string | null;
+  isActive: boolean;
   onOpen: (result: NotesSidebarSearchResult) => void;
   showFileHeader: boolean;
 }) {
@@ -119,7 +122,7 @@ function SidebarSearchResultRow({
       leadingClassName={leadingClassName}
       rowClassName={rowClassName}
       contentClassName={contentClassName}
-      isActive={path === currentNotePath}
+      isActive={isActive}
       onClick={() => onOpen(result)}
       main={(
         <div className={cn('min-w-0', hasContentLine && 'space-y-0.5')}>
@@ -128,17 +131,17 @@ function SidebarSearchResultRow({
               <HighlightedSearchText
                 text={name}
                 query={query}
-                className={cn(path === currentNotePath && 'font-medium')}
+                className={cn(isActive && path === currentNotePath && 'font-medium')}
               />
             </div>
           ) : null}
           {locationLabel ? (
-            <div className="truncate text-[16px] leading-4 text-[var(--notes-sidebar-text-soft)]">
+            <div className="truncate text-[11px] leading-3 text-[var(--notes-sidebar-text-soft)]">
               <HighlightedSearchText text={locationLabel} query={query} />
             </div>
           ) : null}
           {contentSnippet ? (
-            <div className="whitespace-normal break-words text-[16px] leading-4 text-[var(--notes-sidebar-text-soft)]">
+            <div className="whitespace-normal break-words text-[12px] leading-3 text-[var(--notes-sidebar-text-soft)]">
               <HighlightedSearchText text={contentSnippet} query={query} />
             </div>
           ) : null}
@@ -152,6 +155,7 @@ export function SidebarSearchResultsList({
   results,
   query,
   currentNotePath,
+  activeResultId,
   onOpen,
   scrollRootRef,
   isContentScanPending,
@@ -254,6 +258,7 @@ export function SidebarSearchResultsList({
                   result={item.result}
                   query={deferredQuery}
                   currentNotePath={currentNotePath}
+                  isActive={item.result.id === activeResultId}
                   onOpen={onOpen}
                   showFileHeader={item.showFileHeader}
                 />

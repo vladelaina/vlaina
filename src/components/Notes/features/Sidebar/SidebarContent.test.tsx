@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import { fireEvent, render } from '@testing-library/react';
+import { fireEvent, render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SidebarContent } from './SidebarContent';
-import type { NotesSidebarSearchEntry } from './notesSidebarSearchResults';
+import type { NotesSidebarSearchEntry, NotesSidebarSearchResult } from './notesSidebarSearchResults';
 
 const hoisted = vi.hoisted(() => ({
   applySidebarSearchNavigation: vi.fn(() => Promise.resolve(false)),
@@ -15,18 +15,21 @@ const hoisted = vi.hoisted(() => ({
   noteContentsCache: new Map<string, { content: string; modifiedAt: number | null }>(),
   notesPath: '',
   pruneNoteContentsCacheToOpenNotes: vi.fn(),
-  queryNotesSidebarSearch: vi.fn(() => []),
+  queryNotesSidebarSearch: vi.fn<() => NotesSidebarSearchResult[]>(() => []),
   revealFolder: vi.fn(),
   scheduleSidebarItemIntoView: vi.fn(),
   scanAllNotes: vi.fn(() => Promise.resolve()),
   shouldSearchNotesSidebarContents: vi.fn(() => false),
   shouldShowSearchResults: false,
   currentVault: null as { path: string; name: string } | null,
+  openNote: vi.fn(() => Promise.resolve()),
+  openNoteByAbsolutePath: vi.fn(() => Promise.resolve()),
 }));
 
 vi.mock('@/stores/useNotesStore', () => ({
   useNotesStore: (selector: (state: any) => unknown) => selector({
-    openNote: vi.fn(() => Promise.resolve()),
+    openNote: hoisted.openNote,
+    openNoteByAbsolutePath: hoisted.openNoteByAbsolutePath,
     draftNotes: hoisted.draftNotes,
     getDisplayName: vi.fn((path: string) => path),
     noteContentsCache: hoisted.noteContentsCache,
@@ -112,6 +115,30 @@ vi.mock('./RootFolderRow', () => ({
   ),
 }));
 
+vi.mock('./SidebarSearchResultsList', () => ({
+  SidebarSearchResultsList: ({
+    results,
+    activeResultId,
+    onOpen,
+  }: {
+    results: Array<{ id: string; name: string }>;
+    activeResultId?: string | null;
+    onOpen: (result: any) => void;
+  }) => (
+    <div>
+      {results.map((result) => (
+        <button
+          key={result.id}
+          data-active={result.id === activeResultId ? 'true' : 'false'}
+          onClick={() => onOpen(result)}
+        >
+          {result.name}
+        </button>
+      ))}
+    </div>
+  ),
+}));
+
 vi.mock('./notesSidebarSearchResults', () => ({
   buildNotesSidebarSearchIndex: hoisted.buildNotesSidebarSearchIndex,
   countNotesSidebarSearchEntries: hoisted.countNotesSidebarSearchEntries,
@@ -155,6 +182,10 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.noteContentsCache = new Map();
     hoisted.notesPath = '';
     hoisted.currentVault = null;
+    hoisted.openNote.mockClear();
+    hoisted.openNote.mockResolvedValue(undefined);
+    hoisted.openNoteByAbsolutePath.mockClear();
+    hoisted.openNoteByAbsolutePath.mockResolvedValue(undefined);
     hoisted.pruneNoteContentsCacheToOpenNotes.mockClear();
     hoisted.scanAllNotes.mockResolvedValue(undefined);
     hoisted.shouldSearchNotesSidebarContents.mockReturnValue(false);
@@ -443,6 +474,39 @@ describe('SidebarContent search highlight cleanup', () => {
     expect(hoisted.scanAllNotes).not.toHaveBeenCalled();
   });
 
+  it('does not rescan note contents for uncached external starred entries that are not content searchable', () => {
+    hoisted.shouldShowSearchResults = true;
+    hoisted.shouldSearchNotesSidebarContents.mockReturnValue(true);
+    hoisted.buildNotesSidebarSearchIndex.mockReturnValue([
+      ...createSearchEntries(),
+      {
+        path: '/external/starred.md',
+        openPath: '/external/starred.md',
+        name: 'starred',
+        preview: 'external/',
+        isExternal: true,
+        contentSearchable: false,
+      },
+    ]);
+    hoisted.noteContentsCache = new Map([
+      ['docs/alpha.md', { content: 'alpha body', modifiedAt: 1 }],
+      ['docs/beta.md', { content: 'beta body', modifiedAt: 1 }],
+    ]);
+
+    render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="docs/alpha.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: true, searchQuery: 'alpha' })}
+      />,
+    );
+
+    expect(hoisted.scanAllNotes).not.toHaveBeenCalled();
+  });
+
   it('prunes scanned note contents when sidebar search closes', () => {
     hoisted.shouldShowSearchResults = true;
     hoisted.shouldSearchNotesSidebarContents.mockReturnValue(true);
@@ -477,5 +541,127 @@ describe('SidebarContent search highlight cleanup', () => {
     );
 
     expect(hoisted.pruneNoteContentsCacheToOpenNotes).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens external starred search results by absolute path', () => {
+    hoisted.shouldShowSearchResults = true;
+    hoisted.queryNotesSidebarSearch.mockReturnValue([
+      {
+        id: '/external/starred.md::name',
+        path: '/external/starred.md',
+        openPath: '/external/starred.md',
+        name: 'starred',
+        preview: 'external/',
+        isExternal: true,
+        matchIndex: 0,
+        matchKind: 'name',
+        contentSnippet: null,
+        contentMatchOrdinal: null,
+      },
+    ]);
+
+    const { getByText } = render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="docs/alpha.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: true, searchQuery: 'starred' })}
+      />,
+    );
+
+    fireEvent.click(getByText('starred'));
+
+    expect(hoisted.openNoteByAbsolutePath).toHaveBeenCalledWith('/external/starred.md');
+    expect(hoisted.openNote).not.toHaveBeenCalled();
+    expect(hoisted.markSidebarSearchNavigationPending).toHaveBeenCalledWith('/external/starred.md');
+  });
+
+  it('does not mark sidebar navigation pending when jumping between matches in the current note', async () => {
+    hoisted.shouldShowSearchResults = true;
+    hoisted.queryNotesSidebarSearch.mockReturnValue([
+      {
+        id: 'docs/alpha.md::content::1',
+        path: 'docs/alpha.md',
+        name: 'alpha',
+        preview: 'docs/',
+        matchIndex: 12,
+        matchKind: 'content',
+        contentSnippet: 'Second alpha match',
+        contentMatchOrdinal: 1,
+      },
+    ]);
+
+    const { getByText } = render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="docs/alpha.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: true, searchQuery: 'alpha' })}
+      />,
+    );
+
+    fireEvent.click(getByText('alpha'));
+
+    await waitFor(() => {
+      expect(hoisted.applySidebarSearchNavigation).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: 'docs/alpha.md',
+          contentMatchOrdinal: 1,
+        }),
+      );
+    });
+    expect(hoisted.markSidebarSearchNavigationPending).not.toHaveBeenCalled();
+    expect(hoisted.openNote).not.toHaveBeenCalled();
+    expect(hoisted.openNoteByAbsolutePath).not.toHaveBeenCalled();
+  });
+
+  it('clears active search result selection when the query changes', async () => {
+    const reusableResult = {
+      id: 'docs/alpha.md::content::0',
+      path: 'docs/alpha.md',
+      name: 'alpha',
+      preview: 'docs/',
+      matchIndex: 0,
+      matchKind: 'content' as const,
+      contentSnippet: 'alpha match',
+      contentMatchOrdinal: 0,
+    };
+    hoisted.shouldShowSearchResults = true;
+    hoisted.queryNotesSidebarSearch.mockReturnValue([reusableResult]);
+
+    const { getByText, rerender } = render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="docs/alpha.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: true, searchQuery: 'alpha' })}
+      />,
+    );
+
+    fireEvent.click(getByText('alpha'));
+    await waitFor(() => {
+      expect(getByText('alpha')).toHaveAttribute('data-active', 'true');
+    });
+
+    rerender(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="docs/alpha.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: true, searchQuery: 'beta' })}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(getByText('alpha')).toHaveAttribute('data-active', 'false');
+    });
   });
 });

@@ -79,6 +79,135 @@ describe('notesSidebarSearchResults', () => {
     ]);
   });
 
+  it('adds external starred notes to the search index without duplicating current vault notes', () => {
+    const index = buildNotesSidebarSearchIndex(rootFolder, () => '', {
+      currentVaultPath: '/vault',
+      starredEntries: [
+        {
+          id: 'star-current',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: 'projects/alpha.md',
+          addedAt: 1,
+        },
+        {
+          id: 'star-external',
+          kind: 'note',
+          vaultPath: '/external',
+          relativePath: 'clips/reference.md',
+          addedAt: 2,
+        },
+        {
+          id: 'star-folder',
+          kind: 'folder',
+          vaultPath: '/external',
+          relativePath: 'clips',
+          addedAt: 3,
+        },
+      ],
+    });
+
+    expect(index).toEqual([
+      {
+        path: 'projects/alpha.md',
+        name: 'alpha.md',
+        preview: 'projects/',
+      },
+      {
+        path: 'projects/template-notes.md',
+        name: 'template-notes.md',
+        preview: 'projects/',
+      },
+      {
+        path: 'note-zeta.md',
+        name: 'note-zeta.md',
+        preview: '',
+      },
+      {
+        path: '/external/clips/reference.md',
+        openPath: '/external/clips/reference.md',
+        name: 'reference',
+        preview: 'external/clips/',
+        isExternal: true,
+        contentSearchable: false,
+      },
+    ]);
+  });
+
+  it('keeps external starred notes that share a relative path with the current vault', () => {
+    const index = buildNotesSidebarSearchIndex(rootFolder, () => '', {
+      currentVaultPath: '/vault',
+      starredEntries: [
+        {
+          id: 'star-external-same-relative-path',
+          kind: 'note',
+          vaultPath: '/other-vault',
+          relativePath: 'projects/alpha.md',
+          addedAt: 1,
+        },
+      ],
+    });
+
+    expect(index).toContainEqual({
+      path: '/other-vault/projects/alpha.md',
+      openPath: '/other-vault/projects/alpha.md',
+      name: 'alpha',
+      preview: 'other-vault/projects/',
+      isExternal: true,
+      contentSearchable: false,
+    });
+  });
+
+  it('deduplicates external starred notes by absolute path', () => {
+    const index = buildNotesSidebarSearchIndex(rootFolder, () => '', {
+      currentVaultPath: '/vault',
+      starredEntries: [
+        {
+          id: 'star-external-1',
+          kind: 'note',
+          vaultPath: '/other-vault',
+          relativePath: 'projects/alpha.md',
+          addedAt: 1,
+        },
+        {
+          id: 'star-external-2',
+          kind: 'note',
+          vaultPath: '/other-vault',
+          relativePath: 'projects/alpha.md',
+          addedAt: 2,
+        },
+      ],
+    });
+
+    expect(index.filter((entry) => entry.path === '/other-vault/projects/alpha.md')).toHaveLength(1);
+  });
+
+  it('keeps current vault starred notes searchable when the file tree does not contain them yet', () => {
+    const index = buildNotesSidebarSearchIndex(null, () => '', {
+      currentVaultPath: '/vault',
+      starredEntries: [
+        {
+          id: 'star-current-missing-tree',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: 'inbox/later.md',
+          addedAt: 1,
+        },
+      ],
+    });
+
+    expect(index).toEqual([
+      {
+        path: 'inbox/later.md',
+        openPath: 'inbox/later.md',
+        name: 'later',
+        preview: 'inbox/',
+        isExternal: false,
+        contentSearchable: false,
+      },
+    ]);
+  });
+
   it('filters and ranks matches by earliest position', () => {
     const index = buildNotesSidebarSearchIndex(rootFolder, () => '');
     const results = queryNotesSidebarSearch(index, 'te');

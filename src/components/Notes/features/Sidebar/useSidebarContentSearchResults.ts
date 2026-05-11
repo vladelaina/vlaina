@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FolderNode } from '@/stores/useNotesStore';
+import type { StarredEntry } from '@/stores/notes/types';
 import {
   buildNotesSidebarSearchIndex,
-  countNotesSidebarSearchEntries,
   queryNotesSidebarSearch,
   shouldSearchNotesSidebarContents,
 } from './notesSidebarSearchResults';
@@ -15,6 +15,8 @@ export function useSidebarContentSearchResults({
   pruneNoteContentsCacheToOpenNotes,
   searchQuery,
   isSearchOpen,
+  starredEntries = [],
+  currentVaultPath = null,
 }: {
   rootFolder: FolderNode | null;
   getDisplayName: (path: string) => string;
@@ -23,25 +25,31 @@ export function useSidebarContentSearchResults({
   pruneNoteContentsCacheToOpenNotes: () => void;
   searchQuery: string;
   isSearchOpen: boolean;
+  starredEntries?: StarredEntry[];
+  currentVaultPath?: string | null;
 }) {
   const contentScanPromiseRef = useRef<Promise<unknown> | null>(null);
   const shouldPruneAfterScanRef = useRef(false);
   const [isContentScanPending, setIsContentScanPending] = useState(false);
 
   const searchIndex = useMemo(
-    () => buildNotesSidebarSearchIndex(rootFolder, getDisplayName),
-    [getDisplayName, rootFolder],
+    () => buildNotesSidebarSearchIndex(rootFolder, getDisplayName, {
+      currentVaultPath,
+      starredEntries,
+    }),
+    [currentVaultPath, getDisplayName, rootFolder, starredEntries],
   );
-  const searchableNoteCount = useMemo(
-    () => countNotesSidebarSearchEntries(rootFolder),
-    [rootFolder],
+  const contentSearchEntries = useMemo(
+    () => searchIndex.filter((entry) => entry.contentSearchable !== false),
+    [searchIndex],
   );
+  const searchableNoteCount = contentSearchEntries.length;
   const shouldSearchContents = shouldSearchNotesSidebarContents(searchQuery);
   const isContentIndexReady = useMemo(
     () =>
       searchableNoteCount > 0 &&
-      searchIndex.every((entry) => noteContentsCache.has(entry.path)),
-    [noteContentsCache, searchableNoteCount, searchIndex],
+      contentSearchEntries.every((entry) => noteContentsCache.has(entry.path)),
+    [contentSearchEntries, noteContentsCache, searchableNoteCount],
   );
 
   const searchResults = useMemo(

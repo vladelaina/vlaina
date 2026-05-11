@@ -49,6 +49,7 @@ export function SidebarContent({
   isPeeking = false,
 }: SidebarContentProps) {
   const openNote = useNotesStore((s) => s.openNote);
+  const openNoteByAbsolutePath = useNotesStore((s) => s.openNoteByAbsolutePath);
   const draftNotes = useNotesStore((s) => s.draftNotes);
   const revealFolder = useNotesStore((s) => s.revealFolder);
   const getDisplayName = useNotesStore((s) => s.getDisplayName);
@@ -56,6 +57,7 @@ export function SidebarContent({
   const notesPath = useNotesStore((s) => s.notesPath);
   const scanAllNotes = useNotesStore((s) => s.scanAllNotes);
   const pruneNoteContentsCacheToOpenNotes = useNotesStore((s) => s.pruneNoteContentsCacheToOpenNotes);
+  const starredEntries = useNotesStore((s) => s.starredEntries);
   const currentVault = useVaultStore((s) => s.currentVault);
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
   const rootBlankAreaRef = useRef<HTMLDivElement | null>(null);
@@ -65,6 +67,8 @@ export function SidebarContent({
     contentMatchOrdinal: number | null;
     previousView: ReturnType<typeof getCurrentEditorView>;
   } | null>(null);
+  const [activeSearchResultId, setActiveSearchResultId] = useState<string | null>(null);
+  const previousSearchQueryRef = useRef(search.searchQuery);
   const deferredSearchQuery = useDeferredValue(search.searchQuery);
   const displayRootFolder = useMemo(() => {
     if (!currentNotePath || !isDraftNotePath(currentNotePath)) {
@@ -161,6 +165,8 @@ export function SidebarContent({
     pruneNoteContentsCacheToOpenNotes,
     searchQuery: deferredSearchQuery,
     isSearchOpen: search.isSearchOpen,
+    starredEntries,
+    currentVaultPath: currentVault?.path ?? notesPath,
   });
 
   useEffect(() => {
@@ -234,6 +240,11 @@ export function SidebarContent({
   }, [currentNotePath, revealFolder, shouldShowSearchResults]);
 
   useEffect(() => {
+    if (previousSearchQueryRef.current !== search.searchQuery) {
+      previousSearchQueryRef.current = search.searchQuery;
+      setActiveSearchResultId(null);
+    }
+
     if (search.isSearchOpen && search.searchQuery.trim().length > 0) {
       return;
     }
@@ -241,7 +252,18 @@ export function SidebarContent({
     clearSidebarSearchHighlights();
     clearSidebarSearchNavigationPending();
     setPendingNavigation(null);
+    setActiveSearchResultId(null);
   }, [search.isSearchOpen, search.searchQuery]);
+
+  useEffect(() => {
+    if (!activeSearchResultId) {
+      return;
+    }
+
+    if (!searchResults.some((result) => result.id === activeSearchResultId)) {
+      setActiveSearchResultId(null);
+    }
+  }, [activeSearchResultId, searchResults]);
 
   useEffect(() => {
     if (!pendingNavigation || currentNotePath !== pendingNavigation.path) {
@@ -270,23 +292,33 @@ export function SidebarContent({
   }, [currentNotePath, pendingNavigation]);
 
   const handleOpenSearchResult = (result: NotesSidebarSearchResult) => {
-    const previousView = currentNotePath === result.path ? null : getCurrentEditorView();
+    const targetPath = result.openPath ?? result.path;
+    const isSameNote = currentNotePath === targetPath;
+    const previousView = isSameNote ? null : getCurrentEditorView();
     const nextNavigation = {
-      path: result.path,
+      path: targetPath,
       query: deferredSearchQuery,
       contentMatchOrdinal: result.contentMatchOrdinal,
       previousView,
     };
 
-    markSidebarSearchNavigationPending(result.path);
+    if (!isSameNote) {
+      markSidebarSearchNavigationPending(targetPath);
+    }
     setPendingNavigation(nextNavigation);
+    setActiveSearchResultId(result.id);
 
-    if (currentNotePath === result.path) {
+    if (isSameNote) {
       return;
     }
 
-    void openNote(result.path).catch(() => {
-      clearSidebarSearchNavigationPending(result.path);
+    const openPromise = result.isExternal
+      ? openNoteByAbsolutePath(targetPath)
+      : openNote(targetPath);
+
+    void openPromise.catch(() => {
+      clearSidebarSearchNavigationPending(targetPath);
+      setActiveSearchResultId((current) => (current === result.id ? null : current));
       setPendingNavigation((current) =>
         current === nextNavigation ? null : current,
       );
@@ -341,6 +373,7 @@ export function SidebarContent({
               results={searchResults}
               query={deferredSearchQuery}
               currentNotePath={currentNotePath}
+              activeResultId={activeSearchResultId}
               onOpen={handleOpenSearchResult}
               scrollRootRef={scrollRootRef}
               isContentScanPending={isContentScanPending}
