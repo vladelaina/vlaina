@@ -235,23 +235,18 @@ export function UploadTab({
                             {...getRootProps()}
                             onClick={open}
                             className={cn(
-                                "relative group border border-dashed rounded-lg px-3 py-2 flex items-center gap-3 cursor-pointer transition-all duration-300",
+                                "relative group border border-dashed rounded-lg px-3 py-2.5 flex items-center gap-2.5 cursor-pointer transition-all duration-300",
                                 "hover:bg-zinc-50/50 dark:hover:bg-zinc-800/50 hover:border-[#1e96eb]/50",
                                 isDragActive ? "border-[#1e96eb] bg-[#1e96eb]/5 scale-[0.99]" : "border-zinc-200 dark:border-zinc-800"
                             )}
                         >
-                            <div className="p-1.5 bg-[var(--vlaina-bg-tertiary)] rounded-md transition-colors group-hover:bg-[#1e96eb]/10 group-hover:text-[#1e96eb] text-[var(--vlaina-text-tertiary)]">
-                                <Icon size="md" name="common.upload" />
+                            <div className="p-1.5 bg-[var(--vlaina-bg-tertiary)] rounded-md transition-colors group-hover:bg-[#1e96eb]/10 group-hover:text-[#1e96eb] text-[var(--vlaina-text-tertiary)] shrink-0">
+                                <Icon size="sm" name="common.upload" />
                             </div>
 
-                            <div className="flex flex-col items-start gap-0.5">
-                                <span className="text-[11px] font-medium text-[var(--vlaina-text-primary)] group-hover:text-[#1e96eb] transition-colors leading-none mt-0.5">
-                                    Upload from device
-                                </span>
-                                <span className="text-[9px] text-[var(--vlaina-text-tertiary)] leading-none">
-                                    Supports <span className="font-medium text-[var(--vlaina-text-secondary)]">PNG</span>, <span className="font-medium text-[#1e96eb]">GIF</span> & <span className="font-medium text-[#1e96eb]">WebP</span>
-                                </span>
-                            </div>
+                            <span className="text-[10px] text-[var(--vlaina-text-tertiary)] leading-none">
+                                Supports <span className="font-medium text-[var(--vlaina-text-secondary)]">PNG</span>, <span className="font-medium text-[#1e96eb]">GIF</span> & <span className="font-medium text-[#1e96eb]">WebP</span>
+                            </span>
                         </div>
                     </div>
 
