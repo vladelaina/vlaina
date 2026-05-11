@@ -22,12 +22,13 @@ export const AppMenu: React.FC<AppMenuProps> = ({ onOpenSettings, onCloseMenu })
                     onCloseMenu();
                 }}
                 className={cn(
-                    "flex w-full cursor-pointer items-center gap-3 px-3 py-2 text-left transition-colors group/item",
-                    getSidebarIdleRowSurfaceClass('chat')
+                    "flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[16px] font-medium transition-colors group/item",
+                    getSidebarIdleRowSurfaceClass('chat'),
+                    "text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)]"
                 )}
             >
-                <Icon size="md" name="common.settings" className="text-[var(--chat-sidebar-icon)] transition-colors group-hover/item:text-[var(--chat-sidebar-icon-hover)]" />
-                <span className="text-[13px] font-medium">{t('account.settings')}</span>
+                <Icon size="md" name="common.settings" className="text-[var(--chat-sidebar-text)]" />
+                <span>{t('account.settings')}</span>
             </button>
         </div>
     );

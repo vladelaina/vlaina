@@ -105,11 +105,12 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
                   onSwitchAccount();
                 }}
                 className={cn(
-                  'flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-left text-[12px] font-medium transition-colors',
-                  getSidebarIdleRowSurfaceClass('chat')
+                  'flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[16px] font-medium transition-colors',
+                  getSidebarIdleRowSurfaceClass('chat'),
+                  'text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)]'
                 )}
               >
-                <Icon size="md" name="user.switch" />
+                <Icon size="md" name="user.switch" className="text-[var(--chat-sidebar-text)]" />
                 {t('account.switchAccount')}
               </button>
               <button
@@ -118,11 +119,12 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
                   setIsBillingDialogOpen(true);
                 }}
                 className={cn(
-                  'flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-left text-[12px] font-medium transition-colors',
-                  getSidebarIdleRowSurfaceClass('chat')
+                  'flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[16px] font-medium transition-colors',
+                  getSidebarIdleRowSurfaceClass('chat'),
+                  'text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)]'
                 )}
               >
-                <Icon size="md" name="misc.crown" />
+                <Icon size="md" name="misc.crown" className="text-[var(--chat-sidebar-text)]" />
                 {t('account.membership')}
               </button>
               <button
@@ -131,11 +133,12 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
                   void onLogout();
                 }}
                 className={cn(
-                  'flex w-full cursor-pointer items-center gap-2 px-2 py-1.5 text-left text-[12px] font-medium transition-colors',
-                  getSidebarIdleRowSurfaceClass('chat')
+                  'flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[16px] font-medium transition-colors',
+                  getSidebarIdleRowSurfaceClass('chat'),
+                  'text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)]'
                 )}
               >
-                <Icon size="md" name="user.logout" />
+                <Icon size="md" name="user.logout" className="text-[var(--chat-sidebar-text)]" />
                 {t('account.logOut')}
               </button>
             </div>
