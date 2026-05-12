@@ -70,7 +70,10 @@ function App() {
       <ConfirmDialog
         isOpen={isCloseDraftConfirmOpen}
         onClose={() => setIsCloseDraftConfirmOpen(false)}
-        onConfirm={() => void continueWindowClose({ skipDraftConfirm: true })}
+        onConfirm={() => {
+          setIsCloseDraftConfirmOpen(false);
+          void continueWindowClose({ skipDraftConfirm: true });
+        }}
         onCancelAction={async () => {
           setIsCloseDraftConfirmOpen(false);
           await continueWindowClose({

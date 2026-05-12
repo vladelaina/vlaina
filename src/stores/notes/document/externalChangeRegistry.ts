@@ -9,7 +9,7 @@ interface ExpectedExternalChange {
 }
 
 const EXPECTED_CHANGE_TTL_MS = 1000;
-const EXPECTED_CHANGE_MAX_EVENTS = 2;
+const EXPECTED_CHANGE_MAX_EVENTS = 4;
 
 let expectedChanges: ExpectedExternalChange[] = [];
 

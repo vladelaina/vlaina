@@ -10,6 +10,8 @@ describe('externalChangeRegistry', () => {
 
     expect(shouldIgnoreExpectedExternalChange('/vault/docs/a.md')).toBe(true);
     expect(shouldIgnoreExpectedExternalChange('/vault/docs/a.md')).toBe(true);
+    expect(shouldIgnoreExpectedExternalChange('/vault/docs/a.md')).toBe(true);
+    expect(shouldIgnoreExpectedExternalChange('/vault/docs/a.md')).toBe(true);
     expect(shouldIgnoreExpectedExternalChange('/vault/docs/a.md')).toBe(false);
   });
 
@@ -18,6 +20,8 @@ describe('externalChangeRegistry', () => {
 
     expect(shouldIgnoreExpectedExternalChange('/vault/docs/a.md')).toBe(true);
     expect(shouldIgnoreExpectedExternalChange('/vault/docs/b.md')).toBe(true);
+    expect(shouldIgnoreExpectedExternalChange('/vault/docs/c.md')).toBe(true);
+    expect(shouldIgnoreExpectedExternalChange('/vault/docs/d.md')).toBe(true);
     expect(shouldIgnoreExpectedExternalChange('/vault/docs/c.md')).toBe(false);
   });
 
@@ -25,6 +29,8 @@ describe('externalChangeRegistry', () => {
     markExpectedExternalChange('/vault/docs/a.md');
     markExpectedExternalChange('/vault/docs/a.md');
 
+    expect(shouldIgnoreExpectedExternalChange('/vault/docs/a.md')).toBe(true);
+    expect(shouldIgnoreExpectedExternalChange('/vault/docs/a.md')).toBe(true);
     expect(shouldIgnoreExpectedExternalChange('/vault/docs/a.md')).toBe(true);
     expect(shouldIgnoreExpectedExternalChange('/vault/docs/a.md')).toBe(true);
     expect(shouldIgnoreExpectedExternalChange('/vault/docs/a.md')).toBe(false);

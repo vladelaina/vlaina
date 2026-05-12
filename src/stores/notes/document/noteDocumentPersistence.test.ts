@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadNoteDocument, NoteWriteConflictError, saveNoteDocument } from './noteDocumentPersistence';
+import { markExpectedExternalChange } from './externalChangeRegistry';
 
 const adapter = {
   readFile: vi.fn<(path: string) => Promise<string>>(),
@@ -61,6 +62,30 @@ describe('saveNoteDocument', () => {
       updatedAt: Date.parse('2026-04-15T10:00:00.000Z'),
     });
     expect(result.modifiedAt).toBe(123);
+
+    vi.useRealTimers();
+  });
+
+  it('refreshes the expected external change marker after writing to cover delayed watch events', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    adapter.writeFile.mockImplementation(async () => {
+      vi.advanceTimersByTime(1500);
+    });
+    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+
+    await saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: '# Alpha',
+      },
+      cache: new Map(),
+    });
+
+    expect(markExpectedExternalChange).toHaveBeenCalledTimes(2);
+    expect(markExpectedExternalChange).toHaveBeenNthCalledWith(1, '/vault/alpha.md');
+    expect(markExpectedExternalChange).toHaveBeenNthCalledWith(2, '/vault/alpha.md');
 
     vi.useRealTimers();
   });
