@@ -4,6 +4,7 @@ import {
   getCachedNoteModifiedAt,
   setCachedNoteContent,
 } from '../document/noteContentCache';
+import { shouldIgnoreExpectedExternalChange } from '../document/externalChangeRegistry';
 import { setNoteTabDirtyState } from '../document/noteTabState';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { readNoteMetadataFromMarkdown } from '../frontmatter';
@@ -135,6 +136,15 @@ export function createWorkspaceDiskSyncAction(
           if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
             logNotesDebug('NotesDiskSync', 'sync:ignored-stale-dirty-conflict', {
               notePath: currentNote.path,
+            });
+            return 'ignored';
+          }
+          if (shouldIgnoreExpectedExternalChange(fullPath)) {
+            logNotesDebug('NotesDiskSync', 'sync:ignored-expected-dirty-change', {
+              notePath: currentNote.path,
+              fullPath,
+              nextModifiedAt,
+              cachedModifiedAt,
             });
             return 'ignored';
           }

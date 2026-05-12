@@ -372,6 +372,110 @@ describe('workspaceSlice tab history', () => {
     ]);
   });
 
+  it('saves a dirty regular tab before opening a vault note in a new tab', async () => {
+    const saveNote = vi.fn(async () => {
+      store.setState((state) => ({
+        isDirty: false,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'alpha.md' ? { ...tab, isDirty: false } : tab
+        ),
+      }));
+    });
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: 'Unsaved alpha' },
+      isDirty: true,
+      saveNote,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: true }],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
+        ['beta.md', { content: '# beta', modifiedAt: 2 }],
+      ]),
+    });
+
+    await store.getState().openNote('beta.md', true);
+
+    expect(saveNote).toHaveBeenCalledTimes(1);
+    expect(store.getState().currentNote).toEqual({
+      path: 'beta.md',
+      content: '# beta',
+    });
+    expect(store.getState().isDirty).toBe(false);
+    expect(store.getState().openTabs).toEqual([
+      { path: 'alpha.md', name: 'alpha', isDirty: false },
+      { path: 'beta.md', name: 'beta', isDirty: false },
+    ]);
+  });
+
+  it('preserves a dirty regular tab when a new-tab save cannot clear dirty state', async () => {
+    const saveNote = vi.fn(async () => {
+      store.setState((state) => ({
+        isDirty: true,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'alpha.md' ? { ...tab, isDirty: true } : tab
+        ),
+      }));
+    });
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: 'Unsaved alpha' },
+      isDirty: true,
+      saveNote,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: true }],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
+        ['beta.md', { content: '# beta', modifiedAt: 2 }],
+      ]),
+    });
+
+    await store.getState().openNote('beta.md', true);
+
+    expect(saveNote).toHaveBeenCalledTimes(1);
+    expect(store.getState().currentNote).toEqual({
+      path: 'beta.md',
+      content: '# beta',
+    });
+    expect(store.getState().isDirty).toBe(false);
+    expect(store.getState().openTabs).toEqual([
+      { path: 'alpha.md', name: 'alpha', isDirty: true },
+      { path: 'beta.md', name: 'beta', isDirty: false },
+    ]);
+    expect(store.getState().noteContentsCache.get('alpha.md')?.content).toBe('Unsaved alpha');
+  });
+
+  it('saves a dirty regular tab before opening an absolute note in a new tab', async () => {
+    const saveNote = vi.fn(async () => {
+      store.setState((state) => ({
+        isDirty: false,
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === 'alpha.md' ? { ...tab, isDirty: false } : tab
+        ),
+      }));
+    });
+    storageAdapter.readFile.mockResolvedValue('# starred');
+
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: 'Unsaved alpha' },
+      isDirty: true,
+      saveNote,
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: true }],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
+      ]),
+    });
+
+    await store.getState().openNoteByAbsolutePath('/other-vault/starred.md', true);
+
+    expect(saveNote).toHaveBeenCalledTimes(1);
+    expect(store.getState().currentNote).toEqual({
+      path: '/other-vault/starred.md',
+      content: '# starred',
+    });
+    expect(store.getState().isDirty).toBe(false);
+    expect(store.getState().openTabs).toEqual([
+      { path: 'alpha.md', name: 'alpha', isDirty: false },
+      { path: '/other-vault/starred.md', name: 'starred', isDirty: false },
+    ]);
+  });
+
   it('saves a dirty regular tab before switching to an already open vault tab', async () => {
     const saveNote = vi.fn(async () => {
       store.setState((state) => ({

@@ -6,6 +6,7 @@ import { flushPendingSave } from '@/lib/storage/unifiedStorage';
 import { getAutoSaveableDraftPaths, saveAutoSaveableDrafts } from '@/stores/notes/autoSaveableDrafts';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { saveDirtyRegularOpenTabs } from '@/stores/notes/dirtyOpenTabs';
+import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useCloseDraftPersistence } from './useCloseDraftPersistence';
 
@@ -44,19 +45,10 @@ export function useElectronCloseGuard() {
       if (!saveResult.saved) return;
     }
 
-    const latestNotesState = useNotesStore.getState();
-    const hasDirtyRegularTabs = latestNotesState.openTabs.some(
-      (tab) => tab.isDirty && !isDraftNotePath(tab.path)
-    );
-    if (
-      hasDirtyRegularTabs ||
-      (latestNotesState.isDirty && !isDraftNotePath(latestNotesState.currentNote?.path))
-    ) {
-      const flushed = await runFlushAllPendingWritesRef.current();
-      if (!flushed) {
-        await restorePathAfterCloseInterruption(restorePath);
-        return;
-      }
+    const flushed = await runFlushAllPendingWritesRef.current();
+    if (!flushed) {
+      await restorePathAfterCloseInterruption(restorePath);
+      return;
     }
 
     try {
@@ -83,41 +75,55 @@ export function useElectronCloseGuard() {
       if (activeFlush) return activeFlush;
 
       activeFlush = (async () => {
+        flushCurrentPendingEditorMarkdown();
+
         const tasks: Array<{ name: string; task: Promise<unknown> }> = [
           { name: 'unified storage', task: flushPendingSave() },
           { name: 'chat session storage', task: flushPendingSessionJsonSaves() },
         ];
 
-        const notesState = useNotesStore.getState();
-        if (getAutoSaveableDraftPaths().length > 0) {
-          tasks.push({
-            name: 'draft notes storage',
-            task: saveAutoSaveableDrafts().then((saved) => {
-              if (!saved) {
-                throw new Error('Auto-saveable drafts still pending after save attempt');
-              }
-            }),
-          });
-        }
-
-        const hasDirtyRegularTabs = notesState.openTabs.some(
+        const initialNotesState = useNotesStore.getState();
+        const hasInitialDirtyRegularTabs = initialNotesState.openTabs.some(
           (tab) => tab.isDirty && !isDraftNotePath(tab.path)
         );
-        if (
-          hasDirtyRegularTabs ||
-          (notesState.isDirty && !isDraftNotePath(notesState.currentNote?.path))
-        ) {
+        const currentInitialRegularDirty =
+          initialNotesState.isDirty && !isDraftNotePath(initialNotesState.currentNote?.path);
+        const hasNotesWork =
+          getAutoSaveableDraftPaths().length > 0 ||
+          hasInitialDirtyRegularTabs ||
+          currentInitialRegularDirty;
+
+        if (hasNotesWork) {
           tasks.push({
             name: 'notes storage',
-            task: saveDirtyRegularOpenTabs().then((saved) => {
+            task: (async () => {
+              if (getAutoSaveableDraftPaths().length > 0) {
+                const savedDrafts = await saveAutoSaveableDrafts();
+                if (!savedDrafts) {
+                  throw new Error('Auto-saveable drafts still pending after save attempt');
+                }
+              }
+
               const nextNotesState = useNotesStore.getState();
-              const stillHasDirtyRegularTabs = nextNotesState.openTabs.some(
+              const hasDirtyRegularTabs = nextNotesState.openTabs.some(
                 (tab) => tab.isDirty && !isDraftNotePath(tab.path)
               );
-              if (!saved || nextNotesState.isDirty || stillHasDirtyRegularTabs) {
-                throw new Error('Notes still dirty after save attempt');
+              const currentRegularDirty =
+                nextNotesState.isDirty && !isDraftNotePath(nextNotesState.currentNote?.path);
+
+              if (hasDirtyRegularTabs || currentRegularDirty) {
+                const savedRegularTabs = await saveDirtyRegularOpenTabs();
+                const finalNotesState = useNotesStore.getState();
+                const stillHasDirtyRegularTabs = finalNotesState.openTabs.some(
+                  (tab) => tab.isDirty && !isDraftNotePath(tab.path)
+                );
+                const finalCurrentRegularDirty =
+                  finalNotesState.isDirty && !isDraftNotePath(finalNotesState.currentNote?.path);
+                if (!savedRegularTabs || finalCurrentRegularDirty || stillHasDirtyRegularTabs) {
+                  throw new Error('Notes still dirty after save attempt');
+                }
               }
-            }),
+            })(),
           });
         }
 
@@ -135,7 +141,9 @@ export function useElectronCloseGuard() {
         const stillHasDirtyRegularTabs = nextNotesState.openTabs.some(
           (tab) => tab.isDirty && !isDraftNotePath(tab.path)
         );
-        return !hasFailure && !nextNotesState.isDirty && !stillHasDirtyRegularTabs;
+        const currentRegularDirty =
+          nextNotesState.isDirty && !isDraftNotePath(nextNotesState.currentNote?.path);
+        return !hasFailure && !currentRegularDirty && !stillHasDirtyRegularTabs;
       })().finally(() => {
         activeFlush = null;
       });
@@ -161,6 +169,8 @@ export function useElectronCloseGuard() {
         return;
       }
 
+      flushCurrentPendingEditorMarkdown();
+
       const notesState = useNotesStore.getState();
       const hasAutoSaveableUnsavedDrafts = hasAutoSaveableDrafts();
       const hasUnsavedDrafts = hasDiscardableDrafts();
@@ -170,8 +180,18 @@ export function useElectronCloseGuard() {
       );
 
       if (!notesState.isDirty && !hasDirtyRegularTabs && !hasUnsavedDrafts && !hasAutoSaveableUnsavedDrafts) {
-        allowNextWindowCloseRef.current = true;
-        void desktopWindow.confirmClose();
+        void (async () => {
+          const flushed = await runFlushAllPendingWritesRef.current();
+          if (!flushed) {
+            return;
+          }
+          try {
+            allowNextWindowCloseRef.current = true;
+            await desktopWindow.confirmClose();
+          } catch {
+            allowNextWindowCloseRef.current = false;
+          }
+        })();
         return;
       }
 

@@ -75,6 +75,10 @@ describe('saveDirtyRegularOpenTabs', () => {
       { path: 'alpha.md', name: 'alpha', isDirty: false },
       { path: 'beta.md', name: 'beta', isDirty: false },
     ]);
+    expect(useNotesStore.getState().currentNote).toEqual({
+      path: 'beta.md',
+      content: '# beta',
+    });
   });
 
   it('does not save dirty drafts through the regular tab flush', async () => {
@@ -142,5 +146,43 @@ describe('saveDirtyRegularOpenTabs', () => {
     expect(useNotesStore.getState().noteContentsCache.get('alpha.md')?.content).toBe(
       'Unsaved alpha'
     );
+  });
+
+  it('restores the original focused note when a background tab save fails', async () => {
+    const saveNote = vi.fn(async () => {
+      const path = useNotesStore.getState().currentNote?.path;
+      useNotesStore.setState((state) => ({
+        isDirty: path === 'alpha.md',
+        openTabs: state.openTabs.map((tab) =>
+          tab.path === path ? { ...tab, isDirty: path === 'alpha.md' } : tab
+        ),
+      }));
+    });
+    useNotesStore.setState({
+      currentNote: { path: 'beta.md', content: '# beta' },
+      isDirty: false,
+      saveNote,
+      openTabs: [
+        { path: 'alpha.md', name: 'alpha', isDirty: true },
+        { path: 'beta.md', name: 'beta', isDirty: false },
+      ],
+      noteContentsCache: new Map([
+        ['alpha.md', { content: 'Unsaved alpha', modifiedAt: 1 }],
+        ['beta.md', { content: '# beta', modifiedAt: 2 }],
+      ]),
+    });
+
+    const saved = await saveDirtyRegularOpenTabs();
+
+    expect(saved).toBe(false);
+    expect(saveNote).toHaveBeenCalledTimes(1);
+    expect(useNotesStore.getState().currentNote).toEqual({
+      path: 'beta.md',
+      content: '# beta',
+    });
+    expect(useNotesStore.getState().openTabs).toEqual([
+      { path: 'alpha.md', name: 'alpha', isDirty: true },
+      { path: 'beta.md', name: 'beta', isDirty: false },
+    ]);
   });
 });

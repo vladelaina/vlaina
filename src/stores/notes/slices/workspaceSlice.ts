@@ -236,11 +236,17 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       });
     }
 
-    if (isDirty && !shouldOpenInNewTab && currentNote?.path !== path) {
+    if (
+      isDirty &&
+      currentNote &&
+      !draftNotes[currentNote.path] &&
+      currentNote.path !== path
+    ) {
       logNotesDebug('NotesWorkspace', 'open-note:save-before-open', {
         path,
         notesPath,
         currentNotePath: currentNote?.path ?? null,
+        openInNewTab: shouldOpenInNewTab,
       });
       stepStartedAt = getOpenNotePerfNow();
       await saveNote();
@@ -436,11 +442,17 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       });
     }
 
-    if (isDirty && !shouldOpenInNewTab && currentNote?.path !== absolutePath) {
+    if (
+      isDirty &&
+      currentNote &&
+      !draftNotes[currentNote.path] &&
+      currentNote.path !== absolutePath
+    ) {
       logNotesDebug('NotesWorkspace', 'open-absolute:save-before-open', {
         absolutePath,
         notesPath,
         currentNotePath: currentNote?.path ?? null,
+        openInNewTab: shouldOpenInNewTab,
       });
       stepStartedAt = getOpenNotePerfNow();
       await saveNote();

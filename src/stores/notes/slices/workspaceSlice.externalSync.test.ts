@@ -8,6 +8,10 @@ const storageAdapter = vi.hoisted(() => ({
 
 import { createWorkspaceSlice } from './workspaceSlice';
 import type { FolderNode, NoteFile, NotesStore } from '../types';
+import {
+  markExpectedExternalChange,
+  shouldIgnoreExpectedExternalChange,
+} from '../document/externalChangeRegistry';
 
 const hoisted = vi.hoisted(() => ({
   persistRecentNotes: vi.fn(),
@@ -486,6 +490,34 @@ describe('workspaceSlice external sync', () => {
     expect(store.getState().openTabs).toEqual([
       { path: 'docs/alpha.md', name: 'alpha', isDirty: true },
     ]);
+  });
+
+  it('does not report a dirty conflict for an expected save write', async () => {
+    storageAdapter.exists.mockResolvedValue(true);
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2 });
+    markExpectedExternalChange('/vault/docs/alpha.md');
+
+    const store = createNotesStore({
+      currentNote: { path: 'docs/alpha.md', content: '# local edit' },
+      isDirty: true,
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: true }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# local edit', modifiedAt: 1 }]]),
+    });
+
+    const result = await store.getState().syncCurrentNoteFromDisk({ force: true });
+
+    expect(result).toBe('ignored');
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toEqual({
+      path: 'docs/alpha.md',
+      content: '# local edit',
+    });
+    expect(store.getState().isDirty).toBe(true);
+    expect(store.getState().error).toBeNull();
+    expect(shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md')).toBe(true);
+    expect(shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md')).toBe(true);
+    expect(shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md')).toBe(true);
+    expect(shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md')).toBe(false);
   });
 
   it('preserves local edits made while disk sync is reading the file', async () => {

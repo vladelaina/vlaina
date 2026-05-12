@@ -71,6 +71,93 @@ describe('autoSaveableDrafts', () => {
     });
   });
 
+  it('restores the originally focused note after saving a cached auto-saveable draft', async () => {
+    const openNote = vi.fn(async (path: string) => {
+      useNotesStore.setState((state) => ({
+        currentNote: {
+          path,
+          content: state.noteContentsCache.get(path)?.content ?? '',
+        },
+        isDirty: Boolean(state.openTabs.find((tab) => tab.path === path)?.isDirty),
+      }));
+    });
+    const saveNote = vi.fn(async () => {
+      useNotesStore.setState((state) => {
+        const nextDraftNotes = { ...state.draftNotes };
+        const nextCache = new Map(state.noteContentsCache);
+        delete nextDraftNotes['draft:auto'];
+        nextCache.delete('draft:auto');
+        nextCache.set('Auto.md', { content: 'Auto body', modifiedAt: 2 });
+        return {
+          currentNote: { path: 'Auto.md', content: 'Auto body' },
+          isDirty: false,
+          draftNotes: nextDraftNotes,
+          openTabs: [
+            { path: 'docs/current.md', name: 'current', isDirty: false },
+            { path: 'Auto.md', name: 'Auto', isDirty: false },
+          ],
+          noteContentsCache: nextCache,
+        };
+      });
+    });
+    useNotesStore.setState({
+      currentNote: { path: 'docs/current.md', content: '# current' },
+      isDirty: false,
+      openTabs: [{ path: 'docs/current.md', name: 'current', isDirty: false }],
+      draftNotes: { 'draft:auto': { parentPath: null, name: 'Auto' } },
+      noteContentsCache: new Map([
+        ['docs/current.md', { content: '# current', modifiedAt: 1 }],
+        ['draft:auto', { content: 'Auto body', modifiedAt: null }],
+      ]),
+      openNote,
+      saveNote,
+    });
+
+    await expect(saveAutoSaveableDrafts()).resolves.toBe(true);
+
+    expect(saveNote).toHaveBeenCalledWith({ suppressOpenTarget: true });
+    expect(openNote).toHaveBeenCalledWith('draft:auto');
+    expect(openNote).toHaveBeenCalledWith('docs/current.md', undefined);
+    expect(useNotesStore.getState().currentNote).toEqual({
+      path: 'docs/current.md',
+      content: '# current',
+    });
+  });
+
+  it('restores the originally focused note when a cached auto-saveable draft fails to save', async () => {
+    const openNote = vi.fn(async (path: string) => {
+      useNotesStore.setState((state) => ({
+        currentNote: {
+          path,
+          content: state.noteContentsCache.get(path)?.content ?? '',
+        },
+        isDirty: Boolean(state.openTabs.find((tab) => tab.path === path)?.isDirty),
+      }));
+    });
+    const saveNote = vi.fn().mockResolvedValue(undefined);
+    useNotesStore.setState({
+      currentNote: { path: 'docs/current.md', content: '# current' },
+      isDirty: false,
+      openTabs: [{ path: 'docs/current.md', name: 'current', isDirty: false }],
+      draftNotes: { 'draft:auto': { parentPath: null, name: 'Auto' } },
+      noteContentsCache: new Map([
+        ['docs/current.md', { content: '# current', modifiedAt: 1 }],
+        ['draft:auto', { content: 'Auto body', modifiedAt: null }],
+      ]),
+      openNote,
+      saveNote,
+    });
+
+    await expect(saveAutoSaveableDrafts()).resolves.toBe(false);
+
+    expect(saveNote).toHaveBeenCalledWith({ suppressOpenTarget: true });
+    expect(openNote).toHaveBeenCalledWith('docs/current.md', undefined);
+    expect(useNotesStore.getState().currentNote).toEqual({
+      path: 'docs/current.md',
+      content: '# current',
+    });
+  });
+
   it('returns false when an auto-saveable draft remains a draft after save', async () => {
     const saveNote = vi.fn().mockResolvedValue(undefined);
     useNotesStore.setState({

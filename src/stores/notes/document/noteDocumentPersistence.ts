@@ -246,6 +246,7 @@ export async function saveNoteDocument({
 
   markExpectedExternalChange(fullPath);
   await safeWriteTextFile(fullPath, content);
+  markExpectedExternalChange(fullPath);
 
   const fileInfo = await storage.stat(fullPath);
   const modifiedAt = fileInfo?.modifiedAt ?? null;
