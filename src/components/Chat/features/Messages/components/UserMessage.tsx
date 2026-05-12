@@ -12,6 +12,9 @@ import {
   parseUserMessageContent,
 } from './userMessageContent';
 
+const userMessageActionButtonClass =
+  'p-1.5 rounded-md text-[var(--chat-sidebar-text)] transition-colors hover:bg-black/5 hover:text-[var(--chat-sidebar-text)] dark:hover:bg-white/5';
+
 interface UserMessageProps {
   message: ChatMessage;
   containerWidth: number;
@@ -164,7 +167,7 @@ function UserMessageInner({
               <div className="flex items-center gap-1">
                 <button
                   onClick={handleCopy}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/5 rounded-md transition-colors"
+                  className={userMessageActionButtonClass}
                 >
                   {isCopied ? <Icon name="common.check" size="md" /> : <Icon name="common.copy" size="md" />}
                 </button>
@@ -174,7 +177,7 @@ function UserMessageInner({
                   className={cn(
                     'p-1.5 rounded-md transition-colors',
                     onEdit
-                      ? 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-white/10'
+                      ? userMessageActionButtonClass
                       : 'text-gray-300 cursor-not-allowed'
                   )}
                 >
