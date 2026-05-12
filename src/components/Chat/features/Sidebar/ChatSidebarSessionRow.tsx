@@ -129,7 +129,7 @@ function ChatSidebarSessionRowInner({
   const statusIndicator = isGenerating && !isActive ? (
     null
   ) : isUnread ? (
-    <div className="h-2 w-2 rounded-full bg-[var(--chat-sidebar-status-warning)] shadow-[0_0_8px_rgba(245,158,11,0.45)]" />
+    <div className="h-2 w-2 rounded-full bg-[var(--chat-sidebar-status-warning)]" />
   ) : session.isPinned ? (
     <Icon name="common.pinPrimer" size={14} className="text-[var(--chat-sidebar-text)]" />
   ) : null;
