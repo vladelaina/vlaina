@@ -414,6 +414,32 @@ describe('GitHub README HTML compatibility', () => {
     expect(result.persisted).toContain('https://example.com/tracker.png');
   });
 
+  it('renders public remote images inside raw HTML table sponsors', async () => {
+    const markdown = [
+      '<table>',
+      '  <thead>',
+      '    <tr>',
+      '      <th align="center" style="width: 80px;">',
+      '        <a href="https://www.compshare.cn/?utm_source=otherdsp">',
+      '          <img src="https://raw.githubusercontent.com/521xueweihan/img_logo/master/logo/ucloud.png" width="60px"><br>',
+      '          <sub>UCloud</sub><br>',
+      '          <sub>超值的GPU云服务</sub>',
+      '        </a>',
+      '      </th>',
+      '    </tr>',
+      '  </thead>',
+      '</table>',
+    ].join('\n');
+
+    const result = await openGithubHtmlMarkdown(markdown);
+    const image = result.dom.querySelector('table th a img');
+
+    expect(image).not.toBeNull();
+    expect(image?.getAttribute('src')).toBe('https://raw.githubusercontent.com/521xueweihan/img_logo/master/logo/ucloud.png');
+    expect(image?.getAttribute('width')).toBe('60px');
+    expect(result.dom.querySelector('table th a sub')?.textContent).toBe('UCloud');
+  });
+
   it('keeps single-line GFM HTML blocks separate from inline raw HTML', async () => {
     const blockResult = await openGithubHtmlMarkdown('<div><p>Block</p></div>');
     const inlineResult = await openGithubHtmlMarkdown('Press <kbd>Ctrl</kbd>.');

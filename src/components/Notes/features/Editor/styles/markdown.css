@@ -248,7 +248,55 @@
   cursor: default;
 }
 
+.milkdown [data-type='html-block'] table {
+  width: max-content;
+  max-width: 100%;
+  border: 0;
+  border-collapse: collapse;
+  border-spacing: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.milkdown [data-type='html-block'] th,
+.milkdown [data-type='html-block'] td {
+  min-width: 0;
+  padding: 6px 13px;
+  border: 1px solid var(--vlaina-border);
+  text-align: inherit;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.milkdown [data-type='html-block'] th {
+  background-color: transparent;
+}
+
+.milkdown [data-type='html-block'] img {
+  border-radius: 0;
+}
+
+.milkdown [data-type='html-block'] sub,
+.milkdown [data-type='html-block'] sup {
+  position: relative;
+  font-size: 75%;
+  line-height: 0;
+  vertical-align: baseline;
+}
+
+.milkdown [data-type='html-block'] sub {
+  bottom: -0.25em;
+}
+
+.milkdown [data-type='html-block'] sup {
+  top: -0.5em;
+}
+
 .milkdown table tr:hover {
+  background-color: transparent !important;
+}
+
+.milkdown [data-type='html-block'] table tr:hover > th {
   background-color: transparent !important;
 }
 
