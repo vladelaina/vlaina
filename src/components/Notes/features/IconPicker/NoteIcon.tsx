@@ -5,6 +5,8 @@ import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { useCallback } from 'react';
 import { useUIStore } from '@/stores/uiSlice';
 import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
+import { isAbsolutePath } from '@/lib/storage/adapter';
+import { loadAppIconImageSrc } from '@/components/common/AppIcon';
 
 interface NoteIconProps extends Omit<UniversalIconProps, 'imageLoader'> {
   notePath?: string;
@@ -18,8 +20,12 @@ export function NoteIcon({ notePath, vaultPath: vaultPathOverride, ...props }: N
   const vaultPath = vaultPathOverride || resolveEffectiveVaultPath({ notesPath, currentNotePath: notePath });
 
   const imageLoader = useCallback(async (src: string) => {
-    if (!vaultPath) return src;
+    if (!src.startsWith('img:')) return src;
     const relativePath = src.substring(4);
+    if (isAbsolutePath(relativePath)) {
+      return (await loadAppIconImageSrc(src)) ?? '';
+    }
+    if (!vaultPath) return src;
     const fullPath = await resolveExistingVaultAssetPath(vaultPath, relativePath, notePath);
     return await loadImageAsBlob(fullPath);
   }, [notePath, vaultPath]);

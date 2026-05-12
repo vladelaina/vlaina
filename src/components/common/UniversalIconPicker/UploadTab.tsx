@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils';
 import { getCroppedImg } from '@/lib/assets/processing/crop';
 import { useToastStore } from '@/stores/useToastStore';
 import { PremiumSlider } from '@/components/ui/premium-slider';
-import { DeletableItem } from '@/components/ui/deletable-item';
 import { UniversalIcon } from './UniversalIcon';
 import { useI18n } from '@/lib/i18n';
 
@@ -33,7 +32,6 @@ export function UploadTab({
     onClose,
     customIcons = [],
     onUploadFile,
-    onDeleteCustomIcon,
     imageLoader
 }: UploadTabProps) {
     const { t } = useI18n();
@@ -255,47 +253,24 @@ export function UploadTab({
                     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-900 px-3">
                         <div className="flex-1 overflow-y-auto vlaina-scrollbar pr-1 grid grid-cols-7 gap-2 content-start pb-2">
                             {customIcons.map((emoji) => (
-                                onDeleteCustomIcon ? (
-                                    <DeletableItem
-                                        key={emoji.id}
-                                        id={emoji.id}
-                                        onDelete={onDeleteCustomIcon}
-                                        className="relative aspect-square flex items-center justify-center cursor-pointer transition-all active:scale-95"
-                                    >
-                                        <div
-                                            className="w-full h-full"
-                                            onClick={() => handleLibraryItemClick(emoji.url)}
-                                            onMouseEnter={() => onPreview?.(emoji.url)}
-                                            onMouseLeave={() => onPreview?.(null)}
-                                        >
-                                            <UniversalIcon
-                                                icon={emoji.url}
-                                                size={44}
-                                                className="w-full h-full object-contain"
-                                                imageLoader={imageLoader}
-                                            />
-                                        </div>
-                                    </DeletableItem>
-                                ) : (
-                                    <div
-                                        key={emoji.id}
-                                        className="relative aspect-square flex items-center justify-center cursor-pointer transition-all active:scale-95"
-                                        onClick={() => handleLibraryItemClick(emoji.url)}
-                                        onMouseEnter={() => onPreview?.(emoji.url)}
-                                        onMouseLeave={() => onPreview?.(null)}
-                                    >
-                                        <UniversalIcon
-                                            icon={emoji.url}
-                                            size={44}
-                                            className="w-full h-full object-contain"
-                                            imageLoader={imageLoader}
-                                        />
-                                    </div>
-                                )
+                                <div
+                                    key={emoji.id}
+                                    className="relative aspect-square flex items-center justify-center cursor-pointer transition-all active:scale-95"
+                                    onClick={() => handleLibraryItemClick(emoji.url)}
+                                    onMouseEnter={() => onPreview?.(emoji.url)}
+                                    onMouseLeave={() => onPreview?.(null)}
+                                >
+                                    <UniversalIcon
+                                        icon={emoji.url}
+                                        size={44}
+                                        className="w-full h-full object-contain"
+                                        imageLoader={imageLoader}
+                                    />
+                                </div>
                             ))}
                             {customIcons.length === 0 && (
                                 <div className="col-span-7 py-8 text-center text-xs text-muted-foreground italic">
-                                    {onDeleteCustomIcon ? 'No saved icons yet' : 'Upload an image to use it as the note icon'}
+                                    Upload an image to use it as the note icon
                                 </div>
                             )}
                         </div>
