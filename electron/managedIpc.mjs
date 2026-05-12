@@ -31,6 +31,7 @@ function deleteActiveManagedStream(requestId, controller) {
 export function registerManagedIpc({
   handleIpc,
   requestManagedJson,
+  requestManagedPublicJson,
   fetchWithStoredSession,
   managedApiBaseUrl,
   createElectronBillingCheckout,
@@ -41,7 +42,7 @@ export function registerManagedIpc({
   });
 
   handleIpc('desktop:managed:get-models', async () => {
-    return await requestManagedJson('/models', { method: 'GET' });
+    return await requestManagedPublicJson('/models', { method: 'GET' });
   });
 
   handleIpc('desktop:managed:get-budget', async () => {

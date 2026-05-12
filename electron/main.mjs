@@ -151,6 +151,18 @@ async function requestManagedJson(pathname, init = {}) {
   return await readJsonResponse(response, `Managed API request failed: HTTP ${response.status}`);
 }
 
+async function requestManagedPublicJson(pathname, init = {}) {
+  const response = await fetch(`${managedApiBaseUrl}${pathname}`, {
+    ...init,
+    cache: 'no-store',
+    headers: {
+      Accept: 'application/json',
+      ...(init.headers ?? {}),
+    },
+  });
+  return await readJsonResponse(response, `Managed API request failed: HTTP ${response.status}`);
+}
+
 async function createElectronBillingCheckout(tier) {
   const response = await fetchWithStoredSession(`${apiBaseUrl}/billing/checkout`, {
     method: 'POST',
@@ -685,6 +697,7 @@ desktopAccountService.registerAccountIpc({ handleIpc });
 registerManagedIpc({
   handleIpc,
   requestManagedJson,
+  requestManagedPublicJson,
   fetchWithStoredSession,
   managedApiBaseUrl,
   createElectronBillingCheckout,

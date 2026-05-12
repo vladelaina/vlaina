@@ -8,6 +8,7 @@ function registerHarness(overrides: Partial<Parameters<typeof registerManagedIpc
       handlers.set(name, handler);
     },
     requestManagedJson: vi.fn(),
+    requestManagedPublicJson: vi.fn(),
     fetchWithStoredSession: vi.fn(),
     managedApiBaseUrl: 'https://api.example.com/v1',
     createElectronBillingCheckout: vi.fn(),
@@ -31,6 +32,34 @@ function streamResponse(chunks: string[]) {
 }
 
 describe('managed ipc stream bridge', () => {
+  it('uses public managed requests for model listing only', async () => {
+    const { handlers, options } = registerHarness();
+    options.requestManagedPublicJson.mockResolvedValueOnce({ data: [] });
+    options.requestManagedJson.mockResolvedValue({ success: true });
+
+    await handlers.get('desktop:managed:get-models')?.();
+    await handlers.get('desktop:managed:get-budget')?.();
+    await handlers.get('desktop:managed:chat-completion')?.({}, {});
+
+    expect(options.requestManagedPublicJson).toHaveBeenCalledWith('/models', { method: 'GET' });
+    expect(options.requestManagedJson).toHaveBeenCalledWith('/budget', { method: 'GET' });
+    expect(options.requestManagedJson).toHaveBeenCalledWith('/chat/completions', {
+      method: 'POST',
+      body: '{}',
+    });
+  });
+
+  it('does not require stored session credentials for managed model listing', async () => {
+    const { handlers, options } = registerHarness();
+    options.requestManagedPublicJson.mockResolvedValueOnce({ data: [] });
+
+    await handlers.get('desktop:managed:get-models')?.();
+
+    expect(options.requestManagedPublicJson).toHaveBeenCalledTimes(1);
+    expect(options.requestManagedJson).not.toHaveBeenCalled();
+    expect(options.fetchWithStoredSession).not.toHaveBeenCalled();
+  });
+
   it('rejects unsafe stream request ids before starting a request', async () => {
     const { handlers, options } = registerHarness();
 

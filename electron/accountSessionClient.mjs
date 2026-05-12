@@ -172,6 +172,43 @@ export function createDesktopAccountSessionClient({
     return response;
   }
 
+  async function fetchWithOptionalStoredSession(url, init = {}) {
+    const credentials = await readStoredAccountCredentials();
+    if (credentials) {
+      return await fetchWithStoredSession(url, init);
+    }
+
+    const startedAt = performance.now();
+    logDesktopAuth('optional_session:http:request', {
+      url,
+      method: init.method ?? 'GET',
+      bodySummary: typeof init.body === 'string'
+        ? { type: 'text', length: init.body.length }
+        : null,
+    });
+
+    const response = await fetch(url, {
+      ...init,
+      headers: {
+        Accept: 'application/json',
+        ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(init.headers ?? {}),
+      },
+    });
+
+    logDesktopAuth('optional_session:http:response', {
+      url,
+      status: response.status,
+      ok: response.ok,
+      headers: {
+        'content-type': response.headers.get('content-type'),
+      },
+      durationMs: elapsedSince(startedAt),
+    });
+
+    return response;
+  }
+
   async function probeDesktopSession(appSessionToken, eventPrefix = 'session_status:http') {
     return await fetchJsonWithDebug(`${apiBaseUrl}/auth/session`, {
       method: 'GET',
@@ -356,6 +393,7 @@ export function createDesktopAccountSessionClient({
 
   return {
     fetchDesktopJson,
+    fetchWithOptionalStoredSession,
     fetchWithStoredSession,
     getDesktopAccountSessionStatus,
     readDesktopSessionIdentity,

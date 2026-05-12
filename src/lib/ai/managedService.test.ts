@@ -100,6 +100,23 @@ describe('managedService', () => {
     expect(clearClientSessionMock).not.toHaveBeenCalled();
   });
 
+  it('preserves managed web forbidden business errors without clearing session', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      text: async () => JSON.stringify({ error: 'Model is not available for this user' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { requestManagedChatCompletion } = await import('./managedService');
+
+    await expect(requestManagedChatCompletion({ model: 'unpublished-model' })).rejects.toThrow(
+      'Model is not available for this user'
+    );
+    expect(clearClientSessionMock).not.toHaveBeenCalled();
+  });
+
   it('treats auth and network failures as recoverable managed service errors', async () => {
     const { isManagedServiceRecoverableError, MANAGED_AUTH_REQUIRED_ERROR } = await import('./managedService');
 

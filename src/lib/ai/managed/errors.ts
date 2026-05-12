@@ -66,7 +66,7 @@ function extractManagedErrorPayloadMessage(payload: Record<string, unknown>): st
 
 export async function parseManagedError(response: Response): Promise<Error> {
   const raw = await response.text().catch(() => '');
-  if (response.status === 401 || response.status === 403) {
+  if (response.status === 401) {
     webAccountCommands.clearClientSession();
     return new Error(MANAGED_AUTH_REQUIRED_ERROR);
   }

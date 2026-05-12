@@ -148,7 +148,7 @@ export function useAIStoreRuntimeEffects(): void {
   }, [loaded]);
 
   useEffect(() => {
-    if (!loaded || !accountConnected) {
+    if (!loaded) {
       return;
     }
 
@@ -173,7 +173,11 @@ export function useAIStoreRuntimeEffects(): void {
         const selectedModelChanged = ai.selectedModelId !== selectedModelId;
 
         if (!providersChanged && !modelsChanged && !selectedModelChanged) {
-          void useManagedAIStore.getState().refreshBudget();
+          if (accountConnected) {
+            void useManagedAIStore.getState().refreshBudget();
+          } else {
+            useManagedAIStore.getState().clearBudget();
+          }
           return;
         }
 
@@ -182,7 +186,11 @@ export function useAIStoreRuntimeEffects(): void {
           models: nextModels,
           selectedModelId,
         }, suppressStartupAIPersistRef.current);
-        void useManagedAIStore.getState().refreshBudget();
+        if (accountConnected) {
+          void useManagedAIStore.getState().refreshBudget();
+        } else {
+          useManagedAIStore.getState().clearBudget();
+        }
       } catch (error) {
         if (!isManagedServiceRecoverableError(error)) {
           console.error('Failed to sync managed AI models from Worker', error);
@@ -199,33 +207,6 @@ export function useAIStoreRuntimeEffects(): void {
     if (!loaded || accountConnected) {
       return;
     }
-    const store = useUnifiedStore.getState();
-    const ai = store.data.ai;
-    if (!ai) return;
-    const nextProviders = ensureManagedProvider(ai.providers);
-    const nextModels = ai.models.filter((model) => model.providerId !== MANAGED_PROVIDER_ID);
-    const nextSelectedModelId = chooseFallbackSelectedModelId(
-      ai.selectedModelId && ai.models.some((model) => model.id === ai.selectedModelId && model.providerId === MANAGED_PROVIDER_ID)
-        ? null
-        : ai.selectedModelId,
-      nextModels
-    );
-
-    const modelsChanged = nextModels.length !== ai.models.length;
-    const providersChanged =
-      nextProviders.length !== ai.providers.length ||
-      nextProviders.some((provider, index) => ai.providers[index]?.id !== provider.id);
-
-    if (!modelsChanged && !providersChanged && nextSelectedModelId === ai.selectedModelId) {
-      useManagedAIStore.getState().clearBudget();
-      return;
-    }
-
-    store.updateAIData({
-      providers: nextProviders,
-      models: nextModels,
-      selectedModelId: nextSelectedModelId,
-    }, suppressStartupAIPersistRef.current);
     useManagedAIStore.getState().clearBudget();
   }, [loaded, accountConnected]);
 }
