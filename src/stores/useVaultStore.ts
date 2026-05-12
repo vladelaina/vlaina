@@ -618,3 +618,32 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
     set({ error: null });
   },
 }));
+
+let vaultStorageListenerRegistered = false;
+
+function registerVaultStorageListener(): void {
+  if (vaultStorageListenerRegistered || typeof window === 'undefined') {
+    return;
+  }
+
+  window.addEventListener('storage', (event) => {
+    if (event.key !== VAULTS_STORAGE_KEY) {
+      return;
+    }
+
+    const recentVaults = normalizeRecentVaults(loadFromStorage<VaultInfo[]>(VAULTS_STORAGE_KEY, []));
+    const currentVault = useVaultStore.getState().currentVault;
+    const refreshedCurrentVault = currentVault
+      ? recentVaults.find((vault) => vault.id === currentVault.id) ?? currentVault
+      : null;
+
+    useVaultStore.setState({
+      recentVaults,
+      currentVault: refreshedCurrentVault,
+    });
+  });
+
+  vaultStorageListenerRegistered = true;
+}
+
+registerVaultStorageListener();

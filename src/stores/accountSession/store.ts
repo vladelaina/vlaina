@@ -11,7 +11,11 @@ import {
 } from './authActions';
 import { loadPersistedUser } from './authSupport';
 import { createHydrateAvatar } from './avatarActions';
-import { initialAccountSessionState, type AccountSessionStore } from './state';
+import {
+  ACCOUNT_USER_PERSIST_KEY,
+  initialAccountSessionState,
+  type AccountSessionStore,
+} from './state';
 
 export type { AccountProvider, AccountSessionActions, AccountSessionState } from './state';
 export { ACCOUNT_USER_PERSIST_KEY } from './state';
@@ -33,6 +37,7 @@ export const useAccountSessionStore = create<AccountSessionStore>((set, get) => 
 }));
 
 let invalidationListenerRegistered = false;
+let persistenceListenerRegistered = false;
 
 function registerAccountAuthInvalidationListener(): void {
   if (invalidationListenerRegistered || typeof window === 'undefined') {
@@ -58,4 +63,27 @@ function registerAccountAuthInvalidationListener(): void {
   invalidationListenerRegistered = true;
 }
 
+function registerAccountPersistenceListener(): void {
+  if (persistenceListenerRegistered || typeof window === 'undefined') {
+    return;
+  }
+
+  window.addEventListener('storage', (event) => {
+    if (event.key !== ACCOUNT_USER_PERSIST_KEY) {
+      return;
+    }
+
+    useAccountSessionStore.setState({
+      ...initialAccountSessionState,
+      ...loadPersistedUser(),
+      isLoading: false,
+      error: null,
+    });
+    void useAccountSessionStore.getState().hydrateAvatar();
+  });
+
+  persistenceListenerRegistered = true;
+}
+
 registerAccountAuthInvalidationListener();
+registerAccountPersistenceListener();

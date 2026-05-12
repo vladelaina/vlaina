@@ -15,6 +15,7 @@ import {
   DEFAULT_SETTINGS,
 } from '@/lib/config';
 import type { UndoAction } from '../types';
+import { isTemporarySession, isTemporarySessionId } from '@/lib/ai/temporaryChat';
 
 export type {
   CustomIcon,
@@ -62,14 +63,24 @@ export function retainLoadedSessionMessages(
   }
 
   const persistedSessionIds = new Set(nextAI.sessions.map((session) => session.id));
+  const previousTemporarySessions = previousData.ai?.sessions.filter(isTemporarySession) || [];
+  const temporarySessionIds = new Set(previousTemporarySessions.map((session) => session.id));
   const retainedMessages = Object.fromEntries(
-    Object.entries(previousMessages).filter(([sessionId]) => persistedSessionIds.has(sessionId))
+    Object.entries(previousMessages).filter(([sessionId]) =>
+      persistedSessionIds.has(sessionId) ||
+      temporarySessionIds.has(sessionId) ||
+      isTemporarySessionId(sessionId)
+    )
   );
 
   return {
     ...nextData,
     ai: {
       ...nextAI,
+      sessions: [
+        ...previousTemporarySessions,
+        ...nextAI.sessions.filter((session) => !temporarySessionIds.has(session.id)),
+      ],
       messages: retainedMessages,
     },
   };
