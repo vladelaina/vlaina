@@ -5,6 +5,7 @@ import {
 } from './draftNote';
 import { flushCurrentPendingEditorMarkdown } from './pendingEditorMarkdownFlusher';
 import { useNotesStore } from '../useNotesStore';
+import { openStoredNotePath } from './openNotePath';
 
 export function getUnsavedDraftPaths(filter?: (path: string) => boolean) {
   const notesState = useNotesStore.getState();
@@ -60,6 +61,34 @@ export function getDiscardableDraftPaths() {
 }
 
 export async function saveAutoSaveableDrafts() {
+  const originalPath = useNotesStore.getState().currentNote?.path ?? null;
+  const restoreOriginalPath = async () => {
+    if (!originalPath) {
+      return;
+    }
+
+    const latestState = useNotesStore.getState();
+    if (latestState.currentNote?.path === originalPath) {
+      return;
+    }
+
+    if (isDraftNotePath(originalPath) && !latestState.draftNotes[originalPath]) {
+      return;
+    }
+
+    const canRestoreOriginal =
+      latestState.openTabs.some((tab) => tab.path === originalPath) ||
+      latestState.noteContentsCache.has(originalPath);
+    if (!canRestoreOriginal) {
+      return;
+    }
+
+    await openStoredNotePath(originalPath, {
+      openNote: latestState.openNote,
+      openNoteByAbsolutePath: latestState.openNoteByAbsolutePath,
+    });
+  };
+
   try {
     flushCurrentPendingEditorMarkdown();
 
@@ -71,18 +100,22 @@ export async function saveAutoSaveableDrafts() {
 
       const currentState = useNotesStore.getState();
       if (currentState.currentNote?.path !== draftPath || !currentState.draftNotes[draftPath]) {
+        await restoreOriginalPath();
         return false;
       }
 
       await currentState.saveNote({ suppressOpenTarget: true });
 
       if (useNotesStore.getState().draftNotes[draftPath]) {
+        await restoreOriginalPath();
         return false;
       }
     }
 
+    await restoreOriginalPath();
     return true;
   } catch {
+    await restoreOriginalPath();
     return false;
   }
 }

@@ -211,10 +211,10 @@ export function AppContent() {
   const shouldRenderSidebar = appViewMode === 'chat' || appViewMode === 'notes';
 
   const sidebarContent = shouldRenderSidebar ? (
-    <div className="grid h-full">
+    <div className="grid h-full min-h-0">
       <div
         className={cn(
-          'col-start-1 row-start-1 h-full',
+          'col-start-1 row-start-1 h-full min-h-0',
           appViewMode !== 'chat' && 'pointer-events-none invisible',
         )}
         aria-hidden={appViewMode !== 'chat'}
@@ -225,7 +225,7 @@ export function AppContent() {
       </div>
       <div
         className={cn(
-          'col-start-1 row-start-1 h-full',
+          'col-start-1 row-start-1 h-full min-h-0',
           appViewMode !== 'notes' && 'pointer-events-none invisible',
         )}
         aria-hidden={appViewMode !== 'notes'}

@@ -166,6 +166,10 @@ vi.mock('@/components/common/ErrorBoundary', () => ({
   ErrorBoundary: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+vi.mock('@/components/Settings', () => ({
+  SettingsModal: () => null,
+}));
+
 vi.mock('@/components/ui/Toast', () => ({
   ToastContainer: () => <div data-testid="toast-container" />,
 }));
@@ -240,6 +244,7 @@ describe('App close flow', () => {
     mocks.notesState.openNoteByAbsolutePath.mockClear();
     mocks.notesState.saveNote.mockClear();
     mocks.flushCurrentPendingEditorMarkdown.mockClear();
+    mocks.flushCurrentPendingEditorMarkdown.mockImplementation(() => false);
     mocks.openStoredNotePath.mockReset();
     mocks.openStoredNotePath.mockImplementation(async (path: string) => {
       const tab = mocks.notesState.openTabs.find((item) => item.path === path);
@@ -260,6 +265,7 @@ describe('App close flow', () => {
     mocks.flushPendingSave.mockClear();
     mocks.flushPendingSessionJsonSaves.mockClear();
     mocks.flushCurrentPendingEditorMarkdown.mockClear();
+    mocks.flushCurrentPendingEditorMarkdown.mockImplementation(() => false);
     mocks.closeRequestedHandler = null;
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
   });
@@ -275,16 +281,53 @@ describe('App close flow', () => {
     });
   }
 
-  it('confirms close immediately when nothing is dirty', async () => {
+  it('flushes pending storage before closing when nothing is dirty', async () => {
     await renderAndRequestClose();
+
+    await waitFor(() => {
+      expect(mocks.flushPendingSave).toHaveBeenCalledTimes(1);
+      expect(mocks.flushPendingSessionJsonSaves).toHaveBeenCalledTimes(1);
+      expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
+    });
+
+    expect(screen.queryByText('Unsaved Drafts')).toBeNull();
+  });
+
+  it('does not close a clean window when pending storage fails to flush', async () => {
+    mocks.flushPendingSave.mockRejectedValueOnce(new Error('disk unavailable'));
+
+    await renderAndRequestClose();
+
+    await waitFor(() => {
+      expect(mocks.flushPendingSave).toHaveBeenCalledTimes(1);
+    });
+    expect(mocks.desktopWindow.confirmClose).not.toHaveBeenCalled();
+  });
+
+  it('recovers clean-close state after confirmClose rejects', async () => {
+    mocks.desktopWindow.confirmClose.mockRejectedValueOnce(new Error('window denied close'));
+
+    render(<App />);
+    await waitFor(() => {
+      expect(mocks.desktopWindow.onCloseRequested).toHaveBeenCalledTimes(1);
+    });
+    await act(async () => {
+      mocks.closeRequestedHandler?.();
+      await Promise.resolve();
+    });
 
     await waitFor(() => {
       expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
     });
 
-    expect(screen.queryByText('Unsaved Drafts')).toBeNull();
-    expect(mocks.flushPendingSave).not.toHaveBeenCalled();
-    expect(mocks.flushPendingSessionJsonSaves).not.toHaveBeenCalled();
+    await act(async () => {
+      mocks.closeRequestedHandler?.();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(2);
+    });
   });
 
   it('flushes pending writes before closing when a non-draft note is dirty', async () => {
@@ -303,6 +346,34 @@ describe('App close flow', () => {
     await waitFor(() => {
       expect(mocks.flushPendingSave).toHaveBeenCalledTimes(1);
       expect(mocks.flushPendingSessionJsonSaves).toHaveBeenCalledTimes(1);
+      expect(mocks.notesState.saveNote).toHaveBeenCalledTimes(1);
+      expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('flushes pending editor markdown before deciding whether the window is clean', async () => {
+    let didFlushEditor = false;
+    mocks.notesState.currentNote = { path: 'docs/a.md', content: '# old' };
+    mocks.notesState.openTabs = [{ path: 'docs/a.md', isDirty: false }];
+    mocks.notesState.noteContentsCache = new Map([['docs/a.md', { content: '# old' }]]);
+    mocks.flushCurrentPendingEditorMarkdown.mockImplementation(() => {
+      if (didFlushEditor) return false;
+      didFlushEditor = true;
+      mocks.notesState.currentNote = { path: 'docs/a.md', content: '# pending' };
+      mocks.notesState.isDirty = true;
+      mocks.notesState.openTabs = [{ path: 'docs/a.md', isDirty: true }];
+      mocks.notesState.noteContentsCache = new Map([['docs/a.md', { content: '# pending' }]]);
+      return true;
+    });
+    mocks.notesState.saveNote.mockImplementation(async () => {
+      mocks.notesState.isDirty = false;
+      mocks.notesState.openTabs = [{ path: 'docs/a.md', isDirty: false }];
+    });
+
+    await renderAndRequestClose();
+
+    await waitFor(() => {
+      expect(mocks.flushCurrentPendingEditorMarkdown).toHaveBeenCalled();
       expect(mocks.notesState.saveNote).toHaveBeenCalledTimes(1);
       expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
     });
@@ -327,6 +398,36 @@ describe('App close flow', () => {
     fireEvent(document, new Event('visibilitychange'));
 
     await waitFor(() => expect(mocks.notesState.saveNote).toHaveBeenCalledWith({ suppressOpenTarget: true }));
+  });
+
+  it('flushes pending editor markdown when the app is hidden before checking dirty notes', async () => {
+    let didFlushEditor = false;
+    mocks.notesState.currentNote = { path: 'docs/a.md', content: '# old' };
+    mocks.notesState.openTabs = [{ path: 'docs/a.md', isDirty: false }];
+    mocks.notesState.noteContentsCache = new Map([['docs/a.md', { content: '# old' }]]);
+    mocks.flushCurrentPendingEditorMarkdown.mockImplementation(() => {
+      if (didFlushEditor) return false;
+      didFlushEditor = true;
+      mocks.notesState.currentNote = { path: 'docs/a.md', content: '# pending' };
+      mocks.notesState.isDirty = true;
+      mocks.notesState.openTabs = [{ path: 'docs/a.md', isDirty: true }];
+      mocks.notesState.noteContentsCache = new Map([['docs/a.md', { content: '# pending' }]]);
+      return true;
+    });
+    mocks.notesState.saveNote.mockImplementation(async () => {
+      mocks.notesState.isDirty = false;
+      mocks.notesState.openTabs = [{ path: 'docs/a.md', isDirty: false }];
+    });
+    render(<App />);
+    await waitFor(() => expect(mocks.desktopWindow.onCloseRequested).toHaveBeenCalledTimes(1));
+
+    Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+    fireEvent(document, new Event('visibilitychange'));
+
+    await waitFor(() => {
+      expect(mocks.flushCurrentPendingEditorMarkdown).toHaveBeenCalled();
+      expect(mocks.notesState.saveNote).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('flushes dirty regular background tabs before closing', async () => {
@@ -379,7 +480,7 @@ describe('App close flow', () => {
     await renderAndRequestClose();
 
     await waitFor(() => {
-      expect(mocks.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
+      expect(mocks.flushCurrentPendingEditorMarkdown).toHaveBeenCalled();
       expect(mocks.notesState.saveNote).toHaveBeenCalledWith({ suppressOpenTarget: true });
       expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
     });
@@ -457,6 +558,74 @@ describe('App close flow', () => {
     });
 
     await waitFor(() => {
+      expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('closes the unsaved draft dialog immediately when discarding drafts before close', async () => {
+    mocks.notesState.currentNote = { path: 'draft:alpha' };
+    mocks.notesState.openTabs = [{ path: 'draft:alpha' }];
+    mocks.notesState.draftNotes = {
+      'draft:alpha': { name: 'Draft Alpha' },
+    };
+    mocks.notesState.noteContentsCache = new Map([
+      ['draft:alpha', { content: 'unsaved content' }],
+    ]);
+    mocks.flushPendingSave.mockImplementationOnce(() => new Promise(() => {}));
+
+    await renderAndRequestClose();
+
+    expect(await screen.findByText('Unsaved Drafts')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Discard and Close'));
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByText('Unsaved Drafts')).toBeNull();
+  });
+
+  it('discards current draft and still flushes dirty regular background tabs before closing', async () => {
+    mocks.notesState.currentNote = { path: 'draft:alpha', content: 'draft body' };
+    mocks.notesState.openTabs = [
+      { path: 'draft:alpha', isDirty: true },
+      { path: 'docs/a.md', isDirty: true },
+    ];
+    mocks.notesState.isDirty = true;
+    mocks.notesState.draftNotes = {
+      'draft:alpha': { name: 'Draft Alpha' },
+    };
+    mocks.notesState.noteContentsCache = new Map([
+      ['draft:alpha', { content: 'draft body' }],
+      ['docs/a.md', { content: 'regular body' }],
+    ]);
+    mocks.notesState.saveNote.mockImplementation(async () => {
+      const path = mocks.notesState.currentNote?.path;
+      mocks.notesState.openTabs = mocks.notesState.openTabs.map((tab) =>
+        tab.path === path ? { ...tab, isDirty: false } : tab
+      );
+      mocks.notesState.isDirty = Boolean(
+        mocks.notesState.openTabs.find((tab) => tab.path === mocks.notesState.currentNote?.path)?.isDirty
+      );
+    });
+
+    await renderAndRequestClose();
+
+    expect(await screen.findByText('Unsaved Drafts')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Discard and Close'));
+    });
+
+    await waitFor(() => {
+      expect(mocks.openStoredNotePath).toHaveBeenCalledWith(
+        'docs/a.md',
+        expect.objectContaining({
+          openNote: mocks.notesState.openNote,
+          openNoteByAbsolutePath: mocks.notesState.openNoteByAbsolutePath,
+        })
+      );
+      expect(mocks.notesState.saveNote).toHaveBeenCalledTimes(1);
       expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
     });
   });

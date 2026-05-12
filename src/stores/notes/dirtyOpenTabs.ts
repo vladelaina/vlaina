@@ -7,6 +7,7 @@ export async function saveDirtyRegularOpenTabs(): Promise<boolean> {
   flushCurrentPendingEditorMarkdown();
 
   const initialState = useNotesStore.getState();
+  const originalPath = initialState.currentNote?.path ?? null;
   const dirtyPaths = initialState.openTabs
     .filter((tab) => tab.isDirty && !isDraftNotePath(tab.path))
     .map((tab) => tab.path);
@@ -19,6 +20,29 @@ export async function saveDirtyRegularOpenTabs(): Promise<boolean> {
   ) {
     dirtyPaths.push(currentPath);
   }
+
+  const restoreOriginalPath = async () => {
+    if (!originalPath) {
+      return;
+    }
+
+    const latestState = useNotesStore.getState();
+    if (latestState.currentNote?.path === originalPath) {
+      return;
+    }
+
+    const canRestoreOriginal =
+      latestState.openTabs.some((tab) => tab.path === originalPath) ||
+      latestState.noteContentsCache.has(originalPath);
+    if (!canRestoreOriginal) {
+      return;
+    }
+
+    await openStoredNotePath(originalPath, {
+      openNote: latestState.openNote,
+      openNoteByAbsolutePath: latestState.openNoteByAbsolutePath,
+    });
+  };
 
   for (const path of dirtyPaths) {
     const latestState = useNotesStore.getState();
@@ -40,6 +64,7 @@ export async function saveDirtyRegularOpenTabs(): Promise<boolean> {
 
     const focusedState = useNotesStore.getState();
     if (focusedState.currentNote?.path !== path) {
+      await restoreOriginalPath();
       return false;
     }
 
@@ -51,9 +76,11 @@ export async function saveDirtyRegularOpenTabs(): Promise<boolean> {
     );
     const currentStillDirty = afterSaveState.currentNote?.path === path && afterSaveState.isDirty;
     if (tabStillDirty || currentStillDirty) {
+      await restoreOriginalPath();
       return false;
     }
   }
 
+  await restoreOriginalPath();
   return true;
 }
