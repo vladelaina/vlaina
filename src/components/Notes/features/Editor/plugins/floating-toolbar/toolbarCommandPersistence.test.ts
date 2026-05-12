@@ -9,6 +9,7 @@ import {
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { TextSelection } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
 import { normalizeSerializedMarkdownDocument, stripTrailingNewlines } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import { configureTheme } from '../../theme';
@@ -51,6 +52,7 @@ async function createEditor(markdown: string) {
 }
 
 type TestEditor = Awaited<ReturnType<typeof createEditor>>;
+type HandleTextInput = (view: EditorView, from: number, to: number, text: string) => boolean;
 
 function selectText(editor: TestEditor, text: string) {
   const view = editor.ctx.get(editorViewCtx);
@@ -67,12 +69,12 @@ function selectBlockStart(editor: TestEditor) {
   return view;
 }
 
-function typeText(view: ReturnType<TestEditor['ctx']['get']>, input: string) {
+function typeText(view: EditorView, input: string) {
   for (const text of input) {
     const { from, to } = view.state.selection;
     let handled = false;
 
-    view.someProp('handleTextInput', (handleTextInput) => {
+    view.someProp('handleTextInput', (handleTextInput: HandleTextInput) => {
       handled = handleTextInput(view, from, to, text) || handled;
     });
 

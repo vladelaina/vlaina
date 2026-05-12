@@ -1,6 +1,5 @@
 import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { canShowSelectionAiTools } from './aiAvailability';
 import { copySelectionToClipboard, setLink, toggleMark } from './commands';
 import { floatingToolbarKey } from './floatingToolbarKey';
 import { openLinkTooltipFromSelection } from './linkTooltipActions';
@@ -207,10 +206,6 @@ export function createToolbarActionController(
       return true;
     },
     ai: (view) => {
-      if (!canShowSelectionAiTools()) {
-        return false;
-      }
-
       const currentState = getCurrentState();
       return options.onToggleSubMenu?.(view, currentState, 'ai')
         ?? dispatchSubMenuToggle(view, currentState, 'ai');
