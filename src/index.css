@@ -52,6 +52,17 @@ body {
   -webkit-app-region: no-drag;
 }
 
+button:not(:disabled),
+a[href],
+summary,
+[role="button"]:not([aria-disabled="true"]):not([data-disabled]):not([data-disabled="true"]),
+[role="menuitem"]:not([aria-disabled="true"]):not([data-disabled]):not([data-disabled="true"]),
+[role="menuitemcheckbox"]:not([aria-disabled="true"]):not([data-disabled]):not([data-disabled="true"]),
+[role="menuitemradio"]:not([aria-disabled="true"]):not([data-disabled]):not([data-disabled="true"]),
+[role="option"]:not([aria-disabled="true"]):not([data-disabled]):not([data-disabled="true"]) {
+  cursor: pointer;
+}
+
 .vlaina-title-bar-center:hover .notes-tab-row-new-note-button,
 .vlaina-title-bar-center:focus-within .notes-tab-row-new-note-button {
   pointer-events: auto;
