@@ -128,6 +128,64 @@ describe('image markdown persistence', () => {
     await expect(serializeImageAttrs(attrs[0])).resolves.toBe(markdown);
   });
 
+  it('reopens paragraph-wrapped html images as image nodes', async () => {
+    const markdown = [
+      '<p align="center">',
+      '    <img src=\'https://raw.githubusercontent.com/521xueweihan/img_logo/master/logo/cover.jpg\' style="max-width:100%;"></img>',
+      '</p>',
+    ].join('\n');
+
+    const attrs = await parseImageAttrs(markdown);
+    expect(attrs).toMatchObject([
+      {
+        src: 'https://raw.githubusercontent.com/521xueweihan/img_logo/master/logo/cover.jpg',
+        alt: '',
+        title: null,
+        width: '100%',
+        align: 'center',
+      },
+    ]);
+
+    await expect(serializeImageAttrs(attrs[0])).resolves.toBe(
+      '<img src="https://raw.githubusercontent.com/521xueweihan/img_logo/master/logo/cover.jpg" alt="" width="100%" />'
+    );
+  });
+
+  it('reopens common single-image html wrappers as image nodes', async () => {
+    await expect(parseImageAttrs([
+      '<p align="center">',
+      '  <a href="https://example.com">',
+      '    <img src="https://example.com/a.png" alt="linked">',
+      '  </a>',
+      '</p>',
+    ].join('\n'))).resolves.toMatchObject([
+      {
+        src: 'https://example.com/a.png',
+        alt: 'linked',
+        align: 'center',
+      },
+    ]);
+
+    await expect(parseImageAttrs(
+      '<div style="text-align: right"><img src="https://example.com/right.png" style="max-width: 100%" /></div>'
+    )).resolves.toMatchObject([
+      {
+        src: 'https://example.com/right.png',
+        width: '100%',
+        align: 'right',
+      },
+    ]);
+
+    await expect(parseImageAttrs(
+      '<picture><source srcset="./a.webp 1x"><img src="https://example.com/fallback.png" alt="fallback"></picture>'
+    )).resolves.toMatchObject([
+      {
+        src: 'https://example.com/fallback.png',
+        alt: 'fallback',
+      },
+    ]);
+  });
+
   it('drops unsafe image sources during markdown serialization', async () => {
     await expect(serializeImageAttrs({
       src: 'javascript:alert(1)',

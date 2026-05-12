@@ -8,10 +8,115 @@ import {
     tableCellSchema,
     tableHeaderSchema,
 } from '@milkdown/kit/preset/gfm';
-import { decodeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
 import { sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 import { normalizeImageWidth } from './plugins/image-block/utils/imageSourceFragment';
 import { escapeHtmlAttr, getDomAttrs, updateSchemaFactory } from './themeSchemaUtils';
+
+interface MarkdownHtmlImageAttrs {
+    src: string;
+    alt: string;
+    title: string | null;
+    align: string;
+    width: string | null;
+    wrapInParagraph: boolean;
+}
+
+const markdownHtmlImageWrapperTags = new Set(['a', 'center', 'div', 'figure', 'p', 'picture', 'span']);
+
+function getSignificantChildren(parent: ParentNode): ChildNode[] {
+    return Array.from(parent.childNodes).filter((child) => {
+        if (child.nodeType === Node.TEXT_NODE) return (child.textContent ?? '').trim() !== '';
+        return child.nodeType === Node.ELEMENT_NODE;
+    });
+}
+
+function getOnlyElementChild(parent: ParentNode): Element | null {
+    const children = getSignificantChildren(parent);
+    return children.length === 1 && children[0].nodeType === Node.ELEMENT_NODE
+        ? children[0] as Element
+        : null;
+}
+
+function getOnlyPictureImage(element: Element): HTMLImageElement | null {
+    const children = Array.from(element.childNodes).filter((child) => {
+        if (child.nodeType === Node.TEXT_NODE) return (child.textContent ?? '').trim() !== '';
+        if (child.nodeType !== Node.ELEMENT_NODE) return false;
+        return (child as Element).tagName.toLowerCase() !== 'source';
+    });
+
+    if (children.length !== 1 || children[0].nodeType !== Node.ELEMENT_NODE) return null;
+    const image = children[0] as Element;
+    return image.tagName.toLowerCase() === 'img' ? image as HTMLImageElement : null;
+}
+
+function getHtmlTextAlign(element: Element): string | null {
+    const align = element.getAttribute('align');
+    if (align) return align;
+    const styleAlign = (element as HTMLElement).style?.textAlign;
+    return styleAlign || null;
+}
+
+function getImageWidth(image: HTMLImageElement): string | null {
+    return normalizeImageWidth(
+        image.getAttribute('width') ||
+        image.style?.width ||
+        image.style?.maxWidth
+    );
+}
+
+function findSingleMarkdownHtmlImage(
+    element: Element,
+    context: { align: string | null; wrapInParagraph: boolean } = { align: null, wrapInParagraph: false }
+): { image: HTMLImageElement; parentAlign: string | null; wrapInParagraph: boolean } | null {
+    const tagName = element.tagName.toLowerCase();
+    if (tagName === 'img') {
+        return {
+            image: element as HTMLImageElement,
+            parentAlign: context.align,
+            wrapInParagraph: context.wrapInParagraph,
+        };
+    }
+
+    if (!markdownHtmlImageWrapperTags.has(tagName)) return null;
+
+    const nextContext = {
+        align: getHtmlTextAlign(element) || context.align,
+        wrapInParagraph: context.wrapInParagraph || tagName !== 'a',
+    };
+
+    const child = tagName === 'picture'
+        ? getOnlyPictureImage(element)
+        : getOnlyElementChild(element);
+    if (!child) return null;
+
+    return findSingleMarkdownHtmlImage(child, nextContext);
+}
+
+function getMarkdownHtmlImageElement(value: string): { image: HTMLImageElement; parentAlign: string | null; wrapInParagraph: boolean } | null {
+    const template = document.createElement('template');
+    template.innerHTML = value.trim();
+
+    const rootElement = getOnlyElementChild(template.content);
+    if (!rootElement) return null;
+    return findSingleMarkdownHtmlImage(rootElement);
+}
+
+function getMarkdownHtmlImageAttrs(value: string): MarkdownHtmlImageAttrs | null {
+    const result = getMarkdownHtmlImageElement(value);
+    if (!result) return null;
+
+    const safeSrc = sanitizeNoteMediaSrc(result.image.getAttribute('src'));
+    if (!safeSrc) return null;
+
+    return {
+        src: safeSrc,
+        alt: result.image.getAttribute('alt') ?? '',
+        title: result.image.getAttribute('title'),
+        width: getImageWidth(result.image),
+        align: result.image.getAttribute('align') || result.parentAlign || 'center',
+        wrapInParagraph: result.wrapInParagraph,
+    };
+}
 
 export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
     updateSchemaFactory(ctx, orderedListSchema.key, (prev: any) => ({
@@ -104,30 +209,19 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
         ],
         parseMarkdown: {
             match: (node: any) => {
-                if (node.type === 'html' && typeof node.value === 'string') {
-                    return node.value.trim().startsWith('<img');
-                }
+                if (node.type === 'html' && typeof node.value === 'string')
+                    return getMarkdownHtmlImageElement(node.value) !== null;
                 return node.type === 'image';
             },
             runner: (state: any, node: any, type: any) => {
                 if (node.type === 'html') {
-                    const html = node.value as string;
-                    const srcMatch = html.match(/src=["']([^"']+)["']/);
-                    const altMatch = html.match(/alt=["']([^"']*)["']/);
-                    const widthMatch = html.match(/width=["']([^"']+)["']/);
-                    const alignMatch = html.match(/align=["']([^"']+)["']/);
-                    const titleMatch = html.match(/title=["']([^"']+)["']/);
-
-                    if (srcMatch) {
-                        const safeSrc = sanitizeNoteMediaSrc(decodeMarkdownHtmlText(srcMatch[1]));
-                        if (!safeSrc) return;
-                        state.addNode(type, {
-                            src: safeSrc,
-                            alt: altMatch ? decodeMarkdownHtmlText(altMatch[1]) : '',
-                            title: titleMatch ? decodeMarkdownHtmlText(titleMatch[1]) : null,
-                            width: widthMatch ? normalizeImageWidth(widthMatch[1]) : null,
-                            align: alignMatch ? alignMatch[1] : 'center',
-                        });
+                    const attrs = getMarkdownHtmlImageAttrs(node.value as string);
+                    if (attrs) {
+                        const { wrapInParagraph, ...imageAttrs } = attrs;
+                        const shouldWrapInParagraph = wrapInParagraph && state.top()?.type?.name !== 'paragraph';
+                        if (shouldWrapInParagraph) state.openNode(state.schema.nodes.paragraph);
+                        state.addNode(type, imageAttrs);
+                        if (shouldWrapInParagraph) state.closeNode();
                     }
                     return;
                 }
