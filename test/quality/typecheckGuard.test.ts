@@ -2,6 +2,10 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+function normalizePathForSnapshot(path: string) {
+  return path.replace(/\\/g, '/');
+}
+
 function readText(path: string) {
   return readFileSync(path, 'utf8');
 }
@@ -27,7 +31,7 @@ function findStorageWriteSites(): string[] {
       const source = readText(path);
       return [...source.matchAll(storageWritePattern)].map((match) => {
         const expression = source.slice(match.index, source.indexOf('\n', match.index)).trim();
-        return `${path}:${expression}`;
+        return `${normalizePathForSnapshot(path)}:${expression}`;
       });
     })
     .sort();

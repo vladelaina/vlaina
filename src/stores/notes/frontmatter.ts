@@ -12,6 +12,7 @@ const KEY_COVER_SCALE = `${VLAINA_PREFIX}cover_scale`;
 const KEY_ICON = `${VLAINA_PREFIX}icon`;
 const KEY_CREATED = `${VLAINA_PREFIX}created`;
 const KEY_UPDATED = `${VLAINA_PREFIX}updated`;
+const FRONTMATTER_TIMESTAMP_OFFSET_MINUTES = 8 * 60;
 
 const MANAGED_KEYS = new Set([
   KEY_COVER,
@@ -121,16 +122,16 @@ function padDatePart(value: number): string {
 }
 
 export function formatNoteFrontmatterTimestamp(timestamp: number): string {
-  const date = new Date(timestamp);
-  const timezoneOffsetMinutes = -date.getTimezoneOffset();
-  const offsetSign = timezoneOffsetMinutes >= 0 ? '+' : '-';
-  const absoluteOffsetMinutes = Math.abs(timezoneOffsetMinutes);
+  const date = new Date(timestamp + FRONTMATTER_TIMESTAMP_OFFSET_MINUTES * 60 * 1000);
+  const timezoneOffsetMinutes = FRONTMATTER_TIMESTAMP_OFFSET_MINUTES;
+  const offsetSign = '+';
+  const absoluteOffsetMinutes = timezoneOffsetMinutes;
   const offsetHours = Math.floor(absoluteOffsetMinutes / 60);
   const offsetMinutes = absoluteOffsetMinutes % 60;
 
   return [
-    `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`,
-    `${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}:${padDatePart(date.getSeconds())}`,
+    `${date.getUTCFullYear()}-${padDatePart(date.getUTCMonth() + 1)}-${padDatePart(date.getUTCDate())}`,
+    `${padDatePart(date.getUTCHours())}:${padDatePart(date.getUTCMinutes())}:${padDatePart(date.getUTCSeconds())}`,
     `${offsetSign}${padDatePart(offsetHours)}:${padDatePart(offsetMinutes)}`,
   ].join(' ');
 }
