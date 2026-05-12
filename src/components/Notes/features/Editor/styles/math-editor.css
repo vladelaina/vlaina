@@ -90,6 +90,25 @@
   min-width: max-content;
 }
 
+.milkdown .ProseMirror .vlaina-block-selected :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  .mermaid-block
+),
+.milkdown .ProseMirror .vlaina-block-selected-contained:is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  .mermaid-block
+),
+.milkdown .ProseMirror li :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  .mermaid-block
+).vlaina-block-selected {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 .math-editor-popup {
   z-index: 80;
 }

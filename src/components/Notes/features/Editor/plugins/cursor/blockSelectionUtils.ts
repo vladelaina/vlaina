@@ -4,6 +4,7 @@ import {
   formatDebugBlockRanges,
   logBlockSelectionDebug,
 } from './blockSelectionDebugLog';
+import { COMPLEX_LIST_ITEM_CHILD_NODE_NAMES } from '../shared/blockNodeTypes';
 
 export interface RectBounds {
   left: number;
@@ -228,13 +229,65 @@ export function getDisplayBlockRangesForDecorations(
   return result;
 }
 
+interface ContainedListChildSelection {
+  itemFrom: number;
+  itemTo: number;
+}
+
+function resolveContainedListChildSelection(
+  doc: EditorState['doc'],
+  range: BlockRange,
+): ContainedListChildSelection | null {
+  const safeFrom = Math.max(0, Math.min(range.from, doc.content.size));
+
+  try {
+    const $from = doc.resolve(safeFrom);
+    const nodeAfter = $from.nodeAfter;
+    if (!nodeAfter || !COMPLEX_LIST_ITEM_CHILD_NODE_NAMES.has(nodeAfter.type.name)) {
+      return null;
+    }
+
+    for (let depth = $from.depth; depth >= 0; depth -= 1) {
+      const node = $from.node(depth);
+      if (node.type.name !== 'list_item') continue;
+
+      const itemFrom = $from.before(depth);
+      return {
+        itemFrom,
+        itemTo: itemFrom + node.nodeSize,
+      };
+    }
+  } catch {
+  }
+
+  return null;
+}
+
+export function getBlockSelectionDecorationClass(
+  doc: EditorState['doc'],
+  range: BlockRange,
+  displayRanges: readonly BlockRange[],
+): string {
+  const containedSelection = resolveContainedListChildSelection(doc, range);
+  if (!containedSelection) return 'vlaina-block-selected';
+
+  const hasSelectedContainer = displayRanges.some((candidate) => (
+    candidate.from === containedSelection.itemFrom
+    && candidate.to === containedSelection.itemTo
+  ));
+
+  return hasSelectedContainer
+    ? 'vlaina-block-selected vlaina-block-selected-contained'
+    : 'vlaina-block-selected';
+}
+
 export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks: readonly BlockRange[]): DecorationSet {
   if (blocks.length === 0) return DecorationSet.empty;
 
   const displayRanges = getDisplayBlockRangesForDecorations(doc, blocks);
 
   const decorations = displayRanges.map((range) => Decoration.node(range.from, range.to, {
-    class: 'vlaina-block-selected',
+    class: getBlockSelectionDecorationClass(doc, range, displayRanges),
   }));
 
   return DecorationSet.create(doc, decorations);

@@ -13,6 +13,7 @@
 .milkdown .frontmatter-block-container .cm-lineNumbers,
 .milkdown .frontmatter-block-container .cm-gutter-filler {
   background: transparent !important;
+  transition: none !important;
 }
 
 .milkdown .frontmatter-block-container .frontmatter-block-editor {

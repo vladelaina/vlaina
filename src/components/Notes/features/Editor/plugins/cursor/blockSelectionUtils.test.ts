@@ -7,6 +7,7 @@ import {
   convertBlockRectsToDocumentSpace,
   convertViewportDragRectToDocumentRect,
   createDragSelectionRect,
+  getBlockSelectionDecorationClass,
   getDisplayBlockRangesForDecorations,
   getBlockRangesKey,
   isRectIntersecting,
@@ -337,5 +338,39 @@ describe('blockSelectionUtils', () => {
     const docB = makeDoc({ nodeAfter: codeBlockNode });
     const rangesB = getDisplayBlockRangesForDecorations(docB, [{ from: 6, to: 12 }]);
     expect(rangesB).toEqual([{ from: 6, to: 12 }]);
+  });
+
+  it('marks complex list children as contained only when their list item is also selected', () => {
+    const listItemNode = { type: { name: 'list_item' }, nodeSize: 12 };
+    const codeBlockNode = { type: { name: 'code_block' }, nodeSize: 6 };
+
+    const doc = {
+      content: { size: 14 },
+      resolve(_pos: number) {
+        return {
+          depth: 2,
+          nodeAfter: codeBlockNode,
+          node(depth: number) {
+            return depth === 1 ? listItemNode : { type: { name: 'doc' }, nodeSize: 14 };
+          },
+          before(depth: number) {
+            return depth === 1 ? 1 : 0;
+          },
+        };
+      },
+    } as any;
+
+    expect(
+      getBlockSelectionDecorationClass(doc, { from: 6, to: 12 }, [
+        { from: 1, to: 13 },
+        { from: 6, to: 12 },
+      ]),
+    ).toBe('vlaina-block-selected vlaina-block-selected-contained');
+
+    expect(
+      getBlockSelectionDecorationClass(doc, { from: 6, to: 12 }, [
+        { from: 6, to: 12 },
+      ]),
+    ).toBe('vlaina-block-selected');
   });
 });
