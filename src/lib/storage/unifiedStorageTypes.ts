@@ -24,6 +24,7 @@ export interface UnifiedData {
     };
   };
   customIcons?: CustomIcon[];
+  deletedCustomIconIds?: string[];
   ai?: {
     providers: Provider[];
     models: AIModel[];
@@ -59,5 +60,6 @@ export function createDefaultUnifiedData(): UnifiedData {
       },
     },
     customIcons: [],
+    deletedCustomIconIds: [],
   };
 }

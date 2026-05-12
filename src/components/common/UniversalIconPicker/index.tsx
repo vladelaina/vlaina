@@ -3,6 +3,7 @@ import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { PremiumSlider } from '@/components/ui/premium-slider';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { isInsideMenuLayer } from '@/components/layout/sidebar/context-menu/shared';
 import { EmojiTab } from './EmojiTab';
 import { UploadTab, type CustomIcon } from './UploadTab';
 import {
@@ -30,7 +31,7 @@ export interface UniversalIconPickerProps {
   onSizeConfirm?: (size: number) => void;
   customIcons?: CustomIcon[];
   onUploadFile?: (file: File) => Promise<{ success: boolean; url?: string; error?: string }>;
-  onDeleteCustomIcon?: (id: string) => void;
+  onDeleteCustomIcon?: (id: string) => void | Promise<void>;
   onSkinToneChange?: (tone: number) => void;
   onPreviewSkinTone?: (tone: number | null) => void;
   embedded?: boolean;
@@ -157,6 +158,7 @@ export function UniversalIconPicker({
     const onClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (target.closest('[data-prevent-picker-close]')) return;
+      if (isInsideMenuLayer(target)) return;
       if (containerRef.current && !containerRef.current.contains(target as Node)) {
         onPreviewRef.current?.(null);
         handleClose();
