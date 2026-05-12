@@ -1,7 +1,6 @@
 import type { BlockType, FloatingToolbarState, TextAlignment } from './types';
 import type { ToolbarButtonConfig, ToolbarGroupKey, ToolbarLayout } from './toolbarConfig';
 import { EXTRA_BUTTONS, FORMAT_BUTTONS, TOOLBAR_LAYOUTS } from './toolbarConfig';
-import { canShowSelectionAiTools } from './aiAvailability';
 import { getBlockTypeIconMarkup } from './components/BlockDropdown';
 import { EDITOR_ICONS } from '@/components/ui/icons/editor-svgs';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
@@ -166,9 +165,6 @@ function renderCopyDeleteGroup(state: FloatingToolbarState): string {
 function renderToolbarGroup(group: ToolbarGroupKey, state: FloatingToolbarState): string {
   switch (group) {
     case 'ai':
-      if (!canShowSelectionAiTools()) {
-        return '';
-      }
       return `<div class="toolbar-group toolbar-ai-group">${renderAiButton()}</div>`;
     case 'block':
       return `<div class="toolbar-group toolbar-block-group">${renderBlockButton(state)}</div>`;
