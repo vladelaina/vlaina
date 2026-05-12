@@ -157,6 +157,8 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('vertical-align: super;');
     expect(css).toContain('font-size: 0.68em;');
     expect(css).toContain('cursor: pointer;');
+    expect(css).toContain('user-select: none;');
+    expect(css).toContain('-webkit-user-select: none;');
     expect(css).toContain('.milkdown .footnote-ref-label {');
     expect(css).toContain('var(--crepe-color-inline-area, var(--vlaina-code-block-background, #f5f5f5))');
     expect(css).toContain('color: var(--sidebar-row-selected-text, var(--vlaina-accent));');
@@ -169,6 +171,9 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('.milkdown .footnote-ref:hover::after,');
     expect(css).toContain('.milkdown .footnote-ref:focus-within::after {');
     expect(css).toContain('visibility: visible;');
+    expect(css).toContain('.milkdown .footnote-def-label {');
+    expect(css).toContain('user-select: none;');
+    expect(css).toContain('-webkit-user-select: none;');
   });
 
   it('keeps block drag previews transparent and lightens preview text', () => {

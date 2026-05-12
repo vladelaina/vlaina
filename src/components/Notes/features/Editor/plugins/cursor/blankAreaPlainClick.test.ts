@@ -118,6 +118,43 @@ describe('resolveInsideBlockTrailingPlainClickAction', () => {
     });
   });
 
+  it('focuses a paragraph end when clicking trailing blank space after its inline content', () => {
+    expect(
+      resolveInsideBlockTrailingPlainClickAction({
+        blockRects: [
+          {
+            from: 0,
+            to: 8,
+            left: 40,
+            right: 620,
+            contentLeft: 96,
+            contentRight: 180,
+            top: 80,
+            bottom: 104,
+            allowInsideTrailingClick: true,
+          },
+          {
+            from: 8,
+            to: 16,
+            left: 40,
+            right: 620,
+            contentLeft: 96,
+            contentRight: 220,
+            top: 116,
+            bottom: 140,
+            allowInsideTrailingClick: true,
+          },
+        ],
+        clientX: 320,
+        clientY: 92,
+      })
+    ).toEqual({
+      targetPos: 7,
+      bias: -1,
+      blockFrom: 0,
+    });
+  });
+
   it('leaves normal text clicks to the editor native handler', () => {
     expect(
       resolveInsideBlockTrailingPlainClickAction({

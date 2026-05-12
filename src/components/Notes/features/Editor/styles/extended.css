@@ -52,6 +52,8 @@
   line-height: 1;
   font-size: 0.68em;
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .milkdown .footnote-ref-label {
@@ -68,6 +70,8 @@
   font-size: 87.5%;
   line-height: 1.4286;
   text-decoration: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .milkdown .footnote-ref-label:hover {
@@ -125,6 +129,8 @@
   color: var(--vlaina-accent);
   font-weight: 600;
   flex-shrink: 0;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .milkdown .footnote-def-content {

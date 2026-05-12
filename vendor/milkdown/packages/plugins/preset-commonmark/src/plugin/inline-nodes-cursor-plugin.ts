@@ -4,6 +4,21 @@ import { $prose } from '@milkdown/utils'
 
 import { withMeta } from '../__internal__'
 
+function shouldShowInlineNodeCursor(pos: { parentOffset: number; parent: { content: { size: number } }; nodeBefore: any; nodeAfter: any }) {
+  const left = pos.nodeBefore
+  const right = pos.nodeAfter
+  if (!left?.isInline || left.isText) return false
+
+  if (
+    right &&
+    right.isInline &&
+    !right.isText
+  )
+    return true
+
+  return !right && pos.parentOffset === pos.parent.content.size
+}
+
 /// This plugin is to solve the [chrome 98 bug](https://discuss.prosemirror.net/t/cursor-jumps-at-the-end-of-line-when-it-betweens-two-inline-nodes/4641).
 export const inlineNodesCursorPlugin = $prose(() => {
   let lock = false
@@ -20,19 +35,7 @@ export const inlineNodesCursorPlugin = $prose(() => {
         if (!tr.selection.empty) return false
 
         const pos = tr.selection.$from
-        const left = pos.nodeBefore
-        const right = pos.nodeAfter
-        if (
-          left &&
-          right &&
-          left.isInline &&
-          !left.isText &&
-          right.isInline &&
-          !right.isText
-        )
-          return true
-
-        return false
+        return shouldShowInlineNodeCursor(pos)
       },
     },
     props: {

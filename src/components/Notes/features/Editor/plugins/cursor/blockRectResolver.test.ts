@@ -293,6 +293,91 @@ describe('createBlockRectResolver', () => {
       document.createRange = originalCreateRange;
     }
   });
+
+  it('includes footnote reference chips in paragraph trailing click bounds', () => {
+    const dom = document.createElement('div');
+    const paragraph = document.createElement('p');
+    const text = document.createTextNode('Text');
+    const footnote = document.createElement('sup');
+    const footnoteLabel = document.createElement('span');
+    footnote.className = 'footnote-ref';
+    footnote.setAttribute('contenteditable', 'false');
+    footnoteLabel.className = 'footnote-ref-label';
+    footnoteLabel.setAttribute('contenteditable', 'false');
+    footnoteLabel.textContent = '[1]';
+    footnote.append(footnoteLabel);
+    paragraph.append(text, footnote);
+    dom.append(paragraph);
+
+    withRect(dom, { left: 20, top: 10, width: 600, height: 300 });
+    withRect(paragraph, { left: 60, top: 40, width: 120, height: 24 });
+
+    const doc = createDoc([createNode('paragraph', 4)]);
+    const originalCreateRange = document.createRange;
+    let selectedNode: Node | null = null;
+    document.createRange = () => ({
+      selectNodeContents: (node: Node) => {
+        selectedNode = node;
+      },
+      getClientRects: () => {
+        if (selectedNode === text) {
+          return [{
+            x: 60,
+            y: 44,
+            left: 60,
+            top: 44,
+            width: 36,
+            height: 16,
+            right: 96,
+            bottom: 60,
+            toJSON: () => ({}),
+          }];
+        }
+        return [{
+          x: 100,
+          y: 36,
+          left: 100,
+          top: 36,
+          width: 28,
+          height: 12,
+          right: 128,
+          bottom: 48,
+          toJSON: () => ({}),
+        }];
+      },
+      detach: () => undefined,
+    }) as any;
+
+    try {
+      const view = {
+        dom,
+        state: { doc },
+        nodeDOM: () => paragraph,
+        domAtPos: () => ({ node: text }),
+      };
+
+      const resolver = createBlockRectResolver({
+        view: view as any,
+        scrollRootSelector: '[data-note-scroll-root="true"]',
+      });
+
+      expect(resolver.getTopLevelBlockRects()).toEqual([
+        {
+          from: 0,
+          to: 4,
+          left: 20,
+          top: 40,
+          right: 620,
+          bottom: 64,
+          contentLeft: 60,
+          contentRight: 128,
+          allowInsideTrailingClick: true,
+        },
+      ]);
+    } finally {
+      document.createRange = originalCreateRange;
+    }
+  });
 });
 
 describe('resolveTypewriterScrollTop', () => {

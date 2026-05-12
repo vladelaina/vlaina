@@ -22,6 +22,28 @@ function findFootnoteDefinition(editorDom: HTMLElement, id: string): HTMLElement
   return null;
 }
 
+function getFootnoteDefinitionPreview(definition: HTMLElement): string {
+  const content = definition.querySelector('.footnote-def-content');
+  const text = (content?.textContent ?? definition.textContent ?? '').replace(/\s+/g, ' ').trim();
+  const label = definition.dataset.id || definition.dataset.label || '';
+  const labelPrefix = label ? `[${label}]:` : '';
+  return labelPrefix && text.startsWith(labelPrefix)
+    ? text.slice(labelPrefix.length).trim()
+    : text;
+}
+
+function syncFootnoteReferencePreviews(editorDom: HTMLElement): void {
+  const refs = editorDom.querySelectorAll<HTMLElement>('.footnote-ref[data-id], .footnote-ref[data-label]');
+  refs.forEach((ref) => {
+    const id = ref.dataset.id || ref.dataset.label;
+    if (!id) return;
+
+    const definition = findFootnoteDefinition(editorDom, id);
+    const preview = definition ? getFootnoteDefinitionPreview(definition) : '';
+    ref.dataset.footnoteValue = preview || `[${id}]`;
+  });
+}
+
 function findFootnoteDefinitionDepth(view: EditorView): number | null {
   const { selection } = view.state;
   const { $from } = selection;
@@ -32,6 +54,42 @@ function findFootnoteDefinitionDepth(view: EditorView): number | null {
     }
   }
   return null;
+}
+
+function isFootnoteReferenceNodeName(nodeName: string): boolean {
+  return nodeName === 'footnote_reference' || nodeName === 'footnote_ref';
+}
+
+export function handleFootnoteArrowNavigation(view: EditorView, event: KeyboardEvent): boolean {
+  if (
+    (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')
+    || event.metaKey
+    || event.ctrlKey
+    || event.altKey
+    || event.shiftKey
+    || event.isComposing
+    || !view.state.selection.empty
+  ) {
+    return false;
+  }
+
+  const { $from } = view.state.selection;
+  const adjacentNode = event.key === 'ArrowRight' ? $from.nodeAfter : $from.nodeBefore;
+  if (!adjacentNode || !isFootnoteReferenceNodeName(adjacentNode.type.name)) {
+    return false;
+  }
+
+  const nextPos = event.key === 'ArrowRight'
+    ? $from.pos + adjacentNode.nodeSize
+    : $from.pos - adjacentNode.nodeSize;
+
+  event.preventDefault();
+  view.dispatch(
+    view.state.tr
+      .setSelection(TextSelection.create(view.state.doc, nextPos))
+      .scrollIntoView()
+  );
+  return true;
 }
 
 export function handleFootnoteModEnterExit(view: EditorView): boolean {
@@ -59,8 +117,20 @@ export function handleFootnoteModEnterExit(view: EditorView): boolean {
 export const footnoteInteractionPlugin = $prose(() => {
   return new Plugin({
     key: footnoteInteractionPluginKey,
+    view(view) {
+      syncFootnoteReferencePreviews(view.dom);
+      return {
+        update(nextView) {
+          syncFootnoteReferencePreviews(nextView.dom);
+        },
+      };
+    },
     props: {
       handleKeyDown(view, event) {
+        if (handleFootnoteArrowNavigation(view, event)) {
+          return true;
+        }
+
         if (event.key !== 'Enter' || (!event.ctrlKey && !event.metaKey) || event.altKey || event.shiftKey || event.isComposing) {
           return false;
         }
@@ -115,9 +185,10 @@ export const footnoteRefSchema = $node('footnote_ref', () => ({
         class: 'footnote-ref',
         'data-id': attrs.id,
         'data-footnote-value': label,
-        'aria-label': `Footnote ${attrs.id}`
+        'aria-label': `Footnote ${attrs.id}`,
+        contenteditable: 'false'
       },
-      ['span', { class: 'footnote-ref-label' }, label]
+      ['span', { class: 'footnote-ref-label', contenteditable: 'false' }, label]
     ];
   },
   parseMarkdown: {

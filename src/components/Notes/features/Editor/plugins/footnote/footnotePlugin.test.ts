@@ -7,6 +7,7 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import {
   footnotePlugin,
+  handleFootnoteArrowNavigation,
   handleFootnoteModEnterExit,
   serializeFootnoteDefinitionToMarkdown,
 } from './footnotePlugin';
@@ -82,11 +83,50 @@ describe('footnote reference markup', () => {
 
     expect(reference?.getAttribute('data-type')).toBe('footnote_reference');
     expect(reference?.getAttribute('data-footnote-value')).toBe('[1]');
+    expect(reference?.getAttribute('contenteditable')).toBe('false');
     expect(reference?.querySelector('a')).toBeNull();
     expect(reference?.querySelector('.footnote-ref-label')?.textContent).toBe('[1]');
+    expect(reference?.querySelector('.footnote-ref-label')?.getAttribute('contenteditable')).toBe('false');
     expect(reference?.getAttribute('title')).toBeNull();
     expect(definition?.getAttribute('data-type')).toBe('footnote_definition');
     expect(definition?.querySelector('.footnote-def-label')?.textContent).toBe('[1]:');
+    expect(definition?.querySelector('.footnote-def-label')?.getAttribute('contenteditable')).toBe('false');
+
+    await editor.destroy();
+  });
+
+  it('moves across GFM footnote references as a single inline unit with arrow keys', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, ['A[^1]B', '', '[^1]: Footnote body'].join('\n'));
+      })
+      .use(commonmark)
+      .use(gfm)
+      .use(configureTheme)
+      .use(footnotePlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    let footnoteFrom: number | null = null;
+
+    view.state.doc.child(0).descendants((node, pos) => {
+      if (node.type.name === 'footnote_reference') {
+        footnoteFrom = 1 + pos;
+      }
+    });
+
+    expect(footnoteFrom).toBeTypeOf('number');
+
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, footnoteFrom!)));
+    const rightEvent = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+    expect(handleFootnoteArrowNavigation(view, rightEvent)).toBe(true);
+    expect(rightEvent.defaultPrevented).toBe(true);
+    expect(view.state.selection.from).toBe(footnoteFrom! + 1);
+
+    const leftEvent = new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true });
+    expect(handleFootnoteArrowNavigation(view, leftEvent)).toBe(true);
+    expect(leftEvent.defaultPrevented).toBe(true);
+    expect(view.state.selection.from).toBe(footnoteFrom);
 
     await editor.destroy();
   });
@@ -160,6 +200,25 @@ describe('footnote reference markup', () => {
       await editor.destroy();
       HTMLElement.prototype.scrollIntoView = previousScrollIntoView;
     }
+  });
+
+  it('shows the footnote definition content in the hover capsule', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, ['Text[^note2].', '', '[^note2]: Footnote body with detail'].join('\n'));
+      })
+      .use(commonmark)
+      .use(gfm)
+      .use(configureTheme)
+      .use(footnotePlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const reference = view.dom.querySelector('sup.footnote-ref');
+
+    expect(reference?.getAttribute('data-footnote-value')).toBe('Footnote body with detail');
+
+    await editor.destroy();
   });
 
   it('moves the cursor out of a footnote definition on Ctrl+Enter from its content', async () => {
