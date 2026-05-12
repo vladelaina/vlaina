@@ -2,6 +2,7 @@ import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { PremiumSlider } from '@/components/ui/premium-slider';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 interface CropperControlsProps {
     zoom: number;
@@ -29,7 +30,8 @@ export const CropperControls = ({
     return (
         <div
             className={cn(
-                "absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 px-3 py-1.5 bg-white dark:bg-[#1e1e1e] border border-black/5 dark:border-white/10 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] z-[60]",
+                "absolute bottom-4 left-1/2 -translate-x-1/2 floating-toolbar-inner image-cropper-toolbar !rounded-[26px] z-[60]",
+                chatComposerPillSurfaceClass,
                 "transition-all duration-200 origin-bottom",
                 isActive ? "opacity-100 scale-100 translate-y-0" : "opacity-0 scale-95 translate-y-2 pointer-events-none"
             )}
@@ -51,11 +53,11 @@ export const CropperControls = ({
                     className="w-full"
                 />
             </div>
-            <div className="h-[18px] w-px bg-gray-200 dark:bg-zinc-700" />
+            <div className="toolbar-divider" />
             <div className="flex items-center gap-1">
                 <button
                     onClick={onCancel}
-                    className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 text-zinc-500 dark:text-zinc-400 transition-colors"
+                    className="toolbar-btn image-toolbar-btn"
                     title={t('common.cancel')}
                     aria-label={t('common.cancel')}
                 >
@@ -64,7 +66,7 @@ export const CropperControls = ({
                 <button
                     onClick={onSave}
                     disabled={isSaving}
-                    className="p-1 rounded-lg bg-[var(--vlaina-accent)] hover:bg-[var(--vlaina-accent-hover)] text-white shadow-sm transition-all active:scale-95 disabled:opacity-50"
+                    className="toolbar-btn image-toolbar-btn active disabled:opacity-50 disabled:cursor-default"
                     title={t('common.saveChanges')}
                     aria-label={t('common.saveChanges')}
                 >

@@ -201,6 +201,77 @@
   transform: translateY(0) scale(0.98);
 }
 
+.link-tooltip-viewer {
+  gap: 0.5rem;
+  min-height: 36px;
+  padding: 0 0.375rem;
+}
+
+.link-tooltip-editor {
+  align-items: flex-end;
+  gap: 0.25rem;
+  min-height: 36px;
+  padding: 0.375rem 0.5rem 0.375rem 0.375rem;
+}
+
+.link-tooltip-open-btn {
+  justify-content: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+  height: 24px;
+  padding: 2px 0.625rem 2px 0.5rem;
+}
+
+.link-tooltip-action-btn {
+  min-width: 24px;
+  width: 24px;
+  height: 24px;
+  padding: 2px;
+}
+
+.image-toolbar,
+.image-caption-toolbar,
+.image-cropper-toolbar {
+  min-height: 36px;
+  padding: 0 0.375rem;
+}
+
+.image-toolbar {
+  gap: 0.5rem;
+}
+
+.image-caption-toolbar {
+  gap: 0.25rem;
+}
+
+.image-cropper-toolbar {
+  gap: 0.75rem;
+  padding-inline: 0.75rem 0.375rem;
+}
+
+.image-toolbar-btn {
+  min-width: 24px;
+  width: 24px;
+  height: 24px;
+  padding: 2px;
+}
+
+.image-caption-btn {
+  justify-content: flex-start;
+  gap: 0.375rem;
+  min-width: 0;
+  max-width: min(280px, calc(100vw - 48px));
+  height: 24px;
+  padding: 2px 0.625rem;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.image-caption-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
 /* Toolbar button tooltip */
 .toolbar-tooltip {
   position: fixed;

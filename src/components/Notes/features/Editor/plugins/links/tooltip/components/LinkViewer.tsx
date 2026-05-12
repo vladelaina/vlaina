@@ -1,6 +1,7 @@
 import { Icon } from '@/components/ui/icons';
-import { IconButton } from '@/components/ui/icon-button';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
+import { cn } from '@/lib/utils';
 import {
     Tooltip,
     TooltipContent,
@@ -34,9 +35,14 @@ export const LinkViewer = ({
         await openExternalHref(href);
     };
 
+    const actionButtonClass = 'toolbar-btn link-tooltip-action-btn';
+
     return (
         <div
-            className="flex items-center bg-white dark:bg-[#1e1e1e] border border-black/5 dark:border-white/10 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-1.5 gap-1 animate-in fade-in duration-100"
+            className={cn(
+                'floating-toolbar-inner link-tooltip-viewer !rounded-[26px] animate-in fade-in duration-100',
+                chatComposerPillSurfaceClass
+            )}
             onMouseDown={(e) => e.stopPropagation()}
         >
             <TooltipProvider>
@@ -44,12 +50,12 @@ export const LinkViewer = ({
                     <TooltipTrigger asChild>
                         <button
                             onClick={handleOpen}
-                            className="group flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-lg transition-colors max-w-[200px]"
+                            className="toolbar-btn link-tooltip-open-btn group max-w-[200px]"
                         >
-                            <div className="flex items-center justify-center size-5 rounded text-gray-400 group-hover:text-blue-500 transition-colors">
+                            <span className="flex items-center justify-center size-5 rounded text-[var(--vlaina-text-tertiary)] group-hover:text-[var(--vlaina-accent)] transition-colors">
                                 <Icon size="md" name="nav.external" />
-                            </div>
-                            <span className="truncate text-[13px] font-medium text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-100 transition-colors">
+                            </span>
+                            <span className="truncate text-[13px] font-medium text-[var(--vlaina-text-tertiary)] group-hover:text-[var(--vlaina-text-primary)] transition-colors">
                                 {displayUrl}
                             </span>
                         </button>
@@ -60,35 +66,35 @@ export const LinkViewer = ({
                 </Tooltip>
             </TooltipProvider>
 
-            <div className="w-[1px] h-[18px] bg-gray-200 dark:bg-zinc-700 mx-1" />
+            <div className="toolbar-divider" />
 
             <div className="flex items-center gap-0.5">
-                <IconButton
-                    onClick={onCopy}
-                    icon={showCopied ? <Icon size="md" name="common.check" className=" text-green-500 scale-110" /> : <Icon name="common.copy" />}
-                />
+                <button onClick={onCopy} className={actionButtonClass}>
+                    {showCopied
+                        ? <Icon size="md" name="common.check" className="text-[var(--vlaina-accent)] scale-110" />
+                        : <Icon size="md" name="common.copy" />}
+                </button>
 
-                <IconButton
-                    onClick={onEdit}
-                    icon={<Icon size="md" name="common.compose" />}
-                />
+                <button onClick={onEdit} className={actionButtonClass}>
+                    <Icon size="md" name="common.compose" />
+                </button>
             </div>
 
-            <div className="w-[1px] h-[18px] bg-gray-200 dark:bg-zinc-700 mx-1" />
+            <div className="toolbar-divider" />
 
             <div className="flex items-center gap-0.5">
                 {!isAutolink && (
-                    <IconButton
-                        onClick={onUnlink}
-                        icon={<Icon size="md" name="common.blocked" />}
-                    />
+                    <button onClick={onUnlink} className={actionButtonClass}>
+                        <Icon size="md" name="common.blocked" />
+                    </button>
                 )}
 
-                <IconButton
+                <button
                     onClick={onRemove}
-                    icon={<Icon size="md" name="common.delete" />}
-                    className="hover:text-red-500"
-                />
+                    className={cn(actionButtonClass, 'hover:!text-red-500')}
+                >
+                    <Icon size="md" name="common.delete" />
+                </button>
             </div>
         </div>
     );

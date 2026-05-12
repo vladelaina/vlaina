@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
-import { IconButton } from '@/components/ui/icon-button';
 
 interface ImageToolbarProps {
     alignment: 'left' | 'center' | 'right';
@@ -50,7 +50,8 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
     return (
         <div className={cn(
             "absolute top-2 right-2 mt-0 z-[60] transition-all duration-200",
-            "flex items-center bg-white dark:bg-[#1e1e1e] border border-black/5 dark:border-white/10 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] p-1 gap-1",
+            "floating-toolbar-inner image-toolbar !rounded-[26px]",
+            chatComposerPillSurfaceClass,
             "transform origin-top-right",
             isVisible
                 ? "opacity-100 scale-100 translate-y-0"
@@ -74,19 +75,19 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
                 />
             </div>
 
-            <div className="w-[1px] h-[18px] bg-gray-200 dark:bg-zinc-700 mx-1" />
+            <div className="toolbar-divider" />
 
             <div className="flex items-center gap-0.5">
                 <ToolbarButton icon={<Icon size="md" name="editor.crop" />} onClick={onEdit} />
                 <ToolbarButton
-                    icon={copied ? <Icon size="md" name="common.check" /> : <Icon name="common.copy" />}
+                    icon={copied ? <Icon size="md" name="common.check" /> : <Icon size="md" name="common.copy" />}
                     onClick={handleCopy}
                     success={copied}
                 />
                 <ToolbarButton icon={<Icon size="md" name="common.download" />} onClick={onDownload} />
             </div>
 
-            <div className="w-[1px] h-[18px] bg-gray-200 dark:bg-zinc-700 mx-1" />
+            <div className="toolbar-divider" />
 
             <div className="flex items-center gap-0.5">
                 <ToolbarButton icon={<Icon size="md" name="common.delete" />} onClick={onDelete} danger />
@@ -109,14 +110,16 @@ function ToolbarButton({
     active?: boolean;
 }) {
     return (
-        <IconButton
+        <button
             onClick={onClick}
-            icon={icon}
             className={cn(
-                active ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-500 dark:text-zinc-400",
-                danger && "hover:text-red-500",
-                success && "text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-300"
+                "toolbar-btn image-toolbar-btn",
+                active && "active",
+                danger && "hover:!text-red-500",
+                success && "active"
             )}
-        />
+        >
+            {icon}
+        </button>
     );
 }
