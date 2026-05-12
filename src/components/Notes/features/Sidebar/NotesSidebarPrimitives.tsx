@@ -222,14 +222,14 @@ export function NotesSidebarHoverEmptyHint({
       )}
       {...props}
     >
-      <div className="flex w-full max-w-[240px] flex-col items-center gap-2 text-center">
+      <div className="flex w-fit max-w-full flex-col items-center gap-2 text-center">
         {title ? (
           <span className="text-[15px] font-medium text-[var(--notes-sidebar-text)]">
             {title}
           </span>
         ) : null}
         {actionItems.length > 0 ? (
-          <div className={cn('flex w-full items-center justify-center gap-1 rounded-full px-1.5 py-1', chatComposerPillSurfaceClass)}>
+          <div className={cn('flex max-w-full items-center justify-center gap-1 rounded-full px-1.5 py-1', chatComposerPillSurfaceClass)}>
             {actions && actionLabel && actionLabel !== title ? (
               <span className="px-2 text-[15px] text-[var(--notes-sidebar-text)]">
                 {actionLabel}
@@ -242,7 +242,7 @@ export function NotesSidebarHoverEmptyHint({
                 ) : null}
                 <button
                   type="button"
-                  className="pointer-events-auto h-7 flex-1 cursor-pointer rounded-full px-3 text-[15px] text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-accent)]/25"
+                  className="pointer-events-auto h-7 flex-none cursor-pointer whitespace-nowrap rounded-full px-3 text-[15px] text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-accent)]/25"
                   onClick={(event) => {
                     event.stopPropagation();
                     action.onAction();
