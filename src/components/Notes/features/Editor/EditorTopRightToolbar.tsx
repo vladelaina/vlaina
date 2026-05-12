@@ -11,6 +11,7 @@ import {
 import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { useNotesStore } from '@/stores/useNotesStore';
+import { useUIStore } from '@/stores/uiSlice';
 import { useToastStore } from '@/stores/useToastStore';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import { useI18n } from '@/lib/i18n';
@@ -81,6 +82,7 @@ export function EditorTopRightToolbar({
   const showStarButton = starred || canToggleStar;
   const starButtonLabel = starred ? 'Remove from Starred' : 'Add to Starred';
   const addToast = useToastStore((state) => state.addToast);
+  const setNotesChatPanelCollapsed = useUIStore((state) => state.setNotesChatPanelCollapsed);
   const exportCurrentNote = async (format: NoteExportFormat) => {
     if (!currentNotePath) {
       return;
@@ -140,6 +142,14 @@ export function EditorTopRightToolbar({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className={cn('w-max min-w-56', noteMenuSurfaceClassName)}>
+              <DropdownMenuItem
+                className={exportMenuItemClassName}
+                onSelect={() => setNotesChatPanelCollapsed(false)}
+              >
+                <Icon size="md" name="common.shootingStar" className="mr-2" />
+                {t('notes.rightSpark')}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger className={exportMenuItemClassName}>
                   <Icon size="md" name="common.download" className="mr-2" />
