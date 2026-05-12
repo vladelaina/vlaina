@@ -164,13 +164,15 @@ export const underlineInputRule = $inputRule(() => {
       if (!text) return null;
 
       const { tr, schema } = state;
+      const initialStoredMarks = state.storedMarks ?? [];
       const markType = schema.marks.underline;
       if (!markType) return null;
 
       return tr
         .delete(start, end)
         .insertText(text)
-        .addMark(start, start + text.length, markType.create());
+        .addMark(start, start + text.length, markType.create())
+        .setStoredMarks(initialStoredMarks);
     }
   );
 });

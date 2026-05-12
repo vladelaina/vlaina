@@ -117,6 +117,27 @@ it('should serialize fullwidth emphasis marker as standard markdown', async () =
   expect(markdown).toBe('*斜体*\n')
 })
 
+it.each([
+  ['*s*x', '*s*x\n'],
+  ['_s_x', '_s_x\n'],
+  ['**s**x', '**s**x\n'],
+  ['__s__x', '__s__x\n'],
+])(
+  'should not continue markdown mark input rule formatting for following text: %s',
+  async (input, expected) => {
+    const editor = createEditor()
+
+    await editor.create()
+
+    const view = editor.ctx.get(editorViewCtx)
+
+    typeText(view, input)
+
+    const markdown = editor.action(getMarkdown())
+    expect(markdown).toBe(expected)
+  }
+)
+
 it('should serialize fullwidth strong marker as standard markdown', async () => {
   const editor = createEditor()
 

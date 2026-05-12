@@ -67,6 +67,19 @@ function selectBlockStart(editor: TestEditor) {
   return view;
 }
 
+function typeText(view: ReturnType<TestEditor['ctx']['get']>, input: string) {
+  for (const text of input) {
+    const { from, to } = view.state.selection;
+    let handled = false;
+
+    view.someProp('handleTextInput', (handleTextInput) => {
+      handled = handleTextInput(view, from, to, text) || handled;
+    });
+
+    if (!handled) view.dispatch(view.state.tr.insertText(text, from, to));
+  }
+}
+
 async function persist(editor: TestEditor) {
   const view = editor.ctx.get(editorViewCtx);
   const serializer = editor.ctx.get(serializerCtx);
@@ -127,5 +140,26 @@ describe('floating toolbar command markdown persistence', () => {
     const editor = await createEditor('text');
     setTextAlignment(selectBlockStart(editor), 'center');
     await expect(persist(editor)).resolves.toBe(['text', '', '<!--align:center-->'].join('\n'));
+  });
+
+  it.each([
+    ['==highlight==x', 'highlight'],
+    ['++underlined++x', 'underline'],
+    ['X^2^x', 'superscript'],
+    ['H~2~Ox', 'subscript'],
+  ] as const)('does not keep %s active after input rule completion', async (input, markName) => {
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx);
+
+    typeText(view, input);
+
+    const activeMarks = new Set<string>();
+    view.state.doc.descendants((node) => {
+      if (!node.isText) return;
+      node.marks.forEach((mark) => activeMarks.add(mark.type.name));
+    });
+
+    expect(activeMarks.has(markName)).toBe(true);
+    await editor.destroy();
   });
 });

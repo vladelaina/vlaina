@@ -104,3 +104,16 @@ it('should serialize fullwidth strikethrough marker as standard markdown', async
   const markdown = editor.action(getMarkdown())
   expect(markdown).toBe('~~删除~~\n')
 })
+
+it('should not continue strikethrough input rule formatting for following text', async () => {
+  const editor = createEditor()
+
+  await editor.create()
+
+  const view = editor.ctx.get(editorViewCtx)
+
+  typeText(view, '~~s~~x')
+
+  const markdown = editor.action(getMarkdown())
+  expect(markdown).toBe('~~s~~x\n')
+})
