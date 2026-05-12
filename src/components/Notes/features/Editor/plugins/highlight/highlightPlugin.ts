@@ -88,13 +88,15 @@ export const highlightInputRule = $inputRule(() => {
       if (!text) return null;
       
       const { tr, schema } = state;
+      const initialStoredMarks = state.storedMarks ?? [];
       const markType = schema.marks.highlight;
       if (!markType) return null;
       
       return tr
         .delete(start, end)
         .insertText(text)
-        .addMark(start, start + text.length, markType.create());
+        .addMark(start, start + text.length, markType.create())
+        .setStoredMarks(initialStoredMarks);
     }
   );
 });
@@ -143,13 +145,15 @@ export const superscriptInputRule = $inputRule(() => {
       if (!text) return null;
       
       const { tr, schema } = state;
+      const initialStoredMarks = state.storedMarks ?? [];
       const markType = schema.marks.superscript;
       if (!markType) return null;
       
       return tr
         .delete(start, end)
         .insertText(text)
-        .addMark(start, start + text.length, markType.create());
+        .addMark(start, start + text.length, markType.create())
+        .setStoredMarks(initialStoredMarks);
     }
   );
 });
@@ -198,13 +202,15 @@ export const subscriptInputRule = $inputRule(() => {
       if (!text) return null;
       
       const { tr, schema } = state;
+      const initialStoredMarks = state.storedMarks ?? [];
       const markType = schema.marks.subscript;
       if (!markType) return null;
       
       return tr
         .delete(start, end)
         .insertText(text)
-        .addMark(start, start + text.length, markType.create());
+        .addMark(start, start + text.length, markType.create())
+        .setStoredMarks(initialStoredMarks);
     }
   );
 });
