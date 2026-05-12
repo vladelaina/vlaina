@@ -117,6 +117,15 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('.milkdown .ProseMirror li.vlaina-block-selected .vlaina-block-selected {');
     expect(css).toContain('background-color: transparent;');
     expect(css).toContain('box-shadow: none;');
+    expect(css).toContain('transition: none !important;');
+  });
+
+  it('does not replace native list markers during block selection', () => {
+    const css = readStyleFile('core.css');
+
+    expect(css).not.toContain('li.vlaina-block-selected::marker');
+    expect(css).not.toContain('content: attr(data-label)');
+    expect(css).not.toContain('li.vlaina-block-selected:not([data-item-type="task"])::before');
   });
 
   it('disables vertical bleed for image block selection overlays', () => {
@@ -359,17 +368,67 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected .cm-line,');
     expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected .cm-activeLine,');
     expect(css).toContain(".milkdown .code-block-container[data-pm-selected='true'] .cm-gutter-filler {");
-    expect(css).toContain('.milkdown .ProseMirror li.vlaina-block-selected .code-block-container {');
-    expect(css).toContain('background: color-mix(in srgb, var(--vlaina-code-block-background, #f5f5f5) 86%, transparent);');
-    expect(css).toContain('background-color: color-mix(in srgb, var(--vlaina-code-block-background, #f5f5f5) 86%, transparent);');
-    expect(css).toContain('transition: none;');
+    expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected-contained {');
+    expect(css).toContain('.milkdown .ProseMirror li .code-block-container.vlaina-block-selected {');
+    expect(css).toContain('.milkdown .ProseMirror .vlaina-block-selected .code-block-container {');
+    expect(css).toContain('background: var(--vlaina-code-block-background);');
+    expect(css).toContain('background-color: var(--vlaina-code-block-background);');
+    expect(css).toContain('.milkdown .ProseMirror .vlaina-block-selected .code-block-container .cm-gutters,');
+    expect(css).toContain('.milkdown .ProseMirror .vlaina-block-selected .code-block-container .cm-gutterElement,');
+    expect(css).toContain('.milkdown .ProseMirror .vlaina-block-selected .code-block-container .cm-lineNumbers,');
+    expect(css).toContain('.milkdown .ProseMirror li .code-block-container.vlaina-block-selected .cm-gutters,');
+    expect(css).not.toContain('.milkdown .ProseMirror li.vlaina-block-selected .code-block-container {');
+    expect(css).toContain('background-color: color-mix(in srgb, var(--vlaina-code-block-background), var(--vlaina-block-selection-color)) !important;');
     expect(css).toContain('--vlaina-block-selection-color: color-mix(in srgb, var(--vlaina-editor-block-selection-base, #1e96eb) 14%, transparent);');
     expect(css).toContain('background-color: var(--vlaina-block-selection-color);');
+    expect(css).toContain('transition: none;');
+    expect(css).toContain('.milkdown .code-block-container {');
+    expect(css).toContain('transition: none;');
+    expect(css).toContain('transition: none !important;');
     expect(css).toContain('border-radius: 1rem;');
     expect(css).toContain('box-shadow: none;');
     expect(css).toContain('background: transparent !important;');
     expect(css).not.toContain('.cm-editor.cm-focused .cm-content ::selection');
     expect(css).not.toContain('.cm-editor.cm-focused .cm-line ::selection');
+  });
+
+  it('keeps rich child blocks at their original colors during block selection', () => {
+    const coreCss = readStyleFile('core.css');
+    const mathCss = readStyleFile('math-editor.css');
+
+    expect(coreCss).not.toContain('.milkdown .ProseMirror .vlaina-block-selected:is(');
+    expect(coreCss).toContain('.milkdown .ProseMirror .vlaina-block-selected :is(');
+    expect(coreCss).toContain('.milkdown .ProseMirror .vlaina-block-selected-contained:is(');
+    expect(coreCss).toContain('.milkdown .ProseMirror li :is(');
+    expect(coreCss).toContain('.image-block-container,');
+    expect(coreCss).toContain('.video-block,');
+    expect(coreCss).toContain("[data-type='math-block'],");
+    expect(coreCss).toContain("[data-type='math-inline'],");
+    expect(coreCss).toContain('.mermaid-block,');
+    expect(coreCss).toContain('.milkdown-table-block,');
+    expect(coreCss).toContain('table');
+    expect(coreCss).toContain('background: transparent !important;');
+    expect(coreCss).toContain('box-shadow: none !important;');
+    expect(coreCss).not.toContain('background-color: inherit;');
+    expect(mathCss).not.toContain('.milkdown .ProseMirror .vlaina-block-selected:is(');
+    expect(mathCss).toContain('.milkdown .ProseMirror .vlaina-block-selected :is(');
+    expect(mathCss).toContain('.milkdown .ProseMirror .vlaina-block-selected-contained:is(');
+    expect(mathCss).toContain('.milkdown .ProseMirror li :is(');
+    expect(mathCss).toContain('.mermaid-block');
+  });
+
+  it('keeps selected CodeMirror gutter surfaces transition-free', () => {
+    const codeBlockCss = readStyleFile('code-block.css');
+    const frontmatterCss = readStyleFile('frontmatter.css');
+
+    expect(codeBlockCss).toContain('.milkdown .code-block-container .cm-gutters,');
+    expect(codeBlockCss).toContain('.milkdown .code-block-container .cm-gutterElement,');
+    expect(codeBlockCss).toContain('.milkdown .code-block-container .cm-lineNumbers,');
+    expect(codeBlockCss).toContain('transition: none !important;');
+    expect(frontmatterCss).toContain('.milkdown .frontmatter-block-container .cm-gutters,');
+    expect(frontmatterCss).toContain('.milkdown .frontmatter-block-container .cm-gutterElement,');
+    expect(frontmatterCss).toContain('.milkdown .frontmatter-block-container .cm-lineNumbers,');
+    expect(frontmatterCss).toContain('transition: none !important;');
   });
 
   it('keeps toolbar previews on the applied shadow document path', () => {
@@ -425,6 +484,7 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('padding: 0 !important;');
     expect(css).toContain('.milkdown .frontmatter-block-container .cm-line {');
     expect(css).toContain('padding: 0 0.875rem !important;');
+    expect(css).toContain('transition: none !important;');
     expect(css).toContain(
       '.milkdown .frontmatter-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {'
     );

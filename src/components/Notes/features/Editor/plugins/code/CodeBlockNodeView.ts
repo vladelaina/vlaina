@@ -86,8 +86,7 @@ export class CodeBlockNodeView implements NodeView {
       'my-4',
       'rounded-2xl',
       'overflow-hidden',
-      'group/code',
-      'transition-all'
+      'group/code'
     );
 
     this.headerDOM = document.createElement('div');

@@ -1,5 +1,6 @@
 .milkdown .code-block-container {
   background: var(--vlaina-code-block-background);
+  transition: none;
 }
 
 .milkdown .code-block-container[data-collapsed="true"] .code-block-editable {
@@ -20,6 +21,7 @@
   border: none !important;
   border-right: none !important;
   box-shadow: none !important;
+  transition: none !important;
 }
 
 .milkdown .code-block-container.ProseMirror-selectednode,
@@ -29,6 +31,17 @@
   background-color: var(--vlaina-block-selection-color);
   border-radius: 1rem;
   box-shadow: none;
+  transition: none;
+}
+
+.milkdown .code-block-container.vlaina-block-selected-contained {
+  background: var(--vlaina-code-block-background);
+  background-color: var(--vlaina-code-block-background);
+}
+
+.milkdown .ProseMirror li .code-block-container.vlaina-block-selected {
+  background: var(--vlaina-code-block-background);
+  background-color: var(--vlaina-code-block-background);
 }
 
 .milkdown .code-block-container.ProseMirror-selectednode .cm-gutters,
@@ -47,6 +60,24 @@
 .milkdown .code-block-container[data-pm-selected='true'] .cm-lineNumbers,
 .milkdown .code-block-container[data-pm-selected='true'] .cm-gutter-filler {
   background-color: color-mix(in srgb, var(--vlaina-code-block-background), var(--vlaina-block-selection-color)) !important;
+}
+
+.milkdown .code-block-container.vlaina-block-selected-contained .cm-gutters,
+.milkdown .code-block-container.vlaina-block-selected-contained .cm-gutter,
+.milkdown .code-block-container.vlaina-block-selected-contained .cm-gutterElement,
+.milkdown .code-block-container.vlaina-block-selected-contained .cm-lineNumbers,
+.milkdown .code-block-container.vlaina-block-selected-contained .cm-gutter-filler {
+  background: var(--vlaina-code-block-background) !important;
+  background-color: var(--vlaina-code-block-background) !important;
+}
+
+.milkdown .ProseMirror li .code-block-container.vlaina-block-selected .cm-gutters,
+.milkdown .ProseMirror li .code-block-container.vlaina-block-selected .cm-gutter,
+.milkdown .ProseMirror li .code-block-container.vlaina-block-selected .cm-gutterElement,
+.milkdown .ProseMirror li .code-block-container.vlaina-block-selected .cm-lineNumbers,
+.milkdown .ProseMirror li .code-block-container.vlaina-block-selected .cm-gutter-filler {
+  background: var(--vlaina-code-block-background) !important;
+  background-color: var(--vlaina-code-block-background) !important;
 }
 
 .milkdown .code-block-container.ProseMirror-selectednode .cm-editor,
@@ -132,17 +163,18 @@
   outline: none;
 }
 
-.milkdown .code-block-container.ProseMirror-selectednode,
-.milkdown .code-block-container.vlaina-block-selected,
-.milkdown .code-block-container[data-pm-selected='true'] {
-  --vlaina-block-selection-color: color-mix(in srgb, var(--vlaina-editor-block-selection-base, #1e96eb) 14%, transparent);
-  background-color: var(--vlaina-block-selection-color);
-  border-radius: 1rem;
-  box-shadow: none;
+.milkdown .ProseMirror .vlaina-block-selected .code-block-container {
+  background: var(--vlaina-code-block-background);
+  background-color: var(--vlaina-code-block-background);
+  transition: none;
 }
 
-.milkdown .ProseMirror li.vlaina-block-selected .code-block-container {
-  background: color-mix(in srgb, var(--vlaina-code-block-background, #f5f5f5) 86%, transparent);
-  background-color: color-mix(in srgb, var(--vlaina-code-block-background, #f5f5f5) 86%, transparent);
-  transition: none;
+.milkdown .ProseMirror .vlaina-block-selected .code-block-container .cm-gutters,
+.milkdown .ProseMirror .vlaina-block-selected .code-block-container .cm-gutter,
+.milkdown .ProseMirror .vlaina-block-selected .code-block-container .cm-gutterElement,
+.milkdown .ProseMirror .vlaina-block-selected .code-block-container .cm-lineNumbers,
+.milkdown .ProseMirror .vlaina-block-selected .code-block-container .cm-gutter-filler {
+  background: var(--vlaina-code-block-background) !important;
+  background-color: var(--vlaina-code-block-background) !important;
+  transition: none !important;
 }

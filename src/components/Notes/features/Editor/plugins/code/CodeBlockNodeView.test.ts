@@ -180,6 +180,12 @@ describe('CodeBlockNodeView', () => {
     expect(nodeView.stopEvent({ target: outsideTarget } as unknown as Event)).toBe(false);
   });
 
+  it('does not add transition classes to the block selection surface', () => {
+    const nodeView = new CodeBlockNodeView(createMockNode(false), createMockView(), () => 1);
+
+    expect(nodeView.dom.classList.contains('transition-all')).toBe(false);
+  });
+
   it('lets block-level delete shortcuts reach ProseMirror while the code block is selected', () => {
     const nodeView = new CodeBlockNodeView(createMockNode(false), createMockView(), () => 1);
     const insideTarget = nodeView.dom.querySelector('.code-block-editable') as HTMLElement;
