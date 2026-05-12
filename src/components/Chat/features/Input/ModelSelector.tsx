@@ -45,6 +45,9 @@ type ModelSelectorListRow =
 
 const MODEL_SELECTOR_LABEL_HEIGHT = 34
 const MODEL_SELECTOR_ROW_HEIGHT = 40
+const MODEL_SELECTOR_DROPDOWN_WIDTH = 432
+const MODEL_SELECTOR_DROPDOWN_MAX_HEIGHT = 'min(460px, calc(100vh - 96px))'
+const MODEL_SELECTOR_LIST_HEIGHT = 'min(386px, calc(100vh - 170px))'
 
 const MODEL_SELECTOR_THEME_STYLES: Record<
   ModelSelectorTheme,
@@ -468,11 +471,13 @@ export function ModelSelector({
       }
 
       const triggerRect = dropdownRef.current.getBoundingClientRect();
-      const dropdownWidth = 288;
       const viewportPadding = 12;
       const left = Math.max(
           viewportPadding,
-          Math.min(triggerRect.right - dropdownWidth, window.innerWidth - dropdownWidth - viewportPadding),
+          Math.min(
+              triggerRect.right - MODEL_SELECTOR_DROPDOWN_WIDTH,
+              window.innerWidth - MODEL_SELECTOR_DROPDOWN_WIDTH - viewportPadding,
+          ),
       );
       const top = dropdownPlacement === 'bottom'
           ? triggerRect.bottom + 4
@@ -481,8 +486,8 @@ export function ModelSelector({
       setEmbeddedDropdownStyle({
           left,
           top,
-          width: dropdownWidth,
-          maxHeight: 'min(460px, calc(100vh - 96px))',
+          width: MODEL_SELECTOR_DROPDOWN_WIDTH,
+          maxHeight: MODEL_SELECTOR_DROPDOWN_MAX_HEIGHT,
       });
   }, [dropdownPlacement, isEmbedded]);
 
@@ -663,7 +668,7 @@ export function ModelSelector({
                 ? "absolute top-full mt-1"
                 : "absolute bottom-full mb-1",
             !isEmbedded && (dropdownAlign === 'left' ? "left-0" : "right-0"),
-            isEmbedded ? "w-[18rem]" : "w-[27rem]",
+            "w-[27rem]",
             "max-w-[calc(100vw-24px)]",
             "rounded-[26px]",
             chatComposerPillSurfaceClass,
@@ -671,8 +676,11 @@ export function ModelSelector({
             "animate-in fade-in duration-75 zoom-in-95" 
           )}
           style={isEmbedded
-            ? embeddedDropdownStyle ?? { width: 288, maxHeight: 'min(460px, calc(100vh - 96px))' }
-            : { maxHeight: 'min(460px, calc(100vh - 96px))' }}
+            ? embeddedDropdownStyle ?? {
+                width: MODEL_SELECTOR_DROPDOWN_WIDTH,
+                maxHeight: MODEL_SELECTOR_DROPDOWN_MAX_HEIGHT,
+              }
+            : { maxHeight: MODEL_SELECTOR_DROPDOWN_MAX_HEIGHT }}
         >
           <div className={cn("flex items-center gap-1 border-b px-2 py-2", styles.divider)}>
               <input
@@ -703,7 +711,7 @@ export function ModelSelector({
               </button>
           </div>
 
-          <div className="flex min-h-0 flex-1" style={{ height: 'min(386px, calc(100vh - 170px))' }}>
+          <div className="flex min-h-0 flex-1" style={{ height: MODEL_SELECTOR_LIST_HEIGHT }}>
             <OverlayScrollArea
               scrollbarVariant="compact"
               className={cn("w-16 flex-none border-r", styles.divider)}
