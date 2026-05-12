@@ -1,5 +1,5 @@
 import { createRef, type ComponentProps } from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CoverImageShell } from './CoverImageShell';
 import type { CoverRendererProps } from './coverRenderer.types';
@@ -114,5 +114,31 @@ describe('CoverImageShell', () => {
     expect(screen.getByTestId('cover-renderer')).toBeInTheDocument();
     expect(hoisted.coverRendererSpy).toHaveBeenCalled();
     expect(container.firstElementChild?.getAttribute('style')).toContain('overflow-anchor: none');
+  });
+
+  it('shows the cover error only after it persists and keeps the message minimal', () => {
+    vi.useFakeTimers();
+
+    render(
+      <CoverImageShell
+        {...buildShellProps({
+          phase: 'error',
+          url: './assets/missing.webp',
+          displaySrc: '',
+          isError: true,
+        })}
+      />
+    );
+
+    expect(screen.queryByText('Image failed to load')).not.toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
+
+    expect(screen.getByText('Image failed to load')).toBeInTheDocument();
+    expect(screen.queryByText('Click to replace')).not.toBeInTheDocument();
+
+    vi.useRealTimers();
   });
 });

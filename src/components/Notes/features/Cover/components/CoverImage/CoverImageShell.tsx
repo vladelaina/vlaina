@@ -3,7 +3,10 @@ import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { CoverPicker } from '../../../AssetLibrary';
 import { CoverRenderer } from './CoverRenderer';
+import { useDelayedVisibleFlag } from './hooks/display/useDelayedVisibleFlag';
 import type { CoverImageControllerModel } from './coverImage.types';
+
+const COVER_ERROR_DISPLAY_DELAY_MS = 250;
 
 export function CoverImageShell({
   url,
@@ -29,6 +32,7 @@ export function CoverImageShell({
   rendererProps,
 }: CoverImageControllerModel) {
   const { t } = useI18n();
+  const showErrorMessage = useDelayedVisibleFlag(isError, COVER_ERROR_DISPLAY_DELAY_MS);
 
   if (phase === 'idle' && !showPicker) {
     return null;
@@ -74,7 +78,7 @@ export function CoverImageShell({
         positionY={positionY}
       />
 
-      {isError && (
+      {showErrorMessage && (
         <div
           className={cn(
             'absolute inset-0 flex flex-col items-center justify-center bg-muted/20 text-muted-foreground z-10',
@@ -84,7 +88,6 @@ export function CoverImageShell({
         >
           <Icon name="file.brokenImage" className="w-8 h-8 mb-2 opacity-50" />
           <span className="text-xs font-medium opacity-70">{t('editor.imageFailedToLoad')}</span>
-          {!readOnly && <span className="text-[10px] opacity-50 mt-1">{t('notes.clickToReplace')}</span>}
         </div>
       )}
 

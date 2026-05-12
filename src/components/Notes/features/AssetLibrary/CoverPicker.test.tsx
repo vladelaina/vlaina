@@ -148,7 +148,8 @@ describe('CoverPicker', () => {
     vi.useRealTimers();
   });
 
-  it('reloads assets when the current note changes while the picker is open', () => {
+  it('defers asset reload until after the picker opens and uses the latest note scope', () => {
+    vi.useFakeTimers();
     hoisted.assetList = [{ filename: 'a.png' }];
 
     const { rerender } = render(
@@ -161,6 +162,8 @@ describe('CoverPicker', () => {
       />,
     );
 
+    expect(hoisted.loadAssets).not.toHaveBeenCalled();
+
     rerender(
       <CoverPicker
         isOpen
@@ -171,9 +174,13 @@ describe('CoverPicker', () => {
       />,
     );
 
-    expect(hoisted.loadAssets).toHaveBeenCalledTimes(2);
-    expect(hoisted.loadAssets).toHaveBeenNthCalledWith(1, '/vault');
-    expect(hoisted.loadAssets).toHaveBeenNthCalledWith(2, '/vault');
+    act(() => {
+      vi.advanceTimersByTime(120);
+    });
+
+    expect(hoisted.loadAssets).toHaveBeenCalledTimes(1);
+    expect(hoisted.loadAssets).toHaveBeenCalledWith('/vault');
+    vi.useRealTimers();
   });
 
   it('does not show paste instructions in the upload tab', () => {

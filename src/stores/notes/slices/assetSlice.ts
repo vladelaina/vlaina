@@ -2,7 +2,7 @@ import { StateCreator } from 'zustand';
 import { NotesStore } from '../types';
 import { AssetEntry, UploadResult } from '@/lib/assets/types';
 import { AssetService } from '@/lib/assets/AssetService';
-import { getBuiltinCovers, toBuiltinAssetPath } from '@/lib/assets/builtinCovers';
+import { getBuiltinCoverAssetEntries } from '@/lib/assets/builtinCovers';
 import { useUIStore } from '@/stores/uiSlice';
 import { clearImageCache } from '@/lib/assets';
 import { resolveEffectiveVaultPath } from '../effectiveVaultPath';
@@ -40,6 +40,23 @@ function summarizeAssetFilenames(assets: AssetEntry[]) {
   };
 }
 
+function getDefaultCoverAssets(): AssetEntry[] {
+  return getBuiltinCoverAssetEntries();
+}
+
+function combineAndSortAssets(userAssets: AssetEntry[]): AssetEntry[] {
+  const assets = [...userAssets, ...getDefaultCoverAssets()];
+
+  assets.sort((a, b) => {
+    const aIsBuiltIn = a.filename.startsWith('@');
+    const bIsBuiltIn = b.filename.startsWith('@');
+    if (aIsBuiltIn !== bIsBuiltIn) return aIsBuiltIn ? 1 : -1;
+    return b.filename.localeCompare(a.filename);
+  });
+
+  return assets;
+}
+
 function getAssetConfig() {
   const uiState = useUIStore.getState();
   return {
@@ -75,7 +92,7 @@ export interface AssetSlice {
 }
 
 export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (set, get) => ({
-  assetList: [],
+  assetList: getDefaultCoverAssets(),
   isLoadingAssets: false,
   uploadProgress: null,
 
@@ -93,7 +110,10 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
     const loadPromise = (async () => {
       logCoverAsset('load-assets:start', { vaultPath, currentNotePath });
 
-      set({ isLoadingAssets: true });
+      set({
+        isLoadingAssets: true,
+        assetList: getDefaultCoverAssets(),
+      });
 
       try {
       const context = {
@@ -112,23 +132,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
         });
       }
 
-      const builtinCovers = getBuiltinCovers();
-      for (const cover of builtinCovers) {
-        assets.push({
-          filename: toBuiltinAssetPath(cover),
-          hash: '',
-          size: 0,
-          mimeType: 'image/webp',
-          uploadedAt: '',
-        });
-      }
-
-      assets.sort((a, b) => {
-        const aIsBuiltIn = a.filename.startsWith('@');
-        const bIsBuiltIn = b.filename.startsWith('@');
-        if (aIsBuiltIn !== bIsBuiltIn) return aIsBuiltIn ? 1 : -1;
-        return b.filename.localeCompare(a.filename);
-      });
+      assets = combineAndSortAssets(assets);
 
       set({ assetList: assets, isLoadingAssets: false });
       logCoverAsset('load-assets:done', {
