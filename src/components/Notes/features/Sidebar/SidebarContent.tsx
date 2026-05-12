@@ -410,7 +410,7 @@ export function SidebarContent({
             title=""
             actions={[
               { label: t('notes.file'), onAction: handleOpenMarkdownFile },
-              { label: t('sidebar.newFolder'), onAction: handleOpenFolder },
+              { label: t('notes.folder'), onAction: handleOpenFolder },
             ]}
             placement="inline"
             visible
