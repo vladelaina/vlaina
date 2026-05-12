@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createEmptyMetadataFile,
+  loadGlobalNoteIconSize,
   loadRecentNotes,
   loadWorkspaceState,
   loadNoteMetadata,
+  persistGlobalNoteIconSize,
   saveWorkspaceState,
   setNoteEntry,
 } from './storage';
@@ -157,6 +159,14 @@ describe('notes metadata storage', () => {
       version: 2,
       notes: {},
     });
+  });
+
+  it('normalizes global note icon size from storage and persistence writes', () => {
+    localStorage.setItem('vlaina-note-icon-size', '72');
+    expect(loadGlobalNoteIconSize()).toBe(72);
+
+    expect(persistGlobalNoteIconSize(-1)).toBe(60);
+    expect(localStorage.getItem('vlaina-note-icon-size')).toBe('60');
   });
 
   it('stores workspace state in the system config folder instead of the vault folder', async () => {

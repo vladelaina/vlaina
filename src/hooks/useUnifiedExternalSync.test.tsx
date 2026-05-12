@@ -162,7 +162,7 @@ describe('useUnifiedExternalSync', () => {
     hook.unmount();
   });
 
-  it('defers unified reloads while generation is active and replays them after generation stops', async () => {
+  it('reloads unified data while generation is active and defers only active session messages', async () => {
     const reloadFromDisk = vi.fn(async () => undefined);
     useUnifiedStore.setState({ reloadFromDisk });
     useAIUIStore.setState({
@@ -181,7 +181,7 @@ describe('useUnifiedExternalSync', () => {
       await vi.advanceTimersByTimeAsync(500);
     });
 
-    expect(reloadFromDisk).not.toHaveBeenCalled();
+    expect(reloadFromDisk).toHaveBeenCalledTimes(1);
     expect(hoisted.reloadSessionMessagesFromDisk).not.toHaveBeenCalled();
 
     await act(async () => {
@@ -191,6 +191,39 @@ describe('useUnifiedExternalSync', () => {
 
     expect(reloadFromDisk).toHaveBeenCalledTimes(1);
     expect(hoisted.reloadSessionMessagesFromDisk).toHaveBeenCalledWith('session-1');
+
+    hook.unmount();
+  });
+
+  it('reloads unified data during temporary chat but defers session message reloads', async () => {
+    const reloadFromDisk = vi.fn(async () => undefined);
+    useUnifiedStore.setState({ reloadFromDisk });
+    useAIUIStore.setState({
+      currentSessionId: 'temp-session-1',
+      temporaryChatEnabled: true,
+    });
+
+    const hook = renderHook(() => useUnifiedExternalSync());
+
+    await act(async () => {
+      hoisted.listener?.({
+        kind: 'unified',
+        sourceId: 'other-window',
+        stamp: 4,
+        nonce: 'n4',
+      });
+      hoisted.listener?.({
+        kind: 'chat-session',
+        sessionId: 'temp-session-1',
+        sourceId: 'other-window',
+        stamp: 5,
+        nonce: 'n5',
+      });
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(reloadFromDisk).toHaveBeenCalledTimes(1);
+    expect(hoisted.reloadSessionMessagesFromDisk).not.toHaveBeenCalled();
 
     hook.unmount();
   });

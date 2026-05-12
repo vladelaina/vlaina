@@ -65,6 +65,43 @@ describe('retainLoadedSessionMessages', () => {
       'session-1': session1Messages,
     });
   });
+
+  it('preserves local temporary sessions and messages across disk reloads', () => {
+    const previous = createData({
+      sessions: [
+        { id: 'temp-session-1', title: 'Temporary Chat', modelId: '', createdAt: 1, updatedAt: 1 },
+        { id: 'session-1', title: 'First', modelId: '', createdAt: 1, updatedAt: 1 },
+      ],
+      messages: {
+        'temp-session-1': [
+          {
+            id: 'tmp',
+            role: 'user',
+            content: 'temporary',
+            modelId: '',
+            timestamp: 1,
+            versions: [{ content: 'temporary', createdAt: 1, subsequentMessages: [] }],
+            currentVersionIndex: 0,
+          },
+        ],
+      },
+    });
+
+    const next = createData({
+      sessions: [
+        { id: 'session-2', title: 'Second', modelId: '', createdAt: 2, updatedAt: 2 },
+      ],
+      messages: {},
+    });
+
+    const retained = retainLoadedSessionMessages(previous, next).ai;
+
+    expect(retained?.sessions.map((session) => session.id)).toEqual([
+      'temp-session-1',
+      'session-2',
+    ]);
+    expect(retained?.messages['temp-session-1']?.[0]?.content).toBe('temporary');
+  });
 });
 
 describe('markdownSettings', () => {

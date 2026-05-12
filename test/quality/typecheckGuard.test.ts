@@ -17,6 +17,22 @@ function listSourceFiles(dir: string): string[] {
   });
 }
 
+function findStorageWriteSites(): string[] {
+  const storageWritePattern = /\b(?:window\.)?localStorage\.(?:setItem|removeItem)\s*\(/g;
+
+  return listSourceFiles('src')
+    .filter((path) => !/\.test\.(?:ts|tsx)$/.test(path))
+    .filter((path) => !/\.fixtures\.(?:ts|tsx)$/.test(path))
+    .flatMap((path) => {
+      const source = readText(path);
+      return [...source.matchAll(storageWritePattern)].map((match) => {
+        const expression = source.slice(match.index, source.indexOf('\n', match.index)).trim();
+        return `${path}:${expression}`;
+      });
+    })
+    .sort();
+}
+
 describe('typecheck quality gate', () => {
   it('keeps TypeScript unused-symbol checks enabled', () => {
     const tsconfig = readText('tsconfig.json');
@@ -46,5 +62,42 @@ describe('typecheck quality gate', () => {
     });
 
     expect(offenders).toEqual([]);
+  });
+
+  it('keeps production localStorage writes explicitly classified for cross-window sync', () => {
+    const expectedSites = [
+      // Cross-window sync transports.
+      'src/lib/storage/storageAutoSync.ts:localStorage.setItem(STORAGE_KEY, JSON.stringify(event));',
+      'src/stores/notes/document/externalPathBroadcast.ts:localStorage.setItem(STORAGE_KEY, JSON.stringify(event));',
+
+      // Shared user/application state with explicit storage listeners or sync events.
+      'src/stores/accountSession/authSupport.ts:localStorage.setItem(ACCOUNT_USER_PERSIST_KEY, JSON.stringify(data));',
+      'src/stores/notes/storage.ts:localStorage.setItem(NOTE_ICON_SIZE_KEY, String(normalized));',
+      'src/stores/uiSlice.ts:localStorage.setItem(key, value);',
+      'src/stores/uiSlice.ts:localStorage.removeItem(key);',
+      'src/stores/vaultStoreSupport.ts:localStorage.setItem(key, JSON.stringify(value));',
+
+      // Window-local/layout-local preferences.
+      'src/components/layout/ResizablePanel.tsx:localStorage.setItem(storageKey, String(width));',
+      'src/components/common/UniversalIconPicker/constants.ts:localStorage.setItem(RECENT_ICONS_KEY, JSON.stringify(icons));',
+      'src/components/common/UniversalIconPicker/constants.ts:localStorage.setItem(SKIN_TONE_KEY, tone.toString());',
+      'src/components/common/UniversalIconPicker/constants.ts:localStorage.setItem(ICON_COLOR_KEY, color);',
+      'src/components/common/UniversalIconPicker/constants.ts:localStorage.setItem(ACTIVE_TAB_KEY, tab);',
+      'src/components/Notes/features/Editor/plugins/floating-toolbar/components/ai-dropdown/usageRanking.ts:window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));',
+
+      // Navigation/history caches that do not drive live cross-window state.
+      'src/stores/notes/storage.ts:localStorage.setItem(RECENT_NOTES_KEY, JSON.stringify(normalizeRecentNotePaths(paths)));',
+
+      // Future-facing shortcut customization storage. There is no editing UI yet; adding one should revisit sync.
+      'src/lib/shortcuts/storage.ts:localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));',
+      'src/lib/shortcuts/storage.ts:localStorage.removeItem(STORAGE_KEY);',
+
+      // Web auth and inter-window mutation lock internals.
+      'src/lib/account/webSession.ts:localStorage.removeItem(ACCOUNT_USER_PERSIST_KEY);',
+      'src/lib/ai/sessionMutationLock.ts:localStorage.setItem(getLockKey(sessionId), JSON.stringify(record));',
+      'src/lib/ai/sessionMutationLock.ts:localStorage.removeItem(getLockKey(sessionId));',
+    ];
+
+    expect(findStorageWriteSites()).toEqual([...expectedSites].sort());
   });
 });
