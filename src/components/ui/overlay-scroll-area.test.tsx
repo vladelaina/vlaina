@@ -133,6 +133,26 @@ describe('OverlayScrollArea', () => {
     expect(thumb?.className).toContain('w-[5px]');
   });
 
+  it('recomputes scroll metrics when the scroll area is hovered', () => {
+    render(
+      <div style={{ height: 120 }}>
+        <OverlayScrollArea scrollbarVariant="compact">
+          <div style={{ height: 480 }}>content</div>
+        </OverlayScrollArea>
+      </div>
+    );
+
+    const viewport = screen.getByText('content').parentElement as HTMLDivElement;
+    setViewportMetrics(viewport, { clientHeight: 120, scrollHeight: 480 });
+
+    expect(viewport.parentElement?.querySelector('.absolute.inset-y-0.right-0')).toBeNull();
+
+    fireEvent.mouseEnter(viewport.parentElement as HTMLDivElement);
+
+    const rail = viewport.parentElement?.querySelector('.absolute.inset-y-0.right-0') as HTMLDivElement | null;
+    expect(rail).not.toBeNull();
+  });
+
   it('expands the compact scrollbar on hover and uses the default cursor', () => {
     render(
       <div style={{ height: 120 }}>

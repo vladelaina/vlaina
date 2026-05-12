@@ -123,7 +123,7 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
   }, [activeId, collapsedHeadingIds, jumpToHeading, toggleOutlineNode]);
 
   return (
-    <div ref={sidebarRootRef} className={cn('flex h-full flex-col', className)}>
+    <div ref={sidebarRootRef} className={cn('flex h-full min-h-0 flex-col', className)}>
       <SidebarCapsulePanel>
         <NotesSidebarTopActions />
         <NotesSidebarScrollArea
