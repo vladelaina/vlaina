@@ -6,7 +6,7 @@ import {
   type CustomIcon,
   type TimezoneInfo,
 } from '@/lib/storage/unifiedStorage';
-import { scanGlobalIcons } from '@/lib/storage/assetStorage';
+import { deleteGlobalIconAsset, scanGlobalIcons } from '@/lib/storage/assetStorage';
 
 import { createSettingsActions } from './actions/settingsActions';
 import { resolveMarkdownSettings } from './settings/markdownSettings';
@@ -39,7 +39,7 @@ interface UnifiedStoreActions {
   setMarkdownTypewriterMode: (typewriterMode: boolean) => void;
   
   addCustomIcon: (icon: CustomIcon) => void;
-  removeCustomIcon: (id: string) => void;
+  removeCustomIcon: (id: string) => Promise<void>;
   syncCustomIcons: () => Promise<void>;
 
   updateAIData: (updates: Partial<NonNullable<UnifiedData['ai']>>, skipPersist?: boolean) => void;
@@ -117,6 +117,7 @@ function normalizeUnifiedData(data: UnifiedData): UnifiedData {
     markdown: resolveMarkdownSettings(settings?.markdown),
   };
   normalized.customIcons = normalized.customIcons || [];
+  normalized.deletedCustomIconIds = normalized.deletedCustomIconIds || [];
 
   normalized.ai = ai
     ? {
@@ -138,6 +139,7 @@ const initialState: UnifiedStoreState = {
   data: {
     settings: { ...DEFAULT_SETTINGS },
     customIcons: [],
+    deletedCustomIconIds: [],
     ai: createDefaultAIData(),
   },
   loaded: false,
@@ -168,20 +170,29 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
       const state = get();
       const newData = {
         ...state.data,
-        customIcons: [...(state.data.customIcons || []), icon]
+        customIcons: [...(state.data.customIcons || []), icon],
+        deletedCustomIconIds: (state.data.deletedCustomIconIds || []).filter(id => id !== icon.id),
       };
       set({ data: newData });
       persist(newData);
     },
 
-    removeCustomIcon: (id: string) => {
+    removeCustomIcon: async (id: string) => {
       const state = get();
+      const removedIcon = (state.data.customIcons || []).find(i => i.id === id);
+      const deletedIconIds = new Set(state.data.deletedCustomIconIds || []);
+      deletedIconIds.add(id);
       const newData = {
         ...state.data,
-        customIcons: (state.data.customIcons || []).filter(i => i.id !== id)
+        customIcons: (state.data.customIcons || []).filter(i => i.id !== id),
+        deletedCustomIconIds: [...deletedIconIds],
       };
       set({ data: newData });
       persist(newData);
+
+      if (removedIcon) {
+        await deleteGlobalIconAsset(removedIcon.id);
+      }
     },
 
     syncCustomIcons: async () => {
@@ -189,8 +200,9 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
       set(state => {
         const currentIcons = state.data.customIcons || [];
         const existingIds = new Set(currentIcons.map(i => i.id));
+        const deletedIds = new Set(state.data.deletedCustomIconIds || []);
         
-        const newIcons = scanned.filter(i => !existingIds.has(i.id));
+        const newIcons = scanned.filter(i => !existingIds.has(i.id) && !deletedIds.has(i.id));
         
         if (newIcons.length === 0) return {};
         

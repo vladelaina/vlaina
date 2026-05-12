@@ -68,4 +68,32 @@ describe('UniversalIconPicker', () => {
     expect(onRemove).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('does not close when interacting with a sidebar context menu portal', async () => {
+    vi.useFakeTimers();
+    const onClose = vi.fn();
+
+    render(
+      <UniversalIconPicker
+        onSelect={vi.fn()}
+        onClose={onClose}
+      />,
+    );
+
+    vi.advanceTimersByTime(100);
+
+    const menuLayer = document.createElement('div');
+    menuLayer.setAttribute('data-sidebar-context-menu-layer', 'true');
+    const menuButton = document.createElement('button');
+    menuButton.textContent = 'Delete';
+    menuLayer.appendChild(menuButton);
+    document.body.appendChild(menuLayer);
+
+    fireEvent.mouseDown(menuButton);
+
+    expect(onClose).not.toHaveBeenCalled();
+
+    menuLayer.remove();
+    vi.useRealTimers();
+  });
 });

@@ -1,6 +1,7 @@
 import { getPaths } from './paths';
 import { getStorageAdapter, joinPath } from './adapter';
 import type { CustomIcon } from '@/lib/storage/unifiedStorage';
+import { normalizeContainedAssetPath } from '@/lib/assets/core/pathContainment';
 
 const MAX_GLOBAL_ASSET_BYTES = 10 * 1024 * 1024;
 const GLOBAL_ICON_FILENAME_PATTERN = /\.(png|jpg|jpeg|gif|webp|svg)$/i;
@@ -70,4 +71,22 @@ export async function scanGlobalIcons(): Promise<CustomIcon[]> {
     console.error('Failed to scan global icons:', error);
     return [];
   }
+}
+
+export async function deleteGlobalIconAsset(path: string): Promise<boolean> {
+  if (!path || !GLOBAL_ICON_FILENAME_PATTERN.test(path)) {
+    return false;
+  }
+
+  const adapter = getStorageAdapter();
+  const { metadata } = await getPaths();
+  const iconsDir = await joinPath(metadata, 'assets', 'icons');
+  const safePath = normalizeContainedAssetPath(path, iconsDir);
+
+  if (!safePath || !(await adapter.exists(safePath))) {
+    return false;
+  }
+
+  await adapter.deleteFile(safePath);
+  return true;
 }
