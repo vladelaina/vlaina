@@ -30,8 +30,9 @@ export function applyFootnoteSchemaOverrides(ctx: Ctx) {
                     'data-type': 'footnote_reference',
                     'data-footnote-value': displayLabel,
                     'aria-label': `Footnote ${label}`,
+                    contenteditable: 'false',
                 },
-                ['span', { class: 'footnote-ref-label' }, displayLabel],
+                ['span', { class: 'footnote-ref-label', contenteditable: 'false' }, displayLabel],
             ];
         },
     }));

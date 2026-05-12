@@ -68,8 +68,17 @@ function dispatchBlankAreaPlainClick(view: EditorView, action: BlankAreaPlainCli
   view.focus();
 }
 
+function isSameEditorScrollRoot(view: EditorView, target: EventTarget | null): boolean {
+  if (!(target instanceof Node)) return false;
+  if (view.dom.contains(target)) return true;
+  const targetElement = target instanceof Element ? target : target.parentElement;
+  if (!targetElement) return false;
+  const editorScrollRoot = view.dom.closest(SCROLL_ROOT_SELECTOR);
+  return !!editorScrollRoot && targetElement.closest(SCROLL_ROOT_SELECTOR) === editorScrollRoot;
+}
+
 function tryDispatchInsideBlockTrailingPlainClick(view: EditorView, event: MouseEvent): boolean {
-  if (!(event.target instanceof Node) || !view.dom.contains(event.target)) return false;
+  if (!isSameEditorScrollRoot(view, event.target)) return false;
   if (event.button !== 0) return false;
   if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false;
 
@@ -77,8 +86,9 @@ function tryDispatchInsideBlockTrailingPlainClick(view: EditorView, event: Mouse
     view,
     scrollRootSelector: SCROLL_ROOT_SELECTOR,
   });
+  const blockRects = resolver.getTopLevelBlockRects();
   const action = resolveInsideBlockTrailingPlainClickAction({
-    blockRects: resolver.getTopLevelBlockRects(),
+    blockRects,
     clientX: event.clientX,
     clientY: event.clientY,
   });
@@ -369,6 +379,9 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           logBlockSelectionDebug('select:document-mousedown:ignored-target', {
             target: describeDebugTarget(event.target),
           });
+          return;
+        }
+        if (tryDispatchInsideBlockTrailingPlainClick(view, event)) {
           return;
         }
         const target = event.target;

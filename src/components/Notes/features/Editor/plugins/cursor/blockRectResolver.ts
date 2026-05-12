@@ -15,8 +15,12 @@ export interface BlockRectResolver {
 
 export { collectSelectableBlockRanges } from './blockUnitResolver';
 
-function isIgnoredContentBoundsElement(element: Element): boolean {
-  return element.matches('ul, ol, button, [contenteditable="false"], .vlaina-collapse-btn');
+function shouldIgnoreContentBoundsElement(root: HTMLElement, element: Element): boolean {
+  for (let current: Element | null = element; current && root.contains(current); current = current.parentElement) {
+    if (current.matches('ul, ol, button, .vlaina-collapse-btn')) return true;
+    if (current.matches('[contenteditable="false"]') && !current.closest('.footnote-ref')) return true;
+  }
+  return false;
 }
 
 function collectTextContentBounds(root: HTMLElement): { left: number; right: number } | null {
@@ -25,8 +29,7 @@ function collectTextContentBounds(root: HTMLElement): { left: number; right: num
     acceptNode(node) {
       const parent = node.parentElement;
       if (!parent) return NodeFilter.FILTER_REJECT;
-      const ignoredAncestor = parent.closest('ul, ol, button, [contenteditable="false"], .vlaina-collapse-btn');
-      if (ignoredAncestor && root.contains(ignoredAncestor)) {
+      if (shouldIgnoreContentBoundsElement(root, parent)) {
         return NodeFilter.FILTER_REJECT;
       }
       return node.textContent && node.textContent.length > 0
@@ -59,7 +62,7 @@ function resolveContentBoundsElement(element: HTMLElement): HTMLElement {
 
   for (const child of Array.from(element.children)) {
     if (!(child instanceof HTMLElement)) continue;
-    if (isIgnoredContentBoundsElement(child)) continue;
+    if (shouldIgnoreContentBoundsElement(element, child)) continue;
     return child;
   }
 
@@ -90,7 +93,9 @@ function collectSelectableBlockRects(view: EditorView): BlockRect[] {
       bottom: rect.bottom,
       contentLeft: contentBounds.left,
       contentRight: contentBounds.right,
-      ...(element.tagName === 'LI' ? { allowInsideTrailingClick: true } : {}),
+      ...(element.tagName === 'LI' || (element.tagName === 'P' && element.querySelector('.footnote-ref'))
+        ? { allowInsideTrailingClick: true }
+        : {}),
     };
     return blockRect;
   });
