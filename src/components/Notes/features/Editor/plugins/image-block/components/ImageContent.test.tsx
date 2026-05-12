@@ -35,12 +35,15 @@ describe('ImageContent', () => {
     const { container, props } = renderImageContent();
 
     expect(screen.queryByTestId('image-cropper')).toBeNull();
+    expect(screen.getByTestId('remote-image-placeholder')).toBeInTheDocument();
+
     const image = container.querySelector('img');
     expect(image).not.toBeNull();
 
     fireEvent.load(image!);
 
     expect(image).toHaveAttribute('src', 'https://example.com/image.png');
+    expect(screen.queryByTestId('remote-image-placeholder')).toBeNull();
     expect(props.onMediaLoaded).toHaveBeenCalledTimes(1);
   });
 

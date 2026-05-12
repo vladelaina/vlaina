@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
+import { cn } from '@/lib/utils';
 import { isPublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 import { ImageCropper } from './ImageCropper';
 import { getCropViewStyles } from '../utils/cropGeometry';
@@ -40,9 +41,11 @@ export const ImageContent = ({
 }: ImageContentProps) => {
     const { t } = useI18n();
     const [mediaError, setMediaError] = useState(false);
+    const [isImageLoaded, setIsImageLoaded] = useState(false);
 
     useEffect(() => {
         setMediaError(false);
+        setIsImageLoaded(false);
     }, [resolvedSrc]);
 
     const isRemoteImage = isPublicRemoteMediaUrl(resolvedSrc);
@@ -69,24 +72,44 @@ export const ImageContent = ({
 
     if (shouldRenderPlainRemoteImage) {
         return (
-            <img
-                src={resolvedSrc}
-                alt=""
-                draggable={false}
-                className="block h-auto max-w-full select-none object-contain"
-                onLoad={(event) => {
-                    const image = event.currentTarget;
-                    onMediaLoaded({
-                        width: image.width,
-                        height: image.height,
-                        naturalWidth: image.naturalWidth,
-                        naturalHeight: image.naturalHeight,
-                    });
-                }}
-                onError={() => {
-                    setMediaError(true);
-                }}
-            />
+            <div
+                className={cn(
+                    'relative w-full overflow-hidden rounded-md bg-gray-50 dark:bg-zinc-900',
+                    !isImageLoaded && 'min-h-[100px]'
+                )}
+            >
+                {!isImageLoaded ? (
+                    <div
+                        data-testid="remote-image-placeholder"
+                        aria-hidden="true"
+                        className="absolute inset-0 flex items-center justify-center border border-dashed border-gray-200 dark:border-zinc-700"
+                    >
+                        <div className="size-6 rounded-full border-2 border-gray-300 border-t-[var(--vlaina-accent)] dark:border-zinc-600" />
+                    </div>
+                ) : null}
+                <img
+                    src={resolvedSrc}
+                    alt=""
+                    draggable={false}
+                    className={cn(
+                        'block h-auto max-w-full select-none object-contain transition-opacity duration-150',
+                        isImageLoaded ? 'opacity-100' : 'opacity-0'
+                    )}
+                    onLoad={(event) => {
+                        const image = event.currentTarget;
+                        setIsImageLoaded(true);
+                        onMediaLoaded({
+                            width: image.width,
+                            height: image.height,
+                            naturalWidth: image.naturalWidth,
+                            naturalHeight: image.naturalHeight,
+                        });
+                    }}
+                    onError={() => {
+                        setMediaError(true);
+                    }}
+                />
+            </div>
         );
     }
 
