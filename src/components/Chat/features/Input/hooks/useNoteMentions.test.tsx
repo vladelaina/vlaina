@@ -6,17 +6,46 @@ import { useNoteMentions } from './useNoteMentions';
 const hoisted = vi.hoisted(() => {
   const loadFileTree = vi.fn();
   const storeRef: { state: any } = { state: null };
+  const vaultStoreRef: { state: any } = { state: null };
+  let currentVaultPath: string | null = '/vault';
 
   const useNotesStore = ((selector?: (state: any) => any) => {
     return selector ? selector(storeRef.state) : storeRef.state;
   }) as any;
   useNotesStore.getState = () => storeRef.state;
 
-  return { loadFileTree, storeRef, useNotesStore };
+  const useVaultStore = ((selector?: (state: any) => any) => {
+    return selector ? selector(vaultStoreRef.state) : vaultStoreRef.state;
+  }) as any;
+  useVaultStore.getState = () => vaultStoreRef.state;
+
+  return {
+    loadFileTree,
+    storeRef,
+    useNotesStore,
+    vaultStoreRef,
+    useVaultStore,
+    getCurrentVaultPath: vi.fn(() => currentVaultPath),
+    setCurrentVaultPath: vi.fn((path: string | null) => {
+      currentVaultPath = path;
+    }),
+    resetCurrentVaultPath: (path: string | null) => {
+      currentVaultPath = path;
+    },
+  };
 });
 
 vi.mock('@/stores/notes/useNotesStore', () => ({
   useNotesStore: hoisted.useNotesStore,
+}));
+
+vi.mock('@/stores/useVaultStore', () => ({
+  useVaultStore: hoisted.useVaultStore,
+}));
+
+vi.mock('@/stores/notes/storage', () => ({
+  getCurrentVaultPath: hoisted.getCurrentVaultPath,
+  setCurrentVaultPath: hoisted.setCurrentVaultPath,
 }));
 
 describe('useNoteMentions', () => {
@@ -26,6 +55,12 @@ describe('useNoteMentions', () => {
 
   beforeEach(() => {
     hoisted.loadFileTree.mockReset();
+    hoisted.getCurrentVaultPath.mockClear();
+    hoisted.setCurrentVaultPath.mockClear();
+    hoisted.resetCurrentVaultPath('/vault');
+    hoisted.vaultStoreRef.state = {
+      currentVault: { path: '/vault' },
+    };
     hoisted.storeRef.state = {
       rootFolder: {
         children: [
@@ -124,6 +159,39 @@ describe('useNoteMentions', () => {
     expect(result.current.showMentionPicker).toBe(true);
     expect(result.current.mentionPickerStatus).toBe('loading');
     expect(hoisted.loadFileTree).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not load the note tree or surface loading when no vault is available', () => {
+    hoisted.resetCurrentVaultPath(null);
+    hoisted.vaultStoreRef.state = {
+      currentVault: null,
+    };
+    hoisted.storeRef.state = {
+      ...hoisted.storeRef.state,
+      rootFolder: null,
+      notesPath: '',
+      isLoading: false,
+    };
+
+    const { result } = renderHook(() => {
+      const [message, setMessage] = useState('@');
+      const textareaRef = useRef<HTMLTextAreaElement>(document.createElement('textarea'));
+      const controller = useNoteMentions({
+        message,
+        textareaRef,
+        handleMessageChange: setMessage,
+      });
+
+      return { ...controller, message };
+    });
+
+    act(() => {
+      result.current.handleCaretChange(1);
+    });
+
+    expect(result.current.showMentionPicker).toBe(true);
+    expect(result.current.mentionPickerStatus).toBe('empty');
+    expect(hoisted.loadFileTree).not.toHaveBeenCalled();
   });
 
   it('keeps the mention picker visible when no notes match', () => {

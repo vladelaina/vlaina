@@ -21,6 +21,11 @@ function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
+function isAuthorizationCancellation(message: string): boolean {
+  return /^(?:authorization )?(?:cancelled|canceled)$/i.test(message.trim())
+    || /^access_denied$/i.test(message.trim());
+}
+
 function isRelevantElectronAuthEvent(event: string): boolean {
   if (
     event.startsWith('session_status:http') ||
@@ -200,15 +205,19 @@ export function createSignIn(
           return true;
         }
 
+        const errorMessage = result?.error || 'Authorization failed';
         set({
-          error: normalizeAuthError(result?.error || 'Authorization failed'),
+          error: isAuthorizationCancellation(errorMessage) ? null : normalizeAuthError(errorMessage),
           isConnecting: false,
         });
         return false;
       } catch (error) {
         clearTimeout(timeoutId);
         const message = error instanceof Error ? error.message : String(error);
-        set({ error: normalizeAuthError(message), isConnecting: false });
+        set({
+          error: isAuthorizationCancellation(message) ? null : normalizeAuthError(message),
+          isConnecting: false,
+        });
         return false;
       }
     }
@@ -316,7 +325,10 @@ export function createHandleAuthCallback(set: Set, get: Get): () => Promise<bool
     clearAuthIntent();
 
     if (callback.error) {
-      set({ error: normalizeAuthError(callback.error), isConnecting: false });
+      set({
+        error: isAuthorizationCancellation(callback.error) ? null : normalizeAuthError(callback.error),
+        isConnecting: false,
+      });
       return false;
     }
 
@@ -342,7 +354,11 @@ export function createHandleAuthCallback(set: Set, get: Get): () => Promise<bool
       return true;
     }
 
-    set({ error: normalizeAuthError(result.error || 'Account sign-in failed'), isConnecting: false });
+    const errorMessage = result.error || 'Account sign-in failed';
+    set({
+      error: isAuthorizationCancellation(errorMessage) ? null : normalizeAuthError(errorMessage),
+      isConnecting: false,
+    });
     return false;
   };
 }

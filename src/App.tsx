@@ -58,8 +58,6 @@ function App() {
         window.clearTimeout(timer);
       };
     }
-
-    addToast(t('app.checkoutCanceled'), 'info', 3500);
   }, [t]);
 
   return (

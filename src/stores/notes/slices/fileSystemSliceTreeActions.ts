@@ -35,6 +35,10 @@ function roundFileTreeLoadPerfMs(value: number) {
   return Math.round(value * 100) / 100;
 }
 
+function isNoVaultSelectedError(error: unknown): boolean {
+  return error instanceof Error && error.message === 'No vault selected';
+}
+
 export function invalidatePendingFileTreeLoads() {
   latestLoadFileTreeRequestId += 1;
 }
@@ -253,6 +257,16 @@ export function createFileSystemTreeActions(
         }
       } catch (error) {
         if (requestId === latestLoadFileTreeRequestId) {
+          if (isNoVaultSelectedError(error)) {
+            logNotesDebugAlways('NotesLoad', 'file-tree:skipped-no-vault', {
+              requestId,
+              skipRestore,
+              totalDurationMs: roundFileTreeLoadPerfMs(getFileTreeLoadPerfNow() - startedAt),
+              timings,
+            });
+            set({ error: null, isLoading: false });
+            return;
+          }
           logNotesDebugAlways('NotesLoad', 'file-tree:failed', {
             requestId,
             skipRestore,
