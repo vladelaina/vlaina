@@ -130,6 +130,11 @@ export function createCheckStatus(set: Set, get: Get): () => Promise<void> {
       const membershipName =
         typeof status?.membershipName === 'string' && status.membershipName.trim() ? status.membershipName.trim() : null;
 
+      if (!connected && get().isConnected === true) {
+        set({ isLoading: false });
+        return;
+      }
+
       set({
         isConnected: connected,
         provider,
@@ -146,7 +151,7 @@ export function createCheckStatus(set: Set, get: Get): () => Promise<void> {
       await refreshAvatar(set, get, username, avatarUrl);
     } catch (error) {
       console.error('Failed to check account auth status:', error);
-      applyDisconnectedAccount(set);
+      set({ isLoading: false });
     }
   };
 }

@@ -1,5 +1,3 @@
-import { webAccountCommands } from '@/lib/account/webCommands';
-
 import { MANAGED_AUTH_REQUIRED_ERROR } from './constants';
 
 export function getManagedServiceErrorMessage(error: unknown): string {
@@ -67,7 +65,6 @@ function extractManagedErrorPayloadMessage(payload: Record<string, unknown>): st
 export async function parseManagedError(response: Response): Promise<Error> {
   const raw = await response.text().catch(() => '');
   if (response.status === 401) {
-    webAccountCommands.clearClientSession();
     return new Error(MANAGED_AUTH_REQUIRED_ERROR);
   }
 

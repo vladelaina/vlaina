@@ -50,9 +50,9 @@ export function resolveDesktopSessionProbe(credentials, probe) {
 
   if (probe.kind === 'unauthorized') {
     return {
-      status: buildDisconnectedDesktopStatus(),
-      nextCredentials: null,
-      clearStoredCredentials: true,
+      status: buildCachedDesktopStatus(credentials),
+      nextCredentials: credentials,
+      clearStoredCredentials: false,
     };
   }
 
@@ -74,9 +74,9 @@ export function resolveDesktopSessionProbe(credentials, probe) {
 
   if (probe.payload?.connected !== true) {
     return {
-      status: buildDisconnectedDesktopStatus(),
-      nextCredentials: null,
-      clearStoredCredentials: true,
+      status: buildCachedDesktopStatus(credentials),
+      nextCredentials: credentials,
+      clearStoredCredentials: false,
     };
   }
 
@@ -98,6 +98,7 @@ export function resolveDesktopSessionProbe(credentials, probe) {
       typeof probe.payload?.avatarUrl === 'string'
         ? probe.payload.avatarUrl
         : credentials.avatarUrl,
+    authenticatedAt: credentials.authenticatedAt ?? null,
   };
 
   return {
