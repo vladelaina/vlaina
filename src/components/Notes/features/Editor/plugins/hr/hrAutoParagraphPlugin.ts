@@ -66,6 +66,7 @@ function isArrowUpSkipHrScenario(view: EditorView): boolean {
   const { state } = view;
   const { selection } = state;
   if (!selection.empty) return false;
+  if (selection.$from.depth !== 1) return false;
   if (selection.$from.parentOffset !== 0) return false;
   if (!selection.$from.parent.isTextblock) return false;
 
@@ -99,6 +100,7 @@ function isArrowDownSkipHrScenario(view: EditorView): boolean {
   const { state } = view;
   const { selection } = state;
   if (!selection.empty) return false;
+  if (selection.$from.depth !== 1) return false;
   if (!selection.$from.parent.isTextblock) return false;
 
   if (typeof view.endOfTextblock === 'function' && !view.endOfTextblock('down')) {
@@ -133,6 +135,7 @@ function deleteAdjacentHorizontalRule(view: EditorView, key: string): boolean {
   const { state } = view;
   const { selection } = state;
   if (!selection.empty) return false;
+  if (selection.$from.depth !== 1) return false;
   if (!selection.$from.parent.isTextblock) return false;
 
   const isBackwardDelete = key === 'Backspace' || key === 'Delete';
