@@ -44,4 +44,19 @@ describe('useLinkState', () => {
 
         expect(writeTextToClipboardMock).toHaveBeenCalledWith('[Example](https://example.com)');
     });
+
+    it('copies mailto email links as plain email addresses', async () => {
+        const { result } = renderHook(() => useLinkState({
+            href: 'mailto:v.lad.el.a.ina@gmail.com',
+            initialText: 'v.lad.el.a.ina@gmail.com',
+            onEdit: vi.fn(),
+            onClose: vi.fn(),
+        }));
+
+        await act(async () => {
+            result.current.handleCopy();
+        });
+
+        expect(writeTextToClipboardMock).toHaveBeenCalledWith('v.lad.el.a.ina@gmail.com');
+    });
 });

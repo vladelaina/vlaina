@@ -2,12 +2,25 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { normalizeEscapedUrlSchemes } from '@/lib/notes/markdown/markdownSerializationUtils';
 
+const EMAIL_ADDRESS_PATTERN = /^[A-Za-z0-9.!#$%&'*+/=?^_{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
+
 export interface UseLinkStateProps {
     href: string;
     initialText?: string;
     autoFocus?: boolean;
     onEdit: (text: string, url: string, shouldClose?: boolean) => void;
     onClose: () => void;
+}
+
+function getPlainMailtoEmail(href: string, initialText: string): string | null {
+    const normalizedHref = normalizeEscapedUrlSchemes(href).trim();
+    if (!normalizedHref.toLowerCase().startsWith('mailto:')) return null;
+
+    const email = normalizedHref.slice('mailto:'.length).split(/[?#]/, 1)[0]?.trim() ?? '';
+    const label = initialText.trim();
+    if (!EMAIL_ADDRESS_PATTERN.test(email)) return null;
+    if (label && label.toLowerCase() !== email.toLowerCase()) return null;
+    return email;
 }
 
 export function useLinkState({ href, initialText = '', autoFocus = false, onEdit, onClose }: UseLinkStateProps) {
@@ -93,7 +106,10 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
     const handleCopy = useCallback(() => {
         let copyText: string;
         const normalizedHref = normalizeEscapedUrlSchemes(href);
-        if (isAutolink) {
+        const plainMailtoEmail = getPlainMailtoEmail(href, initialText);
+        if (plainMailtoEmail) {
+            copyText = plainMailtoEmail;
+        } else if (isAutolink) {
             copyText = normalizedHref;
         } else {
             copyText = `[${initialText}](${normalizedHref})`;

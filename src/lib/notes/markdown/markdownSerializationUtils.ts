@@ -63,6 +63,11 @@ const ESCAPED_HIGHLIGHT_PATTERN = /\\==([^=\n]+)==/g;
 const ESCAPED_URL_SCHEME_PATTERN = /\b([A-Za-z][A-Za-z0-9+.-]*)\\:(?=\/\/)/g;
 const MARKDOWN_AUTOLINK_LITERAL_PATTERN =
   /<((?:https?:\/\/|mailto:)[^\s<>"']+|[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+)>/g;
+const EMAIL_ADDRESS_SOURCE = String.raw`[A-Za-z0-9.!#$%&'*+/=?^_{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+`;
+const MAILTO_EMAIL_MARKDOWN_LINK_PATTERN = new RegExp(
+  String.raw`(^|[^!])\[(${EMAIL_ADDRESS_SOURCE})\]\(mailto:(${EMAIL_ADDRESS_SOURCE})\)`,
+  'g'
+);
 
 let lastNormalizedMarkdownInput: string | null = null;
 let lastNormalizedMarkdownOutput: string | null = null;
@@ -83,8 +88,20 @@ export function normalizeMarkdownAutolinkLiterals(text: string): string {
   );
 }
 
+function normalizeMailtoEmailMarkdownLinks(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
+    segment.replace(
+      MAILTO_EMAIL_MARKDOWN_LINK_PATTERN,
+      (match, prefix: string, label: string, destination: string) =>
+        label.toLowerCase() === destination.toLowerCase() ? `${prefix}${label}` : match
+    )
+  );
+}
+
 function normalizeUrlSerializationArtifacts(text: string): string {
-  return normalizeMarkdownAutolinkLiterals(normalizeEscapedUrlSchemes(text));
+  return normalizeMailtoEmailMarkdownLinks(
+    normalizeMarkdownAutolinkLiterals(normalizeEscapedUrlSchemes(text))
+  );
 }
 
 function stripEmptyMarkdownPlaceholders(text: string): string {

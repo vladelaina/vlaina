@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx, serializerCtx } from '@milkdown/kit/core';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
+import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { markdownLinkPlugin, shouldHandleMarkdownLinkPaste } from './markdownLinkPlugin';
 
 function simulatePasteText(view: any, text: string): boolean {
@@ -143,6 +144,27 @@ describe('shouldHandleMarkdownLinkPaste', () => {
 
     const serializer = editor.ctx.get(serializerCtx);
     expect(serializer(view.state.doc).trim()).toBe('[Docs](https://example.com/path)');
+
+    await editor.destroy();
+  });
+
+  it('pastes markdown mailto links but persists matching email labels as plain emails', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(markdownLinkPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, '[v.lad.el.a.ina@gmail.com](mailto:v.lad.el.a.ina@gmail.com)')).toBe(true);
+
+    const serializer = editor.ctx.get(serializerCtx);
+    expect(normalizeSerializedMarkdownDocument(serializer(view.state.doc)).trim()).toBe(
+      'v.lad.el.a.ina@gmail.com'
+    );
 
     await editor.destroy();
   });

@@ -262,6 +262,15 @@ describe('normalizeSerializedMarkdownDocument', () => {
     );
   });
 
+  it('persists mailto links as plain emails when the label is the same email', () => {
+    expect(
+      normalizeSerializedMarkdownDocument('[v.lad.el.a.ina@gmail.com](mailto:v.lad.el.a.ina@gmail.com)')
+    ).toBe('v.lad.el.a.ina@gmail.com');
+    expect(normalizeSerializedMarkdownDocument('[mail](mailto:v.lad.el.a.ina@gmail.com)')).toBe(
+      '[mail](mailto:v.lad.el.a.ina@gmail.com)'
+    );
+  });
+
   it('does not rewrite escaped URL scheme separators inside fenced code', () => {
     const markdown = ['```txt', 'http\\://example.test:8317', '```'].join('\n');
 
