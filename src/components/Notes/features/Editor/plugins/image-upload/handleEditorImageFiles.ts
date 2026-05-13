@@ -15,6 +15,10 @@ export async function uploadImageFile(
     return storeState.uploadAsset(file, storeState.currentNote?.path);
 }
 
+function isTransientMissingVaultUpload(result: UploadResult): boolean {
+    return !result.success && result.error === 'Vault path is unavailable';
+}
+
 export async function uploadImageFileAndInsert(
     file: File,
     view: EditorView,
@@ -28,6 +32,9 @@ export async function uploadImageFileAndInsert(
     try {
         const result = await uploadImageFile(file, getStoreState());
         if (!result.success || !result.path) {
+            if (isTransientMissingVaultUpload(result)) {
+                return false;
+            }
             console.error('[ImageUpload] Upload failed:', result.error);
             useToastStore.getState().addToast(result.error || translate('editor.imageUploadFailed'), 'error');
             return false;

@@ -232,6 +232,27 @@ describe('accountSession auth actions', () => {
     });
   });
 
+  it('signIn clears desktop auth cancellation without showing an error', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    mocks.accountCommands.accountAuth.mockResolvedValue({
+      success: false,
+      error: 'Authorization cancelled',
+    });
+    const checkStatus = vi.fn();
+    const set = vi.fn();
+    const get = vi.fn(() => ({ isConnecting: true, checkStatus }));
+
+    const result = await createSignIn(set as never, get as never)('google');
+
+    expect(result).toBe(false);
+    expect(checkStatus).not.toHaveBeenCalled();
+    expect(mocks.normalizeAuthError).not.toHaveBeenCalledWith('Authorization cancelled');
+    expect(set).toHaveBeenLastCalledWith({
+      error: null,
+      isConnecting: false,
+    });
+  });
+
   it('signIn cancels pending desktop auth when the desktop timeout expires', async () => {
     vi.useFakeTimers();
     mocks.hasElectronDesktopBridge.mockReturnValue(true);
@@ -301,6 +322,30 @@ describe('accountSession auth actions', () => {
     expect(mocks.webAccountCommands.completeAuth).not.toHaveBeenCalled();
     expect(set).toHaveBeenLastCalledWith({
       error: 'Account sign-in state mismatch',
+      isConnecting: false,
+    });
+  });
+
+  it('handleAuthCallback clears user-denied oauth callbacks without showing an error', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    sessionStorage.setItem('vlaina_auth_state', 'expected-state');
+    sessionStorage.setItem('vlaina_auth_provider', 'google');
+    mocks.webAccountCommands.handleAuthCallback.mockReturnValue({
+      provider: 'google',
+      state: 'expected-state',
+      error: 'access_denied',
+    });
+    const set = vi.fn();
+    const get = vi.fn(() => ({ checkStatus: vi.fn() }));
+
+    const result = await createHandleAuthCallback(set as never, get as never)();
+
+    expect(result).toBe(false);
+    expect(mocks.clearAuthIntent).toHaveBeenCalledTimes(1);
+    expect(mocks.normalizeAuthError).not.toHaveBeenCalledWith('access_denied');
+    expect(mocks.webAccountCommands.completeAuth).not.toHaveBeenCalled();
+    expect(set).toHaveBeenLastCalledWith({
+      error: null,
       isConnecting: false,
     });
   });

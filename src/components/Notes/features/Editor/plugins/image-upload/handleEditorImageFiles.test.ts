@@ -1,7 +1,13 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { useToastStore } from '@/stores/useToastStore';
 import { handleEditorImageFiles, uploadImageFileAndInsert } from './handleEditorImageFiles';
 
 describe('handleEditorImageFiles', () => {
+    beforeEach(() => {
+        useToastStore.setState({ toasts: [] });
+        vi.restoreAllMocks();
+    });
+
     it('uploads a file and inserts the uploaded image path', async () => {
         const scrollIntoView = vi.fn(function () {
             return tr;
@@ -99,5 +105,40 @@ describe('handleEditorImageFiles', () => {
 
         expect(uploadAsset).toHaveBeenCalledTimes(2);
         expect(dispatch).toHaveBeenCalledTimes(2);
+    });
+
+    it('silences transient missing vault upload failures', async () => {
+        const scrollIntoView = vi.fn(function () {
+            return tr;
+        });
+        const replaceSelectionWith = vi.fn(function () {
+            return { scrollIntoView, docChanged: true };
+        });
+        const tr = { replaceSelectionWith };
+        const dispatch = vi.fn();
+        const create = vi.fn(() => ({ type: 'image-node' }));
+        const uploadAsset = vi.fn().mockResolvedValue({
+            success: false,
+            path: null,
+            isDuplicate: false,
+            error: 'Vault path is unavailable',
+        });
+        const addToast = vi.spyOn(useToastStore.getState(), 'addToast');
+        const view = {
+            state: {
+                schema: { nodes: { image: { create } } },
+                tr,
+            },
+            dispatch,
+        };
+        const file = new File(['demo'], 'demo.png', { type: 'image/png' });
+
+        await expect(uploadImageFileAndInsert(file, view as never, () => ({
+            uploadAsset,
+            currentNote: null,
+        }))).resolves.toBe(false);
+
+        expect(addToast).not.toHaveBeenCalled();
+        expect(dispatch).not.toHaveBeenCalled();
     });
 });
