@@ -45,7 +45,9 @@ export class CodeBlockNodeView implements NodeView {
   headerDOM: HTMLElement;
 
   private readonly editorDOM: HTMLElement;
-  private readonly cm: CodeMirror;
+  private placeholderDOM: HTMLPreElement | null = null;
+  private cm: CodeMirror | null = null;
+  private intersectionObserver: IntersectionObserver | null = null;
   private readonly languageCompartment = new Compartment();
   private readonly readOnlyCompartment = new Compartment();
   private readonly lineNumbersCompartment = new Compartment();
@@ -55,9 +57,9 @@ export class CodeBlockNodeView implements NodeView {
   private selected = false;
   private headerStateKey = '';
   private pendingMeasureFrame: number | null = null;
-  private readonly disposeFontMetricsSync: () => void;
-  private readonly unsubscribeSettings: () => void;
-  private readonly unsubscribeSelectionSync: () => void;
+  private disposeFontMetricsSync: () => void = () => {};
+  private unsubscribeSettings: () => void = () => {};
+  private unsubscribeSelectionSync: () => void = () => {};
   private destroyed = false;
   private showLineNumbers = selectCodeBlockLineNumbersEnabled(useUnifiedStore.getState());
 
@@ -97,6 +99,55 @@ export class CodeBlockNodeView implements NodeView {
     this.editorDOM.className = 'code-block-editable';
     this.dom.appendChild(this.editorDOM);
 
+    this.root = createRoot(this.headerDOM);
+    this.render();
+    if (this.shouldLazyInitializeCodeMirror()) {
+      this.installLazyPlaceholder();
+      return;
+    }
+
+    this.initializeCodeMirror();
+  }
+
+  private shouldLazyInitializeCodeMirror() {
+    return typeof window !== 'undefined' && typeof IntersectionObserver !== 'undefined';
+  }
+
+  private installLazyPlaceholder() {
+    this.dom.dataset.cmLazy = 'true';
+    this.placeholderDOM = document.createElement('pre');
+    this.placeholderDOM.className = 'code-block-lazy-preview';
+    this.placeholderDOM.textContent = this.node.textContent;
+    this.editorDOM.appendChild(this.placeholderDOM);
+
+    this.dom.addEventListener('mousedown', this.activateCodeMirrorFromInteraction);
+    this.dom.addEventListener('focusin', this.activateCodeMirrorFromInteraction);
+
+    this.intersectionObserver = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        this.initializeCodeMirror();
+      }
+    }, { rootMargin: '900px 0px' });
+    this.intersectionObserver.observe(this.dom);
+  }
+
+  private readonly activateCodeMirrorFromInteraction = () => {
+    this.initializeCodeMirror();
+  };
+
+  private initializeCodeMirror() {
+    if (this.cm) {
+      return;
+    }
+
+    this.intersectionObserver?.disconnect();
+    this.intersectionObserver = null;
+    this.dom.removeEventListener('mousedown', this.activateCodeMirrorFromInteraction);
+    this.dom.removeEventListener('focusin', this.activateCodeMirrorFromInteraction);
+    this.placeholderDOM?.remove();
+    this.placeholderDOM = null;
+    delete this.dom.dataset.cmLazy;
+
     this.cm = new CodeMirror({
       root: this.view.root,
       parent: this.editorDOM,
@@ -129,7 +180,7 @@ export class CodeBlockNodeView implements NodeView {
       }
 
       this.showLineNumbers = nextShowLineNumbers;
-      this.cm.dispatch({
+      this.cm?.dispatch({
         effects: this.lineNumbersCompartment.reconfigure(this.getLineNumberExtensions(this.node)),
       });
       this.scheduleMeasure();
@@ -142,8 +193,6 @@ export class CodeBlockNodeView implements NodeView {
     this.applyCollapsedState();
     this.syncFindHighlights();
     this.syncProseMirrorSelection();
-    this.root = createRoot(this.headerDOM);
-    this.render();
     void this.syncLanguage();
   }
 
@@ -173,7 +222,7 @@ export class CodeBlockNodeView implements NodeView {
 
   private createKeymap(): KeyBinding[] {
     return createCodeBlockEditorKeymap({
-      getCodeMirror: () => this.cm,
+      getCodeMirror: () => this.cm ?? undefined,
       view: this.view,
       getNode: () => this.node,
       getPos: this.getPos,
@@ -181,7 +230,7 @@ export class CodeBlockNodeView implements NodeView {
   }
 
   private forwardUpdate = (update: ViewUpdate) => {
-    if (this.updating || !this.cm.hasFocus) {
+    if (this.updating || !this.cm?.hasFocus) {
       return;
     }
 
@@ -197,6 +246,10 @@ export class CodeBlockNodeView implements NodeView {
   }
 
   private syncFindHighlights() {
+    if (!this.cm) {
+      return;
+    }
+
     const nodePos = this.getPos();
     if (nodePos === undefined) {
       syncCodeMirrorFindHighlights(this.cm, []);
@@ -237,11 +290,15 @@ export class CodeBlockNodeView implements NodeView {
     const selectionFrom = Math.max(this.view.state.selection.from, contentFrom);
     const selectionTo = Math.min(this.view.state.selection.to, contentTo);
     const hasSelection = selectionTo > selectionFrom;
-    const shouldMirrorOuterSelection = hasSelection && !this.cm.hasFocus;
+    const shouldMirrorOuterSelection = hasSelection && !this.cm?.hasFocus;
 
     this.dom.dataset.pmSelected = shouldMirrorOuterSelection ? 'true' : 'false';
 
     if (!shouldMirrorOuterSelection || this.node.attrs.collapsed) {
+      return;
+    }
+    this.initializeCodeMirror();
+    if (!this.cm) {
       return;
     }
 
@@ -260,6 +317,9 @@ export class CodeBlockNodeView implements NodeView {
   };
 
   private scheduleMeasure() {
+    if (!this.cm) {
+      return;
+    }
     const window = this.getOwnerWindow();
     if (!window) {
       this.cm.requestMeasure();
@@ -272,12 +332,12 @@ export class CodeBlockNodeView implements NodeView {
 
     this.pendingMeasureFrame = window.requestAnimationFrame(() => {
       this.pendingMeasureFrame = null;
-      this.cm.requestMeasure();
+      this.cm?.requestMeasure();
     });
   }
 
   private async syncLanguage() {
-    if (this.destroyed) {
+    if (this.destroyed || !this.cm) {
       return;
     }
 
@@ -296,7 +356,7 @@ export class CodeBlockNodeView implements NodeView {
       return;
     }
 
-    this.cm.dispatch({
+    this.cm?.dispatch({
       effects: this.languageCompartment.reconfigure(support ? [support] : []),
     });
     this.language = nextLanguage;
@@ -309,11 +369,18 @@ export class CodeBlockNodeView implements NodeView {
     }
 
     this.node = node;
+    if (!this.cm && this.placeholderDOM) {
+      this.placeholderDOM.textContent = node.textContent;
+    }
     this.applyCollapsedState();
     if (this.getHeaderStateKey(node) !== this.headerStateKey) {
       this.render();
     }
     void this.syncLanguage();
+
+    if (!this.cm) {
+      return true;
+    }
 
     const effects = [];
     if (this.view.editable === this.cm.state.readOnly) {
@@ -347,7 +414,7 @@ export class CodeBlockNodeView implements NodeView {
     this.syncProseMirrorSelection();
 
     if (this.selected) {
-      this.cm.focus();
+      this.cm?.focus();
     }
 
     return true;
@@ -357,7 +424,8 @@ export class CodeBlockNodeView implements NodeView {
     this.selected = true;
     this.dom.classList.add('ProseMirror-selectednode');
     if (!this.node.attrs.collapsed) {
-      this.cm.focus();
+      this.initializeCodeMirror();
+      this.cm?.focus();
     }
   }
 
@@ -367,7 +435,8 @@ export class CodeBlockNodeView implements NodeView {
   }
 
   setSelection(anchor: number, head: number) {
-    if (!this.cm.dom.isConnected || this.node.attrs.collapsed) {
+    this.initializeCodeMirror();
+    if (!this.cm || !this.cm.dom.isConnected || this.node.attrs.collapsed) {
       return;
     }
 
@@ -405,6 +474,8 @@ export class CodeBlockNodeView implements NodeView {
 
   destroy() {
     this.destroyed = true;
+    this.intersectionObserver?.disconnect();
+    this.intersectionObserver = null;
     const window = this.getOwnerWindow();
     if (window && this.pendingMeasureFrame !== null) {
       window.cancelAnimationFrame(this.pendingMeasureFrame);
@@ -414,7 +485,7 @@ export class CodeBlockNodeView implements NodeView {
     this.unsubscribeSelectionSync();
     this.disposeFontMetricsSync();
     this.root.unmount();
-    this.cm.destroy();
+    this.cm?.destroy();
     this.dom.remove();
   }
 }

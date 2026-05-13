@@ -103,6 +103,12 @@ describe('workspaceSlice tab history', () => {
   });
 
   it('records a closed tab and restores it to its original position', async () => {
+    storageAdapter.readFile.mockImplementation(async (path: string) => {
+      if (path === '/vault/beta.md') {
+        return '# beta';
+      }
+      throw new Error(`unexpected path: ${path}`);
+    });
     const cache = new Map([
       ['alpha.md', { content: '# alpha', modifiedAt: 1 }],
       ['beta.md', { content: '# beta', modifiedAt: 1 }],
@@ -127,6 +133,7 @@ describe('workspaceSlice tab history', () => {
         index: 1,
       },
     ]);
+    expect(store.getState().noteContentsCache.has('beta.md')).toBe(false);
 
     await store.getState().reopenClosedTab();
 
@@ -646,6 +653,87 @@ describe('workspaceSlice tab history', () => {
     expect(store.getState().recentNotes).toEqual([]);
     expect(store.getState().noteContentsCache.get('beta.md')).toEqual({
       content: '# prefetched',
+      modifiedAt: 4,
+    });
+  });
+
+  it('reuses an active hover prefetch when opening the same note', async () => {
+    let readStarted = false;
+    let resolveRead: (content: string) => void = () => {
+      throw new Error('read did not start');
+    };
+    storageAdapter.readFile.mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          readStarted = true;
+          resolveRead = resolve;
+        })
+    );
+    storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true });
+
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+
+    const prefetch = store.getState().prefetchNote('beta.md');
+    await vi.waitFor(() => {
+      expect(readStarted).toBe(true);
+    });
+
+    const open = store.getState().openNote('beta.md');
+    resolveRead('# beta');
+    await Promise.all([prefetch, open]);
+
+    expect(storageAdapter.readFile).toHaveBeenCalledTimes(1);
+    expect(storageAdapter.readFile).toHaveBeenCalledWith('/vault/beta.md');
+    expect(store.getState().currentNote).toEqual({ path: 'beta.md', content: '# beta' });
+    expect(store.getState().noteContentsCache.get('beta.md')).toEqual({
+      content: '# beta',
+      modifiedAt: 4,
+    });
+  });
+
+  it('cancels a queued note prefetch before it reads or writes cache', async () => {
+    const pendingReads = new Map<string, (content: string) => void>();
+    storageAdapter.readFile.mockImplementation(
+      (path: string) =>
+        new Promise<string>((resolve) => {
+          pendingReads.set(path, resolve);
+        })
+    );
+    storageAdapter.stat.mockResolvedValue({ modifiedAt: 4, isFile: true });
+
+    const store = createNotesStore({
+      currentNote: { path: 'alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+
+    const firstPrefetch = store.getState().prefetchNote('block-a.md');
+    const secondPrefetch = store.getState().prefetchNote('block-b.md');
+    const queuedPrefetch = store.getState().prefetchNote('queued.md');
+
+    await vi.waitFor(() => {
+      expect(pendingReads.has('/vault/block-a.md')).toBe(true);
+      expect(pendingReads.has('/vault/block-b.md')).toBe(true);
+    });
+
+    store.getState().cancelPrefetchNote('queued.md');
+    pendingReads.get('/vault/block-a.md')?.('# block a');
+    pendingReads.get('/vault/block-b.md')?.('# block b');
+
+    await Promise.all([firstPrefetch, secondPrefetch, queuedPrefetch]);
+
+    expect(storageAdapter.readFile).not.toHaveBeenCalledWith('/vault/queued.md');
+    expect(store.getState().noteContentsCache.get('queued.md')).toBeUndefined();
+    expect(store.getState().noteContentsCache.get('block-a.md')).toEqual({
+      content: '# block a',
+      modifiedAt: 4,
+    });
+    expect(store.getState().noteContentsCache.get('block-b.md')).toEqual({
+      content: '# block b',
       modifiedAt: 4,
     });
   });

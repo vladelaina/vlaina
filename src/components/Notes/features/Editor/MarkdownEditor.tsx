@@ -1,13 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { MilkdownProvider } from '@milkdown/react';
 import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 import { NoteHeader } from './NoteHeader';
 import { useNoteCoverController, NoteCoverCanvas } from '../Cover';
+import { DEFAULT_HEIGHT as DEFAULT_COVER_HEIGHT } from '../Cover/utils/coverConstants';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { useEditorLayout } from './hooks/useEditorLayout';
-import { calculateTextStats } from './utils/textStats';
+import { useDeferredTextStats } from './hooks/useDeferredTextStats';
 import { createScrollRestoreSession } from './utils/scrollRestoreSession';
 import {
   subscribeCurrentEditorBlockPositionSnapshot,
@@ -39,6 +40,10 @@ export function MarkdownEditor({
   const scrollPositionsRef = useRef(new Map<string, number>());
   const activePathRef = useRef<string | null>(null);
   const restoreSessionRef = useRef<{ path: string; targetScrollTop: number } | null>(null);
+  const [editorReadyTarget, setEditorReadyTarget] = useState<{
+    path: string | undefined;
+    diskRevision: number;
+  } | null>(null);
 
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const notesPath = useNotesStore(s => s.notesPath);
@@ -58,7 +63,7 @@ export function MarkdownEditor({
   const currentNoteMetadata = useMemo(() => {
     return getNoteMetadataEntry(noteMetadata, currentNotePath);
   }, [currentNotePath, noteMetadata]);
-  const textStats = useMemo(() => calculateTextStats(currentNoteContent), [currentNoteContent]);
+  const textStats = useDeferredTextStats(currentNotePath, currentNoteContent);
   const pendingSidebarSearchNavigationPath = useSyncExternalStore(
     subscribeSidebarSearchNavigationPending,
     getSidebarSearchNavigationPendingPath,
@@ -73,6 +78,18 @@ export function MarkdownEditor({
   const editorFind = useNoteEditorFind(currentNotePath);
   useHeldPageScroll(scrollRootRef);
   const hasActiveNote = active && Boolean(currentNotePath);
+  const isEditorViewReady =
+    editorReadyTarget?.path === currentNotePath &&
+    editorReadyTarget?.diskRevision === currentNoteDiskRevision;
+  const shouldRenderCover = hasActiveNote && isEditorViewReady;
+  const shouldReserveCoverSpace = hasActiveNote && Boolean(coverUrl) && !shouldRenderCover;
+  const reservedCoverHeight = coverController.cover.height ?? DEFAULT_COVER_HEIGHT;
+  const handleEditorViewReady = useCallback(() => {
+    setEditorReadyTarget({
+      path: currentNotePath,
+      diskRevision: currentNoteDiskRevision,
+    });
+  }, [currentNoteDiskRevision, currentNotePath]);
 
   useEffect(() => {
     if (!hasActiveNote) {
@@ -251,10 +268,17 @@ export function MarkdownEditor({
         scrollbarVariant="compact"
         data-note-scroll-root="true"
       >
-        {hasActiveNote ? (
+        {shouldRenderCover ? (
           <NoteCoverCanvas
             controller={coverController}
             notePath={currentNotePath}
+          />
+        ) : shouldReserveCoverSpace ? (
+          <div
+            aria-hidden="true"
+            className="relative w-full shrink-0"
+            data-note-cover-placeholder="true"
+            style={{ height: reservedCoverHeight, overflowAnchor: 'none' }}
           />
         ) : null}
 
@@ -273,7 +297,7 @@ export function MarkdownEditor({
               />
 
               <MilkdownProvider key={`${currentNotePath ?? 'empty'}:${currentNoteDiskRevision}`}>
-                <MilkdownEditorInner />
+                <MilkdownEditorInner onEditorViewReady={handleEditorViewReady} />
               </MilkdownProvider>
             </>
           ) : (

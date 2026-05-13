@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const HOVER_HIDE_DELAY_MS = 300;
 
@@ -15,6 +15,7 @@ interface UseImageBlockFrameOptions {
     isActive: boolean;
     isHoverDisabled: boolean;
     setIsHovered: (hovered: boolean) => void;
+    containerRef?: RefObject<HTMLDivElement | null>;
 }
 
 export function useImageBlockFrame({
@@ -23,8 +24,10 @@ export function useImageBlockFrame({
     isActive,
     isHoverDisabled,
     setIsHovered,
+    containerRef: providedContainerRef,
 }: UseImageBlockFrameOptions) {
-    const containerRef = useRef<HTMLDivElement>(null);
+    const fallbackContainerRef = useRef<HTMLDivElement>(null);
+    const containerRef = providedContainerRef ?? fallbackContainerRef;
     const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const lastUsableSizeRef = useRef({ width: 0, height: 0 });
     const [dragDimensions, setDragDimensions] = useState<{ width: number; height: number } | null>(null);

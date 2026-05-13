@@ -27,6 +27,7 @@ import { useNotesSidebarExternalDropImport } from './hooks/useNotesSidebarExtern
 import { collectNotePathsInTreeOrder } from './features/common/noteTreeNavigation';
 import { scheduleSidebarItemIntoView } from './features/common/sidebarScrollIntoView';
 import { useI18n } from '@/lib/i18n';
+import { clearRemoteImageMemoryCache } from './features/Editor/plugins/image-block/utils/remoteImageMemoryCache';
 
 const EmbeddedChatView = lazy(async () => {
   const mod = await import('@/components/Chat/ChatView');
@@ -48,6 +49,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
   const saveNote = useNotesStore(s => s.saveNote);
   const cleanupAssetTempFiles = useNotesStore(s => s.cleanupAssetTempFiles);
   const clearAssetUrlCache = useNotesStore(s => s.clearAssetUrlCache);
+  const cancelNoteContentScan = useNotesStore(s => s.cancelNoteContentScan);
   const revealFolder = useNotesStore(s => s.revealFolder);
   const isDirty = useNotesStore(s => s.isDirty);
   const pendingStarredNavigation = useNotesStore(s => s.pendingStarredNavigation);
@@ -152,6 +154,8 @@ export function NotesView({ active = true }: { active?: boolean }) {
     loadFileTree,
     cleanupAssetTempFiles,
     clearAssetUrlCache,
+    clearRemoteImageMemoryCache,
+    cancelNoteContentScan,
     onInitializingChange: handleVaultInitializingChange,
   });
 

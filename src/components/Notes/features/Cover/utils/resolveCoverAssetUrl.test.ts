@@ -122,6 +122,58 @@ describe('resolveCoverAssetUrl', () => {
     expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
   });
 
+  it('disables main-thread thumbnail fallback for large cover thumbnails', async () => {
+    hoisted.resolveExistingVaultAssetPath.mockResolvedValue('/vault/assets/a.webp');
+    hoisted.loadImageThumbnailAsBlob.mockResolvedValue('blob:thumb-a');
+
+    const url = await resolveCoverAssetUrl({
+      assetPath: 'assets/a.webp',
+      vaultPath: '/vault-a',
+      thumbnail: true,
+      thumbnailMaxEdgePx: 1280,
+    });
+
+    expect(url).toBe('blob:thumb-a');
+    expect(hoisted.loadImageThumbnailAsBlob).toHaveBeenCalledWith('/vault/assets/a.webp', {
+      maxEdgePx: 1280,
+      allowMainThreadFallback: false,
+    });
+    expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+  });
+
+  it('coalesces concurrent resolves for the same cover', async () => {
+    let resolveBlob: (url: string) => void = () => {
+      throw new Error('blob load did not start');
+    };
+    hoisted.resolveExistingVaultAssetPath.mockResolvedValue('/vault/assets/a.webp');
+    hoisted.loadImageAsBlob.mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveBlob = resolve;
+        })
+    );
+
+    const first = resolveCoverAssetUrl({
+      assetPath: 'assets/a.webp',
+      vaultPath: '/vault-a',
+      currentNotePath: 'notes/today.md',
+    });
+    const second = resolveCoverAssetUrl({
+      assetPath: 'assets/a.webp',
+      vaultPath: '/vault-a',
+      currentNotePath: 'notes/today.md',
+    });
+
+    await vi.waitFor(() => {
+      expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(1);
+    });
+    resolveBlob('blob:a');
+
+    await expect(Promise.all([first, second])).resolves.toEqual(['blob:a', 'blob:a']);
+    expect(hoisted.resolveExistingVaultAssetPath).toHaveBeenCalledTimes(1);
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(1);
+  });
+
   it('throws when local asset requires vault path', async () => {
     await expect(resolveCoverAssetUrl({
       assetPath: 'assets/a.webp',

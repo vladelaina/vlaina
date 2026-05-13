@@ -29,6 +29,7 @@ type MockNotesState = {
   saveNote: ReturnType<typeof vi.fn>;
   cleanupAssetTempFiles: ReturnType<typeof vi.fn>;
   clearAssetUrlCache: ReturnType<typeof vi.fn>;
+  cancelNoteContentScan: ReturnType<typeof vi.fn>;
   revealFolder: ReturnType<typeof vi.fn>;
   isDirty: boolean;
   pendingStarredNavigation: {
@@ -78,6 +79,7 @@ const mocks = vi.hoisted(() => {
     saveNote: vi.fn().mockResolvedValue(undefined),
     cleanupAssetTempFiles: vi.fn().mockResolvedValue(undefined),
     clearAssetUrlCache: vi.fn(),
+    cancelNoteContentScan: vi.fn(),
     revealFolder: vi.fn(),
     isDirty: false,
     pendingStarredNavigation: null,
@@ -383,6 +385,7 @@ describe('NotesView', () => {
     notesState.saveNote.mockClear();
     notesState.cleanupAssetTempFiles.mockClear();
     notesState.clearAssetUrlCache.mockClear();
+    notesState.cancelNoteContentScan.mockClear();
     notesState.revealFolder.mockClear();
     notesState.setPendingStarredNavigation.mockClear();
     notesState.openNoteByAbsolutePath.mockClear();

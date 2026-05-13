@@ -28,10 +28,81 @@ export interface NotesSidebarSearchIndexOptions {
   currentVaultPath?: string | null;
 }
 
-const CONTENT_SEARCH_MIN_QUERY_LENGTH = 1;
+const SEARCH_ENTRY_METADATA = Symbol('notesSidebarSearchEntryMetadata');
+const SEARCH_INDEX_METADATA = Symbol('notesSidebarSearchIndexMetadata');
+const CONTENT_SEARCH_MIN_QUERY_LENGTH = 2;
 const CONTENT_SNIPPET_RADIUS = 36;
 const MAX_CONTENT_MATCHES_PER_NOTE = 5;
 const MAX_SEARCH_RESULTS = 200;
+
+interface NotesSidebarSearchEntryMetadata {
+  lowerName: string;
+  lowerPreview: string;
+}
+
+interface NotesSidebarSearchIndexMetadata {
+  contentEntriesByPath: NotesSidebarSearchEntry[];
+}
+
+type MetadataSearchEntry = NotesSidebarSearchEntry & {
+  [SEARCH_ENTRY_METADATA]?: NotesSidebarSearchEntryMetadata;
+};
+
+type MetadataSearchIndex = NotesSidebarSearchEntry[] & {
+  [SEARCH_INDEX_METADATA]?: NotesSidebarSearchIndexMetadata;
+};
+
+function attachSearchEntryMetadata(entry: NotesSidebarSearchEntry): NotesSidebarSearchEntry {
+  Object.defineProperty(entry, SEARCH_ENTRY_METADATA, {
+    configurable: true,
+    enumerable: false,
+    value: {
+      lowerName: entry.name.toLowerCase(),
+      lowerPreview: entry.preview.toLowerCase(),
+    } satisfies NotesSidebarSearchEntryMetadata,
+  });
+
+  return entry;
+}
+
+function attachSearchIndexMetadata(index: NotesSidebarSearchEntry[]): NotesSidebarSearchEntry[] {
+  const contentEntriesByPath = index
+    .filter((entry) => entry.contentSearchable !== false)
+    .sort((a, b) => a.path.localeCompare(b.path));
+
+  Object.defineProperty(index, SEARCH_INDEX_METADATA, {
+    configurable: true,
+    enumerable: false,
+    value: {
+      contentEntriesByPath,
+    } satisfies NotesSidebarSearchIndexMetadata,
+  });
+
+  return index;
+}
+
+function getSearchEntryMetadata(entry: NotesSidebarSearchEntry): NotesSidebarSearchEntryMetadata {
+  const metadata = (entry as MetadataSearchEntry)[SEARCH_ENTRY_METADATA];
+  if (metadata) {
+    return metadata;
+  }
+
+  return {
+    lowerName: entry.name.toLowerCase(),
+    lowerPreview: entry.preview.toLowerCase(),
+  };
+}
+
+function getContentSearchEntriesByPath(index: NotesSidebarSearchEntry[]): NotesSidebarSearchEntry[] {
+  const metadata = (index as MetadataSearchIndex)[SEARCH_INDEX_METADATA];
+  if (metadata) {
+    return metadata.contentEntriesByPath;
+  }
+
+  return index
+    .filter((entry) => entry.contentSearchable !== false)
+    .sort((a, b) => a.path.localeCompare(b.path));
+}
 
 function collectNotesSidebarSearchEntries(
   children: FileTreeNode[],
@@ -45,11 +116,11 @@ function collectNotesSidebarSearchEntries(
       continue;
     }
 
-    bucket.push({
+    bucket.push(attachSearchEntryMetadata({
       path: node.path,
       name: getDisplayName(node.path) || node.name,
       preview: parentPath ? `${parentPath}/` : '',
-    });
+    }));
   }
 
   return bucket;
@@ -94,14 +165,14 @@ function collectStarredSearchEntries(
     }
 
     seenOpenPaths.add(entryPath);
-    entries.push({
+    entries.push(attachSearchEntryMetadata({
       path: entryPath,
       openPath: entryPath,
       name: getNoteTitleFromPath(entry.relativePath),
       preview: getParentPreview(entryPath),
       isExternal: !isCurrentVaultEntry,
       contentSearchable: false,
-    });
+    }));
   }
 
   return entries;
@@ -117,17 +188,17 @@ export function buildNotesSidebarSearchIndex(
     : [];
 
   if (!options.starredEntries?.length) {
-    return treeEntries;
+    return attachSearchIndexMetadata(treeEntries);
   }
 
-  return [
+  return attachSearchIndexMetadata([
     ...treeEntries,
     ...collectStarredSearchEntries(
       options.starredEntries,
       options.currentVaultPath,
       new Set(treeEntries.map((entry) => entry.path)),
     ),
-  ];
+  ]);
 }
 
 export function countNotesSidebarSearchEntries(rootFolder: FolderNode | null): number {
@@ -180,6 +251,25 @@ function toPlainTextLine(line: string): string {
     .trim();
 }
 
+function* iterateLines(content: string): Iterable<string> {
+  let start = 0;
+  for (let index = 0; index < content.length; index += 1) {
+    const charCode = content.charCodeAt(index);
+    if (charCode !== 10 && charCode !== 13) {
+      continue;
+    }
+
+    yield content.slice(start, index);
+
+    if (charCode === 13 && content.charCodeAt(index + 1) === 10) {
+      index += 1;
+    }
+    start = index + 1;
+  }
+
+  yield content.slice(start);
+}
+
 function getContentMatches(content: string | undefined, lowerQuery: string) {
   if (!content) {
     return [];
@@ -191,13 +281,13 @@ function getContentMatches(content: string | undefined, lowerQuery: string) {
     ordinal: number;
   }> = [];
   let ordinal = 0;
-  const lines = content
-    .split(/\r?\n/)
-    .map((line) => toPlainTextLine(line))
-    .filter(Boolean);
+  for (const rawLine of iterateLines(content)) {
+    const plainLine = toPlainTextLine(rawLine);
+    if (!plainLine) {
+      continue;
+    }
 
-  for (const line of lines) {
-    const normalizedContent = normalizeContentForSearch(line);
+    const normalizedContent = normalizeContentForSearch(plainLine);
     if (!normalizedContent) {
       continue;
     }
@@ -235,6 +325,23 @@ function getContentMatches(content: string | undefined, lowerQuery: string) {
   return matches;
 }
 
+function compareSearchResults(a: NotesSidebarSearchResult, b: NotesSidebarSearchResult): number {
+  if (a.matchKind !== b.matchKind) {
+    const rank = { name: 0, path: 1, content: 2 };
+    return rank[a.matchKind] - rank[b.matchKind];
+  }
+
+  if (a.path !== b.path) {
+    return a.path.localeCompare(b.path);
+  }
+
+  return (
+    a.matchIndex - b.matchIndex ||
+    (a.contentMatchOrdinal ?? -1) - (b.contentMatchOrdinal ?? -1) ||
+    a.name.localeCompare(b.name)
+  );
+}
+
 export function queryNotesSidebarSearch(
   index: NotesSidebarSearchEntry[],
   query: string,
@@ -247,66 +354,67 @@ export function queryNotesSidebarSearch(
 
   const lowerQuery = trimmedQuery.toLowerCase();
   const includeContentMatches = shouldSearchNotesSidebarContents(trimmedQuery);
+  const structuralResults: NotesSidebarSearchResult[] = [];
 
-  return index
-    .flatMap((entry) => {
-      const nameMatchIndex = entry.name.toLowerCase().indexOf(lowerQuery);
-      const pathMatchIndex = entry.preview.toLowerCase().indexOf(lowerQuery);
-      const contentMatches = includeContentMatches && entry.contentSearchable !== false
-        ? getContentMatches(getNoteContent?.(entry.path), lowerQuery)
-        : [];
-      const results: NotesSidebarSearchResult[] = [];
+  for (const entry of index) {
+    const { lowerName, lowerPreview } = getSearchEntryMetadata(entry);
+    const nameMatchIndex = lowerName.indexOf(lowerQuery);
+    const pathMatchIndex = lowerPreview.indexOf(lowerQuery);
 
-      if (nameMatchIndex !== -1) {
-        results.push({
-          ...entry,
-          id: `${entry.path}::name`,
-          matchIndex: nameMatchIndex,
-          matchKind: 'name',
-          contentSnippet: null,
-          contentMatchOrdinal: contentMatches[0]?.ordinal ?? null,
-        });
+    if (nameMatchIndex !== -1) {
+      structuralResults.push({
+        ...entry,
+        id: `${entry.path}::name`,
+        matchIndex: nameMatchIndex,
+        matchKind: 'name',
+        contentSnippet: null,
+        contentMatchOrdinal: null,
+      });
+    }
+
+    if (pathMatchIndex !== -1) {
+      structuralResults.push({
+        ...entry,
+        id: `${entry.path}::path`,
+        matchIndex: pathMatchIndex,
+        matchKind: 'path',
+        contentSnippet: null,
+        contentMatchOrdinal: null,
+      });
+    }
+  }
+
+  structuralResults.sort(compareSearchResults);
+  if (!includeContentMatches || !getNoteContent || structuralResults.length >= MAX_SEARCH_RESULTS) {
+    return structuralResults.slice(0, MAX_SEARCH_RESULTS);
+  }
+
+  const contentResults: NotesSidebarSearchResult[] = [];
+  const contentResultLimit = MAX_SEARCH_RESULTS - structuralResults.length;
+  const contentEntries = getContentSearchEntriesByPath(index);
+
+  for (const entry of contentEntries) {
+    if (contentResults.length >= contentResultLimit) {
+      break;
+    }
+
+    const contentMatches = getContentMatches(getNoteContent(entry.path), lowerQuery);
+    for (const contentMatch of contentMatches) {
+      contentResults.push({
+        ...entry,
+        id: `${entry.path}::content::${contentMatch.ordinal}`,
+        matchIndex: contentMatch.matchIndex,
+        matchKind: 'content',
+        contentSnippet: contentMatch.snippet,
+        contentMatchOrdinal: contentMatch.ordinal,
+      });
+
+      if (contentResults.length >= contentResultLimit) {
+        break;
       }
+    }
+  }
 
-      if (pathMatchIndex !== -1) {
-        results.push({
-          ...entry,
-          id: `${entry.path}::path`,
-          matchIndex: pathMatchIndex,
-          matchKind: 'path',
-          contentSnippet: null,
-          contentMatchOrdinal: contentMatches[0]?.ordinal ?? null,
-        });
-      }
-
-      for (const contentMatch of contentMatches) {
-        results.push({
-          ...entry,
-          id: `${entry.path}::content::${contentMatch.ordinal}`,
-          matchIndex: contentMatch.matchIndex,
-          matchKind: 'content',
-          contentSnippet: contentMatch.snippet,
-          contentMatchOrdinal: contentMatch.ordinal,
-        });
-      }
-
-      return results;
-    })
-    .sort((a, b) => {
-      if (a.matchKind !== b.matchKind) {
-        const rank = { name: 0, path: 1, content: 2 };
-        return rank[a.matchKind] - rank[b.matchKind];
-      }
-
-      if (a.path !== b.path) {
-        return a.path.localeCompare(b.path);
-      }
-
-      return (
-        a.matchIndex - b.matchIndex ||
-        (a.contentMatchOrdinal ?? -1) - (b.contentMatchOrdinal ?? -1) ||
-        a.name.localeCompare(b.name)
-      );
-    })
-    .slice(0, MAX_SEARCH_RESULTS);
+  contentResults.sort(compareSearchResults);
+  return [...structuralResults, ...contentResults].slice(0, MAX_SEARCH_RESULTS);
 }

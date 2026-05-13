@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   Editor,
   defaultValueCtx,
@@ -16,6 +16,20 @@ import {
 } from './index';
 import { createVideoDom } from './videoDom';
 import { videoPlugin } from './videoPlugin';
+
+const videoDebugMock = vi.hoisted(() => ({
+  enabled: false,
+}));
+
+vi.mock('@/stores/notes/lineBreakDebugLog', async () => {
+  const actual = await vi.importActual<typeof import('@/stores/notes/lineBreakDebugLog')>(
+    '@/stores/notes/lineBreakDebugLog'
+  );
+  return {
+    ...actual,
+    isNotesDebugLoggingEnabled: () => videoDebugMock.enabled,
+  };
+});
 
 async function serializeVideoNode(src: string, title = '') {
   const editor = Editor.make()
@@ -43,6 +57,11 @@ async function serializeVideoNode(src: string, title = '') {
 }
 
 describe('videoPlugin URL support', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    videoDebugMock.enabled = false;
+  });
+
   it('supports youtube, bilibili, and direct video URLs', () => {
     expect(parseVideoUrl('https://www.youtube.com/watch?v=dQw4w9WgXcQ')).toEqual({
       type: 'youtube',
@@ -146,6 +165,22 @@ describe('videoPlugin URL support', () => {
     expect(direct.querySelector('iframe')).toBeNull();
     expect(direct.querySelector('video')).toBeNull();
     expect(direct.textContent).toContain('Remote video blocked');
+  });
+
+  it('does not register global video debug listeners while video debug logging is disabled', () => {
+    const addEventListenerSpy = vi.spyOn(window, 'addEventListener');
+    createVideoDom({
+      src: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      title: '',
+      width: 560,
+      height: 315,
+    });
+
+    expect(addEventListenerSpy).not.toHaveBeenCalledWith(
+      'securitypolicyviolation',
+      expect.any(Function),
+    );
+    addEventListenerSpy.mockRestore();
   });
 
   it('serializes supported video nodes as markdown image syntax', async () => {

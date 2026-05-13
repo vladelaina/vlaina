@@ -9,8 +9,12 @@ import {
 } from './reader';
 
 const hoisted = vi.hoisted(() => ({
-  readBinaryFile: vi.fn(async () => new Uint8Array([1, 2, 3])),
+  readBinaryFile: vi.fn<(path: string) => Promise<Uint8Array>>(async () => new Uint8Array([1, 2, 3])),
+  writeBinaryFile: vi.fn<(path: string, bytes: Uint8Array, options?: { recursive?: boolean }) => Promise<void>>(async () => undefined),
+  exists: vi.fn<(path: string) => Promise<boolean>>(async () => false),
+  getBasePath: vi.fn(async () => '/app-data'),
   stat: vi.fn(async (): Promise<{ modifiedAt?: number; size?: number } | null> => null),
+  platform: 'web' as 'electron' | 'web',
 }));
 
 function encodeTextBytes(value: string): Uint8Array<ArrayBuffer> {
@@ -18,8 +22,13 @@ function encodeTextBytes(value: string): Uint8Array<ArrayBuffer> {
 }
 
 vi.mock('@/lib/storage/adapter', () => ({
+  joinPath: async (...segments: string[]) => segments.join('/'),
   getStorageAdapter: () => ({
+    platform: hoisted.platform,
     readBinaryFile: hoisted.readBinaryFile,
+    writeBinaryFile: hoisted.writeBinaryFile,
+    exists: hoisted.exists,
+    getBasePath: hoisted.getBasePath,
     stat: hoisted.stat,
   }),
 }));
@@ -28,14 +37,21 @@ describe('asset image reader cache', () => {
   beforeEach(() => {
     clearImageCache();
     hoisted.readBinaryFile.mockClear();
+    hoisted.writeBinaryFile.mockClear();
+    hoisted.exists.mockReset();
+    hoisted.exists.mockResolvedValue(false);
+    hoisted.getBasePath.mockReset();
+    hoisted.getBasePath.mockResolvedValue('/app-data');
     hoisted.stat.mockReset();
     hoisted.stat.mockResolvedValue(null);
+    hoisted.platform = 'web';
     vi.spyOn(URL, 'createObjectURL').mockImplementation(() => 'blob:test-url');
     vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
   });
 
   afterEach(() => {
     clearImageCache();
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
@@ -177,6 +193,122 @@ describe('asset image reader cache', () => {
     vi.stubGlobal('Image', originalImage);
   });
 
+  it('creates raster thumbnails in a worker when worker canvas APIs are available', async () => {
+    hoisted.stat.mockResolvedValue({ modifiedAt: 1, size: 3 });
+    vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:worker-thumb-url');
+    const terminate = vi.fn();
+    const postMessage = vi.fn(function (
+      this: {
+        onmessage: ((event: MessageEvent<{ ok: boolean; blob: Blob }>) => void) | null;
+      },
+    ) {
+      queueMicrotask(() => {
+        this.onmessage?.({
+          data: {
+            ok: true,
+            blob: new Blob(['worker-thumb'], { type: 'image/webp' }),
+          },
+        } as MessageEvent<{ ok: boolean; blob: Blob }>);
+      });
+    });
+
+    class ThumbnailWorker {
+      onmessage: ((event: MessageEvent<{ ok: boolean; blob: Blob }>) => void) | null = null;
+      onerror: ((event: ErrorEvent) => void) | null = null;
+      terminate = terminate;
+      postMessage = postMessage;
+    }
+
+    vi.stubGlobal('Worker', ThumbnailWorker);
+
+    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png')).resolves.toBe('blob:worker-thumb-url');
+
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    expect(terminate).toHaveBeenCalledTimes(1);
+  });
+
+  it('reuses persisted electron thumbnails before reading the source image', async () => {
+    hoisted.platform = 'electron';
+    hoisted.stat.mockResolvedValue({ modifiedAt: 1, size: 3 });
+    hoisted.exists.mockResolvedValue(true);
+    hoisted.readBinaryFile.mockResolvedValueOnce(new Uint8Array([9, 8, 7]));
+    vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:persistent-thumb-url');
+
+    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png', {
+      maxEdgePx: 1280,
+      allowMainThreadFallback: false,
+    })).resolves.toBe('blob:persistent-thumb-url');
+
+    expect(hoisted.getBasePath).toHaveBeenCalledTimes(1);
+    const existsPath = hoisted.exists.mock.calls[0]?.[0] as string;
+    const readPath = hoisted.readBinaryFile.mock.calls[0]?.[0] as string;
+    expect(existsPath).toContain('/app-data/.vlaina/cache/image-thumbnails/');
+    expect(hoisted.readBinaryFile).toHaveBeenCalledTimes(1);
+    expect(readPath).toContain('/app-data/.vlaina/cache/image-thumbnails/');
+    expect(readPath).not.toBe('/vault/assets/cover.png');
+  });
+
+  it('persists generated electron worker thumbnails in the background', async () => {
+    hoisted.platform = 'electron';
+    hoisted.stat.mockResolvedValue({ modifiedAt: 1, size: 3 });
+    hoisted.exists.mockResolvedValue(false);
+    vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:worker-thumb-url');
+    const terminate = vi.fn();
+    const postMessage = vi.fn(function (
+      this: {
+        onmessage: ((event: MessageEvent<{ ok: boolean; blob: Blob }>) => void) | null;
+      },
+    ) {
+      queueMicrotask(() => {
+        this.onmessage?.({
+          data: {
+            ok: true,
+            blob: Object.assign(new Blob(['worker-thumb'], { type: 'image/webp' }), {
+              arrayBuffer: async () => new TextEncoder().encode('worker-thumb').buffer,
+            }),
+          },
+        } as MessageEvent<{ ok: boolean; blob: Blob }>);
+      });
+    });
+
+    class ThumbnailWorker {
+      onmessage: ((event: MessageEvent<{ ok: boolean; blob: Blob }>) => void) | null = null;
+      onerror: ((event: ErrorEvent) => void) | null = null;
+      terminate = terminate;
+      postMessage = postMessage;
+    }
+
+    vi.stubGlobal('Worker', ThumbnailWorker);
+
+    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png', {
+      maxEdgePx: 1280,
+      allowMainThreadFallback: false,
+    })).resolves.toBe('blob:worker-thumb-url');
+
+    await vi.waitFor(() => {
+      expect(hoisted.writeBinaryFile).toHaveBeenCalledTimes(1);
+    });
+    const writePath = hoisted.writeBinaryFile.mock.calls[0]?.[0] as string;
+    const writeOptions = hoisted.writeBinaryFile.mock.calls[0]?.[2] as { recursive?: boolean };
+    expect(writePath).toContain('/app-data/.vlaina/cache/image-thumbnails/');
+    expect(writeOptions).toEqual({ recursive: true });
+  });
+
+  it('can skip main-thread canvas thumbnail fallback when worker APIs are unavailable', async () => {
+    hoisted.stat.mockResolvedValue({ modifiedAt: 1, size: 3 });
+    vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:original-thumbnail-url');
+    vi.stubGlobal('Worker', undefined);
+    const createElementSpy = vi.spyOn(document, 'createElement');
+
+    await expect(loadImageThumbnailAsBlob('/vault/assets/cover.png', {
+      maxEdgePx: 1280,
+      allowMainThreadFallback: false,
+    })).resolves.toBe('blob:original-thumbnail-url');
+
+    expect(createElementSpy).not.toHaveBeenCalledWith('canvas');
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith('blob:original-thumbnail-url');
+  });
+
   it('reuses cached thumbnails when file metadata is unavailable', async () => {
     hoisted.readBinaryFile.mockResolvedValueOnce(encodeTextBytes('<svg xmlns="http://www.w3.org/2000/svg" />'));
     vi.mocked(URL.createObjectURL).mockReturnValueOnce('blob:thumb-svg-url');
@@ -198,12 +330,14 @@ describe('asset image reader cache', () => {
     const firstLoad = loadImageThumbnailAsBlob('/vault/assets/icon.svg');
     const secondLoad = loadImageThumbnailAsBlob('/vault/assets/icon.svg');
 
-    await Promise.resolve();
-    await Promise.resolve();
-    if (!resolveRead) {
+    await vi.waitFor(() => {
+      expect(resolveRead).toBeDefined();
+    });
+    const completeRead = resolveRead;
+    if (!completeRead) {
       throw new Error('thumbnail read did not start');
     }
-    resolveRead(encodeTextBytes('<svg xmlns="http://www.w3.org/2000/svg" />'));
+    completeRead(encodeTextBytes('<svg xmlns="http://www.w3.org/2000/svg" />'));
 
     await expect(Promise.all([firstLoad, secondLoad])).resolves.toEqual([
       'blob:coalesced-svg-url',

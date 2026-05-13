@@ -2,17 +2,36 @@ import { loadImageAsBlob, loadImageThumbnailAsBlob } from '@/lib/assets/io/reade
 import { resolveExistingVaultAssetPath } from '@/lib/assets/core/paths';
 import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
 import { isPublicRemoteMediaUrl, sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
-import { logNotesDebugAlways } from '@/stores/notes/lineBreakDebugLog';
 
 interface ResolveCoverAssetUrlOptions {
   assetPath: string;
   vaultPath: string;
   currentNotePath?: string;
   thumbnail?: boolean;
+  thumbnailMaxEdgePx?: number;
 }
 
-function logCoverResolve(scope: string, payload?: unknown) {
-  logNotesDebugAlways('NotesCoverResolve', scope, payload);
+interface PendingCoverAssetUrlResolve {
+  promise: Promise<string>;
+  startedAt: number;
+}
+
+const pendingCoverAssetUrlResolves = new Map<string, PendingCoverAssetUrlResolve>();
+const COVER_RESOLVE_JOIN_WINDOW_MS = 50;
+
+function getCoverResolveKey({
+  assetPath,
+  vaultPath,
+  currentNotePath,
+  thumbnail,
+  thumbnailMaxEdgePx,
+}: ResolveCoverAssetUrlOptions) {
+  return [
+    thumbnail ? `thumb:${thumbnailMaxEdgePx ?? ''}` : 'full',
+    vaultPath,
+    currentNotePath ?? '',
+    assetPath,
+  ].join('\0');
 }
 
 export async function resolveCoverAssetUrl({
@@ -20,12 +39,53 @@ export async function resolveCoverAssetUrl({
   vaultPath,
   currentNotePath,
   thumbnail,
+  thumbnailMaxEdgePx,
 }: ResolveCoverAssetUrlOptions): Promise<string> {
-  logCoverResolve('start', { assetPath, vaultPath, currentNotePath });
+  const resolveKey = getCoverResolveKey({
+    assetPath,
+    vaultPath,
+    currentNotePath,
+    thumbnail,
+    thumbnailMaxEdgePx,
+  });
+  const pendingResolve = pendingCoverAssetUrlResolves.get(resolveKey);
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (pendingResolve && now - pendingResolve.startedAt <= COVER_RESOLVE_JOIN_WINDOW_MS) {
+    return pendingResolve.promise;
+  }
+  if (pendingResolve) {
+    pendingCoverAssetUrlResolves.delete(resolveKey);
+  }
+
+  const resolvePromise = resolveCoverAssetUrlUncached({
+    assetPath,
+    vaultPath,
+    currentNotePath,
+    thumbnail,
+    thumbnailMaxEdgePx,
+  });
+  pendingCoverAssetUrlResolves.set(resolveKey, {
+    promise: resolvePromise,
+    startedAt: now,
+  });
+  try {
+    return await resolvePromise;
+  } finally {
+    if (pendingCoverAssetUrlResolves.get(resolveKey)?.promise === resolvePromise) {
+      pendingCoverAssetUrlResolves.delete(resolveKey);
+    }
+  }
+}
+
+async function resolveCoverAssetUrlUncached({
+  assetPath,
+  vaultPath,
+  currentNotePath,
+  thumbnail,
+  thumbnailMaxEdgePx,
+}: ResolveCoverAssetUrlOptions): Promise<string> {
   if (isBuiltinCover(assetPath)) {
-    const builtinUrl = getBuiltinCoverUrl(assetPath);
-    logCoverResolve('builtin', { assetPath, builtinUrl });
-    return builtinUrl;
+    return getBuiltinCoverUrl(assetPath);
   }
 
   const safeAssetPath = sanitizeNoteMediaSrc(assetPath);
@@ -37,15 +97,20 @@ export async function resolveCoverAssetUrl({
   }
 
   if (!vaultPath) {
-    logCoverResolve('missing-vault', { assetPath });
     throw new Error('vault-path-required');
   }
 
   const fullPath = await resolveExistingVaultAssetPath(vaultPath, safeAssetPath, currentNotePath);
   if (!fullPath) {
-    logCoverResolve('unsupported-path', { assetPath, safeAssetPath, vaultPath, currentNotePath });
     throw new Error('cover-path-unsupported');
   }
-  logCoverResolve('resolved-file', { assetPath, safeAssetPath, fullPath });
-  return thumbnail ? loadImageThumbnailAsBlob(fullPath) : loadImageAsBlob(fullPath);
+  if (!thumbnail) {
+    return loadImageAsBlob(fullPath);
+  }
+  return thumbnailMaxEdgePx
+    ? loadImageThumbnailAsBlob(fullPath, {
+      maxEdgePx: thumbnailMaxEdgePx,
+      allowMainThreadFallback: false,
+    })
+    : loadImageThumbnailAsBlob(fullPath);
 }

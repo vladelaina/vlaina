@@ -3,16 +3,11 @@ import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { cn } from '@/lib/utils';
 import { Icon } from '@/components/ui/icons';
 import { UploadZoneProps } from './types';
-import { logNotesDebugAlways } from '@/stores/notes/lineBreakDebugLog';
 
 type UploadStatus = 'idle' | 'dragging' | 'uploading' | 'success' | 'duplicate' | 'error';
 
 interface ExtendedUploadZoneProps extends UploadZoneProps {
   currentNotePath?: string;
-}
-
-function logCoverUpload(scope: string, payload?: unknown) {
-  logNotesDebugAlways('NotesCoverUpload', scope, payload);
 }
 
 export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, currentNotePath }: ExtendedUploadZoneProps) {
@@ -62,35 +57,12 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
 
     setStatus('uploading');
     setMessage('Uploading...');
-    logCoverUpload('zone:file-selected', {
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      currentNotePath,
-    });
 
     try {
       const result = await uploadAsset(file, currentNotePath);
-      logCoverUpload('zone:upload-result', result);
       if (!mountedRef.current) {
-        logCoverUpload('zone:unmounted-after-upload', {
-          success: result.success,
-          path: result.path,
-          isDuplicate: result.isDuplicate,
-          currentNotePath,
-        });
         if (result.success && result.path) {
-          logCoverUpload('zone:complete-callback:start', {
-            path: result.path,
-            currentNotePath,
-            mounted: false,
-          });
           onUploadComplete(result.path);
-          logCoverUpload('zone:complete-callback:done', {
-            path: result.path,
-            currentNotePath,
-            mounted: false,
-          });
         }
         return;
       }
@@ -106,24 +78,13 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
         }
 
         if (result.path) {
-          logCoverUpload('zone:complete-callback:start', {
-            path: result.path,
-            currentNotePath,
-          });
           onUploadComplete(result.path);
-          logCoverUpload('zone:complete-callback:done', {
-            path: result.path,
-            currentNotePath,
-          });
         }
       } else {
         setStatus('error');
         setMessage(result.error || 'Upload failed');
       }
     } catch (error) {
-      logCoverUpload('zone:upload-threw', {
-        message: error instanceof Error ? error.message : String(error),
-      });
       if (!mountedRef.current) {
         return;
       }

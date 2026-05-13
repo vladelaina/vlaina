@@ -40,7 +40,20 @@ import {
 } from './utils/editorBlockPositionCache';
 import { normalizeLeadingFrontmatterMarkdown } from './plugins/frontmatter/frontmatterMarkdown';
 
-export const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
+interface MilkdownEditorInnerProps {
+  onEditorViewReady?: () => void;
+}
+
+type ActiveMilkdownEditor = {
+  ctx: {
+    get: (slice: unknown) => unknown;
+  };
+  onStatusChange?: (onChange: (status: string) => void) => unknown;
+};
+
+export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
+  onEditorViewReady,
+}: MilkdownEditorInnerProps) {
   const updateContent = useNotesStore(s => s.updateContent);
   const saveNote = useNotesStore(s => s.saveNote);
   const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
@@ -50,6 +63,8 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
 
   const hasAutoFocused = useRef(false);
   const hasScheduledAutoFocus = useRef(false);
+  const activatedEditorRef = useRef<ActiveMilkdownEditor | null>(null);
+  const activationCleanupRef = useRef<(() => void) | null>(null);
   const { debouncedSave, flushSave } = useEditorSave(saveNote);
   const {
     configureMarkdownListener,
@@ -74,8 +89,71 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
     return () => window.removeEventListener('blur', handleBlur);
   }, [flushSave]);
 
-  const { get } = useEditor((root) =>
-    Editor.make()
+  const cleanupActivatedEditor = useCallback(() => {
+    activationCleanupRef.current?.();
+    activationCleanupRef.current = null;
+    activatedEditorRef.current = null;
+  }, []);
+
+  const activateEditor = useCallback((editor: ActiveMilkdownEditor) => {
+    if (activatedEditorRef.current === editor) {
+      return;
+    }
+
+    cleanupActivatedEditor();
+    try {
+      const view = editor.ctx.get(editorViewCtx) as EditorView;
+      let parser: Parser | null = null;
+      let liveSerializer: ((doc: unknown) => string) | null = null;
+      try {
+        parser = editor.ctx.get(parserCtx) as Parser;
+      } catch {
+        parser = null;
+      }
+      try {
+        liveSerializer = editor.ctx.get(serializerCtx) as (doc: unknown) => string;
+      } catch {
+        liveSerializer = null;
+      }
+
+      setCurrentEditorView(view);
+      onEditorViewReady?.();
+
+      const markUserInput = createUserInputMarker(view, liveSerializer);
+      view.dom.addEventListener('beforeinput', markUserInput);
+      view.dom.addEventListener('keydown', markUserInput);
+      view.dom.addEventListener('vlaina:image-user-input', markUserInput);
+      view.dom.addEventListener('paste', markUserInput);
+      view.dom.addEventListener('cut', markUserInput);
+      view.dom.addEventListener('drop', markUserInput);
+      const blockPositionController = createCurrentEditorBlockPositionController(view);
+      setCurrentMarkdownRuntime({ parser, serializer: liveSerializer });
+      activatedEditorRef.current = editor;
+      activationCleanupRef.current = () => {
+        view.dom.removeEventListener('beforeinput', markUserInput);
+        view.dom.removeEventListener('keydown', markUserInput);
+        view.dom.removeEventListener('vlaina:image-user-input', markUserInput);
+        view.dom.removeEventListener('paste', markUserInput);
+        view.dom.removeEventListener('cut', markUserInput);
+        view.dom.removeEventListener('drop', markUserInput);
+        blockPositionController.destroy();
+        setCurrentEditorView(null);
+        clearCurrentEditorBlockPositionSnapshot();
+        clearCurrentMarkdownRuntime();
+      };
+    } catch {
+      setCurrentEditorView(null);
+      clearCurrentEditorBlockPositionSnapshot();
+      clearCurrentMarkdownRuntime();
+    }
+  }, [
+    cleanupActivatedEditor,
+    createUserInputMarker,
+    onEditorViewReady,
+  ]);
+
+  const { get } = useEditor((root) => {
+    const editor = Editor.make()
       .config((ctx) => {
         const defaultValue = preserveMarkdownBlankLinesForEditor(
           normalizeLeadingFrontmatterMarkdown(initialContent)
@@ -98,9 +176,22 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
       .use(listener)
       .use(configureTheme)
       .use(tableBlock)
-      .use(customPlugins),
-    [configureMarkdownListener, currentNotePath]
-  );
+      .use(customPlugins);
+
+    const statusEditor = editor as unknown as ActiveMilkdownEditor;
+    statusEditor.onStatusChange?.((status: string) => {
+      if (status === 'Created') {
+        activateEditor(statusEditor);
+      }
+      if (status === 'OnDestroy' || status === 'Destroyed') {
+        if (activatedEditorRef.current === statusEditor) {
+          cleanupActivatedEditor();
+        }
+      }
+    });
+
+    return editor;
+  }, [activateEditor, cleanupActivatedEditor, configureMarkdownListener, currentNotePath]);
 
   useEffect(() => {
     hasAutoFocused.current = false;
@@ -112,57 +203,30 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner() {
   }, [get, setEditorGetter]);
 
   useEffect(() => {
+    return () => {
+      cleanupActivatedEditor();
+    };
+  }, [cleanupActivatedEditor, currentNotePath]);
+
+  useEffect(() => {
     try {
-      const editor = get?.();
+      const editor = get?.() as ActiveMilkdownEditor | undefined;
       if (!editor) {
         setCurrentEditorView(null);
         clearCurrentEditorBlockPositionSnapshot();
         clearCurrentMarkdownRuntime();
         return;
       }
-      const view = editor.ctx.get(editorViewCtx);
-      let parser: Parser | null = null;
-      let liveSerializer: ((doc: unknown) => string) | null = null;
-      try {
-        parser = editor.ctx.get(parserCtx);
-      } catch {
-        parser = null;
+      if (activatedEditorRef.current !== editor) {
+        activateEditor(editor);
       }
-      try {
-        const serializer = editor.ctx.get(serializerCtx);
-        liveSerializer = serializer;
-      } catch {
-        liveSerializer = null;
-      }
-      setCurrentEditorView(view as EditorView);
-      const markUserInput = createUserInputMarker(view as EditorView, liveSerializer);
-      view.dom.addEventListener('beforeinput', markUserInput);
-      view.dom.addEventListener('keydown', markUserInput);
-      view.dom.addEventListener('vlaina:image-user-input', markUserInput);
-      view.dom.addEventListener('paste', markUserInput);
-      view.dom.addEventListener('cut', markUserInput);
-      view.dom.addEventListener('drop', markUserInput);
-      const blockPositionController = createCurrentEditorBlockPositionController(view as EditorView);
-      setCurrentMarkdownRuntime({ parser, serializer: liveSerializer });
-      return () => {
-        view.dom.removeEventListener('beforeinput', markUserInput);
-        view.dom.removeEventListener('keydown', markUserInput);
-        view.dom.removeEventListener('vlaina:image-user-input', markUserInput);
-        view.dom.removeEventListener('paste', markUserInput);
-        view.dom.removeEventListener('cut', markUserInput);
-        view.dom.removeEventListener('drop', markUserInput);
-        blockPositionController.destroy();
-        setCurrentEditorView(null);
-        clearCurrentEditorBlockPositionSnapshot();
-        clearCurrentMarkdownRuntime();
-      };
     } catch {
       setCurrentEditorView(null);
       clearCurrentEditorBlockPositionSnapshot();
       clearCurrentMarkdownRuntime();
       return;
     }
-  }, [createUserInputMarker, get, currentNotePath]);
+  }, [activateEditor, get, currentNotePath]);
 
   const isEmptyContent = useMemo(() => {
     const content = initialContent.trim();

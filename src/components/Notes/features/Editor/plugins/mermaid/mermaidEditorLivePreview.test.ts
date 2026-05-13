@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { waitFor } from '@testing-library/react';
 
 vi.mock('./mermaidRenderer', () => ({
@@ -10,6 +10,10 @@ import { createMermaidElement, getMermaidElementCode, renderMermaidEditorLivePre
 import { renderMermaid } from './mermaidRenderer';
 
 describe('mermaidEditorLivePreview', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it('normalizes code before the first Mermaid element render', () => {
     const element = createMermaidElement('sequence\nAlice->Bob: Hello');
 
@@ -37,6 +41,45 @@ describe('mermaidEditorLivePreview', () => {
 
     expect(element.querySelector('svg, .mermaid-error')).not.toBeNull();
     expect(getMermaidElementCode(element)).toBe('sequenceDiagram\nAlice->Bob: Hello');
+  });
+
+  it('lazy renders initial Mermaid elements in browsers until they approach the viewport', async () => {
+    let observerCallback: IntersectionObserverCallback = () => undefined;
+    const observe = vi.fn();
+    const disconnect = vi.fn();
+    class TestIntersectionObserver {
+      constructor(callback: IntersectionObserverCallback) {
+        observerCallback = callback;
+      }
+
+      observe = observe;
+      disconnect = disconnect;
+      unobserve = vi.fn();
+      takeRecords = vi.fn(() => []);
+      root = null;
+      rootMargin = '0px';
+      thresholds = [];
+    }
+    vi.stubGlobal('IntersectionObserver', TestIntersectionObserver);
+    vi.mocked(renderMermaid).mockClear();
+
+    const element = createMermaidElement('sequenceDiagram\nAlice->Bob: Lazy render unique');
+
+    await Promise.resolve();
+    expect(renderMermaid).not.toHaveBeenCalled();
+    expect(element.dataset.mermaidLazy).toBe('true');
+    expect(element.querySelector('.mermaid-placeholder')).not.toBeNull();
+
+    observerCallback([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(renderMermaid).toHaveBeenCalledTimes(1);
+    expect(disconnect).toHaveBeenCalled();
+    expect(element.dataset.mermaidLazy).toBeUndefined();
+    await waitFor(() => {
+      expect(element.querySelector('svg, .mermaid-error')).not.toBeNull();
+    });
   });
 
   it('shows a generic error when the initial Mermaid render rejects', async () => {

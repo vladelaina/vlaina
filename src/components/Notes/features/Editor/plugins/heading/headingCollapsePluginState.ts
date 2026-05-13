@@ -22,16 +22,17 @@ export function buildHeadingCollapsePluginState(
     const collapsedRanges = collapsedHeadings.size > 0
         ? collectCollapsedRanges(topLevelNodes, collapsedHeadings)
         : [];
+    const decorations = buildHeadingCollapseDecorations({
+        doc,
+        nodes: topLevelNodes,
+        collapsedHeadings,
+        dispatchToggle,
+    });
 
     return {
         collapsedHeadings,
         topLevelNodes,
         collapsedRanges,
-        decorations: buildHeadingCollapseDecorations({
-            doc,
-            nodes: topLevelNodes,
-            collapsedHeadings,
-            dispatchToggle,
-        }),
+        decorations,
     };
 }

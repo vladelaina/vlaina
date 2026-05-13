@@ -4,7 +4,6 @@ import { loadImageWithDimensions } from '../../../../utils/coverDimensionCache';
 import { useCoverSource } from '../../../../hooks/useCoverSource';
 import { resolveCoverAssetUrl } from '../../../../utils/resolveCoverAssetUrl';
 import { resolveCoverFlowPhase } from './coverSelectionPhase';
-import { logNotesDebugAlways } from '@/stores/notes/lineBreakDebugLog';
 
 interface UseCoverSelectionFlowOptions {
   url: string | null;
@@ -48,29 +47,14 @@ export function useCoverSelectionFlow({
   const previewRequestRef = useRef(new Map<string, Promise<string | null>>());
 
   const handleCoverSelect = useCallback((assetPath: string) => {
-    logNotesDebugAlways('NotesCoverSelect', 'select:start', {
-      assetPath,
-      currentUrl: url,
-      vaultPath,
-      currentNotePath,
-      coverHeight,
-    });
     const previewedAssetPath = lastPreviewPathRef.current;
     lastPreviewPathRef.current = null;
 
     if (assetPath === url) {
-      logNotesDebugAlways('NotesCoverSelect', 'select:same-url', {
-        assetPath,
-        currentNotePath,
-      });
       setPreviewSrc(null);
       endSelectionCommit();
       onUpdate(assetPath, DEFAULT_POSITION_PERCENT, DEFAULT_POSITION_PERCENT, coverHeight, DEFAULT_SCALE);
       setShowPicker(false);
-      logNotesDebugAlways('NotesCoverSelect', 'select:same-url:done', {
-        assetPath,
-        currentNotePath,
-      });
       return;
     }
 
@@ -82,18 +66,8 @@ export function useCoverSelectionFlow({
       setPreviewSrc(null);
     }
     beginSelectionCommit();
-    logNotesDebugAlways('NotesCoverSelect', 'select:update', {
-      assetPath,
-      currentNotePath,
-      coverHeight,
-      shouldKeepPreview,
-    });
     onUpdate(assetPath, DEFAULT_POSITION_PERCENT, DEFAULT_POSITION_PERCENT, coverHeight, DEFAULT_SCALE);
     setShowPicker(false);
-    logNotesDebugAlways('NotesCoverSelect', 'select:done', {
-      assetPath,
-      currentNotePath,
-    });
   }, [
     beginSelectionCommit,
     coverHeight,

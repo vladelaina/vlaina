@@ -12,6 +12,7 @@ export function useSidebarContentSearchResults({
   getDisplayName,
   noteContentsCache,
   scanAllNotes,
+  cancelNoteContentScan,
   pruneNoteContentsCacheToOpenNotes,
   searchQuery,
   isSearchOpen,
@@ -21,7 +22,8 @@ export function useSidebarContentSearchResults({
   rootFolder: FolderNode | null;
   getDisplayName: (path: string) => string;
   noteContentsCache: Map<string, { content: string }>;
-  scanAllNotes: () => Promise<unknown>;
+  scanAllNotes: (options?: { signal?: AbortSignal }) => Promise<unknown>;
+  cancelNoteContentScan: () => void;
   pruneNoteContentsCacheToOpenNotes: () => void;
   searchQuery: string;
   isSearchOpen: boolean;
@@ -29,6 +31,7 @@ export function useSidebarContentSearchResults({
   currentVaultPath?: string | null;
 }) {
   const contentScanPromiseRef = useRef<Promise<unknown> | null>(null);
+  const contentScanAbortControllerRef = useRef<AbortController | null>(null);
   const shouldPruneAfterScanRef = useRef(false);
   const [isContentScanPending, setIsContentScanPending] = useState(false);
 
@@ -71,6 +74,9 @@ export function useSidebarContentSearchResults({
     ) {
       setIsContentScanPending(false);
       if (!isSearchOpen || !shouldSearchContents) {
+        contentScanAbortControllerRef.current?.abort();
+        contentScanAbortControllerRef.current = null;
+        cancelNoteContentScan();
         shouldPruneAfterScanRef.current = true;
         pruneNoteContentsCacheToOpenNotes();
       }
@@ -85,9 +91,12 @@ export function useSidebarContentSearchResults({
     }
 
     let cancelled = false;
+    const abortController = new AbortController();
+    contentScanAbortControllerRef.current?.abort();
+    contentScanAbortControllerRef.current = abortController;
     setIsContentScanPending(true);
 
-    const promise = scanAllNotes()
+    const promise = scanAllNotes({ signal: abortController.signal })
       .catch((error: unknown) => {
         if (import.meta.env.DEV) {
           console.warn('[SidebarContent] scanAllNotes failed:', error);
@@ -96,6 +105,9 @@ export function useSidebarContentSearchResults({
       .finally(() => {
         if (contentScanPromiseRef.current === promise) {
           contentScanPromiseRef.current = null;
+        }
+        if (contentScanAbortControllerRef.current === abortController) {
+          contentScanAbortControllerRef.current = null;
         }
 
         if (!cancelled) {
@@ -113,6 +125,7 @@ export function useSidebarContentSearchResults({
       cancelled = true;
     };
   }, [
+    cancelNoteContentScan,
     isContentIndexReady,
     isSearchOpen,
     pruneNoteContentsCacheToOpenNotes,
@@ -120,6 +133,13 @@ export function useSidebarContentSearchResults({
     searchableNoteCount,
     shouldSearchContents,
   ]);
+
+  useEffect(() => {
+    return () => {
+      contentScanAbortControllerRef.current?.abort();
+      cancelNoteContentScan();
+    };
+  }, [cancelNoteContentScan]);
 
   return {
     isContentScanPending,

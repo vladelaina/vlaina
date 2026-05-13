@@ -342,6 +342,7 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
       const updatedTabs = tabsBeforeClose.filter((t) => t.path !== path);
       set({
         openTabs: updatedTabs,
+        noteContentsCache: removeCachedNoteContent(latestBeforeClose.noteContentsCache, path),
         recentlyClosedTabs: tabBeforeClose
           ? pushRecentlyClosedTab(
               latestBeforeClose.recentlyClosedTabs,
