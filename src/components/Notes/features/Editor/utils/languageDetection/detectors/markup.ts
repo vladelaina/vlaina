@@ -8,6 +8,9 @@ export const detectHTML: LanguageDetector = (ctx) => {
 
 
   if (lines.length <= 3) {
+    if (/^<!--[\s\S]*-->$/.test(code.trim())) {
+      return 'html';
+    }
     if (/\{\{[\s\S]*?\}\}/.test(code)) {
       return null;
     }

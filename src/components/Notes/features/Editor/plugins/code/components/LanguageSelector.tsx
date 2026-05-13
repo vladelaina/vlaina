@@ -89,7 +89,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
             <PopoverAnchor asChild>
                 <button
                     type="button"
-                    className="flex size-7 cursor-pointer items-center justify-center overflow-hidden rounded-full transition-colors duration-150 select-none"
+                    className="inline-flex min-h-7 cursor-pointer items-center justify-center rounded-full px-1 transition-colors duration-150 select-none"
                     onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
@@ -97,7 +97,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                     }}
                     onPointerDown={(e) => e.stopPropagation()}
                 >
-                    <span className="vlaina-code-block-language-label max-w-full truncate">
+                    <span className="vlaina-code-block-language-label whitespace-nowrap">
                         {displayName}
                     </span>
                 </button>
