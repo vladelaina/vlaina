@@ -16,6 +16,7 @@ import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import { mathPlugin } from '../math';
 import { mermaidPlugin } from '../mermaid';
 import { codePlugin } from '../code';
+import { calloutPlugin } from '../callout';
 
 function createMockState(): EditorState {
   const doc = {
@@ -35,6 +36,101 @@ function createMockState(): EditorState {
   };
 
   return { doc } as unknown as EditorState;
+}
+
+async function copyAllSelectableBlocks(markdown: string, plugins: readonly any[] = []): Promise<string> {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, markdown);
+      ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+        ...prev,
+        ...notesRemarkStringifyOptions,
+      }));
+    })
+    .use(commonmark)
+    .use(gfm);
+
+  for (const plugin of plugins) {
+    editor.use(plugin);
+  }
+
+  await editor.create();
+
+  try {
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+    return serializeSelectedBlocksToText(view.state, blocks, { markdownSerializer: serializer });
+  } finally {
+    await editor.destroy();
+  }
+}
+
+async function copySelectableBlockIndexes(
+  markdown: string,
+  indexes: number[],
+  plugins: readonly any[] = [],
+): Promise<string> {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, markdown);
+      ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+        ...prev,
+        ...notesRemarkStringifyOptions,
+      }));
+    })
+    .use(commonmark)
+    .use(gfm);
+
+  for (const plugin of plugins) {
+    editor.use(plugin);
+  }
+
+  await editor.create();
+
+  try {
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+    const selected = indexes.map((index) => blocks[index]).filter(Boolean);
+    return serializeSelectedBlocksToText(view.state, selected, { markdownSerializer: serializer });
+  } finally {
+    await editor.destroy();
+  }
+}
+
+async function copyFirstSelectableBlockByNodeName(
+  markdown: string,
+  nodeName: string,
+  plugins: readonly any[] = [],
+): Promise<string> {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, markdown);
+      ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+        ...prev,
+        ...notesRemarkStringifyOptions,
+      }));
+    })
+    .use(commonmark)
+    .use(gfm);
+
+  for (const plugin of plugins) {
+    editor.use(plugin);
+  }
+
+  await editor.create();
+
+  try {
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+    const block = blocks.find((range) => view.state.doc.resolve(range.from).nodeAfter?.type.name === nodeName);
+    expect(block).toBeDefined();
+    return serializeSelectedBlocksToText(view.state, [block!], { markdownSerializer: serializer });
+  } finally {
+    await editor.destroy();
+  }
 }
 
 describe('serializeSelectedBlocksToText', () => {
@@ -280,6 +376,356 @@ describe('serializeSelectedBlocksToText', () => {
     );
 
     await editor.destroy();
+  });
+
+  it('keeps empty ordered list items in the same copied list', async () => {
+    await expect(copyAllSelectableBlocks('1.\n2. 2\n3. 3')).resolves.toBe('1.\n2. 2\n3. 3');
+  });
+
+  it.each([
+    {
+      name: 'empty bullet items',
+      markdown: '- \n- B',
+      expected: '-\n- B',
+    },
+    {
+      name: 'empty task items',
+      markdown: '- [ ] \n- [x] done',
+      expected: '- [ ]\n- [x] done',
+    },
+    {
+      name: 'ordered list start numbers',
+      markdown: '4. A\n5. B',
+      expected: '4. A\n5. B',
+    },
+    {
+      name: 'ordered list with dot-like paragraph text before it',
+      markdown: '1.foo\n\n1. A\n2. B',
+      expected: '1.foo\n\n1. A\n2. B',
+    },
+    {
+      name: 'loose adjacent ordered items',
+      markdown: '1. A\n\n1. B',
+      expected: '1. A\n2. B',
+    },
+    {
+      name: 'separate adjacent bullet and ordered lists',
+      markdown: '- A\n\n1. B',
+      expected: '- A\n\n1. B',
+    },
+  ])('keeps copied list boundaries for $name', async ({ markdown, expected }) => {
+    await expect(copyAllSelectableBlocks(markdown)).resolves.toBe(expected);
+  });
+
+  it.each([
+    {
+      name: 'nested bullet items',
+      markdown: '- parent\n  - child\n- sibling',
+      expected: '- parent\n  - child\n- sibling',
+    },
+    {
+      name: 'nested ordered items',
+      markdown: '1. parent\n   1. child\n2. sibling',
+      expected: '1. parent\n   1. child\n2. sibling',
+    },
+  ])('preserves copied $name', async ({ markdown, expected }) => {
+    await expect(copyAllSelectableBlocks(markdown)).resolves.toBe(expected);
+  });
+
+  it.each([
+    {
+      name: 'nested ordered siblings',
+      markdown: '- parent\n  1. child\n  2. sibling',
+      indexes: [1, 2],
+      expected: '1. child\n2. sibling',
+    },
+    {
+      name: 'nested bullet siblings',
+      markdown: '1. parent\n   - child\n   - sibling',
+      indexes: [1, 2],
+      expected: '- child\n- sibling',
+    },
+  ])('copies selected $name as a standalone list', async ({ markdown, indexes, expected }) => {
+    await expect(copySelectableBlockIndexes(markdown, indexes)).resolves.toBe(expected);
+  });
+
+  it.each([
+    {
+      name: 'middle ordered list items',
+      markdown: '1. A\n2. B\n3. C',
+      indexes: [1, 2],
+      expected: '2. B\n3. C',
+    },
+    {
+      name: 'middle ordered list items from custom start',
+      markdown: '4. A\n5. B\n6. C',
+      indexes: [1, 2],
+      expected: '5. B\n6. C',
+    },
+    {
+      name: 'middle nested ordered list items',
+      markdown: '- parent\n  1. A\n  2. B\n  3. C',
+      indexes: [2, 3],
+      expected: '2. B\n3. C',
+    },
+  ])('preserves source numbering for selected $name', async ({ markdown, indexes, expected }) => {
+    await expect(copySelectableBlockIndexes(markdown, indexes)).resolves.toBe(expected);
+  });
+
+  it.each([
+    {
+      name: 'non-contiguous ordered list items',
+      markdown: '1. A\n2. B\n3. C',
+      indexes: [0, 2],
+      expected: '1. A\n3. C',
+    },
+    {
+      name: 'non-contiguous nested ordered list items',
+      markdown: '- parent\n  1. A\n  2. B\n  3. C',
+      indexes: [1, 3],
+      expected: '1. A\n3. C',
+    },
+  ])('preserves numbering gaps for selected $name', async ({ markdown, indexes, expected }) => {
+    await expect(copySelectableBlockIndexes(markdown, indexes)).resolves.toBe(expected);
+  });
+
+  it.each([
+    {
+      name: 'nested bullet item with its child',
+      markdown: '- parent\n  - child\n    - grandchild\n- sibling',
+      indexes: [1, 2],
+      expected: '- child\n  - grandchild',
+    },
+    {
+      name: 'nested ordered item with its child',
+      markdown: '- parent\n  1. child\n     1. grandchild\n- sibling',
+      indexes: [1, 2],
+      expected: '1. child\n   1. grandchild',
+    },
+    {
+      name: 'parent header with one selected child',
+      markdown: '- parent\n  - child\n  - sibling\n- after',
+      indexes: [0, 1],
+      expected: '- parent\n  - child',
+    },
+    {
+      name: 'ordered parent header with one selected child',
+      markdown: '1. parent\n   1. child\n   2. sibling\n2. after',
+      indexes: [0, 1],
+      expected: '1. parent\n   1. child',
+    },
+    {
+      name: 'task parent header with one selected child',
+      markdown: '- [ ] parent\n  - child\n  - sibling\n- after',
+      indexes: [0, 1],
+      expected: '- [ ] parent\n  - child',
+    },
+    {
+      name: 'task children selected as standalone tasks',
+      markdown: '- parent\n  - [ ] child\n  - [x] sibling',
+      indexes: [1, 2],
+      expected: '- [ ] child\n- [x] sibling',
+    },
+  ])('preserves partial nested list selections for $name', async ({ markdown, indexes, expected }) => {
+    await expect(copySelectableBlockIndexes(markdown, indexes)).resolves.toBe(expected);
+  });
+
+  it.each([
+    {
+      name: 'code block under a bullet list item',
+      markdown: ['- Item', '  ```ts', '  console.log(1)', '  ```'].join('\n'),
+      indexes: [0, 1],
+      expected: ['- Item', '', '  ```ts', '  console.log(1)', '  ```'].join('\n'),
+    },
+    {
+      name: 'code block under an ordered list item',
+      markdown: ['1. Item', '   ```ts', '   console.log(1)', '   ```'].join('\n'),
+      indexes: [0, 1],
+      expected: ['1. Item', '', '   ```ts', '   console.log(1)', '   ```'].join('\n'),
+    },
+    {
+      name: 'code block under the first item of a multi-item bullet list',
+      markdown: ['- Item', '  ```ts', '  console.log(1)', '  ```', '- Next'].join('\n'),
+      indexes: [0, 1],
+      expected: ['- Item', '', '  ```ts', '  console.log(1)', '  ```'].join('\n'),
+    },
+    {
+      name: 'code block under the first item of a multi-item ordered list',
+      markdown: ['1. Item', '   ```ts', '   console.log(1)', '   ```', '2. Next'].join('\n'),
+      indexes: [0, 1],
+      expected: ['1. Item', '', '   ```ts', '   console.log(1)', '   ```'].join('\n'),
+    },
+  ])('preserves partial list item selections with $name', async ({ markdown, indexes, expected }) => {
+    await expect(copySelectableBlockIndexes(markdown, indexes)).resolves.toBe(expected);
+  });
+
+  it.each([
+    {
+      name: 'math block under a bullet list item',
+      markdown: ['- Formula', '  $$', '  x^2', '  $$'].join('\n'),
+      indexes: [0, 1],
+      plugins: [...mathPlugin],
+      expected: ['- Formula', '', '  $$', '  x^2', '  $$'].join('\n'),
+    },
+    {
+      name: 'math block under an ordered list item',
+      markdown: ['2. Formula', '   $$', '   x^2', '   $$'].join('\n'),
+      indexes: [0, 1],
+      plugins: [...mathPlugin],
+      expected: ['2. Formula', '', '   $$', '   x^2', '   $$'].join('\n'),
+    },
+    {
+      name: 'Mermaid block under a bullet list item',
+      markdown: ['- Diagram', '  ```sequence', '  Alice->Bob: Hello', '  ```'].join('\n'),
+      indexes: [0, 1],
+      plugins: [...mermaidPlugin, ...codePlugin],
+      expected: ['- Diagram', '', '  ```mermaid', '  sequenceDiagram', '  Alice->Bob: Hello', '  ```'].join('\n'),
+    },
+    {
+      name: 'table under a bullet list item',
+      markdown: ['- Table', '  | A | B |', '  | --- | --- |', '  | 1 | 2 |'].join('\n'),
+      indexes: [0, 1],
+      plugins: [],
+      expected: ['- Table', '', '  | A | B |', '  | - | - |', '  | 1 | 2 |'].join('\n'),
+    },
+    {
+      name: 'table under a task list item',
+      markdown: ['- [ ] Table', '  | A | B |', '  | --- | --- |', '  | 1 | 2 |'].join('\n'),
+      indexes: [0, 1],
+      plugins: [],
+      expected: ['- [ ] Table', '  | A | B |', '  | - | - |', '  | 1 | 2 |'].join('\n'),
+    },
+    {
+      name: 'code block under a multi-digit ordered list item',
+      markdown: ['10. Item', '    ```ts', '    console.log(10)', '    ```'].join('\n'),
+      indexes: [0, 1],
+      plugins: [],
+      expected: ['10. Item', '', '    ```ts', '    console.log(10)', '    ```'].join('\n'),
+    },
+  ])('preserves partial list item selections with $name', async ({ markdown, indexes, plugins, expected }) => {
+    await expect(copySelectableBlockIndexes(markdown, indexes, plugins)).resolves.toBe(expected);
+  });
+
+  it.each([
+    {
+      name: 'math block inside a list item',
+      markdown: ['- Formula', '  $$', '  x^2', '  $$'].join('\n'),
+      plugins: [...mathPlugin],
+      expected: ['$$', 'x^2', '$$'].join('\n'),
+    },
+    {
+      name: 'Mermaid block inside a list item',
+      markdown: ['- Diagram', '  ```sequence', '  Alice->Bob: Hello', '  ```'].join('\n'),
+      plugins: [...mermaidPlugin, ...codePlugin],
+      expected: ['```mermaid', 'sequenceDiagram', 'Alice->Bob: Hello', '```'].join('\n'),
+    },
+    {
+      name: 'table inside a list item',
+      markdown: ['- Table', '  | A | B |', '  | --- | --- |', '  | 1 | 2 |'].join('\n'),
+      plugins: [],
+      expected: ['| A | B |', '| - | - |', '| 1 | 2 |'].join('\n'),
+    },
+  ])('copies a selected $name without the containing list marker', async ({ markdown, plugins, expected }) => {
+    await expect(copySelectableBlockIndexes(markdown, [0], plugins)).resolves.toBe(expected);
+  });
+
+  it.each([
+    {
+      name: 'math block with intentional extra indentation',
+      markdown: ['- Formula', '  $$', '    \\begin{aligned}', '      x &= 1', '    \\end{aligned}', '  $$'].join('\n'),
+      nodeName: 'math_block',
+      plugins: [...mathPlugin],
+      expected: ['$$', '  \\begin{aligned}', '    x &= 1', '  \\end{aligned}', '$$'].join('\n'),
+    },
+    {
+      name: 'table after a list item paragraph and before another paragraph',
+      markdown: ['- Table', '  | A | B |', '  | --- | --- |', '  | 1 | 2 |', '', '  after'].join('\n'),
+      nodeName: 'table',
+      plugins: [],
+      expected: ['| A | B |', '| - | - |', '| 1 | 2 |'].join('\n'),
+    },
+    {
+      name: 'Mermaid block after a list item paragraph and before another paragraph',
+      markdown: ['- Diagram', '  ```sequence', '  Alice->Bob: Hello', '  ```', '', '  after'].join('\n'),
+      nodeName: 'mermaid',
+      plugins: [...mermaidPlugin, ...codePlugin],
+      expected: ['```mermaid', 'sequenceDiagram', 'Alice->Bob: Hello', '```'].join('\n'),
+    },
+  ])('copies a selected $name without leaking list continuation indentation', async ({
+    markdown,
+    nodeName,
+    plugins,
+    expected,
+  }) => {
+    await expect(copyFirstSelectableBlockByNodeName(markdown, nodeName, plugins)).resolves.toBe(expected);
+  });
+
+  it.each([
+    {
+      name: 'bullet item with table and trailing paragraph',
+      markdown: ['- Table', '  | A | B |', '  | --- | --- |', '  | 1 | 2 |', '', '  after'].join('\n'),
+      plugins: [],
+      expected: ['Table', '', '| A | B |', '| - | - |', '| 1 | 2 |', '', 'after'].join('\n'),
+    },
+    {
+      name: 'ordered item with math and trailing paragraph',
+      markdown: ['3. Formula', '   $$', '   x^2', '   $$', '', '   after'].join('\n'),
+      plugins: [...mathPlugin],
+      expected: ['Formula', '', '$$', 'x^2', '$$', '', 'after'].join('\n'),
+    },
+    {
+      name: 'bullet item starting with table',
+      markdown: ['- | A | B |', '  | --- | --- |', '  | 1 | 2 |'].join('\n'),
+      plugins: [],
+      expected: ['| A | B |', '| - | - |', '| 1 | 2 |'].join('\n'),
+    },
+    {
+      name: 'multi-digit ordered item with code and trailing paragraph',
+      markdown: ['10. Item', '    ```ts', '    console.log(10)', '    ```', '', '    after'].join('\n'),
+      plugins: [],
+      expected: ['Item', '', '```ts', 'console.log(10)', '```', '', 'after'].join('\n'),
+    },
+    {
+      name: 'bullet item with a nested list',
+      markdown: ['- parent', '  - child', '  - sibling'].join('\n'),
+      plugins: [],
+      expected: 'parent',
+    },
+  ])('copies a whole $name without duplicate child blocks', async ({ markdown, plugins, expected }) => {
+    await expect(copyFirstSelectableBlockByNodeName(markdown, 'list_item', plugins)).resolves.toBe(expected);
+  });
+
+  it.each([
+    {
+      name: 'multi-digit ordered parent header with one selected child',
+      markdown: '10. parent\n    1. child\n    2. sibling\n11. after',
+      indexes: [0, 1],
+      expected: '10. parent\n    1. child',
+    },
+    {
+      name: 'task parent header with a selected table child',
+      markdown: ['- [ ] parent', '  | A | B |', '  | --- | --- |', '  | 1 | 2 |', '- after'].join('\n'),
+      indexes: [0, 1],
+      expected: ['- [ ] parent', '  | A | B |', '  | - | - |', '  | 1 | 2 |'].join('\n'),
+    },
+  ])('preserves marker-specific continuation for $name', async ({ markdown, indexes, expected }) => {
+    await expect(copySelectableBlockIndexes(markdown, indexes)).resolves.toBe(expected);
+  });
+
+  it.each([
+    {
+      name: 'blockquote containing an empty ordered list item',
+      markdown: ['> 1.', '> 2. B', '>', '> after'].join('\n'),
+      expected: ['> 1.', '> 2. B', '>', '> after'].join('\n'),
+    },
+    {
+      name: 'callout containing a task list',
+      markdown: ['> 💡 Tip', '>', '> - [ ] A', '> - [x] B'].join('\n'),
+      plugins: [...calloutPlugin],
+      expected: ['> 💡 Tip', '>', '> - [ ] A', '>', '> - [x] B'].join('\n'),
+    },
+  ])('preserves copied container block markdown for $name', async ({ markdown, plugins = [], expected }) => {
+    await expect(copyAllSelectableBlocks(markdown, plugins)).resolves.toBe(expected);
   });
 
   it('keeps markdown semantics for task lists separated by a single blank line', async () => {
