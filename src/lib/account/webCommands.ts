@@ -117,16 +117,7 @@ async function probeWebSession(): Promise<WebAccountStatus> {
   });
 
   if (response.status === 401 || response.status === 403) {
-    clearWebAccountCredentials();
-    return {
-      connected: false,
-      provider: null,
-      username: null,
-      primaryEmail: null,
-      avatarUrl: null,
-      membershipTier: null,
-      membershipName: null,
-    };
+    return getCachedWebAccountStatus();
   }
 
   if (!response.ok) {
@@ -178,10 +169,6 @@ async function readJsonErrorMessage(response: Response, fallback: string): Promi
 }
 
 export const webAccountCommands = {
-  clearClientSession(): void {
-    clearWebAccountCredentials();
-  },
-
   async startAuth(
     provider: Exclude<AccountProvider, 'email'>
   ): Promise<{ authUrl: string; state: string } | null> {

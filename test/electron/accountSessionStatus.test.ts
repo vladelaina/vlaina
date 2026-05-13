@@ -14,6 +14,11 @@ const credentials = {
   avatarUrl: 'https://example.com/avatar.png',
 };
 
+const recentlyAuthenticatedCredentials = {
+  ...credentials,
+  authenticatedAt: 1_000,
+};
+
 describe('desktop account session status resolution', () => {
   it('returns disconnected when no credentials exist', () => {
     expect(resolveDesktopSessionProbe(null, { kind: 'error' })).toEqual({
@@ -23,11 +28,11 @@ describe('desktop account session status resolution', () => {
     });
   });
 
-  it('clears stored credentials when auth/session is unauthorized', () => {
+  it('keeps cached credentials when auth/session is unauthorized', () => {
     expect(resolveDesktopSessionProbe(credentials, { kind: 'unauthorized' })).toEqual({
-      status: buildDisconnectedDesktopStatus(),
-      nextCredentials: null,
-      clearStoredCredentials: true,
+      status: buildCachedDesktopStatus(credentials),
+      nextCredentials: credentials,
+      clearStoredCredentials: false,
     });
   });
 
@@ -39,16 +44,16 @@ describe('desktop account session status resolution', () => {
     });
   });
 
-  it('clears stored credentials only when the payload explicitly says disconnected', () => {
+  it('keeps cached credentials when the payload says disconnected', () => {
     expect(
       resolveDesktopSessionProbe(credentials, {
         kind: 'ok',
         payload: { connected: false },
       }),
     ).toEqual({
-      status: buildDisconnectedDesktopStatus(),
-      nextCredentials: null,
-      clearStoredCredentials: true,
+      status: buildCachedDesktopStatus(credentials),
+      nextCredentials: credentials,
+      clearStoredCredentials: false,
     });
   });
 
@@ -83,9 +88,23 @@ describe('desktop account session status resolution', () => {
         username: 'octocat',
         primaryEmail: 'octo@example.com',
         avatarUrl: 'https://example.com/next.png',
+        authenticatedAt: null,
       },
       clearStoredCredentials: false,
     });
+  });
+
+  it('preserves authenticatedAt when auth/session refreshes stored credentials', () => {
+    const resolved = resolveDesktopSessionProbe(recentlyAuthenticatedCredentials, {
+      kind: 'ok',
+      payload: {
+        connected: true,
+        username: 'vladelaina',
+      },
+    });
+
+    expect(resolved.nextCredentials?.authenticatedAt).toBe(1_000);
+    expect(isDesktopSessionWithinGracePeriod(resolved.nextCredentials, 20_000, 30_000)).toBe(true);
   });
 
   it('treats recent desktop auth records as being within the activation grace period', () => {

@@ -70,7 +70,7 @@ describe('managedService', () => {
     });
   });
 
-  it('clears client session when managed web auth is rejected', async () => {
+  it('preserves client session when managed web auth is rejected', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(false);
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
@@ -82,7 +82,7 @@ describe('managedService', () => {
     const { fetchManagedModels, MANAGED_AUTH_REQUIRED_ERROR } = await import('./managedService');
 
     await expect(fetchManagedModels()).rejects.toThrow(MANAGED_AUTH_REQUIRED_ERROR);
-    expect(clearClientSessionMock).toHaveBeenCalledTimes(1);
+    expect(clearClientSessionMock).not.toHaveBeenCalled();
   });
 
   it('extracts nested managed web error messages', async () => {

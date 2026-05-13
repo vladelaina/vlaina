@@ -149,7 +149,7 @@ describe('accountSession auth actions', () => {
     );
   });
 
-  it('checkStatus falls back to disconnected state when probing throws', async () => {
+  it('checkStatus preserves the current account state when probing throws', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.webAccountCommands.probeStatus.mockRejectedValue(new Error('boom'));
 
@@ -158,7 +158,41 @@ describe('accountSession auth actions', () => {
 
     await createCheckStatus(set as never, get as never)();
 
-    expect(mocks.applyDisconnectedAccount).toHaveBeenCalledWith(set);
+    expect(set).toHaveBeenLastCalledWith({ isLoading: false });
+    expect(mocks.applyDisconnectedAccount).not.toHaveBeenCalled();
+  });
+
+  it('checkStatus preserves an existing account when probing reports disconnected', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    mocks.accountCommands.getAccountSessionStatus.mockResolvedValue({
+      connected: false,
+      provider: null,
+      username: null,
+      primaryEmail: null,
+      avatarUrl: null,
+      membershipTier: null,
+      membershipName: null,
+    });
+
+    const set = vi.fn();
+    const get = vi.fn(() => ({
+      isConnected: true,
+      provider: 'google',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: 'https://example.com/avatar.png',
+      membershipTier: 'pro',
+      membershipName: 'Pro',
+      error: null,
+    }));
+
+    await createCheckStatus(set as never, get as never)();
+
+    expect(set).toHaveBeenNthCalledWith(1, { isLoading: true });
+    expect(set).toHaveBeenNthCalledWith(2, { isLoading: false });
+    expect(mocks.persistUser).not.toHaveBeenCalled();
+    expect(mocks.refreshAvatar).not.toHaveBeenCalled();
+    expect(mocks.applyDisconnectedAccount).not.toHaveBeenCalled();
   });
 
   it('signIn stores web auth intent and redirects on successful web auth start', async () => {

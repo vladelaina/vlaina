@@ -61,7 +61,7 @@ describe('web account session helpers', () => {
     expect(invalidated).toHaveBeenCalledTimes(1);
   });
 
-  it('exposes cached status without claiming an active connection', () => {
+  it('exposes cached status as connected until explicit sign-out', () => {
     sessionStorage.setItem('vlaina_account_session', JSON.stringify({
       provider: 'email',
       username: 'vla',
@@ -71,13 +71,36 @@ describe('web account session helpers', () => {
     }));
 
     expect(getCachedWebAccountStatus()).toEqual({
-      connected: false,
+      connected: true,
       provider: 'email',
       username: 'vla',
       primaryEmail: 'vla@example.com',
       avatarUrl: null,
       membershipTier: 'plus',
       membershipName: 'Plus',
+    });
+  });
+
+  it('falls back to persisted identity when session storage is empty', () => {
+    sessionStorage.clear();
+    localStorage.setItem('vlaina_account_identity', JSON.stringify({
+      isConnected: true,
+      provider: 'google',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: 'https://example.com/avatar.png',
+      membershipTier: 'pro',
+      membershipName: 'Pro',
+    }));
+
+    expect(getCachedWebAccountStatus()).toEqual({
+      connected: true,
+      provider: 'google',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: 'https://example.com/avatar.png',
+      membershipTier: 'pro',
+      membershipName: 'Pro',
     });
   });
 });
