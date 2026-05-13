@@ -270,6 +270,7 @@ function areFolderItemPropsEqual(prevProps: FolderItemProps, nextProps: FolderIt
     prevProps.node.children === nextProps.node.children &&
     prevProps.depth === nextProps.depth &&
     prevProps.showStarBadge === nextProps.showStarBadge &&
+    prevProps.dragEnabled === nextProps.dragEnabled &&
     prevProps.showMenuButton === nextProps.showMenuButton &&
     prevProps.renderChildren === nextProps.renderChildren
   );

@@ -82,18 +82,14 @@ export function StarredSection({
                 key={entry.id}
                 node={treeNode}
                 depth={0}
-                showStarBadge
                 dragEnabled={false}
-                showMenuButton={false}
               />
             ) : (
               <FileItem
                 key={entry.id}
                 node={treeNode}
                 depth={0}
-                showStarBadge
                 dragEnabled={false}
-                showMenuButton={false}
               />
             );
           }

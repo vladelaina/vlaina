@@ -17,8 +17,17 @@ const mocked = vi.hoisted(() => ({
   starredState: {
     starredLoaded: true,
     hasEntries: false,
-    entries: [],
+    entries: [] as Array<{
+      entry: { id: string; kind: 'note' | 'folder'; relativePath: string; vaultPath: string; addedAt: number };
+      isCurrentVaultEntry: boolean;
+      isActive: boolean;
+      treeNode: { id: string; name: string; path: string; isFolder: boolean; children?: unknown[]; expanded?: boolean } | null;
+      onOpen: () => void;
+      onRemove: () => void;
+    }>,
   },
+  fileItemProps: [] as Array<Record<string, unknown>>,
+  folderItemProps: [] as Array<Record<string, unknown>>,
 }));
 
 vi.mock('../FileTree/hooks/fileTreePointerDragState', () => ({
@@ -36,6 +45,36 @@ vi.mock('./useStarredSectionEntries', () => ({
   useStarredSectionEntries: () => mocked.starredState,
 }));
 
+vi.mock('../FileTree/FileItem', () => ({
+  FileItem: ({
+    dragEnabled,
+    showMenuButton,
+    showStarBadge,
+  }: {
+    dragEnabled?: boolean;
+    showMenuButton?: boolean;
+    showStarBadge?: boolean;
+  }) => {
+    mocked.fileItemProps.push({ dragEnabled, showMenuButton, showStarBadge });
+    return <div data-testid="mock-file-item" />;
+  },
+}));
+
+vi.mock('../FileTree/FolderItem', () => ({
+  FolderItem: ({
+    dragEnabled,
+    showMenuButton,
+    showStarBadge,
+  }: {
+    dragEnabled?: boolean;
+    showMenuButton?: boolean;
+    showStarBadge?: boolean;
+  }) => {
+    mocked.folderItemProps.push({ dragEnabled, showMenuButton, showStarBadge });
+    return <div data-testid="mock-folder-item" />;
+  },
+}));
+
 describe('StarredSection', () => {
   beforeEach(() => {
     mocked.dragSnapshot.activeSourcePath = null;
@@ -48,6 +87,8 @@ describe('StarredSection', () => {
     mocked.starredState.starredLoaded = true;
     mocked.starredState.hasEntries = false;
     mocked.starredState.entries = [];
+    mocked.fileItemProps = [];
+    mocked.folderItemProps = [];
   });
 
   afterEach(() => {
@@ -107,5 +148,71 @@ describe('StarredSection', () => {
     const contentGrid = container.querySelector('[class*="grid-rows-"]');
     expect(contentGrid?.className).toContain('grid-rows-[1fr]');
     expect(mocked.requestFileTreePointerDragDropTargetUpdate).not.toHaveBeenCalled();
+  });
+
+  it('renders current-vault starred files with the normal file row menu action', () => {
+    mocked.starredState.hasEntries = true;
+    mocked.starredState.entries = [{
+      entry: {
+        id: 'starred-file',
+        kind: 'note',
+        relativePath: 'docs/alpha.md',
+        vaultPath: '/vault',
+        addedAt: 1,
+      },
+      isCurrentVaultEntry: true,
+      isActive: false,
+      treeNode: {
+        id: 'file-alpha',
+        name: 'alpha.md',
+        path: 'docs/alpha.md',
+        isFolder: false,
+      },
+      onOpen: vi.fn(),
+      onRemove: vi.fn(),
+    }];
+
+    render(<StarredSection showTitle={false} />);
+
+    expect(mocked.fileItemProps.length).toBeGreaterThan(0);
+    mocked.fileItemProps.forEach((props) => expect(props).toEqual(expect.objectContaining({
+      dragEnabled: false,
+      showStarBadge: undefined,
+      showMenuButton: undefined,
+    })));
+  });
+
+  it('renders current-vault starred folders with the normal folder row menu action', () => {
+    mocked.starredState.hasEntries = true;
+    mocked.starredState.entries = [{
+      entry: {
+        id: 'starred-folder',
+        kind: 'folder',
+        relativePath: 'docs',
+        vaultPath: '/vault',
+        addedAt: 1,
+      },
+      isCurrentVaultEntry: true,
+      isActive: false,
+      treeNode: {
+        id: 'folder-docs',
+        name: 'docs',
+        path: 'docs',
+        isFolder: true,
+        children: [],
+        expanded: false,
+      },
+      onOpen: vi.fn(),
+      onRemove: vi.fn(),
+    }];
+
+    render(<StarredSection showTitle={false} />);
+
+    expect(mocked.folderItemProps.length).toBeGreaterThan(0);
+    mocked.folderItemProps.forEach((props) => expect(props).toEqual(expect.objectContaining({
+      dragEnabled: false,
+      showStarBadge: undefined,
+      showMenuButton: undefined,
+    })));
   });
 });

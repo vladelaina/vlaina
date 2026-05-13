@@ -2,6 +2,8 @@ import { useState, type MouseEvent } from 'react';
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { Icon } from '@/components/ui/icons';
 import { getSidebarLabelClass } from '@/components/layout/sidebar/sidebarLabelStyles';
+import { SidebarRowActionButton } from '@/components/layout/sidebar/SidebarRow';
+import { cn, iconButtonStyles } from '@/lib/utils';
 import type { StarredEntry } from '@/stores/notes/types';
 import { getStarredNoteDisplayPath } from '@/stores/notes/starred';
 import { NoteIcon } from '../IconPicker/NoteIcon';
@@ -12,9 +14,9 @@ import {
   type NotesSidebarMenuEntry,
 } from '../Sidebar/context-menu/NotesSidebarContextMenuContent';
 import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
-import { SidebarStarBadge } from '../common/SidebarStarBadge';
 import { createTreeItemPathSubmenu } from '../FileTree/components/TreeItemMenu';
 import { useTreeItemPathActions } from '../FileTree/hooks/useTreeItemPathActions';
+import { getSidebarContextMenuPosition } from '../common/sidebarMenuPosition';
 import { getEntryTitle } from './starredSectionUtils';
 import { useStarredEntryIcon } from './useStarredEntryIcon';
 import { useI18n } from '@/lib/i18n';
@@ -55,8 +57,17 @@ export function ExternalStarredEntryRow({
   const handleContextMenu = (event: MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    setMenuPosition({ top: event.clientY, left: event.clientX });
+    setMenuPosition(getSidebarContextMenuPosition(event.currentTarget.getBoundingClientRect(), event.clientY));
     setShowMenu(true);
+  };
+
+  const handleMenuTrigger = (event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const rowElement = event.currentTarget.closest('[data-starred-entry-id]');
+    const rect = rowElement?.getBoundingClientRect();
+    setMenuPosition(rect ? getSidebarContextMenuPosition(rect, event.clientY) : { top: event.clientY, left: event.clientX });
+    setShowMenu((prev) => !prev);
   };
 
   const menuEntries: NotesSidebarMenuEntry[] = [
@@ -143,17 +154,24 @@ export function ExternalStarredEntryRow({
           onOpen(event.ctrlKey || event.metaKey);
         } : undefined}
         onContextMenu={handleContextMenu}
-        contentClassName="z-30"
+        actions={
+          <SidebarRowActionButton
+            aria-label="Open starred item menu"
+            onClick={handleMenuTrigger}
+            className={cn(
+              'rounded-md p-1 focus:outline-none',
+              iconButtonStyles,
+              'text-[var(--notes-sidebar-text)] hover:text-[var(--notes-sidebar-text)]',
+            )}
+          >
+            <Icon name="common.more" size="md" />
+          </SidebarRowActionButton>
+        }
         main={
-          <div className="relative min-w-0 pr-5">
+          <div className="relative min-w-0">
             <span className={getSidebarLabelClass('notes', { selected: isActive })}>
               {title}
             </span>
-            <SidebarStarBadge
-              onClick={() => {
-                onRemove();
-              }}
-            />
           </div>
         }
       />

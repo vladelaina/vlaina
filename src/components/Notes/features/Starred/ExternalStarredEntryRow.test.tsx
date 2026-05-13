@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ExternalStarredEntryRow } from './ExternalStarredEntryRow';
 
@@ -27,10 +27,21 @@ vi.mock('../IconPicker/NoteIcon', () => ({
 }));
 
 vi.mock('../Sidebar/NotesSidebarRow', () => ({
-  NotesSidebarRow: ({ leading, main }: { leading?: React.ReactNode; main?: React.ReactNode }) => (
-    <div>
+  NotesSidebarRow: ({
+    leading,
+    main,
+    actions,
+    onClick,
+  }: {
+    leading?: React.ReactNode;
+    main?: React.ReactNode;
+    actions?: React.ReactNode;
+    onClick?: React.MouseEventHandler<HTMLDivElement>;
+  }) => (
+    <div onClick={onClick}>
       {leading}
       {main}
+      {actions}
     </div>
   ),
 }));
@@ -44,10 +55,6 @@ vi.mock('../Sidebar/context-menu/NotesSidebarContextMenuContent', () => ({
     mocked.contextMenuEntries = entries;
     return null;
   },
-}));
-
-vi.mock('../common/SidebarStarBadge', () => ({
-  SidebarStarBadge: () => <button type="button">star</button>,
 }));
 
 vi.mock('./useStarredEntryIcon', () => ({
@@ -170,5 +177,28 @@ describe('ExternalStarredEntryRow', () => {
     expect(moreEntry?.children).toEqual(expect.arrayContaining([
       expect.objectContaining({ key: 'open-location', label: 'Open Folder Location' }),
     ]));
+  });
+
+  it('opens the menu action without opening the starred note row', () => {
+    const onOpen = vi.fn();
+    const { getByLabelText } = render(
+      <ExternalStarredEntryRow
+        entry={{
+          id: 'starred-1',
+          kind: 'note',
+          vaultPath: '/vault-b',
+          relativePath: 'docs/alpha.md',
+          addedAt: 1,
+        }}
+        isCurrentVaultEntry={false}
+        isActive={false}
+        onOpen={onOpen}
+        onRemove={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(getByLabelText('Open starred item menu'));
+
+    expect(onOpen).not.toHaveBeenCalled();
   });
 });
