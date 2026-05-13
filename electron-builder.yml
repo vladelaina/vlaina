@@ -35,3 +35,5 @@ linux:
   icon: build/icon.png
   target:
     - AppImage
+    - deb
+    - tar.gz
