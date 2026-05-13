@@ -1,9 +1,11 @@
 import { getExternalLinkProps } from "@/lib/navigation/externalLinks";
+import { SignInPromptPill } from './SignInPromptPill';
 
 interface ErrorBlockProps {
   type?: string;
   code?: string;
   content: string;
+  showLoginPrompt?: boolean;
 }
 
 const renderWithLinks = (text: string) => {
@@ -36,7 +38,15 @@ const renderWithLinks = (text: string) => {
   });
 };
 
-export function ErrorBlock({ content }: ErrorBlockProps) {
+export function ErrorBlock({ content, showLoginPrompt = false }: ErrorBlockProps) {
+  if (showLoginPrompt) {
+    return (
+      <div className="w-full mb-2" data-no-focus-input="true">
+        <SignInPromptPill />
+      </div>
+    );
+  }
+
   return (
     <div className="w-full mb-2" data-no-focus-input="true">
       <div

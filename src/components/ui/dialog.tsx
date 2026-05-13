@@ -47,6 +47,7 @@ function DialogOverlay({
 
 function DialogContent({
   className,
+  containerClassName,
   children,
   showCloseButton = true,
   useBlurBackdrop = false,
@@ -55,6 +56,7 @@ function DialogContent({
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
   useBlurBackdrop?: boolean
+  containerClassName?: string
   blurBackdropProps?: Partial<Pick<BlurBackdropProps, "className" | "overlayClassName" | "zIndex" | "blurPx" | "duration">>
 }) {
   return (
@@ -72,7 +74,7 @@ function DialogContent({
       ) : (
         <DialogOverlay />
       )}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className={cn("fixed inset-0 z-50 flex items-center justify-center p-4", containerClassName)}>
         <DialogPrimitive.Content
           data-slot="dialog-content"
           className={cn(

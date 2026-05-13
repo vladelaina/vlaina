@@ -4,6 +4,7 @@ import { MessageToolbar } from './MessageToolbar';
 import { ErrorBlock } from './ErrorBlock';
 import type { ChatMessage } from '@/lib/ai/types';
 import { parseErrorTag } from '@/lib/ai/errorTag';
+import { MANAGED_PROVIDER_ID } from '@/lib/ai/managedService';
 import { extractWebSearchStatuses } from '@/lib/ai/webSearch/statusMarkup';
 import { WebSearchStatusBlock } from '@/components/Chat/features/WebSearch/WebSearchStatusBlock';
 
@@ -83,6 +84,8 @@ export function AIMessage({
   }, [msg.content]);
   const isStreamingContentVisible = isLoading && contentWithoutError.trim().length > 0;
   const visibleContent = contentWithoutError || ' ';
+  const isManagedModelAuthError = errorType === 'AUTH_ERROR'
+    && (msg.modelId === MANAGED_PROVIDER_ID || msg.modelId.startsWith(`${MANAGED_PROVIDER_ID}::`));
   const startTime = useMemo(() => {
     if (isStreamingContentVisible) {
       return rememberVisibleStreamStartTime(msg.id);
@@ -142,17 +145,20 @@ export function AIMessage({
                     type={errorType} 
                     code={errorCode} 
                     content={errorContent} 
+                    showLoginPrompt={isManagedModelAuthError}
                 />
             </div>
         )}
 
-        <MessageToolbar 
-            msg={msg}
-            isLoading={isLoading}
-            onCopy={onCopy}
-            onRegenerate={onRegenerate}
-            onSwitchVersion={onSwitchVersion}
-        />
+        {!isManagedModelAuthError && (
+            <MessageToolbar 
+                msg={msg}
+                isLoading={isLoading}
+                onCopy={onCopy}
+                onRegenerate={onRegenerate}
+                onSwitchVersion={onSwitchVersion}
+            />
+        )}
     </div>
   );
 }

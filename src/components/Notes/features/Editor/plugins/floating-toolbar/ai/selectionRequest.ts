@@ -5,6 +5,8 @@ import { useToastStore } from '@/stores/useToastStore';
 import { translate } from '@/lib/i18n';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { sendMessageWithEndpointFallback } from '@/hooks/chatService/sendMessageWithEndpointFallback';
+import { getUserFacingAIError } from '@/lib/ai/errors';
+import { isManagedProviderId } from '@/lib/ai/managedService';
 import { buildEditorAiUserMessage } from './promptBuilder';
 import { EDITOR_AI_SYSTEM_PROMPT } from './promptCatalog';
 import { assertEnglishPromptText } from './promptValidation';
@@ -22,6 +24,8 @@ import {
 interface AiRequestResult {
   suggestedText: string | null;
   errorMessage: string | null;
+  errorType?: string | null;
+  errorCode?: string | null;
 }
 
 function createSystemMessage(content: string, modelId: string): ChatMessage {
@@ -157,11 +161,21 @@ async function requestAiEdit(
       };
     }
 
-    const message =
+    const normalized = getUserFacingAIError(error);
+    const fallbackMessage =
       error instanceof Error && error.message.trim().length > 0
         ? error.message
         : 'Failed to edit the selected text with AI.';
-    return reportError(message);
+    const message = normalized.message || fallbackMessage;
+    if (!options?.suppressToast) {
+      useToastStore.getState().addToast(message, 'error', 4000);
+    }
+    return {
+      suggestedText: null,
+      errorMessage: message,
+      errorType: isManagedProviderId(provider.id) ? normalized.type : null,
+      errorCode: isManagedProviderId(provider.id) ? normalized.code : null,
+    };
   }
 }
 
@@ -200,15 +214,20 @@ export async function createAiSelectionSuggestionResult(
       }
     : getSerializedSelectionContext(view, from, to, selectedText);
 
-  const { suggestedText, errorMessage } = await requestAiEdit(
+  const result = await requestAiEdit(
     trimmedInstruction,
     selectedText,
     context,
     signal,
     options
   );
-  if (suggestedText === null) {
-    return { suggestion: null, errorMessage };
+  if (result.suggestedText === null) {
+    return {
+      suggestion: null,
+      errorMessage: result.errorMessage,
+      errorType: result.errorType,
+      errorCode: result.errorCode,
+    };
   }
 
   return {
@@ -217,7 +236,7 @@ export async function createAiSelectionSuggestionResult(
       to,
       trimmedInstruction,
       selectedText,
-      suggestedText,
+      result.suggestedText,
       context.beforeContext,
       context.afterContext
     ),
@@ -245,7 +264,7 @@ export async function retryAiSelectionSuggestionResult(
   signal?: AbortSignal,
   options?: AiRequestOptions
 ): Promise<AiSelectionSuggestionResult> {
-  const { suggestedText, errorMessage } = await requestAiEdit(
+  const result = await requestAiEdit(
     suggestion.instruction,
     suggestion.originalText,
     {
@@ -256,10 +275,12 @@ export async function retryAiSelectionSuggestionResult(
     options
   );
 
-  if (suggestedText === null) {
+  if (result.suggestedText === null) {
     return {
       suggestion: null,
-      errorMessage,
+      errorMessage: result.errorMessage,
+      errorType: result.errorType,
+      errorCode: result.errorCode,
     };
   }
 
@@ -269,7 +290,7 @@ export async function retryAiSelectionSuggestionResult(
       suggestion.to,
       suggestion.instruction,
       suggestion.originalText,
-      suggestedText,
+      result.suggestedText,
       suggestion.beforeContext ?? '',
       suggestion.afterContext ?? ''
     ),

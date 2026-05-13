@@ -314,6 +314,8 @@ export function createFloatingToolbarPluginView(
           pluginState.aiReview.originalText || '',
           pluginState.aiReview.suggestedText || '',
           pluginState.aiReview.errorMessage || '',
+          pluginState.aiReview.errorType || '',
+          pluginState.aiReview.errorCode || '',
           pluginState.aiReview.isLoading ? 'loading' : '',
         ].join('|')
       : [
@@ -523,6 +525,8 @@ export function createFloatingToolbarPluginView(
     review.originalText || '',
     review.suggestedText || '',
     review.errorMessage || '',
+    review.errorType || '',
+    review.errorCode || '',
     review.isLoading ? 'loading' : '',
   ].join('|');
 

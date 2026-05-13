@@ -142,13 +142,14 @@ export async function runAiSelectionReviewCommand(
   activeReviewControllers.set(requestKey, controller);
 
   try {
-    const { suggestion, errorMessage } = await createAiSelectionSuggestionResult(
+    const result = await createAiSelectionSuggestionResult(
       view,
       instruction,
       reviewSelection,
       controller.signal,
       { suppressToast: true }
     );
+    const { suggestion, errorMessage, errorType, errorCode } = result;
     if (controller.signal.aborted || !view.dom.isConnected) {
       return false;
     }
@@ -163,7 +164,7 @@ export async function runAiSelectionReviewCommand(
           type: TOOLBAR_ACTIONS.SET_AI_REVIEW,
           payload: {
             aiReview: toResolvedAiReviewState(
-              { suggestion: null, errorMessage },
+              { suggestion: null, errorMessage, errorType, errorCode },
               review,
               requestKey,
               instruction,

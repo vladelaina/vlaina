@@ -18,6 +18,7 @@ export interface AIUIState {
   temporaryChatEnabled: boolean;
   selectionInitialized: boolean;
   temporaryReturnSessionId: string | null;
+  authPromptSessionId: string | null;
   setSessionLoading: (sessionId: string, loading: boolean) => void;
   markSessionUnread: (sessionId: string) => void;
   markSessionRead: (sessionId: string) => void;
@@ -27,6 +28,7 @@ export interface AIUIState {
   setCurrentSessionId: (sessionId: string | null) => void;
   setTemporaryChatEnabled: (enabled: boolean) => void;
   setTemporaryReturnSessionId: (sessionId: string | null) => void;
+  setAuthPromptSessionId: (sessionId: string | null) => void;
   clearSessionState: (sessionId: string) => void;
 }
 
@@ -57,6 +59,7 @@ export const useAIUIStore = create<AIUIState>((set) => ({
   temporaryChatEnabled: false,
   selectionInitialized: false,
   temporaryReturnSessionId: null,
+  authPromptSessionId: null,
   setSessionLoading: (id, loading) => set((state) => {
     const generatingSessions = { ...state.generatingSessions }
     if (loading) {
@@ -130,6 +133,7 @@ export const useAIUIStore = create<AIUIState>((set) => ({
     selectionInitialized: true,
   }),
   setTemporaryReturnSessionId: (sessionId) => set({ temporaryReturnSessionId: sessionId }),
+  setAuthPromptSessionId: (sessionId) => set({ authPromptSessionId: sessionId }),
   clearSessionState: (sessionId) => set((state) => {
     const generatingSessions = { ...state.generatingSessions }
     const unreadSessions = { ...state.unreadSessions }
