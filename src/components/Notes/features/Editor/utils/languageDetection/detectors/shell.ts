@@ -6,8 +6,13 @@ const shellCommandNames = [
   'bundle',
   'bun',
   'cargo',
+  'cat',
+  'cd',
+  'chmod',
+  'chown',
   'composer',
   'corepack',
+  'cp',
   'aws',
   'cmake',
   'curl',
@@ -21,8 +26,12 @@ const shellCommandNames = [
   'go',
   'gradle',
   'helm',
+  'head',
   'kubectl',
+  'ls',
   'make',
+  'mkdir',
+  'mv',
   'mvn',
   'netlify',
   'node',
@@ -36,8 +45,17 @@ const shellCommandNames = [
   'python3',
   'rails',
   'rake',
+  'rm',
+  'rsync',
   'rustup',
+  'scp',
+  'sed',
+  'ssh',
+  'tail',
+  'tar',
   'terraform',
+  'touch',
+  'unzip',
   'uv',
   'vercel',
   'vite',
@@ -46,15 +64,19 @@ const shellCommandNames = [
   'wrangler',
   'yarn',
   'yum',
+  'zip',
 ] as const;
 
+const shellCommandPrefixPattern = String.raw`(?:(?:sudo|command)\s+|env\s+(?:[A-Za-z_]\w*=\S+\s+)*|(?:[A-Za-z_]\w*=\S+\s+)*)`;
 const shellCommandPattern = new RegExp(
-  `^\\s*(?:${shellCommandNames.map((command) => command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?:\\s+(?!\\{)|$)`,
+  `^\\s*${shellCommandPrefixPattern}(?:${shellCommandNames.map((command) => command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?:\\s+(?!\\{)|$)`,
   'm',
 );
+const localShellScriptPattern = /^\s*(?:(?:sudo|command)\s+)?(?:\.{1,2}\/|\/)[^\s]+(?:\.(?:sh|bash|zsh)|\/(?:install|configure))(?:\s|$)/;
 
 export const detectShell: LanguageDetector = (ctx) => {
   const { first100Lines, firstLine, lines, code } = ctx;
+  const nonEmptyLines = lines.filter((line) => line.trim().length > 0);
 
   if (/^#'/m.test(first100Lines)) {
     return null;
@@ -120,6 +142,20 @@ export const detectShell: LanguageDetector = (ctx) => {
 
   if (lines.length <= 3 && shellCommandPattern.test(firstLine)) {
     return 'bash';
+  }
+
+  if (nonEmptyLines.length <= 4) {
+    const commandLikeLines = nonEmptyLines.filter((line) => shellCommandPattern.test(line) || localShellScriptPattern.test(line));
+    const hasIndentedOptionContinuation = nonEmptyLines.some((line) => /^\s{2,}--[\w-]+(?:[=\s]|$)/.test(line));
+
+    if (
+      commandLikeLines.length >= 2 ||
+      (commandLikeLines.length >= 1 && hasIndentedOptionContinuation) ||
+      shellCommandPattern.test(nonEmptyLines[0] ?? '') ||
+      localShellScriptPattern.test(nonEmptyLines[0] ?? '')
+    ) {
+      return 'bash';
+    }
   }
 
   // Shell if statement

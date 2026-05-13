@@ -20,6 +20,21 @@ export const detectDockerfile: LanguageDetector = (ctx) => {
   const dockerInstructions = /^(FROM|RUN|CMD|LABEL|EXPOSE|ENV|ADD|COPY|ENTRYPOINT|VOLUME|USER|WORKDIR|ARG|ONBUILD|STOPSIGNAL|HEALTHCHECK|SHELL)\s+/im;
 
   if (dockerInstructions.test(firstLine)) {
+    if (/^env\s+/i.test(firstLine)) {
+      if (/^env\s+/.test(firstLine)) {
+        return null;
+      }
+
+      const envBody = firstLine.trim().replace(/^ENV\s+/, '');
+      const envAssignments = envBody.trim().split(/\s+/);
+      const isKeyValueEnv = envAssignments.every((part) => /^[A-Za-z_]\w*=.+/.test(part));
+      const isLegacyEnv = envAssignments.length === 2 && /^[A-Za-z_]\w*$/.test(envAssignments[0]);
+
+      if (!isKeyValueEnv && !isLegacyEnv) {
+        return null;
+      }
+    }
+
     if (/^(ADD|COPY)\s+/i.test(firstLine)) {
       if (!/\s+[./]/.test(firstLine)) {
         return null;
