@@ -120,6 +120,26 @@ function findHorizontalRulePos(view: EditorView): number | null {
   return foundPos;
 }
 
+function findTextStartPos(view: EditorView, text: string): number {
+  let foundPos: number | null = null;
+  view.state.doc.descendants((node, pos) => {
+    if (foundPos !== null) return false;
+    if (!node.isText) return true;
+    const index = node.text?.indexOf(text) ?? -1;
+    if (index >= 0) {
+      foundPos = pos + index;
+      return false;
+    }
+    return true;
+  });
+
+  if (foundPos === null) {
+    throw new Error(`Expected text "${text}" in document`);
+  }
+
+  return foundPos;
+}
+
 describe('hrAutoParagraphPlugin', () => {
   it('keeps --- as plain text until Enter is pressed', async () => {
     const editor = createEditor();
@@ -357,6 +377,68 @@ describe('hrAutoParagraphPlugin', () => {
 
     view.dom.blur = originalBlur;
     view.focus = originalFocus;
+
+    await editor.destroy();
+  });
+
+  it('does not skip a preceding horizontal rule when ArrowUp starts inside a list item', async () => {
+    const editor = createEditor('before\n\n---\n\n1. 1\n2. 2');
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const secondItemTextPos = findTextStartPos(view, '2');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, secondItemTextPos)));
+
+    expect(pressKey(view, 'ArrowUp')).toBe(false);
+    expect(view.state.selection.from).toBe(secondItemTextPos);
+    expect(view.state.selection.$from.parent.textContent).toBe('2');
+
+    await editor.destroy();
+  });
+
+  it('does not skip a following horizontal rule when ArrowDown starts inside a list item', async () => {
+    const editor = createEditor('1. 1\n2. 2\n\n---\n\nafter');
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const secondItemTextPos = findTextStartPos(view, '2');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, secondItemTextPos + 1)));
+
+    expect(pressKey(view, 'ArrowDown')).toBe(false);
+    expect(view.state.selection.from).toBe(secondItemTextPos + 1);
+    expect(view.state.selection.$from.parent.textContent).toBe('2');
+
+    await editor.destroy();
+  });
+
+  it('does not delete a preceding horizontal rule when Backspace starts inside a list item', async () => {
+    const editor = createEditor('before\n\n---\n\n1. 1\n2. 2');
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const firstItemTextPos = findTextStartPos(view, '1');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, firstItemTextPos)));
+
+    pressKey(view, 'Backspace');
+    expect(hasHorizontalRule(view)).toBe(true);
+
+    await editor.destroy();
+  });
+
+  it('does not delete a following horizontal rule when Delete starts inside a list item', async () => {
+    const editor = createEditor('1. 1\n2. 2\n\n---\n\nafter');
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const secondItemTextPos = findTextStartPos(view, '2');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, secondItemTextPos + 1)));
+
+    pressKey(view, 'Delete');
+    expect(hasHorizontalRule(view)).toBe(true);
 
     await editor.destroy();
   });
