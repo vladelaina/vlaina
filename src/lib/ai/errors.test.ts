@@ -138,6 +138,26 @@ describe('getUserFacingAIError', () => {
     });
   });
 
+  it('localizes managed upstream machine errors', () => {
+    const result = getUserFacingAIError(new Error('UPSTREAM_UNAVAILABLE'));
+
+    expect(result).toEqual({
+      type: AIErrorType.SERVER_ERROR,
+      code: 'upstream_unavailable',
+      message: '๑ᵒᯅᵒ๑ My brain needs a tiny breather. Please try again in a moment~',
+    });
+  });
+
+  it('localizes managed upstream rate limit machine errors', () => {
+    const result = getUserFacingAIError(new Error('UPSTREAM_RATE_LIMITED'));
+
+    expect(result).toEqual({
+      type: AIErrorType.RATE_LIMIT,
+      code: 'upstream_rate_limited',
+      message: '๑ᵒᯅᵒ๑ My brain needs a tiny breather. Please try again in a moment~',
+    });
+  });
+
   it('preserves managed business 403 reasons instead of treating them as auth failures', () => {
     const result = getUserFacingAIError(
       new Error('Managed API failed with status 403: Points exhausted')

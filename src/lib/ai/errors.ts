@@ -1,4 +1,5 @@
 import { AIError, AIErrorType } from './types';
+import { translate } from '@/lib/i18n';
 
 export interface UserFacingAIError {
   type: AIErrorType
@@ -19,6 +20,15 @@ const KNOWN_MANAGED_BUSINESS_ERRORS = [
   'No active points balance',
   'Insufficient remaining points',
 ]
+
+const MANAGED_UPSTREAM_UNAVAILABLE_CODES = new Set([
+  'upstream_unavailable',
+  'UPSTREAM_UNAVAILABLE',
+])
+const MANAGED_UPSTREAM_RATE_LIMITED_CODES = new Set([
+  'upstream_rate_limited',
+  'UPSTREAM_RATE_LIMITED',
+])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -279,6 +289,31 @@ function shouldPreserveOriginalMessage(type: AIErrorType, message: string): bool
 
 function getSpecificUserFacingOverride(message: string, code: string): UserFacingAIError | null {
   const normalized = normalizeUserFacingMessage(message).toLowerCase()
+  const normalizedCode = code.trim()
+
+  if (
+    MANAGED_UPSTREAM_RATE_LIMITED_CODES.has(message) ||
+    MANAGED_UPSTREAM_RATE_LIMITED_CODES.has(normalizedCode) ||
+    normalized === 'upstream_rate_limited'
+  ) {
+    return {
+      type: AIErrorType.RATE_LIMIT,
+      code: normalizedCode || 'upstream_rate_limited',
+      message: translate('chat.error.upstreamRateLimited'),
+    }
+  }
+
+  if (
+    MANAGED_UPSTREAM_UNAVAILABLE_CODES.has(message) ||
+    MANAGED_UPSTREAM_UNAVAILABLE_CODES.has(normalizedCode) ||
+    normalized === 'upstream_unavailable'
+  ) {
+    return {
+      type: AIErrorType.SERVER_ERROR,
+      code: normalizedCode || 'upstream_unavailable',
+      message: translate('chat.error.upstreamUnavailable'),
+    }
+  }
 
   for (const knownMessage of KNOWN_MANAGED_BUSINESS_ERRORS) {
     if (normalized.includes(knownMessage.toLowerCase())) {

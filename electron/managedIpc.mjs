@@ -28,6 +28,31 @@ function deleteActiveManagedStream(requestId, controller) {
   }
 }
 
+async function readManagedErrorMessage(response) {
+  const fallback = `Managed stream failed: HTTP ${response.status}`;
+  const text = await response.text().catch(() => '');
+  if (!text) {
+    return fallback;
+  }
+
+  try {
+    const payload = JSON.parse(text);
+    if (typeof payload?.error === 'string' && payload.error.trim()) {
+      return payload.error.trim();
+    }
+    if (typeof payload?.errorCode === 'string' && payload.errorCode.trim()) {
+      return payload.errorCode.trim();
+    }
+    if (typeof payload?.error?.message === 'string' && payload.error.message.trim()) {
+      return payload.error.message.trim();
+    }
+  } catch {
+    return text;
+  }
+
+  return fallback;
+}
+
 export function registerManagedIpc({
   handleIpc,
   requestManagedJson,
@@ -79,7 +104,7 @@ export function registerManagedIpc({
         });
 
         if (!response.ok) {
-          throw new Error(await response.text().catch(() => `Managed stream failed: HTTP ${response.status}`));
+          throw new Error(await readManagedErrorMessage(response));
         }
 
         if (!response.body) {

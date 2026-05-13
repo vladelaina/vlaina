@@ -61,6 +61,10 @@ function extractManagedErrorPayloadMessage(payload: Record<string, unknown>): st
     }
   }
 
+  if (typeof payload.errorCode === 'string') {
+    return payload.errorCode;
+  }
+
   return '';
 }
 
