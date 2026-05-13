@@ -136,4 +136,27 @@ describe('managed ipc stream bridge', () => {
 
     expect(sender.send).toHaveBeenCalledWith('desktop:managed:stream:managed-error:error', { message: 'upstream failed' });
   });
+
+  it('extracts sanitized managed HTTP error payloads for streams', async () => {
+    const fetchWithStoredSession = vi.fn(async () => new Response(
+      JSON.stringify({
+        success: false,
+        error: 'UPSTREAM_UNAVAILABLE',
+        errorCode: 'upstream_unavailable',
+      }),
+      {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    ));
+    const { handlers } = registerHarness({ fetchWithStoredSession });
+    const sender = { isDestroyed: () => false, send: vi.fn() };
+
+    await handlers.get('desktop:managed:chat-completion-stream:start')?.({ sender }, 'managed-http-error', {});
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(sender.send).toHaveBeenCalledWith('desktop:managed:stream:managed-http-error:error', {
+      message: 'UPSTREAM_UNAVAILABLE',
+    });
+  });
 });
