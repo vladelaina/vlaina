@@ -6,7 +6,6 @@ import { getBuiltinCoverAssetEntries } from '@/lib/assets/builtinCovers';
 import { useUIStore } from '@/stores/uiSlice';
 import { clearImageCache } from '@/lib/assets';
 import { resolveEffectiveVaultPath } from '../effectiveVaultPath';
-import { logNotesDebugAlways } from '../lineBreakDebugLog';
 
 let uploadProgressResetTimer: ReturnType<typeof setTimeout> | null = null;
 const loadAssetsInFlight = new Map<string, Promise<void>>();
@@ -25,19 +24,6 @@ function isActiveUploadVault(state: NotesStore, vaultPath: string) {
     notesPath: state.notesPath,
     currentNotePath: state.currentNote?.path,
   }) === vaultPath;
-}
-
-function logCoverAsset(scope: string, payload?: unknown) {
-  logNotesDebugAlways('NotesCoverAsset', scope, payload);
-}
-
-function summarizeAssetFilenames(assets: AssetEntry[]) {
-  const filenames = assets.map((asset) => asset.filename);
-  return {
-    count: filenames.length,
-    first: filenames.slice(0, 12),
-    remaining: Math.max(0, filenames.length - 12),
-  };
 }
 
 function getDefaultCoverAssets(): AssetEntry[] {
@@ -102,14 +88,11 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
     const loadKey = getLoadAssetsKey(vaultPath, currentNotePath, config);
     const existingLoad = loadAssetsInFlight.get(loadKey);
     if (existingLoad) {
-      logCoverAsset('load-assets:coalesced', { vaultPath, currentNotePath });
       await existingLoad;
       return;
     }
 
     const loadPromise = (async () => {
-      logCoverAsset('load-assets:start', { vaultPath, currentNotePath });
-
       set({
         isLoadingAssets: true,
         assetList: getDefaultCoverAssets(),
@@ -125,24 +108,14 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
       try {
         assets = await AssetService.list(context, config);
       } catch (error) {
-        logCoverAsset('load-assets:user-assets-error', {
-          vaultPath,
-          currentNotePath,
-          message: error instanceof Error ? error.message : String(error),
-        });
+        console.error('Failed to load user assets:', error);
       }
 
       assets = combineAndSortAssets(assets);
 
       set({ assetList: assets, isLoadingAssets: false });
-      logCoverAsset('load-assets:done', {
-        ...summarizeAssetFilenames(assets),
-      });
     } catch (error) {
       console.error('Failed to load assets:', error);
-      logCoverAsset('load-assets:error', {
-        message: error instanceof Error ? error.message : String(error),
-      });
       set({ assetList: [], isLoadingAssets: false });
     }
     })();
@@ -162,17 +135,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
     const config = getAssetConfig();
 
     const vaultPath = resolveEffectiveVaultPath({ notesPath, currentNotePath });
-    logCoverAsset('upload:start', {
-      fileName: file.name,
-      fileSize: file.size,
-      fileType: file.type,
-      notesPath,
-      currentNotePath,
-      resolvedVaultPath: vaultPath,
-      config,
-    });
     if (!vaultPath) {
-      logCoverAsset('upload:missing-vault');
       return {
         success: false,
         path: null,
@@ -201,14 +164,8 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
           }
         }
       );
-      logCoverAsset('upload:result', result);
 
       if (!isActiveUploadVault(get(), vaultPath)) {
-        logCoverAsset('upload:stale-vault', {
-          uploadVaultPath: vaultPath,
-          activeNotesPath: get().notesPath,
-          activeCurrentNotePath: get().currentNote?.path,
-        });
         return result;
       }
 
@@ -235,9 +192,6 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
         set({ uploadProgress: null });
       }
       console.error('Failed to upload asset:', error);
-      logCoverAsset('upload:error', {
-        message: error instanceof Error ? error.message : String(error),
-      });
       return {
         success: false,
         path: null,

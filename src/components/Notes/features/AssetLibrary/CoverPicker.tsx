@@ -7,12 +7,7 @@ import { UploadZone } from './UploadZone';
 import { EmptyState } from './EmptyState';
 import { CoverPickerProps, CoverPickerTab } from './types';
 import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover';
-import { logNotesDebugAlways } from '@/stores/notes/lineBreakDebugLog';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
-
-function logCoverPicker(scope: string, payload?: unknown) {
-  logNotesDebugAlways('NotesCoverPicker', scope, payload);
-}
 
 const COVER_PREVIEW_DELAY_MS = 180;
 const ASSET_LOAD_AFTER_OPEN_DELAY_MS = 120;
@@ -74,7 +69,6 @@ export function CoverPicker({
 
       const runLoad = () => {
         if (cancelled) return;
-        logCoverPicker('load-assets', { vaultPath, currentNotePath });
         void loadAssets(vaultPath);
       };
 
@@ -111,9 +105,8 @@ export function CoverPicker({
       previewTimerRef.current = null;
     }
     latestPreviewAssetRef.current = null;
-    logCoverPicker('asset-select', { assetPath, currentNotePath, vaultPath });
     onSelect(assetPath);
-  }, [currentNotePath, onSelect, vaultPath]);
+  }, [onSelect]);
 
   const handleAssetHover = useCallback((assetPath: string | null) => {
     latestPreviewAssetRef.current = assetPath;
@@ -136,10 +129,8 @@ export function CoverPicker({
   }, [onPreview]);
 
   const handleUploadComplete = useCallback((assetPath: string) => {
-    logCoverPicker('upload-complete', { assetPath, currentNotePath, vaultPath });
     onSelect(assetPath);
-    logCoverPicker('upload-complete:selected', { assetPath, currentNotePath, vaultPath });
-  }, [currentNotePath, onSelect, vaultPath]);
+  }, [onSelect]);
 
   const handleSwitchToUpload = useCallback(() => {
     setActiveTab('upload');
@@ -178,33 +169,14 @@ export function CoverPicker({
           if (file) {
             uploadingRef.current = true;
             setIsUploading(true);
-            logCoverPicker('paste-upload:start', {
-              name: file.name,
-              size: file.size,
-              type: file.type,
-              currentNotePath,
-              vaultPath,
-            });
 
             try {
               const result = await uploadAsset(file, currentNotePath);
-              logCoverPicker('paste-upload:result', result);
 
               if (mountedRef.current && isOpenRef.current && result.success && result.path) {
-                logCoverPicker('paste-upload:select', {
-                  assetPath: result.path,
-                  currentNotePath,
-                  vaultPath,
-                });
                 onSelect(result.path);
-                logCoverPicker('paste-upload:selected', {
-                  assetPath: result.path,
-                  currentNotePath,
-                  vaultPath,
-                });
               }
             } finally {
-              logCoverPicker('paste-upload:cleanup');
               uploadingRef.current = false;
               if (mountedRef.current && isOpenRef.current) {
                 setIsUploading(false);

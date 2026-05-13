@@ -74,14 +74,21 @@ export const FileItem = memo(function FileItem({
   const isNewlyCreated = useNotesStore((state) => state.isNewlyCreated);
   const notesPath = useNotesStore((state) => state.notesPath);
   const prefetchNote = useNotesStore((state) => state.prefetchNote);
+  const cancelPrefetchNote = useNotesStore((state) => state.cancelPrefetchNote);
   const { handleCopyPath, handleOpenInNewWindow, handleOpenLocation } = useTreeItemPathActions({
     notesPath,
     itemPath: node.path,
   });
   const isActive = useNotesStore((state) => state.currentNote?.path === node.path);
+  const cancelHoverPrefetch = useCallback(() => {
+    cancelPrefetchNote(node.path);
+  }, [cancelPrefetchNote, node.path]);
   const hoverPrefetch = useSidebarHoverPrefetch(
     useCallback(() => prefetchNote(node.path), [node.path, prefetchNote]),
-    { enabled: !isDraftNote && !isActive && !isRenaming },
+    {
+      enabled: !isDraftNote && !isActive && !isRenaming,
+      cancel: cancelHoverPrefetch,
+    },
   );
 
   const displayName = useDisplayName(node.path) || node.name;

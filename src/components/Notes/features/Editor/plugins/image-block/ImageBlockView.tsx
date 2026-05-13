@@ -14,6 +14,7 @@ import { useImageDrag } from './hooks/useImageDrag';
 import { useImageResize } from './hooks/useImageResize';
 import { useImageMediaLifecycle } from './hooks/useImageMediaLifecycle';
 import { useBlockDragState } from './hooks/useBlockDragState';
+import { useNearViewport } from './hooks/useNearViewport';
 import type { CropperViewportState } from './types';
 
 const WRAPPER_ALIGNMENT_CLASSES: Record<'left' | 'center' | 'right', string> = {
@@ -36,8 +37,10 @@ interface LockedEditFrame {
 
 export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const latestStateRef = useRef<CropperViewportState | null>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     const [lockedEditFrame, setLockedEditFrame] = useState<LockedEditFrame | null>(null);
     const isBlockDragging = useBlockDragState();
+    const isNearViewport = useNearViewport(containerRef);
 
     const handleStateChange = useCallback((state: CropperViewportState) => {
         latestStateRef.current = state;
@@ -68,13 +71,15 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         setCropParams,
         baseSrc,
         resolvedSrc,
+        isRemoteImageSource,
         isLoading,
         loadError,
+        isImageLoadDeferred,
         notesPath,
         currentNotePath,
         updateNodeAttrs,
         markImageUserInput,
-    } = useImageBlockState({ node, view, getPos });
+    } = useImageBlockState({ node, view, getPos, shouldLoadImage: isNearViewport });
 
     const {
         isSaving,
@@ -99,7 +104,6 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     });
 
     const {
-        containerRef,
         setDragDimensions,
         finalContainerSize,
         handleMouseEnter,
@@ -110,6 +114,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
         isActive,
         isHoverDisabled: isBlockDragging,
         setIsHovered,
+        containerRef,
     });
 
     const { handleResizeStart } = useImageResize({
@@ -285,6 +290,8 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                         isLoading={isLoading}
                         loadError={!!loadError}
                         resolvedSrc={resolvedSrc}
+                        isRemoteImageSource={isRemoteImageSource}
+                        isDeferred={isImageLoadDeferred}
                         isReady={isReady}
                         cropParams={cropParams}
                         containerSize={activeContainerSize}

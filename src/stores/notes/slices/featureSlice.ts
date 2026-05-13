@@ -1,5 +1,6 @@
 import { StateCreator } from 'zustand';
 import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
+import { joinPath as joinLocalPath } from '@/lib/storage/adapter/pathUtils';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { NotesStore, FileTreeNode, MetadataFile, NoteCoverMetadata, NoteMetadataEntry } from '../types';
 import {
@@ -26,9 +27,9 @@ import { isDraftNotePath } from '../draftNote';
 import { markExpectedExternalChange } from '../document/externalChangeRegistry';
 import { updateNoteMetadataInMarkdown } from '../frontmatter';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
-import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
+import { normalizeVaultRelativePath, resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
-import { logNotesDebugAlways } from '../lineBreakDebugLog';
+import { logNotesDebug } from '../lineBreakDebugLog';
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -70,7 +71,8 @@ export interface FeatureSlice {
 
   loadStarred: (vaultPath: string) => Promise<void>;
   loadMetadata: (vaultPath: string) => Promise<void>;
-  scanAllNotes: () => Promise<void>;
+  scanAllNotes: (options?: { signal?: AbortSignal }) => Promise<void>;
+  cancelNoteContentScan: () => void;
   pruneNoteContentsCacheToOpenNotes: () => void;
   getBacklinks: (notePath: string) => { path: string; name: string; context: string }[];
   getAllTags: () => { tag: string; count: number }[];
@@ -93,6 +95,14 @@ export interface FeatureSlice {
 
 export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> = (set, get) => {
   const isActiveVaultRequest = (vaultPath: string) => get().notesPath === vaultPath;
+  let noteContentScanController: AbortController | null = null;
+  let noteContentScanGeneration = 0;
+
+  const abortActiveNoteContentScan = () => {
+    noteContentScanGeneration += 1;
+    noteContentScanController?.abort();
+    noteContentScanController = null;
+  };
 
   const applyCompletedMetadataWrite = (
     path: string,
@@ -164,7 +174,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     path: string,
     updates: Partial<NoteMetadataEntry>
   ) => {
-    logNotesDebugAlways('NotesMetadataUpdate', 'single:start', {
+    logNotesDebug('NotesMetadataUpdate', 'single:start', {
       path,
       updateKeys: Object.keys(updates),
       cover: updates.cover,
@@ -174,7 +184,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     const vaultPathAtStart = state.notesPath;
     const isDraftMetadataTarget = isDraftNotePath(path);
     if (!vaultPathAtStart) {
-      logNotesDebugAlways('NotesMetadataUpdate', 'single:no-vault', {
+      logNotesDebug('NotesMetadataUpdate', 'single:no-vault', {
         path,
         isAbsolutePath: isAbsolutePath(path),
         isDraftMetadataTarget,
@@ -219,27 +229,27 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
           currentNote: isCurrentNote ? { path, content } : latestState.currentNote,
           error: null,
         });
-        logNotesDebugAlways('NotesMetadataUpdate', 'single:absolute-state-updated', {
+        logNotesDebug('NotesMetadataUpdate', 'single:absolute-state-updated', {
           path,
           updateKeys: Object.keys(updates),
           isCurrentNote,
         });
 
         if (isCurrentNote && latestState.isDirty) {
-          logNotesDebugAlways('NotesMetadataUpdate', 'single:absolute-skip-write-dirty-current', { path });
+          logNotesDebug('NotesMetadataUpdate', 'single:absolute-skip-write-dirty-current', { path });
           return;
         }
 
         try {
-          logNotesDebugAlways('NotesMetadataUpdate', 'single:absolute-write:start', { path });
+          logNotesDebug('NotesMetadataUpdate', 'single:absolute-write:start', { path });
           const modifiedAt = await writeNoteContent(path, content, '');
           applyCompletedMetadataWrite(path, content, modifiedAt);
-          logNotesDebugAlways('NotesMetadataUpdate', 'single:absolute-write:done', {
+          logNotesDebug('NotesMetadataUpdate', 'single:absolute-write:done', {
             path,
             modifiedAt,
           });
         } catch (error) {
-          logNotesDebugAlways('NotesMetadataUpdate', 'single:absolute-write:error', {
+          logNotesDebug('NotesMetadataUpdate', 'single:absolute-write:error', {
             path,
             message: error instanceof Error ? error.message : String(error),
           });
@@ -272,7 +282,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
             : state.openTabs,
           error: null,
         });
-        logNotesDebugAlways('NotesMetadataUpdate', 'single:draft-updated', {
+        logNotesDebug('NotesMetadataUpdate', 'single:draft-updated', {
           path,
           updateKeys: Object.keys(updates),
         });
@@ -280,7 +290,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         return;
       }
 
-      logNotesDebugAlways('NotesMetadataUpdate', 'single:no-vault-skipped', { path });
+      logNotesDebug('NotesMetadataUpdate', 'single:no-vault-skipped', { path });
       return;
     }
 
@@ -300,7 +310,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
             ? (await resolveVaultRelativeFullPath(vaultPathAtStart, path)).fullPath
             : null;
       } catch (error) {
-        logNotesDebugAlways('NotesMetadataUpdate', 'single:resolve-error', {
+        logNotesDebug('NotesMetadataUpdate', 'single:resolve-error', {
           path,
           message: error instanceof Error ? error.message : String(error),
         });
@@ -309,7 +319,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       }
 
       if (!fullPath) {
-        logNotesDebugAlways('NotesMetadataUpdate', 'single:missing-full-path', { path });
+        logNotesDebug('NotesMetadataUpdate', 'single:missing-full-path', { path });
         return;
       }
 
@@ -321,7 +331,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       }
       sourceContent = await storage.readFile(fullPath);
       if (!isActiveVaultRequest(vaultPathAtStart)) {
-        logNotesDebugAlways('NotesMetadataUpdate', 'single:stale-after-read', {
+        logNotesDebug('NotesMetadataUpdate', 'single:stale-after-read', {
           path,
           vaultPathAtStart,
           activeNotesPath: get().notesPath,
@@ -354,7 +364,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     const nextCache = setCachedNoteContent(latestState.noteContentsCache, path, content, cachedModifiedAt);
 
     if (!isActiveVaultRequest(vaultPathAtStart)) {
-      logNotesDebugAlways('NotesMetadataUpdate', 'single:stale-before-state-update', {
+      logNotesDebug('NotesMetadataUpdate', 'single:stale-before-state-update', {
         path,
         vaultPathAtStart,
         activeNotesPath: get().notesPath,
@@ -373,7 +383,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         : latestState.openTabs,
       error: null,
     });
-    logNotesDebugAlways('NotesMetadataUpdate', 'single:state-updated', {
+    logNotesDebug('NotesMetadataUpdate', 'single:state-updated', {
       path,
       updateKeys: Object.keys(updates),
       isCurrentNote,
@@ -387,23 +397,23 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         Boolean(draftNote) &&
         (draftNote.originNotesPath === undefined || draftNote.originNotesPath === vaultPathAtStart);
       if (canImplicitlySaveDraft) {
-        logNotesDebugAlways('NotesMetadataUpdate', 'single:draft-save:start', { path });
+        logNotesDebug('NotesMetadataUpdate', 'single:draft-save:start', { path });
         await get().saveNote({ explicit: false });
-        logNotesDebugAlways('NotesMetadataUpdate', 'single:draft-save:done', { path });
+        logNotesDebug('NotesMetadataUpdate', 'single:draft-save:done', { path });
       }
       return;
     }
 
     if (isCurrentNote && latestState.isDirty) {
-      logNotesDebugAlways('NotesMetadataUpdate', 'single:skip-write-dirty-current', { path });
+      logNotesDebug('NotesMetadataUpdate', 'single:skip-write-dirty-current', { path });
       return;
     }
 
     try {
-      logNotesDebugAlways('NotesMetadataUpdate', 'single:write:start', { path, vaultPathAtStart });
+      logNotesDebug('NotesMetadataUpdate', 'single:write:start', { path, vaultPathAtStart });
       const modifiedAt = await writeNoteContent(path, content, vaultPathAtStart);
       if (!isActiveVaultRequest(vaultPathAtStart)) {
-        logNotesDebugAlways('NotesMetadataUpdate', 'single:stale-after-write', {
+        logNotesDebug('NotesMetadataUpdate', 'single:stale-after-write', {
           path,
           vaultPathAtStart,
           activeNotesPath: get().notesPath,
@@ -411,12 +421,12 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         return;
       }
       applyCompletedMetadataWrite(path, content, modifiedAt);
-      logNotesDebugAlways('NotesMetadataUpdate', 'single:write:done', {
+      logNotesDebug('NotesMetadataUpdate', 'single:write:done', {
         path,
         modifiedAt,
       });
     } catch (error) {
-      logNotesDebugAlways('NotesMetadataUpdate', 'single:write:error', {
+      logNotesDebug('NotesMetadataUpdate', 'single:write:error', {
         path,
         message: error instanceof Error ? error.message : String(error),
       });
@@ -457,110 +467,195 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       });
     },
 
-    scanAllNotes: async () => {
-      const { notesPath, rootFolder } = get();
-      if (!rootFolder || !notesPath) return;
-
-      const storage = getStorageAdapter();
-      const scannedCache: NotesStore['noteContentsCache'] = new Map();
-      const filePaths: { path: string; fullPath: string }[] = [];
-
-      const collectPaths = async (nodes: FileTreeNode[]) => {
-        for (const node of nodes) {
-          if (node.isFolder) {
-            await collectPaths(node.children);
-          } else {
-            try {
-              const { relativePath, fullPath } = await resolveVaultRelativeFullPath(notesPath, node.path);
-              filePaths.push({ path: relativePath, fullPath });
-            } catch {
-            }
-          }
-        }
-      };
-
-      await collectPaths(rootFolder.children);
-
-      const BATCH_SIZE = 10;
-      let scannedContentChars = 0;
-      for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
-        const batch = filePaths.slice(i, i + BATCH_SIZE);
-        if (scannedContentChars >= MAX_SCANNED_NOTE_CONTENT_CHARS) {
-          batch.forEach(({ path }) => {
-            scannedCache.set(path, { content: '', modifiedAt: null });
-          });
-          continue;
-        }
-
-        const results = await Promise.allSettled(
-          batch.map(async ({ path, fullPath }) => {
-            let modifiedAt: number | null = null;
-            try {
-              const fileInfo = await storage.stat(fullPath);
-              modifiedAt = fileInfo?.modifiedAt ?? null;
-              if (fileInfo?.size && fileInfo.size > MAX_SEARCHABLE_NOTE_BYTES) {
-                return { path, content: '', modifiedAt };
-              }
-            } catch {
-              // Some adapters/tests may not expose stat; still read the note content.
-            }
-
-            try {
-              const content = normalizeSerializedMarkdownDocument(await storage.readFile(fullPath));
-              return { path, content, modifiedAt };
-            } catch {
-              return { path, content: '', modifiedAt: null };
-            }
-          })
-        );
-
-        results.forEach((result) => {
-          if (result.status === 'fulfilled') {
-            const content =
-              scannedContentChars + result.value.content.length <= MAX_SCANNED_NOTE_CONTENT_CHARS
-                ? result.value.content
-                : '';
-
-            scannedContentChars += content.length;
-            scannedCache.set(result.value.path, {
-              content,
-              modifiedAt: result.value.modifiedAt,
-            });
-          }
-        });
+    scanAllNotes: async (options?: { signal?: AbortSignal }) => {
+      abortActiveNoteContentScan();
+      const scanController = new AbortController();
+      const scanGeneration = noteContentScanGeneration;
+      noteContentScanController = scanController;
+      const externalSignal = options?.signal;
+      const abortFromExternalSignal = () => scanController.abort();
+      if (externalSignal?.aborted) {
+        scanController.abort();
+      } else {
+        externalSignal?.addEventListener('abort', abortFromExternalSignal, { once: true });
       }
 
-      if (!isActiveVaultRequest(notesPath)) {
+      const isScanActive = () =>
+        !scanController.signal.aborted &&
+        scanGeneration === noteContentScanGeneration &&
+        noteContentScanController === scanController;
+
+      const { notesPath, rootFolder, noteContentsCache } = get();
+      if (!rootFolder || !notesPath || !isScanActive()) {
+        externalSignal?.removeEventListener('abort', abortFromExternalSignal);
+        if (noteContentScanController === scanController) {
+          noteContentScanController = null;
+        }
         return;
       }
 
-      const latestState = get();
-      const cache = new Map(scannedCache);
-      if (latestState.currentNote) {
-        const currentEntry = latestState.noteContentsCache.get(latestState.currentNote.path);
-        cache.set(latestState.currentNote.path, {
-          content: latestState.currentNote.content,
-          modifiedAt: currentEntry?.modifiedAt ?? null,
-        });
-      }
-      latestState.openTabs.forEach((tab) => {
-        if (tab.path === latestState.currentNote?.path) {
+      try {
+        const storage = getStorageAdapter();
+        const scannedCache: NotesStore['noteContentsCache'] = new Map();
+        const filePaths: { path: string; fullPath: string }[] = [];
+        const filePathsToRead: { path: string; fullPath: string }[] = [];
+
+        const collectPaths = (nodes: FileTreeNode[]) => {
+          for (const node of nodes) {
+            if (!isScanActive()) {
+              return;
+            }
+
+            if (node.isFolder) {
+              collectPaths(node.children);
+            } else {
+              const relativePath = normalizeVaultRelativePath(node.path);
+              if (relativePath) {
+                filePaths.push({
+                  path: relativePath,
+                  fullPath: joinLocalPath(notesPath, relativePath),
+                });
+              }
+            }
+          }
+        };
+
+        collectPaths(rootFolder.children);
+        if (!isScanActive()) {
           return;
         }
 
-        const cachedEntry = latestState.noteContentsCache.get(tab.path);
-        if (cachedEntry) {
-          cache.set(tab.path, cachedEntry);
-        }
-      });
-      Object.keys(latestState.draftNotes).forEach((path) => {
-        const cachedEntry = latestState.noteContentsCache.get(path);
-        if (cachedEntry) {
-          cache.set(path, cachedEntry);
-        }
-      });
+        let scannedContentChars = 0;
+        const addScannedEntry = (path: string, content: string, modifiedAt: number | null) => {
+          if (scannedContentChars >= MAX_SCANNED_NOTE_CONTENT_CHARS) {
+            scannedCache.set(path, { content: '', modifiedAt });
+            return;
+          }
 
-      set({ noteContentsCache: cache });
+          const nextContent =
+            scannedContentChars + content.length <= MAX_SCANNED_NOTE_CONTENT_CHARS
+              ? content
+              : '';
+
+          scannedContentChars += nextContent.length;
+          scannedCache.set(path, {
+            content: nextContent,
+            modifiedAt,
+          });
+        };
+
+        for (const filePath of filePaths) {
+          if (!isScanActive()) {
+            return;
+          }
+
+          const cachedEntry = noteContentsCache.get(filePath.path);
+          if (cachedEntry) {
+            addScannedEntry(filePath.path, cachedEntry.content, cachedEntry.modifiedAt);
+            continue;
+          }
+
+          filePathsToRead.push(filePath);
+        }
+
+        const BATCH_SIZE = 10;
+        for (let i = 0; i < filePathsToRead.length; i += BATCH_SIZE) {
+          if (!isScanActive()) {
+            return;
+          }
+
+          const batch = filePathsToRead.slice(i, i + BATCH_SIZE);
+          if (scannedContentChars >= MAX_SCANNED_NOTE_CONTENT_CHARS) {
+            batch.forEach(({ path }) => addScannedEntry(path, '', null));
+            continue;
+          }
+
+          const results = await Promise.allSettled(
+            batch.map(async ({ path, fullPath }) => {
+              if (!isScanActive()) {
+                return { path, content: '', modifiedAt: null };
+              }
+
+              let modifiedAt: number | null = null;
+              try {
+                const fileInfo = await storage.stat(fullPath);
+                if (!isScanActive()) {
+                  return { path, content: '', modifiedAt: null };
+                }
+                modifiedAt = fileInfo?.modifiedAt ?? null;
+                if (fileInfo?.size && fileInfo.size > MAX_SEARCHABLE_NOTE_BYTES) {
+                  return { path, content: '', modifiedAt };
+                }
+              } catch {
+                // Some adapters/tests may not expose stat; still read the note content.
+              }
+
+              try {
+                const content = normalizeSerializedMarkdownDocument(await storage.readFile(fullPath));
+                if (!isScanActive()) {
+                  return { path, content: '', modifiedAt: null };
+                }
+                return { path, content, modifiedAt };
+              } catch {
+                return { path, content: '', modifiedAt: null };
+              }
+            })
+          );
+
+          if (!isScanActive()) {
+            return;
+          }
+
+          results.forEach((result) => {
+            if (result.status === 'fulfilled') {
+              addScannedEntry(result.value.path, result.value.content, result.value.modifiedAt);
+            }
+          });
+        }
+
+        if (!isActiveVaultRequest(notesPath) || !isScanActive()) {
+          return;
+        }
+
+        const latestState = get();
+        const cache = new Map(scannedCache);
+        if (latestState.currentNote) {
+          const currentEntry = latestState.noteContentsCache.get(latestState.currentNote.path);
+          cache.set(latestState.currentNote.path, {
+            content: latestState.currentNote.content,
+            modifiedAt: currentEntry?.modifiedAt ?? null,
+          });
+        }
+        latestState.openTabs.forEach((tab) => {
+          if (tab.path === latestState.currentNote?.path) {
+            return;
+          }
+
+          const cachedEntry = latestState.noteContentsCache.get(tab.path);
+          if (cachedEntry) {
+            cache.set(tab.path, cachedEntry);
+          }
+        });
+        Object.keys(latestState.draftNotes).forEach((path) => {
+          const cachedEntry = latestState.noteContentsCache.get(path);
+          if (cachedEntry) {
+            cache.set(path, cachedEntry);
+          }
+        });
+
+        if (isScanActive()) {
+          set({ noteContentsCache: cache });
+        }
+      } finally {
+        externalSignal?.removeEventListener('abort', abortFromExternalSignal);
+        if (noteContentScanController === scanController) {
+          noteContentScanController = null;
+        }
+      }
+    },
+
+    cancelNoteContentScan: () => {
+      abortActiveNoteContentScan();
     },
 
     pruneNoteContentsCacheToOpenNotes: () => {
@@ -735,10 +830,6 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     },
 
     setNoteCover: (path: string, cover: NoteCoverMetadata | null) => {
-      logNotesDebugAlways('NotesCoverStore', 'set-note-cover', {
-        path,
-        cover,
-      });
       void updateSingleNoteMetadata(path, {
         cover: cover?.assetPath
           ? {

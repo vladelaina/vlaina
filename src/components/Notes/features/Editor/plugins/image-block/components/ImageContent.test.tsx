@@ -11,6 +11,8 @@ function renderImageContent(overrides: Partial<Parameters<typeof ImageContent>[0
     isLoading: false,
     loadError: false,
     resolvedSrc: 'https://example.com/image.png',
+    isRemoteImageSource: true,
+    isDeferred: false,
     isReady: true,
     cropParams: null,
     containerSize: { width: 320, height: 180 },
@@ -58,9 +60,21 @@ describe('ImageContent', () => {
   });
 
   it('keeps using the cropper for local resolved images', () => {
-    renderImageContent({ resolvedSrc: 'blob:local-image' });
+    renderImageContent({ resolvedSrc: 'blob:local-image', isRemoteImageSource: false });
 
     expect(screen.getByTestId('image-cropper')).toBeInTheDocument();
+  });
+
+  it('renders a static placeholder before deferred images start loading', () => {
+    renderImageContent({
+      resolvedSrc: '',
+      isDeferred: true,
+      isReady: false,
+      isLoading: false,
+    });
+
+    expect(screen.getByTestId('deferred-image-placeholder')).toBeInTheDocument();
+    expect(screen.queryByTestId('image-cropper')).toBeNull();
   });
 
   it('renders saved crop params as a passive preview outside crop mode', () => {

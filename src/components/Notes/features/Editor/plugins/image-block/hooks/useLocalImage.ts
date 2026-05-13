@@ -3,6 +3,7 @@ import { loadImageAsBlob } from '@/lib/assets/io/reader';
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { isPublicRemoteMediaUrl, sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 import { getImageSourceBase, isVirtualImageSource, resolveImageSourcePathCandidates } from '../utils/imageSourcePath';
+import { resolveRemoteImageFromMemoryCache } from '../utils/remoteImageMemoryCache';
 
 interface UseLocalImageResult {
     resolvedSrc: string;
@@ -13,7 +14,8 @@ interface UseLocalImageResult {
 export function useLocalImage(
     rawSrc: string,
     notesPath: string,
-    currentNotePath: string | undefined
+    currentNotePath: string | undefined,
+    enabled = true
 ): UseLocalImageResult {
     const [resolvedSrc, setResolvedSrc] = useState<string>('');
     const [isLoading, setIsLoading] = useState(true);
@@ -23,6 +25,15 @@ export function useLocalImage(
         let isMounted = true;
 
         const resolveImage = async () => {
+            if (!enabled) {
+                if (isMounted) {
+                    setIsLoading(false);
+                    setError(null);
+                    setResolvedSrc('');
+                }
+                return;
+            }
+
             if (!rawSrc) {
                 if (isMounted) {
                     setIsLoading(false);
@@ -45,8 +56,9 @@ export function useLocalImage(
                 }
 
                 if (isPublicRemoteMediaUrl(baseSrc)) {
+                    const resolvedRemoteSrc = await resolveRemoteImageFromMemoryCache(baseSrc);
                     if (isMounted) {
-                        setResolvedSrc(baseSrc);
+                        setResolvedSrc(resolvedRemoteSrc);
                         setIsLoading(false);
                     }
                     return;
@@ -122,7 +134,7 @@ export function useLocalImage(
         return () => {
             isMounted = false;
         };
-    }, [rawSrc, notesPath, currentNotePath]);
+    }, [rawSrc, notesPath, currentNotePath, enabled]);
 
     return { resolvedSrc, isLoading, error };
 }

@@ -5,11 +5,12 @@ const DEFAULT_PREFETCH_DELAY_MS = 140;
 interface SidebarHoverPrefetchOptions {
   enabled?: boolean;
   delayMs?: number;
+  cancel?: () => void;
 }
 
 export function useSidebarHoverPrefetch(
   prefetch: () => void | Promise<void>,
-  { enabled = true, delayMs = DEFAULT_PREFETCH_DELAY_MS }: SidebarHoverPrefetchOptions = {},
+  { enabled = true, delayMs = DEFAULT_PREFETCH_DELAY_MS, cancel }: SidebarHoverPrefetchOptions = {},
 ) {
   const timerRef = useRef<number | null>(null);
   const prefetchRef = useRef(prefetch);
@@ -23,6 +24,11 @@ export function useSidebarHoverPrefetch(
     timerRef.current = null;
   }, []);
 
+  const cancelPrefetch = useCallback(() => {
+    clearTimer();
+    cancel?.();
+  }, [cancel, clearTimer]);
+
   const schedulePrefetch = useCallback(() => {
     if (!enabled) {
       return;
@@ -35,10 +41,10 @@ export function useSidebarHoverPrefetch(
     }, delayMs);
   }, [clearTimer, delayMs, enabled]);
 
-  useEffect(() => clearTimer, [clearTimer]);
+  useEffect(() => cancelPrefetch, [cancelPrefetch]);
 
   return {
     onMouseEnter: schedulePrefetch,
-    onMouseLeave: clearTimer,
+    onMouseLeave: cancelPrefetch,
   };
 }

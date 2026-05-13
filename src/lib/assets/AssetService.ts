@@ -4,7 +4,6 @@ import { computeBufferHash, computeFileHash } from './core/hashing';
 import { getMimeType, generateFilename, processFilename } from './core/naming';
 import { writeAssetAtomic } from './io/writer';
 import { normalizeContainedAssetPath } from './core/pathContainment';
-import { logNotesDebugAlways } from '@/stores/notes/lineBreakDebugLog';
 import {
   getAssetHashIndexEntry,
   loadAssetHashIndex,
@@ -25,19 +24,6 @@ export interface AssetConfig {
 }
 
 const MAX_ASSET_SIZE = 50 * 1024 * 1024; // 50MB
-
-function logAssetService(scope: string, payload?: unknown) {
-  logNotesDebugAlways('AssetService', scope, payload);
-}
-
-function summarizeAssetFilenames(assets: AssetEntry[]) {
-  const filenames = assets.map((asset) => asset.filename);
-  return {
-    count: filenames.length,
-    first: filenames.slice(0, 12),
-    remaining: Math.max(0, filenames.length - 12),
-  };
-}
 
 function isIndexedAssetFresh(
   entry: { size?: number; modifiedAt?: number | null },
@@ -113,7 +99,6 @@ export class AssetService {
     const storage = getStorageAdapter();
 
     if (!await storage.exists(targetDir)) {
-      logAssetService('list:missing-target', { targetDir, storedPathPrefix });
       return [];
     }
 
@@ -130,12 +115,6 @@ export class AssetService {
       mimeType: getMimeType(entry.name),
       uploadedAt: entry.modifiedAt ? new Date(entry.modifiedAt).toISOString() : '',
     }));
-
-    logAssetService('list:done', {
-      targetDir,
-      storedPathPrefix,
-      ...summarizeAssetFilenames(assets),
-    });
 
     return assets.sort((a, b) => b.filename.localeCompare(a.filename));
   }
@@ -167,27 +146,14 @@ export class AssetService {
     }
 
     onProgress?.(20);
-    logAssetService('upload:accepted', {
-      fileName: file.name,
-      size: file.size,
-      type: file.type,
-      context,
-      config,
-      existingAssetCount: existingAssets.length,
-    });
 
     onProgress?.(40);
 
     const { targetDir, storedPathPrefix } = await this.resolveTarget(file.name, context, config);
-    logAssetService('upload:target-resolved', {
-      targetDir,
-      storedPathPrefix,
-    });
     const storage = getStorageAdapter();
 
     if (!await storage.exists(targetDir)) {
       await storage.mkdir(targetDir, true);
-      logAssetService('upload:mkdir', { targetDir });
     }
 
     let existingEntries: Array<{ name: string; path: string; size?: number; modifiedAt?: number }> = [];
@@ -215,12 +181,6 @@ export class AssetService {
       if (typeof entry.size === 'number' && entry.size !== file.size) return false;
       return getMimeType(entry.name).startsWith('image/');
     });
-    logAssetService('upload:duplicate-candidates', {
-      fileName: file.name,
-      sameNameEntryCount: sameNameImageEntries.length,
-      sameSizeCandidateCount: sameSizeCandidates.length,
-      missingSizeCount: hydratedImageEntries.filter((entry) => typeof entry.size !== 'number').length,
-    });
     let fileHash: string | null = null;
     if (sameSizeCandidates.length > 0) {
       fileHash = await computeFileHash(file);
@@ -233,11 +193,6 @@ export class AssetService {
         if (indexed && isIndexedAssetFresh(candidate, indexed)) {
           if (indexed.hash === fileHash) {
             onProgress?.(100);
-            logAssetService('upload:duplicate-index', {
-              fileName: file.name,
-              existingFilename: candidateFilename,
-              hash: fileHash,
-            });
             return {
               success: true,
               path: candidateFilename,
@@ -269,11 +224,6 @@ export class AssetService {
         if (candidateHash === fileHash) {
           await saveAssetHashIndex(context.vaultPath, hashIndex);
           onProgress?.(100);
-          logAssetService('upload:duplicate-computed', {
-            fileName: file.name,
-            existingFilename: candidateFilename,
-            hash: fileHash,
-          });
           return {
             success: true,
             path: candidateFilename,
@@ -310,13 +260,8 @@ export class AssetService {
     onProgress?.(60);
 
     const buffer = new Uint8Array(await file.arrayBuffer());
-    
+
     const filePath = await joinPath(targetDir, finalFilename);
-    logAssetService('upload:write-start', {
-      filePath,
-      finalFilename,
-      storedPathPrefix,
-    });
 
     await writeAssetAtomic(filePath, buffer);
     const writtenInfo = await storage.stat(filePath).catch(() => null);
@@ -346,12 +291,6 @@ export class AssetService {
     }
 
     onProgress?.(100);
-    logAssetService('upload:write-done', {
-      filePath,
-      storedFilename,
-      mimeType: newEntry.mimeType,
-      size: newEntry.size,
-    });
 
     return {
       success: true,
@@ -371,7 +310,6 @@ export class AssetService {
     switch (config.storageMode) {
       case 'vault':
       default:
-        logAssetService('resolve-target:vault', { vaultPath });
         return {
           targetDir: vaultPath,
           storedPathPrefix: ''
@@ -379,7 +317,6 @@ export class AssetService {
 
       case 'vaultSubfolder':
         const vaultSubfolderName = normalizeSafeSubfolderName(config.imageVaultSubfolderName, 'assets');
-        logAssetService('resolve-target:vault-subfolder', { vaultPath, vaultSubfolderName });
         return {
           targetDir: await resolveContainedTargetDir(vaultPath, vaultSubfolderName),
           storedPathPrefix: `${vaultSubfolderName}/`
@@ -388,7 +325,6 @@ export class AssetService {
       case 'currentFolder':
         if (currentNotePath) {
           const currentDir = await resolveCurrentNoteDir(vaultPath, currentNotePath);
-          logAssetService('resolve-target:current-folder', { vaultPath, currentNotePath, currentDir });
 
           return {
             targetDir: currentDir,
@@ -405,12 +341,6 @@ export class AssetService {
         if (currentNotePath) {
           const noteDir = await resolveCurrentNoteDir(vaultPath, currentNotePath);
           const subfolderName = normalizeSafeSubfolderName(config.subfolderName, 'assets');
-          logAssetService('resolve-target:subfolder', {
-            vaultPath,
-            currentNotePath,
-            noteDir,
-            subfolderName,
-          });
 
           return {
             targetDir: await resolveContainedTargetDir(noteDir, subfolderName),

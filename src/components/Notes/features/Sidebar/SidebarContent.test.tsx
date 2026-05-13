@@ -14,6 +14,7 @@ const hoisted = vi.hoisted(() => ({
   markSidebarSearchNavigationPending: vi.fn(),
   noteContentsCache: new Map<string, { content: string; modifiedAt: number | null }>(),
   notesPath: '',
+  cancelNoteContentScan: vi.fn(),
   pruneNoteContentsCacheToOpenNotes: vi.fn(),
   queryNotesSidebarSearch: vi.fn<() => NotesSidebarSearchResult[]>(() => []),
   revealFolder: vi.fn(),
@@ -34,6 +35,7 @@ vi.mock('@/stores/useNotesStore', () => ({
     getDisplayName: vi.fn((path: string) => path),
     noteContentsCache: hoisted.noteContentsCache,
     notesPath: hoisted.notesPath,
+    cancelNoteContentScan: hoisted.cancelNoteContentScan,
     pruneNoteContentsCacheToOpenNotes: hoisted.pruneNoteContentsCacheToOpenNotes,
     revealFolder: hoisted.revealFolder,
     scanAllNotes: hoisted.scanAllNotes,
@@ -186,6 +188,7 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.openNote.mockResolvedValue(undefined);
     hoisted.openNoteByAbsolutePath.mockClear();
     hoisted.openNoteByAbsolutePath.mockResolvedValue(undefined);
+    hoisted.cancelNoteContentScan.mockClear();
     hoisted.pruneNoteContentsCacheToOpenNotes.mockClear();
     hoisted.scanAllNotes.mockResolvedValue(undefined);
     hoisted.shouldSearchNotesSidebarContents.mockReturnValue(false);

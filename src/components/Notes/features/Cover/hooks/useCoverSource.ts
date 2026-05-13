@@ -4,6 +4,13 @@ import { loadImageWithDimensions } from '../utils/coverDimensionCache';
 import { resolveCoverAssetUrl } from '../utils/resolveCoverAssetUrl';
 import { coverSourceReducer, initialCoverSourceState } from './coverSourceState';
 
+const COVER_DISPLAY_THUMBNAIL_MAX_EDGE_PX = 1280;
+
+function shouldPreserveCoverAnimation(url: string) {
+    const pathname = url.split(/[?#]/, 1)[0]?.toLowerCase() ?? '';
+    return pathname.endsWith('.gif') || pathname.endsWith('.apng') || pathname.endsWith('.webp');
+}
+
 interface UseCoverSourceProps {
     url: string | null;
     vaultPath: string;
@@ -71,10 +78,13 @@ export function useCoverSource({ url, vaultPath, currentNotePath }: UseCoverSour
 
             let imageUrl: string;
             try {
+                const preserveAnimation = shouldPreserveCoverAnimation(url);
                 imageUrl = await resolveCoverAssetUrl({
                     assetPath: url,
                     vaultPath,
                     currentNotePath,
+                    thumbnail: !preserveAnimation,
+                    thumbnailMaxEdgePx: preserveAnimation ? undefined : COVER_DISPLAY_THUMBNAIL_MAX_EDGE_PX,
                 });
             } catch {
                 if (ignore) return;

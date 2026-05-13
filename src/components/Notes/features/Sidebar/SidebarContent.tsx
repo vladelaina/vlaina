@@ -28,6 +28,8 @@ import { scheduleSidebarItemIntoView } from '../common/sidebarScrollIntoView';
 import { useSidebarContentSearchResults } from './useSidebarContentSearchResults';
 import { useI18n } from '@/lib/i18n';
 
+const EMPTY_NOTE_CONTENTS_CACHE = new Map<string, { content: string; modifiedAt: number | null }>();
+
 interface SidebarContentProps {
   rootFolder: FolderNode | null;
   isLoading: boolean;
@@ -55,12 +57,25 @@ export function SidebarContent({
   const draftNotes = useNotesStore((s) => s.draftNotes);
   const revealFolder = useNotesStore((s) => s.revealFolder);
   const getDisplayName = useNotesStore((s) => s.getDisplayName);
-  const noteContentsCache = useNotesStore((s) => s.noteContentsCache);
   const notesPath = useNotesStore((s) => s.notesPath);
   const scanAllNotes = useNotesStore((s) => s.scanAllNotes);
+  const cancelNoteContentScan = useNotesStore((s) => s.cancelNoteContentScan);
   const pruneNoteContentsCacheToOpenNotes = useNotesStore((s) => s.pruneNoteContentsCacheToOpenNotes);
   const starredEntries = useNotesStore((s) => s.starredEntries);
   const currentVault = useVaultStore((s) => s.currentVault);
+  const previousSearchQueryRef = useRef(search.searchQuery);
+  const deferredSearchQuery = useDeferredValue(search.searchQuery);
+  const isCurrentDraftNote = Boolean(currentNotePath && isDraftNotePath(currentNotePath));
+  const shouldSubscribeToSearchContents =
+    search.isSearchOpen && deferredSearchQuery.trim().length >= 2;
+  const noteContentsCache = useNotesStore((s) =>
+    shouldSubscribeToSearchContents ? s.noteContentsCache : EMPTY_NOTE_CONTENTS_CACHE
+  );
+  const currentDraftContent = useNotesStore((s) =>
+    currentNotePath && isDraftNotePath(currentNotePath)
+      ? s.noteContentsCache.get(currentNotePath)?.content ?? ''
+      : ''
+  );
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
   const rootBlankAreaRef = useRef<HTMLDivElement | null>(null);
   const [pendingNavigation, setPendingNavigation] = useState<{
@@ -70,10 +85,8 @@ export function SidebarContent({
     previousView: ReturnType<typeof getCurrentEditorView>;
   } | null>(null);
   const [activeSearchResultId, setActiveSearchResultId] = useState<string | null>(null);
-  const previousSearchQueryRef = useRef(search.searchQuery);
-  const deferredSearchQuery = useDeferredValue(search.searchQuery);
   const displayRootFolder = useMemo(() => {
-    if (!currentNotePath || !isDraftNotePath(currentNotePath)) {
+    if (!currentNotePath || !isCurrentDraftNote) {
       return rootFolder;
     }
 
@@ -82,12 +95,11 @@ export function SidebarContent({
       return rootFolder;
     }
 
-    const draftContent = noteContentsCache.get(currentNotePath)?.content ?? '';
     if (
       rootFolder &&
       rootFolder.children.length === 0 &&
       !draftEntry.name.trim() &&
-      isDraftNoteEmpty(draftContent)
+      isDraftNoteEmpty(currentDraftContent)
     ) {
       return rootFolder;
     }
@@ -141,7 +153,7 @@ export function SidebarContent({
       ...rootFolder,
       children: [draftNode, ...rootFolder.children],
     };
-  }, [currentNotePath, draftNotes, noteContentsCache, rootFolder]);
+  }, [currentDraftContent, currentNotePath, draftNotes, isCurrentDraftNote, rootFolder]);
   const {
     inputRef,
     scrollRootRef,
@@ -164,6 +176,7 @@ export function SidebarContent({
     getDisplayName,
     noteContentsCache,
     scanAllNotes,
+    cancelNoteContentScan,
     pruneNoteContentsCacheToOpenNotes,
     searchQuery: deferredSearchQuery,
     isSearchOpen: search.isSearchOpen,

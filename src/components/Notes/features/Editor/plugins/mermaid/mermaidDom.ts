@@ -11,6 +11,8 @@ function mermaidRenderErrorHtml() {
 }
 const mermaidMarkupCache = new Map<string, string>();
 const mermaidRenderPromiseCache = new Map<string, Promise<string>>();
+const MERMAID_LAZY_RENDER_ROOT_MARGIN = '900px 0px';
+const mermaidLazyObservers = new WeakMap<HTMLElement, IntersectionObserver>();
 
 function setMermaidElementCode(element: HTMLElement, code: string) {
   mermaidElementCode.set(element, code);
@@ -187,6 +189,7 @@ export async function renderMermaidEditorLivePreview(args: {
   if (!anchor) {
     return false;
   }
+  disconnectLazyMermaidRender(anchor);
 
   const normalizedCode = normalizeMermaidEditorCodeInput(code);
 
@@ -219,6 +222,52 @@ export async function renderMermaidEditorLivePreview(args: {
   return true;
 }
 
+function shouldLazyRenderMermaidElement() {
+  return typeof window !== 'undefined' && typeof IntersectionObserver !== 'undefined';
+}
+
+function disconnectLazyMermaidRender(anchor: HTMLElement) {
+  mermaidLazyObservers.get(anchor)?.disconnect();
+  mermaidLazyObservers.delete(anchor);
+  delete anchor.dataset.mermaidLazy;
+}
+
+export function disposeMermaidElement(anchor: HTMLElement) {
+  disconnectLazyMermaidRender(anchor);
+}
+
+function setMermaidPendingMarkup(anchor: HTMLElement) {
+  anchor.innerHTML = '<div class="mermaid-placeholder" aria-hidden="true"></div>';
+}
+
+function renderMermaidElementAsync(anchor: HTMLElement, codeSnapshot: string, renderKey: string | undefined) {
+  resolveMermaidMarkup(codeSnapshot, renderMermaid).then((markup) => {
+    if (
+      getMermaidElementCode(anchor) !== codeSnapshot ||
+      anchor.dataset.renderKey !== renderKey
+    ) {
+      return;
+    }
+    disconnectLazyMermaidRender(anchor);
+    anchor.innerHTML = markup;
+  });
+}
+
+function installLazyMermaidRender(anchor: HTMLElement, codeSnapshot: string, renderKey: string | undefined) {
+  anchor.dataset.mermaidLazy = 'true';
+  setMermaidPendingMarkup(anchor);
+
+  const observer = new IntersectionObserver((entries) => {
+    if (!entries.some((entry) => entry.isIntersecting)) {
+      return;
+    }
+    disconnectLazyMermaidRender(anchor);
+    renderMermaidElementAsync(anchor, codeSnapshot, renderKey);
+  }, { rootMargin: MERMAID_LAZY_RENDER_ROOT_MARGIN });
+  mermaidLazyObservers.set(anchor, observer);
+  observer.observe(anchor);
+}
+
 export function createMermaidElement(code: string) {
   const normalizedCode = normalizeMermaidEditorCodeInput(code);
   const wrapper = document.createElement('div');
@@ -235,12 +284,11 @@ export function createMermaidElement(code: string) {
 
     const codeSnapshot = normalizedCode;
     const renderKey = wrapper.dataset.renderKey;
-    resolveMermaidMarkup(codeSnapshot, renderMermaid).then((markup) => {
-      if (getMermaidElementCode(wrapper) !== codeSnapshot || wrapper.dataset.renderKey !== renderKey) {
-        return;
-      }
-      wrapper.innerHTML = markup;
-    });
+    if (shouldLazyRenderMermaidElement()) {
+      installLazyMermaidRender(wrapper, codeSnapshot, renderKey);
+    } else {
+      renderMermaidElementAsync(wrapper, codeSnapshot, renderKey);
+    }
   } else {
     wrapper.innerHTML = `<div class="mermaid-empty">${translate('editor.emptyDiagram')}</div>`;
   }

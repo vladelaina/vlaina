@@ -60,7 +60,7 @@ describe('useCoverSource', () => {
 
   it('resolves local covers through vault-relative paths', async () => {
     hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/a.png');
-    hoisted.loadImageAsBlob.mockResolvedValue('blob:cover-a');
+    hoisted.loadImageThumbnailAsBlob.mockResolvedValue('blob:cover-a');
 
     const { result } = renderHook(() =>
       useCoverSource({ url: 'assets/a.png', vaultPath: '/vault-a' })
@@ -71,7 +71,27 @@ describe('useCoverSource', () => {
     });
 
     expect(hoisted.resolveVaultAssetPath).toHaveBeenCalledWith('/vault-a', 'assets/a.png', undefined);
-    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/vault/assets/a.png');
+    expect(hoisted.loadImageThumbnailAsBlob).toHaveBeenCalledWith('/vault/assets/a.png', {
+      maxEdgePx: 1280,
+      allowMainThreadFallback: false,
+    });
+    expect(result.current.isError).toBe(false);
+  });
+
+  it('preserves animated local covers by loading the original blob', async () => {
+    hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/animated.gif');
+    hoisted.loadImageAsBlob.mockResolvedValue('blob:animated-cover');
+
+    const { result } = renderHook(() =>
+      useCoverSource({ url: 'assets/animated.gif', vaultPath: '/vault-a' })
+    );
+
+    await waitFor(() => {
+      expect(result.current.resolvedSrc).toBe('blob:animated-cover');
+    });
+
+    expect(hoisted.loadImageAsBlob).toHaveBeenCalledWith('/vault/assets/animated.gif');
+    expect(hoisted.loadImageThumbnailAsBlob).not.toHaveBeenCalled();
     expect(result.current.isError).toBe(false);
   });
 
@@ -92,7 +112,7 @@ describe('useCoverSource', () => {
     hoisted.resolveVaultAssetPath
       .mockResolvedValueOnce('/vault-a/a.png')
       .mockResolvedValueOnce('/vault-b/a.png');
-    hoisted.loadImageAsBlob
+    hoisted.loadImageThumbnailAsBlob
       .mockResolvedValueOnce('blob:a-vault-a')
       .mockResolvedValueOnce('blob:a-vault-b');
 
@@ -119,7 +139,7 @@ describe('useCoverSource', () => {
       if (assetPath === 'assets/a.png') return '/vault/assets/a.png';
       return '/vault/assets/b.png';
     });
-    hoisted.loadImageAsBlob.mockImplementation(async (fullPath: string) => {
+    hoisted.loadImageThumbnailAsBlob.mockImplementation(async (fullPath: string) => {
       if (fullPath.includes('/a.png')) return 'blob:cover-a';
       return 'blob:cover-b';
     });
@@ -147,7 +167,7 @@ describe('useCoverSource', () => {
 
   it('keeps previous source while switching to a new cover', async () => {
     hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/a.png');
-    hoisted.loadImageAsBlob
+    hoisted.loadImageThumbnailAsBlob
       .mockResolvedValueOnce('blob:cover-a')
       .mockImplementationOnce(() => new Promise<string>(() => {}));
 
@@ -198,7 +218,7 @@ describe('useCoverSource', () => {
 
   it('clears committing state when preview starts', async () => {
     hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/assets/a.png');
-    hoisted.loadImageAsBlob.mockResolvedValue('blob:cover-a');
+    hoisted.loadImageThumbnailAsBlob.mockResolvedValue('blob:cover-a');
 
     const { result } = renderHook(() =>
       useCoverSource({ url: 'assets/a.png', vaultPath: '/vault-a' })
@@ -226,7 +246,7 @@ describe('useCoverSource', () => {
       if (assetPath === 'assets/b.png') return '/vault/assets/b.png';
       return '/vault/assets/unknown.png';
     });
-    hoisted.loadImageAsBlob.mockImplementation(async (fullPath: string) => {
+    hoisted.loadImageThumbnailAsBlob.mockImplementation(async (fullPath: string) => {
       if (fullPath.includes('/a.png')) return 'blob:cover-a';
       if (fullPath.includes('/b.png')) return 'blob:cover-b';
       return 'blob:cover-unknown';
@@ -259,7 +279,7 @@ describe('useCoverSource', () => {
       if (assetPath === 'assets/a.png') return '/vault/assets/a.png';
       return '/vault/assets/b.png';
     });
-    hoisted.loadImageAsBlob.mockImplementation(async (fullPath: string) => {
+    hoisted.loadImageThumbnailAsBlob.mockImplementation(async (fullPath: string) => {
       if (fullPath.includes('/a.png')) return 'blob:cover-a';
       return 'blob:cover-b';
     });
@@ -280,13 +300,13 @@ describe('useCoverSource', () => {
     });
 
     expect(hoisted.resolveVaultAssetPath).toHaveBeenCalledTimes(2);
-    expect(hoisted.loadImageAsBlob).toHaveBeenCalledTimes(2);
+    expect(hoisted.loadImageThumbnailAsBlob).toHaveBeenCalledTimes(2);
     expect(hoisted.loadImageWithDimensions).toHaveBeenCalledTimes(2);
   });
 
   it('resolves note-relative paths against the current note', async () => {
     hoisted.resolveVaultAssetPath.mockResolvedValue('/vault/daily/assets/a.png');
-    hoisted.loadImageAsBlob.mockResolvedValue('blob:daily-cover');
+    hoisted.loadImageThumbnailAsBlob.mockResolvedValue('blob:daily-cover');
 
     const { result } = renderHook(() =>
       useCoverSource({

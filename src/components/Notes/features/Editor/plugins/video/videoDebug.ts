@@ -1,4 +1,7 @@
-import { logNotesDebug } from '@/stores/notes/lineBreakDebugLog';
+import {
+  isNotesDebugLoggingEnabled,
+  logNotesDebug,
+} from '@/stores/notes/lineBreakDebugLog';
 
 const VIDEO_DEBUG_URL_KEYS = new Set([
   'url',
@@ -80,6 +83,10 @@ export function logVideoDebug(event: string, payload: Record<string, unknown>) {
   logNotesDebug('NotesVideo', `videoPlugin:${event}`, debugPayload);
 }
 
+export function isVideoDebugLoggingEnabled() {
+  return isNotesDebugLoggingEnabled();
+}
+
 export function getEventTargetDebug(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) {
     return {
@@ -116,7 +123,11 @@ export function getDomRectDebug(element: HTMLElement) {
 }
 
 export function registerVideoDebugListeners() {
-  if (videoDebugListenersRegistered || typeof window === 'undefined') {
+  if (
+    videoDebugListenersRegistered
+    || typeof window === 'undefined'
+    || !isVideoDebugLoggingEnabled()
+  ) {
     return;
   }
 

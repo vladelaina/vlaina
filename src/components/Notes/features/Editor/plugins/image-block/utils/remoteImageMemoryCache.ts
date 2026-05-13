@@ -1,0 +1,160 @@
+import { createAsyncPrefetchQueue } from '@/lib/asyncPrefetchQueue';
+
+interface RemoteImageCacheEntry {
+    src?: string;
+    objectUrl?: string;
+    sizeBytes?: number;
+    promise?: Promise<string>;
+    lastUsed: number;
+}
+
+interface RemoteImageResolveResult {
+    src: string;
+    sizeBytes?: number;
+}
+
+const MAX_REMOTE_IMAGE_CACHE_ENTRIES = 200;
+const MAX_REMOTE_IMAGE_CACHE_BYTES = 48 * 1024 * 1024;
+const MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES = 8 * 1024 * 1024;
+const MAX_REMOTE_IMAGE_FETCH_CONCURRENCY = 4;
+const remoteImageCache = new Map<string, RemoteImageCacheEntry>();
+const remoteImageFetchQueue = createAsyncPrefetchQueue(MAX_REMOTE_IMAGE_FETCH_CONCURRENCY);
+let remoteImageCacheBytes = 0;
+let remoteImageCacheGeneration = 0;
+
+function revokeObjectUrl(objectUrl: string | undefined): void {
+    if (!objectUrl || typeof URL === 'undefined' || typeof URL.revokeObjectURL !== 'function') {
+        return;
+    }
+
+    URL.revokeObjectURL(objectUrl);
+}
+
+function evictRemoteImageCacheIfNeeded(): void {
+    if (
+        remoteImageCache.size <= MAX_REMOTE_IMAGE_CACHE_ENTRIES
+        && remoteImageCacheBytes <= MAX_REMOTE_IMAGE_CACHE_BYTES
+    ) {
+        return;
+    }
+
+    const evictableEntries = Array.from(remoteImageCache.entries())
+        .filter(([, entry]) => !entry.promise)
+        .sort(([, a], [, b]) => a.lastUsed - b.lastUsed);
+
+    for (const [url, entry] of evictableEntries) {
+        if (
+            remoteImageCache.size <= MAX_REMOTE_IMAGE_CACHE_ENTRIES
+            && remoteImageCacheBytes <= MAX_REMOTE_IMAGE_CACHE_BYTES
+        ) {
+            break;
+        }
+
+        revokeObjectUrl(entry.objectUrl);
+        remoteImageCacheBytes -= entry.sizeBytes ?? 0;
+        remoteImageCache.delete(url);
+    }
+}
+
+function setRemoteImageCacheEntry(url: string, entry: RemoteImageCacheEntry): void {
+    const existing = remoteImageCache.get(url);
+    if (existing?.objectUrl && existing.objectUrl !== entry.objectUrl) {
+        revokeObjectUrl(existing.objectUrl);
+    }
+    remoteImageCacheBytes -= existing?.sizeBytes ?? 0;
+    remoteImageCacheBytes += entry.sizeBytes ?? 0;
+    remoteImageCache.set(url, entry);
+    evictRemoteImageCacheIfNeeded();
+}
+
+async function cancelOversizedResponseBody(response: Response): Promise<void> {
+    try {
+        await response.body?.cancel();
+    } catch {
+        // Best-effort: the browser may have already consumed or closed the stream.
+    }
+}
+
+export async function resolveRemoteImageFromMemoryCache(url: string): Promise<string> {
+    const now = Date.now();
+    const cacheGeneration = remoteImageCacheGeneration;
+    const existing = remoteImageCache.get(url);
+    if (existing?.src) {
+        existing.lastUsed = now;
+        return existing.src;
+    }
+    if (existing?.promise) {
+        existing.lastUsed = now;
+        return existing.promise;
+    }
+
+    if (
+        typeof fetch !== 'function'
+        || typeof URL === 'undefined'
+        || typeof URL.createObjectURL !== 'function'
+    ) {
+        setRemoteImageCacheEntry(url, { src: url, lastUsed: now });
+        return url;
+    }
+
+    const promise = remoteImageFetchQueue.run(() => fetch(url, { cache: 'force-cache' }))
+        .then(async (response) => {
+            if (!response.ok) {
+                return { src: url };
+            }
+
+            const contentLength = Number(response.headers.get('content-length'));
+            if (
+                Number.isFinite(contentLength)
+                && contentLength > MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES
+            ) {
+                await cancelOversizedResponseBody(response);
+                return { src: url };
+            }
+
+            const blob = await response.blob();
+            if (!blob.type.startsWith('image/')) {
+                return { src: url };
+            }
+            if (blob.size > MAX_SINGLE_REMOTE_IMAGE_CACHE_BYTES) {
+                return { src: url };
+            }
+
+            return {
+                src: URL.createObjectURL(blob),
+                sizeBytes: blob.size,
+            };
+        })
+        .catch((): RemoteImageResolveResult => ({ src: url }))
+        .then((result) => {
+            const { src, sizeBytes } = result;
+            const objectUrl = src.startsWith('blob:') ? src : undefined;
+            if (cacheGeneration !== remoteImageCacheGeneration) {
+                revokeObjectUrl(objectUrl);
+                return url;
+            }
+            setRemoteImageCacheEntry(url, {
+                src,
+                objectUrl,
+                sizeBytes: objectUrl ? sizeBytes : undefined,
+                lastUsed: Date.now(),
+            });
+            return src;
+        });
+
+    remoteImageCache.set(url, { promise, lastUsed: now });
+    return promise;
+}
+
+export function clearRemoteImageMemoryCache(): void {
+    remoteImageCacheGeneration += 1;
+    for (const entry of remoteImageCache.values()) {
+        revokeObjectUrl(entry.objectUrl);
+    }
+    remoteImageCache.clear();
+    remoteImageCacheBytes = 0;
+}
+
+export function clearRemoteImageMemoryCacheForTests(): void {
+    clearRemoteImageMemoryCache();
+}
