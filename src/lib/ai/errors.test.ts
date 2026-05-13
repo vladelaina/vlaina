@@ -164,9 +164,9 @@ describe('getUserFacingAIError', () => {
     );
 
     expect(result).toEqual({
-      type: AIErrorType.SERVER_ERROR,
+      type: AIErrorType.QUOTA_EXHAUSTED,
       code: '403',
-      message: 'Points exhausted',
+      message: 'Vlaina 托管模型的点数已经用完了。购买会员后可以继续使用官方托管模型；你也可以在 Spark 设置中接入自己的 API 渠道。',
     });
   });
 
@@ -177,9 +177,9 @@ describe('getUserFacingAIError', () => {
     });
 
     expect(result).toEqual({
-      type: AIErrorType.SERVER_ERROR,
+      type: AIErrorType.QUOTA_EXHAUSTED,
       code: '403',
-      message: 'No active points balance',
+      message: 'Vlaina 托管模型的点数已经用完了。购买会员后可以继续使用官方托管模型；你也可以在 Spark 设置中接入自己的 API 渠道。',
     });
   });
 });

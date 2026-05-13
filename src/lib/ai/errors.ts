@@ -20,6 +20,8 @@ const KNOWN_MANAGED_BUSINESS_ERRORS = [
   'No active points balance',
   'Insufficient remaining points',
 ]
+const MANAGED_QUOTA_EXHAUSTED_MESSAGE =
+  'Vlaina 托管模型的点数已经用完了。购买会员后可以继续使用官方托管模型；你也可以在 Spark 设置中接入自己的 API 渠道。'
 
 const MANAGED_UPSTREAM_UNAVAILABLE_CODES = new Set([
   'upstream_unavailable',
@@ -246,6 +248,8 @@ function getUserFacingMessage(type: AIErrorType): string {
       return TIMEOUT_ERROR_MESSAGE
     case AIErrorType.AUTH_ERROR:
       return AUTH_ERROR_MESSAGE
+    case AIErrorType.QUOTA_EXHAUSTED:
+      return MANAGED_QUOTA_EXHAUSTED_MESSAGE
     case AIErrorType.RATE_LIMIT:
       return RATE_LIMIT_ERROR_MESSAGE
     case AIErrorType.INVALID_REQUEST:
@@ -276,6 +280,7 @@ function shouldPreserveOriginalMessage(type: AIErrorType, message: string): bool
       ].includes(normalized.toLowerCase())
     case AIErrorType.TIMEOUT:
     case AIErrorType.AUTH_ERROR:
+    case AIErrorType.QUOTA_EXHAUSTED:
       return false
     case AIErrorType.RATE_LIMIT:
     case AIErrorType.INVALID_REQUEST:
@@ -318,9 +323,9 @@ function getSpecificUserFacingOverride(message: string, code: string): UserFacin
   for (const knownMessage of KNOWN_MANAGED_BUSINESS_ERRORS) {
     if (normalized.includes(knownMessage.toLowerCase())) {
       return {
-        type: AIErrorType.SERVER_ERROR,
-        code,
-        message: knownMessage,
+        type: AIErrorType.QUOTA_EXHAUSTED,
+        code: code || 'quota_exhausted',
+        message: MANAGED_QUOTA_EXHAUSTED_MESSAGE,
       }
     }
   }
