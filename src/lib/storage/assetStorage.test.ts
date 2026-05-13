@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { saveGlobalAsset, scanGlobalIcons } from './assetStorage';
+import { deleteGlobalIconAsset, saveGlobalAsset, scanGlobalIcons } from './assetStorage';
 
 const adapter = {
   exists: vi.fn<(path: string) => Promise<boolean>>(),
   mkdir: vi.fn<(path: string, recursive?: boolean) => Promise<void>>(),
   writeBinaryFile: vi.fn<(path: string, content: Uint8Array) => Promise<void>>(),
+  deleteFile: vi.fn<(path: string) => Promise<void>>(),
   listDir: vi.fn<() => Promise<Array<{
     name: string;
     path: string;
@@ -30,6 +31,7 @@ describe('assetStorage', () => {
     adapter.exists.mockResolvedValue(true);
     adapter.mkdir.mockResolvedValue();
     adapter.writeBinaryFile.mockResolvedValue();
+    adapter.deleteFile.mockResolvedValue();
   });
 
   it('rejects non-image custom icon uploads before writing bytes', async () => {
@@ -68,5 +70,17 @@ describe('assetStorage', () => {
         createdAt: 1,
       },
     ]);
+  });
+
+  it('deletes global icon assets inside the icon asset directory', async () => {
+    await expect(deleteGlobalIconAsset('/app/.vlaina/assets/icons/old.png')).resolves.toBe(true);
+
+    expect(adapter.deleteFile).toHaveBeenCalledWith('/app/.vlaina/assets/icons/old.png');
+  });
+
+  it('does not delete paths outside the global icon asset directory', async () => {
+    await expect(deleteGlobalIconAsset('/app/.vlaina/assets/secret.png')).resolves.toBe(false);
+
+    expect(adapter.deleteFile).not.toHaveBeenCalled();
   });
 });

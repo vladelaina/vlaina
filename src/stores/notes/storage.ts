@@ -80,11 +80,14 @@ export function persistRecentNotes(paths: string[]): void {
   saveRecentNotes(paths);
 }
 
+function normalizeGlobalNoteIconSize(value: unknown): number {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_NOTE_ICON_SIZE;
+}
+
 export function loadGlobalNoteIconSize(): number {
   try {
-    const saved = localStorage.getItem(NOTE_ICON_SIZE_KEY);
-    const parsed = saved ? Number(saved) : NaN;
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_NOTE_ICON_SIZE;
+    return normalizeGlobalNoteIconSize(localStorage.getItem(NOTE_ICON_SIZE_KEY));
   } catch {
     console.error('[NotesStorage] Failed to load note icon size from localStorage');
     return DEFAULT_NOTE_ICON_SIZE;
@@ -92,7 +95,7 @@ export function loadGlobalNoteIconSize(): number {
 }
 
 export function persistGlobalNoteIconSize(size: number): number {
-  const normalized = Number.isFinite(size) && size > 0 ? size : DEFAULT_NOTE_ICON_SIZE;
+  const normalized = normalizeGlobalNoteIconSize(size);
 
   try {
     localStorage.setItem(NOTE_ICON_SIZE_KEY, String(normalized));

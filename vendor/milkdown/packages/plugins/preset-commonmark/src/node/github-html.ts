@@ -253,20 +253,6 @@ function normalizeUrl(value: string, protocols: ReadonlySet<string>, options: { 
   return trimmed
 }
 
-function isPublicRemoteMediaUrl(value: string) {
-  if (!value.startsWith('//') && !/^https?:/i.test(value)) return false
-  const normalized = value.startsWith('//') ? `https:${value}` : value
-  try {
-    const url = new URL(normalized, window.location.href)
-    return (
-      (url.protocol === 'http:' || url.protocol === 'https:')
-      && !isLocalNetworkHttpUrl(normalized)
-    )
-  } catch {
-    return false
-  }
-}
-
 function normalizeSrcset(value: string) {
   const trimmed = value.trimStart()
   if (!trimmed || controlOrBidiPattern.test(trimmed)) return null
@@ -322,7 +308,7 @@ function sanitizeElement(element: Element): Node | null {
         allowPlainRelative: tagName !== 'a',
         blockLocalNetwork: tagName !== 'a',
       })
-      if (normalizedUrl && !(tagName === 'img' && isPublicRemoteMediaUrl(normalizedUrl)))
+      if (normalizedUrl)
         sanitized.setAttribute(attributeName, normalizedUrl)
       continue
     }

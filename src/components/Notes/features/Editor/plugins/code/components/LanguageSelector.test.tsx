@@ -53,11 +53,11 @@ describe('LanguageSelector', () => {
     expect(screen.queryByRole('button', { name: 'JavaScript' })).toBeNull();
   });
 
-  it('matches the sidebar search field shell and keeps the language trigger backgroundless', () => {
+  it('matches the sidebar search field shell and keeps the full language trigger visible', () => {
     render(
       <LanguageSelector
         language="ts"
-        displayName="typescript"
+        displayName="shell"
         getNodeText={() => 'const value: string = "ok";'}
         onLanguageChange={vi.fn()}
         isOpen
@@ -65,12 +65,17 @@ describe('LanguageSelector', () => {
       />,
     );
 
-    const trigger = screen.getAllByRole('button', { name: 'typescript' })[0];
-    expect(trigger.className).toContain('size-7');
+    const trigger = screen.getAllByRole('button', { name: 'shell' })[0];
+    expect(trigger.className).toContain('inline-flex');
+    expect(trigger.className).toContain('min-h-7');
+    expect(trigger.className).not.toContain('size-7');
+    expect(trigger.className).not.toContain('overflow-hidden');
     expect(trigger.className).toContain('rounded-full');
     expect(trigger.className).not.toContain('hover:bg-');
     expect(trigger.className).not.toContain('dark:hover:bg-');
     expect(trigger.className).not.toContain(chatComposerPillSurfaceClass);
+    expect(trigger.querySelector('.vlaina-code-block-language-label')?.className).toContain('whitespace-nowrap');
+    expect(trigger.querySelector('.vlaina-code-block-language-label')?.className).not.toContain('truncate');
 
     const searchInput = screen.getByPlaceholderText('Search language...');
     expect(searchInput.parentElement?.className).toContain('h-[40px]');

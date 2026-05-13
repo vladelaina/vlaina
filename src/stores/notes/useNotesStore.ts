@@ -4,6 +4,8 @@ import { createFileSystemSlice } from './slices/fileSystemSlice';
 import { createWorkspaceSlice } from './slices/workspaceSlice';
 import { createFeatureSlice } from './slices/featureSlice';
 import { createAssetSlice } from './slices/assetSlice';
+import { NOTE_ICON_SIZE_KEY } from './constants';
+import { loadGlobalNoteIconSize } from './storage';
 
 export * from './types';
 export { sortFileTree } from './fileTreeSorting';
@@ -15,3 +17,25 @@ export const useNotesStore = create<NotesStore>()((...a) => ({
   ...createFeatureSlice(...a),
   ...createAssetSlice(...a),
 }));
+
+let notePreferenceListenerRegistered = false;
+
+function registerNotePreferenceStorageListener(): void {
+  if (notePreferenceListenerRegistered || typeof window === 'undefined') {
+    return;
+  }
+
+  window.addEventListener('storage', (event) => {
+    if (event.key !== NOTE_ICON_SIZE_KEY) {
+      return;
+    }
+
+    useNotesStore.setState({
+      noteIconSize: loadGlobalNoteIconSize(),
+    });
+  });
+
+  notePreferenceListenerRegistered = true;
+}
+
+registerNotePreferenceStorageListener();

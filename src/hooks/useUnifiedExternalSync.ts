@@ -27,12 +27,14 @@ export function useUnifiedExternalSync() {
 
   const reloadTimerRef = useRef<number | null>(null);
   const reloadInFlightRef = useRef(false);
-  const canReloadRef = useRef(false);
+  const canReloadUnifiedRef = useRef(false);
+  const canReloadSessionMessagesRef = useRef(false);
   const pendingUnifiedReloadRef = useRef(false);
   const pendingSessionReloadIdsRef = useRef(new Set<string>());
 
   useEffect(() => {
-    canReloadRef.current = loaded && !temporaryChatEnabled && !hasActiveGeneration;
+    canReloadUnifiedRef.current = loaded;
+    canReloadSessionMessagesRef.current = loaded && !temporaryChatEnabled && !hasActiveGeneration;
   }, [hasActiveGeneration, loaded, temporaryChatEnabled]);
 
   useEffect(() => {
@@ -56,6 +58,10 @@ export function useUnifiedExternalSync() {
     const hasPendingReloads = () =>
       pendingUnifiedReloadRef.current || pendingSessionReloadIdsRef.current.size > 0;
 
+    const hasRunnableReloads = () =>
+      (pendingUnifiedReloadRef.current && canReloadUnifiedRef.current) ||
+      (pendingSessionReloadIdsRef.current.size > 0 && canReloadSessionMessagesRef.current);
+
     const shouldReloadSession = (sessionId: string) => {
       return useAIUIStore.getState().currentSessionId === sessionId;
     };
@@ -73,7 +79,7 @@ export function useUnifiedExternalSync() {
     };
 
     const runReload = async () => {
-      if (!canReloadRef.current) {
+      if (!hasRunnableReloads()) {
         return;
       }
 
@@ -83,10 +89,14 @@ export function useUnifiedExternalSync() {
 
       reloadInFlightRef.current = true;
 
-      const shouldReloadUnified = pendingUnifiedReloadRef.current;
+      const shouldReloadUnified = pendingUnifiedReloadRef.current && canReloadUnifiedRef.current;
       const pendingSessionIds = new Set(pendingSessionReloadIdsRef.current);
-      pendingUnifiedReloadRef.current = false;
-      pendingSessionReloadIdsRef.current.clear();
+      if (shouldReloadUnified) {
+        pendingUnifiedReloadRef.current = false;
+      }
+      if (canReloadSessionMessagesRef.current) {
+        pendingSessionReloadIdsRef.current.clear();
+      }
 
       try {
         if (shouldReloadUnified) {
@@ -97,16 +107,22 @@ export function useUnifiedExternalSync() {
           }
         }
 
-        for (const sessionId of pendingSessionIds) {
-          if (!shouldReloadSession(sessionId)) {
-            continue;
-          }
+        if (canReloadSessionMessagesRef.current) {
+          for (const sessionId of pendingSessionIds) {
+            if (!shouldReloadSession(sessionId)) {
+              continue;
+            }
 
-          await reloadSessionMessagesFromDisk(sessionId);
+            await reloadSessionMessagesFromDisk(sessionId);
+          }
+        } else {
+          pendingSessionIds.forEach((sessionId) => {
+            pendingSessionReloadIdsRef.current.add(sessionId);
+          });
         }
       } finally {
         reloadInFlightRef.current = false;
-        if (hasPendingReloads() && canReloadRef.current) {
+        if (hasRunnableReloads()) {
           scheduleReload();
         }
       }
@@ -117,7 +133,7 @@ export function useUnifiedExternalSync() {
         return;
       }
 
-      if (!canReloadRef.current) {
+      if (!hasRunnableReloads()) {
         return;
       }
 
@@ -152,7 +168,7 @@ export function useUnifiedExternalSync() {
 
     const unsubscribe = subscribeStorageAutoSync(queueReload);
 
-    if (hasPendingReloads() && canReloadRef.current) {
+    if (hasPendingReloads() && hasRunnableReloads()) {
       scheduleReload();
     }
 

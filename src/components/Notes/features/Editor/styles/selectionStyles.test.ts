@@ -152,6 +152,20 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('.milkdown .image-block-container {');
   });
 
+  it('keeps raw HTML tables compact instead of using editable markdown table sizing', () => {
+    const css = readStyleFile('markdown.css');
+
+    expect(css).toContain(".milkdown [data-type='html-block'] table {");
+    expect(css).toContain(".milkdown [data-type='html-block'] th,");
+    expect(css).toContain('min-width: 0;');
+    expect(css).toContain('text-align: inherit;');
+    expect(css).toContain(".milkdown [data-type='html-block'] img {");
+    expect(css).toContain('border-radius: 0;');
+    expect(css).toContain(".milkdown [data-type='html-block'] sub,");
+    expect(css).toContain('line-height: 0;');
+    expect(css).toContain('bottom: -0.25em;');
+  });
+
   it('lets autolinks inherit the shared markdown link appearance', () => {
     const css = readStyleFile('extended.css');
 

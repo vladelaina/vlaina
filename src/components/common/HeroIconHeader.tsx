@@ -35,7 +35,7 @@ interface HeroIconHeaderProps {
 
   customIcons?: CustomIcon[];
   onUploadFile?: (file: File) => Promise<{ success: boolean; url?: string; error?: string }>;
-  onDeleteCustomIcon?: (id: string) => void;
+  onDeleteCustomIcon?: (id: string) => void | Promise<void>;
   imageLoader?: (src: string) => Promise<string>;
   onRequestRandomIcon?: () => string | null;
 

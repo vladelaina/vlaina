@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -66,7 +67,8 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
     return (
         <div className={cn(
             "absolute bottom-2 right-2 mb-0 max-w-[calc(100%-16px)] z-[60] transition-all duration-200 select-auto",
-            "flex items-center gap-0.5 p-1 bg-white dark:bg-[#1e1e1e] border border-black/5 dark:border-white/10 rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)]",
+            "floating-toolbar-inner image-caption-toolbar !rounded-[26px]",
+            chatComposerPillSurfaceClass,
             isVisible
                 ? "opacity-100 scale-100 translate-y-0"
                 : "opacity-0 scale-95 translate-y-2 pointer-events-none"
@@ -88,13 +90,14 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
                     onFocus={stopPropagation}
                     onDragStart={preventDrag}
                     draggable={false}
-                    className="bg-transparent text-[var(--vlaina-text-primary)] text-xs font-medium px-2 h-6 outline-none min-w-[120px] w-auto select-text cursor-text"
+                    className="bg-transparent text-[13px] leading-6 text-[var(--vlaina-text-primary)] font-medium px-2 h-6 outline-none min-w-[120px] w-auto select-text cursor-text placeholder:text-[var(--vlaina-text-tertiary)]"
                     placeholder={t('editor.captionPlaceholder')}
                 />
             ) : (
-                <div
+                <button
+                    type="button"
                     className={cn(
-                        "text-xs font-medium px-2 h-6 cursor-pointer hover:text-[var(--vlaina-text-primary)] transition-colors flex items-center gap-1.5 select-none",
+                        "toolbar-btn image-caption-btn",
                         !originalAlt ? "text-[var(--vlaina-text-tertiary)] italic" : "text-[var(--vlaina-text-secondary)]"
                     )}
                     onClick={(e) => {
@@ -105,7 +108,7 @@ export const ImageCaption: React.FC<ImageCaptionProps> = ({
                 >
                     {!originalAlt && <Icon name="common.compose" size="md" className="opacity-70" />}
                     {originalAlt || t('editor.caption')}
-                </div>
+                </button>
             )}
         </div>
     );

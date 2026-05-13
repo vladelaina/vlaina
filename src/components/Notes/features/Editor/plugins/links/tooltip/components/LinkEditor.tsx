@@ -1,11 +1,14 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { Icon } from '@/components/ui/icons';
 import {
     measureTextNaturalWidth,
     resolveElementTextLayoutMetrics,
 } from '@/lib/text-layout';
 import { usePredictedTextareaHeight } from '@/hooks/usePredictedTextareaHeight';
 import { useI18n } from '@/lib/i18n';
+import { cn } from '@/lib/utils';
 
 interface LinkEditorProps {
     editUrl: string;
@@ -125,7 +128,10 @@ export const LinkEditor = ({
             style={{
                 width: `${editorWidth}px`,
             }}
-            className="flex items-end min-w-[280px] max-w-[calc(100vw-32px)] bg-white dark:bg-[#1a1a1a] border border-black/[0.08] dark:border-white/[0.08] rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.12),0_2px_8px_rgba(0,0,0,0.04)] p-1.5 pr-2 z-[100]"
+            className={cn(
+                'floating-toolbar-inner link-tooltip-editor !rounded-[26px] min-w-[280px] max-w-[calc(100vw-32px)] z-[100]',
+                chatComposerPillSurfaceClass
+            )}
             onMouseDown={(e) => e.stopPropagation()}
         >
             <div className="relative flex-1 px-2">
@@ -163,11 +169,9 @@ export const LinkEditor = ({
                         exit={{ opacity: 0, x: 4, scale: 0.8 }}
                         whileTap={{ scale: 0.9 }}
                         onClick={() => onSave(true)}
-                        className="flex items-center justify-center size-7 text-[var(--vlaina-accent)] hover:bg-[var(--vlaina-accent)]/10 rounded-lg transition-colors shrink-0"
+                        className="toolbar-btn link-tooltip-action-btn active shrink-0"
                     >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
+                        <Icon size="md" name="common.check" />
                     </motion.button>
                 )}
             </AnimatePresence>

@@ -1,15 +1,21 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import Cropper from 'react-easy-crop';
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icons';
+import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { cn } from '@/lib/utils';
 import { getCroppedImg } from '@/lib/assets/processing/crop';
 import { useToastStore } from '@/stores/useToastStore';
 import { PremiumSlider } from '@/components/ui/premium-slider';
-import { DeletableItem } from '@/components/ui/deletable-item';
 import { UniversalIcon } from './UniversalIcon';
 import { useI18n } from '@/lib/i18n';
+import { SidebarContextMenu } from '@/components/layout/sidebar/SidebarContextMenu';
+import {
+    SidebarContextMenuContent,
+    type SidebarMenuEntry,
+} from '@/components/layout/sidebar/context-menu/SidebarContextMenuContent';
+import type { SidebarMenuPosition } from '@/components/layout/sidebar/context-menu/shared';
 
 export interface CustomIcon {
     id: string;
@@ -23,7 +29,7 @@ interface UploadTabProps {
     onClose: () => void;
     customIcons?: CustomIcon[];
     onUploadFile?: (file: File) => Promise<{ success: boolean; url?: string; error?: string }>;
-    onDeleteCustomIcon?: (id: string) => void;
+    onDeleteCustomIcon?: (id: string) => void | Promise<void>;
     imageLoader?: (src: string) => Promise<string>;
 }
 
@@ -43,6 +49,10 @@ export function UploadTab({
     const [zoom, setZoom] = useState(1);
     const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [contextMenu, setContextMenu] = useState<{
+        icon: CustomIcon;
+        position: SidebarMenuPosition;
+    } | null>(null);
 
     const onDrop = useCallback((acceptedFiles: File[]) => {
         if (acceptedFiles && acceptedFiles.length > 0) {
@@ -117,6 +127,42 @@ export function UploadTab({
         onSelect(url);
         onClose();
     };
+
+    const handleLibraryItemContextMenu = (event: React.MouseEvent, icon: CustomIcon) => {
+        if (!onDeleteCustomIcon) {
+            return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        setContextMenu({
+            icon,
+            position: {
+                top: event.clientY,
+                left: event.clientX,
+            },
+        });
+    };
+
+    const contextMenuEntries = useMemo<SidebarMenuEntry[]>(() => {
+        if (!contextMenu || !onDeleteCustomIcon) {
+            return [];
+        }
+
+        return [
+            {
+                key: 'delete',
+                icon: <DeleteIcon />,
+                label: t('sidebar.delete'),
+                danger: true,
+                onClick: async () => {
+                    onPreview?.(null);
+                    await onDeleteCustomIcon(contextMenu.icon.id);
+                    setContextMenu(null);
+                },
+            },
+        ];
+    }, [contextMenu, onDeleteCustomIcon, onPreview, t]);
 
     return (
         <div className="h-[320px] flex flex-col relative">
@@ -255,52 +301,39 @@ export function UploadTab({
                     <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-zinc-900 px-3">
                         <div className="flex-1 overflow-y-auto vlaina-scrollbar pr-1 grid grid-cols-7 gap-2 content-start pb-2">
                             {customIcons.map((emoji) => (
-                                onDeleteCustomIcon ? (
-                                    <DeletableItem
-                                        key={emoji.id}
-                                        id={emoji.id}
-                                        onDelete={onDeleteCustomIcon}
-                                        className="relative aspect-square flex items-center justify-center cursor-pointer transition-all active:scale-95"
-                                    >
-                                        <div
-                                            className="w-full h-full"
-                                            onClick={() => handleLibraryItemClick(emoji.url)}
-                                            onMouseEnter={() => onPreview?.(emoji.url)}
-                                            onMouseLeave={() => onPreview?.(null)}
-                                        >
-                                            <UniversalIcon
-                                                icon={emoji.url}
-                                                size={44}
-                                                className="w-full h-full object-contain"
-                                                imageLoader={imageLoader}
-                                            />
-                                        </div>
-                                    </DeletableItem>
-                                ) : (
-                                    <div
-                                        key={emoji.id}
-                                        className="relative aspect-square flex items-center justify-center cursor-pointer transition-all active:scale-95"
-                                        onClick={() => handleLibraryItemClick(emoji.url)}
-                                        onMouseEnter={() => onPreview?.(emoji.url)}
-                                        onMouseLeave={() => onPreview?.(null)}
-                                    >
-                                        <UniversalIcon
-                                            icon={emoji.url}
-                                            size={44}
-                                            className="w-full h-full object-contain"
-                                            imageLoader={imageLoader}
-                                        />
-                                    </div>
-                                )
+                                <div
+                                    key={emoji.id}
+                                    className="relative aspect-square flex items-center justify-center cursor-pointer transition-all active:scale-95"
+                                    onClick={() => handleLibraryItemClick(emoji.url)}
+                                    onContextMenu={(event) => handleLibraryItemContextMenu(event, emoji)}
+                                    onMouseEnter={() => onPreview?.(emoji.url)}
+                                    onMouseLeave={() => onPreview?.(null)}
+                                >
+                                    <UniversalIcon
+                                        icon={emoji.url}
+                                        size={44}
+                                        className="w-full h-full object-contain"
+                                        imageLoader={imageLoader}
+                                    />
+                                </div>
                             ))}
                             {customIcons.length === 0 && (
                                 <div className="col-span-7 py-8 text-center text-xs text-muted-foreground italic">
-                                    {onDeleteCustomIcon ? 'No saved icons yet' : 'Upload an image to use it as the note icon'}
+                                    Upload an image to use it as the note icon
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
+            )}
+            {contextMenu && (
+                <SidebarContextMenu
+                    isOpen
+                    onClose={() => setContextMenu(null)}
+                    position={contextMenu.position}
+                >
+                    <SidebarContextMenuContent entries={contextMenuEntries} />
+                </SidebarContextMenu>
             )}
         </div>
     );

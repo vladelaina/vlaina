@@ -141,4 +141,57 @@ describe('useVaultStore external sync', () => {
       expect.objectContaining({ id: 'vault-1', path: 'C:/vault-new' }),
     ]);
   });
+
+  it('reloads recent vault metadata after a cross-window storage update without switching vaults', () => {
+    useVaultStore.setState({
+      currentVault: {
+        id: 'vault-1',
+        name: 'Alpha',
+        path: '/vaults/alpha',
+        lastOpened: 1,
+      },
+      recentVaults: [
+        {
+          id: 'vault-1',
+          name: 'Alpha',
+          path: '/vaults/alpha',
+          lastOpened: 1,
+        },
+      ],
+    });
+
+    const nextRecentVaults = [
+      {
+        id: 'vault-2',
+        name: 'Beta',
+        path: '/vaults/beta',
+        lastOpened: 2,
+      },
+      {
+        id: 'vault-1',
+        name: 'Alpha Renamed',
+        path: '/vaults/alpha',
+        lastOpened: 1,
+      },
+    ];
+    localStorage.setItem('vlaina-vaults', JSON.stringify(nextRecentVaults));
+    localStorage.setItem('vlaina-current-vault', 'vault-2');
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'vlaina-vaults',
+      newValue: JSON.stringify(nextRecentVaults),
+    }));
+
+    expect(useVaultStore.getState().recentVaults).toEqual([
+      expect.objectContaining({ id: 'vault-2', name: 'Beta' }),
+      expect.objectContaining({ id: 'vault-1', name: 'Alpha Renamed' }),
+    ]);
+    expect(useVaultStore.getState().currentVault).toMatchObject({
+      id: 'vault-1',
+      name: 'Alpha Renamed',
+      path: '/vaults/alpha',
+    });
+    expect(useNotesStore.getState().notesPath).toBe('C:/vault-old');
+    expect(typeof useVaultStore.getState().openVault).toBe('function');
+  });
 });

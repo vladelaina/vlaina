@@ -15,7 +15,7 @@ export function markRule(
 
     let group = match[matchLength - 1]
     let fullMatch = match[0]
-    let initialStoredMarks: readonly Mark[] = []
+    let initialStoredMarks = state.storedMarks ?? []
 
     let markEnd = end
 

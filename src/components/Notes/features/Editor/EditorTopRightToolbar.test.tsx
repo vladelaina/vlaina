@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   currentNote: null as { path: string; content: string } | null,
   exportNote: vi.fn(),
   flushCurrentPendingEditorMarkdown: vi.fn(),
+  setNotesChatPanelCollapsed: vi.fn(),
 }));
 
 vi.mock('@/components/ui/dropdown-menu', () => ({
@@ -46,6 +47,11 @@ vi.mock('@/stores/useNotesStore', () => ({
 vi.mock('@/stores/useToastStore', () => ({
   useToastStore: (selector: (state: { addToast: typeof mocks.addToast }) => unknown) =>
     selector({ addToast: mocks.addToast }),
+}));
+
+vi.mock('@/stores/uiSlice', () => ({
+  useUIStore: (selector: (state: { setNotesChatPanelCollapsed: typeof mocks.setNotesChatPanelCollapsed }) => unknown) =>
+    selector({ setNotesChatPanelCollapsed: mocks.setNotesChatPanelCollapsed }),
 }));
 
 vi.mock('@/stores/notes/pendingEditorMarkdownFlusher', () => ({
@@ -95,6 +101,7 @@ describe('EditorTopRightToolbar', () => {
     mocks.currentNote = null;
     mocks.exportNote.mockReset();
     mocks.flushCurrentPendingEditorMarkdown.mockReset();
+    mocks.setNotesChatPanelCollapsed.mockReset();
   });
 
   it('shows the remove-star button for starred external notes outside the current vault', () => {
@@ -172,6 +179,28 @@ describe('EditorTopRightToolbar', () => {
       });
     });
     expect(mocks.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the right Spark panel from the first note menu action', () => {
+    const { getByRole, getByTestId } = render(
+      <EditorTopRightToolbar
+        editorFind={createEditorFindController()}
+        currentNotePath="docs/current.md"
+        currentNoteContent="# Current"
+        currentNoteTitle="Current"
+        notesPath="/vault"
+        starred={false}
+        toggleStarred={vi.fn()}
+        currentNoteMetadata={undefined}
+        textStats={{ lineCount: 1, wordCount: 2, characterCount: 3 }}
+      />,
+    );
+
+    fireEvent.click(getByRole('button', { name: 'Right Spark' }));
+
+    const firstMenuAction = getByTestId('note-menu-content').querySelector('button');
+    expect(firstMenuAction).toHaveTextContent('Right Spark');
+    expect(mocks.setNotesChatPanelCollapsed).toHaveBeenCalledWith(false);
   });
 
   it('uses the sidebar context menu surface for note info and export menus', () => {

@@ -6,7 +6,7 @@ import {
   type CustomIcon,
   type TimezoneInfo,
 } from '@/lib/storage/unifiedStorage';
-import { scanGlobalIcons } from '@/lib/storage/assetStorage';
+import { deleteGlobalIconAsset, scanGlobalIcons } from '@/lib/storage/assetStorage';
 
 import { createSettingsActions } from './actions/settingsActions';
 import { resolveMarkdownSettings } from './settings/markdownSettings';
@@ -15,6 +15,7 @@ import {
   DEFAULT_SETTINGS,
 } from '@/lib/config';
 import type { UndoAction } from '../types';
+import { isTemporarySession, isTemporarySessionId } from '@/lib/ai/temporaryChat';
 
 export type {
   CustomIcon,
@@ -38,7 +39,7 @@ interface UnifiedStoreActions {
   setMarkdownTypewriterMode: (typewriterMode: boolean) => void;
   
   addCustomIcon: (icon: CustomIcon) => void;
-  removeCustomIcon: (id: string) => void;
+  removeCustomIcon: (id: string) => Promise<void>;
   syncCustomIcons: () => Promise<void>;
 
   updateAIData: (updates: Partial<NonNullable<UnifiedData['ai']>>, skipPersist?: boolean) => void;
@@ -62,14 +63,24 @@ export function retainLoadedSessionMessages(
   }
 
   const persistedSessionIds = new Set(nextAI.sessions.map((session) => session.id));
+  const previousTemporarySessions = previousData.ai?.sessions.filter(isTemporarySession) || [];
+  const temporarySessionIds = new Set(previousTemporarySessions.map((session) => session.id));
   const retainedMessages = Object.fromEntries(
-    Object.entries(previousMessages).filter(([sessionId]) => persistedSessionIds.has(sessionId))
+    Object.entries(previousMessages).filter(([sessionId]) =>
+      persistedSessionIds.has(sessionId) ||
+      temporarySessionIds.has(sessionId) ||
+      isTemporarySessionId(sessionId)
+    )
   );
 
   return {
     ...nextData,
     ai: {
       ...nextAI,
+      sessions: [
+        ...previousTemporarySessions,
+        ...nextAI.sessions.filter((session) => !temporarySessionIds.has(session.id)),
+      ],
       messages: retainedMessages,
     },
   };
@@ -106,6 +117,7 @@ function normalizeUnifiedData(data: UnifiedData): UnifiedData {
     markdown: resolveMarkdownSettings(settings?.markdown),
   };
   normalized.customIcons = normalized.customIcons || [];
+  normalized.deletedCustomIconIds = normalized.deletedCustomIconIds || [];
 
   normalized.ai = ai
     ? {
@@ -127,6 +139,7 @@ const initialState: UnifiedStoreState = {
   data: {
     settings: { ...DEFAULT_SETTINGS },
     customIcons: [],
+    deletedCustomIconIds: [],
     ai: createDefaultAIData(),
   },
   loaded: false,
@@ -157,20 +170,29 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
       const state = get();
       const newData = {
         ...state.data,
-        customIcons: [...(state.data.customIcons || []), icon]
+        customIcons: [...(state.data.customIcons || []), icon],
+        deletedCustomIconIds: (state.data.deletedCustomIconIds || []).filter(id => id !== icon.id),
       };
       set({ data: newData });
       persist(newData);
     },
 
-    removeCustomIcon: (id: string) => {
+    removeCustomIcon: async (id: string) => {
       const state = get();
+      const removedIcon = (state.data.customIcons || []).find(i => i.id === id);
+      const deletedIconIds = new Set(state.data.deletedCustomIconIds || []);
+      deletedIconIds.add(id);
       const newData = {
         ...state.data,
-        customIcons: (state.data.customIcons || []).filter(i => i.id !== id)
+        customIcons: (state.data.customIcons || []).filter(i => i.id !== id),
+        deletedCustomIconIds: [...deletedIconIds],
       };
       set({ data: newData });
       persist(newData);
+
+      if (removedIcon) {
+        await deleteGlobalIconAsset(removedIcon.id);
+      }
     },
 
     syncCustomIcons: async () => {
@@ -178,8 +200,9 @@ export const useUnifiedStore = create<UnifiedStore>((set, get) => {
       set(state => {
         const currentIcons = state.data.customIcons || [];
         const existingIds = new Set(currentIcons.map(i => i.id));
+        const deletedIds = new Set(state.data.deletedCustomIconIds || []);
         
-        const newIcons = scanned.filter(i => !existingIds.has(i.id));
+        const newIcons = scanned.filter(i => !existingIds.has(i.id) && !deletedIds.has(i.id));
         
         if (newIcons.length === 0) return {};
         

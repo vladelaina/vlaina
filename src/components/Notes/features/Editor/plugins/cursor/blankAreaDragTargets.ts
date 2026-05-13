@@ -22,6 +22,23 @@ const INTERACTIVE_SELECTOR = [
   '[contenteditable="false"]',
   NO_EDITOR_DRAG_BOX_SELECTOR,
 ].join(', ');
+const TEXT_BLOCK_SURFACE_SELECTOR = [
+  'p',
+  'li',
+  'blockquote',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+].join(', ');
+const STRUCTURED_BLOCK_SELECTOR = [
+  'table',
+  'pre',
+  '[data-type]',
+  '[data-node-view-root]',
+].join(', ');
 
 interface TextLineRectLike {
   left: number;
@@ -35,6 +52,10 @@ interface TextLineRectLike {
 interface TextSelectionGutterHit {
   edge: 'leading' | 'trailing';
 }
+
+type TextLinePointerHit =
+  | { type: 'content' }
+  | ({ type: 'gutter' } & TextSelectionGutterHit);
 
 function getScrollRoot(element: HTMLElement | null): HTMLElement | null {
   if (!element) return null;
@@ -82,11 +103,23 @@ function isPointInLeadingTextSelectionGutter(
   return clientX >= rect.left - gutterPx && clientX <= rect.left + 2;
 }
 
+function isPointInTextLineContent(rect: TextLineRectLike, clientX: number, clientY: number): boolean {
+  if (rect.width <= 0 || rect.height <= 0) return false;
+
+  const verticalSlack = Math.max(2, Math.min(6, rect.height * 0.2));
+  return (
+    clientY >= rect.top - verticalSlack &&
+    clientY <= rect.bottom + verticalSlack &&
+    clientX >= rect.left &&
+    clientX <= rect.right
+  );
+}
+
 function isIgnoredTextLineElement(element: Element): boolean {
   return Boolean(element.closest(INTERACTIVE_SELECTOR));
 }
 
-function resolveTextSelectionGutterHit(root: HTMLElement, clientX: number, clientY: number): TextSelectionGutterHit | null {
+function resolveTextLinePointerHit(root: HTMLElement, clientX: number, clientY: number): TextLinePointerHit | null {
   const doc = root.ownerDocument;
   const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
@@ -104,16 +137,34 @@ function resolveTextSelectionGutterHit(root: HTMLElement, clientX: number, clien
     range.detach();
 
     for (const rect of rects) {
+      if (isPointInTextLineContent(rect, clientX, clientY)) {
+        return { type: 'content' };
+      }
       if (isPointInTrailingTextSelectionGutter(rect, clientX, clientY)) {
-        return { edge: 'trailing' };
+        return { type: 'gutter', edge: 'trailing' };
       }
       if (isPointInLeadingTextSelectionGutter(rect, clientX, clientY)) {
-        return { edge: 'leading' };
+        return { type: 'gutter', edge: 'leading' };
       }
     }
   }
 
   return null;
+}
+
+function resolveTextSelectionGutterHit(root: HTMLElement, clientX: number, clientY: number): TextSelectionGutterHit | null {
+  const hit = resolveTextLinePointerHit(root, clientX, clientY);
+  return hit?.type === 'gutter' ? { edge: hit.edge } : null;
+}
+
+function isTextBlockBlankSurfaceTarget(view: EditorView, target: HTMLElement): boolean {
+  if (target === view.dom) return true;
+
+  const textBlock = target.closest(TEXT_BLOCK_SURFACE_SELECTOR);
+  if (!textBlock || !view.dom.contains(textBlock)) return false;
+
+  const structuredBlock = target.closest(STRUCTURED_BLOCK_SELECTOR);
+  return !structuredBlock || structuredBlock === textBlock;
 }
 
 export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEvent): BlockDragStartZone | null {
@@ -130,20 +181,15 @@ export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEven
   if (target.closest(INTERACTIVE_SELECTOR)) return null;
 
   if (view.dom.contains(target)) {
-    const textGutterHit = target === view.dom
-      ? resolveTextSelectionGutterHit(view.dom, event.clientX, event.clientY)
-      : null;
+    const textLineHit = resolveTextLinePointerHit(view.dom, event.clientX, event.clientY);
 
-    if (textGutterHit) {
+    if (textLineHit) {
       return null;
     }
     if (target === view.dom && isClickBelowLastBlock(view.dom, event.clientY)) {
       return 'below-last-block';
     }
-    if (target === view.dom) {
-      return 'outside-editor';
-    }
-    return null;
+    return isTextBlockBlankSurfaceTarget(view, target) ? 'outside-editor' : null;
   }
 
   const externalTextGutterHit = isSameEditorScrollRoot

@@ -181,6 +181,138 @@ describe('blankAreaDragTargets', () => {
     }
   });
 
+  it('does not start block selection when pressing on actual text inside a full-width block', () => {
+    const { view, cleanup } = createView();
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'Selectable text';
+    view.dom.append(paragraph);
+
+    const originalCreateRange = document.createRange;
+    document.createRange = () => ({
+      selectNodeContents: () => {},
+      getClientRects: () => [{
+        left: 100,
+        right: 240,
+        top: 40,
+        bottom: 60,
+        width: 140,
+        height: 20,
+      }],
+      detach: () => {},
+    } as unknown as Range);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(
+        view,
+        createMouseDown(paragraph, { clientX: 150, clientY: 50 }),
+      )).toBeNull();
+    } finally {
+      document.createRange = originalCreateRange;
+      cleanup();
+    }
+  });
+
+  it('starts block selection from the right blank area inside a full-width block', () => {
+    const { view, cleanup } = createView();
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'Selectable text';
+    view.dom.append(paragraph);
+
+    const originalCreateRange = document.createRange;
+    document.createRange = () => ({
+      selectNodeContents: () => {},
+      getClientRects: () => [{
+        left: 100,
+        right: 240,
+        top: 40,
+        bottom: 60,
+        width: 140,
+        height: 20,
+      }],
+      detach: () => {},
+    } as unknown as Range);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(
+        view,
+        createMouseDown(paragraph, { clientX: 330, clientY: 50 }),
+      )).toBe('outside-editor');
+    } finally {
+      document.createRange = originalCreateRange;
+      cleanup();
+    }
+  });
+
+  it('does not start block selection from blank space inside structured table content', () => {
+    const { view, cleanup } = createView();
+    const table = document.createElement('table');
+    const row = document.createElement('tr');
+    const cell = document.createElement('td');
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'Cell text';
+    cell.append(paragraph);
+    row.append(cell);
+    table.append(row);
+    view.dom.append(table);
+
+    const originalCreateRange = document.createRange;
+    document.createRange = () => ({
+      selectNodeContents: () => {},
+      getClientRects: () => [{
+        left: 100,
+        right: 180,
+        top: 40,
+        bottom: 60,
+        width: 80,
+        height: 20,
+      }],
+      detach: () => {},
+    } as unknown as Range);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(
+        view,
+        createMouseDown(paragraph, { clientX: 330, clientY: 50 }),
+      )).toBeNull();
+    } finally {
+      document.createRange = originalCreateRange;
+      cleanup();
+    }
+  });
+
+  it('does not start block selection from blank space inside code block content', () => {
+    const { view, cleanup } = createView();
+    const pre = document.createElement('pre');
+    const code = document.createElement('code');
+    code.textContent = 'const value = 1;';
+    pre.append(code);
+    view.dom.append(pre);
+
+    const originalCreateRange = document.createRange;
+    document.createRange = () => ({
+      selectNodeContents: () => {},
+      getClientRects: () => [{
+        left: 100,
+        right: 220,
+        top: 40,
+        bottom: 60,
+        width: 120,
+        height: 20,
+      }],
+      detach: () => {},
+    } as unknown as Range);
+
+    try {
+      expect(resolveBlankAreaDragStartZone(
+        view,
+        createMouseDown(code, { clientX: 330, clientY: 50 }),
+      )).toBeNull();
+    } finally {
+      document.createRange = originalCreateRange;
+      cleanup();
+    }
+  });
+
   it('allows horizontal blank space inside the editor root to start blank-area selection', () => {
     const { view, cleanup } = createView();
 
@@ -191,13 +323,13 @@ describe('blankAreaDragTargets', () => {
     }
   });
 
-  it('does not treat content inside the editor as blank editor root space', () => {
+  it('treats empty full-width content inside the editor as blank editor space', () => {
     const { view, cleanup } = createView();
     const paragraph = document.createElement('p');
     view.dom.append(paragraph);
 
     try {
-      expect(resolveBlankAreaDragStartZone(view, createMouseDown(paragraph))).toBeNull();
+      expect(resolveBlankAreaDragStartZone(view, createMouseDown(paragraph))).toBe('outside-editor');
     } finally {
       cleanup();
     }

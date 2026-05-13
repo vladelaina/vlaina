@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { ButtonHTMLAttributes } from 'react';
 import { UploadTab, type CustomIcon } from './UploadTab';
 
 vi.mock('@tanstack/react-virtual', () => ({
@@ -45,27 +45,6 @@ vi.mock('@/components/ui/premium-slider', () => ({
   PremiumSlider: () => <div data-testid="premium-slider" />,
 }));
 
-vi.mock('@/components/ui/deletable-item', () => ({
-  DeletableItem: ({
-    id,
-    onDelete,
-    children,
-    className,
-  }: {
-    id: string;
-    onDelete?: (id: string) => void;
-    children: ReactNode;
-    className?: string;
-  }) => (
-    <div className={className}>
-      <button type="button" data-testid={`delete-${id}`} onClick={() => onDelete?.(id)}>
-        delete
-      </button>
-      {children}
-    </div>
-  ),
-}));
-
 vi.mock('./UniversalIcon', () => ({
   UniversalIcon: ({ icon }: { icon: string }) => <img alt={`icon-${icon}`} src={icon} />,
 }));
@@ -85,7 +64,7 @@ describe('UploadTab', () => {
     expect(screen.getByText('Upload an image to use it as the note icon')).toBeInTheDocument();
   });
 
-  it('supports preview, selection, and deletion from the custom icon library', () => {
+  it('supports preview, selection, and context-menu deletion from the custom icon library', async () => {
     const onSelect = vi.fn();
     const onPreview = vi.fn();
     const onClose = vi.fn();
@@ -115,7 +94,19 @@ describe('UploadTab', () => {
     expect(onSelect).toHaveBeenCalledWith('https://example.com/first.png');
     expect(onClose).toHaveBeenCalledTimes(1);
 
-    fireEvent.click(screen.getByTestId('delete-second'));
-    expect(onDeleteCustomIcon).toHaveBeenCalledWith('second');
+    expect(screen.queryByTestId('delete-second')).not.toBeInTheDocument();
+    expect(onDeleteCustomIcon).not.toHaveBeenCalled();
+
+    const secondIcon = screen.getByAltText('icon-https://example.com/second.png');
+    const secondClickableArea = secondIcon.parentElement;
+    expect(secondClickableArea).not.toBeNull();
+
+    fireEvent.contextMenu(secondClickableArea!, { clientX: 24, clientY: 32 });
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    expect(onPreview).toHaveBeenLastCalledWith(null);
+    await waitFor(() => {
+      expect(onDeleteCustomIcon).toHaveBeenCalledWith('second');
+    });
   });
 });

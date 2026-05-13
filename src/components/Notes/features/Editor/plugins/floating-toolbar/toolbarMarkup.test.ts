@@ -81,13 +81,13 @@ describe('toolbar markup', () => {
     expect(aiDropdownSource).not.toContain('dropdown.className = `toolbar-submenu ai-dropdown ai-dropdown-nested ${chatComposerPillSurfaceClass}`');
   });
 
-  it('hides AI tools when no account or custom provider is available', () => {
+  it('keeps AI tools visible when no account or custom provider is available', () => {
     useAccountSessionStore.setState({ isConnected: false });
 
     const markup = renderToolbarMarkup(createState());
 
-    expect(markup).not.toContain('data-action="ai"');
-    expect(markup).not.toContain('toolbar-ai-group');
+    expect(markup).toContain('data-action="ai"');
+    expect(markup).toContain('toolbar-ai-group');
     expect(markup).toContain('data-action="bold"');
   });
 

@@ -23,6 +23,20 @@ const resolveSize = (size?: number | string | IconSize) => {
   return size;
 };
 
+const defaultImageSrcCache = new Map<string, string>();
+const loaderImageSrcCaches = new WeakMap<(src: string) => Promise<string>, Map<string, string>>();
+
+function getImageSrcCache(imageLoader?: (src: string) => Promise<string>) {
+  if (!imageLoader) return defaultImageSrcCache;
+
+  let cache = loaderImageSrcCaches.get(imageLoader);
+  if (!cache) {
+    cache = new Map<string, string>();
+    loaderImageSrcCaches.set(imageLoader, cache);
+  }
+  return cache;
+}
+
 const ImageIconRenderer = memo(function ImageIconRenderer({
   src,
   size,
@@ -178,34 +192,53 @@ export function UniversalIcon({
   previewTone,
   imageLoader
 }: UniversalIconProps) {
-  const [imgSrc, setImgSrc] = useState<string | null>(null);
+  const imageSrcCache = getImageSrcCache(imageLoader);
+  const [loadedImage, setLoadedImage] = useState<{ icon: string; src: string | null }>(() => {
+    if (!icon.startsWith('img:')) {
+      return { icon, src: null };
+    }
+    return { icon, src: imageSrcCache.get(icon) ?? null };
+  });
   const resolvedSize = resolveSize(size);
 
   useEffect(() => {
     let active = true;
     const load = async () => {
       if (icon && icon.startsWith('img:')) {
+        const cachedSrc = imageSrcCache.get(icon);
+        if (cachedSrc) {
+          setLoadedImage({ icon, src: cachedSrc });
+          return;
+        }
+
         if (imageLoader) {
           try {
             const url = await imageLoader(icon);
-            if (active) setImgSrc(url);
+            if (url) imageSrcCache.set(icon, url);
+            if (active) setLoadedImage({ icon, src: url || null });
           } catch {
-            if (active) setImgSrc(null);
+            if (active) setLoadedImage({ icon, src: null });
           }
         } else {
-          if (active) setImgSrc(icon.substring(4));
+          const url = icon.substring(4);
+          if (url) imageSrcCache.set(icon, url);
+          if (active) setLoadedImage({ icon, src: url || null });
         }
       } else {
-        setImgSrc(null);
+        setLoadedImage({ icon, src: null });
       }
     };
     load();
     return () => { active = false; };
-  }, [icon, imageLoader]);
+  }, [icon, imageLoader, imageSrcCache]);
 
   if (!icon) return null;
 
   if (icon.startsWith('img:')) {
+    const imgSrc = loadedImage.icon === icon
+      ? loadedImage.src
+      : imageSrcCache.get(icon) ?? null;
+
     return imgSrc ? (
       <ImageIconRenderer
         src={imgSrc}

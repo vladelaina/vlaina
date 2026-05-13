@@ -56,6 +56,9 @@ function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
       },
     },
     customIcons: Array.isArray(data.customIcons) ? data.customIcons : [],
+    deletedCustomIconIds: Array.isArray(data.deletedCustomIconIds)
+      ? data.deletedCustomIconIds.filter((id): id is string => typeof id === 'string')
+      : [],
     ai: data.ai,
   };
 }
