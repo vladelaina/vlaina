@@ -1,7 +1,6 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import type { FileTreeNode } from './types';
 import { sortFileTree } from './fileTreeSorting';
-import { logNotesDebugAlways } from './lineBreakDebugLog';
 
 const MAX_FILE_TREE_ENTRIES = 5000;
 const MAX_FILE_TREE_DEPTH = 24;
@@ -22,14 +21,6 @@ interface FileTreeBuildBudget {
 
 function shouldSkipDirectory(name: string) {
   return name.startsWith('.') || SKIPPED_DIRECTORY_NAMES.has(name);
-}
-
-function getFileTreePerfNow() {
-  return typeof performance !== 'undefined' ? performance.now() : Date.now();
-}
-
-function roundFileTreePerfMs(value: number) {
-  return Math.round(value * 100) / 100;
 }
 
 export async function buildFileTreeLevel(basePath: string, relativePath: string = ''): Promise<FileTreeNode[]> {
@@ -107,26 +98,12 @@ async function buildFileTreeWithBudget(
 }
 
 export async function buildFileTree(basePath: string, relativePath: string = ''): Promise<FileTreeNode[]> {
-  const startedAt = getFileTreePerfNow();
   const budget: FileTreeBuildBudget = {
     visitedEntries: 0,
     skippedFolderCount: 0,
     listedFolderCount: 1,
   };
   const nodes = await buildFileTreeWithBudget(basePath, relativePath, budget);
-  const counts = countFileTreeNodes(nodes);
-  logNotesDebugAlways('NotesLoad', 'file-tree:built', {
-    basePath,
-    relativePath,
-    totalDurationMs: roundFileTreePerfMs(getFileTreePerfNow() - startedAt),
-    rootNodeCount: nodes.length,
-    nodeCount: counts.nodes,
-    folderCount: counts.folders,
-    fileCount: counts.files,
-    visitedEntries: budget.visitedEntries,
-    listedFolderCount: budget.listedFolderCount,
-    skippedFolderCount: budget.skippedFolderCount,
-  });
   return nodes;
 }
 

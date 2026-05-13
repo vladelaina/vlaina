@@ -44,17 +44,6 @@ function getDesktopAccountBridge() {
   return bridge.account;
 }
 
-function shouldInvalidateDesktopSession(error: unknown): boolean {
-  const message =
-    typeof error === 'string'
-      ? error
-      : error instanceof Error
-        ? error.message
-        : String(error ?? '');
-
-  return message.trim().toLowerCase() === 'vlaina sign-in required';
-}
-
 function dispatchAccountInvalidatedEvent(): void {
   if (typeof window === 'undefined') {
     return;
@@ -105,36 +94,15 @@ export const accountCommands = {
   },
 
   async getManagedModels() {
-    try {
-      return await getDesktopAccountBridge().getManagedModels();
-    } catch (error) {
-      if (shouldInvalidateDesktopSession(error)) {
-        dispatchAccountInvalidatedEvent();
-      }
-      throw error;
-    }
+    return await getDesktopAccountBridge().getManagedModels();
   },
 
   async getManagedBudget() {
-    try {
-      return await getDesktopAccountBridge().getManagedBudget();
-    } catch (error) {
-      if (shouldInvalidateDesktopSession(error)) {
-        dispatchAccountInvalidatedEvent();
-      }
-      throw error;
-    }
+    return await getDesktopAccountBridge().getManagedBudget();
   },
 
   async managedChatCompletion(body: object) {
-    try {
-      return await getDesktopAccountBridge().managedChatCompletion(body);
-    } catch (error) {
-      if (shouldInvalidateDesktopSession(error)) {
-        dispatchAccountInvalidatedEvent();
-      }
-      throw error;
-    }
+    return await getDesktopAccountBridge().managedChatCompletion(body);
   },
 
   async managedChatCompletionStream(
@@ -169,9 +137,6 @@ export const accountCommands = {
         if (isSettled) return;
         isSettled = true;
         cleanup();
-        if (shouldInvalidateDesktopSession(error)) {
-          dispatchAccountInvalidatedEvent();
-        }
         reject(error);
       };
       const settleAborted = () => {

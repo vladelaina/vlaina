@@ -86,6 +86,21 @@ describe('createFileSystemSlice draft flows', () => {
     expect(state.displayNames.size).toBe(0);
   });
 
+  it('does not surface a notes error when loading the file tree without a selected vault', async () => {
+    const harness = createSliceHarness({
+      isLoading: false,
+      error: 'previous error',
+      rootFolder: null,
+    });
+
+    await harness.getState().loadFileTree();
+
+    const state = harness.getState();
+    expect(state.isLoading).toBe(false);
+    expect(state.error).toBeNull();
+    expect(state.rootFolder).toBeNull();
+  });
+
   it('creates another draft tab without saving or replacing the dirty current draft', async () => {
     const harness = createSliceHarness();
     const cache = new Map([['draft:current', { content: 'draft text', modifiedAt: null }]]);

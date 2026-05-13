@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { FolderNode } from '@/stores/useNotesStore';
 import {
   buildNotesSidebarSearchIndex,
@@ -49,10 +49,11 @@ describe('notesSidebarSearchResults', () => {
     expect(countNotesSidebarSearchEntries(rootFolder)).toBe(3);
   });
 
-  it('searches note contents for a single non-empty character', () => {
+  it('searches note contents only after a two-character query', () => {
     expect(shouldSearchNotesSidebarContents('')).toBe(false);
     expect(shouldSearchNotesSidebarContents(' ')).toBe(false);
-    expect(shouldSearchNotesSidebarContents('t')).toBe(true);
+    expect(shouldSearchNotesSidebarContents('t')).toBe(false);
+    expect(shouldSearchNotesSidebarContents('te')).toBe(true);
   });
 
   it('builds a flat search index with parent previews', () => {
@@ -272,7 +273,7 @@ describe('notesSidebarSearchResults', () => {
       {
         path: 'projects/alpha.md',
         matchKind: 'name',
-        ordinal: 0,
+        ordinal: null,
       },
       {
         path: 'projects/alpha.md',
@@ -299,19 +300,13 @@ describe('notesSidebarSearchResults', () => {
     expect(results[3].contentSnippet).toContain('alpha release checklist is still open.');
   });
 
-  it('returns content matches for a single-character query', () => {
+  it('does not run content search for a single-character query', () => {
     const index = buildNotesSidebarSearchIndex(rootFolder, () => '');
     const results = queryNotesSidebarSearch(index, 'x', (path) =>
       path === 'projects/alpha.md' ? 'single x content match' : '',
     );
 
-    expect(results).toEqual([
-      expect.objectContaining({
-        path: 'projects/alpha.md',
-        matchKind: 'content',
-        contentSnippet: 'single x content match',
-      }),
-    ]);
+    expect(results).toEqual([]);
   });
 
   it('caps content matches per note before ranking results', () => {
@@ -327,5 +322,20 @@ describe('notesSidebarSearchResults', () => {
     expect(results).toHaveLength(5);
     expect(results.every((result) => result.matchKind === 'content')).toBe(true);
     expect(results.map((result) => result.contentMatchOrdinal)).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it('does not scan note contents when structural search results fill the result cap', () => {
+    const index = Array.from({ length: 220 }, (_, index) => ({
+      path: `notes/${String(index).padStart(3, '0')}.md`,
+      name: `alpha ${index}.md`,
+      preview: '',
+    }));
+    const getNoteContent = vi.fn(() => 'alpha body');
+
+    const results = queryNotesSidebarSearch(index, 'alpha', getNoteContent);
+
+    expect(results).toHaveLength(200);
+    expect(results.every((result) => result.matchKind === 'name')).toBe(true);
+    expect(getNoteContent).not.toHaveBeenCalled();
   });
 });

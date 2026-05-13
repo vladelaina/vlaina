@@ -29,7 +29,6 @@ import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlush
 import {
   logLineBreakDebug,
   logNotesDebug,
-  logNotesDebugAlways,
   summarizeLineBreakText,
 } from '../lineBreakDebugLog';
 import { createWorkspaceDocumentActions } from './workspaceDocumentActions';
@@ -37,17 +36,33 @@ import { createWorkspaceExternalActions } from './workspaceExternalActions';
 import { createWorkspaceTabActions } from './workspaceTabActions';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 
-const pendingNotePrefetches = new Map<string, Promise<void>>();
+interface PendingNotePrefetch {
+  promise: Promise<void>;
+  started: boolean;
+}
+
+const pendingNotePrefetches = new Map<string, PendingNotePrefetch>();
+const cancelledNotePrefetches = new Set<string>();
 const notePrefetchQueue = createAsyncPrefetchQueue(2);
 const MAX_NOTE_CONTENT_CACHE_ENTRIES = 250;
 let latestOpenNoteRequestId = 0;
 
-function getOpenNotePerfNow() {
-  return typeof performance !== 'undefined' ? performance.now() : Date.now();
+function getNotePrefetchKey(notesPath: string, path: string) {
+  return `${notesPath}\0${path}`;
 }
 
-function roundOpenNotePerfMs(value: number) {
-  return Math.round(value * 100) / 100;
+async function awaitStartedNotePrefetch(notesPath: string, path: string) {
+  const pendingPrefetch = pendingNotePrefetches.get(getNotePrefetchKey(notesPath, path));
+  if (!pendingPrefetch?.started) {
+    return false;
+  }
+
+  try {
+    await pendingPrefetch.promise;
+  } catch {
+    return false;
+  }
+  return true;
 }
 
 function getProtectedCachePaths(state: NotesStore, extraPaths: string[] = []) {
@@ -165,23 +180,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   displayNames: new Map(),
 
   openNote: async (path: string, openInNewTab: boolean = false) => {
-    const startedAt = getOpenNotePerfNow();
-    const timings: Array<{ step: string; durationMs: number }> = [];
-    const markStep = (step: string, stepStartedAt: number) => {
-      timings.push({
-        step,
-        durationMs: roundOpenNotePerfMs(getOpenNotePerfNow() - stepStartedAt),
-      });
-    };
-    logNotesDebugAlways('NotesLoad', 'open-note:start', {
-      path,
-      openInNewTab,
-      notesPath: get().notesPath,
-      currentNotePath: get().currentNote?.path ?? null,
-      isDirty: get().isDirty,
-      openTabsLength: get().openTabs.length,
-      cacheHasPath: get().noteContentsCache.has(path),
-    });
     logLineBreakDebug('open-note:start-before-flush', {
       path,
       openInNewTab,
@@ -189,9 +187,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       isDirty: get().isDirty,
       current: summarizeLineBreakText(get().currentNote?.content),
     });
-    let stepStartedAt = getOpenNotePerfNow();
     const flushed = flushCurrentPendingEditorMarkdown();
-    markStep('flush-pending-editor', stepStartedAt);
     logLineBreakDebug('open-note:after-flush', {
       path,
       flushed,
@@ -201,13 +197,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     });
     const openRequestId = ++latestOpenNoteRequestId;
     if (openDraftNoteFromMemory(set, get, path, openInNewTab)) {
-      logNotesDebugAlways('NotesLoad', 'open-note:done', {
-        path,
-        openRequestId,
-        source: 'draft-memory',
-        totalDurationMs: roundOpenNotePerfMs(getOpenNotePerfNow() - startedAt),
-        timings,
-      });
       logNotesDebug('NotesWorkspace', 'open-note:draft-memory-complete', {
         path,
         currentNotePath: get().currentNote?.path ?? null,
@@ -217,12 +206,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     }
     if (!isSupportedMarkdownPath(path)) {
       set({ error: 'Only Markdown files can be opened as notes.' });
-      logNotesDebugAlways('NotesLoad', 'open-note:rejected', {
-        path,
-        reason: 'unsupported-markdown-path',
-        totalDurationMs: roundOpenNotePerfMs(getOpenNotePerfNow() - startedAt),
-        timings,
-      });
       return;
     }
 
@@ -248,9 +231,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         currentNotePath: currentNote?.path ?? null,
         openInNewTab: shouldOpenInNewTab,
       });
-      stepStartedAt = getOpenNotePerfNow();
       await saveNote();
-      markStep('save-current-note', stepStartedAt);
       if (get().notesPath !== notesPath) {
         logNotesDebug('NotesWorkspace', 'open-note:aborted-vault-changed-after-save', {
           path,
@@ -271,27 +252,21 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     }
 
     try {
-      stepStartedAt = getOpenNotePerfNow();
+      const reusedActivePrefetch = await awaitStartedNotePrefetch(notesPath, path);
+      if (reusedActivePrefetch) {
+        noteContentsCache = get().noteContentsCache;
+      }
+
       const { content, modifiedAt } = await loadNoteDocument({
         notesPath,
         path,
         cache: noteContentsCache,
       });
-      markStep('load-document', stepStartedAt);
       logLineBreakDebug('open-note:loaded-target', {
         path,
         content: summarizeLineBreakText(content),
       });
       if (openRequestId !== latestOpenNoteRequestId || get().notesPath !== notesPath) {
-        logNotesDebugAlways('NotesLoad', 'open-note:stale-loaded-target', {
-          path,
-          openRequestId,
-          latestOpenNoteRequestId,
-          originalNotesPath: notesPath,
-          latestNotesPath: get().notesPath,
-          totalDurationMs: roundOpenNotePerfMs(getOpenNotePerfNow() - startedAt),
-          timings,
-        });
         logNotesDebug('NotesWorkspace', 'open-note:stale-loaded-target', {
           path,
           openRequestId,
@@ -322,7 +297,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       );
       const nextCache = setCachedNoteContent(latestState.noteContentsCache, path, content, modifiedAt);
 
-      stepStartedAt = getOpenNotePerfNow();
       updateDisplayName(set, path, tabName);
       set({
         currentNote: { path, content },
@@ -339,21 +313,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         ),
         noteMetadata: nextMetadata,
       });
-      markStep('set-open-note-state', stepStartedAt);
-      logNotesDebugAlways('NotesLoad', 'open-note:done', {
-        path,
-        openRequestId,
-        source: 'vault',
-        notesPath,
-        openInNewTab,
-        shouldOpenInNewTab,
-        totalDurationMs: roundOpenNotePerfMs(getOpenNotePerfNow() - startedAt),
-        timings,
-        content: summarizeLineBreakText(content),
-        modifiedAt,
-        openTabsLength: updatedTabs.length,
-        cacheEntryCount: nextCache.size,
-      });
       logLineBreakDebug('open-note:set-target', {
         path,
         isDirty: latestExistingTab?.isDirty ?? false,
@@ -368,14 +327,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       });
     } catch (error) {
       if (openRequestId === latestOpenNoteRequestId && get().notesPath === notesPath) {
-        logNotesDebugAlways('NotesLoad', 'open-note:failed', {
-          path,
-          openRequestId,
-          notesPath,
-          totalDurationMs: roundOpenNotePerfMs(getOpenNotePerfNow() - startedAt),
-          timings,
-          message: error instanceof Error ? error.message : String(error),
-        });
         logNotesDebug('NotesWorkspace', 'open-note:failed', {
           path,
           message: error instanceof Error ? error.message : String(error),
@@ -386,31 +337,8 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   },
 
   openNoteByAbsolutePath: async (absolutePath: string, openInNewTab: boolean = false) => {
-    const startedAt = getOpenNotePerfNow();
-    const timings: Array<{ step: string; durationMs: number }> = [];
-    const markStep = (step: string, stepStartedAt: number) => {
-      timings.push({
-        step,
-        durationMs: roundOpenNotePerfMs(getOpenNotePerfNow() - stepStartedAt),
-      });
-    };
-    logNotesDebugAlways('NotesLoad', 'open-absolute:start', {
-      absolutePath,
-      openInNewTab,
-      notesPath: get().notesPath,
-      currentNotePath: get().currentNote?.path ?? null,
-      isDirty: get().isDirty,
-      openTabsLength: get().openTabs.length,
-      cacheHasPath: get().noteContentsCache.has(absolutePath),
-    });
     if (!isSupportedMarkdownPath(absolutePath)) {
       set({ error: 'Only Markdown files can be opened as notes.' });
-      logNotesDebugAlways('NotesLoad', 'open-absolute:rejected', {
-        absolutePath,
-        reason: 'unsupported-markdown-path',
-        totalDurationMs: roundOpenNotePerfMs(getOpenNotePerfNow() - startedAt),
-        timings,
-      });
       return;
     }
 
@@ -421,9 +349,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       isDirty: get().isDirty,
       current: summarizeLineBreakText(get().currentNote?.content),
     });
-    let stepStartedAt = getOpenNotePerfNow();
     const flushed = flushCurrentPendingEditorMarkdown();
-    markStep('flush-pending-editor', stepStartedAt);
     logLineBreakDebug('open-absolute:after-flush', {
       absolutePath,
       flushed,
@@ -454,9 +380,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         currentNotePath: currentNote?.path ?? null,
         openInNewTab: shouldOpenInNewTab,
       });
-      stepStartedAt = getOpenNotePerfNow();
       await saveNote();
-      markStep('save-current-note', stepStartedAt);
       if (get().notesPath !== notesPath) {
         logNotesDebug('NotesWorkspace', 'open-absolute:aborted-vault-changed-after-save', {
           absolutePath,
@@ -477,27 +401,16 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     }
 
     try {
-      stepStartedAt = getOpenNotePerfNow();
       const { content, modifiedAt } = await loadNoteDocument({
         notesPath,
         path: absolutePath,
         cache: noteContentsCache,
       });
-      markStep('load-document', stepStartedAt);
       logLineBreakDebug('open-absolute:loaded-target', {
         absolutePath,
         content: summarizeLineBreakText(content),
       });
       if (openRequestId !== latestOpenNoteRequestId || get().notesPath !== notesPath) {
-        logNotesDebugAlways('NotesLoad', 'open-absolute:stale-loaded-target', {
-          absolutePath,
-          openRequestId,
-          latestOpenNoteRequestId,
-          originalNotesPath: notesPath,
-          latestNotesPath: get().notesPath,
-          totalDurationMs: roundOpenNotePerfMs(getOpenNotePerfNow() - startedAt),
-          timings,
-        });
         logNotesDebug('NotesWorkspace', 'open-absolute:stale-loaded-target', {
           absolutePath,
           openRequestId,
@@ -527,7 +440,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       );
       const nextCache = setCachedNoteContent(latestState.noteContentsCache, absolutePath, content, modifiedAt);
 
-      stepStartedAt = getOpenNotePerfNow();
       updateDisplayName(set, absolutePath, tabName);
       set({
         currentNote: { path: absolutePath, content },
@@ -543,20 +455,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         ),
         noteMetadata: nextMetadata,
       });
-      markStep('set-open-note-state', stepStartedAt);
-      logNotesDebugAlways('NotesLoad', 'open-absolute:done', {
-        absolutePath,
-        openRequestId,
-        notesPath,
-        openInNewTab,
-        shouldOpenInNewTab,
-        totalDurationMs: roundOpenNotePerfMs(getOpenNotePerfNow() - startedAt),
-        timings,
-        content: summarizeLineBreakText(content),
-        modifiedAt,
-        openTabsLength: updatedTabs.length,
-        cacheEntryCount: nextCache.size,
-      });
       logLineBreakDebug('open-absolute:set-target', {
         absolutePath,
         isDirty: latestExistingTab?.isDirty ?? false,
@@ -564,14 +462,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       });
     } catch (error) {
       if (openRequestId === latestOpenNoteRequestId && get().notesPath === notesPath) {
-        logNotesDebugAlways('NotesLoad', 'open-absolute:failed', {
-          absolutePath,
-          openRequestId,
-          notesPath,
-          totalDurationMs: roundOpenNotePerfMs(getOpenNotePerfNow() - startedAt),
-          timings,
-          message: error instanceof Error ? error.message : String(error),
-        });
         logNotesDebug('NotesWorkspace', 'open-absolute:failed', {
           absolutePath,
           message: error instanceof Error ? error.message : String(error),
@@ -590,19 +480,33 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       return;
     }
 
-    const prefetchKey = `${notesPath}\0${path}`;
+    const prefetchKey = getNotePrefetchKey(notesPath, path);
+    cancelledNotePrefetches.delete(prefetchKey);
     const existing = pendingNotePrefetches.get(prefetchKey);
     if (existing) {
-      await existing;
+      await existing.promise;
       return;
     }
 
+    const pendingPrefetch: PendingNotePrefetch = {
+      promise: Promise.resolve(),
+      started: false,
+    };
     const task = notePrefetchQueue.run(async () => {
+      pendingPrefetch.started = true;
+      if (cancelledNotePrefetches.has(prefetchKey)) {
+        return;
+      }
+
       const { nextCache } = await loadNoteDocument({
         notesPath,
         path,
         cache: get().noteContentsCache,
       });
+      if (cancelledNotePrefetches.has(prefetchKey)) {
+        return;
+      }
+
       const prefetchedEntry = nextCache.get(path);
       if (!prefetchedEntry) {
         return;
@@ -622,15 +526,26 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         };
       });
     });
+    pendingPrefetch.promise = task;
 
-    pendingNotePrefetches.set(prefetchKey, task);
+    pendingNotePrefetches.set(prefetchKey, pendingPrefetch);
     try {
       await task;
     } catch {
       // Hover prefetch should not replace the explicit open-note error path.
     } finally {
       pendingNotePrefetches.delete(prefetchKey);
+      cancelledNotePrefetches.delete(prefetchKey);
     }
+  },
+
+  cancelPrefetchNote: (path: string) => {
+    const { notesPath } = get();
+    if (!notesPath) {
+      return;
+    }
+
+    cancelledNotePrefetches.add(getNotePrefetchKey(notesPath, path));
   },
 
   adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => {

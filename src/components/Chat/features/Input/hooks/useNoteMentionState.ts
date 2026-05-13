@@ -10,7 +10,9 @@ import {
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
+import { getCurrentVaultPath, setCurrentVaultPath } from '@/stores/notes/storage';
 import { normalizeStarredVaultPath } from '@/stores/notes/starred';
+import { useVaultStore } from '@/stores/useVaultStore';
 import {
   buildMentionPreviewParts,
   collectNotePaths,
@@ -49,6 +51,7 @@ export function useNoteMentionState({
   const loadFileTree = useNotesStore((state) => state.loadFileTree);
   const getDisplayName = useNotesStore((state) => state.getDisplayName);
   const getNoteIcon = useNotesStore((state) => state.getNoteIcon);
+  const activeVaultPath = useVaultStore((state) => state.currentVault?.path ?? null);
 
   const [mentions, setMentions] = useState<NoteMentionReference[]>([]);
   const [caretIndex, setCaretIndex] = useState(0);
@@ -63,7 +66,9 @@ export function useNoteMentionState({
     }
     const uniquePaths = Array.from(new Set(paths));
 
-    const currentVaultPath = notesPath ? normalizeStarredVaultPath(notesPath) : '';
+    const currentVaultPath = notesPath || activeVaultPath
+      ? normalizeStarredVaultPath(notesPath || activeVaultPath || '')
+      : '';
     const candidates: NoteMentionCandidate[] = uniquePaths
       .map((path) => ({
         path,
@@ -104,7 +109,7 @@ export function useNoteMentionState({
     }
 
     return candidates.sort((a, b) => a.title.localeCompare(b.title));
-  }, [currentNotePath, getDisplayName, getNoteIcon, notesPath, notesRootFolder, starredEntries]);
+  }, [activeVaultPath, currentNotePath, getDisplayName, getNoteIcon, notesPath, notesRootFolder, starredEntries]);
 
   const mentionTrigger = useMemo(
     () => getNoteMentionTrigger(value, caretIndex),
@@ -151,9 +156,12 @@ export function useNoteMentionState({
   const mentionTriggerKey = mentionTrigger
     ? `${mentionTrigger.start}:${mentionTrigger.query}`
     : null;
+  const effectiveVaultPath = notesPath || activeVaultPath || getCurrentVaultPath() || '';
   const mentionPickerStatus: 'loading' | 'empty' | null = mentionTrigger && filteredCandidates.length === 0
     ? (notesRootFolder
         ? 'empty'
+        : !effectiveVaultPath
+          ? 'empty'
         : notesLoading || requestedTreeLoadTriggerRef.current !== mentionTriggerKey ? 'loading' : 'empty')
     : null;
   const showMentionPicker = !!mentionTrigger;
@@ -170,12 +178,18 @@ export function useNoteMentionState({
     if (notesRootFolder || notesLoading) {
       return;
     }
+    if (!effectiveVaultPath) {
+      return;
+    }
     if (!mentionTriggerKey || requestedTreeLoadTriggerRef.current === mentionTriggerKey) {
       return;
     }
+    if (getCurrentVaultPath() !== effectiveVaultPath) {
+      setCurrentVaultPath(effectiveVaultPath);
+    }
     requestedTreeLoadTriggerRef.current = mentionTriggerKey;
     void loadFileTree();
-  }, [loadFileTree, mentionTrigger, mentionTriggerKey, notesLoading, notesRootFolder]);
+  }, [effectiveVaultPath, loadFileTree, mentionTrigger, mentionTriggerKey, notesLoading, notesRootFolder]);
 
   useEffect(() => {
     setMentions((prev) => syncMentions({

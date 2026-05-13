@@ -121,17 +121,12 @@ export function logNotesDebug(label: string, scope: string, payload?: unknown) {
   appendNotesDebugEntry(label, scope, payload);
 }
 
-export function logNotesDebugAlways(label: string, scope: string, payload?: unknown) {
-  appendNotesDebugEntry(label, scope, payload, { force: true });
-}
-
 function appendNotesDebugEntry(
   label: string,
   scope: string,
   payload?: unknown,
-  options: { force?: boolean } = {},
 ) {
-  if (!options.force && !isNotesDebugLoggingEnabled()) {
+  if (!isNotesDebugLoggingEnabled()) {
     return;
   }
 
@@ -142,27 +137,10 @@ function appendNotesDebugEntry(
     payload,
   };
   notesDebugEntries.push(entry);
-  mirrorNotesDebugEntryToConsole(entry, options);
 
   if (notesDebugEntries.length > MAX_NOTES_DEBUG_ENTRIES) {
     notesDebugEntries.splice(0, notesDebugEntries.length - MAX_NOTES_DEBUG_ENTRIES);
   }
-}
-
-function mirrorNotesDebugEntryToConsole(
-  entry: NotesDebugEntry,
-  options: { force?: boolean },
-) {
-  if (
-    import.meta.env.MODE === 'test'
-    || typeof console === 'undefined'
-    || !options.force
-    || entry.label !== 'NotesLoad'
-  ) {
-    return;
-  }
-
-  console.debug(formatNotesDebugEntry(entry));
 }
 
 export function logLineBreakDebug(scope: string, payload?: unknown) {

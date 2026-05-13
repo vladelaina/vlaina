@@ -64,14 +64,14 @@ describe('desktop account commands', () => {
     expect(mocks.account.verifyEmailCode).toHaveBeenCalledWith('vla@example.com', '123456');
   });
 
-  it('dispatches auth invalidation when managed calls fail with sign-in required', async () => {
+  it('does not dispatch auth invalidation when managed calls fail with sign-in required', async () => {
     const invalidated = vi.fn();
     window.addEventListener(ACCOUNT_AUTH_INVALIDATED_EVENT, invalidated, { once: true });
     mocks.account.getManagedBudget.mockRejectedValueOnce(new Error('vlaina sign-in required'));
 
     await expect(accountCommands.getManagedBudget()).rejects.toThrow('vlaina sign-in required');
 
-    expect(invalidated).toHaveBeenCalledTimes(1);
+    expect(invalidated).not.toHaveBeenCalled();
   });
 
   it('disconnects and dispatches auth invalidation', async () => {

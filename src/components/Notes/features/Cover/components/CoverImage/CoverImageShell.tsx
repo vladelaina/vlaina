@@ -93,11 +93,9 @@ export function CoverImageShell({
 
       {!displaySrc && !isError && (
         <div
-          className="absolute inset-0 flex items-center justify-center text-muted-foreground cursor-pointer z-10"
+          className="absolute inset-0 cursor-pointer z-10"
           onMouseDown={() => !readOnly && onOpenPicker()}
-        >
-          {!readOnly && <span className="text-xs">{t('notes.clickToChangeCover')}</span>}
-        </div>
+        />
       )}
 
       {readOnly && <div className="absolute inset-0 z-20" />}

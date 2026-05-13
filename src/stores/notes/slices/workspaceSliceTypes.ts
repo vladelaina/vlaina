@@ -17,6 +17,7 @@ export interface WorkspaceSlice {
   openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
   openNoteByAbsolutePath: (absolutePath: string, openInNewTab?: boolean) => Promise<void>;
   prefetchNote: NotesStore['prefetchNote'];
+  cancelPrefetchNote: NotesStore['cancelPrefetchNote'];
   adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => boolean;
   saveNote: NotesStore['saveNote'];
   syncCurrentNoteFromDisk: NotesStore['syncCurrentNoteFromDisk'];

@@ -58,7 +58,6 @@ export function createDesktopAccountService({ apiBaseUrl }) {
 
   const sessionClient = createDesktopAccountSessionClient({
     apiBaseUrl,
-    clearStoredAccountCredentials,
     logDesktopAuth,
     readStoredAccountCredentials,
     rotateStoredSessionToken,

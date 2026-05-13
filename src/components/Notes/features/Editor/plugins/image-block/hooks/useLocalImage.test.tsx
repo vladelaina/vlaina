@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLocalImage } from './useLocalImage';
+import { clearRemoteImageMemoryCacheForTests } from '../utils/remoteImageMemoryCache';
 
 const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
@@ -21,6 +22,20 @@ vi.mock('@/lib/storage/adapter', async (importOriginal) => ({
 describe('useLocalImage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearRemoteImageMemoryCacheForTests();
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      value: vi.fn(() => 'blob:remote-image'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      value: vi.fn(),
+    });
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      headers: new Headers({ 'content-length': '12' }),
+      blob: async () => new Blob(['remote image'], { type: 'image/png' }),
+    })));
   });
 
   it('does not try to resolve relative paths while the vault path is temporarily empty', async () => {
@@ -82,8 +97,90 @@ describe('useLocalImage', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    expect(result.current.resolvedSrc).toBe('https://example.com/tracker.png');
+    expect(result.current.resolvedSrc).toBe('blob:remote-image');
     expect(result.current.error).toBeNull();
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledWith('https://example.com/tracker.png', { cache: 'force-cache' });
     expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+  });
+
+  it('does not fetch or read images while loading is deferred', async () => {
+    const { result, rerender } = renderHook(
+      ({ enabled }) => useLocalImage('https://example.com/deferred.png', '/vault', 'daily/demo.md', enabled),
+      { initialProps: { enabled: false } }
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.resolvedSrc).toBe('');
+    expect(fetch).not.toHaveBeenCalled();
+    expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+
+    rerender({ enabled: true });
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.resolvedSrc).toBe('blob:remote-image');
+    });
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not read local images while loading is deferred', async () => {
+    const { result } = renderHook(() =>
+      useLocalImage('assets/demo.png', '/vault', 'daily/demo.md', false)
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.resolvedSrc).toBe('');
+    expect(hoisted.exists).not.toHaveBeenCalled();
+    expect(hoisted.loadImageAsBlob).not.toHaveBeenCalled();
+  });
+
+  it('reuses a cached remote image blob for repeated remote image opens', async () => {
+    const first = renderHook(() =>
+      useLocalImage('https://example.com/tracker.png', '/vault', 'daily/demo.md')
+    );
+
+    await waitFor(() => {
+      expect(first.result.current.isLoading).toBe(false);
+    });
+
+    const second = renderHook(() =>
+      useLocalImage('https://example.com/tracker.png', '/vault', 'daily/demo.md')
+    );
+
+    await waitFor(() => {
+      expect(second.result.current.isLoading).toBe(false);
+    });
+
+    expect(first.result.current.resolvedSrc).toBe('blob:remote-image');
+    expect(second.result.current.resolvedSrc).toBe('blob:remote-image');
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to the original remote URL instead of caching oversized remote images', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ 'content-length': String(9 * 1024 * 1024) }),
+      body: { cancel: vi.fn(async () => undefined) },
+      blob: vi.fn(),
+    } as unknown as Response);
+
+    const { result } = renderHook(() =>
+      useLocalImage('https://example.com/large.png', '/vault', 'daily/demo.md')
+    );
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
+    });
+
+    expect(result.current.resolvedSrc).toBe('https://example.com/large.png');
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
 });

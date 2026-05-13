@@ -11,6 +11,8 @@ export function useCurrentVaultInitialization({
   loadFileTree,
   cleanupAssetTempFiles,
   clearAssetUrlCache,
+  clearRemoteImageMemoryCache,
+  cancelNoteContentScan,
   onInitializingChange,
 }: {
   currentVaultPath: string | null;
@@ -22,6 +24,8 @@ export function useCurrentVaultInitialization({
   loadFileTree: (skipWorkspaceRestore?: boolean) => Promise<void>;
   cleanupAssetTempFiles: () => Promise<void>;
   clearAssetUrlCache: () => void;
+  clearRemoteImageMemoryCache: () => void;
+  cancelNoteContentScan: () => void;
   onInitializingChange?: (initializing: boolean) => void;
 }) {
   const initializedVaultPathRef = useRef<string | null>(null);
@@ -113,7 +117,9 @@ export function useCurrentVaultInitialization({
 
     return () => {
       cancelled = true;
+      cancelNoteContentScan();
       clearAssetUrlCache();
+      clearRemoteImageMemoryCache();
     };
   }, [
     currentVaultPath,
@@ -125,6 +131,8 @@ export function useCurrentVaultInitialization({
     loadFileTree,
     cleanupAssetTempFiles,
     clearAssetUrlCache,
+    clearRemoteImageMemoryCache,
+    cancelNoteContentScan,
     onInitializingChange,
   ]);
 }

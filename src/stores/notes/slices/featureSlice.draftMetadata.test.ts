@@ -432,7 +432,7 @@ describe('featureSlice draft metadata', () => {
       },
       currentNote: { path: notePath, content: '# Old alpha' },
       openTabs: [{ path: notePath, name: 'alpha', isDirty: false }],
-      noteContentsCache: new Map([[notePath, { content: '# Old alpha', modifiedAt: 1 }]]),
+      noteContentsCache: new Map(),
     });
 
     const scan = store.getState().scanAllNotes();
@@ -463,6 +463,118 @@ describe('featureSlice draft metadata', () => {
       content: '# Local edit during scan',
       modifiedAt: 1,
     });
+  });
+
+  it('reuses cached note contents during full-vault scans and reads only missing notes', async () => {
+    mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true });
+    mocks.readFile.mockResolvedValue('# Beta from disk');
+    const alphaPath = 'docs/alpha.md';
+    const betaPath = 'docs/beta.md';
+    const store = createNotesStore({
+      notesPath: '/vault',
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [
+          {
+            id: 'docs',
+            name: 'docs',
+            path: 'docs',
+            isFolder: true,
+            expanded: true,
+            children: [
+              { id: alphaPath, name: 'alpha', path: alphaPath, isFolder: false },
+              { id: betaPath, name: 'beta', path: betaPath, isFolder: false },
+            ],
+          },
+        ],
+      },
+      noteContentsCache: new Map([[alphaPath, { content: '# Alpha cached', modifiedAt: 1 }]]),
+    });
+
+    await store.getState().scanAllNotes();
+
+    expect(mocks.readFile).toHaveBeenCalledTimes(1);
+    expect(mocks.readFile).toHaveBeenCalledWith('/vault/docs/beta.md');
+    expect(store.getState().noteContentsCache.get(alphaPath)).toEqual({
+      content: '# Alpha cached',
+      modifiedAt: 1,
+    });
+    expect(store.getState().noteContentsCache.get(betaPath)).toEqual({
+      content: '# Beta from disk',
+      modifiedAt: 2,
+    });
+  });
+
+  it('stops full-vault scans before starting later batches after cancellation', async () => {
+    mocks.stat.mockResolvedValue({ modifiedAt: 2, isFile: true });
+    const pendingReads: Array<(content: string) => void> = [];
+    mocks.readFile.mockImplementation(() => new Promise<string>((resolve) => {
+      pendingReads.push(resolve);
+    }));
+    const notePaths = Array.from({ length: 12 }, (_, index) => `docs/${index}.md`);
+    const store = createNotesStore({
+      notesPath: '/vault',
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [
+          {
+            id: 'docs',
+            name: 'docs',
+            path: 'docs',
+            isFolder: true,
+            expanded: true,
+            children: notePaths.map((path) => ({
+              id: path,
+              name: path.split('/').pop() ?? path,
+              path,
+              isFolder: false as const,
+            })),
+          },
+        ],
+      },
+    });
+
+    const scan = store.getState().scanAllNotes();
+    await vi.waitFor(() => {
+      expect(mocks.readFile).toHaveBeenCalledTimes(10);
+    });
+
+    store.getState().cancelNoteContentScan();
+    pendingReads.forEach((resolve, index) => resolve(`# Note ${index}`));
+    await scan;
+
+    expect(mocks.readFile).toHaveBeenCalledTimes(10);
+    expect(store.getState().noteContentsCache.size).toBe(0);
+  });
+
+  it('does not start a full-vault scan when its signal is already aborted', async () => {
+    const abortController = new AbortController();
+    abortController.abort();
+    const store = createNotesStore({
+      notesPath: '/vault',
+      rootFolder: {
+        id: '',
+        name: 'Notes',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [{ id: 'alpha', name: 'alpha', path: 'alpha.md', isFolder: false }],
+      },
+    });
+
+    await store.getState().scanAllNotes({ signal: abortController.signal });
+
+    expect(mocks.stat).not.toHaveBeenCalled();
+    expect(mocks.readFile).not.toHaveBeenCalled();
+    expect(store.getState().noteContentsCache.size).toBe(0);
   });
 
   it('removes stale absolute-note icon and cover metadata after frontmatter deletion', async () => {

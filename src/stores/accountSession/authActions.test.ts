@@ -149,7 +149,7 @@ describe('accountSession auth actions', () => {
     );
   });
 
-  it('checkStatus falls back to disconnected state when probing throws', async () => {
+  it('checkStatus preserves the current account state when probing throws', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.webAccountCommands.probeStatus.mockRejectedValue(new Error('boom'));
 
@@ -158,7 +158,41 @@ describe('accountSession auth actions', () => {
 
     await createCheckStatus(set as never, get as never)();
 
-    expect(mocks.applyDisconnectedAccount).toHaveBeenCalledWith(set);
+    expect(set).toHaveBeenLastCalledWith({ isLoading: false });
+    expect(mocks.applyDisconnectedAccount).not.toHaveBeenCalled();
+  });
+
+  it('checkStatus preserves an existing account when probing reports disconnected', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    mocks.accountCommands.getAccountSessionStatus.mockResolvedValue({
+      connected: false,
+      provider: null,
+      username: null,
+      primaryEmail: null,
+      avatarUrl: null,
+      membershipTier: null,
+      membershipName: null,
+    });
+
+    const set = vi.fn();
+    const get = vi.fn(() => ({
+      isConnected: true,
+      provider: 'google',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: 'https://example.com/avatar.png',
+      membershipTier: 'pro',
+      membershipName: 'Pro',
+      error: null,
+    }));
+
+    await createCheckStatus(set as never, get as never)();
+
+    expect(set).toHaveBeenNthCalledWith(1, { isLoading: true });
+    expect(set).toHaveBeenNthCalledWith(2, { isLoading: false });
+    expect(mocks.persistUser).not.toHaveBeenCalled();
+    expect(mocks.refreshAvatar).not.toHaveBeenCalled();
+    expect(mocks.applyDisconnectedAccount).not.toHaveBeenCalled();
   });
 
   it('signIn stores web auth intent and redirects on successful web auth start', async () => {
@@ -232,6 +266,27 @@ describe('accountSession auth actions', () => {
     });
   });
 
+  it('signIn clears desktop auth cancellation without showing an error', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    mocks.accountCommands.accountAuth.mockResolvedValue({
+      success: false,
+      error: 'Authorization cancelled',
+    });
+    const checkStatus = vi.fn();
+    const set = vi.fn();
+    const get = vi.fn(() => ({ isConnecting: true, checkStatus }));
+
+    const result = await createSignIn(set as never, get as never)('google');
+
+    expect(result).toBe(false);
+    expect(checkStatus).not.toHaveBeenCalled();
+    expect(mocks.normalizeAuthError).not.toHaveBeenCalledWith('Authorization cancelled');
+    expect(set).toHaveBeenLastCalledWith({
+      error: null,
+      isConnecting: false,
+    });
+  });
+
   it('signIn cancels pending desktop auth when the desktop timeout expires', async () => {
     vi.useFakeTimers();
     mocks.hasElectronDesktopBridge.mockReturnValue(true);
@@ -301,6 +356,30 @@ describe('accountSession auth actions', () => {
     expect(mocks.webAccountCommands.completeAuth).not.toHaveBeenCalled();
     expect(set).toHaveBeenLastCalledWith({
       error: 'Account sign-in state mismatch',
+      isConnecting: false,
+    });
+  });
+
+  it('handleAuthCallback clears user-denied oauth callbacks without showing an error', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    sessionStorage.setItem('vlaina_auth_state', 'expected-state');
+    sessionStorage.setItem('vlaina_auth_provider', 'google');
+    mocks.webAccountCommands.handleAuthCallback.mockReturnValue({
+      provider: 'google',
+      state: 'expected-state',
+      error: 'access_denied',
+    });
+    const set = vi.fn();
+    const get = vi.fn(() => ({ checkStatus: vi.fn() }));
+
+    const result = await createHandleAuthCallback(set as never, get as never)();
+
+    expect(result).toBe(false);
+    expect(mocks.clearAuthIntent).toHaveBeenCalledTimes(1);
+    expect(mocks.normalizeAuthError).not.toHaveBeenCalledWith('access_denied');
+    expect(mocks.webAccountCommands.completeAuth).not.toHaveBeenCalled();
+    expect(set).toHaveBeenLastCalledWith({
+      error: null,
       isConnecting: false,
     });
   });

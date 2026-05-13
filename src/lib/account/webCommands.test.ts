@@ -19,7 +19,7 @@ describe('webAccountCommands', () => {
     vi.restoreAllMocks();
   });
 
-  it('treats cached metadata as disconnected until the cookie session is probed', () => {
+  it('treats cached metadata as connected until explicit sign-out', () => {
     sessionStorage.setItem(
       'vlaina_account_session',
       JSON.stringify({
@@ -32,7 +32,7 @@ describe('webAccountCommands', () => {
 
     const status = webAccountCommands.getStatus();
 
-    expect(status.connected).toBe(false);
+    expect(status.connected).toBe(true);
     expect(status.provider).toBe('google');
     expect(status.username).toBe('octocat');
     expect(status.primaryEmail).toBe('octocat@example.com');
@@ -77,7 +77,7 @@ describe('webAccountCommands', () => {
     });
   });
 
-  it('clears metadata when the cookie session is unauthorized', async () => {
+  it('preserves metadata when the cookie session is unauthorized', async () => {
     sessionStorage.setItem(
       'vlaina_account_session',
       JSON.stringify({ provider: 'github', username: 'octocat', avatarUrl: 'https://example.com/avatar.png' })
@@ -92,9 +92,11 @@ describe('webAccountCommands', () => {
 
     const status = await webAccountCommands.probeStatus();
 
-    expect(status.connected).toBe(false);
-    expect(sessionStorage.getItem('vlaina_account_session')).toBeNull();
-    expect(localStorage.getItem('vlaina_account_identity')).toBeNull();
+    expect(status.connected).toBe(true);
+    expect(status.provider).toBe('github');
+    expect(status.username).toBe('octocat');
+    expect(sessionStorage.getItem('vlaina_account_session')).not.toBeNull();
+    expect(localStorage.getItem('vlaina_account_identity')).not.toBeNull();
   });
 
   it('skips probing the hosted session API on local development origins', async () => {
@@ -115,7 +117,7 @@ describe('webAccountCommands', () => {
     const status = await webAccountCommands.probeStatus();
 
     expect(fetchMock).not.toHaveBeenCalled();
-    expect(status.connected).toBe(false);
+    expect(status.connected).toBe(true);
     expect(status.provider).toBe('github');
     expect(status.username).toBe('octocat');
   });

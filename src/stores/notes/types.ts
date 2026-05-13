@@ -134,6 +134,7 @@ export interface NotesActions {
   openNote: (path: string, openInNewTab?: boolean) => Promise<void>;
   openNoteByAbsolutePath: (absolutePath: string, openInNewTab?: boolean) => Promise<void>;
   prefetchNote: (path: string) => Promise<void>;
+  cancelPrefetchNote: (path: string) => void;
   adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => boolean;
   saveNote: (options?: { explicit?: boolean; suppressOpenTarget?: boolean }) => Promise<void>;
   syncCurrentNoteFromDisk: (options?: { force?: boolean }) => Promise<'ignored' | 'unchanged' | 'reloaded' | 'conflict' | 'deleted' | 'deleted-conflict'>;
@@ -161,7 +162,8 @@ export interface NotesActions {
   reopenClosedTab: () => Promise<void>;
   switchTab: (path: string) => void;
   reorderTabs: (fromIndex: number, toIndex: number) => void;
-  scanAllNotes: () => Promise<void>;
+  scanAllNotes: (options?: { signal?: AbortSignal }) => Promise<void>;
+  cancelNoteContentScan: () => void;
   pruneNoteContentsCacheToOpenNotes: () => void;
   getBacklinks: (notePath: string) => { path: string; name: string; context: string }[];
   getAllTags: () => { tag: string; count: number }[];

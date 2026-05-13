@@ -18,6 +18,8 @@ const baseProps = {
   loadFileTree: vi.fn().mockResolvedValue(undefined),
   cleanupAssetTempFiles: vi.fn().mockResolvedValue(undefined),
   clearAssetUrlCache: vi.fn(),
+  clearRemoteImageMemoryCache: vi.fn(),
+  cancelNoteContentScan: vi.fn(),
 };
 
 describe('useCurrentVaultInitialization', () => {
@@ -27,6 +29,8 @@ describe('useCurrentVaultInitialization', () => {
     baseProps.loadFileTree.mockClear();
     baseProps.cleanupAssetTempFiles.mockClear();
     baseProps.clearAssetUrlCache.mockClear();
+    baseProps.clearRemoteImageMemoryCache.mockClear();
+    baseProps.cancelNoteContentScan.mockClear();
   });
 
   it('skips workspace restore while opening a pending markdown target vault', async () => {
@@ -82,6 +86,8 @@ describe('useCurrentVaultInitialization', () => {
 
     expect(baseProps.loadFileTree).toHaveBeenCalledTimes(1);
     expect(baseProps.clearAssetUrlCache).not.toHaveBeenCalled();
+    expect(baseProps.clearRemoteImageMemoryCache).not.toHaveBeenCalled();
+    expect(baseProps.cancelNoteContentScan).not.toHaveBeenCalled();
 
     rerender({ currentVaultPath: null, pendingStarredNavigation: null });
     rerender({ currentVaultPath: '/vault', pendingStarredNavigation: null });
@@ -90,6 +96,20 @@ describe('useCurrentVaultInitialization', () => {
       expect(baseProps.loadFileTree).toHaveBeenCalledTimes(2);
     });
     expect(baseProps.loadFileTree).toHaveBeenLastCalledWith(false);
+  });
+
+  it('releases transient caches and cancels content scans when the vault effect is cleaned up', async () => {
+    const { unmount } = renderHook(() => useCurrentVaultInitialization(baseProps));
+
+    await waitFor(() => {
+      expect(baseProps.loadFileTree).toHaveBeenCalledWith(false);
+    });
+
+    unmount();
+
+    expect(baseProps.cancelNoteContentScan).toHaveBeenCalledTimes(1);
+    expect(baseProps.clearAssetUrlCache).toHaveBeenCalledTimes(1);
+    expect(baseProps.clearRemoteImageMemoryCache).toHaveBeenCalledTimes(1);
   });
 
   it('reports initialization while vault loading is in flight', async () => {

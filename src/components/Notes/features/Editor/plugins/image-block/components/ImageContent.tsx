@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { isPublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
 import { ImageCropper } from './ImageCropper';
 import { getCropViewStyles } from '../utils/cropGeometry';
 import type { CropParams } from '../utils/imageSourceFragment';
@@ -12,6 +11,8 @@ interface ImageContentProps {
     isLoading: boolean;
     loadError: boolean;
     resolvedSrc?: string;
+    isRemoteImageSource: boolean;
+    isDeferred: boolean;
     isReady: boolean;
     cropParams: CropParams | null;
     containerSize: { width: number; height: number };
@@ -28,6 +29,8 @@ export const ImageContent = ({
     isLoading,
     loadError,
     resolvedSrc,
+    isRemoteImageSource,
+    isDeferred,
     isReady,
     cropParams,
     containerSize,
@@ -48,10 +51,20 @@ export const ImageContent = ({
         setIsImageLoaded(false);
     }, [resolvedSrc]);
 
-    const isRemoteImage = isPublicRemoteMediaUrl(resolvedSrc);
-    const shouldRenderPlainRemoteImage = isRemoteImage && !isActive && !cropParams;
+    const shouldRenderPlainRemoteImage = isRemoteImageSource && !isActive && !cropParams;
     const shouldRenderCropPreview = !isActive && !!cropParams;
     const cropPreviewStyles = cropParams ? getCropViewStyles(cropParams) : null;
+
+    if (isDeferred && !isReady) {
+        return (
+            <div
+                data-testid="deferred-image-placeholder"
+                className="w-full h-full min-h-[100px] flex items-center justify-center bg-gray-50 dark:bg-zinc-900 border border-dashed border-gray-200 dark:border-zinc-700 rounded-md"
+            >
+                <Icon name="file.image" className="size-6 text-gray-300 dark:text-zinc-600" />
+            </div>
+        );
+    }
 
     if ((isLoading || !resolvedSrc) && !isReady) {
         return (

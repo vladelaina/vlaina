@@ -10,6 +10,10 @@ interface UseTreeItemPathActionsOptions {
   openInNewWindowErrorMessage?: string;
 }
 
+function isUnavailableNotesPathError(error: unknown): boolean {
+  return error instanceof Error && error.message === 'Notes path is not available';
+}
+
 export function useTreeItemPathActions({
   notesPath,
   itemPath,
@@ -23,6 +27,9 @@ export function useTreeItemPathActions({
     try {
       await copyTreeItemPath(notesPath, itemPath);
     } catch (error) {
+      if (isUnavailableNotesPathError(error)) {
+        return;
+      }
       addToast(error instanceof Error ? error.message : copyErrorMessage, 'error');
     }
   }, [addToast, copyErrorMessage, itemPath, notesPath]);
@@ -31,6 +38,9 @@ export function useTreeItemPathActions({
     try {
       await openTreeItemLocation(notesPath, itemPath);
     } catch (error) {
+      if (isUnavailableNotesPathError(error)) {
+        return;
+      }
       addToast(error instanceof Error ? error.message : openLocationErrorMessage, 'error');
     }
   }, [addToast, itemPath, notesPath, openLocationErrorMessage]);
@@ -39,6 +49,9 @@ export function useTreeItemPathActions({
     try {
       await openTreeItemInNewWindow(notesPath, itemPath, itemKind);
     } catch (error) {
+      if (isUnavailableNotesPathError(error)) {
+        return;
+      }
       addToast(error instanceof Error ? error.message : openInNewWindowErrorMessage, 'error');
     }
   }, [addToast, itemPath, notesPath, openInNewWindowErrorMessage]);

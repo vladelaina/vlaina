@@ -17,7 +17,7 @@ import {
   loadNoteMetadata,
   loadWorkspaceState,
 } from '../storage';
-import { logNotesDebugAlways } from '../lineBreakDebugLog';
+import { logNotesDebug } from '../lineBreakDebugLog';
 import { getVaultStarredPaths } from '../starred';
 import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
@@ -33,6 +33,10 @@ function getFileTreeLoadPerfNow() {
 
 function roundFileTreeLoadPerfMs(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function isNoVaultSelectedError(error: unknown): boolean {
+  return error instanceof Error && error.message === 'No vault selected';
 }
 
 export function invalidatePendingFileTreeLoads() {
@@ -82,7 +86,7 @@ export function createFileSystemTreeActions(
         });
       };
       const shouldShowLoading = !get().rootFolder;
-      logNotesDebugAlways('NotesLoad', 'file-tree:start', {
+      logNotesDebug('NotesLoad', 'file-tree:start', {
         requestId,
         skipRestore,
         shouldShowLoading,
@@ -120,7 +124,7 @@ export function createFileSystemTreeActions(
         });
         markStep('sort-tree', stepStartedAt);
         if (requestId !== latestLoadFileTreeRequestId || getCurrentVaultPath() !== basePath) {
-          logNotesDebugAlways('NotesLoad', 'file-tree:stale-after-build', {
+          logNotesDebug('NotesLoad', 'file-tree:stale-after-build', {
             requestId,
             latestLoadFileTreeRequestId,
             basePath,
@@ -157,7 +161,7 @@ export function createFileSystemTreeActions(
         markStep('restore-expanded', stepStartedAt);
 
         if (requestId !== latestLoadFileTreeRequestId || getCurrentVaultPath() !== basePath) {
-          logNotesDebugAlways('NotesLoad', 'file-tree:stale-before-set', {
+          logNotesDebug('NotesLoad', 'file-tree:stale-before-set', {
             requestId,
             latestLoadFileTreeRequestId,
             basePath,
@@ -200,7 +204,7 @@ export function createFileSystemTreeActions(
         });
         markStep('set-state', stepStartedAt);
         const restoredCounts = countFileTreeNodes(restoredChildren);
-        logNotesDebugAlways('NotesLoad', 'file-tree:ready', {
+        logNotesDebug('NotesLoad', 'file-tree:ready', {
           requestId,
           basePath,
           skipRestore,
@@ -230,7 +234,7 @@ export function createFileSystemTreeActions(
               await storage.exists(fullPath)
             ) {
               await get().openNote(relativePath);
-              logNotesDebugAlways('NotesLoad', 'file-tree:restored-current-note', {
+              logNotesDebug('NotesLoad', 'file-tree:restored-current-note', {
                 requestId,
                 basePath,
                 relativePath,
@@ -244,7 +248,7 @@ export function createFileSystemTreeActions(
 
         if (requestId === latestLoadFileTreeRequestId && getCurrentVaultPath() === basePath) {
           set({ isLoading: false });
-          logNotesDebugAlways('NotesLoad', 'file-tree:done', {
+          logNotesDebug('NotesLoad', 'file-tree:done', {
             requestId,
             basePath,
             totalDurationMs: roundFileTreeLoadPerfMs(getFileTreeLoadPerfNow() - startedAt),
@@ -253,7 +257,17 @@ export function createFileSystemTreeActions(
         }
       } catch (error) {
         if (requestId === latestLoadFileTreeRequestId) {
-          logNotesDebugAlways('NotesLoad', 'file-tree:failed', {
+          if (isNoVaultSelectedError(error)) {
+            logNotesDebug('NotesLoad', 'file-tree:skipped-no-vault', {
+              requestId,
+              skipRestore,
+              totalDurationMs: roundFileTreeLoadPerfMs(getFileTreeLoadPerfNow() - startedAt),
+              timings,
+            });
+            set({ error: null, isLoading: false });
+            return;
+          }
+          logNotesDebug('NotesLoad', 'file-tree:failed', {
             requestId,
             skipRestore,
             totalDurationMs: roundFileTreeLoadPerfMs(getFileTreeLoadPerfNow() - startedAt),

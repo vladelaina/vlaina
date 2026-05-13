@@ -2,6 +2,7 @@ import type { VideoAttrs } from './types';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import {
+  isVideoDebugLoggingEnabled,
   logVideoDebug,
   registerVideoDebugListeners,
 } from './videoDebug';
@@ -57,7 +58,7 @@ function createVideoIframe(args: {
   iframe.setAttribute('scrolling', 'no');
   iframe.setAttribute('border', '0');
   iframe.setAttribute('framespacing', '0');
-  iframe.loading = 'eager';
+  iframe.loading = 'lazy';
   if (attrs.title) iframe.title = attrs.title;
 
   const elapsedMs = () => Math.round((performance.now() - createdAt) * 100) / 100;
@@ -74,7 +75,7 @@ function createVideoIframe(args: {
       elapsedMs: elapsedMs(),
     });
   });
-  if (parsed.type === 'youtube') {
+  if (parsed.type === 'youtube' && isVideoDebugLoggingEnabled()) {
     window.setTimeout(() => {
       if (didLoad || !iframe.isConnected) return;
       logVideoDebug('youtube_iframe_timeout', {

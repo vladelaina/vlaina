@@ -1,7 +1,12 @@
 import type { Node } from '@milkdown/kit/prose/model';
 import type { EditorView, NodeView } from '@milkdown/kit/prose/view';
 import { attachPreviewContextMenu, type PreviewContextMenuSession } from '../shared/previewContextMenu';
-import { createMermaidElement, getMermaidElementCode, renderMermaidEditorLivePreview } from './mermaidDom';
+import {
+  createMermaidElement,
+  disposeMermaidElement,
+  getMermaidElementCode,
+  renderMermaidEditorLivePreview,
+} from './mermaidDom';
 import { normalizeMermaidEditorCodeInput } from './mermaidFenceCode';
 
 export function shouldRefreshMermaidElementCode(element: HTMLElement, code: string) {
@@ -15,7 +20,8 @@ export class MermaidNodeView implements NodeView {
 
   constructor(node: Node, view: EditorView, getPos: () => number | undefined) {
     this.node = node;
-    this.dom = createMermaidElement(String(node.attrs.code || ''));
+    const code = String(node.attrs.code || '');
+    this.dom = createMermaidElement(code);
     this.contextMenu = attachPreviewContextMenu({
       element: this.dom,
       fileBaseName: 'mermaid-diagram',
@@ -48,6 +54,7 @@ export class MermaidNodeView implements NodeView {
   }
 
   destroy() {
+    disposeMermaidElement(this.dom);
     this.contextMenu.destroy();
   }
 }

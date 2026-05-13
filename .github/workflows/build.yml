@@ -67,28 +67,14 @@ jobs:
       matrix:
         include:
           - os: windows-latest
+            platform: windows
             target: --win
-            artifact_name: vlaina-installers-windows
-            artifact_path: |
-              release/*.exe
-              release/*.blockmap
-              release/latest*.yml
           - os: macos-latest
+            platform: macos
             target: --mac
-            artifact_name: vlaina-installers-macos
-            artifact_path: |
-              release/*.dmg
-              release/*.zip
-              release/*.blockmap
-              release/latest*.yml
           - os: ubuntu-latest
+            platform: linux
             target: --linux
-            artifact_name: vlaina-installers-linux
-            artifact_path: |
-              release/*.AppImage
-              release/*.tar.gz
-              release/*.deb
-              release/latest*.yml
 
     permissions:
       contents: read
@@ -126,12 +112,100 @@ jobs:
       - name: Package Electron app
         run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.target }} --publish never
 
-      - name: Upload installer artifacts
-        if: success()
+      - name: Upload Windows NSIS installer
+        if: success() && matrix.platform == 'windows'
         uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.artifact_path }}
+          name: vlaina-windows-nsis
+          path: release/*.exe
+          if-no-files-found: error
+
+      - name: Upload Windows blockmap
+        if: success() && matrix.platform == 'windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-windows-blockmap
+          path: release/*.exe.blockmap
+          if-no-files-found: error
+
+      - name: Upload Windows update metadata
+        if: success() && matrix.platform == 'windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-windows-latest-yml
+          path: release/latest*.yml
+          if-no-files-found: error
+
+      - name: Upload macOS DMG
+        if: success() && matrix.platform == 'macos'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-macos-dmg
+          path: release/*.dmg
+          if-no-files-found: error
+
+      - name: Upload macOS DMG blockmap
+        if: success() && matrix.platform == 'macos'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-macos-dmg-blockmap
+          path: release/*.dmg.blockmap
+          if-no-files-found: error
+
+      - name: Upload macOS ZIP
+        if: success() && matrix.platform == 'macos'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-macos-zip
+          path: release/*.zip
+          if-no-files-found: error
+
+      - name: Upload macOS ZIP blockmap
+        if: success() && matrix.platform == 'macos'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-macos-zip-blockmap
+          path: release/*.zip.blockmap
+          if-no-files-found: error
+
+      - name: Upload macOS update metadata
+        if: success() && matrix.platform == 'macos'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-macos-latest-yml
+          path: release/latest*.yml
+          if-no-files-found: error
+
+      - name: Upload Linux AppImage
+        if: success() && matrix.platform == 'linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-linux-appimage
+          path: release/*.AppImage
+          if-no-files-found: error
+
+      - name: Upload Linux DEB
+        if: success() && matrix.platform == 'linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-linux-deb
+          path: release/*.deb
+          if-no-files-found: error
+
+      - name: Upload Linux tar.gz
+        if: success() && matrix.platform == 'linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-linux-tar-gz
+          path: release/*.tar.gz
+          if-no-files-found: error
+
+      - name: Upload Linux update metadata
+        if: success() && matrix.platform == 'linux'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-linux-latest-yml
+          path: release/latest*.yml
           if-no-files-found: error
 
   publish:

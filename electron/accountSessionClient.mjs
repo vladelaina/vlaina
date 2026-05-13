@@ -61,7 +61,6 @@ function summarizeSessionPayload(payload, text) {
 
 export function createDesktopAccountSessionClient({
   apiBaseUrl,
-  clearStoredAccountCredentials,
   logDesktopAuth,
   readStoredAccountCredentials,
   rotateStoredSessionToken,
@@ -159,8 +158,12 @@ export function createDesktopAccountSessionClient({
         });
         throw new Error('vlaina session is still activating');
       }
-      await clearStoredAccountCredentials();
-      throw new Error('vlaina sign-in required');
+      logDesktopAuth('stored_session:http:unauthorized_cached', {
+        status: response.status,
+        url,
+        credentials: summarizeStoredCredentials(credentials),
+      });
+      throw new Error('vlaina session is temporarily unavailable');
     }
 
     await rotateStoredSessionToken(response.headers);
@@ -279,9 +282,6 @@ export function createDesktopAccountSessionClient({
 
         logDesktopAuth('session_status:unauthorized', { status: response.status });
         const resolved = resolveDesktopSessionProbe(credentials, { kind: 'unauthorized' });
-        if (resolved.clearStoredCredentials) {
-          await clearStoredAccountCredentials();
-        }
         return resolved.status;
       }
 
@@ -307,14 +307,6 @@ export function createDesktopAccountSessionClient({
         payload,
         rotatedAppSessionToken,
       });
-      if (resolved.clearStoredCredentials) {
-        logDesktopAuth('session_status:disconnected_payload', {
-          summary: summarizeSessionPayload(payload, text),
-        });
-        await clearStoredAccountCredentials();
-        return resolved.status;
-      }
-
       if (resolved.nextCredentials) {
         await writeStoredAccountCredentials(resolved.nextCredentials);
       }

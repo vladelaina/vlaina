@@ -1,5 +1,5 @@
 import { createRef, type ComponentProps } from 'react';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CoverImageShell } from './CoverImageShell';
 import type { CoverRendererProps } from './coverRenderer.types';
@@ -114,6 +114,28 @@ describe('CoverImageShell', () => {
     expect(screen.getByTestId('cover-renderer')).toBeInTheDocument();
     expect(hoisted.coverRendererSpy).toHaveBeenCalled();
     expect(container.firstElementChild?.getAttribute('style')).toContain('overflow-anchor: none');
+  });
+
+  it('keeps the unloaded cover area clickable without showing a text hint', () => {
+    const onOpenPicker = vi.fn();
+    const { container } = render(
+      <CoverImageShell
+        {...buildShellProps({
+          phase: 'ready',
+          url: './assets/cover.webp',
+          displaySrc: '',
+          onOpenPicker,
+        })}
+      />
+    );
+    const overlay = container.querySelector('.cursor-pointer.z-10');
+
+    expect(screen.queryByText('Click to change cover')).not.toBeInTheDocument();
+    expect(overlay).not.toBeNull();
+
+    fireEvent.mouseDown(overlay!);
+
+    expect(onOpenPicker).toHaveBeenCalledTimes(1);
   });
 
   it('shows the cover error only after it persists and keeps the message minimal', () => {
