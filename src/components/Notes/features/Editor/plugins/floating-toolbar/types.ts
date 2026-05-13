@@ -29,6 +29,8 @@ export interface AiReviewState {
   suggestedText: string;
   isLoading: boolean;
   errorMessage: string | null;
+  errorType?: string | null;
+  errorCode?: string | null;
 }
 
 export type SubMenuType = 'ai' | 'aiReview' | 'block' | 'link' | 'color' | 'alignment' | null;

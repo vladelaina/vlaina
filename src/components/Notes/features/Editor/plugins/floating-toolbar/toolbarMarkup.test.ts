@@ -311,4 +311,30 @@ describe('toolbar markup', () => {
     expect(markup).not.toContain('ai-review-result-surface');
     expect(markup).not.toContain('ai-review-diff-removed');
   });
+
+  it('renders the sign-in slot for AI review auth errors', () => {
+    const markup = renderToolbarMarkup(
+      createState({
+        subMenu: 'aiReview',
+        aiReview: {
+          requestKey: 'review-auth-error',
+          instruction: 'Translate to English',
+          commandId: 'translate-en',
+          toneId: null,
+          from: 1,
+          to: 4,
+          originalText: '你好啊',
+          suggestedText: '',
+          isLoading: false,
+          errorMessage: 'Your sign-in session has expired. Please sign in again and try again.',
+          errorType: 'AUTH_ERROR',
+          errorCode: '401',
+        },
+      })
+    );
+
+    expect(markup).toContain('ai-review-sign-in-slot');
+    expect(markup).not.toContain('Your sign-in session has expired');
+    expect(markup).not.toContain('ai-review-error');
+  });
 });

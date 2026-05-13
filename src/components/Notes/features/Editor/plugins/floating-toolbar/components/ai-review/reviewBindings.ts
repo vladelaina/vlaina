@@ -129,6 +129,8 @@ export function bindAiReviewActions({
           suggestedText: '',
           isLoading: false,
           errorMessage: result.errorMessage,
+          errorType: result.errorType ?? null,
+          errorCode: result.errorCode ?? null,
         });
         return;
       }

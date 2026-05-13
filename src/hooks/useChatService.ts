@@ -8,6 +8,7 @@ import { generateId } from '@/lib/id';
 import { isManagedProviderId } from '@/lib/ai/managedService';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useAIUIStore } from '@/stores/ai/chatState';
+import { useAccountSessionStore } from '@/stores/accountSession';
 import { useAutoTitle } from './useAutoTitle';
 import { requestManager } from '@/lib/ai/requestManager';
 import { getUserFacingAIError } from '@/lib/ai/errors';
@@ -66,6 +67,7 @@ export function useChatService() {
   const customSystemPrompt = useUnifiedStore((state) => state.data.ai?.customSystemPrompt || '');
   const includeTimeContext = useUnifiedStore((state) => state.data.ai?.includeTimeContext !== false);
   const webSearchEnabled = useUnifiedStore((state) => state.data.ai?.webSearchEnabled === true);
+  const isAccountConnected = useAccountSessionStore((state) => state.isConnected);
   const setSessionLoading = useAIUIStore((state) => state.setSessionLoading);
   const markSessionUnread = useAIUIStore((state) => state.markSessionUnread);
   const setError = useAIUIStore((state) => state.setError);
@@ -140,7 +142,18 @@ export function useChatService() {
 
       let activeSessionId = currentSessionId;
       if (!activeSessionId) {
-        activeSessionId = aiActions.createSession('');
+        if (isManagedProviderId(provider.id) && !isAccountConnected) {
+          aiActions.toggleTemporaryChat(true);
+          activeSessionId = useAIUIStore.getState().currentSessionId;
+          if (activeSessionId) {
+            useAIUIStore.getState().setAuthPromptSessionId(activeSessionId);
+          }
+        } else {
+          activeSessionId = aiActions.createSession('');
+        }
+      }
+      if (!activeSessionId) {
+        return;
       }
 
       const targetSessionId = activeSessionId;
@@ -272,6 +285,7 @@ export function useChatService() {
       setError,
       maybeGenerateAutoTitle,
       markSessionUnread,
+      isAccountConnected,
     ],
   );
 

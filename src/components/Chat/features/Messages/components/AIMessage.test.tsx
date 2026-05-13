@@ -38,7 +38,17 @@ vi.mock("./MessageToolbar", () => ({
 }));
 
 vi.mock("./ErrorBlock", () => ({
-  ErrorBlock: ({ content }: { content: string }) => <div data-testid="error">{content}</div>,
+  ErrorBlock: ({
+    content,
+    showLoginPrompt,
+  }: {
+    content: string;
+    showLoginPrompt?: boolean;
+  }) => (
+    <div data-testid="error" data-login-prompt={String(Boolean(showLoginPrompt))}>
+      {content}
+    </div>
+  ),
 }));
 
 import { AIMessage } from "./AIMessage";
@@ -223,6 +233,44 @@ describe("AIMessage", () => {
 
     expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Visible");
     expect(screen.getByTestId("error")).toHaveTextContent("Request failed");
+  });
+
+  it("shows the managed model auth prompt without the assistant toolbar", () => {
+    render(
+      <AIMessage
+        msg={{
+          ...createMessage('<error type="AUTH_ERROR" code="401">Sign in required</error>'),
+          modelId: "vlaina-managed::gpt-test",
+        }}
+        imageGallery={[]}
+        isLoading={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId("error")).toHaveAttribute("data-login-prompt", "true");
+    expect(screen.queryByTestId("toolbar")).not.toBeInTheDocument();
+  });
+
+  it("keeps the normal error block and toolbar for non-managed auth errors", () => {
+    render(
+      <AIMessage
+        msg={{
+          ...createMessage('<error type="AUTH_ERROR" code="401">Invalid API key</error>'),
+          modelId: "provider-1::gpt-test",
+        }}
+        imageGallery={[]}
+        isLoading={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId("error")).toHaveAttribute("data-login-prompt", "false");
+    expect(screen.getByTestId("toolbar")).toBeInTheDocument();
   });
 
   it("keeps web search results visible after sources are read", () => {

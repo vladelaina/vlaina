@@ -37,6 +37,8 @@ export function createAiReviewState(
     suggestedText: '',
     isLoading: true,
     errorMessage: null,
+    errorType: null,
+    errorCode: null,
   };
 }
 
@@ -61,6 +63,8 @@ export function createEmptyAiReviewState(
     suggestedText: '',
     isLoading: false,
     errorMessage: null,
+    errorType: null,
+    errorCode: null,
   };
 }
 
@@ -80,6 +84,8 @@ export function createLoadingAiReviewState(
     suggestedText: '',
     isLoading: true,
     errorMessage: null,
+    errorType: null,
+    errorCode: null,
   };
 }
 
@@ -89,7 +95,9 @@ export function createFailedAiReviewState(
   instruction: string,
   commandId: string,
   toneId: string | null | undefined,
-  errorMessage: string | null
+  errorMessage: string | null,
+  errorType?: string | null,
+  errorCode?: string | null
 ): AiReviewState {
   return {
     ...review,
@@ -100,6 +108,8 @@ export function createFailedAiReviewState(
     suggestedText: '',
     isLoading: false,
     errorMessage,
+    errorType: errorType ?? null,
+    errorCode: errorCode ?? null,
   };
 }
 
@@ -116,6 +126,8 @@ export function createResolvedAiReviewState(
     toneId: toneId ?? null,
     isLoading: false,
     errorMessage: null,
+    errorType: null,
+    errorCode: null,
   };
 }
 
@@ -134,7 +146,9 @@ export function toResolvedAiReviewState(
       instruction,
       commandId,
       toneId,
-      result.errorMessage
+      result.errorMessage,
+      result.errorType,
+      result.errorCode
     );
   }
 

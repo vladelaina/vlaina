@@ -24,10 +24,13 @@ export function renderAiReviewMarkup(state: FloatingToolbarState): string | null
   const applyLabel = translate('common.apply');
   const showRetryAction = !review.isLoading && (!!review.errorMessage || review.suggestedText.trim().length > 0);
   const canRenderDiff = Boolean(review.instruction) && review.suggestedText.trim().length > 0;
+  const showSignInPrompt = review.errorType === 'AUTH_ERROR';
   const resultMarkup = review.isLoading
     ? '<div class="ai-review-loading-slot"></div>'
     : review.errorMessage
-      ? `<div class="ai-review-error" role="alert">${escapeHtml(review.errorMessage)}</div>`
+      ? showSignInPrompt
+        ? '<div class="ai-review-sign-in-slot"></div>'
+        : `<div class="ai-review-error" role="alert">${escapeHtml(review.errorMessage)}</div>`
     : canRenderDiff
       ? `
       <div class="ai-review-result-surface">${renderAiReviewDiffMarkup(review.originalText, review.suggestedText)}</div>

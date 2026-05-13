@@ -11,6 +11,8 @@ export interface AiRequestOptions {
 export interface AiSelectionSuggestionResult {
   suggestion: AiSelectionSuggestion | null;
   errorMessage: string | null;
+  errorType?: string | null;
+  errorCode?: string | null;
 }
 
 export interface SelectionSource {

@@ -32,8 +32,10 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
       <DialogContent
         showCloseButton={false}
         useBlurBackdrop
+        containerClassName="z-[1001]"
         blurBackdropProps={{ 
           overlayClassName: 'bg-zinc-950/20 backdrop-blur-sm', 
+          zIndex: 1000,
           blurPx: 8, 
           duration: 0.05 
         }}

@@ -376,7 +376,8 @@ export function ModelSelector({
           }));
   }, [categoryFilteredModels, providers]);
 
-  const showGroupedSections = visibleActiveCategoryId !== 'favorites' || groupedFilteredModels.length > 1;
+  const showGroupedSections = groupedFilteredModels.length > 1
+      || groupedFilteredModels.some((group) => !isManagedProviderId(group.providerId));
   const emptyStateText = visibleActiveCategoryId === 'favorites'
       ? 'No favorite models'
       : 'No models found';

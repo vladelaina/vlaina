@@ -1,11 +1,14 @@
 import React, { useCallback } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import { useAccountSessionStore } from '@/stores/accountSession';
+import { actions as aiActions } from '@/stores/useAIStore';
+import { useAIUIStore } from '@/stores/ai/chatState';
 import { useUserAvatar } from '@/hooks/useUserAvatar';
 import { cn } from '@/lib/utils';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { useI18n } from '@/lib/i18n';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { ACCOUNT_LOGIN_REQUESTED_EVENT } from '@/lib/account/sessionEvent';
 import { LoginPrompt } from './LoginPrompt';
 import { AccountLoginDialog } from './AccountLoginDialog';
 import { UserIdentityCard } from './UserIdentityCard';
@@ -18,6 +21,9 @@ interface WorkspaceSwitcherProps {
 
 const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherProps) => {
   const { isConnected, username, primaryEmail, signOut } = useAccountSessionStore();
+  const authPromptSessionId = useAIUIStore((state) => state.authPromptSessionId);
+  const currentSessionId = useAIUIStore((state) => state.currentSessionId);
+  const temporaryChatEnabled = useAIUIStore((state) => state.temporaryChatEnabled);
   const { t } = useI18n();
 
   const [isOpen, setIsOpen] = React.useState(false);
@@ -59,10 +65,28 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
   }, []);
 
   React.useEffect(() => {
+    window.addEventListener(ACCOUNT_LOGIN_REQUESTED_EVENT, handleOpenLoginDialog);
+    return () => {
+      window.removeEventListener(ACCOUNT_LOGIN_REQUESTED_EVENT, handleOpenLoginDialog);
+    };
+  }, [handleOpenLoginDialog]);
+
+  React.useEffect(() => {
     if (isConnected) {
       setIsLoginDialogOpen(false);
     }
   }, [isConnected, username, primaryEmail]);
+
+  React.useEffect(() => {
+    if (!isConnected || !authPromptSessionId) {
+      return;
+    }
+
+    if (temporaryChatEnabled && currentSessionId === authPromptSessionId) {
+      aiActions.promoteTemporarySession();
+    }
+    useAIUIStore.getState().setAuthPromptSessionId(null);
+  }, [authPromptSessionId, currentSessionId, isConnected, temporaryChatEnabled]);
 
   return (
     <>
