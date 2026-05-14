@@ -1,11 +1,14 @@
 import { getExternalLinkProps } from "@/lib/navigation/externalLinks";
 import { SignInPromptPill } from './SignInPromptPill';
+import { Icon } from "@/components/ui/icons";
+import { openExternalHref } from "@/lib/navigation/externalLinks";
 
 interface ErrorBlockProps {
   type?: string;
   code?: string;
   content: string;
   showLoginPrompt?: boolean;
+  showBillingPrompt?: boolean;
 }
 
 const renderWithLinks = (text: string) => {
@@ -38,7 +41,7 @@ const renderWithLinks = (text: string) => {
   });
 };
 
-export function ErrorBlock({ content, showLoginPrompt = false }: ErrorBlockProps) {
+export function ErrorBlock({ content, showLoginPrompt = false, showBillingPrompt = false }: ErrorBlockProps) {
   if (showLoginPrompt) {
     return (
       <div className="w-full mb-2" data-no-focus-input="true">
@@ -55,6 +58,17 @@ export function ErrorBlock({ content, showLoginPrompt = false }: ErrorBlockProps
       >
         {renderWithLinks(content)}
       </div>
+      {showBillingPrompt && (
+        <button
+          type="button"
+          onClick={() => void openExternalHref('https://vlaina.com/pricing')}
+          data-no-focus-input="true"
+          className="mt-3 inline-flex h-10 items-center gap-2 rounded-2xl bg-zinc-950 px-4 text-[13px] font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+        >
+          <Icon name="misc.crown" size="sm" />
+          购买会员
+        </button>
+      )}
     </div>
   );
 }

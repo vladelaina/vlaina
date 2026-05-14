@@ -2,6 +2,8 @@ import { act } from "react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ChatMessage } from "@/lib/ai/types";
+import { useAccountSessionStore } from "@/stores/accountSession";
+import { initialAccountSessionState } from "@/stores/accountSession/state";
 
 vi.mock("@/components/Chat/features/Markdown/MarkdownRenderer", () => ({
   default: ({
@@ -41,11 +43,17 @@ vi.mock("./ErrorBlock", () => ({
   ErrorBlock: ({
     content,
     showLoginPrompt,
+    showBillingPrompt,
   }: {
     content: string;
     showLoginPrompt?: boolean;
+    showBillingPrompt?: boolean;
   }) => (
-    <div data-testid="error" data-login-prompt={String(Boolean(showLoginPrompt))}>
+    <div
+      data-testid="error"
+      data-login-prompt={String(Boolean(showLoginPrompt))}
+      data-billing-prompt={String(Boolean(showBillingPrompt))}
+    >
       {content}
     </div>
   ),
@@ -69,6 +77,10 @@ function createMessage(content: string): ChatMessage {
 describe("AIMessage", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    useAccountSessionStore.setState({
+      ...initialAccountSessionState,
+      isLoading: false,
+    });
   });
 
   afterEach(() => {
@@ -254,6 +266,33 @@ describe("AIMessage", () => {
     expect(screen.queryByTestId("toolbar")).not.toBeInTheDocument();
   });
 
+  it("hides the managed model auth prompt after the account is connected", () => {
+    useAccountSessionStore.setState({
+      ...initialAccountSessionState,
+      isConnected: true,
+      isLoading: false,
+      provider: "google",
+      primaryEmail: "user@example.com",
+    });
+
+    render(
+      <AIMessage
+        msg={{
+          ...createMessage('<error type="AUTH_ERROR" code="401">Sign in required</error>'),
+          modelId: "vlaina-managed::gpt-test",
+        }}
+        imageGallery={[]}
+        isLoading={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId("error")).toHaveAttribute("data-login-prompt", "false");
+    expect(screen.getByTestId("toolbar")).toBeInTheDocument();
+  });
+
   it("keeps the normal error block and toolbar for non-managed auth errors", () => {
     render(
       <AIMessage
@@ -270,6 +309,25 @@ describe("AIMessage", () => {
     );
 
     expect(screen.getByTestId("error")).toHaveAttribute("data-login-prompt", "false");
+    expect(screen.getByTestId("toolbar")).toBeInTheDocument();
+  });
+
+  it("shows the managed model billing prompt for quota errors", () => {
+    render(
+      <AIMessage
+        msg={{
+          ...createMessage('<error type="QUOTA_EXHAUSTED" code="403">点数已经用完了</error>'),
+          modelId: "vlaina-managed::gpt-test",
+        }}
+        imageGallery={[]}
+        isLoading={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId("error")).toHaveAttribute("data-billing-prompt", "true");
     expect(screen.getByTestId("toolbar")).toBeInTheDocument();
   });
 
