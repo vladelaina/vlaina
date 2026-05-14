@@ -1,4 +1,5 @@
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
+import { getBaseName, getParentPath, isAbsolutePath } from '@/lib/storage/adapter';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import {
   collectExpandedPaths,
@@ -8,8 +9,12 @@ import {
   updateFolderNode,
 } from '../fileTreeUtils';
 import {
+  dedupeStarredEntries,
+  getStarredEntryAbsolutePath,
   getVaultStarredPaths,
+  normalizeStarredVaultPath,
   remapStarredEntriesForVault,
+  resolveStarredRelativePathForVault,
   saveStarredRegistry,
 } from '../starred';
 import { openStoredNotePath } from '../openNotePath';
@@ -27,6 +32,7 @@ import {
   pruneOpenTabsForExternalDeletion,
   pruneRecentNotesForExternalDeletion,
   remapCurrentNoteForExternalRename,
+  remapPathForExternalRename,
   remapDisplayNamesForExternalRename,
   remapExpandedFoldersForExternalRename,
   remapOpenTabsForExternalRename,
@@ -37,6 +43,65 @@ import { persistRecentNotes, remapMetadataEntries } from '../storage';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
+import type { StarredEntry } from '../types';
+
+function remapStarredEntriesForAbsoluteRename(
+  entries: StarredEntry[],
+  oldPath: string,
+  newPath: string,
+): { entries: StarredEntry[]; changed: boolean } {
+  if (!isAbsolutePath(oldPath) || !isAbsolutePath(newPath)) {
+    return { entries, changed: false };
+  }
+
+  const normalizedOldPath = normalizeStarredVaultPath(oldPath);
+  const normalizedNewPath = normalizeStarredVaultPath(newPath);
+  let changed = false;
+
+  const remapped = entries.flatMap((entry) => {
+    const absolutePath = getStarredEntryAbsolutePath(entry);
+    if (!absolutePath) {
+      return [entry];
+    }
+
+    const normalizedAbsolutePath = normalizeStarredVaultPath(absolutePath);
+    const nextAbsolutePath = remapPathForExternalRename(
+      normalizedAbsolutePath,
+      normalizedOldPath,
+      normalizedNewPath,
+    );
+    if (nextAbsolutePath === normalizedAbsolutePath) {
+      return [entry];
+    }
+
+    const relativePath = resolveStarredRelativePathForVault(nextAbsolutePath, entry.vaultPath);
+    if (relativePath) {
+      changed = true;
+      return [{ ...entry, relativePath }];
+    }
+
+    const parentPath = getParentPath(nextAbsolutePath);
+    const baseName = getBaseName(nextAbsolutePath);
+    if (!parentPath || !baseName) {
+      changed = true;
+      return [];
+    }
+
+    changed = true;
+    return [{
+      ...entry,
+      vaultPath: normalizeStarredVaultPath(parentPath),
+      relativePath: baseName,
+    }];
+  });
+
+  const deduped = dedupeStarredEntries(remapped);
+  if (deduped.length !== remapped.length) {
+    changed = true;
+  }
+
+  return { entries: deduped, changed };
+}
 
 export function createWorkspaceExternalActions(
   set: NotesSet,
@@ -76,13 +141,19 @@ export function createWorkspaceExternalActions(
         return path;
       });
 
-      const starredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath) => {
+      const vaultStarredResult = remapStarredEntriesForVault(starredEntries, notesPath, (relativePath) => {
         if (relativePath === oldPath) return newPath;
         if (relativePath.startsWith(`${oldPath}/`)) return `${newPath}${relativePath.slice(oldPath.length)}`;
         return relativePath;
       });
+      const starredResult = remapStarredEntriesForAbsoluteRename(
+        vaultStarredResult.entries,
+        oldPath,
+        newPath,
+      );
+      const starredChanged = vaultStarredResult.changed || starredResult.changed;
 
-      if (starredResult.changed) {
+      if (starredChanged) {
         void saveStarredRegistry(starredResult.entries);
       }
       if (nextRecentNotes !== recentNotes) {
