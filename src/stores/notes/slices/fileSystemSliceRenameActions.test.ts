@@ -251,4 +251,18 @@ describe('fileSystemSlice rename actions', () => {
       modifiedAt: 1,
     });
   });
+
+  it('rejects unsupported characters before an absolute rename reaches storage', async () => {
+    const harness = createSliceHarness();
+    const oldPath = '/vault-b/docs/alpha.md';
+
+    harness.getState().notesPath = '/vault-a';
+    harness.getState().currentNote = { path: oldPath, content: '# alpha' };
+
+    await harness.getState().renameAbsoluteNote(oldPath, 'bad/name');
+
+    expect(hoisted.storageAdapter.rename).not.toHaveBeenCalled();
+    expect(harness.getState().error).toBe('File name contains unsupported characters.');
+    expect(harness.getState().currentNote).toEqual({ path: oldPath, content: '# alpha' });
+  });
 });

@@ -7,6 +7,10 @@ import { registerCurrentTitleCommitter } from './utils/titleCommitRegistry';
 import { isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
 import { isAbsolutePath } from '@/lib/storage/adapter';
 import { useI18n } from '@/lib/i18n';
+import { getInvalidFileNameReason } from '@/stores/notes/noteUtils';
+import { useToastStore } from '@/stores/useToastStore';
+
+const INVALID_FILE_NAME_TOAST_INTERVAL_MS = 1200;
 
 interface TitleInputProps {
   notePath: string;
@@ -18,17 +22,41 @@ interface TitleInputProps {
 export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: TitleInputProps) {
   const { t } = useI18n();
   const [title, setTitle] = useState(initialTitle);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const skipNextBlurCommitRef = useRef(false);
   const isCommittingRef = useRef(false);
   const titleActionFrameRef = useRef<number | null>(null);
+  const lastInvalidToastAtRef = useRef(0);
   const commitTitleRef = useRef<() => Promise<void>>(async () => undefined);
   const renameNote = useNotesStore(s => s.renameNote);
   const renameAbsoluteNote = useNotesStore(s => s.renameAbsoluteNote);
   const updateDraftNoteName = useNotesStore(s => s.updateDraftNoteName);
   const saveNote = useNotesStore(s => s.saveNote);
   const setNotesPreviewTitle = useUIStore(s => s.setNotesPreviewTitle);
+  const addToast = useToastStore(s => s.addToast);
   const titleInputDataAttrs = { [NOTE_TITLE_INPUT_DATA_ATTR]: 'true' as const };
+
+  const resizeTitleInput = useCallback(() => {
+    const input = inputRef.current;
+    if (!input) return;
+
+    input.style.height = 'auto';
+    input.style.height = `${input.scrollHeight}px`;
+  }, []);
+
+  useEffect(() => {
+    resizeTitleInput();
+  }, [resizeTitleInput, title]);
+
+  const showInvalidFileNameToast = useCallback((message: string) => {
+    const now = Date.now();
+    if (now - lastInvalidToastAtRef.current < INVALID_FILE_NAME_TOAST_INTERVAL_MS) {
+      return;
+    }
+
+    lastInvalidToastAtRef.current = now;
+    addToast(message, 'error', 3500);
+  }, [addToast]);
 
   useEffect(() => {
     if (autoFocus && inputRef.current) {
@@ -60,15 +88,21 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
     };
   }, [setNotesPreviewTitle]);
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newTitle = e.target.value;
+    const invalidReason = newTitle.trim() ? getInvalidFileNameReason(newTitle) : null;
+    if (invalidReason) {
+      showInvalidFileNameToast(invalidReason);
+      return;
+    }
+
     setTitle(newTitle);
     if (newTitle.trim()) {
       setNotesPreviewTitle(notePath, newTitle.trim());
     } else {
       setNotesPreviewTitle(null, null);
     }
-  }, [notePath, setNotesPreviewTitle]);
+  }, [notePath, setNotesPreviewTitle, showInvalidFileNameToast]);
 
   const commitTitleIfNeeded = useCallback(async () => {
     if (isCommittingRef.current) return;
@@ -81,6 +115,12 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
 
     if (trimmed === initialTitle) {
       setNotesPreviewTitle(null, null);
+      return;
+    }
+
+    const invalidReason = getInvalidFileNameReason(trimmed);
+    if (invalidReason) {
+      showInvalidFileNameToast(invalidReason);
       return;
     }
 
@@ -104,7 +144,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
       isCommittingRef.current = false;
       setNotesPreviewTitle(null, null);
     }
-  }, [title, initialTitle, notePath, renameAbsoluteNote, renameNote, saveNote, setNotesPreviewTitle, updateDraftNoteName]);
+  }, [title, initialTitle, notePath, renameAbsoluteNote, renameNote, saveNote, setNotesPreviewTitle, showInvalidFileNameToast, updateDraftNoteName]);
 
   commitTitleRef.current = commitTitleIfNeeded;
 
@@ -133,7 +173,7 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
     });
   }, []);
 
-  const handleKeyDown = useCallback(async (e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback(async (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       await commitTitleIfNeeded();
@@ -170,16 +210,17 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
   }, []);
 
   return (
-    <input
+    <textarea
       ref={inputRef}
       {...titleInputDataAttrs}
-      type="text"
+      rows={1}
+      wrap="soft"
       spellCheck={false}
       value={title}
       onChange={handleChange}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
-      className="w-full bg-transparent border-none outline-none text-[42px] font-bold leading-[1.2] tracking-[-0.02em] text-[var(--vlaina-text-primary)] placeholder:text-[var(--vlaina-text-disabled)] selection:bg-[var(--vlaina-selection-bg)] selection:text-white"
+      className="block w-full resize-none overflow-hidden bg-transparent border-none outline-none text-[34px] font-bold leading-[1.15] tracking-normal text-[var(--vlaina-text-primary)] placeholder:text-[var(--vlaina-text-disabled)] selection:bg-[var(--vlaina-selection-bg)] selection:text-white"
       placeholder={t('notes.untitled')}
     />
   );

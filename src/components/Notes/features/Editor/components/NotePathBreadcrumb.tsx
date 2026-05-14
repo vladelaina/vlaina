@@ -10,6 +10,7 @@ import { getDraftNoteEntry, isDraftNotePath, resolveDraftNoteTitle } from '@/sto
 import { resolveStarredNoteContext } from '@/stores/notes/starred';
 import { cn } from '@/lib/utils';
 import { scheduleSidebarItemIntoView } from '@/components/Notes/features/common/sidebarScrollIntoView';
+import { truncateNoteLabel } from '@/components/Notes/features/common/truncateNoteLabel';
 
 interface NotePathBreadcrumbProps {
   notePath: string;
@@ -288,7 +289,7 @@ export function NotePathBreadcrumb({ notePath }: NotePathBreadcrumbProps) {
       onClick={handleNoteClick}
       className="max-w-[360px] truncate rounded px-1 py-0 text-[var(--vlaina-text-secondary)] transition-colors hover:bg-[var(--vlaina-hover-filled)] hover:text-[var(--vlaina-text-primary)]"
     >
-      {noteLabel}
+      {truncateNoteLabel(noteLabel)}
     </button>
   );
 

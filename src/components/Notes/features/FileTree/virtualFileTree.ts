@@ -7,8 +7,36 @@ export interface VirtualFileTreeRow {
 }
 
 export const VIRTUAL_FILE_TREE_ROW_HEIGHT = 38;
+export const VIRTUAL_FILE_TREE_ROW_LINE_HEIGHT = 20;
+export const VIRTUAL_FILE_TREE_ROW_BASE_VISIBLE_CHARS = 8;
 export const VIRTUAL_FILE_TREE_OVERSCAN_ROWS = 10;
 export const VIRTUAL_FILE_TREE_MIN_ROWS = 180;
+
+function getVisibleCharacterCount(value: string): number {
+  return Array.from(value).length;
+}
+
+export function estimateVirtualFileTreeRowHeight(row: VirtualFileTreeRow): number {
+  const availableCharactersPerLine = Math.max(
+    4,
+    VIRTUAL_FILE_TREE_ROW_BASE_VISIBLE_CHARS - row.depth * 2,
+  );
+  const lineCount = Math.max(
+    1,
+    Math.ceil(getVisibleCharacterCount(row.node.name) / availableCharactersPerLine),
+  );
+
+  return VIRTUAL_FILE_TREE_ROW_HEIGHT + (lineCount - 1) * VIRTUAL_FILE_TREE_ROW_LINE_HEIGHT;
+}
+
+export function buildVirtualFileTreeRowOffsets(rowHeights: readonly number[]): number[] {
+  const offsets: number[] = [0];
+  for (let index = 0; index < rowHeights.length; index += 1) {
+    offsets[index + 1] = offsets[index] + rowHeights[index];
+  }
+
+  return offsets;
+}
 
 export function flattenVisibleFileTreeRows(
   nodes: FileTreeNode[],
@@ -55,15 +83,38 @@ export function countVisibleFileTreeRows(nodes: FileTreeNode[]): number {
 export function getVirtualFileTreeWindow(input: {
   rowCount: number;
   rowHeight: number;
+  rowHeights?: readonly number[];
+  rowOffsets?: readonly number[];
   viewportStart: number;
   viewportHeight: number;
   overscanRows: number;
 }) {
   const normalizedViewportStart = Math.max(0, input.viewportStart);
+  const rowHeights = input.rowHeights;
+  const offsets = input.rowOffsets;
+  if (rowHeights?.length === input.rowCount && offsets?.length === input.rowCount + 1) {
+    const viewportEnd = normalizedViewportStart + input.viewportHeight;
+    const visibleStartIndex = offsets.findIndex((offset, index) => {
+      if (index >= input.rowCount) return false;
+      const height = rowHeights[index] ?? input.rowHeight;
+      return offset + height > normalizedViewportStart;
+    });
+    const visibleEndOffsetIndex = offsets.findIndex((offset) => offset >= viewportEnd);
+    const normalizedVisibleStartIndex = visibleStartIndex === -1 ? input.rowCount : visibleStartIndex;
+    const visibleEndIndex = visibleEndOffsetIndex === -1 ? input.rowCount : visibleEndOffsetIndex;
+    const startIndex = Math.max(0, normalizedVisibleStartIndex - input.overscanRows);
+    const endIndex = Math.min(input.rowCount, visibleEndIndex + input.overscanRows);
+
+    return {
+      startIndex,
+      endIndex,
+      offsetTop: offsets[startIndex] ?? 0,
+      totalHeight: offsets[input.rowCount] ?? 0,
+    };
+  }
+
   const visibleStartIndex = Math.floor(normalizedViewportStart / input.rowHeight);
-  const visibleEndIndex = Math.ceil(
-    (normalizedViewportStart + input.viewportHeight) / input.rowHeight,
-  );
+  const visibleEndIndex = Math.ceil((normalizedViewportStart + input.viewportHeight) / input.rowHeight);
   const startIndex = Math.max(0, visibleStartIndex - input.overscanRows);
   const endIndex = Math.min(input.rowCount, visibleEndIndex + input.overscanRows);
 

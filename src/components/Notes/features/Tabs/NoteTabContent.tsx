@@ -3,6 +3,7 @@ import { NoteIcon } from '@/components/Notes/features/IconPicker/NoteIcon';
 import { cn } from '@/lib/utils';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { shouldShowDirtyTabIndicator } from './dirtyTabIndicator';
+import { truncateNoteLabel } from '../common/truncateNoteLabel';
 
 interface NoteTabContentProps {
   tab: { path: string; name: string; isDirty: boolean };
@@ -45,7 +46,7 @@ export function NoteTabContent({
       )}
 
       <span className={cn('pointer-events-none truncate text-[13px] text-current', isActive && 'font-semibold')}>
-        {title}
+        {truncateNoteLabel(title)}
         {disambiguation ? (
           <span className="text-[11px] text-current/65">{` · ${disambiguation}`}</span>
         ) : null}

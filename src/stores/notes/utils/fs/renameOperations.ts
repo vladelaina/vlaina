@@ -1,6 +1,6 @@
 import { getStorageAdapter } from '@/lib/storage/adapter';
 import { getNoteTitleFromPath, normalizeNotePathKey } from '@/lib/notes/displayName';
-import { sanitizeFileName } from '../../noteUtils';
+import { assertValidFileName, sanitizeFileName } from '../../noteUtils';
 import { remapMetadataEntries } from '../../storage';
 import { getVaultStarredPaths, remapStarredEntriesForVault, saveStarredRegistry } from '../../starred';
 import { updateFileNodePath, findNode, deepUpdateNodePath, addNodeToTree, removeNodeFromTree } from '../../fileTreeUtils';
@@ -19,6 +19,7 @@ export async function renameNoteImpl(
 ): Promise<RenameNoteResult | null> {
     const storage = getStorageAdapter();
     const { relativePath: safePath, fullPath } = await resolveVaultRelativeFullPath(notesPath, path);
+    assertValidFileName(newName);
     const sanitizedName = sanitizeFileName(newName);
     const {
         relativePath: newPath,
