@@ -7,6 +7,7 @@ import {
   serializerCtx,
 } from '@milkdown/kit/core';
 import { AllSelection, NodeSelection, TextSelection } from '@milkdown/kit/prose/state';
+import { CellSelection } from '@milkdown/kit/prose/tables';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import type { EditorView } from '@milkdown/kit/prose/view';
@@ -179,6 +180,25 @@ function findTextRanges(doc: any, text: string): Array<{ from: number; to: numbe
   }
 
   return ranges;
+}
+
+function findTableCellPos(doc: any, text: string): number {
+  let resolved: number | null = null;
+
+  doc.descendants((node: any, pos: number) => {
+    if (resolved !== null) return false;
+    if (node.type?.name !== 'table_cell' && node.type?.name !== 'table_header') return;
+    if (node.textContent !== text) return;
+
+    resolved = pos;
+    return false;
+  });
+
+  if (resolved === null) {
+    throw new Error(`Unable to resolve table cell position for "${text}"`);
+  }
+
+  return resolved;
 }
 
 async function createMarkdownEditor(markdown: string) {
@@ -824,6 +844,56 @@ describe('selectionSerialization', () => {
     expect(copied).toBe('Revenue $5');
     expect(copied).not.toContain('##');
     expect(copied).not.toContain('\\$');
+
+    await editor.destroy();
+  });
+
+  it('copies a single selected table cell as cell text instead of a one-column markdown table', async () => {
+    const { editor, view, serializer } = await createMarkdownEditor([
+      '| newapi | 状态 |',
+      '| --- | --- |',
+      '| 启动 | 正常 |',
+    ].join('\n'));
+    const cellPos = findTableCellPos(view.state.doc, '启动');
+    const cellSelection = new CellSelection(
+      view.state.doc.resolve(cellPos),
+      view.state.doc.resolve(cellPos)
+    );
+    view.dispatch(view.state.tr.setSelection(cellSelection as never));
+
+    const copied = serializeSelectionToClipboardText(view.state, serializer);
+
+    expect(copied).toBe('启动');
+    expect(copied).not.toContain('| newapi |');
+    expect(copied).not.toContain('| - |');
+
+    await editor.destroy();
+  });
+
+  it('copies a single-cell table slice as cell text instead of header-only table markdown', async () => {
+    const { editor, view, serializer } = await createMarkdownEditor([
+      '| sds |',
+      '| :-- |',
+    ].join('\n'));
+    const table = view.state.doc.firstChild;
+    if (!table || table.type.name !== 'table') {
+      throw new Error('Expected a table document');
+    }
+    const slice = view.state.doc.slice(0, table.nodeSize);
+    const state: any = {
+      ...view.state,
+      selection: {
+        from: 0,
+        to: table.nodeSize,
+        content: () => slice,
+      },
+    };
+
+    const copied = serializeSelectionToClipboardText(state, serializer);
+
+    expect(copied).toBe('sds');
+    expect(copied).not.toContain('| sds |');
+    expect(copied).not.toContain('| :-- |');
 
     await editor.destroy();
   });

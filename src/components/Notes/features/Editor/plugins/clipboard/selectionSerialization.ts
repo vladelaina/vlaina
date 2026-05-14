@@ -1,5 +1,6 @@
 import { TextSelection, type EditorState } from '@milkdown/kit/prose/state';
 import { Fragment, type Slice } from '@milkdown/kit/prose/model';
+import { CellSelection } from '@milkdown/kit/prose/tables';
 import type { Serializer } from '@milkdown/kit/transformer';
 
 import {
@@ -43,6 +44,57 @@ function shouldCopyTextSelectionAsPlainText(state: EditorState, slice: Slice): b
   if (state.selection.empty) return false;
 
   return isVisiblePlainTextSlice(slice);
+}
+
+function isCellSelectionLike(selection: EditorState['selection']): boolean {
+  if (typeof CellSelection === 'function' && selection instanceof CellSelection) {
+    return true;
+  }
+
+  return selection.constructor?.name === 'CellSelection';
+}
+
+function serializeSingleSelectedCellContent(state: EditorState): string | null {
+  const selection = state.selection as EditorState['selection'] & {
+    $anchorCell?: { pos: number };
+    $headCell?: { pos: number };
+  };
+
+  if (!isCellSelectionLike(selection)) return null;
+  if (!selection.$anchorCell || !selection.$headCell) return null;
+  if (selection.$anchorCell.pos !== selection.$headCell.pos) return null;
+
+  const cell = state.doc.nodeAt(selection.$anchorCell.pos);
+  if (!cell) return null;
+
+  const cellName = cell?.type?.name;
+  if (cellName !== 'table_cell' && cellName !== 'table_header') return null;
+
+  return normalizeSerializedMarkdownSelection(
+    serializeSliceToText({ content: cell.content })
+  );
+}
+
+function serializeSingleCellTableSlice(slice: Slice): string | null {
+  const topLevelNodes = getNodeChildren({ content: slice.content });
+  if (topLevelNodes.length !== 1) return null;
+
+  const table = topLevelNodes[0];
+  if (table?.type?.name !== 'table') return null;
+
+  const rows = getNodeChildren(table);
+  if (rows.length !== 1) return null;
+
+  const cells = getNodeChildren(rows[0]);
+  if (cells.length !== 1) return null;
+
+  const cell = cells[0];
+  const cellName = cell?.type?.name;
+  if (cellName !== 'table_cell' && cellName !== 'table_header') return null;
+
+  return normalizeSerializedMarkdownSelection(
+    serializeSliceToText({ content: cell.content })
+  );
 }
 
 function isParagraphOnlyListItem(node: any): boolean {
@@ -270,6 +322,16 @@ export function serializeSelectionToClipboardText(
 
   const slice = getSelectionSlice(state);
   if (slice.content.size === 0) return '';
+
+  const singleCellText = serializeSingleSelectedCellContent(state);
+  if (singleCellText !== null) {
+    return serializeLeadingFrontmatterMarkdown(singleCellText);
+  }
+
+  const singleCellTableSliceText = serializeSingleCellTableSlice(slice);
+  if (singleCellTableSliceText !== null) {
+    return serializeLeadingFrontmatterMarkdown(singleCellTableSliceText);
+  }
 
   if (shouldCopyTextSelectionAsPlainText(state, slice)) {
     return serializeSliceAsVisiblePlainText(slice);
