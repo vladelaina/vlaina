@@ -1,5 +1,6 @@
 import { forwardRef, type HTMLAttributes, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { getSidebarToneStyles } from '@/components/layout/sidebar/sidebarLabelStyles';
 import {
   SidebarList,
@@ -116,12 +117,17 @@ export function ChatSidebarHoverEmptyHint({
   return (
     <div
       className={cn(
-        'pointer-events-none absolute left-1/2 top-[38.2%] flex -translate-x-1/2 -translate-y-1/2 items-center justify-center opacity-0 transition-opacity duration-150 group-hover/chat-sidebar-surface:opacity-100',
+        'pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center opacity-0 transition-opacity duration-150 group-hover/chat-sidebar-surface:opacity-100',
         className,
       )}
       {...props}
     >
-      <span className="max-w-[170px] px-4 text-center text-[16px] text-[var(--chat-sidebar-text-soft)]">
+      <span
+        className={cn(
+          'whitespace-nowrap rounded-full px-4 py-2 text-center text-[15px] text-[var(--chat-sidebar-text-soft)]',
+          chatComposerPillSurfaceClass,
+        )}
+      >
         {title}
       </span>
     </div>
