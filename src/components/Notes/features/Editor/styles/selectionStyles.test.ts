@@ -371,6 +371,9 @@ describe('editor embedded CodeMirror selection styles', () => {
       '.milkdown .code-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {'
     );
     expect(css).toContain(
+      ".milkdown .code-block-container:not(.ProseMirror-selectednode):not(.vlaina-block-selected):not([data-pm-selected='true']) .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {"
+    );
+    expect(css).toContain(
       ".milkdown .code-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {"
     );
     expect(css).toContain('.milkdown .code-block-container.ProseMirror-selectednode .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,');
@@ -502,9 +505,24 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain(
       '.milkdown .frontmatter-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {'
     );
+    expect(css).toContain(
+      ".milkdown .frontmatter-block-container:not(.ProseMirror-selectednode):not(.vlaina-block-selected):not([data-pm-selected='true']) .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {"
+    );
     expect(css).toContain('background: transparent !important;');
     expect(css).not.toContain('.cm-editor.cm-focused .cm-content ::selection');
     expect(css).not.toContain('.cm-editor.cm-focused .cm-line ::selection');
+  });
+
+  it('does not hide unfocused embedded CodeMirror text selections', () => {
+    const codeBlockCss = readStyleFile('code-block.css');
+    const frontmatterCss = readStyleFile('frontmatter.css');
+
+    expect(codeBlockCss).not.toContain(
+      '.milkdown .code-block-container .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {\n  background: transparent !important;'
+    );
+    expect(frontmatterCss).not.toContain(
+      '.milkdown .frontmatter-block-container .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {\n  background: transparent !important;'
+    );
   });
 
   it('keeps floating toolbar hover states flat without lift transforms', () => {
