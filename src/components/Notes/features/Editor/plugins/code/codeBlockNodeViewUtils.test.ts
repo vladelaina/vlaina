@@ -1,13 +1,21 @@
 import { TextSelection } from '@milkdown/kit/prose/state';
+import { Transaction } from '@codemirror/state';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   applyCodeBlockCollapsedState,
   forwardCodeBlockUpdate,
 } from './codeBlockNodeViewUtils';
+import { guessLanguage } from '../../utils/languageGuesser';
+
+vi.mock('../../utils/languageGuesser', () => ({
+  guessLanguage: vi.fn(() => null),
+}));
 
 describe('codeBlockNodeViewUtils', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    vi.clearAllMocks();
+    vi.mocked(guessLanguage).mockReturnValue(null);
   });
 
   it('skips redundant selection-only updates', () => {
@@ -225,6 +233,142 @@ describe('codeBlockNodeViewUtils', () => {
     expect(view.state.schema.text).toHaveBeenCalledWith('XYZ');
     expect(tr.replaceWith).toHaveBeenCalledWith(15, 17, { value: 'XYZ' });
     expect(selectionCreateSpy).toHaveBeenCalledWith(tr.doc, 18, 18);
+  });
+
+  it('auto-detects language when pasting into a newline-only code block', () => {
+    vi.mocked(guessLanguage).mockReturnValue('typescript');
+    const selectionCreateSpy = vi
+      .spyOn(TextSelection, 'create')
+      .mockReturnValue({ type: 'selection' } as never);
+    const tr = {
+      replaceWith: vi.fn(() => tr),
+      delete: vi.fn(() => tr),
+      setNodeMarkup: vi.fn(() => tr),
+      setSelection: vi.fn(() => tr),
+      doc: {
+        nodeAt: vi.fn(() => ({
+          attrs: { collapsed: false, language: 'txt', lineNumbers: true },
+          textContent: 'interface User { name: string }',
+        })),
+      },
+      mapping: {
+        map: vi.fn((value: number) => value),
+      },
+    };
+    const view = {
+      state: {
+        selection: { from: 11, to: 11 },
+        tr,
+        doc: {
+          nodeAt: vi.fn(() => ({
+            attrs: { collapsed: false, language: 'txt', lineNumbers: true },
+            textContent: '\n\n',
+          })),
+        },
+        schema: {
+          text: vi.fn((value: string) => ({ value })),
+        },
+      },
+    };
+    const update = {
+      docChanged: true,
+      transactions: [
+        {
+          annotation: vi.fn((annotation) =>
+            annotation === Transaction.userEvent ? 'input.paste' : undefined
+          ),
+        },
+      ],
+      state: {
+        doc: {
+          toString: () => 'interface User { name: string }',
+        },
+        selection: {
+          main: { from: 31, to: 31 },
+        },
+      },
+      changes: {
+        iterChanges: (callback: (...args: unknown[]) => void) => {
+          callback(0, 2, 0, 31, {
+            length: 1,
+            toString: () => 'interface User { name: string }',
+          });
+        },
+      },
+    };
+
+    expect(forwardCodeBlockUpdate(update as never, view as never, () => 10)).toBe(tr);
+    expect(guessLanguage).toHaveBeenCalledWith('interface User { name: string }');
+    expect(tr.setNodeMarkup).toHaveBeenCalledWith(10, undefined, {
+      collapsed: false,
+      language: 'ts',
+      lineNumbers: true,
+    });
+    expect(selectionCreateSpy).toHaveBeenCalledWith(tr.doc, 42, 42);
+  });
+
+  it('does not auto-detect language for non-paste edits into an empty code block', () => {
+    const selectionCreateSpy = vi
+      .spyOn(TextSelection, 'create')
+      .mockReturnValue({ type: 'selection' } as never);
+    const tr = {
+      replaceWith: vi.fn(() => tr),
+      delete: vi.fn(() => tr),
+      setNodeMarkup: vi.fn(() => tr),
+      setSelection: vi.fn(() => tr),
+      doc: {
+        nodeAt: vi.fn(() => ({
+          attrs: { collapsed: false, language: 'txt' },
+          textContent: 'c',
+        })),
+      },
+      mapping: {
+        map: vi.fn((value: number) => value),
+      },
+    };
+    const view = {
+      state: {
+        selection: { from: 11, to: 11 },
+        tr,
+        doc: {
+          nodeAt: vi.fn(() => ({
+            attrs: { collapsed: false, language: 'txt' },
+            textContent: '',
+          })),
+        },
+        schema: {
+          text: vi.fn((value: string) => ({ value })),
+        },
+      },
+    };
+    const update = {
+      docChanged: true,
+      transactions: [
+        {
+          annotation: vi.fn((annotation) =>
+            annotation === Transaction.userEvent ? 'input.type' : undefined
+          ),
+        },
+      ],
+      state: {
+        doc: {
+          toString: () => 'c',
+        },
+        selection: {
+          main: { from: 1, to: 1 },
+        },
+      },
+      changes: {
+        iterChanges: (callback: (...args: unknown[]) => void) => {
+          callback(0, 0, 0, 1, { length: 1, toString: () => 'c' });
+        },
+      },
+    };
+
+    expect(forwardCodeBlockUpdate(update as never, view as never, () => 10)).toBe(tr);
+    expect(guessLanguage).not.toHaveBeenCalled();
+    expect(tr.setNodeMarkup).not.toHaveBeenCalled();
+    expect(selectionCreateSpy).toHaveBeenCalledWith(tr.doc, 12, 12);
   });
 
   it('applies collapsed accessibility state to the editable region', () => {

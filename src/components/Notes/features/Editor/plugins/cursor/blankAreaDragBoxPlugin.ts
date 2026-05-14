@@ -76,27 +76,61 @@ function isSameEditorScrollRoot(view: EditorView, target: EventTarget | null): b
   return !!editorScrollRoot && targetElement.closest(SCROLL_ROOT_SELECTOR) === editorScrollRoot;
 }
 
-function tryDispatchInsideBlockTrailingPlainClick(view: EditorView, event: MouseEvent): boolean {
-  if (!isSameEditorScrollRoot(view, event.target)) return false;
-  if (event.button !== 0) return false;
-  if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false;
+function resolveInsideBlockTrailingPlainClick(view: EditorView, event: MouseEvent): BlankAreaPlainClickAction | null {
+  if (!isSameEditorScrollRoot(view, event.target)) return null;
+  if (event.button !== 0) return null;
+  if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return null;
 
   const resolver = createBlockRectResolver({
     view,
     scrollRootSelector: SCROLL_ROOT_SELECTOR,
   });
-  const blockRects = resolver.getTopLevelBlockRects();
   const action = resolveInsideBlockTrailingPlainClickAction({
-    blockRects,
+    blockRects: resolver.getTopLevelBlockRects(),
     clientX: event.clientX,
     clientY: event.clientY,
   });
   resolver.invalidate();
-  if (!action) return false;
+  return action;
+}
 
-  event.preventDefault();
-  dispatchBlankAreaPlainClick(view, action);
-  return true;
+function startInsideBlockTrailingPlainClickSession(
+  view: EditorView,
+  event: MouseEvent,
+  action: BlankAreaPlainClickAction,
+  dragThreshold = DRAG_THRESHOLD,
+): () => void {
+  const startX = event.clientX;
+  const startY = event.clientY;
+  let didDrag = false;
+  let isStopped = false;
+
+  const stop = () => {
+    if (isStopped) return;
+    isStopped = true;
+    window.removeEventListener('mousemove', handleMouseMove, true);
+    window.removeEventListener('mouseup', handleMouseUp, true);
+  };
+
+  const handleMouseMove = (moveEvent: MouseEvent) => {
+    const movedPastThreshold =
+      Math.abs(moveEvent.clientX - startX) >= dragThreshold ||
+      Math.abs(moveEvent.clientY - startY) >= dragThreshold;
+    if (movedPastThreshold) {
+      didDrag = true;
+      stop();
+    }
+  };
+
+  const handleMouseUp = () => {
+    stop();
+    if (didDrag) return;
+    dispatchBlankAreaPlainClick(view, action);
+  };
+
+  window.addEventListener('mousemove', handleMouseMove, true);
+  window.addEventListener('mouseup', handleMouseUp, true);
+  return stop;
 }
 
 function clearTextSelectionForDragSession(view: EditorView): void {
@@ -134,6 +168,7 @@ export function shouldClearBlockSelectionForTransaction(
 
 export const blankAreaDragBoxPlugin = $prose((ctx) => {
   let stopSession: (() => void) | null = null;
+  let stopInsideBlockTrailingPlainClickSession: (() => void) | null = null;
   let markdownSerializer: Serializer | null = null;
   let serializerResolved = false;
 
@@ -157,6 +192,12 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
     if (!stopSession) return;
     stopSession();
     stopSession = null;
+  };
+
+  const clearInsideBlockTrailingPlainClickSession = () => {
+    if (!stopInsideBlockTrailingPlainClickSession) return;
+    stopInsideBlockTrailingPlainClickSession();
+    stopInsideBlockTrailingPlainClickSession = null;
   };
 
   const tryStartSession = (view: EditorView, event: MouseEvent): BlockDragStartZone | null => {
@@ -335,8 +376,15 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           if (target instanceof Node && view.dom.contains(target) && hasSelectedBlocks(view.state)) {
             clearBlockSelection(view);
           }
-          if (tryDispatchInsideBlockTrailingPlainClick(view, event)) {
-            return true;
+          const insideBlockTrailingClickAction = resolveInsideBlockTrailingPlainClick(view, event);
+          if (insideBlockTrailingClickAction) {
+            clearInsideBlockTrailingPlainClickSession();
+            stopInsideBlockTrailingPlainClickSession = startInsideBlockTrailingPlainClickSession(
+              view,
+              event,
+              insideBlockTrailingClickAction,
+            );
+            return false;
           }
 
           // `below-last-block` starts drag-or-click behavior here.
@@ -363,7 +411,14 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           });
           return;
         }
-        if (tryDispatchInsideBlockTrailingPlainClick(view, event)) {
+        const insideBlockTrailingClickAction = resolveInsideBlockTrailingPlainClick(view, event);
+        if (insideBlockTrailingClickAction) {
+          clearInsideBlockTrailingPlainClickSession();
+          stopInsideBlockTrailingPlainClickSession = startInsideBlockTrailingPlainClickSession(
+            view,
+            event,
+            insideBlockTrailingClickAction,
+          );
           return;
         }
         const target = event.target;
@@ -388,6 +443,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         destroy() {
           doc.removeEventListener('mousedown', handleDocumentMouseDown, true);
           clearSession();
+          clearInsideBlockTrailingPlainClickSession();
           setBlockSelectionVisualState(view, false);
         },
       };

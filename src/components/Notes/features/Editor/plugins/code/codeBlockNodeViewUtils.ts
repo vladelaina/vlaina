@@ -1,7 +1,29 @@
 import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { ViewUpdate } from '@codemirror/view';
+import { Transaction } from '@codemirror/state';
 import { mapCodeBlockEditorOffsetToDocumentOffset } from './codemirror';
+import { normalizeCodeBlockLanguage } from './codeBlockLanguage';
+import { guessLanguage } from '../../utils/languageGuesser';
+
+function isPasteUpdate(update: ViewUpdate) {
+  return update.transactions.some((transaction) => {
+    const userEvent = transaction.annotation(Transaction.userEvent);
+    return userEvent === 'input.paste' || userEvent?.startsWith('input.paste.');
+  });
+}
+
+function shouldAutoDetectLanguageAfterPaste(args: {
+  update: ViewUpdate;
+  previousText: string;
+  nextText: string;
+}) {
+  const { update, previousText, nextText } = args;
+  return update.docChanged
+    && previousText.trim().length === 0
+    && nextText.trim().length > 0
+    && isPasteUpdate(update);
+}
 
 export function forwardCodeBlockUpdate(
   update: ViewUpdate,
@@ -43,11 +65,22 @@ export function forwardCodeBlockUpdate(
     }
   });
 
-  const nextCodeBlock =
-    typeof (tr.doc as { nodeAt?: (pos: number) => { textContent: string } | null }).nodeAt === 'function'
-      ? (tr.doc as { nodeAt: (pos: number) => { textContent: string } | null }).nodeAt(codeBlockPos)
-      : null;
+  const nextDoc = tr.doc as {
+    nodeAt?: (pos: number) => { attrs?: Record<string, unknown>; textContent: string } | null;
+  };
+  const nextCodeBlock = typeof nextDoc.nodeAt === 'function' ? nextDoc.nodeAt(codeBlockPos) : null;
   const nextRawText = nextCodeBlock?.textContent ?? '';
+  if (nextCodeBlock && shouldAutoDetectLanguageAfterPaste({
+    update,
+    previousText: currentRawText,
+    nextText: nextRawText,
+  })) {
+    const detectedLanguage = normalizeCodeBlockLanguage(guessLanguage(nextRawText) || 'txt');
+    tr.setNodeMarkup(codeBlockPos, undefined, {
+      ...nextCodeBlock.attrs,
+      language: detectedLanguage,
+    });
+  }
   const nextSelectionFrom =
     codeBlockStart + mapCodeBlockEditorOffsetToDocumentOffset(nextRawText, main.from);
   const nextSelectionTo =
