@@ -10,11 +10,88 @@ import { useManagedAIStore } from '../useManagedAIStore'
 import { useUnifiedStore } from '../unified/useUnifiedStore'
 import { createChatActions } from './chatActions'
 import {
+  areModelsEqual,
   chooseFallbackSelectedModelId,
   ensureManagedProvider,
   filterModelsByEnabledProviders,
   replaceProviderModels,
 } from './providerStoreUtils'
+
+const MANAGED_MODELS_REFRESH_MIN_INTERVAL_MS = 5 * 60 * 1000;
+let managedModelsRefreshInFlight: Promise<void> | null = null;
+let managedModelsLastRefreshAttemptAt = 0;
+
+async function syncManagedProviderModels(options: { refreshBudget?: boolean; suppressPersist?: boolean } = {}): Promise<void> {
+  const models = await fetchManagedModels()
+  const store = useUnifiedStore.getState()
+  const ai = store.data.ai!
+  const nextProviders = ensureManagedProvider(ai.providers)
+  const nextModels = replaceProviderModels(ai.models, MANAGED_PROVIDER_ID, models)
+  const selectedModelId = chooseFallbackSelectedModelId(
+    ai.selectedModelId,
+    nextModels,
+    MANAGED_PROVIDER_ID
+  )
+
+  const providersChanged =
+    nextProviders.length !== ai.providers.length ||
+    nextProviders.some((provider, index) => ai.providers[index]?.id !== provider.id)
+  const modelsChanged = !areModelsEqual(ai.models, nextModels)
+  const selectedModelChanged = ai.selectedModelId !== selectedModelId
+
+  if (providersChanged || modelsChanged || selectedModelChanged) {
+    store.updateAIData({
+      providers: nextProviders,
+      models: nextModels,
+      selectedModelId,
+    }, options.suppressPersist)
+  }
+
+  if (options.refreshBudget) {
+    await useManagedAIStore.getState().refreshBudget()
+  }
+}
+
+function refreshManagedProviderInBackground(options: { force?: boolean } = {}): Promise<void> | null {
+  const now = Date.now();
+  if (
+    !options.force &&
+    managedModelsLastRefreshAttemptAt > 0 &&
+    now - managedModelsLastRefreshAttemptAt < MANAGED_MODELS_REFRESH_MIN_INTERVAL_MS
+  ) {
+    return managedModelsRefreshInFlight;
+  }
+
+  if (managedModelsRefreshInFlight) {
+    return managedModelsRefreshInFlight;
+  }
+
+  managedModelsLastRefreshAttemptAt = now;
+  managedModelsRefreshInFlight = syncManagedProviderModels()
+    .catch((error) => {
+      console.warn('Failed to refresh managed AI models in background', error)
+    })
+    .finally(() => {
+      managedModelsRefreshInFlight = null;
+    });
+
+  return managedModelsRefreshInFlight;
+}
+
+async function syncManagedProviderModelsFromStartup(
+  options: { refreshBudget?: boolean; suppressPersist?: boolean } = {}
+): Promise<void> {
+  if (managedModelsRefreshInFlight) {
+    await managedModelsRefreshInFlight;
+    if (options.refreshBudget) {
+      await useManagedAIStore.getState().refreshBudget();
+    }
+    return;
+  }
+
+  managedModelsLastRefreshAttemptAt = Date.now();
+  await syncManagedProviderModels(options);
+}
 
 function isDefaultChannelLabel(name: string): boolean {
   return /^channel\s+\d+$/i.test(name.trim());
@@ -262,23 +339,16 @@ export const actions = {
   },
 
   refreshManagedProvider: async () => {
-    const models = await fetchManagedModels()
-    const store = useUnifiedStore.getState()
-    const ai = store.data.ai!
-    const nextProviders = ensureManagedProvider(ai.providers)
-    const nextModels = replaceProviderModels(ai.models, MANAGED_PROVIDER_ID, models)
-    const selectedModelId = chooseFallbackSelectedModelId(
-      ai.selectedModelId,
-      nextModels,
-      MANAGED_PROVIDER_ID
-    )
+    managedModelsLastRefreshAttemptAt = Date.now();
+    await syncManagedProviderModels({ refreshBudget: true })
+  },
 
-    store.updateAIData({
-      providers: nextProviders,
-      models: nextModels,
-      selectedModelId,
-    })
-    await useManagedAIStore.getState().refreshBudget()
+  refreshManagedProviderInBackground: () => {
+    void refreshManagedProviderInBackground()
   },
   ...createChatActions(),
+};
+
+export const managedProviderSync = {
+  syncFromStartup: syncManagedProviderModelsFromStartup,
 };

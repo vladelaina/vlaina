@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AIModel, Provider } from '@/lib/ai/types';
+import { AIErrorType, type AIModel, type Provider } from '@/lib/ai/types';
 import { sendMessageWithEndpointFallback } from './sendMessageWithEndpointFallback';
 
 function buildProvider(overrides: Partial<Provider> = {}): Provider {
@@ -49,6 +49,94 @@ describe('sendMessageWithEndpointFallback', () => {
     expect(client.sendMessage).toHaveBeenCalledTimes(1);
     expect(client.sendMessage.mock.calls[0][3]).toMatchObject({ endpointType: 'openai' });
     expect(updateProvider).not.toHaveBeenCalled();
+  });
+
+  it('retries a verified endpoint once when a transient error happens before streaming output', async () => {
+    const updateProvider = vi.fn();
+    const onChunk = vi.fn();
+    const client = {
+      sendMessage: vi
+        .fn()
+        .mockRejectedValueOnce({
+          type: AIErrorType.SERVER_ERROR,
+          message: 'Service unavailable',
+          statusCode: 503,
+        })
+        .mockResolvedValueOnce('retry ok'),
+    };
+
+    const result = await sendMessageWithEndpointFallback({
+      content: 'hi',
+      history: [],
+      model: buildModel(),
+      provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+      onChunk,
+      client,
+      updateProvider,
+      retryDelayMs: 0,
+    });
+
+    expect(result).toBe('retry ok');
+    expect(client.sendMessage).toHaveBeenCalledTimes(2);
+    expect(updateProvider).not.toHaveBeenCalled();
+  });
+
+  it('does not retry a verified endpoint after streaming output has started', async () => {
+    const updateProvider = vi.fn();
+    const onChunk = vi.fn();
+    const client = {
+      sendMessage: vi.fn(async (_content, _history, _model, _provider, chunk) => {
+        chunk?.('partial');
+        throw {
+          type: AIErrorType.SERVER_ERROR,
+          message: 'Service unavailable',
+          statusCode: 503,
+        };
+      }),
+    };
+
+    await expect(
+      sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildModel(),
+        provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+        onChunk,
+        client,
+        updateProvider,
+        retryDelayMs: 0,
+      }),
+    ).rejects.toMatchObject({ statusCode: 503 });
+
+    expect(onChunk).toHaveBeenCalledWith('partial');
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+    expect(updateProvider).not.toHaveBeenCalled();
+  });
+
+  it('does not retry rate limit or quota-shaped failures', async () => {
+    const updateProvider = vi.fn();
+    const client = {
+      sendMessage: vi.fn().mockRejectedValue({
+        type: AIErrorType.RATE_LIMIT,
+        message: 'Too many requests',
+        statusCode: 429,
+      }),
+    };
+
+    await expect(
+      sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildModel(),
+        provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+        onChunk: vi.fn(),
+        client,
+        updateProvider,
+        retryDelayMs: 0,
+      }),
+    ).rejects.toMatchObject({ statusCode: 429 });
+
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
   });
 
   it('rechecks OpenAI before using an unverified recorded Anthropic endpoint type', async () => {
@@ -155,6 +243,34 @@ describe('sendMessageWithEndpointFallback', () => {
     expect(updateProvider).not.toHaveBeenCalled();
   });
 
+  it('does not auto-retry web search requests', async () => {
+    const updateProvider = vi.fn();
+    const transientError = {
+      type: AIErrorType.SERVER_ERROR,
+      message: 'Service unavailable',
+      statusCode: 503,
+    };
+    const client = {
+      sendMessage: vi.fn().mockRejectedValue(transientError),
+    };
+
+    await expect(
+      sendMessageWithEndpointFallback({
+        content: 'hi',
+        history: [],
+        model: buildModel(),
+        provider: buildProvider({ endpointType: 'openai', endpointTypeCheckedAt: 1 }),
+        onChunk: vi.fn(),
+        client,
+        updateProvider,
+        options: { webSearchEnabled: true },
+        retryDelayMs: 0,
+      }),
+    ).rejects.toBe(transientError);
+
+    expect(client.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
   it('does not try Anthropic after OpenAI has already streamed output', async () => {
     const updateProvider = vi.fn();
     const client = {
@@ -180,7 +296,7 @@ describe('sendMessageWithEndpointFallback', () => {
     expect(updateProvider).not.toHaveBeenCalled();
   });
 
-  it('surfaces the Anthropic boundary error when the fallback request cannot reach the endpoint', async () => {
+  it('retries and surfaces the Anthropic boundary error when the fallback request cannot reach the endpoint', async () => {
     const updateProvider = vi.fn();
     const anthropicFetchError = new Error(
       'Anthropic chat request to https://anthropic.qnaigc.com/v1/messages failed: Failed to fetch',
@@ -189,6 +305,7 @@ describe('sendMessageWithEndpointFallback', () => {
       sendMessage: vi
         .fn()
         .mockRejectedValueOnce(new Error('OpenAI-compatible chat failed'))
+        .mockRejectedValueOnce(anthropicFetchError)
         .mockRejectedValueOnce(anthropicFetchError),
     };
 
@@ -201,11 +318,13 @@ describe('sendMessageWithEndpointFallback', () => {
         onChunk: vi.fn(),
         client,
         updateProvider,
+        retryDelayMs: 0,
       }),
     ).rejects.toBe(anthropicFetchError);
 
-    expect(client.sendMessage).toHaveBeenCalledTimes(2);
+    expect(client.sendMessage).toHaveBeenCalledTimes(3);
     expect(client.sendMessage.mock.calls[1][3]).toMatchObject({ endpointType: 'anthropic' });
+    expect(client.sendMessage.mock.calls[2][3]).toMatchObject({ endpointType: 'anthropic' });
     expect(updateProvider).not.toHaveBeenCalled();
   });
 });

@@ -285,7 +285,7 @@ export interface ElectronAccountApi {
   ): () => void;
   onManagedStreamError(
     requestId: string,
-    callback: (payload: { message: string }) => void
+    callback: (payload: { message: string; statusCode?: number; errorCode?: string }) => void
   ): () => void;
 }
 

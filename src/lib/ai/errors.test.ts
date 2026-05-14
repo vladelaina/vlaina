@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getUserFacingAIError, parseHTTPError } from './errors';
+import { parseManagedError } from './managed/errors';
 import { AIErrorType } from './types';
 
 describe('getUserFacingAIError', () => {
@@ -78,13 +79,13 @@ describe('getUserFacingAIError', () => {
     });
   });
 
-  it('keeps low-signal server messages normalized to the fallback copy', () => {
+  it('keeps low-signal server messages normalized to the upstream fallback copy', () => {
     const result = getUserFacingAIError(new Error('Internal server error'));
 
     expect(result).toEqual({
       type: AIErrorType.SERVER_ERROR,
       code: '',
-      message: 'The model service is temporarily unavailable. Please try again later or switch to another model.',
+      message: '๑ᵒᯅᵒ๑ My brain needs a breather. Try again in a moment, or switch models first~',
     });
   });
 
@@ -144,7 +145,21 @@ describe('getUserFacingAIError', () => {
     expect(result).toEqual({
       type: AIErrorType.SERVER_ERROR,
       code: 'upstream_unavailable',
-      message: '๑ᵒᯅᵒ๑ My brain needs a tiny breather. Please try again in a moment~',
+      message: '๑ᵒᯅᵒ๑ My brain needs a breather. Try again in a moment, or switch models first~',
+    });
+  });
+
+  it('uses structured managed error codes before falling back to messages', () => {
+    const result = getUserFacingAIError({
+      errorCode: 'upstream_unavailable',
+      statusCode: 502,
+      message: 'Managed API request failed',
+    });
+
+    expect(result).toEqual({
+      type: AIErrorType.SERVER_ERROR,
+      code: 'upstream_unavailable',
+      message: '๑ᵒᯅᵒ๑ My brain needs a breather. Try again in a moment, or switch models first~',
     });
   });
 
@@ -154,7 +169,7 @@ describe('getUserFacingAIError', () => {
     expect(result).toEqual({
       type: AIErrorType.RATE_LIMIT,
       code: 'upstream_rate_limited',
-      message: '๑ᵒᯅᵒ๑ My brain needs a tiny breather. Please try again in a moment~',
+      message: '๑ᵒᯅᵒ๑ My brain needs a breather. Try again in a moment, or switch models first~',
     });
   });
 
@@ -180,6 +195,53 @@ describe('getUserFacingAIError', () => {
       type: AIErrorType.QUOTA_EXHAUSTED,
       code: '403',
       message: 'Vlaina 托管模型的点数已经用完了。购买会员后可以继续使用官方托管模型；你也可以在 Spark 设置中接入自己的 API 渠道。',
+    });
+  });
+
+  it('maps managed quota error codes even if the message changes', () => {
+    const result = getUserFacingAIError({
+      errorCode: 'points_exhausted',
+      statusCode: 403,
+      message: 'Monthly allowance is empty',
+    });
+
+    expect(result).toEqual({
+      type: AIErrorType.QUOTA_EXHAUSTED,
+      code: 'points_exhausted',
+      message: 'Vlaina 托管模型的点数已经用完了。购买会员后可以继续使用官方托管模型；你也可以在 Spark 设置中接入自己的 API 渠道。',
+    });
+  });
+
+  it('maps insufficient managed points from desktop stream errors to the billing prompt', () => {
+    const error = new Error('Insufficient remaining points') as Error & {
+      statusCode: number;
+      errorCode: string;
+    };
+    error.statusCode = 403;
+    error.errorCode = 'insufficient_points';
+
+    const result = getUserFacingAIError(error);
+
+    expect(result).toEqual({
+      type: AIErrorType.QUOTA_EXHAUSTED,
+      code: 'insufficient_points',
+      message: 'Vlaina 托管模型的点数已经用完了。购买会员后可以继续使用官方托管模型；你也可以在 Spark 设置中接入自己的 API 渠道。',
+    });
+  });
+});
+
+describe('parseManagedError', () => {
+  it('preserves managed HTTP status and public error code', async () => {
+    const error = await parseManagedError(new Response(JSON.stringify({
+      success: false,
+      error: 'UPSTREAM_UNAVAILABLE',
+      errorCode: 'upstream_unavailable',
+    }), { status: 502 }));
+
+    expect(error).toMatchObject({
+      message: 'UPSTREAM_UNAVAILABLE',
+      statusCode: 502,
+      errorCode: 'upstream_unavailable',
     });
   });
 });

@@ -1,6 +1,7 @@
 import { actions as aiActions } from '@/stores/useAIStore';
 import { openaiClient } from '@/lib/ai/providers/openai';
-import type { AIModel, ChatMessage, ChatMessageContent, ChatSendOptions, Provider } from '@/lib/ai/types';
+import { parseAPIError } from '@/lib/ai/errors';
+import { AIErrorType, type AIModel, type ChatMessage, type ChatMessageContent, type ChatSendOptions, type Provider } from '@/lib/ai/types';
 import { isManagedProviderId } from '@/lib/ai/managedService';
 
 interface EndpointFallbackClient {
@@ -25,6 +26,121 @@ interface SendMessageWithEndpointFallbackOptions {
   options?: ChatSendOptions;
   client?: EndpointFallbackClient;
   updateProvider?: (providerId: string, updates: Partial<Provider>) => void;
+  retryDelayMs?: number;
+}
+
+const PRE_STREAM_RETRY_DELAY_MS = 900;
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError'
+    || !!error && typeof error === 'object' && (error as { name?: unknown }).name === 'AbortError';
+}
+
+function extractStatusCode(error: unknown): number | null {
+  if (!error || typeof error !== 'object') {
+    return null;
+  }
+
+  const value = (error as { statusCode?: unknown; status?: unknown }).statusCode
+    ?? (error as { status?: unknown }).status;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function extractErrorCode(error: unknown): string {
+  if (!error || typeof error !== 'object') {
+    return '';
+  }
+
+  const value = (error as { errorCode?: unknown; code?: unknown }).errorCode
+    ?? (error as { code?: unknown }).code;
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+
+function isTransientPreStreamError(error: unknown): boolean {
+  if (isAbortError(error)) {
+    return false;
+  }
+
+  const statusCode = extractStatusCode(error);
+  if (statusCode != null) {
+    return statusCode === 408 || statusCode === 500 || statusCode === 502 || statusCode === 503 || statusCode === 504;
+  }
+
+  const errorCode = extractErrorCode(error);
+  if (
+    errorCode === 'upstream_rate_limited' ||
+    errorCode === 'points_exhausted' ||
+    errorCode === 'inactive_points' ||
+    errorCode === 'insufficient_points'
+  ) {
+    return false;
+  }
+  if (errorCode === 'upstream_unavailable') {
+    return true;
+  }
+
+  const parsed = parseAPIError(error);
+  return parsed.type === AIErrorType.NETWORK_ERROR
+    || parsed.type === AIErrorType.TIMEOUT
+    || parsed.type === AIErrorType.SERVER_ERROR;
+}
+
+function waitForRetry(delayMs: number, signal?: AbortSignal): Promise<void> {
+  if (delayMs <= 0) {
+    return Promise.resolve();
+  }
+  if (signal?.aborted) {
+    return Promise.reject(new DOMException('Aborted', 'AbortError'));
+  }
+
+  return new Promise((resolve, reject) => {
+    let timer: ReturnType<typeof setTimeout>;
+    const abort = () => {
+      clearTimeout(timer);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    const cleanupAndResolve = () => {
+      signal?.removeEventListener('abort', abort);
+      resolve();
+    };
+
+    signal?.addEventListener('abort', abort, { once: true });
+    timer = setTimeout(cleanupAndResolve, delayMs);
+  });
+}
+
+async function sendWithSinglePreStreamRetry(
+  send: (onChunk: (chunk: string) => void) => Promise<string>,
+  onChunk: (chunk: string) => void,
+  signal: AbortSignal | undefined,
+  delayMs: number,
+  shouldRetry: boolean
+): Promise<string> {
+  let didReceiveChunk = false;
+  const trackedOnChunk = (chunk: string) => {
+    didReceiveChunk = true;
+    onChunk(chunk);
+  };
+
+  try {
+    return await send(trackedOnChunk);
+  } catch (error) {
+    if (!shouldRetry || didReceiveChunk || !isTransientPreStreamError(error)) {
+      throw error;
+    }
+
+    await waitForRetry(delayMs, signal);
+    didReceiveChunk = false;
+    return send(trackedOnChunk);
+  }
 }
 
 export async function sendMessageWithEndpointFallback({
@@ -37,26 +153,40 @@ export async function sendMessageWithEndpointFallback({
   options,
   client = openaiClient,
   updateProvider = aiActions.updateProvider,
+  retryDelayMs = PRE_STREAM_RETRY_DELAY_MS,
 }: SendMessageWithEndpointFallbackOptions): Promise<string> {
+  const shouldAutoRetry = options?.webSearchEnabled !== true;
+
   if (isManagedProviderId(provider.id) || (provider.endpointType && provider.endpointTypeCheckedAt)) {
-    return client.sendMessage(content, history, model, provider, onChunk, signal, options);
+    return sendWithSinglePreStreamRetry(
+      (trackedOnChunk) => client.sendMessage(content, history, model, provider, trackedOnChunk, signal, options),
+      onChunk,
+      signal,
+      retryDelayMs,
+      shouldAutoRetry,
+    );
   }
 
   let didReceiveOpenAIChunk = false;
-  const handleOpenAIChunk = (chunk: string) => {
-    didReceiveOpenAIChunk = true;
-    onChunk(chunk);
-  };
 
   try {
-    const result = await client.sendMessage(
-      content,
-      history,
-      model,
-      { ...provider, endpointType: 'openai' },
-      handleOpenAIChunk,
+    const result = await sendWithSinglePreStreamRetry(
+      (trackedOnChunk) => client.sendMessage(
+        content,
+        history,
+        model,
+        { ...provider, endpointType: 'openai' },
+        (chunk) => {
+          didReceiveOpenAIChunk = true;
+          trackedOnChunk(chunk);
+        },
+        signal,
+        options,
+      ),
+      onChunk,
       signal,
-      options,
+      retryDelayMs,
+      shouldAutoRetry,
     );
     updateProvider(provider.id, { endpointType: 'openai', endpointTypeCheckedAt: Date.now() });
     return result;
@@ -72,14 +202,20 @@ export async function sendMessageWithEndpointFallback({
     }
 
     try {
-      const result = await client.sendMessage(
-        content,
-        history,
-        model,
-        { ...provider, endpointType: 'anthropic' },
+      const result = await sendWithSinglePreStreamRetry(
+        (trackedOnChunk) => client.sendMessage(
+          content,
+          history,
+          model,
+          { ...provider, endpointType: 'anthropic' },
+          trackedOnChunk,
+          signal,
+          options,
+        ),
         onChunk,
         signal,
-        options,
+        retryDelayMs,
+        shouldAutoRetry,
       );
       updateProvider(provider.id, { endpointType: 'anthropic', endpointTypeCheckedAt: Date.now() });
       return result;

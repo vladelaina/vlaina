@@ -180,8 +180,18 @@ export const accountCommands = {
       );
 
       cleanupCallbacks.push(
-        bridge.onManagedStreamError(requestId, ({ message }) => {
-          settleRejected(new Error(message || 'Managed stream failed'));
+        bridge.onManagedStreamError(requestId, ({ message, statusCode, errorCode }) => {
+          const error = new Error(message || 'Managed stream failed') as Error & {
+            statusCode?: number;
+            errorCode?: string;
+          };
+          if (typeof statusCode === 'number') {
+            error.statusCode = statusCode;
+          }
+          if (typeof errorCode === 'string' && errorCode.trim()) {
+            error.errorCode = errorCode.trim();
+          }
+          settleRejected(error);
         })
       );
 
