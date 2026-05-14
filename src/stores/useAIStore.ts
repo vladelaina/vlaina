@@ -3,8 +3,6 @@ import { useUnifiedStore } from './unified/useUnifiedStore'
 import { useAccountSessionStore } from './accountSession'
 import { useManagedAIStore } from './useManagedAIStore'
 import {
-  MANAGED_PROVIDER_ID,
-  fetchManagedModels,
   isManagedServiceRecoverableError,
 } from '@/lib/ai/managedService'
 import {
@@ -13,13 +11,9 @@ import {
 } from '@/lib/ai/temporaryChat';
 import { useAIUIStore } from './ai/chatState'
 import { readWindowLaunchContext } from '@/lib/desktop/launchContext'
-import { actions } from './ai/providerActions'
+import { actions, managedProviderSync } from './ai/providerActions'
 import {
-  areModelsEqual,
-  areProvidersEqual,
-  chooseFallbackSelectedModelId,
   ensureManagedProvider,
-  replaceProviderModels,
 } from './ai/providerStoreUtils'
 
 export { createAIChatSession } from './ai/chatState'
@@ -155,40 +149,13 @@ export function useAIStoreRuntimeEffects(): void {
     let cancelled = false;
     (async () => {
       try {
-        const models = await fetchManagedModels();
+        await managedProviderSync.syncFromStartup({
+          refreshBudget: accountConnected,
+          suppressPersist: suppressStartupAIPersistRef.current,
+        });
         if (cancelled) return;
 
-        const store = useUnifiedStore.getState();
-        const ai = store.data.ai!;
-        const nextProviders = ensureManagedProvider(ai.providers);
-        const nextModels = replaceProviderModels(ai.models, MANAGED_PROVIDER_ID, models);
-        const selectedModelId = chooseFallbackSelectedModelId(
-          ai.selectedModelId,
-          nextModels,
-          MANAGED_PROVIDER_ID
-        );
-
-        const providersChanged = !areProvidersEqual(ai.providers, nextProviders);
-        const modelsChanged = !areModelsEqual(ai.models, nextModels);
-        const selectedModelChanged = ai.selectedModelId !== selectedModelId;
-
-        if (!providersChanged && !modelsChanged && !selectedModelChanged) {
-          if (accountConnected) {
-            void useManagedAIStore.getState().refreshBudget();
-          } else {
-            useManagedAIStore.getState().clearBudget();
-          }
-          return;
-        }
-
-        store.updateAIData({
-          providers: nextProviders,
-          models: nextModels,
-          selectedModelId,
-        }, suppressStartupAIPersistRef.current);
-        if (accountConnected) {
-          void useManagedAIStore.getState().refreshBudget();
-        } else {
+        if (!accountConnected) {
           useManagedAIStore.getState().clearBudget();
         }
       } catch (error) {

@@ -12,7 +12,6 @@ const TIMEOUT_ERROR_MESSAGE = 'The request timed out. Please try again later.'
 const AUTH_ERROR_MESSAGE = 'Your sign-in session has expired. Please sign in again and try again.'
 const RATE_LIMIT_ERROR_MESSAGE = 'Too many requests. Please try again later.'
 const INVALID_REQUEST_ERROR_MESSAGE = 'This request could not be processed. Please adjust your input or switch models and try again.'
-const MODEL_SERVICE_ERROR_MESSAGE = 'The model service is temporarily unavailable. Please try again later or switch to another model.'
 const UPSTREAM_FORBIDDEN_MESSAGE =
   'The upstream AI provider rejected this request (HTTP 403). Check the channel API key, model access, account balance, or provider risk controls.'
 const KNOWN_MANAGED_BUSINESS_ERRORS = [
@@ -30,6 +29,11 @@ const MANAGED_UPSTREAM_UNAVAILABLE_CODES = new Set([
 const MANAGED_UPSTREAM_RATE_LIMITED_CODES = new Set([
   'upstream_rate_limited',
   'UPSTREAM_RATE_LIMITED',
+])
+const MANAGED_QUOTA_EXHAUSTED_CODES = new Set([
+  'points_exhausted',
+  'inactive_points',
+  'insufficient_points',
 ])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -61,6 +65,13 @@ function extractErrorCode(error: unknown): string {
   if (!isRecord(error)) {
     const matched = extractErrorMessage(error).match(/\b(?:status|http)\s+(\d{3})\b/i)
     return matched?.[1] || ''
+  }
+
+  for (const key of ['errorCode', 'code'] as const) {
+    const codeValue = error[key]
+    if (typeof codeValue === 'string' && codeValue.trim()) {
+      return codeValue.trim()
+    }
   }
 
   const value = error.statusCode ?? error.status
@@ -257,7 +268,7 @@ function getUserFacingMessage(type: AIErrorType): string {
     case AIErrorType.SERVER_ERROR:
     case AIErrorType.UNKNOWN:
     default:
-      return MODEL_SERVICE_ERROR_MESSAGE
+      return translate('chat.error.upstreamUnavailable')
   }
 }
 
@@ -321,7 +332,10 @@ function getSpecificUserFacingOverride(message: string, code: string): UserFacin
   }
 
   for (const knownMessage of KNOWN_MANAGED_BUSINESS_ERRORS) {
-    if (normalized.includes(knownMessage.toLowerCase())) {
+    if (
+      normalized.includes(knownMessage.toLowerCase()) ||
+      MANAGED_QUOTA_EXHAUSTED_CODES.has(normalizedCode)
+    ) {
       return {
         type: AIErrorType.QUOTA_EXHAUSTED,
         code: code || 'quota_exhausted',

@@ -1,5 +1,18 @@
 import { MANAGED_AUTH_REQUIRED_ERROR } from './constants';
 
+function createManagedServiceError(
+  message: string,
+  statusCode: number,
+  errorCode?: string
+): Error {
+  const error = new Error(message);
+  (error as Error & { statusCode?: number; errorCode?: string }).statusCode = statusCode;
+  if (errorCode) {
+    (error as Error & { statusCode?: number; errorCode?: string }).errorCode = errorCode;
+  }
+  return error;
+}
+
 export function getManagedServiceErrorMessage(error: unknown): string {
   if (typeof error === 'string') {
     return error.trim();
@@ -66,23 +79,40 @@ function extractManagedErrorPayloadMessage(payload: Record<string, unknown>): st
   return '';
 }
 
+function extractManagedErrorPayloadCode(payload: Record<string, unknown>): string {
+  if (typeof payload.errorCode === 'string' && payload.errorCode.trim()) {
+    return payload.errorCode.trim();
+  }
+
+  const nestedError = payload.error;
+  if (nestedError && typeof nestedError === 'object') {
+    const nested = nestedError as Record<string, unknown>;
+    if (typeof nested.code === 'string' && nested.code.trim()) {
+      return nested.code.trim();
+    }
+  }
+
+  return '';
+}
+
 export async function parseManagedError(response: Response): Promise<Error> {
   const raw = await response.text().catch(() => '');
   if (response.status === 401) {
-    return new Error(MANAGED_AUTH_REQUIRED_ERROR);
+    return createManagedServiceError(MANAGED_AUTH_REQUIRED_ERROR, response.status);
   }
 
   if (!raw) {
-    return new Error(`Managed API request failed: HTTP ${response.status}`);
+    return createManagedServiceError(`Managed API request failed: HTTP ${response.status}`, response.status);
   }
 
   try {
     const payload = JSON.parse(raw) as Record<string, unknown>;
     const message = extractManagedErrorPayloadMessage(payload).trim();
+    const errorCode = extractManagedErrorPayloadCode(payload);
     if (message) {
-      return new Error(message);
+      return createManagedServiceError(message, response.status, errorCode);
     }
   } catch {}
 
-  return new Error(raw);
+  return createManagedServiceError(raw, response.status);
 }

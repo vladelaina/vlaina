@@ -148,6 +148,40 @@ describe('desktop account commands', () => {
     expect(mocks.account.cancelManagedChatCompletionStream).toHaveBeenCalledWith('req-abort');
   });
 
+  it('preserves managed stream error status and code from the electron bridge', async () => {
+    const listeners: Record<string, ((payload: any) => void) | undefined> = {};
+    mocks.account.onManagedStreamChunk.mockImplementation((_requestId: string, callback: (content: string) => void) => {
+      listeners.chunk = callback;
+      return vi.fn();
+    });
+    mocks.account.onManagedStreamDone.mockImplementation((_requestId: string, callback: (payload: { content: string }) => void) => {
+      listeners.done = callback;
+      return vi.fn();
+    });
+    mocks.account.onManagedStreamError.mockImplementation((_requestId: string, callback: (payload: { message: string; statusCode?: number; errorCode?: string }) => void) => {
+      listeners.error = callback;
+      return vi.fn();
+    });
+    mocks.account.startManagedChatCompletionStream.mockImplementationOnce(async () => {
+      listeners.error?.({
+        message: 'Insufficient remaining points',
+        statusCode: 403,
+        errorCode: 'insufficient_points',
+      });
+    });
+
+    await expect(accountCommands.managedChatCompletionStream(
+      { model: 'vlaina-managed/test' },
+      vi.fn(),
+      undefined,
+      'req-quota',
+    )).rejects.toMatchObject({
+      message: 'Insufficient remaining points',
+      statusCode: 403,
+      errorCode: 'insufficient_points',
+    });
+  });
+
   it('does not start managed streams when the signal is already aborted', async () => {
     const controller = new AbortController();
     controller.abort();
