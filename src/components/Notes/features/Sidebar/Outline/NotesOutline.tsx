@@ -70,6 +70,8 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
             depth={node.level - 1}
             isActive={isActive}
             onClick={() => jumpToHeading(node.id)}
+            rowClassName="items-center"
+            leadingClassName="self-center"
             leading={hasChildren ? (
               <button
                 type="button"
@@ -86,14 +88,19 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
                 }}
                 className={cn(
                   'inline-flex size-4 shrink-0 cursor-pointer items-center justify-center rounded-sm',
-                  getSidebarSoftTextClass('notes'),
-                  'hover:text-[var(--notes-sidebar-text)]',
                 )}
               >
                 <CollapseTriangleAffordance
                   collapsed={isCollapsed}
                   visibility="hover-unless-collapsed"
                   size={12}
+                  className={cn(
+                    'transition-[color,opacity] duration-150 group-hover/sidebar-row:opacity-100 group-focus-within/sidebar-row:opacity-100',
+                    isActive ? 'text-[var(--sidebar-row-selected-text)]' : getSidebarSoftTextClass('notes'),
+                    isActive
+                      ? 'group-hover/sidebar-row:text-[var(--sidebar-row-selected-text)] group-focus-within/sidebar-row:text-[var(--sidebar-row-selected-text)] hover:text-[var(--sidebar-row-selected-text)]'
+                      : 'group-hover/sidebar-row:text-[var(--notes-sidebar-text)] group-focus-within/sidebar-row:text-[var(--notes-sidebar-text)] hover:text-[var(--notes-sidebar-text)]',
+                  )}
                 />
               </button>
             ) : (
