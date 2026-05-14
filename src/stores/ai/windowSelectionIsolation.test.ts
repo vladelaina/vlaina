@@ -30,7 +30,8 @@ const mocked = vi.hoisted(() => {
     scheduleSessionJsonSave: vi.fn(),
     cancelSessionJsonSave: vi.fn(),
     deleteSessionJson: vi.fn(async () => {}),
-    loadSessionJson: vi.fn(async (): Promise<ChatMessage[]> => []),
+    loadSessionJson: vi.fn(async (): Promise<ChatMessage[] | null> => []),
+    hasSessionJson: vi.fn(async () => false),
     flushPendingSessionJsonSaves: vi.fn(async () => {}),
     readWindowLaunchContext: vi.fn(() => ({
       isNewWindow: false,
@@ -71,6 +72,7 @@ vi.mock('@/lib/storage/chatStorage', () => ({
   cancelSessionJsonSave: mocked.cancelSessionJsonSave,
   deleteSessionJson: mocked.deleteSessionJson,
   loadSessionJson: mocked.loadSessionJson,
+  hasSessionJson: mocked.hasSessionJson,
   flushPendingSessionJsonSaves: mocked.flushPendingSessionJsonSaves,
 }));
 
@@ -298,6 +300,39 @@ describe('spark window selection isolation', () => {
     expect(useUnifiedStore.getState().data.ai?.currentSessionId).toBe('session-1');
   });
 
+  it('does not replace an unreadable persisted session file with an empty chat', async () => {
+    mocked.loadSessionJson.mockResolvedValueOnce(null);
+    mocked.hasSessionJson.mockResolvedValueOnce(true);
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: 'session-1',
+      temporaryChatEnabled: false,
+    });
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              messages: { 'session-1': state.data.ai.messages['session-1'] },
+            }
+          : state.data.ai,
+      },
+    }));
+
+    await act(async () => {
+      await actions.switchSession('session-2');
+    });
+
+    expect(mocked.loadSessionJson).toHaveBeenCalledWith('session-2');
+    expect(mocked.hasSessionJson).toHaveBeenCalledWith('session-2');
+    expect(useUnifiedStore.getState().data.ai?.messages).not.toHaveProperty('session-2');
+    expect(useAIUIStore.getState().error).toBe(
+      'This chat could not be loaded from disk. The original file was left untouched.',
+    );
+    expect(mocked.saveUnifiedData).not.toHaveBeenCalled();
+  });
+
   it('prefetches a missing session without switching the active session', async () => {
     mocked.loadSessionJson.mockResolvedValueOnce([
       {
@@ -336,6 +371,43 @@ describe('spark window selection isolation', () => {
     expect(useUnifiedStore.getState().data.ai?.currentSessionId).toBe('session-1');
     expect(useUnifiedStore.getState().data.ai?.messages['session-2']?.[0]?.content).toBe('prefetched');
     expect(mocked.saveUnifiedData).not.toHaveBeenCalled();
+  });
+
+  it('keeps a chat visible when deleting its message file fails', async () => {
+    mocked.deleteSessionJson.mockRejectedValueOnce(new Error('disk denied'));
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: 'session-2',
+      temporaryChatEnabled: false,
+    });
+
+    await expect(actions.deleteSession('session-2')).rejects.toThrow('disk denied');
+
+    expect(useUnifiedStore.getState().data.ai?.sessions.map((session) => session.id)).toEqual([
+      'session-1',
+      'session-2',
+    ]);
+    expect(useUnifiedStore.getState().data.ai?.messages).toHaveProperty('session-2');
+    expect(useAIUIStore.getState().currentSessionId).toBe('session-2');
+    expect(useAIUIStore.getState().error).toBe('Could not delete this chat from disk. The chat was kept.');
+  });
+
+  it('keeps all chats visible when clearing message files fails', async () => {
+    mocked.deleteSessionJson.mockRejectedValueOnce(new Error('disk denied'));
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: 'session-1',
+      temporaryChatEnabled: false,
+    });
+
+    await expect(actions.clearSessions()).rejects.toThrow('disk denied');
+
+    expect(useUnifiedStore.getState().data.ai?.sessions.map((session) => session.id)).toEqual([
+      'session-1',
+      'session-2',
+    ]);
+    expect(useUnifiedStore.getState().data.ai?.messages).toHaveProperty('session-1');
+    expect(useUnifiedStore.getState().data.ai?.messages).toHaveProperty('session-2');
+    expect(useAIUIStore.getState().currentSessionId).toBe('session-1');
+    expect(useAIUIStore.getState().error).toBe('Could not clear chats from disk. Existing chats were kept.');
   });
 
   it('opens a blank new chat locally without mutating shared selection', () => {

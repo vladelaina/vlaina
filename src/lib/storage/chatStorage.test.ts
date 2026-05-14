@@ -1,7 +1,107 @@
 import { describe, expect, it, vi } from 'vitest';
-import { normalizeSessionMessages } from './chatStorage';
+import {
+  normalizeSessionMessages,
+  parseSessionMessagesPayload,
+  preserveUnknownPersistedMessages,
+  serializeSessionMessages,
+} from './chatStorage';
 
 describe('chatStorage session message normalization', () => {
+  it('serializes session files with an explicit envelope', () => {
+    vi.setSystemTime(new Date('2026-05-09T00:00:00Z'));
+
+    const payload = JSON.parse(serializeSessionMessages('session-1', [{
+      id: 'm1',
+      role: 'user',
+      content: 'hello',
+      modelId: 'model-1',
+      timestamp: 1,
+      versions: [{ content: 'hello', createdAt: 1, subsequentMessages: [] }],
+      currentVersionIndex: 0,
+    }]));
+
+    expect(payload).toMatchObject({
+      version: 1,
+      sessionId: 'session-1',
+      updatedAt: Date.parse('2026-05-09T00:00:00Z'),
+      messages: [
+        {
+          id: 'm1',
+          role: 'user',
+          content: 'hello',
+        },
+      ],
+    });
+  });
+
+  it('loads only matching versioned session envelopes', () => {
+    const messages = parseSessionMessagesPayload('session-1', {
+      version: 1,
+      sessionId: 'session-1',
+      updatedAt: 1,
+      messages: [{
+        id: 'm1',
+        role: 'assistant',
+        content: 'answer',
+        modelId: 'model-1',
+        timestamp: 1,
+      }],
+    });
+
+    expect(messages?.[0]).toMatchObject({
+      id: 'm1',
+      role: 'assistant',
+      content: 'answer',
+      currentVersionIndex: 0,
+    });
+    expect(parseSessionMessagesPayload('session-2', {
+      version: 1,
+      sessionId: 'session-1',
+      messages: [],
+    })).toBeNull();
+    expect(parseSessionMessagesPayload('session-1', [])).toBeNull();
+  });
+
+  it('keeps persisted messages that an incoming stale write does not know about', () => {
+    const incoming = normalizeSessionMessages([
+      { id: 'm1', role: 'user', content: 'hello', modelId: 'model-1', timestamp: 1 },
+    ]);
+    const persisted = normalizeSessionMessages([
+      { id: 'm1', role: 'user', content: 'hello', modelId: 'model-1', timestamp: 1 },
+      { id: 'm2', role: 'assistant', content: 'newer answer', modelId: 'model-1', timestamp: 2 },
+    ]);
+
+    expect(preserveUnknownPersistedMessages(incoming, persisted).map((message) => message.id)).toEqual([
+      'm1',
+      'm2',
+    ]);
+  });
+
+  it('does not duplicate messages already preserved inside a branch version', () => {
+    const incoming = normalizeSessionMessages([
+      {
+        id: 'm1',
+        role: 'user',
+        content: 'edited',
+        modelId: 'model-1',
+        timestamp: 1,
+        versions: [{
+          content: 'original',
+          createdAt: 1,
+          subsequentMessages: [
+            { id: 'm2', role: 'assistant', content: 'older answer', modelId: 'model-1', timestamp: 2 },
+          ],
+        }],
+      },
+    ]);
+    const persisted = normalizeSessionMessages([
+      { id: 'm1', role: 'user', content: 'original', modelId: 'model-1', timestamp: 1 },
+      { id: 'm2', role: 'assistant', content: 'older answer', modelId: 'model-1', timestamp: 2 },
+    ]);
+
+    expect(preserveUnknownPersistedMessages(incoming, persisted).map((message) => message.id)).toEqual(['m1']);
+  });
+
   it('backfills versions for legacy persisted messages', () => {
     vi.setSystemTime(new Date('2026-05-09T00:00:00Z'));
 

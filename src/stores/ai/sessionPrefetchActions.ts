@@ -30,6 +30,9 @@ export function createSessionPrefetchActions() {
 
       const task = sessionPrefetchQueue.run(async () => {
         const loadedMessages = await loadSessionJson(sessionId);
+        if (!loadedMessages) {
+          return;
+        }
         const freshState = useUnifiedStore.getState();
         const ai = freshState.data.ai;
         if (!ai?.sessions.some((session) => session.id === sessionId) || sessionId in ai.messages) {

@@ -159,8 +159,18 @@ describe('unifiedStorage electron save', () => {
       String(path).endsWith('/chat/channels/active-provider.json'),
     );
     expect(providerWrite).toBeTruthy();
+    const providerPayload = JSON.parse(String(providerWrite?.[1]));
+    expect(providerPayload).toMatchObject({
+      version: 1,
+      providerId: 'active-provider',
+      data: {
+        provider: {
+          id: 'active-provider',
+          apiKey: '',
+        },
+      },
+    });
     expect(String(providerWrite?.[1])).not.toContain('sk-live');
-    expect(String(providerWrite?.[1])).toContain('"apiKey": ""');
     expect(mocks.storage.writeFile).not.toHaveBeenCalledWith(
       expect.stringContaining('../outside.json'),
       expect.anything(),
@@ -169,7 +179,12 @@ describe('unifiedStorage electron save', () => {
     const sessionsWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
       String(path).endsWith('/chat/sessions.json'),
     );
-    expect(JSON.parse(String(sessionsWrite?.[1])).providerIds).toEqual(['active-provider', 'empty-provider']);
+    expect(JSON.parse(String(sessionsWrite?.[1]))).toMatchObject({
+      version: 1,
+      data: {
+        providerIds: ['active-provider', 'empty-provider'],
+      },
+    });
   });
 
   it('skips keychain cleanup work outside electron runtime', async () => {
@@ -200,6 +215,132 @@ describe('unifiedStorage electron save', () => {
     expect(mocks.deleteProviderSecret).not.toHaveBeenCalled();
   });
 
+  it('preserves existing disk sessions that a stale window does not know about', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/chat/sessions.json')) {
+        return JSON.stringify({
+          version: 1,
+          updatedAt: 1,
+          data: {
+            sessions: [
+              { id: 'session-2', title: 'From other window', modelId: '', createdAt: 2, updatedAt: 20 },
+            ],
+            selectedModelId: null,
+            unreadSessionIds: [],
+            currentSessionId: null,
+            temporaryChatEnabled: false,
+            customSystemPrompt: '',
+            includeTimeContext: true,
+            webSearchEnabled: false,
+            providerIds: [],
+            deletedSessionIds: [],
+          },
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    const data: UnifiedData = {
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      },
+      customIcons: [],
+      ai: {
+        providers: [],
+        models: [],
+        benchmarkResults: {},
+        fetchedModels: {},
+        sessions: [
+          { id: 'session-1', title: 'Local window', modelId: '', createdAt: 1, updatedAt: 10 },
+        ],
+        messages: {},
+        unreadSessionIds: [],
+        selectedModelId: null,
+        currentSessionId: 'session-1',
+      },
+    };
+
+    await saveUnifiedDataImmediate(data);
+
+    const sessionsWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
+      String(path).endsWith('/chat/sessions.json'),
+    );
+    const payload = JSON.parse(String(sessionsWrite?.[1]));
+    expect(payload.data.sessions.map((session: { id: string }) => session.id)).toEqual([
+      'session-2',
+      'session-1',
+    ]);
+  });
+
+  it('does not resurrect a disk-deleted session from stale window state', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.storage.exists.mockImplementation(async (path: string) => {
+      if (path.endsWith('/chat/sessions/session-2.json')) {
+        return false;
+      }
+      return true;
+    });
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/chat/sessions.json')) {
+        return JSON.stringify({
+          version: 1,
+          updatedAt: 1,
+          data: {
+            sessions: [
+              { id: 'session-2', title: 'Deleted elsewhere', modelId: '', createdAt: 2, updatedAt: 20 },
+            ],
+            selectedModelId: null,
+            unreadSessionIds: [],
+            currentSessionId: null,
+            temporaryChatEnabled: false,
+            customSystemPrompt: '',
+            includeTimeContext: true,
+            webSearchEnabled: false,
+            providerIds: [],
+            deletedSessionIds: [],
+          },
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    const data: UnifiedData = {
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      },
+      customIcons: [],
+      ai: {
+        providers: [],
+        models: [],
+        benchmarkResults: {},
+        fetchedModels: {},
+        sessions: [
+          { id: 'session-1', title: 'Local window', modelId: '', createdAt: 1, updatedAt: 10 },
+          { id: 'session-2', title: 'Stale deleted copy', modelId: '', createdAt: 2, updatedAt: 20 },
+        ],
+        messages: {},
+        unreadSessionIds: [],
+        selectedModelId: null,
+        currentSessionId: 'session-2',
+      },
+    };
+
+    await saveUnifiedDataImmediate(data);
+
+    const sessionsWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
+      String(path).endsWith('/chat/sessions.json'),
+    );
+    const payload = JSON.parse(String(sessionsWrite?.[1]));
+    expect(payload.data.sessions.map((session: { id: string }) => session.id)).toEqual(['session-1']);
+    expect(payload.data.currentSessionId).toBeNull();
+    expect(payload.data.deletedSessionIds).toEqual(['session-2']);
+  });
+
   it('trusts provider channel filenames over mismatched provider ids when loading split storage', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(false);
     mocks.storage.readFile.mockImplementation(async (path: string) => {
@@ -219,58 +360,72 @@ describe('unifiedStorage electron save', () => {
 
       if (path.endsWith('/chat/sessions.json')) {
         return JSON.stringify({
-          sessions: [],
-          providerIds: ['good-provider', 'evil-provider'],
+          version: 1,
+          updatedAt: 1,
+          data: {
+            sessions: [],
+            providerIds: ['good-provider', 'evil-provider'],
+          },
         });
       }
 
       if (path.endsWith('/chat/channels/good-provider.json')) {
         return JSON.stringify({
-          provider: {
-            id: 'good-provider',
-            name: 'Good',
-            type: 'newapi',
-            apiHost: 'https://good.example',
-            apiKey: '',
-            enabled: true,
-            createdAt: 1,
-            updatedAt: 1,
-          },
-          models: [
-            {
-              apiModelId: 'model-a',
-              providerId: 'good-provider',
+          version: 1,
+          providerId: 'good-provider',
+          updatedAt: 1,
+          data: {
+            provider: {
+              id: 'good-provider',
+              name: 'Good',
+              type: 'newapi',
+              apiHost: 'https://good.example',
+              apiKey: '',
               enabled: true,
               createdAt: 1,
+              updatedAt: 1,
             },
-          ],
-          benchmarkResults: { items: {} },
-          fetchedModels: ['model-a', 123],
+            models: [
+              {
+                apiModelId: 'model-a',
+                providerId: 'good-provider',
+                enabled: true,
+                createdAt: 1,
+              },
+            ],
+            benchmarkResults: { items: {} },
+            fetchedModels: ['model-a', 123],
+          },
         });
       }
 
       if (path.endsWith('/chat/channels/evil-provider.json')) {
         return JSON.stringify({
-          provider: {
-            id: '__proto__',
-            name: 'Evil',
-            type: 'newapi',
-            apiHost: 'https://evil.example',
-            apiKey: '',
-            enabled: true,
-            createdAt: 1,
-            updatedAt: 1,
-          },
-          models: [
-            {
-              apiModelId: 'model-b',
-              providerId: '__proto__',
+          version: 1,
+          providerId: 'evil-provider',
+          updatedAt: 1,
+          data: {
+            provider: {
+              id: '__proto__',
+              name: 'Evil',
+              type: 'newapi',
+              apiHost: 'https://evil.example',
+              apiKey: '',
               enabled: true,
               createdAt: 1,
+              updatedAt: 1,
             },
-          ],
-          benchmarkResults: { polluted: true },
-          fetchedModels: ['model-b'],
+            models: [
+              {
+                apiModelId: 'model-b',
+                providerId: '__proto__',
+                enabled: true,
+                createdAt: 1,
+              },
+            ],
+            benchmarkResults: { polluted: true },
+            fetchedModels: ['model-b'],
+          },
         });
       }
 
@@ -284,5 +439,85 @@ describe('unifiedStorage electron save', () => {
     expect(data.ai?.benchmarkResults).toEqual({ 'good-provider': { items: {} } });
     expect(data.ai?.fetchedModels).toEqual({ 'good-provider': ['model-a'] });
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it('recovers visible sessions from message files when AI session metadata is invalid', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    mocks.storage.listDir.mockImplementation(async (path: string) => {
+      if (path.endsWith('/chat/sessions')) {
+        return [
+          { name: 'session-1.json', path: '/appdata/.vlaina/chat/sessions/session-1.json', isFile: true, isDirectory: false },
+        ];
+      }
+      return [];
+    });
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/.vlaina/data.json')) {
+        return JSON.stringify({
+          version: 2,
+          lastModified: 1,
+          data: {
+            settings: {
+              timezone: { offset: 480, city: 'Beijing' },
+              markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+            },
+            customIcons: [],
+          },
+        });
+      }
+
+      if (path.endsWith('/chat/sessions.json')) {
+        return JSON.stringify({
+          sessions: [{ id: 'session-1', title: 'Legacy', modelId: '', createdAt: 1, updatedAt: 1 }],
+          providerIds: ['legacy-provider'],
+        });
+      }
+
+      if (path.endsWith('/chat/sessions/session-1.json')) {
+        return JSON.stringify({
+          version: 1,
+          sessionId: 'session-1',
+          updatedAt: 2,
+          messages: [
+            {
+              id: 'm1',
+              role: 'user',
+              content: 'Please keep this important chat',
+              modelId: 'provider::model-a',
+              timestamp: 10,
+              versions: [{
+                content: 'Please keep this important chat',
+                createdAt: 10,
+                subsequentMessages: [],
+              }],
+              currentVersionIndex: 0,
+            },
+          ],
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+
+    const data = await loadUnifiedData();
+
+    expect(data.ai?.sessions).toEqual([
+      {
+        id: 'session-1',
+        title: 'Please keep this important chat',
+        modelId: 'provider::model-a',
+        isPinned: false,
+        createdAt: 10,
+        updatedAt: 10,
+      },
+    ]);
+    expect(data.ai?.messages).toEqual({});
+    expect(data.ai?.providers).toEqual([]);
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[Storage] Ignoring invalid AI sessions file:',
+      '/appdata/.vlaina/chat/sessions.json',
+    );
+    warnSpy.mockRestore();
   });
 });
