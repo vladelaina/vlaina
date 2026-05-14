@@ -28,8 +28,28 @@ function deleteActiveManagedStream(requestId, controller) {
   }
 }
 
-async function readManagedErrorMessage(response) {
-  const fallback = `Managed stream failed: HTTP ${response.status}`;
+function normalizeManagedErrorPayload(payload, status) {
+  const fallback = `Managed stream failed: HTTP ${status}`;
+  const message =
+    typeof payload?.error === 'string' && payload.error.trim()
+      ? payload.error.trim()
+      : typeof payload?.error?.message === 'string' && payload.error.message.trim()
+        ? payload.error.message.trim()
+        : typeof payload?.message === 'string' && payload.message.trim()
+          ? payload.message.trim()
+          : fallback;
+  const errorCode =
+    typeof payload?.errorCode === 'string' && payload.errorCode.trim()
+      ? payload.errorCode.trim()
+      : typeof payload?.error?.code === 'string' && payload.error.code.trim()
+        ? payload.error.code.trim()
+        : null;
+
+  return { message, statusCode: status, errorCode };
+}
+
+async function readManagedErrorPayload(response) {
+  const fallback = { message: `Managed stream failed: HTTP ${response.status}`, statusCode: response.status, errorCode: null };
   const text = await response.text().catch(() => '');
   if (!text) {
     return fallback;
@@ -37,20 +57,10 @@ async function readManagedErrorMessage(response) {
 
   try {
     const payload = JSON.parse(text);
-    if (typeof payload?.error === 'string' && payload.error.trim()) {
-      return payload.error.trim();
-    }
-    if (typeof payload?.errorCode === 'string' && payload.errorCode.trim()) {
-      return payload.errorCode.trim();
-    }
-    if (typeof payload?.error?.message === 'string' && payload.error.message.trim()) {
-      return payload.error.message.trim();
-    }
+    return normalizeManagedErrorPayload(payload, response.status);
   } catch {
-    return text;
+    return { message: text, statusCode: response.status, errorCode: null };
   }
-
-  return fallback;
 }
 
 export function registerManagedIpc({
@@ -104,7 +114,7 @@ export function registerManagedIpc({
         });
 
         if (!response.ok) {
-          throw new Error(await readManagedErrorMessage(response));
+          throw await readManagedErrorPayload(response);
         }
 
         if (!response.body) {
@@ -199,7 +209,13 @@ export function registerManagedIpc({
           safeSend(sender, `desktop:managed:stream:${id}:error`, { message: 'Aborted' });
         } else {
           safeSend(sender, `desktop:managed:stream:${id}:error`, {
-            message: error instanceof Error ? error.message : String(error),
+            message: error instanceof Error
+              ? error.message
+              : typeof error?.message === 'string'
+                ? error.message
+                : String(error),
+            statusCode: typeof error?.statusCode === 'number' ? error.statusCode : undefined,
+            errorCode: typeof error?.errorCode === 'string' ? error.errorCode : undefined,
           });
         }
       } finally {

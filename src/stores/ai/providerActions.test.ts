@@ -1,7 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { actions } from './providerActions';
 import { useUnifiedStore } from '../unified/useUnifiedStore';
 import type { AIModel, Provider } from '@/lib/ai/types';
+
+const { fetchManagedModelsMock } = vi.hoisted(() => ({
+  fetchManagedModelsMock: vi.fn(),
+}));
+
+let managedRefreshTestNow = 1_700_000_000_000;
 
 vi.mock('@/lib/storage/unifiedStorage', () => ({
   loadUnifiedData: vi.fn(async () => ({
@@ -15,6 +21,14 @@ vi.mock('@/lib/storage/unifiedStorage', () => ({
 vi.mock('@/lib/storage/assetStorage', () => ({
   scanGlobalIcons: vi.fn(async () => []),
 }));
+
+vi.mock('@/lib/ai/managedService', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/ai/managedService')>('@/lib/ai/managedService');
+  return {
+    ...actual,
+    fetchManagedModels: fetchManagedModelsMock,
+  };
+});
 
 function buildProvider(overrides: Partial<Provider>): Provider {
   return {
@@ -76,6 +90,7 @@ function seedAI(providers: Provider[], models: AIModel[] = []) {
 
 describe('deleteIncompleteCustomProviders', () => {
   beforeEach(() => {
+    fetchManagedModelsMock.mockReset();
     useUnifiedStore.setState({
       loaded: false,
       data: {
@@ -177,8 +192,66 @@ describe('deleteIncompleteCustomProviders', () => {
   });
 });
 
+describe('refreshManagedProviderInBackground', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    managedRefreshTestNow += 10 * 60 * 1000;
+    vi.setSystemTime(managedRefreshTestNow);
+    fetchManagedModelsMock.mockReset();
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    seedAI([
+      buildProvider({
+        id: 'vlaina-managed',
+        name: 'vlaina',
+        type: 'newapi',
+        apiHost: 'https://api.vlaina.com/v1',
+      }),
+    ], [
+      buildModel({
+        id: 'vlaina-managed::old-model',
+        apiModelId: 'old-model',
+        name: 'Old Model',
+        providerId: 'vlaina-managed',
+      }),
+    ]);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it('keeps the existing managed models when background refresh fails', async () => {
+    fetchManagedModelsMock.mockRejectedValue(new Error('network failed'));
+
+    actions.refreshManagedProviderInBackground();
+    await vi.runAllTimersAsync();
+
+    expect(useUnifiedStore.getState().data.ai?.models.map((model) => model.apiModelId)).toEqual(['old-model']);
+  });
+
+  it('deduplicates rapid background refresh attempts', async () => {
+    fetchManagedModelsMock.mockResolvedValue([
+      buildModel({
+        id: 'vlaina-managed::new-model',
+        apiModelId: 'new-model',
+        name: 'New Model',
+        providerId: 'vlaina-managed',
+      }),
+    ]);
+
+    actions.refreshManagedProviderInBackground();
+    actions.refreshManagedProviderInBackground();
+    await vi.runAllTimersAsync();
+
+    expect(fetchManagedModelsMock).toHaveBeenCalledTimes(1);
+    expect(useUnifiedStore.getState().data.ai?.models.map((model) => model.apiModelId)).toEqual(['new-model']);
+  });
+});
+
 describe('addModels', () => {
   beforeEach(() => {
+    fetchManagedModelsMock.mockReset();
     seedAI([buildProvider({ id: 'provider-1' })], [
       buildModel({
         id: 'provider-1::gpt-existing',

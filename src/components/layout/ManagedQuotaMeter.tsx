@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { cn } from '@/lib/utils';
 
@@ -7,9 +8,29 @@ interface ManagedQuotaMeterProps {
 
 export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
   const budget = useManagedAIStore(s => s.budget);
+  const isRefreshingBudget = useManagedAIStore(s => s.isRefreshingBudget);
+  const refreshBudgetIfStale = useManagedAIStore(s => s.refreshBudgetIfStale);
+
+  useEffect(() => {
+    void refreshBudgetIfStale();
+  }, [refreshBudgetIfStale]);
 
   if (!budget) {
-    return null;
+    return (
+      <div className={cn('mt-1 flex items-center gap-2', className)}>
+        <div className="min-w-0 flex-1">
+          <div className="h-1.5 overflow-hidden rounded-full bg-[#e9e6df]">
+            <div
+              className={cn(
+                'h-full w-1/3 rounded-full bg-[#d2cec5]',
+                isRefreshingBudget && 'animate-pulse'
+              )}
+            />
+          </div>
+        </div>
+        <span className="shrink-0 text-[11px] text-[var(--vlaina-text-tertiary)]">--%</span>
+      </div>
+    );
   }
 
   const remainingPercent = Math.max(0, Math.min(100, budget.remainingPercent || 0));

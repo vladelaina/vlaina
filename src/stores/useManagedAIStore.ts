@@ -10,34 +10,71 @@ interface ManagedAIState {
   isRefreshingBudget: boolean
   budgetError: string | null
   lastBudgetSyncAt: number | null
+  lastBudgetAttemptAt: number | null
   refreshBudget: () => Promise<void>
+  refreshBudgetIfStale: () => Promise<void>
   clearBudget: () => void
 }
 
-export const useManagedAIStore = create<ManagedAIState>((set) => ({
+const BUDGET_REFRESH_INTERVAL_MS = 60_000
+const BUDGET_RETRY_INTERVAL_MS = 15_000
+
+let budgetRefreshPromise: Promise<void> | null = null
+
+export const useManagedAIStore = create<ManagedAIState>((set, get) => ({
   budget: null,
   isRefreshingBudget: false,
   budgetError: null,
   lastBudgetSyncAt: null,
+  lastBudgetAttemptAt: null,
 
   refreshBudget: async () => {
-    set({ isRefreshingBudget: true, budgetError: null })
-    try {
-      const budget = await fetchManagedBudget()
-      set({
-        budget,
-        isRefreshingBudget: false,
-        budgetError: null,
-        lastBudgetSyncAt: Date.now(),
-      })
-    } catch (error) {
-      set({
-        budget: null,
-        isRefreshingBudget: false,
-        budgetError: getManagedServiceErrorMessage(error) || 'Failed to refresh budget',
-        lastBudgetSyncAt: null,
-      })
+    if (budgetRefreshPromise) {
+      return budgetRefreshPromise
     }
+
+    budgetRefreshPromise = (async () => {
+      set({ isRefreshingBudget: true, budgetError: null, lastBudgetAttemptAt: Date.now() })
+      try {
+        const budget = await fetchManagedBudget()
+        set({
+          budget,
+          isRefreshingBudget: false,
+          budgetError: null,
+          lastBudgetSyncAt: Date.now(),
+        })
+      } catch (error) {
+        set({
+          budget: null,
+          isRefreshingBudget: false,
+          budgetError: getManagedServiceErrorMessage(error) || 'Failed to refresh budget',
+          lastBudgetSyncAt: null,
+        })
+      } finally {
+        budgetRefreshPromise = null
+      }
+    })()
+
+    return budgetRefreshPromise
+  },
+
+  refreshBudgetIfStale: async () => {
+    const state = get()
+    const now = Date.now()
+
+    if (state.isRefreshingBudget) {
+      return budgetRefreshPromise ?? Promise.resolve()
+    }
+
+    if (state.budget && state.lastBudgetSyncAt && now - state.lastBudgetSyncAt < BUDGET_REFRESH_INTERVAL_MS) {
+      return
+    }
+
+    if (!state.budget && state.lastBudgetAttemptAt && now - state.lastBudgetAttemptAt < BUDGET_RETRY_INTERVAL_MS) {
+      return
+    }
+
+    return get().refreshBudget()
   },
 
   clearBudget: () =>
@@ -46,5 +83,6 @@ export const useManagedAIStore = create<ManagedAIState>((set) => ({
       isRefreshingBudget: false,
       budgetError: null,
       lastBudgetSyncAt: null,
+      lastBudgetAttemptAt: null,
     }),
 }))
