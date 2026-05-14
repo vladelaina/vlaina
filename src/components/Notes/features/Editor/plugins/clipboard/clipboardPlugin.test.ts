@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core';
 import { TextSelection } from '@milkdown/kit/prose/state';
+import { CellSelection } from '@milkdown/kit/prose/tables';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { clipboardPlugin } from './clipboardPlugin';
@@ -27,6 +28,25 @@ function findTextRange(doc: any, text: string): { from: number; to: number } {
 
     if (!resolved) {
         throw new Error(`Unable to resolve text range for "${text}"`);
+    }
+
+    return resolved;
+}
+
+function findTableCellPos(doc: any, text: string): number {
+    let resolved: number | null = null;
+
+    doc.descendants((node: any, pos: number) => {
+        if (resolved !== null) return false;
+        if (node.type?.name !== 'table_cell' && node.type?.name !== 'table_header') return;
+        if (node.textContent !== text) return;
+
+        resolved = pos;
+        return false;
+    });
+
+    if (resolved === null) {
+        throw new Error(`Unable to resolve table cell position for "${text}"`);
     }
 
     return resolved;
@@ -244,6 +264,40 @@ describe('clipboardPlugin copy', () => {
         expect(copied).not.toContain('`');
         expect(copied).not.toContain('\\$');
         expect(copied).not.toContain('&#x20;');
+
+        await editor.destroy();
+    });
+
+    it('copies a single selected table cell in the copy event as cell text', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, [
+                    '| newapi | 状态 |',
+                    '| --- | --- |',
+                    '| 启动 | 正常 |',
+                ].join('\n'));
+                ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+                    ...prev,
+                    ...notesRemarkStringifyOptions,
+                }));
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+        const cellPos = findTableCellPos(view.state.doc, '启动');
+        view.dispatch(view.state.tr.setSelection(new CellSelection(
+            view.state.doc.resolve(cellPos),
+            view.state.doc.resolve(cellPos)
+        ) as never));
+
+        const { handled, event, clipboardData } = simulateCopyEvent(view);
+
+        expect(handled).toBe(true);
+        expect(event.preventDefault).toHaveBeenCalled();
+        expect(clipboardData.setData).toHaveBeenCalledWith('text/plain', '启动');
 
         await editor.destroy();
     });
