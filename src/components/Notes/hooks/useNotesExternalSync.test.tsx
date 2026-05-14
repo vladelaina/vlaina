@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useNotesExternalSync } from './useNotesExternalSync';
-import { detectExternalTreePathChanges } from './notesExternalPollingUtils';
+import { buildExternalTreeSnapshot, detectExternalTreePathChanges } from './notesExternalPollingUtils';
 import { shouldIgnoreExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
 
 type WatchEvent = {
@@ -92,6 +92,7 @@ describe('useNotesExternalSync', () => {
     vi.clearAllMocks();
     hoisted.watchHandler = null;
     hoisted.renameBroadcastHandler = null;
+    hoisted.notesState.notesPath = '/vault';
     hoisted.notesState.currentNote = { path: 'docs/current.md' };
   });
 
@@ -181,6 +182,32 @@ describe('useNotesExternalSync', () => {
     expect(hoisted.notesState.loadFileTree).not.toHaveBeenCalled();
 
     hook.unmount();
+  });
+
+  it('polls broad notes paths instead of starting a recursive native watch', async () => {
+    hoisted.notesState.notesPath = '/home/user';
+    const hook = renderHook(() => useNotesExternalSync('/home/user', '/home/user'));
+
+    expect(hoisted.watchDesktopPath).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(buildExternalTreeSnapshot).toHaveBeenCalledWith('/home/user');
+
+    vi.mocked(buildExternalTreeSnapshot).mockClear();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(4999);
+    });
+    expect(buildExternalTreeSnapshot).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(buildExternalTreeSnapshot).toHaveBeenCalledWith('/home/user');
+
+    hook.unmount();
+    hoisted.notesState.notesPath = '/vault';
   });
 
   it('applies external deletions before reloading the tree', async () => {

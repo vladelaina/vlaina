@@ -38,6 +38,57 @@ interface AddMessageOptions {
   touchSession?: boolean
 }
 
+const MAX_MESSAGE_VERSIONS = 20
+const MAX_VERSION_BRANCH_MESSAGES = 100
+const MAX_VERSION_BRANCH_DEPTH = 0
+
+function limitMessageVersions(
+  versions: MessageVersion[],
+  activeIndex: number
+): { versions: MessageVersion[]; currentVersionIndex: number } {
+  if (versions.length <= MAX_MESSAGE_VERSIONS) {
+    return { versions, currentVersionIndex: activeIndex }
+  }
+
+  const keepIndexes = new Set<number>([activeIndex])
+  for (let index = versions.length - 1; index >= 0 && keepIndexes.size < MAX_MESSAGE_VERSIONS; index -= 1) {
+    keepIndexes.add(index)
+  }
+
+  const keptIndexes = Array.from(keepIndexes).sort((left, right) => left - right)
+  return {
+    versions: keptIndexes.map((index) => versions[index]!),
+    currentVersionIndex: keptIndexes.indexOf(activeIndex),
+  }
+}
+
+function pruneVersionBranchMessages(
+  messages: ChatMessage[],
+  depth = 0
+): ChatMessage[] {
+  return messages
+    .slice(0, MAX_VERSION_BRANCH_MESSAGES)
+    .map((message) => pruneMessageVersionBranches(message, depth))
+}
+
+function pruneMessageVersionBranches(message: ChatMessage, depth: number): ChatMessage {
+  const versions = getSafeMessageVersions(message)
+  const currentVersionIndex = getSafeCurrentVersionIndex(message, versions)
+  const limited = limitMessageVersions(versions, currentVersionIndex)
+  const shouldKeepNestedBranches = depth < MAX_VERSION_BRANCH_DEPTH
+
+  return {
+    ...message,
+    versions: limited.versions.map((version) => ({
+      ...version,
+      subsequentMessages: shouldKeepNestedBranches
+        ? pruneVersionBranchMessages(version.subsequentMessages || [], depth + 1)
+        : [],
+    })),
+    currentVersionIndex: limited.currentVersionIndex,
+  }
+}
+
 export function createMessageActions() {
   return {
     addMessage: (
@@ -184,13 +235,14 @@ export function createMessageActions() {
 
         const versions = getSafeMessageVersions(message)
         versions.push(createMessageVersion('', Date.now()))
+        const limited = limitMessageVersions(versions, versions.length - 1)
 
         return {
           ...message,
           content: '',
           apiTranscript: undefined,
-          versions,
-          currentVersionIndex: versions.length - 1
+          versions: limited.versions,
+          currentVersionIndex: limited.currentVersionIndex
         }
       })
 
@@ -214,7 +266,7 @@ export function createMessageActions() {
       if (index === -1) return
 
       const targetMessage = messages[index]
-      const futureMessages = messages.slice(index + 1)
+      const futureMessages = pruneVersionBranchMessages(messages.slice(index + 1))
 
       const versions = getSafeMessageVersions(targetMessage)
       const currentVersionIndex = getSafeCurrentVersionIndex(targetMessage, versions)
@@ -224,6 +276,7 @@ export function createMessageActions() {
         subsequentMessages: futureMessages
       }
       versions.push(createMessageVersion(newContent, Date.now()))
+      const limited = limitMessageVersions(versions, versions.length - 1)
 
       const newMessages = messages.slice(0, index + 1)
       newMessages[index] = {
@@ -231,8 +284,8 @@ export function createMessageActions() {
         content: newContent,
         apiTranscript: undefined,
         imageSources: extractMessageImageSources(newContent),
-        versions,
-        currentVersionIndex: versions.length - 1
+        versions: limited.versions,
+        currentVersionIndex: limited.currentVersionIndex
       }
 
       state.updateAIData({
@@ -258,21 +311,22 @@ export function createMessageActions() {
       const currentVersionIndex = getSafeCurrentVersionIndex(targetMessage, versions)
       if (currentVersionIndex === targetIndex) return
 
-      const futureMessages = messages.slice(index + 1)
+      const futureMessages = pruneVersionBranchMessages(messages.slice(index + 1))
       versions[currentVersionIndex] = {
         ...versions[currentVersionIndex],
         subsequentMessages: futureMessages
       }
 
-      const restoredFuture = versions[targetIndex].subsequentMessages || []
+      const restoredFuture = pruneVersionBranchMessages(versions[targetIndex].subsequentMessages || [])
+      const limited = limitMessageVersions(versions, targetIndex)
       const newMessages = messages.slice(0, index + 1)
       newMessages[index] = {
         ...targetMessage,
         content: versions[targetIndex].content,
         apiTranscript: versions[targetIndex].apiTranscript,
         imageSources: extractMessageImageSources(versions[targetIndex].content),
-        currentVersionIndex: targetIndex,
-        versions
+        currentVersionIndex: limited.currentVersionIndex,
+        versions: limited.versions
       }
 
       const finalMessages = [...newMessages, ...restoredFuture]

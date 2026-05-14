@@ -24,6 +24,7 @@ import {
 import { createNotesExternalSyncActions, type PendingCreateEntry } from './notesExternalSyncActions';
 
 const NOTES_RECONCILE_POLL_MS = 1500;
+const BROAD_PATH_RECONCILE_POLL_MS = 5000;
 
 function shouldAvoidRecursiveNativeWatch(path: string) {
   const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '');
@@ -141,21 +142,19 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
     };
 
     const startReconcilePolling = () => {
-      if (shouldAvoidRecursiveNativeWatch(notesPath)) {
-        void syncActions.runPollingReconcile();
-        return;
-      }
-
       if (reconcilePollTimer !== null) {
         return;
       }
 
+      const reconcilePollMs = shouldAvoidRecursiveNativeWatch(notesPath)
+        ? BROAD_PATH_RECONCILE_POLL_MS
+        : NOTES_RECONCILE_POLL_MS;
       reconcilePollTimer = window.setInterval(() => {
         if (document.visibilityState !== 'visible') {
           return;
         }
         void syncActions.runPollingReconcile();
-      }, NOTES_RECONCILE_POLL_MS);
+      }, reconcilePollMs);
       void syncActions.runPollingReconcile();
     };
 
@@ -171,6 +170,7 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
 
     const run = async () => {
       if (shouldAvoidRecursiveNativeWatch(notesPath)) {
+        startReconcilePolling();
         return;
       }
 

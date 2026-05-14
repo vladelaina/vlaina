@@ -206,29 +206,36 @@ export async function consumeOpenAIStream(
     accumulator.pushDelta(delta)
   }
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) {
-      break
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      }
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        consumeLine(line)
+      }
     }
 
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() || ''
-
-    for (const line of lines) {
-      consumeLine(line)
+    if (buffer.trim()) {
+      consumeLine(buffer)
     }
-  }
 
-  if (buffer.trim()) {
-    consumeLine(buffer)
+    const finalContent = accumulator.finish()
+    const transcriptMessage = accumulator.getAssistantTranscriptMessage()
+    if (transcriptMessage) {
+      options?.onAssistantTranscriptMessage?.(transcriptMessage)
+    }
+    return finalContent
+  } catch (error) {
+    await reader.cancel().catch(() => undefined)
+    throw error
+  } finally {
+    reader.releaseLock()
   }
-
-  const finalContent = accumulator.finish()
-  const transcriptMessage = accumulator.getAssistantTranscriptMessage()
-  if (transcriptMessage) {
-    options?.onAssistantTranscriptMessage?.(transcriptMessage)
-  }
-  return finalContent
 }

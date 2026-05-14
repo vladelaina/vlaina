@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { consumeOpenAIStream } from './streaming';
 
 function streamResponse(lines: string[]): Response {
@@ -75,5 +75,21 @@ describe('consumeOpenAIStream', () => {
       content: 'visible answer',
       reasoning_content: 'firstsecond',
     }]);
+  });
+
+  it('cancels the stream reader when a stream error payload is received', async () => {
+    const cancel = vi.fn();
+    const encoder = new TextEncoder();
+    const response = new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode('data: {"error":{"message":"boom"}}\n'));
+        },
+        cancel,
+      }),
+    );
+
+    await expect(consumeOpenAIStream(response, () => {})).rejects.toThrow('boom');
+    expect(cancel).toHaveBeenCalledTimes(1);
   });
 });

@@ -32,6 +32,22 @@ function createAssistantMessage(): ChatMessage {
   };
 }
 
+function createUserMessage(id: string, content = id): ChatMessage {
+  return {
+    id,
+    role: 'user',
+    content,
+    modelId: 'model-1',
+    timestamp: 1,
+    versions: [{
+      content,
+      createdAt: 1,
+      subsequentMessages: [],
+    }],
+    currentVersionIndex: 0,
+  };
+}
+
 function seedMessages(messages: ChatMessage[]) {
   useUnifiedStore.setState({
     loaded: true,
@@ -138,6 +154,46 @@ describe('message actions API transcript handling', () => {
     expect(messages[0].content).toBe('edited prompt');
     expect(messages[0].currentVersionIndex).toBe(1);
     expect(messages[0].versions[0].subsequentMessages[0].id).toBe('assistant-1');
+  });
+
+  it('limits retained message versions while preserving the active version', () => {
+    seedMessages([createAssistantMessage()]);
+    const actions = createMessageActions();
+
+    for (let index = 0; index < 25; index += 1) {
+      actions.addVersion('assistant-1', 'session-1');
+    }
+
+    const message = useUnifiedStore.getState().data.ai!.messages['session-1'][0];
+    expect(message.versions).toHaveLength(20);
+    expect(message.currentVersionIndex).toBe(19);
+    expect(message.content).toBe('');
+  });
+
+  it('limits branched subsequent messages and strips deeper nested branches', () => {
+    const nestedAssistant: ChatMessage = {
+      ...createAssistantMessage(),
+      id: 'nested-assistant',
+      versions: [{
+        content: 'nested',
+        createdAt: 1,
+        subsequentMessages: [createUserMessage('deep-1')],
+      }],
+    };
+    seedMessages([
+      createUserMessage('prompt-1', 'prompt'),
+      ...Array.from({ length: 120 }, (_, index) =>
+        index === 0 ? nestedAssistant : createUserMessage(`future-${index}`)
+      ),
+    ]);
+
+    createMessageActions().editMessageAndBranch('session-1', 'prompt-1', 'edited prompt');
+
+    const message = useUnifiedStore.getState().data.ai!.messages['session-1'][0];
+    const branch = message.versions[0].subsequentMessages;
+    expect(branch).toHaveLength(100);
+    expect(branch[0].id).toBe('nested-assistant');
+    expect(branch[0].versions[0].subsequentMessages).toEqual([]);
   });
 
   it('normalizes transcripts at the message mutation boundary', () => {
