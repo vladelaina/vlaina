@@ -157,6 +157,8 @@ describe('managed ipc stream bridge', () => {
 
     expect(sender.send).toHaveBeenCalledWith('desktop:managed:stream:managed-http-error:error', {
       message: 'UPSTREAM_UNAVAILABLE',
+      statusCode: 502,
+      errorCode: 'upstream_unavailable',
     });
   });
 });
