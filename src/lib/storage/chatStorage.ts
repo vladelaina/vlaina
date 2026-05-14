@@ -7,7 +7,15 @@ import { isSafeChatSessionId } from './unifiedStorageAI';
 
 const sessionQueues = new Map<string, PersistenceQueue<ChatMessage[]>>();
 const DEFAULT_DEBOUNCE_MS = 180;
+const SESSION_MESSAGES_FILE_VERSION = 1;
 let autoSyncTrigger: ((sessionId?: string) => void) | null = null;
+
+interface SessionMessagesFile {
+  version: typeof SESSION_MESSAGES_FILE_VERSION;
+  sessionId: string;
+  updatedAt: number;
+  messages: ChatMessage[];
+}
 
 export function setChatStorageAutoSyncTrigger(
   trigger: ((sessionId?: string) => void) | null,
@@ -15,8 +23,43 @@ export function setChatStorageAutoSyncTrigger(
   autoSyncTrigger = trigger;
 }
 
-function serializeSessionMessages(messages: ChatMessage[]): string {
-  return JSON.stringify(messages);
+export function serializeSessionMessages(sessionId: string, messages: ChatMessage[]): string {
+  assertSafeChatSessionId(sessionId);
+  const payload: SessionMessagesFile = {
+    version: SESSION_MESSAGES_FILE_VERSION,
+    sessionId,
+    updatedAt: Date.now(),
+    messages,
+  };
+  return JSON.stringify(payload, null, 2);
+}
+
+function collectMessageIds(messages: ChatMessage[], ids = new Set<string>()): Set<string> {
+  for (const message of messages) {
+    ids.add(message.id);
+    for (const version of message.versions || []) {
+      collectMessageIds(version.subsequentMessages || [], ids);
+    }
+  }
+
+  return ids;
+}
+
+export function preserveUnknownPersistedMessages(
+  incomingMessages: ChatMessage[],
+  persistedMessages: ChatMessage[] | null,
+): ChatMessage[] {
+  if (!persistedMessages || persistedMessages.length === 0) {
+    return incomingMessages;
+  }
+
+  const incomingIds = collectMessageIds(incomingMessages);
+  const missingPersistedMessages = persistedMessages.filter((message) => !incomingIds.has(message.id));
+  if (missingPersistedMessages.length === 0) {
+    return incomingMessages;
+  }
+
+  return [...incomingMessages, ...missingPersistedMessages];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -112,6 +155,30 @@ export function normalizeSessionMessages(value: unknown): ChatMessage[] {
     .filter((message): message is ChatMessage => message !== null);
 }
 
+export function parseSessionMessagesPayload(
+  expectedSessionId: string,
+  value: unknown,
+): ChatMessage[] | null {
+  assertSafeChatSessionId(expectedSessionId);
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  if (value.version !== SESSION_MESSAGES_FILE_VERSION) {
+    return null;
+  }
+
+  if (value.sessionId !== expectedSessionId) {
+    return null;
+  }
+
+  if (!Array.isArray(value.messages)) {
+    return null;
+  }
+
+  return normalizeSessionMessages(value.messages);
+}
+
 function assertSafeChatSessionId(sessionId: string): void {
   if (!isSafeChatSessionId(sessionId)) {
     throw new Error(`Unsafe chat session id: ${sessionId}`);
@@ -127,7 +194,7 @@ function getSessionQueue(sessionId: string): PersistenceQueue<ChatMessage[]> {
   queue = createPersistenceQueue<ChatMessage[]>({
     debounceMs: DEFAULT_DEBOUNCE_MS,
     write: async (messages) => {
-      await writeSessionJsonRaw(sessionId, serializeSessionMessages(messages));
+      await writeSessionJsonRaw(sessionId, messages);
     },
     onError: (error) => {
       console.error('[chatStorage] save session failed:', error);
@@ -143,12 +210,13 @@ function getSessionQueue(sessionId: string): PersistenceQueue<ChatMessage[]> {
   return queue;
 }
 
-async function writeSessionJsonRaw(sessionId: string, payload: string) {
+async function writeSessionJsonRaw(sessionId: string, messages: ChatMessage[]) {
   assertSafeChatSessionId(sessionId);
   const storage = getStorageAdapter();
   const base = await getStorageBasePath();
   const chatRoot = await joinPath(base, '.vlaina', 'chat');
   const dir = await joinPath(chatRoot, 'sessions');
+  const path = await joinPath(dir, `${sessionId}.json`);
 
   if (!(await storage.exists(chatRoot))) {
     await storage.mkdir(chatRoot, true);
@@ -157,9 +225,32 @@ async function writeSessionJsonRaw(sessionId: string, payload: string) {
     await storage.mkdir(dir, true);
   }
 
-  const path = await joinPath(dir, `${sessionId}.json`);
-  await storage.writeFile(path, payload);
+  let messagesToWrite = messages;
+  if (await storage.exists(path)) {
+    try {
+      const parsed: unknown = JSON.parse(await storage.readFile(path));
+      const persistedMessages = parseSessionMessagesPayload(sessionId, parsed);
+      if (!persistedMessages) {
+        throw new Error('Invalid existing session file');
+      }
+      messagesToWrite = preserveUnknownPersistedMessages(
+        messages,
+        persistedMessages,
+      );
+    } catch (error) {
+      console.error('[chatStorage] Refusing to overwrite unreadable existing session file:', path, error);
+      throw error;
+    }
+  }
+
+  await storage.writeFile(path, serializeSessionMessages(sessionId, messagesToWrite));
   autoSyncTrigger?.(sessionId);
+}
+
+async function getSessionJsonPath(sessionId: string): Promise<string> {
+  assertSafeChatSessionId(sessionId);
+  const base = await getStorageBasePath();
+  return joinPath(base, '.vlaina', 'chat', 'sessions', `${sessionId}.json`);
 }
 
 export async function saveSessionJson(sessionId: string, messages: ChatMessage[]) {
@@ -213,26 +304,29 @@ export async function deleteSessionJson(sessionId: string): Promise<void> {
   }
 
   const storage = getStorageAdapter();
-  const base = await getStorageBasePath();
-  const path = await joinPath(base, '.vlaina', 'chat', 'sessions', `${sessionId}.json`);
+  const path = await getSessionJsonPath(sessionId);
   if (await storage.exists(path)) {
     await storage.deleteFile(path);
     autoSyncTrigger?.(sessionId);
   }
 }
 
+export async function hasSessionJson(sessionId: string): Promise<boolean> {
+  assertSafeChatSessionId(sessionId);
+  const storage = getStorageAdapter();
+  return storage.exists(await getSessionJsonPath(sessionId));
+}
+
 export async function loadSessionJson(sessionId: string): Promise<ChatMessage[] | null> {
   assertSafeChatSessionId(sessionId);
   const storage = getStorageAdapter();
-  const base = await getStorageBasePath();
-  const path = await joinPath(base, '.vlaina', 'chat', 'sessions', `${sessionId}.json`);
+  const path = await getSessionJsonPath(sessionId);
   
   if (await storage.exists(path)) {
       try {
           const content = await storage.readFile(path);
           const parsed: unknown = JSON.parse(content);
-          if (!Array.isArray(parsed)) return null;
-          return normalizeSessionMessages(parsed);
+          return parseSessionMessagesPayload(sessionId, parsed);
       } catch (error) {
           console.error('[chatStorage] Failed to load session file:', path, error);
           return null;

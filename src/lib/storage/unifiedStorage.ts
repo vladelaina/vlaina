@@ -1,11 +1,17 @@
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
 import { createPersistenceQueue } from './persistenceEngine';
-import type { Provider, ProviderBenchmarkRecord } from '@/lib/ai/types';
+import type { AIModel, ChatMessage, Provider, ProviderBenchmarkRecord } from '@/lib/ai/types';
 import type { ChatSession } from '@/lib/ai/types';
 import { isTemporarySession } from '@/lib/ai/temporaryChat';
 import { getStorageBasePath } from './basePath';
-import { isSafeProviderId, normalizeLoadedAIModels, normalizeLoadedAIProviders } from './unifiedStorageAI';
+import { loadSessionJson } from './chatStorage';
+import {
+  isSafeChatSessionId,
+  isSafeProviderId,
+  normalizeLoadedAIModels,
+  normalizeLoadedAIProviders,
+} from './unifiedStorageAI';
 import { aiProviderSecretCommands } from '@/lib/desktop/secretsCommands';
 import { translate } from '@/lib/i18n';
 import { useToastStore } from '@/stores/useToastStore';
@@ -23,6 +29,41 @@ export type {
 
 const MAIN_DATA_FILE = 'data.json';
 const MAIN_DATA_BACKUP_FILE = 'data.backup.json';
+const AI_SESSIONS_FILE_VERSION = 1;
+const AI_PROVIDER_CHANNEL_FILE_VERSION = 1;
+
+interface AISessionsFileData {
+  sessions: ChatSession[];
+  selectedModelId: string | null;
+  unreadSessionIds: string[];
+  currentSessionId: string | null;
+  temporaryChatEnabled: boolean;
+  customSystemPrompt: string;
+  includeTimeContext: boolean;
+  webSearchEnabled: boolean;
+  providerIds: string[];
+  deletedSessionIds: string[];
+}
+
+interface AISessionsFile {
+  version: typeof AI_SESSIONS_FILE_VERSION;
+  updatedAt: number;
+  data: AISessionsFileData;
+}
+
+interface AIProviderChannelFileData {
+  provider: Provider;
+  models: AIModel[];
+  benchmarkResults?: ProviderBenchmarkRecord;
+  fetchedModels: string[];
+}
+
+interface AIProviderChannelFile {
+  version: typeof AI_PROVIDER_CHANNEL_FILE_VERSION;
+  providerId: string;
+  updatedAt: number;
+  data: AIProviderChannelFileData;
+}
 
 let autoSyncTrigger: (() => void) | null = null;
 let hasShownPersistenceFailureToast = false;
@@ -30,6 +71,224 @@ let hasShownSecretLoadFailureToast = false;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function parseAISessionsFile(value: unknown): AISessionsFileData | null {
+  if (!isRecord(value) || value.version !== AI_SESSIONS_FILE_VERSION || !isRecord(value.data)) {
+    return null;
+  }
+
+  const data = value.data;
+  return {
+    sessions: Array.isArray(data.sessions) ? data.sessions as ChatSession[] : [],
+    selectedModelId: typeof data.selectedModelId === 'string' ? data.selectedModelId : null,
+    unreadSessionIds: Array.isArray(data.unreadSessionIds)
+      ? data.unreadSessionIds.filter((sessionId): sessionId is string => typeof sessionId === 'string')
+      : [],
+    currentSessionId: typeof data.currentSessionId === 'string' ? data.currentSessionId : null,
+    temporaryChatEnabled: false,
+    customSystemPrompt: typeof data.customSystemPrompt === 'string' ? data.customSystemPrompt : '',
+    includeTimeContext: data.includeTimeContext !== false,
+    webSearchEnabled: data.webSearchEnabled === true,
+    providerIds: Array.isArray(data.providerIds) ? data.providerIds.filter(isSafeProviderId) : [],
+    deletedSessionIds: Array.isArray(data.deletedSessionIds)
+      ? data.deletedSessionIds.filter(isSafeChatSessionId)
+      : [],
+  };
+}
+
+function serializeAISessionsFile(data: AISessionsFileData): string {
+  const payload: AISessionsFile = {
+    version: AI_SESSIONS_FILE_VERSION,
+    updatedAt: Date.now(),
+    data,
+  };
+  return JSON.stringify(payload, null, 2);
+}
+
+function parseAIProviderChannelFile(
+  expectedProviderId: string,
+  value: unknown,
+): AIProviderChannelFileData | null {
+  if (!isSafeProviderId(expectedProviderId)) {
+    return null;
+  }
+
+  if (
+    !isRecord(value) ||
+    value.version !== AI_PROVIDER_CHANNEL_FILE_VERSION ||
+    value.providerId !== expectedProviderId ||
+    !isRecord(value.data)
+  ) {
+    return null;
+  }
+
+  const data = value.data;
+  if (!isRecord(data.provider) || data.provider.id !== expectedProviderId) {
+    return null;
+  }
+
+  return {
+    provider: data.provider as unknown as Provider,
+    models: Array.isArray(data.models) ? data.models as AIModel[] : [],
+    ...(isRecord(data.benchmarkResults)
+      ? { benchmarkResults: data.benchmarkResults as unknown as ProviderBenchmarkRecord }
+      : {}),
+    fetchedModels: Array.isArray(data.fetchedModels)
+      ? data.fetchedModels.filter((model): model is string => typeof model === 'string')
+      : [],
+  };
+}
+
+function serializeAIProviderChannelFile(
+  providerId: string,
+  data: AIProviderChannelFileData,
+): string {
+  const payload: AIProviderChannelFile = {
+    version: AI_PROVIDER_CHANNEL_FILE_VERSION,
+    providerId,
+    updatedAt: Date.now(),
+    data,
+  };
+  return JSON.stringify(payload, null, 2);
+}
+
+function buildRecoveredSessionTitle(messages: ChatMessage[]): string {
+  const firstUserMessage = messages.find((message) => message.role === 'user');
+  const source = firstUserMessage?.content || messages[0]?.content || '';
+  const normalized = source
+    .replace(/!\[.*?\]\(.*?\)/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!normalized) {
+    return 'Recovered Chat';
+  }
+
+  return normalized.length > 60 ? `${normalized.slice(0, 60)}...` : normalized;
+}
+
+function buildRecoveredSession(sessionId: string, messages: ChatMessage[]): ChatSession {
+  const timestamps = messages
+    .map((message) => message.timestamp)
+    .filter((timestamp) => Number.isFinite(timestamp));
+  const now = Date.now();
+  const createdAt = timestamps.length > 0 ? Math.min(...timestamps) : now;
+  const updatedAt = timestamps.length > 0 ? Math.max(...timestamps) : now;
+  const modelId = [...messages]
+    .reverse()
+    .find((message) => typeof message.modelId === 'string' && message.modelId.trim())?.modelId || '';
+
+  return {
+    id: sessionId,
+    title: buildRecoveredSessionTitle(messages),
+    modelId,
+    createdAt,
+    updatedAt,
+  };
+}
+
+async function recoverOrphanChatSessions(
+  sessionsDir: string,
+  existingSessions: ChatSession[],
+): Promise<ChatSession[]> {
+  const storage = getStorageAdapter();
+  const existingSessionIds = new Set(existingSessions.map((session) => session.id));
+  const entries = await storage.listDir(sessionsDir).catch(() => []);
+  const recoveredSessions: ChatSession[] = [];
+
+  for (const entry of entries) {
+    if (!entry.isFile || !entry.name.endsWith('.json')) {
+      continue;
+    }
+
+    const sessionId = entry.name.slice(0, -5);
+    if (existingSessionIds.has(sessionId)) {
+      continue;
+    }
+
+    const messages = await loadSessionJson(sessionId).catch(() => null);
+    if (!messages) {
+      continue;
+    }
+
+    recoveredSessions.push(buildRecoveredSession(sessionId, messages));
+    existingSessionIds.add(sessionId);
+  }
+
+  return recoveredSessions;
+}
+
+async function readExistingAISessionsFile(
+  storage: ReturnType<typeof getStorageAdapter>,
+  sessionsPath: string,
+): Promise<AISessionsFileData | null> {
+  if (!(await storage.exists(sessionsPath))) {
+    return null;
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(await storage.readFile(sessionsPath));
+    return parseAISessionsFile(parsed);
+  } catch {
+    return null;
+  }
+}
+
+async function sessionMessageFileExists(sessionFilesDir: string, sessionId: string): Promise<boolean> {
+  if (!isSafeChatSessionId(sessionId)) {
+    return false;
+  }
+
+  const storage = getStorageAdapter();
+  const path = await joinPath(sessionFilesDir, `${sessionId}.json`);
+  return storage.exists(path).catch(() => false);
+}
+
+async function mergeSessionsForSafeSave(
+  incomingSessions: ChatSession[],
+  existingSessionsData: AISessionsFileData | null,
+  sessionFilesDir: string,
+): Promise<{ sessions: ChatSession[]; deletedSessionIds: string[] }> {
+  const incomingById = new Map(incomingSessions.map((session) => [session.id, session]));
+  const existingSessions = existingSessionsData?.sessions || [];
+  const deletedSessionIds = new Set(existingSessionsData?.deletedSessionIds || []);
+
+  for (const session of existingSessions) {
+    if (!incomingById.has(session.id) && !(await sessionMessageFileExists(sessionFilesDir, session.id))) {
+      deletedSessionIds.add(session.id);
+    }
+  }
+
+  const mergedById = new Map<string, ChatSession>();
+  for (const session of incomingSessions) {
+    if (deletedSessionIds.has(session.id)) {
+      continue;
+    }
+
+    const existedOnDisk = existingSessions.some((existing) => existing.id === session.id);
+    if (existedOnDisk && !(await sessionMessageFileExists(sessionFilesDir, session.id))) {
+      deletedSessionIds.add(session.id);
+      continue;
+    }
+
+    mergedById.set(session.id, session);
+  }
+
+  for (const session of existingSessions) {
+    if (mergedById.has(session.id) || deletedSessionIds.has(session.id)) {
+      continue;
+    }
+
+    if (await sessionMessageFileExists(sessionFilesDir, session.id)) {
+      mergedById.set(session.id, session);
+    }
+  }
+
+  return {
+    sessions: Array.from(mergedById.values()).sort((a, b) => b.updatedAt - a.updatedAt),
+    deletedSessionIds: Array.from(deletedSessionIds),
+  };
 }
 
 function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
@@ -139,6 +398,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
     const mainPath = await joinPath(configDir, MAIN_DATA_FILE);
     const mainBackupPath = await joinPath(configDir, MAIN_DATA_BACKUP_FILE);
     const sessionsPath = await joinPath(chatDir, 'sessions.json');
+    const sessionFilesDir = await joinPath(chatDir, 'sessions');
     const channelsDir = await joinPath(chatDir, 'channels');
 
     let combinedData = createDefaultUnifiedData();
@@ -193,30 +453,41 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
     if (await storage.exists(sessionsPath)) {
         try {
             const parsedSessionsData: unknown = JSON.parse(await storage.readFile(sessionsPath));
-            const sessionsData = isRecord(parsedSessionsData) ? parsedSessionsData : {};
-            const loadedSessions = Array.isArray(sessionsData.sessions) ? sessionsData.sessions : [];
-            const aiData = combinedData.ai;
-            aiData.sessions = loadedSessions.filter((session: ChatSession) => !isTemporarySession(session));
-            aiData.selectedModelId = typeof sessionsData.selectedModelId === 'string' ? sessionsData.selectedModelId : null;
-            const currentSessionId = typeof sessionsData.currentSessionId === 'string' ? sessionsData.currentSessionId : null;
-            const hasCurrentSession = currentSessionId
-              ? aiData.sessions.some((session) => session.id === currentSessionId)
-              : false;
-            const unreadSessionIds = Array.isArray(sessionsData.unreadSessionIds)
-              ? sessionsData.unreadSessionIds.filter((sessionId: unknown): sessionId is string => typeof sessionId === 'string')
-              : [];
-            aiData.currentSessionId = hasCurrentSession ? currentSessionId : null;
-            aiData.unreadSessionIds = unreadSessionIds.filter((sessionId: string) =>
-              aiData.sessions.some((session) => session.id === sessionId)
-            );
-            aiData.temporaryChatEnabled = false;
-            aiData.customSystemPrompt = typeof sessionsData.customSystemPrompt === 'string' ? sessionsData.customSystemPrompt : '';
-            aiData.includeTimeContext = sessionsData.includeTimeContext !== false;
-            aiData.webSearchEnabled = sessionsData.webSearchEnabled === true;
-            providerIds = Array.isArray(sessionsData.providerIds)
-              ? sessionsData.providerIds.filter(isSafeProviderId)
-              : [];
+            const sessionsData = parseAISessionsFile(parsedSessionsData);
+            if (!sessionsData) {
+              console.warn('[Storage] Ignoring invalid AI sessions file:', sessionsPath);
+            } else {
+              const loadedSessions = Array.isArray(sessionsData.sessions) ? sessionsData.sessions : [];
+              const aiData = combinedData.ai;
+              aiData.sessions = loadedSessions.filter((session: ChatSession) => !isTemporarySession(session));
+              aiData.selectedModelId = sessionsData.selectedModelId;
+              const currentSessionId = sessionsData.currentSessionId;
+              const hasCurrentSession = currentSessionId
+                ? aiData.sessions.some((session) => session.id === currentSessionId)
+                : false;
+              const unreadSessionIds = sessionsData.unreadSessionIds;
+              aiData.currentSessionId = hasCurrentSession ? currentSessionId : null;
+              aiData.unreadSessionIds = unreadSessionIds.filter((sessionId: string) =>
+                aiData.sessions.some((session) => session.id === sessionId)
+              );
+              aiData.temporaryChatEnabled = false;
+              aiData.customSystemPrompt = sessionsData.customSystemPrompt;
+              aiData.includeTimeContext = sessionsData.includeTimeContext;
+              aiData.webSearchEnabled = sessionsData.webSearchEnabled;
+              providerIds = sessionsData.providerIds;
+            }
         } catch (e) { console.error('Failed to load sessions.json', e); }
+    }
+
+    const recoveredSessions = await recoverOrphanChatSessions(
+      sessionFilesDir,
+      combinedData.ai.sessions,
+    );
+    if (recoveredSessions.length > 0) {
+      combinedData.ai.sessions = [
+        ...recoveredSessions,
+        ...combinedData.ai.sessions,
+      ].sort((a, b) => b.updatedAt - a.updatedAt);
     }
 
     if (providerIds.length > 0) {
@@ -225,8 +496,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
             if (await storage.exists(pPath)) {
                 try {
                     const parsedProviderData: unknown = JSON.parse(await storage.readFile(pPath));
-                    const pData = isRecord(parsedProviderData) ? parsedProviderData : null;
-                    return pData;
+                    return parseAIProviderChannelFile(id, parsedProviderData);
                 } catch (error) {
                     console.error('[Storage] Failed to parse provider channel file:', pPath, error);
                     return null;
@@ -238,16 +508,16 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
         const loadedProviders = await Promise.all(providerPromises);
         loadedProviders.forEach((p, index) => {
             const providerId = providerIds[index];
-            if (p && isRecord(p.provider) && p.provider.id === providerId) {
-                combinedData.ai!.providers.push(p.provider as unknown as Provider);
+            if (p) {
+                combinedData.ai!.providers.push(p.provider);
                 if (Array.isArray(p.models)) {
                     combinedData.ai!.models.push(...p.models);
                 }
-                if (isRecord(p.benchmarkResults)) {
-                    combinedData.ai!.benchmarkResults![providerId] = p.benchmarkResults as unknown as ProviderBenchmarkRecord;
+                if (p.benchmarkResults) {
+                    combinedData.ai!.benchmarkResults![providerId] = p.benchmarkResults;
                 }
-                if (Array.isArray(p.fetchedModels)) {
-                    combinedData.ai!.fetchedModels![providerId] = p.fetchedModels.filter((model): model is string => typeof model === 'string');
+                if (p.fetchedModels.length > 0) {
+                    combinedData.ai!.fetchedModels![providerId] = p.fetchedModels;
                 }
             }
         });
@@ -280,6 +550,7 @@ async function performSplitSave(data: UnifiedData) {
     const configDir = await joinPath(base, '.vlaina');
     const chatDir = await joinPath(configDir, 'chat');
     const channelsDir = await joinPath(chatDir, 'channels');
+    const sessionFilesDir = await joinPath(chatDir, 'sessions');
     
     const mainPath = await joinPath(configDir, MAIN_DATA_FILE);
     const mainBackupPath = await joinPath(configDir, MAIN_DATA_BACKUP_FILE);
@@ -306,7 +577,14 @@ async function performSplitSave(data: UnifiedData) {
 
         await syncProviderSecrets(persistedProviders);
 
-        const persistedSessions = ai.sessions.filter((session) => !isTemporarySession(session));
+        const existingSessionsData = await readExistingAISessionsFile(storage, sessionsPath);
+        const incomingPersistedSessions = ai.sessions.filter((session) => !isTemporarySession(session));
+        const mergedSessions = await mergeSessionsForSafeSave(
+            incomingPersistedSessions,
+            existingSessionsData,
+            sessionFilesDir,
+        );
+        const persistedSessions = mergedSessions.sessions;
         const persistedSessionIds = new Set(persistedSessions.map((session) => session.id));
         const activeProviderIds = new Set(persistedProviders.map((provider) => provider.id));
 
@@ -322,8 +600,9 @@ async function performSplitSave(data: UnifiedData) {
             includeTimeContext: ai.includeTimeContext !== false,
             webSearchEnabled: ai.webSearchEnabled === true,
             providerIds: persistedProviders.map(p => p.id),
+            deletedSessionIds: mergedSessions.deletedSessionIds,
         };
-        await storage.writeFile(sessionsPath, JSON.stringify(sessionsData, null, 2));
+        await storage.writeFile(sessionsPath, serializeAISessionsFile(sessionsData));
 
         for (const provider of persistedProviders) {
             const pModels = ai.models.filter(m => m.providerId === provider.id);
@@ -334,7 +613,7 @@ async function performSplitSave(data: UnifiedData) {
                 fetchedModels: ai.fetchedModels?.[provider.id] || []
             };
             const pPath = await joinPath(channelsDir, `${provider.id}.json`);
-            await storage.writeFile(pPath, JSON.stringify(pData, null, 2));
+            await storage.writeFile(pPath, serializeAIProviderChannelFile(provider.id, pData));
         }
 
         const channelEntries = await storage.listDir(channelsDir).catch(() => []);

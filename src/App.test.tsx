@@ -74,6 +74,7 @@ vi.mock('@/lib/storage/unifiedStorage', () => ({
 
 vi.mock('@/lib/storage/chatStorage', () => ({
   flushPendingSessionJsonSaves: mocks.flushPendingSessionJsonSaves,
+  hasSessionJson: vi.fn(async () => false),
 }));
 
 vi.mock('@/stores/useNotesStore', () => ({

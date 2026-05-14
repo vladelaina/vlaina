@@ -3,6 +3,7 @@ import { generateId } from '@/lib/id'
 import {
   cancelSessionJsonSave,
   deleteSessionJson,
+  hasSessionJson,
   loadSessionJson,
   saveSessionJson,
 } from '@/lib/storage/chatStorage'
@@ -201,6 +202,10 @@ export function createSessionActions() {
       if (!(sessionId in latestAI.messages)) {
         const loadedMessages = await loadSessionJson(sessionId)
         if (switchSessionGeneration !== myGeneration) return
+        if (!loadedMessages && await hasSessionJson(sessionId)) {
+          useAIUIStore.getState().setError('This chat could not be loaded from disk. The original file was left untouched.');
+          return
+        }
         const freshState = useUnifiedStore.getState()
         freshState.updateAIData({
           messages: {
@@ -269,12 +274,20 @@ export function createSessionActions() {
         const latestUIState = useAIUIStore.getState()
 
         requestManager.abort(id)
-        cancelSessionJsonSave(id)
-        latestUIState.clearSessionState(id)
 
         if (!latestAI.sessions.some((session) => session.id === id)) {
           return
         }
+
+        try {
+          await deleteSessionJson(id)
+        } catch (error) {
+          latestUIState.setError('Could not delete this chat from disk. The chat was kept.');
+          throw error
+        }
+
+        cancelSessionJsonSave(id)
+        latestUIState.clearSessionState(id)
 
         const newSessions = latestAI.sessions.filter((session) => session.id !== id)
         const newMessages = { ...latestAI.messages }
@@ -288,7 +301,6 @@ export function createSessionActions() {
         if (latestUIState.currentSessionId === id) {
           latestUIState.setCurrentSessionId(null)
         }
-        await deleteSessionJson(id)
       })
     },
 
@@ -302,17 +314,19 @@ export function createSessionActions() {
         const latestAI = latestState.data.ai!
         const uiState = useAIUIStore.getState()
 
-        await Promise.all(
-          latestAI.sessions.map(async (session) => {
-            requestManager.abort(session.id)
-            cancelSessionJsonSave(session.id)
-            uiState.clearSessionState(session.id)
+        const persistentSessions = latestAI.sessions.filter((session) => !isTemporarySession(session))
+        try {
+          await Promise.all(persistentSessions.map((session) => deleteSessionJson(session.id)))
+        } catch (error) {
+          uiState.setError('Could not clear chats from disk. Existing chats were kept.');
+          throw error
+        }
 
-            if (!isTemporarySession(session)) {
-              await deleteSessionJson(session.id)
-            }
-          })
-        )
+        latestAI.sessions.forEach((session) => {
+          requestManager.abort(session.id)
+          cancelSessionJsonSave(session.id)
+          uiState.clearSessionState(session.id)
+        })
 
         if (uiState.temporaryChatEnabled) {
           stripTemporaryForMutation(latestAI)
