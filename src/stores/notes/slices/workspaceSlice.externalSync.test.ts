@@ -50,9 +50,16 @@ vi.mock('../pendingEditorMarkdownFlusher', () => ({
 }));
 
 vi.mock('@/lib/storage/adapter', () => ({
+  getBaseName: (path: string) => path.replace(/\\/g, '/').split('/').filter(Boolean).at(-1) ?? '',
+  getParentPath: (path: string) => {
+    const normalized = path.replace(/\\/g, '/').replace(/\/+$/, '');
+    const index = normalized.lastIndexOf('/');
+    return index > 0 ? normalized.slice(0, index) : null;
+  },
   getStorageAdapter: () => storageAdapter,
   isAbsolutePath: (path: string) => path.startsWith('/'),
   joinPath: (...segments: string[]) => Promise.resolve(segments.join('/').replace(/\/+/g, '/')),
+  normalizePath: (path: string) => path.replace(/\\/g, '/').replace(/\/+/g, '/'),
 }));
 
 function createFile(path: string, name: string): NoteFile {
@@ -244,6 +251,36 @@ describe('workspaceSlice external sync', () => {
       },
     ]);
     expect(store.getState().starredNotes).toEqual(['docs/beta.md']);
+    expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith(store.getState().starredEntries);
+  });
+
+  it('remaps external absolute starred notes when their file is renamed outside the current vault', async () => {
+    const store = createNotesStore({
+      starredEntries: [
+        {
+          id: 'external-starred-note',
+          kind: 'note',
+          vaultPath: '/vault-b',
+          relativePath: 'docs/alpha.md',
+          addedAt: 1,
+        },
+      ],
+    });
+
+    await store.getState().applyExternalPathRename(
+      '/vault-b/docs/alpha.md',
+      '/vault-b/docs/beta.md',
+    );
+
+    expect(store.getState().starredEntries).toEqual([
+      {
+        id: 'external-starred-note',
+        kind: 'note',
+        vaultPath: '/vault-b',
+        relativePath: 'docs/beta.md',
+        addedAt: 1,
+      },
+    ]);
     expect(hoisted.saveStarredRegistry).toHaveBeenCalledWith(store.getState().starredEntries);
   });
 

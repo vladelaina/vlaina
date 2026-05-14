@@ -58,6 +58,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   const saveNote = useNotesStore(s => s.saveNote);
   const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
+  const currentNoteDiskRevision = useNotesStore(s => s.currentNoteDiskRevision);
   const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
   const isDraftNote = isDraftNotePath(currentNotePath);
 
@@ -72,6 +73,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     setEditorGetter,
   } = usePendingMarkdownAutosave({
     currentNotePath,
+    currentNoteDiskRevision,
     currentNoteContent,
     updateContent,
     debouncedSave,

@@ -36,6 +36,7 @@ type EditorGetter = () => MilkdownEditorLike | null | undefined;
 
 interface PendingMarkdownAutosaveOptions {
   currentNotePath: string | undefined;
+  currentNoteDiskRevision: number;
   currentNoteContent: string;
   updateContent: (content: string) => void;
   debouncedSave: () => void;
@@ -43,6 +44,7 @@ interface PendingMarkdownAutosaveOptions {
 
 export function usePendingMarkdownAutosave({
   currentNotePath,
+  currentNoteDiskRevision,
   currentNoteContent,
   updateContent,
   debouncedSave,
@@ -58,7 +60,12 @@ export function usePendingMarkdownAutosave({
   useEffect(() => {
     hasIgnoredInitNoise.current = false;
     hasEditorUserInput.current = false;
-  }, [currentNotePath]);
+    pendingMarkdownRef.current = null;
+    if (pendingMarkdownUpdateFrameRef.current !== null) {
+      cancelAnimationFrame(pendingMarkdownUpdateFrameRef.current);
+      pendingMarkdownUpdateFrameRef.current = null;
+    }
+  }, [currentNoteDiskRevision, currentNotePath]);
 
   useEffect(() => {
     currentNotePathRef.current = currentNotePath;

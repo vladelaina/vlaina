@@ -11,6 +11,7 @@ import { useExternalFileTreeDropState } from '../FileTree/hooks/externalFileTree
 import { NotesSidebarSection } from '../Sidebar/NotesSidebarPrimitives';
 import { ExternalStarredEntryRow } from './ExternalStarredEntryRow';
 import { useStarredSectionEntries } from './useStarredSectionEntries';
+import { useExternalStarredRenameSync } from './useExternalStarredRenameSync';
 import { useI18n } from '@/lib/i18n';
 
 interface StarredSectionProps {
@@ -23,6 +24,7 @@ export function StarredSection({
   showTitle = true,
 }: StarredSectionProps = {}) {
   const { t } = useI18n();
+  useExternalStarredRenameSync();
   const { starredLoaded, hasEntries, entries: entryViewModels } = useStarredSectionEntries();
   const activeDragSourcePath = useFileTreePointerDragState((state) => state.activeSourcePath);
   const isInternalDragOver = useFileTreePointerDragState((state) => state.dropTargetKind === 'starred');

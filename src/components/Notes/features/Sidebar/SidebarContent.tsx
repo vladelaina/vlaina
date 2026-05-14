@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { isAbsolutePath } from '@/lib/storage/adapter';
 import { useNotesStore, type FolderNode } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
+import { useUIStore } from '@/stores/uiSlice';
 import { isDraftNoteEmpty, isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
 import { StarredSection } from '../Starred';
 import { triggerHoveredSidebarRename } from '../common/sidebarHoverRename';
@@ -63,6 +64,7 @@ export function SidebarContent({
   const pruneNoteContentsCacheToOpenNotes = useNotesStore((s) => s.pruneNoteContentsCacheToOpenNotes);
   const starredEntries = useNotesStore((s) => s.starredEntries);
   const currentVault = useVaultStore((s) => s.currentVault);
+  const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const previousSearchQueryRef = useRef(search.searchQuery);
   const deferredSearchQuery = useDeferredValue(search.searchQuery);
   const isCurrentDraftNote = Boolean(currentNotePath && isDraftNotePath(currentNotePath));
@@ -417,7 +419,7 @@ export function SidebarContent({
           )}
         </NotesSidebarScrollArea>
       </SidebarCapsulePanel>
-      {shouldShowEmptyHint ? (
+      {shouldShowEmptyHint && !sidebarCollapsed ? (
         <div className="pointer-events-none fixed bottom-5 left-4 z-50 flex w-[calc(var(--vlaina-shell-sidebar-width)-32px)] justify-center">
           <NotesSidebarHoverEmptyHint
             title=""

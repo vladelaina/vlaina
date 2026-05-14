@@ -23,6 +23,9 @@ const hoisted = vi.hoisted(() => ({
   shouldSearchNotesSidebarContents: vi.fn(() => false),
   shouldShowSearchResults: false,
   currentVault: null as { path: string; name: string } | null,
+  uiState: {
+    sidebarCollapsed: false,
+  },
   openNote: vi.fn(() => Promise.resolve()),
   openNoteByAbsolutePath: vi.fn(() => Promise.resolve()),
 }));
@@ -47,6 +50,10 @@ vi.mock('@/stores/useVaultStore', () => ({
   useVaultStore: (selector: (state: any) => unknown) => selector({
     currentVault: hoisted.currentVault,
   }),
+}));
+
+vi.mock('@/stores/uiSlice', () => ({
+  useUIStore: (selector: (state: any) => unknown) => selector(hoisted.uiState),
 }));
 
 vi.mock('@/hooks/useTitleSync', () => ({
@@ -184,6 +191,7 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.noteContentsCache = new Map();
     hoisted.notesPath = '';
     hoisted.currentVault = null;
+    hoisted.uiState.sidebarCollapsed = false;
     hoisted.openNote.mockClear();
     hoisted.openNote.mockResolvedValue(undefined);
     hoisted.openNoteByAbsolutePath.mockClear();
@@ -291,6 +299,43 @@ describe('SidebarContent search highlight cleanup', () => {
 
     expect(getByText('File')).toBeTruthy();
     expect(getByText('Folder')).toBeTruthy();
+  });
+
+  it('keeps the empty hint at its fixed sidebar bottom position', () => {
+    const { getByText } = render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="draft:blank"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    const hintShell = getByText('File').closest('div')?.parentElement;
+
+    expect(hintShell).toHaveClass('fixed');
+    expect(hintShell).toHaveClass('bottom-5');
+    expect(hintShell).toHaveClass('left-4');
+  });
+
+  it('hides the empty hint when the sidebar is collapsed', () => {
+    hoisted.uiState.sidebarCollapsed = true;
+
+    const { queryByText } = render(
+      <SidebarContent
+        rootFolder={null}
+        isLoading={false}
+        currentNotePath="draft:blank"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(queryByText('File')).toBeNull();
+    expect(queryByText('Folder')).toBeNull();
   });
 
   it('does not show the open hint while a vault root is still loading', () => {
