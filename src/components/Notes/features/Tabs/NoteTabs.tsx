@@ -6,6 +6,7 @@ import { NoteIcon } from '../IconPicker/NoteIcon';
 import { useNoteLabelDescriptor } from '../common/noteDisambiguation';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { shouldShowDirtyTabIndicator } from './dirtyTabIndicator';
+import { truncateNoteLabel } from '../common/truncateNoteLabel';
 
 export interface NoteTab {
   path: string;
@@ -77,7 +78,7 @@ const SingleTab = memo(function SingleTab({ tab, isActive, onTabClick, onTabClos
           ? "text-[var(--vlaina-text-primary)]"
           : "text-[var(--vlaina-text-secondary)]"
       )}>
-        {title}
+        {truncateNoteLabel(title)}
         {disambiguation ? (
           <span className="text-[11px] text-current/65">{` · ${disambiguation}`}</span>
         ) : null}

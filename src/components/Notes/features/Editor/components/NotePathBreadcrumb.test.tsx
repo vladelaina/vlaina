@@ -185,4 +185,11 @@ describe('NotePathBreadcrumb', () => {
     expect(mocks.vaultState.openVault).not.toHaveBeenCalled();
     expect(mocks.notesState.setPendingStarredNavigation).not.toHaveBeenCalled();
   });
+
+  it('renders truncated long note labels in the breadcrumb', () => {
+    render(<NotePathBreadcrumb notePath="/vault/docs/very-long-note-name.md" />);
+
+    expect(screen.getByRole('button', { name: 'very-long-note-....' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'very-long-note-name' })).not.toBeInTheDocument();
+  });
 });

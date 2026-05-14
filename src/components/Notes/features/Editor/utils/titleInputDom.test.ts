@@ -16,7 +16,7 @@ describe('titleInputDom', () => {
   });
 
   it('focuses title input and moves caret to end', () => {
-    const input = document.createElement('input');
+    const input = document.createElement('textarea');
     input.setAttribute(NOTE_TITLE_INPUT_DATA_ATTR, 'true');
     input.value = 'My title';
     document.body.appendChild(input);

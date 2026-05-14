@@ -143,7 +143,7 @@ export function NotesSidebarSection({
           expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
         )}
       >
-        <div className="overflow-hidden">
+        <div className={cn(expanded ? 'overflow-visible' : 'overflow-hidden')}>
           <div className={cn(nested ? 'px-0' : 'px-1', contentClassName)}>{children}</div>
         </div>
       </div>

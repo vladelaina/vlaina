@@ -22,6 +22,7 @@ import {
   normalizeStarredVaultPath,
   saveStarredRegistry,
 } from '../starred';
+import { assertValidFileName } from '../noteUtils';
 import {
   remapCurrentNoteForExternalRename,
   remapOpenTabsForExternalRename,
@@ -149,6 +150,7 @@ export function createFileSystemRenameActions(
       } = get();
 
       try {
+        assertValidFileName(newName);
         if (!isAbsolutePath(path)) {
           await get().renameNote(path, newName);
           return;
@@ -261,6 +263,7 @@ export function createFileSystemRenameActions(
       const storage = getStorageAdapter();
 
       try {
+        assertValidFileName(newName);
         const { relativePath: safePath, fullPath } = await resolveVaultRelativeFullPath(notesPath, path);
         const {
           relativePath: newPath,

@@ -2,6 +2,8 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState, type RefObject
 import type { FileTreeNode } from '@/stores/useNotesStore';
 import { FileTreeItem } from './FileTreeItem';
 import {
+  buildVirtualFileTreeRowOffsets,
+  estimateVirtualFileTreeRowHeight,
   flattenVisibleFileTreeRows,
   getVirtualFileTreeWindow,
   VIRTUAL_FILE_TREE_MIN_ROWS,
@@ -32,6 +34,8 @@ export function VirtualizedFileTree({
     () => flattenVisibleFileTreeRows(nodes, startDepth, parentFolderPath),
     [nodes, parentFolderPath, startDepth],
   );
+  const rowHeights = useMemo(() => rows.map(estimateVirtualFileTreeRowHeight), [rows]);
+  const rowOffsets = useMemo(() => buildVirtualFileTreeRowOffsets(rowHeights), [rowHeights]);
   const [viewport, setViewport] = useState({ start: 0, height: 0 });
 
   const updateViewport = useCallback(() => {
@@ -108,6 +112,8 @@ export function VirtualizedFileTree({
   const virtualWindow = getVirtualFileTreeWindow({
     rowCount: rows.length,
     rowHeight: VIRTUAL_FILE_TREE_ROW_HEIGHT,
+    rowHeights,
+    rowOffsets,
     viewportStart: viewport.start,
     viewportHeight: viewport.height,
     overscanRows: VIRTUAL_FILE_TREE_OVERSCAN_ROWS,
