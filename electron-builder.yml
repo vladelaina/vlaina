@@ -33,6 +33,7 @@ win:
 linux:
   category: Utility
   icon: build/icon.png
+  maintainer: vlaina <noreply@github.com>
   target:
     - AppImage
     - deb
