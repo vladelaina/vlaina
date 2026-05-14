@@ -33,6 +33,30 @@ describe('ai selection commands', () => {
     expect(normalized).toBe('Hello world');
   });
 
+  it('does not unwrap multiple fenced code blocks as one model output fence', () => {
+    const normalized = __testing__.normalizeAiEditedText(
+      [
+        '```',
+        'first',
+        '```',
+        '',
+        '```',
+        'second',
+        '```',
+      ].join('\n')
+    );
+
+    expect(normalized).toBe([
+      '```',
+      'first',
+      '```',
+      '',
+      '```',
+      'second',
+      '```',
+    ].join('\n'));
+  });
+
   it('normalizes unfinished thinking-tagged model output', () => {
     const normalized = __testing__.normalizeAiEditedText(
       '<think>drafting privately'

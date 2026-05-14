@@ -4,9 +4,13 @@ import {
 } from './chatAssistantMarkdownTypography';
 import { extractMessageImageSources, stripMarkdownImageTokens } from '@/components/Chat/common/messageClipboard';
 import { MARKDOWN_BLOCK_GAP } from '@/components/common/markdown/markdownMetrics';
-import { parseMarkdownMeasurementBlocks } from './chatAssistantMarkdownBlockParser';
+import {
+  getMarkdownFenceState,
+  isMarkdownFenceClose,
+  parseMarkdownMeasurementBlocks,
+  type MarkdownFenceState,
+} from './chatAssistantMarkdownBlockParser';
 const HTML_IMAGE_RE = /<img\b[^>]*>/gi;
-const FENCE_START_RE = /^\s*```/;
 
 export type ParsedAssistantMarkdown = {
   blocks: MarkdownMeasurementBlock[];
@@ -30,14 +34,18 @@ function countRenderableImages(content: string): number {
 function findReusableMarkdownSplitIndex(markdown: string): number {
   const normalized = markdown.replace(/\r\n?/g, '\n');
   const lines = normalized.split('\n');
-  let inFence = false;
+  let activeFence: MarkdownFenceState | null = null;
   let splitIndex = 0;
   let offset = 0;
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index]!;
-    if (FENCE_START_RE.test(line)) {
-      inFence = !inFence;
+    if (activeFence) {
+      if (isMarkdownFenceClose(line, activeFence)) {
+        activeFence = null;
+      }
+    } else {
+      activeFence = getMarkdownFenceState(line);
     }
 
     offset += line.length;
@@ -45,7 +53,7 @@ function findReusableMarkdownSplitIndex(markdown: string): number {
       offset += 1;
     }
 
-    if (!inFence && !line.trim()) {
+    if (!activeFence && !line.trim()) {
       splitIndex = offset;
     }
   }

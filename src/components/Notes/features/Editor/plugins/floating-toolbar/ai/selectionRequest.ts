@@ -7,6 +7,7 @@ import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { sendMessageWithEndpointFallback } from '@/hooks/chatService/sendMessageWithEndpointFallback';
 import { getUserFacingAIError } from '@/lib/ai/errors';
 import { isManagedProviderId } from '@/lib/ai/managedService';
+import { parseStandaloneFencedCodeBlock } from '../../clipboard/fencedCodePaste';
 import { buildEditorAiUserMessage } from './promptBuilder';
 import { EDITOR_AI_SYSTEM_PROMPT } from './promptCatalog';
 import { assertEnglishPromptText } from './promptValidation';
@@ -42,11 +43,7 @@ function createSystemMessage(content: string, modelId: string): ChatMessage {
 }
 
 function unwrapSingleCodeFence(text: string): string {
-  const match = text.trim().match(/^```[\w-]*\n([\s\S]*?)\n```$/);
-  if (!match) {
-    return text;
-  }
-  return match[1] ?? '';
+  return parseStandaloneFencedCodeBlock(text)?.code ?? text;
 }
 
 function normalizeAiEditedText(text: string): string {

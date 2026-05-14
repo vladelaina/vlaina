@@ -280,6 +280,26 @@ describe('normalizeMermaidEditorCodeInput', () => {
     )).toBe(['flowchart TD', 'A --> B'].join('\n'));
   });
 
+  it('does not strip multiple pasted Mermaid fences as one outer fence', () => {
+    const input = [
+      '```sequence',
+      'Alice->Bob: Hello',
+      '```',
+      '',
+      '```sequence',
+      'Bob->Alice: Hi',
+      '```',
+    ].join('\n');
+
+    expect(normalizeMermaidEditorCodeInput(input)).toBe(input);
+  });
+
+  it('keeps shorter same-marker fence lines inside pasted Mermaid code', () => {
+    expect(normalizeMermaidEditorCodeInput(
+      ['````sequence', '```', 'Alice->Bob: Hello', '````'].join('\n')
+    )).toBe(['sequenceDiagram', '```', 'Alice->Bob: Hello'].join('\n'));
+  });
+
   it('does not strip pasted Mermaid fences when the closing fence is shorter or uses the wrong marker', () => {
     expect(normalizeMermaidEditorCodeInput(
       ['````sequence', 'Alice->Bob: Hello', '```'].join('\n')

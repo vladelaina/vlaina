@@ -2,6 +2,7 @@ import {
   isMermaidFenceLanguage,
   normalizeMermaidFenceLanguage,
 } from './mermaidLanguage';
+import { parseStandaloneFencedCodeBlock } from '../clipboard/fencedCodePaste';
 
 const MERMAID_DIAGRAM_DIRECTIVE_PATTERN = new RegExp(
   [
@@ -72,9 +73,6 @@ const STANDARD_DIRECTIVE_BY_LANGUAGE = new Map<string, string>([
   ['zenuml', 'zenuml'],
 ]);
 
-const MERMAID_FENCED_INPUT_OPENING_PATTERN = /^ {0,3}(`{3,}|~{3,})([^\r\n]*)$/;
-const MERMAID_FENCED_INPUT_CLOSING_PATTERN = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
-
 const YAML_FRONTMATTER_PREFIX_PATTERN =
   /^(\s*---\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$))/;
 const MERMAID_PREFIX_LINE_PATTERN =
@@ -85,21 +83,6 @@ const FLOW_DIRECTION_TOKENS = new Set(['BT', 'LR', 'RL', 'TB', 'TD']);
 
 function normalizeMermaidDirectiveAlias(directive: string) {
   return directive.trim().toLowerCase().replace(/[\s_-]+/g, '');
-}
-
-function trimBlankEdgeLines(lines: string[]) {
-  let start = 0;
-  let end = lines.length;
-
-  while (start < end && lines[start].trim().length === 0) {
-    start += 1;
-  }
-
-  while (end > start && lines[end - 1].trim().length === 0) {
-    end -= 1;
-  }
-
-  return lines.slice(start, end);
 }
 
 function splitLeadingMermaidPrefix(code: string) {
@@ -188,37 +171,15 @@ export function normalizeMermaidFenceCode(language: string | null | undefined, c
 }
 
 export function normalizeMermaidEditorCodeInput(input: string) {
-  const lines = trimBlankEdgeLines(input.replace(/\r\n?/g, '\n').split('\n'));
-  if (lines.length < 2) {
+  const fencedPayload = parseStandaloneFencedCodeBlock(input);
+  if (!fencedPayload) {
     return normalizeMermaidFenceCode('mermaid', input);
   }
 
-  const openingMatch = lines[0].match(MERMAID_FENCED_INPUT_OPENING_PATTERN);
-  const closingMatch = lines[lines.length - 1].match(MERMAID_FENCED_INPUT_CLOSING_PATTERN);
-  if (!openingMatch || !closingMatch) {
-    return normalizeMermaidFenceCode('mermaid', input);
-  }
-
-  const openingFence = openingMatch[1] ?? '';
-  const closingFence = closingMatch[1] ?? '';
-  if (
-    !closingFence
-    || closingFence[0] !== openingFence[0]
-    || closingFence.length < openingFence.length
-  ) {
-    return normalizeMermaidFenceCode('mermaid', input);
-  }
-
-  const infoString = openingMatch[2] ?? '';
-  if (openingFence[0] === '`' && infoString.includes('`')) {
-    return normalizeMermaidFenceCode('mermaid', input);
-  }
-
-  const language = infoString.trim().split(/\s+/)[0] ?? '';
+  const language = fencedPayload.language ?? '';
   if (!isMermaidFenceLanguage(language)) {
     return input;
   }
 
-  const code = lines.slice(1, -1).join('\n');
-  return normalizeMermaidFenceCode(language, code);
+  return normalizeMermaidFenceCode(language, fencedPayload.code);
 }

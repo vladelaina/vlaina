@@ -22,7 +22,8 @@ import {
   touchCacheEntry,
 } from './chatLayoutCache';
 
-const FENCE_START_RE = /^\s*```/;
+const FENCE_MARKER_RE = /^ {0,3}(`{3,}|~{3,})([^\r\n]*)$/;
+const FENCE_CLOSE_RE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
 const HR_RE = /^\s{0,3}([-*_])(?:\s*\1){2,}\s*$/;
 const HEADING_RE = /^\s{0,3}(#{1,6})\s+(.*)$/;
 const BLOCKQUOTE_RE = /^\s{0,3}>\s?/;
@@ -33,6 +34,36 @@ const TABLE_ROW_RE = /^\s*\|.*\|\s*$/;
 const PARSED_ASSISTANT_MARKDOWN_CACHE_LIMIT = 200;
 
 const parsedMarkdownBlocksCache = new Map<string, MarkdownMeasurementBlock[]>();
+
+export type MarkdownFenceState = {
+  marker: '`' | '~';
+  size: number;
+};
+
+export function getMarkdownFenceState(line: string): MarkdownFenceState | null {
+  const match = FENCE_MARKER_RE.exec(line);
+  if (!match) return null;
+
+  const fence = match[1] ?? '';
+  const infoString = (match[2] ?? '').trim();
+  const marker = fence[0] as '`' | '~';
+  if (marker === '`' && infoString.includes('`')) {
+    return null;
+  }
+
+  return {
+    marker,
+    size: fence.length,
+  };
+}
+
+export function isMarkdownFenceClose(line: string, fence: MarkdownFenceState): boolean {
+  const match = FENCE_CLOSE_RE.exec(line);
+  if (!match) return false;
+
+  const markerRun = match[1] ?? '';
+  return markerRun[0] === fence.marker && markerRun.length >= fence.size;
+}
 
 function getHeadingMeasurement(depth: number): {
   lineHeight: number;
@@ -63,7 +94,7 @@ function collectSectionLines(lines: string[], start: number): { end: number; lin
     if (!line.trim()) {
       break;
     }
-    if (index !== start && (FENCE_START_RE.test(line) || HEADING_RE.test(line) || HR_RE.test(line))) {
+    if (index !== start && (getMarkdownFenceState(line) || HEADING_RE.test(line) || HR_RE.test(line))) {
       break;
     }
     sectionLines.push(line);
@@ -90,14 +121,15 @@ export function parseMarkdownMeasurementBlocks(markdown: string): MarkdownMeasur
       continue;
     }
 
-    if (FENCE_START_RE.test(line)) {
+    const fence = getMarkdownFenceState(line);
+    if (fence) {
       const codeLines: string[] = [];
       index += 1;
-      while (index < lines.length && !FENCE_START_RE.test(lines[index]!)) {
+      while (index < lines.length && !isMarkdownFenceClose(lines[index]!, fence)) {
         codeLines.push(lines[index]!);
         index += 1;
       }
-      if (index < lines.length && FENCE_START_RE.test(lines[index]!)) {
+      if (index < lines.length && isMarkdownFenceClose(lines[index]!, fence)) {
         index += 1;
       }
       blocks.push({

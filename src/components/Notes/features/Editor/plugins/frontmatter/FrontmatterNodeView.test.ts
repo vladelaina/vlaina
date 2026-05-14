@@ -81,4 +81,26 @@ describe('FrontmatterNodeView', () => {
 
     nodeView.destroy();
   });
+
+  it('lets block-level clipboard and delete events reach ProseMirror while selected', () => {
+    const node = createMockNode('title: note');
+    const view = createMockView({ from: 1, to: node.textContent.length + 1 });
+    const nodeView = new FrontmatterNodeView(node, view, () => 0);
+    const insideTarget = nodeView.dom.querySelector('.frontmatter-block-editor') as HTMLElement;
+
+    nodeView.dom.classList.add('vlaina-block-selected');
+
+    const copy = new Event('copy', { bubbles: true, cancelable: true });
+    Object.defineProperty(copy, 'target', { value: insideTarget });
+    const cut = new Event('cut', { bubbles: true, cancelable: true });
+    Object.defineProperty(cut, 'target', { value: insideTarget });
+    const backspace = new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true });
+    Object.defineProperty(backspace, 'target', { value: insideTarget });
+
+    expect(nodeView.stopEvent(copy)).toBe(false);
+    expect(nodeView.stopEvent(cut)).toBe(false);
+    expect(nodeView.stopEvent(backspace)).toBe(false);
+
+    nodeView.destroy();
+  });
 });

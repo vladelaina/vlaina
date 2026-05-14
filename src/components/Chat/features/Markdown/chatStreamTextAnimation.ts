@@ -6,7 +6,12 @@ import {
   type RichInlineLineRange,
 } from '@/lib/text-layout';
 import { getPreparedMarkdownTextBlock } from '@/components/Chat/features/Layout/chatAssistantInlineMarkdown';
-import { parseMarkdownMeasurementBlocks } from '@/components/Chat/features/Layout/chatAssistantMarkdownBlockParser';
+import {
+  getMarkdownFenceState,
+  isMarkdownFenceClose,
+  parseMarkdownMeasurementBlocks,
+  type MarkdownFenceState,
+} from '@/components/Chat/features/Layout/chatAssistantMarkdownBlockParser';
 import { CHAT_STREAM_FADE_MS } from './chatStreamTextPlugin';
 import { MARKDOWN_BLOCK_GAP } from '@/components/common/markdown/markdownMetrics';
 
@@ -50,24 +55,57 @@ function textLength(text: string): number {
 }
 
 function findStableMarkdownSplit(content: string): number {
-  const splitIndex = content.lastIndexOf('\n\n');
-  if (splitIndex <= 0 || splitIndex + 2 >= content.length) {
-    return 0;
+  const lines = content.replace(/\r\n?/g, '\n').split('\n');
+  let activeFence: MarkdownFenceState | null = null;
+  let splitIndex = 0;
+  let offset = 0;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]!;
+    if (activeFence) {
+      if (isMarkdownFenceClose(line, activeFence)) {
+        activeFence = null;
+      }
+    } else {
+      activeFence = getMarkdownFenceState(line);
+    }
+
+    offset += line.length;
+    if (index < lines.length - 1) {
+      offset += 1;
+    }
+
+    if (activeFence || line.trim()) {
+      continue;
+    }
+
+    if (offset >= content.length) {
+      continue;
+    }
+
+    if (textLength(content.slice(0, offset)) >= MIN_STABLE_PREFIX_CHARS) {
+      splitIndex = offset;
+    }
   }
 
-  const stableSplit = splitIndex + 2;
-  return textLength(content.slice(0, stableSplit)) >= MIN_STABLE_PREFIX_CHARS ? stableSplit : 0;
+  return splitIndex;
 }
 
 function countFencedCodeBlocks(markdown: string): number {
   let count = 0;
-  let inFence = false;
+  let activeFence: MarkdownFenceState | null = null;
   for (const line of markdown.split('\n')) {
-    if (/^\s*(```|~~~)/.test(line)) {
-      if (!inFence) {
-        count += 1;
+    if (activeFence) {
+      if (isMarkdownFenceClose(line, activeFence)) {
+        activeFence = null;
       }
-      inFence = !inFence;
+      continue;
+    }
+
+    const fence = getMarkdownFenceState(line);
+    if (fence) {
+      count += 1;
+      activeFence = fence;
     }
   }
   return count;

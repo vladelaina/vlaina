@@ -72,6 +72,30 @@ describe('isStandaloneFencedCodeBlock', () => {
         expect(isStandaloneFencedCodeBlock('before\n```ts\nconst a = 1;\n```\nafter')).toBe(false);
     });
 
+    it('does not treat multiple fenced code blocks as one standalone code block', () => {
+        expect(parseStandaloneFencedCodeBlock([
+            '```',
+            'code',
+            '```',
+            '',
+            '```',
+            'code',
+            '```',
+        ].join('\n'))).toBeNull();
+    });
+
+    it('keeps shorter same-marker fence lines as code content', () => {
+        expect(parseStandaloneFencedCodeBlock([
+            '````ts',
+            '```',
+            'const value = 1;',
+            '````',
+        ].join('\n'))).toEqual({
+            language: 'ts',
+            code: ['```', 'const value = 1;'].join('\n'),
+        });
+    });
+
     it('does not match inline code fence text', () => {
         expect(isStandaloneFencedCodeBlock('```ts```')).toBe(false);
     });
@@ -93,6 +117,14 @@ describe('parseStandaloneAtxHeading', () => {
 
     it('parses trailing spaces and keeps text trimmed', () => {
         expect(parseStandaloneAtxHeading('# nii   ')).toEqual({ level: 1, text: 'nii' });
+    });
+
+    it('removes a valid closing sequence from standalone headings', () => {
+        expect(parseStandaloneAtxHeading('### hello world ###')).toEqual({ level: 3, text: 'hello world' });
+    });
+
+    it('keeps hash characters that are part of the heading text', () => {
+        expect(parseStandaloneAtxHeading('### issue #123')).toEqual({ level: 3, text: 'issue #123' });
     });
 
     it('parses single character heading', () => {
