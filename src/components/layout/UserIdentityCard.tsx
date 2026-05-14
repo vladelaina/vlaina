@@ -10,6 +10,8 @@ import { BillingPlansDialog } from './BillingPlansDialog';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { getSidebarIdleRowSurfaceClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 
+const fallbackAvatarUrl = `${import.meta.env.BASE_URL}logo.png?v=20260327`;
+
 interface UserIdentityCardProps {
   onLogout: () => void | Promise<void>;
   onSwitchAccount: () => void;
@@ -24,7 +26,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
   const displayName = username || primaryEmail || 'vlaina';
   const displayIdentity = primaryEmail || username || 'vlaina';
   const userAvatar = useUserAvatar();
-  const displayAvatar = userAvatar || '/logo.png?v=20260327';
+  const displayAvatar = userAvatar || fallbackAvatarUrl;
   const membershipPillClassName = isConnected
     ? membershipTier === 'plus'
       ? 'border-sky-200 bg-sky-50 text-sky-700'

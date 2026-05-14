@@ -70,8 +70,8 @@ export default defineConfig(async () => ({
       "@codemirror/view": path.resolve(__dirname, "./vendor/milkdown/packages/crepe/node_modules/@codemirror/view"),
     },
   },
-  // Base path - always '/' for custom domain (app.vlaina.com)
-  base: '/',
+  // Use relative asset URLs so packaged Electron builds can load dist/index.html via file://.
+  base: './',
 
   // Build options
   build: {

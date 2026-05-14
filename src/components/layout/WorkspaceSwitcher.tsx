@@ -14,6 +14,8 @@ import { AccountLoginDialog } from './AccountLoginDialog';
 import { UserIdentityCard } from './UserIdentityCard';
 import { AppMenu } from './AppMenu';
 
+const fallbackAvatarUrl = `${import.meta.env.BASE_URL}logo.png?v=20260327`;
+
 interface WorkspaceSwitcherProps {
   onOpenSettings?: () => void;
   className?: string;
@@ -57,7 +59,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
   const userAvatar = useUserAvatar();
   const displayName = isConnected ? username || primaryEmail || 'vlaina' : 'vlaina';
   const displayAvatar =
-    isConnected && userAvatar ? userAvatar : '/logo.png?v=20260327';
+    isConnected && userAvatar ? userAvatar : fallbackAvatarUrl;
 
   const handleOpenLoginDialog = useCallback(() => {
     setIsOpen(false);

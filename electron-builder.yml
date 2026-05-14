@@ -9,6 +9,7 @@ directories:
 files:
   - dist/**
   - electron/**
+  - public/logo.png
   - package.json
   - "!dist/**/*.map"
   - "!electron/**/*.map"
@@ -30,6 +31,9 @@ win:
   icon: build/icon.ico
   target:
     - nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
 linux:
   category: Utility
   icon: build/icon.png
