@@ -16,6 +16,11 @@ import {
   runTemporaryChatWelcomeShortcut,
 } from '@/components/Chat/features/Temporary/temporaryChatCommands';
 import { getNavigableChatSidebarSessions } from '@/components/Chat/features/Sidebar/chatSidebarSearch';
+import {
+  getMarkdownFenceState,
+  isMarkdownFenceClose,
+  type MarkdownFenceState,
+} from '@/components/Chat/features/Layout/chatAssistantMarkdownBlockParser';
 
 interface UseChatShortcutsOptions {
   onFocusInput: () => void;
@@ -23,6 +28,35 @@ interface UseChatShortcutsOptions {
   onStopGeneration?: () => void;
   isGenerating?: boolean;
   scrollRef: React.RefObject<HTMLDivElement | null>;
+}
+
+export function extractLastFencedCodeBlock(markdown: string): string | null {
+  const lines = markdown.replace(/\r\n?/g, '\n').split('\n');
+  let activeFence: MarkdownFenceState | null = null;
+  let activeCodeLines: string[] = [];
+  let lastCodeBlock: string | null = null;
+
+  for (const line of lines) {
+    if (activeFence) {
+      if (isMarkdownFenceClose(line, activeFence)) {
+        lastCodeBlock = activeCodeLines.join('\n');
+        activeFence = null;
+        activeCodeLines = [];
+        continue;
+      }
+
+      activeCodeLines.push(line);
+      continue;
+    }
+
+    const fence = getMarkdownFenceState(line);
+    if (fence) {
+      activeFence = fence;
+      activeCodeLines = [];
+    }
+  }
+
+  return lastCodeBlock;
 }
 
 export function useChatShortcuts(
@@ -182,12 +216,8 @@ export function useChatShortcuts(
         const lastAI = [...currentMsgs].reverse().find(m => m.role === 'assistant');
         if (lastAI) {
           const visibleContent = stripThinkingContent(lastAI.content);
-          const codeBlockRegex = /```[\s\S]*?```/g;
-          const matches = visibleContent.match(codeBlockRegex);
-          if (matches && matches.length > 0) {
-            const lastCode = matches[matches.length - 1]
-              .replace(/```\w*\n?/, '')
-              .replace(/```$/, '');
+          const lastCode = extractLastFencedCodeBlock(visibleContent);
+          if (lastCode !== null) {
             try {
               const copyRequest = writeTextToClipboard(lastCode);
               void Promise.resolve(copyRequest)

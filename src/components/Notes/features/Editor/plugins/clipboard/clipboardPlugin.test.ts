@@ -632,6 +632,58 @@ describe('clipboardPlugin paste', () => {
         await editor.destroy();
     });
 
+    it('recognizes pasted multiple fenced code blocks as separate code blocks', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(clipboardPlugin)
+            .use(codePlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, [
+            '```',
+            'first',
+            '```',
+            '',
+            '```',
+            'second',
+            '```',
+        ].join('\n'))).toBe(true);
+
+        expect(view.state.doc.childCount).toBe(2);
+        expect(view.state.doc.child(0).type.name).toBe('code_block');
+        expect(view.state.doc.child(0).textContent).toBe('first');
+        expect(view.state.doc.child(1).type.name).toBe('code_block');
+        expect(view.state.doc.child(1).textContent).toBe('second');
+
+        await editor.destroy();
+    });
+
+    it('uses markdown heading semantics for standalone ATX headings', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, '### issue #123 ###')).toBe(true);
+
+        const heading = view.state.doc.firstChild;
+        expect(heading?.type.name).toBe('heading');
+        expect(heading?.attrs.level).toBe(3);
+        expect(heading?.textContent).toBe('issue #123');
+
+        await editor.destroy();
+    });
+
     it('recognizes pasted markdown fences as editable markdown content', async () => {
         const editor = Editor.make()
             .config((ctx) => {

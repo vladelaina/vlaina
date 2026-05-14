@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, cleanup, waitFor } from "@testing-library/react";
 import type { RefObject } from "react";
-import { useChatShortcuts } from "./useChatShortcuts";
+import { extractLastFencedCodeBlock, useChatShortcuts } from "./useChatShortcuts";
 
 const mocked = vi.hoisted(() => ({
   toggleTemporaryChat: vi.fn(),
@@ -294,6 +294,51 @@ describe("useChatShortcuts", () => {
     await waitFor(() => {
       expect(mocked.dispatchChatMessageCopied).toHaveBeenCalledWith("a1");
     });
+  });
+
+  it("extracts the last completed fenced code block with matching fence closers", () => {
+    expect(extractLastFencedCodeBlock([
+      "````ts",
+      "```",
+      "",
+      "const first = 1;",
+      "````",
+      "",
+      "~~~sh",
+      "echo second",
+      "~~~~",
+      "",
+      "```js",
+      "unfinished",
+    ].join("\n"))).toBe("echo second");
+  });
+
+  it("copies the last code block without closing on shorter fence content", () => {
+    setup({
+      state: createState({
+        messages: {
+          "session-1": [
+            { id: "u1", role: "user", content: "ask" },
+            {
+              id: "a1",
+              role: "assistant",
+              content: [
+                "````ts",
+                "```",
+                "",
+                "const value = 1;",
+                "````",
+              ].join("\n"),
+            },
+          ],
+        },
+      }),
+    });
+
+    const event = fireKeydown({ key: ";", ctrlKey: true, shiftKey: true });
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(mocked.writeText).toHaveBeenCalledWith(["```", "", "const value = 1;"].join("\n"));
   });
 
   it("navigates to previous user message with Shift+ArrowUp", () => {

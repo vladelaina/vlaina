@@ -19,6 +19,7 @@ interface SerializeSelectedBlocksOptions {
 const LIST_ITEM_MARKER_PATTERN = /^\s*(?:[-+*]|\d+[.)])(?:\s+(?:\[(?: |x|X)\]\s+)?|$)/;
 const ORDERED_LIST_ITEM_MARKER_PATTERN = /^(\s*)(\d+)([.)])(\s+(?:\[(?: |x|X)\]\s+)?|(?=$))/;
 const FENCED_CODE_MARKER_PATTERN = /^([ \t]*)(`{3,}|~{3,})/;
+const FENCED_CODE_CLOSING_PATTERN = /^([ \t]*)(`{3,}|~{3,})[ \t]*$/;
 
 function getNodeChildren(node: any): any[] {
   const children: any[] = [];
@@ -313,7 +314,7 @@ function normalizeSelectedFencedCodeIndent(text: string): string {
     let closingIndent = '';
     for (let candidate = index + 1; candidate < lines.length; candidate += 1) {
       const closingLine = lines[candidate] ?? '';
-      const closing = FENCED_CODE_MARKER_PATTERN.exec(closingLine);
+      const closing = FENCED_CODE_CLOSING_PATTERN.exec(closingLine);
       if (!closing) continue;
       const closingMarker = closing[2] ?? '';
       if (closingMarker[0] !== markerChar || closingMarker.length < marker.length) continue;

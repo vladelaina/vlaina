@@ -1,7 +1,6 @@
 import { isTocShortcutText } from '../toc/tocShortcut';
 
 const STANDALONE_OPENING_FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})([^\r\n]*)$/;
-const STANDALONE_CLOSING_FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
 const THEMATIC_BREAK_PATTERN = /^(\s*)([-*_])(?:\s*\2){2,}\s*$/;
 const GENERIC_FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})(.*)$/;
 
@@ -67,21 +66,23 @@ export const parseStandaloneFencedCodeBlock = (value: string): FencedCodePayload
     if (lines.length < 2) return null;
 
     const openingFence = lines[0];
-    const closingFence = lines[lines.length - 1];
     const openingMatch = openingFence.match(STANDALONE_OPENING_FENCE_PATTERN);
-    const closingMatch = closingFence.match(STANDALONE_CLOSING_FENCE_PATTERN);
-    if (!openingMatch || !closingMatch) {
+    if (!openingMatch) {
         return null;
     }
 
     const openingMarker = openingMatch[1];
-    const closingMarker = closingMatch[1];
-    if (closingMarker[0] !== openingMarker[0] || closingMarker.length < openingMarker.length) {
+    const infoString = openingMatch[2].trim();
+    if (openingMarker[0] === '`' && infoString.includes('`')) {
         return null;
     }
 
-    const infoString = openingMatch[2].trim();
-    if (openingMarker[0] === '`' && infoString.includes('`')) {
+    const fence: FenceState = {
+        marker: openingMarker[0] as '`' | '~',
+        size: openingMarker.length,
+    };
+    const closingIndex = lines.findIndex((line, index) => index > 0 && isFenceClose(line, fence));
+    if (closingIndex !== lines.length - 1) {
         return null;
     }
 
@@ -98,7 +99,8 @@ export const isStandaloneFencedCodeBlock = (value: string): boolean => {
     return parseStandaloneFencedCodeBlock(value) !== null;
 };
 
-const ATX_HEADING_PATTERN = /^ {0,3}(#{1,6})[ \t]+(.+?)\s*$/;
+const ATX_HEADING_PATTERN = /^ {0,3}(#{1,6})(?:[ \t]+(.+?))?[ \t]*$/;
+const ATX_CLOSING_SEQUENCE_PATTERN = /(?:^|[ \t]+)#{1,}[ \t]*$/;
 const BLOCK_MARKDOWN_SIGNAL_PATTERN = /(^|\n)\s{0,3}(#{1,6}[ \t]+|[-+*][ \t]+|\d+[.)][ \t]+|>[ \t]+|```|~~~|\$\$[ \t]*$|\[[^\]\n]+\]:|[-*_]{3,}[ \t]*$|\|.+\|)/m;
 const SETEXT_HEADING_SIGNAL_PATTERN = /(^|\n)[^\n]+\n {0,3}(?:=+|-+)[ \t]*(?:\n|$)/;
 const HARD_BREAK_SIGNAL_PATTERN = /(\\| {2,})\n|<br\s*\/?>/i;
@@ -117,7 +119,7 @@ export const parseStandaloneAtxHeading = (value: string): AtxHeadingPayload | nu
     if (!match) return null;
 
     const level = match[1].length;
-    const text = match[2].trim();
+    const text = (match[2] ?? '').replace(ATX_CLOSING_SEQUENCE_PATTERN, '').trim();
     if (!text) return null;
 
     return {

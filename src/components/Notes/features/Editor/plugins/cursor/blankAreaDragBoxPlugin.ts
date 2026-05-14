@@ -21,7 +21,6 @@ import {
   deleteSelectedBlocks as deleteSelectedBlocksCommand,
   serializeSelectedBlocksToText,
   setClipboardText,
-  writeTextToClipboard,
 } from './blockSelectionCommands';
 import { startBlankAreaSelectionSession } from './blankAreaSelectionSession';
 import { type BlockDragStartZone } from './blockDragSession';
@@ -291,26 +290,9 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         const { selectedBlocks } = getBlockSelectionPluginState(view.state);
         if (selectedBlocks.length === 0) return false;
 
-        const key = event.key.toLowerCase();
-        const hasPrimaryModifier = (event.metaKey || event.ctrlKey) && !event.altKey;
-
         if (event.key === 'Delete' || event.key === 'Backspace') {
           if (event.metaKey || event.ctrlKey || event.altKey) return false;
           event.preventDefault();
-          return deleteSelectedBlocks(view, selectedBlocks);
-        }
-
-        if (hasPrimaryModifier && key === 'c') {
-          event.preventDefault();
-          const text = serializeSelectedBlocks(view.state, selectedBlocks);
-          void writeTextToClipboard(text);
-          return true;
-        }
-
-        if (hasPrimaryModifier && key === 'x') {
-          event.preventDefault();
-          const text = serializeSelectedBlocks(view.state, selectedBlocks);
-          void writeTextToClipboard(text);
           return deleteSelectedBlocks(view, selectedBlocks);
         }
 

@@ -974,6 +974,39 @@ describe('serializeSelectedBlocksToText', () => {
     await editor.destroy();
   });
 
+  it('does not treat fence-like code content as a selected code block closing fence', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, [
+          '- Item',
+          '  ````ts',
+          '  ````not close',
+          '  console.log(1)',
+          '  ````',
+        ].join('\n'));
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+
+    const serializer = editor.ctx.get(serializerCtx);
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+    const codeBlock = blocks.find((range) => view.state.doc.resolve(range.from).nodeAfter?.type.name === 'code_block');
+
+    expect(codeBlock).toBeDefined();
+    expect(serializeSelectedBlocksToText(view.state, [codeBlock!], { markdownSerializer: serializer })).toBe(
+      ['`````ts', '````not close', 'console.log(1)', '`````'].join('\n')
+    );
+
+    await editor.destroy();
+  });
+
   it('copies a whole list item with an inner code block as one list item body', async () => {
     const editor = Editor.make()
       .config((ctx) => {

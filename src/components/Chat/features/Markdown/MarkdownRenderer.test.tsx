@@ -338,6 +338,25 @@ describe("MarkdownRenderer", () => {
     expect(blocks[1]!.codeBlockIndexOffset).toBe(0);
   });
 
+  it("counts stable code blocks using matching fence closers", () => {
+    const stable = [
+      "Stable paragraph. ".repeat(14),
+      "",
+      "````ts",
+      "```",
+      "",
+      "const a = 1;",
+      "````",
+      "",
+      "",
+    ].join("\n");
+    const blocks = renderHook(() => useChatStreamBlocks(`${stable}Active tail`, true)).result.current;
+
+    expect(blocks).toHaveLength(2);
+    expect(blocks[1]!.content).toBe("Active tail");
+    expect(blocks[1]!.codeBlockIndexOffset).toBe(1);
+  });
+
   it("schedules heading text before following paragraph text", () => {
     const blocks = buildChatStreamSchedule("# Title\n\nBody", 0, 1000);
     const titleLength = Array.from("Title").length;
