@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   readNoteMetadataFromMarkdown,
+  stripVlainaUpdatedFrontmatter,
   stripVlainaManagedFrontmatter,
   updateNoteMetadataInMarkdown,
   writeNoteMetadataToMarkdown,
@@ -158,6 +159,27 @@ describe('note frontmatter metadata', () => {
     ].join('\n');
 
     expect(stripVlainaManagedFrontmatter(markdown)).toBe('# Exported\nVisible body');
+  });
+
+  it('strips only the managed updated timestamp for save conflict comparisons', () => {
+    const markdown = [
+      '---',
+      'title: User title',
+      'vlaina_created: 2026-04-15 08:00:00 +08:00',
+      'vlaina_updated: 2026-04-16 08:00:00 +08:00',
+      '---',
+      '',
+      '# Title',
+    ].join('\n');
+
+    expect(stripVlainaUpdatedFrontmatter(markdown)).toBe([
+      '---',
+      'title: User title',
+      'vlaina_created: 2026-04-15 08:00:00 +08:00',
+      '---',
+      '',
+      '# Title',
+    ].join('\n'));
   });
 
   it('preserves user frontmatter while stripping only top-level vlaina fields', () => {

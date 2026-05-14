@@ -514,6 +514,10 @@ describe('workspaceSlice external sync', () => {
     });
     expect(store.getState().isDirty).toBe(true);
     expect(store.getState().error).toBeNull();
+    expect(store.getState().noteContentsCache.get('docs/alpha.md')).toEqual({
+      content: '# local edit',
+      modifiedAt: 2,
+    });
     expect(shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md')).toBe(true);
     expect(shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md')).toBe(true);
     expect(shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md')).toBe(true);

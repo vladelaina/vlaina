@@ -136,7 +136,7 @@ export interface NotesActions {
   prefetchNote: (path: string) => Promise<void>;
   adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => boolean;
   saveNote: (options?: { explicit?: boolean; suppressOpenTarget?: boolean }) => Promise<void>;
-  syncCurrentNoteFromDisk: (options?: { force?: boolean }) => Promise<'ignored' | 'unchanged' | 'reloaded' | 'conflict' | 'deleted' | 'deleted-conflict'>;
+  syncCurrentNoteFromDisk: (options?: { force?: boolean; expectedExternalChange?: boolean }) => Promise<'ignored' | 'unchanged' | 'reloaded' | 'conflict' | 'deleted' | 'deleted-conflict'>;
   invalidateNoteCache: (path: string) => void;
   applyExternalPathRename: (oldPath: string, newPath: string) => Promise<void>;
   applyExternalPathDeletion: (path: string) => Promise<void>;

@@ -360,6 +360,22 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
     if (pathDetails.every((detail) => detail.ignoredByVaultRules)) {
       return;
     }
+    const currentNotePath = useNotesStore.getState().currentNote?.path ?? null;
+    const hasExpectedCurrentNoteChange =
+      currentNotePath != null &&
+      !isAbsolutePath(currentNotePath) &&
+      isMarkdownPath(currentNotePath) &&
+      pathDetails.some((detail) =>
+        detail.expectedChange &&
+        !detail.ignoredByVaultRules &&
+        detail.relativePath === currentNotePath
+      );
+    if (hasExpectedCurrentNoteChange) {
+      await syncCurrentNoteFromDisk({ force: true, expectedExternalChange: true });
+      if (!isActiveNotesPath()) {
+        return;
+      }
+    }
     if (unexpectedPaths.every((path) => !path)) {
       return;
     }

@@ -207,7 +207,7 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
   };
 
   const handleClickCapture = (event: MouseEvent) => {
-    if (Date.now() > suppressClickUntil) {
+    if (!menu && Date.now() > suppressClickUntil) {
       return;
     }
 

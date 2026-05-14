@@ -10,8 +10,36 @@ import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorM
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useCloseDraftPersistence } from './useCloseDraftPersistence';
 
+const CLOSE_FLUSH_TIMEOUT_MS = import.meta.env.MODE === 'test' ? 20 : 5000;
+
+async function withCloseTimeout<T>(task: Promise<T>, fallbackValue: T, failureLabel: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const timeout = new Promise<T>((resolve) => {
+    timeoutId = setTimeout(() => {
+      console.error(`[App] ${failureLabel} timed out while closing`);
+      resolve(fallbackValue);
+    }, CLOSE_FLUSH_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([task, timeout]);
+  } catch (error) {
+    console.error(`[App] ${failureLabel} failed while closing:`, error);
+    return fallbackValue;
+  } finally {
+    if (timeoutId !== null) {
+      clearTimeout(timeoutId);
+    }
+  }
+}
+
+async function withCloseFlushTimeout(flush: Promise<boolean>): Promise<boolean> {
+  return withCloseTimeout(flush, false, 'Flushing pending writes');
+}
+
 export function useElectronCloseGuard() {
   const [isCloseDraftConfirmOpen, setIsCloseDraftConfirmOpen] = useState(false);
+  const [isCloseFailureConfirmOpen, setIsCloseFailureConfirmOpen] = useState(false);
   const allowNextWindowCloseRef = useRef(false);
   const runFlushAllPendingWritesRef = useRef<() => Promise<boolean>>(async () => true);
   const {
@@ -22,13 +50,35 @@ export function useElectronCloseGuard() {
     saveDraftsBeforeClose,
   } = useCloseDraftPersistence();
 
+  const forceWindowClose = useCallback(async () => {
+    setIsCloseFailureConfirmOpen(false);
+    try {
+      allowNextWindowCloseRef.current = true;
+      await desktopWindow.confirmClose();
+    } catch {
+      allowNextWindowCloseRef.current = false;
+    }
+  }, []);
+
+  const interruptCloseForSaveFailure = useCallback((restorePath: string | null) => {
+    setIsCloseFailureConfirmOpen(true);
+    void restorePathAfterCloseInterruption(restorePath).catch((error) => {
+      console.error('[App] Failed to restore note after interrupted close:', error);
+    });
+  }, [restorePathAfterCloseInterruption]);
+
   const continueWindowClose = useCallback(async (options?: { skipDraftConfirm?: boolean; saveDrafts?: boolean }) => {
     const skipDraftConfirm = options?.skipDraftConfirm ?? false;
     const saveDrafts = options?.saveDrafts ?? false;
-    const autoSaveResult = await saveAutoSaveableDraftsBeforeClose();
+    const autoSaveResult = await withCloseTimeout(
+      saveAutoSaveableDraftsBeforeClose(),
+      { saved: false, restorePath: useNotesStore.getState().currentNote?.path ?? null },
+      'Saving auto-saveable drafts'
+    );
     let restorePath: string | null = autoSaveResult.restorePath;
 
     if (!autoSaveResult.saved) {
+      interruptCloseForSaveFailure(restorePath);
       return;
     }
 
@@ -40,14 +90,21 @@ export function useElectronCloseGuard() {
     }
 
     if (saveDrafts) {
-      const saveResult = await saveDraftsBeforeClose();
+      const saveResult = await withCloseTimeout(
+        saveDraftsBeforeClose(),
+        { saved: false, restorePath },
+        'Saving drafts'
+      );
       restorePath = saveResult.restorePath;
-      if (!saveResult.saved) return;
+      if (!saveResult.saved) {
+        interruptCloseForSaveFailure(restorePath);
+        return;
+      }
     }
 
     const flushed = await runFlushAllPendingWritesRef.current();
     if (!flushed) {
-      await restorePathAfterCloseInterruption(restorePath);
+      interruptCloseForSaveFailure(restorePath);
       return;
     }
 
@@ -60,6 +117,7 @@ export function useElectronCloseGuard() {
     }
   }, [
     hasDiscardableDrafts,
+    interruptCloseForSaveFailure,
     restorePathAfterCloseInterruption,
     saveAutoSaveableDraftsBeforeClose,
     saveDraftsBeforeClose,
@@ -72,7 +130,7 @@ export function useElectronCloseGuard() {
     let unlistenCloseRequested: (() => void) | null = null;
 
     const runFlushAllPendingWrites = async (): Promise<boolean> => {
-      if (activeFlush) return activeFlush;
+      if (activeFlush) return withCloseFlushTimeout(activeFlush);
 
       activeFlush = (async () => {
         flushCurrentPendingEditorMarkdown();
@@ -148,7 +206,7 @@ export function useElectronCloseGuard() {
         activeFlush = null;
       });
 
-      return activeFlush;
+      return withCloseFlushTimeout(activeFlush);
     };
 
     const flushAllPendingWrites = () => {
@@ -183,6 +241,7 @@ export function useElectronCloseGuard() {
         void (async () => {
           const flushed = await runFlushAllPendingWritesRef.current();
           if (!flushed) {
+            setIsCloseFailureConfirmOpen(true);
             return;
           }
           try {
@@ -213,7 +272,10 @@ export function useElectronCloseGuard() {
 
   return {
     isCloseDraftConfirmOpen,
+    isCloseFailureConfirmOpen,
     setIsCloseDraftConfirmOpen,
+    setIsCloseFailureConfirmOpen,
     continueWindowClose,
+    forceWindowClose,
   };
 }
