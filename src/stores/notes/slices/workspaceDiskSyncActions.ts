@@ -139,7 +139,21 @@ export function createWorkspaceDiskSyncAction(
             });
             return 'ignored';
           }
-          if (shouldIgnoreExpectedExternalChange(fullPath)) {
+          if (options?.expectedExternalChange || shouldIgnoreExpectedExternalChange(fullPath)) {
+            const latestState = get();
+            const latestCurrentNote = latestState.currentNote;
+            const latestContent = latestCurrentNote?.path === currentNote.path
+              ? latestCurrentNote.content
+              : currentNote.content;
+            set({
+              noteContentsCache: setCachedNoteContent(
+                latestState.noteContentsCache,
+                currentNote.path,
+                latestContent,
+                nextModifiedAt
+              ),
+              error: null,
+            });
             logNotesDebug('NotesDiskSync', 'sync:ignored-expected-dirty-change', {
               notePath: currentNote.path,
               fullPath,

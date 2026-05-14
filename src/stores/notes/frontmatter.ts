@@ -258,6 +258,31 @@ export function stripVlainaManagedFrontmatter(markdown: string): string {
   ].join('\n');
 }
 
+export function stripVlainaUpdatedFrontmatter(markdown: string): string {
+  const { lines, body, hasFrontmatter } = splitLeadingFrontmatter(markdown);
+  if (!hasFrontmatter) {
+    return normalizeLineEndings(markdown);
+  }
+
+  const comparableFrontmatterLines = trimTrailingBlankLines(
+    lines.filter((line) => parseTopLevelKey(line) !== KEY_UPDATED),
+  );
+
+  if (comparableFrontmatterLines.length === 0) {
+    const bodyLines = body.split('\n');
+    return bodyLines[0]?.trim() === ''
+      ? bodyLines.slice(1).join('\n')
+      : body;
+  }
+
+  return [
+    FRONTMATTER_DELIMITER,
+    ...comparableFrontmatterLines,
+    FRONTMATTER_DELIMITER,
+    body,
+  ].join('\n');
+}
+
 export function writeNoteMetadataToMarkdown(
   markdown: string,
   entry: Partial<NoteMetadataEntry> | null | undefined

@@ -14,8 +14,11 @@ function App() {
   const { language, t } = useI18n();
   const {
     isCloseDraftConfirmOpen,
+    isCloseFailureConfirmOpen,
     setIsCloseDraftConfirmOpen,
+    setIsCloseFailureConfirmOpen,
     continueWindowClose,
+    forceWindowClose,
   } = useElectronCloseGuard();
   useDocumentLanguage(language);
 
@@ -83,6 +86,23 @@ function App() {
         description={t('app.unsavedDraftsDescription')}
         confirmText={t('app.unsavedDraftsConfirm')}
         cancelText={t('app.unsavedDraftsCancel')}
+        variant="danger"
+        initialFocus="cancel"
+      />
+      <ConfirmDialog
+        isOpen={isCloseFailureConfirmOpen}
+        onClose={() => setIsCloseFailureConfirmOpen(false)}
+        onConfirm={() => {
+          void forceWindowClose();
+        }}
+        onCancelAction={async () => {
+          setIsCloseFailureConfirmOpen(false);
+          await continueWindowClose();
+        }}
+        title={t('app.closeSaveFailedTitle')}
+        description={t('app.closeSaveFailedDescription')}
+        confirmText={t('app.unsavedDraftsConfirm')}
+        cancelText={t('common.retry')}
         variant="danger"
         initialFocus="cancel"
       />

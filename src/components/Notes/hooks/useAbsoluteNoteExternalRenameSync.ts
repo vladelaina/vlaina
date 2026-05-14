@@ -10,6 +10,7 @@ import {
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import {
   getAbsoluteRenameWatchPaths,
+  isRemoveWatchEvent,
   normalizeFsPath,
   toVaultRelativePath,
 } from './notesExternalSyncUtils';
@@ -21,6 +22,7 @@ function isAbsoluteRenamePathInsideParent(parentPath: string, path: string) {
 
 export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | undefined) {
   const applyExternalPathRename = useNotesStore((state) => state.applyExternalPathRename);
+  const syncCurrentNoteFromDisk = useNotesStore((state) => state.syncCurrentNoteFromDisk);
   const processedRenameEventNoncesRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -33,6 +35,7 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
       return;
     }
     const watchedParentPath = parentPath;
+    const watchedNotePath = normalizeFsPath(currentNotePath);
 
     let disposed = false;
     let unwatch: (() => Promise<void>) | null = null;
@@ -84,6 +87,10 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
       return paths.some((path) => toVaultRelativePath(watchedParentPath, path) === eventRelativePath);
     };
 
+    const isCurrentNoteWatchEvent = (paths: string[]) => (
+      paths.some((path) => normalizeFsPath(path) === watchedNotePath)
+    );
+
     const run = async () => {
       try {
         const stopWatching = await watchDesktopPath(
@@ -102,14 +109,22 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
               ...event,
               paths: event.paths.map((path) => normalizeFsPath(path)),
             });
-            if (!renamePaths?.oldPath || !renamePaths.newPath) {
+            if (renamePaths) {
+              if (renamePaths.oldPath && renamePaths.newPath) {
+                await applyRenameEvent({
+                  oldPath: renamePaths.oldPath,
+                  newPath: renamePaths.newPath,
+                });
+              }
               return;
             }
 
-            await applyRenameEvent({
-              oldPath: renamePaths.oldPath,
-              newPath: renamePaths.newPath,
-            });
+            if (isCurrentNoteWatchEvent(event.paths)) {
+              await syncCurrentNoteFromDisk({ force: true });
+              if (isRemoveWatchEvent(event)) {
+                return;
+              }
+            }
           },
           { recursive: true }
         );
@@ -132,5 +147,5 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
       unsubscribeRenameBroadcast();
       void unwatch?.();
     };
-  }, [applyExternalPathRename, currentNotePath]);
+  }, [applyExternalPathRename, currentNotePath, syncCurrentNoteFromDisk]);
 }

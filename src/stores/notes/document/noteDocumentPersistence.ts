@@ -10,7 +10,11 @@ import {
   type NoteContentCache,
 } from './noteContentCache';
 import { markExpectedExternalChange } from './externalChangeRegistry';
-import { readNoteMetadataFromMarkdown, updateNoteMetadataInMarkdown } from '../frontmatter';
+import {
+  readNoteMetadataFromMarkdown,
+  stripVlainaUpdatedFrontmatter,
+  updateNoteMetadataInMarkdown,
+} from '../frontmatter';
 import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import {
   normalizeSerializedMarkdownDocument,
@@ -187,6 +191,10 @@ export async function saveNoteDocument({
     const cachedContent = getCachedNoteContent(cache, currentNote.path);
     const normalizedCachedContent =
       cachedContent === undefined ? null : normalizeSerializedMarkdownDocument(cachedContent);
+    const comparableDiskContent = stripVlainaUpdatedFrontmatter(normalizedDiskContent);
+    const comparableCurrentContent = stripVlainaUpdatedFrontmatter(normalizedCurrentContent);
+    const comparableCachedContent =
+      normalizedCachedContent === null ? null : stripVlainaUpdatedFrontmatter(normalizedCachedContent);
     if (normalizedDiskContent === normalizedCurrentContent) {
       const metadata = readNoteMetadataFromMarkdown(normalizedDiskContent);
       logNotesDebug('NotesPersistence', 'save:conflict-already-current', {
@@ -204,7 +212,10 @@ export async function saveNoteDocument({
         nextCache: setCachedNoteContent(cache, currentNote.path, normalizedDiskContent, diskModifiedAt),
       };
     }
-    if (normalizedCachedContent !== null && normalizedDiskContent === normalizedCachedContent) {
+    if (
+      normalizedCachedContent !== null &&
+      (normalizedDiskContent === normalizedCachedContent || comparableDiskContent === comparableCachedContent)
+    ) {
       logNotesDebug('NotesPersistence', 'save:conflict-mtime-only', {
         notesPath,
         notePath: currentNote.path,
@@ -214,6 +225,17 @@ export async function saveNoteDocument({
         cached: summarizeLineBreakText(normalizedCachedContent),
         input: summarizeLineBreakText(normalizedCurrentContent),
       });
+    } else if (
+      comparableDiskContent === comparableCurrentContent &&
+      comparableCachedContent === comparableCurrentContent
+    ) {
+      const metadata = readNoteMetadataFromMarkdown(normalizedDiskContent);
+      return {
+        content: normalizedDiskContent,
+        metadata,
+        modifiedAt: diskModifiedAt,
+        nextCache: setCachedNoteContent(cache, currentNote.path, normalizedDiskContent, diskModifiedAt),
+      };
     } else {
       logNotesDebug('NotesPersistence', 'save:conflict', {
         notesPath,

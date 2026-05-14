@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 
 type NotesState = {
@@ -232,7 +232,14 @@ vi.mock('@/lib/utils', () => ({
 }));
 
 describe('App close flow', () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
+    const originalConsoleError = console.error;
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation((...args) => {
+      if (String(args[0] ?? '').startsWith('[App] ')) return;
+      originalConsoleError(...args);
+    });
     mocks.notesState.openTabs = [];
     mocks.notesState.draftNotes = {};
     mocks.notesState.noteContentsCache = new Map();
@@ -270,6 +277,10 @@ describe('App close flow', () => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
   });
 
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
   async function renderAndRequestClose() {
     render(<App />);
     await waitFor(() => {
@@ -293,7 +304,7 @@ describe('App close flow', () => {
     expect(screen.queryByText('Unsaved Drafts')).toBeNull();
   });
 
-  it('does not close a clean window when pending storage fails to flush', async () => {
+  it('shows a close failure dialog when pending storage fails and allows forced close', async () => {
     mocks.flushPendingSave.mockRejectedValueOnce(new Error('disk unavailable'));
 
     await renderAndRequestClose();
@@ -302,6 +313,41 @@ describe('App close flow', () => {
       expect(mocks.flushPendingSave).toHaveBeenCalledTimes(1);
     });
     expect(mocks.desktopWindow.confirmClose).not.toHaveBeenCalled();
+
+    expect(await screen.findByText('Save did not finish')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Discard and Close'));
+    });
+
+    await waitFor(() => {
+      expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('shows a close failure dialog when pending storage hangs and allows forced close', async () => {
+    mocks.flushPendingSave.mockImplementationOnce(() => new Promise(() => {}));
+
+    render(<App />);
+    await waitFor(() => {
+      expect(mocks.desktopWindow.onCloseRequested).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      mocks.closeRequestedHandler?.();
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByText('Save did not finish')).toBeInTheDocument();
+    expect(mocks.desktopWindow.confirmClose).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Discard and Close'));
+    });
+
+    await waitFor(() => {
+      expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('recovers clean-close state after confirmClose rejects', async () => {
@@ -520,7 +566,7 @@ describe('App close flow', () => {
     });
   });
 
-  it('blocks closing when an auto-saveable draft fails to save', async () => {
+  it('shows a close failure dialog when an auto-saveable draft fails and allows forced close', async () => {
     mocks.notesState.notesPath = '/vault';
     mocks.notesState.currentNote = { path: 'draft:alpha', content: 'unsaved content' };
     mocks.notesState.openTabs = [{ path: 'draft:alpha', isDirty: true }];
@@ -536,6 +582,46 @@ describe('App close flow', () => {
     });
     expect(mocks.desktopWindow.confirmClose).not.toHaveBeenCalled();
     expect(screen.queryByText('Unsaved Drafts')).toBeNull();
+
+    expect(await screen.findByText('Save did not finish')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Discard and Close'));
+    });
+
+    await waitFor(() => {
+      expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('shows a close failure dialog when an auto-saveable draft save hangs', async () => {
+    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.currentNote = { path: 'draft:alpha', content: 'unsaved content' };
+    mocks.notesState.openTabs = [{ path: 'draft:alpha', isDirty: true }];
+    mocks.notesState.isDirty = true;
+    mocks.notesState.draftNotes = { 'draft:alpha': { parentPath: null, name: 'Draft Alpha' } };
+    mocks.notesState.noteContentsCache = new Map([['draft:alpha', { content: 'unsaved content' }]]);
+    mocks.notesState.saveNote.mockImplementationOnce(() => new Promise(() => {}));
+
+    await renderAndRequestClose();
+
+    expect(await screen.findByText('Save did not finish')).toBeInTheDocument();
+    expect(mocks.desktopWindow.confirmClose).not.toHaveBeenCalled();
+  });
+
+  it('shows a close failure dialog when an auto-saveable draft save rejects', async () => {
+    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.currentNote = { path: 'draft:alpha', content: 'unsaved content' };
+    mocks.notesState.openTabs = [{ path: 'draft:alpha', isDirty: true }];
+    mocks.notesState.isDirty = true;
+    mocks.notesState.draftNotes = { 'draft:alpha': { parentPath: null, name: 'Draft Alpha' } };
+    mocks.notesState.noteContentsCache = new Map([['draft:alpha', { content: 'unsaved content' }]]);
+    mocks.notesState.saveNote.mockRejectedValueOnce(new Error('draft write failed'));
+
+    await renderAndRequestClose();
+
+    expect(await screen.findByText('Save did not finish')).toBeInTheDocument();
+    expect(mocks.desktopWindow.confirmClose).not.toHaveBeenCalled();
   });
 
   it('opens the unsaved draft confirm dialog before closing draft notes', async () => {
@@ -560,6 +646,56 @@ describe('App close flow', () => {
     await waitFor(() => {
       expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('shows a close failure dialog when saving discardable drafts hangs', async () => {
+    mocks.notesState.currentNote = { path: 'draft:alpha', content: 'unsaved content' };
+    mocks.notesState.openTabs = [{ path: 'draft:alpha', isDirty: true }];
+    mocks.notesState.isDirty = true;
+    mocks.notesState.draftNotes = {
+      'draft:alpha': { name: 'Draft Alpha' },
+    };
+    mocks.notesState.noteContentsCache = new Map([
+      ['draft:alpha', { content: 'unsaved content' }],
+    ]);
+    mocks.notesState.saveNote.mockImplementationOnce(() => new Promise(() => {}));
+
+    await renderAndRequestClose();
+
+    expect(await screen.findByText('Unsaved Drafts')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Save'));
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByText('Save did not finish')).toBeInTheDocument();
+    expect(mocks.desktopWindow.confirmClose).not.toHaveBeenCalled();
+  });
+
+  it('shows a close failure dialog when saving discardable drafts rejects', async () => {
+    mocks.notesState.currentNote = { path: 'draft:alpha', content: 'unsaved content' };
+    mocks.notesState.openTabs = [{ path: 'draft:alpha', isDirty: true }];
+    mocks.notesState.isDirty = true;
+    mocks.notesState.draftNotes = {
+      'draft:alpha': { name: 'Draft Alpha' },
+    };
+    mocks.notesState.noteContentsCache = new Map([
+      ['draft:alpha', { content: 'unsaved content' }],
+    ]);
+    mocks.notesState.saveNote.mockRejectedValueOnce(new Error('explicit draft write failed'));
+
+    await renderAndRequestClose();
+
+    expect(await screen.findByText('Unsaved Drafts')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('Save'));
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByText('Save did not finish')).toBeInTheDocument();
+    expect(mocks.desktopWindow.confirmClose).not.toHaveBeenCalled();
   });
 
   it('closes the unsaved draft dialog immediately when discarding drafts before close', async () => {

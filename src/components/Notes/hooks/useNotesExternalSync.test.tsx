@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useNotesExternalSync } from './useNotesExternalSync';
 import { detectExternalTreePathChanges } from './notesExternalPollingUtils';
+import { shouldIgnoreExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
 
 type WatchEvent = {
   type: unknown;
@@ -117,6 +118,29 @@ describe('useNotesExternalSync', () => {
 
     expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalledTimes(1);
     expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalledWith({ force: true });
+    expect(hoisted.notesState.invalidateNoteCache).not.toHaveBeenCalled();
+    expect(hoisted.notesState.loadFileTree).not.toHaveBeenCalled();
+
+    hook.unmount();
+  });
+
+  it('refreshes current note disk state for expected write events without reloading the tree', async () => {
+    vi.mocked(shouldIgnoreExpectedExternalChange).mockReturnValueOnce(true);
+    const hook = renderHook(() => useNotesExternalSync('/vault', '/vault'));
+
+    await act(async () => {
+      await hoisted.watchHandler?.({
+        type: 'modify',
+        paths: ['/vault/docs/current.md'],
+      });
+      await vi.advanceTimersByTimeAsync(221);
+    });
+
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalledTimes(1);
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalledWith({
+      force: true,
+      expectedExternalChange: true,
+    });
     expect(hoisted.notesState.invalidateNoteCache).not.toHaveBeenCalled();
     expect(hoisted.notesState.loadFileTree).not.toHaveBeenCalled();
 
