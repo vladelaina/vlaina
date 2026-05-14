@@ -116,7 +116,7 @@ jobs:
         if: success() && matrix.platform == 'windows'
         uses: actions/upload-artifact@v7
         with:
-          name: vlaina-windows-nsis
+          name: vlaina-windows-nsis-run-${{ github.run_number }}
           path: release/*.exe
           if-no-files-found: error
 
@@ -124,7 +124,7 @@ jobs:
         if: success() && matrix.platform == 'macos'
         uses: actions/upload-artifact@v7
         with:
-          name: vlaina-macos-dmg
+          name: vlaina-macos-dmg-run-${{ github.run_number }}
           path: release/*.dmg
           if-no-files-found: error
 
@@ -132,7 +132,7 @@ jobs:
         if: success() && matrix.platform == 'macos'
         uses: actions/upload-artifact@v7
         with:
-          name: vlaina-macos-zip
+          name: vlaina-macos-zip-run-${{ github.run_number }}
           path: release/*.zip
           if-no-files-found: error
 
@@ -140,7 +140,7 @@ jobs:
         if: success() && matrix.platform == 'linux'
         uses: actions/upload-artifact@v7
         with:
-          name: vlaina-linux-appimage
+          name: vlaina-linux-appimage-run-${{ github.run_number }}
           path: release/*.AppImage
           if-no-files-found: error
 
@@ -148,7 +148,7 @@ jobs:
         if: success() && matrix.platform == 'linux'
         uses: actions/upload-artifact@v7
         with:
-          name: vlaina-linux-deb
+          name: vlaina-linux-deb-run-${{ github.run_number }}
           path: release/*.deb
           if-no-files-found: error
 
@@ -156,7 +156,7 @@ jobs:
         if: success() && matrix.platform == 'linux'
         uses: actions/upload-artifact@v7
         with:
-          name: vlaina-linux-tar-gz
+          name: vlaina-linux-tar-gz-run-${{ github.run_number }}
           path: release/*.tar.gz
           if-no-files-found: error
 
@@ -180,6 +180,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+          name: vlaina ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
           draft: false
           prerelease: ${{ contains(github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name, '-') }}
           generate_release_notes: true
