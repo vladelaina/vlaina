@@ -14,6 +14,13 @@
   -webkit-text-fill-color: inherit !important;
 }
 
+.milkdown .ProseMirror.vlaina-pointer-native-selection::selection,
+.milkdown .ProseMirror.vlaina-pointer-native-selection *::selection {
+  background-color: var(--vlaina-selection-bg, #2781db) !important;
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
 .milkdown .ProseMirror.vlaina-text-selection-overlay-active .vlaina-atomic-selected,
 .milkdown .ProseMirror.vlaina-text-selection-overlay-active .vlaina-atomic-selected * {
   user-select: none;

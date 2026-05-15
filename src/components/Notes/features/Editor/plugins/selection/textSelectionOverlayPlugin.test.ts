@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { defaultValueCtx, Editor, editorViewCtx } from '@milkdown/kit/core';
 import { AllSelection, NodeSelection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
@@ -11,6 +11,7 @@ import { tocPlugin } from '../toc';
 import { videoPlugin } from '../video';
 
 const OVERLAY_ACTIVE_CLASS = 'vlaina-text-selection-overlay-active';
+const POINTER_NATIVE_SELECTION_CLASS = 'vlaina-pointer-native-selection';
 
 async function createEditor(defaultValue: string, plugins: MilkdownPlugin[] = []): Promise<EditorView> {
   let editor = Editor.make()
@@ -52,12 +53,125 @@ describe('textSelectionOverlayPlugin', () => {
     expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
   });
 
+  it('keeps native selection styling while dragging a text selection', async () => {
+    const view = await createEditor('hello');
+    const originalElementFromPoint = document.elementFromPoint;
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => view.dom,
+    });
+
+    try {
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 4)));
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
+
+      view.dom.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
+
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(false);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
+
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(false);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
+
+      view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(false);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
+
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
+    } finally {
+      Object.defineProperty(document, 'elementFromPoint', {
+        configurable: true,
+        value: originalElementFromPoint,
+      });
+    }
+  });
+
+  it('recovers native selection styling when a browser range remains visible in overlay mode', async () => {
+    const view = await createEditor('hello');
+    const originalGetSelection = window.getSelection;
+    const fakeRect = { height: 19, top: 120 } as DOMRect;
+
+    Object.defineProperty(window, 'getSelection', {
+      configurable: true,
+      value: () => ({
+        anchorOffset: 0,
+        focusOffset: 4,
+        isCollapsed: false,
+        rangeCount: 1,
+        getRangeAt: () => ({
+          getClientRects: () => [fakeRect],
+        }),
+      }),
+    });
+
+    try {
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 4)));
+
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
+
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(false);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
+    } finally {
+      Object.defineProperty(window, 'getSelection', {
+        configurable: true,
+        value: originalGetSelection,
+      });
+    }
+  });
+
   it('keeps overlay styling for editor select-all selections', async () => {
     const view = await createEditor('hello\n\nworld');
 
     view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
 
     expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
+  });
+
+  it('clears stale native browser ranges for editor select-all overlay selections', async () => {
+    const view = await createEditor('hello\n\nworld');
+    const originalGetSelection = window.getSelection;
+    const removeAllRanges = vi.fn();
+    const fakeRect = { height: 19, top: 120 } as DOMRect;
+
+    Object.defineProperty(window, 'getSelection', {
+      configurable: true,
+      value: () => ({
+        anchorOffset: 0,
+        focusOffset: 4,
+        isCollapsed: false,
+        rangeCount: 1,
+        removeAllRanges,
+        getRangeAt: () => ({
+          getClientRects: () => [fakeRect],
+        }),
+      }),
+    });
+
+    try {
+      view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
+
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
+
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      expect(removeAllRanges).toHaveBeenCalledTimes(1);
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
+    } finally {
+      Object.defineProperty(window, 'getSelection', {
+        configurable: true,
+        value: originalGetSelection,
+      });
+    }
   });
 
   it('adds block selection styling to formulas covered by editor select-all', async () => {
