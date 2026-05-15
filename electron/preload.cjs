@@ -313,6 +313,9 @@ const desktopApi = {
     getManagedModels() {
       return ipcRenderer.invoke('desktop:managed:get-models');
     },
+    getManagedModelsVersion() {
+      return ipcRenderer.invoke('desktop:managed:get-models-version');
+    },
     getManagedBudget() {
       return ipcRenderer.invoke('desktop:managed:get-budget');
     },

@@ -1,3 +1,5 @@
+import type { AIModel } from '@/lib/ai/types';
+
 export type ManagedRuntime = 'desktop' | 'web'
 
 export interface ManagedBudgetStatus {
@@ -15,6 +17,17 @@ export interface ManagedBudgetSnapshot extends ManagedBudgetStatus {
 
 export interface ManagedModelsPayload {
   data?: unknown;
+  model_catalog_version?: unknown;
+}
+
+export interface ManagedModelCatalog {
+  models: AIModel[];
+  version: string | null;
+}
+
+export interface ManagedModelsVersionPayload {
+  success?: unknown;
+  model_catalog_version?: unknown;
 }
 
 export interface ManagedBudgetPayload {

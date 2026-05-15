@@ -7,9 +7,11 @@ import {
   MANAGED_PROVIDER_NAME,
 } from './constants';
 import type {
+  ManagedModelCatalog,
   ManagedBudgetPayload,
   ManagedBudgetStatus,
   ManagedModelsPayload,
+  ManagedModelsVersionPayload,
 } from './types';
 
 export function createManagedProvider(now: number): Provider {
@@ -52,6 +54,17 @@ export function normalizeManagedModelsPayload(payload: ManagedModelsPayload): AI
   return models.sort((a, b) => a.apiModelId.localeCompare(b.apiModelId));
 }
 
+export function normalizeManagedModelCatalogPayload(payload: ManagedModelsPayload): ManagedModelCatalog {
+  return {
+    models: normalizeManagedModelsPayload(payload),
+    version: normalizeManagedModelCatalogVersion(payload.model_catalog_version),
+  };
+}
+
+export function normalizeManagedModelsVersionPayload(payload: ManagedModelsVersionPayload): string | null {
+  return normalizeManagedModelCatalogVersion(payload.model_catalog_version);
+}
+
 export function normalizeManagedBudgetPayload(payload: ManagedBudgetPayload): ManagedBudgetStatus {
   return {
     active: payload.active === true,
@@ -66,6 +79,10 @@ function normalizeModelName(model: Record<string, unknown>, fallback: string): s
   if (display) return display;
   const name = typeof model.name === 'string' ? model.name.trim() : '';
   return name || fallback;
+}
+
+function normalizeManagedModelCatalogVersion(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
 function normalizeModelGroup(model: Record<string, unknown>, modelId: string): string {

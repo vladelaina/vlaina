@@ -4,11 +4,13 @@ const {
   hasElectronDesktopBridgeMock,
   clearClientSessionMock,
   getManagedModelsMock,
+  getManagedModelsVersionMock,
   managedChatCompletionStreamMock,
 } = vi.hoisted(() => ({
   hasElectronDesktopBridgeMock: vi.fn(),
   clearClientSessionMock: vi.fn(),
   getManagedModelsMock: vi.fn(),
+  getManagedModelsVersionMock: vi.fn(),
   managedChatCompletionStreamMock: vi.fn(),
 }));
 
@@ -19,6 +21,7 @@ vi.mock('@/lib/desktop/backend', () => ({
 vi.mock('@/lib/account/desktopCommands', () => ({
   accountCommands: {
     getManagedModels: getManagedModelsMock,
+    getManagedModelsVersion: getManagedModelsVersionMock,
     getManagedBudget: vi.fn(),
     managedChatCompletion: vi.fn(),
     managedChatCompletionStream: managedChatCompletionStreamMock,
@@ -37,6 +40,7 @@ describe('managedService', () => {
     hasElectronDesktopBridgeMock.mockReset();
     clearClientSessionMock.mockReset();
     getManagedModelsMock.mockReset();
+    getManagedModelsVersionMock.mockReset();
     managedChatCompletionStreamMock.mockReset();
     vi.restoreAllMocks();
     vi.spyOn(console, 'log').mockImplementation(() => undefined);
@@ -60,6 +64,32 @@ describe('managedService', () => {
 
     expect(models).toHaveLength(1);
     expect(fetchMock).toHaveBeenCalledWith('https://api.vlaina.com/v1/models', {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'include',
+      signal: expect.any(AbortSignal),
+      headers: {
+        Accept: 'application/json',
+      },
+    });
+  });
+
+  it('uses lightweight web requests for managed model versions', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        success: true,
+        model_catalog_version: 'v1',
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { fetchManagedModelsVersion } = await import('./managedService');
+    const version = await fetchManagedModelsVersion();
+
+    expect(version).toBe('v1');
+    expect(fetchMock).toHaveBeenCalledWith('https://api.vlaina.com/v1/models/version', {
       method: 'GET',
       cache: 'no-store',
       credentials: 'include',
@@ -151,6 +181,20 @@ describe('managedService', () => {
 
     expect(models[0]?.apiModelId).toBe('gpt-4o-mini');
     expect(getManagedModelsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps desktop managed model version requests inside desktop commands', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(true);
+    getManagedModelsVersionMock.mockResolvedValue({
+      success: true,
+      model_catalog_version: 'v1',
+    });
+
+    const { fetchManagedModelsVersion } = await import('./managedService');
+    const version = await fetchManagedModelsVersion();
+
+    expect(version).toBe('v1');
+    expect(getManagedModelsVersionMock).toHaveBeenCalledTimes(1);
   });
 
   it('streams managed chat completions on web', async () => {

@@ -80,6 +80,10 @@ export function registerManagedIpc({
     return await requestManagedPublicJson('/models', { method: 'GET' });
   });
 
+  handleIpc('desktop:managed:get-models-version', async () => {
+    return await requestManagedPublicJson('/models/version', { method: 'GET' });
+  });
+
   handleIpc('desktop:managed:get-budget', async () => {
     return await requestManagedJson('/budget', { method: 'GET' });
   });
