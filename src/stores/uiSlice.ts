@@ -222,7 +222,17 @@ function loadLanguagePreference(): AppLanguagePreference {
 
 function getInitialAppViewMode(): AppViewMode {
   const launchViewMode = readWindowLaunchContext().viewMode;
+  if (!import.meta.env.DEV && launchViewMode === 'lab') {
+    return 'notes';
+  }
   return launchViewMode ?? 'notes';
+}
+
+function normalizeAppViewMode(mode: AppViewMode): AppViewMode {
+  if (!import.meta.env.DEV && mode === 'lab') {
+    return 'notes';
+  }
+  return mode;
 }
 
 function loadUIPreferencesFromStorage(): UIPreferenceState {
@@ -238,7 +248,7 @@ function loadUIPreferencesFromStorage(): UIPreferenceState {
 
 export const useUIStore = create<UIStore>()((set) => ({
   appViewMode: getInitialAppViewMode(),
-  setAppViewMode: (mode) => set({ appViewMode: mode }),
+  setAppViewMode: (mode) => set({ appViewMode: normalizeAppViewMode(mode) }),
   toggleAppViewMode: () => set((state) => ({
     appViewMode: state.appViewMode === 'chat' ? 'notes' : 'chat'
   })),

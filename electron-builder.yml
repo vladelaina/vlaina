@@ -12,6 +12,9 @@ files:
   - package.json
   - "!node_modules/**"
   - "!vendor/**"
+  - "!dist/404.html"
+  - "!dist/_headers"
+  - "!dist/_redirects"
   - "!dist/**/*.map"
   - "!electron/**/*.map"
   - "!**/__tests__/**"
