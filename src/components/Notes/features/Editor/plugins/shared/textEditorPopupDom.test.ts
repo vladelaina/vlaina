@@ -4,6 +4,7 @@ import {
   mountTextEditorPopup,
   resizeTextEditorPopupTextareaToContent,
 } from './textEditorPopupDom';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 function stubPopupGeometry(args: {
   card: HTMLElement;
@@ -65,6 +66,13 @@ describe('textEditorPopupDom', () => {
 
     expect(textarea.style.height).toBe('160px');
     expect(textarea.style.overflowY).toBe('hidden');
+  });
+
+  it('uses the shared composer pill surface for formula and diagram popups', () => {
+    const { card } = createTextEditorPopupElements();
+
+    expect(card.className).toContain('!rounded-[26px]');
+    expect(card.className).toContain(chatComposerPillSurfaceClass);
   });
 
   it('constrains the textarea and lets it scroll when content would exceed the viewport', () => {

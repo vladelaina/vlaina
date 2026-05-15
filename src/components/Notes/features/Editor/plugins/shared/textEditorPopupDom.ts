@@ -1,3 +1,5 @@
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+
 export interface TextEditorPopupElements {
   card: HTMLElement;
   content: HTMLElement;
@@ -23,7 +25,7 @@ export function createTextEditorPopupElements(
   placeholder = ''
 ): TextEditorPopupElements {
   const card = document.createElement('div');
-  card.className = 'text-editor-card math-editor-card';
+  card.className = `text-editor-card math-editor-card !rounded-[26px] ${chatComposerPillSurfaceClass}`;
 
   const content = document.createElement('div');
   content.className = 'text-editor-content math-editor-content';
