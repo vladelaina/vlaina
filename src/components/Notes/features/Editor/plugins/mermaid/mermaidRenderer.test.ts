@@ -93,6 +93,19 @@ describe('mermaidRenderer', () => {
     expect(html).not.toContain('secret');
   });
 
+  it('replaces Mermaid syntax-error SVGs with the compact app error block', async () => {
+    render.mockResolvedValueOnce({
+      svg: '<svg viewBox="0 0 2412 512"><text class="error-text">Syntax error in text</text></svg>',
+    });
+    const { renderMermaid } = await import('./mermaidRenderer');
+
+    const html = await renderMermaid('not a diagram', 'diagram-1');
+
+    expect(html).toContain('Mermaid Error: Unable to render diagram.');
+    expect(html).not.toContain('<svg');
+    expect(html).not.toContain('Syntax error in text');
+  });
+
   it('rejects oversized diagrams before loading mermaid', async () => {
     const { renderMermaid } = await import('./mermaidRenderer');
 

@@ -230,6 +230,7 @@ describe('editor embedded CodeMirror selection styles', () => {
   it('lets block selection and drag gestures pass over video embeds', () => {
     const css = readStyleFile('extended.css');
 
+    expect(css).toContain('contain-intrinsic-size: auto 315px;');
     expect(css).toContain('.milkdown .video-block::after {');
     expect(css).toContain('.milkdown .video-block.ProseMirror-selectednode::after {');
     expect(css).toContain('.milkdown .video-block.vlaina-block-selected {');

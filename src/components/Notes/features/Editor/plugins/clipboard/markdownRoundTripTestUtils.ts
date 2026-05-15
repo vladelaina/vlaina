@@ -12,8 +12,10 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 import { configureTheme } from '../../theme';
 import {
+  normalizeAlternativeMathBlockFences,
   normalizeSerializedMarkdownDocument,
   preserveMarkdownBlankLinesForEditor,
+  restoreMathBlockFenceStylesFromReference,
   stripTrailingNewlines,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 import {
@@ -53,7 +55,9 @@ interface EditorRoundTripSnapshot {
 
 async function openMarkdownThroughSyntaxEditor(markdown: string): Promise<EditorRoundTripSnapshot> {
   const defaultValue = preserveMarkdownBlankLinesForEditor(
-    normalizeLeadingFrontmatterMarkdown(normalizeSerializedMarkdownDocument(markdown))
+    normalizeLeadingFrontmatterMarkdown(
+      normalizeAlternativeMathBlockFences(normalizeSerializedMarkdownDocument(markdown))
+    )
   );
   const editor = Editor.make()
     .config((ctx) => {
@@ -81,7 +85,10 @@ async function openMarkdownThroughSyntaxEditor(markdown: string): Promise<Editor
   return {
     docJson,
     persisted: serializeLeadingFrontmatterMarkdown(
-      normalizeSerializedMarkdownDocument(serialized),
+      restoreMathBlockFenceStylesFromReference(
+        normalizeSerializedMarkdownDocument(serialized),
+        markdown
+      ),
       markdown
     ),
   };

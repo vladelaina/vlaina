@@ -3,6 +3,12 @@ import { waitFor } from '@testing-library/react';
 
 vi.mock('./mermaidRenderer', () => ({
   generateMermaidId: () => 'mermaid-test',
+  mermaidRenderErrorMarkup: () =>
+    '<div class="mermaid-error">Mermaid Error: Unable to render diagram. Check the diagram syntax.</div>',
+  normalizeMermaidRenderMarkup: (markup: string) =>
+    markup.includes('Syntax error in text') || /class=(["'])error-(?:text|icon)\1/.test(markup)
+      ? '<div class="mermaid-error">Mermaid Error: Unable to render diagram. Check the diagram syntax.</div>'
+      : markup,
   renderMermaid: vi.fn(async () => '<svg data-rendered="initial"></svg>'),
 }));
 
@@ -184,6 +190,25 @@ describe('mermaidEditorLivePreview', () => {
     );
     expect(anchor.outerHTML).not.toContain('secret source');
     expect(onRendered).toHaveBeenCalledTimes(1);
+  });
+
+  it('replaces syntax-error SVGs returned by a custom render with the compact error block', async () => {
+    const anchor = document.createElement('div');
+    anchor.setAttribute('data-type', 'mermaid');
+    document.body.appendChild(anchor);
+
+    await renderMermaidEditorLivePreview({
+      anchor,
+      code: 'not a diagram',
+      render: async () =>
+        '<svg viewBox="0 0 2412 512"><text class="error-text">Syntax error in text</text></svg>',
+    });
+
+    expect(anchor.querySelector('.mermaid-error')?.textContent).toContain(
+      'Mermaid Error: Unable to render diagram.'
+    );
+    expect(anchor.outerHTML).not.toContain('<svg');
+    expect(anchor.outerHTML).not.toContain('Syntax error in text');
   });
 
   it('previews pasted fenced Mermaid input as normalized diagram code', async () => {

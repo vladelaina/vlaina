@@ -56,6 +56,7 @@ export class BlockControlsViewSession {
   private cachedDoc;
   private cachedScrollLeft = Number.NaN;
   private cachedScrollTop = Number.NaN;
+  private dragWheelListenerAttached = false;
 
   constructor(view: EditorView) {
     this.view = view;
@@ -71,7 +72,6 @@ export class BlockControlsViewSession {
     this.handleButton.addEventListener('mousedown', this.handleHandleMouseDown);
     this.doc.addEventListener('mousemove', this.handleDocumentMouseMove, true);
     this.doc.addEventListener('mouseup', this.handleDocumentMouseUp, true);
-    this.doc.addEventListener('wheel', this.handleDocumentWheel, { capture: true, passive: false });
     this.doc.addEventListener('keydown', this.handleDocumentKeyDown, true);
     this.scrollRoot?.addEventListener('scroll', this.handleScrollOrResize, { passive: true });
     window.addEventListener('blur', this.handleWindowBlur);
@@ -93,7 +93,7 @@ export class BlockControlsViewSession {
     this.handleButton.removeEventListener('mousedown', this.handleHandleMouseDown);
     this.doc.removeEventListener('mousemove', this.handleDocumentMouseMove, true);
     this.doc.removeEventListener('mouseup', this.handleDocumentMouseUp, true);
-    this.doc.removeEventListener('wheel', this.handleDocumentWheel, true);
+    this.detachDragWheelListener();
     this.doc.removeEventListener('keydown', this.handleDocumentKeyDown, true);
     this.scrollRoot?.removeEventListener('scroll', this.handleScrollOrResize);
     window.removeEventListener('blur', this.handleWindowBlur);
@@ -225,6 +225,18 @@ export class BlockControlsViewSession {
     });
   }
 
+  private attachDragWheelListener(): void {
+    if (this.dragWheelListenerAttached) return;
+    this.dragWheelListenerAttached = true;
+    this.doc.addEventListener('wheel', this.handleDocumentWheel, { capture: true, passive: false });
+  }
+
+  private detachDragWheelListener(): void {
+    if (!this.dragWheelListenerAttached) return;
+    this.dragWheelListenerAttached = false;
+    this.doc.removeEventListener('wheel', this.handleDocumentWheel, true);
+  }
+
   private finishDrag(): void {
     this.draggedRanges = null;
     this.dragStartClientX = null;
@@ -238,6 +250,7 @@ export class BlockControlsViewSession {
     setBlockDraggingVisualState(false);
     this.controls.classList.remove('dragging');
     this.hideDropIndicator();
+    this.detachDragWheelListener();
   }
 
   private readonly handleHandleMouseDown = (event: MouseEvent): void => {
@@ -257,6 +270,7 @@ export class BlockControlsViewSession {
     event.stopPropagation();
 
     this.draggedRanges = draggableRanges;
+    this.attachDragWheelListener();
     this.dragStartClientX = event.clientX;
     this.dragStartClientY = event.clientY;
     setBlockDraggingVisualState(true);

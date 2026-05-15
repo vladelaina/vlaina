@@ -3,6 +3,7 @@ import { translate } from '@/lib/i18n';
 import 'katex/contrib/mhchem';
 
 const MAX_LATEX_CHARS = 10000;
+const MAX_RENDER_CACHE_ENTRIES = 500;
 const KATEX_RENDER_OPTIONS = {
   throwOnError: true,
   strict: false,
@@ -15,6 +16,7 @@ const KATEX_RENDER_OPTIONS = {
     '\\C': '\\mathbb{C}',
   },
 } as const;
+const successfulRenderCache = new Map<string, RenderResult>();
 
 export interface MathRenderErrorDetails {
   rawMessage: string;
@@ -31,6 +33,42 @@ export interface RenderResult {
   html: string;
   error: string | null;
   errorDetails: MathRenderErrorDetails | null;
+}
+
+function createRenderCacheKey(latex: string, displayMode: boolean) {
+  return `${displayMode ? 'block' : 'inline'}\u0000${latex}`;
+}
+
+function readCachedRenderResult(latex: string, displayMode: boolean) {
+  const key = createRenderCacheKey(latex, displayMode);
+  const cached = successfulRenderCache.get(key);
+  if (!cached) {
+    return null;
+  }
+
+  successfulRenderCache.delete(key);
+  successfulRenderCache.set(key, cached);
+  return cached;
+}
+
+function cacheSuccessfulRenderResult(
+  latex: string,
+  displayMode: boolean,
+  result: RenderResult
+) {
+  if (result.error !== null) {
+    return result;
+  }
+
+  successfulRenderCache.set(createRenderCacheKey(latex, displayMode), result);
+  while (successfulRenderCache.size > MAX_RENDER_CACHE_ENTRIES) {
+    const oldestKey = successfulRenderCache.keys().next().value;
+    if (typeof oldestKey !== 'string') {
+      break;
+    }
+    successfulRenderCache.delete(oldestKey);
+  }
+  return result;
 }
 
 function extractKatexErrorSummary(message: string) {
@@ -195,12 +233,21 @@ export function renderLatex(latex: string, displayMode: boolean): RenderResult {
     };
   }
 
+  const cached = readCachedRenderResult(latex, displayMode);
+  if (cached) {
+    return cached;
+  }
+
   try {
     const html = katex.renderToString(latex, {
       ...KATEX_RENDER_OPTIONS,
       displayMode,
     });
-    return { html, error: null, errorDetails: null };
+    return cacheSuccessfulRenderResult(latex, displayMode, {
+      html,
+      error: null,
+      errorDetails: null,
+    });
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : 'Unknown error';
     const errorDetails = parseMathRenderError(errorMessage, latex);

@@ -171,6 +171,12 @@ describe('looksLikeMarkdownForPaste', () => {
         expect(looksLikeMarkdownForPaste('$$\ndfsdf\n$$')).toBe(true);
     });
 
+    it('detects bracket display math blocks', () => {
+        expect(looksLikeMarkdownForPaste('\\[\nx^2\n\\]')).toBe(true);
+        expect(looksLikeMarkdownForPaste('[\\\nx^2\\\n]')).toBe(true);
+        expect(looksLikeMarkdownForPaste('[\nx^2\n]')).toBe(true);
+    });
+
     it('detects inline math', () => {
         expect(looksLikeMarkdownForPaste('$x^2$')).toBe(true);
     });

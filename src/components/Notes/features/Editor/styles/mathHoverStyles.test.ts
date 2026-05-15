@@ -41,6 +41,8 @@ describe('math hover styles', () => {
     expect(mathCss).toContain(".milkdown .mermaid-block:hover,");
     const mermaidRule = extendedCss.match(/\.milkdown \.mermaid-block \{(?<body>[\s\S]*?)\n\}/)?.groups?.body ?? '';
 
+    expect(mermaidRule).toContain('content-visibility: auto;');
+    expect(mermaidRule).toContain('contain-intrinsic-size: auto 180px;');
     expect(mermaidRule).toContain('background: transparent;');
     expect(mermaidRule).toContain('border: 0;');
     expect(mermaidRule).toContain('border-radius: 0;');
@@ -53,6 +55,8 @@ describe('math hover styles', () => {
     const css = readMathStyles();
 
     expect(css).toContain(".milkdown [data-type='math-block'].math-block-wrapper {");
+    expect(css).toContain('content-visibility: auto;');
+    expect(css).toContain('contain-intrinsic-size: auto 96px;');
     expect(css).toContain('overflow-x: auto;');
     expect(css).toContain(".milkdown [data-type='math-block'].math-block-wrapper .katex-display {");
     expect(css).toContain('max-width: 100%;');

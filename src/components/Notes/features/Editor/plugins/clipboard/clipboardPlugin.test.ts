@@ -632,6 +632,69 @@ describe('clipboardPlugin paste', () => {
         await editor.destroy();
     });
 
+    it('recognizes pasted bracket-backslash display math markdown as a formula block', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(clipboardPlugin)
+            .use(mathPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, '[\\\nf=\\mu mg\\\n]')).toBe(true);
+
+        const formula = view.state.doc.firstChild;
+        expect(formula?.type.name).toBe('math_block');
+        expect(formula?.attrs.latex).toBe('f=\\mu mg');
+
+        await editor.destroy();
+    });
+
+    it('recognizes pasted bracket-only latex-like display math markdown as a formula block', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(clipboardPlugin)
+            .use(mathPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, '[\nf=\\mu mg\n]')).toBe(true);
+
+        const formula = view.state.doc.firstChild;
+        expect(formula?.type.name).toBe('math_block');
+        expect(formula?.attrs.latex).toBe('f=\\mu mg');
+
+        await editor.destroy();
+    });
+
+    it('recognizes pasted bracket-backslash display math with the closer on the formula line', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(clipboardPlugin)
+            .use(mathPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, '[\\\na=\\frac{f}{m}=\\mu g]')).toBe(true);
+
+        const formula = view.state.doc.firstChild;
+        expect(formula?.type.name).toBe('math_block');
+        expect(formula?.attrs.latex).toBe('a=\\frac{f}{m}=\\mu g');
+
+        await editor.destroy();
+    });
+
     it('recognizes standalone mermaid alias fences before falling back to code block paste', async () => {
         const editor = Editor.make()
             .config((ctx) => {

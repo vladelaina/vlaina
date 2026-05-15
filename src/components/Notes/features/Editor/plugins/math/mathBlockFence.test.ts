@@ -12,6 +12,12 @@ describe('mathBlockFence', () => {
     expect(getMathBlockLatexFromInputMatch(match as RegExpMatchArray)).toBe('x^2');
   });
 
+  it('matches bracket block fences', () => {
+    const match = '\\[x^2\\] '.match(MATH_BLOCK_INPUT_RULE_PATTERN);
+
+    expect(getMathBlockLatexFromInputMatch(match as RegExpMatchArray)).toBe('x^2');
+  });
+
   it('matches localized fullwidth and yen-style block fences', () => {
     const fullWidthMatch = '￥￥\\frac{1}{2}￥￥ '.match(MATH_BLOCK_INPUT_RULE_PATTERN);
     const yenMatch = '¥¥x+y¥¥ '.match(MATH_BLOCK_INPUT_RULE_PATTERN);
@@ -32,6 +38,7 @@ describe('mathBlockFence', () => {
     expect(isMathBlockShortcutText(' ￥￥ ')).toBe(true);
     expect(isMathBlockShortcutText('¥¥')).toBe(true);
     expect(isMathBlockShortcutText('＄＄')).toBe(true);
+    expect(isMathBlockShortcutText('\\[')).toBe(true);
   });
 
   it('does not treat other text as a shortcut-only paragraph', () => {
