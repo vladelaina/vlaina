@@ -191,7 +191,7 @@ export interface NotesActions {
   uploadAsset: (file: File, currentNotePath?: string) => Promise<UploadResult>;
   deleteAsset: (filename: string) => Promise<void>;
   cleanupAssetTempFiles: () => Promise<void>;
-  getAssetList: (category?: 'builtinCovers') => AssetEntry[];
+  getAssetList: () => AssetEntry[];
   clearAssetUrlCache: () => void;
   setFileTreeSortMode: (mode: FileTreeSortMode) => Promise<void>;
 }

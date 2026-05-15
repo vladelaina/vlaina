@@ -12,6 +12,9 @@ describe('CoverAddOverlay', () => {
     expect(overlay).not.toHaveClass('z-30');
 
     fireEvent.mouseDown(overlay!);
+    expect(onAddCover).not.toHaveBeenCalled();
+
+    fireEvent.click(overlay!);
 
     expect(onAddCover).toHaveBeenCalledTimes(1);
   });

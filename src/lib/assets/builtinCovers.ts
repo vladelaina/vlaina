@@ -3,14 +3,6 @@ export interface BuiltinCover {
   path: string;
 }
 
-interface BuiltinCoverAssetEntry {
-  filename: string;
-  hash: string;
-  size: number;
-  mimeType: string;
-  uploadedAt: string;
-}
-
 const BUILTIN_COVERS: BuiltinCover[] = [
   { id: 'monet/1', path: 'Claude Monet/1.webp' },
   { id: 'monet/2', path: 'Claude Monet/2.webp' },
@@ -29,18 +21,6 @@ export function getBuiltinCovers(): BuiltinCover[] {
   return BUILTIN_COVERS;
 }
 
-export function getBuiltinCoverAssetEntries(): BuiltinCoverAssetEntry[] {
-  return BUILTIN_COVERS
-    .map((cover) => ({
-      filename: toBuiltinAssetPath(cover),
-      hash: '',
-      size: 0,
-      mimeType: 'image/webp',
-      uploadedAt: '',
-    }))
-    .sort((a, b) => b.filename.localeCompare(a.filename));
-}
-
 export function isBuiltinCover(assetPath: string): boolean {
   return assetPath.startsWith(BUILTIN_PREFIX);
 }
@@ -57,9 +37,4 @@ export function getBuiltinCoverUrl(assetPath: string): string {
 
 export function toBuiltinAssetPath(cover: BuiltinCover): string {
   return `${BUILTIN_PREFIX}${cover.id}`;
-}
-
-export function getRandomBuiltinCover(): string {
-  const randomIndex = Math.floor(Math.random() * BUILTIN_COVERS.length);
-  return toBuiltinAssetPath(BUILTIN_COVERS[randomIndex]);
 }

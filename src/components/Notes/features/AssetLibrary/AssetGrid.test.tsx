@@ -76,7 +76,6 @@ describe('AssetGrid', () => {
         onSelect={onSelect}
         onHover={() => {}}
         vaultPath="/vault"
-        category="builtinCovers"
       />,
     );
 
@@ -99,7 +98,6 @@ describe('AssetGrid', () => {
         onSelect={() => {}}
         onHover={() => {}}
         vaultPath="/vault"
-        category="builtinCovers"
       />,
     );
 
@@ -114,7 +112,6 @@ describe('AssetGrid', () => {
         onSelect={() => {}}
         onHover={() => {}}
         vaultPath="/vault"
-        category="builtinCovers"
       />,
     );
 
@@ -135,7 +132,6 @@ describe('AssetGrid', () => {
         onSelect={() => {}}
         onHover={() => {}}
         vaultPath="/vault"
-        category="builtinCovers"
       />,
     );
 

@@ -39,16 +39,26 @@ export function CoverImageShell({
   }
 
   if (!url) {
+    const shouldHoldCoverSpace = showPicker || phase === 'previewing' || phase === 'committing' || Boolean(previewSrc);
+    const shouldShowEmptyPlaceholder = shouldHoldCoverSpace && !previewSrc;
+
     return (
       <div
-        className="relative w-full animate-in fade-in-0 duration-150 ease-out motion-reduce:animate-none"
-        data-note-cover-region="true"
-      >
-        {previewSrc && (
-          <div className="relative w-full h-[200px] shrink-0 overflow-hidden">
-            <img src={previewSrc} alt="Preview" className="w-full h-full object-cover" />
-          </div>
+        className={cn(
+          'relative w-full shrink-0 animate-in fade-in-0 duration-150 ease-out motion-reduce:animate-none',
+          shouldHoldCoverSpace && 'bg-[var(--vlaina-bg-secondary)] overflow-hidden'
         )}
+        data-note-cover-region="true"
+        style={shouldHoldCoverSpace ? { height: coverHeight, overflowAnchor: 'none' } : undefined}
+      >
+        {previewSrc ? (
+          <img src={previewSrc} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
+        ) : shouldShowEmptyPlaceholder ? (
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-[var(--vlaina-bg-secondary)]"
+          />
+        ) : null}
         <CoverPicker
           isOpen={showPicker}
           onClose={onClosePicker}

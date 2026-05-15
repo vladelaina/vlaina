@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils';
 import { Icon } from '@/components/ui/icons';
 import { AssetGrid } from './AssetGrid';
 import { UploadZone } from './UploadZone';
-import { EmptyState } from './EmptyState';
 import { CoverPickerProps, CoverPickerTab } from './types';
 import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
@@ -21,20 +20,20 @@ export function CoverPicker({
   vaultPath,
   currentNotePath,
 }: CoverPickerProps) {
-  const [activeTab, setActiveTab] = useState<CoverPickerTab>('library');
-  const [isUploading, setIsUploading] = useState(false);
-
   const assetList = useNotesStore((state) => state.assetList);
   const loadAssets = useNotesStore((state) => state.loadAssets);
   const uploadAsset = useNotesStore((state) => state.uploadAsset);
+  const hasAssets = assetList.length > 0;
+  const [activeTab, setActiveTab] = useState<CoverPickerTab>('library');
+  const [isUploading, setIsUploading] = useState(false);
+
   const uploadingRef = useRef(false);
   const mountedRef = useRef(true);
   const isOpenRef = useRef(isOpen);
   const removeTriggeredRef = useRef(false);
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestPreviewAssetRef = useRef<string | null>(null);
-
-  const hasAssets = assetList.length > 0;
+  const showHeaderControls = hasAssets || Boolean(onRemove);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -97,7 +96,7 @@ export function CoverPicker({
       }, 200);
       return () => clearTimeout(timer);
     }
-  }, [currentNotePath, isOpen, vaultPath, loadAssets]);
+  }, [currentNotePath, hasAssets, isOpen, vaultPath, loadAssets]);
 
   const handleAssetSelect = useCallback((assetPath: string) => {
     if (previewTimerRef.current) {
@@ -131,10 +130,6 @@ export function CoverPicker({
   const handleUploadComplete = useCallback((assetPath: string) => {
     onSelect(assetPath);
   }, [onSelect]);
-
-  const handleSwitchToUpload = useCallback(() => {
-    setActiveTab('upload');
-  }, []);
 
   const handleRemoveCover = useCallback((event: React.SyntheticEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -211,63 +206,59 @@ export function CoverPicker({
         onPointerDown={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
       >
-
-        <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--vlaina-border)]">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveTab('library')}
-              className={cn(
-                "text-xs font-medium px-2 py-1 rounded transition-colors",
-                activeTab === 'library'
-                  ? "bg-[var(--vlaina-accent)]/10 text-[var(--vlaina-accent)]"
-                  : "text-[var(--vlaina-text-secondary)] hover:text-[var(--vlaina-text-primary)]"
-              )}
-            >
+        {showHeaderControls ? (
+          <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--vlaina-border)]">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveTab('library')}
+                className={cn(
+                  "text-xs font-medium px-2 py-1 rounded transition-colors",
+                  activeTab === 'library'
+                    ? "bg-[var(--vlaina-accent)]/10 text-[var(--vlaina-accent)]"
+                    : "text-[var(--vlaina-text-secondary)] hover:text-[var(--vlaina-text-primary)]"
+                )}
+              >
  <Icon size="md" name="file.image" className="inline mr-1" />
-              Library
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab('upload')}
-              className={cn(
-                "text-xs font-medium px-2 py-1 rounded transition-colors",
-                activeTab === 'upload'
-                  ? "bg-[var(--vlaina-accent)]/10 text-[var(--vlaina-accent)]"
-                  : "text-[var(--vlaina-text-secondary)] hover:text-[var(--vlaina-text-primary)]"
-              )}
-            >
+                Library
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('upload')}
+                className={cn(
+                  "text-xs font-medium px-2 py-1 rounded transition-colors",
+                  activeTab === 'upload'
+                    ? "bg-[var(--vlaina-accent)]/10 text-[var(--vlaina-accent)]"
+                    : "text-[var(--vlaina-text-secondary)] hover:text-[var(--vlaina-text-primary)]"
+                )}
+              >
  <Icon size="md" name="common.upload" className="inline mr-1" />
-              Upload
-            </button>
+                Upload
+              </button>
+            </div>
+            {onRemove && (
+              <button
+                type="button"
+                onPointerDown={handleRemoveCover}
+                onMouseDown={handleRemoveCover}
+                onClick={handleRemoveCover}
+                className="text-xs text-[var(--vlaina-text-tertiary)] hover:text-[var(--vlaina-text-primary)] transition-colors"
+              >
+                Remove
+              </button>
+            )}
           </div>
-          {onRemove && (
-            <button
-              type="button"
-              onPointerDown={handleRemoveCover}
-              onMouseDown={handleRemoveCover}
-              onClick={handleRemoveCover}
-              className="text-xs text-[var(--vlaina-text-tertiary)] hover:text-[var(--vlaina-text-primary)] transition-colors"
-            >
-              Remove
-            </button>
-          )}
-        </div>
+        ) : null}
 
         <div className="flex-1 overflow-hidden">
-          {activeTab === 'library' ? (
-            hasAssets ? (
-              <AssetGrid
-                onSelect={handleAssetSelect}
-                onHover={handleAssetHover}
-                vaultPath={vaultPath}
-                currentNotePath={currentNotePath}
-                compact
-                category="builtinCovers"
-              />
-            ) : (
-              <EmptyState onUploadClick={handleSwitchToUpload} compact />
-            )
+          {activeTab === 'library' && hasAssets ? (
+            <AssetGrid
+              onSelect={handleAssetSelect}
+              onHover={handleAssetHover}
+              vaultPath={vaultPath}
+              currentNotePath={currentNotePath}
+              compact
+            />
           ) : (
             <div className="p-3">
               <UploadZone onUploadComplete={handleUploadComplete} compact currentNotePath={currentNotePath} />
