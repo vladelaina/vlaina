@@ -132,16 +132,17 @@
 .math-editor-textarea {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid #d0d7de;
-  border-radius: 6px;
-  background: #f8f8f8;
+  border: 1px solid rgba(24, 24, 27, 0.08);
+  border-radius: 18px;
+  background: #ffffff;
   color: #1f2328;
-  padding: 12px;
+  padding: 12px 14px;
   resize: vertical;
   outline: none;
   font-family: var(--font-mono), monospace;
   font-size: 12px;
   line-height: 1.6;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
   transition:
     border-color 0.18s ease,
     background-color 0.18s ease,
