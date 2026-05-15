@@ -322,6 +322,7 @@ html, body, #root {
   --vlaina-icon-secondary: var(--vlaina-color-text-tertiary);
   --vlaina-icon-active: var(--vlaina-color-accent);
   --vlaina-caret-color: var(--vlaina-color-caret);
+  --vlaina-caret-width: 8px;
   --vlaina-selection-bg: var(--vlaina-color-selection);
   --vlaina-hover: var(--vlaina-color-surface-hover);
   --vlaina-hover-filled: var(--vlaina-color-surface-tertiary);

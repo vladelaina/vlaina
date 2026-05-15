@@ -6,7 +6,7 @@
   min-height: 100%;
   outline: none;
   --vlaina-editor-caret-color: var(--vlaina-caret-color, #41ace2);
-  --vlaina-editor-caret-width: 1px;
+  --vlaina-editor-caret-width: var(--vlaina-caret-width, 8px);
   --vlaina-editor-block-selection-base: var(--vlaina-color-editor-block-selection, var(--vlaina-color-accent, #1e96eb));
 }
 

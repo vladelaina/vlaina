@@ -11,7 +11,7 @@ import { isTrustedRendererUrl as isTrustedRendererUrlForConfig } from './rendere
 import { createWindowManager } from './windowManager.mjs';
 import { registerWebSearchIpc } from './webSearch/ipc.mjs';
 
-const { app, BrowserWindow, ipcMain, session, shell } = electron;
+const { app, BrowserWindow, Menu, Tray, ipcMain, session, shell } = electron;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,6 +30,8 @@ const appIconPath = path.join(__dirname, '..', app.isPackaged ? 'dist' : 'public
 const rendererFile = path.join(__dirname, '..', 'dist', 'index.html');
 const desktopAccountService = createDesktopAccountService({ apiBaseUrl });
 const { fetchWithStoredSession, readJsonResponse } = desktopAccountService;
+let tray = null;
+let trayQuitRequested = false;
 
 function formatErrorForLog(error) {
   if (error instanceof Error) {
@@ -244,6 +246,57 @@ async function createElectronBillingCheckout(tier) {
 
 function isDevelopment() {
   return !app.isPackaged;
+}
+
+function showMainWindow() {
+  const existingWindow = BrowserWindow.getAllWindows().find((window) => !window.isDestroyed());
+  const window = existingWindow ?? createMainWindow();
+
+  if (window.isMinimized()) {
+    window.restore();
+  }
+
+  window.show();
+  window.focus();
+}
+
+function requestTrayQuit() {
+  trayQuitRequested = true;
+
+  const windows = BrowserWindow.getAllWindows().filter((window) => !window.isDestroyed());
+  if (windows.length === 0) {
+    app.quit();
+    return;
+  }
+
+  for (const window of windows) {
+    window.close();
+  }
+}
+
+function createTray() {
+  if (tray) return;
+
+  try {
+    tray = new Tray(appIconPath);
+    tray.setToolTip('vlaina');
+    tray.setContextMenu(Menu.buildFromTemplate([
+      {
+        label: '打开 vlaina',
+        click: showMainWindow,
+      },
+      { type: 'separator' },
+      {
+        label: '关闭',
+        click: requestTrayQuit,
+      },
+    ]));
+    tray.on('click', showMainWindow);
+  } catch (error) {
+    writeStartupLog('Failed to create tray icon; continuing startup.', error);
+    console.error('[electron] Failed to create tray icon:', error);
+    tray = null;
+  }
 }
 
 function normalizeExternalUrl(rawUrl) {
@@ -788,6 +841,7 @@ app.whenReady().then(async () => {
   await configureProxySafely();
   configureDefaultSessionSafely();
 
+  createTray();
   createMainWindow();
 
   app.on('activate', () => {
@@ -801,7 +855,7 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
+  if (trayQuitRequested || process.platform !== 'darwin') {
     app.quit();
   }
 });
