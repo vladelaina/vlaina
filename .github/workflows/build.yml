@@ -180,7 +180,15 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: vlaina-windows-nsis-run-${{ github.run_number }}
-          path: release/*.exe
+          path: release/*-setup.exe
+          if-no-files-found: error
+
+      - name: Upload Windows portable app
+        if: success() && matrix.platform == 'windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: vlaina-windows-portable-run-${{ github.run_number }}
+          path: release/*-portable.exe
           if-no-files-found: error
 
       - name: Upload macOS DMG
