@@ -35,10 +35,12 @@ const ChatView = lazy(async () => {
   return { default: mod.ChatView };
 });
 
-const LabView = lazy(async () => {
-  const mod = await import('@/components/Lab/LabView');
-  return { default: mod.LabView };
-});
+const LabView = import.meta.env.DEV
+  ? lazy(async () => {
+    const mod = await import('@/components/Lab/LabView');
+    return { default: mod.LabView };
+  })
+  : null;
 
 const NotesSidebarWrapper = lazy(async () => {
   const mod = await import('@/components/Notes/features/Sidebar/NotesSidebarWrapper');
@@ -255,7 +257,7 @@ export function AppContent() {
     </Suspense>
   ) : null;
 
-  const mainContent = appViewMode === 'lab' ? (
+  const mainContent = import.meta.env.DEV && appViewMode === 'lab' && LabView ? (
     <Suspense fallback={null}>
       <LabView />
     </Suspense>
