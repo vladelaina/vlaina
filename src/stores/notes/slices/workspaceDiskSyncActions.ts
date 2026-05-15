@@ -66,7 +66,6 @@ export function createWorkspaceDiskSyncAction(
           fileInfo,
           cachedModifiedAt,
         });
-
         if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
           logNotesDebug('NotesDiskSync', 'sync:ignored-stale-after-stat', {
             notePath: currentNote.path,
@@ -193,6 +192,22 @@ export function createWorkspaceDiskSyncAction(
         const latestState = get();
         const latestCurrentNote = latestState.currentNote;
         const latestCachedModifiedAt = getCachedNoteModifiedAt(latestState.noteContentsCache, currentNote.path);
+        if (
+          !latestState.isDirty &&
+          latestCurrentNote?.path === currentNote.path &&
+          latestCurrentNote.content === nextContent
+        ) {
+          set({
+            noteContentsCache: setCachedNoteContent(
+              latestState.noteContentsCache,
+              currentNote.path,
+              nextContent,
+              nextModifiedAt
+            ),
+            error: null,
+          });
+          return 'unchanged';
+        }
         const hasLocalEditDuringSync =
           Boolean(latestState.isDirty) ||
           latestCurrentNote?.content !== currentNote.content;

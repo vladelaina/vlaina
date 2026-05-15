@@ -214,7 +214,7 @@ export function NotesTabRow() {
     <div className="group/tab-row flex h-full w-full min-w-0 items-center px-2">
       <div
         className={cn(
-          'flex h-8 max-w-full min-w-0 items-center gap-1 rounded-full px-1.5 transition-all duration-200',
+          'vlaina-no-drag flex h-8 max-w-full min-w-0 items-center gap-1 rounded-full px-1.5 transition-all duration-200',
           chatComposerPillSurfaceClass,
         )}
       >

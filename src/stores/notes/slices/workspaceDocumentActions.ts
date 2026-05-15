@@ -89,6 +89,14 @@ export function createWorkspaceDocumentActions(
         return;
       }
 
+      if (!wasDirtyAtSaveStart) {
+        logNotesDebug('NotesDirty', 'save:skipped-clean-regular-note', {
+          notePathAtSaveStart,
+          options: options ?? null,
+        });
+        return;
+      }
+
       const { content, metadata, modifiedAt } = await saveNoteDocument({
         notesPath,
         currentNote,

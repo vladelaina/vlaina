@@ -607,6 +607,52 @@ describe('workspaceSlice external sync', () => {
     });
   });
 
+  it('does not mark a conflict when a concurrent disk sync already reloaded the same content', async () => {
+    storageAdapter.exists.mockResolvedValue(true);
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2 });
+    const readResolvers: Array<(content: string) => void> = [];
+    storageAdapter.readFile.mockImplementation(() => new Promise((resolve) => {
+      readResolvers.push(resolve);
+    }));
+
+    const store = createNotesStore({
+      currentNote: { path: 'docs/alpha.md', content: '# alpha' },
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# alpha', modifiedAt: 1 }]]),
+    });
+
+    const firstSync = store.getState().syncCurrentNoteFromDisk({ force: true });
+    const secondSync = store.getState().syncCurrentNoteFromDisk({ force: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    readResolvers[0]?.('# disk update');
+    await firstSync;
+
+    expect(store.getState().currentNote).toEqual({
+      path: 'docs/alpha.md',
+      content: '# disk update',
+    });
+    expect(store.getState().isDirty).toBe(false);
+
+    readResolvers[1]?.('# disk update');
+    const secondResult = await secondSync;
+
+    expect(secondResult).toBe('unchanged');
+    expect(store.getState().currentNote).toEqual({
+      path: 'docs/alpha.md',
+      content: '# disk update',
+    });
+    expect(store.getState().isDirty).toBe(false);
+    expect(store.getState().error).toBeNull();
+    expect(store.getState().openTabs).toEqual([
+      { path: 'docs/alpha.md', name: 'alpha', isDirty: false },
+    ]);
+    expect(store.getState().noteContentsCache.get('docs/alpha.md')).toEqual({
+      content: '# disk update',
+      modifiedAt: 2,
+    });
+  });
+
   it('cleans internal editor break markers when disk sync reloads the current note', async () => {
     storageAdapter.exists.mockResolvedValue(true);
     storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2 });

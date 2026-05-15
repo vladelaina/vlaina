@@ -52,7 +52,8 @@ export function usePendingMarkdownFlusher({
   getEditorRef,
 }: PendingMarkdownFlusherOptions) {
   useEffect(() => {
-    const flushPendingMarkdown = () => {
+    const flushPendingMarkdown = (options?: { allowFallbackSerialize?: boolean }) => {
+      const allowFallbackSerialize = options?.allowFallbackSerialize ?? true;
       const debugEnabled = isNotesDebugLoggingEnabled();
       const hadFrame = pendingMarkdownUpdateFrameRef.current !== null;
       if (pendingMarkdownUpdateFrameRef.current !== null) {
@@ -63,7 +64,17 @@ export function usePendingMarkdownFlusher({
       const hadPendingRef = pendingMarkdown !== null;
       pendingMarkdownRef.current = null;
       if (pendingMarkdown === null) {
-        if (!hasEditorUserInputRef.current) {
+        if (!allowFallbackSerialize) {
+          if (debugEnabled) {
+            logLineBreakDebug('editor:flush-fallback-skipped-disabled', {
+              editorNotePath: currentNotePath ?? null,
+              latestStorePath: useNotesStore.getState().currentNote?.path ?? null,
+              capturedPath: currentNotePathRef.current ?? null,
+              hadUserInput: hasEditorUserInputRef.current,
+              captured: summarizeLineBreakText(currentNoteContentRef.current),
+            });
+          }
+        } else if (!hasEditorUserInputRef.current) {
           if (debugEnabled) {
             logLineBreakDebug('editor:flush-fallback-skipped-no-user-input', {
               editorNotePath: currentNotePath ?? null,
@@ -150,7 +161,7 @@ export function usePendingMarkdownFlusher({
     setPendingEditorMarkdownFlusher(flushPendingMarkdown);
 
     return () => {
-      flushPendingMarkdown();
+      flushPendingMarkdown({ allowFallbackSerialize: false });
       setPendingEditorMarkdownFlusher(null);
     };
   }, [

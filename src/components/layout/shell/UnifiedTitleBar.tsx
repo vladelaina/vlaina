@@ -89,7 +89,7 @@ export function UnifiedTitleBar({
         style={{ left: sidebarCollapsed ? 0 : 'var(--vlaina-shell-sidebar-width)' }}
       />
 
-      <div className={`vlaina-no-drag vlaina-title-bar-center flex-1 flex items-center z-20 min-w-0 h-full relative ${centerOverflowVisible ? 'overflow-visible' : 'overflow-hidden'}`}>
+      <div className={`vlaina-drag-region vlaina-title-bar-center flex-1 flex items-center z-20 min-w-0 h-full relative ${centerOverflowVisible ? 'overflow-visible' : 'overflow-hidden'}`}>
         {centerSlot}
       </div>
 
