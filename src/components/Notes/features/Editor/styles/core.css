@@ -83,19 +83,6 @@ body.vlaina-block-drag-active * {
   color: #ffffff !important;
 }
 
-html[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hideselection *::selection,
-body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hideselection *::selection {
-  background-color: var(--vlaina-selection-bg, #2781db) !important;
-  color: #ffffff !important;
-  -webkit-text-fill-color: #ffffff !important;
-}
-
-html[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hideselection *::-moz-selection,
-body[data-link-selection-visible='true'] .milkdown .ProseMirror.ProseMirror-hideselection *::-moz-selection {
-  background-color: var(--vlaina-selection-bg, #2781db) !important;
-  color: #ffffff !important;
-}
-
 /* Notion-like drag block selection highlight */
 .milkdown .ProseMirror .vlaina-block-selected {
   --vlaina-block-selection-color: color-mix(in srgb, var(--vlaina-editor-block-selection-base, #1e96eb) 14%, transparent);

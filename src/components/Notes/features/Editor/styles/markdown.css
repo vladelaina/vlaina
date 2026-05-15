@@ -114,9 +114,10 @@
   display: none !important;
 }
 
-/* Active state when tooltip is open */
-.milkdown a.link-active-state {
-  border-bottom-color: var(--vlaina-accent);
+.vlaina-markdown-surface .milkdown a,
+.vlaina-markdown-surface .milkdown a:hover {
+  border-bottom: none;
+  transition: none;
 }
 
 .milkdown li:has(> [data-text-align="center"]) {

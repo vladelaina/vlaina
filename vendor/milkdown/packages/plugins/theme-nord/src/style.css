@@ -147,10 +147,6 @@
   @apply text-base leading-relaxed;
 }
 
-.milkdown-theme-nord a {
-  @apply underline;
-}
-
 .milkdown-theme-nord ul {
   @apply list-outside list-disc space-y-2 pl-5;
 }

@@ -35,13 +35,11 @@ export function renderUrlRailEditor(
         autocomplete="off"
         spellcheck="false"
       />
-      <div class="link-editor-rail-line"></div>
     </div>
     <div class="link-editor-rail-hint">${escapeHtml(hint)}</div>
   `;
 
   const input = editor.querySelector('.link-editor-rail-input') as HTMLInputElement;
-  const line = editor.querySelector('.link-editor-rail-line') as HTMLElement;
 
   if (autoFocus) {
     requestAnimationFrame(() => {
@@ -55,14 +53,12 @@ export function renderUrlRailEditor(
 
   const showValidationError = () => {
     input.classList.add('error-shake');
-    line.classList.add('error-line');
 
     setTimeout(() => {
       if (!input.isConnected) {
         return;
       }
       input.classList.remove('error-shake');
-      line.classList.remove('error-line');
     }, 500);
   };
 

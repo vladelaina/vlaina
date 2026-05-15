@@ -9,6 +9,13 @@ function readStyleFile(name: string) {
   );
 }
 
+function readCommonMarkdownSurfaceStyle() {
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/common/markdown/markdownSurface.css'),
+    'utf8'
+  );
+}
+
 function readCodeBlockThemeSource() {
   return readFileSync(
     resolve(
@@ -110,6 +117,27 @@ function readLinkTooltipSource() {
   );
 }
 
+function readLinkTooltipEditorSource() {
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/links/tooltip/components', 'LinkEditor.tsx'),
+    'utf8'
+  );
+}
+
+function readUrlRailEditorSource() {
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar/components', 'UrlRailEditor.ts'),
+    'utf8'
+  );
+}
+
+function readMilkdownLinkTooltipThemeSource() {
+  return readFileSync(
+    resolve(process.cwd(), 'vendor/milkdown/packages/crepe/src/theme/common', 'link-tooltip.css'),
+    'utf8'
+  );
+}
+
 describe('editor embedded CodeMirror selection styles', () => {
   it('keeps nested list block selection overlays from stacking darker backgrounds', () => {
     const css = readStyleFile('core.css');
@@ -171,6 +199,27 @@ describe('editor embedded CodeMirror selection styles', () => {
 
     expect(css).not.toContain('.milkdown .autolink {');
     expect(css).not.toContain('text-underline-offset: 4px;');
+  });
+
+  it('keeps table-of-contents links from underlining on hover', () => {
+    const css = readStyleFile('extended.css');
+
+    expect(css).toContain('.milkdown .toc-link {');
+    expect(css).toContain('text-decoration: none;');
+    expect(css).not.toContain('text-underline-offset: 3px;');
+    expect(css).not.toContain('text-decoration: underline;');
+  });
+
+  it('keeps notes editor links from drawing shared markdown hover borders', () => {
+    const commonCss = readCommonMarkdownSurfaceStyle();
+    const notesCss = readStyleFile('markdown.css');
+
+    expect(commonCss).toContain('border-bottom: 1px solid transparent;');
+    expect(commonCss).toContain('border-bottom-color: var(--vlaina-accent);');
+    expect(notesCss).toContain('.vlaina-markdown-surface .milkdown a,');
+    expect(notesCss).toContain('.vlaina-markdown-surface .milkdown a:hover {');
+    expect(notesCss).toContain('border-bottom: none;');
+    expect(notesCss).toContain('transition: none;');
   });
 
   it('renders footnote references as smaller inline-code chips with a capsule hover value', () => {
@@ -346,14 +395,35 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).not.toContain('vlaina-ai-review-selection');
   });
 
-  it('reuses the standard text selection overlay for link tooltip ranges', () => {
+  it('keeps link tooltip editing from drawing a persistent editor selection overlay', () => {
     const css = readStyleFile('core.css');
     const source = readLinkTooltipSource();
+    const stateSource = readFileSync(
+      resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/links/tooltip', 'linkTooltipState.ts'),
+      'utf8'
+    );
 
-    expect(source).toContain("import { TEXT_SELECTION_OVERLAY_CLASS }");
-    expect(source).toContain("class: TEXT_SELECTION_OVERLAY_CLASS");
+    expect(source).not.toContain("import { TEXT_SELECTION_OVERLAY_CLASS }");
+    expect(source).not.toContain("class: TEXT_SELECTION_OVERLAY_CLASS");
+    expect(stateSource).not.toContain('visibleSelectionFrom');
+    expect(stateSource).not.toContain('visibleSelectionTo');
     expect(source).not.toContain('vlaina-link-selection-visible');
+    expect(css).not.toContain('data-link-selection-visible');
     expect(css).not.toContain('vlaina-link-selection-visible');
+  });
+
+  it('keeps the link tooltip editor from drawing an animated accent underline', () => {
+    const source = readLinkTooltipEditorSource();
+
+    expect(source).not.toContain('scaleX');
+    expect(source).not.toContain('bg-[var(--vlaina-accent)] origin-left');
+  });
+
+  it('keeps Milkdown link tooltip preview links from underlining on hover', () => {
+    const source = readMilkdownLinkTooltipThemeSource();
+
+    expect(source).toContain('& > .link-display {');
+    expect(source).not.toContain('text-decoration: underline;');
   });
 
   it('keeps code block selection rendering on the CodeMirror selection layer', () => {
@@ -531,6 +601,16 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('.toolbar-btn:hover {');
     expect(css).toContain('background-color: var(--vlaina-hover, #f4f4f5);');
     expect(css).not.toContain('transform: translateY(-1px);');
+  });
+
+  it('keeps the floating toolbar link editor from drawing an accent rail line', () => {
+    const css = readStyleFile('floating-toolbar.css');
+    const source = readUrlRailEditorSource();
+
+    expect(source).not.toContain('link-editor-rail-line');
+    expect(css).not.toContain('.link-editor-rail-line');
+    expect(css).not.toContain('.link-editor-rail-input:focus + .link-editor-rail-line');
+    expect(css).not.toContain('transform-origin: center;');
   });
 
   it('keeps the floating toolbar color button hover surface transparent', () => {

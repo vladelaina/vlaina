@@ -3,7 +3,8 @@ import { Editor, defaultValueCtx, editorViewCtx, serializerCtx } from '@milkdown
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
-import { markdownLinkPlugin, shouldHandleMarkdownLinkPaste } from './markdownLinkPlugin';
+import { markdownLinkPlugin } from './markdownLinkPlugin';
+import { shouldHandleMarkdownLinkPaste } from './markdownLinkParser';
 
 function simulatePasteText(view: any, text: string): boolean {
   const event = {

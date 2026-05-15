@@ -93,3 +93,17 @@ export function resolveLinkTooltipPosition(args: {
     transformOrigin: 'center top',
   };
 }
+
+export function applyLinkTooltipPosition(args: {
+  view: EditorView;
+  positionRoot: HTMLElement | null;
+  tooltipElement: HTMLElement;
+  anchor: LinkTooltipAnchor;
+  isEditing: boolean;
+}): void {
+  const position = resolveLinkTooltipPosition(args);
+  args.tooltipElement.style.left = `${position.x}px`;
+  args.tooltipElement.style.top = `${position.y}px`;
+  args.tooltipElement.style.transform = position.transform;
+  args.tooltipElement.style.transformOrigin = position.transformOrigin;
+}

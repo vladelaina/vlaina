@@ -187,13 +187,11 @@
 .milkdown .toc-link {
   color: var(--vlaina-accent);
   text-decoration: none;
-  text-underline-offset: 3px;
-  transition: color 0.15s, text-decoration-color 0.15s;
+  transition: color 0.15s;
 }
 
 .milkdown .toc-link:hover {
   color: var(--vlaina-accent);
-  text-decoration: underline;
 }
 
 .milkdown .toc-level-1 {
