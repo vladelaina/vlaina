@@ -57,24 +57,13 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
     // Sync edit mode to parent container
     useEffect(() => {
         const container = document.querySelector('.link-tooltip-container');
-        const root = document.documentElement;
-        const body = document.body;
         if (container) {
             if (mode === 'edit') {
                 container.setAttribute('data-editing', 'true');
-                root.setAttribute('data-link-selection-visible', 'true');
-                body.setAttribute('data-link-selection-visible', 'true');
             } else {
                 container.removeAttribute('data-editing');
-                root.removeAttribute('data-link-selection-visible');
-                body.removeAttribute('data-link-selection-visible');
             }
         }
-
-        return () => {
-            root.removeAttribute('data-link-selection-visible');
-            body.removeAttribute('data-link-selection-visible');
-        };
     }, [mode]);
 
     const handleSaveEdit = useCallback((shouldClose: boolean = false) => {
@@ -83,8 +72,6 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
 
         const container = document.querySelector('.link-tooltip-container');
         container?.removeAttribute('data-editing');
-        document.documentElement.removeAttribute('data-link-selection-visible');
-        document.body.removeAttribute('data-link-selection-visible');
 
         onEdit(textToSave, editUrl, shouldClose);
         if (!shouldClose) {
@@ -95,8 +82,6 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
     const handleCancelEdit = useCallback(() => {
         const container = document.querySelector('.link-tooltip-container');
         container?.removeAttribute('data-editing');
-        document.documentElement.removeAttribute('data-link-selection-visible');
-        document.body.removeAttribute('data-link-selection-visible');
 
         setEditUrl(href);
         setEditText(isAutolink ? '' : initialText);

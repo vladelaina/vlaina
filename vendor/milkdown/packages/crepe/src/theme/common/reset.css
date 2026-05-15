@@ -165,7 +165,7 @@
 
     a {
       color: var(--crepe-color-primary);
-      text-decoration: underline;
+      text-decoration: none;
     }
 
     pre {

@@ -105,5 +105,7 @@ When resolving conflicts:
 
 When a task involves Milkdown behavior, schemas, commands, plugins, or editor internals:
 - Inspect and modify `vendor/milkdown` directly when that is the correct layer.
+- Treat `vendor/milkdown` as source code, not an external dependency to work around.
+- If the bug or behavior originates in Milkdown, fix it at the Milkdown source first instead of masking it in app-level CSS, plugins, or adapters.
 - Do not avoid vendor changes by adding workaround code in app-level editor plugins.
 - Keep vendor edits as surgical as any other code change, and verify them with the most relevant app and vendor-facing tests.

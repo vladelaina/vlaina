@@ -2,41 +2,18 @@ import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Fragment, Slice } from '@milkdown/kit/prose/model';
 import { sanitizeNoteLinkHref } from '@/lib/notes/markdown/urlSecurity';
-import { isStandaloneFencedCodeBlock } from '../../clipboard/fencedCodePaste';
 import { resolvePasteRange } from '../../clipboard/pasteCursorUtils';
+import {
+    getMarkdownLinkHref,
+    MARKDOWN_LINK_PATTERN_BEFORE,
+    MARKDOWN_LINK_PATTERN_GLOBAL,
+    MARKDOWN_LINK_REGEX,
+    shouldHandleMarkdownLinkPaste,
+} from './markdownLinkParser';
 
 export const markdownLinkPluginKey = new PluginKey('markdown-link-paste');
-
-const LINK_REGEX = /(?:\[|【)([^】\]]+)(?:\]|】)(?:\(|（)([^)）]+)(?:\)|）)/g;
-const LINK_PATTERN_BEFORE = /(?:\[|【)([^】\]]+)(?:\]|】)(?:\(|（)([^)）]+)(?:\)|）)$/;
-const LINK_PATTERN_GLOBAL = /(?:\[|【)([^】\]]+)(?:\]|】)(?:\(|（)([^)）]+)(?:\)|）)/g;
-const IMAGE_LINK_PATTERN = /!(?:\[|【)[^】\]\r\n]+(?:\]|】)(?:\(|（)[^)）\r\n]+(?:\)|）)/;
-const MULTI_LINE_PATTERN = /[\r\n]/;
-const STRUCTURAL_MARKDOWN_PREFIX_PATTERN = /^\s{0,3}([#＃]{1,6}\s+|[-+*－＋＊]\s+|[0-9０-９]+[.)．]\s+|[>》]\s+|```|~~~|···|～～～|[-*_－＿＊]{3,}\s*$|[|｜].+[|｜])/;
-const LINK_DESTINATION_WITH_TITLE_PATTERN = /^(<[^>\r\n]+>|[^\s"'()]+)(?:\s+(?:"[^"\r\n]*"|'[^'\r\n]*'|\([^)\r\n]*\)))?\s*$/;
 const MAX_MARKDOWN_LINK_DOC_SCAN_SIZE = 1024 * 1024;
 const MAX_MARKDOWN_LINK_PASTE_CHARS = 1024 * 1024;
-
-function getMarkdownLinkHref(rawDestination: string): string {
-    const destination = rawDestination.trim();
-    const match = LINK_DESTINATION_WITH_TITLE_PATTERN.exec(destination);
-    if (!match) return destination;
-
-    const href = match[1];
-    return href.startsWith('<') && href.endsWith('>')
-        ? href.slice(1, -1)
-        : href;
-}
-
-export const shouldHandleMarkdownLinkPaste = (text: string): boolean => {
-    if (!text) return false;
-    if (MULTI_LINE_PATTERN.test(text)) return false;
-    if (IMAGE_LINK_PATTERN.test(text)) return false;
-    if (STRUCTURAL_MARKDOWN_PREFIX_PATTERN.test(text)) return false;
-    if (isStandaloneFencedCodeBlock(text)) return false;
-    LINK_REGEX.lastIndex = 0;
-    return LINK_REGEX.test(text);
-};
 
 export const markdownLinkPlugin = $prose(() => {
     return new Plugin({
@@ -61,10 +38,10 @@ export const markdownLinkPlugin = $prose(() => {
                 if (!node.isText || !node.text) return;
 
                 const text = node.text;
-                LINK_PATTERN_GLOBAL.lastIndex = 0;
+                MARKDOWN_LINK_PATTERN_GLOBAL.lastIndex = 0;
 
                 let match;
-                while ((match = LINK_PATTERN_GLOBAL.exec(text)) !== null) {
+                while ((match = MARKDOWN_LINK_PATTERN_GLOBAL.exec(text)) !== null) {
                     const fullMatch = match[0];
                     const linkText = match[1];
                     const linkUrl = match[2];
@@ -131,7 +108,7 @@ export const markdownLinkPlugin = $prose(() => {
                 const textBefore = $from.parent.textBetween(0, $from.parentOffset, '\0', '\0');
 
                 // Check if there's a markdown link pattern ending at cursor
-                const match = textBefore.match(LINK_PATTERN_BEFORE);
+                const match = textBefore.match(MARKDOWN_LINK_PATTERN_BEFORE);
                 if (!match) return false;
 
                 const fullMatch = match[0];
@@ -180,12 +157,12 @@ export const markdownLinkPlugin = $prose(() => {
                 const linkMarkType = view.state.schema.marks.link;
                 if (!linkMarkType) return false;
 
-                LINK_REGEX.lastIndex = 0;
+                MARKDOWN_LINK_REGEX.lastIndex = 0;
                 const nodes: any[] = [];
                 let lastIndex = 0;
 
                 let match;
-                while ((match = LINK_REGEX.exec(text)) !== null) {
+                while ((match = MARKDOWN_LINK_REGEX.exec(text)) !== null) {
                     const fullMatch = match[0];
                     const linkText = match[1];
                     const linkUrl = match[2];

@@ -33,7 +33,6 @@ export const LinkEditor = ({
     const { t } = useI18n();
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
-    const [isFocused, setIsFocused] = useState(false);
     const [surfaceWidth, setSurfaceWidth] = useState<number | null>(null);
     const [editorWidth, setEditorWidth] = useState(280);
 
@@ -140,24 +139,12 @@ export const LinkEditor = ({
                     value={editUrl}
                     onChange={(e) => setEditUrl(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    onFocus={() => setIsFocused(true)}
-                    onBlur={() => setIsFocused(false)}
                     rows={1}
                     className="block w-full resize-none overflow-hidden bg-transparent border-none outline-none text-sm font-mono text-zinc-800 dark:text-zinc-100 placeholder:text-zinc-400 placeholder:font-light leading-6 py-1.5"
                     placeholder={t('editor.linkPlaceholder')}
                     spellCheck={false}
                     autoComplete="off"
                     style={{ overflowWrap: 'anywhere' }}
-                />
-
-                <motion.div 
-                    initial={{ scaleX: 0 }}
-                    animate={{ 
-                        scaleX: 1,
-                        opacity: isFocused ? 0.6 : 0.2,
-                        height: isFocused ? '1.5px' : '1px'
-                    }}
-                    className="absolute bottom-0 left-2 right-2 bg-[var(--vlaina-accent)] origin-left"
                 />
             </div>
 
