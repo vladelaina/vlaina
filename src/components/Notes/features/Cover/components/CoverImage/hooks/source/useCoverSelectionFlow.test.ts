@@ -80,7 +80,7 @@ describe('useCoverSelectionFlow', () => {
 
     expect(result.current.isSelectionCommitting).toBe(true);
     expect(result.current.previewSrc).toBeNull();
-    expect(result.current.phase).toBe('idle');
+    expect(result.current.phase).toBe('committing');
     expect(onUpdate).toHaveBeenCalledWith('@monet/5', 50, 50, 240, 1);
     expect(setShowPicker).toHaveBeenCalledWith(false);
   });

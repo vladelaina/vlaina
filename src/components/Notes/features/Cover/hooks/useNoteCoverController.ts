@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
-import { getRandomBuiltinCover } from '@/lib/assets/builtinCovers';
 import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
 import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
 import type { NoteCoverController } from '../types';
@@ -16,6 +15,7 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
   );
 
   const [isPickerOpen, setPickerOpen] = useState(false);
+  const [optimisticCover, setOptimisticCover] = useState<NoteCoverController['cover'] | undefined>(undefined);
 
   useEffect(() => {
     return onNotesOverlayOpen(({ source }) => {
@@ -34,9 +34,14 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
 
   useEffect(() => {
     setPickerOpen(false);
+    setOptimisticCover(undefined);
   }, [currentNotePath]);
 
   const cover = useMemo(() => {
+    if (optimisticCover !== undefined) {
+      return optimisticCover;
+    }
+
     return {
       url: coverEntry?.assetPath ?? null,
       positionX: coverEntry?.positionX ?? 50,
@@ -44,13 +49,37 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
       height: coverEntry?.height,
       scale: coverEntry?.scale ?? 1,
     };
-  }, [coverEntry]);
+  }, [coverEntry, optimisticCover]);
+
+  useEffect(() => {
+    if (optimisticCover === undefined) return;
+    if ((coverEntry?.assetPath ?? null) !== optimisticCover.url) return;
+
+    setOptimisticCover(undefined);
+  }, [coverEntry, optimisticCover]);
 
   const updateCover = useCallback(
     (url: string | null, positionX: number, positionY: number, height?: number, scale?: number) => {
       if (!currentNotePath) {
         return;
       }
+      setOptimisticCover(
+        url
+          ? {
+              url,
+              positionX,
+              positionY,
+              height,
+              scale: scale ?? 1,
+            }
+          : {
+              url: null,
+              positionX,
+              positionY,
+              height,
+              scale: scale ?? 1,
+            }
+      );
       setNoteCover(
         currentNotePath,
         url
@@ -67,23 +96,10 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
     [currentNotePath, setNoteCover]
   );
 
-  const addRandomCoverAndOpenPicker = useCallback(() => {
+  const openCoverPicker = useCallback(() => {
     if (!currentNotePath) return;
-
-    const allCovers = useNotesStore.getState().getAssetList('builtinCovers');
-    const nextCover = allCovers.length > 0
-      ? allCovers[Math.floor(Math.random() * allCovers.length)].filename
-      : getRandomBuiltinCover();
-
-    setNoteCover(currentNotePath, {
-      assetPath: nextCover,
-      positionX: 50,
-      positionY: 50,
-      height: 200,
-      scale: 1,
-    });
     setExclusivePickerOpen(true);
-  }, [currentNotePath, setExclusivePickerOpen, setNoteCover]);
+  }, [currentNotePath, setExclusivePickerOpen]);
 
   return {
     cover,
@@ -92,6 +108,6 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
     isPickerOpen,
     setPickerOpen: setExclusivePickerOpen,
     updateCover,
-    addRandomCoverAndOpenPicker,
+    openCoverPicker,
   };
 }

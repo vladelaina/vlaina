@@ -39,7 +39,7 @@ function createController(): NoteCoverController {
     isPickerOpen: false,
     setPickerOpen: vi.fn(),
     updateCover: vi.fn(),
-    addRandomCoverAndOpenPicker: vi.fn(),
+    openCoverPicker: vi.fn(),
   };
 }
 

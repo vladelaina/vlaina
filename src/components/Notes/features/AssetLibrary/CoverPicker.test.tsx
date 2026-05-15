@@ -184,6 +184,8 @@ describe('CoverPicker', () => {
   });
 
   it('does not show paste instructions in the upload tab', () => {
+    hoisted.assetList = [{ filename: 'a.png' }];
+
     render(
       <CoverPicker
         isOpen
@@ -198,5 +200,83 @@ describe('CoverPicker', () => {
 
     expect(screen.getByTestId('upload-zone')).toBeInTheDocument();
     expect(screen.queryByText(/to paste/i)).not.toBeInTheDocument();
+  });
+
+  it('keeps the library header controls when cover images exist', () => {
+    hoisted.assetList = [{ filename: 'a.png' }];
+
+    const { container } = render(
+      <CoverPicker
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        onRemove={vi.fn()}
+        vaultPath="/vault"
+        currentNotePath="one.md"
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: /Library/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Upload/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Remove/ })).toBeInTheDocument();
+    expect(container.querySelector('.border-b')).toBeInTheDocument();
+  });
+
+  it('keeps the header controls when editing an existing cover even if the library is empty', () => {
+    hoisted.assetList = [];
+
+    const { container } = render(
+      <CoverPicker
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        onRemove={vi.fn()}
+        vaultPath="/vault"
+        currentNotePath="one.md"
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: /Library/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Upload/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Remove/ })).toBeInTheDocument();
+    expect(container.querySelector('.border-b')).toBeInTheDocument();
+    expect(screen.getByTestId('upload-zone')).toBeInTheDocument();
+  });
+
+  it('shows upload inside library when there are no cover images', () => {
+    hoisted.assetList = [];
+
+    render(
+      <CoverPicker
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        vaultPath="/vault"
+        currentNotePath="one.md"
+      />,
+    );
+
+    expect(screen.getByTestId('upload-zone')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Library/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Upload/ })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('empty-state')).not.toBeInTheDocument();
+  });
+
+  it('hides tabs and the divider while showing empty-library upload', () => {
+    hoisted.assetList = [];
+
+    const { container } = render(
+      <CoverPicker
+        isOpen
+        onClose={vi.fn()}
+        onSelect={vi.fn()}
+        vaultPath="/vault"
+        currentNotePath="one.md"
+      />,
+    );
+
+    expect(container.querySelector('.border-b')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Library/ })).not.toBeInTheDocument();
+    expect(screen.getByTestId('upload-zone')).toBeInTheDocument();
   });
 });

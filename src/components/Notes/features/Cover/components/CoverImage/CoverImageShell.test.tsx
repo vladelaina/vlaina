@@ -90,7 +90,7 @@ describe('CoverImageShell', () => {
   });
 
   it('renders picker even in idle phase when picker is open', () => {
-    render(
+    const { container } = render(
       <CoverImageShell
         {...buildShellProps({
           showPicker: true,
@@ -99,6 +99,8 @@ describe('CoverImageShell', () => {
     );
     expect(screen.getByTestId('cover-picker')).toBeInTheDocument();
     expect(hoisted.coverPickerSpy).toHaveBeenCalled();
+    expect(container.firstElementChild).toHaveStyle({ height: '320px' });
+    expect(container.querySelector('[aria-hidden="true"]')).toHaveClass('absolute');
   });
 
   it('renders cover renderer when url exists', () => {
@@ -114,6 +116,35 @@ describe('CoverImageShell', () => {
     expect(screen.getByTestId('cover-renderer')).toBeInTheDocument();
     expect(hoisted.coverRendererSpy).toHaveBeenCalled();
     expect(container.firstElementChild?.getAttribute('style')).toContain('overflow-anchor: none');
+  });
+
+  it('uses the normal cover height for pending previews before selection is saved', () => {
+    const { container } = render(
+      <CoverImageShell
+        {...buildShellProps({
+          showPicker: true,
+          previewSrc: '/preview.webp',
+        })}
+      />
+    );
+
+    expect(container.querySelector('img')).toHaveAttribute('src', '/preview.webp');
+    expect(container.querySelector('img')?.parentElement).toHaveStyle({ height: '320px' });
+  });
+
+  it('keeps the cover placeholder height while a new cover selection is committing', () => {
+    const { container } = render(
+      <CoverImageShell
+        {...buildShellProps({
+          phase: 'committing',
+          showPicker: false,
+        })}
+      />
+    );
+
+    expect(screen.getByTestId('cover-picker')).toBeInTheDocument();
+    expect(container.firstElementChild).toHaveStyle({ height: '320px' });
+    expect(container.querySelector('[aria-hidden="true"]')).toHaveClass('absolute');
   });
 
   it('keeps the unloaded cover area clickable without showing a text hint', () => {

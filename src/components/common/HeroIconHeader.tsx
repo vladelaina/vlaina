@@ -41,6 +41,7 @@ interface HeroIconHeaderProps {
 
   className?: string;
   coverUrl?: string | null;
+  coverLayoutActive?: boolean;
   children?: React.ReactNode;
   compact?: boolean;
 }
@@ -108,6 +109,7 @@ export function HeroIconHeader({
   onRequestRandomIcon,
   className,
   coverUrl,
+  coverLayoutActive = Boolean(coverUrl),
   children,
   compact = false,
 }: HeroIconHeaderProps) {
@@ -184,12 +186,12 @@ export function HeroIconHeader({
       className={cn(
         "relative transition-[margin-top] duration-75 ease-out w-full",
         !compact && "max-w-3xl mx-auto px-10",
-        !compact && coverUrl && "pointer-events-none",
+        !compact && coverLayoutActive && "pointer-events-none",
         className
       )}
       style={{
         '--header-icon-size': `${resolvedIconSize}px`,
-        marginTop: coverUrl ? `calc(var(--header-icon-size) * -0.618)` : undefined,
+        marginTop: coverLayoutActive ? `calc(var(--header-icon-size) * -0.618)` : undefined,
       } as React.CSSProperties}
     >
       {children}
@@ -203,7 +205,7 @@ export function HeroIconHeader({
               !compact && "z-30",
               !compact && "pointer-events-auto",
               !compact && "pb-2",
-              !compact && (coverUrl ? "pt-0" : "pt-10")
+              !compact && (coverLayoutActive ? "pt-0" : "pt-10")
           )}
           onMouseEnter={() => setIsHoveringHeader(true)}
           onMouseLeave={() => setIsHoveringHeader(false)}

@@ -14,8 +14,8 @@ export function resolveCoverFlowPhase({
   isSelectionCommitting,
 }: ResolveCoverFlowPhaseOptions): CoverFlowPhase {
   if (isError) return 'error';
-  if (!url && !previewSrc) return 'idle';
   if (isSelectionCommitting) return 'committing';
+  if (!url && !previewSrc) return 'idle';
   if (previewSrc) return 'previewing';
   return 'ready';
 }

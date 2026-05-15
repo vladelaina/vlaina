@@ -104,7 +104,7 @@ describe('assetSlice loadAssets', () => {
     mocks.list.mockResolvedValue([]);
   });
 
-  it('loads builtin covers even when the picker is scoped to an external note directory', async () => {
+  it('does not add builtin covers when the picker is scoped to an external note directory', async () => {
     const harness = createSliceHarness({
       notesPath: '/vault',
       currentNote: { path: '/outside/demo.md', content: '' },
@@ -114,15 +114,7 @@ describe('assetSlice loadAssets', () => {
 
     expect(harness.getState().isLoadingAssets).toBe(false);
     expect(harness.getState().assetList.map((entry: { filename: string }) => entry.filename))
-      .toEqual([
-        '@monet/5',
-        '@monet/4',
-        '@monet/3',
-        '@monet/2',
-        '@monet/1',
-        '@biva/2',
-        '@biva/1',
-      ]);
+      .toEqual([]);
     expect(mocks.list).toHaveBeenCalledWith(
       {
         vaultPath: '/outside',
@@ -152,7 +144,42 @@ describe('assetSlice loadAssets', () => {
     expect(harness.getState().assetList.map((entry: { filename: string }) => entry.filename))
       .toContain('./assets/13_9.jpg');
     expect(harness.getState().assetList.map((entry: { filename: string }) => entry.filename))
-      .toContain('@monet/5');
+      .not.toContain('@monet/5');
+  });
+
+  it('keeps existing assets visible while refreshing the library', async () => {
+    let resolveList: (value: Array<{
+      filename: string;
+      hash: string;
+      size: number;
+      mimeType: string;
+      uploadedAt: string;
+    }>) => void = () => {};
+    mocks.list.mockReturnValue(new Promise((resolve) => {
+      resolveList = resolve;
+    }));
+    const harness = createSliceHarness({
+      notesPath: '',
+      currentNote: { path: '/outside/demo.md', content: '' },
+      assetList: [
+        {
+          filename: './assets/existing.jpg',
+          hash: 'existing',
+          size: 10,
+          mimeType: 'image/jpeg',
+          uploadedAt: '2026-05-08T01:47:54.361Z',
+        },
+      ],
+    });
+
+    const load = harness.getState().loadAssets('/outside');
+
+    expect(harness.getState().isLoadingAssets).toBe(true);
+    expect(harness.getState().assetList.map((entry: { filename: string }) => entry.filename))
+      .toEqual(['./assets/existing.jpg']);
+
+    resolveList([]);
+    await load;
   });
 
   it('coalesces concurrent loads for the same asset scope', async () => {

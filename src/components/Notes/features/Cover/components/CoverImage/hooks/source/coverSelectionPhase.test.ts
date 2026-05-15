@@ -29,6 +29,15 @@ describe('resolveCoverFlowPhase', () => {
     })).toBe('committing');
   });
 
+  it('keeps committing active before the selected url reaches props', () => {
+    expect(resolveCoverFlowPhase({
+      url: null,
+      previewSrc: null,
+      isError: false,
+      isSelectionCommitting: true,
+    })).toBe('committing');
+  });
+
   it('returns previewing when a preview is active without commit', () => {
     expect(resolveCoverFlowPhase({
       url: '@monet/1',

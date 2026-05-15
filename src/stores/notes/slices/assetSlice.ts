@@ -2,7 +2,6 @@ import { StateCreator } from 'zustand';
 import { NotesStore } from '../types';
 import { AssetEntry, UploadResult } from '@/lib/assets/types';
 import { AssetService } from '@/lib/assets/AssetService';
-import { getBuiltinCoverAssetEntries } from '@/lib/assets/builtinCovers';
 import { useUIStore } from '@/stores/uiSlice';
 import { clearImageCache } from '@/lib/assets';
 import { resolveEffectiveVaultPath } from '../effectiveVaultPath';
@@ -26,21 +25,8 @@ function isActiveUploadVault(state: NotesStore, vaultPath: string) {
   }) === vaultPath;
 }
 
-function getDefaultCoverAssets(): AssetEntry[] {
-  return getBuiltinCoverAssetEntries();
-}
-
 function combineAndSortAssets(userAssets: AssetEntry[]): AssetEntry[] {
-  const assets = [...userAssets, ...getDefaultCoverAssets()];
-
-  assets.sort((a, b) => {
-    const aIsBuiltIn = a.filename.startsWith('@');
-    const bIsBuiltIn = b.filename.startsWith('@');
-    if (aIsBuiltIn !== bIsBuiltIn) return aIsBuiltIn ? 1 : -1;
-    return b.filename.localeCompare(a.filename);
-  });
-
-  return assets;
+  return [...userAssets].sort((a, b) => b.filename.localeCompare(a.filename));
 }
 
 function getAssetConfig() {
@@ -73,12 +59,12 @@ export interface AssetSlice {
   uploadAsset: (file: File, currentNotePath?: string) => Promise<UploadResult>;
   deleteAsset: (filename: string) => Promise<void>;
   cleanupAssetTempFiles: () => Promise<void>;
-  getAssetList: (category?: 'builtinCovers') => AssetEntry[];
+  getAssetList: () => AssetEntry[];
   clearAssetUrlCache: () => void;
 }
 
 export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (set, get) => ({
-  assetList: getDefaultCoverAssets(),
+  assetList: [],
   isLoadingAssets: false,
   uploadProgress: null,
 
@@ -95,7 +81,6 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
     const loadPromise = (async () => {
       set({
         isLoadingAssets: true,
-        assetList: getDefaultCoverAssets(),
       });
 
       try {
@@ -116,7 +101,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
       set({ assetList: assets, isLoadingAssets: false });
     } catch (error) {
       console.error('Failed to load assets:', error);
-      set({ assetList: [], isLoadingAssets: false });
+      set({ isLoadingAssets: false });
     }
     })();
 
@@ -210,11 +195,7 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
     return;
   },
 
-  getAssetList: (category?: 'builtinCovers'): AssetEntry[] => {
-    const list = get().assetList;
-    if (!category) return list;
-    return list;
-  },
+  getAssetList: (): AssetEntry[] => get().assetList,
 
   clearAssetUrlCache: () => {
     clearImageCache();

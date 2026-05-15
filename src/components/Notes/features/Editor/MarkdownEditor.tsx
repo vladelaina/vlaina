@@ -84,6 +84,7 @@ export function MarkdownEditor({
   const shouldRenderCover = hasActiveNote && isEditorViewReady;
   const shouldReserveCoverSpace = hasActiveNote && Boolean(coverUrl) && !shouldRenderCover;
   const reservedCoverHeight = coverController.cover.height ?? DEFAULT_COVER_HEIGHT;
+  const coverLayoutActive = Boolean(coverUrl) || coverController.isPickerOpen;
   const handleEditorViewReady = useCallback(() => {
     setEditorReadyTarget({
       path: currentNotePath,
@@ -293,7 +294,8 @@ export function MarkdownEditor({
             <>
               <NoteHeader
                 coverUrl={coverUrl}
-                onAddCover={coverController.addRandomCoverAndOpenPicker}
+                coverLayoutActive={coverLayoutActive}
+                onAddCover={coverController.openCoverPicker}
               />
 
               <MilkdownProvider key={`${currentNotePath ?? 'empty'}:${currentNoteDiskRevision}`}>

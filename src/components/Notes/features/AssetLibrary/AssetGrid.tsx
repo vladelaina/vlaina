@@ -12,12 +12,12 @@ const COMPACT_ITEM_SIZE_PX = 60;
 const REGULAR_ITEM_SIZE_PX = 104;
 const GRID_MAX_HEIGHT_PX = 280;
 
-export function AssetGrid({ onSelect, onHover, vaultPath, currentNotePath, compact, itemSize, category }: AssetGridProps) {
+export function AssetGrid({ onSelect, onHover, vaultPath, currentNotePath, compact, itemSize }: AssetGridProps) {
   const getAssetList = useNotesStore((state) => state.getAssetList);
   const { hoveredFilename, gridRef } = useAssetHover(onHover);
   const [containerWidth, setContainerWidth] = useState(0);
 
-  const assets = getAssetList(category);
+  const assets = getAssetList();
   const baseItemSize = itemSize ?? (compact ? COMPACT_ITEM_SIZE_PX : REGULAR_ITEM_SIZE_PX);
   const innerWidth = Math.max(0, containerWidth - GRID_PADDING_PX * 2);
   const columnCount = Math.max(

@@ -2,7 +2,6 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  getBuiltinCoverAssetEntries,
   getBuiltinCovers,
   getBuiltinCoverUrl,
   toBuiltinAssetPath,
@@ -18,13 +17,8 @@ describe('builtin covers', () => {
     }
   });
 
-  it('derives asset entries and urls from the same registry', () => {
+  it('resolves legacy builtin cover urls from the registry', () => {
     const covers = getBuiltinCovers();
-    const entries = getBuiltinCoverAssetEntries();
-
-    expect(entries.map((entry) => entry.filename).sort()).toEqual(
-      covers.map((cover) => toBuiltinAssetPath(cover)).sort(),
-    );
 
     for (const cover of covers) {
       expect(getBuiltinCoverUrl(toBuiltinAssetPath(cover))).toBe(`/covers/${cover.path}`);

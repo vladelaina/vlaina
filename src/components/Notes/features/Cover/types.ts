@@ -13,5 +13,5 @@ export interface NoteCoverController {
   isPickerOpen: boolean;
   setPickerOpen: (open: boolean) => void;
   updateCover: (url: string | null, positionX: number, positionY: number, height?: number, scale?: number) => void;
-  addRandomCoverAndOpenPicker: () => void;
+  openCoverPicker: () => void;
 }

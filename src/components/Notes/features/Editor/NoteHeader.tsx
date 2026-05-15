@@ -19,10 +19,11 @@ import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
 
 interface NoteHeaderProps {
     coverUrl: string | null;
+    coverLayoutActive?: boolean;
     onAddCover: () => void;
 }
 
-export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
+export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), onAddCover }: NoteHeaderProps) {
     const currentNotePath = useNotesStore(s => s.currentNote?.path);
     const lastHeaderDebugRef = useRef<string | null>(null);
     const setNoteIcon = useNotesStore(s => s.setNoteIcon);
@@ -151,6 +152,7 @@ export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
             onSizeConfirm={handleSizeConfirm}
             
             coverUrl={coverUrl}
+            coverLayoutActive={coverLayoutActive}
             
             customIcons={customIcons}
             onUploadFile={uploadGlobalIcon}
@@ -170,7 +172,7 @@ export function NoteHeader({ coverUrl, onAddCover }: NoteHeaderProps) {
                 </div>
             )}
         >
-            <CoverAddOverlay visible={!coverUrl} onAddCover={onAddCover} />
+            <CoverAddOverlay visible={!coverLayoutActive} onAddCover={onAddCover} />
         </HeroIconHeader>
     );
 }

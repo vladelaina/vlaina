@@ -12,6 +12,10 @@ export function CoverAddOverlay({ visible, onAddCover }: CoverAddOverlayProps) {
       onMouseDown={(event) => {
         event.preventDefault();
         event.stopPropagation();
+      }}
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
         onAddCover();
       }}
     />

@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { DEFAULT_POSITION_PERCENT, DEFAULT_SCALE } from '../../../../utils/coverConstants';
 import { loadImageWithDimensions } from '../../../../utils/coverDimensionCache';
 import { useCoverSource } from '../../../../hooks/useCoverSource';
@@ -45,6 +46,11 @@ export function useCoverSelectionFlow({
 
   const lastPreviewPathRef = useRef<string | null>(null);
   const previewRequestRef = useRef(new Map<string, Promise<string | null>>());
+  const commitCoverUpdate = useCallback((assetPath: string) => {
+    flushSync(() => {
+      onUpdate(assetPath, DEFAULT_POSITION_PERCENT, DEFAULT_POSITION_PERCENT, coverHeight, DEFAULT_SCALE);
+    });
+  }, [coverHeight, onUpdate]);
 
   const handleCoverSelect = useCallback((assetPath: string) => {
     const previewedAssetPath = lastPreviewPathRef.current;
@@ -53,7 +59,7 @@ export function useCoverSelectionFlow({
     if (assetPath === url) {
       setPreviewSrc(null);
       endSelectionCommit();
-      onUpdate(assetPath, DEFAULT_POSITION_PERCENT, DEFAULT_POSITION_PERCENT, coverHeight, DEFAULT_SCALE);
+      commitCoverUpdate(assetPath);
       setShowPicker(false);
       return;
     }
@@ -66,14 +72,14 @@ export function useCoverSelectionFlow({
       setPreviewSrc(null);
     }
     beginSelectionCommit();
-    onUpdate(assetPath, DEFAULT_POSITION_PERCENT, DEFAULT_POSITION_PERCENT, coverHeight, DEFAULT_SCALE);
+    commitCoverUpdate(assetPath);
     setShowPicker(false);
   }, [
     beginSelectionCommit,
+    commitCoverUpdate,
     coverHeight,
     currentNotePath,
     endSelectionCommit,
-    onUpdate,
     previewSrc,
     setPreviewSrc,
     setShowPicker,

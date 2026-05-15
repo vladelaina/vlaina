@@ -15,7 +15,6 @@ export interface AssetGridProps {
   currentNotePath?: string;
   compact?: boolean;
   itemSize?: number;
-  category?: 'builtinCovers';
 }
 
 export interface UploadZoneProps {

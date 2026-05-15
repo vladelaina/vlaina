@@ -4,8 +4,6 @@ import { useNoteCoverController } from './useNoteCoverController';
 
 const hoisted = vi.hoisted(() => {
   const setNoteCover = vi.fn();
-  const getAssetList = vi.fn();
-  const getRandomBuiltinCover = vi.fn(() => '@monet/1');
   const storeRef: { state: any } = { state: null };
 
   const useNotesStore = ((selector?: (state: any) => any) => {
@@ -13,7 +11,7 @@ const hoisted = vi.hoisted(() => {
   }) as any;
   useNotesStore.getState = () => storeRef.state;
 
-  return { setNoteCover, getAssetList, getRandomBuiltinCover, storeRef, useNotesStore };
+  return { setNoteCover, storeRef, useNotesStore };
 });
 
 vi.mock('@/stores/useNotesStore', () => ({
@@ -33,21 +31,14 @@ vi.mock('@/lib/storage/adapter', () => ({
   isAbsolutePath: (path: string) => path.startsWith('/'),
 }));
 
-vi.mock('@/lib/assets/builtinCovers', () => ({
-  getRandomBuiltinCover: () => hoisted.getRandomBuiltinCover(),
-}));
-
 describe('useNoteCoverController', () => {
   beforeEach(() => {
     hoisted.setNoteCover.mockReset();
-    hoisted.getAssetList.mockReset();
-    hoisted.getRandomBuiltinCover.mockClear();
 
     hoisted.storeRef.state = {
       notesPath: '/vault',
       noteMetadata: { notes: {} },
       setNoteCover: hoisted.setNoteCover,
-      getAssetList: hoisted.getAssetList,
     };
   });
 
@@ -78,6 +69,13 @@ describe('useNoteCoverController', () => {
       result.current.updateCover('assets/next.png', 30, 40, 260, 1.2);
     });
 
+    expect(result.current.cover).toEqual({
+      url: 'assets/next.png',
+      positionX: 30,
+      positionY: 40,
+      height: 260,
+      scale: 1.2,
+    });
     expect(hoisted.setNoteCover).toHaveBeenCalledWith('a.md', {
       assetPath: 'assets/next.png',
       positionX: 30,
@@ -98,6 +96,33 @@ describe('useNoteCoverController', () => {
     });
   });
 
+  it('optimistically removes the cover before metadata persistence catches up', () => {
+    hoisted.storeRef.state.noteMetadata.notes['covered.md'] = {
+      cover: {
+        assetPath: 'assets/current.png',
+        positionX: 30,
+        positionY: 40,
+        height: 260,
+        scale: 1.2,
+      },
+    };
+
+    const { result } = renderHook(() => useNoteCoverController('covered.md'));
+
+    act(() => {
+      result.current.updateCover(null, 50, 50);
+    });
+
+    expect(result.current.cover).toEqual({
+      url: null,
+      positionX: 50,
+      positionY: 50,
+      height: undefined,
+      scale: 1,
+    });
+    expect(hoisted.setNoteCover).toHaveBeenCalledWith('covered.md', null);
+  });
+
   it('falls back to the active vault while notesPath is temporarily empty', () => {
     hoisted.storeRef.state.notesPath = '';
 
@@ -106,41 +131,15 @@ describe('useNoteCoverController', () => {
     expect(result.current.vaultPath).toBe('/active-vault');
   });
 
-  it('adds random cover from assets and opens picker', () => {
-    hoisted.getAssetList.mockReturnValue([{ filename: '@monet/2' }]);
-    const { result } = renderHook(() => useNoteCoverController('random.md'));
+  it('opens picker without assigning a cover', () => {
+    const { result } = renderHook(() => useNoteCoverController('blank.md'));
 
     act(() => {
-      result.current.addRandomCoverAndOpenPicker();
+      result.current.openCoverPicker();
     });
 
-    expect(hoisted.setNoteCover).toHaveBeenCalledWith('random.md', {
-      assetPath: '@monet/2',
-      positionX: 50,
-      positionY: 50,
-      height: 200,
-      scale: 1,
-    });
     expect(result.current.isPickerOpen).toBe(true);
-    expect(hoisted.getRandomBuiltinCover).not.toHaveBeenCalled();
-  });
-
-  it('falls back to builtin random cover when library is empty', () => {
-    hoisted.getAssetList.mockReturnValue([]);
-    const { result } = renderHook(() => useNoteCoverController('builtin.md'));
-
-    act(() => {
-      result.current.addRandomCoverAndOpenPicker();
-    });
-
-    expect(hoisted.getRandomBuiltinCover).toHaveBeenCalledTimes(1);
-    expect(hoisted.setNoteCover).toHaveBeenCalledWith('builtin.md', {
-      assetPath: '@monet/1',
-      positionX: 50,
-      positionY: 50,
-      height: 200,
-      scale: 1,
-    });
+    expect(hoisted.setNoteCover).not.toHaveBeenCalled();
   });
 
   it('closes picker when current note changes', () => {
