@@ -155,4 +155,47 @@ describe('resolvePendingMarkdownUpdate', () => {
       liveMarkdown: expected,
     });
   });
+
+  it('restores bracket math fence style from the latest note when using live editor markdown', () => {
+    const latestNoteContent = [
+      'Before',
+      '',
+      '\\[',
+      'x^2',
+      '\\]',
+      '',
+      'After',
+    ].join('\n');
+    const pendingMarkdown = latestNoteContent;
+    const liveSerializedMarkdown = [
+      'Before',
+      '',
+      '$$',
+      'x^2',
+      '$$',
+      '',
+      'After edited',
+    ].join('\n');
+    const expected = [
+      'Before',
+      '',
+      '\\[',
+      'x^2',
+      '\\]',
+      '',
+      'After edited',
+    ].join('\n');
+
+    expect(
+      resolvePendingMarkdownUpdate({
+        pendingMarkdown,
+        latestNoteContent,
+        liveSerializedMarkdown,
+      }),
+    ).toEqual({
+      markdownToApply: expected,
+      source: 'live-editor',
+      liveMarkdown: expected,
+    });
+  });
 });

@@ -94,6 +94,19 @@ describe('mathBlockEnterPlugin', () => {
     expect(dispatch).toHaveBeenCalledWith(tr);
   });
 
+  it('converts a bracket shortcut-only paragraph into a math block and opens the editor', () => {
+    const { view, tr, dispatch, mathBlockType } = createView({ text: '\\[' });
+
+    expect(handleMathBlockShortcutEnter(view as never)).toBe(true);
+    expect(mathBlockType.create).toHaveBeenCalledWith({ latex: '' });
+    expect(tr.replaceWith).toHaveBeenCalledWith(4, 8, {
+      type: 'math_block',
+      attrs: { latex: '' },
+    });
+    expect(dispatch).toHaveBeenCalledWith(tr);
+  });
+
+
   it('falls back to a safe popup position when coordinates cannot be resolved', () => {
     const { view, tr } = createView({ coordsAtPosThrows: true });
 

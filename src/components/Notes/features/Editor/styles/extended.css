@@ -218,6 +218,8 @@
 
 /* Mermaid */
 .milkdown .mermaid-block {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 180px;
   display: flex;
   justify-content: center;
   padding: 1.5rem;
@@ -273,6 +275,8 @@
 
 /* Video */
 .milkdown .video-block {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 315px;
   position: relative;
   display: flex;
   justify-content: center;

@@ -1,4 +1,7 @@
-import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
+import {
+  normalizeSerializedMarkdownDocument,
+  restoreMathBlockFenceStylesFromReference,
+} from '@/lib/notes/markdown/markdownSerializationUtils';
 import { serializeLeadingFrontmatterMarkdown } from '../plugins/frontmatter/frontmatterMarkdown';
 
 type PendingMarkdownUpdateResolution = {
@@ -25,7 +28,10 @@ export function resolvePendingMarkdownUpdate({
   }
 
   const liveMarkdown = serializeLeadingFrontmatterMarkdown(
-    normalizeSerializedMarkdownDocument(liveSerializedMarkdown),
+    restoreMathBlockFenceStylesFromReference(
+      normalizeSerializedMarkdownDocument(liveSerializedMarkdown),
+      latestNoteContent,
+    ),
     latestNoteContent,
   );
 

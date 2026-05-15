@@ -30,6 +30,30 @@ describe('markdown syntax persistence matrix', () => {
       markdown: ['Inline math $x + y$.', '', '$$', '\\frac{1}{2}', '$$'].join('\n'),
     },
     {
+      name: 'standard bracket display math',
+      markdown: ['Before math.', '', '\\[', 'f=\\mu mg', '\\]', '', 'After math.'].join('\n'),
+    },
+    {
+      name: 'generated bracket-backslash display math',
+      markdown: ['摩擦力大小为', '', '[\\', 'f=\\mu mg\\', ']', '', '故 A 在传送带上的加速度大小为'].join('\n'),
+      expected: ['摩擦力大小为', '', '\\[', 'f=\\mu mg', '\\]', '', '故 A 在传送带上的加速度大小为'].join('\n'),
+    },
+    {
+      name: 'generated bracket-only display math',
+      markdown: ['摩擦力大小为', '', '[', 'f=\\mu mg', ']', '', '故 A 在传送带上的加速度大小为'].join('\n'),
+      expected: ['摩擦力大小为', '', '\\[', 'f=\\mu mg', '\\]', '', '故 A 在传送带上的加速度大小为'].join('\n'),
+    },
+    {
+      name: 'generated bracket-backslash display math with inline closer',
+      markdown: ['摩擦力大小为', '', '[\\', 'a=\\frac{f}{m}=\\mu g]', '', '故 A 在传送带上的加速度大小为'].join('\n'),
+      expected: ['摩擦力大小为', '', '\\[', 'a=\\frac{f}{m}=\\mu g', '\\]', '', '故 A 在传送带上的加速度大小为'].join('\n'),
+    },
+    {
+      name: 'escaped bracket display math with trailing opener backslash',
+      markdown: ['摩擦力大小为', '', '\\[\\', 'f=\\mu mg\\', ']', '', '\\\\[\\', 'a=\\frac{f}{m}=\\mu g\\', ']', '', '故 A 在传送带上的加速度大小为'].join('\n'),
+      expected: ['摩擦力大小为', '', '\\[', 'f=\\mu mg', '\\]', '', '\\[', 'a=\\frac{f}{m}=\\mu g', '\\]', '', '故 A 在传送带上的加速度大小为'].join('\n'),
+    },
+    {
       name: 'math block with blank lines',
       markdown: ['Before math.', '', '$$', 'a = b', '', 'c = d', '$$', '', 'After math.'].join('\n'),
     },

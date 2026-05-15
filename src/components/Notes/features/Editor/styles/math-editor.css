@@ -65,6 +65,8 @@
 }
 
 .milkdown [data-type='math-block'].math-block-wrapper {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 96px;
   display: block;
   width: 100%;
   max-width: 100%;

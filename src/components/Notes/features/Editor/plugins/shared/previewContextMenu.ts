@@ -106,11 +106,37 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
   let currentNode = options.node;
   let menu: HTMLElement | null = null;
   let suppressClickUntil = 0;
+  let transientListenersAttached = false;
 
   const closeMenu = () => {
     menu?.remove();
     menu = null;
     element.classList.remove('vlaina-preview-context-menu-active');
+    detachTransientListeners();
+  };
+
+  const attachTransientListeners = () => {
+    if (transientListenersAttached) {
+      return;
+    }
+
+    transientListenersAttached = true;
+    document.addEventListener('mousedown', handleDocumentPointer);
+    document.addEventListener('keydown', handleDocumentKey);
+    window.addEventListener('resize', handleWindowResize);
+    window.addEventListener('scroll', handleScroll, true);
+  };
+
+  const detachTransientListeners = () => {
+    if (!transientListenersAttached) {
+      return;
+    }
+
+    transientListenersAttached = false;
+    document.removeEventListener('mousedown', handleDocumentPointer);
+    document.removeEventListener('keydown', handleDocumentKey);
+    window.removeEventListener('resize', handleWindowResize);
+    window.removeEventListener('scroll', handleScroll, true);
   };
 
   const runSave = (format: PreviewExportFormat) => {
@@ -127,6 +153,7 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
     element.classList.add('vlaina-preview-context-menu-active');
 
     document.body.appendChild(menu);
+    attachTransientListeners();
     renderMenu();
     positionMenu(menu, element);
   };
@@ -241,10 +268,6 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
 
   element.addEventListener('contextmenu', handleContextMenu);
   element.addEventListener('click', handleClickCapture, true);
-  document.addEventListener('mousedown', handleDocumentPointer);
-  document.addEventListener('keydown', handleDocumentKey);
-  window.addEventListener('resize', handleWindowResize);
-  window.addEventListener('scroll', handleScroll, true);
 
   return {
     updateNode(node: ProseNode) {
@@ -253,10 +276,6 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
     destroy() {
       element.removeEventListener('contextmenu', handleContextMenu);
       element.removeEventListener('click', handleClickCapture, true);
-      document.removeEventListener('mousedown', handleDocumentPointer);
-      document.removeEventListener('keydown', handleDocumentKey);
-      window.removeEventListener('resize', handleWindowResize);
-      window.removeEventListener('scroll', handleScroll, true);
       closeMenu();
     },
   };

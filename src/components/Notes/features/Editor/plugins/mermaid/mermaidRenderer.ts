@@ -23,6 +23,10 @@ const CONSOLE_METHODS_TO_SUPPRESS: ConsoleMethodName[] = ['debug', 'error', 'inf
 const suppressedConsoleMethods = new Map<ConsoleMethodName, typeof console[ConsoleMethodName]>();
 let consoleSuppressionDepth = 0;
 
+export function mermaidRenderErrorMarkup(): string {
+  return `<div class="mermaid-error">${translate('editor.mermaidRenderError')}</div>`;
+}
+
 async function getMermaid() {
   if (!mermaidAvailable) return null;
   if (mermaidInstance) return mermaidInstance;
@@ -98,8 +102,17 @@ export async function renderMermaid(code: string, id: string): Promise<string> {
     const { svg } = await withoutThirdPartyConsoleOutput<{ svg: string }>(() =>
       mermaid.render(id, code)
     );
-    return svg;
+    return normalizeMermaidRenderMarkup(svg);
   } catch {
-    return `<div class="mermaid-error">${translate('editor.mermaidRenderError')}</div>`;
+    return mermaidRenderErrorMarkup();
   }
+}
+
+export function normalizeMermaidRenderMarkup(markup: string): string {
+  return isMermaidSyntaxErrorMarkup(markup) ? mermaidRenderErrorMarkup() : markup;
+}
+
+function isMermaidSyntaxErrorMarkup(markup: string): boolean {
+  return /class=(["'])error-(?:text|icon)\1/.test(markup)
+    || markup.includes('Syntax error in text');
 }

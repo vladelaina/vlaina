@@ -6,6 +6,12 @@ const MARKDOWN_STRUCTURAL_LINE_PATTERN =
 const HTML_LINE_PATTERN = /^(?:\s*<\/?[A-Za-z][^>]*>|\s*<!--|\s*<![A-Za-z]|\s*<\?)/;
 const BLOCKQUOTE_LINE_PATTERN = /^(?:\s*>)/;
 const DISPLAY_MATH_FENCE_PATTERN = /^\s*\$\$\s*$/;
+const ALTERNATIVE_MATH_BLOCK_OPEN_PATTERN = /^(\s*(?:>\s*)*)((?:\\+\[\\?)|\[\\?|\[)\s*$/;
+const ALTERNATIVE_MATH_BLOCK_STANDARD_CLOSE_PATTERN = /^(\s*(?:>\s*)*)\\\]\s*$/;
+const ALTERNATIVE_MATH_BLOCK_BRACKET_CLOSE_PATTERN = /^(\s*(?:>\s*)*)]\s*$/;
+const ALTERNATIVE_MATH_BLOCK_STANDARD_CLOSE_SUFFIX_PATTERN = /^(.*)\\\]\s*$/;
+const ALTERNATIVE_MATH_BLOCK_BRACKET_CLOSE_SUFFIX_PATTERN = /^(.*)]\s*$/;
+const LATEX_LIKE_MATH_CONTENT_PATTERN = /\\[A-Za-z]+|(?:^|[^\w])(?:\\?[A-Za-z]\w*)\s*(?:[=^_]|\\(?:le|ge|neq|approx|times|cdot|frac|sqrt|mu|alpha|beta|gamma|theta)\b)|[{}^_]/;
 
 export function preserveParagraphSoftBreaksAsHardBreaks(text: string): string {
   const allLines = text.replace(/\r\n?/g, '\n').split('\n');
@@ -64,11 +70,106 @@ function markDisplayMathBlockLines(lines: readonly string[], protectedLines: Set
     openerIndex = null;
   }
 
-  if (openerIndex === null) return;
+  if (openerIndex === null) {
+    markAlternativeDisplayMathBlockLines(lines, protectedLines);
+    return;
+  }
 
   for (let index = openerIndex; index < lines.length; index += 1) {
     protectedLines.add(index);
   }
+
+  markAlternativeDisplayMathBlockLines(lines, protectedLines);
+}
+
+function markAlternativeDisplayMathBlockLines(lines: readonly string[], protectedLines: Set<number>) {
+  let pendingFence: {
+    openerIndex: number;
+    prefix: string;
+    bracketCloseFence: boolean;
+    bracketOnlyFence: boolean;
+    content: string[];
+  } | null = null;
+
+  for (let cursor = 0; cursor < lines.length; cursor += 1) {
+    const line = lines[cursor] ?? '';
+    if (pendingFence) {
+      const close = getAlternativeMathBlockClose(line, pendingFence);
+      if (
+        close
+        && (!pendingFence.bracketOnlyFence
+          || isLatexLikeMathBlock([
+            ...pendingFence.content,
+            ...(close.contentLine === null ? [] : [close.contentLine]),
+          ]))
+      ) {
+        for (let index = pendingFence.openerIndex; index <= cursor; index += 1) {
+          protectedLines.add(index);
+        }
+        pendingFence = null;
+        continue;
+      }
+
+      pendingFence.content.push(line);
+      continue;
+    }
+
+    const open = ALTERNATIVE_MATH_BLOCK_OPEN_PATTERN.exec(line);
+    if (!open) continue;
+
+    pendingFence = {
+      openerIndex: cursor,
+      prefix: open[1] ?? '',
+      bracketCloseFence: isAlternativeMathBlockBracketCloseFence(open[2] ?? ''),
+      bracketOnlyFence: line.trim() === '[',
+      content: [],
+    };
+  }
+}
+
+function getAlternativeMathBlockClose(
+  line: string,
+  pendingFence: { prefix: string; bracketCloseFence: boolean; bracketOnlyFence: boolean }
+): { contentLine: string | null } | null {
+  const standardClose = ALTERNATIVE_MATH_BLOCK_STANDARD_CLOSE_PATTERN.exec(line);
+  if (standardClose && (standardClose[1] ?? '') === pendingFence.prefix) {
+    return { contentLine: null };
+  }
+
+  const canUseBracketClose = pendingFence.bracketCloseFence || pendingFence.bracketOnlyFence;
+  const bracketClose = canUseBracketClose
+    ? ALTERNATIVE_MATH_BLOCK_BRACKET_CLOSE_PATTERN.exec(line)
+    : null;
+  if (bracketClose && (bracketClose[1] ?? '') === pendingFence.prefix) {
+    return { contentLine: null };
+  }
+
+  const standardSuffix = ALTERNATIVE_MATH_BLOCK_STANDARD_CLOSE_SUFFIX_PATTERN.exec(line);
+  if (standardSuffix && hasAlternativeMathInlineCloseContent(standardSuffix[1] ?? '', pendingFence.prefix)) {
+    return { contentLine: standardSuffix[1] ?? '' };
+  }
+
+  const bracketSuffix = canUseBracketClose
+    ? ALTERNATIVE_MATH_BLOCK_BRACKET_CLOSE_SUFFIX_PATTERN.exec(line)
+    : null;
+  if (bracketSuffix && hasAlternativeMathInlineCloseContent(bracketSuffix[1] ?? '', pendingFence.prefix)) {
+    return { contentLine: bracketSuffix[1] ?? '' };
+  }
+
+  return null;
+}
+
+function hasAlternativeMathInlineCloseContent(contentLine: string, prefix: string): boolean {
+  if (prefix && !contentLine.startsWith(prefix)) return false;
+  return contentLine.slice(prefix.length).trim().length > 0;
+}
+
+function isLatexLikeMathBlock(lines: readonly string[]): boolean {
+  return LATEX_LIKE_MATH_CONTENT_PATTERN.test(lines.join('\n'));
+}
+
+function isAlternativeMathBlockBracketCloseFence(marker: string): boolean {
+  return marker === '[' || marker.endsWith('\\');
 }
 
 function shouldPreserveSoftBreakAfterLine(

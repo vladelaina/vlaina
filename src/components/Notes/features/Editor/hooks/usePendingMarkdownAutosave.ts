@@ -11,6 +11,7 @@ import {
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import {
   normalizeSerializedMarkdownDocument,
+  restoreMathBlockFenceStylesFromReference,
   summarizeMarkdownNormalizationPipeline,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { hasTemporaryTailParagraph } from '../plugins/cursor/endBlankClickPlugin';
@@ -120,7 +121,8 @@ export function usePendingMarkdownAutosave({
 
       const currentContent = useNotesStore.getState().currentNote?.content ?? '';
       const normalizedMarkdown = normalizeSerializedMarkdownDocument(markdown);
-      const nextMarkdown = serializeLeadingFrontmatterMarkdown(normalizedMarkdown, currentContent);
+      const styledMarkdown = restoreMathBlockFenceStylesFromReference(normalizedMarkdown, currentContent);
+      const nextMarkdown = serializeLeadingFrontmatterMarkdown(styledMarkdown, currentContent);
       if (!hasEditorUserInput.current) {
         if (debugEnabled) {
           logLineBreakDebug('editor:non-user-markdown-echo-skipped', {
@@ -129,6 +131,7 @@ export function usePendingMarkdownAutosave({
             raw: summarizeLineBreakText(markdown),
             normalized: summarizeLineBreakText(normalizedMarkdown),
             normalizationPipeline: summarizeMarkdownNormalizationPipeline(markdown),
+            styled: summarizeLineBreakText(styledMarkdown),
             next: summarizeLineBreakText(nextMarkdown),
             current: summarizeLineBreakText(currentContent),
             diffCurrentToNext: compareLineBreakText(currentContent, nextMarkdown),
@@ -143,6 +146,7 @@ export function usePendingMarkdownAutosave({
           raw: summarizeLineBreakText(markdown),
           normalized: summarizeLineBreakText(normalizedMarkdown),
           normalizationPipeline: summarizeMarkdownNormalizationPipeline(markdown),
+          styled: summarizeLineBreakText(styledMarkdown),
           next: summarizeLineBreakText(nextMarkdown),
           current: summarizeLineBreakText(currentContent),
           diffCurrentToNext: compareLineBreakText(currentContent, nextMarkdown),

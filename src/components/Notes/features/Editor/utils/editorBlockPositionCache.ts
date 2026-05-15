@@ -83,20 +83,20 @@ function publishSnapshot(snapshot: EditorBlockPositionSnapshot | null): void {
   });
 }
 
-function resolveDocumentTop(rect: DOMRect, scrollRoot: HTMLElement | null, scrollTop: number): number {
-  if (!scrollRoot) {
+function resolveDocumentTop(rect: DOMRect, scrollRootTop: number | null, scrollTop: number): number {
+  if (scrollRootTop === null) {
     return rect.top;
   }
 
-  return rect.top - scrollRoot.getBoundingClientRect().top + scrollTop;
+  return rect.top - scrollRootTop + scrollTop;
 }
 
-function resolveDocumentBottom(rect: DOMRect, scrollRoot: HTMLElement | null, scrollTop: number): number {
-  if (!scrollRoot) {
+function resolveDocumentBottom(rect: DOMRect, scrollRootTop: number | null, scrollTop: number): number {
+  if (scrollRootTop === null) {
     return rect.bottom;
   }
 
-  return rect.bottom - scrollRoot.getBoundingClientRect().top + scrollTop;
+  return rect.bottom - scrollRootTop + scrollTop;
 }
 
 function collectTopLevelBlockRanges(doc: EditorView['state']['doc']): Array<{ from: number; to: number }> {
@@ -147,6 +147,7 @@ function createPreviewSnapshot(
   const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
   const scrollLeft = scrollRoot?.scrollLeft ?? 0;
   const scrollTop = scrollRoot?.scrollTop ?? 0;
+  const scrollRootTop = scrollRoot?.getBoundingClientRect().top ?? null;
   const topLevelRanges = collectTopLevelBlockRanges(view.state.doc);
   const topLevelElements = Array.from(previewRoot.children).filter(
     (element): element is HTMLElement => element instanceof HTMLElement,
@@ -168,8 +169,8 @@ function createPreviewSnapshot(
     const tagName = element.tagName.toUpperCase();
     const headingLevel = getHeadingLevelFromTagName(tagName);
     const headingText = headingLevel ? normalizeHeadingText(element.textContent ?? '') : null;
-    const documentTop = resolveDocumentTop(rect, scrollRoot, scrollTop);
-    const documentBottom = resolveDocumentBottom(rect, scrollRoot, scrollTop);
+    const documentTop = resolveDocumentTop(rect, scrollRootTop, scrollTop);
+    const documentBottom = resolveDocumentBottom(rect, scrollRootTop, scrollTop);
     const headingId = headingLevel
       ? createOutlineHeadingId(headings.length, headingLevel, headingText ?? '')
       : null;
@@ -235,6 +236,7 @@ function createSnapshot(view: EditorView): EditorBlockPositionSnapshot | null {
   const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
   const scrollLeft = scrollRoot?.scrollLeft ?? 0;
   const scrollTop = scrollRoot?.scrollTop ?? 0;
+  const scrollRootTop = scrollRoot?.getBoundingClientRect().top ?? null;
   const targets = collectSelectableBlockTargets(view);
   const blocks: EditorBlockPositionEntry[] = [];
   const headings: EditorHeadingPositionEntry[] = [];
@@ -244,8 +246,8 @@ function createSnapshot(view: EditorView): EditorBlockPositionSnapshot | null {
     const headingMatch = /^H([1-6])$/.exec(tagName);
     const headingLevel = headingMatch ? Number.parseInt(headingMatch[1], 10) : null;
     const headingText = headingLevel ? normalizeHeadingText(target.element.textContent ?? '') : null;
-    const documentTop = resolveDocumentTop(target.rect, scrollRoot, scrollTop);
-    const documentBottom = resolveDocumentBottom(target.rect, scrollRoot, scrollTop);
+    const documentTop = resolveDocumentTop(target.rect, scrollRootTop, scrollTop);
+    const documentBottom = resolveDocumentBottom(target.rect, scrollRootTop, scrollTop);
     const headingId = headingLevel
       ? createOutlineHeadingId(headings.length, headingLevel, headingText ?? '')
       : null;
@@ -290,6 +292,41 @@ function createSnapshot(view: EditorView): EditorBlockPositionSnapshot | null {
     scrollTop,
     blocks,
     headings,
+  };
+}
+
+function shiftRect(rect: DOMRect, deltaX: number, deltaY: number): DOMRect {
+  return {
+    bottom: rect.bottom - deltaY,
+    height: rect.height,
+    left: rect.left - deltaX,
+    right: rect.right - deltaX,
+    top: rect.top - deltaY,
+    width: rect.width,
+    x: rect.x - deltaX,
+    y: rect.y - deltaY,
+    toJSON: () => ({}),
+  } as DOMRect;
+}
+
+function createScrollAdjustedSnapshot(
+  snapshot: EditorBlockPositionSnapshot,
+  scrollLeft: number,
+  scrollTop: number,
+): EditorBlockPositionSnapshot {
+  const deltaX = scrollLeft - snapshot.scrollLeft;
+  const deltaY = scrollTop - snapshot.scrollTop;
+  currentVersion += 1;
+
+  return {
+    ...snapshot,
+    version: currentVersion,
+    scrollLeft,
+    scrollTop,
+    blocks: snapshot.blocks.map((block) => ({
+      ...block,
+      rect: shiftRect(block.rect, deltaX, deltaY),
+    })),
   };
 }
 
@@ -420,7 +457,29 @@ export function createCurrentEditorBlockPositionController(
   }
 
   const handleScroll = () => {
-    scheduleRefresh();
+    if (destroyed || frameId !== 0) {
+      return;
+    }
+
+    frameId = requestAnimationFrame(() => {
+      frameId = 0;
+      const snapshot = currentSnapshot;
+      if (
+        snapshot
+        && snapshot.view === view
+        && snapshot.doc === view.state.doc
+        && snapshot.scrollRoot === scrollRoot
+      ) {
+        publishSnapshot(createScrollAdjustedSnapshot(
+          snapshot,
+          scrollRoot?.scrollLeft ?? 0,
+          scrollRoot?.scrollTop ?? 0,
+        ));
+        return;
+      }
+
+      refresh();
+    });
   };
 
   scrollRoot?.addEventListener('scroll', handleScroll, { passive: true });

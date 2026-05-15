@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import {
+  normalizeAlternativeMathBlockFences,
   normalizeSerializedMarkdownDocument,
   preserveMarkdownBlankLinesForEditor,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
@@ -80,7 +81,9 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   });
 
   const initialContent = useMemo(() => {
-    return normalizeSerializedMarkdownDocument(currentNoteContent);
+    return normalizeAlternativeMathBlockFences(
+      normalizeSerializedMarkdownDocument(currentNoteContent)
+    );
   }, [currentNoteContent]);
 
   useEffect(() => {

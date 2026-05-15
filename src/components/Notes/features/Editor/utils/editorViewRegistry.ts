@@ -1,7 +1,10 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { Parser, Serializer } from '@milkdown/kit/transformer';
 import { normalizeLeadingFrontmatterMarkdown } from '../plugins/frontmatter/frontmatterMarkdown';
-import { preserveMarkdownBlankLinesForEditor } from '@/lib/notes/markdown/markdownSerializationUtils';
+import {
+  normalizeAlternativeMathBlockFences,
+  preserveMarkdownBlankLinesForEditor,
+} from '@/lib/notes/markdown/markdownSerializationUtils';
 
 let currentEditorView: EditorView | null = null;
 let currentMarkdownParser: Parser | null = null;
@@ -34,7 +37,9 @@ export function setCurrentMarkdownRuntime(runtime: {
 }): void {
   currentMarkdownParser = runtime.parser
     ? ((markdown: string) => runtime.parser!(
-        preserveMarkdownBlankLinesForEditor(normalizeLeadingFrontmatterMarkdown(markdown))
+        preserveMarkdownBlankLinesForEditor(
+          normalizeLeadingFrontmatterMarkdown(normalizeAlternativeMathBlockFences(markdown))
+        )
       )) as Parser
     : null;
   currentMarkdownSerializer = runtime.serializer ?? null;

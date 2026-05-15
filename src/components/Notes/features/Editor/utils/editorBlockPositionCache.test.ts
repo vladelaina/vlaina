@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   createCurrentEditorBlockPositionController,
   getCurrentEditorBlockPositionSnapshot,
@@ -91,6 +91,63 @@ describe('editorBlockPositionCache', () => {
       top: 130,
     });
     expect(snapshot?.headings[0]?.element).toBe(heading);
+
+    controller.destroy();
+    scrollRoot.remove();
+  });
+
+  it('updates cached viewport rects on scroll without remeasuring every block', async () => {
+    const scrollRoot = document.createElement('div');
+    scrollRoot.setAttribute('data-note-scroll-root', 'true');
+    scrollRoot.scrollTop = 20;
+    scrollRoot.getBoundingClientRect = () => rect(10, 610, 640);
+
+    const host = document.createElement('div');
+    const preview = document.createElement('div');
+    const heading = document.createElement('h2');
+    const dom = document.createElement('div');
+    const headingRect = vi.fn(() => rect(100, 132));
+
+    preview.className = 'toolbar-applied-preview-overlay';
+    heading.textContent = 'Preview heading';
+    heading.getBoundingClientRect = headingRect;
+    dom.setAttribute('data-toolbar-preview-hidden', 'true');
+
+    preview.appendChild(heading);
+    host.append(preview, dom);
+    scrollRoot.appendChild(host);
+    document.body.appendChild(scrollRoot);
+
+    const doc = {
+      content: { size: 18 },
+      forEach(callback: (node: { nodeSize: number }, offset: number) => void) {
+        callback({ nodeSize: 18 }, 0);
+      },
+    };
+    const view = {
+      dom,
+      state: { doc },
+    };
+
+    const controller = createCurrentEditorBlockPositionController(view as any);
+    const initial = getCurrentEditorBlockPositionSnapshot();
+    expect(initial?.blocks[0]?.rect.top).toBe(100);
+    expect(initial?.blocks[0]?.documentTop).toBe(110);
+    expect(headingRect).toHaveBeenCalledTimes(1);
+
+    heading.getBoundingClientRect = () => {
+      throw new Error('scroll updates should not remeasure block DOM');
+    };
+    scrollRoot.scrollTop = 70;
+    scrollRoot.dispatchEvent(new Event('scroll'));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    const scrolled = getCurrentEditorBlockPositionSnapshot();
+    expect(scrolled?.scrollTop).toBe(70);
+    expect(scrolled?.blocks[0]?.rect.top).toBe(50);
+    expect(scrolled?.blocks[0]?.rect.bottom).toBe(82);
+    expect(scrolled?.blocks[0]?.documentTop).toBe(110);
+    expect(scrolled?.headings[0]?.top).toBe(110);
 
     controller.destroy();
     scrollRoot.remove();

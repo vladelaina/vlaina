@@ -42,6 +42,12 @@ describe('mathInputRules', () => {
     expect(match?.[2]).toBe('x^2');
   });
 
+  it('matches bracket block math fences with a trailing space', () => {
+    const match = '\\[x^2\\] '.match(MATH_BLOCK_INPUT_RULE_PATTERN);
+
+    expect(match?.[3]).toBe('x^2');
+  });
+
   it('matches localized block math fences with a trailing space', () => {
     const match = '￥￥x^2￥￥ '.match(MATH_BLOCK_INPUT_RULE_PATTERN);
 
@@ -83,6 +89,21 @@ describe('mathInputRules', () => {
     expect(replaceSelectionWith).toHaveBeenCalledWith({
       kind: 'math_block',
       attrs: { latex: 's' },
+    });
+  });
+
+  it('applies the bracket block input rule by replacing the fence text with a math block node', () => {
+    const { state, deleteStep, replaceSelectionWith } = createInputRuleState();
+    const match = '\\[\\frac{1}{2}\\] '.match(MATH_BLOCK_INPUT_RULE_PATTERN) as RegExpMatchArray;
+
+    const result = applyMathBlockInputRule(state as any, match, 3, 18);
+
+    expect(result).toBe('transaction-result');
+    expect(deleteStep).toHaveBeenCalledWith(3, 18);
+    expect(state.schema.nodes.math_block!.create).toHaveBeenCalledWith({ latex: '\\frac{1}{2}' });
+    expect(replaceSelectionWith).toHaveBeenCalledWith({
+      kind: 'math_block',
+      attrs: { latex: '\\frac{1}{2}' },
     });
   });
 

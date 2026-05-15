@@ -13,6 +13,7 @@ import {
 } from '@/stores/notes/lineBreakDebugLog';
 import {
   normalizeSerializedMarkdownDocument,
+  restoreMathBlockFenceStylesFromReference,
   summarizeMarkdownNormalizationPipeline,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { serializeLeadingFrontmatterMarkdown } from '../plugins/frontmatter/frontmatterMarkdown';
@@ -86,8 +87,12 @@ export function usePendingMarkdownFlusher({
               }
               const serialized = serializer(view.state.doc);
               const normalizedSerialized = normalizeSerializedMarkdownDocument(serialized);
-              pendingMarkdown = serializeLeadingFrontmatterMarkdown(
+              const styledSerialized = restoreMathBlockFenceStylesFromReference(
                 normalizedSerialized,
+                currentContent,
+              );
+              pendingMarkdown = serializeLeadingFrontmatterMarkdown(
+                styledSerialized,
                 currentContent,
               );
               if (debugEnabled) {
@@ -97,6 +102,7 @@ export function usePendingMarkdownFlusher({
                   capturedPath: currentNotePathRef.current ?? null,
                   serialized: summarizeLineBreakText(serialized),
                   normalizedSerialized: summarizeLineBreakText(normalizedSerialized),
+                  styledSerialized: summarizeLineBreakText(styledSerialized),
                   normalizationPipeline: summarizeMarkdownNormalizationPipeline(serialized),
                   pending: summarizeLineBreakText(pendingMarkdown),
                   current: summarizeLineBreakText(currentContent),

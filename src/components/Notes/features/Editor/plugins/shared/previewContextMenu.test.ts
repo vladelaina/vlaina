@@ -280,6 +280,44 @@ describe('previewContextMenu', () => {
     session.destroy();
   });
 
+  it('attaches global reposition listeners only while a menu is open', () => {
+    const windowAdd = vi.spyOn(window, 'addEventListener');
+    const windowRemove = vi.spyOn(window, 'removeEventListener');
+    const documentAdd = vi.spyOn(document, 'addEventListener');
+    const documentRemove = vi.spyOn(document, 'removeEventListener');
+    const element = document.createElement('div');
+    document.body.appendChild(element);
+
+    const session = attachPreviewContextMenu({
+      element,
+      fileBaseName: 'preview',
+      getPos: () => 0,
+      node: { isInline: false } as never,
+      view: createViewStub(),
+    });
+
+    expect(windowAdd).not.toHaveBeenCalledWith('scroll', expect.any(Function), true);
+    expect(windowAdd).not.toHaveBeenCalledWith('resize', expect.any(Function));
+    expect(documentAdd).not.toHaveBeenCalledWith('mousedown', expect.any(Function));
+    expect(documentAdd).not.toHaveBeenCalledWith('keydown', expect.any(Function));
+
+    openMenu(element);
+
+    expect(windowAdd).toHaveBeenCalledWith('scroll', expect.any(Function), true);
+    expect(windowAdd).toHaveBeenCalledWith('resize', expect.any(Function));
+    expect(documentAdd).toHaveBeenCalledWith('mousedown', expect.any(Function));
+    expect(documentAdd).toHaveBeenCalledWith('keydown', expect.any(Function));
+
+    document.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+
+    expect(windowRemove).toHaveBeenCalledWith('scroll', expect.any(Function), true);
+    expect(windowRemove).toHaveBeenCalledWith('resize', expect.any(Function));
+    expect(documentRemove).toHaveBeenCalledWith('mousedown', expect.any(Function));
+    expect(documentRemove).toHaveBeenCalledWith('keydown', expect.any(Function));
+
+    session.destroy();
+  });
+
   it('shows icons on parent actions and insert direction actions', () => {
     const element = document.createElement('div');
     document.body.appendChild(element);

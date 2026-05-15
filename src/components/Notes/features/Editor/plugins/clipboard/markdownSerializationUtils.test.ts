@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   joinSerializedBlocks,
+  normalizeAlternativeMathBlockFences,
   normalizeEscapedUrlSchemes,
   normalizeMarkdownAutolinkLiterals,
   normalizeSerializedMarkdownBlock,
   normalizeSerializedMarkdownDocument,
   normalizeSerializedMarkdownSelection,
+  restoreMathBlockFenceStylesFromReference,
   stripTrailingNewlines,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 
@@ -31,6 +33,62 @@ describe('normalizeEscapedUrlSchemes', () => {
   });
 });
 
+describe('normalizeAlternativeMathBlockFences', () => {
+  it('converts bracket display math fences to dollar fences outside protected blocks', () => {
+    expect(
+      normalizeAlternativeMathBlockFences(['Before', '', '\\[', 'f=\\mu mg', '\\]', '', 'After'].join('\n'))
+    ).toBe(['Before', '', '$$', 'f=\\mu mg', '$$', '', 'After'].join('\n'));
+  });
+
+  it('converts bracket-backslash display math fences from generated notes', () => {
+    expect(
+      normalizeAlternativeMathBlockFences(['摩擦力大小为', '', '[\\', 'f=\\mu mg\\', ']', '', '故加速度为'].join('\n'))
+    ).toBe(['摩擦力大小为', '', '$$', 'f=\\mu mg', '$$', '', '故加速度为'].join('\n'));
+  });
+
+  it('converts escaped bracket display math fences with trailing opener backslashes', () => {
+    expect(
+      normalizeAlternativeMathBlockFences(['摩擦力大小为', '', '\\[\\', 'f=\\mu mg\\', ']', '', '\\\\[\\', 'a=\\frac{f}{m}=\\mu g\\', ']'].join('\n'))
+    ).toBe(['摩擦力大小为', '', '$$', 'f=\\mu mg', '$$', '', '$$', 'a=\\frac{f}{m}=\\mu g', '$$'].join('\n'));
+  });
+
+  it('converts bracket-backslash display math when the bracket closer is on the formula line', () => {
+    expect(
+      normalizeAlternativeMathBlockFences(['[\\', 'a=\\frac{f}{m}=\\mu g]'].join('\n'))
+    ).toBe(['$$', 'a=\\frac{f}{m}=\\mu g', '$$'].join('\n'));
+  });
+
+  it('converts bracket-only display math fences when the content looks like latex', () => {
+    expect(
+      normalizeAlternativeMathBlockFences(['摩擦力大小为', '', '[', 'f=\\mu mg', ']', '', '故加速度为'].join('\n'))
+    ).toBe(['摩擦力大小为', '', '$$', 'f=\\mu mg', '$$', '', '故加速度为'].join('\n'));
+  });
+
+  it('converts bracket-only display math when a standard closer is on the formula line', () => {
+    expect(
+      normalizeAlternativeMathBlockFences(['[', 'a=\\frac{f}{m}=\\mu g\\]'].join('\n'))
+    ).toBe(['$$', 'a=\\frac{f}{m}=\\mu g', '$$'].join('\n'));
+  });
+
+  it('keeps bracket-only blocks when the content does not look like latex', () => {
+    const markdown = ['[', 'ordinary text', ']'].join('\n');
+
+    expect(normalizeAlternativeMathBlockFences(markdown)).toBe(markdown);
+  });
+
+  it('does not convert alternative math fences inside fenced code', () => {
+    const markdown = ['```md', '\\[', 'x^2', '\\]', '```'].join('\n');
+
+    expect(normalizeAlternativeMathBlockFences(markdown)).toBe(markdown);
+  });
+
+  it('does not convert unmatched alternative math openers', () => {
+    const markdown = ['Before', '', '\\[', 'x^2'].join('\n');
+
+    expect(normalizeAlternativeMathBlockFences(markdown)).toBe(markdown);
+  });
+});
+
 describe('normalizeMarkdownAutolinkLiterals', () => {
   it('unwraps markdown autolink URL literals outside protected content', () => {
     expect(
@@ -42,6 +100,60 @@ describe('normalizeMarkdownAutolinkLiterals', () => {
     const markdown = ['```sh', 'curl <http://example.test:8317>', '```'].join('\n');
 
     expect(normalizeMarkdownAutolinkLiterals(markdown)).toBe(markdown);
+  });
+});
+
+describe('restoreMathBlockFenceStylesFromReference', () => {
+  it('keeps dollar math blocks when the reference used dollar fences', () => {
+    const markdown = ['Before', '', '$$', 'x^2', '$$', '', 'After'].join('\n');
+
+    expect(restoreMathBlockFenceStylesFromReference(markdown, markdown)).toBe(markdown);
+  });
+
+  it('restores standard bracket math fences from the reference document', () => {
+    const serialized = ['Before', '', '$$', 'x^2', '$$', '', 'After'].join('\n');
+    const reference = ['Before', '', '\\[', 'x^2', '\\]', '', 'After'].join('\n');
+
+    expect(restoreMathBlockFenceStylesFromReference(serialized, reference)).toBe(reference);
+  });
+
+  it('restores malformed bracket-style references as canonical bracket fences', () => {
+    const serialized = ['$$', 'a=\\frac{f}{m}=\\mu g', '$$'].join('\n');
+    const reference = ['[\\', 'a=\\frac{f}{m}=\\mu g]'].join('\n');
+
+    expect(restoreMathBlockFenceStylesFromReference(serialized, reference)).toBe(
+      ['\\[', 'a=\\frac{f}{m}=\\mu g', '\\]'].join('\n')
+    );
+  });
+
+  it('matches reference styles by latex when a new math block is inserted before existing blocks', () => {
+    const serialized = [
+      '$$',
+      'new = value',
+      '$$',
+      '',
+      '$$',
+      'x^2',
+      '$$',
+    ].join('\n');
+    const reference = ['\\[', 'x^2', '\\]'].join('\n');
+
+    expect(restoreMathBlockFenceStylesFromReference(serialized, reference)).toBe([
+      '$$',
+      'new = value',
+      '$$',
+      '',
+      '\\[',
+      'x^2',
+      '\\]',
+    ].join('\n'));
+  });
+
+  it('does not restore math fences inside fenced code', () => {
+    const serialized = ['```md', '$$', 'x^2', '$$', '```'].join('\n');
+    const reference = ['\\[', 'x^2', '\\]'].join('\n');
+
+    expect(restoreMathBlockFenceStylesFromReference(serialized, reference)).toBe(serialized);
   });
 });
 
@@ -245,6 +357,18 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(
       normalizeSerializedMarkdownDocument(['Before', '', '$$', 'a = b', 'c = d', '$$', '', 'After'].join('\n'))
     ).toBe(['Before', '', '$$', 'a = b', 'c = d', '$$', '', 'After'].join('\n'));
+  });
+
+  it('does not globally rewrite bracket display math fences before editor parsing', () => {
+    const markdown = ['Before', '', '\\[', 'x^2', '\\]', '', 'After'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
+  });
+
+  it('does not convert escaped bracket display math fence lines into hard breaks', () => {
+    const markdown = ['Before', '', '\\[\\', 'x^2\\', ']', '', 'After'].join('\n');
+
+    expect(normalizeSerializedMarkdownDocument(markdown)).toBe(markdown);
   });
 
   it('restores escaped URL scheme separators in persisted markdown', () => {

@@ -1,14 +1,16 @@
 import DOMPurify from 'dompurify';
 import { translate } from '@/lib/i18n';
-import { generateMermaidId, renderMermaid } from './mermaidRenderer';
+import {
+  generateMermaidId,
+  mermaidRenderErrorMarkup,
+  normalizeMermaidRenderMarkup,
+  renderMermaid,
+} from './mermaidRenderer';
 import { normalizeMermaidEditorCodeInput } from './mermaidFenceCode';
 
 const mermaidElementCode = new WeakMap<HTMLElement, string>();
 let mermaidRenderKeyCounter = 0;
 const MERMAID_RENDER_CACHE_LIMIT = 80;
-function mermaidRenderErrorHtml() {
-  return `<div class="mermaid-error">${translate('editor.mermaidRenderError')}</div>`;
-}
 const mermaidMarkupCache = new Map<string, string>();
 const mermaidRenderPromiseCache = new Map<string, Promise<string>>();
 const MERMAID_LAZY_RENDER_ROOT_MARGIN = '900px 0px';
@@ -30,9 +32,9 @@ async function renderMermaidHtml(
   render: (code: string, id: string) => Promise<string>
 ) {
   try {
-    return await render(code, generateMermaidId());
+    return normalizeMermaidRenderMarkup(await render(code, generateMermaidId()));
   } catch {
-    return mermaidRenderErrorHtml();
+    return mermaidRenderErrorMarkup();
   }
 }
 

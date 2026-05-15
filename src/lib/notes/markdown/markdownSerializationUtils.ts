@@ -68,6 +68,20 @@ const MAILTO_EMAIL_MARKDOWN_LINK_PATTERN = new RegExp(
   String.raw`(^|[^!])\[(${EMAIL_ADDRESS_SOURCE})\]\(mailto:(${EMAIL_ADDRESS_SOURCE})\)`,
   'g'
 );
+const ALTERNATIVE_MATH_BLOCK_OPEN_PATTERN = /^(\s*(?:>\s*)*)((?:\\+\[\\?)|\[\\?|\[)\s*$/;
+const ALTERNATIVE_MATH_BLOCK_STANDARD_CLOSE_PATTERN = /^(\s*(?:>\s*)*)\\\]\s*$/;
+const ALTERNATIVE_MATH_BLOCK_BRACKET_CLOSE_PATTERN = /^(\s*(?:>\s*)*)]\s*$/;
+const ALTERNATIVE_MATH_BLOCK_STANDARD_CLOSE_SUFFIX_PATTERN = /^(.*)\\\]\s*$/;
+const ALTERNATIVE_MATH_BLOCK_BRACKET_CLOSE_SUFFIX_PATTERN = /^(.*)]\s*$/;
+const DOLLAR_MATH_BLOCK_FENCE_PATTERN = /^(\s*(?:>\s*)*)\$\$\s*$/;
+const LATEX_LIKE_MATH_CONTENT_PATTERN = /\\[A-Za-z]+|(?:^|[^\w])(?:\\?[A-Za-z]\w*)\s*(?:[=^_]|\\(?:le|ge|neq|approx|times|cdot|frac|sqrt|mu|alpha|beta|gamma|theta)\b)|[{}^_]/;
+
+type MathBlockFenceStyle = 'dollar' | 'bracket';
+
+interface MathBlockFenceReference {
+  latex: string;
+  style: MathBlockFenceStyle;
+}
 
 let lastNormalizedMarkdownInput: string | null = null;
 let lastNormalizedMarkdownOutput: string | null = null;
@@ -96,6 +110,278 @@ function normalizeMailtoEmailMarkdownLinks(text: string): string {
         label.toLowerCase() === destination.toLowerCase() ? `${prefix}${label}` : match
     )
   );
+}
+
+export function normalizeAlternativeMathBlockFences(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) => {
+    const lines = segment.split('\n');
+    const output: string[] = [];
+    let pendingFence: {
+      prefix: string;
+      bracketCloseFence: boolean;
+      bracketOnlyFence: boolean;
+      lines: string[];
+    } | null = null;
+
+    for (const line of lines) {
+      if (pendingFence) {
+        const close = getAlternativeMathBlockClose(line, pendingFence);
+
+        if (
+          close
+          && (!pendingFence.bracketOnlyFence
+            || isLatexLikeMathBlock([
+              ...pendingFence.lines.slice(1),
+              ...(close.contentLine === null ? [] : [close.contentLine]),
+            ]))
+        ) {
+          const converted = [
+            `${pendingFence.prefix}$$`,
+            ...pendingFence.lines.slice(1),
+            ...(close.contentLine === null ? [] : [close.contentLine]),
+            `${pendingFence.prefix}$$`,
+          ];
+          if (close.bracketClose && converted.length > 2) {
+            const contentLineIndex = converted.length - 2;
+            converted[contentLineIndex] = stripSingleTrailingBackslash(
+              converted[contentLineIndex] ?? ''
+            );
+          }
+          output.push(...converted);
+          pendingFence = null;
+          continue;
+        }
+
+        pendingFence.lines.push(line);
+        continue;
+      }
+
+      const open = ALTERNATIVE_MATH_BLOCK_OPEN_PATTERN.exec(line);
+      if (open) {
+        pendingFence = {
+          prefix: open[1] ?? '',
+          bracketCloseFence: isAlternativeMathBlockBracketCloseFence(open[2] ?? ''),
+          bracketOnlyFence: line.trim() === '[',
+          lines: [line],
+        };
+        continue;
+      }
+
+      output.push(line);
+    }
+
+    if (pendingFence) {
+      output.push(...pendingFence.lines);
+    }
+
+    return output.join('\n');
+  });
+}
+
+function getAlternativeMathBlockClose(
+  line: string,
+  pendingFence: { prefix: string; bracketCloseFence: boolean; bracketOnlyFence: boolean }
+): { bracketClose: boolean; contentLine: string | null } | null {
+  const standardClose = ALTERNATIVE_MATH_BLOCK_STANDARD_CLOSE_PATTERN.exec(line);
+  if (standardClose && (standardClose[1] ?? '') === pendingFence.prefix) {
+    return { bracketClose: false, contentLine: null };
+  }
+
+  const canUseBracketClose = pendingFence.bracketCloseFence || pendingFence.bracketOnlyFence;
+  const bracketClose = canUseBracketClose
+    ? ALTERNATIVE_MATH_BLOCK_BRACKET_CLOSE_PATTERN.exec(line)
+    : null;
+  if (bracketClose && (bracketClose[1] ?? '') === pendingFence.prefix) {
+    return { bracketClose: true, contentLine: null };
+  }
+
+  const standardSuffix = ALTERNATIVE_MATH_BLOCK_STANDARD_CLOSE_SUFFIX_PATTERN.exec(line);
+  if (standardSuffix && hasAlternativeMathInlineCloseContent(standardSuffix[1] ?? '', pendingFence.prefix)) {
+    return { bracketClose: false, contentLine: standardSuffix[1] ?? '' };
+  }
+
+  const bracketSuffix = canUseBracketClose
+    ? ALTERNATIVE_MATH_BLOCK_BRACKET_CLOSE_SUFFIX_PATTERN.exec(line)
+    : null;
+  if (bracketSuffix && hasAlternativeMathInlineCloseContent(bracketSuffix[1] ?? '', pendingFence.prefix)) {
+    return { bracketClose: true, contentLine: bracketSuffix[1] ?? '' };
+  }
+
+  return null;
+}
+
+function hasAlternativeMathInlineCloseContent(contentLine: string, prefix: string): boolean {
+  if (prefix && !contentLine.startsWith(prefix)) return false;
+  return contentLine.slice(prefix.length).trim().length > 0;
+}
+
+function isLatexLikeMathBlock(lines: readonly string[]): boolean {
+  return LATEX_LIKE_MATH_CONTENT_PATTERN.test(lines.join('\n'));
+}
+
+function isAlternativeMathBlockBracketCloseFence(marker: string): boolean {
+  return marker === '[' || marker.endsWith('\\');
+}
+
+function stripSingleTrailingBackslash(line: string): string {
+  const withoutTrailingWhitespace = line.replace(/[ \t]+$/, '');
+  return withoutTrailingWhitespace.endsWith('\\') && !withoutTrailingWhitespace.endsWith('\\\\')
+    ? withoutTrailingWhitespace.slice(0, -1)
+    : line;
+}
+
+export function restoreMathBlockFenceStylesFromReference(markdown: string, reference: string): string {
+  const references = collectMathBlockFenceReferences(reference);
+  if (!references.some((item) => item.style === 'bracket')) {
+    return markdown;
+  }
+
+  let nextReferenceIndex = 0;
+  return mapMarkdownOutsideProtectedSegments(markdown, (segment) => {
+    const lines = segment.split('\n');
+    const output: string[] = [];
+
+    for (let index = 0; index < lines.length; index += 1) {
+      const open = DOLLAR_MATH_BLOCK_FENCE_PATTERN.exec(lines[index]);
+      if (!open) {
+        output.push(lines[index]);
+        continue;
+      }
+
+      const prefix = open[1] ?? '';
+      const content: string[] = [];
+      let closeIndex = -1;
+      for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+        const close = DOLLAR_MATH_BLOCK_FENCE_PATTERN.exec(lines[cursor]);
+        if (close && (close[1] ?? '') === prefix) {
+          closeIndex = cursor;
+          break;
+        }
+        content.push(lines[cursor]);
+      }
+
+      if (closeIndex < 0) {
+        output.push(lines[index]);
+        continue;
+      }
+
+      const referenceMatch = takeMatchingMathBlockFenceReference(
+        references,
+        normalizeMathBlockLatex(content.join('\n')),
+        nextReferenceIndex
+      );
+      nextReferenceIndex = referenceMatch.nextIndex;
+
+      if (referenceMatch.style === 'bracket') {
+        output.push(`${prefix}\\[`, ...content, `${prefix}\\]`);
+      } else {
+        output.push(lines[index], ...content, lines[closeIndex]);
+      }
+      index = closeIndex;
+    }
+
+    return output.join('\n');
+  });
+}
+
+function takeMatchingMathBlockFenceReference(
+  references: readonly MathBlockFenceReference[],
+  latex: string,
+  startIndex: number
+): { style: MathBlockFenceStyle | null; nextIndex: number } {
+  const direct = references[startIndex];
+  if (direct && normalizeMathBlockLatex(direct.latex) === latex) {
+    return { style: direct.style, nextIndex: startIndex + 1 };
+  }
+
+  for (let index = startIndex + 1; index < references.length; index += 1) {
+    const candidate = references[index];
+    if (normalizeMathBlockLatex(candidate.latex) === latex) {
+      return { style: candidate.style, nextIndex: index + 1 };
+    }
+  }
+
+  return { style: null, nextIndex: startIndex };
+}
+
+function collectMathBlockFenceReferences(markdown: string): MathBlockFenceReference[] {
+  const references: MathBlockFenceReference[] = [];
+  mapMarkdownOutsideProtectedSegments(markdown, (segment) => {
+    collectMathBlockFenceReferencesFromSegment(segment, references);
+    return segment;
+  });
+  return references;
+}
+
+function collectMathBlockFenceReferencesFromSegment(
+  segment: string,
+  references: MathBlockFenceReference[]
+): void {
+  const lines = segment.split('\n');
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const dollarOpen = DOLLAR_MATH_BLOCK_FENCE_PATTERN.exec(lines[index]);
+    if (dollarOpen) {
+      const prefix = dollarOpen[1] ?? '';
+      const content: string[] = [];
+      let closeIndex = -1;
+      for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+        const close = DOLLAR_MATH_BLOCK_FENCE_PATTERN.exec(lines[cursor]);
+        if (close && (close[1] ?? '') === prefix) {
+          closeIndex = cursor;
+          break;
+        }
+        content.push(lines[cursor]);
+      }
+      if (closeIndex >= 0) {
+        references.push({ latex: content.join('\n'), style: 'dollar' });
+        index = closeIndex;
+      }
+      continue;
+    }
+
+    const alternativeOpen = ALTERNATIVE_MATH_BLOCK_OPEN_PATTERN.exec(lines[index]);
+    if (!alternativeOpen) continue;
+
+    const pendingFence = {
+      prefix: alternativeOpen[1] ?? '',
+      bracketCloseFence: isAlternativeMathBlockBracketCloseFence(alternativeOpen[2] ?? ''),
+      bracketOnlyFence: lines[index].trim() === '[',
+    };
+    const content: string[] = [];
+    let closeIndex = -1;
+    let inlineCloseContent: string | null = null;
+
+    for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+      const close = getAlternativeMathBlockClose(lines[cursor], pendingFence);
+      if (close) {
+        inlineCloseContent = close.contentLine;
+        if (close.bracketClose && inlineCloseContent === null && content.length > 0) {
+          const lastIndex = content.length - 1;
+          content[lastIndex] = stripSingleTrailingBackslash(content[lastIndex] ?? '');
+        } else if (close.bracketClose && inlineCloseContent !== null) {
+          inlineCloseContent = stripSingleTrailingBackslash(inlineCloseContent);
+        }
+        closeIndex = cursor;
+        break;
+      }
+      content.push(lines[cursor]);
+    }
+
+    if (closeIndex < 0) continue;
+    const fullContent = inlineCloseContent === null ? content : [...content, inlineCloseContent];
+    if (!pendingFence.bracketOnlyFence || isLatexLikeMathBlock(fullContent)) {
+      references.push({
+        latex: fullContent.join('\n'),
+        style: 'bracket',
+      });
+      index = closeIndex;
+    }
+  }
+}
+
+function normalizeMathBlockLatex(latex: string): string {
+  return latex.replace(/\r\n?/g, '\n').trim();
 }
 
 function normalizeUrlSerializationArtifacts(text: string): string {
