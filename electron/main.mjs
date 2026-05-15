@@ -1,4 +1,5 @@
 import electron from 'electron';
+import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,6 +30,37 @@ const appIconPath = path.join(__dirname, '..', app.isPackaged ? 'dist' : 'public
 const rendererFile = path.join(__dirname, '..', 'dist', 'index.html');
 const desktopAccountService = createDesktopAccountService({ apiBaseUrl });
 const { fetchWithStoredSession, readJsonResponse } = desktopAccountService;
+
+function formatErrorForLog(error) {
+  if (error instanceof Error) {
+    return `${error.name}: ${error.message}\n${error.stack ?? ''}`.trim();
+  }
+  return String(error);
+}
+
+function writeStartupLog(message, error = null) {
+  try {
+    const logDir = path.join(app.getPath('userData'), 'logs');
+    fs.mkdirSync(logDir, { recursive: true });
+    const body = [
+      `[${new Date().toISOString()}] ${message}`,
+      error ? formatErrorForLog(error) : '',
+    ].filter(Boolean).join('\n');
+    fs.appendFileSync(path.join(logDir, 'main.log'), `${body}\n`);
+  } catch {
+    // Logging must never be able to break app startup.
+  }
+}
+
+process.on('uncaughtException', (error) => {
+  writeStartupLog('Uncaught exception in Electron main process.', error);
+  console.error('[electron] Uncaught exception:', error);
+});
+
+process.on('unhandledRejection', (reason) => {
+  writeStartupLog('Unhandled rejection in Electron main process.', reason);
+  console.error('[electron] Unhandled rejection:', reason);
+});
 
 function normalizeProxyConfig(rawProxy, source) {
   const proxy = String(rawProxy ?? '').trim();
@@ -141,6 +173,44 @@ const configuredProxyConfig = getConfiguredProxyConfig();
 if (configuredProxyConfig) {
   app.commandLine.appendSwitch('proxy-server', configuredProxyConfig.proxyRules);
   app.commandLine.appendSwitch('proxy-bypass-list', '127.0.0.1;localhost;<local>');
+}
+
+async function configureProxySafely() {
+  try {
+    const proxyConfig = await resolveProxyConfig();
+    if (!proxyConfig) return;
+
+    await session.defaultSession.setProxy({
+      proxyRules: proxyConfig.proxyRules,
+      proxyBypassRules: '127.0.0.1;localhost;<local>',
+    });
+  } catch (error) {
+    writeStartupLog('Failed to configure Electron proxy; continuing without blocking the main window.', error);
+    console.error('[electron] Failed to configure proxy:', error);
+  }
+}
+
+function configureDefaultSessionSafely() {
+  try {
+    session.defaultSession.webRequest.onErrorOccurred((details) => {
+      if (!isVideoNetworkDebugUrl(details.url)) return;
+      console.info('[electron:video-network:error]', {
+        url: details.url,
+        method: details.method,
+        resourceType: details.resourceType,
+        error: details.error,
+        fromCache: details.fromCache,
+      });
+    });
+
+    session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
+      callback(false);
+    });
+    session.defaultSession.setPermissionCheckHandler(() => false);
+  } catch (error) {
+    writeStartupLog('Failed to configure Electron default session; continuing startup.', error);
+    console.error('[electron] Failed to configure default session:', error);
+  }
 }
 
 async function requestManagedJson(pathname, init = {}) {
@@ -705,33 +775,18 @@ registerManagedIpc({
 });
 
 app.whenReady().then(async () => {
-  if (process.platform === 'win32') {
-    app.setAppUserModelId('com.vlaina.desktop');
+  try {
+    if (process.platform === 'win32') {
+      app.setAppUserModelId('com.vlaina.desktop');
+    }
+  } catch (error) {
+    writeStartupLog('Failed to set Windows app user model id; continuing startup.', error);
+    console.error('[electron] Failed to set app user model id:', error);
   }
 
-  const proxyConfig = await resolveProxyConfig();
-  if (proxyConfig) {
-    await session.defaultSession.setProxy({
-      proxyRules: proxyConfig.proxyRules,
-      proxyBypassRules: '127.0.0.1;localhost;<local>',
-    });
-  }
-
-  session.defaultSession.webRequest.onErrorOccurred((details) => {
-    if (!isVideoNetworkDebugUrl(details.url)) return;
-    console.info('[electron:video-network:error]', {
-      url: details.url,
-      method: details.method,
-      resourceType: details.resourceType,
-      error: details.error,
-      fromCache: details.fromCache,
-    });
-  });
-
-  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
-    callback(false);
-  });
-  session.defaultSession.setPermissionCheckHandler(() => false);
+  writeStartupLog(`App ready. packaged=${app.isPackaged} platform=${process.platform} version=${app.getVersion()}`);
+  await configureProxySafely();
+  configureDefaultSessionSafely();
 
   createMainWindow();
 
@@ -740,6 +795,9 @@ app.whenReady().then(async () => {
       createMainWindow();
     }
   });
+}).catch((error) => {
+  writeStartupLog('Electron app failed before creating the main window.', error);
+  console.error('[electron] Failed before creating the main window:', error);
 });
 
 app.on('window-all-closed', () => {
