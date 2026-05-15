@@ -45,6 +45,31 @@ function summarizeJsonPayload(payload) {
   };
 }
 
+function createJsonResponseError(payload, response, fallbackMessage) {
+  const message =
+    typeof payload?.error === 'string' && payload.error.trim()
+      ? payload.error.trim()
+      : typeof payload?.error?.message === 'string' && payload.error.message.trim()
+        ? payload.error.message.trim()
+        : typeof payload?.message === 'string' && payload.message.trim()
+          ? payload.message.trim()
+          : fallbackMessage;
+  const error = new Error(message);
+  error.statusCode = response.status;
+
+  const errorCode =
+    typeof payload?.errorCode === 'string' && payload.errorCode.trim()
+      ? payload.errorCode.trim()
+      : typeof payload?.error?.code === 'string' && payload.error.code.trim()
+        ? payload.error.code.trim()
+        : '';
+  if (errorCode) {
+    error.errorCode = errorCode;
+  }
+
+  return error;
+}
+
 export function createDesktopAccountJsonClient({ logDesktopAuth }) {
   async function readJsonResponse(response, fallbackMessage) {
     const startedAt = performance.now();
@@ -66,11 +91,7 @@ export function createDesktopAccountJsonClient({ logDesktopAuth }) {
         ok: response.ok,
         durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
       });
-      throw new Error(
-        typeof payload?.error === 'string' && payload.error.trim()
-          ? payload.error.trim()
-          : fallbackMessage
-      );
+      throw createJsonResponseError(payload, response, fallbackMessage);
     }
 
     logDesktopAuth('fetch_json:read_response', {

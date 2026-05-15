@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { AppContent } from '@/AppContent';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { ThemeProvider } from '@/components/theme-provider';
+import { useBillingReturnRefresh } from '@/hooks/useBillingReturnRefresh';
 import { useElectronCloseGuard } from '@/hooks/useElectronCloseGuard';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { useAccountSessionStore } from '@/stores/accountSession';
@@ -32,6 +33,7 @@ function App() {
     forceWindowClose,
   } = useElectronCloseGuard();
   useDocumentLanguage(language);
+  useBillingReturnRefresh();
 
   useEffect(() => {
     if (typeof useToastStore.subscribe !== 'function') {

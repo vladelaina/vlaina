@@ -49,6 +49,10 @@ interface AIMessageProps {
   onSwitchVersion: (targetIndex: number) => void;
 }
 
+function isManagedModelMessage(modelId: string): boolean {
+  return modelId === MANAGED_PROVIDER_ID || modelId.startsWith(`${MANAGED_PROVIDER_ID}:`);
+}
+
 export function AIMessage({
   msg,
   imageGallery,
@@ -88,9 +92,9 @@ export function AIMessage({
   const visibleContent = contentWithoutError || ' ';
   const isManagedModelAuthError = !isAccountConnected
     && errorType === 'AUTH_ERROR'
-    && (msg.modelId === MANAGED_PROVIDER_ID || msg.modelId.startsWith(`${MANAGED_PROVIDER_ID}::`));
+    && isManagedModelMessage(msg.modelId);
   const isManagedModelQuotaError = errorType === 'QUOTA_EXHAUSTED'
-    && (msg.modelId === MANAGED_PROVIDER_ID || msg.modelId.startsWith(`${MANAGED_PROVIDER_ID}::`));
+    && isManagedModelMessage(msg.modelId);
   const startTime = useMemo(() => {
     if (isStreamingContentVisible) {
       return rememberVisibleStreamStartTime(msg.id);

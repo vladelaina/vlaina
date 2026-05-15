@@ -181,7 +181,7 @@ describe('getUserFacingAIError', () => {
     expect(result).toEqual({
       type: AIErrorType.QUOTA_EXHAUSTED,
       code: '403',
-      message: 'Vlaina 托管模型的点数已经用完了。购买会员后可以继续使用官方托管模型；你也可以在 Spark 设置中接入自己的 API 渠道。',
+      message: '（｡>﹏<｡）今天先到这里啦，继续的话我还在哦~',
     });
   });
 
@@ -194,7 +194,7 @@ describe('getUserFacingAIError', () => {
     expect(result).toEqual({
       type: AIErrorType.QUOTA_EXHAUSTED,
       code: '403',
-      message: 'Vlaina 托管模型的点数已经用完了。购买会员后可以继续使用官方托管模型；你也可以在 Spark 设置中接入自己的 API 渠道。',
+      message: '（｡>﹏<｡）今天先到这里啦，继续的话我还在哦~',
     });
   });
 
@@ -208,7 +208,7 @@ describe('getUserFacingAIError', () => {
     expect(result).toEqual({
       type: AIErrorType.QUOTA_EXHAUSTED,
       code: 'points_exhausted',
-      message: 'Vlaina 托管模型的点数已经用完了。购买会员后可以继续使用官方托管模型；你也可以在 Spark 设置中接入自己的 API 渠道。',
+      message: '（｡>﹏<｡）今天先到这里啦，继续的话我还在哦~',
     });
   });
 
@@ -225,7 +225,7 @@ describe('getUserFacingAIError', () => {
     expect(result).toEqual({
       type: AIErrorType.QUOTA_EXHAUSTED,
       code: 'insufficient_points',
-      message: 'Vlaina 托管模型的点数已经用完了。购买会员后可以继续使用官方托管模型；你也可以在 Spark 设置中接入自己的 API 渠道。',
+      message: '（｡>﹏<｡）今天先到这里啦，继续的话我还在哦~',
     });
   });
 });
@@ -242,6 +242,32 @@ describe('parseManagedError', () => {
       message: 'UPSTREAM_UNAVAILABLE',
       statusCode: 502,
       errorCode: 'upstream_unavailable',
+    });
+  });
+
+  it('does not expose managed backend messages when a public code exists', async () => {
+    const error = await parseManagedError(new Response(JSON.stringify({
+      success: false,
+      error: 'Model is not available for this user',
+      errorCode: 'points_exhausted',
+    }), { status: 403 }));
+
+    expect(error).toMatchObject({
+      message: 'MANAGED_QUOTA_EXHAUSTED',
+      statusCode: 403,
+      errorCode: 'points_exhausted',
+    });
+  });
+
+  it('falls back to a generic managed HTTP message for unknown payloads', async () => {
+    const error = await parseManagedError(new Response(JSON.stringify({
+      success: false,
+      error: 'Channel secret is not configured in Worker secrets',
+    }), { status: 503 }));
+
+    expect(error).toMatchObject({
+      message: 'Managed API request failed: HTTP 503',
+      statusCode: 503,
     });
   });
 });

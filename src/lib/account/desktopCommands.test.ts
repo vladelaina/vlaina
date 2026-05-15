@@ -177,7 +177,7 @@ describe('desktop account commands', () => {
       undefined,
       'req-quota',
     )).rejects.toMatchObject({
-      message: 'Insufficient remaining points',
+      message: 'MANAGED_QUOTA_EXHAUSTED',
       statusCode: 403,
       errorCode: 'insufficient_points',
     });
