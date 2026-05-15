@@ -301,6 +301,23 @@ describe('workspace document actions', () => {
     ]);
   });
 
+  it('skips saving a clean regular note after pending markdown is flushed', async () => {
+    const store = createNotesStore({
+      currentNote: { path: 'current.md', content: 'Clean content' },
+      isDirty: false,
+      openTabs: [{ path: 'current.md', name: 'current', isDirty: false }],
+      noteContentsCache: new Map([['current.md', { content: 'Clean content', modifiedAt: 1 }]]),
+    });
+
+    await store.getState().saveNote({ explicit: false });
+    await store.getState().saveNote({ explicit: true });
+
+    expect(mocks.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(2);
+    expect(mocks.saveNoteDocument).not.toHaveBeenCalled();
+    expect(store.getState().error).toBeNull();
+    expect(store.getState().isDirty).toBe(false);
+  });
+
   it('dispatches an open target after saving a draft outside the current vault', async () => {
     mocks.chooseDraftSavePath.mockResolvedValue('/home/vladelaina/sdf.md');
     mocks.saveNoteDocument.mockResolvedValue({

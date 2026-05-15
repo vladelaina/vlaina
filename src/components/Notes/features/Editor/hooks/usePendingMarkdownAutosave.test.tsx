@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
+import { editorViewCtx, serializerCtx } from '@milkdown/kit/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { usePendingMarkdownAutosave } from './usePendingMarkdownAutosave';
@@ -86,5 +87,57 @@ describe('usePendingMarkdownAutosave', () => {
 
     expect(updateContent).toHaveBeenCalledWith('# moved');
     expect(debouncedSave).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not restore stale editor content while unmounting after an external disk reload', () => {
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const editorView = {
+      dom: document.createElement('div'),
+      state: { doc: {} },
+    };
+    const serializer = vi.fn(() => '# stale editor content');
+    const editor = {
+      ctx: {
+        get: vi.fn((token) => {
+          if (token === editorViewCtx) return editorView;
+          if (token === serializerCtx) return serializer;
+          return null;
+        }),
+      },
+    };
+
+    const { result, unmount } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha',
+      updateContent,
+      debouncedSave,
+    }));
+
+    act(() => {
+      result.current.setEditorGetter(() => editor as never);
+      result.current.createUserInputMarker(editorView as never, serializer)(new KeyboardEvent('keydown'));
+    });
+    serializer.mockClear();
+
+    useNotesStore.setState({
+      currentNote: { path: 'docs/alpha.md', content: '# external edit' },
+      isDirty: false,
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# external edit', modifiedAt: 2 }]]),
+    });
+
+    unmount();
+
+    expect(useNotesStore.getState().currentNote).toEqual({
+      path: 'docs/alpha.md',
+      content: '# external edit',
+    });
+    expect(useNotesStore.getState().isDirty).toBe(false);
+    expect(useNotesStore.getState().openTabs).toEqual([
+      { path: 'docs/alpha.md', name: 'alpha', isDirty: false },
+    ]);
+    expect(serializer).not.toHaveBeenCalled();
   });
 });
