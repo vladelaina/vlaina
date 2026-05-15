@@ -25,7 +25,7 @@ env:
 
 jobs:
   test:
-    runs-on: windows-latest
+    runs-on: windows-2025-vs2026
     timeout-minutes: 45
 
     permissions:
@@ -72,7 +72,7 @@ jobs:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
         with:
           version: 10
 
@@ -93,7 +93,7 @@ jobs:
         run: pnpm build
 
       - name: Cache renderer build output
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: dist
           key: renderer-dist-${{ github.run_id }}-${{ github.run_attempt }}
@@ -111,7 +111,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
+          - os: windows-2025-vs2026
             platform: windows
             target: --win
           - os: macos-latest
@@ -149,7 +149,7 @@ jobs:
         run: node scripts/sync-version-from-tag.mjs "${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}"
 
       - name: Restore renderer build output
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: dist
           key: renderer-dist-${{ github.run_id }}-${{ github.run_attempt }}
@@ -157,7 +157,7 @@ jobs:
           enableCrossOsArchive: true
 
       - name: Restore Electron build caches
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             .cache/electron
