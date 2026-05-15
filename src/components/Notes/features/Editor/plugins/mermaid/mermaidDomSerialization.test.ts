@@ -11,6 +11,7 @@ import { getMermaidElementCode } from './mermaidDom';
 
 vi.mock('./mermaidRenderer', () => ({
   generateMermaidId: () => 'mermaid-serialized-test',
+  mermaidRenderErrorMarkup: () => '<pre class="mermaid-error">Mermaid render error</pre>',
   renderMermaid: vi.fn(async () => '<svg data-rendered="serialized"></svg>'),
 }));
 

@@ -61,6 +61,28 @@ type FootnoteReferenceState = {
     };
 };
 
+function parseStandaloneMathBlockPaste(state: {
+    schema: {
+        nodes: {
+            math_block?: { create: (attrs: { latex: string }) => ProseNode };
+        };
+    };
+}, text: string): ProseNode | null {
+    const mathBlockType = state.schema.nodes.math_block;
+    if (!mathBlockType) return null;
+
+    const normalized = normalizeAlternativeMathBlockFences(text).trim();
+    const lines = normalized.split('\n');
+    if (lines.length < 3 || lines[0]?.trim() !== '$$' || lines[lines.length - 1]?.trim() !== '$$') {
+        return null;
+    }
+
+    const latex = lines.slice(1, -1).join('\n').trim();
+    if (!latex) return null;
+
+    return mathBlockType.create({ latex });
+}
+
 function createFootnoteReferenceNode(state: FootnoteReferenceState, id: string): ProseNode | null {
     const footnoteReferenceType = state.schema.nodes.footnote_reference;
     if (footnoteReferenceType) {
@@ -236,13 +258,15 @@ export const clipboardPlugin = $prose((ctx) => {
     };
 
     const parseMarkdownNodes = (text: string): ProseNode[] | null => {
-        if (!looksLikeMarkdownForPaste(text)) return null;
+        const withMathFences = normalizeAlternativeMathBlockFences(text);
+        if (!looksLikeMarkdownForPaste(text) && !looksLikeMarkdownForPaste(withMathFences)) {
+            return null;
+        }
 
         const parser = getMarkdownParser();
         if (!parser) return null;
 
         let parsedDoc: ProseNode;
-        const withMathFences = normalizeAlternativeMathBlockFences(text);
         const withFrontmatter = normalizeLeadingFrontmatterMarkdown(withMathFences);
         const withInterruptedLists = normalizeInterruptedOrderedListsForPaste(withFrontmatter);
         const withThematicBreaks = normalizeStandaloneThematicBreaksForPaste(withInterruptedLists);
@@ -296,6 +320,16 @@ export const clipboardPlugin = $prose((ctx) => {
                 const tocNode = createStandaloneTocPasteNode(state.schema, text);
                 if (tocNode) {
                     dispatchSliceAndKeepCursorAtTail(view, new Slice(Fragment.from(tocNode), 0, 0));
+                    event.preventDefault();
+                    return true;
+                }
+
+                const mathBlockNode = parseStandaloneMathBlockPaste(state, text);
+                if (mathBlockNode) {
+                    dispatchSliceAndKeepCursorAtTail(
+                        view,
+                        new Slice(Fragment.from(mathBlockNode), 0, 0),
+                    );
                     event.preventDefault();
                     return true;
                 }

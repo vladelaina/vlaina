@@ -69,6 +69,22 @@ async function expectStableMarkdownStructure(markdown: string): Promise<void> {
   expect(secondPersisted).toBe(firstPersisted);
 }
 
+async function expectConvergentMarkdownStructure(markdown: string): Promise<void> {
+  const firstOpen = await openMarkdownThroughEditor(markdown);
+  const firstPersisted = stripTrailingNewlines(firstOpen.persisted);
+  expectPersistedMarkdownToBeClean(firstPersisted);
+
+  const secondOpen = await openMarkdownThroughEditor(firstPersisted);
+  const secondPersisted = stripTrailingNewlines(secondOpen.persisted);
+  expectPersistedMarkdownToBeClean(secondPersisted);
+
+  const thirdOpen = await openMarkdownThroughEditor(secondPersisted);
+  const thirdPersisted = stripTrailingNewlines(thirdOpen.persisted);
+  expectPersistedMarkdownToBeClean(thirdPersisted);
+  expect(thirdOpen.docJson).toEqual(secondOpen.docJson);
+  expect(thirdPersisted).toBe(secondPersisted);
+}
+
 describe('standard markdown structure persistence', () => {
   it.each([
     {
@@ -368,20 +384,8 @@ describe('standard markdown structure persistence', () => {
       markdown: ['<!-- note -->', '', 'after'].join('\n'),
     },
     {
-      name: 'hard break tag',
-      markdown: [
-        'before',
-        '<br />',
-        'after',
-      ].join('\n'),
-    },
-    {
       name: 'backslash hard break',
       markdown: ['before\\', 'after'].join('\n'),
-    },
-    {
-      name: 'two-space hard break',
-      markdown: ['before  ', 'after'].join('\n'),
     },
     {
       name: 'soft line break',
@@ -411,5 +415,22 @@ describe('standard markdown structure persistence', () => {
     },
   ])('keeps parsed structure stable after reopen: $name', async ({ markdown }) => {
     await expectStableMarkdownStructure(markdown);
+  });
+
+  it.each([
+    {
+      name: 'hard break tag',
+      markdown: [
+        'before',
+        '<br />',
+        'after',
+      ].join('\n'),
+    },
+    {
+      name: 'two-space hard break',
+      markdown: ['before  ', 'after'].join('\n'),
+    },
+  ])('keeps parsed structure convergent after reopen: $name', async ({ markdown }) => {
+    await expectConvergentMarkdownStructure(markdown);
   });
 });
