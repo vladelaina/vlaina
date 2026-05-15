@@ -91,6 +91,18 @@ describe('deriveSlashState', () => {
     expect(next.selectedIndex).toBeGreaterThanOrEqual(0);
   });
 
+  it('does not open from a cursor move into an existing slash query', () => {
+    const next = deriveSlashState(
+      createTransaction({
+        selectionText: '/hea',
+        selectionSet: true,
+      }),
+      createSlashState()
+    );
+
+    expect(next).toEqual(createSlashState());
+  });
+
   it('resets the selected item when the query changes', () => {
     const next = deriveSlashState(
       createTransaction({

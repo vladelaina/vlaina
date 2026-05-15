@@ -1,6 +1,7 @@
 import type { Ctx } from '@milkdown/kit/ctx';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import React from 'react';
+import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
 import { SlashMenuPanel } from './SlashMenuPanel';
 import { applySlashCommand } from './slashCommands';
@@ -11,7 +12,7 @@ import { createSlashState, getSlashMenuPosition, getSlashTextRange } from './sla
 import { getContentLayoutContext } from '../floating-toolbar/floatingToolbarLayout';
 import { getScrollRoot, getToolbarRoot, toContainerPosition } from '../floating-toolbar/floatingToolbarDom';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
-import { onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
+import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
 
 const SLASH_MENU_MARGIN_PX = 12;
 const SLASH_MENU_MAX_HEIGHT_PX = 360;
@@ -27,6 +28,7 @@ export class SlashMenuView {
   private layoutRaf = 0;
   private selectedScrollRaf = 0;
   private skipNextSelectedScroll = false;
+  private wasOpen = false;
   private readonly unlistenOverlayOpen: () => void;
 
   constructor(
@@ -62,29 +64,37 @@ export class SlashMenuView {
   update() {
     const state = slashPluginKey.getState(this.editorView.state);
     if (!state?.isOpen) {
+      this.wasOpen = false;
       this.destroyMenu();
       return;
     }
 
     this.filtered = filterSlashItems(state.query, slashMenuItems);
     if (this.filtered.length === 0) {
+      this.wasOpen = false;
       this.destroyMenu();
       return;
     }
 
+    if (!this.wasOpen) {
+      this.wasOpen = true;
+      notifyNotesOverlayOpen('slash-menu');
+    }
+
     this.ensureMenu();
+
+    flushSync(() => {
+      this.root?.render(
+        React.createElement(SlashMenuPanel, {
+          items: this.filtered,
+          selectedIndex: state.selectedIndex,
+          onHoverItem: this.handleHoverItem,
+          onSelectItem: this.applySelectedItem.bind(this),
+        })
+      );
+    });
+
     this.syncPosition();
-
-    this.root?.render(
-      React.createElement(SlashMenuPanel, {
-        items: this.filtered,
-        selectedIndex: state.selectedIndex,
-        onHoverItem: this.handleHoverItem,
-        onSelectItem: this.applySelectedItem.bind(this),
-      })
-    );
-
-    this.scheduleViewportChange();
     if (this.skipNextSelectedScroll) {
       this.skipNextSelectedScroll = false;
     } else {
