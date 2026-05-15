@@ -4,6 +4,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ToastContainer } from '@/components/ui/Toast';
+import { useBillingReturnRefresh } from '@/hooks/useBillingReturnRefresh';
 import { useElectronCloseGuard } from '@/hooks/useElectronCloseGuard';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { useAccountSessionStore } from '@/stores/accountSession';
@@ -21,6 +22,7 @@ function App() {
     forceWindowClose,
   } = useElectronCloseGuard();
   useDocumentLanguage(language);
+  useBillingReturnRefresh();
 
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {

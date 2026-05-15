@@ -126,24 +126,22 @@ describe('managedService', () => {
 
     const { fetchManagedModels } = await import('./managedService');
 
-    await expect(fetchManagedModels()).rejects.toThrow('upstream overloaded');
+    await expect(fetchManagedModels()).rejects.toThrow('Managed API request failed: HTTP 500');
     expect(clearClientSessionMock).not.toHaveBeenCalled();
   });
 
-  it('preserves managed web forbidden business errors without clearing session', async () => {
+  it('sanitizes managed web forbidden business errors without clearing session', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(false);
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
       status: 403,
-      text: async () => JSON.stringify({ error: 'Model is not available for this user' }),
+      text: async () => JSON.stringify({ error: 'Model is not available for this user', errorCode: 'points_exhausted' }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
     const { requestManagedChatCompletion } = await import('./managedService');
 
-    await expect(requestManagedChatCompletion({ model: 'unpublished-model' })).rejects.toThrow(
-      'Model is not available for this user'
-    );
+    await expect(requestManagedChatCompletion({ model: 'unpublished-model' })).rejects.toThrow('MANAGED_QUOTA_EXHAUSTED');
     expect(clearClientSessionMock).not.toHaveBeenCalled();
   });
 
@@ -319,7 +317,7 @@ describe('managedService', () => {
     expect(chunks).toEqual(['final token']);
   });
 
-  it('surfaces managed web stream error payloads', async () => {
+  it('sanitizes managed web stream error payloads', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(false);
     const encoder = new TextEncoder();
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -327,7 +325,7 @@ describe('managedService', () => {
       body: new ReadableStream({
         start(controller) {
           controller.enqueue(
-            encoder.encode('data: {"error":{"message":"managed stream failed"}}\n\n')
+            encoder.encode('data: {"error":{"message":"Model is not available for this user","code":"points_exhausted"}}\n\n')
           );
           controller.close();
         },
@@ -343,7 +341,7 @@ describe('managedService', () => {
         stream: true,
       },
       vi.fn()
-    )).rejects.toThrow('managed stream failed');
+    )).rejects.toThrow('MANAGED_QUOTA_EXHAUSTED');
   });
 
   it('passes abort signals through managed web streams', async () => {

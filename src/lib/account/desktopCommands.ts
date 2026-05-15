@@ -52,6 +52,24 @@ function dispatchAccountInvalidatedEvent(): void {
   window.dispatchEvent(new Event(ACCOUNT_AUTH_INVALIDATED_EVENT));
 }
 
+function publicManagedStreamErrorMessage(message: string | undefined, errorCode: string | undefined): string {
+  const normalizedCode = typeof errorCode === 'string' ? errorCode.trim().toLowerCase() : '';
+  switch (normalizedCode) {
+    case 'points_exhausted':
+    case 'inactive_points':
+    case 'insufficient_points':
+      return 'MANAGED_QUOTA_EXHAUSTED';
+    case 'upstream_rate_limited':
+      return 'UPSTREAM_RATE_LIMITED';
+    case 'upstream_unavailable':
+      return 'UPSTREAM_UNAVAILABLE';
+    case 'invalid_request':
+      return 'INVALID_REQUEST';
+    default:
+      return message || 'Managed stream failed';
+  }
+}
+
 export const accountCommands = {
   async getAccountSessionStatus(): Promise<{
     connected: boolean;
@@ -185,7 +203,7 @@ export const accountCommands = {
 
       cleanupCallbacks.push(
         bridge.onManagedStreamError(requestId, ({ message, statusCode, errorCode }) => {
-          const error = new Error(message || 'Managed stream failed') as Error & {
+          const error = new Error(publicManagedStreamErrorMessage(message, errorCode)) as Error & {
             statusCode?: number;
             errorCode?: string;
           };

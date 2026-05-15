@@ -50,7 +50,9 @@ const mocks = vi.hoisted(() => {
     flushCurrentPendingEditorMarkdown: vi.fn(() => false),
     openStoredNotePath: vi.fn().mockResolvedValue(undefined),
     addToast: vi.fn(),
+    isConnected: false,
     checkStatus: vi.fn().mockResolvedValue(undefined),
+    clearBudget: vi.fn(),
     refreshBudget: vi.fn().mockResolvedValue(undefined),
   };
 });
@@ -110,13 +112,13 @@ vi.mock('@/stores/useToastStore', () => ({
 
 vi.mock('@/stores/accountSession', () => ({
   useAccountSessionStore: {
-    getState: () => ({ checkStatus: mocks.checkStatus }),
+    getState: () => ({ isConnected: mocks.isConnected, checkStatus: mocks.checkStatus }),
   },
 }));
 
 vi.mock('@/stores/useManagedAIStore', () => ({
   useManagedAIStore: {
-    getState: () => ({ refreshBudget: mocks.refreshBudget }),
+    getState: () => ({ clearBudget: mocks.clearBudget, refreshBudget: mocks.refreshBudget }),
   },
 }));
 
@@ -275,10 +277,17 @@ describe('App close flow', () => {
     mocks.flushCurrentPendingEditorMarkdown.mockClear();
     mocks.flushCurrentPendingEditorMarkdown.mockImplementation(() => false);
     mocks.closeRequestedHandler = null;
+    mocks.isConnected = false;
+    mocks.checkStatus.mockClear();
+    mocks.clearBudget.mockClear();
+    mocks.refreshBudget.mockClear();
+    window.localStorage.clear();
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
   });
 
   afterEach(() => {
+    vi.useRealTimers();
+    window.localStorage.clear();
     consoleErrorSpy.mockRestore();
   });
 

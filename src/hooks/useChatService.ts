@@ -9,6 +9,7 @@ import { isManagedProviderId } from '@/lib/ai/managedService';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { useAccountSessionStore } from '@/stores/accountSession';
+import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { useAutoTitle } from './useAutoTitle';
 import { requestManager } from '@/lib/ai/requestManager';
 import { getUserFacingAIError } from '@/lib/ai/errors';
@@ -49,6 +50,41 @@ function buildChatErrorPayload(error: unknown) {
     message: normalized.message,
     xml: `<error type="${escapeXml(normalized.type)}" code="${escapeXml(normalized.code)}">${escapeXml(normalized.message)}</error>`,
   };
+}
+
+const MANAGED_BUDGET_BLOCK_MAX_AGE_MS = 60_000;
+
+function createManagedQuotaError() {
+  return {
+    type: 'QUOTA_EXHAUSTED',
+    message: 'Points exhausted',
+    errorCode: 'points_exhausted',
+    statusCode: 403,
+  };
+}
+
+function shouldBlockManagedRequestForKnownBudget(providerId: string): boolean {
+  if (!isManagedProviderId(providerId)) {
+    return false;
+  }
+
+  const { budget, lastBudgetSyncAt } = useManagedAIStore.getState();
+  if (!budget || !lastBudgetSyncAt || Date.now() - lastBudgetSyncAt > MANAGED_BUDGET_BLOCK_MAX_AGE_MS) {
+    return false;
+  }
+
+  return budget.active === false || budget.status === 'exhausted' || Number(budget.remainingPercent || 0) <= 0;
+}
+
+function writeManagedQuotaErrorMessage(
+  sessionId: string,
+  assistantMessageId: string,
+  setError: (error: string | null) => void,
+) {
+  const { message, xml } = buildChatErrorPayload(createManagedQuotaError());
+  setError(message);
+  aiActions.updateMessage(sessionId, assistantMessageId, xml);
+  aiActions.completeMessage(sessionId, assistantMessageId);
 }
 
 export function useChatService() {
@@ -196,6 +232,11 @@ export function useChatService() {
         const isTemporaryTarget =
           isTemporarySessionId(targetSessionId) || isTemporarySession(targetSession);
 
+        if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
+          writeManagedQuotaErrorMessage(targetSessionId, assistantMessageId, setError);
+          return;
+        }
+
         try {
           const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
           const requestHistory = buildRequestHistory({
@@ -324,6 +365,11 @@ export function useChatService() {
           touchSession: false,
         });
 
+        if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
+          writeManagedQuotaErrorMessage(sessionId, assistantMessageId, setError);
+          return;
+        }
+
         try {
           const state = useUnifiedStore.getState();
           const sessionMessages = state.data.ai?.messages[sessionId] || [];
@@ -421,6 +467,11 @@ export function useChatService() {
         }
 
         aiActions.addVersion(messageId, sessionId);
+
+        if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
+          writeManagedQuotaErrorMessage(sessionId, messageId, setError);
+          return;
+        }
 
         try {
           const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;

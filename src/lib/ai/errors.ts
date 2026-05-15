@@ -20,7 +20,7 @@ const KNOWN_MANAGED_BUSINESS_ERRORS = [
   'Insufficient remaining points',
 ]
 const MANAGED_QUOTA_EXHAUSTED_MESSAGE =
-  'Vlaina 托管模型的点数已经用完了。购买会员后可以继续使用官方托管模型；你也可以在 Spark 设置中接入自己的 API 渠道。'
+  '（｡>﹏<｡）今天先到这里啦，继续的话我还在哦~'
 
 const MANAGED_UPSTREAM_UNAVAILABLE_CODES = new Set([
   'upstream_unavailable',

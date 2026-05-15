@@ -5,6 +5,26 @@ import { createStreamAccumulator } from '@/lib/ai/streaming';
 const MANAGED_JSON_TIMEOUT_MS = 30_000;
 const MANAGED_STREAM_TIMEOUT_MS = 300_000;
 
+function publicManagedStreamErrorMessage(message: string | undefined, errorCode: string | undefined): string {
+  const normalizedCode = typeof errorCode === 'string' ? errorCode.trim().toLowerCase() : '';
+  switch (normalizedCode) {
+    case 'points_exhausted':
+    case 'inactive_points':
+    case 'insufficient_points':
+      return 'MANAGED_QUOTA_EXHAUSTED';
+    case 'upstream_rate_limited':
+      return 'UPSTREAM_RATE_LIMITED';
+    case 'upstream_unavailable':
+      return 'UPSTREAM_UNAVAILABLE';
+    case 'invalid_request':
+      return 'INVALID_REQUEST';
+    default:
+      return message === 'UPSTREAM_UNAVAILABLE' || message === 'UPSTREAM_RATE_LIMITED'
+        ? message
+        : 'Managed API request failed: HTTP 502';
+  }
+}
+
 export async function requestManagedWebJson<T>(path: string, init?: RequestInit): Promise<T> {
   const timeoutController = new AbortController();
   const timer = setTimeout(() => timeoutController.abort(), MANAGED_JSON_TIMEOUT_MS);
@@ -87,6 +107,7 @@ export async function requestManagedWebStream(
       const jsonStr = trimmed.slice(5).trim();
       let payload: {
         error?: {
+          code?: string;
           message?: string;
         };
         choices?: Array<{
@@ -106,7 +127,13 @@ export async function requestManagedWebStream(
       }
 
       if (payload.error?.message) {
-        throw new Error(payload.error.message);
+        const error = new Error(publicManagedStreamErrorMessage(payload.error.message, payload.error.code)) as Error & {
+          errorCode?: string;
+        };
+        if (typeof payload.error.code === 'string' && payload.error.code.trim()) {
+          error.errorCode = payload.error.code.trim();
+        }
+        throw error;
       }
 
       const delta = payload.choices?.[0]?.delta;

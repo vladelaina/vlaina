@@ -95,6 +95,23 @@ function extractManagedErrorPayloadCode(payload: Record<string, unknown>): strin
   return '';
 }
 
+function messageForManagedErrorCode(errorCode: string): string {
+  switch (errorCode.trim().toLowerCase()) {
+    case 'points_exhausted':
+    case 'inactive_points':
+    case 'insufficient_points':
+      return 'MANAGED_QUOTA_EXHAUSTED';
+    case 'upstream_rate_limited':
+      return 'UPSTREAM_RATE_LIMITED';
+    case 'upstream_unavailable':
+      return 'UPSTREAM_UNAVAILABLE';
+    case 'invalid_request':
+      return 'INVALID_REQUEST';
+    default:
+      return '';
+  }
+}
+
 export async function parseManagedError(response: Response): Promise<Error> {
   const raw = await response.text().catch(() => '');
   if (response.status === 401) {
@@ -107,12 +124,16 @@ export async function parseManagedError(response: Response): Promise<Error> {
 
   try {
     const payload = JSON.parse(raw) as Record<string, unknown>;
-    const message = extractManagedErrorPayloadMessage(payload).trim();
     const errorCode = extractManagedErrorPayloadCode(payload);
+    const codedMessage = messageForManagedErrorCode(errorCode);
+    if (codedMessage) {
+      return createManagedServiceError(codedMessage, response.status, errorCode);
+    }
+    const message = extractManagedErrorPayloadMessage(payload).trim();
     if (message) {
-      return createManagedServiceError(message, response.status, errorCode);
+      return createManagedServiceError(`Managed API request failed: HTTP ${response.status}`, response.status, errorCode);
     }
   } catch {}
 
-  return createManagedServiceError(raw, response.status);
+  return createManagedServiceError(`Managed API request failed: HTTP ${response.status}`, response.status);
 }

@@ -126,7 +126,7 @@ export function createDesktopAccountSessionClient({
     let response = await performStoredSessionRequest(credentials, url, init);
 
     for (let attempt = 0; attempt < desktopSessionRetryDelaysMs.length; attempt += 1) {
-      if (response.status !== 401 && response.status !== 403) {
+      if (response.status !== 401) {
         break;
       }
 
@@ -149,7 +149,7 @@ export function createDesktopAccountSessionClient({
       );
     }
 
-    if (response.status === 401 || response.status === 403) {
+    if (response.status === 401) {
       if (shouldGraceDesktopSession(credentials)) {
         logDesktopAuth('stored_session:http:grace_period', {
           status: response.status,

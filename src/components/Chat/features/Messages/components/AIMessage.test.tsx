@@ -331,6 +331,24 @@ describe("AIMessage", () => {
     expect(screen.getByTestId("toolbar")).toBeInTheDocument();
   });
 
+  it("shows the managed model billing prompt for legacy single-colon managed model ids", () => {
+    render(
+      <AIMessage
+        msg={{
+          ...createMessage('<error type="QUOTA_EXHAUSTED" code="points_exhausted">点数已经用完了</error>'),
+          modelId: "vlaina-managed:gpt-test",
+        }}
+        imageGallery={[]}
+        isLoading={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId("error")).toHaveAttribute("data-billing-prompt", "true");
+  });
+
   it("keeps web search results visible after sources are read", () => {
     const content = [
       '<web-search-status>{"phase":"results","query":"react","results":[{"title":"React Docs","url":"https://react.dev","snippet":"Official docs","publishedAt":null}]}</web-search-status>',

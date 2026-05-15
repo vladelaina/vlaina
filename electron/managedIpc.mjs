@@ -30,20 +30,23 @@ function deleteActiveManagedStream(requestId, controller) {
 
 function normalizeManagedErrorPayload(payload, status) {
   const fallback = `Managed stream failed: HTTP ${status}`;
-  const message =
-    typeof payload?.error === 'string' && payload.error.trim()
-      ? payload.error.trim()
-      : typeof payload?.error?.message === 'string' && payload.error.message.trim()
-        ? payload.error.message.trim()
-        : typeof payload?.message === 'string' && payload.message.trim()
-          ? payload.message.trim()
-          : fallback;
   const errorCode =
     typeof payload?.errorCode === 'string' && payload.errorCode.trim()
       ? payload.errorCode.trim()
       : typeof payload?.error?.code === 'string' && payload.error.code.trim()
         ? payload.error.code.trim()
         : null;
+  const normalizedCode = typeof errorCode === 'string' ? errorCode.toLowerCase() : '';
+  const message =
+    normalizedCode === 'points_exhausted' || normalizedCode === 'inactive_points' || normalizedCode === 'insufficient_points'
+      ? 'MANAGED_QUOTA_EXHAUSTED'
+      : normalizedCode === 'upstream_rate_limited'
+        ? 'UPSTREAM_RATE_LIMITED'
+        : normalizedCode === 'upstream_unavailable'
+          ? 'UPSTREAM_UNAVAILABLE'
+          : normalizedCode === 'invalid_request'
+            ? 'INVALID_REQUEST'
+            : fallback;
 
   return { message, statusCode: status, errorCode };
 }
@@ -59,7 +62,7 @@ async function readManagedErrorPayload(response) {
     const payload = JSON.parse(text);
     return normalizeManagedErrorPayload(payload, response.status);
   } catch {
-    return { message: text, statusCode: response.status, errorCode: null };
+    return fallback;
   }
 }
 

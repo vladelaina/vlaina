@@ -4,9 +4,9 @@ import { useAccountSessionStore } from '@/stores/accountSession';
 import { useUserAvatar } from '@/hooks/useUserAvatar';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
+import { markBillingReturnRefreshPending } from '@/lib/billing/returnRefresh';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { ManagedQuotaMeter } from './ManagedQuotaMeter';
-import { BillingPlansDialog } from './BillingPlansDialog';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { getSidebarIdleRowSurfaceClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 
@@ -21,7 +21,6 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
   const { username, primaryEmail, isConnected, membershipTier, membershipName } = useAccountSessionStore();
   const { t } = useI18n();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isBillingDialogOpen, setIsBillingDialogOpen] = useState(false);
 
   const displayName = username || primaryEmail || 'vlaina';
   const displayIdentity = primaryEmail || username || 'vlaina';
@@ -118,7 +117,8 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
               <button
                 onClick={() => {
                   setIsMenuOpen(false);
-                  setIsBillingDialogOpen(true);
+                  markBillingReturnRefreshPending();
+                  void openExternalHref('https://vlaina.com/r/account_plan');
                 }}
                 className={cn(
                   'flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[16px] font-medium transition-colors',
@@ -147,8 +147,6 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
           </>
         )}
       </div>
-
-      <BillingPlansDialog open={isBillingDialogOpen} onOpenChange={setIsBillingDialogOpen} />
     </div>
   );
 };

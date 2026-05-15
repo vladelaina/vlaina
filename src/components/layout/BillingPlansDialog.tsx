@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Icon } from '@/components/ui/icons'
 import { createBillingCheckout, fetchBillingPlans, type BillingPlan } from '@/lib/billing/checkout'
+import { markBillingReturnRefreshPending } from '@/lib/billing/returnRefresh'
 import { openExternalHref } from '@/lib/navigation/externalLinks'
 import { hasElectronDesktopBridge } from '@/lib/desktop/backend'
 import { cn } from '@/lib/utils'
@@ -102,6 +103,7 @@ export function BillingPlansDialog({ open, onOpenChange }: BillingPlansDialogPro
     setIsStartingTier(plan.tier)
     try {
       const checkoutUrl = await createBillingCheckout(plan.tier)
+      markBillingReturnRefreshPending()
 
       if (hasElectronDesktopBridge()) {
         await openExternalHref(checkoutUrl)
