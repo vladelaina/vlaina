@@ -22,13 +22,16 @@ import {
 } from './managed/errors';
 import {
   createManagedProvider,
+  normalizeManagedModelCatalogPayload,
   normalizeManagedBudgetPayload,
-  normalizeManagedModelsPayload,
+  normalizeManagedModelsVersionPayload,
 } from './managed/normalizers';
 import type {
+  ManagedModelCatalog,
   ManagedBudgetPayload,
   ManagedBudgetStatus,
   ManagedModelsPayload,
+  ManagedModelsVersionPayload,
 } from './managed/types';
 import {
   requestManagedWebJson,
@@ -51,15 +54,31 @@ export function isManagedProviderId(providerId: string | null | undefined): bool
 }
 
 export async function fetchManagedModels() {
+  return (await fetchManagedModelCatalog()).models;
+}
+
+export async function fetchManagedModelCatalog(): Promise<ManagedModelCatalog> {
   if (hasElectronDesktopBridge()) {
     const payload = (await accountCommands.getManagedModels()) as ManagedModelsPayload | undefined;
-    return normalizeManagedModelsPayload(payload ?? {});
+    return normalizeManagedModelCatalogPayload(payload ?? {});
   }
 
   const payload = await requestManagedWebJson<ManagedModelsPayload>('/models', {
     method: 'GET',
   });
-  return normalizeManagedModelsPayload(payload ?? {});
+  return normalizeManagedModelCatalogPayload(payload ?? {});
+}
+
+export async function fetchManagedModelsVersion(): Promise<string | null> {
+  if (hasElectronDesktopBridge()) {
+    const payload = (await accountCommands.getManagedModelsVersion()) as ManagedModelsVersionPayload | undefined;
+    return normalizeManagedModelsVersionPayload(payload ?? {});
+  }
+
+  const payload = await requestManagedWebJson<ManagedModelsVersionPayload>('/models/version', {
+    method: 'GET',
+  });
+  return normalizeManagedModelsVersionPayload(payload ?? {});
 }
 
 export async function fetchManagedBudget(): Promise<ManagedBudgetStatus> {

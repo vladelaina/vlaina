@@ -97,6 +97,10 @@ export const accountCommands = {
     return await getDesktopAccountBridge().getManagedModels();
   },
 
+  async getManagedModelsVersion() {
+    return await getDesktopAccountBridge().getManagedModelsVersion();
+  },
+
   async getManagedBudget() {
     return await getDesktopAccountBridge().getManagedBudget();
   },

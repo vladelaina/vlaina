@@ -274,6 +274,7 @@ export interface ElectronAccountApi {
     error?: string;
   }>;
   getManagedModels(): Promise<Record<string, unknown>>;
+  getManagedModelsVersion(): Promise<Record<string, unknown>>;
   getManagedBudget(): Promise<Record<string, unknown>>;
   managedChatCompletion(body: object): Promise<Record<string, unknown>>;
   startManagedChatCompletionStream(requestId: string, body: Record<string, unknown>): Promise<void>;

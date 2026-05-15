@@ -512,7 +512,7 @@ export function ModelSelector({
   }, []);
 
   const openSelector = useCallback(() => {
-      aiActions.refreshManagedProviderInBackground();
+      aiActions.refreshManagedProviderInBackground({ force: true });
       const initialCategoryId = selectedModel
           ? getModelCategoryId(selectedModel)
           : modelCategories.find((category) => category.id !== 'favorites')?.id ?? modelCategories[0]?.id ?? null;

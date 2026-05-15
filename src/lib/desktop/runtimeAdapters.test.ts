@@ -66,6 +66,7 @@ const mocks = vi.hoisted(() => {
       disconnect: vi.fn().mockResolvedValue(undefined),
       createBillingCheckout: vi.fn().mockResolvedValue({ success: true, url: 'https://example.com' }),
       getManagedModels: vi.fn().mockResolvedValue({}),
+      getManagedModelsVersion: vi.fn().mockResolvedValue({}),
       getManagedBudget: vi.fn().mockResolvedValue({}),
       managedChatCompletion: vi.fn().mockResolvedValue({}),
       startManagedChatCompletionStream: vi.fn().mockResolvedValue(undefined),

@@ -3,7 +3,8 @@ import { generateId } from '@/lib/id'
 import { buildScopedModelId, generateModelGroup, generateModelName } from '@/lib/ai/utils'
 import {
   MANAGED_PROVIDER_ID,
-  fetchManagedModels,
+  fetchManagedModelCatalog,
+  fetchManagedModelsVersion,
   isManagedProviderId,
 } from '@/lib/ai/managedService'
 import { useManagedAIStore } from '../useManagedAIStore'
@@ -18,11 +19,16 @@ import {
 } from './providerStoreUtils'
 
 const MANAGED_MODELS_REFRESH_MIN_INTERVAL_MS = 5 * 60 * 1000;
+const MANAGED_MODELS_FORCED_REFRESH_MIN_INTERVAL_MS = 15 * 1000;
 let managedModelsRefreshInFlight: Promise<void> | null = null;
 let managedModelsLastRefreshAttemptAt = 0;
+let managedModelsLastForcedRefreshAttemptAt = 0;
+let managedModelsCatalogVersion: string | null = null;
 
 async function syncManagedProviderModels(options: { refreshBudget?: boolean; suppressPersist?: boolean } = {}): Promise<void> {
-  const models = await fetchManagedModels()
+  const catalog = await fetchManagedModelCatalog()
+  const models = catalog.models
+  managedModelsCatalogVersion = catalog.version
   const store = useUnifiedStore.getState()
   const ai = store.data.ai!
   const nextProviders = ensureManagedProvider(ai.providers)
@@ -55,6 +61,14 @@ async function syncManagedProviderModels(options: { refreshBudget?: boolean; sup
 function refreshManagedProviderInBackground(options: { force?: boolean } = {}): Promise<void> | null {
   const now = Date.now();
   if (
+    options.force &&
+    managedModelsLastForcedRefreshAttemptAt > 0 &&
+    now - managedModelsLastForcedRefreshAttemptAt < MANAGED_MODELS_FORCED_REFRESH_MIN_INTERVAL_MS
+  ) {
+    return managedModelsRefreshInFlight;
+  }
+
+  if (
     !options.force &&
     managedModelsLastRefreshAttemptAt > 0 &&
     now - managedModelsLastRefreshAttemptAt < MANAGED_MODELS_REFRESH_MIN_INTERVAL_MS
@@ -67,7 +81,18 @@ function refreshManagedProviderInBackground(options: { force?: boolean } = {}): 
   }
 
   managedModelsLastRefreshAttemptAt = now;
-  managedModelsRefreshInFlight = syncManagedProviderModels()
+  if (options.force) {
+    managedModelsLastForcedRefreshAttemptAt = now;
+  }
+  managedModelsRefreshInFlight = (async () => {
+    if (options.force && managedModelsCatalogVersion) {
+      const latestVersion = await fetchManagedModelsVersion();
+      if (latestVersion && latestVersion === managedModelsCatalogVersion) {
+        return;
+      }
+    }
+    await syncManagedProviderModels();
+  })()
     .catch((error) => {
       console.warn('Failed to refresh managed AI models in background', error)
     })
@@ -343,8 +368,8 @@ export const actions = {
     await syncManagedProviderModels({ refreshBudget: true })
   },
 
-  refreshManagedProviderInBackground: () => {
-    void refreshManagedProviderInBackground()
+  refreshManagedProviderInBackground: (options: { force?: boolean } = {}) => {
+    void refreshManagedProviderInBackground(options)
   },
   ...createChatActions(),
 };
