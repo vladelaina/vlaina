@@ -15,7 +15,7 @@ import { useTemporaryTogglePresentation } from '@/components/Chat/features/Tempo
 import { desktopWindow } from '@/lib/desktop/window';
 import { getElectronBridge, isElectronRuntime } from '@/lib/electron/bridge';
 import { writeTextToClipboard } from '@/lib/clipboard';
-import { getNotesDebugLogText } from '@/stores/notes/lineBreakDebugLog';
+import { getConsoleLogText, installConsoleLogCapture } from '@/lib/consoleLogBuffer';
 import { useToastStore } from '@/stores/useToastStore';
 
 const preloadSettingsModule = () => import('@/components/Settings');
@@ -84,8 +84,8 @@ export function AppContent() {
     appViewMode === 'chat';
 
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [debugCopyState, setDebugCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
-  const debugCopyTimerRef = useRef<number | null>(null);
+  const [consoleCopyState, setConsoleCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const consoleCopyTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const handleOpenSettings = () => setSettingsOpen(true);
@@ -96,6 +96,10 @@ export function AppContent() {
       window.removeEventListener('open-settings', handleOpenSettings);
       window.removeEventListener('toggle-settings', handleToggleSettings);
     };
+  }, []);
+
+  useEffect(() => {
+    installConsoleLogCapture();
   }, []);
 
   useEffect(() => {
@@ -179,30 +183,30 @@ export function AppContent() {
 
   useEffect(() => {
     return () => {
-      if (debugCopyTimerRef.current !== null) {
-        window.clearTimeout(debugCopyTimerRef.current);
+      if (consoleCopyTimerRef.current !== null) {
+        window.clearTimeout(consoleCopyTimerRef.current);
       }
     };
   }, []);
 
-  const handleCopyDebugLog = useCallback(() => {
-    if (debugCopyTimerRef.current !== null) {
-      window.clearTimeout(debugCopyTimerRef.current);
+  const handleCopyConsoleLog = useCallback(() => {
+    if (consoleCopyTimerRef.current !== null) {
+      window.clearTimeout(consoleCopyTimerRef.current);
     }
 
-    const debugLogText = getNotesDebugLogText() || '[NotesDebug] No debug logs captured.';
+    const consoleLogText = getConsoleLogText() || '[Console] No logs captured.';
 
-    void writeTextToClipboard(debugLogText)
+    void writeTextToClipboard(consoleLogText)
       .then((didCopy) => {
-        setDebugCopyState(didCopy ? 'copied' : 'failed');
+        setConsoleCopyState(didCopy ? 'copied' : 'failed');
       })
       .catch(() => {
-        setDebugCopyState('failed');
+        setConsoleCopyState('failed');
       })
       .finally(() => {
-        debugCopyTimerRef.current = window.setTimeout(() => {
-          setDebugCopyState('idle');
-          debugCopyTimerRef.current = null;
+        consoleCopyTimerRef.current = window.setTimeout(() => {
+          setConsoleCopyState('idle');
+          consoleCopyTimerRef.current = null;
         }, 1200);
       });
   }, []);
@@ -275,33 +279,33 @@ export function AppContent() {
   );
 
   const showLabEntry = import.meta.env.DEV && appViewMode !== 'lab';
-  const showDebugCopy = import.meta.env.DEV && appViewMode === 'notes';
-  const mainOverlay = showLabEntry || showDebugCopy ? (
+  const showConsoleCopy = import.meta.env.DEV;
+  const mainOverlay = showLabEntry || showConsoleCopy ? (
     <div className="pointer-events-none absolute bottom-3 right-3 z-30 flex flex-col items-end gap-2">
-      {showDebugCopy ? (
+      {showConsoleCopy ? (
         <Tooltip delayDuration={700}>
           <TooltipTrigger asChild>
             <button
               type="button"
-              onClick={handleCopyDebugLog}
-              aria-label="Copy Notes Debug Log"
+              onClick={handleCopyConsoleLog}
+              aria-label="Copy Console Logs"
               className={cn(
                 'pointer-events-auto flex h-8 w-8 items-center justify-center rounded-md border border-[#eff3f4] bg-white/92 shadow-sm backdrop-blur-sm transition-[background-color,box-shadow,transform,border-color] duration-200 hover:bg-[#f5f5f5]',
                 iconButtonStyles,
-                debugCopyState === 'copied' && 'scale-110 border-emerald-300 text-emerald-600 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]',
-                debugCopyState === 'failed' && 'scale-105 border-red-300 text-red-600 shadow-[0_0_0_3px_rgba(239,68,68,0.16)]',
+                consoleCopyState === 'copied' && 'scale-110 border-emerald-300 text-emerald-600 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]',
+                consoleCopyState === 'failed' && 'scale-105 border-red-300 text-red-600 shadow-[0_0_0_3px_rgba(239,68,68,0.16)]',
               )}
             >
-              <Icon name={debugCopyState === 'copied' ? 'common.check' : 'common.copy'} size="md" />
+              <Icon name={consoleCopyState === 'copied' ? 'common.check' : 'common.copy'} size="md" />
             </button>
           </TooltipTrigger>
           <TooltipContent side="left" sideOffset={8}>
             <span className="text-xs">
-              {debugCopyState === 'copied'
-                ? 'Copied Notes Debug Log'
-                : debugCopyState === 'failed'
+              {consoleCopyState === 'copied'
+                ? 'Copied Console Logs'
+                : consoleCopyState === 'failed'
                   ? 'Copy Failed'
-                  : 'Copy Notes Debug Log'}
+                  : 'Copy Console Logs'}
             </span>
           </TooltipContent>
         </Tooltip>

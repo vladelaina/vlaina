@@ -143,6 +143,9 @@ export function startBlankAreaSelectionSession(
       ? selectedBlocks
       : preferNestedBlockRangesUnlessHeaderIntersects(selectedBlocks, docSpaceBlockRects, docSpaceDragRect);
     const expandedBlocks = expandListItemHeaderRanges(view.state.doc, nestedPreferredBlocks);
+    const nextKey = getBlockRangesKey(expandedBlocks);
+    if (nextKey === selectedBlocksKey) return;
+
     logBlockSelectionDebug('select-session:apply-drag-rect', {
       viewportRect: formatDebugRect(viewportDragRect),
       docRect: formatDebugRect(docSpaceDragRect),
@@ -154,11 +157,6 @@ export function startBlankAreaSelectionSession(
       expandedBlocks: formatDebugBlockRanges(expandedBlocks),
       preserveContainingBlocksForSession,
     });
-    const nextKey = getBlockRangesKey(expandedBlocks);
-    if (nextKey === selectedBlocksKey) {
-      logBlockSelectionDebug('select-session:selection-unchanged', { key: nextKey });
-      return;
-    }
 
     selectedBlocksKey = nextKey;
     onSelectionChange(expandedBlocks);

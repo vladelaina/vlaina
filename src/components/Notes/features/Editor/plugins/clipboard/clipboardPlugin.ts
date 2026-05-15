@@ -17,6 +17,7 @@ import { isMermaidFenceLanguage } from '../mermaid/mermaidLanguage';
 import { isTocShortcutText } from '../toc/tocShortcut';
 import {
     extractLargestMarkdownFenceContent,
+    looksLikePlainTextWithOnlyBackslashHardBreakSignal,
     looksLikeMarkdownForPaste,
     normalizeInterruptedOrderedListsForPaste,
     normalizeStandaloneThematicBreaksForPaste,
@@ -140,6 +141,43 @@ function createInlineFootnoteReferenceSlice(state: FootnoteReferenceState, text:
     if (!nodes) return null;
 
     return new Slice(Fragment.fromArray(nodes), 0, 0);
+}
+
+function createPlainTextLineBreakSlice(state: {
+    schema: {
+        text: (text: string) => ProseNode;
+        nodes: {
+            hardbreak?: { create: () => ProseNode };
+            paragraph?: { create: (attrs?: unknown, content?: Fragment | ProseNode[] | null) => ProseNode };
+        };
+    };
+}, text: string): Slice | null {
+    const paragraphType = state.schema.nodes.paragraph;
+    if (!paragraphType) return null;
+
+    const hardbreakType = state.schema.nodes.hardbreak;
+    const normalized = text.replace(/\r\n?/g, '\n');
+
+    if (!hardbreakType) {
+        const paragraphs = normalized.split('\n').map((line) => {
+            const content = line ? [state.schema.text(line)] : null;
+            return paragraphType.create(undefined, content);
+        });
+        return new Slice(Fragment.fromArray(paragraphs), 0, 0);
+    }
+
+    const inlineNodes: ProseNode[] = [];
+    const lines = normalized.split('\n');
+    lines.forEach((line, index) => {
+        if (line) {
+            inlineNodes.push(state.schema.text(line));
+        }
+        if (index < lines.length - 1) {
+            inlineNodes.push(hardbreakType.create());
+        }
+    });
+
+    return new Slice(Fragment.from(paragraphType.create(undefined, Fragment.fromArray(inlineNodes))), 0, 0);
 }
 
 export const clipboardPlugin = $prose((ctx) => {
@@ -342,6 +380,18 @@ export const clipboardPlugin = $prose((ctx) => {
                 }
 
                 // Try broader markdown parsing for mixed content.
+                if (looksLikePlainTextWithOnlyBackslashHardBreakSignal(text)) {
+                    const plainTextSlice = createPlainTextLineBreakSlice(state, text);
+                    if (plainTextSlice) {
+                        dispatchSliceAndKeepCursorAtTail(
+                            view,
+                            plainTextSlice,
+                        );
+                        event.preventDefault();
+                        return true;
+                    }
+                }
+
                 const markdownFenceCandidate = extractLargestMarkdownFenceContent(text);
                 const markdownNodes = parseMarkdownNodes(text) ?? (
                     markdownFenceCandidate ? parseMarkdownNodes(markdownFenceCandidate) : null

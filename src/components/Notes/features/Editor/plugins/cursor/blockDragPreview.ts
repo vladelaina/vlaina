@@ -1,7 +1,10 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import type { BlockRange } from './blockSelectionUtils';
-import { resolveSelectableBlockTargetByPos } from './blockUnitResolver';
+import {
+  isInlineSelectableBlockRange,
+  resolveSelectableBlockTargetByPos,
+} from './blockUnitResolver';
 
 const SOURCE_CLASS = 'vlaina-block-drag-source';
 const PREVIEW_CLASS = 'vlaina-block-drag-preview';
@@ -28,6 +31,13 @@ interface CaptureJob {
   imageClassName: string;
 }
 
+interface PreviewItem {
+  source: HTMLElement;
+  sourceClassElement: HTMLElement | null;
+  rect: DOMRect;
+  content: HTMLElement;
+}
+
 function clamp(value: number, min: number, max: number): number {
   if (value < min) return min;
   if (value > max) return max;
@@ -40,25 +50,76 @@ function resolvePreviewOffsetX(clientX: number, sourceLeft: number, previewWidth
   return Math.min(rawOffsetX, maxOffsetX);
 }
 
-function collectBlockElements(view: EditorView, ranges: readonly BlockRange[]): HTMLElement[] {
-  const elements: HTMLElement[] = [];
+function createInlineRangePreviewContent(
+  view: EditorView,
+  range: BlockRange,
+  source: HTMLElement,
+): HTMLElement | null {
+  const doc = view.dom.ownerDocument;
+  const domRange = doc.createRange();
+
+  try {
+    const start = view.domAtPos(range.from);
+    const end = view.domAtPos(range.to);
+    domRange.setStart(start.node, start.offset);
+    domRange.setEnd(end.node, end.offset);
+
+    const content = source.cloneNode(false);
+    if (!(content instanceof HTMLElement)) return null;
+    content.appendChild(domRange.cloneContents());
+    sanitizeCloneTree(content);
+    return content;
+  } catch {
+    return null;
+  } finally {
+    domRange.detach();
+  }
+}
+
+function collectPreviewItems(view: EditorView, ranges: readonly BlockRange[]): PreviewItem[] {
+  const items: PreviewItem[] = [];
   for (const range of ranges) {
     const target = resolveSelectableBlockTargetByPos(view, range.from);
+    if (!target) continue;
     const element = target?.subElement ?? target?.element;
     if (!element) continue;
 
-    const existingAncestorIndex = elements.findIndex((existing) => existing.contains(element));
+    if (isInlineSelectableBlockRange(view.state.doc, range)) {
+      const content = createInlineRangePreviewContent(view, range, element);
+      if (!content) continue;
+      items.push({
+        source: element,
+        sourceClassElement: null,
+        rect: target.rect,
+        content,
+      });
+      continue;
+    }
+
+    const existingAncestorIndex = items.findIndex((existing) => (
+      existing.sourceClassElement !== null && existing.sourceClassElement.contains(element)
+    ));
     if (existingAncestorIndex >= 0) continue;
 
-    for (let index = elements.length - 1; index >= 0; index -= 1) {
-      if (element.contains(elements[index])) {
-        elements.splice(index, 1);
+    for (let index = items.length - 1; index >= 0; index -= 1) {
+      const existingElement = items[index].sourceClassElement;
+      if (existingElement !== null && element.contains(existingElement)) {
+        items.splice(index, 1);
       }
     }
 
-    elements.push(element);
+    const clone = element.cloneNode(true);
+    if (!(clone instanceof HTMLElement)) continue;
+    sanitizeCloneTree(clone);
+
+    items.push({
+      source: element,
+      sourceClassElement: element,
+      rect: element.getBoundingClientRect(),
+      content: clone,
+    });
   }
-  return elements;
+  return items;
 }
 
 function copyCssVariables(from: HTMLElement, to: HTMLElement): void {
@@ -177,14 +238,12 @@ function replaceMermaidBlocksForPreview(sourceRoot: HTMLElement, cloneRoot: HTML
   return cloneRoot;
 }
 
-function createContentLayer(doc: Document, elements: readonly HTMLElement[], captureJobs: CaptureJob[]): HTMLElement {
+function createContentLayer(doc: Document, items: readonly PreviewItem[], captureJobs: CaptureJob[]): HTMLElement {
   const layer = doc.createElement('div');
   layer.className = PREVIEW_LAYER_CLASS;
   layer.classList.add('milkdown');
-  elements.forEach((source) => {
-    const clone = source.cloneNode(true);
-    if (!(clone instanceof HTMLElement)) return;
-    sanitizeCloneTree(clone);
+  items.forEach(({ source, content }) => {
+    const clone = content;
     replaceVideoMediaForPreview(source, clone, captureJobs);
     layer.appendChild(replaceMermaidBlocksForPreview(source, clone, captureJobs));
   });
@@ -201,8 +260,12 @@ function revealAfterVideoCaptures(preview: HTMLElement, captureJobs: readonly Ca
   });
 }
 
-function resolvePreviewSourceWidth(view: EditorView, elements: readonly HTMLElement[]): number {
-  const sourceWidth = Math.max(...elements.map((element) => element.getBoundingClientRect().width));
+function resolvePreviewSourceWidth(view: EditorView, items: readonly PreviewItem[]): number {
+  const sourceWidth = Math.max(...items.map((item) => item.rect.width));
+  if (items.every((item) => item.sourceClassElement === null)) {
+    return sourceWidth;
+  }
+
   const editorWidth = view.dom.getBoundingClientRect().width;
   return Math.max(sourceWidth, editorWidth);
 }
@@ -213,8 +276,8 @@ export function createBlockDragPreview({
   clientX,
   clientY,
 }: BlockDragPreviewOptions): BlockDragPreviewHandle | null {
-  const elements = collectBlockElements(view, ranges);
-  if (elements.length === 0) return null;
+  const items = collectPreviewItems(view, ranges);
+  if (items.length === 0) return null;
 
   const doc = view.dom.ownerDocument;
   const preview = doc.createElement('div');
@@ -229,29 +292,32 @@ export function createBlockDragPreview({
   if (scrollRoot instanceof HTMLElement) {
     copyCssVariables(scrollRoot, preview);
   }
-  copyCssVariables(elements[0], preview);
+  copyCssVariables(items[0].source, preview);
 
   const captureJobs: CaptureJob[] = [];
-  const contentLayer = createContentLayer(doc, elements, captureJobs);
+  const contentLayer = createContentLayer(doc, items, captureJobs);
   preview.appendChild(contentLayer);
 
   const viewportWidth = doc.defaultView?.innerWidth ?? 1600;
-  const sourceWidth = resolvePreviewSourceWidth(view, elements);
+  const sourceWidth = resolvePreviewSourceWidth(view, items);
   const previewWidth = clamp(sourceWidth, MIN_PREVIEW_WIDTH, Math.max(MIN_PREVIEW_WIDTH, viewportWidth - 16));
   preview.style.width = `${Math.round(previewWidth)}px`;
 
   doc.body.appendChild(preview);
   revealAfterVideoCaptures(preview, captureJobs);
 
-  const firstRect = elements[0].getBoundingClientRect();
+  const firstRect = items[0].rect;
   const previewRect = preview.getBoundingClientRect();
   const offsetX = resolvePreviewOffsetX(clientX, firstRect.left, previewRect.width);
   const offsetY = clamp(clientY - firstRect.top, 8, Math.max(8, previewRect.height - 8));
 
-  elements.forEach((element) => element.classList.add(SOURCE_CLASS));
+  const sourceClassElements = items
+    .map((item) => item.sourceClassElement)
+    .filter((element): element is HTMLElement => element !== null);
+  sourceClassElements.forEach((element) => element.classList.add(SOURCE_CLASS));
 
   const destroy = () => {
-    elements.forEach((element) => element.classList.remove(SOURCE_CLASS));
+    sourceClassElements.forEach((element) => element.classList.remove(SOURCE_CLASS));
     preview.remove();
   };
 

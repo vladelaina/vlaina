@@ -61,4 +61,30 @@ describe('usePendingMarkdownAutosave', () => {
     expect(updateContent).toHaveBeenCalledTimes(1);
     expect(debouncedSave).toHaveBeenCalledTimes(1);
   });
+
+  it('treats block drag user input events as saveable edits', () => {
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const editorView = { dom: document.createElement('div') };
+    const ctx = { get: vi.fn() };
+
+    const { result } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha',
+      updateContent,
+      debouncedSave,
+    }));
+
+    act(() => {
+      result.current.createUserInputMarker(editorView as never, null)(
+        new CustomEvent('vlaina:block-user-input')
+      );
+      result.current.configureMarkdownListener(ctx, '# alpha')('# moved');
+      vi.advanceTimersByTime(16);
+    });
+
+    expect(updateContent).toHaveBeenCalledWith('# moved');
+    expect(debouncedSave).toHaveBeenCalledTimes(1);
+  });
 });

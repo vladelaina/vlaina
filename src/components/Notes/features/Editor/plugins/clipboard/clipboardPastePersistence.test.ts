@@ -135,6 +135,36 @@ describe('clipboard paste markdown persistence', () => {
     );
   });
 
+  it('keeps literal trailing backslashes in plain text paste', async () => {
+    const pasted = [
+      '7）视图模式：支持大纲和文档列表视图，方便在不同段落和不同文件之间进行切换。\\',
+      '8）跨平台：支持macOS、Windows和Linux系统。\\',
+      '9）目前免费：这么好用的编辑器竟然是免费的。',
+    ].join('\n');
+
+    await expect(pasteAndPersist(pasted)).resolves.toBe([
+      '7）视图模式：支持大纲和文档列表视图，方便在不同段落和不同文件之间进行切换。\\\\\\',
+      '8）跨平台：支持macOS、Windows和Linux系统。\\\\\\',
+      '9）目前免费：这么好用的编辑器竟然是免费的。',
+    ].join('\n'));
+  });
+
+  it('keeps trailing backslashes visible in the editor document after paste', async () => {
+    const pasted = [
+      '7）视图模式：支持大纲和文档列表视图，方便在不同段落和不同文件之间进行切换。\\',
+      '8）跨平台：支持macOS、Windows和Linux系统。\\',
+      '9）目前免费：这么好用的编辑器竟然是免费的。',
+    ].join('\n');
+    const editor = await createPasteEditor();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, pasted)).toBe(true);
+    expect(view.state.doc.textContent).toContain('切换。\\');
+    expect(view.state.doc.textContent).toContain('系统。\\');
+
+    await editor.destroy();
+  });
+
   it('parses single-line markdown images before markdown link paste handling', async () => {
     const editor = await createPasteEditor({ includeMarkdownLinkPlugin: true });
     const markdown = '![百度](https://www.baidu.com/img/PCfb_5bf082d29588c07f842ccde3f97243ea.png "百度一下，你就知道")';

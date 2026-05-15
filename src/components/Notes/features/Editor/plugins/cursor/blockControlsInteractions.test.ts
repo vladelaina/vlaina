@@ -250,6 +250,30 @@ describe('getDraggableBlockRanges', () => {
     ]);
   });
 
+  it('keeps hard-break paragraph line ranges draggable as line blocks', () => {
+    const paragraph = createNode('paragraph', 12, [
+      createNode('text', 5),
+      createNode('hardbreak', 1),
+      createNode('text', 4),
+    ]);
+    const doc = {
+      content: { size: 12 },
+      forEach(cb: (child: MockNode, offset: number) => void) {
+        cb(paragraph, 0);
+      },
+    };
+    const dom = document.createElement('div');
+    const paragraphEl = document.createElement('p');
+    paragraphEl.textContent = 'A B';
+    dom.append(paragraphEl);
+    const view = {
+      dom,
+      state: { doc },
+    };
+
+    expect(getDraggableBlockRanges(view as any, [{ from: 1, to: 7 }])).toEqual([{ from: 1, to: 7 }]);
+  });
+
   // doc: bullet_list(14)[ list_item(12)[ paragraph(4), code_block(6) ] ]
   // Range A (hover para): { from:1, to:12 }
   // Range B (hover code): { from:6, to:12 }

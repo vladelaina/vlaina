@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  collectMovableBlockTargetRanges,
   collectSelectableBlockRanges,
   mapRangesToSelectableBlocks,
   resolveSelectableBlockRange,
@@ -92,6 +93,53 @@ describe('collectSelectableBlockRanges', () => {
       { from: 9, to: 15 },
     ]);
   });
+
+  it('splits top-level paragraphs at markdown hard breaks', () => {
+    const paragraph = createNode('paragraph', 12, [
+      createNode('text', 5),
+      createNode('hardbreak', 1),
+      createNode('text', 4),
+    ]);
+    const doc = createDoc([paragraph]);
+
+    const ranges = collectSelectableBlockRanges(doc as any);
+
+    expect(ranges).toEqual([
+      { from: 1, to: 7 },
+      { from: 7, to: 11 },
+    ]);
+  });
+
+  it('also accepts legacy hard_break node names when splitting paragraph lines', () => {
+    const paragraph = createNode('paragraph', 12, [
+      createNode('text', 5),
+      createNode('hard_break', 1),
+      createNode('text', 4),
+    ]);
+    const doc = createDoc([paragraph]);
+
+    expect(collectSelectableBlockRanges(doc as any)).toEqual([
+      { from: 1, to: 7 },
+      { from: 7, to: 11 },
+    ]);
+  });
+});
+
+describe('collectMovableBlockTargetRanges', () => {
+  it('uses the whole paragraph as the movable target for hard-break paragraph lines', () => {
+    const paragraph = createNode('paragraph', 12, [
+      createNode('text', 5),
+      createNode('hardbreak', 1),
+      createNode('text', 4),
+    ]);
+    const tail = createNode('paragraph', 5);
+    const doc = createDoc([paragraph, tail]);
+
+    expect(collectMovableBlockTargetRanges(doc as any)).toEqual([
+      { from: 0, to: 12 },
+      { from: 12, to: 17 },
+    ]);
+  });
 });
 
 describe('resolveSelectableBlockRange', () => {
@@ -113,6 +161,20 @@ describe('resolveSelectableBlockRange', () => {
     expect(resolveSelectableBlockRange(doc, 0)).toEqual({ from: 0, to: 5 });
     expect(resolveSelectableBlockRange(doc, 4)).toEqual({ from: 0, to: 5 });
     expect(resolveSelectableBlockRange(doc, 5)).toEqual({ from: 5, to: 9 });
+  });
+
+  it('maps positions inside hard-break paragraph lines to the matching line range', () => {
+    const paragraph = createNode('paragraph', 12, [
+      createNode('text', 5),
+      createNode('hardbreak', 1),
+      createNode('text', 4),
+    ]);
+    const doc = createDoc([paragraph]) as any;
+
+    expect(resolveSelectableBlockRange(doc, 0)).toEqual({ from: 1, to: 7 });
+    expect(resolveSelectableBlockRange(doc, 3)).toEqual({ from: 1, to: 7 });
+    expect(resolveSelectableBlockRange(doc, 7)).toEqual({ from: 7, to: 11 });
+    expect(resolveSelectableBlockRange(doc, 99)).toEqual({ from: 7, to: 11 });
   });
 });
 
