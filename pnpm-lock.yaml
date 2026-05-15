@@ -10,7 +10,7 @@ overrides:
 importers:
 
   .:
-    dependencies:
+    devDependencies:
       '@codemirror/language':
         specifier: ^6.12.3
         version: 6.12.3
@@ -89,12 +89,39 @@ importers:
       '@radix-ui/react-tooltip':
         specifier: ^1.2.8
         version: 1.2.8(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      '@tailwindcss/postcss':
+        specifier: ^4.2.4
+        version: 4.2.4
       '@tanstack/react-virtual':
         specifier: ^3.13.24
         version: 3.13.24(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      '@testing-library/jest-dom':
+        specifier: ^6.9.1
+        version: 6.9.1
+      '@testing-library/react':
+        specifier: ^16.3.1
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@types/katex':
         specifier: ^0.16.7
         version: 0.16.8
+      '@types/node':
+        specifier: ^24.10.1
+        version: 24.12.0
+      '@types/react':
+        specifier: ^19.1.8
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.1.6
+        version: 19.2.3(@types/react@19.2.14)
+      '@vitejs/plugin-react':
+        specifier: ^4.6.0
+        version: 4.7.0(vite@7.3.1(@types/node@24.12.0)(jiti@1.21.7)(lightningcss@1.32.0))
+      autoprefixer:
+        specifier: ^10.5.0
+        version: 10.5.0(postcss@8.5.14)
+      baseline-browser-mapping:
+        specifier: ^2.10.27
+        version: 2.10.27
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -104,6 +131,9 @@ importers:
       cmdk:
         specifier: ^1.1.1
         version: 1.1.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      concurrently:
+        specifier: ^9.2.1
+        version: 9.2.1
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
@@ -113,6 +143,15 @@ importers:
       dompurify:
         specifier: ^3.4.2
         version: 3.4.2
+      electron:
+        specifier: 41.5.0
+        version: 41.5.0
+      electron-builder:
+        specifier: ^26.8.1
+        version: 26.8.1(electron-builder-squirrel-windows@26.8.1)
+      fast-check:
+        specifier: ^4.7.0
+        version: 4.7.0
       framer-motion:
         specifier: ^12.38.0
         version: 12.38.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -122,6 +161,9 @@ importers:
       html-to-image:
         specifier: ^1.11.13
         version: 1.11.13
+      jsdom:
+        specifier: ^27.3.0
+        version: 27.4.0
       katex:
         specifier: ^0.16.45
         version: 0.16.45
@@ -140,6 +182,9 @@ importers:
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      postcss:
+        specifier: ^8.5.14
+        version: 8.5.14
       react:
         specifier: ^19.2.5
         version: 19.2.5
@@ -182,58 +227,6 @@ importers:
       tailwind-merge:
         specifier: ^3.4.0
         version: 3.5.0
-      unist-util-visit:
-        specifier: ^5.1.0
-        version: 5.1.0
-      zustand:
-        specifier: ^5.0.13
-        version: 5.0.13(@types/react@19.2.14)(immer@10.2.0)(react@19.2.5)(use-sync-external-store@1.6.0(react@19.2.5))
-    devDependencies:
-      '@tailwindcss/postcss':
-        specifier: ^4.2.4
-        version: 4.2.4
-      '@testing-library/jest-dom':
-        specifier: ^6.9.1
-        version: 6.9.1
-      '@testing-library/react':
-        specifier: ^16.3.1
-        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      '@types/node':
-        specifier: ^24.10.1
-        version: 24.12.0
-      '@types/react':
-        specifier: ^19.1.8
-        version: 19.2.14
-      '@types/react-dom':
-        specifier: ^19.1.6
-        version: 19.2.3(@types/react@19.2.14)
-      '@vitejs/plugin-react':
-        specifier: ^4.6.0
-        version: 4.7.0(vite@7.3.1(@types/node@24.12.0)(jiti@1.21.7)(lightningcss@1.32.0))
-      autoprefixer:
-        specifier: ^10.5.0
-        version: 10.5.0(postcss@8.5.14)
-      baseline-browser-mapping:
-        specifier: ^2.10.27
-        version: 2.10.27
-      concurrently:
-        specifier: ^9.2.1
-        version: 9.2.1
-      electron:
-        specifier: 41.5.0
-        version: 41.5.0
-      electron-builder:
-        specifier: ^26.8.1
-        version: 26.8.1(electron-builder-squirrel-windows@26.8.1)
-      fast-check:
-        specifier: ^4.7.0
-        version: 4.7.0
-      jsdom:
-        specifier: ^27.3.0
-        version: 27.4.0
-      postcss:
-        specifier: ^8.5.14
-        version: 8.5.14
       tailwindcss:
         specifier: ^4.2.4
         version: 4.2.4
@@ -243,6 +236,9 @@ importers:
       typescript:
         specifier: ~5.8.3
         version: 5.8.3
+      unist-util-visit:
+        specifier: ^5.1.0
+        version: 5.1.0
       vite:
         specifier: ^7.0.4
         version: 7.3.1(@types/node@24.12.0)(jiti@1.21.7)(lightningcss@1.32.0)
@@ -252,6 +248,9 @@ importers:
       wait-on:
         specifier: ^8.0.3
         version: 8.0.5
+      zustand:
+        specifier: ^5.0.13
+        version: 5.0.13(@types/react@19.2.14)(immer@10.2.0)(react@19.2.5)(use-sync-external-store@1.6.0(react@19.2.5))
 
   vendor/milkdown/packages/components:
     dependencies:

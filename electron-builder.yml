@@ -9,8 +9,9 @@ directories:
 files:
   - dist/**
   - electron/**
-  - public/logo.png
   - package.json
+  - "!node_modules/**"
+  - "!vendor/**"
   - "!dist/**/*.map"
   - "!electron/**/*.map"
   - "!**/__tests__/**"
@@ -31,9 +32,15 @@ win:
   icon: build/icon.ico
   target:
     - nsis
+    - portable
 nsis:
+  artifactName: ${productName}-${version}-windows-${arch}-setup.${ext}
   oneClick: false
   allowToChangeInstallationDirectory: true
+  differentialPackage: false
+portable:
+  artifactName: ${productName}-${version}-windows-${arch}-portable.${ext}
+  requestExecutionLevel: user
 linux:
   category: Utility
   icon: build/icon.png

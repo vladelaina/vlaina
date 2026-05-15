@@ -25,7 +25,7 @@ const defaultDownloadUrl = (
   process.env.APP_DOWNLOAD_URL
   ?? 'https://github.com/vladelaina/vlaina/releases/latest'
 ).trim();
-const appIconPath = path.join(__dirname, '..', 'public', 'logo.png');
+const appIconPath = path.join(__dirname, '..', app.isPackaged ? 'dist' : 'public', 'logo.png');
 const rendererFile = path.join(__dirname, '..', 'dist', 'index.html');
 const desktopAccountService = createDesktopAccountService({ apiBaseUrl });
 const { fetchWithStoredSession, readJsonResponse } = desktopAccountService;
