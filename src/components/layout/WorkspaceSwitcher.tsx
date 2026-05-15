@@ -91,15 +91,17 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
   }, [authPromptSessionId, currentSessionId, isConnected, temporaryChatEnabled]);
 
   return (
-    <>
-      <Popover.Root open={isOpen} onOpenChange={setIsOpen}>
+    <div
+      className={cn('vlaina-no-drag flex min-w-0 items-center', className)}
+    >
+      <Popover.Root
+        open={isOpen}
+        onOpenChange={setIsOpen}
+      >
         <Popover.Trigger asChild>
           <button
             type="button"
-            className={cn(
-              'vlaina-no-drag group relative flex size-8 cursor-pointer items-center justify-center overflow-visible rounded-[10px] bg-transparent text-[var(--vlaina-text-primary)] outline-none select-none',
-              className
-            )}
+            className="group relative flex h-full min-w-0 flex-1 cursor-pointer items-center justify-start overflow-visible rounded-[10px] bg-transparent text-[var(--vlaina-text-primary)] outline-none select-none"
           >
             <span className="relative flex size-[26px] shrink-0 overflow-hidden rounded-[8px]">
               <img src={displayAvatar} alt={displayName} className="h-full w-full object-cover shadow-sm" />
@@ -144,7 +146,7 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
         cancelText={t('account.logOutCancel')}
         variant="danger"
       />
-    </>
+    </div>
   );
 };
 

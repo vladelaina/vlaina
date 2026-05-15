@@ -69,6 +69,20 @@ summary,
   opacity: 1;
 }
 
+.vlaina-sidebar-user-header:hover .vlaina-sidebar-user-header-pill,
+.vlaina-sidebar-user-header:focus-within .vlaina-sidebar-user-header-pill,
+.vlaina-sidebar-user-header[data-hovered="true"] .vlaina-sidebar-user-header-pill {
+  background-color: var(--vlaina-color-white);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.vlaina-sidebar-user-header:hover .vlaina-sidebar-user-header-collapse,
+.vlaina-sidebar-user-header:focus-within .vlaina-sidebar-user-header-collapse,
+.vlaina-sidebar-user-header[data-hovered="true"] .vlaina-sidebar-user-header-collapse {
+  pointer-events: auto;
+  opacity: 1;
+}
+
 html, body, #root {
   height: 100%;
   overflow: hidden;

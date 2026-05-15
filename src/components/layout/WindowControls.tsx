@@ -1,6 +1,5 @@
 import { desktopWindow } from '@/lib/desktop/window';
 import { Icon } from '@/components/ui/icons';
-import { iconButtonStyles } from '@/lib/utils';
 
 interface WindowControlsProps {
   className?: string;
@@ -8,11 +7,14 @@ interface WindowControlsProps {
 }
 
 export function WindowControls({ className, minimal }: WindowControlsProps) {
+  const sidebarTextButtonClass =
+    'cursor-pointer bg-transparent text-[var(--chat-sidebar-text)] hover:text-[var(--chat-sidebar-text)] disabled:cursor-default';
+
   return (
     <div className={`vlaina-no-drag flex shrink-0 h-10 ${className || ''}`}>
       <button
         onClick={() => void desktopWindow.minimize()}
-        className={`h-full w-12 flex items-center justify-center transition-colors ${iconButtonStyles}`}
+        className={`h-full w-12 flex items-center justify-center transition-colors ${sidebarTextButtonClass}`}
       >
         <Icon size="md" name="window.minimize" />
       </button>
@@ -20,7 +22,7 @@ export function WindowControls({ className, minimal }: WindowControlsProps) {
       {!minimal && (
         <button
           onClick={() => void desktopWindow.toggleMaximize()}
-          className={`h-full w-12 flex items-center justify-center transition-colors ${iconButtonStyles}`}
+          className={`h-full w-12 flex items-center justify-center transition-colors ${sidebarTextButtonClass}`}
         >
           <Icon name="window.maximize" size="md" />
         </button>
@@ -28,9 +30,9 @@ export function WindowControls({ className, minimal }: WindowControlsProps) {
 
       <button
         onClick={() => void desktopWindow.close()}
-        className="h-full w-12 flex items-center justify-center hover:bg-red-500 transition-colors group"
+        className={`h-full w-12 flex items-center justify-center hover:bg-red-500 transition-colors group ${sidebarTextButtonClass}`}
       >
-        <Icon size="md" name="window.close" className="text-[var(--vlaina-text-tertiary)] group-hover:text-white" />
+        <Icon size="md" name="window.close" className="group-hover:text-white" />
       </button>
     </div>
   );

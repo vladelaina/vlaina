@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -12,19 +13,50 @@ interface SidebarUserHeaderProps {
 
 export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
     const { t } = useI18n();
+    const headerRef = useRef<HTMLDivElement>(null);
+    const [isHovered, setIsHovered] = useState(false);
+
+    useEffect(() => {
+        const handleMouseMove = (event: MouseEvent) => {
+            const rect = headerRef.current?.getBoundingClientRect();
+            if (!rect) return;
+
+            setIsHovered(
+                event.clientX >= rect.left &&
+                event.clientX <= rect.right &&
+                event.clientY >= rect.top &&
+                event.clientY <= rect.bottom
+            );
+        };
+
+        const handleMouseLeaveWindow = () => setIsHovered(false);
+
+        window.addEventListener('mousemove', handleMouseMove, true);
+        window.addEventListener('mouseleave', handleMouseLeaveWindow);
+        window.addEventListener('blur', handleMouseLeaveWindow);
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove, true);
+            window.removeEventListener('mouseleave', handleMouseLeaveWindow);
+            window.removeEventListener('blur', handleMouseLeaveWindow);
+        };
+    }, []);
 
     return (
         <div
-            className="vlaina-drag-region group/sidebar-user-header relative flex h-10 w-full items-center px-3"
+            ref={headerRef}
+            className="vlaina-drag-region vlaina-sidebar-user-header group/sidebar-user-header relative flex h-10 w-full items-center px-3"
+            data-hovered={isHovered ? 'true' : undefined}
         >
             <div
                 className={cn(
-                    'vlaina-no-drag flex h-8 w-full items-center justify-between rounded-full border border-transparent bg-transparent px-1 transition-[background-color,box-shadow]',
-                    'group-hover/sidebar-user-header:bg-white group-hover/sidebar-user-header:shadow-[0_4px_16px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.7)]',
-                    'group-focus-within/sidebar-user-header:bg-white group-focus-within/sidebar-user-header:shadow-[0_4px_16px_rgba(0,0,0,0.04),inset_0_1px_0_rgba(255,255,255,0.7)]'
+                    'vlaina-sidebar-user-header-pill flex h-8 w-full items-center justify-between rounded-full border border-transparent bg-transparent px-1 transition-[background-color,box-shadow]',
                 )}
             >
-                <WorkspaceSwitcher className="h-full w-auto min-w-0 flex-1 justify-start" />
+                <WorkspaceSwitcher className="h-full w-[calc(100%-5.25rem)] min-w-0 justify-start" />
+                <div
+                    className="vlaina-drag-region h-full min-w-12 flex-1 cursor-grab active:cursor-grabbing"
+                    aria-hidden="true"
+                />
                 <Tooltip delayDuration={700}>
                     <TooltipTrigger asChild>
                         <button
@@ -32,9 +64,7 @@ export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
                             onClick={toggleSidebar}
                             aria-label={t('common.collapseSidebar')}
                             className={cn(
-                                'pointer-events-none flex h-7 w-7 items-center justify-center rounded-full bg-transparent opacity-0 transition-opacity',
-                                'group-hover/sidebar-user-header:pointer-events-auto group-hover/sidebar-user-header:opacity-100',
-                                'group-focus-within/sidebar-user-header:pointer-events-auto group-focus-within/sidebar-user-header:opacity-100',
+                                'vlaina-sidebar-user-header-collapse pointer-events-none flex h-7 w-7 items-center justify-center rounded-full bg-transparent opacity-0 transition-opacity',
                                 iconButtonStyles
                             )}
                         >
