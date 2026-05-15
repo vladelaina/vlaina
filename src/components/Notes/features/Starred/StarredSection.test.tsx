@@ -95,10 +95,10 @@ describe('StarredSection', () => {
     cleanup();
   });
 
-  it('reserves embedded sidebar space when empty and no file tree item is being dragged', () => {
+  it('does not reserve embedded sidebar space when empty and no file tree item is being dragged', () => {
     const { container } = render(<StarredSection showTitle={false} />);
 
-    expect(container.querySelector('[aria-hidden="true"]')).not.toBeNull();
+    expect(container).toBeEmptyDOMElement();
     expect(screen.queryByText('Starred')).toBeNull();
   });
 

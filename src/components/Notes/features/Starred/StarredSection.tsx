@@ -51,10 +51,6 @@ export function StarredSection({
     return null;
   }
 
-  if (!showTitle && !hasEntries && !hasActiveDrag) {
-    return <div aria-hidden="true" className="h-8 w-full pointer-events-none opacity-0" />;
-  }
-
   if (!hasEntries && !hasActiveDrag) {
     return null;
   }
