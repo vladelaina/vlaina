@@ -125,6 +125,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       view.dom.addEventListener('beforeinput', markUserInput);
       view.dom.addEventListener('keydown', markUserInput);
       view.dom.addEventListener('vlaina:image-user-input', markUserInput);
+      view.dom.addEventListener('vlaina:block-user-input', markUserInput);
       view.dom.addEventListener('paste', markUserInput);
       view.dom.addEventListener('cut', markUserInput);
       view.dom.addEventListener('drop', markUserInput);
@@ -135,6 +136,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
         view.dom.removeEventListener('beforeinput', markUserInput);
         view.dom.removeEventListener('keydown', markUserInput);
         view.dom.removeEventListener('vlaina:image-user-input', markUserInput);
+        view.dom.removeEventListener('vlaina:block-user-input', markUserInput);
         view.dom.removeEventListener('paste', markUserInput);
         view.dom.removeEventListener('cut', markUserInput);
         view.dom.removeEventListener('drop', markUserInput);
@@ -157,8 +159,9 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   const { get } = useEditor((root) => {
     const editor = Editor.make()
       .config((ctx) => {
+        const normalizedFrontmatter = normalizeLeadingFrontmatterMarkdown(initialContent);
         const defaultValue = preserveMarkdownBlankLinesForEditor(
-          normalizeLeadingFrontmatterMarkdown(initialContent)
+          normalizedFrontmatter
         );
 
         ctx.set(rootCtx, root);

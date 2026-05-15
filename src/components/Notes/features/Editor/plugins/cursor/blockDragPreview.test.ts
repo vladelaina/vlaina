@@ -228,6 +228,143 @@ describe('createBlockDragPreview', () => {
     rectSpy.mockRestore();
   });
 
+  it('clones only the selected hard-break line for inline line previews', () => {
+    const editorRoot = document.createElement('div');
+    const paragraph = document.createElement('p');
+    const firstLine = document.createTextNode('A');
+    const hardBreak = document.createElement('br');
+    const secondLine = document.createTextNode('B');
+    paragraph.append(firstLine, hardBreak, secondLine);
+    editorRoot.appendChild(paragraph);
+    document.body.appendChild(editorRoot);
+
+    const paragraphNode = createNode('paragraph', 5, [
+      createNode('text', 1),
+      createNode('hardbreak', 1),
+      createNode('text', 1),
+    ]);
+
+    const view = {
+      dom: editorRoot,
+      state: {
+        doc: {
+          content: { size: 5 },
+          childCount: 1,
+          forEach(cb: (child: any, offset: number) => void) {
+            cb(paragraphNode, 0);
+          },
+          resolve(pos: number) {
+            return {
+              pos,
+              depth: 0,
+              nodeAfter: paragraphNode,
+              node() {
+                return createNode('doc', 5);
+              },
+              before() {
+                return 0;
+              },
+            };
+          },
+        },
+      },
+      nodeDOM() {
+        return paragraph;
+      },
+      domAtPos(pos: number) {
+        if (pos <= 1) return { node: firstLine, offset: 0 };
+        if (pos === 2) return { node: paragraph, offset: 1 };
+        if (pos === 3) return { node: secondLine, offset: 0 };
+        return { node: secondLine, offset: secondLine.textContent?.length ?? 0 };
+      },
+    } as any;
+
+    const rangeRect = {
+      left: 120,
+      top: 80,
+      width: 24,
+      height: 20,
+      right: 144,
+      bottom: 100,
+      x: 120,
+      y: 80,
+      toJSON: () => ({}),
+    };
+    const previewRect = {
+      left: 0,
+      top: 0,
+      width: 80,
+      height: 24,
+      right: 80,
+      bottom: 24,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    };
+
+    const getClientRectsSpy = vi
+      .spyOn(Range.prototype, 'getClientRects')
+      .mockReturnValue([rangeRect] as any);
+    const rectSpy = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        if (this === editorRoot) {
+          return {
+            left: 20,
+            top: 20,
+            width: 600,
+            height: 300,
+            right: 620,
+            bottom: 320,
+            x: 20,
+            y: 20,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        if (this === paragraph) {
+          return {
+            left: 120,
+            top: 80,
+            width: 600,
+            height: 48,
+            right: 720,
+            bottom: 128,
+            x: 120,
+            y: 80,
+            toJSON: () => ({}),
+          } as DOMRect;
+        }
+        if (this.dataset.noEditorDragBox === 'true') return previewRect as DOMRect;
+        return {
+          left: 0,
+          top: 0,
+          width: 0,
+          height: 0,
+          right: 0,
+          bottom: 0,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        } as DOMRect;
+      });
+
+    const preview = createBlockDragPreview({
+      view,
+      ranges: [{ from: 1, to: 3 }],
+      clientX: 124,
+      clientY: 88,
+    });
+
+    expect(preview).not.toBeNull();
+    expect(preview?.element.textContent).toBe('A');
+    expect(preview?.element.style.width).toBe('80px');
+    expect(paragraph.classList.contains('vlaina-block-drag-source')).toBe(false);
+
+    preview?.destroy();
+    getClientRectsSpy.mockRestore();
+    rectSpy.mockRestore();
+  });
+
   it('does not duplicate nested list content when parent and child ranges are both selected', () => {
     const editorRoot = document.createElement('div');
     const list = document.createElement('ol');

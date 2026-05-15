@@ -281,14 +281,29 @@ export function getBlockSelectionDecorationClass(
     : 'vlaina-block-selected';
 }
 
+function isNodeDecorationRange(doc: EditorState['doc'], range: BlockRange): boolean {
+  const safeFrom = Math.max(0, Math.min(range.from, doc.content.size));
+  try {
+    const nodeAfter = doc.resolve(safeFrom).nodeAfter;
+    return Boolean(nodeAfter && safeFrom + nodeAfter.nodeSize === range.to);
+  } catch {
+    return false;
+  }
+}
+
 export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks: readonly BlockRange[]): DecorationSet {
   if (blocks.length === 0) return DecorationSet.empty;
 
   const displayRanges = getDisplayBlockRangesForDecorations(doc, blocks);
 
-  const decorations = displayRanges.map((range) => Decoration.node(range.from, range.to, {
-    class: getBlockSelectionDecorationClass(doc, range, displayRanges),
-  }));
+  const decorations = displayRanges.map((range) => {
+    const attrs = {
+      class: getBlockSelectionDecorationClass(doc, range, displayRanges),
+    };
+    return isNodeDecorationRange(doc, range)
+      ? Decoration.node(range.from, range.to, attrs)
+      : Decoration.inline(range.from, range.to, attrs);
+  });
 
   return DecorationSet.create(doc, decorations);
 }

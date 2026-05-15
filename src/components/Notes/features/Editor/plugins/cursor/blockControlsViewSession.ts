@@ -354,6 +354,7 @@ export class BlockControlsViewSession {
         pendingDrop: this.pendingDrop,
         draggedDistance,
       });
+      this.view.dom.dispatchEvent(new CustomEvent('vlaina:block-user-input', { bubbles: true }));
       applyBlockMove(this.view, this.draggedRanges, this.pendingDrop.insertPos);
       this.finishDrag();
     }

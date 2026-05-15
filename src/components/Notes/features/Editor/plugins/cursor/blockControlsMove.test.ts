@@ -120,6 +120,44 @@ describe('applyBlockMove content integrity', () => {
     await editor.destroy();
   });
 
+  it('reorders hard-break paragraph line blocks within the same paragraph', async () => {
+    const editor = await createEditor('A\\\nB\\\nC');
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(blocks.length).toBeGreaterThanOrEqual(3);
+    expect(applyBlockMove(view, [blocks[0]], blocks[1].to)).toBe(true);
+    expect(view.state.doc.textBetween(0, view.state.doc.content.size, '\n', '\n')).toBe('B\nA\nC');
+
+    await editor.destroy();
+  });
+
+  it('moves hard-break paragraph lines out to a regular block boundary', async () => {
+    const editor = await createEditor('A\\\nB\\\nC\n\nTail');
+    const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(blocks.length).toBeGreaterThanOrEqual(4);
+    expect(applyBlockMove(view, [blocks[1]], view.state.doc.content.size)).toBe(true);
+    expect(normalizeMarkdown(serializer(view.state.doc))).toBe('A\\\nC\n\nTail\n\nB');
+
+    await editor.destroy();
+  });
+
+  it('moves regular blocks into a hard-break paragraph line boundary', async () => {
+    const editor = await createEditor('A\\\nB\n\nTail');
+    const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(blocks.length).toBeGreaterThanOrEqual(3);
+    expect(applyBlockMove(view, [blocks[2]], blocks[1].from)).toBe(true);
+    expect(normalizeMarkdown(serializer(view.state.doc))).toBe('A\n\nTail\n\nB');
+
+    await editor.destroy();
+  });
+
   it('reorders adjacent list items without changing the item set', async () => {
     const markdown = '- A\n- B\n- C';
     const editor = await createEditor(markdown);

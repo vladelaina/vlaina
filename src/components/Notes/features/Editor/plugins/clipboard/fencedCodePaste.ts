@@ -1,4 +1,7 @@
 import { isTocShortcutText } from '../toc/tocShortcut';
+export {
+    looksLikePlainTextWithOnlyBackslashHardBreakSignal,
+} from '@/lib/notes/markdown/plainTextBackslashHardBreaks';
 
 const STANDALONE_OPENING_FENCE_PATTERN = /^ {0,3}(`{3,}|~{3,})([^\r\n]*)$/;
 const THEMATIC_BREAK_PATTERN = /^(\s*)([-*_])(?:\s*\2){2,}\s*$/;

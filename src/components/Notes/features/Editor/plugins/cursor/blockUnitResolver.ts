@@ -43,6 +43,46 @@ function resolveTopLevelNodeAtPos(
   return resolved;
 }
 
+function resolveTopLevelRangeAtPos(doc: EditorState['doc'], pos: number): BlockRange | null {
+  const topLevelNode = resolveTopLevelNodeAtPos(doc, pos);
+  return topLevelNode ? { from: topLevelNode.from, to: topLevelNode.to } : null;
+}
+
+function isParagraphNode(name: string): boolean {
+  return name === 'paragraph';
+}
+
+function isHardBreakNode(name: string): boolean {
+  return name === 'hardbreak' || name === 'hard_break';
+}
+
+function collectParagraphLineRanges(node: EditorState['doc'], paragraphFrom: number): BlockRange[] | null {
+  const contentFrom = paragraphFrom + 1;
+  const contentTo = paragraphFrom + node.nodeSize - 1;
+  let lineFrom = contentFrom;
+  let hasHardBreak = false;
+  const ranges: BlockRange[] = [];
+
+  node.forEach((child, childOffset) => {
+    if (!isHardBreakNode(child.type.name)) return;
+
+    hasHardBreak = true;
+    const breakTo = contentFrom + childOffset + child.nodeSize;
+    if (breakTo > lineFrom) {
+      ranges.push({ from: lineFrom, to: breakTo });
+    }
+    lineFrom = breakTo;
+  });
+
+  if (!hasHardBreak) return null;
+
+  if (lineFrom < contentTo) {
+    ranges.push({ from: lineFrom, to: contentTo });
+  }
+
+  return ranges.length > 0 ? ranges : null;
+}
+
 function collectListItemRanges(node: EditorState['doc'], itemFrom: number, ranges: BlockRange[]): void {
   const contentFrom = itemFrom + 1;
   let firstChild = true;
@@ -210,7 +250,67 @@ function resolveRangeElement(view: EditorView, range: BlockRange): HTMLElement |
   return resolveBlockElementAtPos(view, range.from);
 }
 
+function createDOMRectFromBounds(left: number, top: number, right: number, bottom: number): DOMRect {
+  return {
+    x: left,
+    y: top,
+    left,
+    top,
+    right,
+    bottom,
+    width: right - left,
+    height: bottom - top,
+    toJSON: () => ({}),
+  } as DOMRect;
+}
+
+function resolveDOMRangeRect(view: EditorView, range: BlockRange): DOMRect | null {
+  const doc = view.dom.ownerDocument;
+  const domRange = doc.createRange();
+
+  try {
+    const start = view.domAtPos(range.from);
+    const end = view.domAtPos(range.to);
+    domRange.setStart(start.node, start.offset);
+    domRange.setEnd(end.node, end.offset);
+
+    let left = Number.POSITIVE_INFINITY;
+    let top = Number.POSITIVE_INFINITY;
+    let right = Number.NEGATIVE_INFINITY;
+    let bottom = Number.NEGATIVE_INFINITY;
+
+    for (const rect of Array.from(domRange.getClientRects())) {
+      if (rect.width <= 0 && rect.height <= 0) continue;
+      left = Math.min(left, rect.left);
+      top = Math.min(top, rect.top);
+      right = Math.max(right, rect.right);
+      bottom = Math.max(bottom, rect.bottom);
+    }
+
+    if (!Number.isFinite(left) || !Number.isFinite(top) || right <= left || bottom <= top) {
+      return null;
+    }
+
+    return createDOMRectFromBounds(left, top, right, bottom);
+  } catch {
+    return null;
+  } finally {
+    domRange.detach();
+  }
+}
+
+function isPartialTopLevelTextblockRange(view: EditorView, range: BlockRange): boolean {
+  const topLevelNode = resolveTopLevelNodeAtPos(view.state.doc, range.from);
+  if (!topLevelNode || topLevelNode.name !== 'paragraph') return false;
+  return range.from > topLevelNode.from || range.to < topLevelNode.to;
+}
+
 function resolveTargetRect(element: HTMLElement, range?: BlockRange, view?: EditorView): DOMRect {
+  if (range && view && isPartialTopLevelTextblockRange(view, range)) {
+    const rangeRect = resolveDOMRangeRect(view, range);
+    if (rangeRect) return rangeRect;
+  }
+
   if (element.tagName !== 'LI') return element.getBoundingClientRect();
 
   if (range && view) {
@@ -233,17 +333,7 @@ function resolveTargetRect(element: HTMLElement, range?: BlockRange, view?: Edit
   const height = bottom - top;
   if (height <= 0 || baseRect.width <= 0) return baseRect;
 
-  return {
-    x: baseRect.left,
-    y: top,
-    left: baseRect.left,
-    top,
-    right: baseRect.right,
-    bottom,
-    width: baseRect.width,
-    height,
-    toJSON: () => ({}),
-  } as DOMRect;
+  return createDOMRectFromBounds(baseRect.left, top, baseRect.right, bottom);
 }
 
 export function collectSelectableBlockRanges(doc: EditorState['doc']): BlockRange[] {
@@ -254,12 +344,42 @@ export function collectSelectableBlockRanges(doc: EditorState['doc']): BlockRang
       return;
     }
 
+    const paragraphLineRanges = isParagraphNode(node.type.name)
+      ? collectParagraphLineRanges(node, offset)
+      : null;
+    if (paragraphLineRanges) {
+      ranges.push(...paragraphLineRanges);
+      return;
+    }
+
     ranges.push({
       from: offset,
       to: offset + node.nodeSize,
     });
   });
   return ranges;
+}
+
+export function isInlineSelectableBlockRange(doc: EditorState['doc'], range: BlockRange): boolean {
+  const topLevelNode = resolveTopLevelNodeAtPos(doc, range.from);
+  if (!topLevelNode || topLevelNode.name !== 'paragraph') return false;
+  return range.from > topLevelNode.from || range.to < topLevelNode.to;
+}
+
+export function mapInlineSelectableRangesToMovableBlocks(
+  doc: EditorState['doc'],
+  ranges: readonly BlockRange[],
+): BlockRange[] {
+  if (ranges.length === 0) return [];
+  const movableRanges = ranges.map((range) => {
+    if (!isInlineSelectableBlockRange(doc, range)) return range;
+    return resolveTopLevelRangeAtPos(doc, range.from) ?? range;
+  });
+  return normalizeBlockRanges(movableRanges);
+}
+
+export function collectMovableBlockTargetRanges(doc: EditorState['doc']): BlockRange[] {
+  return mapInlineSelectableRangesToMovableBlocks(doc, collectSelectableBlockRanges(doc));
 }
 
 export function resolveSelectableBlockRange(doc: EditorState['doc'], pos: number): BlockRange | null {
@@ -300,7 +420,13 @@ export function mapRangesToSelectableBlocks(
 ): BlockRange[] {
   if (ranges.length === 0) return [];
   const resolved = ranges
-    .map((range) => resolveSelectableBlockRange(doc, range.from))
+    .map((range) => {
+      const topLevelRange = resolveTopLevelRangeAtPos(doc, range.from);
+      if (topLevelRange && topLevelRange.from === range.from && topLevelRange.to === range.to) {
+        return range;
+      }
+      return resolveSelectableBlockRange(doc, range.from);
+    })
     .filter((range): range is BlockRange => range !== null);
   return normalizeBlockRanges(resolved);
 }
