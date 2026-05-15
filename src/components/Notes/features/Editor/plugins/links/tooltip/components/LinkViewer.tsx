@@ -52,7 +52,7 @@ export const LinkViewer = ({
                             onClick={handleOpen}
                             className="toolbar-btn link-tooltip-open-btn group max-w-[200px]"
                         >
-                            <span className="flex items-center justify-center size-5 rounded text-[var(--vlaina-text-tertiary)] group-hover:text-[var(--vlaina-accent)] transition-colors">
+                            <span className="flex items-center justify-center size-5 rounded transition-colors">
                                 <Icon size="md" name="nav.external" />
                             </span>
                             <span className="truncate text-[13px] font-medium text-[var(--vlaina-text-tertiary)] group-hover:text-[var(--vlaina-text-primary)] transition-colors">
@@ -85,7 +85,7 @@ export const LinkViewer = ({
             <div className="flex items-center gap-0.5">
                 {!isAutolink && (
                     <button onClick={onUnlink} className={actionButtonClass}>
-                        <Icon size="md" name="common.blocked" />
+                        <Icon size="md" name="common.unlink" />
                     </button>
                 )}
 

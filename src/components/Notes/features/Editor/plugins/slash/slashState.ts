@@ -95,6 +95,10 @@ export function deriveSlashState(tr: Transaction, state: SlashMenuState) {
     return state;
   }
 
+  if (!state.isOpen && !tr.docChanged) {
+    return state;
+  }
+
   const slashRange = getSlashTextRangeFromSelection(tr.selection);
   if (!slashRange) {
     return state.isOpen ? createSlashState() : state;

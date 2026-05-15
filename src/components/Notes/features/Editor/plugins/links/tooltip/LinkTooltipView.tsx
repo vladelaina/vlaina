@@ -22,7 +22,7 @@ import {
     unlinkExistingLink,
 } from './linkTooltipTransactions';
 
-const LINK_TOOLTIP_SHOW_DELAY = 180;
+const LINK_TOOLTIP_SHOW_DELAY = 70;
 
 export class LinkTooltipView {
     dom: HTMLElement;

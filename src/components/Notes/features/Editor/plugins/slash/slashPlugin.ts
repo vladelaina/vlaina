@@ -8,9 +8,7 @@ import {
   canOpenSlashMenuFromSelection,
   createSlashState,
   deriveSlashState,
-  getSlashTextRange,
 } from './slashState';
-import { notifyNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
 
 export const slashPlugin = $prose((ctx) => {
   return new Plugin({
@@ -32,25 +30,7 @@ export const slashPlugin = $prose((ctx) => {
             !event.isComposing &&
             canOpenSlashMenuFromSelection(view.state.selection)
           ) {
-            setTimeout(() => {
-              if (!view.dom.isConnected) {
-                return;
-              }
-
-              const slashRange = getSlashTextRange(view);
-              if (!slashRange || slashRange.query !== '') {
-                return;
-              }
-
-              notifyNotesOverlayOpen('slash-menu');
-              view.dispatch(
-                view.state.tr.setMeta(slashPluginKey, {
-                  isOpen: true,
-                  query: '',
-                  selectedIndex: 0,
-                })
-              );
-            }, 0);
+            return false;
           }
 
           return false;

@@ -359,6 +359,14 @@ export function createFloatingToolbarPluginView(
       !(selection instanceof TextSelection) ||
       (selection.from === pluginState.aiReview.from && selection.to === pluginState.aiReview.to)
     ) {
+      if (
+        selectionToolbarSubMenu === null &&
+        lastSelectionToolbarRenderState === '' &&
+        !selectionToolbarElement.classList.contains('visible')
+      ) {
+        return;
+      }
+
       hideToolbar(selectionToolbarElement);
       lastSelectionToolbarRenderState = '';
       selectionToolbarSubMenu = null;
@@ -788,26 +796,24 @@ export function createFloatingToolbarPluginView(
     interactionState.pendingShow = false;
     if (pendingRaf !== null) {
       cancelAnimationFrame(pendingRaf);
+      pendingRaf = null;
     }
 
-    pendingRaf = requestAnimationFrame(() => {
-      pendingRaf = null;
-      if (interactionState.isMouseDown) {
-        return;
-      }
-      if (isFloatingToolbarSuppressed()) {
-        return;
-      }
+    if (interactionState.isMouseDown) {
+      return;
+    }
+    if (isFloatingToolbarSuppressed()) {
+      return;
+    }
 
-      const { selection } = editorView.state;
-      if (!selection.empty) {
-        editorView.dispatch(
-          editorView.state.tr.setMeta(toolbarKey, {
-            type: TOOLBAR_ACTIONS.SHOW,
-          })
-        );
-      }
-    });
+    const { selection } = editorView.state;
+    if (!selection.empty) {
+      editorView.dispatch(
+        editorView.state.tr.setMeta(toolbarKey, {
+          type: TOOLBAR_ACTIONS.SHOW,
+        })
+      );
+    }
   };
 
   const handleToolbarPointerEnter = () => {

@@ -125,6 +125,7 @@ import { FileDirectoryFillIcon } from './custom/mit/FileDirectoryFillIcon';
 import { FileDirectoryOpenFillIcon } from './custom/mit/FileDirectoryOpenFillIcon';
 import { FileDirectoryOpenArrowIcon } from './custom/mit/FileDirectoryOpenArrowIcon';
 import { FolderOutputIcon } from './custom/mit/FolderOutputIcon';
+import { UnlinkIcon } from './custom/mit/UnlinkIcon';
 
 export type IconSource = ComponentType<SVGProps<SVGSVGElement> & { size?: number | string }>;
 
@@ -166,6 +167,7 @@ export const icons: Record<string, IconSource> = {
   'common.error': ExclamationCircleIcon,
   'common.blocked': NoSymbolIcon,
   'common.block': NoSymbolIcon,
+  'common.unlink': UnlinkIcon,
   'common.compose': NewChatIcon,
   'common.quote': Quote,
   'common.tag': TagIcon,

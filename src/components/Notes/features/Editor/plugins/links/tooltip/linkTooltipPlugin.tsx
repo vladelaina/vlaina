@@ -43,7 +43,7 @@ export const linkTooltipPlugin = $prose(() => {
         },
         view(editorView) {
             const tooltipView = new LinkTooltipView(editorView);
-            let pendingShowTimer: number | null = null;
+            let pendingShowFrame: number | null = null;
 
             return {
                 update(view, prevState) {
@@ -55,14 +55,14 @@ export const linkTooltipPlugin = $prose(() => {
                     const { from, to, autoFocus } = pluginState;
                     view.dispatch(view.state.tr.setMeta(linkTooltipPluginKey, { type: 'CLEAR_LINK_TOOLTIP' }));
 
-                    if (pendingShowTimer != null) clearTimeout(pendingShowTimer);
-                    pendingShowTimer = window.setTimeout(() => {
-                        pendingShowTimer = null;
+                    if (pendingShowFrame != null) cancelAnimationFrame(pendingShowFrame);
+                    pendingShowFrame = requestAnimationFrame(() => {
+                        pendingShowFrame = null;
                         tooltipView.showAtPosition(from, to, autoFocus);
-                    }, 50);
+                    });
                 },
                 destroy() {
-                    if (pendingShowTimer != null) clearTimeout(pendingShowTimer);
+                    if (pendingShowFrame != null) cancelAnimationFrame(pendingShowFrame);
                     tooltipView.destroy();
                 },
             };
