@@ -1,5 +1,4 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
-import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { AppShell } from '@/components/layout/shell/AppShell';
 import { SidebarUserHeader } from '@/components/layout/SidebarUserHeader';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -19,6 +18,8 @@ import { getConsoleLogText, installConsoleLogCapture } from '@/lib/consoleLogBuf
 import { useToastStore } from '@/stores/useToastStore';
 
 const preloadSettingsModule = () => import('@/components/Settings');
+const SETTINGS_PRELOAD_DELAY_MS = 8000;
+const SETTINGS_PRELOAD_IDLE_TIMEOUT_MS = 4000;
 
 const SettingsModal = lazy(async () => {
   const mod = await preloadSettingsModule();
@@ -109,13 +110,21 @@ export function AppContent() {
       void preloadSettingsModule();
     };
 
-    if ('requestIdleCallback' in window) {
-      const idleId = window.requestIdleCallback(preload, { timeout: 1500 });
-      return () => window.cancelIdleCallback(idleId);
-    }
+    let idleId: number | null = null;
+    const timeoutId = window.setTimeout(() => {
+      if ('requestIdleCallback' in window) {
+        idleId = window.requestIdleCallback(preload, { timeout: SETTINGS_PRELOAD_IDLE_TIMEOUT_MS });
+        return;
+      }
+      preload();
+    }, SETTINGS_PRELOAD_DELAY_MS);
 
-    const timeoutId = globalThis.setTimeout(preload, 600);
-    return () => globalThis.clearTimeout(timeoutId);
+    return () => {
+      window.clearTimeout(timeoutId);
+      if (idleId !== null) {
+        window.cancelIdleCallback(idleId);
+      }
+    };
   }, []);
 
   useShortcuts();
@@ -213,7 +222,6 @@ export function AppContent() {
       });
   }, []);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const shouldRenderSidebar = appViewMode === 'chat' || appViewMode === 'notes';
 
   const sidebarContent = shouldRenderSidebar ? (
@@ -337,7 +345,7 @@ export function AppContent() {
   ) : null;
 
   return (
-    <DndContext sensors={sensors}>
+    <>
       <Suspense fallback={null}>
         <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       </Suspense>
@@ -359,6 +367,6 @@ export function AppContent() {
       >
         {mainContent}
       </AppShell>
-    </DndContext>
+    </>
   );
 }

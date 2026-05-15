@@ -13,6 +13,7 @@ import { getChatContentWidth } from '@/components/Chat/features/Layout/chatWidth
 import {
   addChatSelectionStreamFreezeListener,
 } from '@/components/Chat/features/Messages/components/chatSelectionStreamFreeze';
+import 'katex/dist/katex.min.css';
 import '@/components/common/markdown/markdownSurface.css';
 
 interface MarkdownRendererProps {

@@ -75,6 +75,10 @@ export default defineConfig(async () => ({
 
   // Build options
   build: {
+    // Keep heavy lazy routes lazy in packaged Electron startup too.
+    // Vite's default modulepreload hints can pull Notes/Markdown/editor chunks
+    // into memory before the user opens those surfaces.
+    modulePreload: false,
     // Output directory
     outDir: 'dist',
     // Generate sourcemaps for debugging
@@ -85,49 +89,10 @@ export default defineConfig(async () => ({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('/vendor/milkdown/packages/')) {
-            return 'notes-milkdown-vendor';
-          }
-
           if (!id.includes('node_modules')) return;
 
           if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) {
             return 'react-vendor';
-          }
-
-          if (
-            id.includes('/@codemirror/lang-') ||
-            id.includes('/@codemirror/legacy-modes/') ||
-            id.includes('/@lezer/')
-          ) {
-            return;
-          }
-
-          if (id.includes('/@codemirror/')) {
-            return 'notes-codemirror-core-vendor';
-          }
-
-          if (id.includes('/prosemirror/')) {
-            return 'notes-prosemirror-vendor';
-          }
-
-          if (id.includes('/@milkdown/')) {
-            return 'notes-milkdown-vendor';
-          }
-
-          if (id.includes('/katex/')) {
-            return 'katex-vendor';
-          }
-
-          if (
-            id.includes('/remark-') ||
-            id.includes('/rehype-') ||
-            id.includes('/unified/') ||
-            id.includes('/micromark/') ||
-            id.includes('/mdast-') ||
-            id.includes('/hast-')
-          ) {
-            return 'notes-markdown-vendor';
           }
 
           if (id.includes('/dagre-d3-es/') || id.includes('/dagre/') || id.includes('/graphlib/')) {
@@ -146,7 +111,11 @@ export default defineConfig(async () => ({
             return 'cytoscape-vendor';
           }
 
-          if (id.includes('/framer-motion/') || id.includes('/@radix-ui/')) {
+          if (id.includes('/framer-motion/')) {
+            return 'motion-vendor';
+          }
+
+          if (id.includes('/@radix-ui/')) {
             return 'ui-vendor';
           }
         },

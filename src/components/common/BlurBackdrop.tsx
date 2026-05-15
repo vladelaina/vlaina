@@ -1,8 +1,7 @@
-import { forwardRef, type MouseEventHandler } from 'react';
-import { motion, type HTMLMotionProps } from 'framer-motion';
+import { forwardRef, type HTMLAttributes, type MouseEventHandler } from 'react';
 import { cn } from '@/lib/utils';
 
-export interface BlurBackdropProps extends Omit<HTMLMotionProps<'div'>, 'onClick'> {
+export interface BlurBackdropProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onClick'> {
   onClick?: MouseEventHandler<HTMLDivElement>;
   className?: string;
   overlayClassName?: string;
@@ -19,27 +18,24 @@ export const BlurBackdrop = forwardRef<HTMLDivElement, BlurBackdropProps>(functi
     zIndex = 100,
     blurPx = 6,
     duration = 0.2,
-    initial,
-    animate,
-    exit,
-    transition,
     style,
     ...props
   },
   ref
 ) {
   return (
-    <motion.div
+    <div
       ref={ref}
-      initial={initial ?? { opacity: 0 }}
-      animate={animate ?? { opacity: 1 }}
-      exit={exit ?? { opacity: 0 }}
-      transition={transition ?? { duration }}
-      className={cn('fixed inset-0', overlayClassName, className)}
+      className={cn(
+        'fixed inset-0 opacity-0 transition-opacity data-[state=open]:opacity-100',
+        overlayClassName,
+        className,
+      )}
       style={{
         zIndex,
         backdropFilter: `blur(${blurPx}px)`,
         WebkitBackdropFilter: `blur(${blurPx}px)`,
+        transitionDuration: `${duration}s`,
         ...style,
       }}
       onClick={onClick}

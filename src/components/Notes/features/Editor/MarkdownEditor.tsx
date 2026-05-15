@@ -24,6 +24,7 @@ import {
 import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
 import { MilkdownEditorInner } from './MilkdownEditorInner';
 import { prewarmMermaidRenderer } from './plugins/mermaid/mermaidRenderer';
+import 'katex/dist/katex.min.css';
 import './styles/index.css';
 
 export function MarkdownEditor({

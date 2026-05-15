@@ -1,17 +1,28 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { AppContent } from '@/AppContent';
-import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { ThemeProvider } from '@/components/theme-provider';
-import { ToastContainer } from '@/components/ui/Toast';
 import { useElectronCloseGuard } from '@/hooks/useElectronCloseGuard';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { useToastStore } from '@/stores/useToastStore';
 import { useDocumentLanguage, useI18n } from '@/lib/i18n';
 
+const ConfirmDialog = lazy(async () => {
+  const mod = await import('@/components/common/ConfirmDialog');
+  return { default: mod.ConfirmDialog };
+});
+
+const ToastContainer = lazy(async () => {
+  const mod = await import('@/components/ui/Toast');
+  return { default: mod.ToastContainer };
+});
+
 function App() {
   const { language, t } = useI18n();
+  const [hasToasts, setHasToasts] = useState(() =>
+    Boolean(useToastStore.getState().toasts?.length)
+  );
   const {
     isCloseDraftConfirmOpen,
     isCloseFailureConfirmOpen,
@@ -21,6 +32,16 @@ function App() {
     forceWindowClose,
   } = useElectronCloseGuard();
   useDocumentLanguage(language);
+
+  useEffect(() => {
+    if (typeof useToastStore.subscribe !== 'function') {
+      return;
+    }
+
+    return useToastStore.subscribe((state) => {
+      setHasToasts(state.toasts.length > 0);
+    });
+  }, []);
 
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
@@ -68,45 +89,55 @@ function App() {
       <ErrorBoundary>
         <AppContent />
       </ErrorBoundary>
-      <ConfirmDialog
-        isOpen={isCloseDraftConfirmOpen}
-        onClose={() => setIsCloseDraftConfirmOpen(false)}
-        onConfirm={() => {
-          setIsCloseDraftConfirmOpen(false);
-          void continueWindowClose({ skipDraftConfirm: true });
-        }}
-        onCancelAction={async () => {
-          setIsCloseDraftConfirmOpen(false);
-          await continueWindowClose({
-            skipDraftConfirm: true,
-            saveDrafts: true,
-          });
-        }}
-        title={t('app.unsavedDraftsTitle')}
-        description={t('app.unsavedDraftsDescription')}
-        confirmText={t('app.unsavedDraftsConfirm')}
-        cancelText={t('app.unsavedDraftsCancel')}
-        variant="danger"
-        initialFocus="cancel"
-      />
-      <ConfirmDialog
-        isOpen={isCloseFailureConfirmOpen}
-        onClose={() => setIsCloseFailureConfirmOpen(false)}
-        onConfirm={() => {
-          void forceWindowClose();
-        }}
-        onCancelAction={async () => {
-          setIsCloseFailureConfirmOpen(false);
-          await continueWindowClose();
-        }}
-        title={t('app.closeSaveFailedTitle')}
-        description={t('app.closeSaveFailedDescription')}
-        confirmText={t('app.unsavedDraftsConfirm')}
-        cancelText={t('common.retry')}
-        variant="danger"
-        initialFocus="cancel"
-      />
-      <ToastContainer />
+      <Suspense fallback={null}>
+        {isCloseDraftConfirmOpen ? (
+          <ConfirmDialog
+            isOpen={isCloseDraftConfirmOpen}
+            onClose={() => setIsCloseDraftConfirmOpen(false)}
+            onConfirm={() => {
+              setIsCloseDraftConfirmOpen(false);
+              void continueWindowClose({ skipDraftConfirm: true });
+            }}
+            onCancelAction={async () => {
+              setIsCloseDraftConfirmOpen(false);
+              await continueWindowClose({
+                skipDraftConfirm: true,
+                saveDrafts: true,
+              });
+            }}
+            title={t('app.unsavedDraftsTitle')}
+            description={t('app.unsavedDraftsDescription')}
+            confirmText={t('app.unsavedDraftsConfirm')}
+            cancelText={t('app.unsavedDraftsCancel')}
+            variant="danger"
+            initialFocus="cancel"
+          />
+        ) : null}
+        {isCloseFailureConfirmOpen ? (
+          <ConfirmDialog
+            isOpen={isCloseFailureConfirmOpen}
+            onClose={() => setIsCloseFailureConfirmOpen(false)}
+            onConfirm={() => {
+              void forceWindowClose();
+            }}
+            onCancelAction={async () => {
+              setIsCloseFailureConfirmOpen(false);
+              await continueWindowClose();
+            }}
+            title={t('app.closeSaveFailedTitle')}
+            description={t('app.closeSaveFailedDescription')}
+            confirmText={t('app.unsavedDraftsConfirm')}
+            cancelText={t('common.retry')}
+            variant="danger"
+            initialFocus="cancel"
+          />
+        ) : null}
+      </Suspense>
+      {hasToasts ? (
+        <Suspense fallback={null}>
+          <ToastContainer />
+        </Suspense>
+      ) : null}
     </ThemeProvider>
   );
 }
