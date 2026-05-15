@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { ManagedQuotaMeter } from './ManagedQuotaMeter';
-import { BillingPlansDialog } from './BillingPlansDialog';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { getSidebarIdleRowSurfaceClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 
@@ -21,7 +20,6 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
   const { username, primaryEmail, isConnected, membershipTier, membershipName } = useAccountSessionStore();
   const { t } = useI18n();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isBillingDialogOpen, setIsBillingDialogOpen] = useState(false);
 
   const displayName = username || primaryEmail || 'vlaina';
   const displayIdentity = primaryEmail || username || 'vlaina';
@@ -97,7 +95,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
             <div className="fixed inset-0 z-[60]" onClick={() => setIsMenuOpen(false)} />
             <div
               className={cn(
-                "absolute left-[calc(100%-10px)] top-8 z-[70] w-44 rounded-[22px] border-transparent p-1 animate-in fade-in-0 zoom-in-95 slide-in-from-top-1",
+                "absolute left-[calc(100%-10px)] top-8 z-[70] w-48 rounded-[22px] border-transparent p-1 animate-in fade-in-0 zoom-in-95 slide-in-from-top-1",
                 chatComposerPillSurfaceClass
               )}
             >
@@ -113,21 +111,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
                 )}
               >
                 <Icon size="md" name="user.switch" className="text-[var(--chat-sidebar-text)]" />
-                {t('account.switchAccount')}
-              </button>
-              <button
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  setIsBillingDialogOpen(true);
-                }}
-                className={cn(
-                  'flex w-full cursor-pointer items-center gap-2 px-2.5 py-2 text-left text-[16px] font-medium transition-colors',
-                  getSidebarIdleRowSurfaceClass('chat'),
-                  'text-[var(--chat-sidebar-text)] hover:bg-[var(--chat-sidebar-row-hover)]'
-                )}
-              >
-                <Icon size="md" name="misc.crown" className="text-[var(--chat-sidebar-text)]" />
-                {t('account.membership')}
+                <span className="whitespace-nowrap">{t('account.switchAccount')}</span>
               </button>
               <button
                 onClick={() => {
@@ -147,8 +131,6 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
           </>
         )}
       </div>
-
-      <BillingPlansDialog open={isBillingDialogOpen} onOpenChange={setIsBillingDialogOpen} />
     </div>
   );
 };
