@@ -3,7 +3,6 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { abortActiveAiSelectionReview, abortAllAiSelectionReviews } from './ai/reviewFlow';
 import { createToolbarRenderer } from './renderToolbar';
 import {
-  calculateBottomPosition,
   calculateBottomPositionForRange,
   calculatePosition,
   calculatePositionForRange,
@@ -32,6 +31,20 @@ import {
 } from './floatingToolbarLayout';
 import { clearFormatPreview, hasActiveAppliedPreview } from './previewStyles';
 import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
+
+function hasVisibleNativeRange(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) {
+    return false;
+  }
+
+  const range = selection.getRangeAt(0);
+  return !selection.isCollapsed && range.getClientRects().length > 0;
+}
 
 export function shouldLockPreviewToolbarPosition(args: {
   subMenu: FloatingToolbarState['subMenu'];
@@ -65,6 +78,8 @@ export function createFloatingToolbarPluginView(
   let lastSelectionToolbarRenderState = '';
   let selectionToolbarSubMenu: FloatingToolbarState['subMenu'] = null;
   let lastExclusiveToolbarSignature = '';
+  let hasAiReviewWidthStyle = false;
+  let lastMeasuredToolbarWidth: number | null = null;
 
   const toolbarElement = createToolbarElement();
   const toolbarRenderer = createToolbarRenderer(toolbarElement);
@@ -130,6 +145,12 @@ export function createFloatingToolbarPluginView(
     hideToolbar(selectionToolbarElement);
     reviewToolbars.forEach(({ element }) => hideToolbar(element));
     resetToolbarTracking();
+  };
+
+  const measureToolbarWidth = (toolbar: HTMLElement) => {
+    const toolbarBodyNode = toolbar.querySelector('.floating-toolbar-inner');
+    const toolbarBody = toolbarBodyNode instanceof HTMLElement ? toolbarBodyNode : null;
+    return toolbarBody?.offsetWidth || toolbar.offsetWidth || 0;
   };
 
   const isToolbarEventTarget = (target: EventTarget | null) => {
@@ -202,15 +223,6 @@ export function createFloatingToolbarPluginView(
     return true;
   };
 
-  const getContentBounds = () => {
-    const layout = getContentLayoutContext(editorView, positionRoot instanceof HTMLElement ? positionRoot : null);
-    if (!layout.container || !layout.containerRect || !layout.containerBounds) {
-      return null;
-    }
-
-    return layout.containerBounds;
-  };
-
   const correctToolbarToContentBounds = (toolbar: HTMLElement, x: number) => {
     const container = positionRoot instanceof HTMLElement ? positionRoot : null;
     if (!container) {
@@ -218,8 +230,16 @@ export function createFloatingToolbarPluginView(
     }
 
     const layout = getContentLayoutContext(editorView, container);
-    const contentLeft = layout.viewportBounds.left;
-    const contentRight = layout.viewportBounds.right;
+    return correctToolbarToLayoutBounds(toolbar, x, layout.viewportBounds);
+  };
+
+  const correctToolbarToLayoutBounds = (
+    toolbar: HTMLElement,
+    x: number,
+    bounds: { left: number; right: number }
+  ) => {
+    const contentLeft = bounds.left;
+    const contentRight = bounds.right;
     const toolbarBodyNode = toolbar.querySelector<HTMLElement>('.floating-toolbar-inner');
     const toolbarRect = (toolbarBodyNode instanceof HTMLElement ? toolbarBodyNode : toolbar).getBoundingClientRect();
     const contentWidth = Math.max(0, contentRight - contentLeft);
@@ -277,6 +297,14 @@ export function createFloatingToolbarPluginView(
     isReviewModeActive: boolean,
     _pluginState: FloatingToolbarState | undefined
   ) => {
+    if (!isReviewModeActive) {
+      if (hasAiReviewWidthStyle) {
+        toolbarElement.style.removeProperty('--ai-review-width');
+        hasAiReviewWidthStyle = false;
+      }
+      return;
+    }
+
     const aiReviewWidth = getAiReviewPanelWidth(
       getContentLayoutContext(editorView, positionRoot instanceof HTMLElement ? positionRoot : null)
     );
@@ -285,10 +313,14 @@ export function createFloatingToolbarPluginView(
         '--ai-review-width',
         `${Math.round(aiReviewWidth)}px`
       );
+      hasAiReviewWidthStyle = true;
       return;
     }
 
-    toolbarElement.style.removeProperty('--ai-review-width');
+    if (hasAiReviewWidthStyle) {
+      toolbarElement.style.removeProperty('--ai-review-width');
+      hasAiReviewWidthStyle = false;
+    }
   };
 
   const renderToolbarIfNeeded = (
@@ -441,9 +473,6 @@ export function createFloatingToolbarPluginView(
           to: pluginState.aiReview.to,
         }
       : null;
-    const aiPosition = reviewRange
-      ? calculateBottomPositionForRange(editorView, reviewRange.from, reviewRange.to)
-      : calculateBottomPosition(editorView);
     const selectionPosition = reviewRange
       ? calculatePositionForRange(editorView, reviewRange.from, reviewRange.to)
       : calculatePosition(editorView);
@@ -451,6 +480,9 @@ export function createFloatingToolbarPluginView(
       editorView,
       positionRoot instanceof HTMLElement ? positionRoot : null
     );
+    const aiPosition = reviewRange
+      ? calculateBottomPositionForRange(editorView, reviewRange.from, reviewRange.to)
+      : selectionPosition;
     const nextPosition = resolveToolbarViewportPosition({
       aiPosition,
       layout,
@@ -476,7 +508,8 @@ export function createFloatingToolbarPluginView(
       positionRoot instanceof HTMLElement ? positionRoot : null,
       isAiMode,
       toolbarElement,
-      getContentBounds()
+      layout.containerBounds,
+      lastMeasuredToolbarWidth
     );
     const shouldFreezeX =
       pluginState.subMenu !== 'aiReview' &&
@@ -512,6 +545,7 @@ export function createFloatingToolbarPluginView(
       finalPlacement,
       finalX,
       finalY,
+      layoutViewportBounds: layout.viewportBounds,
       currentScrollLeft,
       currentScrollTop,
       selectionSignature,
@@ -690,6 +724,7 @@ export function createFloatingToolbarPluginView(
       finalPlacement,
       finalX,
       finalY,
+      layoutViewportBounds,
       currentScrollLeft,
       currentScrollTop,
       selectionSignature,
@@ -707,7 +742,11 @@ export function createFloatingToolbarPluginView(
     );
     const correctedX = pluginState.subMenu === 'aiReview'
       ? finalX
-      : correctToolbarToContentBounds(toolbarElement, finalX);
+      : correctToolbarToLayoutBounds(toolbarElement, finalX, layoutViewportBounds);
+    const measuredToolbarWidth = measureToolbarWidth(toolbarElement);
+    if (measuredToolbarWidth > 0) {
+      lastMeasuredToolbarWidth = measuredToolbarWidth;
+    }
     correctSubmenusToContentBounds(toolbarElement);
     updateSelectionToolbarForReview(pluginState, {
       activeMarks,
@@ -799,21 +838,29 @@ export function createFloatingToolbarPluginView(
       pendingRaf = null;
     }
 
-    if (interactionState.isMouseDown) {
-      return;
-    }
-    if (isFloatingToolbarSuppressed()) {
-      return;
-    }
+    pendingRaf = requestAnimationFrame(() => {
+      pendingRaf = null;
+      if (interactionState.isMouseDown) {
+        return;
+      }
+      if (isFloatingToolbarSuppressed()) {
+        return;
+      }
 
-    const { selection } = editorView.state;
-    if (!selection.empty) {
-      editorView.dispatch(
-        editorView.state.tr.setMeta(toolbarKey, {
-          type: TOOLBAR_ACTIONS.SHOW,
-        })
-      );
-    }
+      let { selection } = editorView.state;
+      if (selection.empty && lastTextSelection && hasVisibleNativeRange()) {
+        restoreLastSelection();
+        selection = editorView.state.selection;
+      }
+
+      if (!selection.empty) {
+        editorView.dispatch(
+          editorView.state.tr.setMeta(toolbarKey, {
+            type: TOOLBAR_ACTIONS.SHOW,
+          })
+        );
+      }
+    });
   };
 
   const handleToolbarPointerEnter = () => {

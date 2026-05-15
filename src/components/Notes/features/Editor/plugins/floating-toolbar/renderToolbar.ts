@@ -54,9 +54,14 @@ export function createToolbarRenderer(
   };
   return {
     render(view, state) {
+      const previousSubMenu = currentState?.subMenu ?? null;
       currentState = state;
-      aiDropdownController.cleanup();
-      aiReviewPanelController.cleanup();
+      if (previousSubMenu === 'ai' || state.subMenu === 'ai') {
+        aiDropdownController.cleanup();
+      }
+      if (previousSubMenu === 'aiReview' || state.subMenu === 'aiReview') {
+        aiReviewPanelController.cleanup();
+      }
       eventDelegation.update(view, state);
 
       toolbarElement.innerHTML = renderToolbarMarkup(state);

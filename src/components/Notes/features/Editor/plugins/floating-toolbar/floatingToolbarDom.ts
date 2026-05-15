@@ -80,7 +80,8 @@ export function clampToolbarX(
   container: HTMLElement | null,
   isAiMode: boolean,
   toolbarElement: HTMLElement,
-  contentBounds?: { left: number; right: number } | null
+  contentBounds?: { left: number; right: number } | null,
+  fallbackToolbarWidth?: number | null
 ): {
   clampedX: number;
   toolbarWidth: number;
@@ -90,7 +91,7 @@ export function clampToolbarX(
   if (!container) {
     return {
       clampedX: x,
-      toolbarWidth: toolbarElement.offsetWidth,
+      toolbarWidth: toolbarElement.offsetWidth || fallbackToolbarWidth || 0,
       minX: Number.NEGATIVE_INFINITY,
       maxX: Number.POSITIVE_INFINITY,
     };
@@ -103,13 +104,27 @@ export function clampToolbarX(
   const maxX = contentBounds
     ? Math.min(container.clientWidth - margin, contentBounds.right - margin)
     : container.clientWidth - margin;
+  const contentWidth = contentBounds ? Math.max(0, contentBounds.right - contentBounds.left) : null;
   const toolbarBodyNode = toolbarElement.querySelector('.floating-toolbar-inner');
   const toolbarBody = toolbarBodyNode instanceof HTMLElement ? toolbarBodyNode : null;
-  const toolbarWidth = toolbarBody?.offsetWidth || toolbarElement.offsetWidth;
+  const toolbarWidth =
+    toolbarBody?.offsetWidth ||
+    toolbarElement.offsetWidth ||
+    fallbackToolbarWidth ||
+    (!isAiMode && contentWidth !== null ? contentWidth : 0);
 
   if (isAiMode) {
     return {
       clampedX: Math.min(x, Math.max(minX, maxX - toolbarWidth)),
+      toolbarWidth,
+      minX,
+      maxX,
+    };
+  }
+
+  if (contentBounds && contentWidth !== null && toolbarWidth >= contentWidth) {
+    return {
+      clampedX: contentBounds.left + toolbarWidth / 2,
       toolbarWidth,
       minX,
       maxX,
@@ -139,13 +154,27 @@ export function showToolbar(
   placement: 'top' | 'bottom',
   isReviewMode = false
 ) {
-  toolbarElement.dataset.reviewMode = isReviewMode ? 'true' : 'false';
-  toolbarElement.style.position = 'absolute';
-  toolbarElement.style.left = `${position.x}px`;
-  toolbarElement.style.top = `${position.y}px`;
-  toolbarElement.style.transform = isReviewMode
+  const reviewMode = isReviewMode ? 'true' : 'false';
+  const left = `${position.x}px`;
+  const top = `${position.y}px`;
+  const transform = isReviewMode
     ? `translateX(0) translateY(${placement === 'top' ? '-100%' : '0'})`
     : `translateX(-50%) translateY(${placement === 'top' ? '-100%' : '0'})`;
+  if (toolbarElement.dataset.reviewMode !== reviewMode) {
+    toolbarElement.dataset.reviewMode = reviewMode;
+  }
+  if (toolbarElement.style.position !== 'absolute') {
+    toolbarElement.style.position = 'absolute';
+  }
+  if (toolbarElement.style.left !== left) {
+    toolbarElement.style.left = left;
+  }
+  if (toolbarElement.style.top !== top) {
+    toolbarElement.style.top = top;
+  }
+  if (toolbarElement.style.transform !== transform) {
+    toolbarElement.style.transform = transform;
+  }
 
   if (!toolbarElement.classList.contains('visible')) {
     toolbarElement.classList.add('visible');

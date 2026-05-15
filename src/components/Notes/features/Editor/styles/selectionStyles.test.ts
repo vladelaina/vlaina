@@ -322,6 +322,8 @@ describe('editor embedded CodeMirror selection styles', () => {
 
     expect(css).toContain('.milkdown .ProseMirror.vlaina-text-selection-overlay-active *::selection {');
     expect(css).toContain('background-color: transparent !important;');
+    expect(css).toContain('.milkdown .ProseMirror.vlaina-pointer-native-selection *::selection {');
+    expect(css).toContain('-webkit-text-fill-color: currentColor !important;');
     expect(css).toContain('.milkdown .ProseMirror .vlaina-text-selection-overlay {');
     expect(css).toContain('line-height: inherit;');
     expect(css).not.toContain('vlaina-ai-review-selection');
