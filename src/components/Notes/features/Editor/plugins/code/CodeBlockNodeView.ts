@@ -63,6 +63,26 @@ export class CodeBlockNodeView implements NodeView {
   private destroyed = false;
   private showLineNumbers = selectCodeBlockLineNumbersEnabled(useUnifiedStore.getState());
 
+  private readonly clearEditorSelectionOnBlur = () => {
+    if (!this.cm) {
+      return;
+    }
+
+    const { main } = this.cm.state.selection;
+    if (main.empty) {
+      return;
+    }
+
+    this.updating = true;
+    this.cm.dispatch({
+      selection: {
+        anchor: main.head,
+        head: main.head,
+      },
+    });
+    this.updating = false;
+  };
+
   private getOwnerDocument(): Document | null {
     return (
       this.dom.ownerDocument ??
@@ -167,6 +187,7 @@ export class CodeBlockNodeView implements NodeView {
         ],
       }),
     });
+    this.cm.dom.addEventListener('blur', this.clearEditorSelectionOnBlur, true);
     this.disposeFontMetricsSync = bindCodeBlockFontMetricsSync(
       this.dom.ownerDocument,
       () => this.scheduleMeasure()
@@ -495,6 +516,7 @@ export class CodeBlockNodeView implements NodeView {
     this.unsubscribeSelectionSync();
     this.disposeFontMetricsSync();
     this.root.unmount();
+    this.cm?.dom.removeEventListener('blur', this.clearEditorSelectionOnBlur, true);
     this.cm?.destroy();
     this.dom.remove();
   }

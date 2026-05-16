@@ -246,6 +246,75 @@ describe('mermaidEditorLivePreview', () => {
     ].join('\n'));
   });
 
+  it('renders classic flowchart syntax through Mermaid-compatible code without changing stored source', async () => {
+    const anchor = document.createElement('div');
+    anchor.setAttribute('data-type', 'mermaid');
+    document.body.appendChild(anchor);
+    const code = [
+      'st=>start: 开始框',
+      'op=>operation: 处理框',
+      'cond=>condition: 判断框(是或否?)',
+      'st->op->cond',
+      'cond(yes)->op',
+    ].join('\n');
+    const render = vi.fn(async () => '<svg data-rendered="classic-flowchart"></svg>');
+
+    await renderMermaidEditorLivePreview({
+      anchor,
+      code,
+      render,
+    });
+
+    expect(render).toHaveBeenCalledWith(
+      [
+        'graph TD',
+        'st(["开始框"])',
+        'op["处理框"]',
+        'cond{"判断框(是或否?)"}',
+        'st --> op',
+        'op --> cond',
+        'cond -- "yes" --> op',
+      ].join('\n'),
+      expect.stringMatching(/^mermaid-/)
+    );
+    expect(getMermaidElementCode(anchor)).toBe(code);
+  });
+
+  it('renders flowchart TD classic syntax through Mermaid-compatible code without changing stored source', async () => {
+    const anchor = document.createElement('div');
+    anchor.setAttribute('data-type', 'mermaid');
+    document.body.appendChild(anchor);
+    const code = [
+      'flowchart TD',
+      'st=>start: 开始框',
+      'op=>operation: 处理框',
+      'cond=>condition: 判断框(是或否?)',
+      'st(right)->op(right)->cond',
+      'cond(yes)->op',
+    ].join('\n');
+    const render = vi.fn(async () => '<svg data-rendered="flowchart-td"></svg>');
+
+    await renderMermaidEditorLivePreview({
+      anchor,
+      code,
+      render,
+    });
+
+    expect(render).toHaveBeenCalledWith(
+      [
+        'flowchart TD',
+        'st(["开始框"])',
+        'op["处理框"]',
+        'cond{"判断框(是或否?)"}',
+        'st --> op',
+        'op --> cond',
+        'cond -- "yes" --> op',
+      ].join('\n'),
+      expect.stringMatching(/^mermaid-/)
+    );
+    expect(getMermaidElementCode(anchor)).toBe(code);
+  });
+
   it('sanitizes rendered svg before attaching it to the document', async () => {
     const anchor = document.createElement('div');
     anchor.setAttribute('data-type', 'mermaid');

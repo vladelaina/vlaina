@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MERMAID_FENCE_LANGUAGE_ALIAS_LIST } from './mermaidLanguage';
 import {
   createMermaidFenceStarterCode,
+  normalizeMermaidCodeForRender,
   normalizeMermaidEditorCodeInput,
   normalizeMermaidFenceCode,
 } from './mermaidFenceCode';
@@ -129,6 +130,17 @@ describe('normalizeMermaidFenceCode', () => {
     );
   });
 
+  it('preserves classic flowchart node declarations in generic Mermaid fences', () => {
+    const code = [
+      'st=>start: 开始框',
+      'op=>operation: 处理框',
+      'cond=>condition: 判断框(是或否?)',
+      'st->op->cond',
+    ].join('\n');
+
+    expect(normalizeMermaidFenceCode('mermaid', code)).toBe(code);
+  });
+
   it('keeps every Mermaid-specific alias wired to no-directive content normalization', () => {
     for (const alias of MERMAID_FENCE_LANGUAGE_ALIAS_LIST) {
       if (alias === 'mermaid' || alias === 'mmd') {
@@ -183,6 +195,115 @@ describe('normalizeMermaidEditorCodeInput', () => {
       'flowchart LR\nA --> B'
     );
     expect(normalizeMermaidEditorCodeInput('A --> B')).toBe('A --> B');
+  });
+
+  it('preserves classic flowchart syntax pasted directly into the diagram editor', () => {
+    const code = [
+      'st=>start: 开始框',
+      'op=>operation: 处理框',
+      'cond=>condition: 判断框(是或否?)',
+      'sub1=>subroutine: 子流程',
+      'io=>inputoutput: 输入输出框',
+      'e=>end: 结束框',
+      'st->op->cond',
+      'cond(yes)->io->e',
+      'cond(no)->sub1(right)->op',
+    ].join('\n');
+
+    expect(normalizeMermaidEditorCodeInput(code)).toBe(code);
+  });
+
+  it('converts classic flowchart syntax only for rendering', () => {
+    const code = [
+      'st=>start: 开始框',
+      'op=>operation: 处理框',
+      'cond=>condition: 判断框(是或否?)',
+      'sub1=>subroutine: 子流程',
+      'io=>inputoutput: 输入输出框',
+      'e=>end: 结束框',
+      'st->op->cond',
+      'cond(yes)->io->e',
+      'cond(no)->sub1(right)->op',
+    ].join('\n');
+
+    expect(normalizeMermaidCodeForRender(code)).toBe([
+      'graph TD',
+      'st(["开始框"])',
+      'op["处理框"]',
+      'cond{"判断框(是或否?)"}',
+      'sub1[["子流程"]]',
+      'io[/"输入输出框"/]',
+      'e(["结束框"])',
+      'st --> op',
+      'op --> cond',
+      'cond -- "yes" --> io',
+      'io --> e',
+      'cond -- "no" --> sub1',
+      'sub1 --> op',
+    ].join('\n'));
+  });
+
+  it('converts flowchart TD classic syntax only for rendering', () => {
+    const code = [
+      'flowchart TD',
+      'st=>start: 开始框',
+      'op=>operation: 处理框',
+      'cond=>condition: 判断框(是或否?)',
+      'st(right)->op(right)->cond',
+      'cond(yes)->op',
+    ].join('\n');
+
+    expect(normalizeMermaidCodeForRender(code)).toBe([
+      'flowchart TD',
+      'st(["开始框"])',
+      'op["处理框"]',
+      'cond{"判断框(是或否?)"}',
+      'st --> op',
+      'op --> cond',
+      'cond -- "yes" --> op',
+    ].join('\n'));
+  });
+
+  it('converts the full classic flowchart sample after a flowchart directive for rendering', () => {
+    const code = [
+      'flowchart TD',
+      'st=>start: 开始框',
+      'op=>operation: 处理框',
+      'cond=>condition: 判断框(是或否?)',
+      'sub1=>subroutine: 子流程',
+      'io=>inputoutput: 输入输出框',
+      'e=>end: 结束框',
+      'st(right)->op(right)->cond',
+      'cond(yes)->io(bottom)->e',
+      'cond(no)->sub1(right)->op',
+    ].join('\n');
+
+    expect(normalizeMermaidCodeForRender(code)).toBe([
+      'flowchart TD',
+      'st(["开始框"])',
+      'op["处理框"]',
+      'cond{"判断框(是或否?)"}',
+      'sub1[["子流程"]]',
+      'io[/"输入输出框"/]',
+      'e(["结束框"])',
+      'st --> op',
+      'op --> cond',
+      'cond -- "yes" --> io',
+      'io --> e',
+      'cond -- "no" --> sub1',
+      'sub1 --> op',
+    ].join('\n'));
+  });
+
+  it('does not rewrite normal Mermaid flowchart syntax during render normalization', () => {
+    const code = [
+      'flowchart TD',
+      'A["Start"] --> B{"Ready?"}',
+      'B -- "yes" --> C[/Input/]',
+      'B -- "no" --> D[Stop]',
+    ].join('\n');
+
+    expect(normalizeMermaidCodeForRender(code)).toBe(code);
   });
 
   it('strips a pasted Mermaid fence from the editor input and normalizes the code', () => {

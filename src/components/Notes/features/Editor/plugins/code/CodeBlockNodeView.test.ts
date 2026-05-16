@@ -74,11 +74,12 @@ function createMockView(): EditorView {
 function getCodeMirror(nodeView: CodeBlockNodeView) {
   return (nodeView as unknown as {
     cm: {
+      dom: HTMLElement;
       dispatch: (spec: unknown) => void;
       focus: () => void;
       state: {
         doc: { toString: () => string };
-        selection: { main: { anchor: number; head: number } };
+        selection: { main: { anchor: number; head: number; empty: boolean } };
       };
     };
   }).cm;
@@ -325,6 +326,26 @@ describe('CodeBlockNodeView', () => {
     expect(nodeView.dom.dataset.pmSelected).toBe('true');
     expect(cm.state.selection.main.anchor).toBe(0);
     expect(cm.state.selection.main.head).toBe(node.textContent.length);
+
+    nodeView.destroy();
+  });
+
+  it('collapses the embedded editor selection when the code block loses focus', () => {
+    const nodeView = new CodeBlockNodeView(createMockNode(false), createMockView(), () => 1);
+    const cm = getCodeMirror(nodeView);
+
+    cm.dispatch({
+      selection: {
+        anchor: 0,
+        head: 5,
+      },
+    });
+
+    cm.dom.dispatchEvent(new FocusEvent('blur'));
+
+    expect(cm.state.selection.main.anchor).toBe(5);
+    expect(cm.state.selection.main.head).toBe(5);
+    expect(cm.state.selection.main.empty).toBe(true);
 
     nodeView.destroy();
   });
