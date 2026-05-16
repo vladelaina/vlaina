@@ -15,6 +15,8 @@ import { desktopWindow } from '@/lib/desktop/window';
 import { getElectronBridge, isElectronRuntime } from '@/lib/electron/bridge';
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { getConsoleLogText, installConsoleLogCapture } from '@/lib/consoleLogBuffer';
+import { translate } from '@/lib/i18n';
+import { APP_VERSION } from '@/lib/appVersion';
 import { useToastStore } from '@/stores/useToastStore';
 
 const preloadSettingsModule = () => import('@/components/Settings');
@@ -172,7 +174,7 @@ export function AppContent() {
         .then((updateInfo) => {
           if (cancelled || !updateInfo.updateAvailable) return;
           useToastStore.getState().addToast(
-            `vlaina ${updateInfo.latestVersion} is available. Open Settings > About to download.`,
+            translate('settings.about.updateToastAvailable', { version: updateInfo.latestVersion || APP_VERSION }),
             'info',
             8000,
           );

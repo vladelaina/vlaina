@@ -24,7 +24,6 @@ export function AppearanceTab() {
 
       <SettingsItem
         title={t('settings.appearance.baseFontSize')}
-        description={t('settings.appearance.baseFontSizeDescription')}
       >
         <div className="flex items-center gap-4">
           <Icon size="md" name="editor.type" className="text-[var(--notes-sidebar-text-soft)]" />
