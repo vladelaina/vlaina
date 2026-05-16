@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -11,28 +12,21 @@ const targetPngPath = path.join(buildDir, 'icon.png');
 const targetIcoPath = path.join(buildDir, 'icon.ico');
 const targetIcnsPath = path.join(buildDir, 'icon.icns');
 
-function createIcoFromPng(pngBytes) {
-  const headerSize = 6;
-  const entrySize = 16;
-  const imageOffset = headerSize + entrySize;
-  const output = Buffer.alloc(imageOffset + pngBytes.length);
+function runMagick(args) {
+  execFileSync('magick', args, { stdio: 'pipe' });
+}
 
-  output.writeUInt16LE(0, 0);
-  output.writeUInt16LE(1, 2);
-  output.writeUInt16LE(1, 4);
-
-  // Width/height of 0 in ICO means 256.
-  output.writeUInt8(0, 6);
-  output.writeUInt8(0, 7);
-  output.writeUInt8(0, 8);
-  output.writeUInt8(0, 9);
-  output.writeUInt16LE(1, 10);
-  output.writeUInt16LE(32, 12);
-  output.writeUInt32LE(pngBytes.length, 14);
-  output.writeUInt32LE(imageOffset, 18);
-
-  pngBytes.copy(output, imageOffset);
-  return output;
+function createWindowsIcon(sourcePath, targetPath) {
+  // Build a real multi-resolution ICO so Windows can pick the right size
+  // instead of scaling a single embedded PNG at runtime.
+  runMagick([
+    sourcePath,
+    '-background',
+    'none',
+    '-define',
+    'icon:auto-resize=256,128,64,48,32,16',
+    targetPath,
+  ]);
 }
 
 function createIcnsFromPng(pngBytes) {
@@ -54,7 +48,7 @@ async function main() {
   const pngBytes = await readFile(sourcePngPath);
   await mkdir(buildDir, { recursive: true });
   await writeFile(targetPngPath, pngBytes);
-  await writeFile(targetIcoPath, createIcoFromPng(pngBytes));
+  createWindowsIcon(sourcePngPath, targetIcoPath);
   await writeFile(targetIcnsPath, createIcnsFromPng(pngBytes));
   console.log(
     `Generated ${path.relative(projectRoot, targetPngPath)}, ${path.relative(projectRoot, targetIcoPath)}, and ${path.relative(projectRoot, targetIcnsPath)} from ${path.relative(projectRoot, sourcePngPath)}`,
