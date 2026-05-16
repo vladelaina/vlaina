@@ -23,7 +23,6 @@ import {
   MODEL_FAMILIES,
   getModelCategoryId,
   getModelFamily,
-  getModelDisplayName,
   getModelPresentationName,
   type ModelCategory,
   type ModelCategoryId,
