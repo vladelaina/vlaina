@@ -90,6 +90,7 @@ describe('typecheck quality gate', () => {
       'src/components/Notes/features/Editor/plugins/floating-toolbar/components/ai-dropdown/usageRanking.ts:window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));',
 
       // Navigation/history caches that do not drive live cross-window state.
+      'src/AppContent.tsx:window.localStorage.setItem(key, String(value));',
       'src/stores/notes/storage.ts:localStorage.setItem(RECENT_NOTES_KEY, JSON.stringify(normalizeRecentNotePaths(paths)));',
 
       // Future-facing shortcut customization storage. There is no editing UI yet; adding one should revisit sync.
