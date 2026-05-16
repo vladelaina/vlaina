@@ -123,6 +123,65 @@ describe('useNoteCoverController', () => {
     expect(hoisted.setNoteCover).toHaveBeenCalledWith('covered.md', null);
   });
 
+  it('keeps optimistic crop changes until matching metadata catches up', () => {
+    hoisted.storeRef.state.noteMetadata.notes['covered.md'] = {
+      cover: {
+        assetPath: 'assets/current.png',
+        positionX: 30,
+        positionY: 40,
+        height: 260,
+        scale: 1.2,
+      },
+    };
+
+    const { result, rerender } = renderHook(() => useNoteCoverController('covered.md'));
+
+    act(() => {
+      result.current.updateCover('assets/current.png', 60, 70, 280, 1.4);
+    });
+
+    expect(result.current.cover).toEqual({
+      url: 'assets/current.png',
+      positionX: 60,
+      positionY: 70,
+      height: 280,
+      scale: 1.4,
+    });
+
+    rerender();
+
+    expect(result.current.cover).toEqual({
+      url: 'assets/current.png',
+      positionX: 60,
+      positionY: 70,
+      height: 280,
+      scale: 1.4,
+    });
+
+    hoisted.storeRef.state.noteMetadata = {
+      notes: {
+        'covered.md': {
+          cover: {
+            assetPath: 'assets/current.png',
+            positionX: 60,
+            positionY: 70,
+            height: 280,
+            scale: 1.4,
+          },
+        },
+      },
+    };
+    rerender();
+
+    expect(result.current.cover).toEqual({
+      url: 'assets/current.png',
+      positionX: 60,
+      positionY: 70,
+      height: 280,
+      scale: 1.4,
+    });
+  });
+
   it('falls back to the active vault while notesPath is temporarily empty', () => {
     hoisted.storeRef.state.notesPath = '';
 

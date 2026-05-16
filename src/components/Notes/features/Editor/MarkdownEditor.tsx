@@ -24,6 +24,11 @@ import {
 import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
 import { MilkdownEditorInner } from './MilkdownEditorInner';
 import { prewarmMermaidRenderer } from './plugins/mermaid/mermaidRenderer';
+import {
+  canKeepCoverDuringEditorReload,
+  getStableCoverSignature,
+  type RenderedCoverSnapshot,
+} from './utils/coverRenderStability';
 import 'katex/dist/katex.min.css';
 import './styles/index.css';
 
@@ -41,6 +46,7 @@ export function MarkdownEditor({
   const scrollPositionsRef = useRef(new Map<string, number>());
   const activePathRef = useRef<string | null>(null);
   const restoreSessionRef = useRef<{ path: string; targetScrollTop: number } | null>(null);
+  const lastRenderedCoverRef = useRef<RenderedCoverSnapshot | null>(null);
   const [editorReadyTarget, setEditorReadyTarget] = useState<{
     path: string | undefined;
     diskRevision: number;
@@ -76,13 +82,27 @@ export function MarkdownEditor({
   const starred = currentNotePath ? isStarred(currentNotePath) : false;
   const coverController = useNoteCoverController(currentNotePath);
   const coverUrl = coverController.cover.url;
+  const coverSignature = useMemo(
+    () => getStableCoverSignature(coverController.cover),
+    [coverController.cover]
+  );
   const editorFind = useNoteEditorFind(currentNotePath);
   useHeldPageScroll(scrollRootRef);
   const hasActiveNote = active && Boolean(currentNotePath);
   const isEditorViewReady =
     editorReadyTarget?.path === currentNotePath &&
     editorReadyTarget?.diskRevision === currentNoteDiskRevision;
-  const shouldRenderCover = hasActiveNote && isEditorViewReady;
+  const shouldRenderCover = hasActiveNote && (
+    isEditorViewReady ||
+    canKeepCoverDuringEditorReload({
+      hasActiveNote,
+      isEditorViewReady,
+      coverUrl,
+      currentNotePath,
+      coverSignature,
+      lastRenderedCover: lastRenderedCoverRef.current,
+    })
+  );
   const shouldReserveCoverSpace = hasActiveNote && Boolean(coverUrl) && !shouldRenderCover;
   const reservedCoverHeight = coverController.cover.height ?? DEFAULT_COVER_HEIGHT;
   const coverLayoutActive = Boolean(coverUrl) || coverController.isPickerOpen;
@@ -107,6 +127,20 @@ export function MarkdownEditor({
     const timeoutId = window.setTimeout(() => prewarmMermaidRenderer(), 250);
     return () => window.clearTimeout(timeoutId);
   }, [hasActiveNote]);
+
+  useEffect(() => {
+    if (shouldRenderCover && coverSignature) {
+      lastRenderedCoverRef.current = {
+        notePath: currentNotePath,
+        coverSignature,
+      };
+      return;
+    }
+
+    if (!hasActiveNote || !coverSignature) {
+      lastRenderedCoverRef.current = null;
+    }
+  }, [coverSignature, currentNotePath, hasActiveNote, shouldRenderCover]);
 
   const handleEditorClick = (e: React.MouseEvent) => {
     if (!hasActiveNote) {

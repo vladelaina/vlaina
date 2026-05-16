@@ -11,9 +11,13 @@ interface CreateCurrentNoteExternalSyncOptions {
 export function createCurrentNoteExternalSync(options: CreateCurrentNoteExternalSyncOptions) {
   const { syncCurrentNoteFromDisk, applyExternalPathDeletion } = options;
   let reconcileInFlight = false;
+  let pendingReconcileOptions: { force?: boolean } | null = null;
 
   const reconcileCurrentNote = async (reconcileOptions?: { force?: boolean }) => {
     if (reconcileInFlight) {
+      pendingReconcileOptions = {
+        force: Boolean(pendingReconcileOptions?.force || reconcileOptions?.force),
+      };
       return;
     }
 
@@ -24,7 +28,12 @@ export function createCurrentNoteExternalSync(options: CreateCurrentNoteExternal
 
     reconcileInFlight = true;
     try {
-      await syncCurrentNoteFromDisk(reconcileOptions);
+      let nextOptions: { force?: boolean } | undefined = reconcileOptions;
+      do {
+        pendingReconcileOptions = null;
+        await syncCurrentNoteFromDisk(nextOptions);
+        nextOptions = pendingReconcileOptions ?? undefined;
+      } while (pendingReconcileOptions);
     } finally {
       reconcileInFlight = false;
     }

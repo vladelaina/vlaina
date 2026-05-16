@@ -4,6 +4,25 @@ import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
 import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
 import type { NoteCoverController } from '../types';
 
+function coverEntryMatchesControllerCover(
+  coverEntry: {
+    assetPath?: string;
+    positionX?: number;
+    positionY?: number;
+    height?: number;
+    scale?: number;
+  } | undefined,
+  cover: NoteCoverController['cover']
+) {
+  return (
+    (coverEntry?.assetPath ?? null) === cover.url &&
+    (coverEntry?.positionX ?? 50) === cover.positionX &&
+    (coverEntry?.positionY ?? 50) === cover.positionY &&
+    coverEntry?.height === cover.height &&
+    (coverEntry?.scale ?? 1) === cover.scale
+  );
+}
+
 export function useNoteCoverController(currentNotePath?: string): NoteCoverController {
   const notesPath = useNotesStore(s => s.notesPath);
   const setNoteCover = useNotesStore(s => s.setNoteCover);
@@ -53,7 +72,7 @@ export function useNoteCoverController(currentNotePath?: string): NoteCoverContr
 
   useEffect(() => {
     if (optimisticCover === undefined) return;
-    if ((coverEntry?.assetPath ?? null) !== optimisticCover.url) return;
+    if (!coverEntryMatchesControllerCover(coverEntry, optimisticCover)) return;
 
     setOptimisticCover(undefined);
   }, [coverEntry, optimisticCover]);

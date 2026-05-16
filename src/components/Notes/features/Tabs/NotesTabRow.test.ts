@@ -21,9 +21,10 @@ describe('NotesTabRow', () => {
     const css = readIndexCssSource();
 
     expect(titleBarSource).toContain('vlaina-title-bar h-10');
-    expect(titleBarSource).toContain('vlaina-no-drag vlaina-title-bar-center flex-1');
+    expect(titleBarSource).toContain('vlaina-drag-region vlaina-title-bar-center flex-1');
     expect(source).toContain("chatComposerPillSurfaceClass");
     expect(source).toContain('group/tab-row flex h-full w-full');
+    expect(source).toContain('vlaina-no-drag flex h-8 max-w-full min-w-0 items-center gap-1 rounded-full');
     expect(source).toContain('flex h-8 max-w-full min-w-0 items-center gap-1 rounded-full');
     expect(source).toContain('flex min-w-0 max-w-[calc(100%-2rem)] items-center overflow-x-auto');
     expect(source).not.toContain('flex min-w-0 flex-1 items-center overflow-x-auto');
