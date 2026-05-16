@@ -233,7 +233,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: vlaina-linux-appimage-${{ matrix.arch }}-run-${{ github.run_number }}
-          path: release/*-${{ matrix.arch }}.AppImage
+          path: release/*.AppImage
           if-no-files-found: error
 
       - name: Upload Linux DEB
@@ -241,7 +241,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: vlaina-linux-deb-${{ matrix.arch }}-run-${{ github.run_number }}
-          path: release/*-${{ matrix.arch }}.deb
+          path: release/*.deb
           if-no-files-found: error
 
       - name: Upload Linux tar.gz
@@ -249,7 +249,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: vlaina-linux-tar-gz-${{ matrix.arch }}-run-${{ github.run_number }}
-          path: release/*-${{ matrix.arch }}.tar.gz
+          path: release/*.tar.gz
           if-no-files-found: error
 
   publish:
