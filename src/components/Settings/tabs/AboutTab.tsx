@@ -87,9 +87,6 @@ export function AboutTab() {
             {currentVersion || APP_VERSION}
           </span>
         </div>
-        <p className="mt-2 max-w-[560px] text-[13px] leading-6 text-[var(--notes-sidebar-text-soft)]">
-          {t('settings.about.versionDescription')}
-        </p>
       </div>
 
       <div>
