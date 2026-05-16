@@ -20,6 +20,9 @@ import { useToastStore } from '@/stores/useToastStore';
 const preloadSettingsModule = () => import('@/components/Settings');
 const SETTINGS_PRELOAD_DELAY_MS = 8000;
 const SETTINGS_PRELOAD_IDLE_TIMEOUT_MS = 4000;
+const UPDATE_AUTO_CHECK_DELAY_MS = 2500;
+const UPDATE_AUTO_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000;
+const UPDATE_LAST_AUTO_CHECK_KEY = 'vlaina:update:lastAutoCheckAt';
 
 const SettingsModal = lazy(async () => {
   const mod = await preloadSettingsModule();
@@ -67,6 +70,23 @@ const NotesTabRow = lazy(async () => {
   const mod = await import('@/components/Notes/features/Tabs/NotesTabRow');
   return { default: mod.NotesTabRow };
 });
+
+function readStoredTimestamp(key: string) {
+  try {
+    const value = Number.parseInt(window.localStorage.getItem(key) ?? '', 10);
+    return Number.isFinite(value) ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeStoredTimestamp(key: string, value: number) {
+  try {
+    window.localStorage.setItem(key, String(value));
+  } catch {
+    // Update checks are best effort; storage failures should not affect startup.
+  }
+}
 
 export function AppContent() {
   useAIStoreRuntimeEffects();
@@ -136,8 +156,15 @@ export function AppContent() {
   }, [initialize]);
 
   useEffect(() => {
+    if (import.meta.env.DEV) return;
+
     const bridge = getElectronBridge();
     if (!bridge?.update) return;
+
+    const lastCheckedAt = readStoredTimestamp(UPDATE_LAST_AUTO_CHECK_KEY);
+    if (lastCheckedAt > 0 && Date.now() - lastCheckedAt < UPDATE_AUTO_CHECK_INTERVAL_MS) {
+      return;
+    }
 
     let cancelled = false;
     const timeoutId = window.setTimeout(() => {
@@ -151,8 +178,13 @@ export function AppContent() {
           );
         })
         .catch(() => {
+        })
+        .finally(() => {
+          if (!cancelled) {
+            writeStoredTimestamp(UPDATE_LAST_AUTO_CHECK_KEY, Date.now());
+          }
         });
-    }, 2500);
+    }, UPDATE_AUTO_CHECK_DELAY_MS);
 
     return () => {
       cancelled = true;

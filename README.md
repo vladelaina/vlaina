@@ -81,7 +81,7 @@ GitHub Actions runs the build pipeline from [.github/workflows/build.yml](.githu
 - `pnpm test`
 - `pnpm build`
 
-Tagged releases matching `v*` build Windows, macOS, and Linux desktop installers and publish them to GitHub Releases.
+Tagged releases matching `v*` build Windows, macOS, and Linux x64/arm64 desktop installers and publish them to GitHub Releases.
 
 ## Notes
 

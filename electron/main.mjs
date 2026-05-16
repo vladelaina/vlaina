@@ -347,6 +347,24 @@ function compareVersions(left, right) {
   return 0;
 }
 
+function splitReleaseAssetNameParts(name) {
+  return String(name ?? '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+function getCurrentAssetArchAliases() {
+  if (process.arch === 'x64') return ['x64', 'amd64'];
+  if (process.arch === 'arm64') return ['arm64', 'aarch64'];
+  if (process.arch === 'ia32') return ['ia32', 'x86'];
+  return [process.arch];
+}
+
+function releaseAssetPartsIncludeAny(parts, aliases) {
+  return aliases.some((alias) => parts.includes(alias));
+}
+
 function normalizeReleaseAssets(rawAssets) {
   if (!Array.isArray(rawAssets)) {
     return [];
@@ -384,6 +402,8 @@ function normalizeReleaseAssets(rawAssets) {
 function getCurrentPlatformAssetPriority() {
   if (process.platform === 'win32') {
     return [
+      (name) => name.endsWith('.exe') && name.includes('setup') && !name.includes('portable'),
+      (name) => name.endsWith('.exe') && !name.includes('portable'),
       (name) => name.endsWith('.exe'),
     ];
   }
@@ -407,13 +427,31 @@ function getCurrentPlatformAssetPriority() {
 }
 
 function selectCurrentPlatformAsset(assets) {
+  const platformPriority = getCurrentPlatformAssetPriority();
   const normalizedAssets = assets.map((asset) => ({
     ...asset,
     normalizedName: asset.name.toLowerCase(),
+    nameParts: splitReleaseAssetNameParts(asset.name),
   }));
+  const platformAssets = normalizedAssets.filter((asset) =>
+    platformPriority.some((matchesAsset) => matchesAsset(asset.normalizedName))
+  );
+  const knownArchAliases = ['x64', 'amd64', 'arm64', 'aarch64', 'ia32', 'x86'];
+  const currentArchAliases = getCurrentAssetArchAliases();
+  const currentArchAssets = platformAssets.filter((asset) =>
+    releaseAssetPartsIncludeAny(asset.nameParts, currentArchAliases)
+  );
+  const platformAssetsWithKnownArch = platformAssets.filter((asset) =>
+    releaseAssetPartsIncludeAny(asset.nameParts, knownArchAliases)
+  );
+  const candidateAssets = currentArchAssets.length > 0
+    ? currentArchAssets
+    : platformAssetsWithKnownArch.length > 0
+      ? []
+      : platformAssets;
 
-  for (const matchesAsset of getCurrentPlatformAssetPriority()) {
-    const match = normalizedAssets.find((asset) => matchesAsset(asset.normalizedName));
+  for (const matchesAsset of platformPriority) {
+    const match = candidateAssets.find((asset) => matchesAsset(asset.normalizedName));
     if (match) {
       return {
         name: match.name,
