@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 describe('ManagedQuotaMeter', () => {
-  it('shows a stable placeholder and refreshes when budget is missing', async () => {
+  it('shows an empty meter and refreshes when budget is missing', async () => {
     const refreshBudgetIfStale = vi.fn().mockResolvedValue(undefined);
     act(() => {
       useManagedAIStore.setState({
@@ -28,11 +28,12 @@ describe('ManagedQuotaMeter', () => {
 
     render(<ManagedQuotaMeter />);
 
-    expect(screen.getByText('--%')).toBeInTheDocument();
+    expect(screen.getByLabelText('Managed AI quota loading')).toBeInTheDocument();
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
     await waitFor(() => expect(refreshBudgetIfStale).toHaveBeenCalledTimes(1));
   });
 
-  it('renders the current remaining percentage when budget is known', () => {
+  it('keeps native hover text empty and reveals the percentage from the meter on hover', () => {
     const refreshBudgetIfStale = vi.fn().mockResolvedValue(undefined);
     act(() => {
       useManagedAIStore.setState({
@@ -53,6 +54,32 @@ describe('ManagedQuotaMeter', () => {
 
     render(<ManagedQuotaMeter />);
 
-    expect(screen.getByText('42%')).toBeInTheDocument();
+    const meter = screen.getByLabelText('Managed AI quota remaining 42%');
+    expect(meter).not.toHaveAttribute('title');
+    expect(screen.getByText('42%')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('keeps the previous budget visible while a refresh is in flight', () => {
+    const refreshBudgetIfStale = vi.fn().mockResolvedValue(undefined);
+    act(() => {
+      useManagedAIStore.setState({
+        ...originalState,
+        budget: {
+          active: true,
+          usedPercent: 67,
+          remainingPercent: 33,
+          status: 'active',
+        },
+        isRefreshingBudget: true,
+        budgetError: null,
+        lastBudgetSyncAt: Date.now() - 120_000,
+        lastBudgetAttemptAt: Date.now(),
+        refreshBudgetIfStale,
+      }, true);
+    });
+
+    render(<ManagedQuotaMeter />);
+
+    expect(screen.getByLabelText('Managed AI quota remaining 33%')).not.toHaveAttribute('title');
   });
 });

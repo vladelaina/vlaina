@@ -56,7 +56,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
             }
           }}
           className={cn(
-            'absolute -bottom-1.5 -right-2 z-10 inline-flex cursor-pointer select-none items-center rounded-[10px] border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] leading-none shadow-[0_8px_18px_rgba(15,23,42,0.08)] transition-colors hover:border-zinc-300 hover:text-zinc-900 dark:hover:border-zinc-500 dark:hover:text-white',
+            'absolute -bottom-1.5 -right-2 z-10 inline-flex cursor-pointer select-none items-center rounded-[10px] border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] leading-none shadow-[0_8px_18px_rgba(15,23,42,0.08)]',
             membershipPillClassName
           )}
         >
@@ -67,7 +67,6 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
         <div className="flex items-center justify-between">
           <span
             className="min-w-0 flex-1 truncate pr-2 text-[11px] font-bold leading-none text-[var(--vlaina-text-primary)]"
-            title={displayIdentity}
           >
             {displayIdentity}
           </span>

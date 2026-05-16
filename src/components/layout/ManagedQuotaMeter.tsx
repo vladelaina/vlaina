@@ -8,44 +8,37 @@ interface ManagedQuotaMeterProps {
 
 export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
   const budget = useManagedAIStore(s => s.budget);
-  const isRefreshingBudget = useManagedAIStore(s => s.isRefreshingBudget);
   const refreshBudgetIfStale = useManagedAIStore(s => s.refreshBudgetIfStale);
 
   useEffect(() => {
     void refreshBudgetIfStale();
   }, [refreshBudgetIfStale]);
 
-  if (!budget) {
-    return (
-      <div className={cn('mt-1 flex items-center gap-2', className)}>
-        <div className="min-w-0 flex-1">
-          <div className="h-1.5 overflow-hidden rounded-full bg-[#e9e6df]">
-            <div
-              className={cn(
-                'h-full w-1/3 rounded-full bg-[#d2cec5]',
-                isRefreshingBudget && 'animate-pulse'
-              )}
-            />
-          </div>
-        </div>
-        <span className="shrink-0 text-[11px] text-[var(--vlaina-text-tertiary)]">--%</span>
-      </div>
-    );
-  }
-
-  const remainingPercent = Math.max(0, Math.min(100, budget.remainingPercent || 0));
+  const remainingPercent = budget ? Math.max(0, Math.min(100, budget.remainingPercent || 0)) : null;
+  const progressWidth = remainingPercent == null ? '0%' : `${remainingPercent}%`;
+  const quotaLabel = remainingPercent == null ? undefined : `${remainingPercent.toFixed(0)}%`;
 
   return (
-    <div className={cn('mt-1 flex items-center gap-2', className)}>
+    <div
+      className={cn('group/quota mt-1 flex items-center gap-2', className)}
+      aria-label={quotaLabel ? `Managed AI quota remaining ${quotaLabel}` : 'Managed AI quota loading'}
+    >
       <div className="min-w-0 flex-1">
         <div className="h-1.5 overflow-hidden rounded-full bg-[#e9e6df]">
           <div
             className="h-full rounded-full bg-[#4ade80] transition-all"
-            style={{ width: `${remainingPercent}%` }}
+            style={{ width: progressWidth }}
           />
         </div>
       </div>
-      <span className="shrink-0 text-[11px] text-[var(--vlaina-text-tertiary)]">{`${remainingPercent.toFixed(0)}%`}</span>
+      {quotaLabel ? (
+        <span
+          className="w-0 shrink-0 overflow-hidden whitespace-nowrap text-[11px] text-[var(--vlaina-text-tertiary)] opacity-0 transition-[width,opacity] group-hover/quota:w-7 group-hover/quota:opacity-100 group-focus-within/quota:w-7 group-focus-within/quota:opacity-100"
+          aria-hidden="true"
+        >
+          {quotaLabel}
+        </span>
+      ) : null}
     </div>
   );
 }
