@@ -226,3 +226,74 @@ export function getModelDisplayName(model: Pick<AIModel, 'name' | 'apiModelId'>)
 
   return displayName.slice(slashIndex + 1)
 }
+
+function prefixDisplayName(displayName: string, prefix: string): string {
+  const normalized = displayName.trim()
+  const lower = normalized.toLowerCase()
+  const lowerPrefix = prefix.toLowerCase()
+
+  if (!lower.startsWith(lowerPrefix)) {
+    return normalized
+  }
+
+  const rest = normalized.slice(prefix.length)
+  if (!rest) {
+    return prefix
+  }
+
+  if (/^[\s._:/-]/.test(rest)) {
+    return `${prefix}${rest}`
+  }
+
+  return `${prefix}-${rest}`
+}
+
+export function getModelPresentationName(model: Pick<AIModel, 'name' | 'apiModelId'>): string {
+  const rawName = model.name || model.apiModelId
+  const displayName = getModelDisplayName(model)
+
+  if (/^gpt(?=$|[\s._:/-]|\d|[a-z])/i.test(displayName)) {
+    return prefixDisplayName(displayName, 'GPT')
+  }
+
+  if (/^deepseek(?=$|[\s._:/-]|[a-z])/i.test(displayName)) {
+    return prefixDisplayName(displayName, 'DeepSeek')
+  }
+
+  if (/^minimax(?=$|[\s._:/-]|[a-z])/i.test(displayName)) {
+    return prefixDisplayName(displayName, 'MiniMax')
+  }
+
+  if (/^grok(?=$|[\s._:/-]|[a-z])/i.test(displayName)) {
+    return prefixDisplayName(displayName, 'Grok')
+  }
+
+  if (/llama/i.test(rawName)) {
+    if (/^llama(?=$|[\s._:/-]|\d|[a-z])/i.test(displayName)) {
+      return prefixDisplayName(displayName, 'Llama')
+    }
+
+    const slashIndex = rawName.indexOf('/')
+    if (slashIndex > 0 && slashIndex < rawName.length - 1) {
+      return prefixDisplayName(rawName.slice(slashIndex + 1), 'Llama')
+    }
+  }
+
+  if (/^qwen(?=\d|[a-z])/i.test(displayName)) {
+    const rest = displayName.slice(4)
+    if (/^\d/.test(rest)) {
+      return `Qwen${rest}`
+    }
+    return prefixDisplayName(displayName, 'Qwen')
+  }
+
+  if (/^(moonshot|kimi)(?=$|[\s._:/-]|[a-z])/i.test(displayName)) {
+    return prefixDisplayName(displayName.replace(/^moonshot/i, 'Kimi'), 'Kimi')
+  }
+
+  if (/^(glm|zhipu)(?=$|[\s._:/-]|[a-z])/i.test(displayName)) {
+    return prefixDisplayName(displayName.replace(/^zhipu/i, 'GLM'), 'GLM')
+  }
+
+  return displayName
+}

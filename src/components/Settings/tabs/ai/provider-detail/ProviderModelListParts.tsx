@@ -4,6 +4,7 @@ import { SettingsTextInput } from '@/components/Settings/components/SettingsFiel
 import { cn } from '@/lib/utils';
 import { formatBenchmarkLatency, type HealthStatus } from '../components/ModelListItem';
 import { useI18n } from '@/lib/i18n';
+import { getModelPresentationName } from '@/components/Chat/features/Input/modelFamilyRegistry';
 
 const SLOW_BENCHMARK_LATENCY_MS = 5000;
 
@@ -176,7 +177,7 @@ export function ModelRow({
 
   const content = (
     <>
-      <div className="min-w-0 flex-1 truncate text-[13px] font-semibold">{model}</div>
+      <div className="min-w-0 flex-1 truncate text-[14px] font-semibold">{getModelPresentationName({ name: model, apiModelId: model })}</div>
       <HealthBadge health={health} />
       <div className={cn('shrink-0', decorativeTrailing && 'pointer-events-none')}>{trailing}</div>
     </>

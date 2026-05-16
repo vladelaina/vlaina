@@ -24,6 +24,7 @@ import {
   getModelCategoryId,
   getModelFamily,
   getModelDisplayName,
+  getModelPresentationName,
   type ModelCategory,
   type ModelCategoryId,
 } from './modelFamilyRegistry'
@@ -117,7 +118,7 @@ const ModelOption = memo(({
 }) => {
     const styles = MODEL_SELECTOR_THEME_STYLES[theme]
     const sidebarTone: SidebarTone = theme
-    const displayName = getModelDisplayName(model)
+    const displayName = getModelPresentationName(model)
     const family = getModelFamily(model)
 
     return (
@@ -147,7 +148,7 @@ const ModelOption = memo(({
                     />
                 )}
                 <span className={cn(
-                    "whitespace-nowrap text-sm font-medium",
+                    "whitespace-nowrap text-[15px] font-semibold tracking-tight",
                     isSelected
                       ? styles.optionTextActive
                       : styles.optionText
@@ -870,8 +871,8 @@ export function ModelSelector({
         ) : (
           <Icon name="misc.box" size="sm" className="flex-shrink-0 text-[var(--chat-sidebar-icon)]" />
         )}
-        <span className="whitespace-nowrap text-sm font-medium">
-          {selectedModel ? getModelDisplayName(selectedModel) : 'Select Model'}
+        <span className="whitespace-nowrap text-[15px] font-semibold tracking-tight">
+          {selectedModel ? getModelPresentationName(selectedModel) : 'Select Model'}
         </span>
         <svg
           className={cn("h-4 w-4 flex-shrink-0 opacity-60 transition-transform duration-200", isOpen && "rotate-180")}

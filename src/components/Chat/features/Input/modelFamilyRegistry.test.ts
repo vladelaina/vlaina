@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AIModel } from '@/lib/ai/types'
-import { MODEL_FAMILIES, getModelCategoryId, getModelDisplayName } from './modelFamilyRegistry'
+import { MODEL_FAMILIES, getModelCategoryId, getModelDisplayName, getModelPresentationName } from './modelFamilyRegistry'
 
 function createModel(apiModelId: string, name = apiModelId): AIModel {
   return {
@@ -64,5 +64,19 @@ describe('model family registry', () => {
 
   it('keeps unknown prefixes in display names', () => {
     expect(getModelDisplayName(createModel('private-team/model-a'))).toBe('private-team/model-a')
+  })
+
+  it('formats common family names with a cleaner presentation case', () => {
+    expect(getModelPresentationName(createModel('openai/gpt-5.4'))).toBe('GPT-5.4')
+    expect(getModelPresentationName(createModel('deepseek/deepseek-r1-0528'))).toBe('DeepSeek-r1-0528')
+    expect(getModelPresentationName(createModel('minimax/minimax-m1'))).toBe('MiniMax-m1')
+    expect(getModelPresentationName(createModel('grok/grok-3'))).toBe('Grok-3')
+    expect(getModelPresentationName(createModel('meta-llama/llama-3.3-70b-instruct', 'meta-llama/llama-3.3-70b-instruct'))).toBe('Llama-3.3-70b-instruct')
+    expect(getModelPresentationName(createModel('qwen/qwen3-32b'))).toBe('Qwen3-32b')
+    expect(getModelPresentationName(createModel('moonshot/kimi-k2-0711-preview'))).toBe('Kimi-k2-0711-preview')
+  })
+
+  it('keeps non-family names unchanged in presentation mode', () => {
+    expect(getModelPresentationName(createModel('private-team/model-a'))).toBe('private-team/model-a')
   })
 })
