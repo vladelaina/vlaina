@@ -101,7 +101,7 @@ describe('blankAreaDragTargets', () => {
       expect(resolveBlankAreaDragStartZone(
         view,
         createMouseDown(view.dom, { clientX: 330, clientY: 50 }),
-      )).toBe('outside-editor');
+      )).toBeNull();
     } finally {
       document.createRange = originalCreateRange;
       cleanup();
@@ -212,7 +212,7 @@ describe('blankAreaDragTargets', () => {
     }
   });
 
-  it('starts block selection from the right blank area inside a full-width block', () => {
+  it('leaves right blank area inside a full-width text block to native editor handling', () => {
     const { view, cleanup } = createView();
     const paragraph = document.createElement('p');
     paragraph.textContent = 'Selectable text';
@@ -236,7 +236,7 @@ describe('blankAreaDragTargets', () => {
       expect(resolveBlankAreaDragStartZone(
         view,
         createMouseDown(paragraph, { clientX: 330, clientY: 50 }),
-      )).toBe('outside-editor');
+      )).toBeNull();
     } finally {
       document.createRange = originalCreateRange;
       cleanup();
@@ -323,13 +323,13 @@ describe('blankAreaDragTargets', () => {
     }
   });
 
-  it('treats empty full-width content inside the editor as blank editor space', () => {
+  it('leaves empty full-width text blocks to native editor handling', () => {
     const { view, cleanup } = createView();
     const paragraph = document.createElement('p');
     view.dom.append(paragraph);
 
     try {
-      expect(resolveBlankAreaDragStartZone(view, createMouseDown(paragraph))).toBe('outside-editor');
+      expect(resolveBlankAreaDragStartZone(view, createMouseDown(paragraph))).toBeNull();
     } finally {
       cleanup();
     }

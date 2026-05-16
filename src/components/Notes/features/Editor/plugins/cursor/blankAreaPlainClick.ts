@@ -2,6 +2,8 @@ import { Selection, TextSelection, type Transaction } from '@milkdown/kit/prose/
 import type { BlockRect } from './blockSelectionUtils';
 import { TEXT_ONLY_BLOCK_EDGE_NODE_NAMES } from '../shared/blockNodeTypes';
 
+const INSIDE_BLOCK_TRAILING_CLICK_MIN_GAP_PX = 24;
+
 export interface BlankAreaPlainClickAction {
   targetPos: number;
   bias: 1 | -1;
@@ -64,7 +66,7 @@ export function resolveInsideBlockTrailingPlainClickAction(args: {
     const block = blockRects[index];
     if (!block.allowInsideTrailingClick) continue;
     const contentRight = block.contentRight;
-    if (contentRight === undefined || clientX <= contentRight) continue;
+    if (contentRight === undefined || clientX < contentRight + INSIDE_BLOCK_TRAILING_CLICK_MIN_GAP_PX) continue;
 
     const nextBlock = blockRects[index + 1];
     const bottomBoundary = nextBlock ? nextBlock.top : block.bottom;

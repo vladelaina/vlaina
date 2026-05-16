@@ -8,6 +8,17 @@ import { collectSelectableBlockRanges } from './blockUnitResolver';
 import { dispatchBlockSelectionAction, getBlockSelectionPluginState } from './blockSelectionPluginState';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
 
+function createMouseEvent(type: string, init: MouseEventInit = {}) {
+  return new MouseEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    button: 0,
+    clientX: 0,
+    clientY: 0,
+    ...init,
+  });
+}
+
 function simulateKeydown(view: any, key: string, init: KeyboardEventInit = {}): { handled: boolean; event: KeyboardEvent } {
   const event = new KeyboardEvent('keydown', {
     key,
@@ -40,6 +51,76 @@ function simulateClipboardEvent(view: any, type: 'copy' | 'cut') {
   });
 
   return { handled, event, clipboardData };
+}
+
+function simulateDomEvent(view: any, type: string, event: Event) {
+  let handled = false;
+  view.someProp('handleDOMEvents', (handleDOMEvents: any) => {
+    handled = handleDOMEvents[type]?.(view, event) || handled;
+  });
+  return handled;
+}
+
+function mockTrailingPlainClickGeometry(view: any, target: HTMLElement) {
+  vi.spyOn(view, 'posAtCoords').mockReturnValue({ pos: 5, inside: 1 });
+  vi.spyOn(view.dom, 'getBoundingClientRect').mockReturnValue({
+    left: 0,
+    top: 0,
+    right: 800,
+    bottom: 400,
+    width: 800,
+    height: 400,
+    x: 0,
+    y: 0,
+    toJSON: () => undefined,
+  } as DOMRect);
+  vi.spyOn(target, 'getBoundingClientRect').mockReturnValue({
+    left: 40,
+    top: 20,
+    right: 760,
+    bottom: 44,
+    width: 720,
+    height: 24,
+    x: 40,
+    y: 20,
+    toJSON: () => undefined,
+  } as DOMRect);
+
+  const rangeRects = [{
+    left: 72,
+    top: 22,
+    right: 112,
+    bottom: 42,
+    width: 40,
+    height: 20,
+    x: 72,
+    y: 22,
+    toJSON: () => undefined,
+  }] as DOMRect[];
+  vi.spyOn(document, 'createRange').mockImplementation(() => ({
+    selectNodeContents: vi.fn(),
+    getClientRects: vi.fn().mockReturnValue(rangeRects),
+    detach: vi.fn(),
+  }) as any);
+}
+
+function startTrailingPlainClick(view: any, target: HTMLElement) {
+  const mouseDown = createMouseEvent('mousedown', {
+    clientX: 220,
+    clientY: 32,
+  });
+  Object.defineProperty(mouseDown, 'target', {
+    configurable: true,
+    value: target,
+  });
+  return simulateDomEvent(view, 'mousedown', mouseDown);
+}
+
+function finishTrailingPlainClick() {
+  window.dispatchEvent(createMouseEvent('mouseup', {
+    clientX: 220,
+    clientY: 32,
+  }));
 }
 
 async function createBlockSelectionEditor(markdown: string) {
@@ -150,6 +231,63 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
       expect(view.state.doc.textContent).toBe('Beta');
       expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
     } finally {
+      await editor.destroy();
+    }
+  });
+});
+
+describe('blankAreaDragBoxPlugin trailing plain clicks', () => {
+  it('does not override a native pointer selection that already moved during the click', async () => {
+    const { editor, view } = await createBlockSelectionEditor('- Alpha\n- Beta');
+
+    try {
+      const firstParagraph = view.dom.querySelector('li p');
+      expect(firstParagraph).toBeInstanceOf(HTMLElement);
+
+      mockTrailingPlainClickGeometry(view, firstParagraph as HTMLElement);
+
+      const originalSelection = view.state.selection.from;
+      const handled = startTrailingPlainClick(view, firstParagraph as HTMLElement);
+      expect(handled).toBe(false);
+
+      const nativeSelection = TextSelection.create(view.state.doc, 5);
+      view.dispatch(view.state.tr.setSelection(nativeSelection).setMeta('pointer', true));
+      expect(view.state.selection.from).not.toBe(originalSelection);
+
+      finishTrailingPlainClick();
+
+      expect(view.state.selection.from).toBe(5);
+    } finally {
+      vi.restoreAllMocks();
+      await editor.destroy();
+    }
+  });
+
+  it('does not override a native pointer click when the selection position stays the same', async () => {
+    const { editor, view } = await createBlockSelectionEditor('- Alpha\n- Beta');
+
+    try {
+      const firstParagraph = view.dom.querySelector('li p');
+      expect(firstParagraph).toBeInstanceOf(HTMLElement);
+
+      mockTrailingPlainClickGeometry(view, firstParagraph as HTMLElement);
+
+      const originalSelection = view.state.selection.from;
+      const handled = startTrailingPlainClick(view, firstParagraph as HTMLElement);
+      expect(handled).toBe(false);
+
+      view.dispatch(
+        view.state.tr
+          .setSelection(TextSelection.create(view.state.doc, originalSelection))
+          .setMeta('pointer', true)
+      );
+      expect(view.state.selection.from).toBe(originalSelection);
+
+      finishTrailingPlainClick();
+
+      expect(view.state.selection.from).toBe(originalSelection);
+    } finally {
+      vi.restoreAllMocks();
       await editor.destroy();
     }
   });

@@ -189,7 +189,13 @@ export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEven
     if (target === view.dom && isClickBelowLastBlock(view.dom, event.clientY)) {
       return 'below-last-block';
     }
-    return isTextBlockBlankSurfaceTarget(view, target) ? 'outside-editor' : null;
+    if (target === view.dom && view.dom.childElementCount === 0) {
+      return 'outside-editor';
+    }
+    if (isTextBlockBlankSurfaceTarget(view, target)) {
+      return null;
+    }
+    return null;
   }
 
   const externalTextGutterHit = isSameEditorScrollRoot

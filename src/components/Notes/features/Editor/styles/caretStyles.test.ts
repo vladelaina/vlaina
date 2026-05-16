@@ -19,7 +19,7 @@ describe('caret styles', () => {
 
     expect(css).toContain('--vlaina-color-caret: #41ace2;');
     expect(css).toContain('--vlaina-caret-color: var(--vlaina-color-caret);');
-    expect(css).toContain('--vlaina-caret-width: 8px;');
+    expect(css).toContain('--vlaina-caret-width: 1px;');
     expect(css).toContain("[contenteditable='true'] {");
     expect(css).toContain('caret-color: var(--vlaina-caret-color);');
   });
@@ -28,7 +28,7 @@ describe('caret styles', () => {
     const css = readEditorCoreStyles();
 
     expect(css).toContain('--vlaina-editor-caret-color: var(--vlaina-caret-color, #41ace2);');
-    expect(css).toContain('--vlaina-editor-caret-width: var(--vlaina-caret-width, 8px);');
+    expect(css).toContain('--vlaina-editor-caret-width: var(--vlaina-caret-width, 1px);');
     expect(css).toContain('caret-color: var(--vlaina-editor-caret-color);');
   });
 });
