@@ -15,8 +15,8 @@ export const FORMAT_BUTTONS: ToolbarButtonConfig[] = [
   { action: 'bold', icon: EDITOR_ICONS.bold, tooltip: 'Bold', shortcut: 'Ctrl+B', mark: 'strong' },
   { action: 'italic', icon: EDITOR_ICONS.italic, tooltip: 'Italic', shortcut: 'Ctrl+I', mark: 'emphasis' },
   { action: 'underline', icon: EDITOR_ICONS.underline, tooltip: 'Underline', shortcut: 'Ctrl+U', mark: 'underline' },
-  { action: 'strike', icon: EDITOR_ICONS.strike, tooltip: 'Strikethrough', shortcut: 'Ctrl+Shift+X', mark: 'strike_through' },
-  { action: 'code', icon: EDITOR_ICONS.code, tooltip: 'Inline Code', shortcut: 'Ctrl+E', mark: 'inlineCode' },
+  { action: 'strike', icon: EDITOR_ICONS.strike, tooltip: 'Strikethrough', shortcut: 'Ctrl+Shift+5', mark: 'strike_through' },
+  { action: 'code', icon: EDITOR_ICONS.code, tooltip: 'Inline Code', shortcut: 'Ctrl+Shift+`', mark: 'inlineCode' },
   { action: 'highlight', icon: EDITOR_ICONS.highlight, tooltip: 'Highlight', shortcut: 'Ctrl+H', mark: 'highlight' },
 ];
 

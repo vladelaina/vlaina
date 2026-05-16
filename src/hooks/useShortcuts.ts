@@ -39,6 +39,9 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
     toggleSidebar,
     notesSidebarView,
     setNotesSidebarView,
+    fontSize,
+    setFontSize,
+    resetFontSize,
   } = useAppUIStore();
   const { createNote, currentNote, saveNote, restoreLastDeletedItem } = useNotesStore();
 
@@ -103,6 +106,26 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
         return;
       }
 
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && !e.altKey) {
+        if (e.key === '9') {
+          e.preventDefault();
+          resetFontSize();
+          return;
+        }
+
+        if (e.key === '=' || e.key === '+') {
+          e.preventDefault();
+          setFontSize(fontSize + 1);
+          return;
+        }
+
+        if (e.key === '-' || e.key === '_') {
+          e.preventDefault();
+          setFontSize(fontSize - 1);
+          return;
+        }
+      }
+
       if (isEventInsideDialog(e.target)) {
         if (isOpenSettingsBinding(e)) {
           e.preventDefault();
@@ -149,5 +172,5 @@ export function useShortcuts(options: UseShortcutsOptions = {}) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [scope, appViewMode, handlers, restoreLastDeletedItem]);
+  }, [scope, appViewMode, handlers, restoreLastDeletedItem, fontSize, resetFontSize, setFontSize]);
 }

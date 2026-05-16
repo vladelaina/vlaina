@@ -41,6 +41,7 @@ import {
   autoPairPlugin,
   titleNavigationPlugin,
   typewriterModePlugin,
+  typoraShortcutsPlugin,
 } from '../plugins';
 
 export const customPluginGroups = [
@@ -124,6 +125,7 @@ export const customPluginGroups = [
       endBlankClickPlugin,
       titleNavigationPlugin,
       typewriterModePlugin,
+      typoraShortcutsPlugin,
     ],
   },
 ];

@@ -1,5 +1,5 @@
 import { Icon } from '@/components/ui/icons';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 import { cn } from '@/lib/utils';
 import { ModuleShortcutId, ModuleShortcutSection, getModuleShortcutPreset } from '@/lib/shortcuts/moduleShortcuts';
@@ -11,7 +11,6 @@ interface ModuleShortcutsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title?: string;
-  description?: string;
   sections?: ModuleShortcutSection[];
 }
 
@@ -20,14 +19,12 @@ export function ModuleShortcutsDialog({
   open,
   onOpenChange,
   title,
-  description,
   sections,
 }: ModuleShortcutsDialogProps) {
   const { t } = useI18n();
   const isMac = typeof window !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
   const preset = getModuleShortcutPreset(module, { isMac, t });
   const resolvedTitle = title ?? preset.title;
-  const resolvedDescription = description ?? preset.description;
   const resolvedSections = sections ?? preset.sections;
   const {
     handleDragHandleMouseDown,
@@ -67,9 +64,6 @@ export function ModuleShortcutsDialog({
                 keyClassName="rounded-[8px] border border-zinc-200 bg-zinc-50 text-[10px] font-medium text-zinc-700 shadow-none dark:border-white/10 dark:bg-white/5 dark:text-zinc-200"
               />
             </div>
-            <DialogDescription className="mt-1 text-[12px] leading-5 text-zinc-500 dark:text-zinc-400">
-              {resolvedDescription}
-            </DialogDescription>
           </div>
 
           <DialogClose
