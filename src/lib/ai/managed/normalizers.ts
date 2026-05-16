@@ -45,6 +45,7 @@ export function normalizeManagedModelsPayload(payload: ManagedModelsPayload): AI
       apiModelId: id,
       name: normalizeModelName(value, id),
       group: normalizeModelGroup(value, id),
+      ...normalizeModelPrice(value),
       providerId: MANAGED_PROVIDER_ID,
       enabled: true,
       createdAt: now,
@@ -92,4 +93,24 @@ function normalizeModelGroup(model: Record<string, unknown>, modelId: string): s
   if (modelId.includes(':')) return modelId.split(':')[0] || 'other';
   if (modelId.includes('-')) return modelId.split('-')[0] || 'other';
   return 'other';
+}
+
+function normalizeModelPrice(model: Record<string, unknown>): Pick<AIModel, 'priceTier' | 'priceScore'> {
+  const priceTier = typeof model.price_tier === 'string' ? model.price_tier.trim() : '';
+  const normalized: Pick<AIModel, 'priceTier' | 'priceScore'> = {};
+  if (
+    priceTier === '$' ||
+    priceTier === '$$' ||
+    priceTier === '$$$' ||
+    priceTier === '$$$$' ||
+    priceTier === '$$$$$'
+  ) {
+    normalized.priceTier = priceTier;
+  }
+
+  if (typeof model.price_score === 'number' && Number.isFinite(model.price_score) && model.price_score >= 0) {
+    normalized.priceScore = model.price_score;
+  }
+
+  return normalized;
 }

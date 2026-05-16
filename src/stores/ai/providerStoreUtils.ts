@@ -53,7 +53,9 @@ export function replaceProviderModels(allModels: AIModel[], providerId: string, 
         existing.apiModelId === model.apiModelId &&
         existing.name === model.name &&
         existing.providerId === model.providerId &&
-        existing.group === model.group
+        existing.group === model.group &&
+        existing.priceTier === model.priceTier &&
+        existing.priceScore === model.priceScore
       ) {
         return existing
       }
@@ -100,6 +102,8 @@ export function areModelsEqual(left: AIModel[], right: AIModel[]): boolean {
       model.name === other.name &&
       model.providerId === other.providerId &&
       model.group === other.group &&
+      model.priceTier === other.priceTier &&
+      model.priceScore === other.priceScore &&
       model.enabled === other.enabled &&
       model.pinned === other.pinned &&
       model.createdAt === other.createdAt

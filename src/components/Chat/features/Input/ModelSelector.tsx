@@ -154,6 +154,19 @@ const ModelOption = memo(({
                 )}>
                     {displayName}
                 </span>
+                {model.priceTier && (
+                    <span
+                        className={cn(
+                            "ml-2 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold leading-none tracking-normal",
+                            isSelected
+                              ? "border-[var(--sidebar-row-selected-text)]/30 text-[var(--sidebar-row-selected-text)]"
+                              : "border-current/15 text-[var(--chat-sidebar-text-soft)] dark:text-[var(--notes-sidebar-text-soft)]"
+                        )}
+                        title={`Price tier ${model.priceTier}`}
+                    >
+                        {model.priceTier}
+                    </span>
+                )}
             </span>
 
             <span className="ml-3 flex flex-shrink-0 items-center gap-1">

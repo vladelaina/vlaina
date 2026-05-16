@@ -38,6 +38,8 @@ export interface AIModel {
   name: string
   providerId: string
   group?: string
+  priceTier?: '$' | '$$' | '$$$' | '$$$$' | '$$$$$'
+  priceScore?: number
   enabled: boolean
   pinned?: boolean
   createdAt: number

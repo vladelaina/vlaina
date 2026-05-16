@@ -146,6 +146,8 @@ describe('normalizeLoadedAIModels', () => {
           apiModelId: ' model-a ',
           name: '',
           providerId: 'vlaina-managed',
+          priceTier: '$$$',
+          priceScore: 1.4,
           enabled: undefined,
           createdAt: 'bad',
         },
@@ -191,6 +193,8 @@ describe('normalizeLoadedAIModels', () => {
       apiModelId: 'model-a',
       name: 'Model A',
       providerId: 'vlaina-managed',
+      priceTier: '$$$',
+      priceScore: 1.4,
       enabled: true,
     });
     expect(Number.isFinite(normalized.models[0]?.createdAt)).toBe(true);
