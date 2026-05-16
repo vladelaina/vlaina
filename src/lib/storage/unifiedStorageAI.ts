@@ -101,6 +101,7 @@ export function normalizeLoadedAIModels(
         group: typeof item.group === 'string' && item.group.trim()
           ? item.group.trim()
           : generateModelGroup(apiModelId),
+        ...normalizeLoadedModelPrice(item),
         enabled: item.enabled !== false,
         pinned: item.pinned === true,
         createdAt: normalizeTimestamp(item.createdAt, now),
@@ -138,4 +139,24 @@ export function normalizeLoadedAIModels(
     selectedModelId: remapModelId(selectedModelId),
     sessions: normalizedSessions,
   };
+}
+
+function normalizeLoadedModelPrice(item: Record<string, unknown>): Pick<AIModel, 'priceTier' | 'priceScore'> {
+  const priceTier = typeof item.priceTier === 'string' ? item.priceTier.trim() : '';
+  const normalized: Pick<AIModel, 'priceTier' | 'priceScore'> = {};
+  if (
+    priceTier === '$' ||
+    priceTier === '$$' ||
+    priceTier === '$$$' ||
+    priceTier === '$$$$' ||
+    priceTier === '$$$$$'
+  ) {
+    normalized.priceTier = priceTier;
+  }
+
+  if (typeof item.priceScore === 'number' && Number.isFinite(item.priceScore) && item.priceScore >= 0) {
+    normalized.priceScore = item.priceScore;
+  }
+
+  return normalized;
 }
