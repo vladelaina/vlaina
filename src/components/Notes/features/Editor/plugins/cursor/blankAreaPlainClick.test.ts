@@ -177,6 +177,28 @@ describe('resolveInsideBlockTrailingPlainClickAction', () => {
     ).toBeNull();
   });
 
+  it('leaves clicks near the text end to the editor native handler', () => {
+    expect(
+      resolveInsideBlockTrailingPlainClickAction({
+        blockRects: [
+          {
+            from: 4,
+            to: 12,
+            left: 40,
+            right: 620,
+            contentLeft: 96,
+            contentRight: 180,
+            top: 80,
+            bottom: 104,
+            allowInsideTrailingClick: true,
+          },
+        ],
+        clientX: 196,
+        clientY: 92,
+      })
+    ).toBeNull();
+  });
+
   it('focuses the previous list item end when clicking the right-side gap before the next item', () => {
     expect(
       resolveInsideBlockTrailingPlainClickAction({

@@ -60,6 +60,25 @@ const DRAG_BOX_COLOR = 'color-mix(in srgb, var(--vlaina-color-editor-block-selec
 const DRAG_SESSION_CURSOR = 'crosshair';
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 
+function snapshotSelection(state: EditorState) {
+  return {
+    type: state.selection.constructor.name,
+    from: state.selection.from,
+    to: state.selection.to,
+    empty: state.selection.empty,
+  };
+}
+
+function isSameSelectionSnapshot(
+  left: ReturnType<typeof snapshotSelection>,
+  right: ReturnType<typeof snapshotSelection>,
+): boolean {
+  return left.type === right.type
+    && left.from === right.from
+    && left.to === right.to
+    && left.empty === right.empty;
+}
+
 function dispatchBlankAreaPlainClick(view: EditorView, action: BlankAreaPlainClickAction): void {
   let tr = applyBlankAreaPlainClickSelection(view.state.tr, action);
   tr = tr.setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION);
@@ -85,8 +104,9 @@ function resolveInsideBlockTrailingPlainClick(view: EditorView, event: MouseEven
     view,
     scrollRootSelector: SCROLL_ROOT_SELECTOR,
   });
+  const blockRects = resolver.getTopLevelBlockRects();
   const action = resolveInsideBlockTrailingPlainClickAction({
-    blockRects: resolver.getTopLevelBlockRects(),
+    blockRects,
     clientX: event.clientX,
     clientY: event.clientY,
   });
@@ -98,10 +118,13 @@ function startInsideBlockTrailingPlainClickSession(
   view: EditorView,
   event: MouseEvent,
   action: BlankAreaPlainClickAction,
+  getNativePointerSelectionVersion: () => number,
   dragThreshold = DRAG_THRESHOLD,
 ): () => void {
   const startX = event.clientX;
   const startY = event.clientY;
+  const startSelection = snapshotSelection(view.state);
+  const startNativePointerSelectionVersion = getNativePointerSelectionVersion();
   let didDrag = false;
   let isStopped = false;
 
@@ -125,6 +148,12 @@ function startInsideBlockTrailingPlainClickSession(
   const handleMouseUp = () => {
     stop();
     if (didDrag) return;
+    const currentSelection = snapshotSelection(view.state);
+    const didNativePointerSelectionRun =
+      getNativePointerSelectionVersion() !== startNativePointerSelectionVersion;
+    if (didNativePointerSelectionRun || !isSameSelectionSnapshot(startSelection, currentSelection)) {
+      return;
+    }
     dispatchBlankAreaPlainClick(view, action);
   };
 
@@ -171,6 +200,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
   let stopInsideBlockTrailingPlainClickSession: (() => void) | null = null;
   let markdownSerializer: Serializer | null = null;
   let serializerResolved = false;
+  let nativePointerSelectionVersion = 0;
 
   const resolveMarkdownSerializer = (): Serializer | null => {
     if (serializerResolved) return markdownSerializer;
@@ -323,6 +353,12 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         };
       },
     },
+    appendTransaction(transactions) {
+      if (transactions.some((tr) => tr.selectionSet && tr.getMeta('pointer') === true)) {
+        nativePointerSelectionVersion += 1;
+      }
+      return null;
+    },
     props: {
       decorations(state) {
         return getBlockSelectionPluginState(state).decorations;
@@ -383,6 +419,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
               view,
               event,
               insideBlockTrailingClickAction,
+              () => nativePointerSelectionVersion,
             );
             return false;
           }
@@ -411,6 +448,13 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           });
           return;
         }
+        const target = event.target;
+        if (target instanceof Node && view.dom.contains(target)) {
+          if (hasSelectedBlocks(view.state)) {
+            clearBlockSelection(view);
+          }
+          return;
+        }
         const insideBlockTrailingClickAction = resolveInsideBlockTrailingPlainClick(view, event);
         if (insideBlockTrailingClickAction) {
           clearInsideBlockTrailingPlainClickSession();
@@ -418,14 +462,8 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
             view,
             event,
             insideBlockTrailingClickAction,
+            () => nativePointerSelectionVersion,
           );
-          return;
-        }
-        const target = event.target;
-        if (target instanceof Node && view.dom.contains(target)) {
-          if (hasSelectedBlocks(view.state)) {
-            clearBlockSelection(view);
-          }
           return;
         }
         const startZone = tryStartSession(view, event);
