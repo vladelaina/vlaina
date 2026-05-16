@@ -106,9 +106,9 @@ function ChannelObject({
               onDelete?.();
             }}
             aria-label={`Delete ${name}`}
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] opacity-0 group-hover/channel:opacity-100 transition-all duration-200 hover:bg-zinc-200 dark:hover:bg-white/10 hover:text-red-500"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] opacity-0 transition-all duration-200 hover:bg-transparent hover:text-red-500 hover:shadow-none group-hover/channel:opacity-100 focus-visible:opacity-100 dark:hover:bg-transparent"
           >
-            <Icon name="common.trash" size="xs" />
+            <Icon name="common.close" size="xs" />
           </button>
           <SettingsSwitch
             checked={enabled}
