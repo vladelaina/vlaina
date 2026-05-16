@@ -347,6 +347,12 @@ function compareVersions(left, right) {
   return 0;
 }
 
+function normalizeReleaseVersion(rawVersion) {
+  return String(rawVersion ?? '')
+    .trim()
+    .replace(/^v/i, '');
+}
+
 function splitReleaseAssetNameParts(name) {
   return String(name ?? '')
     .toLowerCase()
@@ -472,6 +478,7 @@ function normalizeUpdateManifest(payload) {
     payload.version ?? payload.tag_name,
     'latest version'
   ).trim();
+  const normalizedLatestVersion = normalizeReleaseVersion(latestVersion);
   const releaseUrl = normalizeHttpUrl(
     payload.downloadUrl ?? payload.html_url ?? defaultDownloadUrl,
     'Download URL'
@@ -490,7 +497,7 @@ function normalizeUpdateManifest(payload) {
       : '';
 
   return {
-    latestVersion,
+    latestVersion: normalizedLatestVersion,
     downloadUrl: platformAsset?.downloadUrl ?? releaseUrl,
     releaseUrl,
     platformAssetName: platformAsset?.name ?? '',

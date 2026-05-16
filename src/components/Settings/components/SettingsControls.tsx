@@ -77,11 +77,12 @@ interface SettingsItemProps {
     title: string;
     description?: string;
     children: ReactNode;
+    className?: string;
 }
 
-export function SettingsItem({ title, description, children }: SettingsItemProps) {
+export function SettingsItem({ title, description, children, className }: SettingsItemProps) {
     return (
-        <div className={cn("flex items-center justify-between px-6 py-4 mb-3 rounded-[22px]", chatComposerPillSurfaceClass)}>
+        <div className={cn("flex items-center justify-between px-6 py-4 mb-3 rounded-[22px]", chatComposerPillSurfaceClass, className)}>
             <div className="flex-1 pr-8">
                 <div className="text-[14px] font-semibold text-[var(--notes-sidebar-text)] mb-0.5">
                     {title}

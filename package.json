@@ -1,7 +1,7 @@
 {
   "name": "vlaina",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.3",
   "description": "Electron desktop app for vlaina",
   "homepage": "https://vlaina.com",
   "author": "vlaina",
