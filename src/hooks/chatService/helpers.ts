@@ -253,6 +253,7 @@ export function createChunkScheduler(onFlush: (content: string) => void) {
   let frameId: number | null = null;
   let frameKind: 'raf' | 'timeout' | null = null;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let hasFlushedOnce = false;
 
   const clearScheduledFlush = () => {
     if (frameId !== null) {
@@ -280,6 +281,7 @@ export function createChunkScheduler(onFlush: (content: string) => void) {
     const nextContent = pendingContent;
     pendingContent = null;
     clearScheduledFlush();
+    hasFlushedOnce = true;
     onFlush(nextContent);
   };
 
@@ -302,6 +304,10 @@ export function createChunkScheduler(onFlush: (content: string) => void) {
   return {
     push(content: string) {
       pendingContent = content;
+      if (!hasFlushedOnce) {
+        flush();
+        return;
+      }
       scheduleFlush();
     },
     flushNow() {
