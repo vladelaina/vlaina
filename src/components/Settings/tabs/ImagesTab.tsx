@@ -10,35 +10,65 @@ interface StorageOption {
     id: ImageStorageMode;
     labelKey: MessageKey;
     descriptionKey: MessageKey;
-    icon: IconName;
 }
 
 const storageOptions: StorageOption[] = [
     {
-        id: 'vaultSubfolder',
-        labelKey: 'settings.images.vaultSubfolder',
-        descriptionKey: 'settings.images.vaultSubfolderDescription',
-        icon: 'file.folder',
-    },
-    {
         id: 'subfolder',
         labelKey: 'settings.images.noteSubfolder',
         descriptionKey: 'settings.images.noteSubfolderDescription',
-        icon: 'file.folderOpen',
     },
     {
-        id: 'vault',
-        labelKey: 'settings.images.vaultRoot',
-        descriptionKey: 'settings.images.vaultRootDescription',
-        icon: 'common.home',
+        id: 'vaultSubfolder',
+        labelKey: 'settings.images.vaultSubfolder',
+        descriptionKey: 'settings.images.vaultSubfolderDescription',
     },
     {
         id: 'currentFolder',
         labelKey: 'settings.images.currentFolder',
         descriptionKey: 'settings.images.currentFolderDescription',
-        icon: 'file.folderOpen',
+    },
+    {
+        id: 'vault',
+        labelKey: 'settings.images.vaultRoot',
+        descriptionKey: 'settings.images.vaultRootDescription',
     },
 ];
+
+function getStoragePreview(
+    mode: ImageStorageMode,
+    noteSubfolderName: string,
+    vaultSubfolderName: string,
+    t: (key: MessageKey, values?: Record<string, string | number>) => string
+) {
+    switch (mode) {
+        case 'vaultSubfolder':
+            return t('settings.images.previewVaultSubfolder', { folder: vaultSubfolderName || 'assets' });
+        case 'subfolder':
+            return t('settings.images.previewNoteSubfolder', { folder: noteSubfolderName || 'assets' });
+        case 'vault':
+            return t('settings.images.previewVaultRoot');
+        case 'currentFolder':
+            return t('settings.images.previewCurrentFolder');
+    }
+}
+
+function getStorageOptionDescription(
+    option: StorageOption,
+    noteSubfolderName: string,
+    vaultSubfolderName: string,
+    t: (key: MessageKey, values?: Record<string, string | number>) => string
+) {
+    if (option.id === 'vaultSubfolder') {
+        return t(option.descriptionKey, { folder: vaultSubfolderName || 'assets' });
+    }
+
+    if (option.id === 'subfolder') {
+        return t(option.descriptionKey, { folder: noteSubfolderName || 'assets' });
+    }
+
+    return t(option.descriptionKey);
+}
 
 export function ImagesTab() {
     const { t } = useI18n();
@@ -48,20 +78,39 @@ export function ImagesTab() {
     const setImageStorageMode = useUIStore((s) => s.setImageStorageMode);
     const setImageSubfolderName = useUIStore((s) => s.setImageSubfolderName);
     const setImageVaultSubfolderName = useUIStore((s) => s.setImageVaultSubfolderName);
+    const resetImageStorageLocation = () => {
+        setImageStorageMode('subfolder');
+        setImageSubfolderName('assets');
+        setImageVaultSubfolderName('assets');
+    };
+    const storagePreview = getStoragePreview(
+        imageStorageMode,
+        imageSubfolderName,
+        imageVaultSubfolderName,
+        t
+    );
 
     return (
         <div className="w-full">
             <SettingsSectionHeader>{t('settings.images.images')}</SettingsSectionHeader>
 
             <div className="mb-4 flex items-center justify-between px-2">
-                <span className="text-[13px] font-medium text-[var(--notes-sidebar-text-soft)]">
-                    {t('settings.images.storageLocation')}
-                </span>
+                <div className="flex items-center gap-1.5">
+                    <span className="text-[13px] font-medium text-[var(--notes-sidebar-text-soft)]">
+                        {t('settings.images.storageLocation')}
+                    </span>
+                    <button
+                        type="button"
+                        onClick={resetImageStorageLocation}
+                        aria-label={t('common.reset')}
+                        title={t('common.reset')}
+                        className="inline-flex size-6 items-center justify-center rounded-full text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-zinc-100 hover:text-[var(--notes-sidebar-text)] dark:hover:bg-white/5"
+                    >
+                        <Icon name="common.refresh" className="size-3.5" />
+                    </button>
+                </div>
                 <code className="rounded-full bg-zinc-100 dark:bg-white/5 px-3 py-1 text-[11px] text-[var(--notes-sidebar-text-soft)]">
-                    {imageStorageMode === 'vault' && './image.png'}
-                    {imageStorageMode === 'vaultSubfolder' && `./${imageVaultSubfolderName || 'assets'}/image.png`}
-                    {imageStorageMode === 'currentFolder' && './image.png'}
-                    {imageStorageMode === 'subfolder' && `./${imageSubfolderName || 'assets'}/image.png`}
+                    {storagePreview}
                 </code>
             </div>
 
@@ -92,14 +141,14 @@ export function ImagesTab() {
                                     "text-[12px] mt-0.5",
                                     isSelected ? "text-[var(--sidebar-row-selected-text)]/80" : "text-[var(--notes-sidebar-text-soft)]"
                                 )}>
-                                    {t(option.descriptionKey)}
+                                    {getStorageOptionDescription(
+                                        option,
+                                        imageSubfolderName,
+                                        imageVaultSubfolderName,
+                                        t
+                                    )}
                                 </div>
                             </div>
-                            
-                            <Icon name={option.icon} className={cn(
-                                "size-5 flex-shrink-0 transition-colors",
-                                isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--notes-sidebar-text-soft)]"
-                            )} />
                         </button>
                     );
                 })}
@@ -154,7 +203,6 @@ export function ImagesTab() {
                     id="original"
                     label={t('settings.images.originalName')}
                     description={t('settings.images.originalNameDescription')}
-                    icon="common.tag"
                 />
                 <FilenameFormatOption
                     id="sequence"
@@ -173,10 +221,11 @@ export function ImagesTab() {
     );
 }
 
-function FilenameFormatOption({ id, label, description, icon }: { id: 'original' | 'timestamp' | 'sequence'; label: string; description: string; icon: IconName }) {
+function FilenameFormatOption({ id, label, description, icon }: { id: 'original' | 'timestamp' | 'sequence'; label: string; description: string; icon?: IconName }) {
     const imageFilenameFormat = useUIStore((s) => s.imageFilenameFormat);
     const setImageFilenameFormat = useUIStore((s) => s.setImageFilenameFormat);
     const isSelected = imageFilenameFormat === id;
+    const hasDescription = description.trim().length > 0;
 
     return (
         <button
@@ -196,18 +245,22 @@ function FilenameFormatOption({ id, label, description, icon }: { id: 'original'
                 )}>
                     {label}
                 </div>
-                <div className={cn(
-                    "text-[12px] mt-0.5",
-                    isSelected ? "text-[var(--sidebar-row-selected-text)]/80" : "text-[var(--notes-sidebar-text-soft)]"
-                )}>
-                    {description}
-                </div>
+                {hasDescription && (
+                    <div className={cn(
+                        "text-[12px] mt-0.5",
+                        isSelected ? "text-[var(--sidebar-row-selected-text)]/80" : "text-[var(--notes-sidebar-text-soft)]"
+                    )}>
+                        {description}
+                    </div>
+                )}
             </div>
 
-            <Icon name={icon} className={cn(
-                "size-5 flex-shrink-0 transition-colors",
-                isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--notes-sidebar-text-soft)]"
-            )} />
+            {icon && (
+                <Icon name={icon} className={cn(
+                    "size-5 flex-shrink-0 transition-colors",
+                    isSelected ? "text-[var(--sidebar-row-selected-text)]" : "text-[var(--notes-sidebar-text-soft)]"
+                )} />
+            )}
         </button>
     );
 }
