@@ -6,7 +6,10 @@ import {
   normalizeMermaidRenderMarkup,
   renderMermaid,
 } from './mermaidRenderer';
-import { normalizeMermaidEditorCodeInput } from './mermaidFenceCode';
+import {
+  normalizeMermaidCodeForRender,
+  normalizeMermaidEditorCodeInput,
+} from './mermaidFenceCode';
 
 const mermaidElementCode = new WeakMap<HTMLElement, string>();
 let mermaidRenderKeyCounter = 0;
@@ -25,6 +28,10 @@ function setMermaidElementCode(element: HTMLElement, code: string) {
 
 export function getMermaidElementCode(element: HTMLElement) {
   return mermaidElementCode.get(element) ?? element.dataset.code ?? '';
+}
+
+function getMermaidRenderCode(sourceCode: string) {
+  return normalizeMermaidCodeForRender(sourceCode);
 }
 
 async function renderMermaidHtml(
@@ -194,6 +201,7 @@ export async function renderMermaidEditorLivePreview(args: {
   disconnectLazyMermaidRender(anchor);
 
   const normalizedCode = normalizeMermaidEditorCodeInput(code);
+  const renderCode = getMermaidRenderCode(normalizedCode);
 
   if (!normalizedCode.trim()) {
     setMermaidElementCode(anchor, normalizedCode);
@@ -203,10 +211,11 @@ export async function renderMermaidEditorLivePreview(args: {
   }
 
   const codeSnapshot = normalizedCode;
+  const renderCodeSnapshot = renderCode;
   const renderKey = setMermaidElementCode(anchor, codeSnapshot);
 
   const cachedMarkup = shouldUseDefaultMermaidRender(render)
-    ? readCachedMermaidMarkup(codeSnapshot)
+    ? readCachedMermaidMarkup(renderCodeSnapshot)
     : null;
   if (cachedMarkup != null) {
     anchor.innerHTML = cachedMarkup;
@@ -214,7 +223,7 @@ export async function renderMermaidEditorLivePreview(args: {
     return true;
   }
 
-  const markup = await resolveMermaidMarkup(codeSnapshot, render);
+  const markup = await resolveMermaidMarkup(renderCodeSnapshot, render);
   if (!anchor.isConnected || getMermaidElementCode(anchor) !== codeSnapshot || anchor.dataset.renderKey !== renderKey) {
     return false;
   }
@@ -243,7 +252,8 @@ function setMermaidPendingMarkup(anchor: HTMLElement) {
 }
 
 function renderMermaidElementAsync(anchor: HTMLElement, codeSnapshot: string, renderKey: string | undefined) {
-  resolveMermaidMarkup(codeSnapshot, renderMermaid).then((markup) => {
+  const renderCodeSnapshot = getMermaidRenderCode(codeSnapshot);
+  resolveMermaidMarkup(renderCodeSnapshot, renderMermaid).then((markup) => {
     if (
       getMermaidElementCode(anchor) !== codeSnapshot ||
       anchor.dataset.renderKey !== renderKey
@@ -272,13 +282,14 @@ function installLazyMermaidRender(anchor: HTMLElement, codeSnapshot: string, ren
 
 export function createMermaidElement(code: string) {
   const normalizedCode = normalizeMermaidEditorCodeInput(code);
+  const renderCode = getMermaidRenderCode(normalizedCode);
   const wrapper = document.createElement('div');
   wrapper.setAttribute('data-type', 'mermaid');
   setMermaidElementCode(wrapper, normalizedCode);
   wrapper.className = 'mermaid-block';
 
   if (normalizedCode.trim()) {
-    const cachedMarkup = readCachedMermaidMarkup(normalizedCode);
+    const cachedMarkup = readCachedMermaidMarkup(renderCode);
     if (cachedMarkup != null) {
       wrapper.innerHTML = cachedMarkup;
       return wrapper;

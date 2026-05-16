@@ -102,4 +102,53 @@ describe('mermaidEditorSessionActions', () => {
       ].join('\n'),
     });
   });
+
+  it('saves classic flowchart editor input without converting the source', () => {
+    const setNodeMarkup = vi.fn();
+    const transaction = {
+      setMeta: vi.fn(() => 'closed-transaction'),
+      setNodeMarkup,
+    };
+    setNodeMarkup.mockReturnValue(transaction);
+    const code = [
+      'st=>start: 开始框',
+      'op=>operation: 处理框',
+      'cond=>condition: 判断框(是或否?)',
+      'st->op->cond',
+    ].join('\n');
+    const editorView = {
+      state: {
+        doc: {
+          nodeAt: vi.fn(() => ({
+            type: { name: 'mermaid' },
+            attrs: { code: '' },
+          })),
+        },
+        tr: transaction,
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    };
+
+    saveMermaidEditorSession({
+      editorView: editorView as never,
+      refs: {
+        textareaElement: {
+          value: code,
+        } as HTMLTextAreaElement,
+        draftCode: '',
+        initialCode: '',
+      },
+      getEditorState: () => ({
+        isOpen: true,
+        nodePos: 4,
+        code: '',
+        position: { x: 0, y: 0 },
+        openSource: 'existing-node',
+      }),
+      resetSessionDom: vi.fn(),
+    });
+
+    expect(setNodeMarkup).toHaveBeenCalledWith(4, undefined, { code });
+  });
 });
