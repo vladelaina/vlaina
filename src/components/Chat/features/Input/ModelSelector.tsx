@@ -157,7 +157,7 @@ const ModelOption = memo(({
                 {model.priceTier && (
                     <span
                         className={cn(
-                            "ml-2 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold leading-none tracking-normal",
+                            "ml-2 rounded-md border px-1 py-0.5 text-[8px] font-semibold leading-none tracking-[0.04em]",
                             isSelected
                               ? "border-[var(--sidebar-row-selected-text)]/30 text-[var(--sidebar-row-selected-text)]"
                               : "border-current/15 text-[var(--chat-sidebar-text-soft)] dark:text-[var(--notes-sidebar-text-soft)]"
@@ -720,7 +720,7 @@ export function ModelSelector({
                       const event = new CustomEvent('open-settings', { detail: { tab: 'ai' } });
                       window.dispatchEvent(event);
                   }}
-                  className={cn("flex-shrink-0 cursor-pointer rounded-lg p-1.5 transition-colors", styles.settingsButton)}
+                  className={cn("flex h-8 w-8 flex-shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors", styles.settingsButton)}
               >
                   <Icon name="common.settings" size="md" />
               </button>
