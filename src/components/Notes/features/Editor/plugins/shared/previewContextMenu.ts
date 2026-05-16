@@ -75,6 +75,7 @@ function insertParagraph(
   return true;
 }
 
+// Inline context-menu icons are adapted from Lucide Icons (ISC).
 const MENU_ICONS: Record<PreviewContextMenuIcon, string> = {
   image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"></rect><circle cx="8.5" cy="10.5" r="1.5"></circle><path d="m21 15-5-5L5 21"></path></svg>',
   paragraph: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 4v16"></path><path d="M17 4v16"></path><path d="M19 4H9.5a4.5 4.5 0 0 0 0 9H13"></path></svg>',

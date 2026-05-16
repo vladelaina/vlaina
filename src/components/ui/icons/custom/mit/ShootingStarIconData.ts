@@ -1,3 +1,7 @@
+/*
+ * Origin: Phosphor Icons
+ * License: MIT
+ */
 export const SHOOTING_STAR_VIEW_BOX = '0 0 256 256';
 
 export const SHOOTING_STAR_PATH =

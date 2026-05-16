@@ -410,6 +410,7 @@ export function ThinkingBlock({
               isCollapsed ? "opacity-100" : "opacity-0"
             } group-hover/thinking:opacity-0`}
           />
+          {/* Chevron glyph adapted from Lucide Icons (ISC). */}
           <svg
             className={`h-4 w-4 absolute top-0 left-0 ${
               isCollapsed

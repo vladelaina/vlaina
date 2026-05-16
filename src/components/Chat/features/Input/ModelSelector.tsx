@@ -873,6 +873,7 @@ export function ModelSelector({
         <span className="whitespace-nowrap text-[15px] font-semibold tracking-tight">
           {selectedModel ? getModelPresentationName(selectedModel) : 'Select Model'}
         </span>
+        {/* Chevron glyph adapted from Lucide Icons (ISC). */}
         <svg
           className={cn("h-4 w-4 flex-shrink-0 opacity-60 transition-transform duration-200", isOpen && "rotate-180")}
           fill="none"

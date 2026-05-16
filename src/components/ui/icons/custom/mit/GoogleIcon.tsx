@@ -1,3 +1,7 @@
+/*
+ * Origin: Google logo
+ * Notice: Third-party brand asset; not relicensed under this project's AGPLv3 license.
+ */
 import { forwardRef } from 'react';
 import type { SVGProps } from 'react';
 

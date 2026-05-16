@@ -37,6 +37,7 @@ export function ChatSidebarTopActions({
       key: 'notes',
       label: t('sidebar.grimoire'),
       icon: (
+        // Book/image glyph adapted from Lucide Icons (ISC).
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="22"

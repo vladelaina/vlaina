@@ -1,3 +1,7 @@
+/*
+ * Origin: Phosphor Icons
+ * License: MIT
+ */
 import { SVGProps } from 'react';
 
 export const ReviewRetryIcon = (props: SVGProps<SVGSVGElement>) => (

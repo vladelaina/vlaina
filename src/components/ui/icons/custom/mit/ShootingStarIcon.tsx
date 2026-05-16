@@ -1,3 +1,7 @@
+/*
+ * Origin: Phosphor Icons
+ * License: MIT
+ */
 import { SVGProps } from 'react';
 import { SHOOTING_STAR_PATH, SHOOTING_STAR_VIEW_BOX } from './ShootingStarIconData';
 

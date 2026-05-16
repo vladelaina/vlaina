@@ -55,6 +55,7 @@ export function UnifiedTitleBar({
             className="vlaina-no-drag group flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-[var(--chat-sidebar-text)] transition-colors hover:bg-[var(--vlaina-bg-primary)] hover:text-[var(--chat-sidebar-text)] dark:hover:bg-white/10"
           >
             <>
+              {/* Sidebar glyph adapted from Lucide Icons (ISC). */}
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="24"

@@ -23,7 +23,9 @@ See [PRIVACY.md](PRIVACY.md) for a summary of how vlaina handles local data, AI 
 
 ## Third-Party Notices
 
-- The Mermaid diagram default theme is adapted from `beautiful-mermaid`, which is licensed under the MIT License.
+This project includes and adapts third-party open-source material. See
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attribution and license
+details.
 
 ## Development
 

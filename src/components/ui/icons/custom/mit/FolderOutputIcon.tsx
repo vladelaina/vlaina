@@ -1,3 +1,7 @@
+/*
+ * Origin: Lucide Icons (folder-output)
+ * License: ISC
+ */
 import { forwardRef, type SVGProps } from 'react';
 
 export const FolderOutputIcon = forwardRef<SVGSVGElement, SVGProps<SVGSVGElement>>(

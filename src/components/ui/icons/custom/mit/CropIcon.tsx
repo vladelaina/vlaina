@@ -1,6 +1,6 @@
 /*
  * Origin: Lucide Icons (crop)
- * License: MIT
+ * License: ISC
  */
 import { SVGProps } from 'react';
 

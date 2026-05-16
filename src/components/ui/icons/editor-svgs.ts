@@ -3,6 +3,9 @@ import { renderShootingStarSvgMarkup } from './custom/mit/ShootingStarIconData';
 
 const EDITOR_ICON_SIZE = ICON_SIZES.md;
 
+// Inline editor toolbar SVGs are custom app artwork or adapted from Lucide
+// Icons (ISC) and Phosphor Icons (MIT). Keep THIRD_PARTY_NOTICES.md in sync
+// when adding icons sourced from other projects.
 export const EDITOR_ICONS = {
   bold: `<svg width="${EDITOR_ICON_SIZE}" height="${EDITOR_ICON_SIZE}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
     <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"></path>

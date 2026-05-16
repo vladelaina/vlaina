@@ -94,6 +94,7 @@ export const dragPlugin = $prose(() => {
       const createHandle = () => {
         const handle = document.createElement('div');
         handle.className = 'drag-handle';
+        // Simple drag-handle glyph is custom app artwork.
         handle.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
           <circle cx="9" cy="6" r="2"/><circle cx="15" cy="6" r="2"/>
           <circle cx="9" cy="12" r="2"/><circle cx="15" cy="12" r="2"/>

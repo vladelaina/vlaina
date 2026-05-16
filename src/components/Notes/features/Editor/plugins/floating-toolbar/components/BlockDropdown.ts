@@ -10,6 +10,8 @@ import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/c
 
 const DROPDOWN_ICON_SIZE = ICON_SIZES.md;
 
+// Inline block-type icons are custom app artwork or adapted from Lucide Icons
+// (ISC). Keep THIRD_PARTY_NOTICES.md in sync when adding other sources.
 const BLOCK_ICONS: Record<string, string> = {
   text: `<svg width="${DROPDOWN_ICON_SIZE}" height="${DROPDOWN_ICON_SIZE}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
     <path d="M4 7V4h16v3M9 20h6M12 4v16"/>
