@@ -22,6 +22,9 @@ export interface UnifiedData {
         showLineNumbers: boolean;
       };
     };
+    ui?: {
+      lastAppViewMode?: 'notes' | 'chat';
+    };
   };
   customIcons?: CustomIcon[];
   deletedCustomIconIds?: string[];
@@ -57,6 +60,9 @@ export function createDefaultUnifiedData(): UnifiedData {
         codeBlock: {
           showLineNumbers: true,
         },
+      },
+      ui: {
+        lastAppViewMode: 'notes',
       },
     },
     customIcons: [],

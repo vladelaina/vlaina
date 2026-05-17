@@ -6,6 +6,7 @@ import {
 import { getDefaultSidebarWidth } from '@/lib/layout/sidebarWidth';
 import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
 import { emitStorageAutoSyncEvent } from '@/lib/storage/storageAutoSync';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import {
   SYSTEM_LANGUAGE_PREFERENCE,
   normalizeAppLanguagePreference,
@@ -18,6 +19,7 @@ const STORAGE_KEY_IMAGE_SUBFOLDER_NAME = 'vlaina_image_subfolder_name';
 const STORAGE_KEY_IMAGE_VAULT_SUBFOLDER_NAME = 'vlaina_image_vault_subfolder_name';
 const STORAGE_KEY_IMAGE_FILENAME_FORMAT = 'vlaina_image_filename_format';
 const STORAGE_KEY_LANGUAGE_PREFERENCE = 'vlaina-language-preference';
+const STORAGE_KEY_LAST_APP_VIEW_MODE = 'vlaina_last_app_view_mode';
 
 export type AppViewMode = 'notes' | 'chat' | 'lab';
 export type NotesSidebarView = 'workspace' | 'outline';
@@ -37,6 +39,7 @@ interface UIStore {
   appViewMode: AppViewMode;
   setAppViewMode: (mode: AppViewMode) => void;
   toggleAppViewMode: () => void;
+  restoreLastAppViewMode: (mode: 'notes' | 'chat') => void;
 
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
@@ -208,6 +211,23 @@ function loadNotesChatPanelCollapsed(): boolean {
   return loadBoolean(STORAGE_KEY_NOTES_CHAT_PANEL_COLLAPSED, true);
 }
 
+function loadLastAppViewMode(): Extract<AppViewMode, 'notes' | 'chat'> {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_LAST_APP_VIEW_MODE);
+    if (saved === 'notes' || saved === 'chat') {
+      return saved;
+    }
+  } catch {
+  }
+  return 'notes';
+}
+
+function saveLastAppViewMode(mode: AppViewMode): void {
+  if (mode !== 'notes' && mode !== 'chat') return;
+  saveString(STORAGE_KEY_LAST_APP_VIEW_MODE, mode);
+  useUnifiedStore.getState().setLastAppViewMode(mode);
+}
+
 function loadLanguagePreference(): AppLanguagePreference {
   try {
     const saved = localStorage.getItem(STORAGE_KEY_LANGUAGE_PREFERENCE);
@@ -225,7 +245,7 @@ function getInitialAppViewMode(): AppViewMode {
   if (!import.meta.env.DEV && launchViewMode === 'lab') {
     return 'notes';
   }
-  return launchViewMode ?? 'notes';
+  return launchViewMode ?? loadLastAppViewMode();
 }
 
 function normalizeAppViewMode(mode: AppViewMode): AppViewMode {
@@ -248,10 +268,22 @@ function loadUIPreferencesFromStorage(): UIPreferenceState {
 
 export const useUIStore = create<UIStore>()((set) => ({
   appViewMode: getInitialAppViewMode(),
-  setAppViewMode: (mode) => set({ appViewMode: normalizeAppViewMode(mode) }),
-  toggleAppViewMode: () => set((state) => ({
-    appViewMode: state.appViewMode === 'chat' ? 'notes' : 'chat'
-  })),
+  setAppViewMode: (mode) => {
+    const next = normalizeAppViewMode(mode);
+    saveLastAppViewMode(next);
+    set({ appViewMode: next });
+  },
+  toggleAppViewMode: () => set((state) => {
+    const next = state.appViewMode === 'chat' ? 'notes' : 'chat';
+    saveLastAppViewMode(next);
+    return { appViewMode: next };
+  }),
+  restoreLastAppViewMode: (mode) => set((state) => {
+    if (state.appViewMode === 'lab') return {};
+    if (state.appViewMode === mode) return {};
+    saveString(STORAGE_KEY_LAST_APP_VIEW_MODE, mode);
+    return { appViewMode: mode };
+  }),
 
   sidebarCollapsed: loadBoolean(STORAGE_KEY_NOTES_SIDEBAR_COLLAPSED, false),
   toggleSidebar: () => set((state) => {
