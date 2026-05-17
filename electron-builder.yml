@@ -1,5 +1,6 @@
 appId: com.vlaina.desktop
 productName: vlaina
+copyright: Copyright © 2026 vladelaina
 compression: maximum
 npmRebuild: false
 removePackageScripts: true

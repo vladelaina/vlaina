@@ -2,9 +2,9 @@
   "name": "vlaina",
   "private": true,
   "version": "0.1.4",
-  "description": "Electron desktop app for vlaina",
+  "description": "This could be a magic book~",
   "homepage": "https://vlaina.com",
-  "author": "vlaina",
+  "author": "vladelaina",
   "type": "module",
   "main": "electron/main.mjs",
   "scripts": {
