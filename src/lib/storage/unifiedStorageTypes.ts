@@ -58,7 +58,7 @@ export function createDefaultUnifiedData(): UnifiedData {
       markdown: {
         typewriterMode: false,
         codeBlock: {
-          showLineNumbers: true,
+          showLineNumbers: false,
         },
       },
       ui: {

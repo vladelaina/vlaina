@@ -16,7 +16,7 @@ export const DEFAULT_SETTINGS = {
   markdown: {
     typewriterMode: false,
     codeBlock: {
-      showLineNumbers: true,
+      showLineNumbers: false,
     },
   },
   ui: {
