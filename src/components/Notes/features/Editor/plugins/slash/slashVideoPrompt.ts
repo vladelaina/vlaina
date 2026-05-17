@@ -1,4 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { translate } from '@/lib/i18n';
 import { logNotesDebug } from '@/stores/notes/lineBreakDebugLog';
 import { getScrollRoot, getToolbarRoot, toContainerPosition } from '../floating-toolbar/floatingToolbarDom';
 import { getContentLayoutContext } from '../floating-toolbar/floatingToolbarLayout';
@@ -50,8 +51,8 @@ export function openSlashVideoPrompt(args: {
   prompt.style.position = positionRoot ? 'absolute' : 'fixed';
   (positionRoot ?? document.body).append(prompt);
   renderUrlRailEditor(prompt, {
-    placeholder: 'Paste video URL...',
-    hint: 'Press Enter to embed video',
+    placeholder: translate('editor.videoUrlPlaceholder'),
+    hint: translate('editor.videoUrlHint'),
     autoFocus: true,
     validate(url) {
       const normalizedUrl = normalizeVideoUrlInput(url);

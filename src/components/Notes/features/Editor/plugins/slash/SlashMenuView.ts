@@ -5,7 +5,7 @@ import { flushSync } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
 import { SlashMenuPanel } from './SlashMenuPanel';
 import { applySlashCommand } from './slashCommands';
-import { slashMenuItems } from './slashItems';
+import { getSlashMenuItems } from './slashItems';
 import { slashPluginKey } from './slashPluginKey';
 import { filterSlashItems } from './slashQuery';
 import { createSlashState, getSlashMenuPosition, getSlashTextRange } from './slashState';
@@ -21,7 +21,7 @@ const SLASH_MENU_MIN_HEIGHT_PX = 160;
 export class SlashMenuView {
   private menuElement: HTMLElement | null = null;
   private root: Root | null = null;
-  private filtered = [...slashMenuItems];
+  private filtered = getSlashMenuItems();
   private readonly scrollRoot: HTMLElement | null;
   private readonly positionRoot: HTMLElement | null;
   private readonly resizeObserver: ResizeObserver | null;
@@ -69,7 +69,7 @@ export class SlashMenuView {
       return;
     }
 
-    this.filtered = filterSlashItems(state.query, slashMenuItems);
+    this.filtered = filterSlashItems(state.query, getSlashMenuItems());
     if (this.filtered.length === 0) {
       this.wasOpen = false;
       this.destroyMenu();
@@ -265,7 +265,7 @@ export class SlashMenuView {
     const state = slashPluginKey.getState(this.editorView.state);
     if (!state?.isOpen || event.isComposing) return;
 
-    const filtered = filterSlashItems(state.query, slashMenuItems);
+    const filtered = filterSlashItems(state.query, getSlashMenuItems());
     if (filtered.length === 0) return;
 
     switch (event.key) {

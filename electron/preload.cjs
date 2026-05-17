@@ -122,6 +122,9 @@ const desktopApi = {
     getVersion() {
       return ipcRenderer.invoke('desktop:get-version');
     },
+    setLanguage(language) {
+      return ipcRenderer.invoke('desktop:app:set-language', language);
+    },
   },
   update: {
     check() {

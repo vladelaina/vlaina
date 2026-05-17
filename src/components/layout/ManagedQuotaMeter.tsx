@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
+import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
 interface ManagedQuotaMeterProps {
@@ -7,6 +8,7 @@ interface ManagedQuotaMeterProps {
 }
 
 export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
+  const { t } = useI18n();
   const budget = useManagedAIStore(s => s.budget);
   const refreshBudgetIfStale = useManagedAIStore(s => s.refreshBudgetIfStale);
 
@@ -21,7 +23,9 @@ export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
   return (
     <div
       className={cn('group/quota mt-1 flex items-center gap-2', className)}
-      aria-label={quotaLabel ? `Managed AI quota remaining ${quotaLabel}` : 'Managed AI quota loading'}
+      aria-label={quotaLabel
+        ? t('billing.managedQuotaRemaining', { quota: quotaLabel })
+        : t('billing.managedQuotaLoading')}
     >
       <div className="min-w-0 flex-1">
         <div className="h-1.5 overflow-hidden rounded-full bg-[#e9e6df]">

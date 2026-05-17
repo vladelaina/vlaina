@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { cn } from '@/lib/utils';
 import { Icon } from '@/components/ui/icons';
+import { useI18n } from '@/lib/i18n';
 import { UploadZoneProps } from './types';
 
 type UploadStatus = 'idle' | 'dragging' | 'uploading' | 'success' | 'duplicate' | 'error';
@@ -11,6 +12,7 @@ interface ExtendedUploadZoneProps extends UploadZoneProps {
 }
 
 export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, currentNotePath }: ExtendedUploadZoneProps) {
+  const { t } = useI18n();
 
   const uploadAsset = useNotesStore((state) => state.uploadAsset);
   const uploadProgress = useNotesStore((state) => state.uploadProgress);
@@ -43,20 +45,20 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
   const handleFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
       setStatus('error');
-      setMessage('Only image files are supported');
+      setMessage(t('asset.onlyImageFilesSupported'));
       scheduleReset(3000);
       return;
     }
 
     if (file.size > 50 * 1024 * 1024) {
       setStatus('error');
-      setMessage('File exceeds maximum size of 50MB');
+      setMessage(t('asset.fileExceedsMaxSize', { size: '50MB' }));
       scheduleReset(3000);
       return;
     }
 
     setStatus('uploading');
-    setMessage('Uploading...');
+    setMessage(t('asset.uploading'));
 
     try {
       const result = await uploadAsset(file, currentNotePath);
@@ -70,11 +72,11 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
       if (result.success) {
         if (result.isDuplicate) {
           setStatus('duplicate');
-          setMessage(`Already in library: ${result.existingFilename}`);
+          setMessage(t('asset.alreadyInLibrary', { filename: result.existingFilename || '' }));
           onDuplicateDetected?.(result.existingFilename!);
         } else {
           setStatus('success');
-          setMessage('Upload complete!');
+          setMessage(t('asset.uploadComplete'));
         }
 
         if (result.path) {
@@ -82,18 +84,18 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
         }
       } else {
         setStatus('error');
-        setMessage(result.error || 'Upload failed');
+        setMessage(result.error || t('asset.uploadFailed'));
       }
     } catch (error) {
       if (!mountedRef.current) {
         return;
       }
       setStatus('error');
-      setMessage(error instanceof Error ? error.message : 'Upload failed');
+      setMessage(error instanceof Error ? error.message : t('asset.uploadFailed'));
     }
 
     scheduleReset(2000);
-  }, [uploadAsset, onUploadComplete, onDuplicateDetected, currentNotePath, scheduleReset]);
+  }, [uploadAsset, onUploadComplete, onDuplicateDetected, currentNotePath, scheduleReset, t]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

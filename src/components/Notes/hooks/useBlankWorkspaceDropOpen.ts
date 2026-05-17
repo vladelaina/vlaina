@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { getStorageAdapter, type FileInfo } from '@/lib/storage/adapter';
 import { messageDialog } from '@/lib/storage/dialog';
+import { useI18n } from '@/lib/i18n';
 import { createExternalDragPreview, type ExternalDragPreviewHandle } from '../features/FileTree/hooks/externalDragPreview';
 import { isSupportedMarkdownSelection } from '../features/OpenTarget/openTargetSelection';
 import { SIDEBAR_SCROLL_ROOT_SELECTOR } from '../features/Sidebar/context-menu/shared';
@@ -61,6 +62,7 @@ export function useBlankWorkspaceDropOpen({
   openMarkdownTarget,
   openVault,
 }: UseBlankWorkspaceDropOpenOptions) {
+  const { t } = useI18n();
   const [isDragActive, setIsDragActive] = useState(false);
 
   useEffect(() => {
@@ -132,16 +134,16 @@ export function useBlankWorkspaceDropOpen({
 
       void (async () => {
         if (paths.length === 0) {
-          await messageDialog('Failed to read the dropped file path.', {
-            title: 'Open Failed',
+          await messageDialog(t('notes.droppedPathReadFailed'), {
+            title: t('notes.openFailed'),
             kind: 'error',
           });
           return;
         }
 
         if (paths.length !== 1) {
-          await messageDialog('Drop a single folder or Markdown file to open it.', {
-            title: 'Unsupported Drop',
+          await messageDialog(t('notes.dropSingleFolderOrMarkdown'), {
+            title: t('notes.unsupportedDrop'),
             kind: 'warning',
           });
           return;
@@ -157,8 +159,8 @@ export function useBlankWorkspaceDropOpen({
           if (info?.isDirectory) {
             const opened = await openVault(droppedPath);
             if (!opened && !cancelled) {
-              await messageDialog('Failed to open the dropped folder.', {
-                title: 'Open Failed',
+              await messageDialog(t('notes.openDroppedFolderFailed'), {
+                title: t('notes.openFailed'),
                 kind: 'error',
               });
             }
@@ -170,14 +172,14 @@ export function useBlankWorkspaceDropOpen({
             return;
           }
 
-          await messageDialog('Drop a folder or a Markdown file to open it.', {
-            title: 'Unsupported Drop',
+          await messageDialog(t('notes.dropFolderOrMarkdown'), {
+            title: t('notes.unsupportedDrop'),
             kind: 'warning',
           });
         } catch (error) {
           if (!cancelled) {
-            await messageDialog(error instanceof Error ? error.message : 'Failed to open the dropped file.', {
-              title: 'Open Failed',
+            await messageDialog(error instanceof Error ? error.message : t('notes.openDroppedFileFailed'), {
+              title: t('notes.openFailed'),
               kind: 'error',
             });
           }
@@ -199,7 +201,7 @@ export function useBlankWorkspaceDropOpen({
       window.removeEventListener('dragleave', handleDragLeave, true);
       window.removeEventListener('drop', handleDrop, true);
     };
-  }, [enabled, openMarkdownTarget, openVault]);
+  }, [enabled, openMarkdownTarget, openVault, t]);
 
   return isDragActive;
 }

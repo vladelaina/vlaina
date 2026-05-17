@@ -1,4 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { translate } from '@/lib/i18n';
 import { createTextEditorViewSession } from '../shared/textEditorViewSession';
 import {
   cancelMathEditorSession,
@@ -29,7 +30,7 @@ export function createMathEditorViewSession(args: {
     onOutsideCloseIntent,
     refs,
     popupClassName: 'text-editor-popup math-editor-popup',
-    placeholder: 'Enter LaTeX...',
+    placeholder: translate('editor.mathPlaceholder'),
     getEditorState: () =>
       mathEditorPluginKey.getState(editorView.state) as MathEditorState | undefined,
     getStateRenderKey: (state) => `${state.nodePos}:${state.displayMode ? 'block' : 'inline'}`,

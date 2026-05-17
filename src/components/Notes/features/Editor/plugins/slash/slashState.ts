@@ -1,7 +1,7 @@
 import type { Selection, Transaction } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { slashPluginKey } from './slashPluginKey';
-import { slashMenuItems } from './slashItems';
+import { getSlashMenuItems } from './slashItems';
 import { filterSlashItems } from './slashQuery';
 import type { SlashMenuState } from './types';
 
@@ -104,7 +104,7 @@ export function deriveSlashState(tr: Transaction, state: SlashMenuState) {
     return state.isOpen ? createSlashState() : state;
   }
 
-  const filtered = filterSlashItems(slashRange.query, slashMenuItems);
+  const filtered = filterSlashItems(slashRange.query, getSlashMenuItems());
   if (filtered.length === 0) {
     return state.isOpen ? createSlashState() : state;
   }

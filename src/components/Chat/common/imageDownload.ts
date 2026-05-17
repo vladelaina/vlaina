@@ -1,4 +1,5 @@
 import { writeDesktopBinaryFile } from "@/lib/desktop/fs";
+import { translate } from "@/lib/i18n/runtime";
 import { saveDialog } from "@/lib/storage/dialog";
 
 const IMAGE_EXT_BY_MIME: Record<string, string> = {
@@ -82,7 +83,7 @@ export async function downloadImageWithPrompt(src: string, alt?: string): Promis
       new Set([defaultExt, "png", "jpg", "jpeg", "webp", "gif", "bmp", "svg"])
     );
     const filePath = await saveDialog({
-      title: "Save image",
+      title: translate('chat.saveImage'),
       defaultPath: filename,
       filters: [{ name: "Images", extensions }],
     });

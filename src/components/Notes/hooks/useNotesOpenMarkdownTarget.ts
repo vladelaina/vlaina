@@ -8,6 +8,7 @@ import { resolveOpenNoteTarget } from '../features/OpenTarget/openTargetSelectio
 import { subscribeOpenMarkdownTargetEvent } from '../features/OpenTarget/openTargetEvents';
 import { flushCurrentTitleCommit } from '../features/Editor/utils/titleCommitRegistry';
 import { useNotesOpenTargetPicker } from './useNotesOpenTargetPicker';
+import { useI18n } from '@/lib/i18n';
 
 export function useNotesOpenMarkdownTarget({
   active,
@@ -32,6 +33,7 @@ export function useNotesOpenMarkdownTarget({
   adoptAbsoluteNoteIntoVault: (absolutePath: string, notePath: string) => boolean;
   openVault: (path: string, name?: string, options?: { preserveSidebarTree?: boolean }) => Promise<boolean>;
 }) {
+  const { t } = useI18n();
   const [isOpenTargetBusy, setIsOpenTargetBusy] = useState(false);
   const [pendingShortcutNoteTarget, setPendingShortcutNoteTarget] = useState<{
     vaultPath: string;
@@ -83,8 +85,8 @@ export function useNotesOpenMarkdownTarget({
       }
 
       if (!cancelled && !opened) {
-        await messageDialog('Failed to open the selected Markdown file.', {
-          title: 'Open Failed',
+        await messageDialog(t('notes.openMarkdownFileFailed'), {
+          title: t('notes.openFailed'),
           kind: 'error',
         });
       }
@@ -95,7 +97,7 @@ export function useNotesOpenMarkdownTarget({
     return () => {
       cancelled = true;
     };
-  }, [currentVaultPath, openShortcutNoteTarget, pendingShortcutNoteTarget]);
+  }, [currentVaultPath, openShortcutNoteTarget, pendingShortcutNoteTarget, t]);
 
   const saveCurrentNoteIfNeeded = useCallback(async () => {
     if (!isDirty) return true;
@@ -124,8 +126,8 @@ export function useNotesOpenMarkdownTarget({
           absolutePath: selected,
         });
         if (!opened) {
-          await messageDialog('Failed to open the selected Markdown file.', {
-            title: 'Open Failed',
+          await messageDialog(t('notes.openMarkdownFileFailed'), {
+            title: t('notes.openFailed'),
             kind: 'error',
           });
         }
@@ -148,21 +150,21 @@ export function useNotesOpenMarkdownTarget({
       });
       if (!openedVault) {
         setPendingShortcutNoteTarget(null);
-        await messageDialog('Failed to open the selected vault.', {
-          title: 'Open Failed',
+        await messageDialog(t('vault.openFailed'), {
+          title: t('notes.openFailed'),
           kind: 'error',
         });
       }
     } catch (error) {
       setPendingShortcutNoteTarget(null);
-      await messageDialog(error instanceof Error ? error.message : 'Failed to open the selected Markdown file.', {
-        title: 'Open Failed',
+      await messageDialog(error instanceof Error ? error.message : t('notes.openMarkdownFileFailed'), {
+        title: t('notes.openFailed'),
         kind: 'error',
       });
     } finally {
       setIsOpenTargetBusy(false);
     }
-  }, [currentVaultPath, notesPath, openShortcutNoteTarget, openVault, saveCurrentNoteIfNeeded]);
+  }, [currentVaultPath, notesPath, openShortcutNoteTarget, openVault, saveCurrentNoteIfNeeded, t]);
 
   const openFolderTarget = useCallback(async (selected: string) => {
     setIsOpenTargetBusy(true);
@@ -176,20 +178,20 @@ export function useNotesOpenMarkdownTarget({
 
       const openedVault = await openVault(selected);
       if (!openedVault) {
-        await messageDialog('Failed to open the selected folder.', {
-          title: 'Open Failed',
+        await messageDialog(t('vault.openFolderFailed'), {
+          title: t('notes.openFailed'),
           kind: 'error',
         });
       }
     } catch (error) {
-      await messageDialog(error instanceof Error ? error.message : 'Failed to open the selected folder.', {
-        title: 'Open Failed',
+      await messageDialog(error instanceof Error ? error.message : t('vault.openFolderFailed'), {
+        title: t('notes.openFailed'),
         kind: 'error',
       });
     } finally {
       setIsOpenTargetBusy(false);
     }
-  }, [openVault, saveCurrentNoteIfNeeded]);
+  }, [openVault, saveCurrentNoteIfNeeded, t]);
 
   useNotesOpenTargetPicker({
     active,

@@ -80,7 +80,7 @@ export function EditorTopRightToolbar({
   const { language, t } = useI18n();
   const canToggleStar = canStarNotePath(currentNotePath, notesPath);
   const showStarButton = starred || canToggleStar;
-  const starButtonLabel = starred ? 'Remove from Starred' : 'Add to Starred';
+  const starButtonLabel = starred ? t('notes.removeFromStarred') : t('notes.addToStarred');
   const addToast = useToastStore((state) => state.addToast);
   const setNotesChatPanelCollapsed = useUIStore((state) => state.setNotesChatPanelCollapsed);
   const exportCurrentNote = async (format: NoteExportFormat) => {
@@ -100,7 +100,7 @@ export function EditorTopRightToolbar({
         title: currentNoteTitle,
       });
     } catch (error) {
-      addToast(error instanceof Error ? error.message : 'Failed to export note.', 'error', 4500);
+      addToast(error instanceof Error ? error.message : t('notes.exportFailed'), 'error', 4500);
     }
   };
 
@@ -153,7 +153,7 @@ export function EditorTopRightToolbar({
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger className={exportMenuItemClassName}>
                   <Icon size="md" name="common.download" className="mr-2" />
-                  Export
+                  {t('notes.export')}
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent className={cn('w-44', noteMenuSurfaceClassName)}>
                   <DropdownMenuItem
