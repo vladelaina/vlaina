@@ -28,13 +28,13 @@ interface SidebarItem {
 }
 
 interface SidebarGroup {
-  title: string;
+  titleKey: MessageKey;
   items: SidebarItem[];
 }
 
 const sidebarGroups: SidebarGroup[] = [
   {
-    title: 'General',
+    titleKey: 'settings.general',
     items: [
       { id: 'markdown', labelKey: 'settings.tabs.markdown', icon: 'editor.code' },
       { id: 'ai', labelKey: 'settings.tabs.ai', icon: 'common.shootingStar' },
@@ -125,7 +125,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                   <div className="flex min-h-0 flex-1 flex-col">
                     <div className="flex-1 overflow-y-auto vlaina-scrollbar">
                       {sidebarGroups.map((group) => (
-                        <div key={group.title} className="mb-8 last:mb-0">
+                        <div key={group.titleKey} className="mb-8 last:mb-0">
                           <div className="space-y-[6px]">
                             {group.items.map((item) => {
                               const isActive = activeTab === item.id;

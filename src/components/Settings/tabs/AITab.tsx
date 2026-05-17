@@ -46,6 +46,8 @@ function ChannelObject({
   onToggleEnabled?: (enabled: boolean) => void;
   onDelete?: () => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <div
       role="button"
@@ -89,7 +91,7 @@ function ChannelObject({
           "mt-1 line-clamp-1 pr-7 text-[12px]",
           active ? "text-[var(--sidebar-row-selected-text)]/80" : "text-[var(--notes-sidebar-text-soft)]"
         )}>
-          {baseUrl ? formatChannelBaseUrl(baseUrl) : 'Not configured yet'}
+          {baseUrl ? formatChannelBaseUrl(baseUrl) : t('settings.ai.notConfiguredYet')}
         </div>
       </div>
 
@@ -97,7 +99,7 @@ function ChannelObject({
         "flex items-center justify-between px-5 pb-5 text-[11px] font-bold",
         active ? "text-[var(--sidebar-row-selected-text)]/70" : "text-[var(--notes-sidebar-text-soft)]"
       )}>
-        <span>{modelCount} model{modelCount === 1 ? '' : 's'}</span>
+        <span>{t('settings.ai.modelCount', { count: modelCount })}</span>
         <div className="flex items-center gap-2" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
           <button
             type="button"
@@ -105,7 +107,7 @@ function ChannelObject({
               event.stopPropagation();
               onDelete?.();
             }}
-            aria-label={`Delete ${name}`}
+            aria-label={t('settings.ai.deleteChannelNamed', { name })}
             className="flex h-7 w-7 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] opacity-0 transition-all duration-200 hover:bg-transparent hover:text-red-500 hover:shadow-none group-hover/channel:opacity-100 focus-visible:opacity-100 dark:hover:bg-transparent"
           >
             <Icon name="common.close" size="xs" />
@@ -289,10 +291,10 @@ export function AITab() {
     <div className="h-full bg-[#fcfcfc] dark:bg-[#1E1E1E] text-[var(--notes-sidebar-text)]">
       <ConfirmDialog
         isOpen={!!pendingDelete}
-        title={`Delete ${pendingDelete?.name || 'this channel'}?`}
-        description="This will remove this channel and its models from chat."
-        confirmText="Delete Channel"
-        cancelText="Cancel"
+        title={t('settings.ai.deleteChannelTitle', { name: pendingDelete?.name || t('settings.ai.thisChannel') })}
+        description={t('settings.ai.deleteChannelDescription')}
+        confirmText={t('settings.ai.deleteChannel')}
+        cancelText={t('common.cancel')}
         variant="danger"
         onClose={() => setPendingDelete(null)}
         onConfirm={confirmDeleteCustomProvider}
@@ -304,7 +306,7 @@ export function AITab() {
         <section className="mx-auto max-w-5xl">
           <div className="mb-4 px-2">
             <h3 className="text-[13px] font-medium text-[var(--notes-sidebar-text-soft)]">
-              Custom Channels
+              {t('settings.ai.customChannels')}
             </h3>
           </div>
 

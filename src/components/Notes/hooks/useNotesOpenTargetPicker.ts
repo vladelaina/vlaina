@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { onDesktopOpenMarkdownFileShortcut } from '@/lib/desktop/shortcuts';
-import { OPEN_MARKDOWN_FILE_ACTION } from '@/lib/notes/openMarkdownFileText';
 import { messageDialog, openDialog } from '@/lib/storage/dialog';
+import { useI18n } from '@/lib/i18n';
 import {
   getSingleOpenSelection,
   isSupportedMarkdownSelection,
@@ -24,15 +24,16 @@ export function useNotesOpenTargetPicker({
   openMarkdownTarget: (selected: string) => Promise<void>;
   openFolderTarget: (selected: string) => Promise<void>;
 }) {
+  const { t } = useI18n();
   const handleOpenSelectedTarget = useCallback(async (targetKind: 'file' | 'folder') => {
     if (isOpenTargetBusy) return;
 
-    const targetLabel = targetKind === 'folder' ? 'Folder' : 'File';
+    const targetLabel = targetKind === 'folder' ? t('notes.folder') : t('notes.file');
     let selected: string | null;
     try {
       await flushCurrentTitleCommit();
       selected = getSingleOpenSelection(await openDialog({
-        title: targetKind === 'folder' ? `Open ${targetLabel}` : OPEN_MARKDOWN_FILE_ACTION,
+        title: targetKind === 'folder' ? t('vault.openFolder') : t('shortcut.action.openMarkdownFile'),
         defaultPath: currentVaultPath ?? undefined,
         directory: targetKind === 'folder',
         authorizeParentDirectory: targetKind === 'file',
@@ -42,8 +43,8 @@ export function useNotesOpenTargetPicker({
       }));
     } catch (error) {
       console.warn('[NotesView] open target picker failed:', error);
-      await messageDialog(`Failed to open the ${targetLabel.toLowerCase()} picker.`, {
-        title: `Open ${targetLabel} Failed`,
+      await messageDialog(t('notes.openTargetPickerFailed', { itemType: targetLabel }), {
+        title: t('notes.openTargetFailed', { itemType: targetLabel }),
         kind: 'warning',
       });
       return;
@@ -57,15 +58,15 @@ export function useNotesOpenTargetPicker({
     }
 
     if (!isSupportedMarkdownSelection(selected)) {
-      await messageDialog('Please select a Markdown file.', {
-        title: 'Unsupported File',
+      await messageDialog(t('notes.selectMarkdownFile'), {
+        title: t('notes.unsupportedFile'),
         kind: 'warning',
       });
       return;
     }
 
     await openMarkdownTarget(selected);
-  }, [currentVaultPath, isOpenTargetBusy, openFolderTarget, openMarkdownTarget]);
+  }, [currentVaultPath, isOpenTargetBusy, openFolderTarget, openMarkdownTarget, t]);
 
   useEffect(() => {
     const handleOpenMarkdownFile = () => {

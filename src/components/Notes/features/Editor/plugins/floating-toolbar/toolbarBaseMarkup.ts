@@ -111,7 +111,7 @@ function renderAlignmentButton(state: FloatingToolbarState): string {
   return `
     <button class="toolbar-btn toolbar-dropdown-btn has-tooltip ${alignmentButtonActive}"
             data-action="alignment"
-            data-tooltip="Align">
+            data-tooltip="${translate('editor.align')}">
       ${getAlignmentIcon(state.currentAlignment)}
       ${EDITOR_ICONS.chevronDown}
     </button>

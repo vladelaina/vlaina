@@ -30,6 +30,7 @@ import {
 import { runStreamedAssistantMessage } from './chatService/runStreamedAssistantMessage';
 import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
 import { hydrateSessionMessagesFromDisk } from '@/stores/ai/sessionConsistency';
+import { useI18n } from '@/lib/i18n';
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
@@ -54,10 +55,10 @@ function buildChatErrorPayload(error: unknown) {
 
 const MANAGED_BUDGET_BLOCK_MAX_AGE_MS = 60_000;
 
-function createManagedQuotaError() {
+function createManagedQuotaError(message: string) {
   return {
     type: 'QUOTA_EXHAUSTED',
-    message: 'Points exhausted',
+    message,
     errorCode: 'points_exhausted',
     statusCode: 403,
   };
@@ -80,14 +81,16 @@ function writeManagedQuotaErrorMessage(
   sessionId: string,
   assistantMessageId: string,
   setError: (error: string | null) => void,
+  message: string,
 ) {
-  const { message, xml } = buildChatErrorPayload(createManagedQuotaError());
-  setError(message);
+  const { message: errorMessage, xml } = buildChatErrorPayload(createManagedQuotaError(message));
+  setError(errorMessage);
   aiActions.updateMessage(sessionId, assistantMessageId, xml);
   aiActions.completeMessage(sessionId, assistantMessageId);
 }
 
 export function useChatService() {
+  const { t } = useI18n();
   const { generateAutoTitle } = useAutoTitle();
   const currentSessionId = useAIUIStore((state) => state.currentSessionId);
   const messages = useUnifiedStore((state) => {
@@ -158,15 +161,15 @@ export function useChatService() {
 
       const provider = providers.find((item) => item.id === selectedModel.providerId);
       if (!provider) {
-        setError('Provider not found');
+        setError(t('chat.error.providerNotFound'));
         return;
       }
       if (provider.enabled === false) {
-        setError('This channel is turned off.');
+        setError(t('chat.error.channelOff'));
         return;
       }
       if (isManagedProviderId(provider.id) && attachments.length > 0) {
-        setError('vlaina managed chat currently supports text-only messages.');
+        setError(t('chat.error.managedTextOnly'));
         return;
       }
 
@@ -233,7 +236,7 @@ export function useChatService() {
           isTemporarySessionId(targetSessionId) || isTemporarySession(targetSession);
 
         if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
-          writeManagedQuotaErrorMessage(targetSessionId, assistantMessageId, setError);
+          writeManagedQuotaErrorMessage(targetSessionId, assistantMessageId, setError, t('chat.error.pointsExhausted'));
           return;
         }
 
@@ -327,6 +330,7 @@ export function useChatService() {
       maybeGenerateAutoTitle,
       markSessionUnread,
       isAccountConnected,
+      t,
     ],
   );
 
@@ -342,7 +346,7 @@ export function useChatService() {
         return;
       }
       if (provider.enabled === false) {
-        setError('This channel is turned off.');
+        setError(t('chat.error.channelOff'));
         return;
       }
 
@@ -366,7 +370,7 @@ export function useChatService() {
         });
 
         if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
-          writeManagedQuotaErrorMessage(sessionId, assistantMessageId, setError);
+          writeManagedQuotaErrorMessage(sessionId, assistantMessageId, setError, t('chat.error.pointsExhausted'));
           return;
         }
 
@@ -434,6 +438,7 @@ export function useChatService() {
       setError,
       setSessionLoading,
       maybeGenerateAutoTitle,
+      t,
     ],
   );
 
@@ -462,14 +467,14 @@ export function useChatService() {
           return;
         }
         if (provider.enabled === false) {
-          setError('This channel is turned off.');
+          setError(t('chat.error.channelOff'));
           return;
         }
 
         aiActions.addVersion(messageId, sessionId);
 
         if (shouldBlockManagedRequestForKnownBudget(provider.id)) {
-          writeManagedQuotaErrorMessage(sessionId, messageId, setError);
+          writeManagedQuotaErrorMessage(sessionId, messageId, setError, t('chat.error.pointsExhausted'));
           return;
         }
 
@@ -529,6 +534,7 @@ export function useChatService() {
       setError,
       maybeGenerateAutoTitle,
       messages,
+      t,
     ],
   );
 

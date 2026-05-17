@@ -2,6 +2,7 @@ import { ensureMarkdownFileName } from '@/lib/notes/displayName';
 import { isSupportedMarkdownPath } from '@/lib/notes/markdownFile';
 import { getBaseName, getParentPath, joinPath, normalizePath, relativePath } from '@/lib/storage/adapter';
 import { saveDialog } from '@/lib/storage/dialog';
+import { translate } from '@/lib/i18n/runtime';
 import type { DraftNoteEntry } from './types';
 
 function ensureMarkdownSavePath(path: string): string {
@@ -39,7 +40,7 @@ export async function chooseDraftSavePath(
 ): Promise<string | null> {
   const defaultPath = await buildDraftSaveDefaultPath(notesPath, draftNote);
   const selectedPath = await saveDialog({
-    title: 'Save Note As',
+    title: translate('notes.saveNoteAs'),
     defaultPath,
     authorizeParentDirectory: true,
     filters: [{ name: 'Markdown', extensions: ['md', 'markdown', 'mdown', 'mkd'] }],

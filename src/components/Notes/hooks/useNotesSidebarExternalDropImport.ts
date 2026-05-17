@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { messageDialog } from '@/lib/storage/dialog';
+import { useI18n } from '@/lib/i18n';
 import {
   createStarredEntry,
   getStarredEntryKey,
@@ -110,6 +111,7 @@ export function useNotesSidebarExternalDropImport({
   loadFileTree,
   revealFolder,
 }: UseNotesSidebarExternalDropImportOptions) {
+  const { t } = useI18n();
   useEffect(() => {
     if (!enabled || !vaultPath) {
       clearExternalFileTreeDropTarget();
@@ -193,9 +195,9 @@ export function useNotesSidebarExternalDropImport({
 
           if (starredTargets.length === 0) {
             await messageDialog(
-              'Only Markdown files or folders can be added to Starred.',
+              t('notes.onlyMarkdownCanBeStarred'),
               {
-                title: 'Unsupported Drop',
+                title: t('notes.unsupportedDrop'),
                 kind: 'warning',
               },
             );
@@ -214,9 +216,9 @@ export function useNotesSidebarExternalDropImport({
 
         if (result.importedNotePaths.length === 0 && result.importedFolderPaths.length === 0) {
           await messageDialog(
-            'Only Markdown files or folders containing Markdown can be dropped into the current vault.',
+            t('notes.onlyMarkdownCanBeDroppedIntoVault'),
             {
-              title: 'Unsupported Drop',
+              title: t('notes.unsupportedDrop'),
               kind: 'warning',
             },
           );
@@ -252,5 +254,5 @@ export function useNotesSidebarExternalDropImport({
       window.removeEventListener('dragleave', handleDragLeave);
       window.removeEventListener('drop', handleDrop);
     };
-  }, [enabled, loadFileTree, revealFolder, vaultPath]);
+  }, [enabled, loadFileTree, revealFolder, vaultPath, t]);
 }

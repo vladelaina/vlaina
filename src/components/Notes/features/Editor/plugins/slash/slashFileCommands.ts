@@ -2,6 +2,7 @@ import type { Ctx } from '@milkdown/kit/ctx';
 import { editorViewCtx } from '@milkdown/kit/core';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import { getMimeType, isImageFilename } from '@/lib/assets/core/naming';
+import { translate } from '@/lib/i18n';
 import { getBaseName, getStorageAdapter } from '@/lib/storage/adapter';
 import { openDialog } from '@/lib/storage/dialog';
 import { handleEditorImageFiles } from '../image-upload/handleEditorImageFiles';
@@ -22,11 +23,11 @@ export async function insertImageFromFilePicker(ctx: Ctx) {
 
   try {
     const selected = await openDialog({
-      title: 'Insert Image',
+      title: translate('editor.insertImage'),
       authorizeParentDirectory: true,
       filters: [
         {
-          name: 'Images',
+          name: translate('editor.images'),
           extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif'],
         },
       ],

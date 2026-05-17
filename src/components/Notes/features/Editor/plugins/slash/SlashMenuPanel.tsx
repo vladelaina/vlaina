@@ -40,7 +40,7 @@ export function SlashMenuPanel({
               <Icon name={item.icon} size={18} />
             </span>
             <span className="slash-menu-item-content">
-              <span className="slash-menu-item-name">{item.name}</span>
+              <span className="slash-menu-item-name">{t(item.nameKey)}</span>
             </span>
           </button>
         );

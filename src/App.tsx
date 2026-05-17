@@ -7,6 +7,7 @@ import { useElectronCloseGuard } from '@/hooks/useElectronCloseGuard';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { useToastStore } from '@/stores/useToastStore';
+import { getElectronBridge } from '@/lib/electron/bridge';
 import { useDocumentLanguage, useI18n } from '@/lib/i18n';
 
 const ConfirmDialog = lazy(async () => {
@@ -34,6 +35,10 @@ function App() {
   } = useElectronCloseGuard();
   useDocumentLanguage(language);
   useBillingReturnRefresh();
+
+  useEffect(() => {
+    void getElectronBridge()?.app?.setLanguage?.(language);
+  }, [language]);
 
   useEffect(() => {
     if (typeof useToastStore.subscribe !== 'function') {

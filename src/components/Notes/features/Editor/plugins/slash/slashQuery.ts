@@ -1,4 +1,5 @@
-import { slashMenuItems } from './slashItems';
+import { translate } from '@/lib/i18n';
+import { getSlashMenuItems } from './slashItems';
 import type { SlashMenuItem } from './types';
 
 function normalize(value: string) {
@@ -109,7 +110,13 @@ function scoreCandidate(query: string, candidate: string) {
 }
 
 function scoreSlashItem(query: string, item: SlashMenuItem) {
-  const candidates = [item.name, item.id, item.commandId, ...item.searchTerms].map(normalize);
+  const candidates = [
+    item.name,
+    translate(item.nameKey),
+    item.id,
+    item.commandId,
+    ...item.searchTerms,
+  ].map(normalize);
   let bestScore: number | null = null;
 
   for (const candidate of candidates) {
@@ -121,7 +128,7 @@ function scoreSlashItem(query: string, item: SlashMenuItem) {
   return bestScore;
 }
 
-export function filterSlashItems(query: string, items: readonly SlashMenuItem[] = slashMenuItems) {
+export function filterSlashItems(query: string, items: readonly SlashMenuItem[] = getSlashMenuItems()) {
   const normalizedQuery = normalize(query);
   if (!normalizedQuery) return [...items];
 

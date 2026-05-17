@@ -1,7 +1,7 @@
 import { Plugin } from '@milkdown/kit/prose/state';
 import { $prose } from '@milkdown/kit/utils';
 import { SlashMenuView } from './SlashMenuView';
-import { slashMenuItems } from './slashItems';
+import { getSlashMenuItems } from './slashItems';
 import { slashPluginKey } from './slashPluginKey';
 import { filterSlashItems } from './slashQuery';
 import {
@@ -40,7 +40,7 @@ export const slashPlugin = $prose((ctx) => {
           return false;
         }
 
-        const filtered = filterSlashItems(state.query, slashMenuItems);
+        const filtered = filterSlashItems(state.query, getSlashMenuItems());
         if (filtered.length === 0) {
           return false;
         }

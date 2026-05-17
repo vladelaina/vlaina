@@ -156,7 +156,7 @@ export function ExternalStarredEntryRow({
         onContextMenu={handleContextMenu}
         actions={
           <SidebarRowActionButton
-            aria-label="Open starred item menu"
+            aria-label={t('notes.openStarredItemMenu')}
             onClick={handleMenuTrigger}
             className={cn(
               'rounded-md p-1 focus:outline-none',

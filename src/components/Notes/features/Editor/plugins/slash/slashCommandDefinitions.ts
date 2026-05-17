@@ -4,6 +4,7 @@ import { TextSelection } from '@milkdown/kit/prose/state';
 import { insertHrCommand } from '@milkdown/kit/preset/commonmark';
 import { insertTableCommand } from '@milkdown/kit/preset/gfm';
 import type { IconName } from '@/components/ui/icons';
+import type { MessageKey } from '@/lib/i18n';
 import { convertBlockType } from '../floating-toolbar/blockCommands';
 import { insertImageFromFilePicker, insertFrontmatter } from './slashFileCommands';
 import { insertFootnoteDef, insertFootnoteRef } from './slashFootnoteCommands';
@@ -19,7 +20,7 @@ export {
 
 interface SlashCommandDefinition {
   id: string;
-  name: string;
+  nameKey: MessageKey;
   icon: IconName;
   searchTerms: string[];
   commandId: string;
@@ -66,7 +67,7 @@ function convertCurrentBlock(ctx: Ctx, blockType: Parameters<typeof convertBlock
 export const slashCommandDefinitions = [
   {
     id: 'heading-1',
-    name: 'Heading 1',
+    nameKey: 'editor.blockType.heading1',
     icon: 'editor.heading1',
     searchTerms: ['h1', 'title', 'heading'],
     commandId: 'heading-1',
@@ -74,7 +75,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'heading-2',
-    name: 'Heading 2',
+    nameKey: 'editor.blockType.heading2',
     icon: 'editor.heading2',
     searchTerms: ['h2', 'heading'],
     commandId: 'heading-2',
@@ -82,7 +83,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'heading-3',
-    name: 'Heading 3',
+    nameKey: 'editor.blockType.heading3',
     icon: 'editor.heading3',
     searchTerms: ['h3', 'heading'],
     commandId: 'heading-3',
@@ -90,7 +91,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'heading-4',
-    name: 'Heading 4',
+    nameKey: 'editor.blockType.heading4',
     icon: 'editor.heading4',
     searchTerms: ['h4', 'heading'],
     commandId: 'heading-4',
@@ -98,7 +99,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'heading-5',
-    name: 'Heading 5',
+    nameKey: 'editor.blockType.heading5',
     icon: 'editor.heading5',
     searchTerms: ['h5', 'heading'],
     commandId: 'heading-5',
@@ -106,7 +107,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'heading-6',
-    name: 'Heading 6',
+    nameKey: 'editor.blockType.heading6',
     icon: 'editor.heading6',
     searchTerms: ['h6', 'heading'],
     commandId: 'heading-6',
@@ -114,7 +115,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'task-list',
-    name: 'Task List',
+    nameKey: 'editor.blockType.taskList',
     icon: 'editor.taskList',
     searchTerms: ['todo', 'checkbox', 'checklist'],
     commandId: 'task-list',
@@ -122,7 +123,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'ordered-list',
-    name: 'Numbered List',
+    nameKey: 'editor.blockType.orderedList',
     icon: 'editor.listOrdered',
     searchTerms: ['ol', 'ordered'],
     commandId: 'ordered-list',
@@ -130,7 +131,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'bullet-list',
-    name: 'Bullet List',
+    nameKey: 'editor.blockType.bulletList',
     icon: 'editor.list',
     searchTerms: ['ul', 'unordered'],
     commandId: 'bullet-list',
@@ -138,7 +139,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'quote',
-    name: 'Quote',
+    nameKey: 'editor.blockType.blockquote',
     icon: 'common.quote',
     searchTerms: ['blockquote', 'cite'],
     commandId: 'quote',
@@ -146,7 +147,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'callout',
-    name: 'Callout',
+    nameKey: 'editor.slash.callout',
     icon: 'common.info',
     searchTerms: ['note', 'tip', 'warning', 'info'],
     commandId: 'callout',
@@ -158,7 +159,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'divider',
-    name: 'Divider',
+    nameKey: 'editor.slash.divider',
     icon: 'editor.divider',
     searchTerms: ['hr', 'line', 'separator'],
     commandId: 'divider',
@@ -166,7 +167,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'code-block',
-    name: 'Code Block',
+    nameKey: 'editor.blockType.codeBlock',
     icon: 'editor.code',
     searchTerms: ['code', 'pre', 'snippet'],
     commandId: 'code-block',
@@ -174,7 +175,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'table',
-    name: 'Table',
+    nameKey: 'editor.slash.table',
     icon: 'editor.table',
     searchTerms: ['grid'],
     commandId: 'table',
@@ -182,7 +183,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'image',
-    name: 'Image',
+    nameKey: 'editor.slash.image',
     icon: 'file.image',
     searchTerms: ['img', 'picture', 'photo'],
     commandId: 'image',
@@ -190,7 +191,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'frontmatter',
-    name: 'Frontmatter',
+    nameKey: 'editor.slash.frontmatter',
     icon: 'editor.frontmatter',
     searchTerms: ['yaml', 'metadata', 'properties'],
     commandId: 'frontmatter',
@@ -198,7 +199,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'equation',
-    name: 'Equation',
+    nameKey: 'editor.slash.equation',
     icon: 'editor.equation',
     searchTerms: ['math', 'latex', 'formula'],
     commandId: 'equation',
@@ -206,7 +207,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'inline-math',
-    name: 'Inline Math',
+    nameKey: 'editor.slash.inlineMath',
     icon: 'editor.inlineMath',
     searchTerms: ['math inline', 'latex inline', 'formula inline'],
     commandId: 'inline-math',
@@ -214,7 +215,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'toc',
-    name: 'Table of Contents',
+    nameKey: 'editor.slash.tableOfContents',
     icon: 'editor.toc',
     searchTerms: ['toc', 'contents', 'outline'],
     commandId: 'toc',
@@ -222,7 +223,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'mermaid',
-    name: 'Mermaid Diagram',
+    nameKey: 'editor.slash.mermaidDiagram',
     icon: 'editor.diagram',
     searchTerms: ['diagram', 'flowchart', 'chart', 'graph'],
     commandId: 'mermaid',
@@ -230,7 +231,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'footnote',
-    name: 'Footnote',
+    nameKey: 'editor.slash.footnote',
     icon: 'editor.footnote',
     searchTerms: ['note', 'reference', 'citation'],
     commandId: 'footnote',
@@ -238,7 +239,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'footnote-definition',
-    name: 'Footnote Definition',
+    nameKey: 'editor.slash.footnoteDefinition',
     icon: 'editor.footnote',
     searchTerms: ['footnote def', 'footnote definition', 'citation block'],
     commandId: 'footnote-definition',
@@ -246,7 +247,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'abbreviation',
-    name: 'Abbreviation',
+    nameKey: 'editor.slash.abbreviation',
     icon: 'editor.abbreviation',
     searchTerms: ['abbr', 'acronym', 'short form'],
     commandId: 'abbreviation',
@@ -254,7 +255,7 @@ export const slashCommandDefinitions = [
   },
   {
     id: 'video',
-    name: 'Video',
+    nameKey: 'editor.slash.video',
     icon: 'editor.video',
     searchTerms: ['vedio', 'youtube', 'bilibili', 'embed', 'movie'],
     commandId: 'video',

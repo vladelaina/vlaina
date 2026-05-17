@@ -1,4 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { translate } from '@/lib/i18n';
 import { createTextEditorViewSession } from '../shared/textEditorViewSession';
 import { renderMermaidEditorLivePreview } from './mermaidDom';
 import {
@@ -29,7 +30,7 @@ export function createMermaidEditorViewSession(args: {
     onOutsideCloseIntent,
     refs,
     popupClassName: 'text-editor-popup math-editor-popup mermaid-editor-popup',
-    placeholder: 'Enter Mermaid diagram...',
+    placeholder: translate('editor.mermaidPlaceholder'),
     getEditorState: () =>
       mermaidEditorPluginKey.getState(editorView.state) as MermaidEditorState | undefined,
     getStateRenderKey: (state) => String(state.nodePos),

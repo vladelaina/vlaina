@@ -1,4 +1,5 @@
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { useI18n } from '@/lib/i18n';
 
 interface TreeItemDeleteDialogProps {
   open: boolean;
@@ -15,6 +16,9 @@ export function TreeItemDeleteDialog({
   itemType,
   onConfirm,
 }: TreeItemDeleteDialogProps) {
+  const { t } = useI18n();
+  const itemTypeLabel = itemType === 'Folder' ? t('notes.folder') : t('notes.file');
+
   return (
     <ConfirmDialog
       isOpen={open}
@@ -22,10 +26,10 @@ export function TreeItemDeleteDialog({
       onConfirm={() => {
         void onConfirm();
       }}
-      title={`Delete ${itemType}`}
-      description={`Are you sure you want to delete "${itemLabel}"? This action cannot be undone.`}
-      confirmText="Delete"
-      cancelText="Cancel"
+      title={t('sidebar.deleteItemTitle', { itemType: itemTypeLabel })}
+      description={t('sidebar.deleteItemDescription', { itemLabel })}
+      confirmText={t('sidebar.delete')}
+      cancelText={t('common.cancel')}
       variant="danger"
     />
   );

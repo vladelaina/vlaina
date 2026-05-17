@@ -384,16 +384,16 @@ export function ModelSelector({
               providerId,
               providerName: isManagedProviderId(providerId)
                 ? MANAGED_PROVIDER_NAME
-                : providerMap.get(providerId)?.name || 'Unknown Channel',
+                : providerMap.get(providerId)?.name || t('settings.ai.unknownChannel'),
               models: providerModels,
           }));
-  }, [categoryFilteredModels, providers]);
+  }, [categoryFilteredModels, providers, t]);
 
   const showGroupedSections = groupedFilteredModels.length > 1
       || groupedFilteredModels.some((group) => !isManagedProviderId(group.providerId));
   const emptyStateText = visibleActiveCategoryId === 'favorites'
-      ? 'No favorite models'
-      : 'No models found';
+      ? t('chat.noFavoriteModels')
+      : t('chat.noModelsFound');
   const listRows = useMemo<ModelSelectorListRow[]>(() => {
       return groupedFilteredModels.flatMap((group) => {
           const rows: ModelSelectorListRow[] = [];
@@ -871,7 +871,7 @@ export function ModelSelector({
           <Icon name="misc.box" size="sm" className="flex-shrink-0 text-[var(--chat-sidebar-icon)]" />
         )}
         <span className="whitespace-nowrap text-[15px] font-semibold tracking-tight">
-          {selectedModel ? getModelPresentationName(selectedModel) : 'Select Model'}
+          {selectedModel ? getModelPresentationName(selectedModel) : t('chat.selectModel')}
         </span>
         <svg
           className={cn("h-4 w-4 flex-shrink-0 opacity-60 transition-transform duration-200", isOpen && "rotate-180")}
