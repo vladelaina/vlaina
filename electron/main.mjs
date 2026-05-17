@@ -346,8 +346,10 @@ function showMainWindow() {
     window.restore();
   }
 
-  window.show();
-  window.focus();
+  if (isReadyToReveal(window)) {
+    window.show();
+    window.focus();
+  }
 }
 
 function focusWindow(window) {
@@ -943,7 +945,7 @@ const windowManager = createWindowManager({
   openExternalIfAllowed,
   isTrustedRendererUrl,
 });
-const { createMainWindow, resolveTargetWindow } = windowManager;
+const { createMainWindow, isReadyToReveal, resolveTargetWindow } = windowManager;
 windowManager.registerWindowIpc(handleIpc);
 
 const gotSingleInstanceLock = app.requestSingleInstanceLock();

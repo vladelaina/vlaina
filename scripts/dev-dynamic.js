@@ -469,7 +469,14 @@ async function startDev() {
   log('32', `Using renderer port ${port}`);
   log('36', `Renderer URL ${devUrl}`);
 
-  rendererProcess = spawnPnpm(['run', 'dev:renderer'], env, 'renderer');
+  const rendererScript = process.env.VLAINA_FORCE_VITE_OPTIMIZE === '1'
+    ? 'dev:renderer:force'
+    : 'dev:renderer';
+  if (rendererScript === 'dev:renderer:force') {
+    log('33', 'Forcing Vite dependency optimization');
+  }
+
+  rendererProcess = spawnPnpm(['run', rendererScript], env, 'renderer');
   rendererProcess.once('exit', async (code, signal) => {
     rendererProcess = null;
 

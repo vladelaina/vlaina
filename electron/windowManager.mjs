@@ -16,6 +16,7 @@ export function createWindowManager({
   isTrustedRendererUrl,
 }) {
   const closeApprovedWebContents = new Set();
+  const readyToRevealWebContents = new Set();
   const windowLabels = new Map();
   let secondaryWindowCounter = 0;
 
@@ -116,8 +117,49 @@ export function createWindowManager({
   function attachWindowLifecycle(window) {
     const webContentsId = window.webContents.id;
     let externalOpenModifierActive = false;
+    let didRevealWindow = false;
+    let didRendererReportStartupReady = false;
+
+    const revealWindow = () => {
+      if (didRevealWindow || window.isDestroyed()) {
+        return;
+      }
+
+      didRevealWindow = true;
+      readyToRevealWebContents.add(webContentsId);
+      window.show();
+
+      if (windowOptionsShouldFocusOnReveal(window)) {
+        window.focus();
+      }
+    };
+
+    const revealWindowAfterRendererReady = () => {
+      if (!didRendererReportStartupReady) {
+        return;
+      }
+      revealWindow();
+    };
+
+    window.once('ready-to-show', () => {
+      revealWindowAfterRendererReady();
+    });
+    window.webContents.once('did-finish-load', () => {
+      setTimeout(revealWindowAfterRendererReady, 3000);
+    });
+
+    window.webContents.on('ipc-message', (_event, channel) => {
+      if (channel !== 'desktop:startup-ready') {
+        return;
+      }
+
+      didRendererReportStartupReady = true;
+      revealWindow();
+    });
+
     window.on('closed', () => {
       closeApprovedWebContents.delete(webContentsId);
+      readyToRevealWebContents.delete(webContentsId);
       windowLabels.delete(window.id);
     });
 
@@ -201,6 +243,10 @@ export function createWindowManager({
     });
   }
 
+  function windowOptionsShouldFocusOnReveal(window) {
+    return windowLabels.get(window.id) === 'main' || !BrowserWindow.getFocusedWindow();
+  }
+
   function createWindow(windowOptions = {}) {
     const label = windowOptions.label ?? (secondaryWindowCounter === 0 ? 'main' : `window-${secondaryWindowCounter}`);
     secondaryWindowCounter += 1;
@@ -213,6 +259,7 @@ export function createWindowManager({
       center: true,
       icon: appIconPath,
       backgroundColor: '#FFFFFFFF',
+      show: false,
       autoHideMenuBar: true,
       titleBarStyle: 'hidden',
       webPreferences: {
@@ -245,6 +292,10 @@ export function createWindowManager({
     return BrowserWindow.getAllWindows().length > 0;
   }
 
+  function isReadyToReveal(window) {
+    return readyToRevealWebContents.has(window.webContents.id);
+  }
+
   function registerWindowIpc(handleIpc) {
     registerWindowIpcHandlers({
       closeApprovedWebContents,
@@ -258,6 +309,7 @@ export function createWindowManager({
   return {
     createMainWindow,
     hasOpenWindows,
+    isReadyToReveal,
     registerWindowIpc,
     resolveTargetWindow,
   };

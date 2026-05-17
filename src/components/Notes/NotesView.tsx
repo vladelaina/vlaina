@@ -7,7 +7,6 @@ import { useToastStore } from '@/stores/useToastStore';
 import { ResizablePanel } from '@/components/layout/ResizablePanel';
 import { ModuleShortcutsDialog } from '@/components/common/ModuleShortcutsDialog';
 import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
-import { MarkdownEditor } from './features/Editor';
 import { useNotesViewShortcuts } from './hooks/useNotesViewShortcuts';
 import { useModuleShortcutsDialog } from '@/hooks/useModuleShortcutsDialog';
 import { useCurrentVaultExternalPathSync } from './hooks/useCurrentVaultExternalPathSync';
@@ -25,7 +24,6 @@ import { subscribeDeleteCurrentNoteEvent } from '@/components/Notes/noteDeleteEv
 import { useBlankWorkspaceDropOpen } from './hooks/useBlankWorkspaceDropOpen';
 import { useNotesSidebarExternalDropImport } from './hooks/useNotesSidebarExternalDropImport';
 import { collectNotePathsInTreeOrder } from './features/common/noteTreeNavigation';
-import { scheduleSidebarItemIntoView } from './features/common/sidebarScrollIntoView';
 import { useI18n } from '@/lib/i18n';
 import { clearRemoteImageMemoryCache } from './features/Editor/plugins/image-block/utils/remoteImageMemoryCache';
 
@@ -34,7 +32,25 @@ const EmbeddedChatView = lazy(async () => {
   return { default: mod.ChatView };
 });
 
-export function NotesView({ active = true }: { active?: boolean }) {
+const MarkdownEditor = lazy(async () => {
+  const mod = await import('./features/Editor');
+  return { default: mod.MarkdownEditor };
+});
+
+function scheduleSidebarScroll(path: string): void {
+  void import('./features/common/sidebarScrollIntoView')
+    .then((mod) => {
+      mod.scheduleSidebarItemIntoView(path, 2);
+    });
+}
+
+export function NotesView({
+  active = true,
+  onStartupReady,
+}: {
+  active?: boolean;
+  onStartupReady?: () => void;
+}) {
   const { t } = useI18n();
   const currentNote = useNotesStore(s => s.currentNote);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
@@ -88,6 +104,7 @@ export function NotesView({ active = true }: { active?: boolean }) {
   const autoCreateVaultPathRef = useRef<string | null>(currentVault?.path ?? null);
   const vaultInitializingRef = useRef(false);
   const consumedPendingStarredNavigationKeyRef = useRef<string | null>(null);
+  const [canLoadMarkdownEditor, setCanLoadMarkdownEditor] = useState(false);
   const toggleShortcutsDialog = useCallback(() => setIsShortcutsOpen((prev) => !prev), []);
   const handleVaultInitializingChange = useCallback((initializing: boolean) => {
     vaultInitializingRef.current = initializing;
@@ -102,10 +119,31 @@ export function NotesView({ active = true }: { active?: boolean }) {
 
   const focusSidebarPath = useCallback((path: string) => {
     revealFolder(path);
-    scheduleSidebarItemIntoView(path, 2);
+    scheduleSidebarScroll(path);
   }, [revealFolder]);
 
   const focusNotesChatComposer = useNotesChatComposerFocus(setChatPanelCollapsed);
+
+  useEffect(() => {
+    if (active) {
+      onStartupReady?.();
+    }
+  }, [active, currentNotePath, currentVault, onStartupReady, openTabs.length]);
+
+  useEffect(() => {
+    if (!currentNotePath) {
+      setCanLoadMarkdownEditor(false);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setCanLoadMarkdownEditor(true);
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [currentNotePath]);
 
   const {
     isOpenTargetBusy,
@@ -198,14 +236,14 @@ export function NotesView({ active = true }: { active?: boolean }) {
       setPendingStarredNavigation(null);
       if (pendingStarredNavigation.kind === 'folder') {
         revealFolder(pendingStarredNavigation.relativePath);
-        scheduleSidebarItemIntoView(pendingStarredNavigation.relativePath, 2);
+        scheduleSidebarScroll(pendingStarredNavigation.relativePath);
       } else {
         revealFolder(pendingStarredNavigation.relativePath);
         await openNote(
           pendingStarredNavigation.relativePath,
           pendingStarredNavigation.openInNewTab ?? false
         );
-        scheduleSidebarItemIntoView(pendingStarredNavigation.relativePath, 2);
+        scheduleSidebarScroll(pendingStarredNavigation.relativePath);
       }
     };
 
@@ -410,7 +448,11 @@ export function NotesView({ active = true }: { active?: boolean }) {
 
       <div data-notes-view-mode="true" className="h-full w-full relative flex min-w-0">
         <div className="flex-1 min-w-0">
-          <MarkdownEditor active={Boolean(currentNotePath)} peekOffset={sidebarWidth} />
+          {canLoadMarkdownEditor ? (
+            <Suspense fallback={null}>
+              <MarkdownEditor active peekOffset={sidebarWidth} />
+            </Suspense>
+          ) : null}
         </div>
 
         {active && !chatPanelCollapsed && (

@@ -129,6 +129,14 @@ export default defineConfig(async () => ({
     port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : 3000,
     strictPort: true,
     host: "127.0.0.1",
+    warmup: {
+      clientFiles: [
+        './src/main.tsx',
+        './src/App.tsx',
+        './src/AppContent.tsx',
+        './src/components/Notes/NotesView.tsx',
+      ],
+    },
     headers: {
       "Cache-Control": "no-store",
     },

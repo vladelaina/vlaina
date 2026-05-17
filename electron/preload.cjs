@@ -154,6 +154,9 @@ const desktopApi = {
         openMarkdownFileListeners.delete(listener);
       };
     },
+    reportStartupReady() {
+      ipcRenderer.send('desktop:startup-ready');
+    },
   },
   update: {
     check() {

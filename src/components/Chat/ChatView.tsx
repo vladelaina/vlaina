@@ -35,11 +35,17 @@ interface ChatViewProps {
   mode?: 'full' | 'embedded';
   active?: boolean;
   onCloseEmbeddedPanel?: () => void;
+  onStartupReady?: () => void;
 }
 
 const EMPTY_MESSAGES: never[] = [];
 
-export function ChatView({ mode = 'full', active = true, onCloseEmbeddedPanel }: ChatViewProps) {
+export function ChatView({
+  mode = 'full',
+  active = true,
+  onCloseEmbeddedPanel,
+  onStartupReady,
+}: ChatViewProps) {
   const { t } = useI18n();
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [isEmbeddedSidebarOpen, setIsEmbeddedSidebarOpen] = useState(false);
@@ -103,6 +109,12 @@ export function ChatView({ mode = 'full', active = true, onCloseEmbeddedPanel }:
   const currentSessionIdRef = useRef(currentSessionId);
   const imageGalleryRef = useRef(imageGallery);
   const wasActiveRef = useRef(active);
+
+  useEffect(() => {
+    if (active) {
+      onStartupReady?.();
+    }
+  }, [active, onStartupReady]);
   
   const isSessionActive = useAIUIStore((state) =>
     currentSessionId ? !!state.generatingSessions[currentSessionId] : false

@@ -78,6 +78,7 @@ export interface ElectronAppApi {
   getVersion(): Promise<string>;
   setLanguage?(language: string): Promise<boolean>;
   onOpenMarkdownFile?(callback: (filePath: string) => void): () => void;
+  reportStartupReady?(): void;
 }
 
 export interface ElectronUpdateApi {
