@@ -19,4 +19,7 @@ export const DEFAULT_SETTINGS = {
       showLineNumbers: true,
     },
   },
+  ui: {
+    lastAppViewMode: 'notes',
+  },
 } as const;

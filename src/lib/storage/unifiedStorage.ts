@@ -298,6 +298,7 @@ function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
   const timezoneCity = settings?.timezone?.city;
   const typewriterMode = settings?.markdown?.typewriterMode;
   const showLineNumbers = settings?.markdown?.codeBlock?.showLineNumbers;
+  const lastAppViewMode = settings?.ui?.lastAppViewMode;
 
   return {
     settings: {
@@ -312,6 +313,9 @@ function sanitizeUnifiedData(data: UnifiedData): UnifiedData {
         codeBlock: {
           showLineNumbers: showLineNumbers !== false,
         },
+      },
+      ui: {
+        lastAppViewMode: lastAppViewMode === 'chat' ? 'chat' : 'notes',
       },
     },
     customIcons: Array.isArray(data.customIcons) ? data.customIcons : [],

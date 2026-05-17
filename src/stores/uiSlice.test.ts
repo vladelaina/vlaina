@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useUIStore } from './uiSlice';
+import { useUnifiedStore } from './unified/useUnifiedStore';
 
 describe('uiSlice', () => {
   beforeEach(() => {
@@ -26,6 +27,37 @@ describe('uiSlice', () => {
       notesChatPanelCollapsed: false,
       pendingNotesChatComposerInsert: null,
     });
+    useUnifiedStore.setState({
+      data: {
+        settings: {
+          timezone: { offset: 8, city: 'Beijing' },
+          markdown: {
+            typewriterMode: false,
+            codeBlock: { showLineNumbers: true },
+          },
+          ui: { lastAppViewMode: 'notes' },
+        },
+        customIcons: [],
+        deletedCustomIconIds: [],
+        ai: {
+          providers: [],
+          models: [],
+          benchmarkResults: {},
+          fetchedModels: {},
+          sessions: [],
+          messages: {},
+          unreadSessionIds: [],
+          selectedModelId: null,
+          currentSessionId: null,
+          temporaryChatEnabled: false,
+          customSystemPrompt: '',
+          includeTimeContext: true,
+          webSearchEnabled: false,
+        },
+      },
+      loaded: false,
+      undoStack: [],
+    });
   });
 
   afterEach(() => {
@@ -35,17 +67,42 @@ describe('uiSlice', () => {
   it('sets app view mode within the supported module set', () => {
     useUIStore.getState().setAppViewMode('chat');
     expect(useUIStore.getState().appViewMode).toBe('chat');
+    expect(localStorage.getItem('vlaina_last_app_view_mode')).toBe('chat');
+    expect(useUnifiedStore.getState().data.settings.ui?.lastAppViewMode).toBe('chat');
 
     useUIStore.getState().setAppViewMode('lab');
     expect(useUIStore.getState().appViewMode).toBe('lab');
+    expect(localStorage.getItem('vlaina_last_app_view_mode')).toBe('chat');
+    expect(useUnifiedStore.getState().data.settings.ui?.lastAppViewMode).toBe('chat');
   });
 
   it('toggles app view mode between notes and chat', () => {
     useUIStore.getState().toggleAppViewMode();
     expect(useUIStore.getState().appViewMode).toBe('chat');
+    expect(localStorage.getItem('vlaina_last_app_view_mode')).toBe('chat');
+    expect(useUnifiedStore.getState().data.settings.ui?.lastAppViewMode).toBe('chat');
 
     useUIStore.getState().toggleAppViewMode();
     expect(useUIStore.getState().appViewMode).toBe('notes');
+    expect(localStorage.getItem('vlaina_last_app_view_mode')).toBe('notes');
+    expect(useUnifiedStore.getState().data.settings.ui?.lastAppViewMode).toBe('notes');
+  });
+
+  it('initializes app view mode from the last stored notes or chat view', async () => {
+    localStorage.setItem('vlaina_last_app_view_mode', 'chat');
+    vi.resetModules();
+
+    const { useUIStore: freshUIStore } = await import('./uiSlice');
+
+    expect(freshUIStore.getState().appViewMode).toBe('chat');
+  });
+
+  it('restores last app view mode after unified config loads', () => {
+    useUIStore.setState({ appViewMode: 'notes' });
+    useUIStore.getState().restoreLastAppViewMode('chat');
+
+    expect(useUIStore.getState().appViewMode).toBe('chat');
+    expect(localStorage.getItem('vlaina_last_app_view_mode')).toBe('chat');
   });
 
   it('tracks notes sidebar view independently from app view mode', () => {

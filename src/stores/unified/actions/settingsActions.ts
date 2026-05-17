@@ -28,6 +28,23 @@ export function createSettingsActions(set: SetState, persist: Persist) {
       });
     },
 
+    setLastAppViewMode: (mode: 'notes' | 'chat') => {
+      set((state) => {
+        const newData = {
+          ...state.data,
+          settings: {
+            ...state.data.settings,
+            ui: {
+              ...state.data.settings.ui,
+              lastAppViewMode: mode,
+            },
+          },
+        };
+        persist(newData);
+        return { data: newData };
+      });
+    },
+
     ...createMarkdownSettingsActions(set, persist),
   };
 }

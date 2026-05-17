@@ -6,6 +6,7 @@ import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { useAIStoreRuntimeEffects } from '@/stores/useAIStore';
 import { useUIStore } from '@/stores/uiSlice';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import { useSyncInit } from '@/hooks/useSyncInit';
@@ -101,7 +102,10 @@ export function AppContent() {
     setSidebarWidth,
     toggleSidebar,
     setAppViewMode,
+    restoreLastAppViewMode,
   } = useUIStore();
+  const unifiedLoaded = useUnifiedStore((state) => state.loaded);
+  const lastConfiguredAppViewMode = useUnifiedStore((state) => state.data.settings.ui?.lastAppViewMode);
   const { initialize } = useVaultStore();
   const { showInTitleBar } = useTemporaryTogglePresentation();
   const shouldShowTemporaryToggleInTitleBar =
@@ -156,6 +160,12 @@ export function AppContent() {
   useEffect(() => {
     initialize();
   }, [initialize]);
+
+  useEffect(() => {
+    if (!unifiedLoaded) return;
+    if (lastConfiguredAppViewMode !== 'notes' && lastConfiguredAppViewMode !== 'chat') return;
+    restoreLastAppViewMode(lastConfiguredAppViewMode);
+  }, [lastConfiguredAppViewMode, restoreLastAppViewMode, unifiedLoaded]);
 
   useEffect(() => {
     if (import.meta.env.DEV) return;

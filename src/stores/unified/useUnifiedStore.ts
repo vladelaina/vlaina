@@ -37,6 +37,7 @@ interface UnifiedStoreActions {
   setTimezone: (offset: number, city: string) => void;
   setMarkdownCodeBlockLineNumbers: (showLineNumbers: boolean) => void;
   setMarkdownTypewriterMode: (typewriterMode: boolean) => void;
+  setLastAppViewMode: (mode: 'notes' | 'chat') => void;
   
   addCustomIcon: (icon: CustomIcon) => void;
   removeCustomIcon: (id: string) => Promise<void>;
@@ -115,6 +116,11 @@ function normalizeUnifiedData(data: UnifiedData): UnifiedData {
       ...settings?.timezone,
     },
     markdown: resolveMarkdownSettings(settings?.markdown),
+    ui: {
+      ...DEFAULT_SETTINGS.ui,
+      ...settings?.ui,
+      lastAppViewMode: settings?.ui?.lastAppViewMode === 'chat' ? 'chat' : 'notes',
+    },
   };
   normalized.customIcons = normalized.customIcons || [];
   normalized.deletedCustomIconIds = normalized.deletedCustomIconIds || [];
