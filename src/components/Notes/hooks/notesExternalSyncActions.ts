@@ -319,7 +319,7 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
     return true;
   };
 
-  const runPollingReconcile = async () => {
+  const runPollingReconcile = async (options?: { skipTreeSnapshot?: boolean }) => {
     if (!isActiveNotesPath()) {
       return;
     }
@@ -337,7 +337,9 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
       if (!isActiveNotesPath()) {
         return;
       }
-      const hadTreeChanges = await reconcileExternalTree();
+      const hadTreeChanges = options?.skipTreeSnapshot
+        ? false
+        : await reconcileExternalTree();
       if (!hadTreeChanges && isActiveNotesPath()) {
         await reconcileCurrentNote();
       }

@@ -146,25 +146,30 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
         return;
       }
 
-      const reconcilePollMs = shouldAvoidRecursiveNativeWatch(notesPath)
+      const broadNotesPath = shouldAvoidRecursiveNativeWatch(notesPath);
+      const reconcilePollMs = broadNotesPath
         ? BROAD_PATH_RECONCILE_POLL_MS
         : NOTES_RECONCILE_POLL_MS;
       reconcilePollTimer = window.setInterval(() => {
         if (document.visibilityState !== 'visible') {
           return;
         }
-        void syncActions.runPollingReconcile();
+        void syncActions.runPollingReconcile({ skipTreeSnapshot: broadNotesPath });
       }, reconcilePollMs);
-      void syncActions.runPollingReconcile();
+      void syncActions.runPollingReconcile({ skipTreeSnapshot: broadNotesPath });
     };
 
     const reconcileOnFocus = () => {
-      void syncActions.runPollingReconcile();
+      void syncActions.runPollingReconcile({
+        skipTreeSnapshot: shouldAvoidRecursiveNativeWatch(notesPath),
+      });
     };
 
     const reconcileOnVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        void syncActions.runPollingReconcile();
+        void syncActions.runPollingReconcile({
+          skipTreeSnapshot: shouldAvoidRecursiveNativeWatch(notesPath),
+        });
       }
     };
 

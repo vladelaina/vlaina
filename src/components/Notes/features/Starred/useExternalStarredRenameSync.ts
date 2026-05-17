@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { watchDesktopPath } from '@/lib/desktop/watch';
-import { getParentPath, isAbsolutePath } from '@/lib/storage/adapter';
+import { isAbsolutePath } from '@/lib/storage/adapter';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
 import type { StarredEntry } from '@/stores/notes/types';
@@ -18,7 +18,7 @@ function getExternalStarredWatchEntries(
   entries: StarredEntry[],
   currentVaultPath: string,
 ) {
-  const watchedEntries: Array<{ absolutePath: string; parentPath: string }> = [];
+  const watchedEntries: Array<{ absolutePath: string }> = [];
 
   for (const entry of entries) {
     if (entry.kind !== 'note') {
@@ -34,14 +34,8 @@ function getExternalStarredWatchEntries(
       continue;
     }
 
-    const parentPath = getParentPath(absolutePath);
-    if (!parentPath) {
-      continue;
-    }
-
     watchedEntries.push({
       absolutePath: normalizeFsPath(absolutePath),
-      parentPath: normalizeFsPath(parentPath),
     });
   }
 
@@ -65,17 +59,15 @@ export function useExternalStarredRenameSync() {
 
     let disposed = false;
     const unwatchers: Array<() => Promise<void>> = [];
-    const watchedPathsByParent = new Map<string, Set<string>>();
+    const watchedPaths = new Set<string>();
 
     for (const entry of watchEntries) {
-      const paths = watchedPathsByParent.get(entry.parentPath) ?? new Set<string>();
-      paths.add(entry.absolutePath);
-      watchedPathsByParent.set(entry.parentPath, paths);
-    }
-
-    for (const [parentPath, watchedPaths] of watchedPathsByParent) {
+      if (watchedPaths.has(entry.absolutePath)) {
+        continue;
+      }
+      watchedPaths.add(entry.absolutePath);
       void watchDesktopPath(
-        parentPath,
+        entry.absolutePath,
         async (event) => {
           if (disposed) {
             return;
@@ -90,9 +82,7 @@ export function useExternalStarredRenameSync() {
           }
 
           const oldPath = normalizeFsPath(renamePaths.oldPath);
-          const isWatchedRename = Array.from(watchedPaths).some((watchedPath) =>
-            isPathWithin(watchedPath, oldPath)
-          );
+          const isWatchedRename = isPathWithin(entry.absolutePath, oldPath);
           if (!isWatchedRename) {
             return;
           }

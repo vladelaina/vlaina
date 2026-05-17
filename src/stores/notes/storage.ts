@@ -20,6 +20,14 @@ const MAX_METADATA_SCAN_DEPTH = 24;
 const MAX_METADATA_READ_BYTES = 5 * 1024 * 1024;
 const MAX_RECENT_NOTES_STORAGE_CHARS = 64 * 1024;
 const MAX_WORKSPACE_STATE_BYTES = 256 * 1024;
+const SKIPPED_METADATA_DIRECTORY_NAMES = new Set([
+  'node_modules',
+  'vendor',
+  'dist',
+  'build',
+  'target',
+  '__pycache__',
+]);
 
 interface CachedMetadataEntry {
   modifiedAt: number | null;
@@ -145,6 +153,10 @@ export function createEmptyMetadataFile(): MetadataFile {
   return { version: CURRENT_METADATA_VERSION, notes: {} };
 }
 
+function shouldSkipMetadataDirectory(name: string) {
+  return name.startsWith('.') || SKIPPED_METADATA_DIRECTORY_NAMES.has(name);
+}
+
 async function collectMarkdownPaths(
   basePath: string,
   relativePath: string = '',
@@ -173,6 +185,9 @@ async function collectMarkdownPaths(
     const entryPath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
 
     if (entry.isDirectory === true) {
+      if (shouldSkipMetadataDirectory(entry.name)) {
+        continue;
+      }
       collected.push(...await collectMarkdownPaths(basePath, entryPath, budget, depth + 1));
       continue;
     }

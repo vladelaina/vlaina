@@ -99,4 +99,38 @@ describe('useStarredEntryIcon', () => {
     expect(result.current).toBeUndefined();
     expect(mocked.readFile).not.toHaveBeenCalled();
   });
+
+  it('limits concurrent starred note metadata reads', async () => {
+    const pendingReads: Array<() => void> = [];
+    mocked.stat.mockResolvedValue({ modifiedAt: 1, size: 32 });
+    mocked.readFile.mockImplementation(async () => {
+      await new Promise<void>((resolve) => {
+        pendingReads.push(resolve);
+      });
+      return '---\nvlaina_icon: "💡"\n---\n# Alpha';
+    });
+
+    const hooks = Array.from({ length: 8 }, (_, index) =>
+      renderHook(() =>
+        useStarredEntryIcon({
+          id: `starred-concurrent-${index}`,
+          kind: 'note',
+          vaultPath: '/vault-b',
+          relativePath: `docs/concurrent-${index}.md`,
+          addedAt: 1,
+        }, true),
+      )
+    );
+
+    await waitFor(() => {
+      expect(mocked.readFile).toHaveBeenCalledTimes(4);
+    });
+
+    pendingReads.splice(0).forEach((resolve) => resolve());
+    await waitFor(() => {
+      expect(mocked.readFile).toHaveBeenCalledTimes(8);
+    });
+
+    hooks.forEach((hook) => hook.unmount());
+  });
 });

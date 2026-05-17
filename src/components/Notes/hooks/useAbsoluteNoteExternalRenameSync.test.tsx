@@ -117,4 +117,18 @@ describe('useAbsoluteNoteExternalRenameSync', () => {
 
     hook.unmount();
   });
+
+  it('avoids native directory watching when an absolute note lives directly in the home directory', async () => {
+    const hook = renderHook(() => useAbsoluteNoteExternalRenameSync('/home/user/current.md'));
+
+    expect(hoisted.watchDesktopPath).not.toHaveBeenCalled();
+
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+    });
+
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalledWith({ force: true });
+
+    hook.unmount();
+  });
 });

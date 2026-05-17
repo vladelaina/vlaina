@@ -16,8 +16,27 @@ import {
 } from './notesExternalSyncUtils';
 import { rememberProcessedRenameEventNonce } from './notesExternalRenameQueue';
 
+const BROAD_ABSOLUTE_NOTE_SYNC_POLL_MS = 5000;
+
 function isAbsoluteRenamePathInsideParent(parentPath: string, path: string) {
   return isAbsolutePath(path) && normalizeContainedAssetPath(path, parentPath) !== null;
+}
+
+function shouldAvoidNativeAbsoluteNoteWatch(parentPath: string) {
+  const normalized = parentPath.replace(/\\/g, '/').replace(/\/+$/, '');
+  if (!normalized) {
+    return true;
+  }
+
+  if (normalized === '/' || /^[a-z]:$/i.test(normalized)) {
+    return true;
+  }
+
+  return (
+    /^\/home\/[^/]+$/i.test(normalized) ||
+    /^\/users\/[^/]+$/i.test(normalized) ||
+    /^[a-z]:\/users\/[^/]+$/i.test(normalized)
+  );
 }
 
 export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | undefined) {
@@ -39,6 +58,7 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
 
     let disposed = false;
     let unwatch: (() => Promise<void>) | null = null;
+    let pollingTimer: number | null = null;
     const eventFileStartedAt = Date.now();
 
     async function applyRenameEvent(event: { nonce?: string; oldPath: string; newPath: string }) {
@@ -91,7 +111,30 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
       paths.some((path) => normalizeFsPath(path) === watchedNotePath)
     );
 
+    const syncCurrentAbsoluteNote = () => {
+      if (disposed || document.visibilityState !== 'visible') {
+        return;
+      }
+
+      void syncCurrentNoteFromDisk({ force: true });
+    };
+
+    const startPollingSync = () => {
+      if (pollingTimer !== null) {
+        return;
+      }
+
+      pollingTimer = window.setInterval(syncCurrentAbsoluteNote, BROAD_ABSOLUTE_NOTE_SYNC_POLL_MS);
+      window.addEventListener('focus', syncCurrentAbsoluteNote);
+      document.addEventListener('visibilitychange', syncCurrentAbsoluteNote);
+    };
+
     const run = async () => {
+      if (shouldAvoidNativeAbsoluteNoteWatch(watchedParentPath)) {
+        startPollingSync();
+        return;
+      }
+
       try {
         const stopWatching = await watchDesktopPath(
           watchedParentPath,
@@ -144,6 +187,12 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
 
     return () => {
       disposed = true;
+      if (pollingTimer !== null) {
+        window.clearInterval(pollingTimer);
+        pollingTimer = null;
+      }
+      window.removeEventListener('focus', syncCurrentAbsoluteNote);
+      document.removeEventListener('visibilitychange', syncCurrentAbsoluteNote);
       unsubscribeRenameBroadcast();
       void unwatch?.();
     };
