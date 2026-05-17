@@ -1,6 +1,23 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 
 const IPC_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
+const pendingOpenMarkdownFiles = [];
+const openMarkdownFileListeners = new Set();
+
+ipcRenderer.on('desktop:app:open-markdown-file', (_event, filePath) => {
+  if (typeof filePath !== 'string' || !filePath) {
+    return;
+  }
+
+  if (openMarkdownFileListeners.size === 0) {
+    pendingOpenMarkdownFiles.push(filePath);
+    return;
+  }
+
+  for (const listener of openMarkdownFileListeners) {
+    listener(filePath);
+  }
+});
 
 function requireSafeIpcRequestId(value, label) {
   const id = String(value ?? '').trim();
@@ -124,6 +141,18 @@ const desktopApi = {
     },
     setLanguage(language) {
       return ipcRenderer.invoke('desktop:app:set-language', language);
+    },
+    onOpenMarkdownFile(callback) {
+      const listener = (filePath) => callback(filePath);
+      openMarkdownFileListeners.add(listener);
+
+      while (pendingOpenMarkdownFiles.length > 0) {
+        listener(pendingOpenMarkdownFiles.shift());
+      }
+
+      return () => {
+        openMarkdownFileListeners.delete(listener);
+      };
     },
   },
   update: {
