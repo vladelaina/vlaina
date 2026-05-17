@@ -154,6 +154,44 @@ describe('notes metadata storage', () => {
     expect(adapter.readFile).not.toHaveBeenCalled();
   });
 
+  it('does not recurse into heavy generated folders during metadata scans', async () => {
+    adapter.listDir.mockImplementation(async (path: string) => {
+      if (path === '/vault-heavy') {
+        return [
+          { name: 'node_modules', isDirectory: true },
+          { name: 'docs', isDirectory: true },
+        ];
+      }
+
+      if (path === '/vault-heavy/docs') {
+        return [{ name: 'alpha.md', isFile: true }];
+      }
+
+      if (path === '/vault-heavy/node_modules') {
+        return [{ name: 'package.md', isFile: true }];
+      }
+
+      return [];
+    });
+    adapter.readFile.mockResolvedValue([
+      '---',
+      'vlaina_updated: "2026-04-17T00:00:00.000Z"',
+      '---',
+      '',
+      '# Alpha',
+    ].join('\n'));
+
+    await expect(loadNoteMetadata('/vault-heavy')).resolves.toEqual({
+      version: 2,
+      notes: {
+        'docs/alpha.md': {
+          updatedAt: Date.parse('2026-04-17T00:00:00.000Z'),
+        },
+      },
+    });
+    expect(adapter.listDir).not.toHaveBeenCalledWith('/vault-heavy/node_modules');
+  });
+
   it('creates an empty metadata file shape when needed', () => {
     expect(createEmptyMetadataFile()).toEqual({
       version: 2,

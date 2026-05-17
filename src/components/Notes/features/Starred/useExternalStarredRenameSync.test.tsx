@@ -64,7 +64,7 @@ describe('useExternalStarredRenameSync', () => {
     mocked.notesState.starredEntries = [];
   });
 
-  it('watches external starred note parents and remaps renamed files', async () => {
+  it('watches external starred notes and remaps renamed files', async () => {
     mocked.notesState.starredEntries = [
       {
         id: 'starred-external',
@@ -78,13 +78,13 @@ describe('useExternalStarredRenameSync', () => {
     renderHook(() => useExternalStarredRenameSync());
 
     expect(mocked.watchDesktopPath).toHaveBeenCalledWith(
-      '/vault-b/docs',
+      '/vault-b/docs/alpha.md',
       expect.any(Function),
       { recursive: false },
     );
 
     await act(async () => {
-      await mocked.handlers.get('/vault-b/docs')?.({
+      await mocked.handlers.get('/vault-b/docs/alpha.md')?.({
         type: { modify: { kind: 'rename', mode: 'both' } },
         paths: ['/vault-b/docs/alpha.md', '/vault-b/docs/beta.md'],
       });

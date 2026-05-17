@@ -184,7 +184,7 @@ describe('useNotesExternalSync', () => {
     hook.unmount();
   });
 
-  it('polls broad notes paths instead of starting a recursive native watch', async () => {
+  it('polls only the current note for broad notes paths instead of starting a recursive native watch', async () => {
     hoisted.notesState.notesPath = '/home/user';
     const hook = renderHook(() => useNotesExternalSync('/home/user', '/home/user'));
 
@@ -193,18 +193,22 @@ describe('useNotesExternalSync', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(buildExternalTreeSnapshot).toHaveBeenCalledWith('/home/user');
+    expect(buildExternalTreeSnapshot).not.toHaveBeenCalled();
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalled();
 
+    hoisted.notesState.syncCurrentNoteFromDisk.mockClear();
     vi.mocked(buildExternalTreeSnapshot).mockClear();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(4999);
     });
     expect(buildExternalTreeSnapshot).not.toHaveBeenCalled();
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).not.toHaveBeenCalled();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(1);
     });
-    expect(buildExternalTreeSnapshot).toHaveBeenCalledWith('/home/user');
+    expect(buildExternalTreeSnapshot).not.toHaveBeenCalled();
+    expect(hoisted.notesState.syncCurrentNoteFromDisk).toHaveBeenCalled();
 
     hook.unmount();
     hoisted.notesState.notesPath = '/vault';

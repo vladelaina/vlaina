@@ -6,6 +6,7 @@ import type { StarredEntry } from '@/stores/notes/types';
 
 const MAX_STARRED_ICON_CACHE_ENTRIES = 300;
 const MAX_STARRED_ICON_METADATA_BYTES = 512 * 1024;
+const MAX_CONCURRENT_STARRED_ICON_READS = 4;
 
 interface StarredIconCacheEntry {
   modifiedAt: number | null;
@@ -14,6 +15,34 @@ interface StarredIconCacheEntry {
 }
 
 const starredIconCache = new Map<string, StarredIconCacheEntry>();
+const pendingStarredIconTasks: Array<() => void> = [];
+let activeStarredIconTaskCount = 0;
+
+function runQueuedStarredIconTask() {
+  if (activeStarredIconTaskCount >= MAX_CONCURRENT_STARRED_ICON_READS) {
+    return;
+  }
+
+  const task = pendingStarredIconTasks.shift();
+  if (!task) {
+    return;
+  }
+
+  activeStarredIconTaskCount += 1;
+  task();
+}
+
+function scheduleStarredIconTask<T>(task: () => Promise<T>): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    pendingStarredIconTasks.push(() => {
+      void task().then(resolve, reject).finally(() => {
+        activeStarredIconTaskCount -= 1;
+        runQueuedStarredIconTask();
+      });
+    });
+    runQueuedStarredIconTask();
+  });
+}
 
 function getStarredIconCacheKey(entry: StarredEntry) {
   const vaultPath = entry.vaultPath.replace(/\\/g, '/').replace(/\/+$/, '');
@@ -79,41 +108,43 @@ export function useStarredEntryIcon(entry: StarredEntry, enabled: boolean) {
     let cancelled = false;
     void (async () => {
       try {
-        const fullPath = await joinPath(entry.vaultPath, entry.relativePath);
-        const storage = getStorageAdapter();
-        const fileInfo = await storage.stat(fullPath).catch(() => null);
-        const modifiedAt = fileInfo?.modifiedAt ?? null;
-        const size = fileInfo?.size ?? null;
-        if (!canReadStarredIconMetadata(size)) {
+        await scheduleStarredIconTask(async () => {
+          const fullPath = await joinPath(entry.vaultPath, entry.relativePath);
+          const storage = getStorageAdapter();
+          const fileInfo = await storage.stat(fullPath).catch(() => null);
+          const modifiedAt = fileInfo?.modifiedAt ?? null;
+          const size = fileInfo?.size ?? null;
+          if (!canReadStarredIconMetadata(size)) {
+            setStarredIconCacheEntry(cacheKey, {
+              modifiedAt,
+              size,
+              icon: null,
+            });
+            if (!cancelled) {
+              setIcon(undefined);
+            }
+            return;
+          }
+
+          const freshCached = getFreshStarredIconCacheEntry(cacheKey, modifiedAt, size);
+          if (freshCached) {
+            if (!cancelled) {
+              setIcon(freshCached.icon ?? undefined);
+            }
+            return;
+          }
+
+          const content = await storage.readFile(fullPath);
+          const nextIcon = readNoteMetadataFromMarkdown(content).icon ?? null;
           setStarredIconCacheEntry(cacheKey, {
             modifiedAt,
             size,
-            icon: null,
+            icon: nextIcon,
           });
           if (!cancelled) {
-            setIcon(undefined);
+            setIcon(nextIcon ?? undefined);
           }
-          return;
-        }
-
-        const freshCached = getFreshStarredIconCacheEntry(cacheKey, modifiedAt, size);
-        if (freshCached) {
-          if (!cancelled) {
-            setIcon(freshCached.icon ?? undefined);
-          }
-          return;
-        }
-
-        const content = await storage.readFile(fullPath);
-        const nextIcon = readNoteMetadataFromMarkdown(content).icon ?? null;
-        setStarredIconCacheEntry(cacheKey, {
-          modifiedAt,
-          size,
-          icon: nextIcon,
         });
-        if (!cancelled) {
-          setIcon(nextIcon ?? undefined);
-        }
       } catch {
         setStarredIconCacheEntry(cacheKey, {
           modifiedAt: null,
