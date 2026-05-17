@@ -91,6 +91,38 @@ describe('requestContext', () => {
     expect(sanitized[0].content).toBe('Final answer');
   });
 
+  it('removes UI-only assistant error messages from model history', () => {
+    const history = [
+      createMessage({ role: 'user', content: 'hello' }),
+      createMessage({
+        role: 'assistant',
+        content: '<error type="AUTH_ERROR" code="401">Your sign-in session has expired. Please sign in again and try again.</error>',
+      }),
+      createMessage({ role: 'user', content: 'are you there?' }),
+    ];
+
+    const result = buildRequestHistory({
+      history,
+      modelId: 'model-1',
+      timezoneOffset: 8,
+      includeTimeContext: false,
+    });
+
+    expect(result.map((message) => message.content)).toEqual(['hello', 'are you there?']);
+  });
+
+  it('strips assistant error tags without dropping visible assistant content', () => {
+    const sanitized = sanitizeHistory([
+      createMessage({
+        role: 'assistant',
+        content: 'Partial answer<error type="NETWORK_ERROR" code="503">Request failed</error>',
+      }),
+    ]);
+
+    expect(sanitized).toHaveLength(1);
+    expect(sanitized[0].content).toBe('Partial answer');
+  });
+
   it('compacts oversized hidden API transcripts instead of dropping reasoning content', () => {
     const result = buildRequestHistory({
       history: [
