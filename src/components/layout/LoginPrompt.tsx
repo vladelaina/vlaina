@@ -19,8 +19,9 @@ export const LoginPrompt: React.FC<LoginPromptProps> = ({ onOpenDialog }) => {
       <button
         type="button"
         onClick={onOpenDialog}
+        style={{ boxShadow: 'none' }}
         className={cn(
-          'group inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 px-2.5 py-2 text-[16px] font-medium shadow-none transition-colors hover:shadow-none active:scale-[0.985]',
+          'group inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 px-2.5 py-2 text-[16px] font-medium !shadow-none transition-colors hover:!shadow-none active:scale-[0.985]',
           getSidebarIdleRowSurfaceClass('chat'),
           'text-[var(--vlaina-color-brand-pink)] hover:bg-[var(--chat-sidebar-row-hover)]'
         )}
