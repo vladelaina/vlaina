@@ -33,6 +33,7 @@ const { fetchWithStoredSession, readJsonResponse } = desktopAccountService;
 let tray = null;
 let trayQuitRequested = false;
 let trayLanguage = 'en';
+let pendingOpenMarkdownPath = null;
 
 const supportedTrayLanguages = new Set([
   'en',
@@ -285,6 +286,58 @@ function isDevelopment() {
   return !app.isPackaged;
 }
 
+function isSupportedMarkdownPath(filePath) {
+  if (typeof filePath !== 'string' || !filePath.trim()) {
+    return false;
+  }
+
+  return ['.md', '.markdown', '.mdown', '.mkd'].includes(path.extname(filePath).toLowerCase());
+}
+
+function normalizeMarkdownOpenPath(value) {
+  const rawPath = typeof value === 'string' ? value.trim() : '';
+  if (!rawPath) {
+    return null;
+  }
+
+  let filePath = rawPath;
+  if (rawPath.startsWith('file://')) {
+    try {
+      filePath = fileURLToPath(rawPath);
+    } catch {
+      return null;
+    }
+  }
+
+  if (!isSupportedMarkdownPath(filePath)) {
+    return null;
+  }
+
+  const absolutePath = path.resolve(filePath);
+  try {
+    if (!fs.statSync(absolutePath).isFile()) {
+      writeStartupLog(`Ignored Markdown open target because it is not a file: ${absolutePath}`);
+      return null;
+    }
+  } catch {
+    writeStartupLog(`Ignored Markdown open target because it does not exist: ${absolutePath}`);
+    return null;
+  }
+
+  return absolutePath;
+}
+
+function findMarkdownPathInArgv(argv) {
+  for (const value of Array.isArray(argv) ? argv : []) {
+    const filePath = normalizeMarkdownOpenPath(value);
+    if (filePath) {
+      return filePath;
+    }
+  }
+
+  return null;
+}
+
 function showMainWindow() {
   const existingWindow = BrowserWindow.getAllWindows().find((window) => !window.isDestroyed());
   const window = existingWindow ?? createMainWindow();
@@ -295,6 +348,58 @@ function showMainWindow() {
 
   window.show();
   window.focus();
+}
+
+function focusWindow(window) {
+  if (!window || window.isDestroyed()) {
+    return;
+  }
+
+  if (window.isMinimized()) {
+    window.restore();
+  }
+
+  window.show();
+  window.focus();
+}
+
+function sendOpenMarkdownPath(window, filePath) {
+  const normalizedPath = normalizeMarkdownOpenPath(filePath);
+  if (!window || window.isDestroyed() || !normalizedPath) {
+    return false;
+  }
+
+  const send = () => {
+    if (window.isDestroyed()) return;
+    writeStartupLog(`Opening Markdown file from OS association: ${normalizedPath}`);
+    window.webContents.send('desktop:app:open-markdown-file', normalizedPath);
+  };
+
+  if (window.webContents.isLoading()) {
+    window.webContents.once('did-finish-load', send);
+  } else {
+    send();
+  }
+
+  return true;
+}
+
+function openMarkdownPath(filePath) {
+  const normalizedPath = normalizeMarkdownOpenPath(filePath);
+  if (!normalizedPath) {
+    return false;
+  }
+
+  const existingWindow = BrowserWindow.getAllWindows().find((window) => !window.isDestroyed());
+  if (!existingWindow) {
+    writeStartupLog(`Queued Markdown file until main window is ready: ${normalizedPath}`);
+    pendingOpenMarkdownPath = normalizedPath;
+    return false;
+  }
+
+  focusWindow(existingWindow);
+  pendingOpenMarkdownPath = null;
+  return sendOpenMarkdownPath(existingWindow, normalizedPath);
 }
 
 function requestTrayQuit() {
@@ -841,6 +946,28 @@ const windowManager = createWindowManager({
 const { createMainWindow, resolveTargetWindow } = windowManager;
 windowManager.registerWindowIpc(handleIpc);
 
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.exit(0);
+} else {
+  pendingOpenMarkdownPath = findMarkdownPathInArgv(process.argv);
+
+  app.on('second-instance', (_event, argv) => {
+    const markdownPath = findMarkdownPathInArgv(argv);
+    if (markdownPath) {
+      openMarkdownPath(markdownPath);
+      return;
+    }
+
+    showMainWindow();
+  });
+
+  app.on('open-file', (event, filePath) => {
+    event.preventDefault();
+    openMarkdownPath(filePath);
+  });
+}
+
 registerDesktopIpc({
   handleIpc,
   normalizeExternalUrl,
@@ -945,7 +1072,18 @@ app.whenReady().then(async () => {
   configureDefaultSessionSafely();
 
   createTray();
-  createMainWindow();
+  const mainWindow = pendingOpenMarkdownPath
+    ? windowManager.createWindow({
+      label: 'main',
+      newWindow: true,
+      notePath: pendingOpenMarkdownPath,
+      viewMode: 'notes',
+    })
+    : createMainWindow();
+  if (pendingOpenMarkdownPath) {
+    sendOpenMarkdownPath(mainWindow, pendingOpenMarkdownPath);
+    pendingOpenMarkdownPath = null;
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

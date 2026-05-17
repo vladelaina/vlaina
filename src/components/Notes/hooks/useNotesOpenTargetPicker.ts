@@ -1,7 +1,8 @@
 import { useCallback, useEffect } from 'react';
-import { onDesktopOpenMarkdownFileShortcut } from '@/lib/desktop/shortcuts';
+import { onDesktopOpenMarkdownFile, onDesktopOpenMarkdownFileShortcut } from '@/lib/desktop/shortcuts';
 import { messageDialog, openDialog } from '@/lib/storage/dialog';
 import { useI18n } from '@/lib/i18n';
+import { useUIStore } from '@/stores/uiSlice';
 import {
   getSingleOpenSelection,
   isSupportedMarkdownSelection,
@@ -25,6 +26,7 @@ export function useNotesOpenTargetPicker({
   openFolderTarget: (selected: string) => Promise<void>;
 }) {
   const { t } = useI18n();
+  const setAppViewMode = useUIStore((state) => state.setAppViewMode);
   const handleOpenSelectedTarget = useCallback(async (targetKind: 'file' | 'folder') => {
     if (isOpenTargetBusy) return;
 
@@ -81,16 +83,23 @@ export function useNotesOpenTargetPicker({
       if (!active) return;
       void handleOpenSelectedTarget('folder');
     };
+    const handleDesktopOpenMarkdownFile = (filePath: string) => {
+      if (isOpenTargetBusy) return;
+      setAppViewMode('notes');
+      void openMarkdownTarget(filePath);
+    };
 
     window.addEventListener('vlaina-open-markdown-file', handleOpenMarkdownFile);
     window.addEventListener(OPEN_MARKDOWN_TARGET_FILE_EVENT, handleOpenMarkdownTargetFile);
     window.addEventListener(OPEN_MARKDOWN_TARGET_FOLDER_EVENT, handleOpenMarkdownTargetFolder);
     const unsubscribeDesktopShortcut = onDesktopOpenMarkdownFileShortcut(handleOpenMarkdownFile);
+    const unsubscribeDesktopOpenFile = onDesktopOpenMarkdownFile(handleDesktopOpenMarkdownFile);
     return () => {
       window.removeEventListener('vlaina-open-markdown-file', handleOpenMarkdownFile);
       window.removeEventListener(OPEN_MARKDOWN_TARGET_FILE_EVENT, handleOpenMarkdownTargetFile);
       window.removeEventListener(OPEN_MARKDOWN_TARGET_FOLDER_EVENT, handleOpenMarkdownTargetFolder);
       unsubscribeDesktopShortcut();
+      unsubscribeDesktopOpenFile();
     };
-  }, [active, handleOpenSelectedTarget]);
+  }, [active, handleOpenSelectedTarget, isOpenTargetBusy, openMarkdownTarget, setAppViewMode]);
 }

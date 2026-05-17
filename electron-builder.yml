@@ -26,6 +26,16 @@ files:
   - "!**/.github/**"
 asar: true
 artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+fileAssociations:
+  - ext:
+      - md
+      - markdown
+      - mdown
+      - mkd
+    name: Markdown Document
+    description: Markdown Document
+    mimeType: text/markdown
+    role: Editor
 mac:
   icon: build/icon.icns
   target:

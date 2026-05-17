@@ -13,6 +13,7 @@ import { useSyncInit } from '@/hooks/useSyncInit';
 import { useUnifiedExternalSync } from '@/hooks/useUnifiedExternalSync';
 import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
 import { desktopWindow } from '@/lib/desktop/window';
+import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
 import { getElectronBridge, isElectronRuntime } from '@/lib/electron/bridge';
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { getConsoleLogText, installConsoleLogCapture } from '@/lib/consoleLogBuffer';
@@ -115,6 +116,7 @@ export function AppContent() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [consoleCopyState, setConsoleCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const consoleCopyTimerRef = useRef<number | null>(null);
+  const launchViewModeRef = useRef(readWindowLaunchContext().viewMode);
 
   useEffect(() => {
     const handleOpenSettings = () => setSettingsOpen(true);
@@ -163,6 +165,7 @@ export function AppContent() {
 
   useEffect(() => {
     if (!unifiedLoaded) return;
+    if (launchViewModeRef.current) return;
     if (lastConfiguredAppViewMode !== 'notes' && lastConfiguredAppViewMode !== 'chat') return;
     restoreLastAppViewMode(lastConfiguredAppViewMode);
   }, [lastConfiguredAppViewMode, restoreLastAppViewMode, unifiedLoaded]);
