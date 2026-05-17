@@ -178,6 +178,138 @@ export function useAIStoreRuntimeEffects(): void {
   }, [loaded, accountConnected]);
 }
 
+let didStartAIStoreRuntimeEffects = false;
+
+export function startAIStoreRuntimeEffects(): void {
+  if (didStartAIStoreRuntimeEffects) return;
+  didStartAIStoreRuntimeEffects = true;
+
+  const launchContext = readWindowLaunchContext();
+  const suppressStartupAIPersist = launchContext.isNewWindow && launchContext.viewMode === 'chat';
+
+  const ensureLoaded = () => {
+    const store = useUnifiedStore.getState();
+    if (!store.loaded) {
+      void store.load();
+    }
+  };
+
+  const syncSelection = () => {
+    const store = useUnifiedStore.getState();
+    const aiData = store.data.ai;
+    const uiState = useAIUIStore.getState();
+
+    if (!store.loaded || uiState.selectionInitialized) {
+      return;
+    }
+
+    if (launchContext.isNewWindow && launchContext.viewMode === 'chat') {
+      const requestedSessionId = launchContext.chatSessionId;
+      const currentSessionId = requestedSessionId && aiData?.sessions.some((session) => session.id === requestedSessionId)
+        ? requestedSessionId
+        : null;
+      uiState.initializeSelection({ currentSessionId, temporaryChatEnabled: false });
+      if (currentSessionId) {
+        void actions.switchSession(currentSessionId);
+      }
+      return;
+    }
+
+    uiState.initializeSelection({
+      currentSessionId: aiData?.currentSessionId ?? null,
+      temporaryChatEnabled: !!aiData?.temporaryChatEnabled,
+    });
+  };
+
+  const syncIntegrity = () => {
+    const store = useUnifiedStore.getState();
+    const aiData = store.data.ai;
+    const uiState = useAIUIStore.getState();
+
+    if (!store.loaded || !uiState.selectionInitialized) {
+      return;
+    }
+
+    const currentSessionId = uiState.currentSessionId;
+    const currentSession = currentSessionId
+      ? aiData?.sessions.find((session) => session.id === currentSessionId)
+      : null;
+    const hasActiveTemporarySession =
+      isTemporarySessionId(currentSessionId) || isTemporarySession(currentSession);
+
+    if (uiState.temporaryChatEnabled && !hasActiveTemporarySession) {
+      uiState.setTemporaryChatEnabled(false);
+    }
+
+    if (
+      currentSessionId &&
+      !isTemporarySessionId(currentSessionId) &&
+      !aiData?.sessions.some((session) => session.id === currentSessionId)
+    ) {
+      uiState.setCurrentSessionId(null);
+    }
+
+    if (currentSessionId && aiData?.unreadSessionIds?.includes(currentSessionId)) {
+      uiState.markSessionRead(currentSessionId);
+    }
+  };
+
+  const syncManagedProvider = () => {
+    const store = useUnifiedStore.getState();
+    const ai = store.data.ai;
+    if (!store.loaded || !ai) return;
+
+    const nextProviders = ensureManagedProvider(ai.providers);
+    const providersChanged =
+      nextProviders.length !== ai.providers.length ||
+      nextProviders.some((provider, index) => ai.providers[index]?.id !== provider.id);
+
+    if (providersChanged) {
+      store.updateAIData({ providers: nextProviders }, suppressStartupAIPersist);
+    }
+  };
+
+  const syncManagedService = () => {
+    const store = useUnifiedStore.getState();
+    if (!store.loaded) return;
+
+    const accountConnected = useAccountSessionStore.getState().isConnected;
+    if (!accountConnected) {
+      useManagedAIStore.getState().clearBudget();
+    }
+
+    void managedProviderSync.syncFromStartup({
+      refreshBudget: accountConnected,
+      suppressPersist: suppressStartupAIPersist,
+    }).then(() => {
+      if (!useAccountSessionStore.getState().isConnected) {
+        useManagedAIStore.getState().clearBudget();
+      }
+    }).catch((error) => {
+      if (!isManagedServiceRecoverableError(error)) {
+        console.error('Failed to sync managed AI models from Worker', error);
+      }
+    });
+  };
+
+  ensureLoaded();
+  syncSelection();
+  syncIntegrity();
+  syncManagedProvider();
+  syncManagedService();
+
+  useUnifiedStore.subscribe(() => {
+    ensureLoaded();
+    syncSelection();
+    syncIntegrity();
+    syncManagedProvider();
+  });
+
+  useAccountSessionStore.subscribe(() => {
+    syncManagedService();
+  });
+}
+
 export { actions } from './ai/providerActions'
 
 export const useAIStore = () => {

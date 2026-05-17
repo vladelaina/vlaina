@@ -293,8 +293,10 @@ function showMainWindow() {
     window.restore();
   }
 
-  window.show();
-  window.focus();
+  if (isReadyToReveal(window)) {
+    window.show();
+    window.focus();
+  }
 }
 
 function requestTrayQuit() {
@@ -838,7 +840,7 @@ const windowManager = createWindowManager({
   openExternalIfAllowed,
   isTrustedRendererUrl,
 });
-const { createMainWindow, resolveTargetWindow } = windowManager;
+const { createMainWindow, isReadyToReveal, resolveTargetWindow } = windowManager;
 windowManager.registerWindowIpc(handleIpc);
 
 registerDesktopIpc({

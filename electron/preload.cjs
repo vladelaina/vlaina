@@ -125,6 +125,9 @@ const desktopApi = {
     setLanguage(language) {
       return ipcRenderer.invoke('desktop:app:set-language', language);
     },
+    reportStartupReady() {
+      ipcRenderer.send('desktop:startup-ready');
+    },
   },
   update: {
     check() {

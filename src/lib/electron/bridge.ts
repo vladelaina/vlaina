@@ -77,6 +77,7 @@ export interface ElectronMediaApi {
 export interface ElectronAppApi {
   getVersion(): Promise<string>;
   setLanguage?(language: string): Promise<boolean>;
+  reportStartupReady?(): void;
 }
 
 export interface ElectronUpdateApi {

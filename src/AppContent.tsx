@@ -4,13 +4,11 @@ import { SidebarUserHeader } from '@/components/layout/SidebarUserHeader';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Icon } from '@/components/ui/icons';
 import { cn, iconButtonStyles } from '@/lib/utils';
-import { useAIStoreRuntimeEffects } from '@/stores/useAIStore';
 import { useUIStore } from '@/stores/uiSlice';
 import { useVaultStore } from '@/stores/useVaultStore';
 import { useShortcuts } from '@/hooks/useShortcuts';
 import { useSyncInit } from '@/hooks/useSyncInit';
 import { useUnifiedExternalSync } from '@/hooks/useUnifiedExternalSync';
-import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
 import { desktopWindow } from '@/lib/desktop/window';
 import { getElectronBridge, isElectronRuntime } from '@/lib/electron/bridge';
 import { writeTextToClipboard } from '@/lib/clipboard';
@@ -20,8 +18,18 @@ import { APP_VERSION } from '@/lib/appVersion';
 import { useToastStore } from '@/stores/useToastStore';
 
 const preloadSettingsModule = () => import('@/components/Settings');
+const preloadNotesViewModule = () => import('@/components/Notes/NotesView');
+const preloadChatViewModule = () => import('@/components/Chat/ChatView');
+const preloadNotesSidebarModule = () => import('@/components/Notes/features/Sidebar/NotesSidebarWrapper');
+const preloadChatSidebarModule = () => import('@/components/Chat/features/Sidebar/ChatSidebar');
+const preloadTemporaryChatToggleModule = () => import('@/components/Chat/features/Temporary/TemporaryChatToggle');
+const preloadModelSelectorModule = () => import('@/components/Chat/features/Input/ModelSelector');
+const preloadNotesTabRowModule = () => import('@/components/Notes/features/Tabs/NotesTabRow');
+const preloadAIStoreModule = () => import('@/stores/useAIStore');
 const SETTINGS_PRELOAD_DELAY_MS = 8000;
 const SETTINGS_PRELOAD_IDLE_TIMEOUT_MS = 4000;
+const SECONDARY_VIEW_PRELOAD_DELAY_MS = 2500;
+const SECONDARY_VIEW_PRELOAD_IDLE_TIMEOUT_MS = 3000;
 const UPDATE_AUTO_CHECK_DELAY_MS = 2500;
 const UPDATE_AUTO_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const UPDATE_LAST_AUTO_CHECK_KEY = 'vlaina:update:lastAutoCheckAt';
@@ -32,12 +40,12 @@ const SettingsModal = lazy(async () => {
 });
 
 const NotesView = lazy(async () => {
-  const mod = await import('@/components/Notes/NotesView');
+  const mod = await preloadNotesViewModule();
   return { default: mod.NotesView };
 });
 
 const ChatView = lazy(async () => {
-  const mod = await import('@/components/Chat/ChatView');
+  const mod = await preloadChatViewModule();
   return { default: mod.ChatView };
 });
 
@@ -49,27 +57,27 @@ const LabView = import.meta.env.DEV
   : null;
 
 const NotesSidebarWrapper = lazy(async () => {
-  const mod = await import('@/components/Notes/features/Sidebar/NotesSidebarWrapper');
+  const mod = await preloadNotesSidebarModule();
   return { default: mod.NotesSidebarWrapper };
 });
 
 const ChatSidebar = lazy(async () => {
-  const mod = await import('@/components/Chat/features/Sidebar/ChatSidebar');
+  const mod = await preloadChatSidebarModule();
   return { default: mod.ChatSidebar };
 });
 
 const TemporaryChatToggle = lazy(async () => {
-  const mod = await import('@/components/Chat/features/Temporary/TemporaryChatToggle');
+  const mod = await preloadTemporaryChatToggleModule();
   return { default: mod.TemporaryChatToggle };
 });
 
 const ModelSelector = lazy(async () => {
-  const mod = await import('@/components/Chat/features/Input/ModelSelector');
+  const mod = await preloadModelSelectorModule();
   return { default: mod.ModelSelector };
 });
 
 const NotesTabRow = lazy(async () => {
-  const mod = await import('@/components/Notes/features/Tabs/NotesTabRow');
+  const mod = await preloadNotesTabRowModule();
   return { default: mod.NotesTabRow };
 });
 
@@ -91,8 +99,6 @@ function writeStoredTimestamp(key: string, value: number) {
 }
 
 export function AppContent() {
-  useAIStoreRuntimeEffects();
-
   const {
     appViewMode,
     sidebarCollapsed,
@@ -103,14 +109,39 @@ export function AppContent() {
     setAppViewMode,
   } = useUIStore();
   const { initialize } = useVaultStore();
-  const { showInTitleBar } = useTemporaryTogglePresentation();
-  const shouldShowTemporaryToggleInTitleBar =
-    showInTitleBar &&
-    appViewMode === 'chat';
 
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [hasOpenedSettings, setHasOpenedSettings] = useState(false);
+  const [mountedAppViews, setMountedAppViews] = useState(() => new Set([appViewMode]));
+  const [activeViewReady, setActiveViewReady] = useState(false);
+  const [shouldRenderDeferredChrome, setShouldRenderDeferredChrome] = useState(false);
+  const didReportStartupReadyRef = useRef(false);
   const [consoleCopyState, setConsoleCopyState] = useState<'idle' | 'copied' | 'failed'>('idle');
   const consoleCopyTimerRef = useRef<number | null>(null);
+
+  const handleActiveViewReady = useCallback(() => {
+    setActiveViewReady(true);
+    if (didReportStartupReadyRef.current) return;
+    didReportStartupReadyRef.current = true;
+    getElectronBridge()?.app?.reportStartupReady?.();
+    window.setTimeout(() => {
+      setShouldRenderDeferredChrome(true);
+    }, 0);
+  }, []);
+
+  useEffect(() => {
+    setMountedAppViews((views) => {
+      if (views.has(appViewMode)) return views;
+      return new Set([...views, appViewMode]);
+    });
+    setActiveViewReady(false);
+  }, [appViewMode]);
+
+  useEffect(() => {
+    if (settingsOpen) {
+      setHasOpenedSettings(true);
+    }
+  }, [settingsOpen]);
 
   useEffect(() => {
     const handleOpenSettings = () => setSettingsOpen(true);
@@ -149,12 +180,68 @@ export function AppContent() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!activeViewReady) return;
+
+    const preloadSecondaryView = () => {
+      if (appViewMode === 'notes') {
+        void preloadChatViewModule();
+        void preloadChatSidebarModule();
+        void preloadTemporaryChatToggleModule();
+        void preloadModelSelectorModule();
+        return;
+      }
+
+      if (appViewMode === 'chat') {
+        void preloadNotesViewModule();
+        void preloadNotesSidebarModule();
+        void preloadNotesTabRowModule();
+      }
+    };
+
+    let idleId: number | null = null;
+    const timeoutId = window.setTimeout(() => {
+      if ('requestIdleCallback' in window) {
+        idleId = window.requestIdleCallback(preloadSecondaryView, {
+          timeout: SECONDARY_VIEW_PRELOAD_IDLE_TIMEOUT_MS,
+        });
+        return;
+      }
+      preloadSecondaryView();
+    }, SECONDARY_VIEW_PRELOAD_DELAY_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      if (idleId !== null) {
+        window.cancelIdleCallback(idleId);
+      }
+    };
+  }, [activeViewReady, appViewMode]);
+
   useShortcuts();
   useSyncInit();
   useUnifiedExternalSync();
 
   useEffect(() => {
-    initialize();
+    if (!activeViewReady) return;
+
+    let cancelled = false;
+    void preloadAIStoreModule()
+      .then((mod) => {
+        if (cancelled) return;
+        mod.startAIStoreRuntimeEffects?.();
+      })
+      .catch((error) => {
+        console.error('Failed to start AI runtime effects after startup:', error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeViewReady]);
+
+  useEffect(() => {
+    void initialize();
   }, [initialize]);
 
   useEffect(() => {
@@ -257,35 +344,41 @@ export function AppContent() {
   }, []);
 
   const shouldRenderSidebar = appViewMode === 'chat' || appViewMode === 'notes';
+  const shouldMountNotes = mountedAppViews.has('notes');
+  const shouldMountChat = mountedAppViews.has('chat');
 
   const sidebarContent = shouldRenderSidebar ? (
     <div className="grid h-full min-h-0">
-      <div
-        className={cn(
-          'col-start-1 row-start-1 h-full min-h-0',
-          appViewMode !== 'chat' && 'pointer-events-none invisible',
-        )}
-        aria-hidden={appViewMode !== 'chat'}
-      >
-        <Suspense fallback={null}>
-          <ChatSidebar isPeeking={false} />
-        </Suspense>
-      </div>
-      <div
-        className={cn(
-          'col-start-1 row-start-1 h-full min-h-0',
-          appViewMode !== 'notes' && 'pointer-events-none invisible',
-        )}
-        aria-hidden={appViewMode !== 'notes'}
-      >
-        <Suspense fallback={null}>
-          <NotesSidebarWrapper isPeeking={false} />
-        </Suspense>
-      </div>
+      {shouldMountChat && shouldRenderDeferredChrome ? (
+        <div
+          className={cn(
+            'col-start-1 row-start-1 h-full min-h-0',
+            appViewMode !== 'chat' && 'pointer-events-none invisible',
+          )}
+          aria-hidden={appViewMode !== 'chat'}
+        >
+          <Suspense fallback={null}>
+            <ChatSidebar isPeeking={false} />
+          </Suspense>
+        </div>
+      ) : null}
+      {shouldMountNotes && shouldRenderDeferredChrome ? (
+        <div
+          className={cn(
+            'col-start-1 row-start-1 h-full min-h-0',
+            appViewMode !== 'notes' && 'pointer-events-none invisible',
+          )}
+          aria-hidden={appViewMode !== 'notes'}
+        >
+          <Suspense fallback={null}>
+            <NotesSidebarWrapper isPeeking={false} />
+          </Suspense>
+        </div>
+      ) : null}
     </div>
   ) : null;
 
-  const centerSlot = appViewMode === 'notes' ? (
+  const centerSlot = !shouldRenderDeferredChrome ? null : appViewMode === 'notes' ? (
     <Suspense fallback={null}>
       <NotesTabRow />
     </Suspense>
@@ -297,7 +390,7 @@ export function AppContent() {
     </Suspense>
   ) : null;
 
-  const rightSlot = shouldShowTemporaryToggleInTitleBar ? (
+  const rightSlot = shouldRenderDeferredChrome && appViewMode === 'chat' ? (
     <Suspense fallback={null}>
       <TemporaryChatToggle mode="promote" />
     </Suspense>
@@ -309,16 +402,26 @@ export function AppContent() {
     </Suspense>
   ) : (
     <>
-      <div className={cn('h-full', appViewMode !== 'notes' && 'hidden')} aria-hidden={appViewMode !== 'notes'}>
-        <Suspense fallback={null}>
-          <NotesView active={appViewMode === 'notes'} />
-        </Suspense>
-      </div>
-      <div className={cn('h-full', appViewMode !== 'chat' && 'hidden')} aria-hidden={appViewMode !== 'chat'}>
-        <Suspense fallback={null}>
-          <ChatView active={appViewMode === 'chat'} />
-        </Suspense>
-      </div>
+      {shouldMountNotes ? (
+        <div className={cn('h-full', appViewMode !== 'notes' && 'hidden')} aria-hidden={appViewMode !== 'notes'}>
+          <Suspense fallback={null}>
+            <NotesView
+              active={appViewMode === 'notes'}
+              onStartupReady={handleActiveViewReady}
+            />
+          </Suspense>
+        </div>
+      ) : null}
+      {shouldMountChat ? (
+        <div className={cn('h-full', appViewMode !== 'chat' && 'hidden')} aria-hidden={appViewMode !== 'chat'}>
+          <Suspense fallback={null}>
+            <ChatView
+              active={appViewMode === 'chat'}
+              onStartupReady={handleActiveViewReady}
+            />
+          </Suspense>
+        </div>
+      ) : null}
     </>
   );
 
@@ -381,7 +484,9 @@ export function AppContent() {
   return (
     <>
       <Suspense fallback={null}>
-        <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        {hasOpenedSettings ? (
+          <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        ) : null}
       </Suspense>
 
       <AppShell

@@ -1,14 +1,28 @@
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { ShortcutKeys } from '@/components/ui/shortcut-keys';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
-import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 
+const WorkspaceSwitcher = lazy(async () => {
+    const mod = await import('./WorkspaceSwitcher');
+    return { default: mod.WorkspaceSwitcher };
+});
+
 interface SidebarUserHeaderProps {
     toggleSidebar: () => void;
+}
+
+function WorkspaceSwitcherFallback() {
+    return (
+        <div className="vlaina-no-drag flex h-full w-[calc(100%-5.25rem)] min-w-0 items-center justify-start">
+            <span className="relative flex size-[26px] shrink-0 overflow-hidden rounded-[8px]">
+                <img src={`${import.meta.env.BASE_URL}logo.png?v=20260327`} alt="vlaina" className="h-full w-full object-cover shadow-sm" />
+            </span>
+        </div>
+    );
 }
 
 export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
@@ -52,7 +66,9 @@ export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
                     'vlaina-sidebar-user-header-pill flex h-8 w-full items-center justify-between rounded-full border border-transparent bg-transparent px-1 transition-[background-color,box-shadow]',
                 )}
             >
-                <WorkspaceSwitcher className="h-full w-[calc(100%-5.25rem)] min-w-0 justify-start" />
+                <Suspense fallback={<WorkspaceSwitcherFallback />}>
+                    <WorkspaceSwitcher className="h-full w-[calc(100%-5.25rem)] min-w-0 justify-start" />
+                </Suspense>
                 <div
                     className="vlaina-drag-region h-full min-w-12 flex-1 cursor-grab active:cursor-grabbing"
                     aria-hidden="true"
