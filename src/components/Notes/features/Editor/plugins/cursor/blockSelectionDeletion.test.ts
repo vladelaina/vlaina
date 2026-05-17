@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
-import { TextSelection } from '@milkdown/kit/prose/state';
+import { NodeSelection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
@@ -62,6 +62,11 @@ function createPreviewBlockNode(view: EditorView, typeName: 'math_block' | 'merm
     : nodeType.create({ code: 'graph TD\nA --> B' });
 }
 
+function findBlockByText(view: EditorView, text: string) {
+  const blocks = collectSelectableBlockRanges(view.state.doc);
+  return blocks.find((range) => view.state.doc.resolve(range.from).nodeAfter?.textContent === text);
+}
+
 afterEach(() => {
   document.body.innerHTML = '';
 });
@@ -83,22 +88,83 @@ function replaceWithOrderedListGapAndTaskList(view: EditorView): void {
 }
 
 describe('deleteSelectedBlocks', () => {
-  it('removes editor DOM focus after deletion', async () => {
+  it('focuses the editor after deletion', async () => {
     const editor = await createEditor('A\n\nB');
     const view = editor.ctx.get(editorViewCtx);
     const blocks = collectSelectableBlockRanges(view.state.doc);
 
     const focusSpy = vi.spyOn(view, 'focus');
-    const blurSpy = vi.spyOn(view.dom, 'blur');
     const requestAnimationFrameSpy = vi.spyOn(window, 'requestAnimationFrame');
 
     expect(deleteSelectedBlocks(view, [blocks[0]], (tr) => tr)).toBe(true);
-    expect(focusSpy).not.toHaveBeenCalled();
+    expect(focusSpy).toHaveBeenCalledTimes(1);
     expect(requestAnimationFrameSpy).not.toHaveBeenCalled();
-    expect(blurSpy).toHaveBeenCalledTimes(1);
     expect(view.state.doc.textContent).toBe('B');
 
     requestAnimationFrameSpy.mockRestore();
+    await editor.destroy();
+  });
+
+  it('places the cursor at the previous paragraph tail after deleting a middle block', async () => {
+    const editor = await createEditor('A\n\nB\n\nC');
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(deleteSelectedBlocks(view, [blocks[1]], (tr) => tr)).toBe(true);
+
+    expect(view.state.doc.textContent).toBe('AC');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.$from.parent.textContent).toBe('A');
+    expect(view.state.selection.$from.parentOffset).toBe(1);
+
+    await editor.destroy();
+  });
+
+  it('places the cursor at the next paragraph start after deleting the top block', async () => {
+    const editor = await createEditor('A\n\nB\n\nC');
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(deleteSelectedBlocks(view, [blocks[0]], (tr) => tr)).toBe(true);
+
+    expect(view.state.doc.textContent).toBe('BC');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(view.state.selection.$from.parent.textContent).toBe('B');
+    expect(view.state.selection.$from.parentOffset).toBe(0);
+
+    await editor.destroy();
+  });
+
+  it('selects the previous horizontal rule after deleting the block below it', async () => {
+    const editor = await createEditor(['Before', '', '---', '', 'Delete me', '', 'After'].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const targetBlock = findBlockByText(view, 'Delete me');
+
+    expect(targetBlock).toBeDefined();
+    expect(deleteSelectedBlocks(view, [targetBlock!], (tr) => tr)).toBe(true);
+
+    expect(view.state.selection).toBeInstanceOf(NodeSelection);
+    expect((view.state.selection as NodeSelection).node.type.name).toBe('hr');
+    expect(view.state.doc.textContent).toContain('Before');
+    expect(view.state.doc.textContent).toContain('After');
+    expect(view.state.doc.textContent).not.toContain('Delete me');
+
+    await editor.destroy();
+  });
+
+  it('selects the next horizontal rule after deleting the block above it', async () => {
+    const editor = await createEditor(['Delete me', '', '---', '', 'After'].join('\n'));
+    const view = editor.ctx.get(editorViewCtx);
+    const targetBlock = findBlockByText(view, 'Delete me');
+
+    expect(targetBlock).toBeDefined();
+    expect(deleteSelectedBlocks(view, [targetBlock!], (tr) => tr)).toBe(true);
+
+    expect(view.state.selection).toBeInstanceOf(NodeSelection);
+    expect((view.state.selection as NodeSelection).node.type.name).toBe('hr');
+    expect(view.state.doc.textContent).toContain('After');
+    expect(view.state.doc.textContent).not.toContain('Delete me');
+
     await editor.destroy();
   });
 
