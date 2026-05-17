@@ -27,11 +27,22 @@ files:
 asar: true
 artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 fileAssociations:
-  - ext:
-      - md
-      - markdown
-      - mdown
-      - mkd
+  - ext: md
+    name: Markdown Document
+    description: Markdown Document
+    mimeType: text/markdown
+    role: Editor
+  - ext: markdown
+    name: Markdown Document
+    description: Markdown Document
+    mimeType: text/markdown
+    role: Editor
+  - ext: mdown
+    name: Markdown Document
+    description: Markdown Document
+    mimeType: text/markdown
+    role: Editor
+  - ext: mkd
     name: Markdown Document
     description: Markdown Document
     mimeType: text/markdown
