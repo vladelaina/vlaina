@@ -266,7 +266,7 @@ describe("AIMessage", () => {
     expect(screen.queryByTestId("toolbar")).not.toBeInTheDocument();
   });
 
-  it("hides the managed model auth prompt after the account is connected", () => {
+  it("hides the managed model auth error after the account is connected", () => {
     useAccountSessionStore.setState({
       ...initialAccountSessionState,
       isConnected: true,
@@ -289,7 +289,7 @@ describe("AIMessage", () => {
       />,
     );
 
-    expect(screen.getByTestId("error")).toHaveAttribute("data-login-prompt", "false");
+    expect(screen.queryByTestId("error")).not.toBeInTheDocument();
     expect(screen.getByTestId("toolbar")).toBeInTheDocument();
   });
 

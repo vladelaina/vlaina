@@ -162,6 +162,7 @@ html, body, #root {
   --vlaina-color-accent: #1e96eb;
   --vlaina-color-accent-hover: #0c7fd9;
   --vlaina-color-accent-light: rgba(30, 150, 235, 0.1);
+  --vlaina-color-brand-pink: #f08aa6;
   --vlaina-color-caret: #41ace2;
   --vlaina-color-selection: #2781db;
   --vlaina-color-info: #3b82f6;
@@ -238,6 +239,7 @@ html, body, #root {
   --vlaina-color-border-shell: #333333;
   --vlaina-color-accent-hover: #5eabf7;
   --vlaina-color-accent-light: rgba(30, 150, 235, 0.15);
+  --vlaina-color-brand-pink: #f08aa6;
   --vlaina-color-info: #60a5fa;
   --vlaina-color-success: #4ade80;
   --vlaina-color-warning: #fbbf24;

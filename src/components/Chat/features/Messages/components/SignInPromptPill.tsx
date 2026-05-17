@@ -15,7 +15,7 @@ export function SignInPromptPill() {
         window.dispatchEvent(new Event(ACCOUNT_LOGIN_REQUESTED_EVENT));
       }}
       className={cn(
-        'group inline-flex h-9 cursor-pointer items-center gap-2 rounded-full px-3.5 text-sm font-medium text-[var(--chat-sidebar-text)] transition-all duration-200 active:scale-[0.985]',
+        'group inline-flex h-9 cursor-pointer items-center gap-2 rounded-full px-3.5 text-sm font-medium text-[var(--vlaina-color-brand-pink)] transition-all duration-200 active:scale-[0.985]',
         chatComposerPillSurfaceClass
       )}
     >
@@ -23,7 +23,7 @@ export function SignInPromptPill() {
       <Icon
         name="nav.arrowRight"
         size="sm"
-        className="text-[var(--chat-sidebar-text-soft)] transition-transform duration-200 ease-out group-hover:translate-x-1"
+        className="text-[var(--vlaina-color-brand-pink)] transition-transform duration-200 ease-out group-hover:translate-x-1"
       />
     </button>
   );

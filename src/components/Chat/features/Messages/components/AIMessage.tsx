@@ -93,6 +93,9 @@ export function AIMessage({
   const isManagedModelAuthError = !isAccountConnected
     && errorType === 'AUTH_ERROR'
     && isManagedModelMessage(msg.modelId);
+  const shouldHideManagedAuthError = isAccountConnected
+    && errorType === 'AUTH_ERROR'
+    && isManagedModelMessage(msg.modelId);
   const isManagedModelQuotaError = errorType === 'QUOTA_EXHAUSTED'
     && isManagedModelMessage(msg.modelId);
   const startTime = useMemo(() => {
@@ -148,7 +151,7 @@ export function AIMessage({
             />
         </div>
 
-        {errorContent && (
+        {errorContent && !shouldHideManagedAuthError && (
             <div className="mt-2">
                 <ErrorBlock 
                     type={errorType} 

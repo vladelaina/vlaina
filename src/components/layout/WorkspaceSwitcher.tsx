@@ -113,7 +113,8 @@ const WorkspaceSwitcherBase = ({ onOpenSettings, className }: WorkspaceSwitcherP
           <Popover.Content
             className={cn(
               'z-50 w-[260px] rounded-[26px] p-1.5 text-[var(--chat-sidebar-text)] select-none animate-in fade-in-0 zoom-in-95 duration-200 data-[side=bottom]:slide-in-from-top-2',
-              chatComposerPillSurfaceClass
+              chatComposerPillSurfaceClass,
+              '!shadow-none hover:!shadow-none'
             )}
             sideOffset={8}
             align="start"

@@ -4,6 +4,7 @@ import { extractWebSearchStatuses } from './webSearch/statusMarkup';
 import { stripThinkingContent } from './stripThinkingContent';
 
 const IMAGE_MARKDOWN_REGEX = /!\[.*?\]\(.*?\)/g;
+const ERROR_TAG_GLOBAL_REGEX = /<error(?: type="([^"]*)")?(?: code="([^"]*)")?>([\s\S]*?)<\/error>/gi;
 const REQUEST_HISTORY_MESSAGE_OVERHEAD = 48;
 const MAX_REQUEST_HISTORY_MESSAGES = 32;
 const MAX_REQUEST_HISTORY_CHARS = 24000;
@@ -30,14 +31,18 @@ export function formatTimeByOffset(offset: number, now = new Date()): string {
 export function sanitizeHistory(messages: ChatMessage[]): ChatMessage[] {
   return messages.map((msg) => {
     if (typeof msg.content !== 'string') return msg;
+    const contentWithoutUiErrors = msg.role === 'assistant'
+      ? msg.content.replace(ERROR_TAG_GLOBAL_REGEX, '').trim()
+      : msg.content;
+
     return {
       ...msg,
       content: extractWebSearchStatuses(
-        stripThinkingContent(msg.content).replace(IMAGE_MARKDOWN_REGEX, IMAGE_PLACEHOLDER)
+        stripThinkingContent(contentWithoutUiErrors).replace(IMAGE_MARKDOWN_REGEX, IMAGE_PLACEHOLDER)
       ).content,
       apiTranscript: msg.apiTranscript ?? msg.versions?.[msg.currentVersionIndex]?.apiTranscript,
     };
-  });
+  }).filter((msg) => msg.role !== 'assistant' || msg.content.trim().length > 0);
 }
 
 function createSystemMessage(content: string, modelId: string): ChatMessage {
