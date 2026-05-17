@@ -3,6 +3,7 @@ import {
   copyFile,
   mkdtemp,
   mkdir,
+  open,
   readdir,
   readFile,
   rename,
@@ -29,6 +30,43 @@ const { app, BrowserWindow, clipboard, dialog, shell } = electron;
 const activeAiProviderRequests = new Map();
 const HTTP_HEADER_NAME_PATTERN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 const IPC_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
+
+async function syncDirectoryBestEffort(dirPath) {
+  let handle = null;
+  try {
+    handle = await open(dirPath, 'r');
+    await handle.sync();
+  } catch {
+    // Directory fsync is not supported on every platform/filesystem.
+  } finally {
+    await handle?.close().catch(() => {});
+  }
+}
+
+export async function writeFileAtomically(filePath, content, options = {}) {
+  const openFile = options.openFile ?? open;
+  const dirPath = path.dirname(filePath);
+  const baseName = path.basename(filePath);
+  const tempPath = path.join(
+    dirPath,
+    `.${baseName}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`
+  );
+
+  let handle = null;
+  try {
+    handle = await openFile(tempPath, 'w');
+    await handle.writeFile(content);
+    await handle.sync();
+    await handle.close();
+    handle = null;
+    await rename(tempPath, filePath);
+    await syncDirectoryBestEffort(dirPath);
+  } catch (error) {
+    await handle?.close().catch(() => {});
+    await rm(tempPath, { force: true }).catch(() => {});
+    throw error;
+  }
+}
 
 function deleteActiveAiProviderRequest(requestId, controller) {
   if (activeAiProviderRequests.get(requestId) === controller) {
@@ -299,7 +337,7 @@ export function registerDesktopIpc({
   });
 
   handleIpc('desktop:fs:write-binary', async (_event, filePath, bytes) => {
-    await writeFile(await assertAuthorizedFsPath(filePath), Buffer.from(bytes));
+    await writeFileAtomically(await assertAuthorizedFsPath(filePath), Buffer.from(bytes));
   });
 
   handleIpc('desktop:fs:read-binary', async (_event, filePath) => {
@@ -319,11 +357,11 @@ export function registerDesktopIpc({
 
     if (options?.append) {
       const previous = await readFile(resolvedPath, 'utf8').catch(() => '');
-      await writeFile(resolvedPath, previous + String(content ?? ''));
+      await writeFileAtomically(resolvedPath, previous + String(content ?? ''));
       return;
     }
 
-    await writeFile(resolvedPath, String(content ?? ''));
+    await writeFileAtomically(resolvedPath, String(content ?? ''));
   });
 
   handleIpc('desktop:fs:exists', async (_event, filePath) => {

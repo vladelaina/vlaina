@@ -9,6 +9,7 @@ import fs from "fs";
 function spaFallbackPlugin(): Plugin {
   return {
     name: 'spa-fallback',
+    apply: 'build',
     closeBundle() {
       const distPath = path.resolve(__dirname, 'dist');
       const indexPath = path.join(distPath, 'index.html');
