@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -92,12 +92,60 @@ function createIcnsFromPng(pngBytes) {
   return output;
 }
 
+async function createMacIcon(sourcePath, targetPath, pngBytes) {
+  if (process.platform !== 'darwin') {
+    await writeFile(targetPath, createIcnsFromPng(pngBytes));
+    return;
+  }
+
+  const iconsetPath = path.join(buildDir, 'icon.iconset');
+  await rm(iconsetPath, { recursive: true, force: true });
+  await mkdir(iconsetPath, { recursive: true });
+
+  const iconSizes = [
+    ['icon_16x16.png', 16],
+    ['icon_16x16@2x.png', 32],
+    ['icon_32x32.png', 32],
+    ['icon_32x32@2x.png', 64],
+    ['icon_128x128.png', 128],
+    ['icon_128x128@2x.png', 256],
+    ['icon_256x256.png', 256],
+    ['icon_256x256@2x.png', 512],
+    ['icon_512x512.png', 512],
+    ['icon_512x512@2x.png', 1024],
+  ];
+
+  try {
+    for (const [filename, size] of iconSizes) {
+      execFileSync('sips', [
+        '-z',
+        String(size),
+        String(size),
+        sourcePath,
+        '--out',
+        path.join(iconsetPath, filename),
+      ], { stdio: 'pipe' });
+    }
+
+    execFileSync('iconutil', ['-c', 'icns', iconsetPath, '-o', targetPath], { stdio: 'pipe' });
+  } catch (error) {
+    if (error?.code !== 'ENOENT' && error?.code !== 'EPERM') {
+      throw error;
+    }
+
+    await writeFile(targetPath, createIcnsFromPng(pngBytes));
+    console.warn('macOS icon tools were unavailable; generated build/icon.icns from the source PNG instead.');
+  } finally {
+    await rm(iconsetPath, { recursive: true, force: true });
+  }
+}
+
 async function main() {
   const pngBytes = await readFile(sourcePngPath);
   await mkdir(buildDir, { recursive: true });
   await writeFile(targetPngPath, pngBytes);
   await createWindowsIcon(sourcePngPath, targetIcoPath, pngBytes);
-  await writeFile(targetIcnsPath, createIcnsFromPng(pngBytes));
+  await createMacIcon(sourcePngPath, targetIcnsPath, pngBytes);
   console.log(
     `Generated ${path.relative(projectRoot, targetPngPath)}, ${path.relative(projectRoot, targetIcoPath)}, and ${path.relative(projectRoot, targetIcnsPath)} from ${path.relative(projectRoot, sourcePngPath)}`,
   );
