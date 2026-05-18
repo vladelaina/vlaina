@@ -1,3 +1,15 @@
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/fddfaa4c-b085-40e7-98aa-bffbc0d1fe75" style="width:50%;">
+  </p>
+
+
+  
+<p align="center">
+    <img src="https://count.getloli.com/@vlaina?name=vlaina&theme=booru-qualityhentais&padding=7&offset=0&align=top&scale=1&pixelated=1&darkmode=auto" width="400">
+  </p>
+
+
 # vlaina
 
 `vlaina` is a local-first desktop workspace built with React, Vite, and Electron.
@@ -90,3 +102,13 @@ Tagged releases matching `v*` build Windows, macOS, and Linux x64/arm64 desktop 
 - If you previously mixed Windows and WSL installs, delete `node_modules` and reinstall from Windows.
 - Electron is now the only desktop runtime target in this repository.
 - Tauri runtime files, dependencies, compatibility layers, and data migrations are intentionally not supported.
+
+
+<div align="center">
+
+Copyright © 2026 - **vlaina**\
+By vladelaina\
+Made with ❤️ & ⌨️
+
+</div>
+
