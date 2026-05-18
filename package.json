@@ -6,6 +6,7 @@
   "homepage": "https://vlaina.com",
   "author": "vladelaina",
   "type": "module",
+  "packageManager": "pnpm@10.24.0",
   "main": "electron/main.mjs",
   "scripts": {
     "preinstall": "node scripts/ensure-not-wsl.mjs install",
