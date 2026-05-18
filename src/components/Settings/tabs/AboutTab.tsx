@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ExternalLink, RefreshCw } from 'lucide-react';
 import { getElectronBridge } from '@/lib/electron/bridge';
-import { openExternalHref } from '@/lib/navigation/externalLinks';
+import { getExternalLinkProps, openExternalHref } from '@/lib/navigation/externalLinks';
 import { cn } from '@/lib/utils';
 import { SettingsItem, SettingsSectionHeader } from '../components/SettingsControls';
 import { useI18n } from '@/lib/i18n';
@@ -77,15 +77,23 @@ export function AboutTab() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h2 className="text-[26px] font-semibold tracking-tight text-[var(--notes-sidebar-text)]">
-          vlaina
-        </h2>
-        <div className="mt-2 flex items-center gap-2 text-[12px] text-[var(--notes-sidebar-text-soft)]">
-          <span>{t('settings.about.version')}</span>
-          <span className="rounded-full bg-zinc-100 px-2 py-0.5 font-medium text-[var(--notes-sidebar-text)] dark:bg-white/10">
+      <div className="flex items-center gap-7 py-2">
+        <img
+          src="/logo.png"
+          alt="vlaina"
+          className="h-32 w-32 shrink-0 rounded-[28px] object-contain"
+          draggable={false}
+        />
+        <div className="min-w-0 pt-1">
+          <a
+            {...getExternalLinkProps('https://vlaina.com')}
+            className="inline-block max-w-full truncate text-[22px] font-semibold leading-7 text-[var(--vlaina-accent)]"
+          >
+            vlaina
+          </a>
+          <div className="mt-1 truncate text-[13px] font-normal leading-5 text-[var(--notes-sidebar-text-soft)] tabular-nums">
             {currentVersion || APP_VERSION}
-          </span>
+          </div>
         </div>
       </div>
 
