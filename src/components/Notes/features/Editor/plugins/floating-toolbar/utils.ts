@@ -1,5 +1,6 @@
 import type { ColorOption, BlockTypeConfig, BlockType } from './types';
 import { translate, type MessageKey } from '@/lib/i18n';
+import { sanitizeEditorLinkHref } from '../links/utils/linkHref';
 
 const TOOLBAR_COLOR_HEXES = [
   '#f1fdf3', '#e6f4e7', '#d1e9d3', '#99cda9',
@@ -58,14 +59,7 @@ export function isValidUrl(input: string): boolean {
   
   const trimmed = input.trim();
   if (trimmed !== input) return false;
-
-  const validPatterns = [
-    /^https?:\/\/.+/i,
-    /^mailto:.+/i,
-    /^\/.+/,
-  ];
-  
-  return validPatterns.some(pattern => pattern.test(trimmed));
+  return sanitizeEditorLinkHref(trimmed) !== null;
 }
 
 export function getBlockTypeLabel(blockType: BlockType): string {

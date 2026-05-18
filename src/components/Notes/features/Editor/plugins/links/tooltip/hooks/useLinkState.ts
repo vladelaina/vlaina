@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { normalizeEscapedUrlSchemes } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { BARE_DOMAIN_HREF_PATTERN } from '../../utils/constants';
 
 const EMAIL_ADDRESS_PATTERN = /^[A-Za-z0-9.!#$%&'*+/=?^_{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
 
@@ -23,6 +24,22 @@ function getPlainMailtoEmail(href: string, initialText: string): string | null {
     return email;
 }
 
+function getUserFacingAutolinkText(href: string, initialText: string): string {
+    const normalizedText = normalizeEscapedUrlSchemes(initialText).trim();
+    return normalizedText || normalizeEscapedUrlSchemes(href);
+}
+
+function isAutolinkTextForHref(href: string, initialText: string): boolean {
+    const normalizedHref = normalizeEscapedUrlSchemes(href).trim();
+    const normalizedText = normalizeEscapedUrlSchemes(initialText).trim();
+    if (!normalizedText) return true;
+    if (normalizedText === normalizedHref) return true;
+    if (normalizedText.startsWith('www.') && `https://${normalizedText}` === normalizedHref) return true;
+    if (BARE_DOMAIN_HREF_PATTERN.test(normalizedText) && `https://${normalizedText}` === normalizedHref) return true;
+    return normalizedHref.toLowerCase().startsWith('mailto:') &&
+        normalizedHref.slice('mailto:'.length) === normalizedText;
+}
+
 export function useLinkState({ href, initialText = '', autoFocus = false, onEdit, onClose }: UseLinkStateProps) {
     const isNewLink = !href;
     const [mode, setMode] = useState<'view' | 'edit'>(isNewLink ? 'edit' : 'view');
@@ -31,22 +48,26 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
 
     // Detect if this is an autolink (pure URL) vs a Markdown link [text](url)
     const isAutolink = useMemo(() => {
-        if (!initialText || initialText.trim() === '') return true;
-        return initialText === href || initialText.trim() === href.trim();
+        return isAutolinkTextForHref(href, initialText);
     }, [initialText, href]);
+
+    const userFacingUrl = useMemo(
+        () => isAutolink ? getUserFacingAutolinkText(href, initialText) : normalizeEscapedUrlSchemes(href),
+        [href, initialText, isAutolink]
+    );
 
     const getInitialEditText = () => {
         if (isAutolink) return '';
         return initialText;
     };
 
-    const [editUrl, setEditUrl] = useState(href);
+    const [editUrl, setEditUrl] = useState(userFacingUrl);
     const [editText, setEditText] = useState(getInitialEditText);
 
     useEffect(() => {
-        setEditUrl(href);
+        setEditUrl(userFacingUrl);
         setEditText(isAutolink ? '' : initialText);
-    }, [href, initialText, isAutolink]);
+    }, [userFacingUrl, initialText, isAutolink]);
 
     useEffect(() => () => {
         if (copyFeedbackTimerRef.current) {
@@ -83,10 +104,10 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
         const container = document.querySelector('.link-tooltip-container');
         container?.removeAttribute('data-editing');
 
-        setEditUrl(href);
+        setEditUrl(userFacingUrl);
         setEditText(isAutolink ? '' : initialText);
         onClose();
-    }, [href, initialText, isAutolink, onClose]);
+    }, [userFacingUrl, initialText, isAutolink, onClose]);
 
     const handleCopy = useCallback(() => {
         let copyText: string;
@@ -95,7 +116,7 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
         if (plainMailtoEmail) {
             copyText = plainMailtoEmail;
         } else if (isAutolink) {
-            copyText = normalizedHref;
+            copyText = userFacingUrl;
         } else {
             copyText = `[${initialText}](${normalizedHref})`;
         }
@@ -111,17 +132,9 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
                 setShowCopied(false);
             }, 2000);
         }, () => undefined);
-    }, [isAutolink, href, initialText]);
+    }, [isAutolink, href, initialText, userFacingUrl]);
 
-    const displayUrl = useMemo(() => {
-        try {
-            const url = new URL(href);
-            const cleanHost = url.hostname.replace(/^www\./, '');
-            return cleanHost + (url.pathname.length > 1 && url.pathname !== '/' ? url.pathname : '');
-        } catch {
-            return href;
-        }
-    }, [href]);
+    const displayUrl = userFacingUrl;
 
     return {
         mode, setMode,

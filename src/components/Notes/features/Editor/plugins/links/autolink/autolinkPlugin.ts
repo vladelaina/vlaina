@@ -12,7 +12,37 @@ interface LinkMatch {
     href: string;
 }
 
-function findUrls(text: string, offset: number): LinkMatch[] {
+function overlapsExistingMatch(start: number, end: number, matches: LinkMatch[]): boolean {
+    return matches.some((match) => start < match.end && end > match.start);
+}
+
+function hasUnbalancedTrailingCloseParen(url: string): boolean {
+    let balance = 0;
+    for (const char of url) {
+        if (char === '(') balance += 1;
+        if (char === ')') balance -= 1;
+    }
+    return balance < 0;
+}
+
+export function trimTrailingUrlPunctuation(url: string): string {
+    let trimmed = url;
+    while (trimmed.length > 0) {
+        const lastChar = trimmed[trimmed.length - 1];
+        if (/[.,;:!?]/.test(lastChar)) {
+            trimmed = trimmed.slice(0, -1);
+            continue;
+        }
+        if (lastChar === ')' && hasUnbalancedTrailingCloseParen(trimmed)) {
+            trimmed = trimmed.slice(0, -1);
+            continue;
+        }
+        break;
+    }
+    return trimmed;
+}
+
+export function findUrls(text: string, offset: number): LinkMatch[] {
     const matches: LinkMatch[] = [];
 
     for (const pattern of URL_PATTERNS) {
@@ -24,12 +54,12 @@ function findUrls(text: string, offset: number): LinkMatch[] {
             let url = match[0];
             let href = url;
 
-            // Clean up trailing punctuation
-            const trailingPunct = /[.,;:!?)]+$/;
-            const trailingMatch = url.match(trailingPunct);
-            if (trailingMatch) {
-                url = url.slice(0, -trailingMatch[0].length);
-                href = url;
+            url = trimTrailingUrlPunctuation(url);
+            href = url;
+            const start = offset + match.index;
+            const end = start + url.length;
+            if (overlapsExistingMatch(start, end, matches)) {
+                continue;
             }
 
             // Add protocol if missing
@@ -37,11 +67,13 @@ function findUrls(text: string, offset: number): LinkMatch[] {
                 href = 'https://' + url;
             } else if (url.includes('@') && !url.startsWith('mailto:')) {
                 href = 'mailto:' + url;
+            } else if (!/^https?:\/\//i.test(url)) {
+                href = 'https://' + url;
             }
 
             matches.push({
-                start: offset + match.index,
-                end: offset + match.index + url.length,
+                start,
+                end,
                 url,
                 href
             });

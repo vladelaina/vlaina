@@ -208,6 +208,55 @@ describe('selection helpers', () => {
     expect(getLinkUrl(mixedView)).toBeNull();
   });
 
+  it('does not treat a selected plain URL link as an active link command', () => {
+    const absoluteUrlView = createView(
+      [
+        {
+          ...createTextNode('https://example.com', [
+            { name: 'link', attrs: { href: 'https://example.com' } },
+          ]),
+          pos: 0,
+        },
+      ],
+      { from: 0, to: 19 },
+      {
+        0: [{ type: 'doc' }, { type: 'paragraph', before: 1 }],
+      }
+    );
+    const wwwUrlView = createView(
+      [
+        {
+          ...createTextNode('www.example.com', [
+            { name: 'link', attrs: { href: 'https://www.example.com' } },
+          ]),
+          pos: 0,
+        },
+      ],
+      { from: 0, to: 15 },
+      {
+        0: [{ type: 'doc' }, { type: 'paragraph', before: 1 }],
+      }
+    );
+    const bareDomainView = createView(
+      [
+        {
+          ...createTextNode('cati.me', [
+            { name: 'link', attrs: { href: 'https://cati.me' } },
+          ]),
+          pos: 0,
+        },
+      ],
+      { from: 0, to: 7 },
+      {
+        0: [{ type: 'doc' }, { type: 'paragraph', before: 1 }],
+      }
+    );
+
+    expect(getLinkUrl(absoluteUrlView)).toBeNull();
+    expect(getLinkUrl(wwwUrlView)).toBeNull();
+    expect(getLinkUrl(bareDomainView)).toBeNull();
+  });
+
   it('returns text and background colors only when the whole selection is consistent', () => {
     const consistentView = createView(
       [

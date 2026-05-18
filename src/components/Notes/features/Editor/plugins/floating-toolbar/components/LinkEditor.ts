@@ -18,7 +18,7 @@ export function renderLinkEditor(
     value: currentUrl,
     hint: 'Press Enter to bridge the link',
     autoFocus: shouldAutofocus,
-    validate: (value) => isValidUrl(value) || value.startsWith('/') || value.startsWith('#'),
+    validate: isValidUrl,
     onEmpty() {
       setLink(view, null);
       onClose();

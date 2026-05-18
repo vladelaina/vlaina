@@ -1,6 +1,6 @@
 import { Selection, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { sanitizeNoteLinkHref } from '@/lib/notes/markdown/urlSecurity';
+import { sanitizeEditorLinkHref } from '../links/utils/linkHref';
 
 function collapseSelectionAfterInlineApply(tr: EditorView['state']['tr'], pos: number): void {
   const clampedPos = Math.max(0, Math.min(pos, tr.doc.content.size));
@@ -65,7 +65,7 @@ export function setLink(view: EditorView, url: string | null): void {
     return;
   }
 
-  const safeUrl = sanitizeNoteLinkHref(url);
+  const safeUrl = sanitizeEditorLinkHref(url);
   const tr = safeUrl !== null
     ? state.tr.addMark(from, to, linkMark.create({ href: safeUrl }))
     : state.tr.removeMark(from, to, linkMark);

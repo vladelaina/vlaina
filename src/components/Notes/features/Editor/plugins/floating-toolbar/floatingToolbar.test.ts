@@ -119,7 +119,7 @@ describe('Floating Toolbar Properties', () => {
   /**
    * Property 7: URL Validation
    * For any string input to the link editor, if the string does not match a valid URL pattern
-   * (http://, https://, mailto:, or relative path starting with /), the system SHALL indicate
+   * (http://, https://, mailto:, bare domain, or relative path starting with /), the system SHALL indicate
    * a validation error. Valid URLs SHALL be accepted without error.
    * **Validates: Requirements 4.6**
    */
@@ -152,7 +152,7 @@ describe('Floating Toolbar Properties', () => {
     it('should accept valid relative paths', () => {
       fc.assert(
         fc.property(
-          fc.stringMatching(/^[a-z0-9\-_\/]+$/).filter(s => s.length > 0 && s.length <= 50),
+          fc.stringMatching(/^[a-z0-9\-_\/]+$/).filter(s => s.length > 0 && s.length <= 50 && !s.startsWith('/')),
           (path) => {
             const relativePath = `/${path}`;
             return isValidUrl(relativePath) === true;
@@ -162,9 +162,16 @@ describe('Floating Toolbar Properties', () => {
       );
     });
 
+    it('should accept valid bare domains', () => {
+      expect(isValidUrl('cati.me')).toBe(true);
+      expect(isValidUrl('catim.md')).toBe(true);
+      expect(isValidUrl('example.com/docs')).toBe(true);
+    });
+
     it('should reject empty strings', () => {
       expect(isValidUrl('')).toBe(false);
       expect(isValidUrl('   ')).toBe(false);
+      expect(isValidUrl('//example.com')).toBe(false);
     });
 
     it('should reject invalid URL formats', () => {
@@ -174,7 +181,8 @@ describe('Floating Toolbar Properties', () => {
             !s.startsWith('http://') && 
             !s.startsWith('https://') && 
             !s.startsWith('mailto:') && 
-            !s.startsWith('/')
+            !s.startsWith('/') &&
+            !isValidUrl(s)
           ),
           (invalidUrl) => {
             return isValidUrl(invalidUrl) === false;

@@ -111,6 +111,26 @@ describe('shouldHandleMarkdownLinkPaste', () => {
     await editor.destroy();
   });
 
+  it('pastes protocol-relative markdown links as plain text', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(markdownLinkPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, '[Bad](//example.com)')).toBe(true);
+
+    expect(view.state.doc.textContent).toBe('Bad');
+    const linkMark = view.state.schema.marks.link;
+    expect(view.state.doc.rangeHasMark(0, view.state.doc.content.size, linkMark)).toBe(false);
+
+    await editor.destroy();
+  });
+
   it('pastes markdown links with titles using only the href for the link mark', async () => {
     const editor = Editor.make()
       .config((ctx) => {
@@ -145,6 +165,44 @@ describe('shouldHandleMarkdownLinkPaste', () => {
 
     const serializer = editor.ctx.get(serializerCtx);
     expect(serializer(view.state.doc).trim()).toBe('[Docs](https://example.com/path)');
+
+    await editor.destroy();
+  });
+
+  it('normalizes bare domains in explicit markdown links', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(markdownLinkPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, '[Docs](catim.md)')).toBe(true);
+
+    const serializer = editor.ctx.get(serializerCtx);
+    expect(serializer(view.state.doc).trim()).toBe('[Docs](https://catim.md)');
+
+    await editor.destroy();
+  });
+
+  it('preserves explicit relative markdown links', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(markdownLinkPlugin);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+
+    expect(simulatePasteText(view, '[Docs](docs/safe.md)')).toBe(true);
+
+    const serializer = editor.ctx.get(serializerCtx);
+    expect(serializer(view.state.doc).trim()).toBe('[Docs](docs/safe.md)');
 
     await editor.destroy();
   });

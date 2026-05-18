@@ -202,9 +202,10 @@
 }
 
 .link-tooltip-viewer {
+  align-items: flex-start;
   gap: 0.5rem;
   min-height: 36px;
-  padding: 0 0.375rem;
+  padding: 0.375rem;
 }
 
 .link-tooltip-editor {
@@ -215,11 +216,16 @@
 }
 
 .link-tooltip-open-btn {
+  flex: 1 1 auto;
+  align-items: flex-start;
   justify-content: flex-start;
   gap: 0.5rem;
   min-width: 0;
-  height: 24px;
+  width: 100%;
+  height: auto;
+  min-height: 24px;
   padding: 2px 0.625rem 2px 0.5rem;
+  white-space: normal;
 }
 
 .link-tooltip-action-btn {
