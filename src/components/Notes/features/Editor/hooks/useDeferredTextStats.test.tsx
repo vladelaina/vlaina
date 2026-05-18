@@ -33,7 +33,7 @@ describe('useDeferredTextStats', () => {
   });
 
   it('defers large document stats while the user is typing', () => {
-    const initialText = `${'word '.repeat(20_001)}tail`;
+    const initialText = `${'a'.repeat(20_001)} tail`;
     const nextText = `${initialText} next`;
     const { result, rerender } = renderHook(
       ({ text }) => useDeferredTextStats('large.md', text),
