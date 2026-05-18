@@ -6,7 +6,7 @@ import { decodeSecretRecord, encodeSecretRecord } from './secureSecretRecord.mjs
 const { app, safeStorage } = electron;
 
 export function isSupportedAccountProvider(provider) {
-  return provider === 'github' || provider === 'google' || provider === 'email';
+  return provider === 'google' || provider === 'email';
 }
 
 export function normalizeDesktopAccountProvider(provider, fallback = null) {

@@ -73,7 +73,7 @@ export function loadPersistedUser(): Partial<AccountSessionState> {
     }
 
     const parsed = JSON.parse(raw) as Partial<AccountSessionState>;
-    const provider = parsed.provider === 'github' || parsed.provider === 'google' || parsed.provider === 'email'
+    const provider = parsed.provider === 'google' || parsed.provider === 'email'
       ? parsed.provider
       : null;
     const membershipTier =

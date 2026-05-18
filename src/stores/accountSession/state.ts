@@ -1,4 +1,4 @@
-export type AccountProvider = 'github' | 'google' | 'email';
+export type AccountProvider = 'google' | 'email';
 export type MembershipTier = 'free' | 'plus' | 'pro' | 'max';
 
 export interface AccountSessionState {

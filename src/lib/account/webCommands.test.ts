@@ -80,7 +80,7 @@ describe('webAccountCommands', () => {
   it('preserves metadata when the cookie session is unauthorized', async () => {
     sessionStorage.setItem(
       'vlaina_account_session',
-      JSON.stringify({ provider: 'github', username: 'octocat', avatarUrl: 'https://example.com/avatar.png' })
+      JSON.stringify({ provider: 'google', username: 'octocat', avatarUrl: 'https://example.com/avatar.png' })
     );
     localStorage.setItem(
       'vlaina_account_identity',
@@ -93,7 +93,7 @@ describe('webAccountCommands', () => {
     const status = await webAccountCommands.probeStatus();
 
     expect(status.connected).toBe(true);
-    expect(status.provider).toBe('github');
+    expect(status.provider).toBe('google');
     expect(status.username).toBe('octocat');
     expect(sessionStorage.getItem('vlaina_account_session')).not.toBeNull();
     expect(localStorage.getItem('vlaina_account_identity')).not.toBeNull();
@@ -104,7 +104,7 @@ describe('webAccountCommands', () => {
     sessionStorage.setItem(
       'vlaina_account_session',
       JSON.stringify({
-        provider: 'github',
+        provider: 'google',
         username: 'octocat',
         primaryEmail: 'octocat@example.com',
         avatarUrl: 'https://example.com/avatar.png',
@@ -118,7 +118,7 @@ describe('webAccountCommands', () => {
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(status.connected).toBe(true);
-    expect(status.provider).toBe('github');
+    expect(status.provider).toBe('google');
     expect(status.username).toBe('octocat');
   });
 
@@ -149,7 +149,7 @@ describe('webAccountCommands', () => {
   it('revokes the cookie session before clearing client metadata', async () => {
     sessionStorage.setItem(
       'vlaina_account_session',
-      JSON.stringify({ provider: 'github', username: 'octocat', avatarUrl: 'https://example.com/avatar.png' })
+      JSON.stringify({ provider: 'google', username: 'octocat', avatarUrl: 'https://example.com/avatar.png' })
     );
 
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 });
@@ -168,7 +168,7 @@ describe('webAccountCommands', () => {
   it('preserves metadata when revoke fails so logout can be retried', async () => {
     sessionStorage.setItem(
       'vlaina_account_session',
-      JSON.stringify({ provider: 'github', username: 'octocat', avatarUrl: 'https://example.com/avatar.png' })
+      JSON.stringify({ provider: 'google', username: 'octocat', avatarUrl: 'https://example.com/avatar.png' })
     );
 
     const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 500 });

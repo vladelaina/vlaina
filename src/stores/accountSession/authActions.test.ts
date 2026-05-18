@@ -21,7 +21,7 @@ const mocks = vi.hoisted(() => ({
     handleAuthCallback: vi.fn(),
   },
   normalizeAccountProvider: vi.fn((value) => value ?? null),
-  isOauthAccountProvider: vi.fn((value) => value === 'github' || value === 'google'),
+  isOauthAccountProvider: vi.fn((value) => value === 'google'),
   persistUser: vi.fn(),
   refreshAvatar: vi.fn().mockResolvedValue(undefined),
   clearAuthIntent: vi.fn(() => {
@@ -342,7 +342,7 @@ describe('accountSession auth actions', () => {
     sessionStorage.setItem('vlaina_auth_state', 'expected-state');
     sessionStorage.setItem('vlaina_auth_provider', 'google');
     mocks.webAccountCommands.handleAuthCallback.mockReturnValue({
-      provider: 'github',
+      provider: 'google',
       state: 'wrong-state',
       error: null,
     });

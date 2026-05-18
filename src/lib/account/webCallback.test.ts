@@ -8,11 +8,11 @@ describe('web account callback parsing', () => {
   });
 
   it('parses successful oauth callbacks and clears the query string', () => {
-    window.history.replaceState({}, '', '/callback?provider=github&state=abc&code=123');
+    window.history.replaceState({}, '', '/callback?provider=google&state=abc&code=123');
     const replaceSpy = vi.spyOn(window.history, 'replaceState');
 
     expect(handleWebAccountAuthCallback()).toEqual({
-      provider: 'github',
+      provider: 'google',
       state: 'abc',
       error: null,
       code: '123',
@@ -32,10 +32,10 @@ describe('web account callback parsing', () => {
   });
 
   it('parses callback errors', () => {
-    window.history.replaceState({}, '', '/callback?provider=github&auth_error=denied&state=oops');
+    window.history.replaceState({}, '', '/callback?provider=google&auth_error=denied&state=oops');
 
     expect(handleWebAccountAuthCallback()).toEqual({
-      provider: 'github',
+      provider: 'google',
       state: 'oops',
       error: 'denied',
       code: null,
@@ -44,6 +44,12 @@ describe('web account callback parsing', () => {
 
   it('returns null when no auth callback fields are present', () => {
     window.history.replaceState({}, '', '/callback?foo=bar');
+
+    expect(handleWebAccountAuthCallback()).toBeNull();
+  });
+
+  it('ignores unsupported oauth providers', () => {
+    window.history.replaceState({}, '', '/callback?provider=github&state=abc&code=123');
 
     expect(handleWebAccountAuthCallback()).toBeNull();
   });

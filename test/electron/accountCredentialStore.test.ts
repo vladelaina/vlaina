@@ -51,7 +51,7 @@ describe('accountCredentialStore', () => {
 
     await store.writeStoredAccountCredentials({
       appSessionToken: 'nts_super_secret_token',
-      provider: 'github',
+      provider: 'google',
       username: 'alice',
       primaryEmail: 'alice@example.com',
       avatarUrl: null,

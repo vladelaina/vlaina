@@ -33,12 +33,12 @@ interface SessionStatusResponse {
   membershipName?: string | null;
 }
 
-function authStartPath(provider: Exclude<AccountProvider, 'email'>): string {
-  return provider === 'google' ? '/auth/google' : '/auth/github';
+function authStartPath(_provider: Exclude<AccountProvider, 'email'>): string {
+  return '/auth/google';
 }
 
-function webResultPath(provider: Exclude<AccountProvider, 'email'>): string {
-  return provider === 'google' ? '/auth/google/web/result' : '/auth/github/web/result';
+function webResultPath(_provider: Exclude<AccountProvider, 'email'>): string {
+  return '/auth/google/web/result';
 }
 
 interface NormalizedWebAccountResult {

@@ -16,7 +16,7 @@ describe('web account session helpers', () => {
     sessionStorage.clear();
 
     saveWebAccountCredentials({
-      provider: 'github',
+      provider: 'google',
       username: 'vla',
       primaryEmail: 'vla@example.com',
       avatarUrl: 'https://example.com/avatar.png',
@@ -25,7 +25,7 @@ describe('web account session helpers', () => {
     });
 
     expect(loadWebAccountCredentials()).toEqual({
-      provider: 'github',
+      provider: 'google',
       username: 'vla',
       primaryEmail: 'vla@example.com',
       avatarUrl: 'https://example.com/avatar.png',
@@ -40,7 +40,7 @@ describe('web account session helpers', () => {
     });
 
     expect(() => saveWebAccountCredentials({
-      provider: 'github',
+      provider: 'google',
       username: 'vla',
     })).not.toThrow();
   });

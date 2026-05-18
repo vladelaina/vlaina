@@ -59,7 +59,7 @@ describe('loadPersistedUser', () => {
 
     expect(() => persistUser({
       isConnected: true,
-      provider: 'github',
+      provider: 'google',
       username: 'vla',
       primaryEmail: null,
       avatarUrl: null,
@@ -70,7 +70,7 @@ describe('loadPersistedUser', () => {
 
   it('ignores unavailable sessionStorage when clearing auth intent', () => {
     sessionStorage.setItem(AUTH_STATE_STORAGE_KEY, 'state');
-    sessionStorage.setItem(AUTH_PROVIDER_STORAGE_KEY, 'github');
+    sessionStorage.setItem(AUTH_PROVIDER_STORAGE_KEY, 'google');
     vi.spyOn(sessionStorage, 'removeItem').mockImplementation(() => {
       throw new Error('storage unavailable');
     });

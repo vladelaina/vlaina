@@ -7,7 +7,7 @@ describe('accountSession store', () => {
   it('clears in-memory auth state when the web session is invalidated', () => {
     useAccountSessionStore.setState({
       isConnected: true,
-      provider: 'github',
+      provider: 'google',
       username: 'octocat',
       primaryEmail: null,
       avatarUrl: 'https://example.com/avatar.png',

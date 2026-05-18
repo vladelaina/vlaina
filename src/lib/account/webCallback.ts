@@ -11,6 +11,7 @@ export interface WebAccountAuthCallback {
 export function handleWebAccountAuthCallback(): WebAccountAuthCallback | null {
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
+  const rawProvider = params.get('auth_provider') || params.get('provider');
   const provider =
     normalizeAccountProvider(params.get('auth_provider')) || normalizeAccountProvider(params.get('provider'));
   const providerState = params.get('state');
@@ -19,6 +20,10 @@ export function handleWebAccountAuthCallback(): WebAccountAuthCallback | null {
   const callbackError = params.get('error');
 
   const cleanup = () => window.history.replaceState({}, '', window.location.pathname);
+
+  if (rawProvider && !provider) {
+    return null;
+  }
 
   if (error || callbackError) {
     cleanup();
@@ -30,7 +35,7 @@ export function handleWebAccountAuthCallback(): WebAccountAuthCallback | null {
     return { provider, state, error: null, code };
   }
 
-  if (providerState && code) {
+  if (provider && providerState && code) {
     cleanup();
     return { provider, state: providerState, error: null, code };
   }
