@@ -217,10 +217,18 @@ export function createToolbarEventDelegation(
     hideTooltip();
   };
 
+  const handleToolbarMouseLeave = () => {
+    if (currentView) {
+      clearFormatPreview(currentView);
+    }
+    hideTooltip();
+  };
+
   toolbarElement.addEventListener('mousedown', handleMouseDown);
   toolbarElement.addEventListener('click', handleClick);
   toolbarElement.addEventListener('mouseover', handleMouseOver);
   toolbarElement.addEventListener('mouseout', handleMouseOut);
+  toolbarElement.addEventListener('mouseleave', handleToolbarMouseLeave);
 
   return {
     update(view, state) {
@@ -238,6 +246,7 @@ export function createToolbarEventDelegation(
       toolbarElement.removeEventListener('click', handleClick);
       toolbarElement.removeEventListener('mouseover', handleMouseOver);
       toolbarElement.removeEventListener('mouseout', handleMouseOut);
+      toolbarElement.removeEventListener('mouseleave', handleToolbarMouseLeave);
 
       hideTooltip();
       actionController.destroy();

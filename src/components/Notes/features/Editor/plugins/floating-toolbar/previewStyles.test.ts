@@ -22,6 +22,7 @@ import {
   hasBlockPreview,
   hasFormatPreview,
 } from './previewStyles';
+import { renderAppliedPreviewDocument } from './appliedPreviewState';
 import { EXTRA_BUTTONS, FORMAT_BUTTONS } from './toolbarConfig';
 import { BLOCK_TYPES } from './utils';
 
@@ -275,6 +276,145 @@ describe('previewStyles', () => {
     expect(view.state.doc).toBe(originalDoc);
 
     clearFormatPreview(view);
+    await editor.destroy();
+    host.remove();
+  });
+
+  it('mirrors source list layout in applied preview documents', async () => {
+    const { editor, host, view } = await createEditor('seed');
+    const SchemaCtor = view.state.schema.constructor as any;
+    const EditorStateCtor = view.state.constructor as any;
+    const schema = new SchemaCtor({
+      nodes: {
+        doc: { content: 'bullet_list' },
+        bullet_list: {
+          content: 'list_item+',
+          toDOM: () => ['ul', 0],
+        },
+        list_item: {
+          content: 'paragraph bullet_list?',
+          toDOM: () => ['li', 0],
+        },
+        paragraph: {
+          content: 'text*',
+          toDOM: () => ['p', 0],
+        },
+        text: { group: 'inline' },
+      },
+    });
+    const state = EditorStateCtor.create({
+      schema,
+      doc: schema.node('doc', null, [
+        schema.node('bullet_list', null, [
+          schema.node('list_item', null, [
+            schema.node('paragraph', null, [schema.text('parent')]),
+            schema.node('bullet_list', null, [
+              schema.node('list_item', null, [
+                schema.node('paragraph', null, [schema.text('child')]),
+              ]),
+            ]),
+          ]),
+        ]),
+      ]),
+    });
+    const sourceDom = document.createElement('div');
+    sourceDom.className = 'ProseMirror';
+    sourceDom.innerHTML = '<ul><li><p>parent</p><ul><li><p>child</p></li></ul></li></ul>';
+    const sourceListItem = sourceDom.querySelector<HTMLElement>('li');
+    const sourceNestedList = sourceDom.querySelector<HTMLElement>('li > ul');
+    if (!sourceListItem || !sourceNestedList) {
+      throw new Error('Expected nested list DOM');
+    }
+
+    sourceListItem.style.lineHeight = '32px';
+    sourceListItem.style.marginTop = '11px';
+    sourceNestedList.classList.add('vlaina-collapsed-content');
+
+    const previewDom = renderAppliedPreviewDocument(state, sourceDom, document);
+    const previewListItem = previewDom.querySelector<HTMLElement>('li');
+    const previewNestedList = previewDom.querySelector<HTMLElement>('li > ul');
+    expect(previewListItem?.style.lineHeight).toBe('32px');
+    expect(previewListItem?.style.marginTop).toBe('11px');
+    expect(previewNestedList?.classList.contains('vlaina-collapsed-content')).toBe(true);
+
+    await editor.destroy();
+    host.remove();
+  });
+
+  it('preserves rendered image block node views in applied preview documents', async () => {
+    const { editor, host, view } = await createEditor('seed');
+    const SchemaCtor = view.state.schema.constructor as any;
+    const EditorStateCtor = view.state.constructor as any;
+    const schema = new SchemaCtor({
+      nodes: {
+        doc: { content: 'paragraph' },
+        paragraph: {
+          content: 'image',
+          toDOM: () => ['p', 0],
+        },
+        image: {
+          inline: true,
+          group: 'inline',
+          atom: true,
+          attrs: { src: { default: '' }, alt: { default: '' } },
+          toDOM: (node: any) => ['img', { src: node.attrs.src, alt: node.attrs.alt }],
+        },
+        text: { group: 'inline' },
+      },
+    });
+    const state = EditorStateCtor.create({
+      schema,
+      doc: schema.node('doc', null, [
+        schema.node('paragraph', null, [
+          schema.node('image', { src: 'image.png', alt: 'preview' }),
+        ]),
+      ]),
+    });
+    const sourceDom = document.createElement('div');
+    sourceDom.className = 'ProseMirror';
+    sourceDom.innerHTML = '<p><div class="image-block-container"><img src="resolved-image.png" alt="preview"><button>Resize</button></div></p>';
+
+    const previewDom = renderAppliedPreviewDocument(state, sourceDom, document);
+    const previewImageBlock = previewDom.querySelector<HTMLElement>('.image-block-container');
+    expect(previewImageBlock).toBeInstanceOf(HTMLElement);
+    expect(previewImageBlock?.querySelector('button')).toBeInstanceOf(HTMLButtonElement);
+    expect(previewImageBlock?.querySelector('button')?.hasAttribute('tabindex')).toBe(false);
+    expect(previewDom.querySelector('p > img')).toBeNull();
+
+    await editor.destroy();
+    host.remove();
+  });
+
+  it('preserves rendered frontmatter node views in applied preview documents', async () => {
+    const { editor, host, view } = await createEditor('seed');
+    const SchemaCtor = view.state.schema.constructor as any;
+    const EditorStateCtor = view.state.constructor as any;
+    const schema = new SchemaCtor({
+      nodes: {
+        doc: { content: 'frontmatter' },
+        frontmatter: {
+          content: 'text*',
+          toDOM: () => ['div', { 'data-type': 'frontmatter', class: 'frontmatter-block-container' }, 0],
+        },
+        text: { group: 'inline' },
+      },
+    });
+    const state = EditorStateCtor.create({
+      schema,
+      doc: schema.node('doc', null, [
+        schema.node('frontmatter', null, [schema.text('title: Test')]),
+      ]),
+    });
+    const sourceDom = document.createElement('div');
+    sourceDom.className = 'ProseMirror';
+    sourceDom.innerHTML = '<div data-type="frontmatter" class="frontmatter-block-container"><div class="frontmatter-block-editor"><div class="cm-editor" tabindex="0">title: Test</div></div></div>';
+
+    const previewDom = renderAppliedPreviewDocument(state, sourceDom, document);
+    const previewFrontmatter = previewDom.querySelector<HTMLElement>('.frontmatter-block-container');
+    expect(previewFrontmatter).toBeInstanceOf(HTMLElement);
+    expect(previewFrontmatter?.querySelector('.cm-editor')).toBeInstanceOf(HTMLElement);
+    expect(previewFrontmatter?.querySelector('.cm-editor')?.hasAttribute('tabindex')).toBe(false);
+
     await editor.destroy();
     host.remove();
   });

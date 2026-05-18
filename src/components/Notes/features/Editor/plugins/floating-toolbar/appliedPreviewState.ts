@@ -59,7 +59,10 @@ export function renderAppliedPreviewDocument(
     // live editor so hover previews stay equivalent to the committed result.
     renderCodeBlockNodeViewPreviews(previewDom, state, view);
   }
+  preserveSourceImageBlockNodeViews(previewDom, sourceDom);
+  preserveSourceFrontmatterNodeViews(previewDom, sourceDom);
   preserveSourceRenderedAtomNodes(previewDom, sourceDom);
+  stabilizePreviewListLayout(previewDom, sourceDom);
   stabilizePreviewRootTypography(previewDom, sourceDom);
   return previewDom;
 }
@@ -91,6 +94,88 @@ function stabilizePreviewRootTypography(previewDom: HTMLElement, sourceDom: HTML
     if (value) {
       previewDom.style[prop] = value;
     }
+  });
+}
+
+const LIST_COLLAPSED_CONTENT_CLASS = 'vlaina-collapsed-content';
+
+const LIST_LAYOUT_SELECTOR = 'ul, ol, li, li > p, li > [data-text-align]';
+
+const LIST_LAYOUT_STYLE_PROPS = [
+  'alignItems',
+  'columnGap',
+  'display',
+  'flexBasis',
+  'flexGrow',
+  'flexShrink',
+  'flexWrap',
+  'justifyContent',
+  'lineHeight',
+  'listStylePosition',
+  'listStyleType',
+  'marginBottom',
+  'marginLeft',
+  'marginRight',
+  'marginTop',
+  'maxWidth',
+  'minWidth',
+  'paddingBottom',
+  'paddingLeft',
+  'paddingRight',
+  'paddingTop',
+  'rowGap',
+  'width',
+] as const;
+
+function getListLayoutSignature(element: HTMLElement): string {
+  const parentListItem = element.closest('li');
+  const parentSignature = parentListItem && parentListItem !== element
+    ? `:${parentListItem.dataset.itemType ?? ''}:${parentListItem.dataset.listType ?? ''}`
+    : '';
+  return [
+    element.tagName,
+    element.dataset.itemType ?? '',
+    element.dataset.listType ?? '',
+    element.dataset.textAlign ?? '',
+    parentSignature,
+  ].join(':');
+}
+
+function canMirrorListLayout(sourceElement: HTMLElement, previewElement: HTMLElement): boolean {
+  return (
+    sourceElement.tagName === previewElement.tagName &&
+    getListLayoutSignature(sourceElement) === getListLayoutSignature(previewElement)
+  );
+}
+
+function stabilizePreviewListLayout(previewDom: HTMLElement, sourceDom: HTMLElement | null): void {
+  if (!sourceDom || typeof window === 'undefined') {
+    return;
+  }
+
+  const sourceElements = Array.from(sourceDom.querySelectorAll<HTMLElement>(LIST_LAYOUT_SELECTOR));
+  const previewElements = Array.from(previewDom.querySelectorAll<HTMLElement>(LIST_LAYOUT_SELECTOR));
+  if (sourceElements.length !== previewElements.length) {
+    return;
+  }
+
+  sourceElements.forEach((sourceElement, index) => {
+    const previewElement = previewElements[index];
+    if (!previewElement || !canMirrorListLayout(sourceElement, previewElement)) {
+      return;
+    }
+
+    if (sourceElement.classList.contains(LIST_COLLAPSED_CONTENT_CLASS)) {
+      previewElement.classList.add(LIST_COLLAPSED_CONTENT_CLASS);
+    }
+
+    const computed = window.getComputedStyle(sourceElement);
+    LIST_LAYOUT_STYLE_PROPS.forEach((prop) => {
+      const value = computed[prop];
+      if (value) {
+        previewElement.style[prop] = value;
+      }
+    });
   });
 }
 
@@ -183,6 +268,60 @@ function preserveSourceCodeBlockNodeViews(previewDom: HTMLElement, sourceDom: HT
     previewCodeBlock.replaceWith(clone);
   });
   return true;
+}
+
+function preserveSourceImageBlockNodeViews(previewDom: HTMLElement, sourceDom: HTMLElement | null): void {
+  if (!sourceDom) {
+    return;
+  }
+
+  const sourceImages = Array.from(sourceDom.querySelectorAll<HTMLElement>('.image-block-container'));
+  if (sourceImages.length === 0) {
+    return;
+  }
+
+  const previewImages = Array.from(previewDom.querySelectorAll<HTMLElement>('img'));
+  if (previewImages.length !== sourceImages.length) {
+    return;
+  }
+
+  previewImages.forEach((previewImage, index) => {
+    const sourceImage = sourceImages[index];
+    if (!sourceImage) {
+      return;
+    }
+
+    const clone = sourceImage.cloneNode(true) as HTMLElement;
+    makePreviewCloneNonInteractive(clone);
+    previewImage.replaceWith(clone);
+  });
+}
+
+function preserveSourceFrontmatterNodeViews(previewDom: HTMLElement, sourceDom: HTMLElement | null): void {
+  if (!sourceDom) {
+    return;
+  }
+
+  const sourceFrontmatters = Array.from(sourceDom.querySelectorAll<HTMLElement>('.frontmatter-block-container'));
+  if (sourceFrontmatters.length === 0) {
+    return;
+  }
+
+  const previewFrontmatters = Array.from(previewDom.querySelectorAll<HTMLElement>('[data-type="frontmatter"]'));
+  if (previewFrontmatters.length !== sourceFrontmatters.length) {
+    return;
+  }
+
+  previewFrontmatters.forEach((previewFrontmatter, index) => {
+    const sourceFrontmatter = sourceFrontmatters[index];
+    if (!sourceFrontmatter) {
+      return;
+    }
+
+    const clone = sourceFrontmatter.cloneNode(true) as HTMLElement;
+    makePreviewCloneNonInteractive(clone);
+    previewFrontmatter.replaceWith(clone);
+  });
 }
 
 function getRenderedAtomSignature(element: HTMLElement): string | null {
