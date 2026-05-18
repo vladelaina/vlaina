@@ -26,9 +26,7 @@ export function NotesSidebarPanel({
   const appViewMode = useUIStore((s) => s.appViewMode);
   const sidebarView = useUIStore((s) => s.notesSidebarView);
   const search = useNotesSidebarSearch(appViewMode === 'notes');
-  const effectiveSidebarView = currentNotePath && !isDraftNotePath(currentNotePath)
-    ? sidebarView
-    : 'workspace';
+  const effectiveSidebarView = sidebarView;
 
   return (
     <NotesSidebarSurface isPeeking={isPeeking} className="min-h-0">

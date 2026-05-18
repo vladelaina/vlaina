@@ -13,7 +13,11 @@ import { useUIStore } from '@/stores/uiSlice';
 import { isDraftNoteEmpty, isDraftNotePath, resolveDraftNoteTitle } from '@/stores/notes/draftNote';
 import { StarredSection } from '../Starred';
 import { triggerHoveredSidebarRename } from '../common/sidebarHoverRename';
-import { NotesSidebarHoverEmptyHint, NotesSidebarScrollArea } from './NotesSidebarPrimitives';
+import {
+  NotesSidebarHoverEmptyHint,
+  NotesSidebarPillEmptyHint,
+  NotesSidebarScrollArea,
+} from './NotesSidebarPrimitives';
 import { NotesSidebarTopActions } from './NotesSidebarTopActions';
 import { RootFolderRow } from './RootFolderRow';
 import { SidebarSearchResultsList } from './SidebarSearchResultsList';
@@ -172,7 +176,6 @@ export function SidebarContent({
   const wasShowingSearchResultsRef = useRef(shouldShowSearchResults);
   const hasVaultPendingRoot = Boolean(currentVault && notesPath === currentVault.path && !displayRootFolder);
   const hasFileTreeEntries = Boolean(displayRootFolder && displayRootFolder.children.length > 0);
-  const shouldShowEmptyHint = !isLoading && !hasVaultPendingRoot && !hasFileTreeEntries;
   const { isContentScanPending, searchResults } = useSidebarContentSearchResults({
     rootFolder: displayRootFolder,
     getDisplayName,
@@ -185,6 +188,9 @@ export function SidebarContent({
     starredEntries,
     currentVaultPath: currentVault?.path ?? notesPath,
   });
+  const hasLoadedRootFolder = Boolean(displayRootFolder);
+  const shouldShowInlineEmptyHint = !isLoading && hasLoadedRootFolder && !hasFileTreeEntries;
+  const shouldShowFloatingEmptyHint = !isLoading && !hasVaultPendingRoot && !hasLoadedRootFolder;
 
   useEffect(() => {
     const isMac =
@@ -411,18 +417,25 @@ export function SidebarContent({
                 data-notes-sidebar-blank-drag-root="true"
                 className={cn(
                   'flex flex-1 justify-center',
-                  hasFileTreeEntries ? 'min-h-0 items-center' : 'min-h-[160px] items-end',
+                  hasFileTreeEntries ? 'min-h-0 items-center' : 'min-h-[160px] items-center',
                 )}
               >
+                {shouldShowInlineEmptyHint ? (
+                  <NotesSidebarPillEmptyHint
+                    actions={[
+                      { label: t('notes.file'), onAction: handleOpenMarkdownFile },
+                      { label: t('notes.folder'), onAction: handleOpenFolder },
+                    ]}
+                  />
+                ) : null}
               </div>
             </div>
           )}
         </NotesSidebarScrollArea>
       </SidebarCapsulePanel>
-      {shouldShowEmptyHint && !sidebarCollapsed ? (
+      {shouldShowFloatingEmptyHint && !sidebarCollapsed ? (
         <div className="pointer-events-none fixed bottom-5 left-4 z-50 flex w-[calc(var(--vlaina-shell-sidebar-width)-32px)] justify-center">
           <NotesSidebarHoverEmptyHint
-            title=""
             actions={[
               { label: t('notes.file'), onAction: handleOpenMarkdownFile },
               { label: t('notes.folder'), onAction: handleOpenFolder },

@@ -183,7 +183,7 @@ export function NotesSidebarEmptyState({
 }
 
 interface NotesSidebarHoverEmptyHintProps extends HTMLAttributes<HTMLDivElement> {
-  title: string;
+  title?: string;
   actionLabel?: string;
   onAction?: () => void;
   actions?: Array<{
@@ -236,6 +236,65 @@ export function NotesSidebarHoverEmptyHint({
               </span>
             ) : null}
             {actionItems.map((action, index) => (
+              <Fragment key={action.label}>
+                {index > 0 ? (
+                  <span className="px-0.5 text-[14px] text-[var(--notes-sidebar-text-soft)]">/</span>
+                ) : null}
+                <button
+                  type="button"
+                  className="pointer-events-auto h-7 flex-none cursor-pointer whitespace-nowrap rounded-full px-3 text-[15px] text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-[var(--notes-sidebar-row-hover)] hover:text-[var(--notes-sidebar-text)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vlaina-accent)]/25"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    action.onAction();
+                  }}
+                >
+                  {action.label}
+                </button>
+              </Fragment>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+interface NotesSidebarPillEmptyHintProps extends HTMLAttributes<HTMLDivElement> {
+  title?: string;
+  actions?: Array<{
+    label: string;
+    onAction: () => void;
+  }>;
+}
+
+export function NotesSidebarPillEmptyHint({
+  title,
+  actions,
+  className,
+  ...props
+}: NotesSidebarPillEmptyHintProps) {
+  return (
+    <div
+      className={cn(
+        'pointer-events-none flex items-center justify-center',
+        className,
+      )}
+      {...props}
+    >
+      <div className="flex max-w-full flex-col items-center gap-2 text-center">
+        {title ? (
+          <span
+            className={cn(
+              'whitespace-nowrap rounded-full px-4 py-2 text-center text-[15px] text-[var(--notes-sidebar-text-soft)]',
+              chatComposerPillSurfaceClass,
+            )}
+          >
+            {title}
+          </span>
+        ) : null}
+        {actions?.length ? (
+          <div className={cn('flex max-w-full items-center justify-center gap-1 rounded-full px-1.5 py-1', chatComposerPillSurfaceClass)}>
+            {actions.map((action, index) => (
               <Fragment key={action.label}>
                 {index > 0 ? (
                   <span className="px-0.5 text-[14px] text-[var(--notes-sidebar-text-soft)]">/</span>

@@ -44,7 +44,7 @@ describe('NotesSidebarPanel', () => {
     hoisted.uiState.notesSidebarView = 'workspace';
   });
 
-  it('keeps the files view visible for an auto draft even when outline is selected', () => {
+  it('keeps outline visible for an auto draft when outline is selected', () => {
     hoisted.uiState.notesSidebarView = 'outline';
 
     render(
@@ -57,8 +57,8 @@ describe('NotesSidebarPanel', () => {
       />,
     );
 
-    expect(screen.getByTestId('sidebar-files').parentElement).toHaveClass('flex');
-    expect(screen.getByTestId('sidebar-outline').parentElement).toHaveClass('hidden');
+    expect(screen.getByTestId('sidebar-files').parentElement).toHaveClass('hidden');
+    expect(screen.getByTestId('sidebar-outline').parentElement).toHaveClass('flex');
   });
 
   it('shows outline for a regular note when outline is selected', () => {

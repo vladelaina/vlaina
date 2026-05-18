@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { fireEvent, render, waitFor } from '@testing-library/react';
+import { fireEvent, render, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SidebarContent } from './SidebarContent';
 import type { NotesSidebarSearchEntry, NotesSidebarSearchResult } from './notesSidebarSearchResults';
@@ -89,19 +89,27 @@ vi.mock('./NotesSidebarRow', () => ({
 
 vi.mock('./NotesSidebarPrimitives', () => ({
   NotesSidebarScrollArea: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
+  NotesSidebarPillEmptyHint: ({ title, actions }: { title?: string; actions?: Array<{ label: string; onAction: () => void }> }) => (
+    <div data-testid="pill-empty-hint">
+      {title ? <span>{title}</span> : null}
+      {actions?.map((action) => (
+        <button key={action.label} onClick={action.onAction}>{action.label}</button>
+      ))}
+    </div>
+  ),
   NotesSidebarHoverEmptyHint: ({
     title,
     actionLabel,
     onAction,
     actions,
   }: {
-    title: string;
+    title?: string;
     actionLabel?: string;
     onAction?: () => void;
     actions?: Array<{ label: string; onAction: () => void }>;
   }) => (
-    <div>
-      <span>{title}</span>
+    <div data-testid="hover-empty-hint">
+      {title ? <span>{title}</span> : null}
       {actionLabel ? <button onClick={onAction}>{actionLabel}</button> : null}
       {actions?.map((action) => (
         <button key={action.label} onClick={action.onAction}>{action.label}</button>
@@ -260,6 +268,21 @@ describe('SidebarContent search highlight cleanup', () => {
     expect(hoisted.scheduleSidebarItemIntoView).toHaveBeenCalledWith('docs/alpha.md', 2);
   });
 
+  it('shows an empty file tree hint when the vault has no files', () => {
+    const { getByTestId } = render(
+      <SidebarContent
+        rootFolder={{ path: '', name: 'Vault', isFolder: true, expanded: true, children: [] }}
+        isLoading={false}
+        currentNotePath={null}
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(getByTestId('pill-empty-hint')).toBeInTheDocument();
+  });
+
   it('shows the open hint when the notes tree has no entries', () => {
     const rootFolder = {
       id: 'root',
@@ -270,7 +293,7 @@ describe('SidebarContent search highlight cleanup', () => {
       children: [],
     };
 
-    const { getByText } = render(
+    const { getByTestId } = render(
       <SidebarContent
         rootFolder={rootFolder}
         isLoading={false}
@@ -281,12 +304,11 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(getByText('File')).toBeTruthy();
-    expect(getByText('Folder')).toBeTruthy();
+    expect(getByTestId('pill-empty-hint')).toBeTruthy();
   });
 
   it('shows the hover empty hint before a root folder exists', () => {
-    const { getByText } = render(
+    const { getByTestId } = render(
       <SidebarContent
         rootFolder={null}
         isLoading={false}
@@ -297,12 +319,11 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(getByText('File')).toBeTruthy();
-    expect(getByText('Folder')).toBeTruthy();
+    expect(getByTestId('hover-empty-hint')).toBeTruthy();
   });
 
   it('keeps the empty hint at its fixed sidebar bottom position', () => {
-    const { getByText } = render(
+    const { getByTestId } = render(
       <SidebarContent
         rootFolder={null}
         isLoading={false}
@@ -313,7 +334,7 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    const hintShell = getByText('File').closest('div')?.parentElement;
+    const hintShell = getByTestId('hover-empty-hint').parentElement;
 
     expect(hintShell).toHaveClass('fixed');
     expect(hintShell).toHaveClass('bottom-5');
@@ -323,7 +344,7 @@ describe('SidebarContent search highlight cleanup', () => {
   it('hides the empty hint when the sidebar is collapsed', () => {
     hoisted.uiState.sidebarCollapsed = true;
 
-    const { queryByText } = render(
+    const { queryByTestId } = render(
       <SidebarContent
         rootFolder={null}
         isLoading={false}
@@ -334,15 +355,14 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(queryByText('File')).toBeNull();
-    expect(queryByText('Folder')).toBeNull();
+    expect(queryByTestId('hover-empty-hint')).toBeNull();
   });
 
   it('does not show the open hint while a vault root is still loading', () => {
     hoisted.currentVault = { path: '/vault', name: 'Vault' };
     hoisted.notesPath = '/vault';
 
-    const { queryByText, getByTestId } = render(
+    const { queryByTestId, getByTestId } = render(
       <SidebarContent
         rootFolder={null}
         isLoading={false}
@@ -353,8 +373,7 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(queryByText('File')).toBeNull();
-    expect(queryByText('Folder')).toBeNull();
+    expect(queryByTestId('hover-empty-hint')).toBeNull();
     expect(getByTestId('root-folder-row')).toBeTruthy();
   });
 
@@ -362,7 +381,7 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.currentVault = { path: '/vault', name: 'Vault' };
     hoisted.notesPath = '';
 
-    const { getByText } = render(
+    const { getByTestId } = render(
       <SidebarContent
         rootFolder={null}
         isLoading={false}
@@ -373,8 +392,7 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(getByText('File')).toBeTruthy();
-    expect(getByText('Folder')).toBeTruthy();
+    expect(getByTestId('hover-empty-hint')).toBeTruthy();
   });
 
   it('does not inject a blank in-memory draft into an empty root folder', () => {
@@ -393,7 +411,7 @@ describe('SidebarContent search highlight cleanup', () => {
       children: [],
     };
 
-    const { getByText, queryByText } = render(
+    const { getByTestId, queryByText } = render(
       <SidebarContent
         rootFolder={rootFolder}
         isLoading={false}
@@ -405,8 +423,7 @@ describe('SidebarContent search highlight cleanup', () => {
     );
 
     expect(queryByText('Untitled')).toBeNull();
-    expect(getByText('File')).toBeTruthy();
-    expect(getByText('Folder')).toBeTruthy();
+    expect(getByTestId('pill-empty-hint')).toBeTruthy();
   });
 
   it('shows the current in-memory draft after it has content', () => {
@@ -449,7 +466,7 @@ describe('SidebarContent search highlight cleanup', () => {
     window.addEventListener('vlaina-open-markdown-target-folder', openFolderHandler);
 
     try {
-      const { getByText } = render(
+      const { getByTestId } = render(
         <SidebarContent
           rootFolder={null}
           isLoading={false}
@@ -460,10 +477,10 @@ describe('SidebarContent search highlight cleanup', () => {
         />,
       );
 
-      expect(getByText('File')).toBeTruthy();
-      expect(getByText('Folder')).toBeTruthy();
-      fireEvent.click(getByText('File'));
-      fireEvent.click(getByText('Folder'));
+      const hint = getByTestId('hover-empty-hint');
+      expect(hint).toBeTruthy();
+      fireEvent.click(within(hint).getByRole('button', { name: 'File' }));
+      fireEvent.click(within(hint).getByRole('button', { name: 'Folder' }));
 
       expect(openFileHandler).toHaveBeenCalledTimes(1);
       expect(openFolderHandler).toHaveBeenCalledTimes(1);
