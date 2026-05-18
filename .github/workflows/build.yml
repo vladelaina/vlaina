@@ -22,9 +22,40 @@ concurrency:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   CSC_IDENTITY_AUTO_DISCOVERY: false
-  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && ((startsWith(inputs.release_version, 'v') || startsWith(inputs.release_version, 'V')) && inputs.release_version || format('v{0}', inputs.release_version)) || github.ref_name }}
 
 jobs:
+  release-context:
+    name: Resolve release version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+
+    steps:
+      - name: Resolve release tag
+        id: release
+        env:
+          RELEASE_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.release_version || github.ref_name }}
+          IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          if [[ "$IS_RELEASE" != "true" ]]; then
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          version="${RELEASE_INPUT#"${RELEASE_INPUT%%[![:space:]]*}"}"
+          version="${version%"${version##*[![:space:]]}"}"
+          version="${version#[vV]}"
+
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Unsupported app version: $RELEASE_INPUT" >&2
+            exit 1
+          fi
+
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
   test:
     runs-on: windows-2025-vs2026
     timeout-minutes: 45
@@ -72,6 +103,7 @@ jobs:
     name: Build renderer
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: release-context
 
     permissions:
       contents: read
@@ -108,7 +140,7 @@ jobs:
 
       - name: Sync package version from tag
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
-        run: node scripts/sync-version-from-tag.mjs "${{ env.RELEASE_TAG }}"
+        run: node scripts/sync-version-from-tag.mjs "${{ needs.release-context.outputs.tag }}"
 
       - name: Build renderer
         run: pnpm build
@@ -127,6 +159,7 @@ jobs:
     needs:
       - test
       - build
+      - release-context
 
     strategy:
       fail-fast: false
@@ -198,7 +231,7 @@ jobs:
 
       - name: Sync package version from tag
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
-        run: node scripts/sync-version-from-tag.mjs "${{ env.RELEASE_TAG }}"
+        run: node scripts/sync-version-from-tag.mjs "${{ needs.release-context.outputs.tag }}"
 
       - name: Restore renderer build output
         uses: actions/cache/restore@v5
@@ -305,7 +338,12 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: package
+    needs:
+      - package
+      - release-context
+    concurrency:
+      group: publish-release-assets-${{ needs.release-context.outputs.tag }}
+      cancel-in-progress: false
 
     permissions:
       contents: write
@@ -320,9 +358,11 @@ jobs:
       - name: Publish GitHub release assets
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          name: vlaina ${{ env.RELEASE_TAG }}
+          tag_name: ${{ needs.release-context.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: vlaina ${{ needs.release-context.outputs.tag }}
           draft: false
-          prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
+          prerelease: ${{ contains(needs.release-context.outputs.tag, '-') }}
           generate_release_notes: true
+          overwrite_files: true
           files: release-artifacts/*

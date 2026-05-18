@@ -1,10 +1,10 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
-const tagName = process.env.GITHUB_REF_NAME ?? process.argv[2] ?? '';
+const tagName = process.argv[2] ?? process.env.GITHUB_REF_NAME ?? '';
 const version = tagName.trim().replace(/^v/i, '');
 
 if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) {
-  throw new Error(`Tag "${tagName}" is not a supported app version tag.`);
+  throw new Error(`Version/tag "${tagName}" is not a supported app version.`);
 }
 
 const packageJsonPath = new URL('../package.json', import.meta.url);
