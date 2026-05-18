@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { cn, iconButtonStyles } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
+import { isMacOS } from '@/lib/desktop/platform';
 
 const WorkspaceSwitcher = lazy(async () => {
     const mod = await import('./WorkspaceSwitcher');
@@ -29,6 +30,7 @@ export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
     const { t } = useI18n();
     const headerRef = useRef<HTMLDivElement>(null);
     const [isHovered, setIsHovered] = useState(false);
+    const shouldReserveMacTrafficLightSpace = isMacOS();
 
     useEffect(() => {
         const handleMouseMove = (event: MouseEvent) => {
@@ -58,7 +60,10 @@ export function SidebarUserHeader({ toggleSidebar }: SidebarUserHeaderProps) {
     return (
         <div
             ref={headerRef}
-            className="vlaina-drag-region vlaina-sidebar-user-header group/sidebar-user-header relative flex h-10 w-full items-center px-3"
+            className={cn(
+                'vlaina-drag-region vlaina-sidebar-user-header group/sidebar-user-header relative flex h-10 w-full items-center pr-3',
+                shouldReserveMacTrafficLightSpace ? 'pl-[76px]' : 'pl-3'
+            )}
             data-hovered={isHovered ? 'true' : undefined}
         >
             <div

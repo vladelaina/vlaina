@@ -1,5 +1,6 @@
 import { desktopWindow } from '@/lib/desktop/window';
 import { Icon } from '@/components/ui/icons';
+import { isMacOS } from '@/lib/desktop/platform';
 
 interface WindowControlsProps {
   className?: string;
@@ -7,6 +8,10 @@ interface WindowControlsProps {
 }
 
 export function WindowControls({ className, minimal }: WindowControlsProps) {
+  if (isMacOS()) {
+    return null;
+  }
+
   const sidebarTextButtonClass =
     'cursor-pointer bg-transparent text-[var(--chat-sidebar-text)] hover:text-[var(--chat-sidebar-text)] disabled:cursor-default';
 
