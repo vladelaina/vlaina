@@ -1,4 +1,4 @@
-name: Build
+name: Publish Release
 
 on:
   push:
@@ -10,18 +10,19 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
-      release_tag:
-        description: "Existing tag to build and publish, for example v0.1.0"
+      release_version:
+        description: "Version to publish, for example 0.1.0. A leading v is optional."
         required: true
         type: string
 
 concurrency:
-  group: build-${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
+  group: publish-release-${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && inputs.release_version || github.ref }}
   cancel-in-progress: true
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   CSC_IDENTITY_AUTO_DISCOVERY: false
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && ((startsWith(inputs.release_version, 'v') || startsWith(inputs.release_version, 'V')) && inputs.release_version || format('v{0}', inputs.release_version)) || github.ref_name }}
 
 jobs:
   test:
@@ -34,8 +35,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -68,8 +67,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -87,7 +84,7 @@ jobs:
 
       - name: Sync package version from tag
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
-        run: node scripts/sync-version-from-tag.mjs "${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}"
+        run: node scripts/sync-version-from-tag.mjs "${{ env.RELEASE_TAG }}"
 
       - name: Build renderer
         run: pnpm build
@@ -148,8 +145,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -167,7 +162,7 @@ jobs:
 
       - name: Sync package version from tag
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
-        run: node scripts/sync-version-from-tag.mjs "${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}"
+        run: node scripts/sync-version-from-tag.mjs "${{ env.RELEASE_TAG }}"
 
       - name: Restore renderer build output
         uses: actions/cache/restore@v5
@@ -289,9 +284,9 @@ jobs:
       - name: Publish GitHub release assets
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
-          name: vlaina ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: vlaina ${{ env.RELEASE_TAG }}
           draft: false
-          prerelease: ${{ contains(github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name, '-') }}
+          prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
           generate_release_notes: true
           files: release-artifacts/*
