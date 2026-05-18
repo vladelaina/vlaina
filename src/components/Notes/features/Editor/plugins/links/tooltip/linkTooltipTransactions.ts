@@ -1,10 +1,14 @@
 import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { sanitizeNoteLinkHref } from '@/lib/notes/markdown/urlSecurity';
+import { sanitizeEditorLinkHref } from '../utils/linkHref';
 import {
     findLinkRange,
     resolveLinkMarkRangeAtPos,
 } from '../utils/helpers';
+
+export function sanitizeTooltipLinkHref(value: string): string | null {
+    return sanitizeEditorLinkHref(value);
+}
 
 export function editExistingLink(
     view: EditorView,
@@ -27,7 +31,7 @@ export function editExistingLink(
     let tr = state.tr;
     if (range) tr = tr.removeMark(start, end, linkMarkType);
 
-    const safeUrl = sanitizeNoteLinkHref(url);
+    const safeUrl = sanitizeTooltipLinkHref(url);
     tr = tr.insertText(text, start, end);
     if (safeUrl) {
         tr = tr.addMark(start, start + text.length, linkMarkType.create({ href: safeUrl }));
@@ -49,7 +53,18 @@ export function unlinkExistingLink(view: EditorView, link: HTMLElement): boolean
 
 export function removeExistingLink(view: EditorView, link: HTMLElement): boolean {
     const result = findLinkRange(view, link);
-    if (!result) return false;
+    if (!result) {
+        if (!link.classList.contains('autolink')) return false;
+
+        const start = view.posAtDOM(link, 0);
+        const textLength = link.textContent?.length ?? 0;
+        const end = start + textLength;
+        if (start < 0 || textLength <= 0 || end > view.state.doc.content.size) return false;
+
+        const tr = view.state.tr.delete(start, end);
+        view.dispatch(tr);
+        return true;
+    }
 
     const tr = view.state.tr.delete(result.start, result.end);
     view.dispatch(tr);
@@ -67,7 +82,7 @@ export function editLinkAtPosition(
     const linkMarkType = state.schema.marks.link;
     if (!linkMarkType) return null;
 
-    const safeUrl = sanitizeNoteLinkHref(url);
+    const safeUrl = sanitizeTooltipLinkHref(url);
     if (!safeUrl) {
         const tr = state.tr.removeMark(from, to, linkMarkType);
         dispatch(tr);

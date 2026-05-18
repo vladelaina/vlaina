@@ -21,6 +21,7 @@ import {
     removeExistingLink,
     unlinkExistingLink,
 } from './linkTooltipTransactions';
+import { openEditorLinkHref } from '../utils/openEditorLinkHref';
 
 const LINK_TOOLTIP_SHOW_DELAY = 70;
 
@@ -147,6 +148,7 @@ export class LinkTooltipView {
                 key={Date.now()}
                 href={href}
                 initialText={link.textContent || ''}
+                onOpen={() => void openEditorLinkHref(href, { view: this.view })}
                 onEdit={(text, url, shouldClose) => this.handleEdit(link, text, url, shouldClose)}
                 onUnlink={() => this.handleUnlink(link)}
                 onRemove={() => this.handleRemove(link)}
@@ -228,6 +230,7 @@ export class LinkTooltipView {
                 href=""
                 initialText={selectedText}
                 autoFocus={autoFocus}
+                onOpen={() => { }}
                 onEdit={(text, url, shouldClose) => this.handleEditAtPosition(from, to, text, url, shouldClose)}
                 onUnlink={() => { }}
                 onRemove={() => this.hide()}

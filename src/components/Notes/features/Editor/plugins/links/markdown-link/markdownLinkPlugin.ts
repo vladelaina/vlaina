@@ -1,8 +1,8 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
 import { Fragment, Slice } from '@milkdown/kit/prose/model';
-import { sanitizeNoteLinkHref } from '@/lib/notes/markdown/urlSecurity';
 import { resolvePasteRange } from '../../clipboard/pasteCursorUtils';
+import { sanitizeExplicitMarkdownLinkHref } from '../utils/linkHref';
 import {
     getMarkdownLinkHref,
     MARKDOWN_LINK_PATTERN_BEFORE,
@@ -77,7 +77,7 @@ export const markdownLinkPlugin = $prose(() => {
                             // Verify checking range validity after mapping
                             // (Simple check: ensure mappedEnd > mappedStart)
                             if (mappedEnd > mappedStart) {
-                                const safeLinkUrl = sanitizeNoteLinkHref(getMarkdownLinkHref(linkUrl));
+                                const safeLinkUrl = sanitizeExplicitMarkdownLinkHref(getMarkdownLinkHref(linkUrl));
                                 const marks = safeLinkUrl ? [linkMarkType.create({ href: safeLinkUrl })] : [];
                                 tr = tr
                                     .delete(mappedStart, mappedEnd)
@@ -124,7 +124,7 @@ export const markdownLinkPlugin = $prose(() => {
                 }
 
                 // Create transaction
-                const safeLinkUrl = sanitizeNoteLinkHref(getMarkdownLinkHref(linkUrl));
+                const safeLinkUrl = sanitizeExplicitMarkdownLinkHref(getMarkdownLinkHref(linkUrl));
                 const linkedText = safeLinkUrl
                     ? state.schema.text(linkText, [linkMarkType.create({ href: safeLinkUrl })])
                     : state.schema.text(linkText);
@@ -173,7 +173,7 @@ export const markdownLinkPlugin = $prose(() => {
                         nodes.push(view.state.schema.text(beforeText));
                     }
 
-                    const safeLinkUrl = sanitizeNoteLinkHref(getMarkdownLinkHref(linkUrl));
+                    const safeLinkUrl = sanitizeExplicitMarkdownLinkHref(getMarkdownLinkHref(linkUrl));
                     nodes.push(
                         safeLinkUrl
                             ? view.state.schema.text(linkText, [linkMarkType.create({ href: safeLinkUrl })])

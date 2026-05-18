@@ -1,5 +1,6 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockType, TextAlignment } from './types';
+import { BARE_DOMAIN_HREF_PATTERN } from '../links/utils/constants';
 
 type MarkLike = {
   type: { name: string };
@@ -295,7 +296,17 @@ export function isSelectionInFirstH1(view: EditorView): boolean {
 }
 
 export function getLinkUrl(view: EditorView): string | null {
-  return getCommonMarkAttributeForFormattableText(view, 'link', 'href');
+  const linkUrl = getCommonMarkAttributeForFormattableText(view, 'link', 'href');
+  if (linkUrl === null) {
+    return null;
+  }
+
+  const selectedText = getSelectedFormattableText(view).trim();
+  if (isPlainUrlLinkSelection(selectedText, linkUrl)) {
+    return null;
+  }
+
+  return linkUrl;
 }
 
 export function getTextColor(view: EditorView): string | null {
@@ -332,6 +343,41 @@ function getCommonMarkAttributeForFormattableText(
   }
 
   return commonValue;
+}
+
+function getSelectedFormattableText(view: EditorView): string {
+  let text = '';
+
+  forEachSelectedTextNode(view, ({ node, pos, selectedFrom, selectedTo }) => {
+    const fromOffset = Math.max(0, selectedFrom - pos);
+    const toOffset = Math.max(fromOffset, selectedTo - pos);
+    text += (node.text ?? '').slice(fromOffset, toOffset);
+  }, { excludeRestrictedParents: true });
+
+  return text;
+}
+
+function isPlainUrlLinkSelection(selectedText: string, href: string): boolean {
+  if (!selectedText || !href) {
+    return false;
+  }
+
+  const normalizedText = selectedText.trim();
+  const normalizedHref = href.trim();
+  if (normalizedText === normalizedHref) {
+    return true;
+  }
+
+  if (normalizedText.startsWith('www.') && `https://${normalizedText}` === normalizedHref) {
+    return true;
+  }
+
+  if (BARE_DOMAIN_HREF_PATTERN.test(normalizedText) && `https://${normalizedText}` === normalizedHref) {
+    return true;
+  }
+
+  return normalizedHref.toLowerCase().startsWith('mailto:') &&
+    normalizedHref.slice('mailto:'.length) === normalizedText;
 }
 
 export function getFormattableTextRanges(view: EditorView): TextRange[] {

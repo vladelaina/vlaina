@@ -4,6 +4,7 @@ import { LinkEditor } from './components/LinkEditor';
 import { LinkViewer } from './components/LinkViewer';
 
 export interface LinkTooltipProps extends UseLinkStateProps {
+    onOpen: () => void;
     onUnlink: () => void;
     onRemove: () => void;
 }
@@ -68,10 +69,10 @@ const LinkTooltip = (props: LinkTooltipProps) => {
 
     return (
         <LinkViewer
-            href={props.href}
             displayUrl={displayUrl}
             isAutolink={isAutolink}
             showCopied={showCopied}
+            onOpen={props.onOpen}
             onCopy={handleCopy}
             onEdit={() => setMode('edit')}
             onUnlink={props.onUnlink}

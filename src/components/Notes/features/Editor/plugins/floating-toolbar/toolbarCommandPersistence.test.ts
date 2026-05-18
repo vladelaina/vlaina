@@ -112,6 +112,30 @@ describe('floating toolbar command markdown persistence', () => {
     const unsafe = await createEditor('link text');
     setLink(selectText(unsafe, 'link'), 'javascript:alert(1)');
     await expect(persist(unsafe)).resolves.toBe('link text');
+
+    const plain = await createEditor('link text');
+    setLink(selectText(plain, 'link'), 'me');
+    await expect(persist(plain)).resolves.toBe('link text');
+  });
+
+  it('normalizes bare domains when persisting links', async () => {
+    const bareDomain = await createEditor('link text');
+    setLink(selectText(bareDomain, 'link'), 'cati.me');
+    await expect(persist(bareDomain)).resolves.toBe('[link](https://cati.me) text');
+  });
+
+  it('persists explicit relative links but rejects implicit relative words', async () => {
+    const rootRelative = await createEditor('link text');
+    setLink(selectText(rootRelative, 'link'), '/docs/readme.md');
+    await expect(persist(rootRelative)).resolves.toBe('[link](/docs/readme.md) text');
+
+    const fragment = await createEditor('link text');
+    setLink(selectText(fragment, 'link'), '#section');
+    await expect(persist(fragment)).resolves.toBe('[link](#section) text');
+
+    const implicit = await createEditor('link text');
+    setLink(selectText(implicit, 'link'), 'me');
+    await expect(persist(implicit)).resolves.toBe('link text');
   });
 
   it('persists color commands as sanitized inline html', async () => {

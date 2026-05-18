@@ -9,6 +9,10 @@ import {
 import { usePredictedTextareaHeight } from '@/hooks/usePredictedTextareaHeight';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import {
+    LINK_TOOLTIP_MIN_WIDTH,
+    useLinkTooltipContentWidth,
+} from '../hooks/useLinkTooltipContentWidth';
 
 interface LinkEditorProps {
     editUrl: string;
@@ -33,37 +37,14 @@ export const LinkEditor = ({
     const { t } = useI18n();
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
-    const [surfaceWidth, setSurfaceWidth] = useState<number | null>(null);
-    const [editorWidth, setEditorWidth] = useState(280);
+    const { maxWidth, minWidth } = useLinkTooltipContentWidth(containerRef);
+    const [editorWidth, setEditorWidth] = useState(LINK_TOOLTIP_MIN_WIDTH);
 
     usePredictedTextareaHeight(inputRef, {
         value: editUrl,
         minHeight: 0,
         maxHeight: 100000,
     });
-
-    useEffect(() => {
-        const positionRoot = containerRef.current?.parentElement;
-        if (!(positionRoot instanceof HTMLElement)) {
-            return;
-        }
-
-        const updateWidth = () => {
-            const nextWidth = Math.round(positionRoot.clientWidth);
-            setSurfaceWidth(nextWidth > 0 ? nextWidth : null);
-        };
-
-        updateWidth();
-
-        const resizeObserver = typeof ResizeObserver !== 'undefined'
-            ? new ResizeObserver(updateWidth)
-            : null;
-        resizeObserver?.observe(positionRoot);
-
-        return () => {
-            resizeObserver?.disconnect();
-        };
-    }, []);
 
     useLayoutEffect(() => {
         const input = inputRef.current;
@@ -82,14 +63,13 @@ export const LinkEditor = ({
 
         const shellPadding = 40;
         const actionWidth = editUrl.length > 0 ? 36 : 0;
-        const nextMaxWidth = Math.max(280, Math.min(surfaceWidth ?? 680, window.innerWidth - 32));
         const nextWidth = Math.min(
-            nextMaxWidth,
-            Math.max(280, naturalWidth + shellPadding + actionWidth)
+            maxWidth,
+            Math.max(minWidth, naturalWidth + shellPadding + actionWidth)
         );
 
         setEditorWidth(nextWidth);
-    }, [editUrl, surfaceWidth]);
+    }, [editUrl, maxWidth, minWidth]);
 
     useEffect(() => {
         if (!autoFocus && isNewLink) {
@@ -128,7 +108,7 @@ export const LinkEditor = ({
                 width: `${editorWidth}px`,
             }}
             className={cn(
-                'floating-toolbar-inner link-tooltip-editor !rounded-[26px] min-w-[280px] max-w-[calc(100vw-32px)] z-[100]',
+                'floating-toolbar-inner link-tooltip-editor !rounded-[26px] z-[100]',
                 chatComposerPillSurfaceClass
             )}
             onMouseDown={(e) => e.stopPropagation()}

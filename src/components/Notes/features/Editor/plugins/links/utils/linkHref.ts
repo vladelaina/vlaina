@@ -1,0 +1,45 @@
+import { sanitizeNoteLinkHref } from '@/lib/notes/markdown/urlSecurity';
+import { BARE_DOMAIN_HREF_PATTERN } from './constants';
+
+const EMAIL_ADDRESS_PATTERN = /^[A-Za-z0-9.!#$%&'*+/=?^_{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
+
+export function sanitizeEditorExternalLinkHref(value: string | null | undefined): string | null {
+    const trimmed = value?.trim() ?? '';
+    const href = trimmed.startsWith('www.')
+        ? `https://${trimmed}`
+        : BARE_DOMAIN_HREF_PATTERN.test(trimmed)
+            ? `https://${trimmed}`
+            : EMAIL_ADDRESS_PATTERN.test(trimmed)
+                ? `mailto:${trimmed}`
+                : trimmed;
+    const safeHref = sanitizeNoteLinkHref(href);
+    return safeHref && /^(https?:\/\/|mailto:)/i.test(safeHref) ? safeHref : null;
+}
+
+export function sanitizeEditorLinkHref(value: string | null | undefined): string | null {
+    const externalHref = sanitizeEditorExternalLinkHref(value);
+    if (externalHref) {
+        return externalHref;
+    }
+
+    const trimmed = value?.trim() ?? '';
+    if (/^(?:\/(?!\/)|#|\.\/|\.\.\/)/.test(trimmed)) {
+        return sanitizeNoteLinkHref(trimmed);
+    }
+
+    return null;
+}
+
+export function sanitizeExplicitMarkdownLinkHref(value: string | null | undefined): string | null {
+    const trimmed = value?.trim() ?? '';
+    if (trimmed.startsWith('//')) {
+        return null;
+    }
+
+    const externalHref = sanitizeEditorExternalLinkHref(value);
+    if (externalHref) {
+        return externalHref;
+    }
+
+    return sanitizeNoteLinkHref(value);
+}

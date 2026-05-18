@@ -30,6 +30,45 @@ describe('useLinkState', () => {
         expect(writeTextToClipboardMock).toHaveBeenCalledWith('http://example.test:8317');
     });
 
+    it('displays the complete normalized href', () => {
+        const { result } = renderHook(() => useLinkState({
+            href: 'https\\://www.example.com/docs/page?tab=api#section',
+            initialText: 'Example',
+            onEdit: vi.fn(),
+            onClose: vi.fn(),
+        }));
+
+        expect(result.current.displayUrl).toBe('https://www.example.com/docs/page?tab=api#section');
+    });
+
+    it('keeps the user-facing bare domain text for autolinks', () => {
+        const { result } = renderHook(() => useLinkState({
+            href: 'https://cati.me',
+            initialText: 'cati.me',
+            onEdit: vi.fn(),
+            onClose: vi.fn(),
+        }));
+
+        expect(result.current.isAutolink).toBe(true);
+        expect(result.current.displayUrl).toBe('cati.me');
+        expect(result.current.editUrl).toBe('cati.me');
+    });
+
+    it('copies autolinks using the user-facing text', async () => {
+        const { result } = renderHook(() => useLinkState({
+            href: 'https://cati.me',
+            initialText: 'cati.me',
+            onEdit: vi.fn(),
+            onClose: vi.fn(),
+        }));
+
+        await act(async () => {
+            result.current.handleCopy();
+        });
+
+        expect(writeTextToClipboardMock).toHaveBeenCalledWith('cati.me');
+    });
+
     it('copies markdown links with normalized hrefs', async () => {
         const { result } = renderHook(() => useLinkState({
             href: 'https\\://example.com',

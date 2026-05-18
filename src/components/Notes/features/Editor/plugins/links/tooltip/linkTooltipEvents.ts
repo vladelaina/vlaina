@@ -1,5 +1,5 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { openExternalHref } from '@/lib/navigation/externalLinks';
+import { openEditorLinkHref } from '../utils/openEditorLinkHref';
 
 function resolveTooltipEligibleLink(target: HTMLElement | null): HTMLElement | null {
     if (!target) return null;
@@ -68,7 +68,7 @@ export function installLinkTooltipEvents(handlers: LinkTooltipEventHandlers): ()
         event.stopImmediatePropagation();
 
         const href = link.getAttribute('href') || link.getAttribute('data-href');
-        if (href) await openExternalHref(href);
+        if (href) await openEditorLinkHref(href, { view });
     };
 
     const handleEditorMouseOver = (event: Event) => {

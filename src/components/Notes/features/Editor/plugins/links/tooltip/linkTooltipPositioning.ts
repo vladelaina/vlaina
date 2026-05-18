@@ -47,7 +47,7 @@ export function resolveLinkTooltipPosition(args: {
   transform: string;
   transformOrigin: string;
 } {
-  const { view, positionRoot, tooltipElement, anchor, isEditing } = args;
+  const { view, positionRoot, tooltipElement, anchor } = args;
   const viewportPosition = getViewportAnchorPosition(view, anchor);
   const containerPosition = toContainerPosition(viewportPosition, positionRoot);
   const layout = getContentLayoutContext(view, positionRoot);
@@ -60,15 +60,6 @@ export function resolveLinkTooltipPosition(args: {
         right: Math.max(margin, positionRoot.clientWidth - margin),
       }
     : contentBounds;
-
-  if (isEditing) {
-    return {
-      x: containerPosition.x,
-      y: containerPosition.y,
-      transform: 'translateX(-50%)',
-      transformOrigin: 'center top',
-    };
-  }
 
   if (!clampBounds || tooltipWidth <= 0) {
     return {
