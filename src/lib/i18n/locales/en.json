@@ -334,7 +334,7 @@
   "notes.clickToReplace": "Click to replace",
   "notes.editImage": "Edit Image",
   "notes.openRootFolderMenu": "Open root folder menu",
-  "notes.outlineEmpty": "Outline is empty",
+  "notes.outlineEmpty": "Outline is empty~",
   "notes.saveImageFailed": "Failed to save image. Please try again.",
   "storage.keychainUnavailable": "Could not access your system keychain. Custom channel API keys may need to be re-entered.",
   "storage.saveFailed": "Failed to save changes securely. Please try again.",

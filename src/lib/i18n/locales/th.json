@@ -334,7 +334,7 @@
   "notes.clickToReplace": "คลิกเพื่อแทนที่",
   "notes.editImage": "แก้ไขรูปภาพ",
   "notes.openRootFolderMenu": "เปิดเมนูโฟลเดอร์ราก",
-  "notes.outlineEmpty": "โครงร่างว่างเปล่า",
+  "notes.outlineEmpty": "โครงร่างว่างเปล่า~",
   "notes.saveImageFailed": "ไม่สามารถบันทึกรูปภาพได้ โปรดลองอีกครั้ง",
   "storage.keychainUnavailable": "ไม่สามารถเข้าถึงพวงกุญแจระบบของคุณได้ อาจต้องป้อน API คีย์ช่องที่กำหนดเองใหม่",
   "storage.saveFailed": "ไม่สามารถบันทึกการเปลี่ยนแปลงได้อย่างปลอดภัย โปรดลองอีกครั้ง",

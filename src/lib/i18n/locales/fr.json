@@ -334,7 +334,7 @@
   "notes.clickToReplace": "Cliquez pour remplacer",
   "notes.editImage": "Modifier l'image",
   "notes.openRootFolderMenu": "Ouvrir le menu du dossier racine",
-  "notes.outlineEmpty": "Le plan est vide",
+  "notes.outlineEmpty": "Le plan est vide~",
   "notes.saveImageFailed": "Échec de l'enregistrement de l'image. Veuillez réessayer.",
   "storage.keychainUnavailable": "Impossible d'accéder à votre trousseau système. Les clés API de canaux personnalisés peuvent devoir être saisies à nouveau.",
   "storage.saveFailed": "Échec de l'enregistrement sécurisé des modifications. Veuillez réessayer.",

@@ -9,7 +9,7 @@ import {
 import { useNotesOutline } from './useNotesOutline';
 import { CollapseTriangleAffordance } from '../../common/collapseTrianglePrimitive';
 import {
-  NotesSidebarHoverEmptyHint,
+  NotesSidebarPillEmptyHint,
   NotesSidebarScrollArea,
 } from '../NotesSidebarPrimitives';
 import { NotesSidebarRow } from '../NotesSidebarRow';
@@ -150,9 +150,8 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
               className={cn('flex flex-1 items-center justify-center', headings.length === 0 && 'min-h-[160px] pb-8')}
             >
               {headings.length === 0 ? (
-                <NotesSidebarHoverEmptyHint
+                <NotesSidebarPillEmptyHint
                   title={t('notes.outlineEmpty')}
-                  placement="inline"
                 />
               ) : null}
             </div>

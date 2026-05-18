@@ -334,7 +334,7 @@
   "notes.clickToReplace": "Değiştirmek için tıkla",
   "notes.editImage": "Resmi Düzenle",
   "notes.openRootFolderMenu": "Kök klasör menüsünü aç",
-  "notes.outlineEmpty": "Ana hat boş",
+  "notes.outlineEmpty": "Ana hat boş~",
   "notes.saveImageFailed": "Resim kaydedilemedi. Lütfen tekrar deneyin.",
   "storage.keychainUnavailable": "Sistem anahtar zincirinize erişilemedi. Özel kanal API anahtarlarının yeniden girilmesi gerekebilir.",
   "storage.saveFailed": "Değişiklikler güvenli bir şekilde kaydedilemedi. Lütfen tekrar deneyin.",

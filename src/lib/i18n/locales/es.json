@@ -334,7 +334,7 @@
   "notes.clickToReplace": "Haz clic para reemplazar",
   "notes.editImage": "Editar imagen",
   "notes.openRootFolderMenu": "Abrir menú de carpeta raíz",
-  "notes.outlineEmpty": "El esquema está vacío",
+  "notes.outlineEmpty": "El esquema está vacío~",
   "notes.saveImageFailed": "Error al guardar la imagen. Por favor, inténtalo de nuevo.",
   "storage.keychainUnavailable": "No se pudo acceder a tu llavero del sistema. Es posible que debas volver a introducir las claves API de canales personalizados.",
   "storage.saveFailed": "Error al guardar los cambios de forma segura. Por favor, inténtalo de nuevo.",
