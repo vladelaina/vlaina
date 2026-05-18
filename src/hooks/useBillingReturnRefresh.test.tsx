@@ -94,7 +94,9 @@ describe('useBillingReturnRefresh', () => {
   })
 
   it('lets the billing success URL handler own direct checkout returns', () => {
-    window.history.replaceState({}, '', '/?billing=success')
+    const url = new URL(window.location.href)
+    url.searchParams.set('billing', 'success')
+    window.history.replaceState({}, '', `${url.pathname}${url.search}`)
     markBillingReturnRefreshPending()
 
     renderHook(() => useBillingReturnRefresh())

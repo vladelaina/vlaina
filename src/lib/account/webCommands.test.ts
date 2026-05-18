@@ -8,7 +8,7 @@ function mockLocation(url: string) {
 describe('webAccountCommands', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    mockLocation('https://app.vlaina.com/');
+    mockLocation('https://vlaina.com/pricing');
     localStorage.clear();
     sessionStorage.clear();
   });
@@ -129,7 +129,7 @@ describe('webAccountCommands', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(webAccountCommands.startAuth('google')).rejects.toThrow(
-      'Web sign-in is unavailable on local development origins. Use app.vlaina.com or the desktop app.'
+      'Web sign-in is unavailable on local development origins. Use vlaina.com/pricing or the desktop app.'
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -141,7 +141,7 @@ describe('webAccountCommands', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(webAccountCommands.requestEmailCode('octocat@example.com')).rejects.toThrow(
-      'Web sign-in is unavailable on local development origins. Use app.vlaina.com or the desktop app.'
+      'Web sign-in is unavailable on local development origins. Use vlaina.com/pricing or the desktop app.'
     );
     expect(fetchMock).not.toHaveBeenCalled();
   });
