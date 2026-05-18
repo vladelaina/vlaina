@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ExternalLink, RefreshCw } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { ExternalLink, QrCode, RefreshCw } from 'lucide-react';
+import { FaDiscord, FaQq, FaWeixin } from 'react-icons/fa';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { getExternalLinkProps, openExternalHref } from '@/lib/navigation/externalLinks';
 import { cn } from '@/lib/utils';
@@ -22,6 +25,82 @@ interface UpdateInfo {
 }
 
 const privacyPolicyUrl = 'https://github.com/vladelaina/vlaina/blob/main/PRIVACY.md';
+const discordInviteUrl = 'https://discord.gg/vlaina-placeholder';
+const communityPillClassName =
+  'inline-flex h-8 items-center gap-2 rounded-full px-3 text-[12px] font-semibold text-[var(--notes-sidebar-text)] transition-all duration-200';
+
+function CommunityQrPill({
+  title,
+  label,
+  icon,
+}: {
+  title: string;
+  label: string;
+  icon: ReactNode;
+}) {
+  return (
+    <div className="group relative">
+      <button
+        type="button"
+        aria-label={title}
+        className={cn(communityPillClassName, chatComposerPillSurfaceClass)}
+      >
+        {icon}
+        <span>{label}</span>
+      </button>
+      <div className={cn(
+        'pointer-events-none absolute left-1/2 top-full z-20 mt-3 w-[168px] -translate-x-1/2 rounded-[26px] p-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100',
+        chatComposerPillSurfaceClass
+      )}>
+        <div className="mb-2 text-center text-[12px] font-semibold text-[var(--notes-sidebar-text)]">
+          {title}
+        </div>
+        <div className="flex aspect-square w-full items-center justify-center rounded-[20px] border border-dashed border-zinc-200 text-[var(--notes-sidebar-text-soft)] dark:border-black/10">
+          <div className="flex flex-col items-center gap-2 text-[12px] font-medium">
+            <QrCode size={34} strokeWidth={1.7} />
+            <span>{title}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DiscordPill() {
+  const { t } = useI18n();
+
+  return (
+    <button
+      type="button"
+      onClick={() => void openExternalHref(discordInviteUrl)}
+      aria-label={t('settings.about.openDiscord')}
+      className={cn(communityPillClassName, chatComposerPillSurfaceClass)}
+    >
+      <FaDiscord size={15} className="text-[#5865F2]" />
+      <span>{t('settings.about.discord')}</span>
+    </button>
+  );
+}
+
+function CommunityPills() {
+  const { t } = useI18n();
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 px-2">
+      <DiscordPill />
+      <CommunityQrPill
+        title={t('settings.about.qqGroup')}
+        label="QQ"
+        icon={<FaQq size={15} className="text-[#12B7F5]" />}
+      />
+      <CommunityQrPill
+        title={t('settings.about.wechatGroup')}
+        label="WeChat"
+        icon={<FaWeixin size={15} className="text-[#07C160]" />}
+      />
+    </div>
+  );
+}
 
 export function AboutTab() {
   const { t } = useI18n();
@@ -128,6 +207,8 @@ export function AboutTab() {
           </div>
         </SettingsItem>
       </div>
+
+      <CommunityPills />
 
       <div>
         <SettingsSectionHeader>{t('settings.about.privacy')}</SettingsSectionHeader>
