@@ -1,5 +1,6 @@
 import React from 'react';
 import { AccountSignInOptions } from '@/components/account/AccountSignInOptions';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Icon } from '@/components/ui/icons';
 import { useAccountSessionStore } from '@/stores/accountSession';
@@ -53,21 +54,23 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
           {t('account.signInDescription')}
         </DialogDescription>
         <div className={cn(
-          "relative w-full rounded-[36px] px-5 py-6 sm:rounded-[48px] sm:px-8 sm:py-9 md:rounded-[64px] md:p-14",
-          "bg-white dark:bg-zinc-900",
-          "shadow-[0_40px_100px_rgba(0,0,0,0.06),inset_0_0_20px_rgba(255,255,255,1)] dark:shadow-[0_40px_120px_rgba(0,0,0,0.6),inset_0_1px_1px_rgba(255,255,255,0.05)]",
-          "border border-white dark:border-zinc-800"
+          "relative w-full rounded-[36px] px-5 py-6 sm:rounded-[48px] sm:px-8 sm:py-9 md:rounded-[56px] md:p-12",
+          chatComposerPillSurfaceClass
         )}>
           <DialogClose
             ref={closeButtonRef}
-            className="absolute right-5 top-5 inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-300 transition-all hover:text-zinc-950 hover:bg-zinc-50 sm:right-7 sm:top-7 md:right-10 md:top-10 dark:text-zinc-600 dark:hover:text-white dark:hover:bg-white/5"
+            className={cn(
+              "absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-all hover:text-zinc-950 sm:right-5 sm:top-5 dark:text-zinc-500 dark:hover:text-zinc-950",
+              "hover:bg-zinc-100 dark:hover:bg-zinc-100"
+            )}
           >
             <Icon name="common.close" size="md" />
           </DialogClose>
 
-          <div className="mb-7 flex flex-col items-center gap-1.5 text-center sm:mb-10 sm:gap-2 md:mb-14">
-             <h2 className="text-[24px] leading-none font-black tracking-tight text-zinc-950 sm:text-[26px] md:text-[28px] dark:text-white">{t('account.signIn')}</h2>
-             <p className="text-[13px] font-medium text-zinc-400 sm:text-[14px]">{t('account.continueToVlaina')}</p>
+          <div className="mb-7 flex items-center justify-center text-center sm:mb-10 md:mb-12">
+            <h2 className="text-[24px] font-black leading-none tracking-tight text-zinc-950 sm:text-[26px] md:text-[28px]">
+              {t('account.signIn')}
+            </h2>
           </div>
 
           <div className="w-full">

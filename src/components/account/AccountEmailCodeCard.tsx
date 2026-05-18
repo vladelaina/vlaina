@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { cn } from '@/lib/utils';
 import { useI18n } from '@/lib/i18n';
 
@@ -63,21 +64,20 @@ export function AccountEmailCodeCard({
           placeholder={t('account.emailAddress')}
           disabled={disabled || isLoading}
           className={cn(
-            "w-full h-12 px-5 py-3 text-[14px] font-medium transition-all duration-500 outline-none sm:h-[52px] sm:px-6 sm:py-3.5 sm:text-[15px] md:h-14 md:py-4",
-            "bg-zinc-50 dark:bg-black/40",
-            "border border-transparent focus:border-zinc-200 dark:focus:border-zinc-700",
-            "rounded-[18px] placeholder:text-zinc-400 sm:rounded-[20px] dark:placeholder:text-zinc-600",
-            "focus:bg-white dark:focus:bg-black"
+            "h-14 w-full rounded-full px-5 py-3 text-[14px] font-medium text-zinc-950 transition-all duration-200 outline-none sm:h-[60px] sm:px-6 sm:py-3.5 sm:text-[15px] md:h-16",
+            "placeholder:text-zinc-400 dark:placeholder:text-zinc-500",
+            "focus:ring-2 focus:ring-[var(--vlaina-accent)]/20",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+            chatComposerPillSurfaceClass
           )}
         />
         <button
           type="submit"
           disabled={disabled || isLoading || !email}
           className={cn(
-            "w-full h-12 rounded-[18px] font-black text-[14px] transition-all duration-500 sm:h-[52px] sm:rounded-[20px] sm:text-[15px] md:h-14",
-            "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white",
-            "hover:bg-zinc-200 dark:hover:bg-zinc-700 active:scale-[0.97]",
-            "disabled:opacity-50 disabled:active:scale-100"
+            "h-14 w-full rounded-full px-5 text-[14px] font-semibold text-zinc-950 transition-all duration-200 active:scale-[0.985] sm:h-[60px] sm:text-[15px] md:h-16",
+            "disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100",
+            chatComposerPillSurfaceClass
           )}
         >
           {isLoading ? t('account.sending') : t('account.continueWithEmail')}
@@ -106,9 +106,10 @@ export function AccountEmailCodeCard({
           maxLength={6}
           pattern="[0-9]{6}"
           className={cn(
-            "w-full h-14 text-center text-[26px] font-black tracking-[0.35em] transition-all duration-500 outline-none sm:h-[60px] sm:text-[30px] sm:tracking-[0.45em] md:h-16 md:text-3xl md:tracking-[0.5em]",
-            "bg-zinc-50 dark:bg-black/40 rounded-[18px] sm:rounded-[20px]",
-            "focus:bg-white dark:focus:bg-black border border-transparent focus:border-zinc-200 dark:focus:border-zinc-700"
+            "h-14 w-full rounded-full text-center text-[26px] font-black tracking-[0.35em] text-zinc-950 transition-all duration-200 outline-none sm:h-[60px] sm:text-[30px] sm:tracking-[0.45em] md:h-16 md:text-3xl md:tracking-[0.5em]",
+            "focus:ring-2 focus:ring-[var(--vlaina-accent)]/20",
+            "disabled:cursor-not-allowed disabled:opacity-50",
+            chatComposerPillSurfaceClass
           )}
         />
       </div>
@@ -117,9 +118,9 @@ export function AccountEmailCodeCard({
           type="submit"
           disabled={disabled || isLoading || !code}
           className={cn(
-            "w-full h-12 rounded-[18px] font-black text-[14px] transition-all duration-500 sm:h-[52px] sm:rounded-[20px] sm:text-[15px] md:h-14",
-            "bg-zinc-950 dark:bg-white text-white dark:text-zinc-950 shadow-2xl shadow-black/20",
-            "active:scale-[0.97] disabled:opacity-50"
+            "h-14 w-full rounded-full px-5 text-[14px] font-semibold text-zinc-950 transition-all duration-200 active:scale-[0.985] sm:h-[60px] sm:text-[15px] md:h-16",
+            "disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100",
+            chatComposerPillSurfaceClass
           )}
         >
           {isLoading ? t('account.verifying') : t('account.verifyCode')}

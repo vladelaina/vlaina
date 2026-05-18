@@ -18,6 +18,7 @@ import {
   toEditAttachment,
 } from './userMessageContent';
 import { useUserMessageEditorMentions } from './useUserMessageEditorMentions';
+import { useI18n } from '@/lib/i18n';
 
 const editComposerSurfaceClass = cn(
   chatComposerSurfaceClass,
@@ -37,6 +38,7 @@ export function UserMessageEditor({
   onClose,
   onEdit,
 }: UserMessageEditorProps) {
+  const { t } = useI18n();
   const content = message.content || '';
   const [editValue, setEditValue] = useState(parsedContent.text);
   const [editAttachments, setEditAttachments] = useState<Attachment[]>(() =>
@@ -184,14 +186,14 @@ export function UserMessageEditor({
               'h-8 px-3.5 text-[13px] bg-white hover:bg-white dark:bg-white dark:text-zinc-900 dark:hover:bg-white'
             )}
           >
-            取消
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}
             className="h-8 rounded-full bg-[#41a8ea] px-3.5 text-[13px] font-semibold text-white shadow-md shadow-[#41a8ea]/25 transition-all duration-200 hover:scale-105 active:scale-95"
             style={{ boxShadow: '0 0 0 3px rgba(65, 168, 234, 0.12), 0 10px 24px rgba(65, 168, 234, 0.28)' }}
           >
-            发送
+            {t('common.send')}
           </button>
         </div>
       </div>

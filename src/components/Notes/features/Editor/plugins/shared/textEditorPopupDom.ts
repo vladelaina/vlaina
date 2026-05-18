@@ -1,4 +1,5 @@
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { translate } from '@/lib/i18n';
 
 export interface TextEditorPopupElements {
   card: HTMLElement;
@@ -44,15 +45,15 @@ export function createTextEditorPopupElements(
   cancelButton.type = 'button';
   cancelButton.className =
     'text-editor-action-button text-editor-action-button-secondary math-editor-action-button math-editor-action-button-secondary';
-  cancelButton.setAttribute('aria-label', 'Cancel');
-  cancelButton.textContent = 'Cancel';
+  cancelButton.setAttribute('aria-label', translate('common.cancel'));
+  cancelButton.textContent = translate('common.cancel');
 
   const saveButton = document.createElement('button');
   saveButton.type = 'button';
   saveButton.className =
     'text-editor-action-button text-editor-action-button-primary math-editor-action-button math-editor-action-button-primary';
-  saveButton.setAttribute('aria-label', 'Save');
-  saveButton.textContent = 'Save';
+  saveButton.setAttribute('aria-label', translate('common.save'));
+  saveButton.textContent = translate('common.save');
 
   content.append(textarea);
   buttonGroup.append(cancelButton, saveButton);

@@ -8,6 +8,7 @@ import {
 } from './previewExport';
 import { suppressPreviewEditorOpen } from './previewContextMenuSuppression';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { translate } from '@/lib/i18n';
 
 type InsertDirection = 'above' | 'below';
 type PreviewContextMenuIcon = 'image' | 'paragraph' | 'arrow-up' | 'arrow-down';
@@ -177,13 +178,13 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
     return button;
   };
 
-  const createSubmenu = (label: string, items: HTMLElement[]) => {
+  const createSubmenu = (label: string, items: HTMLElement[], icon: PreviewContextMenuIcon) => {
     const group = document.createElement('div');
     group.className = 'vlaina-preview-context-menu-group';
     const parentButton = createMenuButton(
       label,
       () => undefined,
-      label === 'Save as image' ? 'image' : 'paragraph'
+      icon
     );
     parentButton.classList.add('vlaina-preview-context-menu-parent');
     parentButton.setAttribute('aria-haspopup', 'menu');
@@ -206,23 +207,24 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
     menu.replaceChildren();
     menu.appendChild(
       createSubmenu(
-        'Save as image',
+        translate('editor.preview.saveAsImage'),
         PREVIEW_EXPORT_MENU_ORDER.map((format) =>
           createMenuButton(PREVIEW_EXPORT_LABELS[format], () => runSave(format))
-        )
+        ),
+        'image'
       )
     );
     menu.appendChild(
-      createSubmenu('Insert paragraph', [
-        createMenuButton('Above', () => {
+      createSubmenu(translate('editor.preview.insertParagraph'), [
+        createMenuButton(translate('editor.preview.above'), () => {
           insertParagraph(view, currentNode, getPos, 'above');
           closeMenu();
         }, 'arrow-up'),
-        createMenuButton('Below', () => {
+        createMenuButton(translate('editor.preview.below'), () => {
           insertParagraph(view, currentNode, getPos, 'below');
           closeMenu();
         }, 'arrow-down'),
-      ])
+      ], 'paragraph')
     );
   };
 

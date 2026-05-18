@@ -103,7 +103,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 10 }}
               transition={{ duration: 0.05, ease: [0.16, 1, 0.3, 1] }}
-              className="w-[1080px] h-[720px] max-w-full max-h-[90vh] bg-[#fcfcfc] dark:bg-[#1C1C1C] rounded-[32px] shadow-2xl flex overflow-hidden pointer-events-auto ring-1 ring-black/5 dark:ring-white/5 select-none"
+              className="relative w-[1080px] h-[720px] max-w-full max-h-[90vh] bg-[#fcfcfc] dark:bg-[#1C1C1C] rounded-[32px] shadow-2xl flex overflow-hidden pointer-events-auto ring-1 ring-black/5 dark:ring-white/5 select-none"
               onMouseDownCapture={(e) => {
                 if (e.button === 1) {
                   e.preventDefault();
@@ -119,6 +119,18 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               aria-modal="true"
               tabIndex={-1}
             >
+              <button
+                type="button"
+                onClick={handleClose}
+                aria-label={t('common.close')}
+                className={cn(
+                  "absolute right-5 top-5 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-950",
+                  "dark:text-zinc-500 dark:hover:bg-zinc-100 dark:hover:text-zinc-950"
+                )}
+              >
+                <Icon name="common.close" size="md" />
+              </button>
+
               {/* Sidebar Section */}
               <div className="w-[260px] flex-shrink-0 bg-transparent flex flex-col border-r border-zinc-100/50 dark:border-white/5">
                 <div className="flex min-h-0 flex-1 px-4 pb-6 pt-10">

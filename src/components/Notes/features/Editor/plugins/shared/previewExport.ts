@@ -2,6 +2,7 @@ import { toJpeg, toPng, toSvg } from 'html-to-image';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { writeDesktopBinaryFile } from '@/lib/desktop/fs';
 import { saveDialog } from '@/lib/storage/dialog';
+import { translate } from '@/lib/i18n';
 
 export type PreviewExportFormat = 'svg' | 'png' | 'jpg';
 
@@ -95,7 +96,7 @@ export async function savePreview(element: HTMLElement, fileBaseName: string, fo
   const bytes = await createPreviewBytes(element, format);
   const defaultPath = `${fileBaseName}.${format}`;
   const selectedPath = await saveDialog({
-    title: `Save as ${PREVIEW_EXPORT_LABELS[format]}`,
+    title: translate('editor.preview.saveAsFormat', { format: PREVIEW_EXPORT_LABELS[format] }),
     defaultPath,
     filters: EXPORT_FILTERS[format],
   });

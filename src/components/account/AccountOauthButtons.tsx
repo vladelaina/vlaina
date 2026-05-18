@@ -1,4 +1,5 @@
 import { Icon } from '@/components/ui/icons';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { cn } from '@/lib/utils';
 import type { OauthAccountProvider } from '@/lib/account/provider';
 
@@ -39,13 +40,9 @@ export function AccountOauthButtons({
             void onOauthSignIn(option.provider);
           }}
           className={cn(
-            'group relative flex h-14 w-full cursor-pointer items-center justify-center gap-3 px-5 sm:h-[60px] sm:px-6 md:h-16',
-            'bg-white dark:bg-zinc-800/50 text-zinc-950 dark:text-white',
-            'border border-zinc-200/60 dark:border-white/10',
-            'rounded-[22px] sm:rounded-[24px] md:rounded-[28px] font-black text-[14px] sm:text-[15px] tracking-tight transition-all duration-500',
-            'shadow-[0_10px_20px_rgba(0,0,0,0.02),inset_0_0_15px_rgba(0,0,0,0.01)]',
-            'hover:shadow-[0_20px_40px_-10px_rgba(0,0,0,0.08)] hover:scale-[1.01] active:scale-[0.97]',
-            isCompact && 'h-14 rounded-2xl text-[14px]'
+            'group relative flex h-14 w-full cursor-pointer items-center justify-center gap-3 rounded-full px-5 text-[14px] font-semibold tracking-tight text-zinc-950 transition-all duration-200 active:scale-[0.985] sm:h-[60px] sm:px-6 sm:text-[15px] md:h-16',
+            chatComposerPillSurfaceClass,
+            isCompact && 'h-14 text-[14px]'
           )}
         >
           <Icon
@@ -56,7 +53,7 @@ export function AccountOauthButtons({
 
           <span className="opacity-90 group-hover:opacity-100 transition-opacity">Continue with {option.label}</span>
 
-          <div className="absolute inset-0 rounded-[28px] overflow-hidden pointer-events-none">
+          <div className="absolute inset-0 overflow-hidden rounded-full pointer-events-none">
             <div
               className={cn(
                 'absolute inset-x-6 bottom-0 h-[3px] rounded-full bg-gradient-to-r from-[#4285F4] via-[#FBBC05] to-[#34A853] opacity-0 transition-opacity duration-300',
