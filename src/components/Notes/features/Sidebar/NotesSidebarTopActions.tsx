@@ -26,7 +26,7 @@ export function NotesSidebarTopActions() {
       label: notesSidebarView === 'workspace' ? t('sidebar.outline') : t('sidebar.files'),
       icon: (
         <Icon
-          name={notesSidebarView === 'workspace' ? 'common.list' : 'file.folderOpen'}
+          name={notesSidebarView === 'workspace' ? 'common.list' : 'file.folderOutline'}
           size={NOTES_SIDEBAR_ICON_SIZE}
         />
       ),
