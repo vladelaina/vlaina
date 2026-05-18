@@ -120,6 +120,29 @@
   transition: none;
 }
 
+.milkdown .ProseMirror code:not(pre code) {
+  display: inline;
+  vertical-align: baseline;
+  margin: 0;
+  padding: 0.2em 0.4em;
+  border: 0;
+  border-radius: 6px;
+  background-color: rgba(175, 184, 193, 0.2);
+  color: inherit;
+  caret-color: var(--vlaina-caret-color);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace);
+  font-size: inherit;
+  font-weight: 400;
+  line-height: inherit;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.dark .milkdown .ProseMirror code:not(pre code) {
+  background-color: rgba(110, 118, 129, 0.4);
+  color: inherit;
+}
+
 .milkdown li:has(> [data-text-align="center"]) {
   text-align: center;
 }
