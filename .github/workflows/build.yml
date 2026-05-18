@@ -91,7 +91,7 @@ jobs:
             pnpm-store-${{ runner.os }}-
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Typecheck
         run: pnpm typecheck
@@ -141,7 +141,7 @@ jobs:
             pnpm-store-${{ runner.os }}-
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Run tests
         run: pnpm exec vitest run --shard=${{ matrix.shard }}
@@ -183,7 +183,7 @@ jobs:
             pnpm-store-${{ runner.os }}-
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Sync package version from tag
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
@@ -199,7 +199,67 @@ jobs:
           key: renderer-dist-${{ github.run_id }}-${{ github.run_attempt }}
           enableCrossOsArchive: true
 
+  desktop-assets:
+    if: github.event_name != 'pull_request'
+    name: Prepare desktop assets (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025-vs2026
+          - os: macos-15
+          - os: ubuntu-24.04
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+
+      - name: Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.24.0 --activate
+
+      - name: Install ImageMagick on Linux
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+
+      - name: Install ImageMagick on macOS
+        if: runner.os == 'macOS'
+        run: brew install imagemagick
+
+      - name: Install ImageMagick on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Get-Command magick -ErrorAction SilentlyContinue)) {
+            choco install imagemagick -y --no-progress
+          }
+
+      - name: Generate desktop icons
+        run: pnpm run prepare:desktop-assets
+
+      - name: Cache desktop assets
+        uses: actions/cache/save@v5
+        with:
+          path: build
+          key: desktop-assets-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          enableCrossOsArchive: true
+
   package:
+    if: github.event_name != 'pull_request'
     name: Package ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
@@ -207,6 +267,7 @@ jobs:
       - typecheck
       - test
       - build
+      - desktop-assets
       - release-context
 
     strategy:
@@ -275,7 +336,7 @@ jobs:
             pnpm-store-${{ runner.os }}-
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Sync package version from tag
         if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
@@ -289,6 +350,14 @@ jobs:
           fail-on-cache-miss: true
           enableCrossOsArchive: true
 
+      - name: Restore desktop assets
+        uses: actions/cache/restore@v5
+        with:
+          path: build
+          key: desktop-assets-${{ runner.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          fail-on-cache-miss: true
+          enableCrossOsArchive: true
+
       - name: Restore Electron build caches
         uses: actions/cache@v5
         with:
@@ -298,27 +367,6 @@ jobs:
           key: electron-builder-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: |
             electron-builder-${{ runner.os }}-
-
-      - name: Install ImageMagick on Linux
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y imagemagick
-
-      - name: Install ImageMagick on macOS
-        if: runner.os == 'macOS'
-        run: brew install imagemagick
-
-      - name: Install ImageMagick on Windows
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          if (-not (Get-Command magick -ErrorAction SilentlyContinue)) {
-            choco install imagemagick -y --no-progress
-          }
-
-      - name: Generate desktop icons
-        run: pnpm run prepare:desktop-assets
 
       - name: Package Electron app
         env:
