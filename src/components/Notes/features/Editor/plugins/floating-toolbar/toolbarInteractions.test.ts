@@ -291,6 +291,33 @@ describe('toolbar interactions', () => {
     delegation.destroy();
   });
 
+  it('clears a preview kept in toolbar gaps when leaving the toolbar', () => {
+    const toolbar = document.createElement('div');
+    const button = document.createElement('button');
+    const gap = document.createElement('span');
+    const view = {} as any;
+    button.dataset.action = 'bold';
+    toolbar.append(button, gap);
+    document.body.appendChild(toolbar);
+
+    const delegation = createToolbarEventDelegation(toolbar);
+    delegation.update(view, {} as any);
+
+    button.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    button.dispatchEvent(new MouseEvent('mouseout', {
+      bubbles: true,
+      relatedTarget: gap,
+    }));
+    toolbar.dispatchEvent(new MouseEvent('mouseleave', {
+      bubbles: false,
+    }));
+
+    expect(previewMocks.applyFormatPreview).toHaveBeenCalledWith(view, 'bold', false);
+    expect(previewMocks.clearFormatPreview).toHaveBeenCalledWith(view);
+
+    delegation.destroy();
+  });
+
   it('clears the current preview when moving from a format button to a non-preview action', () => {
     const toolbar = document.createElement('div');
     const boldButton = document.createElement('button');
