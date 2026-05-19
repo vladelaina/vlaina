@@ -18,6 +18,7 @@ import { getConsoleLogText, installConsoleLogCapture } from '@/lib/consoleLogBuf
 import { translate } from '@/lib/i18n';
 import { APP_VERSION } from '@/lib/appVersion';
 import { useToastStore } from '@/stores/useToastStore';
+import { loadCommunitySettings } from '@/components/Settings/tabs/aboutCommunitySettings';
 
 const preloadSettingsModule = () => import('@/components/Settings');
 const preloadNotesViewModule = () => import('@/components/Notes/NotesView');
@@ -146,8 +147,13 @@ export function AppContent() {
   useEffect(() => {
     if (settingsOpen) {
       setHasOpenedSettings(true);
+      void loadCommunitySettings();
     }
   }, [settingsOpen]);
+
+  useEffect(() => {
+    void loadCommunitySettings();
+  }, []);
 
   useEffect(() => {
     const handleOpenSettings = () => setSettingsOpen(true);

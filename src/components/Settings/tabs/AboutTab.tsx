@@ -9,6 +9,11 @@ import { cn } from '@/lib/utils';
 import { SettingsItem, SettingsSectionHeader } from '../components/SettingsControls';
 import { useI18n } from '@/lib/i18n';
 import { APP_VERSION } from '@/lib/appVersion';
+import {
+  type CommunitySettings,
+  getCachedCommunitySettings,
+  loadCommunitySettings,
+} from './aboutCommunitySettings';
 
 type UpdateStatus = 'idle' | 'checking' | 'current' | 'available' | 'error';
 
@@ -33,13 +38,54 @@ function CommunityQrPill({
   title,
   label,
   icon,
+  qrText,
+  detail,
 }: {
   title: string;
   label: string;
   icon: ReactNode;
+  qrText: string;
+  detail?: string;
 }) {
+  const [shouldRenderQr, setShouldRenderQr] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState('');
+
+  useEffect(() => {
+    if (!shouldRenderQr || !qrText) {
+      setQrDataUrl('');
+      return;
+    }
+
+    let cancelled = false;
+    void import('qrcode')
+      .then((QRCode) => QRCode.toString(qrText, {
+        color: {
+          dark: '#97c7ecff',
+          light: '#ffffff00',
+        },
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        type: 'svg',
+        width: 144,
+      }))
+      .then((svg) => {
+        if (!cancelled) {
+          setQrDataUrl(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setQrDataUrl('');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [qrText, shouldRenderQr]);
+
   return (
-    <div className="group relative">
+    <div className="group relative" onMouseEnter={() => setShouldRenderQr(true)} onFocus={() => setShouldRenderQr(true)}>
       <button
         type="button"
         aria-label={title}
@@ -52,14 +98,19 @@ function CommunityQrPill({
         'pointer-events-none absolute left-1/2 top-full z-20 mt-3 w-[168px] -translate-x-1/2 rounded-[26px] p-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100',
         chatComposerPillSurfaceClass
       )}>
-        <div className="mb-2 text-center text-[12px] font-semibold text-[var(--notes-sidebar-text)]">
-          {title}
-        </div>
-        <div className="flex aspect-square w-full items-center justify-center rounded-[20px] border border-dashed border-zinc-200 text-[var(--notes-sidebar-text-soft)] dark:border-black/10">
-          <div className="flex flex-col items-center gap-2 text-[12px] font-medium">
-            <QrCode size={34} strokeWidth={1.7} />
-            <span>{title}</span>
+        {detail ? (
+          <div className="mb-1 truncate text-center text-[12px] font-bold tabular-nums text-[var(--notes-sidebar-text)]">
+            {detail}
           </div>
+        ) : null}
+        <div className="flex aspect-square w-full items-center justify-center rounded-[20px] text-[var(--notes-sidebar-text-soft)]">
+          {qrDataUrl ? (
+            <img src={qrDataUrl} alt={title} className="h-full w-full rounded-[16px] object-contain" draggable={false} />
+          ) : (
+            <div className="flex flex-col items-center gap-2 text-[12px] font-medium">
+              <QrCode size={34} strokeWidth={1.7} />
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -82,22 +133,31 @@ function DiscordPill() {
   );
 }
 
-function CommunityPills() {
+function CommunityPills({ community }: { community: CommunitySettings }) {
   const { t } = useI18n();
+  const hasQq = Boolean(community.qqQrCodeText);
+  const hasWechat = Boolean(community.wechatQrCodeText);
 
   return (
     <div className="flex flex-wrap items-center gap-2 px-2">
       <DiscordPill />
-      <CommunityQrPill
-        title={t('settings.about.qqGroup')}
-        label="QQ"
-        icon={<FaQq size={15} className="text-[#12B7F5]" />}
-      />
-      <CommunityQrPill
-        title={t('settings.about.wechatGroup')}
-        label="WeChat"
-        icon={<FaWeixin size={15} className="text-[#07C160]" />}
-      />
+      {hasQq ? (
+        <CommunityQrPill
+          title={t('settings.about.qqGroup')}
+          label="QQ"
+          icon={<FaQq size={15} className="text-[#12B7F5]" />}
+          qrText={community.qqQrCodeText}
+          detail={community.qqGroupNumber || undefined}
+        />
+      ) : null}
+      {hasWechat ? (
+        <CommunityQrPill
+          title={t('settings.about.wechatGroup')}
+          label="WeChat"
+          icon={<FaWeixin size={15} className="text-[#07C160]" />}
+          qrText={community.wechatQrCodeText}
+        />
+      ) : null}
     </div>
   );
 }
@@ -107,6 +167,7 @@ export function AboutTab() {
   const [status, setStatus] = useState<UpdateStatus>('idle');
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [currentVersion, setCurrentVersion] = useState('');
+  const [community, setCommunity] = useState<CommunitySettings>(() => getCachedCommunitySettings());
 
   useEffect(() => {
     const bridge = getElectronBridge();
@@ -119,6 +180,19 @@ export function AboutTab() {
     }).catch(() => {
       setCurrentVersion('');
     });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadCommunitySettings().then((settings) => {
+      if (!cancelled) {
+        setCommunity(settings);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const checkForUpdates = useCallback(async () => {
@@ -208,7 +282,7 @@ export function AboutTab() {
         </SettingsItem>
       </div>
 
-      <CommunityPills />
+      <CommunityPills community={community} />
 
       <div>
         <SettingsSectionHeader>{t('settings.about.privacy')}</SettingsSectionHeader>
