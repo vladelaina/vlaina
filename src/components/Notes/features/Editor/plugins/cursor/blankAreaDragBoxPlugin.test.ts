@@ -187,18 +187,29 @@ describe('shouldClearBlockSelectionForTransaction', () => {
 });
 
 describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
-  it('lets Ctrl+C and Ctrl+X reach native clipboard events while blocks are selected', async () => {
+  it('copies and cuts selected blocks directly from keyboard shortcuts', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
+    });
+
     const { editor, view } = await createBlockSelectionEditor('Alpha\n\nBeta');
 
     try {
       const copy = simulateKeydown(view, 'c');
-      expect(copy.handled).toBe(false);
-      expect(copy.event.defaultPrevented).toBe(false);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(copy.handled).toBe(true);
+      expect(copy.event.defaultPrevented).toBe(true);
+      expect(writeText).toHaveBeenCalledWith('Alpha');
+      expect(view.state.doc.textContent).toBe('AlphaBeta');
 
       const cut = simulateKeydown(view, 'x');
-      expect(cut.handled).toBe(false);
-      expect(cut.event.defaultPrevented).toBe(false);
-      expect(view.state.doc.textContent).toBe('AlphaBeta');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(cut.handled).toBe(true);
+      expect(cut.event.defaultPrevented).toBe(true);
+      expect(writeText).toHaveBeenLastCalledWith('Alpha');
+      expect(view.state.doc.textContent).toBe('Beta');
     } finally {
       await editor.destroy();
     }

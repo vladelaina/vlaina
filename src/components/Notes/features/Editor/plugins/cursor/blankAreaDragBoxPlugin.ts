@@ -21,6 +21,7 @@ import {
   deleteSelectedBlocks as deleteSelectedBlocksCommand,
   serializeSelectedBlocksToText,
   setClipboardText,
+  writeTextToClipboard,
 } from './blockSelectionCommands';
 import { startBlankAreaSelectionSession } from './blankAreaSelectionSession';
 import { type BlockDragStartZone } from './blockDragSession';
@@ -77,6 +78,15 @@ function isSameSelectionSnapshot(
     && left.from === right.from
     && left.to === right.to
     && left.empty === right.empty;
+}
+
+function isClipboardShortcut(event: KeyboardEvent, key: 'c' | 'x'): boolean {
+  return (
+    (event.metaKey || event.ctrlKey) &&
+    !event.altKey &&
+    !event.shiftKey &&
+    event.key.toLowerCase() === key
+  );
 }
 
 function dispatchBlankAreaPlainClick(view: EditorView, action: BlankAreaPlainClickAction): void {
@@ -366,6 +376,28 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
       handleKeyDown(view, event) {
         const { selectedBlocks } = getBlockSelectionPluginState(view.state);
         if (selectedBlocks.length === 0) return false;
+
+        if (isClipboardShortcut(event, 'c')) {
+          const text = serializeSelectedBlocks(view.state, selectedBlocks);
+          if (text.length === 0) return false;
+
+          event.preventDefault();
+          void writeTextToClipboard(text);
+          return true;
+        }
+
+        if (isClipboardShortcut(event, 'x')) {
+          const text = serializeSelectedBlocks(view.state, selectedBlocks);
+          if (text.length === 0) return false;
+
+          event.preventDefault();
+          void writeTextToClipboard(text).then((didCopy) => {
+            if (didCopy) {
+              deleteSelectedBlocks(view, selectedBlocks);
+            }
+          });
+          return true;
+        }
 
         if (event.key === 'Delete' || event.key === 'Backspace') {
           if (event.metaKey || event.ctrlKey || event.altKey) return false;

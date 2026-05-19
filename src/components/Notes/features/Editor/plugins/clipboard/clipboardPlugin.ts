@@ -1,6 +1,7 @@
 import { $prose } from '@milkdown/kit/utils';
 import { parserCtx, serializerCtx } from '@milkdown/kit/core';
-import { Plugin, PluginKey, Selection, TextSelection } from '@milkdown/kit/prose/state';
+import { AllSelection, NodeSelection, Plugin, PluginKey, Selection, TextSelection } from '@milkdown/kit/prose/state';
+import { CellSelection } from '@milkdown/kit/prose/tables';
 import { Fragment, Slice, type Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { Mark } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
@@ -30,11 +31,32 @@ import {
 import { findTailCursorPosInRange, isMarkdownStructuralResult, resolvePasteRange } from './pasteCursorUtils';
 import { createMarkdownPasteSlice, hasOnlyParagraphNodes } from './markdownPasteSlice';
 import { createMarkdownTableFromTabSeparatedText } from './tabSeparatedTablePaste';
+import { writeTextToClipboard } from '@/lib/clipboard';
 
 export const clipboardPluginKey = new PluginKey('vlaina-clipboard');
 const MAX_MARKDOWN_PASTE_CHARS = 1024 * 1024;
 const MAX_HTML_PASTE_CHARS = 2 * 1024 * 1024;
 const INLINE_FOOTNOTE_REFERENCE_PATTERN = /\[\^([^\]\r\n]+)\]/g;
+
+function isCopyShortcut(event: KeyboardEvent): boolean {
+    return (
+        (event.metaKey || event.ctrlKey) &&
+        !event.altKey &&
+        !event.shiftKey &&
+        event.key.toLowerCase() === 'c'
+    );
+}
+
+function shouldHandleCopyShortcutDirectly(selection: Selection): boolean {
+    return (
+        selection instanceof AllSelection ||
+        selection instanceof CellSelection ||
+        selection instanceof NodeSelection ||
+        selection.constructor?.name === 'AllSelection' ||
+        selection.constructor?.name === 'CellSelection' ||
+        selection.constructor?.name === 'NodeSelection'
+    );
+}
 
 export function createStandaloneTocPasteNode(schema: {
     nodes: {
@@ -288,6 +310,27 @@ export const clipboardPlugin = $prose((ctx) => {
     return new Plugin({
         key: clipboardPluginKey,
         props: {
+            handleKeyDown(view, event) {
+                if (!isCopyShortcut(event) || !shouldHandleCopyShortcutDirectly(view.state.selection)) {
+                    return false;
+                }
+
+                const text = serializeSelectionToClipboardText(
+                    view.state,
+                    getMarkdownSerializer(),
+                );
+                if (text.length === 0) {
+                    return false;
+                }
+
+                event.preventDefault();
+                void writeTextToClipboard(text).then((didCopy) => {
+                    if (didCopy) {
+                        collapseSelectionAndHideFloatingToolbar(view);
+                    }
+                });
+                return true;
+            },
             handleDOMEvents: {
                 copy(view, event) {
                     const text = serializeSelectionToClipboardText(

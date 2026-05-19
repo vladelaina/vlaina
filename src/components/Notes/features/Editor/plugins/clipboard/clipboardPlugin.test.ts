@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core';
-import { TextSelection } from '@milkdown/kit/prose/state';
+import { AllSelection, TextSelection } from '@milkdown/kit/prose/state';
 import { CellSelection } from '@milkdown/kit/prose/tables';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
@@ -205,6 +205,39 @@ describe('clipboardPlugin copy', () => {
         await editor.destroy();
     });
 
+    it('copies a Ctrl+A all-selection during Ctrl+C keydown', async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+        });
+
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, 'Alpha\n\nBeta');
+                ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+                    ...prev,
+                    ...notesRemarkStringifyOptions,
+                }));
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+        view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc)));
+
+        const { handled, event } = simulateCopyKeydown(view);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(handled).toBe(true);
+        expect(event.defaultPrevented).toBe(true);
+        expect(writeText).toHaveBeenCalledWith('Alpha\n\nBeta');
+
+        await editor.destroy();
+    });
+
     it('copies two selected list lines in the copy event', async () => {
         const editor = Editor.make()
             .config((ctx) => {
@@ -298,6 +331,47 @@ describe('clipboardPlugin copy', () => {
         expect(handled).toBe(true);
         expect(event.preventDefault).toHaveBeenCalled();
         expect(clipboardData.setData).toHaveBeenCalledWith('text/plain', '启动');
+
+        await editor.destroy();
+    });
+
+    it('copies a cell selection during Ctrl+C keydown', async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        Object.defineProperty(navigator, 'clipboard', {
+            value: { writeText },
+            configurable: true,
+        });
+
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, [
+                    '| newapi | 状态 |',
+                    '| --- | --- |',
+                    '| 启动 | 正常 |',
+                ].join('\n'));
+                ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+                    ...prev,
+                    ...notesRemarkStringifyOptions,
+                }));
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+        const cellPos = findTableCellPos(view.state.doc, '启动');
+        view.dispatch(view.state.tr.setSelection(new CellSelection(
+            view.state.doc.resolve(cellPos),
+            view.state.doc.resolve(cellPos)
+        ) as never));
+
+        const { handled, event } = simulateCopyKeydown(view);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(handled).toBe(true);
+        expect(event.defaultPrevented).toBe(true);
+        expect(writeText).toHaveBeenCalledWith('启动');
 
         await editor.destroy();
     });
