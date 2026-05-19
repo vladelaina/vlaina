@@ -9,7 +9,7 @@ export function markRule(
   markType: MarkType,
   options: Options = {}
 ): InputRule {
-  return new InputRule(regexp, (state, match, start, end) => {
+  const rule = new InputRule(regexp, (state, match, start, end) => {
     const { tr } = state
     const matchLength = match.length
 
@@ -57,4 +57,6 @@ export function markRule(
 
     return tr
   })
+  rule.undoable = false
+  return rule
 }

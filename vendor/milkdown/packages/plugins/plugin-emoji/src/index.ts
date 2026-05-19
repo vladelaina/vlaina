@@ -115,8 +115,8 @@ withMeta(remarkTwemojiPlugin.options, {
 /// Input rule for inserting emoji.
 /// For example, `:smile:` will be replaced with `😄`.
 export const insertEmojiInputRule = $inputRule(
-  (ctx) =>
-    new InputRule(/(:([^:\s]+):)$/, (state, match, start, end) => {
+  (ctx) => {
+    const rule = new InputRule(/(:([^:\s]+):)$/, (state, match, start, end) => {
       const content = match[0]
       if (!content) return null
       const got = get(content)
@@ -129,6 +129,9 @@ export const insertEmojiInputRule = $inputRule(
         .replaceRangeWith(start, end, emojiSchema.type(ctx).create({ html }))
         .scrollIntoView()
     })
+    rule.undoable = false
+    return rule
+  }
 )
 
 withMeta(insertEmojiInputRule, {

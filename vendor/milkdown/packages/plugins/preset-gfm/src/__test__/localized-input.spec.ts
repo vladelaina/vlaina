@@ -3,6 +3,7 @@ import type { EditorView } from '@milkdown/prose/view'
 
 import { Editor, editorViewCtx, remarkStringifyOptionsCtx } from '@milkdown/core'
 import { commonmark } from '@milkdown/preset-commonmark'
+import { TextSelection } from '@milkdown/prose/state'
 import { getMarkdown } from '@milkdown/utils'
 import { expect, it } from 'vitest'
 
@@ -38,6 +39,21 @@ function typeText(view: EditorView, input: string) {
 function pressEnter(view: EditorView) {
   const event = new KeyboardEvent('keydown', {
     key: 'Enter',
+    bubbles: true,
+    cancelable: true,
+  })
+  let handled = false
+
+  view.someProp('handleKeyDown', (handleKeyDown) => {
+    handled = handleKeyDown(view, event) || handled
+  })
+
+  expect(handled).toBe(true)
+}
+
+function pressKey(view: EditorView, key: string) {
+  const event = new KeyboardEvent('keydown', {
+    key,
     bubbles: true,
     cancelable: true,
   })
@@ -117,3 +133,26 @@ it('should not continue strikethrough input rule formatting for following text',
   const markdown = editor.action(getMarkdown())
   expect(markdown).toBe('~~s~~x\n')
 })
+
+it.each(['Backspace', 'Delete'])(
+  'should not keep strikethrough after deleting the only input-rule text with %s',
+  async (key) => {
+    const editor = createEditor()
+
+    await editor.create()
+
+    const view = editor.ctx.get(editorViewCtx)
+    typeText(view, '~~2~~')
+    if (key === 'Delete') {
+      view.dispatch(
+        view.state.tr.setSelection(TextSelection.create(view.state.doc, 1))
+      )
+    }
+
+    pressKey(view, key)
+    typeText(view, 'x')
+
+    const markdown = editor.action(getMarkdown())
+    expect(markdown).toBe('x\n')
+  }
+)

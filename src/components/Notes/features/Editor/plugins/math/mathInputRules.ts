@@ -5,6 +5,8 @@ import {
   MATH_BLOCK_INPUT_RULE_PATTERN,
 } from './mathBlockFence';
 
+type UndoableInputRule = InputRule & { undoable?: boolean };
+
 export { MATH_BLOCK_INPUT_RULE_PATTERN } from './mathBlockFence';
 
 export const MATH_INLINE_INPUT_RULE_PATTERN = /(?<!\$)\$([^$\s][^$]*[^$\s]|[^$\s])\$$/;
@@ -66,5 +68,7 @@ export const mathBlockInputRule = $inputRule(() => {
 });
 
 export const mathInlineInputRule = $inputRule(() => {
-  return new InputRule(MATH_INLINE_INPUT_RULE_PATTERN, applyMathInlineInputRule);
+  const rule = new InputRule(MATH_INLINE_INPUT_RULE_PATTERN, applyMathInlineInputRule);
+  (rule as UndoableInputRule).undoable = false;
+  return rule;
 });
