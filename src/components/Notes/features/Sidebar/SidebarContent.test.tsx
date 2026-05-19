@@ -271,7 +271,7 @@ describe('SidebarContent search highlight cleanup', () => {
   it('shows an empty file tree hint when the vault has no files', () => {
     const { getByTestId } = render(
       <SidebarContent
-        rootFolder={{ path: '', name: 'Vault', isFolder: true, expanded: true, children: [] }}
+        rootFolder={{ id: 'root', path: '', name: 'Vault', isFolder: true, expanded: true, children: [] }}
         isLoading={false}
         currentNotePath={null}
         createNote={vi.fn(async () => undefined)}

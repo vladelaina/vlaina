@@ -4,7 +4,6 @@ import { NotesOutline } from './Outline';
 import { NotesSidebarSurface } from './NotesSidebarPrimitives';
 import { useNotesSidebarSearch } from './useNotesSidebarSearch';
 import type { FolderNode } from '@/stores/useNotesStore';
-import { isDraftNotePath } from '@/stores/notes/draftNote';
 
 interface NotesSidebarPanelProps {
   rootFolder: FolderNode | null;

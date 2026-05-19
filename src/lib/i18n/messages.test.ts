@@ -17,7 +17,12 @@ describe('i18n messages', () => {
   it('keeps simplified Chinese fully localized', () => {
     const englishMessages = getMessages('en');
     const simplifiedChineseMessages = getMessages('zh-CN');
-    const stableProductKeys = new Set(['settings.tabs.ai', 'settings.tabs.markdown', 'vault.pathPlaceholder']);
+    const stableProductKeys = new Set([
+      'settings.tabs.ai',
+      'settings.tabs.markdown',
+      'settings.about.discord',
+      'vault.pathPlaceholder',
+    ]);
 
     for (const key of messageKeys) {
       if (stableProductKeys.has(key)) continue;
