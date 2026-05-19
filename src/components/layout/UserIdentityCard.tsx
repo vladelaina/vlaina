@@ -25,6 +25,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
   const displayIdentity = primaryEmail || username || 'vlaina';
   const userAvatar = useUserAvatar();
   const displayAvatar = userAvatar || fallbackAvatarUrl;
+  const isMembershipPending = isConnected && !membershipTier && !membershipName;
   const membershipPillClassName = isConnected
     ? membershipTier === 'plus'
       ? 'border-sky-200 bg-sky-50 text-sky-700'
@@ -60,7 +61,11 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
             membershipPillClassName
           )}
         >
-          {isConnected ? membershipName || 'Free' : 'LOCAL'}
+          {isMembershipPending ? (
+            <span className="block h-2 w-7 animate-pulse rounded-full bg-current opacity-25" aria-hidden="true" />
+          ) : (
+            isConnected ? membershipName || (membershipTier === 'free' ? 'Free' : '') : 'LOCAL'
+          )}
         </span>
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1 pt-0.5">

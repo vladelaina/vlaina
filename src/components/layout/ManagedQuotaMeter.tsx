@@ -10,6 +10,8 @@ interface ManagedQuotaMeterProps {
 export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
   const { t } = useI18n();
   const budget = useManagedAIStore(s => s.budget);
+  const isRefreshingBudget = useManagedAIStore(s => s.isRefreshingBudget);
+  const budgetError = useManagedAIStore(s => s.budgetError);
   const refreshBudgetIfStale = useManagedAIStore(s => s.refreshBudgetIfStale);
 
   useEffect(() => {
@@ -19,6 +21,7 @@ export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
   const remainingPercent = budget ? Math.max(0, Math.min(100, budget.remainingPercent || 0)) : null;
   const progressWidth = remainingPercent == null ? '0%' : `${remainingPercent}%`;
   const quotaLabel = remainingPercent == null ? undefined : `${remainingPercent.toFixed(0)}%`;
+  const isBudgetPending = remainingPercent == null;
 
   return (
     <div
@@ -29,10 +32,25 @@ export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
     >
       <div className="min-w-0 flex-1">
         <div className="h-1.5 overflow-hidden rounded-full bg-[#e9e6df]">
-          <div
-            className="h-full rounded-full bg-[#4ade80] transition-all"
-            style={{ width: progressWidth }}
-          />
+          {isBudgetPending ? (
+            <div
+              className={cn(
+                'h-full w-2/5 animate-pulse rounded-full',
+                budgetError && !isRefreshingBudget
+                  ? 'bg-[var(--vlaina-border)]'
+                  : 'bg-gradient-to-r from-[#bbf7d0] via-[#4ade80] to-[#bbf7d0]'
+              )}
+              data-testid="managed-quota-loading-bar"
+            />
+          ) : (
+            <div
+              className={cn(
+                'h-full rounded-full transition-all',
+                budgetError ? 'bg-[var(--vlaina-border)]' : 'bg-[#4ade80]'
+              )}
+              style={{ width: progressWidth }}
+            />
+          )}
         </div>
       </div>
       {quotaLabel ? (

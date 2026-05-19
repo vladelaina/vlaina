@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 describe('ManagedQuotaMeter', () => {
-  it('shows an empty meter and refreshes when budget is missing', async () => {
+  it('shows a loading meter and refreshes when budget is missing', async () => {
     const refreshBudgetIfStale = vi.fn().mockResolvedValue(undefined);
     act(() => {
       useManagedAIStore.setState({
@@ -29,6 +29,7 @@ describe('ManagedQuotaMeter', () => {
     render(<ManagedQuotaMeter />);
 
     expect(screen.getByLabelText('Managed AI quota loading')).toBeInTheDocument();
+    expect(screen.getByTestId('managed-quota-loading-bar')).toBeInTheDocument();
     expect(screen.queryByText(/%/)).not.toBeInTheDocument();
     await waitFor(() => expect(refreshBudgetIfStale).toHaveBeenCalledTimes(1));
   });
