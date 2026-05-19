@@ -1,6 +1,7 @@
 import { $prose } from '@milkdown/kit/utils';
-import { Plugin } from '@milkdown/kit/prose/state';
-import type { FloatingToolbarState, ToolbarMeta } from './types';
+import { Plugin, TextSelection, type Selection } from '@milkdown/kit/prose/state';
+import type { EditorView } from '@milkdown/kit/prose/view';
+import { TOOLBAR_ACTIONS, type FloatingToolbarState, type ToolbarMeta } from './types';
 import { getLinkUrl } from './selectionHelpers';
 import { setLink, toggleMark } from './commands';
 import { isFloatingToolbarSuppressed } from './floatingToolbarDom';
@@ -9,6 +10,87 @@ import { applyToolbarMeta, createInitialState, mapAiReviewRange } from './floati
 import { floatingToolbarKey } from './floatingToolbarKey';
 import { openLinkTooltipFromSelection } from './linkTooltipActions';
 import { getAiReviewSelectionDecorations } from './ai/reviewSelection';
+
+export function shouldHideToolbarForArrowNavigation(selection: Selection, event: KeyboardEvent): boolean {
+  if (
+    selection.empty ||
+    !(selection instanceof TextSelection) ||
+    event.shiftKey ||
+    event.altKey ||
+    event.ctrlKey ||
+    event.metaKey
+  ) {
+    return false;
+  }
+
+  return (
+    event.key === 'ArrowLeft' ||
+    event.key === 'ArrowRight' ||
+    event.key === 'ArrowUp' ||
+    event.key === 'ArrowDown'
+  );
+}
+
+function getArrowNavigationFallbackPosition(selection: TextSelection, key: string): number {
+  if (key === 'ArrowLeft' || key === 'ArrowUp') {
+    return selection.from;
+  }
+
+  return selection.to;
+}
+
+function getVerticalArrowNavigationPosition(
+  view: EditorView,
+  selection: TextSelection,
+  key: string
+): number | null {
+  const isUp = key === 'ArrowUp';
+  const basePos = isUp ? selection.from : selection.to;
+
+  try {
+    const coords = view.coordsAtPos(basePos);
+    const editorStyle = window.getComputedStyle(view.dom);
+    const parsedLineHeight = Number.parseFloat(editorStyle.lineHeight);
+    const lineStep = Number.isFinite(parsedLineHeight) && parsedLineHeight > 0
+      ? parsedLineHeight
+      : Math.max(18, coords.bottom - coords.top);
+    const target = view.posAtCoords({
+      left: coords.left,
+      top: isUp ? coords.top - lineStep : coords.bottom + lineStep,
+    });
+
+    return target?.pos ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function moveSelectionForArrowNavigation(view: EditorView, event: KeyboardEvent): boolean {
+  const { selection } = view.state;
+  if (!shouldHideToolbarForArrowNavigation(selection, event) || !(selection instanceof TextSelection)) {
+    return false;
+  }
+
+  const fallbackPos = getArrowNavigationFallbackPosition(selection, event.key);
+  const targetPos = event.key === 'ArrowUp' || event.key === 'ArrowDown'
+    ? getVerticalArrowNavigationPosition(view, selection, event.key) ?? fallbackPos
+    : fallbackPos;
+  const maxPos = view.state.doc.content.size;
+  const cursorPos = Math.max(0, Math.min(targetPos, maxPos));
+
+  event.preventDefault();
+  view.dispatch(
+    view.state.tr
+      .setSelection(TextSelection.create(view.state.doc, cursorPos))
+      .setMeta(floatingToolbarKey, {
+        type: TOOLBAR_ACTIONS.HIDE,
+      })
+      .setMeta('addToHistory', false)
+      .scrollIntoView()
+  );
+
+  return true;
+}
 
 export const floatingToolbarPlugin = $prose(() => {
   const interactionState = {
@@ -79,6 +161,10 @@ export const floatingToolbarPlugin = $prose(() => {
         return getAiReviewSelectionDecorations(state);
       },
       handleKeyDown(view, event) {
+        if (moveSelectionForArrowNavigation(view, event)) {
+          return true;
+        }
+
         const isMod = event.ctrlKey || event.metaKey;
         if (isMod && !event.shiftKey) {
           const { selection } = view.state;
