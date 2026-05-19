@@ -40,6 +40,7 @@ export interface AIModel {
   group?: string
   priceTier?: '$' | '$$' | '$$$' | '$$$$' | '$$$$$'
   priceScore?: number
+  isDefault?: boolean
   enabled: boolean
   pinned?: boolean
   createdAt: number
