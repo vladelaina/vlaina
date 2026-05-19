@@ -14,6 +14,7 @@ const BUILTIN_COVERS: BuiltinCover[] = [
 ];
 
 const COVER_BY_ID = new Map(BUILTIN_COVERS.map(c => [c.id, c]));
+const bundledCoverBaseUrl = `${import.meta.env.BASE_URL}covers/`;
 
 export const BUILTIN_PREFIX = '@';
 
@@ -32,7 +33,7 @@ export function getBuiltinCoverUrl(assetPath: string): string {
     if (import.meta.env.DEV) console.warn('Unknown built-in cover:', assetPath);
     return '';
   }
-  return `/covers/${cover.path}`;
+  return `${bundledCoverBaseUrl}${cover.path}`;
 }
 
 export function toBuiltinAssetPath(cover: BuiltinCover): string {

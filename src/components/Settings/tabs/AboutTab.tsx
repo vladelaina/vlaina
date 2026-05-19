@@ -31,6 +31,7 @@ interface UpdateInfo {
 
 const privacyPolicyUrl = 'https://github.com/vladelaina/vlaina/blob/main/PRIVACY.md';
 const discordInviteUrl = 'https://discord.gg/nvsh9QpTqS';
+const appLogoUrl = `${import.meta.env.BASE_URL}logo.png`;
 const communityPillClassName =
   'inline-flex h-8 items-center gap-2 rounded-full px-3 text-[12px] font-semibold text-[var(--notes-sidebar-text)] transition-all duration-200';
 
@@ -232,7 +233,7 @@ export function AboutTab() {
     <div className="space-y-8">
       <div className="flex items-center gap-7 py-2">
         <img
-          src="/logo.png"
+          src={appLogoUrl}
           alt="vlaina"
           className="h-32 w-32 shrink-0 rounded-[28px] object-contain"
           draggable={false}
