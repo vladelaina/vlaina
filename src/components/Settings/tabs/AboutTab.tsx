@@ -30,7 +30,7 @@ interface UpdateInfo {
 }
 
 const privacyPolicyUrl = 'https://github.com/vladelaina/vlaina/blob/main/PRIVACY.md';
-const discordInviteUrl = 'https://discord.gg/vlaina-placeholder';
+const discordInviteUrl = 'https://discord.gg/nvsh9QpTqS';
 const communityPillClassName =
   'inline-flex h-8 items-center gap-2 rounded-full px-3 text-[12px] font-semibold text-[var(--notes-sidebar-text)] transition-all duration-200';
 
