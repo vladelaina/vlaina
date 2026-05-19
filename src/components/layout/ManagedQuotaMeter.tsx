@@ -18,8 +18,9 @@ export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
     void refreshBudgetIfStale();
   }, [refreshBudgetIfStale]);
 
-  const remainingPercent = budget ? Math.max(0, Math.min(100, budget.remainingPercent || 0)) : null;
-  const progressWidth = remainingPercent == null ? '0%' : `${remainingPercent}%`;
+  const remainingPercent = budget ? Math.max(0, budget.remainingPercent || 0) : null;
+  const progressPercent = remainingPercent == null ? 0 : Math.min(100, remainingPercent);
+  const progressWidth = `${progressPercent}%`;
   const quotaLabel = remainingPercent == null ? undefined : `${remainingPercent.toFixed(0)}%`;
   const isBudgetPending = remainingPercent == null;
 
@@ -55,7 +56,7 @@ export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
       </div>
       {quotaLabel ? (
         <span
-          className="w-0 shrink-0 overflow-hidden whitespace-nowrap text-[11px] text-[var(--vlaina-text-tertiary)] opacity-0 transition-[width,opacity] group-hover/quota:w-7 group-hover/quota:opacity-100 group-focus-within/quota:w-7 group-focus-within/quota:opacity-100"
+          className="w-0 shrink-0 overflow-hidden whitespace-nowrap text-[11px] text-[var(--vlaina-text-tertiary)] opacity-0 transition-[width,opacity] group-hover/quota:w-9 group-hover/quota:opacity-100 group-focus-within/quota:w-9 group-focus-within/quota:opacity-100"
           aria-hidden="true"
         >
           {quotaLabel}
