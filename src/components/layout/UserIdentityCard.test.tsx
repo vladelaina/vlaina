@@ -3,9 +3,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { initialAccountSessionState } from '@/stores/accountSession/state';
+import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { UserIdentityCard } from './UserIdentityCard';
 
 const originalManagedState = useManagedAIStore.getState();
+
+vi.mock('@/lib/navigation/externalLinks', () => ({
+  openExternalHref: vi.fn().mockResolvedValue(undefined),
+}));
 
 afterEach(() => {
   act(() => {
@@ -67,5 +72,26 @@ describe('UserIdentityCard', () => {
 
     expect(screen.getByText('alice@example.com')).toBeInTheDocument();
     expect(screen.queryByText('Free')).not.toBeInTheDocument();
+  });
+
+  it('opens the account plan page when the membership badge is activated', async () => {
+    act(() => {
+      useAccountSessionStore.setState({
+        ...initialAccountSessionState,
+        isConnected: true,
+        isLoading: false,
+        provider: 'google',
+        username: 'alice',
+        primaryEmail: 'alice@example.com',
+        membershipTier: 'pro',
+        membershipName: 'Pro',
+      });
+    });
+
+    render(<UserIdentityCard onLogout={vi.fn()} onSwitchAccount={vi.fn()} />);
+
+    await screen.getByText('Pro').click();
+
+    expect(openExternalHref).toHaveBeenCalledWith('https://vlaina.com/r/account_plan');
   });
 });
