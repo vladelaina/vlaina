@@ -123,17 +123,24 @@ export function pressKey(
     Object.defineProperty(event, 'isComposing', { value: true });
   }
 
+  const hadSelection = !view.state.selection.empty;
   let handled = false;
+  let autoPairHandled = false;
+  let checked = false;
 
   view.someProp('handleKeyDown', (handleKeyDown: any) => {
-    if (handled) {
-      return handled;
+    const nextHandled = handleKeyDown(view, event) || handled;
+    if (!checked) {
+      checked = true;
+      autoPairHandled = nextHandled;
+      handled = nextHandled;
+      return hadSelection ? handled : true;
     }
-    handled = handleKeyDown(view, event) || handled;
+    handled = nextHandled;
     return handled;
   });
 
-  return handled;
+  return autoPairHandled;
 }
 
 export function deleteCharBeforeCursor(view: EditorView): void {
