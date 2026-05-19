@@ -40,7 +40,7 @@ function isSupportedBillingOrigin(): boolean {
 
 function assertSupportedBillingOrigin(): void {
   if (!isSupportedBillingOrigin()) {
-    throw new Error('Membership checkout is unavailable on local development origins. Use app.vlaina.com or the desktop app.')
+    throw new Error('Membership checkout is unavailable on local development origins. Use vlaina.com/pricing or the desktop app.')
   }
 }
 

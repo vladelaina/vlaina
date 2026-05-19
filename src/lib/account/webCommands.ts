@@ -82,7 +82,7 @@ function isSupportedWebAccountOrigin(): boolean {
 }
 
 function getUnsupportedWebAccountOriginMessage(): string {
-  return 'Web sign-in is unavailable on local development origins. Use app.vlaina.com or the desktop app.';
+  return 'Web sign-in is unavailable on local development origins. Use vlaina.com/pricing or the desktop app.';
 }
 
 function assertSupportedWebAccountOrigin(): void {
