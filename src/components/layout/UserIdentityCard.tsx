@@ -10,6 +10,7 @@ import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/c
 import { getSidebarIdleRowSurfaceClass } from '@/components/layout/sidebar/sidebarLabelStyles';
 
 const fallbackAvatarUrl = `${import.meta.env.BASE_URL}logo.png?v=20260327`;
+const membershipPlanUrl = 'https://vlaina.com/r/account_plan';
 
 interface UserIdentityCardProps {
   onLogout: () => void | Promise<void>;
@@ -49,11 +50,11 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
         <span
           role="button"
           tabIndex={0}
-          onClick={() => void openExternalHref('https://vlaina.com')}
+          onClick={() => void openExternalHref(membershipPlanUrl)}
           onKeyDown={(event) => {
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault();
-              void openExternalHref('https://vlaina.com');
+              void openExternalHref(membershipPlanUrl);
             }
           }}
           className={cn(
