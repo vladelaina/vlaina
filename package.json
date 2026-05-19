@@ -40,9 +40,6 @@
     "quality:budget": "node scripts/check-build-budget.mjs temp/build-quality-gate.log",
     "quality:gate": "node scripts/quality-gate.mjs"
   },
-  "dependencies": {
-    "qrcode": "^1.5.4"
-  },
   "devDependencies": {
     "@codemirror/language": "^6.12.3",
     "@codemirror/language-data": "^6.5.2",
@@ -103,6 +100,7 @@
     "nanoid": "^5.1.11",
     "next-themes": "^0.4.6",
     "postcss": "^8.5.14",
+    "qrcode": "^1.5.4",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-dropzone": "^14.3.8",
