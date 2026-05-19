@@ -28,6 +28,9 @@ export function chooseFallbackSelectedModelId(
   }
 
   if (preferredProviderId) {
+    const preferredDefaultModel = models.find((model) => model.providerId === preferredProviderId && model.isDefault === true)
+    if (preferredDefaultModel) return preferredDefaultModel.id
+
     const preferredModel = models.find((model) => model.providerId === preferredProviderId)
     if (preferredModel) return preferredModel.id
   }
@@ -55,7 +58,8 @@ export function replaceProviderModels(allModels: AIModel[], providerId: string, 
         existing.providerId === model.providerId &&
         existing.group === model.group &&
         existing.priceTier === model.priceTier &&
-        existing.priceScore === model.priceScore
+        existing.priceScore === model.priceScore &&
+        existing.isDefault === model.isDefault
       ) {
         return existing
       }
@@ -104,6 +108,7 @@ export function areModelsEqual(left: AIModel[], right: AIModel[]): boolean {
       model.group === other.group &&
       model.priceTier === other.priceTier &&
       model.priceScore === other.priceScore &&
+      model.isDefault === other.isDefault &&
       model.enabled === other.enabled &&
       model.pinned === other.pinned &&
       model.createdAt === other.createdAt

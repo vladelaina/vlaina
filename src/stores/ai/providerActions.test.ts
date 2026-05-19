@@ -255,6 +255,37 @@ describe('refreshManagedProviderInBackground', () => {
     expect(useUnifiedStore.getState().data.ai?.models.map((model) => model.apiModelId)).toEqual(['new-model']);
   });
 
+  it('selects the managed default model when the previous selection is unavailable', async () => {
+    seedAI([
+      buildProvider({
+        id: 'vlaina-managed',
+        name: 'vlaina',
+        type: 'newapi',
+        apiHost: 'https://api.vlaina.com/v1',
+      }),
+    ], []);
+    fetchManagedModelsMock.mockResolvedValue(buildCatalog([
+      buildModel({
+        id: 'vlaina-managed::first-model',
+        apiModelId: 'first-model',
+        name: 'First Model',
+        providerId: 'vlaina-managed',
+      }),
+      buildModel({
+        id: 'vlaina-managed::default-model',
+        apiModelId: 'default-model',
+        name: 'Default Model',
+        providerId: 'vlaina-managed',
+        isDefault: true,
+      }),
+    ]));
+
+    actions.refreshManagedProviderInBackground();
+    await vi.runAllTimersAsync();
+
+    expect(useUnifiedStore.getState().data.ai?.selectedModelId).toBe('vlaina-managed::default-model');
+  });
+
   it('skips non-forced refresh attempts inside the throttle window', async () => {
     fetchManagedModelsMock.mockResolvedValue(buildCatalog([
       buildModel({
