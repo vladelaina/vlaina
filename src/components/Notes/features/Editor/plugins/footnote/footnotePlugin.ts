@@ -4,6 +4,8 @@ import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { FootnoteDefAttrs, FootnoteRefAttrs } from './types';
 
+type UndoableInputRule = InputRule & { undoable?: boolean };
+
 export const footnoteInteractionPluginKey = new PluginKey('footnoteInteraction');
 
 function resolveFootnoteRef(target: EventTarget | null): HTMLElement | null {
@@ -248,7 +250,7 @@ export const footnoteDefSchema = $node('footnote_def', () => ({
 }));
 
 export const footnoteRefInputRule = $inputRule(() => {
-  return new InputRule(
+  const rule = new InputRule(
     /\[\^([^\]]+)\]$/,
     (state, match, start, end) => {
       const id = match[1];
@@ -270,6 +272,8 @@ export const footnoteRefInputRule = $inputRule(() => {
         .replaceSelectionWith(nodeType.create(attrs));
     }
   );
+  (rule as UndoableInputRule).undoable = false;
+  return rule;
 });
 
 export const footnotePlugin = [

@@ -2,6 +2,9 @@ import { $mark, $remark, $inputRule } from '@milkdown/kit/utils';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
 import { escapeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
 import { remarkInlineColorHtmlPlugin, sanitizeCssColorValue, type MdastNode } from './colorMarkdownHtml';
+
+type UndoableInputRule = InputRule & { undoable?: boolean };
+
 export const textColorMark = $mark('textColor', () => ({
   attrs: {
     color: { default: null },
@@ -157,7 +160,7 @@ export const underlineMark = $mark('underline', () => ({
   },
 }));
 export const underlineInputRule = $inputRule(() => {
-  return new InputRule(
+  const rule = new InputRule(
     /(?<!\+)\+\+([^+]+)\+\+$/,
     (state, match, start, end) => {
       const text = match[1];
@@ -175,6 +178,8 @@ export const underlineInputRule = $inputRule(() => {
         .setStoredMarks(initialStoredMarks);
     }
   );
+  (rule as UndoableInputRule).undoable = false;
+  return rule;
 });
 function remarkUnderline() {
   const UNDERLINE_REGEX = /\+\+([^+]+)\+\+/g;

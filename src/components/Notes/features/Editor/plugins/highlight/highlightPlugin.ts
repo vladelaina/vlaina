@@ -9,6 +9,8 @@ import {
 } from '@/lib/notes/markdown/markdownHtmlText';
 import { remarkHighlight } from './highlightMarkdownTransforms';
 
+type UndoableInputRule = InputRule & { undoable?: boolean };
+
 export const remarkHighlightPlugin = $remark('remarkHighlight', () => remarkHighlight);
 
 function shouldUseHtmlFallback(text: string, delimiter: string): boolean {
@@ -81,7 +83,7 @@ export const highlightMark = $mark('highlight', () => ({
 }));
 
 export const highlightInputRule = $inputRule(() => {
-  return new InputRule(
+  const rule = new InputRule(
     /(?<!=)==([^=]+)==$/,
     (state, match, start, end) => {
       const text = match[1];
@@ -99,6 +101,8 @@ export const highlightInputRule = $inputRule(() => {
         .setStoredMarks(initialStoredMarks);
     }
   );
+  (rule as UndoableInputRule).undoable = false;
+  return rule;
 });
 
 export const toggleHighlightCommand = $command('toggleHighlight', () => () => {
@@ -138,7 +142,7 @@ export const superscriptMark = $mark('superscript', () => ({
 }));
 
 export const superscriptInputRule = $inputRule(() => {
-  return new InputRule(
+  const rule = new InputRule(
     /(?<!\^)\^([^^]+)\^$/,
     (state, match, start, end) => {
       const text = match[1];
@@ -156,6 +160,8 @@ export const superscriptInputRule = $inputRule(() => {
         .setStoredMarks(initialStoredMarks);
     }
   );
+  (rule as UndoableInputRule).undoable = false;
+  return rule;
 });
 
 export const toggleSuperscriptCommand = $command('toggleSuperscript', () => () => {
@@ -195,7 +201,7 @@ export const subscriptMark = $mark('subscript', () => ({
 }));
 
 export const subscriptInputRule = $inputRule(() => {
-  return new InputRule(
+  const rule = new InputRule(
     /(?<!~)~([^~\s][^~]*[^~\s]|[^~\s])~(?!~)$/,
     (state, match, start, end) => {
       const text = match[1];
@@ -213,6 +219,8 @@ export const subscriptInputRule = $inputRule(() => {
         .setStoredMarks(initialStoredMarks);
     }
   );
+  (rule as UndoableInputRule).undoable = false;
+  return rule;
 });
 
 export const toggleSubscriptCommand = $command('toggleSubscript', () => () => {

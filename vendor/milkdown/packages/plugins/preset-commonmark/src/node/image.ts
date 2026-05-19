@@ -246,8 +246,8 @@ withMeta(updateImageCommand, {
 /// You can input `![alt](src "title")` to insert a image node.
 /// The `title` is optional.
 export const insertImageInputRule = $inputRule(
-  (ctx) =>
-    new InputRule(
+  (ctx) => {
+    const rule = new InputRule(
       /(?:!|！)(?:\[|【)(?<alt>.*?)(?:\]|】)(?:\(|（)(?<filename>[^\s)）]+)(?:\s+(?:"|“)(?<title>[^"”]+)(?:"|”))?(?:\)|）)/,
       (state, match, start, end) => {
         const matched = match[0]
@@ -264,6 +264,9 @@ export const insertImageInputRule = $inputRule(
         return null
       }
     )
+    rule.undoable = false
+    return rule
+  }
 )
 
 withMeta(insertImageInputRule, {

@@ -13,6 +13,7 @@ test('should work with basic keymap', async () => {
 
   const keymap = km.build()
   expect(keymap['Backspace']).toBeDefined()
+  expect(keymap['Delete']).toBeDefined()
   expect(keymap['Enter']).toBeDefined()
 })
 

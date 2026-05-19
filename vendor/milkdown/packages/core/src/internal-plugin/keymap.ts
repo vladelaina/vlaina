@@ -11,9 +11,10 @@ import { ctxCallOutOfScope } from '@milkdown/exception'
 import {
   baseKeymap,
   chainCommands,
-  deleteSelection,
   joinTextblockBackward,
+  joinTextblockForward,
   selectNodeBackward,
+  selectNodeForward,
 } from '@milkdown/prose/commands'
 import { undoInputRule } from '@milkdown/prose/inputrules'
 
@@ -29,14 +30,107 @@ export type KeymapItem = {
 /// @internal
 export type KeymapKey = SliceType<KeymapItem>
 
+const deleteSelectionAndSyncStoredMarks: Command = (state, dispatch) => {
+  if (state.selection.empty) return false
+
+  if (dispatch) {
+    const tr = state.tr.deleteSelection().scrollIntoView()
+    const { selection } = tr
+
+    if (selection.empty) {
+      tr.setStoredMarks(selection.$from.marks())
+    }
+
+    dispatch(tr)
+  }
+
+  return true
+}
+
+function getTextDeleteSize(text: string, direction: -1 | 1) {
+  if (!text) return 0
+
+  const segmenter =
+    typeof Intl !== 'undefined' && 'Segmenter' in Intl
+      ? new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+      : null
+
+  if (!segmenter) {
+    const codePoint =
+      direction < 0
+        ? text.codePointAt(text.length - 1)
+        : text.codePointAt(0)
+    return codePoint == null ? 0 : String.fromCodePoint(codePoint).length
+  }
+
+  const segments = Array.from(segmenter.segment(text))
+  const segment =
+    direction < 0 ? segments[segments.length - 1] : segments[0]
+  return segment?.segment.length ?? 0
+}
+
+const deleteTextBeforeCursorAndSyncStoredMarks: Command = (state, dispatch) => {
+  const { $cursor } = state.selection
+  if (!$cursor) return false
+
+  const textBefore = $cursor.nodeBefore?.isText
+    ? $cursor.nodeBefore.text ?? ''
+    : ''
+  const size = getTextDeleteSize(textBefore, -1)
+  if (size <= 0) return false
+
+  if (dispatch) {
+    const tr = state.tr.delete($cursor.pos - size, $cursor.pos).scrollIntoView()
+    const { selection } = tr
+
+    if (selection.empty) {
+      tr.setStoredMarks(selection.$from.marks())
+    }
+
+    dispatch(tr)
+  }
+
+  return true
+}
+
+const deleteTextAfterCursorAndSyncStoredMarks: Command = (state, dispatch) => {
+  const { $cursor } = state.selection
+  if (!$cursor) return false
+
+  const textAfter = $cursor.nodeAfter?.isText ? $cursor.nodeAfter.text ?? '' : ''
+  const size = getTextDeleteSize(textAfter, 1)
+  if (size <= 0) return false
+
+  if (dispatch) {
+    const tr = state.tr.delete($cursor.pos, $cursor.pos + size).scrollIntoView()
+    const { selection } = tr
+
+    if (selection.empty) {
+      tr.setStoredMarks(selection.$from.marks())
+    }
+
+    dispatch(tr)
+  }
+
+  return true
+}
+
 function overrideBaseKeymap(keymap: Record<string, Command>) {
   const handleBackspace = chainCommands(
     undoInputRule,
-    deleteSelection,
+    deleteSelectionAndSyncStoredMarks,
+    deleteTextBeforeCursorAndSyncStoredMarks,
     joinTextblockBackward,
     selectNodeBackward
   )
+  const handleDelete = chainCommands(
+    deleteSelectionAndSyncStoredMarks,
+    deleteTextAfterCursorAndSyncStoredMarks,
+    joinTextblockForward,
+    selectNodeForward
+  )
   keymap.Backspace = handleBackspace
+  keymap.Delete = handleDelete
   return keymap
 }
 

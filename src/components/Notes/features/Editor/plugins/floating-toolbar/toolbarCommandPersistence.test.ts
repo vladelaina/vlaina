@@ -53,6 +53,7 @@ async function createEditor(markdown: string) {
 
 type TestEditor = Awaited<ReturnType<typeof createEditor>>;
 type HandleTextInput = (view: EditorView, from: number, to: number, text: string) => boolean;
+type HandleKeyDown = (view: EditorView, event: KeyboardEvent) => boolean;
 
 function selectText(editor: TestEditor, text: string) {
   const view = editor.ctx.get(editorViewCtx);
@@ -80,6 +81,21 @@ function typeText(view: EditorView, input: string) {
 
     if (!handled) view.dispatch(view.state.tr.insertText(text, from, to));
   }
+}
+
+function pressKey(view: EditorView, key: string) {
+  const event = new KeyboardEvent('keydown', {
+    key,
+    bubbles: true,
+    cancelable: true,
+  });
+  let handled = false;
+
+  view.someProp('handleKeyDown', (handleKeyDown: HandleKeyDown) => {
+    handled = handleKeyDown(view, event) || handled;
+  });
+
+  expect(handled).toBe(true);
 }
 
 async function persist(editor: TestEditor) {
@@ -187,5 +203,40 @@ describe('floating toolbar command markdown persistence', () => {
 
     expect(activeMarks.has(markName)).toBe(true);
     await editor.destroy();
+  });
+
+  it.each([
+    ['highlight', '==2=='],
+    ['underline', '++2++'],
+    ['superscript', 'a^2^'],
+    ['subscript', 'H~2~'],
+  ] as const)('does not keep %s after deleting the only input-rule text with Backspace', async (_name, input) => {
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx);
+
+    typeText(view, input);
+    pressKey(view, 'Backspace');
+    typeText(view, 'x');
+
+    await expect(persist(editor)).resolves.toBe(input.startsWith('H') ? 'Hx' : input.startsWith('a') ? 'ax' : 'x');
+  });
+
+  it.each([
+    ['highlight', '==2=='],
+    ['underline', '++2++'],
+    ['superscript', 'a^2^'],
+    ['subscript', 'H~2~'],
+  ] as const)('does not keep %s after deleting the only input-rule text with Delete', async (_name, input) => {
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx);
+
+    typeText(view, input);
+    view.dispatch(
+      view.state.tr.setSelection(TextSelection.create(view.state.doc, input.startsWith('H') || input.startsWith('a') ? 2 : 1))
+    );
+    pressKey(view, 'Delete');
+    typeText(view, 'x');
+
+    await expect(persist(editor)).resolves.toBe(input.startsWith('H') ? 'Hx' : input.startsWith('a') ? 'ax' : 'x');
   });
 });
