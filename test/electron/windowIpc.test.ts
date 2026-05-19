@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import electron from 'electron';
 import { normalizeWindowDimension, registerWindowIpc } from '../../electron/windowIpc.mjs';
 
 vi.mock('electron', () => ({
@@ -45,5 +46,39 @@ describe('window ipc', () => {
 
     expect(window.setSize).toHaveBeenCalledWith(981, 1);
     expect(window.setMinimumSize).toHaveBeenCalledWith(8192, 299);
+  });
+
+  it('restores and shows a labeled window before focusing it', () => {
+    const targetWindow = {
+      isMinimized: vi.fn(() => true),
+      restore: vi.fn(),
+      show: vi.fn(),
+      focus: vi.fn(),
+    };
+    const otherWindow = {
+      isMinimized: vi.fn(() => false),
+      restore: vi.fn(),
+      show: vi.fn(),
+      focus: vi.fn(),
+    };
+    vi.mocked(electron.BrowserWindow.getAllWindows).mockReturnValue([otherWindow, targetWindow] as never);
+    const getWindowLabel = vi.fn((window) => (window === targetWindow ? 'main' : 'secondary'));
+    const handlers = new Map<string, (...args: unknown[]) => unknown>();
+
+    registerWindowIpc({
+      closeApprovedWebContents: new Set(),
+      createWindow: vi.fn(),
+      getWindowLabel,
+      handleIpc: (name: string, handler: (...args: unknown[]) => unknown) => {
+        handlers.set(name, handler);
+      },
+      resolveTargetWindow: vi.fn(),
+    });
+
+    expect(handlers.get('desktop:window:focus')?.({}, 'main')).toBe(true);
+    expect(targetWindow.restore).toHaveBeenCalledTimes(1);
+    expect(targetWindow.show).toHaveBeenCalledTimes(1);
+    expect(targetWindow.focus).toHaveBeenCalledTimes(1);
+    expect(otherWindow.show).not.toHaveBeenCalled();
   });
 });

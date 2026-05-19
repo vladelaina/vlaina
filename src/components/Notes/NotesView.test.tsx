@@ -116,6 +116,7 @@ const mocks = vi.hoisted(() => {
     setNotesChatPanelCollapsed: vi.fn(),
     toggleNotesChatPanel: vi.fn(),
     setLayoutPanelDragging: vi.fn(),
+    setAppViewMode: vi.fn(),
   };
 
   const storageState = {
@@ -180,6 +181,22 @@ vi.mock('@/lib/desktop/window', () => ({
   desktopWindow: {
     setResizable: vi.fn().mockResolvedValue(undefined),
   },
+}));
+
+const openMarkdownFileListeners = new Set<(path: string) => void>();
+
+function dispatchDesktopOpenMarkdownFile(path: string) {
+  for (const listener of openMarkdownFileListeners) {
+    listener(path);
+  }
+}
+
+vi.mock('@/lib/desktop/shortcuts', () => ({
+  onDesktopOpenMarkdownFileShortcut: vi.fn(() => () => {}),
+  onDesktopOpenMarkdownFile: vi.fn((callback: (path: string) => void) => {
+    openMarkdownFileListeners.add(callback);
+    return () => openMarkdownFileListeners.delete(callback);
+  }),
 }));
 
 vi.mock('@/lib/storage/adapter', async () => {
@@ -398,6 +415,7 @@ describe('NotesView', () => {
     mocks.sidebarDiscussion.canOpenSidebarDiscussionForSelection.mockReset();
     mocks.sidebarDiscussion.openSidebarDiscussionForSelection.mockReset();
     mocks.vaultState.openVault.mockClear();
+    openMarkdownFileListeners.clear();
     vi.mocked(messageDialog).mockReset();
     vi.mocked(useAbsoluteNoteExternalRenameSync).mockClear();
     vi.mocked(useCurrentVaultExternalPathSync).mockClear();
@@ -406,6 +424,7 @@ describe('NotesView', () => {
     uiState.setNotesChatPanelCollapsed.mockClear();
     uiState.toggleNotesChatPanel.mockClear();
     uiState.setLayoutPanelDragging.mockClear();
+    uiState.setAppViewMode.mockClear();
   });
 
   it('shows notes store errors as toast messages', async () => {
@@ -910,6 +929,19 @@ describe('NotesView', () => {
     await waitFor(() => {
       expect(notesState.openNote).toHaveBeenCalledWith('alpha.md');
     });
+  });
+
+  it('opens a markdown file from the Electron file association event', async () => {
+    render(<NotesView />);
+
+    await act(async () => {
+      dispatchDesktopOpenMarkdownFile('/vault/alpha.md');
+    });
+
+    await waitFor(() => {
+      expect(notesState.openNote).toHaveBeenCalledWith('alpha.md');
+    });
+    expect(notesState.openNoteByAbsolutePath).not.toHaveBeenCalledWith('/vault/alpha.md');
   });
 
   it('opens a dropped markdown file after opening its vault from a new workspace', async () => {

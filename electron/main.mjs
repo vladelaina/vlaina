@@ -347,17 +347,10 @@ function showMainWindow() {
   const existingWindow = BrowserWindow.getAllWindows().find((window) => !window.isDestroyed());
   const window = existingWindow ?? createMainWindow();
 
-  if (window.isMinimized()) {
-    window.restore();
-  }
-
-  if (isReadyToReveal(window)) {
-    window.show();
-    window.focus();
-  }
+  focusWindow(window, { forceShow: Boolean(existingWindow) });
 }
 
-function focusWindow(window) {
+function focusWindow(window, { forceShow = false } = {}) {
   if (!window || window.isDestroyed()) {
     return;
   }
@@ -366,8 +359,10 @@ function focusWindow(window) {
     window.restore();
   }
 
-  window.show();
-  window.focus();
+  if (forceShow || isReadyToReveal(window)) {
+    window.show();
+    window.focus();
+  }
 }
 
 function sendOpenMarkdownPath(window, filePath) {
@@ -404,7 +399,7 @@ function openMarkdownPath(filePath) {
     return false;
   }
 
-  focusWindow(existingWindow);
+  focusWindow(existingWindow, { forceShow: true });
   pendingOpenMarkdownPath = null;
   return sendOpenMarkdownPath(existingWindow, normalizedPath);
 }
@@ -1079,14 +1074,7 @@ app.whenReady().then(async () => {
   configureDefaultSessionSafely();
 
   createTray();
-  const mainWindow = pendingOpenMarkdownPath
-    ? windowManager.createWindow({
-      label: 'main',
-      newWindow: true,
-      notePath: pendingOpenMarkdownPath,
-      viewMode: 'notes',
-    })
-    : createMainWindow();
+  const mainWindow = createMainWindow();
   if (pendingOpenMarkdownPath) {
     sendOpenMarkdownPath(mainWindow, pendingOpenMarkdownPath);
     pendingOpenMarkdownPath = null;

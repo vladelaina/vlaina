@@ -103,6 +103,10 @@ export function registerWindowIpc({
   handleIpc('desktop:window:focus', (_event, label) => {
     for (const window of BrowserWindow.getAllWindows()) {
       if (getWindowLabel(window) === label) {
+        if (window.isMinimized()) {
+          window.restore();
+        }
+        window.show();
         window.focus();
         return true;
       }
