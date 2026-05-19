@@ -83,4 +83,31 @@ describe('ManagedQuotaMeter', () => {
 
     expect(screen.getByLabelText('Managed AI quota remaining 33%')).not.toHaveAttribute('title');
   });
+
+  it('shows top-up carry-over above 100 percent while capping only the progress bar width', () => {
+    const refreshBudgetIfStale = vi.fn().mockResolvedValue(undefined);
+    act(() => {
+      useManagedAIStore.setState({
+        ...originalState,
+        budget: {
+          active: true,
+          usedPercent: 80,
+          remainingPercent: 120,
+          status: 'active',
+        },
+        isRefreshingBudget: false,
+        budgetError: null,
+        lastBudgetSyncAt: Date.now(),
+        lastBudgetAttemptAt: Date.now(),
+        refreshBudgetIfStale,
+      }, true);
+    });
+
+    render(<ManagedQuotaMeter />);
+
+    const meter = screen.getByLabelText('Managed AI quota remaining 120%');
+    expect(meter).not.toHaveAttribute('title');
+    expect(screen.getByText('120%')).toHaveAttribute('aria-hidden', 'true');
+    expect(meter.querySelector('[style="width: 100%;"]')).toBeInTheDocument();
+  });
 });
