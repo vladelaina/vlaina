@@ -64,6 +64,42 @@
   cursor: pointer !important;
 }
 
+.milkdown .ProseMirror .vlaina-block-selected :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  .mermaid-block
+):is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active),
+.milkdown .ProseMirror .vlaina-block-selected :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  .mermaid-block
+):is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active) *,
+.milkdown .ProseMirror :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  .mermaid-block
+).vlaina-block-selected:is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active),
+.milkdown .ProseMirror :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  .mermaid-block
+).vlaina-block-selected:is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active) *,
+.milkdown .ProseMirror .vlaina-block-selected :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  .mermaid-block
+):is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active) :is(svg, svg *, .katex, .katex *, text, tspan, path, rect, circle, ellipse, line, polyline, polygon),
+.milkdown .ProseMirror :is(
+  [data-type='math-inline'],
+  [data-type='math-block'],
+  .mermaid-block
+).vlaina-block-selected:is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active) :is(svg, svg *, .katex, .katex *, text, tspan, path, rect, circle, ellipse, line, polyline, polygon) {
+  color: var(--vlaina-text-primary, #27272A) !important;
+  -webkit-text-fill-color: var(--vlaina-text-primary, #27272A) !important;
+  fill: var(--vlaina-text-primary, #27272A) !important;
+  stroke: var(--vlaina-text-primary, #27272A) !important;
+}
+
 .milkdown [data-type='math-block'].math-block-wrapper {
   content-visibility: auto;
   contain-intrinsic-size: auto 96px;

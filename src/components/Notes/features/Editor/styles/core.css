@@ -8,6 +8,8 @@
   --vlaina-editor-caret-color: var(--vlaina-caret-color, #41ace2);
   --vlaina-editor-caret-width: var(--vlaina-caret-width, 1px);
   --vlaina-editor-block-selection-base: var(--vlaina-color-editor-block-selection, var(--vlaina-color-accent, #1e96eb));
+  --vlaina-editor-block-selection-bg: #bedffe;
+  --vlaina-editor-block-selection-fg: #fefbf9;
 }
 
 /* Reset potential focus outlines during interactions */
@@ -85,21 +87,29 @@ body.vlaina-block-drag-active * {
 
 /* Notion-like drag block selection highlight */
 .milkdown .ProseMirror .vlaina-block-selected {
-  --vlaina-block-selection-color: color-mix(in srgb, var(--vlaina-editor-block-selection-base, #1e96eb) 14%, transparent);
+  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg, #bedffe);
   --vlaina-block-selection-bleed-y: 4px;
-  --vlaina-block-selection-bleed-x-start: 0;
+  --vlaina-block-selection-bleed-x-start: 24px;
+  --vlaina-block-selection-bleed-x-end: 10px;
   background-color: var(--vlaina-block-selection-color);
   box-shadow:
     0 var(--vlaina-block-selection-bleed-y) 0 0 var(--vlaina-block-selection-color),
     0 calc(-1 * var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-color),
-    calc(-1 * var(--vlaina-block-selection-bleed-x-start)) 0 0 0 var(--vlaina-block-selection-color);
-  border-radius: 0;
+    calc(-1 * (var(--vlaina-block-selection-bleed-x-start) - var(--vlaina-block-selection-bleed-y))) 0 0 var(--vlaina-block-selection-bleed-y) var(--vlaina-block-selection-color),
+    calc(var(--vlaina-block-selection-bleed-x-end) - var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-bleed-y) var(--vlaina-block-selection-color);
+  border-radius: 8px;
+  color: var(--vlaina-editor-block-selection-fg, #fefbf9);
   transition: none !important;
 }
 
 .milkdown .ProseMirror .vlaina-block-selected,
 .milkdown .ProseMirror .vlaina-block-selected * {
-  -webkit-text-fill-color: currentColor;
+  color: var(--vlaina-editor-block-selection-fg, #fefbf9);
+  -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg, #fefbf9);
+}
+
+.milkdown .ProseMirror p.vlaina-block-selected {
+  --vlaina-block-selection-bleed-y: 0px;
 }
 
 /* List selection compatibility:
@@ -108,6 +118,21 @@ body.vlaina-block-drag-active * {
 .milkdown .ProseMirror li .vlaina-block-selected {
   --vlaina-block-selection-bleed-x-start: 24px;
   --vlaina-block-selection-bleed-y: 0px;
+}
+
+.milkdown .ProseMirror :is(ul, ol) > li.vlaina-block-selected,
+.milkdown .ProseMirror :is(ul, ol) > li .vlaina-block-selected {
+  --vlaina-block-selection-bleed-x-start: 48px;
+}
+
+.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) > li.vlaina-block-selected,
+.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) > li .vlaina-block-selected {
+  --vlaina-block-selection-bleed-x-start: 72px;
+}
+
+.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) :is(ul, ol) > li.vlaina-block-selected,
+.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) :is(ul, ol) > li .vlaina-block-selected {
+  --vlaina-block-selection-bleed-x-start: 104px;
 }
 
 .milkdown .ProseMirror li.vlaina-block-selected .vlaina-block-selected {

@@ -201,6 +201,64 @@
   transform: translateY(0) scale(0.98);
 }
 
+.milkdown .ProseMirror .vlaina-block-selected :is(
+  .floating-toolbar-inner,
+  .toolbar-tooltip
+),
+.milkdown .ProseMirror .vlaina-block-selected :is(
+  .floating-toolbar-inner,
+  .toolbar-tooltip
+) * {
+  color: var(--vlaina-text-primary, #18181b) !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+.milkdown .ProseMirror .vlaina-block-selected :is(
+  .floating-toolbar-inner,
+  .toolbar-tooltip
+) .toolbar-btn.active {
+  color: var(--vlaina-accent, #2783de) !important;
+}
+
+.milkdown .ProseMirror .vlaina-block-selected :is(
+  .floating-toolbar-inner,
+  .toolbar-tooltip
+) .toolbar-btn:hover[class*="text-red-"] {
+  color: #ef4444 !important;
+}
+
+.milkdown .ProseMirror .vlaina-block-selected :is(
+  .floating-toolbar-inner,
+  .toolbar-tooltip
+) .toolbar-btn[data-action="copy"].active {
+  color: var(--vlaina-accent, #3b82f6) !important;
+}
+
+.dark .milkdown .ProseMirror .vlaina-block-selected :is(
+  .floating-toolbar-inner,
+  .toolbar-tooltip
+),
+.dark .milkdown .ProseMirror .vlaina-block-selected :is(
+  .floating-toolbar-inner,
+  .toolbar-tooltip
+) * {
+  color: var(--vlaina-text-primary, #fafafa) !important;
+}
+
+.dark .milkdown .ProseMirror .vlaina-block-selected :is(
+  .floating-toolbar-inner,
+  .toolbar-tooltip
+) .toolbar-btn.active {
+  color: #60a5fa !important;
+}
+
+.dark .milkdown .ProseMirror .vlaina-block-selected :is(
+  .floating-toolbar-inner,
+  .toolbar-tooltip
+) .toolbar-btn:hover[class*="text-red-"] {
+  color: #ef4444 !important;
+}
+
 .link-tooltip-viewer {
   align-items: flex-start;
   gap: 0.5rem;

@@ -439,7 +439,7 @@ describe('resolveDropTarget', () => {
     });
   });
 
-  it('keeps the drop indicator width tied to the editor instead of the text block', () => {
+  it('keeps the drop indicator width tied to the target block plus selection bleed', () => {
     const { view } = createViewMock();
 
     const paragraphTarget = resolveDropTarget(view, 100, 50);
@@ -447,8 +447,8 @@ describe('resolveDropTarget', () => {
     expect(paragraphTarget).toMatchObject({
       insertPos: 0,
       lineY: 40,
-      lineLeft: 20,
-      lineWidth: 600,
+      lineLeft: 50,
+      lineWidth: 440,
     });
   });
 });

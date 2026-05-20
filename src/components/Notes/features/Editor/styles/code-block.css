@@ -27,7 +27,7 @@
 .milkdown .code-block-container.ProseMirror-selectednode,
 .milkdown .code-block-container.vlaina-block-selected,
 .milkdown .code-block-container[data-pm-selected='true'] {
-  --vlaina-block-selection-color: color-mix(in srgb, var(--vlaina-editor-block-selection-base, #1e96eb) 14%, transparent);
+  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg, #bedffe);
   background-color: var(--vlaina-block-selection-color);
   border-radius: 1rem;
   box-shadow: none;

@@ -19,6 +19,7 @@ import {
 
 const LIST_CHILD_INDENT_PX = 24;
 const MIN_DROP_LINE_WIDTH = 24;
+const DROP_LINE_BLEED_X = 10;
 
 function resolveListContentLeft(item: HTMLElement, fallbackLeft: number): number {
   const firstBlock = item.firstElementChild as HTMLElement | null;
@@ -97,8 +98,8 @@ export function resolveDropTarget(view: EditorView, clientX: number, clientY: nu
 
   const rect = target.rect;
   const insertBefore = clientY < rect.top + rect.height / 2;
-  const lineLeft = editorRect.width > 0 ? editorRect.left : rect.left;
-  const lineRight = editorRect.width > 0 ? editorRect.right : rect.right;
+  const lineLeft = Math.max(editorRect.left, rect.left - DROP_LINE_BLEED_X);
+  const lineRight = Math.min(editorRect.right, rect.right + DROP_LINE_BLEED_X);
 
   if (!insertBefore && target.element.tagName === 'LI') {
     const contentLeft = resolveListContentLeft(target.element, rect.left);

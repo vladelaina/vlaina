@@ -57,9 +57,64 @@ import {
 export { blankAreaDragBoxPluginKey } from './blockSelectionPluginState';
 
 const DRAG_THRESHOLD = 4;
-const DRAG_BOX_COLOR = 'color-mix(in srgb, var(--vlaina-color-editor-block-selection, var(--vlaina-color-accent, #1e96eb)) 18%, transparent)';
+const DRAG_BOX_COLOR = 'rgb(190 223 254 / 0.42)';
 const DRAG_SESSION_CURSOR = 'crosshair';
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
+let lastSelectedBlockGeometryDebugKey = '';
+
+function roundCssNumber(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function readCssPx(style: CSSStyleDeclaration, property: string): number {
+  const value = Number.parseFloat(style.getPropertyValue(property));
+  return Number.isFinite(value) ? value : 0;
+}
+
+function summarizeSelectedBlockGeometry(view: EditorView): void {
+  const selectedElements = Array.from(view.dom.querySelectorAll<HTMLElement>('.vlaina-block-selected'));
+  const payload = {
+    count: selectedElements.length,
+    blocks: selectedElements.slice(0, 20).map((element, index) => {
+      const rect = element.getBoundingClientRect();
+      const style = window.getComputedStyle(element);
+      const bleedStart = readCssPx(style, '--vlaina-block-selection-bleed-x-start');
+      const bleedEnd = readCssPx(style, '--vlaina-block-selection-bleed-x-end');
+      const bleedY = readCssPx(style, '--vlaina-block-selection-bleed-y');
+      const tag = element.tagName.toLowerCase();
+      const className = Array.from(element.classList).join('.');
+      return {
+        index,
+        tag,
+        className,
+        dataType: element.getAttribute('data-type'),
+        text: (element.textContent ?? '').trim().slice(0, 40),
+        isListItem: tag === 'li',
+        rectLeft: roundCssNumber(rect.left),
+        rectRight: roundCssNumber(rect.right),
+        rectWidth: roundCssNumber(rect.width),
+        bleedStart,
+        bleedEnd,
+        bleedY,
+        visualLeft: roundCssNumber(rect.left - bleedStart),
+        visualRight: roundCssNumber(rect.right + bleedEnd),
+        display: style.display,
+        marginLeft: style.marginLeft,
+        paddingLeft: style.paddingLeft,
+        listStylePosition: style.listStylePosition,
+      };
+    }),
+  };
+  const debugKey = JSON.stringify(payload);
+  if (debugKey === lastSelectedBlockGeometryDebugKey) return;
+  lastSelectedBlockGeometryDebugKey = debugKey;
+  logBlockSelectionDebug('geometry:selected-blocks', payload);
+  console.debug('[NotesBlockSelect] geometry:selected-blocks', payload);
+}
+
+function scheduleSelectedBlockGeometryDebug(view: EditorView): void {
+  window.requestAnimationFrame(() => summarizeSelectedBlockGeometry(view));
+}
 
 function snapshotSelection(state: EditorState) {
   return {
@@ -283,6 +338,9 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         dispatchBlockSelectionAction(view, blocks.length > 0
           ? { type: 'set-blocks', blocks }
           : CLEAR_BLOCKS_ACTION);
+        if (blocks.length > 0) {
+          scheduleSelectedBlockGeometryDebug(view);
+        }
       },
       onPlainClick({ zone, action }) {
         logBlockSelectionDebug('select:plain-click', {
