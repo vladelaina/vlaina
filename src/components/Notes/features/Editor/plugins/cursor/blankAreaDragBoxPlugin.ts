@@ -502,6 +502,11 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           if (target instanceof Node && view.dom.contains(target) && hasSelectedBlocks(view.state)) {
             clearBlockSelection(view);
           }
+          // `below-last-block` starts drag-or-click behavior here.
+          // `outside-editor` is handled by document-level listener below.
+          const startZone = tryStartSession(view, event);
+          if (startZone !== null) return true;
+
           const insideBlockTrailingClickAction = resolveInsideBlockTrailingPlainClick(view, event);
           if (insideBlockTrailingClickAction) {
             clearInsideBlockTrailingPlainClickSession();
@@ -514,10 +519,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
             return false;
           }
 
-          // `below-last-block` starts drag-or-click behavior here.
-          // `outside-editor` is handled by document-level listener below.
-          const startZone = tryStartSession(view, event);
-          return startZone !== null;
+          return false;
         },
       },
     },
@@ -545,6 +547,9 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           }
           return;
         }
+        const startZone = tryStartSession(view, event);
+        if (startZone) return;
+
         const insideBlockTrailingClickAction = resolveInsideBlockTrailingPlainClick(view, event);
         if (insideBlockTrailingClickAction) {
           clearInsideBlockTrailingPlainClickSession();
@@ -556,10 +561,8 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           );
           return;
         }
-        const startZone = tryStartSession(view, event);
-        if (!startZone) {
-          clearBlockSelection(view);
-        }
+
+        clearBlockSelection(view);
       };
 
       doc.addEventListener('mousedown', handleDocumentMouseDown, true);

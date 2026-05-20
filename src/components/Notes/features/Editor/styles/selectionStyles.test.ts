@@ -156,6 +156,26 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).not.toContain('li.vlaina-block-selected:not([data-item-type="task"])::before');
   });
 
+  it('tints native list markers when only the child block carries selection', () => {
+    const css = readStyleFile('core.css');
+
+    expect(css).toContain('.milkdown .ProseMirror li:has(> .vlaina-block-selected)::marker {');
+    expect(css).toContain('color: var(--vlaina-editor-block-selection-fg, #fefbf9);');
+  });
+
+  it('tints task checkboxes with the selected block foreground', () => {
+    const css = readStyleFile('core.css');
+    const markdownCss = readStyleFile('markdown.css');
+
+    expect(css).toContain('.milkdown .ProseMirror li[data-item-type="task"].vlaina-block-selected::before,');
+    expect(css).toContain('.milkdown .ProseMirror li[data-item-type="task"]:has(> .vlaina-block-selected)::before {');
+    expect(css).toContain('border-color: var(--vlaina-editor-block-selection-fg, #fefbf9) !important;');
+    expect(css).toContain('background-color: transparent !important;');
+    expect(markdownCss).toContain('.milkdown .ProseMirror li[data-item-type="task"][data-checked="true"] > .vlaina-block-selected {');
+    expect(markdownCss).toContain('color: var(--vlaina-editor-block-selection-fg, #fefbf9) !important;');
+    expect(markdownCss).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg, #fefbf9) !important;');
+  });
+
   it('keeps selected paragraph overlays from being taller than todo rows', () => {
     const css = readStyleFile('core.css');
 

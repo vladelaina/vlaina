@@ -97,11 +97,48 @@ describe('blankAreaDragTargets', () => {
         view,
         createMouseDown(view.dom, { clientX: 250, clientY: 50 }),
       )).toBeNull();
+    } finally {
+      document.createRange = originalCreateRange;
+      cleanup();
+    }
+  });
 
+  it('allows the right blank area on the editor root to start block selection', () => {
+    const { view, cleanup } = createView();
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'Selectable text';
+    paragraph.getBoundingClientRect = () => ({
+      left: 100,
+      right: 240,
+      top: 40,
+      bottom: 60,
+      width: 140,
+      height: 20,
+      x: 100,
+      y: 40,
+      toJSON: () => {},
+    });
+    view.dom.append(paragraph);
+
+    const originalCreateRange = document.createRange;
+    document.createRange = () => ({
+      selectNodeContents: () => {},
+      getClientRects: () => [{
+        left: 100,
+        right: 240,
+        top: 40,
+        bottom: 60,
+        width: 140,
+        height: 20,
+      }],
+      detach: () => {},
+    } as unknown as Range);
+
+    try {
       expect(resolveBlankAreaDragStartZone(
         view,
         createMouseDown(view.dom, { clientX: 330, clientY: 50 }),
-      )).toBeNull();
+      )).toBe('outside-editor');
     } finally {
       document.createRange = originalCreateRange;
       cleanup();
@@ -212,7 +249,7 @@ describe('blankAreaDragTargets', () => {
     }
   });
 
-  it('leaves right blank area inside a full-width text block to native editor handling', () => {
+  it('allows right blank area inside a non-empty full-width text block to start block selection', () => {
     const { view, cleanup } = createView();
     const paragraph = document.createElement('p');
     paragraph.textContent = 'Selectable text';
@@ -236,7 +273,7 @@ describe('blankAreaDragTargets', () => {
       expect(resolveBlankAreaDragStartZone(
         view,
         createMouseDown(paragraph, { clientX: 330, clientY: 50 }),
-      )).toBeNull();
+      )).toBe('outside-editor');
     } finally {
       document.createRange = originalCreateRange;
       cleanup();

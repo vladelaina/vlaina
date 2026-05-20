@@ -232,6 +232,11 @@
   color: var(--vlaina-text-tertiary);
 }
 
+.milkdown .ProseMirror li[data-item-type="task"][data-checked="true"] > .vlaina-block-selected {
+  color: var(--vlaina-editor-block-selection-fg, #fefbf9) !important;
+  -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg, #fefbf9) !important;
+}
+
 /* Task list paragraph should fill available space for proper click handling */
 .milkdown li[data-item-type="task"]>p {
   flex: 1;

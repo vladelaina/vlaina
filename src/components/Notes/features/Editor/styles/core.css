@@ -108,6 +108,16 @@ body.vlaina-block-drag-active * {
   -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg, #fefbf9);
 }
 
+.milkdown .ProseMirror li:has(> .vlaina-block-selected)::marker {
+  color: var(--vlaina-editor-block-selection-fg, #fefbf9);
+}
+
+.milkdown .ProseMirror li[data-item-type="task"].vlaina-block-selected::before,
+.milkdown .ProseMirror li[data-item-type="task"]:has(> .vlaina-block-selected)::before {
+  border-color: var(--vlaina-editor-block-selection-fg, #fefbf9) !important;
+  background-color: transparent !important;
+}
+
 .milkdown .ProseMirror p.vlaina-block-selected {
   --vlaina-block-selection-bleed-y: 0px;
 }
