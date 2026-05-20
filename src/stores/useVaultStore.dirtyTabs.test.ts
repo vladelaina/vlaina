@@ -70,6 +70,9 @@ describe('useVaultStore dirty note protection', () => {
       rootFolderPath: null,
       noteContentsCache: new Map(),
       draftNotes: {},
+      starredEntries: [],
+      starredNotes: [],
+      starredFolders: [],
       noteMetadata: { version: 1, notes: {} },
     });
   });
@@ -363,6 +366,80 @@ describe('useVaultStore dirty note protection', () => {
       '/vault/starred/external.md': { icon: 'emoji.star' },
     });
     expect(useNotesStore.getState().displayNames.get('/vault/starred/external.md')).toBe('external');
+  });
+
+  it('keeps the active starred vault note open as an external note when closing the vault', async () => {
+    useNotesStore.setState({
+      notesPath: '/vault/old',
+      currentNote: { path: 'docs/starred.md', content: 'Starred body' },
+      currentNoteRevision: 11,
+      isDirty: false,
+      openTabs: [
+        { path: 'docs/starred.md', name: 'starred', isDirty: false },
+        { path: 'docs/regular.md', name: 'regular', isDirty: false },
+      ],
+      starredEntries: [
+        {
+          id: 'starred-note',
+          kind: 'note',
+          vaultPath: '/vault/old',
+          relativePath: 'docs/starred.md',
+          addedAt: 1,
+        },
+      ],
+      starredNotes: ['docs/starred.md'],
+      rootFolder: {
+        id: '',
+        name: 'old',
+        path: '',
+        isFolder: true,
+        expanded: true,
+        children: [
+          { id: 'docs/starred.md', name: 'starred', path: 'docs/starred.md', isFolder: false },
+          { id: 'docs/regular.md', name: 'regular', path: 'docs/regular.md', isFolder: false },
+        ],
+      },
+      rootFolderPath: '/vault/old',
+      noteContentsCache: new Map([
+        ['docs/starred.md', { content: 'Starred body', modifiedAt: 2 }],
+        ['docs/regular.md', { content: 'Regular body', modifiedAt: 3 }],
+      ]),
+      noteMetadata: {
+        version: 1,
+        notes: {
+          'docs/starred.md': { icon: 'emoji.star' },
+          'docs/regular.md': { icon: 'emoji.file' },
+        },
+      },
+      displayNames: new Map([
+        ['docs/starred.md', 'starred'],
+        ['docs/regular.md', 'regular'],
+      ]),
+    });
+
+    const closed = await useVaultStore.getState().closeVault();
+
+    expect(closed).toBe(true);
+    expect(useVaultStore.getState().currentVault).toBeNull();
+    expect(useNotesStore.getState()).toMatchObject({
+      notesPath: '',
+      currentNote: { path: '/vault/old/docs/starred.md', content: 'Starred body' },
+      currentNoteRevision: 11,
+      isDirty: false,
+      openTabs: [
+        { path: '/vault/old/docs/starred.md', name: 'starred', isDirty: false },
+      ],
+      rootFolder: null,
+      rootFolderPath: null,
+      draftNotes: {},
+    });
+    expect(Array.from(useNotesStore.getState().noteContentsCache.keys())).toEqual([
+      '/vault/old/docs/starred.md',
+    ]);
+    expect(useNotesStore.getState().noteMetadata?.notes).toEqual({
+      '/vault/old/docs/starred.md': { icon: 'emoji.star' },
+    });
+    expect(useNotesStore.getState().displayNames.get('/vault/old/docs/starred.md')).toBe('starred');
   });
 
   it('preserves the active external note even if it is not present in the tab list', async () => {
