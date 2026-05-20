@@ -244,8 +244,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     needs:
-      - typecheck
-      - test
       - build
       - desktop-assets
       - release-context
@@ -401,6 +399,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs:
+      - typecheck
+      - test
       - package
       - release-context
     concurrency:
