@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
-import { normalizeStarredVaultPath, saveStarredRegistry } from '@/stores/notes/starred';
+import {
+  findStarredEntryByPath,
+  getStarredEntryAbsolutePath,
+  normalizeStarredVaultPath,
+  saveStarredRegistry,
+} from '@/stores/notes/starred';
 import { moveVaultSystemStore } from '@/stores/notes/systemStoragePaths';
 import { readWindowLaunchContext } from '@/lib/desktop/launchContext';
 import { markExpectedExternalChange } from '@/stores/notes/document/externalChangeRegistry';
@@ -221,40 +226,72 @@ function isExternalAbsoluteNotePath(path: string | null | undefined, notesPath: 
 
 function collectExternalWorkspaceForVaultClose(): PreservedExternalWorkspace {
   const state = useNotesStore.getState();
-  const externalPaths = new Set(
-    state.openTabs
-      .filter((tab) => isExternalAbsoluteNotePath(tab.path, state.notesPath))
-      .map((tab) => tab.path),
-  );
+  const preservedPathByOriginalPath = new Map<string, string>();
+  const addPreservedPath = (path: string | null | undefined) => {
+    if (!path) {
+      return;
+    }
 
-  const currentNotePath = state.currentNote?.path;
-  if (currentNotePath && isExternalAbsoluteNotePath(currentNotePath, state.notesPath)) {
-    externalPaths.add(currentNotePath);
-  }
+    if (isExternalAbsoluteNotePath(path, state.notesPath)) {
+      preservedPathByOriginalPath.set(path, path);
+      return;
+    }
 
-  if (externalPaths.size === 0) {
+    const starredEntry = findStarredEntryByPath(
+      state.starredEntries,
+      'note',
+      path,
+      state.notesPath,
+    );
+    const absoluteStarredPath = starredEntry
+      ? getStarredEntryAbsolutePath(starredEntry)
+      : null;
+    if (absoluteStarredPath) {
+      preservedPathByOriginalPath.set(path, absoluteStarredPath);
+    }
+  };
+
+  state.openTabs.forEach((tab) => addPreservedPath(tab.path));
+  addPreservedPath(state.currentNote?.path);
+
+  if (preservedPathByOriginalPath.size === 0) {
     return null;
   }
 
-  const currentNote = state.currentNote && externalPaths.has(state.currentNote.path)
-    ? state.currentNote
+  const currentNote = state.currentNote && preservedPathByOriginalPath.has(state.currentNote.path)
+    ? {
+        ...state.currentNote,
+        path: preservedPathByOriginalPath.get(state.currentNote.path) ?? state.currentNote.path,
+      }
     : null;
   const noteMetadataEntries = Object.entries(state.noteMetadata?.notes ?? {})
-    .filter(([path]) => externalPaths.has(path));
+    .flatMap(([path, metadata]) => {
+      const preservedPath = preservedPathByOriginalPath.get(path);
+      return preservedPath ? [[preservedPath, metadata] as const] : [];
+    });
 
   return {
     currentNote,
     currentNoteRevision: currentNote ? state.currentNoteRevision : 0,
     isDirty: currentNote ? state.isDirty : false,
-    openTabs: state.openTabs.filter((tab) => externalPaths.has(tab.path)),
+    openTabs: state.openTabs.flatMap((tab) => {
+      const preservedPath = preservedPathByOriginalPath.get(tab.path);
+      return preservedPath ? [{ ...tab, path: preservedPath }] : [];
+    }),
     noteContentsCache: new Map(
-      [...state.noteContentsCache.entries()].filter(([path]) => externalPaths.has(path)),
+      [...state.noteContentsCache.entries()].flatMap(([path, cacheEntry]) => {
+        const preservedPath = preservedPathByOriginalPath.get(path);
+        return preservedPath ? [[preservedPath, cacheEntry] as const] : [];
+      }),
     ),
     noteMetadata: noteMetadataEntries.length > 0
       ? { version: 1, notes: Object.fromEntries(noteMetadataEntries) }
       : null,
     displayNames: new Map(
-      [...state.displayNames.entries()].filter(([path]) => externalPaths.has(path)),
+      [...state.displayNames.entries()].flatMap(([path, displayName]) => {
+        const preservedPath = preservedPathByOriginalPath.get(path);
+        return preservedPath ? [[preservedPath, displayName] as const] : [];
+      }),
     ),
   };
 }
