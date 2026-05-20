@@ -4,11 +4,12 @@ import { useUnifiedExternalSync } from './useUnifiedExternalSync';
 import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { useUIStore } from '@/stores/uiSlice';
+import { useNotesStore } from '@/stores/notes/useNotesStore';
 import type { ChatMessage } from '@/lib/ai/types';
 
 const hoisted = vi.hoisted(() => ({
   listener: null as ((event: {
-    kind: 'unified' | 'chat-session' | 'ui-preferences';
+    kind: 'unified' | 'chat-session' | 'ui-preferences' | 'notes-starred';
     sourceId: string;
     stamp: number;
     nonce: string;
@@ -98,6 +99,11 @@ function resetStores() {
     imageSubfolderName: 'assets',
     imageVaultSubfolderName: 'assets',
     imageFilenameFormat: 'original',
+  });
+
+  useNotesStore.setState({
+    notesPath: '/vault',
+    loadStarred: vi.fn(async () => undefined),
   });
 }
 
@@ -253,6 +259,31 @@ describe('useUnifiedExternalSync', () => {
       fontSize: 19,
       languagePreference: 'zh-CN',
     });
+
+    hook.unmount();
+  });
+
+  it('reloads starred notes after an external notes-starred sync event', async () => {
+    const reloadFromDisk = vi.fn(async () => undefined);
+    const loadStarred = vi.fn(async () => undefined);
+    useUnifiedStore.setState({ reloadFromDisk });
+    useNotesStore.setState({ notesPath: '/vault-a', loadStarred });
+
+    const hook = renderHook(() => useUnifiedExternalSync());
+
+    await act(async () => {
+      hoisted.listener?.({
+        kind: 'notes-starred',
+        sourceId: 'other-window',
+        stamp: 6,
+        nonce: 'n6',
+      });
+      await Promise.resolve();
+    });
+
+    expect(loadStarred).toHaveBeenCalledWith('/vault-a');
+    expect(reloadFromDisk).not.toHaveBeenCalled();
+    expect(hoisted.reloadSessionMessagesFromDisk).not.toHaveBeenCalled();
 
     hook.unmount();
   });

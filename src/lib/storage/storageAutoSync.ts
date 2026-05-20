@@ -1,4 +1,4 @@
-export type StorageAutoSyncKind = 'unified' | 'chat-session' | 'ui-preferences';
+export type StorageAutoSyncKind = 'unified' | 'chat-session' | 'ui-preferences' | 'notes-starred';
 
 export interface StorageAutoSyncEvent {
   kind: StorageAutoSyncKind;
@@ -24,7 +24,12 @@ let broadcastChannel: BroadcastChannel | null = null;
 let storageListenerBound = false;
 
 function isStorageAutoSyncKind(value: string): value is StorageAutoSyncKind {
-  return value === 'unified' || value === 'chat-session' || value === 'ui-preferences';
+  return (
+    value === 'unified' ||
+    value === 'chat-session' ||
+    value === 'ui-preferences' ||
+    value === 'notes-starred'
+  );
 }
 
 function parseStorageAutoSyncEvent(value: unknown): StorageAutoSyncEvent | null {

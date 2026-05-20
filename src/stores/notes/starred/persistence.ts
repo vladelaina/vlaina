@@ -1,6 +1,7 @@
 import { createPersistenceQueue } from '@/lib/storage/persistenceEngine';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { ensureDirectories, getPaths } from '@/lib/storage/paths';
+import { emitStorageAutoSyncEvent } from '@/lib/storage/storageAutoSync';
 import { STARRED_FILE } from '../constants';
 import type { StarredEntry } from '../types';
 import {
@@ -27,6 +28,7 @@ async function writeStarredRegistry(entries: StarredEntry[]): Promise<void> {
     entries: dedupeStarredEntries(entries).slice(0, MAX_STARRED_ENTRIES),
   };
   await storage.writeFile(starredPath, JSON.stringify(registry, null, 2));
+  emitStorageAutoSyncEvent({ kind: 'notes-starred' });
 }
 
 async function isStarredEntryValid(entry: StarredEntry): Promise<boolean> {

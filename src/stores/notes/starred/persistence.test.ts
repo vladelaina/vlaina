@@ -10,6 +10,10 @@ const adapter = {
   writeFile: vi.fn<(path: string, content: string) => Promise<void>>(),
 };
 
+const storageAutoSync = vi.hoisted(() => ({
+  emitStorageAutoSyncEvent: vi.fn(),
+}));
+
 vi.mock('@/lib/storage/adapter', () => ({
   getStorageAdapter: () => adapter,
   isAbsolutePath: (path: string) => path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(path),
@@ -19,6 +23,10 @@ vi.mock('@/lib/storage/adapter', () => ({
 vi.mock('@/lib/storage/paths', () => ({
   ensureDirectories: () => Promise.resolve(),
   getPaths: () => Promise.resolve({ store: '/store' }),
+}));
+
+vi.mock('@/lib/storage/storageAutoSync', () => ({
+  emitStorageAutoSyncEvent: storageAutoSync.emitStorageAutoSyncEvent,
 }));
 
 function createEntry(
@@ -57,6 +65,7 @@ describe('starred persistence', () => {
     await vi.advanceTimersByTimeAsync(500);
 
     expect(adapter.writeFile).toHaveBeenCalledTimes(1);
+    expect(storageAutoSync.emitStorageAutoSyncEvent).toHaveBeenCalledWith({ kind: 'notes-starred' });
     const [, content] = adapter.writeFile.mock.calls[0];
     expect(JSON.parse(content)).toMatchObject({
       entries: [createEntry('2', 'note', 'C:/vault-a', 'second.md')],
