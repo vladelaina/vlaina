@@ -130,12 +130,24 @@ export default defineConfig(async () => ({
     port: process.env.VITE_PORT ? parseInt(process.env.VITE_PORT) : 3000,
     strictPort: true,
     host: "127.0.0.1",
+    watch: {
+      ignored: [
+        '**/.git/**',
+        '**/dist/**',
+        '**/release/**',
+        '**/temp/**',
+        '**/temp/electron-user-data/**',
+      ],
+    },
     warmup: {
       clientFiles: [
         './src/main.tsx',
         './src/App.tsx',
         './src/AppContent.tsx',
         './src/components/Notes/NotesView.tsx',
+        './src/components/Notes/features/Editor/index.ts',
+        './src/components/Notes/features/Tabs/NotesTabRow.tsx',
+        './src/components/Notes/features/Sidebar/NotesSidebarWrapper.tsx',
       ],
     },
     headers: {

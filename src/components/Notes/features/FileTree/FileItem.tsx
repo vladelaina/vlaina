@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect } from 'react';
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { Icon } from '@/components/ui/icons';
@@ -6,7 +6,6 @@ import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInl
 import type { NoteFile } from '@/stores/useNotesStore';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
-import { TreeItemDeleteDialog } from './components/TreeItemDeleteDialog';
 import { useFileItemState } from './hooks/useFileItemState';
 import { NoteIcon } from '../IconPicker/NoteIcon';
 import { cn } from '@/lib/utils';
@@ -21,15 +20,18 @@ import { NoteDisambiguatedTitle } from '../common/noteDisambiguation';
 import { SidebarStarBadge } from '../common/SidebarStarBadge';
 import { scrollSidebarItemIntoView } from '../common/sidebarScrollIntoView';
 import { TreeItemShell } from './components/TreeItemShell';
-import {
-  createTreeItemDeleteEntries,
-  createTreeItemPathSubmenu,
-  createTreeItemStarEntry,
-  TreeItemMenu,
-} from './components/TreeItemMenu';
 import { useTreeItemPathActions } from './hooks/useTreeItemPathActions';
 import type { NotesSidebarMenuEntry } from '../Sidebar/context-menu/NotesSidebarContextMenuContent';
 import { useI18n } from '@/lib/i18n';
+
+const TreeItemMenu = lazy(async () => {
+  const mod = await import('./components/TreeItemMenu');
+  return { default: mod.TreeItemMenu };
+});
+const TreeItemDeleteDialog = lazy(async () => {
+  const mod = await import('./components/TreeItemDeleteDialog');
+  return { default: mod.TreeItemDeleteDialog };
+});
 
 interface FileItemProps {
   node: NoteFile;
@@ -125,37 +127,64 @@ export const FileItem = memo(function FileItem({
             setShowMenu(false);
           },
         },
-        createTreeItemStarEntry(isItemStarred, () => {
-          toggleStarred(node.path);
-          setShowMenu(false);
-        }, { addToStarred: t('sidebar.addToStarred'), removeFromStarred: t('sidebar.removeFromStarred') }),
-        createTreeItemPathSubmenu({
-          onCopyPath: async () => {
+        {
+          key: 'toggle-star',
+          icon: <Icon name="misc.star" size="md" className={isItemStarred ? 'fill-amber-500 text-amber-500' : undefined} />,
+          label: isItemStarred ? t('sidebar.removeFromStarred') : t('sidebar.addToStarred'),
+          onClick: () => {
+            toggleStarred(node.path);
             setShowMenu(false);
-            await handleCopyPath();
           },
-          onOpenInNewWindow: async () => {
+        },
+        {
+          kind: 'submenu',
+          key: 'more',
+          icon: <Icon name="common.more" size="md" />,
+          label: t('sidebar.more'),
+          children: [
+            {
+              key: 'copy-path',
+              icon: <Icon name="common.copy" size="md" />,
+              label: t('sidebar.copyPath'),
+              onClick: async () => {
+                setShowMenu(false);
+                await handleCopyPath();
+              },
+            },
+            {
+              key: 'open-new-window',
+              icon: <Icon name="file.folderOutput" size="md" />,
+              label: t('sidebar.openInNewWindow'),
+              onClick: async () => {
+                setShowMenu(false);
+                await handleOpenInNewWindow('file');
+              },
+            },
+            {
+              key: 'open-location',
+              icon: <Icon name="file.folderOpenArrow" size="md" />,
+              label: t('sidebar.openFileLocation'),
+              onClick: async () => {
+                setShowMenu(false);
+                await handleOpenLocation();
+              },
+            },
+          ],
+        },
+        {
+          kind: 'divider',
+          key: 'divider-danger',
+        },
+        {
+          key: 'delete',
+          icon: <DeleteIcon />,
+          label: t('sidebar.moveToTrash'),
+          onClick: () => {
             setShowMenu(false);
-            await handleOpenInNewWindow('file');
+            setShowDeleteDialog(true);
           },
-          onOpenLocation: async () => {
-            setShowMenu(false);
-            await handleOpenLocation();
-          },
-          openLocationLabel: t('sidebar.openFileLocation'),
-          labels: {
-            addToStarred: t('sidebar.addToStarred'),
-            copyPath: t('sidebar.copyPath'),
-            more: t('sidebar.more'),
-            moveToTrash: t('sidebar.moveToTrash'),
-            openInNewWindow: t('sidebar.openInNewWindow'),
-            removeFromStarred: t('sidebar.removeFromStarred'),
-          },
-        }),
-        ...createTreeItemDeleteEntries(() => {
-          setShowMenu(false);
-          setShowDeleteDialog(true);
-        }, t('sidebar.moveToTrash')),
+          danger: true,
+        },
       ];
 
   useEffect(() => {
@@ -230,15 +259,23 @@ export const FileItem = memo(function FileItem({
         )
       }
     >
-      <TreeItemMenu isOpen={showMenu} onClose={() => setShowMenu(false)} position={menuPosition} entries={menuEntries} />
+      {showMenu ? (
+        <Suspense fallback={null}>
+          <TreeItemMenu isOpen={showMenu} onClose={() => setShowMenu(false)} position={menuPosition} entries={menuEntries} />
+        </Suspense>
+      ) : null}
 
-      <TreeItemDeleteDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        itemLabel={displayName}
-        itemType="Note"
-        onConfirm={() => deleteNote(node.path)}
-      />
+      {showDeleteDialog ? (
+        <Suspense fallback={null}>
+          <TreeItemDeleteDialog
+            open={showDeleteDialog}
+            onOpenChange={setShowDeleteDialog}
+            itemLabel={displayName}
+            itemType="Note"
+            onConfirm={() => deleteNote(node.path)}
+          />
+        </Suspense>
+      ) : null}
     </TreeItemShell>
   );
 }, areFileItemPropsEqual);

@@ -1,8 +1,6 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
-import { FileItem } from '../FileTree/FileItem';
-import { FolderItem } from '../FileTree/FolderItem';
 import {
   requestFileTreePointerDragDropTargetUpdate,
   useFileTreePointerDragState,
@@ -13,6 +11,15 @@ import { ExternalStarredEntryRow } from './ExternalStarredEntryRow';
 import { useStarredSectionEntries } from './useStarredSectionEntries';
 import { useExternalStarredRenameSync } from './useExternalStarredRenameSync';
 import { useI18n } from '@/lib/i18n';
+
+const FileItem = lazy(async () => {
+  const mod = await import('../FileTree/FileItem');
+  return { default: mod.FileItem };
+});
+const FolderItem = lazy(async () => {
+  const mod = await import('../FileTree/FolderItem');
+  return { default: mod.FolderItem };
+});
 
 interface StarredSectionProps {
   nested?: boolean;
@@ -76,19 +83,21 @@ export function StarredSection({
         entryViewModels.map(({ entry, isCurrentVaultEntry, isActive, treeNode, onOpen, onRemove }) => {
           if (isCurrentVaultEntry && treeNode) {
             return treeNode.isFolder ? (
-              <FolderItem
-                key={entry.id}
-                node={treeNode}
-                depth={0}
-                dragEnabled={false}
-              />
+              <Suspense key={entry.id} fallback={null}>
+                <FolderItem
+                  node={treeNode}
+                  depth={0}
+                  dragEnabled={false}
+                />
+              </Suspense>
             ) : (
-              <FileItem
-                key={entry.id}
-                node={treeNode}
-                depth={0}
-                dragEnabled={false}
-              />
+              <Suspense key={entry.id} fallback={null}>
+                <FileItem
+                  node={treeNode}
+                  depth={0}
+                  dragEnabled={false}
+                />
+              </Suspense>
             );
           }
 

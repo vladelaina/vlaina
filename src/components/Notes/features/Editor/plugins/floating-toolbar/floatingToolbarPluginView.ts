@@ -1,6 +1,6 @@
 import { TextSelection, type PluginKey } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { abortActiveAiSelectionReview, abortAllAiSelectionReviews } from './ai/reviewFlow';
+import { abortActiveAiSelectionReview, abortAllAiSelectionReviews } from './ai/reviewAbort';
 import { createToolbarRenderer } from './renderToolbar';
 import {
   calculateBottomPositionForRange,

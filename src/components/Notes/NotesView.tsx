@@ -26,6 +26,7 @@ import { useNotesSidebarExternalDropImport } from './hooks/useNotesSidebarExtern
 import { collectNotePathsInTreeOrder } from './features/common/noteTreeNavigation';
 import { useI18n } from '@/lib/i18n';
 import { clearRemoteImageMemoryCache } from './features/Editor/plugins/image-block/utils/remoteImageMemoryCache';
+import { preloadMarkdownEditor } from './features/Editor/preloadMarkdownEditor';
 
 const EmbeddedChatView = lazy(async () => {
   const mod = await import('@/components/Chat/ChatView');
@@ -33,7 +34,7 @@ const EmbeddedChatView = lazy(async () => {
 });
 
 const MarkdownEditor = lazy(async () => {
-  const mod = await import('./features/Editor');
+  const mod = await preloadMarkdownEditor();
   return { default: mod.MarkdownEditor };
 });
 
@@ -47,9 +48,11 @@ function scheduleSidebarScroll(path: string): void {
 export function NotesView({
   active = true,
   onStartupReady,
+  onPrimaryContentReady,
 }: {
   active?: boolean;
   onStartupReady?: () => void;
+  onPrimaryContentReady?: () => void;
 }) {
   const { t } = useI18n();
   const currentNote = useNotesStore(s => s.currentNote);
@@ -128,7 +131,12 @@ export function NotesView({
     if (active) {
       onStartupReady?.();
     }
-  }, [active, currentNotePath, currentVault, onStartupReady, openTabs.length]);
+  }, [active, currentNotePath, currentVault, isLoading, onStartupReady, openTabs.length]);
+
+  const reportNotesPrimaryContentReady = useCallback(() => {
+    if (!active) return;
+    onPrimaryContentReady?.();
+  }, [active, onPrimaryContentReady]);
 
   useEffect(() => {
     if (!currentNotePath) {
@@ -136,14 +144,8 @@ export function NotesView({
       return;
     }
 
-    const timeoutId = window.setTimeout(() => {
-      setCanLoadMarkdownEditor(true);
-    }, 250);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [currentNotePath]);
+    setCanLoadMarkdownEditor(true);
+  }, [currentNotePath, openTabs.length]);
 
   const {
     isOpenTargetBusy,
@@ -214,7 +216,10 @@ export function NotesView({
     void openStoredNotePath(launchNotePath, {
       openNote,
       openNoteByAbsolutePath,
-    });
+    })
+      .catch((error) => {
+        console.error('[NotesView] Failed to open launch note:', error);
+      });
   }, [currentVault, focusSidebarPath, notesPath, openNote, openNoteByAbsolutePath]);
 
   useEffect(() => {
@@ -450,7 +455,11 @@ export function NotesView({
         <div className="flex-1 min-w-0">
           {canLoadMarkdownEditor ? (
             <Suspense fallback={null}>
-              <MarkdownEditor active peekOffset={sidebarWidth} />
+              <MarkdownEditor
+                active
+                peekOffset={sidebarWidth}
+                onEditorViewReady={reportNotesPrimaryContentReady}
+              />
             </Suspense>
           ) : null}
         </div>

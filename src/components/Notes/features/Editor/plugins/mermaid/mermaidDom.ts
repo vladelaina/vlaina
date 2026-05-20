@@ -1,23 +1,39 @@
 import DOMPurify from 'dompurify';
 import { translate } from '@/lib/i18n';
 import {
-  generateMermaidId,
-  mermaidRenderErrorMarkup,
-  normalizeMermaidRenderMarkup,
-  renderMermaid,
-} from './mermaidRenderer';
-import {
   normalizeMermaidCodeForRender,
   normalizeMermaidEditorCodeInput,
 } from './mermaidFenceCode';
 
+type MermaidRender = (code: string, id: string) => Promise<string>;
+
 const mermaidElementCode = new WeakMap<HTMLElement, string>();
 let mermaidRenderKeyCounter = 0;
+let mermaidIdCounter = 0;
 const MERMAID_RENDER_CACHE_LIMIT = 80;
 const mermaidMarkupCache = new Map<string, string>();
 const mermaidRenderPromiseCache = new Map<string, Promise<string>>();
 const MERMAID_LAZY_RENDER_ROOT_MARGIN = '900px 0px';
 const mermaidLazyObservers = new WeakMap<HTMLElement, IntersectionObserver>();
+
+function generateMermaidId(): string {
+  return `mermaid-${Date.now()}-${mermaidIdCounter++}`;
+}
+
+function mermaidRenderErrorMarkup(): string {
+  return `<div class="mermaid-error">${translate('editor.mermaidRenderError')}</div>`;
+}
+
+function normalizeMermaidRenderMarkup(markup: string): string {
+  return /class=(["'])error-(?:text|icon)\1/.test(markup) || markup.includes('Syntax error in text')
+    ? mermaidRenderErrorMarkup()
+    : markup;
+}
+
+async function defaultRenderMermaid(code: string, id: string) {
+  const { renderMermaid } = await import('./mermaidRenderer');
+  return renderMermaid(code, id);
+}
 
 function setMermaidElementCode(element: HTMLElement, code: string) {
   mermaidElementCode.set(element, code);
@@ -36,7 +52,7 @@ function getMermaidRenderCode(sourceCode: string) {
 
 async function renderMermaidHtml(
   code: string,
-  render: (code: string, id: string) => Promise<string>
+  render: MermaidRender
 ) {
   try {
     return normalizeMermaidRenderMarkup(await render(code, generateMermaidId()));
@@ -68,15 +84,11 @@ function cacheMermaidMarkup(code: string, markup: string) {
   return markup;
 }
 
-function shouldUseDefaultMermaidRender(render: (code: string, id: string) => Promise<string>) {
-  return render === renderMermaid;
-}
-
 async function resolveMermaidMarkup(
   code: string,
-  render: (code: string, id: string) => Promise<string>
+  render?: MermaidRender
 ) {
-  if (!shouldUseDefaultMermaidRender(render)) {
+  if (render) {
     return sanitizeMermaidMarkup(await renderMermaidHtml(code, render));
   }
 
@@ -90,7 +102,7 @@ async function resolveMermaidMarkup(
     return existingPromise;
   }
 
-  const promise = renderMermaidHtml(code, render)
+  const promise = renderMermaidHtml(code, defaultRenderMermaid)
     .then(sanitizeMermaidMarkup)
     .then((markup) => cacheMermaidMarkup(code, markup))
     .finally(() => {
@@ -191,10 +203,10 @@ function resolveForeignObjectCenterCoord(
 export async function renderMermaidEditorLivePreview(args: {
   anchor: HTMLElement | null;
   code: string;
-  render?: (code: string, id: string) => Promise<string>;
+  render?: MermaidRender;
   onRendered?: () => void;
 }) {
-  const { anchor, code, render = renderMermaid, onRendered } = args;
+  const { anchor, code, render, onRendered } = args;
   if (!anchor) {
     return false;
   }
@@ -214,9 +226,7 @@ export async function renderMermaidEditorLivePreview(args: {
   const renderCodeSnapshot = renderCode;
   const renderKey = setMermaidElementCode(anchor, codeSnapshot);
 
-  const cachedMarkup = shouldUseDefaultMermaidRender(render)
-    ? readCachedMermaidMarkup(renderCodeSnapshot)
-    : null;
+  const cachedMarkup = render ? null : readCachedMermaidMarkup(renderCodeSnapshot);
   if (cachedMarkup != null) {
     anchor.innerHTML = cachedMarkup;
     onRendered?.();
@@ -253,7 +263,7 @@ function setMermaidPendingMarkup(anchor: HTMLElement) {
 
 function renderMermaidElementAsync(anchor: HTMLElement, codeSnapshot: string, renderKey: string | undefined) {
   const renderCodeSnapshot = getMermaidRenderCode(codeSnapshot);
-  resolveMermaidMarkup(renderCodeSnapshot, renderMermaid).then((markup) => {
+  resolveMermaidMarkup(renderCodeSnapshot).then((markup) => {
     if (
       getMermaidElementCode(anchor) !== codeSnapshot ||
       anchor.dataset.renderKey !== renderKey

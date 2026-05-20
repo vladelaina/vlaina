@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from 'react';
+import { lazy, Suspense, useState, type MouseEvent } from 'react';
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { Icon } from '@/components/ui/icons';
 import { getSidebarLabelClass } from '@/components/layout/sidebar/sidebarLabelStyles';
@@ -8,18 +8,22 @@ import type { StarredEntry } from '@/stores/notes/types';
 import { getStarredNoteDisplayPath } from '@/stores/notes/starred';
 import { NoteIcon } from '../IconPicker/NoteIcon';
 import { NotesSidebarRow } from '../Sidebar/NotesSidebarRow';
-import { NotesSidebarContextMenu } from '../Sidebar/NotesSidebarContextMenu';
-import {
-  NotesSidebarContextMenuContent,
-  type NotesSidebarMenuEntry,
-} from '../Sidebar/context-menu/NotesSidebarContextMenuContent';
+import type { NotesSidebarMenuEntry } from '../Sidebar/context-menu/NotesSidebarContextMenuContent';
 import { NOTES_SIDEBAR_ICON_SIZE } from '../Sidebar/sidebarLayout';
-import { createTreeItemPathSubmenu } from '../FileTree/components/TreeItemMenu';
 import { useTreeItemPathActions } from '../FileTree/hooks/useTreeItemPathActions';
 import { getSidebarContextMenuPosition } from '../common/sidebarMenuPosition';
 import { getEntryTitle } from './starredSectionUtils';
 import { useStarredEntryIcon } from './useStarredEntryIcon';
 import { useI18n } from '@/lib/i18n';
+
+const NotesSidebarContextMenu = lazy(async () => {
+  const mod = await import('../Sidebar/NotesSidebarContextMenu');
+  return { default: mod.NotesSidebarContextMenu };
+});
+const NotesSidebarContextMenuContent = lazy(async () => {
+  const mod = await import('../Sidebar/context-menu/NotesSidebarContextMenuContent');
+  return { default: mod.NotesSidebarContextMenuContent };
+});
 
 interface ExternalStarredEntryRowProps {
   entry: StarredEntry;
@@ -91,29 +95,41 @@ export function ExternalStarredEntryRow({
         setShowMenu(false);
       },
     } satisfies NotesSidebarMenuEntry,
-    createTreeItemPathSubmenu({
-      onCopyPath: async () => {
-        setShowMenu(false);
-        await handleCopyPath();
-      },
-      onOpenInNewWindow: async () => {
-        setShowMenu(false);
-        await handleOpenInNewWindow(entry.kind === 'folder' ? 'folder' : 'file');
-      },
-      onOpenLocation: async () => {
-        setShowMenu(false);
-        await handleOpenLocation();
-      },
-      openLocationLabel: entry.kind === 'folder' ? t('sidebar.openFolderLocation') : t('sidebar.openFileLocation'),
-      labels: {
-        addToStarred: t('sidebar.addToStarred'),
-        copyPath: t('sidebar.copyPath'),
-        more: t('sidebar.more'),
-        moveToTrash: t('sidebar.moveToTrash'),
-        openInNewWindow: t('sidebar.openInNewWindow'),
-        removeFromStarred: t('sidebar.removeFromStarred'),
-      },
-    }),
+    {
+      kind: 'submenu',
+      key: 'more',
+      icon: <Icon name="common.more" size="md" />,
+      label: t('sidebar.more'),
+      children: [
+        {
+          key: 'copy-path',
+          icon: <Icon name="common.copy" size="md" />,
+          label: t('sidebar.copyPath'),
+          onClick: async () => {
+            setShowMenu(false);
+            await handleCopyPath();
+          },
+        },
+        {
+          key: 'open-new-window',
+          icon: <Icon name="file.folderOutput" size="md" />,
+          label: t('sidebar.openInNewWindow'),
+          onClick: async () => {
+            setShowMenu(false);
+            await handleOpenInNewWindow(entry.kind === 'folder' ? 'folder' : 'file');
+          },
+        },
+        {
+          key: 'open-location',
+          icon: <Icon name="file.folderOpenArrow" size="md" />,
+          label: entry.kind === 'folder' ? t('sidebar.openFolderLocation') : t('sidebar.openFileLocation'),
+          onClick: async () => {
+            setShowMenu(false);
+            await handleOpenLocation();
+          },
+        },
+      ],
+    },
   ];
 
   return (
@@ -176,13 +192,17 @@ export function ExternalStarredEntryRow({
         }
       />
 
-      <NotesSidebarContextMenu
-        isOpen={showMenu}
-        onClose={() => setShowMenu(false)}
-        position={menuPosition}
-      >
-        <NotesSidebarContextMenuContent entries={menuEntries} />
-      </NotesSidebarContextMenu>
+      {showMenu ? (
+        <Suspense fallback={null}>
+          <NotesSidebarContextMenu
+            isOpen={showMenu}
+            onClose={() => setShowMenu(false)}
+            position={menuPosition}
+          >
+            <NotesSidebarContextMenuContent entries={menuEntries} />
+          </NotesSidebarContextMenu>
+        </Suspense>
+      ) : null}
     </>
   );
 }
