@@ -36,6 +36,7 @@ interface ChatViewProps {
   active?: boolean;
   onCloseEmbeddedPanel?: () => void;
   onStartupReady?: () => void;
+  onPrimaryContentReady?: () => void;
 }
 
 const EMPTY_MESSAGES: never[] = [];
@@ -45,6 +46,7 @@ export function ChatView({
   active = true,
   onCloseEmbeddedPanel,
   onStartupReady,
+  onPrimaryContentReady,
 }: ChatViewProps) {
   const { t } = useI18n();
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
@@ -111,10 +113,12 @@ export function ChatView({
   const wasActiveRef = useRef(active);
 
   useEffect(() => {
-    if (active) {
-      onStartupReady?.();
+    if (!active) return;
+    onStartupReady?.();
+    if (loaded) {
+      onPrimaryContentReady?.();
     }
-  }, [active, onStartupReady]);
+  }, [active, loaded, onPrimaryContentReady, onStartupReady]);
   
   const isSessionActive = useAIUIStore((state) =>
     currentSessionId ? !!state.generatingSessions[currentSessionId] : false

@@ -15,7 +15,7 @@ import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { tableBlock } from '@milkdown/kit/component/table-block';
 import type { Parser } from '@milkdown/kit/transformer';
-import { Milkdown, useEditor } from '@milkdown/react';
+import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
@@ -43,6 +43,14 @@ import { normalizeLeadingFrontmatterMarkdown } from './plugins/frontmatter/front
 
 interface MilkdownEditorInnerProps {
   onEditorViewReady?: () => void;
+}
+
+export function MilkdownEditorRuntime({ onEditorViewReady }: MilkdownEditorInnerProps) {
+  return (
+    <MilkdownProvider>
+      <MilkdownEditorInner onEditorViewReady={onEditorViewReady} />
+    </MilkdownProvider>
+  );
 }
 
 type ActiveMilkdownEditor = {
@@ -199,7 +207,12 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     });
 
     return editor;
-  }, [activateEditor, cleanupActivatedEditor, configureMarkdownListener, currentNotePath]);
+  }, [
+    activateEditor,
+    cleanupActivatedEditor,
+    configureMarkdownListener,
+    currentNotePath,
+  ]);
 
   useEffect(() => {
     hasAutoFocused.current = false;

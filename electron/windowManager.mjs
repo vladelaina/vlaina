@@ -89,9 +89,8 @@ export function createWindowManager({
 
   async function loadRenderer(window, windowOptions = {}) {
     if (isDevelopment()) {
-      await window.loadURL(
-        windowOptions.newWindow ? buildRendererUrl(windowOptions) : rendererDevUrl
-      );
+      const url = windowOptions.newWindow ? buildRendererUrl(windowOptions) : rendererDevUrl;
+      await window.loadURL(url);
       return;
     }
 
