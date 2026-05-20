@@ -326,12 +326,6 @@
   border-radius: 50%;
 }
 
-@media (prefers-color-scheme: dark) {
-  .vault-cloud__icon-img--github {
-    filter: invert(1);
-  }
-}
-
 .vault-cloud__provider:hover .vault-cloud__icon-img {
   transform: scale(calc(var(--base-scale) * 1.15));
 }
