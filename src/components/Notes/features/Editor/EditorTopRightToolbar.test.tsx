@@ -120,7 +120,7 @@ describe('EditorTopRightToolbar', () => {
       />,
     );
 
-    fireEvent.click(getByRole('button', { name: 'Remove from Starred' }));
+    fireEvent.click(getByRole('button', { name: 'Unfavorite' }));
 
     expect(toggleStarred).toHaveBeenCalledWith('/other/docs/alpha.md');
   });
