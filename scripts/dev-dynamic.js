@@ -650,14 +650,17 @@ function updateLinuxDesktopActivationEnvironment(env) {
 async function startDev() {
   const port = await findAvailablePort(DEFAULT_PORT);
   const devUrl = `http://127.0.0.1:${port}`;
+  const userDataDir = path.join(repoRoot, 'temp', `electron-user-data-${port}`);
   const env = {
     ...process.env,
     VITE_PORT: String(port),
     VITE_DEV_SERVER_URL: devUrl,
+    VLAINA_USER_DATA_DIR: process.env.VLAINA_USER_DATA_DIR || userDataDir,
   };
 
   log('32', `Using renderer port ${port}`);
   log('36', `Renderer URL ${devUrl}`);
+  log('36', `Electron userData ${env.VLAINA_USER_DATA_DIR}`);
 
   const rendererScript = process.env.VLAINA_FORCE_VITE_OPTIMIZE === '1'
     ? 'dev:renderer:force'
