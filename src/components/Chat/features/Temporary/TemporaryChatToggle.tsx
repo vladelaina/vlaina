@@ -38,9 +38,6 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
   const models = useUnifiedStore((state) => state.data.ai?.models || []);
   const providers = useUnifiedStore((state) => state.data.ai?.providers || []);
   const selectedModelId = useUnifiedStore((state) => state.data.ai?.selectedModelId || null);
-  const isCurrentSessionGenerating = useAIUIStore((state) =>
-    currentSessionId ? !!state.generatingSessions[currentSessionId] : false
-  );
   const { generateAutoTitle } = useAutoTitle();
   const selectedModel = selectedModelId
     ? (() => {
@@ -55,7 +52,10 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
   const hasUserMessageInCurrentSession = hasUserMessage(currentMessages);
   const canDisableTemporaryChat = !temporaryChatEnabled || !hasUserMessageInCurrentSession;
   const isPromoteMode = mode === 'promote';
-  const isDisabled = readOnly || (isPromoteMode && isCurrentSessionGenerating);
+  const isDisabled = readOnly;
+  const toggleTooltipLabel = temporaryChatEnabled
+    ? t('chat.disableTemporaryChat')
+    : t('chat.enableTemporaryChat');
 
   const handleClick = () => {
     if (isDisabled) {
@@ -93,7 +93,7 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
         <button
           type="button"
           aria-label={isPromoteMode
-            ? 'Save temporary chat as regular chat'
+            ? t('chat.saveAsRegular')
             : (temporaryChatEnabled ? 'Temporary Chat is On' : 'Enable Temporary Chat')}
           onClick={handleClick}
           disabled={isDisabled}
@@ -121,17 +121,21 @@ export function TemporaryChatToggle({ readOnly = false, mode = 'toggle' }: Tempo
         sideOffset={6}
         showArrow={false}
         className={cn(
-          "flex items-center gap-1.5 rounded-[18px] px-3 py-2 text-xs text-[var(--chat-sidebar-text)]",
+          "flex rounded-[18px] px-3 py-2 text-xs text-[var(--chat-sidebar-text)]",
+          isPromoteMode ? 'items-center gap-1.5' : 'flex-col items-center gap-1.5',
           chatComposerPillSurfaceClass
         )}
       >
         {isPromoteMode ? (
           <span>{t('chat.saveAsRegular')}</span>
         ) : (
-          <ShortcutKeys
-            keys={['Ctrl', 'Shift', 'J']}
-            keyClassName="rounded-md bg-[var(--chat-sidebar-row-hover)] text-[var(--chat-sidebar-text)]"
-          />
+          <>
+            <span>{toggleTooltipLabel}</span>
+            <ShortcutKeys
+              keys={['Ctrl', 'Shift', 'J']}
+              keyClassName="rounded-md bg-[var(--chat-sidebar-row-hover)] text-[var(--chat-sidebar-text)]"
+            />
+          </>
         )}
       </TooltipContent>
     </Tooltip>

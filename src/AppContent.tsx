@@ -19,6 +19,7 @@ import { translate } from '@/lib/i18n';
 import { APP_VERSION } from '@/lib/appVersion';
 import { useToastStore } from '@/stores/useToastStore';
 import { loadCommunitySettings } from '@/components/Settings/tabs/aboutCommunitySettings';
+import { useTemporaryTogglePresentation } from '@/components/Chat/features/Temporary/useTemporaryTogglePresentation';
 
 const preloadSettingsModule = () => import('@/components/Settings');
 const preloadNotesViewModule = () => import('@/components/Notes/NotesView');
@@ -115,6 +116,7 @@ export function AppContent() {
   const unifiedLoaded = useUnifiedStore((state) => state.loaded);
   const lastConfiguredAppViewMode = useUnifiedStore((state) => state.data.settings.ui?.lastAppViewMode);
   const { initialize } = useVaultStore();
+  const { showInTitleBar: showTemporaryChatPromoteButton } = useTemporaryTogglePresentation();
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [hasOpenedSettings, setHasOpenedSettings] = useState(false);
@@ -409,7 +411,7 @@ export function AppContent() {
     </Suspense>
   ) : null;
 
-  const rightSlot = shouldRenderDeferredChrome && appViewMode === 'chat' ? (
+  const rightSlot = shouldRenderDeferredChrome && appViewMode === 'chat' && showTemporaryChatPromoteButton ? (
     <Suspense fallback={null}>
       <TemporaryChatToggle mode="promote" />
     </Suspense>

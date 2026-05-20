@@ -12,6 +12,7 @@ import {
   isTemporarySession,
   isTemporarySessionId,
 } from '@/lib/ai/temporaryChat'
+import { aliasSessionId } from '@/lib/ai/sessionIdAliases'
 import { useUnifiedStore } from '../unified/useUnifiedStore'
 import {
   buildTemporarySessionState,
@@ -144,9 +145,18 @@ export function createSessionActions() {
           .filter((sessionId) => sessionId === promotedSessionId || nextSessions.some((session) => session.id === sessionId))
       ))
 
-      requestManager.abort(temporarySessionId)
+      const isPromotingGenerating =
+        requestManager.isGenerating(temporarySessionId) ||
+        !!uiState.generatingSessions[temporarySessionId]
+
+      if (isPromotingGenerating) {
+        aliasSessionId(temporarySessionId, promotedSessionId)
+        requestManager.transfer(temporarySessionId, promotedSessionId)
+        uiState.moveSessionState(temporarySessionId, promotedSessionId)
+      } else {
+        uiState.clearSessionState(temporarySessionId)
+      }
       cancelSessionJsonSave(temporarySessionId)
-      uiState.clearSessionState(temporarySessionId)
       uiState.setTemporaryReturnSessionId(null)
 
       state.updateAIData({

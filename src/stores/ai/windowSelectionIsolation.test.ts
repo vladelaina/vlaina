@@ -4,6 +4,7 @@ import { actions, createAIChatSession, useAIStore, useAIStoreRuntimeEffects } fr
 import { useAIUIStore } from './chatState';
 import { useUnifiedStore } from '../unified/useUnifiedStore';
 import type { ChatMessage } from '@/lib/ai/types';
+import { clearSessionIdAliases } from '@/lib/ai/sessionIdAliases';
 
 const mocked = vi.hoisted(() => {
   const managedStore = {
@@ -42,6 +43,8 @@ const mocked = vi.hoisted(() => {
       viewMode: null as 'notes' | 'chat' | 'lab' | null,
     })),
     requestAbort: vi.fn(),
+    requestTransfer: vi.fn(),
+    requestIsGenerating: vi.fn(() => false),
     refreshBudget: managedStore.refreshBudget,
     clearBudget: managedStore.clearBudget,
     useManagedAIStore: {
@@ -83,6 +86,8 @@ vi.mock('@/lib/desktop/launchContext', () => ({
 vi.mock('@/lib/ai/requestManager', () => ({
   requestManager: {
     abort: mocked.requestAbort,
+    transfer: mocked.requestTransfer,
+    isGenerating: mocked.requestIsGenerating,
   },
 }));
 
@@ -191,6 +196,7 @@ describe('spark window selection isolation', () => {
   });
 
   afterEach(() => {
+    clearSessionIdAliases();
     useAIUIStore.setState({
       generatingSessions: {},
       unreadSessions: {},
@@ -502,6 +508,79 @@ describe('spark window selection isolation', () => {
     expect(promotedMessages?.[0]?.apiTranscript?.[0].reasoning_content).toBe('temporary hidden reasoning');
     expect(promotedMessages?.[0]?.versions[0]?.apiTranscript?.[0].reasoning_content).toBe('temporary hidden reasoning');
     expect(mocked.saveSessionJson).toHaveBeenCalledWith(promotedSessionId, promotedMessages);
+  });
+
+  it('keeps a generating temporary response attached after promotion', () => {
+    useUnifiedStore.setState((state) => ({
+      ...state,
+      data: {
+        ...state.data,
+        ai: state.data.ai
+          ? {
+              ...state.data.ai,
+              sessions: [
+                ...state.data.ai.sessions,
+                {
+                  id: 'temp-session-1',
+                  title: 'Temporary Chat',
+                  modelId: managedModel.id,
+                  createdAt: 5,
+                  updatedAt: 5,
+                },
+              ],
+              messages: {
+                ...state.data.ai.messages,
+                'temp-session-1': [{
+                  id: 'a1',
+                  role: 'assistant',
+                  content: '',
+                  modelId: managedModel.id,
+                  timestamp: 5,
+                  versions: [{
+                    content: '',
+                    createdAt: 5,
+                    subsequentMessages: [],
+                  }],
+                  currentVersionIndex: 0,
+                }],
+              },
+            }
+          : state.data.ai,
+      },
+    }));
+    useAIUIStore.getState().setChatSelection({
+      currentSessionId: 'temp-session-1',
+      temporaryChatEnabled: true,
+    });
+    useAIUIStore.getState().setSessionLoading('temp-session-1', true);
+
+    let promotedSessionId: string | null = null;
+    act(() => {
+      promotedSessionId = actions.promoteTemporarySession();
+    });
+
+    expect(promotedSessionId).toMatch(/^session-/);
+    expect(mocked.requestAbort).not.toHaveBeenCalledWith('temp-session-1');
+    expect(mocked.requestTransfer).toHaveBeenCalledWith('temp-session-1', promotedSessionId);
+    expect(useAIUIStore.getState().generatingSessions).toEqual({
+      [promotedSessionId!]: true,
+    });
+
+    act(() => {
+      actions.updateMessage('temp-session-1', 'a1', 'streamed after promotion');
+      actions.completeMessage('temp-session-1', 'a1');
+    });
+
+    expect(useUnifiedStore.getState().data.ai?.messages[promotedSessionId!]?.[0]?.content)
+      .toBe('streamed after promotion');
+    expect(mocked.scheduleSessionJsonSave).toHaveBeenCalledWith(
+      promotedSessionId,
+      useUnifiedStore.getState().data.ai?.messages[promotedSessionId!],
+    );
+    expect(mocked.saveSessionJson).toHaveBeenCalledWith(
+      promotedSessionId,
+      useUnifiedStore.getState().data.ai?.messages[promotedSessionId!],
+    );
   });
 
   it('creates and selects a new session locally without rewriting shared selection fields', () => {
