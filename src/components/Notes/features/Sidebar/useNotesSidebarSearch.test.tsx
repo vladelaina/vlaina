@@ -9,6 +9,7 @@ describe('useNotesSidebarSearch', () => {
     useUIStore.setState({
       appViewMode: 'notes',
       notesSidebarView: 'workspace',
+      sidebarSearchOpen: false,
     });
   });
 
@@ -41,5 +42,26 @@ describe('useNotesSidebarSearch', () => {
 
     expect(result.current.isSearchOpen).toBe(false);
     expect(result.current.searchQuery).toBe('');
+  });
+
+  it('keeps shared search open when notes search is disabled by app view', () => {
+    const { result, rerender } = renderHook(
+      ({ enabled }) => useNotesSidebarSearch(enabled),
+      { initialProps: { enabled: true } },
+    );
+
+    act(() => {
+      result.current.openSearch();
+    });
+
+    expect(result.current.isSearchOpen).toBe(true);
+
+    rerender({ enabled: false });
+
+    act(() => {
+      useUIStore.getState().setNotesSidebarView('outline');
+    });
+
+    expect(useUIStore.getState().sidebarSearchOpen).toBe(true);
   });
 });

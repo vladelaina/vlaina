@@ -52,6 +52,9 @@ interface UIStore {
 
   sidebarHeaderHovered: boolean;
   setSidebarHeaderHovered: (hovered: boolean) => void;
+  sidebarSearchOpen: boolean;
+  setSidebarSearchOpen: (open: boolean) => void;
+  toggleSidebarSearch: () => void;
   notesSidebarView: NotesSidebarView;
   setNotesSidebarView: (view: NotesSidebarView) => void;
   fontSize: number;
@@ -302,6 +305,9 @@ export const useUIStore = create<UIStore>()((set) => ({
   setWindowResizeActive: (active) => set({ windowResizeActive: active }),
   sidebarHeaderHovered: false,
   setSidebarHeaderHovered: (hovered) => set({ sidebarHeaderHovered: hovered }),
+  sidebarSearchOpen: false,
+  setSidebarSearchOpen: (open) => set({ sidebarSearchOpen: open }),
+  toggleSidebarSearch: () => set((state) => ({ sidebarSearchOpen: !state.sidebarSearchOpen })),
   notesSidebarView: 'workspace',
   setNotesSidebarView: (view) => set({ notesSidebarView: view }),
   ...loadUIPreferencesFromStorage(),

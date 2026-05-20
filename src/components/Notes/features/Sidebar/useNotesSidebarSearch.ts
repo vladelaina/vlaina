@@ -30,10 +30,10 @@ export function useNotesSidebarSearch(enabled: boolean): SidebarSearchState {
   useSidebarSearchShortcut(toggleSearch, enabled);
 
   useEffect(() => {
-    if (sidebarView !== 'workspace') {
+    if (enabled && sidebarView !== 'workspace') {
       closeSearch();
     }
-  }, [closeSearch, sidebarView]);
+  }, [closeSearch, enabled, sidebarView]);
 
   return {
     isSearchOpen,

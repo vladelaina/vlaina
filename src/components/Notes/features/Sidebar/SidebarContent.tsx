@@ -376,7 +376,7 @@ export function SidebarContent({
           }
           handleOpenSearchResult(result);
         }}
-        placeholder={t('sidebar.search')}
+        placeholder=""
         closeLabel={t('notes.closeSidebarSearch')}
         topActions={null}
       />

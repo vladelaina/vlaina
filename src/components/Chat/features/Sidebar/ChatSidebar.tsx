@@ -145,7 +145,7 @@ export const ChatSidebar = memo(function ChatSidebar({ isPeeking = false, embedd
             handleSwitch(session.id, !!useAIUIStore.getState().unreadSessions[session.id]);
             hideSearch();
           }}
-          placeholder={t('sidebar.search')}
+          placeholder=""
           closeLabel={t('sidebar.closeChatSearch')}
           topActions={null}
         />

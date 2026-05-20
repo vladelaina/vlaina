@@ -10,6 +10,7 @@ describe('uiSlice', () => {
       sidebarCollapsed: false,
       sidebarWidth: 280,
       sidebarHeaderHovered: false,
+      sidebarSearchOpen: false,
       notesSidebarView: 'workspace',
       fontSize: 16,
       languagePreference: 'system',
