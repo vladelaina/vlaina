@@ -470,7 +470,7 @@
   "editor.videoUrlHint": "Press Enter to embed video",
   "editor.align": "Align",
   "notes.addToStarred": "Add to Starred",
-  "notes.removeFromStarred": "Remove from Starred",
+  "notes.removeFromStarred": "Retirer des favoris",
   "notes.export": "Export",
   "notes.exportFailed": "Failed to export note.",
   "asset.onlyImageFilesSupported": "Only image files are supported",
