@@ -1,15 +1,14 @@
 import { type ReactNode } from 'react';
-import { Icon } from '@/components/ui/icons';
 import { SidebarActionButton, SidebarActionGroup } from '@/components/layout/sidebar/SidebarPrimitives';
+import { AppViewModeSwitch } from '@/components/layout/sidebar/AppViewModeSwitch';
 import { useUIStore } from '@/stores/uiSlice';
-import { NOTES_SIDEBAR_ICON_SIZE } from './sidebarLayout';
 import { useI18n } from '@/lib/i18n';
 
 interface NotesSidebarTopAction {
   key: string;
   label: string;
-  icon: ReactNode;
-  iconClassName: string;
+  icon?: ReactNode;
+  iconClassName?: string;
   onClick: () => void;
 }
 
@@ -17,33 +16,19 @@ export function NotesSidebarTopActions() {
   const { t } = useI18n();
   const notesSidebarView = useUIStore((state) => state.notesSidebarView);
   const setNotesSidebarView = useUIStore((state) => state.setNotesSidebarView);
-  const setAppViewMode = useUIStore((state) => state.setAppViewMode);
   const nextView = notesSidebarView === 'workspace' ? 'outline' : 'workspace';
 
   const actions: NotesSidebarTopAction[] = [
     {
       key: 'toggle-view',
       label: notesSidebarView === 'workspace' ? t('sidebar.outline') : t('sidebar.files'),
-      icon: (
-        <Icon
-          name={notesSidebarView === 'workspace' ? 'common.list' : 'file.folderOutline'}
-          size={NOTES_SIDEBAR_ICON_SIZE}
-        />
-      ),
-      iconClassName: 'text-[var(--notes-sidebar-outline-icon)]',
       onClick: () => setNotesSidebarView(nextView),
-    },
-    {
-      key: 'spark',
-      label: t('settings.tabs.ai'),
-      icon: <Icon name="common.shootingStar" size={NOTES_SIDEBAR_ICON_SIZE} />,
-      iconClassName: 'text-[var(--notes-sidebar-spark-icon)]',
-      onClick: () => setAppViewMode('chat'),
     },
   ];
 
   return (
     <SidebarActionGroup>
+      <AppViewModeSwitch />
       {actions.map((action) => (
         <SidebarActionButton
           key={action.key}

@@ -30,7 +30,6 @@ interface ChatSidebarProps {
 export const ChatSidebar = memo(function ChatSidebar({ isPeeking = false, embedded = false, onRequestClose }: ChatSidebarProps) {
   const { t } = useI18n();
   const appViewMode = useUIStore((state) => state.appViewMode);
-  const setAppViewMode = useUIStore((state) => state.setAppViewMode);
   const sessions = useUnifiedStore((state) => state.data.ai?.sessions || []);
   const currentSessionId = useAIUIStore((state) => state.currentSessionId);
   const markSessionRead = useAIUIStore((state) => state.markSessionRead);
@@ -155,7 +154,6 @@ export const ChatSidebar = memo(function ChatSidebar({ isPeeking = false, embedd
           {!shouldShowSearchResults ? (
             <ChatSidebarTopActions
               onOpenNewChat={handleOpenNewChat}
-              onOpenNotes={embedded ? undefined : () => setAppViewMode('notes')}
             />
           ) : null}
 

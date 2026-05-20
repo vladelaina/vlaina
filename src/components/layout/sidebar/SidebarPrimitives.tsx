@@ -26,7 +26,7 @@ interface SidebarScrollAreaProps extends HTMLAttributes<HTMLDivElement> {
 type SidebarCapsulePanelProps = HTMLAttributes<HTMLDivElement>;
 
 interface SidebarActionButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  icon: ReactNode;
+  icon?: ReactNode;
   label: ReactNode;
   iconClassName?: string;
   tone?: SidebarTone;
@@ -117,14 +117,16 @@ export const SidebarActionButton = forwardRef<HTMLButtonElement, SidebarActionBu
         )}
         {...props}
       >
-        <span
-          className={cn(
-            'flex size-[20px] shrink-0 items-center justify-center',
-            iconClassName,
-          )}
-        >
-          {icon}
-        </span>
+        {icon ? (
+          <span
+            className={cn(
+              'flex size-[20px] shrink-0 items-center justify-center',
+              iconClassName,
+            )}
+          >
+            {icon}
+          </span>
+        ) : null}
         <span className="truncate">{label}</span>
       </button>
     );
