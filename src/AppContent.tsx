@@ -128,15 +128,30 @@ export function AppContent() {
   const consoleCopyTimerRef = useRef<number | null>(null);
   const launchViewModeRef = useRef(readWindowLaunchContext().viewMode);
 
-  const handleActiveViewReady = useCallback(() => {
-    setActiveViewReady(true);
+  const reportStartupReady = useCallback(() => {
     if (didReportStartupReadyRef.current) return;
     didReportStartupReadyRef.current = true;
     getElectronBridge()?.app?.reportStartupReady?.();
+  }, []);
+
+  const handleActiveViewReady = useCallback(() => {
+    setActiveViewReady(true);
     window.setTimeout(() => {
       setShouldRenderDeferredChrome(true);
     }, 0);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const rafId = window.requestAnimationFrame(() => {
+      reportStartupReady();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+    };
+  }, [reportStartupReady]);
 
   useEffect(() => {
     setMountedAppViews((views) => {

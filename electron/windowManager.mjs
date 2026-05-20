@@ -114,10 +114,11 @@ export function createWindowManager({
     await window.loadFile(rendererFile);
   }
 
-  function attachWindowLifecycle(window) {
+  function attachWindowLifecycle(window, windowOptions = {}) {
     const webContentsId = window.webContents.id;
     let externalOpenModifierActive = false;
     let didRevealWindow = false;
+    let didBrowserWindowReportReadyToShow = false;
     let didRendererReportStartupReady = false;
 
     const revealWindow = () => {
@@ -129,23 +130,29 @@ export function createWindowManager({
       readyToRevealWebContents.add(webContentsId);
       window.show();
 
-      if (windowOptionsShouldFocusOnReveal(window)) {
+      if (windowOptionsShouldFocusOnReveal(window, windowOptions)) {
         window.focus();
       }
     };
 
-    const revealWindowAfterRendererReady = () => {
+    const revealWindowWhenReady = ({ allowWithoutReadyToShow = false } = {}) => {
       if (!didRendererReportStartupReady) {
         return;
       }
+
+      if (!didBrowserWindowReportReadyToShow && !allowWithoutReadyToShow) {
+        return;
+      }
+
       revealWindow();
     };
 
     window.once('ready-to-show', () => {
-      revealWindowAfterRendererReady();
+      didBrowserWindowReportReadyToShow = true;
+      revealWindowWhenReady();
     });
     window.webContents.once('did-finish-load', () => {
-      setTimeout(revealWindowAfterRendererReady, 3000);
+      setTimeout(() => revealWindowWhenReady({ allowWithoutReadyToShow: true }), 3000);
     });
 
     window.webContents.on('ipc-message', (_event, channel) => {
@@ -154,7 +161,7 @@ export function createWindowManager({
       }
 
       didRendererReportStartupReady = true;
-      revealWindow();
+      revealWindowWhenReady();
     });
 
     window.on('closed', () => {
@@ -241,10 +248,14 @@ export function createWindowManager({
       event.preventDefault();
       safeSend(window, 'desktop:window:close-requested');
     });
+
+    if (windowOptions.newWindow) {
+      revealWindow();
+    }
   }
 
-  function windowOptionsShouldFocusOnReveal(window) {
-    return windowLabels.get(window.id) === 'main' || !BrowserWindow.getFocusedWindow();
+  function windowOptionsShouldFocusOnReveal(window, windowOptions = {}) {
+    return Boolean(windowOptions.newWindow) || windowLabels.get(window.id) === 'main' || !BrowserWindow.getFocusedWindow();
   }
 
   function createWindow(windowOptions = {}) {
@@ -275,7 +286,7 @@ export function createWindowManager({
     });
 
     windowLabels.set(window.id, label);
-    attachWindowLifecycle(window);
+    attachWindowLifecycle(window, windowOptions);
 
     loadRenderer(window, windowOptions).catch((error) => {
       console.error('[electron] Failed to load renderer:', error);
