@@ -117,7 +117,7 @@ describe("TemporaryChatToggle", () => {
     render(<TemporaryChatToggle mode="promote" />);
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Save temporary chat as regular chat" }),
+      screen.getByRole("button", { name: "Keep this chat" }),
     );
 
     expect(mocks.promoteTemporarySession).toHaveBeenCalledTimes(1);
@@ -151,7 +151,7 @@ describe("TemporaryChatToggle", () => {
 
     render(<TemporaryChatToggle mode="promote" />);
     fireEvent.click(
-      screen.getByRole("button", { name: "Save temporary chat as regular chat" }),
+      screen.getByRole("button", { name: "Keep this chat" }),
     );
 
     expect(mocks.promoteTemporarySession).toHaveBeenCalledTimes(1);
@@ -173,6 +173,9 @@ describe("TemporaryChatToggle", () => {
     mocks.useAIUIStore.mockImplementation((selector: (state: typeof uiState) => unknown) => selector(uiState));
 
     render(<TemporaryChatToggle mode="toggle" />);
+    expect(screen.getByText("Enable temporary chat")).toBeInTheDocument();
+    expect(screen.getByText("Ctrl+Shift+J")).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("button", { name: "Enable Temporary Chat" }));
 
     expect(mocks.toggleTemporaryChat).toHaveBeenCalledWith(true);
@@ -193,6 +196,9 @@ describe("TemporaryChatToggle", () => {
     mocks.useAIUIStore.mockImplementation((selector: (state: typeof uiState) => unknown) => selector(uiState));
 
     render(<TemporaryChatToggle mode="toggle" />);
+    expect(screen.getByText("Disable temporary chat")).toBeInTheDocument();
+    expect(screen.getByText("Ctrl+Shift+J")).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("button", { name: "Temporary Chat is On" }));
 
     expect(mocks.openNewChat).toHaveBeenCalledTimes(1);
@@ -246,7 +252,7 @@ describe("TemporaryChatToggle", () => {
     expect(mocks.openNewChat).not.toHaveBeenCalled();
   });
 
-  it("promote button is disabled while session is generating", () => {
+  it("promote button stays clickable while session is generating", () => {
     const store = createStore({
       generatingSessions: {
         "temp-session-1": true,
@@ -258,11 +264,11 @@ describe("TemporaryChatToggle", () => {
 
     render(<TemporaryChatToggle mode="promote" />);
     const button = screen.getByRole("button", {
-      name: "Save temporary chat as regular chat",
+      name: "Keep this chat",
     });
-    expect(button).toBeDisabled();
+    expect(button).not.toBeDisabled();
 
     fireEvent.click(button);
-    expect(mocks.promoteTemporarySession).not.toHaveBeenCalled();
+    expect(mocks.promoteTemporarySession).toHaveBeenCalledTimes(1);
   });
 });

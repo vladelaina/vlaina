@@ -9,6 +9,7 @@ import {
   isTemporarySessionId,
   stripTemporaryData,
 } from '@/lib/ai/temporaryChat'
+import { resolveSessionIdAlias } from '@/lib/ai/sessionIdAliases'
 
 export interface AIUIState {
   generatingSessions: Record<string, boolean>;
@@ -29,6 +30,7 @@ export interface AIUIState {
   setTemporaryChatEnabled: (enabled: boolean) => void;
   setTemporaryReturnSessionId: (sessionId: string | null) => void;
   setAuthPromptSessionId: (sessionId: string | null) => void;
+  moveSessionState: (fromSessionId: string, toSessionId: string) => void;
   clearSessionState: (sessionId: string) => void;
 }
 
@@ -61,11 +63,12 @@ export const useAIUIStore = create<AIUIState>((set) => ({
   temporaryReturnSessionId: null,
   authPromptSessionId: null,
   setSessionLoading: (id, loading) => set((state) => {
+    const resolvedId = resolveSessionIdAlias(id)
     const generatingSessions = { ...state.generatingSessions }
     if (loading) {
-      generatingSessions[id] = true
+      generatingSessions[resolvedId] = true
     } else {
-      delete generatingSessions[id]
+      delete generatingSessions[resolvedId]
     }
     return { generatingSessions }
   }),
@@ -134,11 +137,30 @@ export const useAIUIStore = create<AIUIState>((set) => ({
   }),
   setTemporaryReturnSessionId: (sessionId) => set({ temporaryReturnSessionId: sessionId }),
   setAuthPromptSessionId: (sessionId) => set({ authPromptSessionId: sessionId }),
+  moveSessionState: (fromSessionId, toSessionId) => set((state) => {
+    const generatingSessions = { ...state.generatingSessions }
+    const unreadSessions = { ...state.unreadSessions }
+
+    if (generatingSessions[fromSessionId]) {
+      delete generatingSessions[fromSessionId]
+      generatingSessions[toSessionId] = true
+    }
+
+    if (unreadSessions[fromSessionId]) {
+      delete unreadSessions[fromSessionId]
+      unreadSessions[toSessionId] = true
+    }
+
+    return { generatingSessions, unreadSessions }
+  }),
   clearSessionState: (sessionId) => set((state) => {
+    const resolvedSessionId = resolveSessionIdAlias(sessionId)
     const generatingSessions = { ...state.generatingSessions }
     const unreadSessions = { ...state.unreadSessions }
     delete generatingSessions[sessionId]
     delete unreadSessions[sessionId]
+    delete generatingSessions[resolvedSessionId]
+    delete unreadSessions[resolvedSessionId]
     return { generatingSessions, unreadSessions }
   }),
 }))

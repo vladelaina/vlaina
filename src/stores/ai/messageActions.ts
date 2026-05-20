@@ -6,6 +6,7 @@ import {
   scheduleSessionJsonSave,
 } from '@/lib/storage/chatStorage'
 import { shouldPersistSession } from '@/lib/ai/temporaryChat'
+import { resolveSessionIdAlias } from '@/lib/ai/sessionIdAliases'
 import { extractMessageImageSources } from '@/components/Chat/common/messageClipboard'
 import { useUnifiedStore } from '../unified/useUnifiedStore'
 import { useAIUIStore } from './chatState'
@@ -137,9 +138,10 @@ export function createMessageActions() {
     },
 
     updateMessage: (sessionId: string, id: string, content: string) => {
+      const targetSessionId = resolveSessionIdAlias(sessionId)
       const state = useUnifiedStore.getState()
       const ai = state.data.ai!
-      const sessionMessages = ai.messages[sessionId] || []
+      const sessionMessages = ai.messages[targetSessionId] || []
 
       if (sessionMessages.length === 0) return
 
@@ -165,12 +167,12 @@ export function createMessageActions() {
       state.updateAIData({
         messages: {
           ...ai.messages,
-          [sessionId]: newMessages
+          [targetSessionId]: newMessages
         }
       }, true)
 
-      if (shouldPersistSession(ai, sessionId)) {
-        scheduleSessionJsonSave(sessionId, newMessages)
+      if (shouldPersistSession(ai, targetSessionId)) {
+        scheduleSessionJsonSave(targetSessionId, newMessages)
       }
     },
 
@@ -178,9 +180,10 @@ export function createMessageActions() {
       const normalizedApiTranscript = normalizeApiTranscriptMessages(apiTranscript)
       if (!normalizedApiTranscript) return
 
+      const targetSessionId = resolveSessionIdAlias(sessionId)
       const state = useUnifiedStore.getState()
       const ai = state.data.ai!
-      const sessionMessages = ai.messages[sessionId] || []
+      const sessionMessages = ai.messages[targetSessionId] || []
 
       if (sessionMessages.length === 0) return
 
@@ -205,21 +208,22 @@ export function createMessageActions() {
       state.updateAIData({
         messages: {
           ...ai.messages,
-          [sessionId]: newMessages
+          [targetSessionId]: newMessages
         }
       }, true)
 
-      if (shouldPersistSession(ai, sessionId)) {
-        scheduleSessionJsonSave(sessionId, newMessages)
+      if (shouldPersistSession(ai, targetSessionId)) {
+        scheduleSessionJsonSave(targetSessionId, newMessages)
       }
     },
 
     completeMessage: (sessionId: string, _id: string) => {
+      const targetSessionId = resolveSessionIdAlias(sessionId)
       const state = useUnifiedStore.getState()
       const ai = state.data.ai!
-      const sessionMessages = ai.messages[sessionId]
-      if (sessionMessages && shouldPersistSession(ai, sessionId)) {
-        void saveSessionJson(sessionId, sessionMessages)
+      const sessionMessages = ai.messages[targetSessionId]
+      if (sessionMessages && shouldPersistSession(ai, targetSessionId)) {
+        void saveSessionJson(targetSessionId, sessionMessages)
       }
     },
 
