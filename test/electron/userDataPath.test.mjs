@@ -91,6 +91,136 @@ describe('Electron userData path safety', () => {
       .resolves.toContain(path.join(defaultUserData, '.vlaina'));
   });
 
+  it('uses the main repository development profile for linked worktrees', async () => {
+    const defaultUserData = path.join(tempRoot, 'default-user-data');
+    const mainRepo = path.join(tempRoot, 'repo');
+    const linkedWorktree = path.join(tempRoot, 'worktrees', 'feature');
+    const worktreeGitDir = path.join(mainRepo, '.git', 'worktrees', 'feature');
+    const app = createApp({ isPackaged: false, userDataPath: defaultUserData });
+
+    await fs.promises.mkdir(worktreeGitDir, { recursive: true });
+    await fs.promises.mkdir(linkedWorktree, { recursive: true });
+    await writeFile(
+      path.join(linkedWorktree, '.git'),
+      `gitdir: ${worktreeGitDir}\n`,
+      'utf8'
+    );
+
+    const result = configureDevelopmentUserDataPath({
+      app,
+      repoRoot: linkedWorktree,
+      env: {},
+    });
+
+    const targetUserData = path.join(mainRepo, 'temp', 'electron-user-data');
+    expect(result).toEqual({
+      changed: true,
+      userDataPath: targetUserData,
+      seeded: false,
+    });
+    expect(app.setPath).toHaveBeenCalledWith('userData', targetUserData);
+  });
+
+  it('seeds the shared worktree profile from the legacy per-worktree profile', async () => {
+    const defaultUserData = path.join(tempRoot, 'default-user-data');
+    const mainRepo = path.join(tempRoot, 'repo');
+    const linkedWorktree = path.join(tempRoot, 'worktrees', 'feature');
+    const worktreeGitDir = path.join(mainRepo, '.git', 'worktrees', 'feature');
+    const legacyUserData = path.join(linkedWorktree, 'temp', 'electron-user-data');
+    const app = createApp({ isPackaged: false, userDataPath: defaultUserData });
+
+    await fs.promises.mkdir(worktreeGitDir, { recursive: true });
+    await fs.promises.mkdir(linkedWorktree, { recursive: true });
+    await writeFile(
+      path.join(linkedWorktree, '.git'),
+      `gitdir: ${worktreeGitDir}\n`,
+      'utf8'
+    );
+    await writeJson(path.join(defaultUserData, '.vlaina', 'store', 'notes-starred.json'), {
+      version: 1,
+      entries: [{ id: 'default-starred', kind: 'note' }],
+    });
+    await writeJson(path.join(legacyUserData, '.vlaina', 'store', 'notes-starred.json'), {
+      version: 1,
+      entries: [{ id: 'legacy-starred', kind: 'note' }],
+    });
+
+    const result = configureDevelopmentUserDataPath({
+      app,
+      repoRoot: linkedWorktree,
+      env: {},
+    });
+
+    const targetUserData = path.join(mainRepo, 'temp', 'electron-user-data');
+    expect(result.seeded).toBe(true);
+    expect(app.setPath).toHaveBeenCalledWith('userData', targetUserData);
+    await expect(readFile(path.join(targetUserData, '.vlaina', 'store', 'notes-starred.json'), 'utf8'))
+      .resolves.toContain('legacy-starred');
+    await expect(readFile(path.join(targetUserData, '.vlaina', 'store', 'notes-starred.json'), 'utf8'))
+      .resolves.not.toContain('default-starred');
+  });
+
+  it('merges legacy per-worktree starred entries into an existing shared profile', async () => {
+    const defaultUserData = path.join(tempRoot, 'default-user-data');
+    const mainRepo = path.join(tempRoot, 'repo');
+    const linkedWorktree = path.join(tempRoot, 'worktrees', 'feature');
+    const worktreeGitDir = path.join(mainRepo, '.git', 'worktrees', 'feature');
+    const legacyUserData = path.join(linkedWorktree, 'temp', 'electron-user-data');
+    const sharedUserData = path.join(mainRepo, 'temp', 'electron-user-data');
+    const app = createApp({ isPackaged: false, userDataPath: defaultUserData });
+
+    await fs.promises.mkdir(worktreeGitDir, { recursive: true });
+    await fs.promises.mkdir(linkedWorktree, { recursive: true });
+    await writeFile(
+      path.join(linkedWorktree, '.git'),
+      `gitdir: ${worktreeGitDir}\n`,
+      'utf8'
+    );
+    await writeJson(path.join(sharedUserData, '.vlaina', 'store', 'notes-starred.json'), {
+      version: 1,
+      entries: [
+        {
+          id: 'shared-starred',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: 'shared.md',
+        },
+      ],
+    });
+    await writeJson(path.join(legacyUserData, '.vlaina', 'store', 'notes-starred.json'), {
+      version: 1,
+      entries: [
+        {
+          id: 'legacy-starred',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: 'legacy.md',
+        },
+        {
+          id: 'shared-duplicate',
+          kind: 'note',
+          vaultPath: '/vault',
+          relativePath: 'shared.md',
+        },
+      ],
+    });
+
+    const result = configureDevelopmentUserDataPath({
+      app,
+      repoRoot: linkedWorktree,
+      env: {},
+    });
+
+    const merged = JSON.parse(
+      await readFile(path.join(sharedUserData, '.vlaina', 'store', 'notes-starred.json'), 'utf8')
+    );
+    expect(result.seeded).toBe(false);
+    expect(merged.entries.map((entry) => entry.id)).toEqual([
+      'shared-starred',
+      'legacy-starred',
+    ]);
+  });
+
   it('backs up existing development app data before seeding from the default profile', async () => {
     const defaultUserData = path.join(tempRoot, 'default-user-data');
     const targetUserData = path.join(tempRoot, 'target-user-data');

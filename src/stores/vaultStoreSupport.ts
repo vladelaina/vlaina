@@ -1,4 +1,5 @@
 import { getBaseName, getParentPath, getStorageAdapter, joinPath } from '@/lib/storage/adapter';
+import { ensureDirectories, getPaths } from '@/lib/storage/paths';
 import { resolveUniqueName } from '@/lib/naming/uniqueName';
 import { desktopWindow } from '@/lib/desktop/window';
 import { sanitizeFileName } from '@/stores/notes/noteUtils';
@@ -14,6 +15,8 @@ import type { VaultInfo } from './useVaultStore';
 
 export const VAULTS_STORAGE_KEY = 'vlaina-vaults';
 export const CURRENT_VAULT_KEY = 'vlaina-current-vault';
+const VAULT_STATE_FILE = 'vault-state.json';
+const VAULT_STATE_VERSION = 1;
 
 const MAX_RECENT_VAULTS = 5;
 
@@ -35,6 +38,128 @@ export function saveToStorage<T>(key: string, value: T): void {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
   }
+}
+
+interface PersistedVaultState {
+  recentVaults: VaultInfo[];
+  currentVaultId: string | null;
+}
+
+interface VaultStateFile {
+  version: typeof VAULT_STATE_VERSION;
+  recentVaults: VaultInfo[];
+  currentVaultId: string | null;
+}
+
+function canPersistVaultStateToFile(): boolean {
+  return typeof getStorageAdapter().getBasePath === 'function';
+}
+
+async function getVaultStatePath(): Promise<string | null> {
+  if (!canPersistVaultStateToFile()) {
+    return null;
+  }
+
+  await ensureDirectories();
+  const { store } = await getPaths();
+  return joinPath(store, VAULT_STATE_FILE);
+}
+
+function loadLocalVaultState(): PersistedVaultState {
+  return {
+    recentVaults: normalizeRecentVaults(loadFromStorage<VaultInfo[]>(VAULTS_STORAGE_KEY, [])),
+    currentVaultId: loadFromStorage<string | null>(CURRENT_VAULT_KEY, null),
+  };
+}
+
+function saveLocalVaultState(state: PersistedVaultState): void {
+  saveToStorage(VAULTS_STORAGE_KEY, state.recentVaults);
+  saveToStorage(CURRENT_VAULT_KEY, state.currentVaultId);
+}
+
+function parseVaultStateFile(value: unknown): PersistedVaultState | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const data = value as Partial<VaultStateFile>;
+  return {
+    recentVaults: normalizeRecentVaults(Array.isArray(data.recentVaults) ? data.recentVaults : []),
+    currentVaultId: typeof data.currentVaultId === 'string' ? data.currentVaultId : null,
+  };
+}
+
+function mergeVaultStates(
+  fileState: PersistedVaultState | null,
+  localState: PersistedVaultState,
+): PersistedVaultState {
+  if (!fileState) {
+    return localState;
+  }
+
+  return {
+    recentVaults: normalizeRecentVaults([...fileState.recentVaults, ...localState.recentVaults]),
+    currentVaultId: fileState.currentVaultId,
+  };
+}
+
+async function readVaultStateFile(): Promise<PersistedVaultState | null> {
+  try {
+    const storage = getStorageAdapter();
+    const statePath = await getVaultStatePath();
+    if (!statePath) {
+      return null;
+    }
+    if (!(await storage.exists(statePath))) {
+      return null;
+    }
+    return parseVaultStateFile(JSON.parse(await storage.readFile(statePath)));
+  } catch {
+    return null;
+  }
+}
+
+export function persistVaultState(recentVaults: VaultInfo[], currentVaultId: string | null): void {
+  const state = {
+    recentVaults: normalizeRecentVaults(recentVaults),
+    currentVaultId,
+  };
+  saveLocalVaultState(state);
+
+  void (async () => {
+    try {
+      const storage = getStorageAdapter();
+      const statePath = await getVaultStatePath();
+      if (!statePath) {
+        return;
+      }
+      const payload: VaultStateFile = {
+        version: VAULT_STATE_VERSION,
+        recentVaults: state.recentVaults,
+        currentVaultId: state.currentVaultId,
+      };
+      await storage.writeFile(statePath, JSON.stringify(payload, null, 2));
+    } catch (error) {
+      console.error('[VaultStore] Failed to persist vault state:', error);
+    }
+  })();
+}
+
+export async function loadPersistedVaultState(): Promise<PersistedVaultState> {
+  const localState = loadLocalVaultState();
+  const fileState = await readVaultStateFile();
+  const mergedState = mergeVaultStates(fileState, localState);
+
+  saveLocalVaultState(mergedState);
+  if (
+    !fileState ||
+    mergedState.currentVaultId !== fileState.currentVaultId ||
+    mergedState.recentVaults.length !== fileState.recentVaults.length
+  ) {
+    persistVaultState(mergedState.recentVaults, mergedState.currentVaultId);
+  }
+
+  return mergedState;
 }
 
 export function waitForUiRelease() {
@@ -233,8 +358,7 @@ export function syncCurrentVaultExternalPathAction({
     ),
   ]);
 
-  saveToStorage(VAULTS_STORAGE_KEY, nextRecentVaults);
-  saveToStorage(CURRENT_VAULT_KEY, nextVault.id);
+  persistVaultState(nextRecentVaults, nextVault.id);
 
   const notesState = useNotesStore.getState();
   const normalizedStarredVaultPath = normalizeStarredVaultPath(normalizedCurrentVaultPath);
@@ -284,18 +408,20 @@ export function removeRecentVaultAction({
 }) {
   const updatedRecent = recentVaults.filter((vault) => vault.id !== id);
 
-  saveToStorage(VAULTS_STORAGE_KEY, updatedRecent);
+  persistVaultState(updatedRecent, currentVault?.id === id ? null : currentVault?.id ?? null);
 
   if (currentVault?.id === id) {
-    saveToStorage(CURRENT_VAULT_KEY, null);
     set({ currentVault: null, recentVaults: updatedRecent });
   } else {
     set({ recentVaults: updatedRecent });
   }
 }
 
-export function closeCurrentVaultAction(set: (state: { currentVault: VaultInfo | null }) => void) {
-  saveToStorage(CURRENT_VAULT_KEY, null);
+export function closeCurrentVaultAction(
+  set: (state: { currentVault: VaultInfo | null }) => void,
+  recentVaults: VaultInfo[] = loadLocalVaultState().recentVaults,
+) {
+  persistVaultState(recentVaults, null);
   setWindowVaultPath(null);
   setCurrentVaultPath(null);
   set({ currentVault: null });

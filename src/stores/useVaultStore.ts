@@ -17,18 +17,17 @@ import type { MetadataFile, NotesStore } from '@/stores/notes/types';
 import { setCurrentVaultPath, useNotesStore } from './useNotesStore';
 import { ensureVaultConfig, normalizeVaultPath } from './vaultConfig';
 import {
-  CURRENT_VAULT_KEY,
   VAULTS_STORAGE_KEY,
   initializeWindowLabel,
   isNativeFilesystemPath,
-  loadFromStorage,
+  loadPersistedVaultState,
   normalizeRecentVaults,
   normalizeVaultInfo,
+  persistVaultState,
   queryVaultOpenInOtherWindow,
   closeCurrentVaultAction,
   removeRecentVaultAction,
   resolveRenamedVaultPath,
-  saveToStorage,
   setWindowVaultPath,
   setupBroadcastChannel,
   syncCurrentVaultExternalPathAction,
@@ -359,8 +358,9 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
 
   initialize: async () => {
     const storage = getStorageAdapter();
-    const savedVaults = normalizeRecentVaults(loadFromStorage<VaultInfo[]>(VAULTS_STORAGE_KEY, []));
-    const currentVaultId = loadFromStorage<string | null>(CURRENT_VAULT_KEY, null);
+    const persistedVaultState = await loadPersistedVaultState();
+    const savedVaults = persistedVaultState.recentVaults;
+    const currentVaultId = persistedVaultState.currentVaultId;
     const isWebPlatform = storage.platform === 'web';
     const launchContext = readWindowLaunchContext();
     const requestedVaultPath = launchContext.vaultPath
@@ -382,7 +382,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
     );
 
     if (recentVaults.length !== savedVaults.length) {
-      saveToStorage(VAULTS_STORAGE_KEY, recentVaults);
+      persistVaultState(recentVaults, currentVaultId);
     }
 
     let currentVault: VaultInfo | null = null;
@@ -397,8 +397,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
         const nextVaultState = upsertRecentVault(recentVaults, requestedVaultPath);
         recentVaults = nextVaultState.recentVaults;
         currentVault = nextVaultState.vault;
-        saveToStorage(VAULTS_STORAGE_KEY, recentVaults);
-        saveToStorage(CURRENT_VAULT_KEY, currentVault.id);
+        persistVaultState(recentVaults, currentVault.id);
         setWindowVaultPath(currentVault.path);
         setCurrentVaultPath(currentVault.path);
       }
@@ -409,7 +408,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
         setWindowVaultPath(currentVault.path);
         setCurrentVaultPath(currentVault.path);
       } else {
-        saveToStorage(CURRENT_VAULT_KEY, null);
+        persistVaultState(recentVaults, null);
       }
     }
 
@@ -456,8 +455,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
       const vault = nextVaultState.vault;
       const updatedRecent = nextVaultState.recentVaults;
 
-      saveToStorage(VAULTS_STORAGE_KEY, updatedRecent);
-      saveToStorage(CURRENT_VAULT_KEY, vault.id);
+      persistVaultState(updatedRecent, vault.id);
 
       const previousVault = get().currentVault;
       const previousVaultPath = previousVault?.path ? normalizeVaultPath(previousVault.path) : '';
@@ -576,8 +574,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
           ),
         ]);
 
-        saveToStorage(VAULTS_STORAGE_KEY, nextRecentVaults);
-        saveToStorage(CURRENT_VAULT_KEY, nextVault.id);
+        persistVaultState(nextRecentVaults, nextVault.id);
 
         const normalizedCurrentVaultPath = normalizeStarredVaultPath(normalizedCurrentVault.path);
         const nextStarredEntries = notesState.starredEntries.map((entry) =>
@@ -645,7 +642,7 @@ export const useVaultStore = create<VaultStore>()((set, get) => ({
       return false;
     }
 
-    closeCurrentVaultAction(set);
+    closeCurrentVaultAction(set, get().recentVaults);
     resetNotesWorkspaceForVaultTransition('', { preserveExternalNotes: true });
     set({ error: null });
     return true;
@@ -668,7 +665,12 @@ function registerVaultStorageListener(): void {
       return;
     }
 
-    const recentVaults = normalizeRecentVaults(loadFromStorage<VaultInfo[]>(VAULTS_STORAGE_KEY, []));
+    let recentVaults: VaultInfo[] = [];
+    try {
+      recentVaults = normalizeRecentVaults(JSON.parse(event.newValue || '[]'));
+    } catch {
+      recentVaults = [];
+    }
     const currentVault = useVaultStore.getState().currentVault;
     const refreshedCurrentVault = currentVault
       ? recentVaults.find((vault) => vault.id === currentVault.id) ?? currentVault
