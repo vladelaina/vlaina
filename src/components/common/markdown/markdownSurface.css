@@ -1,6 +1,6 @@
 .vlaina-markdown-surface {
   color: var(--vlaina-text-primary);
-  font-size: var(--vlaina-markdown-font-size, 15px);
+  font-size: var(--vlaina-markdown-font-size, 19px);
   line-height: calc(1em + 8px);
 }
 
@@ -86,7 +86,7 @@
 
 .vlaina-markdown-surface p {
   color: var(--vlaina-text-primary);
-  font-size: var(--vlaina-markdown-font-size, 15px);
+  font-size: var(--vlaina-markdown-font-size, 19px);
   line-height: calc(1em + 8px);
   margin-top: 8px;
   margin-bottom: 0;
@@ -112,7 +112,7 @@
 .vlaina-markdown-surface blockquote {
   color: var(--vlaina-text-secondary);
   font-style: normal;
-  line-height: 26px;
+  line-height: calc(1em + 8px);
   margin-top: 8px;
   margin-bottom: 0;
   padding: 10px 0 10px 17px;
@@ -262,7 +262,7 @@
   border-collapse: separate;
   border-spacing: 0;
   margin: 1rem 0;
-  font-size: 14px;
+  font-size: var(--vlaina-markdown-font-size, 19px);
   border: 1px solid var(--vlaina-border);
   border-radius: 0.5rem;
   overflow: hidden;

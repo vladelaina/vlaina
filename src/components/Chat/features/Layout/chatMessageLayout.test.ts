@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { ChatMessage } from '@/lib/ai/types';
 import {
+  MARKDOWN_CODE_LINE_HEIGHT,
+  MARKDOWN_CODE_BLOCK_HEADER_HEIGHT,
+  MARKDOWN_CODE_BLOCK_PADDING_Y,
+  MARKDOWN_RULE_HEIGHT,
+  MARKDOWN_TABLE_CELL_PADDING_Y,
+  MARKDOWN_TABLE_LINE_HEIGHT,
+  MARKDOWN_TABLE_ROW_BORDER_Y,
+} from '@/components/common/markdown/markdownMetrics';
+import {
   estimateChatMessageHeight,
 } from './chatMessageLayout';
 
@@ -71,8 +80,10 @@ describe('estimateChatMessageHeight', () => {
       { containerWidth: 900, isStreaming: false },
     );
 
-    expect(twoLineCodeHeight - oneLineCodeHeight).toBe(23);
-    expect(oneLineCodeHeight).toBeGreaterThanOrEqual(79);
+    expect(twoLineCodeHeight - oneLineCodeHeight).toBe(MARKDOWN_CODE_LINE_HEIGHT);
+    expect(oneLineCodeHeight).toBeGreaterThanOrEqual(
+      MARKDOWN_CODE_BLOCK_HEADER_HEIGHT + MARKDOWN_CODE_BLOCK_PADDING_Y + MARKDOWN_CODE_LINE_HEIGHT,
+    );
   });
 
   it('accounts for headings, lists, and blockquotes as separate blocks', () => {
@@ -143,7 +154,9 @@ describe('estimateChatMessageHeight', () => {
       { containerWidth: 900, isStreaming: false },
     );
 
-    expect(twoRowTableHeight - oneRowTableHeight).toBe(39);
+    expect(twoRowTableHeight - oneRowTableHeight).toBe(
+      MARKDOWN_TABLE_LINE_HEIGHT + MARKDOWN_TABLE_CELL_PADDING_Y + MARKDOWN_TABLE_ROW_BORDER_Y,
+    );
   });
 
   it('uses the shared horizontal rule height in assistant estimates', () => {
@@ -156,7 +169,7 @@ describe('estimateChatMessageHeight', () => {
       { containerWidth: 900, isStreaming: false },
     );
 
-    expect(ruleHeight - paragraphHeight).toBeGreaterThanOrEqual(7);
+    expect(ruleHeight).toBeGreaterThanOrEqual(MARKDOWN_RULE_HEIGHT);
   });
 
   it('accounts for inline links and code spans in narrow assistant layouts', () => {

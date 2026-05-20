@@ -5,6 +5,7 @@ import {
 } from '@/lib/text-layout';
 import {
   MARKDOWN_BODY_FONT,
+  MARKDOWN_BODY_LINE_HEIGHT,
   MARKDOWN_CODE_BLOCK_HEADER_HEIGHT,
   MARKDOWN_CODE_BLOCK_PADDING_Y,
   MARKDOWN_CODE_LINE_HEIGHT,
@@ -46,7 +47,7 @@ export type MarkdownMeasurementBlock =
 
 export type { TextBlockVariant } from './chatAssistantMarkdownTypes';
 
-const ASSISTANT_ERROR_LINE_HEIGHT = 22;
+const ASSISTANT_ERROR_LINE_HEIGHT = MARKDOWN_BODY_LINE_HEIGHT;
 
 export function buildMarkdownTextBlock(
   text: string,

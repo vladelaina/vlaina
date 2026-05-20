@@ -32,7 +32,7 @@ export function resolveUserMessageBubbleWidth(text: string, containerWidth: numb
   }
 
   const normalizedWidth = normalizeChatContainerWidth(containerWidth);
-  const cacheKey = `${normalizedWidth}\u0000${text}`;
+  const cacheKey = `${normalizedWidth}\u0000${MARKDOWN_BODY_FONT}\u0000${text}`;
   const cachedWidth = widthCache.get(cacheKey);
   if (cachedWidth !== undefined) {
     widthCache.delete(cacheKey);

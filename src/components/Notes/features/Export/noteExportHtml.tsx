@@ -6,6 +6,7 @@ import { defaultSchema } from 'rehype-sanitize';
 import {
   CHAT_MARKDOWN_REMARK_PLUGINS,
 } from '@/components/Chat/features/Markdown/markdownPipeline';
+import { MARKDOWN_BODY_FONT_SIZE } from '@/components/common/markdown/markdownMetrics';
 import {
   isPublicRemoteMediaUrl,
   sanitizeNoteLinkHref,
@@ -40,7 +41,7 @@ const EXPORT_CSS = `
     font-weight: 700;
   }
   .vlaina-note-export-body {
-    font-size: 15px;
+    font-size: ${MARKDOWN_BODY_FONT_SIZE}px;
     line-height: 1.72;
     overflow-wrap: anywhere;
   }
