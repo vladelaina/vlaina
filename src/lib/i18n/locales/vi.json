@@ -492,5 +492,18 @@
   "settings.images.previewVaultRoot": "Vault root/image.png",
   "settings.images.previewVaultSubfolder": "Vault root/{folder}/image.png",
   "settings.images.previewCurrentFolder": "Current note folder/image.png",
-  "settings.images.previewNoteSubfolder": "Current note folder/{folder}/image.png"
+  "settings.images.previewNoteSubfolder": "Current note folder/{folder}/image.png",
+  "common.upload": "Tải lên",
+  "asset.library": "Thư viện",
+  "asset.dropImageHere": "Thả ảnh vào đây",
+  "asset.dragDropOrBrowse": "Kéo thả ảnh hoặc nhấp để duyệt",
+  "asset.supportsImageFormats": "Hỗ trợ JPG, PNG, GIF, WebP (tối đa 50MB)",
+  "icon.emoji": "Emoji",
+  "icon.clearEmojiSearch": "Xóa tìm kiếm emoji",
+  "icon.searchResults": "Kết quả ({count})",
+  "icon.animationPreserved": "Đã giữ hoạt ảnh",
+  "icon.originalFormat": "Định dạng gốc",
+  "icon.uploadImageForNoteIcon": "Tải ảnh lên để dùng làm biểu tượng ghi chú",
+  "asset.noImagesYet": "Chưa có ảnh",
+  "asset.uploadImagesForCovers": "Tải ảnh lên để dùng làm bìa ghi chú"
 }

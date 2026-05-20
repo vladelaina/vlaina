@@ -21,14 +21,14 @@ vi.mock('./CoverImageShell', () => ({
 describe('CoverImage', () => {
   it('delegates orchestration to controller hook and renders shell with controller props', () => {
     const shellProps = {
-      url: '@monet/2',
+      url: 'assets/cover.png',
       readOnly: false,
       vaultPath: '/vault-a',
       phase: 'ready' as const,
       showPicker: false,
       previewSrc: null,
       isError: false,
-      displaySrc: '/covers/Claude Monet/2.webp',
+      displaySrc: 'blob:cover',
       coverHeight: 320,
       positionX: 50,
       positionY: 50,
@@ -41,7 +41,7 @@ describe('CoverImage', () => {
       onResizeMouseDown: vi.fn(),
       onResetHeight: vi.fn(),
       rendererProps: {
-        placeholderSrc: '/covers/Claude Monet/2.webp',
+        placeholderSrc: 'blob:cover',
         isImageReady: true,
         isResizing: false,
         isResizeSettling: false,
@@ -68,7 +68,7 @@ describe('CoverImage', () => {
 
     render(
       <CoverImage
-        url="@monet/2"
+        url="assets/cover.png"
         positionX={10}
         positionY={90}
         height={300}
@@ -83,7 +83,7 @@ describe('CoverImage', () => {
     );
 
     expect(hoisted.useCoverImageControllerSpy).toHaveBeenCalledWith({
-      url: '@monet/2',
+      url: 'assets/cover.png',
       positionX: 10,
       positionY: 90,
       initialHeight: 300,

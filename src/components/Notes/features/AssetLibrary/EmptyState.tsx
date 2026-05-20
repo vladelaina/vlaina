@@ -2,8 +2,11 @@ import { Icon } from '@/components/ui/icons';
 import { Button } from '@/components/ui/button';
 import { EmptyStateProps } from './types';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 
 export function EmptyState({ onUploadClick, compact }: EmptyStateProps) {
+  const { t } = useI18n();
+
   return (
     <div className={cn("flex flex-col items-center justify-center px-4", compact ? "py-6" : "py-12")}>
       <div className={cn(
@@ -17,7 +20,7 @@ export function EmptyState({ onUploadClick, compact }: EmptyStateProps) {
         "text-[var(--vlaina-text-secondary)] text-center mb-3",
         compact ? "text-xs" : "text-sm mb-4 max-w-[200px]"
       )}>
-        {compact ? "No images yet" : "Upload images to use as covers for your notes"}
+        {compact ? t('asset.noImagesYet') : t('asset.uploadImagesForCovers')}
       </p>
       
       <Button
@@ -27,7 +30,7 @@ export function EmptyState({ onUploadClick, compact }: EmptyStateProps) {
         className="gap-1.5 text-xs"
       >
  <Icon size="md" name="file.imagePlus" />
-        Upload
+        {t('common.upload')}
       </Button>
     </div>
   );

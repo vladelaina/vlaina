@@ -492,5 +492,18 @@
   "settings.images.previewVaultRoot": "Vault root/image.png",
   "settings.images.previewVaultSubfolder": "Vault root/{folder}/image.png",
   "settings.images.previewCurrentFolder": "Current note folder/image.png",
-  "settings.images.previewNoteSubfolder": "Current note folder/{folder}/image.png"
+  "settings.images.previewNoteSubfolder": "Current note folder/{folder}/image.png",
+  "common.upload": "Yükle",
+  "asset.library": "Kitaplık",
+  "asset.dropImageHere": "Görseli buraya bırak",
+  "asset.dragDropOrBrowse": "Bir görseli sürükleyip bırakın veya göz atmak için tıklayın",
+  "asset.supportsImageFormats": "JPG, PNG, GIF, WebP desteklenir (en fazla 50 MB)",
+  "icon.emoji": "Emoji",
+  "icon.clearEmojiSearch": "Emoji aramasını temizle",
+  "icon.searchResults": "Sonuçlar ({count})",
+  "icon.animationPreserved": "Animasyon korundu",
+  "icon.originalFormat": "Özgün biçim",
+  "icon.uploadImageForNoteIcon": "Not simgesi olarak kullanmak için bir görsel yükleyin",
+  "asset.noImagesYet": "Henüz görsel yok",
+  "asset.uploadImagesForCovers": "Not kapakları için görseller yükleyin"
 }

@@ -156,9 +156,9 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
 
   const getStatusText = () => {
     if (message) return message;
-    if (status === 'dragging') return 'Drop image here';
+    if (status === 'dragging') return t('asset.dropImageHere');
     if (compact) return null;
-    return 'Drag and drop an image, or click to browse';
+    return t('asset.dragDropOrBrowse');
   };
 
   const statusText = getStatusText();
@@ -195,7 +195,7 @@ export function UploadZone({ onUploadComplete, onDuplicateDetected, compact, cur
 
       {status === 'idle' && !compact && (
         <p className="mt-1 text-xs text-[var(--vlaina-text-tertiary)]">
-          Supports JPG, PNG, GIF, WebP (max 50MB)
+          {t('asset.supportsImageFormats')}
         </p>
       )}
 

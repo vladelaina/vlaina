@@ -492,5 +492,18 @@
   "settings.images.previewVaultRoot": "库根目录/image.png",
   "settings.images.previewVaultSubfolder": "库根目录/{folder}/image.png",
   "settings.images.previewCurrentFolder": "当前笔记所在文件夹/image.png",
-  "settings.images.previewNoteSubfolder": "当前笔记所在文件夹/{folder}/image.png"
+  "settings.images.previewNoteSubfolder": "当前笔记所在文件夹/{folder}/image.png",
+  "common.upload": "上传",
+  "asset.library": "图库",
+  "asset.dropImageHere": "将图片拖到这里",
+  "asset.dragDropOrBrowse": "拖放图片，或点击浏览",
+  "asset.supportsImageFormats": "支持 JPG、PNG、GIF、WebP（最大 50MB）",
+  "icon.emoji": "Emoji",
+  "icon.clearEmojiSearch": "清除 emoji 搜索",
+  "icon.searchResults": "结果（{count}）",
+  "icon.animationPreserved": "保留动画",
+  "icon.originalFormat": "保留原格式",
+  "icon.uploadImageForNoteIcon": "上传图片作为笔记图标",
+  "asset.noImagesYet": "还没有图片",
+  "asset.uploadImagesForCovers": "上传图片作为笔记封面"
 }

@@ -99,14 +99,6 @@ review before release.
   SVG Repo source page and license terms for that asset, or replace it with a
   self-owned/permissively licensed equivalent.
 
-### Built-In Cover Images
-
-- Location: `public/covers/`
-- These assets are built-in note cover images associated with public-domain
-  works by Claude Monet and Henri Biva.
-- Before publishing a release artifact, verify and record the exact image-file
-  source and any reproduction/photograph license terms for each cover image.
-
 ## Package Dependencies
 
 This repository also uses package-manager dependencies listed in

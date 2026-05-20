@@ -3,7 +3,6 @@ import { Icon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 import { loadImageThumbnailAsBlob } from '@/lib/assets/io/reader';
 import { resolveVaultAssetPath } from '@/lib/assets/core/paths';
-import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
 
 const MAX_CONCURRENT_THUMBNAIL_LOADS = 2;
 
@@ -64,9 +63,8 @@ interface AssetThumbnailProps {
 export const AssetThumbnail = memo(function AssetThumbnail({
   filename, size, vaultPath, currentNotePath, onSelect, isHovered, compact, loadPriority = Number.MAX_SAFE_INTEGER
 }: AssetThumbnailProps) {
-  const builtinSrc = isBuiltinCover(filename) ? getBuiltinCoverUrl(filename) : null;
-  const [src, setSrc] = useState<string | null>(() => builtinSrc);
-  const [isLoaded, setIsLoaded] = useState(() => Boolean(builtinSrc));
+  const [src, setSrc] = useState<string | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const imgRef = useRef<HTMLDivElement>(null);
   const mountIdRef = useRef(0);
@@ -76,12 +74,6 @@ export const AssetThumbnail = memo(function AssetThumbnail({
     let cancelQueuedLoad: (() => void) | null = null;
 
     setHasError(false);
-
-    if (builtinSrc) {
-      setSrc(builtinSrc);
-      setIsLoaded(true);
-      return;
-    }
 
     setSrc(null);
     setIsLoaded(false);
@@ -129,7 +121,7 @@ export const AssetThumbnail = memo(function AssetThumbnail({
       cancelQueuedLoad?.();
       observer.disconnect();
     };
-  }, [builtinSrc, currentNotePath, filename, loadPriority, vaultPath]);
+  }, [currentNotePath, filename, loadPriority, vaultPath]);
 
   const handleImageError = useCallback(() => {
     setHasError(true);
@@ -162,7 +154,7 @@ export const AssetThumbnail = memo(function AssetThumbnail({
           <img
             src={src}
             alt={displayName}
-            loading={builtinSrc ? 'eager' : 'lazy'}
+            loading="lazy"
             decoding="async"
             className={cn(
               "w-full h-full object-cover transition-opacity duration-200",

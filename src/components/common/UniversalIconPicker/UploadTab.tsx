@@ -185,7 +185,7 @@ export function UploadTab({
                                         <span className={cn("absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping", isGif ? "bg-green-400" : "bg-blue-400")}></span>
                                         <span className={cn("relative inline-flex rounded-full h-2 w-2", isGif ? "bg-green-500" : "bg-blue-500")}></span>
                                     </span>
-                                    {isGif ? "Animation Preserved" : "Original Format"}
+                                    {isGif ? t('icon.animationPreserved') : t('icon.originalFormat')}
                                 </div>
                             </>
                         ) : (
@@ -319,7 +319,7 @@ export function UploadTab({
                             ))}
                             {customIcons.length === 0 && (
                                 <div className="col-span-7 py-8 text-center text-xs text-muted-foreground italic">
-                                    Upload an image to use it as the note icon
+                                    {t('icon.uploadImageForNoteIcon')}
                                 </div>
                             )}
                         </div>

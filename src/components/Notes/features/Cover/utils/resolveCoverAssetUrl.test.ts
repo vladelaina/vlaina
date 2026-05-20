@@ -5,8 +5,6 @@ const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
   loadImageThumbnailAsBlob: vi.fn(),
   resolveExistingVaultAssetPath: vi.fn(),
-  isBuiltinCover: vi.fn(),
-  getBuiltinCoverUrl: vi.fn(),
 }));
 
 vi.mock('@/lib/assets/io/reader', () => ({
@@ -18,19 +16,11 @@ vi.mock('@/lib/assets/core/paths', () => ({
   resolveExistingVaultAssetPath: hoisted.resolveExistingVaultAssetPath,
 }));
 
-vi.mock('@/lib/assets/builtinCovers', () => ({
-  isBuiltinCover: hoisted.isBuiltinCover,
-  getBuiltinCoverUrl: hoisted.getBuiltinCoverUrl,
-}));
-
 describe('resolveCoverAssetUrl', () => {
   beforeEach(() => {
     hoisted.loadImageAsBlob.mockReset();
     hoisted.loadImageThumbnailAsBlob.mockReset();
     hoisted.resolveExistingVaultAssetPath.mockReset();
-    hoisted.isBuiltinCover.mockReset();
-    hoisted.getBuiltinCoverUrl.mockReset();
-    hoisted.isBuiltinCover.mockReturnValue(false);
   });
 
   it('rejects remote cover urls', async () => {
@@ -69,15 +59,13 @@ describe('resolveCoverAssetUrl', () => {
     expect(hoisted.resolveExistingVaultAssetPath).not.toHaveBeenCalled();
   });
 
-  it('returns builtin url', async () => {
-    hoisted.isBuiltinCover.mockReturnValue(true);
-    hoisted.getBuiltinCoverUrl.mockReturnValue('/builtin/cover.webp');
+  it('does not resolve removed built-in cover aliases', async () => {
+    hoisted.resolveExistingVaultAssetPath.mockResolvedValue(null);
 
-    const url = await resolveCoverAssetUrl({
+    await expect(resolveCoverAssetUrl({
       assetPath: '@monet/2',
       vaultPath: '/vault-a',
-    });
-    expect(url).toBe('/builtin/cover.webp');
+    })).rejects.toThrow('cover-path-unsupported');
   });
 
   it('resolves local cover path against the vault', async () => {

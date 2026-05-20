@@ -167,7 +167,7 @@ export function EmojiTab({
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           onClose={() => setSearchQuery('')}
-          closeLabel="Clear emoji search"
+          closeLabel={t('icon.clearEmojiSearch')}
           className="min-w-0 flex-1 px-2 pt-2"
           containerClassName="h-8 gap-1.5 pl-2 pr-1"
           inputClassName="text-sm"

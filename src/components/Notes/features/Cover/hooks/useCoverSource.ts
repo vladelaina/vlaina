@@ -1,5 +1,4 @@
 import { useReducer, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
-import { getBuiltinCoverUrl, isBuiltinCover } from '@/lib/assets/builtinCovers';
 import { loadImageWithDimensions } from '../utils/coverDimensionCache';
 import { resolveCoverAssetUrl } from '../utils/resolveCoverAssetUrl';
 import { coverSourceReducer, initialCoverSourceState } from './coverSourceState';
@@ -57,14 +56,6 @@ export function useCoverSource({ url, vaultPath, currentNotePath }: UseCoverSour
         }
 
         prevUrlRef.current = url;
-        if (url && isBuiltinCover(url)) {
-            const builtinUrl = getBuiltinCoverUrl(url);
-            if (builtinUrl) {
-                dispatch({ type: 'url-switch-resolved', imageUrl: builtinUrl, assetPath: url });
-                return;
-            }
-        }
-
         dispatch({ type: 'url-switch-reset' });
     }, [url, state.previewSrc, state.resolvedSrc]);
 

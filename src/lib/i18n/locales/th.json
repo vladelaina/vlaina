@@ -492,5 +492,18 @@
   "settings.images.previewVaultRoot": "Vault root/image.png",
   "settings.images.previewVaultSubfolder": "Vault root/{folder}/image.png",
   "settings.images.previewCurrentFolder": "Current note folder/image.png",
-  "settings.images.previewNoteSubfolder": "Current note folder/{folder}/image.png"
+  "settings.images.previewNoteSubfolder": "Current note folder/{folder}/image.png",
+  "common.upload": "อัปโหลด",
+  "asset.library": "คลัง",
+  "asset.dropImageHere": "วางรูปภาพที่นี่",
+  "asset.dragDropOrBrowse": "ลากและวางรูปภาพ หรือคลิกเพื่อเลือกไฟล์",
+  "asset.supportsImageFormats": "รองรับ JPG, PNG, GIF, WebP (สูงสุด 50MB)",
+  "icon.emoji": "Emoji",
+  "icon.clearEmojiSearch": "ล้างการค้นหา emoji",
+  "icon.searchResults": "ผลลัพธ์ ({count})",
+  "icon.animationPreserved": "คงภาพเคลื่อนไหวไว้",
+  "icon.originalFormat": "รูปแบบต้นฉบับ",
+  "icon.uploadImageForNoteIcon": "อัปโหลดรูปภาพเพื่อใช้เป็นไอคอนโน้ต",
+  "asset.noImagesYet": "ยังไม่มีรูปภาพ",
+  "asset.uploadImagesForCovers": "อัปโหลดรูปภาพเพื่อใช้เป็นปกโน้ต"
 }

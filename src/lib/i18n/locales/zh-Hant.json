@@ -492,5 +492,18 @@
   "settings.images.previewVaultRoot": "保管庫根目錄/image.png",
   "settings.images.previewVaultSubfolder": "保管庫根目錄/{folder}/image.png",
   "settings.images.previewCurrentFolder": "目前筆記所在資料夾/image.png",
-  "settings.images.previewNoteSubfolder": "目前筆記所在資料夾/{folder}/image.png"
+  "settings.images.previewNoteSubfolder": "目前筆記所在資料夾/{folder}/image.png",
+  "common.upload": "上傳",
+  "asset.library": "圖庫",
+  "asset.dropImageHere": "將圖片拖到這裡",
+  "asset.dragDropOrBrowse": "拖放圖片，或點擊瀏覽",
+  "asset.supportsImageFormats": "支援 JPG、PNG、GIF、WebP（最大 50MB）",
+  "icon.emoji": "Emoji",
+  "icon.clearEmojiSearch": "清除 emoji 搜尋",
+  "icon.searchResults": "結果（{count}）",
+  "icon.animationPreserved": "保留動畫",
+  "icon.originalFormat": "保留原格式",
+  "icon.uploadImageForNoteIcon": "上傳圖片作為筆記圖示",
+  "asset.noImagesYet": "還沒有圖片",
+  "asset.uploadImagesForCovers": "上傳圖片作為筆記封面"
 }

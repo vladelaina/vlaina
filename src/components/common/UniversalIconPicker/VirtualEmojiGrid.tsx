@@ -245,12 +245,12 @@ export function VirtualSearchResults({
 
   const rows = useMemo(() => {
     const result: { type: 'title' | 'emojis'; content: string | string[] }[] = [];
-    result.push({ type: 'title', content: `Results (${results.length})` });
+    result.push({ type: 'title', content: t('icon.searchResults', { count: results.length }) });
     for (let i = 0; i < emojisWithSkin.length; i += EMOJI_PER_ROW) {
       result.push({ type: 'emojis', content: emojisWithSkin.slice(i, i + EMOJI_PER_ROW) });
     }
     return result;
-  }, [emojisWithSkin, results.length]);
+  }, [emojisWithSkin, results.length, t]);
 
   const rowSizeGetter = useMemo(() => {
     return (index: number) => rows[index].type === 'title' ? 28 : EMOJI_SIZE + ROW_GAP;

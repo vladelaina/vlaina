@@ -492,5 +492,18 @@
   "settings.images.previewVaultRoot": "Vault root/image.png",
   "settings.images.previewVaultSubfolder": "Vault root/{folder}/image.png",
   "settings.images.previewCurrentFolder": "Current note folder/image.png",
-  "settings.images.previewNoteSubfolder": "Current note folder/{folder}/image.png"
+  "settings.images.previewNoteSubfolder": "Current note folder/{folder}/image.png",
+  "common.upload": "Загрузить",
+  "asset.library": "Библиотека",
+  "asset.dropImageHere": "Перетащите изображение сюда",
+  "asset.dragDropOrBrowse": "Перетащите изображение или нажмите, чтобы выбрать",
+  "asset.supportsImageFormats": "Поддерживаются JPG, PNG, GIF, WebP (до 50 МБ)",
+  "icon.emoji": "Emoji",
+  "icon.clearEmojiSearch": "Очистить поиск emoji",
+  "icon.searchResults": "Результаты ({count})",
+  "icon.animationPreserved": "Анимация сохранена",
+  "icon.originalFormat": "Исходный формат",
+  "icon.uploadImageForNoteIcon": "Загрузите изображение для значка заметки",
+  "asset.noImagesYet": "Изображений пока нет",
+  "asset.uploadImagesForCovers": "Загрузите изображения для обложек заметок"
 }

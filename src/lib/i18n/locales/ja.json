@@ -492,5 +492,18 @@
   "settings.images.previewVaultRoot": "Vault root/image.png",
   "settings.images.previewVaultSubfolder": "Vault root/{folder}/image.png",
   "settings.images.previewCurrentFolder": "Current note folder/image.png",
-  "settings.images.previewNoteSubfolder": "Current note folder/{folder}/image.png"
+  "settings.images.previewNoteSubfolder": "Current note folder/{folder}/image.png",
+  "common.upload": "アップロード",
+  "asset.library": "ライブラリ",
+  "asset.dropImageHere": "ここに画像をドロップ",
+  "asset.dragDropOrBrowse": "画像をドラッグ＆ドロップ、またはクリックして選択",
+  "asset.supportsImageFormats": "JPG、PNG、GIF、WebP に対応（最大 50MB）",
+  "icon.emoji": "Emoji",
+  "icon.clearEmojiSearch": "絵文字検索をクリア",
+  "icon.searchResults": "結果（{count}）",
+  "icon.animationPreserved": "アニメーションを保持",
+  "icon.originalFormat": "元の形式",
+  "icon.uploadImageForNoteIcon": "画像をアップロードしてノートアイコンに使用",
+  "asset.noImagesYet": "画像はまだありません",
+  "asset.uploadImagesForCovers": "ノートのカバーに使う画像をアップロード"
 }

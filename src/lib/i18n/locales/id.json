@@ -492,5 +492,18 @@
   "settings.images.previewVaultRoot": "Vault root/image.png",
   "settings.images.previewVaultSubfolder": "Vault root/{folder}/image.png",
   "settings.images.previewCurrentFolder": "Current note folder/image.png",
-  "settings.images.previewNoteSubfolder": "Current note folder/{folder}/image.png"
+  "settings.images.previewNoteSubfolder": "Current note folder/{folder}/image.png",
+  "common.upload": "Unggah",
+  "asset.library": "Pustaka",
+  "asset.dropImageHere": "Letakkan gambar di sini",
+  "asset.dragDropOrBrowse": "Seret dan lepas gambar, atau klik untuk menelusuri",
+  "asset.supportsImageFormats": "Mendukung JPG, PNG, GIF, WebP (maks 50MB)",
+  "icon.emoji": "Emoji",
+  "icon.clearEmojiSearch": "Hapus pencarian emoji",
+  "icon.searchResults": "Hasil ({count})",
+  "icon.animationPreserved": "Animasi dipertahankan",
+  "icon.originalFormat": "Format asli",
+  "icon.uploadImageForNoteIcon": "Unggah gambar untuk digunakan sebagai ikon catatan",
+  "asset.noImagesYet": "Belum ada gambar",
+  "asset.uploadImagesForCovers": "Unggah gambar untuk digunakan sebagai sampul catatan"
 }

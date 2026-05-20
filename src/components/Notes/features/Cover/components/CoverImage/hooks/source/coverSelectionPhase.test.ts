@@ -13,7 +13,7 @@ describe('resolveCoverFlowPhase', () => {
 
   it('prioritizes error over other states', () => {
     expect(resolveCoverFlowPhase({
-      url: '@monet/1',
+      url: 'assets/cover.png',
       previewSrc: '/preview.webp',
       isError: true,
       isSelectionCommitting: true,
@@ -22,7 +22,7 @@ describe('resolveCoverFlowPhase', () => {
 
   it('returns committing before previewing when commit is active', () => {
     expect(resolveCoverFlowPhase({
-      url: '@monet/1',
+      url: 'assets/cover.png',
       previewSrc: '/preview.webp',
       isError: false,
       isSelectionCommitting: true,
@@ -40,7 +40,7 @@ describe('resolveCoverFlowPhase', () => {
 
   it('returns previewing when a preview is active without commit', () => {
     expect(resolveCoverFlowPhase({
-      url: '@monet/1',
+      url: 'assets/cover.png',
       previewSrc: '/preview.webp',
       isError: false,
       isSelectionCommitting: false,
@@ -49,7 +49,7 @@ describe('resolveCoverFlowPhase', () => {
 
   it('returns ready when only resolved content should be shown', () => {
     expect(resolveCoverFlowPhase({
-      url: '@monet/1',
+      url: 'assets/cover.png',
       previewSrc: null,
       isError: false,
       isSelectionCommitting: false,

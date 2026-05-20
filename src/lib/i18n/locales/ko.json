@@ -492,5 +492,18 @@
   "settings.images.previewVaultRoot": "Vault root/image.png",
   "settings.images.previewVaultSubfolder": "Vault root/{folder}/image.png",
   "settings.images.previewCurrentFolder": "Current note folder/image.png",
-  "settings.images.previewNoteSubfolder": "Current note folder/{folder}/image.png"
+  "settings.images.previewNoteSubfolder": "Current note folder/{folder}/image.png",
+  "common.upload": "업로드",
+  "asset.library": "라이브러리",
+  "asset.dropImageHere": "여기에 이미지 놓기",
+  "asset.dragDropOrBrowse": "이미지를 끌어다 놓거나 클릭해서 찾아보기",
+  "asset.supportsImageFormats": "JPG, PNG, GIF, WebP 지원(최대 50MB)",
+  "icon.emoji": "Emoji",
+  "icon.clearEmojiSearch": "이모지 검색 지우기",
+  "icon.searchResults": "결과({count})",
+  "icon.animationPreserved": "애니메이션 유지됨",
+  "icon.originalFormat": "원본 형식",
+  "icon.uploadImageForNoteIcon": "노트 아이콘으로 사용할 이미지 업로드",
+  "asset.noImagesYet": "아직 이미지가 없습니다",
+  "asset.uploadImagesForCovers": "노트 표지로 사용할 이미지 업로드"
 }

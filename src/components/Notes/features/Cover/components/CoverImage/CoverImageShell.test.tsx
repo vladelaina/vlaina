@@ -108,8 +108,8 @@ describe('CoverImageShell', () => {
       <CoverImageShell
         {...buildShellProps({
           phase: 'ready',
-          url: '@monet/2',
-          displaySrc: '/covers/Claude Monet/2.webp',
+          url: 'assets/cover.png',
+          displaySrc: 'blob:cover',
         })}
       />
     );

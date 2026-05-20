@@ -6,8 +6,6 @@ const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
   loadImageThumbnailAsBlob: vi.fn(),
   resolveVaultAssetPath: vi.fn(),
-  isBuiltinCover: vi.fn(),
-  getBuiltinCoverUrl: vi.fn(),
   loadImageWithDimensions: vi.fn(),
 }));
 
@@ -19,11 +17,6 @@ vi.mock('@/lib/assets/io/reader', () => ({
 vi.mock('@/lib/assets/core/paths', () => ({
   resolveVaultAssetPath: hoisted.resolveVaultAssetPath,
   resolveExistingVaultAssetPath: hoisted.resolveVaultAssetPath,
-}));
-
-vi.mock('@/lib/assets/builtinCovers', () => ({
-  isBuiltinCover: hoisted.isBuiltinCover,
-  getBuiltinCoverUrl: hoisted.getBuiltinCoverUrl,
 }));
 
 vi.mock('../../../../utils/coverConstants', () => ({
@@ -40,12 +33,11 @@ describe('useCoverSelectionFlow', () => {
     hoisted.loadImageAsBlob.mockReset();
     hoisted.loadImageThumbnailAsBlob.mockReset();
     hoisted.resolveVaultAssetPath.mockReset();
-    hoisted.isBuiltinCover.mockReset();
-    hoisted.getBuiltinCoverUrl.mockReset();
     hoisted.loadImageWithDimensions.mockReset();
 
-    hoisted.isBuiltinCover.mockImplementation((assetPath: string) => assetPath.startsWith('@'));
-    hoisted.getBuiltinCoverUrl.mockImplementation((assetPath: string) => `/builtin/${assetPath}.webp`);
+    hoisted.resolveVaultAssetPath.mockImplementation(async (_vaultPath: string, assetPath: string) => `/vault/${assetPath}`);
+    hoisted.loadImageAsBlob.mockImplementation(async (fullPath: string) => `blob:${fullPath.split('/').pop()}`);
+    hoisted.loadImageThumbnailAsBlob.mockImplementation(async (fullPath: string) => `thumb:${fullPath.split('/').pop()}`);
     hoisted.loadImageWithDimensions.mockResolvedValue({ width: 1200, height: 800 });
   });
 
@@ -66,22 +58,22 @@ describe('useCoverSelectionFlow', () => {
     expect(result.current.phase).toBe('idle');
 
     await act(async () => {
-      await result.current.handlePreview('@monet/4');
+      await result.current.handlePreview('covers/monet-4.png');
     });
 
     await waitFor(() => {
       expect(result.current.phase).toBe('previewing');
     });
-    expect(result.current.previewSrc).toBe('/builtin/@monet/4.webp');
+    expect(result.current.previewSrc).toBe('blob:monet-4.png');
 
     act(() => {
-      result.current.handleCoverSelect('@monet/5');
+      result.current.handleCoverSelect('covers/monet-5.png');
     });
 
     expect(result.current.isSelectionCommitting).toBe(true);
     expect(result.current.previewSrc).toBeNull();
     expect(result.current.phase).toBe('committing');
-    expect(onUpdate).toHaveBeenCalledWith('@monet/5', 50, 50, 240, 1);
+    expect(onUpdate).toHaveBeenCalledWith('covers/monet-5.png', 50, 50, 240, 1);
     expect(setShowPicker).toHaveBeenCalledWith(false);
   });
 
@@ -91,7 +83,7 @@ describe('useCoverSelectionFlow', () => {
 
     const { result } = renderHook(() =>
       useCoverSelectionFlow({
-        url: '@monet/2',
+        url: 'covers/monet-2.png',
         coverHeight: 240,
         vaultPath: '/vault-a',
         onUpdate,
@@ -100,25 +92,25 @@ describe('useCoverSelectionFlow', () => {
     );
 
     await waitFor(() => {
-      expect(result.current.resolvedSrc).toBe('/builtin/@monet/2.webp');
+      expect(result.current.resolvedSrc).toBe('thumb:monet-2.png');
     });
 
     await act(async () => {
-      await result.current.handlePreview('@monet/5');
+      await result.current.handlePreview('covers/monet-5.png');
     });
 
     await waitFor(() => {
-      expect(result.current.previewSrc).toBe('/builtin/@monet/5.webp');
+      expect(result.current.previewSrc).toBe('blob:monet-5.png');
     });
 
     act(() => {
-      result.current.handleCoverSelect('@monet/5');
+      result.current.handleCoverSelect('covers/monet-5.png');
     });
 
-    expect(result.current.previewSrc).toBe('/builtin/@monet/5.webp');
+    expect(result.current.previewSrc).toBe('blob:monet-5.png');
     expect(result.current.isSelectionCommitting).toBe(true);
     expect(result.current.phase).toBe('committing');
-    expect(onUpdate).toHaveBeenCalledWith('@monet/5', 50, 50, 240, 1);
+    expect(onUpdate).toHaveBeenCalledWith('covers/monet-5.png', 50, 50, 240, 1);
   });
 
   it('selecting same cover clears preview and keeps non-committing state', async () => {
@@ -127,7 +119,7 @@ describe('useCoverSelectionFlow', () => {
 
     const { result } = renderHook(() =>
       useCoverSelectionFlow({
-        url: '@monet/2',
+        url: 'covers/monet-2.png',
         coverHeight: 320,
         vaultPath: '/vault-a',
         onUpdate,
@@ -136,20 +128,20 @@ describe('useCoverSelectionFlow', () => {
     );
 
     await waitFor(() => {
-      expect(result.current.resolvedSrc).toBe('/builtin/@monet/2.webp');
+      expect(result.current.resolvedSrc).toBe('thumb:monet-2.png');
     });
 
     await act(async () => {
-      await result.current.handlePreview('@monet/3');
+      await result.current.handlePreview('covers/monet-3.png');
     });
 
     await waitFor(() => {
-      expect(result.current.previewSrc).toBe('/builtin/@monet/3.webp');
+      expect(result.current.previewSrc).toBe('blob:monet-3.png');
     });
     expect(result.current.phase).toBe('previewing');
 
     act(() => {
-      result.current.handleCoverSelect('@monet/2');
+      result.current.handleCoverSelect('covers/monet-2.png');
     });
 
     await waitFor(() => {
@@ -157,7 +149,7 @@ describe('useCoverSelectionFlow', () => {
     });
     expect(result.current.isSelectionCommitting).toBe(false);
     expect(result.current.phase).toBe('ready');
-    expect(onUpdate).toHaveBeenCalledWith('@monet/2', 50, 50, 320, 1);
+    expect(onUpdate).toHaveBeenCalledWith('covers/monet-2.png', 50, 50, 320, 1);
     expect(setShowPicker).toHaveBeenCalledWith(false);
   });
 
@@ -167,7 +159,7 @@ describe('useCoverSelectionFlow', () => {
 
     const { result } = renderHook(() =>
       useCoverSelectionFlow({
-        url: '@monet/2',
+        url: 'covers/monet-2.png',
         coverHeight: 240,
         vaultPath: '/vault-a',
         onUpdate,
@@ -176,11 +168,11 @@ describe('useCoverSelectionFlow', () => {
     );
 
     await waitFor(() => {
-      expect(result.current.resolvedSrc).toBe('/builtin/@monet/2.webp');
+      expect(result.current.resolvedSrc).toBe('thumb:monet-2.png');
     });
 
     await act(async () => {
-      await result.current.handlePreview('@monet/2');
+      await result.current.handlePreview('covers/monet-2.png');
     });
 
     expect(result.current.previewSrc).toBeNull();

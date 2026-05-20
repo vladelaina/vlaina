@@ -1,6 +1,5 @@
 import { loadImageAsBlob, loadImageThumbnailAsBlob } from '@/lib/assets/io/reader';
 import { resolveExistingVaultAssetPath } from '@/lib/assets/core/paths';
-import { isBuiltinCover, getBuiltinCoverUrl } from '@/lib/assets/builtinCovers';
 import { isPublicRemoteMediaUrl, sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
 
 interface ResolveCoverAssetUrlOptions {
@@ -84,10 +83,6 @@ async function resolveCoverAssetUrlUncached({
   thumbnail,
   thumbnailMaxEdgePx,
 }: ResolveCoverAssetUrlOptions): Promise<string> {
-  if (isBuiltinCover(assetPath)) {
-    return getBuiltinCoverUrl(assetPath);
-  }
-
   const safeAssetPath = sanitizeNoteMediaSrc(assetPath);
   if (!safeAssetPath || safeAssetPath.startsWith('blob:')) {
     throw new Error('cover-path-unsupported');

@@ -492,5 +492,18 @@
   "settings.images.previewVaultRoot": "Vault root/image.png",
   "settings.images.previewVaultSubfolder": "Vault root/{folder}/image.png",
   "settings.images.previewCurrentFolder": "Current note folder/image.png",
-  "settings.images.previewNoteSubfolder": "Current note folder/{folder}/image.png"
+  "settings.images.previewNoteSubfolder": "Current note folder/{folder}/image.png",
+  "common.upload": "Upload",
+  "asset.library": "Library",
+  "asset.dropImageHere": "Drop image here",
+  "asset.dragDropOrBrowse": "Drag and drop an image, or click to browse",
+  "asset.supportsImageFormats": "Supports JPG, PNG, GIF, WebP (max 50MB)",
+  "icon.emoji": "Emoji",
+  "icon.clearEmojiSearch": "Clear emoji search",
+  "icon.searchResults": "Results ({count})",
+  "icon.animationPreserved": "Animation Preserved",
+  "icon.originalFormat": "Original Format",
+  "icon.uploadImageForNoteIcon": "Upload an image to use it as the note icon",
+  "asset.noImagesYet": "No images yet",
+  "asset.uploadImagesForCovers": "Upload images to use as covers for your notes"
 }

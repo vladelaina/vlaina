@@ -16,6 +16,7 @@ import {
   loadSkinTone,
   EMOJI_CATEGORIES,
 } from './constants';
+import { useI18n } from '@/lib/i18n';
 
 export interface UniversalIconPickerProps {
   onSelect: (emoji: string) => void;
@@ -61,6 +62,7 @@ export function UniversalIconPicker({
   embedded = false,
   imageLoader,
 }: UniversalIconPickerProps) {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   const onPreviewRef = useRef(onPreview);
@@ -237,7 +239,7 @@ export function UniversalIconPicker({
                   : "text-[var(--vlaina-text-tertiary)] border-transparent hover:text-[var(--vlaina-text-primary)]"
               )}
             >
-              Emoji
+              {t('icon.emoji')}
             </button>
             <button
               type="button"
@@ -253,7 +255,7 @@ export function UniversalIconPicker({
                   : "text-[var(--vlaina-text-tertiary)] border-transparent hover:text-[var(--vlaina-text-primary)]"
               )}
             >
-              Upload
+              {t('common.upload')}
             </button>
             <button
               type="button"
@@ -275,7 +277,7 @@ export function UniversalIconPicker({
               onClick={handleRemoveEvent}
               className="text-xs font-medium transition-all active:scale-95 text-[var(--vlaina-text-tertiary)] hover:text-red-500"
             >
-              Remove
+              {t('common.remove')}
             </button>
           )}
         </div>

@@ -5,5 +5,4 @@ export * from './core/paths';
 export * from './io/writer';
 export * from './io/reader';
 export * from './processing/crop';
-export * from './builtinCovers';
 export * from './AssetService';

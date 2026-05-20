@@ -22,6 +22,7 @@ describe('i18n messages', () => {
       'settings.tabs.markdown',
       'settings.about.discord',
       'vault.pathPlaceholder',
+      'icon.emoji',
     ]);
 
     for (const key of messageKeys) {

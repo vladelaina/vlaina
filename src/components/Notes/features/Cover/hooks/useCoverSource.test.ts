@@ -6,8 +6,6 @@ const hoisted = vi.hoisted(() => ({
   loadImageAsBlob: vi.fn(),
   loadImageThumbnailAsBlob: vi.fn(),
   resolveVaultAssetPath: vi.fn(),
-  isBuiltinCover: vi.fn(),
-  getBuiltinCoverUrl: vi.fn(),
   loadImageWithDimensions: vi.fn(),
 }));
 
@@ -21,11 +19,6 @@ vi.mock('@/lib/assets/core/paths', () => ({
   resolveExistingVaultAssetPath: hoisted.resolveVaultAssetPath,
 }));
 
-vi.mock('@/lib/assets/builtinCovers', () => ({
-  isBuiltinCover: hoisted.isBuiltinCover,
-  getBuiltinCoverUrl: hoisted.getBuiltinCoverUrl,
-}));
-
 vi.mock('../utils/coverDimensionCache', () => ({
   loadImageWithDimensions: hoisted.loadImageWithDimensions,
 }));
@@ -35,27 +28,22 @@ describe('useCoverSource', () => {
     hoisted.loadImageAsBlob.mockReset();
     hoisted.loadImageThumbnailAsBlob.mockReset();
     hoisted.resolveVaultAssetPath.mockReset();
-    hoisted.isBuiltinCover.mockReset();
-    hoisted.getBuiltinCoverUrl.mockReset();
     hoisted.loadImageWithDimensions.mockReset();
 
-    hoisted.isBuiltinCover.mockReturnValue(false);
     hoisted.loadImageWithDimensions.mockResolvedValue({ width: 1000, height: 500 });
   });
 
-  it('resolves builtin covers', async () => {
-    hoisted.isBuiltinCover.mockReturnValue(true);
-    hoisted.getBuiltinCoverUrl.mockReturnValue('/builtin/cover.jpg');
+  it('marks removed built-in cover aliases as errors', async () => {
+    hoisted.resolveVaultAssetPath.mockRejectedValue(new Error('missing'));
 
     const { result } = renderHook(() =>
       useCoverSource({ url: '@monet/1', vaultPath: '/vault-a' })
     );
 
     await waitFor(() => {
-      expect(result.current.resolvedSrc).toBe('/builtin/cover.jpg');
+      expect(result.current.isError).toBe(true);
     });
-    expect(result.current.isError).toBe(false);
-    expect(hoisted.resolveVaultAssetPath).not.toHaveBeenCalled();
+    expect(result.current.resolvedSrc).toBeNull();
   });
 
   it('resolves local covers through vault-relative paths', async () => {
@@ -186,34 +174,6 @@ describe('useCoverSource', () => {
       expect(result.current.resolvedSrc).toBeNull();
     });
     expect(result.current.prevSrcRef.current).toBe('blob:cover-a');
-  });
-
-  it('switches builtin cover sources immediately when the next url is known', async () => {
-    hoisted.isBuiltinCover.mockReturnValue(true);
-    hoisted.getBuiltinCoverUrl.mockImplementation((assetPath: string) => {
-      if (assetPath === '@monet/1') return '/builtin/monet-1.webp';
-      if (assetPath === '@monet/2') return '/builtin/monet-2.webp';
-      return '';
-    });
-
-    const { result, rerender } = renderHook(
-      ({ url }) => useCoverSource({ url, vaultPath: '/vault-a' }),
-      { initialProps: { url: '@monet/1' as string | null } }
-    );
-
-    await waitFor(() => {
-      expect(result.current.resolvedSrc).toBe('/builtin/monet-1.webp');
-    });
-
-    act(() => {
-      rerender({ url: '@monet/2' });
-    });
-
-    expect(result.current.resolvedSrc).toBe('/builtin/monet-2.webp');
-    expect(result.current.isResolvedSourceStale).toBe(false);
-    await waitFor(() => {
-      expect(hoisted.loadImageWithDimensions).toHaveBeenCalledTimes(2);
-    });
   });
 
   it('clears committing state when preview starts', async () => {

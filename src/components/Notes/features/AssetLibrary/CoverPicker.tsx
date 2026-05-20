@@ -7,6 +7,7 @@ import { UploadZone } from './UploadZone';
 import { CoverPickerProps, CoverPickerTab } from './types';
 import { Popover, PopoverContent, PopoverAnchor } from '@/components/ui/popover';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
+import { useI18n } from '@/lib/i18n';
 
 const COVER_PREVIEW_DELAY_MS = 180;
 const ASSET_LOAD_AFTER_OPEN_DELAY_MS = 120;
@@ -20,6 +21,7 @@ export function CoverPicker({
   vaultPath,
   currentNotePath,
 }: CoverPickerProps) {
+  const { t } = useI18n();
   const assetList = useNotesStore((state) => state.assetList);
   const loadAssets = useNotesStore((state) => state.loadAssets);
   const uploadAsset = useNotesStore((state) => state.uploadAsset);
@@ -220,7 +222,7 @@ export function CoverPicker({
                 )}
               >
  <Icon size="md" name="file.image" className="inline mr-1" />
-                Library
+                {t('asset.library')}
               </button>
               <button
                 type="button"
@@ -233,7 +235,7 @@ export function CoverPicker({
                 )}
               >
  <Icon size="md" name="common.upload" className="inline mr-1" />
-                Upload
+                {t('common.upload')}
               </button>
             </div>
             {onRemove && (
@@ -244,7 +246,7 @@ export function CoverPicker({
                 onClick={handleRemoveCover}
                 className="text-xs text-[var(--vlaina-text-tertiary)] hover:text-[var(--vlaina-text-primary)] transition-colors"
               >
-                Remove
+                {t('common.remove')}
               </button>
             )}
           </div>
@@ -264,7 +266,7 @@ export function CoverPicker({
               <UploadZone onUploadComplete={handleUploadComplete} compact currentNotePath={currentNotePath} />
               {isUploading && (
                 <p className="mt-1 text-xs text-center text-[var(--vlaina-accent)]">
-                  Uploading...
+                  {t('asset.uploading')}
                 </p>
               )}
             </div>
