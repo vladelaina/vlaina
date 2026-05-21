@@ -148,7 +148,7 @@ export function EditorTopRightToolbar({
                 onSelect={() => setNotesChatPanelCollapsed(false)}
               >
                 <Icon size="md" name="common.shootingStar" className="mr-2" />
-                {t('notes.rightSpark')}
+                {t('notes.rightChat')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuSub>

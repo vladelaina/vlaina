@@ -181,7 +181,7 @@ function seedStores(overrides?: {
   });
 }
 
-describe('spark window selection isolation', () => {
+describe('chat window selection isolation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocked.readWindowLaunchContext.mockReturnValue({
@@ -230,7 +230,7 @@ describe('spark window selection isolation', () => {
     unmount();
   });
 
-  it('initializes a new spark window with a blank local selection only', async () => {
+  it('initializes a new chat window with a blank local selection only', async () => {
     mocked.readWindowLaunchContext.mockReturnValue({
       isNewWindow: true,
       vaultPath: null,
@@ -261,7 +261,7 @@ describe('spark window selection isolation', () => {
     unmount();
   });
 
-  it('initializes a new spark window with the requested chat session locally', async () => {
+  it('initializes a new chat window with the requested chat session locally', async () => {
     mocked.readWindowLaunchContext.mockReturnValue({
       isNewWindow: true,
       vaultPath: null,

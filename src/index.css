@@ -381,7 +381,7 @@ html, body, #root {
   --notes-sidebar-icon: #636363;
   --notes-sidebar-icon-hover: #636363;
   --notes-sidebar-outline-icon: var(--vlaina-color-caret);
-  --notes-sidebar-spark-icon: var(--vlaina-color-caret);
+  --notes-sidebar-chat-icon: var(--vlaina-color-caret);
   --notes-sidebar-file-icon: var(--vlaina-color-caret);
   --notes-sidebar-folder-icon: #54aeff;
   --notes-sidebar-status-info: var(--vlaina-color-info);
