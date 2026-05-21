@@ -13,6 +13,7 @@ import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { useAutoTitle } from './useAutoTitle';
 import { requestManager } from '@/lib/ai/requestManager';
 import { getUserFacingAIError } from '@/lib/ai/errors';
+import { AIErrorType } from '@/lib/ai/types';
 import {
   isTemporarySession,
   isTemporarySessionId,
@@ -30,7 +31,7 @@ import {
 import { runStreamedAssistantMessage } from './chatService/runStreamedAssistantMessage';
 import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
 import { hydrateSessionMessagesFromDisk } from '@/stores/ai/sessionConsistency';
-import { useI18n } from '@/lib/i18n';
+import { translate, useI18n } from '@/lib/i18n';
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
@@ -68,6 +69,14 @@ function buildChatErrorPayload(error: unknown, managed = true) {
   }
 
   const normalized = getUserFacingAIError(error);
+  if (normalized.type === AIErrorType.NETWORK_ERROR) {
+    const message = translate('chat.error.upstreamUnavailable');
+    return {
+      message,
+      xml: `<error type="${escapeXml(AIErrorType.SERVER_ERROR)}" code="upstream_unavailable">${escapeXml(message)}</error>`,
+    };
+  }
+
   return {
     message: normalized.message,
     xml: `<error type="${escapeXml(normalized.type)}" code="${escapeXml(normalized.code)}">${escapeXml(normalized.message)}</error>`,
