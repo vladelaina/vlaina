@@ -119,7 +119,6 @@ export function LocalImage({ src, alt, className, onClick }: LocalImageProps) {
                     setDisplaySrc(`data:${mime};base64,${base64}`);
                 }
             } catch (e) {
-                console.error('[LocalImage] Failed to load local image:', src, e);
                 if (active) {
                     setError(true);
                 }

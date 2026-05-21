@@ -33,7 +33,6 @@ export function canInsertImageNodeAtSelection(view: EditorView): boolean {
 export function insertImageNodeAtSelection(view: EditorView, src: string): boolean {
     const imageNode = createImageNode(view, src);
     if (!imageNode) {
-        console.error('[ImageUpload] Image node type not found in schema');
         return false;
     }
 
@@ -41,7 +40,6 @@ export function insertImageNodeAtSelection(view: EditorView, src: string): boole
         view.dispatch(view.state.tr.replaceSelectionWith(imageNode).scrollIntoView());
         return true;
     } catch (error) {
-        console.error('[ImageUpload] Failed to insert image node:', error);
         return false;
     }
 }

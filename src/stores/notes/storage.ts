@@ -62,7 +62,6 @@ export function loadRecentNotes(): string[] {
     }
     return saved ? normalizeRecentNotePaths(JSON.parse(saved)) : [];
   } catch {
-    console.error('[NotesStorage] Failed to load recent notes from localStorage');
     return [];
   }
 }
@@ -71,7 +70,6 @@ function saveRecentNotes(paths: string[]): void {
   try {
     localStorage.setItem(RECENT_NOTES_KEY, JSON.stringify(normalizeRecentNotePaths(paths)));
   } catch (error) {
-    console.error('[NotesStorage] Failed to save recent notes to localStorage:', error);
   }
 }
 
@@ -88,7 +86,6 @@ export function loadGlobalNoteIconSize(): number {
   try {
     return normalizeGlobalNoteIconSize(localStorage.getItem(NOTE_ICON_SIZE_KEY));
   } catch {
-    console.error('[NotesStorage] Failed to load note icon size from localStorage');
     return DEFAULT_NOTE_ICON_SIZE;
   }
 }
@@ -99,7 +96,6 @@ export function persistGlobalNoteIconSize(size: number): number {
   try {
     localStorage.setItem(NOTE_ICON_SIZE_KEY, String(normalized));
   } catch (error) {
-    console.error('[NotesStorage] Failed to save note icon size to localStorage:', error);
   }
 
   return normalized;
@@ -270,7 +266,6 @@ export async function loadNoteMetadata(vaultPath: string): Promise<MetadataFile>
       notes,
     };
   } catch (error) {
-    console.error('[NotesStorage] Failed to load note metadata:', error);
     return createEmptyMetadataFile();
   }
 }
@@ -383,7 +378,6 @@ export async function loadWorkspaceState(vaultPath: string): Promise<WorkspaceSt
     const content = await storage.readFile(wsPath);
     return normalizeWorkspaceState(JSON.parse(content));
   } catch (error) {
-    console.error('[NotesStorage] Failed to load workspace state:', error);
     return null;
   }
 }
@@ -396,6 +390,5 @@ export async function saveWorkspaceState(vaultPath: string, state: WorkspaceStat
     const wsPath = await joinPath(storePath, WORKSPACE_FILE);
     await safeWriteTextFile(wsPath, JSON.stringify(normalizeWorkspaceState(state), null, 2));
   } catch (error) {
-    console.error('[NotesStorage] Failed to save workspace state:', error);
   }
 }

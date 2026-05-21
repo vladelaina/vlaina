@@ -356,9 +356,8 @@ export function AppContent() {
     if (store.loaded) return;
 
     void store.load()
-      .catch((error) => {
+      .catch((_error) => {
         setInitialUnifiedViewWaitDone(true);
-        console.error('Failed to load unified store during startup:', error);
       });
   }, []);
 
@@ -438,8 +437,7 @@ export function AppContent() {
           if (cancelled) return;
           mod.startAIStoreRuntimeEffects?.();
         })
-        .catch((error) => {
-          console.error('Failed to start AI runtime effects after startup:', error);
+        .catch((_error) => {
         });
     }, AI_STORE_PRELOAD_DELAY_MS);
 
@@ -451,8 +449,7 @@ export function AppContent() {
 
   useEffect(() => {
     void Promise.resolve(initialize())
-      .catch((error) => {
-        console.error('Failed to initialize vault store:', error);
+      .catch((_error) => {
       });
   }, [initialize]);
 

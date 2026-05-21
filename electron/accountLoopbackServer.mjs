@@ -11,7 +11,7 @@ export function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-export async function bindDesktopAuthLoopbackServer({ logDesktopAuth, timeoutSeconds }) {
+export async function bindDesktopAuthLoopbackServer({ timeoutSeconds }) {
   let settled = false;
   let timer = null;
   let resolveCallback;
@@ -40,13 +40,6 @@ export async function bindDesktopAuthLoopbackServer({ logDesktopAuth, timeoutSec
       const state = requestUrl.searchParams.get('state')?.trim() ?? '';
       const resultToken = requestUrl.searchParams.get('result_token')?.trim() ?? '';
       const error = requestUrl.searchParams.get('error')?.trim() ?? null;
-
-      logDesktopAuth('loopback_callback:received', {
-        pathname: requestUrl.pathname,
-        state,
-        resultToken,
-        error,
-      });
 
       if (!state || !resultToken) {
         response.writeHead(400, { 'Content-Type': 'text/html; charset=utf-8' });

@@ -48,11 +48,6 @@ import {
   isIgnoredBlankAreaDragBoxTarget,
   resolveBlankAreaDragStartZone,
 } from './blankAreaDragTargets';
-import {
-  describeDebugTarget,
-  formatDebugBlockRanges,
-  logBlockSelectionDebug,
-} from './blockSelectionDebugLog';
 
 export { blankAreaDragBoxPluginKey } from './blockSelectionPluginState';
 
@@ -60,60 +55,6 @@ const DRAG_THRESHOLD = 4;
 const DRAG_BOX_COLOR = 'rgb(190 223 254 / 0.42)';
 const DRAG_SESSION_CURSOR = 'crosshair';
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
-let lastSelectedBlockGeometryDebugKey = '';
-
-function roundCssNumber(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
-function readCssPx(style: CSSStyleDeclaration, property: string): number {
-  const value = Number.parseFloat(style.getPropertyValue(property));
-  return Number.isFinite(value) ? value : 0;
-}
-
-function summarizeSelectedBlockGeometry(view: EditorView): void {
-  const selectedElements = Array.from(view.dom.querySelectorAll<HTMLElement>('.vlaina-block-selected'));
-  const payload = {
-    count: selectedElements.length,
-    blocks: selectedElements.slice(0, 20).map((element, index) => {
-      const rect = element.getBoundingClientRect();
-      const style = window.getComputedStyle(element);
-      const bleedStart = readCssPx(style, '--vlaina-block-selection-bleed-x-start');
-      const bleedEnd = readCssPx(style, '--vlaina-block-selection-bleed-x-end');
-      const bleedY = readCssPx(style, '--vlaina-block-selection-bleed-y');
-      const tag = element.tagName.toLowerCase();
-      const className = Array.from(element.classList).join('.');
-      return {
-        index,
-        tag,
-        className,
-        dataType: element.getAttribute('data-type'),
-        text: (element.textContent ?? '').trim().slice(0, 40),
-        isListItem: tag === 'li',
-        rectLeft: roundCssNumber(rect.left),
-        rectRight: roundCssNumber(rect.right),
-        rectWidth: roundCssNumber(rect.width),
-        bleedStart,
-        bleedEnd,
-        bleedY,
-        visualLeft: roundCssNumber(rect.left - bleedStart),
-        visualRight: roundCssNumber(rect.right + bleedEnd),
-        display: style.display,
-        marginLeft: style.marginLeft,
-        paddingLeft: style.paddingLeft,
-        listStylePosition: style.listStylePosition,
-      };
-    }),
-  };
-  const debugKey = JSON.stringify(payload);
-  if (debugKey === lastSelectedBlockGeometryDebugKey) return;
-  lastSelectedBlockGeometryDebugKey = debugKey;
-  logBlockSelectionDebug('geometry:selected-blocks', payload);
-}
-
-function scheduleSelectedBlockGeometryDebug(view: EditorView): void {
-  window.requestAnimationFrame(() => summarizeSelectedBlockGeometry(view));
-}
 
 function snapshotSelection(state: EditorState) {
   return {
@@ -296,26 +237,12 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
 
   const tryStartSession = (view: EditorView, event: MouseEvent): BlockDragStartZone | null => {
     if (event.button !== 0) {
-      logBlockSelectionDebug('select:skip-start:button', { button: event.button });
       return null;
     }
     if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
-      logBlockSelectionDebug('select:skip-start:modifier', {
-        metaKey: event.metaKey,
-        ctrlKey: event.ctrlKey,
-        altKey: event.altKey,
-        shiftKey: event.shiftKey,
-      });
       return null;
     }
     const startZone = resolveBlankAreaDragStartZone(view, event);
-    logBlockSelectionDebug('select:mousedown-candidate', {
-      target: describeDebugTarget(event.target),
-      clientX: event.clientX,
-      clientY: event.clientY,
-      startZone,
-      currentSelection: formatDebugBlockRanges(getBlockSelectionPluginState(view.state).selectedBlocks),
-    });
     if (!startZone) return null;
 
     clearTextSelectionForDragSession(view);
@@ -331,21 +258,11 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
       scrollRootSelector: SCROLL_ROOT_SELECTOR,
       initialSelectedBlocks: getBlockSelectionPluginState(view.state).selectedBlocks,
       onSelectionChange(blocks) {
-        logBlockSelectionDebug('select:dispatch-selection', {
-          blocks: formatDebugBlockRanges(blocks),
-        });
         dispatchBlockSelectionAction(view, blocks.length > 0
           ? { type: 'set-blocks', blocks }
           : CLEAR_BLOCKS_ACTION);
-        if (blocks.length > 0) {
-          scheduleSelectedBlockGeometryDebug(view);
-        }
       },
       onPlainClick({ zone, action }) {
-        logBlockSelectionDebug('select:plain-click', {
-          zone,
-          action,
-        });
         if (zone === 'below-last-block') {
           dispatchTailBlankClickAction(view);
           return;
@@ -381,10 +298,6 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         }
         if (action?.type === 'set-blocks') {
           const selectedBlocks = normalizeBlockRanges(action.blocks);
-          logBlockSelectionDebug('select:state:set-blocks', {
-            raw: formatDebugBlockRanges(action.blocks),
-            normalized: formatDebugBlockRanges(selectedBlocks),
-          });
           return {
             selectedBlocks,
             decorations: createBlockSelectionDecorations(tr.doc, selectedBlocks),
@@ -396,11 +309,6 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         }
 
         if (shouldClearBlockSelectionForTransaction(tr, pluginState)) {
-          logBlockSelectionDebug('select:state:clear-text-selection', {
-            previous: formatDebugBlockRanges(pluginState.selectedBlocks),
-            selectionFrom: tr.selection.from,
-            selectionTo: tr.selection.to,
-          });
           return EMPTY_BLOCK_SELECTION_PLUGIN_STATE;
         }
 
@@ -409,10 +317,6 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         }
 
         const selectedBlocks = mapBlockRangesThroughTransaction(pluginState.selectedBlocks, tr);
-        logBlockSelectionDebug('select:state:map-transaction', {
-          previous: formatDebugBlockRanges(pluginState.selectedBlocks),
-          mapped: formatDebugBlockRanges(selectedBlocks),
-        });
         if (selectedBlocks.length === 0) return EMPTY_BLOCK_SELECTION_PLUGIN_STATE;
         return {
           selectedBlocks,
@@ -485,16 +389,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         },
         mousedown(view, event) {
           if (!(event instanceof MouseEvent)) return false;
-          logBlockSelectionDebug('select:editor-mousedown', {
-            target: describeDebugTarget(event.target),
-            clientX: event.clientX,
-            clientY: event.clientY,
-            selectedBlocks: formatDebugBlockRanges(getBlockSelectionPluginState(view.state).selectedBlocks),
-          });
           if (isIgnoredBlankAreaDragBoxTarget(event.target)) {
-            logBlockSelectionDebug('select:editor-mousedown:ignored-target', {
-              target: describeDebugTarget(event.target),
-            });
             return false;
           }
           const target = event.target;
@@ -526,17 +421,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
       const doc = view.dom.ownerDocument;
       syncBlockSelectionVisualState(view);
       const handleDocumentMouseDown = (event: MouseEvent) => {
-        logBlockSelectionDebug('select:document-mousedown', {
-          target: describeDebugTarget(event.target),
-          insideEditor: event.target instanceof Node && view.dom.contains(event.target),
-          clientX: event.clientX,
-          clientY: event.clientY,
-          selectedBlocks: formatDebugBlockRanges(getBlockSelectionPluginState(view.state).selectedBlocks),
-        });
         if (isIgnoredBlankAreaDragBoxTarget(event.target)) {
-          logBlockSelectionDebug('select:document-mousedown:ignored-target', {
-            target: describeDebugTarget(event.target),
-          });
           return;
         }
         const target = event.target;

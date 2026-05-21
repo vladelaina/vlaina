@@ -76,13 +76,6 @@ const trayMessages = {
   th: { open: 'เปิด vlaina', quit: 'ออก' },
 };
 
-function formatErrorForLog(error) {
-  if (error instanceof Error) {
-    return `${error.name}: ${error.message}\n${error.stack ?? ''}`.trim();
-  }
-  return String(error);
-}
-
 function installDevelopmentParentProcessGuard() {
   if (app.isPackaged) {
     return;
@@ -105,28 +98,10 @@ function installDevelopmentParentProcessGuard() {
   interval.unref?.();
 }
 
-function writeStartupLog(message, error = null) {
-  try {
-    const logDir = path.join(app.getPath('userData'), 'logs');
-    fs.mkdirSync(logDir, { recursive: true });
-    const body = [
-      `[${new Date().toISOString()}] ${message}`,
-      error ? formatErrorForLog(error) : '',
-    ].filter(Boolean).join('\n');
-    fs.appendFileSync(path.join(logDir, 'main.log'), `${body}\n`);
-  } catch {
-    // Logging must never be able to break app startup.
-  }
-}
-
 process.on('uncaughtException', (error) => {
-  writeStartupLog('Uncaught exception in Electron main process.', error);
-  console.error('[electron] Uncaught exception:', error);
 });
 
 process.on('unhandledRejection', (reason) => {
-  writeStartupLog('Unhandled rejection in Electron main process.', reason);
-  console.error('[electron] Unhandled rejection:', reason);
 });
 
 function normalizeProxyConfig(rawProxy, source) {
@@ -176,26 +151,6 @@ function summarizeUrlForLog(rawUrl) {
     return parsed.toString();
   } catch {
     return '';
-  }
-}
-
-function isVideoNetworkDebugUrl(rawUrl) {
-  try {
-    const { hostname } = new URL(rawUrl);
-    return hostname === 'youtube.com'
-      || hostname.endsWith('.youtube.com')
-      || hostname === 'youtube-nocookie.com'
-      || hostname.endsWith('.youtube-nocookie.com')
-      || hostname === 'ytimg.com'
-      || hostname.endsWith('.ytimg.com')
-      || hostname === 'googlevideo.com'
-      || hostname.endsWith('.googlevideo.com')
-      || hostname === 'gstatic.com'
-      || hostname.endsWith('.gstatic.com')
-      || hostname === 'google.com'
-      || hostname.endsWith('.google.com');
-  } catch {
-    return false;
   }
 }
 
@@ -252,31 +207,16 @@ async function configureProxySafely() {
       proxyBypassRules: '127.0.0.1;localhost;<local>',
     });
   } catch (error) {
-    writeStartupLog('Failed to configure Electron proxy; continuing without blocking the main window.', error);
-    console.error('[electron] Failed to configure proxy:', error);
   }
 }
 
 function configureDefaultSessionSafely() {
   try {
-    session.defaultSession.webRequest.onErrorOccurred((details) => {
-      if (!isVideoNetworkDebugUrl(details.url)) return;
-      console.info('[electron:video-network:error]', {
-        url: details.url,
-        method: details.method,
-        resourceType: details.resourceType,
-        error: details.error,
-        fromCache: details.fromCache,
-      });
-    });
-
     session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
       callback(false);
     });
     session.defaultSession.setPermissionCheckHandler(() => false);
   } catch (error) {
-    writeStartupLog('Failed to configure Electron default session; continuing startup.', error);
-    console.error('[electron] Failed to configure default session:', error);
   }
 }
 
@@ -343,11 +283,9 @@ function normalizeMarkdownOpenPath(value) {
   const absolutePath = path.resolve(filePath);
   try {
     if (!fs.statSync(absolutePath).isFile()) {
-      writeStartupLog(`Ignored Markdown open target because it is not a file: ${absolutePath}`);
       return null;
     }
   } catch {
-    writeStartupLog(`Ignored Markdown open target because it does not exist: ${absolutePath}`);
     return null;
   }
 
@@ -395,7 +333,6 @@ function sendOpenMarkdownPath(window, filePath) {
 
   const send = () => {
     if (window.isDestroyed()) return;
-    writeStartupLog(`Opening Markdown file from OS association: ${normalizedPath}`);
     window.webContents.send('desktop:app:open-markdown-file', normalizedPath);
   };
 
@@ -416,7 +353,6 @@ function openMarkdownPath(filePath) {
 
   const existingWindow = BrowserWindow.getAllWindows().find((window) => !window.isDestroyed());
   if (!existingWindow) {
-    writeStartupLog(`Queued Markdown file until main window is ready: ${normalizedPath}`);
     pendingOpenMarkdownPath = normalizedPath;
     return false;
   }
@@ -476,8 +412,6 @@ function createTray() {
     setTrayContextMenu();
     tray.on('click', showMainWindow);
   } catch (error) {
-    writeStartupLog('Failed to create tray icon; continuing startup.', error);
-    console.error('[electron] Failed to create tray icon:', error);
     tray = null;
   }
 }
@@ -859,12 +793,6 @@ async function resolveVideoUrl(rawUrl) {
     timeout = setTimeout(() => {
       timeoutFired = true;
       stage = 'timeout';
-      console.info('[electron:media:resolve-video-url:timeout]', {
-        inputUrl: summarizeUrlForLog(inputUrl),
-        bvid,
-        timeoutMs,
-        durationMs: Date.now() - startedAt,
-      });
       controller.abort();
     }, timeoutMs);
     stage = 'fetching';
@@ -886,16 +814,6 @@ async function resolveVideoUrl(rawUrl) {
     const page = parsePositiveNumber(payload?.data?.pages?.[0]?.page);
 
     if (!response.ok || payload?.code !== 0 || !cid) {
-      console.info('[electron:media:resolve-video-url:fallback]', {
-        inputUrl: summarizeUrlForLog(inputUrl),
-        bvid,
-        httpStatus: response.status,
-        code: payload?.code ?? null,
-        hasCid: Boolean(cid),
-        stage,
-        timeoutFired,
-        durationMs: Date.now() - startedAt,
-      });
       return {
         resolvedUrl: inputUrl,
         source: 'fallback',
@@ -925,15 +843,6 @@ async function resolveVideoUrl(rawUrl) {
       durationMs: Date.now() - startedAt,
     };
   } catch (error) {
-    console.info('[electron:media:resolve-video-url:error]', {
-      inputUrl: summarizeUrlForLog(inputUrl),
-      bvid,
-      message: error instanceof Error ? error.message : String(error),
-      name: error instanceof Error ? error.name : null,
-      stage,
-      timeoutFired,
-      durationMs: Date.now() - startedAt,
-    });
     return {
       resolvedUrl: inputUrl,
       source: 'fallback',
@@ -1088,11 +997,7 @@ app.whenReady().then(async () => {
       app.setAppUserModelId('com.vlaina.desktop');
     }
   } catch (error) {
-    writeStartupLog('Failed to set Windows app user model id; continuing startup.', error);
-    console.error('[electron] Failed to set app user model id:', error);
   }
-
-  writeStartupLog(`App ready. packaged=${app.isPackaged} platform=${process.platform} version=${app.getVersion()}`);
   await configureProxySafely();
   configureDefaultSessionSafely();
 
@@ -1109,8 +1014,6 @@ app.whenReady().then(async () => {
     }
   });
 }).catch((error) => {
-  writeStartupLog('Electron app failed before creating the main window.', error);
-  console.error('[electron] Failed before creating the main window:', error);
 });
 
 app.on('window-all-closed', () => {

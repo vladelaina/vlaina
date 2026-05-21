@@ -18,7 +18,6 @@ import {
 } from './notesExternalRenameQueue';
 import { toVaultRelativePath } from './notesExternalSyncUtils';
 import {
-  getExternalWatchErrorMessage,
   isExternalWatchUnavailableError,
 } from './externalWatchErrorUtils';
 import { createNotesExternalSyncActions, type PendingCreateEntry } from './notesExternalSyncActions';
@@ -212,11 +211,6 @@ export function useNotesExternalSync(vaultPath: string | null, notesPath: string
           startReconcilePolling();
           return;
         }
-
-        console.error(
-          '[NotesExternalSync] Failed to start filesystem watch:',
-          getExternalWatchErrorMessage(error)
-        );
       }
     };
 

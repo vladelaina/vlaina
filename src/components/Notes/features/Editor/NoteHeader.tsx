@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { TitleInput } from './TitleInput';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
@@ -14,7 +14,6 @@ import { focusEditorAtTop } from './utils/focusEditor';
 import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
 import { getRandomHeaderEmoji } from '@/components/common/UniversalIconPicker/randomEmoji';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
-import { logNotesDebug } from '@/stores/notes/lineBreakDebugLog';
 import { resolveEffectiveVaultPath } from '@/stores/notes/effectiveVaultPath';
 
 interface NoteHeaderProps {
@@ -25,7 +24,6 @@ interface NoteHeaderProps {
 
 export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), onAddCover }: NoteHeaderProps) {
     const currentNotePath = useNotesStore(s => s.currentNote?.path);
-    const lastHeaderDebugRef = useRef<string | null>(null);
     const setNoteIcon = useNotesStore(s => s.setNoteIcon);
     const setGlobalIconSize = useNotesStore(s => s.setGlobalIconSize);
     const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
@@ -123,22 +121,6 @@ export function NoteHeader({ coverUrl, coverLayoutActive = Boolean(coverUrl), on
         ? ''
         : isDraftNote && draftTitle !== undefined ? draftTitle : noteName;
     const shouldAutoFocusTitle = Boolean(isNewlyCreated);
-
-    useEffect(() => {
-        const snapshot = JSON.stringify({
-            currentNotePath: currentNotePath ?? null,
-            isDraftNote,
-            noteName,
-            titleInitialValue,
-            isNewlyCreated,
-            shouldAutoFocusTitle,
-            hasIcon: Boolean(noteIcon),
-            hasCover: Boolean(coverUrl),
-        });
-        if (lastHeaderDebugRef.current === snapshot) return;
-        lastHeaderDebugRef.current = snapshot;
-        logNotesDebug('NotesHeader', 'state', JSON.parse(snapshot));
-    }, [coverUrl, currentNotePath, isDraftNote, isNewlyCreated, noteIcon, noteName, shouldAutoFocusTitle, titleInitialValue]);
 
     return (
         <HeroIconHeader

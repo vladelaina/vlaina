@@ -6,7 +6,6 @@ export function detectSystemTimezone(): number {
 
     return roundedOffset;
   } catch (error) {
-    console.error('Failed to detect system timezone:', error);
     return 8;
   }
 }

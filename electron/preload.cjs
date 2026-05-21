@@ -316,17 +316,6 @@ const desktopApi = {
     getSessionStatus() {
       return ipcRenderer.invoke('desktop:account:get-session-status');
     },
-    getAuthDebugLog() {
-      return ipcRenderer.invoke('desktop:account:get-auth-debug-log');
-    },
-    onAuthLog(callback) {
-      const channel = 'desktop:account:auth-log';
-      const handler = (_event, payload) => callback(payload);
-      ipcRenderer.on(channel, handler);
-      return () => {
-        ipcRenderer.removeListener(channel, handler);
-      };
-    },
     startAuth(provider) {
       return ipcRenderer.invoke('desktop:account:start-auth', provider);
     },

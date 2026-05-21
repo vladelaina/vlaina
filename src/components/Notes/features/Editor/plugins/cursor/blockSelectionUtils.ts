@@ -1,9 +1,5 @@
 import type { EditorState, Transaction } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
-import {
-  formatDebugBlockRanges,
-  logBlockSelectionDebug,
-} from './blockSelectionDebugLog';
 import { COMPLEX_LIST_ITEM_CHILD_NODE_NAMES } from '../shared/blockNodeTypes';
 
 export interface RectBounds {
@@ -191,9 +187,6 @@ export function getDisplayBlockRangesForDecorations(
   doc: EditorState['doc'],
   blocks: readonly BlockRange[],
 ): BlockRange[] {
-  logBlockSelectionDebug('decorations:input', {
-    blocks: formatDebugBlockRanges(blocks),
-  });
   const result = normalizeBlockRanges(blocks.map((block) => {
     const safeFrom = Math.max(0, Math.min(block.from, doc.content.size));
     let from = block.from;
@@ -205,12 +198,6 @@ export function getDisplayBlockRangesForDecorations(
       if (nodeAfter?.type.name === 'list_item' && to > from) {
         from = safeFrom;
         to = safeFrom + nodeAfter.nodeSize;
-        logBlockSelectionDebug('decorations:expand-list-item', {
-          block: `[${block.from},${block.to}]`,
-          expanded: `[${from},${to}]`,
-          nodeAfter: nodeAfter.type.name,
-          nodeAfterSize: nodeAfter.nodeSize,
-        });
       } else {
         const imageRange = resolveStandaloneImageBlockRange(doc, block);
         if (imageRange) {
@@ -223,9 +210,6 @@ export function getDisplayBlockRangesForDecorations(
 
     return { from, to };
   }));
-  logBlockSelectionDebug('decorations:result', {
-    result: formatDebugBlockRanges(result),
-  });
   return result;
 }
 

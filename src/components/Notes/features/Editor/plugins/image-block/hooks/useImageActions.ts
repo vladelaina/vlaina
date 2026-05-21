@@ -91,7 +91,6 @@ export function useImageActions({
             setIsActive(false);
             setHeight(undefined);
         } catch (error) {
-            console.error('Save failed:', error);
             addToast(t('editor.updateViewFailed'), 'error');
         } finally {
             setIsSaving(false);

@@ -201,11 +201,9 @@ export function useChatShortcuts(
                   dispatchChatMessageCopied(lastAI.id);
                 }
               })
-              .catch((error) => {
-                console.error('[useChatShortcuts] Failed to copy response:', error);
+              .catch((_error) => {
               });
           } catch (error) {
-            console.error('[useChatShortcuts] Failed to copy response:', error);
           }
         }
         return;
@@ -221,11 +219,9 @@ export function useChatShortcuts(
             try {
               const copyRequest = writeTextToClipboard(lastCode);
               void Promise.resolve(copyRequest)
-                .catch((error) => {
-                  console.error('[useChatShortcuts] Failed to copy code block:', error);
+                .catch((_error) => {
                 });
             } catch (error) {
-              console.error('[useChatShortcuts] Failed to copy code block:', error);
             }
           }
         }

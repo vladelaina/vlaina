@@ -8,7 +8,5 @@ export {
   normalizeVideoUrlInput,
   parseVideoUrl,
 } from './videoUrl';
-export {
-  sanitizeVideoDebugPayload,
-} from './videoDebug';
+export { sanitizeVideoDebugPayload } from './videoDebug';
 export type { VideoAttrs } from './types';

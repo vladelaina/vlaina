@@ -93,14 +93,12 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
       try {
         assets = await AssetService.list(context, config);
       } catch (error) {
-        console.error('Failed to load user assets:', error);
       }
 
       assets = combineAndSortAssets(assets);
 
       set({ assetList: assets, isLoadingAssets: false });
     } catch (error) {
-      console.error('Failed to load assets:', error);
       set({ isLoadingAssets: false });
     }
     })();
@@ -176,7 +174,6 @@ export const createAssetSlice: StateCreator<NotesStore, [], [], AssetSlice> = (s
       if (isActiveUploadVault(get(), vaultPath)) {
         set({ uploadProgress: null });
       }
-      console.error('Failed to upload asset:', error);
       return {
         success: false,
         path: null,

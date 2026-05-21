@@ -18,15 +18,6 @@ export function normalizeDesktopAccountProvider(provider, fallback = null) {
   return isSupportedAccountProvider(normalized) ? normalized : fallback;
 }
 
-function summarizeCredentialState({ meta, provider, username, appSessionToken }) {
-  return {
-    hasMeta: !!meta && typeof meta === 'object',
-    provider,
-    hasUsername: Boolean(username),
-    hasAppSessionToken: Boolean(appSessionToken),
-  };
-}
-
 async function readJsonFile(filePath, fallbackValue) {
   try {
     return JSON.parse(await readFile(filePath, 'utf8'));
@@ -49,9 +40,8 @@ async function getAccountStorePaths() {
   };
 }
 
-export function createAccountCredentialStore({ desktopLegacySessionHeader, logDesktopAuth }) {
+export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
   async function readStoredAccountCredentials() {
-    const startedAt = performance.now();
     const { metaPath, secretsPath } = await getAccountStorePaths();
     const meta = await readJsonFile(metaPath, null);
     const rawSecrets = await readJsonFile(secretsPath, null);
@@ -64,12 +54,6 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader, logDe
     const appSessionToken = typeof secrets?.appSessionToken === 'string' ? secrets.appSessionToken.trim() : '';
 
     if (!isSupportedAccountProvider(provider) || !username || !appSessionToken) {
-      logDesktopAuth('read_stored_credentials:empty_or_invalid', {
-        metaPath,
-        secretsPath,
-        ...summarizeCredentialState({ meta, provider, username, appSessionToken }),
-        durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
-      });
       return null;
     }
 
@@ -84,33 +68,10 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader, logDe
           ? meta.authenticatedAt
           : null,
     };
-    logDesktopAuth('read_stored_credentials:resolved', {
-      metaPath,
-      secretsPath,
-      credentials: {
-        provider: credentials.provider,
-        username: credentials.username,
-        primaryEmail: credentials.primaryEmail,
-        avatarUrl: credentials.avatarUrl,
-        authenticatedAt: credentials.authenticatedAt,
-        hasAppSessionToken: true,
-      },
-      ...summarizeCredentialState({ meta, provider, username, appSessionToken }),
-      durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
-    });
     return credentials;
   }
 
   async function writeStoredAccountCredentials(credentials) {
-    const startedAt = performance.now();
-    logDesktopAuth('write_stored_credentials:start', {
-      provider: credentials.provider,
-      username: credentials.username,
-      primaryEmail: credentials.primaryEmail,
-      avatarUrl: credentials.avatarUrl,
-      hasAppSessionToken: Boolean(credentials.appSessionToken),
-    });
-
     const { metaPath, secretsPath } = await getAccountStorePaths();
     await writeFile(
       metaPath,
@@ -142,29 +103,12 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader, logDe
         2
       )
     );
-
-    logDesktopAuth('write_stored_credentials:done', {
-      provider: credentials.provider,
-      username: credentials.username,
-      primaryEmail: credentials.primaryEmail,
-      avatarUrl: credentials.avatarUrl,
-      metaPath,
-      secretsPath,
-      durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
-    });
   }
 
   async function clearStoredAccountCredentials() {
-    const startedAt = performance.now();
-    logDesktopAuth('clear_stored_credentials:start');
     const { metaPath, secretsPath } = await getAccountStorePaths();
     await rm(metaPath, { force: true });
     await rm(secretsPath, { force: true });
-    logDesktopAuth('clear_stored_credentials:done', {
-      metaPath,
-      secretsPath,
-      durationMs: Math.max(0, Math.round(performance.now() - startedAt)),
-    });
   }
 
   async function rotateStoredSessionToken(headers) {
@@ -172,10 +116,6 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader, logDe
     if (!rotatedToken) {
       return;
     }
-
-    logDesktopAuth('rotate_session_token:received', {
-      hasAppSessionToken: true,
-    });
 
     const current = await readStoredAccountCredentials();
     if (!current) {

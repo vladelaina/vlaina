@@ -98,9 +98,8 @@ export function useExternalStarredRenameSync() {
           }
           unwatchers.push(unwatch);
         },
-        (error) => {
+        (_error) => {
           if (!disposed) {
-            console.error('[ExternalStarredRenameSync] Failed to start filesystem watch:', error);
           }
         },
       );

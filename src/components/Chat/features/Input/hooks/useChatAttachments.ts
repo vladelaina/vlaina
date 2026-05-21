@@ -37,7 +37,6 @@ export function useChatAttachments() {
       if (result.status === 'fulfilled') {
         newAttachments.push(result.value);
       } else {
-        console.error(result.reason);
       }
     });
 

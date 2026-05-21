@@ -1,20 +1,15 @@
 import type { Node as ProseMirrorNode } from '@milkdown/kit/prose/model';
 import type { EditorView, NodeView } from '@milkdown/kit/prose/view';
 import type { VideoAttrs } from './types';
-import { getVideoAttrsDebug } from './videoAttrsDebug';
 import { selectVideoBlock } from './videoBlockSelection';
 import { createVideoDom } from './videoDom';
-import { getDomRectDebug, getEventTargetDebug, logVideoDebug } from './videoDebug';
 import { shouldStopVideoNodeEvent } from './videoNodeViewEvents';
-
-let videoNodeViewIdCounter = 0;
 
 export class VideoNodeView implements NodeView {
   dom: HTMLElement;
   private node: ProseMirrorNode;
   private readonly view: EditorView;
   private readonly getPos: () => number | undefined;
-  private readonly debugId = ++videoNodeViewIdCounter;
   private readonly handleDoubleClick: (event: MouseEvent) => void;
   private readonly handleMouseDown: (event: MouseEvent) => void;
   private readonly handleWindowMouseMove: (event: MouseEvent) => void;
@@ -46,11 +41,6 @@ export class VideoNodeView implements NodeView {
     }
     const pos = this.getPos();
     if (typeof pos !== 'number') {
-      logVideoDebug('nodeview_dblclick_ignored', {
-        id: this.debugId,
-        reason: 'missingPos',
-        target: getEventTargetDebug(event.target),
-      });
       return;
     }
     event.preventDefault();
@@ -80,32 +70,13 @@ export class VideoNodeView implements NodeView {
     const dx = Math.abs(event.clientX - state.x);
     const dy = Math.abs(event.clientY - state.y);
     if (dx < 4 && dy < 4) return;
-    this.selectVideoBlockFromPointerHold('move-threshold', {
-      dx,
-      dy,
-      x: event.clientX,
-      y: event.clientY,
-      target: getEventTargetDebug(event.target),
-    });
+    this.selectVideoBlockFromPointerHold('move-threshold');
   }
-  private safeGetPos() {
-    try {
-      return this.getPos();
-    } catch {
-      return undefined;
-    }
-  }
-  private selectVideoBlockFromPointerHold(reason: 'mouse-down' | 'hold-timeout' | 'move-threshold' = 'hold-timeout', details?: Record<string, unknown>) {
+  private selectVideoBlockFromPointerHold(_reason: 'mouse-down' | 'hold-timeout' | 'move-threshold' = 'hold-timeout') {
     const state = this.mouseDownState;
     if (!state || state.selected) return;
     const pos = this.getPos();
     if (typeof pos !== 'number') {
-      logVideoDebug('nodeview_pointer_select_failed', {
-        id: this.debugId,
-        reason,
-        failure: 'missingPos',
-        details,
-      });
       return;
     }
     state.selected = true;
@@ -129,19 +100,12 @@ export class VideoNodeView implements NodeView {
 
   update(node: ProseMirrorNode) {
     if (node.type !== this.node.type) {
-      logVideoDebug('nodeview_update_rejected', {
-        id: this.debugId,
-        previousType: this.node.type.name,
-        nextType: node.type.name,
-      });
       return false;
     }
     if (JSON.stringify(node.attrs) === JSON.stringify(this.node.attrs)) {
       this.node = node;
       return true;
     }
-
-    const previousAttrs = this.node.attrs as VideoAttrs;
     this.node = node;
     this.dom.removeEventListener('dblclick', this.handleDoubleClick);
     this.dom.removeEventListener('mousedown', this.handleMouseDown, true);
@@ -151,13 +115,6 @@ export class VideoNodeView implements NodeView {
     this.dom.addEventListener('dblclick', this.handleDoubleClick);
     this.dom.addEventListener('mousedown', this.handleMouseDown, true);
     this.selectionShield = null;
-    logVideoDebug('nodeview_update_replace_dom', {
-      id: this.debugId,
-      pos: this.safeGetPos(),
-      previous: getVideoAttrsDebug(previousAttrs),
-      next: getVideoAttrsDebug(node.attrs as VideoAttrs),
-      rect: getDomRectDebug(this.dom),
-    });
     return true;
   }
 
@@ -176,7 +133,6 @@ export class VideoNodeView implements NodeView {
     return shouldStopVideoNodeEvent({
       event,
       target,
-      debugId: this.debugId,
       view: this.view,
       shieldVisible: Boolean(this.selectionShield),
     });

@@ -57,7 +57,6 @@ Conversation Content: ${titleSource}`;
           }
       } catch (error) {
         if (import.meta.env.DEV) {
-          console.warn('[useAutoTitle] title generation failed:', error);
         }
       } finally {
           inFlightSessionIdsRef.current.delete(sessionId);

@@ -97,9 +97,8 @@ export function useSidebarContentSearchResults({
     setIsContentScanPending(true);
 
     const promise = scanAllNotes({ signal: abortController.signal })
-      .catch((error: unknown) => {
+      .catch((_error: unknown) => {
         if (import.meta.env.DEV) {
-          console.warn('[SidebarContent] scanAllNotes failed:', error);
         }
       })
       .finally(() => {

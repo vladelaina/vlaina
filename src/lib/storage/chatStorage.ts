@@ -196,8 +196,7 @@ function getSessionQueue(sessionId: string): PersistenceQueue<ChatMessage[]> {
     write: async (messages) => {
       await writeSessionJsonRaw(sessionId, messages);
     },
-    onError: (error) => {
-      console.error('[chatStorage] save session failed:', error);
+    onError: (_error) => {
     },
     onIdle: () => {
       if (sessionQueues.get(sessionId) === queue) {
@@ -238,7 +237,6 @@ async function writeSessionJsonRaw(sessionId: string, messages: ChatMessage[]) {
         persistedMessages,
       );
     } catch (error) {
-      console.error('[chatStorage] Refusing to overwrite unreadable existing session file:', path, error);
       throw error;
     }
   }
@@ -289,7 +287,6 @@ export async function flushPendingSessionJsonSaves(): Promise<void> {
     if (errors.length === 1 && errors[0] instanceof Error) {
       throw errors[0];
     }
-    console.error('[chatStorage] Failed to flush one or more chat session saves:', errors);
     throw new Error(`Failed to flush chat session saves (${errors.length} errors)`);
   }
 }
@@ -328,7 +325,6 @@ export async function loadSessionJson(sessionId: string): Promise<ChatMessage[] 
           const parsed: unknown = JSON.parse(content);
           return parseSessionMessagesPayload(sessionId, parsed);
       } catch (error) {
-          console.error('[chatStorage] Failed to load session file:', path, error);
           return null;
       }
   }

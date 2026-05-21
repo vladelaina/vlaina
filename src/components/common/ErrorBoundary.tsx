@@ -16,10 +16,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     return { error };
   }
 
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    if (import.meta.env.DEV) {
-      console.error('[ErrorBoundary]', error, info.componentStack);
-    }
+  componentDidCatch(_error: Error, _info: ErrorInfo) {
+    if (import.meta.env.DEV) {    }
   }
 
   private handleReload = () => {

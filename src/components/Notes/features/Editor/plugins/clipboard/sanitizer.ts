@@ -133,7 +133,6 @@ export function sanitizeHtml(html: string): string {
     sanitizeChildren(template.content, output.content);
     return output.innerHTML;
   } catch (e) {
-    console.error('[Clipboard/Sanitizer] Failed to sanitize HTML:', e);
     return html;
   }
 }

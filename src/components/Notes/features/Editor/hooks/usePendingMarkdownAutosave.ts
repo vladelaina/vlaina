@@ -2,23 +2,15 @@ import { useCallback, useEffect, useRef } from 'react';
 import { serializerCtx } from '@milkdown/kit/core';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { useNotesStore } from '@/stores/useNotesStore';
-import {
-  compareLineBreakText,
-  isNotesDebugLoggingEnabled,
-  logLineBreakDebug,
-  summarizeLineBreakText,
-} from '@/stores/notes/lineBreakDebugLog';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import {
   normalizeSerializedMarkdownDocument,
   restoreMathBlockFenceStylesFromReference,
-  summarizeMarkdownNormalizationPipeline,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { hasTemporaryTailParagraph } from '../plugins/cursor/endBlankClickPlugin';
 import { serializeLeadingFrontmatterMarkdown } from '../plugins/frontmatter/frontmatterMarkdown';
 import { getCurrentEditorView } from '../utils/editorViewRegistry';
 import { resolvePendingMarkdownUpdate } from '../utils/pendingMarkdownUpdate';
-import { summarizeEditorState } from '../utils/editorDebugSummary';
 import { usePendingMarkdownFlusher } from './usePendingMarkdownFlusher';
 
 interface MilkdownToken<T> {
@@ -95,19 +87,8 @@ export function usePendingMarkdownAutosave({
     const INIT_PERIOD = 500;
 
     return (markdown: string) => {
-      const debugEnabled = isNotesDebugLoggingEnabled();
       const editorView = getCurrentEditorView();
-      const liveDoc = debugEnabled && editorView
-        ? summarizeEditorState(editorView, ctx.get(serializerCtx))
-        : null;
       if (editorView && hasTemporaryTailParagraph(editorView.state)) {
-        if (debugEnabled) {
-          logLineBreakDebug('editor:markdown-update-skipped-temporary-tail', {
-            currentNotePath: currentNotePath ?? null,
-            raw: summarizeLineBreakText(markdown),
-            liveDoc,
-          });
-        }
         return;
       }
 
@@ -128,23 +109,6 @@ export function usePendingMarkdownAutosave({
       }
 
       if (!hasEditorUserInput.current) {
-        if (debugEnabled) {
-          const normalizedMarkdown = normalizeSerializedMarkdownDocument(markdown);
-          const styledMarkdown = restoreMathBlockFenceStylesFromReference(normalizedMarkdown, currentContent);
-          const nextMarkdown = serializeLeadingFrontmatterMarkdown(styledMarkdown, currentContent);
-          logLineBreakDebug('editor:non-user-markdown-echo-skipped', {
-            currentNotePath: currentNotePath ?? null,
-            isInitializing,
-            raw: summarizeLineBreakText(markdown),
-            normalized: summarizeLineBreakText(normalizedMarkdown),
-            normalizationPipeline: summarizeMarkdownNormalizationPipeline(markdown),
-            styled: summarizeLineBreakText(styledMarkdown),
-            next: summarizeLineBreakText(nextMarkdown),
-            current: summarizeLineBreakText(currentContent),
-            diffCurrentToNext: compareLineBreakText(currentContent, nextMarkdown),
-            liveDoc,
-          });
-        }
         return;
       }
 
@@ -163,41 +127,13 @@ export function usePendingMarkdownAutosave({
 
         const latestNote = useNotesStore.getState().currentNote;
         if (!latestNote || latestNote.path !== currentNotePath) {
-          if (isNotesDebugLoggingEnabled()) {
-            logLineBreakDebug('editor:raf-skip-update', {
-              currentNotePath: currentNotePath ?? null,
-              latestNotePath: latestNote?.path ?? null,
-              latest: summarizeLineBreakText(latestNote?.content),
-              pending: summarizeLineBreakText(rawMarkdown),
-            });
-          }
           return;
         }
 
         const normalizedMarkdown = normalizeSerializedMarkdownDocument(rawMarkdown);
         const styledMarkdown = restoreMathBlockFenceStylesFromReference(normalizedMarkdown, latestNote.content);
         const nextMarkdown = serializeLeadingFrontmatterMarkdown(styledMarkdown, latestNote.content);
-        if (isNotesDebugLoggingEnabled()) {
-          logLineBreakDebug('editor:markdown-updated', {
-            currentNotePath: currentNotePath ?? null,
-            raw: summarizeLineBreakText(rawMarkdown),
-            normalized: summarizeLineBreakText(normalizedMarkdown),
-            normalizationPipeline: summarizeMarkdownNormalizationPipeline(rawMarkdown),
-            styled: summarizeLineBreakText(styledMarkdown),
-            next: summarizeLineBreakText(nextMarkdown),
-            current: summarizeLineBreakText(latestNote.content),
-            diffCurrentToNext: compareLineBreakText(latestNote.content, nextMarkdown),
-            liveDoc,
-          });
-        }
         if (latestNote.content === nextMarkdown) {
-          if (isNotesDebugLoggingEnabled()) {
-            logLineBreakDebug('editor:raf-skip-update', {
-              currentNotePath: currentNotePath ?? null,
-              latestNotePath: latestNote.path,
-              latest: summarizeLineBreakText(latestNote.content),
-            });
-          }
           return;
         }
 
@@ -216,12 +152,6 @@ export function usePendingMarkdownAutosave({
             liveSerializedMarkdown = serializer(latestEditorView.state.doc);
           }
         } catch (error) {
-          if (isNotesDebugLoggingEnabled()) {
-            logLineBreakDebug('editor:raf-live-doc-read-failed', {
-              currentNotePath: currentNotePath ?? null,
-              message: error instanceof Error ? error.message : String(error),
-            });
-          }
         }
 
         const resolvedUpdate = resolvePendingMarkdownUpdate({
@@ -231,27 +161,11 @@ export function usePendingMarkdownAutosave({
         });
         const markdownToApply = resolvedUpdate.markdownToApply;
         if (latestNote.content === markdownToApply) {
-          if (isNotesDebugLoggingEnabled()) {
-            logLineBreakDebug('editor:raf-skip-update', {
-              currentNotePath: currentNotePath ?? null,
-              latestNotePath: latestNote.path,
-              latest: summarizeLineBreakText(latestNote.content),
-            });
-          }
           return;
         }
 
         const latestNotesPath = useNotesStore.getState().notesPath;
         const latestIsDraftNote = isDraftNotePath(latestNote.path);
-        if (isNotesDebugLoggingEnabled()) {
-          logLineBreakDebug('editor:raf-apply-update', {
-            currentNotePath,
-            notesPath: latestNotesPath,
-            isDraftNote: latestIsDraftNote,
-            previous: summarizeLineBreakText(latestNote.content),
-            next: summarizeLineBreakText(markdownToApply),
-          });
-        }
         updateContent(markdownToApply);
         if (!latestIsDraftNote || latestNotesPath) {
           debouncedSave();
@@ -261,44 +175,11 @@ export function usePendingMarkdownAutosave({
   }, [currentNotePath, debouncedSave, updateContent]);
 
   const createUserInputMarker = useCallback((
-    view: EditorView,
-    liveSerializer: ((doc: unknown) => string) | null
+    _view: EditorView,
+    _liveSerializer: ((doc: unknown) => string) | null
   ) => {
-    return (event: Event) => {
-      const wasAlreadyMarked = hasEditorUserInput.current;
+    return (_event: Event) => {
       hasEditorUserInput.current = true;
-      if (isNotesDebugLoggingEnabled()) {
-        const eventType = event.type;
-        const inputType = event instanceof InputEvent ? event.inputType : null;
-        const key = event instanceof KeyboardEvent ? event.key : null;
-        logLineBreakDebug('editor:user-input-marked', {
-          currentNotePath: currentNotePath ?? null,
-          eventType,
-          wasAlreadyMarked,
-          inputType,
-          key,
-          isComposing: event instanceof KeyboardEvent || event instanceof InputEvent
-            ? event.isComposing
-            : null,
-          storeCurrentPath: useNotesStore.getState().currentNote?.path ?? null,
-          isDirty: useNotesStore.getState().isDirty,
-          beforeDoc: liveSerializer ? summarizeEditorState(view, liveSerializer) : null,
-        });
-        requestAnimationFrame(() => {
-          if (!isNotesDebugLoggingEnabled()) {
-            return;
-          }
-          logLineBreakDebug('editor:user-input-after-frame', {
-            currentNotePath: currentNotePath ?? null,
-            eventType,
-            inputType,
-            key,
-            storeCurrentPath: useNotesStore.getState().currentNote?.path ?? null,
-            isDirty: useNotesStore.getState().isDirty,
-            afterDoc: liveSerializer ? summarizeEditorState(view, liveSerializer) : null,
-          });
-        });
-      }
     };
   }, [currentNotePath]);
 
