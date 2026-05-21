@@ -14,6 +14,7 @@ export class LazyCodeBlockNodeView implements NodeView {
   private loading = false;
   private destroyed = false;
   private node: Node;
+  private intersectionObserver: IntersectionObserver | null = null;
 
   constructor(
     node: Node,
@@ -48,12 +49,13 @@ export class LazyCodeBlockNodeView implements NodeView {
       return;
     }
 
-    const observer = new IntersectionObserver((entries) => {
+    this.intersectionObserver = new IntersectionObserver((entries) => {
       if (!entries.some((entry) => entry.isIntersecting)) return;
-      observer.disconnect();
+      this.intersectionObserver?.disconnect();
+      this.intersectionObserver = null;
       void this.load();
     }, { rootMargin: '900px 0px' });
-    observer.observe(this.dom);
+    this.intersectionObserver.observe(this.dom);
   }
 
   private readonly loadFromInteraction = () => {
@@ -109,6 +111,8 @@ export class LazyCodeBlockNodeView implements NodeView {
 
   destroy() {
     this.destroyed = true;
+    this.intersectionObserver?.disconnect();
+    this.intersectionObserver = null;
     this.dom.removeEventListener('mousedown', this.loadFromInteraction);
     this.dom.removeEventListener('focusin', this.loadFromInteraction);
     this.loadedView?.destroy?.();
