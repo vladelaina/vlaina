@@ -1927,6 +1927,58 @@ describe('useMessageAutoscroll', () => {
     expect(ResizeObserverMock.instances[0]!.disconnect).toHaveBeenCalledTimes(1);
   });
 
+  it('disconnects the ResizeObserver while inactive and reconnects when active', () => {
+    const ResizeObserverMock = globalThis.ResizeObserver as unknown as {
+      instances: Array<{ observe: () => void; disconnect: () => void }>;
+    };
+    const container = createScrollContainer();
+    const { result, rerender, unmount } = renderHook(
+      ({ active, messages }) =>
+        useMessageAutoscroll({
+          active,
+          messages,
+          isStreaming: true,
+          chatId: 'chat-1',
+          showLoading: false,
+        }),
+      {
+        initialProps: {
+          active: true,
+          messages: [] as ChatMessage[],
+        },
+      }
+    );
+
+    act(() => {
+      result.current.containerRef.current = container;
+    });
+
+    rerender({
+      active: true,
+      messages: [createMessage('u1', 'user')],
+    });
+
+    expect(ResizeObserverMock.instances).toHaveLength(1);
+
+    rerender({
+      active: false,
+      messages: [createMessage('u1', 'user')],
+    });
+
+    expect(ResizeObserverMock.instances[0]!.disconnect).toHaveBeenCalledTimes(1);
+
+    rerender({
+      active: true,
+      messages: [createMessage('u1', 'user')],
+    });
+
+    expect(ResizeObserverMock.instances).toHaveLength(2);
+
+    unmount();
+
+    expect(ResizeObserverMock.instances[1]!.disconnect).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps the scroll listener stable across message updates', () => {
     const addEventListenerSpy = vi.spyOn(HTMLDivElement.prototype, 'addEventListener');
     const removeEventListenerSpy = vi.spyOn(HTMLDivElement.prototype, 'removeEventListener');

@@ -18,6 +18,7 @@ import { useAIStore } from '@/stores/useAIStore';
 import { useI18n } from '@/lib/i18n/useI18n';
 
 interface ChatInputProps {
+  active?: boolean;
   onSend: (message: string, attachments: Attachment[], noteMentions: NoteMentionReference[]) => void;
   onStop: () => void;
   isLoading: boolean;
@@ -28,6 +29,7 @@ interface ChatInputProps {
 }
 
 export const ChatInput = memo(function ChatInput({
+  active = true,
   onSend,
   onStop,
   isLoading,
@@ -66,6 +68,7 @@ export const ChatInput = memo(function ChatInput({
     handleCompositionStart,
     handleCompositionEnd,
   } = useChatComposer({
+    active,
     onSend: (text, nextAttachments, nextNoteMentions) => {
       if (isLoading) {
         onStop();

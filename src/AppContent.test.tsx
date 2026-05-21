@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
   initializeVault: vi.fn(),
   loadUnified: vi.fn().mockResolvedValue(undefined),
   startAIStoreRuntimeEffects: vi.fn(),
+  notesSidebarMounts: 0,
+  notesSidebarUnmounts: 0,
 }));
 
 vi.mock('@/components/layout/shell/AppShell', () => ({
@@ -87,7 +89,16 @@ vi.mock('@/components/Chat/ChatView', () => ({
 }));
 
 vi.mock('@/components/Notes/features/Sidebar/NotesSidebarWrapper', () => ({
-  NotesSidebarWrapper: () => <div data-testid="notes-sidebar" />,
+  NotesSidebarWrapper: () => {
+    React.useEffect(() => {
+      mocks.notesSidebarMounts += 1;
+      return () => {
+        mocks.notesSidebarUnmounts += 1;
+      };
+    }, []);
+
+    return <div data-testid="notes-sidebar" />;
+  },
 }));
 
 vi.mock('@/components/Chat/features/Sidebar/ChatSidebar', () => ({
@@ -226,19 +237,23 @@ describe('AppContent view switching chrome readiness', () => {
   afterEach(() => {
     vi.clearAllMocks();
     mocks.appViewMode = 'notes';
+    mocks.notesSidebarMounts = 0;
+    mocks.notesSidebarUnmounts = 0;
   });
 
-  it('restores notes sidebar and titlebar when returning to an already ready notes view', async () => {
+  it('keeps the notes sidebar mounted when switching away and back to an already ready notes view', async () => {
     const { rerender } = render(<AppContent />);
 
     expect(await screen.findByTestId('notes-sidebar', undefined, { timeout: 3000 })).toBeInTheDocument();
     expect(await screen.findByTestId('notes-tab-row', undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(mocks.notesSidebarMounts).toBe(1);
 
     mocks.appViewMode = 'chat';
     rerender(<AppContent />);
 
     expect(await screen.findByTestId('chat-sidebar', undefined, { timeout: 3000 })).toBeInTheDocument();
     expect(await screen.findByTestId('model-selector', undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(mocks.notesSidebarUnmounts).toBe(0);
 
     mocks.appViewMode = 'notes';
     rerender(<AppContent />);
@@ -247,5 +262,7 @@ describe('AppContent view switching chrome readiness', () => {
       expect(screen.getByTestId('notes-sidebar')).toBeInTheDocument();
       expect(screen.getByTestId('notes-tab-row')).toBeInTheDocument();
     });
+    expect(mocks.notesSidebarMounts).toBe(1);
+    expect(mocks.notesSidebarUnmounts).toBe(0);
   });
 });

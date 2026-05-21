@@ -9,6 +9,7 @@ import { SidebarSearchField } from './SidebarPrimitives';
 import { useSidebarSearchControls } from './useSidebarSearchControls';
 
 interface UseSidebarSearchDrawerStateOptions {
+  enabled?: boolean;
   isOpen: boolean;
   query: string;
   onOpen: () => void;
@@ -31,6 +32,7 @@ interface SidebarSearchDrawerProps {
 }
 
 export function useSidebarSearchDrawerState({
+  enabled = true,
   isOpen,
   query,
   onOpen,
@@ -43,6 +45,7 @@ export function useSidebarSearchDrawerState({
     hideSearch,
     handleScroll,
   } = useSidebarSearchControls({
+    enabled,
     isOpen,
     query,
     onOpen,
@@ -51,11 +54,12 @@ export function useSidebarSearchDrawerState({
   });
 
   useHeldPageScroll(scrollRootRef, {
+    enabled,
     scopeRef,
     ignoreEditableTargets: true,
   });
 
-  const shouldShowSearchResults = isOpen && query.trim().length > 0;
+  const shouldShowSearchResults = enabled && isOpen && query.trim().length > 0;
 
   return {
     inputRef,

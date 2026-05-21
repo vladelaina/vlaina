@@ -26,6 +26,43 @@ describe('useChatComposer', () => {
     usePredictedTextareaHeightMock.mockClear();
   });
 
+  it('does not register the global focus adapter while inactive', () => {
+    renderHook(() =>
+      useChatComposer({
+        active: false,
+        onSend: vi.fn(),
+        attachments: [],
+        getNoteMentions: () => [],
+        onAfterSend: vi.fn(),
+      }),
+    );
+
+    expect(registerComposerFocusAdapterMock).not.toHaveBeenCalled();
+  });
+
+  it('unregisters the global focus adapter when becoming inactive', () => {
+    const unregister = vi.fn();
+    registerComposerFocusAdapterMock.mockReturnValueOnce(unregister);
+
+    const { rerender } = renderHook(
+      ({ active }) =>
+        useChatComposer({
+          active,
+          onSend: vi.fn(),
+          attachments: [],
+          getNoteMentions: () => [],
+          onAfterSend: vi.fn(),
+        }),
+      { initialProps: { active: true } },
+    );
+
+    expect(registerComposerFocusAdapterMock).toHaveBeenCalledTimes(1);
+
+    rerender({ active: false });
+
+    expect(unregister).toHaveBeenCalledTimes(1);
+  });
+
   it('clears the composer through predicted height updates after send', () => {
     const onSend = vi.fn();
     const onAfterSend = vi.fn();

@@ -10,6 +10,7 @@ import {
 const OVERSCROLL_OPEN_THRESHOLD = 56;
 
 interface UseSidebarSearchControlsOptions {
+  enabled?: boolean;
   isOpen: boolean;
   query: string;
   onOpen: () => void;
@@ -18,6 +19,7 @@ interface UseSidebarSearchControlsOptions {
 }
 
 export function useSidebarSearchControls({
+  enabled = true,
   isOpen,
   query,
   onOpen,
@@ -30,7 +32,7 @@ export function useSidebarSearchControls({
   const shouldResetScrollTopOnCloseRef = useRef(false);
 
   useLayoutEffect(() => {
-    if (!isOpen) {
+    if (!enabled || !isOpen) {
       if (shouldResetScrollTopOnCloseRef.current) {
         const scrollRoot = scrollRootRef.current;
         if (scrollRoot) {
@@ -51,7 +53,7 @@ export function useSidebarSearchControls({
     });
 
     return () => window.cancelAnimationFrame(frameId);
-  }, [isOpen]);
+  }, [enabled, isOpen]);
 
   const hideSearch = useCallback(() => {
     overscrollDistanceRef.current = 0;
@@ -65,6 +67,10 @@ export function useSidebarSearchControls({
   }, []);
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     const interactionScope = interactionScopeRef?.current ?? scrollRootRef.current;
     const scrollRoot = scrollRootRef.current;
     if (!interactionScope || !scrollRoot) {
@@ -112,7 +118,7 @@ export function useSidebarSearchControls({
     return () => {
       interactionScope.removeEventListener('wheel', handleWheel, true);
     };
-  }, [hideSearch, interactionScopeRef, isOpen, onOpen, query]);
+  }, [enabled, hideSearch, interactionScopeRef, isOpen, onOpen, query]);
 
   return {
     inputRef,

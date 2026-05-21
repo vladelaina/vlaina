@@ -390,6 +390,10 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       }
 
       const measure = () => {
+        if (surface.clientWidth <= 0) {
+          return;
+        }
+
         const nextWidth = getChatContentWidth(surface.clientWidth);
         setContentWidth((current) => (current === nextWidth ? current : nextWidth));
       };
