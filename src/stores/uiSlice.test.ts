@@ -12,7 +12,7 @@ describe('uiSlice', () => {
       sidebarHeaderHovered: false,
       sidebarSearchOpen: false,
       notesSidebarView: 'workspace',
-      fontSize: 16,
+      fontSize: 19,
       languagePreference: 'system',
       notesPreviewTitle: null,
       drawerOpen: false,
@@ -137,6 +137,33 @@ describe('uiSlice', () => {
       imageVaultSubfolderName: 'vault-assets',
       imageFilenameFormat: 'sequence',
     });
+  });
+
+  it('resets the appearance font size to the default markdown body size', () => {
+    useUIStore.getState().setFontSize(14);
+    expect(localStorage.getItem('fontSize')).toBe('14');
+
+    useUIStore.getState().resetFontSize();
+
+    expect(useUIStore.getState().fontSize).toBe(19);
+    expect(localStorage.getItem('fontSize')).toBeNull();
+  });
+
+  it('clamps the appearance font size to the supported preview range', () => {
+    useUIStore.getState().setFontSize(8);
+    expect(useUIStore.getState().fontSize).toBe(14);
+
+    useUIStore.getState().setFontSize(40);
+    expect(useUIStore.getState().fontSize).toBe(28);
+  });
+
+  it('does not persist or broadcast unchanged appearance font size values', () => {
+    const setItemSpy = vi.spyOn(localStorage, 'setItem');
+
+    useUIStore.getState().setFontSize(19);
+
+    expect(useUIStore.getState().fontSize).toBe(19);
+    expect(setItemSpy).not.toHaveBeenCalled();
   });
 
   it('updates UI state even when localStorage writes fail', () => {

@@ -12,7 +12,9 @@ import {
   normalizeAppLanguagePreference,
   type AppLanguagePreference,
 } from '@/lib/i18n/languages';
-const DEFAULT_FONT_SIZE = 16;
+export const UI_FONT_SIZE_DEFAULT = 19;
+export const UI_FONT_SIZE_MIN = 14;
+export const UI_FONT_SIZE_MAX = 28;
 const STORAGE_KEY_SIDEBAR_WIDTH = 'vlaina_sidebar_width';
 const STORAGE_KEY_IMAGE_STORAGE_MODE = 'vlaina_image_storage_mode';
 const STORAGE_KEY_IMAGE_SUBFOLDER_NAME = 'vlaina_image_subfolder_name';
@@ -163,11 +165,11 @@ function loadNumber(key: string, defaultValue: number): number {
 }
 
 function loadFontSize(): number {
-  const value = loadNumber(STORAGE_KEY_FONT_SIZE, DEFAULT_FONT_SIZE);
+  const value = loadNumber(STORAGE_KEY_FONT_SIZE, UI_FONT_SIZE_DEFAULT);
   if (!Number.isFinite(value)) {
-    return DEFAULT_FONT_SIZE;
+    return UI_FONT_SIZE_DEFAULT;
   }
-  return Math.max(12, Math.min(20, Math.round(value)));
+  return Math.max(UI_FONT_SIZE_MIN, Math.min(UI_FONT_SIZE_MAX, Math.round(value)));
 }
 
 function loadImageStorageMode(): ImageStorageMode {
@@ -311,14 +313,17 @@ export const useUIStore = create<UIStore>()((set) => ({
   notesSidebarView: 'workspace',
   setNotesSidebarView: (view) => set({ notesSidebarView: view }),
   ...loadUIPreferencesFromStorage(),
-  setFontSize: (fontSize) => {
-    const next = Math.max(12, Math.min(20, Math.round(fontSize)));
+  setFontSize: (fontSize) => set((state) => {
+    const next = Math.max(UI_FONT_SIZE_MIN, Math.min(UI_FONT_SIZE_MAX, Math.round(fontSize)));
+    if (state.fontSize === next) {
+      return state;
+    }
     savePreferenceString(STORAGE_KEY_FONT_SIZE, String(next));
-    set({ fontSize: next });
-  },
+    return { fontSize: next };
+  }),
   resetFontSize: () => {
     removePreferenceString(STORAGE_KEY_FONT_SIZE);
-    set({ fontSize: DEFAULT_FONT_SIZE });
+    set({ fontSize: UI_FONT_SIZE_DEFAULT });
   },
   setLanguagePreference: (language) => {
     savePreferenceString(STORAGE_KEY_LANGUAGE_PREFERENCE, language);

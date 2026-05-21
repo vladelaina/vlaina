@@ -510,7 +510,8 @@ export function AppContent() {
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
-    document.documentElement.style.fontSize = `${fontSize}px`;
+    document.documentElement.style.removeProperty('font-size');
+    document.documentElement.style.setProperty('--vlaina-markdown-font-size', `${fontSize}px`);
   }, [fontSize]);
 
   useEffect(() => {
