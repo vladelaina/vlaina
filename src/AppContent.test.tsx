@@ -119,7 +119,16 @@ vi.mock('@/components/Settings', () => ({
 }));
 
 vi.mock('@/components/Settings/tabs/aboutCommunitySettings', () => ({
-  loadCommunitySettings: vi.fn(),
+  getCachedCommunitySettings: vi.fn(() => ({
+    qqGroupNumber: '',
+    qqQrCodeText: '',
+    wechatQrCodeText: '',
+  })),
+  loadCommunitySettings: vi.fn(() => Promise.resolve({
+    qqGroupNumber: '',
+    qqQrCodeText: '',
+    wechatQrCodeText: '',
+  })),
 }));
 
 vi.mock('@/components/ui/tooltip', () => ({

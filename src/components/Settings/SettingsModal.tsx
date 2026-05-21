@@ -13,9 +13,11 @@ import { useWindowDragGesture } from '@/hooks/useWindowDragGesture';
 import { actions as aiActions } from '@/stores/ai/providerActions';
 import { SETTINGS_BEFORE_CLOSE_EVENT, SETTINGS_CLOSED_EVENT } from './settingsEvents';
 import { useI18n, type MessageKey } from '@/lib/i18n';
+import type { CommunitySettings } from './tabs/aboutCommunitySettings';
 
 interface SettingsModalProps {
   open: boolean;
+  communitySettings: CommunitySettings;
   onClose: () => void;
 }
 
@@ -45,7 +47,7 @@ const sidebarGroups: SidebarGroup[] = [
   }
 ];
 
-export function SettingsModal({ open, onClose }: SettingsModalProps) {
+export function SettingsModal({ open, communitySettings, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('markdown');
   const [isAppearanceFontPreviewing, setIsAppearanceFontPreviewing] = useState(false);
   const { t } = useI18n();
@@ -216,7 +218,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                       "animate-in fade-in slide-in-from-bottom-3 duration-75 ease-out",
                       activeTab === 'ai' ? "h-full" : "space-y-10"
                     )}>
-                      {activeTab === 'about' && <AboutTab />}
+                      {activeTab === 'about' && <AboutTab community={communitySettings} />}
                       {activeTab === 'markdown' && <MarkdownTab />}
                       {activeTab === 'appearance' && (
                         <AppearanceTab onFontSizePreviewingChange={setIsAppearanceFontPreviewing} />

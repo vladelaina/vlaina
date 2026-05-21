@@ -11,8 +11,6 @@ import { useI18n, type AppLanguage, type MessageKey, type MessageValues } from '
 import { APP_VERSION } from '@/lib/appVersion';
 import {
   type CommunitySettings,
-  getCachedCommunitySettings,
-  loadCommunitySettings,
 } from './aboutCommunitySettings';
 
 type UpdateStatus = 'idle' | 'checking' | 'current' | 'available' | 'error';
@@ -187,29 +185,23 @@ function DiscordPill() {
 
 function CommunityPills({ community }: { community: CommunitySettings }) {
   const { t } = useI18n();
-  const hasQq = Boolean(community.qqQrCodeText);
-  const hasWechat = Boolean(community.wechatQrCodeText);
 
   return (
     <div className="flex flex-wrap items-center gap-2 px-2">
       <DiscordPill />
-      {hasQq ? (
-        <CommunityQrPill
-          title={t('settings.about.qqGroup')}
-          label="QQ"
-          icon={<FaQq size={15} className="text-[#12B7F5]" />}
-          qrText={community.qqQrCodeText}
-          detail={community.qqGroupNumber || undefined}
-        />
-      ) : null}
-      {hasWechat ? (
-        <CommunityQrPill
-          title={t('settings.about.wechatGroup')}
-          label="WeChat"
-          icon={<FaWeixin size={15} className="text-[#07C160]" />}
-          qrText={community.wechatQrCodeText}
-        />
-      ) : null}
+      <CommunityQrPill
+        title={t('settings.about.qqGroup')}
+        label="QQ"
+        icon={<FaQq size={15} className="text-[#12B7F5]" />}
+        qrText={community.qqQrCodeText}
+        detail={community.qqGroupNumber || undefined}
+      />
+      <CommunityQrPill
+        title={t('settings.about.wechatGroup')}
+        label="WeChat"
+        icon={<FaWeixin size={15} className="text-[#07C160]" />}
+        qrText={community.wechatQrCodeText}
+      />
     </div>
   );
 }
@@ -281,12 +273,11 @@ function DeveloperNotePanel() {
   );
 }
 
-export function AboutTab() {
+export function AboutTab({ community }: { community: CommunitySettings }) {
   const { t } = useI18n();
   const [status, setStatus] = useState<UpdateStatus>('idle');
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [currentVersion, setCurrentVersion] = useState('');
-  const [community, setCommunity] = useState<CommunitySettings>(() => getCachedCommunitySettings());
 
   useEffect(() => {
     const bridge = getElectronBridge();
@@ -299,19 +290,6 @@ export function AboutTab() {
     }).catch(() => {
       setCurrentVersion('');
     });
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    void loadCommunitySettings().then((settings) => {
-      if (!cancelled) {
-        setCommunity(settings);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   const checkForUpdates = useCallback(async () => {

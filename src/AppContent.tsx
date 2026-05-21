@@ -16,7 +16,11 @@ import { getElectronBridge, isElectronRuntime } from '@/lib/electron/bridge';
 import { translate } from '@/lib/i18n';
 import { APP_VERSION } from '@/lib/appVersion';
 import { useToastStore } from '@/stores/useToastStore';
-import { loadCommunitySettings } from '@/components/Settings/tabs/aboutCommunitySettings';
+import {
+  type CommunitySettings,
+  getCachedCommunitySettings,
+  loadCommunitySettings,
+} from '@/components/Settings/tabs/aboutCommunitySettings';
 
 function once<T>(factory: () => Promise<T>): () => Promise<T> {
   let promise: Promise<T> | null = null;
@@ -156,6 +160,7 @@ export function AppContent() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [hasOpenedSettings, setHasOpenedSettings] = useState(false);
+  const [communitySettings, setCommunitySettings] = useState<CommunitySettings>(() => getCachedCommunitySettings());
   const [mountedAppViews, setMountedAppViews] = useState<Set<typeof appViewMode>>(() =>
     launchViewModeRef.current ? new Set([appViewMode]) : new Set()
   );
@@ -336,7 +341,7 @@ export function AppContent() {
   useEffect(() => {
     if (settingsOpen) {
       setHasOpenedSettings(true);
-      void loadCommunitySettings();
+      void loadCommunitySettings().then(setCommunitySettings);
     }
   }, [settingsOpen]);
 
@@ -648,7 +653,11 @@ export function AppContent() {
     <>
       <Suspense fallback={null}>
         {hasOpenedSettings ? (
-          <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+          <SettingsModal
+            open={settingsOpen}
+            communitySettings={communitySettings}
+            onClose={() => setSettingsOpen(false)}
+          />
         ) : null}
       </Suspense>
 
