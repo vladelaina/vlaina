@@ -43,6 +43,7 @@ function createMockView(options: {
   };
 
   const view: any = {
+    dom: document.createElement('div'),
     state: {
       doc: {
         nodeAt: vi.fn((pos: number) => (pos === options.getPos ? currentNode : null)),
@@ -138,6 +139,42 @@ describe('useCodeBlockState', () => {
 
     expect(tr.setNodeMarkup).toHaveBeenCalledTimes(1);
     expect(view.dispatch).toHaveBeenCalledWith(tr);
+  });
+
+  it('blurs the focused notes element when toggling collapse from the header', () => {
+    const node = {
+      attrs: { language: 'ts', collapsed: false },
+      textContent: 'const a = 1;',
+    } as any;
+
+    const { view } = createMockView({
+      getPos: 10,
+      docSize: 100,
+      nodeSize: 10,
+      currentNodeAttrs: { language: 'ts', collapsed: false },
+      selection: { from: 2, to: 2 },
+    });
+    const activeInput = document.createElement('input');
+    view.dom.appendChild(activeInput);
+    document.body.appendChild(view.dom);
+    activeInput.focus();
+    const blurSpy = vi.spyOn(activeInput, 'blur');
+
+    const { result } = renderHook(() =>
+      useCodeBlockState({
+        node,
+        view,
+        getPos: () => 10,
+        getNode: () => node,
+      }),
+    );
+
+    act(() => {
+      result.current.toggleCollapse(createMockMouseEvent());
+    });
+
+    expect(blurSpy).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).not.toBe(activeInput);
   });
 
   it('shows copied state then resets after timeout when user clicks copy', async () => {

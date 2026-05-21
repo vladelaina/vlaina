@@ -5,6 +5,7 @@ import { toggleCodeBlockCollapsed, updateCodeBlockLanguage } from '../codeBlockT
 import { codeBlockLanguages } from '../codeBlockLanguageLoader';
 import { getCodeBlockSourceText } from '../codeBlockText';
 import { writeTextToClipboard } from '../../cursor/blockSelectionCommands';
+import { blurActiveElement } from '../../collapse/collapseUtils';
 
 interface UseCodeBlockStateProps {
     node: Node;
@@ -51,6 +52,8 @@ export function useCodeBlockState({ node, view, getPos, getNode }: UseCodeBlockS
     const toggleCollapse = useCallback((e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        blurActiveElement(view.dom.ownerDocument);
+
         const pos = getPos();
         if (pos === undefined) return;
 
