@@ -76,6 +76,58 @@ describe('runStreamedAssistantMessage', () => {
     expect(setSessionLoading).toHaveBeenLastCalledWith('session-1', false);
   });
 
+  it('uses the configured empty response error', async () => {
+    const updateMessage = vi.fn();
+    const completeMessage = vi.fn();
+    const setSessionLoading = vi.fn();
+    const setError = vi.fn();
+    const buildErrorPayload = vi.fn((_: unknown) => ({ message: 'managed unavailable', xml: '<error>managed unavailable</error>' }));
+
+    const status = await runStreamedAssistantMessage({
+      sessionId: 'session-1',
+      assistantMessageId: 'assistant-1',
+      execute: async () => '',
+      updateMessage,
+      completeMessage,
+      setSessionLoading,
+      setError,
+      buildErrorPayload,
+      createEmptyResponseError: () => new Error('UPSTREAM_UNAVAILABLE'),
+    });
+
+    expect(status).toBe('failed');
+    expect(buildErrorPayload.mock.calls[0]?.[0]).toMatchObject({ message: 'UPSTREAM_UNAVAILABLE' });
+    expect(setError).toHaveBeenLastCalledWith('managed unavailable');
+    expect(updateMessage).toHaveBeenCalledWith('session-1', 'assistant-1', '<error>managed unavailable</error>');
+    expect(completeMessage).not.toHaveBeenCalled();
+  });
+
+  it('keeps the default empty response error for custom providers', async () => {
+    const updateMessage = vi.fn();
+    const completeMessage = vi.fn();
+    const setSessionLoading = vi.fn();
+    const setError = vi.fn();
+    const buildErrorPayload = vi.fn((error: unknown) => ({
+      message: error instanceof Error ? error.message : String(error),
+      xml: '<error>custom empty</error>',
+    }));
+
+    const status = await runStreamedAssistantMessage({
+      sessionId: 'session-1',
+      assistantMessageId: 'assistant-1',
+      execute: async () => '',
+      updateMessage,
+      completeMessage,
+      setSessionLoading,
+      setError,
+      buildErrorPayload,
+    });
+
+    expect(status).toBe('failed');
+    expect(buildErrorPayload.mock.calls[0]?.[0]).toMatchObject({ message: 'The model returned an empty response.' });
+    expect(setError).toHaveBeenLastCalledWith('The model returned an empty response.');
+  });
+
   it('treats aborts as a non-error outcome', async () => {
     const updateMessage = vi.fn();
     const completeMessage = vi.fn();

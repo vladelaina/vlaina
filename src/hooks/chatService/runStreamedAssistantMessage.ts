@@ -17,6 +17,7 @@ interface RunStreamedAssistantMessageOptions {
   setSessionLoading: (sessionId: string, loading: boolean) => void;
   setError: (error: string | null) => void;
   buildErrorPayload: (error: unknown) => ChatErrorPayload;
+  createEmptyResponseError?: () => Error;
   onSuccess?: () => void | Promise<void>;
 }
 
@@ -29,6 +30,7 @@ export async function runStreamedAssistantMessage({
   setSessionLoading,
   setError,
   buildErrorPayload,
+  createEmptyResponseError,
   onSuccess,
 }: RunStreamedAssistantMessageOptions): Promise<StreamedAssistantMessageStatus> {
   const controller = requestManager.start(sessionId);
@@ -52,7 +54,7 @@ export async function runStreamedAssistantMessage({
     resolveAssistantContent(returnedContent, lastStreamedContent, (content) => {
       lastStreamedContent = content;
       updateMessage(sessionId, assistantMessageId, content);
-    });
+    }, createEmptyResponseError);
     completeMessage(sessionId, assistantMessageId);
   } catch (error) {
     streamScheduler.flushNow();

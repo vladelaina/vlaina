@@ -317,6 +317,42 @@ describe('managedService', () => {
     expect(chunks).toEqual(['final token']);
   });
 
+  it('parses managed stream message chunks as assistant content', async () => {
+    hasElectronDesktopBridgeMock.mockReturnValue(false);
+    const encoder = new TextEncoder();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(
+            encoder.encode(
+              [
+                'data: {"choices":[{"message":{"content":"message body"}}]}',
+                'data: [DONE]',
+                '',
+              ].join('\n')
+            )
+          );
+          controller.close();
+        },
+      }),
+    }));
+
+    const { requestManagedChatCompletionStream } = await import('./managedService');
+    const chunks: string[] = [];
+    const content = await requestManagedChatCompletionStream(
+      {
+        model: 'gpt-5.4',
+        messages: [{ role: 'user', content: 'hello' }],
+        stream: true,
+      },
+      (chunk) => chunks.push(chunk)
+    );
+
+    expect(content).toBe('message body');
+    expect(chunks).toEqual(['message body']);
+  });
+
   it('sanitizes managed web stream error payloads', async () => {
     hasElectronDesktopBridgeMock.mockReturnValue(false);
     const encoder = new TextEncoder();

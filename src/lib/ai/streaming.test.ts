@@ -92,4 +92,46 @@ describe('consumeOpenAIStream', () => {
     await expect(consumeOpenAIStream(response, () => {})).rejects.toThrow('boom');
     expect(cancel).toHaveBeenCalledTimes(1);
   });
+
+  it('parses common OpenAI-compatible non-delta text shapes', async () => {
+    const chunks: string[] = [];
+    const result = await consumeOpenAIStream(
+      streamResponse([
+        'data: {"choices":[{"message":{"content":[{"type":"text","text":"choice "}]}}]}',
+        'data: {"output_text":"top "}',
+        'data: {"output":{"content":{"text":{"value":"nested "}}}}',
+        'data: {"data":{"text":"data"}}',
+        'data: [DONE]',
+        '',
+      ]),
+      (chunk) => chunks.push(chunk),
+    );
+
+    expect(result).toBe('choice top nested data');
+    expect(chunks[chunks.length - 1]).toBe('choice top nested data');
+  });
+
+  it('maps stream error payloads with their provider code when configured', async () => {
+    try {
+      await consumeOpenAIStream(
+        streamResponse([
+          'data: {"error":{"message":"raw quota","code":"points_exhausted"}}',
+          '',
+        ]),
+        () => {},
+        {
+          mapErrorPayload: (message, code) => {
+            const mapped = new Error(`${code}:${message}`) as Error & { errorCode?: string };
+            mapped.errorCode = code;
+            return mapped;
+          },
+        },
+      );
+      throw new Error('Expected stream error');
+    } catch (caught) {
+      const error = caught as Error & { errorCode?: string };
+      expect(error.message).toBe('points_exhausted:raw quota');
+      expect(error.errorCode).toBe('points_exhausted');
+    }
+  });
 });
