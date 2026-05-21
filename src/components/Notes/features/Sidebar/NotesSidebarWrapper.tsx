@@ -11,9 +11,11 @@ const NotesSidebarPanel = lazy(async () => {
 export function NotesSidebarWrapper({
   isPeeking = false,
   loadContent = true,
+  active,
 }: {
   isPeeking?: boolean;
   loadContent?: boolean;
+  active?: boolean;
 }) {
   const rootFolder = useNotesStore(s => s.rootFolder);
   const rootFolderPath = useNotesStore(s => s.rootFolderPath);
@@ -53,6 +55,7 @@ export function NotesSidebarWrapper({
         createNote={() => createNote()}
         createFolder={(path: string) => createFolder(path)}
         isPeeking={isPeeking}
+        active={active}
       />
     </Suspense>
   );

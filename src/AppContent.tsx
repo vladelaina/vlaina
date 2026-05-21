@@ -539,7 +539,6 @@ export function AppContent() {
   const shouldRenderChatSidebar = renderedSidebarAppViews.has('chat');
   const shouldShowNotesSidebar = effectiveAppViewMode === 'notes';
   const shouldShowChatSidebar = effectiveAppViewMode === 'chat';
-  const notesPrimaryContentReady = primaryContentReadyAppViewsRef.current.has('notes');
 
   const sidebarContent = shouldRenderSidebar ? (
     <div className="grid h-full min-h-0">
@@ -564,16 +563,9 @@ export function AppContent() {
           )}
           aria-hidden={!shouldShowNotesSidebar}
         >
-          {notesPrimaryContentReady ? (
-            <Suspense fallback={null}>
-              <NotesSidebarWrapper isPeeking={false} />
-            </Suspense>
-          ) : (
-            <div
-              className="h-full min-h-0 bg-[var(--notes-sidebar-surface)]"
-              aria-hidden="true"
-            />
-          )}
+          <Suspense fallback={null}>
+            <NotesSidebarWrapper isPeeking={false} active={shouldShowNotesSidebar} />
+          </Suspense>
         </div>
       ) : null}
     </div>
