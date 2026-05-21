@@ -1,4 +1,6 @@
-export async function renderMathEditorLivePreview(args: {
+import { renderLatex } from './katex';
+
+export function renderMathEditorLivePreview(args: {
   anchor: HTMLElement | null;
   latex: string;
   displayMode: boolean;
@@ -8,7 +10,6 @@ export async function renderMathEditorLivePreview(args: {
     return false;
   }
 
-  const { renderLatex } = await import('./katex');
   anchor.dataset.latex = latex;
   const { html } = renderLatex(latex, displayMode);
   anchor.innerHTML = html;
