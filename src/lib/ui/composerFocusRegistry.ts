@@ -9,11 +9,12 @@ export interface ComposerFocusAdapter {
 let activeAdapter: ComposerFocusAdapter | null = null;
 
 function queryComposerRoot(): HTMLElement | null {
-  return document.querySelector('[data-chat-input="true"]') as HTMLElement | null;
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-chat-input="true"]'))
+    .find((root) => root.getClientRects().length > 0) ?? null;
 }
 
 function queryComposerTextarea(): HTMLTextAreaElement | null {
-  return document.querySelector('[data-chat-input="true"] textarea') as HTMLTextAreaElement | null;
+  return queryComposerRoot()?.querySelector('textarea') ?? null;
 }
 
 export function registerComposerFocusAdapter(adapter: ComposerFocusAdapter): () => void {

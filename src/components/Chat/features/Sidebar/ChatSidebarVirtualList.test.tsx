@@ -6,17 +6,22 @@ import type { ChatSession } from '@/lib/ai/types';
 
 const measureMock = vi.fn();
 
+const virtualizerOptionsMock = vi.fn();
+
 vi.mock('@tanstack/react-virtual', () => ({
-  useVirtualizer: ({ count }: { count: number }) => ({
-    getTotalSize: () => count * 38,
-    getVirtualItems: () =>
-      Array.from({ length: count }, (_, index) => ({
-        index,
-        size: 38,
-        start: index * 38,
-      })),
-    measure: measureMock,
-  }),
+  useVirtualizer: (options: { count: number; enabled?: boolean }) => {
+    virtualizerOptionsMock(options);
+    return {
+      getTotalSize: () => options.count * 38,
+      getVirtualItems: () =>
+        Array.from({ length: options.count }, (_, index) => ({
+          index,
+          size: 38,
+          start: index * 38,
+        })),
+      measure: measureMock,
+    };
+  },
 }));
 
 vi.mock('./ChatSidebarSessionRow', () => ({
@@ -55,15 +60,18 @@ function renderList({
   renamingSessionId = 's2',
   resetKey = '',
   scrollRootRef = createRef<HTMLDivElement>(),
+  active = true,
 }: {
   sessions?: ChatSession[];
   currentSessionId?: string | null;
   renamingSessionId?: string | null;
   resetKey?: string;
   scrollRootRef?: RefObject<HTMLDivElement | null>;
+  active?: boolean;
 }) {
   return render(
     <ChatSidebarVirtualList
+      active={active}
       sessions={sessions}
       currentSessionId={currentSessionId}
       renamingSessionId={renamingSessionId}
@@ -85,6 +93,7 @@ function renderList({
 describe('ChatSidebarVirtualList', () => {
   beforeEach(() => {
     measureMock.mockClear();
+    virtualizerOptionsMock.mockClear();
   });
 
   it('renders rows and forwards active and renaming state', () => {
@@ -94,6 +103,25 @@ describe('ChatSidebarVirtualList', () => {
     expect(screen.getByTestId('session-row-s1')).toHaveAttribute('data-active', 'true');
     expect(screen.getByTestId('session-row-s2')).toHaveAttribute('data-renaming', 'true');
     expect(measureMock).toHaveBeenCalled();
+    expect(virtualizerOptionsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ enabled: true }),
+    );
+  });
+
+  it('pauses measurement and scroll resets while inactive', () => {
+    const scrollRoot = document.createElement('div');
+    const scrollToMock = vi.fn();
+    scrollRoot.scrollTo = scrollToMock;
+    const scrollRootRef = createRef<HTMLDivElement>();
+    scrollRootRef.current = scrollRoot;
+
+    renderList({ active: false, resetKey: 'alpha', scrollRootRef });
+
+    expect(measureMock).not.toHaveBeenCalled();
+    expect(scrollToMock).not.toHaveBeenCalled();
+    expect(virtualizerOptionsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ enabled: false }),
+    );
   });
 
   it('resets scroll position when resetKey changes', () => {

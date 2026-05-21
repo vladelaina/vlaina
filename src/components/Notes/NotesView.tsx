@@ -466,7 +466,7 @@ export function NotesView({
           {canLoadMarkdownEditor ? (
             <Suspense fallback={null}>
               <MarkdownEditor
-                active
+                active={active}
                 peekOffset={sidebarWidth}
                 onEditorViewReady={reportNotesPrimaryContentReady}
               />

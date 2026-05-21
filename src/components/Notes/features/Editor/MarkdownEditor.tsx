@@ -103,7 +103,7 @@ export function MarkdownEditor({
     [coverController.cover]
   );
   const editorFind = useNoteEditorFind(currentNotePath);
-  useHeldPageScroll(scrollRootRef);
+  useHeldPageScroll(scrollRootRef, { enabled: active });
   const hasActiveNote = active && Boolean(currentNotePath);
   const isEditorViewReady =
     editorReadyTarget?.path === currentNotePath &&
@@ -198,6 +198,10 @@ export function MarkdownEditor({
   };
 
   useEffect(() => {
+    if (!active) {
+      return;
+    }
+
     const scrollRoot = scrollRootRef.current;
     if (!scrollRoot) return;
 
@@ -215,7 +219,7 @@ export function MarkdownEditor({
     return () => {
       scrollRoot.removeEventListener('scroll', handleScroll);
     };
-  }, []);
+  }, [active]);
 
   useEffect(() => {
     const openTabPaths = new Set(openTabPathsKey ? openTabPathsKey.split('\0') : []);
@@ -229,6 +233,15 @@ export function MarkdownEditor({
   useEffect(() => {
     const scrollRoot = scrollRootRef.current;
     if (!scrollRoot) return;
+
+    if (!active) {
+      const path = activePathRef.current;
+      if (path) {
+        scrollPositionsRef.current.set(path, scrollRoot.scrollTop);
+      }
+      restoreSessionRef.current = null;
+      return;
+    }
 
     const previousPath = activePathRef.current;
 
@@ -315,7 +328,7 @@ export function MarkdownEditor({
         restoreSessionRef.current = null;
       }
     };
-  }, [currentNotePath, hasActiveNote]);
+  }, [active, currentNotePath, hasActiveNote]);
 
   return (
     <div

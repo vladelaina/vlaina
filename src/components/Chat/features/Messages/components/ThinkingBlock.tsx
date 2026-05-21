@@ -163,11 +163,19 @@ export function ThinkingBlock({
   syncContentHeightRef.current = () => {
     if (contentRef.current) {
       const nextHeight = contentRef.current.scrollHeight;
+      if (nextHeight <= 0) {
+        return;
+      }
+
       setContentHeight((current) => (current === nextHeight ? current : nextHeight));
     }
   };
   syncContentWidthRef.current = () => {
     if (contentRef.current) {
+      if (contentRef.current.clientWidth <= 0) {
+        return;
+      }
+
       const nextWidth = getChatContentWidth(contentRef.current.clientWidth);
       setContentWidth((current) => (current === nextWidth ? current : nextWidth));
     }

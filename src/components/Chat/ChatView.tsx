@@ -134,6 +134,7 @@ export function ChatView({
   const showEmbeddedTemporaryToggle = isEmbedded && (showInChatArea || showInTitleBar);
 
   const { containerRef, handleNewUserMessage, spacerHeight } = useMessageAutoscroll({
+      active,
       messages,
       isStreaming: isSessionActive,
       chatId: currentSessionId,
@@ -141,6 +142,7 @@ export function ChatView({
       estimateLoadingHeight: estimateChatLoadingHeight,
   });
   useHeldPageScroll(containerRef, {
+    enabled: active,
     ignoreEditableTargets: true,
   });
 
@@ -470,6 +472,7 @@ export function ChatView({
       )}
 
       <MessageList 
+          active={active}
           chatId={currentSessionId}
           messages={messages}
           getImageGallery={getImageGallery}
@@ -497,6 +500,7 @@ export function ChatView({
             className="w-full max-w-[850px] mx-auto px-4 pointer-events-auto"
           >
               <ChatInput 
+                active={active}
                 onSend={handleSend} 
                 onStop={stop}
                 isLoading={isSessionActive} 

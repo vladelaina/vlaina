@@ -202,6 +202,7 @@ export const ChatSidebar = memo(function ChatSidebar({
               {shouldShowSearchResults && filteredSessions.length === 0 ? null : !shouldShowSearchResults && !hasSessions ? null : (
                 <ChatSidebarList>
                   <ChatSidebarVirtualList
+                    active={isActive}
                     sessions={sessionsToRender}
                     currentSessionId={currentSessionId}
                     renamingSessionId={renamingSessionId}
