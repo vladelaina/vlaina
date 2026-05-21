@@ -18,14 +18,7 @@ import {
 import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import {
   normalizeSerializedMarkdownDocument,
-  summarizeMarkdownNormalizationPipeline,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
-import {
-  compareLineBreakText,
-  isNotesDebugLoggingEnabled,
-  logNotesDebug,
-  summarizeLineBreakText,
-} from '../lineBreakDebugLog';
 
 interface LoadNoteDocumentOptions {
   notesPath: string;
@@ -116,17 +109,6 @@ export async function loadNoteDocument({
   if (cachedContent !== undefined) {
     assertEditorSafeMarkdownContent(cachedContent);
     const normalizedCachedContent = normalizeSerializedMarkdownDocument(cachedContent);
-    if (isNotesDebugLoggingEnabled()) {
-      logNotesDebug('NotesPersistence', 'load:cache-hit', {
-        notesPath,
-        path,
-        cached: summarizeLineBreakText(cachedContent),
-        normalized: summarizeLineBreakText(normalizedCachedContent),
-        normalizationPipeline: summarizeMarkdownNormalizationPipeline(cachedContent),
-        diff: compareLineBreakText(cachedContent, normalizedCachedContent),
-        modifiedAt: cache.get(path)?.modifiedAt ?? null,
-      });
-    }
     return {
       content: normalizedCachedContent,
       modifiedAt: cache.get(path)?.modifiedAt ?? null,
@@ -144,18 +126,6 @@ export async function loadNoteDocument({
   assertEditorSafeMarkdownContent(content);
   const normalizedContent = normalizeSerializedMarkdownDocument(content);
   const modifiedAt = fileInfo?.modifiedAt ?? null;
-  if (isNotesDebugLoggingEnabled()) {
-    logNotesDebug('NotesPersistence', 'load:disk-read', {
-      notesPath,
-      path,
-      fullPath,
-      disk: summarizeLineBreakText(content),
-      normalized: summarizeLineBreakText(normalizedContent),
-      normalizationPipeline: summarizeMarkdownNormalizationPipeline(content),
-      diff: compareLineBreakText(content, normalizedContent),
-      modifiedAt,
-    });
-  }
 
   return {
     content: normalizedContent,
@@ -176,14 +146,6 @@ export async function saveNoteDocument({
   assertReadableNoteSize(fileInfoBeforeWrite?.size ?? null);
   assertEditorSafeMarkdownContent(currentNote.content);
   const diskModifiedAt = fileInfoBeforeWrite?.modifiedAt ?? null;
-  logNotesDebug('NotesPersistence', 'save:start', {
-    notesPath,
-    notePath: currentNote.path,
-    fullPath,
-    cachedModifiedAt,
-    diskModifiedAt,
-    input: summarizeLineBreakText(currentNote.content),
-  });
   const normalizedCurrentContent = normalizeSerializedMarkdownDocument(currentNote.content);
   if (cachedModifiedAt != null && diskModifiedAt != null && diskModifiedAt !== cachedModifiedAt) {
     const diskContent = await storage.readFile(fullPath);
@@ -197,14 +159,6 @@ export async function saveNoteDocument({
       normalizedCachedContent === null ? null : stripVlainaUpdatedFrontmatter(normalizedCachedContent);
     if (normalizedDiskContent === normalizedCurrentContent) {
       const metadata = readNoteMetadataFromMarkdown(normalizedDiskContent);
-      logNotesDebug('NotesPersistence', 'save:conflict-already-current', {
-        notesPath,
-        notePath: currentNote.path,
-        fullPath,
-        cachedModifiedAt,
-        diskModifiedAt,
-        disk: summarizeLineBreakText(normalizedDiskContent),
-      });
       return {
         content: normalizedDiskContent,
         metadata,
@@ -216,15 +170,6 @@ export async function saveNoteDocument({
       normalizedCachedContent !== null &&
       (normalizedDiskContent === normalizedCachedContent || comparableDiskContent === comparableCachedContent)
     ) {
-      logNotesDebug('NotesPersistence', 'save:conflict-mtime-only', {
-        notesPath,
-        notePath: currentNote.path,
-        fullPath,
-        cachedModifiedAt,
-        diskModifiedAt,
-        cached: summarizeLineBreakText(normalizedCachedContent),
-        input: summarizeLineBreakText(normalizedCurrentContent),
-      });
     } else if (
       comparableDiskContent === comparableCurrentContent &&
       comparableCachedContent === comparableCurrentContent
@@ -237,16 +182,6 @@ export async function saveNoteDocument({
         nextCache: setCachedNoteContent(cache, currentNote.path, normalizedDiskContent, diskModifiedAt),
       };
     } else {
-      logNotesDebug('NotesPersistence', 'save:conflict', {
-        notesPath,
-        notePath: currentNote.path,
-        fullPath,
-        cachedModifiedAt,
-        diskModifiedAt,
-        disk: summarizeLineBreakText(normalizedDiskContent),
-        input: summarizeLineBreakText(normalizedCurrentContent),
-        cached: summarizeLineBreakText(normalizedCachedContent),
-      });
       throw new NoteWriteConflictError();
     }
   }
@@ -254,17 +189,6 @@ export async function saveNoteDocument({
   const { content, metadata } = updateNoteMetadataInMarkdown(normalizedCurrentContent, {
     updatedAt: Date.now(),
   });
-  if (isNotesDebugLoggingEnabled()) {
-    logNotesDebug('NotesPersistence', 'save:prepared-content', {
-      notePath: currentNote.path,
-      normalized: summarizeLineBreakText(normalizedCurrentContent),
-      output: summarizeLineBreakText(content),
-      normalizationPipeline: summarizeMarkdownNormalizationPipeline(currentNote.content),
-      diffInputToNormalized: compareLineBreakText(currentNote.content, normalizedCurrentContent),
-      diffNormalizedToOutput: compareLineBreakText(normalizedCurrentContent, content),
-      metadata,
-    });
-  }
 
   markExpectedExternalChange(fullPath);
   await safeWriteTextFile(fullPath, content);
@@ -272,13 +196,6 @@ export async function saveNoteDocument({
 
   const fileInfo = await storage.stat(fullPath);
   const modifiedAt = fileInfo?.modifiedAt ?? null;
-  logNotesDebug('NotesPersistence', 'save:written', {
-    notesPath,
-    notePath: currentNote.path,
-    fullPath,
-    content: summarizeLineBreakText(content),
-    modifiedAt,
-  });
 
   return {
     content,

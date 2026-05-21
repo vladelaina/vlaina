@@ -32,6 +32,7 @@ const TAIL_ANCHOR_THRESHOLD = 2;
 const STREAM_SCROLL_IDLE_MS = 180;
 
 interface MessageListProps {
+  active?: boolean;
   chatId?: string | null;
   messages: ChatMessage[];
   getImageGallery?: ChatImageGalleryGetter;
@@ -65,6 +66,7 @@ function areMeasuredHeightsEqual(
 }
 
 export const MessageList = memo(function MessageList({
+  active = true,
   chatId,
   messages,
   getImageGallery,
@@ -95,6 +97,7 @@ export const MessageList = memo(function MessageList({
   const lastObservedScrollTopRef = useRef<number | null>(null);
   const pendingMeasuredHeightsRef = useRef(new Map<string, number>());
   const measuredHeightsRef = useRef(measuredHeights);
+  const activeRef = useRef(active);
   const lastStreamingMessageIdRef = useRef<string | null>(null);
   const measuredHeightContextRef = useRef({
     activeMeasuredMessageId: null as string | null,
@@ -115,6 +118,7 @@ export const MessageList = memo(function MessageList({
       ? messages[messages.length - 1]!.id
       : null;
   measuredHeightsRef.current = measuredHeights;
+  activeRef.current = active;
   lastStreamingMessageIdRef.current = lastStreamingMessageId;
   const messageById = useMemo(
     () => new Map(messages.map((message) => [message.id, message])),
@@ -132,8 +136,16 @@ export const MessageList = memo(function MessageList({
   }, [activeMeasuredMessageId, chatId, isSessionActive, layoutWidth, messageById]);
 
   const commitViewportMetrics = useCallback(() => {
+    if (!activeRef.current) {
+      return;
+    }
+
     const viewport = containerRef.current;
     if (!viewport) {
+      return;
+    }
+
+    if (viewport.clientHeight <= 0 || viewport.clientWidth <= 0) {
       return;
     }
 
@@ -160,10 +172,25 @@ export const MessageList = memo(function MessageList({
   }, [commitViewportMetrics]);
 
   useLayoutEffect(() => {
+    if (!active) {
+      return;
+    }
+
     commitViewportMetrics();
-  }, [commitViewportMetrics, messages.length, isEmpty]);
+    const frameId = requestAnimationFrame(() => {
+      commitViewportMetrics();
+    });
+
+    return () => {
+      cancelAnimationFrame(frameId);
+    };
+  }, [active, commitViewportMetrics, messages.length, isEmpty]);
 
   useEffect(() => {
+    if (!active) {
+      return;
+    }
+
     const viewport = containerRef.current;
     if (!viewport) {
       return;
@@ -223,7 +250,7 @@ export const MessageList = memo(function MessageList({
         scrollIdleTimeoutRef.current = null;
       }
     };
-  }, [commitViewportMetrics, containerRef, isSessionActive, scheduleViewportMetrics, useOverlayScrollbar]);
+  }, [active, commitViewportMetrics, containerRef, isSessionActive, scheduleViewportMetrics, useOverlayScrollbar]);
 
   useEffect(() => {
     if (isSessionActive) {
@@ -340,11 +367,19 @@ export const MessageList = memo(function MessageList({
   }, []);
 
   useEffect(() => {
+    if (!active) {
+      return;
+    }
+
     if (typeof ResizeObserver === 'undefined') {
       return;
     }
 
     const observer = new ResizeObserver((entries) => {
+      if (!activeRef.current) {
+        return;
+      }
+
       for (const entry of entries) {
         const element = entry.target as HTMLDivElement;
         const messageId = element.dataset.messageId;
@@ -373,9 +408,13 @@ export const MessageList = memo(function MessageList({
       }
       pendingMeasuredHeightsRef.current.clear();
     };
-  }, [flushMeasuredHeights, scheduleMeasuredHeight, shouldMeasureVisibleRowSynchronously]);
+  }, [active, flushMeasuredHeights, scheduleMeasuredHeight, shouldMeasureVisibleRowSynchronously]);
 
   useLayoutEffect(() => {
+    if (!active) {
+      return;
+    }
+
     if (!lastStreamingMessageId) {
       return;
     }
@@ -386,7 +425,7 @@ export const MessageList = memo(function MessageList({
     }
 
     scheduleMeasuredHeight(lastStreamingMessageId, node.getBoundingClientRect().height);
-  }, [lastStreamingMessageId, scheduleMeasuredHeight]);
+  }, [active, lastStreamingMessageId, scheduleMeasuredHeight]);
 
   const bindVisibleRow = useCallback((messageId: string, node: HTMLDivElement | null) => {
     const previous = observedRowsRef.current.get(messageId);
@@ -402,7 +441,7 @@ export const MessageList = memo(function MessageList({
     node.dataset.messageId = messageId;
     observedRowsRef.current.set(messageId, node);
     rowResizeObserverRef.current?.observe(node);
-    if (shouldMeasureVisibleRowSynchronously(messageId)) {
+    if (activeRef.current && shouldMeasureVisibleRowSynchronously(messageId)) {
       scheduleMeasuredHeight(messageId, node.getBoundingClientRect().height);
     }
   }, [scheduleMeasuredHeight, shouldMeasureVisibleRowSynchronously]);

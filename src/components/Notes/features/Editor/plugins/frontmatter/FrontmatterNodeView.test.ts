@@ -36,6 +36,7 @@ function createMockView(selection = { from: 1, to: 1 }): EditorView {
 function getCodeMirror(nodeView: FrontmatterNodeView) {
   return (nodeView as unknown as {
     cm: {
+      dispatch: (spec: unknown) => void;
       state: {
         selection: { main: { anchor: number; head: number } };
       };
@@ -43,9 +44,31 @@ function getCodeMirror(nodeView: FrontmatterNodeView) {
   }).cm;
 }
 
+function getPendingMeasureFrame(nodeView: FrontmatterNodeView) {
+  return (nodeView as unknown as { pendingMeasureFrame: number | null }).pendingMeasureFrame;
+}
+
+function clearPendingMeasureFrame(nodeView: FrontmatterNodeView) {
+  (nodeView as unknown as { pendingMeasureFrame: number | null }).pendingMeasureFrame = null;
+}
+
 describe('FrontmatterNodeView', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
+  });
+
+  it('does not re-dispatch or schedule measurement for unchanged content', () => {
+    const node = createMockNode('title: note');
+    const nodeView = new FrontmatterNodeView(node, createMockView(), () => 0);
+    const cm = getCodeMirror(nodeView);
+    const dispatchSpy = vi.spyOn(cm, 'dispatch');
+    clearPendingMeasureFrame(nodeView);
+
+    nodeView.update(node);
+
+    expect(dispatchSpy).not.toHaveBeenCalled();
+    expect(getPendingMeasureFrame(nodeView)).toBeNull();
+    nodeView.destroy();
   });
 
   it('mirrors an outer ProseMirror selection into the embedded editor', () => {

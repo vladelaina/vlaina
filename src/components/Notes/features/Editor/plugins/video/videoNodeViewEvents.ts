@@ -3,7 +3,6 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 export function shouldStopVideoNodeEvent(args: {
   event: Event;
   target: HTMLElement;
-  debugId: number;
   view: EditorView;
   shieldVisible: boolean;
 }) {

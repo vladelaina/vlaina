@@ -21,7 +21,6 @@ import {
   looksLikeVaultRoot,
 } from './currentVaultExternalPathSyncUtils';
 import {
-  getExternalWatchErrorMessage,
   isExternalWatchUnavailableError,
 } from './externalWatchErrorUtils';
 import {
@@ -206,10 +205,6 @@ export function useCurrentVaultExternalPathSync(vaultPath: string | null) {
           if (isExternalWatchUnavailableError(error)) {
             return;
           }
-          console.error(
-            '[CurrentVaultExternalSync] Failed to start filesystem watch:',
-            getExternalWatchErrorMessage(error)
-          );
         }
       }
     };

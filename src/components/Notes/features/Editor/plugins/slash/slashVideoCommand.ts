@@ -2,28 +2,17 @@ import type { Ctx } from '@milkdown/kit/ctx';
 import { editorViewCtx } from '@milkdown/kit/core';
 import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { logNotesDebug } from '@/stores/notes/lineBreakDebugLog';
 import { getElectronBridge } from '@/lib/electron/bridge';
-import { parseVideoUrl, sanitizeVideoDebugPayload } from '../video';
+import { parseVideoUrl } from '../video';
 import { findInsertedNodePos } from './slashInsertUtils';
 import { openSlashVideoPrompt } from './slashVideoPrompt';
-
-function logSlashVideoDebug(event: string, payload: Record<string, unknown>) {
-  const debugPayload = sanitizeVideoDebugPayload(payload);
-  logNotesDebug('NotesVideo', `slashCommand:${event}`, debugPayload);
-}
 
 function insertVideoNode(ctx: Ctx, src: string) {
   const view = ctx.get(editorViewCtx);
   const { state, dispatch } = view;
   const videoType = state.schema.nodes.video;
   const paragraphType = state.schema.nodes.paragraph;
-  const startedAt = performance.now();
   if (!videoType) {
-    logSlashVideoDebug('video_insert_missing_schema', {
-      src,
-      schemaNodes: Object.keys(state.schema.nodes),
-    });
     return null;
   }
 
@@ -50,11 +39,6 @@ function insertVideoNode(ctx: Ctx, src: string) {
     dispatch(tr.scrollIntoView());
     return nodePos;
   } catch (error) {
-    logSlashVideoDebug('video_insert_error', {
-      src,
-      message: error instanceof Error ? error.message : String(error),
-      durationMs: Math.round((performance.now() - startedAt) * 100) / 100,
-    });
     return null;
   }
 }
@@ -89,15 +73,7 @@ function updateInsertedVideoNodeSrc(args: {
 }) {
   const { view, insertedPos, previousSrc, nextSrc } = args;
   const videoType = view.state.schema.nodes.video;
-  const startedAt = performance.now();
   if (!videoType || previousSrc === nextSrc) {
-    if (!videoType) {
-      logSlashVideoDebug('video_update_skipped', {
-        insertedPos,
-        reason: 'missingSchema',
-        durationMs: Math.round((performance.now() - startedAt) * 100) / 100,
-      });
-    }
     return false;
   }
   if (shouldSkipResolvedVideoUpdate(previousSrc, nextSrc)) {
@@ -111,44 +87,22 @@ function updateInsertedVideoNodeSrc(args: {
   }
 
   if (nodePos === null) {
-    let visitedVideoNodes = 0;
     view.state.doc.descendants((node: any, pos: number) => {
       if (nodePos !== null) return false;
       if (node.type === videoType && node.attrs.src === previousSrc) {
         nodePos = pos;
         return false;
       }
-      if (node.type === videoType) {
-        visitedVideoNodes += 1;
-      }
       return undefined;
     });
-    if (nodePos === null) {
-      logSlashVideoDebug('video_update_fallback_scan_missed', {
-        insertedPos,
-        visitedVideoNodes,
-      });
-    }
   }
 
   if (nodePos === null) {
-    logSlashVideoDebug('video_update_skipped', {
-      insertedPos,
-      reason: 'nodeNotFound',
-      durationMs: Math.round((performance.now() - startedAt) * 100) / 100,
-    });
     return false;
   }
 
   const node = view.state.doc.nodeAt(nodePos);
   if (!node || node.type !== videoType) {
-    logSlashVideoDebug('video_update_skipped', {
-      insertedPos,
-      nodePos,
-      reason: 'nodeInvalid',
-      foundType: node?.type.name ?? null,
-      durationMs: Math.round((performance.now() - startedAt) * 100) / 100,
-    });
     return false;
   }
 
@@ -158,34 +112,21 @@ function updateInsertedVideoNodeSrc(args: {
       src: nextSrc,
     })
   );
-  logSlashVideoDebug('video_update_dispatched', {
-    insertedPos,
-    nodePos,
-    previousSrc,
-    nextSrc,
-    durationMs: Math.round((performance.now() - startedAt) * 100) / 100,
-  });
   return true;
 }
 
 async function resolveVideoUrlForInsert(url: string) {
-  const startedAt = performance.now();
   const parsed = parseVideoUrl(url);
   if (parsed?.type === 'bilibili') {
     return {
       resolvedUrl: url,
       source: 'unchanged',
       stage: 'playable-bilibili-embed',
-      durationMs: Math.round((performance.now() - startedAt) * 100) / 100,
     } as const;
   }
 
   const mediaBridge = getElectronBridge()?.media;
   if (!mediaBridge?.resolveVideoUrl) {
-    logSlashVideoDebug('video_resolve_unavailable', {
-      url,
-      durationMs: Math.round((performance.now() - startedAt) * 100) / 100,
-    });
     return {
       resolvedUrl: url,
       source: 'unavailable',
@@ -196,11 +137,6 @@ async function resolveVideoUrlForInsert(url: string) {
     const resolved = await mediaBridge.resolveVideoUrl(url);
     return resolved;
   } catch (error) {
-    logSlashVideoDebug('video_resolve_error', {
-      url,
-      message: error instanceof Error ? error.message : String(error),
-      durationMs: Math.round((performance.now() - startedAt) * 100) / 100,
-    });
     return {
       resolvedUrl: url,
       source: 'error',
@@ -214,24 +150,15 @@ export function openVideoPrompt(ctx: Ctx) {
   openSlashVideoPrompt({
     view,
     onSubmit: (url) => {
-      const startedAt = performance.now();
       const insertedPos = insertVideoNode(ctx, url);
       void resolveVideoUrlForInsert(url).then((resolved) => {
-        const updated = resolved.resolvedUrl === url
-          ? false
-          : updateInsertedVideoNodeSrc({
+        if (resolved.resolvedUrl !== url) {
+          updateInsertedVideoNodeSrc({
               view,
               insertedPos,
               previousSrc: url,
               nextSrc: resolved.resolvedUrl,
             });
-        if (updated) {
-          logSlashVideoDebug('video_resolve_updated', {
-            url,
-            resolved,
-            insertedPos,
-            totalElapsedMs: Math.round((performance.now() - startedAt) * 100) / 100,
-          });
         }
       });
     },

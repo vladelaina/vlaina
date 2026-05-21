@@ -10,8 +10,7 @@ export function applySlashCommand(ctx: Ctx, commandId: SlashCommandId) {
   const command = slashCommandDefinitions.find((definition) => definition.commandId === commandId);
   const result = command?.run(ctx);
   if (result instanceof Promise) {
-    void result.catch((error) => {
-      console.warn(`[SlashMenu] Command failed: ${commandId}`, error);
+    void result.catch((_error) => {
     });
   }
 }

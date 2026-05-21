@@ -82,19 +82,6 @@ function isRelevantElectronAuthEvent(event: string): boolean {
   ]).has(event);
 }
 
-function logAccountAuthStep(event: string, details: Record<string, unknown> = {}): void {
-  if (!import.meta.env.DEV || typeof window === 'undefined') {
-    return;
-  }
-
-  try {
-    if (window.localStorage.getItem('vlaina:debug:account') === '1') {
-      console.info(`[account:auth] ${event}`, details);
-    }
-  } catch {
-  }
-}
-
 export function selectRelevantElectronAuthEntries(entries: Array<{
   timestamp: string;
   event: string;
@@ -235,25 +222,12 @@ export function createSignIn(
 
     if (isDesktop) {
       try {
-        const authStartedAt = performance.now();
-        logAccountAuthStep('desktop_auth:start', { provider });
         const result = await accountCommands.accountAuth(provider);
-        logAccountAuthStep('desktop_auth:resolved', {
-          provider,
-          durationMs: Math.max(0, Math.round(performance.now() - authStartedAt)),
-          success: result?.success === true,
-          hasAvatarUrl: typeof result?.avatarUrl === 'string' && result.avatarUrl.trim().length > 0,
-        });
         clearTimeout(timeoutId);
 
         if (result?.success) {
           invalidateAccountSessionChecks();
-          const checkStartedAt = performance.now();
           await get().checkStatus();
-          logAccountAuthStep('desktop_auth:check_status_resolved', {
-            provider,
-            durationMs: Math.max(0, Math.round(performance.now() - checkStartedAt)),
-          });
           set({ isConnecting: false, error: null });
           return true;
         }

@@ -243,7 +243,6 @@ export async function normalizeVisionAttachment(
       image_url: { url: normalizedBase64 },
     };
   } catch (error) {
-    console.error(error);
     return null;
   }
 }

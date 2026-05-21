@@ -3,24 +3,6 @@ import type { ManagedBudgetPayload } from '@/lib/ai/managed/types';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { ACCOUNT_AUTH_INVALIDATED_EVENT } from './sessionEvent';
 
-type ManagedBridgeDiagnostic = Record<string, unknown>
-
-function logManagedBridgeDiagnostic(event: string, details: ManagedBridgeDiagnostic) {
-  if (!import.meta.env.DEV || typeof window === 'undefined') {
-    return;
-  }
-
-  if (window.localStorage.getItem('vlaina:debug:managed-bridge') !== '1') {
-    return;
-  }
-
-  console.info(`[managed bridge] ${event}`, details);
-}
-
-function toManagedBridgeIso(timestamp: number) {
-  return new Date(timestamp).toISOString();
-}
-
 let accountAuthInvalidationBridgeRegistered = false;
 
 function registerAccountAuthInvalidationBridge(): void {
@@ -104,10 +86,6 @@ export const accountCommands = {
     return await getDesktopAccountBridge().cancelAuth?.();
   },
 
-  async getAuthDebugLog() {
-    return await getDesktopAccountBridge().getAuthDebugLog();
-  },
-
   async requestEmailAuthCode(email: string) {
     return await getDesktopAccountBridge().requestEmailCode(email);
   },
@@ -139,19 +117,9 @@ export const accountCommands = {
     externalRequestId?: string
   ) {
     const requestId = externalRequestId?.trim() || `managed-${crypto.randomUUID()}`;
-    const startedAt = Date.now();
     const bridge = getDesktopAccountBridge();
 
-    logManagedBridgeDiagnostic('stream_prepare', {
-      requestId,
-      startedAt: toManagedBridgeIso(startedAt),
-      signalAborted: signal?.aborted === true,
-    });
-
     return await new Promise<string>(async (resolve, reject) => {
-      let chunkCount = 0;
-      let lastChunkAt: number | null = null;
-      let lastChunkLength = 0;
       let isSettled = false;
 
       const cleanupCallbacks: Array<() => void> = [];
@@ -173,19 +141,6 @@ export const accountCommands = {
 
       cleanupCallbacks.push(
         bridge.onManagedStreamChunk(requestId, (content) => {
-          const now = Date.now();
-          chunkCount += 1;
-          logManagedBridgeDiagnostic('stream_chunk', {
-            requestId,
-            chunkIndex: chunkCount,
-            at: toManagedBridgeIso(now),
-            elapsedMs: now - startedAt,
-            sincePreviousChunkMs: lastChunkAt == null ? null : now - lastChunkAt,
-            contentLength: content.length,
-            deltaLength: Math.max(0, content.length - lastChunkLength),
-          });
-          lastChunkAt = now;
-          lastChunkLength = content.length;
           onChunk(content);
         })
       );
@@ -195,13 +150,6 @@ export const accountCommands = {
           if (isSettled) return;
           isSettled = true;
           cleanup();
-          logManagedBridgeDiagnostic('stream_done', {
-            requestId,
-            startedAt: toManagedBridgeIso(startedAt),
-            finishedAt: toManagedBridgeIso(Date.now()),
-            chunkCount,
-            contentLength: content.length,
-          });
           resolve(content);
         })
       );

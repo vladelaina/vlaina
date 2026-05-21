@@ -160,7 +160,6 @@ export function useAIStoreRuntimeEffects(): void {
         }
       } catch (error) {
         if (!isManagedServiceRecoverableError(error)) {
-          console.error('Failed to sync managed AI models from Worker', error);
         }
       }
     })();
@@ -287,7 +286,6 @@ export function startAIStoreRuntimeEffects(): void {
       }
     }).catch((error) => {
       if (!isManagedServiceRecoverableError(error)) {
-        console.error('Failed to sync managed AI models from Worker', error);
       }
     });
   };

@@ -179,7 +179,6 @@ export function useAbsoluteNoteExternalRenameSync(currentNotePath: string | unde
 
         unwatch = stopWatching;
       } catch (error) {
-        console.error('[AbsoluteNoteExternalRenameSync] Failed to start filesystem watch:', error);
       }
     };
 

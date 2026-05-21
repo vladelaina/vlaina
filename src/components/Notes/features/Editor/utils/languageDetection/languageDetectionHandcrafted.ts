@@ -39,12 +39,6 @@ export function defineHandcraftedLanguageSuite({ language, label = language, cas
     });
 
     it(`prints the current handcrafted ${label} report`, () => {
-      const expected = normalizeLanguage(language);
-      const matched = cases.filter((item) => normalizeLanguage(guessLanguage(item.sample)) === expected).length;
-
-      console.info(
-        `language detection handcrafted ${label}: ${matched}/${cases.length} (${((matched / cases.length) * 100).toFixed(1)}%)`,
-      );
     });
   });
 }

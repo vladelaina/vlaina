@@ -161,6 +161,21 @@ describe('CodeBlockNodeView', () => {
     expect(cm.state.selection.main.anchor).toBe(8);
   });
 
+  it('does not reconfigure CodeMirror for unchanged code block attributes', () => {
+    const node = {
+      ...createMockNodeWithText('const a = 1;'),
+      attrs: { collapsed: false, language: '', lineNumbers: true, wrap: false },
+    } as unknown as ProseNode;
+    const nodeView = new CodeBlockNodeView(node, createMockView(), () => 1);
+    const cm = getCodeMirror(nodeView);
+    const dispatchSpy = vi.spyOn(cm, 'dispatch');
+
+    nodeView.update(node);
+
+    expect(dispatchSpy).not.toHaveBeenCalled();
+    nodeView.destroy();
+  });
+
   it('returns false when asked to update with a different node type', () => {
     const nodeView = new CodeBlockNodeView(createMockNode(false), createMockView(), () => 1);
 

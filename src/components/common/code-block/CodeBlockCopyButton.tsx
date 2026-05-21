@@ -58,7 +58,6 @@ export function CodeBlockCopyButton({
         triggerOptimisticCopied();
       }
     } catch (err) {
-      console.error('Failed to copy text: ', err);
     }
   };
 

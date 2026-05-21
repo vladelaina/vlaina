@@ -291,7 +291,6 @@ export async function loadImageAsBlob(fullPath: string): Promise<string> {
   try {
     return await loadPromise;
   } catch (error) {
-    console.error('Failed to load image:', fullPath, error);
     throw error;
   } finally {
     if (blobUrlLoadPromises.get(loadKey) === loadPromise) {
@@ -371,7 +370,6 @@ export async function loadImageThumbnailAsBlob(
   try {
     return await loadPromise;
   } catch (error) {
-    console.error('Failed to load image thumbnail:', fullPath, error);
     return loadImageAsBlob(fullPath);
   } finally {
     if (thumbnailBlobUrlLoadPromises.get(cacheKey) === loadPromise) {
@@ -412,7 +410,6 @@ export async function loadImageAsBase64(fullPath: string): Promise<string> {
 
 
   } catch (error) {
-    console.error('Failed to load image as base64:', fullPath, error);
     throw error;
   }
 }

@@ -31,6 +31,7 @@ describe('NotesTabRow', () => {
     expect(source).toContain('notes-tab-row-new-note-button pointer-events-none');
     expect(source).toContain('pointer-events-none flex h-7 w-7');
     expect(source).toContain('h-7 w-7 shrink-0');
+    expect(source).toContain('items-center justify-center rounded-full');
     expect(source).toContain('opacity-0');
     expect(css).toContain('.vlaina-title-bar-center:hover .notes-tab-row-new-note-button');
     expect(css).toContain('.vlaina-title-bar-center:focus-within .notes-tab-row-new-note-button');
@@ -38,5 +39,11 @@ describe('NotesTabRow', () => {
     expect(source).toContain('group-hover/tab-row:opacity-100');
     expect(source).toContain('group-focus-within/tab-row:pointer-events-auto');
     expect(source).toContain('group-focus-within/tab-row:opacity-100');
+    expect(source).toContain('shouldShowTitleTooltip');
+    expect(source).toContain('{shouldShowTitleTooltip ? (');
+    expect(source).toContain('label.scrollWidth > label.clientWidth + 1');
+    expect(source).toContain('showArrow={false}');
+    expect(source).toContain('rounded-[18px] px-3 py-2 text-xs text-[var(--chat-sidebar-text)]');
+    expect(source).toContain('bg-[var(--chat-sidebar-row-hover)] text-[var(--chat-sidebar-text)]');
   });
 });

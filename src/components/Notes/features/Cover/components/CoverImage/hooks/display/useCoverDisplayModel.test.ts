@@ -279,6 +279,30 @@ describe('useCoverDisplayModel', () => {
     expect(result.current.sourceIsReady).toBe(false);
   });
 
+  it('does not keep the previous cover frame once the flow errors', () => {
+    hoisted.getCachedDimensions.mockReturnValue({ width: 1500, height: 969 });
+
+    const { result } = renderHook(() =>
+      useCoverDisplayModel({
+        phase: 'error',
+        previewSrc: null,
+        resolvedSrc: null,
+        isSourceStale: false,
+        prevSrcRef: createPrevSrcRef('/covers/previous.webp'),
+        crop: { x: 0, y: 0 },
+        zoom: 1,
+        positionX: 50,
+        positionY: 50,
+        isImageReady: false,
+        setIsImageReady: vi.fn(),
+      })
+    );
+
+    expect(result.current.mediaSrc).toBe('');
+    expect(result.current.placeholderSrc).toBe('');
+    expect(result.current.sourceIsReady).toBe(false);
+  });
+
   it('uses a freshly resolved source as the placeholder instead of holding the old cover', () => {
     hoisted.getCachedDimensions.mockReturnValue(null);
 

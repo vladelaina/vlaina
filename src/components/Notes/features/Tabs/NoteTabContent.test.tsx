@@ -25,4 +25,19 @@ describe('NoteTabContent', () => {
     expect(screen.getByText('very-long-note-....')).toBeInTheDocument();
     expect(screen.queryByText('very-long-note-name')).not.toBeInTheDocument();
   });
+
+  it('attaches the label ref to the rendered tab title text', () => {
+    const labelRef = { current: null as HTMLSpanElement | null };
+
+    render(
+      <NoteTabContent
+        tab={{ path: 'short-name.md', name: 'short-name', isDirty: false }}
+        isActive={false}
+        title="short-name"
+        labelRef={labelRef}
+      />,
+    );
+
+    expect(labelRef.current).toBe(screen.getByText('short-name'));
+  });
 });

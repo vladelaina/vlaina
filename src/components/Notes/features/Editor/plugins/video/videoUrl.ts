@@ -1,4 +1,4 @@
-import { logVideoDebug } from './videoDebug';
+
 import { isLocalNetworkHttpUrl } from '@/lib/notes/markdown/urlSecurity';
 
 const MAX_VIDEO_URL_LENGTH = 2048;
@@ -142,10 +142,6 @@ export function parseVideoUrl(url: string): ParsedVideoUrl | null {
 export function isSupportedVideoUrl(url: string) {
   const parsed = parseVideoUrl(url);
   if (!parsed) {
-    logVideoDebug('validate_unsupported', {
-      url,
-      supported: false,
-    });
   }
   return parsed !== null;
 }

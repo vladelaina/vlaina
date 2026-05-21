@@ -16,6 +16,9 @@ interface UseChatSidebarSearchOptions {
   sessions: ChatSession[];
 }
 
+const EMPTY_FILTERED_SESSIONS: ChatSession[] = [];
+const EMPTY_SEARCH_ENTRIES: ReturnType<typeof buildChatSidebarSearchEntries> = [];
+
 export function useChatSidebarSearch({
   enabled,
   scopeRef,
@@ -35,6 +38,7 @@ export function useChatSidebarSearch({
   const previousQueryRef = useRef('');
 
   const drawer = useSidebarSearchDrawerState({
+    enabled,
     isOpen: isSearchOpen,
     query: searchQuery,
     onOpen: openSearch,
@@ -53,16 +57,20 @@ export function useChatSidebarSearch({
   );
 
   const searchEntries = useMemo(
-    () => buildChatSidebarSearchEntries(sortedSessions),
-    [sortedSessions],
+    () => enabled ? buildChatSidebarSearchEntries(sortedSessions) : EMPTY_SEARCH_ENTRIES,
+    [enabled, sortedSessions],
   );
 
   const filteredSessions = useMemo(
-    () => queryChatSidebarSessions(searchEntries, deferredSearchQuery),
-    [deferredSearchQuery, searchEntries],
+    () => enabled ? queryChatSidebarSessions(searchEntries, deferredSearchQuery) : EMPTY_FILTERED_SESSIONS,
+    [deferredSearchQuery, enabled, searchEntries],
   );
 
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     const trimmedQuery = deferredSearchQuery.trim();
     if (trimmedQuery === previousQueryRef.current) {
       return;
@@ -70,7 +78,7 @@ export function useChatSidebarSearch({
 
     previousQueryRef.current = trimmedQuery;
     drawer.scrollRootRef.current?.scrollTo({ top: 0, behavior: 'auto' });
-  }, [deferredSearchQuery, drawer.scrollRootRef]);
+  }, [deferredSearchQuery, drawer.scrollRootRef, enabled]);
 
   return {
     isSearchOpen,

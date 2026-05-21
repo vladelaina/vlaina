@@ -1,5 +1,5 @@
 import { createRef, type ComponentProps } from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CoverImageShell } from './CoverImageShell';
 import type { CoverRendererProps } from './coverRenderer.types';
@@ -169,29 +169,27 @@ describe('CoverImageShell', () => {
     expect(onOpenPicker).toHaveBeenCalledTimes(1);
   });
 
-  it('shows the cover error only after it persists and keeps the message minimal', () => {
-    vi.useFakeTimers();
-
-    render(
+  it('leaves the cover area blank but clickable when the cover image fails to load', () => {
+    const onOpenPicker = vi.fn();
+    const { container } = render(
       <CoverImageShell
         {...buildShellProps({
           phase: 'error',
           url: './assets/missing.webp',
           displaySrc: '',
           isError: true,
+          onOpenPicker,
         })}
       />
     );
 
     expect(screen.queryByText('Image failed to load')).not.toBeInTheDocument();
+    const overlay = container.querySelector('.cursor-pointer.z-10');
+    expect(overlay).not.toBeNull();
+    expect(container.firstElementChild).toHaveStyle({ height: '320px' });
 
-    act(() => {
-      vi.advanceTimersByTime(250);
-    });
+    fireEvent.mouseDown(overlay!);
 
-    expect(screen.getByText('Image failed to load')).toBeInTheDocument();
-    expect(screen.queryByText('Click to replace')).not.toBeInTheDocument();
-
-    vi.useRealTimers();
+    expect(onOpenPicker).toHaveBeenCalledTimes(1);
   });
 });

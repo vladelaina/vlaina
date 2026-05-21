@@ -6,6 +6,7 @@ import { ChatSidebarSessionRow } from './ChatSidebarSessionRow';
 const CHAT_SIDEBAR_ROW_HEIGHT = 38;
 
 interface ChatSidebarVirtualListProps {
+  active?: boolean;
   sessions: ChatSession[];
   currentSessionId: string | null;
   renamingSessionId: string | null;
@@ -24,6 +25,7 @@ interface ChatSidebarVirtualListProps {
 }
 
 export function ChatSidebarVirtualList({
+  active = true,
   sessions,
   currentSessionId,
   renamingSessionId,
@@ -43,22 +45,27 @@ export function ChatSidebarVirtualList({
   const sessionIds = useMemo(() => sessions.map((session) => session.id), [sessions]);
   const virtualizer = useVirtualizer({
     count: sessions.length,
+    enabled: active,
     getScrollElement: () => scrollRootRef.current,
     estimateSize: () => CHAT_SIDEBAR_ROW_HEIGHT,
     overscan: 8,
   });
 
   useEffect(() => {
-    if (!resetKey) {
+    if (!active || !resetKey) {
       return;
     }
 
     scrollRootRef.current?.scrollTo({ top: 0, behavior: 'auto' });
-  }, [resetKey, scrollRootRef]);
+  }, [active, resetKey, scrollRootRef]);
 
   useLayoutEffect(() => {
+    if (!active) {
+      return;
+    }
+
     virtualizer.measure();
-  }, [sessionIds, virtualizer]);
+  }, [active, sessionIds, virtualizer]);
 
   if (sessions.length === 0) {
     return null;

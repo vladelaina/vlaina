@@ -12,10 +12,6 @@ import {
   getCachedEditorBlockTargetByPos,
   getCachedEditorBlockTargets,
 } from '../../utils/editorBlockPositionCache';
-import {
-  formatDebugBlockRanges,
-  logBlockSelectionDebug,
-} from './blockSelectionDebugLog';
 
 const LIST_CHILD_INDENT_PX = 24;
 const MIN_DROP_LINE_WIDTH = 24;
@@ -76,11 +72,6 @@ export function getDraggableBlockRanges(view: EditorView, selectedRanges: readon
   const mapped = mapRangesToSelectableBlocks(view.state.doc, selectedRanges)
     .filter((range) => !isNonDraggableBlockRange(view.state.doc, range));
   const result = pruneContainedBlockRanges(mapped);
-  logBlockSelectionDebug('geometry:get-draggable-ranges', {
-    selectedRanges: formatDebugBlockRanges(selectedRanges),
-    mappedRanges: formatDebugBlockRanges(mapped),
-    result: formatDebugBlockRanges(result),
-  });
   return result;
 }
 

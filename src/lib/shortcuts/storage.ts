@@ -13,9 +13,7 @@ export function getShortcuts(): ShortcutConfig[] {
         return userConfig ? { ...defaultConfig, keys: userConfig.keys } : defaultConfig;
       });
     }
-  } catch (e) {
-    console.error('Failed to load shortcuts:', e);
-  }
+  } catch (e) {  }
   return DEFAULT_SHORTCUTS;
 }
 
@@ -28,15 +26,12 @@ export function saveShortcuts(shortcuts: ShortcutConfig[]): void {
   try {
     const toSave = shortcuts.map(({ id, keys }) => ({ id, keys }));
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-  } catch (e) {
-    console.error('Failed to save shortcuts:', e);
-  }
+  } catch (e) {  }
 }
 
 export function resetShortcuts(): void {
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch (e) {
-    console.error('Failed to reset shortcuts:', e);
   }
 }

@@ -12,7 +12,6 @@ function insertNode(ctx: Ctx, nodeType: string, attrs?: object) {
     if (!node) return;
     dispatch(state.tr.replaceSelectionWith(node).scrollIntoView());
   } catch (error) {
-    console.warn(`[SlashMenu] Failed to insert ${nodeType}:`, error);
   }
 }
 

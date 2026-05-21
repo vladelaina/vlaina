@@ -39,7 +39,9 @@ export function useCoverDisplayModel({
     zoom: number;
   } | null>(null);
 
-  const mediaSrc = phase === 'idle' ? '' : (previewSrc || resolvedSrc || prevSrcRef.current || '');
+  const mediaSrc = phase === 'idle' || phase === 'error'
+    ? ''
+    : (previewSrc || resolvedSrc || prevSrcRef.current || '');
   const isUsingPreviousFallback = Boolean(
     phase !== 'idle' &&
     !previewSrc &&
@@ -65,7 +67,7 @@ export function useCoverDisplayModel({
     currentMediaIsCached ||
     (!isSourceStale && readySrc === mediaSrc && isImageReady)
   );
-  const placeholderSrc = phase === 'idle'
+  const placeholderSrc = phase === 'idle' || phase === 'error'
     ? ''
     : sourceIsReady
       ? mediaSrc

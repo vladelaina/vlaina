@@ -453,6 +453,20 @@ describe('NotesView', () => {
     expect(useAbsoluteNoteExternalRenameSync).toHaveBeenCalledWith(undefined);
   });
 
+  it('passes inactive state through to the markdown editor', async () => {
+    notesState.currentNote = { path: 'docs/alpha.md', content: '# alpha' };
+    notesState.openTabs = [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }];
+
+    render(<NotesView active={false} />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByTestId('markdown-editor')).toBeNull();
+    expect(screen.getByTestId('markdown-editor-shell')).toBeInTheDocument();
+  });
+
   it('ignores blank-workspace drops while inactive', async () => {
     mocks.storageState.stat.mockResolvedValue({
       name: 'alpha.md',

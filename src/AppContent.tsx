@@ -163,6 +163,7 @@ export function AppContent() {
   const [primaryContentReady, setPrimaryContentReady] = useState(false);
   const [shouldRenderDeferredChrome, setShouldRenderDeferredChrome] = useState(false);
   const [shouldRenderCenterChrome, setShouldRenderCenterChrome] = useState(false);
+  const [renderedSidebarAppViews, setRenderedSidebarAppViews] = useState<Set<typeof appViewMode>>(() => new Set());
   const readyAppViewsRef = useRef<Set<typeof appViewMode>>(new Set());
   const primaryContentReadyAppViewsRef = useRef<Set<typeof appViewMode>>(new Set());
   const didReportStartupReadyRef = useRef(false);
@@ -304,6 +305,35 @@ export function AppContent() {
   }, [activeViewReady, effectiveAppViewMode, primaryContentReady]);
 
   useEffect(() => {
+    if (!shouldRenderDeferredChrome) return;
+    if (effectiveAppViewMode !== 'notes' && effectiveAppViewMode !== 'chat') return;
+
+    setRenderedSidebarAppViews((views) => {
+      if (views.has(effectiveAppViewMode)) return views;
+      return new Set([...views, effectiveAppViewMode]);
+    });
+  }, [effectiveAppViewMode, shouldRenderDeferredChrome]);
+
+  useEffect(() => {
+    if (!activeViewReady || !primaryContentReady) return;
+    if (effectiveAppViewMode !== 'notes' && effectiveAppViewMode !== 'chat') return;
+
+    void preloadNotesViewModule();
+    void preloadChatViewModule();
+    void preloadNotesSidebarModule();
+    void preloadChatSidebarModule();
+
+    setMountedAppViews((views) => {
+      if (views.has('notes') && views.has('chat')) return views;
+      return new Set([...views, 'notes', 'chat']);
+    });
+    setRenderedSidebarAppViews((views) => {
+      if (views.has('notes') && views.has('chat')) return views;
+      return new Set([...views, 'notes', 'chat']);
+    });
+  }, [activeViewReady, effectiveAppViewMode, primaryContentReady]);
+
+  useEffect(() => {
     if (settingsOpen) {
       setHasOpenedSettings(true);
       void loadCommunitySettings();
@@ -326,9 +356,8 @@ export function AppContent() {
     if (store.loaded) return;
 
     void store.load()
-      .catch((error) => {
+      .catch((_error) => {
         setInitialUnifiedViewWaitDone(true);
-        console.error('Failed to load unified store during startup:', error);
       });
   }, []);
 
@@ -408,8 +437,7 @@ export function AppContent() {
           if (cancelled) return;
           mod.startAIStoreRuntimeEffects?.();
         })
-        .catch((error) => {
-          console.error('Failed to start AI runtime effects after startup:', error);
+        .catch((_error) => {
         });
     }, AI_STORE_PRELOAD_DELAY_MS);
 
@@ -421,8 +449,7 @@ export function AppContent() {
 
   useEffect(() => {
     void Promise.resolve(initialize())
-      .catch((error) => {
-        console.error('Failed to initialize vault store:', error);
+      .catch((_error) => {
       });
   }, [initialize]);
 
@@ -505,40 +532,37 @@ export function AppContent() {
   const shouldRenderSidebar = effectiveAppViewMode === 'chat' || effectiveAppViewMode === 'notes';
   const shouldMountNotes = mountedAppViews.has('notes');
   const shouldMountChat = mountedAppViews.has('chat');
+  const shouldRenderNotesSidebar = renderedSidebarAppViews.has('notes');
+  const shouldRenderChatSidebar = renderedSidebarAppViews.has('chat');
+  const shouldShowNotesSidebar = effectiveAppViewMode === 'notes';
+  const shouldShowChatSidebar = effectiveAppViewMode === 'chat';
 
   const sidebarContent = shouldRenderSidebar ? (
     <div className="grid h-full min-h-0">
-      {shouldMountChat && effectiveAppViewMode === 'chat' && shouldRenderDeferredChrome ? (
+      {shouldRenderChatSidebar ? (
         <div
           className={cn(
             'col-start-1 row-start-1 h-full min-h-0',
-            effectiveAppViewMode !== 'chat' && 'pointer-events-none invisible',
+            !shouldShowChatSidebar && 'pointer-events-none invisible',
           )}
-          aria-hidden={effectiveAppViewMode !== 'chat'}
+          aria-hidden={!shouldShowChatSidebar}
         >
           <Suspense fallback={null}>
-            <ChatSidebar isPeeking={false} />
+            <ChatSidebar isPeeking={false} active={shouldShowChatSidebar} />
           </Suspense>
         </div>
       ) : null}
-      {shouldMountNotes && effectiveAppViewMode === 'notes' && shouldRenderDeferredChrome ? (
+      {shouldRenderNotesSidebar ? (
         <div
           className={cn(
             'col-start-1 row-start-1 h-full min-h-0',
-            effectiveAppViewMode !== 'notes' && 'pointer-events-none invisible',
+            !shouldShowNotesSidebar && 'pointer-events-none invisible',
           )}
-          aria-hidden={effectiveAppViewMode !== 'notes'}
+          aria-hidden={!shouldShowNotesSidebar}
         >
-          {primaryContentReady ? (
-            <Suspense fallback={null}>
-              <NotesSidebarWrapper isPeeking={false} />
-            </Suspense>
-          ) : (
-            <div
-              className="h-full min-h-0 bg-[var(--notes-sidebar-surface)]"
-              aria-hidden="true"
-            />
-          )}
+          <Suspense fallback={null}>
+            <NotesSidebarWrapper isPeeking={false} active={shouldShowNotesSidebar} />
+          </Suspense>
         </div>
       ) : null}
     </div>

@@ -247,18 +247,6 @@ export interface ElectronAccountApi {
       status?: unknown;
     } | null;
   }>;
-  getAuthDebugLog(): Promise<Array<{
-    timestamp: string;
-    event: string;
-    details: Record<string, unknown> | null;
-  }>>;
-  onAuthLog?(
-    callback: (payload: {
-      timestamp: string;
-      event: string;
-      details: Record<string, unknown> | null;
-    }) => void
-  ): () => void;
   startAuth(provider: string): Promise<{
     success: boolean;
     provider: string | null;

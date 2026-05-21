@@ -346,7 +346,6 @@ async function hydrateProvidersWithSecrets(
     secretMap = await aiProviderSecretCommands.getProviderSecrets(providers.map((provider) => provider.id));
     hasShownSecretLoadFailureToast = false;
   } catch (error) {
-    console.error('[Storage] Failed to load AI provider secrets from system keychain:', error);
     if (!hasShownSecretLoadFailureToast) {
       hasShownSecretLoadFailureToast = true;
       useToastStore
@@ -418,10 +417,8 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
         if (parsed.version === 2 && parsed.data) {
           return parsed.data;
         }
-        console.error('[Storage] Invalid unified data file version or shape:', path);
         return null;
       } catch (error) {
-        console.error('[Storage] Failed to parse unified data file:', path, error);
         return null;
       }
     };
@@ -432,7 +429,6 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
     } else {
       const loadedBackupData = await loadMainDataFromPath(mainBackupPath);
       if (loadedBackupData) {
-        console.warn('[Storage] Loaded unified data from backup file');
         combinedData = sanitizeUnifiedData({ ...combinedData, ...loadedBackupData });
       }
     }
@@ -459,7 +455,6 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
             const parsedSessionsData: unknown = JSON.parse(await storage.readFile(sessionsPath));
             const sessionsData = parseAISessionsFile(parsedSessionsData);
             if (!sessionsData) {
-              console.warn('[Storage] Ignoring invalid AI sessions file:', sessionsPath);
             } else {
               const loadedSessions = Array.isArray(sessionsData.sessions) ? sessionsData.sessions : [];
               const aiData = combinedData.ai;
@@ -480,7 +475,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
               aiData.webSearchEnabled = sessionsData.webSearchEnabled;
               providerIds = sessionsData.providerIds;
             }
-        } catch (e) { console.error('Failed to load sessions.json', e); }
+        } catch {}
     }
 
     const recoveredSessions = await recoverOrphanChatSessions(
@@ -502,7 +497,6 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
                     const parsedProviderData: unknown = JSON.parse(await storage.readFile(pPath));
                     return parseAIProviderChannelFile(id, parsedProviderData);
                 } catch (error) {
-                    console.error('[Storage] Failed to parse provider channel file:', pPath, error);
                     return null;
                 }
             }
@@ -542,7 +536,6 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
 
     return sanitizeUnifiedData(combinedData);
   } catch (error) {
-    console.error('[Storage] Failed to load unified data:', error);
     return createDefaultUnifiedData();
   }
 }
@@ -635,7 +628,6 @@ async function performSplitSave(data: UnifiedData) {
                 }
                 await storage.deleteFile(entry.path);
             } catch (error) {
-                if (import.meta.env.DEV) console.warn('[Storage] failed to cleanup stale provider channel file:', entry.path, error);
             }
         }
 
@@ -652,7 +644,6 @@ async function performSplitSave(data: UnifiedData) {
                 }
                 await storage.deleteFile(entry.path);
             } catch (error) {
-                if (import.meta.env.DEV) console.warn('[Storage] failed to cleanup removed TTS provider channel file:', entry.path, error);
             }
         }
     }
@@ -665,8 +656,7 @@ const unifiedSaveQueue = createPersistenceQueue<UnifiedData>({
     hasShownPersistenceFailureToast = false;
     triggerAutoSyncIfEligible();
   },
-  onError: (error) => {
-    console.error('[Storage] save failed:', error);
+  onError: (_error) => {
     if (!hasShownPersistenceFailureToast) {
       hasShownPersistenceFailureToast = true;
       useToastStore

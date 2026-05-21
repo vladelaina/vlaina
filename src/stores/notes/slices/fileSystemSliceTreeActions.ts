@@ -1,7 +1,6 @@
 import { getStorageAdapter, isAbsolutePath } from '@/lib/storage/adapter';
 import {
   buildFileTree,
-  countFileTreeNodes,
   collectExpandedPaths,
   expandFoldersForPath,
   restoreExpandedState,
@@ -17,7 +16,6 @@ import {
   loadNoteMetadata,
   loadWorkspaceState,
 } from '../storage';
-import { logNotesDebug } from '../lineBreakDebugLog';
 import { getVaultStarredPaths } from '../starred';
 import { resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
@@ -77,7 +75,6 @@ export function createFileSystemTreeActions(
   return {
     loadFileTree: async (skipRestore = false) => {
       const requestId = ++latestLoadFileTreeRequestId;
-      const startedAt = getFileTreeLoadPerfNow();
       const timings: Array<{ step: string; durationMs: number }> = [];
       const markStep = (step: string, stepStartedAt: number) => {
         timings.push({
@@ -86,13 +83,6 @@ export function createFileSystemTreeActions(
         });
       };
       const shouldShowLoading = !get().rootFolder;
-      logNotesDebug('NotesLoad', 'file-tree:start', {
-        requestId,
-        skipRestore,
-        shouldShowLoading,
-        currentNotesPath: get().notesPath,
-        hasRootFolder: Boolean(get().rootFolder),
-      });
       set(shouldShowLoading ? { isLoading: true, error: null } : { error: null });
       try {
         let stepStartedAt = getFileTreeLoadPerfNow();
@@ -124,14 +114,6 @@ export function createFileSystemTreeActions(
         });
         markStep('sort-tree', stepStartedAt);
         if (requestId !== latestLoadFileTreeRequestId || getCurrentVaultPath() !== basePath) {
-          logNotesDebug('NotesLoad', 'file-tree:stale-after-build', {
-            requestId,
-            latestLoadFileTreeRequestId,
-            basePath,
-            activeVaultPath: getCurrentVaultPath(),
-            totalDurationMs: roundFileTreeLoadPerfMs(getFileTreeLoadPerfNow() - startedAt),
-            timings,
-          });
           return;
         }
 
@@ -161,14 +143,6 @@ export function createFileSystemTreeActions(
         markStep('restore-expanded', stepStartedAt);
 
         if (requestId !== latestLoadFileTreeRequestId || getCurrentVaultPath() !== basePath) {
-          logNotesDebug('NotesLoad', 'file-tree:stale-before-set', {
-            requestId,
-            latestLoadFileTreeRequestId,
-            basePath,
-            activeVaultPath: getCurrentVaultPath(),
-            totalDurationMs: roundFileTreeLoadPerfMs(getFileTreeLoadPerfNow() - startedAt),
-            timings,
-          });
           return;
         }
 
@@ -203,25 +177,6 @@ export function createFileSystemTreeActions(
           fileTreeSortMode,
         });
         markStep('set-state', stepStartedAt);
-        const restoredCounts = countFileTreeNodes(restoredChildren);
-        logNotesDebug('NotesLoad', 'file-tree:ready', {
-          requestId,
-          basePath,
-          skipRestore,
-          fileTreeSortMode,
-          totalDurationMs: roundFileTreeLoadPerfMs(getFileTreeLoadPerfNow() - startedAt),
-          timings,
-          rootNodeCount: restoredChildren.length,
-          nodeCount: restoredCounts.nodes,
-          folderCount: restoredCounts.folders,
-          fileCount: restoredCounts.files,
-          metadataEntryCount: Object.keys(nextMetadata.notes).length,
-          workspaceHadCurrentNote: Boolean(workspace?.currentNotePath),
-          workspaceExpandedFolderCount: workspace?.expandedFolders?.length ?? 0,
-          restoredFromCurrentExpanded: Boolean(skipRestore && currentExpandedPaths),
-          starredNoteCount: starredPaths.notes.length,
-          starredFolderCount: starredPaths.folders.length,
-        });
 
         const currentNotePath = workspace?.currentNotePath;
         const hasActiveNoteOrTabs = Boolean(get().currentNote) || get().openTabs.length > 0;
@@ -234,12 +189,6 @@ export function createFileSystemTreeActions(
               await storage.exists(fullPath)
             ) {
               await get().openNote(relativePath);
-              logNotesDebug('NotesLoad', 'file-tree:restored-current-note', {
-                requestId,
-                basePath,
-                relativePath,
-                totalDurationMs: roundFileTreeLoadPerfMs(getFileTreeLoadPerfNow() - startedAt),
-              });
             }
           } catch {
             // Ignore stale persisted current-note entries.
@@ -248,32 +197,13 @@ export function createFileSystemTreeActions(
 
         if (requestId === latestLoadFileTreeRequestId && getCurrentVaultPath() === basePath) {
           set({ isLoading: false });
-          logNotesDebug('NotesLoad', 'file-tree:done', {
-            requestId,
-            basePath,
-            totalDurationMs: roundFileTreeLoadPerfMs(getFileTreeLoadPerfNow() - startedAt),
-            restoredCurrentNote: Boolean(!skipRestore && currentNotePath && !hasActiveNoteOrTabs),
-          });
         }
       } catch (error) {
         if (requestId === latestLoadFileTreeRequestId) {
           if (isNoVaultSelectedError(error)) {
-            logNotesDebug('NotesLoad', 'file-tree:skipped-no-vault', {
-              requestId,
-              skipRestore,
-              totalDurationMs: roundFileTreeLoadPerfMs(getFileTreeLoadPerfNow() - startedAt),
-              timings,
-            });
             set({ error: null, isLoading: false });
             return;
           }
-          logNotesDebug('NotesLoad', 'file-tree:failed', {
-            requestId,
-            skipRestore,
-            totalDurationMs: roundFileTreeLoadPerfMs(getFileTreeLoadPerfNow() - startedAt),
-            timings,
-            message: error instanceof Error ? error.message : String(error),
-          });
           set({
             error: error instanceof Error ? error.message : 'Failed to load notes',
             isLoading: false,

@@ -44,6 +44,7 @@ export class FrontmatterNodeView implements NodeView {
   private readonly disposeFontMetricsSync: () => void;
   private readonly unsubscribeSelectionSync: () => void;
   private destroyed = false;
+  private findHighlightStateKey = '[]';
 
   private getOwnerDocument(): Document | null {
     return (
@@ -125,21 +126,20 @@ export class FrontmatterNodeView implements NodeView {
   private syncFindHighlights() {
     const nodePos = this.getPos();
     if (nodePos === undefined) {
-      syncCodeMirrorFindHighlights(this.cm, []);
+      this.syncFindHighlightRanges([]);
       return;
     }
 
     const state = getEditorFindState(this.view);
     if (!state || state.matches.length === 0) {
-      syncCodeMirrorFindHighlights(this.cm, []);
+      this.syncFindHighlightRanges([]);
       return;
     }
 
     const contentFrom = nodePos + 1;
     const contentTo = nodePos + this.node.nodeSize - 1;
 
-    syncCodeMirrorFindHighlights(
-      this.cm,
+    this.syncFindHighlightRanges(
       buildCodeMirrorFindHighlightRanges({
         matches: state.matches,
         activeIndex: state.activeIndex,
@@ -149,6 +149,16 @@ export class FrontmatterNodeView implements NodeView {
         mapDocumentOffsetToEditorOffset: mapDocumentOffsetToCodeBlockEditorOffset,
       }),
     );
+  }
+
+  private syncFindHighlightRanges(ranges: ReturnType<typeof buildCodeMirrorFindHighlightRanges>) {
+    const nextFindHighlightStateKey = JSON.stringify(ranges);
+    if (nextFindHighlightStateKey === this.findHighlightStateKey) {
+      return;
+    }
+
+    this.findHighlightStateKey = nextFindHighlightStateKey;
+    syncCodeMirrorFindHighlights(this.cm, ranges);
   }
 
   private readonly syncProseMirrorSelection = () => {
@@ -247,6 +257,7 @@ export class FrontmatterNodeView implements NodeView {
     }
     if (effects.length > 0) {
       this.cm.dispatch({ effects });
+      this.scheduleMeasure();
     }
 
     const nextText = normalizeCodeBlockEditorText(node.textContent);
@@ -261,12 +272,12 @@ export class FrontmatterNodeView implements NodeView {
         },
       });
       this.updating = false;
+      this.scheduleMeasure();
     }
 
     this.updatePlaceholder();
     this.syncFindHighlights();
     this.syncProseMirrorSelection();
-    this.scheduleMeasure();
 
     if (this.selected) {
       this.cm.focus();

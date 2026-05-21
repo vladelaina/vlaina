@@ -54,9 +54,7 @@ export function ImageEditorModal({ isOpen, onClose, imageSrc, onSave }: ImageEdi
             } else {
                 throw new Error(result.error || 'Upload failed');
             }
-        } catch (error) {
-            console.error('Failed to save edited image:', error);
-            addToast(t('notes.saveImageFailed'), 'error');
+        } catch (error) {            addToast(t('notes.saveImageFailed'), 'error');
         } finally {
             setIsSaving(false);
         }

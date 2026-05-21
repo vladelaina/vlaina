@@ -8,6 +8,7 @@ const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
 
 interface UseChatComposerOptions {
+  active?: boolean;
   onSend: (message: string, attachments: Attachment[], noteMentions: NoteMentionReference[]) => void;
   attachments: Attachment[];
   getNoteMentions: () => NoteMentionReference[];
@@ -17,6 +18,7 @@ interface UseChatComposerOptions {
 }
 
 export function useChatComposer({
+  active = true,
   onSend,
   attachments,
   getNoteMentions,
@@ -35,10 +37,10 @@ export function useChatComposer({
   const heightSyncRafRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (focusTrigger && textareaRef.current) {
+    if (active && focusTrigger && textareaRef.current) {
       textareaRef.current.focus();
     }
-  }, [focusTrigger]);
+  }, [active, focusTrigger]);
 
   const textareaHeight = usePredictedTextareaHeight(textareaRef, {
     value: message,
@@ -52,6 +54,10 @@ export function useChatComposer({
   }, [textareaHeight]);
 
   useEffect(() => {
+    if (!active) {
+      return;
+    }
+
     const unregister = registerComposerFocusAdapter({
       focus: () => {
         const input = textareaRef.current;
@@ -108,7 +114,7 @@ export function useChatComposer({
     });
 
     return unregister;
-  }, []);
+  }, [active]);
 
   useEffect(() => {
     return () => {

@@ -67,9 +67,7 @@ export async function scanGlobalIcons(): Promise<CustomIcon[]> {
       name: f.name,
       createdAt: f.modifiedAt || Date.now(),
     }));
-  } catch (error) {
-    console.error('Failed to scan global icons:', error);
-    return [];
+  } catch (error) {    return [];
   }
 }
 

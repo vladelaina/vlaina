@@ -28,7 +28,6 @@ export function useGlobalIconUpload() {
           });
           return { success: true, url: assetUrl };
       } catch (e) {
-          console.error(e);
           return { success: false, error: 'Upload failed' };
       }
   }, [addCustomIcon]);

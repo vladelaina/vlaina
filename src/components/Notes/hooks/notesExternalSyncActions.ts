@@ -23,7 +23,6 @@ import {
 import { createCurrentNoteExternalSync } from './notesExternalCurrentNoteSync';
 import { createNotesExternalSyncTimers } from './notesExternalSyncTimers';
 import { classifyWatchEventPaths } from './notesExternalWatchEventDebug';
-import { getExternalWatchErrorMessage } from './externalWatchErrorUtils';
 
 const PENDING_RENAME_TTL_MS = 180;
 
@@ -344,10 +343,6 @@ export function createNotesExternalSyncActions(options: CreateNotesExternalSyncA
         await reconcileCurrentNote();
       }
     } catch (error) {
-      console.error(
-        '[NotesExternalSync] Poll reconcile failed:',
-        getExternalWatchErrorMessage(error)
-      );
     } finally {
       reconcileInFlightRef.current = false;
     }

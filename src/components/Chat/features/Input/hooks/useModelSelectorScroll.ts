@@ -6,14 +6,12 @@ interface UseModelSelectorScrollParams {
   isOpen: boolean
   focusedIndex: number
   scrollToIndex: (index: number, align: 'auto' | 'center') => void
-  onDebugLog?: (message: string, payload?: Record<string, unknown>) => void
 }
 
 export function useModelSelectorScroll({
   isOpen,
   focusedIndex,
   scrollToIndex,
-  onDebugLog,
 }: UseModelSelectorScrollParams) {
   const scrollModeRef = useRef<ScrollMode>('none')
 
@@ -40,9 +38,6 @@ export function useModelSelectorScroll({
     }
 
     if (scrollMode === 'center') {
-      onDebugLog?.('scroll-center', {
-        focusedIndex,
-      })
       scrollToIndex(focusedIndex, 'center')
       scrollModeRef.current = 'none'
       return
@@ -52,12 +47,9 @@ export function useModelSelectorScroll({
       return
     }
 
-    onDebugLog?.('scroll-nearest', {
-      focusedIndex,
-    })
     scrollToIndex(focusedIndex, 'auto')
     scrollModeRef.current = 'none'
-  }, [focusedIndex, isOpen, onDebugLog, scrollToIndex])
+  }, [focusedIndex, isOpen, scrollToIndex])
 
   return {
     requestCenterScroll,

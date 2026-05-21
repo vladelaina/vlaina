@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +18,7 @@ import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorM
 import { useI18n } from '@/lib/i18n';
 import { NoteEditorFindBar } from './find/NoteEditorFindBar';
 import type { NoteEditorFindController } from './find/types';
+import { useDeferredTextStats } from './hooks/useDeferredTextStats';
 import { canStarNotePath } from '@/stores/notes/notePathState';
 import type { NoteExportFormat } from '../Export/noteExportTypes';
 import type { AppLanguage } from '@/lib/i18n/languages';
@@ -25,8 +27,8 @@ import { MENU_PANEL_CLASS_NAME } from '@/components/layout/sidebar/context-menu/
 export interface EditorTopRightToolbarProps {
   editorFind: NoteEditorFindController;
   currentNotePath: string | null | undefined;
-  currentNoteContent: string;
   currentNoteTitle: string;
+  getCurrentNoteContent: () => string;
   notesPath: string;
   starred: boolean;
   toggleStarred: (path: string) => void;
@@ -36,11 +38,6 @@ export interface EditorTopRightToolbarProps {
         updatedAt?: string | number | Date | null;
       }
     | undefined;
-  textStats: {
-    lineCount: number;
-    wordCount: number;
-    characterCount: number;
-  };
 }
 
 function formatMetadataDate(value: string | number | Date | null | undefined, language: AppLanguage) {
@@ -70,13 +67,12 @@ const noteMenuSurfaceClassName = cn(
 export function EditorTopRightToolbar({
   editorFind,
   currentNotePath,
-  currentNoteContent,
   currentNoteTitle,
+  getCurrentNoteContent,
   notesPath,
   starred,
   toggleStarred,
   currentNoteMetadata,
-  textStats,
 }: EditorTopRightToolbarProps) {
   const { language, t } = useI18n();
   const canToggleStar = canStarNotePath(currentNotePath, notesPath);
@@ -95,7 +91,7 @@ export function EditorTopRightToolbar({
       const { exportNote } = await import('../Export');
       await exportNote({
         format,
-        markdown: latestNote?.path === currentNotePath ? latestNote.content : currentNoteContent,
+        markdown: latestNote?.path === currentNotePath ? latestNote.content : getCurrentNoteContent(),
         notePath: currentNotePath,
         notesPath,
         title: currentNoteTitle,
@@ -188,16 +184,7 @@ export function EditorTopRightToolbar({
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
               <DropdownMenuSeparator />
-              <div className="grid grid-cols-[78px_max-content] gap-1 px-2 py-1.5 text-xs text-[var(--notes-sidebar-text)]">
-                <span className="font-medium">{t('notes.lines')}</span>
-                <span className="tabular-nums">{textStats.lineCount}</span>
-
-                <span className="font-medium">{t('notes.words')}</span>
-                <span className="tabular-nums">{textStats.wordCount}</span>
-
-                <span className="font-medium">{t('notes.characters')}</span>
-                <span className="tabular-nums">{textStats.characterCount}</span>
-              </div>
+              <NoteStats currentNotePath={currentNotePath} />
               <DropdownMenuSeparator />
               <div className="grid grid-cols-[78px_max-content] gap-1 px-2 py-1.5 text-xs text-[var(--notes-sidebar-text)]">
                 <span className="font-medium">{t('notes.created')}</span>
@@ -210,6 +197,33 @@ export function EditorTopRightToolbar({
           </DropdownMenu>
         </>
       ) : null}
+    </div>
+  );
+}
+
+function NoteStats({ currentNotePath }: { currentNotePath: string | null | undefined }) {
+  const { t } = useI18n();
+  const currentNoteContent = useNotesStore(
+    useCallback((state) => {
+      const currentNote = state.currentNote;
+      if (!currentNote || currentNote.path !== currentNotePath) {
+        return '';
+      }
+      return currentNote.content;
+    }, [currentNotePath])
+  );
+  const textStats = useDeferredTextStats(currentNotePath, currentNoteContent);
+
+  return (
+    <div className="grid grid-cols-[78px_max-content] gap-1 px-2 py-1.5 text-xs text-[var(--notes-sidebar-text)]">
+      <span className="font-medium">{t('notes.lines')}</span>
+      <span className="tabular-nums">{textStats.lineCount}</span>
+
+      <span className="font-medium">{t('notes.words')}</span>
+      <span className="tabular-nums">{textStats.wordCount}</span>
+
+      <span className="font-medium">{t('notes.characters')}</span>
+      <span className="tabular-nums">{textStats.characterCount}</span>
     </div>
   );
 }

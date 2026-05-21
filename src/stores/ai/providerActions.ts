@@ -93,8 +93,8 @@ function refreshManagedProviderInBackground(options: { force?: boolean } = {}): 
     }
     await syncManagedProviderModels();
   })()
-    .catch((error) => {
-      console.warn('Failed to refresh managed AI models in background', error)
+    .catch((_error) => {
+      void 0
     })
     .finally(() => {
       managedModelsRefreshInFlight = null;

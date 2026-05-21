@@ -4,7 +4,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import type { TocAttrs, TocItem } from './types';
 import { isTocShortcutText } from './tocShortcut';
 
-const tocViewPluginKey = new PluginKey('tocView');
+const tocViewPluginKey = new PluginKey<{ hasToc: boolean }>('tocView');
 const TOC_EMPTY_TEXT = 'No headings yet';
 
 function extractHeadings(doc: any, maxLevel: number = 6): TocItem[] {
@@ -22,6 +22,46 @@ function extractHeadings(doc: any, maxLevel: number = 6): TocItem[] {
   });
   
   return headings;
+}
+
+function docHasTocNode(doc: { descendants: (callback: (node: { type?: { name?: string } }) => boolean | void) => void }): boolean {
+  let hasToc = false;
+  doc.descendants((node) => {
+    if (node.type?.name === 'toc') {
+      hasToc = true;
+      return false;
+    }
+    return true;
+  });
+  return hasToc;
+}
+
+function stepSliceContainsToc(step: unknown): boolean {
+  const content = (step as {
+    slice?: {
+      content?: {
+        descendants?: (callback: (node: { type?: { name?: string } }) => boolean | void) => void;
+      };
+    };
+  }).slice?.content;
+  if (!content || typeof content.descendants !== 'function') {
+    return false;
+  }
+
+  let hasToc = false;
+  content.descendants((node) => {
+    if (node.type?.name === 'toc') {
+      hasToc = true;
+      return false;
+    }
+    return true;
+  });
+  return hasToc;
+}
+
+function transactionMayInsertToc(tr: unknown): boolean {
+  const steps = (tr as { steps?: readonly unknown[] }).steps ?? [];
+  return steps.some(stepSliceContainsToc);
 }
 
 function createHeadingsSignature(headings: readonly TocItem[]): string {
@@ -75,6 +115,20 @@ export const tocViewPlugin = $prose(() => {
   
   return new Plugin({
     key: tocViewPluginKey,
+    state: {
+      init(_config, state) {
+        return { hasToc: docHasTocNode(state.doc) };
+      },
+      apply(tr, previous) {
+        if (!tr.docChanged) {
+          return previous;
+        }
+        if (!previous.hasToc && !transactionMayInsertToc(tr)) {
+          return previous;
+        }
+        return { hasToc: docHasTocNode(tr.doc) };
+      },
+    },
     view(editorView) {
       const handleTocClick = (event: MouseEvent) => {
         const target = event.target;
@@ -102,6 +156,13 @@ export const tocViewPlugin = $prose(() => {
 
       return {
         update(view) {
+          if (!tocViewPluginKey.getState(view.state)?.hasToc) {
+            lastDoc = view.state.doc;
+            lastHeadingSignature = '';
+            lastTocCount = 0;
+            return;
+          }
+
           const { doc } = view.state;
           const tocElements = view.dom.querySelectorAll<HTMLElement>('.toc-block');
           if (tocElements.length === 0) {

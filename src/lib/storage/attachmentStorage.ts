@@ -52,7 +52,6 @@ export async function saveAttachment(file: File): Promise<Attachment> {
 
         assetUrl = await buildAttachmentAssetUrl(absolutePath, base64);
     } catch (e) {
-        console.error('[Attachment] Disk save failed:', e);
     }
 
     return {
@@ -98,7 +97,6 @@ export async function convertToBase64(attachment: Attachment): Promise<string> {
             const base64 = uint8ArrayToBase64(data);
             return `data:${attachment.type};base64,${base64}`;
         } catch (e) {
-            console.error('[Attachment] Fallback disk read failed:', e);
         }
     }
 

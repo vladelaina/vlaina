@@ -1,39 +1,11 @@
-import { summarizeAuthResultShape } from './accountAuthDebug.mjs';
 import { resolveDesktopSessionToken } from './accountSessionAuth.mjs';
 import { normalizeDesktopAccountProvider } from './accountCredentialStore.mjs';
 
-function elapsedSince(startedAt) {
-  return Math.max(0, Math.round(performance.now() - startedAt));
-}
-
-function summarizeStoredCredentials(credentials) {
-  if (!credentials || typeof credentials !== 'object') {
-    return null;
-  }
-
-  return {
-    provider: credentials.provider ?? null,
-    username: credentials.username ?? null,
-    primaryEmail: credentials.primaryEmail ?? null,
-    avatarUrl: credentials.avatarUrl ?? null,
-    membershipTier: credentials.membershipTier ?? null,
-    membershipName: credentials.membershipName ?? null,
-    authenticatedAt: credentials.authenticatedAt ?? null,
-    hasAppSessionToken: typeof credentials.appSessionToken === 'string' && credentials.appSessionToken.trim().length > 0,
-  };
-}
-
 export function createDesktopAuthPersistence({
-  logDesktopAuth,
   readDesktopSessionIdentity,
   writeStoredAccountCredentials,
 }) {
   async function persistDesktopAuthResult(provider, result) {
-    const startedAt = performance.now();
-    logDesktopAuth('persist_auth_result:start', {
-      provider,
-      result: summarizeAuthResultShape(result),
-    });
     const appSessionToken = resolveDesktopSessionToken(result);
     const rawUsername =
       typeof result?.username === 'string' && result.username.trim() ? result.username.trim() : null;
@@ -45,10 +17,6 @@ export function createDesktopAuthPersistence({
       typeof result?.avatarUrl === 'string' && result.avatarUrl.trim() ? result.avatarUrl.trim() : null;
 
     if (!appSessionToken) {
-      logDesktopAuth('persist_auth_result:missing_token', {
-        provider,
-        result: summarizeAuthResultShape(result),
-      });
       throw new Error('Account sign-in result missing session token');
     }
 
@@ -61,18 +29,8 @@ export function createDesktopAuthPersistence({
     const authenticatedAt = Date.now();
 
     if (!fallbackUsername) {
-      const identityStartedAt = performance.now();
       const sessionIdentity = await readDesktopSessionIdentity(appSessionToken).catch((error) => {
-        logDesktopAuth('persist_auth_result:session_identity_error', {
-          error: error instanceof Error ? error.message : String(error),
-          durationMs: elapsedSince(identityStartedAt),
-        });
         return null;
-      });
-      logDesktopAuth('persist_auth_result:session_identity_inline_done', {
-        hasIdentity: !!sessionIdentity,
-        hasAvatarUrl: typeof sessionIdentity?.avatarUrl === 'string' && sessionIdentity.avatarUrl.trim().length > 0,
-        durationMs: elapsedSince(identityStartedAt),
       });
       const resolvedProvider =
         sessionIdentity?.provider ??
@@ -84,14 +42,6 @@ export function createDesktopAuthPersistence({
       const resolvedMembershipName = sessionIdentity?.membershipName ?? null;
 
       if (!resolvedUsername) {
-        logDesktopAuth('persist_auth_result:missing_identity', {
-          provider,
-          result: summarizeAuthResultShape(result),
-          sessionIdentity,
-          resolvedProvider,
-          resolvedPrimaryEmail,
-          resolvedAvatarUrl,
-        });
         throw new Error('Account sign-in completed but no desktop account identity could be resolved');
       }
 
@@ -106,23 +56,6 @@ export function createDesktopAuthPersistence({
         authenticatedAt,
       };
       await writeStoredAccountCredentials(credentials);
-
-      logDesktopAuth('persist_auth_result:done', {
-        provider,
-        result: summarizeAuthResultShape(result),
-        sessionIdentity,
-        credentials: {
-          provider: credentials.provider,
-          username: credentials.username,
-          primaryEmail: credentials.primaryEmail,
-          avatarUrl: credentials.avatarUrl,
-          membershipTier: credentials.membershipTier,
-          membershipName: credentials.membershipName,
-          hasAppSessionToken: true,
-          authenticatedAt: credentials.authenticatedAt,
-        },
-        durationMs: elapsedSince(startedAt),
-      });
 
       return {
         success: true,
@@ -145,22 +78,6 @@ export function createDesktopAuthPersistence({
       authenticatedAt,
     };
     await writeStoredAccountCredentials(credentials);
-
-    logDesktopAuth('persist_auth_result:done', {
-      provider,
-      result: summarizeAuthResultShape(result),
-      sessionIdentity: null,
-      credentials: {
-        provider: credentials.provider,
-        username: credentials.username,
-        primaryEmail: credentials.primaryEmail,
-        avatarUrl: credentials.avatarUrl,
-        hasAppSessionToken: true,
-        authenticatedAt: credentials.authenticatedAt,
-      },
-      hasAvatarUrl: typeof credentials.avatarUrl === 'string' && credentials.avatarUrl.trim().length > 0,
-      durationMs: elapsedSince(startedAt),
-    });
 
     return {
       success: true,

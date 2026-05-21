@@ -91,65 +91,77 @@ export const definitionDescSchema = $node('definition_desc', () => ({
 
 // Visual emulation plugin for pseudo definition lists (Term \n : Definition)
 // This handles the case where lack of remark-deflist causes DLs to be parsed as paragraphs
+const deflistVisualPluginKey = new PluginKey<DecorationSet>('deflist-visual');
+
+function createDeflistDecorations(doc: Node): DecorationSet {
+    const decorations: Decoration[] = [];
+    let lastNonEmptyNode: Node | null = null;
+    let lastNonEmptyPos = -1;
+    let lastNode: Node | null = null;
+
+    doc.descendants((node, pos) => {
+        if (node.isBlock) {
+            const isEmpty = node.textContent.trim().length === 0;
+
+            // Check if current node looks like a Definition Description
+            if (node.type.name === 'paragraph' && node.textContent.startsWith(': ')) {
+
+                // HEURISTIC: A true Definition List usually follows a short Term.
+                // If the previous paragraph is very long, it's likely just normal text, not a Term.
+                const isTermValid = lastNonEmptyNode &&
+                    lastNonEmptyNode.type.name === 'paragraph' &&
+                    lastNonEmptyNode.textContent.length < 80;
+
+                if (isTermValid) {
+                    // Mark current node as DD
+                    const classes = ['vlaina-dl-desc'];
+
+                    // If the immediate previous node was empty, we need to pull up more
+                    if (lastNode && lastNode.textContent.trim().length === 0) {
+                        classes.push('vlaina-dl-gap-fix');
+                    }
+
+                    decorations.push(
+                        Decoration.node(pos, pos + node.nodeSize, {
+                            class: classes.join(' '),
+                        })
+                    );
+
+                    // Mark previous node as DT
+                    decorations.push(
+                        Decoration.node(lastNonEmptyPos, lastNonEmptyPos + lastNonEmptyNode!.nodeSize, {
+                            class: 'vlaina-dl-term',
+                        })
+                    );
+                }
+            }
+            // Update tracking
+            lastNode = node;
+            if (!isEmpty) {
+                lastNonEmptyNode = node;
+                lastNonEmptyPos = pos;
+            }
+
+            return false;
+        }
+        return true;
+    });
+
+    return DecorationSet.create(doc, decorations);
+}
+
 export const deflistVisualPlugin = $prose(() => {
     return new Plugin({
-        key: new PluginKey('deflist-visual'),
+        key: deflistVisualPluginKey,
+        state: {
+            init: (_config, state) => createDeflistDecorations(state.doc),
+            apply: (tr, previous) => tr.docChanged
+                ? createDeflistDecorations(tr.doc)
+                : previous,
+        },
         props: {
             decorations(state) {
-                const decorations: Decoration[] = [];
-                let lastNonEmptyNode: Node | null = null;
-                let lastNonEmptyPos = -1;
-                let lastNode: Node | null = null;
-
-                state.doc.descendants((node, pos) => {
-                    if (node.isBlock) {
-                        const isEmpty = node.textContent.trim().length === 0;
-
-                        // Check if current node looks like a Definition Description
-                        if (node.type.name === 'paragraph' && node.textContent.startsWith(': ')) {
-
-                            // HEURISTIC: A true Definition List usually follows a short Term.
-                            // If the previous paragraph is very long, it's likely just normal text, not a Term.
-                            const isTermValid = lastNonEmptyNode &&
-                                lastNonEmptyNode.type.name === 'paragraph' &&
-                                lastNonEmptyNode.textContent.length < 80;
-
-                            if (isTermValid) {
-                                // Mark current node as DD
-                                const classes = ['vlaina-dl-desc'];
-
-                                // If the immediate previous node was empty, we need to pull up more
-                                if (lastNode && lastNode.textContent.trim().length === 0) {
-                                    classes.push('vlaina-dl-gap-fix');
-                                }
-
-                                decorations.push(
-                                    Decoration.node(pos, pos + node.nodeSize, {
-                                        class: classes.join(' '),
-                                    })
-                                );
-
-                                // Mark previous node as DT
-                                decorations.push(
-                                    Decoration.node(lastNonEmptyPos, lastNonEmptyPos + lastNonEmptyNode!.nodeSize, {
-                                        class: 'vlaina-dl-term',
-                                    })
-                                );
-                            }
-                        }
-                        // Update tracking
-                        lastNode = node;
-                        if (!isEmpty) {
-                            lastNonEmptyNode = node;
-                            lastNonEmptyPos = pos;
-                        }
-
-                        return false;
-                    }
-                    return true;
-                });
-
-                return DecorationSet.create(state.doc, decorations);
+                return deflistVisualPluginKey.getState(state) ?? DecorationSet.empty;
             },
         },
     });

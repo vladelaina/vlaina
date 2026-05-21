@@ -25,7 +25,5 @@ export async function ensureDirectories(): Promise<void> {
     if (!(await storage.exists(storeDir))) {
       await storage.mkdir(storeDir, true);
     }
-  } catch (error) {
-    console.error('Failed to create directories:', error);
-  }
+  } catch (error) {  }
 }

@@ -172,6 +172,75 @@ describe("MessageList", () => {
     expect(messageItemSpy).toHaveBeenCalledTimes(1);
   });
 
+  it("does not replace cached viewport metrics with zero while inactive", async () => {
+    const widthDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientWidth");
+    const heightDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight");
+    let clientWidth = 640;
+    let clientHeight = 480;
+    Object.defineProperty(HTMLElement.prototype, "clientWidth", {
+      configurable: true,
+      get: () => clientWidth,
+    });
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+      configurable: true,
+      get: () => clientHeight,
+    });
+
+    try {
+      const messages = [createMessage("u1", "user")];
+      const containerRef = createRef<HTMLDivElement>();
+      const view = render(
+        <MessageList
+          active
+          messages={messages}
+          getImageGallery={() => []}
+          isSessionActive={false}
+          showLoading={false}
+          spacerHeight={0}
+          containerRef={containerRef}
+          onCopy={() => {}}
+          onRegenerate={() => {}}
+          onSwitchVersion={() => {}}
+        />,
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(messageItemSpy.mock.calls.at(-1)?.[0]).toMatchObject({
+        userBubbleContainerWidth: 640,
+      });
+
+      clientWidth = 0;
+      clientHeight = 0;
+      view.rerender(
+        <MessageList
+          active={false}
+          messages={messages}
+          getImageGallery={() => []}
+          isSessionActive={false}
+          showLoading={false}
+          spacerHeight={0}
+          containerRef={containerRef}
+          onCopy={() => {}}
+          onRegenerate={() => {}}
+          onSwitchVersion={() => {}}
+        />,
+      );
+
+      expect(messageItemSpy.mock.calls.at(-1)?.[0]).toMatchObject({
+        userBubbleContainerWidth: 640,
+      });
+    } finally {
+      if (widthDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, "clientWidth", widthDescriptor);
+      }
+      if (heightDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, "clientHeight", heightDescriptor);
+      }
+    }
+  });
+
   it("shows the trailing loading indicator when requested", () => {
     render(
       <MessageList
@@ -246,6 +315,75 @@ describe("MessageList", () => {
     expect(ResizeObserverMock.instances).toHaveLength(observerCountAfterInitialRender);
 
     view.unmount();
+
+    expect(ResizeObserverMock.instances.every((observer) => observer.disconnect.mock.calls.length === 1)).toBe(true);
+  });
+
+  it("does not keep a row ResizeObserver running while inactive", () => {
+    class ResizeObserverMock {
+      static instances: ResizeObserverMock[] = [];
+
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+
+      constructor(_callback: ResizeObserverCallback) {
+        ResizeObserverMock.instances.push(this);
+      }
+    }
+
+    vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+
+    const containerRef = createRef<HTMLDivElement>();
+    const messages = [createMessage("u1", "user"), createMessage("a1", "assistant")];
+    const view = render(
+      <MessageList
+        active={false}
+        messages={messages}
+        getImageGallery={() => []}
+        isSessionActive
+        showLoading={false}
+        spacerHeight={0}
+        containerRef={containerRef}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(ResizeObserverMock.instances).toHaveLength(0);
+
+    view.rerender(
+      <MessageList
+        active
+        messages={messages}
+        getImageGallery={() => []}
+        isSessionActive
+        showLoading={false}
+        spacerHeight={0}
+        containerRef={containerRef}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(ResizeObserverMock.instances.length).toBeGreaterThan(0);
+
+    view.rerender(
+      <MessageList
+        active={false}
+        messages={messages}
+        getImageGallery={() => []}
+        isSessionActive
+        showLoading={false}
+        spacerHeight={0}
+        containerRef={containerRef}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
 
     expect(ResizeObserverMock.instances.every((observer) => observer.disconnect.mock.calls.length === 1)).toBe(true);
   });

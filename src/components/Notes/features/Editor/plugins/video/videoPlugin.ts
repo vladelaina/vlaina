@@ -2,9 +2,8 @@ import { $node, $command, $prose } from '@milkdown/kit/utils';
 import { Plugin, TextSelection } from '@milkdown/kit/prose/state';
 import type { VideoAttrs } from './types';
 import { createVideoDom } from './videoDom';
-import { logVideoDebug } from './videoDebug';
 import { VideoNodeView } from './videoNodeView';
-import { isSupportedVideoUrl, normalizeVideoUrlInput, parseVideoUrl } from './videoUrl';
+import { normalizeVideoUrlInput, parseVideoUrl } from './videoUrl';
 
 export const videoSchema = $node('video', () => ({
   group: 'block',
@@ -82,10 +81,6 @@ export const insertVideoCommand = $command('insertVideo', () => (src: string = '
         tr.insert(afterVideoPos, paragraphType.create());
         tr.setSelection(TextSelection.create(tr.doc, afterVideoPos + 1));
       }
-      logVideoDebug('insert_command', {
-        src,
-        supported: isSupportedVideoUrl(src),
-      });
       dispatch(tr.scrollIntoView());
     }
 

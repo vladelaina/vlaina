@@ -7,7 +7,6 @@ import { useNoteCoverController, NoteCoverCanvas } from '../Cover';
 import { DEFAULT_HEIGHT as DEFAULT_COVER_HEIGHT } from '../Cover/utils/coverConstants';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { useEditorLayout } from './hooks/useEditorLayout';
-import { useDeferredTextStats } from './hooks/useDeferredTextStats';
 import { createScrollRestoreSession } from './utils/scrollRestoreSession';
 import {
   subscribeCurrentEditorBlockPositionSnapshot,
@@ -76,8 +75,7 @@ export function MarkdownEditor({
     }, [currentNotePath])
   );
   const currentNoteDiskRevision = useNotesStore(s => s.currentNoteDiskRevision);
-  const openTabPathsKey = useNotesStore(s => s.openTabs.map((tab) => tab.path).join('\0'));
-  const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
+  const openTabs = useNotesStore(s => s.openTabs);
   const isStarred = useNotesStore(s => s.isStarred);
   const toggleStarred = useNotesStore(s => s.toggleStarred);
   const noteMetadata = useNotesStore(s => s.noteMetadata);
@@ -85,7 +83,10 @@ export function MarkdownEditor({
   const currentNoteMetadata = useMemo(() => {
     return getNoteMetadataEntry(noteMetadata, currentNotePath);
   }, [currentNotePath, noteMetadata]);
-  const textStats = useDeferredTextStats(currentNotePath, currentNoteContent);
+  const openTabPathsKey = useMemo(
+    () => openTabs.map((tab) => tab.path).join('\0'),
+    [openTabs],
+  );
   const pendingSidebarSearchNavigationPath = useSyncExternalStore(
     subscribeSidebarSearchNavigationPending,
     getSidebarSearchNavigationPendingPath,
@@ -102,8 +103,9 @@ export function MarkdownEditor({
     [coverController.cover]
   );
   const editorFind = useNoteEditorFind(currentNotePath);
-  useHeldPageScroll(scrollRootRef);
-  const hasActiveNote = active && Boolean(currentNotePath);
+  useHeldPageScroll(scrollRootRef, { enabled: active });
+  const hasRenderableNote = Boolean(currentNotePath);
+  const hasActiveNote = active && hasRenderableNote;
   const isEditorViewReady =
     editorReadyTarget?.path === currentNotePath &&
     editorReadyTarget?.diskRevision === currentNoteDiskRevision;
@@ -128,6 +130,19 @@ export function MarkdownEditor({
     });
     onEditorViewReady?.();
   }, [currentNoteDiskRevision, currentNotePath, onEditorViewReady]);
+  const getCurrentNoteContent = useCallback(() => {
+    if (!currentNotePath) {
+      return '';
+    }
+
+    const state = useNotesStore.getState();
+    const currentNote = state.currentNote;
+    if (currentNote?.path === currentNotePath) {
+      return currentNote.content;
+    }
+
+    return state.noteContentsCache.get(currentNotePath)?.content ?? '';
+  }, [currentNotePath]);
 
   useEffect(() => {
     if (!hasActiveNote) {
@@ -184,6 +199,10 @@ export function MarkdownEditor({
   };
 
   useEffect(() => {
+    if (!active) {
+      return;
+    }
+
     const scrollRoot = scrollRootRef.current;
     if (!scrollRoot) return;
 
@@ -201,7 +220,7 @@ export function MarkdownEditor({
     return () => {
       scrollRoot.removeEventListener('scroll', handleScroll);
     };
-  }, []);
+  }, [active]);
 
   useEffect(() => {
     const openTabPaths = new Set(openTabPathsKey ? openTabPathsKey.split('\0') : []);
@@ -215,6 +234,15 @@ export function MarkdownEditor({
   useEffect(() => {
     const scrollRoot = scrollRootRef.current;
     if (!scrollRoot) return;
+
+    if (!active) {
+      const path = activePathRef.current;
+      if (path) {
+        scrollPositionsRef.current.set(path, scrollRoot.scrollTop);
+      }
+      restoreSessionRef.current = null;
+      return;
+    }
 
     const previousPath = activePathRef.current;
 
@@ -301,7 +329,7 @@ export function MarkdownEditor({
         restoreSessionRef.current = null;
       }
     };
-  }, [currentNotePath, hasActiveNote]);
+  }, [active, currentNotePath, hasActiveNote]);
 
   return (
     <div
@@ -314,13 +342,12 @@ export function MarkdownEditor({
           <EditorTopRightToolbar
             editorFind={editorFind}
             currentNotePath={currentNotePath}
-            currentNoteContent={currentNoteContent}
             currentNoteTitle={currentNoteTitle}
+            getCurrentNoteContent={getCurrentNoteContent}
             notesPath={notesPath}
             starred={starred}
             toggleStarred={toggleStarred}
             currentNoteMetadata={currentNoteMetadata}
-            textStats={textStats}
           />
         </Suspense>
       ) : null}
@@ -357,7 +384,7 @@ export function MarkdownEditor({
             transition: 'margin-left 180ms cubic-bezier(0.25, 0.8, 0.25, 1)',
           }}
         >
-          {hasActiveNote ? (
+          {hasRenderableNote ? (
             <>
               <NoteHeader
                 coverUrl={coverUrl}
@@ -368,6 +395,7 @@ export function MarkdownEditor({
               <Suspense fallback={null}>
                 <MilkdownEditorRuntime
                   key={`${currentNotePath ?? 'empty'}:${currentNoteDiskRevision}`}
+                  active={active}
                   onEditorViewReady={handleEditorViewReady}
                 />
               </Suspense>

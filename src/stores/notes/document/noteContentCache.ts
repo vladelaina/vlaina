@@ -16,6 +16,11 @@ export function setCachedNoteContent(
   content: string,
   modifiedAt: number | null
 ): NoteContentCache {
+  const current = cache.get(path);
+  if (current?.content === content && current.modifiedAt === modifiedAt) {
+    return cache;
+  }
+
   const nextCache = new Map(cache);
   nextCache.set(path, { content, modifiedAt });
   return nextCache;

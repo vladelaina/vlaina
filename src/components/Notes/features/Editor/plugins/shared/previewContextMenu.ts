@@ -143,8 +143,7 @@ export function attachPreviewContextMenu(options: PreviewContextMenuOptions) {
 
   const runSave = (format: PreviewExportFormat) => {
     closeMenu();
-    savePreview(element, fileBaseName, format).catch((error) => {
-      console.error(`Failed to save preview as ${format.toUpperCase()}:`, error);
+    savePreview(element, fileBaseName, format).catch((_error) => {
     });
   };
 

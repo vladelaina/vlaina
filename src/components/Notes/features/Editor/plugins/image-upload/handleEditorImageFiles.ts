@@ -35,7 +35,6 @@ export async function uploadImageFileAndInsert(
             if (isTransientMissingVaultUpload(result)) {
                 return false;
             }
-            console.error('[ImageUpload] Upload failed:', result.error);
             useToastStore.getState().addToast(result.error || translate('editor.imageUploadFailed'), 'error');
             return false;
         }
@@ -46,7 +45,6 @@ export async function uploadImageFileAndInsert(
         }
         return inserted;
     } catch (error) {
-        console.error('[ImageUpload] Error during upload:', error);
         useToastStore.getState().addToast(
             error instanceof Error ? error.message : translate('editor.imageUploadFailed'),
             'error',

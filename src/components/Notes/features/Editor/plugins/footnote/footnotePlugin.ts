@@ -8,6 +8,10 @@ type UndoableInputRule = InputRule & { undoable?: boolean };
 
 export const footnoteInteractionPluginKey = new PluginKey('footnoteInteraction');
 
+interface FootnoteInteractionPluginState {
+  hasFootnotes: boolean;
+}
+
 function resolveFootnoteRef(target: EventTarget | null): HTMLElement | null {
   if (!(target instanceof Element)) return null;
   const ref = target.closest('.footnote-ref[data-id], .footnote-ref[data-label]');
@@ -60,6 +64,54 @@ function findFootnoteDefinitionDepth(view: EditorView): number | null {
 
 function isFootnoteReferenceNodeName(nodeName: string): boolean {
   return nodeName === 'footnote_reference' || nodeName === 'footnote_ref';
+}
+
+function isFootnoteDefinitionNodeName(nodeName: string): boolean {
+  return nodeName === 'footnote_definition' || nodeName === 'footnote_def';
+}
+
+function docHasFootnoteNodes(doc: {
+  descendants: (callback: (node: { type?: { name?: string } }) => boolean | void) => void;
+}): boolean {
+  let hasFootnotes = false;
+  doc.descendants((node) => {
+    const nodeName = node.type?.name;
+    if (nodeName && (isFootnoteReferenceNodeName(nodeName) || isFootnoteDefinitionNodeName(nodeName))) {
+      hasFootnotes = true;
+      return false;
+    }
+    return true;
+  });
+  return hasFootnotes;
+}
+
+function stepSliceContainsFootnote(step: unknown): boolean {
+  const content = (step as {
+    slice?: {
+      content?: {
+        descendants?: (callback: (node: { type?: { name?: string } }) => boolean | void) => void;
+      };
+    };
+  }).slice?.content;
+  if (!content || typeof content.descendants !== 'function') {
+    return false;
+  }
+
+  let hasFootnotes = false;
+  content.descendants((node) => {
+    const nodeName = node.type?.name;
+    if (nodeName && (isFootnoteReferenceNodeName(nodeName) || isFootnoteDefinitionNodeName(nodeName))) {
+      hasFootnotes = true;
+      return false;
+    }
+    return true;
+  });
+  return hasFootnotes;
+}
+
+function transactionMayInsertFootnote(tr: unknown): boolean {
+  const steps = (tr as { steps?: readonly unknown[] }).steps ?? [];
+  return steps.some(stepSliceContainsFootnote);
 }
 
 export function handleFootnoteArrowNavigation(view: EditorView, event: KeyboardEvent): boolean {
@@ -117,13 +169,39 @@ export function handleFootnoteModEnterExit(view: EditorView): boolean {
 }
 
 export const footnoteInteractionPlugin = $prose(() => {
-  return new Plugin({
+  return new Plugin<FootnoteInteractionPluginState>({
     key: footnoteInteractionPluginKey,
+    state: {
+      init(_config, state) {
+        return { hasFootnotes: docHasFootnoteNodes(state.doc) };
+      },
+      apply(tr, previous) {
+        if (!tr.docChanged) {
+          return previous;
+        }
+        if (!previous.hasFootnotes && !transactionMayInsertFootnote(tr)) {
+          return previous;
+        }
+        return { hasFootnotes: docHasFootnoteNodes(tr.doc) };
+      },
+    },
     view(view) {
-      syncFootnoteReferencePreviews(view.dom);
+      let lastSyncedDoc: object | null = null;
+      if (footnoteInteractionPluginKey.getState(view.state)?.hasFootnotes) {
+        syncFootnoteReferencePreviews(view.dom);
+        lastSyncedDoc = view.state.doc;
+      }
       return {
         update(nextView) {
+          if (!footnoteInteractionPluginKey.getState(nextView.state)?.hasFootnotes) {
+            lastSyncedDoc = null;
+            return;
+          }
+          if (lastSyncedDoc === nextView.state.doc) {
+            return;
+          }
           syncFootnoteReferencePreviews(nextView.dom);
+          lastSyncedDoc = nextView.state.doc;
         },
       };
     },

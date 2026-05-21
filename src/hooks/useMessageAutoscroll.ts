@@ -15,6 +15,7 @@ import {
 import { normalizeChatContainerWidth } from "@/components/Chat/features/Layout/chatWidthBuckets";
 
 interface UseMessageAutoscrollOptions {
+  active?: boolean;
   messages: ChatMessage[];
   isStreaming: boolean;
   chatId: string | null;
@@ -89,6 +90,7 @@ function computeSpacerHeight(
 }
 
 export const useMessageAutoscroll = ({
+  active = true,
   messages,
   isStreaming,
   chatId,
@@ -106,6 +108,7 @@ export const useMessageAutoscroll = ({
   const observedContainerRef = useRef<HTMLDivElement | null>(null);
   const observedContentRef = useRef<Element | null>(null);
   const messagesRef = useRef(messages);
+  const activeRef = useRef(active);
   const pendingScrollToCurrentTurnRef = useRef(false);
   const pendingScrollMessageCountRef = useRef<number | null>(null);
   const pendingChatCreationAnchorRef = useRef(false);
@@ -122,6 +125,7 @@ export const useMessageAutoscroll = ({
   const [spacerHeight, setSpacerHeight] = useState(0);
   const spacerHeightRef = useRef(0);
   const [shouldScrollToBottom, setShouldScrollToBottom] = useState(false);
+  activeRef.current = active;
 
   const getLastUserMessageIndex = useCallback(() => {
     for (let i = messages.length - 1; i >= 0; i -= 1) {
@@ -162,6 +166,10 @@ export const useMessageAutoscroll = ({
   }, []);
 
   const scrollCurrentTurnIntoView = useCallback((): 'estimated' | 'rendered' | false => {
+    if (!activeRef.current) {
+      return false;
+    }
+
     if (!containerRef.current) {
       return false;
     }
@@ -229,7 +237,7 @@ export const useMessageAutoscroll = ({
   }, [chatId, getLastUserMessageIndex, messages, setProgrammaticScrollTop]);
 
   const scrollActiveOutputIfNeeded = useCallback(() => {
-    if (!isAutoFollowRef.current || !containerRef.current) {
+    if (!activeRef.current || !isAutoFollowRef.current || !containerRef.current) {
       return;
     }
 
@@ -331,6 +339,10 @@ export const useMessageAutoscroll = ({
   }, [getLastUserMessageIndex, messages]);
 
   const updateSpacerHeight = useCallback(() => {
+    if (!activeRef.current) {
+      return;
+    }
+
     if (!containerRef.current) {
       return;
     }
@@ -465,6 +477,10 @@ export const useMessageAutoscroll = ({
   useLayoutEffect(() => {
     const previous = isStreamingRef.current;
     isStreamingRef.current = isStreaming;
+    if (!active) {
+      return;
+    }
+
     if (previous && !isStreaming && isCurrentTurnAnchoredRef.current) {
       updateSpacerHeightRef.current();
       restoreShortCompletedTurnAnchor();
@@ -486,7 +502,7 @@ export const useMessageAutoscroll = ({
         }
       };
     }
-  }, [isStreaming, restoreShortCompletedTurnAnchor]);
+  }, [active, isStreaming, restoreShortCompletedTurnAnchor]);
 
   useLayoutEffect(() => {
     messagesRef.current = messages;
@@ -503,6 +519,7 @@ export const useMessageAutoscroll = ({
 
   useLayoutEffect(() => {
     if (
+      !active ||
       !pendingScrollToCurrentTurnRef.current ||
       pendingScrollMessageCountRef.current === null ||
       messages.length <= pendingScrollMessageCountRef.current ||
@@ -541,10 +558,11 @@ export const useMessageAutoscroll = ({
         cancelAnimationFrame(frameId);
       }
     };
-  }, [messages, scrollCurrentTurnIntoView, updateSpacerHeight]);
+  }, [active, messages, scrollCurrentTurnIntoView, updateSpacerHeight]);
 
   useLayoutEffect(() => {
     if (
+      !active ||
       !initialScrollPendingRef.current ||
       !chatId ||
       !messages.length ||
@@ -557,10 +575,10 @@ export const useMessageAutoscroll = ({
     setProgrammaticScrollTop(container, container.scrollHeight);
     isAutoFollowRef.current = true;
     initialScrollPendingRef.current = false;
-  }, [chatId, messages.length, setProgrammaticScrollTop]);
+  }, [active, chatId, messages.length, setProgrammaticScrollTop]);
 
   useLayoutEffect(() => {
-    if (!shouldScrollToBottom || !messages.length || !containerRef.current) {
+    if (!active || !shouldScrollToBottom || !messages.length || !containerRef.current) {
       return;
     }
 
@@ -568,17 +586,24 @@ export const useMessageAutoscroll = ({
     setProgrammaticScrollTop(container, container.scrollHeight);
     isAutoFollowRef.current = true;
     setShouldScrollToBottom(false);
-  }, [messages, setProgrammaticScrollTop, shouldScrollToBottom]);
+  }, [active, messages, setProgrammaticScrollTop, shouldScrollToBottom]);
 
   useLayoutEffect(() => {
     updateSpacerHeight();
-  }, [messages, updateSpacerHeight]);
+  }, [active, messages, updateSpacerHeight]);
 
   useEffect(() => {
     updateSpacerHeight();
-  }, [isStreaming]);
+  }, [active, isStreaming, updateSpacerHeight]);
 
   useEffect(() => {
+    if (!active) {
+      resizeObserverRef.current?.disconnect();
+      resizeObserverRef.current = null;
+      observedContainerRef.current = null;
+      return;
+    }
+
     if (typeof ResizeObserver === "undefined") {
       return;
     }
@@ -596,9 +621,16 @@ export const useMessageAutoscroll = ({
     resizeObserver.observe(container);
     resizeObserverRef.current = resizeObserver;
     observedContainerRef.current = container;
-  }, [messages.length]);
+  }, [active, messages.length]);
 
   useEffect(() => {
+    if (!active) {
+      contentResizeObserverRef.current?.disconnect();
+      contentResizeObserverRef.current = null;
+      observedContentRef.current = null;
+      return;
+    }
+
     if (typeof ResizeObserver === "undefined") {
       return;
     }
@@ -620,10 +652,11 @@ export const useMessageAutoscroll = ({
     resizeObserver.observe(content);
     contentResizeObserverRef.current = resizeObserver;
     observedContentRef.current = content;
-  }, [messages.length, spacerHeight]);
+  }, [active, messages.length, spacerHeight]);
 
   useLayoutEffect(() => {
     if (
+      !active ||
       !isStreaming ||
       !hasVisibleAssistantOutput ||
       !isAutoFollowRef.current ||
@@ -637,9 +670,13 @@ export const useMessageAutoscroll = ({
     });
 
     return () => cancelAnimationFrame(rafId);
-  }, [hasVisibleAssistantOutput, isStreaming, messages, scrollActiveOutputIfNeeded]);
+  }, [active, hasVisibleAssistantOutput, isStreaming, messages, scrollActiveOutputIfNeeded]);
 
   useEffect(() => {
+    if (!active) {
+      return;
+    }
+
     if (!containerRef.current) return;
 
     const container = containerRef.current;
@@ -813,9 +850,13 @@ export const useMessageAutoscroll = ({
       lastTouchYRef.current = null;
       isPointerInsideScrollRootRef.current = false;
     };
-  }, [detachFromStreamingFollow, setProgrammaticScrollTop]);
+  }, [active, detachFromStreamingFollow, setProgrammaticScrollTop]);
 
   useEffect(() => {
+    if (!active) {
+      return;
+    }
+
     if (typeof ResizeObserver !== "undefined") {
       return;
     }
@@ -828,7 +869,7 @@ export const useMessageAutoscroll = ({
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, []);
+  }, [active]);
 
   useEffect(() => {
     return () => {

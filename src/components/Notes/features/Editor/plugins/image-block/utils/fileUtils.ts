@@ -43,7 +43,6 @@ export async function ensureImageFileExists(
         await storage.writeBinaryFile(fullPath, uint8Array);
 
     } catch (err) {
-        console.error('[ImageBlock] Failed to restore image file:', err);
     }
 }
 
@@ -70,7 +69,6 @@ export async function moveImageToTrash(
             try {
                 await moveDesktopItemToTrash(fullPath);
             } catch (err) {
-                console.error('[ImageTrash] Failed to move to trash:', err);
             } finally {
                 pendingDeletions.delete(fullPath);
             }
@@ -80,7 +78,6 @@ export async function moveImageToTrash(
         return true;
 
     } catch (err) {
-        console.error('Failed to schedule image deletion:', err);
     }
 
     return false;
@@ -101,7 +98,6 @@ export async function restoreImageFromTrash(
             pendingDeletions.delete(fullPath);
         }
     } catch (err) {
-        console.error('Failed to cancel deletion:', err);
     }
 }
 

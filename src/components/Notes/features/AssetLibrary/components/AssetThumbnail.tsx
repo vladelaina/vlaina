@@ -94,7 +94,6 @@ export const AssetThumbnail = memo(function AssetThumbnail({
         if (mountIdRef.current === currentMountId) {
           setHasError(true);
         }
-        console.error('Failed to load thumbnail:', filename, error);
       }
     };
 

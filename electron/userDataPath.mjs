@@ -110,7 +110,6 @@ function seedDevelopmentProfileShell(sourceUserDataPath, targetUserDataPath) {
     fs.writeFileSync(seedMarkerPath, `${new Date().toISOString()}\nsource=${resolvedSourceUserDataPath}\n`);
     return true;
   } catch (error) {
-    console.error('[electron] Failed to seed development profile shell:', error);
     return false;
   }
 }
@@ -221,7 +220,6 @@ function mergeLegacyStarredRegistry(legacyUserDataPath, targetUserDataPath) {
     );
     return true;
   } catch (error) {
-    console.error('[electron] Failed to merge legacy starred registry:', error);
     return false;
   }
 }
@@ -260,7 +258,6 @@ export function seedDevelopmentAppData(defaultUserDataPath, targetUserDataPath) 
     fs.writeFileSync(seedMarkerPath, `${new Date().toISOString()}\nsource=${sourceAppDataPath}\n`);
     return true;
   } catch (error) {
-    console.error('[electron] Failed to seed development app data:', error);
     return false;
   }
 }

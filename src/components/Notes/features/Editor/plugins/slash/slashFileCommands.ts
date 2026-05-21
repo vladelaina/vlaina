@@ -54,7 +54,6 @@ export async function insertImageFromFilePicker(ctx: Ctx) {
     );
     await handleEditorImageFiles([file], view);
   } catch (error) {
-    console.warn('[SlashMenu] Failed to insert image:', error);
   }
 }
 

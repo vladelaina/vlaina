@@ -44,7 +44,6 @@ export function useNotesOpenTargetPicker({
           : undefined,
       }));
     } catch (error) {
-      console.warn('[NotesView] open target picker failed:', error);
       await messageDialog(t('notes.openTargetPickerFailed', { itemType: targetLabel }), {
         title: t('notes.openTargetFailed', { itemType: targetLabel }),
         kind: 'warning',

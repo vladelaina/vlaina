@@ -55,7 +55,6 @@ export function NotesView({
   onPrimaryContentReady?: () => void;
 }) {
   const { t } = useI18n();
-  const currentNote = useNotesStore(s => s.currentNote);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const loadFileTree = useNotesStore(s => s.loadFileTree);
   const openTabs = useNotesStore(s => s.openTabs);
@@ -87,6 +86,17 @@ export function NotesView({
   const getDisplayName = useNotesStore(s => s.getDisplayName);
   const notesError = useNotesStore(s => s.error);
   const addToast = useToastStore(s => s.addToast);
+  const blankDropDraftContent = useNotesStore(
+    useCallback((state) => {
+      if (!currentNotePath || !isDraftNotePath(currentNotePath)) {
+        return '';
+      }
+      if (openTabs.length !== 1 || openTabs[0]?.path !== currentNotePath) {
+        return '';
+      }
+      return state.currentNote?.path === currentNotePath ? state.currentNote.content : '';
+    }, [currentNotePath, openTabs])
+  );
 
   const currentVault = useVaultStore((state) => state.currentVault);
   const openVault = useVaultStore((state) => state.openVault);
@@ -128,15 +138,12 @@ export function NotesView({
   const focusNotesChatComposer = useNotesChatComposerFocus(setChatPanelCollapsed);
 
   useEffect(() => {
-    if (active) {
-      onStartupReady?.();
-    }
-  }, [active, currentNotePath, currentVault, isLoading, onStartupReady, openTabs.length]);
+    onStartupReady?.();
+  }, [currentNotePath, currentVault, isLoading, onStartupReady, openTabs.length]);
 
   const reportNotesPrimaryContentReady = useCallback(() => {
-    if (!active) return;
     onPrimaryContentReady?.();
-  }, [active, onPrimaryContentReady]);
+  }, [onPrimaryContentReady]);
 
   useEffect(() => {
     if (!currentNotePath) {
@@ -217,8 +224,7 @@ export function NotesView({
       openNote,
       openNoteByAbsolutePath,
     })
-      .catch((error) => {
-        console.error('[NotesView] Failed to open launch note:', error);
+      .catch((_error) => {
       });
   }, [currentVault, focusSidebarPath, notesPath, openNote, openNoteByAbsolutePath]);
 
@@ -276,7 +282,7 @@ export function NotesView({
       return openTabs.length === 0;
     }
 
-    if (!currentNote || !isDraftNotePath(currentNotePath)) {
+    if (!isDraftNotePath(currentNotePath)) {
       return false;
     }
 
@@ -291,7 +297,7 @@ export function NotesView({
 
     return !hasDraftUnsavedChanges({
       draftName: draftEntry.name,
-      content: currentNote.content,
+      content: blankDropDraftContent,
       metadata: noteMetadata?.notes[currentNotePath],
     });
   })();
@@ -377,8 +383,7 @@ export function NotesView({
       }
 
       void state.createNote(undefined, { asDraft: true })
-        .catch((error) => {
-          console.error('[NotesView] Failed to create blank draft note:', error);
+        .catch((_error) => {
           autoCreateBlankNoteRef.current = false;
         });
     }, 0);
@@ -456,7 +461,7 @@ export function NotesView({
           {canLoadMarkdownEditor ? (
             <Suspense fallback={null}>
               <MarkdownEditor
-                active
+                active={active}
                 peekOffset={sidebarWidth}
                 onEditorViewReady={reportNotesPrimaryContentReady}
               />
