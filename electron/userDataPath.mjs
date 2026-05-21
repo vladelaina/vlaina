@@ -41,6 +41,116 @@ function hasAppData(userDataPath) {
   return fs.existsSync(path.join(userDataPath, '.vlaina'));
 }
 
+function normalizePathForCompare(filePath) {
+  return path.resolve(filePath);
+}
+
+const DEVELOPMENT_PROFILE_SHELL_SEED_MARKER = '.vlaina-dev-profile-shell-seeded';
+
+function hasProfileShellData(userDataPath) {
+  try {
+    return fs.readdirSync(userDataPath).some((name) => (
+      name !== '.vlaina' &&
+      name !== DEVELOPMENT_PROFILE_SHELL_SEED_MARKER
+    ));
+  } catch {
+    return false;
+  }
+}
+
+function shouldCopyDevelopmentProfileShellPath(sourceUserDataPath, sourcePath) {
+  const relativePath = path.relative(sourceUserDataPath, sourcePath);
+  if (!relativePath) {
+    return true;
+  }
+
+  const [topLevelName] = relativePath.split(path.sep);
+  if (!topLevelName || topLevelName === '.vlaina') {
+    return false;
+  }
+
+  if (
+    topLevelName.startsWith('Singleton') ||
+    topLevelName === DEVELOPMENT_PROFILE_SHELL_SEED_MARKER ||
+    topLevelName === 'Crashpad' ||
+    topLevelName === 'Cache' ||
+    topLevelName === 'Code Cache' ||
+    topLevelName === 'GPUCache' ||
+    topLevelName === 'DawnGraphiteCache' ||
+    topLevelName === 'DawnWebGPUCache'
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function seedDevelopmentProfileShell(sourceUserDataPath, targetUserDataPath) {
+  const resolvedSourceUserDataPath = path.resolve(sourceUserDataPath);
+  const resolvedTargetUserDataPath = path.resolve(targetUserDataPath);
+  const seedMarkerPath = path.join(resolvedTargetUserDataPath, DEVELOPMENT_PROFILE_SHELL_SEED_MARKER);
+
+  if (
+    resolvedSourceUserDataPath === resolvedTargetUserDataPath ||
+    !fs.existsSync(resolvedSourceUserDataPath) ||
+    fs.existsSync(seedMarkerPath) ||
+    hasProfileShellData(resolvedTargetUserDataPath)
+  ) {
+    return false;
+  }
+
+  try {
+    fs.mkdirSync(resolvedTargetUserDataPath, { recursive: true });
+    fs.cpSync(resolvedSourceUserDataPath, resolvedTargetUserDataPath, {
+      recursive: true,
+      force: false,
+      dereference: false,
+      filter: (sourcePath) => shouldCopyDevelopmentProfileShellPath(resolvedSourceUserDataPath, sourcePath),
+    });
+    fs.writeFileSync(seedMarkerPath, `${new Date().toISOString()}\nsource=${resolvedSourceUserDataPath}\n`);
+    return true;
+  } catch (error) {
+    console.error('[electron] Failed to seed development profile shell:', error);
+    return false;
+  }
+}
+
+function linkSharedDevelopmentAppData(userDataPath, sharedAppDataPath) {
+  const targetAppDataPath = path.join(userDataPath, '.vlaina');
+  const resolvedSharedAppDataPath = path.resolve(sharedAppDataPath);
+
+  fs.mkdirSync(path.dirname(resolvedSharedAppDataPath), { recursive: true });
+  fs.mkdirSync(resolvedSharedAppDataPath, { recursive: true });
+  fs.mkdirSync(userDataPath, { recursive: true });
+
+  try {
+    const stat = fs.lstatSync(targetAppDataPath);
+    if (
+      stat.isSymbolicLink() &&
+      normalizePathForCompare(fs.realpathSync(targetAppDataPath)) ===
+        normalizePathForCompare(fs.realpathSync(resolvedSharedAppDataPath))
+    ) {
+      return false;
+    }
+
+    throw new Error(
+      `Refusing to replace existing development app data at ${targetAppDataPath}. ` +
+        `Move or remove it manually before linking shared app data from ${resolvedSharedAppDataPath}.`
+    );
+  } catch (error) {
+    if (error?.code !== 'ENOENT') {
+      throw error;
+    }
+  }
+
+  fs.symlinkSync(
+    resolvedSharedAppDataPath,
+    targetAppDataPath,
+    process.platform === 'win32' ? 'junction' : 'dir'
+  );
+  return true;
+}
+
 function getStarredRegistryPath(userDataPath) {
   return path.join(userDataPath, '.vlaina', 'store', 'notes-starred.json');
 }
@@ -172,7 +282,15 @@ export function configureDevelopmentUserDataPath({
   const overridePath = env.VLAINA_USER_DATA_DIR?.trim();
   if (overridePath) {
     const userDataPath = path.resolve(overridePath);
+    const sharedUserDataPath = env.VLAINA_SHARED_USER_DATA_DIR?.trim();
+    const sharedAppDataPath = env.VLAINA_SHARED_APP_DATA_DIR?.trim();
     fs.mkdirSync(userDataPath, { recursive: true });
+    if (sharedUserDataPath) {
+      seedDevelopmentProfileShell(sharedUserDataPath, userDataPath);
+    }
+    if (sharedAppDataPath) {
+      linkSharedDevelopmentAppData(userDataPath, sharedAppDataPath);
+    }
     app.setPath('userData', userDataPath);
     return {
       changed: true,

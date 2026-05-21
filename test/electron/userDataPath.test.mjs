@@ -57,6 +57,78 @@ describe('Electron userData path safety', () => {
     expect(fs.existsSync(overrideUserData)).toBe(false);
   });
 
+  it('links an isolated development profile to shared app data when both env paths are provided', async () => {
+    const defaultUserData = path.join(tempRoot, 'default-user-data');
+    const isolatedUserData = path.join(tempRoot, 'isolated-user-data');
+    const sharedUserData = path.join(tempRoot, 'shared-user-data');
+    const sharedAppData = path.join(sharedUserData, '.vlaina');
+    const app = createApp({ isPackaged: false, userDataPath: defaultUserData });
+
+    await writeJson(path.join(sharedAppData, 'chat', 'sessions.json'), {
+      sessions: [{ id: 'shared-session' }],
+    });
+    await writeFile(path.join(sharedUserData, 'Preferences'), '{"theme":"dark"}\n', 'utf8');
+    await writeFile(path.join(sharedUserData, 'SingletonLock'), 'locked\n', 'utf8');
+
+    const result = configureDevelopmentUserDataPath({
+      app,
+      repoRoot: path.join(tempRoot, 'repo'),
+      env: {
+        VLAINA_USER_DATA_DIR: isolatedUserData,
+        VLAINA_SHARED_USER_DATA_DIR: sharedUserData,
+        VLAINA_SHARED_APP_DATA_DIR: sharedAppData,
+      },
+    });
+
+    const linkedAppData = path.join(isolatedUserData, '.vlaina');
+    expect(result).toEqual({
+      changed: true,
+      userDataPath: isolatedUserData,
+      seeded: false,
+    });
+    expect(app.setPath).toHaveBeenCalledWith('userData', isolatedUserData);
+    expect(fs.lstatSync(linkedAppData).isSymbolicLink()).toBe(true);
+    expect(fs.realpathSync(linkedAppData)).toBe(fs.realpathSync(sharedAppData));
+    await expect(readFile(path.join(linkedAppData, 'chat', 'sessions.json'), 'utf8'))
+      .resolves.toContain('shared-session');
+    await expect(readFile(path.join(isolatedUserData, 'Preferences'), 'utf8'))
+      .resolves.toContain('dark');
+    expect(fs.existsSync(path.join(isolatedUserData, 'SingletonLock'))).toBe(false);
+  });
+
+  it('refuses to replace an existing isolated .vlaina directory with the shared app data link', async () => {
+    const defaultUserData = path.join(tempRoot, 'default-user-data');
+    const isolatedUserData = path.join(tempRoot, 'isolated-user-data');
+    const sharedAppData = path.join(tempRoot, 'shared-user-data', '.vlaina');
+    const app = createApp({ isPackaged: false, userDataPath: defaultUserData });
+
+    await writeJson(path.join(isolatedUserData, '.vlaina', 'chat', 'sessions.json'), {
+      sessions: [{ id: 'wrong-isolated-session' }],
+    });
+    await writeJson(path.join(sharedAppData, 'chat', 'sessions.json'), {
+      sessions: [{ id: 'shared-session' }],
+    });
+
+    expect(() => configureDevelopmentUserDataPath({
+      app,
+      repoRoot: path.join(tempRoot, 'repo'),
+      env: {
+        VLAINA_USER_DATA_DIR: isolatedUserData,
+        VLAINA_SHARED_APP_DATA_DIR: sharedAppData,
+      },
+    })).toThrow('Refusing to replace existing development app data');
+
+    const linkedAppData = path.join(isolatedUserData, '.vlaina');
+    expect(fs.lstatSync(linkedAppData).isDirectory()).toBe(true);
+    await expect(readFile(path.join(linkedAppData, 'chat', 'sessions.json'), 'utf8'))
+      .resolves.toContain('wrong-isolated-session');
+    await expect(readFile(path.join(linkedAppData, 'chat', 'sessions.json'), 'utf8'))
+      .resolves.not.toContain('shared-session');
+    const backupDirs = (await readdir(isolatedUserData))
+      .filter((name) => name.startsWith('.vlaina-pre-seed-backup-'));
+    expect(backupDirs).toHaveLength(0);
+  });
+
   it('seeds a new development profile from the existing default app data', async () => {
     const defaultUserData = path.join(tempRoot, 'default-user-data');
     const repoRoot = path.join(tempRoot, 'worktree');
