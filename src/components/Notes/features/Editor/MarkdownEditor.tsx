@@ -104,7 +104,8 @@ export function MarkdownEditor({
   );
   const editorFind = useNoteEditorFind(currentNotePath);
   useHeldPageScroll(scrollRootRef, { enabled: active });
-  const hasActiveNote = active && Boolean(currentNotePath);
+  const hasRenderableNote = Boolean(currentNotePath);
+  const hasActiveNote = active && hasRenderableNote;
   const isEditorViewReady =
     editorReadyTarget?.path === currentNotePath &&
     editorReadyTarget?.diskRevision === currentNoteDiskRevision;
@@ -383,7 +384,7 @@ export function MarkdownEditor({
             transition: 'margin-left 180ms cubic-bezier(0.25, 0.8, 0.25, 1)',
           }}
         >
-          {hasActiveNote ? (
+          {hasRenderableNote ? (
             <>
               <NoteHeader
                 coverUrl={coverUrl}
@@ -394,6 +395,7 @@ export function MarkdownEditor({
               <Suspense fallback={null}>
                 <MilkdownEditorRuntime
                   key={`${currentNotePath ?? 'empty'}:${currentNoteDiskRevision}`}
+                  active={active}
                   onEditorViewReady={handleEditorViewReady}
                 />
               </Suspense>

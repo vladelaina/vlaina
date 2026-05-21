@@ -21,6 +21,7 @@ interface NotesSidebarPanelProps {
   createNote: () => Promise<unknown>;
   createFolder: (path: string) => Promise<string | null>;
   isPeeking?: boolean;
+  active?: boolean;
 }
 
 export function NotesSidebarPanel({
@@ -30,10 +31,11 @@ export function NotesSidebarPanel({
   createNote,
   createFolder,
   isPeeking = false,
+  active,
 }: NotesSidebarPanelProps) {
   const appViewMode = useUIStore((s) => s.appViewMode);
   const sidebarView = useUIStore((s) => s.notesSidebarView);
-  const isActive = appViewMode === 'notes';
+  const isActive = active ?? appViewMode === 'notes';
   const search = useNotesSidebarSearch(isActive);
   const effectiveSidebarView = sidebarView;
 

@@ -184,7 +184,7 @@ export function SidebarContent({
   const hasVaultPendingRoot = Boolean(currentVault && notesPath === currentVault.path && !displayRootFolder);
   const hasFileTreeEntries = Boolean(displayRootFolder && displayRootFolder.children.length > 0);
   const { isContentScanPending, searchResults } = useSidebarContentSearchResults({
-    rootFolder: active ? displayRootFolder : null,
+    rootFolder: displayRootFolder,
     getDisplayName,
     noteContentsCache,
     scanAllNotes,
@@ -192,7 +192,7 @@ export function SidebarContent({
     pruneNoteContentsCacheToOpenNotes,
     searchQuery: deferredSearchQuery,
     isSearchOpen: effectiveSearchOpen,
-    starredEntries: active ? starredEntries : [],
+    starredEntries,
     currentVaultPath: currentVault?.path ?? notesPath,
   });
   const hasLoadedRootFolder = Boolean(displayRootFolder);

@@ -138,15 +138,12 @@ export function NotesView({
   const focusNotesChatComposer = useNotesChatComposerFocus(setChatPanelCollapsed);
 
   useEffect(() => {
-    if (active) {
-      onStartupReady?.();
-    }
-  }, [active, currentNotePath, currentVault, isLoading, onStartupReady, openTabs.length]);
+    onStartupReady?.();
+  }, [currentNotePath, currentVault, isLoading, onStartupReady, openTabs.length]);
 
   const reportNotesPrimaryContentReady = useCallback(() => {
-    if (!active) return;
     onPrimaryContentReady?.();
-  }, [active, onPrimaryContentReady]);
+  }, [onPrimaryContentReady]);
 
   useEffect(() => {
     if (!currentNotePath) {

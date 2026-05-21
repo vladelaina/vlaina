@@ -42,13 +42,14 @@ import {
 import { normalizeLeadingFrontmatterMarkdown } from './plugins/frontmatter/frontmatterMarkdown';
 
 interface MilkdownEditorInnerProps {
+  active?: boolean;
   onEditorViewReady?: () => void;
 }
 
-export function MilkdownEditorRuntime({ onEditorViewReady }: MilkdownEditorInnerProps) {
+export function MilkdownEditorRuntime({ active = true, onEditorViewReady }: MilkdownEditorInnerProps) {
   return (
     <MilkdownProvider>
-      <MilkdownEditorInner onEditorViewReady={onEditorViewReady} />
+      <MilkdownEditorInner active={active} onEditorViewReady={onEditorViewReady} />
     </MilkdownProvider>
   );
 }
@@ -61,6 +62,7 @@ type ActiveMilkdownEditor = {
 };
 
 export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
+  active = true,
   onEditorViewReady,
 }: MilkdownEditorInnerProps) {
   const updateContent = useNotesStore(s => s.updateContent);
@@ -71,6 +73,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   const currentNoteContentRef = useRef(useNotesStore.getState().currentNote?.content ?? '');
   const isDraftNote = isDraftNotePath(currentNotePath);
   const onEditorViewReadyRef = useRef(onEditorViewReady);
+  const activeRef = useRef(active);
 
   const hasAutoFocused = useRef(false);
   const hasScheduledAutoFocus = useRef(false);
@@ -98,6 +101,10 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   useEffect(() => {
     onEditorViewReadyRef.current = onEditorViewReady;
   }, [onEditorViewReady]);
+
+  useEffect(() => {
+    activeRef.current = active;
+  }, [active]);
 
   useEffect(() => {
     const handleBlur = () => {
@@ -134,8 +141,11 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
         liveSerializer = null;
       }
 
+      if (!activeRef.current) {
+        return;
+      }
+
       setCurrentEditorView(view);
-      onEditorViewReadyRef.current?.();
 
       const markUserInput = createUserInputMarker(view, liveSerializer);
       view.dom.addEventListener('beforeinput', markUserInput);
@@ -201,6 +211,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     const statusEditor = editor as unknown as ActiveMilkdownEditor;
     statusEditor.onStatusChange?.((status: string) => {
       if (status === 'Created') {
+        onEditorViewReadyRef.current?.();
         activateEditor(statusEditor);
       }
       if (status === 'OnDestroy' || status === 'Destroyed') {
@@ -229,6 +240,11 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   }, [cleanupActivatedEditor, currentNotePath]);
 
   useEffect(() => {
+    if (!active) {
+      cleanupActivatedEditor();
+      return;
+    }
+
     try {
       const editor = get?.() as ActiveMilkdownEditor | undefined;
       if (!editor) {
@@ -246,7 +262,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       clearCurrentMarkdownRuntime();
       return;
     }
-  }, [activateEditor, get, currentNotePath]);
+  }, [activateEditor, active, cleanupActivatedEditor, get, currentNotePath]);
 
   const isEmptyContent = useMemo(() => {
     const content = initialContent.trim();
@@ -275,7 +291,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   }, [get]);
 
   useEffect(() => {
-    if (!get || hasAutoFocused.current || hasScheduledAutoFocus.current) return;
+    if (!active || !get || hasAutoFocused.current || hasScheduledAutoFocus.current) return;
     const blockedReason = isNewlyCreated
       ? 'new-note-title-autofocus'
       : !isEmptyContent
@@ -299,10 +315,10 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       clearTimeout(timer);
       hasScheduledAutoFocus.current = false;
     };
-  }, [currentNotePath, focusEditorBody, get, isDraftNote, isNewlyCreated, isEmptyContent]);
+  }, [active, currentNotePath, focusEditorBody, get, isDraftNote, isNewlyCreated, isEmptyContent]);
 
   useEffect(() => {
-    if (!shouldFocusEmptyDraftBody || hasAutoFocused.current) return;
+    if (!active || !shouldFocusEmptyDraftBody || hasAutoFocused.current) return;
     const frame = requestAnimationFrame(() => {
       if (!shouldFocusEmptyDraftBody || hasAutoFocused.current) return;
       const focused = focusEditorBody();
@@ -314,7 +330,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     return () => {
       cancelAnimationFrame(frame);
     };
-  }, [currentNotePath, focusEditorBody, shouldFocusEmptyDraftBody]);
+  }, [active, currentNotePath, focusEditorBody, shouldFocusEmptyDraftBody]);
 
   return (
     <div
