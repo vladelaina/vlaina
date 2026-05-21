@@ -20,24 +20,46 @@ import {
 import { ChatSidebarVirtualList } from './ChatSidebarVirtualList';
 import { useChatSidebarSearch } from './useChatSidebarSearch';
 import { useI18n } from '@/lib/i18n';
+import type { ChatSession } from '@/lib/ai/types';
 
 interface ChatSidebarProps {
   isPeeking?: boolean;
   embedded?: boolean;
+  active?: boolean;
   onRequestClose?: () => void;
 }
 
-export const ChatSidebar = memo(function ChatSidebar({ isPeeking = false, embedded = false, onRequestClose }: ChatSidebarProps) {
+const EMPTY_CHAT_SESSIONS: ChatSession[] = [];
+
+export const ChatSidebar = memo(function ChatSidebar({
+  isPeeking = false,
+  embedded = false,
+  active,
+  onRequestClose,
+}: ChatSidebarProps) {
   const { t } = useI18n();
   const appViewMode = useUIStore((state) => state.appViewMode);
-  const sessions = useUnifiedStore((state) => state.data.ai?.sessions || []);
-  const currentSessionId = useAIUIStore((state) => state.currentSessionId);
+  const isActive = embedded || (active ?? appViewMode === 'chat');
+  const activeSessions = useUnifiedStore((state) =>
+    isActive ? state.data.ai?.sessions || EMPTY_CHAT_SESSIONS : EMPTY_CHAT_SESSIONS
+  );
+  const activeCurrentSessionId = useAIUIStore((state) => isActive ? state.currentSessionId : null);
   const markSessionRead = useAIUIStore((state) => state.markSessionRead);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
+  const lastActiveSessionsRef = useRef<ChatSession[]>(EMPTY_CHAT_SESSIONS);
+  const lastActiveCurrentSessionIdRef = useRef<string | null>(null);
+
+  if (isActive) {
+    lastActiveSessionsRef.current = activeSessions;
+    lastActiveCurrentSessionIdRef.current = activeCurrentSessionId;
+  }
+
+  const sessions = isActive ? activeSessions : lastActiveSessionsRef.current;
+  const currentSessionId = isActive ? activeCurrentSessionId : lastActiveCurrentSessionIdRef.current;
   const {
     inputRef: searchInputRef,
     scrollRootRef,
@@ -52,12 +74,26 @@ export const ChatSidebar = memo(function ChatSidebar({ isPeeking = false, embedd
     hasSessions,
     sessionsToRender,
   } = useChatSidebarSearch({
-    enabled: embedded || appViewMode === 'chat',
+    enabled: isActive,
     scopeRef: sidebarRootRef,
     sessions,
   });
 
   useEffect(() => {
+    if (isActive) {
+      return;
+    }
+
+    setDeleteId(null);
+    setRenamingSessionId(null);
+    setRenameDraft('');
+  }, [isActive]);
+
+  useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+
     const handleDeleteChat = (event: Event) => {
       const customEvent = event as CustomEvent<{ id?: string }>;
       if (customEvent.detail?.id) {
@@ -69,7 +105,7 @@ export const ChatSidebar = memo(function ChatSidebar({ isPeeking = false, embedd
     return () => {
       window.removeEventListener('vlaina-delete-chat', handleDeleteChat);
     };
-  }, []);
+  }, [isActive]);
 
   const handleRename = useCallback((sessionId: string, currentTitle: string) => {
     setRenamingSessionId(sessionId);

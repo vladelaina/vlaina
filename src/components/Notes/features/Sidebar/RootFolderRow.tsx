@@ -38,6 +38,7 @@ interface RootFolderRowProps {
   onCreateFolder: () => Promise<string | null>;
   blankContextMenuRef?: RefObject<HTMLElement | null>;
   scrollRootRef?: RefObject<HTMLElement | null>;
+  active?: boolean;
 }
 
 export function RootFolderRow({
@@ -47,6 +48,7 @@ export function RootFolderRow({
   onCreateFolder,
   blankContextMenuRef,
   scrollRootRef,
+  active = true,
 }: RootFolderRowProps) {
   const { t } = useI18n();
   const currentVault = useVaultStore((state) => state.currentVault);
@@ -64,10 +66,10 @@ export function RootFolderRow({
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const isRenamingRef = useRef(false);
   const isInternalRootDragOver = useFileTreePointerDragState(
-    (state) => state.dropTargetKind === 'folder' && state.dropTargetPath === '',
+    (state) => active && state.dropTargetKind === 'folder' && state.dropTargetPath === '',
   );
   const isExternalRootDragOver = useExternalFileTreeDropState(
-    (state) => state.dropTargetKind === 'folder' && state.dropTargetPath === '',
+    (state) => active && state.dropTargetKind === 'folder' && state.dropTargetPath === '',
   );
   const isRootDragOver = isInternalRootDragOver || isExternalRootDragOver;
   const autoExpandDelayMs = isInternalRootDragOver
@@ -128,7 +130,7 @@ export function RootFolderRow({
   }, [isRenaming, title]);
 
   useEffect(() => {
-    if (!rootFolder) {
+    if (!active || !rootFolder) {
       return;
     }
 
@@ -142,10 +144,10 @@ export function RootFolderRow({
       },
       isRenaming: () => isRenamingRef.current,
     });
-  }, [rootFolder]);
+  }, [active, rootFolder]);
 
   useRootBlankContextMenu({
-    enabled: Boolean(rootFolder),
+    enabled: active && Boolean(rootFolder),
     blankContextMenuRef,
     rootRowRef,
     onOpen: (position) => {
@@ -160,7 +162,7 @@ export function RootFolderRow({
       autoExpandTimeoutRef.current = null;
     }
 
-    if (!isRootDragOver || expanded) {
+    if (!active || !isRootDragOver || expanded) {
       return;
     }
 
@@ -175,7 +177,7 @@ export function RootFolderRow({
         autoExpandTimeoutRef.current = null;
       }
     };
-  }, [autoExpandDelayMs, expanded, isInternalRootDragOver, isRootDragOver]);
+  }, [active, autoExpandDelayMs, expanded, isInternalRootDragOver, isRootDragOver]);
 
   if (!rootFolder && isRootTreePending) {
     return (

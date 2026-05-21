@@ -33,7 +33,8 @@ export function NotesSidebarPanel({
 }: NotesSidebarPanelProps) {
   const appViewMode = useUIStore((s) => s.appViewMode);
   const sidebarView = useUIStore((s) => s.notesSidebarView);
-  const search = useNotesSidebarSearch(appViewMode === 'notes');
+  const isActive = appViewMode === 'notes';
+  const search = useNotesSidebarSearch(isActive);
   const effectiveSidebarView = sidebarView;
 
   return (
@@ -51,6 +52,7 @@ export function NotesSidebarPanel({
             createFolder={createFolder}
             search={search}
             isPeeking={isPeeking}
+            active={isActive}
           />
         </Suspense>
       </div>
@@ -60,7 +62,7 @@ export function NotesSidebarPanel({
       >
         <Suspense fallback={null}>
           <NotesOutline
-            enabled={Boolean(currentNotePath) && effectiveSidebarView === 'outline'}
+            enabled={isActive && Boolean(currentNotePath) && effectiveSidebarView === 'outline'}
             isPeeking={isPeeking}
             className="min-h-0 flex-1"
           />

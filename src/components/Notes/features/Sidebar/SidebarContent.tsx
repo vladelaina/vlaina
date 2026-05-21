@@ -46,6 +46,7 @@ interface SidebarContentProps {
   search: SidebarSearchState;
   className?: string;
   isPeeking?: boolean;
+  active?: boolean;
 }
 
 export function SidebarContent({
@@ -57,6 +58,7 @@ export function SidebarContent({
   search,
   className,
   isPeeking = false,
+  active = true,
 }: SidebarContentProps) {
   const { t } = useI18n();
   const openNote = useNotesStore((s) => s.openNote);
@@ -71,11 +73,13 @@ export function SidebarContent({
   const starredEntries = useNotesStore((s) => s.starredEntries);
   const currentVault = useVaultStore((s) => s.currentVault);
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
-  const previousSearchQueryRef = useRef(search.searchQuery);
-  const deferredSearchQuery = useDeferredValue(search.searchQuery);
+  const effectiveSearchOpen = active && search.isSearchOpen;
+  const effectiveSearchQuery = active ? search.searchQuery : '';
+  const previousSearchQueryRef = useRef(effectiveSearchQuery);
+  const deferredSearchQuery = useDeferredValue(effectiveSearchQuery);
   const isCurrentDraftNote = Boolean(currentNotePath && isDraftNotePath(currentNotePath));
   const shouldSubscribeToSearchContents =
-    search.isSearchOpen && deferredSearchQuery.trim().length >= 2;
+    effectiveSearchOpen && deferredSearchQuery.trim().length >= 2;
   const noteContentsCache = useNotesStore((s) =>
     shouldSubscribeToSearchContents ? s.noteContentsCache : EMPTY_NOTE_CONTENTS_CACHE
   );
@@ -169,8 +173,9 @@ export function SidebarContent({
     handleScroll,
     shouldShowSearchResults,
   } = useSidebarSearchDrawerState({
-    isOpen: search.isSearchOpen,
-    query: search.searchQuery,
+    enabled: active,
+    isOpen: effectiveSearchOpen,
+    query: effectiveSearchQuery,
     onOpen: search.openSearch,
     onClose: search.closeSearch,
     scopeRef: sidebarRootRef,
@@ -179,15 +184,15 @@ export function SidebarContent({
   const hasVaultPendingRoot = Boolean(currentVault && notesPath === currentVault.path && !displayRootFolder);
   const hasFileTreeEntries = Boolean(displayRootFolder && displayRootFolder.children.length > 0);
   const { isContentScanPending, searchResults } = useSidebarContentSearchResults({
-    rootFolder: displayRootFolder,
+    rootFolder: active ? displayRootFolder : null,
     getDisplayName,
     noteContentsCache,
     scanAllNotes,
     cancelNoteContentScan,
     pruneNoteContentsCacheToOpenNotes,
     searchQuery: deferredSearchQuery,
-    isSearchOpen: search.isSearchOpen,
-    starredEntries,
+    isSearchOpen: effectiveSearchOpen,
+    starredEntries: active ? starredEntries : [],
     currentVaultPath: currentVault?.path ?? notesPath,
   });
   const hasLoadedRootFolder = Boolean(displayRootFolder);
@@ -198,6 +203,10 @@ export function SidebarContent({
   );
 
   useEffect(() => {
+    if (!active) {
+      return;
+    }
+
     const isMac =
       typeof window !== 'undefined' &&
       /Mac|iPod|iPhone|iPad/.test(navigator.platform);
@@ -247,9 +256,13 @@ export function SidebarContent({
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, []);
+  }, [active]);
 
   useEffect(() => {
+    if (!active) {
+      return;
+    }
+
     const wasShowingSearchResults = wasShowingSearchResultsRef.current;
     wasShowingSearchResultsRef.current = shouldShowSearchResults;
 
@@ -265,15 +278,19 @@ export function SidebarContent({
 
     revealFolder(currentNotePath);
     scheduleSidebarItemIntoView(currentNotePath, 2);
-  }, [currentNotePath, revealFolder, shouldShowSearchResults]);
+  }, [active, currentNotePath, revealFolder, shouldShowSearchResults]);
 
   useEffect(() => {
-    if (previousSearchQueryRef.current !== search.searchQuery) {
-      previousSearchQueryRef.current = search.searchQuery;
+    if (!active) {
+      return;
+    }
+
+    if (previousSearchQueryRef.current !== effectiveSearchQuery) {
+      previousSearchQueryRef.current = effectiveSearchQuery;
       setActiveSearchResultId(null);
     }
 
-    if (search.isSearchOpen && search.searchQuery.trim().length > 0) {
+    if (effectiveSearchOpen && effectiveSearchQuery.trim().length > 0) {
       return;
     }
 
@@ -283,7 +300,7 @@ export function SidebarContent({
     });
     setPendingNavigation(null);
     setActiveSearchResultId(null);
-  }, [search.isSearchOpen, search.searchQuery]);
+  }, [active, effectiveSearchOpen, effectiveSearchQuery]);
 
   useEffect(() => {
     if (!activeSearchResultId) {
@@ -376,9 +393,9 @@ export function SidebarContent({
       className={cn('group/sidebar-content relative flex h-full min-h-0 flex-col', className)}
     >
       <SidebarSearchDrawer
-        isSearchOpen={search.isSearchOpen}
+        isSearchOpen={effectiveSearchOpen}
         shouldShowTopActions={false}
-        searchQuery={search.searchQuery}
+        searchQuery={effectiveSearchQuery}
         setSearchQuery={search.setSearchQuery}
         inputRef={inputRef}
         hideSearch={hideSearch}
@@ -429,6 +446,7 @@ export function SidebarContent({
                     onCreateFolder={() => createFolder('')}
                     blankContextMenuRef={rootBlankAreaRef}
                     scrollRootRef={scrollRootRef}
+                    active={active}
                   />
                 </Suspense>
               ) : null}
