@@ -367,6 +367,10 @@ export const MessageList = memo(function MessageList({
   }, []);
 
   useEffect(() => {
+    if (!active) {
+      return;
+    }
+
     if (typeof ResizeObserver === 'undefined') {
       return;
     }
@@ -404,7 +408,7 @@ export const MessageList = memo(function MessageList({
       }
       pendingMeasuredHeightsRef.current.clear();
     };
-  }, [flushMeasuredHeights, scheduleMeasuredHeight, shouldMeasureVisibleRowSynchronously]);
+  }, [active, flushMeasuredHeights, scheduleMeasuredHeight, shouldMeasureVisibleRowSynchronously]);
 
   useLayoutEffect(() => {
     if (!active) {

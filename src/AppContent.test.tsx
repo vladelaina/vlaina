@@ -102,7 +102,9 @@ vi.mock('@/components/Notes/features/Sidebar/NotesSidebarWrapper', () => ({
 }));
 
 vi.mock('@/components/Chat/features/Sidebar/ChatSidebar', () => ({
-  ChatSidebar: () => <div data-testid="chat-sidebar" />,
+  ChatSidebar: ({ active }: { active?: boolean }) => (
+    <div data-testid="chat-sidebar" data-active={String(active)} />
+  ),
 }));
 
 vi.mock('@/components/Notes/features/Tabs/NotesTabRow', () => ({
@@ -245,6 +247,8 @@ describe('AppContent view switching chrome readiness', () => {
     const { rerender } = render(<AppContent />);
 
     expect(await screen.findByTestId('notes-sidebar', undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByTestId('chat-sidebar', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
+    expect(await screen.findByTestId('chat-view', undefined, { timeout: 3000 })).toHaveAttribute('data-active', 'false');
     expect(await screen.findByTestId('notes-tab-row', undefined, { timeout: 3000 })).toBeInTheDocument();
     expect(mocks.notesSidebarMounts).toBe(1);
 
@@ -252,6 +256,8 @@ describe('AppContent view switching chrome readiness', () => {
     rerender(<AppContent />);
 
     expect(await screen.findByTestId('chat-sidebar', undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(screen.getByTestId('chat-sidebar')).toHaveAttribute('data-active', 'true');
+    expect(screen.getByTestId('chat-view')).toHaveAttribute('data-active', 'true');
     expect(await screen.findByTestId('model-selector', undefined, { timeout: 3000 })).toBeInTheDocument();
     expect(mocks.notesSidebarUnmounts).toBe(0);
 
