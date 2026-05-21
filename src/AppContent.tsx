@@ -163,12 +163,19 @@ export function AppContent() {
   const [primaryContentReady, setPrimaryContentReady] = useState(false);
   const [shouldRenderDeferredChrome, setShouldRenderDeferredChrome] = useState(false);
   const [shouldRenderCenterChrome, setShouldRenderCenterChrome] = useState(false);
+  const readyAppViewsRef = useRef<Set<typeof appViewMode>>(new Set());
+  const primaryContentReadyAppViewsRef = useRef<Set<typeof appViewMode>>(new Set());
   const didReportStartupReadyRef = useRef(false);
   const didEnableCenterChromeRef = useRef(false);
   const didEnableDeferredChromeRef = useRef(false);
   const centerChromeTimerRef = useRef<number | null>(null);
   const deferredChromeTimerRef = useRef<number | null>(null);
   const preloadedPrimaryViewRef = useRef<typeof appViewMode | null>(null);
+  const effectiveAppViewModeRef = useRef(effectiveAppViewMode);
+
+  useEffect(() => {
+    effectiveAppViewModeRef.current = effectiveAppViewMode;
+  }, [effectiveAppViewMode]);
 
   const reportStartupReady = useCallback(() => {
     if (didReportStartupReadyRef.current) return;
@@ -180,13 +187,19 @@ export function AppContent() {
     reportStartupReady();
   }, [reportStartupReady]);
 
-  const handleActiveViewReady = useCallback(() => {
-    setActiveViewReady(true);
+  const handleActiveViewReady = useCallback((viewMode: typeof appViewMode) => {
+    readyAppViewsRef.current.add(viewMode);
+    if (effectiveAppViewModeRef.current === viewMode) {
+      setActiveViewReady(true);
+    }
     reportStartupReady();
   }, [reportStartupReady]);
 
-  const handlePrimaryContentReady = useCallback(() => {
-    setPrimaryContentReady(true);
+  const handlePrimaryContentReady = useCallback((viewMode: typeof appViewMode) => {
+    primaryContentReadyAppViewsRef.current.add(viewMode);
+    if (effectiveAppViewModeRef.current === viewMode) {
+      setPrimaryContentReady(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -217,8 +230,8 @@ export function AppContent() {
       if (views.has(effectiveAppViewMode)) return views;
       return new Set([...views, effectiveAppViewMode]);
     });
-    setActiveViewReady(false);
-    setPrimaryContentReady(false);
+    setActiveViewReady(readyAppViewsRef.current.has(effectiveAppViewMode));
+    setPrimaryContentReady(primaryContentReadyAppViewsRef.current.has(effectiveAppViewMode));
     setShouldRenderCenterChrome(false);
     setShouldRenderDeferredChrome(false);
     didEnableCenterChromeRef.current = false;
@@ -562,8 +575,8 @@ export function AppContent() {
           <Suspense fallback={<StartupViewFallback onReady={handleStartupFallbackReady} />}>
             <NotesView
               active={effectiveAppViewMode === 'notes'}
-              onStartupReady={handleActiveViewReady}
-              onPrimaryContentReady={handlePrimaryContentReady}
+              onStartupReady={() => handleActiveViewReady('notes')}
+              onPrimaryContentReady={() => handlePrimaryContentReady('notes')}
             />
           </Suspense>
         </div>
@@ -573,8 +586,8 @@ export function AppContent() {
           <Suspense fallback={<StartupViewFallback onReady={handleStartupFallbackReady} />}>
             <ChatView
               active={effectiveAppViewMode === 'chat'}
-              onStartupReady={handleActiveViewReady}
-              onPrimaryContentReady={handlePrimaryContentReady}
+              onStartupReady={() => handleActiveViewReady('chat')}
+              onPrimaryContentReady={() => handlePrimaryContentReady('chat')}
             />
           </Suspense>
         </div>
