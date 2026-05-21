@@ -1,29 +1,17 @@
 import { $node, $nodeAttr } from '@milkdown/kit/utils';
 import { type DOMOutputSpec, type Node } from '@milkdown/kit/prose/model';
 import type { MathBlockAttrs, MathInlineAttrs } from './types';
+import { renderLatex } from './katex';
 
 function emptyMathMarkup() {
   return '<span class="math-empty" aria-hidden="true">\u200b</span>';
 }
 
 function renderLatexIntoElement(element: HTMLElement, latex: string, displayMode: boolean) {
-  if (!latex.trim()) {
-    element.innerHTML = emptyMathMarkup();
-    return;
-  }
-
-  const renderKey = `${displayMode ? 'block' : 'inline'}\u0000${latex}`;
-  element.dataset.renderKey = renderKey;
-  element.innerHTML = emptyMathMarkup();
-
-  void import('./katex').then(({ renderLatex }) => {
-    if (element.dataset.renderKey !== renderKey || element.dataset.latex !== latex) {
-      return;
-    }
-
-    const { html } = renderLatex(latex, displayMode);
-    element.innerHTML = html;
-  });
+  const { html } = latex.trim()
+    ? renderLatex(latex, displayMode)
+    : { html: emptyMathMarkup() };
+  element.innerHTML = html;
 }
 
 export function parseMathAttrs(dom: HTMLElement) {

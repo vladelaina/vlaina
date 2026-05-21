@@ -77,10 +77,10 @@ describe('mermaidEditorLivePreview', () => {
     expect(element.querySelector('.mermaid-placeholder')).not.toBeNull();
 
     observerCallback([{ isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver);
-    await Promise.resolve();
-    await Promise.resolve();
 
-    expect(renderMermaid).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(renderMermaid).toHaveBeenCalledTimes(1);
+    });
     expect(disconnect).toHaveBeenCalled();
     expect(element.dataset.mermaidLazy).toBeUndefined();
     await waitFor(() => {
