@@ -47,6 +47,7 @@ const sidebarGroups: SidebarGroup[] = [
 
 export function SettingsModal({ open, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('markdown');
+  const [isAppearanceFontPreviewing, setIsAppearanceFontPreviewing] = useState(false);
   const { t } = useI18n();
 
   const handleClose = useCallback(() => {
@@ -78,13 +79,24 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   useEffect(() => {
     if (open) return;
     stopWindowDragTracking();
+    setIsAppearanceFontPreviewing(false);
   }, [open, stopWindowDragTracking]);
+
+  useEffect(() => {
+    if (activeTab === 'appearance') return;
+    setIsAppearanceFontPreviewing(false);
+  }, [activeTab]);
 
   return (
     <AnimatePresence>
       {open && (
         <>
-          <BlurBackdrop onClick={handleClose} duration={0.05} />
+          <BlurBackdrop
+            onClick={handleClose}
+            duration={0.05}
+            blurPx={isAppearanceFontPreviewing ? 0 : 6}
+            overlayClassName={isAppearanceFontPreviewing ? 'bg-transparent' : undefined}
+          />
 
           <div className="fixed inset-0 flex items-center justify-center z-[100] pointer-events-none p-4">
             <div
@@ -103,7 +115,12 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 10 }}
               transition={{ duration: 0.05, ease: [0.16, 1, 0.3, 1] }}
-              className="relative w-[1080px] h-[720px] max-w-full max-h-[90vh] bg-[#fcfcfc] dark:bg-[#1C1C1C] rounded-[32px] shadow-2xl flex overflow-hidden pointer-events-auto ring-1 ring-black/5 dark:ring-white/5 select-none"
+              className={cn(
+                "relative w-[1080px] h-[720px] max-w-full max-h-[90vh] rounded-[32px] flex overflow-hidden pointer-events-auto select-none transition-[background-color,box-shadow] duration-100",
+                isAppearanceFontPreviewing
+                  ? "bg-transparent shadow-none ring-0"
+                  : "bg-[#fcfcfc] dark:bg-[#1C1C1C] shadow-2xl ring-1 ring-black/5 dark:ring-white/5",
+              )}
               onMouseDownCapture={(e) => {
                 if (e.button === 1) {
                   e.preventDefault();
@@ -125,14 +142,18 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                 aria-label={t('common.close')}
                 className={cn(
                   "absolute right-5 top-5 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-950",
-                  "dark:text-zinc-500 dark:hover:bg-zinc-100 dark:hover:text-zinc-950"
+                  "dark:text-zinc-500 dark:hover:bg-zinc-100 dark:hover:text-zinc-950",
+                  isAppearanceFontPreviewing && "pointer-events-none opacity-0",
                 )}
               >
                 <Icon name="common.close" size="md" />
               </button>
 
               {/* Sidebar Section */}
-              <div className="w-[260px] flex-shrink-0 bg-transparent flex flex-col border-r border-zinc-100/50 dark:border-white/5">
+              <div className={cn(
+                "w-[260px] flex-shrink-0 bg-transparent flex flex-col border-r border-zinc-100/50 transition-opacity duration-100 dark:border-white/5",
+                isAppearanceFontPreviewing && "pointer-events-none opacity-0",
+              )}>
                 <div className="flex min-h-0 flex-1 px-4 pb-6 pt-10">
                   <div className="flex min-h-0 flex-1 flex-col">
                     <div className="flex-1 overflow-y-auto vlaina-scrollbar">
@@ -178,7 +199,12 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               </div>
 
               {/* Main Content Section */}
-              <div className="flex-1 flex flex-col min-w-0 bg-white/50 dark:bg-[#1E1E1E]/50 backdrop-blur-sm relative">
+              <div className={cn(
+                "flex-1 flex flex-col min-w-0 relative transition-[background-color,backdrop-filter] duration-100",
+                isAppearanceFontPreviewing
+                  ? "bg-transparent backdrop-blur-none"
+                  : "bg-white/50 backdrop-blur-sm dark:bg-[#1E1E1E]/50",
+              )}>
                 <div className="flex-1 overflow-y-auto w-full vlaina-scrollbar">
                   <div className={cn(
                     "w-full mx-auto",
@@ -192,7 +218,9 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
                     )}>
                       {activeTab === 'about' && <AboutTab />}
                       {activeTab === 'markdown' && <MarkdownTab />}
-                      {activeTab === 'appearance' && <AppearanceTab />}
+                      {activeTab === 'appearance' && (
+                        <AppearanceTab onFontSizePreviewingChange={setIsAppearanceFontPreviewing} />
+                      )}
                       {activeTab === 'language' && <LanguageTab />}
                       {activeTab === 'ai' && <AITab />}
                     </div>

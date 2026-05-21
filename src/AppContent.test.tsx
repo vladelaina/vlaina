@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   initializeVault: vi.fn(),
   loadUnified: vi.fn().mockResolvedValue(undefined),
   startAIStoreRuntimeEffects: vi.fn(),
+  fontSize: 19,
   notesSidebarMounts: 0,
   notesSidebarUnmounts: 0,
 }));
@@ -144,7 +145,7 @@ vi.mock('@/stores/uiSlice', () => ({
     appViewMode: mocks.appViewMode,
     sidebarCollapsed: false,
     sidebarWidth: 320,
-    fontSize: 16,
+    fontSize: mocks.fontSize,
     setSidebarWidth: vi.fn(),
     toggleSidebar: vi.fn(),
     setAppViewMode: mocks.setAppViewMode,
@@ -233,8 +234,11 @@ describe('AppContent view switching chrome readiness', () => {
   afterEach(() => {
     vi.clearAllMocks();
     mocks.appViewMode = 'notes';
+    mocks.fontSize = 19;
     mocks.notesSidebarMounts = 0;
     mocks.notesSidebarUnmounts = 0;
+    document.documentElement.style.removeProperty('font-size');
+    document.documentElement.style.removeProperty('--vlaina-markdown-font-size');
   });
 
   it('keeps the notes sidebar mounted when switching away and back to an already ready notes view', async () => {
@@ -284,5 +288,17 @@ describe('AppContent view switching chrome readiness', () => {
     expect(screen.getByTestId('notes-sidebar')).toHaveAttribute('data-active', 'true');
     expect(screen.getByTestId('notes-view')).toHaveAttribute('data-active', 'true');
     expect(mocks.notesSidebarMounts).toBe(1);
+  });
+
+  it('scopes the appearance font size to markdown content surfaces', async () => {
+    document.documentElement.style.fontSize = '19px';
+    mocks.fontSize = 19;
+
+    render(<AppContent />);
+
+    await waitFor(() => {
+      expect(document.documentElement.style.getPropertyValue('--vlaina-markdown-font-size')).toBe('19px');
+    });
+    expect(document.documentElement.style.fontSize).toBe('');
   });
 });

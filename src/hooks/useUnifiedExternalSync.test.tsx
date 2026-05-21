@@ -93,7 +93,7 @@ function resetStores() {
   });
 
   useUIStore.setState({
-    fontSize: 16,
+    fontSize: 19,
     languagePreference: 'system',
     imageStorageMode: 'subfolder',
     imageSubfolderName: 'assets',
