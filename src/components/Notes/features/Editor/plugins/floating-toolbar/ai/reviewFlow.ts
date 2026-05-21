@@ -14,12 +14,11 @@ import {
   toResolvedAiReviewState,
 } from './reviewState';
 import { ensureReviewSelectionVisible } from './reviewSelection';
-
-const activeReviewControllers = new Map<string, AbortController>();
-
-function getActiveReviewRequestKey(view: EditorView): string | null {
-  return floatingToolbarKey.getState(view.state)?.aiReview?.requestKey ?? null;
-}
+import {
+  abortAiSelectionReviewRequest,
+  clearAiSelectionReviewController,
+  setAiSelectionReviewController,
+} from './reviewAbort';
 
 function hasAiSelectionReview(view: EditorView, requestKey: string): boolean {
   const toolbarState = floatingToolbarKey.getState(view.state);
@@ -27,40 +26,6 @@ function hasAiSelectionReview(view: EditorView, requestKey: string): boolean {
     toolbarState?.aiReview?.requestKey === requestKey ||
     toolbarState?.aiReviews?.some((review) => review.requestKey === requestKey)
   );
-}
-
-export function abortAiSelectionReviewRequest(requestKey: string | null) {
-  if (!requestKey) {
-    return;
-  }
-
-  const controller = activeReviewControllers.get(requestKey);
-  if (!controller) {
-    return;
-  }
-
-  controller.abort();
-  activeReviewControllers.delete(requestKey);
-}
-
-export function abortActiveAiSelectionReview(view: EditorView): void {
-  abortAiSelectionReviewRequest(getActiveReviewRequestKey(view));
-}
-
-export function abortAllAiSelectionReviews(view: EditorView): void {
-  const toolbarState = floatingToolbarKey.getState(view.state);
-  const requestKeys = new Set<string>();
-  if (toolbarState?.aiReview) {
-    requestKeys.add(toolbarState.aiReview.requestKey);
-  }
-
-  toolbarState?.aiReviews.forEach((review) => {
-    requestKeys.add(review.requestKey);
-  });
-
-  requestKeys.forEach((requestKey) => {
-    abortAiSelectionReviewRequest(requestKey);
-  });
 }
 
 export function openAiSelectionReview(view: EditorView, requestKey?: string): boolean {
@@ -139,7 +104,7 @@ export async function runAiSelectionReviewCommand(
     afterContext: review.afterContext,
   };
   const controller = new AbortController();
-  activeReviewControllers.set(requestKey, controller);
+  setAiSelectionReviewController(requestKey, controller);
 
   try {
     const result = await createAiSelectionSuggestionResult(
@@ -198,8 +163,6 @@ export async function runAiSelectionReviewCommand(
     );
     return true;
   } finally {
-    if (activeReviewControllers.get(requestKey) === controller) {
-      activeReviewControllers.delete(requestKey);
-    }
+    clearAiSelectionReviewController(requestKey, controller);
   }
 }

@@ -65,6 +65,9 @@ When debugging with logs:
 - If a fix took several attempts, review the full diff and revert any leftover workaround that no longer belongs.
 - After the fix is verified, remove temporary diagnostic logs and test noise.
 
+Verification:
+- Do not run type checks by default. Run them only when type/API risk is high or the user asks.
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

@@ -15,13 +15,14 @@ import { useUIStore } from '@/stores/uiSlice';
 import { useToastStore } from '@/stores/useToastStore';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
 import { useI18n } from '@/lib/i18n';
-import { NoteEditorFindBar, type NoteEditorFindController } from './find';
+import { NoteEditorFindBar } from './find/NoteEditorFindBar';
+import type { NoteEditorFindController } from './find/types';
 import { canStarNotePath } from '@/stores/notes/notePathState';
 import type { NoteExportFormat } from '../Export/noteExportTypes';
 import type { AppLanguage } from '@/lib/i18n/languages';
 import { MENU_PANEL_CLASS_NAME } from '@/components/layout/sidebar/context-menu/shared';
 
-interface EditorTopRightToolbarProps {
+export interface EditorTopRightToolbarProps {
   editorFind: NoteEditorFindController;
   currentNotePath: string | null | undefined;
   currentNoteContent: string;

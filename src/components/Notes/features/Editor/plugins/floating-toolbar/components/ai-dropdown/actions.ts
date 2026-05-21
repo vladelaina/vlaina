@@ -1,7 +1,4 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
-import { openSidebarDiscussionForSelection } from '../../ai/sidebarDiscussion';
-import { openAiSelectionReview, runAiSelectionReviewCommand } from '../../ai/reviewFlow';
-import { createAiReviewState } from '../../ai/reviewState';
 import { recordAiMenuItemUsage } from './usageRanking';
 
 function setActiveCategory(dropdown: HTMLElement, categoryId: string) {
@@ -108,26 +105,31 @@ function bindCommandExecution(dropdown: HTMLElement, view: EditorView) {
       }
 
       if (behavior === 'sidebar-chat') {
-        openSidebarDiscussionForSelection(view);
+        void import('../../ai/sidebarDiscussion').then((mod) => {
+          mod.openSidebarDiscussionForSelection(view);
+        });
         return;
       }
 
       isSubmitting = true;
       button.disabled = true;
 
-      const review = createAiReviewState(view, prompt, commandId, toneId);
-      if (!openAiSelectionReview(view, review.requestKey)) {
-        isSubmitting = false;
-        button.disabled = false;
-        return;
-      }
+      void Promise.all([
+        import('../../ai/reviewFlow'),
+        import('../../ai/reviewState'),
+      ]).then(([reviewFlow, reviewState]) => {
+        const review = reviewState.createAiReviewState(view, prompt, commandId, toneId);
+        if (!reviewFlow.openAiSelectionReview(view, review.requestKey)) {
+          return;
+        }
 
-      recordAiMenuItemUsage(groupId, commandId);
+        recordAiMenuItemUsage(groupId, commandId);
 
-      void runAiSelectionReviewCommand(view, review, {
-        id: commandId,
-        instruction: prompt,
-        toneId: toneId || null,
+        return reviewFlow.runAiSelectionReviewCommand(view, review, {
+          id: commandId,
+          instruction: prompt,
+          toneId: toneId || null,
+        });
       }).finally(() => {
           isSubmitting = false;
           button.disabled = false;

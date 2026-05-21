@@ -2,7 +2,7 @@ import { $prose } from '@milkdown/kit/utils';
 import { type Node } from '@milkdown/kit/prose/model';
 import { Plugin } from '@milkdown/kit/prose/state';
 import { type EditorView } from '@milkdown/kit/prose/view';
-import { CodeBlockNodeView } from './CodeBlockNodeView';
+import { LazyCodeBlockNodeView } from './LazyCodeBlockNodeView';
 import { moveSelectionAfterNode } from './codeBlockSelectionUtils';
 
 export function findCodeBlockContext(state: EditorView['state']) {
@@ -40,7 +40,7 @@ export const codeBlockNodeViewPlugin = $prose(() => {
     props: {
       nodeViews: {
         code_block: (node: Node, view: EditorView, getPos: () => number | undefined) =>
-          new CodeBlockNodeView(node, view, getPos),
+          new LazyCodeBlockNodeView(node, view, getPos),
       },
     },
   });

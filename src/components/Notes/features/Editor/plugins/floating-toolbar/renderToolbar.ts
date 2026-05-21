@@ -3,11 +3,9 @@ import type { FloatingToolbarState } from './types';
 import { TOOLBAR_ACTIONS } from './types';
 import { floatingToolbarKey } from './floatingToolbarKey';
 import { renderAlignmentDropdown } from './components/AlignmentDropdown';
-import { createAiDropdownController } from './components/AiDropdown';
-import { createAiReviewPanelController } from './components/AiReviewPanel';
 import { renderBlockDropdown } from './components/BlockDropdown';
 import { renderColorPicker } from './components/ColorPicker';
-import { abortActiveAiSelectionReview, abortAiSelectionReviewRequest } from './ai/reviewFlow';
+import { abortActiveAiSelectionReview, abortAiSelectionReviewRequest } from './ai/reviewAbort';
 import { createToolbarEventDelegation } from './toolbarInteractions';
 import type { ToolbarActionControllerOptions } from './toolbarActions';
 import { renderToolbarMarkup } from './toolbarMarkup';
@@ -17,14 +15,60 @@ export interface ToolbarRenderer {
   destroy: () => void;
 }
 
+type AiDropdownController = {
+  render: (container: HTMLElement, view: EditorView, onClose: () => void) => void;
+  cleanup: () => void;
+  destroy: () => void;
+};
+type AiReviewPanelController = {
+  render: (
+    container: HTMLElement,
+    view: EditorView,
+    state: FloatingToolbarState,
+    onClose: () => void
+  ) => void;
+  cleanup: () => void;
+  destroy: () => void;
+};
+
 export function createToolbarRenderer(
   toolbarElement: HTMLElement,
   options: ToolbarActionControllerOptions = {}
 ): ToolbarRenderer {
   const eventDelegation = createToolbarEventDelegation(toolbarElement, options);
-  const aiDropdownController = createAiDropdownController();
-  const aiReviewPanelController = createAiReviewPanelController();
+  let aiDropdownController: AiDropdownController | null = null;
+  let aiReviewPanelController: AiReviewPanelController | null = null;
+  let aiDropdownControllerPromise: Promise<AiDropdownController> | null = null;
+  let aiReviewPanelControllerPromise: Promise<AiReviewPanelController> | null = null;
   let currentState: FloatingToolbarState | null = null;
+
+  const getAiDropdownController = () => {
+    if (aiDropdownController) {
+      return Promise.resolve(aiDropdownController);
+    }
+
+    aiDropdownControllerPromise ??= (() => {
+      return import('./components/AiDropdown').then((mod) => {
+        aiDropdownController = mod.createAiDropdownController();
+        return aiDropdownController;
+      });
+    })();
+    return aiDropdownControllerPromise;
+  };
+
+  const getAiReviewPanelController = () => {
+    if (aiReviewPanelController) {
+      return Promise.resolve(aiReviewPanelController);
+    }
+
+    aiReviewPanelControllerPromise ??= (() => {
+      return import('./components/AiReviewPanel').then((mod) => {
+        aiReviewPanelController = mod.createAiReviewPanelController();
+        return aiReviewPanelController;
+      });
+    })();
+    return aiReviewPanelControllerPromise;
+  };
 
   const hideToolbar = (view: EditorView) => {
     if (options.onCloseToolbar?.(view, currentState)) {
@@ -57,10 +101,10 @@ export function createToolbarRenderer(
       const previousSubMenu = currentState?.subMenu ?? null;
       currentState = state;
       if (previousSubMenu === 'ai' || state.subMenu === 'ai') {
-        aiDropdownController.cleanup();
+        aiDropdownController?.cleanup();
       }
       if (previousSubMenu === 'aiReview' || state.subMenu === 'aiReview') {
-        aiReviewPanelController.cleanup();
+        aiReviewPanelController?.cleanup();
       }
       eventDelegation.update(view, state);
 
@@ -69,12 +113,22 @@ export function createToolbarRenderer(
       if (state.subMenu === 'ai') {
         const aiGroup = toolbarElement.querySelector('.toolbar-ai-group');
         if (aiGroup instanceof HTMLElement) {
-          aiDropdownController.render(aiGroup, view, () => hideToolbar(view));
+          void getAiDropdownController().then((controller) => {
+            if (currentState !== state || !aiGroup.isConnected) {
+              return;
+            }
+            controller.render(aiGroup, view, () => hideToolbar(view));
+          });
         }
       }
 
       if (state.subMenu === 'aiReview') {
-        aiReviewPanelController.render(toolbarElement, view, state, () => hideToolbar(view));
+        void getAiReviewPanelController().then((controller) => {
+          if (currentState !== state || !toolbarElement.isConnected) {
+            return;
+          }
+          controller.render(toolbarElement, view, state, () => hideToolbar(view));
+        });
       }
 
       if (state.subMenu === 'block') {
@@ -100,8 +154,8 @@ export function createToolbarRenderer(
     },
     destroy() {
       currentState = null;
-      aiDropdownController.destroy();
-      aiReviewPanelController.destroy();
+      aiDropdownController?.destroy();
+      aiReviewPanelController?.destroy();
       eventDelegation.destroy();
     },
   };

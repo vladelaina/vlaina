@@ -72,6 +72,34 @@ vi.mock('@/lib/electron/bridge', () => ({
 
 vi.mock('@/lib/storage/unifiedStorage', () => ({
   flushPendingSave: mocks.flushPendingSave,
+  loadUnifiedData: vi.fn(async () => ({
+    settings: {
+      timezone: { offset: 8, city: 'Beijing' },
+      markdown: {
+        typewriterMode: false,
+        codeBlock: { showLineNumbers: true },
+      },
+      ui: { lastAppViewMode: 'chat' },
+    },
+    customIcons: [],
+    deletedCustomIconIds: [],
+    ai: {
+      providers: [],
+      models: [],
+      benchmarkResults: {},
+      fetchedModels: {},
+      sessions: [],
+      messages: {},
+      unreadSessionIds: [],
+      selectedModelId: null,
+      currentSessionId: null,
+      temporaryChatEnabled: false,
+      customSystemPrompt: '',
+      includeTimeContext: true,
+      webSearchEnabled: false,
+    },
+  })),
+  saveUnifiedData: vi.fn(),
 }));
 
 vi.mock('@/lib/storage/chatStorage', () => ({
@@ -101,6 +129,7 @@ vi.mock('@/stores/uiSlice', () => ({
     setSidebarWidth: vi.fn(),
     toggleSidebar: vi.fn(),
     setAppViewMode: vi.fn(),
+    restoreLastAppViewMode: vi.fn(),
   }),
 }));
 

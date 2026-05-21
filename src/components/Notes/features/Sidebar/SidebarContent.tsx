@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { SidebarSearchDrawer, useSidebarSearchDrawerState } from '@/components/layout/sidebar/SidebarSearchDrawer';
 import {
   SidebarCapsulePanel,
@@ -19,21 +19,23 @@ import {
   NotesSidebarScrollArea,
 } from './NotesSidebarPrimitives';
 import { NotesSidebarTopActions } from './NotesSidebarTopActions';
-import { RootFolderRow } from './RootFolderRow';
-import { SidebarSearchResultsList } from './SidebarSearchResultsList';
 import { type NotesSidebarSearchResult } from './notesSidebarSearchResults';
-import {
-  applySidebarSearchNavigation,
-  clearSidebarSearchHighlights,
-  clearSidebarSearchNavigationPending,
-  markSidebarSearchNavigationPending,
-} from './sidebarSearchNavigation';
-import { getCurrentEditorView } from '../Editor/utils/editorViewRegistry';
 import { scheduleSidebarItemIntoView } from '../common/sidebarScrollIntoView';
 import { useSidebarContentSearchResults } from './useSidebarContentSearchResults';
 import { useI18n } from '@/lib/i18n';
 
 const EMPTY_NOTE_CONTENTS_CACHE = new Map<string, { content: string; modifiedAt: number | null }>();
+const SidebarSearchResultsList = lazy(async () => {
+  const mod = await import('./SidebarSearchResultsList');
+  return { default: mod.SidebarSearchResultsList };
+});
+const RootFolderRow = lazy(async () => {
+  const mod = await import('./RootFolderRow');
+  return { default: mod.RootFolderRow };
+});
+type CurrentEditorView = Awaited<
+  ReturnType<typeof import('../Editor/utils/editorViewRegistry')['getCurrentEditorView']>
+>;
 
 interface SidebarContentProps {
   rootFolder: FolderNode | null;
@@ -88,7 +90,7 @@ export function SidebarContent({
     path: string;
     query: string;
     contentMatchOrdinal: number | null;
-    previousView: ReturnType<typeof getCurrentEditorView>;
+    previousView: CurrentEditorView;
   } | null>(null);
   const [activeSearchResultId, setActiveSearchResultId] = useState<string | null>(null);
   const displayRootFolder = useMemo(() => {
@@ -191,6 +193,9 @@ export function SidebarContent({
   const hasLoadedRootFolder = Boolean(displayRootFolder);
   const shouldShowInlineEmptyHint = !isLoading && hasLoadedRootFolder && !hasFileTreeEntries;
   const shouldShowFloatingEmptyHint = !isLoading && !hasVaultPendingRoot && !hasLoadedRootFolder;
+  const shouldRenderRootFolderRow = Boolean(
+    displayRootFolder || hasVaultPendingRoot || shouldShowInlineEmptyHint,
+  );
 
   useEffect(() => {
     const isMac =
@@ -272,8 +277,10 @@ export function SidebarContent({
       return;
     }
 
-    clearSidebarSearchHighlights();
-    clearSidebarSearchNavigationPending();
+    void import('./sidebarSearchNavigation').then((mod) => {
+      mod.clearSidebarSearchHighlights();
+      mod.clearSidebarSearchNavigationPending();
+    });
     setPendingNavigation(null);
     setActiveSearchResultId(null);
   }, [search.isSearchOpen, search.searchQuery]);
@@ -295,19 +302,21 @@ export function SidebarContent({
 
     let cancelled = false;
 
-    void applySidebarSearchNavigation({
-      path: pendingNavigation.path,
-      query: pendingNavigation.query,
-      contentMatchOrdinal: pendingNavigation.contentMatchOrdinal,
-      previousView: pendingNavigation.previousView,
-      shouldContinue: () => !cancelled,
-    }).finally(() => {
-      if (!cancelled) {
-        setPendingNavigation((current) =>
-          current === pendingNavigation ? null : current,
-        );
-      }
-    });
+    void import('./sidebarSearchNavigation')
+      .then((mod) => mod.applySidebarSearchNavigation({
+        path: pendingNavigation.path,
+        query: pendingNavigation.query,
+        contentMatchOrdinal: pendingNavigation.contentMatchOrdinal,
+        previousView: pendingNavigation.previousView,
+        shouldContinue: () => !cancelled,
+      }))
+      .finally(() => {
+        if (!cancelled) {
+          setPendingNavigation((current) =>
+            current === pendingNavigation ? null : current,
+          );
+        }
+      });
 
     return () => {
       cancelled = true;
@@ -317,34 +326,39 @@ export function SidebarContent({
   const handleOpenSearchResult = (result: NotesSidebarSearchResult) => {
     const targetPath = result.openPath ?? result.path;
     const isSameNote = currentNotePath === targetPath;
-    const previousView = isSameNote ? null : getCurrentEditorView();
-    const nextNavigation = {
-      path: targetPath,
-      query: deferredSearchQuery,
-      contentMatchOrdinal: result.contentMatchOrdinal,
-      previousView,
-    };
+    void Promise.all([
+      import('../Editor/utils/editorViewRegistry'),
+      import('./sidebarSearchNavigation'),
+    ]).then(([editorViewRegistry, searchNavigation]) => {
+      const previousView = isSameNote ? null : editorViewRegistry.getCurrentEditorView();
+      const nextNavigation = {
+        path: targetPath,
+        query: deferredSearchQuery,
+        contentMatchOrdinal: result.contentMatchOrdinal,
+        previousView,
+      };
 
-    if (!isSameNote) {
-      markSidebarSearchNavigationPending(targetPath);
-    }
-    setPendingNavigation(nextNavigation);
-    setActiveSearchResultId(result.id);
+      if (!isSameNote) {
+        searchNavigation.markSidebarSearchNavigationPending(targetPath);
+      }
+      setPendingNavigation(nextNavigation);
+      setActiveSearchResultId(result.id);
 
-    if (isSameNote) {
-      return;
-    }
+      if (isSameNote) {
+        return;
+      }
 
-    const openPromise = result.isExternal
-      ? openNoteByAbsolutePath(targetPath)
-      : openNote(targetPath);
+      const openPromise = result.isExternal
+        ? openNoteByAbsolutePath(targetPath)
+        : openNote(targetPath);
 
-    void openPromise.catch(() => {
-      clearSidebarSearchNavigationPending(targetPath);
-      setActiveSearchResultId((current) => (current === result.id ? null : current));
-      setPendingNavigation((current) =>
-        current === nextNavigation ? null : current,
-      );
+      void openPromise.catch(() => {
+        searchNavigation.clearSidebarSearchNavigationPending(targetPath);
+        setActiveSearchResultId((current) => (current === result.id ? null : current));
+        setPendingNavigation((current) =>
+          current === nextNavigation ? null : current,
+        );
+      });
     });
   };
 
@@ -392,26 +406,32 @@ export function SidebarContent({
           onScroll={handleScroll}
         >
           {shouldShowSearchResults ? (
-            <SidebarSearchResultsList
-              results={searchResults}
-              query={deferredSearchQuery}
-              currentNotePath={currentNotePath}
-              activeResultId={activeSearchResultId}
-              onOpen={handleOpenSearchResult}
-              scrollRootRef={scrollRootRef}
-              isContentScanPending={isContentScanPending}
-            />
+            <Suspense fallback={null}>
+              <SidebarSearchResultsList
+                results={searchResults}
+                query={deferredSearchQuery}
+                currentNotePath={currentNotePath}
+                activeResultId={activeSearchResultId}
+                onOpen={handleOpenSearchResult}
+                scrollRootRef={scrollRootRef}
+                isContentScanPending={isContentScanPending}
+              />
+            </Suspense>
           ) : (
             <div className="relative flex min-h-full flex-col">
               <StarredSection showTitle={false} />
-              <RootFolderRow
-                rootFolder={displayRootFolder}
-                isLoading={isLoading}
-                onCreateNote={createNote}
-                onCreateFolder={() => createFolder('')}
-                blankContextMenuRef={rootBlankAreaRef}
-                scrollRootRef={scrollRootRef}
-              />
+              {shouldRenderRootFolderRow ? (
+                <Suspense fallback={null}>
+                  <RootFolderRow
+                    rootFolder={displayRootFolder}
+                    isLoading={isLoading}
+                    onCreateNote={createNote}
+                    onCreateFolder={() => createFolder('')}
+                    blankContextMenuRef={rootBlankAreaRef}
+                    scrollRootRef={scrollRootRef}
+                  />
+                </Suspense>
+              ) : null}
               <div
                 ref={rootBlankAreaRef}
                 data-notes-sidebar-blank-drag-root="true"

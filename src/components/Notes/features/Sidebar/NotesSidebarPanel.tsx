@@ -1,9 +1,18 @@
+import { lazy, Suspense } from 'react';
 import { useUIStore } from '@/stores/uiSlice';
-import { SidebarContent } from './SidebarContent';
-import { NotesOutline } from './Outline';
 import { NotesSidebarSurface } from './NotesSidebarPrimitives';
 import { useNotesSidebarSearch } from './useNotesSidebarSearch';
 import type { FolderNode } from '@/stores/useNotesStore';
+
+const SidebarContent = lazy(async () => {
+  const mod = await import('./SidebarContent');
+  return { default: mod.SidebarContent };
+});
+
+const NotesOutline = lazy(async () => {
+  const mod = await import('./Outline');
+  return { default: mod.NotesOutline };
+});
 
 interface NotesSidebarPanelProps {
   rootFolder: FolderNode | null;
@@ -33,25 +42,29 @@ export function NotesSidebarPanel({
         className={effectiveSidebarView === 'workspace' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}
         aria-hidden={effectiveSidebarView !== 'workspace'}
       >
-        <SidebarContent
-          rootFolder={rootFolder}
-          isLoading={isLoading}
-          currentNotePath={currentNotePath}
-          createNote={createNote}
-          createFolder={createFolder}
-          search={search}
-          isPeeking={isPeeking}
-        />
+        <Suspense fallback={null}>
+          <SidebarContent
+            rootFolder={rootFolder}
+            isLoading={isLoading}
+            currentNotePath={currentNotePath}
+            createNote={createNote}
+            createFolder={createFolder}
+            search={search}
+            isPeeking={isPeeking}
+          />
+        </Suspense>
       </div>
       <div
         className={effectiveSidebarView === 'outline' ? 'flex min-h-0 flex-1 flex-col' : 'hidden'}
         aria-hidden={effectiveSidebarView !== 'outline'}
       >
-        <NotesOutline
-          enabled={Boolean(currentNotePath) && effectiveSidebarView === 'outline'}
-          isPeeking={isPeeking}
-          className="min-h-0 flex-1"
-        />
+        <Suspense fallback={null}>
+          <NotesOutline
+            enabled={Boolean(currentNotePath) && effectiveSidebarView === 'outline'}
+            isPeeking={isPeeking}
+            className="min-h-0 flex-1"
+          />
+        </Suspense>
       </div>
     </NotesSidebarSurface>
   );

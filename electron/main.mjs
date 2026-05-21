@@ -83,6 +83,28 @@ function formatErrorForLog(error) {
   return String(error);
 }
 
+function installDevelopmentParentProcessGuard() {
+  if (app.isPackaged) {
+    return;
+  }
+
+  const parentPid = process.ppid;
+  if (!parentPid || parentPid <= 1) {
+    return;
+  }
+
+  const interval = setInterval(() => {
+    if (process.ppid === parentPid && process.ppid > 1) {
+      return;
+    }
+
+    app.quit();
+    setTimeout(() => app.exit(0), 1000).unref?.();
+  }, 1000);
+
+  interval.unref?.();
+}
+
 function writeStartupLog(message, error = null) {
   try {
     const logDir = path.join(app.getPath('userData'), 'logs');
@@ -952,6 +974,7 @@ const gotSingleInstanceLock = app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) {
   app.exit(0);
 } else {
+  installDevelopmentParentProcessGuard();
   pendingOpenMarkdownPath = findMarkdownPathInArgv(process.argv);
 
   app.on('second-instance', (_event, argv) => {

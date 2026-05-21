@@ -1,9 +1,20 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { useVaultStore } from '@/stores/useVaultStore';
-import { NotesSidebarPanel } from './NotesSidebarPanel';
+import { NotesSidebarSurface } from './NotesSidebarPrimitives';
 
-export function NotesSidebarWrapper({ isPeeking = false }: { isPeeking?: boolean }) {
+const NotesSidebarPanel = lazy(async () => {
+  const mod = await import('./NotesSidebarPanel');
+  return { default: mod.NotesSidebarPanel };
+});
+
+export function NotesSidebarWrapper({
+  isPeeking = false,
+  loadContent = true,
+}: {
+  isPeeking?: boolean;
+  loadContent?: boolean;
+}) {
   const rootFolder = useNotesStore(s => s.rootFolder);
   const rootFolderPath = useNotesStore(s => s.rootFolderPath);
   const notesPath = useNotesStore(s => s.notesPath);
@@ -29,14 +40,20 @@ export function NotesSidebarWrapper({ isPeeking = false }: { isPeeking?: boolean
     (!rootFolder || rootFolderPath !== currentVault.path),
   );
 
+  if (!loadContent) {
+    return <NotesSidebarSurface isPeeking={isPeeking} className="min-h-0" />;
+  }
+
   return (
-    <NotesSidebarPanel
-      rootFolder={rootFolder}
-      isLoading={isLoading || isCurrentVaultRootPending}
-      currentNotePath={currentNotePath}
-      createNote={() => createNote()}
-      createFolder={(path: string) => createFolder(path)}
-      isPeeking={isPeeking}
-    />
+    <Suspense fallback={null}>
+      <NotesSidebarPanel
+        rootFolder={rootFolder}
+        isLoading={isLoading || isCurrentVaultRootPending}
+        currentNotePath={currentNotePath}
+        createNote={() => createNote()}
+        createFolder={(path: string) => createFolder(path)}
+        isPeeking={isPeeking}
+      />
+    </Suspense>
   );
 }

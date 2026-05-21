@@ -1,4 +1,3 @@
-import { toJpeg, toPng, toSvg } from 'html-to-image';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { writeDesktopBinaryFile } from '@/lib/desktop/fs';
 import { saveDialog } from '@/lib/storage/dialog';
@@ -75,6 +74,8 @@ function serializeExistingSvg(element: HTMLElement): Uint8Array | null {
 }
 
 async function createPreviewBytes(element: HTMLElement, format: PreviewExportFormat): Promise<Uint8Array> {
+  const { toJpeg, toPng, toSvg } = await import('html-to-image');
+
   if (format === 'svg') {
     return serializeExistingSvg(element) ?? dataUrlToBytes(await toSvg(element, { cacheBust: true }));
   }

@@ -15,6 +15,24 @@ const DEFAULT_PORT = 3000;
 const MAX_PORT = 3100;
 const DEPENDENCY_UPDATE_CHECK_TIMEOUT_MS = 45_000;
 const DEPENDENCY_UPDATE_CHECK_MAX_ITEMS = 12;
+const RENDERER_WARMUP_TIMEOUT_MS = 60_000;
+const RENDERER_WARMUP_MAX_MODULES = 2500;
+const RENDERER_WARMUP_RECURSIVE_EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx', '.mjs', '.css']);
+const RENDERER_WARMUP_PATHS = [
+  '/',
+  '/src/components/Notes/features/Editor/index.ts',
+  '/src/components/Notes/features/Editor/MarkdownEditor.tsx',
+  '/src/components/Notes/features/Editor/MilkdownEditorInner.tsx',
+  '/src/components/Notes/features/Tabs/NotesTabRow.tsx',
+  '/src/components/Notes/features/Sidebar/NotesSidebarWrapper.tsx',
+  '/src/components/Notes/NotesView.tsx',
+  '/src/components/Chat/ChatView.tsx',
+  '/src/components/Chat/features/Sidebar/ChatSidebar.tsx',
+  '/src/components/Chat/features/Input/ModelSelector.tsx',
+  '/src/main.tsx',
+  '/src/App.tsx',
+  '/src/AppContent.tsx',
+];
 const ELECTRON_WATCH_PATHS = [
   path.join(repoRoot, 'electron'),
   path.join(repoRoot, 'scripts'),
@@ -42,6 +60,74 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function resolveGitCommonRepoRoot(root) {
+  const dotGitPath = path.join(root, '.git');
+
+  try {
+    const stat = fs.statSync(dotGitPath);
+    if (stat.isDirectory()) {
+      return root;
+    }
+
+    if (!stat.isFile()) {
+      return root;
+    }
+
+    const content = fs.readFileSync(dotGitPath, 'utf8').trim();
+    const match = /^gitdir:\s*(.+)$/i.exec(content);
+    if (!match) {
+      return root;
+    }
+
+    const gitDir = path.resolve(root, match[1]);
+    const worktreesDir = path.dirname(gitDir);
+    const commonGitDir = path.dirname(worktreesDir);
+
+    if (
+      path.basename(worktreesDir) !== 'worktrees' ||
+      path.basename(commonGitDir) !== '.git'
+    ) {
+      return root;
+    }
+
+    return path.dirname(commonGitDir);
+  } catch {
+    return root;
+  }
+}
+
+function isLinkedToPath(linkPath, targetPath) {
+  try {
+    return fs.lstatSync(linkPath).isSymbolicLink() &&
+      path.resolve(fs.realpathSync(linkPath)) === path.resolve(fs.realpathSync(targetPath));
+  } catch {
+    return false;
+  }
+}
+
+function canUseElectronUserDataDir(userDataDir, sharedAppDataDir) {
+  const appDataPath = path.join(userDataDir, '.vlaina');
+  if (!fs.existsSync(appDataPath)) {
+    return true;
+  }
+
+  return isLinkedToPath(appDataPath, sharedAppDataDir);
+}
+
+function findElectronUserDataDir(port, sharedAppDataDir) {
+  const baseName = `electron-user-data-${port}`;
+
+  for (let index = 0; index < 100; index += 1) {
+    const suffix = index === 0 ? '' : `-${index}`;
+    const userDataDir = path.join(repoRoot, 'temp', `${baseName}${suffix}`);
+    if (canUseElectronUserDataDir(userDataDir, sharedAppDataDir)) {
+      return userDataDir;
+    }
+  }
+
+  throw new Error(`No usable Electron userData directory found for renderer port ${port}`);
+}
+
 function checkPortAvailable(port) {
   return new Promise((resolve) => {
     const server = net.createServer();
@@ -59,6 +145,13 @@ function checkPortAvailable(port) {
 }
 
 async function findAvailablePort(startPort) {
+  if (!(await checkPortAvailable(startPort))) {
+    log(
+      '33',
+      `Renderer port ${startPort} is already in use; reusing another port will split dev localStorage. Stop the old dev server if startup view looks stale.`
+    );
+  }
+
   for (let port = startPort; port < MAX_PORT; port += 1) {
     if (await checkPortAvailable(port)) {
       return port;
@@ -101,12 +194,173 @@ function waitForPortOpen(port, timeoutMs) {
   });
 }
 
+function shouldRecursivelyWarmPath(pathname) {
+  if (pathname === '/') return false;
+  if (pathname.startsWith('/@vite/')) return false;
+
+  const extension = path.extname(pathname);
+  return RENDERER_WARMUP_RECURSIVE_EXTENSIONS.has(extension);
+}
+
+function extractModuleSpecifiers(code) {
+  const specifiers = new Set();
+  const patterns = [
+    /\bimport\s+(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]/g,
+    /\bexport\s+[^'"]*?\s+from\s+['"]([^'"]+)['"]/g,
+    /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g,
+  ];
+
+  for (const pattern of patterns) {
+    let match;
+    while ((match = pattern.exec(code)) !== null) {
+      specifiers.add(match[1]);
+    }
+  }
+
+  return [...specifiers];
+}
+
+function resolveWarmupSpecifier(baseUrl, specifier) {
+  if (
+    specifier.startsWith('node:') ||
+    specifier.startsWith('data:') ||
+    specifier.startsWith('blob:') ||
+    specifier.startsWith('virtual:')
+  ) {
+    return null;
+  }
+
+  try {
+    if (specifier.startsWith('/') || specifier.startsWith('.')) {
+      return new URL(specifier, baseUrl);
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function warmRendererPath(devUrl, pathname, options = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), RENDERER_WARMUP_TIMEOUT_MS);
+  const startedAt = Date.now();
+
+  try {
+    const url = pathname instanceof URL ? pathname : new URL(pathname, devUrl);
+    const response = await fetch(url, {
+      cache: 'no-store',
+      signal: controller.signal,
+      headers: {
+        Accept: url.pathname === '/' ? 'text/html,*/*' : 'text/javascript,*/*',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    const body = options.text ? await response.text() : await response.arrayBuffer();
+    return {
+      durationMs: Date.now() - startedAt,
+      text: options.text ? body : null,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function warmRendererDependencyGraph(devUrl, rootPathname, seen) {
+  const queue = [new URL(rootPathname, devUrl)];
+  let warmedModules = 0;
+
+  while (queue.length > 0) {
+    if (shutdownRequested) {
+      throw new Error('Dev startup interrupted');
+    }
+
+    if (seen.size >= RENDERER_WARMUP_MAX_MODULES) {
+      break;
+    }
+
+    const url = queue.shift();
+    if (!url) continue;
+
+    const key = url.href;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    if (!shouldRecursivelyWarmPath(url.pathname)) {
+      continue;
+    }
+
+    let text;
+    try {
+      ({ text } = await warmRendererPath(devUrl, url, { text: true }));
+      warmedModules += 1;
+    } catch {
+      continue;
+    }
+
+    if (!text) continue;
+
+    for (const specifier of extractModuleSpecifiers(text)) {
+      const resolved = resolveWarmupSpecifier(url, specifier);
+      if (!resolved) continue;
+      if (resolved.origin !== new URL(devUrl).origin) continue;
+      if (seen.has(resolved.href)) continue;
+      queue.push(resolved);
+    }
+  }
+
+  return warmedModules;
+}
+
+async function warmRendererModules(devUrl) {
+  log('90', 'Warming renderer startup modules');
+  const startedAt = Date.now();
+  const results = [];
+  const seen = new Set();
+
+  for (const pathname of RENDERER_WARMUP_PATHS) {
+    if (shutdownRequested) {
+      throw new Error('Dev startup interrupted');
+    }
+
+    const pathStartedAt = Date.now();
+    try {
+      const { durationMs } = await warmRendererPath(devUrl, pathname);
+      const dependencyCount = await warmRendererDependencyGraph(devUrl, pathname, seen);
+      const totalPathMs = Date.now() - pathStartedAt;
+      results.push({ path: pathname, ok: true, durationMs, dependencyCount, totalMs: totalPathMs });
+      log('90', `  warmed ${pathname} in ${totalPathMs}ms (${dependencyCount} deps)`);
+    } catch (error) {
+      const durationMs = Date.now() - pathStartedAt;
+      results.push({
+        path: pathname,
+        ok: false,
+        durationMs,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      log(
+        '33',
+        `  warmup failed for ${pathname} after ${durationMs}ms: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  const totalMs = Date.now() - startedAt;
+  log('32', `Renderer warmup finished in ${totalMs}ms`);
+  return { totalMs, results };
+}
+
 function spawnPnpm(args, env, label) {
   const child = spawn(pnpmCommand, args, {
     cwd: repoRoot,
     stdio: 'inherit',
     env,
     shell: isWindows,
+    detached: !isWindows,
   });
 
   child.once('error', (error) => {
@@ -236,16 +490,20 @@ function killChildProcess(child) {
     }
 
     try {
-      child.kill('SIGTERM');
+      process.kill(-child.pid, 'SIGTERM');
     } catch {
-      resolve();
-      return;
+      try {
+        child.kill('SIGTERM');
+      } catch {
+        resolve();
+        return;
+      }
     }
 
     setTimeout(() => {
       if (child.exitCode === null) {
         try {
-          child.kill('SIGKILL');
+          process.kill(-child.pid, 'SIGKILL');
         } catch {}
       }
     }, 1500);
@@ -460,14 +718,23 @@ function updateLinuxDesktopActivationEnvironment(env) {
 async function startDev() {
   const port = await findAvailablePort(DEFAULT_PORT);
   const devUrl = `http://127.0.0.1:${port}`;
+  const sharedRepoRoot = resolveGitCommonRepoRoot(repoRoot);
+  const sharedUserDataDir = path.join(sharedRepoRoot, 'temp', 'electron-user-data');
+  const sharedAppDataDir = path.join(sharedUserDataDir, '.vlaina');
+  const userDataDir = findElectronUserDataDir(port, sharedAppDataDir);
   const env = {
     ...process.env,
     VITE_PORT: String(port),
     VITE_DEV_SERVER_URL: devUrl,
+    VLAINA_USER_DATA_DIR: process.env.VLAINA_USER_DATA_DIR || userDataDir,
+    VLAINA_SHARED_USER_DATA_DIR: process.env.VLAINA_SHARED_USER_DATA_DIR || sharedUserDataDir,
+    VLAINA_SHARED_APP_DATA_DIR: process.env.VLAINA_SHARED_APP_DATA_DIR || sharedAppDataDir,
   };
 
   log('32', `Using renderer port ${port}`);
   log('36', `Renderer URL ${devUrl}`);
+  log('36', `Electron userData ${env.VLAINA_USER_DATA_DIR}`);
+  log('36', `Shared app data ${env.VLAINA_SHARED_APP_DATA_DIR}`);
 
   const rendererScript = process.env.VLAINA_FORCE_VITE_OPTIMIZE === '1'
     ? 'dev:renderer:force'
@@ -490,6 +757,7 @@ async function startDev() {
 
   await waitForPortOpen(port, 30_000);
   log('32', 'Renderer is ready');
+  await warmRendererModules(devUrl);
 
   watchElectronSources(env);
   await startElectron(env);

@@ -1,5 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { MilkdownProvider } from '@milkdown/react';
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { OverlayScrollArea } from '@/components/ui/overlay-scroll-area';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { cn } from '@/lib/utils';
@@ -14,16 +13,14 @@ import {
   subscribeCurrentEditorBlockPositionSnapshot,
 } from './utils/editorBlockPositionCache';
 import { useHeldPageScroll } from '@/hooks/useHeldPageScroll';
-import { useNoteEditorFind } from './find';
-import { EditorTopRightToolbar } from './EditorTopRightToolbar';
+import { useNoteEditorFind } from './find/useNoteEditorFind';
+import type { EditorTopRightToolbarProps } from './EditorTopRightToolbar';
 import {
   getSidebarSearchNavigationPendingPath,
   isSidebarSearchNavigationPending,
   subscribeSidebarSearchNavigationPending,
 } from '../Sidebar/sidebarSearchNavigation';
 import { getNoteMetadataEntry } from '@/stores/notes/noteMetadataState';
-import { MilkdownEditorInner } from './MilkdownEditorInner';
-import { prewarmMermaidRenderer } from './plugins/mermaid/mermaidRenderer';
 import {
   canKeepCoverDuringEditorReload,
   getStableCoverSignature,
@@ -32,14 +29,32 @@ import {
 import 'katex/dist/katex.min.css';
 import './styles/index.css';
 
+const MERMAID_PREWARM_DELAY_MS = import.meta.env.DEV ? 45000 : 5000;
+
+const EditorTopRightToolbar = lazy(async () => {
+  const mod = await import('./EditorTopRightToolbar');
+  return {
+    default: (props: EditorTopRightToolbarProps) => (
+      <mod.EditorTopRightToolbar {...props} />
+    ),
+  };
+});
+
+const MilkdownEditorRuntime = lazy(async () => {
+  const mod = await import('./MilkdownEditorInner');
+  return { default: mod.MilkdownEditorRuntime };
+});
+
 export function MarkdownEditor({
   active = true,
   isPeeking = false,
   peekOffset = 0,
+  onEditorViewReady,
 }: {
   active?: boolean;
   isPeeking?: boolean;
   peekOffset?: number;
+  onEditorViewReady?: () => void;
 }) {
   const { contentOffset } = useEditorLayout(isPeeking, peekOffset);
   const scrollRootRef = useRef<HTMLDivElement | null>(null);
@@ -111,21 +126,36 @@ export function MarkdownEditor({
       path: currentNotePath,
       diskRevision: currentNoteDiskRevision,
     });
-  }, [currentNoteDiskRevision, currentNotePath]);
+    onEditorViewReady?.();
+  }, [currentNoteDiskRevision, currentNotePath, onEditorViewReady]);
 
   useEffect(() => {
     if (!hasActiveNote) {
       return;
     }
 
-    const requestIdleCallback = window.requestIdleCallback;
-    if (typeof requestIdleCallback === 'function') {
-      const idleId = requestIdleCallback(() => prewarmMermaidRenderer(), { timeout: 1500 });
-      return () => window.cancelIdleCallback?.(idleId);
-    }
+    let idleId: number | null = null;
+    const timeoutId = window.setTimeout(() => {
+      const preload = () => {
+        void import('./plugins/mermaid/mermaidRenderer').then((mod) => {
+          mod.prewarmMermaidRenderer();
+        });
+      };
 
-    const timeoutId = window.setTimeout(() => prewarmMermaidRenderer(), 250);
-    return () => window.clearTimeout(timeoutId);
+      if (typeof window.requestIdleCallback === 'function') {
+        idleId = window.requestIdleCallback(preload, { timeout: 3000 });
+        return;
+      }
+
+      preload();
+    }, MERMAID_PREWARM_DELAY_MS);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      if (idleId !== null) {
+        window.cancelIdleCallback?.(idleId);
+      }
+    };
   }, [hasActiveNote]);
 
   useEffect(() => {
@@ -280,17 +310,19 @@ export function MarkdownEditor({
       onClick={handleEditorClick}
     >
       {hasActiveNote ? (
-        <EditorTopRightToolbar
-          editorFind={editorFind}
-          currentNotePath={currentNotePath}
-          currentNoteContent={currentNoteContent}
-          currentNoteTitle={currentNoteTitle}
-          notesPath={notesPath}
-          starred={starred}
-          toggleStarred={toggleStarred}
-          currentNoteMetadata={currentNoteMetadata}
-          textStats={textStats}
-        />
+        <Suspense fallback={null}>
+          <EditorTopRightToolbar
+            editorFind={editorFind}
+            currentNotePath={currentNotePath}
+            currentNoteContent={currentNoteContent}
+            currentNoteTitle={currentNoteTitle}
+            notesPath={notesPath}
+            starred={starred}
+            toggleStarred={toggleStarred}
+            currentNoteMetadata={currentNoteMetadata}
+            textStats={textStats}
+          />
+        </Suspense>
       ) : null}
 
       <OverlayScrollArea
@@ -333,9 +365,12 @@ export function MarkdownEditor({
                 onAddCover={coverController.openCoverPicker}
               />
 
-              <MilkdownProvider key={`${currentNotePath ?? 'empty'}:${currentNoteDiskRevision}`}>
-                <MilkdownEditorInner onEditorViewReady={handleEditorViewReady} />
-              </MilkdownProvider>
+              <Suspense fallback={null}>
+                <MilkdownEditorRuntime
+                  key={`${currentNotePath ?? 'empty'}:${currentNoteDiskRevision}`}
+                  onEditorViewReady={handleEditorViewReady}
+                />
+              </Suspense>
             </>
           ) : (
             <div
