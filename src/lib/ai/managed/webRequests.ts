@@ -121,7 +121,6 @@ export async function requestManagedWebStream(
         payload = JSON.parse(jsonStr) as typeof payload;
       } catch (parseError) {
         if (import.meta.env.DEV) {
-          console.warn('[managedService] SSE line parse failed:', parseError);
         }
         return;
       }

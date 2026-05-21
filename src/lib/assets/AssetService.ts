@@ -168,7 +168,6 @@ export class AssetService {
       }));
       existingFiles = existingEntries.map(f => f.name);
     } catch (error) {
-      if (import.meta.env.DEV) console.warn('Failed to list directory for conflict resolution, falling back to asset list', error);
       existingFiles = existingAssets.map(a => a.filename.split('/').pop() || '');
     }
 

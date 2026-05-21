@@ -21,7 +21,6 @@ export function VaultWelcome() {
           await desktopWindow.setSize({ width: 980, height: 640 });
           await desktopWindow.center();
       } catch (e) {
-        console.error('Failed to lock window:', e);
       }
     };
 
@@ -34,7 +33,6 @@ export function VaultWelcome() {
           await desktopWindow.setSize({ width: 980, height: 640 });
           await desktopWindow.center();
         } catch (e) {
-          console.error('Failed to unlock window:', e);
         }
       };
       void unlockWindow();

@@ -116,7 +116,6 @@ export function UploadTab({
             onClose();
 
         } catch (e) {
-            console.error(e);
             useToastStore.getState().addToast(t('icon.failedSave'), 'error');
         } finally {
             setIsUploading(false);

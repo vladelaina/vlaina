@@ -113,9 +113,6 @@ function createWatcherGroup(groupKey, resolvedWatchPath, options) {
   }
 
   listener.on('error', (error) => {
-    console.warn(
-      `[desktopWatchIpc] filesystem watch failed for ${resolvedWatchPath}: ${getWatchErrorMessage(error)}`,
-    );
     closeWatcherGroup(groupKey);
   });
 

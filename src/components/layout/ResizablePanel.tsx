@@ -31,7 +31,6 @@ export function ResizablePanel({
         const saved = localStorage.getItem(storageKey);
         if (saved) return parseInt(saved, 10);
       } catch (e) {
-        console.error('Failed to load panel width', e);
       }
     }
     return defaultWidth;

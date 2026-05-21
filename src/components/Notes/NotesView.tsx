@@ -227,8 +227,7 @@ export function NotesView({
       openNote,
       openNoteByAbsolutePath,
     })
-      .catch((error) => {
-        console.error('[NotesView] Failed to open launch note:', error);
+      .catch((_error) => {
       });
   }, [currentVault, focusSidebarPath, notesPath, openNote, openNoteByAbsolutePath]);
 
@@ -387,8 +386,7 @@ export function NotesView({
       }
 
       void state.createNote(undefined, { asDraft: true })
-        .catch((error) => {
-          console.error('[NotesView] Failed to create blank draft note:', error);
+        .catch((_error) => {
           autoCreateBlankNoteRef.current = false;
         });
     }, 0);

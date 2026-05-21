@@ -77,7 +77,6 @@ function UserMessageInner({
         copiedTimerRef.current = null;
       }, 2000);
     } catch (error) {
-      console.error('[UserMessage] Failed to copy message:', error);
     }
   }, [content]);
 

@@ -29,7 +29,6 @@ import { updateNoteMetadataInMarkdown } from '../frontmatter';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
 import { normalizeVaultRelativePath, resolveVaultRelativeFullPath } from '../utils/fs/vaultPathContainment';
 import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
-import { logNotesDebug } from '../lineBreakDebugLog';
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -174,21 +173,10 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     path: string,
     updates: Partial<NoteMetadataEntry>
   ) => {
-    logNotesDebug('NotesMetadataUpdate', 'single:start', {
-      path,
-      updateKeys: Object.keys(updates),
-      cover: updates.cover,
-      icon: updates.icon,
-    });
     const state = get();
     const vaultPathAtStart = state.notesPath;
     const isDraftMetadataTarget = isDraftNotePath(path);
     if (!vaultPathAtStart) {
-      logNotesDebug('NotesMetadataUpdate', 'single:no-vault', {
-        path,
-        isAbsolutePath: isAbsolutePath(path),
-        isDraftMetadataTarget,
-      });
       if (isAbsolutePath(path)) {
         let latestState = state;
         let metadataBase = latestState.noteMetadata ?? createEmptyMetadataFile();
@@ -229,30 +217,15 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
           currentNote: isCurrentNote ? { path, content } : latestState.currentNote,
           error: null,
         });
-        logNotesDebug('NotesMetadataUpdate', 'single:absolute-state-updated', {
-          path,
-          updateKeys: Object.keys(updates),
-          isCurrentNote,
-        });
 
         if (isCurrentNote && latestState.isDirty) {
-          logNotesDebug('NotesMetadataUpdate', 'single:absolute-skip-write-dirty-current', { path });
           return;
         }
 
         try {
-          logNotesDebug('NotesMetadataUpdate', 'single:absolute-write:start', { path });
           const modifiedAt = await writeNoteContent(path, content, '');
           applyCompletedMetadataWrite(path, content, modifiedAt);
-          logNotesDebug('NotesMetadataUpdate', 'single:absolute-write:done', {
-            path,
-            modifiedAt,
-          });
         } catch (error) {
-          logNotesDebug('NotesMetadataUpdate', 'single:absolute-write:error', {
-            path,
-            message: error instanceof Error ? error.message : String(error),
-          });
           markMetadataWriteFailedDirty(path, error);
         }
         return;
@@ -282,15 +255,9 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
             : state.openTabs,
           error: null,
         });
-        logNotesDebug('NotesMetadataUpdate', 'single:draft-updated', {
-          path,
-          updateKeys: Object.keys(updates),
-        });
 
         return;
       }
-
-      logNotesDebug('NotesMetadataUpdate', 'single:no-vault-skipped', { path });
       return;
     }
 
@@ -310,16 +277,11 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
             ? (await resolveVaultRelativeFullPath(vaultPathAtStart, path)).fullPath
             : null;
       } catch (error) {
-        logNotesDebug('NotesMetadataUpdate', 'single:resolve-error', {
-          path,
-          message: error instanceof Error ? error.message : String(error),
-        });
         set({ error: error instanceof Error ? error.message : 'Failed to update note metadata' });
         return;
       }
 
       if (!fullPath) {
-        logNotesDebug('NotesMetadataUpdate', 'single:missing-full-path', { path });
         return;
       }
 
@@ -331,11 +293,6 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
       }
       sourceContent = await storage.readFile(fullPath);
       if (!isActiveVaultRequest(vaultPathAtStart)) {
-        logNotesDebug('NotesMetadataUpdate', 'single:stale-after-read', {
-          path,
-          vaultPathAtStart,
-          activeNotesPath: get().notesPath,
-        });
         return;
       }
       latestState = get();
@@ -364,11 +321,6 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
     const nextCache = setCachedNoteContent(latestState.noteContentsCache, path, content, cachedModifiedAt);
 
     if (!isActiveVaultRequest(vaultPathAtStart)) {
-      logNotesDebug('NotesMetadataUpdate', 'single:stale-before-state-update', {
-        path,
-        vaultPathAtStart,
-        activeNotesPath: get().notesPath,
-      });
       return;
     }
 
@@ -383,12 +335,6 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         : latestState.openTabs,
       error: null,
     });
-    logNotesDebug('NotesMetadataUpdate', 'single:state-updated', {
-      path,
-      updateKeys: Object.keys(updates),
-      isCurrentNote,
-      isDraftNote,
-    });
 
     if (isDraftNote) {
       const draftNote = latestState.draftNotes[path];
@@ -397,39 +343,22 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         Boolean(draftNote) &&
         (draftNote.originNotesPath === undefined || draftNote.originNotesPath === vaultPathAtStart);
       if (canImplicitlySaveDraft) {
-        logNotesDebug('NotesMetadataUpdate', 'single:draft-save:start', { path });
         await get().saveNote({ explicit: false });
-        logNotesDebug('NotesMetadataUpdate', 'single:draft-save:done', { path });
       }
       return;
     }
 
     if (isCurrentNote && latestState.isDirty) {
-      logNotesDebug('NotesMetadataUpdate', 'single:skip-write-dirty-current', { path });
       return;
     }
 
     try {
-      logNotesDebug('NotesMetadataUpdate', 'single:write:start', { path, vaultPathAtStart });
       const modifiedAt = await writeNoteContent(path, content, vaultPathAtStart);
       if (!isActiveVaultRequest(vaultPathAtStart)) {
-        logNotesDebug('NotesMetadataUpdate', 'single:stale-after-write', {
-          path,
-          vaultPathAtStart,
-          activeNotesPath: get().notesPath,
-        });
         return;
       }
       applyCompletedMetadataWrite(path, content, modifiedAt);
-      logNotesDebug('NotesMetadataUpdate', 'single:write:done', {
-        path,
-        modifiedAt,
-      });
     } catch (error) {
-      logNotesDebug('NotesMetadataUpdate', 'single:write:error', {
-        path,
-        message: error instanceof Error ? error.message : String(error),
-      });
       markMetadataWriteFailedDirty(path, error);
     }
   };

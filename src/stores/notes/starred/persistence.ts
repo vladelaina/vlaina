@@ -100,8 +100,7 @@ const starredPersistenceQueue = createPersistenceQueue<StarredEntry[]>({
   write: writeStarredRegistry,
   debounceMs: 80,
   maxWaitMs: 400,
-  onError: (error) => {
-    console.error('[NotesStarred] Failed to persist starred registry:', error);
+  onError: (_error) => {
   },
 });
 
@@ -141,7 +140,6 @@ export async function loadStarredRegistry(): Promise<StarredRegistry> {
 
     const starredInfo = await storage.stat(starredPath).catch(() => null);
     if (starredInfo?.size && starredInfo.size > MAX_STARRED_REGISTRY_BYTES) {
-      console.error('[NotesStorage] Starred registry is too large to load');
       return { version: CURRENT_STARRED_VERSION, entries: [] };
     }
 
@@ -165,7 +163,6 @@ export async function loadStarredRegistry(): Promise<StarredRegistry> {
       entries: prunedRegistry.entries,
     };
   } catch (error) {
-    console.error('[NotesStorage] Failed to load starred registry:', error);
     return { version: CURRENT_STARRED_VERSION, entries: [] };
   }
 }

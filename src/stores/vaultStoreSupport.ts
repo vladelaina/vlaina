@@ -140,7 +140,6 @@ export function persistVaultState(recentVaults: VaultInfo[], currentVaultId: str
       };
       await storage.writeFile(statePath, JSON.stringify(payload, null, 2));
     } catch (error) {
-      console.error('[VaultStore] Failed to persist vault state:', error);
     }
   })();
 }

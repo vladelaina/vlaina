@@ -34,6 +34,5 @@ export function insertMermaidNodeAndOpenEditor(ctx: Ctx) {
       .scrollIntoView();
     dispatch(tr);
   } catch (error) {
-    console.warn('[SlashMenu] Failed to insert mermaid:', error);
   }
 }

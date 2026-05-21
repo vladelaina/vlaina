@@ -1,5 +1,3 @@
-const MAX_NOTES_DEBUG_ENTRIES = 5000;
-
 interface NotesDebugEntry {
   timestamp: string;
   label: string;
@@ -8,34 +6,9 @@ interface NotesDebugEntry {
 }
 
 const notesDebugEntries: NotesDebugEntry[] = [];
-let didInstallGlobalNotesDebugHelpers = false;
-
-const NOTES_DEBUG_STORAGE_KEY = 'vlaina.notes.debug';
-const NOTES_DEBUG_CACHE_MS = 1000;
-let cachedNotesDebugLogging: { checkedAt: number; enabled: boolean } | null = null;
 
 export function isNotesDebugLoggingEnabled() {
-  if (import.meta.env.MODE === 'test') {
-    return true;
-  }
-
-  if (typeof window === 'undefined') {
-    return false;
-  }
-
-  const now = Date.now();
-  if (cachedNotesDebugLogging && now - cachedNotesDebugLogging.checkedAt < NOTES_DEBUG_CACHE_MS) {
-    return cachedNotesDebugLogging.enabled;
-  }
-
-  try {
-    const enabled = window.localStorage.getItem(NOTES_DEBUG_STORAGE_KEY) === '1';
-    cachedNotesDebugLogging = { checkedAt: now, enabled };
-    return enabled;
-  } catch {
-    cachedNotesDebugLogging = { checkedAt: now, enabled: false };
-    return false;
-  }
+  return false;
 }
 
 export function summarizeLineBreakText(text: string | null | undefined) {
@@ -88,6 +61,38 @@ export function compareLineBreakText(
   };
 }
 
+export function getNotesDebugLogText() {
+  return notesDebugEntries.map(formatNotesDebugEntry).join('\n');
+}
+
+export function getLineBreakDebugLogText() {
+  return getNotesDebugLogText();
+}
+
+export function clearNotesDebugLog() {
+  notesDebugEntries.length = 0;
+}
+
+export function clearLineBreakDebugLog() {
+  clearNotesDebugLog();
+}
+
+export function logNotesDebug(_label: string, _scope: string, _payload?: unknown) {
+  notesDebugEntries.push({
+    timestamp: new Date().toISOString(),
+    label: _label,
+    scope: _scope,
+    payload: _payload,
+  });
+}
+
+export function logLineBreakDebug(_scope: string, _payload?: unknown) {
+  logNotesDebug('NotesLineBreak', _scope, _payload);
+}
+
+export function installGlobalNotesDebugHelpers() {
+}
+
 function stringifyDebugPayload(payload: unknown) {
   if (payload === undefined) {
     return '';
@@ -110,70 +115,3 @@ function formatNotesDebugEntry(entry: NotesDebugEntry) {
     ? `[${entry.timestamp}] [${entry.label}] ${entry.scope} ${payload}`
     : `[${entry.timestamp}] [${entry.label}] ${entry.scope}`;
 }
-
-export function getNotesDebugLogText() {
-  return notesDebugEntries.map(formatNotesDebugEntry).join('\n');
-}
-
-export function getLineBreakDebugLogText() {
-  return getNotesDebugLogText();
-}
-
-export function clearNotesDebugLog() {
-  notesDebugEntries.length = 0;
-}
-
-export function clearLineBreakDebugLog() {
-  clearNotesDebugLog();
-}
-
-export function logNotesDebug(label: string, scope: string, payload?: unknown) {
-  appendNotesDebugEntry(label, scope, payload);
-}
-
-function appendNotesDebugEntry(
-  label: string,
-  scope: string,
-  payload?: unknown,
-) {
-  if (!isNotesDebugLoggingEnabled()) {
-    return;
-  }
-
-  const entry = {
-    timestamp: new Date().toISOString(),
-    label,
-    scope,
-    payload,
-  };
-  notesDebugEntries.push(entry);
-
-  if (notesDebugEntries.length > MAX_NOTES_DEBUG_ENTRIES) {
-    notesDebugEntries.splice(0, notesDebugEntries.length - MAX_NOTES_DEBUG_ENTRIES);
-  }
-}
-
-export function logLineBreakDebug(scope: string, payload?: unknown) {
-  logNotesDebug('NotesLineBreak', scope, payload);
-}
-
-export function installGlobalNotesDebugHelpers() {
-  if (didInstallGlobalNotesDebugHelpers || typeof window === 'undefined') {
-    return;
-  }
-
-  didInstallGlobalNotesDebugHelpers = true;
-  const target = window as Window & {
-    vlainaNotesDebug?: {
-      clear: () => void;
-      text: () => string;
-    };
-  };
-
-  target.vlainaNotesDebug = {
-    clear: clearNotesDebugLog,
-    text: getNotesDebugLogText,
-  };
-}
-
-installGlobalNotesDebugHelpers();

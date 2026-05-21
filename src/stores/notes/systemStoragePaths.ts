@@ -55,6 +55,5 @@ export async function moveVaultSystemStore(
     await ensureSystemDirectory(await getNotesSystemStorePath('vaults'));
     await storage.rename(previousPath, nextPath);
   } catch (error) {
-    console.error('[NotesStorage] Failed to move vault system store:', error);
   }
 }

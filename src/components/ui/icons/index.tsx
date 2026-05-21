@@ -16,7 +16,6 @@ export const Icon = forwardRef<SVGSVGElement, IconProps>(
     const IconComponent = icons[name];
 
     if (!IconComponent) {
-      console.warn(`Icon "${name}" not found in registry.`);
       return null;
     }
 

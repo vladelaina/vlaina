@@ -86,7 +86,6 @@ export async function runStreamedAssistantMessage({
     try {
       await onSuccess();
     } catch (error) {
-      console.error('[chatService] post-success handler failed:', error);
     }
   }
 

@@ -288,7 +288,6 @@ export function createWindowManager({
     attachWindowLifecycle(window, windowOptions);
 
     loadRenderer(window, windowOptions).catch((error) => {
-      console.error('[electron] Failed to load renderer:', error);
     });
 
     return window;

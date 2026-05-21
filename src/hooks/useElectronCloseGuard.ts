@@ -12,11 +12,10 @@ import { useCloseDraftPersistence } from './useCloseDraftPersistence';
 
 const CLOSE_FLUSH_TIMEOUT_MS = import.meta.env.MODE === 'test' ? 20 : 5000;
 
-async function withCloseTimeout<T>(task: Promise<T>, fallbackValue: T, failureLabel: string): Promise<T> {
+async function withCloseTimeout<T>(task: Promise<T>, fallbackValue: T, _failureLabel: string): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   const timeout = new Promise<T>((resolve) => {
     timeoutId = setTimeout(() => {
-      console.error(`[App] ${failureLabel} timed out while closing`);
       resolve(fallbackValue);
     }, CLOSE_FLUSH_TIMEOUT_MS);
   });
@@ -24,7 +23,6 @@ async function withCloseTimeout<T>(task: Promise<T>, fallbackValue: T, failureLa
   try {
     return await Promise.race([task, timeout]);
   } catch (error) {
-    console.error(`[App] ${failureLabel} failed while closing:`, error);
     return fallbackValue;
   } finally {
     if (timeoutId !== null) {
@@ -62,8 +60,7 @@ export function useElectronCloseGuard() {
 
   const interruptCloseForSaveFailure = useCallback((restorePath: string | null) => {
     setIsCloseFailureConfirmOpen(true);
-    void restorePathAfterCloseInterruption(restorePath).catch((error) => {
-      console.error('[App] Failed to restore note after interrupted close:', error);
+    void restorePathAfterCloseInterruption(restorePath).catch((_error) => {
     });
   }, [restorePathAfterCloseInterruption]);
 
@@ -188,10 +185,9 @@ export function useElectronCloseGuard() {
         const results = await Promise.allSettled(tasks.map((entry) => entry.task));
         let hasFailure = false;
 
-        results.forEach((result, index) => {
+        results.forEach((result, _index) => {
           if (result.status === 'rejected') {
             hasFailure = true;
-            console.error(`[App] Failed to flush ${tasks[index].name}:`, result.reason);
           }
         });
 

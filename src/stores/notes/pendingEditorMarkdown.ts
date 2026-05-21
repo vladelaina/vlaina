@@ -3,26 +3,13 @@ import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { setCachedNoteContent } from './document/noteContentCache';
 import { setNoteTabDirtyState } from './document/noteTabState';
-import {
-  compareLineBreakText,
-  isNotesDebugLoggingEnabled,
-  logLineBreakDebug,
-  summarizeLineBreakText,
-} from './lineBreakDebugLog';
 export {
   flushCurrentPendingEditorMarkdown,
   setPendingEditorMarkdownFlusher,
 } from './pendingEditorMarkdownFlusher';
 
 export function flushPendingEditorMarkdown(notePath: string | null | undefined, markdown: string | null): boolean {
-  const debugEnabled = isNotesDebugLoggingEnabled();
   if (!notePath || markdown === null) {
-    if (debugEnabled) {
-      logLineBreakDebug('pending:skip-missing-input', {
-        notePath: notePath ?? null,
-        markdown: summarizeLineBreakText(markdown),
-      });
-    }
     return false;
   }
 
@@ -32,15 +19,6 @@ export function flushPendingEditorMarkdown(notePath: string | null | undefined, 
     state.openTabs.some((tab) => tab.path === notePath) ||
     state.noteContentsCache.has(notePath);
   if (!isKnownWorkspaceNote) {
-    if (debugEnabled) {
-      logLineBreakDebug('pending:skip-unknown-note', {
-        notePath,
-        currentNotePath: state.currentNote?.path ?? null,
-        openTabPaths: state.openTabs.map((tab) => tab.path),
-        cacheHasPath: state.noteContentsCache.has(notePath),
-        markdown: summarizeLineBreakText(markdown),
-      });
-    }
     return false;
   }
 
@@ -50,13 +28,6 @@ export function flushPendingEditorMarkdown(notePath: string | null | undefined, 
       : state.noteContentsCache.get(notePath)?.content;
 
   if (currentContent === markdown) {
-    if (debugEnabled) {
-      logLineBreakDebug('pending:skip-unchanged', {
-        notePath,
-        current: summarizeLineBreakText(currentContent),
-        markdown: summarizeLineBreakText(markdown),
-      });
-    }
     return false;
   }
 
@@ -64,30 +35,10 @@ export function flushPendingEditorMarkdown(notePath: string | null | undefined, 
     currentContent !== undefined &&
     normalizeSerializedMarkdownDocument(currentContent) === normalizeSerializedMarkdownDocument(markdown)
   ) {
-    if (debugEnabled) {
-      logLineBreakDebug('pending:skip-normalized-unchanged', {
-        notePath,
-        current: summarizeLineBreakText(currentContent),
-        markdown: summarizeLineBreakText(markdown),
-        diff: compareLineBreakText(currentContent, markdown),
-      });
-    }
     return false;
   }
 
   const modifiedAt = state.noteContentsCache.get(notePath)?.modifiedAt ?? null;
-  if (debugEnabled) {
-    logLineBreakDebug('pending:apply', {
-      notePath,
-      currentNotePath: state.currentNote?.path ?? null,
-      isCurrentNote: state.currentNote?.path === notePath,
-      openTabPaths: state.openTabs.map((tab) => tab.path),
-      cacheHasPath: state.noteContentsCache.has(notePath),
-      current: summarizeLineBreakText(currentContent),
-      markdown: summarizeLineBreakText(markdown),
-      diff: compareLineBreakText(currentContent, markdown),
-    });
-  }
   useNotesStore.setState((latest) => {
     const isCurrentNote = latest.currentNote?.path === notePath;
     const nextCurrentNote = isCurrentNote && latest.currentNote

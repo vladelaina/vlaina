@@ -87,7 +87,6 @@ export const MessageToolbar = memo(function MessageToolbar({
               triggerCopiedState('manual');
           }
       } catch (error) {
-          console.error('[MessageToolbar] Failed to copy message:', error);
       }
   };
 

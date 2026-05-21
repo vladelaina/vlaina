@@ -25,12 +25,6 @@ import {
 } from '../document/externalPathSync';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { readNoteMetadataFromMarkdown } from '../frontmatter';
-import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
-import {
-  logLineBreakDebug,
-  logNotesDebug,
-  summarizeLineBreakText,
-} from '../lineBreakDebugLog';
 import { createWorkspaceDocumentActions } from './workspaceDocumentActions';
 import { createWorkspaceExternalActions } from './workspaceExternalActions';
 import { createWorkspaceTabActions } from './workspaceTabActions';
@@ -97,14 +91,6 @@ function openDraftNoteFromMemory(
   const content = currentNote?.path === path
     ? currentNote.content
     : noteContentsCache.get(path)?.content ?? '';
-  logNotesDebug('NotesWorkspace', 'open-draft:from-memory', {
-    path,
-    openInNewTab,
-    currentNotePath: currentNote?.path ?? null,
-    existingTab: Boolean(existingTab),
-    openTabsLength: openTabs.length,
-    content: summarizeLineBreakText(content),
-  });
   const tabName = resolveDraftNoteTitle(draftNote.name);
   const shouldOpenInNewTab = openInNewTab || openTabs.length === 0;
   let updatedTabs = openTabs;
@@ -180,28 +166,8 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   displayNames: new Map(),
 
   openNote: async (path: string, openInNewTab: boolean = false) => {
-    logLineBreakDebug('open-note:start-before-flush', {
-      path,
-      openInNewTab,
-      currentNotePath: get().currentNote?.path ?? null,
-      isDirty: get().isDirty,
-      current: summarizeLineBreakText(get().currentNote?.content),
-    });
-    const flushed = flushCurrentPendingEditorMarkdown();
-    logLineBreakDebug('open-note:after-flush', {
-      path,
-      flushed,
-      currentNotePath: get().currentNote?.path ?? null,
-      isDirty: get().isDirty,
-      current: summarizeLineBreakText(get().currentNote?.content),
-    });
     const openRequestId = ++latestOpenNoteRequestId;
     if (openDraftNoteFromMemory(set, get, path, openInNewTab)) {
-      logNotesDebug('NotesWorkspace', 'open-note:draft-memory-complete', {
-        path,
-        currentNotePath: get().currentNote?.path ?? null,
-        isDirty: get().isDirty,
-      });
       return;
     }
     if (!isSupportedMarkdownPath(path)) {
@@ -213,10 +179,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     let shouldOpenInNewTab = openInNewTab;
     if (isDirty && currentNote && draftNotes[currentNote.path]) {
       shouldOpenInNewTab = true;
-      logNotesDebug('NotesWorkspace', 'open-note:dirty-draft-forces-new-tab', {
-        path,
-        currentNotePath: currentNote.path,
-      });
     }
 
     if (
@@ -225,27 +187,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       !draftNotes[currentNote.path] &&
       currentNote.path !== path
     ) {
-      logNotesDebug('NotesWorkspace', 'open-note:save-before-open', {
-        path,
-        notesPath,
-        currentNotePath: currentNote?.path ?? null,
-        openInNewTab: shouldOpenInNewTab,
-      });
       await saveNote();
       if (get().notesPath !== notesPath) {
-        logNotesDebug('NotesWorkspace', 'open-note:aborted-vault-changed-after-save', {
-          path,
-          originalNotesPath: notesPath,
-          latestNotesPath: get().notesPath,
-        });
         return;
       }
       if (get().isDirty) {
-        logNotesDebug('NotesWorkspace', 'open-note:preserve-dirty-tab-after-save', {
-          path,
-          currentNotePath: get().currentNote?.path ?? null,
-          isDirty: get().isDirty,
-        });
         shouldOpenInNewTab = true;
       }
       ({ notesPath, recentNotes, currentNote, noteContentsCache } = get());
@@ -262,18 +208,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         path,
         cache: noteContentsCache,
       });
-      logLineBreakDebug('open-note:loaded-target', {
-        path,
-        content: summarizeLineBreakText(content),
-      });
       if (openRequestId !== latestOpenNoteRequestId || get().notesPath !== notesPath) {
-        logNotesDebug('NotesWorkspace', 'open-note:stale-loaded-target', {
-          path,
-          openRequestId,
-          latestOpenNoteRequestId,
-          originalNotesPath: notesPath,
-          latestNotesPath: get().notesPath,
-        });
         return;
       }
       const latestState = get();
@@ -313,11 +248,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         ),
         noteMetadata: nextMetadata,
       });
-      logLineBreakDebug('open-note:set-target', {
-        path,
-        isDirty: latestExistingTab?.isDirty ?? false,
-        content: summarizeLineBreakText(content),
-      });
 
       const { rootFolder, fileTreeSortMode } = get();
       persistWorkspaceSnapshot(notesPath, {
@@ -327,10 +257,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       });
     } catch (error) {
       if (openRequestId === latestOpenNoteRequestId && get().notesPath === notesPath) {
-        logNotesDebug('NotesWorkspace', 'open-note:failed', {
-          path,
-          message: error instanceof Error ? error.message : String(error),
-        });
         set({ error: error instanceof Error ? error.message : 'Failed to open note' });
       }
     }
@@ -341,31 +267,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       set({ error: 'Only Markdown files can be opened as notes.' });
       return;
     }
-
-    logLineBreakDebug('open-absolute:start-before-flush', {
-      absolutePath,
-      openInNewTab,
-      currentNotePath: get().currentNote?.path ?? null,
-      isDirty: get().isDirty,
-      current: summarizeLineBreakText(get().currentNote?.content),
-    });
-    const flushed = flushCurrentPendingEditorMarkdown();
-    logLineBreakDebug('open-absolute:after-flush', {
-      absolutePath,
-      flushed,
-      currentNotePath: get().currentNote?.path ?? null,
-      isDirty: get().isDirty,
-      current: summarizeLineBreakText(get().currentNote?.content),
-    });
     const openRequestId = ++latestOpenNoteRequestId;
     let { notesPath, isDirty, saveNote, currentNote, noteContentsCache, draftNotes } = get();
     let shouldOpenInNewTab = openInNewTab;
     if (isDirty && currentNote && draftNotes[currentNote.path]) {
       shouldOpenInNewTab = true;
-      logNotesDebug('NotesWorkspace', 'open-absolute:dirty-draft-forces-new-tab', {
-        absolutePath,
-        currentNotePath: currentNote.path,
-      });
     }
 
     if (
@@ -374,27 +280,11 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       !draftNotes[currentNote.path] &&
       currentNote.path !== absolutePath
     ) {
-      logNotesDebug('NotesWorkspace', 'open-absolute:save-before-open', {
-        absolutePath,
-        notesPath,
-        currentNotePath: currentNote?.path ?? null,
-        openInNewTab: shouldOpenInNewTab,
-      });
       await saveNote();
       if (get().notesPath !== notesPath) {
-        logNotesDebug('NotesWorkspace', 'open-absolute:aborted-vault-changed-after-save', {
-          absolutePath,
-          originalNotesPath: notesPath,
-          latestNotesPath: get().notesPath,
-        });
         return;
       }
       if (get().isDirty) {
-        logNotesDebug('NotesWorkspace', 'open-absolute:preserve-dirty-tab-after-save', {
-          absolutePath,
-          currentNotePath: get().currentNote?.path ?? null,
-          isDirty: get().isDirty,
-        });
         shouldOpenInNewTab = true;
       }
       ({ notesPath, currentNote, noteContentsCache } = get());
@@ -406,18 +296,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         path: absolutePath,
         cache: noteContentsCache,
       });
-      logLineBreakDebug('open-absolute:loaded-target', {
-        absolutePath,
-        content: summarizeLineBreakText(content),
-      });
       if (openRequestId !== latestOpenNoteRequestId || get().notesPath !== notesPath) {
-        logNotesDebug('NotesWorkspace', 'open-absolute:stale-loaded-target', {
-          absolutePath,
-          openRequestId,
-          latestOpenNoteRequestId,
-          originalNotesPath: notesPath,
-          latestNotesPath: get().notesPath,
-        });
         return;
       }
       const latestState = get();
@@ -455,17 +334,8 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         ),
         noteMetadata: nextMetadata,
       });
-      logLineBreakDebug('open-absolute:set-target', {
-        absolutePath,
-        isDirty: latestExistingTab?.isDirty ?? false,
-        content: summarizeLineBreakText(content),
-      });
     } catch (error) {
       if (openRequestId === latestOpenNoteRequestId && get().notesPath === notesPath) {
-        logNotesDebug('NotesWorkspace', 'open-absolute:failed', {
-          absolutePath,
-          message: error instanceof Error ? error.message : String(error),
-        });
         set({ error: error instanceof Error ? error.message : 'Failed to open note' });
       }
     }
@@ -551,20 +421,8 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   adoptAbsoluteNoteIntoVault: (absolutePath: string, nextPath: string) => {
     const { currentNote, openTabs, noteContentsCache, noteMetadata, displayNames, recentNotes } = get();
     if (currentNote?.path !== absolutePath) {
-      logNotesDebug('NotesWorkspace', 'adopt-absolute:skipped-not-current', {
-        absolutePath,
-        nextPath,
-        currentNotePath: currentNote?.path ?? null,
-      });
       return false;
     }
-    logNotesDebug('NotesWorkspace', 'adopt-absolute:apply', {
-      absolutePath,
-      nextPath,
-      openTabsLength: openTabs.length,
-      cacheHasAbsolutePath: noteContentsCache.has(absolutePath),
-      metadataHasAbsolutePath: Boolean(noteMetadata?.notes[absolutePath]),
-    });
 
     set({
       currentNote: remapCurrentNoteForExternalRename(currentNote, absolutePath, nextPath),
@@ -578,13 +436,6 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
       ),
       displayNames: remapDisplayNamesForExternalRename(displayNames, absolutePath, nextPath),
       recentNotes: remapRecentNotesForExternalRename(recentNotes, absolutePath, nextPath),
-    });
-
-    logNotesDebug('NotesWorkspace', 'adopt-absolute:done', {
-      absolutePath,
-      nextPath,
-      currentNotePath: get().currentNote?.path ?? null,
-      openTabPaths: get().openTabs.map((tab) => tab.path),
     });
     return true;
   },

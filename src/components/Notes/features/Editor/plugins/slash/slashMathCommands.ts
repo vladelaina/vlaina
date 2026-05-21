@@ -35,6 +35,5 @@ export function insertMathNodeAndOpenEditor(ctx: Ctx, nodeType: 'math_block' | '
       .scrollIntoView();
     dispatch(tr);
   } catch (error) {
-    console.warn(`[SlashMenu] Failed to insert ${nodeType}:`, error);
   }
 }

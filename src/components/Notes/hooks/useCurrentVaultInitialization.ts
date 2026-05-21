@@ -83,7 +83,6 @@ export function useCurrentVaultInitialization({
       try {
         await desktopWindow.setResizable(true);
       } catch (error) {
-        console.error('Failed to unlock window:', error);
       }
     };
 

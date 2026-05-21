@@ -1,18 +1,12 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { translate } from '@/lib/i18n';
-import { logNotesDebug } from '@/stores/notes/lineBreakDebugLog';
 import { getScrollRoot, getToolbarRoot, toContainerPosition } from '../floating-toolbar/floatingToolbarDom';
 import { getContentLayoutContext } from '../floating-toolbar/floatingToolbarLayout';
 import { renderUrlRailEditor } from '../floating-toolbar/components/UrlRailEditor';
-import { isSupportedVideoUrl, normalizeVideoUrlInput, sanitizeVideoDebugPayload } from '../video';
+import { isSupportedVideoUrl, normalizeVideoUrlInput } from '../video';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 
 const VIDEO_PROMPT_MARGIN_PX = 12;
-
-function logSlashVideoDebug(event: string, payload: Record<string, unknown>) {
-  const debugPayload = sanitizeVideoDebugPayload(payload);
-  logNotesDebug('NotesVideo', `slashVideoPrompt:${event}`, debugPayload);
-}
 
 function getPromptPosition(view: EditorView) {
   try {
@@ -56,13 +50,7 @@ export function openSlashVideoPrompt(args: {
     autoFocus: true,
     validate(url) {
       const normalizedUrl = normalizeVideoUrlInput(url);
-      const supported = normalizedUrl !== null && isSupportedVideoUrl(normalizedUrl);
-      if (!supported) {
-        logSlashVideoDebug('validate_unsupported', {
-          url,
-        });
-      }
-      return supported;
+      return normalizedUrl !== null && isSupportedVideoUrl(normalizedUrl);
     },
     onSubmit(url) {
       const normalizedUrl = normalizeVideoUrlInput(url);
