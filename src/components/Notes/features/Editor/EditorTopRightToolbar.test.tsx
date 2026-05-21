@@ -37,11 +37,15 @@ vi.mock('@/components/ui/icons', () => ({
 }));
 
 vi.mock('@/stores/useNotesStore', () => ({
-  useNotesStore: {
-    getState: () => ({
-      currentNote: mocks.currentNote,
-    }),
-  },
+  useNotesStore: Object.assign(
+    (selector: (state: { currentNote: typeof mocks.currentNote }) => unknown) =>
+      selector({ currentNote: mocks.currentNote }),
+    {
+      getState: () => ({
+        currentNote: mocks.currentNote,
+      }),
+    },
+  ),
 }));
 
 vi.mock('@/stores/useToastStore', () => ({
@@ -110,13 +114,12 @@ describe('EditorTopRightToolbar', () => {
       <EditorTopRightToolbar
         editorFind={createEditorFindController()}
         currentNotePath="/other/docs/alpha.md"
-        currentNoteContent="# Alpha"
         currentNoteTitle="Alpha"
+        getCurrentNoteContent={() => '# Alpha'}
         notesPath="/vault"
         starred
         toggleStarred={toggleStarred}
         currentNoteMetadata={undefined}
-        textStats={{ lineCount: 1, wordCount: 2, characterCount: 3 }}
       />,
     );
 
@@ -131,13 +134,12 @@ describe('EditorTopRightToolbar', () => {
       <EditorTopRightToolbar
         editorFind={createEditorFindController()}
         currentNotePath="/other/docs/alpha.md"
-        currentNoteContent="# Alpha"
         currentNoteTitle="Alpha"
+        getCurrentNoteContent={() => '# Alpha'}
         notesPath="/vault"
         starred={false}
         toggleStarred={toggleStarred}
         currentNoteMetadata={undefined}
-        textStats={{ lineCount: 1, wordCount: 2, characterCount: 3 }}
       />,
     );
 
@@ -157,13 +159,12 @@ describe('EditorTopRightToolbar', () => {
       <EditorTopRightToolbar
         editorFind={createEditorFindController()}
         currentNotePath="docs/current.md"
-        currentNoteContent="# Current"
         currentNoteTitle="Current"
+        getCurrentNoteContent={() => '# Current'}
         notesPath="/vault"
         starred={false}
         toggleStarred={vi.fn()}
         currentNoteMetadata={undefined}
-        textStats={{ lineCount: 1, wordCount: 2, characterCount: 3 }}
       />,
     );
 
@@ -181,18 +182,36 @@ describe('EditorTopRightToolbar', () => {
     expect(mocks.flushCurrentPendingEditorMarkdown).toHaveBeenCalledTimes(1);
   });
 
+  it('does not read full note content while rendering the toolbar', () => {
+    const getCurrentNoteContent = vi.fn(() => '# Current');
+
+    render(
+      <EditorTopRightToolbar
+        editorFind={createEditorFindController()}
+        currentNotePath="docs/current.md"
+        currentNoteTitle="Current"
+        getCurrentNoteContent={getCurrentNoteContent}
+        notesPath="/vault"
+        starred={false}
+        toggleStarred={vi.fn()}
+        currentNoteMetadata={undefined}
+      />,
+    );
+
+    expect(getCurrentNoteContent).not.toHaveBeenCalled();
+  });
+
   it('opens the right Spark panel from the first note menu action', () => {
     const { getByRole, getByTestId } = render(
       <EditorTopRightToolbar
         editorFind={createEditorFindController()}
         currentNotePath="docs/current.md"
-        currentNoteContent="# Current"
         currentNoteTitle="Current"
+        getCurrentNoteContent={() => '# Current'}
         notesPath="/vault"
         starred={false}
         toggleStarred={vi.fn()}
         currentNoteMetadata={undefined}
-        textStats={{ lineCount: 1, wordCount: 2, characterCount: 3 }}
       />,
     );
 
@@ -208,13 +227,12 @@ describe('EditorTopRightToolbar', () => {
       <EditorTopRightToolbar
         editorFind={createEditorFindController()}
         currentNotePath="docs/current.md"
-        currentNoteContent="# Current"
         currentNoteTitle="Current"
+        getCurrentNoteContent={() => '# Current'}
         notesPath="/vault"
         starred={false}
         toggleStarred={vi.fn()}
         currentNoteMetadata={undefined}
-        textStats={{ lineCount: 1, wordCount: 2, characterCount: 3 }}
       />,
     );
 
@@ -229,13 +247,12 @@ describe('EditorTopRightToolbar', () => {
       <EditorTopRightToolbar
         editorFind={createEditorFindController()}
         currentNotePath="docs/current.md"
-        currentNoteContent="# Current"
         currentNoteTitle="Current"
+        getCurrentNoteContent={() => '# Current'}
         notesPath="/vault"
         starred={false}
         toggleStarred={vi.fn()}
         currentNoteMetadata={undefined}
-        textStats={{ lineCount: 1, wordCount: 2, characterCount: 3 }}
       />,
     );
 

@@ -55,7 +55,6 @@ export function NotesView({
   onPrimaryContentReady?: () => void;
 }) {
   const { t } = useI18n();
-  const currentNote = useNotesStore(s => s.currentNote);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const loadFileTree = useNotesStore(s => s.loadFileTree);
   const openTabs = useNotesStore(s => s.openTabs);
@@ -87,6 +86,17 @@ export function NotesView({
   const getDisplayName = useNotesStore(s => s.getDisplayName);
   const notesError = useNotesStore(s => s.error);
   const addToast = useToastStore(s => s.addToast);
+  const blankDropDraftContent = useNotesStore(
+    useCallback((state) => {
+      if (!currentNotePath || !isDraftNotePath(currentNotePath)) {
+        return '';
+      }
+      if (openTabs.length !== 1 || openTabs[0]?.path !== currentNotePath) {
+        return '';
+      }
+      return state.currentNote?.path === currentNotePath ? state.currentNote.content : '';
+    }, [currentNotePath, openTabs])
+  );
 
   const currentVault = useVaultStore((state) => state.currentVault);
   const openVault = useVaultStore((state) => state.openVault);
@@ -276,7 +286,7 @@ export function NotesView({
       return openTabs.length === 0;
     }
 
-    if (!currentNote || !isDraftNotePath(currentNotePath)) {
+    if (!isDraftNotePath(currentNotePath)) {
       return false;
     }
 
@@ -291,7 +301,7 @@ export function NotesView({
 
     return !hasDraftUnsavedChanges({
       draftName: draftEntry.name,
-      content: currentNote.content,
+      content: blankDropDraftContent,
       metadata: noteMetadata?.notes[currentNotePath],
     });
   })();

@@ -43,3 +43,19 @@ export function diffImageAssetKeys(
         insertedAssets,
     };
 }
+
+export function diffImageAssetKeySets(
+    oldAssets: ReadonlySet<string>,
+    newAssets: ReadonlySet<string>,
+): ImageAssetChangeSet {
+    const deletedAssets = new Set<string>(oldAssets);
+    newAssets.forEach((assetKey) => deletedAssets.delete(assetKey));
+
+    const insertedAssets = new Set<string>(newAssets);
+    oldAssets.forEach((assetKey) => insertedAssets.delete(assetKey));
+
+    return {
+        deletedAssets,
+        insertedAssets,
+    };
+}

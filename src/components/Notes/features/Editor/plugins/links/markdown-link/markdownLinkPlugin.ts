@@ -1,6 +1,6 @@
 import { $prose } from '@milkdown/kit/utils';
 import { Plugin, PluginKey } from '@milkdown/kit/prose/state';
-import { Fragment, Slice } from '@milkdown/kit/prose/model';
+import { Fragment, Slice, type Node as ProseNode } from '@milkdown/kit/prose/model';
 import { resolvePasteRange } from '../../clipboard/pasteCursorUtils';
 import { sanitizeExplicitMarkdownLinkHref } from '../utils/linkHref';
 import {
@@ -14,15 +14,77 @@ import {
 export const markdownLinkPluginKey = new PluginKey('markdown-link-paste');
 const MAX_MARKDOWN_LINK_DOC_SCAN_SIZE = 1024 * 1024;
 const MAX_MARKDOWN_LINK_PASTE_CHARS = 1024 * 1024;
+const MARKDOWN_LINK_TRIGGER_TEXT_PATTERN = /[\[\]\(\)]/;
+
+interface MarkdownLinkPluginState {
+    hasRawMarkdownLink: boolean;
+}
+
+function getInsertedStepText(step: unknown): string {
+    const slice = (step as { slice?: { content?: { textBetween?: (from: number, to: number, blockSeparator?: string, leafText?: string) => string; size?: number } } }).slice;
+    const content = slice?.content;
+    if (!content || typeof content.textBetween !== 'function' || typeof content.size !== 'number') {
+        return '';
+    }
+    return content.textBetween(0, content.size, '\n', '\ufffc');
+}
+
+function transactionMayCreateMarkdownLink(tr: unknown): boolean {
+    const steps = (tr as { steps?: readonly unknown[] }).steps ?? [];
+    return steps.some((step) => MARKDOWN_LINK_TRIGGER_TEXT_PATTERN.test(getInsertedStepText(step)));
+}
+
+function docHasRawMarkdownLink(doc: ProseNode): boolean {
+    let hasRawMarkdownLink = false;
+    doc.descendants((node) => {
+        if (hasRawMarkdownLink) return false;
+        if (!node.isText || !node.text) return true;
+
+        MARKDOWN_LINK_PATTERN_GLOBAL.lastIndex = 0;
+        hasRawMarkdownLink = MARKDOWN_LINK_PATTERN_GLOBAL.test(node.text);
+        return !hasRawMarkdownLink;
+    });
+    return hasRawMarkdownLink;
+}
 
 export const markdownLinkPlugin = $prose(() => {
-    return new Plugin({
+    return new Plugin<MarkdownLinkPluginState>({
         key: markdownLinkPluginKey,
+        state: {
+            init(_config, state) {
+                return {
+                    hasRawMarkdownLink: state.doc.content.size <= MAX_MARKDOWN_LINK_DOC_SCAN_SIZE
+                        ? docHasRawMarkdownLink(state.doc)
+                        : false,
+                };
+            },
+            apply(tr, previous) {
+                if (!tr.docChanged) {
+                    return previous;
+                }
+
+                if (tr.doc.content.size > MAX_MARKDOWN_LINK_DOC_SCAN_SIZE) {
+                    return { hasRawMarkdownLink: false };
+                }
+
+                if (!previous.hasRawMarkdownLink && !transactionMayCreateMarkdownLink(tr)) {
+                    return previous;
+                }
+
+                return {
+                    hasRawMarkdownLink: docHasRawMarkdownLink(tr.doc),
+                };
+            },
+        },
 
         // Auto-collapse when selection moves away from a markdown link pattern
         // AND cleanup unwanted styles (code, strong) from raw markdown link syntax
         appendTransaction(_transactions, oldState, newState) {
             if (newState.doc.content.size > MAX_MARKDOWN_LINK_DOC_SCAN_SIZE) {
+                return null;
+            }
+
+            if (!markdownLinkPluginKey.getState(newState)?.hasRawMarkdownLink) {
                 return null;
             }
 

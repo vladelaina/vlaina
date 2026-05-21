@@ -57,6 +57,7 @@ const listeners = new Set<(snapshot: EditorBlockPositionSnapshot | null) => void
 const TOOLBAR_PREVIEW_HIDDEN_ATTRIBUTE = 'data-toolbar-preview-hidden';
 const TOOLBAR_PREVIEW_OVERLAY_CLASS = 'toolbar-applied-preview-overlay';
 const MAX_BLOCK_POSITION_SNAPSHOT_BLOCKS = 5000;
+const TEXT_MUTATION_REFRESH_DELAY_MS = 120;
 
 export function isEditorHiddenByToolbarPreview(view: Pick<EditorView, 'dom'>): boolean {
   return view.dom instanceof HTMLElement && view.dom.getAttribute(TOOLBAR_PREVIEW_HIDDEN_ATTRIBUTE) === 'true';
@@ -408,6 +409,7 @@ export function createCurrentEditorBlockPositionController(
   view: EditorView,
 ): EditorBlockPositionController {
   let frameId = 0;
+  let textMutationTimerId = 0;
   let destroyed = false;
   let mutationObserver: MutationObserver | null = null;
   let resizeObserver: ResizeObserver | null = null;
@@ -433,10 +435,33 @@ export function createCurrentEditorBlockPositionController(
     });
   };
 
-  if (typeof MutationObserver !== 'undefined') {
-    mutationObserver = new MutationObserver(() => {
+  const scheduleTextMutationRefresh = () => {
+    if (destroyed || textMutationTimerId !== 0) {
+      return;
+    }
+
+    textMutationTimerId = window.setTimeout(() => {
+      textMutationTimerId = 0;
       scheduleRefresh();
-    });
+    }, TEXT_MUTATION_REFRESH_DELAY_MS);
+  };
+
+  const scheduleMutationRefresh = (records: MutationRecord[]) => {
+    const onlyTextMutations = records.length > 0 && records.every((record) => record.type === 'characterData');
+    if (onlyTextMutations) {
+      scheduleTextMutationRefresh();
+      return;
+    }
+
+    if (textMutationTimerId !== 0) {
+      window.clearTimeout(textMutationTimerId);
+      textMutationTimerId = 0;
+    }
+    scheduleRefresh();
+  };
+
+  if (typeof MutationObserver !== 'undefined') {
+    mutationObserver = new MutationObserver(scheduleMutationRefresh);
     mutationObserver.observe(view.dom, {
       attributes: true,
       attributeFilter: [TOOLBAR_PREVIEW_HIDDEN_ATTRIBUTE],
@@ -494,6 +519,10 @@ export function createCurrentEditorBlockPositionController(
       if (frameId !== 0) {
         cancelAnimationFrame(frameId);
         frameId = 0;
+      }
+      if (textMutationTimerId !== 0) {
+        window.clearTimeout(textMutationTimerId);
+        textMutationTimerId = 0;
       }
       mutationObserver?.disconnect();
       resizeObserver?.disconnect();

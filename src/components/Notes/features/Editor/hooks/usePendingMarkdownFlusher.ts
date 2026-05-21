@@ -35,6 +35,7 @@ type EditorGetter = () => MilkdownEditorLike | null | undefined;
 interface PendingMarkdownFlusherOptions {
   currentNotePath: string | undefined;
   pendingMarkdownUpdateFrameRef: RefObject<number | null>;
+  pendingRawMarkdownRef: RefObject<string | null>;
   pendingMarkdownRef: RefObject<string | null>;
   hasEditorUserInputRef: RefObject<boolean>;
   currentNotePathRef: RefObject<string | undefined>;
@@ -45,6 +46,7 @@ interface PendingMarkdownFlusherOptions {
 export function usePendingMarkdownFlusher({
   currentNotePath,
   pendingMarkdownUpdateFrameRef,
+  pendingRawMarkdownRef,
   pendingMarkdownRef,
   hasEditorUserInputRef,
   currentNotePathRef,
@@ -63,6 +65,41 @@ export function usePendingMarkdownFlusher({
       let pendingMarkdown = pendingMarkdownRef.current;
       const hadPendingRef = pendingMarkdown !== null;
       pendingMarkdownRef.current = null;
+      const pendingRawMarkdown = pendingRawMarkdownRef.current;
+      const hadPendingRawRef = pendingRawMarkdown !== null;
+      pendingRawMarkdownRef.current = null;
+      if (pendingMarkdown === null && pendingRawMarkdown !== null) {
+        const state = useNotesStore.getState();
+        const latestCurrentNote = state.currentNote;
+        let currentContent = state.noteContentsCache.get(currentNotePath ?? '')?.content
+          ?? currentNoteContentRef.current;
+        if (latestCurrentNote && latestCurrentNote.path === currentNotePath) {
+          currentContent = latestCurrentNote.content;
+        }
+        const normalizedMarkdown = normalizeSerializedMarkdownDocument(pendingRawMarkdown);
+        const styledMarkdown = restoreMathBlockFenceStylesFromReference(
+          normalizedMarkdown,
+          currentContent,
+        );
+        pendingMarkdown = serializeLeadingFrontmatterMarkdown(
+          styledMarkdown,
+          currentContent,
+        );
+        if (debugEnabled) {
+          logLineBreakDebug('editor:flush-normalized-pending-raw', {
+            editorNotePath: currentNotePath ?? null,
+            latestStorePath: state.currentNote?.path ?? null,
+            capturedPath: currentNotePathRef.current ?? null,
+            raw: summarizeLineBreakText(pendingRawMarkdown),
+            normalized: summarizeLineBreakText(normalizedMarkdown),
+            styled: summarizeLineBreakText(styledMarkdown),
+            normalizationPipeline: summarizeMarkdownNormalizationPipeline(pendingRawMarkdown),
+            pending: summarizeLineBreakText(pendingMarkdown),
+            current: summarizeLineBreakText(currentContent),
+            diffCurrentToPending: compareLineBreakText(currentContent, pendingMarkdown),
+          });
+        }
+      }
       if (pendingMarkdown === null) {
         if (!allowFallbackSerialize) {
           if (debugEnabled) {
@@ -142,6 +179,7 @@ export function usePendingMarkdownFlusher({
           latestStorePath: useNotesStore.getState().currentNote?.path ?? null,
           hadFrame,
           hadPendingRef,
+          hadPendingRawRef,
           hadUserInput: hasEditorUserInputRef.current,
           pending: summarizeLineBreakText(pendingMarkdown),
         });
@@ -171,6 +209,7 @@ export function usePendingMarkdownFlusher({
     getEditorRef,
     hasEditorUserInputRef,
     pendingMarkdownRef,
+    pendingRawMarkdownRef,
     pendingMarkdownUpdateFrameRef,
   ]);
 }

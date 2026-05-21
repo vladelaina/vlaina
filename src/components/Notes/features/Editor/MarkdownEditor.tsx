@@ -7,7 +7,6 @@ import { useNoteCoverController, NoteCoverCanvas } from '../Cover';
 import { DEFAULT_HEIGHT as DEFAULT_COVER_HEIGHT } from '../Cover/utils/coverConstants';
 import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { useEditorLayout } from './hooks/useEditorLayout';
-import { useDeferredTextStats } from './hooks/useDeferredTextStats';
 import { createScrollRestoreSession } from './utils/scrollRestoreSession';
 import {
   subscribeCurrentEditorBlockPositionSnapshot,
@@ -76,8 +75,7 @@ export function MarkdownEditor({
     }, [currentNotePath])
   );
   const currentNoteDiskRevision = useNotesStore(s => s.currentNoteDiskRevision);
-  const openTabPathsKey = useNotesStore(s => s.openTabs.map((tab) => tab.path).join('\0'));
-  const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
+  const openTabs = useNotesStore(s => s.openTabs);
   const isStarred = useNotesStore(s => s.isStarred);
   const toggleStarred = useNotesStore(s => s.toggleStarred);
   const noteMetadata = useNotesStore(s => s.noteMetadata);
@@ -85,7 +83,10 @@ export function MarkdownEditor({
   const currentNoteMetadata = useMemo(() => {
     return getNoteMetadataEntry(noteMetadata, currentNotePath);
   }, [currentNotePath, noteMetadata]);
-  const textStats = useDeferredTextStats(currentNotePath, currentNoteContent);
+  const openTabPathsKey = useMemo(
+    () => openTabs.map((tab) => tab.path).join('\0'),
+    [openTabs],
+  );
   const pendingSidebarSearchNavigationPath = useSyncExternalStore(
     subscribeSidebarSearchNavigationPending,
     getSidebarSearchNavigationPendingPath,
@@ -128,6 +129,19 @@ export function MarkdownEditor({
     });
     onEditorViewReady?.();
   }, [currentNoteDiskRevision, currentNotePath, onEditorViewReady]);
+  const getCurrentNoteContent = useCallback(() => {
+    if (!currentNotePath) {
+      return '';
+    }
+
+    const state = useNotesStore.getState();
+    const currentNote = state.currentNote;
+    if (currentNote?.path === currentNotePath) {
+      return currentNote.content;
+    }
+
+    return state.noteContentsCache.get(currentNotePath)?.content ?? '';
+  }, [currentNotePath]);
 
   useEffect(() => {
     if (!hasActiveNote) {
@@ -314,13 +328,12 @@ export function MarkdownEditor({
           <EditorTopRightToolbar
             editorFind={editorFind}
             currentNotePath={currentNotePath}
-            currentNoteContent={currentNoteContent}
             currentNoteTitle={currentNoteTitle}
+            getCurrentNoteContent={getCurrentNoteContent}
             notesPath={notesPath}
             starred={starred}
             toggleStarred={toggleStarred}
             currentNoteMetadata={currentNoteMetadata}
-            textStats={textStats}
           />
         </Suspense>
       ) : null}

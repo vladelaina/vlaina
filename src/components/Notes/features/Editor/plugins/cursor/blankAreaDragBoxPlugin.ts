@@ -109,7 +109,6 @@ function summarizeSelectedBlockGeometry(view: EditorView): void {
   if (debugKey === lastSelectedBlockGeometryDebugKey) return;
   lastSelectedBlockGeometryDebugKey = debugKey;
   logBlockSelectionDebug('geometry:selected-blocks', payload);
-  console.debug('[NotesBlockSelect] geometry:selected-blocks', payload);
 }
 
 function scheduleSelectedBlockGeometryDebug(view: EditorView): void {

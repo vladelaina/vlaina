@@ -169,7 +169,7 @@ function TabOverlay({ tab, isActive }: TabOverlayProps) {
 
 export function NotesTabRow() {
   const { t } = useI18n();
-  const currentNote = useNotesStore((s) => s.currentNote);
+  const currentNotePath = useNotesStore((s) => s.currentNote?.path);
   const openTabs = useNotesStore((s) => s.openTabs);
   const closeTab = useNotesStore((s) => s.closeTab);
   const openNote = useNotesStore((s) => s.openNote);
@@ -187,10 +187,10 @@ export function NotesTabRow() {
   const handleCreateNote = useCallback(() => {
     const folderPath = resolveSiblingNoteParentPath(
       useNotesStore.getState().draftNotes,
-      currentNote?.path,
+      currentNotePath,
     );
     createNote(folderPath);
-  }, [currentNote?.path, createNote]);
+  }, [currentNotePath, createNote]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveTabId(event.active.id as string);
@@ -230,7 +230,7 @@ export function NotesTabRow() {
                 <SortableTab
                   key={tab.path}
                   tab={tab}
-                  isActive={currentNote?.path === tab.path}
+                  isActive={currentNotePath === tab.path}
                   onClose={closeTab}
                   onClick={(path) => void openNote(path)}
                   showSeparator={index > 0}
@@ -241,7 +241,7 @@ export function NotesTabRow() {
 
           <NotesDragOverlay>
             {activeTab ? (
-              <TabOverlay tab={activeTab} isActive={currentNote?.path === activeTab.path} />
+              <TabOverlay tab={activeTab} isActive={currentNotePath === activeTab.path} />
             ) : null}
           </NotesDragOverlay>
         </DndContext>

@@ -54,6 +54,7 @@ export class CodeBlockNodeView implements NodeView {
   private readonly wrapCompartment = new Compartment();
   private updating = false;
   private language = '';
+  private pendingLanguage: string | null = null;
   private selected = false;
   private headerStateKey = '';
   private pendingMeasureFrame: number | null = null;
@@ -62,6 +63,10 @@ export class CodeBlockNodeView implements NodeView {
   private unsubscribeSelectionSync: () => void = () => {};
   private destroyed = false;
   private showLineNumbers = selectCodeBlockLineNumbersEnabled(useUnifiedStore.getState());
+  private lineNumbersStateKey = '';
+  private wrapStateKey = '';
+  private collapsedState: boolean | null = null;
+  private findHighlightStateKey = '[]';
 
   private readonly clearEditorSelectionOnBlur = () => {
     if (!this.cm) {
@@ -187,6 +192,8 @@ export class CodeBlockNodeView implements NodeView {
         ],
       }),
     });
+    this.lineNumbersStateKey = this.getLineNumbersStateKey(this.node);
+    this.wrapStateKey = this.getWrapStateKey(this.node);
     this.cm.dom.addEventListener('blur', this.clearEditorSelectionOnBlur, true);
     this.disposeFontMetricsSync = bindCodeBlockFontMetricsSync(
       this.dom.ownerDocument,
@@ -201,6 +208,12 @@ export class CodeBlockNodeView implements NodeView {
       }
 
       this.showLineNumbers = nextShowLineNumbers;
+      const nextLineNumbersStateKey = this.getLineNumbersStateKey(this.node);
+      if (nextLineNumbersStateKey === this.lineNumbersStateKey) {
+        return;
+      }
+
+      this.lineNumbersStateKey = nextLineNumbersStateKey;
       this.cm?.dispatch({
         effects: this.lineNumbersCompartment.reconfigure(this.getLineNumberExtensions(this.node)),
       });
@@ -211,7 +224,7 @@ export class CodeBlockNodeView implements NodeView {
       this.syncProseMirrorSelection
     );
 
-    this.applyCollapsedState();
+    this.syncCollapsedState();
     this.syncFindHighlights();
     this.syncProseMirrorSelection();
     void this.syncLanguage();
@@ -219,6 +232,14 @@ export class CodeBlockNodeView implements NodeView {
 
   private getLineNumberExtensions(node: Node) {
     return this.showLineNumbers && node.attrs.lineNumbers !== false ? [lineNumbers()] : [];
+  }
+
+  private getLineNumbersStateKey(node: Node) {
+    return `${this.showLineNumbers ? '1' : '0'}:${node.attrs.lineNumbers !== false ? '1' : '0'}`;
+  }
+
+  private getWrapStateKey(node: Node) {
+    return node.attrs.wrap ? '1' : '0';
   }
 
   private render() {
@@ -261,8 +282,14 @@ export class CodeBlockNodeView implements NodeView {
     }
   };
 
-  private applyCollapsedState() {
-    applyCodeBlockCollapsedState(this.dom, this.editorDOM, Boolean(this.node.attrs.collapsed));
+  private syncCollapsedState() {
+    const nextCollapsedState = Boolean(this.node.attrs.collapsed);
+    if (nextCollapsedState === this.collapsedState) {
+      return;
+    }
+
+    this.collapsedState = nextCollapsedState;
+    applyCodeBlockCollapsedState(this.dom, this.editorDOM, nextCollapsedState);
     this.scheduleMeasure();
   }
 
@@ -273,21 +300,20 @@ export class CodeBlockNodeView implements NodeView {
 
     const nodePos = this.getPos();
     if (nodePos === undefined) {
-      syncCodeMirrorFindHighlights(this.cm, []);
+      this.syncFindHighlightRanges([]);
       return;
     }
 
     const state = getEditorFindState(this.view);
     if (!state || state.matches.length === 0) {
-      syncCodeMirrorFindHighlights(this.cm, []);
+      this.syncFindHighlightRanges([]);
       return;
     }
 
     const contentFrom = nodePos + 1;
     const contentTo = nodePos + this.node.nodeSize - 1;
 
-    syncCodeMirrorFindHighlights(
-      this.cm,
+    this.syncFindHighlightRanges(
       buildCodeMirrorFindHighlightRanges({
         matches: state.matches,
         activeIndex: state.activeIndex,
@@ -297,6 +323,20 @@ export class CodeBlockNodeView implements NodeView {
         mapDocumentOffsetToEditorOffset: mapDocumentOffsetToCodeBlockEditorOffset,
       }),
     );
+  }
+
+  private syncFindHighlightRanges(ranges: ReturnType<typeof buildCodeMirrorFindHighlightRanges>) {
+    if (!this.cm) {
+      return;
+    }
+
+    const nextFindHighlightStateKey = JSON.stringify(ranges);
+    if (nextFindHighlightStateKey === this.findHighlightStateKey) {
+      return;
+    }
+
+    this.findHighlightStateKey = nextFindHighlightStateKey;
+    syncCodeMirrorFindHighlights(this.cm, ranges);
   }
 
   private readonly syncProseMirrorSelection = () => {
@@ -363,20 +403,28 @@ export class CodeBlockNodeView implements NodeView {
     }
 
     const nextLanguage = this.node.attrs.language ?? '';
-    if (nextLanguage === this.language) {
+    if (nextLanguage === this.language || nextLanguage === this.pendingLanguage) {
       return;
     }
 
+    this.pendingLanguage = nextLanguage;
     let support;
     try {
       support = await codeBlockLanguageLoader.load(nextLanguage);
     } catch {
+      if (this.pendingLanguage === nextLanguage) {
+        this.pendingLanguage = null;
+      }
       return;
     }
     if (this.destroyed || this.node.attrs.language !== nextLanguage) {
+      if (this.pendingLanguage === nextLanguage) {
+        this.pendingLanguage = null;
+      }
       return;
     }
 
+    this.pendingLanguage = null;
     this.cm?.dispatch({
       effects: this.languageCompartment.reconfigure(support ? [support] : []),
     });
@@ -393,7 +441,7 @@ export class CodeBlockNodeView implements NodeView {
     if (!this.cm && this.placeholderDOM) {
       this.placeholderDOM.textContent = node.textContent;
     }
-    this.applyCollapsedState();
+    this.syncCollapsedState();
     if (this.getHeaderStateKey(node) !== this.headerStateKey) {
       this.render();
     }
@@ -407,10 +455,17 @@ export class CodeBlockNodeView implements NodeView {
     if (this.view.editable === this.cm.state.readOnly) {
       effects.push(this.readOnlyCompartment.reconfigure(EditorState.readOnly.of(!this.view.editable)));
     }
-    effects.push(
-      this.lineNumbersCompartment.reconfigure(this.getLineNumberExtensions(node)),
-      this.wrapCompartment.reconfigure(node.attrs.wrap ? [CodeMirror.lineWrapping] : [])
-    );
+    const nextLineNumbersStateKey = this.getLineNumbersStateKey(node);
+    if (nextLineNumbersStateKey !== this.lineNumbersStateKey) {
+      this.lineNumbersStateKey = nextLineNumbersStateKey;
+      effects.push(this.lineNumbersCompartment.reconfigure(this.getLineNumberExtensions(node)));
+    }
+
+    const nextWrapStateKey = this.getWrapStateKey(node);
+    if (nextWrapStateKey !== this.wrapStateKey) {
+      this.wrapStateKey = nextWrapStateKey;
+      effects.push(this.wrapCompartment.reconfigure(node.attrs.wrap ? [CodeMirror.lineWrapping] : []));
+    }
     if (effects.length > 0) {
       this.cm.dispatch({ effects });
       this.scheduleMeasure();

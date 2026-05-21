@@ -51,16 +51,10 @@ export class LinkTooltipView {
         this.resizeObserver = typeof ResizeObserver !== 'undefined'
             ? new ResizeObserver(() => this.reposition())
             : null;
-        this.resizeObserver?.observe(this.dom);
-        if (this.positionRoot) this.resizeObserver?.observe(this.positionRoot);
 
         this.mutationObserver = typeof MutationObserver !== 'undefined'
             ? new MutationObserver(() => this.reposition())
             : null;
-        this.mutationObserver?.observe(this.dom, {
-            attributes: true,
-            attributeFilter: ['data-editing'],
-        });
 
         this.cleanupEvents = installLinkTooltipEvents({
             view: this.view,
@@ -157,6 +151,7 @@ export class LinkTooltipView {
         );
 
         this.dom.classList.remove('hidden');
+        this.observePositionDependencies();
         this.applyPosition(this.activeAnchor);
         this.timers.scheduleRaf(() => {
             this.reposition();
@@ -179,6 +174,7 @@ export class LinkTooltipView {
         this.dom.removeAttribute('data-editing');
 
         this.dom.classList.add('hidden');
+        this.disconnectPositionDependencies();
         this.activeLink = null;
         this.activeAnchor = null;
     }
@@ -239,6 +235,7 @@ export class LinkTooltipView {
         );
 
         this.dom.classList.remove('hidden');
+        this.observePositionDependencies();
         try {
             this.applyPosition(this.activeAnchor);
             this.timers.scheduleRaf(() => this.reposition());
@@ -282,9 +279,22 @@ export class LinkTooltipView {
         this.clearHideTimer();
         this.timers.clearAll();
         this.cleanupEvents?.();
-        this.resizeObserver?.disconnect();
-        this.mutationObserver?.disconnect();
+        this.disconnectPositionDependencies();
         this.root?.unmount();
         this.dom.remove();
+    }
+
+    private observePositionDependencies() {
+        this.resizeObserver?.observe(this.dom);
+        if (this.positionRoot) this.resizeObserver?.observe(this.positionRoot);
+        this.mutationObserver?.observe(this.dom, {
+            attributes: true,
+            attributeFilter: ['data-editing'],
+        });
+    }
+
+    private disconnectPositionDependencies() {
+        this.resizeObserver?.disconnect();
+        this.mutationObserver?.disconnect();
     }
 }

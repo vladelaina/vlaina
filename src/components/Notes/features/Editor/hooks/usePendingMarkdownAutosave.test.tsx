@@ -89,6 +89,96 @@ describe('usePendingMarkdownAutosave', () => {
     expect(debouncedSave).toHaveBeenCalledTimes(1);
   });
 
+  it('skips same-content editor echoes without scheduling autosave work', () => {
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const editorView = { dom: document.createElement('div') };
+    const ctx = { get: vi.fn() };
+
+    const { result } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha',
+      updateContent,
+      debouncedSave,
+    }));
+
+    act(() => {
+      result.current.createUserInputMarker(editorView as never, null)(new KeyboardEvent('keydown'));
+      result.current.configureMarkdownListener(ctx, '# alpha')('# alpha');
+      vi.advanceTimersByTime(16);
+    });
+
+    expect(updateContent).not.toHaveBeenCalled();
+    expect(debouncedSave).not.toHaveBeenCalled();
+  });
+
+  it('coalesces rapid editor updates and applies only the latest markdown on the next frame', () => {
+    const updateContent = vi.fn((content: string) => {
+      useNotesStore.setState((state) => ({
+        currentNote: state.currentNote ? { ...state.currentNote, content } : state.currentNote,
+      }));
+    });
+    const debouncedSave = vi.fn();
+    const editorView = { dom: document.createElement('div') };
+    const ctx = { get: vi.fn() };
+
+    const { result } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha',
+      updateContent,
+      debouncedSave,
+    }));
+
+    act(() => {
+      result.current.createUserInputMarker(editorView as never, null)(new KeyboardEvent('keydown'));
+      const listener = result.current.configureMarkdownListener(ctx, '# alpha');
+      listener('# alpha a');
+      listener('# alpha ab');
+      listener('# alpha abc');
+    });
+
+    expect(updateContent).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(16);
+    });
+
+    expect(updateContent).toHaveBeenCalledTimes(1);
+    expect(updateContent).toHaveBeenCalledWith('# alpha abc');
+    expect(debouncedSave).toHaveBeenCalledTimes(1);
+  });
+
+  it('flushes the latest pending raw markdown when unmounted before the next frame', () => {
+    const updateContent = vi.fn();
+    const debouncedSave = vi.fn();
+    const editorView = { dom: document.createElement('div') };
+    const ctx = { get: vi.fn() };
+
+    const { result, unmount } = renderHook(() => usePendingMarkdownAutosave({
+      currentNotePath: 'docs/alpha.md',
+      currentNoteDiskRevision: 0,
+      currentNoteContent: '# alpha',
+      updateContent,
+      debouncedSave,
+    }));
+
+    act(() => {
+      result.current.createUserInputMarker(editorView as never, null)(new KeyboardEvent('keydown'));
+      result.current.configureMarkdownListener(ctx, '# alpha')('# pending before unmount');
+    });
+
+    unmount();
+
+    expect(useNotesStore.getState().currentNote).toEqual({
+      path: 'docs/alpha.md',
+      content: '# pending before unmount',
+    });
+    expect(updateContent).not.toHaveBeenCalled();
+    expect(debouncedSave).not.toHaveBeenCalled();
+  });
+
   it('does not restore stale editor content while unmounting after an external disk reload', () => {
     const updateContent = vi.fn();
     const debouncedSave = vi.fn();

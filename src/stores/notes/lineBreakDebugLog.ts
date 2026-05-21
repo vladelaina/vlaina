@@ -11,6 +11,8 @@ const notesDebugEntries: NotesDebugEntry[] = [];
 let didInstallGlobalNotesDebugHelpers = false;
 
 const NOTES_DEBUG_STORAGE_KEY = 'vlaina.notes.debug';
+const NOTES_DEBUG_CACHE_MS = 1000;
+let cachedNotesDebugLogging: { checkedAt: number; enabled: boolean } | null = null;
 
 export function isNotesDebugLoggingEnabled() {
   if (import.meta.env.MODE === 'test') {
@@ -21,9 +23,17 @@ export function isNotesDebugLoggingEnabled() {
     return false;
   }
 
+  const now = Date.now();
+  if (cachedNotesDebugLogging && now - cachedNotesDebugLogging.checkedAt < NOTES_DEBUG_CACHE_MS) {
+    return cachedNotesDebugLogging.enabled;
+  }
+
   try {
-    return window.localStorage.getItem(NOTES_DEBUG_STORAGE_KEY) === '1';
+    const enabled = window.localStorage.getItem(NOTES_DEBUG_STORAGE_KEY) === '1';
+    cachedNotesDebugLogging = { checkedAt: now, enabled };
+    return enabled;
   } catch {
+    cachedNotesDebugLogging = { checkedAt: now, enabled: false };
     return false;
   }
 }

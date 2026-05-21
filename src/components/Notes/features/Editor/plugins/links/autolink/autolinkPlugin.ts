@@ -4,6 +4,7 @@ import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
 import { URL_PATTERNS } from '../utils/constants';
 
 export const autolinkPluginKey = new PluginKey('autolink');
+const AUTOLINK_TRIGGER_TEXT_PATTERN = /[:/.@]/;
 
 interface LinkMatch {
     start: number;
@@ -121,6 +122,24 @@ function createAutolinkDecorations(doc: any): DecorationSet {
     return DecorationSet.create(doc, decorations);
 }
 
+function getInsertedStepText(step: unknown): string {
+    const slice = (step as { slice?: { content?: { textBetween?: (from: number, to: number, blockSeparator?: string, leafText?: string) => string; size?: number } } }).slice;
+    const content = slice?.content;
+    if (!content || typeof content.textBetween !== 'function' || typeof content.size !== 'number') {
+        return '';
+    }
+    return content.textBetween(0, content.size, '\n', '\ufffc');
+}
+
+function transactionMayCreateAutolink(tr: unknown): boolean {
+    const steps = (tr as { steps?: readonly unknown[] }).steps ?? [];
+    if (steps.length === 0) {
+        return false;
+    }
+
+    return steps.some((step) => AUTOLINK_TRIGGER_TEXT_PATTERN.test(getInsertedStepText(step)));
+}
+
 export const autolinkPlugin = $prose(() => {
     return new Plugin({
         key: autolinkPluginKey,
@@ -131,6 +150,10 @@ export const autolinkPlugin = $prose(() => {
             apply(tr, old) {
                 if (!tr.docChanged) {
                     return old;
+                }
+
+                if (old.find().length === 0 && !transactionMayCreateAutolink(tr)) {
+                    return old.map(tr.mapping, tr.doc);
                 }
 
                 // For small changes, try mapping first

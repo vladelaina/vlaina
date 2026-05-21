@@ -131,33 +131,37 @@ export function createWorkspaceDiskSyncAction(
           return isCurrentDiskSyncTarget(get, notesPath, currentNote.path) ? 'unchanged' : 'ignored';
         }
 
+        const isExpectedExternalChange =
+          Boolean(options?.expectedExternalChange) || shouldIgnoreExpectedExternalChange(fullPath);
+        if (isExpectedExternalChange) {
+          const latestState = get();
+          const latestCurrentNote = latestState.currentNote;
+          const latestContent = latestCurrentNote?.path === currentNote.path
+            ? latestCurrentNote.content
+            : currentNote.content;
+          set({
+            noteContentsCache: setCachedNoteContent(
+              latestState.noteContentsCache,
+              currentNote.path,
+              latestContent,
+              nextModifiedAt,
+            ),
+            error: null,
+          });
+          logNotesDebug('NotesDiskSync', 'sync:ignored-expected-change', {
+            notePath: currentNote.path,
+            fullPath,
+            isDirty,
+            nextModifiedAt,
+            cachedModifiedAt,
+          });
+          return 'ignored';
+        }
+
         if (isDirty) {
           if (!isCurrentDiskSyncTarget(get, notesPath, currentNote.path)) {
             logNotesDebug('NotesDiskSync', 'sync:ignored-stale-dirty-conflict', {
               notePath: currentNote.path,
-            });
-            return 'ignored';
-          }
-          if (options?.expectedExternalChange || shouldIgnoreExpectedExternalChange(fullPath)) {
-            const latestState = get();
-            const latestCurrentNote = latestState.currentNote;
-            const latestContent = latestCurrentNote?.path === currentNote.path
-              ? latestCurrentNote.content
-              : currentNote.content;
-            set({
-              noteContentsCache: setCachedNoteContent(
-                latestState.noteContentsCache,
-                currentNote.path,
-                latestContent,
-                nextModifiedAt
-              ),
-              error: null,
-            });
-            logNotesDebug('NotesDiskSync', 'sync:ignored-expected-dirty-change', {
-              notePath: currentNote.path,
-              fullPath,
-              nextModifiedAt,
-              cachedModifiedAt,
             });
             return 'ignored';
           }

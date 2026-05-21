@@ -76,10 +76,12 @@ export class BlockControlsViewSession {
     this.scrollRoot?.addEventListener('scroll', this.handleScrollOrResize, { passive: true });
     window.addEventListener('blur', this.handleWindowBlur);
     window.addEventListener('resize', this.handleScrollOrResize);
-    this.scheduleHandleRefresh();
   }
 
   update(): void {
+    if (this.pointerY === null && !this.controls.classList.contains('visible') && !this.draggedRanges) {
+      return;
+    }
     this.invalidateTargetCache();
     this.scheduleHandleRefresh();
   }

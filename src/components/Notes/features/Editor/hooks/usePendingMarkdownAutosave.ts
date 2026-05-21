@@ -53,6 +53,7 @@ export function usePendingMarkdownAutosave({
   const hasIgnoredInitNoise = useRef(false);
   const hasEditorUserInput = useRef(false);
   const pendingMarkdownUpdateFrameRef = useRef<number | null>(null);
+  const pendingRawMarkdownRef = useRef<string | null>(null);
   const pendingMarkdownRef = useRef<string | null>(null);
   const currentNotePathRef = useRef(currentNotePath);
   const currentNoteContentRef = useRef(currentNoteContent);
@@ -61,6 +62,7 @@ export function usePendingMarkdownAutosave({
   useEffect(() => {
     hasIgnoredInitNoise.current = false;
     hasEditorUserInput.current = false;
+    pendingRawMarkdownRef.current = null;
     pendingMarkdownRef.current = null;
     if (pendingMarkdownUpdateFrameRef.current !== null) {
       cancelAnimationFrame(pendingMarkdownUpdateFrameRef.current);
@@ -77,6 +79,7 @@ export function usePendingMarkdownAutosave({
     currentNotePath,
     pendingMarkdownUpdateFrameRef,
     pendingMarkdownRef,
+    pendingRawMarkdownRef,
     hasEditorUserInputRef: hasEditorUserInput,
     currentNotePathRef,
     currentNoteContentRef,
@@ -120,11 +123,15 @@ export function usePendingMarkdownAutosave({
       }
 
       const currentContent = useNotesStore.getState().currentNote?.content ?? '';
-      const normalizedMarkdown = normalizeSerializedMarkdownDocument(markdown);
-      const styledMarkdown = restoreMathBlockFenceStylesFromReference(normalizedMarkdown, currentContent);
-      const nextMarkdown = serializeLeadingFrontmatterMarkdown(styledMarkdown, currentContent);
+      if (currentContent === markdown) {
+        return;
+      }
+
       if (!hasEditorUserInput.current) {
         if (debugEnabled) {
+          const normalizedMarkdown = normalizeSerializedMarkdownDocument(markdown);
+          const styledMarkdown = restoreMathBlockFenceStylesFromReference(normalizedMarkdown, currentContent);
+          const nextMarkdown = serializeLeadingFrontmatterMarkdown(styledMarkdown, currentContent);
           logLineBreakDebug('editor:non-user-markdown-echo-skipped', {
             currentNotePath: currentNotePath ?? null,
             isInitializing,
@@ -140,44 +147,64 @@ export function usePendingMarkdownAutosave({
         }
         return;
       }
-      if (debugEnabled) {
-        logLineBreakDebug('editor:markdown-updated', {
-          currentNotePath: currentNotePath ?? null,
-          raw: summarizeLineBreakText(markdown),
-          normalized: summarizeLineBreakText(normalizedMarkdown),
-          normalizationPipeline: summarizeMarkdownNormalizationPipeline(markdown),
-          styled: summarizeLineBreakText(styledMarkdown),
-          next: summarizeLineBreakText(nextMarkdown),
-          current: summarizeLineBreakText(currentContent),
-          diffCurrentToNext: compareLineBreakText(currentContent, nextMarkdown),
-          liveDoc,
-        });
-      }
-      if (currentContent === nextMarkdown) {
-        return;
-      }
 
-      pendingMarkdownRef.current = nextMarkdown;
+      pendingRawMarkdownRef.current = markdown;
       if (pendingMarkdownUpdateFrameRef.current !== null) {
         return;
       }
 
       pendingMarkdownUpdateFrameRef.current = requestAnimationFrame(() => {
         pendingMarkdownUpdateFrameRef.current = null;
-        const pendingMarkdown = pendingMarkdownRef.current;
-        pendingMarkdownRef.current = null;
-        if (pendingMarkdown === null) {
+        const rawMarkdown = pendingRawMarkdownRef.current;
+        pendingRawMarkdownRef.current = null;
+        if (rawMarkdown === null) {
           return;
         }
 
         const latestNote = useNotesStore.getState().currentNote;
         if (!latestNote || latestNote.path !== currentNotePath) {
-          logLineBreakDebug('editor:raf-skip-update', {
+          if (isNotesDebugLoggingEnabled()) {
+            logLineBreakDebug('editor:raf-skip-update', {
+              currentNotePath: currentNotePath ?? null,
+              latestNotePath: latestNote?.path ?? null,
+              latest: summarizeLineBreakText(latestNote?.content),
+              pending: summarizeLineBreakText(rawMarkdown),
+            });
+          }
+          return;
+        }
+
+        const normalizedMarkdown = normalizeSerializedMarkdownDocument(rawMarkdown);
+        const styledMarkdown = restoreMathBlockFenceStylesFromReference(normalizedMarkdown, latestNote.content);
+        const nextMarkdown = serializeLeadingFrontmatterMarkdown(styledMarkdown, latestNote.content);
+        if (isNotesDebugLoggingEnabled()) {
+          logLineBreakDebug('editor:markdown-updated', {
             currentNotePath: currentNotePath ?? null,
-            latestNotePath: latestNote?.path ?? null,
-            latest: summarizeLineBreakText(latestNote?.content),
-            pending: summarizeLineBreakText(pendingMarkdown),
+            raw: summarizeLineBreakText(rawMarkdown),
+            normalized: summarizeLineBreakText(normalizedMarkdown),
+            normalizationPipeline: summarizeMarkdownNormalizationPipeline(rawMarkdown),
+            styled: summarizeLineBreakText(styledMarkdown),
+            next: summarizeLineBreakText(nextMarkdown),
+            current: summarizeLineBreakText(latestNote.content),
+            diffCurrentToNext: compareLineBreakText(latestNote.content, nextMarkdown),
+            liveDoc,
           });
+        }
+        if (latestNote.content === nextMarkdown) {
+          if (isNotesDebugLoggingEnabled()) {
+            logLineBreakDebug('editor:raf-skip-update', {
+              currentNotePath: currentNotePath ?? null,
+              latestNotePath: latestNote.path,
+              latest: summarizeLineBreakText(latestNote.content),
+            });
+          }
+          return;
+        }
+
+        pendingMarkdownRef.current = nextMarkdown;
+        const pendingMarkdown = pendingMarkdownRef.current;
+        pendingMarkdownRef.current = null;
+        if (pendingMarkdown === null) {
           return;
         }
 
@@ -189,10 +216,12 @@ export function usePendingMarkdownAutosave({
             liveSerializedMarkdown = serializer(latestEditorView.state.doc);
           }
         } catch (error) {
-          logLineBreakDebug('editor:raf-live-doc-read-failed', {
-            currentNotePath: currentNotePath ?? null,
-            message: error instanceof Error ? error.message : String(error),
-          });
+          if (isNotesDebugLoggingEnabled()) {
+            logLineBreakDebug('editor:raf-live-doc-read-failed', {
+              currentNotePath: currentNotePath ?? null,
+              message: error instanceof Error ? error.message : String(error),
+            });
+          }
         }
 
         const resolvedUpdate = resolvePendingMarkdownUpdate({
@@ -202,23 +231,27 @@ export function usePendingMarkdownAutosave({
         });
         const markdownToApply = resolvedUpdate.markdownToApply;
         if (latestNote.content === markdownToApply) {
-          logLineBreakDebug('editor:raf-skip-update', {
-            currentNotePath: currentNotePath ?? null,
-            latestNotePath: latestNote.path,
-            latest: summarizeLineBreakText(latestNote.content),
-          });
+          if (isNotesDebugLoggingEnabled()) {
+            logLineBreakDebug('editor:raf-skip-update', {
+              currentNotePath: currentNotePath ?? null,
+              latestNotePath: latestNote.path,
+              latest: summarizeLineBreakText(latestNote.content),
+            });
+          }
           return;
         }
 
         const latestNotesPath = useNotesStore.getState().notesPath;
         const latestIsDraftNote = isDraftNotePath(latestNote.path);
-        logLineBreakDebug('editor:raf-apply-update', {
-          currentNotePath,
-          notesPath: latestNotesPath,
-          isDraftNote: latestIsDraftNote,
-          previous: summarizeLineBreakText(latestNote.content),
-          next: summarizeLineBreakText(markdownToApply),
-        });
+        if (isNotesDebugLoggingEnabled()) {
+          logLineBreakDebug('editor:raf-apply-update', {
+            currentNotePath,
+            notesPath: latestNotesPath,
+            isDraftNote: latestIsDraftNote,
+            previous: summarizeLineBreakText(latestNote.content),
+            next: summarizeLineBreakText(markdownToApply),
+          });
+        }
         updateContent(markdownToApply);
         if (!latestIsDraftNote || latestNotesPath) {
           debouncedSave();
@@ -234,10 +267,10 @@ export function usePendingMarkdownAutosave({
     return (event: Event) => {
       const wasAlreadyMarked = hasEditorUserInput.current;
       hasEditorUserInput.current = true;
-      const eventType = event.type;
-      const inputType = event instanceof InputEvent ? event.inputType : null;
-      const key = event instanceof KeyboardEvent ? event.key : null;
       if (isNotesDebugLoggingEnabled()) {
+        const eventType = event.type;
+        const inputType = event instanceof InputEvent ? event.inputType : null;
+        const key = event instanceof KeyboardEvent ? event.key : null;
         logLineBreakDebug('editor:user-input-marked', {
           currentNotePath: currentNotePath ?? null,
           eventType,

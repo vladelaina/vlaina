@@ -68,8 +68,9 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
   const currentNoteDiskRevision = useNotesStore(s => s.currentNoteDiskRevision);
-  const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
+  const currentNoteContentRef = useRef(useNotesStore.getState().currentNote?.content ?? '');
   const isDraftNote = isDraftNotePath(currentNotePath);
+  const onEditorViewReadyRef = useRef(onEditorViewReady);
 
   const hasAutoFocused = useRef(false);
   const hasScheduledAutoFocus = useRef(false);
@@ -83,16 +84,20 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   } = usePendingMarkdownAutosave({
     currentNotePath,
     currentNoteDiskRevision,
-    currentNoteContent,
+    currentNoteContent: currentNoteContentRef.current,
     updateContent,
     debouncedSave,
   });
 
   const initialContent = useMemo(() => {
     return normalizeAlternativeMathBlockFences(
-      normalizeSerializedMarkdownDocument(currentNoteContent)
+      normalizeSerializedMarkdownDocument(currentNoteContentRef.current)
     );
-  }, [currentNoteContent]);
+  }, []);
+
+  useEffect(() => {
+    onEditorViewReadyRef.current = onEditorViewReady;
+  }, [onEditorViewReady]);
 
   useEffect(() => {
     const handleBlur = () => {
@@ -130,7 +135,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       }
 
       setCurrentEditorView(view);
-      onEditorViewReady?.();
+      onEditorViewReadyRef.current?.();
 
       const markUserInput = createUserInputMarker(view, liveSerializer);
       view.dom.addEventListener('beforeinput', markUserInput);
@@ -164,7 +169,6 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   }, [
     cleanupActivatedEditor,
     createUserInputMarker,
-    onEditorViewReady,
   ]);
 
   const { get } = useEditor((root) => {
@@ -207,12 +211,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
     });
 
     return editor;
-  }, [
-    activateEditor,
-    cleanupActivatedEditor,
-    configureMarkdownListener,
-    currentNotePath,
-  ]);
+  }, []);
 
   useEffect(() => {
     hasAutoFocused.current = false;

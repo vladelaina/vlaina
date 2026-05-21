@@ -11,6 +11,7 @@ import { createWorkspaceDiskSyncAction } from './workspaceDiskSyncActions';
 import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 import {
   compareLineBreakText,
+  isNotesDebugLoggingEnabled,
   logLineBreakDebug,
   logNotesDebug,
   summarizeLineBreakText,
@@ -253,31 +254,38 @@ export function createWorkspaceDocumentActions(
 
     updateContent: (content: string) => {
       const { currentNote, noteContentsCache, openTabs } = get();
+      const debugEnabled = isNotesDebugLoggingEnabled();
       if (!currentNote) {
-        logNotesDebug('NotesDirty', 'update-content:skipped-no-current-note', {
-          next: summarizeLineBreakText(content),
-        });
+        if (debugEnabled) {
+          logNotesDebug('NotesDirty', 'update-content:skipped-no-current-note', {
+            next: summarizeLineBreakText(content),
+          });
+        }
         return;
       }
       if (currentNote.content === content) {
-        logNotesDebug('NotesDirty', 'update-content:skipped-unchanged', {
-          notePath: currentNote.path,
-          current: summarizeLineBreakText(currentNote.content),
-          next: summarizeLineBreakText(content),
-        });
+        if (debugEnabled) {
+          logNotesDebug('NotesDirty', 'update-content:skipped-unchanged', {
+            notePath: currentNote.path,
+            current: summarizeLineBreakText(currentNote.content),
+            next: summarizeLineBreakText(content),
+          });
+        }
         return;
       }
-      logNotesDebug('NotesDirty', 'update-content:apply', {
-        notePath: currentNote.path,
-        previousDirty: get().isDirty,
-        previous: summarizeLineBreakText(currentNote.content),
-        next: summarizeLineBreakText(content),
-        diff: compareLineBreakText(currentNote.content, content),
-        openTabs: openTabs.map((tab) => ({
-          path: tab.path,
-          isDirty: tab.isDirty,
-        })),
-      });
+      if (debugEnabled) {
+        logNotesDebug('NotesDirty', 'update-content:apply', {
+          notePath: currentNote.path,
+          previousDirty: get().isDirty,
+          previous: summarizeLineBreakText(currentNote.content),
+          next: summarizeLineBreakText(content),
+          diff: compareLineBreakText(currentNote.content, content),
+          openTabs: openTabs.map((tab) => ({
+            path: tab.path,
+            isDirty: tab.isDirty,
+          })),
+        });
+      }
       set({
         currentNote: { ...currentNote, content },
         currentNoteRevision: get().currentNoteRevision + 1,

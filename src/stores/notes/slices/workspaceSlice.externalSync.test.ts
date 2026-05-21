@@ -489,6 +489,32 @@ describe('workspaceSlice external sync', () => {
     expect(store.getState().isDirty).toBe(false);
   });
 
+  it('ignores expected self-write events while the current note is clean', async () => {
+    storageAdapter.exists.mockResolvedValue(true);
+    storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2 });
+    storageAdapter.readFile.mockResolvedValue('# should not reload');
+
+    const store = createNotesStore({
+      currentNote: { path: 'docs/alpha.md', content: '# saved' },
+      currentNoteDiskRevision: 3,
+      openTabs: [{ path: 'docs/alpha.md', name: 'alpha', isDirty: false }],
+      noteContentsCache: new Map([['docs/alpha.md', { content: '# saved', modifiedAt: 1 }]]),
+    });
+
+    markExpectedExternalChange('/vault/docs/alpha.md');
+    const result = await store.getState().syncCurrentNoteFromDisk({ force: true });
+
+    expect(result).toBe('ignored');
+    expect(storageAdapter.readFile).not.toHaveBeenCalled();
+    expect(store.getState().currentNote).toEqual({ path: 'docs/alpha.md', content: '# saved' });
+    expect(store.getState().currentNoteDiskRevision).toBe(3);
+    expect(store.getState().noteContentsCache.get('docs/alpha.md')?.modifiedAt).toBe(2);
+    shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md');
+    shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md');
+    shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md');
+    expect(shouldIgnoreExpectedExternalChange('/vault/docs/alpha.md')).toBe(false);
+  });
+
   it('flushes pending editor markdown before deciding whether disk sync can reload', async () => {
     storageAdapter.exists.mockResolvedValue(true);
     storageAdapter.stat.mockResolvedValue({ isFile: true, modifiedAt: 2 });
