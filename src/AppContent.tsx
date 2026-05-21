@@ -315,6 +315,25 @@ export function AppContent() {
   }, [effectiveAppViewMode, shouldRenderDeferredChrome]);
 
   useEffect(() => {
+    if (!activeViewReady || !primaryContentReady) return;
+    if (effectiveAppViewMode !== 'notes' && effectiveAppViewMode !== 'chat') return;
+
+    void preloadNotesViewModule();
+    void preloadChatViewModule();
+    void preloadNotesSidebarModule();
+    void preloadChatSidebarModule();
+
+    setMountedAppViews((views) => {
+      if (views.has('notes') && views.has('chat')) return views;
+      return new Set([...views, 'notes', 'chat']);
+    });
+    setRenderedSidebarAppViews((views) => {
+      if (views.has('notes') && views.has('chat')) return views;
+      return new Set([...views, 'notes', 'chat']);
+    });
+  }, [activeViewReady, effectiveAppViewMode, primaryContentReady]);
+
+  useEffect(() => {
     if (settingsOpen) {
       setHasOpenedSettings(true);
       void loadCommunitySettings();
@@ -516,8 +535,8 @@ export function AppContent() {
   const shouldRenderSidebar = effectiveAppViewMode === 'chat' || effectiveAppViewMode === 'notes';
   const shouldMountNotes = mountedAppViews.has('notes');
   const shouldMountChat = mountedAppViews.has('chat');
-  const shouldRenderNotesSidebar = shouldMountNotes && renderedSidebarAppViews.has('notes');
-  const shouldRenderChatSidebar = shouldMountChat && renderedSidebarAppViews.has('chat');
+  const shouldRenderNotesSidebar = renderedSidebarAppViews.has('notes');
+  const shouldRenderChatSidebar = renderedSidebarAppViews.has('chat');
   const shouldShowNotesSidebar = effectiveAppViewMode === 'notes';
   const shouldShowChatSidebar = effectiveAppViewMode === 'chat';
   const notesPrimaryContentReady = primaryContentReadyAppViewsRef.current.has('notes');

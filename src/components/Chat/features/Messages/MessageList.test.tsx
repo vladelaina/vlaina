@@ -319,6 +319,75 @@ describe("MessageList", () => {
     expect(ResizeObserverMock.instances.every((observer) => observer.disconnect.mock.calls.length === 1)).toBe(true);
   });
 
+  it("does not keep a row ResizeObserver running while inactive", () => {
+    class ResizeObserverMock {
+      static instances: ResizeObserverMock[] = [];
+
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+
+      constructor(_callback: ResizeObserverCallback) {
+        ResizeObserverMock.instances.push(this);
+      }
+    }
+
+    vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+
+    const containerRef = createRef<HTMLDivElement>();
+    const messages = [createMessage("u1", "user"), createMessage("a1", "assistant")];
+    const view = render(
+      <MessageList
+        active={false}
+        messages={messages}
+        getImageGallery={() => []}
+        isSessionActive
+        showLoading={false}
+        spacerHeight={0}
+        containerRef={containerRef}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(ResizeObserverMock.instances).toHaveLength(0);
+
+    view.rerender(
+      <MessageList
+        active
+        messages={messages}
+        getImageGallery={() => []}
+        isSessionActive
+        showLoading={false}
+        spacerHeight={0}
+        containerRef={containerRef}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(ResizeObserverMock.instances.length).toBeGreaterThan(0);
+
+    view.rerender(
+      <MessageList
+        active={false}
+        messages={messages}
+        getImageGallery={() => []}
+        isSessionActive
+        showLoading={false}
+        spacerHeight={0}
+        containerRef={containerRef}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(ResizeObserverMock.instances.every((observer) => observer.disconnect.mock.calls.length === 1)).toBe(true);
+  });
+
   it("suspends the active assistant stream animation while the user is scrolling", () => {
     vi.useFakeTimers();
     const messages = [createMessage("u1", "user"), createMessage("a1", "assistant")];
