@@ -15,6 +15,7 @@ import { NoteMentionPicker } from './components/NoteMentionPicker';
 import { useChatHistoryNavigation } from './hooks/useChatHistoryNavigation';
 import { useNoteMentions } from './hooks/useNoteMentions';
 import { useAIStore } from '@/stores/useAIStore';
+import { useI18n } from '@/lib/i18n/useI18n';
 
 interface ChatInputProps {
   onSend: (message: string, attachments: Attachment[], noteMentions: NoteMentionReference[]) => void;
@@ -35,6 +36,7 @@ export const ChatInput = memo(function ChatInput({
   sessionId,
   sentUserMessages,
 }: ChatInputProps) {
+  const { t } = useI18n();
   const focusRafRef = useRef<number | null>(null);
   const restoreFocusListenerRef = useRef<(() => void) | null>(null);
   const { webSearchEnabled, setWebSearchEnabled } = useAIStore();
@@ -303,7 +305,7 @@ export const ChatInput = memo(function ChatInput({
             onBlur={handleCaretBlur}
             onPaste={handleTextareaPaste}
             onScroll={(e) => setTextareaScrollTop(e.currentTarget.scrollTop)}
-            placeholder={!hasSelectedModel ? 'Select a model...' : isLoading ? 'Type to interrupt...' : 'Tell me something...'}
+            placeholder={!hasSelectedModel ? t('chat.selectModelPlaceholder') : isLoading ? t('chat.interruptPlaceholder') : t('chat.composerPlaceholder')}
             mentionPreviewParts={mentionPreviewParts}
             textareaScrollTop={textareaScrollTop}
             onRemoveMention={removeNoteMention}
