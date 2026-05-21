@@ -158,20 +158,21 @@ async function requestAiEdit(
       };
     }
 
-    const normalized = getUserFacingAIError(error);
     const fallbackMessage =
       error instanceof Error && error.message.trim().length > 0
         ? error.message
         : 'Failed to edit the selected text with AI.';
-    const message = normalized.message || fallbackMessage;
+    const isManaged = isManagedProviderId(provider.id);
+    const normalized = isManaged ? getUserFacingAIError(error) : null;
+    const message = normalized?.message || fallbackMessage;
     if (!options?.suppressToast) {
       useToastStore.getState().addToast(message, 'error', 4000);
     }
     return {
       suggestedText: null,
       errorMessage: message,
-      errorType: isManagedProviderId(provider.id) ? normalized.type : null,
-      errorCode: isManagedProviderId(provider.id) ? normalized.code : null,
+      errorType: normalized?.type ?? null,
+      errorCode: normalized?.code ?? null,
     };
   }
 }

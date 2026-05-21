@@ -45,12 +45,37 @@ function escapeXml(value: string) {
     .replace(/'/g, '&apos;');
 }
 
-function buildChatErrorPayload(error: unknown) {
+function extractRawErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim()) {
+    return error.message.trim();
+  }
+  if (error && typeof error === 'object' && typeof (error as { message?: unknown }).message === 'string') {
+    const message = (error as { message: string }).message.trim();
+    if (message) {
+      return message;
+    }
+  }
+  return String(error || '').trim() || 'AI request failed.';
+}
+
+function buildChatErrorPayload(error: unknown, managed = true) {
+  if (!managed) {
+    const message = extractRawErrorMessage(error);
+    return {
+      message,
+      xml: `<error type="custom_provider" code="">${escapeXml(message)}</error>`,
+    };
+  }
+
   const normalized = getUserFacingAIError(error);
   return {
     message: normalized.message,
     xml: `<error type="${escapeXml(normalized.type)}" code="${escapeXml(normalized.code)}">${escapeXml(normalized.message)}</error>`,
   };
+}
+
+function createEmptyResponseError(providerId: string): Error {
+  return new Error(isManagedProviderId(providerId) ? 'UPSTREAM_UNAVAILABLE' : 'The model returned an empty response.');
 }
 
 const MANAGED_BUDGET_BLOCK_MAX_AGE_MS = 60_000;
@@ -298,7 +323,8 @@ export function useChatService() {
             completeMessage: aiActions.completeMessage,
             setSessionLoading,
             setError,
-            buildErrorPayload: buildChatErrorPayload,
+            buildErrorPayload: (error) => buildChatErrorPayload(error, isManagedProviderId(provider.id)),
+            createEmptyResponseError: () => createEmptyResponseError(provider.id),
             onSuccess: () => {
               refreshManagedBudgetIfNeeded(provider.id);
               if (!isTemporaryTarget) {
@@ -312,7 +338,7 @@ export function useChatService() {
             },
           });
         } catch (error) {
-          const { message, xml } = buildChatErrorPayload(error);
+          const { message, xml } = buildChatErrorPayload(error, isManagedProviderId(provider.id));
           setError(message);
           aiActions.updateMessage(targetSessionId, assistantMessageId, xml);
         }
@@ -415,14 +441,15 @@ export function useChatService() {
             completeMessage: aiActions.completeMessage,
             setSessionLoading,
             setError,
-            buildErrorPayload: buildChatErrorPayload,
+            buildErrorPayload: (error) => buildChatErrorPayload(error, isManagedProviderId(provider.id)),
+            createEmptyResponseError: () => createEmptyResponseError(provider.id),
             onSuccess: () => {
               refreshManagedBudgetIfNeeded(provider.id);
               maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
             },
           });
         } catch (error) {
-          const { message, xml } = buildChatErrorPayload(error);
+          const { message, xml } = buildChatErrorPayload(error, isManagedProviderId(provider.id));
           setError(message);
           aiActions.updateMessage(sessionId, assistantMessageId, xml);
         }
@@ -510,14 +537,15 @@ export function useChatService() {
             completeMessage: aiActions.completeMessage,
             setSessionLoading,
             setError,
-            buildErrorPayload: buildChatErrorPayload,
+            buildErrorPayload: (error) => buildChatErrorPayload(error, isManagedProviderId(provider.id)),
+            createEmptyResponseError: () => createEmptyResponseError(provider.id),
             onSuccess: () => {
               refreshManagedBudgetIfNeeded(provider.id);
               maybeGenerateAutoTitle(sessionId, provider.id, selectedModel.id);
             },
           });
         } catch (error) {
-          const { message, xml } = buildChatErrorPayload(error);
+          const { message, xml } = buildChatErrorPayload(error, isManagedProviderId(provider.id));
           setError(message);
           aiActions.updateMessage(sessionId, messageId, xml);
         }

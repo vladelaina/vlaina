@@ -13,6 +13,7 @@ export interface StreamAccumulator {
 
 interface ConsumeOpenAIStreamOptions {
   onAssistantTranscriptMessage?: (message: ApiTranscriptMessage) => void
+  mapErrorPayload?: (message: string, code?: string) => Error | string
 }
 
 export function createStreamAccumulator(onChunk: (chunk: string) => void): StreamAccumulator {
@@ -113,6 +114,19 @@ function extractErrorMessage(payload: Record<string, unknown>): string {
   return ''
 }
 
+function extractErrorCode(payload: Record<string, unknown>): string | undefined {
+  const nestedError = payload.error
+  if (isRecord(nestedError) && typeof nestedError.code === 'string') {
+    return nestedError.code
+  }
+
+  if (typeof payload.errorCode === 'string') {
+    return payload.errorCode
+  }
+
+  return undefined
+}
+
 function parsePayloadText(text: string): Record<string, unknown> | null {
   const trimmed = text.trim()
   if (!trimmed || trimmed === '[DONE]') {
@@ -195,7 +209,8 @@ export async function consumeOpenAIStream(
 
     const errorMessage = extractErrorMessage(payload)
     if (errorMessage) {
-      throw new Error(errorMessage)
+      const mapped = options?.mapErrorPayload?.(errorMessage, extractErrorCode(payload))
+      throw typeof mapped === 'string' ? new Error(mapped) : mapped || new Error(errorMessage)
     }
 
     const delta = extractStreamDelta(payload)

@@ -1,6 +1,6 @@
 import { MANAGED_API_BASE } from './constants';
 import { parseManagedError } from './errors';
-import { createStreamAccumulator } from '@/lib/ai/streaming';
+import { consumeOpenAIStream } from '@/lib/ai/streaming';
 
 const MANAGED_JSON_TIMEOUT_MS = 30_000;
 const MANAGED_STREAM_TIMEOUT_MS = 300_000;
@@ -89,88 +89,17 @@ export async function requestManagedWebStream(
       throw new Error('Managed API response body is null');
     }
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    const accumulator = createStreamAccumulator(onChunk);
-
-    const consumeLine = (line: string) => {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed === 'data: [DONE]' || trimmed === 'data:[DONE]') {
-        return;
-      }
-
-      if (!trimmed.startsWith('data:')) {
-        return;
-      }
-
-      const jsonStr = trimmed.slice(5).trim();
-      let payload: {
-        error?: {
-          code?: string;
-          message?: string;
-        };
-        choices?: Array<{
-          delta?: {
-            content?: string;
-            reasoning_content?: string;
-          };
-        }>;
-      };
-      try {
-        payload = JSON.parse(jsonStr) as typeof payload;
-      } catch (parseError) {
-        if (import.meta.env.DEV) {
-        }
-        return;
-      }
-
-      if (payload.error?.message) {
-        const error = new Error(publicManagedStreamErrorMessage(payload.error.message, payload.error.code)) as Error & {
+    return await consumeOpenAIStream(response, onChunk, {
+      mapErrorPayload(message, code) {
+        const error = new Error(publicManagedStreamErrorMessage(message, code)) as Error & {
           errorCode?: string;
         };
-        if (typeof payload.error.code === 'string' && payload.error.code.trim()) {
-          error.errorCode = payload.error.code.trim();
+        if (typeof code === 'string' && code.trim()) {
+          error.errorCode = code.trim();
         }
-        throw error;
-      }
-
-      const delta = payload.choices?.[0]?.delta;
-      const reasoning = delta?.reasoning_content;
-      const content = delta?.content;
-
-      if (reasoning || content) {
-        accumulator.pushDelta({ reasoning, content });
-      }
-    };
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          break;
-        }
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          consumeLine(line);
-        }
-      }
-
-      if (buffer.trim()) {
-        consumeLine(buffer);
-      }
-
-      return accumulator.finish();
-    } catch (error) {
-      await reader.cancel().catch(() => undefined);
-      throw error;
-    } finally {
-      reader.releaseLock();
-    }
+        return error;
+      },
+    });
   } finally {
     clearTimeout(timer);
   }

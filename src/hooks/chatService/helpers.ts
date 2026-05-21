@@ -19,6 +19,7 @@ export function resolveAssistantContent(
   returnedContent: string,
   lastStreamedContent: string,
   applyResolvedContent: (content: string) => void,
+  createEmptyResponseError: () => Error = () => new Error('The model returned an empty response.'),
 ) {
   const finalContent = returnedContent || lastStreamedContent;
 
@@ -27,7 +28,7 @@ export function resolveAssistantContent(
   }
 
   if (!finalContent.trim()) {
-    throw new Error('The model returned an empty response.');
+    throw createEmptyResponseError();
   }
 
   return finalContent;

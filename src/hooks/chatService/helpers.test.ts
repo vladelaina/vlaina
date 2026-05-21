@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildMentionedNotesContext,
   loadMentionedNotes,
+  resolveAssistantContent,
 } from './helpers';
 
 const hoisted = vi.hoisted(() => {
@@ -181,5 +182,13 @@ describe('chatService helpers', () => {
     expect(context).toContain('Referenced notes (Markdown):');
     expect(context).toContain('## Cached');
     expect(context).toContain('Cached note body');
+  });
+
+  it('uses the default empty assistant content error', () => {
+    expect(() => resolveAssistantContent('', '   ', vi.fn())).toThrow('The model returned an empty response.');
+  });
+
+  it('allows managed chat to map empty assistant content to upstream unavailable', () => {
+    expect(() => resolveAssistantContent('', '   ', vi.fn(), () => new Error('UPSTREAM_UNAVAILABLE'))).toThrow('UPSTREAM_UNAVAILABLE');
   });
 });
