@@ -26,6 +26,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { resolveSiblingNoteParentPath } from '@/stores/notes/notePathState';
 import { NotesDragOverlay } from '../common/NotesDragOverlay';
 import { NoteTabContent } from './NoteTabContent';
+import { truncateNoteLabel } from '../common/truncateNoteLabel';
 
 interface SortableTabProps {
   tab: { path: string; name: string; isDirty: boolean };
@@ -45,6 +46,10 @@ const SortableTab = memo(function SortableTab({
   const icon = useDisplayIcon(tab.path);
   const { title, disambiguation } = useNoteLabelDescriptor(tab.path, tab.name);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({ id: tab.path });
+  const labelRef = React.useRef<HTMLSpanElement | null>(null);
+  const [isLabelClipped, setIsLabelClipped] = React.useState(false);
+  const isTitleShortened = truncateNoteLabel(title) !== title;
+  const shouldShowTitleTooltip = isTitleShortened || isLabelClipped;
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -53,6 +58,27 @@ const SortableTab = memo(function SortableTab({
 
   const isInteractiveTarget = (target: EventTarget | null) =>
     target instanceof Element && Boolean(target.closest('button'));
+
+  const updateLabelClipped = React.useCallback(() => {
+    const label = labelRef.current;
+    if (!label) {
+      setIsLabelClipped(false);
+      return;
+    }
+    setIsLabelClipped(label.scrollWidth > label.clientWidth + 1);
+  }, []);
+
+  React.useEffect(() => {
+    updateLabelClipped();
+    const label = labelRef.current;
+    if (!label || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const observer = new ResizeObserver(updateLabelClipped);
+    observer.observe(label);
+    return () => observer.disconnect();
+  }, [title, disambiguation, updateLabelClipped]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (isInteractiveTarget(e.target)) {
@@ -90,6 +116,8 @@ const SortableTab = memo(function SortableTab({
               e.stopPropagation();
             }
           }}
+          onMouseEnter={updateLabelClipped}
+          onFocus={updateLabelClipped}
           className={cn(
             'group relative flex min-w-0 flex-shrink cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 transition-colors',
             isActive
@@ -107,6 +135,7 @@ const SortableTab = memo(function SortableTab({
             icon={icon}
             title={title}
             disambiguation={disambiguation}
+            labelRef={labelRef}
           />
 
           <button
@@ -129,14 +158,24 @@ const SortableTab = memo(function SortableTab({
           </button>
         </div>
       </TooltipTrigger>
-      <TooltipContent side="bottom" sideOffset={5}>
-        <div className="flex flex-col gap-0.5">
-          <span className="text-xs font-medium">{title}</span>
-          {disambiguation ? (
-            <span className="text-[11px] text-current/70">{disambiguation}</span>
-          ) : null}
-        </div>
-      </TooltipContent>
+      {shouldShowTitleTooltip ? (
+        <TooltipContent
+          side="bottom"
+          sideOffset={6}
+          showArrow={false}
+          className={cn(
+            'rounded-[18px] px-3 py-2 text-xs text-[var(--chat-sidebar-text)]',
+            chatComposerPillSurfaceClass,
+          )}
+        >
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs font-medium">{title}</span>
+            {disambiguation ? (
+              <span className="text-[11px] text-current/70">{disambiguation}</span>
+            ) : null}
+          </div>
+        </TooltipContent>
+      ) : null}
     </Tooltip>
   );
 });
@@ -251,14 +290,25 @@ export function NotesTabRow() {
             <button
               type="button"
               onClick={handleCreateNote}
-              className="notes-tab-row-new-note-button pointer-events-none flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-400 opacity-0 transition-all group-hover/tab-row:pointer-events-auto group-hover/tab-row:opacity-100 group-focus-within/tab-row:pointer-events-auto group-focus-within/tab-row:opacity-100 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+              className="notes-tab-row-new-note-button pointer-events-none flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-zinc-400 opacity-0 transition-all group-hover/tab-row:pointer-events-auto group-hover/tab-row:opacity-100 group-focus-within/tab-row:pointer-events-auto group-focus-within/tab-row:opacity-100 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
             >
               <Icon name="common.add" className="h-4 w-4" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={5} className="flex items-center gap-1.5 text-xs">
+          <TooltipContent
+            side="bottom"
+            sideOffset={6}
+            showArrow={false}
+            className={cn(
+              'flex items-center gap-1.5 rounded-[18px] px-3 py-2 text-xs text-[var(--chat-sidebar-text)]',
+              chatComposerPillSurfaceClass,
+            )}
+          >
             <span>{t('sidebar.newNote')}</span>
-            <ShortcutKeys keys={['Ctrl', 'T']} />
+            <ShortcutKeys
+              keys={['Ctrl', 'T']}
+              keyClassName="rounded-md bg-[var(--chat-sidebar-row-hover)] text-[var(--chat-sidebar-text)]"
+            />
           </TooltipContent>
         </Tooltip>
       </div>
