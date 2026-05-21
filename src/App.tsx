@@ -4,7 +4,6 @@ import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 import { ThemeProvider } from '@/components/theme-provider';
 import { useBillingReturnRefresh } from '@/hooks/useBillingReturnRefresh';
 import { useElectronCloseGuard } from '@/hooks/useElectronCloseGuard';
-import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { useAccountSessionStore } from '@/stores/accountSession';
 import { useToastStore } from '@/stores/useToastStore';
 import { getElectronBridge } from '@/lib/electron/bridge';
@@ -78,11 +77,9 @@ function App() {
     if (billingResult === 'success') {
       addToast(t('app.checkoutCompleted'), 'success', 5000);
       void useAccountSessionStore.getState().checkStatus();
-      void useManagedAIStore.getState().refreshBudget();
 
       const timer = window.setTimeout(() => {
         void useAccountSessionStore.getState().checkStatus();
-        void useManagedAIStore.getState().refreshBudget();
       }, 4000);
 
       return () => {

@@ -94,4 +94,22 @@ describe('UserIdentityCard', () => {
 
     expect(openExternalHref).toHaveBeenCalledWith('https://vlaina.com/r/account_plan');
   });
+
+  it('renders ultra membership as a loaded membership state', () => {
+    act(() => {
+      useAccountSessionStore.setState({
+        ...initialAccountSessionState,
+        isConnected: true,
+        provider: 'google',
+        username: 'alice',
+        primaryEmail: 'alice@example.com',
+        membershipTier: 'ultra',
+        membershipName: 'Ultra',
+      });
+    });
+
+    render(<UserIdentityCard onLogout={vi.fn()} onSwitchAccount={vi.fn()} />);
+
+    expect(screen.getByText('Ultra')).toBeInTheDocument();
+  });
 });

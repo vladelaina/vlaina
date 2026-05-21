@@ -44,9 +44,10 @@ export const useManagedAIStore = create<ManagedAIState>((set, get) => ({
           lastBudgetSyncAt: Date.now(),
         })
       } catch (error) {
+        const message = getManagedServiceErrorMessage(error) || 'Failed to refresh budget'
         set({
           isRefreshingBudget: false,
-          budgetError: getManagedServiceErrorMessage(error) || 'Failed to refresh budget',
+          budgetError: message,
         })
       } finally {
         budgetRefreshPromise = null

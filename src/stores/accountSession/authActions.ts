@@ -2,8 +2,10 @@ import type { StoreApi } from 'zustand';
 import type { AccountProvider, AccountSessionActions, AccountSessionState } from './state';
 import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
 import { accountCommands } from '@/lib/account/desktopCommands';
+import { normalizeManagedBudgetPayload } from '@/lib/ai/managed/normalizers';
 import { webAccountCommands, handleAuthCallback as parseAuthCallback } from '@/lib/account/webCommands';
 import { isOauthAccountProvider, normalizeAccountProvider } from '@/lib/account/provider';
+import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import {
   AUTH_PROVIDER_STORAGE_KEY,
   AUTH_STATE_STORAGE_KEY,
@@ -16,6 +18,15 @@ import { applyDisconnectedAccount } from './sessionState';
 
 type Set = StoreApi<AccountSessionState & AccountSessionActions>['setState'];
 type Get = StoreApi<AccountSessionState & AccountSessionActions>['getState'];
+
+let checkStatusPromise: Promise<void> | null = null;
+let checkStatusPromiseVersion = 0;
+let accountSessionMutationVersion = 0;
+
+function invalidateAccountSessionChecks(): void {
+  accountSessionMutationVersion += 1;
+  checkStatusPromise = null;
+}
 
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -52,7 +63,6 @@ function isRelevantElectronAuthEvent(event: string): boolean {
     'persist_auth_result:missing_identity',
     'persist_auth_result:session_identity_error',
     'persist_auth_result:session_identity_inline_done',
-    'persist_auth_result:session_identity_deferred_applied',
     'persist_auth_result:done',
     'read_stored_credentials:empty_or_invalid',
     'read_stored_credentials:resolved',
@@ -117,47 +127,88 @@ export function selectRelevantElectronAuthEntries(entries: Array<{
 
 export function createCheckStatus(set: Set, get: Get): () => Promise<void> {
   return async () => {
+    const requestVersion = accountSessionMutationVersion;
+    if (checkStatusPromise && checkStatusPromiseVersion === requestVersion) {
+      return checkStatusPromise;
+    }
+
     set({ isLoading: true });
 
-    try {
-      const status = hasElectronDesktopBridge()
-        ? await accountCommands.getAccountSessionStatus()
-        : await webAccountCommands.probeStatus();
-      const provider = normalizeAccountProvider(status?.provider);
-      const connected = status?.connected === true;
-      const username = status?.username ?? null;
-      const primaryEmail = status?.primaryEmail ?? null;
-      const avatarUrl = status?.avatarUrl ?? null;
-      const membershipTier =
-        status?.membershipTier === 'free' || status?.membershipTier === 'plus' || status?.membershipTier === 'pro' || status?.membershipTier === 'max'
-          ? status.membershipTier
-          : null;
-      const membershipName =
-        typeof status?.membershipName === 'string' && status.membershipName.trim() ? status.membershipName.trim() : null;
+    checkStatusPromiseVersion = requestVersion;
+    let promise!: Promise<void>;
+    promise = (async () => {
+      try {
+        const status = hasElectronDesktopBridge()
+          ? await accountCommands.getAccountSessionStatus()
+          : await webAccountCommands.probeStatus();
+        if (requestVersion !== accountSessionMutationVersion) {
+          return;
+        }
 
-      if (!connected && get().isConnected === true) {
-        set({ isLoading: false });
-        return;
+        const provider = normalizeAccountProvider(status?.provider);
+        const connected = status?.connected === true;
+        const sessionInvalidated = status && 'sessionInvalidated' in status && status.sessionInvalidated === true;
+        const username = status?.username ?? null;
+        const primaryEmail = status?.primaryEmail ?? null;
+        const avatarUrl = status?.avatarUrl ?? null;
+        const membershipTier =
+          status?.membershipTier === 'free' || status?.membershipTier === 'plus' || status?.membershipTier === 'pro' || status?.membershipTier === 'max' || status?.membershipTier === 'ultra'
+            ? status.membershipTier
+            : null;
+        const membershipName =
+          typeof status?.membershipName === 'string' && status.membershipName.trim() ? status.membershipName.trim() : null;
+        const sessionBudget = status && 'budget' in status ? status.budget : null;
+        if (connected && sessionBudget && typeof sessionBudget === 'object') {
+          const now = Date.now();
+          useManagedAIStore.setState({
+            budget: normalizeManagedBudgetPayload(sessionBudget),
+            isRefreshingBudget: false,
+            budgetError: null,
+            lastBudgetSyncAt: now,
+            lastBudgetAttemptAt: now,
+          });
+        }
+
+        if (!connected && sessionInvalidated) {
+          applyDisconnectedAccount(set);
+          useManagedAIStore.getState().clearBudget();
+          return;
+        }
+
+        if (!connected && get().isConnected === true) {
+          set({ isLoading: false, hasCheckedStatus: true });
+          return;
+        }
+
+        set({
+          isConnected: connected,
+          provider,
+          username,
+          primaryEmail,
+          avatarUrl,
+          membershipTier,
+          membershipName,
+          isLoading: false,
+          hasCheckedStatus: true,
+          error: connected ? null : get().error,
+        });
+
+        persistUser({ isConnected: connected, provider, username, primaryEmail, avatarUrl, membershipTier, membershipName });
+        await refreshAvatar(set, get, username, avatarUrl);
+      } catch (error) {
+        console.error('Failed to check account auth status:', error);
+        if (requestVersion === accountSessionMutationVersion) {
+          set({ isLoading: false, hasCheckedStatus: true });
+        }
+      } finally {
+        if (checkStatusPromise === promise) {
+          checkStatusPromise = null;
+        }
       }
+    })();
+    checkStatusPromise = promise;
 
-      set({
-        isConnected: connected,
-        provider,
-        username,
-        primaryEmail,
-        avatarUrl,
-        membershipTier,
-        membershipName,
-        isLoading: false,
-        error: connected ? null : get().error,
-      });
-
-      persistUser({ isConnected: connected, provider, username, primaryEmail, avatarUrl, membershipTier, membershipName });
-      await refreshAvatar(set, get, username, avatarUrl);
-    } catch (error) {
-      console.error('Failed to check account auth status:', error);
-      set({ isLoading: false });
-    }
+    return checkStatusPromise;
   };
 }
 
@@ -166,6 +217,7 @@ export function createSignIn(
   get: Get
 ): (provider: Exclude<AccountProvider, 'email'>) => Promise<boolean> {
   return async (provider) => {
+    invalidateAccountSessionChecks();
     set({ isConnecting: true, error: null });
 
     const isDesktop = hasElectronDesktopBridge();
@@ -195,6 +247,7 @@ export function createSignIn(
         clearTimeout(timeoutId);
 
         if (result?.success) {
+          invalidateAccountSessionChecks();
           const checkStartedAt = performance.now();
           await get().checkStatus();
           logAccountAuthStep('desktop_auth:check_status_resolved', {
@@ -286,6 +339,7 @@ export function createVerifyEmailCode(set: Set, get: Get): (email: string, code:
       if (hasElectronDesktopBridge()) {
         const result = await accountCommands.verifyEmailAuthCode(email, code);
         if (result?.success) {
+          invalidateAccountSessionChecks();
           await get().checkStatus();
           set({ isConnecting: false, error: null });
           return true;
@@ -296,6 +350,7 @@ export function createVerifyEmailCode(set: Set, get: Get): (email: string, code:
 
       const result = await webAccountCommands.verifyEmailCode(email, code);
       if (result.success && result.username) {
+        invalidateAccountSessionChecks();
         await get().checkStatus();
         set({ isConnecting: false, error: null });
         return true;
@@ -349,6 +404,7 @@ export function createHandleAuthCallback(set: Set, get: Get): () => Promise<bool
 
     const result = await webAccountCommands.completeAuth(callback.provider, callback.state);
     if (result.success && result.username) {
+      invalidateAccountSessionChecks();
       await get().checkStatus();
       set({ isConnecting: false, error: null });
       return true;
@@ -365,6 +421,7 @@ export function createHandleAuthCallback(set: Set, get: Get): () => Promise<bool
 
 export function createSignOut(set: Set, _get: Get): () => Promise<void> {
   return async () => {
+    invalidateAccountSessionChecks();
     const win = window as Window & { __vlaina_auth_timeout?: number | ReturnType<typeof setTimeout> | null };
     if (win.__vlaina_auth_timeout) {
       clearTimeout(win.__vlaina_auth_timeout);

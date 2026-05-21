@@ -1,4 +1,5 @@
 import type { AccountProvider, MembershipTier } from '@/stores/accountSession/state';
+import type { ManagedBudgetPayload } from '@/lib/ai/managed/types';
 import { normalizeAccountProvider } from '@/lib/account/provider';
 import { ACCOUNT_AUTH_INVALIDATED_EVENT } from './sessionEvent';
 
@@ -22,6 +23,7 @@ export interface WebAccountStatus {
   avatarUrl: string | null;
   membershipTier: MembershipTier | null;
   membershipName: string | null;
+  budget?: ManagedBudgetPayload | null;
 }
 
 function clearPersistedIdentity(): void {
@@ -54,7 +56,7 @@ function loadPersistedWebAccountIdentity(): WebAccountCredentials | null {
       primaryEmail: typeof parsed.primaryEmail === 'string' ? parsed.primaryEmail : null,
       avatarUrl: typeof parsed.avatarUrl === 'string' ? parsed.avatarUrl : null,
       membershipTier:
-        parsed.membershipTier === 'free' || parsed.membershipTier === 'plus' || parsed.membershipTier === 'pro' || parsed.membershipTier === 'max'
+        parsed.membershipTier === 'free' || parsed.membershipTier === 'plus' || parsed.membershipTier === 'pro' || parsed.membershipTier === 'max' || parsed.membershipTier === 'ultra'
           ? parsed.membershipTier
           : null,
       membershipName: typeof parsed.membershipName === 'string' ? parsed.membershipName : null,
@@ -85,7 +87,7 @@ export function loadWebAccountCredentials(): WebAccountCredentials | null {
       primaryEmail: typeof parsed.primaryEmail === 'string' ? parsed.primaryEmail : null,
       avatarUrl: typeof parsed.avatarUrl === 'string' ? parsed.avatarUrl : null,
       membershipTier:
-        parsed.membershipTier === 'free' || parsed.membershipTier === 'plus' || parsed.membershipTier === 'pro' || parsed.membershipTier === 'max'
+        parsed.membershipTier === 'free' || parsed.membershipTier === 'plus' || parsed.membershipTier === 'pro' || parsed.membershipTier === 'max' || parsed.membershipTier === 'ultra'
           ? parsed.membershipTier
           : null,
       membershipName: typeof parsed.membershipName === 'string' ? parsed.membershipName : null,

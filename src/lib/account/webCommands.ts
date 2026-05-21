@@ -1,4 +1,5 @@
 import type { AccountProvider, MembershipTier } from '@/stores/accountSession/state';
+import type { ManagedBudgetPayload } from '@/lib/ai/managed/types';
 import { normalizeAccountProvider } from '@/lib/account/provider';
 import {
   clearWebAccountCredentials,
@@ -31,6 +32,7 @@ interface SessionStatusResponse {
   avatarUrl?: string | null;
   membershipTier?: MembershipTier | null;
   membershipName?: string | null;
+  budget?: ManagedBudgetPayload | null;
 }
 
 function authStartPath(_provider: Exclude<AccountProvider, 'email'>): string {
@@ -107,7 +109,7 @@ function persistConnectedWebAccount(result: NormalizedWebAccountResult): void {
 }
 
 async function probeWebSession(): Promise<WebAccountStatus> {
-  const response = await fetch(`${API_BASE}/auth/session`, {
+  const response = await fetch(`${API_BASE}/auth/session?include_budget=1`, {
     method: 'GET',
     cache: 'no-store',
     credentials: 'include',
@@ -133,9 +135,11 @@ async function probeWebSession(): Promise<WebAccountStatus> {
     avatarUrl: typeof data.avatarUrl === 'string' ? data.avatarUrl : null,
     membershipTier:
       data.membershipTier === 'free' || data.membershipTier === 'plus' || data.membershipTier === 'pro' || data.membershipTier === 'max'
+        || data.membershipTier === 'ultra'
         ? data.membershipTier
         : null,
     membershipName: typeof data.membershipName === 'string' ? data.membershipName : null,
+    budget: data.budget && typeof data.budget === 'object' ? data.budget : null,
   };
 }
 
@@ -298,6 +302,7 @@ export const webAccountCommands = {
           avatarUrl: status.avatarUrl || cached.avatarUrl,
           membershipTier: status.membershipTier || cached.membershipTier,
           membershipName: status.membershipName || cached.membershipName,
+          budget: status.budget ?? null,
         };
       }
       return status;

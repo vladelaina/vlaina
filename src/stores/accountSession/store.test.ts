@@ -14,6 +14,7 @@ describe('accountSession store', () => {
       localAvatarUrl: 'local-avatar',
       isConnecting: true,
       isLoading: true,
+      hasCheckedStatus: true,
       error: 'oops',
     });
 
@@ -27,6 +28,7 @@ describe('accountSession store', () => {
     expect(state.localAvatarUrl).toBeNull();
     expect(state.isConnecting).toBe(false);
     expect(state.isLoading).toBe(false);
+    expect(state.hasCheckedStatus).toBe(true);
     expect(state.error).toBeNull();
   });
 
@@ -42,6 +44,7 @@ describe('accountSession store', () => {
       membershipName: null,
       isConnecting: false,
       isLoading: false,
+      hasCheckedStatus: true,
       error: null,
     });
 
@@ -69,6 +72,7 @@ describe('accountSession store', () => {
     expect(state.primaryEmail).toBe('alice@example.com');
     expect(state.membershipTier).toBe('pro');
     expect(state.membershipName).toBe('Pro');
+    expect(state.hasCheckedStatus).toBe(false);
     expect(typeof state.checkStatus).toBe('function');
     expect(typeof state.signOut).toBe('function');
   });

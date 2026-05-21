@@ -1,4 +1,4 @@
-export function buildDisconnectedDesktopStatus() {
+export function buildDisconnectedDesktopStatus(options = {}) {
   return {
     connected: false,
     provider: null,
@@ -7,6 +7,7 @@ export function buildDisconnectedDesktopStatus() {
     avatarUrl: null,
     membershipTier: null,
     membershipName: null,
+    ...(options.sessionInvalidated ? { sessionInvalidated: true } : {}),
   };
 }
 
@@ -17,8 +18,18 @@ export function buildCachedDesktopStatus(credentials) {
     username: credentials.username,
     primaryEmail: credentials.primaryEmail,
     avatarUrl: credentials.avatarUrl,
-    membershipTier: null,
-    membershipName: null,
+    membershipTier:
+      credentials.membershipTier === 'free' ||
+      credentials.membershipTier === 'plus' ||
+      credentials.membershipTier === 'pro' ||
+      credentials.membershipTier === 'max' ||
+      credentials.membershipTier === 'ultra'
+        ? credentials.membershipTier
+        : null,
+    membershipName:
+      typeof credentials.membershipName === 'string' && credentials.membershipName.trim()
+        ? credentials.membershipName.trim()
+        : null,
   };
 }
 
@@ -50,9 +61,9 @@ export function resolveDesktopSessionProbe(credentials, probe) {
 
   if (probe.kind === 'unauthorized') {
     return {
-      status: buildCachedDesktopStatus(credentials),
-      nextCredentials: credentials,
-      clearStoredCredentials: false,
+      status: buildDisconnectedDesktopStatus({ sessionInvalidated: true }),
+      nextCredentials: null,
+      clearStoredCredentials: true,
     };
   }
 
@@ -98,6 +109,18 @@ export function resolveDesktopSessionProbe(credentials, probe) {
       typeof probe.payload?.avatarUrl === 'string'
         ? probe.payload.avatarUrl
         : credentials.avatarUrl,
+    membershipTier:
+      probe.payload?.membershipTier === 'free' ||
+      probe.payload?.membershipTier === 'plus' ||
+      probe.payload?.membershipTier === 'pro' ||
+      probe.payload?.membershipTier === 'max' ||
+      probe.payload?.membershipTier === 'ultra'
+        ? probe.payload.membershipTier
+        : credentials.membershipTier ?? null,
+    membershipName:
+      typeof probe.payload?.membershipName === 'string'
+        ? probe.payload.membershipName
+        : credentials.membershipName ?? null,
     authenticatedAt: credentials.authenticatedAt ?? null,
   };
 
@@ -108,15 +131,11 @@ export function resolveDesktopSessionProbe(credentials, probe) {
       username: nextCredentials.username,
       primaryEmail: nextCredentials.primaryEmail,
       avatarUrl: nextCredentials.avatarUrl,
-      membershipTier:
-        probe.payload?.membershipTier === 'free' ||
-        probe.payload?.membershipTier === 'plus' ||
-        probe.payload?.membershipTier === 'pro' ||
-        probe.payload?.membershipTier === 'max'
-          ? probe.payload.membershipTier
-          : null,
-      membershipName:
-        typeof probe.payload?.membershipName === 'string' ? probe.payload.membershipName : null,
+      membershipTier: nextCredentials.membershipTier,
+      membershipName: nextCredentials.membershipName,
+      ...(probe.payload?.budget && typeof probe.payload.budget === 'object'
+        ? { budget: probe.payload.budget }
+        : {}),
     },
     nextCredentials,
     clearStoredCredentials: false,

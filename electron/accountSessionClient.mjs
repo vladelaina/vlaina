@@ -33,6 +33,8 @@ function summarizeStoredCredentials(credentials) {
     username: credentials.username ?? null,
     primaryEmail: credentials.primaryEmail ?? null,
     avatarUrl: credentials.avatarUrl ?? null,
+    membershipTier: credentials.membershipTier ?? null,
+    membershipName: credentials.membershipName ?? null,
     authenticatedAt: credentials.authenticatedAt ?? null,
     hasAppSessionToken: typeof credentials.appSessionToken === 'string' && credentials.appSessionToken.trim().length > 0,
   };
@@ -55,6 +57,13 @@ function summarizeSessionPayload(payload, text) {
     provider: typeof payload.provider === 'string' ? payload.provider : null,
     username: typeof payload.username === 'string' ? payload.username : null,
     hasAvatarUrl: typeof payload.avatarUrl === 'string' && payload.avatarUrl.trim().length > 0,
+    membershipTier: typeof payload.membershipTier === 'string' ? payload.membershipTier : null,
+    hasMembershipName: typeof payload.membershipName === 'string' && payload.membershipName.trim().length > 0,
+    hasBudget: Boolean(payload.budget && typeof payload.budget === 'object'),
+    budgetStatus:
+      payload.budget && typeof payload.budget === 'object' && typeof payload.budget.status === 'string'
+        ? payload.budget.status
+        : null,
     error: typeof payload.error === 'string' ? payload.error : null,
   };
 }
@@ -63,6 +72,7 @@ export function createDesktopAccountSessionClient({
   apiBaseUrl,
   logDesktopAuth,
   readStoredAccountCredentials,
+  clearStoredAccountCredentials,
   rotateStoredSessionToken,
   writeStoredAccountCredentials,
 }) {
@@ -127,6 +137,9 @@ export function createDesktopAccountSessionClient({
 
     for (let attempt = 0; attempt < desktopSessionRetryDelaysMs.length; attempt += 1) {
       if (response.status !== 401) {
+        break;
+      }
+      if (!shouldGraceDesktopSession(credentials)) {
         break;
       }
 
@@ -212,8 +225,11 @@ export function createDesktopAccountSessionClient({
     return response;
   }
 
-  async function probeDesktopSession(appSessionToken, eventPrefix = 'session_status:http') {
-    return await fetchJsonWithDebug(`${apiBaseUrl}/auth/session`, {
+  async function probeDesktopSession(appSessionToken, eventPrefix = 'session_status:http', options = {}) {
+    const sessionUrl = options.includeBudget
+      ? `${apiBaseUrl}/auth/session?include_budget=1`
+      : `${apiBaseUrl}/auth/session`;
+    return await fetchJsonWithDebug(sessionUrl, {
       method: 'GET',
       cache: 'no-store',
       headers: buildDesktopSessionHeaders(appSessionToken, {
@@ -222,13 +238,25 @@ export function createDesktopAccountSessionClient({
     }, eventPrefix);
   }
 
-  async function probeDesktopSessionWithRetry(appSessionToken, eventPrefix = 'session_status:http') {
+  async function probeDesktopSessionWithRetry(
+    appSessionToken,
+    eventPrefix = 'session_status:http',
+    { retryUnauthorized = true, includeBudget = false } = {},
+  ) {
     const startedAt = performance.now();
-    let lastResult = await probeDesktopSession(appSessionToken, eventPrefix);
+    let lastResult = await probeDesktopSession(appSessionToken, eventPrefix, { includeBudget });
 
     for (let attempt = 0; attempt < desktopSessionRetryDelaysMs.length; attempt += 1) {
       if (lastResult.response.status !== 401 && lastResult.response.status !== 403) {
         logDesktopAuth(`${eventPrefix}:retry_done`, {
+          status: lastResult.response.status,
+          attempts: attempt + 1,
+          durationMs: elapsedSince(startedAt),
+        });
+        return lastResult;
+      }
+      if (!retryUnauthorized) {
+        logDesktopAuth(`${eventPrefix}:retry_skipped`, {
           status: lastResult.response.status,
           attempts: attempt + 1,
           durationMs: elapsedSince(startedAt),
@@ -245,7 +273,11 @@ export function createDesktopAccountSessionClient({
       });
       await delay(delayMs);
 
-      lastResult = await probeDesktopSession(appSessionToken, `${eventPrefix}:retry_${attempt + 1}`);
+      lastResult = await probeDesktopSession(
+        appSessionToken,
+        `${eventPrefix}:retry_${attempt + 1}`,
+        { includeBudget },
+      );
     }
 
     logDesktopAuth(`${eventPrefix}:retry_done`, {
@@ -269,6 +301,7 @@ export function createDesktopAccountSessionClient({
       const { response, payload, text } = await probeDesktopSessionWithRetry(
         credentials.appSessionToken,
         'session_status:http',
+        { retryUnauthorized: shouldGraceDesktopSession(credentials), includeBudget: true },
       );
 
       if (response.status === 401 || response.status === 403) {
@@ -282,6 +315,9 @@ export function createDesktopAccountSessionClient({
 
         logDesktopAuth('session_status:unauthorized', { status: response.status });
         const resolved = resolveDesktopSessionProbe(credentials, { kind: 'unauthorized' });
+        if (resolved.clearStoredCredentials) {
+          await clearStoredAccountCredentials?.();
+        }
         return resolved.status;
       }
 
@@ -307,6 +343,9 @@ export function createDesktopAccountSessionClient({
         payload,
         rotatedAppSessionToken,
       });
+      if (resolved.clearStoredCredentials) {
+        await clearStoredAccountCredentials?.();
+      }
       if (resolved.nextCredentials) {
         await writeStoredAccountCredentials(resolved.nextCredentials);
       }
@@ -336,6 +375,7 @@ export function createDesktopAccountSessionClient({
     const { response, payload, text } = await probeDesktopSessionWithRetry(
       appSessionToken,
       'session_identity:http',
+      { includeBudget: true },
     );
 
     if (response.status === 401 || response.status === 403) {
@@ -374,9 +414,22 @@ export function createDesktopAccountSessionClient({
           : null,
       avatarUrl:
         typeof payload.avatarUrl === 'string' && payload.avatarUrl.trim() ? payload.avatarUrl.trim() : null,
+      membershipTier:
+        payload.membershipTier === 'free' ||
+        payload.membershipTier === 'plus' ||
+        payload.membershipTier === 'pro' ||
+        payload.membershipTier === 'max' ||
+        payload.membershipTier === 'ultra'
+          ? payload.membershipTier
+          : null,
+      membershipName:
+        typeof payload.membershipName === 'string' && payload.membershipName.trim()
+          ? payload.membershipName.trim()
+          : null,
     };
     logDesktopAuth('session_identity:resolved', {
       ...identity,
+      hasMembershipName: typeof identity.membershipName === 'string' && identity.membershipName.trim().length > 0,
       hasAvatarUrl: typeof identity.avatarUrl === 'string' && identity.avatarUrl.trim().length > 0,
       durationMs: elapsedSince(startedAt),
     });

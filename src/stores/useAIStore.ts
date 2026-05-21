@@ -150,7 +150,7 @@ export function useAIStoreRuntimeEffects(): void {
     (async () => {
       try {
         await managedProviderSync.syncFromStartup({
-          refreshBudget: accountConnected,
+          refreshBudget: false,
           suppressPersist: suppressStartupAIPersistRef.current,
         });
         if (cancelled) return;
@@ -279,7 +279,7 @@ export function startAIStoreRuntimeEffects(): void {
     }
 
     void managedProviderSync.syncFromStartup({
-      refreshBudget: accountConnected,
+      refreshBudget: false,
       suppressPersist: suppressStartupAIPersist,
     }).then(() => {
       if (!useAccountSessionStore.getState().isConnected) {

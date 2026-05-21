@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
+import { useAccountSessionStore } from '@/stores/accountSession';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 
@@ -13,10 +14,15 @@ export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
   const isRefreshingBudget = useManagedAIStore(s => s.isRefreshingBudget);
   const budgetError = useManagedAIStore(s => s.budgetError);
   const refreshBudgetIfStale = useManagedAIStore(s => s.refreshBudgetIfStale);
+  const accountIsLoading = useAccountSessionStore(s => s.isLoading);
+  const accountHasCheckedStatus = useAccountSessionStore(s => s.hasCheckedStatus);
 
   useEffect(() => {
+    if (accountIsLoading || !accountHasCheckedStatus) {
+      return;
+    }
     void refreshBudgetIfStale();
-  }, [refreshBudgetIfStale]);
+  }, [accountHasCheckedStatus, accountIsLoading, budget, budgetError, isRefreshingBudget, refreshBudgetIfStale]);
 
   const remainingPercent = budget ? Math.max(0, budget.remainingPercent || 0) : null;
   const progressPercent = remainingPercent == null ? 0 : Math.min(100, remainingPercent);

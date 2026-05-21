@@ -30,6 +30,9 @@ const mocks = vi.hoisted(() => ({
   }),
   normalizeAuthError: vi.fn((value: string) => `normalized:${value}`),
   applyDisconnectedAccount: vi.fn(),
+  normalizeManagedBudgetPayload: vi.fn((value: unknown) => value),
+  useManagedAIStoreSetState: vi.fn(),
+  clearBudget: vi.fn(),
 }));
 
 vi.mock('@/lib/desktop/backend', () => ({
@@ -63,6 +66,19 @@ vi.mock('./sessionState', () => ({
   applyDisconnectedAccount: mocks.applyDisconnectedAccount,
 }));
 
+vi.mock('@/lib/ai/managed/normalizers', () => ({
+  normalizeManagedBudgetPayload: mocks.normalizeManagedBudgetPayload,
+}));
+
+vi.mock('@/stores/useManagedAIStore', () => ({
+  useManagedAIStore: {
+    setState: mocks.useManagedAIStoreSetState,
+    getState: vi.fn(() => ({
+      clearBudget: mocks.clearBudget,
+    })),
+  },
+}));
+
 import {
   createCheckStatus,
   createHandleAuthCallback,
@@ -90,6 +106,9 @@ describe('accountSession auth actions', () => {
     mocks.clearAuthIntent.mockClear();
     mocks.normalizeAuthError.mockClear();
     mocks.applyDisconnectedAccount.mockClear();
+    mocks.normalizeManagedBudgetPayload.mockClear();
+    mocks.useManagedAIStoreSetState.mockClear();
+    mocks.clearBudget.mockClear();
     vi.stubGlobal('console', {
       ...console,
       info: vi.fn(),
@@ -113,6 +132,12 @@ describe('accountSession auth actions', () => {
       avatarUrl: 'https://example.com/avatar.png',
       membershipTier: 'pro',
       membershipName: 'Pro',
+      budget: {
+        active: true,
+        usedPercent: 25,
+        remainingPercent: 75,
+        status: 'normal',
+      },
     });
 
     const set = vi.fn();
@@ -130,6 +155,7 @@ describe('accountSession auth actions', () => {
       membershipTier: 'pro',
       membershipName: 'Pro',
       isLoading: false,
+      hasCheckedStatus: true,
       error: null,
     });
     expect(mocks.persistUser).toHaveBeenCalledWith({
@@ -140,6 +166,24 @@ describe('accountSession auth actions', () => {
       avatarUrl: 'https://example.com/avatar.png',
       membershipTier: 'pro',
       membershipName: 'Pro',
+    });
+    expect(mocks.normalizeManagedBudgetPayload).toHaveBeenCalledWith({
+      active: true,
+      usedPercent: 25,
+      remainingPercent: 75,
+      status: 'normal',
+    });
+    expect(mocks.useManagedAIStoreSetState).toHaveBeenCalledWith({
+      budget: {
+        active: true,
+        usedPercent: 25,
+        remainingPercent: 75,
+        status: 'normal',
+      },
+      isRefreshingBudget: false,
+      budgetError: null,
+      lastBudgetSyncAt: expect.any(Number),
+      lastBudgetAttemptAt: expect.any(Number),
     });
     expect(mocks.refreshAvatar).toHaveBeenCalledWith(
       set,
@@ -158,8 +202,49 @@ describe('accountSession auth actions', () => {
 
     await createCheckStatus(set as never, get as never)();
 
-    expect(set).toHaveBeenLastCalledWith({ isLoading: false });
+    expect(set).toHaveBeenLastCalledWith({ isLoading: false, hasCheckedStatus: true });
     expect(mocks.applyDisconnectedAccount).not.toHaveBeenCalled();
+  });
+
+  it('deduplicates concurrent status checks for the same account session version', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    let resolveStatus!: (value: unknown) => void;
+    mocks.accountCommands.getAccountSessionStatus.mockReturnValue(
+      new Promise((resolve) => {
+        resolveStatus = resolve;
+      }),
+    );
+
+    const set = vi.fn();
+    const get = vi.fn(() => ({ error: null, isConnected: false }));
+    const checkStatus = createCheckStatus(set as never, get as never);
+
+    const first = checkStatus();
+    const second = checkStatus();
+
+    expect(mocks.accountCommands.getAccountSessionStatus).toHaveBeenCalledTimes(1);
+    expect(set).toHaveBeenCalledTimes(1);
+    expect(set).toHaveBeenCalledWith({ isLoading: true });
+
+    resolveStatus({
+      connected: true,
+      provider: 'google',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: null,
+      membershipTier: 'ultra',
+      membershipName: 'Ultra',
+    });
+
+    await Promise.all([first, second]);
+
+    expect(mocks.persistUser).toHaveBeenCalledTimes(1);
+    expect(set).toHaveBeenLastCalledWith(expect.objectContaining({
+      isConnected: true,
+      username: 'vla',
+      membershipTier: 'ultra',
+      isLoading: false,
+    }));
   });
 
   it('checkStatus preserves an existing account when probing reports disconnected', async () => {
@@ -189,10 +274,77 @@ describe('accountSession auth actions', () => {
     await createCheckStatus(set as never, get as never)();
 
     expect(set).toHaveBeenNthCalledWith(1, { isLoading: true });
-    expect(set).toHaveBeenNthCalledWith(2, { isLoading: false });
+    expect(set).toHaveBeenNthCalledWith(2, { isLoading: false, hasCheckedStatus: true });
     expect(mocks.persistUser).not.toHaveBeenCalled();
     expect(mocks.refreshAvatar).not.toHaveBeenCalled();
     expect(mocks.applyDisconnectedAccount).not.toHaveBeenCalled();
+  });
+
+  it('disconnects and clears budget when the desktop session is invalidated', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    mocks.accountCommands.getAccountSessionStatus.mockResolvedValue({
+      connected: false,
+      provider: null,
+      username: null,
+      primaryEmail: null,
+      avatarUrl: null,
+      membershipTier: null,
+      membershipName: null,
+      sessionInvalidated: true,
+    });
+
+    const set = vi.fn();
+    const get = vi.fn(() => ({
+      isConnected: true,
+      membershipTier: null,
+      error: null,
+    }));
+
+    await createCheckStatus(set as never, get as never)();
+
+    expect(mocks.applyDisconnectedAccount).toHaveBeenCalledWith(set);
+    expect(mocks.clearBudget).toHaveBeenCalledTimes(1);
+    expect(mocks.persistUser).not.toHaveBeenCalled();
+    expect(mocks.refreshAvatar).not.toHaveBeenCalled();
+  });
+
+  it('ignores an in-flight status probe after sign-out invalidates the account session', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    let resolveStatus!: (value: unknown) => void;
+    mocks.accountCommands.getAccountSessionStatus.mockReturnValue(
+      new Promise((resolve) => {
+        resolveStatus = resolve;
+      }),
+    );
+    mocks.accountCommands.accountDisconnect.mockResolvedValue(undefined);
+
+    const set = vi.fn();
+    const get = vi.fn(() => ({ error: null, isConnected: true }));
+    const checkStatus = createCheckStatus(set as never, get as never);
+    const signOut = createSignOut(set as never, get as never);
+
+    const checkPromise = checkStatus();
+    await signOut();
+
+    resolveStatus({
+      connected: true,
+      provider: 'google',
+      username: 'stale',
+      primaryEmail: 'stale@example.com',
+      avatarUrl: 'https://example.com/stale.png',
+      membershipTier: 'pro',
+      membershipName: 'Pro',
+    });
+    await checkPromise;
+
+    expect(mocks.applyDisconnectedAccount).toHaveBeenCalledWith(set);
+    expect(mocks.persistUser).not.toHaveBeenCalled();
+    expect(mocks.refreshAvatar).not.toHaveBeenCalled();
+    expect(set).not.toHaveBeenCalledWith(expect.objectContaining({ isLoading: false }));
+    expect(set).not.toHaveBeenCalledWith(expect.objectContaining({
+      isConnected: true,
+      username: 'stale',
+    }));
   });
 
   it('signIn stores web auth intent and redirects on successful web auth start', async () => {

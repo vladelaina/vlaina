@@ -239,6 +239,13 @@ export interface ElectronAccountApi {
     avatarUrl: string | null;
     membershipTier: string | null;
     membershipName: string | null;
+    sessionInvalidated?: boolean;
+    budget?: {
+      active?: unknown;
+      usedPercent?: unknown;
+      remainingPercent?: unknown;
+      status?: unknown;
+    } | null;
   }>;
   getAuthDebugLog(): Promise<Array<{
     timestamp: string;

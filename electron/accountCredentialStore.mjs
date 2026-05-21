@@ -79,6 +79,18 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader, logDe
       username,
       primaryEmail: typeof meta?.primaryEmail === 'string' ? meta.primaryEmail : null,
       avatarUrl: typeof meta?.avatarUrl === 'string' ? meta.avatarUrl : null,
+      membershipTier:
+        meta?.membershipTier === 'free' ||
+        meta?.membershipTier === 'plus' ||
+        meta?.membershipTier === 'pro' ||
+        meta?.membershipTier === 'max' ||
+        meta?.membershipTier === 'ultra'
+          ? meta.membershipTier
+          : null,
+      membershipName:
+        typeof meta?.membershipName === 'string' && meta.membershipName.trim()
+          ? meta.membershipName.trim()
+          : null,
       authenticatedAt:
         typeof meta?.authenticatedAt === 'number' && Number.isFinite(meta.authenticatedAt)
           ? meta.authenticatedAt
@@ -92,6 +104,8 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader, logDe
         username: credentials.username,
         primaryEmail: credentials.primaryEmail,
         avatarUrl: credentials.avatarUrl,
+        membershipTier: credentials.membershipTier,
+        membershipName: credentials.membershipName,
         authenticatedAt: credentials.authenticatedAt,
         hasAppSessionToken: true,
       },
@@ -108,6 +122,8 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader, logDe
       username: credentials.username,
       primaryEmail: credentials.primaryEmail,
       avatarUrl: credentials.avatarUrl,
+      membershipTier: credentials.membershipTier ?? null,
+      membershipName: credentials.membershipName ?? null,
       hasAppSessionToken: Boolean(credentials.appSessionToken),
     });
 
@@ -120,6 +136,8 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader, logDe
           username: credentials.username,
           primaryEmail: credentials.primaryEmail ?? null,
           avatarUrl: credentials.avatarUrl ?? null,
+          membershipTier: credentials.membershipTier ?? null,
+          membershipName: credentials.membershipName ?? null,
           authenticatedAt:
             typeof credentials.authenticatedAt === 'number' && Number.isFinite(credentials.authenticatedAt)
               ? credentials.authenticatedAt
@@ -148,6 +166,8 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader, logDe
       username: credentials.username,
       primaryEmail: credentials.primaryEmail,
       avatarUrl: credentials.avatarUrl,
+      membershipTier: credentials.membershipTier ?? null,
+      membershipName: credentials.membershipName ?? null,
       metaPath,
       secretsPath,
       durationMs: Math.max(0, Math.round(performance.now() - startedAt)),

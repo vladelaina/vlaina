@@ -1,5 +1,5 @@
 export type AccountProvider = 'google' | 'email';
-export type MembershipTier = 'free' | 'plus' | 'pro' | 'max';
+export type MembershipTier = 'free' | 'plus' | 'pro' | 'max' | 'ultra';
 
 export interface AccountSessionState {
   isConnected: boolean;
@@ -12,6 +12,7 @@ export interface AccountSessionState {
   localAvatarUrl: string | null;
   isConnecting: boolean;
   isLoading: boolean;
+  hasCheckedStatus: boolean;
   error: string | null;
 }
 
@@ -42,5 +43,6 @@ export const initialAccountSessionState: AccountSessionState = {
   localAvatarUrl: null,
   isConnecting: false,
   isLoading: true,
+  hasCheckedStatus: false,
   error: null,
 };

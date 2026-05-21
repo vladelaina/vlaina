@@ -67,7 +67,7 @@ describe('webAccountCommands', () => {
 
     expect(status.connected).toBe(true);
     expect(status.provider).toBe('google');
-    expect(fetchMock).toHaveBeenCalledWith('https://api.vlaina.com/auth/session', {
+    expect(fetchMock).toHaveBeenCalledWith('https://api.vlaina.com/auth/session?include_budget=1', {
       method: 'GET',
       cache: 'no-store',
       credentials: 'include',

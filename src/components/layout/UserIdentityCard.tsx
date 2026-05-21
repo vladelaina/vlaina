@@ -27,6 +27,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
   const userAvatar = useUserAvatar();
   const displayAvatar = userAvatar || fallbackAvatarUrl;
   const isMembershipPending = isConnected && !membershipTier && !membershipName;
+
   const membershipPillClassName = isConnected
     ? membershipTier === 'plus'
       ? 'border-sky-200 bg-sky-50 text-sky-700'
@@ -34,7 +35,9 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
         ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
         : membershipTier === 'max'
           ? 'border-orange-200 bg-orange-50 text-orange-700'
-          : 'border-zinc-200 bg-white text-zinc-700'
+          : membershipTier === 'ultra'
+            ? 'border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700'
+            : 'border-zinc-200 bg-white text-zinc-700'
     : 'border-neutral-300 bg-white text-neutral-500 dark:border-neutral-600 dark:bg-zinc-900 dark:text-neutral-400';
 
   return (

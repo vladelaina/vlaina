@@ -160,10 +160,6 @@ describe('estimateChatMessageHeight', () => {
   });
 
   it('uses the shared horizontal rule height in assistant estimates', () => {
-    const paragraphHeight = estimateChatMessageHeight(
-      createMessage('assistant', 'alpha beta'),
-      { containerWidth: 900, isStreaming: false },
-    );
     const ruleHeight = estimateChatMessageHeight(
       createMessage('assistant', '---'),
       { containerWidth: 900, isStreaming: false },

@@ -2,7 +2,7 @@ import { createElectronBillingCheckout, hasElectronDesktopBridge } from '@/lib/d
 
 const API_BASE = 'https://api.vlaina.com'
 
-export type BillingPlanTier = 'plus' | 'pro' | 'max'
+export type BillingPlanTier = 'plus' | 'pro' | 'max' | 'ultra'
 
 export interface BillingPlan {
   tier: BillingPlanTier

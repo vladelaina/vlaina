@@ -56,6 +56,7 @@ function registerAccountAuthInvalidationListener(): void {
       localAvatarUrl: null,
       isConnecting: false,
       isLoading: false,
+      hasCheckedStatus: true,
       error: null,
     });
   });
@@ -77,6 +78,7 @@ function registerAccountPersistenceListener(): void {
       ...initialAccountSessionState,
       ...loadPersistedUser(),
       isLoading: false,
+      hasCheckedStatus: false,
       error: null,
     });
     void useAccountSessionStore.getState().hydrateAvatar();

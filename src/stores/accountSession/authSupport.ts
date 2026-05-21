@@ -80,7 +80,8 @@ export function loadPersistedUser(): Partial<AccountSessionState> {
       parsed.membershipTier === 'free' ||
       parsed.membershipTier === 'plus' ||
       parsed.membershipTier === 'pro' ||
-      parsed.membershipTier === 'max'
+      parsed.membershipTier === 'max' ||
+      parsed.membershipTier === 'ultra'
         ? parsed.membershipTier
         : null;
 

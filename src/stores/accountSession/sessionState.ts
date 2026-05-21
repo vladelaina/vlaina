@@ -55,6 +55,7 @@ export function applyDisconnectedAccount(set: Set): void {
     localAvatarUrl: null,
     isConnecting: false,
     isLoading: false,
+    hasCheckedStatus: true,
     error: null,
   });
   persistUser({

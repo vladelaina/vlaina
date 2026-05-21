@@ -16,6 +16,8 @@ function summarizeStoredCredentials(credentials) {
     username: credentials.username ?? null,
     primaryEmail: credentials.primaryEmail ?? null,
     avatarUrl: credentials.avatarUrl ?? null,
+    membershipTier: credentials.membershipTier ?? null,
+    membershipName: credentials.membershipName ?? null,
     authenticatedAt: credentials.authenticatedAt ?? null,
     hasAppSessionToken: typeof credentials.appSessionToken === 'string' && credentials.appSessionToken.trim().length > 0,
   };
@@ -24,7 +26,6 @@ function summarizeStoredCredentials(credentials) {
 export function createDesktopAuthPersistence({
   logDesktopAuth,
   readDesktopSessionIdentity,
-  readStoredAccountCredentials,
   writeStoredAccountCredentials,
 }) {
   async function persistDesktopAuthResult(provider, result) {
@@ -79,6 +80,8 @@ export function createDesktopAuthPersistence({
       const resolvedUsername = sessionIdentity?.username ?? fallbackUsername;
       const resolvedPrimaryEmail = sessionIdentity?.primaryEmail ?? fallbackPrimaryEmail;
       const resolvedAvatarUrl = sessionIdentity?.avatarUrl ?? fallbackAvatarUrl;
+      const resolvedMembershipTier = sessionIdentity?.membershipTier ?? null;
+      const resolvedMembershipName = sessionIdentity?.membershipName ?? null;
 
       if (!resolvedUsername) {
         logDesktopAuth('persist_auth_result:missing_identity', {
@@ -98,6 +101,8 @@ export function createDesktopAuthPersistence({
         username: resolvedUsername,
         primaryEmail: resolvedPrimaryEmail,
         avatarUrl: resolvedAvatarUrl,
+        membershipTier: resolvedMembershipTier,
+        membershipName: resolvedMembershipName,
         authenticatedAt,
       };
       await writeStoredAccountCredentials(credentials);
@@ -111,6 +116,8 @@ export function createDesktopAuthPersistence({
           username: credentials.username,
           primaryEmail: credentials.primaryEmail,
           avatarUrl: credentials.avatarUrl,
+          membershipTier: credentials.membershipTier,
+          membershipName: credentials.membershipName,
           hasAppSessionToken: true,
           authenticatedAt: credentials.authenticatedAt,
         },
@@ -123,6 +130,8 @@ export function createDesktopAuthPersistence({
         username: resolvedUsername,
         primaryEmail: credentials.primaryEmail,
         avatarUrl: credentials.avatarUrl,
+        membershipTier: credentials.membershipTier,
+        membershipName: credentials.membershipName,
         error: null,
       };
     }
@@ -136,51 +145,6 @@ export function createDesktopAuthPersistence({
       authenticatedAt,
     };
     await writeStoredAccountCredentials(credentials);
-
-    const deferredStartedAt = performance.now();
-    void readDesktopSessionIdentity(appSessionToken)
-      .then(async (sessionIdentity) => {
-        if (!sessionIdentity) {
-          logDesktopAuth('persist_auth_result:session_identity_deferred_unavailable', {
-            provider,
-            hasAppSessionToken: true,
-            durationMs: elapsedSince(deferredStartedAt),
-          });
-          return;
-        }
-
-        const currentCredentials = await readStoredAccountCredentials();
-        if (!currentCredentials || currentCredentials.appSessionToken !== appSessionToken) {
-          logDesktopAuth('persist_auth_result:session_identity_deferred_skipped', {
-            provider,
-            hasAppSessionToken: true,
-            durationMs: elapsedSince(deferredStartedAt),
-          });
-          return;
-        }
-
-        const nextCredentials = {
-          ...currentCredentials,
-          provider: sessionIdentity.provider ?? currentCredentials.provider,
-          username: sessionIdentity.username ?? currentCredentials.username,
-          primaryEmail: sessionIdentity.primaryEmail ?? currentCredentials.primaryEmail,
-          avatarUrl: sessionIdentity.avatarUrl ?? currentCredentials.avatarUrl,
-        };
-        await writeStoredAccountCredentials(nextCredentials);
-        logDesktopAuth('persist_auth_result:session_identity_deferred_applied', {
-          provider,
-          sessionIdentity,
-          credentials: summarizeStoredCredentials(nextCredentials),
-          hasAvatarUrl: typeof nextCredentials.avatarUrl === 'string' && nextCredentials.avatarUrl.trim().length > 0,
-          durationMs: elapsedSince(deferredStartedAt),
-        });
-      })
-      .catch((error) => {
-        logDesktopAuth('persist_auth_result:session_identity_deferred_error', {
-          error: error instanceof Error ? error.message : String(error),
-          durationMs: elapsedSince(deferredStartedAt),
-        });
-      });
 
     logDesktopAuth('persist_auth_result:done', {
       provider,

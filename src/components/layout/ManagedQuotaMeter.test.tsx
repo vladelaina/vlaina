@@ -1,6 +1,8 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
+import { useAccountSessionStore } from '@/stores/accountSession';
+import { initialAccountSessionState } from '@/stores/accountSession/state';
 import { ManagedQuotaMeter } from './ManagedQuotaMeter';
 
 const originalState = useManagedAIStore.getState();
@@ -8,6 +10,7 @@ const originalState = useManagedAIStore.getState();
 afterEach(() => {
   act(() => {
     useManagedAIStore.setState(originalState, true);
+    useAccountSessionStore.setState(initialAccountSessionState);
   });
 });
 
@@ -24,6 +27,12 @@ describe('ManagedQuotaMeter', () => {
         lastBudgetAttemptAt: null,
         refreshBudgetIfStale,
       }, true);
+      useAccountSessionStore.setState({
+        ...initialAccountSessionState,
+        isLoading: false,
+        hasCheckedStatus: true,
+        isConnected: true,
+      });
     });
 
     render(<ManagedQuotaMeter />);
@@ -51,6 +60,12 @@ describe('ManagedQuotaMeter', () => {
         lastBudgetAttemptAt: Date.now(),
         refreshBudgetIfStale,
       }, true);
+      useAccountSessionStore.setState({
+        ...initialAccountSessionState,
+        isLoading: false,
+        hasCheckedStatus: true,
+        isConnected: true,
+      });
     });
 
     render(<ManagedQuotaMeter />);
@@ -77,6 +92,12 @@ describe('ManagedQuotaMeter', () => {
         lastBudgetAttemptAt: Date.now(),
         refreshBudgetIfStale,
       }, true);
+      useAccountSessionStore.setState({
+        ...initialAccountSessionState,
+        isLoading: false,
+        hasCheckedStatus: true,
+        isConnected: true,
+      });
     });
 
     render(<ManagedQuotaMeter />);
@@ -101,6 +122,12 @@ describe('ManagedQuotaMeter', () => {
         lastBudgetAttemptAt: Date.now(),
         refreshBudgetIfStale,
       }, true);
+      useAccountSessionStore.setState({
+        ...initialAccountSessionState,
+        isLoading: false,
+        hasCheckedStatus: true,
+        isConnected: true,
+      });
     });
 
     render(<ManagedQuotaMeter />);
@@ -109,5 +136,42 @@ describe('ManagedQuotaMeter', () => {
     expect(meter).not.toHaveAttribute('title');
     expect(screen.getByText('120%')).toHaveAttribute('aria-hidden', 'true');
     expect(meter.querySelector('[style="width: 100%;"]')).toBeInTheDocument();
+  });
+
+  it('waits for account session status before starting a separate budget refresh', async () => {
+    const refreshBudgetIfStale = vi.fn().mockResolvedValue(undefined);
+    act(() => {
+      useManagedAIStore.setState({
+        ...originalState,
+        budget: null,
+        isRefreshingBudget: false,
+        budgetError: null,
+        lastBudgetSyncAt: null,
+        lastBudgetAttemptAt: null,
+        refreshBudgetIfStale,
+      }, true);
+      useAccountSessionStore.setState({
+        ...initialAccountSessionState,
+        isLoading: true,
+        hasCheckedStatus: false,
+        isConnected: true,
+      });
+    });
+
+    render(<ManagedQuotaMeter />);
+
+    expect(refreshBudgetIfStale).not.toHaveBeenCalled();
+
+    act(() => {
+      useAccountSessionStore.setState({ isLoading: false });
+    });
+
+    expect(refreshBudgetIfStale).not.toHaveBeenCalled();
+
+    act(() => {
+      useAccountSessionStore.setState({ hasCheckedStatus: true });
+    });
+
+    await waitFor(() => expect(refreshBudgetIfStale).toHaveBeenCalledTimes(1));
   });
 });

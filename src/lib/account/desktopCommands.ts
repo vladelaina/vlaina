@@ -1,4 +1,5 @@
 import type { AccountProvider, MembershipTier } from '@/stores/accountSession/state';
+import type { ManagedBudgetPayload } from '@/lib/ai/managed/types';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { ACCOUNT_AUTH_INVALIDATED_EVENT } from './sessionEvent';
 
@@ -79,6 +80,8 @@ export const accountCommands = {
     avatarUrl: string | null;
     membershipTier: MembershipTier | null;
     membershipName: string | null;
+    sessionInvalidated?: boolean;
+    budget?: ManagedBudgetPayload | null;
   }> {
     return await getDesktopAccountBridge().getSessionStatus() as {
       connected: boolean;
@@ -88,6 +91,8 @@ export const accountCommands = {
       avatarUrl: string | null;
       membershipTier: MembershipTier | null;
       membershipName: string | null;
+      sessionInvalidated?: boolean;
+      budget?: ManagedBudgetPayload | null;
     };
   },
 

@@ -60,6 +60,7 @@ export function createDesktopAccountService({ apiBaseUrl }) {
     apiBaseUrl,
     logDesktopAuth,
     readStoredAccountCredentials,
+    clearStoredAccountCredentials,
     rotateStoredSessionToken,
     writeStoredAccountCredentials,
   });
@@ -73,7 +74,6 @@ export function createDesktopAccountService({ apiBaseUrl }) {
   const { persistDesktopAuthResult } = createDesktopAuthPersistence({
     logDesktopAuth,
     readDesktopSessionIdentity,
-    readStoredAccountCredentials,
     writeStoredAccountCredentials,
   });
 

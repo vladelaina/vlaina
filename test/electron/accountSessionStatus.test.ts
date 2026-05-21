@@ -14,6 +14,12 @@ const credentials = {
   avatarUrl: 'https://example.com/avatar.png',
 };
 
+const cachedMemberCredentials = {
+  ...credentials,
+  membershipTier: 'pro',
+  membershipName: 'Pro',
+};
+
 const recentlyAuthenticatedCredentials = {
   ...credentials,
   authenticatedAt: 1_000,
@@ -28,11 +34,14 @@ describe('desktop account session status resolution', () => {
     });
   });
 
-  it('keeps cached credentials when auth/session is unauthorized', () => {
+  it('disconnects and clears cached credentials when auth/session is unauthorized', () => {
     expect(resolveDesktopSessionProbe(credentials, { kind: 'unauthorized' })).toEqual({
-      status: buildCachedDesktopStatus(credentials),
-      nextCredentials: credentials,
-      clearStoredCredentials: false,
+      status: {
+        ...buildDisconnectedDesktopStatus(),
+        sessionInvalidated: true,
+      },
+      nextCredentials: null,
+      clearStoredCredentials: true,
     });
   });
 
@@ -41,6 +50,34 @@ describe('desktop account session status resolution', () => {
       status: buildCachedDesktopStatus(credentials),
       nextCredentials: credentials,
       clearStoredCredentials: false,
+    });
+  });
+
+  it('keeps cached membership when auth/session errors', () => {
+    expect(resolveDesktopSessionProbe(cachedMemberCredentials, { kind: 'error' })).toEqual({
+      status: {
+        connected: true,
+        provider: 'google',
+        username: 'vladelaina',
+        primaryEmail: 'vladelaina@gmail.com',
+        avatarUrl: 'https://example.com/avatar.png',
+        membershipTier: 'pro',
+        membershipName: 'Pro',
+      },
+      nextCredentials: cachedMemberCredentials,
+      clearStoredCredentials: false,
+    });
+  });
+
+  it('accepts cached ultra membership from the API tier model', () => {
+    expect(buildCachedDesktopStatus({
+      ...credentials,
+      membershipTier: 'ultra',
+      membershipName: 'Ultra',
+    })).toMatchObject({
+      connected: true,
+      membershipTier: 'ultra',
+      membershipName: 'Ultra',
     });
   });
 
@@ -88,6 +125,8 @@ describe('desktop account session status resolution', () => {
         username: 'octocat',
         primaryEmail: 'octo@example.com',
         avatarUrl: 'https://example.com/next.png',
+        membershipTier: 'pro',
+        membershipName: 'Pro',
         authenticatedAt: null,
       },
       clearStoredCredentials: false,
