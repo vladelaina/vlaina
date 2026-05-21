@@ -1,12 +1,7 @@
-import { Icon } from '@/components/ui/icons';
-import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { CoverPicker } from '../../../AssetLibrary';
 import { CoverRenderer } from './CoverRenderer';
-import { useDelayedVisibleFlag } from './hooks/display/useDelayedVisibleFlag';
 import type { CoverImageControllerModel } from './coverImage.types';
-
-const COVER_ERROR_DISPLAY_DELAY_MS = 250;
 
 export function CoverImageShell({
   url,
@@ -16,7 +11,6 @@ export function CoverImageShell({
   phase,
   showPicker,
   previewSrc,
-  isError,
   displaySrc,
   coverHeight,
   positionX,
@@ -31,9 +25,6 @@ export function CoverImageShell({
   onResetHeight,
   rendererProps,
 }: CoverImageControllerModel) {
-  const { t } = useI18n();
-  const showErrorMessage = useDelayedVisibleFlag(isError, COVER_ERROR_DISPLAY_DELAY_MS);
-
   if (phase === 'idle' && !showPicker) {
     return null;
   }
@@ -88,20 +79,7 @@ export function CoverImageShell({
         positionY={positionY}
       />
 
-      {showErrorMessage && (
-        <div
-          className={cn(
-            'absolute inset-0 flex flex-col items-center justify-center bg-muted/20 text-muted-foreground z-10',
-            !readOnly && 'cursor-pointer hover:bg-muted/30 transition-colors'
-          )}
-          onMouseDown={() => !readOnly && onOpenPicker()}
-        >
-          <Icon name="file.brokenImage" className="w-8 h-8 mb-2 opacity-50" />
-          <span className="text-xs font-medium opacity-70">{t('editor.imageFailedToLoad')}</span>
-        </div>
-      )}
-
-      {!displaySrc && !isError && (
+      {!displaySrc && (
         <div
           className="absolute inset-0 cursor-pointer z-10"
           onMouseDown={() => !readOnly && onOpenPicker()}

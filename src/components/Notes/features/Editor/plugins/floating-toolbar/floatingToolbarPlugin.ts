@@ -10,6 +10,7 @@ import { applyToolbarMeta, createInitialState, mapAiReviewRange } from './floati
 import { floatingToolbarKey } from './floatingToolbarKey';
 import { openLinkTooltipFromSelection } from './linkTooltipActions';
 import { getAiReviewSelectionDecorations } from './ai/reviewSelection';
+import { hasUsableTextSelection } from './selectionValidity';
 
 export function shouldHideToolbarForArrowNavigation(selection: Selection, event: KeyboardEvent): boolean {
   if (
@@ -116,7 +117,7 @@ export const floatingToolbarPlugin = $prose(() => {
         if (tr.selectionSet) {
           const { selection } = newState;
           const isAiReviewPinned = mappedState.subMenu === 'aiReview' && Boolean(mappedState.aiReview);
-          if (selection.empty) {
+          if (!hasUsableTextSelection(selection, newState.doc)) {
             if (mappedState.isVisible) {
               if (isAiReviewPinned) {
                 return mappedState;

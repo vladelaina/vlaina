@@ -361,7 +361,7 @@ export function ChatView({
         <div className="relative z-20 flex h-10 flex-none items-center gap-2 bg-[var(--vlaina-bg-primary)] px-3">
           <button
             type="button"
-            aria-label={t('chat.openSparkSidebar')}
+            aria-label={t('chat.openChatSidebar')}
             onPointerDown={(event) => {
               event.preventDefault();
               openEmbeddedSidebar();
@@ -407,7 +407,7 @@ export function ChatView({
       {isEmbedded && onCloseEmbeddedPanel && (
         <button
           type="button"
-          aria-label={t('chat.closeSparkPanel')}
+          aria-label={t('chat.closeChatPanel')}
           onPointerDown={(event) => {
             event.preventDefault();
             onCloseEmbeddedPanel();
@@ -430,7 +430,7 @@ export function ChatView({
           >
             <motion.button
               type="button"
-              aria-label={t('chat.closeSparkSidebar')}
+              aria-label={t('chat.closeChatSidebar')}
               className="absolute inset-0 h-full w-full bg-black/[0.035]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

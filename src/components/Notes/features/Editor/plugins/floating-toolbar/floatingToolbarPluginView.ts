@@ -31,6 +31,7 @@ import {
 } from './floatingToolbarLayout';
 import { clearFormatPreview, hasActiveAppliedPreview } from './previewStyles';
 import { notifyNotesOverlayOpen, onNotesOverlayOpen } from '@/components/Notes/features/overlays/notesOverlayEvents';
+import { hasUsableTextRange, hasUsableTextSelection } from './selectionValidity';
 
 function hasVisibleNativeRange(): boolean {
   if (typeof window === 'undefined') {
@@ -203,7 +204,7 @@ export function createFloatingToolbarPluginView(
     const maxPos = editorView.state.doc.content.size;
     const from = Math.max(0, Math.min(lastTextSelection.from, maxPos));
     const to = Math.max(from, Math.min(lastTextSelection.to, maxPos));
-    if (from === to) {
+    if (!hasUsableTextRange(editorView.state.doc, from, to)) {
       return;
     }
 
@@ -679,13 +680,13 @@ export function createFloatingToolbarPluginView(
       return;
     }
 
-    if (!hasReviewPanels && !isReviewModeActive && (selection.empty || !(selection instanceof TextSelection))) {
+    if (!hasReviewPanels && !isReviewModeActive && !hasUsableTextSelection(selection, editorView.state.doc)) {
       if (restoreSelectionForToolbar()) {
         selection = editorView.state.selection;
       }
     }
 
-    if (!hasReviewPanels && !isReviewModeActive && (selection.empty || !(selection instanceof TextSelection))) {
+    if (!hasReviewPanels && !isReviewModeActive && !hasUsableTextSelection(selection, editorView.state.doc)) {
       hideToolbarAndReset();
       return;
     }
@@ -853,7 +854,7 @@ export function createFloatingToolbarPluginView(
         selection = editorView.state.selection;
       }
 
-      if (!selection.empty) {
+      if (hasUsableTextSelection(selection, editorView.state.doc)) {
         editorView.dispatch(
           editorView.state.tr.setMeta(toolbarKey, {
             type: TOOLBAR_ACTIONS.SHOW,
@@ -959,7 +960,7 @@ export function createFloatingToolbarPluginView(
   return {
     update(view: EditorView) {
       const { selection } = view.state;
-      if (!selection.empty && selection instanceof TextSelection) {
+      if (hasUsableTextSelection(selection, view.state.doc)) {
         lastTextSelection = {
           from: selection.from,
           to: selection.to,

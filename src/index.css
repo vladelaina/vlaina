@@ -314,6 +314,13 @@ html, body, #root {
     inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
 }
 
+.vlaina-user-menu-popover {
+  box-shadow:
+    0 8px 24px rgba(15, 23, 42, 0.08),
+    0 2px 8px rgba(15, 23, 42, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
+}
+
 /* ============================================
    vlaina Notes Theme Variables
    ============================================ */
@@ -374,7 +381,7 @@ html, body, #root {
   --notes-sidebar-icon: #636363;
   --notes-sidebar-icon-hover: #636363;
   --notes-sidebar-outline-icon: var(--vlaina-color-caret);
-  --notes-sidebar-spark-icon: var(--vlaina-color-caret);
+  --notes-sidebar-chat-icon: var(--vlaina-color-caret);
   --notes-sidebar-file-icon: var(--vlaina-color-caret);
   --notes-sidebar-folder-icon: #54aeff;
   --notes-sidebar-status-info: var(--vlaina-color-info);

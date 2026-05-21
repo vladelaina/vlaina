@@ -1,3 +1,4 @@
+import type { Ref } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { NoteIcon } from '@/components/Notes/features/IconPicker/NoteIcon';
 import { cn } from '@/lib/utils';
@@ -11,6 +12,7 @@ interface NoteTabContentProps {
   icon?: string;
   title: string;
   disambiguation?: string | null;
+  labelRef?: Ref<HTMLSpanElement>;
 }
 
 export function NoteTabContent({
@@ -19,6 +21,7 @@ export function NoteTabContent({
   icon,
   title,
   disambiguation,
+  labelRef,
 }: NoteTabContentProps) {
   const notesPath = useNotesStore((s) => s.notesPath);
   const draftNote = useNotesStore((s) => s.draftNotes[tab.path]);
@@ -45,7 +48,7 @@ export function NoteTabContent({
         />
       )}
 
-      <span className={cn('pointer-events-none truncate text-[13px] text-current', isActive && 'font-semibold')}>
+      <span ref={labelRef} className={cn('pointer-events-none truncate text-[13px] text-current', isActive && 'font-semibold')}>
         {truncateNoteLabel(title)}
         {disambiguation ? (
           <span className="text-[11px] text-current/65">{` · ${disambiguation}`}</span>

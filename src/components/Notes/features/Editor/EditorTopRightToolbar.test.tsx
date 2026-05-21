@@ -201,7 +201,7 @@ describe('EditorTopRightToolbar', () => {
     expect(getCurrentNoteContent).not.toHaveBeenCalled();
   });
 
-  it('opens the right Spark panel from the first note menu action', () => {
+  it('opens the right Chat panel from the first note menu action', () => {
     const { getByRole, getByTestId } = render(
       <EditorTopRightToolbar
         editorFind={createEditorFindController()}
@@ -215,10 +215,10 @@ describe('EditorTopRightToolbar', () => {
       />,
     );
 
-    fireEvent.click(getByRole('button', { name: 'Right Spark' }));
+    fireEvent.click(getByRole('button', { name: 'Right Chat' }));
 
     const firstMenuAction = getByTestId('note-menu-content').querySelector('button');
-    expect(firstMenuAction).toHaveTextContent('Right Spark');
+    expect(firstMenuAction).toHaveTextContent('Right Chat');
     expect(mocks.setNotesChatPanelCollapsed).toHaveBeenCalledWith(false);
   });
 
