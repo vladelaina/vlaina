@@ -21,6 +21,17 @@ interface ListCollapsePluginState {
 
 const LIST_COLLAPSE_KEY = new PluginKey<ListCollapsePluginState>('listCollapse');
 const COLLAPSE_TYPE = 'list-item';
+const ORDERED_MARKER_BASE_CHARS = 2;
+
+function getOrderedListMarkerExtraOffset(node: any): string {
+    if (node.attrs?.listType !== 'ordered') return '';
+
+    const label = typeof node.attrs?.label === 'string' ? node.attrs.label.trim() : '';
+    const markerChars = label.length;
+    if (markerChars <= ORDERED_MARKER_BASE_CHARS) return '';
+
+    return `${markerChars - ORDERED_MARKER_BASE_CHARS}ch`;
+}
 
 function parseListCollapseAction(meta: unknown): ListCollapseAction | null {
     if (!meta || typeof meta !== 'object') return null;
@@ -102,15 +113,24 @@ function buildListCollapseDecorations(
         });
 
         const isCollapsed = hasNestedList && collapsedItems.has(pos);
+        const markerExtraOffset = getOrderedListMarkerExtraOffset(node);
         decorations.push(
-            Decoration.widget(pos + 1, (view) => createCollapseToggleButton({
-                collapseType: COLLAPSE_TYPE,
-                collapsed: isCollapsed,
-                hasContent: hasNestedList,
-                onToggle: () => {
-                    dispatchToggle(view, pos);
-                },
-            }), {
+            Decoration.widget(pos + 1, (view) => {
+                const button = createCollapseToggleButton({
+                    collapseType: COLLAPSE_TYPE,
+                    collapsed: isCollapsed,
+                    hasContent: hasNestedList,
+                    onToggle: () => {
+                        dispatchToggle(view, pos);
+                    },
+                });
+
+                if (markerExtraOffset) {
+                    button.style.setProperty('--vlaina-list-marker-extra', markerExtraOffset);
+                }
+
+                return button;
+            }, {
                 side: -1,
                 key: `list-toggle-${pos}-${isCollapsed ? '1' : '0'}-${hasNestedList ? '1' : '0'}`,
                 stopEvent(event) {

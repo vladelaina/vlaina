@@ -501,7 +501,7 @@ body.vlaina-block-drag-active .milkdown .video-block video {
 
 .milkdown .vlaina-collapse-btn {
   position: absolute;
-  left: var(--collapse-pos-list);
+  left: calc(var(--collapse-pos-list) - var(--vlaina-list-marker-extra, 0px));
   /* Use unified variable */
   top: 0;
   /* Align with top of line */

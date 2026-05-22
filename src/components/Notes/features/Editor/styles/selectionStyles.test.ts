@@ -401,6 +401,13 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('transform: none !important;');
   });
 
+  it('keeps list collapse toggles clear of wide ordered-list markers', () => {
+    const css = readStyleFile('extended.css');
+
+    expect(css).toContain('left: calc(var(--collapse-pos-list) - var(--vlaina-list-marker-extra, 0px));');
+    expect(css).not.toContain('left: var(--collapse-pos-list);');
+  });
+
   it('shrinks plain top-level paragraph line boxes so multiline text selections fit content width', () => {
     const css = readStyleFile('selection-width.css');
 
