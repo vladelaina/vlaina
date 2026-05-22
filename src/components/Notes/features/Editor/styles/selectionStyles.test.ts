@@ -386,6 +386,21 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('pointer-events: none;');
   });
 
+  it('suppresses editor icon hover affordances while dragging a block selection', () => {
+    const css = readStyleFile('core.css');
+
+    expect(css).toContain('body.vlaina-block-dragging-cursor .milkdown :is(');
+    expect(css).toContain('.heading-toggle-btn,');
+    expect(css).toContain('.vlaina-block-control-btn,');
+    expect(css).toContain('.vlaina-collapse-btn,');
+    expect(css).toContain('.callout-icon-button,');
+    expect(css).toContain('.milkdown-table-block .column-header-drag-control,');
+    expect(css).toContain('pointer-events: none !important;');
+    expect(css).toContain('opacity: 0 !important;');
+    expect(css).toContain('background: transparent !important;');
+    expect(css).toContain('transform: none !important;');
+  });
+
   it('shrinks plain top-level paragraph line boxes so multiline text selections fit content width', () => {
     const css = readStyleFile('selection-width.css');
 
@@ -447,8 +462,8 @@ describe('editor embedded CodeMirror selection styles', () => {
     const coreCss = readStyleFile('core.css');
     const selectionCss = readStyleFile('selection-width.css');
 
-    expect(coreCss).toContain('.milkdown .ProseMirror .vlaina-block-selected:not(.code-block-container),');
-    expect(coreCss).toContain(".milkdown .ProseMirror .vlaina-block-selected *:not(.code-block-container):not(.code-block-container *) {");
+    expect(coreCss).toContain('.milkdown .ProseMirror .vlaina-block-selected:not(.code-block-container):not(.mermaid-block),');
+    expect(coreCss).toContain(".milkdown .ProseMirror .vlaina-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {");
     expect(coreCss).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg, #fefbf9);');
     expect(selectionCss).toContain(
       '.milkdown .ProseMirror.vlaina-text-selection-overlay-active .vlaina-atomic-selected,'
@@ -625,7 +640,6 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(coreCss).toContain('.video-block,');
     expect(coreCss).toContain("[data-type='math-block'],");
     expect(coreCss).toContain("[data-type='math-inline'],");
-    expect(coreCss).toContain('.mermaid-block,');
     expect(coreCss).toContain('.milkdown-table-block,');
     expect(coreCss).toContain('table');
     expect(coreCss).toContain('background: transparent !important;');
@@ -636,6 +650,12 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(mathCss).toContain('.milkdown .ProseMirror .vlaina-block-selected-contained:is(');
     expect(mathCss).toContain('.milkdown .ProseMirror li :is(');
     expect(mathCss).toContain('.mermaid-block');
+    expect(coreCss).toContain('.milkdown .ProseMirror .vlaina-block-selected:not(.code-block-container):not(.mermaid-block),');
+    expect(coreCss).toContain(':not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {');
+    expect(coreCss).not.toContain('.milkdown .ProseMirror .mermaid-block.vlaina-block-selected * {');
+    expect(mathCss).not.toContain('.milkdown .ProseMirror .mermaid-block.vlaina-block-selected,\nbody.vlaina-block-dragging-cursor');
+    expect(mathCss).toContain('body.vlaina-block-dragging-cursor .milkdown .mermaid-block.vlaina-block-selected:is(:hover, :focus-visible) {');
+    expect(mathCss).toContain('background: var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe)) !important;');
   });
 
   it('paints selected wide table content without coloring the scrollbar or leading spacer', () => {
@@ -690,12 +710,13 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(mathCss).toContain('0 calc(-1 * var(--vlaina-block-selection-bleed-y, 4px)) 0 0 var(--vlaina-block-selection-color) !important;');
   });
 
-  it('restores formula and mermaid text color while a selected atomic block is hovered', () => {
+  it('restores formula and mermaid text color while preserving mermaid shape colors on selected hover', () => {
     const css = readStyleFile('math-editor.css');
 
     expect(css).toContain('.milkdown .ProseMirror .vlaina-block-selected :is(');
-    expect(css).toContain('):is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active) :is(svg, svg *, .katex, .katex *, text, tspan, path, rect, circle, ellipse, line, polyline, polygon)');
-    expect(css).toContain(').vlaina-block-selected:is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active) :is(svg, svg *, .katex, .katex *, text, tspan, path, rect, circle, ellipse, line, polyline, polygon)');
+    expect(css).toContain("[data-type='math-inline'],\n  [data-type='math-block']\n):is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active) :is(svg, svg *, .katex, .katex *, text, tspan, path, rect, circle, ellipse, line, polyline, polygon)");
+    expect(css).toContain('.mermaid-block\n):is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active) :is(text, tspan, .nodeLabel, .label, .edgeLabel)');
+    expect(css).not.toContain('.mermaid-block\n):is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active) :is(svg, svg *, .katex, .katex *, text, tspan, path, rect, circle, ellipse, line, polyline, polygon)');
     expect(css).toContain('color: var(--vlaina-text-primary, #27272A) !important;');
     expect(css).toContain('-webkit-text-fill-color: var(--vlaina-text-primary, #27272A) !important;');
     expect(css).toContain('fill: var(--vlaina-text-primary, #27272A) !important;');

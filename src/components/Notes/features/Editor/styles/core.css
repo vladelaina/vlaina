@@ -58,6 +58,40 @@ body.vlaina-block-drag-active * {
   cursor: grabbing !important;
 }
 
+body.vlaina-block-dragging-cursor .milkdown :is(
+  a,
+  button,
+  [role='button'],
+  .heading-toggle-btn,
+  .vlaina-block-control-btn,
+  .vlaina-collapse-btn,
+  .callout-icon-button,
+  .video-external-action,
+  .footnote-ref,
+  .milkdown-table-block .column-header-drag-control,
+  .milkdown-table-block .edge-create-zone
+) {
+  pointer-events: none !important;
+}
+
+body.vlaina-block-dragging-cursor .milkdown :is(
+  .heading-toggle-btn,
+  .vlaina-collapse-btn
+) {
+  opacity: 0 !important;
+}
+
+body.vlaina-block-dragging-cursor .milkdown :is(
+  .callout-icon-button,
+  .video-external-action,
+  .milkdown-table-block .column-header-drag-control,
+  .milkdown-table-block .edge-create-zone
+) {
+  background: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
 /* ProseMirror editor needs min-height to be clickable */
 .milkdown .ProseMirror {
   min-height: calc(100vh - 250px);
@@ -132,8 +166,8 @@ body.vlaina-block-drag-active * {
   pointer-events: none;
 }
 
-.milkdown .ProseMirror .vlaina-block-selected:not(.code-block-container),
-.milkdown .ProseMirror .vlaina-block-selected *:not(.code-block-container):not(.code-block-container *) {
+.milkdown .ProseMirror .vlaina-block-selected:not(.code-block-container):not(.mermaid-block),
+.milkdown .ProseMirror .vlaina-block-selected *:not(.code-block-container):not(.code-block-container *):not(.mermaid-block):not(.mermaid-block *) {
   color: var(--vlaina-editor-block-selection-fg, #fefbf9);
   -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg, #fefbf9);
 }
@@ -237,7 +271,6 @@ body.vlaina-block-drag-active * {
   .video-block,
   [data-type='math-block'],
   [data-type='math-inline'],
-  .mermaid-block,
   .milkdown-table-block,
   table
 ) {
@@ -251,7 +284,6 @@ body.vlaina-block-drag-active * {
   .video-block,
   [data-type='math-block'],
   [data-type='math-inline'],
-  .mermaid-block,
   .milkdown-table-block,
   table
 ) {
@@ -286,7 +318,6 @@ body.vlaina-block-drag-active * {
   .video-block,
   [data-type='math-block'],
   [data-type='math-inline'],
-  .mermaid-block,
   .milkdown-table-block,
   table
 ).vlaina-block-selected {

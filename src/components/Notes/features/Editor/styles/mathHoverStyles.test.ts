@@ -51,6 +51,32 @@ describe('math hover styles', () => {
     expect(extendedCss).not.toContain('box-shadow: 0 0 0 2px var(--vlaina-accent-light);');
   });
 
+  it('suppresses math and mermaid hover affordances while dragging a block selection', () => {
+    const css = readMathStyles();
+
+    expect(css).toContain('body.vlaina-block-dragging-cursor .milkdown :is(');
+    expect(css).toContain("[data-type='math-inline'],\n  [data-type='math-block'],\n  .mermaid-block\n):not(.vlaina-block-selected):is(:hover, :focus-visible)");
+    expect(css).toContain('cursor: crosshair !important;');
+    expect(css).toContain('background: transparent !important;');
+    expect(css).toContain('box-shadow: none !important;');
+  });
+
+  it('keeps selected atomic blocks from regaining hover affordances after block drag ends', () => {
+    const css = readMathStyles();
+
+    expect(css).toContain('.milkdown .ProseMirror.vlaina-block-selection-active :is(');
+    expect(css).toContain(').vlaina-block-selected:is(:hover, :focus-visible) * {');
+    expect(css).toContain('cursor: default !important;');
+    expect(css).toContain('background: transparent !important;');
+    expect(css).toContain('box-shadow: none !important;');
+    expect(css).toContain('body.vlaina-block-dragging-cursor .milkdown .mermaid-block.vlaina-block-selected:is(:hover, :focus-visible) {');
+    expect(css).toContain('body.vlaina-block-dragging-cursor .milkdown .mermaid-block.vlaina-block-selected,');
+    expect(css).toContain('cursor: crosshair !important;');
+    expect(css).not.toContain('.milkdown .ProseMirror .mermaid-block.vlaina-block-selected,\nbody.vlaina-block-dragging-cursor');
+    expect(css).not.toContain('.milkdown .ProseMirror.vlaina-block-selection-active .mermaid-block.vlaina-block-selected:is(:hover, :focus-visible)');
+    expect(css).toContain('background: var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe)) !important;');
+  });
+
   it('keeps oversized block formulas inside a horizontal scroll container', () => {
     const css = readMathStyles();
 
