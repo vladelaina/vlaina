@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
@@ -53,6 +53,11 @@ export const ImageContent = ({
         setIsImageLoaded(false);
         onMediaErrorChange?.(false);
     }, [onMediaErrorChange, resolvedSrc]);
+
+    const handleMediaError = useCallback(() => {
+        setMediaError(true);
+        onMediaErrorChange?.(true);
+    }, [onMediaErrorChange]);
 
     const shouldRenderPlainRemoteImage = isRemoteImageSource && !isActive && !cropParams;
     const shouldRenderCropPreview = !isActive && !!cropParams;
@@ -121,10 +126,7 @@ export const ImageContent = ({
                             naturalHeight: image.naturalHeight,
                         });
                     }}
-                    onError={() => {
-                        setMediaError(true);
-                        onMediaErrorChange?.(true);
-                    }}
+                    onError={handleMediaError}
                 />
             </div>
         );
@@ -151,10 +153,7 @@ export const ImageContent = ({
                             naturalHeight: image.naturalHeight,
                         });
                     }}
-                    onError={() => {
-                        setMediaError(true);
-                        onMediaErrorChange?.(true);
-                    }}
+                    onError={handleMediaError}
                 />
             </div>
         );

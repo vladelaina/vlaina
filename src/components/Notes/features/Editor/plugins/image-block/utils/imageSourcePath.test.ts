@@ -90,6 +90,41 @@ describe('imageSourcePath', () => {
         }, deps)).resolves.toEqual([]);
     });
 
+    it('resolves explicit relative images beside an absolute external note even when a vault is open', async () => {
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: './assets/demo.png',
+            notesPath: '/vault',
+            currentNotePath: '/tmp/shared/note.md',
+        }, deps)).resolves.toEqual(['/tmp/shared/assets/demo.png']);
+    });
+
+    it('does not force absolute external note images to stay inside the open vault', async () => {
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: 'assets/demo.png',
+            notesPath: '/vault',
+            currentNotePath: '/tmp/shared/note.md',
+        }, deps)).resolves.toEqual([
+            '/tmp/shared/assets/demo.png',
+            '/vault/assets/demo.png',
+        ]);
+    });
+
+    it('rejects relative segments that escape an absolute external note directory when a vault is open', async () => {
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: '../secret.png',
+            notesPath: '/vault',
+            currentNotePath: '/tmp/shared/note.md',
+        }, deps)).resolves.toEqual([]);
+    });
+
+    it('keeps vault containment for absolute note paths that are still inside the vault', async () => {
+        await expect(resolveImageSourcePathCandidates({
+            rawSrc: '../assets/demo.png',
+            notesPath: '/vault',
+            currentNotePath: '/vault/daily/note.md',
+        }, deps)).resolves.toEqual(['/vault/assets/demo.png']);
+    });
+
     it('falls back to the vault path when no current note path is available', async () => {
         await expect(resolveImageSourcePath({
             rawSrc: 'assets/demo.png',

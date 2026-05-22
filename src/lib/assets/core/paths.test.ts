@@ -84,4 +84,27 @@ describe('asset path resolution', () => {
     await expect(resolveVaultAssetPathCandidates('C:\\vault', '..\\..\\secret.png', 'daily\\note.md'))
       .resolves.toEqual([]);
   });
+
+  it('resolves explicit relative assets beside an absolute external note even when a vault path is provided', async () => {
+    await expect(resolveVaultAssetPathCandidates('/vault', './assets/a.png', '/outside/note.md'))
+      .resolves.toEqual(['/outside/assets/a.png']);
+  });
+
+  it('keeps a vault fallback for bare assets from an absolute external note', async () => {
+    await expect(resolveVaultAssetPathCandidates('/vault', 'assets/a.png', '/outside/note.md'))
+      .resolves.toEqual([
+        '/outside/assets/a.png',
+        '/vault/assets/a.png',
+      ]);
+  });
+
+  it('rejects explicit relative assets that escape an absolute external note directory', async () => {
+    await expect(resolveVaultAssetPathCandidates('/vault', '../secret.png', '/outside/note.md'))
+      .resolves.toEqual([]);
+  });
+
+  it('keeps vault containment for absolute note paths that are still inside the vault', async () => {
+    await expect(resolveVaultAssetPathCandidates('/vault', '../assets/a.png', '/vault/daily/note.md'))
+      .resolves.toEqual(['/vault/assets/a.png']);
+  });
 });

@@ -30,7 +30,8 @@ export async function uploadImageFileAndInsert(
     }
 
     try {
-        const result = await uploadImageFile(file, getStoreState());
+        const storeState = getStoreState();
+        const result = await uploadImageFile(file, storeState);
         if (!result.success || !result.path) {
             if (isTransientMissingVaultUpload(result)) {
                 return false;

@@ -48,6 +48,23 @@ async function resolveCurrentNoteDirectory(
     return deps.getParentPath(absoluteNotePath);
 }
 
+function resolveCurrentNoteAssetRoot(
+    notesPath: string,
+    currentNotePath: string | undefined,
+    currentNoteDir: string | null,
+    deps: ImageSourcePathDeps,
+): string {
+    if (currentNotePath && deps.isAbsolutePath(currentNotePath) && currentNoteDir) {
+        if (notesPath && normalizeContainedAssetPath(currentNotePath, notesPath)) {
+            return notesPath;
+        }
+
+        return currentNoteDir;
+    }
+
+    return notesPath || currentNoteDir || '';
+}
+
 export async function resolveImageSourcePath(
     options: ResolveImageSourcePathOptions,
     deps: ImageSourcePathDeps = defaultDeps,
@@ -73,10 +90,14 @@ export async function resolveImageSourcePathCandidates(
     }
 
     const currentNoteDir = await resolveCurrentNoteDirectory(notesPath, currentNotePath, deps);
+    const currentNoteAssetRoot = resolveCurrentNoteAssetRoot(notesPath, currentNotePath, currentNoteDir, deps);
 
     if (baseSrc.startsWith('./') || baseSrc.startsWith('../')) {
         if (currentNoteDir) {
-            const candidate = normalizeContainedAssetPath(await deps.joinPath(currentNoteDir, baseSrc), notesPath || currentNoteDir);
+            const candidate = normalizeContainedAssetPath(
+                await deps.joinPath(currentNoteDir, baseSrc),
+                currentNoteAssetRoot,
+            );
             return candidate ? [candidate] : [];
         }
         if (!notesPath) return [];
@@ -87,7 +108,10 @@ export async function resolveImageSourcePathCandidates(
     const candidates: string[] = [];
 
     if (currentNoteDir) {
-        const noteRelativeCandidate = normalizeContainedAssetPath(await deps.joinPath(currentNoteDir, baseSrc), notesPath || currentNoteDir);
+        const noteRelativeCandidate = normalizeContainedAssetPath(
+            await deps.joinPath(currentNoteDir, baseSrc),
+            currentNoteAssetRoot,
+        );
         if (noteRelativeCandidate) {
             candidates.push(noteRelativeCandidate);
         }

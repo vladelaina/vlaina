@@ -66,6 +66,16 @@ describe('AssetService', () => {
     } as unknown as File;
   }
 
+  function createClipboardImageFile(type = 'image/png'): File {
+    return {
+      name: '',
+      type,
+      size: 5,
+      lastModified: 1,
+      arrayBuffer: vi.fn(async () => new Uint8Array([1, 2, 3]).buffer),
+    } as unknown as File;
+  }
+
   it('keeps vault subfolder uploads inside the vault when the configured folder traverses upward', async () => {
     const file = createImageFile('alpha.png');
 
@@ -105,6 +115,85 @@ describe('AssetService', () => {
     expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/alpha.png', expect.any(Uint8Array));
     expect(result.path).toBe('./assets/alpha.png');
     expect(mocks.computeFileHash).not.toHaveBeenCalled();
+  });
+
+  it('adds an image extension when a pasted clipboard image has no filename', async () => {
+    const file = createClipboardImageFile('image/png');
+
+    const result = await AssetService.upload(
+      file,
+      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      {
+        storageMode: 'subfolder',
+        subfolderName: 'assets',
+        filenameFormat: 'original',
+      },
+      [],
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/image.png', expect.any(Uint8Array));
+    expect(result.path).toBe('./assets/image.png');
+    expect(result.entry?.mimeType).toBe('image/png');
+  });
+
+  it('uses the clipboard image MIME type when naming an unnamed pasted image', async () => {
+    const file = createClipboardImageFile('image/jpeg');
+
+    const result = await AssetService.upload(
+      file,
+      { vaultPath: '/vault', currentNotePath: 'docs/current.md' },
+      {
+        storageMode: 'subfolder',
+        subfolderName: 'assets',
+        filenameFormat: 'original',
+      },
+      [],
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/vault/docs/assets/image.jpg', expect.any(Uint8Array));
+    expect(result.path).toBe('./assets/image.jpg');
+    expect(result.entry?.mimeType).toBe('image/jpeg');
+  });
+
+  it('stores note-subfolder uploads beside an absolute external note even when a vault is open', async () => {
+    const file = createImageFile('external.png');
+
+    const result = await AssetService.upload(
+      file,
+      { vaultPath: '/vault', currentNotePath: '/outside/current.md' },
+      {
+        storageMode: 'subfolder',
+        subfolderName: 'assets',
+        filenameFormat: 'original',
+      },
+      [],
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/outside/assets', true);
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/outside/assets/external.png', expect.any(Uint8Array));
+    expect(result.path).toBe('./assets/external.png');
+  });
+
+  it('stores current-folder uploads beside an absolute external note even when a vault is open', async () => {
+    const file = createImageFile('external.png');
+
+    const result = await AssetService.upload(
+      file,
+      { vaultPath: '/vault', currentNotePath: '/outside/current.md' },
+      {
+        storageMode: 'currentFolder',
+        filenameFormat: 'original',
+      },
+      [],
+    );
+
+    expect(result.success).toBe(true);
+    expect(mocks.storage.mkdir).toHaveBeenCalledWith('/outside', true);
+    expect(mocks.writeAssetAtomic).toHaveBeenCalledWith('/outside/external.png', expect.any(Uint8Array));
+    expect(result.path).toBe('./external.png');
   });
 
   it('reuses an existing same-hash image from the target folder without rewriting it', async () => {

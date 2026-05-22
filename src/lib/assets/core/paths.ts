@@ -46,16 +46,31 @@ export async function resolveVaultAssetPathCandidates(
           : await joinPath(vaultPath, currentNotePath)
       )
     : null;
+  const isAbsoluteExternalNote = Boolean(
+    currentNotePath
+    && isAbsolutePath(currentNotePath)
+    && currentNoteDir
+    && !normalizeContainedAssetPath(currentNotePath, vaultPath)
+  );
+  const currentNoteAssetRoot = isAbsoluteExternalNote && currentNoteDir
+    ? currentNoteDir
+    : vaultPath;
 
   if (assetPath.startsWith('./') || assetPath.startsWith('../')) {
-    const candidate = normalizeContainedAssetPath(await joinPath(currentNoteDir ?? vaultPath, assetPath), vaultPath);
+    const candidate = normalizeContainedAssetPath(
+      await joinPath(currentNoteDir ?? vaultPath, assetPath),
+      currentNoteAssetRoot,
+    );
     return candidate ? [candidate] : [];
   }
 
   const candidates: string[] = [];
 
   if (currentNoteDir) {
-    const noteRelativeCandidate = normalizeContainedAssetPath(await joinPath(currentNoteDir, assetPath), vaultPath);
+    const noteRelativeCandidate = normalizeContainedAssetPath(
+      await joinPath(currentNoteDir, assetPath),
+      currentNoteAssetRoot,
+    );
     if (noteRelativeCandidate) {
       candidates.push(noteRelativeCandidate);
     }
