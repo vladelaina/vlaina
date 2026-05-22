@@ -77,8 +77,8 @@ describe('textSelectionOverlayPlugin', () => {
 
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
-      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(false);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
     } finally {
       Object.defineProperty(document, 'elementFromPoint', {
         configurable: true,
@@ -87,7 +87,7 @@ describe('textSelectionOverlayPlugin', () => {
     }
   });
 
-  it('clears the browser range when a pointer text selection switches back to overlay mode', async () => {
+  it('keeps the browser range when a pointer text selection remains native after mouseup', async () => {
     const view = await createEditor('hello');
     const originalGetSelection = window.getSelection;
     const originalElementFromPoint = document.elementFromPoint;
@@ -119,9 +119,9 @@ describe('textSelectionOverlayPlugin', () => {
       document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-      expect(removeAllRanges).toHaveBeenCalledTimes(1);
-      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
-      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
+      expect(removeAllRanges).not.toHaveBeenCalled();
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(false);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
     } finally {
       Object.defineProperty(window, 'getSelection', {
         configurable: true,

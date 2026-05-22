@@ -259,8 +259,6 @@ export const textSelectionOverlayPlugin = $prose(() => {
           if (!usePointerNativeSelection) return;
 
           if (isTextSelectionOverlayEligible(view.state)) {
-            clearNativeSelectionRange();
-            setPointerNativeSelection(false);
             syncActiveClass();
             return;
           }
