@@ -63,6 +63,17 @@ describe('listCollapsePlugin', () => {
     await editor.destroy();
   });
 
+  it('moves ordered list toggles left enough for wide item markers', async () => {
+    const editor = await createEditor('111. Parent\n     1. Child');
+    const view = editor.ctx.get(editorViewCtx);
+    const toggle = view.dom.querySelector<HTMLElement>('.vlaina-collapse-btn[data-has-content="true"]');
+
+    expect(toggle).not.toBeNull();
+    expect(toggle!.style.getPropertyValue('--vlaina-list-marker-extra')).toBe('2ch');
+
+    await editor.destroy();
+  });
+
   it('keeps collapsed list items mapped after document edits above them', async () => {
     const editor = await createEditor('- Parent\n  - Child');
     const view = editor.ctx.get(editorViewCtx);
