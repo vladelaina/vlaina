@@ -36,6 +36,39 @@ function getOriginalStoredFilename(fileName: string): string {
   return processFilename(fileName, new Set());
 }
 
+function getImageExtensionFromMimeType(mimeType: string): string {
+  switch (mimeType.toLowerCase()) {
+    case 'image/jpeg':
+      return '.jpg';
+    case 'image/png':
+      return '.png';
+    case 'image/gif':
+      return '.gif';
+    case 'image/webp':
+      return '.webp';
+    case 'image/svg+xml':
+      return '.svg';
+    case 'image/bmp':
+      return '.bmp';
+    case 'image/x-icon':
+    case 'image/vnd.microsoft.icon':
+      return '.ico';
+    case 'image/avif':
+      return '.avif';
+    default:
+      return '.png';
+  }
+}
+
+function getUploadFilename(file: File): string {
+  const rawName = file.name.trim();
+  if (rawName) {
+    return rawName;
+  }
+
+  return `image${getImageExtensionFromMimeType(file.type)}`;
+}
+
 function isSameAssetName(entryName: string, fileName: string): boolean {
   return entryName.toLowerCase() === getOriginalStoredFilename(fileName).toLowerCase();
 }
@@ -149,7 +182,8 @@ export class AssetService {
 
     onProgress?.(40);
 
-    const { targetDir, storedPathPrefix } = await this.resolveTarget(file.name, context, config);
+    const uploadFilename = getUploadFilename(file);
+    const { targetDir, storedPathPrefix } = await this.resolveTarget(uploadFilename, context, config);
     const storage = getStorageAdapter();
 
     if (!await storage.exists(targetDir)) {
@@ -173,7 +207,7 @@ export class AssetService {
 
     const sameNameImageEntries = existingEntries.filter((entry) => {
       if (!getMimeType(entry.name).startsWith('image/')) return false;
-      return isSameAssetName(entry.name, file.name);
+      return isSameAssetName(entry.name, uploadFilename);
     });
     const hydratedImageEntries = await hydrateAssetEntryMetadata(storage, sameNameImageEntries);
     const sameSizeCandidates = hydratedImageEntries.filter((entry) => {
@@ -247,14 +281,14 @@ export class AssetService {
     const existingNames = new Set(existingFiles);
     
     let effectiveFormat = config.filenameFormat;
-    const isGenericName = file.name.toLowerCase() === 'image.png';
+    const isGenericName = uploadFilename.toLowerCase() === 'image.png';
     const isClipboardTimestamp = Math.abs(Date.now() - file.lastModified) < 2000;
 
     if (config.filenameFormat === 'original' && isGenericName && isClipboardTimestamp) {
       effectiveFormat = 'timestamp';
     }
 
-    const finalFilename = generateFilename(file.name, effectiveFormat, existingNames);
+    const finalFilename = generateFilename(uploadFilename, effectiveFormat, existingNames);
 
     onProgress?.(60);
 
