@@ -36,7 +36,7 @@ vi.mock("@/components/Chat/features/Markdown/MarkdownRenderer", () => ({
 }));
 
 vi.mock("./MessageToolbar", () => ({
-  MessageToolbar: () => <div data-testid="toolbar">toolbar</div>,
+  MessageToolbar: () => <div data-testid="toolbar" data-chat-selection-excluded="true">toolbar</div>,
 }));
 
 vi.mock("./ErrorBlock", () => ({
@@ -151,6 +151,23 @@ describe("AIMessage", () => {
     );
 
     expect(screen.getByTestId("markdown")).toHaveAttribute("data-content", "Hello world");
+  });
+
+  it("makes the full assistant content width part of the chat selection surface", () => {
+    render(
+      <AIMessage
+        msg={createMessage("Hello world")}
+        imageGallery={[]}
+        isLoading={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId("markdown").closest('[data-chat-selection-surface="true"]'))
+      .toHaveClass("pl-[15px]");
+    expect(screen.getByTestId("toolbar")).toHaveAttribute("data-chat-selection-excluded", "true");
   });
 
   it("starts visible stream animation when content first appears instead of at message creation", () => {

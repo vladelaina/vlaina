@@ -572,6 +572,26 @@ textarea,
 
 .dragging-image, .dragging-image * { cursor: default !important; }
 
+[data-chat-scrollable="true"] [data-message-item="true"] {
+  user-select: none;
+}
+
+[data-chat-scrollable="true"] [data-chat-selection-surface="true"],
+[data-chat-scrollable="true"] [data-chat-selection-surface="true"] * {
+  user-select: text;
+}
+
+[data-chat-scrollable="true"] [data-chat-selection-excluded="true"],
+[data-chat-scrollable="true"] [data-chat-selection-excluded="true"] *,
+[data-chat-scrollable="true"] [data-chat-thinking-collapsed="true"],
+[data-chat-scrollable="true"] [data-chat-thinking-collapsed="true"] *,
+[data-chat-scrollable="true"] button,
+[data-chat-scrollable="true"] button *,
+[data-chat-scrollable="true"] [role="button"],
+[data-chat-scrollable="true"] [role="button"] * {
+  user-select: none;
+}
+
 body[data-chat-selection-lock="1"] * {
   user-select: none !important;
 }
@@ -587,7 +607,9 @@ body[data-chat-selection-lock="1"] [data-chat-selection-surface="true"] * {
 }
 
 body[data-chat-selection-lock="1"] [data-chat-selection-excluded="true"],
-body[data-chat-selection-lock="1"] [data-chat-selection-excluded="true"] * {
+body[data-chat-selection-lock="1"] [data-chat-selection-excluded="true"] *,
+body[data-chat-selection-lock="1"] [data-chat-thinking-collapsed="true"],
+body[data-chat-selection-lock="1"] [data-chat-thinking-collapsed="true"] * {
   user-select: none !important;
 }
 

@@ -70,7 +70,139 @@ function toElement(node: Node | null): Element | null {
   return node.parentElement;
 }
 
-function isInsideMessageItem(element: Element | null): boolean {
+function isInsideCollapsedThinking(element: Element | null): boolean {
+  return !!element?.closest('[data-chat-thinking-collapsed="true"]');
+}
+
+const FILTERED_SELECTION_SELECTOR = [
+  '[data-chat-selection-excluded="true"]',
+  '[data-chat-thinking-collapsed="true"]',
+  'button',
+  '[role="button"]',
+  'input',
+  'textarea',
+  'select',
+].join(',');
+
+const BLOCK_TEXT_TAGS = new Set([
+  'ADDRESS',
+  'ARTICLE',
+  'ASIDE',
+  'BLOCKQUOTE',
+  'BR',
+  'DD',
+  'DIV',
+  'DL',
+  'DT',
+  'FIGCAPTION',
+  'FIGURE',
+  'FOOTER',
+  'H1',
+  'H2',
+  'H3',
+  'H4',
+  'H5',
+  'H6',
+  'HEADER',
+  'HR',
+  'LI',
+  'MAIN',
+  'NAV',
+  'OL',
+  'P',
+  'PRE',
+  'SECTION',
+  'TABLE',
+  'TBODY',
+  'TD',
+  'TFOOT',
+  'TH',
+  'THEAD',
+  'TR',
+  'UL',
+]);
+
+function rangeIntersectsSelector(range: Range, root: ParentNode, selector: string): boolean {
+  if (root instanceof Element && root.matches(selector)) {
+    try {
+      if (range.intersectsNode(root)) {
+        return true;
+      }
+    } catch {}
+  }
+  const elements = root.querySelectorAll(selector);
+  for (const element of elements) {
+    try {
+      if (range.intersectsNode(element)) {
+        return true;
+      }
+    } catch {}
+  }
+  return false;
+}
+
+function appendNewline(buffer: string[]): void {
+  const last = buffer[buffer.length - 1];
+  if (last !== '\n') {
+    buffer.push('\n');
+  }
+}
+
+function extractTextWithBlockBreaks(node: Node, buffer: string[]): void {
+  if (node.nodeType === Node.TEXT_NODE) {
+    buffer.push(node.textContent ?? '');
+    return;
+  }
+  if (!(node instanceof Element || node instanceof DocumentFragment)) {
+    return;
+  }
+
+  const element = node instanceof Element ? node : null;
+  if (element?.matches(FILTERED_SELECTION_SELECTOR)) {
+    return;
+  }
+
+  if (element?.tagName === 'BR') {
+    appendNewline(buffer);
+    return;
+  }
+
+  const isBlock = element ? BLOCK_TEXT_TAGS.has(element.tagName) : false;
+  if (isBlock && buffer.some((part) => part.trim())) {
+    appendNewline(buffer);
+  }
+  for (const child of Array.from(node.childNodes)) {
+    extractTextWithBlockBreaks(child, buffer);
+  }
+  if (isBlock) {
+    appendNewline(buffer);
+  }
+}
+
+export function getSelectionTextForComposer(selection: Selection, range: Range): string {
+  const rawText = selection.toString();
+  const commonAncestorElement = toElement(range.commonAncestorContainer);
+  const chatScrollable =
+    commonAncestorElement?.closest('[data-chat-scrollable="true"]') ??
+    toElement(selection.anchorNode)?.closest('[data-chat-scrollable="true"]') ??
+    toElement(selection.focusNode)?.closest('[data-chat-scrollable="true"]') ??
+    document.querySelector('[data-chat-scrollable="true"]');
+  const filterSearchRoot =
+    commonAncestorElement && isInsideChatScrollable(commonAncestorElement)
+      ? commonAncestorElement
+      : chatScrollable;
+
+  if (!filterSearchRoot || !rangeIntersectsSelector(range, filterSearchRoot, FILTERED_SELECTION_SELECTOR)) {
+    return normalizeSelectedTextForComposer(rawText);
+  }
+
+  const fragment = range.cloneContents();
+  const filteredTextParts: string[] = [];
+  extractTextWithBlockBreaks(fragment, filteredTextParts);
+  return normalizeSelectedTextForComposer(filteredTextParts.join(''));
+}
+
+export function isInsideMessageItem(element: Element | null): boolean {
   return !!element?.closest('[data-message-item="true"]');
 }
 
@@ -79,27 +211,22 @@ export function isInsideAssistantMessageItem(element: Element | null): boolean {
 }
 
 export function isInsideSelectionSurface(element: Element | null): boolean {
-  return !!element?.closest('[data-chat-selection-surface="true"]') && !isInsideSelectionExcluded(element);
+  return !!element?.closest('[data-chat-selection-surface="true"]') && !isInsideSelectionExcluded(element) && !isInsideCollapsedThinking(element);
+}
+
+export function isInsideSelectionStartSurface(element: Element | null): boolean {
+  return !!element?.closest('[data-chat-selection-start="true"]') && !isInsideSelectionExcluded(element) && !isInsideCollapsedThinking(element);
 }
 
 export function isInsideSelectionExcluded(element: Element | null): boolean {
-  return !!element?.closest(
-    [
-      '[data-chat-selection-excluded="true"]',
-      'button',
-      '[role="button"]',
-      'input',
-      'textarea',
-      'select',
-    ].join(',')
-  );
+  return !!element?.closest(FILTERED_SELECTION_SELECTOR);
 }
 
 export function canStartChatSelection(element: Element | null): boolean {
-  return isInsideAssistantMessageItem(element) && isInsideSelectionSurface(element);
+  return isInsideMessageItem(element) && isInsideSelectionStartSurface(element);
 }
 
-function isInsideChatScrollable(element: Element | null): boolean {
+export function isInsideChatScrollable(element: Element | null): boolean {
   return !!element?.closest('[data-chat-scrollable="true"]');
 }
 
@@ -240,13 +367,13 @@ export function computeStateFromSelection(): SelectionInsertState | null {
     return null;
   }
 
-  const text = normalizeSelectedTextForComposer(selection.toString());
-  if (!text) {
+  const range = selection.getRangeAt(0);
+  if (!isSelectionInsideChatMessages(selection, range)) {
     return null;
   }
 
-  const range = selection.getRangeAt(0);
-  if (!isSelectionInsideChatMessages(selection, range)) {
+  const text = getSelectionTextForComposer(selection, range);
+  if (!text) {
     return null;
   }
 

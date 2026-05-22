@@ -105,7 +105,7 @@ export const MessageToolbar = memo(function MessageToolbar({
   );
 
   return (
-    <div className="flex flex-col mt-1">
+    <div className="flex flex-col mt-1" data-chat-selection-excluded="true">
         <div
           className={cn(
             "flex items-center gap-1 select-none transition-opacity duration-200",

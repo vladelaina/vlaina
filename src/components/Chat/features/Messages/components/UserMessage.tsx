@@ -127,6 +127,7 @@ function UserMessageInner({
               <div
                 data-no-focus-input="true"
                 data-chat-selection-surface="true"
+                data-chat-selection-start="true"
                 className="inline-block max-w-[90%] select-text rounded-3xl bg-[#41a8ea] px-4 py-1.5 text-left text-[19px] leading-[27px] text-white"
                 style={textBubbleWidth ? { width: `${textBubbleWidth}px` } : undefined}
               >

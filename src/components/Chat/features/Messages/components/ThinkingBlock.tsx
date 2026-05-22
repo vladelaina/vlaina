@@ -441,6 +441,7 @@ export function ThinkingBlock({
       </button>
       <div
         ref={wrapperRef}
+        data-chat-thinking-collapsed={isCollapsed ? "true" : undefined}
         className={`text-[15px] text-neutral-500 dark:text-neutral-400 rounded-md
           relative mt-1 ml-6
           ${isCollapsed ? "overflow-hidden" : "overflow-y-auto"}`}
@@ -451,13 +452,15 @@ export function ThinkingBlock({
       >
         <div
           ref={contentRef}
-          data-chat-selection-surface="true"
+          data-chat-selection-surface={isCollapsed ? undefined : "true"}
+          data-chat-selection-start={isCollapsed ? undefined : "true"}
           data-chat-markdown-live={activelyThinking ? "true" : undefined}
           data-chat-thinking-content="true"
           onPointerDownCapture={handleSelectionPointerDown}
           onMouseDownCapture={handleSelectionMouseDown}
           className={[
-            "vlaina-markdown-surface opacity-90 select-text max-w-none",
+            "vlaina-markdown-surface opacity-90 max-w-none",
+            isCollapsed ? "select-none" : "select-text",
             activelyThinking ? "chat-markdown-live" : "",
           ].filter(Boolean).join(" ")}
         >

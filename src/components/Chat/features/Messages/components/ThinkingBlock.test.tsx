@@ -64,6 +64,9 @@ describe('ThinkingBlock', () => {
 
     const wrapper = container.querySelector<HTMLElement>('[style*="opacity"]');
     expect(wrapper).toHaveStyle({ opacity: '0' });
+    expect(wrapper).toHaveAttribute('data-chat-thinking-collapsed', 'true');
+    expect(container.querySelector('[data-chat-selection-surface="true"]')).not.toBeInTheDocument();
+    expect(container.querySelector('[data-chat-selection-start="true"]')).not.toBeInTheDocument();
     const toggle = screen.getByRole('button', { name: 'Reasoning' });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
 
@@ -71,6 +74,9 @@ describe('ThinkingBlock', () => {
 
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(wrapper).toHaveStyle({ opacity: '1' });
+    expect(wrapper).not.toHaveAttribute('data-chat-thinking-collapsed');
+    expect(container.querySelector('[data-chat-selection-surface="true"]')).toBeInTheDocument();
+    expect(container.querySelector('[data-chat-selection-start="true"]')).toBeInTheDocument();
   });
 
   it('collapses live thinking after the answer starts streaming', () => {
@@ -246,6 +252,7 @@ describe('ThinkingBlock', () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole('button', { name: 'Reasoning' }));
     const surface = container.querySelector('[data-chat-selection-surface="true"]')!;
     fireEvent.mouseDown(surface, { button: 0 });
 
