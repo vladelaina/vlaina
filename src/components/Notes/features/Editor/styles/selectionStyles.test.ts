@@ -197,16 +197,25 @@ describe('editor embedded CodeMirror selection styles', () => {
   it('keeps list selection overlays wide enough to cover native markers', () => {
     const css = readStyleFile('core.css');
 
-    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 24px;');
+    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 48px;');
     expect(css).toContain('.milkdown .ProseMirror li.vlaina-block-selected,');
-    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 24px;');
-    expect(css).toContain('--vlaina-block-selection-bleed-x-end: 10px;');
+    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 48px;');
+    expect(css).toContain('--vlaina-block-selection-bleed-x-end: 48px;');
     expect(css).toContain('.milkdown .ProseMirror :is(ul, ol) > li.vlaina-block-selected,');
     expect(css).toContain('--vlaina-block-selection-bleed-x-start: 48px;');
+    expect(css).toContain('.milkdown .ProseMirror ul > li.vlaina-block-selected,');
+    expect(css).toContain('.milkdown .ProseMirror li[data-item-type="task"].vlaina-block-selected,');
+    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 72px;');
+    expect(css).toContain('.milkdown .ProseMirror ol > li.vlaina-block-selected,');
+    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 72px;');
     expect(css).toContain('.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) > li.vlaina-block-selected,');
     expect(css).toContain('--vlaina-block-selection-bleed-x-start: 72px;');
+    expect(css).toContain('.milkdown .ProseMirror :is(ul, ol) ol > li.vlaina-block-selected,');
+    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 96px;');
     expect(css).toContain('.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) :is(ul, ol) > li.vlaina-block-selected,');
     expect(css).toContain('--vlaina-block-selection-bleed-x-start: 104px;');
+    expect(css).toContain('.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) ol > li.vlaina-block-selected,');
+    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 128px;');
     expect(css).not.toContain('margin-left: calc(-1 * var(--vlaina-block-selection-offset-x));');
   });
 
@@ -355,8 +364,8 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('--vlaina-editor-block-selection-bg: #bedffe;');
     expect(css).toContain('--vlaina-editor-block-selection-fg: #fefbf9;');
     expect(css).toContain('--vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg, #bedffe);');
-    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 24px;');
-    expect(css).toContain('--vlaina-block-selection-bleed-x-end: 10px;');
+    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 48px;');
+    expect(css).toContain('--vlaina-block-selection-bleed-x-end: 48px;');
     expect(css).toContain('border-radius: 8px;');
     expect(css).toContain('box-decoration-break: clone;');
     expect(css).toContain('-webkit-box-decoration-break: clone;');
@@ -375,9 +384,13 @@ describe('editor embedded CodeMirror selection styles', () => {
 
     expect(css).toContain('contain-intrinsic-size: auto 315px;');
     expect(css).toContain('.milkdown .video-block::after {');
-    expect(css).toContain('.milkdown .video-block.ProseMirror-selectednode::after {');
+    expect(css).toContain('.milkdown .video-block.ProseMirror-selectednode::after,');
+    expect(css).toContain('.milkdown .video-block.vlaina-block-selected::after {');
+    expect(css).toContain('.milkdown .video-block.ProseMirror-selectednode,');
     expect(css).toContain('.milkdown .video-block.vlaina-block-selected {');
-    expect(css).toContain('box-shadow: none;');
+    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 48px;');
+    expect(css).toContain('--vlaina-block-selection-bleed-x-end: 48px;');
+    expect(css).toContain('background-color: var(--vlaina-block-selection-color);');
     expect(css).toContain('.vlaina-block-drag-preview .video-drag-preview-surface {');
     expect(css).toContain('background: transparent;');
     expect(css).toContain('body.vlaina-block-selection-pending .milkdown .video-block iframe,');
@@ -669,8 +682,8 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(coreCss).toContain('.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-content-host {');
     expect(coreCss).toContain('background: var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe));');
     expect(coreCss).toContain('align-items: flex-start;');
-    expect(coreCss).toContain('calc(-1 * var(--vlaina-block-selection-bleed-x-start, 24px)) 0 0 0 var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe)),');
-    expect(coreCss).toContain('var(--vlaina-block-selection-bleed-x-end, 10px) 0 0 0 var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe));');
+    expect(coreCss).toContain('calc(-1 * var(--vlaina-block-selection-bleed-x-start, 48px)) 0 0 0 var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe)),');
+    expect(coreCss).toContain('var(--vlaina-block-selection-bleed-x-end, 48px) 0 0 0 var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe));');
     expect(coreCss).toContain('.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected,');
     expect(coreCss).toContain('.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode {');
     expect(coreCss).toContain('box-shadow: none !important;');
@@ -800,6 +813,10 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('.milkdown .frontmatter-block-container .cm-line {');
     expect(css).toContain('padding: 0 0.875rem !important;');
     expect(css).toContain('transition: none !important;');
+    expect(css).toContain('.milkdown .frontmatter-block-container.ProseMirror-selectednode {');
+    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 48px;');
+    expect(css).toContain('--vlaina-block-selection-bleed-x-end: 48px;');
+    expect(css).toContain('background-color: var(--vlaina-block-selection-color);');
     expect(css).toContain(
       '.milkdown .frontmatter-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {'
     );

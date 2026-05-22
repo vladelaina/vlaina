@@ -82,5 +82,14 @@
 }
 
 .milkdown .frontmatter-block-container.ProseMirror-selectednode {
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--crepe-color-primary, #3b82f6), transparent 62%);
+  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg, #bedffe);
+  --vlaina-block-selection-bleed-y: 4px;
+  --vlaina-block-selection-bleed-x-start: 48px;
+  --vlaina-block-selection-bleed-x-end: 48px;
+  background-color: var(--vlaina-block-selection-color);
+  box-shadow:
+    0 var(--vlaina-block-selection-bleed-y) 0 0 var(--vlaina-block-selection-color),
+    0 calc(-1 * var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-color),
+    calc(-1 * (var(--vlaina-block-selection-bleed-x-start) - var(--vlaina-block-selection-bleed-y))) 0 0 var(--vlaina-block-selection-bleed-y) var(--vlaina-block-selection-color),
+    calc(var(--vlaina-block-selection-bleed-x-end) - var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-bleed-y) var(--vlaina-block-selection-color);
 }
