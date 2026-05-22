@@ -177,6 +177,14 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(markdownCss).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg, #fefbf9) !important;');
   });
 
+  it('tints blockquote rails with the selected block foreground', () => {
+    const css = readStyleFile('core.css');
+
+    expect(css).toContain('.milkdown .ProseMirror blockquote.vlaina-block-selected::before,');
+    expect(css).toContain('.milkdown .ProseMirror blockquote:has(> .vlaina-block-selected)::before {');
+    expect(css).toContain('background: var(--vlaina-editor-block-selection-fg, #fefbf9) !important;');
+  });
+
   it('keeps selected paragraph overlays from being taller than todo rows', () => {
     const css = readStyleFile('core.css');
 
@@ -198,6 +206,15 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) :is(ul, ol) > li.vlaina-block-selected,');
     expect(css).toContain('--vlaina-block-selection-bleed-x-start: 104px;');
     expect(css).not.toContain('margin-left: calc(-1 * var(--vlaina-block-selection-offset-x));');
+  });
+
+  it('keeps code block vertical selection bleed when selected inside a list item', () => {
+    const css = readStyleFile('core.css');
+
+    expect(css).toContain('.milkdown .ProseMirror li :is(');
+    expect(css).toContain('  .code-block-container,');
+    expect(css).toContain(').vlaina-block-selected {');
+    expect(css).toContain('--vlaina-block-selection-bleed-y: 4px;');
   });
 
   it('disables vertical bleed for image block selection overlays', () => {
@@ -617,6 +634,46 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(mathCss).toContain('.milkdown .ProseMirror .vlaina-block-selected-contained:is(');
     expect(mathCss).toContain('.milkdown .ProseMirror li :is(');
     expect(mathCss).toContain('.mermaid-block');
+  });
+
+  it('paints selected wide table content without coloring the scrollbar or leading spacer', () => {
+    const coreCss = readStyleFile('core.css');
+
+    expect(coreCss).toContain('.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected .table-content-host,');
+    expect(coreCss).toContain('.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-content-host {');
+    expect(coreCss).toContain('background: var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe));');
+    expect(coreCss).toContain('align-items: flex-start;');
+    expect(coreCss).toContain('calc(-1 * var(--vlaina-block-selection-bleed-x-start, 24px)) 0 0 0 var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe)),');
+    expect(coreCss).toContain('var(--vlaina-block-selection-bleed-x-end, 10px) 0 0 0 var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe));');
+    expect(coreCss).toContain('.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected,');
+    expect(coreCss).toContain('.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode {');
+    expect(coreCss).toContain('box-shadow: none !important;');
+    expect(coreCss).not.toContain('.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected .table-scroll-track,');
+    expect(coreCss).toContain('.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected :is(th, td),');
+    expect(coreCss).toContain('.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode :is(th, td) {');
+    expect(coreCss).toContain('background-color: transparent !important;');
+  });
+
+  it('keeps table column drag handles dark even inside selected table blocks', () => {
+    const coreCss = readStyleFile('core.css');
+
+    expect(coreCss).toContain('.milkdown .milkdown-table-block .column-header-drag-control,');
+    expect(coreCss).toContain(".milkdown .milkdown-table-block .column-header-drag-control[data-active='true'],");
+    expect(coreCss).toContain('.milkdown .milkdown-table-block .column-header-drag-control__grip {');
+    expect(coreCss).toContain('color: var(--vlaina-text-primary, #111827) !important;');
+    expect(coreCss).toContain('-webkit-text-fill-color: var(--vlaina-text-primary, #111827) !important;');
+    expect(coreCss).toContain('background: currentColor;');
+    expect(coreCss).toContain('box-shadow: 6px 0 currentColor, 12px 0 currentColor;');
+  });
+
+  it('keeps table column menus readable inside selected table blocks', () => {
+    const coreCss = readStyleFile('core.css');
+
+    expect(coreCss).toContain('.milkdown .milkdown-table-block .column-header-drag-menu__item {');
+    expect(coreCss).toContain('color: var(--crepe-color-on-background, #111827) !important;');
+    expect(coreCss).toContain('-webkit-text-fill-color: var(--crepe-color-on-background, #111827) !important;');
+    expect(coreCss).toContain('color: #c2410c !important;');
+    expect(coreCss).toContain('-webkit-text-fill-color: #c2410c !important;');
   });
 
   it('keeps selected math blocks inside selected list items vertically covered', () => {
