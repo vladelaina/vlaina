@@ -3,6 +3,12 @@
   transition: none;
 }
 
+.milkdown .code-block-container > .code-block-container {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  border-radius: inherit;
+}
+
 .milkdown .code-block-container[data-collapsed="true"] .code-block-editable {
   display: none;
   pointer-events: none;
@@ -28,18 +34,29 @@
 .milkdown .code-block-container.vlaina-block-selected,
 .milkdown .code-block-container[data-pm-selected='true'] {
   --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg, #bedffe);
+  --vlaina-block-selection-bleed-y: 4px;
+  --vlaina-block-selection-bleed-x-start: 24px;
+  --vlaina-block-selection-bleed-x-end: 10px;
   background-color: var(--vlaina-block-selection-color);
   border-radius: 1rem;
-  box-shadow: none;
+  box-shadow:
+    0 var(--vlaina-block-selection-bleed-y) 0 0 var(--vlaina-block-selection-color),
+    0 calc(-1 * var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-color),
+    calc(-1 * (var(--vlaina-block-selection-bleed-x-start) - var(--vlaina-block-selection-bleed-y))) 0 0 var(--vlaina-block-selection-bleed-y) var(--vlaina-block-selection-color),
+    calc(var(--vlaina-block-selection-bleed-x-end) - var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-bleed-y) var(--vlaina-block-selection-color);
   transition: none;
 }
 
-.milkdown .code-block-container.vlaina-block-selected-contained {
-  background: var(--vlaina-code-block-background);
-  background-color: var(--vlaina-code-block-background);
+.milkdown .code-block-container.vlaina-block-selected,
+.milkdown .code-block-container.vlaina-block-selected *,
+.milkdown .code-block-container.ProseMirror-selectednode,
+.milkdown .code-block-container.ProseMirror-selectednode *,
+.milkdown .code-block-container[data-pm-selected='true'],
+.milkdown .code-block-container[data-pm-selected='true'] * {
+  -webkit-text-fill-color: currentColor;
 }
 
-.milkdown .ProseMirror li .code-block-container.vlaina-block-selected {
+.milkdown .code-block-container.vlaina-block-selected-contained {
   background: var(--vlaina-code-block-background);
   background-color: var(--vlaina-code-block-background);
 }
@@ -67,15 +84,6 @@
 .milkdown .code-block-container.vlaina-block-selected-contained .cm-gutterElement,
 .milkdown .code-block-container.vlaina-block-selected-contained .cm-lineNumbers,
 .milkdown .code-block-container.vlaina-block-selected-contained .cm-gutter-filler {
-  background: var(--vlaina-code-block-background) !important;
-  background-color: var(--vlaina-code-block-background) !important;
-}
-
-.milkdown .ProseMirror li .code-block-container.vlaina-block-selected .cm-gutters,
-.milkdown .ProseMirror li .code-block-container.vlaina-block-selected .cm-gutter,
-.milkdown .ProseMirror li .code-block-container.vlaina-block-selected .cm-gutterElement,
-.milkdown .ProseMirror li .code-block-container.vlaina-block-selected .cm-lineNumbers,
-.milkdown .ProseMirror li .code-block-container.vlaina-block-selected .cm-gutter-filler {
   background: var(--vlaina-code-block-background) !important;
   background-color: var(--vlaina-code-block-background) !important;
 }
@@ -118,10 +126,12 @@
 
 .milkdown .code-block-container .cm-content {
   padding: 0 !important;
+  color: var(--vlaina-code-syntax-foreground, #abb2bf);
 }
 
 .milkdown .code-block-container .cm-line {
   padding: 0 1rem !important;
+  color: var(--vlaina-code-syntax-foreground, #abb2bf);
 }
 
 .milkdown .code-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
@@ -166,7 +176,20 @@
 .milkdown .ProseMirror .vlaina-block-selected .code-block-container {
   background: var(--vlaina-code-block-background);
   background-color: var(--vlaina-code-block-background);
+  color: var(--vlaina-code-syntax-foreground, #abb2bf);
   transition: none;
+}
+
+.milkdown .ProseMirror .vlaina-block-selected .code-block-container,
+.milkdown .ProseMirror .vlaina-block-selected .code-block-container * {
+  -webkit-text-fill-color: currentColor;
+}
+
+.milkdown .ProseMirror .vlaina-block-selected .code-block-container .vlaina-code-block-language,
+.milkdown .ProseMirror .vlaina-block-selected .code-block-container .vlaina-code-block-language-label,
+.milkdown .ProseMirror .vlaina-block-selected .code-block-container .vlaina-code-block-copy-button {
+  color: var(--vlaina-code-syntax-muted, #7d8799);
+  -webkit-text-fill-color: currentColor;
 }
 
 .milkdown .ProseMirror .vlaina-block-selected .code-block-container .cm-gutters,

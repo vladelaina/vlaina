@@ -147,6 +147,7 @@ export const textSelectionOverlayPlugin = $prose(() => {
     view(view) {
       let lastClassSignature = '';
       let keyClearFrame: number | null = null;
+      let pointerNativeReleaseFrame: number | null = null;
       let recoverNativeSelectionFrame: number | null = null;
 
       const setPointerNativeSelection = (nextValue: boolean) => {
@@ -246,15 +247,30 @@ export const textSelectionOverlayPlugin = $prose(() => {
       };
 
       const handleMouseUp = () => {
-        const nativeSelection = getNativeSelectionMetrics();
-        if (
-          textSelectionOverlayPluginKey.getState(view.state)?.usePointerNativeSelection &&
-          view.state.selection.empty &&
-          (!nativeSelection || nativeSelection.isCollapsed)
-        ) {
-          setPointerNativeSelection(false);
-          syncActiveClass();
+        if (pointerNativeReleaseFrame !== null) {
+          cancelAnimationFrame(pointerNativeReleaseFrame);
         }
+
+        pointerNativeReleaseFrame = requestAnimationFrame(() => {
+          pointerNativeReleaseFrame = null;
+          const usePointerNativeSelection = Boolean(
+            textSelectionOverlayPluginKey.getState(view.state)?.usePointerNativeSelection
+          );
+          if (!usePointerNativeSelection) return;
+
+          if (isTextSelectionOverlayEligible(view.state)) {
+            clearNativeSelectionRange();
+            setPointerNativeSelection(false);
+            syncActiveClass();
+            return;
+          }
+
+          const nativeSelection = getNativeSelectionMetrics();
+          if (view.state.selection.empty && (!nativeSelection || nativeSelection.isCollapsed)) {
+            setPointerNativeSelection(false);
+            syncActiveClass();
+          }
+        });
       };
 
       view.dom.addEventListener('mousedown', handleMouseDown);
@@ -268,6 +284,9 @@ export const textSelectionOverlayPlugin = $prose(() => {
         destroy() {
           if (keyClearFrame !== null) {
             cancelAnimationFrame(keyClearFrame);
+          }
+          if (pointerNativeReleaseFrame !== null) {
+            cancelAnimationFrame(pointerNativeReleaseFrame);
           }
           if (recoverNativeSelectionFrame !== null) {
             cancelAnimationFrame(recoverNativeSelectionFrame);

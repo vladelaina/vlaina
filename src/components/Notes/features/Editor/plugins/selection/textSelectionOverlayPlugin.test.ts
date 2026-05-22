@@ -75,15 +75,58 @@ describe('textSelectionOverlayPlugin', () => {
       expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(false);
       expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
 
-      view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(false);
-      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
-
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
       expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
       expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
     } finally {
+      Object.defineProperty(document, 'elementFromPoint', {
+        configurable: true,
+        value: originalElementFromPoint,
+      });
+    }
+  });
+
+  it('clears the browser range when a pointer text selection switches back to overlay mode', async () => {
+    const view = await createEditor('hello');
+    const originalGetSelection = window.getSelection;
+    const originalElementFromPoint = document.elementFromPoint;
+    const removeAllRanges = vi.fn();
+    const fakeRect = { height: 19, top: 120 } as DOMRect;
+
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => view.dom,
+    });
+    Object.defineProperty(window, 'getSelection', {
+      configurable: true,
+      value: () => ({
+        anchorOffset: 0,
+        focusOffset: 4,
+        isCollapsed: false,
+        rangeCount: 1,
+        removeAllRanges,
+        getRangeAt: () => ({
+          getClientRects: () => [fakeRect],
+        }),
+      }),
+    });
+
+    try {
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 4)));
+      view.dom.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
+
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      expect(removeAllRanges).toHaveBeenCalledTimes(1);
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
+    } finally {
+      Object.defineProperty(window, 'getSelection', {
+        configurable: true,
+        value: originalGetSelection,
+      });
       Object.defineProperty(document, 'elementFromPoint', {
         configurable: true,
         value: originalElementFromPoint,

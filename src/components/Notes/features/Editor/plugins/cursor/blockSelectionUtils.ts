@@ -269,9 +269,34 @@ function isNodeDecorationRange(doc: EditorState['doc'], range: BlockRange): bool
   const safeFrom = Math.max(0, Math.min(range.from, doc.content.size));
   try {
     const nodeAfter = doc.resolve(safeFrom).nodeAfter;
-    return Boolean(nodeAfter && safeFrom + nodeAfter.nodeSize === range.to);
+    return Boolean(nodeAfter && !nodeAfter.isText && safeFrom + nodeAfter.nodeSize === range.to);
   } catch {
     return false;
+  }
+}
+
+function isHardBreakNodeName(name: string): boolean {
+  return name === 'hardbreak' || name === 'hard_break';
+}
+
+function trimTrailingHardBreakFromInlineRange(
+  doc: EditorState['doc'],
+  range: BlockRange,
+): BlockRange | null {
+  const safeTo = Math.max(0, Math.min(range.to, doc.content.size));
+  if (safeTo <= range.from) return range;
+
+  try {
+    const nodeBefore = doc.resolve(safeTo).nodeBefore;
+    if (!nodeBefore || !isHardBreakNodeName(nodeBefore.type.name)) {
+      return range;
+    }
+
+    const to = safeTo - nodeBefore.nodeSize;
+    if (to <= range.from) return null;
+    return { from: range.from, to };
+  } catch {
+    return range;
   }
 }
 
@@ -280,13 +305,18 @@ export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks:
 
   const displayRanges = getDisplayBlockRangesForDecorations(doc, blocks);
 
-  const decorations = displayRanges.map((range) => {
+  const decorations = displayRanges.flatMap((range) => {
     const attrs = {
       class: getBlockSelectionDecorationClass(doc, range, displayRanges),
     };
-    return isNodeDecorationRange(doc, range)
-      ? Decoration.node(range.from, range.to, attrs)
-      : Decoration.inline(range.from, range.to, attrs);
+    if (isNodeDecorationRange(doc, range)) {
+      return [Decoration.node(range.from, range.to, attrs)];
+    }
+
+    const inlineRange = trimTrailingHardBreakFromInlineRange(doc, range);
+    if (!inlineRange) return [];
+
+    return [Decoration.inline(inlineRange.from, inlineRange.to, attrs)];
   });
 
   return DecorationSet.create(doc, decorations);
