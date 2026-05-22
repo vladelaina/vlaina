@@ -55,7 +55,9 @@ describe('math hover styles', () => {
     const css = readMathStyles();
 
     expect(css).toContain('body.vlaina-block-dragging-cursor .milkdown :is(');
-    expect(css).toContain("[data-type='math-inline'],\n  [data-type='math-block'],\n  .mermaid-block\n):not(.vlaina-block-selected):is(:hover, :focus-visible)");
+    expect(css).toMatch(
+      /\[data-type='math-inline'\],\s*\[data-type='math-block'\],\s*\.mermaid-block\s*\):not\(\.vlaina-block-selected\):is\(:hover, :focus-visible\)/
+    );
     expect(css).toContain('cursor: crosshair !important;');
     expect(css).toContain('background: transparent !important;');
     expect(css).toContain('box-shadow: none !important;');
