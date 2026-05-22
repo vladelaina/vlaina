@@ -39,6 +39,21 @@ review before release.
 - License: MIT
 - Copyright: Copyright (c) 2026 Luki Labs
 
+### GitHub Light Code Syntax Colors
+
+- Locations:
+  - `src/index.css`
+  - `src/components/common/code-block/codeBlockChrome.css`
+  - `src/components/Notes/features/Editor/plugins/code/codemirror/codeBlockHighlightStyle.ts`
+- Source: GitHub Light / Primer syntax color values
+- Upstream: https://github.com/primer/primitives
+- License: MIT
+- Copyright: Copyright (c) GitHub Inc.
+- Notes: Local code block styling adapts the GitHub Light syntax palette for
+  chat Markdown code blocks and Notes editor CodeMirror blocks. GitHub
+  trademarks and brand assets are not relicensed under this project's AGPLv3
+  license.
+
 ### Custom MIT/Permissive Icon Sources
 
 - Location: `src/components/ui/icons/custom/mit/`

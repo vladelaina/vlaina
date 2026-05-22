@@ -16,6 +16,10 @@ const syntaxVariables = [
   '--vlaina-code-syntax-type',
   '--vlaina-code-syntax-operator',
   '--vlaina-code-syntax-string',
+  '--vlaina-code-syntax-variable',
+  '--vlaina-code-syntax-tag',
+  '--vlaina-code-syntax-markup',
+  '--vlaina-code-syntax-list',
   '--vlaina-code-syntax-invalid',
 ];
 
@@ -54,8 +58,9 @@ describe('shared code block theme', () => {
 
     expect(notesHeader).toContain('@/components/common/code-block');
     expect(notesEditorTheme).toContain('vlainaCodeBlockHighlightStyle');
-    expect(notesEditorTheme).not.toContain('syntaxHighlighting(oneDarkHighlightStyle)');
-    expect(notesHighlightStyle).toContain('oneDarkHighlightStyle.specs.map');
+    expect(notesEditorTheme).not.toContain('oneDarkTheme');
+    expect(notesHighlightStyle).not.toContain('oneDarkHighlightStyle');
+    expect(notesHighlightStyle).toContain('githubSyntax');
 
     for (const variable of syntaxVariables) {
       expect(notesHighlightStyle).toContain(variable);
