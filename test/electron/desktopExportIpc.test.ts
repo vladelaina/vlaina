@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import path from 'node:path';
-import { isPathInsideDirectory, registerDesktopIpc } from '../../electron/desktopIpc.mjs';
+import { isPathInsideDirectory, registerDesktopIpc, revealItemInFolder } from '../../electron/desktopIpc.mjs';
 
 const hoisted = vi.hoisted(() => {
   const windows: any[] = [];
   const tempRoot = process.env.RUNNER_TEMP ?? process.env.TEMP ?? process.env.TMPDIR ?? '/tmp';
+  const spawn = vi.fn(() => ({
+    once: vi.fn(),
+    unref: vi.fn(),
+  }));
 
   class MockBrowserWindow {
     options: Record<string, unknown>;
@@ -29,8 +33,15 @@ const hoisted = vi.hoisted(() => {
     }
   }
 
-  return { MockBrowserWindow, tempRoot, windows };
+  return { MockBrowserWindow, spawn, tempRoot, windows };
 });
+
+vi.mock('node:child_process', () => ({
+  default: {
+    spawn: hoisted.spawn,
+  },
+  spawn: hoisted.spawn,
+}));
 
 vi.mock('electron', () => ({
   default: {
@@ -44,6 +55,7 @@ vi.mock('electron', () => ({
     dialog: {},
     shell: {
       openExternal: vi.fn(),
+      openPath: vi.fn(),
       trashItem: vi.fn(),
       showItemInFolder: vi.fn(),
     },
@@ -67,6 +79,60 @@ function registerHarness() {
 }
 
 describe('desktop export ipc', () => {
+  it.each(['darwin', 'win32'] as const)(
+    'uses the native shell reveal behavior on %s',
+    async (platform) => {
+      const shellImpl = {
+        openPath: vi.fn(),
+        showItemInFolder: vi.fn(),
+      };
+      const spawnDetached = vi.fn();
+
+      await revealItemInFolder('/vault/docs/readme.md', {
+        platform,
+        shellImpl,
+        spawnDetached,
+      });
+
+      expect(shellImpl.showItemInFolder).toHaveBeenCalledWith('/vault/docs/readme.md');
+      expect(spawnDetached).not.toHaveBeenCalled();
+    },
+  );
+
+  it('opens the containing folder with a real file manager on Linux', async () => {
+    const child = {
+      once: vi.fn(),
+      unref: vi.fn(),
+    };
+    const spawnDetached = vi.fn(() => child);
+    const shellImpl = {
+      openPath: vi.fn(),
+      showItemInFolder: vi.fn(),
+    };
+
+    const options = {
+      platform: 'linux',
+      shellImpl,
+      spawnDetached,
+      envPath: '/usr/bin',
+      exists: (candidatePath: string) => candidatePath === '/usr/bin/nautilus',
+    } as const;
+    await revealItemInFolder('/vault/docs/readme.md', options);
+    await revealItemInFolder('/vault/docs/readme.md', options);
+
+    expect(spawnDetached).toHaveBeenCalledTimes(2);
+    expect(spawnDetached).toHaveBeenNthCalledWith(1, '/usr/bin/nautilus', ['--new-window', '/vault/docs'], {
+      detached: true,
+      stdio: 'ignore',
+    });
+    expect(spawnDetached).toHaveBeenNthCalledWith(2, '/usr/bin/nautilus', ['--new-window', '/vault/docs'], {
+      detached: true,
+      stdio: 'ignore',
+    });
+    expect(child.unref).toHaveBeenCalledTimes(2);
+    expect(shellImpl.showItemInFolder).not.toHaveBeenCalled();
+  });
+
   it('detects attempts to move a directory into its own child path', () => {
     expect(isPathInsideDirectory('/vault/docs', '/vault/docs/nested')).toBe(true);
     expect(isPathInsideDirectory('/vault/docs', '/vault/docs')).toBe(false);

@@ -1,4 +1,6 @@
 import electron from 'electron';
+import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import {
   copyFile,
   mkdtemp,
@@ -81,6 +83,79 @@ function summarizeError(error) {
 
   const cause = error.cause instanceof Error ? `: ${error.cause.message}` : '';
   return `${error.name}: ${error.message}${cause}`;
+}
+
+function findCommandOnPath(command, envPath = process.env.PATH, exists = existsSync) {
+  if (!envPath) {
+    return null;
+  }
+
+  for (const dirPath of envPath.split(path.delimiter)) {
+    const commandPath = path.join(dirPath, command);
+    if (exists(commandPath)) {
+      return commandPath;
+    }
+  }
+
+  return null;
+}
+
+function getLinuxFolderOpener(options = {}) {
+  const candidates = [
+    { command: 'nautilus', args: ['--new-window'] },
+    { command: 'dolphin', args: [] },
+    { command: 'nemo', args: [] },
+    { command: 'thunar', args: [] },
+    { command: 'pcmanfm', args: [] },
+    { command: 'caja', args: [] },
+    { command: 'io.elementary.files', args: [] },
+  ];
+
+  for (const candidate of candidates) {
+    const commandPath = findCommandOnPath(candidate.command, options.envPath, options.exists);
+    if (commandPath) {
+      return { command: commandPath, args: candidate.args };
+    }
+  }
+
+  return { command: 'xdg-open', args: [] };
+}
+
+function openFolderWithLinuxFileManager(folderPath, options = {}) {
+  const { command, args } = options.opener ?? getLinuxFolderOpener(options);
+  const spawnDetached = options.spawnDetached ?? spawn;
+  const fallbackShell = options.fallbackShell ?? shell;
+  const child = spawnDetached(command, [...args, folderPath], {
+    detached: true,
+    stdio: 'ignore',
+  });
+
+  child.once?.('error', () => {
+    if (path.basename(command) !== 'xdg-open') {
+      openFolderWithLinuxFileManager(folderPath, {
+        ...options,
+        opener: { command: 'xdg-open', args: [] },
+      });
+      return;
+    }
+    void fallbackShell.openPath?.(folderPath);
+  });
+  child.unref?.();
+}
+
+export async function revealItemInFolder(filePath, options = {}) {
+  const platform = options.platform ?? process.platform;
+  const shellImpl = options.shellImpl ?? shell;
+
+  if (platform === 'linux') {
+    openFolderWithLinuxFileManager(path.dirname(filePath), {
+      ...options,
+      fallbackShell: shellImpl,
+    });
+    return;
+  }
+
+  shellImpl.showItemInFolder(filePath);
 }
 
 function safeSend(sender, channel, payload) {
@@ -231,7 +306,7 @@ export function registerDesktopIpc({
   });
 
   handleIpc('desktop:shell:reveal-item', async (_event, filePath) => {
-    shell.showItemInFolder(await assertAuthorizedFsPath(filePath));
+    await revealItemInFolder(await assertAuthorizedFsPath(filePath));
   });
 
   handleIpc('desktop:clipboard:write-text', async (_event, text) => {
