@@ -70,7 +70,13 @@ body.vlaina-block-drag-active * {
 }
 
 .milkdown .ProseMirror {
+  position: relative;
   caret-color: var(--vlaina-editor-caret-color);
+}
+
+.milkdown.vlaina-block-selection-line-fill-host,
+.milkdown .vlaina-block-selection-line-fill-host {
+  position: relative;
 }
 
 /* Selection */
@@ -91,6 +97,8 @@ body.vlaina-block-drag-active * {
   --vlaina-block-selection-bleed-y: 4px;
   --vlaina-block-selection-bleed-x-start: 24px;
   --vlaina-block-selection-bleed-x-end: 10px;
+  position: relative;
+  z-index: 1;
   background-color: var(--vlaina-block-selection-color);
   box-shadow:
     0 var(--vlaina-block-selection-bleed-y) 0 0 var(--vlaina-block-selection-color),
@@ -98,22 +106,44 @@ body.vlaina-block-drag-active * {
     calc(-1 * (var(--vlaina-block-selection-bleed-x-start) - var(--vlaina-block-selection-bleed-y))) 0 0 var(--vlaina-block-selection-bleed-y) var(--vlaina-block-selection-color),
     calc(var(--vlaina-block-selection-bleed-x-end) - var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-bleed-y) var(--vlaina-block-selection-color);
   border-radius: 8px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
   color: var(--vlaina-editor-block-selection-fg, #fefbf9);
   transition: none !important;
 }
 
-.milkdown .ProseMirror .vlaina-block-selected,
-.milkdown .ProseMirror .vlaina-block-selected * {
+.milkdown .vlaina-block-selection-line-fill-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.milkdown .vlaina-block-selection-line-fill {
+  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg, #bedffe);
+  --vlaina-block-selection-bleed-y: 4px;
+  position: absolute;
+  z-index: 0;
+  border-radius: 8px;
+  background: var(--vlaina-block-selection-color);
+  box-shadow:
+    0 var(--vlaina-block-selection-bleed-y) 0 0 var(--vlaina-block-selection-color),
+    0 calc(-1 * var(--vlaina-block-selection-bleed-y)) 0 0 var(--vlaina-block-selection-color);
+  pointer-events: none;
+}
+
+.milkdown .ProseMirror .vlaina-block-selected:not(.code-block-container),
+.milkdown .ProseMirror .vlaina-block-selected *:not(.code-block-container):not(.code-block-container *) {
   color: var(--vlaina-editor-block-selection-fg, #fefbf9);
   -webkit-text-fill-color: var(--vlaina-editor-block-selection-fg, #fefbf9);
 }
 
-.milkdown .ProseMirror li:has(> .vlaina-block-selected)::marker {
+.milkdown .ProseMirror li:has(> p.vlaina-block-selected)::marker {
   color: var(--vlaina-editor-block-selection-fg, #fefbf9);
 }
 
 .milkdown .ProseMirror li[data-item-type="task"].vlaina-block-selected::before,
-.milkdown .ProseMirror li[data-item-type="task"]:has(> .vlaina-block-selected)::before {
+.milkdown .ProseMirror li[data-item-type="task"]:has(> p.vlaina-block-selected)::before {
   border-color: var(--vlaina-editor-block-selection-fg, #fefbf9) !important;
   background-color: transparent !important;
 }
@@ -128,6 +158,17 @@ body.vlaina-block-drag-active * {
 .milkdown .ProseMirror li .vlaina-block-selected {
   --vlaina-block-selection-bleed-x-start: 24px;
   --vlaina-block-selection-bleed-y: 0px;
+}
+
+.milkdown .ProseMirror li :is(
+  .image-block-container,
+  .video-block,
+  [data-type='math-block'],
+  .mermaid-block,
+  .milkdown-table-block,
+  table
+).vlaina-block-selected {
+  --vlaina-block-selection-bleed-y: 4px;
 }
 
 .milkdown .ProseMirror :is(ul, ol) > li.vlaina-block-selected,
@@ -148,6 +189,31 @@ body.vlaina-block-drag-active * {
 .milkdown .ProseMirror li.vlaina-block-selected .vlaina-block-selected {
   background-color: transparent;
   box-shadow: none;
+}
+
+.milkdown .ProseMirror li.vlaina-block-selected:has(> .code-block-container) {
+  --vlaina-list-contained-block-selection-bleed-y: 8px;
+  position: relative;
+  z-index: 0;
+}
+
+.milkdown .ProseMirror li.vlaina-block-selected:has(> .code-block-container)::after {
+  content: '';
+  position: absolute;
+  right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
+  bottom: calc(-1 * var(--vlaina-list-contained-block-selection-bleed-y));
+  left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
+  z-index: 0;
+  height: calc(var(--vlaina-list-contained-block-selection-bleed-y) + 8px);
+  border-bottom-right-radius: 8px;
+  border-bottom-left-radius: 8px;
+  background: var(--vlaina-block-selection-color);
+  pointer-events: none;
+}
+
+.milkdown .ProseMirror li.vlaina-block-selected:has(> .code-block-container) > * {
+  position: relative;
+  z-index: 1;
 }
 
 .milkdown .ProseMirror .image-block-container.vlaina-block-selected {
@@ -198,6 +264,19 @@ body.vlaina-block-drag-active * {
   background: transparent !important;
   background-color: transparent !important;
   box-shadow: none !important;
+}
+
+.milkdown .ProseMirror li.vlaina-block-selected :is(
+  [data-type='math-block'],
+  .mermaid-block
+).vlaina-block-selected,
+.milkdown .ProseMirror li.vlaina-block-selected :is(
+  [data-type='math-block'],
+  .mermaid-block
+).vlaina-block-selected-contained {
+  box-shadow:
+    0 var(--vlaina-block-selection-bleed-y, 4px) 0 0 var(--vlaina-block-selection-color),
+    0 calc(-1 * var(--vlaina-block-selection-bleed-y, 4px)) 0 0 var(--vlaina-block-selection-color) !important;
 }
 
 /* Hide text caret while drag block selection is active */

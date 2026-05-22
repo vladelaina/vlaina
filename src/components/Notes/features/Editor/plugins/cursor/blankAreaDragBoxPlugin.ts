@@ -20,8 +20,6 @@ import {
 import {
   deleteSelectedBlocks as deleteSelectedBlocksCommand,
   serializeSelectedBlocksToText,
-  setClipboardText,
-  writeTextToClipboard,
 } from './blockSelectionCommands';
 import { startBlankAreaSelectionSession } from './blankAreaSelectionSession';
 import { type BlockDragStartZone } from './blockDragSession';
@@ -53,6 +51,13 @@ import {
   formatDebugBlockRanges,
   logBlockSelectionDebug,
 } from './blockSelectionDebugLog';
+import {
+  handleBlockSelectionCopy,
+  handleBlockSelectionCut,
+  handleBlockSelectionKeyDown,
+  isClipboardEvent,
+} from './blockSelectionInputHandlers';
+import { createBlockSelectionLineFillOverlay } from './blockSelectionLineFillOverlay';
 
 export { blankAreaDragBoxPluginKey } from './blockSelectionPluginState';
 
@@ -60,60 +65,6 @@ const DRAG_THRESHOLD = 4;
 const DRAG_BOX_COLOR = 'rgb(190 223 254 / 0.42)';
 const DRAG_SESSION_CURSOR = 'crosshair';
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
-let lastSelectedBlockGeometryDebugKey = '';
-
-function roundCssNumber(value: number): number {
-  return Math.round(value * 100) / 100;
-}
-
-function readCssPx(style: CSSStyleDeclaration, property: string): number {
-  const value = Number.parseFloat(style.getPropertyValue(property));
-  return Number.isFinite(value) ? value : 0;
-}
-
-function summarizeSelectedBlockGeometry(view: EditorView): void {
-  const selectedElements = Array.from(view.dom.querySelectorAll<HTMLElement>('.vlaina-block-selected'));
-  const payload = {
-    count: selectedElements.length,
-    blocks: selectedElements.slice(0, 20).map((element, index) => {
-      const rect = element.getBoundingClientRect();
-      const style = window.getComputedStyle(element);
-      const bleedStart = readCssPx(style, '--vlaina-block-selection-bleed-x-start');
-      const bleedEnd = readCssPx(style, '--vlaina-block-selection-bleed-x-end');
-      const bleedY = readCssPx(style, '--vlaina-block-selection-bleed-y');
-      const tag = element.tagName.toLowerCase();
-      const className = Array.from(element.classList).join('.');
-      return {
-        index,
-        tag,
-        className,
-        dataType: element.getAttribute('data-type'),
-        text: (element.textContent ?? '').trim().slice(0, 40),
-        isListItem: tag === 'li',
-        rectLeft: roundCssNumber(rect.left),
-        rectRight: roundCssNumber(rect.right),
-        rectWidth: roundCssNumber(rect.width),
-        bleedStart,
-        bleedEnd,
-        bleedY,
-        visualLeft: roundCssNumber(rect.left - bleedStart),
-        visualRight: roundCssNumber(rect.right + bleedEnd),
-        display: style.display,
-        marginLeft: style.marginLeft,
-        paddingLeft: style.paddingLeft,
-        listStylePosition: style.listStylePosition,
-      };
-    }),
-  };
-  const debugKey = JSON.stringify(payload);
-  if (debugKey === lastSelectedBlockGeometryDebugKey) return;
-  lastSelectedBlockGeometryDebugKey = debugKey;
-  logBlockSelectionDebug('geometry:selected-blocks', payload);
-}
-
-function scheduleSelectedBlockGeometryDebug(view: EditorView): void {
-  window.requestAnimationFrame(() => summarizeSelectedBlockGeometry(view));
-}
 
 function snapshotSelection(state: EditorState) {
   return {
@@ -132,15 +83,6 @@ function isSameSelectionSnapshot(
     && left.from === right.from
     && left.to === right.to
     && left.empty === right.empty;
-}
-
-function isClipboardShortcut(event: KeyboardEvent, key: 'c' | 'x'): boolean {
-  return (
-    (event.metaKey || event.ctrlKey) &&
-    !event.altKey &&
-    !event.shiftKey &&
-    event.key.toLowerCase() === key
-  );
 }
 
 function dispatchBlankAreaPlainClick(view: EditorView, action: BlankAreaPlainClickAction): void {
@@ -238,10 +180,6 @@ function clearTextSelectionForDragSession(view: EditorView): void {
   window.getSelection()?.removeAllRanges();
 }
 
-function isClipboardEvent(event: Event): event is ClipboardEvent {
-  return 'clipboardData' in event;
-}
-
 function deleteSelectedBlocks(view: EditorView, blocks: readonly BlockRange[]): boolean {
   return deleteSelectedBlocksCommand(
     view,
@@ -337,9 +275,6 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         dispatchBlockSelectionAction(view, blocks.length > 0
           ? { type: 'set-blocks', blocks }
           : CLEAR_BLOCKS_ACTION);
-        if (blocks.length > 0) {
-          scheduleSelectedBlockGeometryDebug(view);
-        }
       },
       onPlainClick({ zone, action }) {
         logBlockSelectionDebug('select:plain-click', {
@@ -432,56 +367,32 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
       },
       handleKeyDown(view, event) {
         const { selectedBlocks } = getBlockSelectionPluginState(view.state);
-        if (selectedBlocks.length === 0) return false;
-
-        if (isClipboardShortcut(event, 'c')) {
-          const text = serializeSelectedBlocks(view.state, selectedBlocks);
-          if (text.length === 0) return false;
-
-          event.preventDefault();
-          void writeTextToClipboard(text);
-          return true;
-        }
-
-        if (isClipboardShortcut(event, 'x')) {
-          const text = serializeSelectedBlocks(view.state, selectedBlocks);
-          if (text.length === 0) return false;
-
-          event.preventDefault();
-          void writeTextToClipboard(text).then((didCopy) => {
-            if (didCopy) {
-              deleteSelectedBlocks(view, selectedBlocks);
-            }
-          });
-          return true;
-        }
-
-        if (event.key === 'Delete' || event.key === 'Backspace') {
-          if (event.metaKey || event.ctrlKey || event.altKey) return false;
-          event.preventDefault();
-          return deleteSelectedBlocks(view, selectedBlocks);
-        }
-
-        return false;
+        return handleBlockSelectionKeyDown(event, {
+          view,
+          selectedBlocks,
+          serializeSelectedBlocks,
+          deleteSelectedBlocks,
+        });
       },
       handleDOMEvents: {
         copy(view, event) {
           if (!isClipboardEvent(event)) return false;
           const { selectedBlocks } = getBlockSelectionPluginState(view.state);
-          if (selectedBlocks.length === 0) return false;
-
-          const text = serializeSelectedBlocks(view.state, selectedBlocks);
-          setClipboardText(event, text);
-          return true;
+          return handleBlockSelectionCopy(event, {
+            view,
+            selectedBlocks,
+            serializeSelectedBlocks,
+          });
         },
         cut(view, event) {
           if (!isClipboardEvent(event)) return false;
           const { selectedBlocks } = getBlockSelectionPluginState(view.state);
-          if (selectedBlocks.length === 0) return false;
-
-          const text = serializeSelectedBlocks(view.state, selectedBlocks);
-          setClipboardText(event, text);
-          return deleteSelectedBlocks(view, selectedBlocks);
+          return handleBlockSelectionCut(event, {
+            view,
+            selectedBlocks,
+            serializeSelectedBlocks,
+            deleteSelectedBlocks,
+          });
         },
         mousedown(view, event) {
           if (!(event instanceof MouseEvent)) return false;
@@ -524,6 +435,7 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
     },
     view(view) {
       const doc = view.dom.ownerDocument;
+      const lineFillOverlay = createBlockSelectionLineFillOverlay(view);
       syncBlockSelectionVisualState(view);
       const handleDocumentMouseDown = (event: MouseEvent) => {
         logBlockSelectionDebug('select:document-mousedown', {
@@ -569,9 +481,11 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
       return {
         update(updatedView) {
           syncBlockSelectionVisualState(updatedView);
+          lineFillOverlay.update(updatedView);
         },
         destroy() {
           doc.removeEventListener('mousedown', handleDocumentMouseDown, true);
+          lineFillOverlay.destroy();
           clearSession();
           clearInsideBlockTrailingPlainClickSession();
           setBlockSelectionVisualState(view, false);

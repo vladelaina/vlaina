@@ -2,10 +2,12 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
+import type { Decoration } from '@milkdown/kit/prose/view';
 import {
   clampViewportRectTop,
   convertBlockRectsToDocumentSpace,
   convertViewportDragRectToDocumentRect,
+  createBlockSelectionDecorations,
   createDragSelectionRect,
   getBlockSelectionDecorationClass,
   getDisplayBlockRangesForDecorations,
@@ -307,6 +309,43 @@ describe('blockSelectionUtils', () => {
     const displayRanges = getDisplayBlockRangesForDecorations(view.state.doc, [{ from: 0, to: 3 }]);
 
     expect(displayRanges).toEqual([{ from: 1, to: 2 }]);
+
+    await editor.destroy();
+  });
+
+  it('does not decorate zero-width hardbreak nodes when selecting hard-break paragraph lines', async () => {
+    const editor = await createEditor('alpha\\\nbravo');
+    const view = editor.ctx.get(editorViewCtx);
+    const decorations = createBlockSelectionDecorations(view.state.doc, [{ from: 1, to: 7 }]);
+
+    expect(decorations.find().map((decoration: Decoration) => ({
+      from: decoration.from,
+      to: decoration.to,
+    }))).toEqual([{ from: 1, to: 6 }]);
+    expect(view.state.doc.resolve(7).nodeBefore?.type.name).toBe('hardbreak');
+
+    await editor.destroy();
+  });
+
+  it('uses inline decoration for full text-node ranges inside hard-break paragraphs', async () => {
+    const editor = await createEditor('alpha\\\nbravo');
+    const view = editor.ctx.get(editorViewCtx);
+    let lineFrom = -1;
+    let lineTo = -1;
+    view.state.doc.descendants((node, pos) => {
+      if (node.isText && node.text === 'bravo') {
+        lineFrom = pos;
+        lineTo = pos + node.nodeSize;
+        return false;
+      }
+      return true;
+    });
+    const decorations = createBlockSelectionDecorations(view.state.doc, [{ from: lineFrom, to: lineTo }]);
+
+    expect(decorations.find().map((decoration: Decoration) => ({
+      from: decoration.from,
+      to: decoration.to,
+    }))).toEqual([{ from: lineFrom, to: lineTo }]);
 
     await editor.destroy();
   });

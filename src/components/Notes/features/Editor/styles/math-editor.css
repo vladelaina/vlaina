@@ -147,6 +147,19 @@
   box-shadow: none !important;
 }
 
+.milkdown .ProseMirror li.vlaina-block-selected :is(
+  [data-type='math-block'],
+  .mermaid-block
+).vlaina-block-selected,
+.milkdown .ProseMirror li.vlaina-block-selected :is(
+  [data-type='math-block'],
+  .mermaid-block
+).vlaina-block-selected-contained {
+  box-shadow:
+    0 var(--vlaina-block-selection-bleed-y, 4px) 0 0 var(--vlaina-block-selection-color),
+    0 calc(-1 * var(--vlaina-block-selection-bleed-y, 4px)) 0 0 var(--vlaina-block-selection-color) !important;
+}
+
 .math-editor-popup {
   z-index: 80;
 }
