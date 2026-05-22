@@ -297,10 +297,37 @@ jobs:
             electron-builder-${{ runner.os }}-
 
       - name: Package Electron app
+        if: runner.os != 'macOS'
         env:
           ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
           ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
         run: pnpm exec electron-builder --config electron-builder.yml ${{ matrix.target }} --publish never
+
+      - name: Package Electron app
+        if: runner.os == 'macOS'
+        env:
+          ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
+          ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            if pnpm exec electron-builder --config electron-builder.yml ${{ matrix.target }} --publish never; then
+              exit 0
+            fi
+
+            if [[ "$attempt" == "3" ]]; then
+              exit 1
+            fi
+
+            echo "macOS packaging failed on attempt $attempt; cleaning up mounted DMG volumes before retry."
+            while read -r device; do
+              if [[ -n "$device" ]]; then
+                hdiutil detach -force "$device" || true
+              fi
+            done < <(hdiutil info | awk '/\/Volumes\/vlaina/{print $1}')
+            rm -rf release
+            sleep 10
+          done
 
       - name: Upload Windows NSIS installer
         if: success() && matrix.platform == 'windows'
