@@ -64,7 +64,11 @@ function shouldCopyDevelopmentProfileShellPath(sourceUserDataPath, sourcePath) {
     return true;
   }
 
-  const [topLevelName] = relativePath.split(path.sep);
+  if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+    return false;
+  }
+
+  const [topLevelName] = relativePath.split(/[\\/]+/);
   if (!topLevelName || topLevelName === '.vlaina') {
     return false;
   }
@@ -85,6 +89,35 @@ function shouldCopyDevelopmentProfileShellPath(sourceUserDataPath, sourcePath) {
   return true;
 }
 
+function copyDevelopmentProfileShellPath(sourceUserDataPath, sourcePath, targetPath) {
+  if (!shouldCopyDevelopmentProfileShellPath(sourceUserDataPath, sourcePath)) {
+    return;
+  }
+
+  const stat = fs.lstatSync(sourcePath);
+  if (stat.isDirectory()) {
+    fs.mkdirSync(targetPath, { recursive: true });
+    for (const name of fs.readdirSync(sourcePath)) {
+      copyDevelopmentProfileShellPath(
+        sourceUserDataPath,
+        path.join(sourcePath, name),
+        path.join(targetPath, name)
+      );
+    }
+    return;
+  }
+
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  if (stat.isSymbolicLink()) {
+    fs.symlinkSync(fs.readlinkSync(sourcePath), targetPath);
+    return;
+  }
+
+  if (stat.isFile()) {
+    fs.copyFileSync(sourcePath, targetPath, fs.constants.COPYFILE_EXCL);
+  }
+}
+
 function seedDevelopmentProfileShell(sourceUserDataPath, targetUserDataPath) {
   const resolvedSourceUserDataPath = path.resolve(sourceUserDataPath);
   const resolvedTargetUserDataPath = path.resolve(targetUserDataPath);
@@ -103,16 +136,11 @@ function seedDevelopmentProfileShell(sourceUserDataPath, targetUserDataPath) {
     fs.mkdirSync(resolvedTargetUserDataPath, { recursive: true });
     for (const name of fs.readdirSync(resolvedSourceUserDataPath)) {
       const sourcePath = path.join(resolvedSourceUserDataPath, name);
-      if (!shouldCopyDevelopmentProfileShellPath(resolvedSourceUserDataPath, sourcePath)) {
-        continue;
-      }
-      fs.cpSync(sourcePath, path.join(resolvedTargetUserDataPath, name), {
-        recursive: true,
-        force: false,
-        dereference: false,
-        filter: (nestedSourcePath) =>
-          shouldCopyDevelopmentProfileShellPath(resolvedSourceUserDataPath, nestedSourcePath),
-      });
+      copyDevelopmentProfileShellPath(
+        resolvedSourceUserDataPath,
+        sourcePath,
+        path.join(resolvedTargetUserDataPath, name)
+      );
     }
     fs.writeFileSync(seedMarkerPath, `${new Date().toISOString()}\nsource=${resolvedSourceUserDataPath}\n`);
     return true;
