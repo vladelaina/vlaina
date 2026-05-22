@@ -66,6 +66,10 @@ When debugging with logs:
 - After the fix is verified, remove temporary diagnostic logs and test noise.
 
 Verification:
+- Treat a failing test as evidence to investigate, not as an automatic command to bend production code toward the old assertion.
+- First decide whether the failure is a real regression, an intentional behavior change with outdated tests, a brittle test that asserts implementation details, or a mix of those.
+- Fix production code when the test exposes broken behavior. Update tests when the intended behavior changed and the old expectation is stale.
+- Do not add compatibility hacks, preserve obsolete behavior, or make production code worse only to satisfy an outdated test.
 - Do not run type checks by default. Run them only when type/API risk is high or the user asks.
 
 ---

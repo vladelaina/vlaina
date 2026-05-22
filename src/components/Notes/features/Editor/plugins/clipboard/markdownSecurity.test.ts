@@ -110,7 +110,7 @@ describe('markdown security when opening notes', () => {
     expect(srcs.some((src) => src?.includes('127.1') || src?.includes('2130706433') || src?.includes('0177.'))).toBe(false);
     expect(srcs.some((src) => src?.includes('192.168.'))).toBe(false);
     expect(srcsets.some((srcset) => srcset?.includes('data:image') || srcset?.includes('127.0.0.1'))).toBe(false);
-    expect(result.persisted).toContain('![safe](https://example.com/safe.png)');
+    expect(result.persisted).toContain('<img src="https://example.com/safe.png" alt="safe" />');
   });
 
   it('sanitizes unsafe link marks before rendering DOM anchors', async () => {

@@ -56,6 +56,7 @@ export function escapeHtmlAttr(value: string): string {
     if (!value) return '';
     return value
         .replace(/&/g, '&amp;')
+        .replace(/\|/g, '&#124;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
