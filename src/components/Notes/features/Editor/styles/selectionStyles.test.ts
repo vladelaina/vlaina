@@ -714,7 +714,9 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toMatch(
       /\[data-type='math-inline'\],\s*\[data-type='math-block'\]\s*\):is\(:hover, :focus-visible, \.ProseMirror-selectednode, \.vlaina-preview-context-menu-active\) :is\(svg, svg \*, \.katex, \.katex \*, text, tspan, path, rect, circle, ellipse, line, polyline, polygon\),/
     );
-    expect(css).toContain('.mermaid-block\n):is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active) :is(text, tspan, .nodeLabel, .label, .edgeLabel),');
+    expect(css).toMatch(
+      /\.mermaid-block\s*\):is\(:hover, :focus-visible, \.ProseMirror-selectednode, \.vlaina-preview-context-menu-active\) :is\(text, tspan, \.nodeLabel, \.label, \.edgeLabel\)\s*[, {]/
+    );
     expect(css).not.toContain('.mermaid-block\n):is(:hover, :focus-visible, .ProseMirror-selectednode, .vlaina-preview-context-menu-active) :is(svg, svg *, .katex, .katex *, text, tspan, path, rect, circle, ellipse, line, polyline, polygon)');
     expect(css).toContain('color: var(--vlaina-text-primary, #27272A) !important;');
     expect(css).toContain('-webkit-text-fill-color: var(--vlaina-text-primary, #27272A) !important;');
