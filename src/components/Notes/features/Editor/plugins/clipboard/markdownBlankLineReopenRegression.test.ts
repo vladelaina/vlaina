@@ -21,6 +21,7 @@ import {
 
 interface ReopenSnapshot {
   persisted: string;
+  textContent: string;
   texts: string[];
 }
 
@@ -49,6 +50,7 @@ async function reopenMarkdown(markdown: string): Promise<ReopenSnapshot> {
       normalizeSerializedMarkdownDocument(serialized),
       markdown
     )),
+    textContent: view.state.doc.textContent,
     texts: docJson.content?.map((node: any) => node.content?.[0]?.text ?? '') ?? [],
   };
 }
@@ -61,6 +63,21 @@ function expectCleanPersistedMarkdown(markdown: string): void {
 }
 
 describe('markdown blank line reopen regressions', () => {
+  it('keeps paragraph trailing backslashes visible inside mixed markdown notes', async () => {
+    const markdown = [
+      '# Heading',
+      '',
+      '底线（-/=）方式（**不推荐**）：\\',
+      '',
+      '- item\\',
+    ].join('\n');
+
+    const snapshot = await reopenMarkdown(markdown);
+
+    expect(snapshot.textContent).toContain('底线（-/=）方式（不推荐）：\\');
+    expect(snapshot.persisted).toContain('底线（-/=）方式（**不推荐**）：\\\\\\');
+  });
+
   it.each([
     {
       name: 'ordinary paragraph breaks',

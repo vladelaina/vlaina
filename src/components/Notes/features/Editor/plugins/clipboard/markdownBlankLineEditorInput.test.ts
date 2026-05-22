@@ -74,6 +74,32 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
     ].join('\n'));
   });
 
+  it('escapes paragraph trailing backslashes even when the text contains inline markdown', () => {
+    const markdown = '底线（-/=）方式（**不推荐**）：\\';
+
+    expect(preserveMarkdownBlankLinesForEditor(markdown)).toBe(
+      '底线（-/=）方式（**不推荐**）：\\\\\\'
+    );
+  });
+
+  it('escapes paragraph trailing backslashes inside mixed markdown documents', () => {
+    const markdown = [
+      '# Heading',
+      '',
+      '底线（-/=）方式（**不推荐**）：\\',
+      '',
+      '- item\\',
+    ].join('\n');
+
+    expect(preserveMarkdownBlankLinesForEditor(markdown)).toBe([
+      '# Heading',
+      '',
+      '底线（-/=）方式（**不推荐**）：\\\\\\',
+      '',
+      '- item\\',
+    ].join('\n'));
+  });
+
   it('keeps structural markdown trailing backslashes as hard breaks', () => {
     const markdown = ['- item\\', '- next'].join('\n');
 
