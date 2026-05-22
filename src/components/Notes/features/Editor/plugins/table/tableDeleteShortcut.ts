@@ -38,6 +38,7 @@ export interface AdjacentTableParagraphDeleteRange extends TableDeleteShortcutRa
 }
 
 const TABLE_BLOCK_NAMES = new Set(['table']);
+const HEADING_BLOCK_NAMES = new Set(['heading']);
 
 interface TableDeleteShortcutNode {
   type: {
@@ -96,6 +97,17 @@ export function findAdjacentTableParagraphDeleteRange(
     state,
     searchDir,
     TABLE_BLOCK_NAMES
+  );
+}
+
+export function findAdjacentHeadingParagraphDeleteRange(
+  state: TableDeleteShortcutState,
+  searchDir: -1 | 1
+): AdjacentTableParagraphDeleteRange | null {
+  return findAdjacentEmptyParagraphNearBlockDeleteRange(
+    state,
+    searchDir,
+    HEADING_BLOCK_NAMES
   );
 }
 

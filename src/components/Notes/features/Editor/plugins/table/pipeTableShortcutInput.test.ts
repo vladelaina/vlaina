@@ -6,11 +6,14 @@ import {
   remarkStringifyOptionsCtx,
   serializerCtx,
 } from '@milkdown/kit/core';
+import type { Node as ProseNode } from '@milkdown/kit/prose/model';
+import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+import { createTableNodeFromPipeCells } from './pipeTableShortcut';
 import { tableKeyboardPlugin } from './tableKeyboardPlugin';
 
 function typeText(view: EditorView, input: string): void {
@@ -47,6 +50,26 @@ function pressEnter(view: EditorView): void {
   expect(handled).toBe(true);
 }
 
+function pressKey(view: EditorView, key: string): KeyboardEvent {
+  const event = new KeyboardEvent('keydown', {
+    key,
+    bubbles: true,
+    cancelable: true,
+  });
+  let handled = false;
+
+  view.someProp('handleKeyDown', (handleKeyDown: any) => {
+    if (handled) {
+      return handled;
+    }
+    handled = handleKeyDown(view, event) || handled;
+    return handled;
+  });
+
+  expect(handled).toBe(true);
+  return event;
+}
+
 function getAncestorNodeNames(view: EditorView): string[] {
   const { $from } = view.state.selection;
   const names: string[] = [];
@@ -54,6 +77,41 @@ function getAncestorNodeNames(view: EditorView): string[] {
     names.push($from.node(depth).type.name);
   }
   return names;
+}
+
+function replaceDocument(view: EditorView, nodes: ProseNode[]): void {
+  view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, nodes));
+}
+
+function topLevelNodePos(view: EditorView, typeName: string, occurrence = 0): number {
+  let seen = 0;
+  let found: number | null = null;
+  view.state.doc.forEach((node, offset) => {
+    if (found !== null || node.type.name !== typeName) return;
+    if (seen === occurrence) {
+      found = offset;
+      return;
+    }
+    seen += 1;
+  });
+
+  if (found === null) {
+    throw new Error(`Expected top-level ${typeName}`);
+  }
+  return found;
+}
+
+function expectCursorAtHeadingEdge(view: EditorView, edge: 'start' | 'end'): void {
+  const headingPos = topLevelNodePos(view, 'heading');
+  const heading = view.state.doc.nodeAt(headingPos);
+  expect(heading?.type.name).toBe('heading');
+  expect(view.state.selection).toBeInstanceOf(TextSelection);
+  expect(view.state.selection.empty).toBe(true);
+  expect(view.state.selection.from).toBe(
+    edge === 'start'
+      ? headingPos + 1
+      : headingPos + 1 + (heading?.content.size ?? 0)
+  );
 }
 
 describe('pipe table shortcut input', () => {
@@ -88,6 +146,63 @@ describe('pipe table shortcut input', () => {
     expect(markdown.split('\n')[0]).toContain('2');
     expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
     expect(getAncestorNodeNames(view)).toContain('table_cell');
+
+    await editor.destroy();
+  });
+
+  it.each([
+    {
+      name: 'heading above on Delete',
+      key: 'Delete',
+      edge: 'end',
+      buildNodes: (heading: ProseNode, emptyParagraph: ProseNode, table: ProseNode) => [
+        heading,
+        emptyParagraph,
+        table,
+      ],
+    },
+    {
+      name: 'heading below on Backspace',
+      key: 'Backspace',
+      edge: 'start',
+      buildNodes: (heading: ProseNode, emptyParagraph: ProseNode, table: ProseNode) => [
+        table,
+        emptyParagraph,
+        heading,
+      ],
+    },
+  ] as const)('keeps the cursor on the heading when deleting an empty paragraph between a table and heading: $name', async ({ key, edge, buildNodes }) => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '');
+      })
+      .use(commonmark)
+      .use(gfm)
+      .use(tableKeyboardPlugin);
+
+    await editor.create();
+
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    const table = createTableNodeFromPipeCells(schema, ['A', 'B']);
+    if (!table) {
+      throw new Error('Expected table schema');
+    }
+
+    replaceDocument(view, buildNodes(
+      schema.nodes.heading.create({ level: 2 }, schema.text('Heading')),
+      schema.nodes.paragraph.create(),
+      table,
+    ));
+
+    const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+    const event = pressKey(view, key);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expectCursorAtHeadingEdge(view, edge);
+    expect(getAncestorNodeNames(view)).not.toContain('table');
 
     await editor.destroy();
   });

@@ -9,6 +9,8 @@ import {
   getPipeShortcutCells,
 } from './pipeTableShortcut';
 import {
+  type AdjacentTableParagraphDeleteRange,
+  findAdjacentHeadingParagraphDeleteRange,
   findAdjacentTableParagraphDeleteRange,
   findLeadingTableDeleteRange,
   shouldDeleteTrailingEmptyRowOnDelete,
@@ -55,6 +57,25 @@ function dispatchDeleteRangeWithTextSelection(
   view.dispatch((nextSelection ? tr.setSelection(nextSelection) : tr).scrollIntoView());
 }
 
+function dispatchDeleteRangeWithHeadingTextSelection(
+  view: EditorView,
+  range: AdjacentTableParagraphDeleteRange
+) {
+  const tr = view.state.tr.delete(range.from, range.to);
+  const mappedHeadingFrom = tr.mapping.map(range.blockFrom, -1);
+  const heading = tr.doc.nodeAt(mappedHeadingFrom);
+
+  if (heading?.type.name !== 'heading') {
+    dispatchDeleteRangeWithTextSelection(view, range.from, range.to, range.blockFrom, range.searchDir);
+    return;
+  }
+
+  const cursorPos = range.searchDir < 0
+    ? mappedHeadingFrom + 1 + heading.content.size
+    : mappedHeadingFrom + 1;
+  view.dispatch(tr.setSelection(TextSelection.create(tr.doc, cursorPos)).scrollIntoView());
+}
+
 function findFirstTableBodyCellSelection(
   doc: EditorView['state']['doc'],
   tableFrom: number,
@@ -92,6 +113,12 @@ export const tableKeyboardPlugin = $prose(() => {
           const adjacentParagraphDeleteRange = findAdjacentTableParagraphDeleteRange(state, -1);
           if (adjacentParagraphDeleteRange) {
             event.preventDefault();
+            const headingRange = findAdjacentHeadingParagraphDeleteRange(state, 1);
+            if (headingRange) {
+              dispatchDeleteRangeWithHeadingTextSelection(view, headingRange);
+              view.focus();
+              return true;
+            }
             dispatchDeleteRangeWithTextSelection(
               view,
               adjacentParagraphDeleteRange.from,
@@ -165,6 +192,12 @@ export const tableKeyboardPlugin = $prose(() => {
           const adjacentParagraphDeleteRange = findAdjacentTableParagraphDeleteRange(state, 1);
           if (adjacentParagraphDeleteRange) {
             event.preventDefault();
+            const headingRange = findAdjacentHeadingParagraphDeleteRange(state, -1);
+            if (headingRange) {
+              dispatchDeleteRangeWithHeadingTextSelection(view, headingRange);
+              view.focus();
+              return true;
+            }
             dispatchDeleteRangeWithTextSelection(
               view,
               adjacentParagraphDeleteRange.from,
