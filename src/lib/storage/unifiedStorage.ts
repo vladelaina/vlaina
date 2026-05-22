@@ -455,6 +455,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
             const parsedSessionsData: unknown = JSON.parse(await storage.readFile(sessionsPath));
             const sessionsData = parseAISessionsFile(parsedSessionsData);
             if (!sessionsData) {
+              console.warn('[Storage] Ignoring invalid AI sessions file:', sessionsPath);
             } else {
               const loadedSessions = Array.isArray(sessionsData.sessions) ? sessionsData.sessions : [];
               const aiData = combinedData.ai;
@@ -475,7 +476,9 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
               aiData.webSearchEnabled = sessionsData.webSearchEnabled;
               providerIds = sessionsData.providerIds;
             }
-        } catch {}
+        } catch {
+            console.warn('[Storage] Ignoring invalid AI sessions file:', sessionsPath);
+        }
     }
 
     const recoveredSessions = await recoverOrphanChatSessions(

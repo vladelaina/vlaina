@@ -101,12 +101,19 @@ function seedDevelopmentProfileShell(sourceUserDataPath, targetUserDataPath) {
 
   try {
     fs.mkdirSync(resolvedTargetUserDataPath, { recursive: true });
-    fs.cpSync(resolvedSourceUserDataPath, resolvedTargetUserDataPath, {
-      recursive: true,
-      force: false,
-      dereference: false,
-      filter: (sourcePath) => shouldCopyDevelopmentProfileShellPath(resolvedSourceUserDataPath, sourcePath),
-    });
+    for (const name of fs.readdirSync(resolvedSourceUserDataPath)) {
+      const sourcePath = path.join(resolvedSourceUserDataPath, name);
+      if (!shouldCopyDevelopmentProfileShellPath(resolvedSourceUserDataPath, sourcePath)) {
+        continue;
+      }
+      fs.cpSync(sourcePath, path.join(resolvedTargetUserDataPath, name), {
+        recursive: true,
+        force: false,
+        dereference: false,
+        filter: (nestedSourcePath) =>
+          shouldCopyDevelopmentProfileShellPath(resolvedSourceUserDataPath, nestedSourcePath),
+      });
+    }
     fs.writeFileSync(seedMarkerPath, `${new Date().toISOString()}\nsource=${resolvedSourceUserDataPath}\n`);
     return true;
   } catch (error) {

@@ -210,7 +210,7 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.shouldSearchNotesSidebarContents.mockReturnValue(false);
   });
 
-  it('clears editor highlights when sidebar search is closed', () => {
+  it('clears editor highlights when sidebar search is closed', async () => {
     const { rerender } = render(
       <SidebarContent
         rootFolder={null}
@@ -235,8 +235,10 @@ describe('SidebarContent search highlight cleanup', () => {
       />,
     );
 
-    expect(hoisted.clearSidebarSearchHighlights).toHaveBeenCalledTimes(1);
-    expect(hoisted.clearSidebarSearchNavigationPending).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(hoisted.clearSidebarSearchHighlights).toHaveBeenCalledTimes(1);
+      expect(hoisted.clearSidebarSearchNavigationPending).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('reveals the current file when leaving sidebar search results', () => {
@@ -608,7 +610,7 @@ describe('SidebarContent search highlight cleanup', () => {
     expect(hoisted.pruneNoteContentsCacheToOpenNotes).toHaveBeenCalledTimes(1);
   });
 
-  it('opens external starred search results by absolute path', () => {
+  it('opens external starred search results by absolute path', async () => {
     hoisted.shouldShowSearchResults = true;
     hoisted.queryNotesSidebarSearch.mockReturnValue([
       {
@@ -638,7 +640,9 @@ describe('SidebarContent search highlight cleanup', () => {
 
     fireEvent.click(getByText('starred'));
 
-    expect(hoisted.openNoteByAbsolutePath).toHaveBeenCalledWith('/external/starred.md');
+    await waitFor(() => {
+      expect(hoisted.openNoteByAbsolutePath).toHaveBeenCalledWith('/external/starred.md');
+    });
     expect(hoisted.openNote).not.toHaveBeenCalled();
     expect(hoisted.markSidebarSearchNavigationPending).toHaveBeenCalledWith('/external/starred.md');
   });

@@ -25,6 +25,7 @@ import {
 } from '../document/externalPathSync';
 import { persistWorkspaceSnapshot } from '../workspacePersistence';
 import { readNoteMetadataFromMarkdown } from '../frontmatter';
+import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 import { createWorkspaceDocumentActions } from './workspaceDocumentActions';
 import { createWorkspaceExternalActions } from './workspaceExternalActions';
 import { createWorkspaceTabActions } from './workspaceTabActions';
@@ -166,6 +167,7 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
   displayNames: new Map(),
 
   openNote: async (path: string, openInNewTab: boolean = false) => {
+    flushCurrentPendingEditorMarkdown();
     const openRequestId = ++latestOpenNoteRequestId;
     if (openDraftNoteFromMemory(set, get, path, openInNewTab)) {
       return;

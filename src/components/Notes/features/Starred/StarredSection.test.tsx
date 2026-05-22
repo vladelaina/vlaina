@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StarredSection } from './StarredSection';
 
@@ -150,7 +150,7 @@ describe('StarredSection', () => {
     expect(mocked.requestFileTreePointerDragDropTargetUpdate).not.toHaveBeenCalled();
   });
 
-  it('renders current-vault starred files with the normal file row menu action', () => {
+  it('renders current-vault starred files with the normal file row menu action', async () => {
     mocked.starredState.hasEntries = true;
     mocked.starredState.entries = [{
       entry: {
@@ -174,7 +174,7 @@ describe('StarredSection', () => {
 
     render(<StarredSection showTitle={false} />);
 
-    expect(mocked.fileItemProps.length).toBeGreaterThan(0);
+    await waitFor(() => expect(mocked.fileItemProps.length).toBeGreaterThan(0));
     mocked.fileItemProps.forEach((props) => expect(props).toEqual(expect.objectContaining({
       dragEnabled: false,
       showStarBadge: undefined,
@@ -182,7 +182,7 @@ describe('StarredSection', () => {
     })));
   });
 
-  it('renders current-vault starred folders with the normal folder row menu action', () => {
+  it('renders current-vault starred folders with the normal folder row menu action', async () => {
     mocked.starredState.hasEntries = true;
     mocked.starredState.entries = [{
       entry: {
@@ -208,7 +208,7 @@ describe('StarredSection', () => {
 
     render(<StarredSection showTitle={false} />);
 
-    expect(mocked.folderItemProps.length).toBeGreaterThan(0);
+    await waitFor(() => expect(mocked.folderItemProps.length).toBeGreaterThan(0));
     mocked.folderItemProps.forEach((props) => expect(props).toEqual(expect.objectContaining({
       dragEnabled: false,
       showStarBadge: undefined,

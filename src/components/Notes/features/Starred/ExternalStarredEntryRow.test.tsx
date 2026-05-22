@@ -1,4 +1,4 @@
-import { fireEvent, render } from '@testing-library/react';
+import { fireEvent, render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ExternalStarredEntryRow } from './ExternalStarredEntryRow';
 
@@ -120,8 +120,8 @@ describe('ExternalStarredEntryRow', () => {
     expect(getByText('💡').dataset.vaultPath).toBe('/vault-b');
   });
 
-  it('offers the same More submenu for starred notes', () => {
-    render(
+  it('offers the same More submenu for starred notes', async () => {
+    const { getByLabelText } = render(
       <ExternalStarredEntryRow
         entry={{
           id: 'starred-1',
@@ -137,6 +137,11 @@ describe('ExternalStarredEntryRow', () => {
       />,
     );
 
+    fireEvent.click(getByLabelText('Open starred item menu'));
+
+    await waitFor(() => {
+      expect(mocked.contextMenuEntries.some((entry) => entry.key === 'more')).toBe(true);
+    });
     const moreEntry = mocked.contextMenuEntries.find((entry) => entry.key === 'more');
 
     expect(moreEntry).toMatchObject({
@@ -155,8 +160,8 @@ describe('ExternalStarredEntryRow', () => {
     ]);
   });
 
-  it('uses the folder location label for starred folders', () => {
-    render(
+  it('uses the folder location label for starred folders', async () => {
+    const { getByLabelText } = render(
       <ExternalStarredEntryRow
         entry={{
           id: 'starred-folder',
@@ -172,6 +177,11 @@ describe('ExternalStarredEntryRow', () => {
       />,
     );
 
+    fireEvent.click(getByLabelText('Open starred item menu'));
+
+    await waitFor(() => {
+      expect(mocked.contextMenuEntries.some((entry) => entry.key === 'more')).toBe(true);
+    });
     const moreEntry = mocked.contextMenuEntries.find((entry) => entry.key === 'more');
 
     expect(moreEntry?.children).toEqual(expect.arrayContaining([

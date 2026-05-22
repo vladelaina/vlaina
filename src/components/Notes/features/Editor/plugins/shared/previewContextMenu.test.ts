@@ -1,3 +1,4 @@
+import { waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { attachPreviewContextMenu, resolvePreviewParagraphInsertPos } from './previewContextMenu';
 import { shouldSuppressPreviewEditorOpen, suppressPreviewEditorOpen } from './previewContextMenuSuppression';
@@ -47,11 +48,6 @@ function openMenu(element: HTMLElement) {
       clientY: 32,
     })
   );
-}
-
-async function waitForAsyncMenuAction() {
-  await Promise.resolve();
-  await Promise.resolve();
 }
 
 function menuLabels() {
@@ -418,8 +414,8 @@ describe('previewContextMenu', () => {
 
     openMenu(element);
     selectMenuItem('SVG');
-    await waitForAsyncMenuAction();
 
+    await waitFor(() => expect(mocks.writeDesktopBinaryFile).toHaveBeenCalled());
     expect(mocks.toSvg).not.toHaveBeenCalled();
     const [, bytes] = mocks.writeDesktopBinaryFile.mock.calls[0];
     expect(mocks.writeDesktopBinaryFile.mock.calls[0][0]).toBe('/tmp/diagram.svg');
@@ -441,10 +437,10 @@ describe('previewContextMenu', () => {
 
     openMenu(element);
     selectMenuItem('PNG');
-    await waitForAsyncMenuAction();
+    await waitFor(() => expect(mocks.toPng).toHaveBeenCalled());
     openMenu(element);
     selectMenuItem('JPG');
-    await waitForAsyncMenuAction();
+    await waitFor(() => expect(mocks.toJpeg).toHaveBeenCalled());
 
     expect(mocks.toPng).toHaveBeenCalledWith(element, expect.objectContaining({ backgroundColor: '#ffffff' }));
     expect(mocks.toJpeg).toHaveBeenCalledWith(element, expect.objectContaining({ quality: 0.95 }));

@@ -44,7 +44,7 @@ describe('NotesSidebarPanel', () => {
     hoisted.uiState.notesSidebarView = 'workspace';
   });
 
-  it('keeps outline visible for an auto draft when outline is selected', () => {
+  it('keeps outline visible for an auto draft when outline is selected', async () => {
     hoisted.uiState.notesSidebarView = 'outline';
 
     render(
@@ -57,11 +57,11 @@ describe('NotesSidebarPanel', () => {
       />,
     );
 
-    expect(screen.getByTestId('sidebar-files').parentElement).toHaveClass('hidden');
-    expect(screen.getByTestId('sidebar-outline').parentElement).toHaveClass('flex');
+    expect((await screen.findByTestId('sidebar-files')).parentElement).toHaveClass('hidden');
+    expect((await screen.findByTestId('sidebar-outline')).parentElement).toHaveClass('flex');
   });
 
-  it('shows outline for a regular note when outline is selected', () => {
+  it('shows outline for a regular note when outline is selected', async () => {
     hoisted.uiState.notesSidebarView = 'outline';
 
     render(
@@ -74,8 +74,9 @@ describe('NotesSidebarPanel', () => {
       />,
     );
 
-    expect(screen.getByTestId('sidebar-files').parentElement).toHaveClass('hidden');
-    expect(screen.getByTestId('sidebar-outline').parentElement).toHaveClass('flex');
-    expect(screen.getByTestId('sidebar-outline')).toHaveAttribute('data-enabled', 'true');
+    expect((await screen.findByTestId('sidebar-files')).parentElement).toHaveClass('hidden');
+    const outline = await screen.findByTestId('sidebar-outline');
+    expect(outline.parentElement).toHaveClass('flex');
+    expect(outline).toHaveAttribute('data-enabled', 'true');
   });
 });

@@ -7,6 +7,7 @@ import {
 import { saveNoteDocument } from '../document/noteDocumentPersistence';
 import { setNoteTabDirtyState } from '../document/noteTabState';
 import { buildSortedRootFolder } from '../utils/fs/rootFolderState';
+import { flushCurrentPendingEditorMarkdown } from '../pendingEditorMarkdownFlusher';
 import { createWorkspaceDiskSyncAction } from './workspaceDiskSyncActions';
 import type { NotesGet, NotesSet, WorkspaceSlice } from './workspaceSliceTypes';
 import { saveDraftNote } from './workspaceDraftSave';
@@ -23,6 +24,7 @@ export function createWorkspaceDocumentActions(
   let saveInFlight: Promise<void> | null = null;
 
   const performSaveNote: WorkspaceSlice['saveNote'] = async (options) => {
+    flushCurrentPendingEditorMarkdown();
     const {
       currentNote,
       notesPath,

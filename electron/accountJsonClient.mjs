@@ -1,4 +1,9 @@
 import { desktopLegacySessionHeader } from './accountSessionAuth.mjs';
+import {
+  summarizeAuthPayload,
+  summarizeJsonPayload,
+  summarizeRequestBody,
+} from './accountAuthDebug.mjs';
 
 function createJsonResponseError(payload, response, fallbackMessage) {
   const message =
@@ -25,7 +30,23 @@ function createJsonResponseError(payload, response, fallbackMessage) {
   return error;
 }
 
-export function createDesktopAccountJsonClient() {
+function maskToken(value) {
+  return typeof value === 'string' && value
+    ? summarizeAuthPayload(value, 'token')
+    : '';
+}
+
+function summarizeDesktopData(data) {
+  return {
+    username: typeof data?.username === 'string' ? data.username : undefined,
+    hasAppSessionToken: Boolean(data?.appSessionToken),
+  };
+}
+
+export function createDesktopAccountJsonClient(options = {}) {
+  const logDesktopAuth = typeof options.logDesktopAuth === 'function'
+    ? options.logDesktopAuth
+    : null;
   async function readJsonResponse(response, fallbackMessage) {
     const text = await response.text();
     let payload = {};
@@ -62,7 +83,29 @@ export function createDesktopAccountJsonClient() {
     return { response, text, payload };
   }
 
+  async function fetchJsonWithDebug(url, init = {}, eventPrefix = 'fetch_json:http') {
+    logDesktopAuth?.(`${eventPrefix}:request`, {
+      url,
+      method: init.method ?? 'GET',
+      bodySummary: summarizeRequestBody(init.body),
+    });
+
+    const result = await fetchJson(url, init);
+    logDesktopAuth?.(`${eventPrefix}:response`, {
+      status: result.response.status,
+      ok: result.response.ok,
+      textLength: result.text.length,
+      payloadSummary: summarizeJsonPayload(result.payload),
+    });
+    return result;
+  }
+
   async function fetchDesktopJson(url, init = {}) {
+    logDesktopAuth?.('fetch_json:start', {
+      url,
+      method: init.method ?? 'GET',
+      bodySummary: summarizeRequestBody(init.body),
+    });
     let response;
     let data;
     try {
@@ -82,12 +125,19 @@ export function createDesktopAccountJsonClient() {
                 : headerAppSessionToken,
           }
         : data;
+    logDesktopAuth?.('fetch_json:done', {
+      status: response.status,
+      headerAppSessionToken: maskToken(headerAppSessionToken),
+      dataSummary: summarizeJsonPayload(nextData),
+      summary: summarizeDesktopData(nextData),
+    });
     return { response, data: nextData };
   }
 
   return {
     fetchDesktopJson,
     fetchJson,
+    fetchJsonWithDebug,
     readJsonResponse,
   };
 }
