@@ -8,6 +8,9 @@ import {
   type TableScrollSnapshot,
 } from './table-scroll-memory'
 
+const TABLE_BLOCK_SELECTION_BLEED_X_START = 24
+const TABLE_BLOCK_SELECTION_BLEED_X_END = 10
+
 export function resolveTableWideLayoutMetrics({
   baseWidth,
   leftReach,
@@ -20,12 +23,18 @@ export function resolveTableWideLayoutMetrics({
   naturalWidth: number
 }) {
   const isWideLayout = naturalWidth > baseWidth + 1
+  const scrollStart = isWideLayout
+    ? leftReach
+    : TABLE_BLOCK_SELECTION_BLEED_X_START
+  const scrollEnd = isWideLayout
+    ? rightReach
+    : TABLE_BLOCK_SELECTION_BLEED_X_END
 
   return {
-    maxWidth: isWideLayout ? baseWidth + leftReach + rightReach : baseWidth,
-    bleedLeft: isWideLayout ? leftReach : 0,
-    scrollStart: isWideLayout ? leftReach : 0,
-    scrollEnd: isWideLayout ? rightReach : 0,
+    maxWidth: baseWidth + scrollStart + scrollEnd,
+    bleedLeft: scrollStart,
+    scrollStart,
+    scrollEnd,
     tableMinWidth: isWideLayout ? '0px' : '100%',
   }
 }
