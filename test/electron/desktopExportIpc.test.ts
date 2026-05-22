@@ -79,22 +79,25 @@ function registerHarness() {
 }
 
 describe('desktop export ipc', () => {
-  it('uses the native shell reveal behavior outside Linux', async () => {
-    const shellImpl = {
-      openPath: vi.fn(),
-      showItemInFolder: vi.fn(),
-    };
-    const spawnDetached = vi.fn();
+  it.each(['darwin', 'win32'] as const)(
+    'uses the native shell reveal behavior on %s',
+    async (platform) => {
+      const shellImpl = {
+        openPath: vi.fn(),
+        showItemInFolder: vi.fn(),
+      };
+      const spawnDetached = vi.fn();
 
-    await revealItemInFolder('/vault/docs/readme.md', {
-      platform: 'darwin',
-      shellImpl,
-      spawnDetached,
-    });
+      await revealItemInFolder('/vault/docs/readme.md', {
+        platform,
+        shellImpl,
+        spawnDetached,
+      });
 
-    expect(shellImpl.showItemInFolder).toHaveBeenCalledWith('/vault/docs/readme.md');
-    expect(spawnDetached).not.toHaveBeenCalled();
-  });
+      expect(shellImpl.showItemInFolder).toHaveBeenCalledWith('/vault/docs/readme.md');
+      expect(spawnDetached).not.toHaveBeenCalled();
+    },
+  );
 
   it('opens the containing folder with a real file manager on Linux', async () => {
     const child = {
