@@ -34,54 +34,46 @@ function findCursorTextSelectionFrom($pos: ResolvedPos, dir: 1 | -1): Selection 
   return null;
 }
 
-function setSelectionAfterBlockDeletion(tr: Transaction, targetPos: number, preferPrevious: boolean): Transaction {
+function setTextSelectionAtBlockTail(tr: Transaction, selection: TextSelection): Transaction {
+  return tr.setSelection(TextSelection.create(tr.doc, selection.$from.end()));
+}
+
+function setSelectionAfterBlockDeletion(tr: Transaction, targetPos: number): Transaction {
   const docSize = tr.doc.content.size;
   const safePos = Math.max(0, Math.min(targetPos, docSize));
   const $pos = tr.doc.resolve(safePos);
   const paragraphType = tr.doc.type.schema.nodes.paragraph;
-
-  if (preferPrevious) {
-    const nodeBefore = $pos.nodeBefore;
-    if (isHorizontalRule(nodeBefore)) {
-      return tr.setSelection(NodeSelection.create(tr.doc, safePos - nodeBefore.nodeSize));
-    }
-
-    const previousSelection = findCursorTextSelectionFrom($pos, -1);
-    if (previousSelection) {
-      return tr.setSelection(previousSelection);
-    }
-  }
+  const nodeAfter = $pos.nodeAfter;
+  const nodeBefore = $pos.nodeBefore;
 
   if (isCursorTextblock($pos.parent)) {
-    return tr.setSelection(TextSelection.create(tr.doc, safePos));
+    return tr.setSelection(TextSelection.create(tr.doc, $pos.end()));
   }
 
-  if (isCursorTextblock($pos.nodeAfter)) {
-    return tr.setSelection(TextSelection.create(tr.doc, safePos + 1));
+  if (isCursorTextblock(nodeAfter)) {
+    return tr.setSelection(TextSelection.create(tr.doc, safePos + 1 + nodeAfter.content.size));
   }
 
-  if (isCursorTextblock($pos.nodeBefore)) {
-    return tr.setSelection(Selection.near($pos, -1));
-  }
-
-  const nodeAfter = $pos.nodeAfter;
   if (isHorizontalRule(nodeAfter)) {
     return tr.setSelection(NodeSelection.create(tr.doc, safePos));
   }
 
-  const nodeBefore = $pos.nodeBefore;
   if (isHorizontalRule(nodeBefore)) {
     return tr.setSelection(NodeSelection.create(tr.doc, safePos - nodeBefore.nodeSize));
   }
 
   const nextSelection = findCursorTextSelectionFrom($pos, 1);
-  if (nextSelection) {
-    return tr.setSelection(nextSelection);
+  if (nextSelection instanceof TextSelection) {
+    return setTextSelectionAtBlockTail(tr, nextSelection);
+  }
+
+  if (isCursorTextblock(nodeBefore)) {
+    return tr.setSelection(Selection.near($pos, -1));
   }
 
   const previousSelection = findCursorTextSelectionFrom($pos, -1);
   if (previousSelection) {
-    return tr.setSelection(previousSelection);
+    return setTextSelectionAtBlockTail(tr, previousSelection);
   }
 
   if (paragraphType) {
@@ -117,7 +109,7 @@ export function deleteSelectedBlocks(
   }
 
   const targetPos = Math.max(0, Math.min(anchorHint, tr.doc.content.size));
-  tr = setSelectionAfterBlockDeletion(tr, targetPos, anchorHint > 0);
+  tr = setSelectionAfterBlockDeletion(tr, targetPos);
   tr = applyClearSelectionMeta(tr);
   view.dispatch(tr.scrollIntoView());
   view.focus();
