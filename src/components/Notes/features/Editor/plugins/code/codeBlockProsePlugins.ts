@@ -2,8 +2,10 @@ import { $prose } from '@milkdown/kit/utils';
 import { type Node } from '@milkdown/kit/prose/model';
 import { Plugin } from '@milkdown/kit/prose/state';
 import { type EditorView } from '@milkdown/kit/prose/view';
-import { LazyCodeBlockNodeView } from './LazyCodeBlockNodeView';
+import { CodeBlockNodeView } from './CodeBlockNodeView';
 import { moveSelectionAfterNode } from './codeBlockSelectionUtils';
+
+const EAGER_INITIAL_CODE_BLOCK_COUNT = 3;
 
 export function findCodeBlockContext(state: EditorView['state']) {
   const { $from } = state.selection;
@@ -36,11 +38,28 @@ export function createCollapsedCodeBlockSelectionGuardTransaction(
 }
 
 export const codeBlockNodeViewPlugin = $prose(() => {
+  let currentDoc: Node | null = null;
+  let eagerCodeBlocksRemaining = EAGER_INITIAL_CODE_BLOCK_COUNT;
+
   return new Plugin({
     props: {
       nodeViews: {
-        code_block: (node: Node, view: EditorView, getPos: () => number | undefined) =>
-          new LazyCodeBlockNodeView(node, view, getPos),
+        code_block: (node: Node, view: EditorView, getPos: () => number | undefined) => {
+          if (currentDoc !== view.state.doc) {
+            currentDoc = view.state.doc;
+            eagerCodeBlocksRemaining = EAGER_INITIAL_CODE_BLOCK_COUNT;
+          }
+
+          const shouldInitializeEagerly = eagerCodeBlocksRemaining > 0;
+          if (shouldInitializeEagerly) {
+            eagerCodeBlocksRemaining -= 1;
+          }
+
+          const nodeView = new CodeBlockNodeView(node, view, getPos, {
+            lazyCodeMirror: !shouldInitializeEagerly,
+          });
+          return nodeView;
+        },
       },
     },
   });

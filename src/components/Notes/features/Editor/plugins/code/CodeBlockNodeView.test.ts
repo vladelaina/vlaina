@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { useUnifiedStore } from '@/stores/unified/useUnifiedStore';
 import { CodeBlockNodeView } from './CodeBlockNodeView';
 
 const renderMock = vi.fn();
@@ -89,11 +90,34 @@ function syncProseMirrorSelection(nodeView: CodeBlockNodeView) {
   (nodeView as unknown as { syncProseMirrorSelection: () => void }).syncProseMirrorSelection();
 }
 
+function setGlobalLineNumbers(showLineNumbers: boolean) {
+  useUnifiedStore.setState((state) => ({
+    data: {
+      ...state.data,
+      settings: {
+        ...state.data.settings,
+        markdown: {
+          ...state.data.settings.markdown,
+          codeBlock: {
+            ...state.data.settings.markdown.codeBlock,
+            showLineNumbers,
+          },
+        },
+      },
+    },
+  }));
+}
+
 describe('CodeBlockNodeView', () => {
   beforeEach(() => {
     renderMock.mockClear();
     unmountMock.mockClear();
     document.body.innerHTML = '';
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    setGlobalLineNumbers(false);
   });
 
   it('keeps header controls non-editable and does not expose a ProseMirror contentDOM', () => {
@@ -102,6 +126,61 @@ describe('CodeBlockNodeView', () => {
     expect(nodeView.headerDOM.contentEditable).toBe('false');
     expect(nodeView.dom.contentEditable).not.toBe('false');
     expect(nodeView.contentDOM).toBeUndefined();
+  });
+
+  it('keeps lazy collapsed code blocks hidden before CodeMirror initializes', () => {
+    class TestIntersectionObserver {
+      observe = vi.fn();
+      disconnect = vi.fn();
+      unobserve = vi.fn();
+      takeRecords = vi.fn(() => []);
+      root = null;
+      rootMargin = '0px';
+      thresholds = [];
+    }
+    vi.stubGlobal('IntersectionObserver', TestIntersectionObserver);
+
+    const nodeView = new CodeBlockNodeView(
+      createMockNode(true),
+      createMockView(),
+      () => 1,
+      { lazyCodeMirror: true },
+    );
+    const editor = nodeView.dom.querySelector<HTMLElement>('.code-block-editable');
+
+    expect(nodeView.dom.dataset.collapsed).toBe('true');
+    expect(editor?.style.display).toBe('none');
+    expect(editor?.getAttribute('aria-hidden')).toBe('true');
+    expect(getCodeMirror(nodeView)).toBeNull();
+
+    nodeView.destroy();
+  });
+
+  it('renders lazy line number placeholders before CodeMirror initializes', () => {
+    setGlobalLineNumbers(true);
+    class TestIntersectionObserver {
+      observe = vi.fn();
+      disconnect = vi.fn();
+      unobserve = vi.fn();
+      takeRecords = vi.fn(() => []);
+      root = null;
+      rootMargin = '0px';
+      thresholds = [];
+    }
+    vi.stubGlobal('IntersectionObserver', TestIntersectionObserver);
+
+    const nodeView = new CodeBlockNodeView(
+      createMockNodeWithText('one\ntwo\nthree'),
+      createMockView(),
+      () => 1,
+      { lazyCodeMirror: true },
+    );
+
+    expect(nodeView.dom.querySelector('.code-block-lazy-preview')?.textContent).toBe('one\ntwo\nthree');
+    expect(nodeView.dom.querySelector('.code-block-lazy-line-numbers')?.textContent).toBe('1\n2\n3');
+    expect(getCodeMirror(nodeView)).toBeNull();
+
+    nodeView.destroy();
   });
 
   it('does not ignore selection mutation', () => {
