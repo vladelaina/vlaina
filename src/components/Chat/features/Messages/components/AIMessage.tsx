@@ -134,7 +134,7 @@ export function AIMessage({
   }, []);
 
   return (
-    <div className="w-full pl-[15px]">
+    <div className="w-full pl-[15px]" data-chat-selection-surface="true">
         <div className="[&>*:last-child]:mb-0">
             <WebSearchStatusBlock statuses={webSearchStatuses} />
             <MarkdownRenderer

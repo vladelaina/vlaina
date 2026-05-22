@@ -441,6 +441,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
           <div
             ref={markdownSurfaceRef}
             data-chat-selection-surface="true"
+            data-chat-selection-start="true"
             data-chat-markdown-live={shouldAnimateStream ? 'true' : undefined}
             className={[
               'vlaina-markdown-surface max-w-full break-words',

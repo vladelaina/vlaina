@@ -2,14 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "@/components/ui/icons";
 import { focusComposerInput, insertTextIntoComposer } from "@/lib/ui/composerFocusRegistry";
-import { normalizeSelectedTextForComposer } from "@/lib/ui/normalizeSelectedTextForComposer";
 import { cn, iconButtonStyles } from "@/lib/utils";
 import {
   canStartChatSelection,
   computeStateFromSelection,
   createSelectionSnapshot,
+  getSelectionTextForComposer,
   getStateSignature,
+  isInsideChatScrollable,
   isInsideSelectionSurface,
+  isInsideMessageItem,
+  isInsideSelectionExcluded,
   isSameRange,
   isSelectionFullyInsideChatMessages,
   restoreSelectionSnapshot,
@@ -29,6 +32,7 @@ export function SelectionInsertButton() {
   const [mounted, setMounted] = useState(false);
   const isSelectingFromChatRef = useRef(false);
   const isPointerInsideSelectionSurfaceRef = useRef(true);
+  const isPointerInsideMessageItemRef = useRef(true);
   const isSelectionFrozenRef = useRef(false);
   const lastValidSelectionRef = useRef<LastValidSelectionSnapshot | null>(null);
   const isRestoringRangeRef = useRef(false);
@@ -52,7 +56,7 @@ export function SelectionInsertButton() {
       const range = selection.getRangeAt(0);
       const isRangeInsideChat = isSelectionFullyInsideChatMessages(selection, range);
       if (isRangeInsideChat && isPointerInsideSelectionSurfaceRef.current) {
-        const normalizedText = normalizeSelectedTextForComposer(selection.toString());
+        const normalizedText = getSelectionTextForComposer(selection, range);
         if (!normalizedText) {
           return false;
         }
@@ -62,7 +66,7 @@ export function SelectionInsertButton() {
       if (!lastValidSelectionRef.current) {
         return false;
       }
-      const currentText = normalizeSelectedTextForComposer(selection.toString());
+      const currentText = getSelectionTextForComposer(selection, range);
       if (!force && currentText && currentText === lastValidSelectionRef.current.text) {
         return false;
       }
@@ -92,6 +96,7 @@ export function SelectionInsertButton() {
     const resetSelectionInteractionState = () => {
       isSelectingFromChatRef.current = false;
       isPointerInsideSelectionSurfaceRef.current = true;
+      isPointerInsideMessageItemRef.current = true;
       isSelectionFrozenRef.current = false;
       lastValidSelectionRef.current = null;
       stopOutsideClamp();
@@ -128,6 +133,16 @@ export function SelectionInsertButton() {
       }
       const target = event.target;
       isSelectingFromChatRef.current = target instanceof Element && canStartChatSelection(target);
+      if (
+        !isSelectingFromChatRef.current &&
+        target instanceof Element &&
+        isInsideChatScrollable(target) &&
+        !isInsideSelectionExcluded(target)
+      ) {
+        window.getSelection()?.removeAllRanges();
+        lastStateSignatureRef.current = "";
+        setState(null);
+      }
       if (isSelectingFromChatRef.current && target instanceof Element) {
         dispatchChatSelectionStreamFreeze({
           button: event.button,
@@ -139,6 +154,8 @@ export function SelectionInsertButton() {
       }
       isPointerInsideSelectionSurfaceRef.current =
         target instanceof Element && isInsideSelectionSurface(target);
+      isPointerInsideMessageItemRef.current =
+        target instanceof Element && isInsideMessageItem(target);
       isSelectionFrozenRef.current = false;
       lastValidSelectionRef.current = null;
       stopOutsideClamp();
@@ -152,9 +169,13 @@ export function SelectionInsertButton() {
       const target = event.target;
       isPointerInsideSelectionSurfaceRef.current =
         target instanceof Element && isInsideSelectionSurface(target);
+      isPointerInsideMessageItemRef.current =
+        target instanceof Element && isInsideMessageItem(target);
+      const pointerInsideSelectionBoundary =
+        isPointerInsideSelectionSurfaceRef.current || isPointerInsideMessageItemRef.current;
       const decision = resolveOutsideMoveDecision({
         isSelectingFromChat: isSelectingFromChatRef.current,
-        pointerInsideSelectionSurface: isPointerInsideSelectionSurfaceRef.current,
+        pointerInsideSelectionSurface: pointerInsideSelectionBoundary,
         isSelectionFrozen: isSelectionFrozenRef.current,
       });
       if (decision.nextFrozen !== isSelectionFrozenRef.current) {
@@ -176,14 +197,18 @@ export function SelectionInsertButton() {
     };
 
     const handleSelectStart = (event: Event) => {
-      if (!isSelectingFromChatRef.current || isPointerInsideSelectionSurfaceRef.current) {
+      if (
+        !isSelectingFromChatRef.current ||
+        isPointerInsideSelectionSurfaceRef.current ||
+        isPointerInsideMessageItemRef.current
+      ) {
         return;
       }
       event.preventDefault();
     };
 
     const handleMouseUp = () => {
-      if (isSelectingFromChatRef.current) {
+      if (isSelectingFromChatRef.current && !isPointerInsideMessageItemRef.current) {
         restoreLastValidSelection({ force: true });
       }
       stopMouseUpRaf();
@@ -219,10 +244,14 @@ export function SelectionInsertButton() {
       }
 
       if (isSelectingFromChatRef.current) {
-        if (!isPointerInsideSelectionSurfaceRef.current) {
+        const pointerInsideSelectionBoundary =
+          isPointerInsideSelectionSurfaceRef.current || isPointerInsideMessageItemRef.current;
+        if (isPointerInsideSelectionSurfaceRef.current) {
+          restoreLastValidSelection();
+        } else if (!pointerInsideSelectionBoundary) {
+          restoreLastValidSelection({ force: true });
           return;
         }
-        restoreLastValidSelection();
       }
 
       const nextState = computeStateFromSelection();
@@ -270,44 +299,46 @@ export function SelectionInsertButton() {
     return state.placeBelow ? "-translate-x-1/2" : "-translate-x-1/2 -translate-y-full";
   }, [state]);
 
-  if (!mounted || !state || typeof document === "undefined") {
+  if (!mounted || typeof document === "undefined") {
     return null;
   }
 
   return createPortal(
     <div className="pointer-events-none fixed inset-0 z-[115]">
-      <button
-        type="button"
-        aria-label={t('chat.insertSelection')}
-        data-no-focus-input="true"
-        className={cn(
-          "pointer-events-auto absolute h-8 w-8 rounded-full border border-black/10 bg-white shadow-md dark:border-white/10 dark:bg-zinc-900",
-          "flex items-center justify-center",
-          transformClass,
-          iconButtonStyles
-        )}
-        style={{ left: `${state.x}px`, top: `${state.y}px` }}
-        onMouseDown={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-        }}
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          const inserted = insertTextIntoComposer(state.text);
-          if (!inserted) {
-            return;
-          }
-          requestAnimationFrame(() => {
-            focusComposerInput();
-          });
-          window.getSelection()?.removeAllRanges();
-          lastStateSignatureRef.current = "";
-          setState(null);
-        }}
-      >
-        <Icon name="common.quote" size="sm" />
-      </button>
+      {state && (
+        <button
+          type="button"
+          aria-label={t('chat.insertSelection')}
+          data-no-focus-input="true"
+          className={cn(
+            "pointer-events-auto absolute h-8 w-8 rounded-full border border-black/10 bg-white shadow-md dark:border-white/10 dark:bg-zinc-900",
+            "flex items-center justify-center",
+            transformClass,
+            iconButtonStyles
+          )}
+          style={{ left: `${state.x}px`, top: `${state.y}px` }}
+          onMouseDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+          }}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const inserted = insertTextIntoComposer(state.text);
+            if (!inserted) {
+              return;
+            }
+            requestAnimationFrame(() => {
+              focusComposerInput();
+            });
+            window.getSelection()?.removeAllRanges();
+            lastStateSignatureRef.current = "";
+            setState(null);
+          }}
+        >
+          <Icon name="common.quote" size="sm" />
+        </button>
+      )}
     </div>,
     document.body
   );

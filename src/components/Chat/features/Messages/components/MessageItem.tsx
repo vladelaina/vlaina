@@ -43,8 +43,8 @@ function MessageItemInner({
       data-message-item="true"
       data-role={msg.role}
       className={cn(
-        "flex w-full group",
-        isUser ? "justify-end select-none" : "justify-start select-text"
+        "flex w-full group select-none",
+        isUser ? "justify-end" : "justify-start"
       )}
     >
       <div 

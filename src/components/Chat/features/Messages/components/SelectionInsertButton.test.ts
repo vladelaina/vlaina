@@ -4,8 +4,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { SelectionInsertButton } from "./SelectionInsertButton";
 import {
   canStartChatSelection,
+  getSelectionTextForComposer,
   isInsideAssistantMessageItem,
   isInsideSelectionExcluded,
+  isInsideSelectionStartSurface,
   isInsideSelectionSurface,
   resolveOutsideMoveDecision,
 } from "./chatSelectionBehavior";
@@ -59,7 +61,7 @@ describe("SelectionInsertButton selection lock", () => {
     container.innerHTML = `
       <div data-chat-scrollable="true">
         <div data-message-item="true" data-role="assistant">
-          <div data-testid="assistant-body" data-chat-selection-surface="true">Answer</div>
+          <div data-testid="assistant-body" data-chat-selection-surface="true" data-chat-selection-start="true">Answer</div>
         </div>
         <div data-testid="gap"></div>
       </div>
@@ -84,7 +86,7 @@ describe("SelectionInsertButton selection lock", () => {
     container.innerHTML = `
       <div data-chat-scrollable="true">
         <div data-message-item="true" data-role="assistant">
-          <div data-testid="assistant-body" data-chat-selection-surface="true">Answer</div>
+          <div data-testid="assistant-body" data-chat-selection-surface="true" data-chat-selection-start="true">Answer</div>
         </div>
         <div data-testid="gap"></div>
       </div>
@@ -103,18 +105,116 @@ describe("SelectionInsertButton selection lock", () => {
     unmount();
     expect(document.body).not.toHaveAttribute("data-chat-selection-lock");
   });
+
+  it("does not lock selection while dragging over blank space inside a message row", () => {
+    const { unmount } = render(React.createElement(SelectionInsertButton));
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <div data-chat-scrollable="true">
+        <div data-testid="assistant-row" data-message-item="true" data-role="assistant">
+          <div data-testid="assistant-body" data-chat-selection-surface="true" data-chat-selection-start="true">Answer</div>
+        </div>
+        <div data-testid="gap"></div>
+      </div>
+    `;
+    document.body.appendChild(container);
+
+    const assistantBody = container.querySelector('[data-testid="assistant-body"]')!;
+    const assistantRow = container.querySelector('[data-testid="assistant-row"]')!;
+
+    fireEvent.mouseDown(assistantBody, { button: 0 });
+    fireEvent.mouseMove(assistantRow);
+
+    expect(document.body).not.toHaveAttribute("data-chat-selection-lock");
+
+    container.remove();
+    unmount();
+  });
+
+  it("clears the current text selection when clicking blank chat space", () => {
+    const { unmount } = render(React.createElement(SelectionInsertButton));
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <div data-chat-scrollable="true">
+        <div data-message-item="true" data-role="assistant">
+          <div data-testid="assistant-body" data-chat-selection-surface="true" data-chat-selection-start="true">Answer</div>
+        </div>
+        <div data-testid="gap"></div>
+      </div>
+    `;
+    document.body.appendChild(container);
+
+    const assistantBody = container.querySelector('[data-testid="assistant-body"]')!;
+    const gap = container.querySelector('[data-testid="gap"]')!;
+    const selection = window.getSelection()!;
+    const range = document.createRange();
+    range.selectNodeContents(assistantBody);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    expect(selection.toString()).toBe("Answer");
+
+    fireEvent.mouseDown(gap, { button: 0 });
+
+    expect(selection.rangeCount).toBe(0);
+
+    container.remove();
+    unmount();
+  });
+
+  it("restores the last valid message text selection when the range expands into a message gap", () => {
+    const { unmount } = render(React.createElement(SelectionInsertButton));
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <div data-chat-scrollable="true">
+        <div data-message-item="true" data-role="assistant">
+          <div data-testid="assistant-body" data-chat-selection-surface="true" data-chat-selection-start="true">Answer</div>
+        </div>
+        <div data-testid="gap">gap text that should not stay selected</div>
+        <div data-message-item="true" data-role="user">
+          <div data-testid="user-bubble" data-chat-selection-surface="true">Question</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(container);
+
+    const assistantBody = container.querySelector('[data-testid="assistant-body"]')!;
+    const gap = container.querySelector('[data-testid="gap"]')!;
+    const scrollable = container.querySelector('[data-chat-scrollable="true"]')!;
+    const selection = window.getSelection()!;
+    const validRange = document.createRange();
+    validRange.selectNodeContents(assistantBody);
+    const invalidRange = document.createRange();
+    invalidRange.selectNodeContents(scrollable);
+
+    fireEvent.mouseDown(assistantBody, { button: 0 });
+    selection.removeAllRanges();
+    selection.addRange(validRange);
+    fireEvent(document, new Event("selectionchange"));
+    expect(selection.toString()).toBe("Answer");
+
+    fireEvent.mouseMove(gap);
+    selection.removeAllRanges();
+    selection.addRange(invalidRange);
+    fireEvent(document, new Event("selectionchange"));
+
+    expect(selection.toString()).toBe("Answer");
+
+    selection.removeAllRanges();
+    container.remove();
+    unmount();
+  });
 });
 
 describe("chat selection surfaces", () => {
-  it("starts only from assistant message content surfaces", () => {
+  it("starts from message content surfaces", () => {
     const container = document.createElement("div");
     container.innerHTML = `
       <div data-message-item="true" data-role="assistant">
         <div data-testid="assistant-title" data-chat-selection-excluded="true">Reasoning</div>
-        <div data-testid="assistant-body" data-chat-selection-surface="true">Answer</div>
+        <div data-testid="assistant-body" data-chat-selection-surface="true" data-chat-selection-start="true">Answer</div>
       </div>
       <div data-message-item="true" data-role="user">
-        <div data-testid="user-bubble" data-chat-selection-surface="true">Question</div>
+          <div data-testid="user-bubble" data-chat-selection-surface="true" data-chat-selection-start="true">Question</div>
       </div>
     `;
     document.body.appendChild(container);
@@ -125,7 +225,7 @@ describe("chat selection surfaces", () => {
 
     expect(canStartChatSelection(assistantBody)).toBe(true);
     expect(canStartChatSelection(assistantTitle)).toBe(false);
-    expect(canStartChatSelection(userBubble)).toBe(false);
+    expect(canStartChatSelection(userBubble)).toBe(true);
     expect(isInsideSelectionExcluded(assistantTitle)).toBe(true);
 
     container.remove();
@@ -135,10 +235,10 @@ describe("chat selection surfaces", () => {
     const container = document.createElement("div");
     container.innerHTML = `
       <div data-message-item="true" data-role="assistant">
-        <div data-testid="assistant-body" data-chat-selection-surface="true">Answer</div>
+        <div data-testid="assistant-body" data-chat-selection-surface="true" data-chat-selection-start="true">Answer</div>
       </div>
       <div data-message-item="true" data-role="user">
-        <div data-testid="user-bubble" data-chat-selection-surface="true">Question</div>
+        <div data-testid="user-bubble" data-chat-selection-surface="true" data-chat-selection-start="true">Question</div>
       </div>
       <div data-testid="gap"></div>
     `;
@@ -150,6 +250,7 @@ describe("chat selection surfaces", () => {
 
     expect(isInsideAssistantMessageItem(assistantBody)).toBe(true);
     expect(isInsideSelectionSurface(assistantBody)).toBe(true);
+    expect(isInsideSelectionStartSurface(assistantBody)).toBe(true);
     expect(isInsideSelectionSurface(userBubble)).toBe(true);
     expect(isInsideSelectionSurface(gap)).toBe(false);
 
@@ -160,7 +261,7 @@ describe("chat selection surfaces", () => {
     const container = document.createElement("div");
     container.innerHTML = `
       <div data-message-item="true" data-role="assistant">
-        <div data-chat-selection-surface="true">
+        <div data-chat-selection-surface="true" data-chat-selection-start="true">
           <p data-testid="assistant-text">Answer</p>
           <button data-testid="copy-button">Copy</button>
         </div>
@@ -176,6 +277,87 @@ describe("chat selection surfaces", () => {
     expect(isInsideSelectionExcluded(copyButton)).toBe(true);
     expect(canStartChatSelection(copyButton)).toBe(false);
 
+    container.remove();
+  });
+
+  it("does not start a chat selection from widened assistant row padding", () => {
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <div data-message-item="true" data-role="assistant">
+        <div data-testid="assistant-wide-surface" data-chat-selection-surface="true">
+          <div data-testid="assistant-body" data-chat-selection-surface="true" data-chat-selection-start="true">Answer</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(container);
+
+    const wideSurface = container.querySelector('[data-testid="assistant-wide-surface"]');
+    const assistantBody = container.querySelector('[data-testid="assistant-body"]');
+
+    expect(isInsideSelectionSurface(wideSurface)).toBe(true);
+    expect(isInsideSelectionStartSurface(wideSurface)).toBe(false);
+    expect(canStartChatSelection(wideSurface)).toBe(false);
+    expect(canStartChatSelection(assistantBody)).toBe(true);
+
+    container.remove();
+  });
+
+  it("does not treat collapsed thinking inside a widened assistant surface as selectable", () => {
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <div data-message-item="true" data-role="assistant">
+        <div data-testid="assistant-wide-surface" data-chat-selection-surface="true">
+          <div data-testid="collapsed-thinking" data-chat-thinking-collapsed="true">
+            <div data-testid="thinking-text">Hidden reasoning</div>
+          </div>
+          <div data-testid="assistant-body" data-chat-selection-surface="true" data-chat-selection-start="true">Answer</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(container);
+
+    const thinkingText = container.querySelector('[data-testid="thinking-text"]');
+    const assistantBody = container.querySelector('[data-testid="assistant-body"]');
+
+    expect(isInsideSelectionSurface(thinkingText)).toBe(false);
+    expect(isInsideSelectionStartSurface(thinkingText)).toBe(false);
+    expect(canStartChatSelection(thinkingText)).toBe(false);
+    expect(canStartChatSelection(assistantBody)).toBe(true);
+
+    container.remove();
+  });
+
+  it("filters collapsed thinking and controls out of the composer insertion text", () => {
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <div data-chat-scrollable="true">
+        <div data-message-item="true" data-role="assistant">
+          <div data-chat-selection-surface="true">
+            <div data-chat-thinking-collapsed="true">
+              <p>Hidden reasoning</p>
+            </div>
+            <div data-chat-selection-excluded="true">Toolbar label</div>
+            <div data-chat-selection-surface="true" data-chat-selection-start="true">
+              <p>Visible answer</p>
+              <button>Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(container);
+
+    const scrollable = container.querySelector('[data-chat-scrollable="true"]')!;
+    const selection = window.getSelection()!;
+    const range = document.createRange();
+    range.selectNodeContents(scrollable);
+    selection.removeAllRanges();
+    selection.addRange(range);
+
+    expect(selection.toString()).toContain("Hidden reasoning");
+    expect(getSelectionTextForComposer(selection, range)).toBe("Visible answer");
+
+    selection.removeAllRanges();
     container.remove();
   });
 });
