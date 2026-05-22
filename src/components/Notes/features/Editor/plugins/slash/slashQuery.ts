@@ -128,16 +128,27 @@ function scoreSlashItem(query: string, item: SlashMenuItem) {
   return bestScore;
 }
 
+function adjustSlashItemScore(query: string, item: SlashMenuItem, score: number) {
+  if (item.id === 'frontmatter' && query.length <= 2 && query !== 'fm') {
+    return score + 10;
+  }
+
+  return score;
+}
+
 export function filterSlashItems(query: string, items: readonly SlashMenuItem[] = getSlashMenuItems()) {
   const normalizedQuery = normalize(query);
   if (!normalizedQuery) return [...items];
 
   return items
-    .map((item, index) => ({
-      item,
-      index,
-      score: scoreSlashItem(normalizedQuery, item),
-    }))
+    .map((item, index) => {
+      const score = scoreSlashItem(normalizedQuery, item);
+      return {
+        item,
+        index,
+        score: score === null ? null : adjustSlashItemScore(normalizedQuery, item, score),
+      };
+    })
     .filter((entry): entry is typeof entry & { score: number } => entry.score !== null)
     .sort((a, b) => a.score - b.score || a.index - b.index)
     .map((entry) => entry.item);

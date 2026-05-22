@@ -53,4 +53,11 @@ describe('filterSlashItems', () => {
 
     expect(names.indexOf('Image')).toBeLessThan(names.indexOf('Inline Math'));
   });
+
+  it('keeps frontmatter behind other short metadata-like matches', () => {
+    const names = filterSlashItems('me').map((item) => item.name);
+
+    expect(names[0]).toBe('Mermaid Diagram');
+    expect(names.at(-1)).toBe('Frontmatter');
+  });
 });
