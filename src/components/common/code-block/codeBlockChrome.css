@@ -17,7 +17,7 @@
   display: flex;
   align-items: center;
   gap: 0.625rem;
-  color: var(--vlaina-code-syntax-muted, #7d8799);
+  color: var(--vlaina-code-syntax-muted, #6a737d);
   font-family: var(--font-mono), monospace;
   font-size: 13px;
 }
@@ -25,12 +25,12 @@
 .vlaina-code-block-language-label {
   font-family: var(--font-mono), monospace;
   font-size: 13px;
-  color: var(--vlaina-code-syntax-muted, #7d8799);
+  color: var(--vlaina-code-syntax-muted, #6a737d);
   transition: color 150ms ease;
 }
 
 button:hover .vlaina-code-block-language-label {
-  color: var(--vlaina-code-syntax-foreground, #abb2bf);
+  color: var(--vlaina-code-syntax-foreground, #24292e);
 }
 
 .vlaina-code-block-copy-button {
@@ -55,7 +55,7 @@ button:hover .vlaina-code-block-language-label {
 }
 
 .vlaina-code-block-copy-button:hover {
-  color: var(--vlaina-code-syntax-foreground, #abb2bf);
+  color: var(--vlaina-code-syntax-foreground, #24292e);
   background: rgba(0, 0, 0, 0.05);
 }
 
@@ -89,7 +89,7 @@ button:hover .vlaina-code-block-language-label {
   min-width: 2ch;
   margin: 0;
   padding: 0;
-  color: var(--vlaina-code-syntax-muted, #7d8799);
+  color: var(--vlaina-code-syntax-muted, #6a737d);
   font-family: var(--font-mono), monospace;
   font-size: 0.875rem;
   line-height: 1.625;
@@ -98,78 +98,97 @@ button:hover .vlaina-code-block-language-label {
 }
 
 .vlaina-code-block .hljs {
-  color: var(--vlaina-code-syntax-foreground, #abb2bf);
+  color: var(--vlaina-code-syntax-foreground, #24292e);
   background: transparent;
 }
 
 .vlaina-code-block .hljs-comment,
 .vlaina-code-block .hljs-quote,
 .vlaina-code-block .hljs-meta {
-  color: var(--vlaina-code-syntax-muted, #7d8799);
+  color: var(--vlaina-code-syntax-muted, #6a737d);
 }
 
 .vlaina-code-block .hljs-keyword,
 .vlaina-code-block .hljs-doctag,
 .vlaina-code-block .hljs-formula {
-  color: var(--vlaina-code-syntax-keyword, #c678dd);
+  color: var(--vlaina-code-syntax-keyword, #d73a49);
 }
 
-.vlaina-code-block .hljs-name,
-.vlaina-code-block .hljs-deletion,
-.vlaina-code-block .hljs-char,
-.vlaina-code-block .hljs-property,
-.vlaina-code-block .hljs-params,
-.vlaina-code-block .hljs-selector-tag,
-.vlaina-code-block .hljs-subst {
-  color: var(--vlaina-code-syntax-name, #e06c75);
+.vlaina-code-block .hljs-title.class_,
+.vlaina-code-block .hljs-title.class_.inherited__ {
+  color: var(--vlaina-code-syntax-name, #6f42c1);
 }
 
 .vlaina-code-block .hljs-title,
-.vlaina-code-block .hljs-title.function_,
-.vlaina-code-block .hljs-function .hljs-title {
-  color: var(--vlaina-code-syntax-function, #61afef);
+.vlaina-code-block .hljs-title.function_ {
+  color: var(--vlaina-code-syntax-function, #6f42c1);
 }
 
 .vlaina-code-block .hljs-attr,
-.vlaina-code-block .hljs-literal,
+.vlaina-code-block .hljs-attribute,
 .vlaina-code-block .hljs-variable,
-.vlaina-code-block .hljs-template-variable {
-  color: var(--vlaina-code-syntax-constant, #d19a66);
+.vlaina-code-block .hljs-literal,
+.vlaina-code-block .hljs-meta,
+.vlaina-code-block .hljs-number,
+.vlaina-code-block .hljs-selector-attr,
+.vlaina-code-block .hljs-selector-class,
+.vlaina-code-block .hljs-selector-id {
+  color: var(--vlaina-code-syntax-constant, #005cc5);
 }
 
 .vlaina-code-block .hljs-type,
-.vlaina-code-block .hljs-class,
-.vlaina-code-block .hljs-title.class_,
-.vlaina-code-block .hljs-class .hljs-title,
-.vlaina-code-block .hljs-number,
-.vlaina-code-block .hljs-selector-class,
-.vlaina-code-block .hljs-selector-attr,
-.vlaina-code-block .hljs-selector-pseudo {
-  color: var(--vlaina-code-syntax-type, #e5c07b);
+.vlaina-code-block .hljs-variable.language_ {
+  color: var(--vlaina-code-syntax-type, #d73a49);
 }
 
 .vlaina-code-block .hljs-operator,
-.vlaina-code-block .hljs-regexp,
-.vlaina-code-block .hljs-link,
-.vlaina-code-block .hljs-symbol,
-.vlaina-code-block .hljs-bullet {
-  color: var(--vlaina-code-syntax-operator, #56b6c2);
+.vlaina-code-block .hljs-property,
+.vlaina-code-block .hljs-punctuation,
+.vlaina-code-block .hljs-subst,
+.vlaina-code-block .hljs-params {
+  color: var(--vlaina-code-syntax-operator, #24292e);
 }
 
 .vlaina-code-block .hljs-string,
-.vlaina-code-block .hljs-addition,
-.vlaina-code-block .hljs-attribute,
+.vlaina-code-block .hljs-regexp,
 .vlaina-code-block .hljs-meta .hljs-string {
-  color: var(--vlaina-code-syntax-string, #98c379);
+  color: var(--vlaina-code-syntax-string, #032f62);
 }
 
-.vlaina-code-block .hljs-built_in {
-  color: var(--vlaina-code-syntax-type, #e5c07b);
+.vlaina-code-block .hljs-built_in,
+.vlaina-code-block .hljs-symbol {
+  color: var(--vlaina-code-syntax-variable, #e36209);
+}
+
+.vlaina-code-block .hljs-selector-tag,
+.vlaina-code-block .hljs-selector-pseudo,
+.vlaina-code-block .hljs-name,
+.vlaina-code-block .hljs-quote {
+  color: var(--vlaina-code-syntax-tag, #22863a);
+}
+
+.vlaina-code-block .hljs-section {
+  color: var(--vlaina-code-syntax-markup, #005cc5);
+  font-weight: 700;
+}
+
+.vlaina-code-block .hljs-bullet {
+  color: var(--vlaina-code-syntax-list, #735c0f);
+}
+
+.vlaina-code-block .hljs-addition {
+  color: var(--vlaina-code-syntax-tag, #22863a);
+  background-color: #f0fff4;
+}
+
+.vlaina-code-block .hljs-deletion {
+  color: var(--vlaina-code-syntax-invalid, #b31d28);
+  background-color: #ffeef0;
 }
 
 .vlaina-code-block .hljs-invalid,
 .vlaina-code-block .hljs-error {
-  color: var(--vlaina-code-syntax-invalid, #ffffff);
+  color: var(--vlaina-code-syntax-invalid, #b31d28);
 }
 
 .vlaina-code-block .hljs-emphasis {

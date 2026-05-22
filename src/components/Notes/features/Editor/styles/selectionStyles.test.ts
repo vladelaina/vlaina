@@ -573,7 +573,7 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('background: transparent !important;');
     expect(css).toContain('.milkdown .code-block-container .cm-content {');
     expect(css).toContain('padding: 0 !important;');
-    expect(css).toContain('color: var(--vlaina-code-syntax-foreground, #abb2bf);');
+    expect(css).toContain('color: var(--vlaina-code-syntax-foreground, #24292e);');
     expect(css).toContain('.milkdown .code-block-container .cm-line {');
     expect(css).toContain('padding: 0 1rem !important;');
     expect(css).toContain(
@@ -600,11 +600,11 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('.milkdown .ProseMirror .vlaina-block-selected .code-block-container {');
     expect(css).toContain('background: var(--vlaina-code-block-background);');
     expect(css).toContain('background-color: var(--vlaina-code-block-background);');
-    expect(css).toContain('color: var(--vlaina-code-syntax-foreground, #abb2bf);');
+    expect(css).toContain('color: var(--vlaina-code-syntax-foreground, #24292e);');
     expect(css).toContain('.milkdown .ProseMirror .vlaina-block-selected .code-block-container * {');
     expect(css).toContain('.milkdown .ProseMirror .vlaina-block-selected .code-block-container .vlaina-code-block-language,');
     expect(css).toContain('.milkdown .ProseMirror .vlaina-block-selected .code-block-container .vlaina-code-block-language-label,');
-    expect(css).toContain('color: var(--vlaina-code-syntax-muted, #7d8799);');
+    expect(css).toContain('color: var(--vlaina-code-syntax-muted, #6a737d);');
     expect(css).toContain('.milkdown .ProseMirror .vlaina-block-selected .code-block-container .cm-gutters,');
     expect(css).toContain('.milkdown .ProseMirror .vlaina-block-selected .code-block-container .cm-gutterElement,');
     expect(css).toContain('.milkdown .ProseMirror .vlaina-block-selected .code-block-container .cm-lineNumbers,');

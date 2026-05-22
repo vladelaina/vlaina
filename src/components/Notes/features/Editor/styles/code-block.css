@@ -137,7 +137,7 @@
   font-family: var(--font-mono), monospace;
   font-size: 0.875rem;
   line-height: 1.75;
-  color: var(--vlaina-code-syntax-foreground, #abb2bf);
+  color: var(--vlaina-code-syntax-foreground, #24292e);
   text-rendering: auto;
   font-kerning: none;
   font-variant-ligatures: none;
@@ -157,7 +157,7 @@
   z-index: 10;
   min-width: 2.5ch;
   padding: 0 0.5rem 0 1rem;
-  color: var(--vlaina-code-syntax-muted, #7d8799);
+  color: var(--vlaina-code-syntax-muted, #6a737d);
   text-align: right;
   user-select: none;
   background: var(--vlaina-code-block-background);
@@ -169,12 +169,12 @@
 
 .milkdown .code-block-container .cm-content {
   padding: 0 !important;
-  color: var(--vlaina-code-syntax-foreground, #abb2bf);
+  color: var(--vlaina-code-syntax-foreground, #24292e);
 }
 
 .milkdown .code-block-container .cm-line {
   padding: 0 1rem !important;
-  color: var(--vlaina-code-syntax-foreground, #abb2bf);
+  color: var(--vlaina-code-syntax-foreground, #24292e);
 }
 
 .milkdown .code-block-container .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
@@ -219,7 +219,7 @@
 .milkdown .ProseMirror .vlaina-block-selected .code-block-container {
   background: var(--vlaina-code-block-background);
   background-color: var(--vlaina-code-block-background);
-  color: var(--vlaina-code-syntax-foreground, #abb2bf);
+  color: var(--vlaina-code-syntax-foreground, #24292e);
   transition: none;
 }
 
@@ -231,7 +231,7 @@
 .milkdown .ProseMirror .vlaina-block-selected .code-block-container .vlaina-code-block-language,
 .milkdown .ProseMirror .vlaina-block-selected .code-block-container .vlaina-code-block-language-label,
 .milkdown .ProseMirror .vlaina-block-selected .code-block-container .vlaina-code-block-copy-button {
-  color: var(--vlaina-code-syntax-muted, #7d8799);
+  color: var(--vlaina-code-syntax-muted, #6a737d);
   -webkit-text-fill-color: currentColor;
 }
 

@@ -1,16 +1,15 @@
 import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
-import { oneDarkTheme } from '@codemirror/theme-one-dark';
 import { EditorView as CodeMirror } from '@codemirror/view';
 import { vlainaCodeBlockHighlightStyle } from './codeBlockHighlightStyle';
 
 export function createCodeBlockEditorTheme() {
   return [
-    oneDarkTheme,
     syntaxHighlighting(vlainaCodeBlockHighlightStyle),
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     CodeMirror.theme({
       '&': {
         backgroundColor: 'var(--vlaina-code-block-background, #f5f5f5)',
+        color: 'var(--vlaina-code-syntax-foreground, #24292e)',
         fontSize: '0.875rem',
       },
       '.cm-editor': {
@@ -45,6 +44,7 @@ export function createCodeBlockEditorTheme() {
         left: 0,
         zIndex: 10,
         paddingLeft: '0.5rem',
+        color: 'var(--vlaina-code-syntax-muted, #6a737d)',
         backgroundColor: 'var(--vlaina-code-block-background, #f5f5f5) !important',
         borderRight: 'none !important',
         border: 'none !important',
@@ -71,6 +71,6 @@ export function createCodeBlockEditorTheme() {
         borderLeftStyle: 'solid',
         borderLeftWidth: 'var(--vlaina-editor-caret-width, 1px)',
       },
-    }),
+    }, { dark: false }),
   ];
 }
