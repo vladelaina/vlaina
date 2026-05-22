@@ -13,7 +13,7 @@ import {
   isTableBoundaryBlankLine,
   isThematicBreakBoundaryBlankLine,
 } from './markdownBlankLineBoundaries';
-import { escapePlainTextTrailingBackslashesForEditor } from './plainTextBackslashHardBreaks';
+import { escapeParagraphTrailingBackslashesForEditor } from './plainTextBackslashHardBreaks';
 
 const BR_ONLY_PATTERN = /^<br\s*\/?>$/i;
 const BLOCKQUOTE_BR_ONLY_PATTERN = /^(\s*(?:>\s*)+)<br\s*\/?>$/i;
@@ -28,7 +28,7 @@ const MARKDOWN_HEADING_LINE_PATTERN = /^\s{0,3}#{1,6}\s+/;
 export function preserveMarkdownBlankLinesForEditor(text: string): string {
   if (text.length === 0) return text;
 
-  const escapedText = escapePlainTextTrailingBackslashesForEditor(text);
+  const escapedText = escapeParagraphTrailingBackslashesForEditor(text);
   const collapsedText = collapseExcessiveBlankLineRunsForEditor(escapedText);
   const preserved = mapMarkdownOutsideProtectedBlocks(collapsedText, (line, index, lines) => {
     const blockquoteBrMatch = BLOCKQUOTE_BR_ONLY_PATTERN.exec(line);
