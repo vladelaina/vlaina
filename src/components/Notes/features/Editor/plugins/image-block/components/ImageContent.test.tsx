@@ -1,10 +1,18 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { SYSTEM_LANGUAGE_PREFERENCE } from '@/lib/i18n';
+import { useUIStore } from '@/stores/uiSlice';
 import { ImageContent } from './ImageContent';
 
 vi.mock('./ImageCropper', () => ({
   ImageCropper: () => <div data-testid="image-cropper" />,
 }));
+
+afterEach(() => {
+  act(() => {
+    useUIStore.getState().setLanguagePreference(SYSTEM_LANGUAGE_PREFERENCE);
+  });
+});
 
 function renderImageContent(overrides: Partial<Parameters<typeof ImageContent>[0]> = {}) {
   const props: Parameters<typeof ImageContent>[0] = {
@@ -49,14 +57,25 @@ describe('ImageContent', () => {
     expect(props.onMediaLoaded).toHaveBeenCalledTimes(1);
   });
 
-  it('shows the not found state when a plain remote image fails to load', () => {
+  it('shows the localized not found state when a plain remote image fails to load', () => {
+    act(() => {
+      useUIStore.getState().setLanguagePreference('zh-CN');
+    });
     const { container } = renderImageContent();
 
     const image = container.querySelector('img');
     expect(image).not.toBeNull();
-    fireEvent.error(image!);
+    act(() => {
+      fireEvent.error(image!);
+    });
 
-    expect(screen.getByText('Image not found')).toBeInTheDocument();
+    const message = screen.getByText('未找到图片');
+    const placeholder = message.parentElement;
+
+    expect(message).toBeInTheDocument();
+    expect(placeholder).not.toHaveClass('bg-gray-50');
+    expect(placeholder).not.toHaveClass('dark:bg-zinc-900');
+    expect(placeholder).toHaveClass('border-dashed');
   });
 
   it('keeps using the cropper for local resolved images', () => {

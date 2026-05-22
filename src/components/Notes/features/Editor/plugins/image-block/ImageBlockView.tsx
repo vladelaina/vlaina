@@ -39,6 +39,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
     const latestStateRef = useRef<CropperViewportState | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [lockedEditFrame, setLockedEditFrame] = useState<LockedEditFrame | null>(null);
+    const [mediaLoadError, setMediaLoadError] = useState(false);
     const isBlockDragging = useBlockDragState();
     const isNearViewport = useNearViewport(containerRef);
 
@@ -174,6 +175,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
             marginLeft: `${lockedEditFrame.left}px`,
         }
         : containerStyle;
+    const hasLoadError = !!loadError || mediaLoadError;
 
     const handleCaptionSubmit = useCallback(async () => {
         setIsEditingCaption(false);
@@ -288,7 +290,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                 >
                     <ImageContent
                         isLoading={isLoading}
-                        loadError={!!loadError}
+                        loadError={hasLoadError}
                         resolvedSrc={resolvedSrc}
                         isRemoteImageSource={isRemoteImageSource}
                         isDeferred={isImageLoadDeferred}
@@ -304,6 +306,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                         }}
                         onResizeStart={handleResizeStart}
                         onMediaLoaded={onMediaLoaded}
+                        onMediaErrorChange={setMediaLoadError}
                         onStateChange={handleStateChange}
                     />
 
@@ -314,7 +317,7 @@ export const ImageBlockView = ({ node, view, getPos }: ImageBlockProps) => {
                         isHovered={isHovered && !isBlockDragging}
                         isActive={isActive}
                         isDragging={isDragging || isBlockDragging}
-                        loadError={!!loadError}
+                        loadError={hasLoadError}
                         alignment={alignment}
                         onCaptionChange={setCaptionInput}
                         onCaptionSubmit={handleCaptionSubmit}
