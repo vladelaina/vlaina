@@ -166,6 +166,7 @@ body.vlaina-block-drag-active * {
 }
 
 .milkdown .ProseMirror li :is(
+  .code-block-container,
   .image-block-container,
   .video-block,
   [data-type='math-block'],
@@ -255,6 +256,27 @@ body.vlaina-block-drag-active * {
   background: transparent !important;
   background-color: transparent !important;
   box-shadow: none !important;
+}
+
+.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected .table-content-host,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-content-host {
+  background: var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe));
+  box-shadow:
+    calc(-1 * var(--vlaina-block-selection-bleed-x-start, 24px)) 0 0 0 var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe)),
+    var(--vlaina-block-selection-bleed-x-end, 10px) 0 0 0 var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe));
+}
+
+.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected :is(th, td),
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode :is(th, td) {
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 .milkdown .ProseMirror li :is(
@@ -431,6 +453,7 @@ body.vlaina-block-drag-active * {
 
 .milkdown .milkdown-table-block .table-scroll-track {
   display: flex;
+  align-items: flex-start;
   width: max-content;
   min-width: 100%;
 }
@@ -521,6 +544,15 @@ body.vlaina-block-drag-active * {
   outline: none;
 }
 
+.milkdown .milkdown-table-block .column-header-drag-control,
+.milkdown .milkdown-table-block .column-header-drag-control:hover,
+.milkdown .milkdown-table-block .column-header-drag-control:focus-visible,
+.milkdown .milkdown-table-block .column-header-drag-control[data-active='true'],
+.milkdown .milkdown-table-block .column-header-drag-control__grip {
+  color: var(--vlaina-text-primary, #111827) !important;
+  -webkit-text-fill-color: var(--vlaina-text-primary, #111827) !important;
+}
+
 .milkdown .milkdown-table-block .column-header-drag-control__grip {
   position: relative;
   width: 16px;
@@ -590,6 +622,11 @@ body.vlaina-block-drag-active * {
   cursor: pointer;
 }
 
+.milkdown .milkdown-table-block .column-header-drag-menu__item {
+  color: var(--crepe-color-on-background, #111827) !important;
+  -webkit-text-fill-color: var(--crepe-color-on-background, #111827) !important;
+}
+
 .milkdown .milkdown-table-block .column-header-drag-menu__item:hover {
   background: color-mix(in srgb, var(--crepe-color-primary), transparent 94%);
 }
@@ -600,7 +637,8 @@ body.vlaina-block-drag-active * {
 }
 
 .milkdown .milkdown-table-block .column-header-drag-menu__item--danger {
-  color: #c2410c;
+  color: #c2410c !important;
+  -webkit-text-fill-color: #c2410c !important;
 }
 
 .milkdown .milkdown-table-block .column-header-drag-menu__item--danger:hover {
