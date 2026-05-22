@@ -118,7 +118,7 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
         } else if (isAutolink) {
             copyText = userFacingUrl;
         } else {
-            copyText = `[${initialText}](${normalizedHref})`;
+            copyText = normalizedHref;
         }
         void writeTextToClipboard(copyText).then((didCopy) => {
             if (!didCopy) return;
