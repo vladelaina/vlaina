@@ -66,6 +66,7 @@ export function ImageBlockChrome({
                 onDownload={onDownload}
                 onDelete={onDelete}
                 isVisible={isChromeVisible}
+                hideMediaActions={loadError}
             />
         </>
     );

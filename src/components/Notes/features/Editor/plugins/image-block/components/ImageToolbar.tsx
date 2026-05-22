@@ -11,6 +11,7 @@ interface ImageToolbarProps {
     onDownload: () => void;
     onDelete: () => void;
     isVisible: boolean;
+    hideMediaActions?: boolean;
 }
 
 export const ImageToolbar: React.FC<ImageToolbarProps> = ({
@@ -20,7 +21,8 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
     onCopy,
     onDownload,
     onDelete,
-    isVisible
+    isVisible,
+    hideMediaActions = false,
 }) => {
     const [copied, setCopied] = useState(false);
     const mountedRef = React.useRef(true);
@@ -75,17 +77,21 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
                 />
             </div>
 
-            <div className="toolbar-divider" />
+            {!hideMediaActions ? (
+                <>
+                    <div className="toolbar-divider" />
 
-            <div className="flex items-center gap-0.5">
-                <ToolbarButton icon={<Icon size="md" name="editor.crop" />} onClick={onEdit} />
-                <ToolbarButton
-                    icon={copied ? <Icon size="md" name="common.check" /> : <Icon size="md" name="common.copy" />}
-                    onClick={handleCopy}
-                    success={copied}
-                />
-                <ToolbarButton icon={<Icon size="md" name="common.download" />} onClick={onDownload} />
-            </div>
+                    <div className="flex items-center gap-0.5">
+                        <ToolbarButton icon={<Icon size="md" name="editor.crop" />} onClick={onEdit} />
+                        <ToolbarButton
+                            icon={copied ? <Icon size="md" name="common.check" /> : <Icon size="md" name="common.copy" />}
+                            onClick={handleCopy}
+                            success={copied}
+                        />
+                        <ToolbarButton icon={<Icon size="md" name="common.download" />} onClick={onDownload} />
+                    </div>
+                </>
+            ) : null}
 
             <div className="toolbar-divider" />
 
