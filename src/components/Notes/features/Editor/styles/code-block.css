@@ -35,8 +35,8 @@
 .milkdown .code-block-container[data-pm-selected='true'] {
   --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg, #bedffe);
   --vlaina-block-selection-bleed-y: 4px;
-  --vlaina-block-selection-bleed-x-start: 24px;
-  --vlaina-block-selection-bleed-x-end: 10px;
+  --vlaina-block-selection-bleed-x-start: 48px;
+  --vlaina-block-selection-bleed-x-end: 48px;
   background-color: var(--vlaina-block-selection-color);
   border-radius: 1rem;
   box-shadow:
