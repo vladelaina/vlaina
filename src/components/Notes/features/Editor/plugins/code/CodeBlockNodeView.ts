@@ -35,6 +35,10 @@ import {
 } from './codeBlockNodeViewUtils';
 import { subscribeCodeBlockSelectionSync } from './codeBlockSelectionSync';
 
+type CodeBlockNodeViewOptions = {
+  lazyCodeMirror?: boolean;
+};
+
 export class CodeBlockNodeView implements NodeView {
   dom: HTMLElement;
   contentDOM?: HTMLElement;
@@ -46,6 +50,7 @@ export class CodeBlockNodeView implements NodeView {
 
   private readonly editorDOM: HTMLElement;
   private placeholderDOM: HTMLPreElement | null = null;
+  private lineNumberPlaceholderDOM: HTMLPreElement | null = null;
   private cm: CodeMirror | null = null;
   private intersectionObserver: IntersectionObserver | null = null;
   private readonly languageCompartment = new Compartment();
@@ -101,7 +106,12 @@ export class CodeBlockNodeView implements NodeView {
     return this.getOwnerDocument()?.defaultView ?? null;
   }
 
-  constructor(node: Node, view: EditorView, getPos: () => number | undefined) {
+  constructor(
+    node: Node,
+    view: EditorView,
+    getPos: () => number | undefined,
+    private readonly options: CodeBlockNodeViewOptions = {},
+  ) {
     this.node = node;
     this.view = view;
     this.getPos = getPos;
@@ -135,15 +145,27 @@ export class CodeBlockNodeView implements NodeView {
   }
 
   private shouldLazyInitializeCodeMirror() {
-    return typeof window !== 'undefined' && typeof IntersectionObserver !== 'undefined';
+    return (
+      Boolean(this.options.lazyCodeMirror) &&
+      typeof window !== 'undefined' &&
+      typeof IntersectionObserver !== 'undefined'
+    );
   }
 
   private installLazyPlaceholder() {
     this.dom.dataset.cmLazy = 'true';
+    this.editorDOM.classList.add('code-block-lazy-editable');
+
+    if (this.getLineNumberExtensions(this.node).length > 0) {
+      this.lineNumberPlaceholderDOM = this.createLineNumberPlaceholder(this.node.textContent);
+      this.editorDOM.appendChild(this.lineNumberPlaceholderDOM);
+    }
+
     this.placeholderDOM = document.createElement('pre');
     this.placeholderDOM.className = 'code-block-lazy-preview';
     this.placeholderDOM.textContent = this.node.textContent;
     this.editorDOM.appendChild(this.placeholderDOM);
+    this.syncCollapsedState();
 
     this.dom.addEventListener('mousedown', this.activateCodeMirrorFromInteraction);
     this.dom.addEventListener('focusin', this.activateCodeMirrorFromInteraction);
@@ -152,7 +174,7 @@ export class CodeBlockNodeView implements NodeView {
       if (entries.some((entry) => entry.isIntersecting)) {
         this.initializeCodeMirror();
       }
-    }, { rootMargin: '900px 0px' });
+    }, { rootMargin: '2200px 0px' });
     this.intersectionObserver.observe(this.dom);
   }
 
@@ -171,6 +193,9 @@ export class CodeBlockNodeView implements NodeView {
     this.dom.removeEventListener('focusin', this.activateCodeMirrorFromInteraction);
     this.placeholderDOM?.remove();
     this.placeholderDOM = null;
+    this.lineNumberPlaceholderDOM?.remove();
+    this.lineNumberPlaceholderDOM = null;
+    this.editorDOM.classList.remove('code-block-lazy-editable');
     delete this.dom.dataset.cmLazy;
 
     this.cm = new CodeMirror({
@@ -232,6 +257,17 @@ export class CodeBlockNodeView implements NodeView {
 
   private getLineNumberExtensions(node: Node) {
     return this.showLineNumbers && node.attrs.lineNumbers !== false ? [lineNumbers()] : [];
+  }
+
+  private createLineNumberPlaceholder(text: string) {
+    const lineNumbers = document.createElement('pre');
+    lineNumbers.className = 'code-block-lazy-line-numbers';
+    const lineCount = Math.max(1, text.split('\n').length);
+    lineNumbers.textContent = Array.from(
+      { length: lineCount },
+      (_value, index) => String(index + 1),
+    ).join('\n');
+    return lineNumbers;
   }
 
   private getLineNumbersStateKey(node: Node) {
@@ -440,6 +476,9 @@ export class CodeBlockNodeView implements NodeView {
     this.node = node;
     if (!this.cm && this.placeholderDOM) {
       this.placeholderDOM.textContent = node.textContent;
+      if (this.lineNumberPlaceholderDOM) {
+        this.lineNumberPlaceholderDOM.textContent = this.createLineNumberPlaceholder(node.textContent).textContent;
+      }
     }
     this.syncCollapsedState();
     if (this.getHeaderStateKey(node) !== this.headerStateKey) {

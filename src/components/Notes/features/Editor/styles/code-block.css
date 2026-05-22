@@ -124,6 +124,49 @@
   padding: 0.25rem 0 1rem;
 }
 
+.milkdown .code-block-container .code-block-lazy-editable {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: 0;
+}
+
+.milkdown .code-block-container .code-block-lazy-preview,
+.milkdown .code-block-container .code-block-lazy-line-numbers {
+  margin: 0;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.875rem;
+  line-height: 1.75;
+  color: var(--vlaina-code-syntax-foreground, #abb2bf);
+  text-rendering: auto;
+  font-kerning: none;
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0, "dlig" 0;
+  white-space: pre;
+}
+
+.milkdown .code-block-container .code-block-lazy-preview {
+  min-height: 1.75rem;
+  overflow-x: auto;
+  padding: 0 1rem;
+}
+
+.milkdown .code-block-container .code-block-lazy-line-numbers {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  min-width: 2.5ch;
+  padding: 0 0.5rem 0 1rem;
+  color: var(--vlaina-code-syntax-muted, #7d8799);
+  text-align: right;
+  user-select: none;
+  background: var(--vlaina-code-block-background);
+}
+
+.milkdown .code-block-container .code-block-lazy-copy-placeholder {
+  visibility: hidden;
+}
+
 .milkdown .code-block-container .cm-content {
   padding: 0 !important;
   color: var(--vlaina-code-syntax-foreground, #abb2bf);
