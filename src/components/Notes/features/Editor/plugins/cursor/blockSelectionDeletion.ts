@@ -50,7 +50,7 @@ function setSelectionAfterBlockDeletion(tr: Transaction, targetPos: number): Tra
     return tr.setSelection(TextSelection.create(tr.doc, $pos.end()));
   }
 
-  if (isCursorTextblock(nodeAfter)) {
+  if (nodeAfter && isCursorTextblock(nodeAfter)) {
     return tr.setSelection(TextSelection.create(tr.doc, safePos + 1 + nodeAfter.content.size));
   }
 

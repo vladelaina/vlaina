@@ -91,7 +91,7 @@ function findCommandOnPath(command, envPath = process.env.PATH, exists = existsS
   }
 
   for (const dirPath of envPath.split(path.delimiter)) {
-    const commandPath = path.join(dirPath, command);
+    const commandPath = path.posix.join(dirPath, command);
     if (exists(commandPath)) {
       return commandPath;
     }
