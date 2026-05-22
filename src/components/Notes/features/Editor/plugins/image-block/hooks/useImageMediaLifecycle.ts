@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import { parseImageSource } from '../utils/imageSourceFragment';
 import type { LoadedMediaSize, ImageNodeAttrs } from '../types';
 import { resolveInitialImageWidth } from '../utils/imageInitialWidth';
 
@@ -16,10 +15,9 @@ interface UseImageMediaLifecycleOptions {
 }
 
 function extractFilenameCaption(src: string): string | null {
-    const baseSrc = parseImageSource(src).baseSrc;
-    if (!baseSrc) return null;
+    if (!src) return null;
 
-    const normalizedSrc = baseSrc.replace(/\\/g, '/');
+    const normalizedSrc = src.replace(/\\/g, '/');
     const filename = normalizedSrc.substring(normalizedSrc.lastIndexOf('/') + 1);
     if (!filename) return null;
 

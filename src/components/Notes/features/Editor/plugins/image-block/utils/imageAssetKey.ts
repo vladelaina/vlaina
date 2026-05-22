@@ -1,5 +1,3 @@
-import { parseImageSource } from './imageSourceFragment';
-
 function isRemoteOrVirtualAsset(path: string): boolean {
     return (
         path.startsWith('http://') ||
@@ -16,7 +14,7 @@ export function getImageAssetKey(src: unknown): string | null {
     const trimmedSrc = src.trim();
     if (!trimmedSrc) return null;
 
-    const baseSrc = parseImageSource(trimmedSrc).baseSrc || trimmedSrc.split('#')[0];
+    const baseSrc = trimmedSrc.split('#')[0] ?? '';
     if (!baseSrc || isRemoteOrVirtualAsset(baseSrc)) {
         return null;
     }

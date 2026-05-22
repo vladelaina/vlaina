@@ -5,7 +5,6 @@ import { sanitizeFilename } from '@/lib/assets/core/naming';
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { writeDesktopBinaryFile } from '@/lib/desktop/fs';
 import { saveDialog } from '@/lib/storage/dialog';
-import { generateCropFragment } from '../utils/imageSourceFragment';
 import { ensureImageFileExists } from '../utils/fileUtils';
 import { EditorView } from '@milkdown/kit/prose/view';
 import { Node } from '@milkdown/kit/prose/model';
@@ -78,16 +77,15 @@ export function useImageActions({
             setIsSaving(true);
             markImageUserInput();
             await restoreIfNeeded();
-            const fragment = generateCropFragment(percentageCrop, ratio);
-            const nextSrc = `${baseSrc}#${fragment}`;
-            setCropParams({ 
+            const cropParams = {
                 x: percentageCrop.x, 
                 y: percentageCrop.y, 
                 width: percentageCrop.width, 
                 height: percentageCrop.height, 
                 ratio 
-            });
-            updateNodeAttrs({ src: nextSrc });
+            };
+            setCropParams(cropParams);
+            updateNodeAttrs({ src: baseSrc, crop: cropParams });
             setIsActive(false);
             setHeight(undefined);
         } catch (error) {

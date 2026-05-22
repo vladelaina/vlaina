@@ -9,7 +9,11 @@ import {
     tableHeaderSchema,
 } from '@milkdown/kit/preset/gfm';
 import { sanitizeNoteMediaSrc } from '@/lib/notes/markdown/urlSecurity';
-import { normalizeImageWidth } from './plugins/image-block/utils/imageSourceFragment';
+import {
+    normalizeImageWidth,
+    parseCropValue,
+    serializeCropValue,
+} from './plugins/image-block/utils/imageSourceFragment';
 import { escapeHtmlAttr, getDomAttrs, updateSchemaFactory } from './themeSchemaUtils';
 
 interface MarkdownHtmlImageAttrs {
@@ -18,6 +22,7 @@ interface MarkdownHtmlImageAttrs {
     title: string | null;
     align: string;
     width: string | null;
+    crop: string | null;
     wrapInParagraph: boolean;
 }
 
@@ -113,6 +118,7 @@ function getMarkdownHtmlImageAttrs(value: string): MarkdownHtmlImageAttrs | null
         alt: result.image.getAttribute('alt') ?? '',
         title: result.image.getAttribute('title'),
         width: getImageWidth(result.image),
+        crop: serializeCropValue(result.image.getAttribute('data-vlaina-crop')),
         align: result.image.getAttribute('align') || result.parentAlign || 'center',
         wrapInParagraph: result.wrapInParagraph,
     };
@@ -177,17 +183,20 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
             alt: { default: null },
             title: { default: null },
             align: { default: 'center' },
-            width: { default: null }
+            width: { default: null },
+            crop: { default: null }
         },
         toDOM: (node: any) => {
             const safeSrc = sanitizeNoteMediaSrc(node.attrs.src);
             const width = normalizeImageWidth(node.attrs.width);
+            const crop = serializeCropValue(node.attrs.crop);
             return ['img', {
                 src: safeSrc || undefined,
                 alt: node.attrs.alt,
                 title: node.attrs.title,
                 align: node.attrs.align,
                 width,
+                'data-vlaina-crop': crop || undefined,
             }];
         },
         parseDOM: [
@@ -202,7 +211,8 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
                         alt: dom.getAttribute('alt'),
                         title: dom.getAttribute('title'),
                         align: dom.getAttribute('align') || 'center',
-                        width: normalizeImageWidth(dom.getAttribute('width'))
+                        width: normalizeImageWidth(dom.getAttribute('width')),
+                        crop: parseCropValue(dom.getAttribute('data-vlaina-crop')),
                     };
                 }
             }
@@ -233,37 +243,32 @@ export function applyListMediaTableSchemaOverrides(ctx: Ctx) {
                     alt: node.alt || '',
                     title: node.title || null,
                     align: 'center',
-                    width: null
+                    width: null,
+                    crop: null,
                 });
             }
         },
         toMarkdown: {
             match: (node: any) => node.type.name === 'image',
             runner: (state: any, node: any) => {
-                const { src, alt, title, align, width } = node.attrs;
+                const { src, alt, title, align, width, crop } = node.attrs;
                 const safeSrc = sanitizeNoteMediaSrc(src);
                 if (!safeSrc) return;
+                const srcStr = escapeHtmlAttr(safeSrc);
+                const effectiveAlign = align;
                 const safeWidth = normalizeImageWidth(width);
+                const safeCrop = serializeCropValue(crop);
 
-                const hasCustomAlign = align && align !== 'center';
                 const hasCustomWidth = safeWidth && safeWidth !== '';
-
-                if (!hasCustomAlign && !hasCustomWidth) {
-                    state.addNode('image', undefined, undefined, {
-                        title: title || undefined,
-                        url: safeSrc,
-                        alt: alt || undefined,
-                    });
-                    return;
-                }
+                const hasCustomAlign = effectiveAlign && effectiveAlign !== 'center';
 
                 const attrs: string[] = [];
                 if (hasCustomWidth) attrs.push(`width="${escapeHtmlAttr(safeWidth)}"`);
-                if (hasCustomAlign) attrs.push(`align="${escapeHtmlAttr(align)}"`);
+                if (hasCustomAlign) attrs.push(`align="${escapeHtmlAttr(effectiveAlign)}"`);
+                if (safeCrop) attrs.push(`data-vlaina-crop="${escapeHtmlAttr(safeCrop)}"`);
                 if (title) attrs.push(`title="${escapeHtmlAttr(title)}"`);
 
                 const attrsStr = attrs.length > 0 ? ' ' + attrs.join(' ') : '';
-                const srcStr = escapeHtmlAttr(safeSrc);
                 const altStr = escapeHtmlAttr(alt || '');
 
                 state.addNode('html', undefined, `<img src="${srcStr}" alt="${altStr}"${attrsStr} />`);

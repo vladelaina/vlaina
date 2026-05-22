@@ -290,11 +290,12 @@ describe('markdown syntax persistence matrix', () => {
     {
       name: 'video image syntax',
       markdown: '![video](https://example.com/video.mp4 "Demo video")',
+      expected: '<img src="https://example.com/video.mp4" alt="video" title="Demo video" />',
     },
     {
       name: 'markdown image attrs with escaped text',
       markdown: '![A < B](image.png?a=1&b=2 "Title & More")',
-      expected: '![A < B](image.png?a=1\\&b=2 "Title & More")',
+      expected: '<img src="image.png?a=1&amp;b=2" alt="A &lt; B" title="Title &amp; More" />',
       expectedText: 'A < BTitle & More',
     },
     {

@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 import { moveImageNode } from './imageNodeCommands';
-import { parseImageSource } from '../utils/imageSourceFragment';
 
 function createDoc(nodes: Record<number, any>) {
     return {
@@ -43,9 +42,11 @@ function createParagraphNode() {
 describe('imageNodeCommands', () => {
     it('applies left alignment to the inserted image node when moving upward', () => {
         const imageAttrs = {
-            src: './assets/demo.png#c=0.000000,0.000000,99.899209,99.898319,1.898247&w=72%25',
+            src: './assets/demo.png',
             alt: 'demo',
             title: null,
+            width: '72%',
+            crop: { x: 0, y: 0, width: 99.899209, height: 99.898319, ratio: 1.898247 },
         };
         const initialDoc = createDoc({
             51: createImageNode(imageAttrs),
@@ -97,15 +98,19 @@ describe('imageNodeCommands', () => {
         );
 
         const nextAttrs = tr.setNodeMarkup.mock.calls[0][2];
-        expect(parseImageSource(nextAttrs.src as string).align).toBe('left');
+        expect(nextAttrs.src).toBe('./assets/demo.png');
+        expect(nextAttrs.align).toBe('left');
+        expect(nextAttrs.width).toBe('72%');
         expect(view.dispatch).toHaveBeenCalledWith(tr);
     });
 
     it('applies right alignment to the inserted image node when moving downward', () => {
         const imageAttrs = {
-            src: './assets/demo.png#c=0.000000,0.000000,99.899209,99.898319,1.898247&w=72%25',
+            src: './assets/demo.png',
             alt: 'demo',
             title: null,
+            width: '72%',
+            crop: { x: 0, y: 0, width: 99.899209, height: 99.898319, ratio: 1.898247 },
         };
         const initialDoc = createDoc({
             49: createImageNode(imageAttrs),
@@ -157,7 +162,9 @@ describe('imageNodeCommands', () => {
         );
 
         const nextAttrs = tr.setNodeMarkup.mock.calls[0][2];
-        expect(parseImageSource(nextAttrs.src as string).align).toBe('right');
+        expect(nextAttrs.src).toBe('./assets/demo.png');
+        expect(nextAttrs.align).toBe('right');
+        expect(nextAttrs.width).toBe('72%');
         expect(view.dispatch).toHaveBeenCalledWith(tr);
     });
 });
