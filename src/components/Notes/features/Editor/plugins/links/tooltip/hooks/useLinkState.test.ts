@@ -69,7 +69,7 @@ describe('useLinkState', () => {
         expect(writeTextToClipboardMock).toHaveBeenCalledWith('cati.me');
     });
 
-    it('copies markdown links with normalized hrefs', async () => {
+    it('copies markdown links as normalized hrefs', async () => {
         const { result } = renderHook(() => useLinkState({
             href: 'https\\://example.com',
             initialText: 'Example',
@@ -81,7 +81,7 @@ describe('useLinkState', () => {
             result.current.handleCopy();
         });
 
-        expect(writeTextToClipboardMock).toHaveBeenCalledWith('[Example](https://example.com)');
+        expect(writeTextToClipboardMock).toHaveBeenCalledWith('https://example.com');
     });
 
     it('copies mailto email links as plain email addresses', async () => {

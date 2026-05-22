@@ -244,6 +244,18 @@ function selectionAncestorNames(view: EditorView): string[] {
   return names;
 }
 
+function expectCursorAtHeadingEdge(view: EditorView, headingPos: number, edge: 'start' | 'end'): void {
+  const heading = view.state.doc.nodeAt(headingPos);
+  expect(heading?.type.name).toBe('heading');
+  expect(view.state.selection).toBeInstanceOf(TextSelection);
+  expect(view.state.selection.empty).toBe(true);
+  expect(view.state.selection.from).toBe(
+    edge === 'start'
+      ? headingPos + 1
+      : headingPos + 1 + (heading?.content.size ?? 0)
+  );
+}
+
 afterEach(() => {
   document.body.innerHTML = '';
   vi.restoreAllMocks();
@@ -770,6 +782,121 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     await editor.destroy();
   });
 
+  it.each(['Backspace', 'Delete'] as const)(
+    'deletes an empty paragraph below a heading on %s and places the cursor after the heading text',
+    async (key) => {
+      const editor = createEditor();
+      await editor.create();
+      const view = editor.ctx.get(editorViewCtx);
+      const { schema } = view.state;
+      const heading = schema.nodes.heading.create({ level: 2 }, schema.text('Heading'));
+      replaceDocument(view, [
+        heading,
+        schema.nodes.paragraph.create(),
+        schema.nodes.paragraph.create(null, schema.text('after')),
+      ]);
+
+      const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+      const event = pressKey(view, key);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(view.state.doc.childCount).toBe(2);
+      expect(view.state.doc.child(0).type.name).toBe('heading');
+      expect(view.state.doc.child(1).textContent).toBe('after');
+      expectCursorAtHeadingEdge(view, 0, 'end');
+
+      await editor.destroy();
+    }
+  );
+
+  it.each(['Backspace', 'Delete'] as const)(
+    'deletes an empty paragraph above a heading on %s and places the cursor before the heading text',
+    async (key) => {
+      const editor = createEditor();
+      await editor.create();
+      const view = editor.ctx.get(editorViewCtx);
+      const { schema } = view.state;
+      replaceDocument(view, [
+        schema.nodes.paragraph.create(null, schema.text('before')),
+        schema.nodes.paragraph.create(),
+        schema.nodes.heading.create({ level: 2 }, schema.text('Heading')),
+      ]);
+
+      const emptyParagraphPos = topLevelNodePos(view, 'paragraph', 1);
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+      const event = pressKey(view, key);
+
+      expect(event.defaultPrevented).toBe(true);
+      expect(view.state.doc.childCount).toBe(2);
+      expect(view.state.doc.child(0).textContent).toBe('before');
+      expect(view.state.doc.child(1).type.name).toBe('heading');
+      expectCursorAtHeadingEdge(view, topLevelNodePos(view, 'heading'), 'start');
+
+      await editor.destroy();
+    }
+  );
+
+  it('keeps the cursor on the heading when deleting the empty paragraph between a heading and any supported structural block', async () => {
+    const keys: Array<'Backspace' | 'Delete'> = ['Backspace', 'Delete'];
+    const headingLayouts: Array<{
+      name: string;
+      edge: 'start' | 'end';
+      buildNodes: (heading: ProseNode, emptyParagraph: ProseNode, otherBlock: ProseNode) => ProseNode[];
+    }> = [
+      {
+        name: 'heading above',
+        edge: 'end',
+        buildNodes: (heading, emptyParagraph, otherBlock) => [heading, emptyParagraph, otherBlock],
+      },
+      {
+        name: 'heading below',
+        edge: 'start',
+        buildNodes: (heading, emptyParagraph, otherBlock) => [otherBlock, emptyParagraph, heading],
+      },
+    ];
+
+    const caseLabelsEditor = createEditor();
+    await caseLabelsEditor.create();
+    const caseLabelsView = caseLabelsEditor.ctx.get(editorViewCtx);
+    const caseLabels = createStructuralBlockCases(caseLabelsView)
+      .map(({ label }) => label)
+      .filter((label) => label !== 'heading');
+    await caseLabelsEditor.destroy();
+
+    for (const key of keys) {
+      for (const layout of headingLayouts) {
+        for (const otherLabel of caseLabels) {
+          const editor = createEditor();
+          await editor.create();
+          const view = editor.ctx.get(editorViewCtx);
+          const { schema } = view.state;
+          const other = createStructuralBlockCases(view).find((testCase) => testCase.label === otherLabel);
+          if (!other) {
+            throw new Error(`Missing structural block test case: ${otherLabel}`);
+          }
+
+          replaceDocument(view, layout.buildNodes(
+            schema.nodes.heading.create({ level: 2 }, schema.text('Heading')),
+            schema.nodes.paragraph.create(),
+            other.node,
+          ));
+
+          const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+          view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+          const event = pressKey(view, key);
+
+          const label = `${layout.name} with ${other.label} on ${key}`;
+          expect(event.defaultPrevented, label).toBe(true);
+          expect(view.state.doc.childCount, label).toBe(2);
+          expectCursorAtHeadingEdge(view, topLevelNodePos(view, 'heading'), layout.edge);
+
+          await editor.destroy();
+        }
+      }
+    }
+  }, 60_000);
+
   it('deletes the only empty paragraph below a code block and keeps an outside cursor target', async () => {
     const editor = createEditor();
     await editor.create();
@@ -900,7 +1027,6 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
       {
         name: 'heading',
         node: (view) => view.state.schema.nodes.heading.create({ level: 2 }, view.state.schema.text('Heading')),
-        expectedNodeSelection: true,
       },
       {
         name: 'blockquote',
@@ -966,26 +1092,31 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     const layouts: Array<{
       name: string;
       key: 'Backspace' | 'Delete';
+      markdownBlockPosition: 'above' | 'below';
       buildNodes: (view: EditorView, markdownBlock: ProseNode, emptyParagraph: ProseNode, list: ProseNode) => ProseNode[];
     }> = [
       {
         name: 'block above, Delete',
         key: 'Delete',
+        markdownBlockPosition: 'above',
         buildNodes: (_view, markdownBlock, emptyParagraph, taskList) => [markdownBlock, emptyParagraph, taskList],
       },
       {
         name: 'block above, Backspace',
         key: 'Backspace',
+        markdownBlockPosition: 'above',
         buildNodes: (_view, markdownBlock, emptyParagraph, taskList) => [markdownBlock, emptyParagraph, taskList],
       },
       {
         name: 'block below, Delete',
         key: 'Delete',
+        markdownBlockPosition: 'below',
         buildNodes: (_view, markdownBlock, emptyParagraph, taskList) => [taskList, emptyParagraph, markdownBlock],
       },
       {
         name: 'block below, Backspace',
         key: 'Backspace',
+        markdownBlockPosition: 'below',
         buildNodes: (_view, markdownBlock, emptyParagraph, taskList) => [taskList, emptyParagraph, markdownBlock],
       },
     ];
@@ -1039,6 +1170,14 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
           expect(remainingNodeNames, label).toContain(testCase.name);
           expect(remainingNodeNames, label).toContain(listCase.typeName);
           expect(selectionAncestorNames(view), label).not.toContain('list_item');
+          if (testCase.name === 'heading') {
+            const headingPos = topLevelNodePos(view, 'heading');
+            expectCursorAtHeadingEdge(
+              view,
+              headingPos,
+              layout.markdownBlockPosition === 'above' ? 'end' : 'start'
+            );
+          }
           if (testCase.expectedNodeSelection) {
             expect(view.state.selection, label).toBeInstanceOf(NodeSelection);
           }

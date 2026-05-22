@@ -195,6 +195,15 @@ function dispatchDeleteEmptyParagraphNearStructuralBlock(
   const mappedBlockFrom = tr.mapping.map(range.blockFrom, -1);
   const nextNode = tr.doc.nodeAt(mappedBlockFrom);
 
+  if (nextNode?.type.name === 'heading') {
+    const cursorPos = range.searchDir < 0
+      ? mappedBlockFrom + 1 + nextNode.content.size
+      : mappedBlockFrom + 1;
+    view.dispatch(tr.setSelection(TextSelection.create(tr.doc, cursorPos)).scrollIntoView());
+    view.focus();
+    return;
+  }
+
   if (range.blockName === 'code_block' && nextNode?.type.name === 'code_block') {
     const blockTo = mappedBlockFrom + nextNode.nodeSize;
     const siblingBeforeCode = findTopLevelBlockBefore(tr.doc, mappedBlockFrom)?.node;
@@ -284,9 +293,11 @@ function handleEmptyParagraphNearStructuralBlockDelete(
       STRUCTURAL_EMPTY_PARAGRAPH_DELETE_BLOCK_NAMES
     )
     : null;
-  const range = primaryRange && oppositeRange && isListContainerNodeName(primaryRange.blockName) && !isListContainerNodeName(oppositeRange.blockName)
+  const range = primaryRange && oppositeRange && isHeadingNodeName(oppositeRange.blockName)
     ? oppositeRange
-    : primaryRange ?? fallbackRange;
+    : primaryRange && oppositeRange && isListContainerNodeName(primaryRange.blockName) && !isListContainerNodeName(oppositeRange.blockName)
+      ? oppositeRange
+      : primaryRange ?? fallbackRange;
 
   if (!range) {
     return false;
@@ -299,6 +310,10 @@ function handleEmptyParagraphNearStructuralBlockDelete(
 
 function isListContainerNodeName(nodeName: string): boolean {
   return LIST_CONTAINER_NODE_NAMES.has(nodeName);
+}
+
+function isHeadingNodeName(nodeName: string): boolean {
+  return nodeName === 'heading';
 }
 
 function selectAtomicBlock(view: EditorView, pos: number): boolean {
