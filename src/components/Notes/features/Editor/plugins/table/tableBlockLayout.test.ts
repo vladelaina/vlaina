@@ -7,7 +7,7 @@ import {
 } from '../../../../../../../vendor/milkdown/packages/components/src/table-block/view/table-block-layout'
 
 describe('table block layout', () => {
-  it('expands into the surrounding scroll root only when the table overflows horizontally', () => {
+  it('expands into the surrounding scroll root and keeps selection bleed room for narrow tables', () => {
     expect(
       resolveTableWideLayoutMetrics({
         baseWidth: 420,
@@ -31,10 +31,10 @@ describe('table block layout', () => {
         naturalWidth: 420,
       })
     ).toEqual({
-      maxWidth: 420,
-      bleedLeft: 0,
-      scrollStart: 0,
-      scrollEnd: 0,
+      maxWidth: 454,
+      bleedLeft: 24,
+      scrollStart: 24,
+      scrollEnd: 10,
       tableMinWidth: '100%',
     })
   })
