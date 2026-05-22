@@ -169,7 +169,8 @@ describe('editor embedded CodeMirror selection styles', () => {
     const markdownCss = readStyleFile('markdown.css');
 
     expect(css).toContain('.milkdown .ProseMirror li[data-item-type="task"].vlaina-block-selected::before,');
-    expect(css).toContain('.milkdown .ProseMirror li[data-item-type="task"]:has(> p.vlaina-block-selected)::before {');
+    expect(css).toContain('.milkdown .ProseMirror li[data-item-type="task"]:has(> p.vlaina-block-selected)::before,');
+    expect(css).toContain('.milkdown .ProseMirror .vlaina-block-selected li[data-item-type="task"]::before {');
     expect(css).toContain('border-color: var(--vlaina-editor-block-selection-fg, #fefbf9) !important;');
     expect(css).toContain('background-color: transparent !important;');
     expect(markdownCss).toContain('.milkdown .ProseMirror li[data-item-type="task"][data-checked="true"] > .vlaina-block-selected {');
@@ -181,7 +182,8 @@ describe('editor embedded CodeMirror selection styles', () => {
     const css = readStyleFile('core.css');
 
     expect(css).toContain('.milkdown .ProseMirror blockquote.vlaina-block-selected::before,');
-    expect(css).toContain('.milkdown .ProseMirror blockquote:has(> .vlaina-block-selected)::before {');
+    expect(css).toContain('.milkdown .ProseMirror blockquote:has(> .vlaina-block-selected)::before,');
+    expect(css).toContain('.milkdown .ProseMirror .vlaina-block-selected blockquote::before {');
     expect(css).toContain('background: var(--vlaina-editor-block-selection-fg, #fefbf9) !important;');
   });
 

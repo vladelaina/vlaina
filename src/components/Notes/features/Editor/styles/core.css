@@ -143,13 +143,15 @@ body.vlaina-block-drag-active * {
 }
 
 .milkdown .ProseMirror li[data-item-type="task"].vlaina-block-selected::before,
-.milkdown .ProseMirror li[data-item-type="task"]:has(> p.vlaina-block-selected)::before {
+.milkdown .ProseMirror li[data-item-type="task"]:has(> p.vlaina-block-selected)::before,
+.milkdown .ProseMirror .vlaina-block-selected li[data-item-type="task"]::before {
   border-color: var(--vlaina-editor-block-selection-fg, #fefbf9) !important;
   background-color: transparent !important;
 }
 
 .milkdown .ProseMirror blockquote.vlaina-block-selected::before,
-.milkdown .ProseMirror blockquote:has(> .vlaina-block-selected)::before {
+.milkdown .ProseMirror blockquote:has(> .vlaina-block-selected)::before,
+.milkdown .ProseMirror .vlaina-block-selected blockquote::before {
   background: var(--vlaina-editor-block-selection-fg, #fefbf9) !important;
 }
 
