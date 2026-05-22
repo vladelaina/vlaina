@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { parseImageSource, type CropParams } from '../utils/imageSourceFragment';
-import { getImageAlignment, getImageWidth } from '../utils/imageNodeAttrs';
+import { useEffect, useState } from 'react';
+import type { CropParams } from '../utils/imageSourceFragment';
+import { getImageAlignment, getImageCrop, getImageWidth } from '../utils/imageNodeAttrs';
 import type { Alignment } from '../types';
 
 interface ImageNodeLike {
@@ -24,18 +24,18 @@ interface UseImageNodeStateResult {
 export function useImageNodeState(node: ImageNodeLike): UseImageNodeStateResult {
     const nodeSrc = typeof node.attrs.src === 'string' ? node.attrs.src : '';
     const nodeAlt = typeof node.attrs.alt === 'string' ? node.attrs.alt : '';
-    const parsedSource = useMemo(() => parseImageSource(nodeSrc), [nodeSrc]);
     const canonicalAlignment = getImageAlignment(node.attrs);
     const canonicalWidth = getImageWidth(node.attrs) || 'auto';
+    const canonicalCrop = getImageCrop(node.attrs);
 
     const [width, setWidth] = useState(canonicalWidth);
     const [alignment, setAlignment] = useState<Alignment>(canonicalAlignment);
     const [captionInput, setCaptionInput] = useState(nodeAlt);
-    const [cropParams, setCropParams] = useState<CropParams | null>(parsedSource.crop);
+    const [cropParams, setCropParams] = useState<CropParams | null>(canonicalCrop);
 
     useEffect(() => {
-        setCropParams(parsedSource.crop);
-    }, [parsedSource.crop]);
+        setCropParams(getImageCrop(node.attrs));
+    }, [node.attrs.src, node.attrs.crop]);
 
     useEffect(() => {
         const nextAlignment = getImageAlignment(node.attrs);
@@ -60,6 +60,6 @@ export function useImageNodeState(node: ImageNodeLike): UseImageNodeStateResult 
         setCaptionInput,
         cropParams,
         setCropParams,
-        baseSrc: parsedSource.baseSrc,
+        baseSrc: nodeSrc,
     };
 }

@@ -1,87 +1,76 @@
 import { describe, expect, it } from 'vitest';
-import { getImageAlignment, getImageWidth, mergeImageNodeAttrs } from './imageNodeAttrs';
-import { parseImageSource } from './imageSourceFragment';
+import { getImageAlignment, getImageCrop, getImageWidth, mergeImageNodeAttrs } from './imageNodeAttrs';
 
 describe('imageNodeAttrs', () => {
-    it('reads alignment and width from src fragment first', () => {
-        const attrs = { src: 'image.png#a=left&w=30%25', align: 'right', width: '90%' };
-        expect(getImageAlignment(attrs)).toBe('left');
-        expect(getImageWidth(attrs)).toBe('30%');
-    });
+    it('reads layout only from node attrs', () => {
+        const attrs = { src: 'image.png#preview', align: 'right', width: '90%' };
 
-    it('falls back to node attrs when src has no alignment/width fragment', () => {
-        const attrs = { src: 'image.png', align: 'right', width: '45%' };
         expect(getImageAlignment(attrs)).toBe('right');
-        expect(getImageWidth(attrs)).toBe('45%');
+        expect(getImageWidth(attrs)).toBe('90%');
     });
 
-    it('merges alignment update while preserving crop/width/extras', () => {
+    it('uses defaults when attrs are missing or invalid', () => {
+        expect(getImageAlignment({ src: 'image.png#preview' })).toBe('center');
+        expect(getImageWidth({ src: 'image.png#preview' })).toBeNull();
+        expect(getImageCrop({ src: 'image.png#preview' })).toBeNull();
+    });
+
+    it('merges alignment updates while preserving existing attr-based layout', () => {
         const latest = {
-            src: 'image.png#c=1.000000,2.000000,30.000000,40.000000,1.500000&w=25%25&foo=bar',
+            src: 'image.png',
             alt: 'cover',
+            width: '25%',
+            crop: { x: 1, y: 2, width: 30, height: 40, ratio: 1.5 },
         };
 
         const next = mergeImageNodeAttrs(latest, { align: 'left' });
-        const parsed = parseImageSource(next.src as string);
 
-        expect(parsed.align).toBe('left');
-        expect(parsed.width).toBe('25%');
-        expect(parsed.crop?.ratio).toBe(1.5);
-        expect(parsed.extras).toContain('foo=bar');
+        expect(next.src).toBe('image.png');
+        expect(next.align).toBe('left');
+        expect(next.width).toBe('25%');
+        expect(next.crop).toMatchObject({ x: 1, y: 2, width: 30, height: 40, ratio: 1.5 });
         expect(next.alt).toBe('cover');
     });
 
-    it('keeps existing alignment/width when incoming src only updates crop', () => {
-        const latest = { src: 'image.png#a=right&w=25%25&foo=bar' };
-        const next = mergeImageNodeAttrs(latest, { src: 'image.png#c=5,6,7,8,1' });
-        const parsed = parseImageSource(next.src as string);
+    it('keeps existing alignment and width when updating crop', () => {
+        const latest = { src: 'image.png', align: 'right', width: '25%' };
+        const next = mergeImageNodeAttrs(latest, { crop: { x: 5, y: 6, width: 7, height: 8, ratio: 1 } });
 
-        expect(parsed.align).toBe('right');
-        expect(parsed.width).toBe('25%');
-        expect(parsed.crop).not.toBeNull();
-        expect(parsed.extras).toContain('foo=bar');
+        expect(next.src).toBe('image.png');
+        expect(next.align).toBe('right');
+        expect(next.width).toBe('25%');
+        expect(next.crop).toMatchObject({ x: 5, y: 6, width: 7, height: 8, ratio: 1 });
     });
 
     it('keeps crop and alignment when resizing an existing image', () => {
         const latest = {
-            src: 'image.png#c=5.000000,6.000000,70.000000,80.000000,1.250000&a=left',
+            src: 'image.png',
             alt: 'cover',
+            align: 'left',
+            crop: { x: 5, y: 6, width: 70, height: 80, ratio: 1.25 },
         };
         const next = mergeImageNodeAttrs(latest, { width: '33%' });
-        const parsed = parseImageSource(next.src as string);
 
-        expect(parsed.crop).toMatchObject({ x: 5, y: 6, width: 70, height: 80, ratio: 1.25 });
-        expect(parsed.align).toBe('left');
-        expect(parsed.width).toBe('33%');
+        expect(next.src).toBe('image.png');
+        expect(next.crop).toMatchObject({ x: 5, y: 6, width: 70, height: 80, ratio: 1.25 });
+        expect(next.align).toBe('left');
+        expect(next.width).toBe('33%');
         expect(next.alt).toBe('cover');
     });
 
-    it('keeps crop and width when changing alignment', () => {
+    it('updates caption without changing persisted layout attrs', () => {
         const latest = {
-            src: 'image.png#c=5.000000,6.000000,70.000000,80.000000,1.250000&w=33%25',
-            alt: 'cover',
-        };
-        const next = mergeImageNodeAttrs(latest, { align: 'right' });
-        const parsed = parseImageSource(next.src as string);
-
-        expect(parsed.crop).toMatchObject({ x: 5, y: 6, width: 70, height: 80, ratio: 1.25 });
-        expect(parsed.align).toBe('right');
-        expect(parsed.width).toBe('33%');
-        expect(next.alt).toBe('cover');
-    });
-
-    it('updates caption without changing persisted layout fragments', () => {
-        const latest = {
-            src: 'image.png#c=5.000000,6.000000,70.000000,80.000000,1.250000&a=left&w=33%25&foo=bar',
+            src: 'image.png',
             alt: 'old',
+            align: 'left',
+            width: '33%',
+            crop: { x: 5, y: 6, width: 70, height: 80, ratio: 1.25 },
         };
         const next = mergeImageNodeAttrs(latest, { alt: 'new' });
-        const parsed = parseImageSource(next.src as string);
 
-        expect(parsed.crop).toMatchObject({ x: 5, y: 6, width: 70, height: 80, ratio: 1.25 });
-        expect(parsed.align).toBe('left');
-        expect(parsed.width).toBe('33%');
-        expect(parsed.extras).toContain('foo=bar');
+        expect(next.crop).toMatchObject({ x: 5, y: 6, width: 70, height: 80, ratio: 1.25 });
+        expect(next.align).toBe('left');
+        expect(next.width).toBe('33%');
         expect(next.alt).toBe('new');
     });
 
@@ -89,24 +78,15 @@ describe('imageNodeAttrs', () => {
         expect(getImageAlignment({ src: 123 })).toBe('center');
         expect(getImageWidth({ src: 123, width: '40%' })).toBe('40%');
         const next = mergeImageNodeAttrs({ src: 123 }, { align: 'left', width: '25%' });
-        const parsed = parseImageSource(next.src as string);
-        expect(parsed.align).toBe('left');
-        expect(parsed.width).toBe('25%');
+        expect(next.src).toBe('');
+        expect(next.align).toBe('left');
+        expect(next.width).toBe('25%');
     });
 
     it('clamps or drops note-controlled image layout values', () => {
-        const parsed = parseImageSource('image.png#c=-10,200,999,0,999&w=999999%25&x=1');
-
-        expect(parsed.crop).toEqual({
-            x: 0,
-            y: 100,
-            width: 100,
-            height: 1,
-            ratio: 20,
-        });
-        expect(parsed.width).toBe('100%');
-        expect(getImageWidth({ src: 'image.png#w=url(https%3A%2F%2Fexample.com%2Fx)' })).toBeNull();
         expect(getImageWidth({ src: 'image.png', width: 'calc(999999px * 999999)' })).toBeNull();
         expect(getImageWidth({ src: 'image.png', width: '999999px' })).toBe('2000px');
+        expect(getImageCrop({ crop: '5,6,70,80,1.25' })).toMatchObject({ x: 5, y: 6, width: 70, height: 80, ratio: 1.25 });
+        expect(getImageCrop({ crop: '-10,200,999,0,999' })).toMatchObject({ x: 0, y: 100, width: 100, height: 1, ratio: 20 });
     });
 });

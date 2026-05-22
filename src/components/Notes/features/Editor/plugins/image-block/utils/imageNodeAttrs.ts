@@ -1,5 +1,5 @@
 import type { Alignment } from '../types';
-import { buildImageSource, normalizeImageWidth, parseImageSource } from './imageSourceFragment';
+import { normalizeImageWidth, parseCropValue } from './imageSourceFragment';
 
 type NodeAttrs = Record<string, unknown>;
 
@@ -19,55 +19,40 @@ function normalizeWidth(value: unknown): string | null {
     return normalizeImageWidth(value);
 }
 
-function dedupeTokens(tokens: string[]): string[] {
-    return Array.from(new Set(tokens.filter(Boolean)));
-}
-
 export function getImageAlignment(attrs: NodeAttrs): Alignment {
-    const parsed = parseImageSource(getSrc(attrs));
-    return parsed.align ?? normalizeAlignment(attrs.align) ?? 'center';
+    return normalizeAlignment(attrs.align) ?? 'center';
 }
 
 export function getImageWidth(attrs: NodeAttrs): string | null {
-    const parsed = parseImageSource(getSrc(attrs));
-    return parsed.width ?? normalizeWidth(attrs.width);
+    return normalizeWidth(attrs.width);
+}
+
+export function getImageCrop(attrs: NodeAttrs) {
+    return parseCropValue(attrs.crop);
 }
 
 export function mergeImageNodeAttrs(latestAttrs: NodeAttrs, incomingAttrs: NodeAttrs): NodeAttrs {
-    const latestParsed = parseImageSource(getSrc(latestAttrs));
-
     const incomingSrc = typeof incomingAttrs.src === 'string' ? incomingAttrs.src : undefined;
-    const incomingParsed = incomingSrc ? parseImageSource(incomingSrc) : null;
-
     const incomingAlign = normalizeAlignment(incomingAttrs.align);
     const incomingWidth = normalizeWidth(incomingAttrs.width);
 
     const mergedAlign =
         incomingAlign ??
-        incomingParsed?.align ??
-        latestParsed.align ??
         normalizeAlignment(latestAttrs.align) ??
         null;
     const mergedWidth =
         incomingWidth ??
-        incomingParsed?.width ??
-        latestParsed.width ??
         normalizeWidth(latestAttrs.width);
-    const mergedCrop = incomingParsed?.crop ?? latestParsed.crop ?? null;
-    const mergedBaseSrc = incomingParsed?.baseSrc || latestParsed.baseSrc || '';
-    const mergedExtras = incomingParsed?.extras
-        ? dedupeTokens([...latestParsed.extras, ...incomingParsed.extras])
-        : latestParsed.extras;
+    const mergedCrop = parseCropValue(incomingAttrs.crop)
+        ?? parseCropValue(latestAttrs.crop)
+        ?? null;
+    const mergedSrc = incomingSrc ?? getSrc(latestAttrs);
 
     const nextAttrs: NodeAttrs = { ...latestAttrs, ...incomingAttrs };
-    delete nextAttrs.align;
-    delete nextAttrs.width;
-    nextAttrs.src = buildImageSource(mergedBaseSrc, {
-        crop: mergedCrop,
-        align: mergedAlign,
-        width: mergedWidth,
-        extras: mergedExtras,
-    });
+    nextAttrs.src = mergedSrc;
+    nextAttrs.align = mergedAlign ?? 'center';
+    nextAttrs.width = mergedWidth;
+    nextAttrs.crop = mergedCrop;
 
     return nextAttrs;
 }

@@ -114,13 +114,26 @@ describe('clipboard paste markdown persistence', () => {
     ['footnote', ['Footnote ref[^1].', '', '[^1]: Footnote body'].join('\n')],
     ['math', ['Inline $x + y$.', '', '$$', 'x^2', '$$'].join('\n')],
     ['mermaid', ['```mermaid', 'flowchart TD', 'A --> B', '```'].join('\n')],
-    ['image', '![A < B](image.png "Title & More")'],
-    ['video', '![video](https://example.com/video.mp4 "Demo video")'],
     ['custom inline marks', '==highlight== ++underlined++ X^2^ H~2~O'],
     ['color html', '<span style="color: #123456">red</span> <mark style="background-color: #ecf6ff">bg</mark>'],
     ['toc', '[TOC]'],
   ] as const)('preserves pasted %s markdown on save', async (_name, markdown) => {
     await expect(pasteAndPersist(markdown)).resolves.toBe(markdown);
+  });
+
+  it.each([
+    [
+      'image',
+      '![A < B](image.png "Title & More")',
+      '<img src="image.png" alt="A &lt; B" title="Title &amp; More" />',
+    ],
+    [
+      'video',
+      '![video](https://example.com/video.mp4 "Demo video")',
+      '<img src="https://example.com/video.mp4" alt="video" title="Demo video" />',
+    ],
+  ] as const)('persists pasted %s markdown as html image syntax', async (_name, markdown, expected) => {
+    await expect(pasteAndPersist(markdown)).resolves.toBe(expected);
   });
 
   it('persists pasted TSV as a standard GFM table', async () => {
@@ -169,6 +182,8 @@ describe('clipboard paste markdown persistence', () => {
     const editor = await createPasteEditor({ includeMarkdownLinkPlugin: true });
     const markdown = '![百度](https://www.baidu.com/img/PCfb_5bf082d29588c07f842ccde3f97243ea.png "百度一下，你就知道")';
 
-    await expect(pasteAndPersistWithEditor(editor, markdown)).resolves.toBe(markdown);
+    await expect(pasteAndPersistWithEditor(editor, markdown)).resolves.toBe(
+      '<img src="https://www.baidu.com/img/PCfb_5bf082d29588c07f842ccde3f97243ea.png" alt="百度" title="百度一下，你就知道" />'
+    );
   });
 });

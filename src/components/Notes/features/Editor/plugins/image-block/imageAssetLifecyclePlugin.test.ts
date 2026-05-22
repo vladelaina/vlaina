@@ -17,10 +17,10 @@ function createDoc(srcList: unknown[]) {
 describe('imageAssetLifecyclePlugin', () => {
     it('collects only local image asset keys', () => {
         const assetKeys = collectImageAssetKeys(createDoc([
-            './assets/demo.png#a=left',
+            './assets/demo.png#one',
             'https://example.com/demo.png',
             'blob:http://localhost/demo',
-            './assets/demo.png#a=right',
+            './assets/demo.png#two',
         ]));
 
         expect(Array.from(assetKeys)).toEqual(['./assets/demo.png']);

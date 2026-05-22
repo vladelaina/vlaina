@@ -29,7 +29,7 @@ const deps = {
 
 describe('imageSourcePath', () => {
     it('extracts the base source from image attrs', () => {
-        expect(getImageSourceBase('./assets/demo.png#a=left&w=30%25')).toBe('./assets/demo.png');
+        expect(getImageSourceBase('./assets/demo.png#preview')).toBe('./assets/demo.png');
     });
 
     it('detects virtual image sources', () => {
@@ -68,7 +68,7 @@ describe('imageSourcePath', () => {
 
     it('resolves explicit relative segments against the current note directory', async () => {
         await expect(resolveImageSourcePath({
-            rawSrc: '../assets/demo.png#c=1,2,3,4,1',
+            rawSrc: '../assets/demo.png#preview',
             notesPath: '/vault',
             currentNotePath: 'daily/2026-03-31.md',
         }, deps)).resolves.toBe('/vault/assets/demo.png');

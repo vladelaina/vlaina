@@ -63,13 +63,22 @@ async function parseImageAttrs(markdown: string) {
 }
 
 describe('image markdown persistence', () => {
-  it('serializes uploaded image attrs as standard markdown image syntax', async () => {
+  it('serializes uploaded image attrs as html image syntax', async () => {
     await expect(serializeImageAttrs({
       src: './assets/demo-image.png',
       alt: 'demo-image',
       align: 'center',
       width: null,
-    })).resolves.toBe('![demo-image](./assets/demo-image.png)');
+    })).resolves.toBe('<img src="./assets/demo-image.png" alt="demo-image" />');
+  });
+
+  it('does not markdown-escape underscores in image filenames', async () => {
+    await expect(serializeImageAttrs({
+      src: './assets/2026-05-22_18-51-57.png',
+      alt: '2026-05-22_18-51-57',
+      align: 'center',
+      width: null,
+    })).resolves.toBe('<img src="./assets/2026-05-22_18-51-57.png" alt="2026-05-22_18-51-57" />');
   });
 
   it('serializes image layout attrs as safe html when markdown image syntax cannot carry them', async () => {
@@ -84,29 +93,34 @@ describe('image markdown persistence', () => {
     );
   });
 
-  it('keeps crop, alignment, and width fragments inside the image URL', async () => {
+  it('serializes crop, alignment, and width as html attrs', async () => {
     await expect(serializeImageAttrs({
-      src: './assets/demo.png#c=1.000000,2.000000,30.000000,40.000000,1.500000&a=left&w=40%25',
+      src: './assets/demo.png',
       alt: 'demo',
-      align: 'center',
-      width: null,
+      align: 'left',
+      width: '40%',
+      crop: { x: 1, y: 2, width: 30, height: 40, ratio: 1.5 },
     })).resolves.toBe(
-      '![demo](./assets/demo.png#c=1.000000,2.000000,30.000000,40.000000,1.500000\\&a=left\\&w=40%25)'
+      '<img src="./assets/demo.png" alt="demo" width="40%" align="left" data-vlaina-crop="1.000000,2.000000,30.000000,40.000000,1.500000" />'
     );
   });
 
-  it('reopens image layout fragments from serialized markdown image URLs', async () => {
+  it('reopens image layout attrs from serialized html images', async () => {
     const markdown = await serializeImageAttrs({
-      src: './assets/demo.png#c=1.000000,2.000000,30.000000,40.000000,1.500000&a=left&w=40%25',
+      src: './assets/demo.png',
       alt: 'demo',
-      align: 'center',
-      width: null,
+      align: 'left',
+      width: '40%',
+      crop: { x: 1, y: 2, width: 30, height: 40, ratio: 1.5 },
     });
 
     await expect(parseImageAttrs(markdown)).resolves.toMatchObject([
       {
-        src: './assets/demo.png#c=1.000000,2.000000,30.000000,40.000000,1.500000&a=left&w=40%25',
+        src: './assets/demo.png',
         alt: 'demo',
+        align: 'left',
+        width: '40%',
+        crop: '1.000000,2.000000,30.000000,40.000000,1.500000',
       },
     ]);
   });
@@ -122,6 +136,7 @@ describe('image markdown persistence', () => {
         title: 'Demo',
         width: '40%',
         align: 'right',
+        crop: null,
       },
     ]);
 
