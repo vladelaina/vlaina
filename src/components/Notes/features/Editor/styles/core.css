@@ -148,6 +148,11 @@ body.vlaina-block-drag-active * {
   background-color: transparent !important;
 }
 
+.milkdown .ProseMirror blockquote.vlaina-block-selected::before,
+.milkdown .ProseMirror blockquote:has(> .vlaina-block-selected)::before {
+  background: var(--vlaina-editor-block-selection-fg, #fefbf9) !important;
+}
+
 .milkdown .ProseMirror p.vlaina-block-selected {
   --vlaina-block-selection-bleed-y: 0px;
 }

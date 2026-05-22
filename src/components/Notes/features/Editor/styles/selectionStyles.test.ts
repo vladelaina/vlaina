@@ -177,6 +177,14 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(markdownCss).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg, #fefbf9) !important;');
   });
 
+  it('tints blockquote rails with the selected block foreground', () => {
+    const css = readStyleFile('core.css');
+
+    expect(css).toContain('.milkdown .ProseMirror blockquote.vlaina-block-selected::before,');
+    expect(css).toContain('.milkdown .ProseMirror blockquote:has(> .vlaina-block-selected)::before {');
+    expect(css).toContain('background: var(--vlaina-editor-block-selection-fg, #fefbf9) !important;');
+  });
+
   it('keeps selected paragraph overlays from being taller than todo rows', () => {
     const css = readStyleFile('core.css');
 
