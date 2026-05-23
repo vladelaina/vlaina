@@ -32,6 +32,7 @@ import { runStreamedAssistantMessage } from './chatService/runStreamedAssistantM
 import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEndpointFallback';
 import { hydrateSessionMessagesFromDisk } from '@/stores/ai/sessionConsistency';
 import { translate, useI18n } from '@/lib/i18n';
+import { ACCOUNT_AUTH_INVALIDATED_EVENT } from '@/lib/account/sessionEvent';
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
@@ -59,6 +60,14 @@ function extractRawErrorMessage(error: unknown): string {
   return String(error || '').trim() || 'AI request failed.';
 }
 
+function dispatchAccountAuthInvalidated() {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.dispatchEvent(new Event(ACCOUNT_AUTH_INVALIDATED_EVENT));
+}
+
 function buildChatErrorPayload(error: unknown, managed = true) {
   if (!managed) {
     const message = extractRawErrorMessage(error);
@@ -69,6 +78,10 @@ function buildChatErrorPayload(error: unknown, managed = true) {
   }
 
   const normalized = getUserFacingAIError(error);
+  if (normalized.type === AIErrorType.AUTH_ERROR) {
+    dispatchAccountAuthInvalidated();
+  }
+
   if (normalized.type === AIErrorType.NETWORK_ERROR) {
     const message = translate('chat.error.upstreamUnavailable');
     return {
@@ -98,6 +111,14 @@ function createManagedQuotaError(message: string) {
   };
 }
 
+function createManagedAuthRequiredError() {
+  return {
+    type: AIErrorType.AUTH_ERROR,
+    message: 'vlaina sign-in required',
+    statusCode: 401,
+  };
+}
+
 function shouldBlockManagedRequestForKnownBudget(providerId: string): boolean {
   if (!isManagedProviderId(providerId)) {
     return false;
@@ -121,6 +142,30 @@ function writeManagedQuotaErrorMessage(
   setError(errorMessage);
   aiActions.updateMessage(sessionId, assistantMessageId, xml);
   aiActions.completeMessage(sessionId, assistantMessageId);
+}
+
+function writeManagedAuthRequiredMessage(
+  sessionId: string,
+  assistantMessageId: string,
+  setError: (error: string | null) => void,
+) {
+  const error = createManagedAuthRequiredError();
+  markManagedAuthPromptForError(sessionId, error, true);
+  const { message, xml } = buildChatErrorPayload(error, true);
+  setError(message);
+  aiActions.updateMessage(sessionId, assistantMessageId, xml);
+  aiActions.completeMessage(sessionId, assistantMessageId);
+}
+
+function markManagedAuthPromptForError(sessionId: string, error: unknown, managed: boolean) {
+  if (!managed) {
+    return;
+  }
+
+  const normalized = getUserFacingAIError(error);
+  if (normalized.type === AIErrorType.AUTH_ERROR) {
+    useAIUIStore.getState().setAuthPromptSessionId(sessionId);
+  }
 }
 
 export function useChatService() {
@@ -273,6 +318,10 @@ export function useChatService() {
           writeManagedQuotaErrorMessage(targetSessionId, assistantMessageId, setError, t('chat.error.pointsExhausted'));
           return;
         }
+        if (isManagedProviderId(provider.id) && !isAccountConnected) {
+          writeManagedAuthRequiredMessage(targetSessionId, assistantMessageId, setError);
+          return;
+        }
 
         try {
           const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
@@ -332,7 +381,11 @@ export function useChatService() {
             completeMessage: aiActions.completeMessage,
             setSessionLoading,
             setError,
-            buildErrorPayload: (error) => buildChatErrorPayload(error, isManagedProviderId(provider.id)),
+            buildErrorPayload: (error) => {
+              const isManaged = isManagedProviderId(provider.id);
+              markManagedAuthPromptForError(targetSessionId, error, isManaged);
+              return buildChatErrorPayload(error, isManaged);
+            },
             createEmptyResponseError: () => createEmptyResponseError(provider.id),
             onSuccess: () => {
               refreshManagedBudgetIfNeeded(provider.id);
@@ -347,7 +400,9 @@ export function useChatService() {
             },
           });
         } catch (error) {
-          const { message, xml } = buildChatErrorPayload(error, isManagedProviderId(provider.id));
+          const isManaged = isManagedProviderId(provider.id);
+          markManagedAuthPromptForError(targetSessionId, error, isManaged);
+          const { message, xml } = buildChatErrorPayload(error, isManaged);
           setError(message);
           aiActions.updateMessage(targetSessionId, assistantMessageId, xml);
         }
@@ -408,6 +463,10 @@ export function useChatService() {
           writeManagedQuotaErrorMessage(sessionId, assistantMessageId, setError, t('chat.error.pointsExhausted'));
           return;
         }
+        if (isManagedProviderId(provider.id) && !isAccountConnected) {
+          writeManagedAuthRequiredMessage(sessionId, assistantMessageId, setError);
+          return;
+        }
 
         try {
           const state = useUnifiedStore.getState();
@@ -450,7 +509,11 @@ export function useChatService() {
             completeMessage: aiActions.completeMessage,
             setSessionLoading,
             setError,
-            buildErrorPayload: (error) => buildChatErrorPayload(error, isManagedProviderId(provider.id)),
+            buildErrorPayload: (error) => {
+              const isManaged = isManagedProviderId(provider.id);
+              markManagedAuthPromptForError(sessionId, error, isManaged);
+              return buildChatErrorPayload(error, isManaged);
+            },
             createEmptyResponseError: () => createEmptyResponseError(provider.id),
             onSuccess: () => {
               refreshManagedBudgetIfNeeded(provider.id);
@@ -458,7 +521,9 @@ export function useChatService() {
             },
           });
         } catch (error) {
-          const { message, xml } = buildChatErrorPayload(error, isManagedProviderId(provider.id));
+          const isManaged = isManagedProviderId(provider.id);
+          markManagedAuthPromptForError(sessionId, error, isManaged);
+          const { message, xml } = buildChatErrorPayload(error, isManaged);
           setError(message);
           aiActions.updateMessage(sessionId, assistantMessageId, xml);
         }
@@ -474,6 +539,7 @@ export function useChatService() {
       setError,
       setSessionLoading,
       maybeGenerateAutoTitle,
+      isAccountConnected,
       t,
     ],
   );
@@ -513,6 +579,10 @@ export function useChatService() {
           writeManagedQuotaErrorMessage(sessionId, messageId, setError, t('chat.error.pointsExhausted'));
           return;
         }
+        if (isManagedProviderId(provider.id) && !isAccountConnected) {
+          writeManagedAuthRequiredMessage(sessionId, messageId, setError);
+          return;
+        }
 
         try {
           const timezoneOffset = useUnifiedStore.getState().data.settings.timezone.offset;
@@ -546,7 +616,11 @@ export function useChatService() {
             completeMessage: aiActions.completeMessage,
             setSessionLoading,
             setError,
-            buildErrorPayload: (error) => buildChatErrorPayload(error, isManagedProviderId(provider.id)),
+            buildErrorPayload: (error) => {
+              const isManaged = isManagedProviderId(provider.id);
+              markManagedAuthPromptForError(sessionId, error, isManaged);
+              return buildChatErrorPayload(error, isManaged);
+            },
             createEmptyResponseError: () => createEmptyResponseError(provider.id),
             onSuccess: () => {
               refreshManagedBudgetIfNeeded(provider.id);
@@ -554,7 +628,9 @@ export function useChatService() {
             },
           });
         } catch (error) {
-          const { message, xml } = buildChatErrorPayload(error, isManagedProviderId(provider.id));
+          const isManaged = isManagedProviderId(provider.id);
+          markManagedAuthPromptForError(sessionId, error, isManaged);
+          const { message, xml } = buildChatErrorPayload(error, isManaged);
           setError(message);
           aiActions.updateMessage(sessionId, messageId, xml);
         }
@@ -571,6 +647,7 @@ export function useChatService() {
       setError,
       maybeGenerateAutoTitle,
       messages,
+      isAccountConnected,
       t,
     ],
   );
