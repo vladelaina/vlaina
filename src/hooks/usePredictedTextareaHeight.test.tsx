@@ -1,5 +1,5 @@
-import { render } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, render } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useRef } from 'react';
 import { usePredictedTextareaHeight } from './usePredictedTextareaHeight';
 
@@ -44,10 +44,15 @@ function Harness({ value }: { value: string }) {
 
 describe('usePredictedTextareaHeight', () => {
   beforeEach(() => {
+    vi.useRealTimers();
     ResizeObserverMock.instances = [];
     textLayoutMocks.measureTextareaContentHeight.mockClear();
     textLayoutMocks.resolveElementTextLayoutMetrics.mockClear();
     vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('reuses a single ResizeObserver across value updates', () => {
@@ -70,5 +75,37 @@ describe('usePredictedTextareaHeight', () => {
     view.unmount();
 
     expect(ResizeObserverMock.instances[0]!.disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not lock fallback height while the textarea has no layout width', () => {
+    vi.useFakeTimers();
+    let width = 0;
+    const originalClientWidth = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'clientWidth');
+    Object.defineProperty(HTMLTextAreaElement.prototype, 'clientWidth', {
+      configurable: true,
+      get: () => width,
+    });
+
+    try {
+      const view = render(<Harness value="first" />);
+      const textarea = view.container.querySelector('textarea');
+      expect(textarea).not.toBeNull();
+      expect(textarea!.style.height).toBe('');
+      expect(textLayoutMocks.measureTextareaContentHeight).not.toHaveBeenCalled();
+
+      width = 320;
+      act(() => {
+        vi.advanceTimersByTime(120);
+      });
+
+      expect(textarea!.style.height).toBe('60px');
+      expect(textLayoutMocks.measureTextareaContentHeight).toHaveBeenCalledTimes(1);
+    } finally {
+      if (originalClientWidth) {
+        Object.defineProperty(HTMLTextAreaElement.prototype, 'clientWidth', originalClientWidth);
+      } else {
+        delete (HTMLTextAreaElement.prototype as { clientWidth?: number }).clientWidth;
+      }
+    }
   });
 });

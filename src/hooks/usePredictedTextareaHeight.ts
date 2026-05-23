@@ -33,6 +33,34 @@ export function usePredictedTextareaHeight(
   const applyHeightRef = useRef<(value?: string) => void>(() => {});
   const observerRef = useRef<ResizeObserver | null>(null);
   const observedTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const retryFrameRef = useRef<number | null>(null);
+  const retryTimeoutRef = useRef<number | null>(null);
+
+  const clearPendingRetry = () => {
+    if (retryFrameRef.current !== null) {
+      cancelAnimationFrame(retryFrameRef.current);
+      retryFrameRef.current = null;
+    }
+    if (retryTimeoutRef.current !== null) {
+      window.clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+  };
+
+  const scheduleRetry = () => {
+    if (retryFrameRef.current !== null || retryTimeoutRef.current !== null) {
+      return;
+    }
+
+    retryFrameRef.current = requestAnimationFrame(() => {
+      retryFrameRef.current = null;
+      applyHeightRef.current();
+    });
+    retryTimeoutRef.current = window.setTimeout(() => {
+      retryTimeoutRef.current = null;
+      applyHeightRef.current();
+    }, 120);
+  };
 
   useLayoutEffect(() => {
     latestOptionsRef.current = { maxHeight, minHeight, value };
@@ -56,10 +84,12 @@ export function usePredictedTextareaHeight(
 
       const width = current.clientWidth;
       if (width <= 0) {
-        applyFallbackHeight(current, nextMinHeight, nextMaxHeight);
+        current.style.height = '';
+        scheduleRetry();
         return;
       }
 
+      clearPendingRetry();
       try {
         const metrics = resolveElementTextLayoutMetrics(current);
         const nextHeight = measureTextareaContentHeight(nextValue, width, {
@@ -97,6 +127,7 @@ export function usePredictedTextareaHeight(
 
   useEffect(() => {
     return () => {
+      clearPendingRetry();
       observerRef.current?.disconnect();
       observerRef.current = null;
       observedTextareaRef.current = null;
