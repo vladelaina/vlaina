@@ -36,9 +36,16 @@ export function persistWorkspaceSnapshot(
   notesPath: string,
   input: WorkspaceSnapshotInput
 ): void {
+  void saveWorkspaceSnapshot(notesPath, input);
+}
+
+export async function saveWorkspaceSnapshot(
+  notesPath: string,
+  input: WorkspaceSnapshotInput
+): Promise<void> {
   if (!notesPath) {
     return;
   }
 
-  void saveWorkspaceState(notesPath, createWorkspaceSnapshot(input));
+  await saveWorkspaceState(notesPath, createWorkspaceSnapshot(input));
 }

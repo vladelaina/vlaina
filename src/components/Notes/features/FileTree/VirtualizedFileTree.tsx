@@ -2,6 +2,10 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState, type RefObject
 import type { FileTreeNode } from '@/stores/useNotesStore';
 import { FileTreeItem } from './FileTreeItem';
 import {
+  SIDEBAR_SCROLL_TO_PATH_EVENT,
+  type SidebarScrollToPathDetail,
+} from '../common/sidebarScrollIntoView';
+import {
   buildVirtualFileTreeRowOffsets,
   estimateVirtualFileTreeRowHeight,
   flattenVisibleFileTreeRows,
@@ -108,6 +112,66 @@ export function VirtualizedFileTree({
       resizeObserver?.disconnect();
     };
   }, [scrollRootRef, updateViewport, updateViewportNow]);
+
+  useLayoutEffect(() => {
+    const scrollRoot = scrollRootRef.current;
+    const container = containerRef.current;
+    if (!scrollRoot || !container) {
+      return;
+    }
+
+    const handleScrollToPath = (event: Event) => {
+      const customEvent = event as CustomEvent<SidebarScrollToPathDetail>;
+      const targetPath = customEvent.detail?.path;
+      if (!targetPath) {
+        return;
+      }
+
+      const rowIndex = rows.findIndex((row) => row.node.path === targetPath);
+      if (rowIndex === -1) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const scrollRootRect = scrollRoot.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      const containerTopInScroll = containerRect.top - scrollRootRect.top + scrollRoot.scrollTop;
+      const targetTop = containerTopInScroll + (rowOffsets[rowIndex] ?? 0);
+      const targetHeight = rowHeights[rowIndex] ?? VIRTUAL_FILE_TREE_ROW_HEIGHT;
+      const block = customEvent.detail.block;
+      const maxScrollTop = Math.max(scrollRoot.scrollHeight - scrollRoot.clientHeight, 0);
+      const nextScrollTop = (() => {
+        if (block === 'start') {
+          return targetTop;
+        }
+        if (block === 'end') {
+          return targetTop - scrollRoot.clientHeight + targetHeight;
+        }
+        if (block === 'nearest') {
+          if (targetTop >= scrollRoot.scrollTop && targetTop + targetHeight <= scrollRoot.scrollTop + scrollRoot.clientHeight) {
+            return scrollRoot.scrollTop;
+          }
+          if (targetTop < scrollRoot.scrollTop) {
+            return targetTop;
+          }
+          return targetTop - scrollRoot.clientHeight + targetHeight;
+        }
+        return targetTop - Math.max(0, (scrollRoot.clientHeight - targetHeight) / 2);
+      })();
+
+      scrollRoot.scrollTo({
+        top: Math.max(0, Math.min(maxScrollTop, nextScrollTop)),
+        behavior: 'smooth',
+      });
+      updateViewport();
+    };
+
+    scrollRoot.addEventListener(SIDEBAR_SCROLL_TO_PATH_EVENT, handleScrollToPath);
+    return () => {
+      scrollRoot.removeEventListener(SIDEBAR_SCROLL_TO_PATH_EVENT, handleScrollToPath);
+    };
+  }, [rowHeights, rowOffsets, rows, scrollRootRef, updateViewport]);
 
   const virtualWindow = getVirtualFileTreeWindow({
     rowCount: rows.length,

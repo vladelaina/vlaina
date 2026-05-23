@@ -7,6 +7,7 @@ import { getAutoSaveableDraftPaths, saveAutoSaveableDrafts } from '@/stores/note
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import { saveDirtyRegularOpenTabs } from '@/stores/notes/dirtyOpenTabs';
 import { flushCurrentPendingEditorMarkdown } from '@/stores/notes/pendingEditorMarkdownFlusher';
+import { saveWorkspaceSnapshot } from '@/stores/notes/workspacePersistence';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { useCloseDraftPersistence } from './useCloseDraftPersistence';
 
@@ -197,6 +198,16 @@ export function useElectronCloseGuard() {
         );
         const currentRegularDirty =
           nextNotesState.isDirty && !isDraftNotePath(nextNotesState.currentNote?.path);
+        if (!hasFailure && !currentRegularDirty && !stillHasDirtyRegularTabs && nextNotesState.notesPath) {
+          await saveWorkspaceSnapshot(nextNotesState.notesPath, {
+            rootFolder: nextNotesState.rootFolder,
+            currentNotePath: nextNotesState.currentNote?.path ?? null,
+            fileTreeSortMode: nextNotesState.fileTreeSortMode,
+          }).catch(() => {
+            hasFailure = true;
+          });
+        }
+
         return !hasFailure && !currentRegularDirty && !stillHasDirtyRegularTabs;
       })().finally(() => {
         activeFlush = null;

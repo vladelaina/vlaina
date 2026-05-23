@@ -9,6 +9,8 @@ type NotesState = {
   noteMetadata: { notes: Record<string, unknown> } | null;
   currentNote: { path: string; content?: string } | null;
   notesPath: string;
+  rootFolder: unknown;
+  fileTreeSortMode: 'name-asc';
   isDirty: boolean;
   openNote: ReturnType<typeof vi.fn>;
   openNoteByAbsolutePath: ReturnType<typeof vi.fn>;
@@ -23,6 +25,8 @@ const mocks = vi.hoisted(() => {
     noteMetadata: null,
     currentNote: null,
     notesPath: '',
+    rootFolder: null,
+    fileTreeSortMode: 'name-asc',
     isDirty: false,
     openNote: vi.fn().mockResolvedValue(undefined),
     openNoteByAbsolutePath: vi.fn().mockResolvedValue(undefined),
@@ -49,6 +53,7 @@ const mocks = vi.hoisted(() => {
     flushPendingSessionJsonSaves: vi.fn().mockResolvedValue(undefined),
     flushCurrentPendingEditorMarkdown: vi.fn(() => false),
     openStoredNotePath: vi.fn().mockResolvedValue(undefined),
+    saveWorkspaceSnapshot: vi.fn().mockResolvedValue(undefined),
     addToast: vi.fn(),
     isConnected: false,
     checkStatus: vi.fn().mockResolvedValue(undefined),
@@ -190,6 +195,10 @@ vi.mock('@/stores/notes/openNotePath', () => ({
   openStoredNotePath: (...args: unknown[]) => mocks.openStoredNotePath(...args),
 }));
 
+vi.mock('@/stores/notes/workspacePersistence', () => ({
+  saveWorkspaceSnapshot: (...args: unknown[]) => mocks.saveWorkspaceSnapshot(...args),
+}));
+
 vi.mock('@/components/theme-provider', () => ({
   ThemeProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
@@ -278,6 +287,8 @@ describe('App close flow', () => {
     mocks.notesState.noteMetadata = null;
     mocks.notesState.currentNote = null;
     mocks.notesState.notesPath = '';
+    mocks.notesState.rootFolder = null;
+    mocks.notesState.fileTreeSortMode = 'name-asc';
     mocks.notesState.isDirty = false;
     mocks.notesState.openNote.mockClear();
     mocks.notesState.openNoteByAbsolutePath.mockClear();
@@ -303,6 +314,8 @@ describe('App close flow', () => {
     mocks.desktopWindow.onCloseRequested.mockClear();
     mocks.flushPendingSave.mockClear();
     mocks.flushPendingSessionJsonSaves.mockClear();
+    mocks.saveWorkspaceSnapshot.mockClear();
+    mocks.saveWorkspaceSnapshot.mockResolvedValue(undefined);
     mocks.flushCurrentPendingEditorMarkdown.mockClear();
     mocks.flushCurrentPendingEditorMarkdown.mockImplementation(() => false);
     mocks.closeRequestedHandler = null;
@@ -341,6 +354,30 @@ describe('App close flow', () => {
     });
 
     expect(screen.queryByText('Unsaved Drafts')).toBeNull();
+  });
+
+  it('flushes the active notes workspace before closing', async () => {
+    mocks.notesState.notesPath = '/vault';
+    mocks.notesState.currentNote = { path: 'docs/active.md', content: '# active' };
+    mocks.notesState.rootFolder = {
+      id: '',
+      name: 'Notes',
+      path: '',
+      isFolder: true,
+      expanded: true,
+      children: [],
+    };
+
+    await renderAndRequestClose();
+
+    await waitFor(() => {
+      expect(mocks.saveWorkspaceSnapshot).toHaveBeenCalledWith('/vault', {
+        rootFolder: mocks.notesState.rootFolder,
+        currentNotePath: 'docs/active.md',
+        fileTreeSortMode: 'name-asc',
+      });
+      expect(mocks.desktopWindow.confirmClose).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('shows a close failure dialog when pending storage fails and allows forced close', async () => {

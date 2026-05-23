@@ -181,6 +181,7 @@ export function SidebarContent({
     scopeRef: sidebarRootRef,
   });
   const wasShowingSearchResultsRef = useRef(shouldShowSearchResults);
+  const lastRevealedCurrentNotePathRef = useRef<string | null>(null);
   const hasVaultPendingRoot = Boolean(currentVault && notesPath === currentVault.path && !displayRootFolder);
   const hasFileTreeEntries = Boolean(displayRootFolder && displayRootFolder.children.length > 0);
   const { isContentScanPending, searchResults } = useSidebarContentSearchResults({
@@ -265,20 +266,26 @@ export function SidebarContent({
 
     const wasShowingSearchResults = wasShowingSearchResultsRef.current;
     wasShowingSearchResultsRef.current = shouldShowSearchResults;
+    const justLeftSearchResults = wasShowingSearchResults && !shouldShowSearchResults;
 
     if (
-      !wasShowingSearchResults ||
       shouldShowSearchResults ||
       !currentNotePath ||
       isDraftNotePath(currentNotePath) ||
-      isAbsolutePath(currentNotePath)
+      isAbsolutePath(currentNotePath) ||
+      !displayRootFolder
     ) {
       return;
     }
 
+    if (!justLeftSearchResults && lastRevealedCurrentNotePathRef.current === currentNotePath) {
+      return;
+    }
+
+    lastRevealedCurrentNotePathRef.current = currentNotePath;
     revealFolder(currentNotePath);
-    scheduleSidebarItemIntoView(currentNotePath, 2);
-  }, [active, currentNotePath, revealFolder, shouldShowSearchResults]);
+    scheduleSidebarItemIntoView(currentNotePath, 3);
+  }, [active, currentNotePath, displayRootFolder, revealFolder, shouldShowSearchResults]);
 
   useEffect(() => {
     if (!active) {
