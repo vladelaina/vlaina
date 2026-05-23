@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ExternalLink, QrCode, RefreshCw } from 'lucide-react';
-import { FaDiscord, FaQq, FaWeixin } from 'react-icons/fa';
+import { FaDiscord, FaGithub, FaQq, FaWeixin } from 'react-icons/fa';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { getElectronBridge } from '@/lib/electron/bridge';
 import { getExternalLinkProps, openExternalHref } from '@/lib/navigation/externalLinks';
@@ -28,6 +28,7 @@ interface UpdateInfo {
 }
 
 const privacyPolicyUrl = 'https://github.com/vladelaina/vlaina/blob/main/PRIVACY.md';
+const githubRepositoryUrl = 'https://github.com/vladelaina/vlaina';
 const discordInviteUrl = 'https://discord.gg/nvsh9QpTqS';
 const appLogoUrl = `${import.meta.env.BASE_URL}logo.png`;
 const communityPillClassName =
@@ -183,11 +184,28 @@ function DiscordPill() {
   );
 }
 
+function GithubPill() {
+  const { t } = useI18n();
+
+  return (
+    <button
+      type="button"
+      onClick={() => void openExternalHref(githubRepositoryUrl)}
+      aria-label={t('settings.about.openGithub')}
+      className={cn(communityPillClassName, chatComposerPillSurfaceClass)}
+    >
+      <FaGithub size={15} className="text-[var(--notes-sidebar-text)]" />
+      <span>{t('settings.about.github')}</span>
+    </button>
+  );
+}
+
 function CommunityPills({ community }: { community: CommunitySettings }) {
   const { t } = useI18n();
 
   return (
     <div className="flex flex-wrap items-center gap-2 px-2">
+      <GithubPill />
       <DiscordPill />
       <CommunityQrPill
         title={t('settings.about.qqGroup')}

@@ -51,6 +51,8 @@
   "settings.about.qqGroup": "QQ 그룹",
   "settings.about.wechatGroup": "WeChat 그룹",
   "settings.about.discord": "Discord",
+  "settings.about.github": "GitHub",
+  "settings.about.openGithub": "GitHub 열기",
   "settings.about.openDiscord": "Discord 열기",
   "settings.about.downloadUpdates": "업데이트 다운로드",
   "settings.about.openPrivacyPolicy": "개인정보처리방침",

@@ -51,6 +51,8 @@
   "settings.about.qqGroup": "QQ グループ",
   "settings.about.wechatGroup": "WeChat グループ",
   "settings.about.discord": "Discord",
+  "settings.about.github": "GitHub",
+  "settings.about.openGithub": "GitHub を開く",
   "settings.about.openDiscord": "Discord を開く",
   "settings.about.downloadUpdates": "アップデートをダウンロード",
   "settings.about.openPrivacyPolicy": "プライバシーポリシー",

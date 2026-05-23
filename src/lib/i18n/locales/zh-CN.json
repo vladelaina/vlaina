@@ -51,6 +51,8 @@
   "settings.about.qqGroup": "QQ群",
   "settings.about.wechatGroup": "微信群",
   "settings.about.discord": "Discord",
+  "settings.about.github": "GitHub",
+  "settings.about.openGithub": "打开 GitHub",
   "settings.about.openDiscord": "打开 Discord",
   "settings.about.downloadUpdates": "下载更新",
   "settings.about.openPrivacyPolicy": "隐私政策",

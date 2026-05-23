@@ -51,6 +51,8 @@
   "settings.about.qqGroup": "QQ group",
   "settings.about.wechatGroup": "WeChat group",
   "settings.about.discord": "Discord",
+  "settings.about.github": "GitHub",
+  "settings.about.openGithub": "Ouvrir GitHub",
   "settings.about.openDiscord": "Open Discord",
   "settings.about.downloadUpdates": "Télécharger les mises à jour",
   "settings.about.openPrivacyPolicy": "Politique de confidentialité",

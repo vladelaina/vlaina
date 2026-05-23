@@ -20,6 +20,7 @@ describe('i18n messages', () => {
     const stableProductKeys = new Set([
       'settings.tabs.ai',
       'settings.tabs.markdown',
+      'settings.about.github',
       'settings.about.discord',
       'vault.pathPlaceholder',
       'icon.emoji',

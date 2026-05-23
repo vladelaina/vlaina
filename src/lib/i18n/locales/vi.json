@@ -51,6 +51,8 @@
   "settings.about.qqGroup": "QQ group",
   "settings.about.wechatGroup": "WeChat group",
   "settings.about.discord": "Discord",
+  "settings.about.github": "GitHub",
+  "settings.about.openGithub": "Mở GitHub",
   "settings.about.openDiscord": "Open Discord",
   "settings.about.downloadUpdates": "Tải xuống bản cập nhật",
   "settings.about.openPrivacyPolicy": "Chính sách bảo mật",
