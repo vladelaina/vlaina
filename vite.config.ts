@@ -90,33 +90,39 @@ export default defineConfig(async () => ({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (!id.includes('node_modules')) return;
+          const normalizedId = id.replace(/\\/g, '/');
 
-          if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/')) {
+          if (normalizedId.includes('/src/lib/i18n/')) {
+            return 'i18n';
+          }
+
+          if (!normalizedId.includes('node_modules')) return;
+
+          if (normalizedId.includes('/react/') || normalizedId.includes('/react-dom/') || normalizedId.includes('/scheduler/')) {
             return 'react-vendor';
           }
 
-          if (id.includes('/dagre-d3-es/') || id.includes('/dagre/') || id.includes('/graphlib/')) {
+          if (normalizedId.includes('/dagre-d3-es/') || normalizedId.includes('/dagre/') || normalizedId.includes('/graphlib/')) {
             return 'mermaid-layout-vendor';
           }
 
-          if (id.includes('/d3-') || id.includes('/d3/')) {
+          if (normalizedId.includes('/d3-') || normalizedId.includes('/d3/')) {
             return 'd3-vendor';
           }
 
-          if (id.includes('/cose-bilkent')) {
+          if (normalizedId.includes('/cose-bilkent')) {
             return 'cytoscape-layout-vendor';
           }
 
-          if (id.includes('/cytoscape')) {
+          if (normalizedId.includes('/cytoscape')) {
             return 'cytoscape-vendor';
           }
 
-          if (id.includes('/framer-motion/')) {
+          if (normalizedId.includes('/framer-motion/')) {
             return 'motion-vendor';
           }
 
-          if (id.includes('/@radix-ui/')) {
+          if (normalizedId.includes('/@radix-ui/')) {
             return 'ui-vendor';
           }
         },

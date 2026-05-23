@@ -99,9 +99,11 @@ function installDevelopmentParentProcessGuard() {
 }
 
 process.on('uncaughtException', (error) => {
+  console.error('[vlaina] Uncaught exception in Electron main process:', error);
 });
 
 process.on('unhandledRejection', (reason) => {
+  console.error('[vlaina] Unhandled rejection in Electron main process:', reason);
 });
 
 function normalizeProxyConfig(rawProxy, source) {

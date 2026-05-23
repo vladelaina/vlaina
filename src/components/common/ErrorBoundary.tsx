@@ -16,8 +16,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     return { error };
   }
 
-  componentDidCatch(_error: Error, _info: ErrorInfo) {
-    if (import.meta.env.DEV) {    }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    if (import.meta.env.DEV) {
+      console.error('[vlaina] React error boundary caught an error:', error, info);
+    }
   }
 
   private handleReload = () => {
