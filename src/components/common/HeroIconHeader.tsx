@@ -118,6 +118,7 @@ export function HeroIconHeader({
   const iconButtonRef = useRef<HTMLButtonElement>(null);
   const [showIconPicker, setShowIconPicker] = useState(false);
   const [isHoveringHeader, setIsHoveringHeader] = useState(false);
+  const [committedIcon, setCommittedIcon] = useState<string | null>(icon ?? null);
 
   const resolvedIconSize = resolvePixelSize(iconSize);
 
@@ -141,6 +142,10 @@ export function HeroIconHeader({
   }, []);
 
   useEffect(() => {
+    setCommittedIcon(icon ?? null);
+  }, [id, icon]);
+
+  useEffect(() => {
     return onNotesOverlayOpen(({ source }) => {
       if (source === 'header-icon-picker') return;
       setShowIconPicker(false);
@@ -150,10 +155,12 @@ export function HeroIconHeader({
   }, [clearPreview]);
 
   const handleIconSelect = useCallback((newIcon: string) => {
+    setCommittedIcon(newIcon);
     onIconChange(newIcon);
   }, [onIconChange]);
 
   const handleRemoveIcon = useCallback(() => {
+    setCommittedIcon(null);
     clearPreview();
     onIconChange(null);
   }, [clearPreview, onIconChange]);
@@ -210,7 +217,7 @@ export function HeroIconHeader({
           onMouseEnter={() => setIsHoveringHeader(true)}
           onMouseLeave={() => setIsHoveringHeader(false)}
         >
-          {icon || showIconPicker ? (
+          {committedIcon || showIconPicker ? (
               <div
                   className="relative flex items-center"
                   style={{ height: 'var(--header-icon-size)' }}
@@ -227,9 +234,9 @@ export function HeroIconHeader({
                       }}
                   >
                       <HeaderIcon 
-                          key={icon || 'empty'}
+                          key={committedIcon || 'empty'}
                           itemId={id} 
-                          originalIcon={icon}
+                          originalIcon={committedIcon}
                           sizeVar="var(--header-icon-size)" 
                           imageLoader={imageLoader}
                       />
@@ -249,6 +256,7 @@ export function HeroIconHeader({
                             return;
                           }
                           notifyNotesOverlayOpen('header-icon-picker');
+                          setCommittedIcon(randomIcon);
                           onIconChange(randomIcon);
                           setShowIconPicker(true);
                       }}
@@ -274,8 +282,8 @@ export function HeroIconHeader({
                         onRemove={handleRemoveIcon}
                         onClose={handlePickerClose}
                         
-                        hasIcon={!!icon}
-                        currentIcon={icon || undefined}
+                        hasIcon={!!committedIcon}
+                        currentIcon={committedIcon || undefined}
                         
                         currentSize={!compact ? currentSliderValue : undefined}
                         minSize={!compact ? minIconSize : undefined}
