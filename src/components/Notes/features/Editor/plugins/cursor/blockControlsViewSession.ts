@@ -6,6 +6,11 @@ import { createBlockDragPreview, type BlockDragPreviewHandle } from './blockDrag
 import { createBlockControlsDom } from './blockControlsDom';
 import { setBlockDraggingVisualState } from './blockDragVisualState';
 import {
+  getCurrentEditorBlockPositionSnapshot,
+  subscribeCurrentEditorBlockPositionSnapshot,
+  type EditorBlockPositionSnapshot,
+} from '../../utils/editorBlockPositionCache';
+import {
   applyBlockMove,
   canApplyBlockMove,
   getDraggableBlockRanges,
@@ -52,7 +57,9 @@ export class BlockControlsViewSession {
   private cachedDoc;
   private cachedScrollLeft = Number.NaN;
   private cachedScrollTop = Number.NaN;
+  private cachedSnapshotVersion = Number.NaN;
   private dragWheelListenerAttached = false;
+  private readonly unsubscribeBlockPositionSnapshot: () => void;
 
   constructor(view: EditorView) {
     this.view = view;
@@ -72,6 +79,9 @@ export class BlockControlsViewSession {
     this.scrollRoot?.addEventListener('scroll', this.handleScrollOrResize, { passive: true });
     window.addEventListener('blur', this.handleWindowBlur);
     window.addEventListener('resize', this.handleScrollOrResize);
+    this.unsubscribeBlockPositionSnapshot = subscribeCurrentEditorBlockPositionSnapshot(
+      this.handleBlockPositionSnapshot,
+    );
   }
 
   update(): void {
@@ -96,6 +106,7 @@ export class BlockControlsViewSession {
     this.scrollRoot?.removeEventListener('scroll', this.handleScrollOrResize);
     window.removeEventListener('blur', this.handleWindowBlur);
     window.removeEventListener('resize', this.handleScrollOrResize);
+    this.unsubscribeBlockPositionSnapshot();
     if (this.dragPreview) {
       this.dragPreview.destroy();
       this.dragPreview = null;
@@ -141,6 +152,7 @@ export class BlockControlsViewSession {
     this.cachedDoc = this.view.state.doc;
     this.cachedScrollLeft = Number.NaN;
     this.cachedScrollTop = Number.NaN;
+    this.cachedSnapshotVersion = Number.NaN;
   }
 
   private getCachedHandleTargets(): HandleBlockTarget[] {
@@ -151,11 +163,14 @@ export class BlockControlsViewSession {
     const selectionKey = getBlockRangesKey(draggableRanges);
     const nextScrollLeft = this.scrollRoot?.scrollLeft ?? 0;
     const nextScrollTop = this.scrollRoot?.scrollTop ?? 0;
+    const snapshot = getCurrentEditorBlockPositionSnapshot();
+    const snapshotVersion = snapshot?.view === this.view ? snapshot.version : 0;
     if (
       this.cachedSelectionKey === selectionKey
       && this.cachedDoc === this.view.state.doc
       && this.cachedScrollLeft === nextScrollLeft
       && this.cachedScrollTop === nextScrollTop
+      && this.cachedSnapshotVersion === snapshotVersion
     ) {
       return this.cachedTargets;
     }
@@ -164,6 +179,7 @@ export class BlockControlsViewSession {
     this.cachedDoc = this.view.state.doc;
     this.cachedScrollLeft = nextScrollLeft;
     this.cachedScrollTop = nextScrollTop;
+    this.cachedSnapshotVersion = snapshotVersion;
     this.cachedTargets = draggableRanges
       .map((range) => resolveBlockTargetByPos(this.view, range.from))
       .filter((target): target is HandleBlockTarget => target !== null);
@@ -280,6 +296,20 @@ export class BlockControlsViewSession {
       return;
     }
     this.invalidateTargetCache();
+    this.scheduleHandleRefresh();
+  };
+
+  private readonly handleBlockPositionSnapshot = (snapshot: EditorBlockPositionSnapshot | null): void => {
+    if (snapshot && snapshot.view !== this.view) return;
+    if (this.pointerY === null && !this.controls.classList.contains('visible') && !this.draggedRanges) return;
+
+    this.invalidateTargetCache();
+    if (this.draggedRanges) {
+      if (this.lastDragClientX !== null && this.lastDragClientY !== null) {
+        this.updateDropTargetByPointer(this.lastDragClientX, this.lastDragClientY);
+      }
+      return;
+    }
     this.scheduleHandleRefresh();
   };
 
