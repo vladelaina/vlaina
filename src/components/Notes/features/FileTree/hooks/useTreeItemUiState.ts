@@ -50,7 +50,13 @@ export function useTreeItemUiState({ path, name }: UseTreeItemUiStateOptions) {
   const handleContextMenu = useCallback((event: React.MouseEvent) => {
     event.preventDefault();
     event.stopPropagation();
-    setMenuPosition(getSidebarContextMenuPosition(event.currentTarget.getBoundingClientRect(), event.clientY));
+    setMenuPosition(
+      getSidebarContextMenuPosition(
+        event.currentTarget.getBoundingClientRect(),
+        event.clientY,
+        event.clientX,
+      ),
+    );
     setShowMenu(true);
   }, []);
 

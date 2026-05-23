@@ -16,9 +16,10 @@ export function getSidebarMenuPositionFromTriggerRect(rect: DOMRect): SidebarMen
 export function getSidebarContextMenuPosition(
   rect: DOMRect,
   clientY: number,
+  clientX?: number,
 ): SidebarMenuPosition {
   return {
     top: clientY,
-    left: rect.right - SIDEBAR_CONTEXT_MENU_OVERLAP_X,
+    left: clientX ?? rect.right - SIDEBAR_CONTEXT_MENU_OVERLAP_X,
   };
 }

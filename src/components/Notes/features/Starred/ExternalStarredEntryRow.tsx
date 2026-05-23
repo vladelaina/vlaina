@@ -61,7 +61,13 @@ export function ExternalStarredEntryRow({
   const handleContextMenu = (event: MouseEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    setMenuPosition(getSidebarContextMenuPosition(event.currentTarget.getBoundingClientRect(), event.clientY));
+    setMenuPosition(
+      getSidebarContextMenuPosition(
+        event.currentTarget.getBoundingClientRect(),
+        event.clientY,
+        event.clientX,
+      ),
+    );
     setShowMenu(true);
   };
 

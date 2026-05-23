@@ -146,7 +146,11 @@ function ChatSidebarSessionRowInner({
         event.preventDefault();
         event.stopPropagation();
         setContextMenuPosition(
-          getSidebarContextMenuPosition(event.currentTarget.getBoundingClientRect(), event.clientY),
+          getSidebarContextMenuPosition(
+            event.currentTarget.getBoundingClientRect(),
+            event.clientY,
+            event.clientX,
+          ),
         );
         setShowContextMenu(true);
       }}

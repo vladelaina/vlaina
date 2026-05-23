@@ -20,7 +20,7 @@ export function useRootBlankContextMenu({
       event.preventDefault();
       event.stopPropagation();
       const rect = rootRowRef.current?.getBoundingClientRect() ?? blankArea.getBoundingClientRect();
-      onOpen(getSidebarContextMenuPosition(rect, event.clientY));
+      onOpen(getSidebarContextMenuPosition(rect, event.clientY, event.clientX));
     };
 
     blankArea.addEventListener('contextmenu', handleBlankContextMenu);
