@@ -1,7 +1,9 @@
 import { shouldPersistSession } from '@/lib/ai/temporaryChat';
 import {
   flushPendingSessionJsonSaves,
+  hasPendingSessionJsonSave,
   loadSessionJson,
+  mergeSessionMessages,
 } from '@/lib/storage/chatStorage';
 import type { ChatMessage } from '@/lib/ai/types';
 import { useUnifiedStore } from '../unified/useUnifiedStore';
@@ -35,18 +37,26 @@ async function syncSessionMessagesFromDisk(
   }
 
   const currentMessages = latestAI.messages[sessionId] || [];
-  if (!persistedMessages || areMessagesEqual(persistedMessages, currentMessages)) {
+  if (!persistedMessages) {
+    return currentMessages;
+  }
+
+  const hasPendingLocalWrite = hasPendingSessionJsonSave(sessionId);
+  const nextMessages = mergeSessionMessages(currentMessages, persistedMessages, {
+    preferredSource: hasPendingLocalWrite ? 'incoming' : 'persisted',
+  });
+  if (areMessagesEqual(nextMessages, currentMessages)) {
     return currentMessages;
   }
 
   latestState.updateAIData({
     messages: {
       ...latestAI.messages,
-      [sessionId]: persistedMessages,
+      [sessionId]: nextMessages,
     },
   }, true);
 
-  return persistedMessages;
+  return nextMessages;
 }
 
 export async function hydrateSessionMessagesFromDisk(sessionId: string): Promise<ChatMessage[]> {

@@ -43,12 +43,14 @@ export function saveToStorage<T>(key: string, value: T): void {
 interface PersistedVaultState {
   recentVaults: VaultInfo[];
   currentVaultId: string | null;
+  deletedVaultPaths?: string[];
 }
 
 interface VaultStateFile {
   version: typeof VAULT_STATE_VERSION;
   recentVaults: VaultInfo[];
   currentVaultId: string | null;
+  deletedVaultPaths?: string[];
 }
 
 function canPersistVaultStateToFile(): boolean {
@@ -69,6 +71,7 @@ function loadLocalVaultState(): PersistedVaultState {
   return {
     recentVaults: normalizeRecentVaults(loadFromStorage<VaultInfo[]>(VAULTS_STORAGE_KEY, [])),
     currentVaultId: loadFromStorage<string | null>(CURRENT_VAULT_KEY, null),
+    deletedVaultPaths: [],
   };
 }
 
@@ -86,6 +89,12 @@ function parseVaultStateFile(value: unknown): PersistedVaultState | null {
   return {
     recentVaults: normalizeRecentVaults(Array.isArray(data.recentVaults) ? data.recentVaults : []),
     currentVaultId: typeof data.currentVaultId === 'string' ? data.currentVaultId : null,
+    deletedVaultPaths: Array.isArray(data.deletedVaultPaths)
+      ? data.deletedVaultPaths
+          .filter((path): path is string => typeof path === 'string')
+          .map(normalizeVaultPath)
+          .filter(Boolean)
+      : [],
   };
 }
 
@@ -98,8 +107,10 @@ function mergeVaultStates(
   }
 
   return {
-    recentVaults: normalizeRecentVaults([...fileState.recentVaults, ...localState.recentVaults]),
+    recentVaults: normalizeRecentVaults([...fileState.recentVaults, ...localState.recentVaults])
+      .filter((vault) => !(fileState.deletedVaultPaths || []).includes(normalizeVaultPath(vault.path))),
     currentVaultId: fileState.currentVaultId,
+    deletedVaultPaths: fileState.deletedVaultPaths || [],
   };
 }
 
@@ -119,10 +130,36 @@ async function readVaultStateFile(): Promise<PersistedVaultState | null> {
   }
 }
 
-export function persistVaultState(recentVaults: VaultInfo[], currentVaultId: string | null): void {
+function mergeVaultStateForSave(
+  incomingState: PersistedVaultState,
+  fileState: PersistedVaultState | null,
+): PersistedVaultState {
+  const incomingPaths = new Set(incomingState.recentVaults.map((vault) => normalizeVaultPath(vault.path)));
+  const deletedVaultPaths = new Set([
+    ...(fileState?.deletedVaultPaths || []),
+    ...(incomingState.deletedVaultPaths || []),
+  ]);
+  incomingPaths.forEach((path) => deletedVaultPaths.delete(path));
+
+  return {
+    recentVaults: normalizeRecentVaults([
+      ...incomingState.recentVaults,
+      ...(fileState?.recentVaults || []),
+    ]).filter((vault) => !deletedVaultPaths.has(normalizeVaultPath(vault.path))),
+    currentVaultId: incomingState.currentVaultId,
+    deletedVaultPaths: Array.from(deletedVaultPaths),
+  };
+}
+
+export function persistVaultState(
+  recentVaults: VaultInfo[],
+  currentVaultId: string | null,
+  options: { deletedVaults?: VaultInfo[] } = {},
+): void {
   const state = {
     recentVaults: normalizeRecentVaults(recentVaults),
     currentVaultId,
+    deletedVaultPaths: (options.deletedVaults || []).map((vault) => normalizeVaultPath(vault.path)),
   };
   saveLocalVaultState(state);
 
@@ -133,10 +170,12 @@ export function persistVaultState(recentVaults: VaultInfo[], currentVaultId: str
       if (!statePath) {
         return;
       }
+      const mergedState = mergeVaultStateForSave(state, await readVaultStateFile());
       const payload: VaultStateFile = {
         version: VAULT_STATE_VERSION,
-        recentVaults: state.recentVaults,
-        currentVaultId: state.currentVaultId,
+        recentVaults: mergedState.recentVaults,
+        currentVaultId: mergedState.currentVaultId,
+        deletedVaultPaths: mergedState.deletedVaultPaths,
       };
       await storage.writeFile(statePath, JSON.stringify(payload, null, 2));
     } catch (error) {
@@ -405,9 +444,12 @@ export function removeRecentVaultAction({
   currentVault: VaultInfo | null;
   set: (state: { currentVault?: VaultInfo | null; recentVaults: VaultInfo[] }) => void;
 }) {
+  const deletedVaults = recentVaults.filter((vault) => vault.id === id);
   const updatedRecent = recentVaults.filter((vault) => vault.id !== id);
 
-  persistVaultState(updatedRecent, currentVault?.id === id ? null : currentVault?.id ?? null);
+  persistVaultState(updatedRecent, currentVault?.id === id ? null : currentVault?.id ?? null, {
+    deletedVaults,
+  });
 
   if (currentVault?.id === id) {
     set({ currentVault: null, recentVaults: updatedRecent });

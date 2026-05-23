@@ -49,17 +49,118 @@ export function preserveUnknownPersistedMessages(
   incomingMessages: ChatMessage[],
   persistedMessages: ChatMessage[] | null,
 ): ChatMessage[] {
+  return mergeSessionMessages(incomingMessages, persistedMessages, {
+    preferredSource: 'incoming',
+  });
+}
+
+function serializeMessageForComparison(message: ChatMessage): string {
+  return JSON.stringify(message);
+}
+
+function serializeVersionForComparison(version: ChatMessage['versions'][number]): string {
+  return JSON.stringify(version);
+}
+
+function createVersionFromMessage(message: ChatMessage): ChatMessage['versions'][number] {
+  return {
+    content: message.content || '',
+    createdAt: message.timestamp || Date.now(),
+    subsequentMessages: [],
+    ...(message.apiTranscript ? { apiTranscript: message.apiTranscript } : {}),
+  };
+}
+
+function mergeMessageVersions(
+  preferred: ChatMessage,
+  secondary: ChatMessage,
+): ChatMessage['versions'] {
+  const versions = getNormalizedMessageVersions(preferred);
+  const seen = new Set(versions.map(serializeVersionForComparison));
+
+  for (const version of getNormalizedMessageVersions(secondary)) {
+    const key = serializeVersionForComparison(version);
+    if (!seen.has(key)) {
+      versions.push(version);
+      seen.add(key);
+    }
+  }
+
+  if (serializeMessageForComparison(preferred) !== serializeMessageForComparison(secondary)) {
+    const secondaryActiveVersion = createVersionFromMessage(secondary);
+    const key = serializeVersionForComparison(secondaryActiveVersion);
+    if (!seen.has(key)) {
+      versions.push(secondaryActiveVersion);
+    }
+  }
+
+  return versions;
+}
+
+function getNormalizedMessageVersions(message: ChatMessage): ChatMessage['versions'] {
+  return Array.isArray(message.versions) && message.versions.length > 0
+    ? message.versions
+    : [createVersionFromMessage(message)];
+}
+
+function mergeMatchingMessages(preferred: ChatMessage, secondary: ChatMessage): ChatMessage {
+  const versions = mergeMessageVersions(preferred, secondary);
+  const preferredVersion = createVersionFromMessage(preferred);
+  const preferredVersionIndex = versions.findIndex(
+    (version) => serializeVersionForComparison(version) === serializeVersionForComparison(preferredVersion)
+  );
+
+  return {
+    ...preferred,
+    versions,
+    currentVersionIndex: preferredVersionIndex >= 0
+      ? preferredVersionIndex
+      : Math.min(Math.max(preferred.currentVersionIndex ?? 0, 0), Math.max(versions.length - 1, 0)),
+  };
+}
+
+export function mergeSessionMessages(
+  incomingMessages: ChatMessage[],
+  persistedMessages: ChatMessage[] | null,
+  options: { preferredSource: 'incoming' | 'persisted' } = { preferredSource: 'incoming' },
+): ChatMessage[] {
   if (!persistedMessages || persistedMessages.length === 0) {
     return incomingMessages;
   }
 
+  const incomingById = new Map(incomingMessages.map((message) => [message.id, message]));
+  const persistedById = new Map(persistedMessages.map((message) => [message.id, message]));
   const incomingIds = collectMessageIds(incomingMessages);
-  const missingPersistedMessages = persistedMessages.filter((message) => !incomingIds.has(message.id));
-  if (missingPersistedMessages.length === 0) {
-    return incomingMessages;
+  const mergedById = new Map<string, ChatMessage>();
+
+  for (const incoming of incomingMessages) {
+    const persisted = persistedById.get(incoming.id);
+    mergedById.set(
+      incoming.id,
+      persisted
+        ? mergeMatchingMessages(
+            options.preferredSource === 'persisted' ? persisted : incoming,
+            options.preferredSource === 'persisted' ? incoming : persisted,
+          )
+        : incoming
+    );
   }
 
-  return [...incomingMessages, ...missingPersistedMessages];
+  for (const persisted of persistedMessages) {
+    if (incomingIds.has(persisted.id)) {
+      continue;
+    }
+    if (mergedById.has(persisted.id)) {
+      continue;
+    }
+    const incoming = incomingById.get(persisted.id);
+    if (incoming) {
+      continue;
+    }
+    mergedById.set(persisted.id, persisted);
+  }
+
+  return [...mergedById.values()];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -232,10 +333,9 @@ async function writeSessionJsonRaw(sessionId: string, messages: ChatMessage[]) {
       if (!persistedMessages) {
         throw new Error('Invalid existing session file');
       }
-      messagesToWrite = preserveUnknownPersistedMessages(
-        messages,
-        persistedMessages,
-      );
+      messagesToWrite = mergeSessionMessages(messages, persistedMessages, {
+        preferredSource: 'incoming',
+      });
     } catch (error) {
       throw error;
     }
@@ -273,6 +373,11 @@ export function cancelSessionJsonSave(sessionId: string) {
   if (!queue.hasPending()) {
     sessionQueues.delete(sessionId);
   }
+}
+
+export function hasPendingSessionJsonSave(sessionId: string): boolean {
+  assertSafeChatSessionId(sessionId);
+  return sessionQueues.get(sessionId)?.hasPending() ?? false;
 }
 
 export async function flushPendingSessionJsonSaves(): Promise<void> {

@@ -10,6 +10,7 @@ export const CURRENT_STARRED_VERSION = 1;
 export interface StarredRegistry {
   version: number;
   entries: StarredEntry[];
+  deletedEntryKeys?: string[];
 }
 
 function isStarredKind(value: unknown): value is StarredKind {

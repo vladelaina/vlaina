@@ -72,6 +72,50 @@ describe('starred persistence', () => {
     });
   });
 
+  it('preserves entries added by another window during a stale save', async () => {
+    const diskEntry = createEntry('disk', 'note', 'C:/vault-a', 'disk.md');
+    const localEntry = createEntry('local', 'note', 'C:/vault-a', 'local.md');
+    adapter.exists.mockImplementation(async (path: string) => path === '/store/notes-starred.json');
+    adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true, size: 200 });
+    adapter.readFile.mockResolvedValue(JSON.stringify({
+      version: 1,
+      entries: [diskEntry],
+      deletedEntryKeys: [],
+    }));
+    adapter.writeFile.mockResolvedValue();
+
+    const persistence = await import('./persistence');
+    persistence.saveStarredRegistry([localEntry]);
+
+    await vi.advanceTimersByTimeAsync(500);
+
+    const [, content] = adapter.writeFile.mock.calls[0];
+    expect(JSON.parse(content).entries).toEqual([localEntry, diskEntry]);
+  });
+
+  it('does not resurrect explicitly removed entries while merging disk state', async () => {
+    const removedEntry = createEntry('removed', 'note', 'C:/vault-a', 'removed.md');
+    const localEntry = createEntry('local', 'note', 'C:/vault-a', 'local.md');
+    adapter.exists.mockImplementation(async (path: string) => path === '/store/notes-starred.json');
+    adapter.stat.mockResolvedValue({ isDirectory: false, isFile: true, size: 200 });
+    adapter.readFile.mockResolvedValue(JSON.stringify({
+      version: 1,
+      entries: [removedEntry],
+      deletedEntryKeys: [],
+    }));
+    adapter.writeFile.mockResolvedValue();
+
+    const persistence = await import('./persistence');
+    persistence.saveStarredRegistry([localEntry], { deletedEntries: [removedEntry] });
+
+    await vi.advanceTimersByTimeAsync(500);
+
+    const [, content] = adapter.writeFile.mock.calls[0];
+    const payload = JSON.parse(content);
+    expect(payload.entries).toEqual([localEntry]);
+    expect(payload.deletedEntryKeys).toEqual(['note::C:/vault-a::removed.md']);
+  });
+
   it('prunes invalid entries during load', async () => {
     const validEntry = createEntry('1', 'note', 'C:/vault-a', 'alive.md');
     const invalidEntry = createEntry('2', 'note', 'C:/vault-b', 'missing.md');

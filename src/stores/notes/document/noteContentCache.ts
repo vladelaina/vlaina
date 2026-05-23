@@ -14,15 +14,32 @@ export function setCachedNoteContent(
   cache: NoteContentCache,
   path: string,
   content: string,
-  modifiedAt: number | null
+  modifiedAt: number | null,
+  options: { updateBaseline?: boolean; baselineContent?: string } = {}
 ): NoteContentCache {
   const current = cache.get(path);
-  if (current?.content === content && current.modifiedAt === modifiedAt) {
+  const savedContent = options.baselineContent ?? (options.updateBaseline
+    ? content
+    : current?.savedContent ?? current?.content ?? content);
+  const nextSavedContent = savedContent === content ? undefined : savedContent;
+  if (
+    current?.content === content &&
+    current.modifiedAt === modifiedAt &&
+    current.savedContent === nextSavedContent
+  ) {
     return cache;
   }
 
   const nextCache = new Map(cache);
-  nextCache.set(path, { content, modifiedAt });
+  const nextEntry: NoteContentCacheEntry = { content, modifiedAt };
+  if (nextSavedContent !== undefined) {
+    Object.defineProperty(nextEntry, 'savedContent', {
+      configurable: true,
+      enumerable: false,
+      value: nextSavedContent,
+    });
+  }
+  nextCache.set(path, nextEntry);
   return nextCache;
 }
 

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadNoteDocument, NoteWriteConflictError, saveNoteDocument } from './noteDocumentPersistence';
 import { markExpectedExternalChange } from './externalChangeRegistry';
+import { setCachedNoteContent } from './noteContentCache';
 
 const adapter = {
   readFile: vi.fn<(path: string) => Promise<string>>(),
@@ -365,12 +366,15 @@ describe('saveNoteDocument', () => {
   });
 
   it('cleans internal editor break markers from cached markdown', async () => {
+    const cachedContent = ['# Alpha', '<br data-vlaina-empty-line="true" />', 'Body'].join('\n');
+    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+    adapter.readFile.mockResolvedValue(cachedContent);
     const result = await loadNoteDocument({
       notesPath: '/vault',
       path: 'alpha.md',
       cache: new Map([
         ['alpha.md', {
-          content: ['# Alpha', '<br data-vlaina-empty-line="true" />', 'Body'].join('\n'),
+          content: cachedContent,
           modifiedAt: 123,
         }],
       ]),
@@ -380,6 +384,51 @@ describe('saveNoteDocument', () => {
     expect(result.content).toBe(['# Alpha', '', 'Body'].join('\n'));
     expect(result.nextCache.get('alpha.md')?.content).toBe(['# Alpha', '', 'Body'].join('\n'));
     expect(result.modifiedAt).toBe(123);
+  });
+
+  it('refreshes cached markdown when the disk modified timestamp changed before opening', async () => {
+    adapter.stat.mockResolvedValue({ modifiedAt: 200 });
+    adapter.readFile.mockResolvedValue('# Updated by another window');
+
+    const result = await loadNoteDocument({
+      notesPath: '/vault',
+      path: 'alpha.md',
+      cache: new Map([
+        ['alpha.md', {
+          content: '# Cached before external edit',
+          modifiedAt: 100,
+        }],
+      ]),
+    });
+
+    expect(adapter.readFile).toHaveBeenCalledWith('/vault/alpha.md');
+    expect(result.content).toBe('# Updated by another window');
+    expect(result.modifiedAt).toBe(200);
+    expect(result.nextCache.get('alpha.md')).toEqual({
+      content: '# Updated by another window',
+      modifiedAt: 200,
+    });
+  });
+
+  it('keeps dirty tab cached markdown even when disk changed before opening', async () => {
+    adapter.stat.mockResolvedValue({ modifiedAt: 200 });
+    adapter.readFile.mockResolvedValue('# Updated by another window');
+
+    const result = await loadNoteDocument({
+      notesPath: '/vault',
+      path: 'alpha.md',
+      cache: new Map([
+        ['alpha.md', {
+          content: '# Unsaved local tab edit',
+          modifiedAt: 100,
+        }],
+      ]),
+      allowStaleCachedContent: true,
+    });
+
+    expect(adapter.readFile).not.toHaveBeenCalled();
+    expect(result.content).toBe('# Unsaved local tab edit');
+    expect(result.modifiedAt).toBe(100);
   });
 
   it('refuses to overwrite a note that changed on disk after it was loaded', async () => {
@@ -393,6 +442,26 @@ describe('saveNoteDocument', () => {
         content: '# Local edit',
       },
       cache: new Map([['alpha.md', { content: '# Loaded', modifiedAt: 100 }]]),
+    })).rejects.toBeInstanceOf(NoteWriteConflictError);
+
+    expect(adapter.writeFile).not.toHaveBeenCalled();
+  });
+
+  it('refuses to overwrite a note whose disk content changed with the same modified timestamp', async () => {
+    adapter.stat.mockResolvedValue({ modifiedAt: 100 });
+    adapter.readFile.mockResolvedValue('# External same timestamp edit');
+    let cache = setCachedNoteContent(new Map(), 'alpha.md', '# Loaded', 100, {
+      updateBaseline: true,
+    });
+    cache = setCachedNoteContent(cache, 'alpha.md', '# Local edit', 100);
+
+    await expect(saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: '# Local edit',
+      },
+      cache,
     })).rejects.toBeInstanceOf(NoteWriteConflictError);
 
     expect(adapter.writeFile).not.toHaveBeenCalled();

@@ -100,7 +100,8 @@ export function createWorkspaceDocumentActions(
             latestState.noteContentsCache,
             currentNote.path,
             latestSaveTargetContent,
-            modifiedAt
+            modifiedAt,
+            { baselineContent: content },
           ),
           openTabs: setNoteTabDirtyState(latestState.openTabs, currentNote.path, true),
           error: null,
@@ -123,6 +124,7 @@ export function createWorkspaceDocumentActions(
           currentNote.path,
           content,
           modifiedAt,
+          { updateBaseline: true },
         ),
         openTabs: setNoteTabDirtyState(latestState.openTabs, currentNote.path, false),
         error: null,
