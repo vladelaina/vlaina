@@ -1,6 +1,6 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { getBlockSelectionPluginState } from './blockSelectionPluginState';
-import type { BlockRange } from './blockSelectionUtils';
+import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
 
 const LINE_FILL_LAYER_CLASS = 'vlaina-block-selection-line-fill-layer';
 const LINE_FILL_CLASS = 'vlaina-block-selection-line-fill';
@@ -78,48 +78,51 @@ function collectSelectedHardBreakLineRanges(view: EditorView): BlockRange[] {
   if (selectedBlocks.length === 0) return [];
 
   const ranges: BlockRange[] = [];
-  view.state.doc.descendants((node, pos) => {
-    if (node.type.name !== 'paragraph') return true;
+  const selectedRanges = normalizeBlockRanges(selectedBlocks);
 
-    const paragraphFrom = pos;
-    const paragraphTo = pos + node.nodeSize;
-    const isSelectedParagraph = selectedBlocks.some((block) => (
-      isRangeIntersecting(block, { from: paragraphFrom, to: paragraphTo })
-    ));
-    if (!isSelectedParagraph) return false;
+  for (const selectedRange of selectedRanges) {
+    const from = Math.max(0, Math.min(selectedRange.from, view.state.doc.content.size));
+    const to = Math.max(from, Math.min(selectedRange.to, view.state.doc.content.size));
 
-    const contentFrom = paragraphFrom + 1;
-    const contentTo = paragraphTo - 1;
-    let lineFrom = contentFrom;
-    let hasHardBreak = false;
+    view.state.doc.nodesBetween(from, to, (node, pos) => {
+      if (node.type.name !== 'paragraph') return true;
 
-    node.forEach((child, childOffset) => {
-      if (!isHardBreakNodeName(child.type.name)) return;
-      hasHardBreak = true;
-
-      const lineTo = contentFrom + childOffset + child.nodeSize;
-      const lineRange = { from: lineFrom, to: lineTo };
-      if (
-        lineTo > lineFrom &&
-        selectedBlocks.some((block) => isRangeIntersecting(block, lineRange))
-      ) {
-        ranges.push(lineRange);
+      const paragraphFrom = pos;
+      const paragraphTo = pos + node.nodeSize;
+      if (!isRangeIntersecting(selectedRange, { from: paragraphFrom, to: paragraphTo })) {
+        return false;
       }
-      lineFrom = lineTo;
+
+      const contentFrom = paragraphFrom + 1;
+      const contentTo = paragraphTo - 1;
+      let lineFrom = contentFrom;
+      let hasHardBreak = false;
+
+      node.forEach((child, childOffset) => {
+        if (!isHardBreakNodeName(child.type.name)) return;
+        hasHardBreak = true;
+
+        const lineTo = contentFrom + childOffset + child.nodeSize;
+        const lineRange = { from: lineFrom, to: lineTo };
+        if (lineTo > lineFrom && isRangeIntersecting(selectedRange, lineRange)) {
+          ranges.push(lineRange);
+        }
+        lineFrom = lineTo;
+      });
+
+      if (
+        hasHardBreak &&
+        lineFrom < contentTo &&
+        isRangeIntersecting(selectedRange, { from: lineFrom, to: contentTo })
+      ) {
+        ranges.push({ from: lineFrom, to: contentTo });
+      }
+
+      return false;
     });
+  }
 
-    if (
-      hasHardBreak &&
-      lineFrom < contentTo &&
-      selectedBlocks.some((block) => isRangeIntersecting(block, { from: lineFrom, to: contentTo }))
-    ) {
-      ranges.push({ from: lineFrom, to: contentTo });
-    }
-
-    return false;
-  });
-
-  return ranges;
+  return normalizeBlockRanges(ranges);
 }
 
 function collectRangeRows(view: EditorView, range: BlockRange): RowRect[] {
@@ -180,6 +183,13 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
   host.appendChild(layer);
 
   const update = (updatedView: EditorView) => {
+    if (getBlockSelectionPluginState(updatedView.state).selectedBlocks.length === 0) {
+      if (layer.childNodes.length > 0) {
+        layer.replaceChildren();
+      }
+      return;
+    }
+
     layer.replaceChildren();
     const currentHost = layer.parentElement ?? updatedView.dom;
     const hostRect = currentHost.getBoundingClientRect();
