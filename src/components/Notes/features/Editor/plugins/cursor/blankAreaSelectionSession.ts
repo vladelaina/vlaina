@@ -22,6 +22,8 @@ import { expandListItemHeaderRanges } from './blockUnitResolver';
 interface BlankAreaSelectionPlainClickResult {
   zone: BlockDragStartZone;
   action: BlankAreaPlainClickAction | null;
+  clientX: number;
+  clientY: number;
 }
 
 interface StartBlankAreaSelectionSessionOptions {
@@ -221,7 +223,12 @@ export function startBlankAreaSelectionSession(
           clientX: event.clientX,
           clientY: event.clientY,
         });
-      onPlainClick({ zone, action });
+      onPlainClick({
+        zone,
+        action,
+        clientX: event.clientX,
+        clientY: event.clientY,
+      });
     },
     onTeardown() {
       flushPendingDragSelection();
