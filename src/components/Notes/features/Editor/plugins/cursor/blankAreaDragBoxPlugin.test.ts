@@ -248,6 +248,29 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
 });
 
 describe('blankAreaDragBoxPlugin trailing plain clicks', () => {
+  it('keeps the caret debug copy button hidden unless explicitly enabled', async () => {
+    localStorage.removeItem('vlaina_debug_caret_click');
+    const first = await createBlockSelectionEditor('- Alpha');
+
+    try {
+      expect(document.querySelector('[data-notes-caret-debug-copy="true"]')).toBeNull();
+    } finally {
+      await first.editor.destroy();
+    }
+
+    localStorage.setItem('vlaina_debug_caret_click', '1');
+    const second = await createBlockSelectionEditor('- Alpha');
+
+    try {
+      expect(document.querySelector('[data-notes-caret-debug-copy="true"]')).toBeInstanceOf(HTMLButtonElement);
+    } finally {
+      await second.editor.destroy();
+      localStorage.removeItem('vlaina_debug_caret_click');
+    }
+
+    expect(document.querySelector('[data-notes-caret-debug-copy="true"]')).toBeNull();
+  });
+
   it('does not override a native pointer selection that already moved during the click', async () => {
     const { editor, view } = await createBlockSelectionEditor('- Alpha\n- Beta');
 
