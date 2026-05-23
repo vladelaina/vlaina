@@ -31,7 +31,7 @@ export function SidebarContextMenuItem({
       }}
       disabled={disabled}
       className={cn(
-        'flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-[16px] font-medium outline-none transition-colors',
+        'flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-[16px] font-medium leading-none outline-none transition-colors',
         danger
           ? 'text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20'
           : 'text-[var(--notes-sidebar-text)] hover:bg-[var(--notes-sidebar-row-hover)]',
@@ -41,14 +41,14 @@ export function SidebarContextMenuItem({
     >
       <span
         className={cn(
-          'flex size-[20px] items-center justify-center',
+          'flex size-[20px] shrink-0 items-center justify-center leading-none',
           danger ? 'text-red-500' : 'text-[var(--notes-sidebar-text)]',
         )}
       >
         {icon}
       </span>
-      <span className="min-w-0 flex-1 truncate text-left">{label}</span>
-      {trailing ? <span className="shrink-0 text-[var(--notes-sidebar-text)]">{trailing}</span> : null}
+      <span className="inline-flex min-w-0 flex-1 items-center truncate text-left leading-none">{label}</span>
+      {trailing ? <span className="inline-flex shrink-0 items-center leading-none text-[var(--notes-sidebar-text)]">{trailing}</span> : null}
     </button>
   );
 }

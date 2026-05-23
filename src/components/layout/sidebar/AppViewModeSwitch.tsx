@@ -56,8 +56,10 @@ export function AppViewModeSwitch() {
                 : 'text-[var(--notes-sidebar-text)] hover:text-[var(--vlaina-accent)]',
             )}
           >
-            {option.icon}
-            <span className="truncate">{option.label}</span>
+            <span className="flex size-[18px] shrink-0 items-center justify-center leading-none">
+              {option.icon}
+            </span>
+            <span className="inline-flex min-w-0 items-center truncate leading-none">{option.label}</span>
           </button>
         );
       })}

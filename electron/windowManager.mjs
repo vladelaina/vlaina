@@ -19,6 +19,8 @@ export function createWindowManager({
   const readyToRevealWebContents = new Set();
   const windowLabels = new Map();
   let secondaryWindowCounter = 0;
+  const DEV_RENDERER_RELOAD_DELAY_MS = 1000;
+  const DEV_RENDERER_RELOAD_MAX_DELAY_MS = 8000;
 
   function buildRendererUrl(windowOptions = {}) {
     const url = new URL(rendererDevUrl);
@@ -88,6 +90,10 @@ export function createWindowManager({
   }
 
   async function loadRenderer(window, windowOptions = {}) {
+    if (!isUsableWindow(window)) {
+      return;
+    }
+
     if (isDevelopment()) {
       const url = windowOptions.newWindow ? buildRendererUrl(windowOptions) : rendererDevUrl;
       await window.loadURL(url);
@@ -119,6 +125,43 @@ export function createWindowManager({
     let didRevealWindow = false;
     let didBrowserWindowReportReadyToShow = false;
     let didRendererReportStartupReady = false;
+    let devRendererReloadTimer = null;
+    let devRendererReloadDelay = DEV_RENDERER_RELOAD_DELAY_MS;
+
+    const clearDevRendererReloadTimer = () => {
+      if (devRendererReloadTimer === null) {
+        return;
+      }
+
+      clearTimeout(devRendererReloadTimer);
+      devRendererReloadTimer = null;
+    };
+
+    const scheduleDevRendererReload = (reason) => {
+      if (!isDevelopment() || window.isDestroyed()) {
+        return;
+      }
+
+      if (devRendererReloadTimer !== null) {
+        return;
+      }
+
+      const delay = devRendererReloadDelay;
+      devRendererReloadDelay = Math.min(devRendererReloadDelay * 2, DEV_RENDERER_RELOAD_MAX_DELAY_MS);
+      console.warn(`[vlaina] Renderer unavailable in development (${reason}); retrying in ${delay}ms`);
+
+      devRendererReloadTimer = setTimeout(() => {
+        devRendererReloadTimer = null;
+        if (!isUsableWindow(window)) {
+          return;
+        }
+
+        loadRenderer(window, windowOptions).catch((error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          scheduleDevRendererReload(`load failed: ${message}`);
+        });
+      }, delay);
+    };
 
     const revealWindow = () => {
       if (didRevealWindow || window.isDestroyed()) {
@@ -154,6 +197,46 @@ export function createWindowManager({
       setTimeout(() => revealWindowWhenReady({ allowWithoutReadyToShow: true }), 3000);
     });
 
+    window.webContents.on('did-finish-load', () => {
+      clearDevRendererReloadTimer();
+      devRendererReloadDelay = DEV_RENDERER_RELOAD_DELAY_MS;
+    });
+
+    window.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (!isMainFrame) {
+        return;
+      }
+
+      const summary = `${errorCode} ${errorDescription || 'unknown error'}`;
+      if (isDevelopment() && isTrustedRendererUrl(validatedURL || rendererDevUrl)) {
+        scheduleDevRendererReload(summary);
+        return;
+      }
+
+      console.error(`[vlaina] Renderer failed to load: ${summary}`);
+    });
+
+    window.webContents.on('render-process-gone', (_event, details) => {
+      const reason = details?.reason ?? 'unknown';
+      const exitCode = details?.exitCode ?? 'unknown';
+      console.error(`[vlaina] Renderer process gone (${reason}, exitCode ${exitCode})`);
+
+      if (!isUsableWindow(window)) {
+        return;
+      }
+
+      if (isDevelopment()) {
+        scheduleDevRendererReload(`renderer process gone: ${reason}`);
+        return;
+      }
+
+      window.reload();
+    });
+
+    window.on('unresponsive', () => {
+      console.warn(`[vlaina] Window became unresponsive (${getWindowLabel(window)})`);
+    });
+
     window.webContents.on('ipc-message', (_event, channel) => {
       if (channel !== 'desktop:startup-ready') {
         return;
@@ -164,6 +247,7 @@ export function createWindowManager({
     });
 
     window.on('closed', () => {
+      clearDevRendererReloadTimer();
       closeApprovedWebContents.delete(webContentsId);
       readyToRevealWebContents.delete(webContentsId);
       windowLabels.delete(window.id);
@@ -251,6 +335,10 @@ export function createWindowManager({
     if (windowOptions.newWindow) {
       revealWindow();
     }
+
+    return {
+      scheduleDevRendererReload,
+    };
   }
 
   function windowOptionsShouldFocusOnReveal(window, windowOptions = {}) {
@@ -285,9 +373,17 @@ export function createWindowManager({
     });
 
     windowLabels.set(window.id, label);
-    attachWindowLifecycle(window, windowOptions);
+    const { scheduleDevRendererReload } = attachWindowLifecycle(window, windowOptions);
 
     loadRenderer(window, windowOptions).catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      if (isDevelopment()) {
+        console.warn(`[vlaina] Initial renderer load failed: ${message}`);
+        scheduleDevRendererReload(`initial load failed: ${message}`);
+        return;
+      }
+
+      console.error(`[vlaina] Initial renderer load failed: ${message}`);
     });
 
     return window;

@@ -111,7 +111,7 @@ export const SidebarActionButton = forwardRef<HTMLButtonElement, SidebarActionBu
         ref={ref}
         type={type}
         className={cn(
-          'flex h-[36px] w-full cursor-pointer items-center gap-2 rounded-xl bg-transparent px-3 py-1 text-[16px] shadow-none hover:shadow-none',
+          'flex h-[36px] w-full cursor-pointer items-center gap-2 rounded-xl bg-transparent px-3 py-1 text-[16px] leading-none shadow-none hover:shadow-none',
           tone ? getSidebarActionButtonClass(tone) : undefined,
           className,
         )}
@@ -120,14 +120,14 @@ export const SidebarActionButton = forwardRef<HTMLButtonElement, SidebarActionBu
         {icon ? (
           <span
             className={cn(
-              'flex size-[20px] shrink-0 items-center justify-center',
+              'flex size-[20px] shrink-0 items-center justify-center leading-none',
               iconClassName,
             )}
           >
             {icon}
           </span>
         ) : null}
-        <span className="truncate">{label}</span>
+        <span className="inline-flex min-w-0 items-center truncate leading-none">{label}</span>
       </button>
     );
   },

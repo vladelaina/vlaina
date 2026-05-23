@@ -51,7 +51,7 @@ export function NotesSidebarRow({
       indentWidth={depth * 16}
       leading={leading}
       leadingClassName={leadingClassName}
-      rowClassName={cn('items-start', rowClassName)}
+      rowClassName={cn('items-center', rowClassName)}
       main={main}
       trailing={trailing}
       actions={actions}
