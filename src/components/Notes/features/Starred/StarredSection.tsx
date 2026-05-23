@@ -12,10 +12,6 @@ import { useStarredSectionEntries } from './useStarredSectionEntries';
 import { useExternalStarredRenameSync } from './useExternalStarredRenameSync';
 import { useI18n } from '@/lib/i18n';
 
-const FileItem = lazy(async () => {
-  const mod = await import('../FileTree/FileItem');
-  return { default: mod.FileItem };
-});
 const FolderItem = lazy(async () => {
   const mod = await import('../FileTree/FolderItem');
   return { default: mod.FolderItem };
@@ -65,6 +61,7 @@ export function StarredSection({
   const content = (
     <div
       data-file-tree-starred-drop-target="true"
+      data-file-tree-starred-section="true"
       className={cn(
         'w-full rounded-md transition-colors',
         !showTitle && hasEntries && 'mb-1',
@@ -81,18 +78,10 @@ export function StarredSection({
         </div>
       ) : (
         entryViewModels.map(({ entry, isCurrentVaultEntry, isActive, treeNode, onOpen, onRemove }) => {
-          if (isCurrentVaultEntry && treeNode) {
-            return treeNode.isFolder ? (
+          if (isCurrentVaultEntry && treeNode?.isFolder) {
+            return (
               <Suspense key={entry.id} fallback={null}>
                 <FolderItem
-                  node={treeNode}
-                  depth={0}
-                  dragEnabled={false}
-                />
-              </Suspense>
-            ) : (
-              <Suspense key={entry.id} fallback={null}>
-                <FileItem
                   node={treeNode}
                   depth={0}
                   dragEnabled={false}

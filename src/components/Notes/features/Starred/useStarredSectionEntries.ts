@@ -6,6 +6,7 @@ import { useVaultStore } from '@/stores/useVaultStore';
 import type { FileTreeNode, StarredEntry } from '@/stores/notes/types';
 import { getStarredEntryAbsolutePath, normalizeStarredVaultPath } from '@/stores/notes/starred';
 import { flushCurrentTitleCommit } from '../Editor/utils/titleCommitRegistry';
+import { suppressNextCurrentNoteSidebarReveal } from '../common/sidebarScrollIntoView';
 import { buildNodeLookup, sortStarredEntries } from './starredSectionUtils';
 
 export interface StarredSectionEntryViewModel {
@@ -74,6 +75,10 @@ export function useStarredSectionEntries() {
                 const absolutePath = await joinPath(latestEntry.vaultPath, latestEntry.relativePath);
                 await openNoteByAbsolutePath(absolutePath, shouldOpenInNewTab);
                 return;
+              }
+
+              if (!shouldOpenInNewTab) {
+                suppressNextCurrentNoteSidebarReveal(latestEntry.relativePath);
               }
 
               await openNote(latestEntry.relativePath, shouldOpenInNewTab);

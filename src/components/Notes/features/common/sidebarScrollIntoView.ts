@@ -7,6 +7,10 @@ function escapeAttributeValue(value: string) {
 }
 
 const SIDEBAR_SCROLL_TO_PATH_EVENT = 'notes-sidebar-scroll-to-path';
+let suppressedCurrentNoteRevealPath: string | null = null;
+let suppressedSidebarScrollTop: number | null = null;
+let suppressedCurrentNoteRevealClearTimer: number | null = null;
+const SUPPRESSED_CURRENT_NOTE_REVEAL_TTL_MS = 5000;
 
 export interface SidebarScrollToPathDetail {
   path: string;
@@ -20,7 +24,17 @@ export function scrollSidebarItemIntoView(path: string, block: ScrollLogicalPosi
   }
 
   const escapedPath = escapeAttributeValue(path);
-  const target = scrollRoot.querySelector<HTMLElement>(`[data-file-tree-path="${escapedPath}"]`);
+  const findTreeTarget = (root: ParentNode) =>
+    Array.from(root.querySelectorAll<HTMLElement>(`[data-file-tree-path="${escapedPath}"]`))
+      .find((element) => !element.closest('[data-file-tree-starred-section="true"]')) ?? null;
+  const primaryTrees = Array.from(
+    scrollRoot.querySelectorAll<HTMLElement>('[data-file-tree-primary="true"]')
+  );
+  const target = primaryTrees.length > 0
+    ? primaryTrees
+        .map((tree) => findTreeTarget(tree))
+        .find((element): element is HTMLElement => element !== null) ?? null
+    : findTreeTarget(scrollRoot);
   if (target) {
     target.scrollIntoView({
       block,
@@ -61,6 +75,61 @@ export function scheduleSidebarItemIntoView(
   };
 
   run(frameCount);
+}
+
+function getSidebarScrollRoot(): HTMLElement | null {
+  return document.querySelector<HTMLElement>('[data-notes-sidebar-scroll-root="true"]');
+}
+
+export function suppressNextCurrentNoteSidebarReveal(path: string) {
+  suppressedCurrentNoteRevealPath = path;
+  suppressedSidebarScrollTop = getSidebarScrollRoot()?.scrollTop ?? null;
+  if (suppressedCurrentNoteRevealClearTimer !== null) {
+    window.clearTimeout(suppressedCurrentNoteRevealClearTimer);
+  }
+  suppressedCurrentNoteRevealClearTimer = window.setTimeout(() => {
+    suppressedCurrentNoteRevealPath = null;
+    suppressedSidebarScrollTop = null;
+    suppressedCurrentNoteRevealClearTimer = null;
+  }, SUPPRESSED_CURRENT_NOTE_REVEAL_TTL_MS);
+}
+
+function restoreSuppressedSidebarScrollTop(scrollRoot: HTMLElement | null | undefined) {
+  if (!scrollRoot || suppressedSidebarScrollTop === null) {
+    return;
+  }
+
+  const targetScrollTop = suppressedSidebarScrollTop;
+  scrollRoot.scrollTo({ top: targetScrollTop, behavior: 'auto' });
+  if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+    return;
+  }
+
+  window.requestAnimationFrame(() => {
+    scrollRoot.scrollTo({ top: targetScrollTop, behavior: 'auto' });
+  });
+}
+
+export function consumeSuppressedCurrentNoteSidebarReveal(
+  path: string,
+  scrollRoot?: HTMLElement | null,
+): boolean {
+  if (suppressedCurrentNoteRevealPath === null) {
+    return false;
+  }
+
+  if (suppressedCurrentNoteRevealPath !== path) {
+    return false;
+  }
+
+  restoreSuppressedSidebarScrollTop(scrollRoot ?? getSidebarScrollRoot());
+  suppressedCurrentNoteRevealPath = null;
+  suppressedSidebarScrollTop = null;
+  if (suppressedCurrentNoteRevealClearTimer !== null) {
+    window.clearTimeout(suppressedCurrentNoteRevealClearTimer);
+    suppressedCurrentNoteRevealClearTimer = null;
+  }
+  return true;
 }
 
 export { SIDEBAR_SCROLL_TO_PATH_EVENT };

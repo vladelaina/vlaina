@@ -20,7 +20,10 @@ import {
 } from './NotesSidebarPrimitives';
 import { NotesSidebarTopActions } from './NotesSidebarTopActions';
 import { type NotesSidebarSearchResult } from './notesSidebarSearchResults';
-import { scheduleSidebarItemIntoView } from '../common/sidebarScrollIntoView';
+import {
+  consumeSuppressedCurrentNoteSidebarReveal,
+  scheduleSidebarItemIntoView,
+} from '../common/sidebarScrollIntoView';
 import { useSidebarContentSearchResults } from './useSidebarContentSearchResults';
 import { useI18n } from '@/lib/i18n';
 
@@ -283,6 +286,10 @@ export function SidebarContent({
     }
 
     lastRevealedCurrentNotePathRef.current = currentNotePath;
+    if (consumeSuppressedCurrentNoteSidebarReveal(currentNotePath, scrollRootRef.current)) {
+      return;
+    }
+
     revealFolder(currentNotePath);
     scheduleSidebarItemIntoView(currentNotePath, 3);
   }, [active, currentNotePath, displayRootFolder, revealFolder, shouldShowSearchResults]);

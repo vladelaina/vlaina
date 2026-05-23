@@ -75,6 +75,7 @@ const mocked = vi.hoisted(() => {
   return {
     notesState,
     vaultState,
+    suppressNextCurrentNoteSidebarReveal: vi.fn(),
   };
 });
 
@@ -89,6 +90,10 @@ vi.mock('@/stores/useNotesStore', () => ({
 vi.mock('@/stores/useVaultStore', () => ({
   useVaultStore: (selector?: (state: typeof mocked.vaultState) => unknown) =>
     selector ? selector(mocked.vaultState) : mocked.vaultState,
+}));
+
+vi.mock('../common/sidebarScrollIntoView', () => ({
+  suppressNextCurrentNoteSidebarReveal: mocked.suppressNextCurrentNoteSidebarReveal,
 }));
 
 describe('useStarredSectionEntries', () => {
@@ -111,6 +116,7 @@ describe('useStarredSectionEntries', () => {
     mocked.notesState.revealFolder.mockReset();
     mocked.notesState.removeStarredEntry.mockReset();
     mocked.notesState.setPendingStarredNavigation.mockReset();
+    mocked.suppressNextCurrentNoteSidebarReveal.mockReset();
     mocked.vaultState.currentVault = { path: '/vault-a' };
     mocked.vaultState.recentVaults = [
       { path: '/vault-a', name: 'Vault A' },
@@ -312,6 +318,7 @@ describe('useStarredSectionEntries', () => {
     });
 
     expect(mocked.notesState.openNote).toHaveBeenCalledWith('docs/new.md', false);
+    expect(mocked.suppressNextCurrentNoteSidebarReveal).toHaveBeenCalledWith('docs/new.md');
     expect(mocked.notesState.openNote).not.toHaveBeenCalledWith('docs/old.md', false);
   });
 

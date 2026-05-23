@@ -28,7 +28,7 @@ export function FileTree({ rootFolder, isLoading }: FileTreeProps) {
   }
 
   return (
-    <NotesSidebarList className="py-1">
+    <NotesSidebarList className="py-1" data-file-tree-primary="true">
       {rootFolder.children.map((node) => (
         <FileTreeItem 
           key={node.id} 

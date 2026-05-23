@@ -245,6 +245,7 @@ export function RootFolderRow({
       ref={rootRowRef}
       className={cn('py-1', isRootBusy && 'pointer-events-none')}
       aria-busy={isRootBusy || undefined}
+      data-file-tree-primary="true"
     >
       <NotesSidebarRow
         data-file-tree-root-drop-target="true"

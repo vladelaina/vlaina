@@ -19,6 +19,7 @@ const hoisted = vi.hoisted(() => ({
   queryNotesSidebarSearch: vi.fn<() => NotesSidebarSearchResult[]>(() => []),
   revealFolder: vi.fn(),
   scheduleSidebarItemIntoView: vi.fn(),
+  consumeSuppressedCurrentNoteSidebarReveal: vi.fn(() => false),
   scanAllNotes: vi.fn(() => Promise.resolve()),
   shouldSearchNotesSidebarContents: vi.fn(() => false),
   shouldShowSearchResults: false,
@@ -80,6 +81,7 @@ vi.mock('../common/sidebarHoverRename', () => ({
 }));
 
 vi.mock('../common/sidebarScrollIntoView', () => ({
+  consumeSuppressedCurrentNoteSidebarReveal: hoisted.consumeSuppressedCurrentNoteSidebarReveal,
   scheduleSidebarItemIntoView: hoisted.scheduleSidebarItemIntoView,
 }));
 
@@ -204,6 +206,8 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.openNote.mockResolvedValue(undefined);
     hoisted.openNoteByAbsolutePath.mockClear();
     hoisted.openNoteByAbsolutePath.mockResolvedValue(undefined);
+    hoisted.consumeSuppressedCurrentNoteSidebarReveal.mockClear();
+    hoisted.consumeSuppressedCurrentNoteSidebarReveal.mockReturnValue(false);
     hoisted.cancelNoteContentScan.mockClear();
     hoisted.pruneNoteContentsCacheToOpenNotes.mockClear();
     hoisted.scanAllNotes.mockResolvedValue(undefined);
@@ -301,6 +305,33 @@ describe('SidebarContent search highlight cleanup', () => {
 
     expect(hoisted.revealFolder).toHaveBeenCalledWith('docs/restored.md');
     expect(hoisted.scheduleSidebarItemIntoView).toHaveBeenCalledWith('docs/restored.md', 3);
+  });
+
+  it('does not reveal the main tree after opening the current note from starred', () => {
+    hoisted.consumeSuppressedCurrentNoteSidebarReveal.mockReturnValue(true);
+    const rootFolder = {
+      id: 'root',
+      name: 'Notes',
+      path: '',
+      isFolder: true as const,
+      expanded: true,
+      children: [{ id: 'docs', name: 'docs', path: 'docs', isFolder: true as const, expanded: false, children: [] }],
+    };
+
+    render(
+      <SidebarContent
+        rootFolder={rootFolder}
+        isLoading={false}
+        currentNotePath="docs/starred.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(hoisted.consumeSuppressedCurrentNoteSidebarReveal).toHaveBeenCalledWith('docs/starred.md', null);
+    expect(hoisted.revealFolder).not.toHaveBeenCalled();
+    expect(hoisted.scheduleSidebarItemIntoView).not.toHaveBeenCalled();
   });
 
   it('shows an empty file tree hint when the vault has no files', () => {
