@@ -946,6 +946,17 @@ describe('NotesView', () => {
   });
 
   it('opens a markdown file from the Electron file association event', async () => {
+    const authorizePath = vi.fn().mockResolvedValue({
+      name: 'alpha.md',
+      path: '/vault/alpha.md',
+      isDirectory: false,
+      isFile: true,
+    });
+    (window as any).vlainaDesktop = {
+      platform: 'electron',
+      dragDrop: { authorizePath },
+    };
+
     render(<NotesView />);
 
     await act(async () => {
@@ -953,6 +964,7 @@ describe('NotesView', () => {
     });
 
     await waitFor(() => {
+      expect(authorizePath).toHaveBeenCalledWith('/vault/alpha.md');
       expect(notesState.openNote).toHaveBeenCalledWith('alpha.md');
     });
     expect(notesState.openNoteByAbsolutePath).not.toHaveBeenCalledWith('/vault/alpha.md');

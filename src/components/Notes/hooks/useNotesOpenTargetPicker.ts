@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { onDesktopOpenMarkdownFile, onDesktopOpenMarkdownFileShortcut } from '@/lib/desktop/shortcuts';
+import { getElectronBridge } from '@/lib/electron/bridge';
 import { messageDialog, openDialog } from '@/lib/storage/dialog';
 import { useI18n } from '@/lib/i18n';
 import { useUIStore } from '@/stores/uiSlice';
@@ -82,10 +83,20 @@ export function useNotesOpenTargetPicker({
       if (!active) return;
       void handleOpenSelectedTarget('folder');
     };
-    const handleDesktopOpenMarkdownFile = (filePath: string) => {
+    const handleDesktopOpenMarkdownFile = async (filePath: string) => {
       if (isOpenTargetBusy) return;
       setAppViewMode('notes');
-      void openMarkdownTarget(filePath);
+      try {
+        await getElectronBridge()?.dragDrop?.authorizePath(filePath);
+      } catch {
+        await messageDialog(t('notes.openMarkdownFileFailed'), {
+          title: t('notes.openFailed'),
+          kind: 'error',
+        });
+        return;
+      }
+
+      await openMarkdownTarget(filePath);
     };
 
     window.addEventListener('vlaina-open-markdown-file', handleOpenMarkdownFile);
@@ -100,5 +111,5 @@ export function useNotesOpenTargetPicker({
       unsubscribeDesktopShortcut();
       unsubscribeDesktopOpenFile();
     };
-  }, [active, handleOpenSelectedTarget, isOpenTargetBusy, openMarkdownTarget, setAppViewMode]);
+  }, [active, handleOpenSelectedTarget, isOpenTargetBusy, openMarkdownTarget, setAppViewMode, t]);
 }
