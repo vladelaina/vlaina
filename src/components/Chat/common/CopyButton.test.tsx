@@ -56,7 +56,7 @@ describe("CopyButton", () => {
   it("renders controlled copied feedback", () => {
     render(<CopyButton content="const c = 3;" copied showLabels />);
 
-    expect(screen.getByRole("button")).toHaveAttribute("title", "Copied!");
+    expect(screen.getByRole("button")).toHaveAttribute("title", "Copied");
     expect(screen.getByTestId("icon-common.check")).toBeInTheDocument();
     expect(screen.getByText("Copied")).toBeInTheDocument();
   });
@@ -74,7 +74,7 @@ describe("CopyButton", () => {
     });
 
     expect(onCopy).toHaveBeenCalledWith("const d = 4;");
-    expect(screen.getByRole("button")).toHaveAttribute("title", "Copied!");
+    expect(screen.getByRole("button")).toHaveAttribute("title", "Copied");
     expect(screen.getByText("Copied")).toBeInTheDocument();
 
     await act(async () => {
