@@ -215,6 +215,15 @@ export function useTableBlockLayout({
       '--table-block-table-min-width',
       metrics.tableMinWidth
     )
+    const contentRect = content.getBoundingClientRect()
+    const scrollbarReserve = Math.max(
+      0,
+      Math.round(root.getBoundingClientRect().bottom - contentRect.bottom)
+    )
+    root.style.setProperty(
+      '--table-block-scrollbar-reserve',
+      metrics.tableMinWidth === '0px' ? `${scrollbarReserve}px` : '0px'
+    )
 
     if (scroll.clientWidth === 0 || scroll.scrollWidth === 0) return
 

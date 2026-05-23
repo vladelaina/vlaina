@@ -76,7 +76,7 @@
 .milkdown .code-block-container[data-pm-selected='true'] .cm-gutterElement,
 .milkdown .code-block-container[data-pm-selected='true'] .cm-lineNumbers,
 .milkdown .code-block-container[data-pm-selected='true'] .cm-gutter-filler {
-  background-color: color-mix(in srgb, var(--vlaina-code-block-background), var(--vlaina-block-selection-color)) !important;
+  background-color: var(--vlaina-code-block-background) !important;
 }
 
 .milkdown .code-block-container.vlaina-block-selected-contained .cm-gutters,
@@ -106,8 +106,24 @@
 .milkdown .code-block-container[data-pm-selected='true'] .cm-line,
 .milkdown .code-block-container[data-pm-selected='true'] .cm-activeLine,
 .milkdown .code-block-container[data-pm-selected='true'] .cm-activeLineGutter {
-  background: transparent !important;
-  background-color: transparent !important;
+  background: var(--vlaina-code-block-background) !important;
+  background-color: var(--vlaina-code-block-background) !important;
+}
+
+.milkdown .code-block-container.ProseMirror-selectednode .vlaina-code-block-header,
+.milkdown .code-block-container.ProseMirror-selectednode .code-block-editable,
+.milkdown .code-block-container.ProseMirror-selectednode .code-block-lazy-preview,
+.milkdown .code-block-container.ProseMirror-selectednode .code-block-lazy-line-numbers,
+.milkdown .code-block-container.vlaina-block-selected .vlaina-code-block-header,
+.milkdown .code-block-container.vlaina-block-selected .code-block-editable,
+.milkdown .code-block-container.vlaina-block-selected .code-block-lazy-preview,
+.milkdown .code-block-container.vlaina-block-selected .code-block-lazy-line-numbers,
+.milkdown .code-block-container[data-pm-selected='true'] .vlaina-code-block-header,
+.milkdown .code-block-container[data-pm-selected='true'] .code-block-editable,
+.milkdown .code-block-container[data-pm-selected='true'] .code-block-lazy-preview,
+.milkdown .code-block-container[data-pm-selected='true'] .code-block-lazy-line-numbers {
+  background: var(--vlaina-code-block-background) !important;
+  background-color: var(--vlaina-code-block-background) !important;
 }
 
 .milkdown .code-block-container .cm-scroller {

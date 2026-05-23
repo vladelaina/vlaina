@@ -316,17 +316,97 @@ body.vlaina-block-dragging-cursor .milkdown :is(
 
 .milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected .table-content-host,
 .milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-content-host {
-  background: var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe));
-  box-shadow:
-    calc(-1 * var(--vlaina-block-selection-bleed-x-start, 48px)) 0 0 0 var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe)),
-    var(--vlaina-block-selection-bleed-x-end, 48px) 0 0 0 var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe));
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
 }
 
 .milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected,
 .milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode {
+  --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg, #bedffe);
+  --vlaina-block-selection-bleed-y: 4px;
+  --vlaina-block-selection-bleed-x-start: 48px;
+  --vlaina-block-selection-bleed-x-end: 48px;
+  --vlaina-block-selection-top-reserve: 0px;
+  --vlaina-block-selection-scrollbar-reserve: 0px;
   background: transparent !important;
   background-color: transparent !important;
+  border-radius: 8px;
   box-shadow: none !important;
+}
+
+.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected:has(.table-wrapper[style*="--table-block-table-min-width: 0px"]),
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode:has(.table-wrapper[style*="--table-block-table-min-width: 0px"]) {
+  --vlaina-block-selection-top-reserve: var(--vlaina-block-selection-bleed-y);
+  --vlaina-block-selection-scrollbar-reserve: var(--table-block-scrollbar-reserve, 14px);
+}
+
+.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected::before,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--vlaina-block-selection-top-reserve, 0px) - var(--vlaina-block-selection-bleed-y));
+  right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
+  bottom: calc(var(--vlaina-block-selection-scrollbar-reserve, 0px) - var(--vlaina-block-selection-bleed-y));
+  left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
+  z-index: 0;
+  border-radius: 8px;
+  background: var(--vlaina-block-selection-color);
+  pointer-events: none;
+}
+
+.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected > *,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode > * {
+  position: relative;
+  z-index: 1;
+}
+
+.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-scroll,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-scroll {
+  margin-top: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  margin-bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  padding-top: var(--vlaina-block-selection-bleed-y);
+  padding-bottom: var(--vlaina-block-selection-bleed-y);
+}
+
+.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected .table-scroll-track,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-scroll-track {
+  position: relative;
+  background: transparent !important;
+  background-color: transparent !important;
+  border-radius: 8px;
+}
+
+.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected .table-content-host,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-content-host {
+  position: relative;
+  z-index: 0;
+}
+
+.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-content-host::before,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-wrapper[style*="--table-block-table-min-width: 0px"] .table-content-host::before {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  right: calc(-1 * var(--vlaina-block-selection-bleed-x-end));
+  bottom: calc(-1 * var(--vlaina-block-selection-bleed-y));
+  left: calc(-1 * var(--vlaina-block-selection-bleed-x-start));
+  z-index: 0;
+  border-radius: 8px;
+  background: var(--vlaina-block-selection-color);
+  pointer-events: none;
+}
+
+.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected .table-scroll-spacer,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-scroll-spacer {
+  position: relative;
+  z-index: 1;
+}
+
+.milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected .table-content-host > *,
+.milkdown .ProseMirror .milkdown-table-block.ProseMirror-selectednode .table-content-host > * {
+  position: relative;
+  z-index: 1;
 }
 
 .milkdown .ProseMirror .milkdown-table-block.vlaina-block-selected :is(th, td),
@@ -482,8 +562,12 @@ body.vlaina-block-dragging-cursor .milkdown :is(
   display: block;
   width: 100%;
   max-width: none;
-  margin: 0;
+  margin: 8px 0 0;
   overflow-anchor: none;
+}
+
+.milkdown .milkdown-table-block:first-child {
+  margin-top: 0;
 }
 
 .milkdown .milkdown-table-block .table-wrapper {
