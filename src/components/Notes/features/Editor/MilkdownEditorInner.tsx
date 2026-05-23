@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Editor,
   rootCtx,
@@ -14,6 +14,8 @@ import { gfm } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { tableBlock } from '@milkdown/kit/component/table-block';
+import type { Ctx } from '@milkdown/kit/ctx';
+import { Slice } from '@milkdown/kit/prose/model';
 import type { Parser } from '@milkdown/kit/transformer';
 import { Milkdown, MilkdownProvider, useEditor } from '@milkdown/react';
 import { useNotesStore } from '@/stores/useNotesStore';
@@ -58,8 +60,27 @@ type ActiveMilkdownEditor = {
   ctx: {
     get: (slice: unknown) => unknown;
   };
+  action?: <T>(action: (ctx: Ctx) => T) => T;
   onStatusChange?: (onChange: (status: string) => void) => unknown;
 };
+
+function replaceEditorMarkdown(ctx: Ctx, markdown: string) {
+  const view = ctx.get(editorViewCtx);
+  const parser = ctx.get(parserCtx);
+  const doc = parser(markdown);
+  if (!doc) {
+    return;
+  }
+
+  const { state } = view;
+  view.dispatch(
+    state.tr.replace(
+      0,
+      state.doc.content.size,
+      new Slice(doc.content as never, 0, 0),
+    ),
+  );
+}
 
 export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   active = true,
@@ -69,8 +90,10 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   const saveNote = useNotesStore(s => s.saveNote);
   const isNewlyCreated = useNotesStore(s => s.isNewlyCreated);
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
+  const currentNoteContent = useNotesStore(s => s.currentNote?.content ?? '');
   const currentNoteDiskRevision = useNotesStore(s => s.currentNoteDiskRevision);
   const currentNoteContentRef = useRef(useNotesStore.getState().currentNote?.content ?? '');
+  const lastAppliedDiskRevisionRef = useRef(currentNoteDiskRevision);
   const isDraftNote = isDraftNotePath(currentNotePath);
   const onEditorViewReadyRef = useRef(onEditorViewReady);
   const activeRef = useRef(active);
@@ -79,6 +102,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   const hasScheduledAutoFocus = useRef(false);
   const activatedEditorRef = useRef<ActiveMilkdownEditor | null>(null);
   const activationCleanupRef = useRef<(() => void) | null>(null);
+  const [activatedRevision, setActivatedRevision] = useState(0);
   const { debouncedSave, flushSave } = useEditorSave(saveNote);
   const {
     configureMarkdownListener,
@@ -87,7 +111,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   } = usePendingMarkdownAutosave({
     currentNotePath,
     currentNoteDiskRevision,
-    currentNoteContent: currentNoteContentRef.current,
+    currentNoteContent,
     updateContent,
     debouncedSave,
   });
@@ -105,6 +129,10 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   useEffect(() => {
     activeRef.current = active;
   }, [active]);
+
+  useEffect(() => {
+    currentNoteContentRef.current = currentNoteContent;
+  }, [currentNoteContent]);
 
   useEffect(() => {
     const handleBlur = () => {
@@ -146,6 +174,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       }
 
       setCurrentEditorView(view);
+      setActivatedRevision((revision) => revision + 1);
 
       const markUserInput = createUserInputMarker(view, liveSerializer);
       view.dom.addEventListener('beforeinput', markUserInput);
@@ -232,6 +261,50 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   useEffect(() => {
     setEditorGetter(get);
   }, [get, setEditorGetter]);
+
+  useEffect(() => {
+    if (lastAppliedDiskRevisionRef.current === currentNoteDiskRevision) {
+      return;
+    }
+
+    let restoreFrame = 0;
+    let restoreTimeout = 0;
+
+    try {
+      const editor = get?.() as ActiveMilkdownEditor | undefined;
+      const runEditorAction = editor?.action;
+      if (!editor || !runEditorAction) {
+        return;
+      }
+
+      const view = editor.ctx.get(editorViewCtx) as EditorView;
+      const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
+      const scrollTop = scrollRoot?.scrollTop ?? null;
+      const normalizedFrontmatter = normalizeLeadingFrontmatterMarkdown(
+        normalizeAlternativeMathBlockFences(
+          normalizeSerializedMarkdownDocument(currentNoteContent)
+        )
+      );
+      const nextMarkdown = preserveMarkdownBlankLinesForEditor(normalizedFrontmatter);
+
+      lastAppliedDiskRevisionRef.current = currentNoteDiskRevision;
+      runEditorAction((ctx) => replaceEditorMarkdown(ctx, nextMarkdown));
+
+      if (scrollRoot && scrollTop !== null) {
+        const restoreScroll = () => {
+          scrollRoot.scrollTop = scrollTop;
+        };
+        restoreFrame = requestAnimationFrame(restoreScroll);
+        restoreTimeout = window.setTimeout(restoreScroll, 80);
+      }
+    } catch {
+    }
+
+    return () => {
+      cancelAnimationFrame(restoreFrame);
+      window.clearTimeout(restoreTimeout);
+    };
+  }, [activatedRevision, currentNoteContent, currentNoteDiskRevision, get]);
 
   useEffect(() => {
     return () => {
