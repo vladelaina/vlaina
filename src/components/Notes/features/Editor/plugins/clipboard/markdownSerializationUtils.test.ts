@@ -2,8 +2,16 @@ import { describe, expect, it } from 'vitest';
 import {
   joinSerializedBlocks,
   normalizeAlternativeMathBlockFences,
+  normalizeChineseOrderedListMarkers,
+  normalizeCjkAtxHeadingMarkerSpaces,
   normalizeEscapedUrlSchemes,
+  normalizeFullwidthMarkdownLineMarkers,
+  normalizeLenientMarkdownLineMarkers,
+  normalizeMalformedTaskListMarkers,
   normalizeMarkdownAutolinkLiterals,
+  normalizeMissingBlockquoteMarkerSpaces,
+  normalizeMissingOrderedListMarkerSpaces,
+  normalizeMissingUnorderedListMarkerSpaces,
   normalizeSerializedMarkdownBlock,
   normalizeSerializedMarkdownDocument,
   normalizeSerializedMarkdownSelection,
@@ -100,6 +108,134 @@ describe('normalizeMarkdownAutolinkLiterals', () => {
     const markdown = ['```sh', 'curl <http://example.test:8317>', '```'].join('\n');
 
     expect(normalizeMarkdownAutolinkLiterals(markdown)).toBe(markdown);
+  });
+});
+
+describe('normalizeMissingOrderedListMarkerSpaces', () => {
+  it('adds the missing marker space for consecutive ordered list lines', () => {
+    expect(normalizeMissingOrderedListMarkerSpaces(['1.苹果', '2.香蕉', '3.橘子'].join('\n'))).toBe(
+      ['1. 苹果', '2. 香蕉', '3. 橘子'].join('\n')
+    );
+    expect(normalizeMissingOrderedListMarkerSpaces(['1.1', '2.1'].join('\n'))).toBe(
+      ['1. 1', '2. 1'].join('\n')
+    );
+    expect(normalizeMissingOrderedListMarkerSpaces(['>1.苹果', '>2.香蕉'].join('\n'))).toBe(
+      ['> 1. 苹果', '> 2. 香蕉'].join('\n')
+    );
+    expect(normalizeMissingOrderedListMarkerSpaces(['> >1.苹果', '> >2.香蕉'].join('\n'))).toBe(
+      ['> > 1. 苹果', '> > 2. 香蕉'].join('\n')
+    );
+  });
+
+  it('adds the missing marker space when ordered list lines are separated by blanks', () => {
+    expect(normalizeMissingOrderedListMarkerSpaces(['0.安装', '', '1.调用笔记', '', '2.切换笔记'].join('\n'))).toBe(
+      ['0. 安装', '', '1. 调用笔记', '', '2. 切换笔记'].join('\n')
+    );
+  });
+
+  it('does not rewrite a single decimal-like line', () => {
+    expect(normalizeMissingOrderedListMarkerSpaces('版本 1.1')).toBe('版本 1.1');
+    expect(normalizeMissingOrderedListMarkerSpaces('1.1')).toBe('1.1');
+  });
+
+  it('requires a consecutive ordered-list run', () => {
+    expect(normalizeMissingOrderedListMarkerSpaces(['1.1', '3.1'].join('\n'))).toBe(
+      ['1.1', '3.1'].join('\n')
+    );
+  });
+
+  it('does not rewrite fenced code content', () => {
+    const markdown = ['```md', '1.苹果', '2.香蕉', '```'].join('\n');
+
+    expect(normalizeMissingOrderedListMarkerSpaces(markdown)).toBe(markdown);
+  });
+});
+
+describe('normalizeMalformedTaskListMarkers', () => {
+  it('canonicalizes unchecked task list markers with missing spaces', () => {
+    expect(normalizeMalformedTaskListMarkers(['- [] fsedf', '-[] ', '-[ ]todo'].join('\n'))).toBe(
+      ['- [ ] fsedf', '- [ ]', '- [ ] todo'].join('\n')
+    );
+  });
+
+  it('canonicalizes checked task list markers with missing spaces', () => {
+    expect(normalizeMalformedTaskListMarkers(['-[x]done', '*[X] done', '+ [x]done'].join('\n'))).toBe(
+      ['- [x] done', '* [x] done', '+ [x] done'].join('\n')
+    );
+    expect(normalizeMalformedTaskListMarkers(['-［］任务', '－【√】完成', '＋［Ｘ］完成'].join('\n'))).toBe(
+      ['- [ ] 任务', '- [x] 完成', '+ [x] 完成'].join('\n')
+    );
+  });
+
+  it('canonicalizes ordered task list markers', () => {
+    expect(normalizeMalformedTaskListMarkers(['1.[] first', '2.[x]second'].join('\n'))).toBe(
+      ['1. [ ] first', '2. [x] second'].join('\n')
+    );
+    expect(normalizeMalformedTaskListMarkers(['>-[] first', '>- [x]second'].join('\n'))).toBe(
+      ['> - [ ] first', '> - [x] second'].join('\n')
+    );
+  });
+
+  it('does not rewrite non-task bracket text or fenced code content', () => {
+    expect(normalizeMalformedTaskListMarkers('- [todo] keep')).toBe('- [todo] keep');
+
+    const markdown = ['```md', '-[] task', '-[x] done', '```'].join('\n');
+    expect(normalizeMalformedTaskListMarkers(markdown)).toBe(markdown);
+  });
+});
+
+describe('normalize lenient markdown line markers', () => {
+  it('canonicalizes Chinese ordered list markers only for consecutive runs', () => {
+    expect(normalizeChineseOrderedListMarkers(['1、苹果', '2、香蕉', '3）橘子'].join('\n'))).toBe(
+      ['1. 苹果', '2. 香蕉', '3. 橘子'].join('\n')
+    );
+    expect(normalizeChineseOrderedListMarkers(['（1）苹果', '', '（2）香蕉'].join('\n'))).toBe(
+      ['1. 苹果', '', '2. 香蕉'].join('\n')
+    );
+    expect(normalizeChineseOrderedListMarkers('1、不是列表')).toBe('1、不是列表');
+    expect(normalizeChineseOrderedListMarkers(['7）普通段落', '8）普通段落'].join('\n'))).toBe(
+      ['7）普通段落', '8）普通段落'].join('\n')
+    );
+  });
+
+  it('canonicalizes unordered list markers without spaces only for consecutive runs', () => {
+    expect(normalizeMissingUnorderedListMarkerSpaces(['-苹果', '-香蕉', '*橘子', '＋梨'].join('\n'))).toBe(
+      ['- 苹果', '- 香蕉', '* 橘子', '+ 梨'].join('\n')
+    );
+    expect(normalizeMissingUnorderedListMarkerSpaces(['>-苹果', '>-香蕉'].join('\n'))).toBe(
+      ['> - 苹果', '> - 香蕉'].join('\n')
+    );
+    expect(normalizeMissingUnorderedListMarkerSpaces('-苹果')).toBe('-苹果');
+    expect(normalizeMissingUnorderedListMarkerSpaces('－普通破折号文本')).toBe('－普通破折号文本');
+    expect(normalizeMissingUnorderedListMarkerSpaces(['-1', '-2'].join('\n'))).toBe(['-1', '-2'].join('\n'));
+  });
+
+  it('canonicalizes fullwidth line markers before other lenient rules', () => {
+    expect(normalizeLenientMarkdownLineMarkers(['＃标题', '＞引用', '－苹果', '－香蕉'].join('\n'))).toBe(
+      ['# 标题', '> 引用', '- 苹果', '- 香蕉'].join('\n')
+    );
+    expect(normalizeLenientMarkdownLineMarkers(['＞1.苹果', '＞2.香蕉', '＞-[] todo'].join('\n'))).toBe(
+      ['> 1. 苹果', '> 2. 香蕉', '> - [ ] todo'].join('\n')
+    );
+    expect(normalizeFullwidthMarkdownLineMarkers('正文 ＃ 不动')).toBe('正文 ＃ 不动');
+    expect(normalizeFullwidthMarkdownLineMarkers('－普通破折号文本')).toBe('－普通破折号文本');
+  });
+
+  it('canonicalizes CJK headings and blockquotes without changing hashtags', () => {
+    expect(normalizeCjkAtxHeadingMarkerSpaces(['#标题', '##二级标题'].join('\n'))).toBe(
+      ['# 标题', '## 二级标题'].join('\n')
+    );
+    expect(normalizeCjkAtxHeadingMarkerSpaces('#todo')).toBe('#todo');
+    expect(normalizeCjkAtxHeadingMarkerSpaces('#123')).toBe('#123');
+    expect(normalizeMissingBlockquoteMarkerSpaces(['>引用', '> already'].join('\n'))).toBe(
+      ['> 引用', '> already'].join('\n')
+    );
+  });
+
+  it('does not rewrite lenient markers inside fenced code', () => {
+    const markdown = ['```md', '1、苹果', '-苹果', '#标题', '＞引用', '```'].join('\n');
+
+    expect(normalizeLenientMarkdownLineMarkers(markdown)).toBe(markdown);
   });
 });
 
@@ -252,6 +388,37 @@ describe('normalizeSerializedMarkdownDocument', () => {
   it('converts invisible editor blank-line placeholders into markdown blank lines', () => {
     expect(normalizeSerializedMarkdownDocument('1\n\u200B\n2\n')).toBe('1\n\n2\n');
     expect(normalizeSerializedMarkdownDocument('- one\n\u200B\u200C\n- two\n')).toBe('- one\n\n- two\n');
+  });
+
+  it('persists consecutive ordered list lines that are missing marker spaces as lists', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(['1.苹果', '2.香蕉', '3.橘子'].join('\n'))
+    ).toBe(['1. 苹果', '2. 香蕉', '3. 橘子'].join('\n'));
+    expect(normalizeSerializedMarkdownDocument(['1.1', '2.1'].join('\n'))).toBe(
+      ['1. 1', '2. 1'].join('\n')
+    );
+    expect(normalizeSerializedMarkdownDocument(['0.安装', '', '1.调用笔记'].join('\n'))).toBe(
+      ['0. 安装', '1. 调用笔记'].join('\n')
+    );
+  });
+
+  it('persists malformed task list markers as standard task markdown', () => {
+    expect(normalizeSerializedMarkdownDocument(['- [] fsedf', '-[] ', '-[x]done'].join('\n'))).toBe(
+      ['- [ ] fsedf', '- [ ]', '- [x] done'].join('\n')
+    );
+  });
+
+  it('persists common non-standard markdown markers as standard markdown', () => {
+    expect(normalizeSerializedMarkdownDocument(['1、苹果', '2、香蕉'].join('\n'))).toBe(
+      ['1. 苹果', '2. 香蕉'].join('\n')
+    );
+    expect(normalizeSerializedMarkdownDocument(['-苹果', '-香蕉'].join('\n'))).toBe(
+      ['- 苹果', '- 香蕉'].join('\n')
+    );
+    expect(normalizeSerializedMarkdownDocument(['＃标题', '＞引用'].join('\n'))).toBe(
+      ['# 标题', '> 引用'].join('\n')
+    );
+    expect(normalizeSerializedMarkdownDocument('－普通破折号文本')).toBe('－普通破折号文本');
   });
 
   it('converts invisible blank placeholders next to internal user br placeholders', () => {
