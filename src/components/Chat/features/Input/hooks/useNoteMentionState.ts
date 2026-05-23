@@ -215,7 +215,13 @@ export function useNoteMentionState({
   }, []);
 
   const handleCaretBlur = useCallback(() => {
-    setCaretIndex(-1);
+    requestAnimationFrame(() => {
+      if (typeof document !== 'undefined' && !document.hasFocus()) {
+        return;
+      }
+
+      setCaretIndex(-1);
+    });
   }, []);
 
   const removeMention = useCallback(

@@ -217,6 +217,34 @@ describe('useNoteMentions', () => {
     expect(result.current.linkedPageCandidates).toEqual([]);
   });
 
+  it('keeps the mention picker visible when the app window loses focus', () => {
+    vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+
+    const { result } = renderHook(() => {
+      const [message, setMessage] = useState('@');
+      const textareaRef = useRef<HTMLTextAreaElement>(document.createElement('textarea'));
+      const controller = useNoteMentions({
+        message,
+        textareaRef,
+        handleMessageChange: setMessage,
+      });
+
+      return { ...controller, message };
+    });
+
+    act(() => {
+      result.current.handleCaretChange(1);
+    });
+
+    expect(result.current.showMentionPicker).toBe(true);
+
+    act(() => {
+      result.current.handleCaretBlur();
+    });
+
+    expect(result.current.showMentionPicker).toBe(true);
+  });
+
   it('includes starred notes from other vaults as mention candidates', () => {
     hoisted.storeRef.state = {
       ...hoisted.storeRef.state,
