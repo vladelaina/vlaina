@@ -243,9 +243,17 @@ describe('SidebarContent search highlight cleanup', () => {
 
   it('reveals the current file when leaving sidebar search results', () => {
     hoisted.shouldShowSearchResults = true;
+    const rootFolder = {
+      id: 'root',
+      name: 'Notes',
+      path: '',
+      isFolder: true as const,
+      expanded: true,
+      children: [{ id: 'docs', name: 'docs', path: 'docs', isFolder: true as const, expanded: false, children: [] }],
+    };
     const { rerender } = render(
       <SidebarContent
-        rootFolder={null}
+        rootFolder={rootFolder}
         isLoading={false}
         currentNotePath="docs/alpha.md"
         createNote={vi.fn(async () => undefined)}
@@ -257,7 +265,7 @@ describe('SidebarContent search highlight cleanup', () => {
     hoisted.shouldShowSearchResults = false;
     rerender(
       <SidebarContent
-        rootFolder={null}
+        rootFolder={rootFolder}
         isLoading={false}
         currentNotePath="docs/alpha.md"
         createNote={vi.fn(async () => undefined)}
@@ -267,7 +275,32 @@ describe('SidebarContent search highlight cleanup', () => {
     );
 
     expect(hoisted.revealFolder).toHaveBeenCalledWith('docs/alpha.md');
-    expect(hoisted.scheduleSidebarItemIntoView).toHaveBeenCalledWith('docs/alpha.md', 2);
+    expect(hoisted.scheduleSidebarItemIntoView).toHaveBeenCalledWith('docs/alpha.md', 3);
+  });
+
+  it('reveals the current file when the file tree first renders', () => {
+    const rootFolder = {
+      id: 'root',
+      name: 'Notes',
+      path: '',
+      isFolder: true as const,
+      expanded: true,
+      children: [{ id: 'docs', name: 'docs', path: 'docs', isFolder: true as const, expanded: false, children: [] }],
+    };
+
+    render(
+      <SidebarContent
+        rootFolder={rootFolder}
+        isLoading={false}
+        currentNotePath="docs/restored.md"
+        createNote={vi.fn(async () => undefined)}
+        createFolder={vi.fn(async () => null)}
+        search={createSearchState({ isSearchOpen: false, searchQuery: '' })}
+      />,
+    );
+
+    expect(hoisted.revealFolder).toHaveBeenCalledWith('docs/restored.md');
+    expect(hoisted.scheduleSidebarItemIntoView).toHaveBeenCalledWith('docs/restored.md', 3);
   });
 
   it('shows an empty file tree hint when the vault has no files', () => {

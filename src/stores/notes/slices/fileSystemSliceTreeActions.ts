@@ -178,7 +178,7 @@ export function createFileSystemTreeActions(
         });
         markStep('set-state', stepStartedAt);
 
-        const currentNotePath = workspace?.currentNotePath;
+        const currentNotePath = workspace?.currentNotePath ?? get().recentNotes[0] ?? null;
         const hasActiveNoteOrTabs = Boolean(get().currentNote) || get().openTabs.length > 0;
         if (!skipRestore && currentNotePath && !hasActiveNoteOrTabs) {
           try {
