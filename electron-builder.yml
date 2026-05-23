@@ -61,7 +61,7 @@ win:
 nsis:
   artifactName: ${productName}-${version}-windows-${arch}-setup.${ext}
   oneClick: false
-  allowToChangeInstallationDirectory: false
+  allowToChangeInstallationDirectory: true
   differentialPackage: false
 portable:
   artifactName: ${productName}-${version}-windows-${arch}-portable.${ext}
