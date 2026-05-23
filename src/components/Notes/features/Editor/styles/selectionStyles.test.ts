@@ -54,6 +54,13 @@ function readBlankAreaDragBoxSource() {
   );
 }
 
+function readBlockSelectionLineFillOverlaySource() {
+  return readFileSync(
+    resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/cursor', 'blockSelectionLineFillOverlay.ts'),
+    'utf8'
+  );
+}
+
 function readFloatingToolbarSourceFiles() {
   const root = resolve(process.cwd(), 'src/components/Notes/features/Editor/plugins/floating-toolbar');
   const files: Array<{ path: string; source: string }> = [];
@@ -381,6 +388,7 @@ describe('editor embedded CodeMirror selection styles', () => {
   it('keeps editor block selection color independent from global gray text tokens', () => {
     const css = readStyleFile('core.css');
     const source = readBlankAreaDragBoxSource();
+    const lineFillSource = readBlockSelectionLineFillOverlaySource();
 
     expect(css).toContain('--vlaina-editor-block-selection-base: var(--vlaina-color-editor-block-selection, var(--vlaina-color-accent, #1e96eb));');
     expect(css).toContain('--vlaina-editor-block-selection-bg: #bedffe;');
@@ -397,8 +405,16 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain('.milkdown .vlaina-block-selection-line-fill-host {');
     expect(css).toContain('.milkdown .vlaina-block-selection-line-fill-layer {');
     expect(css).toContain('.milkdown .vlaina-block-selection-line-fill {');
+    expect(css).toContain('.milkdown .ProseMirror .vlaina-block-selected-inline-line {');
+    expect(css).toContain('background-color: transparent;');
+    expect(css).toContain('box-shadow: none;');
     expect(css).toContain('color: var(--vlaina-editor-block-selection-fg, #fefbf9);');
     expect(source).toContain("const DRAG_BOX_COLOR = 'rgb(190 223 254 / 0.42)';");
+    expect(lineFillSource).toContain('function resolveLineFillLeft(paragraph: HTMLElement): number {');
+    expect(lineFillSource).toContain('function resolveLineFillRight(view: EditorView, paragraph: HTMLElement): number {');
+    expect(lineFillSource).toContain('const selectedBlockRight = editorRect.width > 0 ? editorRect.right : paragraphRect.right;');
+    expect(lineFillSource).toContain('return Math.max(paragraphRect.right, selectedBlockRight) + resolveBlockSelectionBleedXEnd(paragraph);');
+    expect(lineFillSource).toContain('const FALLBACK_BLOCK_SELECTION_BLEED_X_PX = 48;');
   });
 
   it('lets block selection and drag gestures pass over video embeds', () => {

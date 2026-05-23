@@ -17,7 +17,10 @@ import {
   Pin,
   Quote,
   SeparatorHorizontal,
+  Send,
+  Square,
   Sigma,
+  SquarePen,
   SquareFunction,
   Table2,
   TableOfContents,
@@ -104,10 +107,7 @@ import {
   StarIcon as StarSolidIcon,
 } from '@heroicons/react/24/solid';
 
-import { NewChatIcon } from './custom/mit/NewChatIcon';
 import { CropIcon } from './custom/mit/CropIcon';
-import { SendIcon } from './custom/mit/SendIcon';
-import { SquareStopIcon } from './custom/mit/SquareStopIcon';
 import { TemporaryChatOffIcon } from './custom/mit/TemporaryChatOffIcon';
 import { TemporaryChatOnIcon } from './custom/mit/TemporaryChatOnIcon';
 import { PrimerPinIcon } from './custom/mit/PrimerPinIcon';
@@ -136,7 +136,7 @@ export const icons: Record<string, IconSource> = {
   'common.add': PlusIcon,
   'common.delete': TrashIcon,
   'common.remove': MinusIcon,
-  'common.edit': NewChatIcon,
+  'common.edit': SquarePen,
   'common.settings': CogIcon,
   'common.search': MagnifyingGlassIcon,
   'common.close': XMarkIcon,
@@ -168,7 +168,7 @@ export const icons: Record<string, IconSource> = {
   'common.blocked': NoSymbolIcon,
   'common.block': NoSymbolIcon,
   'common.unlink': UnlinkIcon,
-  'common.compose': NewChatIcon,
+  'common.compose': SquarePen,
   'common.quote': Quote,
   'common.tag': TagIcon,
   'common.rename': PenLine,
@@ -179,7 +179,7 @@ export const icons: Record<string, IconSource> = {
   'common.sparkle': SparklesIcon,
   'common.magicWand': MagicWandIcon,
   'common.shootingStar': ShootingStarIcon,
-  'common.send': SendIcon,
+  'common.send': Send,
   'common.language': LanguageIcon,
   'common.cloud': CloudIcon,
   'common.google': GoogleIcon,
@@ -257,7 +257,7 @@ export const icons: Record<string, IconSource> = {
   'editor.type': SwatchIcon,
   'media.play': PlayIcon,
   'media.pause': PauseIcon,
-  'media.stop': SquareStopIcon,
+  'media.stop': Square,
   'media.mic': MicrophoneIcon,
   'misc.clock': ClockIcon,
   'misc.crown': Crown,
