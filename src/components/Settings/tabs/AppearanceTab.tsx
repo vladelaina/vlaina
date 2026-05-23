@@ -159,7 +159,7 @@ export function AppearanceTab({ onFontSizePreviewingChange }: AppearanceTabProps
           {fontSizeSlider}
           <span className={cn(
             "w-10 text-sm font-medium text-right tabular-nums text-[var(--notes-sidebar-text)]",
-            isPreviewingFontSize && "pointer-events-none opacity-0",
+            isPreviewingFontSize && "pointer-events-none",
           )}>
             {displayedFontSize}px
           </span>

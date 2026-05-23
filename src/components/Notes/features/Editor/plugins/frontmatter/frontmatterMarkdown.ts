@@ -92,7 +92,9 @@ export function normalizeLeadingFrontmatterMarkdown(markdown: string): string {
     ? trimTrailingBlankLines(visibleFrontmatterLines)
     : visibleFrontmatterLines;
 
-  return buildFrontmatterBlock(normalizedVisibleFrontmatterLines, sections.bodyLines, true);
+  return buildFrontmatterBlock(normalizedVisibleFrontmatterLines, sections.bodyLines, true, {
+    preserveEmpty: !hasHiddenFrontmatterLines,
+  });
 }
 
 export function serializeLeadingFrontmatterMarkdown(markdown: string, referenceMarkdown?: string): string {

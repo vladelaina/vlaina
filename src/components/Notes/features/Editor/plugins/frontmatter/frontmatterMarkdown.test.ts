@@ -39,8 +39,10 @@ describe('frontmatterMarkdown', () => {
     ).toBe(`\`\`\`${getFrontmatterFenceLanguage()}\ntitle: Demo\n\`\`\`\n# Heading`);
   });
 
-  it('normalizes any leading frontmatter block, including empty placeholders', () => {
-    expect(normalizeLeadingFrontmatterMarkdown('---\n---\n# Heading')).toBe('# Heading');
+  it('keeps user-authored empty leading frontmatter blocks visible', () => {
+    expect(normalizeLeadingFrontmatterMarkdown('---\n---\n# Heading')).toBe(
+      `\`\`\`${getFrontmatterFenceLanguage()}\n\`\`\`\n# Heading`
+    );
   });
 
   it('removes hidden-only frontmatter from the editor surface', () => {

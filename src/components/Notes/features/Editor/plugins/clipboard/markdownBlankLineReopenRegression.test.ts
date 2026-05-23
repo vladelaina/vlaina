@@ -20,6 +20,7 @@ import {
 } from '../frontmatter/frontmatterMarkdown';
 
 interface ReopenSnapshot {
+  docJson: unknown;
   persisted: string;
   textContent: string;
   texts: string[];
@@ -46,6 +47,7 @@ async function reopenMarkdown(markdown: string): Promise<ReopenSnapshot> {
   const serialized = serializer(view.state.doc);
   await editor.destroy();
   return {
+    docJson,
     persisted: stripTrailingNewlines(serializeLeadingFrontmatterMarkdown(
       normalizeSerializedMarkdownDocument(serialized),
       markdown
@@ -53,6 +55,27 @@ async function reopenMarkdown(markdown: string): Promise<ReopenSnapshot> {
     textContent: view.state.doc.textContent,
     texts: docJson.content?.map((node: any) => node.content?.[0]?.text ?? '') ?? [],
   };
+}
+
+function collectListItemAttrs(value: unknown): Array<Record<string, unknown>> {
+  if (!value || typeof value !== 'object') return [];
+
+  const node = value as { type?: unknown; attrs?: unknown; content?: unknown };
+  const ownAttrs = node.type === 'list_item' && node.attrs && typeof node.attrs === 'object'
+    ? [node.attrs as Record<string, unknown>]
+    : [];
+  const childAttrs = Array.isArray(node.content)
+    ? node.content.flatMap(collectListItemAttrs)
+    : [];
+  return [...ownAttrs, ...childAttrs];
+}
+
+function collectNodes(value: unknown): Array<{ type?: unknown; attrs?: unknown; text?: unknown }> {
+  if (!value || typeof value !== 'object') return [];
+
+  const node = value as { type?: unknown; attrs?: unknown; text?: unknown; content?: unknown };
+  const children = Array.isArray(node.content) ? node.content.flatMap(collectNodes) : [];
+  return [node, ...children];
 }
 
 function expectCleanPersistedMarkdown(markdown: string): void {
@@ -63,6 +86,66 @@ function expectCleanPersistedMarkdown(markdown: string): void {
 }
 
 describe('markdown blank line reopen regressions', () => {
+  it.each([
+    {
+      name: 'bullet',
+      markdown: '-',
+      expectedNode: { type: 'bullet_list' },
+    },
+    {
+      name: 'ordered',
+      markdown: '1.',
+      expectedNode: { type: 'ordered_list' },
+    },
+    {
+      name: 'nested bullet',
+      markdown: '- parent\n  -',
+      expectedNode: { type: 'bullet_list' },
+    },
+    {
+      name: 'blockquote bullet',
+      markdown: '> -',
+      expectedNode: { type: 'bullet_list' },
+    },
+  ])('reopens an empty $name list item as a list', async ({ markdown, expectedNode }) => {
+    const snapshot = await reopenMarkdown(markdown);
+
+    expect(collectNodes(snapshot.docJson)).toContainEqual(expect.objectContaining(expectedNode));
+    expect(snapshot.persisted).toBe(markdown);
+    expectCleanPersistedMarkdown(snapshot.persisted);
+  });
+
+  it.each([
+    {
+      name: 'unchecked',
+      markdown: '- [ ]',
+      checked: false,
+    },
+    {
+      name: 'checked',
+      markdown: '- [x]',
+      checked: true,
+    },
+    {
+      name: 'nested unchecked',
+      markdown: '- parent\n  - [ ]',
+      checked: false,
+    },
+    {
+      name: 'blockquote unchecked',
+      markdown: '> - [ ]',
+      checked: false,
+    },
+  ])('reopens an empty $name task item as a checkbox', async ({ markdown, checked }) => {
+    const snapshot = await reopenMarkdown(markdown);
+
+    expect(collectListItemAttrs(snapshot.docJson)).toContainEqual(
+      expect.objectContaining({ checked })
+    );
+    expect(snapshot.persisted).toBe(markdown);
+    expectCleanPersistedMarkdown(snapshot.persisted);
+  });
+
   it('keeps paragraph trailing backslashes visible inside mixed markdown notes', async () => {
     const markdown = [
       '# Heading',

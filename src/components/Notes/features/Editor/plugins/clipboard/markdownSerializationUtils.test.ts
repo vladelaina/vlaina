@@ -516,6 +516,13 @@ describe('normalizeSerializedMarkdownDocument', () => {
     );
   });
 
+  it('does not canonicalize a single bullet marker as a thematic break', () => {
+    expect(normalizeSerializedMarkdownDocument('-')).toBe('-');
+    expect(normalizeSerializedMarkdownDocument(['- parent', '  -'].join('\n'))).toBe(
+      ['- parent', '  -'].join('\n')
+    );
+  });
+
   it('does not rewrite custom inline html text inside fenced code', () => {
     const markdown = ['```html', '<sup>a < b & c</sup>', '```'].join('\n');
 

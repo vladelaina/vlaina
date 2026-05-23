@@ -11,6 +11,7 @@ import {
   isSvgSource,
   parseUserMessageContent,
 } from './userMessageContent';
+import { useUIStore } from '@/stores/uiSlice';
 
 const userMessageActionButtonClass =
   'p-1.5 rounded-md text-[var(--chat-sidebar-text)] transition-colors hover:bg-black/5 hover:text-[var(--chat-sidebar-text)] dark:hover:bg-white/5';
@@ -30,6 +31,7 @@ function UserMessageInner({
   onEdit,
   onSwitchVersion,
 }: UserMessageProps) {
+  const fontSize = useUIStore((state) => state.fontSize);
   const content = message.content || '';
   const parsedContent = useMemo(() => {
     const parsed = parseUserMessageContent(content);
@@ -59,8 +61,16 @@ function UserMessageInner({
   }, []);
 
   const textBubbleWidth = useMemo(
-    () => resolveUserMessageBubbleWidth(parsedContent.text, containerWidth),
-    [containerWidth, parsedContent.text]
+    () => resolveUserMessageBubbleWidth(parsedContent.text, containerWidth, fontSize),
+    [containerWidth, fontSize, parsedContent.text]
+  );
+  const textBubbleStyle = useMemo(
+    () => ({
+      ...(textBubbleWidth ? { width: `${textBubbleWidth}px` } : {}),
+      fontSize: 'var(--vlaina-markdown-font-size, 19px)',
+      lineHeight: 'calc(var(--vlaina-markdown-font-size, 19px) + 8px)',
+    }),
+    [textBubbleWidth],
   );
 
   const handleCopy = useCallback(async () => {
@@ -128,8 +138,8 @@ function UserMessageInner({
                 data-no-focus-input="true"
                 data-chat-selection-surface="true"
                 data-chat-selection-start="true"
-                className="inline-block max-w-[90%] select-text rounded-3xl bg-[#41a8ea] px-4 py-1.5 text-left text-[19px] leading-[27px] text-white"
-                style={textBubbleWidth ? { width: `${textBubbleWidth}px` } : undefined}
+                className="inline-block max-w-[90%] select-text rounded-3xl bg-[#41a8ea] px-4 py-1.5 text-left text-white"
+                style={textBubbleStyle}
               >
                 <div className="whitespace-pre-wrap break-words">{parsedContent.text}</div>
               </div>

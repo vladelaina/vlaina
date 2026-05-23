@@ -24,6 +24,10 @@ const MAX_CONSECUTIVE_EDITOR_BLANK_LINES = 8;
 const USER_BR_SENTINEL_LINE_PATTERN =
   new RegExp(`^(\\s*(?:>\\s*)*)${USER_BR_SENTINEL}$`);
 const MARKDOWN_HEADING_LINE_PATTERN = /^\s{0,3}#{1,6}\s+/;
+const EMPTY_LIST_ITEM_LINE_PATTERN =
+  /^([ \t]*(?:>[ \t]*)*(?:[-+*]|\d+[.)]))[ \t]*$/;
+const EMPTY_TASK_LIST_ITEM_LINE_PATTERN =
+  /^([ \t]*(?:>[ \t]*)*(?:[-+*]|\d+[.)])[ \t]+\[(?: |x|X)\])[ \t]*$/;
 
 export function preserveMarkdownBlankLinesForEditor(text: string): string {
   if (text.length === 0) return text;
@@ -31,6 +35,16 @@ export function preserveMarkdownBlankLinesForEditor(text: string): string {
   const escapedText = escapeParagraphTrailingBackslashesForEditor(text);
   const collapsedText = collapseExcessiveBlankLineRunsForEditor(escapedText);
   const preserved = mapMarkdownOutsideProtectedBlocks(collapsedText, (line, index, lines) => {
+    const emptyListItemMatch = EMPTY_LIST_ITEM_LINE_PATTERN.exec(line);
+    if (emptyListItemMatch) {
+      return `${emptyListItemMatch[1]} ${EDITOR_EMPTY_PARAGRAPH_PLACEHOLDER}`;
+    }
+
+    const emptyTaskListItemMatch = EMPTY_TASK_LIST_ITEM_LINE_PATTERN.exec(line);
+    if (emptyTaskListItemMatch) {
+      return `${emptyTaskListItemMatch[1]} ${EDITOR_EMPTY_PARAGRAPH_PLACEHOLDER}`;
+    }
+
     const blockquoteBrMatch = BLOCKQUOTE_BR_ONLY_PATTERN.exec(line);
     if (blockquoteBrMatch) {
       const prefix = blockquoteBrMatch[1] ?? '';

@@ -3,9 +3,11 @@ import {
   measureTextWrapStats,
 } from '@/lib/text-layout';
 import {
+  MARKDOWN_BODY_FONT_SIZE,
   MARKDOWN_BODY_FONT,
   MARKDOWN_BODY_LINE_HEIGHT,
 } from '@/components/common/markdown/markdownMetrics';
+import { APP_SANS_FONT_FAMILY } from '@/lib/typography/fontFamilies';
 import { getChatContentWidth, normalizeChatContainerWidth } from './chatWidthBuckets';
 
 const USER_BUBBLE_MAX_RATIO = 0.9;
@@ -26,13 +28,23 @@ function setWidthCacheEntry(key: string, width: number): void {
   widthCache.set(key, width);
 }
 
-export function resolveUserMessageBubbleWidth(text: string, containerWidth: number): number | null {
+export function resolveUserMessageBubbleWidth(
+  text: string,
+  containerWidth: number,
+  fontSize: number = MARKDOWN_BODY_FONT_SIZE,
+): number | null {
   if (!text.trim() || containerWidth <= 0) {
     return null;
   }
 
   const normalizedWidth = normalizeChatContainerWidth(containerWidth);
-  const cacheKey = `${normalizedWidth}\u0000${MARKDOWN_BODY_FONT}\u0000${text}`;
+  const bodyFont =
+    fontSize === MARKDOWN_BODY_FONT_SIZE
+      ? MARKDOWN_BODY_FONT
+      : `normal 400 ${fontSize}px ${APP_SANS_FONT_FAMILY}`;
+  const bodyLineHeight =
+    fontSize === MARKDOWN_BODY_FONT_SIZE ? MARKDOWN_BODY_LINE_HEIGHT : fontSize + 8;
+  const cacheKey = `${normalizedWidth}\u0000${bodyFont}\u0000${text}`;
   const cachedWidth = widthCache.get(cacheKey);
   if (cachedWidth !== undefined) {
     widthCache.delete(cacheKey);
@@ -43,8 +55,8 @@ export function resolveUserMessageBubbleWidth(text: string, containerWidth: numb
   const maxBubbleWidth = Math.max(1, Math.floor(getChatContentWidth(normalizedWidth) * USER_BUBBLE_MAX_RATIO));
   const maxTextWidth = Math.max(1, maxBubbleWidth - USER_BUBBLE_PADDING_X);
   const measurementOptions = {
-    font: MARKDOWN_BODY_FONT,
-    lineHeight: MARKDOWN_BODY_LINE_HEIGHT,
+    font: bodyFont,
+    lineHeight: bodyLineHeight,
     prepareOptions: { whiteSpace: 'pre-wrap' as const },
   };
   const initialMetrics = measureTextWrapStats(text, maxTextWidth, measurementOptions);

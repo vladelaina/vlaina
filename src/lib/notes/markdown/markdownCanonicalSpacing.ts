@@ -21,7 +21,7 @@ function isListItem(line: string): boolean {
 }
 
 function isStandaloneSerializedHorizontalRule(line: string): boolean {
-  return line.trim() === '-' || THEMATIC_BREAK_PATTERN.test(line);
+  return THEMATIC_BREAK_PATTERN.test(line);
 }
 
 export function normalizeCanonicalMarkdownSpacing(text: string): string {
