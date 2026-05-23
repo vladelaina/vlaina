@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn, iconButtonStyles } from '@/lib/utils';
@@ -13,6 +13,7 @@ interface ChatInputActionsProps {
   canSubmit: boolean;
   webSearchEnabled: boolean;
   onToggleWebSearch: () => void;
+  onRequestComposerFocus: () => void;
   onStop: () => void;
   onSend: () => void;
 }
@@ -24,11 +25,13 @@ export function ChatInputActions({
   canSubmit,
   webSearchEnabled,
   onToggleWebSearch,
+  onRequestComposerFocus,
   onStop,
   onSend,
 }: ChatInputActionsProps) {
   const { t } = useI18n();
   const [actionsOpen, setActionsOpen] = useState(false);
+  const restoreComposerFocusOnCloseRef = useRef(false);
 
   const handleTriggerFileSelect = () => {
     setActionsOpen(false);
@@ -36,10 +39,17 @@ export function ChatInputActions({
   };
 
   const handleEnableWebSearch = () => {
+    restoreComposerFocusOnCloseRef.current = true;
     setActionsOpen(false);
     if (!webSearchEnabled) {
       onToggleWebSearch();
     }
+    onRequestComposerFocus();
+  };
+
+  const handleDisableWebSearch = () => {
+    onToggleWebSearch();
+    onRequestComposerFocus();
   };
 
   return (
@@ -63,6 +73,14 @@ export function ChatInputActions({
             align="start"
             side="top"
             sideOffset={8}
+            onCloseAutoFocus={(event) => {
+              if (!restoreComposerFocusOnCloseRef.current) {
+                return;
+              }
+              restoreComposerFocusOnCloseRef.current = false;
+              event.preventDefault();
+              onRequestComposerFocus();
+            }}
             className={cn(
               "w-52 rounded-[22px] border-transparent p-1.5 text-[var(--chat-sidebar-text)]",
               chatComposerPillSurfaceClass
@@ -101,7 +119,7 @@ export function ChatInputActions({
             type="button"
             aria-pressed="true"
             aria-label={t('chat.disableWebSearch')}
-            onClick={onToggleWebSearch}
+            onClick={handleDisableWebSearch}
             className="w-9 h-9 flex items-center justify-center rounded-full bg-[var(--chat-sidebar-row-active)] text-[var(--sidebar-row-selected-text)] transition-all duration-200 hover:bg-[var(--chat-sidebar-row-active)] hover:text-[var(--sidebar-row-selected-text)] active:scale-95"
           >
             <Icon name="file.public" size="md" />

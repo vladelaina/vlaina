@@ -321,6 +321,7 @@ export const ChatInput = memo(function ChatInput({
             canSubmit={canSubmit}
             webSearchEnabled={webSearchEnabled}
             onToggleWebSearch={() => setWebSearchEnabled(!webSearchEnabled)}
+            onRequestComposerFocus={scheduleComposerFocus}
             onStop={onStop}
             onSend={() => handleSend()}
           />
