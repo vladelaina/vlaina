@@ -17,8 +17,6 @@ import {
   Pin,
   Quote,
   SeparatorHorizontal,
-  Send,
-  Square,
   Sigma,
   SquarePen,
   SquareFunction,
@@ -126,6 +124,8 @@ import { FileDirectoryOpenFillIcon } from './custom/mit/FileDirectoryOpenFillIco
 import { FileDirectoryOpenArrowIcon } from './custom/mit/FileDirectoryOpenArrowIcon';
 import { FolderOutputIcon } from './custom/mit/FolderOutputIcon';
 import { UnlinkIcon } from './custom/mit/UnlinkIcon';
+import { SendIcon } from './custom/mit/SendIcon';
+import { SquareStopIcon } from './custom/mit/SquareStopIcon';
 
 export type IconSource = ComponentType<SVGProps<SVGSVGElement> & { size?: number | string }>;
 
@@ -179,7 +179,7 @@ export const icons: Record<string, IconSource> = {
   'common.sparkle': SparklesIcon,
   'common.magicWand': MagicWandIcon,
   'common.shootingStar': ShootingStarIcon,
-  'common.send': Send,
+  'common.send': SendIcon,
   'common.language': LanguageIcon,
   'common.cloud': CloudIcon,
   'common.google': GoogleIcon,
@@ -257,7 +257,7 @@ export const icons: Record<string, IconSource> = {
   'editor.type': SwatchIcon,
   'media.play': PlayIcon,
   'media.pause': PauseIcon,
-  'media.stop': Square,
+  'media.stop': SquareStopIcon,
   'media.mic': MicrophoneIcon,
   'misc.clock': ClockIcon,
   'misc.crown': Crown,

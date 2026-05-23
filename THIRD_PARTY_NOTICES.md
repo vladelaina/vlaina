@@ -66,6 +66,7 @@ review before release.
 | GitHub Primer / Octicons | `FileDirectoryFillIcon.tsx`, `FileDirectoryIcon.tsx`, `FileDirectoryOpenArrowIcon.tsx`, `FileDirectoryOpenFillIcon.tsx`, `PrimerLightbulbIcon.tsx`, `PrimerPinIcon.tsx`, `PrimerUnpinIcon.tsx` | MIT | Copyright (c) 2026 GitHub Inc. |
 | Google logo | `GoogleIcon.tsx` | Brand asset | Google logo used for provider/account identification; not relicensed under this project's AGPLv3 license. |
 | Lucide Icons | `CropIcon.tsx`, `FolderOutputIcon.tsx`, `RenameIcon.tsx`, `UnlinkIcon.tsx` | ISC | Copyright (c) 2026 Lucide Icons and Contributors |
+| Ollama | `SendIcon.tsx`, `SquareStopIcon.tsx` | MIT | Copyright (c) Ollama |
 | Phosphor Icons | `MagicWandIcon.tsx`, `ReviewApplyIcon.tsx`, `ReviewCloseIcon.tsx`, `ReviewRetryIcon.tsx`, `ShootingStarIcon.tsx`, `ShootingStarIconData.ts`, `TemporaryChatOffIcon.tsx`, `TemporaryChatOnIcon.tsx` | MIT | Copyright (c) 2023 Phosphor Icons |
 | Custom app artwork | `SidebarDockIcon.tsx` | MIT | Project-authored app icon. |
 
