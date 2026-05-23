@@ -26,6 +26,8 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
   const skipNextBlurCommitRef = useRef(false);
   const isCommittingRef = useRef(false);
   const titleActionFrameRef = useRef<number | null>(null);
+  const resizeFrameRef = useRef<number | null>(null);
+  const resizeTimeoutRef = useRef<number | null>(null);
   const lastInvalidToastAtRef = useRef(0);
   const commitTitleRef = useRef<() => Promise<void>>(async () => undefined);
   const renameNote = useNotesStore(s => s.renameNote);
@@ -40,13 +42,65 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
     const input = inputRef.current;
     if (!input) return;
 
+    if (input.getBoundingClientRect().width <= 0) {
+      input.style.height = '';
+      return;
+    }
+
     input.style.height = 'auto';
     input.style.height = `${input.scrollHeight}px`;
   }, []);
 
+  const scheduleResizeTitleInput = useCallback(() => {
+    if (resizeFrameRef.current !== null) {
+      cancelAnimationFrame(resizeFrameRef.current);
+    }
+
+    resizeFrameRef.current = requestAnimationFrame(() => {
+      resizeFrameRef.current = null;
+      resizeTitleInput();
+    });
+  }, [resizeTitleInput]);
+
   useEffect(() => {
     resizeTitleInput();
-  }, [resizeTitleInput, title]);
+    scheduleResizeTitleInput();
+  }, [resizeTitleInput, scheduleResizeTitleInput, title]);
+
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+
+    const observedElements = [input, input.parentElement].filter(Boolean) as Element[];
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        scheduleResizeTitleInput();
+      });
+      observedElements.forEach((element) => resizeObserver?.observe(element));
+    }
+
+    resizeTimeoutRef.current = window.setTimeout(() => {
+      resizeTimeoutRef.current = null;
+      resizeTitleInput();
+    }, 120);
+
+    void document.fonts?.ready.then(() => {
+      scheduleResizeTitleInput();
+    });
+
+    return () => {
+      resizeObserver?.disconnect();
+      if (resizeFrameRef.current !== null) {
+        cancelAnimationFrame(resizeFrameRef.current);
+        resizeFrameRef.current = null;
+      }
+      if (resizeTimeoutRef.current !== null) {
+        window.clearTimeout(resizeTimeoutRef.current);
+        resizeTimeoutRef.current = null;
+      }
+    };
+  }, [resizeTitleInput, scheduleResizeTitleInput]);
 
   const showInvalidFileNameToast = useCallback((message: string) => {
     const now = Date.now();
@@ -203,6 +257,14 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
       if (titleActionFrameRef.current !== null) {
         cancelAnimationFrame(titleActionFrameRef.current);
         titleActionFrameRef.current = null;
+      }
+      if (resizeFrameRef.current !== null) {
+        cancelAnimationFrame(resizeFrameRef.current);
+        resizeFrameRef.current = null;
+      }
+      if (resizeTimeoutRef.current !== null) {
+        window.clearTimeout(resizeTimeoutRef.current);
+        resizeTimeoutRef.current = null;
       }
       isCommittingRef.current = false;
       skipNextBlurCommitRef.current = false;
