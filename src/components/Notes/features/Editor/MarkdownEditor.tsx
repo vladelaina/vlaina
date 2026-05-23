@@ -63,7 +63,6 @@ export function MarkdownEditor({
   const lastRenderedCoverRef = useRef<RenderedCoverSnapshot | null>(null);
   const [editorReadyTarget, setEditorReadyTarget] = useState<{
     path: string | undefined;
-    diskRevision: number;
   } | null>(null);
 
   const currentNotePath = useNotesStore(s => s.currentNote?.path);
@@ -74,7 +73,6 @@ export function MarkdownEditor({
       return state.getDisplayName(currentNotePath);
     }, [currentNotePath])
   );
-  const currentNoteDiskRevision = useNotesStore(s => s.currentNoteDiskRevision);
   const openTabs = useNotesStore(s => s.openTabs);
   const isStarred = useNotesStore(s => s.isStarred);
   const toggleStarred = useNotesStore(s => s.toggleStarred);
@@ -106,9 +104,7 @@ export function MarkdownEditor({
   useHeldPageScroll(scrollRootRef, { enabled: active });
   const hasRenderableNote = Boolean(currentNotePath);
   const hasActiveNote = active && hasRenderableNote;
-  const isEditorViewReady =
-    editorReadyTarget?.path === currentNotePath &&
-    editorReadyTarget?.diskRevision === currentNoteDiskRevision;
+  const isEditorViewReady = editorReadyTarget?.path === currentNotePath;
   const shouldRenderCover = hasActiveNote && (
     isEditorViewReady ||
     canKeepCoverDuringEditorReload({
@@ -126,10 +122,9 @@ export function MarkdownEditor({
   const handleEditorViewReady = useCallback(() => {
     setEditorReadyTarget({
       path: currentNotePath,
-      diskRevision: currentNoteDiskRevision,
     });
     onEditorViewReady?.();
-  }, [currentNoteDiskRevision, currentNotePath, onEditorViewReady]);
+  }, [currentNotePath, onEditorViewReady]);
   const getCurrentNoteContent = useCallback(() => {
     if (!currentNotePath) {
       return '';
@@ -394,7 +389,7 @@ export function MarkdownEditor({
 
               <Suspense fallback={null}>
                 <MilkdownEditorRuntime
-                  key={`${currentNotePath ?? 'empty'}:${currentNoteDiskRevision}`}
+                  key={currentNotePath ?? 'empty'}
                   active={active}
                   onEditorViewReady={handleEditorViewReady}
                 />
