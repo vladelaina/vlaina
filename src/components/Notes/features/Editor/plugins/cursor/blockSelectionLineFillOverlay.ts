@@ -1,11 +1,11 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { getBlockSelectionPluginState } from './blockSelectionPluginState';
-import type { BlockRange } from './blockSelectionUtils';
+import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
 
 const LINE_FILL_LAYER_CLASS = 'vlaina-block-selection-line-fill-layer';
 const LINE_FILL_CLASS = 'vlaina-block-selection-line-fill';
 const ROW_MERGE_TOLERANCE_PX = 2;
-const FALLBACK_BLOCK_SELECTION_BLEED_X_END_PX = 10;
+const FALLBACK_BLOCK_SELECTION_BLEED_X_PX = 48;
 
 interface LineFillOverlay {
   update: (view: EditorView) => void;
@@ -36,8 +36,29 @@ function resolveBlockSelectionBleedXEnd(paragraph: HTMLElement): number {
   return readCssPx(
     window.getComputedStyle(selectedElement),
     '--vlaina-block-selection-bleed-x-end',
-    FALLBACK_BLOCK_SELECTION_BLEED_X_END_PX
+    FALLBACK_BLOCK_SELECTION_BLEED_X_PX
   );
+}
+
+function resolveBlockSelectionBleedXStart(paragraph: HTMLElement): number {
+  const selectedElement = paragraph.querySelector<HTMLElement>('.vlaina-block-selected') ?? paragraph;
+  return readCssPx(
+    window.getComputedStyle(selectedElement),
+    '--vlaina-block-selection-bleed-x-start',
+    FALLBACK_BLOCK_SELECTION_BLEED_X_PX
+  );
+}
+
+function resolveLineFillLeft(paragraph: HTMLElement): number {
+  const paragraphRect = paragraph.getBoundingClientRect();
+  return paragraphRect.left - resolveBlockSelectionBleedXStart(paragraph);
+}
+
+function resolveLineFillRight(view: EditorView, paragraph: HTMLElement): number {
+  const paragraphRect = paragraph.getBoundingClientRect();
+  const editorRect = view.dom.getBoundingClientRect();
+  const selectedBlockRight = editorRect.width > 0 ? editorRect.right : paragraphRect.right;
+  return Math.max(paragraphRect.right, selectedBlockRight) + resolveBlockSelectionBleedXEnd(paragraph);
 }
 
 function trimTrailingHardBreakForMeasure(view: EditorView, range: BlockRange): BlockRange | null {
@@ -57,48 +78,51 @@ function collectSelectedHardBreakLineRanges(view: EditorView): BlockRange[] {
   if (selectedBlocks.length === 0) return [];
 
   const ranges: BlockRange[] = [];
-  view.state.doc.descendants((node, pos) => {
-    if (node.type.name !== 'paragraph') return true;
+  const selectedRanges = normalizeBlockRanges(selectedBlocks);
 
-    const paragraphFrom = pos;
-    const paragraphTo = pos + node.nodeSize;
-    const isSelectedParagraph = selectedBlocks.some((block) => (
-      isRangeIntersecting(block, { from: paragraphFrom, to: paragraphTo })
-    ));
-    if (!isSelectedParagraph) return false;
+  for (const selectedRange of selectedRanges) {
+    const from = Math.max(0, Math.min(selectedRange.from, view.state.doc.content.size));
+    const to = Math.max(from, Math.min(selectedRange.to, view.state.doc.content.size));
 
-    const contentFrom = paragraphFrom + 1;
-    const contentTo = paragraphTo - 1;
-    let lineFrom = contentFrom;
-    let hasHardBreak = false;
+    view.state.doc.nodesBetween(from, to, (node, pos) => {
+      if (node.type.name !== 'paragraph') return true;
 
-    node.forEach((child, childOffset) => {
-      if (!isHardBreakNodeName(child.type.name)) return;
-      hasHardBreak = true;
-
-      const lineTo = contentFrom + childOffset + child.nodeSize;
-      const lineRange = { from: lineFrom, to: lineTo };
-      if (
-        lineTo > lineFrom &&
-        selectedBlocks.some((block) => isRangeIntersecting(block, lineRange))
-      ) {
-        ranges.push(lineRange);
+      const paragraphFrom = pos;
+      const paragraphTo = pos + node.nodeSize;
+      if (!isRangeIntersecting(selectedRange, { from: paragraphFrom, to: paragraphTo })) {
+        return false;
       }
-      lineFrom = lineTo;
+
+      const contentFrom = paragraphFrom + 1;
+      const contentTo = paragraphTo - 1;
+      let lineFrom = contentFrom;
+      let hasHardBreak = false;
+
+      node.forEach((child, childOffset) => {
+        if (!isHardBreakNodeName(child.type.name)) return;
+        hasHardBreak = true;
+
+        const lineTo = contentFrom + childOffset + child.nodeSize;
+        const lineRange = { from: lineFrom, to: lineTo };
+        if (lineTo > lineFrom && isRangeIntersecting(selectedRange, lineRange)) {
+          ranges.push(lineRange);
+        }
+        lineFrom = lineTo;
+      });
+
+      if (
+        hasHardBreak &&
+        lineFrom < contentTo &&
+        isRangeIntersecting(selectedRange, { from: lineFrom, to: contentTo })
+      ) {
+        ranges.push({ from: lineFrom, to: contentTo });
+      }
+
+      return false;
     });
+  }
 
-    if (
-      hasHardBreak &&
-      lineFrom < contentTo &&
-      selectedBlocks.some((block) => isRangeIntersecting(block, { from: lineFrom, to: contentTo }))
-    ) {
-      ranges.push({ from: lineFrom, to: contentTo });
-    }
-
-    return false;
-  });
-
-  return ranges;
+  return normalizeBlockRanges(ranges);
 }
 
 function collectRangeRows(view: EditorView, range: BlockRange): RowRect[] {
@@ -159,6 +183,13 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
   host.appendChild(layer);
 
   const update = (updatedView: EditorView) => {
+    if (getBlockSelectionPluginState(updatedView.state).selectedBlocks.length === 0) {
+      if (layer.childNodes.length > 0) {
+        layer.replaceChildren();
+      }
+      return;
+    }
+
     layer.replaceChildren();
     const currentHost = layer.parentElement ?? updatedView.dom;
     const hostRect = currentHost.getBoundingClientRect();
@@ -168,18 +199,17 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
       const paragraph = resolveParagraphElement(updatedView, range);
       if (!paragraph) continue;
 
-      const paragraphRect = paragraph.getBoundingClientRect();
-      const fillRight = paragraphRect.right + resolveBlockSelectionBleedXEnd(paragraph);
+      const fillStart = resolveLineFillLeft(paragraph);
+      const fillRight = resolveLineFillRight(updatedView, paragraph);
       const rows = collectRangeRows(updatedView, range);
       for (const row of rows) {
-        const fillLeft = Math.max(row.right, paragraphRect.left);
-        if (fillRight - fillLeft <= 0.5) continue;
+        if (fillRight - fillStart <= 0.5) continue;
 
         const fill = doc.createElement('div');
         fill.className = LINE_FILL_CLASS;
-        fill.style.left = `${fillLeft - hostRect.left}px`;
+        fill.style.left = `${fillStart - hostRect.left}px`;
         fill.style.top = `${row.top - hostRect.top}px`;
-        fill.style.width = `${fillRight - fillLeft}px`;
+        fill.style.width = `${fillRight - fillStart}px`;
         fill.style.height = `${row.bottom - row.top}px`;
         layer.appendChild(fill);
       }

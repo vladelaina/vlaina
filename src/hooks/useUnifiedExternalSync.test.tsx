@@ -93,7 +93,7 @@ function resetStores() {
   });
 
   useUIStore.setState({
-    fontSize: 19,
+    fontSize: 17,
     languagePreference: 'system',
     imageStorageMode: 'subfolder',
     imageSubfolderName: 'assets',
@@ -240,7 +240,7 @@ describe('useUnifiedExternalSync', () => {
 
     const hook = renderHook(() => useUnifiedExternalSync());
 
-    localStorage.setItem('fontSize', '19');
+    localStorage.setItem('fontSize', '17');
     localStorage.setItem('vlaina-language-preference', 'zh-CN');
 
     await act(async () => {
@@ -256,7 +256,7 @@ describe('useUnifiedExternalSync', () => {
     expect(useUnifiedStore.getState().reloadFromDisk).not.toHaveBeenCalled();
     expect(hoisted.reloadSessionMessagesFromDisk).not.toHaveBeenCalled();
     expect(useUIStore.getState()).toMatchObject({
-      fontSize: 19,
+      fontSize: 17,
       languagePreference: 'zh-CN',
     });
 

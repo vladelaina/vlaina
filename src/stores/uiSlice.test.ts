@@ -12,7 +12,7 @@ describe('uiSlice', () => {
       sidebarHeaderHovered: false,
       sidebarSearchOpen: false,
       notesSidebarView: 'workspace',
-      fontSize: 19,
+      fontSize: 17,
       languagePreference: 'system',
       notesPreviewTitle: null,
       drawerOpen: false,
@@ -145,7 +145,7 @@ describe('uiSlice', () => {
 
     useUIStore.getState().resetFontSize();
 
-    expect(useUIStore.getState().fontSize).toBe(19);
+    expect(useUIStore.getState().fontSize).toBe(17);
     expect(localStorage.getItem('fontSize')).toBeNull();
   });
 
@@ -160,9 +160,9 @@ describe('uiSlice', () => {
   it('does not persist or broadcast unchanged appearance font size values', () => {
     const setItemSpy = vi.spyOn(localStorage, 'setItem');
 
-    useUIStore.getState().setFontSize(19);
+    useUIStore.getState().setFontSize(17);
 
-    expect(useUIStore.getState().fontSize).toBe(19);
+    expect(useUIStore.getState().fontSize).toBe(17);
     expect(setItemSpy).not.toHaveBeenCalled();
   });
 

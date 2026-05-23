@@ -12,7 +12,7 @@ import {
   normalizeAppLanguagePreference,
   type AppLanguagePreference,
 } from '@/lib/i18n/languages';
-export const UI_FONT_SIZE_DEFAULT = 19;
+export const UI_FONT_SIZE_DEFAULT = 17;
 export const UI_FONT_SIZE_MIN = 14;
 export const UI_FONT_SIZE_MAX = 28;
 const STORAGE_KEY_SIDEBAR_WIDTH = 'vlaina_sidebar_width';

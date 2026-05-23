@@ -193,6 +193,12 @@ body.vlaina-block-dragging-cursor .milkdown :is(
   --vlaina-block-selection-bleed-y: 0px;
 }
 
+.milkdown .ProseMirror .vlaina-block-selected-inline-line {
+  background-color: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+
 /* List selection compatibility:
    decoration class may be on LI itself or on a child block (e.g. LI > P). */
 .milkdown .ProseMirror li.vlaina-block-selected,
