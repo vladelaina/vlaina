@@ -63,6 +63,7 @@ nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   differentialPackage: false
+  include: scripts/windows-installer.nsh
 portable:
   artifactName: ${productName}-${version}-windows-${arch}-portable.${ext}
   requestExecutionLevel: user
