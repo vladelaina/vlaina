@@ -116,7 +116,7 @@ export function SidebarRow({
         {leading ? (
           <span
             className={cn(
-              'flex size-[20px] shrink-0 items-center justify-center',
+              'flex size-[20px] shrink-0 items-center justify-center leading-none',
               leadingClassName,
             )}
           >
@@ -125,7 +125,7 @@ export function SidebarRow({
         ) : null}
 
         <div
-          className={cn('relative z-10 min-w-0 flex-1', hasActions && 'pr-8', contentClassName)}
+          className={cn('relative z-10 flex min-w-0 flex-1 items-center', hasActions && 'pr-8', contentClassName)}
         >
           {main}
         </div>

@@ -114,14 +114,14 @@ export function SidebarContextMenuSubmenu({
           event.stopPropagation();
           openMenu();
         }}
-        className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-[16px] font-medium text-[var(--notes-sidebar-text)] outline-none transition-colors hover:bg-[var(--notes-sidebar-row-hover)]"
+        className="flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-[16px] font-medium leading-none text-[var(--notes-sidebar-text)] outline-none transition-colors hover:bg-[var(--notes-sidebar-row-hover)]"
       >
-        <span className="flex size-[20px] items-center justify-center text-[var(--notes-sidebar-text)]">
+        <span className="flex size-[20px] shrink-0 items-center justify-center leading-none text-[var(--notes-sidebar-text)]">
           {icon}
         </span>
-        <span className="min-w-0 flex-1 truncate text-left">{label}</span>
-        <span className="shrink-0 text-[var(--notes-sidebar-text)]">
-          <span className="flex size-[20px] items-center justify-center">
+        <span className="inline-flex min-w-0 flex-1 items-center truncate text-left leading-none">{label}</span>
+        <span className="inline-flex shrink-0 items-center leading-none text-[var(--notes-sidebar-text)]">
+          <span className="flex size-[20px] items-center justify-center leading-none">
             <span aria-hidden="true">›</span>
           </span>
         </span>

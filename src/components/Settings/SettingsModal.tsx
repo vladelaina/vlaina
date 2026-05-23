@@ -169,13 +169,13 @@ export function SettingsModal({ open, communitySettings, onClose }: SettingsModa
                                   <button
                                     onClick={() => setActiveTab(item.id)}
                                     className={cn(
-                                      "flex min-h-[44px] w-full items-center gap-3.5 px-4 py-3 text-sm transition-all duration-300 ease-out rounded-[18px]",
+                                      "flex min-h-[44px] w-full items-center gap-3.5 px-4 py-3 text-sm leading-none transition-all duration-300 ease-out rounded-[18px]",
                                       isActive
                                         ? "bg-[var(--sidebar-row-selected-bg)] text-[var(--sidebar-row-selected-text)] font-[550] shadow-[0_2px_8px_rgba(30,150,235,0.06)]"
                                         : "text-[var(--notes-sidebar-text)] hover:bg-[var(--notes-sidebar-row-hover)] font-medium"
                                     )}
                                   >
-                                    <span className="flex items-center justify-center">
+                                    <span className="flex size-5 shrink-0 items-center justify-center leading-none">
                                       <Icon
                                         size="md"
                                         name={item.icon}
@@ -187,7 +187,7 @@ export function SettingsModal({ open, communitySettings, onClose }: SettingsModa
                                         )}
                                       />
                                     </span>
-                                    <span className="truncate tracking-tight">{t(item.labelKey)}</span>
+                                    <span className="inline-flex min-w-0 items-center truncate leading-none tracking-tight">{t(item.labelKey)}</span>
                                   </button>
                                 </div>
                               );
