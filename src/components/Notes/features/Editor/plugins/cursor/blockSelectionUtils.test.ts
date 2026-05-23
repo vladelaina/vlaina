@@ -321,8 +321,36 @@ describe('blockSelectionUtils', () => {
     expect(decorations.find().map((decoration: Decoration) => ({
       from: decoration.from,
       to: decoration.to,
-    }))).toEqual([{ from: 1, to: 6 }]);
+      class: (decoration.type as any).attrs?.class,
+    }))).toEqual([{
+      from: 1,
+      to: 6,
+      class: 'vlaina-block-selected vlaina-block-selected-inline-line',
+    }]);
     expect(view.state.doc.resolve(7).nodeBefore?.type.name).toBe('hardbreak');
+
+    await editor.destroy();
+  });
+
+  it('marks hard-break paragraph lines as inline line selections', async () => {
+    const editor = await createEditor('底线（-/=）方式（**不推荐**）：\\\n语法说明如下。');
+    const view = editor.ctx.get(editorViewCtx);
+    const hardBreakPos = (() => {
+      let pos = -1;
+      view.state.doc.descendants((node, nodePos) => {
+        if (node.type.name === 'hardbreak' || node.type.name === 'hard_break') {
+          pos = nodePos;
+          return false;
+        }
+        return true;
+      });
+      return pos;
+    })();
+    const decorations = createBlockSelectionDecorations(view.state.doc, [{ from: 1, to: hardBreakPos + 1 }]);
+
+    expect(decorations.find().map((decoration: Decoration) => (decoration.type as any).attrs?.class)).toEqual([
+      'vlaina-block-selected vlaina-block-selected-inline-line',
+    ]);
 
     await editor.destroy();
   });

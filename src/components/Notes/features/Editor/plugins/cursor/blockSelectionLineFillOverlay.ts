@@ -5,7 +5,7 @@ import type { BlockRange } from './blockSelectionUtils';
 const LINE_FILL_LAYER_CLASS = 'vlaina-block-selection-line-fill-layer';
 const LINE_FILL_CLASS = 'vlaina-block-selection-line-fill';
 const ROW_MERGE_TOLERANCE_PX = 2;
-const FALLBACK_BLOCK_SELECTION_BLEED_X_END_PX = 10;
+const FALLBACK_BLOCK_SELECTION_BLEED_X_PX = 48;
 
 interface LineFillOverlay {
   update: (view: EditorView) => void;
@@ -36,8 +36,29 @@ function resolveBlockSelectionBleedXEnd(paragraph: HTMLElement): number {
   return readCssPx(
     window.getComputedStyle(selectedElement),
     '--vlaina-block-selection-bleed-x-end',
-    FALLBACK_BLOCK_SELECTION_BLEED_X_END_PX
+    FALLBACK_BLOCK_SELECTION_BLEED_X_PX
   );
+}
+
+function resolveBlockSelectionBleedXStart(paragraph: HTMLElement): number {
+  const selectedElement = paragraph.querySelector<HTMLElement>('.vlaina-block-selected') ?? paragraph;
+  return readCssPx(
+    window.getComputedStyle(selectedElement),
+    '--vlaina-block-selection-bleed-x-start',
+    FALLBACK_BLOCK_SELECTION_BLEED_X_PX
+  );
+}
+
+function resolveLineFillLeft(paragraph: HTMLElement): number {
+  const paragraphRect = paragraph.getBoundingClientRect();
+  return paragraphRect.left - resolveBlockSelectionBleedXStart(paragraph);
+}
+
+function resolveLineFillRight(view: EditorView, paragraph: HTMLElement): number {
+  const paragraphRect = paragraph.getBoundingClientRect();
+  const editorRect = view.dom.getBoundingClientRect();
+  const selectedBlockRight = editorRect.width > 0 ? editorRect.right : paragraphRect.right;
+  return Math.max(paragraphRect.right, selectedBlockRight) + resolveBlockSelectionBleedXEnd(paragraph);
 }
 
 function trimTrailingHardBreakForMeasure(view: EditorView, range: BlockRange): BlockRange | null {
@@ -168,18 +189,17 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
       const paragraph = resolveParagraphElement(updatedView, range);
       if (!paragraph) continue;
 
-      const paragraphRect = paragraph.getBoundingClientRect();
-      const fillRight = paragraphRect.right + resolveBlockSelectionBleedXEnd(paragraph);
+      const fillStart = resolveLineFillLeft(paragraph);
+      const fillRight = resolveLineFillRight(updatedView, paragraph);
       const rows = collectRangeRows(updatedView, range);
       for (const row of rows) {
-        const fillLeft = Math.max(row.right, paragraphRect.left);
-        if (fillRight - fillLeft <= 0.5) continue;
+        if (fillRight - fillStart <= 0.5) continue;
 
         const fill = doc.createElement('div');
         fill.className = LINE_FILL_CLASS;
-        fill.style.left = `${fillLeft - hostRect.left}px`;
+        fill.style.left = `${fillStart - hostRect.left}px`;
         fill.style.top = `${row.top - hostRect.top}px`;
-        fill.style.width = `${fillRight - fillLeft}px`;
+        fill.style.width = `${fillRight - fillStart}px`;
         fill.style.height = `${row.bottom - row.top}px`;
         layer.appendChild(fill);
       }

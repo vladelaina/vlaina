@@ -300,16 +300,40 @@ function trimTrailingHardBreakFromInlineRange(
   }
 }
 
+function isPartialParagraphRange(doc: EditorState['doc'], range: BlockRange): boolean {
+  const safeFrom = Math.max(0, Math.min(range.from, doc.content.size));
+
+  try {
+    const $from = doc.resolve(safeFrom);
+    for (let depth = $from.depth; depth >= 0; depth -= 1) {
+      const node = $from.node(depth);
+      if (node.type.name !== 'paragraph') continue;
+
+      const paragraphFrom = depth === 0 ? 0 : $from.before(depth);
+      const paragraphTo = paragraphFrom + node.nodeSize;
+      return range.from > paragraphFrom || range.to < paragraphTo;
+    }
+  } catch {
+  }
+
+  return false;
+}
+
 export function createBlockSelectionDecorations(doc: EditorState['doc'], blocks: readonly BlockRange[]): DecorationSet {
   if (blocks.length === 0) return DecorationSet.empty;
 
   const displayRanges = getDisplayBlockRangesForDecorations(doc, blocks);
 
   const decorations = displayRanges.flatMap((range) => {
+    const isNodeRange = isNodeDecorationRange(doc, range);
+    const isInlineLineSelection = !isNodeRange && isPartialParagraphRange(doc, range);
     const attrs = {
-      class: getBlockSelectionDecorationClass(doc, range, displayRanges),
+      class: [
+        getBlockSelectionDecorationClass(doc, range, displayRanges),
+        isInlineLineSelection ? 'vlaina-block-selected-inline-line' : '',
+      ].filter(Boolean).join(' '),
     };
-    if (isNodeDecorationRange(doc, range)) {
+    if (isNodeRange) {
       return [Decoration.node(range.from, range.to, attrs)];
     }
 
