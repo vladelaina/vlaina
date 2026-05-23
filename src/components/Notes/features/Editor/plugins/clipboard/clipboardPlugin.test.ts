@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Editor, defaultValueCtx, editorViewCtx, remarkStringifyOptionsCtx } from '@milkdown/kit/core';
-import { AllSelection, TextSelection } from '@milkdown/kit/prose/state';
+import { AllSelection, Selection, TextSelection } from '@milkdown/kit/prose/state';
 import { CellSelection } from '@milkdown/kit/prose/tables';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
@@ -378,6 +378,50 @@ describe('clipboardPlugin copy', () => {
 });
 
 describe('clipboardPlugin paste', () => {
+    it('keeps only the first pasted plain paragraph inside an empty task item', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '- [ ] <br />');
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+        view.dispatch(view.state.tr.setSelection(Selection.atEnd(view.state.doc)));
+
+        expect(simulatePasteText(view, [
+            '验证码发送主要按“邮箱”限流，不主要按“IP”限流。',
+            '',
+            '同一个邮箱保持 60 秒只能发一次验证码。这个限制最重要，必须保留。因为不管用户换不换 IP，只',
+            '  要攻击目标是同一个邮箱，都不能让它一直刷邮件。',
+            '',
+            'IP 限流保留，但只作为兜底防刷，不要太严格。',
+        ].join('\n'))).toBe(true);
+
+        expect(view.state.doc.childCount).toBe(3);
+
+        const list = view.state.doc.child(0);
+        expect(list.type.name).toBe('bullet_list');
+        expect(list.childCount).toBe(1);
+
+        const taskItem = list.child(0);
+        expect(taskItem.type.name).toBe('list_item');
+        expect(taskItem.attrs.checked).toBe(false);
+        expect(taskItem.childCount).toBe(1);
+        expect(taskItem.textContent).toBe('验证码发送主要按“邮箱”限流，不主要按“IP”限流。');
+
+        expect(view.state.doc.child(1).type.name).toBe('paragraph');
+        expect(view.state.doc.child(1).textContent).toBe(
+            '同一个邮箱保持 60 秒只能发一次验证码。这个限制最重要，必须保留。因为不管用户换不换 IP，只要攻击目标是同一个邮箱，都不能让它一直刷邮件。',
+        );
+        expect(view.state.doc.child(2).type.name).toBe('paragraph');
+        expect(view.state.doc.child(2).textContent).toBe('IP 限流保留，但只作为兜底防刷，不要太严格。');
+
+        await editor.destroy();
+    });
+
     it('pastes inline markdown into the current empty line instead of the previous line tail', async () => {
         const editor = Editor.make()
             .config((ctx) => {

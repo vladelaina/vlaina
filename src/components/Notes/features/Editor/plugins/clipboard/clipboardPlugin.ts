@@ -37,6 +37,7 @@ export const clipboardPluginKey = new PluginKey('vlaina-clipboard');
 const MAX_MARKDOWN_PASTE_CHARS = 1024 * 1024;
 const MAX_HTML_PASTE_CHARS = 2 * 1024 * 1024;
 const INLINE_FOOTNOTE_REFERENCE_PATTERN = /\[\^([^\]\r\n]+)\]/g;
+const BLANK_LINE_PATTERN = /\n[ \t]*\n/;
 
 function isCopyShortcut(event: KeyboardEvent): boolean {
     return (
@@ -225,6 +226,131 @@ function createPlainTextLineBreakSlice(state: {
     });
 
     return new Slice(Fragment.from(paragraphType.create(undefined, Fragment.fromArray(inlineNodes))), 0, 0);
+}
+
+function joinWrappedPlainTextLines(lines: string[]): string {
+    return lines
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .reduce((result, line) => {
+            if (!result) return line;
+
+            const previous = result[result.length - 1] ?? '';
+            const next = line[0] ?? '';
+            const shouldJoinWithoutSpace = /[\p{Script=Han}，。！？；：“”（）《》、]/u.test(previous)
+                || /[\p{Script=Han}，。！？；：“”（）《》、]/u.test(next);
+
+            return `${result}${shouldJoinWithoutSpace ? '' : ' '}${line}`;
+        }, '');
+}
+
+function createPlainParagraphNodesFromText(state: {
+    schema: {
+        text: (text: string) => ProseNode;
+        nodes: {
+            paragraph?: { create: (attrs?: unknown, content?: Fragment | ProseNode[] | null) => ProseNode };
+        };
+    };
+}, text: string): ProseNode[] | null {
+    const paragraphType = state.schema.nodes.paragraph;
+    if (!paragraphType) return null;
+
+    const normalized = text.replace(/\r\n?/g, '\n').trim();
+    if (!BLANK_LINE_PATTERN.test(normalized)) return null;
+
+    const paragraphs = normalized
+        .split(/\n[ \t]*\n+/)
+        .map((block) => joinWrappedPlainTextLines(block.split('\n')))
+        .filter((block) => block.length > 0);
+
+    if (paragraphs.length < 2) return null;
+
+    return paragraphs.map((paragraph) => paragraphType.create(
+        undefined,
+        [state.schema.text(paragraph)],
+    ));
+}
+
+function findAncestorDepth(state: {
+    selection: {
+        $from: {
+            depth: number;
+            node: (depth: number) => ProseNode;
+        };
+    };
+}, predicate: (node: ProseNode) => boolean): number | null {
+    const { $from } = state.selection;
+    for (let depth = $from.depth; depth >= 0; depth -= 1) {
+        if (predicate($from.node(depth))) return depth;
+    }
+    return null;
+}
+
+function dispatchParagraphPasteFromEmptyTaskItem(
+    view: EditorView,
+    paragraphNodes: ProseNode[],
+): boolean {
+    if (paragraphNodes.length < 2) return false;
+
+    const { state } = view;
+    const { selection } = state;
+    if (!selection.empty || selection.$from.parent.type.name !== 'paragraph' || selection.$from.parent.content.size !== 0) {
+        return false;
+    }
+
+    const itemDepth = findAncestorDepth(state, (node) => node.type.name === 'list_item');
+    if (itemDepth === null || itemDepth < 1) return false;
+
+    const listItem = selection.$from.node(itemDepth);
+    if (listItem.attrs.checked == null || listItem.childCount !== 1) return false;
+
+    const listDepth = itemDepth - 1;
+    const listNode = selection.$from.node(listDepth);
+    if (listNode.type.name !== 'bullet_list' && listNode.type.name !== 'ordered_list') return false;
+
+    const itemIndex = selection.$from.index(listDepth);
+    const leadingItems: ProseNode[] = [];
+    const trailingItems: ProseNode[] = [];
+    listNode.forEach((child, _offset, index) => {
+        if (index < itemIndex) {
+            leadingItems.push(child);
+            return;
+        }
+        if (index === itemIndex) {
+            leadingItems.push(listItem.copy(Fragment.from(paragraphNodes[0])));
+            return;
+        }
+        trailingItems.push(child);
+    });
+
+    const leadingList = listNode.copy(Fragment.fromArray(leadingItems));
+    const replacementNodes = [leadingList, ...paragraphNodes.slice(1)];
+    if (trailingItems.length > 0) {
+        const trailingAttrs = listNode.type.name === 'ordered_list'
+            ? {
+                ...listNode.attrs,
+                order: (typeof listNode.attrs.order === 'number' ? listNode.attrs.order : 1) + itemIndex + 1,
+            }
+            : listNode.attrs;
+        replacementNodes.push(listNode.type.create(
+            trailingAttrs,
+            trailingItems,
+            listNode.marks,
+        ));
+    }
+
+    const from = selection.$from.before(listDepth);
+    const to = selection.$from.after(listDepth);
+    const tr = state.tr.replaceWith(from, to, replacementNodes);
+    tr.setMeta(clipboardPluginKey, true);
+
+    const insertedEnd = Math.min(from + Fragment.fromArray(replacementNodes).size, tr.doc.content.size);
+    const tailPos = findTailCursorPosInRange(tr.doc, from, insertedEnd) ?? insertedEnd;
+    const safePos = Math.max(0, Math.min(tailPos, tr.doc.content.size));
+
+    tr.setSelection(Selection.near(tr.doc.resolve(safePos), 1));
+    view.dispatch(tr.scrollIntoView());
+    return true;
 }
 
 export const clipboardPlugin = $prose((ctx) => {
@@ -473,6 +599,12 @@ export const clipboardPlugin = $prose((ctx) => {
                     }
                 }
 
+                const plainParagraphNodes = createPlainParagraphNodesFromText(state, text);
+                if (plainParagraphNodes && dispatchParagraphPasteFromEmptyTaskItem(view, plainParagraphNodes)) {
+                    event.preventDefault();
+                    return true;
+                }
+
                 const markdownFenceCandidate = extractLargestMarkdownFenceContent(text);
                 const markdownNodes = parseMarkdownNodes(text) ?? (
                     markdownFenceCandidate ? parseMarkdownNodes(markdownFenceCandidate) : null
@@ -491,6 +623,12 @@ export const clipboardPlugin = $prose((ctx) => {
                 }
 
                 const normalizedMarkdownNodes = replaceInlineFootnoteReferencesInNodes(state, markdownNodes);
+                if (hasOnlyParagraphNodes(normalizedMarkdownNodes)
+                    && dispatchParagraphPasteFromEmptyTaskItem(view, normalizedMarkdownNodes)) {
+                    event.preventDefault();
+                    return true;
+                }
+
                 const markdownSlice = createMarkdownPasteSlice(state, normalizedMarkdownNodes);
                 dispatchSliceAndKeepCursorAtTail(
                     view,

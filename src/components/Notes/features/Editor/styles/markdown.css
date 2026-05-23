@@ -245,6 +245,11 @@
   /* Remove potential margin to ensure perfect alignment */
 }
 
+.milkdown li[data-item-type="task"]>p:not(:first-of-type) {
+  flex-basis: 100%;
+  width: 100%;
+}
+
 .milkdown li[data-item-type="task"]:has(> [data-text-align="center"]) {
   justify-content: center;
 }
