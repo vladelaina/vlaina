@@ -417,7 +417,7 @@ export function SidebarContent({
 
         <NotesSidebarScrollArea
           ref={scrollRootRef}
-          className={cn(isPeeking ? 'vlaina-scrollbar-rounded pt-4 pb-4' : 'pt-2')}
+          className={cn(isPeeking ? 'vlaina-scrollbar-rounded pt-4 pb-4' : 'pt-0')}
           scrollbarInsetRight={SIDEBAR_CAPSULE_SCROLLBAR_INSET_RIGHT}
           data-notes-sidebar-scroll-root="true"
           onScroll={handleScroll}

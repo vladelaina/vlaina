@@ -196,6 +196,7 @@ export const ChatSidebar = memo(function ChatSidebar({
           <ChatSidebarScrollArea
             ref={scrollRootRef}
             onScroll={handleScroll}
+            className="pt-0"
             scrollbarInsetRight={SIDEBAR_CAPSULE_SCROLLBAR_INSET_RIGHT}
           >
             <div className="relative min-h-full">
