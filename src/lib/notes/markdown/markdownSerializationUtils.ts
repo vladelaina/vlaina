@@ -57,6 +57,20 @@ const EMPTY_FOOTNOTE_DEFINITION_PLACEHOLDER_PATTERN =
 const EMPTY_TABLE_CELL_PLACEHOLDER_PATTERN = /(\|\s*)<br\s*\/?>(\s*\|)/g;
 const EMPTY_ATX_HEADING_MARKER_PATTERN = /^( {0,3})(#{1,6})[ \t]*$/gm;
 const LIST_ITEM_LINE_PATTERN = /^(?: {0,3})(?:[-+*]|\d+[.)])\s+/;
+const MISSING_ORDERED_LIST_SPACE_LINE_PATTERN =
+  /^((?:(?: {0,3}>[ \t]?)* {0,3})(\d{1,3})\.)(\S.*)$/;
+const MISSING_UNORDERED_LIST_SPACE_LINE_PATTERN =
+  /^((?:(?: {0,3}>[ \t]?)* {0,3})([-+*－＊＋]))([^\s\d\-+*－＊＋[\]].*)$/u;
+const CHINESE_ORDERED_LIST_MARKER_PATTERN =
+  /^((?:(?: {0,3}>[ \t]?)* {0,3})(?:[（(]\s*)?(\d{1,3})(?:\s*[）)]|[、．]))[ \t]*(\S.*)$/u;
+const MALFORMED_TASK_LIST_MARKER_PATTERN =
+  /^((?:(?: {0,3}>[ \t]?)* {0,3})(?:[-+*－＊＋]|\d+[.)]))[ \t]*(?:\[\s*([xXｘＸ✓✔√]?)\s*\]|［\s*([xXｘＸ✓✔√]?)\s*］|【\s*([xXｘＸ✓✔√]?)\s*】)[ \t]*(.*)$/u;
+const FULLWIDTH_MARKDOWN_LINE_MARKER_PATTERN =
+  /^((?:(?: {0,3}＞[ \t]?| {0,3}>[ \t]?)* {0,3}))(＃{1,6}|＞)(.*)$/u;
+const MISSING_BLOCKQUOTE_SPACE_PATTERN =
+  /^((?:(?: {0,3}>[ \t]?)* {0,3})>)(\S.*)$/;
+const CJK_ATX_HEADING_WITHOUT_SPACE_PATTERN =
+  /^((?:(?: {0,3}>[ \t]?)* {0,3})#{1,6})([\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}].*)$/u;
 const MAX_CACHED_MARKDOWN_NORMALIZATION_LENGTH = 1_000_000;
 const ESCAPED_ABBR_DEFINITION_PATTERN = /^([ \t]*)\\\*(?:\\)?\[([^\]]+)]:/gm;
 const ESCAPED_HIGHLIGHT_PATTERN = /\\==([^=\n]+)==/g;
@@ -100,6 +114,220 @@ export function normalizeMarkdownAutolinkLiterals(text: string): string {
   return mapMarkdownOutsideProtectedSegments(text, (segment) =>
     segment.replace(MARKDOWN_AUTOLINK_LITERAL_PATTERN, '$1')
   );
+}
+
+export function normalizeMissingOrderedListMarkerSpaces(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) => {
+    const lines = segment.split('\n');
+    const output = [...lines];
+
+    for (let index = 0; index < lines.length; index += 1) {
+      const firstMatch = MISSING_ORDERED_LIST_SPACE_LINE_PATTERN.exec(lines[index] ?? '');
+      if (!firstMatch) continue;
+
+      const run: number[] = [index];
+      let previousNumber = Number(firstMatch[2]);
+
+      let cursor = index + 1;
+      for (; cursor < lines.length; cursor += 1) {
+        if ((lines[cursor] ?? '').trim().length === 0) continue;
+
+        const nextMatch = MISSING_ORDERED_LIST_SPACE_LINE_PATTERN.exec(lines[cursor] ?? '');
+        if (!nextMatch) break;
+
+        const nextNumber = Number(nextMatch[2]);
+        if (nextNumber !== previousNumber + 1) break;
+
+        run.push(cursor);
+        previousNumber = nextNumber;
+      }
+
+      if (run.length >= 2) {
+        for (const lineIndex of run) {
+          output[lineIndex] = (lines[lineIndex] ?? '').replace(
+            MISSING_ORDERED_LIST_SPACE_LINE_PATTERN,
+            (_match: string, rawMarker: string, _number: string, content: string) =>
+              `${normalizeBlockquotePrefixedMarker(rawMarker)} ${content}`
+          );
+        }
+      }
+
+      index = Math.max(index, cursor - 1);
+    }
+
+    return output.join('\n');
+  });
+}
+
+export function normalizeChineseOrderedListMarkers(text: string): string {
+  return normalizeConsecutiveOrderedMarkerRun(text, CHINESE_ORDERED_LIST_MARKER_PATTERN);
+}
+
+export function normalizeMissingUnorderedListMarkerSpaces(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) => {
+    const lines = segment.split('\n');
+    const output = [...lines];
+
+    for (let index = 0; index < lines.length; index += 1) {
+      const firstMatch = MISSING_UNORDERED_LIST_SPACE_LINE_PATTERN.exec(lines[index] ?? '');
+      if (!firstMatch) continue;
+
+      const run: number[] = [index];
+      let cursor = index + 1;
+      for (; cursor < lines.length; cursor += 1) {
+        if ((lines[cursor] ?? '').trim().length === 0) continue;
+        if (!MISSING_UNORDERED_LIST_SPACE_LINE_PATTERN.test(lines[cursor] ?? '')) break;
+        run.push(cursor);
+      }
+
+      if (run.length >= 2) {
+        for (const lineIndex of run) {
+          output[lineIndex] = (lines[lineIndex] ?? '').replace(
+            MISSING_UNORDERED_LIST_SPACE_LINE_PATTERN,
+            (_match: string, rawMarker: string, _symbol: string, content: string) => {
+              const normalizedMarker = normalizeMarkdownListMarkerSymbols(rawMarker);
+              return `${normalizeBlockquotePrefixedMarker(normalizedMarker)} ${content}`;
+            }
+          );
+        }
+      }
+
+      index = Math.max(index, cursor - 1);
+    }
+
+    return output.join('\n');
+  });
+}
+
+export function normalizeMalformedTaskListMarkers(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
+    segment.split('\n').map((line) => {
+      const match = MALFORMED_TASK_LIST_MARKER_PATTERN.exec(line);
+      if (!match) return line;
+
+      const marker = normalizeMarkdownListMarkerSymbols(match[1] ?? '');
+      const checkedValue = match[2] ?? match[3] ?? match[4] ?? '';
+      const checked = checkedValue ? 'x' : ' ';
+      const content = match[5] ?? '';
+      const taskMarker = `${normalizeBlockquotePrefixedMarker(marker)} [${checked}]`;
+      return content.length > 0 ? `${taskMarker} ${content}` : taskMarker;
+    }).join('\n')
+  );
+}
+
+export function normalizeFullwidthMarkdownLineMarkers(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
+    segment.split('\n').map((line) =>
+      line.replace(/^((?: {0,3}＞[ \t]?)+)/u, (prefix: string) =>
+        prefix.replace(/＞/g, '>')
+      ).replace(
+        FULLWIDTH_MARKDOWN_LINE_MARKER_PATTERN,
+        (_match, prefix: string, marker: string, rest: string) => {
+          const normalizedMarker = marker
+            .replace(/＃/g, '#')
+            .replace('＞', '>');
+          return `${prefix.replace(/＞/g, '>')}${normalizedMarker}${rest}`;
+        }
+      )
+    ).join('\n')
+  );
+}
+
+export function normalizeMissingBlockquoteMarkerSpaces(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
+    segment.split('\n').map((line) =>
+      line.replace(MISSING_BLOCKQUOTE_SPACE_PATTERN, '$1 $2')
+    ).join('\n')
+  );
+}
+
+export function normalizeCjkAtxHeadingMarkerSpaces(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
+    segment.split('\n').map((line) =>
+      line.replace(CJK_ATX_HEADING_WITHOUT_SPACE_PATTERN, '$1 $2')
+    ).join('\n')
+  );
+}
+
+export function normalizeLenientMarkdownLineMarkers(text: string): string {
+  const afterFullwidthMarkers = normalizeFullwidthMarkdownLineMarkers(text);
+  const afterBlockquoteSpaces = normalizeMissingBlockquoteMarkerSpaces(afterFullwidthMarkers);
+  const afterHeadingSpaces = normalizeCjkAtxHeadingMarkerSpaces(afterBlockquoteSpaces);
+  const afterChineseOrderedLists = normalizeChineseOrderedListMarkers(afterHeadingSpaces);
+  const afterTaskListMarkers = normalizeMalformedTaskListMarkers(afterChineseOrderedLists);
+  const afterMissingUnorderedListSpaces =
+    normalizeMissingUnorderedListMarkerSpaces(afterTaskListMarkers);
+  return normalizeMissingOrderedListMarkerSpaces(afterMissingUnorderedListSpaces);
+}
+
+function normalizeConsecutiveOrderedMarkerRun(text: string, pattern: RegExp): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) => {
+    const lines = segment.split('\n');
+    const output = [...lines];
+
+    for (let index = 0; index < lines.length; index += 1) {
+      const firstMatch = pattern.exec(lines[index] ?? '');
+      if (!firstMatch) continue;
+
+      const run: number[] = [index];
+      let previousNumber = Number(firstMatch[2]);
+      if (previousNumber > 1) continue;
+
+      let cursor = index + 1;
+      for (; cursor < lines.length; cursor += 1) {
+        if ((lines[cursor] ?? '').trim().length === 0) continue;
+
+        const nextMatch = pattern.exec(lines[cursor] ?? '');
+        if (!nextMatch) break;
+
+        const nextNumber = Number(nextMatch[2]);
+        if (nextNumber !== previousNumber + 1) break;
+
+        run.push(cursor);
+        previousNumber = nextNumber;
+      }
+
+      if (run.length >= 2) {
+        for (const lineIndex of run) {
+          output[lineIndex] = (lines[lineIndex] ?? '').replace(
+            pattern,
+            (_match: string, rawMarker: string, number: string, content: string) => {
+              const numberIndex = rawMarker.indexOf(number);
+              const prefix = (numberIndex >= 0 ? rawMarker.slice(0, numberIndex) : '')
+                .replace(/[（(][ \t]*$/, '');
+              return `${normalizeBlockquotePrefixedMarker(`${prefix}${number}.`)} ${content}`;
+            }
+          );
+        }
+      }
+
+      index = Math.max(index, cursor - 1);
+    }
+
+    return output.join('\n');
+  });
+}
+
+function normalizeBlockquotePrefixedMarker(marker: string): string {
+  const match = /^((?: {0,3}>[ \t]?)*)(.*)$/.exec(marker);
+  if (!match) return marker;
+
+  const blockquotePrefix = match[1] ?? '';
+  const markerBody = match[2] ?? '';
+  if (!blockquotePrefix) return marker;
+
+  const leadingIndent = /^( {0,3})/.exec(blockquotePrefix)?.[1] ?? '';
+  const depth = blockquotePrefix.match(/>/g)?.length ?? 0;
+  if (depth <= 0) return marker;
+
+  return `${leadingIndent}${Array.from({ length: depth }, () => '>').join(' ')} ${markerBody}`;
+}
+
+function normalizeMarkdownListMarkerSymbols(marker: string): string {
+  return marker
+    .replace(/－/g, '-')
+    .replace(/＊/g, '*')
+    .replace(/＋/g, '+');
 }
 
 function normalizeMailtoEmailMarkdownLinks(text: string): string {
@@ -457,7 +685,8 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
   const afterSyntheticBlankLines =
     collapseSyntheticBlankLinesAroundEmptyPlaceholders(afterHeadingSpacing);
   const afterCanonicalSpacing = normalizeCanonicalMarkdownSpacing(afterSyntheticBlankLines);
-  const afterStripPlaceholders = stripEmptyMarkdownPlaceholders(afterCanonicalSpacing);
+  const afterLenientLineMarkers = normalizeLenientMarkdownLineMarkers(afterCanonicalSpacing);
+  const afterStripPlaceholders = stripEmptyMarkdownPlaceholders(afterLenientLineMarkers);
   const afterEmptyParagraphBreaks = normalizeEditorEmptyParagraphBreaks(afterStripPlaceholders);
   const afterUserBreaks = normalizeUserBreakSentinels(afterEmptyParagraphBreaks);
   const afterListItems = normalizeListItemBlankLines(afterUserBreaks);
@@ -477,6 +706,7 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
     afterHeadingSpacing,
     afterSyntheticBlankLines,
     afterCanonicalSpacing,
+    afterLenientLineMarkers,
     afterStripPlaceholders,
     afterEmptyParagraphBreaks,
     afterUserBreaks,

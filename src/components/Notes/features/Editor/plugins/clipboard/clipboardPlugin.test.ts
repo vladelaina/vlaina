@@ -564,6 +564,85 @@ describe('clipboardPlugin paste', () => {
         await editor.destroy();
     });
 
+    it('recognizes pasted ordered lists that are missing the marker space', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, ['1.1', '2.1'].join('\n'))).toBe(true);
+
+        expect(view.state.doc.childCount).toBe(1);
+        const list = view.state.doc.child(0);
+        expect(list.type.name).toBe('ordered_list');
+        expect(list.attrs).toMatchObject({ order: 1 });
+        expect(list.childCount).toBe(2);
+        expect(list.child(0).textContent).toBe('1');
+        expect(list.child(1).textContent).toBe('1');
+
+        await editor.destroy();
+    });
+
+    it('recognizes pasted blank-separated ordered lists that are missing the marker space', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, ['0.安装更换路径', '', '1.调用笔记', '', '2.切换笔记'].join('\n'))).toBe(true);
+
+        expect(view.state.doc.childCount).toBe(1);
+        const list = view.state.doc.child(0);
+        expect(list.type.name).toBe('ordered_list');
+        expect(list.attrs).toMatchObject({ order: 0 });
+        expect(list.childCount).toBe(3);
+        expect(list.child(0).textContent).toContain('安装更换路径');
+        expect(list.child(1).textContent).toContain('调用笔记');
+        expect(list.child(2).textContent).toBe('切换笔记');
+
+        await editor.destroy();
+    });
+
+    it('recognizes pasted task lists with malformed checkbox markers', async () => {
+        const editor = Editor.make()
+            .config((ctx) => {
+                ctx.set(defaultValueCtx, '');
+            })
+            .use(commonmark)
+            .use(gfm)
+            .use(clipboardPlugin);
+
+        await editor.create();
+        const view = editor.ctx.get(editorViewCtx);
+
+        expect(simulatePasteText(view, ['- [] fsedf', '-[] ', '-[x]done'].join('\n'))).toBe(true);
+
+        expect(view.state.doc.childCount).toBe(1);
+        const list = view.state.doc.child(0);
+        expect(list.type.name).toBe('bullet_list');
+        expect(list.childCount).toBe(3);
+        expect(list.child(0).attrs.checked).toBe(false);
+        expect(list.child(0).textContent).toBe('fsedf');
+        expect(list.child(1).attrs.checked).toBe(false);
+        expect(list.child(1).textContent).toBe('');
+        expect(list.child(2).attrs.checked).toBe(true);
+        expect(list.child(2).textContent).toBe('done');
+
+        await editor.destroy();
+    });
+
     it('keeps the ordered-list tail separate in a realistic pasted Chinese task note', async () => {
         const editor = Editor.make()
             .config((ctx) => {

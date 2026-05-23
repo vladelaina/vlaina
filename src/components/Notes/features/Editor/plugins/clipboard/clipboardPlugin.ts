@@ -8,6 +8,7 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import type { Parser, Serializer } from '@milkdown/kit/transformer';
 import {
     normalizeAlternativeMathBlockFences,
+    normalizeLenientMarkdownLineMarkers,
     preserveMarkdownBlankLinesForEditor,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { collapseSelectionAndHideFloatingToolbar } from './copyCleanup';
@@ -407,7 +408,12 @@ export const clipboardPlugin = $prose((ctx) => {
 
     const parseMarkdownNodes = (text: string): ProseNode[] | null => {
         const withMathFences = normalizeAlternativeMathBlockFences(text);
-        if (!looksLikeMarkdownForPaste(text) && !looksLikeMarkdownForPaste(withMathFences)) {
+        const withLenientLineMarkers = normalizeLenientMarkdownLineMarkers(withMathFences);
+        if (
+            !looksLikeMarkdownForPaste(text)
+            && !looksLikeMarkdownForPaste(withMathFences)
+            && !looksLikeMarkdownForPaste(withLenientLineMarkers)
+        ) {
             return null;
         }
 
@@ -415,7 +421,7 @@ export const clipboardPlugin = $prose((ctx) => {
         if (!parser) return null;
 
         let parsedDoc: ProseNode;
-        const withFrontmatter = normalizeLeadingFrontmatterMarkdown(withMathFences);
+        const withFrontmatter = normalizeLeadingFrontmatterMarkdown(withLenientLineMarkers);
         const withInterruptedLists = normalizeInterruptedOrderedListsForPaste(withFrontmatter);
         const withThematicBreaks = normalizeStandaloneThematicBreaksForPaste(withInterruptedLists);
         const editorInput = preserveMarkdownBlankLinesForEditor(withThematicBreaks);
