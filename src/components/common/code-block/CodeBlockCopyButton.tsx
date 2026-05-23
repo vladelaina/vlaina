@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { cn } from '@/lib/utils';
+import { useI18n } from '@/lib/i18n';
 
 interface CodeBlockCopyButtonProps {
   className?: string;
@@ -20,6 +21,7 @@ export function CodeBlockCopyButton({
   showLabels = false,
   stopPropagation = false,
 }: CodeBlockCopyButtonProps) {
+  const { t } = useI18n();
   const suppressNextClickRef = useRef(false);
   const copiedTimerRef = useRef<number | null>(null);
   const [optimisticCopied, setOptimisticCopied] = useState(false);
@@ -90,8 +92,8 @@ export function CodeBlockCopyButton({
       }}
       className={cn('vlaina-code-block-copy-button', className)}
       data-copied={isCopied ? 'true' : undefined}
-      aria-label={isCopied ? 'Copied' : 'Copy code'}
-      title={isCopied ? 'Copied!' : 'Copy to clipboard'}
+      aria-label={isCopied ? t('common.copied') : t('common.copyCode')}
+      title={isCopied ? t('common.copied') : t('common.copyToClipboard')}
     >
       <Icon
         name={isCopied ? 'common.check' : 'common.copy'}

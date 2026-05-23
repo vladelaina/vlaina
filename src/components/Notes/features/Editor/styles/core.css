@@ -653,10 +653,12 @@ body.vlaina-block-dragging-cursor .milkdown :is(
   flex-direction: column;
   gap: 2px;
   padding: 6px;
-  border: 1px solid color-mix(in srgb, var(--crepe-color-outline), transparent 42%);
-  border-radius: 14px;
-  background: var(--crepe-color-surface, #ffffff);
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.14);
+  border: 1px solid transparent;
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
   pointer-events: auto;
   z-index: 4;
 }
@@ -668,46 +670,58 @@ body.vlaina-block-dragging-cursor .milkdown :is(
   justify-content: flex-start;
   padding: 8px 10px;
   border: 0;
-  border-radius: 10px;
+  border-radius: 12px;
   background: transparent;
-  color: var(--crepe-color-on-background, #111827);
-  font-size: 13px;
+  color: var(--notes-sidebar-text);
+  font-size: 15px;
+  font-weight: 500;
   line-height: 1.35;
   text-align: left;
   cursor: pointer;
 }
 
 .milkdown .milkdown-table-block .column-header-drag-menu__item {
-  color: var(--crepe-color-on-background, #111827) !important;
-  -webkit-text-fill-color: var(--crepe-color-on-background, #111827) !important;
+  color: var(--notes-sidebar-text) !important;
+  -webkit-text-fill-color: var(--notes-sidebar-text) !important;
 }
 
 .milkdown .milkdown-table-block .column-header-drag-menu__item:hover {
-  background: color-mix(in srgb, var(--crepe-color-primary), transparent 94%);
+  background: var(--notes-sidebar-row-hover);
 }
 
 .milkdown .milkdown-table-block .column-header-drag-menu__item:focus-visible {
-  background: color-mix(in srgb, var(--crepe-color-primary), transparent 94%);
+  background: var(--notes-sidebar-row-hover);
   outline: none;
 }
 
 .milkdown .milkdown-table-block .column-header-drag-menu__item--danger {
-  color: #c2410c !important;
-  -webkit-text-fill-color: #c2410c !important;
+  color: #dc2626 !important;
+  -webkit-text-fill-color: #dc2626 !important;
 }
 
 .milkdown .milkdown-table-block .column-header-drag-menu__item--danger:hover {
-  background: rgba(194, 65, 12, 0.08);
+  background: #fef2f2;
 }
 
 .milkdown .milkdown-table-block .column-header-drag-menu__item--danger:focus-visible {
-  background: rgba(194, 65, 12, 0.08);
+  background: #fef2f2;
+}
+
+.dark .milkdown .milkdown-table-block .column-header-drag-menu__item--danger {
+  color: #f87171 !important;
+  -webkit-text-fill-color: #f87171 !important;
+}
+
+.dark .milkdown .milkdown-table-block .column-header-drag-menu__item--danger:hover,
+.dark .milkdown .milkdown-table-block .column-header-drag-menu__item--danger:focus-visible {
+  background: rgba(127, 29, 29, 0.2);
 }
 
 .milkdown .milkdown-table-block .column-header-drag-menu__divider {
   height: 1px;
   margin: 4px 2px;
-  background: color-mix(in srgb, var(--crepe-color-outline), transparent 78%);
+  background: var(--notes-sidebar-menu-border);
+  opacity: 0.7;
 }
 
 .milkdown .milkdown-table-block.readonly .column-header-drag-overlay {

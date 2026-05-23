@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { translate } from '@/lib/i18n';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -38,7 +39,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         <div className="flex h-full w-full items-center justify-center bg-background p-8">
           <div className="max-w-md space-y-4 text-center">
             <h2 className="text-lg font-semibold text-foreground">
-              Something went wrong
+              {translate('common.somethingWentWrong')}
             </h2>
             {import.meta.env.DEV && (
               <pre className="max-h-40 overflow-auto rounded bg-muted p-3 text-left text-xs text-muted-foreground">
@@ -51,14 +52,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                 onClick={this.handleDismiss}
                 className="rounded-md border border-border px-4 py-2 text-sm text-foreground hover:bg-muted"
               >
-                Try Again
+                {translate('common.tryAgain')}
               </button>
               <button
                 type="button"
                 onClick={this.handleReload}
                 className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
               >
-                Reload
+                {translate('common.reload')}
               </button>
             </div>
           </div>

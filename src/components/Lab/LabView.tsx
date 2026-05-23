@@ -3,8 +3,10 @@ import { cn } from '@/lib/utils';
 import { Icon } from '@/components/ui/icons';
 import { useUIStore } from '@/stores/uiSlice';
 import { LAB_MODULES, type LabId } from './config';
+import { useI18n } from '@/lib/i18n';
 
 export function LabView() {
+  const { t } = useI18n();
   const [activeLabId, setActiveLabId] = useState<LabId | null>(LAB_MODULES[0]?.id ?? null);
   const { setAppViewMode } = useUIStore();
 
@@ -17,7 +19,7 @@ export function LabView() {
         <button
           onClick={() => setAppViewMode('notes')}
           className="shrink-0 p-1.5 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
-          title="Exit Lab"
+          title={t('lab.exit')}
         >
           <Icon name="nav.chevronLeft" size="md" />
         </button>
@@ -51,8 +53,8 @@ export function LabView() {
           ) : (
             <div className="flex min-h-full items-center justify-center">
               <div className="rounded-3xl border border-zinc-200/80 bg-white px-8 py-10 text-center shadow-[0_20px_60px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-zinc-900">
-                <div className="text-[15px] font-semibold text-zinc-950 dark:text-zinc-100">No Lab Modules</div>
-                <div className="mt-2 text-[13px] text-zinc-500 dark:text-zinc-400">The lab has been cleared.</div>
+                <div className="text-[15px] font-semibold text-zinc-950 dark:text-zinc-100">{t('lab.noModules')}</div>
+                <div className="mt-2 text-[13px] text-zinc-500 dark:text-zinc-400">{t('lab.empty')}</div>
               </div>
             </div>
           )}

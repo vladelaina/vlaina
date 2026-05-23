@@ -708,11 +708,16 @@ describe('editor embedded CodeMirror selection styles', () => {
   it('keeps table column menus readable inside selected table blocks', () => {
     const coreCss = readStyleFile('core.css');
 
+    expect(coreCss).toContain('border-radius: 22px;');
     expect(coreCss).toContain('.milkdown .milkdown-table-block .column-header-drag-menu__item {');
-    expect(coreCss).toContain('color: var(--crepe-color-on-background, #111827) !important;');
-    expect(coreCss).toContain('-webkit-text-fill-color: var(--crepe-color-on-background, #111827) !important;');
-    expect(coreCss).toContain('color: #c2410c !important;');
-    expect(coreCss).toContain('-webkit-text-fill-color: #c2410c !important;');
+    expect(coreCss).toContain('color: var(--notes-sidebar-text) !important;');
+    expect(coreCss).toContain('-webkit-text-fill-color: var(--notes-sidebar-text) !important;');
+    expect(coreCss).toContain('background: var(--notes-sidebar-row-hover);');
+    expect(coreCss).toContain('color: #dc2626 !important;');
+    expect(coreCss).toContain('-webkit-text-fill-color: #dc2626 !important;');
+    expect(coreCss).toContain('background: #fef2f2;');
+    expect(coreCss).toContain('color: #f87171 !important;');
+    expect(coreCss).toContain('background: rgba(127, 29, 29, 0.2);');
   });
 
   it('keeps selected math blocks inside selected list items vertically covered', () => {

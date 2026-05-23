@@ -278,7 +278,7 @@ export const ChatInput = memo(function ChatInput({
         {isDragging && (
           <div className="absolute inset-0 z-20 flex items-center justify-center rounded-[32px] border-2 border-dashed border-[var(--chat-sidebar-icon)]/50 bg-black/[0.03] backdrop-blur-sm pointer-events-none dark:border-white/15 dark:bg-white/[0.04]">
             <span className="font-medium text-[var(--chat-sidebar-text-muted)] dark:text-[var(--chat-sidebar-text-soft)]">
-              Drop files here
+              {t('chat.dropFilesHere')}
             </span>
           </div>
         )}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { cn } from '@/lib/utils';
+import { translate } from '@/lib/i18n';
 
 interface LocalImageProps {
     src: string;
@@ -136,7 +137,7 @@ export function LocalImage({ src, alt, className, onClick }: LocalImageProps) {
                 className={`inline-flex items-center justify-center text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-zinc-800 ${className ?? ''}`}
                 style={{ minHeight: '100px', minWidth: '100px' }}
             >
-                Image unavailable
+                {translate('chat.imageUnavailable')}
             </span>
         );
     }

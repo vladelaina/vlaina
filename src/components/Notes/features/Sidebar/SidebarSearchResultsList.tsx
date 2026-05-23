@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { NoteIcon } from '../IconPicker/NoteIcon';
 import { NotesSidebarRow } from './NotesSidebarRow';
+import { useI18n } from '@/lib/i18n';
 import type { NotesSidebarSearchResult } from './notesSidebarSearchResults';
 import {
   buildNotesSidebarSearchLayoutItems,
@@ -160,6 +161,7 @@ export function SidebarSearchResultsList({
   scrollRootRef,
   isContentScanPending,
 }: SidebarSearchResultsListProps) {
+  const { t } = useI18n();
   const deferredQuery = useDeferredValue(query);
   const [containerWidth, setContainerWidth] = useState(280);
   const previousQueryRef = useRef<string>('');
@@ -225,7 +227,7 @@ export function SidebarSearchResultsList({
     <div className="flex flex-col gap-0.5">
       {isContentScanPending ? (
         <div className="px-3 py-1 text-[16px] text-[var(--notes-sidebar-text-soft)]">
-          Searching note contents...
+          {t('notes.searchingNoteContents')}
         </div>
       ) : null}
       {items.length > 0 ? (
@@ -268,7 +270,7 @@ export function SidebarSearchResultsList({
         </div>
       ) : hasQuery && !isContentScanPending ? (
         <div className="px-3 py-2 text-[16px] text-[var(--notes-sidebar-text-soft)]">
-          No results
+          {t('notes.noResults')}
         </div>
       ) : null}
     </div>
