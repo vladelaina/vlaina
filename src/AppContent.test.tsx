@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   initializeVault: vi.fn(),
   loadUnified: vi.fn().mockResolvedValue(undefined),
   startAIStoreRuntimeEffects: vi.fn(),
-  fontSize: 19,
+  fontSize: 17,
   notesSidebarMounts: 0,
   notesSidebarUnmounts: 0,
 }));
@@ -243,7 +243,7 @@ describe('AppContent view switching chrome readiness', () => {
   afterEach(() => {
     vi.clearAllMocks();
     mocks.appViewMode = 'notes';
-    mocks.fontSize = 19;
+    mocks.fontSize = 17;
     mocks.notesSidebarMounts = 0;
     mocks.notesSidebarUnmounts = 0;
     document.documentElement.style.removeProperty('font-size');
@@ -300,13 +300,13 @@ describe('AppContent view switching chrome readiness', () => {
   });
 
   it('scopes the appearance font size to markdown content surfaces', async () => {
-    document.documentElement.style.fontSize = '19px';
-    mocks.fontSize = 19;
+    document.documentElement.style.fontSize = '17px';
+    mocks.fontSize = 17;
 
     render(<AppContent />);
 
     await waitFor(() => {
-      expect(document.documentElement.style.getPropertyValue('--vlaina-markdown-font-size')).toBe('19px');
+      expect(document.documentElement.style.getPropertyValue('--vlaina-markdown-font-size')).toBe('17px');
     });
     expect(document.documentElement.style.fontSize).toBe('');
   });

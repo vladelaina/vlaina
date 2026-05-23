@@ -67,8 +67,8 @@ function UserMessageInner({
   const textBubbleStyle = useMemo(
     () => ({
       ...(textBubbleWidth ? { width: `${textBubbleWidth}px` } : {}),
-      fontSize: 'var(--vlaina-markdown-font-size, 19px)',
-      lineHeight: 'calc(var(--vlaina-markdown-font-size, 19px) + 8px)',
+      fontSize: 'var(--vlaina-markdown-font-size, 17px)',
+      lineHeight: 'calc(var(--vlaina-markdown-font-size, 17px) + 8px)',
     }),
     [textBubbleWidth],
   );
