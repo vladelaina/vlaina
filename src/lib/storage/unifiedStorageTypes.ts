@@ -42,6 +42,7 @@ export interface UnifiedData {
     customSystemPrompt?: string;
     includeTimeContext?: boolean;
     webSearchEnabled?: boolean;
+    deletedProviderIds?: string[];
   };
 }
 

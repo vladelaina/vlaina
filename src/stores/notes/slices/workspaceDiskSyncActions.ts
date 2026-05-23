@@ -135,7 +135,8 @@ export function createWorkspaceDiskSyncAction(
               latestState.noteContentsCache,
               currentNote.path,
               nextContent,
-              nextModifiedAt
+              nextModifiedAt,
+              { updateBaseline: true },
             ),
             error: null,
           });
@@ -188,7 +189,8 @@ export function createWorkspaceDiskSyncAction(
             latestState.noteContentsCache,
             currentNote.path,
             nextContent,
-            nextModifiedAt
+            nextModifiedAt,
+            { updateBaseline: true },
           ),
           error: null,
         });

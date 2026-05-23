@@ -205,10 +205,12 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         noteContentsCache = get().noteContentsCache;
       }
 
+      const existingTabIsDirty = Boolean(get().openTabs.find((tab) => tab.path === path)?.isDirty);
       const { content, modifiedAt } = await loadNoteDocument({
         notesPath,
         path,
         cache: noteContentsCache,
+        allowStaleCachedContent: existingTabIsDirty,
       });
       if (openRequestId !== latestOpenNoteRequestId || get().notesPath !== notesPath) {
         return;
@@ -232,7 +234,9 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         tabName,
         shouldOpenInNewTab,
       );
-      const nextCache = setCachedNoteContent(latestState.noteContentsCache, path, content, modifiedAt);
+      const nextCache = setCachedNoteContent(latestState.noteContentsCache, path, content, modifiedAt, {
+        updateBaseline: !latestExistingTab?.isDirty,
+      });
 
       updateDisplayName(set, path, tabName);
       set({
@@ -293,10 +297,12 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
     }
 
     try {
+      const existingTabIsDirty = Boolean(get().openTabs.find((tab) => tab.path === absolutePath)?.isDirty);
       const { content, modifiedAt } = await loadNoteDocument({
         notesPath,
         path: absolutePath,
         cache: noteContentsCache,
+        allowStaleCachedContent: existingTabIsDirty,
       });
       if (openRequestId !== latestOpenNoteRequestId || get().notesPath !== notesPath) {
         return;
@@ -319,7 +325,9 @@ export const createWorkspaceSlice: StateCreator<NotesStore, [], [], WorkspaceSli
         tabName,
         shouldOpenInNewTab,
       );
-      const nextCache = setCachedNoteContent(latestState.noteContentsCache, absolutePath, content, modifiedAt);
+      const nextCache = setCachedNoteContent(latestState.noteContentsCache, absolutePath, content, modifiedAt, {
+        updateBaseline: !latestExistingTab?.isDirty,
+      });
 
       updateDisplayName(set, absolutePath, tabName);
       set({

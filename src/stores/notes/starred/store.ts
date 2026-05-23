@@ -46,6 +46,9 @@ export function toggleStarredEntry(
 ): void {
   const { notesPath, starredEntries } = get();
   if (findStarredEntryByPath(starredEntries, kind, path, notesPath)) {
+    const deletedEntries = starredEntries.filter(
+      (entry) => isStarredEntryForPath(entry, kind, path, notesPath),
+    );
     const updatedEntries = starredEntries.filter(
       (entry) => !isStarredEntryForPath(entry, kind, path, notesPath),
     );
@@ -54,7 +57,7 @@ export function toggleStarredEntry(
     } else {
       set({ starredEntries: updatedEntries });
     }
-    saveStarredRegistry(updatedEntries);
+    saveStarredRegistry(updatedEntries, { deletedEntries });
     return;
   }
 
@@ -85,6 +88,7 @@ export function removeStarredEntryById(
   id: string
 ): void {
   const { notesPath, starredEntries } = get();
+  const deletedEntries = starredEntries.filter((entry) => entry.id === id);
   const updatedEntries = starredEntries.filter((entry) => entry.id !== id);
   if (updatedEntries.length === starredEntries.length) {
     return;
@@ -95,5 +99,5 @@ export function removeStarredEntryById(
   } else {
     set({ starredEntries: updatedEntries });
   }
-  saveStarredRegistry(updatedEntries);
+  saveStarredRegistry(updatedEntries, { deletedEntries });
 }

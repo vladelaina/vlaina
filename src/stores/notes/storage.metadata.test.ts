@@ -228,6 +228,31 @@ describe('notes metadata storage', () => {
     );
   });
 
+  it('merges expanded workspace folders from disk before saving', async () => {
+    adapter.exists.mockResolvedValue(true);
+    adapter.stat.mockResolvedValue(null);
+    adapter.readFile.mockResolvedValue(JSON.stringify({
+      currentNotePath: 'beta.md',
+      expandedFolders: ['archive'],
+      fileTreeSortMode: 'name-asc',
+    }));
+
+    await saveWorkspaceState('/vault-a', {
+      currentNotePath: 'alpha.md',
+      expandedFolders: ['docs'],
+      fileTreeSortMode: 'updated-desc',
+    });
+
+    expect(adapter.writeFile).toHaveBeenCalledWith(
+      '/app/.vlaina/store/notes/vaults/vault-1dwgd8k/workspace.json',
+      JSON.stringify({
+        currentNotePath: 'alpha.md',
+        expandedFolders: ['archive', 'docs'],
+        fileTreeSortMode: 'updated-desc',
+      }, null, 2)
+    );
+  });
+
   it('sanitizes recent note paths loaded from localStorage', () => {
     localStorage.setItem(
       'vlaina-recent-notes',

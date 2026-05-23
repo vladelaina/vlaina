@@ -93,6 +93,7 @@ export interface PendingDeletedItemState extends RecoverableDeletedItem {
 export interface NoteContentCacheEntry {
   content: string;
   modifiedAt: number | null;
+  savedContent?: string;
 }
 
 export interface NotesState {

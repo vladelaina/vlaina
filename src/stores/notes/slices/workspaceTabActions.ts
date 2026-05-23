@@ -275,6 +275,7 @@ export function createWorkspaceTabActions(set: NotesSet, get: NotesGet): Workspa
               path,
               hasNewerEdit ? latestCachedContent : content,
               modifiedAt,
+              hasNewerEdit ? { baselineContent: content } : { updateBaseline: true },
             ),
             isDirty: latestState.currentNote?.path === path && hasNewerEdit
               ? true

@@ -142,6 +142,7 @@ describe('unifiedStorage electron save', () => {
         temporaryChatEnabled: false,
         customSystemPrompt: '',
         includeTimeContext: true,
+        deletedProviderIds: ['stale-provider'],
       },
     };
 
@@ -183,8 +184,72 @@ describe('unifiedStorage electron save', () => {
       version: 1,
       data: {
         providerIds: ['active-provider', 'empty-provider'],
+        deletedProviderIds: ['stale-provider'],
       },
     });
+  });
+
+  it('preserves provider channels added by another window during a stale save', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(false);
+    mocks.storage.readFile.mockImplementation(async (path: string) => {
+      if (path.endsWith('/chat/sessions.json')) {
+        return JSON.stringify({
+          version: 1,
+          updatedAt: 1,
+          data: {
+            sessions: [],
+            selectedModelId: null,
+            unreadSessionIds: [],
+            currentSessionId: null,
+            temporaryChatEnabled: false,
+            customSystemPrompt: '',
+            includeTimeContext: true,
+            webSearchEnabled: false,
+            providerIds: ['other-provider'],
+            deletedSessionIds: [],
+            deletedProviderIds: [],
+          },
+        });
+      }
+
+      throw new Error(`Unexpected read: ${path}`);
+    });
+    mocks.storage.listDir.mockImplementation(async (path: string) => {
+      if (path.endsWith('/chat/channels')) {
+        return [
+          { name: 'other-provider.json', path: '/appdata/.vlaina/chat/channels/other-provider.json', isFile: true, isDirectory: false },
+        ];
+      }
+      return [];
+    });
+
+    const data: UnifiedData = {
+      settings: {
+        timezone: { offset: 480, city: 'Beijing' },
+        markdown: { typewriterMode: false, codeBlock: { showLineNumbers: true } },
+      },
+      customIcons: [],
+      ai: {
+        providers: [],
+        models: [],
+        benchmarkResults: {},
+        fetchedModels: {},
+        sessions: [],
+        messages: {},
+        unreadSessionIds: [],
+        selectedModelId: null,
+        currentSessionId: null,
+      },
+    };
+
+    await saveUnifiedDataImmediate(data);
+
+    const sessionsWrite = mocks.storage.writeFile.mock.calls.find(([path]) =>
+      String(path).endsWith('/chat/sessions.json'),
+    );
+    const payload = JSON.parse(String(sessionsWrite?.[1]));
+    expect(payload.data.providerIds).toEqual(['other-provider']);
+    expect(mocks.storage.deleteFile).not.toHaveBeenCalledWith('/appdata/.vlaina/chat/channels/other-provider.json');
   });
 
   it('skips keychain cleanup work outside electron runtime', async () => {

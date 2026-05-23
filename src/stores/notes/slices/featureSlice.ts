@@ -125,6 +125,7 @@ export const createFeatureSlice: StateCreator<NotesStore, [], [], FeatureSlice> 
         path,
         nextContent,
         modifiedAt,
+        hasNewerContent ? { baselineContent: content } : { updateBaseline: true },
       ),
       currentNote: isCurrentNote
         ? { path, content: nextContent }

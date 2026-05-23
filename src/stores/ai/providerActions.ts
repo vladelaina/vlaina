@@ -173,6 +173,7 @@ export const actions = {
       models: remainingModels,
       benchmarkResults: nextBenchmarkResults,
       fetchedModels: nextFetchedModels,
+      deletedProviderIds: Array.from(new Set([...(ai.deletedProviderIds || []), id])),
       selectedModelId: chooseFallbackSelectedModelId(
         ai.selectedModelId && ai.models.find(m => m.id === ai.selectedModelId)?.providerId === id ? null : ai.selectedModelId,
         remainingModels
@@ -210,6 +211,7 @@ export const actions = {
       models: remainingModels,
       benchmarkResults: nextBenchmarkResults,
       fetchedModels: nextFetchedModels,
+      deletedProviderIds: Array.from(new Set([...(ai.deletedProviderIds || []), ...providerIdsToDelete])),
       selectedModelId: chooseFallbackSelectedModelId(
         selectedModelProviderId && providerIdsToDelete.has(selectedModelProviderId)
           ? null

@@ -135,6 +135,7 @@ export async function saveDraftNote({
     savedPath,
     nextContent,
     modifiedAt,
+    hasNewerDraftEdit ? { baselineContent: content } : { updateBaseline: true },
   );
   const latestRecentNotes = latestState.recentNotes ?? recentNotes;
   const nextRecentNotes = relativePath ? addToRecentNotes(relativePath, latestRecentNotes) : latestRecentNotes;

@@ -43,6 +43,7 @@ interface AISessionsFileData {
   webSearchEnabled: boolean;
   providerIds: string[];
   deletedSessionIds: string[];
+  deletedProviderIds: string[];
 }
 
 interface AISessionsFile {
@@ -93,6 +94,9 @@ function parseAISessionsFile(value: unknown): AISessionsFileData | null {
     providerIds: Array.isArray(data.providerIds) ? data.providerIds.filter(isSafeProviderId) : [],
     deletedSessionIds: Array.isArray(data.deletedSessionIds)
       ? data.deletedSessionIds.filter(isSafeChatSessionId)
+      : [],
+    deletedProviderIds: Array.isArray(data.deletedProviderIds)
+      ? data.deletedProviderIds.filter(isSafeProviderId)
       : [],
   };
 }
@@ -446,6 +450,7 @@ export async function loadUnifiedData(): Promise<UnifiedData> {
         customSystemPrompt: '',
         includeTimeContext: true,
         webSearchEnabled: false,
+        deletedProviderIds: [],
         messages: {}
     };
 
@@ -574,6 +579,9 @@ async function performSplitSave(data: UnifiedData) {
 
     if (ai) {
         const persistedProviders = (ai.providers || []).filter((provider) => isSafeProviderId(provider.id));
+        const incomingDeletedProviderIds = new Set(
+          (ai.deletedProviderIds || []).filter(isSafeProviderId)
+        );
 
         await syncProviderSecrets(persistedProviders);
 
@@ -586,7 +594,15 @@ async function performSplitSave(data: UnifiedData) {
         );
         const persistedSessions = mergedSessions.sessions;
         const persistedSessionIds = new Set(persistedSessions.map((session) => session.id));
-        const activeProviderIds = new Set(persistedProviders.map((provider) => provider.id));
+        const mergedProviderIds = Array.from(new Set([
+          ...persistedProviders.map((provider) => provider.id),
+          ...(existingSessionsData?.providerIds || []),
+        ])).filter((providerId) => isSafeProviderId(providerId) && !incomingDeletedProviderIds.has(providerId));
+        const activeProviderIds = new Set(mergedProviderIds);
+        const deletedProviderIds = Array.from(new Set([
+          ...(existingSessionsData?.deletedProviderIds || []),
+          ...incomingDeletedProviderIds,
+        ])).filter((providerId) => !activeProviderIds.has(providerId));
 
         const sessionsData = {
             sessions: persistedSessions,
@@ -599,8 +615,9 @@ async function performSplitSave(data: UnifiedData) {
             customSystemPrompt: ai.customSystemPrompt || '',
             includeTimeContext: ai.includeTimeContext !== false,
             webSearchEnabled: ai.webSearchEnabled === true,
-            providerIds: persistedProviders.map(p => p.id),
+            providerIds: mergedProviderIds,
             deletedSessionIds: mergedSessions.deletedSessionIds,
+            deletedProviderIds,
         };
         await storage.writeFile(sessionsPath, serializeAISessionsFile(sessionsData));
 
@@ -622,7 +639,7 @@ async function performSplitSave(data: UnifiedData) {
                 continue;
             }
             const providerId = entry.name.slice(0, -5);
-            if (activeProviderIds.has(providerId)) {
+            if (activeProviderIds.has(providerId) || !deletedProviderIds.includes(providerId)) {
                 continue;
             }
             try {

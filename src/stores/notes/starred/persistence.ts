@@ -7,6 +7,7 @@ import type { StarredEntry } from '../types';
 import {
   CURRENT_STARRED_VERSION,
   dedupeStarredEntries,
+  getStarredEntryKey,
   normalizeStarredEntry,
   type StarredRegistry,
 } from './registry';
@@ -14,19 +15,85 @@ import {
 const MAX_STARRED_ENTRIES = 5000;
 const MAX_STARRED_REGISTRY_BYTES = 5 * 1024 * 1024;
 
+interface StarredSavePayload {
+  entries: StarredEntry[];
+  deletedEntryKeys: string[];
+}
+
 async function getStarredRegistryPath(): Promise<string> {
   await ensureDirectories();
   const { store } = await getPaths();
   return joinPath(store, STARRED_FILE);
 }
 
-async function writeStarredRegistry(entries: StarredEntry[]): Promise<void> {
+function normalizeDeletedEntryKeys(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((key): key is string => typeof key === 'string' && key.length > 0)
+    : [];
+}
+
+function parseStarredRegistryPayload(value: unknown): StarredRegistry {
+  const data = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  const entries = Array.isArray(data.entries)
+    ? data.entries
+        .slice(0, MAX_STARRED_ENTRIES)
+        .map((entry: unknown) => normalizeStarredEntry(entry))
+        .filter((entry: StarredEntry | null): entry is StarredEntry => entry !== null)
+    : [];
+
+  return {
+    version: CURRENT_STARRED_VERSION,
+    entries: dedupeStarredEntries(entries),
+    deletedEntryKeys: normalizeDeletedEntryKeys(data.deletedEntryKeys),
+  };
+}
+
+async function readRawStarredRegistry(): Promise<StarredRegistry | null> {
   const storage = getStorageAdapter();
   const starredPath = await getStarredRegistryPath();
-  const registry: StarredRegistry = {
+
+  if (!(await storage.exists(starredPath))) {
+    return null;
+  }
+
+  const starredInfo = await storage.stat(starredPath).catch(() => null);
+  if (starredInfo?.size && starredInfo.size > MAX_STARRED_REGISTRY_BYTES) {
+    return { version: CURRENT_STARRED_VERSION, entries: [], deletedEntryKeys: [] };
+  }
+
+  return parseStarredRegistryPayload(JSON.parse(await storage.readFile(starredPath)));
+}
+
+function mergeStarredEntriesForSave(
+  incomingEntries: StarredEntry[],
+  existingRegistry: StarredRegistry | null,
+  deletedEntryKeys: string[],
+): StarredRegistry {
+  const deletedKeys = new Set([
+    ...(existingRegistry?.deletedEntryKeys || []),
+    ...deletedEntryKeys,
+  ]);
+  const merged = dedupeStarredEntries([
+    ...incomingEntries,
+    ...(existingRegistry?.entries || []),
+  ]).filter((entry) => !deletedKeys.has(getStarredEntryKey(entry)));
+
+  return {
     version: CURRENT_STARRED_VERSION,
-    entries: dedupeStarredEntries(entries).slice(0, MAX_STARRED_ENTRIES),
+    entries: merged.slice(0, MAX_STARRED_ENTRIES),
+    deletedEntryKeys: Array.from(deletedKeys),
   };
+}
+
+async function writeStarredRegistry(payload: StarredSavePayload): Promise<void> {
+  const storage = getStorageAdapter();
+  const starredPath = await getStarredRegistryPath();
+  const existingRegistry = await readRawStarredRegistry().catch(() => null);
+  const registry = mergeStarredEntriesForSave(
+    dedupeStarredEntries(payload.entries).slice(0, MAX_STARRED_ENTRIES),
+    existingRegistry,
+    payload.deletedEntryKeys,
+  );
   await storage.writeFile(starredPath, JSON.stringify(registry, null, 2));
   emitStorageAutoSyncEvent({ kind: 'notes-starred' });
 }
@@ -96,7 +163,7 @@ async function pruneInvalidStarredEntries(entries: StarredEntry[]): Promise<{
   };
 }
 
-const starredPersistenceQueue = createPersistenceQueue<StarredEntry[]>({
+const starredPersistenceQueue = createPersistenceQueue<StarredSavePayload>({
   write: writeStarredRegistry,
   debounceMs: 80,
   maxWaitMs: 400,
@@ -131,44 +198,45 @@ registerPersistenceLifecycle();
 
 export async function loadStarredRegistry(): Promise<StarredRegistry> {
   try {
-    const storage = getStorageAdapter();
-    const starredPath = await getStarredRegistryPath();
-
-    if (!(await storage.exists(starredPath))) {
-      return { version: CURRENT_STARRED_VERSION, entries: [] };
+    const registry = await readRawStarredRegistry();
+    if (!registry) {
+      return { version: CURRENT_STARRED_VERSION, entries: [], deletedEntryKeys: [] };
     }
 
-    const starredInfo = await storage.stat(starredPath).catch(() => null);
-    if (starredInfo?.size && starredInfo.size > MAX_STARRED_REGISTRY_BYTES) {
-      return { version: CURRENT_STARRED_VERSION, entries: [] };
-    }
-
-    const content = await storage.readFile(starredPath);
-    const data = JSON.parse(content);
-    const entries = Array.isArray(data.entries)
-      ? data.entries
-          .slice(0, MAX_STARRED_ENTRIES)
-          .map((entry: unknown) => normalizeStarredEntry(entry))
-          .filter((entry: StarredEntry | null): entry is StarredEntry => entry !== null)
-      : [];
-    const dedupedEntries = dedupeStarredEntries(entries);
+    const dedupedEntries = dedupeStarredEntries(registry.entries);
     const prunedRegistry = await pruneInvalidStarredEntries(dedupedEntries);
 
     if (prunedRegistry.changed) {
-      await starredPersistenceQueue.saveNow(prunedRegistry.entries);
+      const prunedKeys = new Set(prunedRegistry.entries.map(getStarredEntryKey));
+      await starredPersistenceQueue.saveNow({
+        entries: prunedRegistry.entries,
+        deletedEntryKeys: [
+          ...(registry.deletedEntryKeys || []),
+          ...dedupedEntries
+            .filter((entry) => !prunedKeys.has(getStarredEntryKey(entry)))
+            .map(getStarredEntryKey),
+        ],
+      });
     }
 
     return {
       version: CURRENT_STARRED_VERSION,
       entries: prunedRegistry.entries,
+      deletedEntryKeys: registry.deletedEntryKeys || [],
     };
   } catch (error) {
-    return { version: CURRENT_STARRED_VERSION, entries: [] };
+    return { version: CURRENT_STARRED_VERSION, entries: [], deletedEntryKeys: [] };
   }
 }
 
-export function saveStarredRegistry(entries: StarredEntry[]): void {
-  starredPersistenceQueue.schedule(dedupeStarredEntries(entries).slice(0, MAX_STARRED_ENTRIES));
+export function saveStarredRegistry(
+  entries: StarredEntry[],
+  options: { deletedEntries?: StarredEntry[] } = {}
+): void {
+  starredPersistenceQueue.schedule({
+    entries: dedupeStarredEntries(entries).slice(0, MAX_STARRED_ENTRIES),
+    deletedEntryKeys: (options.deletedEntries || []).map(getStarredEntryKey),
+  });
 }
 
 export async function flushStarredRegistry(): Promise<void> {

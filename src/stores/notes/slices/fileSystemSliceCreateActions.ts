@@ -101,7 +101,9 @@ function finalizeCreatedNote({
     openTabs: updatedTabs,
     recentNotes: updatedRecent,
     isNewlyCreated: true,
-    noteContentsCache: setCachedNoteContent(noteContentsCache, relativePath, content, modifiedAt),
+    noteContentsCache: setCachedNoteContent(noteContentsCache, relativePath, content, modifiedAt, {
+      updateBaseline: true,
+    }),
   });
 
   persistWorkspaceSnapshot(notesPath, {

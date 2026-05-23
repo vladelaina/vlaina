@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   normalizeSessionMessages,
+  mergeSessionMessages,
   parseSessionMessagesPayload,
   preserveUnknownPersistedMessages,
   serializeSessionMessages,
@@ -100,6 +101,42 @@ describe('chatStorage session message normalization', () => {
     ]);
 
     expect(preserveUnknownPersistedMessages(incoming, persisted).map((message) => message.id)).toEqual(['m1']);
+  });
+
+  it('keeps the other window edit as a message version when the same message id changed', () => {
+    const incoming = normalizeSessionMessages([
+      { id: 'm1', role: 'user', content: 'local edit', modelId: 'model-1', timestamp: 1 },
+    ]);
+    const persisted = normalizeSessionMessages([
+      { id: 'm1', role: 'user', content: 'other window edit', modelId: 'model-1', timestamp: 2 },
+    ]);
+
+    const merged = mergeSessionMessages(incoming, persisted, { preferredSource: 'incoming' });
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.content).toBe('local edit');
+    expect(merged[0]?.versions.map((version) => version.content)).toEqual([
+      'local edit',
+      'other window edit',
+    ]);
+  });
+
+  it('can prefer the persisted message while still preserving local edits as versions', () => {
+    const incoming = normalizeSessionMessages([
+      { id: 'm1', role: 'user', content: 'local edit', modelId: 'model-1', timestamp: 1 },
+    ]);
+    const persisted = normalizeSessionMessages([
+      { id: 'm1', role: 'user', content: 'other window edit', modelId: 'model-1', timestamp: 2 },
+    ]);
+
+    const merged = mergeSessionMessages(incoming, persisted, { preferredSource: 'persisted' });
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.content).toBe('other window edit');
+    expect(merged[0]?.versions.map((version) => version.content)).toEqual([
+      'other window edit',
+      'local edit',
+    ]);
   });
 
   it('backfills versions for legacy persisted messages', () => {
