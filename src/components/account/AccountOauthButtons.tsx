@@ -2,6 +2,7 @@ import { Icon } from '@/components/ui/icons';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { cn } from '@/lib/utils';
 import type { OauthAccountProvider } from '@/lib/account/provider';
+import { useI18n } from '@/lib/i18n';
 
 interface AccountOauthButtonsProps {
   isCompact?: boolean;
@@ -26,6 +27,7 @@ export function AccountOauthButtons({
   disabled,
   onOauthSignIn,
 }: AccountOauthButtonsProps) {
+  const { t } = useI18n();
   const isBusy = disabled === true;
 
   return (
@@ -51,7 +53,9 @@ export function AccountOauthButtons({
             className="shrink-0"
           />
 
-          <span className="opacity-90 group-hover:opacity-100 transition-opacity">Continue with {option.label}</span>
+          <span className="opacity-90 group-hover:opacity-100 transition-opacity">
+            {t('account.continueWithProvider', { provider: option.label })}
+          </span>
 
           <div className="absolute inset-0 overflow-hidden rounded-full pointer-events-none">
             <div

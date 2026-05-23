@@ -3,6 +3,7 @@ import { openExternalHref } from '@/lib/navigation/externalLinks';
 import { parseVideoUrl } from './videoUrl';
 import type { IframeVideoUrl } from './videoUrl';
 import { isPublicRemoteMediaUrl } from '@/lib/notes/markdown/urlSecurity';
+import { translate } from '@/lib/i18n';
 
 function createVideoMessage(className: string, message: string): HTMLElement {
   const container = document.createElement('div');
@@ -15,8 +16,8 @@ function createVideoExternalAction(url: string): HTMLElement {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'video-external-action';
-  button.textContent = 'Open';
-  button.title = 'Open video in browser';
+  button.textContent = translate('editor.video.open');
+  button.title = translate('editor.video.openInBrowser');
   button.contentEditable = 'false';
   button.addEventListener('mousedown', (event) => {
     event.preventDefault();
@@ -66,17 +67,17 @@ export function createVideoDom(attrs: VideoAttrs): HTMLElement {
   wrapper.className = 'video-block';
 
   if (!attrs.src) {
-    wrapper.appendChild(createVideoMessage('video-placeholder', 'No video URL'));
+    wrapper.appendChild(createVideoMessage('video-placeholder', translate('editor.video.noUrl')));
     return wrapper;
   }
 
   if (!parsed) {
-    wrapper.appendChild(createVideoMessage('video-error', `Unsupported video URL: ${attrs.src}`));
+    wrapper.appendChild(createVideoMessage('video-error', translate('editor.video.unsupportedUrl', { url: attrs.src })));
     return wrapper;
   }
 
   if (isPublicRemoteMediaUrl(parsed.embedUrl)) {
-    wrapper.appendChild(createVideoMessage('video-placeholder', 'Remote video blocked'));
+    wrapper.appendChild(createVideoMessage('video-placeholder', translate('editor.video.remoteBlocked')));
     wrapper.appendChild(createVideoExternalAction(attrs.src));
     return wrapper;
   }

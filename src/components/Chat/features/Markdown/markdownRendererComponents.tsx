@@ -9,7 +9,7 @@ import { downloadImageWithPrompt } from '@/components/Chat/common/imageDownload'
 import { ChatImageViewer } from './components/ChatImageViewer';
 import { CodeBlock } from './components/CodeBlock';
 import { normalizeRenderableImageSrc } from './imagePolicy';
-import { useI18n } from '@/lib/i18n';
+import { translate, useI18n } from '@/lib/i18n';
 
 type ImageGalleryItem = { id: string; src: string };
 
@@ -279,7 +279,7 @@ export function createMarkdownComponents({
       if (!safeSrc) {
         return (
           <span className="inline-block rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-500 dark:bg-zinc-800 dark:text-gray-400">
-            [Image unavailable]
+            [{translate('chat.imageUnavailable')}]
           </span>
         );
       }

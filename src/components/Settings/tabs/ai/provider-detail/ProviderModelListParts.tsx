@@ -229,6 +229,8 @@ export function ModelSearchInput({
 }
 
 function HealthBadge({ health }: { health?: HealthStatus }) {
+  const { t } = useI18n();
+
   if (!health) return null;
 
   if (health.status === 'loading') {
@@ -251,7 +253,7 @@ function HealthBadge({ health }: { health?: HealthStatus }) {
 
   return (
     <span className="rounded-full bg-red-100 px-2 py-1 text-[10px] font-medium text-red-700" title={health.error}>
-      Failed
+      {t('settings.ai.failed')}
     </span>
   );
 }

@@ -173,7 +173,7 @@ export const LanguageSelector = React.memo(function LanguageSelector({
                         })
                     ) : (
                         <div className="px-4 py-8 text-center text-xs text-gray-400 italic">
-                            No languages found
+                            {t('editor.noLanguagesFound')}
                         </div>
                     )}
                 </div>

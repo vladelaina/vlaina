@@ -101,7 +101,7 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
           {hasFetchedModels ? (
             <div className="flex flex-wrap items-center gap-2">
               <ActionButton
-                label={props.isFetchingModels ? 'Fetching...' : 'Fetch'}
+                label={props.isFetchingModels ? t('settings.ai.fetching') : t('settings.ai.fetch')}
                 icon="common.download"
                 disabled={!props.canUseConnectionActions || props.isFetchingModels}
                 onClick={() => {
@@ -109,7 +109,7 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                 }}
               />
               <ActionButton
-                label={props.benchmarkAllActive ? 'Stop Benchmark' : 'Benchmark All'}
+                label={props.benchmarkAllActive ? t('settings.ai.stopBenchmark') : t('settings.ai.benchmarkAll')}
                 icon="misc.activity"
                 muted
                 disabled={!props.canBenchmark && !props.benchmarkAllActive}
@@ -135,7 +135,7 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                 ) : (
                   <Icon name="common.download" size="xs" />
                 )}
-                {props.isFetchingModels ? 'Fetching...' : 'Fetch'}
+                {props.isFetchingModels ? t('settings.ai.fetching') : t('settings.ai.fetch')}
               </button>
             </div>
           )}
@@ -170,11 +170,11 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-3">
                 <SectionHeader
-                  label="Selected"
+                  label={t('settings.ai.selectedModels')}
                   disabled={!props.canBenchmarkSelected}
                   busy={props.selectedBenchmarkActive}
                   onBenchmark={props.onBenchmarkSelected}
-                  actionLabel={hasActiveQuery ? 'Remove visible' : 'Remove all'}
+                  actionLabel={hasActiveQuery ? t('settings.ai.removeVisible') : t('settings.ai.removeAll')}
                   actionDisabled={selectedModels.length === 0}
                   onAction={handleRemoveVisibleSelectedModels}
                 />
@@ -190,17 +190,17 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                       trailing={null}
                     />
                   )}
-                  emptyState="No selected models"
+                  emptyState={t('settings.ai.noSelectedModels')}
                 />
               </div>
 
               <div className="space-y-3">
                 <SectionHeader
-                  label="Available"
+                  label={t('settings.ai.availableModels')}
                   disabled={!props.canBenchmarkAvailable}
                   busy={props.availableBenchmarkActive}
                   onBenchmark={props.onBenchmarkAvailable}
-                  actionLabel={hasActiveQuery ? 'Add visible' : 'Add all'}
+                  actionLabel={hasActiveQuery ? t('settings.ai.addVisible') : t('settings.ai.addAll')}
                   actionDisabled={availableModels.length === 0}
                   onAction={handleAddVisibleAvailableModels}
                 />
@@ -217,7 +217,7 @@ export function ProviderModelsPanel(props: ProviderModelsPanelProps) {
                       trailing={null}
                     />
                   )}
-                  emptyState="No available models"
+                  emptyState={t('settings.ai.noAvailableModels')}
                 />
               </div>
             </div>

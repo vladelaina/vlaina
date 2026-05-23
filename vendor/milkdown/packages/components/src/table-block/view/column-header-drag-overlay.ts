@@ -1,4 +1,5 @@
 import { h, type VNode } from 'vue'
+import { translate, type MessageKey } from '@/lib/i18n'
 
 import type {
   ColumnHeaderControl,
@@ -9,7 +10,7 @@ import type {
 } from './column-header-drag-state'
 
 type MenuEntry =
-  | { type: 'item'; action: ColumnMenuAction; label: string; danger?: boolean }
+  | { type: 'item'; action: ColumnMenuAction; labelKey: MessageKey; danger?: boolean }
   | { type: 'divider' }
 
 type ColumnHeaderDragOverlayProps = {
@@ -31,11 +32,11 @@ type ColumnHeaderDragOverlayProps = {
 }
 
 const menuEntries: MenuEntry[] = [
-  { type: 'item', action: 'insert-col-left', label: 'Insert column left' },
-  { type: 'item', action: 'insert-col-right', label: 'Insert column right' },
+  { type: 'item', action: 'insert-col-left', labelKey: 'editor.table.insertColumnLeft' },
+  { type: 'item', action: 'insert-col-right', labelKey: 'editor.table.insertColumnRight' },
   { type: 'divider' },
-  { type: 'item', action: 'clear-col-content', label: 'Delete content' },
-  { type: 'item', action: 'delete-col', label: 'Delete column', danger: true },
+  { type: 'item', action: 'clear-col-content', labelKey: 'editor.table.deleteColumnContent' },
+  { type: 'item', action: 'delete-col', labelKey: 'editor.table.deleteColumn', danger: true },
 ]
 
 function renderMenuEntry(
@@ -67,7 +68,7 @@ function renderMenuEntry(
         props.onMenuAction(entry.action)
       },
     },
-    entry.label
+    translate(entry.labelKey)
   )
 }
 
@@ -87,7 +88,7 @@ function renderControl(
       'data-role': 'col-header-drag-control',
       class: 'column-header-drag-control',
       'data-active': control.active ? 'true' : 'false',
-      'aria-label': `Column ${control.index + 1} handle`,
+      'aria-label': translate('editor.table.columnHandle', { number: control.index + 1 }),
       'aria-haspopup': 'menu',
       'aria-controls': props.menuId,
       'aria-expanded':
@@ -148,7 +149,7 @@ export function renderColumnHeaderDragOverlay(
               'data-role': 'col-header-drag-menu',
               role: 'menu',
               'aria-orientation': 'vertical',
-              class: 'column-header-drag-menu',
+              class: ['column-header-drag-menu', 'vlaina-sidebar-menu-surface'],
               style: {
                 left: `${props.menuState.left}px`,
                 top: `${props.menuState.top}px`,
