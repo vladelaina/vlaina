@@ -346,6 +346,50 @@ describe('toolbar interactions', () => {
     delegation.destroy();
   });
 
+  it('suppresses copied code block selection on pointer down before click runs', () => {
+    const toolbar = document.createElement('div');
+    const copyButton = document.createElement('button');
+    const view = {
+      dom: document.createElement('div'),
+    } as any;
+    copyButton.dataset.action = 'copy';
+    toolbar.append(copyButton);
+    document.body.appendChild(toolbar);
+
+    const delegation = createToolbarEventDelegation(toolbar);
+    delegation.update(view, {} as any);
+
+    copyButton.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+
+    expect(view.dom.classList.contains('vlaina-toolbar-copy-feedback-active')).toBe(true);
+
+    delegation.destroy();
+  });
+
+  it('clears prepared copy suppression after pointer up when no click runs', async () => {
+    const toolbar = document.createElement('div');
+    const copyButton = document.createElement('button');
+    const view = {
+      dom: document.createElement('div'),
+    } as any;
+    copyButton.dataset.action = 'copy';
+    toolbar.append(copyButton);
+    document.body.appendChild(toolbar);
+
+    const delegation = createToolbarEventDelegation(toolbar);
+    delegation.update(view, {} as any);
+
+    copyButton.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    expect(view.dom.classList.contains('vlaina-toolbar-copy-feedback-active')).toBe(true);
+
+    document.dispatchEvent(new Event('pointerup'));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(view.dom.classList.contains('vlaina-toolbar-copy-feedback-active')).toBe(false);
+
+    delegation.destroy();
+  });
+
   it('previews only active link buttons because inactive links open the editor instead', () => {
     const toolbar = document.createElement('div');
     const inactiveLink = document.createElement('button');

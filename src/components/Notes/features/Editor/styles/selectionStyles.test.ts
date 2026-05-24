@@ -648,19 +648,22 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).toContain(
       ".milkdown .code-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {"
     );
+    expect(css).toContain(
+      ".milkdown .ProseMirror.vlaina-toolbar-copy-feedback-active .code-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {"
+    );
     expect(css).toContain('.milkdown .code-block-container.ProseMirror-selectednode .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,');
-    expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,');
-    expect(css).toContain(".milkdown .code-block-container[data-pm-selected='true'] .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {");
+    expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {');
+    expect(css).not.toContain(".milkdown .code-block-container[data-pm-selected='true'] .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {");
     expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected .cm-editor,');
     expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected .cm-scroller,');
     expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected .cm-content,');
     expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected .cm-line,');
     expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected .cm-activeLine,');
-    expect(css).toContain(".milkdown .code-block-container[data-pm-selected='true'] .cm-gutter-filler {");
+    expect(css).not.toContain(".milkdown .code-block-container[data-pm-selected='true'] .cm-gutter-filler");
     expect(css).toContain('.milkdown .code-block-container.ProseMirror-selectednode .vlaina-code-block-header,');
     expect(css).toContain('.milkdown .code-block-container.ProseMirror-selectednode .code-block-editable,');
     expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected .code-block-lazy-preview,');
-    expect(css).toContain(".milkdown .code-block-container[data-pm-selected='true'] .code-block-lazy-line-numbers {");
+    expect(css).not.toContain(".milkdown .code-block-container[data-pm-selected='true'] .code-block-lazy-line-numbers");
     expect(css).toContain('.milkdown .code-block-container.vlaina-block-selected-contained {');
     expect(css).not.toContain('.milkdown .ProseMirror li.vlaina-block-selected > .code-block-container {');
     expect(css).not.toContain('.milkdown .ProseMirror li.vlaina-block-selected > .code-block-container::before {');

@@ -11,6 +11,12 @@ import { TOOLBAR_ACTIONS, type FloatingToolbarState } from './types';
 type ToolbarActionHandler = (view: EditorView) => boolean | Promise<boolean>;
 type ToggleableSubMenu = 'ai' | 'color' | 'block' | 'alignment';
 
+const COPY_FEEDBACK_SELECTION_SUPPRESS_CLASS = 'vlaina-toolbar-copy-feedback-active';
+
+function setCopyFeedbackSelectionSuppression(view: EditorView, active: boolean): void {
+  view.dom.classList.toggle(COPY_FEEDBACK_SELECTION_SUPPRESS_CLASS, active);
+}
+
 function getSelectedCodeBlockDom(view: EditorView, from: number, to: number): HTMLElement | null {
   let codeBlockDom: HTMLElement | null = null;
 
@@ -99,6 +105,8 @@ function dispatchSubMenuToggle(
 }
 
 export interface ToolbarActionController {
+  prepareAction: (view: EditorView, action: string) => void;
+  cancelPreparedAction: (action: string) => void;
   handleAction: (view: EditorView, action: string) => Promise<boolean>;
   destroy: () => void;
 }
@@ -120,6 +128,44 @@ export function createToolbarActionController(
   options: ToolbarActionControllerOptions = {}
 ): ToolbarActionController {
   let copyFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
+  let copyFeedbackView: EditorView | null = null;
+  let preparedCopyView: EditorView | null = null;
+
+  const clearCopyFeedbackTimer = () => {
+    if (copyFeedbackTimer) {
+      clearTimeout(copyFeedbackTimer);
+      copyFeedbackTimer = null;
+    }
+    if (copyFeedbackView) {
+      setCopyFeedbackSelectionSuppression(copyFeedbackView, false);
+      copyFeedbackView = null;
+    }
+    preparedCopyView = null;
+  };
+
+  const beginCopyFeedbackSelectionSuppression = (view: EditorView) => {
+    if (copyFeedbackTimer) {
+      clearTimeout(copyFeedbackTimer);
+      copyFeedbackTimer = null;
+    }
+    if (copyFeedbackView && copyFeedbackView !== view) {
+      setCopyFeedbackSelectionSuppression(copyFeedbackView, false);
+    }
+    copyFeedbackView = view;
+    setCopyFeedbackSelectionSuppression(view, true);
+  };
+
+  const cancelPreparedCopySuppression = () => {
+    if (!preparedCopyView || copyFeedbackTimer) {
+      preparedCopyView = null;
+      return;
+    }
+    if (copyFeedbackView === preparedCopyView) {
+      setCopyFeedbackSelectionSuppression(preparedCopyView, false);
+      copyFeedbackView = null;
+    }
+    preparedCopyView = null;
+  };
 
   const markActions: Record<string, string> = {
     bold: 'strong',
@@ -180,8 +226,12 @@ export function createToolbarActionController(
       return false;
     },
     copy: async (view) => {
+      preparedCopyView = null;
+      beginCopyFeedbackSelectionSuppression(view);
+
       const copied = await copySelectionToClipboard(view, { collapseAfterCopy: false });
       if (!copied) {
+        clearCopyFeedbackTimer();
         return false;
       }
 
@@ -192,13 +242,17 @@ export function createToolbarActionController(
         })
       );
 
-      if (copyFeedbackTimer) {
-        clearTimeout(copyFeedbackTimer);
-      }
-
       copyFeedbackTimer = setTimeout(() => {
         copyFeedbackTimer = null;
         collapseSelectionAndHideFloatingToolbar(view);
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            setCopyFeedbackSelectionSuppression(view, false);
+            if (copyFeedbackView === view) {
+              copyFeedbackView = null;
+            }
+          });
+        });
       }, NOTES_COPY_FEEDBACK_DURATION_MS);
       return false;
     },
@@ -225,6 +279,17 @@ export function createToolbarActionController(
   };
 
   return {
+    prepareAction(view, action) {
+      if (action === 'copy') {
+        preparedCopyView = view;
+        beginCopyFeedbackSelectionSuppression(view);
+      }
+    },
+    cancelPreparedAction(action) {
+      if (action === 'copy') {
+        cancelPreparedCopySuppression();
+      }
+    },
     async handleAction(view, action) {
       const handler = actionHandlers[action];
       if (!handler) {
@@ -234,10 +299,7 @@ export function createToolbarActionController(
       return handler(view);
     },
     destroy() {
-      if (copyFeedbackTimer) {
-        clearTimeout(copyFeedbackTimer);
-        copyFeedbackTimer = null;
-      }
+      clearCopyFeedbackTimer();
     },
   };
 }

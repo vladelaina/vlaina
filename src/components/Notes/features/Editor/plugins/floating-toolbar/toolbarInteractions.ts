@@ -89,19 +89,45 @@ export function createToolbarEventDelegation(
       return;
     }
 
+    const button = target.closest('[data-action]') as HTMLElement | null;
+    const action = button?.dataset.action;
+    if (action && currentView) {
+      actionController.prepareAction(currentView, action);
+    }
+
     if (toolbarElement.contains(target)) {
       e.preventDefault();
       e.stopPropagation();
       return;
     }
 
-    const button = target.closest('[data-action]') as HTMLElement | null;
     if (!button) {
       return;
     }
 
     e.preventDefault();
     e.stopPropagation();
+  };
+
+  const handlePointerDown = (e: Event) => {
+    const target = e.target as HTMLElement;
+    const button = target.closest('[data-action]') as HTMLElement | null;
+    const action = button?.dataset.action;
+    if (action && currentView) {
+      actionController.prepareAction(currentView, action);
+    }
+    if (action === 'copy') {
+      let didClear = false;
+      const clearPreparedAction = () => {
+        if (didClear) return;
+        didClear = true;
+        document.removeEventListener('pointerup', clearPreparedAction);
+        document.removeEventListener('pointercancel', clearPreparedAction);
+        setTimeout(() => actionController.cancelPreparedAction(action), 0);
+      };
+      document.addEventListener('pointerup', clearPreparedAction);
+      document.addEventListener('pointercancel', clearPreparedAction);
+    }
   };
 
   const handleClick = (e: Event) => {
@@ -224,6 +250,7 @@ export function createToolbarEventDelegation(
     hideTooltip();
   };
 
+  toolbarElement.addEventListener('pointerdown', handlePointerDown);
   toolbarElement.addEventListener('mousedown', handleMouseDown);
   toolbarElement.addEventListener('click', handleClick);
   toolbarElement.addEventListener('mouseover', handleMouseOver);
@@ -242,6 +269,7 @@ export function createToolbarEventDelegation(
       hideTooltip();
     },
     destroy() {
+      toolbarElement.removeEventListener('pointerdown', handlePointerDown);
       toolbarElement.removeEventListener('mousedown', handleMouseDown);
       toolbarElement.removeEventListener('click', handleClick);
       toolbarElement.removeEventListener('mouseover', handleMouseOver);

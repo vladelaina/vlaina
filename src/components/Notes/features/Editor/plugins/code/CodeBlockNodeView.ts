@@ -72,6 +72,7 @@ export class CodeBlockNodeView implements NodeView {
   private wrapStateKey = '';
   private collapsedState: boolean | null = null;
   private findHighlightStateKey = '[]';
+  private mirroredOuterSelection = false;
 
   private readonly clearEditorSelectionOnBlur = () => {
     if (!this.cm) {
@@ -379,6 +380,7 @@ export class CodeBlockNodeView implements NodeView {
     const nodePos = this.getPos();
     if (nodePos === undefined) {
       this.dom.dataset.pmSelected = 'false';
+      this.clearMirroredOuterSelection();
       return;
     }
 
@@ -392,6 +394,7 @@ export class CodeBlockNodeView implements NodeView {
     this.dom.dataset.pmSelected = shouldMirrorOuterSelection ? 'true' : 'false';
 
     if (!shouldMirrorOuterSelection || this.node.attrs.collapsed) {
+      this.clearMirroredOuterSelection();
       return;
     }
     this.initializeCodeMirror();
@@ -411,7 +414,30 @@ export class CodeBlockNodeView implements NodeView {
       },
     });
     this.updating = false;
+    this.mirroredOuterSelection = true;
   };
+
+  private clearMirroredOuterSelection() {
+    if (!this.mirroredOuterSelection || !this.cm || this.cm.hasFocus) {
+      if (!this.cm?.hasFocus) {
+        this.mirroredOuterSelection = false;
+      }
+      return;
+    }
+
+    const { main } = this.cm.state.selection;
+    if (!main.empty) {
+      this.updating = true;
+      this.cm.dispatch({
+        selection: {
+          anchor: main.head,
+          head: main.head,
+        },
+      });
+      this.updating = false;
+    }
+    this.mirroredOuterSelection = false;
+  }
 
   private scheduleMeasure() {
     if (!this.cm) {

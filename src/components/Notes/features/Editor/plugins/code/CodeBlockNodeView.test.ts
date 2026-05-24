@@ -424,6 +424,28 @@ describe('CodeBlockNodeView', () => {
     nodeView.destroy();
   });
 
+  it('clears mirrored CodeMirror selections when the outer selection collapses', () => {
+    const node = createMockNodeWithText('const a = 1;');
+    const view = createMockView();
+    view.state.selection = createMockSelection(1, node.textContent.length + 1) as never;
+    const nodeView = new CodeBlockNodeView(node, view, () => 0);
+    const cm = getCodeMirror(nodeView);
+
+    nodeView.update(node);
+    expect(nodeView.dom.dataset.pmSelected).toBe('true');
+    expect(cm.state.selection.main.empty).toBe(false);
+
+    view.state.selection = createMockSelection(node.textContent.length + 1, node.textContent.length + 1) as never;
+    syncProseMirrorSelection(nodeView);
+
+    expect(nodeView.dom.dataset.pmSelected).toBe('false');
+    expect(cm.state.selection.main.anchor).toBe(node.textContent.length);
+    expect(cm.state.selection.main.head).toBe(node.textContent.length);
+    expect(cm.state.selection.main.empty).toBe(true);
+
+    nodeView.destroy();
+  });
+
   it('collapses the embedded editor selection when the code block loses focus', () => {
     const nodeView = new CodeBlockNodeView(createMockNode(false), createMockView(), () => 1);
     const cm = getCodeMirror(nodeView);
