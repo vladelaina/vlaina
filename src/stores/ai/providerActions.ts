@@ -7,6 +7,7 @@ import {
   fetchManagedModelsVersion,
   isManagedProviderId,
 } from '@/lib/ai/managedService'
+import { useAccountSessionStore } from '../accountSession'
 import { useManagedAIStore } from '../useManagedAIStore'
 import { useUnifiedStore } from '../unified/useUnifiedStore'
 import { createChatActions } from './chatActions'
@@ -24,6 +25,13 @@ let managedModelsRefreshInFlight: Promise<void> | null = null;
 let managedModelsLastRefreshAttemptAt = 0;
 let managedModelsLastForcedRefreshAttemptAt = 0;
 let managedModelsCatalogVersion: string | null = null;
+
+async function refreshManagedBudgetIfConnected(): Promise<void> {
+  if (!useAccountSessionStore.getState().isConnected) {
+    return;
+  }
+  await useManagedAIStore.getState().refreshBudget();
+}
 
 async function syncManagedProviderModels(options: { refreshBudget?: boolean; suppressPersist?: boolean } = {}): Promise<void> {
   const catalog = await fetchManagedModelCatalog()
@@ -54,7 +62,7 @@ async function syncManagedProviderModels(options: { refreshBudget?: boolean; sup
   }
 
   if (options.refreshBudget) {
-    await useManagedAIStore.getState().refreshBudget()
+    await refreshManagedBudgetIfConnected()
   }
 }
 
@@ -106,15 +114,26 @@ function refreshManagedProviderInBackground(options: { force?: boolean } = {}): 
 async function syncManagedProviderModelsFromStartup(
   options: { refreshBudget?: boolean; suppressPersist?: boolean } = {}
 ): Promise<void> {
+  const now = Date.now();
   if (managedModelsRefreshInFlight) {
     await managedModelsRefreshInFlight;
     if (options.refreshBudget) {
-      await useManagedAIStore.getState().refreshBudget();
+      await refreshManagedBudgetIfConnected();
     }
     return;
   }
 
-  managedModelsLastRefreshAttemptAt = Date.now();
+  if (
+    managedModelsLastRefreshAttemptAt > 0 &&
+    now - managedModelsLastRefreshAttemptAt < MANAGED_MODELS_REFRESH_MIN_INTERVAL_MS
+  ) {
+    if (options.refreshBudget) {
+      await refreshManagedBudgetIfConnected();
+    }
+    return;
+  }
+
+  managedModelsLastRefreshAttemptAt = now;
   await syncManagedProviderModels(options);
 }
 

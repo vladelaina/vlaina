@@ -15,7 +15,7 @@ afterEach(() => {
 });
 
 describe('ManagedQuotaMeter', () => {
-  it('shows a loading meter and refreshes when budget is missing', async () => {
+  it('stays hidden and refreshes when budget is missing', async () => {
     const refreshBudgetIfStale = vi.fn().mockResolvedValue(undefined);
     act(() => {
       useManagedAIStore.setState({
@@ -37,9 +37,67 @@ describe('ManagedQuotaMeter', () => {
 
     render(<ManagedQuotaMeter />);
 
-    expect(screen.getByLabelText('Managed AI quota loading')).toBeInTheDocument();
-    expect(screen.getByTestId('managed-quota-loading-bar')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Managed AI quota loading')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('managed-quota-loading-bar')).not.toBeInTheDocument();
     expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+    await waitFor(() => expect(refreshBudgetIfStale).toHaveBeenCalledTimes(1));
+  });
+
+  it('does not refresh budget while the account is signed out', () => {
+    const refreshBudgetIfStale = vi.fn().mockResolvedValue(undefined);
+    act(() => {
+      useManagedAIStore.setState({
+        ...originalState,
+        budget: null,
+        isRefreshingBudget: false,
+        budgetError: null,
+        lastBudgetSyncAt: null,
+        lastBudgetAttemptAt: null,
+        refreshBudgetIfStale,
+      }, true);
+      useAccountSessionStore.setState({
+        ...initialAccountSessionState,
+        isLoading: false,
+        hasCheckedStatus: true,
+        isConnected: false,
+      });
+    });
+
+    render(<ManagedQuotaMeter />);
+
+    expect(refreshBudgetIfStale).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText(/Managed AI quota/)).not.toBeInTheDocument();
+  });
+
+  it('stays hidden when the budget exists but the remaining percentage is missing', async () => {
+    const refreshBudgetIfStale = vi.fn().mockResolvedValue(undefined);
+    act(() => {
+      useManagedAIStore.setState({
+        ...originalState,
+        budget: {
+          active: true,
+          usedPercent: 58,
+          remainingPercent: Number.NaN,
+          status: 'active',
+        },
+        isRefreshingBudget: false,
+        budgetError: null,
+        lastBudgetSyncAt: Date.now(),
+        lastBudgetAttemptAt: Date.now(),
+        refreshBudgetIfStale,
+      }, true);
+      useAccountSessionStore.setState({
+        ...initialAccountSessionState,
+        isLoading: false,
+        hasCheckedStatus: true,
+        isConnected: true,
+      });
+    });
+
+    render(<ManagedQuotaMeter />);
+
+    expect(screen.queryByText(/%/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Managed AI quota/)).not.toBeInTheDocument();
     await waitFor(() => expect(refreshBudgetIfStale).toHaveBeenCalledTimes(1));
   });
 

@@ -35,4 +35,6 @@ export interface ManagedBudgetPayload {
   usedPercent?: unknown;
   remainingPercent?: unknown;
   status?: unknown;
+  data?: unknown;
+  budget?: unknown;
 }

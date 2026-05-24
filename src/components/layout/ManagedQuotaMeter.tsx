@@ -14,50 +14,42 @@ export function ManagedQuotaMeter({ className }: ManagedQuotaMeterProps) {
   const isRefreshingBudget = useManagedAIStore(s => s.isRefreshingBudget);
   const budgetError = useManagedAIStore(s => s.budgetError);
   const refreshBudgetIfStale = useManagedAIStore(s => s.refreshBudgetIfStale);
+  const accountIsConnected = useAccountSessionStore(s => s.isConnected);
   const accountIsLoading = useAccountSessionStore(s => s.isLoading);
   const accountHasCheckedStatus = useAccountSessionStore(s => s.hasCheckedStatus);
 
   useEffect(() => {
-    if (accountIsLoading || !accountHasCheckedStatus) {
+    if (!accountIsConnected || accountIsLoading || !accountHasCheckedStatus) {
       return;
     }
     void refreshBudgetIfStale();
-  }, [accountHasCheckedStatus, accountIsLoading, budget, budgetError, isRefreshingBudget, refreshBudgetIfStale]);
+  }, [accountHasCheckedStatus, accountIsConnected, accountIsLoading, budget, budgetError, isRefreshingBudget, refreshBudgetIfStale]);
 
-  const remainingPercent = budget ? Math.max(0, budget.remainingPercent || 0) : null;
+  const rawRemainingPercent = budget ? Number(budget.remainingPercent) : Number.NaN;
+  const remainingPercent = Number.isFinite(rawRemainingPercent) ? Math.max(0, rawRemainingPercent) : null;
   const progressPercent = remainingPercent == null ? 0 : Math.min(100, remainingPercent);
   const progressWidth = `${progressPercent}%`;
-  const quotaLabel = remainingPercent == null ? undefined : `${remainingPercent.toFixed(0)}%`;
-  const isBudgetPending = remainingPercent == null;
+
+  if (remainingPercent == null) {
+    return null;
+  }
+
+  const quotaLabel = `${remainingPercent.toFixed(0)}%`;
 
   return (
     <div
       className={cn('group/quota mt-1 flex items-center gap-2', className)}
-      aria-label={quotaLabel
-        ? t('billing.managedQuotaRemaining', { quota: quotaLabel })
-        : t('billing.managedQuotaLoading')}
+      aria-label={t('billing.managedQuotaRemaining', { quota: quotaLabel })}
     >
       <div className="min-w-0 flex-1">
         <div className="h-1.5 overflow-hidden rounded-full bg-[#e9e6df]">
-          {isBudgetPending ? (
-            <div
-              className={cn(
-                'h-full w-2/5 animate-pulse rounded-full',
-                budgetError && !isRefreshingBudget
-                  ? 'bg-[var(--vlaina-border)]'
-                  : 'bg-gradient-to-r from-[#bbf7d0] via-[#4ade80] to-[#bbf7d0]'
-              )}
-              data-testid="managed-quota-loading-bar"
-            />
-          ) : (
-            <div
-              className={cn(
-                'h-full rounded-full transition-all',
-                budgetError ? 'bg-[var(--vlaina-border)]' : 'bg-[#4ade80]'
-              )}
-              style={{ width: progressWidth }}
-            />
-          )}
+          <div
+            className={cn(
+              'h-full rounded-full transition-all',
+              budgetError && !isRefreshingBudget ? 'bg-[var(--vlaina-border)]' : 'bg-[#4ade80]'
+            )}
+            style={{ width: progressWidth }}
+          />
         </div>
       </div>
       {quotaLabel ? (

@@ -64,7 +64,7 @@ export function AccountEmailCodeCard({
           placeholder={t('account.emailAddress')}
           disabled={disabled || isLoading}
           className={cn(
-            "h-14 w-full rounded-full px-5 py-3 text-[14px] font-medium text-zinc-950 transition-all duration-200 outline-none sm:h-[60px] sm:px-6 sm:py-3.5 sm:text-[15px] md:h-16",
+            "h-14 w-full rounded-full px-5 py-3 text-center text-[14px] font-medium text-zinc-950 transition-all duration-200 outline-none sm:h-[60px] sm:px-6 sm:py-3.5 sm:text-[15px] md:h-16",
             "placeholder:text-zinc-400 dark:placeholder:text-zinc-500",
             "focus:ring-2 focus:ring-[var(--vlaina-accent)]/20",
             "disabled:cursor-not-allowed disabled:opacity-50",

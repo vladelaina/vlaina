@@ -8,6 +8,18 @@ type Get = StoreApi<AccountSessionState & AccountSessionActions>['getState'];
 
 export const AUTH_STATE_STORAGE_KEY = 'vlaina_auth_state';
 export const AUTH_PROVIDER_STORAGE_KEY = 'vlaina_auth_provider';
+export const ACCOUNT_USER_BROADCAST_CHANNEL = 'vlaina_account_identity';
+export const ACCOUNT_USER_BROADCAST_TYPE = 'account-identity-updated';
+
+export interface PersistedAccountIdentity {
+  isConnected: boolean;
+  provider: AccountProvider | null;
+  username: string | null;
+  primaryEmail: string | null;
+  avatarUrl: string | null;
+  membershipTier: MembershipTier | null;
+  membershipName: string | null;
+}
 
 export function normalizeAuthError(raw: string): string {
   const message = raw.trim();
@@ -28,19 +40,59 @@ export function normalizeAuthError(raw: string): string {
   return message;
 }
 
-export function persistUser(data: {
-  isConnected: boolean;
-  provider: AccountProvider | null;
-  username: string | null;
-  primaryEmail: string | null;
-  avatarUrl: string | null;
-  membershipTier: MembershipTier | null;
-  membershipName: string | null;
-}) {
+function broadcastPersistedUser(data: PersistedAccountIdentity): void {
+  if (typeof BroadcastChannel === 'undefined') {
+    return;
+  }
+
+  let channel: BroadcastChannel | null = null;
+  try {
+    channel = new BroadcastChannel(ACCOUNT_USER_BROADCAST_CHANNEL);
+    channel.postMessage({
+      type: ACCOUNT_USER_BROADCAST_TYPE,
+      identity: data,
+    });
+  } catch {
+  } finally {
+    channel?.close();
+  }
+}
+
+export function normalizePersistedUser(value: unknown): Partial<AccountSessionState> {
+  if (!value || typeof value !== 'object') {
+    return {};
+  }
+
+  const parsed = value as Partial<AccountSessionState>;
+  const provider = parsed.provider === 'google' || parsed.provider === 'email'
+    ? parsed.provider
+    : null;
+  const membershipTier =
+    parsed.membershipTier === 'free' ||
+    parsed.membershipTier === 'plus' ||
+    parsed.membershipTier === 'pro' ||
+    parsed.membershipTier === 'max' ||
+    parsed.membershipTier === 'ultra'
+      ? parsed.membershipTier
+      : null;
+
+  return {
+    isConnected: parsed.isConnected === true,
+    provider,
+    username: typeof parsed.username === 'string' ? parsed.username : null,
+    primaryEmail: typeof parsed.primaryEmail === 'string' ? parsed.primaryEmail : null,
+    avatarUrl: typeof parsed.avatarUrl === 'string' ? parsed.avatarUrl : null,
+    membershipTier,
+    membershipName: typeof parsed.membershipName === 'string' ? parsed.membershipName : null,
+  };
+}
+
+export function persistUser(data: PersistedAccountIdentity) {
   try {
     localStorage.setItem(ACCOUNT_USER_PERSIST_KEY, JSON.stringify(data));
   } catch {
   }
+  broadcastPersistedUser(data);
 }
 
 export function loadPersistedUser(): Partial<AccountSessionState> {
@@ -50,28 +102,7 @@ export function loadPersistedUser(): Partial<AccountSessionState> {
       return {};
     }
 
-    const parsed = JSON.parse(raw) as Partial<AccountSessionState>;
-    const provider = parsed.provider === 'google' || parsed.provider === 'email'
-      ? parsed.provider
-      : null;
-    const membershipTier =
-      parsed.membershipTier === 'free' ||
-      parsed.membershipTier === 'plus' ||
-      parsed.membershipTier === 'pro' ||
-      parsed.membershipTier === 'max' ||
-      parsed.membershipTier === 'ultra'
-        ? parsed.membershipTier
-        : null;
-
-    return {
-      isConnected: parsed.isConnected === true,
-      provider,
-      username: typeof parsed.username === 'string' ? parsed.username : null,
-      primaryEmail: typeof parsed.primaryEmail === 'string' ? parsed.primaryEmail : null,
-      avatarUrl: typeof parsed.avatarUrl === 'string' ? parsed.avatarUrl : null,
-      membershipTier,
-      membershipName: typeof parsed.membershipName === 'string' ? parsed.membershipName : null,
-    };
+    return normalizePersistedUser(JSON.parse(raw));
   } catch {
     return {};
   }

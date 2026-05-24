@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { actions } from './providerActions';
+import { actions, managedProviderSync } from './providerActions';
 import { useUnifiedStore } from '../unified/useUnifiedStore';
+import { useAccountSessionStore } from '../accountSession';
+import { useManagedAIStore } from '../useManagedAIStore';
 import type { AIModel, Provider } from '@/lib/ai/types';
 
 const { fetchManagedModelsMock, fetchManagedModelsVersionMock } = vi.hoisted(() => ({
@@ -9,6 +11,7 @@ const { fetchManagedModelsMock, fetchManagedModelsVersionMock } = vi.hoisted(() 
 }));
 
 let managedRefreshTestNow = 1_700_000_000_000;
+const originalRefreshBudget = useManagedAIStore.getState().refreshBudget;
 
 vi.mock('@/lib/storage/unifiedStorage', () => ({
   loadUnifiedData: vi.fn(async () => ({
@@ -205,6 +208,8 @@ describe('refreshManagedProviderInBackground', () => {
     vi.setSystemTime(managedRefreshTestNow);
     fetchManagedModelsMock.mockReset();
     fetchManagedModelsVersionMock.mockReset();
+    useManagedAIStore.setState({ refreshBudget: originalRefreshBudget });
+    useAccountSessionStore.setState({ isConnected: false });
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     seedAI([
       buildProvider({
@@ -224,6 +229,8 @@ describe('refreshManagedProviderInBackground', () => {
   });
 
   afterEach(() => {
+    useManagedAIStore.setState({ refreshBudget: originalRefreshBudget });
+    useAccountSessionStore.setState({ isConnected: false });
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
@@ -377,6 +384,62 @@ describe('refreshManagedProviderInBackground', () => {
 
     expect(fetchManagedModelsVersionMock).toHaveBeenCalledTimes(1);
     expect(fetchManagedModelsMock).not.toHaveBeenCalled();
+  });
+
+  it('throttles repeated startup syncs after the first catalog refresh', async () => {
+    vi.setSystemTime(managedRefreshTestNow + 10 * 60 * 1000);
+    fetchManagedModelsMock.mockResolvedValue(buildCatalog([
+      buildModel({
+        id: 'vlaina-managed::startup-model',
+        apiModelId: 'startup-model',
+        name: 'Startup Model',
+        providerId: 'vlaina-managed',
+      }),
+    ]));
+
+    await managedProviderSync.syncFromStartup();
+    await managedProviderSync.syncFromStartup();
+
+    expect(fetchManagedModelsMock).toHaveBeenCalledTimes(1);
+    expect(useUnifiedStore.getState().data.ai?.models.map((model) => model.apiModelId)).toEqual(['startup-model']);
+  });
+
+  it('does not refresh the managed budget during model sync while signed out', async () => {
+    const refreshBudget = vi.fn(async () => undefined);
+    useManagedAIStore.setState({ refreshBudget });
+    useAccountSessionStore.setState({ isConnected: false });
+    fetchManagedModelsMock.mockResolvedValue(buildCatalog([
+      buildModel({
+        id: 'vlaina-managed::public-model',
+        apiModelId: 'public-model',
+        name: 'Public Model',
+        providerId: 'vlaina-managed',
+      }),
+    ]));
+
+    await actions.refreshManagedProvider();
+
+    expect(fetchManagedModelsMock).toHaveBeenCalledTimes(1);
+    expect(refreshBudget).not.toHaveBeenCalled();
+  });
+
+  it('refreshes the managed budget during model sync when signed in', async () => {
+    const refreshBudget = vi.fn(async () => undefined);
+    useManagedAIStore.setState({ refreshBudget });
+    useAccountSessionStore.setState({ isConnected: true });
+    fetchManagedModelsMock.mockResolvedValue(buildCatalog([
+      buildModel({
+        id: 'vlaina-managed::public-model',
+        apiModelId: 'public-model',
+        name: 'Public Model',
+        providerId: 'vlaina-managed',
+      }),
+    ]));
+
+    await actions.refreshManagedProvider();
+
+    expect(fetchManagedModelsMock).toHaveBeenCalledTimes(1);
+    expect(refreshBudget).toHaveBeenCalledTimes(1);
   });
 });
 

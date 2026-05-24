@@ -19,6 +19,8 @@ const ToastContainer = lazy(async () => {
   return { default: mod.ToastContainer };
 });
 
+const ACCOUNT_FOCUS_REFRESH_THROTTLE_MS = 1500;
+
 function App() {
   const { language, t } = useI18n();
   const [hasToasts, setHasToasts] = useState(() =>
@@ -65,6 +67,34 @@ function App() {
   }, []);
 
   useEffect(() => {
+    let lastRefreshAt = 0;
+
+    const refreshAccountStatus = () => {
+      const now = Date.now();
+      if (now - lastRefreshAt < ACCOUNT_FOCUS_REFRESH_THROTTLE_MS) {
+        return;
+      }
+      lastRefreshAt = now;
+      void useAccountSessionStore.getState().checkStatus();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshAccountStatus();
+      }
+    };
+
+    window.addEventListener('focus', refreshAccountStatus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    refreshAccountStatus();
+
+    return () => {
+      window.removeEventListener('focus', refreshAccountStatus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
     const url = new URL(window.location.href);
     const billingResult = url.searchParams.get('billing');
 
@@ -76,10 +106,10 @@ function App() {
     const addToast = useToastStore.getState().addToast;
     if (billingResult === 'success') {
       addToast(t('app.checkoutCompleted'), 'success', 5000);
-      void useAccountSessionStore.getState().checkStatus();
+      void useAccountSessionStore.getState().checkStatus({ force: true });
 
       const timer = window.setTimeout(() => {
-        void useAccountSessionStore.getState().checkStatus();
+        void useAccountSessionStore.getState().checkStatus({ force: true });
       }, 4000);
 
       return () => {

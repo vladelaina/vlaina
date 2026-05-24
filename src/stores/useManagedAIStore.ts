@@ -13,6 +13,7 @@ interface ManagedAIState {
   lastBudgetAttemptAt: number | null
   refreshBudget: () => Promise<void>
   refreshBudgetIfStale: () => Promise<void>
+  applyBudgetSnapshot: (budget: ManagedBudgetStatus) => void
   clearBudget: () => void
 }
 
@@ -20,6 +21,7 @@ const BUDGET_REFRESH_INTERVAL_MS = 60_000
 const BUDGET_RETRY_INTERVAL_MS = 15_000
 
 let budgetRefreshPromise: Promise<void> | null = null
+let budgetMutationVersion = 0
 
 export const useManagedAIStore = create<ManagedAIState>((set, get) => ({
   budget: null,
@@ -33,10 +35,15 @@ export const useManagedAIStore = create<ManagedAIState>((set, get) => ({
       return budgetRefreshPromise
     }
 
-    budgetRefreshPromise = (async () => {
+    const requestVersion = budgetMutationVersion
+    let promise!: Promise<void>
+    promise = (async () => {
       set({ isRefreshingBudget: true, budgetError: null, lastBudgetAttemptAt: Date.now() })
       try {
         const budget = await fetchManagedBudget()
+        if (requestVersion !== budgetMutationVersion) {
+          return
+        }
         set({
           budget,
           isRefreshingBudget: false,
@@ -44,15 +51,21 @@ export const useManagedAIStore = create<ManagedAIState>((set, get) => ({
           lastBudgetSyncAt: Date.now(),
         })
       } catch (error) {
+        if (requestVersion !== budgetMutationVersion) {
+          return
+        }
         const message = getManagedServiceErrorMessage(error) || 'Failed to refresh budget'
         set({
           isRefreshingBudget: false,
           budgetError: message,
         })
       } finally {
-        budgetRefreshPromise = null
+        if (budgetRefreshPromise === promise) {
+          budgetRefreshPromise = null
+        }
       }
     })()
+    budgetRefreshPromise = promise
 
     return budgetRefreshPromise
   },
@@ -76,12 +89,28 @@ export const useManagedAIStore = create<ManagedAIState>((set, get) => ({
     return get().refreshBudget()
   },
 
-  clearBudget: () =>
+  applyBudgetSnapshot: (budget) => {
+    budgetMutationVersion += 1
+    budgetRefreshPromise = null
+    const now = Date.now()
+    set({
+      budget,
+      isRefreshingBudget: false,
+      budgetError: null,
+      lastBudgetSyncAt: now,
+      lastBudgetAttemptAt: now,
+    })
+  },
+
+  clearBudget: () => {
+    budgetMutationVersion += 1
+    budgetRefreshPromise = null
     set({
       budget: null,
       isRefreshingBudget: false,
       budgetError: null,
       lastBudgetSyncAt: null,
       lastBudgetAttemptAt: null,
-    }),
+    })
+  },
 }))

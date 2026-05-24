@@ -9,10 +9,15 @@ import { useManagedAIStore } from '@/stores/useManagedAIStore'
 const FOLLOW_UP_REFRESH_DELAYS_MS = [4000, 12_000]
 
 export function refreshBillingEntitlementsAfterReturn(): void {
-  void Promise.resolve(useAccountSessionStore.getState().checkStatus()).finally(() => {
+  const previousBudgetSyncAt = useManagedAIStore.getState().lastBudgetSyncAt
+  void Promise.resolve(useAccountSessionStore.getState().checkStatus({ force: true })).finally(() => {
+    if (!useAccountSessionStore.getState().isConnected) {
+      return
+    }
     const managedAIState = useManagedAIStore.getState()
-    managedAIState.clearBudget()
-    void managedAIState.refreshBudget()
+    if (managedAIState.lastBudgetSyncAt === previousBudgetSyncAt) {
+      void managedAIState.refreshBudget()
+    }
   })
 }
 

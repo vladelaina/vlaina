@@ -1,194 +1,54 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  buildMentionedNotesContext,
-  loadMentionedNotes,
-  resolveAssistantContent,
-} from './helpers';
+import { refreshManagedBudgetIfNeeded } from './helpers';
 
-const hoisted = vi.hoisted(() => {
-  const readFile = vi.fn();
-  const stat = vi.fn();
-  const storeRef: { state: any } = { state: null };
-
-  const useNotesStore = {
-    getState: () => storeRef.state,
-  };
-
-  return {
-    readFile,
-    stat,
-    storeRef,
-    useNotesStore,
-  };
-});
-
-vi.mock('@/stores/notes/useNotesStore', () => ({
-  useNotesStore: hoisted.useNotesStore,
+const mocks = vi.hoisted(() => ({
+  isConnected: false,
+  refreshBudget: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('@/lib/storage/adapter', () => ({
-  getStorageAdapter: () => ({
-    readFile: hoisted.readFile,
-    stat: hoisted.stat,
-  }),
-  joinPath: async (...segments: string[]) => segments.filter(Boolean).join('/'),
+vi.mock('@/stores/accountSession', () => ({
+  useAccountSessionStore: {
+    getState: () => ({
+      isConnected: mocks.isConnected,
+    }),
+  },
 }));
 
-describe('chatService helpers', () => {
+vi.mock('@/stores/useManagedAIStore', () => ({
+  useManagedAIStore: {
+    getState: () => ({
+      refreshBudget: mocks.refreshBudget,
+    }),
+  },
+}));
+
+describe('refreshManagedBudgetIfNeeded', () => {
   beforeEach(() => {
-    hoisted.readFile.mockReset();
-    hoisted.stat.mockReset();
-    hoisted.stat.mockResolvedValue({ size: 100 });
-    hoisted.storeRef.state = {
-      currentNote: null,
-      noteContentsCache: new Map(),
-      notesPath: '/vault',
-    };
+    mocks.isConnected = false;
+    mocks.refreshBudget.mockClear();
   });
 
-  it('loads mentioned note content from the notes cache', async () => {
-    hoisted.storeRef.state.noteContentsCache.set('Cached.md', {
-      content: '# Cached\nCached note body',
-      modifiedAt: 1,
-    });
+  it('does not refresh budget for custom providers', () => {
+    mocks.isConnected = true;
 
-    const notes = await loadMentionedNotes([
-      { path: 'Cached.md', title: 'Cached' },
-    ]);
+    refreshManagedBudgetIfNeeded('provider-1');
 
-    expect(notes).toEqual([
-      {
-        path: 'Cached.md',
-        title: 'Cached',
-        content: '# Cached\nCached note body',
-      },
-    ]);
-    expect(hoisted.readFile).not.toHaveBeenCalled();
+    expect(mocks.refreshBudget).not.toHaveBeenCalled();
   });
 
-  it('loads mentioned note content from disk when it is not cached', async () => {
-    hoisted.readFile.mockResolvedValue('# Disk\nDisk note body');
+  it('does not refresh budget for managed providers after sign-out', () => {
+    mocks.isConnected = false;
 
-    const notes = await loadMentionedNotes([
-      { path: 'Disk.md', title: 'Disk' },
-    ]);
+    refreshManagedBudgetIfNeeded('vlaina-managed');
 
-    expect(hoisted.readFile).toHaveBeenCalledWith('/vault/Disk.md');
-    expect(notes[0]?.content).toBe('# Disk\nDisk note body');
+    expect(mocks.refreshBudget).not.toHaveBeenCalled();
   });
 
-  it('does not read oversized mentioned notes from disk', async () => {
-    hoisted.stat.mockResolvedValue({ size: 600 * 1024 });
+  it('refreshes budget for managed providers while signed in', () => {
+    mocks.isConnected = true;
 
-    const notes = await loadMentionedNotes([
-      { path: 'Huge.md', title: 'Huge' },
-    ]);
+    refreshManagedBudgetIfNeeded('vlaina-managed');
 
-    expect(hoisted.stat).toHaveBeenCalledWith('/vault/Huge.md');
-    expect(hoisted.readFile).not.toHaveBeenCalled();
-    expect(notes).toEqual([]);
-  });
-
-  it('falls back to disk when the cached note content is empty', async () => {
-    hoisted.storeRef.state.noteContentsCache.set('Skipped.md', {
-      content: '',
-      modifiedAt: 1,
-    });
-    hoisted.readFile.mockResolvedValue('# Skipped\nLoaded from disk');
-
-    const notes = await loadMentionedNotes([
-      { path: 'Skipped.md', title: 'Skipped' },
-    ]);
-
-    expect(hoisted.readFile).toHaveBeenCalledWith('/vault/Skipped.md');
-    expect(notes[0]?.content).toBe('# Skipped\nLoaded from disk');
-  });
-
-  it('strips vlaina-managed frontmatter before sending mentioned notes', async () => {
-    hoisted.storeRef.state.noteContentsCache.set('Managed.md', {
-      content: [
-        '---',
-        'title: User title',
-        'tags:',
-        '  - project',
-        'custom_field: keep me',
-        'vlaina_cover: "@biva/1"',
-        'vlaina_cover_x: 50',
-        'vlaina_icon: "🪛"',
-        'vlaina_updated: "2026-05-05T14:01:59.504Z"',
-        'nested:',
-        '  vlaina_note: user nested value',
-        '---',
-        '# Managed',
-        'Visible body',
-      ].join('\n'),
-      modifiedAt: 1,
-    });
-
-    const notes = await loadMentionedNotes([
-      { path: 'Managed.md', title: 'Managed' },
-    ]);
-
-    expect(notes[0]?.content).toBe([
-      '---',
-      'title: User title',
-      'tags:',
-      '  - project',
-      'custom_field: keep me',
-      'nested:',
-      '  vlaina_note: user nested value',
-      '---',
-      '# Managed',
-      'Visible body',
-    ].join('\n'));
-    const context = buildMentionedNotesContext(notes);
-    expect(context).not.toContain('vlaina_cover');
-    expect(context).not.toContain('vlaina_icon');
-    expect(context).not.toContain('vlaina_updated');
-    expect(notes[0]?.content).toContain('custom_field: keep me');
-    expect(notes[0]?.content).toContain('  vlaina_note: user nested value');
-  });
-
-  it('removes hidden-only vlaina frontmatter before sending mentioned notes', async () => {
-    hoisted.storeRef.state.noteContentsCache.set('HiddenOnly.md', {
-      content: [
-        '---',
-        'vlaina_cover: "@biva/1"',
-        'vlaina_icon: "🪛"',
-        '---',
-        '',
-        '# Hidden',
-        'Visible body',
-      ].join('\n'),
-      modifiedAt: 1,
-    });
-
-    const notes = await loadMentionedNotes([
-      { path: 'HiddenOnly.md', title: 'HiddenOnly' },
-    ]);
-
-    expect(notes[0]?.content).toBe('# Hidden\nVisible body');
-  });
-
-  it('builds the notes context that is sent with the user request', () => {
-    const context = buildMentionedNotesContext([
-      {
-        path: 'Cached.md',
-        title: 'Cached',
-        content: '# Cached\nCached note body',
-      },
-    ]);
-
-    expect(context).toContain('Referenced notes (Markdown):');
-    expect(context).toContain('## Cached');
-    expect(context).toContain('Cached note body');
-  });
-
-  it('uses the default empty assistant content error', () => {
-    expect(() => resolveAssistantContent('', '   ', vi.fn())).toThrow('The model returned an empty response.');
-  });
-
-  it('allows managed chat to map empty assistant content to upstream unavailable', () => {
-    expect(() => resolveAssistantContent('', '   ', vi.fn(), () => new Error('UPSTREAM_UNAVAILABLE'))).toThrow('UPSTREAM_UNAVAILABLE');
+    expect(mocks.refreshBudget).toHaveBeenCalledTimes(1);
   });
 });

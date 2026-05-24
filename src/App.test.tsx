@@ -57,8 +57,10 @@ const mocks = vi.hoisted(() => {
     addToast: vi.fn(),
     isConnected: false,
     checkStatus: vi.fn().mockResolvedValue(undefined),
+    lastBudgetSyncAt: 1_700_000_000_000 as number | null,
     clearBudget: vi.fn(),
     refreshBudget: vi.fn().mockResolvedValue(undefined),
+    refreshBudgetIfStale: vi.fn().mockResolvedValue(undefined),
   };
 });
 
@@ -152,7 +154,12 @@ vi.mock('@/stores/accountSession', () => ({
 
 vi.mock('@/stores/useManagedAIStore', () => ({
   useManagedAIStore: {
-    getState: () => ({ clearBudget: mocks.clearBudget, refreshBudget: mocks.refreshBudget }),
+    getState: () => ({
+      clearBudget: mocks.clearBudget,
+      refreshBudget: mocks.refreshBudget,
+      refreshBudgetIfStale: mocks.refreshBudgetIfStale,
+      lastBudgetSyncAt: mocks.lastBudgetSyncAt,
+    }),
   },
 }));
 
@@ -321,8 +328,10 @@ describe('App close flow', () => {
     mocks.closeRequestedHandler = null;
     mocks.isConnected = false;
     mocks.checkStatus.mockClear();
+    mocks.lastBudgetSyncAt = 1_700_000_000_000;
     mocks.clearBudget.mockClear();
     mocks.refreshBudget.mockClear();
+    mocks.refreshBudgetIfStale.mockClear();
     window.localStorage.clear();
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' });
   });
@@ -343,6 +352,14 @@ describe('App close flow', () => {
       await Promise.resolve();
     });
   }
+
+  it('refreshes account status when the app starts', async () => {
+    render(<App />);
+
+    await waitFor(() => {
+      expect(mocks.checkStatus).toHaveBeenCalledTimes(1);
+    });
+  });
 
   it('flushes pending storage before closing when nothing is dirty', async () => {
     await renderAndRequestClose();

@@ -4,8 +4,16 @@ import { hasElectronDesktopBridge } from '@/lib/desktop/backend';
 import { AccountEmailCodeCard } from './AccountEmailCodeCard';
 import { AccountSignInOptions } from './AccountSignInOptions';
 
+const { openExternalHrefMock } = vi.hoisted(() => ({
+  openExternalHrefMock: vi.fn(),
+}));
+
 vi.mock('@/lib/desktop/backend', () => ({
   hasElectronDesktopBridge: vi.fn(),
+}));
+
+vi.mock('@/lib/navigation/externalLinks', () => ({
+  openExternalHref: openExternalHrefMock,
 }));
 
 const mockedHasElectronDesktopBridge = vi.mocked(hasElectronDesktopBridge);
@@ -24,6 +32,7 @@ describe('AccountSignInOptions', () => {
   beforeEach(() => {
     mockedHasElectronDesktopBridge.mockReset();
     mockedHasElectronDesktopBridge.mockReturnValue(false);
+    openExternalHrefMock.mockReset();
   });
 
   it('shows OAuth buttons on web', () => {
@@ -64,5 +73,24 @@ describe('AccountSignInOptions', () => {
       expect(codeInput).toBeTruthy();
       expect(document.activeElement).toBe(codeInput);
     });
+  });
+
+  it('centers the email input text', () => {
+    render(
+      <AccountEmailCodeCard
+        onEmailCodeRequest={vi.fn().mockResolvedValue(true)}
+        onEmailCodeVerify={vi.fn().mockResolvedValue(true)}
+      />
+    );
+
+    expect(screen.getByPlaceholderText(/email address/i)).toHaveClass('text-center');
+  });
+
+  it('opens the privacy policy from the sign-in agreement', () => {
+    render(<AccountSignInOptions {...buildProps()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /privacy policy/i }));
+
+    expect(openExternalHrefMock).toHaveBeenCalledWith('https://github.com/vladelaina/vlaina/blob/main/PRIVACY.md');
   });
 });

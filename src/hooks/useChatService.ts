@@ -129,7 +129,12 @@ function shouldBlockManagedRequestForKnownBudget(providerId: string): boolean {
     return false;
   }
 
-  return budget.active === false || budget.status === 'exhausted' || Number(budget.remainingPercent || 0) <= 0;
+  const remainingPercent = Number(budget.remainingPercent);
+  return (
+    budget.active === false ||
+    budget.status === 'exhausted' ||
+    (Number.isFinite(remainingPercent) && remainingPercent <= 0)
+  );
 }
 
 function writeManagedQuotaErrorMessage(
