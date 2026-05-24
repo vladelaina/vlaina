@@ -9,6 +9,7 @@ import {
   preferNestedBlockRangesUnlessHeaderIntersects,
   resolveDisplayedDragViewportRect,
   resolveIntersectedBlockRanges,
+  type BlockRect,
   type BlockRange,
   type RectBounds,
 } from './blockSelectionUtils';
@@ -22,6 +23,7 @@ import { expandListItemHeaderRanges } from './blockUnitResolver';
 interface BlankAreaSelectionPlainClickResult {
   zone: BlockDragStartZone;
   action: BlankAreaPlainClickAction | null;
+  blockRects: readonly BlockRect[];
   clientX: number;
   clientY: number;
 }
@@ -216,16 +218,18 @@ export function startBlankAreaSelectionSession(
       scheduleDragRectSelection(dragRect);
     },
     onPlainClick(zone) {
+      const blockRects = rectResolver.getTopLevelBlockRects();
       const action = zone === 'below-last-block'
         ? null
         : resolveBlankAreaPlainClickAction({
-          blockRects: rectResolver.getTopLevelBlockRects(),
+          blockRects,
           clientX: event.clientX,
           clientY: event.clientY,
         });
       onPlainClick({
         zone,
         action,
+        blockRects,
         clientX: event.clientX,
         clientY: event.clientY,
       });

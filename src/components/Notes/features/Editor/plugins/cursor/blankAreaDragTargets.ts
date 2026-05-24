@@ -167,10 +167,6 @@ function isTextBlockBlankSurfaceTarget(view: EditorView, target: HTMLElement): b
   return !structuredBlock || structuredBlock === textBlock;
 }
 
-function isEmptyTextBlockSurfaceTarget(target: HTMLElement): boolean {
-  return target.matches(TEXT_BLOCK_SURFACE_SELECTOR) && !target.textContent?.trim();
-}
-
 export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEvent): BlockDragStartZone | null {
   if (!(event.target instanceof HTMLElement)) return null;
   const target = event.target;
@@ -197,10 +193,7 @@ export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEven
       return 'outside-editor';
     }
     if (isTextBlockBlankSurfaceTarget(view, target)) {
-      if (!isEmptyTextBlockSurfaceTarget(target)) {
-        return 'outside-editor';
-      }
-      return null;
+      return 'outside-editor';
     }
     return null;
   }

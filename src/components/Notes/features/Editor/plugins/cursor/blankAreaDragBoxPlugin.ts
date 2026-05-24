@@ -1,7 +1,5 @@
 import { $prose } from '@milkdown/kit/utils';
 import { serializerCtx } from '@milkdown/kit/core';
-import { writeTextToClipboard } from '@/lib/clipboard';
-import { getNotesDebugLogText, logNotesDebug } from '@/stores/notes/lineBreakDebugLog';
 import {
   NodeSelection,
   Plugin,
@@ -65,24 +63,13 @@ const DRAG_SESSION_CURSOR = 'crosshair';
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const TRAILING_LINE_END_CLICK_GAP_PX = 8;
 const LEADING_LINE_START_CLICK_GAP_PX = 8;
-const CARET_DEBUG_LABEL = 'NotesCaretClick';
 const FORCED_CARET_CLASS = 'vlaina-forced-line-end-caret-active';
 const FORCED_CARET_STYLE_ID = 'vlaina-forced-line-end-caret-style';
-const CARET_DEBUG_QUERY_PARAM = 'debugCaret';
-const CARET_DEBUG_STORAGE_KEY = 'vlaina_debug_caret_click';
+const EDITABLE_LIST_GAP_PLACEHOLDER = '\u2800';
 
 type CaretDocument = Document & {
   caretRangeFromPoint?: (x: number, y: number) => Range | null;
 };
-
-interface CaretLineCandidateDebug {
-  rect: ReturnType<typeof serializeRect>;
-  nodeLength: number;
-  parentTag: string | null;
-  accepted: boolean;
-  reason?: string;
-  probe?: { x: number; y: number; pos: number | null; textRect?: ReturnType<typeof serializeRect> };
-}
 
 interface DomCaretPoint {
   pos: number;
@@ -144,44 +131,203 @@ function serializeRect(rect: Pick<DOMRect, 'left' | 'top' | 'right' | 'bottom' |
   };
 }
 
-function logCaretClick(scope: string, payload?: unknown): void {
-  if (!isCaretDebugUiEnabled()) return;
-  logNotesDebug(CARET_DEBUG_LABEL, scope, payload);
+function isPointInsideActualText(root: HTMLElement, clientX: number, clientY: number): boolean {
+  const doc = root.ownerDocument;
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (!node.textContent?.trim()) return NodeFilter.FILTER_REJECT;
+      const parent = node.parentElement;
+      if (!parent || parent.closest('[contenteditable="false"]')) return NodeFilter.FILTER_REJECT;
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const range = doc.createRange();
+    range.selectNodeContents(node);
+    const rects = Array.from(range.getClientRects());
+    range.detach();
+
+    for (const rect of rects) {
+      if (rect.width <= 0 || rect.height <= 0) continue;
+      const verticalSlack = Math.max(2, Math.min(5, rect.height * 0.15));
+      if (
+        clientX >= rect.left &&
+        clientX <= rect.right &&
+        clientY >= rect.top - verticalSlack &&
+        clientY <= rect.bottom + verticalSlack
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
-function isCaretDebugUiEnabled(): boolean {
-  if (typeof window === 'undefined') return false;
+function shouldResolveNearbyListGapPlaceholder(view: EditorView, event: MouseEvent): boolean {
+  const target = event.target instanceof HTMLElement ? event.target : event.target instanceof Node ? event.target.parentElement : null;
+  if (!target || !view.dom.contains(target)) return true;
+  const textBlock = target.closest('p, li') as HTMLElement | null;
+  if (!textBlock || !view.dom.contains(textBlock)) return true;
+  return !isPointInsideActualText(textBlock, event.clientX, event.clientY);
+}
+
+function resolvePosAtCoordsForBlankClick(view: EditorView, event: MouseEvent) {
   try {
-    if (new URLSearchParams(window.location.search).has(CARET_DEBUG_QUERY_PARAM)) return true;
+    return view.posAtCoords({ left: event.clientX, top: event.clientY });
   } catch {
+    return null;
   }
-  try {
-    return window.localStorage?.getItem(CARET_DEBUG_STORAGE_KEY) === '1';
-  } catch {
+}
+
+function isListGapPlaceholderText(text: string): boolean {
+  return text.replace(new RegExp(EDITABLE_LIST_GAP_PLACEHOLDER, 'g'), '').trim().length === 0
+    && text.includes(EDITABLE_LIST_GAP_PLACEHOLDER);
+}
+
+function findListGapPlaceholderParagraphStartInListItem(listItem: { type: { name: string }; childCount: number; child: (index: number) => { type: { name: string }; nodeSize: number; textContent: string } }, listItemStart: number): number | null {
+  if (listItem.type.name !== 'list_item') return null;
+  let childStart = listItemStart + 1;
+  for (let index = 0; index < listItem.childCount; index += 1) {
+    const child = listItem.child(index);
+    if (child.type.name === 'paragraph' && isListGapPlaceholderText(child.textContent)) {
+      return childStart;
+    }
+    childStart += child.nodeSize;
+  }
+  return null;
+}
+
+function findListGapPlaceholderParagraphStart(view: EditorView, pos: number): number | null {
+  const docSize = view.state.doc.content.size;
+  const safePos = Math.max(0, Math.min(pos, docSize));
+  const $pos = view.state.doc.resolve(safePos);
+  const afterStart = $pos.nodeAfter
+    ? findListGapPlaceholderParagraphStartInListItem($pos.nodeAfter, safePos)
+    : null;
+  if (afterStart !== null) return afterStart;
+  if (
+    $pos.nodeAfter?.type.name === 'paragraph'
+    && isListGapPlaceholderText($pos.nodeAfter.textContent)
+  ) {
+    for (let depth = $pos.depth; depth > 0; depth -= 1) {
+      if ($pos.node(depth).type.name === 'list_item') {
+        return safePos;
+      }
+    }
+  }
+
+  for (let depth = $pos.depth; depth > 0; depth -= 1) {
+    const node = $pos.node(depth);
+    if (node.type.name !== 'paragraph') continue;
+    if (!isListGapPlaceholderText(node.textContent)) continue;
+
+    for (let parentDepth = depth - 1; parentDepth > 0; parentDepth -= 1) {
+      if ($pos.node(parentDepth).type.name === 'list_item') {
+        return $pos.before(depth);
+      }
+    }
+  }
+
+  return null;
+}
+
+function resolveListGapPlaceholderFromNearbyBlock(view: EditorView, event: MouseEvent): number | null {
+  const resolver = createBlockRectResolver({
+    view,
+    scrollRootSelector: SCROLL_ROOT_SELECTOR,
+  });
+  const blockRects = resolver.getTopLevelBlockRects();
+  resolver.invalidate();
+
+  let nearestParagraphStart: number | null = null;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  for (const block of blockRects) {
+    const paragraphStart = findListGapPlaceholderParagraphStart(view, block.from)
+      ?? findListGapPlaceholderParagraphStart(view, block.from + 1);
+    if (paragraphStart === null) continue;
+
+    const distance = event.clientY < block.top
+      ? block.top - event.clientY
+      : event.clientY > block.bottom
+        ? event.clientY - block.bottom
+        : 0;
+    if (distance > nearestDistance) continue;
+
+    nearestParagraphStart = paragraphStart;
+    nearestDistance = distance;
+  }
+
+  const maxDistance = shouldResolveNearbyListGapPlaceholder(view, event) ? 32 : 12;
+  if (nearestParagraphStart === null || nearestDistance > maxDistance) {
+    return null;
+  }
+
+  return nearestParagraphStart;
+}
+
+function handleListGapPlaceholderPointerDown(view: EditorView, event: MouseEvent): boolean {
+  if (!isSameEditorScrollRoot(view, event.target)) return false;
+  if (event.button !== 0) return false;
+  if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false;
+
+  const coords = resolvePosAtCoordsForBlankClick(view, event);
+  if (!coords) {
     return false;
   }
+
+  const paragraphStart = findListGapPlaceholderParagraphStart(view, coords.pos)
+    ?? resolveListGapPlaceholderFromNearbyBlock(view, event);
+  if (paragraphStart === null) return false;
+
+  const targetPos = Math.min(paragraphStart + 1, view.state.doc.content.size);
+  const selection = TextSelection.create(view.state.doc, targetPos);
+  event.preventDefault();
+  view.dispatch(view.state.tr.setSelection(selection).setMeta(blankAreaDragBoxPluginKey, CLEAR_BLOCKS_ACTION));
+  view.focus();
+  return true;
 }
 
-function serializeDomCaretForDebug(domCaret: DomCaretPoint | undefined) {
-  if (!domCaret) return null;
-  return {
-    pos: domCaret.pos,
-    nodeType: domCaret.node.nodeType,
-    offset: domCaret.offset,
-    parentTag: domCaret.node.parentElement?.tagName ?? null,
-  };
+function resolveTopLevelListContainer(view: EditorView, target: EventTarget | null): HTMLElement | null {
+  const targetElement = target instanceof HTMLElement
+    ? target
+    : target instanceof Node
+      ? target.parentElement
+      : null;
+  if (!targetElement || !view.dom.contains(targetElement)) return null;
+
+  for (let element: HTMLElement | null = targetElement; element && element !== view.dom; element = element.parentElement) {
+    if ((element.tagName === 'OL' || element.tagName === 'UL') && element.parentElement === view.dom) {
+      return element;
+    }
+  }
+
+  return null;
 }
 
-function serializeActionForDebug(action: RefinedBlankAreaPlainClickAction | BlankAreaPlainClickAction) {
-  const refined = action as RefinedBlankAreaPlainClickAction;
-  return {
-    targetPos: action.targetPos,
-    bias: action.bias,
-    blockFrom: action.blockFrom,
-    textRect: refined.textRect ?? null,
-    forcedCaretX: refined.forcedCaretX ?? null,
-    domCaret: serializeDomCaretForDebug(refined.domCaret),
-  };
+function handleTrailingBlankClickInsideLastList(view: EditorView, event: MouseEvent): boolean {
+  if (!isSameEditorScrollRoot(view, event.target)) return false;
+  if (event.button !== 0) return false;
+  if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return false;
+
+  const list = resolveTopLevelListContainer(view, event.target);
+  if (!list || view.dom.lastElementChild !== list) return false;
+
+  const resolver = createBlockRectResolver({
+    view,
+    scrollRootSelector: SCROLL_ROOT_SELECTOR,
+  });
+  const blockRects = resolver.getTopLevelBlockRects();
+  resolver.invalidate();
+  const lastBlock = blockRects[blockRects.length - 1];
+  if (!lastBlock || event.clientY <= lastBlock.bottom) return false;
+
+  const handled = dispatchTailBlankClickAction(view);
+  if (!handled) return false;
+  event.preventDefault();
+  return true;
 }
 
 function ensureForcedCaretStyle(doc: Document): void {
@@ -305,14 +451,6 @@ function resolveDomCaretFromPoint(view: EditorView, root: HTMLElement, clientX: 
   if (caretPosition && root.contains(caretPosition.offsetNode)) {
     try {
       const pos = view.posAtDOM(caretPosition.offsetNode, caretPosition.offset);
-      logCaretClick('resolve-dom-caret:caret-position', {
-        clientX: roundCoord(clientX),
-        clientY: roundCoord(clientY),
-        offset: caretPosition.offset,
-        nodeType: caretPosition.offsetNode.nodeType,
-        parentTag: caretPosition.offsetNode.parentElement?.tagName ?? null,
-        pos,
-      });
       return { pos, node: caretPosition.offsetNode, offset: caretPosition.offset };
     } catch {
     }
@@ -322,14 +460,6 @@ function resolveDomCaretFromPoint(view: EditorView, root: HTMLElement, clientX: 
   if (caretRange && root.contains(caretRange.startContainer)) {
     try {
       const pos = view.posAtDOM(caretRange.startContainer, caretRange.startOffset);
-      logCaretClick('resolve-dom-caret:caret-range', {
-        clientX: roundCoord(clientX),
-        clientY: roundCoord(clientY),
-        offset: caretRange.startOffset,
-        nodeType: caretRange.startContainer.nodeType,
-        parentTag: caretRange.startContainer.parentElement?.tagName ?? null,
-        pos,
-      });
       return { pos, node: caretRange.startContainer, offset: caretRange.startOffset };
     } catch {
     }
@@ -337,11 +467,6 @@ function resolveDomCaretFromPoint(view: EditorView, root: HTMLElement, clientX: 
 
   try {
     const coordsPos = view.posAtCoords({ left: clientX, top: clientY });
-    logCaretClick('resolve-dom-caret:pos-at-coords', {
-      clientX: roundCoord(clientX),
-      clientY: roundCoord(clientY),
-      result: coordsPos ? { pos: coordsPos.pos, inside: coordsPos.inside } : null,
-    });
     return coordsPos ? { pos: coordsPos.pos, node: root, offset: 0 } : null;
   } catch {
     return null;
@@ -356,11 +481,6 @@ function resolveVisualLineEdgePos(
 ): VisualLineEdgeResolution | null {
   const blockElement = resolveBlockElementAtPos(view, action.blockFrom);
   if (!blockElement) {
-    logCaretClick('line-edge:no-block-element', {
-      action,
-      clientX: roundCoord(clientX),
-      clientY: roundCoord(clientY),
-    });
     return null;
   }
 
@@ -379,7 +499,6 @@ function resolveVisualLineEdgePos(
   const blockContentEnd = blockNode
     ? Math.max(blockContentStart, action.blockFrom + blockNode.nodeSize - 1)
     : Math.max(blockContentStart, action.targetPos);
-  const candidates: CaretLineCandidateDebug[] = [];
 
   for (let node = walker.nextNode(); node; node = walker.nextNode()) {
     const range = doc.createRange();
@@ -388,28 +507,17 @@ function resolveVisualLineEdgePos(
     range.detach();
 
     for (const rect of rects) {
-      const candidate: CaretLineCandidateDebug = {
-        rect: serializeRect(rect),
-        nodeLength: node.textContent?.length ?? 0,
-        parentTag: node.parentElement?.tagName ?? null,
-        accepted: false,
-      };
-      candidates.push(candidate);
       if (rect.width <= 0 || rect.height <= 0) {
-        candidate.reason = 'empty-rect';
         continue;
       }
       if (!isPointVerticallyInsideRect(rect, clientY)) {
-        candidate.reason = 'y-miss';
         continue;
       }
       if (action.bias === -1) {
         if (clientX < rect.right + TRAILING_LINE_END_CLICK_GAP_PX) {
-          candidate.reason = 'x-before-trailing-gap';
           continue;
         }
       } else if (clientX > rect.left - LEADING_LINE_START_CLICK_GAP_PX) {
-        candidate.reason = 'x-after-leading-gap';
         continue;
       }
 
@@ -419,49 +527,18 @@ function resolveVisualLineEdgePos(
         : Math.min(rect.right, rect.left + 1);
       const caretY = rect.top + rect.height / 2;
       const domCaret = resolveDomCaretFromPoint(view, blockElement, caretX, caretY);
-      candidate.probe = { x: roundCoord(caretX), y: roundCoord(caretY), pos: domCaret?.pos ?? null };
       if (!domCaret) {
-        candidate.reason = 'null-pos';
         continue;
       }
       const { pos } = domCaret;
       if (pos < blockContentStart || pos > blockContentEnd) {
-        candidate.reason = 'pos-outside-block';
         continue;
       }
       const serializedTextRect = serializeRect(rect);
-      candidate.probe.textRect = serializedTextRect;
-      candidate.accepted = true;
-      logCaretClick('line-edge:resolved', {
-        action,
-        clientX: roundCoord(clientX),
-        clientY: roundCoord(clientY),
-        blockTag: blockElement.tagName,
-        blockContentStart,
-        blockContentEnd,
-        pos,
-        textRect: serializedTextRect,
-        forcedCaretX: roundCoord(forcedCaretX),
-        domCaret: {
-          nodeType: domCaret.node.nodeType,
-          offset: domCaret.offset,
-          parentTag: domCaret.node.parentElement?.tagName ?? null,
-        },
-        candidates,
-      });
       return { pos, textRect: serializedTextRect, forcedCaretX, domCaret };
     }
   }
 
-  logCaretClick('line-edge:unresolved', {
-    action,
-    clientX: roundCoord(clientX),
-    clientY: roundCoord(clientY),
-    blockTag: blockElement.tagName,
-    blockContentStart,
-    blockContentEnd,
-    candidates,
-  });
   return null;
 }
 
@@ -482,23 +559,12 @@ function refineBlankAreaPlainClickAction(
       forcedCaretX: lineEdgePos.forcedCaretX,
       domCaret: lineEdgePos.domCaret,
     };
-  logCaretClick('refine-action', {
-    original: serializeActionForDebug(action),
-    refined: serializeActionForDebug(refinedAction),
-    clientX: roundCoord(clientX),
-    clientY: roundCoord(clientY),
-  });
   return refinedAction;
 }
 
 function showForcedLineEndCaret(view: EditorView, action: RefinedBlankAreaPlainClickAction): boolean {
   if (!action.textRect || typeof action.forcedCaretX !== 'number') return false;
   setActiveForcedCaret(view, action.textRect, action.forcedCaretX);
-  logCaretClick('dispatch-selection:forced-caret', {
-    targetPos: action.targetPos,
-    textRect: action.textRect,
-    forcedCaretX: roundCoord(action.forcedCaretX),
-  });
   return true;
 }
 
@@ -514,66 +580,6 @@ function dispatchBlankAreaPlainClick(
   view.dispatch(tr.scrollIntoView());
   view.focus();
   showForcedLineEndCaret(view, refinedAction);
-  const selection = view.state.selection;
-  let coords: ReturnType<typeof serializeRect> | null = null;
-  try {
-    coords = serializeRect(view.coordsAtPos(selection.from) as DOMRect);
-  } catch {
-  }
-  logCaretClick('dispatch-selection', {
-    action: serializeActionForDebug(action),
-    refinedAction: serializeActionForDebug(refinedAction),
-    clientX: typeof clientX === 'number' ? roundCoord(clientX) : null,
-    clientY: typeof clientY === 'number' ? roundCoord(clientY) : null,
-    selection: {
-      type: selection.constructor.name,
-      from: selection.from,
-      to: selection.to,
-      empty: selection.empty,
-    },
-    coords,
-  });
-}
-
-function createCaretDebugCopyButton(doc: Document): HTMLButtonElement {
-  const button = doc.createElement('button');
-  button.type = 'button';
-  button.textContent = 'Copy caret log';
-  button.setAttribute('data-no-editor-drag-box', 'true');
-  button.setAttribute('data-notes-caret-debug-copy', 'true');
-  Object.assign(button.style, {
-    position: 'fixed',
-    right: '16px',
-    bottom: '72px',
-    zIndex: '10000',
-    padding: '6px 10px',
-    borderRadius: '8px',
-    border: '1px solid rgb(180 190 205 / 0.65)',
-    background: 'rgb(255 255 255 / 0.94)',
-    color: '#111827',
-    fontSize: '12px',
-    lineHeight: '16px',
-    boxShadow: '0 8px 24px rgb(15 23 42 / 0.18)',
-    cursor: 'pointer',
-  });
-
-  button.addEventListener('click', async (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const text = getNotesDebugLogText();
-    const copied = await writeTextToClipboard(text);
-    if (copied) {
-      button.textContent = 'Copied caret log';
-    } else {
-      console.debug('[NotesCaretClick] copy failed', text);
-      button.textContent = 'Copy failed - see console';
-    }
-    window.setTimeout(() => {
-      button.textContent = 'Copy caret log';
-    }, 1400);
-  });
-
-  return button;
 }
 
 function isSameEditorScrollRoot(view: EditorView, target: EventTarget | null): boolean {
@@ -637,7 +643,9 @@ function startInsideBlockTrailingPlainClickSession(
 
   const handleMouseUp = () => {
     stop();
-    if (didDrag) return;
+    if (didDrag) {
+      return;
+    }
     const currentSelection = snapshotSelection(view.state);
     const didNativePointerSelectionRun =
       getNativePointerSelectionVersion() !== startNativePointerSelectionVersion;
@@ -849,6 +857,12 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
           if (isIgnoredBlankAreaDragBoxTarget(event.target)) {
             return false;
           }
+          if (handleListGapPlaceholderPointerDown(view, event)) {
+            return true;
+          }
+          if (handleTrailingBlankClickInsideLastList(view, event)) {
+            return true;
+          }
           const target = event.target;
           if (target instanceof Node && view.dom.contains(target) && hasSelectedBlocks(view.state)) {
             clearBlockSelection(view);
@@ -877,10 +891,6 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
     view(view) {
       const doc = view.dom.ownerDocument;
       const lineFillOverlay = createBlockSelectionLineFillOverlay(view);
-      const debugCopyButton = isCaretDebugUiEnabled() ? createCaretDebugCopyButton(doc) : null;
-      if (debugCopyButton) {
-        doc.body.appendChild(debugCopyButton);
-      }
       syncBlockSelectionVisualState(view);
       const handleDocumentMouseDown = (event: MouseEvent) => {
         if (isIgnoredBlankAreaDragBoxTarget(event.target)) {
@@ -921,7 +931,6 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         destroy() {
           doc.removeEventListener('mousedown', handleDocumentMouseDown, true);
           clearForcedCaretForOwner(view.dom);
-          debugCopyButton?.remove();
           lineFillOverlay.destroy();
           clearSession();
           clearInsideBlockTrailingPlainClickSession();

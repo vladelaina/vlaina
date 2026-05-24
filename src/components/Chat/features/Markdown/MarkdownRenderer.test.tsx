@@ -70,19 +70,16 @@ vi.mock("./components/ChatImageViewer", () => ({
 }));
 
 import MarkdownRenderer from "./MarkdownRenderer";
-import { clearNotesDebugLog } from "@/stores/notes/lineBreakDebugLog";
 
 describe("MarkdownRenderer", () => {
   beforeEach(() => {
     reactMarkdownSpy.mockClear();
     codeBlockSpy.mockClear();
     thinkingBlockSpy.mockClear();
-    clearNotesDebugLog();
   });
 
   afterEach(() => {
     vi.useRealTimers();
-    clearNotesDebugLog();
   });
 
   it("extracts completed think blocks and renders the remaining markdown", () => {

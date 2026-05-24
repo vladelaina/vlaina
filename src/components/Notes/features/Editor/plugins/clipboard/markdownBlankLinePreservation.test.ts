@@ -7,6 +7,7 @@ import {
   serializerCtx,
 } from '@milkdown/kit/core';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { Selection as ProseSelection } from '@milkdown/kit/prose/state';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm } from '@milkdown/kit/preset/gfm';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
@@ -31,6 +32,27 @@ function pressEnter(view: EditorView): void {
   });
 
   expect(handled).toBe(true);
+}
+
+function pressShiftEnter(view: EditorView): void {
+  const event = new KeyboardEvent('keydown', {
+    key: 'Enter',
+    shiftKey: true,
+    bubbles: true,
+    cancelable: true,
+  });
+
+  let handled = false;
+  view.someProp('handleKeyDown', (handleKeyDown: any) => {
+    handled = handleKeyDown(view, event) || handled;
+  });
+
+  expect(handled).toBe(true);
+}
+
+function moveCursorToDocumentEnd(view: EditorView): void {
+  const selection = ProseSelection.atEnd(view.state.doc);
+  view.dispatch(view.state.tr.setSelection(selection));
 }
 
 async function serializeMarkdownThroughEditor(
@@ -64,6 +86,89 @@ async function expectEditorMarkdown(markdown: string, expected = markdown): Prom
   const normalized = normalizeSerializedMarkdownDocument(serialized);
   expectPersistedMarkdownToBeClean(normalized);
   expect(stripTrailingNewlines(normalized)).toBe(expected);
+}
+
+async function expectEditorCreatedListItemHardBreak({
+  initialMarkdown,
+  typeAfterBreak,
+  expected,
+}: {
+  initialMarkdown: string;
+  typeAfterBreak: string;
+  expected: string;
+}): Promise<void> {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, initialMarkdown);
+      ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+        ...prev,
+        ...notesRemarkStringifyOptions,
+      }));
+    })
+    .use(commonmark)
+    .use(gfm);
+
+  await editor.create();
+  const view = editor.ctx.get(editorViewCtx);
+  const serializer = editor.ctx.get(serializerCtx);
+
+  moveCursorToDocumentEnd(view);
+  pressShiftEnter(view);
+  if (typeAfterBreak.length > 0) {
+    view.dispatch(view.state.tr.insertText(typeAfterBreak));
+  }
+
+  const serialized = serializer(view.state.doc);
+  const normalized = normalizeSerializedMarkdownDocument(serialized);
+  expect(stripTrailingNewlines(normalized)).toBe(expected);
+
+  const reopened = await serializeMarkdownThroughEditor(normalized);
+  expect(stripTrailingNewlines(normalizeSerializedMarkdownDocument(reopened))).toBe(expected);
+
+  await editor.destroy();
+}
+
+async function expectEditorCreatedEnterBlankLines({
+  initialMarkdown,
+  actions,
+  expected,
+}: {
+  initialMarkdown: string;
+  actions: Array<{ type: 'enter' } | { type: 'text'; value: string }>;
+  expected: string;
+}): Promise<void> {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, initialMarkdown);
+      ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+        ...prev,
+        ...notesRemarkStringifyOptions,
+      }));
+    })
+    .use(commonmark)
+    .use(gfm);
+
+  await editor.create();
+  const view = editor.ctx.get(editorViewCtx);
+  const serializer = editor.ctx.get(serializerCtx);
+
+  moveCursorToDocumentEnd(view);
+  for (const action of actions) {
+    if (action.type === 'enter') {
+      pressEnter(view);
+    } else {
+      view.dispatch(view.state.tr.insertText(action.value));
+    }
+  }
+
+  const serialized = serializer(view.state.doc);
+  const normalized = normalizeSerializedMarkdownDocument(serialized);
+  expect(stripTrailingNewlines(normalized)).toBe(expected);
+
+  const reopened = await serializeMarkdownThroughEditor(normalized);
+  expect(stripTrailingNewlines(normalizeSerializedMarkdownDocument(reopened))).toBe(expected);
+
+  await editor.destroy();
 }
 
 function expectPersistedMarkdownToBeClean(markdown: string): void {
@@ -123,6 +228,78 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
     await editor.destroy();
   });
 
+  it('persists editor-created list item line breaks so they survive reopen', async () => {
+    await expectEditorCreatedListItemHardBreak({
+      initialMarkdown: '- 1',
+      typeAfterBreak: '2',
+      expected: ['- 1\\', '  2'].join('\n'),
+    });
+  });
+
+  it('persists editor-created task list item line breaks so they survive reopen', async () => {
+    await expectEditorCreatedListItemHardBreak({
+      initialMarkdown: '- [ ] 1',
+      typeAfterBreak: '2',
+      expected: ['- [ ] 1\\', '  2'].join('\n'),
+    });
+  });
+
+  it('persists editor-created ordered list item line breaks so they survive reopen', async () => {
+    await expectEditorCreatedListItemHardBreak({
+      initialMarkdown: '1. 1',
+      typeAfterBreak: '2',
+      expected: ['1. 1\\', '   2'].join('\n'),
+    });
+  });
+
+  it('persists editor-created nested list item line breaks so they survive reopen', async () => {
+    await expectEditorCreatedListItemHardBreak({
+      initialMarkdown: ['- parent', '  - 1'].join('\n'),
+      typeAfterBreak: '2',
+      expected: ['- parent', '  - 1\\', '    2'].join('\n'),
+    });
+  });
+
+  it('removes editor-created terminal list item hard break placeholders before persistence', async () => {
+    await expectEditorCreatedListItemHardBreak({
+      initialMarkdown: '- 1',
+      typeAfterBreak: '',
+      expected: '- 1',
+    });
+  });
+
+  it('keeps ordinary Enter in a list as list item structure instead of a soft line break', async () => {
+    const editor = Editor.make()
+      .config((ctx) => {
+        ctx.set(defaultValueCtx, '- 1');
+        ctx.update(remarkStringifyOptionsCtx, (prev) => ({
+          ...prev,
+          ...notesRemarkStringifyOptions,
+        }));
+      })
+      .use(commonmark)
+      .use(gfm);
+
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const serializer = editor.ctx.get(serializerCtx);
+
+    moveCursorToDocumentEnd(view);
+    pressEnter(view);
+    view.dispatch(view.state.tr.insertText('2'));
+
+    const serialized = serializer(view.state.doc);
+    const normalized = normalizeSerializedMarkdownDocument(serialized);
+    expect(stripTrailingNewlines(normalized)).toBe(['- 1', '- 2'].join('\n'));
+
+    const reopened = await serializeMarkdownThroughEditor(normalized);
+    expect(stripTrailingNewlines(normalizeSerializedMarkdownDocument(reopened))).toBe(
+      ['- 1', '- 2'].join('\n')
+    );
+
+    await editor.destroy();
+  });
+
   it('persists an editor-created empty line between typed paragraph lines', async () => {
     const editor = Editor.make()
       .config((ctx) => {
@@ -156,6 +333,75 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
     );
 
     await editor.destroy();
+  });
+
+  it.each([
+    {
+      name: 'paragraph',
+      initialMarkdown: 'before',
+      actions: [
+        { type: 'enter' },
+        { type: 'enter' },
+        { type: 'text', value: 'after' },
+      ],
+      expected: ['before', '', '', 'after'].join('\n'),
+    },
+    {
+      name: 'bullet list exit',
+      initialMarkdown: '- before',
+      actions: [
+        { type: 'enter' },
+        { type: 'enter' },
+        { type: 'text', value: 'after' },
+      ],
+      expected: ['- before', '', 'after'].join('\n'),
+    },
+    {
+      name: 'task list exit',
+      initialMarkdown: '- [ ] before',
+      actions: [
+        { type: 'enter' },
+        { type: 'enter' },
+        { type: 'text', value: 'after' },
+      ],
+      expected: ['- [ ] before', '', 'after'].join('\n'),
+    },
+    {
+      name: 'ordered list exit',
+      initialMarkdown: '1. before',
+      actions: [
+        { type: 'enter' },
+        { type: 'enter' },
+        { type: 'text', value: 'after' },
+      ],
+      expected: ['1. before', '', 'after'].join('\n'),
+    },
+    {
+      name: 'two paragraph blanks',
+      initialMarkdown: 'before',
+      actions: [
+        { type: 'enter' },
+        { type: 'enter' },
+        { type: 'enter' },
+        { type: 'text', value: 'after' },
+      ],
+      expected: ['before', '', '', '', 'after'].join('\n'),
+    },
+  ] as Array<{
+    name: string;
+    initialMarkdown: string;
+    actions: Array<{ type: 'enter' } | { type: 'text'; value: string }>;
+    expected: string;
+  }>)('persists Enter-created blank lines through save and reopen: $name', async ({
+    initialMarkdown,
+    actions,
+    expected,
+  }) => {
+    await expectEditorCreatedEnterBlankLines({
+      initialMarkdown,
+      actions,
+      expected,
+    });
   });
 
   it.each([
@@ -329,6 +575,13 @@ describe('preserveMarkdownBlankLinesForEditor', () => {
 
   it('preserves user-authored blank lines between list items through the editor parser and serializer', async () => {
     await expectEditorMarkdown(['- one', '', '- two'].join('\n'));
+  });
+
+  it('preserves multiple editor-created blank lines between list items through the editor parser and serializer', async () => {
+    await expectEditorMarkdown(
+      ['- one', '', '<br />', '', '<br />', '', '<br />', '', '- two'].join('\n'),
+      ['- one', '', '', '', '- two'].join('\n'),
+    );
   });
 
   it('round trips blockquote list blank lines through the editor parser and serializer', async () => {

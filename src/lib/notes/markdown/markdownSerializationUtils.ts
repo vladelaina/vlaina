@@ -6,12 +6,12 @@ import {
   collapseSyntheticBlankLinesAroundEmptyPlaceholders,
   collapseSyntheticBlankLinesBetweenAdjacentHeadings,
 } from './markdownHeadingSpacing';
-import { normalizeCanonicalMarkdownSpacing } from './markdownCanonicalSpacing';
+import { normalizeCanonicalMarkdownSpacingForPersistence } from './markdownCanonicalSpacing';
 import { preserveParagraphSoftBreaksAsHardBreaks } from './markdownSoftBreaks';
 export { preserveMarkdownBlankLinesForEditor } from './markdownEditorBlankLines';
 export { joinSerializedBlocks } from './markdownBlockJoin';
 
-const BR_ONLY_PATTERN = /^<br\s*\/?>$/i;
+const BR_ONLY_PATTERN = /^<br\b[^>]*\/?>\s*(?:<\/br>)?$/i;
 const VLAINA_EMPTY_LINE_ATTR_PATTERN = '\\bdat[ae]-vla(?:ina|ian)-?(?:empty|empt)-line';
 const VLAINA_LIST_GAP_ATTR_PATTERN = '\\bdat[ae]-vla(?:ina|ian)-?list-gap';
 const VLAINA_USER_BR_ATTR_PATTERN = '\\bdat[ae]-vla(?:ina|ian)-?user-br';
@@ -31,6 +31,7 @@ const LEAKED_LIST_GAP_SENTINEL_WITH_NEWLINES_PATTERN =
   new RegExp(`\\n*${LEAKED_LIST_GAP_SENTINEL_PATTERN.source}\\n*`, 'g');
 const INVISIBLE_EMPTY_LINE_PLACEHOLDER_PATTERN = /^[\t ]*\\?\u200B[\t ]*$/;
 const INVISIBLE_LIST_GAP_PLACEHOLDER_PATTERN = /^[\t ]*\\?\u200B\\?\u200C[\t ]*$/;
+const EDITABLE_LIST_GAP_PLACEHOLDER_PATTERN = /^[\t ]*\u2800[\t ]*$/;
 const USER_BR_SENTINEL_LINE_PATTERN =
   new RegExp(`^(\\s*(?:>\\s*)*)${USER_BR_SENTINEL}$`);
 const MARKED_EMPTY_MARKDOWN_LINE_PLACEHOLDER_PATTERN =
@@ -51,12 +52,18 @@ const MARKED_USER_BR_TOKEN_PATTERN =
   new RegExp(`[ \\t]*(?:\\\\?\\u200B[ \\t]*)?<br\\b(?=[^>]*${VLAINA_USER_BR_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>[ \\t]*(?:<\\/br>)?`, 'gi');
 const MARKED_LIST_GAP_TOKEN_PATTERN = new RegExp(`[ \\t]*<br\\b(?=[^>]*${VLAINA_LIST_GAP_ATTR_PATTERN}=${TRUE_ATTR_VALUE_PATTERN})[^>]*\\/?>[ \\t]*(?:<\\/br>)?`, 'gi');
 const EMPTY_LIST_ITEM_PLACEHOLDER_PATTERN =
-  /^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+(?:\[(?: |x|X)\]\s+)?)<br\s*\/?>$/gim;
+  /^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])(?:\s+\[(?: |x|X)\])?)\s+<br\b[^>]*\/?>\s*(?:<\/br>)?$/gim;
+const EDITABLE_LIST_GAP_MARKER_PLACEHOLDER_PATTERN =
+  /^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])(?:\s+\[(?: |x|X)\])?)\s+\u2800\s*$/;
+const STANDALONE_BR_LINE_PATTERN = /^(\s*)<br\b[^>]*\/?>\s*(?:<\/br>)?$/i;
+const BLOCKQUOTE_STANDALONE_BR_LINE_PATTERN = /^(\s*(?:>\s*)+)<br\b[^>]*\/?>\s*(?:<\/br>)?$/i;
+const INLINE_TERMINAL_LIST_BR_PATTERN =
+  /^(\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+(?:\[(?: |x|X)\]\s+)?(?:.+?))<br\b[^>]*\/?>\s*(?:<\/br>)?$/i;
 const EMPTY_FOOTNOTE_DEFINITION_PLACEHOLDER_PATTERN =
   /^(\s*\[\^[^\]]+\]:)\s*<br\s*\/?>$/gim;
 const EMPTY_TABLE_CELL_PLACEHOLDER_PATTERN = /(\|\s*)<br\s*\/?>(\s*\|)/g;
 const EMPTY_ATX_HEADING_MARKER_PATTERN = /^( {0,3})(#{1,6})[ \t]*$/gm;
-const LIST_ITEM_LINE_PATTERN = /^(?: {0,3})(?:[-+*]|\d+[.)])\s+/;
+const LIST_ITEM_LINE_PATTERN = /^(?: {0,3})(?:[-+*]|\d+[.)])(?:\s+|$)/;
 const MISSING_ORDERED_LIST_SPACE_LINE_PATTERN =
   /^((?:(?: {0,3}>[ \t]?)* {0,3})(\d{1,3})\.)(\S.*)$/;
 const MISSING_UNORDERED_LIST_SPACE_LINE_PATTERN =
@@ -684,7 +691,7 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
   const afterHeadingSpacing = collapseSyntheticBlankLinesBetweenAdjacentHeadings(text);
   const afterSyntheticBlankLines =
     collapseSyntheticBlankLinesAroundEmptyPlaceholders(afterHeadingSpacing);
-  const afterCanonicalSpacing = normalizeCanonicalMarkdownSpacing(afterSyntheticBlankLines);
+  const afterCanonicalSpacing = normalizeCanonicalMarkdownSpacingForPersistence(afterSyntheticBlankLines);
   const afterLenientLineMarkers = normalizeLenientMarkdownLineMarkers(afterCanonicalSpacing);
   const afterStripPlaceholders = stripEmptyMarkdownPlaceholders(afterLenientLineMarkers);
   const afterEmptyParagraphBreaks = normalizeEditorEmptyParagraphBreaks(afterStripPlaceholders);
@@ -697,8 +704,9 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
   const afterEscapedHighlight = normalizeEscapedHighlightSyntax(afterEmptyAtxHeadings);
   const afterAbbreviationDefinitions = normalizeEscapedAbbreviationDefinitions(afterEscapedHighlight);
   const afterTableCellBreaks = normalizeTableCellBreakPlaceholders(afterAbbreviationDefinitions);
+  const afterStandaloneBreakHtml = normalizeStandaloneBreakHtmlToMarkdown(afterTableCellBreaks);
   const output = normalizeUrlSerializationArtifacts(
-    preserveParagraphSoftBreaksAsHardBreaks(afterTableCellBreaks)
+    preserveParagraphSoftBreaksAsHardBreaks(afterStandaloneBreakHtml)
   );
 
   return {
@@ -716,6 +724,7 @@ function runMarkdownDocumentNormalizationPipeline(text: string) {
     afterEscapedHighlight,
     afterAbbreviationDefinitions,
     afterTableCellBreaks,
+    afterStandaloneBreakHtml,
     output,
   };
 }
@@ -746,31 +755,147 @@ function normalizeTableCellBreakPlaceholders(text: string): string {
   );
 }
 
+function normalizeStandaloneBreakHtmlToMarkdown(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) => {
+    const lines = segment.split('\n');
+    const output: string[] = [];
+
+    for (let index = 0; index < lines.length; index += 1) {
+      const line = lines[index] ?? '';
+      const inlineListBreakMatch = INLINE_TERMINAL_LIST_BR_PATTERN.exec(line);
+      if (inlineListBreakMatch) {
+        output.push((inlineListBreakMatch[1] ?? '').replace(/[ \t]*$/, ''));
+        continue;
+      }
+
+      const blockquoteBreakMatch = BLOCKQUOTE_STANDALONE_BR_LINE_PATTERN.exec(line);
+      if (blockquoteBreakMatch) {
+        const prefix = (blockquoteBreakMatch[1] ?? '').trimEnd();
+        const previousIndex = output.length - 1;
+        const previousLine = previousIndex >= 0 ? output[previousIndex] : null;
+        const nextLine = lines[index + 1] ?? '';
+        if (
+          previousLine !== null
+          && previousLine.trim() !== ''
+          && nextLine.trim() !== ''
+          && nextLine.trimStart().startsWith('>')
+        ) {
+          output[previousIndex] = previousLine.replace(/[ \t]*$/, '\\');
+        } else {
+          output.push(prefix);
+        }
+        continue;
+      }
+
+      if (STANDALONE_BR_LINE_PATTERN.test(line)) {
+        const previousIndex = output.length - 1;
+        const previousLine = previousIndex >= 0 ? output[previousIndex] : null;
+        const nextLine = lines[index + 1] ?? '';
+        if (previousLine !== null && previousLine.trim() !== '' && nextLine.trim() !== '') {
+          output[previousIndex] = previousLine.replace(/[ \t]*$/, '\\');
+        } else if (previousLine === null || nextLine.trim() !== '') {
+          output.push('');
+        }
+        continue;
+      }
+
+      output.push(line);
+    }
+
+    return output.join('\n');
+  });
+}
+
 function normalizeEditorEmptyParagraphBreaks(text: string): string {
   return mapMarkdownOutsideProtectedSegments(text, (segment) => {
     const lines = segment.split('\n');
-    return lines.filter((line, index) => {
+    return lines.map((line, index) => {
       if (!BR_ONLY_PATTERN.test(line.trim())) {
-        return true;
+        return line;
+      }
+
+      if (shouldPreserveEditorBreakLineInListContext(lines, index)) {
+        return LIST_GAP_SENTINEL;
       }
 
       if (index <= 0 || index >= lines.length - 1) {
-        return true;
+        return line;
       }
 
       const previousLine = index > 0 ? lines[index - 1] ?? '' : '';
       const nextLine = index < lines.length - 1 ? lines[index + 1] ?? '' : '';
-      return previousLine.trim() !== '' && nextLine.trim() !== '';
-    }).join('\n');
+      return previousLine.trim() !== '' && nextLine.trim() !== '' ? line : null;
+    }).filter((line) => line !== null).join('\n');
   });
 }
 
+function shouldPreserveEditorBreakLineInListContext(lines: readonly string[], index: number): boolean {
+  const line = lines[index] ?? '';
+  const match = STANDALONE_BR_LINE_PATTERN.exec(line);
+  if (!match) return false;
+
+  const indent = match[1] ?? '';
+  if (indent.length === 0) {
+    return isBetweenListContextLines(lines, index);
+  }
+
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    const previousLine = lines[cursor] ?? '';
+    if (previousLine.trim() === '') continue;
+    if (LIST_ITEM_LINE_PATTERN.test(previousLine)) return true;
+    if (!previousLine.startsWith(indent)) return false;
+  }
+
+  return false;
+}
+
+function isBetweenListContextLines(lines: readonly string[], index: number): boolean {
+  let previousIsListItem = false;
+
+  for (let cursor = index - 1; cursor >= 0; cursor -= 1) {
+    const previousLine = lines[cursor] ?? '';
+    if (isListContextSpacerLine(previousLine)) continue;
+    previousIsListItem = LIST_ITEM_LINE_PATTERN.test(previousLine);
+    break;
+  }
+
+  if (!previousIsListItem) return false;
+
+  for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+    const nextLine = lines[cursor] ?? '';
+    if (isListContextSpacerLine(nextLine)) continue;
+    return LIST_ITEM_LINE_PATTERN.test(nextLine);
+  }
+
+  return true;
+}
+
+function isListContextSpacerLine(line: string): boolean {
+  return line.trim() === '' || STANDALONE_BR_LINE_PATTERN.test(line);
+}
+
 function normalizeEditorBreakPlaceholders(text: string): string {
+  const textWithoutEditableListGapLines = text.split('\n').map((line) => {
+    if (EDITABLE_LIST_GAP_PLACEHOLDER_PATTERN.test(line)) {
+      return LIST_GAP_SENTINEL;
+    }
+    if (EDITABLE_LIST_GAP_MARKER_PLACEHOLDER_PATTERN.test(line)) {
+      return LIST_GAP_SENTINEL;
+    }
+    return line;
+  }).join('\n');
+
   return mapMarkdownOutsideProtectedBlocks(
-    text,
+    textWithoutEditableListGapLines,
     (line) => {
       const trimmed = line.trim();
       if (INVISIBLE_LIST_GAP_PLACEHOLDER_PATTERN.test(line)) {
+        return LIST_GAP_SENTINEL;
+      }
+      if (EDITABLE_LIST_GAP_PLACEHOLDER_PATTERN.test(line)) {
+        return LIST_GAP_SENTINEL;
+      }
+      if (EDITABLE_LIST_GAP_MARKER_PLACEHOLDER_PATTERN.test(line)) {
         return LIST_GAP_SENTINEL;
       }
       if (INVISIBLE_EMPTY_LINE_PLACEHOLDER_PATTERN.test(line)) {
@@ -800,7 +925,7 @@ function normalizeEditorBreakPlaceholders(text: string): string {
         return `${blockquoteUserBrMatch[1] ?? ''}${USER_BR_SENTINEL}`;
       }
       return line
-        .replace(MARKED_LIST_GAP_TOKEN_PATTERN, `\n${LIST_GAP_SENTINEL}\n`)
+        .replace(MARKED_LIST_GAP_TOKEN_PATTERN, LIST_GAP_SENTINEL)
         .replace(MARKED_EMPTY_LINE_TOKEN_PATTERN, '\n')
         .replace(
           MARKED_BLOCKQUOTE_USER_BR_TOKEN_PATTERN,
@@ -849,37 +974,41 @@ function isEditorPlaceholderBlankLine(line: string): boolean {
 }
 
 function normalizeListItemBlankLines(text: string): string {
-  const normalizedListSpacing = mapMarkdownOutsideProtectedSegments(
-    text,
-    collapseBlankLinesBetweenListItems,
-  );
-
-  if (!normalizedListSpacing.includes(LIST_GAP_SENTINEL)) {
-    return normalizedListSpacing;
+  if (!text.includes(LIST_GAP_SENTINEL)) {
+    return text;
   }
 
-  return normalizedListSpacing.replace(new RegExp(`\\n*${LIST_GAP_SENTINEL}\\n*`, 'g'), '\n\n');
+  return mapMarkdownOutsideProtectedSegments(
+    text,
+    replaceListGapSentinelsWithBlankLines,
+  );
 }
 
-function collapseBlankLinesBetweenListItems(segment: string): string {
-  const lines = segment.split('\n');
+function replaceListGapSentinelsWithBlankLines(text: string): string {
+  const lines = text.split('\n');
   const output: string[] = [];
+  let previousWasListGapSentinel = false;
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? '';
-    output.push(line);
-
-    if (!LIST_ITEM_LINE_PATTERN.test(line)) {
+    if (line !== LIST_GAP_SENTINEL) {
+      output.push(line);
+      previousWasListGapSentinel = false;
       continue;
     }
 
-    let cursor = index + 1;
-    while (cursor < lines.length && (lines[cursor] ?? '').trim() === '') {
-      cursor += 1;
+    while (
+      !previousWasListGapSentinel
+      && output.length > 0
+      && output[output.length - 1]?.trim() === ''
+    ) {
+      output.pop();
     }
+    output.push('');
+    previousWasListGapSentinel = true;
 
-    if (cursor > index + 1 && LIST_ITEM_LINE_PATTERN.test(lines[cursor] ?? '')) {
-      index = cursor - 1;
+    while (index + 1 < lines.length && (lines[index + 1] ?? '').trim() === '') {
+      index += 1;
     }
   }
 
@@ -908,7 +1037,7 @@ function getBlockquotePrefix(depth: number): string {
 export function normalizeSerializedMarkdownSelection(text: string): string {
   const trimmedText = stripTrailingNewlines(text).trim();
   const isStandaloneBreak =
-    BR_ONLY_PATTERN.test(trimmedText) || MARKED_BR_ONLY_PATTERN.test(trimmedText);
+    isPlainStandaloneBreakLine(trimmedText) || MARKED_BR_ONLY_PATTERN.test(trimmedText);
   const normalizedPlaceholders = normalizeInternalClipboardArtifacts(text);
   const withoutTrailingNewlines = stripTrailingNewlines(
     normalizeUserBreakSentinels(stripEmptyMarkdownPlaceholders(normalizedPlaceholders))
@@ -921,4 +1050,11 @@ export function normalizeSerializedMarkdownSelection(text: string): string {
   return normalizeUrlSerializationArtifacts(
     normalizeEscapedHighlightSyntax(unescapeMarkdownPunctuation(withoutTrailingNewlines))
   );
+}
+
+function isPlainStandaloneBreakLine(text: string): boolean {
+  if (!BR_ONLY_PATTERN.test(text)) return false;
+  return !MARKED_USER_BR_PATTERN.test(text)
+    && !MARKED_BLOCKQUOTE_USER_BR_PATTERN.test(text)
+    && !MARKED_BLOCKQUOTE_USER_BR_WITH_DEPTH_PATTERN.test(text);
 }

@@ -29,6 +29,23 @@ describe('resolvePendingMarkdownUpdate', () => {
       '',
     ].join('\n');
 
+    const expected = [
+      '---',
+      'vlaina_cover: "@biva/2"',
+      'vlaina_updated: "2026-05-06T08:40:49.601Z"',
+      '---',
+      '# 官网测试',
+      '',
+      '### strip',
+      '',
+      'dfdsfd',
+      '',
+      '<br />',
+      '',
+      'rtgyhui',
+      '',
+    ].join('\n');
+
     expect(
       resolvePendingMarkdownUpdate({
         pendingMarkdown: stalePending,
@@ -36,39 +53,13 @@ describe('resolvePendingMarkdownUpdate', () => {
         liveSerializedMarkdown,
       }),
     ).toEqual({
-      markdownToApply: [
-        '---',
-        'vlaina_cover: "@biva/2"',
-        'vlaina_updated: "2026-05-06T08:40:49.601Z"',
-        '---',
-        '# 官网测试',
-        '### strip',
-        '',
-        'dfdsfd',
-        '',
-        '',
-        'rtgyhui',
-        '',
-      ].join('\n'),
+      markdownToApply: expected,
       source: 'live-editor',
-      liveMarkdown: [
-        '---',
-        'vlaina_cover: "@biva/2"',
-        'vlaina_updated: "2026-05-06T08:40:49.601Z"',
-        '---',
-        '# 官网测试',
-        '### strip',
-        '',
-        'dfdsfd',
-        '',
-        '',
-        'rtgyhui',
-        '',
-      ].join('\n'),
+      liveMarkdown: expected,
     });
   });
 
-  it('allows the pending markdown when it matches the live editor doc after normalization', () => {
+  it('uses the live editor doc when pending still equals the latest note content', () => {
     const latestNoteContent = [
       '---',
       'vlaina_icon: "🫧"',
@@ -96,6 +87,23 @@ describe('resolvePendingMarkdownUpdate', () => {
       '',
     ].join('\n');
 
+    const expected = [
+      '---',
+      'vlaina_icon: "🫧"',
+      'vlaina_updated: "2026-05-06T08:40:49.601Z"',
+      '---',
+      '# 官网测试',
+      '',
+      '### strip',
+      '',
+      'dfdsfd',
+      '',
+      '<br />',
+      '',
+      'rtgyhui',
+      '',
+    ].join('\n');
+
     expect(
       resolvePendingMarkdownUpdate({
         pendingMarkdown: latestNoteContent,
@@ -103,13 +111,13 @@ describe('resolvePendingMarkdownUpdate', () => {
         liveSerializedMarkdown,
       }),
     ).toEqual({
-      markdownToApply: latestNoteContent,
-      source: 'pending-markdown',
-      liveMarkdown: latestNoteContent,
+      markdownToApply: expected,
+      source: 'live-editor',
+      liveMarkdown: expected,
     });
   });
 
-  it('uses live normalized markdown for custom syntax before saving', () => {
+  it('keeps live editor serialization exact and leaves save-time cleanup to persistence', () => {
     const latestNoteContent = [
       '---',
       'vlaina_cover: "@biva/2"',
@@ -132,15 +140,15 @@ describe('resolvePendingMarkdownUpdate', () => {
       '---',
       'vlaina_cover: "@biva/2"',
       '---',
-      '==highlight==',
+      '\\==highlight==',
       '',
-      '*[ABBR]: Full phrase',
+      '\\*[ABBR]: Full phrase',
       '',
-      '[^1]:',
+      '[^1]: <br />',
       '',
       '| A | B |',
       '| - | - |',
-      '|   |   |',
+      '| <br /> | <br /> |',
     ].join('\n');
 
     expect(
@@ -153,6 +161,32 @@ describe('resolvePendingMarkdownUpdate', () => {
       markdownToApply: expected,
       source: 'live-editor',
       liveMarkdown: expected,
+    });
+  });
+
+  it('keeps a real pending edit instead of replacing it with a stale live serialization', () => {
+    const latestNoteContent = [
+      '8. before',
+      '10. after',
+    ].join('\n');
+    const pendingMarkdown = [
+      '8. before',
+      '9. <br />',
+      '<br />',
+      '10. after',
+    ].join('\n');
+    const liveSerializedMarkdown = latestNoteContent;
+
+    expect(
+      resolvePendingMarkdownUpdate({
+        pendingMarkdown,
+        latestNoteContent,
+        liveSerializedMarkdown,
+      }),
+    ).toEqual({
+      markdownToApply: pendingMarkdown,
+      source: 'pending-markdown',
+      liveMarkdown: latestNoteContent,
     });
   });
 

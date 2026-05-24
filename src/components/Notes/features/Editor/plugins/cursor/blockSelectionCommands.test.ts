@@ -347,7 +347,7 @@ describe('serializeSelectedBlocksToText', () => {
     const blocks = collectSelectableBlockRanges(view.state.doc);
 
     expect(serializeSelectedBlocksToText(view.state, blocks, { markdownSerializer: serializer })).toBe(
-      '- A\n- B'
+      '- A\n\n- B'
     );
 
     await editor.destroy();
@@ -372,7 +372,7 @@ describe('serializeSelectedBlocksToText', () => {
     const blocks = collectSelectableBlockRanges(view.state.doc);
 
     expect(serializeSelectedBlocksToText(view.state, blocks, { markdownSerializer: serializer })).toBe(
-      '1. A\n2. B'
+      '1. A\n\n2. B'
     );
 
     await editor.destroy();
@@ -386,12 +386,12 @@ describe('serializeSelectedBlocksToText', () => {
     {
       name: 'empty bullet items',
       markdown: '- \n- B',
-      expected: '-\n- B',
+      expected: '-\n\n- B',
     },
     {
       name: 'empty task items',
       markdown: '- [ ] \n- [x] done',
-      expected: '- [ ]\n- [x] done',
+      expected: '- [ ]\n\n- [x] done',
     },
     {
       name: 'ordered list start numbers',
@@ -406,7 +406,7 @@ describe('serializeSelectedBlocksToText', () => {
     {
       name: 'loose adjacent ordered items',
       markdown: '1. A\n\n1. B',
-      expected: '1. A\n2. B',
+      expected: '1. A\n\n2. B',
     },
     {
       name: 'separate adjacent bullet and ordered lists',
@@ -421,12 +421,12 @@ describe('serializeSelectedBlocksToText', () => {
     {
       name: 'nested bullet items',
       markdown: '- parent\n  - child\n- sibling',
-      expected: '- parent\n  - child\n- sibling',
+      expected: '- parent\n\n  - child\n\n- sibling',
     },
     {
       name: 'nested ordered items',
       markdown: '1. parent\n   1. child\n2. sibling',
-      expected: '1. parent\n   1. child\n2. sibling',
+      expected: '1. parent\n\n   1. child\n2. sibling',
     },
   ])('preserves copied $name', async ({ markdown, expected }) => {
     await expect(copyAllSelectableBlocks(markdown)).resolves.toBe(expected);
@@ -747,7 +747,7 @@ describe('serializeSelectedBlocksToText', () => {
     const blocks = collectSelectableBlockRanges(view.state.doc);
 
     expect(serializeSelectedBlocksToText(view.state, blocks, { markdownSerializer: serializer })).toBe(
-      '- [ ] A\n- [ ] B'
+      '- [ ] A\n\n- [ ] B'
     );
 
     await editor.destroy();

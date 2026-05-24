@@ -18,9 +18,12 @@ import { escapeParagraphTrailingBackslashesForEditor } from './plainTextBackslas
 const BR_ONLY_PATTERN = /^<br\s*\/?>$/i;
 const BLOCKQUOTE_BR_ONLY_PATTERN = /^(\s*(?:>\s*)+)<br\s*\/?>$/i;
 const EDITOR_EMPTY_PARAGRAPH_PLACEHOLDER = '<br />';
-const LIST_GAP_PLACEHOLDER = '\u200B\u200C';
+const LIST_GAP_PLACEHOLDER = '\u2800';
 const USER_BR_SENTINEL = '\u0000VLAINA_USER_BR_SENTINEL\u0000';
 const MAX_CONSECUTIVE_EDITOR_BLANK_LINES = 8;
+const HARD_BREAK_LINE_PATTERN = /(?:\\| {2,})$/;
+const INLINE_TERMINAL_LIST_BR_PATTERN =
+  /^(\s*(?:>\s*)*)((?:[-+*])|(\d+[.)]))\s+(?:\[(?: |x|X)\]\s+)?(.+?)<br\s*\/?>\s*$/i;
 const USER_BR_SENTINEL_LINE_PATTERN =
   new RegExp(`^(\\s*(?:>\\s*)*)${USER_BR_SENTINEL}$`);
 const MARKDOWN_HEADING_LINE_PATTERN = /^\s{0,3}#{1,6}\s+/;
@@ -28,11 +31,14 @@ const EMPTY_LIST_ITEM_LINE_PATTERN =
   /^([ \t]*(?:>[ \t]*)*(?:[-+*]|\d+[.)]))[ \t]*$/;
 const EMPTY_TASK_LIST_ITEM_LINE_PATTERN =
   /^([ \t]*(?:>[ \t]*)*(?:[-+*]|\d+[.)])[ \t]+\[(?: |x|X)\])[ \t]*$/;
+const LIST_ITEM_MARKER_LINE_PATTERN =
+  /^([ \t]*(?:>[ \t]*)*)([-+*]|\d+[.)])([ \t]+(?:\[(?: |x|X)\][ \t]+)?)(.*)$/;
 
 export function preserveMarkdownBlankLinesForEditor(text: string): string {
   if (text.length === 0) return text;
 
-  const escapedText = escapeParagraphTrailingBackslashesForEditor(text);
+  const expandedText = expandInlineTerminalListBreaksForEditor(text);
+  const escapedText = escapeParagraphTrailingBackslashesForEditor(expandedText);
   const collapsedText = collapseExcessiveBlankLineRunsForEditor(escapedText);
   const preserved = mapMarkdownOutsideProtectedBlocks(collapsedText, (line, index, lines) => {
     const emptyListItemMatch = EMPTY_LIST_ITEM_LINE_PATTERN.exec(line);
@@ -55,11 +61,11 @@ export function preserveMarkdownBlankLinesForEditor(text: string): string {
       if (isBlankLineSurroundedLine(lines, index)) {
         return EDITOR_EMPTY_PARAGRAPH_PLACEHOLDER;
       }
-      return USER_BR_SENTINEL;
+      return `${line.match(/^\s*/)?.[0] ?? ''}${USER_BR_SENTINEL}`;
     }
 
     if (isBetweenListItemsBlankLine(lines, index)) {
-      return LIST_GAP_PLACEHOLDER;
+      return createEditableListGapPlaceholderLine(lines, index);
     }
 
     if (isListBoundaryBlankLine(lines, index)) {
@@ -102,6 +108,52 @@ export function preserveMarkdownBlankLinesForEditor(text: string): string {
     return line;
   });
   return normalizeUserBreakSentinels(preserved);
+}
+
+function createEditableListGapPlaceholderLine(lines: readonly string[], index: number): string {
+  const reference = findNearestListItemLine(lines, index, 1)
+    ?? findNearestListItemLine(lines, index, -1);
+  if (!reference) return LIST_GAP_PLACEHOLDER;
+
+  const match = LIST_ITEM_MARKER_LINE_PATTERN.exec(reference);
+  if (!match) return LIST_GAP_PLACEHOLDER;
+
+  return `${match[1] ?? ''}- ${LIST_GAP_PLACEHOLDER}`;
+}
+
+function findNearestListItemLine(
+  lines: readonly string[],
+  startIndex: number,
+  direction: -1 | 1,
+): string | null {
+  for (let index = startIndex + direction; index >= 0 && index < lines.length; index += direction) {
+    const line = lines[index] ?? '';
+    if (line.trim() === '') continue;
+    if (LIST_ITEM_MARKER_LINE_PATTERN.test(line)) return line;
+    return null;
+  }
+  return null;
+}
+
+function expandInlineTerminalListBreaksForEditor(text: string): string {
+  return mapMarkdownOutsideProtectedSegments(text, (segment) =>
+    segment.split('\n').map((line) => {
+      const match = INLINE_TERMINAL_LIST_BR_PATTERN.exec(line);
+      if (!match) return line;
+
+      const prefix = match[1] ?? '';
+      const marker = match[2] ?? '';
+      const orderedMarker = match[3] ?? '';
+      const content = match[4] ?? '';
+      const lineWithoutBreak = line.slice(0, line.length - (line.match(/<br\s*\/?>\s*$/i)?.[0].length ?? 0));
+      if (content.trim().length === 0) return line;
+
+      const continuationIndent = orderedMarker
+        ? `${prefix}${' '.repeat(marker.length + 1)}`
+        : `${prefix}  `;
+      return `${lineWithoutBreak}\\\n${continuationIndent}<br />`;
+    }).join('\n')
+  );
 }
 
 function collapseExcessiveBlankLineRunsForEditor(text: string): string {
@@ -172,6 +224,10 @@ function normalizeUserBreakSentinels(text: string): string {
     const previousLine = previousIndex >= 0 ? output[previousIndex] : null;
 
     if (previousLine !== null && !isEditorPlaceholderBlankLine(previousLine)) {
+      if (HARD_BREAK_LINE_PATTERN.test(previousLine)) {
+        output.push(`${prefix}<br />`);
+        continue;
+      }
       output[previousIndex] = previousLine.replace(/[ \t]*$/, '\\');
       continue;
     }

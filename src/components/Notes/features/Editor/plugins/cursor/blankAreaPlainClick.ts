@@ -38,7 +38,8 @@ export function resolveBlankAreaPlainClickAction(args: {
   for (let index = 1; index < blockRects.length; index += 1) {
     const candidate = blockRects[index];
     const distance = resolveVerticalDistance(candidate, clientY);
-    if (distance < nearestDistance) {
+    const overlapsCurrentBlock = distance === 0 && nearestDistance === 0;
+    if (distance < nearestDistance || overlapsCurrentBlock) {
       nearestBlock = candidate;
       nearestDistance = distance;
     }

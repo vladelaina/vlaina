@@ -1,5 +1,4 @@
 import {
-  normalizeSerializedMarkdownDocument,
   restoreMathBlockFenceStylesFromReference,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { serializeLeadingFrontmatterMarkdown } from '../plugins/frontmatter/frontmatterMarkdown';
@@ -27,13 +26,15 @@ export function resolvePendingMarkdownUpdate({
     };
   }
 
-  const liveMarkdown = serializeLeadingFrontmatterMarkdown(
-    restoreMathBlockFenceStylesFromReference(
-      normalizeSerializedMarkdownDocument(liveSerializedMarkdown),
-      latestNoteContent,
-    ),
-    latestNoteContent,
-  );
+  const liveMarkdown = serializeEditorMarkdownSnapshot(liveSerializedMarkdown, latestNoteContent);
+
+  if (pendingMarkdown !== latestNoteContent) {
+    return {
+      markdownToApply: pendingMarkdown,
+      source: 'pending-markdown',
+      liveMarkdown,
+    };
+  }
 
   if (liveMarkdown !== pendingMarkdown) {
     return {
@@ -48,4 +49,11 @@ export function resolvePendingMarkdownUpdate({
     source: 'pending-markdown',
     liveMarkdown,
   };
+}
+
+export function serializeEditorMarkdownSnapshot(markdown: string, referenceMarkdown: string): string {
+  return serializeLeadingFrontmatterMarkdown(
+    restoreMathBlockFenceStylesFromReference(markdown, referenceMarkdown),
+    referenceMarkdown,
+  );
 }

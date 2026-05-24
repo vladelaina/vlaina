@@ -30,7 +30,7 @@ async function reopenMarkdown(markdown: string): Promise<ReopenSnapshot> {
   const editor = Editor.make()
     .config((ctx) => {
       ctx.set(defaultValueCtx, preserveMarkdownBlankLinesForEditor(
-        normalizeLeadingFrontmatterMarkdown(normalizeSerializedMarkdownDocument(markdown))
+        normalizeLeadingFrontmatterMarkdown(markdown)
       ));
       ctx.update(remarkStringifyOptionsCtx, (prev) => ({
         ...prev,
@@ -78,6 +78,12 @@ function collectNodes(value: unknown): Array<{ type?: unknown; attrs?: unknown; 
   return [node, ...children];
 }
 
+function collectNodesByType(value: unknown, type: string): Array<Record<string, unknown>> {
+  return collectNodes(value)
+    .filter((node) => node.type === type)
+    .map((node) => node as Record<string, unknown>);
+}
+
 function expectCleanPersistedMarkdown(markdown: string): void {
   expect(markdown).not.toContain('\u200B');
   expect(markdown).not.toContain('\u200C');
@@ -107,11 +113,16 @@ describe('markdown blank line reopen regressions', () => {
       markdown: '> -',
       expectedNode: { type: 'bullet_list' },
     },
-  ])('reopens an empty $name list item as a list', async ({ markdown, expectedNode }) => {
+  ] as Array<{
+    name: string;
+    markdown: string;
+    expectedPersisted?: string;
+    expectedNode: { type: string };
+  }>)('reopens an empty $name list item as a list', async ({ markdown, expectedPersisted, expectedNode }) => {
     const snapshot = await reopenMarkdown(markdown);
 
     expect(collectNodes(snapshot.docJson)).toContainEqual(expect.objectContaining(expectedNode));
-    expect(snapshot.persisted).toBe(markdown);
+    expect(snapshot.persisted).toBe(expectedPersisted ?? markdown);
     expectCleanPersistedMarkdown(snapshot.persisted);
   });
 
@@ -136,13 +147,18 @@ describe('markdown blank line reopen regressions', () => {
       markdown: '> - [ ]',
       checked: false,
     },
-  ])('reopens an empty $name task item as a checkbox', async ({ markdown, checked }) => {
+  ] as Array<{
+    name: string;
+    markdown: string;
+    expectedPersisted?: string;
+    checked: boolean;
+  }>)('reopens an empty $name task item as a checkbox', async ({ markdown, expectedPersisted, checked }) => {
     const snapshot = await reopenMarkdown(markdown);
 
     expect(collectListItemAttrs(snapshot.docJson)).toContainEqual(
       expect.objectContaining({ checked })
     );
-    expect(snapshot.persisted).toBe(markdown);
+    expect(snapshot.persisted).toBe(expectedPersisted ?? markdown);
     expectCleanPersistedMarkdown(snapshot.persisted);
   });
 
@@ -201,5 +217,33 @@ describe('markdown blank line reopen regressions', () => {
     const secondReopen = await reopenMarkdown(firstReopen.persisted);
     expect(secondReopen.texts).toEqual(texts);
     expect(secondReopen.persisted).toBe(firstReopen.persisted);
+  });
+
+  it('reopens markdown blank lines between list items as visible editor paragraphs without saving br tags', async () => {
+    const markdown = ['- one', '', '', '- two', '', '', '', '- three'].join('\n');
+
+    const snapshot = await reopenMarkdown(markdown);
+
+    expect(snapshot.texts).toContain('');
+    expect(snapshot.persisted).toBe(markdown);
+    expectCleanPersistedMarkdown(snapshot.persisted);
+  });
+
+  it('parses editor-only list gap placeholder lines as editable list items', async () => {
+    const snapshot = await reopenMarkdown(['- one', '', '', '- two'].join('\n'));
+
+    expect(collectNodesByType(snapshot.docJson, 'list_item')).toHaveLength(4);
+    expect(snapshot.textContent).toContain('\u2800');
+    expect(snapshot.persisted).toBe(['- one', '', '', '- two'].join('\n'));
+    expectCleanPersistedMarkdown(snapshot.persisted);
+  });
+
+  it('parses task-list gap placeholder lines as editable list items', async () => {
+    const snapshot = await reopenMarkdown(['- [ ] one', '', '', '- [ ] two'].join('\n'));
+
+    expect(collectNodesByType(snapshot.docJson, 'list_item')).toHaveLength(4);
+    expect(snapshot.textContent).toContain('\u2800');
+    expect(snapshot.persisted).toBe(['- [ ] one', '', '', '- [ ] two'].join('\n'));
+    expectCleanPersistedMarkdown(snapshot.persisted);
   });
 });

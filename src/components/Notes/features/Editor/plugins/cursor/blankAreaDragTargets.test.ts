@@ -360,13 +360,13 @@ describe('blankAreaDragTargets', () => {
     }
   });
 
-  it('leaves empty full-width text blocks to native editor handling', () => {
+  it('routes empty full-width text blocks through blank-area click handling', () => {
     const { view, cleanup } = createView();
     const paragraph = document.createElement('p');
     view.dom.append(paragraph);
 
     try {
-      expect(resolveBlankAreaDragStartZone(view, createMouseDown(paragraph))).toBeNull();
+      expect(resolveBlankAreaDragStartZone(view, createMouseDown(paragraph))).toBe('outside-editor');
     } finally {
       cleanup();
     }

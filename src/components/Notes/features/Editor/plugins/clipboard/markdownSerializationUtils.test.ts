@@ -398,7 +398,7 @@ describe('normalizeSerializedMarkdownDocument', () => {
       ['1. 1', '2. 1'].join('\n')
     );
     expect(normalizeSerializedMarkdownDocument(['0.安装', '', '1.调用笔记'].join('\n'))).toBe(
-      ['0. 安装', '1. 调用笔记'].join('\n')
+      ['0. 安装', '', '1. 调用笔记'].join('\n')
     );
   });
 
@@ -424,7 +424,7 @@ describe('normalizeSerializedMarkdownDocument', () => {
   it('converts invisible blank placeholders next to internal user br placeholders', () => {
     expect(
       normalizeSerializedMarkdownDocument('A\n\u200B <br data-vlaina-user-br="true" />\n\u200B\nB')
-    ).toBe('A\n\n<br />\n\nB');
+    ).toBe('A\n\n\nB');
   });
 
   it('converts standalone br lines into markdown blank lines', () => {
@@ -451,13 +451,13 @@ describe('normalizeSerializedMarkdownDocument', () => {
     ).toBe('1\n\n2\n');
   });
 
-  it('keeps user-authored standalone br tags', () => {
-    expect(normalizeSerializedMarkdownDocument('1\n<br />\n2\n')).toBe('1\n<br />\n2\n');
-    expect(normalizeSerializedMarkdownDocument('<br />')).toBe('<br />');
-    expect(normalizeSerializedMarkdownDocument('> <br />')).toBe('> <br />');
+  it('converts standalone br tags into markdown-native line breaks', () => {
+    expect(normalizeSerializedMarkdownDocument('1\n<br />\n2\n')).toBe('1\\\n2\n');
+    expect(normalizeSerializedMarkdownDocument('<br />')).toBe('');
+    expect(normalizeSerializedMarkdownDocument('> <br />')).toBe('>');
     expect(
       normalizeSerializedMarkdownDocument('<br data-vlaina-blockquote-depth="2" data-vlaina-user-br="true" />')
-    ).toBe('> > <br />');
+    ).toBe('> >');
   });
 
   it('converts editor-created empty paragraph br lines into markdown blank lines', () => {
@@ -470,6 +470,45 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(
       normalizeSerializedMarkdownDocument(['1', '', '2', '', '<br />', '3'].join('\n'))
     ).toBe(['1', '', '2', '', '3'].join('\n'));
+  });
+
+  it('converts indented editor-created br lines inside list items into markdown blank lines', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(['- 1', '', '  <br />', '', '- 2'].join('\n'))
+    ).toBe(['- 1', '', '- 2'].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument(['- [ ] 1', '', '  <br />', '', '- [ ] 2'].join('\n'))
+    ).toBe(['- [ ] 1', '', '- [ ] 2'].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument(['1. 1', '', '   <br />', '', '2. 2'].join('\n'))
+    ).toBe(['1. 1', '', '2. 2'].join('\n'));
+  });
+
+  it('converts unindented editor-created br lines between list items into markdown blank lines', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(['- 1', '', '<br></br>', '', '- 2'].join('\n'))
+    ).toBe(['- 1', '', '- 2'].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument(['- [ ] 1', '', '<br />', '', '- [ ] 2'].join('\n'))
+    ).toBe(['- [ ] 1', '', '- [ ] 2'].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument(['1. 1', '', '<br />', '', '2. 2'].join('\n'))
+    ).toBe(['1. 1', '', '2. 2'].join('\n'));
+  });
+
+  it('converts multiple editor-created br lines between list items into markdown blank lines', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(['- 1', '', '<br />', '', '<br />', '', '<br />', '', '- 2'].join('\n'))
+    ).toBe(['- 1', '', '', '', '- 2'].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument(['1. 1', '', '<br />', '', '<br />', '', '2. 2'].join('\n'))
+    ).toBe(['1. 1', '', '', '2. 2'].join('\n'));
+  });
+
+  it('preserves ordered list empty items serialized with br placeholders', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(['8. before', '9. <br />', '<br />', '10. after'].join('\n'))
+    ).toBe(['8. before', '9.', '', '10. after'].join('\n'));
   });
 
   it('converts internal user br placeholders with serialized html variants', () => {
@@ -488,6 +527,18 @@ describe('normalizeSerializedMarkdownDocument', () => {
     expect(
       normalizeSerializedMarkdownDocument(['1', '2', '', '3', '4'].join('\n'))
     ).toBe(['1\\', '2', '', '3\\', '4'].join('\n'));
+  });
+
+  it('preserves user-authored line breaks inside list items as markdown hard breaks', () => {
+    expect(
+      normalizeSerializedMarkdownDocument(['- one', '  two', '- three'].join('\n'))
+    ).toBe(['- one\\', '  two', '- three'].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument(['1. one', '   two', '2. three'].join('\n'))
+    ).toBe(['1. one\\', '   two', '2. three'].join('\n'));
+    expect(
+      normalizeSerializedMarkdownDocument(['- [ ] one', '  two', '- [ ] three'].join('\n'))
+    ).toBe(['- [ ] one\\', '  two', '- [ ] three'].join('\n'));
   });
 
   it('does not convert structural markdown boundaries into hard breaks', () => {
@@ -574,12 +625,12 @@ describe('normalizeSerializedMarkdownDocument', () => {
       normalizeSerializedMarkdownDocument(
         '<br class="x" data-vlaina-user-br=true data-vlaina-blockquote-depth=2></br>'
       )
-    ).toBe('> > <br />');
+    ).toBe('> >');
     expect(
       normalizeSerializedMarkdownDocument(
         '<br date-vlaina-blockquote-depth="2" date-vlaina-user-br="true"/>'
       )
-    ).toBe('> > <br />');
+    ).toBe('> >');
   });
 
   it('does not rewrite user text that resembles internal sentinels', () => {
@@ -604,6 +655,12 @@ describe('normalizeSerializedMarkdownDocument', () => {
   });
 
   it('converts internal list gap placeholders back to markdown blank lines', () => {
+    expect(
+      normalizeSerializedMarkdownDocument('- one\n\u2800\n- two\n')
+    ).toBe('- one\n\n- two\n');
+    expect(
+      normalizeSerializedMarkdownDocument('- parent\n    - \u2800\n    - child\n')
+    ).toBe('- parent\n\n    - child\n');
     expect(
       normalizeSerializedMarkdownDocument('- one\n<br data-vlaina-list-gap="true"/>\n- two\n')
     ).toBe('- one\n\n- two\n');

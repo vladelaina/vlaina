@@ -170,6 +170,39 @@
   text-align: left;
 }
 
+.milkdown .ProseMirror li.vlaina-list-gap-placeholder-item {
+  --vlaina-list-gap-placeholder-outdent: 2rem;
+  list-style-type: none;
+  margin-left: calc(-1 * var(--vlaina-list-gap-placeholder-outdent));
+  min-height: 1.45em;
+  padding-left: 0;
+  width: calc(100% + var(--vlaina-list-gap-placeholder-outdent));
+}
+
+.milkdown .ProseMirror li.vlaina-list-gap-placeholder-item::marker {
+  color: transparent;
+  font-size: 0;
+}
+
+.milkdown .ProseMirror li.vlaina-list-gap-placeholder-item > p {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: var(--vlaina-caret-color);
+  min-height: 1.45em;
+}
+
+.milkdown .ProseMirror li.vlaina-list-gap-placeholder-item.vlaina-block-selected,
+.milkdown .ProseMirror li.vlaina-list-gap-placeholder-item > .vlaina-block-selected {
+  --vlaina-block-selection-bleed-x-start: calc(
+    var(--vlaina-list-row-selection-bleed-x-start, 72px) -
+    var(--vlaina-list-gap-placeholder-outdent)
+  );
+}
+
+.milkdown .ProseMirror li[data-item-type="task"].vlaina-list-gap-placeholder-item::before {
+  display: none;
+}
+
 /* Task List - Milkdown uses data-item-type="task" and data-checked attributes */
 
 /* Task list item */

@@ -5,11 +5,7 @@ import {
   flushPendingEditorMarkdown,
   setPendingEditorMarkdownFlusher,
 } from '@/stores/notes/pendingEditorMarkdown';
-import {
-  normalizeSerializedMarkdownDocument,
-  restoreMathBlockFenceStylesFromReference,
-} from '@/lib/notes/markdown/markdownSerializationUtils';
-import { serializeLeadingFrontmatterMarkdown } from '../plugins/frontmatter/frontmatterMarkdown';
+import { serializeEditorMarkdownSnapshot } from '../utils/pendingMarkdownUpdate';
 
 interface MilkdownToken<T> {
   readonly __milkdownType?: T;
@@ -65,20 +61,10 @@ export function usePendingMarkdownFlusher({
         if (latestCurrentNote && latestCurrentNote.path === currentNotePath) {
           currentContent = latestCurrentNote.content;
         }
-        const normalizedMarkdown = normalizeSerializedMarkdownDocument(pendingRawMarkdown);
-        const styledMarkdown = restoreMathBlockFenceStylesFromReference(
-          normalizedMarkdown,
-          currentContent,
-        );
-        pendingMarkdown = serializeLeadingFrontmatterMarkdown(
-          styledMarkdown,
-          currentContent,
-        );
+        pendingMarkdown = serializeEditorMarkdownSnapshot(pendingRawMarkdown, currentContent);
       }
       if (pendingMarkdown === null) {
-        if (!allowFallbackSerialize) {
-        } else if (!hasEditorUserInputRef.current) {
-        } else {
+        if (allowFallbackSerialize && hasEditorUserInputRef.current) {
           try {
             const editor = getEditorRef.current?.();
             const view = editor?.ctx.get(editorViewCtx);
@@ -92,17 +78,9 @@ export function usePendingMarkdownFlusher({
                 currentContent = latestCurrentNote.content;
               }
               const serialized = serializer(view.state.doc);
-              const normalizedSerialized = normalizeSerializedMarkdownDocument(serialized);
-              const styledSerialized = restoreMathBlockFenceStylesFromReference(
-                normalizedSerialized,
-                currentContent,
-              );
-              pendingMarkdown = serializeLeadingFrontmatterMarkdown(
-                styledSerialized,
-                currentContent,
-              );
+              pendingMarkdown = serializeEditorMarkdownSnapshot(serialized, currentContent);
             }
-          } catch (error) {
+          } catch {
             pendingMarkdown = null;
           }
         }

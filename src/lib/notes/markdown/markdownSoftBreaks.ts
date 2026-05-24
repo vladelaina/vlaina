@@ -5,6 +5,11 @@ const MARKDOWN_STRUCTURAL_LINE_PATTERN =
   /^(?:\s*(?:#{1,6}\s+|(?:[-+*]|\d+[.)])\s+|(?:[-*_][ \t]*){3,}|={2,}\s*$|-{2,}\s*$|\|.*\|\s*$|:?-+:?\s*(?:\|\s*:?-+:?\s*)+\|?\s*$))/;
 const HTML_LINE_PATTERN = /^(?:\s*<\/?[A-Za-z][^>]*>|\s*<!--|\s*<![A-Za-z]|\s*<\?)/;
 const BLOCKQUOTE_LINE_PATTERN = /^(?:\s*>)/;
+const LIST_ITEM_CONTENT_LINE_PATTERN =
+  /^\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s+(?:\[(?: |x|X)\]\s+)?\S/;
+const LIST_CONTINUATION_LINE_PATTERN = /^\s*(?:>\s*)+(?: {2,}|\t)\S|^(?: {2,}|\t)\S/;
+const LIST_MARKER_ONLY_LINE_PATTERN =
+  /^\s*(?:>\s*)*(?:[-+*]|\d+[.)])\s*(?:\[(?: |x|X)\]\s*)?$/;
 const DISPLAY_MATH_FENCE_PATTERN = /^\s*\$\$\s*$/;
 const ALTERNATIVE_MATH_BLOCK_OPEN_PATTERN = /^(\s*(?:>\s*)*)((?:\\+\[\\?)|\[\\?|\[)\s*$/;
 const ALTERNATIVE_MATH_BLOCK_STANDARD_CLOSE_PATTERN = /^(\s*(?:>\s*)*)\\\]\s*$/;
@@ -182,7 +187,16 @@ function shouldPreserveSoftBreakAfterLine(
   if (protectedLines.has(index) || protectedLines.has(index + 1)) return false;
   if (line.trim() === '' || nextLine.trim() === '') return false;
   if (HARD_BREAK_LINE_PATTERN.test(line)) return false;
+  if (isListItemSoftBreakLine(line, nextLine)) return true;
   if (!isPlainParagraphLine(line) || !isPlainParagraphLine(nextLine)) return false;
+  return true;
+}
+
+function isListItemSoftBreakLine(line: string, nextLine: string): boolean {
+  if (!LIST_ITEM_CONTENT_LINE_PATTERN.test(line)) return false;
+  if (!LIST_CONTINUATION_LINE_PATTERN.test(nextLine)) return false;
+  if (LIST_MARKER_ONLY_LINE_PATTERN.test(nextLine)) return false;
+  if (!isPlainParagraphLine(nextLine)) return false;
   return true;
 }
 

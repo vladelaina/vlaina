@@ -144,7 +144,7 @@ describe('clipboard paste markdown persistence', () => {
 
   it('persists pasted ordered lists that are missing marker spaces as standard markdown', async () => {
     await expect(pasteAndPersist(['0.安装更换路径', '', '1.调用笔记', '', '2.切换笔记'].join('\n'))).resolves.toBe(
-      ['0. 安装更换路径', '', '1. 调用笔记', '', '2. 切换笔记'].join('\n')
+      ['0. 安装更换路径', '1. 调用笔记', '2. 切换笔记'].join('\n')
     );
   });
 
@@ -156,7 +156,7 @@ describe('clipboard paste markdown persistence', () => {
 
   it('persists pasted common non-standard markdown line markers as standard markdown', async () => {
     await expect(pasteAndPersist(['1、苹果', '2、香蕉', '', '-苹果', '-香蕉'].join('\n'))).resolves.toBe(
-      ['1. 苹果', '2. 香蕉', '', '- 苹果', '- 香蕉'].join('\n')
+      ['1. 苹果', '2. 香蕉', '- 苹果', '- 香蕉'].join('\n')
     );
     await expect(pasteAndPersist(['＃标题', '', '＞引用'].join('\n'))).resolves.toBe(
       ['# 标题', '', '> 引用'].join('\n')

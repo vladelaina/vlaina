@@ -1,16 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { clearNotesDebugLog } from '@/stores/notes/lineBreakDebugLog';
+import { describe, expect, it } from 'vitest';
 import { createChatStreamTextPlugin } from './chatStreamTextPlugin';
 
 describe('createChatStreamTextPlugin', () => {
-  beforeEach(() => {
-    clearNotesDebugLog();
-  });
-
-  afterEach(() => {
-    clearNotesDebugLog();
-  });
-
   it('leaves completed paragraph text as a plain text node', () => {
     const tree: any = {
       children: [
