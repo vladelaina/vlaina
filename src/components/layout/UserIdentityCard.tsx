@@ -27,6 +27,7 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
   const userAvatar = useUserAvatar();
   const displayAvatar = userAvatar || fallbackAvatarUrl;
   const isMembershipPending = isConnected && !membershipTier && !membershipName;
+  const shouldShowMembershipBadge = !isMembershipPending;
 
   const membershipPillClassName = isConnected
     ? membershipTier === 'plus'
@@ -50,27 +51,25 @@ export const UserIdentityCard: React.FC<UserIdentityCardProps> = ({ onLogout, on
         >
           <img src={displayAvatar} alt={displayName} className="h-full w-full object-cover" />
         </div>
-        <span
-          role="button"
-          tabIndex={0}
-          onClick={() => void openExternalHref(membershipPlanUrl)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault();
-              void openExternalHref(membershipPlanUrl);
-            }
-          }}
-          className={cn(
-            'absolute -bottom-1.5 -right-2 z-10 inline-flex cursor-pointer select-none items-center rounded-[10px] border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] leading-none shadow-[0_8px_18px_rgba(15,23,42,0.08)]',
-            membershipPillClassName
-          )}
-        >
-          {isMembershipPending ? (
-            <span className="block h-2 w-7 animate-pulse rounded-full bg-current opacity-25" aria-hidden="true" />
-          ) : (
-            isConnected ? membershipName || (membershipTier === 'free' ? 'Free' : '') : 'LOCAL'
-          )}
-        </span>
+        {shouldShowMembershipBadge ? (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={() => void openExternalHref(membershipPlanUrl)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                void openExternalHref(membershipPlanUrl);
+              }
+            }}
+            className={cn(
+              'absolute -bottom-1.5 -right-2 z-10 inline-flex cursor-pointer select-none items-center rounded-[10px] border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] leading-none shadow-[0_8px_18px_rgba(15,23,42,0.08)]',
+              membershipPillClassName
+            )}
+          >
+            {isConnected ? membershipName || (membershipTier === 'free' ? 'Free' : '') : 'LOCAL'}
+          </span>
+        ) : null}
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-1 pt-0.5">
         <div className="flex items-center justify-between">

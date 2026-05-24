@@ -44,6 +44,12 @@ export function AccountLoginDialog({ open, onOpenChange }: AccountLoginDialogPro
           event.preventDefault();
           closeButtonRef.current?.focus();
         }}
+        onPointerDownOutside={(event) => {
+          event.preventDefault();
+        }}
+        onInteractOutside={(event) => {
+          event.preventDefault();
+        }}
         className={cn(
           "w-full max-w-[min(460px,calc(100vw-1.5rem))] border-none p-0 overflow-visible bg-transparent shadow-none select-none",
           "transition-all duration-75 ease-in-out"

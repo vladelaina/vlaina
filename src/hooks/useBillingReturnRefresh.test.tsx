@@ -5,6 +5,7 @@ import { useBillingReturnRefresh } from './useBillingReturnRefresh'
 
 const mocks = vi.hoisted(() => ({
   isConnected: true,
+  lastBudgetSyncAt: 1_700_000_000_000 as number | null,
   checkStatus: vi.fn().mockResolvedValue(undefined),
   clearBudget: vi.fn(),
   refreshBudget: vi.fn().mockResolvedValue(undefined),
@@ -23,6 +24,7 @@ vi.mock('@/stores/useManagedAIStore', () => ({
   useManagedAIStore: {
     getState: () => ({
       clearBudget: mocks.clearBudget,
+      lastBudgetSyncAt: mocks.lastBudgetSyncAt,
       refreshBudget: mocks.refreshBudget,
     }),
   },
@@ -38,6 +40,8 @@ describe('useBillingReturnRefresh', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     mocks.isConnected = true
+    mocks.lastBudgetSyncAt = 1_700_000_000_000
+    mocks.checkStatus.mockResolvedValue(undefined)
     mocks.checkStatus.mockClear()
     mocks.clearBudget.mockClear()
     mocks.refreshBudget.mockClear()
@@ -58,8 +62,9 @@ describe('useBillingReturnRefresh', () => {
     renderHook(() => useBillingReturnRefresh())
 
     expect(mocks.checkStatus).toHaveBeenCalledTimes(1)
+    expect(mocks.checkStatus).toHaveBeenLastCalledWith({ force: true })
     await flushPromises()
-    expect(mocks.clearBudget).toHaveBeenCalledTimes(1)
+    expect(mocks.clearBudget).not.toHaveBeenCalled()
     expect(mocks.refreshBudget).toHaveBeenCalledTimes(1)
 
     act(() => {
@@ -67,8 +72,9 @@ describe('useBillingReturnRefresh', () => {
     })
 
     expect(mocks.checkStatus).toHaveBeenCalledTimes(2)
+    expect(mocks.checkStatus).toHaveBeenLastCalledWith({ force: true })
     await flushPromises()
-    expect(mocks.clearBudget).toHaveBeenCalledTimes(2)
+    expect(mocks.clearBudget).not.toHaveBeenCalled()
     expect(mocks.refreshBudget).toHaveBeenCalledTimes(2)
 
     act(() => {
@@ -76,8 +82,9 @@ describe('useBillingReturnRefresh', () => {
     })
 
     expect(mocks.checkStatus).toHaveBeenCalledTimes(3)
+    expect(mocks.checkStatus).toHaveBeenLastCalledWith({ force: true })
     await flushPromises()
-    expect(mocks.clearBudget).toHaveBeenCalledTimes(3)
+    expect(mocks.clearBudget).not.toHaveBeenCalled()
     expect(mocks.refreshBudget).toHaveBeenCalledTimes(3)
   })
 
@@ -103,6 +110,31 @@ describe('useBillingReturnRefresh', () => {
 
     expect(mocks.checkStatus).not.toHaveBeenCalled()
     expect(mocks.clearBudget).not.toHaveBeenCalled()
+    expect(mocks.refreshBudget).not.toHaveBeenCalled()
+  })
+
+  it('does not request a separate budget refresh when checkStatus already returned budget', async () => {
+    mocks.checkStatus.mockImplementation(async () => {
+      mocks.lastBudgetSyncAt = 1_700_000_010_000
+    })
+    markBillingReturnRefreshPending()
+
+    renderHook(() => useBillingReturnRefresh())
+
+    expect(mocks.checkStatus).toHaveBeenCalledTimes(1)
+    await flushPromises()
+    expect(mocks.clearBudget).not.toHaveBeenCalled()
+    expect(mocks.refreshBudget).not.toHaveBeenCalled()
+  })
+
+  it('does not request a separate budget refresh when the account is signed out after return', async () => {
+    mocks.isConnected = false
+    markBillingReturnRefreshPending()
+
+    renderHook(() => useBillingReturnRefresh())
+
+    expect(mocks.checkStatus).toHaveBeenCalledTimes(1)
+    await flushPromises()
     expect(mocks.refreshBudget).not.toHaveBeenCalled()
   })
 

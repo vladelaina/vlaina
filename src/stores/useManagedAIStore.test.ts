@@ -44,4 +44,60 @@ describe('useManagedAIStore', () => {
     expect(useManagedAIStore.getState().budgetError).toBe('Refresh failed');
     expect(useManagedAIStore.getState().lastBudgetSyncAt).toBe(1_700_000_000_000);
   });
+
+  it('ignores an in-flight budget response after the budget is cleared', async () => {
+    const nextBudget = {
+      active: true,
+      usedPercent: 10,
+      remainingPercent: 90,
+      status: 'active',
+    };
+    let resolveBudget!: (value: typeof nextBudget) => void;
+    fetchManagedBudgetMock.mockReturnValueOnce(new Promise((resolve) => {
+      resolveBudget = resolve;
+    }));
+
+    const refreshPromise = useManagedAIStore.getState().refreshBudget();
+    useManagedAIStore.getState().clearBudget();
+    resolveBudget(nextBudget);
+    await refreshPromise;
+
+    expect(useManagedAIStore.getState().budget).toBeNull();
+    expect(useManagedAIStore.getState().isRefreshingBudget).toBe(false);
+    expect(useManagedAIStore.getState().lastBudgetSyncAt).toBeNull();
+  });
+
+  it('allows a new budget refresh after clearing a stale in-flight refresh', async () => {
+    const staleBudget = {
+      active: true,
+      usedPercent: 80,
+      remainingPercent: 20,
+      status: 'active',
+    };
+    const freshBudget = {
+      active: true,
+      usedPercent: 15,
+      remainingPercent: 85,
+      status: 'active',
+    };
+    let resolveStale!: (value: typeof staleBudget) => void;
+    let resolveFresh!: (value: typeof freshBudget) => void;
+    fetchManagedBudgetMock
+      .mockReturnValueOnce(new Promise((resolve) => {
+        resolveStale = resolve;
+      }))
+      .mockReturnValueOnce(new Promise((resolve) => {
+        resolveFresh = resolve;
+      }));
+
+    const staleRefresh = useManagedAIStore.getState().refreshBudget();
+    useManagedAIStore.getState().clearBudget();
+    const freshRefresh = useManagedAIStore.getState().refreshBudget();
+    resolveStale(staleBudget);
+    resolveFresh(freshBudget);
+    await Promise.all([staleRefresh, freshRefresh]);
+
+    expect(fetchManagedBudgetMock).toHaveBeenCalledTimes(2);
+    expect(useManagedAIStore.getState().budget).toEqual(freshBudget);
+  });
 });

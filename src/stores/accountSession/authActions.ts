@@ -22,6 +22,9 @@ type Get = StoreApi<AccountSessionState & AccountSessionActions>['getState'];
 let checkStatusPromise: Promise<void> | null = null;
 let checkStatusPromiseVersion = 0;
 let accountSessionMutationVersion = 0;
+let lastCheckStatusSyncAt = 0;
+
+const ACCOUNT_STATUS_REFRESH_INTERVAL_MS = 30_000;
 
 function invalidateAccountSessionChecks(): void {
   accountSessionMutationVersion += 1;
@@ -112,11 +115,22 @@ export function selectRelevantElectronAuthEntries(entries: Array<{
   return entries.slice(-40).filter((entry) => isRelevantElectronAuthEvent(entry.event));
 }
 
-export function createCheckStatus(set: Set, get: Get): () => Promise<void> {
-  return async () => {
+export function createCheckStatus(set: Set, get: Get): (options?: { force?: boolean }) => Promise<void> {
+  return async (options = {}) => {
     const requestVersion = accountSessionMutationVersion;
     if (checkStatusPromise && checkStatusPromiseVersion === requestVersion) {
       return checkStatusPromise;
+    }
+
+    const currentState = get();
+    const now = Date.now();
+    if (
+      !options.force &&
+      currentState.hasCheckedStatus &&
+      lastCheckStatusSyncAt > 0 &&
+      now - lastCheckStatusSyncAt < ACCOUNT_STATUS_REFRESH_INTERVAL_MS
+    ) {
+      return;
     }
 
     set({ isLoading: true });
@@ -145,26 +159,30 @@ export function createCheckStatus(set: Set, get: Get): () => Promise<void> {
         const membershipName =
           typeof status?.membershipName === 'string' && status.membershipName.trim() ? status.membershipName.trim() : null;
         const sessionBudget = status && 'budget' in status ? status.budget : null;
+        let shouldRefreshBudgetIfStale = connected;
+        let shouldForceRefreshBudget = false;
         if (connected && sessionBudget && typeof sessionBudget === 'object') {
-          const now = Date.now();
-          useManagedAIStore.setState({
-            budget: normalizeManagedBudgetPayload(sessionBudget),
-            isRefreshingBudget: false,
-            budgetError: null,
-            lastBudgetSyncAt: now,
-            lastBudgetAttemptAt: now,
-          });
+          const normalizedBudget = normalizeManagedBudgetPayload(sessionBudget);
+          useManagedAIStore.getState().applyBudgetSnapshot(normalizedBudget);
+          shouldRefreshBudgetIfStale = false;
+          shouldForceRefreshBudget = !Number.isFinite(Number(normalizedBudget.remainingPercent));
         }
 
         if (!connected && sessionInvalidated) {
           applyDisconnectedAccount(set);
           useManagedAIStore.getState().clearBudget();
+          lastCheckStatusSyncAt = Date.now();
           return;
         }
 
         if (!connected && get().isConnected === true) {
           set({ isLoading: false, hasCheckedStatus: true });
+          lastCheckStatusSyncAt = Date.now();
           return;
+        }
+
+        if (!connected) {
+          useManagedAIStore.getState().clearBudget();
         }
 
         set({
@@ -179,8 +197,14 @@ export function createCheckStatus(set: Set, get: Get): () => Promise<void> {
           hasCheckedStatus: true,
           error: connected ? null : get().error,
         });
+        lastCheckStatusSyncAt = Date.now();
 
         persistUser({ isConnected: connected, provider, username, primaryEmail, avatarUrl, membershipTier, membershipName });
+        if (shouldForceRefreshBudget) {
+          void useManagedAIStore.getState().refreshBudget();
+        } else if (shouldRefreshBudgetIfStale) {
+          void useManagedAIStore.getState().refreshBudgetIfStale();
+        }
         await refreshAvatar(set, get, username, avatarUrl);
       } catch (error) {
         console.error('Failed to check account auth status:', error);
@@ -227,7 +251,7 @@ export function createSignIn(
 
         if (result?.success) {
           invalidateAccountSessionChecks();
-          await get().checkStatus();
+          await get().checkStatus({ force: true });
           set({ isConnecting: false, error: null });
           return true;
         }
@@ -314,7 +338,7 @@ export function createVerifyEmailCode(set: Set, get: Get): (email: string, code:
         const result = await accountCommands.verifyEmailAuthCode(email, code);
         if (result?.success) {
           invalidateAccountSessionChecks();
-          await get().checkStatus();
+          await get().checkStatus({ force: true });
           set({ isConnecting: false, error: null });
           return true;
         }
@@ -325,7 +349,7 @@ export function createVerifyEmailCode(set: Set, get: Get): (email: string, code:
       const result = await webAccountCommands.verifyEmailCode(email, code);
       if (result.success && result.username) {
         invalidateAccountSessionChecks();
-        await get().checkStatus();
+        await get().checkStatus({ force: true });
         set({ isConnecting: false, error: null });
         return true;
       }
@@ -379,7 +403,7 @@ export function createHandleAuthCallback(set: Set, get: Get): () => Promise<bool
     const result = await webAccountCommands.completeAuth(callback.provider, callback.state);
     if (result.success && result.username) {
       invalidateAccountSessionChecks();
-      await get().checkStatus();
+      await get().checkStatus({ force: true });
       set({ isConnecting: false, error: null });
       return true;
     }

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { ACCOUNT_AUTH_INVALIDATED_EVENT } from '@/lib/account/sessionEvent';
+import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import {
   createCheckStatus,
   createCancelConnect,
@@ -9,7 +10,12 @@ import {
   createSignOut,
   createVerifyEmailCode,
 } from './authActions';
-import { loadPersistedUser } from './authSupport';
+import {
+  ACCOUNT_USER_BROADCAST_CHANNEL,
+  ACCOUNT_USER_BROADCAST_TYPE,
+  loadPersistedUser,
+  normalizePersistedUser,
+} from './authSupport';
 import { createHydrateAvatar } from './avatarActions';
 import {
   ACCOUNT_USER_PERSIST_KEY,
@@ -38,6 +44,8 @@ export const useAccountSessionStore = create<AccountSessionStore>((set, get) => 
 
 let invalidationListenerRegistered = false;
 let persistenceListenerRegistered = false;
+let broadcastListenerRegistered = false;
+let accountBroadcastChannel: BroadcastChannel | null = null;
 
 function registerAccountAuthInvalidationListener(): void {
   if (invalidationListenerRegistered || typeof window === 'undefined') {
@@ -45,6 +53,7 @@ function registerAccountAuthInvalidationListener(): void {
   }
 
   window.addEventListener(ACCOUNT_AUTH_INVALIDATED_EVENT, () => {
+    useManagedAIStore.getState().clearBudget();
     useAccountSessionStore.setState({
       isConnected: false,
       provider: null,
@@ -74,9 +83,14 @@ function registerAccountPersistenceListener(): void {
       return;
     }
 
+    const identity = loadPersistedUser();
+    if (identity.isConnected !== true) {
+      useManagedAIStore.getState().clearBudget();
+    }
+
     useAccountSessionStore.setState({
       ...initialAccountSessionState,
-      ...loadPersistedUser(),
+      ...identity,
       isLoading: false,
       hasCheckedStatus: false,
       error: null,
@@ -87,5 +101,43 @@ function registerAccountPersistenceListener(): void {
   persistenceListenerRegistered = true;
 }
 
+function applyPersistedAccountIdentity(identity: Partial<AccountSessionStore>): void {
+  if (identity.isConnected !== true) {
+    useManagedAIStore.getState().clearBudget();
+  }
+
+  useAccountSessionStore.setState({
+    ...initialAccountSessionState,
+    ...identity,
+    isLoading: false,
+    hasCheckedStatus: false,
+    error: null,
+  });
+  void useAccountSessionStore.getState().hydrateAvatar();
+}
+
+function registerAccountBroadcastListener(): void {
+  if (broadcastListenerRegistered || typeof window === 'undefined' || typeof BroadcastChannel === 'undefined') {
+    return;
+  }
+
+  try {
+    accountBroadcastChannel = new BroadcastChannel(ACCOUNT_USER_BROADCAST_CHANNEL);
+    accountBroadcastChannel.addEventListener('message', (event) => {
+      const payload = event.data as { type?: unknown; identity?: unknown } | null;
+      if (!payload || payload.type !== ACCOUNT_USER_BROADCAST_TYPE) {
+        return;
+      }
+
+      applyPersistedAccountIdentity(normalizePersistedUser(payload.identity));
+    });
+    broadcastListenerRegistered = true;
+  } catch {
+    accountBroadcastChannel?.close();
+    accountBroadcastChannel = null;
+  }
+}
+
 registerAccountAuthInvalidationListener();
 registerAccountPersistenceListener();
+registerAccountBroadcastListener();

@@ -3,6 +3,7 @@ import type { OauthAccountProvider } from '@/lib/account/provider';
 import { AccountOauthButtons } from './AccountOauthButtons';
 import { AccountEmailCodeCard } from './AccountEmailCodeCard';
 import { useI18n } from '@/lib/i18n';
+import { openExternalHref } from '@/lib/navigation/externalLinks';
 
 interface AccountSignInOptionsProps {
   isConnecting: boolean;
@@ -13,6 +14,8 @@ interface AccountSignInOptionsProps {
   variant?: 'compact' | 'panel';
   className?: string;
 }
+
+const privacyPolicyUrl = 'https://github.com/vladelaina/vlaina/blob/main/PRIVACY.md';
 
 export function AccountSignInOptions({
   isConnecting,
@@ -57,7 +60,15 @@ export function AccountSignInOptions({
         ) : null}
 
         <p className="px-8 text-[11px] text-center leading-relaxed text-zinc-400 dark:text-zinc-500 font-medium opacity-80">
-          {t('account.privacyAgreement')} <span className="underline cursor-pointer opacity-80 hover:opacity-100 transition-opacity">{t('account.privacyPolicy')}</span>.
+          {t('account.privacyAgreement')}{' '}
+          <button
+            type="button"
+            onClick={() => void openExternalHref(privacyPolicyUrl)}
+            className="inline p-0 underline cursor-pointer opacity-80 transition-opacity hover:opacity-100"
+          >
+            {t('account.privacyPolicy')}
+          </button>
+          .
         </p>
       </div>
     </div>

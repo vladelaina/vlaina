@@ -31,7 +31,9 @@ const mocks = vi.hoisted(() => ({
   normalizeAuthError: vi.fn((value: string) => `normalized:${value}`),
   applyDisconnectedAccount: vi.fn(),
   normalizeManagedBudgetPayload: vi.fn((value: unknown) => value),
-  useManagedAIStoreSetState: vi.fn(),
+  applyBudgetSnapshot: vi.fn(),
+  refreshBudget: vi.fn().mockResolvedValue(undefined),
+  refreshBudgetIfStale: vi.fn().mockResolvedValue(undefined),
   clearBudget: vi.fn(),
 }));
 
@@ -72,8 +74,10 @@ vi.mock('@/lib/ai/managed/normalizers', () => ({
 
 vi.mock('@/stores/useManagedAIStore', () => ({
   useManagedAIStore: {
-    setState: mocks.useManagedAIStoreSetState,
     getState: vi.fn(() => ({
+      applyBudgetSnapshot: mocks.applyBudgetSnapshot,
+      refreshBudget: mocks.refreshBudget,
+      refreshBudgetIfStale: mocks.refreshBudgetIfStale,
       clearBudget: mocks.clearBudget,
     })),
   },
@@ -107,7 +111,9 @@ describe('accountSession auth actions', () => {
     mocks.normalizeAuthError.mockClear();
     mocks.applyDisconnectedAccount.mockClear();
     mocks.normalizeManagedBudgetPayload.mockClear();
-    mocks.useManagedAIStoreSetState.mockClear();
+    mocks.applyBudgetSnapshot.mockClear();
+    mocks.refreshBudget.mockClear();
+    mocks.refreshBudgetIfStale.mockClear();
     mocks.clearBudget.mockClear();
     vi.stubGlobal('console', {
       ...console,
@@ -173,18 +179,14 @@ describe('accountSession auth actions', () => {
       remainingPercent: 75,
       status: 'normal',
     });
-    expect(mocks.useManagedAIStoreSetState).toHaveBeenCalledWith({
-      budget: {
-        active: true,
-        usedPercent: 25,
-        remainingPercent: 75,
-        status: 'normal',
-      },
-      isRefreshingBudget: false,
-      budgetError: null,
-      lastBudgetSyncAt: expect.any(Number),
-      lastBudgetAttemptAt: expect.any(Number),
+    expect(mocks.applyBudgetSnapshot).toHaveBeenCalledWith({
+      active: true,
+      usedPercent: 25,
+      remainingPercent: 75,
+      status: 'normal',
     });
+    expect(mocks.refreshBudget).not.toHaveBeenCalled();
+    expect(mocks.refreshBudgetIfStale).not.toHaveBeenCalled();
     expect(mocks.refreshAvatar).toHaveBeenCalledWith(
       set,
       get,
@@ -204,6 +206,65 @@ describe('accountSession auth actions', () => {
 
     expect(set).toHaveBeenLastCalledWith({ isLoading: false, hasCheckedStatus: true });
     expect(mocks.applyDisconnectedAccount).not.toHaveBeenCalled();
+  });
+
+  it('starts a background budget refresh when connected status has no budget payload', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    mocks.accountCommands.getAccountSessionStatus.mockResolvedValue({
+      connected: true,
+      provider: 'google',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: null,
+      membershipTier: 'pro',
+      membershipName: 'Pro',
+    });
+
+    const set = vi.fn();
+    const get = vi.fn(() => ({ error: null }));
+
+    await createCheckStatus(set as never, get as never)();
+
+    expect(mocks.refreshBudgetIfStale).toHaveBeenCalledTimes(1);
+    expect(mocks.refreshBudget).not.toHaveBeenCalled();
+  });
+
+  it('force-refreshes budget when the session budget is missing its percentage', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    mocks.normalizeManagedBudgetPayload.mockReturnValueOnce({
+      active: true,
+      usedPercent: 10,
+      remainingPercent: Number.NaN,
+      status: 'active',
+    });
+    mocks.accountCommands.getAccountSessionStatus.mockResolvedValue({
+      connected: true,
+      provider: 'google',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: null,
+      membershipTier: 'pro',
+      membershipName: 'Pro',
+      budget: {
+        active: true,
+        usedPercent: 10,
+        status: 'active',
+      },
+    });
+
+    const set = vi.fn();
+    const get = vi.fn(() => ({ error: null }));
+
+    await createCheckStatus(set as never, get as never)();
+
+    expect(mocks.applyBudgetSnapshot).toHaveBeenCalledWith({
+      active: true,
+      usedPercent: 10,
+      remainingPercent: Number.NaN,
+      status: 'active',
+    });
+    expect(mocks.refreshBudget).toHaveBeenCalledTimes(1);
+    expect(mocks.refreshBudgetIfStale).not.toHaveBeenCalled();
   });
 
   it('deduplicates concurrent status checks for the same account session version', async () => {
@@ -247,6 +308,34 @@ describe('accountSession auth actions', () => {
     }));
   });
 
+  it('skips non-forced status checks while the current status is fresh', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_900_000_000_000);
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    mocks.accountCommands.getAccountSessionStatus.mockResolvedValue({
+      connected: true,
+      provider: 'google',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: null,
+      membershipTier: 'pro',
+      membershipName: 'Pro',
+    });
+
+    const state = { error: null, hasCheckedStatus: false };
+    const set = vi.fn((updates: Record<string, unknown>) => {
+      Object.assign(state, updates);
+    });
+    const get = vi.fn(() => state);
+    const checkStatus = createCheckStatus(set as never, get as never);
+
+    await checkStatus();
+    await checkStatus();
+    await checkStatus({ force: true });
+
+    expect(mocks.accountCommands.getAccountSessionStatus).toHaveBeenCalledTimes(2);
+  });
+
   it('checkStatus preserves an existing account when probing reports disconnected', async () => {
     mocks.hasElectronDesktopBridge.mockReturnValue(true);
     mocks.accountCommands.getAccountSessionStatus.mockResolvedValue({
@@ -278,6 +367,29 @@ describe('accountSession auth actions', () => {
     expect(mocks.persistUser).not.toHaveBeenCalled();
     expect(mocks.refreshAvatar).not.toHaveBeenCalled();
     expect(mocks.applyDisconnectedAccount).not.toHaveBeenCalled();
+    expect(mocks.clearBudget).not.toHaveBeenCalled();
+  });
+
+  it('clears budget when status reports disconnected and no account is currently connected', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    mocks.accountCommands.getAccountSessionStatus.mockResolvedValue({
+      connected: false,
+      provider: null,
+      username: null,
+      primaryEmail: null,
+      avatarUrl: null,
+      membershipTier: null,
+      membershipName: null,
+    });
+
+    const set = vi.fn();
+    const get = vi.fn(() => ({ isConnected: false, error: null }));
+
+    await createCheckStatus(set as never, get as never)();
+
+    expect(mocks.clearBudget).toHaveBeenCalledTimes(1);
+    expect(mocks.refreshBudget).not.toHaveBeenCalled();
+    expect(mocks.refreshBudgetIfStale).not.toHaveBeenCalled();
   });
 
   it('disconnects and clears budget when the desktop session is invalidated', async () => {

@@ -1,10 +1,25 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { useAccountSessionStore } from '../accountSession/store';
+import { useManagedAIStore } from '../useManagedAIStore';
 import { ACCOUNT_USER_PERSIST_KEY } from '../accountSession/state';
 import { ACCOUNT_AUTH_INVALIDATED_EVENT } from '@/lib/account/sessionEvent';
 
 describe('accountSession store', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    useManagedAIStore.getState().clearBudget();
+  });
+
   it('clears in-memory auth state when the web session is invalidated', () => {
+    useManagedAIStore.setState({
+      budget: {
+        active: true,
+        usedPercent: 20,
+        remainingPercent: 80,
+        status: 'active',
+      },
+      lastBudgetSyncAt: 1,
+    });
     useAccountSessionStore.setState({
       isConnected: true,
       provider: 'google',
@@ -30,6 +45,7 @@ describe('accountSession store', () => {
     expect(state.isLoading).toBe(false);
     expect(state.hasCheckedStatus).toBe(true);
     expect(state.error).toBeNull();
+    expect(useManagedAIStore.getState().budget).toBeNull();
   });
 
   it('reloads persisted account identity after a cross-window storage update', () => {
@@ -75,5 +91,37 @@ describe('accountSession store', () => {
     expect(state.hasCheckedStatus).toBe(false);
     expect(typeof state.checkStatus).toBe('function');
     expect(typeof state.signOut).toBe('function');
+  });
+
+  it('clears managed budget after a cross-window storage sign-out', () => {
+    useManagedAIStore.setState({
+      budget: {
+        active: true,
+        usedPercent: 20,
+        remainingPercent: 80,
+        status: 'active',
+      },
+      lastBudgetSyncAt: 1,
+    });
+
+    const nextIdentity = JSON.stringify({
+      isConnected: false,
+      provider: null,
+      username: null,
+      primaryEmail: null,
+      avatarUrl: null,
+      membershipTier: null,
+      membershipName: null,
+    });
+
+    localStorage.setItem(ACCOUNT_USER_PERSIST_KEY, nextIdentity);
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: ACCOUNT_USER_PERSIST_KEY,
+      newValue: nextIdentity,
+    }));
+
+    const state = useAccountSessionStore.getState();
+    expect(state.isConnected).toBe(false);
+    expect(useManagedAIStore.getState().budget).toBeNull();
   });
 });

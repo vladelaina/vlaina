@@ -68,13 +68,87 @@ export function normalizeManagedModelsVersionPayload(payload: ManagedModelsVersi
 }
 
 export function normalizeManagedBudgetPayload(payload: ManagedBudgetPayload): ManagedBudgetStatus {
+  const source = normalizeManagedBudgetSource(payload);
+  const status = typeof source.status === 'string' ? source.status : 'inactive';
+  const remainingPercent = readFiniteNumber(source, [
+    'remainingPercent',
+    'remaining_percent',
+    'remainingPercentage',
+    'remaining_percentage',
+    'quotaRemainingPercent',
+    'quota_remaining_percent',
+  ]);
+  const usedPercent = readFiniteNumber(source, [
+    'usedPercent',
+    'used_percent',
+    'usedPercentage',
+    'used_percentage',
+    'quotaUsedPercent',
+    'quota_used_percent',
+  ]);
+  const remainingPoints = readFiniteNumber(source, [
+    'remainingPoints',
+    'remaining_points',
+    'pointsRemaining',
+    'points_remaining',
+  ]);
+  const totalPoints = readFiniteNumber(source, [
+    'totalPoints',
+    'total_points',
+    'monthlyPoints',
+    'monthly_points',
+    'pointsLimit',
+    'points_limit',
+  ]);
+  const computedRemainingPercent =
+    remainingPercent ??
+    (typeof usedPercent === 'number' ? 100 - usedPercent : null) ??
+    (typeof remainingPoints === 'number' && typeof totalPoints === 'number' && totalPoints > 0
+      ? (remainingPoints / totalPoints) * 100
+      : null);
+  const computedUsedPercent =
+    usedPercent ??
+    (typeof computedRemainingPercent === 'number' ? 100 - computedRemainingPercent : null);
+
   return {
-    active: payload.active === true,
-    usedPercent: typeof payload.usedPercent === 'number' ? payload.usedPercent : 0,
-    remainingPercent: typeof payload.remainingPercent === 'number' ? payload.remainingPercent : 0,
-    status: typeof payload.status === 'string' ? payload.status : 'inactive',
+    active: source.active === true || source.active === 'true' || status === 'active' || status === 'normal',
+    usedPercent: typeof computedUsedPercent === 'number' ? computedUsedPercent : 0,
+    remainingPercent: typeof computedRemainingPercent === 'number' ? computedRemainingPercent : Number.NaN,
+    status,
   };
 }
+
+function normalizeManagedBudgetSource(payload: ManagedBudgetPayload): Record<string, unknown> {
+  const source = payload as Record<string, unknown>;
+  for (const key of ['budget', 'data'] as const) {
+    const nested = source[key];
+    if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+      return nested as Record<string, unknown>;
+    }
+  }
+  return source;
+}
+
+function readFiniteNumber(source: Record<string, unknown>, keys: string[]): number | null {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim().replace(/%$/, '');
+      if (!trimmed) {
+        continue;
+      }
+      const parsed = Number(trimmed);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return null;
+}
+
 
 function normalizeModelName(model: Record<string, unknown>, fallback: string): string {
   const display = typeof model.display_name === 'string' ? model.display_name.trim() : '';

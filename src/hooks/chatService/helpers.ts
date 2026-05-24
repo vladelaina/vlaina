@@ -5,6 +5,7 @@ import { dedupeNoteMentions } from '@/lib/ai/noteMentions';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { isManagedProviderId } from '@/lib/ai/managedService';
+import { useAccountSessionStore } from '@/stores/accountSession';
 import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import { stripVlainaManagedFrontmatter } from '@/stores/notes/frontmatter';
 
@@ -322,6 +323,9 @@ export function createChunkScheduler(onFlush: (content: string) => void) {
 
 export function refreshManagedBudgetIfNeeded(providerId: string): void {
   if (!isManagedProviderId(providerId)) {
+    return;
+  }
+  if (!useAccountSessionStore.getState().isConnected) {
     return;
   }
   void useManagedAIStore.getState().refreshBudget();
