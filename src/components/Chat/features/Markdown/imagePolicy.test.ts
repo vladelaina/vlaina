@@ -26,6 +26,9 @@ describe("normalizeRenderableImageSrc", () => {
     expect(normalizeRenderableImageSrc("")).toBeNull();
     expect(normalizeRenderableImageSrc("   ")).toBeNull();
     expect(normalizeRenderableImageSrc("not a url")).toBeNull();
+    expect(normalizeRenderableImageSrc("data:text/html;base64,PHNjcmlwdD4=")).toBeNull();
+    expect(normalizeRenderableImageSrc("data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+")).toBeNull();
+    expect(normalizeRenderableImageSrc("data:image/png,not-base64")).toBeNull();
   });
 });
 

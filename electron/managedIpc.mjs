@@ -66,6 +66,28 @@ async function readManagedErrorPayload(response) {
   }
 }
 
+function normalizeManagedBinaryPayload(payload) {
+  const bodyBase64 = String(payload?.bodyBase64 ?? '');
+  if (!/^[A-Za-z0-9+/]*={0,2}$/.test(bodyBase64) || bodyBase64.length % 4 !== 0) {
+    throw new Error('Invalid managed binary request body.');
+  }
+
+  const headers = {};
+  const rawHeaders = payload?.headers;
+  if (rawHeaders && typeof rawHeaders === 'object') {
+    for (const [key, value] of Object.entries(rawHeaders)) {
+      const normalizedKey = String(key).trim();
+      const normalizedValue = String(value ?? '');
+      if (!/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/.test(normalizedKey) || /[\u0000\r\n]/.test(normalizedValue)) {
+        throw new Error('Invalid managed binary request header.');
+      }
+      headers[normalizedKey] = normalizedValue;
+    }
+  }
+
+  return { body: Buffer.from(bodyBase64, 'base64'), headers };
+}
+
 export function registerManagedIpc({
   handleIpc,
   requestManagedJson,
@@ -95,6 +117,22 @@ export function registerManagedIpc({
     return await requestManagedJson('/chat/completions', {
       method: 'POST',
       body: JSON.stringify(body ?? {}),
+    });
+  });
+
+  handleIpc('desktop:managed:image-generation', async (_event, body) => {
+    return await requestManagedJson('/images/generations', {
+      method: 'POST',
+      body: JSON.stringify(body ?? {}),
+    });
+  });
+
+  handleIpc('desktop:managed:image-edit', async (_event, payload) => {
+    const { body, headers } = normalizeManagedBinaryPayload(payload);
+    return await requestManagedJson('/images/edits', {
+      method: 'POST',
+      headers,
+      body,
     });
   });
 

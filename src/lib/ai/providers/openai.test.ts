@@ -198,6 +198,149 @@ describe('OpenAICompatibleClient endpoint detection', () => {
     });
   });
 
+  it('routes GPT image models to the image generation endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        data: [{ b64_json: 'abc123', revised_prompt: 'A small red house' }],
+      }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const onChunk = vi.fn();
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'draw a house',
+      [],
+      buildModel({ apiModelId: 'gpt-image-2', name: 'GPT Image 2' }),
+      buildProvider(),
+      onChunk,
+    );
+
+    expect(result).toBe('![A small red house](<data:image/png;base64,abc123>)');
+    expect(onChunk).toHaveBeenCalledWith('![A small red house](<data:image/png;base64,abc123>)');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.example.com/v1/images/generations',
+      expect.objectContaining({
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer sk-test',
+          'Content-Type': 'application/json',
+        },
+      }),
+    );
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+      model: 'gpt-image-2',
+      prompt: 'draw a house',
+      n: 1,
+    });
+  });
+
+  it('escapes generated image markdown alt text and target', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({
+        data: [{ b64_json: ' abc123\n ', revised_prompt: 'A ] weird\n prompt' }],
+      }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      'draw',
+      [],
+      buildModel({ apiModelId: 'gpt-image-2', name: 'GPT Image 2' }),
+      buildProvider(),
+      vi.fn(),
+    );
+
+    expect(result).toBe('![A \\] weird prompt](<data:image/png;base64,abc123>)');
+  });
+
+  it('recognizes standalone image model names with provider prefixes and mixed separators', async () => {
+    const cases = [
+      'OpenAI/GPT_Image_2',
+      'openai/DALL·E 3',
+      'google/IMAGEN-4.0-generate-preview',
+      'bfl/FLUX.1-dev',
+      'stability/Stable Diffusion XL',
+      'stability/sd3.5-large',
+      'alibaba/Qwen_Image',
+      'bytedance/Seedream-3.0',
+      'ideogram/Ideogram-V3',
+      'midjourney/MJ-v7',
+      'HiDream-I1',
+      'recraft-v3',
+      'leonardo-phoenix',
+    ];
+
+    for (const apiModelId of cases) {
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ data: [{ url: `https://cdn.example.com/${encodeURIComponent(apiModelId)}.png` }] }), { status: 200 }),
+      );
+      vi.stubGlobal('fetch', fetchMock);
+
+      await new OpenAICompatibleClient().sendMessage(
+        'draw a house',
+        [],
+        buildModel({ apiModelId, name: apiModelId }),
+        buildProvider(),
+        vi.fn(),
+      );
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://api.example.com/v1/images/generations',
+        expect.any(Object),
+      );
+    }
+  });
+
+  it('routes standalone image model image inputs to the image edit endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: [{ url: 'https://cdn.example.com/edited.png' }] }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await new OpenAICompatibleClient().sendMessage(
+      [
+        { type: 'text', text: 'turn this into a watercolor' },
+        { type: 'image_url', image_url: { url: 'data:image/png;base64,aGk=' } },
+      ],
+      [],
+      buildModel({ apiModelId: 'gpt-image-2', name: 'GPT Image 2' }),
+      buildProvider(),
+      vi.fn(),
+    );
+
+    expect(result).toBe('![Generated image 1](<https://cdn.example.com/edited.png>)');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.example.com/v1/images/edits',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer sk-test',
+          'Content-Type': expect.stringMatching(/^multipart\/form-data; boundary=/),
+        }),
+      }),
+    );
+    expect(fetchMock.mock.calls[0][1].body).toBeInstanceOf(Blob);
+  });
+
+  it('rejects unsupported image edit attachment formats before calling the provider', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(new OpenAICompatibleClient().sendMessage(
+      [
+        { type: 'text', text: 'edit this' },
+        { type: 'image_url', image_url: { url: 'data:image/gif;base64,aGk=' } },
+      ],
+      [],
+      buildModel({ apiModelId: 'gpt-image-2', name: 'GPT Image 2' }),
+      buildProvider(),
+      vi.fn(),
+    )).rejects.toThrow('Image edits require a PNG, JPEG, or WebP image attachment.');
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('does not leak rendered thinking or OpenAI transcript fields into Anthropic requests', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       streamResponse('event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"hello"}}\n\n'),

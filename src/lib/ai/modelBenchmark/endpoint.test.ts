@@ -10,6 +10,8 @@ describe('inferBenchmarkEndpoint', () => {
   it('detects image-style model ids', () => {
     expect(inferBenchmarkEndpoint('dall-e-3')).toBe('image');
     expect(inferBenchmarkEndpoint('flux-1-schnell')).toBe('image');
+    expect(inferBenchmarkEndpoint('OpenAI/GPT_Image_2')).toBe('image');
+    expect(inferBenchmarkEndpoint('google/IMAGEN-4.0-generate-preview')).toBe('image');
   });
 
   it('detects responses-only model ids', () => {
@@ -18,5 +20,6 @@ describe('inferBenchmarkEndpoint', () => {
 
   it('falls back to chat for normal chat model ids', () => {
     expect(inferBenchmarkEndpoint('gpt-4o-mini')).toBe('chat');
+    expect(inferBenchmarkEndpoint('gemini-2.5-flash-image-preview')).toBe('chat');
   });
 });

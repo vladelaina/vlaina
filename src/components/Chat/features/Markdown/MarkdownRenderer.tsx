@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import { ThinkingBlock } from '@/components/Chat/features/Messages/components/ThinkingBlock';
 import { extractThinkingSections } from '@/components/Chat/features/Layout/chatAssistantMarkdownParsing';
 import { createMarkdownComponents } from './markdownRendererComponents';
@@ -15,6 +15,7 @@ import {
 } from '@/components/Chat/features/Messages/components/chatSelectionStreamFreeze';
 import 'katex/dist/katex.min.css';
 import '@/components/common/markdown/markdownSurface.css';
+import { normalizeRenderableImageSrc } from './imagePolicy';
 
 interface MarkdownRendererProps {
   content: string;
@@ -91,6 +92,14 @@ interface StreamingMarkdownBlockProps {
   componentOptions: Parameters<typeof createMarkdownComponents>[0];
 }
 
+function chatMarkdownUrlTransform(url: string, key: string): string {
+  if (key === 'src' && normalizeRenderableImageSrc(url)) {
+    return url;
+  }
+
+  return defaultUrlTransform(url);
+}
+
 const StreamingMarkdownBlock = memo(function StreamingMarkdownBlock({
   block,
   componentOptions,
@@ -115,6 +124,7 @@ const StreamingMarkdownBlock = memo(function StreamingMarkdownBlock({
       remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
       rehypePlugins={rehypePlugins}
       components={components}
+      urlTransform={chatMarkdownUrlTransform}
     >
       {block.content}
     </ReactMarkdown>
@@ -141,6 +151,7 @@ const MarkdownContent = memo(function MarkdownContent({
         remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
         rehypePlugins={CHAT_MARKDOWN_REHYPE_PLUGINS}
         components={components}
+        urlTransform={chatMarkdownUrlTransform}
       >
         {markdown}
       </ReactMarkdown>

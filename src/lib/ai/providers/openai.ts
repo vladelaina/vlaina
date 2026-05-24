@@ -11,6 +11,8 @@ import {
   MANAGED_PROVIDER_ID,
   requestManagedChatCompletion,
   requestManagedChatCompletionStream,
+  requestManagedImageEdit,
+  requestManagedImageGeneration,
 } from '@/lib/ai/managedService'
 import { consumeOpenAIStream } from '@/lib/ai/streaming'
 import { normalizeApiTranscriptMessage } from '@/lib/ai/apiTranscript'
@@ -19,6 +21,7 @@ import {
   runOpenAIWebSearchJsonToolLoop,
   runOpenAIWebSearchToolLoop,
 } from '@/lib/ai/webSearch/openAIToolLoop'
+import { isStandaloneImageGenerationModel } from '@/lib/ai/modelCapabilities'
 
 function summarizeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error || 'Unknown error')
@@ -52,6 +55,140 @@ function buildChatCompletionOptions(options?: ChatSendOptions): Partial<ChatComp
     ...(typeof options?.max_tokens === 'number' ? { max_tokens: options.max_tokens } : {}),
     ...(typeof options?.max_completion_tokens === 'number' ? { max_completion_tokens: options.max_completion_tokens } : {}),
   }
+}
+
+function extractTextPrompt(content: ChatMessageContent): string {
+  if (typeof content === 'string') {
+    return content.trim()
+  }
+
+  return content
+    .filter((part): part is Extract<typeof part, { type: 'text' }> => part.type === 'text')
+    .map((part) => part.text.trim())
+    .filter(Boolean)
+    .join('\n\n')
+    .trim()
+}
+
+function getFirstImageInput(content: ChatMessageContent): string | null {
+  if (!Array.isArray(content)) {
+    return null;
+  }
+
+  const imagePart = content.find((part) => part.type === 'image_url');
+  return imagePart?.type === 'image_url' ? imagePart.image_url.url.trim() || null : null;
+}
+
+function parseDataImageUrl(value: string): { bytes: Uint8Array; mimeType: string } | null {
+  const match = /^data:(image\/(?:png|jpeg|jpg|webp));base64,([A-Za-z0-9+/=]+)$/i.exec(value.trim());
+  if (!match) {
+    return null;
+  }
+
+  const binary = atob(match[2]);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return { bytes, mimeType: match[1].toLowerCase() === 'image/jpg' ? 'image/jpeg' : match[1].toLowerCase() };
+}
+
+function extensionForMimeType(mimeType: string): string {
+  if (mimeType === 'image/jpeg') return 'jpg';
+  if (mimeType === 'image/webp') return 'webp';
+  return 'png';
+}
+
+function escapeMultipartValue(value: string): string {
+  return value.replace(/"/g, '%22').replace(/\r|\n/g, ' ');
+}
+
+function buildImageEditMultipartBody({
+  model,
+  prompt,
+  imageUrl,
+}: {
+  imageUrl: string;
+  model: string;
+  prompt: string;
+}): { body: Blob; headers: Record<string, string> } {
+  const parsedImage = parseDataImageUrl(imageUrl);
+  if (!parsedImage) {
+    throw new Error('Image edits require a PNG, JPEG, or WebP image attachment.');
+  }
+
+  const boundary = `----vlaina-image-edit-${crypto.randomUUID()}`;
+  const chunks: Array<string | Uint8Array> = [];
+  const appendField = (name: string, value: string) => {
+    chunks.push(
+      `--${boundary}\r\n`,
+      `Content-Disposition: form-data; name="${escapeMultipartValue(name)}"\r\n\r\n`,
+      value,
+      '\r\n',
+    );
+  };
+  const appendFile = (name: string, filename: string, mimeType: string, bytes: Uint8Array) => {
+    chunks.push(
+      `--${boundary}\r\n`,
+      `Content-Disposition: form-data; name="${escapeMultipartValue(name)}"; filename="${escapeMultipartValue(filename)}"\r\n`,
+      `Content-Type: ${mimeType}\r\n\r\n`,
+      bytes,
+      '\r\n',
+    );
+  };
+
+  appendField('model', model);
+  appendField('prompt', prompt);
+  appendField('n', '1');
+  appendFile('image', `image.${extensionForMimeType(parsedImage.mimeType)}`, parsedImage.mimeType, parsedImage.bytes);
+  chunks.push(`--${boundary}--\r\n`);
+
+  return {
+    body: new Blob(chunks),
+    headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}` },
+  };
+}
+
+function normalizeGeneratedImageAlt(value: unknown, index: number): string {
+  if (typeof value !== 'string') {
+    return `Generated image ${index + 1}`
+  }
+
+  const normalized = value
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  return normalized || `Generated image ${index + 1}`
+}
+
+function escapeMarkdownImageAlt(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/]/g, '\\]')
+}
+
+function escapeMarkdownAngleTarget(value: string): string {
+  return value.replace(/[\u0000-\u001f\u007f\s<>]+/g, '')
+}
+
+function normalizeGeneratedImageMarkdown(payload: Record<string, unknown>): string {
+  const data = Array.isArray(payload.data) ? payload.data : []
+  const markdown = data.flatMap((item, index) => {
+    if (!item || typeof item !== 'object') {
+      return []
+    }
+    const record = item as Record<string, unknown>
+    const url = typeof record.url === 'string' && record.url.trim()
+      ? record.url.trim()
+      : typeof record.b64_json === 'string' && record.b64_json.trim()
+        ? `data:image/png;base64,${record.b64_json.trim()}`
+        : ''
+    const safeTarget = escapeMarkdownAngleTarget(url)
+    return safeTarget
+      ? [`![${escapeMarkdownImageAlt(normalizeGeneratedImageAlt(record.revised_prompt, index))}](<${safeTarget}>)`]
+      : []
+  })
+
+  return markdown.join('\n\n')
 }
 
 function buildAssistantApiTranscriptFromRenderedContent(content: string): ApiTranscriptMessage[] {
@@ -169,6 +306,16 @@ export class OpenAICompatibleClient implements AIClient {
     return content
   }
 
+  private async sendManagedImageGeneration(
+    body: Record<string, unknown>,
+    onChunk?: (chunk: string) => void
+  ): Promise<string> {
+    const payload = await requestManagedImageGeneration(body)
+    const content = normalizeGeneratedImageMarkdown(payload)
+    ;(onChunk || (() => {}))(content)
+    return content
+  }
+
   private async resolveApiKey(provider: Provider): Promise<string> {
     const directApiKey = provider.apiKey?.trim() || ''
     if (!directApiKey) {
@@ -187,8 +334,26 @@ export class OpenAICompatibleClient implements AIClient {
     options?: ChatSendOptions
   ): Promise<string> {
     const body = this.buildChatRequest(message, history, model, provider, options)
+    const isImageModel = isStandaloneImageGenerationModel(model)
+    const imagePrompt = isImageModel ? extractTextPrompt(message) : ''
+
+    const editImageUrl = isImageModel ? getFirstImageInput(message) : null
 
     if (provider.id === MANAGED_PROVIDER_ID) {
+      if (isImageModel && editImageUrl) {
+        return this.sendManagedImageEdit({
+          model: resolveApiModelId(model),
+          prompt: imagePrompt,
+          imageUrl: editImageUrl,
+        }, onChunk, signal)
+      }
+      if (isImageModel) {
+        return this.sendManagedImageGeneration({
+          model: resolveApiModelId(model),
+          prompt: imagePrompt,
+          n: 1,
+        }, onChunk)
+      }
       if (options?.webSearchEnabled) {
         return runOpenAIWebSearchJsonToolLoop({
           body,
@@ -205,11 +370,44 @@ export class OpenAICompatibleClient implements AIClient {
       return this.sendManagedMessage(body, onChunk, signal, options)
     }
 
+    const apiKey = await this.resolveApiKey(provider)
+    const baseUrl = buildOpenAIBaseUrl(provider.apiHost)
+    const headers = {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    }
+
+    if (isImageModel) {
+      if (editImageUrl) {
+        return this.sendImageEdit(
+          `${baseUrl}/images/edits`,
+          headers,
+          {
+            model: resolveApiModelId(model),
+            prompt: imagePrompt,
+            imageUrl: editImageUrl,
+          },
+          onChunk || (() => {}),
+          signal,
+        )
+      }
+      return this.sendImageGeneration(
+        `${baseUrl}/images/generations`,
+        headers,
+        {
+          model: resolveApiModelId(model),
+          prompt: imagePrompt,
+          n: 1,
+        },
+        onChunk || (() => {}),
+        signal,
+      )
+    }
+
     if (provider.endpointType === 'anthropic') {
       if (options?.webSearchEnabled) {
         throw createUnsupportedWebSearchError()
       }
-      const apiKey = await this.resolveApiKey(provider)
       return sendAnthropicMessage({
         message,
         history,
@@ -223,13 +421,7 @@ export class OpenAICompatibleClient implements AIClient {
       })
     }
 
-    const apiKey = await this.resolveApiKey(provider)
-    const baseUrl = buildOpenAIBaseUrl(provider.apiHost)
     const url = `${baseUrl}/chat/completions`
-    const headers = {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    }
 
     if (options?.webSearchEnabled) {
       return runOpenAIWebSearchToolLoop({
@@ -260,6 +452,84 @@ export class OpenAICompatibleClient implements AIClient {
     }
 
     return this.streamResponse(url, headers, body, onChunk || (() => {}), signal, options)
+  }
+
+  private async sendImageGeneration(
+    url: string,
+    headers: Record<string, string>,
+    body: Record<string, unknown>,
+    onChunk: (chunk: string) => void,
+    signal?: AbortSignal
+  ): Promise<string> {
+    const response = await providerFetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal,
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error')
+      let errorBody
+      try {
+        errorBody = JSON.parse(errorText)
+      } catch {
+        errorBody = { message: errorText }
+      }
+      throw parseHTTPError(response.status, errorBody)
+    }
+
+    const payload = await response.json() as Record<string, unknown>
+    const content = normalizeGeneratedImageMarkdown(payload)
+    onChunk(content)
+    return content
+  }
+
+  private async sendManagedImageEdit(
+    input: { imageUrl: string; model: string; prompt: string },
+    onChunk?: (chunk: string) => void,
+    signal?: AbortSignal
+  ): Promise<string> {
+    const { body, headers } = buildImageEditMultipartBody(input);
+    const payload = await requestManagedImageEdit(body, headers, signal);
+    const content = normalizeGeneratedImageMarkdown(payload);
+    ;(onChunk || (() => {}))(content);
+    return content;
+  }
+
+  private async sendImageEdit(
+    url: string,
+    headers: Record<string, string>,
+    input: { imageUrl: string; model: string; prompt: string },
+    onChunk: (chunk: string) => void,
+    signal?: AbortSignal
+  ): Promise<string> {
+    const multipart = buildImageEditMultipartBody(input);
+    const response = await providerFetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: headers.Authorization,
+        ...multipart.headers,
+      },
+      body: multipart.body,
+      signal,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error')
+      let errorBody
+      try {
+        errorBody = JSON.parse(errorText)
+      } catch {
+        errorBody = { message: errorText }
+      }
+      throw parseHTTPError(response.status, errorBody)
+    }
+
+    const payload = await response.json() as Record<string, unknown>
+    const content = normalizeGeneratedImageMarkdown(payload)
+    onChunk(content)
+    return content
   }
 
   private async streamResponse(

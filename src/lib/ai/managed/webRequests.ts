@@ -5,6 +5,10 @@ import { consumeOpenAIStream } from '@/lib/ai/streaming';
 const MANAGED_JSON_TIMEOUT_MS = 30_000;
 const MANAGED_STREAM_TIMEOUT_MS = 300_000;
 
+interface ManagedJsonRequestInit extends RequestInit {
+  timeoutMs?: number;
+}
+
 function publicManagedStreamErrorMessage(message: string | undefined, errorCode: string | undefined): string {
   const normalizedCode = typeof errorCode === 'string' ? errorCode.trim().toLowerCase() : '';
   switch (normalizedCode) {
@@ -25,24 +29,31 @@ function publicManagedStreamErrorMessage(message: string | undefined, errorCode:
   }
 }
 
-export async function requestManagedWebJson<T>(path: string, init?: RequestInit): Promise<T> {
+export async function requestManagedWebJson<T>(path: string, init?: ManagedJsonRequestInit): Promise<T> {
   const timeoutController = new AbortController();
-  const timer = setTimeout(() => timeoutController.abort(), MANAGED_JSON_TIMEOUT_MS);
+  const timeoutMs = typeof init?.timeoutMs === 'number' && Number.isFinite(init.timeoutMs)
+    ? Math.max(0, init.timeoutMs)
+    : MANAGED_JSON_TIMEOUT_MS;
+  const timer = timeoutMs > 0
+    ? setTimeout(() => timeoutController.abort(), timeoutMs)
+    : null;
+  const fetchInit: RequestInit = { ...(init ?? {}) };
+  delete (fetchInit as ManagedJsonRequestInit).timeoutMs;
 
-  const combinedSignal = init?.signal
-    ? AbortSignal.any([init.signal, timeoutController.signal])
+  const combinedSignal = fetchInit.signal
+    ? AbortSignal.any([fetchInit.signal, timeoutController.signal])
     : timeoutController.signal;
 
   try {
     const response = await fetch(`${MANAGED_API_BASE}${path}`, {
-      ...init,
+      ...fetchInit,
       signal: combinedSignal,
       cache: 'no-store',
       credentials: 'include',
       headers: {
         Accept: 'application/json',
-        ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
-        ...(init?.headers ?? {}),
+        ...(fetchInit.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(fetchInit.headers ?? {}),
       },
     });
 
@@ -52,7 +63,45 @@ export async function requestManagedWebJson<T>(path: string, init?: RequestInit)
 
     return response.json() as Promise<T>;
   } finally {
-    clearTimeout(timer);
+    if (timer) clearTimeout(timer);
+  }
+}
+
+export async function requestManagedWebBinaryJson<T>(
+  path: string,
+  body: BodyInit,
+  headers: Record<string, string>,
+  signal?: AbortSignal,
+  timeoutMs = MANAGED_STREAM_TIMEOUT_MS
+): Promise<T> {
+  const timeoutController = new AbortController();
+  const timer = timeoutMs > 0
+    ? setTimeout(() => timeoutController.abort(), timeoutMs)
+    : null;
+  const combinedSignal = signal
+    ? AbortSignal.any([signal, timeoutController.signal])
+    : timeoutController.signal;
+
+  try {
+    const response = await fetch(`${MANAGED_API_BASE}${path}`, {
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'include',
+      signal: combinedSignal,
+      headers: {
+        Accept: 'application/json',
+        ...headers,
+      },
+      body,
+    });
+
+    if (!response.ok) {
+      throw await parseManagedError(response);
+    }
+
+    return response.json() as Promise<T>;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 

@@ -3,7 +3,7 @@ import { getElectronBridge } from '@/lib/electron/bridge';
 interface ProviderFetchInit {
   method: 'GET' | 'POST';
   headers?: Record<string, string>;
-  body?: string;
+  body?: BodyInit | null;
   signal?: AbortSignal;
 }
 
@@ -14,6 +14,38 @@ export async function providerFetch(url: string, init: ProviderFetchInit): Promi
   }
 
   return fetch(url, init);
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  const CHUNK_SIZE = 0x8000;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+    const chunk = bytes.subarray(i, i + CHUNK_SIZE);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary);
+}
+
+async function normalizeDesktopRequestBody(body: BodyInit | null | undefined): Promise<{
+  body?: string;
+  bodyBase64?: string;
+}> {
+  if (body == null) {
+    return {};
+  }
+  if (typeof body === 'string') {
+    return { body };
+  }
+  if (body instanceof Blob) {
+    return { bodyBase64: bytesToBase64(new Uint8Array(await body.arrayBuffer())) };
+  }
+  if (body instanceof ArrayBuffer) {
+    return { bodyBase64: bytesToBase64(new Uint8Array(body)) };
+  }
+  if (ArrayBuffer.isView(body)) {
+    return { bodyBase64: bytesToBase64(new Uint8Array(body.buffer, body.byteOffset, body.byteLength)) };
+  }
+  throw new Error('Unsupported desktop AI provider request body.');
 }
 
 async function desktopProviderFetch(
@@ -77,17 +109,21 @@ async function desktopProviderFetch(
   });
 
   try {
+    const abortPromise = new Promise<never>((_, reject) => {
+      rejectStartOnAbort = reject;
+    });
+    const requestBody = await normalizeDesktopRequestBody(init.body);
+    if (didSettle) {
+      return await abortPromise;
+    }
+
     const startRequestPromise = aiProvider.startRequest(requestId, {
       url,
       method: init.method,
       headers: init.headers,
-      body: init.body,
+      ...requestBody,
     });
     startRequestPromise.catch(() => undefined);
-
-    const abortPromise = new Promise<never>((_, reject) => {
-      rejectStartOnAbort = reject;
-    });
 
     const metadata = await Promise.race([startRequestPromise, abortPromise]);
     rejectStartOnAbort = null;

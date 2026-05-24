@@ -111,6 +111,7 @@ export interface ElectronAIProviderHttpApi {
       method: 'GET' | 'POST';
       headers?: Record<string, string>;
       body?: string;
+      bodyBase64?: string;
     }
   ): Promise<{
     status: number;
@@ -276,6 +277,8 @@ export interface ElectronAccountApi {
   getManagedModelsVersion(): Promise<Record<string, unknown>>;
   getManagedBudget(): Promise<Record<string, unknown>>;
   managedChatCompletion(body: object): Promise<Record<string, unknown>>;
+  managedImageGeneration(body: object): Promise<Record<string, unknown>>;
+  managedImageEdit(payload: { bodyBase64: string; headers: Record<string, string> }): Promise<Record<string, unknown>>;
   startManagedChatCompletionStream(requestId: string, body: Record<string, unknown>): Promise<void>;
   cancelManagedChatCompletionStream(requestId: string): Promise<void>;
   onManagedStreamChunk(requestId: string, callback: (content: string) => void): () => void;

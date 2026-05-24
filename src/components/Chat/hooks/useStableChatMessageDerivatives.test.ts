@@ -93,4 +93,44 @@ describe('useStableChatMessageDerivatives', () => {
     expect(view.result.current.imageGallery).toBe(secondImageGallery);
     expect(view.result.current.sentUserMessages).not.toBe(secondSentUserMessages);
   });
+
+  it('keeps large data image sources out of the gallery signature', () => {
+    const user = createMessage('u1', 'user', 'hello');
+    const assistant = createMessage('a1', 'assistant', `![image](<data:image/png;base64,${'a'.repeat(120_000)}>)`);
+
+    const startedAt = performance.now();
+    const view = renderHook(
+      ({ messages }) => useStableChatMessageDerivatives(messages),
+      {
+        initialProps: {
+          messages: [user, assistant] as ChatMessage[],
+        },
+      },
+    );
+
+    expect(view.result.current.imageGallery).toHaveLength(1);
+    expect(view.result.current.imageGallery[0].src).toContain('data:image/png;base64,');
+    expect(performance.now() - startedAt).toBeLessThan(250);
+  });
+
+  it('excludes non-renderable data images from the assistant gallery', () => {
+    const assistant = createMessage(
+      'a1',
+      'assistant',
+      '![svg](<data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+>)\n\n![png](<data:image/png;base64,aGk=>)',
+    );
+
+    const view = renderHook(
+      ({ messages }) => useStableChatMessageDerivatives(messages),
+      {
+        initialProps: {
+          messages: [assistant] as ChatMessage[],
+        },
+      },
+    );
+
+    expect(view.result.current.imageGallery).toEqual([
+      { id: 'a1:0', src: 'data:image/png;base64,aGk=' },
+    ]);
+  });
 });

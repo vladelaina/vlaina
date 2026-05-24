@@ -25,6 +25,7 @@ import type {
   ManagedModelsVersionPayload,
 } from './managed/types';
 import {
+  requestManagedWebBinaryJson,
   requestManagedWebJson,
   requestManagedWebStream,
 } from './managed/webRequests';
@@ -88,6 +89,28 @@ export async function requestManagedChatCompletion(
       method: 'POST',
       body: JSON.stringify(body),
     })
+}
+
+export async function requestManagedImageGeneration(
+  body: object
+): Promise<Record<string, unknown>> {
+  return hasElectronDesktopBridge()
+    ? ((await accountCommands.managedImageGeneration(body)) as Record<string, unknown>)
+    : await requestManagedWebJson<Record<string, unknown>>('/images/generations', {
+      method: 'POST',
+      body: JSON.stringify(body),
+      timeoutMs: 300_000,
+    })
+}
+
+export async function requestManagedImageEdit(
+  body: BodyInit,
+  headers: Record<string, string>,
+  signal?: AbortSignal
+): Promise<Record<string, unknown>> {
+  return hasElectronDesktopBridge()
+    ? ((await accountCommands.managedImageEdit(body, headers)) as Record<string, unknown>)
+    : await requestManagedWebBinaryJson<Record<string, unknown>>('/images/edits', body, headers, signal)
 }
 
 export async function requestManagedChatCompletionStream(

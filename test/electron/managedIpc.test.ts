@@ -40,12 +40,26 @@ describe('managed ipc stream bridge', () => {
     await handlers.get('desktop:managed:get-models')?.();
     await handlers.get('desktop:managed:get-budget')?.();
     await handlers.get('desktop:managed:chat-completion')?.({}, {});
+    await handlers.get('desktop:managed:image-generation')?.({}, { model: 'gpt-image-2', prompt: 'draw' });
+    await handlers.get('desktop:managed:image-edit')?.({}, {
+      bodyBase64: Buffer.from('multipart-body').toString('base64'),
+      headers: { 'Content-Type': 'multipart/form-data; boundary=test' },
+    });
 
     expect(options.requestManagedPublicJson).toHaveBeenCalledWith('/models', { method: 'GET' });
     expect(options.requestManagedJson).toHaveBeenCalledWith('/budget', { method: 'GET' });
     expect(options.requestManagedJson).toHaveBeenCalledWith('/chat/completions', {
       method: 'POST',
       body: '{}',
+    });
+    expect(options.requestManagedJson).toHaveBeenCalledWith('/images/generations', {
+      method: 'POST',
+      body: '{"model":"gpt-image-2","prompt":"draw"}',
+    });
+    expect(options.requestManagedJson).toHaveBeenCalledWith('/images/edits', {
+      method: 'POST',
+      headers: { 'Content-Type': 'multipart/form-data; boundary=test' },
+      body: Buffer.from('multipart-body'),
     });
   });
 
