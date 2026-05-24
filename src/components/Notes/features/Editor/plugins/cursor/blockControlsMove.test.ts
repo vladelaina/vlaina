@@ -120,6 +120,32 @@ describe('applyBlockMove content integrity', () => {
     await editor.destroy();
   });
 
+  it('places the cursor at the end of a moved paragraph', async () => {
+    const editor = await createEditor('A\n\nB\n\nC');
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(applyBlockMove(view, [blocks[0]], view.state.doc.content.size)).toBe(true);
+    expect(view.state.selection.empty).toBe(true);
+    expect(view.state.selection.$from.parent.textContent).toBe('A');
+    expect(view.state.selection.$from.parentOffset).toBe(1);
+
+    await editor.destroy();
+  });
+
+  it('places the cursor at the end of the last moved paragraph for multi-block moves', async () => {
+    const editor = await createEditor('A\n\nB\n\nC');
+    const view = editor.ctx.get(editorViewCtx);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(applyBlockMove(view, [blocks[0], blocks[1]], view.state.doc.content.size)).toBe(true);
+    expect(view.state.selection.empty).toBe(true);
+    expect(view.state.selection.$from.parent.textContent).toBe('B');
+    expect(view.state.selection.$from.parentOffset).toBe(1);
+
+    await editor.destroy();
+  });
+
   it('reorders hard-break paragraph line blocks within the same paragraph', async () => {
     const editor = await createEditor('A\\\nB\\\nC');
     const view = editor.ctx.get(editorViewCtx);

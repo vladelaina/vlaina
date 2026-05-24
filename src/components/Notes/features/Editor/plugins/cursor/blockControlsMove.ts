@@ -73,6 +73,15 @@ function canApplyInlineLineMove(view: EditorView, selectedRanges: readonly Block
   }
 }
 
+function setSelectionAtMovedContentTail(
+  tr: EditorState['tr'],
+  insertedFrom: number,
+  insertedSize: number,
+): EditorState['tr'] {
+  const anchor = Math.max(0, Math.min(insertedFrom + insertedSize, tr.doc.content.size));
+  return tr.setSelection(Selection.near(tr.doc.resolve(anchor), -1));
+}
+
 function stripTerminalHardBreak(content: Fragment): Fragment {
   const children: ProseNode[] = [];
   content.forEach((child) => {
@@ -227,8 +236,8 @@ function applyBlockMoveIntoInlineParagraph(
     replacement = replacement.append(Fragment.from(paragraphNode.type.create(paragraphNode.attrs, afterContent)));
 
     tr = tr.replaceWith(mappedParagraph.from, mappedParagraph.to, replacement);
-    const selectionAnchor = Math.max(0, Math.min(mappedParagraph.from + replacement.size, tr.doc.content.size));
-    tr = tr.setSelection(Selection.near(tr.doc.resolve(selectionAnchor), 1)).scrollIntoView();
+    tr = setSelectionAtMovedContentTail(tr, mappedParagraph.from + beforeContent.size, movedContent.size)
+      .scrollIntoView();
     view.dispatch(tr);
     view.focus();
     return true;
@@ -258,8 +267,7 @@ export function applyBlockMove(view: EditorView, selectedRanges: readonly BlockR
     if (!preparedMove) return false;
 
     let tr = preparedMove.tr.insert(preparedMove.targetPos, preparedMove.movedContent);
-    const selectionAnchor = Math.max(0, Math.min(preparedMove.targetPos + 1, tr.doc.content.size));
-    tr = tr.setSelection(Selection.near(tr.doc.resolve(selectionAnchor), 1)).scrollIntoView();
+    tr = setSelectionAtMovedContentTail(tr, preparedMove.targetPos, preparedMove.movedContent.size).scrollIntoView();
     view.dispatch(tr);
     view.focus();
     return true;
