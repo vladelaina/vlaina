@@ -43,6 +43,9 @@ interface StartBlankAreaSelectionSessionOptions {
   onSyncSelectionState: () => void;
 }
 
+const AUTO_SCROLL_EDGE_PX = 56;
+const AUTO_SCROLL_MAX_STEP_PX = 18;
+
 function createDragBox(doc: Document, dragBoxColor: string): HTMLDivElement {
   const box = doc.createElement('div');
   box.setAttribute('data-editor-drag-box', 'true');
@@ -71,6 +74,29 @@ function updateDragBox(box: HTMLDivElement, rect: RectBounds): void {
 
 function getDragBoxTopBoundary(scrollRoot: HTMLElement | null): number {
   return scrollRoot?.getBoundingClientRect().top ?? 0;
+}
+
+function resolveDragPointerY(startY: number, rect: RectBounds): number {
+  return startY === rect.top ? rect.bottom : rect.top;
+}
+
+export function resolveBlankAreaSelectionAutoScrollDelta(
+  pointerY: number,
+  scrollRootRect: Pick<DOMRect, 'top' | 'bottom'>,
+): number {
+  if (pointerY < scrollRootRect.top + AUTO_SCROLL_EDGE_PX) {
+    const distanceIntoEdge = scrollRootRect.top + AUTO_SCROLL_EDGE_PX - pointerY;
+    const intensity = Math.min(distanceIntoEdge, AUTO_SCROLL_EDGE_PX) / AUTO_SCROLL_EDGE_PX;
+    return -Math.ceil(intensity * AUTO_SCROLL_MAX_STEP_PX);
+  }
+
+  if (pointerY > scrollRootRect.bottom - AUTO_SCROLL_EDGE_PX) {
+    const distanceIntoEdge = pointerY - (scrollRootRect.bottom - AUTO_SCROLL_EDGE_PX);
+    const intensity = Math.min(distanceIntoEdge, AUTO_SCROLL_EDGE_PX) / AUTO_SCROLL_EDGE_PX;
+    return Math.ceil(intensity * AUTO_SCROLL_MAX_STEP_PX);
+  }
+
+  return 0;
 }
 
 export function startBlankAreaSelectionSession(
@@ -104,7 +130,10 @@ export function startBlankAreaSelectionSession(
   let selectedBlocksKey = getBlockRangesKey(initialSelectedBlocks);
   let pendingDragRect: RectBounds | null = null;
   let lastViewportDragRect: RectBounds | null = null;
+  let lastPointerY = event.clientY;
   let dragMoveRafId = 0;
+  let autoScrollRafId = 0;
+  let isAutoScrollActive = false;
   let preserveContainingBlocksForSession = false;
   let didResolveFirstNonEmptySelection = false;
 
@@ -186,6 +215,40 @@ export function startBlankAreaSelectionSession(
     scheduleDragRectSelection(lastViewportDragRect);
   };
 
+  const stopAutoScroll = () => {
+    isAutoScrollActive = false;
+    if (autoScrollRafId !== 0) {
+      window.cancelAnimationFrame(autoScrollRafId);
+      autoScrollRafId = 0;
+    }
+  };
+
+  const runAutoScrollFrame = () => {
+    autoScrollRafId = 0;
+    if (!isAutoScrollActive || !scrollRoot || !lastViewportDragRect) return;
+
+    const deltaY = resolveBlankAreaSelectionAutoScrollDelta(
+      lastPointerY,
+      scrollRoot.getBoundingClientRect(),
+    );
+
+    if (deltaY !== 0) {
+      const previousScrollTop = scrollRoot.scrollTop;
+      scrollRoot.scrollTop = previousScrollTop + deltaY;
+      if (scrollRoot.scrollTop !== previousScrollTop) {
+        handleScrollWhileDragging();
+      }
+    }
+
+    autoScrollRafId = window.requestAnimationFrame(runAutoScrollFrame);
+  };
+
+  const startAutoScroll = () => {
+    if (!scrollRoot || isAutoScrollActive) return;
+    isAutoScrollActive = true;
+    autoScrollRafId = window.requestAnimationFrame(runAutoScrollFrame);
+  };
+
   const session = startBlockDragSession({
     view,
     event,
@@ -198,8 +261,10 @@ export function startBlankAreaSelectionSession(
       window.getSelection()?.removeAllRanges();
       onActivateSelectionState();
       view.focus();
+      startAutoScroll();
     },
     onDragMove(dragRect) {
+      lastPointerY = resolveDragPointerY(event.clientY, dragRect);
       lastViewportDragRect = dragRect;
       const currentScrollLeft = scrollRoot?.scrollLeft ?? 0;
       const currentScrollTop = scrollRoot?.scrollTop ?? 0;
@@ -241,6 +306,7 @@ export function startBlankAreaSelectionSession(
         dragBox = null;
       }
       scrollRoot?.removeEventListener('scroll', handleScrollWhileDragging);
+      stopAutoScroll();
       rectResolver.invalidate();
       onSyncSelectionState();
     },
