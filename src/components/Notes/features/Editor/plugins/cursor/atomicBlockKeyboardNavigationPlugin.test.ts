@@ -948,6 +948,60 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     await editor.destroy();
   });
 
+  it('backspaces an empty paragraph above a list back to the previous paragraph', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    const before = schema.nodes.paragraph.create(null, schema.text('before'));
+    replaceDocument(view, [
+      before,
+      schema.nodes.paragraph.create(),
+      createBulletListNode(view, 'list item'),
+    ]);
+
+    const emptyParagraphPos = topLevelNodePos(view, 'paragraph', 1);
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+    const event = pressKey(view, 'Backspace');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).textContent).toBe('before');
+    expect(view.state.doc.child(1).type.name).toBe('bullet_list');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(selectionAncestorNames(view)).not.toContain('list_item');
+    expect(view.state.selection.from).toBe(1 + before.content.size);
+
+    await editor.destroy();
+  });
+
+  it('deletes an empty paragraph below a list forward to the next paragraph', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+    replaceDocument(view, [
+      createBulletListNode(view, 'list item'),
+      schema.nodes.paragraph.create(),
+      schema.nodes.paragraph.create(null, schema.text('after')),
+    ]);
+
+    const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+    const afterParagraphPos = topLevelNodePos(view, 'paragraph', 1);
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+    const event = pressKey(view, 'Delete');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(2);
+    expect(view.state.doc.child(0).type.name).toBe('bullet_list');
+    expect(view.state.doc.child(1).textContent).toBe('after');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(selectionAncestorNames(view)).not.toContain('list_item');
+    expect(view.state.selection.from).toBe(afterParagraphPos - 2 + 1);
+
+    await editor.destroy();
+  });
+
   it('deletes an empty paragraph between ordered and task lists on Delete', async () => {
     const editor = createEditor();
     await editor.create();

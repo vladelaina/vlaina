@@ -189,7 +189,8 @@ function shouldPreserveParagraphAfterCodeBlockOnBackspace(view: EditorView, even
 
 function dispatchDeleteEmptyParagraphNearStructuralBlock(
   view: EditorView,
-  range: AdjacentEmptyParagraphDeleteRange
+  range: AdjacentEmptyParagraphDeleteRange,
+  deleteDirection: -1 | 1
 ) {
   const tr = view.state.tr.delete(range.from, range.to);
   const mappedBlockFrom = tr.mapping.map(range.blockFrom, -1);
@@ -247,9 +248,13 @@ function dispatchDeleteEmptyParagraphNearStructuralBlock(
 
   if (isListContainerNode(nextNode)) {
     const blockTo = mappedBlockFrom + nextNode.nodeSize;
+    const preferPreviousTextTarget = deleteDirection < 0 && range.searchDir > 0;
+    const preferNextTextTarget = deleteDirection > 0 && range.searchDir < 0;
     const adjacentSelection = range.searchDir < 0
-      ? Selection.findFrom(tr.doc.resolve(blockTo), -1, true)
-      : Selection.findFrom(tr.doc.resolve(mappedBlockFrom), 1, true);
+      ? Selection.findFrom(tr.doc.resolve(blockTo), preferNextTextTarget ? 1 : -1, true)
+        ?? Selection.findFrom(tr.doc.resolve(blockTo), preferNextTextTarget ? -1 : 1, true)
+      : Selection.findFrom(tr.doc.resolve(mappedBlockFrom), preferPreviousTextTarget ? -1 : 1, true)
+        ?? Selection.findFrom(tr.doc.resolve(mappedBlockFrom), preferPreviousTextTarget ? 1 : -1, true);
 
     view.dispatch((adjacentSelection ? tr.setSelection(adjacentSelection) : tr).scrollIntoView());
     view.focus();
@@ -304,7 +309,7 @@ function handleEmptyParagraphNearStructuralBlockDelete(
   }
 
   event.preventDefault();
-  dispatchDeleteEmptyParagraphNearStructuralBlock(view, range);
+  dispatchDeleteEmptyParagraphNearStructuralBlock(view, range, primarySearchDir);
   return true;
 }
 
