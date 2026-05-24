@@ -31,8 +31,7 @@
 }
 
 .milkdown .code-block-container.ProseMirror-selectednode,
-.milkdown .code-block-container.vlaina-block-selected,
-.milkdown .code-block-container[data-pm-selected='true'] {
+.milkdown .code-block-container.vlaina-block-selected {
   --vlaina-block-selection-color: var(--vlaina-editor-block-selection-bg, #bedffe);
   --vlaina-block-selection-bleed-y: 4px;
   --vlaina-block-selection-bleed-x-start: 48px;
@@ -50,9 +49,7 @@
 .milkdown .code-block-container.vlaina-block-selected,
 .milkdown .code-block-container.vlaina-block-selected *,
 .milkdown .code-block-container.ProseMirror-selectednode,
-.milkdown .code-block-container.ProseMirror-selectednode *,
-.milkdown .code-block-container[data-pm-selected='true'],
-.milkdown .code-block-container[data-pm-selected='true'] * {
+.milkdown .code-block-container.ProseMirror-selectednode * {
   -webkit-text-fill-color: currentColor;
 }
 
@@ -70,12 +67,7 @@
 .milkdown .code-block-container.vlaina-block-selected .cm-gutter,
 .milkdown .code-block-container.vlaina-block-selected .cm-gutterElement,
 .milkdown .code-block-container.vlaina-block-selected .cm-lineNumbers,
-.milkdown .code-block-container.vlaina-block-selected .cm-gutter-filler,
-.milkdown .code-block-container[data-pm-selected='true'] .cm-gutters,
-.milkdown .code-block-container[data-pm-selected='true'] .cm-gutter,
-.milkdown .code-block-container[data-pm-selected='true'] .cm-gutterElement,
-.milkdown .code-block-container[data-pm-selected='true'] .cm-lineNumbers,
-.milkdown .code-block-container[data-pm-selected='true'] .cm-gutter-filler {
+.milkdown .code-block-container.vlaina-block-selected .cm-gutter-filler {
   background-color: var(--vlaina-code-block-background) !important;
 }
 
@@ -99,13 +91,7 @@
 .milkdown .code-block-container.vlaina-block-selected .cm-content,
 .milkdown .code-block-container.vlaina-block-selected .cm-line,
 .milkdown .code-block-container.vlaina-block-selected .cm-activeLine,
-.milkdown .code-block-container.vlaina-block-selected .cm-activeLineGutter,
-.milkdown .code-block-container[data-pm-selected='true'] .cm-editor,
-.milkdown .code-block-container[data-pm-selected='true'] .cm-scroller,
-.milkdown .code-block-container[data-pm-selected='true'] .cm-content,
-.milkdown .code-block-container[data-pm-selected='true'] .cm-line,
-.milkdown .code-block-container[data-pm-selected='true'] .cm-activeLine,
-.milkdown .code-block-container[data-pm-selected='true'] .cm-activeLineGutter {
+.milkdown .code-block-container.vlaina-block-selected .cm-activeLineGutter {
   background: var(--vlaina-code-block-background) !important;
   background-color: var(--vlaina-code-block-background) !important;
 }
@@ -117,11 +103,7 @@
 .milkdown .code-block-container.vlaina-block-selected .vlaina-code-block-header,
 .milkdown .code-block-container.vlaina-block-selected .code-block-editable,
 .milkdown .code-block-container.vlaina-block-selected .code-block-lazy-preview,
-.milkdown .code-block-container.vlaina-block-selected .code-block-lazy-line-numbers,
-.milkdown .code-block-container[data-pm-selected='true'] .vlaina-code-block-header,
-.milkdown .code-block-container[data-pm-selected='true'] .code-block-editable,
-.milkdown .code-block-container[data-pm-selected='true'] .code-block-lazy-preview,
-.milkdown .code-block-container[data-pm-selected='true'] .code-block-lazy-line-numbers {
+.milkdown .code-block-container.vlaina-block-selected .code-block-lazy-line-numbers {
   background: var(--vlaina-code-block-background) !important;
   background-color: var(--vlaina-code-block-background) !important;
 }
@@ -222,9 +204,12 @@
   background: var(--vlaina-selection-bg, #2781db) !important;
 }
 
+.milkdown .ProseMirror.vlaina-toolbar-copy-feedback-active .code-block-container[data-pm-selected='true'] .cm-editor:not(.cm-focused) > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+  background: transparent !important;
+}
+
 .milkdown .code-block-container.ProseMirror-selectednode .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
-.milkdown .code-block-container.vlaina-block-selected .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground,
-.milkdown .code-block-container[data-pm-selected='true'] .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
+.milkdown .code-block-container.vlaina-block-selected .cm-editor > .cm-scroller > .cm-selectionLayer .cm-selectionBackground {
   background: transparent !important;
 }
 
