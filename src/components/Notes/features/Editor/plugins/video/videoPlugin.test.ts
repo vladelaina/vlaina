@@ -17,20 +17,6 @@ import {
 import { createVideoDom } from './videoDom';
 import { videoPlugin } from './videoPlugin';
 
-const videoDebugMock = vi.hoisted(() => ({
-  enabled: false,
-}));
-
-vi.mock('@/stores/notes/lineBreakDebugLog', async () => {
-  const actual = await vi.importActual<typeof import('@/stores/notes/lineBreakDebugLog')>(
-    '@/stores/notes/lineBreakDebugLog'
-  );
-  return {
-    ...actual,
-    isNotesDebugLoggingEnabled: () => videoDebugMock.enabled,
-  };
-});
-
 async function serializeVideoNode(src: string, title = '') {
   const editor = Editor.make()
     .config((ctx) => {
@@ -59,7 +45,6 @@ async function serializeVideoNode(src: string, title = '') {
 describe('videoPlugin URL support', () => {
   afterEach(() => {
     vi.useRealTimers();
-    videoDebugMock.enabled = false;
   });
 
   it('supports youtube, bilibili, and direct video URLs', () => {

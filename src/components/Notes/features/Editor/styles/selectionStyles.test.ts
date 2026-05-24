@@ -207,6 +207,30 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(markdownCss).toContain('-webkit-text-fill-color: var(--vlaina-editor-block-selection-fg, #fefbf9) !important;');
   });
 
+  it('hides editable list gap placeholder text while keeping the caret visible', () => {
+    const css = readStyleFile('markdown.css');
+    const itemRule = extractCssRule(css, '.milkdown .ProseMirror li.vlaina-list-gap-placeholder-item');
+    const rule = extractCssRule(css, '.milkdown .ProseMirror li.vlaina-list-gap-placeholder-item > p');
+
+    expect(itemRule).toContain('margin-left: calc(-1 * var(--vlaina-list-gap-placeholder-outdent));');
+    expect(itemRule).toContain('width: calc(100% + var(--vlaina-list-gap-placeholder-outdent));');
+    expect(rule).toContain('color: transparent;');
+    expect(rule).toContain('-webkit-text-fill-color: transparent;');
+    expect(rule).toContain('caret-color: var(--vlaina-caret-color);');
+  });
+
+  it('keeps list gap placeholder block selection from extending farther left than normal list rows', () => {
+    const css = readStyleFile('markdown.css');
+    const rule = extractCssRule(
+      css,
+      '.milkdown .ProseMirror li.vlaina-list-gap-placeholder-item.vlaina-block-selected,'
+    );
+
+    expect(rule).toContain('.milkdown .ProseMirror li.vlaina-list-gap-placeholder-item > .vlaina-block-selected');
+    expect(rule).toContain('var(--vlaina-list-row-selection-bleed-x-start, 72px)');
+    expect(rule).toContain('var(--vlaina-list-gap-placeholder-outdent)');
+  });
+
   it('tints blockquote rails with the selected block foreground', () => {
     const css = readStyleFile('core.css');
 
@@ -228,23 +252,24 @@ describe('editor embedded CodeMirror selection styles', () => {
 
     expect(css).toContain('--vlaina-block-selection-bleed-x-start: 48px;');
     expect(css).toContain('.milkdown .ProseMirror li.vlaina-block-selected,');
-    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 48px;');
+    expect(css).toContain('--vlaina-list-row-selection-bleed-x-start: 48px;');
+    expect(css).toContain('--vlaina-block-selection-bleed-x-start: var(--vlaina-list-row-selection-bleed-x-start);');
     expect(css).toContain('--vlaina-block-selection-bleed-x-end: 48px;');
     expect(css).toContain('.milkdown .ProseMirror :is(ul, ol) > li.vlaina-block-selected,');
-    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 48px;');
+    expect(css).toContain('--vlaina-list-row-selection-bleed-x-start: 48px;');
     expect(css).toContain('.milkdown .ProseMirror ul > li.vlaina-block-selected,');
     expect(css).toContain('.milkdown .ProseMirror li[data-item-type="task"].vlaina-block-selected,');
-    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 72px;');
+    expect(css).toContain('--vlaina-list-row-selection-bleed-x-start: 72px;');
     expect(css).toContain('.milkdown .ProseMirror ol > li.vlaina-block-selected,');
-    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 72px;');
+    expect(css).toContain('--vlaina-list-row-selection-bleed-x-start: 72px;');
     expect(css).toContain('.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) > li.vlaina-block-selected,');
-    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 72px;');
+    expect(css).toContain('--vlaina-list-row-selection-bleed-x-start: 72px;');
     expect(css).toContain('.milkdown .ProseMirror :is(ul, ol) ol > li.vlaina-block-selected,');
-    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 96px;');
+    expect(css).toContain('--vlaina-list-row-selection-bleed-x-start: 96px;');
     expect(css).toContain('.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) :is(ul, ol) > li.vlaina-block-selected,');
-    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 104px;');
+    expect(css).toContain('--vlaina-list-row-selection-bleed-x-start: 104px;');
     expect(css).toContain('.milkdown .ProseMirror :is(ul, ol) :is(ul, ol) ol > li.vlaina-block-selected,');
-    expect(css).toContain('--vlaina-block-selection-bleed-x-start: 128px;');
+    expect(css).toContain('--vlaina-list-row-selection-bleed-x-start: 128px;');
     expect(css).not.toContain('margin-left: calc(-1 * var(--vlaina-block-selection-offset-x));');
   });
 

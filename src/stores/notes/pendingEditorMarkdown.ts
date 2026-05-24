@@ -1,4 +1,3 @@
-import { normalizeSerializedMarkdownDocument } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { getNoteTitleFromPath } from '@/lib/notes/displayName';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { setCachedNoteContent } from './document/noteContentCache';
@@ -28,13 +27,6 @@ export function flushPendingEditorMarkdown(notePath: string | null | undefined, 
       : state.noteContentsCache.get(notePath)?.content;
 
   if (currentContent === markdown) {
-    return false;
-  }
-
-  if (
-    currentContent !== undefined &&
-    normalizeSerializedMarkdownDocument(currentContent) === normalizeSerializedMarkdownDocument(markdown)
-  ) {
     return false;
   }
 

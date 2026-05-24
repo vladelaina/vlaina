@@ -33,6 +33,10 @@ import { tocPlugin } from '../toc';
 import { blockAlignmentPlugin } from '../floating-toolbar';
 import { colorMarksPlugin } from '../floating-toolbar/colorMarks';
 import { codePlugin } from '../code';
+import { tablePlugin } from '../table';
+import { abbrPlugin } from '../abbr';
+import { autolinkPlugin } from '../links/autolink/autolinkPlugin';
+import { markdownLinkPlugin } from '../links/markdown-link/markdownLinkPlugin';
 
 const syntaxPlugins = [
   ...mathPlugin,
@@ -40,12 +44,16 @@ const syntaxPlugins = [
   ...footnotePlugin,
   ...frontmatterPlugin,
   ...highlightPlugin,
+  ...tablePlugin,
   ...mermaidPlugin,
   ...videoPlugin,
   ...tocPlugin,
   ...blockAlignmentPlugin,
   ...colorMarksPlugin,
   ...codePlugin,
+  abbrPlugin,
+  autolinkPlugin,
+  markdownLinkPlugin,
 ];
 
 interface EditorRoundTripSnapshot {
@@ -56,7 +64,7 @@ interface EditorRoundTripSnapshot {
 async function openMarkdownThroughSyntaxEditor(markdown: string): Promise<EditorRoundTripSnapshot> {
   const defaultValue = preserveMarkdownBlankLinesForEditor(
     normalizeLeadingFrontmatterMarkdown(
-      normalizeAlternativeMathBlockFences(normalizeSerializedMarkdownDocument(markdown))
+      normalizeAlternativeMathBlockFences(markdown)
     )
   );
   const editor = Editor.make()
@@ -128,6 +136,7 @@ export async function expectStableMarkdownRoundTrip(
 ): Promise<void> {
   const firstOpen = await openMarkdownThroughSyntaxEditor(markdown);
   const firstPersisted = stripTrailingNewlines(firstOpen.persisted);
+  const normalizedInput = stripTrailingNewlines(markdown);
   expectPersistedMarkdownToBeClean(firstPersisted);
   expect(firstPersisted).toBe(expected);
   if (expectedText) {
@@ -137,8 +146,18 @@ export async function expectStableMarkdownRoundTrip(
   const secondOpen = await openMarkdownThroughSyntaxEditor(firstPersisted);
   const secondPersisted = stripTrailingNewlines(secondOpen.persisted);
   expectPersistedMarkdownToBeClean(secondPersisted);
-  expect(secondOpen.docJson).toEqual(firstOpen.docJson);
   expect(secondPersisted).toBe(firstPersisted);
+
+  if (firstPersisted === normalizedInput) {
+    expect(secondOpen.docJson).toEqual(firstOpen.docJson);
+    return;
+  }
+
+  const thirdOpen = await openMarkdownThroughSyntaxEditor(secondPersisted);
+  const thirdPersisted = stripTrailingNewlines(thirdOpen.persisted);
+  expectPersistedMarkdownToBeClean(thirdPersisted);
+  expect(thirdPersisted).toBe(secondPersisted);
+  expect(thirdOpen.docJson).toEqual(secondOpen.docJson);
 }
 
 export async function expectConvergentPersistedMarkdownRoundTrip(

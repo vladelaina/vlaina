@@ -179,6 +179,136 @@ describe('saveNoteDocument', () => {
     vi.useRealTimers();
   });
 
+  it('preserves editor-created empty paragraph runs before writing markdown', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    adapter.writeFile.mockResolvedValue();
+    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+
+    await saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: ['before', '', '', 'after', '', '', '', 'tail'].join('\n'),
+      },
+      cache: new Map(),
+    });
+
+    expect(adapter.writeFile).toHaveBeenCalledWith(
+      '/vault/alpha.md',
+      [
+        '---',
+        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
+        '---',
+        '',
+        'before',
+        '',
+        '',
+        'after',
+        '',
+        '',
+        '',
+        'tail',
+      ].join('\n')
+    );
+
+    vi.useRealTimers();
+  });
+
+  it('removes terminal list item br placeholders before writing markdown', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    adapter.writeFile.mockResolvedValue();
+    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+
+    await saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: '- 1<br />',
+      },
+      cache: new Map(),
+    });
+
+    expect(adapter.writeFile).toHaveBeenCalledWith(
+      '/vault/alpha.md',
+      [
+        '---',
+        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
+        '---',
+        '',
+        '- 1',
+      ].join('\n')
+    );
+
+    vi.useRealTimers();
+  });
+
+  it('writes ordered list empty items and br spacer lines as plain markdown blank lines', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    adapter.writeFile.mockResolvedValue();
+    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+
+    await saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: ['8. before', '9. <br />', '<br />', '10. after'].join('\n'),
+      },
+      cache: new Map(),
+    });
+
+    expect(adapter.writeFile).toHaveBeenCalledWith(
+      '/vault/alpha.md',
+      [
+        '---',
+        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
+        '---',
+        '',
+        '8. before',
+        '9.',
+        '',
+        '10. after',
+      ].join('\n')
+    );
+
+    vi.useRealTimers();
+  });
+
+  it('writes multiple br spacer lines between list items as plain markdown blank lines', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
+    adapter.writeFile.mockResolvedValue();
+    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+
+    await saveNoteDocument({
+      notesPath: '/vault',
+      currentNote: {
+        path: 'alpha.md',
+        content: ['1. before', '<br />', '<br />', '<br />', '2. after'].join('\n'),
+      },
+      cache: new Map(),
+    });
+
+    expect(adapter.writeFile).toHaveBeenCalledWith(
+      '/vault/alpha.md',
+      [
+        '---',
+        'vlaina_updated: 2026-04-15 18:00:00 +08:00',
+        '---',
+        '',
+        '1. before',
+        '',
+        '',
+        '',
+        '2. after',
+      ].join('\n')
+    );
+
+    vi.useRealTimers();
+  });
+
   it('keeps frontmatter body separator when saving an empty body', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-04-15T10:00:00.000Z'));
@@ -301,6 +431,21 @@ describe('saveNoteDocument', () => {
 
     expect(result.content).toBe(['# Alpha', '', 'Body'].join('\n'));
     expect(result.nextCache.get('alpha.md')?.content).toBe(['# Alpha', '', 'Body'].join('\n'));
+  });
+
+  it('preserves markdown blank lines between list items when loading markdown', async () => {
+    const markdown = ['- one', '', '', '', '- two'].join('\n');
+    adapter.readFile.mockResolvedValue(markdown);
+    adapter.stat.mockResolvedValue({ modifiedAt: 123 });
+
+    const result = await loadNoteDocument({
+      notesPath: '/vault',
+      path: 'alpha.md',
+      cache: new Map(),
+    });
+
+    expect(result.content).toBe(markdown);
+    expect(result.nextCache.get('alpha.md')?.content).toBe(markdown);
   });
 
   it('rejects loading relative paths that escape the vault', async () => {

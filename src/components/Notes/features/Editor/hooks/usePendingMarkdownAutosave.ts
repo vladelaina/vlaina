@@ -3,14 +3,12 @@ import { serializerCtx } from '@milkdown/kit/core';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { useNotesStore } from '@/stores/useNotesStore';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
-import {
-  normalizeSerializedMarkdownDocument,
-  restoreMathBlockFenceStylesFromReference,
-} from '@/lib/notes/markdown/markdownSerializationUtils';
 import { hasTemporaryTailParagraph } from '../plugins/cursor/endBlankClickPlugin';
-import { serializeLeadingFrontmatterMarkdown } from '../plugins/frontmatter/frontmatterMarkdown';
 import { getCurrentEditorView } from '../utils/editorViewRegistry';
-import { resolvePendingMarkdownUpdate } from '../utils/pendingMarkdownUpdate';
+import {
+  resolvePendingMarkdownUpdate,
+  serializeEditorMarkdownSnapshot,
+} from '../utils/pendingMarkdownUpdate';
 import { usePendingMarkdownFlusher } from './usePendingMarkdownFlusher';
 
 interface MilkdownToken<T> {
@@ -130,9 +128,7 @@ export function usePendingMarkdownAutosave({
           return;
         }
 
-        const normalizedMarkdown = normalizeSerializedMarkdownDocument(rawMarkdown);
-        const styledMarkdown = restoreMathBlockFenceStylesFromReference(normalizedMarkdown, latestNote.content);
-        const nextMarkdown = serializeLeadingFrontmatterMarkdown(styledMarkdown, latestNote.content);
+        const nextMarkdown = serializeEditorMarkdownSnapshot(rawMarkdown, latestNote.content);
         if (latestNote.content === nextMarkdown) {
           return;
         }

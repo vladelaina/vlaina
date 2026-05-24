@@ -20,11 +20,23 @@ function isListItem(line: string): boolean {
   return LIST_ITEM_MARKER_PATTERN.test(line);
 }
 
+function isEditableListGapItem(line: string): boolean {
+  return LIST_ITEM_MARKER_PATTERN.test(line) && line.includes('\u2800');
+}
+
 function isStandaloneSerializedHorizontalRule(line: string): boolean {
   return THEMATIC_BREAK_PATTERN.test(line);
 }
 
-export function normalizeCanonicalMarkdownSpacing(text: string): string {
+interface NormalizeCanonicalMarkdownSpacingOptions {
+  compactListGaps?: boolean;
+}
+
+export function normalizeCanonicalMarkdownSpacing(
+  text: string,
+  options: NormalizeCanonicalMarkdownSpacingOptions = {},
+): string {
+  const compactListGaps = options.compactListGaps ?? true;
   const normalized = mapMarkdownOutsideProtectedSegments(text, (segment) => {
     const lines = segment.split('\n');
     const output: string[] = [];
@@ -40,7 +52,13 @@ export function normalizeCanonicalMarkdownSpacing(text: string): string {
       if (line.trim() === '') {
         const previous = output[output.length - 1] ?? '';
         const next = lines[index + 1] ?? '';
-        if (isListItem(previous) && isListItem(next)) {
+        if (
+          compactListGaps
+          && isListItem(previous)
+          && isListItem(next)
+          && !isEditableListGapItem(previous)
+          && !isEditableListGapItem(next)
+        ) {
           continue;
         }
       }
@@ -56,6 +74,14 @@ export function normalizeCanonicalMarkdownSpacing(text: string): string {
       normalized.replace(ESCAPED_TOC_MARKER_PATTERN, '$1[TOC]')
     )
   );
+}
+
+export function normalizeCanonicalMarkdownSpacingForPaste(text: string): string {
+  return normalizeCanonicalMarkdownSpacing(text, { compactListGaps: true });
+}
+
+export function normalizeCanonicalMarkdownSpacingForPersistence(text: string): string {
+  return normalizeCanonicalMarkdownSpacing(text, { compactListGaps: true });
 }
 
 function normalizeCalloutBlockquoteListSpacing(lines: string[]): string[] {

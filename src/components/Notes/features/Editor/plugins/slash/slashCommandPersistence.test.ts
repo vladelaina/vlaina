@@ -56,7 +56,7 @@ const slashCommandPersistenceCases = [
   ['task-list', '- [ ]'],
   ['ordered-list', '1.'],
   ['bullet-list', '-'],
-  ['quote', '> <br />'],
+  ['quote', '>'],
   ['divider', '---'],
   ['code-block', ['```', '```'].join('\n')],
   ['table', ['|   |   |   |', '| :----- | :----- | :----- |', '|   |   |   |', '|   |   |   |'].join('\n')],
@@ -199,7 +199,7 @@ describe('slash command markdown persistence', () => {
     },
     {
       commandId: 'quote',
-      expected: '> <br />',
+      expected: '>',
       expectedNodes: [
         { type: 'blockquote' },
       ],

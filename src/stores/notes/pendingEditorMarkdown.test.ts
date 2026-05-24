@@ -36,7 +36,7 @@ describe('flushPendingEditorMarkdown', () => {
     });
   });
 
-  it('does not re-dirty a clean note when pending markdown only differs by save normalization', () => {
+  it('keeps pending list spacing edits instead of treating them as save-normalization noise', () => {
     const savedContent = ['1. First item', '2. Second item', '3. Third item'].join('\n');
     const pendingContent = ['1. First item', '', '2. Second item', '3. Third item'].join('\n');
 
@@ -51,18 +51,18 @@ describe('flushPendingEditorMarkdown', () => {
     const didFlush = flushPendingEditorMarkdown('alpha.md', pendingContent);
 
     const state = useNotesStore.getState();
-    expect(didFlush).toBe(false);
-    expect(state.currentNote).toEqual({ path: 'alpha.md', content: savedContent });
-    expect(state.currentNoteRevision).toBe(3);
-    expect(state.isDirty).toBe(false);
-    expect(state.openTabs).toEqual([{ path: 'alpha.md', name: 'alpha', isDirty: false }]);
+    expect(didFlush).toBe(true);
+    expect(state.currentNote).toEqual({ path: 'alpha.md', content: pendingContent });
+    expect(state.currentNoteRevision).toBe(4);
+    expect(state.isDirty).toBe(true);
+    expect(state.openTabs).toEqual([{ path: 'alpha.md', name: 'alpha', isDirty: true }]);
     expect(state.noteContentsCache.get('alpha.md')).toEqual({
-      content: savedContent,
+      content: pendingContent,
       modifiedAt: 7,
     });
   });
 
-  it('does not restore a dirty background tab when a stale editor flush is save-normalization equivalent', () => {
+  it('keeps pending list spacing edits for a background tab', () => {
     const savedContent = [
       '---',
       'vlaina_updated: "2026-05-08T08:05:50.781Z"',
@@ -100,16 +100,16 @@ describe('flushPendingEditorMarkdown', () => {
     const didFlush = flushPendingEditorMarkdown('alpha.md', pendingContent);
 
     const state = useNotesStore.getState();
-    expect(didFlush).toBe(false);
+    expect(didFlush).toBe(true);
     expect(state.currentNote).toEqual({ path: 'beta.md', content: 'Beta content' });
     expect(state.currentNoteRevision).toBe(8);
     expect(state.isDirty).toBe(false);
     expect(state.openTabs).toEqual([
-      { path: 'alpha.md', name: 'alpha', isDirty: false },
+      { path: 'alpha.md', name: 'alpha', isDirty: true },
       { path: 'beta.md', name: 'beta', isDirty: false },
     ]);
     expect(state.noteContentsCache.get('alpha.md')).toEqual({
-      content: savedContent,
+      content: pendingContent,
       modifiedAt: 17,
     });
   });

@@ -1,4 +1,4 @@
-const LIST_ITEM_MARKER_PATTERN = /^\s*(?:[-+*]|\d+[.)])\s+(?:\[(?: |x|X)\]\s+)?/;
+const LIST_ITEM_MARKER_PATTERN = /^(\s*(?:>\s*)*)(?:[-+*]|\d+[.)])\s+(?:\[(?: |x|X)\]\s+)?/;
 const TABLE_DELIMITER_ROW_PATTERN =
   /^\s*\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)+\|?\s*$/;
 const TABLE_ROW_PATTERN = /^\s*\|.*\|\s*$/;
@@ -28,7 +28,9 @@ export function isBetweenListItemsBlankLine(lines: readonly string[], index: num
   const next = findNearestNonBlankLine(lines, index, 1);
   if (!previous || !next) return false;
 
-  return LIST_ITEM_MARKER_PATTERN.test(previous) && LIST_ITEM_MARKER_PATTERN.test(next);
+  const previousListContext = getListItemPrefix(previous);
+  const nextListContext = getListItemPrefix(next);
+  return previousListContext !== null && previousListContext === nextListContext;
 }
 
 export function isIndentedCodeBoundaryBlankLine(lines: readonly string[], index: number): boolean {
@@ -121,6 +123,11 @@ function findNearestNonBlankLineIndex(
     if (line.trim() !== '') return index;
   }
   return null;
+}
+
+function getListItemPrefix(line: string): string | null {
+  const match = LIST_ITEM_MARKER_PATTERN.exec(line);
+  return match ? match[1] ?? '' : null;
 }
 
 function isAlignmentCommentLine(line: string | null): boolean {

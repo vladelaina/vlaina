@@ -24,7 +24,6 @@ import { EDITOR_LAYOUT_CLASS } from '@/lib/layout';
 import { isDraftNotePath } from '@/stores/notes/draftNote';
 import {
   normalizeAlternativeMathBlockFences,
-  normalizeSerializedMarkdownDocument,
   preserveMarkdownBlankLinesForEditor,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
 import { configureTheme } from './theme';
@@ -117,9 +116,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
   });
 
   const initialContent = useMemo(() => {
-    return normalizeAlternativeMathBlockFences(
-      normalizeSerializedMarkdownDocument(currentNoteContentRef.current)
-    );
+    return normalizeAlternativeMathBlockFences(currentNoteContentRef.current);
   }, []);
 
   useEffect(() => {
@@ -177,8 +174,8 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       setActivatedRevision((revision) => revision + 1);
 
       const markUserInput = createUserInputMarker(view, liveSerializer);
-      view.dom.addEventListener('beforeinput', markUserInput);
-      view.dom.addEventListener('keydown', markUserInput);
+      view.dom.addEventListener('beforeinput', markUserInput, { capture: true });
+      view.dom.addEventListener('keydown', markUserInput, { capture: true });
       view.dom.addEventListener('vlaina:image-user-input', markUserInput);
       view.dom.addEventListener('vlaina:block-user-input', markUserInput);
       view.dom.addEventListener('paste', markUserInput);
@@ -188,8 +185,8 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       setCurrentMarkdownRuntime({ parser, serializer: liveSerializer });
       activatedEditorRef.current = editor;
       activationCleanupRef.current = () => {
-        view.dom.removeEventListener('beforeinput', markUserInput);
-        view.dom.removeEventListener('keydown', markUserInput);
+        view.dom.removeEventListener('beforeinput', markUserInput, { capture: true });
+        view.dom.removeEventListener('keydown', markUserInput, { capture: true });
         view.dom.removeEventListener('vlaina:image-user-input', markUserInput);
         view.dom.removeEventListener('vlaina:block-user-input', markUserInput);
         view.dom.removeEventListener('paste', markUserInput);
@@ -227,7 +224,9 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
 
         const handleMarkdownUpdated = configureMarkdownListener(ctx, initialContent);
         ctx.get(listenerCtx)
-          .markdownUpdated((_ctx, markdown) => handleMarkdownUpdated(markdown));
+          .markdownUpdated((_ctx, markdown) => {
+            handleMarkdownUpdated(markdown);
+          });
       })
       .use(commonmark)
       .use(gfm)
@@ -281,9 +280,7 @@ export const MilkdownEditorInner = React.memo(function MilkdownEditorInner({
       const scrollRoot = view.dom.closest('[data-note-scroll-root="true"]') as HTMLElement | null;
       const scrollTop = scrollRoot?.scrollTop ?? null;
       const normalizedFrontmatter = normalizeLeadingFrontmatterMarkdown(
-        normalizeAlternativeMathBlockFences(
-          normalizeSerializedMarkdownDocument(currentNoteContent)
-        )
+        normalizeAlternativeMathBlockFences(currentNoteContent)
       );
       const nextMarkdown = preserveMarkdownBlankLinesForEditor(normalizedFrontmatter);
 

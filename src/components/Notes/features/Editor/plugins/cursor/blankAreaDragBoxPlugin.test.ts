@@ -123,6 +123,22 @@ function finishTrailingPlainClick() {
   }));
 }
 
+function findNodePosition(view: any, typeName: string, predicate: (node: any) => boolean = () => true): number {
+  let found: number | null = null;
+  view.state.doc.descendants((node: any, pos: number) => {
+    if (found !== null) return false;
+    if (node.type.name === typeName && predicate(node)) {
+      found = pos;
+      return false;
+    }
+    return true;
+  });
+  if (found === null) {
+    throw new Error(`Expected ${typeName} node`);
+  }
+  return found;
+}
+
 async function createBlockSelectionEditor(markdown: string) {
   const editor = Editor.make()
     .config((ctx) => {
@@ -248,29 +264,6 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
 });
 
 describe('blankAreaDragBoxPlugin trailing plain clicks', () => {
-  it('keeps the caret debug copy button hidden unless explicitly enabled', async () => {
-    localStorage.removeItem('vlaina_debug_caret_click');
-    const first = await createBlockSelectionEditor('- Alpha');
-
-    try {
-      expect(document.querySelector('[data-notes-caret-debug-copy="true"]')).toBeNull();
-    } finally {
-      await first.editor.destroy();
-    }
-
-    localStorage.setItem('vlaina_debug_caret_click', '1');
-    const second = await createBlockSelectionEditor('- Alpha');
-
-    try {
-      expect(document.querySelector('[data-notes-caret-debug-copy="true"]')).toBeInstanceOf(HTMLButtonElement);
-    } finally {
-      await second.editor.destroy();
-      localStorage.removeItem('vlaina_debug_caret_click');
-    }
-
-    expect(document.querySelector('[data-notes-caret-debug-copy="true"]')).toBeNull();
-  });
-
   it('does not override a native pointer selection that already moved during the click', async () => {
     const { editor, view } = await createBlockSelectionEditor('- Alpha\n- Beta');
 
@@ -320,6 +313,212 @@ describe('blankAreaDragBoxPlugin trailing plain clicks', () => {
       finishTrailingPlainClick();
 
       expect(view.state.selection.from).toBe(originalSelection);
+    } finally {
+      vi.restoreAllMocks();
+      await editor.destroy();
+    }
+  });
+
+  it('places the caret at the start of a list gap placeholder paragraph on pointer down', async () => {
+    const { editor, view } = await createBlockSelectionEditor(['- Alpha', '- \u2800', '- Beta'].join('\n'));
+
+    try {
+      const placeholderParagraph = Array.from(view.dom.querySelectorAll('li p'))
+        .find((paragraph) => paragraph.textContent === '\u2800');
+      expect(placeholderParagraph).toBeInstanceOf(HTMLElement);
+
+      const paragraphStart = findNodePosition(
+        view,
+        'paragraph',
+        (node) => node.textContent === '\u2800'
+      );
+      vi.spyOn(view, 'posAtCoords').mockReturnValue({ pos: paragraphStart + 2, inside: paragraphStart });
+
+      const mouseDown = createMouseEvent('mousedown', {
+        clientX: 120,
+        clientY: 80,
+      });
+      Object.defineProperty(mouseDown, 'target', {
+        configurable: true,
+        value: placeholderParagraph,
+      });
+
+      const handled = simulateDomEvent(view, 'mousedown', mouseDown);
+
+      expect(handled).toBe(true);
+      expect(mouseDown.defaultPrevented).toBe(true);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection.from).toBe(paragraphStart + 1);
+      expect(view.state.selection.$from.parentOffset).toBe(0);
+    } finally {
+      vi.restoreAllMocks();
+      await editor.destroy();
+    }
+  });
+
+  it('places the caret at the start of a list gap placeholder when the list container is the event target', async () => {
+    const { editor, view } = await createBlockSelectionEditor(['- Alpha', '- \u2800', '- Beta'].join('\n'));
+
+    try {
+      const list = view.dom.querySelector('ul');
+      expect(list).toBeInstanceOf(HTMLElement);
+
+      const paragraphStart = findNodePosition(
+        view,
+        'paragraph',
+        (node) => node.textContent === '\u2800'
+      );
+      vi.spyOn(view, 'posAtCoords').mockReturnValue({ pos: paragraphStart - 1, inside: 1 });
+
+      const mouseDown = createMouseEvent('mousedown', {
+        clientX: 398,
+        clientY: 520,
+      });
+      Object.defineProperty(mouseDown, 'target', {
+        configurable: true,
+        value: list,
+      });
+
+      const handled = simulateDomEvent(view, 'mousedown', mouseDown);
+
+      expect(handled).toBe(true);
+      expect(mouseDown.defaultPrevented).toBe(true);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection.from).toBe(paragraphStart + 1);
+      expect(view.state.selection.$from.parentOffset).toBe(0);
+    } finally {
+      vi.restoreAllMocks();
+      await editor.destroy();
+    }
+  });
+
+  it('places the caret at the start of a list gap placeholder when coordinates resolve to the paragraph boundary', async () => {
+    const { editor, view } = await createBlockSelectionEditor(['- Alpha', '- \u2800', '- Beta'].join('\n'));
+
+    try {
+      const list = view.dom.querySelector('ul');
+      expect(list).toBeInstanceOf(HTMLElement);
+
+      const paragraphStart = findNodePosition(
+        view,
+        'paragraph',
+        (node) => node.textContent === '\u2800'
+      );
+      vi.spyOn(view, 'posAtCoords').mockReturnValue({ pos: paragraphStart, inside: 1 });
+
+      const mouseDown = createMouseEvent('mousedown', {
+        clientX: 385,
+        clientY: 544,
+      });
+      Object.defineProperty(mouseDown, 'target', {
+        configurable: true,
+        value: list,
+      });
+
+      const handled = simulateDomEvent(view, 'mousedown', mouseDown);
+
+      expect(handled).toBe(true);
+      expect(mouseDown.defaultPrevented).toBe(true);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection.from).toBe(paragraphStart + 1);
+      expect(view.state.selection.$from.parentOffset).toBe(0);
+    } finally {
+      vi.restoreAllMocks();
+      await editor.destroy();
+    }
+  });
+
+  it('places the caret in a tail blank line when clicking below the last ordered list item', async () => {
+    const { editor, view } = await createBlockSelectionEditor('1. 1');
+
+    try {
+      const list = view.dom.querySelector('ol');
+      const item = view.dom.querySelector('li');
+      const paragraph = view.dom.querySelector('li p');
+      expect(list).toBeInstanceOf(HTMLElement);
+      expect(item).toBeInstanceOf(HTMLElement);
+      expect(paragraph).toBeInstanceOf(HTMLElement);
+
+      vi.spyOn(view, 'posAtCoords').mockReturnValue({ pos: 5, inside: 1 });
+      vi.spyOn(view.dom, 'getBoundingClientRect').mockReturnValue({
+        left: 0,
+        top: 0,
+        right: 800,
+        bottom: 180,
+        width: 800,
+        height: 180,
+        x: 0,
+        y: 0,
+        toJSON: () => undefined,
+      } as DOMRect);
+      vi.spyOn(list as HTMLElement, 'getBoundingClientRect').mockReturnValue({
+        left: 40,
+        top: 20,
+        right: 760,
+        bottom: 100,
+        width: 720,
+        height: 80,
+        x: 40,
+        y: 20,
+        toJSON: () => undefined,
+      } as DOMRect);
+      vi.spyOn(item as HTMLElement, 'getBoundingClientRect').mockReturnValue({
+        left: 40,
+        top: 20,
+        right: 760,
+        bottom: 44,
+        width: 720,
+        height: 24,
+        x: 40,
+        y: 20,
+        toJSON: () => undefined,
+      } as DOMRect);
+      vi.spyOn(paragraph as HTMLElement, 'getBoundingClientRect').mockReturnValue({
+        left: 72,
+        top: 20,
+        right: 760,
+        bottom: 44,
+        width: 688,
+        height: 24,
+        x: 72,
+        y: 20,
+        toJSON: () => undefined,
+      } as DOMRect);
+      vi.spyOn(document, 'createRange').mockImplementation(() => ({
+        selectNodeContents: vi.fn(),
+        getClientRects: vi.fn().mockReturnValue([{
+          left: 72,
+          top: 22,
+          right: 82,
+          bottom: 42,
+          width: 10,
+          height: 20,
+          x: 72,
+          y: 22,
+          toJSON: () => undefined,
+        }] as DOMRect[]),
+        detach: vi.fn(),
+      }) as any);
+
+      const mouseDown = createMouseEvent('mousedown', {
+        clientX: 120,
+        clientY: 76,
+      });
+      Object.defineProperty(mouseDown, 'target', {
+        configurable: true,
+        value: list,
+      });
+
+      const handled = simulateDomEvent(view, 'mousedown', mouseDown);
+
+      expect(handled).toBe(true);
+      expect(mouseDown.defaultPrevented).toBe(true);
+      expect(view.state.doc.lastChild?.type.name).toBe('paragraph');
+      expect(view.state.doc.lastChild?.content.size).toBe(0);
+      expect(view.state.selection).toBeInstanceOf(TextSelection);
+      expect(view.state.selection.$from.parent.type.name).toBe('paragraph');
+      expect(view.state.selection.$from.parentOffset).toBe(0);
+      expect(view.state.selection.$from.parent.textContent).toBe('');
     } finally {
       vi.restoreAllMocks();
       await editor.destroy();

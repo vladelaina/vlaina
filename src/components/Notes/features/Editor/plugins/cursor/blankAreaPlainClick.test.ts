@@ -66,6 +66,41 @@ describe('resolveBlankAreaPlainClickAction', () => {
     });
   });
 
+  it('prefers the later block when a list rect overlaps the following blank paragraph', () => {
+    expect(
+      resolveBlankAreaPlainClickAction({
+        blockRects: [
+          {
+            from: 1,
+            to: 12,
+            left: 40,
+            right: 620,
+            contentLeft: 96,
+            contentRight: 180,
+            top: 80,
+            bottom: 128,
+          },
+          {
+            from: 13,
+            to: 15,
+            left: 40,
+            right: 620,
+            contentLeft: 40,
+            contentRight: 620,
+            top: 104,
+            bottom: 128,
+          },
+        ],
+        clientX: 44,
+        clientY: 116,
+      })
+    ).toEqual({
+      targetPos: 14,
+      bias: 1,
+      blockFrom: 13,
+    });
+  });
+
   it('falls back to the first block when clicking above all blocks', () => {
     expect(
       resolveBlankAreaPlainClickAction({

@@ -60,6 +60,13 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
     );
   });
 
+  it('expands terminal list item br tags into editor-reopenable hard breaks', () => {
+    expect(preserveMarkdownBlankLinesForEditor('- 1<br />')).toBe(['- 1\\', '  <br />'].join('\n'));
+    expect(preserveMarkdownBlankLinesForEditor('- [ ] 1<br />')).toBe(['- [ ] 1\\', '  <br />'].join('\n'));
+    expect(preserveMarkdownBlankLinesForEditor('1. 1<br />')).toBe(['1. 1\\', '   <br />'].join('\n'));
+    expect(preserveMarkdownBlankLinesForEditor('> - 1<br />')).toBe(['> - 1\\', '>   <br />'].join('\n'));
+  });
+
   it('escapes plain text trailing backslashes before editor parsing', () => {
     const markdown = [
       '7）视图模式：支持大纲和文档列表视图，方便在不同段落和不同文件之间进行切换。\\',
@@ -126,6 +133,31 @@ describe('preserveMarkdownBlankLinesForEditor editor input', () => {
     expect(
       preserveMarkdownBlankLinesForEditor(['```md', '- one', '', '- two', '```'].join('\n'))
     ).toBe(['```md', '- one', '', '- two', '```'].join('\n'));
+  });
+
+  it('uses visible editor-only placeholders for markdown blank lines between list items', () => {
+    expect(
+      preserveMarkdownBlankLinesForEditor(['- one', '', '', '- two'].join('\n'))
+    ).toBe(
+      [
+        '- one',
+        '- \u2800',
+        '- \u2800',
+        '- two',
+      ].join('\n')
+    );
+  });
+
+  it('uses plain bullet placeholders for task-list blank lines', () => {
+    expect(
+      preserveMarkdownBlankLinesForEditor(['- [ ] one', '', '- [ ] two'].join('\n'))
+    ).toBe(
+      [
+        '- [ ] one',
+        '- \u2800',
+        '- [ ] two',
+      ].join('\n')
+    );
   });
 
   it('does not rewrite content inside blockquote fenced code blocks', () => {

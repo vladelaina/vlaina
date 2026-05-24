@@ -153,7 +153,7 @@ describe('applyBlockMove content integrity', () => {
 
     expect(blocks.length).toBeGreaterThanOrEqual(3);
     expect(applyBlockMove(view, [blocks[2]], blocks[1].from)).toBe(true);
-    expect(normalizeMarkdown(serializer(view.state.doc))).toBe('A\n\nTail\n\nB');
+    expect(normalizeMarkdown(serializer(view.state.doc))).toBe('A<br />\n\nTail\n\nB');
 
     await editor.destroy();
   });

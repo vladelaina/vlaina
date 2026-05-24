@@ -11,6 +11,7 @@ import {
     normalizeLenientMarkdownLineMarkers,
     preserveMarkdownBlankLinesForEditor,
 } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { normalizeCanonicalMarkdownSpacingForPaste } from '@/lib/notes/markdown/markdownCanonicalSpacing';
 import { collapseSelectionAndHideFloatingToolbar } from './copyCleanup';
 import { sanitizeHtml } from './sanitizer';
 import { serializeSelectionToClipboardText } from './selectionSerialization';
@@ -424,7 +425,11 @@ export const clipboardPlugin = $prose((ctx) => {
         const withFrontmatter = normalizeLeadingFrontmatterMarkdown(withLenientLineMarkers);
         const withInterruptedLists = normalizeInterruptedOrderedListsForPaste(withFrontmatter);
         const withThematicBreaks = normalizeStandaloneThematicBreaksForPaste(withInterruptedLists);
-        const editorInput = preserveMarkdownBlankLinesForEditor(withThematicBreaks);
+        const shouldCompactLenientListGaps = withLenientLineMarkers !== withMathFences;
+        const pasteMarkdown = shouldCompactLenientListGaps
+            ? normalizeCanonicalMarkdownSpacingForPaste(withThematicBreaks)
+            : withThematicBreaks;
+        const editorInput = preserveMarkdownBlankLinesForEditor(pasteMarkdown);
         try {
             parsedDoc = parser(editorInput);
         } catch {

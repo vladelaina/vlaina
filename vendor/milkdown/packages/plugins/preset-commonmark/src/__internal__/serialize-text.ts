@@ -17,5 +17,7 @@ export function serializeText(state: SerializerState, node: Node) {
 
     contentArr.push(n)
   })
+  if (contentArr.length === 0) return
   state.next(Fragment.fromArray(contentArr))
+  state.addNode('html', undefined, '<br />')
 }
