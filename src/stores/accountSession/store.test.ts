@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAccountSessionStore } from '../accountSession/store';
 import { useManagedAIStore } from '../useManagedAIStore';
 import { ACCOUNT_USER_PERSIST_KEY } from '../accountSession/state';
+import { ACCOUNT_STATUS_REFRESH_KEY } from '../accountSession/authSupport';
 import { ACCOUNT_AUTH_INVALIDATED_EVENT } from '@/lib/account/sessionEvent';
 
 describe('accountSession store', () => {
@@ -123,5 +124,17 @@ describe('accountSession store', () => {
     const state = useAccountSessionStore.getState();
     expect(state.isConnected).toBe(false);
     expect(useManagedAIStore.getState().budget).toBeNull();
+  });
+
+  it('checks desktop account status after a cross-window refresh signal', () => {
+    const checkStatus = vi.fn().mockResolvedValue(undefined);
+    useAccountSessionStore.setState({ checkStatus });
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: ACCOUNT_STATUS_REFRESH_KEY,
+      newValue: String(Date.now()),
+    }));
+
+    expect(checkStatus).toHaveBeenCalledTimes(1);
   });
 });

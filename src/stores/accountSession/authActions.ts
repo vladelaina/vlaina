@@ -9,6 +9,8 @@ import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import {
   AUTH_PROVIDER_STORAGE_KEY,
   AUTH_STATE_STORAGE_KEY,
+  broadcastAccountStatusRefresh,
+  clearPersistedUser,
   clearAuthIntent,
   normalizeAuthError,
   persistUser,
@@ -159,6 +161,7 @@ export function createCheckStatus(set: Set, get: Get): (options?: { force?: bool
         const membershipName =
           typeof status?.membershipName === 'string' && status.membershipName.trim() ? status.membershipName.trim() : null;
         const sessionBudget = status && 'budget' in status ? status.budget : null;
+        const persistent = !(status && 'persistent' in status && status.persistent === false);
         let shouldRefreshBudgetIfStale = connected;
         let shouldForceRefreshBudget = false;
         if (connected && sessionBudget && typeof sessionBudget === 'object') {
@@ -199,7 +202,12 @@ export function createCheckStatus(set: Set, get: Get): (options?: { force?: bool
         });
         lastCheckStatusSyncAt = Date.now();
 
-        persistUser({ isConnected: connected, provider, username, primaryEmail, avatarUrl, membershipTier, membershipName });
+        if (connected && !persistent) {
+          clearPersistedUser();
+          broadcastAccountStatusRefresh();
+        } else {
+          persistUser({ isConnected: connected, provider, username, primaryEmail, avatarUrl, membershipTier, membershipName });
+        }
         if (shouldForceRefreshBudget) {
           void useManagedAIStore.getState().refreshBudget();
         } else if (shouldRefreshBudgetIfStale) {

@@ -63,6 +63,7 @@ describe('desktop account session status resolution', () => {
         avatarUrl: 'https://example.com/avatar.png',
         membershipTier: 'pro',
         membershipName: 'Pro',
+        persistent: true,
       },
       nextCredentials: cachedMemberCredentials,
       clearStoredCredentials: false,
@@ -78,6 +79,18 @@ describe('desktop account session status resolution', () => {
       connected: true,
       membershipTier: 'ultra',
       membershipName: 'Ultra',
+      persistent: true,
+    });
+  });
+
+  it('marks memory-only credentials as non-persistent', () => {
+    expect(buildCachedDesktopStatus({
+      ...credentials,
+      persistent: false,
+    })).toMatchObject({
+      connected: true,
+      username: 'vladelaina',
+      persistent: false,
     });
   });
 
@@ -118,6 +131,7 @@ describe('desktop account session status resolution', () => {
         avatarUrl: 'https://example.com/next.png',
         membershipTier: 'pro',
         membershipName: 'Pro',
+        persistent: true,
       },
       nextCredentials: {
         appSessionToken: 'nts_rotated',
@@ -128,6 +142,7 @@ describe('desktop account session status resolution', () => {
         membershipTier: 'pro',
         membershipName: 'Pro',
         authenticatedAt: null,
+        persistent: true,
       },
       clearStoredCredentials: false,
     });

@@ -240,6 +240,7 @@ export interface ElectronAccountApi {
     membershipTier: string | null;
     membershipName: string | null;
     sessionInvalidated?: boolean;
+    persistent?: boolean;
     budget?: {
       active?: unknown;
       usedPercent?: unknown;

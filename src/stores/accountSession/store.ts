@@ -11,6 +11,7 @@ import {
   createVerifyEmailCode,
 } from './authActions';
 import {
+  ACCOUNT_STATUS_REFRESH_KEY,
   ACCOUNT_USER_BROADCAST_CHANNEL,
   ACCOUNT_USER_BROADCAST_TYPE,
   loadPersistedUser,
@@ -79,6 +80,11 @@ function registerAccountPersistenceListener(): void {
   }
 
   window.addEventListener('storage', (event) => {
+    if (event.key === ACCOUNT_STATUS_REFRESH_KEY) {
+      void useAccountSessionStore.getState().checkStatus();
+      return;
+    }
+
     if (event.key !== ACCOUNT_USER_PERSIST_KEY) {
       return;
     }

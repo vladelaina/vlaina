@@ -41,13 +41,28 @@ async function getAccountStorePaths() {
 }
 
 export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
+  let memoryStoredAccountCredentials = null;
+
   async function readStoredAccountCredentials() {
+    if (memoryStoredAccountCredentials) {
+      return memoryStoredAccountCredentials;
+    }
+
     const { metaPath, secretsPath } = await getAccountStorePaths();
     const meta = await readJsonFile(metaPath, null);
     const rawSecrets = await readJsonFile(secretsPath, null);
-    const { record: secrets, needsMigration } = decodeSecretRecord(rawSecrets, safeStorage);
+    const { record: secrets, needsMigration } = decodeSecretRecord(rawSecrets, safeStorage, {
+      allowPlaintext: false,
+    });
     if (needsMigration) {
-      await writeFile(secretsPath, JSON.stringify(encodeSecretRecord(secrets, safeStorage), null, 2));
+      if (Object.keys(secrets).length === 0) {
+        await rm(secretsPath, { force: true });
+      } else {
+        await writeFile(
+          secretsPath,
+          JSON.stringify(encodeSecretRecord(secrets, safeStorage, { requireEncryption: true }), null, 2)
+        );
+      }
     }
     const provider = typeof meta?.provider === 'string' ? meta.provider.trim() : '';
     const username = typeof meta?.username === 'string' ? meta.username.trim() : '';
@@ -75,6 +90,7 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
         typeof meta?.membershipName === 'string' && meta.membershipName.trim()
           ? meta.membershipName.trim()
           : null,
+      persistent: true,
       authenticatedAt:
         typeof meta?.authenticatedAt === 'number' && Number.isFinite(meta.authenticatedAt)
           ? meta.authenticatedAt
@@ -85,6 +101,29 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
 
   async function writeStoredAccountCredentials(credentials) {
     const { metaPath, secretsPath } = await getAccountStorePaths();
+    let encodedSecrets = null;
+    try {
+      encodedSecrets = encodeSecretRecord(
+        {
+          appSessionToken: credentials.appSessionToken,
+        },
+        safeStorage,
+        { requireEncryption: true }
+      );
+    } catch (error) {
+      if (!/system secure storage is unavailable/i.test(error instanceof Error ? error.message : String(error))) {
+        throw error;
+      }
+      memoryStoredAccountCredentials = {
+        ...credentials,
+        persistent: false,
+      };
+      await rm(metaPath, { force: true });
+      await rm(secretsPath, { force: true });
+      return;
+    }
+
+    memoryStoredAccountCredentials = null;
     await writeFile(
       metaPath,
       JSON.stringify(
@@ -106,20 +145,12 @@ export function createAccountCredentialStore({ desktopLegacySessionHeader }) {
     );
     await writeFile(
       secretsPath,
-      JSON.stringify(
-        encodeSecretRecord(
-          {
-            appSessionToken: credentials.appSessionToken,
-          },
-          safeStorage
-        ),
-        null,
-        2
-      )
+      JSON.stringify(encodedSecrets, null, 2)
     );
   }
 
   async function clearStoredAccountCredentials() {
+    memoryStoredAccountCredentials = null;
     const { metaPath, secretsPath } = await getAccountStorePaths();
     await rm(metaPath, { force: true });
     await rm(secretsPath, { force: true });

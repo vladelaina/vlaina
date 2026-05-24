@@ -10,6 +10,7 @@ export const AUTH_STATE_STORAGE_KEY = 'vlaina_auth_state';
 export const AUTH_PROVIDER_STORAGE_KEY = 'vlaina_auth_provider';
 export const ACCOUNT_USER_BROADCAST_CHANNEL = 'vlaina_account_identity';
 export const ACCOUNT_USER_BROADCAST_TYPE = 'account-identity-updated';
+export const ACCOUNT_STATUS_REFRESH_KEY = 'vlaina_account_status_refresh';
 
 export interface PersistedAccountIdentity {
   isConnected: boolean;
@@ -24,6 +25,9 @@ export interface PersistedAccountIdentity {
 export function normalizeAuthError(raw: string): string {
   const message = raw.trim();
   if (!message) return 'Authorization failed';
+  if (/system secure storage is unavailable/i.test(message)) {
+    return 'Unable to securely save your sign-in on this system. Please enable your system keyring and try again.';
+  }
   if (
     /unable to reach vlaina api|failed to fetch|networkerror|network request failed|fetch failed|load failed|err_internet_disconnected/i.test(
       message
@@ -93,6 +97,21 @@ export function persistUser(data: PersistedAccountIdentity) {
   } catch {
   }
   broadcastPersistedUser(data);
+}
+
+export function clearPersistedUser() {
+  try {
+    localStorage.removeItem(ACCOUNT_USER_PERSIST_KEY);
+  } catch {
+  }
+}
+
+export function broadcastAccountStatusRefresh() {
+  try {
+    localStorage.setItem(ACCOUNT_STATUS_REFRESH_KEY, String(Date.now()));
+    localStorage.removeItem(ACCOUNT_STATUS_REFRESH_KEY);
+  } catch {
+  }
 }
 
 export function loadPersistedUser(): Partial<AccountSessionState> {

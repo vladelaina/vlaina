@@ -37,6 +37,10 @@ function accountNetworkErrorResult(error) {
   return accountErrorResult(`Unable to reach vlaina API: ${getErrorMessage(error)}`);
 }
 
+function isSecureStorageUnavailableError(error) {
+  return /system secure storage is unavailable/i.test(getErrorMessage(error));
+}
+
 export function createDesktopAccountService({ apiBaseUrl }) {
   let activeOauthFlow = null;
 
@@ -198,6 +202,9 @@ export function createDesktopAccountService({ apiBaseUrl }) {
       loopback?.close();
       if (flow.cancelled || error?.name === 'AbortError') {
         return accountErrorResult('Authorization cancelled');
+      }
+      if (isSecureStorageUnavailableError(error)) {
+        return accountErrorResult(getErrorMessage(error));
       }
       return accountNetworkErrorResult(error);
     } finally {

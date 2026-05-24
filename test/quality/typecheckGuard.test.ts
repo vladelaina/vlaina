@@ -75,6 +75,9 @@ describe('typecheck quality gate', () => {
       'src/stores/notes/document/externalPathBroadcast.ts:localStorage.setItem(STORAGE_KEY, JSON.stringify(event));',
 
       // Shared user/application state with explicit storage listeners or sync events.
+      'src/stores/accountSession/authSupport.ts:localStorage.removeItem(ACCOUNT_USER_PERSIST_KEY);',
+      'src/stores/accountSession/authSupport.ts:localStorage.removeItem(ACCOUNT_STATUS_REFRESH_KEY);',
+      'src/stores/accountSession/authSupport.ts:localStorage.setItem(ACCOUNT_STATUS_REFRESH_KEY, String(Date.now()));',
       'src/stores/accountSession/authSupport.ts:localStorage.setItem(ACCOUNT_USER_PERSIST_KEY, JSON.stringify(data));',
       'src/stores/notes/storage.ts:localStorage.setItem(NOTE_ICON_SIZE_KEY, String(normalized));',
       'src/stores/uiSlice.ts:localStorage.setItem(key, value);',

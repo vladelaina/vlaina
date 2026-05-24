@@ -24,6 +24,8 @@ const mocks = vi.hoisted(() => ({
   isOauthAccountProvider: vi.fn((value) => value === 'google'),
   persistUser: vi.fn(),
   refreshAvatar: vi.fn().mockResolvedValue(undefined),
+  broadcastAccountStatusRefresh: vi.fn(),
+  clearPersistedUser: vi.fn(),
   clearAuthIntent: vi.fn(() => {
     sessionStorage.removeItem('vlaina_auth_state');
     sessionStorage.removeItem('vlaina_auth_provider');
@@ -58,8 +60,10 @@ vi.mock('@/lib/account/provider', () => ({
 vi.mock('./authSupport', () => ({
   AUTH_PROVIDER_STORAGE_KEY: 'vlaina_auth_provider',
   AUTH_STATE_STORAGE_KEY: 'vlaina_auth_state',
+  broadcastAccountStatusRefresh: mocks.broadcastAccountStatusRefresh,
   persistUser: mocks.persistUser,
   refreshAvatar: mocks.refreshAvatar,
+  clearPersistedUser: mocks.clearPersistedUser,
   clearAuthIntent: mocks.clearAuthIntent,
   normalizeAuthError: mocks.normalizeAuthError,
 }));
@@ -107,6 +111,8 @@ describe('accountSession auth actions', () => {
     mocks.persistUser.mockClear();
     mocks.refreshAvatar.mockClear();
     mocks.refreshAvatar.mockResolvedValue(undefined);
+    mocks.broadcastAccountStatusRefresh.mockClear();
+    mocks.clearPersistedUser.mockClear();
     mocks.clearAuthIntent.mockClear();
     mocks.normalizeAuthError.mockClear();
     mocks.applyDisconnectedAccount.mockClear();
@@ -193,6 +199,34 @@ describe('accountSession auth actions', () => {
       'vla',
       'https://example.com/avatar.png',
     );
+  });
+
+  it('checkStatus does not persist temporary desktop account identities', async () => {
+    mocks.hasElectronDesktopBridge.mockReturnValue(true);
+    mocks.accountCommands.getAccountSessionStatus.mockResolvedValue({
+      connected: true,
+      provider: 'google',
+      username: 'vla',
+      primaryEmail: 'vla@example.com',
+      avatarUrl: null,
+      membershipTier: 'free',
+      membershipName: 'Free',
+      persistent: false,
+    });
+
+    const set = vi.fn();
+    const get = vi.fn(() => ({ error: null }));
+
+    await createCheckStatus(set as never, get as never)();
+
+    expect(mocks.clearPersistedUser).toHaveBeenCalledTimes(1);
+    expect(mocks.broadcastAccountStatusRefresh).toHaveBeenCalledTimes(1);
+    expect(mocks.persistUser).not.toHaveBeenCalled();
+    expect(set).toHaveBeenLastCalledWith(expect.objectContaining({
+      isConnected: true,
+      username: 'vla',
+      isLoading: false,
+    }));
   });
 
   it('checkStatus preserves the current account state when probing throws', async () => {

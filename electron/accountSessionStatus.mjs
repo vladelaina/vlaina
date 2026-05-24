@@ -30,6 +30,7 @@ export function buildCachedDesktopStatus(credentials) {
       typeof credentials.membershipName === 'string' && credentials.membershipName.trim()
         ? credentials.membershipName.trim()
         : null,
+    persistent: credentials.persistent !== false,
   };
 }
 
@@ -122,6 +123,7 @@ export function resolveDesktopSessionProbe(credentials, probe) {
         ? probe.payload.membershipName
         : credentials.membershipName ?? null,
     authenticatedAt: credentials.authenticatedAt ?? null,
+    persistent: credentials.persistent !== false,
   };
 
   return {
@@ -133,6 +135,7 @@ export function resolveDesktopSessionProbe(credentials, probe) {
       avatarUrl: nextCredentials.avatarUrl,
       membershipTier: nextCredentials.membershipTier,
       membershipName: nextCredentials.membershipName,
+      persistent: nextCredentials.persistent !== false,
       ...(probe.payload?.budget && typeof probe.payload.budget === 'object'
         ? { budget: probe.payload.budget }
         : {}),

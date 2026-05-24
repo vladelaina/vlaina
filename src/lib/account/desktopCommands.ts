@@ -63,6 +63,7 @@ export const accountCommands = {
     membershipTier: MembershipTier | null;
     membershipName: string | null;
     sessionInvalidated?: boolean;
+    persistent?: boolean;
     budget?: ManagedBudgetPayload | null;
   }> {
     return await getDesktopAccountBridge().getSessionStatus() as {
@@ -74,6 +75,7 @@ export const accountCommands = {
       membershipTier: MembershipTier | null;
       membershipName: string | null;
       sessionInvalidated?: boolean;
+      persistent?: boolean;
       budget?: ManagedBudgetPayload | null;
     };
   },

@@ -25,8 +25,13 @@ function canEncrypt(safeStorage) {
   return Boolean(safeStorage?.isEncryptionAvailable?.());
 }
 
-export function encodeSecretRecord(record, safeStorage) {
+export function encodeSecretRecord(record, safeStorage, options = {}) {
   const encoded = {};
+  const requireEncryption = options.requireEncryption === true;
+
+  if (requireEncryption && !canEncrypt(safeStorage)) {
+    throw new Error('System secure storage is unavailable');
+  }
 
   for (const [key, value] of Object.entries(record ?? {})) {
     if (typeof value !== 'string') {
@@ -44,7 +49,7 @@ export function encodeSecretRecord(record, safeStorage) {
   return encoded;
 }
 
-export function decodeSecretRecord(rawRecord, safeStorage) {
+export function decodeSecretRecord(rawRecord, safeStorage, options = {}) {
   if (!isPlainObject(rawRecord)) {
     return {
       record: {},
@@ -54,6 +59,7 @@ export function decodeSecretRecord(rawRecord, safeStorage) {
 
   const decoded = {};
   let needsMigration = false;
+  const allowPlaintext = options.allowPlaintext !== false;
 
   for (const [key, value] of Object.entries(rawRecord)) {
     const envelope = fromEncryptionEnvelope(value);
@@ -67,6 +73,10 @@ export function decodeSecretRecord(rawRecord, safeStorage) {
     }
 
     if (typeof value === 'string') {
+      if (!allowPlaintext) {
+        needsMigration = true;
+        continue;
+      }
       decoded[key] = value;
       needsMigration = needsMigration || canEncrypt(safeStorage);
     }
