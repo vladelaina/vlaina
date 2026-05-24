@@ -95,6 +95,33 @@ describe('secure secret record codec', () => {
     });
   });
 
+  it('rejects plaintext records when plaintext is disabled', () => {
+    expect(
+      decodeSecretRecord(
+        {
+          appSessionToken: 'nts_secret',
+        },
+        unavailableSafeStorage,
+        { allowPlaintext: false },
+      ),
+    ).toEqual({
+      record: {},
+      needsMigration: true,
+    });
+  });
+
+  it('throws when encrypted output is required but safe storage is unavailable', () => {
+    expect(() =>
+      encodeSecretRecord(
+        {
+          appSessionToken: 'nts_secret',
+        },
+        unavailableSafeStorage,
+        { requireEncryption: true },
+      ),
+    ).toThrow('System secure storage is unavailable');
+  });
+
   it('drops corrupted encrypted entries and marks the record for migration', () => {
     const throwingSafeStorage = {
       ...availableSafeStorage,

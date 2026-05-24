@@ -145,7 +145,7 @@ export function createDesktopAccountSessionClient({
   async function getDesktopAccountSessionStatus() {
     const credentials = await readStoredAccountCredentials();
     if (!credentials) {
-      return buildDisconnectedDesktopStatus();
+      return buildDisconnectedDesktopStatus({ sessionInvalidated: true });
     }
 
     try {

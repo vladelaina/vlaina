@@ -9,7 +9,7 @@ import {
   createSignOut,
   createVerifyEmailCode,
 } from './authActions';
-import { loadPersistedUser } from './authSupport';
+import { ACCOUNT_STATUS_REFRESH_KEY, loadPersistedUser } from './authSupport';
 import { createHydrateAvatar } from './avatarActions';
 import {
   ACCOUNT_USER_PERSIST_KEY,
@@ -70,6 +70,11 @@ function registerAccountPersistenceListener(): void {
   }
 
   window.addEventListener('storage', (event) => {
+    if (event.key === ACCOUNT_STATUS_REFRESH_KEY) {
+      void useAccountSessionStore.getState().checkStatus();
+      return;
+    }
+
     if (event.key !== ACCOUNT_USER_PERSIST_KEY) {
       return;
     }

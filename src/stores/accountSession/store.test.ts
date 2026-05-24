@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { useAccountSessionStore } from '../accountSession/store';
 import { ACCOUNT_USER_PERSIST_KEY } from '../accountSession/state';
+import { ACCOUNT_STATUS_REFRESH_KEY } from '../accountSession/authSupport';
 import { ACCOUNT_AUTH_INVALIDATED_EVENT } from '@/lib/account/sessionEvent';
 
 describe('accountSession store', () => {
@@ -75,5 +76,17 @@ describe('accountSession store', () => {
     expect(state.hasCheckedStatus).toBe(false);
     expect(typeof state.checkStatus).toBe('function');
     expect(typeof state.signOut).toBe('function');
+  });
+
+  it('checks desktop account status after a cross-window refresh signal', () => {
+    const checkStatus = vi.fn().mockResolvedValue(undefined);
+    useAccountSessionStore.setState({ checkStatus });
+
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: ACCOUNT_STATUS_REFRESH_KEY,
+      newValue: String(Date.now()),
+    }));
+
+    expect(checkStatus).toHaveBeenCalledTimes(1);
   });
 });

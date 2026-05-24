@@ -9,6 +9,8 @@ import { useManagedAIStore } from '@/stores/useManagedAIStore';
 import {
   AUTH_PROVIDER_STORAGE_KEY,
   AUTH_STATE_STORAGE_KEY,
+  broadcastAccountStatusRefresh,
+  clearPersistedUser,
   clearAuthIntent,
   normalizeAuthError,
   persistUser,
@@ -145,6 +147,7 @@ export function createCheckStatus(set: Set, get: Get): () => Promise<void> {
         const membershipName =
           typeof status?.membershipName === 'string' && status.membershipName.trim() ? status.membershipName.trim() : null;
         const sessionBudget = status && 'budget' in status ? status.budget : null;
+        const persistent = !(status && 'persistent' in status && status.persistent === false);
         if (connected && sessionBudget && typeof sessionBudget === 'object') {
           const now = Date.now();
           useManagedAIStore.setState({
@@ -180,7 +183,12 @@ export function createCheckStatus(set: Set, get: Get): () => Promise<void> {
           error: connected ? null : get().error,
         });
 
-        persistUser({ isConnected: connected, provider, username, primaryEmail, avatarUrl, membershipTier, membershipName });
+        if (connected && !persistent) {
+          clearPersistedUser();
+          broadcastAccountStatusRefresh();
+        } else {
+          persistUser({ isConnected: connected, provider, username, primaryEmail, avatarUrl, membershipTier, membershipName });
+        }
         await refreshAvatar(set, get, username, avatarUrl);
       } catch (error) {
         console.error('Failed to check account auth status:', error);

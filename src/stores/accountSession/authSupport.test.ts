@@ -3,7 +3,10 @@ import { ACCOUNT_USER_PERSIST_KEY } from './state';
 import {
   AUTH_PROVIDER_STORAGE_KEY,
   AUTH_STATE_STORAGE_KEY,
+  ACCOUNT_STATUS_REFRESH_KEY,
+  broadcastAccountStatusRefresh,
   clearAuthIntent,
+  clearPersistedUser,
   loadPersistedUser,
   normalizeAuthError,
   persistUser,
@@ -16,6 +19,12 @@ describe('normalizeAuthError', () => {
     );
     expect(normalizeAuthError('NetworkError when attempting to fetch resource.')).toBe(
       'No internet connection. Please check your network and try again.'
+    );
+  });
+
+  it('does not classify secure storage failures as network failures', () => {
+    expect(normalizeAuthError('System secure storage is unavailable')).toBe(
+      'Unable to securely save your sign-in on this system. Please enable your system keyring and try again.'
     );
   });
 });
@@ -66,6 +75,25 @@ describe('loadPersistedUser', () => {
       membershipTier: 'free',
       membershipName: 'Free',
     })).not.toThrow();
+  });
+
+  it('clears persisted account identity when temporary desktop auth is used', () => {
+    localStorage.setItem(ACCOUNT_USER_PERSIST_KEY, JSON.stringify({
+      isConnected: true,
+      provider: 'google',
+      username: 'vla',
+    }));
+
+    clearPersistedUser();
+
+    expect(localStorage.getItem(ACCOUNT_USER_PERSIST_KEY)).toBeNull();
+  });
+
+  it('broadcasts account status refresh without persisting account identity', () => {
+    broadcastAccountStatusRefresh();
+
+    expect(localStorage.getItem(ACCOUNT_STATUS_REFRESH_KEY)).toBeNull();
+    expect(localStorage.getItem(ACCOUNT_USER_PERSIST_KEY)).toBeNull();
   });
 
   it('ignores unavailable sessionStorage when clearing auth intent', () => {
