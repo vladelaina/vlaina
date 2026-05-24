@@ -516,6 +516,7 @@
   "account.continueWithProvider": "Продолжить с {provider}",
   "chat.imageUnavailable": "Изображение недоступно",
   "chat.dropFilesHere": "Перетащите файлы сюда",
+  "chat.dropBlocksHere": "Перетащите блоки сюда",
   "common.somethingWentWrong": "Что-то пошло не так",
   "common.tryAgain": "Повторить",
   "common.reload": "Перезагрузить",

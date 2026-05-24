@@ -4,13 +4,19 @@ export const BLOCK_DRAGGING_ACTIVE_CLASS = 'vlaina-block-drag-active';
 type BlockDragVisualSnapshot = {
   selectionDragging: boolean;
   blockDragging: boolean;
+  composerPayload: BlockDragComposerPayload | null;
 };
 
 type Listener = () => void;
 
+export type BlockDragComposerPayload = {
+  text: string;
+};
+
 let snapshot: BlockDragVisualSnapshot = {
   selectionDragging: false,
   blockDragging: false,
+  composerPayload: null,
 };
 
 const listeners = new Set<Listener>();
@@ -47,14 +53,18 @@ export function setSelectionDraggingVisualState(active: boolean) {
   updateSnapshot({ selectionDragging: active });
 }
 
-export function setBlockDraggingVisualState(active: boolean) {
-  updateSnapshot({ blockDragging: active });
+export function setBlockDraggingVisualState(active: boolean, payload?: BlockDragComposerPayload | null) {
+  updateSnapshot({
+    blockDragging: active,
+    composerPayload: active ? payload ?? snapshot.composerPayload : null,
+  });
 }
 
 export function resetBlockDragVisualState() {
   updateSnapshot({
     selectionDragging: false,
     blockDragging: false,
+    composerPayload: null,
   });
 }
 
@@ -67,4 +77,8 @@ export function subscribeBlockDragVisualState(listener: Listener) {
 
 export function getBlockDragVisualSnapshot() {
   return snapshot.selectionDragging || snapshot.blockDragging;
+}
+
+export function getBlockDragComposerPayload() {
+  return snapshot.blockDragging ? snapshot.composerPayload : null;
 }

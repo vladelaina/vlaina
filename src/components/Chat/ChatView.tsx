@@ -356,6 +356,7 @@ export function ChatView({
   return (
     <div
       data-chat-view-mode={mode}
+      data-notes-block-drop-target={isEmbedded ? 'true' : undefined}
       className="h-full w-full flex flex-col bg-[var(--vlaina-bg-primary)] relative overflow-hidden"
       onMouseDownCapture={handleChatAreaMouseDownCapture}
     >
@@ -508,6 +509,7 @@ export function ChatView({
                 focusTrigger={focusInputTrigger}
                 sessionId={currentSessionId}
                 sentUserMessages={sentUserMessages}
+                acceptNotesBlockDrop={isEmbedded}
               />
           </div>
       </div>

@@ -516,6 +516,7 @@
   "account.continueWithProvider": "ดำเนินการต่อด้วย {provider}",
   "chat.imageUnavailable": "ไม่สามารถแสดงรูปภาพ",
   "chat.dropFilesHere": "วางไฟล์ที่นี่",
+  "chat.dropBlocksHere": "วางบล็อกที่นี่",
   "common.somethingWentWrong": "มีบางอย่างผิดพลาด",
   "common.tryAgain": "ลองอีกครั้ง",
   "common.reload": "โหลดใหม่",

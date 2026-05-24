@@ -516,6 +516,7 @@
   "account.continueWithProvider": "Tiếp tục với {provider}",
   "chat.imageUnavailable": "Không có ảnh",
   "chat.dropFilesHere": "Thả tệp vào đây",
+  "chat.dropBlocksHere": "Thả khối vào đây",
   "common.somethingWentWrong": "Đã xảy ra lỗi",
   "common.tryAgain": "Thử lại",
   "common.reload": "Tải lại",

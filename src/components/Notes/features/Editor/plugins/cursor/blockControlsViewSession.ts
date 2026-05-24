@@ -5,6 +5,9 @@ import { pickPointerBlock } from './blockControlsUtils';
 import { createBlockDragPreview, type BlockDragPreviewHandle } from './blockDragPreview';
 import { createBlockControlsDom } from './blockControlsDom';
 import { setBlockDraggingVisualState } from './blockDragVisualState';
+import { normalizeSelectedTextForComposer } from '@/lib/ui/normalizeSelectedTextForComposer';
+import { serializeSelectedBlocksToText } from './blockSelectionSerializer';
+import { getCurrentMarkdownSerializer } from '../../utils/editorViewRegistry';
 import {
   getCurrentEditorBlockPositionSnapshot,
   subscribeCurrentEditorBlockPositionSnapshot,
@@ -27,11 +30,27 @@ const MIN_DROP_DISTANCE_PX = 4;
 const WHEEL_DELTA_MODE_LINE = 1;
 const WHEEL_DELTA_MODE_PAGE = 2;
 const WHEEL_LINE_HEIGHT_PX = 16;
+const NOTES_BLOCK_DROP_TARGET_SELECTOR = '[data-notes-block-drop-target="true"]';
 
 function normalizeWheelDelta(delta: number, deltaMode: number, pageSize: number): number {
   if (deltaMode === WHEEL_DELTA_MODE_LINE) return delta * WHEEL_LINE_HEIGHT_PX;
   if (deltaMode === WHEEL_DELTA_MODE_PAGE) return delta * pageSize;
   return delta;
+}
+
+function serializeDraggedRangesForComposer(view: EditorView, ranges: BlockRange[]): string {
+  return normalizeSelectedTextForComposer(
+    serializeSelectedBlocksToText(view.state, ranges, {
+      markdownSerializer: getCurrentMarkdownSerializer(),
+    })
+  );
+}
+
+function isOverNotesBlockDropTarget(doc: Document, clientX: number, clientY: number): boolean {
+  const elements = typeof doc.elementsFromPoint === 'function'
+    ? doc.elementsFromPoint(clientX, clientY)
+    : [];
+  return elements.some((element) => element.closest(NOTES_BLOCK_DROP_TARGET_SELECTOR));
 }
 
 export class BlockControlsViewSession {
@@ -249,7 +268,8 @@ export class BlockControlsViewSession {
     this.attachDragWheelListener();
     this.dragStartClientX = event.clientX;
     this.dragStartClientY = event.clientY;
-    setBlockDraggingVisualState(true);
+    const composerText = serializeDraggedRangesForComposer(this.view, draggableRanges);
+    setBlockDraggingVisualState(true, composerText ? { text: composerText } : null);
     this.controls.classList.add('dragging');
 
     const preview = createBlockDragPreview({
@@ -272,7 +292,11 @@ export class BlockControlsViewSession {
     if (this.draggedRanges) {
       this.lastDragClientX = event.clientX;
       this.lastDragClientY = event.clientY;
-      this.updateDropTargetByPointer(event.clientX, event.clientY);
+      if (isOverNotesBlockDropTarget(this.doc, event.clientX, event.clientY)) {
+        this.hideDropIndicator();
+      } else {
+        this.updateDropTargetByPointer(event.clientX, event.clientY);
+      }
       if (this.dragPreview) {
         this.dragPreview.element.style.left = `${Math.round(event.clientX - this.dragPreview.offsetX)}px`;
         this.dragPreview.element.style.top = `${Math.round(event.clientY - this.dragPreview.offsetY)}px`;
@@ -345,7 +369,11 @@ export class BlockControlsViewSession {
     const draggedDistance = this.dragStartClientX === null || this.dragStartClientY === null
       ? 0
       : Math.hypot(event.clientX - this.dragStartClientX, event.clientY - this.dragStartClientY);
-    if (!this.pendingDrop || draggedDistance < MIN_DROP_DISTANCE_PX) {
+    if (
+      isOverNotesBlockDropTarget(this.doc, event.clientX, event.clientY)
+      || !this.pendingDrop
+      || draggedDistance < MIN_DROP_DISTANCE_PX
+    ) {
       this.finishDrag();
     } else {
       this.view.dom.dispatchEvent(new CustomEvent('vlaina:block-user-input', { bubbles: true }));

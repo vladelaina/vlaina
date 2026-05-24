@@ -516,6 +516,7 @@
   "account.continueWithProvider": "Lanjutkan dengan {provider}",
   "chat.imageUnavailable": "Gambar tidak tersedia",
   "chat.dropFilesHere": "Letakkan file di sini",
+  "chat.dropBlocksHere": "Letakkan blok di sini",
   "common.somethingWentWrong": "Terjadi kesalahan",
   "common.tryAgain": "Coba lagi",
   "common.reload": "Muat ulang",

@@ -516,6 +516,7 @@
   "account.continueWithProvider": "Continuer avec {provider}",
   "chat.imageUnavailable": "Image indisponible",
   "chat.dropFilesHere": "Deposez les fichiers ici",
+  "chat.dropBlocksHere": "Deposez les blocs ici",
   "common.somethingWentWrong": "Une erreur est survenue",
   "common.tryAgain": "Reessayer",
   "common.reload": "Recharger",

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import type { Attachment } from '@/lib/storage/attachmentStorage';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
@@ -16,6 +16,11 @@ import { useChatHistoryNavigation } from './hooks/useChatHistoryNavigation';
 import { useNoteMentions } from './hooks/useNoteMentions';
 import { useAIStore } from '@/stores/useAIStore';
 import { useI18n } from '@/lib/i18n/useI18n';
+import { insertTextIntoComposer } from '@/lib/ui/composerFocusRegistry';
+import {
+  getBlockDragComposerPayload,
+  subscribeBlockDragVisualState,
+} from '@/components/Notes/features/Editor/plugins/cursor/blockDragVisualState';
 
 interface ChatInputProps {
   active?: boolean;
@@ -26,6 +31,7 @@ interface ChatInputProps {
   focusTrigger?: number;
   sessionId?: string | null;
   sentUserMessages: string[];
+  acceptNotesBlockDrop?: boolean;
 }
 
 export const ChatInput = memo(function ChatInput({
@@ -37,10 +43,12 @@ export const ChatInput = memo(function ChatInput({
   focusTrigger,
   sessionId,
   sentUserMessages,
+  acceptNotesBlockDrop = false,
 }: ChatInputProps) {
   const { t } = useI18n();
   const focusRafRef = useRef<number | null>(null);
   const restoreFocusListenerRef = useRef<(() => void) | null>(null);
+  const [isBlockDropActive, setIsBlockDropActive] = useState(false);
   const { webSearchEnabled, setWebSearchEnabled } = useAIStore();
   const {
     attachments,
@@ -175,6 +183,72 @@ export const ChatInput = memo(function ChatInput({
   }, [resetHistoryNavigation, sessionId]);
 
   useEffect(() => {
+    if (!acceptNotesBlockDrop || !active) {
+      setIsBlockDropActive(false);
+      return;
+    }
+
+    const isInsideDropTarget = (event: MouseEvent) => {
+      const root = composerRootRef.current?.closest('[data-notes-block-drop-target="true"]') as HTMLElement | null;
+      if (!root || !getBlockDragComposerPayload()) {
+        return false;
+      }
+      const rect = root.getBoundingClientRect();
+      return (
+        event.clientX >= rect.left
+        && event.clientX <= rect.right
+        && event.clientY >= rect.top
+        && event.clientY <= rect.bottom
+      );
+    };
+
+    const syncDropActive = (event?: MouseEvent) => {
+      if (!getBlockDragComposerPayload()) {
+        setIsBlockDropActive(false);
+        return;
+      }
+      if (event) {
+        setIsBlockDropActive(isInsideDropTarget(event));
+      }
+    };
+
+    const handleMouseMove = (event: MouseEvent) => {
+      syncDropActive(event);
+    };
+
+    const handleMouseUp = (event: MouseEvent) => {
+      const payload = getBlockDragComposerPayload();
+      const shouldInsert = Boolean(payload?.text) && isInsideDropTarget(event);
+      setIsBlockDropActive(false);
+      if (!shouldInsert || !payload) {
+        return;
+      }
+
+      event.preventDefault();
+      insertTextIntoComposer(payload.text);
+      resetHistoryNavigation();
+      clearHistoryNavigationOnInput();
+    };
+
+    const unsubscribe = subscribeBlockDragVisualState(() => syncDropActive());
+    window.addEventListener('mousemove', handleMouseMove, true);
+    window.addEventListener('mouseup', handleMouseUp, true);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('mousemove', handleMouseMove, true);
+      window.removeEventListener('mouseup', handleMouseUp, true);
+      setIsBlockDropActive(false);
+    };
+  }, [
+    acceptNotesBlockDrop,
+    active,
+    clearHistoryNavigationOnInput,
+    composerRootRef,
+    resetHistoryNavigation,
+  ]);
+
+  useEffect(() => {
     if (message.length === 0) {
       resetHistoryNavigation();
     }
@@ -275,10 +349,24 @@ export const ChatInput = memo(function ChatInput({
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {isDragging && (
-          <div className="absolute inset-0 z-20 flex items-center justify-center rounded-[32px] border-2 border-dashed border-[var(--chat-sidebar-icon)]/50 bg-black/[0.03] backdrop-blur-sm pointer-events-none dark:border-white/15 dark:bg-white/[0.04]">
-            <span className="font-medium text-[var(--chat-sidebar-text-muted)] dark:text-[var(--chat-sidebar-text-soft)]">
-              {t('chat.dropFilesHere')}
+        {(isDragging || isBlockDropActive) && (
+          <div
+            className={cn(
+              "absolute inset-0 z-20 flex items-center justify-center rounded-[32px] border-2 border-dashed backdrop-blur-sm pointer-events-none",
+              isBlockDropActive
+                ? "border-[var(--vlaina-color-accent)]/60 bg-[var(--vlaina-color-accent)]/[0.08] dark:border-[var(--vlaina-color-accent)]/65 dark:bg-[var(--vlaina-color-accent)]/[0.14]"
+                : "border-[var(--chat-sidebar-icon)]/50 bg-black/[0.03] dark:border-white/15 dark:bg-white/[0.04]"
+            )}
+          >
+            <span
+              className={cn(
+                "font-medium",
+                isBlockDropActive
+                  ? "text-[var(--vlaina-color-accent)]"
+                  : "text-[var(--chat-sidebar-text-muted)] dark:text-[var(--chat-sidebar-text-soft)]"
+              )}
+            >
+              {isBlockDropActive ? t('chat.dropBlocksHere') : t('chat.dropFilesHere')}
             </span>
           </div>
         )}

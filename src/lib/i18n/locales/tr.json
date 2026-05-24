@@ -516,6 +516,7 @@
   "account.continueWithProvider": "{provider} ile devam et",
   "chat.imageUnavailable": "Gorsel kullanilamiyor",
   "chat.dropFilesHere": "Dosyalari buraya birak",
+  "chat.dropBlocksHere": "Bloklari buraya birak",
   "common.somethingWentWrong": "Bir seyler ters gitti",
   "common.tryAgain": "Tekrar dene",
   "common.reload": "Yenile",
