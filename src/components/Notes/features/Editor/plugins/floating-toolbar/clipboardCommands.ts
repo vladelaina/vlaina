@@ -3,7 +3,14 @@ import { collapseSelectionAndHideFloatingToolbar } from '../clipboard/copyCleanu
 import { serializeSelectionToClipboardText } from '../clipboard/selectionSerialization';
 import { writeTextToClipboard } from '../cursor/blockSelectionCommands';
 
-export async function copySelectionToClipboard(view: EditorView): Promise<boolean> {
+interface CopySelectionOptions {
+  collapseAfterCopy?: boolean;
+}
+
+export async function copySelectionToClipboard(
+  view: EditorView,
+  options: CopySelectionOptions = {}
+): Promise<boolean> {
   const text = serializeSelectionToClipboardText(view.state);
   if (text.length === 0) {
     return false;
@@ -14,6 +21,8 @@ export async function copySelectionToClipboard(view: EditorView): Promise<boolea
     return false;
   }
 
-  collapseSelectionAndHideFloatingToolbar(view);
+  if (options.collapseAfterCopy !== false) {
+    collapseSelectionAndHideFloatingToolbar(view);
+  }
   return true;
 }

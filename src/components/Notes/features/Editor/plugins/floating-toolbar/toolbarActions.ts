@@ -1,5 +1,7 @@
 import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
+import { collapseSelectionAndHideFloatingToolbar } from '../clipboard/copyCleanup';
+import { NOTES_COPY_FEEDBACK_DURATION_MS } from '../shared/copyFeedback';
 import { copySelectionToClipboard, setLink, toggleMark } from './commands';
 import { floatingToolbarKey } from './floatingToolbarKey';
 import { openLinkTooltipFromSelection } from './linkTooltipActions';
@@ -178,7 +180,7 @@ export function createToolbarActionController(
       return false;
     },
     copy: async (view) => {
-      const copied = await copySelectionToClipboard(view);
+      const copied = await copySelectionToClipboard(view, { collapseAfterCopy: false });
       if (!copied) {
         return false;
       }
@@ -196,14 +198,9 @@ export function createToolbarActionController(
 
       copyFeedbackTimer = setTimeout(() => {
         copyFeedbackTimer = null;
-        view.dispatch(
-          view.state.tr.setMeta(floatingToolbarKey, {
-            type: TOOLBAR_ACTIONS.SET_COPIED,
-            payload: { copied: false },
-          })
-        );
-      }, 1200);
-      return true;
+        collapseSelectionAndHideFloatingToolbar(view);
+      }, NOTES_COPY_FEEDBACK_DURATION_MS);
+      return false;
     },
     ai: (view) => {
       const currentState = getCurrentState();

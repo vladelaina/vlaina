@@ -1,0 +1,1 @@
+export const NOTES_COPY_FEEDBACK_DURATION_MS = 260;

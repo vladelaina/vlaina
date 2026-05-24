@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { writeTextToClipboard } from '@/lib/clipboard';
 import { normalizeEscapedUrlSchemes } from '@/lib/notes/markdown/markdownSerializationUtils';
+import { NOTES_COPY_FEEDBACK_DURATION_MS } from '../../../shared/copyFeedback';
 import { BARE_DOMAIN_HREF_PATTERN } from '../../utils/constants';
 
 const EMAIL_ADDRESS_PATTERN = /^[A-Za-z0-9.!#$%&'*+/=?^_{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
@@ -130,7 +131,7 @@ export function useLinkState({ href, initialText = '', autoFocus = false, onEdit
             copyFeedbackTimerRef.current = setTimeout(() => {
                 copyFeedbackTimerRef.current = null;
                 setShowCopied(false);
-            }, 2000);
+            }, NOTES_COPY_FEEDBACK_DURATION_MS);
         }, () => undefined);
     }, [isAutolink, href, initialText, userFacingUrl]);
 

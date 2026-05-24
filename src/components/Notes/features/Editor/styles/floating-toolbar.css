@@ -156,6 +156,23 @@
   width: 20px;
   height: 20px;
   flex-shrink: 0;
+  transition: transform 0.14s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.toolbar-btn[data-action="copy"].active svg {
+  transform: scale(1.1);
+  animation: toolbar-copy-feedback-in 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes toolbar-copy-feedback-in {
+  from {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.1);
+  }
 }
 
 .toolbar-color-icon {

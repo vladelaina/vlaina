@@ -1043,6 +1043,55 @@ describe('floating toolbar commands', () => {
     expect(view.focus).toHaveBeenCalled();
   });
 
+  it('can keep the selection visible after copying for toolbar feedback', async () => {
+    const clipboardWrite = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: clipboardWrite },
+      configurable: true,
+    });
+
+    const view: any = {
+      state: {
+        selection: {
+          from: 1,
+          to: 8,
+        },
+        tr: {
+          setSelection: vi.fn().mockReturnThis(),
+          setMeta: vi.fn().mockReturnThis(),
+        },
+        doc: {
+          content: {
+            size: 8,
+          },
+          resolve: vi.fn((pos: number) => ({ pos })),
+          slice: vi.fn(() => ({
+            content: {
+              forEach: (callback: (node: any) => void) => {
+                callback({
+                  isText: true,
+                  text: 'Hello',
+                  marks: [],
+                  type: { name: 'text' },
+                });
+              },
+            },
+          })),
+        },
+      },
+      dispatch: vi.fn(),
+      focus: vi.fn(),
+    };
+
+    const copied = await copySelectionToClipboard(view, { collapseAfterCopy: false });
+
+    expect(copied).toBe(true);
+    expect(clipboardWrite).toHaveBeenCalledWith('Hello');
+    expect(view.state.tr.setMeta).not.toHaveBeenCalled();
+    expect(view.dispatch).not.toHaveBeenCalled();
+    expect(view.focus).not.toHaveBeenCalled();
+  });
+
   it('converts every selected plain text block around code blocks into headings', () => {
     const paragraphNode = {
       type: { name: 'paragraph' },

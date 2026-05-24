@@ -154,9 +154,13 @@ function renderLinkColorGroup(state: FloatingToolbarState): string {
 function renderCopyDeleteGroup(state: FloatingToolbarState): string {
   const copyButton = getExtraButton('copy');
   const deleteButton = getExtraButton('delete');
+  const copiedButton = {
+    ...copyButton,
+    icon: state.copied ? EDITOR_ICONS.check : copyButton.icon,
+  };
   return `
     <div class="toolbar-group">
-      ${renderButton(copyButton, state.activeMarks, '', state.copied, state.copied ? 'Copied' : undefined)}
+      ${renderButton(copiedButton, state.activeMarks, '', state.copied, state.copied ? 'Copied' : undefined)}
       ${renderButton(deleteButton, state.activeMarks)}
     </div>
   `;
