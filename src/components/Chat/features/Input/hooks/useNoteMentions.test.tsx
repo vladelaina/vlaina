@@ -161,7 +161,7 @@ describe('useNoteMentions', () => {
     expect(hoisted.loadFileTree).toHaveBeenCalledTimes(1);
   });
 
-  it('does not load the note tree or surface loading when no vault is available', () => {
+  it('keeps a bare mention trigger quiet when no vault is available', () => {
     hoisted.resetCurrentVaultPath(null);
     hoisted.vaultStoreRef.state = {
       currentVault: null,
@@ -189,12 +189,38 @@ describe('useNoteMentions', () => {
       result.current.handleCaretChange(1);
     });
 
-    expect(result.current.showMentionPicker).toBe(true);
-    expect(result.current.mentionPickerStatus).toBe('empty');
+    expect(result.current.showMentionPicker).toBe(false);
+    expect(result.current.mentionPickerStatus).toBeNull();
     expect(hoisted.loadFileTree).not.toHaveBeenCalled();
   });
 
-  it('keeps the mention picker visible when no notes match', () => {
+  it('keeps a bare mention trigger quiet when there are no candidate notes', () => {
+    hoisted.storeRef.state = {
+      ...hoisted.storeRef.state,
+      rootFolder: { children: [] },
+    };
+
+    const { result } = renderHook(() => {
+      const [message, setMessage] = useState('@');
+      const textareaRef = useRef<HTMLTextAreaElement>(document.createElement('textarea'));
+      const controller = useNoteMentions({
+        message,
+        textareaRef,
+        handleMessageChange: setMessage,
+      });
+
+      return { ...controller, message };
+    });
+
+    act(() => {
+      result.current.handleCaretChange(1);
+    });
+
+    expect(result.current.showMentionPicker).toBe(false);
+    expect(result.current.mentionPickerStatus).toBeNull();
+  });
+
+  it('hides the mention picker when no notes match', () => {
     const { result } = renderHook(() => {
       const [message, setMessage] = useState('@missing');
       const textareaRef = useRef<HTMLTextAreaElement>(document.createElement('textarea'));
@@ -211,7 +237,7 @@ describe('useNoteMentions', () => {
       result.current.handleCaretChange(8);
     });
 
-    expect(result.current.showMentionPicker).toBe(true);
+    expect(result.current.showMentionPicker).toBe(false);
     expect(result.current.mentionPickerStatus).toBe('empty');
     expect(result.current.currentPageCandidates).toEqual([]);
     expect(result.current.linkedPageCandidates).toEqual([]);
@@ -325,7 +351,7 @@ describe('useNoteMentions', () => {
     rerender();
 
     expect(hoisted.loadFileTree).toHaveBeenCalledTimes(1);
-    expect(result.current.mentionPickerStatus).toBe('empty');
+    expect(result.current.mentionPickerStatus).toBeNull();
   });
 
   it('applies the active candidate on Enter', () => {
@@ -394,6 +420,47 @@ describe('useNoteMentions', () => {
     });
 
     expect(result.current.message.trim()).toBe('');
+    expect(result.current.mentionPreviewParts.some((part) => part.type === 'mention')).toBe(false);
+  });
+
+  it('removes a mention token on Backspace from its trailing insertion space', () => {
+    const { result } = renderHook(() => {
+      const [message, setMessage] = useState('@To');
+      const textareaRef = useRef<HTMLTextAreaElement>(document.createElement('textarea'));
+      const controller = useNoteMentions({
+        message,
+        textareaRef,
+        handleMessageChange: setMessage,
+      });
+
+      return { ...controller, message };
+    });
+
+    act(() => {
+      result.current.handleCaretChange(3);
+    });
+
+    act(() => {
+      result.current.applyMentionCandidate({
+        path: 'Today.md',
+        title: 'Today',
+        isCurrent: true,
+      });
+    });
+
+    expect(result.current.message).toBe('@Today ');
+
+    act(() => {
+      const handled = result.current.handleMentionKeyDown({
+        key: 'Backspace',
+        currentTarget: { selectionStart: 7, selectionEnd: 7 },
+        preventDefault: vi.fn(),
+      } as any);
+      expect(handled).toBe(true);
+    });
+
+    expect(result.current.message).toBe('');
+    expect(result.current.showMentionPicker).toBe(false);
     expect(result.current.mentionPreviewParts.some((part) => part.type === 'mention')).toBe(false);
   });
 });

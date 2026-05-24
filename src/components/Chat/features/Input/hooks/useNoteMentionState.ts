@@ -157,14 +157,20 @@ export function useNoteMentionState({
     ? `${mentionTrigger.start}:${mentionTrigger.query}`
     : null;
   const effectiveVaultPath = notesPath || activeVaultPath || getCurrentVaultPath() || '';
+  const mentionQuery = mentionTrigger?.query.trim() ?? '';
   const mentionPickerStatus: 'loading' | 'empty' | null = mentionTrigger && filteredCandidates.length === 0
     ? (notesRootFolder
-        ? 'empty'
+        ? (mentionQuery ? 'empty' : null)
         : !effectiveVaultPath
-          ? 'empty'
-        : notesLoading || requestedTreeLoadTriggerRef.current !== mentionTriggerKey ? 'loading' : 'empty')
+          ? (mentionQuery ? 'empty' : null)
+        : notesLoading || requestedTreeLoadTriggerRef.current !== mentionTriggerKey
+          ? 'loading'
+          : mentionQuery ? 'empty' : null)
     : null;
-  const showMentionPicker = !!mentionTrigger;
+  const showMentionPicker = !!mentionTrigger && (
+    filteredCandidates.length > 0
+    || mentionPickerStatus === 'loading'
+  );
 
   useEffect(() => {
     setActiveMentionIndex(0);
@@ -225,7 +231,7 @@ export function useNoteMentionState({
   }, []);
 
   const removeMention = useCallback(
-    (path: string, rangeStart?: number) => {
+    (path: string, rangeStart?: number, rangeEnd?: number) => {
       const target = mentions.find((mention) => mention.path === path);
       if (!target) {
         return;
@@ -233,12 +239,13 @@ export function useNoteMentionState({
 
       const label = `@${target.title}`;
       const index = typeof rangeStart === 'number' ? rangeStart : value.indexOf(label);
+      const end = typeof rangeEnd === 'number' ? rangeEnd : index + label.length;
       if (index < 0) {
         setMentions((prev) => prev.filter((mention) => mention.path !== path));
         return;
       }
 
-      const nextValue = `${value.slice(0, index)}${value.slice(index + label.length)}`;
+      const nextValue = `${value.slice(0, index)}${value.slice(end)}`;
       onValueChange(nextValue);
       setCaretIndex(index);
       setMentions((prev) => prev.filter((mention) => mention.path !== path));
@@ -318,6 +325,23 @@ export function useNoteMentionState({
           event.preventDefault();
           removeMention(targetPart.mention.path, targetPart.start);
           return true;
+        }
+
+        if (event.key === 'Backspace') {
+          const trailingSpacePart = mentionRanges.find((part) =>
+            selectionStart === part.end + 1
+            && selectionEnd === selectionStart
+            && value[part.end] === ' ',
+          );
+          if (trailingSpacePart) {
+            event.preventDefault();
+            removeMention(
+              trailingSpacePart.mention.path,
+              trailingSpacePart.start,
+              trailingSpacePart.end + 1,
+            );
+            return true;
+          }
         }
       }
 
