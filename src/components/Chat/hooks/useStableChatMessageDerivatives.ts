@@ -1,6 +1,7 @@
 import { useRef } from 'react';
 import type { ChatMessage } from '@/lib/ai/types';
 import { extractMessageImageSources } from '@/components/Chat/common/messageClipboard';
+import { normalizeRenderableImageSrc } from '@/components/Chat/features/Markdown/imagePolicy';
 
 export interface ChatImageGalleryItem {
   id: string;
@@ -29,13 +30,16 @@ function buildImageGallery(messages: ChatMessage[]): DerivedCollection<ChatImage
     const sources = message.imageSources && message.imageSources.length > 0
       ? message.imageSources
       : extractMessageImageSources(message.content || '');
+    const renderableSources = sources
+      .map((src) => normalizeRenderableImageSrc(src))
+      .filter((src): src is string => !!src);
 
-    if (sources.length === 0) {
+    if (renderableSources.length === 0) {
       return;
     }
 
-    signatureParts.push(`${message.id}\u0000${sources.join('\u0002')}`);
-    sources.forEach((src, index) => {
+    signatureParts.push(`${message.id}\u0000${renderableSources.length}\u0000${renderableSources.map((src) => `${src.length}:${src.slice(0, 96)}`).join('\u0002')}`);
+    renderableSources.forEach((src, index) => {
       items.push({
         id: `${message.id}:${index}`,
         src,

@@ -35,6 +35,30 @@ function dispatchAccountInvalidatedEvent(): void {
   window.dispatchEvent(new Event(ACCOUNT_AUTH_INVALIDATED_EVENT));
 }
 
+function bytesToBase64(bytes: Uint8Array): string {
+  const CHUNK_SIZE = 0x8000;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += CHUNK_SIZE) {
+    const chunk = bytes.subarray(i, i + CHUNK_SIZE);
+    binary += String.fromCharCode(...chunk);
+  }
+  return window.btoa(binary);
+}
+
+async function serializeBinaryBodyForDesktop(body: BodyInit, headers: Record<string, string>): Promise<{
+  bodyBase64: string;
+  headers: Record<string, string>;
+}> {
+  if (!(body instanceof Blob)) {
+    throw new Error('Managed desktop binary requests require a Blob body.');
+  }
+
+  return {
+    bodyBase64: bytesToBase64(new Uint8Array(await body.arrayBuffer())),
+    headers,
+  };
+}
+
 function publicManagedStreamErrorMessage(message: string | undefined, errorCode: string | undefined): string {
   const normalizedCode = typeof errorCode === 'string' ? errorCode.trim().toLowerCase() : '';
   switch (normalizedCode) {
@@ -110,6 +134,15 @@ export const accountCommands = {
 
   async managedChatCompletion(body: object) {
     return await getDesktopAccountBridge().managedChatCompletion(body);
+  },
+
+  async managedImageGeneration(body: object) {
+    return await getDesktopAccountBridge().managedImageGeneration(body);
+  },
+
+  async managedImageEdit(body: BodyInit, headers: Record<string, string>) {
+    const payload = await serializeBinaryBodyForDesktop(body, headers);
+    return await getDesktopAccountBridge().managedImageEdit(payload);
   },
 
   async managedChatCompletionStream(

@@ -346,6 +346,12 @@ const desktopApi = {
     managedChatCompletion(body) {
       return ipcRenderer.invoke('desktop:managed:chat-completion', body);
     },
+    managedImageGeneration(body) {
+      return ipcRenderer.invoke('desktop:managed:image-generation', body);
+    },
+    managedImageEdit(payload) {
+      return ipcRenderer.invoke('desktop:managed:image-edit', payload);
+    },
     startManagedChatCompletionStream(requestId, body) {
       return ipcRenderer.invoke('desktop:managed:chat-completion-stream:start', requireSafeIpcRequestId(requestId, 'managed stream request id'), body);
     },

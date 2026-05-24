@@ -1,7 +1,7 @@
 import type { BenchmarkEndpoint } from './types';
+import { isStandaloneImageGenerationModel } from '../modelCapabilities';
 
 const EMBEDDING_MODEL_HINTS = ['embedding', 'bge-', 'm3e', 'text-embedding'];
-const IMAGE_MODEL_HINTS = ['dall-e', 'stable-diffusion', 'sdxl', 'flux', 'image'];
 const RESPONSES_MODEL_HINTS = ['codex'];
 
 function includesAnyHint(value: string, hints: string[]): boolean {
@@ -19,7 +19,7 @@ export function inferBenchmarkEndpoint(modelId: string): BenchmarkEndpoint {
     return 'responses';
   }
 
-  if (includesAnyHint(lowerModelId, IMAGE_MODEL_HINTS)) {
+  if (isStandaloneImageGenerationModel({ apiModelId: modelId, name: modelId })) {
     return 'image';
   }
 

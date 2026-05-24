@@ -33,6 +33,7 @@ import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEn
 import { hydrateSessionMessagesFromDisk } from '@/stores/ai/sessionConsistency';
 import { translate, useI18n } from '@/lib/i18n';
 import { ACCOUNT_AUTH_INVALIDATED_EVENT } from '@/lib/account/sessionEvent';
+import { isStandaloneImageGenerationModel } from '@/lib/ai/modelCapabilities';
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
@@ -252,7 +253,7 @@ export function useChatService() {
         setError(t('chat.error.channelOff'));
         return;
       }
-      if (isManagedProviderId(provider.id) && attachments.length > 0) {
+      if (isManagedProviderId(provider.id) && attachments.length > 0 && !isStandaloneImageGenerationModel(selectedModel)) {
         setError(t('chat.error.managedTextOnly'));
         return;
       }

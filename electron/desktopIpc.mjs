@@ -245,8 +245,20 @@ function normalizeAiProviderRequest(rawRequest) {
   }
 
   const headers = normalizeAiProviderHeaders(rawRequest.headers);
-  const body = rawRequest.body == null ? undefined : String(rawRequest.body);
+  const body = normalizeAiProviderRequestBody(rawRequest);
   return { url, method, headers, body };
+}
+
+function normalizeAiProviderRequestBody(rawRequest) {
+  if (rawRequest.bodyBase64 != null) {
+    const bodyBase64 = String(rawRequest.bodyBase64);
+    if (!/^[A-Za-z0-9+/]*={0,2}$/.test(bodyBase64) || bodyBase64.length % 4 !== 0) {
+      throw new Error('Invalid AI provider base64 request body.');
+    }
+    return Buffer.from(bodyBase64, 'base64');
+  }
+
+  return rawRequest.body == null ? undefined : String(rawRequest.body);
 }
 
 function normalizeAiProviderUrl(rawUrl) {

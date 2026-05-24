@@ -9,6 +9,7 @@ const IMAGE_PROTOCOL_WHITELIST = new Set([
 ]);
 
 const RELATIVE_PREFIXES = ["/", "./", "../"];
+const SAFE_DATA_IMAGE_PATTERN = /^data:image\/(?:png|jpeg|jpg|webp|gif|bmp|avif);base64,[A-Za-z0-9+/=]+$/i;
 
 function isRelativePath(value: string): boolean {
   return RELATIVE_PREFIXES.some((prefix) => value.startsWith(prefix));
@@ -48,6 +49,9 @@ export function normalizeRenderableImageSrc(src: string | null | undefined): str
   try {
     const base = typeof window !== "undefined" ? window.location.href : "http://localhost";
     const parsed = new URL(trimmed, base);
+    if (parsed.protocol === "data:") {
+      return SAFE_DATA_IMAGE_PATTERN.test(trimmed) ? trimmed : null;
+    }
     if (parsed.protocol === "asset:") {
       return isAllowedAssetUrl(parsed) ? trimmed : null;
     }

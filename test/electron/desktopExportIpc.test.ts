@@ -192,6 +192,34 @@ describe('desktop export ipc', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('passes base64 AI provider request bodies to fetch as bytes', async () => {
+    const { handlers } = registerHarness();
+    const fetchMock = vi.fn(async () => new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const sender = {
+      isDestroyed: () => false,
+      send: vi.fn(),
+    };
+
+    await handlers.get('desktop:ai-provider:request:start')?.(
+      { sender },
+      'request-bytes',
+      {
+        url: 'https://api.example.com/v1/images/edits',
+        method: 'POST',
+        headers: { 'Content-Type': 'multipart/form-data; boundary=test' },
+        bodyBase64: Buffer.from('multipart-body').toString('base64'),
+      },
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.example.com/v1/images/edits',
+      expect.objectContaining({
+        body: Buffer.from('multipart-body'),
+      }),
+    );
+  });
+
   it('does not let an old AI provider stream cleanup remove a newer request with the same id', async () => {
     const { handlers } = registerHarness();
     const signals: AbortSignal[] = [];
