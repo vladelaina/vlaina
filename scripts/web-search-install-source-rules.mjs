@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from 'node:fs/promises';
 
-const OUTPUT_PATH = 'electron/webSearch/sourceQuality/installedSourceQualityRules.mjs';
+const DEFAULT_OUTPUT_PATH = 'electron/webSearch/sourceQuality/installedSourceQualityRules.mjs';
 
 function printUsage() {
   console.error([
-    'Usage: node scripts/web-search-install-source-rules.mjs reviewed-rules.json',
+    'Usage: node scripts/web-search-install-source-rules.mjs reviewed-rules.json [output-module.mjs]',
     '',
     'The input must be a reviewed JSON file with optional hardBlockedSites,',
     'lowPrioritySites, and querySensitiveBlockedSites.health/documents arrays.',
@@ -61,11 +61,12 @@ function renderModule(rules) {
 }
 
 const inputPath = process.argv[2];
+const outputPath = process.argv[3] || DEFAULT_OUTPUT_PATH;
 if (!inputPath) {
   printUsage();
   process.exitCode = 1;
 } else {
   const payload = JSON.parse(await readFile(inputPath, 'utf8'));
-  await writeFile(OUTPUT_PATH, renderModule(readRules(payload)), 'utf8');
-  process.stdout.write(`${OUTPUT_PATH}\n`);
+  await writeFile(outputPath, renderModule(readRules(payload)), 'utf8');
+  process.stdout.write(`${outputPath}\n`);
 }

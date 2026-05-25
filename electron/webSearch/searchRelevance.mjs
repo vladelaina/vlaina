@@ -34,7 +34,7 @@ const QUERY_STOPWORDS = new Set([
 export function getMeaningfulTerms(query) {
   return String(query)
     .toLowerCase()
-    .match(/[a-z0-9.]+/g)
+    .match(/[a-z0-9][a-z0-9.-]*/g)
     ?.filter((term) => term.length > 2 && !QUERY_STOPWORDS.has(term)) ?? [];
 }
 

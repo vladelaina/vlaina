@@ -200,4 +200,46 @@ describe('web search tool runner', () => {
     expect(text).toContain('The page returned an HTTP error.');
     expect(text).not.toContain('HTTP 500 from provider');
   });
+
+  it('passes cancellation signals through to the web search client', async () => {
+    const controller = new AbortController();
+    const client: WebSearchClient = {
+      webSearch: vi.fn(async (_query, _options, signal) => {
+        expect(signal).toBe(controller.signal);
+        return { query: 'openai', results: [] };
+      }),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(),
+    };
+
+    await runWebSearchToolCall(
+      {
+        name: WEB_SEARCH_TOOL_NAMES.search,
+        arguments: JSON.stringify({ query: 'openai' }),
+      },
+      { client, signal: controller.signal },
+    );
+
+    expect(client.webSearch).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not swallow abort errors as normal tool failures', async () => {
+    const controller = new AbortController();
+    const client: WebSearchClient = {
+      webSearch: vi.fn(async () => {
+        controller.abort();
+        throw new DOMException('cancelled', 'AbortError');
+      }),
+      readWebPage: vi.fn(),
+      readWebPages: vi.fn(),
+    };
+
+    await expect(runWebSearchToolCall(
+      {
+        name: WEB_SEARCH_TOOL_NAMES.search,
+        arguments: JSON.stringify({ query: 'openai' }),
+      },
+      { client, signal: controller.signal },
+    )).rejects.toMatchObject({ name: 'AbortError' });
+  });
 });

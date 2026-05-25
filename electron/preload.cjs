@@ -204,14 +204,20 @@ const desktopApi = {
     },
   },
   webSearch: {
-    search(query, options) {
-      return ipcRenderer.invoke('desktop:web-search:search', query, options);
+    search(query, options, requestId) {
+      const id = requestId == null ? undefined : requireSafeIpcRequestId(requestId, 'Web search request id');
+      return ipcRenderer.invoke('desktop:web-search:search', query, options, id);
     },
-    read(url, options) {
-      return ipcRenderer.invoke('desktop:web-search:read', url, options);
+    read(url, options, requestId) {
+      const id = requestId == null ? undefined : requireSafeIpcRequestId(requestId, 'Web search request id');
+      return ipcRenderer.invoke('desktop:web-search:read', url, options, id);
     },
-    readBatch(urls, options) {
-      return ipcRenderer.invoke('desktop:web-search:read-batch', urls, options);
+    readBatch(urls, options, requestId) {
+      const id = requestId == null ? undefined : requireSafeIpcRequestId(requestId, 'Web search request id');
+      return ipcRenderer.invoke('desktop:web-search:read-batch', urls, options, id);
+    },
+    cancelRequest(requestId) {
+      return ipcRenderer.invoke('desktop:web-search:cancel', requireSafeIpcRequestId(requestId, 'Web search request id'));
     },
   },
   dragDrop: {
