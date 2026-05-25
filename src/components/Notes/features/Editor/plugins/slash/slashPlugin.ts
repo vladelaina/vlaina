@@ -9,6 +9,7 @@ import {
   createSlashState,
   deriveSlashState,
 } from './slashState';
+import { isPlainSlashMenuNavigationKey } from './slashKeyboard';
 
 export const slashPlugin = $prose((ctx) => {
   return new Plugin({
@@ -45,8 +46,8 @@ export const slashPlugin = $prose((ctx) => {
           return false;
         }
 
-        switch (event.key) {
-          case 'ArrowDown':
+        if (isPlainSlashMenuNavigationKey(event)) {
+          if (event.key === 'ArrowDown') {
             event.preventDefault();
             view.dispatch(
               view.state.tr.setMeta(slashPluginKey, {
@@ -54,8 +55,9 @@ export const slashPlugin = $prose((ctx) => {
               })
             );
             return true;
+          }
 
-          case 'ArrowUp':
+          if (event.key === 'ArrowUp') {
             event.preventDefault();
             view.dispatch(
               view.state.tr.setMeta(slashPluginKey, {
@@ -63,7 +65,10 @@ export const slashPlugin = $prose((ctx) => {
               })
             );
             return true;
+          }
+        }
 
+        switch (event.key) {
           case 'Enter':
           case 'Tab':
             event.preventDefault();

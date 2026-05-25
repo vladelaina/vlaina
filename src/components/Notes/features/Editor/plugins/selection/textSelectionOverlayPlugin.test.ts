@@ -87,6 +87,81 @@ describe('textSelectionOverlayPlugin', () => {
     }
   });
 
+  it.each([
+    { key: 'ArrowRight', ctrlKey: true },
+    { key: 'ArrowLeft', ctrlKey: true },
+    { key: 'ArrowDown', ctrlKey: true },
+    { key: 'ArrowUp', ctrlKey: true },
+    { key: 'Home', ctrlKey: true },
+    { key: 'End', ctrlKey: true },
+    { key: 'PageUp', shiftKey: true },
+    { key: 'PageDown', shiftKey: true },
+    { key: 'ArrowRight', shiftKey: true },
+    { key: 'ArrowRight', ctrlKey: true, shiftKey: true },
+  ])('keeps native selection active for modified navigation keys: %o', async (eventInit) => {
+    const view = await createEditor('hello world');
+    const originalElementFromPoint = document.elementFromPoint;
+    Object.defineProperty(document, 'elementFromPoint', {
+      configurable: true,
+      value: () => view.dom,
+    });
+
+    try {
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 6)));
+      view.dom.dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
+
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
+
+      view.dom.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          ...eventInit,
+          bubbles: true,
+          cancelable: true,
+        })
+      );
+
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
+      expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(false);
+    } finally {
+      Object.defineProperty(document, 'elementFromPoint', {
+        configurable: true,
+        value: originalElementFromPoint,
+      });
+    }
+  });
+
+  it.each([
+    { key: 'ArrowRight', ctrlKey: true },
+    { key: 'ArrowLeft', ctrlKey: true },
+    { key: 'ArrowDown', ctrlKey: true },
+    { key: 'ArrowUp', ctrlKey: true },
+    { key: 'Home', ctrlKey: true },
+    { key: 'End', ctrlKey: true },
+    { key: 'PageUp', shiftKey: true },
+    { key: 'PageDown', shiftKey: true },
+    { key: 'ArrowRight', ctrlKey: true, shiftKey: true },
+  ])('switches a one-character overlay selection to native before modified navigation: %o', async (eventInit) => {
+    const view = await createEditor('hello world');
+
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, 1, 2)));
+
+    expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(true);
+    expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(false);
+
+    view.dom.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        ...eventInit,
+        bubbles: true,
+        cancelable: true,
+      })
+    );
+
+    expect(view.dom.classList.contains(POINTER_NATIVE_SELECTION_CLASS)).toBe(true);
+    expect(view.dom.classList.contains(OVERLAY_ACTIVE_CLASS)).toBe(false);
+  });
+
   it('keeps the browser range when a pointer text selection remains native after mouseup', async () => {
     const view = await createEditor('hello');
     const originalGetSelection = window.getSelection;

@@ -27,6 +27,10 @@ const NAVIGATION_KEYS_THAT_CLEAR_NATIVE_SELECTION = new Set([
   'PageUp',
 ]);
 
+function isModifiedNavigationKey(event: KeyboardEvent): boolean {
+  return event.shiftKey || event.ctrlKey || event.metaKey || event.altKey;
+}
+
 function getNativeSelectionMetrics() {
   if (typeof window === 'undefined') {
     return null;
@@ -227,9 +231,26 @@ export const textSelectionOverlayPlugin = $prose(() => {
       };
 
       const handleKeyDown = (event: KeyboardEvent) => {
+        const isModifiedNavigation =
+          NAVIGATION_KEYS_THAT_CLEAR_NATIVE_SELECTION.has(event.key) &&
+          isModifiedNavigationKey(event);
+
+        if (
+          isModifiedNavigation &&
+          isTextSelectionOverlayEligible(view.state) &&
+          !textSelectionOverlayPluginKey.getState(view.state)?.usePointerNativeSelection
+        ) {
+          setPointerNativeSelection(true);
+          syncActiveClass();
+          return;
+        }
+
         const shouldClearForKey =
           event.key === 'Escape' ||
-          NAVIGATION_KEYS_THAT_CLEAR_NATIVE_SELECTION.has(event.key);
+          (
+            NAVIGATION_KEYS_THAT_CLEAR_NATIVE_SELECTION.has(event.key) &&
+            !isModifiedNavigationKey(event)
+          );
 
         if (!shouldClearForKey) {
           return;

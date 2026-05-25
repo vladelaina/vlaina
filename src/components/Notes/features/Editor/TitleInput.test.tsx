@@ -1,4 +1,4 @@
-import { render, screen, act } from '@testing-library/react';
+import { fireEvent, render, screen, act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TitleInput } from './TitleInput';
 
@@ -91,5 +91,23 @@ describe('TitleInput', () => {
     });
 
     expect(input.style.height).toBe('44px');
+  });
+
+  it.each([
+    { ctrlKey: true },
+    { shiftKey: true },
+    { metaKey: true },
+    { altKey: true },
+  ])('does not intercept modified ArrowDown in the title input: %o', (eventInit) => {
+    render(<TitleInput notePath="/vault/test.md" initialTitle="test" />);
+
+    const input = screen.getByDisplayValue('test') as HTMLTextAreaElement;
+
+    expect(
+      fireEvent.keyDown(input, {
+        key: 'ArrowDown',
+        ...eventInit,
+      })
+    ).toBe(true);
   });
 });

@@ -6,6 +6,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { SlashMenuPanel } from './SlashMenuPanel';
 import { applySlashCommand } from './slashCommands';
 import { getSlashMenuItems } from './slashItems';
+import { isPlainSlashMenuNavigationKey } from './slashKeyboard';
 import { slashPluginKey } from './slashPluginKey';
 import { filterSlashItems } from './slashQuery';
 import { createSlashState, getSlashMenuPosition, getSlashTextRange } from './slashState';
@@ -273,8 +274,8 @@ export class SlashMenuView {
     const filtered = filterSlashItems(state.query, getSlashMenuItems());
     if (filtered.length === 0) return;
 
-    switch (event.key) {
-      case 'ArrowDown':
+    if (isPlainSlashMenuNavigationKey(event)) {
+      if (event.key === 'ArrowDown') {
         event.preventDefault();
         event.stopPropagation();
         this.editorView.dispatch(
@@ -282,9 +283,10 @@ export class SlashMenuView {
             selectedIndex: (state.selectedIndex + 1) % filtered.length,
           })
         );
-        break;
+        return;
+      }
 
-      case 'ArrowUp':
+      if (event.key === 'ArrowUp') {
         event.preventDefault();
         event.stopPropagation();
         this.editorView.dispatch(
@@ -292,8 +294,11 @@ export class SlashMenuView {
             selectedIndex: (state.selectedIndex - 1 + filtered.length) % filtered.length,
           })
         );
-        break;
+        return;
+      }
+    }
 
+    switch (event.key) {
       case 'Enter':
       case 'Tab':
         event.preventDefault();

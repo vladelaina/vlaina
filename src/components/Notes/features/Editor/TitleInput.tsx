@@ -234,7 +234,13 @@ export function TitleInput({ notePath, initialTitle, onEnter, autoFocus }: Title
       runAfterTitleCommit(() => {
         onEnter?.();
       });
-    } else if (e.key === 'ArrowDown') {
+    } else if (
+      e.key === 'ArrowDown' &&
+      !e.shiftKey &&
+      !e.ctrlKey &&
+      !e.metaKey &&
+      !e.altKey
+    ) {
       e.preventDefault();
       await commitTitleIfNeeded();
       runAfterTitleCommit(() => {
