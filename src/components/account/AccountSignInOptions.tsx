@@ -52,7 +52,7 @@ export function AccountSignInOptions({
           <div
             className={cn(
               'rounded-2xl px-6 py-4 text-[13px] font-medium animate-in slide-in-from-top-2 duration-300',
-              'bg-red-50 text-red-600 border border-red-100 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20'
+              'bg-[rgba(240,138,166,0.12)] text-[var(--vlaina-color-brand-pink)] dark:bg-[rgba(240,138,166,0.14)]'
             )}
           >
             {error}

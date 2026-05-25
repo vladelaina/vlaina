@@ -2,6 +2,7 @@ import type { StoreApi } from 'zustand';
 import type { AccountProvider, AccountSessionActions, AccountSessionState, MembershipTier } from './state';
 import { ACCOUNT_USER_PERSIST_KEY } from './state';
 import { downloadAndSaveAvatar, getLocalAvatarUrl } from '@/lib/assets/avatarManager';
+import { translate } from '@/lib/i18n';
 
 type Set = StoreApi<AccountSessionState & AccountSessionActions>['setState'];
 type Get = StoreApi<AccountSessionState & AccountSessionActions>['getState'];
@@ -23,23 +24,42 @@ export interface PersistedAccountIdentity {
 }
 
 export function normalizeAuthError(raw: string): string {
-  const message = raw.trim();
-  if (!message) return 'Authorization failed';
+  let message = raw.trim();
+  const ipcInvokeMatch = message.match(/^Error invoking remote method '[^']+':\s*(.+)$/i);
+  if (ipcInvokeMatch?.[1]) {
+    message = ipcInvokeMatch[1].trim();
+  }
+  if (/^incorrect verification code$/i.test(message)) {
+    return translate('account.error.incorrectVerificationCode');
+  }
+  if (/^invalid verification code$/i.test(message)) {
+    return translate('account.error.invalidVerificationCode');
+  }
+  if (/^verification code expired\.? request a new code\.?$/i.test(message)) {
+    return translate('account.error.expiredVerificationCode');
+  }
+  if (/^too many incorrect attempts\.? request a new code\.?$/i.test(message)) {
+    return translate('account.error.tooManyVerificationAttempts');
+  }
+  if (!message) return translate('account.error.loginFailed');
+  if (/^email sign-in failed$/i.test(message)) {
+    return translate('account.error.emailSignInFailed');
+  }
   if (/system secure storage is unavailable/i.test(message)) {
-    return 'Unable to securely save your sign-in on this system. Please enable your system keyring and try again.';
+    return translate('account.error.secureStorageUnavailable');
   }
   if (
     /unable to reach vlaina api|failed to fetch|networkerror|network request failed|fetch failed|load failed|err_internet_disconnected/i.test(
       message
     )
   ) {
-    return 'No internet connection. Please check your network and try again.';
+    return translate('account.error.network');
   }
   if (/session not found|missing session token|invalid session token/i.test(message)) {
-    return 'Please sign in again';
+    return translate('account.error.signInAgain');
   }
   if (/timed out/i.test(message)) {
-    return 'Authorization timed out';
+    return translate('account.error.timeout');
   }
   return message;
 }

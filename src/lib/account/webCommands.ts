@@ -12,6 +12,7 @@ import { handleWebAccountAuthCallback } from './webCallback';
 const API_BASE = 'https://api.vlaina.com';
 const WEB_RESULT_POLL_ATTEMPTS = 10;
 const WEB_RESULT_POLL_DELAY_MS = 300;
+const TRANSIENT_ACCOUNT_RETRY_DELAYS_MS = [250, 750];
 
 interface WebAuthResult {
   success: boolean;
@@ -161,6 +162,42 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isTransientAccountNetworkError(error: unknown): boolean {
+  const message = getErrorMessage(error).toLowerCase();
+  if (error instanceof DOMException && error.name === 'AbortError') {
+    return false;
+  }
+  return (
+    error instanceof TypeError ||
+    message.includes('failed to fetch') ||
+    message.includes('fetch failed') ||
+    message.includes('networkerror') ||
+    message.includes('network request failed') ||
+    message.includes('load failed') ||
+    message.includes('err_internet_disconnected')
+  );
+}
+
+async function retryTransientAccountNetworkError<T>(operation: () => Promise<T>): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= TRANSIENT_ACCOUNT_RETRY_DELAYS_MS.length; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (!isTransientAccountNetworkError(error) || attempt >= TRANSIENT_ACCOUNT_RETRY_DELAYS_MS.length) {
+        throw error;
+      }
+      await delay(TRANSIENT_ACCOUNT_RETRY_DELAYS_MS[attempt] ?? 0);
+    }
+  }
+  throw lastError;
+}
+
 async function readJsonErrorMessage(response: Response, fallback: string): Promise<string> {
   try {
     const payload = (await response.json()) as { error?: string };
@@ -179,10 +216,12 @@ export const webAccountCommands = {
     assertSupportedWebAccountOrigin();
 
     try {
-      const res = await fetch(`${API_BASE}${authStartPath(provider)}`, {
-        cache: 'no-store',
-        credentials: 'include',
-      });
+      const res = await retryTransientAccountNetworkError(() =>
+        fetch(`${API_BASE}${authStartPath(provider)}`, {
+          cache: 'no-store',
+          credentials: 'include',
+        })
+      );
       if (!res.ok) return null;
       return res.json();
     } catch {
@@ -207,11 +246,13 @@ export const webAccountCommands = {
       const endpoint = new URL(`${API_BASE}${webResultPath(provider)}`);
       endpoint.searchParams.set('state', state);
       for (let attempt = 0; attempt < WEB_RESULT_POLL_ATTEMPTS; attempt += 1) {
-        const res = await fetch(endpoint, {
-          method: 'GET',
-          cache: 'no-store',
-          credentials: 'include',
-        });
+        const res = await retryTransientAccountNetworkError(() =>
+          fetch(endpoint, {
+            method: 'GET',
+            cache: 'no-store',
+            credentials: 'include',
+          })
+        );
         const data = (await res.json()) as WebAuthResult;
         if (data.pending === true && !data.success) {
           await delay(WEB_RESULT_POLL_DELAY_MS);
@@ -231,16 +272,18 @@ export const webAccountCommands = {
   async requestEmailCode(email: string): Promise<boolean> {
     assertSupportedWebAccountOrigin();
 
-    const response = await fetch(`${API_BASE}/auth/email/request-code`, {
-      method: 'POST',
-      cache: 'no-store',
-      credentials: 'include',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email }),
-    });
+    const response = await retryTransientAccountNetworkError(() =>
+      fetch(`${API_BASE}/auth/email/request-code`, {
+        method: 'POST',
+        cache: 'no-store',
+        credentials: 'include',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      })
+    );
 
     if (response.ok) {
       return true;
@@ -262,16 +305,18 @@ export const webAccountCommands = {
     assertSupportedWebAccountOrigin();
 
     try {
-      const response = await fetch(`${API_BASE}/auth/email/verify-code`, {
-        method: 'POST',
-        cache: 'no-store',
-        credentials: 'include',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, code, target: 'web' }),
-      });
+      const response = await retryTransientAccountNetworkError(() =>
+        fetch(`${API_BASE}/auth/email/verify-code`, {
+          method: 'POST',
+          cache: 'no-store',
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, code, target: 'web' }),
+        })
+      );
       const data = (await response.json()) as WebAuthResult;
       const result = normalizeWebAuthResult(data, 'email');
       persistConnectedWebAccount(result);

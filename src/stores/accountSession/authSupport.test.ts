@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useUIStore } from '@/stores/uiSlice';
 import { ACCOUNT_USER_PERSIST_KEY } from './state';
 import {
   ACCOUNT_USER_BROADCAST_CHANNEL,
@@ -16,18 +17,36 @@ import {
 
 describe('normalizeAuthError', () => {
   it('maps network failures to a user-facing offline message', () => {
+    useUIStore.setState({ languagePreference: 'en' });
+
     expect(normalizeAuthError('Unable to reach vlaina API: Failed to fetch')).toBe(
-      'No internet connection. Please check your network and try again.'
+      '๑ᵒᯅᵒ๑ Network connection error'
     );
     expect(normalizeAuthError('NetworkError when attempting to fetch resource.')).toBe(
-      'No internet connection. Please check your network and try again.'
+      '๑ᵒᯅᵒ๑ Network connection error'
     );
   });
 
   it('does not classify secure storage failures as network failures', () => {
+    useUIStore.setState({ languagePreference: 'en' });
+
     expect(normalizeAuthError('System secure storage is unavailable')).toBe(
-      'Unable to securely save your sign-in on this system. Please enable your system keyring and try again.'
+      '๑ᵒᯅᵒ๑ Unable to save sign-in'
     );
+  });
+
+  it('removes Electron IPC noise from email code failures', () => {
+    useUIStore.setState({ languagePreference: 'en' });
+
+    expect(
+      normalizeAuthError("Error invoking remote method 'desktop:account:verify-email-code': Incorrect verification code")
+    ).toBe('๑ᵒᯅᵒ๑ That code is incorrect');
+  });
+
+  it('localizes email code failures', () => {
+    useUIStore.setState({ languagePreference: 'zh-CN' });
+
+    expect(normalizeAuthError('Incorrect verification code')).toBe('๑ᵒᯅᵒ๑ 验证码错误');
   });
 });
 
