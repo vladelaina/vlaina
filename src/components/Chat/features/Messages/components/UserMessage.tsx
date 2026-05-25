@@ -3,9 +3,10 @@ import { Icon } from '@/components/ui/icons';
 import { LocalImage } from '@/components/Chat/common/LocalImage';
 import { cn } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/ai/types';
-import { normalizeExternalHref, openExternalHref } from '@/lib/navigation/externalLinks';
 import { copyMessageContentToClipboard } from '@/components/Chat/common/messageClipboard';
 import { resolveUserMessageBubbleWidth } from '@/components/Chat/features/Layout/chatUserBubbleWidth';
+import { ChatImageViewer } from '@/components/Chat/features/Markdown/components/ChatImageViewer';
+import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
 import { UserMessageEditor } from './UserMessageEditor';
 import {
   isSvgSource,
@@ -46,6 +47,7 @@ function UserMessageInner({
 
   const [isEditing, setIsEditing] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [activeImageId, setActiveImageId] = useState<string | null>(null);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const versions = message.versions;
@@ -72,6 +74,15 @@ function UserMessageInner({
     }),
     [textBubbleWidth],
   );
+  const imageGallery = useMemo(
+    () => parsedContent.imageSources.map((src, index) => ({
+      id: `${message.id}:${index}`,
+      src,
+    })),
+    [message.id, parsedContent.imageSources],
+  );
+  const activeImage = imageGallery.find((item) => item.id === activeImageId) ?? null;
+  const hasMultipleImages = parsedContent.imageSources.length > 1;
 
   const handleCopy = useCallback(async () => {
     try {
@@ -109,30 +120,52 @@ function UserMessageInner({
       ) : (
         <div className="w-full flex flex-col items-end">
           <div className="w-full flex flex-col items-end gap-2">
-            {parsedContent.imageSources.map((src) => (
+            {parsedContent.imageSources.length > 0 && (
               <div
-                key={src}
                 data-no-focus-input="true"
-                className="rounded-xl overflow-hidden border border-black/5 dark:border-white/10 shadow-sm bg-white dark:bg-zinc-800"
+                className="flex max-w-[90%] flex-wrap justify-end gap-2"
               >
-                <LocalImage
-                  src={src}
-                  alt="attachment"
-                  className={cn(
-                    'max-h-64 object-contain cursor-pointer hover:opacity-90 transition-opacity',
-                    isSvgSource(src) ? 'w-64 h-auto' : 'max-w-xs'
-                  )}
-                  onClick={() => {
-                    const safeExternalHref = normalizeExternalHref(src);
-                    if (safeExternalHref) {
-                      void openExternalHref(safeExternalHref);
-                      return;
-                    }
-                    window.open(src, '_blank', 'noopener,noreferrer');
-                  }}
-                />
+                {parsedContent.imageSources.map((src, index) => (
+                  <div
+                    key={`${src}:${index}`}
+                    className={cn(
+                      'overflow-hidden rounded-2xl p-1',
+                      chatComposerPillSurfaceClass,
+                    )}
+                  >
+                    <LocalImage
+                      src={src}
+                      alt="attachment"
+                      className={cn(
+                        'rounded-xl object-contain cursor-pointer hover:opacity-90 transition-opacity',
+                        hasMultipleImages
+                          ? isSvgSource(src)
+                            ? 'h-auto w-36 max-h-36'
+                            : 'max-h-36 max-w-36'
+                          : isSvgSource(src)
+                            ? 'w-64 h-auto'
+                            : 'max-h-64 max-w-xs'
+                      )}
+                      onClick={() => setActiveImageId(`${message.id}:${index}`)}
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+            {activeImage && (
+              <ChatImageViewer
+                open={!!activeImage}
+                src={activeImage.src}
+                alt="attachment"
+                gallery={imageGallery}
+                currentImageId={activeImage.id}
+                onOpenChange={(open) => {
+                  if (!open) {
+                    setActiveImageId(null);
+                  }
+                }}
+              />
+            )}
             {parsedContent.text && (
               <div
                 data-no-focus-input="true"
