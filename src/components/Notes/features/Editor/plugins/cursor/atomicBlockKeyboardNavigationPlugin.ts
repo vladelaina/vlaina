@@ -192,7 +192,24 @@ function dispatchDeleteEmptyParagraphNearStructuralBlock(
   range: AdjacentEmptyParagraphDeleteRange,
   deleteDirection: -1 | 1
 ) {
-  const tr = view.state.tr.delete(range.from, range.to);
+  let tr = view.state.tr.delete(range.from, range.to);
+  const mergedOrderedList = mergeAdjacentOrderedListsAcrossDeletedGap(tr, range.from);
+  if (mergedOrderedList) {
+    tr = mergedOrderedList.tr;
+    const selection = Selection.findFrom(
+      tr.doc.resolve(Math.min(mergedOrderedList.secondListStart, tr.doc.content.size)),
+      1,
+      true
+    ) ?? Selection.findFrom(
+      tr.doc.resolve(Math.max(0, Math.min(mergedOrderedList.secondListStart, tr.doc.content.size))),
+      -1,
+      true
+    );
+    view.dispatch((selection ? tr.setSelection(selection) : tr).scrollIntoView());
+    view.focus();
+    return;
+  }
+
   const mappedBlockFrom = tr.mapping.map(range.blockFrom, -1);
   const nextNode = tr.doc.nodeAt(mappedBlockFrom);
 
@@ -267,6 +284,36 @@ function dispatchDeleteEmptyParagraphNearStructuralBlock(
 
   view.dispatch((nextSelection ? tr.setSelection(nextSelection) : tr).scrollIntoView());
   view.focus();
+}
+
+function mergeAdjacentOrderedListsAcrossDeletedGap(
+  tr: Transaction,
+  gapFrom: number
+): { tr: Transaction; secondListStart: number } | null {
+  const previous = findTopLevelBlockBefore(tr.doc, gapFrom);
+  const next = findTopLevelBlockAfter(tr.doc, gapFrom);
+  if (!previous || !next || previous.node.type.name !== 'ordered_list' || next.node.type.name !== 'ordered_list') {
+    return null;
+  }
+
+  const secondListStart = previous.from + 1 + previous.node.content.size;
+  const children: ProseNode[] = [];
+  previous.node.forEach((child) => {
+    children.push(child);
+  });
+  next.node.forEach((child) => {
+    children.push(child);
+  });
+  const mergedList = previous.node.type.create(
+    previous.node.attrs,
+    children,
+    previous.node.marks
+  );
+
+  return {
+    tr: tr.replaceWith(previous.from, next.to, mergedList),
+    secondListStart,
+  };
 }
 
 function handleEmptyParagraphNearStructuralBlockDelete(

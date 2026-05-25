@@ -1,5 +1,6 @@
 import { sinkListItem, liftListItem } from '@milkdown/kit/prose/schema-list';
-import { Plugin, PluginKey, TextSelection } from '@milkdown/kit/prose/state';
+import type { Node as ProseNode } from '@milkdown/kit/prose/model';
+import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
 
@@ -118,6 +119,102 @@ function buildInternalListGapDecorations(doc: Parameters<typeof DecorationSet.cr
     return DecorationSet.create(doc, decorations);
 }
 
+function findAdjacentOrderedLists(doc: ProseNode): { from: number; to: number; merged: ProseNode } | null {
+    return findAdjacentOrderedListsInParent(doc, 0);
+}
+
+function findAdjacentOrderedListsInParent(
+    parent: ProseNode,
+    contentStart: number
+): { from: number; to: number; merged: ProseNode } | null {
+    let previous: { from: number; to: number; node: ProseNode } | null = null;
+    let result: { from: number; to: number; merged: ProseNode } | null = null;
+
+    parent.forEach((node, offset) => {
+        if (result) return;
+        const from = contentStart + offset;
+        const current = { from, to: from + node.nodeSize, node };
+        if (node.content.size > 0) {
+            result = findAdjacentOrderedListsInParent(node, from + 1);
+            if (result) return;
+        }
+        if (previous?.node.type.name === 'ordered_list' && node.type.name === 'ordered_list') {
+            const order = typeof previous.node.attrs.order === 'number' ? previous.node.attrs.order : 1;
+            const children: ProseNode[] = [];
+            const appendChild = (child: ProseNode) => {
+                const index = children.length;
+                if (child.type.name !== 'list_item') {
+                    children.push(child);
+                    return;
+                }
+                children.push(child.type.create(
+                    {
+                        ...child.attrs,
+                        label: `${order + index}.`,
+                        listType: 'ordered',
+                    },
+                    child.content as any,
+                    child.marks
+                ));
+            };
+            previous.node.forEach((child) => appendChild(child));
+            node.forEach((child) => appendChild(child));
+            result = {
+                from: previous.from,
+                to: current.to,
+                merged: previous.node.type.create(
+                    previous.node.attrs,
+                    children,
+                    previous.node.marks
+                ),
+            };
+            return;
+        }
+        previous = current;
+    });
+
+    return result;
+}
+
+function normalizeOrderedListLabels(state: EditorState): Transaction | null {
+    let tr = state.tr;
+    let changed = false;
+
+    state.doc.descendants((node, pos, parent, index) => {
+        if (node.type.name !== 'list_item' || parent?.type.name !== 'ordered_list') {
+            return true;
+        }
+
+        const order = typeof parent.attrs.order === 'number' ? parent.attrs.order : 1;
+        const expectedLabel = `${order + (index ?? 0)}.`;
+        const attrs = {
+            ...node.attrs,
+            label: expectedLabel,
+            listType: 'ordered',
+        };
+
+        if (node.attrs.label !== attrs.label || node.attrs.listType !== attrs.listType) {
+            tr = tr.setNodeMarkup(pos, undefined, attrs);
+            changed = true;
+        }
+
+        return true;
+    });
+
+    return changed ? tr.setMeta('addToHistory', false) : null;
+}
+
+function normalizeOrderedListsAfterChange(state: EditorState): Transaction | null {
+    const adjacent = findAdjacentOrderedLists(state.doc);
+    if (adjacent) {
+        return state.tr
+            .replaceWith(adjacent.from, adjacent.to, adjacent.merged)
+            .setMeta('addToHistory', false);
+    }
+
+    return normalizeOrderedListLabels(state);
+}
+
 export const listTabIndentPlugin = $prose(() => {
     return new Plugin({
         key: listTabIndentPluginKey,
@@ -129,6 +226,10 @@ export const listTabIndentPlugin = $prose(() => {
                 if (!tr.docChanged) return previous;
                 return buildInternalListGapDecorations(newState.doc);
             },
+        },
+        appendTransaction(transactions, _oldState, newState) {
+            if (!transactions.some((tr) => tr.docChanged)) return null;
+            return normalizeOrderedListsAfterChange(newState);
         },
         props: {
             decorations(state) {

@@ -235,6 +235,23 @@ function replaceWithOrderedListGapAndTaskList(view: EditorView): void {
   ]);
 }
 
+function replaceWithOrderedListGapAndOrderedList(view: EditorView): void {
+  const { schema } = view.state;
+  replaceDocument(view, [
+    schema.nodes.ordered_list.create(null, [
+      schema.nodes.list_item.create(null, [
+        schema.nodes.paragraph.create(null, schema.text('one')),
+      ]),
+    ]),
+    schema.nodes.paragraph.create(),
+    schema.nodes.ordered_list.create(null, [
+      schema.nodes.list_item.create(null, [
+        schema.nodes.paragraph.create(null, schema.text('two')),
+      ]),
+    ]),
+  ]);
+}
+
 function selectionAncestorNames(view: EditorView): string[] {
   const { $from } = view.state.selection;
   const names: string[] = [];
@@ -1024,6 +1041,30 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     await editor.destroy();
   });
 
+  it('merges ordered lists when deleting the empty paragraph between them on Delete', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    replaceWithOrderedListGapAndOrderedList(view);
+
+    const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+    const event = pressKey(view, 'Delete');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(1);
+    const list = view.state.doc.child(0);
+    expect(list.type.name).toBe('ordered_list');
+    expect(list.childCount).toBe(2);
+    expect(list.child(0).attrs.label).toBe('1.');
+    expect(list.child(1).attrs.label).toBe('2.');
+    expect(list.child(0).textContent).toBe('one');
+    expect(list.child(1).textContent).toBe('two');
+    expect(selectionAncestorNames(view)).toContain('list_item');
+
+    await editor.destroy();
+  });
+
   it('deletes an empty paragraph between ordered and task lists on Backspace', async () => {
     const editor = createEditor();
     await editor.create();
@@ -1041,6 +1082,30 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
     expect(view.state.doc.child(0).textContent).toBe('1');
     expect(view.state.doc.child(1).textContent).toBe('1');
     expect(view.state.selection).toBeInstanceOf(TextSelection);
+    expect(selectionAncestorNames(view)).toContain('list_item');
+
+    await editor.destroy();
+  });
+
+  it('merges ordered lists when deleting the empty paragraph between them on Backspace', async () => {
+    const editor = createEditor();
+    await editor.create();
+    const view = editor.ctx.get(editorViewCtx);
+    replaceWithOrderedListGapAndOrderedList(view);
+
+    const emptyParagraphPos = topLevelNodePos(view, 'paragraph');
+    view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, emptyParagraphPos + 1)));
+    const event = pressKey(view, 'Backspace');
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(view.state.doc.childCount).toBe(1);
+    const list = view.state.doc.child(0);
+    expect(list.type.name).toBe('ordered_list');
+    expect(list.childCount).toBe(2);
+    expect(list.child(0).attrs.label).toBe('1.');
+    expect(list.child(1).attrs.label).toBe('2.');
+    expect(list.child(0).textContent).toBe('one');
+    expect(list.child(1).textContent).toBe('two');
     expect(selectionAncestorNames(view)).toContain('list_item');
 
     await editor.destroy();
@@ -1279,9 +1344,13 @@ describe('atomicBlockKeyboardNavigationPlugin', () => {
             view.state.doc.child(index).type.name
           );
           expect(event.defaultPrevented, label).toBe(true);
-          expect(remainingNodeNames, label).toHaveLength(2);
-          expect(remainingNodeNames, label).toContain(previous.typeName);
-          expect(remainingNodeNames, label).toContain(next.typeName);
+          if (previous.typeName === 'ordered_list' && next.typeName === 'ordered_list') {
+            expect(remainingNodeNames, label).toEqual(['ordered_list']);
+          } else {
+            expect(remainingNodeNames, label).toHaveLength(2);
+            expect(remainingNodeNames, label).toContain(previous.typeName);
+            expect(remainingNodeNames, label).toContain(next.typeName);
+          }
 
           await editor.destroy();
         }

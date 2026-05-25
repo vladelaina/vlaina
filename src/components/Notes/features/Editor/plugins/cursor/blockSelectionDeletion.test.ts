@@ -11,6 +11,7 @@ import { codePlugin } from '../code';
 import { createTableNodeFromPipeCells } from '../table/pipeTableShortcut';
 import { mathPlugin } from '../math';
 import { mermaidPlugin } from '../mermaid';
+import { listTabIndentPlugin } from '../task-list';
 
 async function createEditor(markdown: string) {
   const editor = Editor.make()
@@ -21,7 +22,8 @@ async function createEditor(markdown: string) {
     .use(gfm)
     .use(mathPlugin)
     .use(mermaidPlugin)
-    .use(codePlugin);
+    .use(codePlugin)
+    .use(listTabIndentPlugin);
 
   await editor.create();
   return editor;
@@ -84,6 +86,22 @@ function replaceWithOrderedListGapAndTaskList(view: EditorView): void {
     schema.nodes.ordered_list.create(null, [orderedItem]),
     schema.nodes.paragraph.create(),
     schema.nodes.bullet_list.create(null, [taskItem]),
+  ]));
+}
+
+function replaceWithOrderedListGapAndOrderedList(view: EditorView): void {
+  const { schema } = view.state;
+  const firstItem = schema.nodes.list_item.create({ label: '1.', listType: 'ordered' }, [
+    schema.nodes.paragraph.create(null, schema.text('one')),
+  ]);
+  const secondItem = schema.nodes.list_item.create({ label: '1.', listType: 'ordered' }, [
+    schema.nodes.paragraph.create(null, schema.text('two')),
+  ]);
+
+  view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, [
+    schema.nodes.ordered_list.create(null, [firstItem]),
+    schema.nodes.paragraph.create(),
+    schema.nodes.ordered_list.create(null, [secondItem]),
   ]));
 }
 
@@ -309,6 +327,8 @@ describe('deleteSelectedBlocks', () => {
     expect(list.childCount).toBe(2);
     expect(list.child(0).textContent).toBe('1');
     expect(list.child(1).textContent).toBe('3');
+    expect(list.child(0).attrs.label).toBe('1.');
+    expect(list.child(1).attrs.label).toBe('2.');
     expect(view.state.selection).toBeInstanceOf(TextSelection);
 
     await editor.destroy();
@@ -429,6 +449,28 @@ describe('deleteSelectedBlocks', () => {
     expect(view.state.doc.child(1).type.name).toBe('bullet_list');
     expect(view.state.doc.child(0).textContent).toBe('1');
     expect(view.state.doc.child(1).textContent).toBe('1');
+    expect(view.state.selection).toBeInstanceOf(TextSelection);
+
+    await editor.destroy();
+  });
+
+  it('merges ordered lists after block-deleting the selected empty paragraph between them', async () => {
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx);
+    replaceWithOrderedListGapAndOrderedList(view);
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(blocks).toHaveLength(3);
+    expect(deleteSelectedBlocks(view, [blocks[1]], (tr) => tr)).toBe(true);
+
+    expect(view.state.doc.childCount).toBe(1);
+    const list = view.state.doc.child(0);
+    expect(list.type.name).toBe('ordered_list');
+    expect(list.childCount).toBe(2);
+    expect(list.child(0).textContent).toBe('one');
+    expect(list.child(1).textContent).toBe('two');
+    expect(list.child(0).attrs.label).toBe('1.');
+    expect(list.child(1).attrs.label).toBe('2.');
     expect(view.state.selection).toBeInstanceOf(TextSelection);
 
     await editor.destroy();
