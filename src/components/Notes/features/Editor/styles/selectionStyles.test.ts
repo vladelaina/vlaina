@@ -523,7 +523,10 @@ describe('editor embedded CodeMirror selection styles', () => {
     expect(css).not.toContain('vlaina-ai-review-selection');
     expect(css).not.toContain('vlaina-link-selection-visible');
     expect(source).toContain("export const TEXT_SELECTION_OVERLAY_CLASS = 'vlaina-text-selection-overlay'");
-    expect(source).toContain('Decoration.inline(from, to, {');
+    expect(source).toContain("const EDITOR_ONLY_TEXT_SELECTION_PLACEHOLDERS = new Set(['\\u200B', '\\u200C', '\\u2800']);");
+    expect(source).toContain('EDITOR_ONLY_TEXT_SELECTION_PLACEHOLDERS.has(char)');
+    expect(source).toContain('export function addTextSelectionOverlayDecorations(');
+    expect(source).toContain('Decoration.inline(rangeStart, to, {');
     expect(source).toContain('ATOMIC_TEXT_SELECTION_OVERLAY_NODE_NAMES.has(node.type.name)');
     expect(sharedSource).toContain('ATOMIC_TEXT_SELECTION_OVERLAY_NODE_NAMES');
     expect(sharedSource).toContain("'video'");
@@ -585,8 +588,9 @@ describe('editor embedded CodeMirror selection styles', () => {
     const css = readStyleFile('core.css');
     const source = readAiReviewSelectionSource();
 
-    expect(source).toContain("import { TEXT_SELECTION_OVERLAY_CLASS }");
-    expect(source).toContain("class: TEXT_SELECTION_OVERLAY_CLASS");
+    expect(source).toContain("import { addTextSelectionOverlayDecorations }");
+    expect(source).toContain("from '../../selection/textSelectionOverlayPlugin'");
+    expect(source).toContain('addTextSelectionOverlayDecorations(');
     expect(source).toContain('node.isText');
     expect(source).not.toContain('vlaina-ai-review-selection');
     expect(css).not.toContain('vlaina-ai-review-selection');

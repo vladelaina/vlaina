@@ -2,7 +2,7 @@ import { TextSelection } from '@milkdown/kit/prose/state';
 import type { EditorState } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { Decoration, DecorationSet } from '@milkdown/kit/prose/view';
-import { TEXT_SELECTION_OVERLAY_CLASS } from '../../selection/textSelectionOverlayPlugin';
+import { addTextSelectionOverlayDecorations } from '../../selection/textSelectionOverlayPlugin';
 import { floatingToolbarKey } from '../floatingToolbarKey';
 
 function isInlineRangeSelection(selection: EditorView['state']['selection'], from: number, to: number) {
@@ -63,13 +63,13 @@ export function getAiReviewSelectionDecorations(state: EditorState): DecorationS
     state.doc.nodesBetween(from, to, (node, pos) => {
       if (!node.isText) return;
 
-      const decorationFrom = Math.max(from, pos);
-      const decorationTo = Math.min(to, pos + node.nodeSize);
-      if (decorationTo <= decorationFrom) return;
-
-      decorations.push(Decoration.inline(decorationFrom, decorationTo, {
-        class: TEXT_SELECTION_OVERLAY_CLASS,
-      }));
+      addTextSelectionOverlayDecorations(
+        decorations,
+        node.text ?? '',
+        pos,
+        from,
+        to
+      );
     });
   });
 
