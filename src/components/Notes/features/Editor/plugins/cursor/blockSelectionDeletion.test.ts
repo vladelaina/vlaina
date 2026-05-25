@@ -475,4 +475,42 @@ describe('deleteSelectedBlocks', () => {
 
     await editor.destroy();
   });
+
+  it('deletes a selected list gap placeholder instead of the following ordered item', async () => {
+    const editor = await createEditor('');
+    const view = editor.ctx.get(editorViewCtx);
+    const { schema } = view.state;
+
+    replaceDocument(view, [
+      schema.nodes.ordered_list.create(null, [
+        schema.nodes.list_item.create({ label: '1.', listType: 'ordered' }, [
+          schema.nodes.paragraph.create(null, schema.text('1')),
+        ]),
+      ]),
+      schema.nodes.bullet_list.create(null, [
+        schema.nodes.list_item.create({ label: '•', listType: 'bullet' }, [
+          schema.nodes.paragraph.create(null, schema.text('\u2800')),
+        ]),
+      ]),
+      schema.nodes.ordered_list.create({ order: 3 }, [
+        schema.nodes.list_item.create({ label: '3.', listType: 'ordered' }, [
+          schema.nodes.paragraph.create(null, schema.text('3')),
+        ]),
+      ]),
+    ]);
+
+    const blocks = collectSelectableBlockRanges(view.state.doc);
+
+    expect(blocks).toHaveLength(3);
+    expect(view.state.doc.resolve(blocks[1].from).nodeAfter?.textContent).toBe('\u2800');
+    expect(deleteSelectedBlocks(view, [blocks[1]], (tr) => tr)).toBe(true);
+
+    expect(view.state.doc.childCount).toBe(1);
+    expect(view.state.doc.child(0).type.name).toBe('ordered_list');
+    expect(view.state.doc.child(0).childCount).toBe(2);
+    expect(view.state.doc.child(0).child(0).textContent).toBe('1');
+    expect(view.state.doc.child(0).child(1).textContent).toBe('3');
+
+    await editor.destroy();
+  });
 });

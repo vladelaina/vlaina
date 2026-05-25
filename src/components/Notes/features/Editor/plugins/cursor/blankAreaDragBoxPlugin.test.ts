@@ -7,6 +7,7 @@ import { blankAreaDragBoxPlugin, shouldClearBlockSelectionForTransaction } from 
 import { collectSelectableBlockRanges } from './blockUnitResolver';
 import { dispatchBlockSelectionAction, getBlockSelectionPluginState } from './blockSelectionPluginState';
 import { notesRemarkStringifyOptions } from '../../config/stringifyOptions';
+import { listTabIndentPlugin } from '../task-list';
 
 function createMouseEvent(type: string, init: MouseEventInit = {}) {
   return new MouseEvent(type, {
@@ -51,6 +52,19 @@ function simulateClipboardEvent(view: any, type: 'copy' | 'cut') {
   });
 
   return { handled, event, clipboardData };
+}
+
+function typeText(view: any, input: string) {
+  for (const text of input) {
+    const { from, to } = view.state.selection;
+    let handled = false;
+
+    view.someProp('handleTextInput', (handleTextInput: any) => {
+      handled = handleTextInput(view, from, to, text) || handled;
+    });
+
+    if (!handled) view.dispatch(view.state.tr.insertText(text, from, to));
+  }
 }
 
 function simulateDomEvent(view: any, type: string, event: Event) {
@@ -163,6 +177,39 @@ async function createBlockSelectionEditor(markdown: string) {
   return { editor, view };
 }
 
+async function createListGapSelectionEditor() {
+  const editor = Editor.make()
+    .config((ctx) => {
+      ctx.set(defaultValueCtx, '');
+    })
+    .use(commonmark)
+    .use(gfm)
+    .use(blankAreaDragBoxPlugin)
+    .use(listTabIndentPlugin);
+
+  await editor.create();
+  const view = editor.ctx.get(editorViewCtx);
+  const { schema } = view.state;
+  view.dispatch(view.state.tr.replaceWith(0, view.state.doc.content.size, [
+    schema.nodes.ordered_list.create(null, [
+      schema.nodes.list_item.create({ label: '1.', listType: 'ordered' }, [
+        schema.nodes.paragraph.create(null, schema.text('1')),
+      ]),
+    ]),
+    schema.nodes.bullet_list.create(null, [
+      schema.nodes.list_item.create({ label: '•', listType: 'bullet' }, [
+        schema.nodes.paragraph.create(null, schema.text('\u2800')),
+      ]),
+    ]),
+    schema.nodes.ordered_list.create({ order: 3 }, [
+      schema.nodes.list_item.create({ label: '3.', listType: 'ordered' }, [
+        schema.nodes.paragraph.create(null, schema.text('3')),
+      ]),
+    ]),
+  ]));
+  return { editor, view };
+}
+
 describe('shouldClearBlockSelectionForTransaction', () => {
   it('clears block selection when the editor moves to a text selection', () => {
     const selection = Object.create(TextSelection.prototype);
@@ -256,6 +303,34 @@ describe('blankAreaDragBoxPlugin clipboard shortcuts', () => {
       expect(event.preventDefault).toHaveBeenCalled();
       expect(clipboardData.setData).toHaveBeenCalledWith('text/plain', 'Alpha');
       expect(view.state.doc.textContent).toBe('Beta');
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
+    } finally {
+      await editor.destroy();
+    }
+  });
+});
+
+describe('blankAreaDragBoxPlugin list gap selection state', () => {
+  it('clears a selected list gap block when typing converts the gap into a paragraph', async () => {
+    const { editor, view } = await createListGapSelectionEditor();
+
+    try {
+      const blocks = collectSelectableBlockRanges(view.state.doc);
+      dispatchBlockSelectionAction(view, { type: 'set-blocks', blocks: [blocks[1]] });
+      expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(1);
+
+      let placeholderEnd: number | null = null;
+      view.state.doc.descendants((node, pos) => {
+        if (placeholderEnd !== null || !node.isText || node.text !== '\u2800') return true;
+        placeholderEnd = pos + node.nodeSize;
+        return false;
+      });
+      expect(placeholderEnd).not.toBeNull();
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, placeholderEnd!)));
+      typeText(view, '2');
+
+      expect(view.state.doc.child(1).type.name).toBe('paragraph');
+      expect(view.state.doc.child(1).textContent).toBe('2');
       expect(getBlockSelectionPluginState(view.state).selectedBlocks).toHaveLength(0);
     } finally {
       await editor.destroy();

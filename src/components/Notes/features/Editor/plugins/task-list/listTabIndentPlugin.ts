@@ -1,6 +1,6 @@
 import { sinkListItem, liftListItem } from '@milkdown/kit/prose/schema-list';
 import type { Node as ProseNode } from '@milkdown/kit/prose/model';
-import { Plugin, PluginKey, TextSelection, type EditorState, type Transaction } from '@milkdown/kit/prose/state';
+import { Plugin, PluginKey, TextSelection, type EditorState, type Selection, type Transaction } from '@milkdown/kit/prose/state';
 import { Decoration, DecorationSet, type EditorView } from '@milkdown/kit/prose/view';
 import { $prose } from '@milkdown/kit/utils';
 
@@ -81,6 +81,95 @@ function removeInternalListGapPlaceholdersFromListItem(view: EditorView, listIte
     return true;
 }
 
+function getSiblingNodeAtDepth(view: EditorView, depth: number, direction: -1 | 1): ProseNode | null {
+    const { $from } = view.state.selection;
+    if (depth <= 0 || depth > $from.depth) return null;
+
+    const parent = $from.node(depth - 1);
+    const siblingIndex = $from.index(depth - 1) + direction;
+    if (siblingIndex < 0 || siblingIndex >= parent.childCount) return null;
+    return parent.child(siblingIndex);
+}
+
+function resolveOrderedGapStart(view: EditorView, listDepth: number): number | null {
+    const previous = getSiblingNodeAtDepth(view, listDepth, -1);
+    if (previous?.type.name === 'ordered_list') {
+        const order = typeof previous.attrs.order === 'number' ? previous.attrs.order : 1;
+        return order + previous.childCount;
+    }
+
+    const next = getSiblingNodeAtDepth(view, listDepth, 1);
+    if (next?.type.name === 'ordered_list') {
+        const order = typeof next.attrs.order === 'number' ? next.attrs.order : 1;
+        return Math.max(1, order - 1);
+    }
+
+    return null;
+}
+
+function handleInternalPlaceholderOrderedListTextInput(
+    view: EditorView,
+    _from: number,
+    _to: number,
+    text: string
+): boolean {
+    if (text.length === 0 || !view.state.selection.empty) return false;
+
+    const listItemDepth = findSelectionListItemDepth(view);
+    if (listItemDepth === null || listItemDepth < 2) return false;
+
+    const listDepth = listItemDepth - 1;
+    const listNode = view.state.selection.$from.node(listDepth);
+    if (listNode.type.name !== 'bullet_list') return false;
+
+    const orderedGapStart = resolveOrderedGapStart(view, listDepth);
+    if (orderedGapStart === null) return false;
+
+    const paragraphType = view.state.schema.nodes.paragraph;
+    if (!paragraphType) return false;
+
+    const listItem = view.state.selection.$from.node(listItemDepth);
+    if (!listItem.textContent.includes(EDITABLE_LIST_GAP_PLACEHOLDER)) return false;
+
+    const listStart = view.state.selection.$from.before(listDepth);
+    const listEnd = view.state.selection.$from.after(listDepth);
+    const listItemIndex = view.state.selection.$from.index(listDepth);
+    const replacementNodes: ProseNode[] = [];
+    const beforeItems: ProseNode[] = [];
+    const afterItems: ProseNode[] = [];
+
+    listNode.forEach((child, _offset, index) => {
+        if (index < listItemIndex) {
+            beforeItems.push(child);
+        } else if (index > listItemIndex) {
+            afterItems.push(child);
+        }
+    });
+
+    if (beforeItems.length > 0) {
+        replacementNodes.push(listNode.type.create(listNode.attrs, beforeItems, listNode.marks));
+    }
+
+    const paragraph = paragraphType.create(
+        null,
+        text.length > 0 ? view.state.schema.text(text) : undefined
+    );
+    replacementNodes.push(paragraph);
+
+    if (afterItems.length > 0) {
+        replacementNodes.push(listNode.type.create(listNode.attrs, afterItems, listNode.marks));
+    }
+
+    const paragraphStart = listStart + (beforeItems.length > 0 ? replacementNodes[0].nodeSize : 0);
+    let tr = view.state.tr.replaceWith(listStart, listEnd, replacementNodes);
+    tr = tr
+        .setSelection(TextSelection.create(tr.doc, paragraphStart + 1 + text.length))
+        .scrollIntoView();
+
+    view.dispatch(tr);
+    return true;
+}
+
 function handleInternalPlaceholderListEnter(view: EditorView, event: KeyboardEvent): boolean {
     if (event.key !== 'Enter') return false;
     if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || event.isComposing) return false;
@@ -119,16 +208,23 @@ function buildInternalListGapDecorations(doc: Parameters<typeof DecorationSet.cr
     return DecorationSet.create(doc, decorations);
 }
 
-function findAdjacentOrderedLists(doc: ProseNode): { from: number; to: number; merged: ProseNode } | null {
+type AdjacentOrderedListMerge = {
+    from: number;
+    secondFrom: number;
+    to: number;
+    merged: ProseNode;
+};
+
+function findAdjacentOrderedLists(doc: ProseNode): AdjacentOrderedListMerge | null {
     return findAdjacentOrderedListsInParent(doc, 0);
 }
 
 function findAdjacentOrderedListsInParent(
     parent: ProseNode,
     contentStart: number
-): { from: number; to: number; merged: ProseNode } | null {
+): AdjacentOrderedListMerge | null {
     let previous: { from: number; to: number; node: ProseNode } | null = null;
-    let result: { from: number; to: number; merged: ProseNode } | null = null;
+    let result: AdjacentOrderedListMerge | null = null;
 
     parent.forEach((node, offset) => {
         if (result) return;
@@ -161,6 +257,7 @@ function findAdjacentOrderedListsInParent(
             node.forEach((child) => appendChild(child));
             result = {
                 from: previous.from,
+                secondFrom: current.from,
                 to: current.to,
                 merged: previous.node.type.create(
                     previous.node.attrs,
@@ -174,6 +271,33 @@ function findAdjacentOrderedListsInParent(
     });
 
     return result;
+}
+
+function mapPositionThroughOrderedListMerge(pos: number, merge: AdjacentOrderedListMerge): number {
+    if (pos <= merge.from) return pos;
+    if (pos >= merge.to) return pos - (merge.to - merge.from - merge.merged.nodeSize);
+    if (pos >= merge.secondFrom) return pos - 2;
+    return pos;
+}
+
+function preserveSelectionAfterOrderedListMerge(
+    tr: Transaction,
+    selection: Selection,
+    merge: AdjacentOrderedListMerge
+): Transaction {
+    if (!(selection instanceof TextSelection)) return tr;
+
+    const from = mapPositionThroughOrderedListMerge(selection.from, merge);
+    const to = mapPositionThroughOrderedListMerge(selection.to, merge);
+    const maxPos = tr.doc.content.size;
+    const clampedFrom = Math.max(0, Math.min(maxPos, from));
+    const clampedTo = Math.max(0, Math.min(maxPos, to));
+
+    try {
+        return tr.setSelection(TextSelection.create(tr.doc, clampedFrom, clampedTo));
+    } catch {
+        return tr.setSelection(TextSelection.near(tr.doc.resolve(clampedFrom), 1));
+    }
 }
 
 function normalizeOrderedListLabels(state: EditorState): Transaction | null {
@@ -205,12 +329,24 @@ function normalizeOrderedListLabels(state: EditorState): Transaction | null {
 }
 
 function normalizeOrderedListsAfterChange(state: EditorState): Transaction | null {
-    const adjacent = findAdjacentOrderedLists(state.doc);
-    if (adjacent) {
-        return state.tr
-            .replaceWith(adjacent.from, adjacent.to, adjacent.merged)
-            .setMeta('addToHistory', false);
+    let tr = state.tr;
+    let mergedAny = false;
+
+    for (;;) {
+        const adjacent = findAdjacentOrderedLists(tr.doc);
+        if (!adjacent) break;
+
+        const selectionBeforeMerge = tr.selection;
+        tr = tr.replaceWith(adjacent.from, adjacent.to, adjacent.merged);
+        tr = preserveSelectionAfterOrderedListMerge(
+            tr,
+            selectionBeforeMerge,
+            adjacent
+        );
+        mergedAny = true;
     }
+
+    if (mergedAny) return tr.setMeta('addToHistory', false);
 
     return normalizeOrderedListLabels(state);
 }
@@ -234,6 +370,9 @@ export const listTabIndentPlugin = $prose(() => {
         props: {
             decorations(state) {
                 return this.getState(state) ?? DecorationSet.empty;
+            },
+            handleTextInput(view, from, to, text) {
+                return handleInternalPlaceholderOrderedListTextInput(view, from, to, text);
             },
             handleKeyDown(view, event) {
                 if (handleInternalPlaceholderListEnter(view, event)) return true;
