@@ -54,7 +54,7 @@ describe('math hover styles', () => {
   it('suppresses math and mermaid hover affordances while dragging a block selection', () => {
     const css = readMathStyles();
 
-    expect(css).toContain('body.vlaina-block-dragging-cursor .milkdown :is(');
+    expect(css).toContain('.milkdown .ProseMirror.vlaina-block-selection-pending :is(');
     expect(css).toMatch(
       /\[data-type='math-inline'\],\s*\[data-type='math-block'\],\s*\.mermaid-block\s*\):not\(\.vlaina-block-selected\):is\(:hover, :focus-visible\)/
     );
@@ -71,10 +71,10 @@ describe('math hover styles', () => {
     expect(css).toContain('cursor: default !important;');
     expect(css).toContain('background: transparent !important;');
     expect(css).toContain('box-shadow: none !important;');
-    expect(css).toContain('body.vlaina-block-dragging-cursor .milkdown .mermaid-block.vlaina-block-selected:is(:hover, :focus-visible) {');
-    expect(css).toContain('body.vlaina-block-dragging-cursor .milkdown .mermaid-block.vlaina-block-selected,');
+    expect(css).toContain('.milkdown .ProseMirror.vlaina-block-selection-pending .mermaid-block.vlaina-block-selected:is(:hover, :focus-visible) {');
+    expect(css).toContain('.milkdown .ProseMirror.vlaina-block-selection-pending .mermaid-block.vlaina-block-selected,');
     expect(css).toContain('cursor: crosshair !important;');
-    expect(css).not.toContain('.milkdown .ProseMirror .mermaid-block.vlaina-block-selected,\nbody.vlaina-block-dragging-cursor');
+    expect(css).not.toContain('.milkdown .ProseMirror .mermaid-block.vlaina-block-selected,\n.milkdown .ProseMirror.vlaina-block-selection-pending');
     expect(css).not.toContain('.milkdown .ProseMirror.vlaina-block-selection-active .mermaid-block.vlaina-block-selected:is(:hover, :focus-visible)');
     expect(css).toContain('background: var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe)) !important;');
   });

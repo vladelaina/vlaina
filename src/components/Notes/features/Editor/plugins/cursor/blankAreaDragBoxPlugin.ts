@@ -669,7 +669,10 @@ function clearTextSelectionForDragSession(view: EditorView): void {
     view.dispatch(tr);
     view.focus();
   }
-  window.getSelection()?.removeAllRanges();
+  const selection = view.dom.ownerDocument.defaultView?.getSelection();
+  if (selection && selection.rangeCount > 0) {
+    selection.removeAllRanges();
+  }
 }
 
 function deleteSelectedBlocks(view: EditorView, blocks: readonly BlockRange[]): boolean {
@@ -787,9 +790,10 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
         }
         if (action?.type === 'set-blocks') {
           const selectedBlocks = normalizeBlockRanges(action.blocks);
+          const decorations = createBlockSelectionDecorations(tr.doc, selectedBlocks);
           return {
             selectedBlocks,
-            decorations: createBlockSelectionDecorations(tr.doc, selectedBlocks),
+            decorations,
           };
         }
 
@@ -807,9 +811,10 @@ export const blankAreaDragBoxPlugin = $prose((ctx) => {
 
         const selectedBlocks = mapBlockRangesThroughTransaction(pluginState.selectedBlocks, tr);
         if (selectedBlocks.length === 0) return EMPTY_BLOCK_SELECTION_PLUGIN_STATE;
+        const decorations = createBlockSelectionDecorations(tr.doc, selectedBlocks);
         return {
           selectedBlocks,
-          decorations: createBlockSelectionDecorations(tr.doc, selectedBlocks),
+          decorations,
         };
       },
     },

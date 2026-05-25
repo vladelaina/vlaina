@@ -64,12 +64,12 @@
   cursor: pointer !important;
 }
 
-body.vlaina-block-dragging-cursor .milkdown :is(
+.milkdown .ProseMirror.vlaina-block-selection-pending :is(
   [data-type='math-inline'],
   [data-type='math-block'],
   .mermaid-block
 ):is(:hover, :focus-visible),
-body.vlaina-block-dragging-cursor .milkdown :is(
+.milkdown .ProseMirror.vlaina-block-selection-pending :is(
   [data-type='math-inline'],
   [data-type='math-block'],
   .mermaid-block
@@ -77,7 +77,7 @@ body.vlaina-block-dragging-cursor .milkdown :is(
   cursor: crosshair !important;
 }
 
-body.vlaina-block-dragging-cursor .milkdown :is(
+.milkdown .ProseMirror.vlaina-block-selection-pending :is(
   [data-type='math-inline'],
   [data-type='math-block'],
   .mermaid-block
@@ -105,7 +105,7 @@ body.vlaina-block-dragging-cursor .milkdown :is(
   box-shadow: none !important;
 }
 
-body.vlaina-block-dragging-cursor .milkdown .mermaid-block.vlaina-block-selected:is(:hover, :focus-visible) {
+.milkdown .ProseMirror.vlaina-block-selection-pending .mermaid-block.vlaina-block-selected:is(:hover, :focus-visible) {
   background: var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe)) !important;
   box-shadow:
     0 var(--vlaina-block-selection-bleed-y, 4px) 0 0 var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe)),
@@ -114,8 +114,8 @@ body.vlaina-block-dragging-cursor .milkdown .mermaid-block.vlaina-block-selected
     calc(var(--vlaina-block-selection-bleed-x-end, 48px) - var(--vlaina-block-selection-bleed-y, 4px)) 0 0 var(--vlaina-block-selection-bleed-y, 4px) var(--vlaina-block-selection-color, var(--vlaina-editor-block-selection-bg, #bedffe)) !important;
 }
 
-body.vlaina-block-dragging-cursor .milkdown .mermaid-block.vlaina-block-selected,
-body.vlaina-block-dragging-cursor .milkdown .mermaid-block.vlaina-block-selected * {
+.milkdown .ProseMirror.vlaina-block-selection-pending .mermaid-block.vlaina-block-selected,
+.milkdown .ProseMirror.vlaina-block-selection-pending .mermaid-block.vlaina-block-selected * {
   cursor: crosshair !important;
 }
 

@@ -340,10 +340,8 @@
   background: rgba(15, 23, 42, 0.9);
 }
 
-body.vlaina-block-selection-pending .milkdown .video-block iframe,
-body.vlaina-block-selection-pending .milkdown .video-block video,
-body.vlaina-block-dragging-cursor .milkdown .video-block iframe,
-body.vlaina-block-dragging-cursor .milkdown .video-block video,
+.milkdown .ProseMirror.vlaina-block-selection-pending .video-block iframe,
+.milkdown .ProseMirror.vlaina-block-selection-pending .video-block video,
 body.vlaina-block-drag-active .milkdown .video-block iframe,
 body.vlaina-block-drag-active .milkdown .video-block video {
   pointer-events: none;
