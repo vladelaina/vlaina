@@ -24,7 +24,7 @@ function createMessage(id: string, role: ChatMessage['role'], content: string): 
     content,
     modelId: 'model-a',
     timestamp,
-    versions: [{ content, createdAt: timestamp, subsequentMessages: [] }],
+    versions: [{ content, createdAt: timestamp, kind: 'original' as const, subsequentMessages: [] }],
     currentVersionIndex: 0,
   };
 }
@@ -114,7 +114,7 @@ describe('chatMessageFrames', () => {
       {
         ...firstMessages[1]!,
         content: 'stream updated',
-        versions: [{ content: 'stream updated', createdAt: firstMessages[1]!.timestamp, subsequentMessages: [] }],
+        versions: [{ content: 'stream updated', createdAt: firstMessages[1]!.timestamp, kind: 'original' as const, subsequentMessages: [] }],
       },
     ];
 
@@ -344,7 +344,7 @@ describe('chatMessageFrames', () => {
       currentVersionIndex: 1,
       versions: [
         ...first.versions,
-        { content: 'second version', createdAt: first.timestamp + 1, subsequentMessages: [] },
+        { content: 'second version', createdAt: first.timestamp + 1, kind: 'original' as const, subsequentMessages: [] },
       ],
     };
 

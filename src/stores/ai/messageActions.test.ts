@@ -3,6 +3,7 @@ import { createMessageActions } from './messageActions';
 import { useAIUIStore } from './chatState';
 import { useUnifiedStore } from '../unified/useUnifiedStore';
 import type { ChatMessage } from '@/lib/ai/types';
+import { saveSessionJson } from '@/lib/storage/chatStorage';
 
 vi.mock('@/lib/storage/chatStorage', () => ({
   saveSessionJson: vi.fn(async () => {}),
@@ -25,6 +26,7 @@ function createAssistantMessage(): ChatMessage {
     versions: [{
       content: 'old answer',
       createdAt: 1,
+      kind: 'original' as const,
       subsequentMessages: [],
       apiTranscript,
     }],
@@ -42,6 +44,7 @@ function createUserMessage(id: string, content = id): ChatMessage {
     versions: [{
       content,
       createdAt: 1,
+      kind: 'original' as const,
       subsequentMessages: [],
     }],
     currentVersionIndex: 0,
@@ -101,6 +104,19 @@ describe('message actions API transcript handling', () => {
     expect(message.versions[1].apiTranscript).toBeUndefined();
   });
 
+  it('does not add regeneration versions to user messages', () => {
+    seedMessages([createUserMessage('user-1', 'prompt')]);
+
+    createMessageActions().addVersion('user-1', 'session-1');
+
+    const message = useUnifiedStore.getState().data.ai!.messages['session-1'][0];
+    expect(message.content).toBe('prompt');
+    expect(message.currentVersionIndex).toBe(0);
+    expect(message.versions).toHaveLength(1);
+    expect(message.versions[0].kind).toBe('original');
+    expect(saveSessionJson).not.toHaveBeenCalled();
+  });
+
   it('restores the selected version transcript when switching versions', () => {
     seedMessages([createAssistantMessage()]);
     const actions = createMessageActions();
@@ -156,6 +172,72 @@ describe('message actions API transcript handling', () => {
     expect(messages[0].versions[0].subsequentMessages[0].id).toBe('assistant-1');
   });
 
+  it('does not edit and branch assistant messages', () => {
+    seedMessages([createAssistantMessage(), createUserMessage('future-1')]);
+
+    createMessageActions().editMessageAndBranch('session-1', 'assistant-1', 'edited answer');
+
+    const messages = useUnifiedStore.getState().data.ai!.messages['session-1'];
+    expect(messages).toHaveLength(2);
+    expect(messages[0].content).toBe('old answer');
+    expect(messages[0].currentVersionIndex).toBe(0);
+    expect(messages[0].versions).toHaveLength(1);
+  });
+
+  it('does not switch assistant messages to edit versions', () => {
+    seedMessages([{
+      ...createAssistantMessage(),
+      versions: [
+        {
+          content: 'old answer',
+          createdAt: 1,
+          kind: 'original' as const,
+          subsequentMessages: [],
+        },
+        {
+          content: 'bad edit version',
+          createdAt: 2,
+          kind: 'edit' as const,
+          subsequentMessages: [],
+        },
+      ],
+      currentVersionIndex: 0,
+    }]);
+
+    createMessageActions().switchMessageVersion('session-1', 'assistant-1', 1);
+
+    const message = useUnifiedStore.getState().data.ai!.messages['session-1'][0];
+    expect(message.content).toBe('old answer');
+    expect(message.currentVersionIndex).toBe(0);
+  });
+
+  it('does not switch user messages to regeneration versions', () => {
+    seedMessages([{
+      ...createUserMessage('user-1', 'prompt'),
+      versions: [
+        {
+          content: 'prompt',
+          createdAt: 1,
+          kind: 'original' as const,
+          subsequentMessages: [],
+        },
+        {
+          content: 'bad regeneration version',
+          createdAt: 2,
+          kind: 'regeneration' as const,
+          subsequentMessages: [],
+        },
+      ],
+      currentVersionIndex: 0,
+    }]);
+
+    createMessageActions().switchMessageVersion('session-1', 'user-1', 1);
+
+    const message = useUnifiedStore.getState().data.ai!.messages['session-1'][0];
+    expect(message.content).toBe('prompt');
+    expect(message.currentVersionIndex).toBe(0);
+  });
+
   it('limits retained message versions while preserving the active version', () => {
     seedMessages([createAssistantMessage()]);
     const actions = createMessageActions();
@@ -177,6 +259,7 @@ describe('message actions API transcript handling', () => {
       versions: [{
         content: 'nested',
         createdAt: 1,
+        kind: 'original' as const,
         subsequentMessages: [createUserMessage('deep-1')],
       }],
     };

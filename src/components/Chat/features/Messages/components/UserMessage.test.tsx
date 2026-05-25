@@ -54,7 +54,7 @@ function createMessage(): ChatMessage {
     content,
     modelId: 'model-a',
     timestamp,
-    versions: [{ content, createdAt: timestamp, subsequentMessages: [] }],
+    versions: [{ content, createdAt: timestamp, kind: 'original' as const, subsequentMessages: [] }],
     currentVersionIndex: 0,
   };
 }
@@ -93,5 +93,37 @@ describe('UserMessage', () => {
     );
 
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('uses the shared compact version navigator for editable prompt versions', () => {
+    const onSwitchVersion = vi.fn();
+    const message = {
+      ...createMessage(),
+      content: 'Second prompt',
+      currentVersionIndex: 1,
+      versions: [
+        { content: 'First prompt', createdAt: 1, kind: 'original' as const, subsequentMessages: [] },
+        { content: 'Second prompt', createdAt: 2, kind: 'edit' as const, subsequentMessages: [] },
+        { content: 'Third prompt', createdAt: 3, kind: 'edit' as const, subsequentMessages: [] },
+      ],
+    };
+
+    render(
+      <UserMessage
+        message={message}
+        containerWidth={880}
+        onEdit={vi.fn()}
+        onSwitchVersion={onSwitchVersion}
+      />,
+    );
+
+    expect(screen.getByText('2/3')).toBeInTheDocument();
+
+    const buttons = screen.getAllByRole('button');
+    fireEvent.click(buttons[0]!);
+    fireEvent.click(buttons[1]!);
+
+    expect(onSwitchVersion).toHaveBeenNthCalledWith(1, 'u1', 0);
+    expect(onSwitchVersion).toHaveBeenNthCalledWith(2, 'u1', 2);
   });
 });

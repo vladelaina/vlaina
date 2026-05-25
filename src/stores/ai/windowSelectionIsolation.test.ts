@@ -156,7 +156,7 @@ function seedStores(overrides?: {
           },
         ],
         messages: {
-          'session-1': [{ id: 'm1', role: 'user', content: 'hello', modelId: managedModel.id, timestamp: 1, versions: [{ content: 'hello', createdAt: 1, subsequentMessages: [] }], currentVersionIndex: 0 }],
+          'session-1': [{ id: 'm1', role: 'user', content: 'hello', modelId: managedModel.id, timestamp: 1, versions: [{ content: 'hello', createdAt: 1, kind: 'original' as const, subsequentMessages: [] }], currentVersionIndex: 0 }],
           'session-2': [],
         },
         unreadSessionIds: [],
@@ -347,7 +347,7 @@ describe('chat window selection isolation', () => {
         content: 'prefetched',
         modelId: managedModel.id,
         timestamp: 2,
-        versions: [{ content: 'prefetched', createdAt: 2, subsequentMessages: [] }],
+        versions: [{ content: 'prefetched', createdAt: 2, kind: 'original' as const, subsequentMessages: [] }],
         currentVersionIndex: 0,
       },
     ]);
@@ -482,8 +482,7 @@ describe('chat window selection isolation', () => {
                   timestamp: 5,
                   versions: [{
                     content: 'temporary answer',
-                    createdAt: 5,
-                    subsequentMessages: [],
+                    createdAt: 5, kind: 'original' as const, subsequentMessages: [],
                     apiTranscript,
                   }],
                   currentVersionIndex: 0,
@@ -538,8 +537,7 @@ describe('chat window selection isolation', () => {
                   timestamp: 5,
                   versions: [{
                     content: '',
-                    createdAt: 5,
-                    subsequentMessages: [],
+                    createdAt: 5, kind: 'original' as const, subsequentMessages: [],
                   }],
                   currentVersionIndex: 0,
                 }],

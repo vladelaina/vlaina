@@ -362,7 +362,7 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       }],
       modelId: 'deepseek-chat',
       timestamp: 1,
-      versions: [{ content: '<think>private version plan</think>Version answer', createdAt: 1, subsequentMessages: [] }],
+      versions: [{ content: '<think>private version plan</think>Version answer', createdAt: 1, kind: 'original' as const, subsequentMessages: [] }],
       currentVersionIndex: 0,
     }];
 
@@ -466,7 +466,7 @@ describe('OpenAICompatibleClient endpoint detection', () => {
       ],
       modelId: 'deepseek-chat',
       timestamp: 1,
-      versions: [{ content: 'Visible previous answer', createdAt: 1, subsequentMessages: [] }],
+      versions: [{ content: 'Visible previous answer', createdAt: 1, kind: 'original' as const, subsequentMessages: [] }],
       currentVersionIndex: 0,
     }];
 
@@ -502,7 +502,7 @@ describe('OpenAICompatibleClient endpoint detection', () => {
         apiTranscript: [{ role: 'assistant', content: null, reasoning_content: 'hidden' }],
         modelId: 'gpt-4o-mini',
         timestamp: 1,
-        versions: [{ content: 'Visible previous answer', createdAt: 1, subsequentMessages: [] }],
+        versions: [{ content: 'Visible previous answer', createdAt: 1, kind: 'original' as const, subsequentMessages: [] }],
         currentVersionIndex: 0,
       }],
       buildModel({ apiModelId: 'gpt-4o-mini', name: 'GPT 4o mini' }),
@@ -532,7 +532,7 @@ describe('OpenAICompatibleClient endpoint detection', () => {
         apiTranscript: [{ role: 'assistant', content: null, reasoning_content: 'hidden transcript' }],
         modelId: 'gpt-4o-mini',
         timestamp: 1,
-        versions: [{ content: '<think>version hidden</think>Visible previous answer', createdAt: 1, subsequentMessages: [] }],
+        versions: [{ content: '<think>version hidden</think>Visible previous answer', createdAt: 1, kind: 'original' as const, subsequentMessages: [] }],
         currentVersionIndex: 0,
       }],
       buildModel({ apiModelId: 'gpt-4o-mini', name: 'GPT 4o mini' }),
@@ -578,7 +578,7 @@ describe('OpenAICompatibleClient endpoint detection', () => {
         ],
         modelId: 'deepseek-chat',
         timestamp: 1,
-        versions: [{ content: 'Visible previous answer', createdAt: 1, subsequentMessages: [] }],
+        versions: [{ content: 'Visible previous answer', createdAt: 1, kind: 'original' as const, subsequentMessages: [] }],
         currentVersionIndex: 0,
       }],
       buildModel({ apiModelId: 'deepseek-chat', name: 'DeepSeek Chat' }),
@@ -609,7 +609,7 @@ describe('OpenAICompatibleClient endpoint detection', () => {
         content: 'Version answer',
         modelId: 'deepseek-chat',
         timestamp: 1,
-        versions: [{ content: 'Version answer', createdAt: 1, subsequentMessages: [], apiTranscript }],
+        versions: [{ content: 'Version answer', createdAt: 1, kind: 'original' as const, subsequentMessages: [], apiTranscript }],
         currentVersionIndex: 0,
       }],
       buildModel({ apiModelId: 'deepseek-chat', name: 'DeepSeek Chat' }),

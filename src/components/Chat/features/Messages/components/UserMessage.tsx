@@ -13,9 +13,14 @@ import {
   parseUserMessageContent,
 } from './userMessageContent';
 import { useUIStore } from '@/stores/uiSlice';
+import { MessageVersionNavigator } from './MessageVersionNavigator';
 
 const userMessageActionButtonClass =
   'p-1.5 rounded-md text-[var(--chat-sidebar-text)] transition-colors hover:bg-black/5 hover:text-[var(--chat-sidebar-text)] dark:hover:bg-white/5';
+
+function isSwitchableUserVersion(version: ChatMessage['versions'][number]): boolean {
+  return version.kind === 'original' || version.kind === 'edit';
+}
 
 interface UserMessageProps {
   message: ChatMessage;
@@ -52,7 +57,11 @@ function UserMessageInner({
 
   const versions = message.versions;
   const currentIdx = message.currentVersionIndex;
-  const hasMultipleVersions = versions.length > 1;
+  const switchableVersionIndexes = versions
+    .map((version, index) => isSwitchableUserVersion(version) ? index : -1)
+    .filter((index) => index >= 0);
+  const currentSwitchableIndex = switchableVersionIndexes.indexOf(currentIdx);
+  const hasMultipleVersions = switchableVersionIndexes.length > 1 && currentSwitchableIndex >= 0;
 
   useEffect(() => {
     return () => {
@@ -182,29 +191,24 @@ function UserMessageInner({
           {!isAwaitingResponse && (
             <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-150 mr-1 mt-1">
               {hasMultipleVersions && onSwitchVersion && (
-                <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/5 rounded-md p-0.5 select-none">
-                  <button
-                    onClick={() => {
-                      currentIdx > 0 && onSwitchVersion(message.id, currentIdx - 1);
-                    }}
-                    disabled={currentIdx === 0}
-                    className="p-0.5 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
-                  >
-                    <Icon name="nav.chevronLeft" size="md" />
-                  </button>
-                  <span className="text-[10px] font-mono font-medium text-gray-600 dark:text-gray-400 min-w-[24px] text-center">
-                    {currentIdx + 1} / {versions.length}
-                  </span>
-                  <button
-                    onClick={() => {
-                      currentIdx < versions.length - 1 && onSwitchVersion(message.id, currentIdx + 1);
-                    }}
-                    disabled={currentIdx === versions.length - 1}
-                    className="p-0.5 text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-30 disabled:cursor-default transition-colors"
-                  >
-                    <Icon name="nav.chevronRight" size="md" />
-                  </button>
-                </div>
+                <MessageVersionNavigator
+                  current={currentSwitchableIndex + 1}
+                  total={switchableVersionIndexes.length}
+                  previousDisabled={currentSwitchableIndex <= 0}
+                  nextDisabled={currentSwitchableIndex >= switchableVersionIndexes.length - 1}
+                  onPrevious={() => {
+                    const previousIndex = switchableVersionIndexes[currentSwitchableIndex - 1];
+                    if (previousIndex !== undefined) {
+                      onSwitchVersion(message.id, previousIndex);
+                    }
+                  }}
+                  onNext={() => {
+                    const nextIndex = switchableVersionIndexes[currentSwitchableIndex + 1];
+                    if (nextIndex !== undefined) {
+                      onSwitchVersion(message.id, nextIndex);
+                    }
+                  }}
+                />
               )}
 
               <div className="flex items-center gap-1">

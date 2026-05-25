@@ -11,7 +11,7 @@ function createMessage(id: string, role: ChatMessage['role'], content: string): 
     content,
     modelId: 'model-a',
     timestamp,
-    versions: [{ content, createdAt: timestamp, subsequentMessages: [] }],
+    versions: [{ content, createdAt: timestamp, kind: 'original' as const, subsequentMessages: [] }],
     currentVersionIndex: 0,
   };
 }
@@ -39,7 +39,7 @@ describe('useStableChatMessageDerivatives', () => {
         {
           ...assistant,
           content: 'first response extended',
-          versions: [{ content: 'first response extended', createdAt: assistant.timestamp, subsequentMessages: [] }],
+          versions: [{ content: 'first response extended', createdAt: assistant.timestamp, kind: 'original' as const, subsequentMessages: [] }],
         },
       ],
     });
@@ -54,7 +54,7 @@ describe('useStableChatMessageDerivatives', () => {
     const updatedAssistant = {
       ...assistant,
       content: '![image](<https://example.com/2.png>)',
-      versions: [{ content: '![image](<https://example.com/2.png>)', createdAt: assistant.timestamp, subsequentMessages: [] }],
+      versions: [{ content: '![image](<https://example.com/2.png>)', createdAt: assistant.timestamp, kind: 'original' as const, subsequentMessages: [] }],
     };
 
     const view = renderHook(
