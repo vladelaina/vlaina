@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useFileItemState } from './useFileItemState';
 
 const mocks = vi.hoisted(() => ({
@@ -58,10 +58,18 @@ vi.mock('./useTreeItemDragSource', () => ({
 
 describe('useFileItemState', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     mocks.openNote.mockReset();
     mocks.openNote.mockResolvedValue(undefined);
     mocks.scrollCurrentNoteToTop.mockReset();
     mocks.notesState.currentNote = { path: 'docs/alpha.md' };
+  });
+
+  afterEach(() => {
+    act(() => {
+      vi.runOnlyPendingTimers();
+    });
+    vi.useRealTimers();
   });
 
   it('scrolls the editor to top when clicking the already active file', () => {
@@ -80,6 +88,12 @@ describe('useFileItemState', () => {
         ctrlKey: false,
         metaKey: false,
       } as unknown as React.MouseEvent);
+    });
+
+    expect(mocks.scrollCurrentNoteToTop).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(180);
     });
 
     expect(mocks.scrollCurrentNoteToTop).toHaveBeenCalledTimes(1);
@@ -104,7 +118,36 @@ describe('useFileItemState', () => {
       } as unknown as React.MouseEvent);
     });
 
+    expect(mocks.openNote).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(180);
+    });
+
     expect(mocks.scrollCurrentNoteToTop).not.toHaveBeenCalled();
     expect(mocks.openNote).toHaveBeenCalledWith('docs/alpha.md', true);
+  });
+
+  it('cancels a pending click when double-click rename starts', () => {
+    const { result } = renderHook(() =>
+      useFileItemState({
+        id: 'docs/beta.md',
+        name: 'beta.md',
+        path: 'docs/beta.md',
+        isFolder: false,
+      }),
+    );
+
+    act(() => {
+      result.current.handleClick({
+        stopPropagation: vi.fn(),
+        ctrlKey: false,
+        metaKey: false,
+      } as unknown as React.MouseEvent);
+      result.current.cancelPendingClick();
+      vi.advanceTimersByTime(180);
+    });
+
+    expect(mocks.openNote).not.toHaveBeenCalled();
   });
 });

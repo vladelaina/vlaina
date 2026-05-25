@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ChatSession } from '@/lib/ai/types';
 import { useAIUIStore } from '@/stores/ai/chatState';
 import { ChatSidebarSessionRow } from './ChatSidebarSessionRow';
@@ -57,6 +57,7 @@ function renderRow(overrides: Partial<Parameters<typeof ChatSidebarSessionRow>[0
 
 describe('ChatSidebarSessionRow', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.clearAllMocks();
     useAIUIStore.setState({
       generatingSessions: {},
@@ -64,10 +65,20 @@ describe('ChatSidebarSessionRow', () => {
     });
   });
 
+  afterEach(() => {
+    act(() => {
+      vi.runOnlyPendingTimers();
+    });
+    vi.useRealTimers();
+  });
+
   it('switches sessions when the row body is left-clicked', () => {
     const props = renderRow();
 
     fireEvent.click(screen.getByText('Alpha chat'));
+    act(() => {
+      vi.advanceTimersByTime(180);
+    });
 
     expect(props.onSwitch).toHaveBeenCalledWith('session-1', false);
   });
@@ -129,6 +140,18 @@ describe('ChatSidebarSessionRow', () => {
     fireEvent.click(screen.getByText('Rename'));
 
     expect(props.onStartRename).toHaveBeenCalledWith('session-1', 'Alpha chat');
+  });
+
+  it('starts renaming when the row body is double-clicked', () => {
+    const props = renderRow();
+
+    fireEvent.doubleClick(screen.getByText('Alpha chat'));
+    act(() => {
+      vi.advanceTimersByTime(180);
+    });
+
+    expect(props.onStartRename).toHaveBeenCalledWith('session-1', 'Alpha chat');
+    expect(props.onSwitch).not.toHaveBeenCalled();
   });
 
   it('does not switch sessions while renaming', () => {

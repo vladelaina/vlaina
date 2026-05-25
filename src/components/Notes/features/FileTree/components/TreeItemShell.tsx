@@ -29,6 +29,7 @@ interface TreeItemShellProps {
   onMouseEnter?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onMouseLeave?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
+  onDoubleClick?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>) => void;
   onMenuClick: (event: React.MouseEvent<HTMLButtonElement>, rect: DOMRect) => void;
 }
@@ -53,6 +54,7 @@ export function TreeItemShell({
   onMouseEnter,
   onMouseLeave,
   onClick,
+  onDoubleClick,
   onContextMenu,
   onMenuClick,
 }: TreeItemShellProps) {
@@ -83,6 +85,7 @@ export function TreeItemShell({
         isHighlighted={isHighlighted}
         isDragOver={isDragOver}
         onClick={onClick}
+        onDoubleClick={onDoubleClick}
         onContextMenu={onContextMenu}
         dragHandlers={dragHandlers}
         showActionsByDefault={showActionsByDefault}

@@ -1,4 +1,4 @@
-import { lazy, memo, Suspense, useEffect, useState } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, useState, type MouseEvent } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import type { FolderNode } from '@/stores/useNotesStore';
@@ -69,6 +69,7 @@ export const FolderItem = memo(function FolderItem({
     handleClick,
     handleContextMenu,
     handleMenuTrigger,
+    cancelPendingClick,
     handleRenameSubmit,
     dragHandlers,
     createNote,
@@ -85,6 +86,18 @@ export const FolderItem = memo(function FolderItem({
     itemPath: node.path,
     openLocationErrorMessage: 'Failed to open folder location.',
   });
+  const handleRenameFromDoubleClick = useCallback((event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    if (target?.closest('button,a,input,textarea,select,[role="button"]')) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    cancelPendingClick();
+    setShowMenu(false);
+    setIsRenaming(true);
+  }, [cancelPendingClick, setIsRenaming, setShowMenu]);
 
   const leading = node.expanded ? (
     <Icon name="file.folderOpen" size={16} className="text-[var(--notes-sidebar-folder-icon)]" />
@@ -216,6 +229,7 @@ export const FolderItem = memo(function FolderItem({
       isHighlighted={showMenu}
       isDragOver={isDragOver}
       onClick={handleClick}
+      onDoubleClick={handleRenameFromDoubleClick}
       onContextMenu={handleContextMenu}
       dragHandlers={dragHandlers}
       showActionsByDefault={showMenu}
