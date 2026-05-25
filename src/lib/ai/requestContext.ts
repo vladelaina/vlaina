@@ -53,7 +53,7 @@ function createSystemMessage(content: string, modelId: string): ChatMessage {
     modelId,
     id: `sys-${crypto.randomUUID()}`,
     timestamp: now,
-    versions: [{ content, createdAt: now, subsequentMessages: [] }],
+    versions: [{ content, createdAt: now, kind: 'original', subsequentMessages: [] }],
     currentVersionIndex: 0,
   };
 }

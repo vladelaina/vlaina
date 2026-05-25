@@ -14,7 +14,7 @@ function createMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
     ...(overrides.apiTranscript !== undefined ? { apiTranscript: overrides.apiTranscript } : {}),
     ...(overrides.imageSources !== undefined ? { imageSources: overrides.imageSources } : {}),
     versions:
-      overrides.versions ?? [{ content, createdAt: timestamp, subsequentMessages: [] }],
+      overrides.versions ?? [{ content, createdAt: timestamp, kind: 'original' as const, subsequentMessages: [] }],
     currentVersionIndex: overrides.currentVersionIndex ?? 0,
   };
 }

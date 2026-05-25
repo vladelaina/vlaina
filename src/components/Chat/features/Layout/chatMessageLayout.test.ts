@@ -21,7 +21,7 @@ function createMessage(role: ChatMessage['role'], content: string): ChatMessage 
     content,
     modelId: 'model-a',
     timestamp,
-    versions: [{ content, createdAt: timestamp, subsequentMessages: [] }],
+    versions: [{ content, createdAt: timestamp, kind: 'original' as const, subsequentMessages: [] }],
     currentVersionIndex: 0,
   };
 }
@@ -214,8 +214,7 @@ describe('estimateChatMessageHeight', () => {
       content: '## Title\n\nFirst paragraph\n\n- item one\n- item two',
       versions: [{
         content: '## Title\n\nFirst paragraph\n\n- item one\n- item two',
-        createdAt: first.timestamp,
-        subsequentMessages: [],
+        createdAt: first.timestamp, kind: 'original' as const, subsequentMessages: [],
       }],
     };
 
@@ -238,8 +237,7 @@ describe('estimateChatMessageHeight', () => {
       content: '## Title\n\nFirst paragraph\n\n- item one\n- item two\n\n```ts\nconst value = 1;\n```',
       versions: [{
         content: '## Title\n\nFirst paragraph\n\n- item one\n- item two\n\n```ts\nconst value = 1;\n```',
-        createdAt: base.timestamp,
-        subsequentMessages: [],
+        createdAt: base.timestamp, kind: 'original' as const, subsequentMessages: [],
       }],
     };
     const cold = createMessage(

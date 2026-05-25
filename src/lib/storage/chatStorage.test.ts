@@ -39,7 +39,7 @@ describe('chatStorage session message normalization', () => {
       content: 'hello',
       modelId: 'model-1',
       timestamp: 1,
-      versions: [{ content: 'hello', createdAt: 1, subsequentMessages: [] }],
+      versions: [{ content: 'hello', createdAt: 1, kind: 'original' as const, subsequentMessages: [] }],
       currentVersionIndex: 0,
     }]));
 
@@ -111,6 +111,7 @@ describe('chatStorage session message normalization', () => {
         versions: [{
           content: 'original',
           createdAt: 1,
+          kind: 'edit' as const,
           subsequentMessages: [
             { id: 'm2', role: 'assistant', content: 'older answer', modelId: 'model-1', timestamp: 2 },
           ],
@@ -125,7 +126,7 @@ describe('chatStorage session message normalization', () => {
     expect(preserveUnknownPersistedMessages(incoming, persisted).map((message) => message.id)).toEqual(['m1']);
   });
 
-  it('keeps the other window edit as a message version when the same message id changed', () => {
+  it('keeps the preferred message when the same message id changed', () => {
     const incoming = normalizeSessionMessages([
       { id: 'm1', role: 'user', content: 'local edit', modelId: 'model-1', timestamp: 1 },
     ]);
@@ -137,13 +138,10 @@ describe('chatStorage session message normalization', () => {
 
     expect(merged).toHaveLength(1);
     expect(merged[0]?.content).toBe('local edit');
-    expect(merged[0]?.versions.map((version) => version.content)).toEqual([
-      'local edit',
-      'other window edit',
-    ]);
+    expect(merged[0]?.versions.map((version) => version.content)).toEqual(['local edit']);
   });
 
-  it('can prefer the persisted message while still preserving local edits as versions', () => {
+  it('can prefer the persisted message without creating visible versions from local edits', () => {
     const incoming = normalizeSessionMessages([
       { id: 'm1', role: 'user', content: 'local edit', modelId: 'model-1', timestamp: 1 },
     ]);
@@ -155,10 +153,7 @@ describe('chatStorage session message normalization', () => {
 
     expect(merged).toHaveLength(1);
     expect(merged[0]?.content).toBe('other window edit');
-    expect(merged[0]?.versions.map((version) => version.content)).toEqual([
-      'other window edit',
-      'local edit',
-    ]);
+    expect(merged[0]?.versions.map((version) => version.content)).toEqual(['other window edit']);
   });
 
   it('backfills versions for legacy persisted messages', () => {
@@ -183,8 +178,51 @@ describe('chatStorage session message normalization', () => {
     expect(messages[0]?.versions).toEqual([{
       content: 'Legacy answer',
       createdAt: 1,
+      kind: 'original' as const,
       subsequentMessages: [],
       apiTranscript: [{ role: 'assistant', content: 'Legacy answer', reasoning_content: 'hidden' }],
+    }]);
+  });
+
+  it('drops untyped persisted versions instead of exposing storage artifacts as chat choices', () => {
+    const messages = normalizeSessionMessages([{
+      id: 'm1',
+      role: 'assistant',
+      content: 'Current answer',
+      modelId: 'model-1',
+      timestamp: 3,
+      versions: [
+        { content: 'Stream snapshot 1', createdAt: 1, subsequentMessages: [] },
+        { content: 'Stream snapshot 2', createdAt: 2, subsequentMessages: [] },
+      ],
+    }]);
+
+    expect(messages[0]?.versions).toEqual([{
+      content: 'Current answer',
+      createdAt: 3,
+      kind: 'original' as const,
+      subsequentMessages: [],
+    }]);
+  });
+
+  it('drops version kinds that do not match the message role', () => {
+    const messages = normalizeSessionMessages([{
+      id: 'm1',
+      role: 'assistant',
+      content: 'Current answer',
+      modelId: 'model-1',
+      timestamp: 3,
+      versions: [
+        { content: 'Original answer', createdAt: 1, kind: 'original', subsequentMessages: [] },
+        { content: 'Bad edit artifact', createdAt: 2, kind: 'edit', subsequentMessages: [] },
+      ],
+    }]);
+
+    expect(messages[0]?.versions).toEqual([{
+      content: 'Original answer',
+      createdAt: 1,
+      kind: 'original' as const,
+      subsequentMessages: [],
     }]);
   });
 
@@ -199,6 +237,7 @@ describe('chatStorage session message normalization', () => {
       versions: [{
         content: 'Original prompt',
         createdAt: 1,
+        kind: 'edit' as const,
         subsequentMessages: [{
           id: 'a1',
           role: 'assistant',
@@ -218,6 +257,7 @@ describe('chatStorage session message normalization', () => {
       versions: [{
         content: 'Legacy branch answer',
         createdAt: 2,
+        kind: 'original' as const,
         subsequentMessages: [],
       }],
     });

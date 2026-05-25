@@ -72,10 +72,6 @@ export function preserveUnknownPersistedMessages(
   });
 }
 
-function serializeMessageForComparison(message: ChatMessage): string {
-  return JSON.stringify(message);
-}
-
 function serializeVersionForComparison(version: ChatMessage['versions'][number]): string {
   return JSON.stringify(version);
 }
@@ -84,35 +80,10 @@ function createVersionFromMessage(message: ChatMessage): ChatMessage['versions']
   return {
     content: message.content || '',
     createdAt: message.timestamp || Date.now(),
+    kind: 'original',
     subsequentMessages: [],
     ...(message.apiTranscript ? { apiTranscript: message.apiTranscript } : {}),
   };
-}
-
-function mergeMessageVersions(
-  preferred: ChatMessage,
-  secondary: ChatMessage,
-): ChatMessage['versions'] {
-  const versions = getNormalizedMessageVersions(preferred);
-  const seen = new Set(versions.map(serializeVersionForComparison));
-
-  for (const version of getNormalizedMessageVersions(secondary)) {
-    const key = serializeVersionForComparison(version);
-    if (!seen.has(key)) {
-      versions.push(version);
-      seen.add(key);
-    }
-  }
-
-  if (serializeMessageForComparison(preferred) !== serializeMessageForComparison(secondary)) {
-    const secondaryActiveVersion = createVersionFromMessage(secondary);
-    const key = serializeVersionForComparison(secondaryActiveVersion);
-    if (!seen.has(key)) {
-      versions.push(secondaryActiveVersion);
-    }
-  }
-
-  return versions;
 }
 
 function getNormalizedMessageVersions(message: ChatMessage): ChatMessage['versions'] {
@@ -121,8 +92,8 @@ function getNormalizedMessageVersions(message: ChatMessage): ChatMessage['versio
     : [createVersionFromMessage(message)];
 }
 
-function mergeMatchingMessages(preferred: ChatMessage, secondary: ChatMessage): ChatMessage {
-  const versions = mergeMessageVersions(preferred, secondary);
+function mergeMatchingMessages(preferred: ChatMessage): ChatMessage {
+  const versions = getNormalizedMessageVersions(preferred);
   const preferredVersion = createVersionFromMessage(preferred);
   const preferredVersionIndex = versions.findIndex(
     (version) => serializeVersionForComparison(version) === serializeVersionForComparison(preferredVersion)
@@ -156,10 +127,7 @@ export function mergeSessionMessages(
     mergedById.set(
       incoming.id,
       persisted
-        ? mergeMatchingMessages(
-            options.preferredSource === 'persisted' ? persisted : incoming,
-            options.preferredSource === 'persisted' ? incoming : persisted,
-          )
+        ? mergeMatchingMessages(options.preferredSource === 'persisted' ? persisted : incoming)
         : incoming
     );
   }
@@ -188,17 +156,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function normalizeMessageVersion(
   value: unknown,
   fallbackContent: string,
-): ChatMessage['versions'][number] {
+): ChatMessage['versions'][number] | null {
   if (!isRecord(value)) {
-    return {
-      content: fallbackContent,
-      createdAt: Date.now(),
-      subsequentMessages: [],
-    };
+    return null;
   }
 
   const content = typeof value.content === 'string' ? value.content : fallbackContent;
   const createdAt = typeof value.createdAt === 'number' ? value.createdAt : Date.now();
+  const kind = value.kind;
+  if (kind !== 'regeneration' && kind !== 'edit' && kind !== 'original') {
+    return null;
+  }
   const subsequentMessages = Array.isArray(value.subsequentMessages)
     ? normalizeSessionMessages(value.subsequentMessages)
     : [];
@@ -206,9 +174,23 @@ function normalizeMessageVersion(
   return {
     content,
     createdAt,
+    kind,
     subsequentMessages,
     ...(apiTranscript ? { apiTranscript } : {}),
   };
+}
+
+function canRoleUseVersionKind(
+  role: ChatMessage['role'],
+  kind: ChatMessage['versions'][number]['kind'],
+): boolean {
+  if (role === 'assistant') {
+    return kind === 'original' || kind === 'regeneration';
+  }
+  if (role === 'user') {
+    return kind === 'original' || kind === 'edit';
+  }
+  return kind === 'original';
 }
 
 function normalizeSessionMessage(value: unknown): ChatMessage | null {
@@ -225,13 +207,18 @@ function normalizeSessionMessage(value: unknown): ChatMessage | null {
   const content = typeof value.content === 'string' ? value.content : '';
   const timestamp = typeof value.timestamp === 'number' ? value.timestamp : now;
   const versions = Array.isArray(value.versions)
-    ? value.versions.map((version) => normalizeMessageVersion(version, content))
+    ? value.versions
+        .map((version) => normalizeMessageVersion(version, content))
+        .filter((version): version is ChatMessage['versions'][number] =>
+          version !== null && canRoleUseVersionKind(role, version.kind)
+        )
     : [];
-  const normalizedVersions = versions.length > 0
+  const normalizedVersions: ChatMessage['versions'] = versions.length > 0
     ? versions
     : [{
         content,
         createdAt: timestamp,
+        kind: 'original',
         subsequentMessages: [],
       }];
   const rawCurrentVersionIndex = typeof value.currentVersionIndex === 'number'

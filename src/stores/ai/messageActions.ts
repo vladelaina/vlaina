@@ -11,11 +11,17 @@ import { extractMessageImageSources } from '@/components/Chat/common/messageClip
 import { useUnifiedStore } from '../unified/useUnifiedStore'
 import { useAIUIStore } from './chatState'
 
-function createMessageVersion(content: string, createdAt: number, apiTranscript?: ApiTranscriptMessage[]): MessageVersion {
+function createMessageVersion(
+  content: string,
+  createdAt: number,
+  kind: MessageVersion['kind'],
+  apiTranscript?: ApiTranscriptMessage[],
+): MessageVersion {
   const normalizedApiTranscript = normalizeApiTranscriptMessages(apiTranscript)
   return {
     content,
     createdAt,
+    kind,
     subsequentMessages: [],
     ...(normalizedApiTranscript ? { apiTranscript: normalizedApiTranscript } : {})
   }
@@ -26,12 +32,22 @@ function getSafeMessageVersions(message: ChatMessage): MessageVersion[] {
     return [...message.versions]
   }
 
-  return [createMessageVersion(message.content || '', message.timestamp || Date.now(), message.apiTranscript)]
+  return [createMessageVersion(message.content || '', message.timestamp || Date.now(), 'original', message.apiTranscript)]
 }
 
 function getSafeCurrentVersionIndex(message: ChatMessage, versions: MessageVersion[]): number {
   const index = Number.isInteger(message.currentVersionIndex) ? message.currentVersionIndex : 0
   return index >= 0 && index < versions.length ? index : 0
+}
+
+function canMessageUseVersionKind(message: ChatMessage, kind: MessageVersion['kind']): boolean {
+  if (message.role === 'assistant') {
+    return kind === 'original' || kind === 'regeneration'
+  }
+  if (message.role === 'user') {
+    return kind === 'original' || kind === 'edit'
+  }
+  return kind === 'original'
 }
 
 interface AddMessageOptions {
@@ -115,7 +131,7 @@ export function createMessageActions() {
             : message.imageSources,
         id: message.id || generateId('msg-'),
         timestamp: createdAt,
-        versions: [createMessageVersion(message.content || '', createdAt, message.apiTranscript)],
+        versions: [createMessageVersion(message.content || '', createdAt, 'original', message.apiTranscript)],
         currentVersionIndex: 0
       }
 
@@ -234,12 +250,15 @@ export function createMessageActions() {
       if (!targetSessionId) return
 
       const sessionMessages = ai.messages[targetSessionId] || []
+      let didAddVersion = false
       const newMessages = sessionMessages.map((message) => {
         if (message.id !== id) return message
+        if (message.role !== 'assistant') return message
 
         const versions = getSafeMessageVersions(message)
-        versions.push(createMessageVersion('', Date.now()))
+        versions.push(createMessageVersion('', Date.now(), 'regeneration'))
         const limited = limitMessageVersions(versions, versions.length - 1)
+        didAddVersion = true
 
         return {
           ...message,
@@ -249,6 +268,8 @@ export function createMessageActions() {
           currentVersionIndex: limited.currentVersionIndex
         }
       })
+
+      if (!didAddVersion) return
 
       state.updateAIData({
         messages: {
@@ -270,6 +291,8 @@ export function createMessageActions() {
       if (index === -1) return
 
       const targetMessage = messages[index]
+      if (targetMessage.role !== 'user') return
+
       const futureMessages = pruneVersionBranchMessages(messages.slice(index + 1))
 
       const versions = getSafeMessageVersions(targetMessage)
@@ -279,7 +302,7 @@ export function createMessageActions() {
         ...versions[currentVersionIndex],
         subsequentMessages: futureMessages
       }
-      versions.push(createMessageVersion(newContent, Date.now()))
+      versions.push(createMessageVersion(newContent, Date.now(), 'edit'))
       const limited = limitMessageVersions(versions, versions.length - 1)
 
       const newMessages = messages.slice(0, index + 1)
@@ -310,7 +333,9 @@ export function createMessageActions() {
 
       const targetMessage = messages[index]
       const versions = getSafeMessageVersions(targetMessage)
-      if (!versions[targetIndex]) return
+      const targetVersion = versions[targetIndex]
+      if (!targetVersion) return
+      if (!canMessageUseVersionKind(targetMessage, targetVersion.kind)) return
 
       const currentVersionIndex = getSafeCurrentVersionIndex(targetMessage, versions)
       if (currentVersionIndex === targetIndex) return
@@ -321,14 +346,14 @@ export function createMessageActions() {
         subsequentMessages: futureMessages
       }
 
-      const restoredFuture = pruneVersionBranchMessages(versions[targetIndex].subsequentMessages || [])
+      const restoredFuture = pruneVersionBranchMessages(targetVersion.subsequentMessages || [])
       const limited = limitMessageVersions(versions, targetIndex)
       const newMessages = messages.slice(0, index + 1)
       newMessages[index] = {
         ...targetMessage,
-        content: versions[targetIndex].content,
-        apiTranscript: versions[targetIndex].apiTranscript,
-        imageSources: extractMessageImageSources(versions[targetIndex].content),
+        content: targetVersion.content,
+        apiTranscript: targetVersion.apiTranscript,
+        imageSources: extractMessageImageSources(targetVersion.content),
         currentVersionIndex: limited.currentVersionIndex,
         versions: limited.versions
       }

@@ -37,7 +37,7 @@ function createSystemMessage(content: string, modelId: string): ChatMessage {
     content,
     modelId,
     timestamp: now,
-    versions: [{ content, createdAt: now, subsequentMessages: [] }],
+    versions: [{ content, createdAt: now, kind: 'original', subsequentMessages: [] }],
     currentVersionIndex: 0,
   };
 }

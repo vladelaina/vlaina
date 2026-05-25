@@ -71,6 +71,7 @@ export interface ChatSession {
 export interface MessageVersion {
     content: string;
     createdAt: number;
+    kind: 'original' | 'regeneration' | 'edit';
     subsequentMessages: ChatMessage[]; 
     apiTranscript?: ApiTranscriptMessage[];
 }

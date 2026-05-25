@@ -69,7 +69,7 @@ function createMessage(content: string): ChatMessage {
     content,
     modelId: "model-a",
     timestamp,
-    versions: [{ content, createdAt: timestamp, subsequentMessages: [] }],
+    versions: [{ content, createdAt: timestamp, kind: 'original' as const, subsequentMessages: [] }],
     currentVersionIndex: 0,
   };
 }

@@ -21,7 +21,7 @@ function createMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
     timestamp,
     ...(overrides.imageSources !== undefined ? { imageSources: overrides.imageSources } : {}),
     versions:
-      overrides.versions ?? [{ content, createdAt: timestamp, subsequentMessages: [] }],
+      overrides.versions ?? [{ content, createdAt: timestamp, kind: "original", subsequentMessages: [] }],
     currentVersionIndex: overrides.currentVersionIndex ?? 0,
   };
 }
@@ -109,9 +109,9 @@ describe("MessageToolbar", () => {
         msg={createMessage({
           content: "v2",
           versions: [
-            { content: "v1", createdAt: 1, subsequentMessages: [] },
-            { content: "v2", createdAt: 2, subsequentMessages: [] },
-            { content: "v3", createdAt: 3, subsequentMessages: [] },
+            { content: "v1", createdAt: 1, kind: "original", subsequentMessages: [] },
+            { content: "v2", createdAt: 2, kind: "regeneration", subsequentMessages: [] },
+            { content: "v3", createdAt: 3, kind: "regeneration", subsequentMessages: [] },
           ],
           currentVersionIndex: 1,
         })}
@@ -137,8 +137,8 @@ describe("MessageToolbar", () => {
       <MessageToolbar
         msg={createMessage({
           versions: [
-            { content: "v1", createdAt: 1, subsequentMessages: [] },
-            { content: "v2", createdAt: 2, subsequentMessages: [] },
+            { content: "v1", createdAt: 1, kind: "original", subsequentMessages: [] },
+            { content: "v2", createdAt: 2, kind: "regeneration", subsequentMessages: [] },
           ],
           currentVersionIndex: 0,
         })}
@@ -152,5 +152,26 @@ describe("MessageToolbar", () => {
     const buttons = screen.getAllByRole("button");
     expect(buttons[0]).toBeDisabled();
     expect(buttons[1]).not.toBeDisabled();
+  });
+
+  it("does not show version navigation for untyped storage artifacts", () => {
+    render(
+      <MessageToolbar
+        msg={createMessage({
+          versions: [
+            { content: "sync snapshot 1", createdAt: 1, subsequentMessages: [] },
+            { content: "sync snapshot 2", createdAt: 2, subsequentMessages: [] },
+          ] as unknown as ChatMessage["versions"],
+          currentVersionIndex: 0,
+        })}
+        isLoading={false}
+        onCopy={() => {}}
+        onRegenerate={() => {}}
+        onSwitchVersion={() => {}}
+      />,
+    );
+
+    expect(screen.queryByText("1/2")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toHaveLength(2);
   });
 });

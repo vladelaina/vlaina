@@ -4,6 +4,7 @@ import { cn, iconButtonStyles } from '@/lib/utils';
 import type { ChatMessage } from '@/lib/ai/types';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { subscribeChatMessageCopied } from '@/components/Chat/common/copyFeedback';
+import { MessageVersionNavigator } from './MessageVersionNavigator';
 
 const COPY_FEEDBACK_DURATION_MS = 1200;
 const COPY_FEEDBACK_CLOSING_MS = 160;
@@ -11,6 +12,10 @@ const sidebarTextIconButtonClass =
   "text-[var(--chat-sidebar-text)] hover:text-[var(--chat-sidebar-text)]";
 
 type CopyFeedbackSource = 'manual' | 'shortcut' | null;
+
+function isSwitchableAssistantVersion(version: ChatMessage['versions'][number]): boolean {
+  return version.kind === 'original' || version.kind === 'regeneration';
+}
 
 interface MessageToolbarProps {
   msg: ChatMessage;
@@ -36,8 +41,12 @@ export const MessageToolbar = memo(function MessageToolbar({
   const closingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const versions = msg.versions;
   const currentIndex = msg.currentVersionIndex;
-  const currentVer = currentIndex + 1;
-  const totalVer = versions.length;
+  const switchableVersionIndexes = versions
+    .map((version, index) => isSwitchableAssistantVersion(version) ? index : -1)
+    .filter((index) => index >= 0);
+  const currentSwitchableIndex = switchableVersionIndexes.indexOf(currentIndex);
+  const currentVer = currentSwitchableIndex + 1;
+  const totalVer = switchableVersionIndexes.length;
 
   const triggerCopiedState = useCallback((source: CopyFeedbackSource) => {
       setIsCopied(true);
@@ -119,12 +128,22 @@ export const MessageToolbar = memo(function MessageToolbar({
           )}
         >
             
-            {totalVer > 1 && (
-                <div className={cn("flex items-center text-xs font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-200 transition-colors mr-2", secondaryActionClass)}>
-                    <button onClick={() => onSwitchVersion(currentIndex - 1)} disabled={currentIndex <= 0} className={cn("p-1 disabled:opacity-30 hover:bg-black/5 dark:hover:bg-white/5 rounded", iconButtonStyles)}><Icon name="nav.chevronLeft" size="md"/></button>
-                    <span className="mx-1 font-mono">{currentVer}/{totalVer}</span>
-                    <button onClick={() => onSwitchVersion(currentIndex + 1)} disabled={currentIndex >= totalVer - 1} className={cn("p-1 disabled:opacity-30 hover:bg-black/5 dark:hover:bg-white/5 rounded", iconButtonStyles)}><Icon name="nav.chevronRight" size="md"/></button>
-                </div>
+            {totalVer > 1 && currentSwitchableIndex >= 0 && (
+                <MessageVersionNavigator
+                  current={currentVer}
+                  total={totalVer}
+                  previousDisabled={currentSwitchableIndex <= 0}
+                  nextDisabled={currentSwitchableIndex >= totalVer - 1}
+                  onPrevious={() => {
+                    const previousIndex = switchableVersionIndexes[currentSwitchableIndex - 1];
+                    if (previousIndex !== undefined) onSwitchVersion(previousIndex);
+                  }}
+                  onNext={() => {
+                    const nextIndex = switchableVersionIndexes[currentSwitchableIndex + 1];
+                    if (nextIndex !== undefined) onSwitchVersion(nextIndex);
+                  }}
+                  className={cn('mr-2', secondaryActionClass)}
+                />
             )}
             
             <button 

@@ -29,6 +29,7 @@ function createMessage(id: string, content: string): ChatMessage {
     versions: [{
       content,
       createdAt: 1,
+      kind: 'original' as const,
       subsequentMessages: [],
     }],
     currentVersionIndex: 0,
@@ -74,7 +75,7 @@ describe('sessionConsistency', () => {
     const messages = await reloadSessionMessagesFromDisk('session-1');
 
     expect(messages[0]?.content).toBe('external');
-    expect(messages[0]?.versions.map((version) => version.content)).toEqual(['external', 'local']);
+    expect(messages[0]?.versions.map((version) => version.content)).toEqual(['external']);
     expect(useUnifiedStore.getState().data.ai?.messages['session-1']?.[0]?.content).toBe('external');
   });
 
@@ -85,7 +86,7 @@ describe('sessionConsistency', () => {
     const messages = await reloadSessionMessagesFromDisk('session-1');
 
     expect(messages[0]?.content).toBe('local');
-    expect(messages[0]?.versions.map((version) => version.content)).toEqual(['local', 'external']);
+    expect(messages[0]?.versions.map((version) => version.content)).toEqual(['local']);
     expect(useUnifiedStore.getState().data.ai?.messages['session-1']?.[0]?.content).toBe('local');
   });
 });
