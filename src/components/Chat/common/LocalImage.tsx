@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type CSSProperties } from 'react';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { cn } from '@/lib/utils';
 import { translate } from '@/lib/i18n';
@@ -7,7 +7,9 @@ interface LocalImageProps {
     src: string;
     alt?: string;
     className?: string;
+    'data-vlaina-crop'?: string;
     onClick?: () => void;
+    style?: CSSProperties;
 }
 
 function inferMimeTypeFromFilename(filename: string): string {
@@ -93,7 +95,7 @@ function uint8ArrayToBase64(data: Uint8Array): string {
     return window.btoa(binary);
 }
 
-export function LocalImage({ src, alt, className, onClick }: LocalImageProps) {
+export function LocalImage({ src, alt, className, onClick, style, 'data-vlaina-crop': dataVlainaCrop }: LocalImageProps) {
     const [displaySrc, setDisplaySrc] = useState<string | null>(null);
     const [error, setError] = useState(false);
 
@@ -164,6 +166,8 @@ export function LocalImage({ src, alt, className, onClick }: LocalImageProps) {
             className={cn(className, onClick && 'cursor-pointer')} 
             onClick={onClick}
             onError={() => setError(true)}
+            style={style}
+            data-vlaina-crop={dataVlainaCrop}
         />
     );
 }

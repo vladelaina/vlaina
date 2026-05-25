@@ -10,7 +10,8 @@ import ReactMarkdown from "react-markdown";
 import {
   CHAT_MARKDOWN_REHYPE_PLUGINS,
   CHAT_MARKDOWN_REMARK_PLUGINS,
-} from "@/components/Chat/features/Markdown/markdownPipeline";
+} from "@/components/common/markdown/markdownPipeline";
+import { readonlyMarkdownUrlTransform } from "@/components/common/markdown/urlTransform";
 import { createMarkdownComponents } from "@/components/Chat/features/Markdown/markdownRendererComponents";
 import { useChatStreamBlocks } from "@/components/Chat/features/Markdown/chatStreamTextAnimation";
 import { createChatStreamTextPlugin } from "@/components/Chat/features/Markdown/chatStreamTextPlugin";
@@ -79,6 +80,7 @@ const ThinkingMarkdownContent = memo(function ThinkingMarkdownContent({
         remarkPlugins={CHAT_MARKDOWN_REMARK_PLUGINS}
         rehypePlugins={CHAT_MARKDOWN_REHYPE_PLUGINS}
         components={components}
+        urlTransform={readonlyMarkdownUrlTransform}
       >
         {renderedThinking}
       </ReactMarkdown>
@@ -101,6 +103,7 @@ const ThinkingMarkdownContent = memo(function ThinkingMarkdownContent({
             }],
           ]}
           components={components}
+          urlTransform={readonlyMarkdownUrlTransform}
         >
           {block.content}
         </ReactMarkdown>

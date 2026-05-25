@@ -1,7 +1,8 @@
 import { $mark, $remark, $inputRule } from '@milkdown/kit/utils';
 import { InputRule } from '@milkdown/kit/prose/inputrules';
 import { escapeMarkdownHtmlText } from '@/lib/notes/markdown/markdownHtmlText';
-import { remarkInlineColorHtmlPlugin, sanitizeCssColorValue, type MdastNode } from './colorMarkdownHtml';
+import { remarkUnderline } from '@/components/common/markdown/colorMarkdown';
+import { remarkInlineColorHtmlPlugin, sanitizeCssColorValue } from './colorMarkdownHtml';
 
 type UndoableInputRule = InputRule & { undoable?: boolean };
 
@@ -181,61 +182,6 @@ export const underlineInputRule = $inputRule(() => {
   (rule as UndoableInputRule).undoable = false;
   return rule;
 });
-function remarkUnderline() {
-  const UNDERLINE_REGEX = /\+\+([^+]+)\+\+/g;
-  
-  function visitNode(node: MdastNode, parent?: MdastNode, index?: number): void {
-    if (node.children) {
-      for (let i = node.children.length - 1; i >= 0; i--) {
-        visitNode(node.children[i], node, i);
-      }
-    }
-
-    if (node.type !== 'text' || !node.value || !parent || index === undefined) return;
-
-    const value = node.value;
-    const matches: Array<{ start: number; end: number; content: string }> = [];
-    let match;
-
-    UNDERLINE_REGEX.lastIndex = 0;
-
-    while ((match = UNDERLINE_REGEX.exec(value)) !== null) {
-      matches.push({
-        start: match.index,
-        end: match.index + match[0].length,
-        content: match[1],
-      });
-    }
-
-    if (matches.length === 0) return;
-
-    const newNodes: MdastNode[] = [];
-    let lastEnd = 0;
-
-    for (const m of matches) {
-      if (m.start > lastEnd) {
-        newNodes.push({ type: 'text', value: value.slice(lastEnd, m.start) });
-      }
-      newNodes.push({
-        type: 'underline',
-        children: [{ type: 'text', value: m.content }],
-      });
-      lastEnd = m.end;
-    }
-
-    if (lastEnd < value.length) {
-      newNodes.push({ type: 'text', value: value.slice(lastEnd) });
-    }
-
-    if (parent.children) {
-      parent.children.splice(index, 1, ...newNodes);
-    }
-  }
-
-  return (tree: any) => {
-    visitNode(tree);
-  };
-}
 export const remarkUnderlinePlugin = $remark('remarkUnderline', () => remarkUnderline);
 export const colorMarksPlugin = [
   remarkInlineColorHtmlPlugin,
