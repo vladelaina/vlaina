@@ -8,6 +8,7 @@ import { cn, iconButtonStyles } from "@/lib/utils";
 import { copyImageSourceToClipboard } from "@/components/Chat/common/messageClipboard";
 import { downloadImageWithPrompt } from "@/components/Chat/common/imageDownload";
 import { useI18n } from "@/lib/i18n";
+import { convertToBase64, type Attachment } from "@/lib/storage/attachmentStorage";
 
 interface ChatImageViewerProps {
   open: boolean;
@@ -21,6 +22,8 @@ interface ChatImageViewerProps {
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 5;
 const ZOOM_STEP = 0.12;
+const TRANSPARENT_IMAGE_DATA_URL =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
 
 async function copyImageOrUrl(src: string): Promise<boolean> {
   const copied = await copyImageSourceToClipboard(src);
@@ -49,6 +52,40 @@ function normalizeComparableSrc(value: string): string {
   }
 }
 
+function requiresAttachmentResolution(src: string): boolean {
+  const trimmed = src.trim();
+  return trimmed.startsWith("attachment://") || trimmed.startsWith("app-file://attachment/");
+}
+
+function inferAttachmentMimeType(src: string): string {
+  const normalized = src.trim().toLowerCase().split(/[?#]/)[0] ?? "";
+  if (normalized.endsWith(".png")) return "image/png";
+  if (normalized.endsWith(".jpg") || normalized.endsWith(".jpeg")) return "image/jpeg";
+  if (normalized.endsWith(".webp")) return "image/webp";
+  if (normalized.endsWith(".gif")) return "image/gif";
+  if (normalized.endsWith(".avif")) return "image/avif";
+  if (normalized.endsWith(".bmp")) return "image/bmp";
+  if (normalized.endsWith(".svg")) return "image/svg+xml";
+  return "image/*";
+}
+
+async function resolveViewerImageSource(src: string): Promise<string> {
+  if (!requiresAttachmentResolution(src)) {
+    return src;
+  }
+
+  const attachment: Attachment = {
+    id: "viewer-image",
+    path: "",
+    previewUrl: src,
+    assetUrl: src,
+    name: "image",
+    type: inferAttachmentMimeType(src),
+    size: 0,
+  };
+  return convertToBase64(attachment);
+}
+
 export function ChatImageViewer({
   open,
   src,
@@ -66,6 +103,7 @@ export function ChatImageViewer({
   const [imageSize, setImageSize] = useState<{ width: number; height: number } | null>(null);
   const [viewportSize, setViewportSize] = useState({ width: 1440, height: 900 });
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(-1);
+  const [resolvedActiveSrc, setResolvedActiveSrc] = useState(src);
 
   const galleryIndex = useMemo(() => {
     if (!gallery || gallery.length === 0) {
@@ -97,6 +135,35 @@ export function ChatImageViewer({
   const canNavigate = !!gallery && gallery.length > 1 && activeGalleryIndex >= 0;
   const hasPrevious = canNavigate && activeGalleryIndex > 0;
   const hasNext = canNavigate && activeGalleryIndex < gallery.length - 1;
+  const cropperImageSrc =
+    requiresAttachmentResolution(activeSrc) && resolvedActiveSrc === activeSrc
+      ? TRANSPARENT_IMAGE_DATA_URL
+      : resolvedActiveSrc;
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    let active = true;
+    setResolvedActiveSrc(activeSrc);
+
+    resolveViewerImageSource(activeSrc)
+      .then((resolvedSrc) => {
+        if (active) {
+          setResolvedActiveSrc(resolvedSrc);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setResolvedActiveSrc(activeSrc);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [activeSrc, open]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -149,11 +216,11 @@ export function ChatImageViewer({
       setAspectRatio(1);
       setImageSize(null);
     };
-    image.src = activeSrc;
+    image.src = cropperImageSrc;
     return () => {
       active = false;
     };
-  }, [activeSrc, open]);
+  }, [cropperImageSrc, open]);
 
   useEffect(() => {
     if (!open || typeof window === "undefined") {
@@ -252,7 +319,7 @@ export function ChatImageViewer({
 
   const handleCopy = async () => {
     try {
-      setCopied(await copyImageOrUrl(activeSrc));
+      setCopied(await copyImageOrUrl(resolvedActiveSrc));
     } catch {
       setCopied(false);
     }
@@ -264,7 +331,12 @@ export function ChatImageViewer({
 
   return createPortal(
     <>
-      <BlurBackdrop className="pointer-events-none" zIndex={120} />
+      <BlurBackdrop
+        className="pointer-events-none"
+        zIndex={120}
+        duration={0.05}
+        blurPx={6}
+      />
       <div
         role="dialog"
         aria-modal="true"
@@ -283,9 +355,9 @@ export function ChatImageViewer({
           aria-label={t('chat.closePreview')}
           data-no-focus-input="true"
           className={cn(
-            "absolute right-4 top-4 z-10 rounded-full bg-black/45 p-1.5 text-white/90 backdrop-blur-sm hover:bg-black/55 hover:text-white",
-            iconButtonStyles,
-            "text-white/90 hover:text-white"
+            "absolute right-12 top-12 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-950",
+            "dark:text-zinc-500 dark:hover:bg-zinc-100 dark:hover:text-zinc-950",
+            iconButtonStyles
           )}
           onClick={(event) => {
             event.stopPropagation();
@@ -338,7 +410,7 @@ export function ChatImageViewer({
         <div className="relative h-full w-full">
           <div className="absolute inset-0">
             <Cropper
-              image={activeSrc}
+              image={cropperImageSrc}
               crop={crop}
               zoom={zoom}
               minZoom={previewMetrics.minZoom}
@@ -429,7 +501,7 @@ export function ChatImageViewer({
                   iconButtonStyles
                 )}
                 onClick={() => {
-                  void downloadImageWithPrompt(activeSrc, activeAlt);
+                  void downloadImageWithPrompt(resolvedActiveSrc, activeAlt);
                 }}
               >
                 <Icon name="common.download" size="md" />

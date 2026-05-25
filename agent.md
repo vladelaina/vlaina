@@ -71,6 +71,7 @@ Verification:
 - Fix production code when the test exposes broken behavior. Update tests when the intended behavior changed and the old expectation is stale.
 - Do not add compatibility hacks, preserve obsolete behavior, or make production code worse only to satisfy an outdated test.
 - Do not run type checks by default. Run them only when type/API risk is high or the user asks.
+- Do not run the full local test suite by default. Full-suite coverage belongs to GitHub Actions; locally, run only the tests directly relevant to the changed code unless the user explicitly asks for a broader run.
 
 ---
 
