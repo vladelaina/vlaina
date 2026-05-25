@@ -13,6 +13,7 @@ import { bindDesktopAuthLoopbackServer } from './accountLoopbackServer.mjs';
 import { createDesktopAccountSessionClient } from './accountSessionClient.mjs';
 
 const { shell } = electron;
+const accountNetworkRetryDelaysMs = [250, 750];
 
 function accountErrorResult(message) {
   return {
@@ -33,12 +34,52 @@ function getErrorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function accountNetworkErrorResult(error) {
   return accountErrorResult(`Unable to reach vlaina API: ${getErrorMessage(error)}`);
 }
 
 function isSecureStorageUnavailableError(error) {
   return /system secure storage is unavailable/i.test(getErrorMessage(error));
+}
+
+function isTransientAccountNetworkError(error) {
+  const message = getErrorMessage(error).toLowerCase();
+  if (error?.name === 'AbortError') {
+    return false;
+  }
+  return (
+    error instanceof TypeError ||
+    message.includes('failed to fetch') ||
+    message.includes('fetch failed') ||
+    message.includes('networkerror') ||
+    message.includes('network request failed') ||
+    message.includes('load failed') ||
+    message.includes('socket hang up') ||
+    message.includes('econnreset') ||
+    message.includes('econnrefused') ||
+    message.includes('enotfound') ||
+    message.includes('etimedout')
+  );
+}
+
+async function retryTransientAccountNetworkError(operation) {
+  let lastError;
+  for (let attempt = 0; attempt <= accountNetworkRetryDelaysMs.length; attempt += 1) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (!isTransientAccountNetworkError(error) || attempt >= accountNetworkRetryDelaysMs.length) {
+        throw error;
+      }
+      await delay(accountNetworkRetryDelaysMs[attempt]);
+    }
+  }
+  throw lastError;
 }
 
 export function createDesktopAccountService({ apiBaseUrl }) {
@@ -81,18 +122,20 @@ export function createDesktopAccountService({ apiBaseUrl }) {
   }
 
   async function requestDesktopAuthResult(provider, state, verifier, resultToken) {
-    const { data } = await fetchDesktopJson(buildDesktopAuthResultUrl(provider), {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        state,
-        verifier,
-        resultToken,
-      }),
-    });
+    const { data } = await retryTransientAccountNetworkError(() =>
+      fetchDesktopJson(buildDesktopAuthResultUrl(provider), {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          state,
+          verifier,
+          resultToken,
+        }),
+      })
+    );
     return data;
   }
 
@@ -142,18 +185,20 @@ export function createDesktopAccountService({ apiBaseUrl }) {
       });
       flow.loopback = loopback;
 
-      const { data: authStart } = await fetchDesktopJson(buildDesktopAuthStartUrl(provider), {
-        method: 'POST',
-        signal: abortController.signal,
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          callbackUrl: loopback.callbackUrl,
-          verifier,
-        }),
-      });
+      const { data: authStart } = await retryTransientAccountNetworkError(() =>
+        fetchDesktopJson(buildDesktopAuthStartUrl(provider), {
+          method: 'POST',
+          signal: abortController.signal,
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            callbackUrl: loopback.callbackUrl,
+            verifier,
+          }),
+        })
+      );
 
       const state = typeof authStart?.state === 'string' ? authStart.state.trim() : '';
       const authUrl = typeof authStart?.authUrl === 'string' ? authStart.authUrl.trim() : '';
@@ -237,33 +282,42 @@ export function createDesktopAccountService({ apiBaseUrl }) {
     });
 
     handleIpc('desktop:account:request-email-code', async (_event, email) => {
-      const response = await fetch(`${apiBaseUrl}/auth/email/request-code`, {
-        method: 'POST',
-        cache: 'no-store',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      });
+      const response = await retryTransientAccountNetworkError(() =>
+        fetch(`${apiBaseUrl}/auth/email/request-code`, {
+          method: 'POST',
+          cache: 'no-store',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email }),
+        })
+      );
 
       await readJsonResponse(response, `Failed to send verification code: HTTP ${response.status}`);
       return true;
     });
 
     handleIpc('desktop:account:verify-email-code', async (_event, email, code) => {
-      const { data } = await fetchDesktopJson(`${apiBaseUrl}/auth/email/verify-code`, {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          code,
-          target: 'desktop',
-        }),
-      });
+      let data;
+      try {
+        ({ data } = await retryTransientAccountNetworkError(() =>
+          fetchDesktopJson(`${apiBaseUrl}/auth/email/verify-code`, {
+            method: 'POST',
+            headers: {
+              Accept: 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email,
+              code,
+              target: 'desktop',
+            }),
+          })
+        ));
+      } catch (error) {
+        return accountErrorResult(getErrorMessage(error));
+      }
 
       if (!data?.success) {
         return accountErrorResult(data?.error || 'Email sign-in failed');

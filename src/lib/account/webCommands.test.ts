@@ -16,6 +16,7 @@ describe('webAccountCommands', () => {
   afterEach(() => {
     localStorage.clear();
     sessionStorage.clear();
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -144,6 +145,32 @@ describe('webAccountCommands', () => {
       'Web sign-in is unavailable on local development origins. Use vlaina.com/pricing or the desktop app.'
     );
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('retries transient email-code network failures before surfacing an error', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce({ ok: true, status: 200 });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const request = webAccountCommands.requestEmailCode('octocat@example.com');
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect(request).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry email-code business errors', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: vi.fn().mockResolvedValue({ error: 'Invalid email address' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(webAccountCommands.requestEmailCode('octocat@example.com')).rejects.toThrow('Invalid email address');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('revokes the cookie session before clearing client metadata', async () => {
