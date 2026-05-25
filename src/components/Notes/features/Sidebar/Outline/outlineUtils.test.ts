@@ -26,18 +26,18 @@ describe('outlineUtils', () => {
 
   it('compares outline arrays by semantic fields', () => {
     const left = [
-      { id: 'a', level: 1, text: 'A' },
-      { id: 'b', level: 2, text: 'B' },
+      { id: 'a', level: 1, text: 'A', from: 0, to: 3 },
+      { id: 'b', level: 2, text: 'B', from: 4, to: 7 },
     ];
 
     const right = [
-      { id: 'a', level: 1, text: 'A' },
-      { id: 'b', level: 2, text: 'B' },
+      { id: 'a', level: 1, text: 'A', from: 0, to: 3 },
+      { id: 'b', level: 2, text: 'B', from: 4, to: 7 },
     ];
 
     const changed = [
-      { id: 'a', level: 1, text: 'A1' },
-      { id: 'b', level: 2, text: 'B' },
+      { id: 'a', level: 1, text: 'A1', from: 0, to: 4 },
+      { id: 'b', level: 2, text: 'B', from: 5, to: 8 },
     ];
 
     expect(areOutlineHeadingsEqual(left, right)).toBe(true);

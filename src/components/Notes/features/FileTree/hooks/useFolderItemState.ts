@@ -8,6 +8,7 @@ import { useFolderDropTarget } from './useFolderDropTarget';
 
 const INTERNAL_FOLDER_AUTO_EXPAND_DELAY_MS = 120;
 const EXTERNAL_FOLDER_AUTO_EXPAND_DELAY_MS = 560;
+const RENAMEABLE_ROW_CLICK_DELAY_MS = 180;
 
 export function useFolderItemState(node: FolderNode, dragEnabled = true) {
   const toggleFolder = useNotesStore((state) => state.toggleFolder);
@@ -46,6 +47,16 @@ export function useFolderItemState(node: FolderNode, dragEnabled = true) {
     ? INTERNAL_FOLDER_AUTO_EXPAND_DELAY_MS
     : EXTERNAL_FOLDER_AUTO_EXPAND_DELAY_MS;
   const autoExpandTimeoutRef = useRef<number | null>(null);
+  const clickTimerRef = useRef<number | null>(null);
+
+  const cancelPendingClick = useCallback(() => {
+    if (clickTimerRef.current !== null) {
+      window.clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => cancelPendingClick, [cancelPendingClick]);
 
   useEffect(() => {
     if (node.path !== newlyCreatedFolderPath) return;
@@ -81,9 +92,13 @@ export function useFolderItemState(node: FolderNode, dragEnabled = true) {
   const handleClick = useCallback(
     (event: React.MouseEvent) => {
       event.stopPropagation();
-      toggleFolder(node.path);
+      cancelPendingClick();
+      clickTimerRef.current = window.setTimeout(() => {
+        clickTimerRef.current = null;
+        toggleFolder(node.path);
+      }, RENAMEABLE_ROW_CLICK_DELAY_MS);
     },
-    [node.path, toggleFolder]
+    [cancelPendingClick, node.path, toggleFolder]
   );
 
   const handleRenameSubmit = useCallback(async () => {
@@ -109,6 +124,7 @@ export function useFolderItemState(node: FolderNode, dragEnabled = true) {
     handleClick,
     handleContextMenu,
     handleMenuTrigger,
+    cancelPendingClick,
     handleRenameSubmit,
     dragHandlers: dragSourceHandlers,
     createNote,

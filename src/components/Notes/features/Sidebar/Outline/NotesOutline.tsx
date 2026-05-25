@@ -6,6 +6,7 @@ import {
   getSidebarSoftTextClass,
   SIDEBAR_LABEL_TEXT_METRICS_CLASS,
 } from '@/components/layout/sidebar/sidebarLabelStyles';
+import { SidebarInlineRenameInput } from '@/components/layout/sidebar/SidebarInlineRenameInput';
 import { useNotesOutline } from './useNotesOutline';
 import { CollapseTriangleAffordance } from '../../common/collapseTrianglePrimitive';
 import {
@@ -32,12 +33,17 @@ interface NotesOutlineProps {
   isPeeking?: boolean;
 }
 
+const OUTLINE_CLICK_DELAY_MS = 180;
+
 export function NotesOutline({ enabled, className, isPeeking = false }: NotesOutlineProps) {
   const { t } = useI18n();
-  const { headings, activeId, jumpToHeading } = useNotesOutline(enabled);
+  const { headings, activeId, jumpToHeading, renameHeading } = useNotesOutline(enabled);
   const [collapsedHeadingIds, setCollapsedHeadingIds] = useState<Set<string>>(() => new Set());
+  const [renamingHeadingId, setRenamingHeadingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   const sidebarRootRef = useRef<HTMLDivElement | null>(null);
   const scrollRootRef = useRef<HTMLDivElement | null>(null);
+  const clickTimerRef = useRef<number | null>(null);
 
   useHeldPageScroll(scrollRootRef, {
     scopeRef: sidebarRootRef,
@@ -58,6 +64,41 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
     setCollapsedHeadingIds((previous) => toggleCollapsedHeadingId(previous, headingId));
   }, []);
 
+  const cancelPendingClick = useCallback(() => {
+    if (clickTimerRef.current !== null) {
+      window.clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => cancelPendingClick(), [cancelPendingClick]);
+
+  const scheduleJumpToHeading = useCallback((headingId: string) => {
+    cancelPendingClick();
+    clickTimerRef.current = window.setTimeout(() => {
+      clickTimerRef.current = null;
+      jumpToHeading(headingId);
+    }, OUTLINE_CLICK_DELAY_MS);
+  }, [cancelPendingClick, jumpToHeading]);
+
+  const startRenameHeading = useCallback((heading: OutlineTreeNode) => {
+    cancelPendingClick();
+    setRenamingHeadingId(heading.id);
+    setRenameValue(heading.text);
+  }, [cancelPendingClick]);
+
+  const submitRenameHeading = useCallback((headingId: string) => {
+    const renamed = renameHeading(headingId, renameValue);
+    if (renamed) {
+      setRenamingHeadingId(null);
+      return;
+    }
+
+    const fallbackHeading = headings.find((heading) => heading.id === headingId);
+    setRenameValue(fallbackHeading?.text ?? '');
+    setRenamingHeadingId(null);
+  }, [headings, renameHeading, renameValue]);
+
   const renderTreeNodes = useCallback((nodes: readonly OutlineTreeNode[]) => {
     return nodes.map((node) => {
       const hasChildren = node.children.length > 0;
@@ -69,7 +110,12 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
           <NotesSidebarRow
             depth={node.level - 1}
             isActive={isActive}
-            onClick={() => jumpToHeading(node.id)}
+            onClick={() => scheduleJumpToHeading(node.id)}
+            onDoubleClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              startRenameHeading(node);
+            }}
             rowClassName="items-center"
             leadingClassName="self-center"
             leading={hasChildren ? (
@@ -107,27 +153,55 @@ export function NotesOutline({ enabled, className, isPeeking = false }: NotesOut
               <span className="inline-flex size-4 shrink-0" aria-hidden="true" />
             )}
             main={
-              <button
-                type="button"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  jumpToHeading(node.id);
-                }}
-                className={cn(
-                  'block w-full min-w-0 cursor-pointer whitespace-normal break-words py-1 text-left [overflow-wrap:anywhere]',
-                  SIDEBAR_LABEL_TEXT_METRICS_CLASS,
-                  getSidebarLabelClass('notes', { selected: isActive }),
-                )}
-              >
-                {node.text}
-              </button>
+              renamingHeadingId === node.id ? (
+                <SidebarInlineRenameInput
+                  value={renameValue}
+                  onValueChange={setRenameValue}
+                  onSubmit={() => submitRenameHeading(node.id)}
+                  onCancel={() => setRenamingHeadingId(null)}
+                  className={cn(
+                    'w-full min-w-0 border-none bg-transparent p-0 outline-none text-left',
+                    SIDEBAR_LABEL_TEXT_METRICS_CLASS,
+                    getSidebarLabelClass('notes', { selected: isActive }),
+                  )}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    scheduleJumpToHeading(node.id);
+                  }}
+                  onDoubleClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    startRenameHeading(node);
+                  }}
+                  className={cn(
+                    'block w-full min-w-0 cursor-pointer whitespace-normal break-words py-1 text-left [overflow-wrap:anywhere]',
+                    SIDEBAR_LABEL_TEXT_METRICS_CLASS,
+                    getSidebarLabelClass('notes', { selected: isActive }),
+                  )}
+                >
+                  {node.text}
+                </button>
+              )
             }
           />
           {hasChildren && !isCollapsed ? renderTreeNodes(node.children) : null}
         </div>
       );
     });
-  }, [activeId, collapsedHeadingIds, jumpToHeading, toggleOutlineNode]);
+  }, [
+    activeId,
+    collapsedHeadingIds,
+    renameValue,
+    renamingHeadingId,
+    scheduleJumpToHeading,
+    startRenameHeading,
+    submitRenameHeading,
+    toggleOutlineNode,
+  ]);
 
   return (
     <div ref={sidebarRootRef} className={cn('flex h-full min-h-0 flex-col', className)}>

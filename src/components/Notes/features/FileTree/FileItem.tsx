@@ -1,4 +1,4 @@
-import { lazy, memo, Suspense, useCallback, useEffect } from 'react';
+import { lazy, memo, Suspense, useCallback, useEffect, type MouseEvent } from 'react';
 import { useDisplayIcon, useDisplayName } from '@/hooks/useTitleSync';
 import { DeleteIcon } from '@/components/common/DeleteIcon';
 import { Icon } from '@/components/ui/icons';
@@ -67,6 +67,7 @@ export const FileItem = memo(function FileItem({
     handleClick,
     handleContextMenu,
     handleMenuTrigger,
+    cancelPendingClick,
     handleRenameSubmit,
     dragHandlers,
     openNote,
@@ -95,6 +96,21 @@ export const FileItem = memo(function FileItem({
 
   const displayName = useDisplayName(node.path) || node.name;
   const noteIcon = useDisplayIcon(node.path);
+  const handleRenameFromDoubleClick = useCallback((event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    if (
+      isDraftNote ||
+      target?.closest('button,a,input,textarea,select,[role="button"]')
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    cancelPendingClick();
+    setShowMenu(false);
+    setIsRenaming(true);
+  }, [cancelPendingClick, isDraftNote, setIsRenaming, setShowMenu]);
   const menuEntries: NotesSidebarMenuEntry[] = isDraftNote
     ? [
         {
@@ -221,6 +237,7 @@ export const FileItem = memo(function FileItem({
       onMouseEnter={hoverPrefetch.onMouseEnter}
       onMouseLeave={hoverPrefetch.onMouseLeave}
       onClick={handleClick}
+      onDoubleClick={handleRenameFromDoubleClick}
       onContextMenu={handleContextMenu}
       dragHandlers={effectiveDragEnabled ? dragHandlers : undefined}
       showActionsByDefault={showMenu}

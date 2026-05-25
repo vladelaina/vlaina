@@ -1,8 +1,8 @@
-import { useEffect, useRef, type ComponentPropsWithoutRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, type ComponentPropsWithoutRef } from 'react';
 
 interface SidebarInlineRenameInputProps
   extends Omit<
-    ComponentPropsWithoutRef<'input'>,
+    ComponentPropsWithoutRef<'textarea'>,
     'onBlur' | 'onChange' | 'onKeyDown' | 'onMouseDown' | 'value'
   > {
   value: string;
@@ -22,7 +22,18 @@ export function SidebarInlineRenameInput({
   className,
   ...props
 }: SidebarInlineRenameInputProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const input = inputRef.current;
+    if (!input) {
+      return;
+    }
+
+    input.style.height = 'auto';
+    input.style.height = `${Math.min(input.scrollHeight, 96)}px`;
+    input.style.overflowY = input.scrollHeight > 96 ? 'auto' : 'hidden';
+  }, [value]);
 
   useEffect(() => {
     if (!selectOnMount) {
@@ -45,13 +56,14 @@ export function SidebarInlineRenameInput({
   }, [selectOnMount]);
 
   return (
-    <input
+    <textarea
       {...props}
       ref={inputRef}
-      type="text"
       spellCheck={false}
+      rows={1}
+      wrap="soft"
       value={value}
-      onChange={(event) => onValueChange(event.target.value)}
+      onChange={(event) => onValueChange(event.target.value.replace(/[\r\n]+/g, ' '))}
       onBlur={() => void onSubmit()}
       onKeyDown={(event) => {
         if (event.key === 'Enter') {
@@ -72,7 +84,10 @@ export function SidebarInlineRenameInput({
       onMouseDown={(event) => {
         event.stopPropagation();
       }}
-      className={className}
+      className={[
+        'resize-none overflow-hidden whitespace-pre-wrap break-words',
+        className,
+      ].filter(Boolean).join(' ')}
     />
   );
 }
