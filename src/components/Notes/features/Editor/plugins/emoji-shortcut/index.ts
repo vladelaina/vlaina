@@ -1,0 +1,2 @@
+export { emojiShortcutPlugin } from './emojiShortcutPlugin';
+

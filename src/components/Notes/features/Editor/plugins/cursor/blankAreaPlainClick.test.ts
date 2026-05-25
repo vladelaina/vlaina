@@ -66,6 +66,64 @@ describe('resolveBlankAreaPlainClickAction', () => {
     });
   });
 
+  it('uses the clicked visual line bounds for right-side blank clicks in wrapped blocks', () => {
+    expect(
+      resolveBlankAreaPlainClickAction({
+        blockRects: [
+          {
+            from: 1,
+            to: 38,
+            left: 20,
+            right: 900,
+            contentLeft: 398,
+            contentRight: 840,
+            contentLineRects: [
+              { left: 398, top: 436, right: 840, bottom: 456 },
+              { left: 398, top: 461, right: 517, bottom: 481 },
+            ],
+            top: 434,
+            bottom: 484,
+          },
+        ],
+        clientX: 613,
+        clientY: 483,
+      })
+    ).toEqual({
+      targetPos: 37,
+      bias: -1,
+      blockFrom: 1,
+    });
+  });
+
+  it('chooses the nearest visual line when line slack overlaps', () => {
+    expect(
+      resolveBlankAreaPlainClickAction({
+        blockRects: [
+          {
+            from: 1,
+            to: 38,
+            left: 20,
+            right: 900,
+            contentLeft: 398,
+            contentRight: 840,
+            contentLineRects: [
+              { left: 398, top: 436, right: 840, bottom: 456 },
+              { left: 398, top: 459, right: 517, bottom: 479 },
+            ],
+            top: 434,
+            bottom: 482,
+          },
+        ],
+        clientX: 613,
+        clientY: 459,
+      })
+    ).toEqual({
+      targetPos: 37,
+      bias: -1,
+      blockFrom: 1,
+    });
+  });
+
   it('prefers the later block when a list rect overlaps the following blank paragraph', () => {
     expect(
       resolveBlankAreaPlainClickAction({
@@ -266,6 +324,36 @@ describe('resolveInsideBlockTrailingPlainClickAction', () => {
       })
     ).toEqual({
       targetPos: 11,
+      bias: -1,
+      blockFrom: 4,
+    });
+  });
+
+  it('uses the clicked visual line end for wrapped list item trailing space', () => {
+    expect(
+      resolveInsideBlockTrailingPlainClickAction({
+        blockRects: [
+          {
+            from: 4,
+            to: 24,
+            left: 40,
+            right: 620,
+            contentLeft: 96,
+            contentRight: 360,
+            contentLineRects: [
+              { left: 96, top: 80, right: 180, bottom: 100 },
+              { left: 96, top: 104, right: 360, bottom: 124 },
+            ],
+            top: 80,
+            bottom: 124,
+            allowInsideTrailingClick: true,
+          },
+        ],
+        clientX: 208,
+        clientY: 90,
+      })
+    ).toEqual({
+      targetPos: 23,
       bias: -1,
       blockFrom: 4,
     });

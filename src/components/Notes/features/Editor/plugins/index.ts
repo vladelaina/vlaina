@@ -8,6 +8,7 @@ export type { FloatingToolbarState, BlockType, SubMenuType, TextAlignment } from
 export { headingPlugin, collapsePlugin } from './heading';
 export { mathPlugin, mathEditorPlugin } from './math';
 export { slashPlugin } from './slash';
+export { emojiShortcutPlugin } from './emoji-shortcut';
 export { dragPlugin } from './drag';
 export { tablePlugin } from './table';
 export { calloutPlugin } from './callout';

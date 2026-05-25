@@ -2,6 +2,7 @@ export type NotesOverlaySource =
   | 'cover-picker'
   | 'header-icon-picker'
   | 'selection-toolbar'
+  | 'emoji-shortcut'
   | 'slash-menu';
 
 const NOTES_OVERLAY_OPEN_EVENT = 'vlaina:notes-overlay-open';
