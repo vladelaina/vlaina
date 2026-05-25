@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { SettingsTextInput } from '@/components/Settings/components/SettingsFields';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
@@ -20,12 +21,35 @@ export function maskApiKey(apiKey: string): string {
   return `${apiKey.slice(0, API_KEY_PREFIX_VISIBLE_CHARS)}••••••${apiKey.slice(-API_KEY_SUFFIX_VISIBLE_CHARS)}`;
 }
 
+export function getApiKeyInputStyle(displayValue: string, availableTextWidthPx = 410): CSSProperties {
+  const averageMonoCharWidthEm = 0.62;
+  const maxFontSizePx = 14;
+  const minFontSizePx = 6;
+
+  if (!displayValue) {
+    return { fontSize: maxFontSizePx };
+  }
+
+  const fittedFontSize = Math.floor(availableTextWidthPx / Math.max(displayValue.length * averageMonoCharWidthEm, 1));
+  return {
+    fontSize: Math.max(minFontSizePx, Math.min(maxFontSizePx, fittedFontSize)),
+  };
+}
+
+export function getApiKeyEditableSelectionRange(apiKey: string): { start: number; end: number } {
+  const prefix = 'sk-';
+  if (apiKey.startsWith(prefix) && apiKey.length > prefix.length) {
+    return { start: prefix.length, end: apiKey.length };
+  }
+
+  return { start: 0, end: apiKey.length };
+}
+
 export function ProviderConnectionFields({
   providerId,
   name,
   apiHost,
   apiKey,
-  allowHiddenApiKeyEditing = false,
   showApiKey,
   apiKeyCopied,
   onNameChange,
@@ -38,7 +62,6 @@ export function ProviderConnectionFields({
   name: string;
   apiHost: string;
   apiKey: string;
-  allowHiddenApiKeyEditing?: boolean;
   showApiKey: boolean;
   apiKeyCopied: boolean;
   onNameChange: (value: string) => void;
@@ -48,24 +71,92 @@ export function ProviderConnectionFields({
   onCopyApiKey: () => void;
 }) {
   const { t } = useI18n();
-  const shouldShowRawApiKey = showApiKey || allowHiddenApiKeyEditing;
+  const [apiKeyRevealedForEditing, setApiKeyRevealedForEditing] = useState(false);
+  const [apiKeyTextWidthPx, setApiKeyTextWidthPx] = useState(410);
   const apiKeyInputRef = useRef<HTMLInputElement>(null);
-  const shouldSelectApiKeyOnRevealRef = useRef(false);
+  const shouldSelectApiKeyBodyRef = useRef(false);
+  const apiKeyVisible = Boolean(apiKey) && (showApiKey || apiKeyRevealedForEditing);
+  const shouldShowRawApiKey = apiKeyVisible || !apiKey;
+  const apiKeyDisplayValue = shouldShowRawApiKey ? apiKey : maskApiKey(apiKey);
 
   useEffect(() => {
-    if (!shouldShowRawApiKey || !shouldSelectApiKeyOnRevealRef.current) {
-      return;
-    }
+    setApiKeyRevealedForEditing(false);
+    shouldSelectApiKeyBodyRef.current = false;
+  }, [providerId]);
 
-    shouldSelectApiKeyOnRevealRef.current = false;
+  useEffect(() => {
     const input = apiKeyInputRef.current;
     if (!input) {
       return;
     }
 
-    input.focus();
-    input.select();
-  }, [apiKey.length, shouldShowRawApiKey]);
+    const updateInputTextWidth = () => {
+      const style = window.getComputedStyle(input);
+      const horizontalPadding =
+        Number.parseFloat(style.paddingLeft || '0') + Number.parseFloat(style.paddingRight || '0');
+      setApiKeyTextWidthPx(Math.max(140, input.clientWidth - horizontalPadding));
+    };
+
+    updateInputTextWidth();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', updateInputTextWidth);
+      return () => window.removeEventListener('resize', updateInputTextWidth);
+    }
+
+    const observer = new ResizeObserver(updateInputTextWidth);
+    observer.observe(input);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!apiKeyRevealedForEditing || !shouldSelectApiKeyBodyRef.current || !apiKey) {
+      return;
+    }
+
+    shouldSelectApiKeyBodyRef.current = false;
+    const input = apiKeyInputRef.current;
+    if (!input) {
+      return;
+    }
+
+    const range = getApiKeyEditableSelectionRange(apiKey);
+    input.setSelectionRange(range.start, range.end);
+  }, [apiKey, apiKeyRevealedForEditing]);
+
+  const handleApiKeyVisibilityToggle = () => {
+    if (showApiKey) {
+      setApiKeyRevealedForEditing(false);
+      onToggleApiKey();
+      return;
+    }
+
+    if (apiKeyRevealedForEditing) {
+      setApiKeyRevealedForEditing(false);
+      return;
+    }
+
+    onToggleApiKey();
+  };
+
+  const handleApiKeyDoubleClick = () => {
+    if (!apiKey) {
+      return;
+    }
+
+    shouldSelectApiKeyBodyRef.current = true;
+    setApiKeyRevealedForEditing(true);
+
+    window.setTimeout(() => {
+      const input = apiKeyInputRef.current;
+      if (!input) {
+        return;
+      }
+
+      shouldSelectApiKeyBodyRef.current = false;
+      const range = getApiKeyEditableSelectionRange(apiKey);
+      input.setSelectionRange(range.start, range.end);
+    }, 0);
+  };
 
   return (
     <section className={cn("overflow-hidden rounded-[26px] p-1 mb-2", chatComposerPillSurfaceClass)}>
@@ -128,14 +219,12 @@ export function ProviderConnectionFields({
             <SettingsTextInput
               ref={apiKeyInputRef}
               type="text"
-              value={shouldShowRawApiKey ? apiKey : maskApiKey(apiKey)}
+              value={apiKeyDisplayValue}
               onChange={(e) => onApiKeyChange(e.target.value)}
               onFocus={() => {
-                if (!shouldShowRawApiKey && apiKey) {
-                  shouldSelectApiKeyOnRevealRef.current = true;
-                  onToggleApiKey();
-                }
+                setApiKeyRevealedForEditing(true);
               }}
+              onDoubleClick={handleApiKeyDoubleClick}
               placeholder="sk-..."
               name={`provider-api-key-${providerId}`}
               autoComplete="new-password"
@@ -144,25 +233,28 @@ export function ProviderConnectionFields({
               spellCheck={false}
               data-lpignore="true"
               data-1p-ignore="true"
+              style={getApiKeyInputStyle(apiKeyDisplayValue, apiKeyTextWidthPx)}
               className="w-full max-w-[520px]"
-              inputClassName="h-10 px-5 rounded-xl text-[14px] font-mono"
+              inputClassName="h-10 rounded-xl px-5 pr-[5.75rem] font-mono text-[14px]"
               shellClassName="rounded-xl shadow-none bg-zinc-100/50 dark:bg-white/5 border-transparent"
               trailing={
                 <div className="flex items-center gap-1 pr-1">
                   <button
                     type="button"
-                    onClick={onToggleApiKey}
+                    onClick={handleApiKeyVisibilityToggle}
                     className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-zinc-200/50 hover:text-[var(--notes-sidebar-text)] dark:hover:bg-white/10"
-                    title={showApiKey ? t('settings.ai.hideApiKey') : t('settings.ai.showApiKey')}
+                    aria-label={apiKeyVisible ? t('settings.ai.hideApiKey') : t('settings.ai.showApiKey')}
                   >
-                    <Icon name={showApiKey ? 'common.eyeOff' : 'common.eye'} size="sm" />
+                    <Icon name={apiKeyVisible ? 'common.eyeOff' : 'common.eye'} size="sm" />
                   </button>
                   <button
                     type="button"
                     onClick={onCopyApiKey}
                     disabled={!apiKey}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-zinc-200/50 hover:text-[var(--notes-sidebar-text)] disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/10"
-                    title={apiKeyCopied ? t('common.copied') : t('common.copy')}
+                    data-action="copy"
+                    data-copied={apiKeyCopied ? 'true' : undefined}
+                    className="settings-api-key-copy-button flex h-8 w-8 items-center justify-center rounded-lg text-[var(--notes-sidebar-text-soft)] transition-colors hover:bg-zinc-200/50 hover:text-[var(--notes-sidebar-text)] disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-white/10"
+                    aria-label={apiKeyCopied ? t('common.copied') : t('common.copy')}
                   >
                     <Icon name={apiKeyCopied ? 'common.check' : 'common.copy'} size="sm" />
                   </button>
