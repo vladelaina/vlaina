@@ -335,7 +335,10 @@ export function createMarkdownComponents({
       const safeSrc = normalizeRenderableImageSrc(rawSrc);
       if (!safeSrc) {
         return (
-          <span className="inline-block rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-500 dark:bg-zinc-800 dark:text-gray-400">
+          <span
+            className="inline-block rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-500 dark:bg-zinc-800 dark:text-gray-400"
+            data-chat-selection-excluded="true"
+          >
             [{translate('chat.imageUnavailable')}]
           </span>
         );

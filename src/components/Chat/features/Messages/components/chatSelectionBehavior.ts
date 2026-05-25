@@ -77,6 +77,7 @@ function isInsideCollapsedThinking(element: Element | null): boolean {
 const FILTERED_SELECTION_SELECTOR = [
   '[data-chat-selection-excluded="true"]',
   '[data-chat-thinking-collapsed="true"]',
+  '[aria-hidden="true"]',
   'button',
   '[role="button"]',
   'input',

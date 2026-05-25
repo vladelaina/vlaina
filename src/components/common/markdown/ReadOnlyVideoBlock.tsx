@@ -20,7 +20,13 @@ export function ReadOnlyVideoBlock({
 
   if (!src || !parsed) {
     return (
-      <div className="video-block" data-type="video" data-src={src} data-title={title}>
+      <div
+        className="video-block"
+        data-type="video"
+        data-src={src}
+        data-title={title}
+        data-chat-selection-excluded="true"
+      >
         <div className="video-error">
           {src ? translate('editor.video.unsupportedUrl', { url: src }) : translate('editor.video.noUrl')}
         </div>
@@ -30,7 +36,13 @@ export function ReadOnlyVideoBlock({
 
   if (isPublicRemoteMediaUrl(parsed.embedUrl)) {
     return (
-      <div className="video-block" data-type="video" data-src={src} data-title={title}>
+      <div
+        className="video-block"
+        data-type="video"
+        data-src={src}
+        data-title={title}
+        data-chat-selection-excluded="true"
+      >
         <div className="video-placeholder">{translate('editor.video.remoteBlocked')}</div>
         <button
           type="button"
@@ -47,14 +59,26 @@ export function ReadOnlyVideoBlock({
 
   if (parsed.type === 'direct') {
     return (
-      <div className="video-block" data-type="video" data-src={src} data-title={title}>
+      <div
+        className="video-block"
+        data-type="video"
+        data-src={src}
+        data-title={title}
+        data-chat-selection-excluded="true"
+      >
         <video src={parsed.embedUrl} controls preload="none" title={title || undefined} />
       </div>
     );
   }
 
   return (
-    <div className="video-block" data-type="video" data-src={src} data-title={title}>
+    <div
+      className="video-block"
+      data-type="video"
+      data-src={src}
+      data-title={title}
+      data-chat-selection-excluded="true"
+    >
       <iframe
         width={width}
         height={height}

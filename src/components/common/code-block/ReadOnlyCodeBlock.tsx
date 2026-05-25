@@ -98,7 +98,11 @@ export const ReadOnlyCodeBlock = memo(function ReadOnlyCodeBlock({
       />
       <div className="vlaina-code-block-body overflow-x-auto p-4 pt-0">
         {showLineNumbers && (
-          <pre className="vlaina-code-block-line-numbers" aria-hidden="true">
+          <pre
+            className="vlaina-code-block-line-numbers"
+            aria-hidden="true"
+            data-chat-selection-excluded="true"
+          >
             {lineNumbers.join('\n')}
           </pre>
         )}

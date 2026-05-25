@@ -21,6 +21,7 @@ export const CodeBlockHeader = React.memo(function CodeBlockHeader({
     <div
       onClick={onHeaderClick}
       className={onHeaderClick ? 'vlaina-code-block-header cursor-pointer' : 'vlaina-code-block-header'}
+      data-chat-selection-excluded="true"
     >
       <div className="vlaina-code-block-language" onClick={(event) => event.stopPropagation()}>
         {languageControl}
