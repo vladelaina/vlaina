@@ -22,8 +22,16 @@ function metricsLabel(status: WebSearchStatus): string {
   if (!metrics) return '';
 
   if (typeof metrics.successCount === 'number' || typeof metrics.failureCount === 'number') {
+    const successCount = metrics.successCount ?? 0;
     const failureCount = metrics.failureCount ?? 0;
-    return failureCount > 0 ? `${failureCount} skipped` : '';
+    const parts: string[] = [];
+    if (successCount > 0) {
+      parts.push(`${successCount} read`);
+    }
+    if (failureCount > 0) {
+      parts.push(`${failureCount} skipped`);
+    }
+    return parts.join(' · ');
   }
 
   if (typeof metrics.resultCount === 'number') return '';
@@ -39,13 +47,30 @@ function hostLabel(url: string): string {
   }
 }
 
-function uniqueUrls(urls: string[]): string[] {
+function uniqueSourceItems(
+  results: NonNullable<WebSearchStatus['results']>,
+  urls: string[],
+): Array<{ url: string; label: string; detail?: string }> {
   const seen = new Set<string>();
-  return urls.filter((url) => {
-    if (seen.has(url)) return false;
+  const items: Array<{ url: string; label: string; detail?: string }> = [];
+
+  for (const result of results) {
+    if (seen.has(result.url)) continue;
+    seen.add(result.url);
+    items.push({
+      url: result.url,
+      label: result.title?.trim() || hostLabel(result.url),
+      detail: result.url,
+    });
+  }
+
+  for (const url of urls) {
+    if (seen.has(url)) continue;
     seen.add(url);
-    return true;
-  });
+    items.push({ url, label: hostLabel(url), detail: url });
+  }
+
+  return items;
 }
 
 function shouldShowStatusMessage(status: WebSearchStatus): boolean {
@@ -62,11 +87,7 @@ export function WebSearchStatusBlock({ statuses, isWaitingForAnswer = false }: W
   const metricsText = metricsLabel(status);
   const isSearching = isWaitingForAnswer;
   const showStatusMessage = shouldShowStatusMessage(status);
-  const sourceUrls = uniqueUrls(
-    latestResults.length > 0
-      ? latestResults.map((result) => result.url)
-      : status.urls ?? [],
-  );
+  const sourceItems = uniqueSourceItems(latestResults, status.urls ?? []);
 
   return (
     <div
@@ -95,18 +116,21 @@ export function WebSearchStatusBlock({ statuses, isWaitingForAnswer = false }: W
         <div className="mt-1 text-[var(--vlaina-text-tertiary)]">{status.message}</div>
       )}
 
-      {sourceUrls.length > 0 && (
+      {sourceItems.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {sourceUrls.slice(0, 6).map((url) => {
+          {sourceItems.slice(0, 6).map((source) => {
             return (
               <a
-                key={url}
-                href={url}
+                key={source.url}
+                href={source.url}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex h-7 max-w-[220px] cursor-pointer items-center gap-1.5 rounded-full bg-[var(--vlaina-accent-light)] px-2.5 text-[12px] font-medium text-[var(--vlaina-accent)] transition-opacity hover:opacity-80"
               >
-                <span className="min-w-0 truncate">{hostLabel(url)}</span>
+                <span className="min-w-0 truncate">{source.label}</span>
+                {source.detail && source.detail !== source.label && (
+                  <span className="sr-only">{source.detail}</span>
+                )}
                 <Icon name="nav.external" size={12} />
               </a>
             );

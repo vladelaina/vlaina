@@ -332,9 +332,12 @@ export function ChatView({
     switchMessageVersionRef.current(sessionId, messageId, versionIndex);
   }, []);
 
-  const handleSend = useCallback((text: string, attachments: Attachment[], noteMentions: NoteMentionReference[]) => {
-      handleNewUserMessage();
-      sendMessage(text, attachments, noteMentions);
+  const handleSend = useCallback(async (text: string, attachments: Attachment[], noteMentions: NoteMentionReference[]) => {
+      const accepted = await sendMessage(text, attachments, noteMentions);
+      if (accepted !== false) {
+        handleNewUserMessage();
+      }
+      return accepted;
   }, [handleNewUserMessage, sendMessage]);
 
   const handleChatAreaMouseDownCapture = useComposerClickFocus({

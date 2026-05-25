@@ -295,4 +295,15 @@ describe('parseHTTPError', () => {
       statusCode: 500,
     });
   });
+
+  it('does not expose HTML error documents as provider messages', () => {
+    expect(parseHTTPError(524, '<!DOCTYPE html><html><head><title>nekotick.org | 524: A timeout occurred</title></head><body>Cloudflare Error code 524</body></html>')).toMatchObject({
+      type: AIErrorType.UNKNOWN,
+      message: 'HTTP 524 Error',
+      statusCode: 524,
+    });
+
+    expect(getUserFacingAIError(parseHTTPError(524, '<!DOCTYPE html><html><body>Cloudflare Error code 524</body></html>')).message)
+      .toBe('๑ᵒᯅᵒ๑ My brain needs a breather. Try again in a moment, or switch models first~');
+  });
 });

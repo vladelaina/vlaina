@@ -7,9 +7,13 @@ import { usePredictedTextareaHeight } from '@/hooks/usePredictedTextareaHeight';
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
 
+function isPromiseLike<T>(value: T | Promise<T>): value is Promise<T> {
+  return !!value && typeof (value as { then?: unknown }).then === 'function';
+}
+
 interface UseChatComposerOptions {
   active?: boolean;
-  onSend: (message: string, attachments: Attachment[], noteMentions: NoteMentionReference[]) => void;
+  onSend: (message: string, attachments: Attachment[], noteMentions: NoteMentionReference[]) => void | boolean | Promise<void | boolean>;
   attachments: Attachment[];
   getNoteMentions: () => NoteMentionReference[];
   onAfterSend: () => void;
@@ -31,6 +35,7 @@ export function useChatComposer({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const composerRootRef = useRef<HTMLDivElement>(null);
   const submitAfterCompositionRef = useRef(false);
+  const isSubmittingRef = useRef(false);
   const hasExplicitMultilineRef = useRef(false);
   const focusRafRef = useRef<number | null>(null);
   const submitRafRef = useRef<number | null>(null);
@@ -146,7 +151,7 @@ export function useChatComposer({
 
   const handleSend = useCallback(
     (overrideMessage?: string) => {
-      if (!canSubmit) {
+      if (!canSubmit || isSubmittingRef.current) {
         submitAfterCompositionRef.current = false;
         return;
       }
@@ -165,9 +170,32 @@ export function useChatComposer({
 
       submitAfterCompositionRef.current = false;
       hasExplicitMultilineRef.current = false;
-      onSend(outgoingMessage, attachments, noteMentions);
-      setMessage('');
-      onAfterSend();
+      isSubmittingRef.current = true;
+      const clearComposer = () => {
+        setMessage('');
+        onAfterSend();
+      };
+      const sent = onSend(outgoingMessage, attachments, noteMentions);
+      if (isPromiseLike(sent)) {
+        void sent.then((accepted) => {
+          if (accepted !== false) {
+            clearComposer();
+          }
+        }).finally(() => {
+          isSubmittingRef.current = false;
+        });
+        return;
+      }
+
+      try {
+        const accepted = sent;
+        if (accepted === false) {
+          return;
+        }
+        clearComposer();
+      } finally {
+        isSubmittingRef.current = false;
+      }
     },
     [attachments, canSubmit, getNoteMentions, message, onAfterSend, onSend]
   );

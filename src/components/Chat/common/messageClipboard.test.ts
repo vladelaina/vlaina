@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { convertToBase64 } from "@/lib/storage/attachmentStorage";
 import {
   copyImageSourceToClipboard,
   copyMessageContentToClipboard,
@@ -6,6 +7,10 @@ import {
   extractMarkdownImageSources,
   formatMessageCopyText,
 } from "./messageClipboard";
+
+vi.mock("@/lib/storage/attachmentStorage", () => ({
+  convertToBase64: vi.fn(),
+}));
 
 describe("messageClipboard", () => {
   beforeEach(() => {
@@ -26,6 +31,7 @@ describe("messageClipboard", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.mocked(convertToBase64).mockReset();
   });
 
   it("extracts markdown image sources from content", () => {
@@ -88,6 +94,27 @@ describe("messageClipboard", () => {
     const copied = await copyImageSourceToClipboard("https://a.com/1.png");
 
     expect(copied).toBe(true);
+    expect(writeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("resolves stored attachment images before copying", async () => {
+    const writeMock = vi.spyOn(navigator.clipboard, "write");
+    vi.mocked(convertToBase64).mockResolvedValue("data:image/png;base64,eA==");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        blob: () => Promise.resolve(new Blob(["x"], { type: "image/png" })),
+      }),
+    );
+
+    const copied = await copyImageSourceToClipboard("attachment://demo.png");
+
+    expect(copied).toBe(true);
+    expect(convertToBase64).toHaveBeenCalledWith(expect.objectContaining({
+      previewUrl: "attachment://demo.png",
+      assetUrl: "attachment://demo.png",
+    }));
+    expect(fetch).toHaveBeenCalledWith("data:image/png;base64,eA==");
     expect(writeMock).toHaveBeenCalledTimes(1);
   });
 

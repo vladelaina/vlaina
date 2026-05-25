@@ -2,6 +2,7 @@ import { stripErrorTags } from '@/lib/ai/errorTag';
 import { stripThinkingContent } from '@/lib/ai/stripThinkingContent';
 import { stripWebSearchStatusMarkup } from '@/lib/ai/webSearch/statusMarkup';
 import { writeTextToClipboard } from '@/lib/clipboard';
+import { convertToBase64, type Attachment } from '@/lib/storage/attachmentStorage';
 
 function normalizeImageMarkdownTarget(rawTarget: string): string | null {
   const trimmed = rawTarget.trim();
@@ -196,7 +197,8 @@ export function formatMessageCopyText(content: string): string {
 
 export async function copyImageSourceToClipboard(src: string): Promise<boolean> {
   try {
-    const response = await fetch(src);
+    const resolvedSrc = await resolveClipboardImageSource(src);
+    const response = await fetch(resolvedSrc);
     const blob = await response.blob();
     const ClipboardItemCtor = (window as any).ClipboardItem;
     if (ClipboardItemCtor && blob.type.startsWith("image/")) {
@@ -207,6 +209,24 @@ export async function copyImageSourceToClipboard(src: string): Promise<boolean> 
   } catch {
   }
   return false;
+}
+
+async function resolveClipboardImageSource(src: string): Promise<string> {
+  const trimmed = src.trim();
+  if (!trimmed.startsWith("attachment://") && !trimmed.startsWith("app-file://attachment/")) {
+    return src;
+  }
+
+  const attachment: Attachment = {
+    id: "clipboard-image",
+    path: "",
+    previewUrl: trimmed,
+    assetUrl: trimmed,
+    name: "image",
+    type: "image/png",
+    size: 0,
+  };
+  return convertToBase64(attachment);
 }
 
 export async function copyMessageContentToClipboard(content: string): Promise<boolean> {
