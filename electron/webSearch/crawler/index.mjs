@@ -156,7 +156,7 @@ async function fetchWithVerifiedAddress(resolvedUrl, signal) {
 
 async function fetchWithTimeout(fetchImpl, resolvedUrl, timeoutMs, signal) {
   if (signal?.aborted) {
-    throw new WebSearchError('timeout', 'The page request timed out.');
+    throw new DOMException('The web search request was cancelled.', 'AbortError');
   }
 
   const controller = new AbortController();
@@ -178,6 +178,9 @@ async function fetchWithTimeout(fetchImpl, resolvedUrl, timeoutMs, signal) {
       signal: combinedSignal,
     });
   } catch (error) {
+    if (signal?.aborted) {
+      throw new DOMException('The web search request was cancelled.', 'AbortError');
+    }
     if (controller.signal.aborted) {
       throw new WebSearchError('timeout', 'The page request timed out.', error);
     }

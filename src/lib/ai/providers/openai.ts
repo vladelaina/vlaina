@@ -360,6 +360,7 @@ export class OpenAICompatibleClient implements AIClient {
           onChunk: onChunk || (() => {}),
           onStatus: options.onWebSearchStatus,
           onApiTranscript: options.onApiTranscript,
+          signal,
           requestJson: (nextBody) =>
             requestManagedChatCompletion({
               ...nextBody,
@@ -429,6 +430,7 @@ export class OpenAICompatibleClient implements AIClient {
         onChunk: onChunk || (() => {}),
         onStatus: options.onWebSearchStatus,
         onApiTranscript: options.onApiTranscript,
+        signal,
         request: async (nextBody) => {
           const response = await providerFetch(url, {
             method: 'POST',

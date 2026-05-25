@@ -11,8 +11,7 @@ describe('source quality rule installer', () => {
   it('writes reviewed host rules into the installed module format', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'source-rules-'));
     const inputPath = path.join(dir, 'reviewed.json');
-    const outputPath = path.resolve('electron/webSearch/sourceQuality/installedSourceQualityRules.mjs');
-    const before = await readFile(outputPath, 'utf8');
+    const outputPath = path.join(dir, 'installedSourceQualityRules.mjs');
 
     await writeFile(inputPath, JSON.stringify({
       hardBlockedSites: ['Example.com', 'bad host', 'download.example.com'],
@@ -23,18 +22,14 @@ describe('source quality rule installer', () => {
       },
     }), 'utf8');
 
-    try {
-      await execFileAsync('node', ['scripts/web-search-install-source-rules.mjs', inputPath]);
-      const after = await readFile(outputPath, 'utf8');
+    await execFileAsync('node', ['scripts/web-search-install-source-rules.mjs', inputPath, outputPath]);
+    const after = await readFile(outputPath, 'utf8');
 
-      expect(after).toContain("'example.com'");
-      expect(after).toContain("'download.example.com'");
-      expect(after).toContain("'blog.example.org'");
-      expect(after).toContain("'docs.example.net'");
-      expect(after).toContain("'health.example.net'");
-      expect(after).not.toContain('bad host');
-    } finally {
-      await writeFile(outputPath, before, 'utf8');
-    }
+    expect(after).toContain("'example.com'");
+    expect(after).toContain("'download.example.com'");
+    expect(after).toContain("'blog.example.org'");
+    expect(after).toContain("'docs.example.net'");
+    expect(after).toContain("'health.example.net'");
+    expect(after).not.toContain('bad host');
   });
 });

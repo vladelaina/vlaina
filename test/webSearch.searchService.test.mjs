@@ -44,6 +44,39 @@ describe('SearchService', () => {
     expect(provider.search).toHaveBeenNthCalledWith(3, 'query', { limit: 5 });
   });
 
+  it('runs fallback attempts concurrently to avoid stacked search timeouts', async () => {
+    const resolvers = [];
+    const provider = {
+      isConfigured: () => true,
+      search: vi.fn((_query, attempt) => new Promise((resolve) => {
+        resolvers.push({ attempt, resolve });
+      })),
+    };
+    const service = new SearchService({ providers: [provider] });
+
+    const responsePromise = service.webSearch('query', {
+      category: 'news',
+      timeRange: 'week',
+    });
+
+    expect(provider.search).toHaveBeenCalledTimes(2);
+    resolvers[1].resolve([
+      {
+        title: 'Plain Result',
+        url: 'https://example.com/plain',
+        snippet: '',
+        publishedAt: null,
+        source: null,
+        thumbnail: null,
+      },
+    ]);
+
+    await expect(responsePromise).resolves.toEqual({
+      query: 'query',
+      results: [expect.objectContaining({ title: 'Plain Result' })],
+    });
+  });
+
   it('does not repeat identical fallback attempts', async () => {
     const provider = {
       isConfigured: () => true,

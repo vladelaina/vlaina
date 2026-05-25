@@ -32,6 +32,11 @@ function withStatusPrefix(statuses: WebSearchStatus[], content: string): string 
   return `${statuses.map(buildWebSearchStatusMarkup).join('')}${separator}${content}`;
 }
 
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  throw new DOMException('The web search request was cancelled.', 'AbortError');
+}
+
 function appendSuccessfulReadSources(target: string[], status: WebSearchStatus): void {
   if (!hasSuccessfulRead(status)) return;
   for (const url of status.urls ?? []) {
@@ -76,11 +81,11 @@ function hasSuccessfulRead(status: WebSearchStatus): boolean {
 function shouldRequirePageRead(
   status: WebSearchStatus | null,
   latestResultsHaveSuccessfulRead: boolean,
-  forcedReadAttempted: boolean,
+  forcedReadExhausted: boolean,
 ): boolean {
   return status?.phase === 'results'
     && !latestResultsHaveSuccessfulRead
-    && !forcedReadAttempted
+    && !forcedReadExhausted
     && (status.results?.length ?? 0) > 0;
 }
 
@@ -92,11 +97,17 @@ function buildReadReminderMessage(): OpenAIWireMessage {
   };
 }
 
-function buildForcedReadToolCall(status: WebSearchStatus, loopIndex: number): OpenAIToolCall | null {
+function buildForcedReadToolCall(
+  status: WebSearchStatus,
+  loopIndex: number,
+  attemptedUrls: Set<string>,
+): OpenAIToolCall | null {
   const urls = (status.results ?? [])
     .map((result) => result.url)
     .filter((url) => typeof url === 'string' && url.trim().length > 0)
-    .slice(0, 2);
+    .filter((url, index, allUrls) => allUrls.indexOf(url) === index)
+    .filter((url) => !attemptedUrls.has(url))
+    .slice(0, 3);
 
   if (urls.length === 0) {
     return null;
@@ -110,6 +121,13 @@ function buildForcedReadToolCall(status: WebSearchStatus, loopIndex: number): Op
       arguments: JSON.stringify({ urls }),
     },
   };
+}
+
+function getReadableResultUrls(status: WebSearchStatus): string[] {
+  return (status.results ?? [])
+    .map((result) => result.url)
+    .filter((url) => typeof url === 'string' && url.trim().length > 0)
+    .filter((url, index, allUrls) => allUrls.indexOf(url) === index);
 }
 
 function buildAssistantToolMessage(result: {
@@ -153,18 +171,29 @@ async function appendForcedReadMessages(
   status: WebSearchStatus,
   loopIndex: number,
   options: WebSearchToolRunnerOptions,
-): Promise<{ messages: OpenAIWireMessage[]; addedMessages: OpenAIWireMessage[] }> {
-  const toolCall = buildForcedReadToolCall(status, loopIndex);
+  attemptedUrls: Set<string>,
+): Promise<{
+  messages: OpenAIWireMessage[];
+  addedMessages: OpenAIWireMessage[];
+  attemptedUrls: string[];
+  exhausted: boolean;
+}> {
+  const toolCall = buildForcedReadToolCall(status, loopIndex, attemptedUrls);
 
   if (!toolCall) {
     const addedMessages = [buildReadReminderMessage()];
     return {
       messages: [...messages, ...addedMessages],
       addedMessages,
+      attemptedUrls: [],
+      exhausted: true,
     };
   }
 
+  const urls = JSON.parse(toolCall.function.arguments).urls as string[];
+  for (const url of urls) attemptedUrls.add(url);
   const toolResult = await runWebSearchToolCall(toolCall.function, options);
+  const allReadableUrls = getReadableResultUrls(status);
   const addedMessages: OpenAIWireMessage[] = [
     {
       role: 'assistant',
@@ -184,6 +213,8 @@ async function appendForcedReadMessages(
       ...addedMessages,
     ],
     addedMessages,
+    attemptedUrls: urls,
+    exhausted: allReadableUrls.every((url) => attemptedUrls.has(url)),
   };
 }
 
@@ -194,6 +225,7 @@ export async function runOpenAIWebSearchToolLoop({
   client,
   onStatus,
   onApiTranscript,
+  signal,
 }: ToolLoopOptions): Promise<string> {
   let latestResultsStatus: WebSearchStatus | null = null;
   const statusHistory: WebSearchStatus[] = [];
@@ -202,14 +234,16 @@ export async function runOpenAIWebSearchToolLoop({
   let latestAssistantApiContent = '';
   let latestReasoningContent = '';
   let latestResultsHaveSuccessfulRead = false;
-  let forcedReadAttempted = false;
+  let forcedReadExhausted = false;
+  let forcedReadAttemptedUrls = new Set<string>();
   let messages = appendWebSearchSystemInstruction(body.messages as OpenAIWireMessage[]);
   const responseTranscript: OpenAIWireMessage[] = [];
   const emitStatus = (status: WebSearchStatus) => {
     if (status.phase === 'results' && (status.results?.length ?? 0) > 0) {
       latestResultsStatus = status;
       latestResultsHaveSuccessfulRead = false;
-      forcedReadAttempted = false;
+      forcedReadExhausted = false;
+      forcedReadAttemptedUrls = new Set();
     }
     if (hasSuccessfulRead(status)) {
       latestResultsHaveSuccessfulRead = true;
@@ -225,6 +259,7 @@ export async function runOpenAIWebSearchToolLoop({
   };
 
   for (let loopIndex = 0; loopIndex < MAX_WEB_SEARCH_TOOL_LOOPS; loopIndex += 1) {
+    throwIfAborted(signal);
     const response = await request({
       ...body,
       messages: messages as ChatCompletionRequest['messages'],
@@ -236,14 +271,15 @@ export async function runOpenAIWebSearchToolLoop({
     latestReasoningContent = result.reasoningContent;
 
     if (result.toolCalls.length === 0) {
-      if (latestResultsStatus && shouldRequirePageRead(latestResultsStatus, latestResultsHaveSuccessfulRead, forcedReadAttempted)) {
-        forcedReadAttempted = true;
+      if (latestResultsStatus && shouldRequirePageRead(latestResultsStatus, latestResultsHaveSuccessfulRead, forcedReadExhausted)) {
         const forcedRead = await appendForcedReadMessages(
           messages,
           latestResultsStatus,
           loopIndex,
-          { client, onStatus: emitStatus },
+          { client, onStatus: emitStatus, signal },
+          forcedReadAttemptedUrls,
         );
+        forcedReadExhausted = forcedRead.exhausted;
         messages = forcedRead.messages;
         responseTranscript.push(...forcedRead.addedMessages);
         latestContent = '';
@@ -258,7 +294,7 @@ export async function runOpenAIWebSearchToolLoop({
     }
 
     const assistantToolMessage = buildAssistantToolMessage(result);
-    const toolMessages = await runToolCallsInParallel(result.toolCalls, { client, onStatus: emitStatus });
+    const toolMessages = await runToolCallsInParallel(result.toolCalls, { client, onStatus: emitStatus, signal });
     messages = [
       ...messages,
       assistantToolMessage,
@@ -281,6 +317,7 @@ export async function runOpenAIWebSearchJsonToolLoop({
   client,
   onStatus,
   onApiTranscript,
+  signal,
 }: JsonToolLoopOptions): Promise<string> {
   let latestResultsStatus: WebSearchStatus | null = null;
   const statusHistory: WebSearchStatus[] = [];
@@ -288,14 +325,16 @@ export async function runOpenAIWebSearchJsonToolLoop({
   let latestContent = '';
   let latestReasoningContent = '';
   let latestResultsHaveSuccessfulRead = false;
-  let forcedReadAttempted = false;
+  let forcedReadExhausted = false;
+  let forcedReadAttemptedUrls = new Set<string>();
   let messages = appendWebSearchSystemInstruction(body.messages as OpenAIWireMessage[]);
   const responseTranscript: OpenAIWireMessage[] = [];
   const emitStatus = (status: WebSearchStatus) => {
     if (status.phase === 'results' && (status.results?.length ?? 0) > 0) {
       latestResultsStatus = status;
       latestResultsHaveSuccessfulRead = false;
-      forcedReadAttempted = false;
+      forcedReadExhausted = false;
+      forcedReadAttemptedUrls = new Set();
     }
     if (hasSuccessfulRead(status)) {
       latestResultsHaveSuccessfulRead = true;
@@ -307,6 +346,7 @@ export async function runOpenAIWebSearchJsonToolLoop({
   };
 
   for (let loopIndex = 0; loopIndex < MAX_WEB_SEARCH_TOOL_LOOPS; loopIndex += 1) {
+    throwIfAborted(signal);
     const payload = await requestJson({
       ...body,
       stream: false,
@@ -319,14 +359,15 @@ export async function runOpenAIWebSearchJsonToolLoop({
     latestReasoningContent = result.reasoningContent;
 
     if (result.toolCalls.length === 0) {
-      if (latestResultsStatus && shouldRequirePageRead(latestResultsStatus, latestResultsHaveSuccessfulRead, forcedReadAttempted)) {
-        forcedReadAttempted = true;
+      if (latestResultsStatus && shouldRequirePageRead(latestResultsStatus, latestResultsHaveSuccessfulRead, forcedReadExhausted)) {
         const forcedRead = await appendForcedReadMessages(
           messages,
           latestResultsStatus,
           loopIndex,
-          { client, onStatus: emitStatus },
+          { client, onStatus: emitStatus, signal },
+          forcedReadAttemptedUrls,
         );
+        forcedReadExhausted = forcedRead.exhausted;
         messages = forcedRead.messages;
         responseTranscript.push(...forcedRead.addedMessages);
         latestContent = '';
@@ -343,7 +384,7 @@ export async function runOpenAIWebSearchJsonToolLoop({
     }
 
     const assistantToolMessage = buildAssistantToolMessage(result);
-    const toolMessages = await runToolCallsInParallel(result.toolCalls, { client, onStatus: emitStatus });
+    const toolMessages = await runToolCallsInParallel(result.toolCalls, { client, onStatus: emitStatus, signal });
     messages = [
       ...messages,
       assistantToolMessage,

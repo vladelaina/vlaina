@@ -43,7 +43,7 @@ describe('crawler error classification', () => {
     await expect(crawler.readUrl('http://93.184.216.34', {
       signal: controller.signal,
     })).rejects.toMatchObject({
-      code: 'timeout',
+      name: 'AbortError',
     });
     expect(fetchCalled).toBe(false);
   });

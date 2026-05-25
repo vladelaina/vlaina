@@ -16,6 +16,7 @@ interface WebSearchToolCall {
 export interface WebSearchToolRunnerOptions {
   client?: WebSearchClient;
   onStatus?: (status: WebSearchStatus) => void;
+  signal?: AbortSignal;
 }
 
 function parseArguments(rawArguments: string): Record<string, unknown> {
@@ -77,6 +78,23 @@ function safeFailedSourceMessage(code?: string): string {
   return formatSafeReadFailure(code);
 }
 
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return;
+  throw new DOMException('The web search request was cancelled.', 'AbortError');
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError';
+}
+
+function callWebSearchClient<T>(
+  signal: AbortSignal | undefined,
+  callWithSignal: (signal: AbortSignal) => Promise<T>,
+  callWithoutSignal: () => Promise<T>,
+): Promise<T> {
+  return signal ? callWithSignal(signal) : callWithoutSignal();
+}
+
 export async function runWebSearchToolCall(
   toolCall: WebSearchToolCall,
   options: WebSearchToolRunnerOptions = {},
@@ -86,15 +104,22 @@ export async function runWebSearchToolCall(
   const toolName = normalizeToolName(toolCall.name);
 
   try {
+    throwIfAborted(options.signal);
     if (toolName === WEB_SEARCH_TOOL_NAMES.search) {
       const query = stringArg(args, 'query');
       const startedAt = performance.now();
       options.onStatus?.({ phase: 'searching', query });
-      const response = await client.webSearch(query, {
+      const searchOptions = {
         category: stringArg(args, 'category') || undefined,
         timeRange: stringArg(args, 'timeRange') || undefined,
         limit: 5,
-      });
+      };
+      const response = await callWebSearchClient(
+        options.signal,
+        (signal) => client.webSearch(query, searchOptions, signal),
+        () => client.webSearch(query, searchOptions),
+      );
+      throwIfAborted(options.signal);
       options.onStatus?.({
         phase: response.results.length > 0 ? 'results' : 'error',
         query: response.query,
@@ -112,7 +137,13 @@ export async function runWebSearchToolCall(
       const url = stringArg(args, 'url');
       const startedAt = performance.now();
       options.onStatus?.({ phase: 'reading', urls: [url] });
-      const page = await client.readWebPage(url, { contentLimit: 3000, retries: 0 });
+      const readOptions = { contentLimit: 3000, retries: 0 };
+      const page = await callWebSearchClient(
+        options.signal,
+        (signal) => client.readWebPage(url, readOptions, signal),
+        () => client.readWebPage(url, readOptions),
+      );
+      throwIfAborted(options.signal);
       options.onStatus?.({
         phase: 'complete',
         urls: [page.finalUrl],
@@ -129,7 +160,13 @@ export async function runWebSearchToolCall(
       const urls = stringArrayArg(args, 'urls').slice(0, 8);
       const startedAt = performance.now();
       options.onStatus?.({ phase: 'reading', urls });
-      const pages = await client.readWebPages(urls, { contentLimit: 3000, retries: 0 });
+      const readOptions = { contentLimit: 3000, retries: 0 };
+      const pages = await callWebSearchClient(
+        options.signal,
+        (signal) => client.readWebPages(urls, readOptions, signal),
+        () => client.readWebPages(urls, readOptions),
+      );
+      throwIfAborted(options.signal);
       const successfulPages = pages.filter((page) => page.ok);
       const failedPages = pages.filter((page) => !page.ok);
       options.onStatus?.({
@@ -150,6 +187,9 @@ export async function runWebSearchToolCall(
 
     return `Unsupported web search tool: ${toolCall.name}`;
   } catch (error) {
+    if (isAbortError(error)) {
+      throw error;
+    }
     const message = friendlyToolErrorMessage(toolName, error);
     options.onStatus?.({ phase: 'error', message });
     return `Tool error: ${message}`;

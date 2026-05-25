@@ -220,7 +220,13 @@ describeRealModel('real model web search loop', () => {
             },
             body: JSON.stringify(nextBody),
           });
-          const payload = await response.json() as Record<string, unknown>;
+          const rawPayload = await response.text();
+          let payload: Record<string, unknown>;
+          try {
+            payload = JSON.parse(rawPayload) as Record<string, unknown>;
+          } catch {
+            throw new Error(`real model request returned non-JSON: ${response.status} ${rawPayload.slice(0, 300)}`);
+          }
           trace.push({
             type: 'model:response',
             detail: {
