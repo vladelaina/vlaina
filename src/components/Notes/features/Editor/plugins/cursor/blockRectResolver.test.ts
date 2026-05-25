@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { collectSelectableBlockRanges, createBlockRectResolver } from './blockRectResolver';
 import {
   clearCurrentEditorBlockPositionSnapshot,
+  getCurrentEditorBlockPositionSnapshot,
+  getFreshCachedEditorBlockTargets,
   setCurrentEditorBlockPositionSnapshot,
 } from '../../utils/editorBlockPositionCache';
 import {
@@ -216,6 +218,75 @@ describe('createBlockRectResolver', () => {
         bottom: 64,
       });
     } finally {
+      clearCurrentEditorBlockPositionSnapshot();
+    }
+  });
+
+  it('uses fresh cached target rects for drag-selection hit testing without text-boundary measurement', () => {
+    const dom = document.createElement('div');
+    const paragraph = document.createElement('p');
+    paragraph.textContent = '1';
+    dom.append(paragraph);
+    withRect(dom, { left: 20, top: 10, width: 600, height: 300 });
+    withRect(paragraph, { left: 60, top: 40, width: 10, height: 24 });
+
+    const doc = createDoc([createNode('paragraph', 3)]);
+    const view = {
+      dom,
+      state: { doc },
+      nodeDOM: () => paragraph,
+      domAtPos: () => ({ node: paragraph.firstChild as Node }),
+    };
+
+    setCurrentEditorBlockPositionSnapshot({
+      version: 1,
+      view: view as any,
+      doc: doc as any,
+      editorRoot: dom,
+      scrollRoot: null,
+      scrollLeft: 0,
+      scrollTop: 0,
+      blocks: [{
+        from: 0,
+        to: 3,
+        element: paragraph,
+        rect: paragraph.getBoundingClientRect(),
+        documentTop: 40,
+        documentBottom: 64,
+        tagName: 'P',
+        headingLevel: null,
+        headingId: null,
+        headingText: null,
+      }],
+      headings: [],
+    });
+
+    const originalCreateRange = document.createRange;
+    document.createRange = () => {
+      throw new Error('drag selection rects should not measure text ranges when a fresh cache exists');
+    };
+
+    try {
+      expect(getCurrentEditorBlockPositionSnapshot()).not.toBeNull();
+      expect(getFreshCachedEditorBlockTargets(view as any, null)).toHaveLength(1);
+
+      const resolver = createBlockRectResolver({
+        view: view as any,
+        scrollRootSelector: '[data-note-scroll-root="true"]',
+      });
+
+      expect(resolver.getSelectionBlockRects()).toEqual([
+        {
+          from: 0,
+          to: 3,
+          left: 20,
+          top: 40,
+          right: 620,
+          bottom: 64,
+        },
+      ]);
+    } finally {
+      document.createRange = originalCreateRange;
       clearCurrentEditorBlockPositionSnapshot();
     }
   });

@@ -1,6 +1,6 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { getBlockSelectionPluginState } from './blockSelectionPluginState';
-import { normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
+import { getBlockRangesKey, normalizeBlockRanges, type BlockRange } from './blockSelectionUtils';
 
 const LINE_FILL_LAYER_CLASS = 'vlaina-block-selection-line-fill-layer';
 const LINE_FILL_CLASS = 'vlaina-block-selection-line-fill';
@@ -174,6 +174,8 @@ function resolveParagraphElement(view: EditorView, range: BlockRange): HTMLEleme
 export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillOverlay {
   const doc = view.dom.ownerDocument;
   const host = view.dom.parentElement ?? view.dom;
+  let lastDoc: EditorView['state']['doc'] | null = null;
+  let lastSelectionKey: string | null = null;
   if (host instanceof HTMLElement) {
     host.classList.add('vlaina-block-selection-line-fill-host');
   }
@@ -183,12 +185,22 @@ export function createBlockSelectionLineFillOverlay(view: EditorView): LineFillO
   host.appendChild(layer);
 
   const update = (updatedView: EditorView) => {
-    if (getBlockSelectionPluginState(updatedView.state).selectedBlocks.length === 0) {
+    const { selectedBlocks } = getBlockSelectionPluginState(updatedView.state);
+    if (selectedBlocks.length === 0) {
+      lastDoc = updatedView.state.doc;
+      lastSelectionKey = '';
       if (layer.childNodes.length > 0) {
         layer.replaceChildren();
       }
       return;
     }
+
+    const selectionKey = getBlockRangesKey(selectedBlocks);
+    if (lastDoc === updatedView.state.doc && lastSelectionKey === selectionKey) {
+      return;
+    }
+    lastDoc = updatedView.state.doc;
+    lastSelectionKey = selectionKey;
 
     layer.replaceChildren();
     const currentHost = layer.parentElement ?? updatedView.dom;

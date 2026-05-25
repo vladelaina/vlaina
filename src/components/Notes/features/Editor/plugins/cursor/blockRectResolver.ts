@@ -1,7 +1,8 @@
 import type { EditorState } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import type { BlockRect } from './blockSelectionUtils';
-import { collectSelectableBlockTargets } from './blockUnitResolver';
+import { getFreshCachedEditorBlockTargets } from '../../utils/editorBlockPositionCache';
+import { collectSelectableBlockTargets, type SelectableBlockTarget } from './blockUnitResolver';
 
 interface BlockRectResolverOptions {
   view: EditorView;
@@ -10,6 +11,7 @@ interface BlockRectResolverOptions {
 
 export interface BlockRectResolver {
   getTopLevelBlockRects: () => BlockRect[];
+  getSelectionBlockRects: () => BlockRect[];
   invalidate: () => void;
 }
 
@@ -138,6 +140,35 @@ function collectSelectableBlockRects(view: EditorView): BlockRect[] {
   });
 }
 
+function mapTargetsToSelectionBlockRects(
+  targets: readonly SelectableBlockTarget[],
+  editorRect: DOMRect,
+): BlockRect[] {
+  const useEditorHorizontalBounds = editorRect.width > 0;
+
+  return targets.map(({ range, element, rect }) => ({
+    from: range.from,
+    to: range.to,
+    left: useEditorHorizontalBounds ? editorRect.left : rect.left,
+    top: rect.top,
+    right: useEditorHorizontalBounds ? editorRect.right : rect.right,
+    bottom: rect.bottom,
+    ...(element.tagName === 'LI' || (element.tagName === 'P' && element.querySelector('.footnote-ref'))
+      ? { allowInsideTrailingClick: true }
+      : {}),
+  }));
+}
+
+function collectSelectionBlockRects(view: EditorView, scrollRoot: HTMLElement | null): BlockRect[] {
+  const editorRect = view.dom.getBoundingClientRect();
+  const cachedTargets = getFreshCachedEditorBlockTargets(view, scrollRoot);
+  if (cachedTargets) {
+    return mapTargetsToSelectionBlockRects(cachedTargets, editorRect);
+  }
+
+  return mapTargetsToSelectionBlockRects(collectSelectableBlockTargets(view), editorRect);
+}
+
 function getScrollCoordinates(view: EditorView, scrollRootSelector: string): { left: number; top: number } {
   const scrollRoot = view.dom.closest(scrollRootSelector) as HTMLElement | null;
   if (!scrollRoot) return { left: 0, top: 0 };
@@ -152,6 +183,10 @@ export function createBlockRectResolver({ view, scrollRootSelector }: BlockRectR
   let cachedScrollLeft = Number.NaN;
   let cachedScrollTop = Number.NaN;
   let cachedRects: BlockRect[] = [];
+  let cachedSelectionDoc: EditorState['doc'] | null = null;
+  let cachedSelectionScrollLeft = Number.NaN;
+  let cachedSelectionScrollTop = Number.NaN;
+  let cachedSelectionRects: BlockRect[] = [];
 
   return {
     getTopLevelBlockRects() {
@@ -170,11 +205,33 @@ export function createBlockRectResolver({ view, scrollRootSelector }: BlockRectR
       cachedRects = collectSelectableBlockRects(view);
       return cachedRects;
     },
+    getSelectionBlockRects() {
+      const scrollRoot = view.dom.closest(scrollRootSelector) as HTMLElement | null;
+      const left = scrollRoot?.scrollLeft ?? 0;
+      const top = scrollRoot?.scrollTop ?? 0;
+      if (
+        cachedSelectionDoc === view.state.doc
+        && cachedSelectionScrollLeft === left
+        && cachedSelectionScrollTop === top
+      ) {
+        return cachedSelectionRects;
+      }
+
+      cachedSelectionDoc = view.state.doc;
+      cachedSelectionScrollLeft = left;
+      cachedSelectionScrollTop = top;
+      cachedSelectionRects = collectSelectionBlockRects(view, scrollRoot);
+      return cachedSelectionRects;
+    },
     invalidate() {
       cachedDoc = null;
       cachedScrollLeft = Number.NaN;
       cachedScrollTop = Number.NaN;
       cachedRects = [];
+      cachedSelectionDoc = null;
+      cachedSelectionScrollLeft = Number.NaN;
+      cachedSelectionScrollTop = Number.NaN;
+      cachedSelectionRects = [];
     },
   };
 }

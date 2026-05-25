@@ -379,6 +379,33 @@ export function getCachedEditorBlockTargets(
   }));
 }
 
+export function getFreshCachedEditorBlockTargets(
+  view: EditorView,
+  scrollRoot: HTMLElement | null,
+): SelectableBlockTarget[] | null {
+  const snapshot = currentSnapshot;
+  if (
+    !snapshot
+    || snapshot.view !== view
+    || snapshot.doc !== view.state.doc
+    || snapshot.editorRoot !== view.dom
+    || snapshot.scrollRoot !== scrollRoot
+    || snapshot.scrollLeft !== (scrollRoot?.scrollLeft ?? 0)
+    || snapshot.scrollTop !== (scrollRoot?.scrollTop ?? 0)
+  ) {
+    return null;
+  }
+
+  return snapshot.blocks.map((block) => ({
+    range: {
+      from: block.from,
+      to: block.to,
+    },
+    element: block.element,
+    rect: block.rect,
+  }));
+}
+
 export function getCachedEditorBlockTargetByPos(
   view: EditorView,
   blockPos: number,

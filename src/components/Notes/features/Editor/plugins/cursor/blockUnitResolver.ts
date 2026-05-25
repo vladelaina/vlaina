@@ -459,6 +459,28 @@ export function expandListItemHeaderRanges(
   return normalizeBlockRanges(expanded);
 }
 
+export function expandKnownSelectableListItemHeaderRanges(
+  doc: EditorState['doc'],
+  ranges: readonly BlockRange[],
+  selectableRanges: readonly BlockRange[],
+): BlockRange[] {
+  const normalized = normalizeBlockRanges(ranges);
+  if (normalized.length === 0) return [];
+
+  const expanded: BlockRange[] = [...normalized];
+  for (const range of normalized) {
+    const listItemTo = getListItemRangeEnd(doc, range.from);
+    if (listItemTo === null || range.to >= listItemTo) continue;
+
+    for (const candidate of selectableRanges) {
+      if (candidate.from < range.to) continue;
+      if (candidate.to > listItemTo) continue;
+      expanded.push(candidate);
+    }
+  }
+  return normalizeBlockRanges(expanded);
+}
+
 export function resolveSelectableBlockTargetByPos(view: EditorView, blockPos: number): SelectableBlockTarget | null {
   const range = resolveSelectableBlockRange(view.state.doc, blockPos);
   if (!range) return null;

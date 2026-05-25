@@ -2,14 +2,16 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { createBlockRectResolver } from './blockRectResolver';
 import {
   clampViewportRectTop,
+  createBlockRectYIndex,
   convertBlockRectsToDocumentSpace,
   convertViewportDragRectToDocumentRect,
   getBlockRangesKey,
   preferNestedBlockRanges,
   preferNestedBlockRangesUnlessHeaderIntersects,
   resolveDisplayedDragViewportRect,
-  resolveIntersectedBlockRanges,
+  resolveIntersectedBlockRangesFromYIndex,
   type BlockRect,
+  type BlockRectYIndex,
   type BlockRange,
   type RectBounds,
 } from './blockSelectionUtils';
@@ -18,7 +20,7 @@ import {
   type BlankAreaPlainClickAction,
 } from './blankAreaPlainClick';
 import { startBlockDragSession, type BlockDragSessionHandle, type BlockDragStartZone } from './blockDragSession';
-import { expandListItemHeaderRanges } from './blockUnitResolver';
+import { expandKnownSelectableListItemHeaderRanges } from './blockUnitResolver';
 
 interface BlankAreaSelectionPlainClickResult {
   zone: BlockDragStartZone;
@@ -136,6 +138,42 @@ export function startBlankAreaSelectionSession(
   let isAutoScrollActive = false;
   let preserveContainingBlocksForSession = false;
   let didResolveFirstNonEmptySelection = false;
+  let cachedDocSpaceSourceRects: readonly BlockRect[] | null = null;
+  let cachedDocSpaceScrollLeft = Number.NaN;
+  let cachedDocSpaceScrollTop = Number.NaN;
+  let cachedDocSpaceBlockRects: readonly BlockRect[] = [];
+  let cachedDocSpaceBlockIndex: BlockRectYIndex = createBlockRectYIndex([]);
+
+  const getDocSpaceBlockRectIndex = (
+    currentScrollLeft: number,
+    currentScrollTop: number,
+  ): { blockRects: readonly BlockRect[]; index: BlockRectYIndex } => {
+    const sourceRects = rectResolver.getSelectionBlockRects();
+    if (
+      cachedDocSpaceSourceRects === sourceRects
+      && cachedDocSpaceScrollLeft === currentScrollLeft
+      && cachedDocSpaceScrollTop === currentScrollTop
+    ) {
+      return {
+        blockRects: cachedDocSpaceBlockRects,
+        index: cachedDocSpaceBlockIndex,
+      };
+    }
+
+    cachedDocSpaceSourceRects = sourceRects;
+    cachedDocSpaceScrollLeft = currentScrollLeft;
+    cachedDocSpaceScrollTop = currentScrollTop;
+    cachedDocSpaceBlockRects = convertBlockRectsToDocumentSpace(
+      sourceRects,
+      currentScrollLeft,
+      currentScrollTop,
+    );
+    cachedDocSpaceBlockIndex = createBlockRectYIndex(cachedDocSpaceBlockRects);
+    return {
+      blockRects: cachedDocSpaceBlockRects,
+      index: cachedDocSpaceBlockIndex,
+    };
+  };
 
   const applyDragRectSelection = (viewportDragRect: RectBounds) => {
     const currentScrollLeft = scrollRoot?.scrollLeft ?? 0;
@@ -149,12 +187,11 @@ export function startBlankAreaSelectionSession(
       currentScrollLeft,
       currentScrollTop,
     );
-    const docSpaceBlockRects = convertBlockRectsToDocumentSpace(
-      rectResolver.getTopLevelBlockRects(),
+    const { blockRects: docSpaceBlockRects, index: docSpaceBlockIndex } = getDocSpaceBlockRectIndex(
       currentScrollLeft,
       currentScrollTop,
     );
-    const selectedBlocks = resolveIntersectedBlockRanges(docSpaceBlockRects, docSpaceDragRect);
+    const selectedBlocks = resolveIntersectedBlockRangesFromYIndex(docSpaceBlockIndex, docSpaceDragRect);
     if (!didResolveFirstNonEmptySelection && selectedBlocks.length > 0) {
       didResolveFirstNonEmptySelection = true;
       preserveContainingBlocksForSession = preferNestedBlockRanges(selectedBlocks).length === selectedBlocks.length;
@@ -162,7 +199,11 @@ export function startBlankAreaSelectionSession(
     const nestedPreferredBlocks = preserveContainingBlocksForSession
       ? selectedBlocks
       : preferNestedBlockRangesUnlessHeaderIntersects(selectedBlocks, docSpaceBlockRects, docSpaceDragRect);
-    const expandedBlocks = expandListItemHeaderRanges(view.state.doc, nestedPreferredBlocks);
+    const expandedBlocks = expandKnownSelectableListItemHeaderRanges(
+      view.state.doc,
+      nestedPreferredBlocks,
+      docSpaceBlockRects,
+    );
     const nextKey = getBlockRangesKey(expandedBlocks);
     if (nextKey === selectedBlocksKey) return;
 

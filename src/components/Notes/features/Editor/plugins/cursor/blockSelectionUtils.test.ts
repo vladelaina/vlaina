@@ -6,6 +6,7 @@ import type { Decoration } from '@milkdown/kit/prose/view';
 import {
   clampViewportRectTop,
   convertBlockRectsToDocumentSpace,
+  createBlockRectYIndex,
   convertViewportDragRectToDocumentRect,
   createBlockSelectionDecorations,
   createDragSelectionRect,
@@ -19,6 +20,7 @@ import {
   pruneContainedBlockRanges,
   resolveDisplayedDragViewportRect,
   resolveIntersectedBlockRanges,
+  resolveIntersectedBlockRangesFromYIndex,
   type BlockRect,
 } from './blockSelectionUtils';
 
@@ -250,6 +252,26 @@ describe('blockSelectionUtils', () => {
       { from: 20, to: 30 },
     ]);
     expect(getBlockRangesKey(result)).toBe('0:10|10:20|20:30');
+  });
+
+  it('selects the same intersected blocks through the y-axis index', () => {
+    const blocks: BlockRect[] = [
+      { from: 20, to: 30, left: 0, top: 70, right: 100, bottom: 90 },
+      { from: 0, to: 10, left: 0, top: 0, right: 100, bottom: 20 },
+      { from: 10, to: 20, left: 0, top: 30, right: 100, bottom: 50 },
+      { from: 30, to: 40, left: 0, top: 120, right: 100, bottom: 140 },
+    ];
+    const selectionRect = {
+      left: 10,
+      top: 10,
+      right: 90,
+      bottom: 75,
+    };
+
+    expect(resolveIntersectedBlockRangesFromYIndex(
+      createBlockRectYIndex(blocks),
+      selectionRect,
+    )).toEqual(resolveIntersectedBlockRanges(blocks, selectionRect));
   });
 
   it('does not select the previous block when dragging from the gap below it', () => {

@@ -4,6 +4,7 @@ import {
   collectSelectableBlockRanges,
   mapRangesToSelectableBlocks,
   resolveSelectableBlockRange,
+  expandKnownSelectableListItemHeaderRanges,
   expandListItemHeaderRanges,
 } from './blockUnitResolver';
 
@@ -322,5 +323,31 @@ describe('expandListItemHeaderRanges — list_item with paragraph then code_bloc
     // but it's a code_block, so returns null → no expansion → returns unchanged Range B.
     const expanded = expandListItemHeaderRanges(doc, [{ from: 6, to: 12 }]);
     expect(expanded).toEqual([{ from: 6, to: 12 }]);
+  });
+
+  it('expands known selectable list-item headers without re-resolving input ranges', () => {
+    const parentWithNestedChildren = createNode('list_item', 12, [
+      createNode('paragraph', 4),
+      createNode('ordered_list', 6, [createNode('list_item', 4)]),
+    ]);
+    const ordered = createNode('ordered_list', 14, [parentWithNestedChildren]);
+    const doc = {
+      ...createDoc([ordered]),
+      resolve(pos: number) {
+        return {
+          nodeAfter: pos === 1 ? parentWithNestedChildren : null,
+        };
+      },
+    } as any;
+    const selectableRanges = collectSelectableBlockRanges(doc);
+
+    expect(expandKnownSelectableListItemHeaderRanges(
+      doc,
+      [{ from: 1, to: 6 }],
+      selectableRanges,
+    )).toEqual([
+      { from: 1, to: 6 },
+      { from: 7, to: 11 },
+    ]);
   });
 });

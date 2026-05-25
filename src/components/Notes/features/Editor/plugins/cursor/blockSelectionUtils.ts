@@ -23,6 +23,11 @@ export interface BlockRange {
   to: number;
 }
 
+export interface BlockRectYIndex {
+  blocks: readonly BlockRect[];
+  sortedByTop: readonly BlockRect[];
+}
+
 export function createDragSelectionRect(
   startX: number,
   startY: number,
@@ -106,6 +111,50 @@ export function resolveIntersectedBlockRanges(
   const selected = blocks
     .filter((block) => isRectIntersecting(block, selectionRect))
     .map((block) => ({ from: block.from, to: block.to }));
+
+  return normalizeBlockRanges(selected);
+}
+
+function findFirstBlockWithTopAtOrAfter(blocks: readonly BlockRect[], top: number): number {
+  let low = 0;
+  let high = blocks.length;
+
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (blocks[mid].top < top) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+
+  return low;
+}
+
+export function createBlockRectYIndex(blocks: readonly BlockRect[]): BlockRectYIndex {
+  return {
+    blocks,
+    sortedByTop: [...blocks].sort((left, right) => (
+      left.top === right.top ? left.bottom - right.bottom : left.top - right.top
+    )),
+  };
+}
+
+export function resolveIntersectedBlockRangesFromYIndex(
+  index: BlockRectYIndex,
+  selectionRect: RectBounds,
+): BlockRange[] {
+  if (index.blocks.length === 0) return [];
+
+  const maybeIntersectingEnd = findFirstBlockWithTopAtOrAfter(index.sortedByTop, selectionRect.bottom);
+  const selected: BlockRange[] = [];
+
+  for (let i = 0; i < maybeIntersectingEnd; i += 1) {
+    const block = index.sortedByTop[i];
+    if (block.bottom <= selectionRect.top) continue;
+    if (!isRectIntersecting(block, selectionRect)) continue;
+    selected.push({ from: block.from, to: block.to });
+  }
 
   return normalizeBlockRanges(selected);
 }
