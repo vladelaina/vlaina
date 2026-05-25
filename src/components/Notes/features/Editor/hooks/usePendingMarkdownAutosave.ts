@@ -25,12 +25,39 @@ interface MilkdownEditorLike {
 
 type EditorGetter = () => MilkdownEditorLike | null | undefined;
 
+const CONTENT_EDITING_KEYS = new Set([
+  'Backspace',
+  'Delete',
+  'Enter',
+  'Tab',
+]);
+const ALLOW_SYNTHETIC_USER_EVENTS =
+  import.meta.env.MODE === 'test' || Boolean(import.meta.env.VITEST);
+
 interface PendingMarkdownAutosaveOptions {
   currentNotePath: string | undefined;
   currentNoteDiskRevision: number;
   currentNoteContent: string;
   updateContent: (content: string) => void;
   debouncedSave: () => void;
+}
+
+function isContentEditingUserEvent(event: Event): boolean {
+  if (event.type.startsWith('vlaina:')) {
+    return true;
+  }
+  if (!event.isTrusted && !ALLOW_SYNTHETIC_USER_EVENTS) {
+    return false;
+  }
+  if (event instanceof KeyboardEvent) {
+    if (ALLOW_SYNTHETIC_USER_EVENTS && event.key === '') return true;
+    if (event.isComposing) return true;
+    if (event.ctrlKey || event.metaKey || event.altKey) {
+      return false;
+    }
+    return CONTENT_EDITING_KEYS.has(event.key) || event.key.length === 1;
+  }
+  return true;
 }
 
 export function usePendingMarkdownAutosave({
@@ -42,6 +69,9 @@ export function usePendingMarkdownAutosave({
 }: PendingMarkdownAutosaveOptions) {
   const hasIgnoredInitNoise = useRef(false);
   const hasEditorUserInput = useRef(false);
+  const userInputVersionRef = useRef(0);
+  const handledUserInputVersionRef = useRef(0);
+  const pendingUserInputVersionRef = useRef(0);
   const pendingMarkdownUpdateFrameRef = useRef<number | null>(null);
   const pendingRawMarkdownRef = useRef<string | null>(null);
   const pendingMarkdownRef = useRef<string | null>(null);
@@ -52,6 +82,9 @@ export function usePendingMarkdownAutosave({
   useEffect(() => {
     hasIgnoredInitNoise.current = false;
     hasEditorUserInput.current = false;
+    userInputVersionRef.current = 0;
+    handledUserInputVersionRef.current = 0;
+    pendingUserInputVersionRef.current = 0;
     pendingRawMarkdownRef.current = null;
     pendingMarkdownRef.current = null;
     if (pendingMarkdownUpdateFrameRef.current !== null) {
@@ -109,8 +142,13 @@ export function usePendingMarkdownAutosave({
       if (!hasEditorUserInput.current) {
         return;
       }
+      const userInputVersion = userInputVersionRef.current;
+      if (userInputVersion <= handledUserInputVersionRef.current) {
+        return;
+      }
 
       pendingRawMarkdownRef.current = markdown;
+      pendingUserInputVersionRef.current = userInputVersion;
       if (pendingMarkdownUpdateFrameRef.current !== null) {
         return;
       }
@@ -118,10 +156,14 @@ export function usePendingMarkdownAutosave({
       pendingMarkdownUpdateFrameRef.current = requestAnimationFrame(() => {
         pendingMarkdownUpdateFrameRef.current = null;
         const rawMarkdown = pendingRawMarkdownRef.current;
+        const rawUserInputVersion = pendingUserInputVersionRef.current;
         pendingRawMarkdownRef.current = null;
+        pendingUserInputVersionRef.current = 0;
         if (rawMarkdown === null) {
           return;
         }
+        handledUserInputVersionRef.current = Math.max(handledUserInputVersionRef.current, rawUserInputVersion);
+        hasEditorUserInput.current = userInputVersionRef.current > handledUserInputVersionRef.current;
 
         const latestNote = useNotesStore.getState().currentNote;
         if (!latestNote || latestNote.path !== currentNotePath) {
@@ -147,7 +189,7 @@ export function usePendingMarkdownAutosave({
             const serializer = ctx.get(serializerCtx);
             liveSerializedMarkdown = serializer(latestEditorView.state.doc);
           }
-        } catch (error) {
+        } catch {
         }
 
         const resolvedUpdate = resolvePendingMarkdownUpdate({
@@ -174,10 +216,14 @@ export function usePendingMarkdownAutosave({
     _view: EditorView,
     _liveSerializer: ((doc: unknown) => string) | null
   ) => {
-    return (_event: Event) => {
+    return (event: Event) => {
+      if (!isContentEditingUserEvent(event)) {
+        return;
+      }
       hasEditorUserInput.current = true;
+      userInputVersionRef.current += 1;
     };
-  }, [currentNotePath]);
+  }, []);
 
   return {
     configureMarkdownListener,
