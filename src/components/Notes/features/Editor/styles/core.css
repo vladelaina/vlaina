@@ -531,6 +531,31 @@ body.vlaina-block-dragging-cursor .milkdown :is(
   opacity: 1;
 }
 
+.vlaina-external-text-drop-cursor {
+  position: fixed;
+  width: 2px;
+  min-height: 18px;
+  background: var(--sidebar-row-selected-text, var(--vlaina-accent));
+  border-radius: 1px;
+  box-shadow: 0 0 0 1px color-mix(in srgb, white 72%, transparent);
+  pointer-events: none;
+  z-index: 61;
+  opacity: 0;
+  transform: translateX(-1px);
+  transition: opacity 60ms linear;
+}
+
+.vlaina-external-text-drop-cursor.block {
+  height: 2px;
+  min-height: 0;
+  transform: none;
+  transition: opacity 60ms linear;
+}
+
+.vlaina-external-text-drop-cursor.visible {
+  opacity: 1;
+}
+
 .milkdown .ProseMirror .vlaina-block-drag-source {
   opacity: 0.38;
   transition: opacity 120ms ease;

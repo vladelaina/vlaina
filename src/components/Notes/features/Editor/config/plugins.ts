@@ -36,6 +36,7 @@ import { blockControlsPlugin } from '../plugins/cursor/blockControlsPlugin';
 import { atomicBlockKeyboardNavigationPlugin } from '../plugins/cursor/atomicBlockKeyboardNavigationPlugin';
 import { endBlankClickPlugin } from '../plugins/cursor/endBlankClickPlugin';
 import { nativeDragGuardPlugin } from '../plugins/cursor/nativeDragGuard';
+import { externalTextDropCursorPlugin } from '../plugins/cursor/externalTextDropCursorPlugin';
 import { containerBoundaryShiftSelectionPlugin } from '../plugins/cursor/containerBoundaryShiftSelectionPlugin';
 import { hrAutoParagraphPlugin } from '../plugins/hr/hrAutoParagraphPlugin';
 import { autoPairPlugin } from '../plugins/pairs/autoPairPlugin';
@@ -116,6 +117,7 @@ export const customPluginGroups = [
       textSelectionOverlayPlugin,
       editorFindPlugin,
       nativeDragGuardPlugin,
+      externalTextDropCursorPlugin,
       blockControlsPlugin,
       blankAreaDragBoxPlugin,
       atomicBlockKeyboardNavigationPlugin,
