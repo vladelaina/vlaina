@@ -22,6 +22,8 @@ afterEach(() => {
 describe('startBlockDragSession', () => {
   it('treats mouse up without dragging as plain click', () => {
     const { view } = setupViewDom();
+    const cursorRoot = document.createElement('div');
+    document.body.appendChild(cursorRoot);
     const onActivate = vi.fn();
     const onDragMove = vi.fn();
     const onPlainClick = vi.fn();
@@ -39,15 +41,17 @@ describe('startBlockDragSession', () => {
       startZone: 'outside-editor',
       dragThreshold: 6,
       cursor: 'crosshair',
+      cursorRoot,
       onActivate,
       onDragMove,
       onPlainClick,
       onTeardown,
     });
 
-    expect(document.body.classList.contains('vlaina-block-selection-pending')).toBe(true);
-    expect(document.body.style.cursor).toBe('text');
-    expect(view.dom.style.cursor).toBe('text');
+    expect(view.dom.classList.contains('vlaina-block-selection-pending')).toBe(false);
+    expect(cursorRoot.style.cursor).toBe('');
+    expect(document.body.style.cursor).toBe('');
+    expect(view.dom.style.cursor).toBe('');
 
     document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
 
@@ -55,13 +59,15 @@ describe('startBlockDragSession', () => {
     expect(onDragMove).not.toHaveBeenCalled();
     expect(onPlainClick).toHaveBeenCalledWith('outside-editor');
     expect(onTeardown).toHaveBeenCalledTimes(1);
-    expect(document.body.classList.contains('vlaina-block-selection-pending')).toBe(false);
-    expect(document.body.style.cursor).toBe('');
+    expect(view.dom.classList.contains('vlaina-block-selection-pending')).toBe(false);
+    expect(cursorRoot.style.cursor).toBe('');
     expect(document.body.style.userSelect).toBe('');
   });
 
   it('activates drag after threshold and emits normalized selection rect', () => {
     const { view } = setupViewDom();
+    const cursorRoot = document.createElement('div');
+    document.body.appendChild(cursorRoot);
     const onActivate = vi.fn();
     const onDragMove = vi.fn();
     const onPlainClick = vi.fn();
@@ -79,15 +85,17 @@ describe('startBlockDragSession', () => {
       startZone: 'below-last-block',
       dragThreshold: 4,
       cursor: 'crosshair',
+      cursorRoot,
       onActivate,
       onDragMove,
       onPlainClick,
       onTeardown,
     });
 
-    expect(document.body.classList.contains('vlaina-block-selection-pending')).toBe(true);
-    expect(document.body.style.cursor).toBe('text');
-    expect(view.dom.style.cursor).toBe('text');
+    expect(view.dom.classList.contains('vlaina-block-selection-pending')).toBe(false);
+    expect(cursorRoot.style.cursor).toBe('');
+    expect(document.body.style.cursor).toBe('');
+    expect(view.dom.style.cursor).toBe('');
 
     document.dispatchEvent(new MouseEvent('mousemove', {
       bubbles: true,
@@ -97,8 +105,8 @@ describe('startBlockDragSession', () => {
       buttons: 1,
     }));
 
-    expect(document.body.style.cursor).toBe('text');
-    expect(view.dom.style.cursor).toBe('text');
+    expect(cursorRoot.style.cursor).toBe('');
+    expect(view.dom.style.cursor).toBe('');
 
     document.dispatchEvent(new MouseEvent('mousemove', {
       bubbles: true,
@@ -116,16 +124,18 @@ describe('startBlockDragSession', () => {
       right: 40,
       bottom: 54,
     });
-    expect(document.body.classList.contains('vlaina-block-dragging-cursor')).toBe(true);
-    expect(document.body.style.cursor).toBe('crosshair');
+    expect(view.dom.classList.contains('vlaina-block-selection-pending')).toBe(true);
+    expect(document.body.classList.contains('vlaina-block-dragging-cursor')).toBe(false);
+    expect(cursorRoot.style.cursor).toBe('crosshair');
+    expect(document.body.style.cursor).toBe('');
     expect(view.dom.style.cursor).toBe('crosshair');
-    expect(document.body.style.userSelect).toBe('none');
+    expect(document.body.style.userSelect).toBe('');
 
     document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
 
     expect(onPlainClick).not.toHaveBeenCalled();
     expect(onTeardown).toHaveBeenCalledTimes(1);
-    expect(document.body.classList.contains('vlaina-block-selection-pending')).toBe(false);
+    expect(view.dom.classList.contains('vlaina-block-selection-pending')).toBe(false);
     expect(document.body.classList.contains('vlaina-block-dragging-cursor')).toBe(false);
     expect(document.body.style.userSelect).toBe('');
   });

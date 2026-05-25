@@ -41,6 +41,7 @@ export function clearBlockSelection(view: EditorView): void {
 }
 
 export function setBlockSelectionVisualState(view: EditorView, active: boolean): void {
+  if (view.dom.classList.contains(BLOCK_SELECTION_ACTIVE_CLASS) === active) return;
   view.dom.classList.toggle(BLOCK_SELECTION_ACTIVE_CLASS, active);
 }
 

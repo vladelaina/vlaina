@@ -1,6 +1,7 @@
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { isClickBelowLastBlock } from './endBlankClickUtils';
 import { type BlockDragStartZone } from './blockDragSession';
+import { getFreshCachedEditorBlockTargets } from '../../utils/editorBlockPositionCache';
 
 const SCROLL_ROOT_SELECTOR = '[data-note-scroll-root="true"]';
 const NOTES_SIDEBAR_SCROLL_ROOT_SELECTOR = '[data-notes-sidebar-scroll-root="true"]';
@@ -56,6 +57,11 @@ interface TextSelectionGutterHit {
 type TextLinePointerHit =
   | { type: 'content' }
   | ({ type: 'gutter' } & TextSelectionGutterHit);
+
+interface CachedTextLinePointerHitResult {
+  checked: boolean;
+  hit: TextLinePointerHit | null;
+}
 
 function getScrollRoot(element: HTMLElement | null): HTMLElement | null {
   if (!element) return null;
@@ -152,9 +158,49 @@ function resolveTextLinePointerHit(root: HTMLElement, clientX: number, clientY: 
   return null;
 }
 
-function resolveTextSelectionGutterHit(root: HTMLElement, clientX: number, clientY: number): TextSelectionGutterHit | null {
-  const hit = resolveTextLinePointerHit(root, clientX, clientY);
-  return hit?.type === 'gutter' ? { edge: hit.edge } : null;
+function isPointNearBlockY(
+  rect: Pick<DOMRect, 'top' | 'bottom' | 'height'>,
+  clientY: number,
+): boolean {
+  if (rect.height <= 0) return false;
+  const verticalSlack = Math.max(6, Math.min(18, rect.height * 0.25));
+  return clientY >= rect.top - verticalSlack && clientY <= rect.bottom + verticalSlack;
+}
+
+function resolveCachedTextLinePointerHit(
+  view: EditorView,
+  scrollRoot: HTMLElement | null,
+  clientX: number,
+  clientY: number,
+): CachedTextLinePointerHitResult {
+  const targets = getFreshCachedEditorBlockTargets(view, scrollRoot);
+  if (!targets) {
+    return { checked: false, hit: null };
+  }
+
+  for (const target of targets) {
+    if (!isPointNearBlockY(target.rect, clientY)) continue;
+    const hit = resolveTextLinePointerHit(target.element, clientX, clientY);
+    if (hit) {
+      return { checked: true, hit };
+    }
+  }
+
+  return { checked: true, hit: null };
+}
+
+function resolveTargetTextLinePointerHit(
+  view: EditorView,
+  target: HTMLElement,
+  clientX: number,
+  clientY: number,
+): TextLinePointerHit | null {
+  const textBlock = target.closest(TEXT_BLOCK_SURFACE_SELECTOR);
+  if (textBlock instanceof HTMLElement && view.dom.contains(textBlock)) {
+    return resolveTextLinePointerHit(textBlock, clientX, clientY);
+  }
+
+  return resolveTextLinePointerHit(view.dom, clientX, clientY);
 }
 
 function isTextBlockBlankSurfaceTarget(view: EditorView, target: HTMLElement): boolean {
@@ -181,7 +227,19 @@ export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEven
   if (target.closest(INTERACTIVE_SELECTOR)) return null;
 
   if (view.dom.contains(target)) {
-    const textLineHit = resolveTextLinePointerHit(view.dom, event.clientX, event.clientY);
+    if (target === view.dom && view.dom.childElementCount === 0) {
+      return 'outside-editor';
+    }
+
+    const cachedTextLineHit = resolveCachedTextLinePointerHit(
+      view,
+      editorScrollRoot,
+      event.clientX,
+      event.clientY,
+    );
+    const textLineHit = cachedTextLineHit.checked
+      ? cachedTextLineHit.hit
+      : resolveTargetTextLinePointerHit(view, target, event.clientX, event.clientY);
 
     if (textLineHit) {
       return null;
@@ -189,18 +247,25 @@ export function resolveBlankAreaDragStartZone(view: EditorView, event: MouseEven
     if (target === view.dom && isClickBelowLastBlock(view.dom, event.clientY)) {
       return 'below-last-block';
     }
-    if (target === view.dom && view.dom.childElementCount === 0) {
-      return 'outside-editor';
-    }
     if (isTextBlockBlankSurfaceTarget(view, target)) {
       return 'outside-editor';
     }
     return null;
   }
 
-  const externalTextGutterHit = isSameEditorScrollRoot
-    ? resolveTextSelectionGutterHit(view.dom, event.clientX, event.clientY)
-    : null;
+  let externalTextGutterHit: TextSelectionGutterHit | null = null;
+  if (isSameEditorScrollRoot) {
+    const cachedTextLineHit = resolveCachedTextLinePointerHit(
+      view,
+      editorScrollRoot,
+      event.clientX,
+      event.clientY,
+    );
+    const textLineHit = cachedTextLineHit.checked
+      ? cachedTextLineHit.hit
+      : resolveTextLinePointerHit(view.dom, event.clientX, event.clientY);
+    externalTextGutterHit = textLineHit?.type === 'gutter' ? { edge: textLineHit.edge } : null;
+  }
   if (externalTextGutterHit) {
     return null;
   }
