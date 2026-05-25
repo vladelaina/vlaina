@@ -40,6 +40,9 @@ describe('NotesTabRow', () => {
     expect(source).toContain('group-hover/tab-row:opacity-100');
     expect(source).toContain('group-focus-within/tab-row:pointer-events-auto');
     expect(source).toContain('group-focus-within/tab-row:opacity-100');
+    expect(source).toContain('const currentVaultPath = useVaultStore((s) => s.currentVault?.path ?? null);');
+    expect(source).toContain('const hasOpenedFolder = Boolean(currentVaultPath && notesPath === currentVaultPath && rootFolderPath === currentVaultPath);');
+    expect(source).toContain('{hasOpenedFolder ? (');
     expect(source).toContain('shouldShowTitleTooltip');
     expect(source).toContain('{shouldShowTitleTooltip ? (');
     expect(source).toContain('label.scrollWidth > label.clientWidth + 1');

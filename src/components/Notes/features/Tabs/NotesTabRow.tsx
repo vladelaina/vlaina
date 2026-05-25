@@ -2,6 +2,7 @@ import React, { memo, useCallback } from 'react';
 import { Icon } from '@/components/ui/icons';
 import { useI18n } from '@/lib/i18n';
 import { useNotesStore } from '@/stores/useNotesStore';
+import { useVaultStore } from '@/stores/useVaultStore';
 import { useDisplayIcon } from '@/hooks/useTitleSync';
 import { cn } from '@/lib/utils';
 import { chatComposerPillSurfaceClass } from '@/components/Chat/features/Input/composerStyles';
@@ -208,12 +209,16 @@ function TabOverlay({ tab, isActive }: TabOverlayProps) {
 
 export function NotesTabRow() {
   const { t } = useI18n();
+  const currentVaultPath = useVaultStore((s) => s.currentVault?.path ?? null);
   const currentNotePath = useNotesStore((s) => s.currentNote?.path);
+  const notesPath = useNotesStore((s) => s.notesPath);
+  const rootFolderPath = useNotesStore((s) => s.rootFolderPath);
   const openTabs = useNotesStore((s) => s.openTabs);
   const closeTab = useNotesStore((s) => s.closeTab);
   const openNote = useNotesStore((s) => s.openNote);
   const createNote = useNotesStore((s) => s.createNote);
   const reorderTabs = useNotesStore((s) => s.reorderTabs);
+  const hasOpenedFolder = Boolean(currentVaultPath && notesPath === currentVaultPath && rootFolderPath === currentVaultPath);
 
   const [activeTabId, setActiveTabId] = React.useState<string | null>(null);
 
@@ -286,32 +291,34 @@ export function NotesTabRow() {
         </DndContext>
       </div>
 
-      <Tooltip delayDuration={500}>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={handleCreateNote}
-            className="notes-tab-row-new-note-button vlaina-no-drag pointer-events-none flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-zinc-400 opacity-0 transition-all group-hover/tab-row:pointer-events-auto group-hover/tab-row:opacity-100 group-focus-within/tab-row:pointer-events-auto group-focus-within/tab-row:opacity-100 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+      {hasOpenedFolder ? (
+        <Tooltip delayDuration={500}>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={handleCreateNote}
+              className="notes-tab-row-new-note-button vlaina-no-drag pointer-events-none flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-zinc-400 opacity-0 transition-all group-hover/tab-row:pointer-events-auto group-hover/tab-row:opacity-100 group-focus-within/tab-row:pointer-events-auto group-focus-within/tab-row:opacity-100 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+            >
+              <Icon name="common.add" className="h-4 w-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent
+            side="bottom"
+            sideOffset={6}
+            showArrow={false}
+            className={cn(
+              'flex items-center gap-1.5 rounded-[18px] px-3 py-2 text-xs text-[var(--chat-sidebar-text)]',
+              chatComposerPillSurfaceClass,
+            )}
           >
-            <Icon name="common.add" className="h-4 w-4" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent
-          side="bottom"
-          sideOffset={6}
-          showArrow={false}
-          className={cn(
-            'flex items-center gap-1.5 rounded-[18px] px-3 py-2 text-xs text-[var(--chat-sidebar-text)]',
-            chatComposerPillSurfaceClass,
-          )}
-        >
-          <span>{t('sidebar.newNote')}</span>
-          <ShortcutKeys
-            keys={['Ctrl', 'T']}
-            keyClassName="rounded-md bg-[var(--chat-sidebar-row-hover)] text-[var(--chat-sidebar-text)]"
-          />
-        </TooltipContent>
-      </Tooltip>
+            <span>{t('sidebar.newNote')}</span>
+            <ShortcutKeys
+              keys={['Ctrl', 'T']}
+              keyClassName="rounded-md bg-[var(--chat-sidebar-row-hover)] text-[var(--chat-sidebar-text)]"
+            />
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
     </div>
   );
 }
