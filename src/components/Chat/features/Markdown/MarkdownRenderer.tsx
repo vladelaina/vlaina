@@ -13,6 +13,10 @@ import { getChatContentWidth } from '@/components/Chat/features/Layout/chatWidth
 import {
   addChatSelectionStreamFreezeListener,
 } from '@/components/Chat/features/Messages/components/chatSelectionStreamFreeze';
+import {
+  serializeChatHeadingDragPayload,
+  VLAINA_CHAT_HEADING_DRAG_MIME,
+} from '@/lib/drag/chatHeadingDrag';
 import 'katex/dist/katex.min.css';
 import '@/components/common/markdown/markdownSurface.css';
 import { normalizeRenderableImageSrc } from './imagePolicy';
@@ -77,6 +81,43 @@ function isSelectionSurfaceTarget(target: EventTarget | null): boolean {
     !!target.closest('[data-chat-selection-surface="true"]') &&
     !target.closest(SELECTION_EXCLUDED_SELECTOR)
   );
+}
+
+function getElementFromEventTarget(target: EventTarget | null): Element | null {
+  if (target instanceof Element) return target;
+  if (target instanceof Text) return target.parentElement;
+  return null;
+}
+
+function getSelectedMarkdownHeadingDragPayload(target: EventTarget | null): { level: number; text: string } | null {
+  const element = getElementFromEventTarget(target);
+  if (!element) return null;
+
+  const heading = element.closest('h1,h2,h3,h4,h5,h6');
+  if (!(heading instanceof HTMLElement)) return null;
+
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed || selection.rangeCount === 0) return null;
+
+  const selectedText = selection.toString().trim();
+  const headingText = heading.textContent?.trim() ?? '';
+  if (!selectedText || selectedText !== headingText) return null;
+
+  let intersectsHeading = false;
+  for (let index = 0; index < selection.rangeCount; index += 1) {
+    try {
+      if (selection.getRangeAt(index).intersectsNode(heading)) {
+        intersectsHeading = true;
+      }
+    } catch {
+      return null;
+    }
+  }
+  if (!intersectsHeading) return null;
+
+  const level = Number(heading.tagName.slice(1));
+  if (!Number.isInteger(level) || level < 1 || level > 6) return null;
+  return { level, text: headingText };
 }
 
 interface MarkdownContentProps {
@@ -367,6 +408,16 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
       beginSelectionFreeze(event.target, event.button);
     }, [beginSelectionFreeze]);
 
+    const handleMarkdownDragStartCapture = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+      const payload = getSelectedMarkdownHeadingDragPayload(event.target);
+      if (!payload) return;
+
+      event.dataTransfer.setData(
+        VLAINA_CHAT_HEADING_DRAG_MIME,
+        serializeChatHeadingDragPayload(payload),
+      );
+    }, []);
+
     const { body: thinking, isComplete: isThinkingDone, markdown } = useMemo(() => {
       const sections = extractThinkingSections(renderedContent || '');
       return {
@@ -454,6 +505,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
             data-chat-selection-surface="true"
             data-chat-selection-start="true"
             data-chat-markdown-live={shouldAnimateStream ? 'true' : undefined}
+            onDragStartCapture={handleMarkdownDragStartCapture}
             className={[
               'vlaina-markdown-surface max-w-full break-words',
               shouldAnimateStream ? 'chat-markdown-live' : '',
