@@ -23,6 +23,7 @@ import { runWithSessionMutationLock } from '@/lib/ai/sessionMutationLock';
 import {
   buildMentionedNotesContext,
   buildMessageImageSources,
+  buildStoredUserMessageContent,
   loadMentionedNotes,
   normalizeNoteMentions,
   normalizeVisionAttachment,
@@ -33,7 +34,6 @@ import { sendMessageWithEndpointFallback } from './chatService/sendMessageWithEn
 import { hydrateSessionMessagesFromDisk } from '@/stores/ai/sessionConsistency';
 import { translate, useI18n } from '@/lib/i18n';
 import { ACCOUNT_AUTH_INVALIDATED_EVENT } from '@/lib/account/sessionEvent';
-import { isStandaloneImageGenerationModel } from '@/lib/ai/modelCapabilities';
 
 const INVISIBLE_BREAK_REGEX = /[\u200b\u200c\u200d\ufeff]/g;
 const UNIVERSAL_NEWLINE_REGEX = /\r\n?|\u2028|\u2029|\u0085/g;
@@ -241,23 +241,18 @@ export function useChatService() {
       const hasNoMentions = normalizedMentions.length === 0;
 
       if ((isTextEmpty && hasNoAttachments && hasNoMentions) || !selectedModel) {
-        return;
+        return false;
       }
 
       const provider = providers.find((item) => item.id === selectedModel.providerId);
       if (!provider) {
         setError(t('chat.error.providerNotFound'));
-        return;
+        return false;
       }
       if (provider.enabled === false) {
         setError(t('chat.error.channelOff'));
-        return;
+        return false;
       }
-      if (isManagedProviderId(provider.id) && attachments.length > 0 && !isStandaloneImageGenerationModel(selectedModel)) {
-        setError(t('chat.error.managedTextOnly'));
-        return;
-      }
-
       const normalizedInput = text
         .replace(INVISIBLE_BREAK_REGEX, '')
         .replace(UNIVERSAL_NEWLINE_REGEX, '\n');
@@ -277,12 +272,12 @@ export function useChatService() {
         }
       }
       if (!activeSessionId) {
-        return;
+        return false;
       }
 
       const targetSessionId = activeSessionId;
 
-      await runWithSessionMutationLock(targetSessionId, async () => {
+      void runWithSessionMutationLock(targetSessionId, async () => {
         const latestMessages = await hydrateSessionMessagesFromDisk(targetSessionId);
 
         let storageContent = userMessageText;
@@ -412,7 +407,13 @@ export function useChatService() {
           setError(message);
           aiActions.updateMessage(targetSessionId, assistantMessageId, xml);
         }
+      }).catch((error) => {
+        const isManaged = isManagedProviderId(provider.id);
+        markManagedAuthPromptForError(targetSessionId, error, isManaged);
+        const { message } = buildChatErrorPayload(error, isManaged);
+        setError(message);
       });
+      return true;
     },
     [
       currentSessionId,
@@ -492,13 +493,14 @@ export function useChatService() {
             includeTimeContext,
             customSystemPrompt,
           });
+          const apiMessageContent = await buildStoredUserMessageContent(newContent);
 
           await runStreamedAssistantMessage({
             sessionId,
             assistantMessageId,
             execute: (onChunk, signal) =>
               sendMessageWithEndpointFallback({
-                content: newContent,
+                content: apiMessageContent,
                 history: requestHistory,
                 model: selectedModel,
                 provider,
@@ -599,13 +601,14 @@ export function useChatService() {
             includeTimeContext,
             customSystemPrompt,
           });
+          const apiMessageContent = await buildStoredUserMessageContent(promptMessage.content);
 
           await runStreamedAssistantMessage({
             sessionId,
             assistantMessageId: messageId,
             execute: (onChunk, signal) =>
               sendMessageWithEndpointFallback({
-                content: promptMessage.content,
+                content: apiMessageContent,
                 history: requestHistory,
                 model: selectedModel,
                 provider,

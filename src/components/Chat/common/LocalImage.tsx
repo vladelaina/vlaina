@@ -32,7 +32,6 @@ function isDirectRenderableSrc(value: string): boolean {
         value.startsWith('https://') ||
         value.startsWith('data:') ||
         value.startsWith('blob:') ||
-        value.startsWith('file://') ||
         isRelativePath(value)
     );
 }
@@ -50,16 +49,24 @@ function sanitizeAttachmentFilename(value: string): string | null {
     return normalized;
 }
 
+function decodeAttachmentFilename(value: string): string | null {
+    try {
+        return sanitizeAttachmentFilename(decodeURIComponent(value));
+    } catch {
+        return sanitizeAttachmentFilename(value);
+    }
+}
+
 function extractAttachmentFilename(src: string): string | null {
     const trimmed = src.trim();
     if (!trimmed) return null;
 
     if (trimmed.startsWith('attachment://')) {
-        return sanitizeAttachmentFilename(trimmed.slice('attachment://'.length));
+        return decodeAttachmentFilename(trimmed.slice('attachment://'.length));
     }
 
     if (trimmed.startsWith('app-file://attachment/')) {
-        return sanitizeAttachmentFilename(trimmed.slice('app-file://attachment/'.length));
+        return decodeAttachmentFilename(trimmed.slice('app-file://attachment/'.length));
     }
 
     if (/^[^/\\]+\.[a-z0-9]+$/i.test(trimmed)) {

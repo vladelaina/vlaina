@@ -84,6 +84,45 @@ function uint8ArrayToBase64(bytes: Uint8Array): string {
     return window.btoa(binary);
 }
 
+function sanitizeAttachmentFilename(value: string): string | null {
+    const normalized = value.trim();
+    if (!normalized || normalized === '.' || normalized === '..' || /[\\/]/.test(normalized)) {
+        return null;
+    }
+    return normalized;
+}
+
+function decodeAttachmentFilename(value: string): string | null {
+    try {
+        return sanitizeAttachmentFilename(decodeURIComponent(value));
+    } catch {
+        return sanitizeAttachmentFilename(value);
+    }
+}
+
+function extractStoredAttachmentFilename(src: string): string | null {
+    const trimmed = src.trim();
+    if (!trimmed) return null;
+
+    if (trimmed.startsWith('attachment://')) {
+        return decodeAttachmentFilename(trimmed.slice('attachment://'.length));
+    }
+
+    if (trimmed.startsWith('app-file://attachment/')) {
+        return decodeAttachmentFilename(trimmed.slice('app-file://attachment/'.length));
+    }
+
+    try {
+        const url = new URL(trimmed);
+        const marker = '/attachments/';
+        const markerIndex = url.pathname.lastIndexOf(marker);
+        if (markerIndex === -1) return null;
+        return decodeAttachmentFilename(url.pathname.slice(markerIndex + marker.length));
+    } catch {
+        return null;
+    }
+}
+
 export async function convertToBase64(attachment: Attachment): Promise<string> {
     if (attachment.previewUrl.startsWith('data:')) {
         return attachment.previewUrl;
@@ -98,6 +137,17 @@ export async function convertToBase64(attachment: Attachment): Promise<string> {
             return `data:${attachment.type};base64,${base64}`;
         } catch (e) {
         }
+    }
+
+    const storedFilename =
+        extractStoredAttachmentFilename(attachment.previewUrl) ||
+        extractStoredAttachmentFilename(attachment.assetUrl);
+    if (storedFilename) {
+        const basePath = await storage.getBasePath();
+        const fullPath = await joinPath(basePath, ATTACHMENT_DIR, storedFilename);
+        const data = await storage.readBinaryFile(fullPath);
+        const base64 = uint8ArrayToBase64(data);
+        return `data:${attachment.type};base64,${base64}`;
     }
 
     throw new Error('Cannot convert attachment to Base64');

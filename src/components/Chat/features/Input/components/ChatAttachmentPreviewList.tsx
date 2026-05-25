@@ -29,10 +29,12 @@ export function ChatAttachmentPreviewList({ attachments, onRemove }: ChatAttachm
           )}
 
           <button
+            type="button"
+            aria-label="Remove attachment"
             onClick={() => onRemove(attachment.id)}
-            className="absolute -top-1.5 -right-1.5 bg-gray-200 dark:bg-zinc-700 text-gray-500 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500 hover:text-white"
+            className="absolute right-1 top-1 z-10 inline-flex h-5 w-5 items-center justify-center rounded-full bg-white/90 text-zinc-500 opacity-0 shadow-sm ring-1 ring-black/5 transition-all group-hover:opacity-100 hover:bg-zinc-100 hover:text-zinc-950 dark:bg-zinc-900/90 dark:text-zinc-400 dark:ring-white/10 dark:hover:bg-zinc-100 dark:hover:text-zinc-950"
           >
-            <Icon name="common.close" size="md" />
+            <Icon name="common.close" size="xs" />
           </button>
         </div>
       ))}

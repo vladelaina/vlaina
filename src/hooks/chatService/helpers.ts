@@ -1,7 +1,11 @@
 import { convertToBase64, type Attachment } from '@/lib/storage/attachmentStorage';
-import type { ChatMessageContentPart } from '@/lib/ai/types';
+import type { ChatMessageContent, ChatMessageContentPart } from '@/lib/ai/types';
 import type { NoteMentionReference } from '@/lib/ai/noteMentions';
 import { dedupeNoteMentions } from '@/lib/ai/noteMentions';
+import {
+  extractMarkdownImageSources,
+  stripMarkdownImageTokens,
+} from '@/components/Chat/common/messageClipboard';
 import { getStorageAdapter, joinPath } from '@/lib/storage/adapter';
 import { useNotesStore } from '@/stores/notes/useNotesStore';
 import { isManagedProviderId } from '@/lib/ai/managedService';
@@ -66,8 +70,25 @@ export function getAttachmentMessageImageSrc(attachment: Attachment): string {
     return previewUrl;
   }
 
+  const attachmentPath = attachment.path?.trim() ?? '';
+  const pathFilename = attachmentPath.split(/[\\/]/).pop()?.trim();
+  if (pathFilename) {
+    return `attachment://${encodeURIComponent(pathFilename)}`;
+  }
+
   const assetUrl = attachment.assetUrl?.trim() ?? '';
   if (assetUrl) {
+    try {
+      const url = new URL(assetUrl);
+      const marker = '/attachments/';
+      const markerIndex = url.pathname.lastIndexOf(marker);
+      if (markerIndex !== -1) {
+        const filename = decodeURIComponent(url.pathname.slice(markerIndex + marker.length)).trim();
+        if (filename && !/[\\/]/.test(filename)) {
+          return `attachment://${encodeURIComponent(filename)}`;
+        }
+      }
+    } catch {}
     return assetUrl;
   }
   return previewUrl;
@@ -75,6 +96,72 @@ export function getAttachmentMessageImageSrc(attachment: Attachment): string {
 
 export function toImageMarkdown(src: string): string {
   return `![image](<${src}>)`;
+}
+
+function inferImageMimeType(src: string): string {
+  if (src.startsWith('data:image/')) {
+    const match = /^data:(image\/[^;,]+)/i.exec(src);
+    return match?.[1]?.toLowerCase() ?? 'image/*';
+  }
+
+  const pathname = src.split(/[?#]/)[0]?.toLowerCase() ?? '';
+  if (pathname.endsWith('.png')) return 'image/png';
+  if (pathname.endsWith('.jpg') || pathname.endsWith('.jpeg')) return 'image/jpeg';
+  if (pathname.endsWith('.webp')) return 'image/webp';
+  if (pathname.endsWith('.gif')) return 'image/gif';
+  if (pathname.endsWith('.avif')) return 'image/avif';
+  if (pathname.endsWith('.bmp')) return 'image/bmp';
+  if (pathname.endsWith('.svg')) return 'image/svg+xml';
+  return 'image/*';
+}
+
+function inferImageName(src: string, index: number): string {
+  const fallback = `image-${index + 1}.png`;
+  if (src.startsWith('data:image/')) {
+    const mime = inferImageMimeType(src);
+    const ext = mime.split('/')[1]?.replace('svg+xml', 'svg') || 'png';
+    return `image-${index + 1}.${ext}`;
+  }
+
+  try {
+    const url = new URL(src);
+    const base = decodeURIComponent(url.pathname.split('/').pop() || '').trim();
+    return base || fallback;
+  } catch {
+    const base = src.split(/[?#]/)[0]?.split('/').pop()?.trim();
+    return base || fallback;
+  }
+}
+
+function imageSourceToAttachment(src: string, index: number): Attachment {
+  return {
+    id: `stored-image-${index}`,
+    path: '',
+    previewUrl: src,
+    assetUrl: src,
+    name: inferImageName(src, index),
+    type: inferImageMimeType(src),
+    size: 0,
+  };
+}
+
+export async function buildStoredUserMessageContent(content: string): Promise<ChatMessageContent> {
+  const imageSources = extractMarkdownImageSources(content);
+  if (imageSources.length === 0) {
+    return content;
+  }
+
+  const text = stripMarkdownImageTokens(content).trim();
+  const parts: ChatMessageContentPart[] = text ? [{ type: 'text', text }] : [];
+
+  for (const [index, src] of imageSources.entries()) {
+    const imagePart = await normalizeVisionAttachment(imageSourceToAttachment(src, index));
+    if (imagePart) {
+      parts.push(imagePart);
+    }
+  }
+
+  return parts.length > 0 ? parts : text;
 }
 
 function isAbsolutePath(path: string): boolean {
