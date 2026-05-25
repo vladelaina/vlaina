@@ -20,6 +20,13 @@ afterEach(() => {
 });
 
 describe('UserIdentityCard', () => {
+  it('does not render a membership badge for local signed-out usage', () => {
+    render(<UserIdentityCard onLogout={vi.fn()} onSwitchAccount={vi.fn()} />);
+
+    expect(screen.getByText('vlaina')).toBeInTheDocument();
+    expect(screen.queryByText('LOCAL')).not.toBeInTheDocument();
+  });
+
   it('does not label a connected account as Free while membership is still loading', () => {
     act(() => {
       useAccountSessionStore.setState({
