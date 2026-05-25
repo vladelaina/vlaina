@@ -36,6 +36,8 @@ interface EmojiTabProps {
   currentIcon?: string;
   activeCategory: string;
   onCategoryChange: (categoryId: string) => void;
+  searchQuery?: string;
+  alwaysShowCategories?: boolean;
 }
 
 export function EmojiTab({
@@ -49,6 +51,8 @@ export function EmojiTab({
   currentIcon,
   activeCategory,
   onCategoryChange,
+  searchQuery: externalSearchQuery,
+  alwaysShowCategories = false,
 }: EmojiTabProps) {
   const { t } = useI18n();
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -69,6 +73,16 @@ export function EmojiTab({
   onPreviewSkinToneRef.current = onPreviewSkinTone;
 
   const lastPreviewToneRef = useRef<number | null>(null);
+  const effectiveSearchQuery = searchQuery;
+  const setEffectiveSearchQuery = useCallback((query: string) => {
+    setSearchQuery(query);
+  }, []);
+
+  useEffect(() => {
+    if (externalSearchQuery === undefined) return;
+    if (document.activeElement === searchInputRef.current) return;
+    setSearchQuery(externalSearchQuery);
+  }, [externalSearchQuery]);
 
   useEffect(() => {
     const container = skinTonePickerRef.current;
@@ -134,8 +148,8 @@ export function EmojiTab({
   }, [activeCategory]);
 
   const searchResults = useMemo(() => {
-    if (!searchQuery.trim()) return null;
-    const query = searchQuery.toLowerCase();
+    if (!effectiveSearchQuery.trim()) return null;
+    const query = effectiveSearchQuery.toLowerCase();
     const results: EmojiItem[] = [];
     for (const cat of EMOJI_CATEGORIES) {
       for (const emoji of cat.emojis) {
@@ -151,7 +165,7 @@ export function EmojiTab({
       if (results.length >= 90) break;
     }
     return results;
-  }, [searchQuery]);
+  }, [effectiveSearchQuery]);
 
   const handlePreview = useCallback((emoji: string | null) => {
     onPreviewRef.current?.(emoji);
@@ -164,16 +178,16 @@ export function EmojiTab({
           ref={searchInputRef}
           type="text"
           placeholder={t('icon.searchEmojis')}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onClose={() => setSearchQuery('')}
+          value={effectiveSearchQuery}
+          onChange={(e) => setEffectiveSearchQuery(e.target.value)}
+          onClose={() => setEffectiveSearchQuery('')}
           closeLabel={t('icon.clearEmojiSearch')}
           className="min-w-0 flex-1 px-2 pt-2"
           containerClassName="h-8 gap-1.5 pl-2 pr-1"
           inputClassName="text-sm"
           closeButtonClassName={cn(
             'h-5 w-5',
-            searchQuery ? undefined : 'invisible pointer-events-none',
+            effectiveSearchQuery ? undefined : 'invisible pointer-events-none',
           )}
         />
 
@@ -208,7 +222,7 @@ export function EmojiTab({
         </div>
       </div>
 
-      {searchQuery && searchResults ? (
+      {effectiveSearchQuery && searchResults ? (
         <VirtualSearchResults
           results={searchResults}
           skinTone={effectiveSkinTone}
@@ -227,12 +241,15 @@ export function EmojiTab({
         />
       )}
 
-      {!searchQuery && (
+      {(!effectiveSearchQuery || alwaysShowCategories) && (
         <div className="flex items-center justify-around px-2 py-1.5 border-t border-[var(--vlaina-border)] bg-zinc-50 dark:bg-zinc-800/50">
           {EMOJI_CATEGORIES.map((category) => (
             <button
               key={category.id}
-              onClick={() => onCategoryChange(category.id)}
+              onClick={() => {
+                setEffectiveSearchQuery('');
+                onCategoryChange(category.id);
+              }}
               className={cn(
                 "w-8 h-8 flex items-center justify-center rounded-md text-lg transition-colors",
                 activeCategory === category.id

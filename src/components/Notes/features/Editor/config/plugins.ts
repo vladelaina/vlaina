@@ -6,6 +6,7 @@ import { collapsePlugin } from '../plugins/heading/collapse';
 import { mathPlugin } from '../plugins/math/mathPlugin';
 import { mathEditorPlugin } from '../plugins/math/mathEditorPlugin';
 import { slashPlugin } from '../plugins/slash/slashPlugin';
+import { emojiShortcutPlugin } from '../plugins/emoji-shortcut/emojiShortcutPlugin';
 import { calloutPlugin } from '../plugins/callout/calloutPlugin';
 import { tablePlugin } from '../plugins/table/tablePlugin';
 import { selectAllPlugin } from '../plugins/select-all/selectAllPlugin';
@@ -69,6 +70,7 @@ export const customPluginGroups = [
     name: 'blocks',
     plugins: [
       slashPlugin,
+      emojiShortcutPlugin,
       ...calloutPlugin,
       ...tablePlugin,
       selectAllPlugin,
